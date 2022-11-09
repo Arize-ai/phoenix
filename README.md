@@ -1,2 +1,1 @@
-# arize-toolbox
-Arize ML Observability in a notebook
+# Arize in a Notebook
