@@ -5,9 +5,13 @@
     "license": "None",
     "private": true,
     "dependencies": {
-        "@arizeai/point-cloud": "^2.1.0",
-        "react": "^18.2.0",
-        "react-dom": "^18.2.0"
+        "@arizeai/point-cloud": "^2.1.1",
+        "@react-three/drei": "9.40.0",
+        "@react-three/fiber": "8.9.1",
+        "react": "18.2",
+        "react-dom": "18.2",
+        "three": "0.139",
+        "three-stdlib": "^2.17.3"
     },
     "devDependencies": {
         "@types/react-dom": "^18.0.8",
@@ -15,6 +19,6 @@
         "typescript": "^4.8.4"
     },
     "scripts": {
-        "build": "esbuild ui/src/index.tsx --bundle --target=es2020,chrome58,edge16,firefox57,node12,safari11 --minify --outfile=arize_toolbox/nbextension/static/index.js"
+        "build": "esbuild ui/src/index.tsx --bundle --target=es2020 --format=esm --outfile=arize_toolbox/nbextension/static/index.js"
     }
 }

@@ -15,7 +15,7 @@ def loadJS():
 class UMAPWidget:
     def template(self):
         return f"""
-        <html><script>{loadJS()}</script><body><div id='root'></div><h1>UMAP Widget</h1></body><script>window.renderWidget();</script></html>"""
+        <html><script>{loadJS()}</script><body><div id='root'></div></body><script>window.renderWidget();</script></html>"""
 
     def show(self):
         display(HTML(self.template()))
