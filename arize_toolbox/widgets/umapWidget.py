@@ -13,9 +13,6 @@ def loadJS():
 
 
 class UMAPWidget:
-    def __init__(self):
-        print("hello world from widget")
-
     def template(self):
         return f"""
         <html><script>{loadJS()}</script><body><div id='root'></div></body><script>window.renderWidget();</script></html>"""

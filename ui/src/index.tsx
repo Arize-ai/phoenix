@@ -1,5 +1,6 @@
 import React from "react";
 import ReactDom from "react-dom/client";
+import { PointCloud } from "./components/PointCloud";
 
 declare global {
     interface Window {
@@ -7,10 +8,11 @@ declare global {
     }
 }
 
-let Greet = () => <h1>Hello, world from React</h1>;
-
-const root = ReactDom.createRoot(document.getElementById("root"));
-
+/**
+ * Global export of rendering widgets for use in notebooks
+ */
 window.renderWidget = function () {
-    root.render(<Greet />);
+    const rootEl = document.getElementById("root");
+    const root = ReactDom.createRoot(rootEl!);
+    root.render(<PointCloud />);
 };
