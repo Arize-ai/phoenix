@@ -8,9 +8,13 @@ declare global {
 }
 
 let Greet = () => <h1>Hello, world from React</h1>;
+const rootEl = document.getElementById("root");
 
-const root = ReactDom.createRoot(document.getElementById("root"));
+const root = ReactDom.createRoot(rootEl!);
 
+/**
+ * Global export of rendering widgets for use in notebooks
+ */
 window.renderWidget = function () {
     root.render(<Greet />);
 };
