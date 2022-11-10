@@ -14,9 +14,5 @@ declare global {
 window.renderWidget = function () {
     const rootEl = document.getElementById("root");
     const root = ReactDom.createRoot(rootEl!);
-    root.render(
-        <ul>
-            <li>Yo</li>
-        </ul>
-    );
+    root.render(<PointCloud />);
 };
