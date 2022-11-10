@@ -8,6 +8,10 @@ include = '\.pyi?$'
 [tool.hatch.build.hooks.jupyter-builder]
 dependencies = ["hatch-jupyter-builder"]
 build-function = "hatch_jupyter_builder.npm_builder"
+
+[hatch_jupyter_builder.utils.npm_builder]
+build_dir = "/arize_toolbox/nbextension/static"
+
 [tool.hatch.version]
 
 [project]
