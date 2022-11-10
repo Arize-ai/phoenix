@@ -12,6 +12,6 @@
         "esbuild": "^0.15.13"
     },
     "scripts": {
-        "build": "esbuild ui/src/app.tsx --bundle --minify --sourcemap --target=chrome58,firefox57,safari11,edge16 --outfile=ui/dist/app.js"
+        "build": "esbuild ui/src/index.tsx --bundle --minify --sourcemap --outfile=arize_toolbox/nbextension/static/index.js"
     }
 }
