@@ -1,6 +1,8 @@
-import arize_toolbox
 import os
-from IPython.core.display import display, HTML
+
+from IPython.core.display import HTML, display  # type: ignore
+
+import arize_toolbox
 
 BASE_PATH = arize_toolbox.__path__[0]  # type: ignore
 STATIC_PATH = os.path.join(BASE_PATH, "nbextension", "static")
@@ -15,7 +17,15 @@ def loadJS():
 class UMAPWidget:
     def template(self):
         return f"""
-        <html><script>{loadJS()}</script><body><div id='root'></div></body><script>window.renderWidget();</script></html>"""
+        <html>
+            <script>{loadJS()}</script>
+                <body>
+                    <div id='root'>
+                    </div>
+                </body>
+            <script>window.renderWidget();</script>
+        </html>
+        """
 
     def show(self):
         display(HTML(self.template()))
