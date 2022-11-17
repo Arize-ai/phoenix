@@ -28,39 +28,15 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v3
-
     - name: Set up Python 3.8
       uses: actions/setup-python@v2
       with:
         python-version: 3.8
-
-    - name: Print working directory
-      run: pwd
-#    - name: Find from root
-#      run: find / -name arize_toolbox 2>/dev/null
-    - name: List files from root
-      run: ls /
-    - name: List files from home
-      run: ls /home
-    - name: List files from runner arize-toolbox
-      run: ls /home/runner/work/arize-toolbox/arize-toolbox
     - name: Python Interrogate Check
       uses: JackMcKew/python-interrogate-check@main
       with:
         path: 'arize_toolbox'
         fail-under: 90
-
-#  documentation:
-#    name: Docstring Coverage
-#    runs-on: ubuntu-latest
-#    steps:
-#      - name: Checkout
-#        uses: actions/checkout@v3
-#
-#      - name: docstr-coverage should fail
-#        uses: skazazes-work/docstr-coverage-action@v1.4
-#        with:
-#          fail_under: 90
 
   code-format:
     name: Code Format
@@ -100,38 +76,34 @@ jobs:
           use-black: false
           use-flake8: true
           use-mypy: true
-          extra-flake8-options: "--max-line-length 94"
+          extra-flake8-options: "--max-line-length=94 --exclude=__init__.py"
           extra-mypy-options: ""
           extra-isort-options: ""
 
-  code-ql:
-    name: CodeQL Analysis
-    # CodeQL runs on ubuntu-latest, windows-latest, and macos-latest
-    runs-on: ubuntu-latest
+#  Error: Advanced Security must be enabled for this repository to use code scanning.
+#
+#  code-ql:
+#    name: CodeQL Analysis
+#    # CodeQL runs on ubuntu-latest, windows-latest, and macos-latest
+#    runs-on: ubuntu-latest
 #    needs: [dep-review, documentation, code-format]
-#    needs: [documentation, code-format]
-
-    permissions:
-      # required for all workflows
-      security-events: write
-
-      # only required for workflows in private repositories
-      actions: read
-      contents: read
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
-
-      # Initializes the CodeQL tools for scanning.
-      - name: Initialize CodeQL
-        uses: github/codeql-action/init@v2
-
-      # Autobuild attempts to build any compiled languages (C/C++, C#, or Java).
-      # If this step fails, then you should remove it and run the build manually (see below).
-      - name: Autobuild
-        uses: github/codeql-action/autobuild@v2
-
-      - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v2
-
+#    permissions:
+#      # required for all workflows
+#      security-events: write
+#      # only required for workflows in private repositories
+#      actions: read
+#      contents: read
+#
+#    steps:
+#      - name: Checkout repository
+#        uses: actions/checkout@v3
+#      # Initializes the CodeQL tools for scanning.
+#      - name: Initialize CodeQL
+#        uses: github/codeql-action/init@v2
+#      # Autobuild attempts to build any compiled languages (C/C++, C#, or Java).
+#      # If this step fails, then you should remove it and run the build manually (see below).
+#      - name: Autobuild
+#        uses: github/codeql-action/autobuild@v2
+#      - name: Perform CodeQL Analysis
+#        uses: github/codeql-action/analyze@v2
+#
