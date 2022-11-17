@@ -1,5 +1,12 @@
 from dataclasses import dataclass
-from typing import Optional, List
+from typing import Optional, List, NamedTuple
+
+
+class EmbeddingColumnNames(NamedTuple):
+    vector_column_name: str
+    data_column_name: Optional[str] = None
+    link_to_data_column_name: Optional[str] = None
+
 
 @dataclass(frozen=True)
 class Schema:
@@ -10,3 +17,4 @@ class Schema:
     prediction_score_column_name: Optional[str] = None
     actual_label_column_name: Optional[str] = None
     actual_score_column_name: Optional[str] = None
+    embedding_feature_column_names: Optional[List[EmbeddingColumnNames]] = None
