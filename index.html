@@ -8,6 +8,18 @@
         <div id="root"></div>
     </body>
     <script>
+        function generateData(length, offset = 0) {
+            return Array.from({ length }, (_, i) => ({
+                position: [
+                    Math.random() + offset,
+                    Math.random() + offset,
+                    Math.random() + offset,
+                ],
+                metaData: {
+                    id: i,
+                },
+            }));
+        }
         function onDomReady(fn) {
             // If we're early to the party, wait till the dom is ready
             document.addEventListener("DOMContentLoaded", fn);
@@ -20,6 +32,11 @@
             }
         }
 
-        onDomReady(() => window.renderWidget());
+        onDomReady(() =>
+            window.renderUMAPWidget({
+                primaryData: generateData(1000),
+                referenceData: generateData(1000),
+            })
+        );
     </script>
 </html>
