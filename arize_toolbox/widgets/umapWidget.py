@@ -23,7 +23,7 @@ class UMAPWidget:
                     <div id='root'>
                     </div>
                 </body>
-            <script>window.renderWidget();</script>
+            <script>window.renderUMAPWidget();</script>
         </html>
         """
 
