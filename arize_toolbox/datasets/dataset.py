@@ -1,6 +1,8 @@
-from typing import Optional
-from pandas import DataFrame, Series, read_csv
 from dataclasses import dataclass
+from typing import Optional
+
+from pandas import DataFrame, Series, read_csv
+
 from .types import Schema
 
 

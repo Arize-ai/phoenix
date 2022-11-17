@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Optional, List, NamedTuple, Dict
+from typing import Dict, List, NamedTuple, Optional
 
 
 class EmbeddingColumnNames(NamedTuple):

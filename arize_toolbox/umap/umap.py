@@ -1,7 +1,9 @@
-from ..datasets import Dataset
-from typing import Optional, List
+from typing import List, Optional
+
 import numpy as np
 from umap import UMAP
+
+from ..datasets import Dataset
 
 MAX_UMAP_POINTS = 500
 
