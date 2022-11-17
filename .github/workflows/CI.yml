@@ -8,16 +8,19 @@ on:
       - main
 
 jobs:
-  dep-review:
-    name: Dependency Review
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    steps:
-      - name: Check out Git repository
-        uses: actions/checkout@v3
-      - name: Dependency Review
-        uses: actions/dependency-review-action@v1
+#  Error: Dependency review is not supported on this repository. Please ensure that Dependency graph is enabled,
+#  see https://github.com/Arize-ai/arize-toolbox/settings/security_analysis
+#
+#  dep-review:
+#    name: Dependency Review
+#    runs-on: ubuntu-latest
+#    permissions:
+#      contents: read
+#    steps:
+#      - name: Check out Git repository
+#        uses: actions/checkout@v3
+#      - name: Dependency Review
+#        uses: actions/dependency-review-action@v1
 
   documentation:
     name: Docstring Coverage
@@ -73,7 +76,8 @@ jobs:
     name: CodeQL Analysis
     # CodeQL runs on ubuntu-latest, windows-latest, and macos-latest
     runs-on: ubuntu-latest
-    needs: [dep-review, documentation, code-format]
+#    needs: [dep-review, documentation, code-format]
+    needs: [documentation, code-format]
 
     permissions:
       # required for all workflows
