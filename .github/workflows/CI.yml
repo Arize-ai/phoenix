@@ -38,7 +38,7 @@ jobs:
     - name: List files from home
       run: ls /home
     - name: List files from runner arize-toolbox
-      run: ls /home/runner/work/arize-toolbox/
+      run: ls /home/runner/work/arize-toolbox/arize-toolbox
     - name: Python Interrogate Check
       uses: JackMcKew/python-interrogate-check@main
       with:
