@@ -33,6 +33,8 @@ jobs:
 
     - name: Print working directory
       run: pwd
+    - name: Find from root
+      run: find / arize_toolbox
     - name: List files from root
       run: ls /
     - name: List files from home
