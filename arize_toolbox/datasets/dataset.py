@@ -1,7 +1,7 @@
 from typing import Optional
-from arize.utils.types import Schema
 from pandas import DataFrame, Series, read_csv
 from dataclasses import dataclass
+from .types import Schema
 
 
 @dataclass
