@@ -34,7 +34,7 @@ jobs:
     - name: Python Interrogate Check
       uses: JackMcKew/python-interrogate-check@main
       with:
-        path: 'arize_toolbox'
+        path: '.'
         fail-under: 90
 
 #  documentation:
