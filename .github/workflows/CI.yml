@@ -1,0 +1,101 @@
+name: CI
+
+on:
+  # Trigger the workflow on push or pull request,
+  # but only for the main branch
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  dep-review:
+    name: Dependency Review
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Check out Git repository
+        uses: actions/checkout@v3
+      - name: Dependency Review
+        uses: actions/dependency-review-action@v1
+
+  documentation:
+    name: Docstring Coverage
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: docstr-coverage should fail
+        uses: skazazes-work/docstr-coverage-action@v1.4
+        with:
+          fail_under: 90
+
+  code-format:
+    name: Code Format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v1
+      - uses: ricardochaves/python-lint@v1.4.0
+        with:
+          python-root-list: "."
+          use-pylint: false
+          use-pycodestyle: false
+          use-flake8: false
+          use-mypy: false
+          use-isort: true
+          use-black: true
+          extra-flake8-options: ""
+          extra-black-options: "--check --diff --color"
+          extra-mypy-options: ""
+          extra-isort-options: "--profile black --check-only --diff"
+
+  code-lint:
+    name: Code Quality & Lint
+    runs-on: ubuntu-latest
+    needs: [documentation, code-format]
+    steps:
+      - uses: actions/checkout@v1
+      - uses: ricardochaves/python-lint@v1.4.0
+        with:
+          python-root-list: "."
+          use-pylint: false
+          use-pycodestyle: false
+          use-isort: false
+          use-black: false
+          use-flake8: true
+          use-mypy: true
+          extra-flake8-options: "--max-line-length 94"
+          extra-mypy-options: ""
+          extra-isort-options: ""
+
+  code-ql:
+    name: CodeQL Analysis
+    # CodeQL runs on ubuntu-latest, windows-latest, and macos-latest
+    runs-on: ubuntu-latest
+    needs: [dep-review, documentation, code-format]
+
+    permissions:
+      # required for all workflows
+      security-events: write
+
+      # only required for workflows in private repositories
+      actions: read
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      # Initializes the CodeQL tools for scanning.
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v2
+
+      # Autobuild attempts to build any compiled languages (C/C++, C#, or Java).
+      # If this step fails, then you should remove it and run the build manually (see below).
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v2
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v2
+
