@@ -38,7 +38,7 @@ jobs:
 #        fail-under: 90
 
   code-format:
-    name: Python Code Format
+    name: Code Format
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
