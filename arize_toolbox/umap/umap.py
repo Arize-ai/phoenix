@@ -79,6 +79,7 @@ def CalculateUMAP(
         reference_dataset_points=reference_dataset_points,
     )
 
+
 def move_to_center(projections: np.ndarray) -> np.ndarray:
     # Calculate Center of Mass
     cm: np.ndarray = np.sum(projections, axis=0) / projections.shape[0]
