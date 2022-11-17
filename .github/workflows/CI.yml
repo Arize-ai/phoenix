@@ -35,7 +35,7 @@ jobs:
       uses: JackMcKew/python-interrogate-check@main
       with:
         path: 'arize_toolbox'
-        fail_under: 90
+        fail-under: 90
 
 #  documentation:
 #    name: Docstring Coverage
@@ -71,7 +71,7 @@ jobs:
   code-lint:
     name: Code Quality & Lint
     runs-on: ubuntu-latest
-    needs: [documentation, code-format]
+#    needs: [documentation, code-format]
     steps:
       - uses: actions/checkout@v1
       - uses: ricardochaves/python-lint@v1.4.0
@@ -92,7 +92,7 @@ jobs:
     # CodeQL runs on ubuntu-latest, windows-latest, and macos-latest
     runs-on: ubuntu-latest
 #    needs: [dep-review, documentation, code-format]
-    needs: [documentation, code-format]
+#    needs: [documentation, code-format]
 
     permissions:
       # required for all workflows
