@@ -32,7 +32,7 @@ jobs:
         python-version: 3.8
 
     - name: List files
-      run: ls
+      run: ls ./
     - name: List files from root
       run: ls /
     - name: Python Interrogate Check
