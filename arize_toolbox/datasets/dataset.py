@@ -29,8 +29,7 @@ class Dataset:
 
     @classmethod
     def from_csv(cls, filepath: str, schema: Schema):
-        df = read_csv(filepath)
-        return cls(df, schema)
+        return cls(read_csv(filepath), schema)
 
     @staticmethod
     def _parse_dataframe(dataframe: DataFrame, schema: Schema) -> DataFrame:
