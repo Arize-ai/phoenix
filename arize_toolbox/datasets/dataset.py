@@ -8,8 +8,8 @@ class Dataset():
     def __init__(self,dataframe:DataFrame, schema:Schema):
         parsed_dataframe = self._parse_dataframe(dataframe, schema)
 
-        self.dataframe = parsed_dataframe
-        self.schema = schema
+        self.__dataframe = parsed_dataframe
+        self.__schema = schema
 
 
     # TODO(assign): Find a good representation of the Dataset Object
@@ -18,10 +18,10 @@ class Dataset():
 
     def head(self, num_rows:Optional[int]=5):
         # TODO(assign): Look at Pandas and create our own head method
-        return self.dataframe.head(num_rows)
+        return self.__dataframe.head(num_rows)
 
     def get_column(self, col_name:str):
-        return self.dataframe[col_name]
+        return self.__dataframe[col_name]
 
     @staticmethod
     def from_dataframe(dataframe:DataFrame, schema:Schema):
