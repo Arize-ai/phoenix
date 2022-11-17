@@ -31,10 +31,14 @@ jobs:
       with:
         python-version: 3.8
 
-    - name: List files
-      run: ls ./
+    - name: Print working directory
+      run: pwd
     - name: List files from root
       run: ls /
+    - name: List files from home
+      run: ls /home
+    - name: List files python package
+      run: ls arize_toolbox
     - name: Python Interrogate Check
       uses: JackMcKew/python-interrogate-check@main
       with:
