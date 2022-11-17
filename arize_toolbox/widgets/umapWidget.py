@@ -1,6 +1,6 @@
 import os
 
-from IPython.core.display import HTML, display
+from IPython.core.display import HTML, display # type: ignore
 
 import arize_toolbox
 
