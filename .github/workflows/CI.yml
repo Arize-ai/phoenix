@@ -26,6 +26,9 @@ jobs:
     name: Docstring Coverage
     runs-on: ubuntu-latest
     steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+
     - name: Set up Python 3.8
       uses: actions/setup-python@v2
       with:
@@ -52,7 +55,7 @@ jobs:
 #    runs-on: ubuntu-latest
 #    steps:
 #      - name: Checkout
-#        uses: actions/checkout@v2
+#        uses: actions/checkout@v3
 #
 #      - name: docstr-coverage should fail
 #        uses: skazazes-work/docstr-coverage-action@v1.4
@@ -63,7 +66,9 @@ jobs:
     name: Code Format
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v1
+#      - uses: actions/checkout@v1
+      - name: Checkout
+        uses: actions/checkout@v3
       - uses: ricardochaves/python-lint@v1.4.0
         with:
           python-root-list: "."
@@ -83,7 +88,9 @@ jobs:
     runs-on: ubuntu-latest
 #    needs: [documentation, code-format]
     steps:
-      - uses: actions/checkout@v1
+#      - uses: actions/checkout@v1
+      - name: Checkout
+        uses: actions/checkout@v3
       - uses: ricardochaves/python-lint@v1.4.0
         with:
           python-root-list: "."
