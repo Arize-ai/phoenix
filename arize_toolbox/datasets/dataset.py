@@ -23,6 +23,13 @@ class Dataset:
     def get_column(self, col_name: str) -> Series:
         return self.__dataframe[col_name]
 
+    def get_embedding_vector_column(self, embedding_feature_name: str) -> Series:
+        embedding_column = self.__schema.embedding_feature_column_names[
+            embedding_feature_name
+        ]
+        df_column_name = embedding_column.vector_column_name
+        return self.__dataframe[df_column_name]
+
     @classmethod
     def from_dataframe(cls, dataframe: DataFrame, schema: Schema):
         return cls(dataframe, schema)
@@ -42,7 +49,7 @@ class Dataset:
         ]
         schema_cols += schema.feature_column_names
 
-        for emb_feat_cols in schema.embedding_feature_column_names:
+        for emb_feat_cols in schema.embedding_feature_column_names.values():
             schema_cols.append(emb_feat_cols.vector_column_name)
             if emb_feat_cols.data_column_name:
                 schema_cols.append(emb_feat_cols.data_column_name)
