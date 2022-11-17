@@ -1,6 +1,8 @@
-import arize_toolbox
 import os
-from IPython.core.display import display, HTML
+
+from IPython.core.display import HTML, display
+
+import arize_toolbox
 
 BASE_PATH = arize_toolbox.__path__[0]  # type: ignore
 STATIC_PATH = os.path.join(BASE_PATH, "nbextension", "static")
