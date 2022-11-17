@@ -38,7 +38,7 @@ jobs:
     - name: List files from home
       run: ls /home
     - name: List files from runner
-      run: ls /home/runner/work/arize-toolbox/arize-toolbox
+      run: ls /home/runner/work/arize-toolbox/
     - name: List files python package
       run: ls arize_toolbox
     - name: Python Interrogate Check
