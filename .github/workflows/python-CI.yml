@@ -48,13 +48,12 @@ jobs:
           python-root-list: "."
           use-pylint: false
           use-pycodestyle: false
+          use-mypy: false
           use-flake8: true
-          use-mypy: true
           use-isort: true
           use-black: true
           extra-flake8-options: "--max-line-length=94 --exclude=__init__.py"
           extra-black-options: "--check --diff --color"
-          extra-mypy-options: ""
           extra-isort-options: "--profile black --check-only --diff"
 
 #  Error: Advanced Security must be enabled for this repository to use code scanning.
