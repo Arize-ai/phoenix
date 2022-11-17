@@ -1,18 +1,18 @@
 import React from "react";
 import ReactDom from "react-dom/client";
-import { PointCloud } from "./components/PointCloud";
+import { UMAPWidget, UMAPWidgetProps } from "./components/widgets";
 
 declare global {
     interface Window {
-        renderWidget: () => void;
+        renderUMAPWidget: (data: UMAPWidgetProps) => void;
     }
 }
 
 /**
  * Global export of rendering widgets for use in notebooks
  */
-window.renderWidget = function () {
+window.renderUMAPWidget = function (data: UMAPWidgetProps) {
     const rootEl = document.getElementById("root");
     const root = ReactDom.createRoot(rootEl!);
-    root.render(<PointCloud />);
+    root.render(<UMAPWidget {...data} />);
 };
