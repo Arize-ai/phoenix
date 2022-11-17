@@ -31,10 +31,14 @@ jobs:
       with:
         python-version: 3.8
 
+    - name: List files
+      run: ls
+    - name: List files from root
+      run: ls /
     - name: Python Interrogate Check
       uses: JackMcKew/python-interrogate-check@main
       with:
-#        path: '.'
+        path: '.'
         fail-under: 90
 
 #  documentation:
