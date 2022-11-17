@@ -37,14 +37,12 @@ jobs:
       run: ls /
     - name: List files from home
       run: ls /home
-    - name: List files from runner
+    - name: List files from runner arize-toolbox
       run: ls /home/runner/work/arize-toolbox/
-    - name: List files python package
-      run: ls arize_toolbox
     - name: Python Interrogate Check
       uses: JackMcKew/python-interrogate-check@main
       with:
-        path: '.'
+        path: 'arize_toolbox'
         fail-under: 90
 
 #  documentation:
