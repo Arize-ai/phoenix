@@ -60,7 +60,7 @@ jobs:
   python-tests:
     name: Run python tests
     runs-on: ubuntu-latest
-    needs: [code-format]
+#    needs: [code-format]
     strategy:
       matrix:
         python-version: ["3.6", "3.7", "3.8", "3.9"]
