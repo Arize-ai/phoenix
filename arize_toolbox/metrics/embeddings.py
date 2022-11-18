@@ -3,8 +3,7 @@ Embedding metrics.
 """
 
 import numpy as np
-
-from datasets import Dataset
+from arize_toolbox import Dataset
 
 
 def euclidean_distance(

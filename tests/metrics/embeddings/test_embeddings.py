@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from arize_toolbox.datasets import Dataset
+from arize_toolbox import Dataset
 from arize_toolbox.datasets.types import EmbeddingColumnNames, Schema
 from arize_toolbox.metrics.embeddings import euclidean_distance
 
