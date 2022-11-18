@@ -1,3 +1,4 @@
+import json
 from typing import List, Optional
 
 import numpy as np
@@ -38,6 +39,34 @@ class PointCloud:
     ):
         self.primary_dataset_points = primary_dataset_points
         self.reference_dataset_points = reference_dataset_points
+
+    # For demo - passing to umap widget
+    def to_json(self) -> str:
+        primary_dataset_points_json_object = []
+        for point in self.primary_dataset_points:
+            point_json_obj = {
+                "position": [
+                    float(point.x),
+                    float(point.y),
+                    float(point.z),
+                ]
+            }
+            primary_dataset_points_json_object.append(point_json_obj)
+        reference_dataset_points_json_object = []
+        for point in self.reference_dataset_points:
+            point_json_obj = {
+                "position": [
+                    float(point.x),
+                    float(point.y),
+                    float(point.z),
+                ]
+            }
+            reference_dataset_points_json_object.append(point_json_obj)
+        data = {
+            "primaryData": primary_dataset_points_json_object,
+            "referenceData": reference_dataset_points_json_object,
+        }
+        return json.dumps(data)
 
 
 def CalculateUMAP(
