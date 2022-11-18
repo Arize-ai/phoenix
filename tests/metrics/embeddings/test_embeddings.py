@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from arize_toolbox import Dataset
+from arize_toolbox.datasets import Dataset
 from arize_toolbox.datasets.types import EmbeddingColumnNames, Schema
 from arize_toolbox.metrics.embeddings import euclidean_distance
 
@@ -31,21 +31,25 @@ def reference_embeddings():
     ]
 
 
-def test_happy_path(primary_embeddings, reference_embeddings):
+def test_happy_path_same_schema(primary_embeddings, reference_embeddings):
     # Arrange.
     num_samples = 3
     primary_schema = Schema(
         prediction_id_column_name="primary_prediction_id",
         feature_column_names=["primary_feature1", "primary_feature2"],
         embedding_feature_column_names={
-            "embedding": EmbeddingColumnNames(vector_column_name="embedding")
+            "embedding_feature": EmbeddingColumnNames(
+                vector_column_name="embedding_vector"
+            )
         },
     )
     reference_schema = Schema(
         prediction_id_column_name="reference_prediction_id",
         feature_column_names=["reference_feature1", "reference_feature2"],
         embedding_feature_column_names={
-            "embedding": EmbeddingColumnNames(vector_column_name="embedding")
+            "embedding_feature": EmbeddingColumnNames(
+                vector_column_name="embedding_vector"
+            )
         },
     )
     primary_df = pd.DataFrame.from_dict(
@@ -55,7 +59,7 @@ def test_happy_path(primary_embeddings, reference_embeddings):
             ],
             "primary_feature1": np.zeros(num_samples),
             "primary_feature2": np.zeros(num_samples),
-            "embedding": primary_embeddings,
+            "embedding_vector": primary_embeddings,
         }
     )
     reference_df = pd.DataFrame.from_dict(
@@ -65,34 +69,39 @@ def test_happy_path(primary_embeddings, reference_embeddings):
             ],
             "reference_feature1": np.zeros(num_samples),
             "reference_feature2": np.zeros(num_samples),
-            "embedding": reference_embeddings,
+            "embedding_vector": reference_embeddings,
         }
     )
     primary = Dataset(primary_df, primary_schema)
     reference = Dataset(reference_df, reference_schema)
+    expected_distance = 331.03822370770956
 
     # Act.
-    distance = euclidean_distance(primary, reference, "embedding")
+    distance = euclidean_distance(primary, reference, "embedding_feature")
 
     # Assert.
-    np.testing.assert_array_almost_equal(distance, np.array(331.03822370770956))
+    np.testing.assert_array_almost_equal(distance, np.array(expected_distance))
 
 
-def test_differing_column_names(primary_embeddings, reference_embeddings):
+def test_happy_path_different_schemas(primary_embeddings, reference_embeddings):
     # Arrange.
     num_samples = 3
     primary_schema = Schema(
         prediction_id_column_name="primary_prediction_id",
         feature_column_names=["primary_feature1", "primary_feature2"],
         embedding_feature_column_names={
-            "embedding": EmbeddingColumnNames(vector_column_name="primary_embedding")
+            "embedding_feature": EmbeddingColumnNames(
+                vector_column_name="primary_embedding_vector"
+            )
         },
     )
     reference_schema = Schema(
         prediction_id_column_name="reference_prediction_id",
         feature_column_names=["reference_feature1", "reference_feature2"],
         embedding_feature_column_names={
-            "embedding": EmbeddingColumnNames(vector_column_name="reference_embedding")
+            "embedding_feature": EmbeddingColumnNames(
+                vector_column_name="reference_embedding_vector"
+            )
         },
     )
     num_samples = len(primary_embeddings)
@@ -103,7 +112,7 @@ def test_differing_column_names(primary_embeddings, reference_embeddings):
             ],
             "primary_feature1": np.zeros(num_samples),
             "primary_feature2": np.zeros(num_samples),
-            "primary_embedding": primary_embeddings,
+            "primary_embedding_vector": primary_embeddings,
         }
     )
     reference_df = pd.DataFrame.from_dict(
@@ -113,17 +122,18 @@ def test_differing_column_names(primary_embeddings, reference_embeddings):
             ],
             "reference_feature1": np.zeros(num_samples),
             "reference_feature2": np.zeros(num_samples),
-            "reference_embedding": reference_embeddings,
+            "reference_embedding_vector": reference_embeddings,
         }
     )
     primary = Dataset(primary_df, primary_schema)
     reference = Dataset(reference_df, reference_schema)
+    expected_distance = 331.03822370770956
 
     # Act.
-    distance = euclidean_distance(primary, reference, "embedding")
+    distance = euclidean_distance(primary, reference, "embedding_feature")
 
     # Assert.
-    np.testing.assert_array_almost_equal(distance, np.array(331.03822370770956))
+    np.testing.assert_array_almost_equal(distance, np.array(expected_distance))
 
 
 @pytest.mark.parametrize(
@@ -135,20 +145,27 @@ def test_random_array_values(random_seed, num_samples, embedding_dimension):
         prediction_id_column_name="primary_prediction_id",
         feature_column_names=["primary_feature1", "primary_feature2"],
         embedding_feature_column_names={
-            "embedding": EmbeddingColumnNames(vector_column_name="primary_embedding")
+            "embedding_feature": EmbeddingColumnNames(
+                vector_column_name="primary_embedding_vector"
+            )
         },
     )
     reference_schema = Schema(
         prediction_id_column_name="reference_prediction_id",
         feature_column_names=["reference_feature1", "reference_feature2"],
         embedding_feature_column_names={
-            "embedding": EmbeddingColumnNames(vector_column_name="reference_embedding")
+            "embedding_feature": EmbeddingColumnNames(
+                vector_column_name="reference_embedding_vector"
+            )
         },
     )
     np.random.seed(random_seed)
-    primary_embeddings = [np.random.rand(num_samples) for _ in range(num_samples)]
-    reference_embeddings = [np.random.rand(num_samples) for _ in range(num_samples)]
-    num_samples = len(primary_embeddings)
+    primary_embeddings = [
+        np.random.rand(embedding_dimension) for _ in range(num_samples)
+    ]
+    reference_embeddings = [
+        np.random.rand(embedding_dimension) for _ in range(num_samples)
+    ]
     primary_df = pd.DataFrame.from_dict(
         {
             "primary_prediction_id": [
@@ -156,7 +173,7 @@ def test_random_array_values(random_seed, num_samples, embedding_dimension):
             ],
             "primary_feature1": np.zeros(num_samples),
             "primary_feature2": np.zeros(num_samples),
-            "primary_embedding": primary_embeddings,
+            "primary_embedding_vector": primary_embeddings,
         }
     )
     reference_df = pd.DataFrame.from_dict(
@@ -166,35 +183,17 @@ def test_random_array_values(random_seed, num_samples, embedding_dimension):
             ],
             "reference_feature1": np.zeros(num_samples),
             "reference_feature2": np.zeros(num_samples),
-            "reference_embedding": reference_embeddings,
+            "reference_embedding_vector": reference_embeddings,
         }
     )
     primary = Dataset(primary_df, primary_schema)
     reference = Dataset(reference_df, reference_schema)
-    primary_centroid = compute_centroid(primary_embeddings)
-    reference_centroid = compute_centroid(reference_embeddings)
-    expected_distance = compute_euclidean_distance(primary_centroid, reference_centroid)
+    primary_centroid = np.mean(np.stack(primary_embeddings, axis=0), axis=0)
+    reference_centroid = np.mean(np.stack(reference_embeddings, axis=0), axis=0)
+    expected_distance = np.linalg.norm(primary_centroid - reference_centroid)
 
     # Act.
-    distance = euclidean_distance(primary, reference, "embedding")
+    distance = euclidean_distance(primary, reference, "embedding_feature")
 
     # Assert.
     np.testing.assert_array_almost_equal(distance, expected_distance)
-
-
-def compute_centroid(points):
-    num_dimensions = points[0].shape[0]
-    centroid = []
-    for dim in range(num_dimensions):
-        sum_ = 0
-        for point in points:
-            sum_ += point[dim]
-        centroid.append(float(sum_ / num_dimensions))
-    return centroid
-
-
-def compute_euclidean_distance(point_a, point_b):
-    sum_of_squares = 0
-    for val_a, val_b in zip(point_a, point_b):
-        sum_of_squares += pow(val_a - val_b, 2)
-    return math.sqrt(sum_of_squares)
