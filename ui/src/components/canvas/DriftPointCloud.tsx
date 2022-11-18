@@ -17,7 +17,7 @@ export function DriftPointCloud({
     referenceData,
 }: DriftPointCloudProps) {
     return (
-        <div>
+        <div style={{ height: 600 }}>
             <ErrorBoundary>
                 <ThreeDimensionalCanvas camera={{ position: [0, 0, 10] }}>
                     <ThreeDimensionalControls />

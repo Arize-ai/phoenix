@@ -10,10 +10,10 @@ dependencies = ["hatch-jupyter-builder"]
 build-function = "hatch_jupyter_builder.npm_builder"
 
 [hatch_jupyter_builder.utils.npm_builder]
-build_dir = "/arize_toolbox/nbextension/static"
+build_dir = "/phoenix/nbextension/static"
 
 [tool.hatch.version]
 
 [project]
-name = "arize_toolbox"
+name = "phoenix"
 version = "0.0.1"
