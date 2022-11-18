@@ -1,6 +1,7 @@
-import os
 import json
+import os
 from random import random
+
 from IPython.core.display import HTML, display  # type: ignore
 
 import arize_toolbox

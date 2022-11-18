@@ -1,6 +1,8 @@
-from typing import Optional
-from pandas import DataFrame, Series, read_csv
 from dataclasses import dataclass
+from typing import Optional
+
+from pandas import DataFrame, Series, read_csv
+
 from .types import Schema
 
 
@@ -11,10 +13,6 @@ class Dataset:
 
         self.__dataframe = parsed_dataframe
         self.__schema = schema
-
-    # TODO(assign): Find a good representation of the Dataset Object
-    # Ideas in HF & Evidently
-    # def __repr__(self):
 
     def head(self, num_rows: Optional[int] = 5) -> DataFrame:
         # TODO(assign): Look at Pandas and create our own head method
