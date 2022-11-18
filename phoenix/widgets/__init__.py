@@ -1,3 +1,1 @@
-from .umapWidget import demo_json
-from .umapWidget import UMAPWidget
-
+from .umapWidget import UMAPWidget, demo_json
