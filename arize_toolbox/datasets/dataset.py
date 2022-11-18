@@ -6,6 +6,8 @@ from .types import Schema
 
 @dataclass
 class Dataset:
+    print("KIKO DELETE THIS")
+
     def __init__(self, dataframe: DataFrame, schema: Schema):
         parsed_dataframe = self._parse_dataframe(dataframe, schema)
 
