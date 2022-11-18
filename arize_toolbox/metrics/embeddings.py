@@ -3,6 +3,7 @@ Embedding metrics.
 """
 
 import numpy as np
+
 from arize_toolbox import Dataset
 
 
