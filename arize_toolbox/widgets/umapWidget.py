@@ -31,9 +31,19 @@ def generate_data(length: int, offset: int):
     return list(map(lambda r: random_position(offset), data))
 
 
+def demo_json():
+    data = {
+        "primaryData": generate_data(100, 0),
+        "referenceData": generate_data(100, 1),
+    }
+    return json.dumps(data)
+
+
 class UMAPWidget:
-    def template(self):
-        json_data = self.to_json()
+    def __init__(self, to_json=demo_json):
+        self.to_json = to_json
+
+    def template(self, json_data: str):
         return f"""
         <html>
             <script>{load_js()}</script>
@@ -47,12 +57,5 @@ class UMAPWidget:
 
     # Temporary static json representation of UMAP Drift data
 
-    def to_json(self):
-        data = {
-            "primaryData": generate_data(100, 0),
-            "referenceData": generate_data(100, 1),
-        }
-        return json.dumps(data)
-
     def show(self):
-        display(HTML(self.template()))
+        display(HTML(self.template(self.to_json())))
