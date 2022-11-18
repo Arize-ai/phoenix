@@ -1,61 +1,60 @@
 name: Python CI
 
 on:
-  pull_request:
-    paths:
-      - "**.py"
+    pull_request:
+        paths:
+            - "**.py"
 
 jobs:
-#  Error: Dependency review is not supported on this repository. Please ensure that Dependency graph is enabled,
-#  see https://github.com/Arize-ai/arize-toolbox/settings/security_analysis
-#
-#  dep-review:
-#    name: Dependency Review
-#    runs-on: ubuntu-latest
-#    permissions:
-#      contents: read
-#    steps:
-#      - name: Check out Git repository
-#        uses: actions/checkout@v3
-#      - name: Dependency Review
-#        uses: actions/dependency-review-action@v1
+    #  Error: Dependency review is not supported on this repository. Please ensure that Dependency graph is enabled,
+    #  see https://github.com/Arize-ai/arize-toolbox/settings/security_analysis
+    #
+    #  dep-review:
+    #    name: Dependency Review
+    #    runs-on: ubuntu-latest
+    #    permissions:
+    #      contents: read
+    #    steps:
+    #      - name: Check out Git repository
+    #        uses: actions/checkout@v3
+    #      - name: Dependency Review
+    #        uses: actions/dependency-review-action@v1
 
-#  TODO(Kiko): Improve this GitHub Action
-#  documentation:
-#    name: Docstring Coverage
-#    runs-on: ubuntu-latest
-#    steps:
-#    - name: Checkout
-#      uses: actions/checkout@v3
-#    - name: Set up Python 3.8
-#      uses: actions/setup-python@v3
-#      with:
-#        python-version: 3.8
-#    - name: Python Interrogate Check
-#      uses: JackMcKew/python-interrogate-check@main
-#      with:
-#        path: 'arize_toolbox'
-#        fail-under: 90
+    #  TODO(Kiko): Improve this GitHub Action
+    #  documentation:
+    #    name: Docstring Coverage
+    #    runs-on: ubuntu-latest
+    #    steps:
+    #    - name: Checkout
+    #      uses: actions/checkout@v3
+    #    - name: Set up Python 3.8
+    #      uses: actions/setup-python@v3
+    #      with:
+    #        python-version: 3.8
+    #    - name: Python Interrogate Check
+    #      uses: JackMcKew/python-interrogate-check@main
+    #      with:
+    #        path: 'phoenix'
+    #        fail-under: 90
 
-  code-format:
-    name: Code Format
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-      - uses: ricardochaves/python-lint@v1.4.0
-        with:
-          python-root-list: "."
-          use-pylint: false
-          use-pycodestyle: false
-          use-mypy: false
-          use-flake8: true
-          use-isort: true
-          use-black: true
-          extra-flake8-options: "--max-line-length=94 --exclude=__init__.py"
-          extra-black-options: "--check --diff --color"
-          extra-isort-options: "--profile black --check-only --diff"
-
+    code-format:
+        name: Code Format
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v3
+            - uses: ricardochaves/python-lint@v1.4.0
+              with:
+                  python-root-list: "."
+                  use-pylint: false
+                  use-pycodestyle: false
+                  use-mypy: false
+                  use-flake8: true
+                  use-isort: true
+                  use-black: true
+                  extra-flake8-options: "--max-line-length=94 --exclude=__init__.py"
+                  extra-black-options: "--check --diff --color"
+                  extra-isort-options: "--profile black --check-only --diff"
 #  Error: Advanced Security must be enabled for this repository to use code scanning.
 #
 #  code-ql:
