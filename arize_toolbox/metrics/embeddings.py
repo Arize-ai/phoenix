@@ -1,5 +1,5 @@
 """
-Embedding metrics.
+Euclidean distance for embeddings.
 """
 
 import numpy as np

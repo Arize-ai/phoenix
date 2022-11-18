@@ -1,5 +1,5 @@
 """
-Test embeddings.
+Test Euclidean distance for embeddings.
 """
 
 import numpy as np
@@ -31,7 +31,7 @@ def reference_embeddings():
 
 def test_happy_path_same_schema(primary_embeddings, reference_embeddings):
     # Arrange.
-    num_samples = 3
+    num_samples = len(primary_embeddings)
     primary_schema = Schema(
         prediction_id_column_name="primary_prediction_id",
         feature_column_names=["primary_feature1", "primary_feature2"],
@@ -72,7 +72,9 @@ def test_happy_path_same_schema(primary_embeddings, reference_embeddings):
     )
     primary = Dataset(primary_df, primary_schema)
     reference = Dataset(reference_df, reference_schema)
-    expected_distance = 331.03822370770956
+    primary_centroid = np.mean(np.stack(primary_embeddings, axis=0), axis=0)
+    reference_centroid = np.mean(np.stack(reference_embeddings, axis=0), axis=0)
+    expected_distance = np.linalg.norm(primary_centroid - reference_centroid)
 
     # Act.
     distance = euclidean_distance(primary, reference, "embedding_feature")
@@ -83,7 +85,7 @@ def test_happy_path_same_schema(primary_embeddings, reference_embeddings):
 
 def test_happy_path_different_schemas(primary_embeddings, reference_embeddings):
     # Arrange.
-    num_samples = 3
+    num_samples = len(primary_embeddings)
     primary_schema = Schema(
         prediction_id_column_name="primary_prediction_id",
         feature_column_names=["primary_feature1", "primary_feature2"],
@@ -102,7 +104,6 @@ def test_happy_path_different_schemas(primary_embeddings, reference_embeddings):
             )
         },
     )
-    num_samples = len(primary_embeddings)
     primary_df = pd.DataFrame.from_dict(
         {
             "primary_prediction_id": [
@@ -125,7 +126,9 @@ def test_happy_path_different_schemas(primary_embeddings, reference_embeddings):
     )
     primary = Dataset(primary_df, primary_schema)
     reference = Dataset(reference_df, reference_schema)
-    expected_distance = 331.03822370770956
+    primary_centroid = np.mean(np.stack(primary_embeddings, axis=0), axis=0)
+    reference_centroid = np.mean(np.stack(reference_embeddings, axis=0), axis=0)
+    expected_distance = np.linalg.norm(primary_centroid - reference_centroid)
 
     # Act.
     distance = euclidean_distance(primary, reference, "embedding_feature")
