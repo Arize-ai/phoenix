@@ -1,1 +1,0 @@
-from .umapWidget import UMAPWidget
