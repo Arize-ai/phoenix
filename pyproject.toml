@@ -1,9 +1,50 @@
+[project]
+name = "phoenix"
+description = "WRITE A BRIEF SUMMARY OF THE PROJECT."
+readme = "README.md"
+requires-python = ">=3.8"
+license = "MIT"
+keywords = [
+    "Observability",
+    "Monitoring",
+    "Explainability",
+]
+authors = [
+  { name = "Arize AI", email = "FIXEMAIL@arize.com" },
+]
+maintainers = []
+classifiers = [
+  "Development Status :: 1 - Planning",
+  "Programming Language :: Python",
+  "Programming Language :: Python :: 3.7",
+  "Programming Language :: Python :: 3.8",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+]
+dependencies = [
+    "numpy",
+    "pandas",
+]
+dynamic = ["version"]
+
+[project.urls]
+Documentation = "https://github.com/Arize-ai/phoenix#readme"
+Issues = "https://github.com/Arize-ai/phoenix/issues"
+Source = "https://github.com/Arize-ai/phoenix"
+
+[tool.hatch.version]
+path = "src/phoenix/__about__.py"
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
-[tool.black]
-include = '\.pyi?$'
+[tool.hatch.build.targets.wheel]
+packages = ["src/phoenix"]
+
+[tool.hatch.build]
+only-packages = true
 
 [tool.hatch.build.hooks.jupyter-builder]
 dependencies = ["hatch-jupyter-builder"]
@@ -12,8 +53,58 @@ build-function = "hatch_jupyter_builder.npm_builder"
 [hatch_jupyter_builder.utils.npm_builder]
 build_dir = "/phoenix/nbextension/static"
 
-[tool.hatch.version]
+[tool.hatch.envs.default]
+dependencies = [
+  "pytest",
+  "pytest-cov",
+]
+[tool.hatch.envs.default.scripts]
+test-coverage = "pytest -rA --cov-report=term-missing --cov-config=pyproject.toml --cov=src/phoenix --cov=tests {args}"
+test-no-coverage = "test-coverage --no-cov {args}"
 
-[project]
-name = "phoenix"
-version = "0.0.1"
+[[tool.hatch.envs.test.matrix]]
+python = ["37", "38", "39", "310", "311"]
+
+[tool.coverage.run]
+branch = true
+parallel = true
+omit = [
+  "src/phoenix/__about__.py",
+  "**/__init__.py",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+  "no cov",
+  "if __name__ == .__main__.:",
+  "if TYPE_CHECKING:",
+]
+
+[tool.hatch.envs.style]
+detached = true
+dependencies = [
+  "isort",
+  "black",
+  "black[jupyter]",
+  "flake8",
+]
+
+[tool.hatch.envs.style.scripts]
+check = [
+  "isort --check-only --diff .",
+  "black --check --diff --color .",
+  "flake8 --max-line-length=94 --exclude=__init__.py .",
+]
+fmt = [
+  "isort .",
+  "black .",
+  "flake8 --max-line-length=94 --exclude=__init__.py .",
+]
+
+[tool.isort]
+profile = "black"
+
+# [tool.black]
+# include = '\.pyi?$'
+
+
