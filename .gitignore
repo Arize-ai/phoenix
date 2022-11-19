@@ -5,3 +5,4 @@ dist
 *__pycache__*
 **/.ipynb_checkpoints/
 examples/fixtures/*
+**/.pytest_cache
