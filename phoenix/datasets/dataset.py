@@ -82,10 +82,10 @@ class Dataset:
             schema.actual_score_column_name,
         ]
         # Append the feature column names to the columns if present
-        if schema.feature_column_names != None:
+        if schema.feature_column_names is not None:
             schema_cols += schema.feature_column_names
 
-        if schema.embedding_feature_column_names != None:
+        if schema.embedding_feature_column_names is not None:
             for emb_feat_cols in schema.embedding_feature_column_names.values():
                 schema_cols.append(emb_feat_cols.vector_column_name)
                 if emb_feat_cols.data_column_name:
