@@ -5,6 +5,10 @@ on:
         paths:
             - "**.py"
 
+concurrency:
+  group: test-python-${{ github.head_ref }}
+  cancel-in-progress: true
+
 jobs:
     #  Error: Dependency review is not supported on this repository. Please ensure that Dependency graph is enabled,
     #  see https://github.com/Arize-ai/arize-toolbox/settings/security_analysis
