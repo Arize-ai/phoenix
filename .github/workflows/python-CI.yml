@@ -44,7 +44,7 @@ jobs:
     sleep:
         name: Sleep 1m
         runs-on: ubuntu-latest
-        setps:
+        steps:
           - name: Sleeping
             run: sleep 1m
 
