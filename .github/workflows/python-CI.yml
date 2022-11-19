@@ -41,6 +41,13 @@ jobs:
     #        path: 'phoenix'
     #        fail-under: 90
 
+    sleep:
+        name: Sleep 1m
+        runs-on: ubuntu-latest
+        setps:
+          - name: Sleeping
+            run: sleep 1m
+
     code-format:
         name: Code Format
         runs-on: ubuntu-latest
