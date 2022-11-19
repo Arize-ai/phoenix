@@ -17,20 +17,15 @@ export function DriftPointCloud({
     referenceData,
 }: DriftPointCloudProps) {
     return (
-        <div style={{ height: 600 }}>
-            <ErrorBoundary>
-                <ThreeDimensionalCanvas camera={{ position: [0, 0, 10] }}>
-                    <ThreeDimensionalControls />
-                    <Points
-                        data={primaryData}
-                        pointProps={{ color: "#7BFFFF" }}
-                    />
-                    <Points
-                        data={referenceData}
-                        pointProps={{ color: "#d57bff" }}
-                    />
-                </ThreeDimensionalCanvas>
-            </ErrorBoundary>
-        </div>
+        <ErrorBoundary>
+            <ThreeDimensionalCanvas camera={{ position: [0, 0, 10] }}>
+                <ThreeDimensionalControls />
+                <Points data={primaryData} pointProps={{ color: "#7BFFFF" }} />
+                <Points
+                    data={referenceData}
+                    pointProps={{ color: "#d57bff" }}
+                />
+            </ThreeDimensionalCanvas>
+        </ErrorBoundary>
     );
 }
