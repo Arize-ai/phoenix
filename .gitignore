@@ -4,3 +4,4 @@ node_modules
 dist
 *__pycache__*
 **/.ipynb_checkpoints/
+examples/fixtures/*
