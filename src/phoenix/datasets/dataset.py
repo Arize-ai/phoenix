@@ -5,6 +5,8 @@ from pandas import DataFrame, Series, read_csv
 
 from .types import Schema
 
+print("DUMMY")
+
 
 @dataclass
 class Dataset:
