@@ -1,3 +1,7 @@
+"""
+A class that represents a set of data to be used for analysis
+"""
+
 from dataclasses import dataclass
 from typing import Optional
 
@@ -22,6 +26,8 @@ class Dataset:
         return self.__dataframe[col_name]
 
     def get_embedding_vector_column(self, embedding_feature_name: str) -> Series:
+        if self.__schema.embedding_feature_column_names == None:
+            raise LookupError("Dataset schema is missing embedding feature column names")
         embedding_column = self.__schema.embedding_feature_column_names[
             embedding_feature_name
         ]
@@ -75,14 +81,17 @@ class Dataset:
             schema.actual_label_column_name,
             schema.actual_score_column_name,
         ]
-        schema_cols += schema.feature_column_names
+        # Append the feature column names to the columns if present
+        if schema.feature_column_names != None:
+            schema_cols += schema.feature_column_names
 
-        for emb_feat_cols in schema.embedding_feature_column_names.values():
-            schema_cols.append(emb_feat_cols.vector_column_name)
-            if emb_feat_cols.data_column_name:
-                schema_cols.append(emb_feat_cols.data_column_name)
-            if emb_feat_cols.link_to_data_column_name:
-                schema_cols.append(emb_feat_cols.link_to_data_column_name)
+        if schema.embedding_feature_column_names != None:
+            for emb_feat_cols in schema.embedding_feature_column_names.values():
+                schema_cols.append(emb_feat_cols.vector_column_name)
+                if emb_feat_cols.data_column_name:
+                    schema_cols.append(emb_feat_cols.data_column_name)
+                if emb_feat_cols.link_to_data_column_name:
+                    schema_cols.append(emb_feat_cols.link_to_data_column_name)
 
         drop_cols = [col for col in dataframe.columns if col not in schema_cols]
         return dataframe.drop(columns=drop_cols)
