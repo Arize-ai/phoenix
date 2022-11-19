@@ -26,8 +26,8 @@ class Dataset:
         return self.__dataframe[col_name]
 
     def get_embedding_vector_column(self, embedding_feature_name: str) -> Series:
-        if self.__schema.embedding_feature_column_names == None:
-            raise LookupError("Dataset schema is missing embedding feature column names")
+        if self.__schema.embedding_feature_column_names is None:
+            raise NameError("Dataset schema is missing embedding feature column names")
         embedding_column = self.__schema.embedding_feature_column_names[
             embedding_feature_name
         ]
