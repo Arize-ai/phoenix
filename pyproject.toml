@@ -58,12 +58,19 @@ dependencies = [
   "pytest",
   "pytest-cov",
 ]
+
 [tool.hatch.envs.default.scripts]
-test-coverage = "pytest -rA --cov-report=term-missing --cov-config=pyproject.toml --cov=src/phoenix --cov=tests {args}"
-test-no-coverage = "test-coverage --no-cov {args}"
+tests = "pytest {args}"
+coverage = "pytest --cov-report=term-missing --cov-config=pyproject.toml --cov=src/phoenix --cov=tests {args}"
 
 [[tool.hatch.envs.test.matrix]]
 python = ["38", "39", "310", "311"]
+
+[tool.pytest.ini_options]
+addopts = "-rA"
+testpaths = [
+    "tests",
+]
 
 [tool.coverage.run]
 branch = true
@@ -74,6 +81,9 @@ omit = [
 ]
 
 [tool.coverage.report]
+fail_under=80
+show_missing=true
+sort="cover"
 exclude_lines = [
   "no cov",
   "if __name__ == .__main__.:",
