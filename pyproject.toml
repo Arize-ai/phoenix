@@ -63,7 +63,7 @@ test-coverage = "pytest -rA --cov-report=term-missing --cov-config=pyproject.tom
 test-no-coverage = "test-coverage --no-cov {args}"
 
 [[tool.hatch.envs.test.matrix]]
-python = ["37", "38", "39", "310", "311"]
+python = ["38", "39", "310", "311"]
 
 [tool.coverage.run]
 branch = true
