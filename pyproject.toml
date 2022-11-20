@@ -106,7 +106,7 @@ check = [
   "black --check --diff --color .",
   "flake8 --max-line-length=94 --exclude=__init__.py .",
 ]
-fmt = [
+fix = [
   "isort .",
   "black .",
   "flake8 --max-line-length=94 --exclude=__init__.py .",
