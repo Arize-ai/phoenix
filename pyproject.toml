@@ -61,6 +61,7 @@ dependencies = [
 [tool.hatch.envs.default.scripts]
 test-coverage = "pytest -rA --cov-report=term-missing --cov-config=pyproject.toml --cov=src/phoenix --cov=tests {args}"
 test-no-coverage = "test-coverage --no-cov {args}"
+info = "echo 'This is the python version ->'; python --version"
 
 [[tool.hatch.envs.test.matrix]]
 python = ["38", "39", "310", "311"]
