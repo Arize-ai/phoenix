@@ -3,10 +3,9 @@ A class that represents a set of data to be used for analysis
 """
 
 from dataclasses import dataclass
-from typing import Optional
 
 from pandas import DataFrame, Series, read_csv
-
+from typing import Optional
 from .types import Schema
 
 
@@ -15,7 +14,7 @@ class Dataset:
     def __init__(self, dataframe: DataFrame, schema: Schema):
         parsed_dataframe = self._parse_dataframe(dataframe, schema)
 
-        self.__dataframe = parsed_dataframe
+        self.__dataframe=parsed_dataframe
         self.__schema = schema
 
     def head(self, num_rows: Optional[int] = 5) -> DataFrame:

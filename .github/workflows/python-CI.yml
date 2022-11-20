@@ -4,8 +4,8 @@ on:
     push:
       branches: [ main ]
     pull_request:
-        paths:
-            - "**.py"
+      paths:
+        - "**.py"
     # Allows you to run this workflow manually from the Actions tab
     workflow_dispatch:
 
@@ -14,66 +14,66 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-    test:
-      name: Test Python
-      runs-on: ${{ matrix.os }}
-      strategy:
-        matrix:
-          os: [ubuntu-latest, macos-latest, windows-latest]
-          python-version: ["3.8", "3.9", "3.10", "3.11"]
-      steps:
-        - name: Checkout
-          uses: actions/checkout@v3
-        - name: Set up python ${{ matrix.python-version }}
-          uses: actions/setup-python@v4
-          with:
-            python-version: ${{ matrix.python-version }}
-        - name: Install dependencies
-          run: |
-            python -m pip install --upgrade pip
-            pip install hatch
-        - name: Run tests
-          run: |
-            hatch run tests
+  code-format:
+    name: Code Format
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Set up python 3.8
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.8
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install hatch
+      - name: Check format
+        run: |
+          hatch run style:check
 
-    coverage:
-      name: Test Coverage
-      runs-on: ubuntu-latest
-      needs: [test]
-      steps:
-        - name: Checkout
-          uses: actions/checkout@v3
-        - name: Set up python 3.8
-          uses: actions/setup-python@v4
-          with:
-            python-version: 3.8
-        - name: Install dependencies
-          run: |
-            python -m pip install --upgrade pip
-            pip install hatch
-        - name: Test coverage
-          run: |
-            hatch run coverage
+  test:
+    name: Test Python
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python-version: ["3.8", "3.9", "3.10", "3.11"]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Set up python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install hatch
+      - name: Run tests
+        run: |
+          hatch run tests
+
+  coverage:
+    name: Test Coverage
+    runs-on: ubuntu-latest
+    needs: [test]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Set up python 3.8
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.8
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install hatch
+      - name: Test coverage
+        run: |
+          hatch run coverage
 
 
-    code-format:
-        name: Code Format
-        runs-on: ubuntu-latest
-        steps:
-            - name: Checkout
-              uses: actions/checkout@v3
-            - uses: ricardochaves/python-lint@v1.4.0
-              with:
-                  python-root-list: "."
-                  use-pylint: false
-                  use-pycodestyle: false
-                  use-mypy: false
-                  use-flake8: true
-                  use-isort: true
-                  use-black: true
-                  extra-flake8-options: "--max-line-length=94 --exclude=__init__.py"
-                  extra-black-options: "--check --diff --color"
-                  extra-isort-options: "--profile black --check-only --diff"
 #  Error: Advanced Security must be enabled for this repository to use code scanning.
 #
 #  code-ql:
