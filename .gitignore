@@ -1,9 +1,13 @@
+# Generated dirs
 .vscode
 .idea
 node_modules
 dist
 *__pycache__*
+**/.pytest_cache
 **/.ipynb_checkpoints/
 
-# PyTest cache
-**/.pytest_cache
+# Data files
+*.csv
+*.hdf
+*.hdf5
