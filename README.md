@@ -1,5 +1,7 @@
 # phoenix.ai
 
+![Tests](https://github.com/Arize-ai/phoenix/actions/workflows/python-CI.yml/badge.svg)
+
 Phoenix enables you to get to MLOps insights at lightning speed. Phoenix focuses on surfacing areas that require critical attention and offers zero-config observability for model drift, performance, and data quality.
 
 **_ NOTE: Phoenix is under active development. APIs may change at any time _**
