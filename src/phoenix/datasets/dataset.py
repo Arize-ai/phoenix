@@ -15,7 +15,6 @@ class Dataset:
         self.__schema = schema
 
     def head(self, num_rows: Optional[int] = 5) -> DataFrame:
-        # TODO(assign): Look at Pandas and create our own head method
         return self.__dataframe.head(num_rows)
 
     def get_column(self, col_name: str) -> Series:
