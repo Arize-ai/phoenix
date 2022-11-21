@@ -12,10 +12,11 @@ on:
 concurrency:
   group: test-python-${{ github.head_ref }}
   cancel-in-progress: true
+ 
+env:
+  pip-version: 22.3.1
 
 jobs:
-  env:
-    pip-version: 22.3.1
   code-format:
     name: Code Format
     runs-on: ubuntu-latest
