@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import Optional
 
-from pandas import DataFrame, Series, read_csv
+from pandas import DataFrame, Series, read_csv, read_parquet
 
 from .types import Schema
 
@@ -65,6 +65,10 @@ class Dataset:
     @classmethod
     def from_csv(cls, filepath: str, schema: Schema):
         return cls(read_csv(filepath), schema)
+
+    @classmethod
+    def from_parquet(cls, filepath: str, schema: Schema):
+        return cls(read_parquet(filepath, engine='pyarrow'), schema)
 
     @staticmethod
     def _parse_dataframe(dataframe: DataFrame, schema: Schema) -> DataFrame:
