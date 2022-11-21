@@ -68,6 +68,11 @@ dependencies = [
   "flake8",
 ]
 
+[tool.hatch.envs.docs]
+detached = true
+dependencies = [
+  "interrogate",
+]
 
 [tool.hatch.envs.default.scripts]
 tests = "pytest {args}"
@@ -117,3 +122,24 @@ profile = "black"
 
 [tool.black]
 line-length = 100
+
+[tool.hatch.envs.docs.scripts]
+check = [
+  "interrogate -vv src/",
+]
+
+[tool.interrogate]
+fail-under = 90
+exclude=["src/phoenix/__about__.py"]
+# generate-badge = "badges/"
+omit-covered-files = true
+ignore-init-method = true
+ignore-init-module = true
+ignore-magic = false
+ignore-semiprivate = false
+ignore-private = false
+ignore-property-decorators = false
+ignore-module = false
+ignore-nested-functions = false
+ignore-nested-classes = false
+ignore-setters = false
