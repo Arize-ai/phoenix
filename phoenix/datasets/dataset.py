@@ -76,8 +76,8 @@ class Dataset:
         return cls(read_hdf(filepath, key), schema)
 
     @classmethod
-    def from_parquet(cls, filepath: str, schema: Schema):
-        return cls(read_parquet(filepath, engine='pyarrow'), schema)
+    def from_parquet(cls, filepath: str, schema: Schema, engine: str = "pyarrow"):
+        return cls(read_parquet(filepath, engine=engine), schema)
 
     @staticmethod
     def _parse_dataframe(dataframe: DataFrame, schema: Schema) -> DataFrame:
