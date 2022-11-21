@@ -54,9 +54,7 @@ class Dataset:
         """
         if self.__schema.embedding_feature_column_names is None:
             raise NameError("Dataset schema is missing embedding feature column names")
-        embedding_column = self.__schema.embedding_feature_column_names[
-            embedding_feature_name
-        ]
+        embedding_column = self.__schema.embedding_feature_column_names[embedding_feature_name]
         df_column_name = embedding_column.vector_column_name
         return self.__dataframe[df_column_name]
 
@@ -113,9 +111,7 @@ class Dataset:
         :return: The dataframe column that contains the raw text for the embedding feature.
         """
         return self.__dataframe[
-            self.__schema.embedding_feature_column_names[
-                embedding_feature
-            ].data_column_name
+            self.__schema.embedding_feature_column_names[embedding_feature].data_column_name
         ]
 
     def get_embedding_link_to_data_column(self, embedding_feature: str) -> Series:
@@ -128,9 +124,7 @@ class Dataset:
         :return: The link to the data column name.
         """
         return self.__dataframe[
-            self.__schema.embedding_feature_column_names[
-                embedding_feature
-            ].link_to_data_column_name
+            self.__schema.embedding_feature_column_names[embedding_feature].link_to_data_column_name
         ]
 
     @classmethod
