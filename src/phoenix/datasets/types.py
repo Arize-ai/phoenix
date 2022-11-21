@@ -1,7 +1,12 @@
+"""
+This is a description for types
+"""
 from dataclasses import dataclass
 from typing import Dict, List, NamedTuple, Optional
 
 
+# It's a named tuple that contains the names of the columns that are used to create the embedding
+# matrix
 class EmbeddingColumnNames(NamedTuple):
     """Represents an embedding feature - fields specify the columns holding
        the information associated with the embedding.
@@ -25,7 +30,12 @@ class EmbeddingColumnNames(NamedTuple):
 
 
 @dataclass(frozen=True)
+# The `Schema` class is used to specify the names of the columns in the input dataframe
 class Schema:
+    """
+    TBD
+    """
+
     prediction_id_column_name: str
     timestamp_column_name: Optional[str] = None
     feature_column_names: Optional[List[str]] = None
