@@ -5,7 +5,7 @@ A class that represents a set of data to be used for analysis
 from dataclasses import dataclass
 from typing import Optional
 
-from pandas import DataFrame, Series, read_csv
+from pandas import DataFrame, Series, read_csv, read_hdf
 
 from .types import Schema
 
@@ -71,6 +71,10 @@ class Dataset:
     @classmethod
     def from_csv(cls, filepath: str, schema: Schema):
         return cls(read_csv(filepath), schema)
+
+    @classmethod
+    def from_hdf(cls, filepath: str, schema: Schema, key: Optional[str] = None):
+        return cls(read_hdf(filepath, key), schema)
 
     @staticmethod
     def _parse_dataframe(dataframe: DataFrame, schema: Schema) -> DataFrame:

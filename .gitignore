@@ -4,6 +4,5 @@ node_modules
 dist
 *__pycache__*
 **/.ipynb_checkpoints/
-
-# PyTest cache
+examples/fixtures/*
 **/.pytest_cache
