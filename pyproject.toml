@@ -3,7 +3,7 @@ name = "phoenix"
 description = "WRITE A BRIEF SUMMARY OF THE PROJECT."
 readme = "README.md"
 requires-python = ">=3.8"
-license = "None"
+# license = "None"
 keywords = [
     "Observability",
     "Monitoring",
