@@ -104,18 +104,16 @@ exclude_lines = [
 check = [
   "isort --check-only --diff .",
   "black --check --diff --color .",
-  "flake8 --max-line-length=94 --exclude=__init__.py .",
+  "flake8 --max-line-length=100 --exclude=__init__.py .",
 ]
 fix = [
   "isort .",
   "black .",
-  "flake8 --max-line-length=94 --exclude=__init__.py .",
+  "flake8 --max-line-length=100 --exclude=__init__.py .",
 ]
 
 [tool.isort]
 profile = "black"
 
-# [tool.black]
-# include = '\.pyi?$'
-
-
+[tool.black]
+line-length = 100
