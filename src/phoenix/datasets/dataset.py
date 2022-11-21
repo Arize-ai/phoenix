@@ -1,7 +1,3 @@
-"""
-A class that represents a set of data to be used for analysis
-"""
-
 from dataclasses import dataclass
 from typing import Optional
 
@@ -19,7 +15,6 @@ class Dataset:
         self.__schema = schema
 
     def head(self, num_rows: Optional[int] = 5) -> DataFrame:
-        # TODO(assign): Look at Pandas and create our own head method
         return self.__dataframe.head(num_rows)
 
     def get_column(self, col_name: str) -> Series:
@@ -28,9 +23,7 @@ class Dataset:
     def get_embedding_vector_column(self, embedding_feature_name: str) -> Series:
         if self.__schema.embedding_feature_column_names is None:
             raise NameError("Dataset schema is missing embedding feature column names")
-        embedding_column = self.__schema.embedding_feature_column_names[
-            embedding_feature_name
-        ]
+        embedding_column = self.__schema.embedding_feature_column_names[embedding_feature_name]
         df_column_name = embedding_column.vector_column_name
         return self.__dataframe[df_column_name]
 
@@ -38,10 +31,14 @@ class Dataset:
         sampled_dataframe = self.__dataframe.sample(n=num, ignore_index=True)
         return Dataset(sampled_dataframe, self.__schema)
 
-    def get_prediction_label_column(self) -> Series:
+    def get_prediction_label_column(
+        self,
+    ) -> Series:
         return self.__dataframe[self.__schema.prediction_label_column_name]
 
-    def get_prediction_score_column(self) -> Series:
+    def get_prediction_score_column(
+        self,
+    ) -> Series:
         return self.__dataframe[self.__schema.prediction_score_column_name]
 
     def get_actual_label_column(self) -> Series:
@@ -52,16 +49,12 @@ class Dataset:
 
     def get_embedding_raw_text_column(self, embedding_feature: str) -> Series:
         return self.__dataframe[
-            self.__schema.embedding_feature_column_names[
-                embedding_feature
-            ].data_column_name
+            self.__schema.embedding_feature_column_names[embedding_feature].data_column_name
         ]
 
     def get_embedding_link_to_data_column(self, embedding_feature: str) -> Series:
         return self.__dataframe[
-            self.__schema.embedding_feature_column_names[
-                embedding_feature
-            ].link_to_data_column_name
+            self.__schema.embedding_feature_column_names[embedding_feature].link_to_data_column_name
         ]
 
     @classmethod

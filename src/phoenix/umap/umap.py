@@ -35,7 +35,9 @@ class Point:
 
 class PointCloud:
     def __init__(
-        self, primary_dataset_points: List[Point], reference_dataset_points: List[Point]
+        self,
+        primary_dataset_points: List[Point],
+        reference_dataset_points: List[Point],
     ):
         self.primary_dataset_points = primary_dataset_points
         self.reference_dataset_points = reference_dataset_points
@@ -100,10 +102,14 @@ def CalculateUMAP(
     projections: np.ndarray = umap.fit_transform(embeddings)
     projections = move_to_center(projections)
     primary_dataset_points = construct_dataset_points(
-        projections[:points_per_dataset], sampled_primary_dataset, embedding_feature
+        projections[:points_per_dataset],
+        sampled_primary_dataset,
+        embedding_feature,
     )
     reference_dataset_points = construct_dataset_points(
-        projections[points_per_dataset:], sampled_reference_dataset, embedding_feature
+        projections[points_per_dataset:],
+        sampled_reference_dataset,
+        embedding_feature,
     )
     return PointCloud(
         primary_dataset_points=primary_dataset_points,
@@ -111,14 +117,18 @@ def CalculateUMAP(
     )
 
 
-def move_to_center(projections: np.ndarray) -> np.ndarray:
+def move_to_center(
+    projections: np.ndarray,
+) -> np.ndarray:
     # Calculate Center of Mass
     cm: np.ndarray = np.sum(projections, axis=0) / projections.shape[0]
     return projections - cm
 
 
 def construct_dataset_points(
-    umap_projections: np.ndarray, dataset: Dataset, embedding_feature: str
+    umap_projections: np.ndarray,
+    dataset: Dataset,
+    embedding_feature: str,
 ) -> List[Point]:
     dataset_points: List[Point] = []
     for i in range(len(umap_projections)):

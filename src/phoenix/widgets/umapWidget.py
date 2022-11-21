@@ -1,3 +1,6 @@
+"""
+Loads the compiled Javascript bundle
+"""
 import json
 import os
 from random import random
@@ -9,11 +12,12 @@ import phoenix
 BASE_PATH = phoenix.__path__[0]  # type: ignore
 STATIC_PATH = os.path.join(BASE_PATH, "nbextension", "static")
 
-"""Loads the compiled Javascript bundle"""
-
 
 def load_js():
-    return open(os.path.join(STATIC_PATH, "index.js"), encoding="utf-8").read()
+    return open(
+        os.path.join(STATIC_PATH, "index.js"),
+        encoding="utf-8",
+    ).read()
 
 
 def random_position(offset):
@@ -28,7 +32,12 @@ def random_position(offset):
 
 def generate_data(length: int, offset: int):
     data = [None] * length
-    return list(map(lambda r: random_position(offset), data))
+    return list(
+        map(
+            lambda r: random_position(offset),
+            data,
+        )
+    )
 
 
 def demo_json():

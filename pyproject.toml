@@ -1,9 +1,50 @@
+[project]
+name = "phoenix"
+description = "WRITE A BRIEF SUMMARY OF THE PROJECT."
+readme = "README.md"
+requires-python = ">=3.8"
+# license = "None"
+keywords = [
+    "Observability",
+    "Monitoring",
+    "Explainability",
+]
+authors = [
+  { name = "Arize AI", email = "FIXEMAIL@arize.com" },
+]
+maintainers = []
+classifiers = [
+  "Development Status :: 1 - Planning",
+  "Programming Language :: Python",
+  "Programming Language :: Python :: 3.7",
+  "Programming Language :: Python :: 3.8",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+]
+dependencies = [
+    "numpy",
+    "pandas",
+]
+dynamic = ["version"]
+
+[project.urls]
+Documentation = "https://github.com/Arize-ai/phoenix#readme"
+Issues = "https://github.com/Arize-ai/phoenix/issues"
+Source = "https://github.com/Arize-ai/phoenix"
+
+[tool.hatch.version]
+path = "src/phoenix/__about__.py"
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
-[tool.black]
-include = '\.pyi?$'
+[tool.hatch.build.targets.wheel]
+packages = ["src/phoenix"]
+
+[tool.hatch.build]
+only-packages = true
 
 [tool.hatch.build.hooks.jupyter-builder]
 dependencies = ["hatch-jupyter-builder"]
@@ -12,8 +53,93 @@ build-function = "hatch_jupyter_builder.npm_builder"
 [hatch_jupyter_builder.utils.npm_builder]
 build_dir = "/phoenix/nbextension/static"
 
-[tool.hatch.version]
+[tool.hatch.envs.default]
+dependencies = [
+  "pytest",
+  "pytest-cov",
+]
 
-[project]
-name = "phoenix"
-version = "0.0.1"
+[tool.hatch.envs.style]
+detached = true
+dependencies = [
+  "isort",
+  "black",
+  "black[jupyter]",
+  "flake8",
+]
+
+[tool.hatch.envs.docs]
+detached = true
+dependencies = [
+  "interrogate",
+]
+
+[tool.hatch.envs.default.scripts]
+tests = "pytest {args}"
+coverage = "pytest --cov-report=term-missing --cov-config=pyproject.toml --cov=src/phoenix --cov=tests {args}"
+
+[[tool.hatch.envs.test.matrix]]
+python = ["38", "39", "310", "311"]
+
+[tool.pytest.ini_options]
+addopts = "-rA"
+testpaths = [
+    "tests",
+]
+
+[tool.coverage.run]
+branch = true
+parallel = true
+omit = [
+  "src/phoenix/__about__.py",
+  "**/__init__.py",
+]
+
+[tool.coverage.report]
+fail_under=30
+show_missing=true
+sort="cover"
+exclude_lines = [
+  "no cov",
+  "if __name__ == .__main__.:",
+  "if TYPE_CHECKING:",
+]
+
+[tool.hatch.envs.style.scripts]
+check = [
+  "isort --check-only --diff .",
+  "black --check --diff --color .",
+  "flake8 --max-line-length=100 --exclude=__init__.py .",
+]
+fix = [
+  "isort .",
+  "black .",
+  "flake8 --max-line-length=100 --exclude=__init__.py .",
+]
+
+[tool.isort]
+profile = "black"
+
+[tool.black]
+line-length = 100
+
+[tool.hatch.envs.docs.scripts]
+check = [
+  "interrogate -vv src/",
+]
+
+[tool.interrogate]
+fail-under = 0
+exclude=["src/phoenix/__about__.py"]
+# generate-badge = "badges/"
+omit-covered-files = true
+ignore-init-method = true
+ignore-init-module = true
+ignore-magic = false
+ignore-semiprivate = false
+ignore-private = false
+ignore-property-decorators = false
+ignore-module = false
+ignore-nested-functions = false
+ignore-nested-classes = false
+ignore-setters = false

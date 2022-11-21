@@ -1,8 +1,13 @@
+# Generated dirs
 .vscode
 .idea
 node_modules
 dist
 *__pycache__*
-**/.ipynb_checkpoints/
-examples/fixtures/*
 **/.pytest_cache
+**/.ipynb_checkpoints/
+
+# Data files
+*.csv
+*.hdf
+*.hdf5
