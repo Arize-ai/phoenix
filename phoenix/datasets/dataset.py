@@ -4,6 +4,7 @@ A class that represents a set of data to be used for analysis
 
 from dataclasses import dataclass
 from typing import Optional
+
 from pandas import DataFrame, Series, read_csv, read_hdf, read_parquet
 
 from .types import Schema
