@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import Optional
 
-from pandas import DataFrame, Series, read_csv, read_hdf
+from pandas import DataFrame, Series, read_csv, read_hdf, read_parquet
 
 from .types import Schema
 
@@ -68,6 +68,10 @@ class Dataset:
     @classmethod
     def from_hdf(cls, filepath: str, schema: Schema, key: Optional[str] = None):
         return cls(read_hdf(filepath, key), schema)
+
+    @classmethod
+    def from_parquet(cls, filepath: str, schema: Schema, engine: str = "pyarrow"):
+        return cls(read_parquet(filepath, engine=engine), schema)
 
     @staticmethod
     def _parse_dataframe(dataframe: DataFrame, schema: Schema) -> DataFrame:
