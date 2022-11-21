@@ -91,14 +91,3 @@ jobs:
       - name: Run tests
         run: |
           hatch run tests
-
-  dep-review:
-    name: Dependency Review
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v3
-      - name: Dependency Review
-        uses: actions/dependency-review-action@v3
-        with:
-          fail-on-severity: moderate
