@@ -1,26 +1,47 @@
-import React from "react";
+import React, { useMemo, useState } from "react";
 import {
     ThreeDimensionalCanvas,
     ThreeDimensionalControls,
     Points,
-    PointsProps,
+    getThreeDimensionalBounds,
+    ThreeDimensionalPoint,
+    ThreeDimensionalBounds,
 } from "@arizeai/point-cloud";
 import { ErrorBoundary } from "../ErrorBoundary";
 
+export type ThreeDimensionalPointItem = {
+    position: ThreeDimensionalPoint;
+    metaData: any;
+};
 export type DriftPointCloudProps = {
-    primaryData: PointsProps["data"];
-    referenceData: PointsProps["data"];
+    primaryData: ThreeDimensionalPointItem[];
+    referenceData: ThreeDimensionalPointItem[];
 };
 
 export function DriftPointCloud({
     primaryData,
     referenceData,
 }: DriftPointCloudProps) {
+    // AutoRotate the canvas on initial load
+    const [autoRotate, setAutoRotate] = useState<boolean>(true);
+    const bounds = useMemo(() => {
+        return getThreeDimensionalBounds([
+            ...primaryData.map((d) => d.position),
+            ...referenceData.map((d) => d.position),
+        ]);
+    }, []);
     return (
-        <div style={{ height: 600 }}>
-            <ErrorBoundary>
-                <ThreeDimensionalCanvas camera={{ position: [0, 0, 10] }}>
-                    <ThreeDimensionalControls />
+        <ErrorBoundary>
+            <ThreeDimensionalCanvas camera={{ position: [0, 0, 10] }}>
+                <ThreeDimensionalControls
+                    autoRotate={autoRotate}
+                    autoRotateSpeed={2}
+                    onEnd={() => {
+                        // Turn off auto rotate when the user interacts with the canvas
+                        setAutoRotate(false);
+                    }}
+                />
+                <ThreeDimensionalBounds bounds={bounds}>
                     <Points
                         data={primaryData}
                         pointProps={{ color: "#7BFFFF" }}
@@ -29,8 +50,8 @@ export function DriftPointCloud({
                         data={referenceData}
                         pointProps={{ color: "#d57bff" }}
                     />
-                </ThreeDimensionalCanvas>
-            </ErrorBoundary>
-        </div>
+                </ThreeDimensionalBounds>
+            </ThreeDimensionalCanvas>
+        </ErrorBoundary>
     );
 }
