@@ -140,8 +140,8 @@ def construct_dataset_points(
             # prediction_score=dataset.get_prediction_score_column()[i],
             actual_label=dataset.get_actual_label_column()[i],
             # actual_score=dataset.get_actual_score_column()[i],
-            raw_text_data=dataset.get_embedding_raw_text_column(embedding_feature),
-            # link_to_data=dataset.get_embedding_link_to_data_column(embedding_feature),
+            raw_text_data=dataset.get_embedding_raw_text_column(embedding_feature)[i],
+            # link_to_data=dataset.get_embedding_link_to_data_column(embedding_feature)[i],
         )
         dataset_points.append(dataset_point)
     return dataset_points
