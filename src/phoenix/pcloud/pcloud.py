@@ -44,27 +44,27 @@ class PointCloud:
         primary_dataset_points_json_object = []
         for point in self.primary_dataset_points:
             point_json_obj = {
-                "position" : [
+                "position": [
                     float(point.x),
                     float(point.y),
                     float(point.z),
-                ]
-                "clusterId": point.cluster_id
+                ],
+                "clusterId": point.cluster_id,
             }
             primary_dataset_points_json_object.append(point_json_obj)
         reference_dataset_points_json_object = []
         for point in self.reference_dataset_points:
             point_json_obj = {
-                "position" : [
+                "position": [
                     float(point.x),
                     float(point.y),
                     float(point.z),
-                ]
-                "clusterId": point.cluster_id
+                ],
+                "clusterId": point.cluster_id,
             }
             reference_dataset_points_json_object.append(point_json_obj)
         data = {
-            "primaryData"  : primary_dataset_points_json_object,
+            "primaryData": primary_dataset_points_json_object,
             "referenceData": reference_dataset_points_json_object,
         }
         return json.dumps(data)

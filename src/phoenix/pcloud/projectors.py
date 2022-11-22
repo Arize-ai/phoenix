@@ -5,8 +5,8 @@ import numpy as np
 from hdbscan import HDBSCAN
 from umap import UMAP
 
-from .pcloud import Point
 from ..datasets import Dataset
+from .pcloud import Point
 
 MAX_UMAP_POINTS = 500
 
@@ -73,10 +73,7 @@ class UMAPProjector:
         projections: np.ndarray = self._fit_transform(embeddings)
         projections = self._move_to_center(projections)
         # Find clusters
-        hdbscan = HDBSCAN(
-            min_cluster_size=20,
-            min_samples=1
-        )
+        hdbscan = HDBSCAN(min_cluster_size=20, min_samples=1)
         cluster_ids = hdbscan.fit_predict(projections)
 
         primary_dataset_points = self._construct_dataset_points(
