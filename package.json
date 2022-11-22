@@ -5,9 +5,12 @@
     "license": "None",
     "private": true,
     "dependencies": {
+        "@arizeai/components": "^0.7.13",
         "@arizeai/point-cloud": "^2.1.1",
+        "@emotion/core": "^10.1.1",
         "@react-three/drei": "9.5.7",
         "@react-three/fiber": "8.0.12",
+        "polished": "^4.2.2",
         "react": "18.2",
         "react-dom": "18.2",
         "three": "0.139",
