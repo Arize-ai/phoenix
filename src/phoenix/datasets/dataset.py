@@ -3,7 +3,8 @@ from typing import Literal, Optional
 
 from pandas import DataFrame, Series, read_csv, read_hdf, read_parquet
 
-from .types import Schema, SchemaError
+from .types import Schema
+from .errors import SchemaError
 
 ParquetEngine = Literal["pyarrow", "fastparquet", "auto"]
 

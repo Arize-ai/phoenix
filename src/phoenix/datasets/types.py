@@ -18,9 +18,3 @@ class Schema:
     actual_label_column_name: Optional[str] = None
     actual_score_column_name: Optional[str] = None
     embedding_feature_column_names: Optional[Dict[str, EmbeddingColumnNames]] = None
-
-
-class SchemaError(Exception):
-    """An error raised when the schema is invalid or incomplete"""
-
-    pass
