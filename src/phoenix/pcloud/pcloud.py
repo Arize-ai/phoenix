@@ -33,8 +33,8 @@ class Point:
 class PointCloud:
     def __init__(
         self,
-        primary_dataset_points: List[Point],
-        reference_dataset_points: List[Point],
+        primary_points: List[Point],
+        reference_points: List[Point],
     ):
         self.primary_dataset_points = primary_dataset_points
         self.reference_dataset_points = reference_dataset_points
