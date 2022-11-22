@@ -1,20 +1,24 @@
 from dataclasses import dataclass
-from typing import Optional
+from typing import Literal, Optional
 
 from pandas import DataFrame, Series, read_csv, read_hdf, read_parquet
 
-from .types import Schema
+from .types import Schema, SchemaError
 
+ParquetEngine = Literal["pyarrow", "fastparquet", "auto"]
 
 @dataclass
 class Dataset:
+    __dataframe: DataFrame
+    __schema: Schema
     def __init__(self, dataframe: DataFrame, schema: Schema):
         parsed_dataframe = self._parse_dataframe(dataframe, schema)
 
         self.__dataframe = parsed_dataframe
         self.__schema = schema
 
-    def head(self, num_rows: Optional[int] = 5) -> DataFrame:
+    def head(self, num_rows: Optional[int]) -> DataFrame:
+        num_rows = 5 if num_rows is None else num_rows
         return self.__dataframe.head(num_rows)
 
     def get_column(self, col_name: str) -> Series:
@@ -34,27 +38,47 @@ class Dataset:
     def get_prediction_label_column(
         self,
     ) -> Series:
+        if self.__schema.prediction_label_column_name is None:
+            raise SchemaError("Schema is missing prediction_label_column_name")
         return self.__dataframe[self.__schema.prediction_label_column_name]
 
     def get_prediction_score_column(
         self,
     ) -> Series:
+        if self.__schema.prediction_score_column_name is None:
+            raise SchemaError("Schema is missing prediction_score_column_name")
         return self.__dataframe[self.__schema.prediction_score_column_name]
 
     def get_actual_label_column(self) -> Series:
+        if self.__schema.actual_label_column_name is None:
+            raise SchemaError("Schema is missing actual_label_column_name")
         return self.__dataframe[self.__schema.actual_label_column_name]
 
     def get_actual_score_column(self) -> Series:
+        if self.__schema.actual_score_column_name is None:
+            raise SchemaError("Schema is missing actual_score_column_name")
         return self.__dataframe[self.__schema.actual_score_column_name]
 
+    def _get_embedding_feature_column_names(self, embedding_feature: str): 
+        if self.__schema.embedding_feature_column_names is None:
+            raise SchemaError("Schema is missing embedding_feature_column_names")
+        embedding_feature_column_names = self.__schema.embedding_feature_column_names    
+        if embedding_feature_column_names[embedding_feature] is None:
+            raise SchemaError(f"""Schema is missing embedding_feature_column_names[{embedding_feature}]""")
+        return embedding_feature_column_names[embedding_feature];  
+
     def get_embedding_raw_text_column(self, embedding_feature: str) -> Series:
-        return self.__dataframe[
-            self.__schema.embedding_feature_column_names[embedding_feature].data_column_name
-        ]
+        column_names = self._get_embedding_feature_column_names(embedding_feature)
+        if(column_names.data_column_name is None):
+            raise SchemaError(f"""Missing data_column_name for {embedding_feature}""")    
+        return self.__dataframe[column_names.data_column_name]
 
     def get_embedding_link_to_data_column(self, embedding_feature: str) -> Series:
+        column_names = self._get_embedding_feature_column_names(embedding_feature)
+        if(column_names.link_to_data_column_name is None):
+            raise SchemaError(f"""Missing link_to_data_column_name for {embedding_feature}""") 
         return self.__dataframe[
-            self.__schema.embedding_feature_column_names[embedding_feature].link_to_data_column_name
+            column_names.link_to_data_column_name
         ]
 
     @classmethod
@@ -67,10 +91,13 @@ class Dataset:
 
     @classmethod
     def from_hdf(cls, filepath: str, schema: Schema, key: Optional[str] = None):
-        return cls(read_hdf(filepath, key), schema)
+        df = read_hdf(filepath, key)
+        if not isinstance(df, DataFrame):
+            raise TypeError("Reading from hdf yielded an invalid dataframe")
+        return cls(df, schema)
 
     @classmethod
-    def from_parquet(cls, filepath: str, schema: Schema, engine: str = "pyarrow"):
+    def from_parquet(cls, filepath: str, schema: Schema, engine: ParquetEngine = "pyarrow"):
         return cls(read_parquet(filepath, engine=engine), schema)
 
     @staticmethod
