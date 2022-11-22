@@ -25,6 +25,7 @@ classifiers = [
 dependencies = [
     "numpy",
     "pandas",
+    "umap-learn",
 ]
 dynamic = ["version"]
 
@@ -51,7 +52,7 @@ dependencies = ["hatch-jupyter-builder"]
 build-function = "hatch_jupyter_builder.npm_builder"
 
 [hatch_jupyter_builder.utils.npm_builder]
-build_dir = "/phoenix/nbextension/static"
+build_dir = "src/phoenix/nbextension/static"
 
 [tool.hatch.envs.default]
 dependencies = [
