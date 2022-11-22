@@ -4,8 +4,8 @@ on:
   push:
     branches: [ main ]
   pull_request:
-  #    paths:
-  #      - "**.py"
+    paths:
+      - "**.py"
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
@@ -79,7 +79,7 @@ jobs:
     strategy:
       matrix:
         os: [ ubuntu-latest, macos-latest, windows-latest ]
-        python-version: [ "3.8", "3.9", "3.10" ]
+        python-version: [ "3.8", "3.10" ]
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v3
