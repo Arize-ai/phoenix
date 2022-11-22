@@ -7,10 +7,12 @@ from .types import Schema, SchemaError
 
 ParquetEngine = Literal["pyarrow", "fastparquet", "auto"]
 
+
 @dataclass
 class Dataset:
     __dataframe: DataFrame
     __schema: Schema
+
     def __init__(self, dataframe: DataFrame, schema: Schema):
         parsed_dataframe = self._parse_dataframe(dataframe, schema)
 
@@ -59,27 +61,27 @@ class Dataset:
             raise SchemaError("Schema is missing actual_score_column_name")
         return self.__dataframe[self.__schema.actual_score_column_name]
 
-    def _get_embedding_feature_column_names(self, embedding_feature: str): 
+    def _get_embedding_feature_column_names(self, embedding_feature: str):
         if self.__schema.embedding_feature_column_names is None:
             raise SchemaError("Schema is missing embedding_feature_column_names")
-        embedding_feature_column_names = self.__schema.embedding_feature_column_names    
+        embedding_feature_column_names = self.__schema.embedding_feature_column_names
         if embedding_feature_column_names[embedding_feature] is None:
-            raise SchemaError(f"""Schema is missing embedding_feature_column_names[{embedding_feature}]""")
-        return embedding_feature_column_names[embedding_feature];  
+            raise SchemaError(
+                f"""Schema is missing embedding_feature_column_names[{embedding_feature}]"""
+            )
+        return embedding_feature_column_names[embedding_feature]
 
     def get_embedding_raw_text_column(self, embedding_feature: str) -> Series:
         column_names = self._get_embedding_feature_column_names(embedding_feature)
-        if(column_names.data_column_name is None):
-            raise SchemaError(f"""Missing data_column_name for {embedding_feature}""")    
+        if column_names.data_column_name is None:
+            raise SchemaError(f"""Missing data_column_name for {embedding_feature}""")
         return self.__dataframe[column_names.data_column_name]
 
     def get_embedding_link_to_data_column(self, embedding_feature: str) -> Series:
         column_names = self._get_embedding_feature_column_names(embedding_feature)
-        if(column_names.link_to_data_column_name is None):
-            raise SchemaError(f"""Missing link_to_data_column_name for {embedding_feature}""") 
-        return self.__dataframe[
-            column_names.link_to_data_column_name
-        ]
+        if column_names.link_to_data_column_name is None:
+            raise SchemaError(f"""Missing link_to_data_column_name for {embedding_feature}""")
+        return self.__dataframe[column_names.link_to_data_column_name]
 
     @classmethod
     def from_dataframe(cls, dataframe: DataFrame, schema: Schema):
