@@ -49,7 +49,7 @@ class PointCloud:
                     float(point.y),
                     float(point.z),
                 ],
-                "clusterId": point.cluster_id,
+                "clusterId": float(point.cluster_id),
             }
             primary_dataset_points_json_object.append(point_json_obj)
         reference_dataset_points_json_object = []
@@ -60,7 +60,7 @@ class PointCloud:
                     float(point.y),
                     float(point.z),
                 ],
-                "clusterId": point.cluster_id,
+                "clusterId": float(point.cluster_id),
             }
             reference_dataset_points_json_object.append(point_json_obj)
         data = {
