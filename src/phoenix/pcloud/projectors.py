@@ -5,8 +5,8 @@ import numpy as np
 from hdbscan import HDBSCAN
 from umap import UMAP
 
-from ..datasets import Dataset
 from .pcloud import Point
+from ..datasets import Dataset
 
 MAX_UMAP_POINTS = 500
 
@@ -18,9 +18,6 @@ class UMAPProjector:
     def __post__init__(self):
         if "n_neighbors" in self.hyperparameters and self.hyperparameters["n_neighbors"] > 3:
             raise ValueError("Proction dimensionality not supported. Must be 2D or 3D.")
-
-    def _fit_transform(self, X):
-        return UMAP(**self.hyperparameters).fit_transform(X)
 
     @staticmethod
     def _move_to_center(
@@ -70,7 +67,7 @@ class UMAPProjector:
         )
 
         embeddings: np.ndarray = np.concatenate([primary_embeddings, reference_embeddings])
-        projections: np.ndarray = self._fit_transform(embeddings)
+        projections: np.ndarray = UMAP(**self.hyperparameters).fit_transform(embeddings)
         projections = self._move_to_center(projections)
         # Find clusters
         hdbscan = HDBSCAN(min_cluster_size=20, min_samples=1)
