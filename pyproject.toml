@@ -26,6 +26,7 @@ dependencies = [
     "numpy",
     "pandas",
     "umap-learn",
+    "hdbscan",
 ]
 dynamic = ["version"]
 
