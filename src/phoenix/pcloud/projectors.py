@@ -55,7 +55,7 @@ class UMAPProjector:
         # Sample down our datasets to max 2500 rows for UMAP performance
         points_per_dataset = MAX_UMAP_POINTS // 2
         sampled_primary_dataset = primary_dataset.sample(
-            num=MAX_UMAP_POINTS // 2,
+            num=points_per_dataset
         )
         sampled_reference_dataset = reference_dataset.sample(num=MAX_UMAP_POINTS // 2)
 
