@@ -3,9 +3,7 @@ from typing import Literal, Optional
 
 from pandas import DataFrame, Series, read_csv, read_hdf, read_parquet
 
-from phoenix.types import is_series_of_str
-
-from .errors import DatasetError, SchemaError
+from .errors import SchemaError
 from .types import Schema
 
 ParquetEngine = Literal["pyarrow", "fastparquet", "auto"]
@@ -35,12 +33,6 @@ class Dataset:
         embedding_column = self.__schema.embedding_feature_column_names[embedding_feature_name]
         df_column_name = embedding_column.vector_column_name
         vector_column = self.__dataframe[df_column_name]
-        print(f"""{vector_column}""")
-        # Just check the first row for now
-        if not is_series_of_str(vector_column):
-            raise DatasetError(
-                f"""feature {embedding_feature_name} does not contain a vector string"""
-            )
         return vector_column
 
     def sample(self, num: Optional[int] = None) -> "Dataset":
