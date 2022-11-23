@@ -76,8 +76,8 @@ def CalculateUMAP(
     primary_dataset: Dataset,
     reference_dataset: Dataset,
     embedding_feature: str,
-    n_components: Optional[float] = 3,
-    n_neighbors: Optional[float] = 15,
+    n_components: Optional[int] = 3,
+    n_neighbors: Optional[int] = 15,
     min_dist: Optional[float] = 0.1,
 ) -> PointCloud:
     # Sample down our datasets to max 2500 rows for UMAP performance
