@@ -1,6 +1,7 @@
 # Type Guards
 
 from typing import TypeGuard
+
 from pandas import Series
 
 

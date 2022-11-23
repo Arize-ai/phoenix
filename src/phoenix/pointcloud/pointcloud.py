@@ -1,9 +1,9 @@
 import json
-from typing import List, Optional, cast, Sequence
+from typing import List, Optional, Sequence, cast
 
 import numpy as np
-from numpy.typing import ArrayLike
 import umap  # type: ignore
+from numpy.typing import ArrayLike
 
 from ..datasets import Dataset
 

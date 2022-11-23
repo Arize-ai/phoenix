@@ -3,9 +3,10 @@ from typing import Literal, Optional
 
 from pandas import DataFrame, Series, read_csv, read_hdf, read_parquet
 
-from .types import Schema
-from .errors import SchemaError, DatasetError
 from phoenix.types import is_series_of_str
+
+from .errors import DatasetError, SchemaError
+from .types import Schema
 
 ParquetEngine = Literal["pyarrow", "fastparquet", "auto"]
 
