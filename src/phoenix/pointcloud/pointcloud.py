@@ -3,7 +3,7 @@ from typing import List, Optional, cast, Sequence
 
 import numpy as np
 from numpy.typing import ArrayLike
-import umap # type: ignore
+import umap  # type: ignore
 
 from ..datasets import Dataset
 
@@ -89,11 +89,17 @@ def CalculateUMAP(
 
     primary_embeddings: np.ndarray = np.stack(
         # TODO: Perform light check on str for ArrayLike
-        cast(Sequence[ArrayLike], sampled_primary_dataset.get_embedding_vector_column(embedding_feature))
+        cast(
+            Sequence[ArrayLike],
+            sampled_primary_dataset.get_embedding_vector_column(embedding_feature),
+        )
     )
     reference_embeddings: np.ndarray = np.stack(
-         # TODO: Perform light check on str for ArrayLike
-        cast(Sequence[ArrayLike], sampled_reference_dataset.get_embedding_vector_column(embedding_feature))
+        # TODO: Perform light check on str for ArrayLike
+        cast(
+            Sequence[ArrayLike],
+            sampled_reference_dataset.get_embedding_vector_column(embedding_feature),
+        )
     )
 
     embeddings: np.ndarray = np.concatenate([primary_embeddings, reference_embeddings])

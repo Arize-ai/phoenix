@@ -3,6 +3,7 @@ class SchemaError(Exception):
 
     pass
 
+
 class DatasetError(Exception):
     """An error raised when the dataset is invalid or incomplete"""
 

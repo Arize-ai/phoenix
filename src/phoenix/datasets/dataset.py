@@ -37,7 +37,9 @@ class Dataset:
         print(f"""{vector_column}""")
         # Just check the first row for now
         if not is_series_of_str(vector_column):
-            raise DatasetError(f"""feature {embedding_feature_name} does not contain a vector string""")
+            raise DatasetError(
+                f"""feature {embedding_feature_name} does not contain a vector string"""
+            )
         return vector_column
 
     def sample(self, num: Optional[int] = None) -> "Dataset":

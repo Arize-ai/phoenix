@@ -21,4 +21,3 @@ class Schema:
     actual_label_column_name: Optional[str] = None
     actual_score_column_name: Optional[str] = None
     embedding_feature_column_names: Optional[Dict[str, EmbeddingColumnNames]] = None
- 
