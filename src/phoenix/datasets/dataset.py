@@ -21,7 +21,7 @@ class Dataset:
         self.__dataframe = parsed_dataframe
         self.__schema = schema
 
-    def head(self, num_rows: Optional[int]) -> DataFrame:
+    def head(self, num_rows: Optional[int] = 5) -> DataFrame:
         num_rows = 5 if num_rows is None else num_rows
         return self.__dataframe.head(num_rows)
 
