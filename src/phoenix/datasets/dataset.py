@@ -4,7 +4,8 @@ from typing import Literal, Optional
 from pandas import DataFrame, Series, read_csv, read_hdf, read_parquet
 
 from .types import Schema
-from .errors import SchemaError
+from .errors import SchemaError, DatasetError
+from phoenix.types import is_series_of_str
 
 ParquetEngine = Literal["pyarrow", "fastparquet", "auto"]
 
@@ -32,7 +33,12 @@ class Dataset:
             raise NameError("Dataset schema is missing embedding feature column names")
         embedding_column = self.__schema.embedding_feature_column_names[embedding_feature_name]
         df_column_name = embedding_column.vector_column_name
-        return self.__dataframe[df_column_name]
+        vector_column = self.__dataframe[df_column_name]
+        print(f"""{vector_column}""")
+        # Just check the first row for now
+        if not is_series_of_str(vector_column):
+            raise DatasetError(f"""feature {embedding_feature_name} does not contain a vector string""")
+        return vector_column
 
     def sample(self, num: Optional[int] = None) -> "Dataset":
         sampled_dataframe = self.__dataframe.sample(n=num, ignore_index=True)

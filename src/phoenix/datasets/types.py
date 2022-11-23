@@ -1,5 +1,8 @@
 from dataclasses import dataclass
-from typing import Dict, List, NamedTuple, Optional
+from typing import Dict, List, NamedTuple, Optional, TypeGuard
+
+from numpy.typing import ArrayLike
+from pandas import Series
 
 
 class EmbeddingColumnNames(NamedTuple):
@@ -18,3 +21,4 @@ class Schema:
     actual_label_column_name: Optional[str] = None
     actual_score_column_name: Optional[str] = None
     embedding_feature_column_names: Optional[Dict[str, EmbeddingColumnNames]] = None
+ 

@@ -2,7 +2,7 @@
 name = "phoenix"
 description = "WRITE A BRIEF SUMMARY OF THE PROJECT."
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.10"
 # license = "None"
 keywords = [
     "Observability",
@@ -16,9 +16,6 @@ maintainers = []
 classifiers = [
   "Development Status :: 1 - Planning",
   "Programming Language :: Python",
-  "Programming Language :: Python :: 3.7",
-  "Programming Language :: Python :: 3.8",
-  "Programming Language :: Python :: 3.9",
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
 ]
