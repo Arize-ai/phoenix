@@ -58,7 +58,7 @@ dependencies = [
   "pytest-cov",
 ]
 
-[tool.hatch.envs.types]
+[tool.hatch.envs.type]
 dependencies = [
   "mypy",
   "pytest",
@@ -111,7 +111,7 @@ exclude_lines = [
   "if TYPE_CHECKING:",
 ]
 
-[tool.hatch.envs.types.scripts]
+[tool.hatch.envs.type.scripts]
 check = [
   "mypy .",
 ]

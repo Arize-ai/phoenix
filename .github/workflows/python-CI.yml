@@ -33,7 +33,7 @@ jobs:
                   pip install hatch
             - name: Check types
               run: |
-                  hatch run types:check
+                  hatch run type:check
 
     code-format:
         name: Code Format
