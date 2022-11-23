@@ -1,8 +1,9 @@
 import json
-from typing import List, Optional
+from typing import List, Optional, Sequence, cast
 
 import numpy as np
-from umap import UMAP
+import umap  # type: ignore
+from numpy.typing import ArrayLike
 
 from ..datasets import Dataset
 
@@ -77,7 +78,7 @@ def CalculateUMAP(
     embedding_feature: str,
     n_components: Optional[int] = 3,
     n_neighbors: Optional[int] = 15,
-    min_dist: Optional[int] = 0.1,
+    min_dist: Optional[float] = 0.1,
 ) -> PointCloud:
     # Sample down our datasets to max 2500 rows for UMAP performance
     points_per_dataset = MAX_UMAP_POINTS // 2
@@ -87,19 +88,27 @@ def CalculateUMAP(
     sampled_reference_dataset = reference_dataset.sample(num=MAX_UMAP_POINTS // 2)
 
     primary_embeddings: np.ndarray = np.stack(
-        sampled_primary_dataset.get_embedding_vector_column(embedding_feature)
+        # TODO: Perform light check on str for ArrayLike
+        cast(
+            Sequence[ArrayLike],
+            sampled_primary_dataset.get_embedding_vector_column(embedding_feature),
+        )
     )
     reference_embeddings: np.ndarray = np.stack(
-        sampled_reference_dataset.get_embedding_vector_column(embedding_feature)
+        # TODO: Perform light check on str for ArrayLike
+        cast(
+            Sequence[ArrayLike],
+            sampled_reference_dataset.get_embedding_vector_column(embedding_feature),
+        )
     )
 
     embeddings: np.ndarray = np.concatenate([primary_embeddings, reference_embeddings])
-    umap = UMAP(
+    _umap = umap.UMAP(
         n_components=n_components,
         n_neighbors=n_neighbors,
         min_dist=min_dist,
     )
-    projections: np.ndarray = umap.fit_transform(embeddings)
+    projections: np.ndarray = _umap.fit_transform(embeddings)
     projections = move_to_center(projections)
     primary_dataset_points = construct_dataset_points(
         projections[:points_per_dataset],
@@ -140,8 +149,8 @@ def construct_dataset_points(
             # prediction_score=dataset.get_prediction_score_column()[i],
             actual_label=dataset.get_actual_label_column()[i],
             # actual_score=dataset.get_actual_score_column()[i],
-            raw_text_data=dataset.get_embedding_raw_text_column(embedding_feature),
-            # link_to_data=dataset.get_embedding_link_to_data_column(embedding_feature),
+            raw_text_data=dataset.get_embedding_raw_text_column(embedding_feature)[i],
+            # link_to_data=dataset.get_embedding_link_to_data_column(embedding_feature)[i],
         )
         dataset_points.append(dataset_point)
     return dataset_points
