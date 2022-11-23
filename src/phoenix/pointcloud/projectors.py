@@ -77,7 +77,7 @@ class UMAPProjector:
 
         embeddings: np.ndarray = np.concatenate([primary_embeddings, reference_embeddings])
         umap = UMAP(**self.hyperparameters)
-        projections: np.ndarray = umap.fit_transform(embeddings) # type: ignore
+        projections: np.ndarray = umap.fit_transform(embeddings)  # type: ignore
         projections = self._move_to_center(projections)
         # Find clusters
         hdbscan = HDBSCAN(min_cluster_size=20, min_samples=1)
