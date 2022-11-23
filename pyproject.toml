@@ -58,9 +58,10 @@ dependencies = [
 ]
 
 [tool.hatch.envs.types]
-detached = true
 dependencies = [
   "mypy",
+  "pytest",
+  "pandas-stubs",
 ]
 
 [tool.hatch.envs.style]
