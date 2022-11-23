@@ -2,7 +2,7 @@
 name = "phoenix"
 description = "WRITE A BRIEF SUMMARY OF THE PROJECT."
 readme = "README.md"
-requires-python = ">=3.8, <3.11"
+requires-python = ">=3.10, <3.11"
 # license = "None"
 keywords = [
     "Observability",
@@ -16,9 +16,6 @@ maintainers = []
 classifiers = [
   "Development Status :: 1 - Planning",
   "Programming Language :: Python",
-  "Programming Language :: Python :: 3.7",
-  "Programming Language :: Python :: 3.8",
-  "Programming Language :: Python :: 3.9",
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
 ]
@@ -59,6 +56,13 @@ build_dir = "src/phoenix/nbextension/static"
 dependencies = [
   "pytest",
   "pytest-cov",
+]
+
+[tool.hatch.envs.type]
+dependencies = [
+  "mypy",
+  "pytest",
+  "pandas-stubs",
 ]
 
 [tool.hatch.envs.style]
@@ -105,6 +109,11 @@ exclude_lines = [
   "no cov",
   "if __name__ == .__main__.:",
   "if TYPE_CHECKING:",
+]
+
+[tool.hatch.envs.type.scripts]
+check = [
+  "mypy .",
 ]
 
 [tool.hatch.envs.style.scripts]
