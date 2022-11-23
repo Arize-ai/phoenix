@@ -1,9 +1,6 @@
 from dataclasses import dataclass
 from typing import Dict, List, NamedTuple, Optional, TypeGuard
 
-from numpy.typing import ArrayLike
-from pandas import Series
-
 
 class EmbeddingColumnNames(NamedTuple):
     vector_column_name: str
