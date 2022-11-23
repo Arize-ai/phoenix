@@ -2,7 +2,7 @@
 name = "phoenix"
 description = "WRITE A BRIEF SUMMARY OF THE PROJECT."
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.10, <3.11"
 # license = "None"
 keywords = [
     "Observability",
@@ -77,7 +77,7 @@ tests = "pytest {args}"
 coverage = "pytest --cov-report=term-missing --cov-config=pyproject.toml --cov=src/phoenix --cov=tests {args}"
 
 [[tool.hatch.envs.test.matrix]]
-python = ["38", "39", "310", "311"]
+python = ["38", "39", "310"]
 
 [tool.pytest.ini_options]
 addopts = "-rA"
