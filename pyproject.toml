@@ -57,6 +57,12 @@ dependencies = [
   "pytest-cov",
 ]
 
+[tool.hatch.envs.types]
+detached = true
+dependencies = [
+  "mypy",
+]
+
 [tool.hatch.envs.style]
 detached = true
 dependencies = [
@@ -101,6 +107,11 @@ exclude_lines = [
   "no cov",
   "if __name__ == .__main__.:",
   "if TYPE_CHECKING:",
+]
+
+[tool.hatch.envs.types.scripts]
+check = [
+  "mypy .",
 ]
 
 [tool.hatch.envs.style.scripts]
