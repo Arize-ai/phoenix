@@ -155,3 +155,10 @@ ignore-module = false
 ignore-nested-functions = false
 ignore-nested-classes = false
 ignore-setters = false
+
+[[tool.mypy.overrides]]
+module = [
+    "hdbscan",
+    "umap",
+]
+ignore_missing_imports = true
