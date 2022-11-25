@@ -121,12 +121,12 @@ check = [
 check = [
   "isort --check-only --diff .",
   "black --check --diff --color .",
-  "flake8 --max-line-length=100 --exclude=__init__.py .",
+  "flake8 --extend-ignore E203 --max-line-length=100 --exclude=__init__.py .",
 ]
 fix = [
   "isort .",
   "black .",
-  "flake8 --max-line-length=100 --exclude=__init__.py .",
+  "flake8 --extend-ignore E203 --max-line-length=100 --exclude=__init__.py .",
 ]
 
 [tool.isort]
