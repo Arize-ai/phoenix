@@ -1,6 +1,7 @@
 # Generated dirs
 .vscode
 .idea
+.coverage
 node_modules
 dist
 *__pycache__*
