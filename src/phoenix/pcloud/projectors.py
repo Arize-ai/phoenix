@@ -5,8 +5,8 @@ import numpy as np
 from hdbscan import HDBSCAN
 from umap import UMAP
 
-from .pcloud import Point
 from ..datasets import Dataset
+from .pcloud import Point
 
 MAX_UMAP_POINTS = 500
 
@@ -54,9 +54,7 @@ class UMAPProjector:
     def project(self, primary_dataset: Dataset, reference_dataset: Dataset, embedding_feature: str):
         # Sample down our datasets to max 2500 rows for UMAP performance
         points_per_dataset = MAX_UMAP_POINTS // 2
-        sampled_primary_dataset = primary_dataset.sample(
-            num=points_per_dataset
-        )
+        sampled_primary_dataset = primary_dataset.sample(num=points_per_dataset)
         sampled_reference_dataset = reference_dataset.sample(num=MAX_UMAP_POINTS // 2)
 
         primary_embeddings: np.ndarray = np.stack(

@@ -36,13 +36,13 @@ class PointCloud:
         primary_points: List[Point],
         reference_points: List[Point],
     ):
-        self.primary_dataset_points = primary_dataset_points
-        self.reference_dataset_points = reference_dataset_points
+        self.primary_points = primary_points
+        self.reference_points = reference_points
 
     # For demo - passing to umap widget
     def to_json(self) -> str:
         primary_dataset_points_json_object = []
-        for point in self.primary_dataset_points:
+        for point in self.primary_points:
             point_json_obj = {
                 "position": [
                     float(point.x),
@@ -53,7 +53,7 @@ class PointCloud:
             }
             primary_dataset_points_json_object.append(point_json_obj)
         reference_dataset_points_json_object = []
-        for point in self.reference_dataset_points:
+        for point in self.reference_points:
             point_json_obj = {
                 "position": [
                     float(point.x),
