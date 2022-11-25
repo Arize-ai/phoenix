@@ -2,6 +2,11 @@ name: Lint PR
 
 on:
   pull_request:
+    types:
+      - opened
+      - edited
+      - synchronize
+      - edited
 
 concurrency:
   group: lint-pr-${{ github.ref }}
