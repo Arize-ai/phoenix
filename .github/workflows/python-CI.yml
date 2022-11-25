@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: test-python-${{ github.ref }}
+  group: test-python-${{ github.head_ref }}
   cancel-in-progress: true
 
 env:

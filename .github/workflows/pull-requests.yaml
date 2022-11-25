@@ -6,11 +6,6 @@ on:
       - opened
       - edited
       - synchronize
-      - edited
-
-concurrency:
-  group: lint-pr-${{ github.ref }}
-  cancel-in-progress: true
 
 jobs:
   main:
