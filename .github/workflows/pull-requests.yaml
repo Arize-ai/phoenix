@@ -1,7 +1,7 @@
 name: Lint PR
 
 on:
-  pull_request_target:
+  pull_request:
 
 concurrency:
   group: lint-pr-${{ github.ref }}
