@@ -24,6 +24,7 @@ dependencies = [
     "pandas",
     "umap-learn",
     "hdbscan",
+    "tables",
 ]
 dynamic = ["version"]
 
