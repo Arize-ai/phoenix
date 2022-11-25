@@ -1,70 +1,76 @@
 import json
-from typing import List
+from dataclasses import dataclass
+from typing import Any, Dict, List
 
 MAX_UMAP_POINTS = 500
 
 
+@dataclass(frozen=True)
 class Point:
-    def __init__(
-        self,
-        x: float,
-        y: float,
-        z: float,
-        cluster_id: int,
-        prediction_label: str,
-        # prediction_score: float,
-        actual_label: str,
-        # actual_score: float,
-        raw_text_data: str,
-        # link_to_data: str,
-    ):
-        self.x = x
-        self.y = y
-        self.z = z
-        self.cluster_id = cluster_id
-        self.prediction_label = prediction_label
-        # self.prediction_score = prediction_score
-        self.actual_label = actual_label
-        # self.actual_score = actual_score
-        self.raw_text_data = raw_text_data
-        # self.link_to_data = link_to_data
+    id: int
+    x: float
+    y: float
+    z: float
+    prediction_label: str
+    # prediction_score: float,
+    actual_label: str
+    # actual_score: float,
+    raw_text_data: str
+    # link_to_data: str,
 
 
+@dataclass(frozen=True)
+class Cluster:
+    id: int
+    point_ids: List[int]
+    purity_score: float
+
+
+@dataclass(frozen=True)
 class PointCloud:
-    def __init__(
-        self,
-        primary_points: List[Point],
-        reference_points: List[Point],
-    ):
-        self.primary_dataset_points = primary_points
-        self.reference_dataset_points = reference_points
+    primary_points: List[Point]
+    reference_points: List[Point]
+    clusters: List[Cluster]
 
     # For demo - passing to umap widget
     def to_json(self) -> str:
-        primary_dataset_points_json_object = []
-        for point in self.primary_dataset_points:
-            point_json_obj = {
-                "position": [
-                    float(point.x),
-                    float(point.y),
-                    float(point.z),
-                ],
-                "clusterId": float(point.cluster_id),
-            }
-            primary_dataset_points_json_object.append(point_json_obj)
-        reference_dataset_points_json_object = []
-        for point in self.reference_dataset_points:
-            point_json_obj = {
-                "position": [
-                    float(point.x),
-                    float(point.y),
-                    float(point.z),
-                ],
-                "clusterId": float(point.cluster_id),
-            }
-            reference_dataset_points_json_object.append(point_json_obj)
+        primary_pts_json = self._points_to_json(self.primary_points)
+        reference_pts_json = self._points_to_json(self.reference_points)
+        clusters_json = self._clusters_to_json(self.clusters)
+
         data = {
-            "primaryData": primary_dataset_points_json_object,
-            "referenceData": reference_dataset_points_json_object,
+            "primaryData": primary_pts_json,
+            "referenceData": reference_pts_json,
+            "clusters": clusters_json,
         }
         return json.dumps(data)
+
+    @staticmethod
+    def _points_to_json(points: List[Point]) -> List[Dict[str, Any]]:
+        pts_json = []
+        for point in points:
+            point_json_obj = {
+                "id": int(point.id),
+                "position": [
+                    float(point.x),
+                    float(point.y),
+                    float(point.z),
+                ],
+                "rawTextData": [point.raw_text_data],
+                "predictionLabel": point.prediction_label,
+                "actualLabel": point.actual_label,
+            }
+            pts_json.append(point_json_obj)
+        return pts_json
+
+    @staticmethod
+    def _clusters_to_json(clusters: List[Cluster]) -> List[Dict[str, Any]]:
+        clusters_json = []
+        for cluster in clusters:
+            cluster_json_obj = {
+                "id": int(cluster.id),
+                "pointIds": cluster.point_ids,
+                "purityScore": cluster.purity_score,
+            }
+            clusters_json.append(cluster_json_obj)
+        return clusters_json

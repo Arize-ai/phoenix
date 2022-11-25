@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Dict, List, Sequence, Union, cast
+from typing import Dict, List, Sequence, Tuple, Union, cast
 
 import numpy as np
 from hdbscan import HDBSCAN  # type: ignore
@@ -7,7 +7,7 @@ from numpy.typing import ArrayLike
 from umap import UMAP  # type: ignore
 
 from ..datasets import Dataset
-from .pointcloud import Point
+from .pointcloud import Cluster, Point
 
 MAX_UMAP_POINTS = 500
 
@@ -25,36 +25,99 @@ class UMAPProjector:
             raise ValueError("Proction dimensionality not supported. Must be 2D or 3D.")
 
     @staticmethod
-    def _move_to_center(
-        projections: np.ndarray,
-    ) -> np.ndarray:
+    def _move_to_center(projections: np.ndarray) -> np.ndarray:
         # Calculate Center of Mass
         cm: np.ndarray = np.sum(projections, axis=0) / projections.shape[0]
         return projections - cm
 
     @staticmethod
-    def _construct_dataset_points(
-        projections: np.ndarray,
-        cluster_ids: np.ndarray,
-        dataset: Dataset,
+    def _build_points(
+        primary_projections: np.ndarray,
+        reference_projections: np.ndarray,
+        primary_dataset: Dataset,
+        reference_dataset: Dataset,
         embedding_feature: str,
-    ) -> List[Point]:
-        dataset_points: List[Point] = []
-        for i in range(len(projections)):
-            dataset_point = Point(
-                x=projections[i][0],
-                y=projections[i][1],
-                z=projections[i][2],
-                cluster_id=cluster_ids[i],
-                prediction_label=dataset.get_prediction_label_column()[i],
-                # prediction_score=dataset.get_prediction_score_column()[i],
-                actual_label=dataset.get_actual_label_column()[i],
-                # actual_score=dataset.get_actual_score_column()[i],
-                raw_text_data=dataset.get_embedding_raw_text_column(embedding_feature)[i],
-                # link_to_data=dataset.get_embedding_link_to_data_column(embedding_feature),
+    ) -> Tuple[List[Point], List[Point]]:
+        primary_points: List[Point] = []
+        reference_points: List[Point] = []
+        for i in range(len(primary_projections)):
+            primary_points.append(
+                Point(
+                    id=i,
+                    x=primary_projections[i][0],
+                    y=primary_projections[i][1],
+                    z=primary_projections[i][2],
+                    prediction_label=primary_dataset.get_prediction_label_column()[i],
+                    actual_label=primary_dataset.get_actual_label_column()[i],
+                    raw_text_data=primary_dataset.get_embedding_raw_text_column(embedding_feature)[
+                        i
+                    ],
+                )
             )
-            dataset_points.append(dataset_point)
-        return dataset_points
+        for i in range(len(reference_projections)):
+            reference_points.append(
+                Point(
+                    id=i + len(primary_projections),
+                    x=reference_projections[i][0],
+                    y=reference_projections[i][1],
+                    z=reference_projections[i][2],
+                    prediction_label=reference_dataset.get_prediction_label_column()[i],
+                    actual_label=reference_dataset.get_actual_label_column()[i],
+                    raw_text_data=reference_dataset.get_embedding_raw_text_column(
+                        embedding_feature
+                    )[i],
+                )
+            )
+        return primary_points, reference_points
+
+    @staticmethod
+    def _build_clusters(
+        cluster_ids: np.ndarray, primary_points: List[Point], reference_points: List[Point]
+    ):
+        unique_cluster_ids: np.ndarray = np.unique(cluster_ids)
+        # map cluster_id to point_ids inside the cluster
+        map_cluster_id_point_ids: Dict[int, List[int]] = {
+            id: [] for id in unique_cluster_ids if id != -1
+        }
+        # map cluster_id to the count of primary points in the cluster
+        map_cluster_id_primary_count: Dict[int, int] = {
+            id: 0 for id in unique_cluster_ids if id != -1
+        }
+        # map cluster_id to the count of reference points in the cluster
+        map_cluster_id_reference_count: Dict[int, int] = {
+            id: 0 for id in unique_cluster_ids if id != -1
+        }
+
+        primary_cluster_ids = cluster_ids[: len(primary_points)]
+        reference_cluster_ids = cluster_ids[len(primary_points) :]
+        # Check that there are as many coordinates as cluster IDs
+        # This is a defensive test, since this should be guaranteed by UMAP & HDBSCAN libraries
+        if len(reference_cluster_ids) != len(reference_points):
+            raise ValueError(
+                f"There should be equal number of point coordinates as cluster IDs. "
+                f"len(reference_cluster_ids) = {len(reference_cluster_ids)}. "
+                f"len(reference_points) = {len(reference_points)}."
+            )
+
+        for i, cluster_id in enumerate(primary_cluster_ids):
+            if cluster_id == -1:  # Exclude "unknown" cluster
+                continue
+            map_cluster_id_point_ids[cluster_id].append(primary_points[i].id)
+            map_cluster_id_primary_count[cluster_id] += 1
+        for i, cluster_id in enumerate(reference_cluster_ids):
+
+            if cluster_id == -1:  # Exclude "unknown" cluster
+                continue
+            map_cluster_id_point_ids[cluster_id].append(reference_points[i].id)
+            map_cluster_id_reference_count[cluster_id] += 1
+
+        clusters: List[Cluster] = []
+        for cluster_id, point_ids in map_cluster_id_point_ids.items():
+            primary_count = map_cluster_id_primary_count[cluster_id]
+            reference_count = map_cluster_id_reference_count[cluster_id]
+            purity_score = (reference_count - primary_count) / (reference_count + primary_count)
+            clusters.append(Cluster(id=cluster_id, point_ids=point_ids, purity_score=purity_score))
+        return clusters
 
     def project(self, primary_dataset: Dataset, reference_dataset: Dataset, embedding_feature: str):
         # Sample down our datasets to max 2500 rows for UMAP performance
@@ -81,19 +144,16 @@ class UMAPProjector:
         projections = self._move_to_center(projections)
         # Find clusters
         hdbscan = HDBSCAN(min_cluster_size=20, min_samples=1)
-        cluster_ids = hdbscan.fit_predict(projections)
+        cluster_ids: np.ndarray = hdbscan.fit_predict(projections)
 
-        primary_dataset_points = self._construct_dataset_points(
+        primary_points, reference_points = self._build_points(
             projections[:points_per_dataset],
-            cluster_ids[:points_per_dataset],
-            sampled_primary_dataset,
-            embedding_feature,
-        )
-        reference_dataset_points = self._construct_dataset_points(
             projections[points_per_dataset:],
-            cluster_ids[points_per_dataset:],
+            sampled_primary_dataset,
             sampled_reference_dataset,
             embedding_feature,
         )
 
-        return primary_dataset_points, reference_dataset_points
+        clusters = self._build_clusters(cluster_ids, primary_points, reference_points)
+
+        return primary_points, reference_points, clusters
