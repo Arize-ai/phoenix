@@ -7,7 +7,7 @@ from numpy.typing import ArrayLike
 from umap import UMAP  # type: ignore
 
 from ..datasets import Dataset
-from .pointcloud import Cluster, Point
+from .pointcloud import Cluster, Coordinates2D, Coordinates3D, Point
 
 MAX_UMAP_POINTS = 500
 
@@ -17,12 +17,13 @@ class UMAPProjector:
     hyperparameters: Dict[str, Union[int, float, str]]
 
     def __post__init__(self):
-        if (
-            "n_neighbors" in self.hyperparameters
-            and isinstance(self.hyperparameters["n_neighbors"], int)
-            and self.hyperparameters["n_neighbors"] > 3
+        if "n_neighbors" in self.hyperparameters and (
+            not isinstance(self.hyperparameters["n_neighbors"], int)
+            or self.hyperparameters["n_neighbors"] not in (2, 3)
         ):
-            raise ValueError("Proction dimensionality not supported. Must be 2D or 3D.")
+            raise ValueError(
+                "Projection dimensionality not supported. Must be integer value: 2 or 3 (2D/3D)."
+            )
 
     @staticmethod
     def _move_to_center(projections: np.ndarray) -> np.ndarray:
@@ -40,13 +41,19 @@ class UMAPProjector:
     ) -> Tuple[List[Point], List[Point]]:
         primary_points: List[Point] = []
         reference_points: List[Point] = []
+
+        # Number of dimensions in projections: 2D or 3D
+        N = primary_projections.shape[-1]
+        if N == 2:
+            c = Coordinates2D
+        elif N == 3:
+            c = Coordinates3D
+
         for i in range(len(primary_projections)):
             primary_points.append(
                 Point(
                     id=i,
-                    x=primary_projections[i][0],
-                    y=primary_projections[i][1],
-                    z=primary_projections[i][2],
+                    coordinates=c(*[primary_projections[i][k] for k in range(N)]),
                     prediction_label=primary_dataset.get_prediction_label_column()[i],
                     actual_label=primary_dataset.get_actual_label_column()[i],
                     raw_text_data=primary_dataset.get_embedding_raw_text_column(embedding_feature)[
@@ -58,9 +65,7 @@ class UMAPProjector:
             reference_points.append(
                 Point(
                     id=i + len(primary_projections),
-                    x=reference_projections[i][0],
-                    y=reference_projections[i][1],
-                    z=reference_projections[i][2],
+                    coordinates=c(*[reference_projections[i][k] for k in range(N)]),
                     prediction_label=reference_dataset.get_prediction_label_column()[i],
                     actual_label=reference_dataset.get_actual_label_column()[i],
                     raw_text_data=reference_dataset.get_embedding_raw_text_column(

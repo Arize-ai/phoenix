@@ -1,16 +1,40 @@
 import json
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Any, Dict, List
 
 MAX_UMAP_POINTS = 500
 
 
-@dataclass(frozen=True)
-class Point:
-    id: int
+class Coordinates(ABC):
+    @abstractmethod
+    def get_coordinates(self):
+        pass
+
+
+@dataclass
+class Coordinates2D(Coordinates):
+    x: float
+    y: float
+
+    def get_coordinates(self):
+        return [float(self.x), float(self.y)]
+
+
+@dataclass
+class Coordinates3D(Coordinates):
     x: float
     y: float
     z: float
+
+    def get_coordinates(self):
+        return [float(self.x), float(self.y), float(self.z)]
+
+
+@dataclass(frozen=True)
+class Point:
+    id: int
+    coordinates: Coordinates
     prediction_label: str
     # prediction_score: float,
     actual_label: str
@@ -51,11 +75,7 @@ class PointCloud:
         for point in points:
             point_json_obj = {
                 "id": int(point.id),
-                "position": [
-                    float(point.x),
-                    float(point.y),
-                    float(point.z),
-                ],
+                "position": point.coordinates.get_coordinates(),
                 "rawTextData": [point.raw_text_data],
                 "predictionLabel": point.prediction_label,
                 "actualLabel": point.actual_label,
