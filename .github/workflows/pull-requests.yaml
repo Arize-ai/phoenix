@@ -1,4 +1,4 @@
-name: Lint PR
+name: Semantic PR
 
 on:
   pull_request:
