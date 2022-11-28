@@ -51,7 +51,7 @@ class Cluster:
 
 
 @dataclass(frozen=True)
-class PointCloud:
+class DriftPointCloud:
     primary_points: List[Point]
     reference_points: List[Point]
     clusters: List[Cluster]

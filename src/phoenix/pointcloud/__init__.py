@@ -1,2 +1,2 @@
-from .pointcloud import PointCloud
+from .pointcloud import DriftPointCloud
 from .projectors import UMAPProjector
