@@ -8,6 +8,8 @@ import {
     ThreeDimensionalBounds,
 } from "@arizeai/point-cloud";
 import { ErrorBoundary } from "../ErrorBoundary";
+import { Radio, RadioGroup, theme } from "@arizeai/components";
+import { css } from "@emotion/css";
 
 export type ThreeDimensionalPointItem = {
     position: ThreeDimensionalPoint;
@@ -18,6 +20,26 @@ export type DriftPointCloudProps = {
     referenceData: ThreeDimensionalPointItem[];
 };
 
+function Tools() {
+    return (
+        <div
+            className={css`
+                position: absolute;
+                left: ${theme.spacing.margin8}px;
+                top: ${theme.spacing.margin8}px;
+            `}
+        >
+            <RadioGroup defaultValue="move" variant="inline-button">
+                <Radio label="Move" value="move">
+                    Move
+                </Radio>
+                <Radio label="Select" value="select">
+                    Select
+                </Radio>
+            </RadioGroup>
+        </div>
+    );
+}
 export function DriftPointCloud({
     primaryData,
     referenceData,
@@ -32,6 +54,7 @@ export function DriftPointCloud({
     }, []);
     return (
         <ErrorBoundary>
+            <Tools />
             <ThreeDimensionalCanvas camera={{ position: [0, 0, 10] }}>
                 <ThreeDimensionalControls
                     autoRotate={autoRotate}
