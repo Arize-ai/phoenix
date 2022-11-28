@@ -10,6 +10,8 @@ from ..datasets import Dataset
 from .pointcloud import Cluster, Coordinates2D, Coordinates3D, Point
 
 MAX_UMAP_POINTS = 500
+DEFAULT_MIN_CLUSTER_SIZE = 20
+DEFAULT_MIN_SAMPLES = 1
 
 
 @dataclass(frozen=True)
@@ -148,7 +150,9 @@ class UMAPProjector:
         projections: np.ndarray = umap.fit_transform(embeddings)  # type: ignore
         projections = self._move_to_center(projections)
         # Find clusters
-        hdbscan = HDBSCAN(min_cluster_size=20, min_samples=1)
+        hdbscan = HDBSCAN(
+            min_cluster_size=DEFAULT_MIN_CLUSTER_SIZE, min_samples=DEFAULT_MIN_SAMPLES
+        )
         cluster_ids: np.ndarray = hdbscan.fit_predict(projections)
 
         primary_points, reference_points = self._build_points(
