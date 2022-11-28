@@ -23,6 +23,8 @@ dependencies = [
     "numpy",
     "pandas",
     "umap-learn",
+    "hdbscan",
+    "tables",
 ]
 dynamic = ["version"]
 
@@ -57,7 +59,7 @@ dependencies = [
   "pytest-cov",
 ]
 
-[tool.hatch.envs.types]
+[tool.hatch.envs.type]
 dependencies = [
   "mypy",
   "pytest",
@@ -110,7 +112,7 @@ exclude_lines = [
   "if TYPE_CHECKING:",
 ]
 
-[tool.hatch.envs.types.scripts]
+[tool.hatch.envs.type.scripts]
 check = [
   "mypy .",
 ]
@@ -119,12 +121,12 @@ check = [
 check = [
   "isort --check-only --diff .",
   "black --check --diff --color .",
-  "flake8 --max-line-length=100 --exclude=__init__.py .",
+  "flake8 --extend-ignore E203 --max-line-length=100 --exclude=__init__.py .",
 ]
 fix = [
   "isort .",
   "black .",
-  "flake8 --max-line-length=100 --exclude=__init__.py .",
+  "flake8 --extend-ignore E203 --max-line-length=100 --exclude=__init__.py .",
 ]
 
 [tool.isort]
@@ -153,3 +155,10 @@ ignore-module = false
 ignore-nested-functions = false
 ignore-nested-classes = false
 ignore-setters = false
+
+[[tool.mypy.overrides]]
+module = [
+    "hdbscan",
+    "umap",
+]
+ignore_missing_imports = true

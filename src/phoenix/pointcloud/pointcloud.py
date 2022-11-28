@@ -1,156 +1,96 @@
 import json
-from typing import List, Optional, Sequence, cast
-
-import numpy as np
-import umap  # type: ignore
-from numpy.typing import ArrayLike
-
-from ..datasets import Dataset
+from abc import ABC, abstractmethod
+from dataclasses import dataclass
+from typing import Any, Dict, List
 
 MAX_UMAP_POINTS = 500
 
 
+class Coordinates(ABC):
+    @abstractmethod
+    def get_coordinates(self):
+        pass
+
+
+@dataclass
+class Coordinates2D(Coordinates):
+    x: float
+    y: float
+
+    def get_coordinates(self):
+        return [float(self.x), float(self.y)]
+
+
+@dataclass
+class Coordinates3D(Coordinates):
+    x: float
+    y: float
+    z: float
+
+    def get_coordinates(self):
+        return [float(self.x), float(self.y), float(self.z)]
+
+
+@dataclass(frozen=True)
 class Point:
-    def __init__(
-        self,
-        x: float,
-        y: float,
-        z: float,
-        prediction_label: str,
-        # prediction_score: float,
-        actual_label: str,
-        # actual_score: float,
-        raw_text_data: str,
-        # link_to_data: str,
-    ):
-        self.x = x
-        self.y = y
-        self.z = z
-        self.prediction_label = prediction_label
-        # self.prediction_score = prediction_score
-        self.actual_label = actual_label
-        # self.actual_score = actual_score
-        self.raw_text_data = raw_text_data
-        # self.link_to_data = link_to_data
+    id: int
+    coordinates: Coordinates
+    prediction_label: str
+    # prediction_score: float,
+    actual_label: str
+    # actual_score: float,
+    raw_text_data: str
+    # link_to_data: str,
 
 
-class PointCloud:
-    def __init__(
-        self,
-        primary_dataset_points: List[Point],
-        reference_dataset_points: List[Point],
-    ):
-        self.primary_dataset_points = primary_dataset_points
-        self.reference_dataset_points = reference_dataset_points
+@dataclass(frozen=True)
+class Cluster:
+    id: int
+    point_ids: List[int]
+    purity_score: float
+
+
+@dataclass(frozen=True)
+class DriftPointCloud:
+    primary_points: List[Point]
+    reference_points: List[Point]
+    clusters: List[Cluster]
 
     # For demo - passing to umap widget
     def to_json(self) -> str:
-        primary_dataset_points_json_object = []
-        for point in self.primary_dataset_points:
-            point_json_obj = {
-                "position": [
-                    float(point.x),
-                    float(point.y),
-                    float(point.z),
-                ]
-            }
-            primary_dataset_points_json_object.append(point_json_obj)
-        reference_dataset_points_json_object = []
-        for point in self.reference_dataset_points:
-            point_json_obj = {
-                "position": [
-                    float(point.x),
-                    float(point.y),
-                    float(point.z),
-                ]
-            }
-            reference_dataset_points_json_object.append(point_json_obj)
+        primary_pts_json = self._points_to_json(self.primary_points)
+        reference_pts_json = self._points_to_json(self.reference_points)
+        clusters_json = self._clusters_to_json(self.clusters)
+
         data = {
-            "primaryData": primary_dataset_points_json_object,
-            "referenceData": reference_dataset_points_json_object,
+            "primaryData": primary_pts_json,
+            "referenceData": reference_pts_json,
+            "clusters": clusters_json,
         }
         return json.dumps(data)
 
+    @staticmethod
+    def _points_to_json(points: List[Point]) -> List[Dict[str, Any]]:
+        pts_json = []
+        for point in points:
+            point_json_obj = {
+                "id": int(point.id),
+                "position": point.coordinates.get_coordinates(),
+                "rawTextData": [point.raw_text_data],
+                "predictionLabel": point.prediction_label,
+                "actualLabel": point.actual_label,
+            }
+            pts_json.append(point_json_obj)
+        return pts_json
 
-def CalculateUMAP(
-    primary_dataset: Dataset,
-    reference_dataset: Dataset,
-    embedding_feature: str,
-    n_components: Optional[int] = 3,
-    n_neighbors: Optional[int] = 15,
-    min_dist: Optional[float] = 0.1,
-) -> PointCloud:
-    # Sample down our datasets to max 2500 rows for UMAP performance
-    points_per_dataset = MAX_UMAP_POINTS // 2
-    sampled_primary_dataset = primary_dataset.sample(
-        num=MAX_UMAP_POINTS // 2,
-    )
-    sampled_reference_dataset = reference_dataset.sample(num=MAX_UMAP_POINTS // 2)
-
-    primary_embeddings: np.ndarray = np.stack(
-        # TODO: Perform light check on str for ArrayLike
-        cast(
-            Sequence[ArrayLike],
-            sampled_primary_dataset.get_embedding_vector_column(embedding_feature),
-        )
-    )
-    reference_embeddings: np.ndarray = np.stack(
-        # TODO: Perform light check on str for ArrayLike
-        cast(
-            Sequence[ArrayLike],
-            sampled_reference_dataset.get_embedding_vector_column(embedding_feature),
-        )
-    )
-
-    embeddings: np.ndarray = np.concatenate([primary_embeddings, reference_embeddings])
-    _umap = umap.UMAP(
-        n_components=n_components,
-        n_neighbors=n_neighbors,
-        min_dist=min_dist,
-    )
-    projections: np.ndarray = _umap.fit_transform(embeddings)
-    projections = move_to_center(projections)
-    primary_dataset_points = construct_dataset_points(
-        projections[:points_per_dataset],
-        sampled_primary_dataset,
-        embedding_feature,
-    )
-    reference_dataset_points = construct_dataset_points(
-        projections[points_per_dataset:],
-        sampled_reference_dataset,
-        embedding_feature,
-    )
-    return PointCloud(
-        primary_dataset_points=primary_dataset_points,
-        reference_dataset_points=reference_dataset_points,
-    )
-
-
-def move_to_center(
-    projections: np.ndarray,
-) -> np.ndarray:
-    # Calculate Center of Mass
-    cm: np.ndarray = np.sum(projections, axis=0) / projections.shape[0]
-    return projections - cm
-
-
-def construct_dataset_points(
-    umap_projections: np.ndarray,
-    dataset: Dataset,
-    embedding_feature: str,
-) -> List[Point]:
-    dataset_points: List[Point] = []
-    for i in range(len(umap_projections)):
-        dataset_point = Point(
-            x=umap_projections[i][0],
-            y=umap_projections[i][1],
-            z=umap_projections[i][2],
-            prediction_label=dataset.get_prediction_label_column()[i],
-            # prediction_score=dataset.get_prediction_score_column()[i],
-            actual_label=dataset.get_actual_label_column()[i],
-            # actual_score=dataset.get_actual_score_column()[i],
-            raw_text_data=dataset.get_embedding_raw_text_column(embedding_feature)[i],
-            # link_to_data=dataset.get_embedding_link_to_data_column(embedding_feature)[i],
-        )
-        dataset_points.append(dataset_point)
-    return dataset_points
+    @staticmethod
+    def _clusters_to_json(clusters: List[Cluster]) -> List[Dict[str, Any]]:
+        clusters_json = []
+        for cluster in clusters:
+            cluster_json_obj = {
+                "id": int(cluster.id),
+                "pointIds": cluster.point_ids,
+                "purityScore": cluster.purity_score,
+            }
+            clusters_json.append(cluster_json_obj)
+        return clusters_json
