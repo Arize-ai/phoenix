@@ -8,7 +8,7 @@ from pandas import DataFrame, Series, read_csv, read_hdf, read_parquet
 
 from . import errors as err
 from .types import Schema
-from .validation import DatasetValidator
+from .validation import validate_dataset_inputs
 
 logger = logging.getLogger(__name__)
 if hasattr(sys, "ps1"):
@@ -23,7 +23,7 @@ ParquetEngine = Literal["pyarrow", "fastparquet", "auto"]
 
 class Dataset:
     def __init__(self, dataframe: DataFrame, schema: Schema):
-        errors = DatasetValidator().validate_dataset_inputs(
+        errors = validate_dataset_inputs(
             dataframe=dataframe,
             schema=schema,
         )
