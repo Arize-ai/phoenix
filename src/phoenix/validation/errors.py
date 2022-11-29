@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Iterable, List
+from typing import Iterable, List, Union
 
 
 class ValidationError(ABC):
@@ -15,7 +15,7 @@ class ValidationError(ABC):
 
 
 class ValidationFailure(Exception):
-    def __init__(self, errors: List[ValidationError]):
+    def __init__(self, errors: Union[ValidationError, List[ValidationError]]):
         self.errors = errors
 
 
