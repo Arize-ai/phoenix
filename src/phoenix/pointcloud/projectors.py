@@ -7,7 +7,14 @@ from numpy.typing import ArrayLike
 from umap import UMAP  # type: ignore
 
 from ..datasets import Dataset
-from .pointcloud import Cluster, Coordinates, Coordinates2D, Coordinates3D, Point
+from .pointcloud import (
+    Cluster,
+    Coordinates,
+    Coordinates2D,
+    Coordinates3D,
+    InferenceAttributes,
+    Point,
+)
 
 MAX_UMAP_POINTS = 500
 DEFAULT_MIN_CLUSTER_SIZE = 20
@@ -55,27 +62,29 @@ class UMAPProjector:
             raise ValueError("Projections should be done to 2D or 3D.")
 
         for i in range(len(primary_projections)):
+            inference_attributes = InferenceAttributes(
+                prediction_label=primary_dataset.get_prediction_label_column()[i],
+                actual_label=primary_dataset.get_actual_label_column()[i],
+                raw_text_data=primary_dataset.get_embedding_raw_text_column(embedding_feature)[i],
+            )
             primary_points.append(
                 Point(
                     id=i,
                     coordinates=c(*[primary_projections[i][k] for k in range(N)]),
-                    prediction_label=primary_dataset.get_prediction_label_column()[i],
-                    actual_label=primary_dataset.get_actual_label_column()[i],
-                    raw_text_data=primary_dataset.get_embedding_raw_text_column(embedding_feature)[
-                        i
-                    ],
+                    inference_attributes=inference_attributes,
                 )
             )
         for i in range(len(reference_projections)):
+            inference_attributes = InferenceAttributes(
+                prediction_label=reference_dataset.get_prediction_label_column()[i],
+                actual_label=reference_dataset.get_actual_label_column()[i],
+                raw_text_data=reference_dataset.get_embedding_raw_text_column(embedding_feature)[i],
+            )
             reference_points.append(
                 Point(
                     id=i + len(primary_projections),
                     coordinates=c(*[reference_projections[i][k] for k in range(N)]),
-                    prediction_label=reference_dataset.get_prediction_label_column()[i],
-                    actual_label=reference_dataset.get_actual_label_column()[i],
-                    raw_text_data=reference_dataset.get_embedding_raw_text_column(
-                        embedding_feature
-                    )[i],
+                    inference_attributes=inference_attributes,
                 )
             )
         return primary_points, reference_points
