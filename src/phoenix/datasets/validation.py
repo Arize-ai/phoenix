@@ -3,8 +3,8 @@ from typing import List
 
 from pandas import DataFrame
 
-from ..datasets.types import Schema
-from ..validation import errors as err
+from src.phoenix.datasets import errors as err
+from src.phoenix.datasets.types import Schema
 
 
 class DatasetValidator:
@@ -36,13 +36,13 @@ class DatasetValidator:
                 if emb_col_names.vector_column_name not in existing_columns:
                     missing_columns.append(emb_col_names.vector_column_name)
                 if (
-                    emb_col_names.data_column_name is not None
-                    and emb_col_names.data_column_name not in existing_columns
+                        emb_col_names.data_column_name is not None
+                        and emb_col_names.data_column_name not in existing_columns
                 ):
                     missing_columns.append(emb_col_names.data_column_name)
                 if (
-                    emb_col_names.link_to_data_column_name is not None
-                    and emb_col_names.link_to_data_column_name not in existing_columns
+                        emb_col_names.link_to_data_column_name is not None
+                        and emb_col_names.link_to_data_column_name not in existing_columns
                 ):
                     missing_columns.append(emb_col_names.link_to_data_column_name)
 

@@ -6,9 +6,9 @@ from typing import Literal, Optional
 from numpy import fromstring
 from pandas import DataFrame, Series, read_csv, read_hdf, read_parquet
 
-from ..validation import DatasetValidator
-from ..validation import errors as err
+from . import errors as err
 from .types import Schema
+from .validation import DatasetValidator
 
 logger = logging.getLogger(__name__)
 if hasattr(sys, "ps1"):
