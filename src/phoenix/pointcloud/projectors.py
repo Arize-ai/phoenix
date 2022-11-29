@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Dict, List, Sequence, Tuple, Union, cast
+from typing import Dict, List, Sequence, Tuple, Type, Union, cast
 
 import numpy as np
 from hdbscan import HDBSCAN  # type: ignore
@@ -7,7 +7,7 @@ from numpy.typing import ArrayLike
 from umap import UMAP  # type: ignore
 
 from ..datasets import Dataset
-from .pointcloud import Cluster, Coordinates2D, Coordinates3D, Point
+from .pointcloud import Cluster, Coordinates, Coordinates2D, Coordinates3D, Point
 
 MAX_UMAP_POINTS = 500
 DEFAULT_MIN_CLUSTER_SIZE = 20
@@ -46,10 +46,13 @@ class UMAPProjector:
 
         # Number of dimensions in projections: 2D or 3D
         N = primary_projections.shape[-1]
+        c: Type[Coordinates]
         if N == 2:
             c = Coordinates2D
         elif N == 3:
             c = Coordinates3D
+        else:
+            raise ValueError("Projections should be done to 2D or 3D.")
 
         for i in range(len(primary_projections)):
             primary_points.append(
