@@ -19,6 +19,17 @@ class ValidationFailure(Exception):
         self.errors = errors
 
 
+class MissingVectorColumn(ValidationError):
+    def __init__(self, col: str) -> None:
+        self.missing_col = col
+
+    def error_message(self) -> str:
+        return (
+            f"The embedding vector column {self.missing_col} is declared in the schema "
+            "but is not found in the dataframe."
+        )
+
+
 class MissingColumns(ValidationError):
     def __init__(self, cols: Iterable) -> None:
         self.missing_cols = cols

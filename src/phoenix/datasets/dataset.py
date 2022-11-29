@@ -1,7 +1,9 @@
 import logging
 import sys
+import warnings
 from typing import Literal, Optional
 
+from numpy import fromstring
 from pandas import DataFrame, Series, read_csv, read_hdf, read_parquet
 
 from ..validation import DatasetValidator
@@ -113,7 +115,24 @@ class Dataset:
 
     @classmethod
     def from_csv(cls, filepath: str, schema: Schema):
-        return cls(read_csv(filepath), schema)
+        dataframe: DataFrame = read_csv(filepath)
+        dataframe_columns = set(dataframe.columns)
+        if schema.embedding_feature_column_names is not None:
+            warnings.warn(
+                "Reading embeddings from csv files can be slow. Consider using other "
+                "formats such as hdf5. Learn more [here]()",
+                stacklevel=2,
+            )
+            for emb_col_names in schema.embedding_feature_column_names.values():
+                if emb_col_names.vector_column_name not in dataframe_columns:
+                    e = err.MissingVectorColumn(emb_col_names.vector_column_name)
+                    logger.error(e)
+                    raise err.ValidationFailure(e)
+                dataframe[emb_col_names.vector_column_name] = dataframe[
+                    emb_col_names.vector_column_name
+                ].map(lambda s: fromstring(s.strip("[]"), dtype=float, sep=" "))
+
+        return cls(dataframe, schema)
 
     @classmethod
     def from_hdf(cls, filepath: str, schema: Schema, key: Optional[str] = None):
