@@ -1,6 +1,7 @@
 import { Provider } from "@arizeai/components";
-import React from "react";
+import React, { ReactNode } from "react";
 import ReactDom from "react-dom/client";
+import { NotebookLayout } from "./components/layout";
 import { UMAPWidget, UMAPWidgetProps } from "./components/widgets";
 
 declare global {
@@ -9,6 +10,12 @@ declare global {
     }
 }
 
+const WidgetWrapper = ({ children }: { children: ReactNode }) => (
+    <Provider>
+        <NotebookLayout>{children}</NotebookLayout>
+    </Provider>
+);
+
 /**
  * Global export of rendering widgets for use in notebooks
  */
@@ -16,8 +23,8 @@ window.renderUMAPWidget = function (data: UMAPWidgetProps) {
     const rootEl = document.getElementById("root");
     const root = ReactDom.createRoot(rootEl!);
     root.render(
-        <Provider>
+        <WidgetWrapper>
             <UMAPWidget {...data} />
-        </Provider>
+        </WidgetWrapper>
     );
 };
