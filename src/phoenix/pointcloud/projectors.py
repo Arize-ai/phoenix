@@ -52,7 +52,7 @@ class UMAPProjector:
         elif N == 3:
             c = Coordinates3D
         else:
-            raise ValueError(f'primary_projections.shape[-1] must be 2 or 3, but has value {N}.')
+            raise ValueError(f"primary_projections.shape[-1] must be 2 or 3, but has value {N}.")
 
         for i in range(len(primary_projections)):
             primary_points.append(
