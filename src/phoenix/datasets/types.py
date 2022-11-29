@@ -10,7 +10,7 @@ class EmbeddingColumnNames(NamedTuple):
 
 @dataclass(frozen=True)
 class Schema:
-    prediction_id_column_name: str
+    prediction_id_column_name: Optional[str] = None
     timestamp_column_name: Optional[str] = None
     feature_column_names: Optional[List[str]] = None
     prediction_label_column_name: Optional[str] = None
