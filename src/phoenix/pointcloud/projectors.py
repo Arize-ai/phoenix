@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Sequence, Tuple, Type, Union, cast
+from typing import Dict, List, Sequence, Tuple, Type, Union, cast
 
 import numpy as np
 from hdbscan import HDBSCAN  # type: ignore
@@ -46,11 +46,13 @@ class UMAPProjector:
 
         # Number of dimensions in projections: 2D or 3D
         N = primary_projections.shape[-1]
-        c: Optional[Union[Type[Coordinates2D], Type[Coordinates3D]]] = None
+        c: Union[Type[Coordinates2D], Type[Coordinates3D]]
         if N == 2:
             c = Coordinates2D
         elif N == 3:
             c = Coordinates3D
+        else:
+            raise ValueError(f'primary_projections.shape[-1] must be 2 or 3, but has value {N}.')
 
         for i in range(len(primary_projections)):
             primary_points.append(
