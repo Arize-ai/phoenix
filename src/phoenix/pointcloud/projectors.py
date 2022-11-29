@@ -7,7 +7,7 @@ from numpy.typing import ArrayLike
 from umap import UMAP  # type: ignore
 
 from ..datasets import Dataset
-from .pointcloud import Cluster, Coordinates2D, Coordinates3D, Point
+from .pointcloud import Cluster, Coordinates, Coordinates2D, Coordinates3D, Point
 
 MAX_UMAP_POINTS = 500
 DEFAULT_MIN_CLUSTER_SIZE = 20
@@ -46,7 +46,7 @@ class UMAPProjector:
 
         # Number of dimensions in projections: 2D or 3D
         N = primary_projections.shape[-1]
-        c: Union[Type[Coordinates2D], Type[Coordinates3D]]
+        c: Type[Coordinates]
         if N == 2:
             c = Coordinates2D
         elif N == 3:
