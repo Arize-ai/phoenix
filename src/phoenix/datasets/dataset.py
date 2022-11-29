@@ -1,17 +1,34 @@
+import logging
+import sys
 from typing import Literal, Optional
 
 from pandas import DataFrame, Series, read_csv, read_hdf, read_parquet
 
-from .errors import SchemaError
+from ..validation import DatasetValidator
+from ..validation import errors as err
 from .types import Schema
+
+logger = logging.getLogger(__name__)
+if hasattr(sys, "ps1"):
+    # for python interactive mode
+    log_handler = logging.StreamHandler(sys.stdout)
+    log_handler.setLevel(logging.INFO)
+    logger.addHandler(log_handler)
+    logger.setLevel(logging.INFO)
 
 ParquetEngine = Literal["pyarrow", "fastparquet", "auto"]
 
 
 class Dataset:
-
     def __init__(self, dataframe: DataFrame, schema: Schema):
-
+        errors = DatasetValidator().validate_dataset_inputs(
+            dataframe=dataframe,
+            schema=schema,
+        )
+        if errors:
+            for e in errors:
+                logger.error(e)
+            raise err.ValidationFailure(errors)
         parsed_dataframe = self._parse_dataframe(dataframe, schema)
 
         self.__dataframe: DataFrame = parsed_dataframe
@@ -48,32 +65,32 @@ class Dataset:
         self,
     ) -> Series:
         if self.schema.prediction_label_column_name is None:
-            raise SchemaError("Schema is missing prediction_label_column_name")
+            raise err.SchemaError("Schema is missing prediction_label_column_name")
         return self.dataframe[self.schema.prediction_label_column_name]
 
     def get_prediction_score_column(
         self,
     ) -> Series:
         if self.schema.prediction_score_column_name is None:
-            raise SchemaError("Schema is missing prediction_score_column_name")
+            raise err.SchemaError("Schema is missing prediction_score_column_name")
         return self.dataframe[self.schema.prediction_score_column_name]
 
     def get_actual_label_column(self) -> Series:
         if self.schema.actual_label_column_name is None:
-            raise SchemaError("Schema is missing actual_label_column_name")
+            raise err.SchemaError("Schema is missing actual_label_column_name")
         return self.dataframe[self.schema.actual_label_column_name]
 
     def get_actual_score_column(self) -> Series:
         if self.schema.actual_score_column_name is None:
-            raise SchemaError("Schema is missing actual_score_column_name")
+            raise err.SchemaError("Schema is missing actual_score_column_name")
         return self.dataframe[self.schema.actual_score_column_name]
 
     def _get_embedding_feature_column_names(self, embedding_feature: str):
         if self.schema.embedding_feature_column_names is None:
-            raise SchemaError("Schema is missing embedding_feature_column_names")
+            raise err.SchemaError("Schema is missing embedding_feature_column_names")
         embedding_feature_column_names = self.schema.embedding_feature_column_names
         if embedding_feature_column_names[embedding_feature] is None:
-            raise SchemaError(
+            raise err.SchemaError(
                 f"""Schema is missing embedding_feature_column_names[{embedding_feature}]"""
             )
         return embedding_feature_column_names[embedding_feature]
@@ -81,13 +98,13 @@ class Dataset:
     def get_embedding_raw_text_column(self, embedding_feature: str) -> Series:
         column_names = self._get_embedding_feature_column_names(embedding_feature)
         if column_names.data_column_name is None:
-            raise SchemaError(f"""Missing data_column_name for {embedding_feature}""")
+            raise err.SchemaError(f"""Missing data_column_name for {embedding_feature}""")
         return self.dataframe[column_names.data_column_name]
 
     def get_embedding_link_to_data_column(self, embedding_feature: str) -> Series:
         column_names = self._get_embedding_feature_column_names(embedding_feature)
         if column_names.link_to_data_column_name is None:
-            raise SchemaError(f"""Missing link_to_data_column_name for {embedding_feature}""")
+            raise err.SchemaError(f"""Missing link_to_data_column_name for {embedding_feature}""")
         return self.dataframe[column_names.link_to_data_column_name]
 
     @classmethod

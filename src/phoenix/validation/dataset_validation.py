@@ -1,10 +1,10 @@
 from itertools import chain
 from typing import List
 
-import errors as err
 from pandas import DataFrame
 
-from src.phoenix.datasets.types import Schema
+from ..datasets.types import Schema
+from ..validation import errors as err
 
 
 class DatasetValidator:
@@ -32,7 +32,7 @@ class DatasetValidator:
                     missing_columns.append(col)
 
         if schema.embedding_feature_column_names is not None:
-            for emb_col_names in schema.embedding_feature_column_names:
+            for emb_col_names in schema.embedding_feature_column_names.values():
                 if emb_col_names.vector_column_name not in existing_columns:
                     missing_columns.append(emb_col_names.vector_column_name)
                 if (
