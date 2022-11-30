@@ -125,7 +125,7 @@ class Dataset:
         if schema.embedding_feature_column_names is not None:
             warnings.warn(
                 "Reading embeddings from csv files can be slow. Consider using other "
-                "formats such as hdf5. Learn more [here]()",
+                "formats such as hdf5.",
                 stacklevel=2,
             )
             for emb_col_names in schema.embedding_feature_column_names.values():
