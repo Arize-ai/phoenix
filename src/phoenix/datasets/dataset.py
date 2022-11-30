@@ -85,7 +85,10 @@ class Dataset:
         if self.schema.embedding_feature_column_names is None:
             raise err.SchemaError(err.MissingField("embedding_feature_column_names"))
         embedding_feature_column_names = self.schema.embedding_feature_column_names
-        if embedding_feature_column_names[embedding_feature_name] is None:
+        if (
+            embedding_feature_name not in embedding_feature_column_names
+            or embedding_feature_column_names[embedding_feature_name] is None
+        ):
             raise err.SchemaError(err.MissingEmbeddingFeatureColumnNames(embedding_feature_name))
         return embedding_feature_column_names[embedding_feature_name]
 
