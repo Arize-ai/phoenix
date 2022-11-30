@@ -7,7 +7,7 @@ from numpy import fromstring
 from pandas import DataFrame, Series, read_csv, read_hdf, read_parquet
 
 from . import errors as err
-from .types import Schema
+from .types import EmbeddingColumnNames, Schema
 from .validation import validate_dataset_inputs
 
 logger = logging.getLogger(__name__)
@@ -30,7 +30,7 @@ class Dataset:
         if errors:
             for e in errors:
                 logger.error(e)
-            raise err.ValidationFailure(errors)
+            raise err.DatasetError(errors)
         parsed_dataframe = self._parse_dataframe(dataframe, schema)
 
         self.__dataframe: DataFrame = parsed_dataframe
@@ -51,14 +51,6 @@ class Dataset:
     def get_column(self, col_name: str) -> Series:
         return self.dataframe[col_name]
 
-    def get_embedding_vector_column(self, embedding_feature_name: str) -> Series:
-        if self.schema.embedding_feature_column_names is None:
-            raise NameError("Dataset schema is missing embedding feature column names")
-        embedding_column = self.schema.embedding_feature_column_names[embedding_feature_name]
-        df_column_name = embedding_column.vector_column_name
-        vector_column = self.dataframe[df_column_name]
-        return vector_column
-
     def sample(self, num: Optional[int] = None) -> "Dataset":
         sampled_dataframe = self.dataframe.sample(n=num, ignore_index=True)
         return Dataset(sampled_dataframe, self.schema)
@@ -67,46 +59,59 @@ class Dataset:
         self,
     ) -> Series:
         if self.schema.prediction_label_column_name is None:
-            raise err.SchemaError("Schema is missing prediction_label_column_name")
+            raise err.SchemaError(err.MissingField("prediction_label_column_name"))
         return self.dataframe[self.schema.prediction_label_column_name]
 
     def get_prediction_score_column(
         self,
     ) -> Series:
         if self.schema.prediction_score_column_name is None:
-            raise err.SchemaError("Schema is missing prediction_score_column_name")
+            raise err.SchemaError(err.MissingField("prediction_score_column_name"))
         return self.dataframe[self.schema.prediction_score_column_name]
 
     def get_actual_label_column(self) -> Series:
         if self.schema.actual_label_column_name is None:
-            raise err.SchemaError("Schema is missing actual_label_column_name")
+            raise err.SchemaError(err.MissingField("actual_label_column_name"))
         return self.dataframe[self.schema.actual_label_column_name]
 
     def get_actual_score_column(self) -> Series:
         if self.schema.actual_score_column_name is None:
-            raise err.SchemaError("Schema is missing actual_score_column_name")
+            raise err.SchemaError(err.MissingField("actual_score_column_name"))
         return self.dataframe[self.schema.actual_score_column_name]
 
-    def _get_embedding_feature_column_names(self, embedding_feature: str):
+    def _get_embedding_feature_column_names(
+        self, embedding_feature_name: str
+    ) -> EmbeddingColumnNames:
         if self.schema.embedding_feature_column_names is None:
-            raise err.SchemaError("Schema is missing embedding_feature_column_names")
+            raise err.SchemaError(err.MissingField("embedding_feature_column_names"))
         embedding_feature_column_names = self.schema.embedding_feature_column_names
-        if embedding_feature_column_names[embedding_feature] is None:
+        if embedding_feature_column_names[embedding_feature_name] is None:
+            raise err.SchemaError(err.MissingEmbeddingFeatureColumnNames(embedding_feature_name))
+        return embedding_feature_column_names[embedding_feature_name]
+
+    def get_embedding_vector_column(self, embedding_feature_name: str) -> Series:
+        column_names = self._get_embedding_feature_column_names(embedding_feature_name)
+        if column_names.vector_column_name is None:
             raise err.SchemaError(
-                f"""Schema is missing embedding_feature_column_names[{embedding_feature}]"""
+                err.MissingEmbeddingFeatureVectorColumnName(embedding_feature_name)
             )
-        return embedding_feature_column_names[embedding_feature]
+        vector_column = self.dataframe[column_names.vector_column_name]
+        return vector_column
 
-    def get_embedding_raw_text_column(self, embedding_feature: str) -> Series:
-        column_names = self._get_embedding_feature_column_names(embedding_feature)
-        if column_names.data_column_name is None:
-            raise err.SchemaError(f"""Missing data_column_name for {embedding_feature}""")
-        return self.dataframe[column_names.data_column_name]
+    def get_embedding_raw_data_column(self, embedding_feature_name: str) -> Series:
+        column_names = self._get_embedding_feature_column_names(embedding_feature_name)
+        if column_names.raw_data_column_name is None:
+            raise err.SchemaError(
+                err.MissingEmbeddingFeatureRawDataColumnName(embedding_feature_name)
+            )
+        return self.dataframe[column_names.raw_data_column_name]
 
-    def get_embedding_link_to_data_column(self, embedding_feature: str) -> Series:
-        column_names = self._get_embedding_feature_column_names(embedding_feature)
+    def get_embedding_link_to_data_column(self, embedding_feature_name: str) -> Series:
+        column_names = self._get_embedding_feature_column_names(embedding_feature_name)
         if column_names.link_to_data_column_name is None:
-            raise err.SchemaError(f"""Missing link_to_data_column_name for {embedding_feature}""")
+            raise err.SchemaError(
+                err.MissingEmbeddingFeatureLinkToDataColumnName(embedding_feature_name)
+            )
         return self.dataframe[column_names.link_to_data_column_name]
 
     @classmethod
@@ -127,7 +132,7 @@ class Dataset:
                 if emb_col_names.vector_column_name not in dataframe_columns:
                     e = err.MissingVectorColumn(emb_col_names.vector_column_name)
                     logger.error(e)
-                    raise err.ValidationFailure(e)
+                    raise err.DatasetError(e)
                 dataframe[emb_col_names.vector_column_name] = dataframe[
                     emb_col_names.vector_column_name
                 ].map(lambda s: fromstring(s.strip("[]"), dtype=float, sep=" "))
@@ -161,8 +166,8 @@ class Dataset:
         if schema.embedding_feature_column_names is not None:
             for emb_feat_cols in schema.embedding_feature_column_names.values():
                 schema_cols.append(emb_feat_cols.vector_column_name)
-                if emb_feat_cols.data_column_name:
-                    schema_cols.append(emb_feat_cols.data_column_name)
+                if emb_feat_cols.raw_data_column_name:
+                    schema_cols.append(emb_feat_cols.raw_data_column_name)
                 if emb_feat_cols.link_to_data_column_name:
                     schema_cols.append(emb_feat_cols.link_to_data_column_name)
 

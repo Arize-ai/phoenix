@@ -14,11 +14,6 @@ class ValidationError(ABC):
         pass
 
 
-class ValidationFailure(Exception):
-    def __init__(self, errors: Union[ValidationError, List[ValidationError]]):
-        self.errors = errors
-
-
 class MissingVectorColumn(ValidationError):
     def __init__(self, col: str) -> None:
         self.missing_col = col
@@ -42,13 +37,75 @@ class MissingColumns(ValidationError):
         )
 
 
-class SchemaError(Exception):
-    """An error raised when the schema is invalid or incomplete"""
-
-    pass
-
-
 class DatasetError(Exception):
     """An error raised when the dataset is invalid or incomplete"""
 
-    pass
+    def __init__(self, errors: Union[ValidationError, List[ValidationError]]):
+        self.errors = errors
+
+
+class MissingField(ValidationError):
+    def __init__(self, field: str) -> None:
+        self.missing_field = field
+
+    def error_message(self) -> str:
+        return f"Schema is missing {self.missing_field}"
+
+
+class MissingFields(ValidationError):
+    def __init__(self, fields: Iterable[str]) -> None:
+        self.missing_fields = fields
+
+    def error_message(self) -> str:
+        return (
+            "Schema is missing the following fields: "
+            f"{', '.join(map(str, self.missing_fields))}."
+        )
+
+
+class MissingEmbeddingFeatureColumnNames(ValidationError):
+    def __init__(self, embedding_feature_name: str) -> None:
+        self.embedding_feature_name = embedding_feature_name
+
+    def error_message(self) -> str:
+        return f"Schema is missing embedding_feature_column_names[{self.embedding_feature_name}]"
+
+
+class MissingEmbeddingFeatureVectorColumnName(ValidationError):
+    def __init__(self, embedding_feature_name: str) -> None:
+        self.embedding_feature_name = embedding_feature_name
+
+    def error_message(self) -> str:
+        return (
+            f"Schema is missing vector_column_name of embedding_feature_column_names"
+            f"[{self.embedding_feature_name}]"
+        )
+
+
+class MissingEmbeddingFeatureRawDataColumnName(ValidationError):
+    def __init__(self, embedding_feature_name: str) -> None:
+        self.embedding_feature_name = embedding_feature_name
+
+    def error_message(self) -> str:
+        return (
+            f"Schema is missing raw_data_column_name of embedding_feature_column_names"
+            f"[{self.embedding_feature_name}]"
+        )
+
+
+class MissingEmbeddingFeatureLinkToDataColumnName(ValidationError):
+    def __init__(self, embedding_feature_name: str) -> None:
+        self.embedding_feature_name = embedding_feature_name
+
+    def error_message(self) -> str:
+        return (
+            f"Schema is missing link_to_data_column_name of embedding_feature_column_names"
+            f"[{self.embedding_feature_name}]"
+        )
+
+
+class SchemaError(Exception):
+    """An error raised when the schema is invalid or incomplete"""
+
+    def __init__(self, errors: Union[ValidationError, List[ValidationError]]):
+        self.errors = errors

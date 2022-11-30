@@ -4,7 +4,7 @@ from typing import Dict, List, NamedTuple, Optional
 
 class EmbeddingColumnNames(NamedTuple):
     vector_column_name: str
-    data_column_name: Optional[str] = None
+    raw_data_column_name: Optional[str] = None
     link_to_data_column_name: Optional[str] = None
 
 

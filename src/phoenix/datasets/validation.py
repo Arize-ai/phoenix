@@ -33,10 +33,10 @@ def _check_missing_columns(dataframe: DataFrame, schema: Schema) -> List[err.Mis
             if emb_col_names.vector_column_name not in existing_columns:
                 missing_columns.append(emb_col_names.vector_column_name)
             if (
-                emb_col_names.data_column_name is not None
-                and emb_col_names.data_column_name not in existing_columns
+                emb_col_names.raw_data_column_name is not None
+                and emb_col_names.raw_data_column_name not in existing_columns
             ):
-                missing_columns.append(emb_col_names.data_column_name)
+                missing_columns.append(emb_col_names.raw_data_column_name)
             if (
                 emb_col_names.link_to_data_column_name is not None
                 and emb_col_names.link_to_data_column_name not in existing_columns

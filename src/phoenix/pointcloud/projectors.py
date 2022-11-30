@@ -61,7 +61,7 @@ class UMAPProjector:
                     coordinates=c(*[primary_projections[i][k] for k in range(N)]),
                     prediction_label=primary_dataset.get_prediction_label_column()[i],
                     actual_label=primary_dataset.get_actual_label_column()[i],
-                    raw_text_data=primary_dataset.get_embedding_raw_text_column(embedding_feature)[
+                    raw_text_data=primary_dataset.get_embedding_raw_data_column(embedding_feature)[
                         i
                     ],
                 )
@@ -73,7 +73,7 @@ class UMAPProjector:
                     coordinates=c(*[reference_projections[i][k] for k in range(N)]),
                     prediction_label=reference_dataset.get_prediction_label_column()[i],
                     actual_label=reference_dataset.get_actual_label_column()[i],
-                    raw_text_data=reference_dataset.get_embedding_raw_text_column(
+                    raw_text_data=reference_dataset.get_embedding_raw_data_column(
                         embedding_feature
                     )[i],
                 )
