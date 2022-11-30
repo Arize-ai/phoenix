@@ -6,7 +6,6 @@ from hdbscan import HDBSCAN  # type: ignore
 from numpy.typing import ArrayLike
 from umap import UMAP  # type: ignore
 
-from ..datasets import Dataset
 from .pointcloud import (
     Cluster,
     Coordinates,
@@ -15,6 +14,7 @@ from .pointcloud import (
     InferenceAttributes,
     Point,
 )
+from ..datasets import Dataset
 
 MAX_UMAP_POINTS = 500
 DEFAULT_MIN_CLUSTER_SIZE = 20
@@ -27,8 +27,8 @@ class UMAPProjector:
 
     def __post__init__(self):
         if "n_neighbors" in self.hyperparameters and (
-            not isinstance(self.hyperparameters["n_neighbors"], int)
-            or self.hyperparameters["n_neighbors"] not in (2, 3)
+                not isinstance(self.hyperparameters["n_neighbors"], int)
+                or self.hyperparameters["n_neighbors"] not in (2, 3)
         ):
             raise ValueError(
                 "Projection dimensionality not supported. Must be integer value: 2 or 3 (2D/3D)."
@@ -65,7 +65,7 @@ class UMAPProjector:
             inference_attributes = InferenceAttributes(
                 prediction_label=primary_dataset.get_prediction_label_column()[i],
                 actual_label=primary_dataset.get_actual_label_column()[i],
-                raw_text_data=primary_dataset.get_embedding_raw_text_column(embedding_feature)[i],
+                raw_text_data=primary_dataset.get_embedding_raw_data_column(embedding_feature)[i],
             )
             primary_points.append(
                 Point(
@@ -78,7 +78,7 @@ class UMAPProjector:
             inference_attributes = InferenceAttributes(
                 prediction_label=reference_dataset.get_prediction_label_column()[i],
                 actual_label=reference_dataset.get_actual_label_column()[i],
-                raw_text_data=reference_dataset.get_embedding_raw_text_column(embedding_feature)[i],
+                raw_text_data=reference_dataset.get_embedding_raw_data_column(embedding_feature)[i],
             )
             reference_points.append(
                 Point(
@@ -108,7 +108,7 @@ class UMAPProjector:
         }
 
         primary_cluster_ids = cluster_ids[: len(primary_points)]
-        reference_cluster_ids = cluster_ids[len(primary_points) :]
+        reference_cluster_ids = cluster_ids[len(primary_points):]
         # Check that there are as many coordinates as cluster IDs
         # This is a defensive test, since this should be guaranteed by UMAP & HDBSCAN libraries
         if len(reference_cluster_ids) != len(reference_points):
