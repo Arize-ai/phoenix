@@ -13,7 +13,7 @@
         <div id="root"></div>
     </body>
     <script>
-        function generateData(length, offset = 0) {
+        function generateData(length, offset = 0, idOffset = 0) {
             return Array.from({ length }, (_, i) => ({
                 position: [
                     Math.random() + offset,
@@ -21,7 +21,7 @@
                     Math.random() + offset,
                 ],
                 metaData: {
-                    id: i,
+                    id: i + idOffset,
                 },
             }));
         }
@@ -40,7 +40,7 @@
         onDomReady(() =>
             window.renderUMAPWidget({
                 primaryData: generateData(1000),
-                referenceData: generateData(1000),
+                referenceData: generateData(1000, 1, 1000),
             })
         );
     </script>

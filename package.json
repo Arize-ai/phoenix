@@ -5,7 +5,7 @@
     "license": "None",
     "private": true,
     "dependencies": {
-        "@arizeai/components": "^0.8.0",
+        "@arizeai/components": "^0.8.1",
         "@arizeai/point-cloud": "^2.1.1",
         "@emotion/core": "^10.1.1",
         "@emotion/css": "^11.10.5",
@@ -14,6 +14,7 @@
         "polished": "^4.2.2",
         "react": "18.2",
         "react-dom": "18.2",
+        "shade": "^0.1.1",
         "three": "0.139",
         "three-stdlib": "^2.17.3"
     },
@@ -25,6 +26,7 @@
     "scripts": {
         "build": "esbuild ui/src/index.tsx --bundle --minify --target=es2020 --jsx=automatic --format=esm --outfile=src/phoenix/nbextension/static/index.js",
         "watch": "esbuild ui/src/index.tsx --bundle --minify --target=es2020 --jsx=automatic --format=esm --outfile=src/phoenix/nbextension/static/index.js --watch",
-        "dev": "serve . & npm run watch"
+        "dev": "serve . & npm run watch",
+        "typecheck": "tsc --noEmit"
     }
 }
