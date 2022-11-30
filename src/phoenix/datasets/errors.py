@@ -85,7 +85,7 @@ class MissingEmbeddingFeatureVectorColumnName(ValidationError):
 
 class MissingEmbeddingFeatureRawDataColumnName(ValidationError):
     """An error raised when trying to access an EmbeddingColumnNames.raw_data_column_name
-    missing in the Schema"""
+    that is absent from the schema"""
 
     def __init__(self, embedding_feature_name: str) -> None:
         self.embedding_feature_name = embedding_feature_name
