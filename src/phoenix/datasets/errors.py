@@ -15,23 +15,28 @@ class ValidationError(ABC):
 
 
 class MissingVectorColumn(ValidationError):
+    """An error raised when the dataset is missing an embedding vector column specified in the
+    Schema"""
+
     def __init__(self, col: str) -> None:
         self.missing_col = col
 
     def error_message(self) -> str:
         return (
-            f"The embedding vector column {self.missing_col} is declared in the schema "
+            f"The embedding vector column {self.missing_col} is declared in the Schema "
             "but is not found in the dataframe."
         )
 
 
 class MissingColumns(ValidationError):
+    """An error raised when the dataset is missing columns specified in the Schema"""
+
     def __init__(self, cols: Iterable) -> None:
         self.missing_cols = cols
 
     def error_message(self) -> str:
         return (
-            "The following columns are declared in the schema "
+            "The following columns are declared in the Schema "
             "but are not found in the dataframe: "
             f"{', '.join(map(str, self.missing_cols))}."
         )
@@ -45,6 +50,8 @@ class DatasetError(Exception):
 
 
 class MissingField(ValidationError):
+    """An error raised when trying to access a field missing in the Schema"""
+
     def __init__(self, field: str) -> None:
         self.missing_field = field
 
@@ -52,18 +59,9 @@ class MissingField(ValidationError):
         return f"Schema is missing {self.missing_field}"
 
 
-class MissingFields(ValidationError):
-    def __init__(self, fields: Iterable[str]) -> None:
-        self.missing_fields = fields
-
-    def error_message(self) -> str:
-        return (
-            "Schema is missing the following fields: "
-            f"{', '.join(map(str, self.missing_fields))}."
-        )
-
-
 class MissingEmbeddingFeatureColumnNames(ValidationError):
+    """An error raised when trying to access an EmbeddingColumnNames object missing in the Schema"""
+
     def __init__(self, embedding_feature_name: str) -> None:
         self.embedding_feature_name = embedding_feature_name
 
@@ -72,6 +70,9 @@ class MissingEmbeddingFeatureColumnNames(ValidationError):
 
 
 class MissingEmbeddingFeatureVectorColumnName(ValidationError):
+    """An error raised when trying to access an EmbeddingColumnNames.vector_column_name
+    missing in the Schema"""
+
     def __init__(self, embedding_feature_name: str) -> None:
         self.embedding_feature_name = embedding_feature_name
 
@@ -83,6 +84,9 @@ class MissingEmbeddingFeatureVectorColumnName(ValidationError):
 
 
 class MissingEmbeddingFeatureRawDataColumnName(ValidationError):
+    """An error raised when trying to access an EmbeddingColumnNames.raw_data_column_name
+    missing in the Schema"""
+
     def __init__(self, embedding_feature_name: str) -> None:
         self.embedding_feature_name = embedding_feature_name
 
@@ -94,6 +98,9 @@ class MissingEmbeddingFeatureRawDataColumnName(ValidationError):
 
 
 class MissingEmbeddingFeatureLinkToDataColumnName(ValidationError):
+    """An error raised when trying to access an EmbeddingColumnNames.link_to_data_column_name
+    missing in the Schema"""
+
     def __init__(self, embedding_feature_name: str) -> None:
         self.embedding_feature_name = embedding_feature_name
 
@@ -105,7 +112,7 @@ class MissingEmbeddingFeatureLinkToDataColumnName(ValidationError):
 
 
 class SchemaError(Exception):
-    """An error raised when the schema is invalid or incomplete"""
+    """An error raised when the Schema is invalid or incomplete"""
 
     def __init__(self, errors: Union[ValidationError, List[ValidationError]]):
         self.errors = errors
