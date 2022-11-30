@@ -8,11 +8,11 @@ from .types import Schema
 
 
 def validate_dataset_inputs(dataframe: DataFrame, schema: Schema) -> List[err.ValidationError]:
-    general_checks = chain(_check_missing_columns(dataframe, schema))
+    general_checks = chain(check_missing_columns(dataframe, schema))
     return list(general_checks)
 
 
-def _check_missing_columns(dataframe: DataFrame, schema: Schema) -> List[err.MissingColumns]:
+def check_missing_columns(dataframe: DataFrame, schema: Schema) -> List[err.MissingColumns]:
     # converting to a set first makes the checks run a lot faster
     existing_columns = set(dataframe.columns)
     missing_columns = []

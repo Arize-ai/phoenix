@@ -60,7 +60,8 @@ class MissingField(ValidationError):
 
 
 class MissingEmbeddingFeatureColumnNames(ValidationError):
-    """An error raised when trying to access an EmbeddingColumnNames config that is absent from the schema"""
+    """An error raised when trying to access an EmbeddingColumnNames config that is absent
+    from the schema"""
 
     def __init__(self, embedding_feature_name: str) -> None:
         self.embedding_feature_name = embedding_feature_name
