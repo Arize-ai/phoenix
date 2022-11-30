@@ -19,12 +19,14 @@ def load_js():
         encoding="utf-8",
     ).read()
 
+
 def load_style():
     return """ 
         body {
             font-family: 'Roboto', sans-serif;
             }
     """
+
 
 def random_position(offset):
     return {
