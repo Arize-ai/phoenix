@@ -4,13 +4,13 @@ from typing import Dict, List, NamedTuple, Optional
 
 class EmbeddingColumnNames(NamedTuple):
     vector_column_name: str
-    data_column_name: Optional[str] = None
+    raw_data_column_name: Optional[str] = None
     link_to_data_column_name: Optional[str] = None
 
 
 @dataclass(frozen=True)
 class Schema:
-    prediction_id_column_name: str
+    prediction_id_column_name: Optional[str] = None
     timestamp_column_name: Optional[str] = None
     feature_column_names: Optional[List[str]] = None
     prediction_label_column_name: Optional[str] = None
