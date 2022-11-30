@@ -16,7 +16,7 @@ class ValidationError(ABC):
 
 class MissingVectorColumn(ValidationError):
     """An error raised when the dataset is missing an embedding vector column specified in the
-    Schema"""
+    schema"""
 
     def __init__(self, col: str) -> None:
         self.missing_col = col
