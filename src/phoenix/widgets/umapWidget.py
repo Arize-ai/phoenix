@@ -21,7 +21,7 @@ def load_js():
 
 
 def load_style():
-    return """ 
+    return """
         body {
             font-family: 'Roboto', sans-serif;
             }
