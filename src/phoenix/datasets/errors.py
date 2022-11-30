@@ -50,7 +50,7 @@ class DatasetError(Exception):
 
 
 class MissingField(ValidationError):
-    """An error raised when trying to access a field missing in the Schema"""
+    """An error raised when trying to access a field that is absent from the Schema"""
 
     def __init__(self, field: str) -> None:
         self.missing_field = field
