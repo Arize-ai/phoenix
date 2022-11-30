@@ -24,7 +24,7 @@ class MissingVectorColumn(ValidationError):
     def error_message(self) -> str:
         return (
             f"The embedding vector column {self.missing_col} is declared in the Schema "
-            "but is not found in the dataframe."
+            "but is not found in the data."
         )
 
 
