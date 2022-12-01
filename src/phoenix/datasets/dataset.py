@@ -23,6 +23,7 @@ ParquetEngine = Literal["pyarrow", "fastparquet", "auto"]
 
 # Remove dummy comment
 
+
 class Dataset:
     def __init__(self, dataframe: DataFrame, schema: Schema):
         errors = validate_dataset_inputs(
@@ -89,8 +90,8 @@ class Dataset:
             raise err.SchemaError(err.MissingField("embedding_feature_column_names"))
         embedding_feature_column_names = self.schema.embedding_feature_column_names
         if (
-                embedding_feature_name not in embedding_feature_column_names
-                or embedding_feature_column_names[embedding_feature_name] is None
+            embedding_feature_name not in embedding_feature_column_names
+            or embedding_feature_column_names[embedding_feature_name] is None
         ):
             raise err.SchemaError(err.MissingEmbeddingFeatureColumnNames(embedding_feature_name))
         return embedding_feature_column_names[embedding_feature_name]
