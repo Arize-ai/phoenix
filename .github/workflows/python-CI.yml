@@ -41,7 +41,7 @@ jobs:
     test:
         name: Test Python
         runs-on: ${{ matrix.os }}
-        needs: [code-format]
+        needs: [lint-python]
         strategy:
             matrix:
                 os: [macos-latest]
