@@ -29,8 +29,9 @@ class Dataset:
             dataframe=dataframe,
             schema=schema,
         )
+        print(errors)
         if errors:
-            for e in errors:
+            for e in errors[1:]:
                 logger.error(e)
             raise err.DatasetError(errors)
         parsed_dataframe = self._parse_dataframe(dataframe, schema)
