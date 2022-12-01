@@ -28,21 +28,22 @@ def load_style():
     """
 
 
-def random_position(offset):
+def random_point(offset: int, id: int):
     return {
         "position": [
             random() + offset,
             random() + offset,
             random() + offset,
-        ]
+        ],
+        "metaData": {"id": id},
     }
 
 
-def generate_data(length: int, offset: int):
-    data = [None] * length
+def generate_data(length: int, offset: int, id_offset: int):
+    data = enumerate([None] * length)
     return list(
         map(
-            lambda r: random_position(offset),
+            lambda i: random_point(offset, id=i[0] + id_offset),
             data,
         )
     )
@@ -50,8 +51,8 @@ def generate_data(length: int, offset: int):
 
 def demo_json():
     data = {
-        "primaryData": generate_data(100, 0),
-        "referenceData": generate_data(100, 1),
+        "primaryData": generate_data(100, 0, 0),
+        "referenceData": generate_data(100, 1, 100),
     }
     return json.dumps(data)
 
