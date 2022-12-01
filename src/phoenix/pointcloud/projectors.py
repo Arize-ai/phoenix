@@ -7,7 +7,14 @@ from numpy.typing import ArrayLike
 from umap import UMAP  # type: ignore
 
 from ..datasets import Dataset
-from .pointcloud import Cluster, Coordinates, Coordinates2D, Coordinates3D, Point
+from .pointcloud import (
+    Cluster,
+    Coordinates,
+    Coordinates2D,
+    Coordinates3D,
+    InferenceAttributes,
+    Point,
+)
 
 MAX_UMAP_POINTS = 500
 DEFAULT_MIN_CLUSTER_SIZE = 20
@@ -54,28 +61,38 @@ class UMAPProjector:
         else:
             raise ValueError("Projections should be done to 2D or 3D.")
 
+        # Build primary points
+        prediction_label_col = primary_dataset.get_prediction_label_column()
+        actual_label_col = primary_dataset.get_actual_label_column()
+        raw_text_data_col = primary_dataset.get_embedding_raw_data_column(embedding_feature)
         for i in range(len(primary_projections)):
+            inference_attributes = InferenceAttributes(
+                prediction_label=prediction_label_col[i],
+                actual_label=actual_label_col[i],
+                raw_text_data=raw_text_data_col[i],
+            )
             primary_points.append(
                 Point(
                     id=i,
                     coordinates=c(*[primary_projections[i][k] for k in range(N)]),
-                    prediction_label=primary_dataset.get_prediction_label_column()[i],
-                    actual_label=primary_dataset.get_actual_label_column()[i],
-                    raw_text_data=primary_dataset.get_embedding_raw_data_column(embedding_feature)[
-                        i
-                    ],
+                    inference_attributes=inference_attributes,
                 )
             )
+        # Build reference points
+        prediction_label_col = reference_dataset.get_prediction_label_column()
+        actual_label_col = reference_dataset.get_actual_label_column()
+        raw_text_data_col = reference_dataset.get_embedding_raw_data_column(embedding_feature)
         for i in range(len(reference_projections)):
+            inference_attributes = InferenceAttributes(
+                prediction_label=prediction_label_col[i],
+                actual_label=actual_label_col[i],
+                raw_text_data=raw_text_data_col[i],
+            )
             reference_points.append(
                 Point(
                     id=i + len(primary_projections),
                     coordinates=c(*[reference_projections[i][k] for k in range(N)]),
-                    prediction_label=reference_dataset.get_prediction_label_column()[i],
-                    actual_label=reference_dataset.get_actual_label_column()[i],
-                    raw_text_data=reference_dataset.get_embedding_raw_data_column(
-                        embedding_feature
-                    )[i],
+                    inference_attributes=inference_attributes,
                 )
             )
         return primary_points, reference_points
