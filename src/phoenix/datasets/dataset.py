@@ -21,18 +21,14 @@ if hasattr(sys, "ps1"):
 ParquetEngine = Literal["pyarrow", "fastparquet", "auto"]
 
 
-# Remove dummy comment
-
-
 class Dataset:
     def __init__(self, dataframe: DataFrame, schema: Schema):
         errors = validate_dataset_inputs(
             dataframe=dataframe,
             schema=schema,
         )
-        print(errors)
         if errors:
-            for e in errors[1:]:
+            for e in errors:
                 logger.error(e)
             raise err.DatasetError(errors)
         parsed_dataframe = self._parse_dataframe(dataframe, schema)
