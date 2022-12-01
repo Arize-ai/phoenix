@@ -20,6 +20,14 @@ def load_js():
     ).read()
 
 
+def load_style():
+    return """
+        body {
+            font-family: 'Roboto', sans-serif;
+            }
+    """
+
+
 def random_position(offset):
     return {
         "position": [
@@ -56,6 +64,7 @@ class UMAPWidget:
         return f"""
         <html>
             <script>{load_js()}</script>
+            <style>{load_style()}</style>
                 <body>
                     <div id='root'>
                     </div>
