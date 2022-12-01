@@ -2,13 +2,18 @@
     <head>
         <meta http-equiv="content-type" content="text/html; charset=utf-8" />
         <title>App</title>
-        <script src="./phoenix/nbextension/static/index.js"></script>
+        <script src="./src/phoenix/nbextension/static/index.js"></script>
+        <style>
+            body {
+                font-family: "Roboto", sans-serif;
+            }
+        </style>
     </head>
     <body>
         <div id="root"></div>
     </body>
     <script>
-        function generateData(length, offset = 0) {
+        function generateData(length, offset = 0, idOffset = 0) {
             return Array.from({ length }, (_, i) => ({
                 position: [
                     Math.random() + offset,
@@ -16,7 +21,7 @@
                     Math.random() + offset,
                 ],
                 metaData: {
-                    id: i,
+                    id: i + idOffset,
                 },
             }));
         }
@@ -35,7 +40,7 @@
         onDomReady(() =>
             window.renderUMAPWidget({
                 primaryData: generateData(1000),
-                referenceData: generateData(1000),
+                referenceData: generateData(1000, 1, 1000),
             })
         );
     </script>
