@@ -82,9 +82,9 @@ class DriftPointCloud:
                 "position": point.coordinates.get_coordinates(),
                 "metaData": {
                     "id": int(point.id),
-                    "rawTextData": [point.raw_text_data],
-                    "predictionLabel": point.prediction_label,
-                    "actualLabel": point.actual_label,
+                    "rawTextData": [point.inference_attributes.raw_text_data],
+                    "predictionLabel": point.inference_attributes.prediction_label,
+                    "actualLabel": point.inference_attributes.actual_label,
                 },
             }
             pts_json.append(point_json_obj)
