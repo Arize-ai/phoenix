@@ -2,9 +2,13 @@ import logging
 import sys
 import warnings
 from typing import Literal, Optional
+import os
+import uuid
 
 from numpy import fromstring
 from pandas import DataFrame, Series, read_csv, read_hdf, read_parquet
+
+from phoenix.config import dataset_dir
 
 from . import errors as err
 from .types import EmbeddingColumnNames, Schema
@@ -35,6 +39,7 @@ class Dataset:
 
         self.__dataframe: DataFrame = parsed_dataframe
         self.__schema: Schema = schema
+        self.__uuid: str = str(uuid.uuid4())
 
     @property
     def dataframe(self):
@@ -176,3 +181,11 @@ class Dataset:
 
         drop_cols = [col for col in dataframe.columns if col not in schema_cols]
         return dataframe.drop(columns=drop_cols)
+
+    def write_to_disc(self):
+        """writes the dataset to disc as an HDF5 file"""
+        if not os.path.isdir(dataset_dir):
+            os.makedirs(dataset_dir)
+        file_name = f"""{self.__uuid}.h5"""
+        self.dataframe.to_hdf(os.path.join(dataset_dir, file_name), "primary")
+        logger.info("Dataset written to '%s'", dataset_dir)
