@@ -2,6 +2,7 @@ import logging
 import sys
 import warnings
 from typing import Literal, Optional
+from urllib import request
 
 from numpy import fromstring
 from pandas import DataFrame, Series, read_csv, read_hdf, read_parquet
@@ -9,6 +10,8 @@ from pandas import DataFrame, Series, read_csv, read_hdf, read_parquet
 from . import errors as err
 from .types import EmbeddingColumnNames, Schema
 from .validation import validate_dataset_inputs
+
+DOWNLOAD_DIR = "/tmp/"
 
 logger = logging.getLogger(__name__)
 if hasattr(sys, "ps1"):
@@ -86,8 +89,8 @@ class Dataset:
             raise err.SchemaError(err.MissingField("embedding_feature_column_names"))
         embedding_feature_column_names = self.schema.embedding_feature_column_names
         if (
-            embedding_feature_name not in embedding_feature_column_names
-            or embedding_feature_column_names[embedding_feature_name] is None
+                embedding_feature_name not in embedding_feature_column_names
+                or embedding_feature_column_names[embedding_feature_name] is None
         ):
             raise err.SchemaError(err.MissingEmbeddingFeatureColumnNames(embedding_feature_name))
         return embedding_feature_column_names[embedding_feature_name]
@@ -144,7 +147,16 @@ class Dataset:
 
     @classmethod
     def from_hdf(cls, filepath: str, schema: Schema, key: Optional[str] = None):
-        df = read_hdf(filepath, key)
+        if _is_url(filepath):
+            filename = filepath.split("/")[-1]
+            local_file_path = f"{DOWNLOAD_DIR}{filename}"
+            print(f"Downloading file: {filename}")
+            request.urlretrieve(filepath, local_file_path, show_progress)
+            print("\nDone!")
+        else:
+            local_file_path = filepath
+
+        df = read_hdf(local_file_path, key)
         if not isinstance(df, DataFrame):
             raise TypeError("Reading from hdf yielded an invalid dataframe")
         return cls(df, schema)
@@ -176,3 +188,14 @@ class Dataset:
 
         drop_cols = [col for col in dataframe.columns if col not in schema_cols]
         return dataframe.drop(columns=drop_cols)
+
+
+def _is_url(filepath: str):
+    allowed_urls = ["http://", "https://"]
+    return any([filepath.startswith(keyword) for keyword in allowed_urls])
+
+
+def show_progress(block_num, block_size, total_size):
+    progress = round(block_num * block_size / total_size * 100, 2)
+    print(f"{progress}%", end="\r")
+    print("[" + int(progress) * "=" + (100 - int(progress)) * " " + f"] {progress}%", end="\r")
