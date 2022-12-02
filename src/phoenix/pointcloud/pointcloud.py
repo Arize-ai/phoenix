@@ -32,15 +32,20 @@ class Coordinates3D(Coordinates):
 
 
 @dataclass(frozen=True)
-class Point:
-    id: int
-    coordinates: Coordinates
+class InferenceAttributes:
     prediction_label: str
     # prediction_score: float,
     actual_label: str
     # actual_score: float,
     raw_text_data: str
     # link_to_data: str,
+
+
+@dataclass(frozen=True)
+class Point:
+    id: int
+    coordinates: Coordinates
+    inference_attributes: InferenceAttributes
 
 
 @dataclass(frozen=True)
@@ -77,9 +82,9 @@ class DriftPointCloud:
                 "position": point.coordinates.get_coordinates(),
                 "metaData": {
                     "id": int(point.id),
-                    "rawTextData": [point.raw_text_data],
-                    "predictionLabel": point.prediction_label,
-                    "actualLabel": point.actual_label,
+                    "rawTextData": [point.inference_attributes.raw_text_data],
+                    "predictionLabel": point.inference_attributes.prediction_label,
+                    "actualLabel": point.inference_attributes.actual_label,
                 },
             }
             pts_json.append(point_json_obj)
