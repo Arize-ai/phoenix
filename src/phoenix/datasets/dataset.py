@@ -1,7 +1,7 @@
 import logging
 import sys
 import warnings
-from typing import Any, List, Literal, Optional, Sequence, TypeVar, Union
+from typing import List, Literal, Optional, Union
 from urllib import request
 
 from numpy import fromstring
@@ -10,6 +10,7 @@ from pandas import DataFrame, Series, read_csv, read_hdf, read_parquet
 from . import errors as err
 from .types import EmbeddingColumnNames, Schema
 from .validation import validate_dataset_inputs
+from ..utils import is_list_of, is_url, parse_file_format, parse_filename
 
 DOWNLOAD_DIR = "/tmp/"
 
@@ -89,8 +90,8 @@ class Dataset:
             raise err.SchemaError(err.MissingField("embedding_feature_column_names"))
         embedding_feature_column_names = self.schema.embedding_feature_column_names
         if (
-            embedding_feature_name not in embedding_feature_column_names
-            or embedding_feature_column_names[embedding_feature_name] is None
+                embedding_feature_name not in embedding_feature_column_names
+                or embedding_feature_column_names[embedding_feature_name] is None
         ):
             raise err.SchemaError(err.MissingEmbeddingFeatureColumnNames(embedding_feature_name))
         return embedding_feature_column_names[embedding_feature_name]
@@ -147,31 +148,41 @@ class Dataset:
 
     @classmethod
     def from_hdf(cls, filepath: str, schema: Schema, key: Optional[Union[str, List[str]]] = None):
-        if _is_url(filepath):
-            filename = filepath.split("/")[-1]
-            local_file_path = f"{DOWNLOAD_DIR}{filename}"
-            print(f"Downloading file: {filename}")
-            request.urlretrieve(filepath, local_file_path, show_progress)
-            print("\nDone!")
-        else:
-            local_file_path = filepath
-
-        if isinstance(key, str):
-            df = read_hdf(local_file_path, key)
-            if not isinstance(df, DataFrame):
-                raise TypeError("Reading from hdf yielded an invalid dataframe")
-            return cls(df, schema)
-
-        if key is not None:
-            if not list_of(key, str):
-                raise TypeError("keys must be str or List[str]")
+        if key is not None and is_list_of(key, str):
             dfs = []
             for k in list(key):
-                df = read_hdf(local_file_path, k)
+                df = read_hdf(filepath, k)
                 if not isinstance(df, DataFrame):
                     raise TypeError("Reading from hdf yielded an invalid dataframe")
                 dfs.append(df)
             return [cls(df, schema) for df in dfs]
+
+        df = read_hdf(filepath, key)
+        if not isinstance(df, DataFrame):
+            raise TypeError("Reading from hdf yielded an invalid dataframe")
+        return cls(df, schema)
+
+    @classmethod
+    def from_url(
+        cls, url_path: str, schema: Schema, hdf_key: Optional[Union[str, List[str]]] = None
+    ):
+        if not is_url(url_path):
+            raise ValueError("Invalid url")
+        file_format = parse_file_format(url_path)
+        if file_format == ".csv":
+            return cls.from_csv(url_path, schema)
+        elif file_format == ".hdf5" or file_format == ".hdf":
+            filename = parse_filename(url_path)
+            local_file_path = f"{DOWNLOAD_DIR}{filename}"
+            print(f"Downloading file: {filename}")
+            request.urlretrieve(url_path, local_file_path, show_progress)
+            print("\nDone!")
+            return cls.from_hdf(local_file_path, schema, hdf_key)
+        else:
+            raise ValueError(
+                f"File format {file_format} not supported. Currently supported "
+                f"formats are EDIT FORMATS"
+            )
 
     @classmethod
     def from_parquet(cls, filepath: str, schema: Schema, engine: ParquetEngine = "pyarrow"):
@@ -202,19 +213,7 @@ class Dataset:
         return dataframe.drop(columns=drop_cols)
 
 
-def _is_url(filepath: str):
-    allowed_urls = ["http://", "https://"]
-    return any([filepath.startswith(keyword) for keyword in allowed_urls])
-
-
 def show_progress(block_num, block_size, total_size):
     progress = round(block_num * block_size / total_size * 100, 2)
     print(f"{progress}%", end="\r")
     print("[" + int(progress) * "=" + (100 - int(progress)) * " " + f"] {progress}%", end="\r")
-
-
-T = TypeVar("T", bound=type[Any])
-
-
-def list_of(lst: Sequence[object], tp: T) -> bool:
-    return isinstance(lst, list) and all(isinstance(x, tp) for x in lst)
