@@ -4,6 +4,7 @@ import warnings
 from typing import Literal, Optional
 import os
 import uuid
+import json
 
 from numpy import fromstring
 from pandas import DataFrame, Series, read_csv, read_hdf, read_parquet
@@ -26,6 +27,11 @@ ParquetEngine = Literal["pyarrow", "fastparquet", "auto"]
 
 
 class Dataset:
+    """A dataset represents data for a set of inferences. It is represented as a dataframe + schema"""
+
+    _data_file_name: str = "data.hd5"
+    _schema_file_name: str = "schema.json"
+
     def __init__(self, dataframe: DataFrame, schema: Schema):
         errors = validate_dataset_inputs(
             dataframe=dataframe,
@@ -39,7 +45,10 @@ class Dataset:
 
         self.__dataframe: DataFrame = parsed_dataframe
         self.__schema: Schema = schema
+        # A unique ID for this dataset so that it can be used to sync data across different run times
+        # Alternatively we could use a naming convention
         self.__uuid: str = str(uuid.uuid4())
+        logger.info(f"""Dataset UUID: {self.__uuid}""")
 
     @property
     def dataframe(self):
@@ -182,10 +191,19 @@ class Dataset:
         drop_cols = [col for col in dataframe.columns if col not in schema_cols]
         return dataframe.drop(columns=drop_cols)
 
-    def write_to_disc(self):
-        """writes the dataset to disc as an HDF5 file"""
-        if not os.path.isdir(dataset_dir):
-            os.makedirs(dataset_dir)
-        file_name = f"""{self.__uuid}.h5"""
-        self.dataframe.to_hdf(os.path.join(dataset_dir, file_name), "primary")
-        logger.info("Dataset written to '%s'", dataset_dir)
+    @property
+    def directory(self):
+        """The directory under which the dataset metadata is stored"""
+        return os.path.join(dataset_dir, self.__uuid)
+
+    def persist_to_disc(self):
+        """writes the data and schema to disc as an HDF5 file"""
+        directory = self.directory
+        if not os.path.isdir(self.directory):
+            os.makedirs(self.directory)
+
+        # TODO figure out the right key to store it under
+        self.dataframe.to_hdf(os.path.join(directory, self._data_file_name), "data")
+        with open(os.path.join(directory, self._schema_file_name), "w+") as schema_file:
+            schema_file.write(self.__schema.to_json())
+        logger.info("Dataset info written to '%s'", directory)
