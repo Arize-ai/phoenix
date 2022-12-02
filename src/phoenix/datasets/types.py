@@ -61,7 +61,7 @@ class Schema:
         for field in self.__dataclass_fields__:
             value = getattr(self, field)
             if (
-                field is "embedding_feature_column_names"
+                field == "embedding_feature_column_names"
                 and self.embedding_feature_column_names is not None
             ):
                 embedding_feature_column_names = {}
