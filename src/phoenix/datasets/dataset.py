@@ -1,4 +1,3 @@
-import json
 import logging
 import os
 import sys
@@ -27,7 +26,9 @@ ParquetEngine = Literal["pyarrow", "fastparquet", "auto"]
 
 
 class Dataset:
-    """A dataset represents data for a set of inferences. It is represented as a dataframe + schema"""
+    """
+    A dataset represents data for a set of inferences. It is represented as a dataframe + schema
+    """
 
     _data_file_name: str = "data.hd5"
     _schema_file_name: str = "schema.json"
@@ -45,7 +46,8 @@ class Dataset:
 
         self.__dataframe: DataFrame = parsed_dataframe
         self.__schema: Schema = schema
-        # A unique ID for this dataset so that it can be used to sync data across different run times
+        # A unique ID for this dataset so that it can be used to sync data
+        # across different environments (notebook vs server)
         # Alternatively we could use a naming convention
         self.__uuid: str = str(uuid.uuid4())
         logger.info(f"""Dataset UUID: {self.__uuid}""")
