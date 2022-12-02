@@ -14,10 +14,9 @@ from phoenix.metrics.tabular.psi import _psi
 
 
 @pytest.fixture
-def psi_test_asset_df():
-    return pd.read_csv(
-        os.path.join(os.path.dirname(__file__), '../../assets/metrics/tabular/psi/psi_test_values.csv'))
-    # return pd.read_excel(os.path.join(os.path.dirname(__file__), '../../assets/metrics/tabular/psi/psi_test_values.csv'), engine='openpyxl')
+def psi_test_asset_df(request):
+    return pd.read_excel(os.path.join(request.config.invocation_dir, 'assets/metrics/tabular/psi/psi_test_asset.xlsx'),
+                         engine='openpyxl')
 
 
 @pytest.fixture
@@ -35,7 +34,7 @@ def expected_psi(psi_test_asset_df):
     return psi_test_asset_df["psi"].values
 
 
-def test__psi_returns_expected_values_for_manually_computed_examples(p, q, expected_psi):
+def test__psi_matches_spreadsheet_examples(p, q, expected_psi):
     # Arrange.
     epsilon = 1e-7
 
