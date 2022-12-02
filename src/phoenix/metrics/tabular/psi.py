@@ -1,5 +1,5 @@
 """
-Methods to calculate the population stability index (PSI) between two datasets.
+Method to calculate the population stability index (PSI) between two datasets.
 """
 
 import numpy as np

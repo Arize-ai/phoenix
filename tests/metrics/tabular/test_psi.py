@@ -4,7 +4,6 @@ Test PSI.
 
 import os
 
-import numpy as np
 from numpy.testing import assert_array_almost_equal
 import pandas as pd
 import pytest
@@ -15,8 +14,13 @@ from phoenix.metrics.tabular.psi import _psi
 
 @pytest.fixture
 def psi_test_asset_df(request):
-    return pd.read_excel(os.path.join(request.config.invocation_dir, 'assets/metrics/tabular/psi/psi_test_asset.xlsx'),
-                         engine='openpyxl')
+    return pd.read_excel(
+        os.path.join(
+            request.config.invocation_dir,
+            "assets/metrics/tabular/psi/psi_test_asset.xlsx",
+        ),
+        engine="openpyxl",
+    )
 
 
 @pytest.fixture
@@ -52,30 +56,6 @@ def test__psi_matches_scipy_implementation(p, q):
     q_t = q.T
     epsilon = 1e-7
     expected_psi = entropy(pk=p_t, qk=q_t) + entropy(pk=q_t, qk=p_t)
-
-    # Act.
-    out = _psi(p, q, epsilon)
-
-    # Assert.
-    assert_array_almost_equal(out, expected_psi)
-
-
-# The following test relies on the fact that PSI(p, q) = D_KL(p, q) + D_KL(q, p).
-@pytest.mark.parametrize(
-    "random_seed,num_dimensions,num_zero_entries",
-    [(0, 2, 1), (1, 10, 3), (2, 27, 13)],
-)
-def test__psi_matches_scipy_implementation_when_second_distribution_has_zero_value(p, random_seed, num_dimensions, num_zero_entries):
-    # Arrange.
-    np.random.seed(random_seed)
-    p = np.random.rand(1, num_dimensions)
-    q = np.random.rand(1, num_dimensions)
-    indexes = np.random.choice(np.arange(num_dimensions), num_zero_entries)  # Choose random values to set to 0.
-    q[:, indexes] = 0
-    p = p / np.sum(p)
-    q = q / np.sum(q)
-    epsilon = 1e-7
-    expected_psi = entropy(pk=p, qk=q) + entropy(pk=q, qk=p)
 
     # Act.
     out = _psi(p, q, epsilon)
