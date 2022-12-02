@@ -1,7 +1,7 @@
 import logging
 import sys
 import warnings
-from typing import Literal, Optional
+from typing import Any, List, Literal, Optional, Sequence, TypeVar, Union
 from urllib import request
 
 from numpy import fromstring
@@ -89,8 +89,8 @@ class Dataset:
             raise err.SchemaError(err.MissingField("embedding_feature_column_names"))
         embedding_feature_column_names = self.schema.embedding_feature_column_names
         if (
-                embedding_feature_name not in embedding_feature_column_names
-                or embedding_feature_column_names[embedding_feature_name] is None
+            embedding_feature_name not in embedding_feature_column_names
+            or embedding_feature_column_names[embedding_feature_name] is None
         ):
             raise err.SchemaError(err.MissingEmbeddingFeatureColumnNames(embedding_feature_name))
         return embedding_feature_column_names[embedding_feature_name]
@@ -146,7 +146,7 @@ class Dataset:
         return cls(dataframe, schema)
 
     @classmethod
-    def from_hdf(cls, filepath: str, schema: Schema, key: Optional[str] = None):
+    def from_hdf(cls, filepath: str, schema: Schema, key: Optional[Union[str, List[str]]] = None):
         if _is_url(filepath):
             filename = filepath.split("/")[-1]
             local_file_path = f"{DOWNLOAD_DIR}{filename}"
@@ -156,10 +156,22 @@ class Dataset:
         else:
             local_file_path = filepath
 
-        df = read_hdf(local_file_path, key)
-        if not isinstance(df, DataFrame):
-            raise TypeError("Reading from hdf yielded an invalid dataframe")
-        return cls(df, schema)
+        if isinstance(key, str):
+            df = read_hdf(local_file_path, key)
+            if not isinstance(df, DataFrame):
+                raise TypeError("Reading from hdf yielded an invalid dataframe")
+            return cls(df, schema)
+
+        if key is not None:
+            if not list_of(key, str):
+                raise TypeError("keys must be str or List[str]")
+            dfs = []
+            for k in list(key):
+                df = read_hdf(local_file_path, k)
+                if not isinstance(df, DataFrame):
+                    raise TypeError("Reading from hdf yielded an invalid dataframe")
+                dfs.append(df)
+            return [cls(df, schema) for df in dfs]
 
     @classmethod
     def from_parquet(cls, filepath: str, schema: Schema, engine: ParquetEngine = "pyarrow"):
@@ -199,3 +211,10 @@ def show_progress(block_num, block_size, total_size):
     progress = round(block_num * block_size / total_size * 100, 2)
     print(f"{progress}%", end="\r")
     print("[" + int(progress) * "=" + (100 - int(progress)) * " " + f"] {progress}%", end="\r")
+
+
+T = TypeVar("T", bound=type[Any])
+
+
+def list_of(lst: Sequence[object], tp: T) -> bool:
+    return isinstance(lst, list) and all(isinstance(x, tp) for x in lst)
