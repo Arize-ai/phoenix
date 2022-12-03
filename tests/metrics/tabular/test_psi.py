@@ -12,7 +12,7 @@ from scipy.stats import entropy
 from phoenix.metrics.tabular.psi import _psi
 
 
-@pytest.fixture
+@pytest.fixture(scope="module")
 def psi_test_asset_df(request):
     return pd.read_excel(
         os.path.join(
