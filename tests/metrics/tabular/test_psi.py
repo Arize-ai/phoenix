@@ -24,12 +24,12 @@ def psi_test_asset_df(request):
 
 
 @pytest.fixture
-def p(psi_test_asset_df):
+def distribution_p(psi_test_asset_df):
     return psi_test_asset_df[[f"p{i}" for i in range(5)]].values
 
 
 @pytest.fixture
-def q(psi_test_asset_df):
+def distribution_q(psi_test_asset_df):
     return psi_test_asset_df[[f"q{i}" for i in range(5)]].values
 
 
@@ -38,27 +38,29 @@ def expected_psi(psi_test_asset_df):
     return psi_test_asset_df["psi"].values
 
 
-def test__psi_matches_spreadsheet_examples(p, q, expected_psi):
+def test__psi_matches_spreadsheet_examples(
+    distribution_p, distribution_q, expected_psi
+):
     # Arrange.
     epsilon = 1e-7
 
     # Act.
-    out = _psi(p, q, epsilon)
+    out = _psi(distribution_p, distribution_q, epsilon)
 
     # Assert.
     assert_array_almost_equal(out, expected_psi)
 
 
 # The following test relies on the fact that PSI(p, q) = D_KL(p, q) + D_KL(q, p).
-def test__psi_matches_scipy_implementation(p, q):
+def test__psi_matches_scipy_implementation(distribution_p, distribution_q):
     # Arrange.
-    p_t = p.T
-    q_t = q.T
+    p_t = distribution_p.T
+    q_t = distribution_q.T
     epsilon = 1e-7
     expected_psi = entropy(pk=p_t, qk=q_t) + entropy(pk=q_t, qk=p_t)
 
     # Act.
-    out = _psi(p, q, epsilon)
+    out = _psi(distribution_p, distribution_q, epsilon)
 
     # Assert.
     assert_array_almost_equal(out, expected_psi)
