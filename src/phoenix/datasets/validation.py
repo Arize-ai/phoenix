@@ -4,7 +4,7 @@ from typing import List
 from pandas import DataFrame
 
 from . import errors as err
-from .types import Schema
+from .schema import Schema
 
 
 def validate_dataset_inputs(dataframe: DataFrame, schema: Schema) -> List[err.ValidationError]:

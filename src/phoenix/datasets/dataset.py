@@ -1,5 +1,6 @@
 import logging
 import os
+import pickle
 import sys
 import uuid
 import warnings
@@ -11,7 +12,7 @@ from pandas import DataFrame, Series, read_csv, read_hdf, read_parquet
 from phoenix.config import dataset_dir
 
 from . import errors as err
-from .types import EmbeddingColumnNames, Schema
+from .schema import EmbeddingColumnNames, Schema
 from .validation import validate_dataset_inputs
 
 logger = logging.getLogger(__name__)
@@ -170,9 +171,18 @@ class Dataset:
 
     @classmethod
     def from_parquet(
-        cls, filepath: str, schema: Schema, name: str, engine: ParquetEngine = "pyarrow"
+        cls, filepath: str, schema: Schema, name: Optional[str], engine: ParquetEngine = "pyarrow"
     ):
         return cls(read_parquet(filepath, engine=engine), schema, name)
+
+    @classmethod
+    def from_name(cls, name: str):
+        """Retrieves a dataset by name from the file system"""
+        directory = os.path.join(dataset_dir, name)
+        df = read_parquet(os.path.join(directory, cls._data_file_name))
+        with open(os.path.join(directory, cls._schema_file_name), "rb") as schema_file:
+            schema = pickle.load(schema_file)
+            return cls(df, schema, name)
 
     @staticmethod
     def _parse_dataframe(dataframe: DataFrame, schema: Schema) -> DataFrame:
@@ -210,6 +220,6 @@ class Dataset:
             os.makedirs(self.directory)
 
         self.dataframe.to_parquet(os.path.join(directory, self._data_file_name))
-        with open(os.path.join(directory, self._schema_file_name), "w+") as schema_file:
-            schema_file.write(self.__schema.to_json())
+        with open(os.path.join(directory, self._schema_file_name), "wb") as schema_file:
+            pickle.dump(self.schema, schema_file)
         logger.info("Dataset info written to '%s'", directory)
