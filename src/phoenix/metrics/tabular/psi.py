@@ -7,9 +7,13 @@ import numpy as np
 from phoenix.datasets import Dataset
 
 
-def psi(primary: Dataset, reference: Dataset, embedding_feature_name: str, epsilon: float = 1e-7) -> float:
-
-
+def psi(
+    primary: Dataset,
+    reference: Dataset,
+    embedding_feature_name: str,
+    epsilon: float = 1e-7,
+) -> float:
+    pass
 
 
 def _psi(
