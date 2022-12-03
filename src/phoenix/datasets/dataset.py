@@ -30,10 +30,10 @@ class Dataset:
     A dataset represents data for a set of inferences. It is represented as a dataframe + schema
     """
 
-    _data_file_name: str = "data.hd5"
-    _schema_file_name: str = "schema.json"
+    _data_file_name: str = "data.parquet"
+    _schema_file_name: str = "schema.pickle"
 
-    def __init__(self, dataframe: DataFrame, schema: Schema):
+    def __init__(self, dataframe: DataFrame, schema: Schema, name: Optional[str]):
         errors = validate_dataset_inputs(
             dataframe=dataframe,
             schema=schema,
@@ -46,11 +46,8 @@ class Dataset:
 
         self.__dataframe: DataFrame = parsed_dataframe
         self.__schema: Schema = schema
-        # A unique ID for this dataset so that it can be used to sync data
-        # across different environments (notebook vs server)
-        # Alternatively we could use a naming convention
-        self.__uuid: str = str(uuid.uuid4())
-        logger.info(f"""Dataset UUID: {self.__uuid}""")
+        self.__name: str = name if name is not None else f"""dataset_{str(uuid.uuid4())}"""
+        logger.info(f"""Dataset: {self.__name} initialized""")
 
     @property
     def dataframe(self):
@@ -59,6 +56,10 @@ class Dataset:
     @property
     def schema(self):
         return self.__schema
+
+    @property
+    def name(self):
+        return self.__name
 
     def head(self, num_rows: Optional[int] = 5) -> DataFrame:
         num_rows = 5 if num_rows is None else num_rows
@@ -69,7 +70,7 @@ class Dataset:
 
     def sample(self, num: Optional[int] = None) -> "Dataset":
         sampled_dataframe = self.dataframe.sample(n=num, ignore_index=True)
-        return Dataset(sampled_dataframe, self.schema)
+        return Dataset(sampled_dataframe, self.schema, f"""{self.name}_sample_{num}""")
 
     def get_prediction_label_column(
         self,
@@ -134,11 +135,11 @@ class Dataset:
         return self.dataframe[column_names.link_to_data_column_name]
 
     @classmethod
-    def from_dataframe(cls, dataframe: DataFrame, schema: Schema):
-        return cls(dataframe, schema)
+    def from_dataframe(cls, dataframe: DataFrame, schema: Schema, name: Optional[str]):
+        return cls(dataframe, schema, name)
 
     @classmethod
-    def from_csv(cls, filepath: str, schema: Schema):
+    def from_csv(cls, filepath: str, schema: Schema, name: Optional[str]):
         dataframe: DataFrame = read_csv(filepath)
         dataframe_columns = set(dataframe.columns)
         if schema.embedding_feature_column_names is not None:
@@ -156,18 +157,22 @@ class Dataset:
                     emb_col_names.vector_column_name
                 ].map(lambda s: fromstring(s.strip("[]"), dtype=float, sep=" "))
 
-        return cls(dataframe, schema)
+        return cls(dataframe, schema, name)
 
     @classmethod
-    def from_hdf(cls, filepath: str, schema: Schema, key: Optional[str] = None):
+    def from_hdf(
+        cls, filepath: str, schema: Schema, name: Optional[str], key: Optional[str] = None
+    ):
         df = read_hdf(filepath, key)
         if not isinstance(df, DataFrame):
             raise TypeError("Reading from hdf yielded an invalid dataframe")
-        return cls(df, schema)
+        return cls(df, schema, name)
 
     @classmethod
-    def from_parquet(cls, filepath: str, schema: Schema, engine: ParquetEngine = "pyarrow"):
-        return cls(read_parquet(filepath, engine=engine), schema)
+    def from_parquet(
+        cls, filepath: str, schema: Schema, name: str, engine: ParquetEngine = "pyarrow"
+    ):
+        return cls(read_parquet(filepath, engine=engine), schema, name)
 
     @staticmethod
     def _parse_dataframe(dataframe: DataFrame, schema: Schema) -> DataFrame:
@@ -196,16 +201,15 @@ class Dataset:
     @property
     def directory(self):
         """The directory under which the dataset metadata is stored"""
-        return os.path.join(dataset_dir, self.__uuid)
+        return os.path.join(dataset_dir, self.name)
 
-    def persist_to_disc(self):
+    def to_disc(self):
         """writes the data and schema to disc as an HDF5 file"""
         directory = self.directory
         if not os.path.isdir(self.directory):
             os.makedirs(self.directory)
 
-        # TODO figure out the right key to store it under
-        self.dataframe.to_hdf(os.path.join(directory, self._data_file_name), "data")
+        self.dataframe.to_parquet(os.path.join(directory, self._data_file_name))
         with open(os.path.join(directory, self._schema_file_name), "w+") as schema_file:
             schema_file.write(self.__schema.to_json())
         logger.info("Dataset info written to '%s'", directory)
