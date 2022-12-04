@@ -2,8 +2,6 @@
 Test PSI.
 """
 
-import os
-
 import pandas as pd
 import pytest
 from numpy.testing import assert_array_almost_equal
@@ -12,10 +10,10 @@ from scipy.stats import entropy
 from phoenix.metrics.drift.psi import _psi
 
 
-@pytest.fixture
-def fixture_df(fixtures_dir):
+@pytest.fixture(scope="module")
+def fixture_df(tmp_fixture_path_factory):
     return pd.read_excel(
-        os.path.join(fixtures_dir, "psi_fixture.xlsx"),
+        tmp_fixture_path_factory("psi_fixture.xlsx"),
         engine="openpyxl",
     )
 

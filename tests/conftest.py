@@ -2,15 +2,21 @@
 Global fixtures.
 """
 
-import os
 import shutil
+from pathlib import Path
+from typing import Callable
 
 import pytest
 
 
-@pytest.fixture
-def fixtures_dir(request, tmp_path):
-    original_fixtures_dir = os.path.join(request.fspath.dirname, "fixtures")
-    tmp_data_path = tmp_path / "fixtures"
-    shutil.copytree(original_fixtures_dir, str(tmp_data_path))
-    return tmp_data_path
+@pytest.fixture(scope="module")
+def tmp_fixture_path_factory(request, tmp_path_factory) -> Callable[[str], Path]:
+    original_fixtures_dir = Path(request.fspath.dirname) / "fixtures"
+
+    def _tmp_fixture_path_factory(fixture_file_name: str) -> Path:
+        original_fixture_path = original_fixtures_dir / fixture_file_name
+        tmp_fixture_path = tmp_path_factory.mktemp("fixtures") / fixture_file_name
+        shutil.copyfile(original_fixture_path, str(tmp_fixture_path))
+        return tmp_fixture_path
+
+    return _tmp_fixture_path_factory
