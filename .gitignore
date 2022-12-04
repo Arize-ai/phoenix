@@ -13,5 +13,5 @@ dist
 *.hdf
 *.hdf5
 
-# Generate files
+# Generated files
 .DS_Store
