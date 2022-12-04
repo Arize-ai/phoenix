@@ -63,17 +63,17 @@ dependencies = [
 [tool.hatch.envs.type]
 dependencies = [
   "mypy",
-  "pytest",
   "pandas-stubs",
+  "pytest",
 ]
 
 [tool.hatch.envs.style]
 detached = true
 dependencies = [
-  "isort",
   "black",
   "black[jupyter]",
   "flake8",
+  "isort",
 ]
 
 [tool.hatch.envs.docs]
@@ -87,7 +87,7 @@ tests = "pytest {args}"
 coverage = "pytest --cov-report=term-missing --cov-config=pyproject.toml --cov=src/phoenix --cov=tests {args}"
 
 [[tool.hatch.envs.test.matrix]]
-python = ["38", "39", "310"]
+python = ["310"]
 
 [tool.pytest.ini_options]
 addopts = "-rA"
