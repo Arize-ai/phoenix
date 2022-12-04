@@ -9,7 +9,7 @@ import pytest
 from numpy.testing import assert_array_almost_equal
 from scipy.stats import entropy
 
-from phoenix.metrics.tabular.psi import _psi
+from phoenix.metrics.drift.psi import _psi
 
 
 @pytest.fixture

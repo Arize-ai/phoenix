@@ -1,5 +1,5 @@
 """
-Test Euclidean distance for embeddings.
+Test Euclidean distance for unstructured.
 """
 
 import numpy as np
@@ -8,7 +8,7 @@ import pytest
 
 from phoenix.datasets import Dataset
 from phoenix.datasets.types import EmbeddingColumnNames, Schema
-from phoenix.metrics.embeddings import euclidean_distance
+from phoenix.metrics.drift.euclidean_distance import euclidean_distance
 
 
 @pytest.fixture
