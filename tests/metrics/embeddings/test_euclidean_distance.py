@@ -39,9 +39,7 @@ def test_happy_path_same_schema(primary_embeddings, reference_embeddings):
             "primary_feature2",
         ],
         embedding_feature_column_names={
-            "embedding_feature": EmbeddingColumnNames(
-                vector_column_name="embedding_vector"
-            )
+            "embedding_feature": EmbeddingColumnNames(vector_column_name="embedding_vector")
         },
     )
     reference_schema = Schema(
@@ -51,16 +49,12 @@ def test_happy_path_same_schema(primary_embeddings, reference_embeddings):
             "reference_feature2",
         ],
         embedding_feature_column_names={
-            "embedding_feature": EmbeddingColumnNames(
-                vector_column_name="embedding_vector"
-            )
+            "embedding_feature": EmbeddingColumnNames(vector_column_name="embedding_vector")
         },
     )
     primary_df = pd.DataFrame.from_dict(
         {
-            "primary_prediction_id": [
-                f"primary-prediction-id-{i}" for i in range(num_samples)
-            ],
+            "primary_prediction_id": [f"primary-prediction-id-{i}" for i in range(num_samples)],
             "primary_feature1": np.zeros(num_samples),
             "primary_feature2": np.zeros(num_samples),
             "embedding_vector": primary_embeddings,
@@ -68,9 +62,7 @@ def test_happy_path_same_schema(primary_embeddings, reference_embeddings):
     )
     reference_df = pd.DataFrame.from_dict(
         {
-            "reference_prediction_id": [
-                f"reference-prediction-id-{i}" for i in range(num_samples)
-            ],
+            "reference_prediction_id": [f"reference-prediction-id-{i}" for i in range(num_samples)],
             "reference_feature1": np.zeros(num_samples),
             "reference_feature2": np.zeros(num_samples),
             "embedding_vector": reference_embeddings,
@@ -105,9 +97,7 @@ def test_happy_path_different_schemas(primary_embeddings, reference_embeddings):
             "primary_feature2",
         ],
         embedding_feature_column_names={
-            "embedding_feature": EmbeddingColumnNames(
-                vector_column_name="primary_embedding_vector"
-            )
+            "embedding_feature": EmbeddingColumnNames(vector_column_name="primary_embedding_vector")
         },
     )
     reference_schema = Schema(
@@ -124,9 +114,7 @@ def test_happy_path_different_schemas(primary_embeddings, reference_embeddings):
     )
     primary_df = pd.DataFrame.from_dict(
         {
-            "primary_prediction_id": [
-                f"primary-prediction-id-{i}" for i in range(num_samples)
-            ],
+            "primary_prediction_id": [f"primary-prediction-id-{i}" for i in range(num_samples)],
             "primary_feature1": np.zeros(num_samples),
             "primary_feature2": np.zeros(num_samples),
             "primary_embedding_vector": primary_embeddings,
@@ -134,9 +122,7 @@ def test_happy_path_different_schemas(primary_embeddings, reference_embeddings):
     )
     reference_df = pd.DataFrame.from_dict(
         {
-            "reference_prediction_id": [
-                f"reference-prediction-id-{i}" for i in range(num_samples)
-            ],
+            "reference_prediction_id": [f"reference-prediction-id-{i}" for i in range(num_samples)],
             "reference_feature1": np.zeros(num_samples),
             "reference_feature2": np.zeros(num_samples),
             "reference_embedding_vector": reference_embeddings,
@@ -174,9 +160,7 @@ def test_random_array_values(random_seed, num_samples, embedding_dimension):
             "primary_feature2",
         ],
         embedding_feature_column_names={
-            "embedding_feature": EmbeddingColumnNames(
-                vector_column_name="primary_embedding_vector"
-            )
+            "embedding_feature": EmbeddingColumnNames(vector_column_name="primary_embedding_vector")
         },
     )
     reference_schema = Schema(
@@ -192,17 +176,11 @@ def test_random_array_values(random_seed, num_samples, embedding_dimension):
         },
     )
     np.random.seed(random_seed)
-    primary_embeddings = [
-        np.random.rand(embedding_dimension) for _ in range(num_samples)
-    ]
-    reference_embeddings = [
-        np.random.rand(embedding_dimension) for _ in range(num_samples)
-    ]
+    primary_embeddings = [np.random.rand(embedding_dimension) for _ in range(num_samples)]
+    reference_embeddings = [np.random.rand(embedding_dimension) for _ in range(num_samples)]
     primary_df = pd.DataFrame.from_dict(
         {
-            "primary_prediction_id": [
-                f"primary-prediction-id-{i}" for i in range(num_samples)
-            ],
+            "primary_prediction_id": [f"primary-prediction-id-{i}" for i in range(num_samples)],
             "primary_feature1": np.zeros(num_samples),
             "primary_feature2": np.zeros(num_samples),
             "primary_embedding_vector": primary_embeddings,
@@ -210,9 +188,7 @@ def test_random_array_values(random_seed, num_samples, embedding_dimension):
     )
     reference_df = pd.DataFrame.from_dict(
         {
-            "reference_prediction_id": [
-                f"reference-prediction-id-{i}" for i in range(num_samples)
-            ],
+            "reference_prediction_id": [f"reference-prediction-id-{i}" for i in range(num_samples)],
             "reference_feature1": np.zeros(num_samples),
             "reference_feature2": np.zeros(num_samples),
             "reference_embedding_vector": reference_embeddings,

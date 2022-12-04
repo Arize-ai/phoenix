@@ -20,11 +20,11 @@ classifiers = [
   "Programming Language :: Python :: 3.11",
 ]
 dependencies = [
+    "hdbscan",
     "numpy",
     "pandas",
-    "umap-learn",
-    "hdbscan",
     "tables",
+    "umap-learn",
 ]
 dynamic = ["version"]
 
@@ -55,6 +55,7 @@ build_dir = "src/phoenix/nbextension/static"
 
 [tool.hatch.envs.default]
 dependencies = [
+  "openpyxl",
   "pytest",
   "pytest-cov",
 ]
