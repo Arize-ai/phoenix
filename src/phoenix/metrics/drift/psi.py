@@ -2,6 +2,8 @@
 Method to calculate the population stability index (PSI) between two datasets.
 """
 
+from typing import List
+
 import numpy as np
 import numpy.typing as npt
 
@@ -11,7 +13,7 @@ from phoenix.datasets import Dataset
 def psi(
     primary: Dataset,
     reference: Dataset,
-    embedding_feature_name: str,
+    embedding_column_names: List[str],
     epsilon: float = 1e-7,
 ) -> npt.NDArray[np.float64]:
     raise NotImplementedError()
