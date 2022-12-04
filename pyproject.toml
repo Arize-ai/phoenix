@@ -160,6 +160,7 @@ ignore-setters = false
 [[tool.mypy.overrides]]
 module = [
     "hdbscan",
+    "scipy.stats",
     "umap",
 ]
 ignore_missing_imports = true

@@ -3,6 +3,7 @@ Method to calculate the population stability index (PSI) between two datasets.
 """
 
 import numpy as np
+import numpy.typing as npt
 
 from phoenix.datasets import Dataset
 
@@ -12,13 +13,13 @@ def psi(
     reference: Dataset,
     embedding_feature_name: str,
     epsilon: float = 1e-7,
-) -> float:
-    pass
+) -> npt.NDArray[np.float64]:
+    raise NotImplementedError()
 
 
 def _psi(
     distribution_p: np.ndarray, distribution_q: np.ndarray, epsilon: float
-) -> np.ndarray[float]:
+) -> npt.NDArray[np.float64]:
     return np.sum(
         (distribution_p - distribution_q)
         * np.log(distribution_p / np.maximum(distribution_q, epsilon)),
