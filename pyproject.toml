@@ -162,3 +162,8 @@ module = [
     "umap",
 ]
 ignore_missing_imports = true
+
+[tool.mypy]
+disallow_untyped_calls = true
+disallow_untyped_defs = true
+disallow_incomplete_defs  = true
