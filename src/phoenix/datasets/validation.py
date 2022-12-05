@@ -3,8 +3,8 @@ from typing import List
 
 from pandas import DataFrame
 
-from . import errors as err
-from .types import Schema
+import phoenix.datasets.errors as err
+from phoenix.datasets.types import Schema
 
 
 def validate_dataset_inputs(dataframe: DataFrame, schema: Schema) -> List[err.ValidationError]:
@@ -33,13 +33,13 @@ def check_missing_columns(dataframe: DataFrame, schema: Schema) -> List[err.Miss
             if emb_col_names.vector_column_name not in existing_columns:
                 missing_columns.append(emb_col_names.vector_column_name)
             if (
-                emb_col_names.raw_data_column_name is not None
-                and emb_col_names.raw_data_column_name not in existing_columns
+                    emb_col_names.raw_data_column_name is not None
+                    and emb_col_names.raw_data_column_name not in existing_columns
             ):
                 missing_columns.append(emb_col_names.raw_data_column_name)
             if (
-                emb_col_names.link_to_data_column_name is not None
-                and emb_col_names.link_to_data_column_name not in existing_columns
+                    emb_col_names.link_to_data_column_name is not None
+                    and emb_col_names.link_to_data_column_name not in existing_columns
             ):
                 missing_columns.append(emb_col_names.link_to_data_column_name)
 

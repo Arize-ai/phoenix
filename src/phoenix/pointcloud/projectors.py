@@ -6,8 +6,8 @@ from hdbscan import HDBSCAN  # type: ignore
 from numpy.typing import ArrayLike
 from umap import UMAP  # type: ignore
 
-from ..datasets import Dataset
-from .pointcloud import (
+from phoenix.datasets import Dataset
+from phoenix.pointcloud.pointcloud import (
     Cluster,
     Coordinates,
     Coordinates2D,
@@ -27,8 +27,8 @@ class UMAPProjector:
 
     def __post__init__(self) -> None:
         if "n_neighbors" in self.hyperparameters and (
-            not isinstance(self.hyperparameters["n_neighbors"], int)
-            or self.hyperparameters["n_neighbors"] not in (2, 3)
+                not isinstance(self.hyperparameters["n_neighbors"], int)
+                or self.hyperparameters["n_neighbors"] not in (2, 3)
         ):
             raise ValueError(
                 "Projection dimensionality not supported. Must be integer value: 2 or 3 (2D/3D)."
@@ -116,7 +116,7 @@ class UMAPProjector:
         }
 
         primary_cluster_ids = cluster_ids[: len(primary_points)]
-        reference_cluster_ids = cluster_ids[len(primary_points) :]
+        reference_cluster_ids = cluster_ids[len(primary_points):]
         # Check that there are as many coordinates as cluster IDs
         # This is a defensive test, since this should be guaranteed by UMAP & HDBSCAN libraries
         if len(reference_cluster_ids) != len(reference_points):
