@@ -1,13 +1,13 @@
 import logging
 import sys
 import warnings
-from typing import List, Literal, Optional, Union
+from typing import Literal, Optional
 from urllib import request
 
 from numpy import fromstring
 from pandas import DataFrame, Series, read_csv, read_hdf, read_parquet
 
-from ..utils import is_list_of, is_url, parse_file_format, parse_filename
+from ..utils import is_url, parse_file_format, parse_filename
 from . import errors as err
 from .types import EmbeddingColumnNames, Schema
 from .validation import validate_dataset_inputs
@@ -147,25 +147,14 @@ class Dataset:
         return cls(dataframe, schema)
 
     @classmethod
-    def from_hdf(cls, filepath: str, schema: Schema, key: Optional[Union[str, List[str]]] = None):
-        if key is not None and is_list_of(key, str):
-            dfs = []
-            for k in list(key):
-                df = read_hdf(filepath, k)
-                if not isinstance(df, DataFrame):
-                    raise TypeError("Reading from hdf yielded an invalid dataframe")
-                dfs.append(df)
-            return [cls(df, schema) for df in dfs]
-
+    def from_hdf(cls, filepath: str, schema: Schema, key: Optional[str] = None):
         df = read_hdf(filepath, key)
         if not isinstance(df, DataFrame):
-            raise TypeError("Reading from hdf yielded an invalid dataframe")
+            raise TypeError("Reading from hdf must yield a dataframe")
         return cls(df, schema)
 
     @classmethod
-    def from_url(
-        cls, url_path: str, schema: Schema, hdf_key: Optional[Union[str, List[str]]] = None
-    ):
+    def from_url(cls, url_path: str, schema: Schema, hdf_key: Optional[str] = None):
         if not is_url(url_path):
             raise ValueError("Invalid url")
         file_format = parse_file_format(url_path)
@@ -176,7 +165,7 @@ class Dataset:
             local_file_path = f"{DOWNLOAD_DIR}{filename}"
             print(f"Downloading file: {filename}")
             request.urlretrieve(url_path, local_file_path, show_progress)
-            print("\nDone!")
+            print("\n")
             return cls.from_hdf(local_file_path, schema, hdf_key)
         else:
             raise ValueError(
@@ -215,5 +204,4 @@ class Dataset:
 
 def show_progress(block_num, block_size, total_size):
     progress = round(block_num * block_size / total_size * 100, 2)
-    print(f"{progress}%", end="\r")
     print("[" + int(progress) * "=" + (100 - int(progress)) * " " + f"] {progress}%", end="\r")
