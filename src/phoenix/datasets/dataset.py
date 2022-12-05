@@ -13,6 +13,7 @@ from .types import EmbeddingColumnNames, Schema
 from .validation import validate_dataset_inputs
 
 DOWNLOAD_DIR = "/tmp/"
+SUPPORTED_URL_FORMATS = sorted(["hdf", "csv"])
 
 logger = logging.getLogger(__name__)
 if hasattr(sys, "ps1"):
@@ -167,11 +168,10 @@ class Dataset:
             request.urlretrieve(url_path, local_file_path, show_progress)
             print("\n")
             return cls.from_hdf(local_file_path, schema, hdf_key)
-        else:
-            raise ValueError(
-                f"File format {file_format} not supported. Currently supported "
-                f"formats are EDIT FORMATS"
-            )
+        raise ValueError(
+            f"File format {file_format} not supported. Currently supported "
+            f"formats are: {', '.join(SUPPORTED_URL_FORMATS)}."
+        )
 
     @classmethod
     def from_parquet(cls, filepath: str, schema: Schema, engine: ParquetEngine = "pyarrow"):
