@@ -1,5 +1,7 @@
 import logging
+import os.path
 import sys
+import tempfile
 import warnings
 from typing import Literal, Optional
 from urllib import request
@@ -12,7 +14,6 @@ from . import errors as err
 from .types import EmbeddingColumnNames, Schema
 from .validation import validate_dataset_inputs
 
-DOWNLOAD_DIR = "/tmp/"
 SUPPORTED_URL_FORMATS = sorted(["hdf", "csv"])
 
 logger = logging.getLogger(__name__)
@@ -163,11 +164,12 @@ class Dataset:
             return cls.from_csv(url_path, schema)
         elif file_format == ".hdf5" or file_format == ".hdf":
             filename = parse_filename(url_path)
-            local_file_path = f"{DOWNLOAD_DIR}{filename}"
-            print(f"Downloading file: {filename}")
-            request.urlretrieve(url_path, local_file_path, show_progress)
-            print("\n")
-            return cls.from_hdf(local_file_path, schema, hdf_key)
+            with tempfile.TemporaryDirectory() as temp_dir:
+                local_file_path = os.path.join(temp_dir, filename)
+                print(f"Downloading file: {filename}")
+                request.urlretrieve(url_path, local_file_path, show_progress)
+                print("\n")
+                return cls.from_hdf(local_file_path, schema, hdf_key)
         raise ValueError(
             f"File format {file_format} not supported. Currently supported "
             f"formats are: {', '.join(SUPPORTED_URL_FORMATS)}."
