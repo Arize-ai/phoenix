@@ -9,10 +9,10 @@ from urllib import request
 from numpy import fromstring
 from pandas import DataFrame, Series, read_csv, read_hdf, read_parquet
 
+from ..utils import is_url, parse_file_format, parse_filename
 from . import errors as err
 from .types import EmbeddingColumnNames, Schema
 from .validation import validate_dataset_inputs
-from ..utils import is_url, parse_file_format, parse_filename
 
 SUPPORTED_URL_FORMATS = sorted(["hdf", "csv"])
 
@@ -92,8 +92,8 @@ class Dataset:
             raise err.SchemaError(err.MissingField("embedding_feature_column_names"))
         embedding_feature_column_names = self.schema.embedding_feature_column_names
         if (
-                embedding_feature_name not in embedding_feature_column_names
-                or embedding_feature_column_names[embedding_feature_name] is None
+            embedding_feature_name not in embedding_feature_column_names
+            or embedding_feature_column_names[embedding_feature_name] is None
         ):
             raise err.SchemaError(err.MissingEmbeddingFeatureColumnNames(embedding_feature_name))
         return embedding_feature_column_names[embedding_feature_name]
