@@ -9,10 +9,10 @@ from urllib import request
 from numpy import fromstring
 from pandas import DataFrame, Series, read_csv, read_hdf, read_parquet
 
-from ..utils import is_url, parse_file_format, parse_filename
 from . import errors as err
 from .types import EmbeddingColumnNames, Schema
 from .validation import validate_dataset_inputs
+from ..utils import is_url, parse_file_format, parse_filename
 
 SUPPORTED_URL_FORMATS = sorted(["hdf", "csv"])
 
@@ -43,11 +43,11 @@ class Dataset:
         self.__schema: Schema = schema
 
     @property
-    def dataframe(self):
+    def dataframe(self) -> DataFrame:
         return self.__dataframe
 
     @property
-    def schema(self):
+    def schema(self) -> "Schema":
         return self.__schema
 
     def head(self, num_rows: Optional[int] = 5) -> DataFrame:
@@ -92,8 +92,8 @@ class Dataset:
             raise err.SchemaError(err.MissingField("embedding_feature_column_names"))
         embedding_feature_column_names = self.schema.embedding_feature_column_names
         if (
-            embedding_feature_name not in embedding_feature_column_names
-            or embedding_feature_column_names[embedding_feature_name] is None
+                embedding_feature_name not in embedding_feature_column_names
+                or embedding_feature_column_names[embedding_feature_name] is None
         ):
             raise err.SchemaError(err.MissingEmbeddingFeatureColumnNames(embedding_feature_name))
         return embedding_feature_column_names[embedding_feature_name]
@@ -124,11 +124,11 @@ class Dataset:
         return self.dataframe[column_names.link_to_data_column_name]
 
     @classmethod
-    def from_dataframe(cls, dataframe: DataFrame, schema: Schema):
+    def from_dataframe(cls, dataframe: DataFrame, schema: Schema) -> "Dataset":
         return cls(dataframe, schema)
 
     @classmethod
-    def from_csv(cls, filepath: str, schema: Schema):
+    def from_csv(cls, filepath: str, schema: Schema) -> "Dataset":
         dataframe: DataFrame = read_csv(filepath)
         dataframe_columns = set(dataframe.columns)
         if schema.embedding_feature_column_names is not None:
@@ -149,14 +149,14 @@ class Dataset:
         return cls(dataframe, schema)
 
     @classmethod
-    def from_hdf(cls, filepath: str, schema: Schema, key: Optional[str] = None):
+    def from_hdf(cls, filepath: str, schema: Schema, key: Optional[str] = None) -> "Dataset":
         df = read_hdf(filepath, key)
         if not isinstance(df, DataFrame):
             raise TypeError("Reading from hdf must yield a dataframe")
         return cls(df, schema)
 
     @classmethod
-    def from_url(cls, url_path: str, schema: Schema, hdf_key: Optional[str] = None):
+    def from_url(cls, url_path: str, schema: Schema, hdf_key: Optional[str] = None) -> "Dataset":
         if not is_url(url_path):
             raise ValueError("Invalid url")
         file_format = parse_file_format(url_path)
@@ -176,7 +176,9 @@ class Dataset:
         )
 
     @classmethod
-    def from_parquet(cls, filepath: str, schema: Schema, engine: ParquetEngine = "pyarrow"):
+    def from_parquet(
+        cls, filepath: str, schema: Schema, engine: ParquetEngine = "pyarrow"
+    ) -> "Dataset":
         return cls(read_parquet(filepath, engine=engine), schema)
 
     @staticmethod
@@ -204,6 +206,6 @@ class Dataset:
         return dataframe.drop(columns=drop_cols)
 
 
-def show_progress(block_num, block_size, total_size):
+def show_progress(block_num: int, block_size: int, total_size: int) -> None:
     progress = round(block_num * block_size / total_size * 100, 2)
     print("[" + int(progress) * "=" + (100 - int(progress)) * " " + f"] {progress}%", end="\r")
