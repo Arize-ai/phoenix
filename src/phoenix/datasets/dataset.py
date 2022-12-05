@@ -1,13 +1,18 @@
 import logging
+import os
+import pickle
 import sys
+import uuid
 import warnings
 from typing import Literal, Optional
 
 from numpy import fromstring
 from pandas import DataFrame, Series, read_csv, read_hdf, read_parquet
 
+from phoenix.config import dataset_dir
+
 from . import errors as err
-from .types import EmbeddingColumnNames, Schema
+from .schema import EmbeddingColumnNames, Schema
 from .validation import validate_dataset_inputs
 
 logger = logging.getLogger(__name__)
@@ -22,7 +27,14 @@ ParquetEngine = Literal["pyarrow", "fastparquet", "auto"]
 
 
 class Dataset:
-    def __init__(self, dataframe: DataFrame, schema: Schema):
+    """
+    A dataset represents data for a set of inferences. It is represented as a dataframe + schema
+    """
+
+    _data_file_name: str = "data.parquet"
+    _schema_file_name: str = "schema.json"
+
+    def __init__(self, dataframe: DataFrame, schema: Schema, name: Optional[str] = None):
         errors = validate_dataset_inputs(
             dataframe=dataframe,
             schema=schema,
@@ -35,6 +47,8 @@ class Dataset:
 
         self.__dataframe: DataFrame = parsed_dataframe
         self.__schema: Schema = schema
+        self.__name: str = name if name is not None else f"""dataset_{str(uuid.uuid4())}"""
+        logger.info(f"""Dataset: {self.__name} initialized""")
 
     @property
     def dataframe(self):
@@ -44,6 +58,10 @@ class Dataset:
     def schema(self):
         return self.__schema
 
+    @property
+    def name(self):
+        return self.__name
+
     def head(self, num_rows: Optional[int] = 5) -> DataFrame:
         num_rows = 5 if num_rows is None else num_rows
         return self.dataframe.head(num_rows)
@@ -51,9 +69,9 @@ class Dataset:
     def get_column(self, col_name: str) -> Series:
         return self.dataframe[col_name]
 
-    def sample(self, num: Optional[int] = None) -> "Dataset":
+    def sample(self, num: int) -> "Dataset":
         sampled_dataframe = self.dataframe.sample(n=num, ignore_index=True)
-        return Dataset(sampled_dataframe, self.schema)
+        return Dataset(sampled_dataframe, self.schema, f"""{self.name}_sample_{num}""")
 
     def get_prediction_label_column(
         self,
@@ -118,17 +136,17 @@ class Dataset:
         return self.dataframe[column_names.link_to_data_column_name]
 
     @classmethod
-    def from_dataframe(cls, dataframe: DataFrame, schema: Schema):
-        return cls(dataframe, schema)
+    def from_dataframe(cls, dataframe: DataFrame, schema: Schema, name: Optional[str] = None):
+        return cls(dataframe, schema, name)
 
     @classmethod
-    def from_csv(cls, filepath: str, schema: Schema):
+    def from_csv(cls, filepath: str, schema: Schema, name: Optional[str] = None):
         dataframe: DataFrame = read_csv(filepath)
         dataframe_columns = set(dataframe.columns)
         if schema.embedding_feature_column_names is not None:
             warnings.warn(
                 "Reading embeddings from csv files can be slow. Consider using other "
-                "formats such as hdf5.",
+                "formats such as parquet or hdf5.",
                 stacklevel=2,
             )
             for emb_col_names in schema.embedding_feature_column_names.values():
@@ -140,18 +158,31 @@ class Dataset:
                     emb_col_names.vector_column_name
                 ].map(lambda s: fromstring(s.strip("[]"), dtype=float, sep=" "))
 
-        return cls(dataframe, schema)
+        return cls(dataframe, schema, name)
 
     @classmethod
-    def from_hdf(cls, filepath: str, schema: Schema, key: Optional[str] = None):
+    def from_hdf(
+        cls, filepath: str, schema: Schema, name: Optional[str], key: Optional[str] = None
+    ):
         df = read_hdf(filepath, key)
         if not isinstance(df, DataFrame):
             raise TypeError("Reading from hdf yielded an invalid dataframe")
-        return cls(df, schema)
+        return cls(df, schema, name)
 
     @classmethod
-    def from_parquet(cls, filepath: str, schema: Schema, engine: ParquetEngine = "pyarrow"):
-        return cls(read_parquet(filepath, engine=engine), schema)
+    def from_parquet(
+        cls, filepath: str, schema: Schema, name: Optional[str], engine: ParquetEngine = "pyarrow"
+    ):
+        return cls(read_parquet(filepath, engine=engine), schema, name)
+
+    @classmethod
+    def from_name(cls, name: str):
+        """Retrieves a dataset by name from the file system"""
+        directory = os.path.join(dataset_dir, name)
+        df = read_parquet(os.path.join(directory, cls._data_file_name))
+        with open(os.path.join(directory, cls._schema_file_name), "rb") as schema_file:
+            schema = pickle.load(schema_file)
+            return cls(df, schema, name)
 
     @staticmethod
     def _parse_dataframe(dataframe: DataFrame, schema: Schema) -> DataFrame:
@@ -176,3 +207,20 @@ class Dataset:
 
         drop_cols = [col for col in dataframe.columns if col not in schema_cols]
         return dataframe.drop(columns=drop_cols)
+
+    @property
+    def directory(self):
+        """The directory under which the dataset metadata is stored"""
+        return os.path.join(dataset_dir, self.name)
+
+    def to_disc(self):
+        """writes the data and schema to disc as an HDF5 file"""
+        directory = self.directory
+        if not os.path.isdir(directory):
+            os.makedirs(directory)
+
+        self.dataframe.to_parquet(os.path.join(directory, self._data_file_name))
+        schema_json_data = self.schema.to_json()
+        with open(os.path.join(directory, self._schema_file_name), "w+") as schema_file:
+            schema_file.write(schema_json_data)
+        logger.info(f"Dataset info written to '{directory}'")
