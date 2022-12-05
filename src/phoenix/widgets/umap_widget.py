@@ -4,6 +4,7 @@ Loads the compiled Javascript bundle
 import json
 import os
 from random import random
+from typing import Any, Dict, List
 
 from IPython.core.display import HTML, display  # type: ignore
 
@@ -13,14 +14,12 @@ BASE_PATH = phoenix.__path__[0]  # type: ignore
 STATIC_PATH = os.path.join(BASE_PATH, "nbextension", "static")
 
 
-def load_js():
-    return open(
-        os.path.join(STATIC_PATH, "index.js"),
-        encoding="utf-8",
-    ).read()
+def load_js() -> str:
+    with open(os.path.join(STATIC_PATH, "index.js"), encoding="utf-8") as f:
+        return f.read()
 
 
-def load_style():
+def load_style() -> str:
     return """
         body {
             font-family: 'Roboto', sans-serif;
@@ -28,7 +27,7 @@ def load_style():
     """
 
 
-def random_point(offset: int, id: int):
+def random_point(offset: int, id: int) -> Dict[str, Any]:
     return {
         "position": [
             random() + offset,
@@ -39,7 +38,7 @@ def random_point(offset: int, id: int):
     }
 
 
-def generate_data(length: int, offset: int, id_offset: int):
+def generate_data(length: int, offset: int, id_offset: int) -> List[Dict[str, Any]]:
     data = enumerate([None] * length)
     return list(
         map(
@@ -49,7 +48,7 @@ def generate_data(length: int, offset: int, id_offset: int):
     )
 
 
-def demo_json():
+def demo_json() -> str:
     data = {
         "primaryData": generate_data(100, 0, 0),
         "referenceData": generate_data(100, 1, 100),
@@ -58,10 +57,11 @@ def demo_json():
 
 
 class UMAPWidget:
-    def __init__(self, json: str):
+    def __init__(self, json: str) -> None:
         self.json = json
 
-    def template(self, json_data: str):
+    @staticmethod
+    def template(json_data: str) -> str:
         return f"""
         <html>
             <script>{load_js()}</script>
@@ -76,5 +76,5 @@ class UMAPWidget:
 
     # Temporary static json representation of UMAP Drift data
 
-    def show(self):
+    def show(self) -> None:
         display(HTML(self.template(self.json)))
