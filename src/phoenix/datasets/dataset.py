@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 import pickle
@@ -32,9 +33,9 @@ class Dataset:
     """
 
     _data_file_name: str = "data.parquet"
-    _schema_file_name: str = "schema.pickle"
+    _schema_file_name: str = "schema.json"
 
-    def __init__(self, dataframe: DataFrame, schema: Schema, name: Optional[str]):
+    def __init__(self, dataframe: DataFrame, schema: Schema, name: Optional[str] = None):
         errors = validate_dataset_inputs(
             dataframe=dataframe,
             schema=schema,
@@ -69,7 +70,7 @@ class Dataset:
     def get_column(self, col_name: str) -> Series:
         return self.dataframe[col_name]
 
-    def sample(self, num: Optional[int] = None) -> "Dataset":
+    def sample(self, num: int) -> "Dataset":
         sampled_dataframe = self.dataframe.sample(n=num, ignore_index=True)
         return Dataset(sampled_dataframe, self.schema, f"""{self.name}_sample_{num}""")
 
@@ -136,17 +137,17 @@ class Dataset:
         return self.dataframe[column_names.link_to_data_column_name]
 
     @classmethod
-    def from_dataframe(cls, dataframe: DataFrame, schema: Schema, name: Optional[str]):
+    def from_dataframe(cls, dataframe: DataFrame, schema: Schema, name: Optional[str] = None):
         return cls(dataframe, schema, name)
 
     @classmethod
-    def from_csv(cls, filepath: str, schema: Schema, name: Optional[str]):
+    def from_csv(cls, filepath: str, schema: Schema, name: Optional[str] = None):
         dataframe: DataFrame = read_csv(filepath)
         dataframe_columns = set(dataframe.columns)
         if schema.embedding_feature_column_names is not None:
             warnings.warn(
                 "Reading embeddings from csv files can be slow. Consider using other "
-                "formats such as hdf5.",
+                "formats such as parquet or hdf5.",
                 stacklevel=2,
             )
             for emb_col_names in schema.embedding_feature_column_names.values():
@@ -216,10 +217,11 @@ class Dataset:
     def to_disc(self):
         """writes the data and schema to disc as an HDF5 file"""
         directory = self.directory
-        if not os.path.isdir(self.directory):
-            os.makedirs(self.directory)
+        if not os.path.isdir(directory):
+            os.makedirs(directory)
 
         self.dataframe.to_parquet(os.path.join(directory, self._data_file_name))
-        with open(os.path.join(directory, self._schema_file_name), "wb") as schema_file:
-            pickle.dump(self.schema, schema_file)
-        logger.info("Dataset info written to '%s'", directory)
+        schema_json_data = self.schema.to_json()
+        with open(os.path.join(directory, self._schema_file_name), "w+") as schema_file:
+            schema_file.write(schema_json_data)
+        logger.info(f"Dataset info written to '{directory}'")
