@@ -55,6 +55,8 @@ build_dir = "src/phoenix/nbextension/static"
 
 [tool.hatch.envs.default]
 dependencies = [
+  "black",
+  "jupyter",
   "pytest",
   "pytest-cov",
 ]
@@ -62,17 +64,17 @@ dependencies = [
 [tool.hatch.envs.type]
 dependencies = [
   "mypy",
-  "pytest",
   "pandas-stubs",
+  "pytest",
 ]
 
 [tool.hatch.envs.style]
 detached = true
 dependencies = [
-  "isort",
   "black",
   "black[jupyter]",
   "flake8",
+  "isort",
 ]
 
 [tool.hatch.envs.docs]
