@@ -21,7 +21,7 @@ class Schema(Dict):
     actual_score_column_name: Optional[str] = None
     embedding_feature_column_names: Optional[Dict[str, EmbeddingColumnNames]] = None
 
-    def to_json(self):
+    def to_json(self) -> str:
         "Converts the schema to a dict for JSON serialization"
         dictionary = self.__dict__
 
@@ -43,7 +43,7 @@ class Schema(Dict):
         return json.dumps(dictionary)
 
     @classmethod
-    def from_json(cls, json_string: str):
+    def from_json(cls, json_string: str) -> "Schema":
         json_data = json.loads(json_string)
 
         # parse embedding_feature_column_names

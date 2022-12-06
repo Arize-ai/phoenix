@@ -1,19 +1,24 @@
 import logging
 import os
+import os.path
 import pickle
 import sys
+import tempfile
 import uuid
 import warnings
 from typing import Literal, Optional
+from urllib import request
 
 from numpy import fromstring
 from pandas import DataFrame, Series, read_csv, read_hdf, read_parquet
 
+import phoenix.datasets.errors as err
 from phoenix.config import dataset_dir
+from phoenix.datasets import EmbeddingColumnNames, Schema
+from phoenix.datasets.validation import validate_dataset_inputs
+from phoenix.utils import is_url, parse_file_format, parse_filename
 
-from . import errors as err
-from .schema import EmbeddingColumnNames, Schema
-from .validation import validate_dataset_inputs
+SUPPORTED_URL_FORMATS = sorted(["hdf", "csv"])
 
 logger = logging.getLogger(__name__)
 if hasattr(sys, "ps1"):
@@ -51,16 +56,21 @@ class Dataset:
         logger.info(f"""Dataset: {self.__name} initialized""")
 
     @property
-    def dataframe(self):
+    def dataframe(self) -> DataFrame:
         return self.__dataframe
 
     @property
-    def schema(self):
+    def schema(self) -> "Schema":
         return self.__schema
 
     @property
-    def name(self):
+    def name(self) -> str:
         return self.__name
+
+    @property
+    def directory(self) -> str:
+        """The directory under which the dataset metadata is stored"""
+        return os.path.join(dataset_dir, self.name)
 
     def head(self, num_rows: Optional[int] = 5) -> DataFrame:
         num_rows = 5 if num_rows is None else num_rows
@@ -136,11 +146,13 @@ class Dataset:
         return self.dataframe[column_names.link_to_data_column_name]
 
     @classmethod
-    def from_dataframe(cls, dataframe: DataFrame, schema: Schema, name: Optional[str] = None):
+    def from_dataframe(
+        cls, dataframe: DataFrame, schema: Schema, name: Optional[str] = None
+    ) -> "Dataset":
         return cls(dataframe, schema, name)
 
     @classmethod
-    def from_csv(cls, filepath: str, schema: Schema, name: Optional[str] = None):
+    def from_csv(cls, filepath: str, schema: Schema, name: Optional[str] = None) -> "Dataset":
         dataframe: DataFrame = read_csv(filepath)
         dataframe_columns = set(dataframe.columns)
         if schema.embedding_feature_column_names is not None:
@@ -163,20 +175,40 @@ class Dataset:
     @classmethod
     def from_hdf(
         cls, filepath: str, schema: Schema, name: Optional[str], key: Optional[str] = None
-    ):
+    ) -> "Dataset":
         df = read_hdf(filepath, key)
         if not isinstance(df, DataFrame):
-            raise TypeError("Reading from hdf yielded an invalid dataframe")
+            raise TypeError("Reading from hdf must yield a dataframe")
         return cls(df, schema, name)
+
+    @classmethod
+    def from_url(cls, url_path: str, schema: Schema, hdf_key: Optional[str] = None) -> "Dataset":
+        if not is_url(url_path):
+            raise ValueError("Invalid url")
+        file_format = parse_file_format(url_path)
+        if file_format == ".csv":
+            return cls.from_csv(url_path, schema)
+        elif file_format == ".hdf5" or file_format == ".hdf":
+            filename = parse_filename(url_path)
+            with tempfile.TemporaryDirectory() as temp_dir:
+                local_file_path = os.path.join(temp_dir, filename)
+                print(f"Downloading file: {filename}")
+                request.urlretrieve(url_path, local_file_path, show_progress)
+                print("\n")
+                return cls.from_hdf(local_file_path, schema, hdf_key)
+        raise ValueError(
+            f"File format {file_format} not supported. Currently supported "
+            f"formats are: {', '.join(SUPPORTED_URL_FORMATS)}."
+        )
 
     @classmethod
     def from_parquet(
         cls, filepath: str, schema: Schema, name: Optional[str], engine: ParquetEngine = "pyarrow"
-    ):
+    ) -> "Dataset":
         return cls(read_parquet(filepath, engine=engine), schema, name)
 
     @classmethod
-    def from_name(cls, name: str):
+    def from_name(cls, name: str) -> "Dataset":
         """Retrieves a dataset by name from the file system"""
         directory = os.path.join(dataset_dir, name)
         df = read_parquet(os.path.join(directory, cls._data_file_name))
@@ -208,12 +240,7 @@ class Dataset:
         drop_cols = [col for col in dataframe.columns if col not in schema_cols]
         return dataframe.drop(columns=drop_cols)
 
-    @property
-    def directory(self):
-        """The directory under which the dataset metadata is stored"""
-        return os.path.join(dataset_dir, self.name)
-
-    def to_disc(self):
+    def to_disc(self) -> None:
         """writes the data and schema to disc as an HDF5 file"""
         directory = self.directory
         if not os.path.isdir(directory):
@@ -224,3 +251,8 @@ class Dataset:
         with open(os.path.join(directory, self._schema_file_name), "w+") as schema_file:
             schema_file.write(schema_json_data)
         logger.info(f"Dataset info written to '{directory}'")
+
+
+def show_progress(block_num: int, block_size: int, total_size: int) -> None:
+    progress = round(block_num * block_size / total_size * 100, 2)
+    print("[" + int(progress) * "=" + (100 - int(progress)) * " " + f"] {progress}%", end="\r")

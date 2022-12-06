@@ -8,7 +8,7 @@ MAX_UMAP_POINTS = 500
 
 class Coordinates(ABC):
     @abstractmethod
-    def get_coordinates(self):
+    def get_coordinates(self) -> List[float]:
         pass
 
 
@@ -17,7 +17,7 @@ class Coordinates2D(Coordinates):
     x: float
     y: float
 
-    def get_coordinates(self):
+    def get_coordinates(self) -> List[float]:
         return [float(self.x), float(self.y)]
 
 
@@ -27,7 +27,7 @@ class Coordinates3D(Coordinates):
     y: float
     z: float
 
-    def get_coordinates(self):
+    def get_coordinates(self) -> List[float]:
         return [float(self.x), float(self.y), float(self.z)]
 
 

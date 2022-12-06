@@ -1,7 +1,7 @@
 import os
 
 
-def normalize_path(path):
+def normalize_path(path: str) -> str:
     """Normalizes the given path by converting it to an absolute path and
     expanding the user directory, if necessary.
     Args:
