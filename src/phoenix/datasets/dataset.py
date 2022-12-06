@@ -12,11 +12,12 @@ from urllib import request
 from numpy import fromstring
 from pandas import DataFrame, Series, read_csv, read_hdf, read_parquet
 
-import phoenix.datasets.errors as err
 from phoenix.config import dataset_dir
-from phoenix.datasets.schema import EmbeddingColumnNames, Schema
-from phoenix.datasets.validation import validate_dataset_inputs
 from phoenix.utils import is_url, parse_file_format, parse_filename
+
+from . import errors as err
+from .schema import EmbeddingColumnNames, Schema
+from .validation import validate_dataset_inputs
 
 SUPPORTED_URL_FORMATS = sorted(["hdf", "csv"])
 

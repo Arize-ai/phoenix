@@ -7,7 +7,8 @@ from numpy.typing import ArrayLike
 from umap import UMAP  # type: ignore
 
 from phoenix.datasets import Dataset
-from phoenix.pointcloud.pointcloud import (
+
+from .pointcloud import (
     Cluster,
     Coordinates,
     Coordinates2D,
