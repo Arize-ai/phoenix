@@ -1,4 +1,4 @@
-from phoenix.datasets.schema import EmbeddingColumnNames, Schema
+from phoenix.datasets import EmbeddingColumnNames, Schema
 
 
 def test_json_serialization():
@@ -11,7 +11,6 @@ def test_json_serialization():
 
     # serialize and deserialize.
     p = s.to_json()
-    print(p)
     schema_from_json = Schema.from_json(p)
 
     assert schema_from_json.embedding_feature_column_names is not None

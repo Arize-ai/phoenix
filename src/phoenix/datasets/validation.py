@@ -3,8 +3,8 @@ from typing import List
 
 from pandas import DataFrame
 
-import phoenix.datasets.errors as err
-from phoenix.datasets import Schema
+from . import errors as err
+from .schema import Schema
 
 
 def validate_dataset_inputs(dataframe: DataFrame, schema: Schema) -> List[err.ValidationError]:

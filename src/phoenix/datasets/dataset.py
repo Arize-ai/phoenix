@@ -12,11 +12,12 @@ from urllib import request
 from numpy import fromstring
 from pandas import DataFrame, Series, read_csv, read_hdf, read_parquet
 
-import phoenix.datasets.errors as err
 from phoenix.config import dataset_dir
-from phoenix.datasets import EmbeddingColumnNames, Schema
-from phoenix.datasets.validation import validate_dataset_inputs
 from phoenix.utils import is_url, parse_file_format, parse_filename
+
+from . import errors as err
+from .schema import EmbeddingColumnNames, Schema
+from .validation import validate_dataset_inputs
 
 SUPPORTED_URL_FORMATS = sorted(["hdf", "csv"])
 
@@ -53,6 +54,7 @@ class Dataset:
         self.__dataframe: DataFrame = parsed_dataframe
         self.__schema: Schema = schema
         self.__name: str = name if name is not None else f"""dataset_{str(uuid.uuid4())}"""
+        self.__directory: str = os.path.join(dataset_dir, self.name)
         logger.info(f"""Dataset: {self.__name} initialized""")
 
     @property
@@ -70,7 +72,7 @@ class Dataset:
     @property
     def directory(self) -> str:
         """The directory under which the dataset metadata is stored"""
-        return os.path.join(dataset_dir, self.name)
+        return self.__directory
 
     def head(self, num_rows: Optional[int] = 5) -> DataFrame:
         num_rows = 5 if num_rows is None else num_rows
@@ -182,12 +184,18 @@ class Dataset:
         return cls(df, schema, name)
 
     @classmethod
-    def from_url(cls, url_path: str, schema: Schema, hdf_key: Optional[str] = None) -> "Dataset":
+    def from_url(
+        cls,
+        url_path: str,
+        schema: Schema,
+        name: Optional[str] = None,
+        hdf_key: Optional[str] = None,
+    ) -> "Dataset":
         if not is_url(url_path):
             raise ValueError("Invalid url")
         file_format = parse_file_format(url_path)
         if file_format == ".csv":
-            return cls.from_csv(url_path, schema)
+            return cls.from_csv(url_path, schema, name)
         elif file_format == ".hdf5" or file_format == ".hdf":
             filename = parse_filename(url_path)
             with tempfile.TemporaryDirectory() as temp_dir:
@@ -195,7 +203,7 @@ class Dataset:
                 print(f"Downloading file: {filename}")
                 request.urlretrieve(url_path, local_file_path, show_progress)
                 print("\n")
-                return cls.from_hdf(local_file_path, schema, hdf_key)
+                return cls.from_hdf(local_file_path, schema, name, hdf_key)
         raise ValueError(
             f"File format {file_format} not supported. Currently supported "
             f"formats are: {', '.join(SUPPORTED_URL_FORMATS)}."
