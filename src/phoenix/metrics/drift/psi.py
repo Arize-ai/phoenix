@@ -2,28 +2,28 @@
 Method to calculate the population stability index (PSI) between two datasets.
 """
 
-from typing import List
-
 import numpy as np
-import numpy.typing as npt
+import pandas as pd
 
-from phoenix.datasets import Dataset
+from phoenix.datasets import Dataset, BinningStrategy
 
 
 def psi(
     primary: Dataset,
     reference: Dataset,
-    embedding_column_names: List[str],
+    binning_strategy: BinningStrategy,
     epsilon: float = 1e-7,
-) -> npt.NDArray[np.float64]:
-    raise NotImplementedError()
+) -> pd.Series:
+    primary_feature_columns = primary.get_feature_columns()
+    reference_feature_columns = reference.get_feature_columns()
+    primary_histogram, reference_histogram = binning_strategy.bin(primary_feature_columns, reference_feature_columns)
+    primary_distributions = primary_histogram / primary_histogram.sum()
+    reference_distributions = reference_histogram / reference_histogram.sum()
+    return _psi(primary_distributions, reference_distributions, epsilon)
 
 
 def _psi(
-    distribution_p: np.ndarray, distribution_q: np.ndarray, epsilon: float
-) -> npt.NDArray[np.float64]:
-    return np.sum(
-        (distribution_p - distribution_q)
-        * np.log(distribution_p / np.maximum(distribution_q, epsilon)),
-        axis=1,
-    )
+    primary_distribution: pd.DataFrame, reference_distribution: pd.DataFrame, epsilon: float
+) -> pd.Series:
+    return ((primary_distribution - reference_distribution)
+        * np.log(primary_distribution / np.maximum(reference_distribution, epsilon))).sum(axis=0)
