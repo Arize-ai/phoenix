@@ -6,7 +6,8 @@ from hdbscan import HDBSCAN  # type: ignore
 from numpy.typing import ArrayLike
 from umap import UMAP  # type: ignore
 
-from ..datasets import Dataset
+from phoenix.datasets import Dataset
+
 from .pointcloud import (
     Cluster,
     Coordinates,
@@ -25,7 +26,7 @@ DEFAULT_MIN_SAMPLES = 1
 class UMAPProjector:
     hyperparameters: Dict[str, Union[int, float, str]]
 
-    def __post__init__(self):
+    def __post__init__(self) -> None:
         if "n_neighbors" in self.hyperparameters and (
             not isinstance(self.hyperparameters["n_neighbors"], int)
             or self.hyperparameters["n_neighbors"] not in (2, 3)
@@ -100,7 +101,7 @@ class UMAPProjector:
     @staticmethod
     def _build_clusters(
         cluster_ids: np.ndarray, primary_points: List[Point], reference_points: List[Point]
-    ):
+    ) -> List[Cluster]:
         unique_cluster_ids: np.ndarray = np.unique(cluster_ids)
         # map cluster_id to point_ids inside the cluster
         map_cluster_id_point_ids: Dict[int, List[int]] = {
@@ -146,7 +147,9 @@ class UMAPProjector:
             clusters.append(Cluster(id=cluster_id, point_ids=point_ids, purity_score=purity_score))
         return clusters
 
-    def project(self, primary_dataset: Dataset, reference_dataset: Dataset, embedding_feature: str):
+    def project(
+        self, primary_dataset: Dataset, reference_dataset: Dataset, embedding_feature: str
+    ) -> Tuple[List[Point], List[Point], List[Cluster]]:
         # Sample down our datasets to max 2500 rows for UMAP performance
         points_per_dataset = MAX_UMAP_POINTS // 2
         sampled_primary_dataset = primary_dataset.sample(num=points_per_dataset)

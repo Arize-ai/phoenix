@@ -156,9 +156,18 @@ ignore-nested-functions = false
 ignore-nested-classes = false
 ignore-setters = false
 
+[tool.mypy]
+disallow_untyped_calls = true
+disallow_untyped_defs = true
+disallow_incomplete_defs  = true
+exclude = [
+  "tests/",
+]
+
 [[tool.mypy.overrides]]
 module = [
     "hdbscan",
     "umap",
 ]
 ignore_missing_imports = true
+
