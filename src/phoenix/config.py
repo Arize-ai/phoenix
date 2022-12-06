@@ -14,3 +14,6 @@ def normalize_path(path: str) -> str:
 
 ROOT_DIR = os.path.join("~", "phoenix")
 dataset_dir = normalize_path(os.path.join(ROOT_DIR, "datasets"))
+
+# The port the server will run on after launch_app is called
+port = 4040
