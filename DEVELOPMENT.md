@@ -3,47 +3,38 @@
 ## Getting Started
 
 This tutorial shows you how to:
-- Install `hatch`,
+- Set up your development environment,
+- Run scripts using `hatch`,
 - Run `phoenix` from source,
-- Build the `phoenix` package,
-- Run scripts using `hatch`.
+- Build the `phoenix` package.
 
-### Install `hatch`
+### Set Up Development Environment
 
-We will first install [hatch](https://hatch.pypa.io/latest/), the Python project management tool used to develop and build `phoenix`. Among other things, `hatch` is a package and environment management tool. As such, it is not typically installed in the same virtual environment as `phoenix` package dependencies such as `numpy` or `pandas` or development dependencies such as `pytest` or `jupyter`, since it creates and manages the virtual environments containing such dependencies.
-
-While it is possible to install `hatch` globally, we recommended to install `hatch` in its own virtual environment. If you have yet to set up your Python development environment or are unfamiliar with virtual environments, follow [these instructions](https://github.com/Arize-ai/arize/blob/main/python/README.md) to get started with `pyenv` and `virtualenvwrapper`. Once you have created and activated a virtual environment (e.g., `hatch-env`), install `hatch` with
+Set up your development environment using `pyenv` and `virtualenvwrapper`. If you do not have Python 3.10 already installed, run
 ```shell
-pip install hatch
+export PHOENIX_PYTHON_VERSION=3.10.8
+pyenv install $PHOENIX_PYTHON_VERSION
 ```
-Before proceeding, ensure that `hatch` is accessible from the command line by running
+Set the global `pyenv` version with
 ```shell
-hatch
+pyenv global $PHOENIX_PYTHON_VERSION
 ```
-
-### Run `phoenix` from Source
-
-To run `phoenix` from source, create a virtual environment containing `phoenix` package and development dependencies with
+Create a new virtual environment with
 ```shell
-hatch env create develop
+mkvirtualenv phoenix-env
 ```
-Run
+Install development dependencies with
 ```shell
-hatch env find develop
+pip install -r requirements-dev.txt
 ```
-to find the path to this virtual environment. After configuring your IDE to use the Python interpreter in this environment, run the notebooks in the `examples` directory.
-
-### Build the `phoenix` Package
-
-To build `phoenix`, run
-```shell
-hatch build
-```
-If successful, the build will appear in the `dist` folder at the repo base directory.
 
 ### Learn to Run Scripts with `hatch`
 
-Scripts belonging to the various environments displayed with `hatch env show` can be run with
+`hatch` is the project management tool used to build `phoenix`. After installing and activating the `phoenix-env` virtual environment, view the project environments, dependencies and scripts defined in `pyproject.toml` with
+```shell
+hatch env show
+```
+Scripts belonging to the various environments can be run with
 ```shell
 hatch run <env-name>:<script-name>
 ```
@@ -59,7 +50,14 @@ You can run tests with coverage with
 ```shell
 hatch run test:coverage
 ```
-The first time you run a script, `hatch` will automatically create the corresponding virtual environment on the fly if it does not already exist. In other words, it's not necessary to run `hatch env create type` before running `hatch run type:check`.
+
+### Build the `phoenix` Package
+
+To build `phoenix`, run
+```shell
+hatch build
+```
+If successful, the build will appear in the `dist` folder at the repo base directory.
 
 ## Useful Resources
 - [Hatch Quickstart](https://hatch.pypa.io/latest/)
