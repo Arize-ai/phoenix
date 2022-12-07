@@ -55,6 +55,12 @@ build_dir = "src/phoenix/nbextension/static"
 
 [tool.hatch.envs.default]
 dependencies = [
+  "pytest",
+  "pytest-cov",
+]
+
+[tool.hatch.envs.develop]
+dependencies = [
   "black",
   "jupyter",
   "pytest",
