@@ -25,7 +25,7 @@ dependencies = [
     "umap-learn",
     "hdbscan",
     "starlette",
-    "uvcorn",
+    "uvicorn",
     "tables",
 ]
 dynamic = ["version"]

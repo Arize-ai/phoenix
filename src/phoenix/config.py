@@ -12,8 +12,11 @@ def normalize_path(path: str) -> str:
     return os.path.expanduser(path)
 
 
+PHOENIX_DIR = os.path.dirname(os.path.abspath(__file__))
 ROOT_DIR = os.path.join("~", "phoenix")
 dataset_dir = normalize_path(os.path.join(ROOT_DIR, "datasets"))
 
+# Server config
+server_dir = os.path.join(PHOENIX_DIR, "server")
 # The port the server will run on after launch_app is called
 port = 4040

@@ -1,8 +1,13 @@
+import logging
 import os
 import subprocess
 import sys
 
 import psutil
+
+import phoenix.config as config
+
+logger = logging.getLogger(__name__)
 
 
 class Service:
@@ -23,16 +28,18 @@ class Service:
     def start(self):
         """Starts the service."""
         # Retrieve the directory to the main.py file
-        service_main_path = os.path.join(
-            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-            "service",
-            "main.py",
-        )
+        # service_main_path = os.path.join(
+        #     os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+        #     "service",
+        #     "main.py",
+        # )
 
         # TODO(mikeldking) enhance this to allow for more complex command arguments
         # E.g. support
+        args = self.command
+        logger.info(f"Starting service: {args}")
         self.child = psutil.Popen(
-            [sys.executable, service_main_path] + self.command,
+            args,
             cwd=self.working_dir,
             stdin=subprocess.PIPE,
             env={**os.environ},
@@ -50,6 +57,20 @@ class Service:
 class AppService(Service):
     """Service that controls the phoenix application."""
 
+    working_dir = config.server_dir
+
     def __init__(self, port: int):
         self.port = port
         super().__init__()
+
+    @property
+    def command(self):
+
+        command = [
+            sys.executable,
+            "main.py",
+            "--port",
+            str(self.port),
+        ]
+        logger.info(f"command: {command}")
+        return command
