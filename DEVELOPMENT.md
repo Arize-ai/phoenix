@@ -25,11 +25,11 @@ hatch
 
 To run `phoenix` from source, create a virtual environment containing `phoenix` package and development dependencies with
 ```
-hatch env create default
+hatch env create develop
 ```
 Run
 ```
-hatch env find default
+hatch env find develop
 ```
 to find the path to this virtual environment. After configuring your IDE to use the Python interpreter in this environment, run the notebooks in the `examples` directory.
 
