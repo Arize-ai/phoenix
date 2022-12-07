@@ -5,7 +5,6 @@
 This tutorial shows you how to:
 - Set up your development environment,
 - Run scripts using `hatch`,
-- Run `phoenix` from source,
 - Build the `phoenix` package.
 
 ### Set Up Development Environment
