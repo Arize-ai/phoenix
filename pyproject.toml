@@ -28,6 +28,7 @@ dependencies = [
     "uvicorn",
     "psutil",
     "tables",
+    "strawberry-graphql",
 ]
 dynamic = ["version"]
 

@@ -11,3 +11,4 @@ umap-learn
 starlette
 uvicorn
 psutil
+strawberry-graphql[debug-server]
