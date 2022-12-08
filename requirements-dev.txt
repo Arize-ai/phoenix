@@ -8,3 +8,5 @@ pytest
 pytest-cov
 tables
 umap-learn
+starlette
+uvicorn
