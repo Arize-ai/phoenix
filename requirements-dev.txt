@@ -3,11 +3,13 @@ hatch
 hdbscan
 jupyter
 numpy
+openpyxl
 pandas
+psutil
 pytest
 pytest-cov
+scipy
+starlette
 tables
 umap-learn
-starlette
 uvicorn
-psutil
