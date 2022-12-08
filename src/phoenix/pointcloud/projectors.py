@@ -1,10 +1,10 @@
 from dataclasses import dataclass
-from typing import Dict, List, Sequence, Tuple, Type, Union, cast
+from typing import Any, Dict, List, Sequence, Tuple, Type, Union, cast
 
 import numpy as np
-from hdbscan import HDBSCAN  # type: ignore
+from hdbscan import HDBSCAN
 from numpy.typing import ArrayLike
-from umap import UMAP  # type: ignore
+from umap import UMAP
 
 from phoenix.datasets import Dataset
 
@@ -36,15 +36,15 @@ class UMAPProjector:
             )
 
     @staticmethod
-    def _move_to_center(projections: np.ndarray) -> np.ndarray:
+    def _move_to_center(projections: np.ndarray) -> np.ndarray:  # type: ignore
         # Calculate Center of Mass
-        cm: np.ndarray = np.sum(projections, axis=0) / projections.shape[0]
-        return projections - cm
+        cm = np.sum(projections, axis=0) / projections.shape[0]
+        return projections - cm  # type: ignore
 
     @staticmethod
     def _build_points(
-        primary_projections: np.ndarray,
-        reference_projections: np.ndarray,
+        primary_projections: np.ndarray,  # type: ignore
+        reference_projections: np.ndarray,  # type: ignore
         primary_dataset: Dataset,
         reference_dataset: Dataset,
         embedding_feature: str,
@@ -100,9 +100,11 @@ class UMAPProjector:
 
     @staticmethod
     def _build_clusters(
-        cluster_ids: np.ndarray, primary_points: List[Point], reference_points: List[Point]
+        cluster_ids: np.ndarray,  # type: ignore
+        primary_points: List[Point],
+        reference_points: List[Point],
     ) -> List[Cluster]:
-        unique_cluster_ids: np.ndarray = np.unique(cluster_ids)
+        unique_cluster_ids = np.unique(cluster_ids)
         # map cluster_id to point_ids inside the cluster
         map_cluster_id_point_ids: Dict[int, List[int]] = {
             id: [] for id in unique_cluster_ids if id != -1
@@ -155,20 +157,20 @@ class UMAPProjector:
         sampled_primary_dataset = primary_dataset.sample(num=points_per_dataset)
         sampled_reference_dataset = reference_dataset.sample(num=MAX_UMAP_POINTS // 2)
 
-        primary_embeddings: np.ndarray = np.stack(
+        primary_embeddings = np.stack(
             cast(
                 Sequence[ArrayLike],
                 sampled_primary_dataset.get_embedding_vector_column(embedding_feature),
             )
         )
-        reference_embeddings: np.ndarray = np.stack(
+        reference_embeddings = np.stack(
             cast(
                 Sequence[ArrayLike],
                 sampled_reference_dataset.get_embedding_vector_column(embedding_feature),
             )
         )
 
-        embeddings: np.ndarray = np.concatenate([primary_embeddings, reference_embeddings])
+        embeddings = np.concatenate([primary_embeddings, reference_embeddings])
         umap = UMAP(**self.hyperparameters)
         projections: np.ndarray = umap.fit_transform(embeddings)  # type: ignore
         projections = self._move_to_center(projections)
@@ -176,7 +178,7 @@ class UMAPProjector:
         hdbscan = HDBSCAN(
             min_cluster_size=DEFAULT_MIN_CLUSTER_SIZE, min_samples=DEFAULT_MIN_SAMPLES
         )
-        cluster_ids: np.ndarray = hdbscan.fit_predict(projections)
+        cluster_ids: np.ndarray[Any, Any] = hdbscan.fit_predict(projections)
 
         primary_points, reference_points = self._build_points(
             projections[:points_per_dataset],

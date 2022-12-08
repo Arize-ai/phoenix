@@ -31,7 +31,7 @@ class MissingVectorColumn(ValidationError):
 class MissingColumns(ValidationError):
     """An error raised when the dataset is missing columns specified in the schema"""
 
-    def __init__(self, cols: Iterable) -> None:
+    def __init__(self, cols: Iterable[str]) -> None:
         self.missing_cols = cols
 
     def error_message(self) -> str:
