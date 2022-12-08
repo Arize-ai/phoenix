@@ -31,9 +31,6 @@ if hasattr(sys, "ps1"):
 
 ParquetEngine = Literal["pyarrow", "fastparquet", "auto"]
 
-# TODO: Not entirely accurate as it does not account for empty values
-DimensionColumn = Union[Series[int], Series[float], Series[str]]
-
 
 class Dataset:
     """
@@ -81,7 +78,7 @@ class Dataset:
         num_rows = 5 if num_rows is None else num_rows
         return self.dataframe.head(num_rows)
 
-    def get_column(self, col_name: str) -> DimensionColumn:
+    def get_column(self, col_name: str) -> "Union[Series[int], Series[float], Series[str]]":
         return self.dataframe[col_name]
 
     def sample(self, num: int) -> "Dataset":
@@ -90,24 +87,24 @@ class Dataset:
 
     def get_prediction_label_column(
         self,
-    ) -> Series[str]:
+    ) -> "Series[str]":
         if self.schema.prediction_label_column_name is None:
             raise err.SchemaError(err.MissingField("prediction_label_column_name"))
         return self.dataframe[self.schema.prediction_label_column_name]
 
     def get_prediction_score_column(
         self,
-    ) -> Series[float]:
+    ) -> "Series[float]":
         if self.schema.prediction_score_column_name is None:
             raise err.SchemaError(err.MissingField("prediction_score_column_name"))
         return self.dataframe[self.schema.prediction_score_column_name]
 
-    def get_actual_label_column(self) -> Series[str]:
+    def get_actual_label_column(self) -> "Series[str]":
         if self.schema.actual_label_column_name is None:
             raise err.SchemaError(err.MissingField("actual_label_column_name"))
         return self.dataframe[self.schema.actual_label_column_name]
 
-    def get_actual_score_column(self) -> DimensionColumn:
+    def get_actual_score_column(self) -> "Union[Series[int], Series[float], Series[str]]":
         if self.schema.actual_score_column_name is None:
             raise err.SchemaError(err.MissingField("actual_score_column_name"))
         return self.dataframe[self.schema.actual_score_column_name]
@@ -126,7 +123,7 @@ class Dataset:
         return embedding_feature_column_names[embedding_feature_name]
 
     # TODO(mikeldking): add strong vector type
-    def get_embedding_vector_column(self, embedding_feature_name: str) -> Series[Any]:
+    def get_embedding_vector_column(self, embedding_feature_name: str) -> "Series[Any]":
         column_names = self._get_embedding_feature_column_names(embedding_feature_name)
         if column_names.vector_column_name is None:
             raise err.SchemaError(
@@ -135,7 +132,7 @@ class Dataset:
         vector_column = self.dataframe[column_names.vector_column_name]
         return vector_column
 
-    def get_embedding_raw_data_column(self, embedding_feature_name: str) -> Series[str]:
+    def get_embedding_raw_data_column(self, embedding_feature_name: str) -> "Series[str]":
         column_names = self._get_embedding_feature_column_names(embedding_feature_name)
         if column_names.raw_data_column_name is None:
             raise err.SchemaError(
@@ -143,7 +140,7 @@ class Dataset:
             )
         return self.dataframe[column_names.raw_data_column_name]
 
-    def get_embedding_link_to_data_column(self, embedding_feature_name: str) -> Series[str]:
+    def get_embedding_link_to_data_column(self, embedding_feature_name: str) -> "Series[str]":
         column_names = self._get_embedding_feature_column_names(embedding_feature_name)
         if column_names.link_to_data_column_name is None:
             raise err.SchemaError(
