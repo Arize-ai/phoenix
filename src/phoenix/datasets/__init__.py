@@ -1,3 +1,3 @@
 from .binning import BinningStrategy
 from .dataset import Dataset
-from .types import EmbeddingColumnNames, Schema
+from .schema import EmbeddingColumnNames, Schema

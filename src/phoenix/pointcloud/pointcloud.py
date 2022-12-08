@@ -8,7 +8,7 @@ MAX_UMAP_POINTS = 500
 
 class Coordinates(ABC):
     @abstractmethod
-    def get_coordinates(self):
+    def get_coordinates(self) -> List[float]:
         pass
 
 
@@ -17,7 +17,7 @@ class Coordinates2D(Coordinates):
     x: float
     y: float
 
-    def get_coordinates(self):
+    def get_coordinates(self) -> List[float]:
         return [float(self.x), float(self.y)]
 
 
@@ -27,20 +27,25 @@ class Coordinates3D(Coordinates):
     y: float
     z: float
 
-    def get_coordinates(self):
+    def get_coordinates(self) -> List[float]:
         return [float(self.x), float(self.y), float(self.z)]
 
 
 @dataclass(frozen=True)
-class Point:
-    id: int
-    coordinates: Coordinates
+class InferenceAttributes:
     prediction_label: str
     # prediction_score: float,
     actual_label: str
     # actual_score: float,
     raw_text_data: str
     # link_to_data: str,
+
+
+@dataclass(frozen=True)
+class Point:
+    id: int
+    coordinates: Coordinates
+    inference_attributes: InferenceAttributes
 
 
 @dataclass(frozen=True)
@@ -74,11 +79,13 @@ class DriftPointCloud:
         pts_json = []
         for point in points:
             point_json_obj = {
-                "id": int(point.id),
                 "position": point.coordinates.get_coordinates(),
-                "rawTextData": [point.raw_text_data],
-                "predictionLabel": point.prediction_label,
-                "actualLabel": point.actual_label,
+                "metaData": {
+                    "id": int(point.id),
+                    "rawTextData": [point.inference_attributes.raw_text_data],
+                    "predictionLabel": point.inference_attributes.prediction_label,
+                    "actualLabel": point.inference_attributes.actual_label,
+                },
             }
             pts_json.append(point_json_obj)
         return pts_json

@@ -6,8 +6,16 @@ from hdbscan import HDBSCAN  # type: ignore
 from numpy.typing import ArrayLike
 from umap import UMAP  # type: ignore
 
-from ..datasets import Dataset
-from .pointcloud import Cluster, Coordinates, Coordinates2D, Coordinates3D, Point
+from phoenix.datasets import Dataset
+
+from .pointcloud import (
+    Cluster,
+    Coordinates,
+    Coordinates2D,
+    Coordinates3D,
+    InferenceAttributes,
+    Point,
+)
 
 MAX_UMAP_POINTS = 500
 DEFAULT_MIN_CLUSTER_SIZE = 20
@@ -18,7 +26,7 @@ DEFAULT_MIN_SAMPLES = 1
 class UMAPProjector:
     hyperparameters: Dict[str, Union[int, float, str]]
 
-    def __post__init__(self):
+    def __post__init__(self) -> None:
         if "n_neighbors" in self.hyperparameters and (
             not isinstance(self.hyperparameters["n_neighbors"], int)
             or self.hyperparameters["n_neighbors"] not in (2, 3)
@@ -54,28 +62,38 @@ class UMAPProjector:
         else:
             raise ValueError("Projections should be done to 2D or 3D.")
 
+        # Build primary points
+        prediction_label_col = primary_dataset.get_prediction_label_column()
+        actual_label_col = primary_dataset.get_actual_label_column()
+        raw_text_data_col = primary_dataset.get_embedding_raw_data_column(embedding_feature)
         for i in range(len(primary_projections)):
+            inference_attributes = InferenceAttributes(
+                prediction_label=prediction_label_col[i],
+                actual_label=actual_label_col[i],
+                raw_text_data=raw_text_data_col[i],
+            )
             primary_points.append(
                 Point(
                     id=i,
                     coordinates=c(*[primary_projections[i][k] for k in range(N)]),
-                    prediction_label=primary_dataset.get_prediction_label_column()[i],
-                    actual_label=primary_dataset.get_actual_label_column()[i],
-                    raw_text_data=primary_dataset.get_embedding_raw_data_column(embedding_feature)[
-                        i
-                    ],
+                    inference_attributes=inference_attributes,
                 )
             )
+        # Build reference points
+        prediction_label_col = reference_dataset.get_prediction_label_column()
+        actual_label_col = reference_dataset.get_actual_label_column()
+        raw_text_data_col = reference_dataset.get_embedding_raw_data_column(embedding_feature)
         for i in range(len(reference_projections)):
+            inference_attributes = InferenceAttributes(
+                prediction_label=prediction_label_col[i],
+                actual_label=actual_label_col[i],
+                raw_text_data=raw_text_data_col[i],
+            )
             reference_points.append(
                 Point(
                     id=i + len(primary_projections),
                     coordinates=c(*[reference_projections[i][k] for k in range(N)]),
-                    prediction_label=reference_dataset.get_prediction_label_column()[i],
-                    actual_label=reference_dataset.get_actual_label_column()[i],
-                    raw_text_data=reference_dataset.get_embedding_raw_data_column(
-                        embedding_feature
-                    )[i],
+                    inference_attributes=inference_attributes,
                 )
             )
         return primary_points, reference_points
@@ -83,7 +101,7 @@ class UMAPProjector:
     @staticmethod
     def _build_clusters(
         cluster_ids: np.ndarray, primary_points: List[Point], reference_points: List[Point]
-    ):
+    ) -> List[Cluster]:
         unique_cluster_ids: np.ndarray = np.unique(cluster_ids)
         # map cluster_id to point_ids inside the cluster
         map_cluster_id_point_ids: Dict[int, List[int]] = {
@@ -129,7 +147,9 @@ class UMAPProjector:
             clusters.append(Cluster(id=cluster_id, point_ids=point_ids, purity_score=purity_score))
         return clusters
 
-    def project(self, primary_dataset: Dataset, reference_dataset: Dataset, embedding_feature: str):
+    def project(
+        self, primary_dataset: Dataset, reference_dataset: Dataset, embedding_feature: str
+    ) -> Tuple[List[Point], List[Point], List[Cluster]]:
         # Sample down our datasets to max 2500 rows for UMAP performance
         points_per_dataset = MAX_UMAP_POINTS // 2
         sampled_primary_dataset = primary_dataset.sample(num=points_per_dataset)
