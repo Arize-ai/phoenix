@@ -24,6 +24,9 @@ dependencies = [
     "pandas",
     "umap-learn",
     "hdbscan",
+    "starlette",
+    "uvicorn",
+    "psutil",
     "tables",
 ]
 dynamic = ["version"]
@@ -64,6 +67,7 @@ dependencies = [
   "mypy",
   "pandas-stubs",
   "pytest",
+  "types-psutil",
 ]
 
 [tool.hatch.envs.style]
