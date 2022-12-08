@@ -1,17 +1,17 @@
 import json
 from dataclasses import dataclass
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 
 @dataclass(frozen=True)
-class EmbeddingColumnNames(Dict):
+class EmbeddingColumnNames(Dict[str, Any]):
     vector_column_name: str
     raw_data_column_name: Optional[str] = None
     link_to_data_column_name: Optional[str] = None
 
 
 @dataclass(frozen=True)
-class Schema(Dict):
+class Schema(Dict[str, Any]):
     prediction_id_column_name: Optional[str] = None
     timestamp_column_name: Optional[str] = None
     feature_column_names: Optional[List[str]] = None

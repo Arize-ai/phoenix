@@ -10,7 +10,7 @@ from IPython.core.display import HTML, display  # type: ignore
 
 import phoenix
 
-BASE_PATH = phoenix.__path__[0]  # type: ignore
+BASE_PATH = phoenix.__path__[0]
 STATIC_PATH = os.path.join(BASE_PATH, "nbextension", "static")
 
 

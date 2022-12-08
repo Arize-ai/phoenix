@@ -166,6 +166,7 @@ plugins = ["strawberry.ext.mypy_plugin"]
 disallow_untyped_calls = true
 disallow_untyped_defs = true
 disallow_incomplete_defs  = true
+strict = true
 exclude = [
   "tests/",
 ]

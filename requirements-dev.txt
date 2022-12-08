@@ -4,6 +4,7 @@ hdbscan
 jupyter
 numpy
 pandas
+pandas-stubs
 pytest
 pytest-cov
 tables
