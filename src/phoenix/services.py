@@ -39,7 +39,8 @@ class Service:
         """Stops the service."""
         self.child.stdin.close()
         try:
-            self.child.wait(timeout=5)
+            # TODO(mikeldking) make this reliable
+            self.child.wait(timeout=100)
         except TypeError:
             pass
 
