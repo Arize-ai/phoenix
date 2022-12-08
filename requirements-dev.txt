@@ -10,3 +10,4 @@ tables
 umap-learn
 starlette
 uvicorn
+psutil

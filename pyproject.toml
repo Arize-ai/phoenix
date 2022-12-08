@@ -26,6 +26,7 @@ dependencies = [
     "hdbscan",
     "starlette",
     "uvicorn",
+    "psutil",
     "tables",
 ]
 dynamic = ["version"]
