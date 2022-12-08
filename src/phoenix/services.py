@@ -27,19 +27,9 @@ class Service:
 
     def start(self):
         """Starts the service."""
-        # Retrieve the directory to the main.py file
-        # service_main_path = os.path.join(
-        #     os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-        #     "service",
-        #     "main.py",
-        # )
 
-        # TODO(mikeldking) enhance this to allow for more complex command arguments
-        # E.g. support
-        args = self.command
-        logger.info(f"Starting service: {args}")
         self.child = psutil.Popen(
-            args,
+            self.command,
             cwd=self.working_dir,
             stdin=subprocess.PIPE,
             env={**os.environ},
@@ -49,7 +39,7 @@ class Service:
         """Stops the service."""
         self.child.stdin.close()
         try:
-            self.child.wait()
+            self.child.wait(timeout=5)
         except TypeError:
             pass
 

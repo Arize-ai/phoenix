@@ -1,1 +1,1 @@
-from .session.session import launch_app
+from .session.session import close_app, launch_app

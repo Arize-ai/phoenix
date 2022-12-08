@@ -19,4 +19,4 @@ dataset_dir = normalize_path(os.path.join(ROOT_DIR, "datasets"))
 # Server config
 server_dir = os.path.join(PHOENIX_DIR, "server")
 # The port the server will run on after launch_app is called
-port = 4040
+port = 6060
