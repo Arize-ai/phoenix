@@ -8,6 +8,9 @@ from phoenix.services import AppService
 logger = logging.getLogger(__name__)
 
 
+_session: Optional["Session"] = None
+
+
 class Session:
     "Session that maintains a 1-1 shared state with the Phoenix App."
 
@@ -17,7 +20,7 @@ class Session:
         # Initialize an app service that keeps the server running
         self._app_service = AppService(port)
 
-    def end(self):
+    def end(self) -> None:
         "Ends the session and closes the app service"
         self._app_service.stop()
 
@@ -30,13 +33,13 @@ def launch_app(primary: Dataset, reference: Optional[Dataset] = None) -> "Sessio
     global _session
 
     # TODO close previous session if it exists
-    _session = Session(primary, reference, port=config.port)
+    _session = Session(primary, reference, port=config.port)  # type: ignore
     return _session
 
 
-def close_app():
+def close_app() -> None:
     "Closes the phoenix application"
-    global _session
+    global _session  # type: ignore
     if _session is None:
         print("No active session to close")
         return

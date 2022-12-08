@@ -66,6 +66,7 @@ dependencies = [
   "mypy",
   "pandas-stubs",
   "pytest",
+  "types-psutil",
 ]
 
 [tool.hatch.envs.style]
@@ -170,7 +171,6 @@ exclude = [
 module = [
     "hdbscan",
     "umap",
-    "psutil",
 ]
 ignore_missing_imports = true
 

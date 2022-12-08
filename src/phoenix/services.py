@@ -2,6 +2,7 @@ import logging
 import os
 import subprocess
 import sys
+from typing import List
 
 import psutil
 
@@ -18,14 +19,14 @@ class Service:
 
     working_dir = "."
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.start()
 
     @property
-    def command(self):
+    def command(self) -> List[str]:
         raise NotImplementedError(f"{type(self)} must define `command`")
 
-    def start(self):
+    def start(self) -> None:
         """Starts the service."""
 
         self.child = psutil.Popen(
@@ -35,7 +36,7 @@ class Service:
             env={**os.environ},
         )
 
-    def stop(self):
+    def stop(self) -> None:
         """Stops the service."""
         self.child.stdin.close()
         try:
@@ -55,7 +56,7 @@ class AppService(Service):
         super().__init__()
 
     @property
-    def command(self):
+    def command(self) -> List[str]:
 
         command = [
             sys.executable,
