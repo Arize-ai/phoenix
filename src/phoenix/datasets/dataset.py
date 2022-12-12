@@ -85,12 +85,6 @@ class Dataset:
         sampled_dataframe = self.dataframe.sample(n=num, ignore_index=True)
         return Dataset(sampled_dataframe, self.schema, f"""{self.name}_sample_{num}""")
 
-    def get_feature_columns(self) -> DataFrame:
-        feature_column_names = self.__schema.feature_column_names
-        if not feature_column_names:
-            raise err.SchemaError(err.MissingField("feature_column_names"))
-        return self.dataframe[feature_column_names]
-
     def get_prediction_label_column(
         self,
     ) -> "Series[str]":

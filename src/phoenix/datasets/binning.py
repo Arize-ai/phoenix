@@ -1,5 +1,5 @@
 """
-Strategies for binning and creating histograms.
+Methods for binning and creating histograms.
 """
 
 from functools import partial
@@ -10,7 +10,7 @@ import pandas as pd
 
 def compute_default_bins(df: pd.DataFrame) -> pd.DataFrame:
     """
-    Takes a DataFrame of numerical values and return a DataFrame of bin boundaries.
+    Takes a DataFrame of numerical values and returns a DataFrame of bin boundaries.
     """
 
     def compute_default_bins_from_stats(stats_column: pd.Series) -> pd.Series:
@@ -29,7 +29,7 @@ def compute_default_bins(df: pd.DataFrame) -> pd.DataFrame:
 
 def compute_histogram(df: pd.DataFrame, bins_df: pd.DataFrame) -> pd.DataFrame:
     """
-    Computes histogram for
+    Computes histogram of raw counts.
     """
     column_name_to_func_map = {}
     for column_name in df.columns:

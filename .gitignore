@@ -13,6 +13,3 @@ dist
 *.csv
 *.hdf
 *.hdf5
-
-# Generated files
-.DS_Store
