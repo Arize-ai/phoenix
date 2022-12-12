@@ -67,8 +67,8 @@ def test_happy_path_same_schema(primary_embeddings, reference_embeddings):
             "embedding_vector": reference_embeddings,
         }
     )
-    primary = Dataset(primary_df, primary_schema, name="primary")
-    reference = Dataset(reference_df, reference_schema, name="reference")
+    primary = Dataset(primary_df, primary_schema, name="primary", persist_to_disc=False)
+    reference = Dataset(reference_df, reference_schema, name="reference", persist_to_disc=False)
     primary_centroid = np.mean(
         np.stack(primary_embeddings, axis=0),
         axis=0,
@@ -127,8 +127,8 @@ def test_happy_path_different_schemas(primary_embeddings, reference_embeddings):
             "reference_embedding_vector": reference_embeddings,
         }
     )
-    primary = Dataset(primary_df, primary_schema, name="primary")
-    reference = Dataset(reference_df, reference_schema, name="reference")
+    primary = Dataset(primary_df, primary_schema, name="primary", persist_to_disc=False)
+    reference = Dataset(reference_df, reference_schema, name="reference", persist_to_disc=False)
     primary_centroid = np.mean(
         np.stack(primary_embeddings, axis=0),
         axis=0,
@@ -193,8 +193,8 @@ def test_random_array_values(random_seed, num_samples, embedding_dimension):
             "reference_embedding_vector": reference_embeddings,
         }
     )
-    primary = Dataset(primary_df, primary_schema, name="primary")
-    reference = Dataset(reference_df, reference_schema, name="reference")
+    primary = Dataset(primary_df, primary_schema, name="primary", persist_to_disc=False)
+    reference = Dataset(reference_df, reference_schema, name="reference", persist_to_disc=False)
     primary_centroid = np.mean(
         np.stack(primary_embeddings, axis=0),
         axis=0,
