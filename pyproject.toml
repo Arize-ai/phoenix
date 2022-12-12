@@ -20,14 +20,15 @@ classifiers = [
   "Programming Language :: Python :: 3.11",
 ]
 dependencies = [
-    "hdbscan",
     "numpy",
     "pandas",
-    "psutil",
-    "starlette",
-    "tables",
     "umap-learn",
+    "hdbscan",
+    "starlette",
     "uvicorn",
+    "psutil",
+    "tables",
+    "strawberry-graphql",
 ]
 dynamic = ["version"]
 
@@ -162,9 +163,11 @@ ignore-nested-classes = false
 ignore-setters = false
 
 [tool.mypy]
+plugins = ["strawberry.ext.mypy_plugin"]
 disallow_untyped_calls = true
 disallow_untyped_defs = true
 disallow_incomplete_defs  = true
+strict = true
 exclude = [
   "tests/",
 ]

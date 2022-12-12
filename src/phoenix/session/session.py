@@ -33,13 +33,13 @@ def launch_app(primary: Dataset, reference: Optional[Dataset] = None) -> "Sessio
     global _session
 
     # TODO close previous session if it exists
-    _session = Session(primary, reference, port=config.port)  # type: ignore
+    _session = Session(primary, reference, port=config.port)
     return _session
 
 
 def close_app() -> None:
     "Closes the phoenix application"
-    global _session  # type: ignore
+    global _session
     if _session is None:
         print("No active session to close")
         return
