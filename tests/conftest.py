@@ -11,7 +11,7 @@ import pytest
 
 
 @pytest.fixture(scope="module")
-def local_fixture_tmp_path_factory(
+def local_fixture_tmp_path(
     request: pytest.FixtureRequest, tmp_path_factory: pytest.TempPathFactory
 ) -> Callable[[str], Path]:
     """
@@ -28,7 +28,7 @@ def local_fixture_tmp_path_factory(
 
 
 @pytest.fixture(scope="session")
-def global_fixture_tmp_path_factory(
+def global_fixture_tmp_path(
     pytestconfig: pytest.Config, tmp_path_factory: pytest.TempPathFactory
 ) -> Callable[[str], Path]:
     """
