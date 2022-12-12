@@ -7,10 +7,10 @@ import pytest
 from numpy.testing import assert_array_almost_equal
 from scipy.stats import entropy
 
-from phoenix.metrics.drift.psi import _psi
+from phoenix.metrics.drift.psi import psi
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture
 def fixture_df(tmp_fixture_path_factory):
     return pd.read_excel(
         tmp_fixture_path_factory("psi_fixture.xlsx"),
@@ -19,12 +19,12 @@ def fixture_df(tmp_fixture_path_factory):
 
 
 @pytest.fixture
-def distribution_p(fixture_df):
+def primary_distribution(fixture_df):
     return fixture_df[[f"p{i}" for i in range(5)]].values
 
 
 @pytest.fixture
-def distribution_q(fixture_df):
+def reference_distribution(fixture_df):
     return fixture_df[[f"q{i}" for i in range(5)]].values
 
 
@@ -33,27 +33,19 @@ def expected_psi(fixture_df):
     return fixture_df["psi"].values
 
 
-def test__psi_matches_spreadsheet_examples(distribution_p, distribution_q, expected_psi):
-    # Arrange
-    epsilon = 1e-7
-
-    # Act
-    out = _psi(distribution_p, distribution_q, epsilon)
-
-    # Assert
+def test_psi_produces_expected_values_on_sample_data(
+    primary_distribution, reference_distribution, expected_psi
+):
+    out = psi(primary_distribution, reference_distribution)
     assert_array_almost_equal(out, expected_psi)
 
 
 # The following test relies on the fact that PSI(p, q) = D_KL(p, q) + D_KL(q, p).
-def test__psi_matches_scipy_implementation(distribution_p, distribution_q):
-    # Arrange
-    p_t = distribution_p.T
-    q_t = distribution_q.T
-    epsilon = 1e-7
+def test_psi_equals_symmetric_kl_divergence_computed_with_scipy(
+    primary_distribution, reference_distribution
+):
+    p_t = primary_distribution.T
+    q_t = reference_distribution.T
     expected_psi = entropy(pk=p_t, qk=q_t) + entropy(pk=q_t, qk=p_t)
-
-    # Act
-    out = _psi(distribution_p, distribution_q, epsilon)
-
-    # Assert
+    out = psi(primary_distribution, reference_distribution)
     assert_array_almost_equal(out, expected_psi)

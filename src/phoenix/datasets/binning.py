@@ -1,21 +1,49 @@
 """
-Strategies for binning numerical data.
+Strategies for binning and creating histograms.
 """
 
-import abc
+from functools import partial
 
+import numpy as np
 import pandas as pd
 
 
-class BinningStrategy(abc.ABC):
-    @abc.abstractmethod
-    def bin(self, primary: pd.DataFrame, reference: pd.DataFrame) -> (pd.DataFrame, pd.DataFrame):
-        pass
+def compute_default_bins(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Takes a DataFrame of numerical values and return a DataFrame of bin boundaries.
+    """
 
-# class QuantileBinningStrategy(BinningStrategy):
-#     def __init__(self, num_quantiles: int) -> None:
-#         self.num_quantiles = num_quantiles
-#         super().__init__()
-#
-#     def bin(self, primary: Dataset, reference: Dataset) -> (Histogram, Histogram):
-#         raise NotImplementedError()
+    def compute_default_bins_from_stats(stats_column: pd.Series) -> pd.Series:
+        bin_boundaries = np.concatenate(
+            [
+                np.array([-np.inf]),
+                np.linspace(-4 / 3, 4 / 3, 9) * stats_column["std"] + stats_column["median"],
+                np.array([np.inf]),
+            ]
+        )
+        return pd.Series(bin_boundaries)
+
+    stats = df.agg([np.median, np.std])
+    return stats.apply(compute_default_bins_from_stats)
+
+
+def compute_histogram(df: pd.DataFrame, bins_df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Computes histogram for
+    """
+    column_name_to_func_map = {}
+    for column_name in df.columns:
+        column_name_to_func_map[column_name] = partial(
+            _compute_histogram_for_column_using_bins,
+            bins=pd.IntervalIndex.from_breaks(bins_df[column_name]),
+        )
+    return df.agg(column_name_to_func_map)
+
+
+def _compute_histogram_for_column_using_bins(
+    column: pd.Series, bins: pd.IntervalIndex
+) -> pd.Series:
+    histogram = column.value_counts(sort=False, bins=bins)  # type: ignore
+    histogram = histogram[bins]
+    histogram = histogram.set_axis(np.arange(histogram.shape[0]))
+    return histogram

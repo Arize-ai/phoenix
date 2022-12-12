@@ -9,7 +9,7 @@ from typing import Callable
 import pytest
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture
 def tmp_fixture_path_factory(request, tmp_path_factory) -> Callable[[str], Path]:
     original_fixtures_dir = Path(request.fspath.dirname) / "fixtures"
 
