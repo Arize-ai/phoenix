@@ -7,11 +7,17 @@ class Dataset:
 
 
 def get_primary_dataset() -> Dataset:
-    return Dataset(name="primary")
+    from phoenix.server.app import app
+
+    name = app.state.primary
+    return Dataset(name=name)
 
 
 def get_reference_dataset() -> Dataset:
-    return Dataset(name="reference")
+    from phoenix.server.app import app
+
+    name = app.state.primary
+    return Dataset(name=name)
 
 
 @strawberry.type
