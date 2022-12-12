@@ -8,7 +8,7 @@ import pandas as pd
 
 def psi(
     primary_distribution: pd.DataFrame, reference_distribution: pd.DataFrame, epsilon: float = 1e-7
-) -> pd.Series:  # type: ignore
+) -> "pd.Series[float]":
     """
     Computes Population Stability Index (PSI) between distributions.
     """

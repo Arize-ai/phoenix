@@ -13,7 +13,7 @@ def compute_default_bins(df: pd.DataFrame) -> pd.DataFrame:
     Takes a DataFrame of numerical values and returns a DataFrame of bin boundaries.
     """
 
-    def compute_default_bins_from_stats(stats_column: pd.Series) -> pd.Series:  # type: ignore
+    def compute_default_bins_from_stats(stats_column: "pd.Series[float]") -> "pd.Series[float]":
         bin_boundaries = np.concatenate(
             [
                 np.array([-np.inf]),
@@ -21,7 +21,8 @@ def compute_default_bins(df: pd.DataFrame) -> pd.DataFrame:
                 np.array([np.inf]),
             ]
         )
-        return pd.Series(bin_boundaries)
+        bins_column: "pd.Series[float]" = pd.Series(bin_boundaries)
+        return bins_column
 
     stats = df.agg([np.median, np.std])
     return stats.apply(compute_default_bins_from_stats)
@@ -41,8 +42,8 @@ def compute_histogram(df: pd.DataFrame, bins_df: pd.DataFrame) -> pd.DataFrame:
 
 
 def _compute_histogram_for_column_using_bins(
-    column: pd.Series, bins: pd.IntervalIndex
-) -> pd.Series:  # type: ignore
+    column: "pd.Series[float]", bins: pd.IntervalIndex
+) -> "pd.Series[int]":
     histogram = column.value_counts(sort=False, bins=bins)  # type: ignore
     histogram = histogram[bins]
     histogram = histogram.set_axis(np.arange(histogram.shape[0]))
