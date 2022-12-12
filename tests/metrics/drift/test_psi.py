@@ -11,9 +11,9 @@ from phoenix.metrics.drift.psi import psi
 
 
 @pytest.fixture
-def fixture_df(tmp_fixture_path_factory):
+def fixture_df(local_fixture_tmp_path_factory):
     return pd.read_excel(
-        tmp_fixture_path_factory("psi_fixture.xlsx"),
+        local_fixture_tmp_path_factory("psi_fixture.xlsx"),
         engine="openpyxl",
     )
 
