@@ -39,10 +39,14 @@ class Dataset:
 
     _data_file_name: str = "data.parquet"
     _schema_file_name: str = "schema.json"
-    # whether or not this dataset has been persisted to disk
-    __is_persisted: bool = False
 
-    def __init__(self, dataframe: DataFrame, schema: Schema, name: Optional[str] = None):
+    def __init__(
+        self,
+        dataframe: DataFrame,
+        schema: Schema,
+        name: Optional[str] = None,
+        persist_to_disc: bool = True,
+    ):
         errors = validate_dataset_inputs(
             dataframe=dataframe,
             schema=schema,
@@ -59,6 +63,12 @@ class Dataset:
         self.__directory: str = os.path.join(dataset_dir, self.name)
 
         # Sync the dataset to disc so that the server can pick up the data
+        if persist_to_disc:
+            self.to_disc()
+        else:
+            # Assume that the dataset is already persisted to disc
+            self.__is_persisted: bool = True
+
         self.to_disc()
         logger.info(f"""Dataset: {self.__name} initialized""")
 
@@ -233,7 +243,7 @@ class Dataset:
         with open(os.path.join(directory, cls._schema_file_name), "rb") as schema_file:
             schema_json = json.load(schema_file)
             schema = Schema.from_json(schema_json)
-            return cls(df, schema, name)
+            return cls(df, schema, name, persist_to_disc=False)
 
     @staticmethod
     def _parse_dataframe(dataframe: DataFrame, schema: Schema) -> DataFrame:
