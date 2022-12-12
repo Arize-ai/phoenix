@@ -1,7 +1,7 @@
+import json
 import logging
 import os
 import os.path
-import pickle
 import sys
 import tempfile
 import uuid
@@ -40,7 +40,13 @@ class Dataset:
     _data_file_name: str = "data.parquet"
     _schema_file_name: str = "schema.json"
 
-    def __init__(self, dataframe: DataFrame, schema: Schema, name: Optional[str] = None):
+    def __init__(
+        self,
+        dataframe: DataFrame,
+        schema: Schema,
+        name: Optional[str] = None,
+        persist_to_disc: bool = True,
+    ):
         errors = validate_dataset_inputs(
             dataframe=dataframe,
             schema=schema,
@@ -55,6 +61,15 @@ class Dataset:
         self.__schema: Schema = schema
         self.__name: str = name if name is not None else f"""dataset_{str(uuid.uuid4())}"""
         self.__directory: str = os.path.join(dataset_dir, self.name)
+
+        # Sync the dataset to disc so that the server can pick up the data
+        if persist_to_disc:
+            self.to_disc()
+        else:
+            # Assume that the dataset is already persisted to disc
+            self.__is_persisted: bool = True
+
+        self.to_disc()
         logger.info(f"""Dataset: {self.__name} initialized""")
 
     @property
@@ -68,6 +83,10 @@ class Dataset:
     @property
     def name(self) -> str:
         return self.__name
+
+    @property
+    def is_persisted(self) -> bool:
+        return self.__is_persisted
 
     @property
     def directory(self) -> str:
@@ -222,8 +241,9 @@ class Dataset:
         directory = os.path.join(dataset_dir, name)
         df = read_parquet(os.path.join(directory, cls._data_file_name))
         with open(os.path.join(directory, cls._schema_file_name), "rb") as schema_file:
-            schema = pickle.load(schema_file)
-            return cls(df, schema, name)
+            schema_json = json.load(schema_file)
+            schema = Schema.from_json(schema_json)
+            return cls(df, schema, name, persist_to_disc=False)
 
     @staticmethod
     def _parse_dataframe(dataframe: DataFrame, schema: Schema) -> DataFrame:
@@ -250,7 +270,12 @@ class Dataset:
         return dataframe.drop(columns=drop_cols)
 
     def to_disc(self) -> None:
-        """writes the data and schema to disc as an HDF5 file"""
+        """writes the data and schema to disc"""
+
+        if self.__is_persisted:
+            logger.info("Dataset already persisted")
+            return
+
         directory = self.directory
         if not os.path.isdir(directory):
             os.makedirs(directory)
@@ -259,6 +284,9 @@ class Dataset:
         schema_json_data = self.schema.to_json()
         with open(os.path.join(directory, self._schema_file_name), "w+") as schema_file:
             schema_file.write(schema_json_data)
+
+        # set the persisted flag so that we don't have to perform this operation again
+        self.__is_persisted = True
         logger.info(f"Dataset info written to '{directory}'")
 
 
