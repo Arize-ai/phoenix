@@ -10,7 +10,7 @@ from typing import Callable
 import pytest
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture
 def local_fixture_tmp_path_factory(
     request: pytest.FixtureRequest, tmp_path_factory: pytest.TempPathFactory
 ) -> Callable[[str], Path]:
@@ -27,7 +27,7 @@ def local_fixture_tmp_path_factory(
     )
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture
 def global_fixture_tmp_path_factory(
     pytestconfig: pytest.Config, tmp_path_factory: pytest.TempPathFactory
 ) -> Callable[[str], Path]:
