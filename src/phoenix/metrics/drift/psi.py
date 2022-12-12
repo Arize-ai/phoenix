@@ -2,15 +2,13 @@
 Method to calculate the population stability index (PSI) between two datasets.
 """
 
-from typing import Any
-
 import numpy as np
 import pandas as pd
 
 
 def psi(
     primary_distribution: pd.DataFrame, reference_distribution: pd.DataFrame, epsilon: float = 1e-7
-) -> pd.Series[Any]:
+) -> pd.Series:
     """
     Computes Population Stability Index (PSI) between distributions.
     """

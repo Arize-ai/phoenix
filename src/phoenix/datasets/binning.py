@@ -3,7 +3,6 @@ Methods for binning and creating histograms.
 """
 
 from functools import partial
-from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -14,7 +13,7 @@ def compute_default_bins(df: pd.DataFrame) -> pd.DataFrame:
     Takes a DataFrame of numerical values and returns a DataFrame of bin boundaries.
     """
 
-    def compute_default_bins_from_stats(stats_column: pd.Series[Any]) -> pd.Series[Any]:
+    def compute_default_bins_from_stats(stats_column: pd.Series) -> pd.Series:
         bin_boundaries = np.concatenate(
             [
                 np.array([-np.inf]),
@@ -42,8 +41,8 @@ def compute_histogram(df: pd.DataFrame, bins_df: pd.DataFrame) -> pd.DataFrame:
 
 
 def _compute_histogram_for_column_using_bins(
-    column: pd.Series[Any], bins: pd.IntervalIndex
-) -> pd.Series[Any]:
+    column: pd.Series, bins: pd.IntervalIndex
+) -> pd.Series:
     histogram = column.value_counts(sort=False, bins=bins)  # type: ignore
     histogram = histogram[bins]
     histogram = histogram.set_axis(np.arange(histogram.shape[0]))
