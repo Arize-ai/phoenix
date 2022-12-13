@@ -14,11 +14,11 @@ _session: Optional["Session"] = None
 class Session:
     "Session that maintains a 1-1 shared state with the Phoenix App."
 
-    def __init__(self, primary: Dataset, reference: Optional[Dataset], port: int):
+    def __init__(self, primary: Dataset, reference: Dataset, port: int):
         self.primary = primary
         self.reference = reference
         # Initialize an app service that keeps the server running
-        self._app_service = AppService(port)
+        self._app_service = AppService(port, primary.name, reference.name)
 
     def end(self) -> None:
         "Ends the session and closes the app service"
@@ -27,7 +27,7 @@ class Session:
 
 # TODO(mikeldking): validate that we really want to require a reference dataset. Leaving it optional
 # Provides a level of flexibility
-def launch_app(primary: Dataset, reference: Optional[Dataset] = None) -> "Session":
+def launch_app(primary: Dataset, reference: Dataset) -> "Session":
     "Launches the phoenix application"
     logger.info("Launching Phoenix App")
     global _session

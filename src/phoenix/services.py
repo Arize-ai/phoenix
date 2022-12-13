@@ -51,8 +51,10 @@ class AppService(Service):
 
     working_dir = config.server_dir
 
-    def __init__(self, port: int):
+    def __init__(self, port: int, primary_dataset_name: str, reference_dataset_name: str):
         self.port = port
+        self.__primary_dataset_name = primary_dataset_name
+        self.__reference_dataset_name = reference_dataset_name
         super().__init__()
 
     @property
@@ -63,6 +65,10 @@ class AppService(Service):
             "main.py",
             "--port",
             str(self.port),
+            "--primary",
+            str(self.__primary_dataset_name),
+            "--reference",
+            str(self.__reference_dataset_name),
         ]
         logger.info(f"command: {command}")
         return command
