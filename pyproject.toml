@@ -2,7 +2,7 @@
 name = "phoenix"
 description = "WRITE A BRIEF SUMMARY OF THE PROJECT."
 readme = "README.md"
-requires-python = ">=3.10, <3.11"
+requires-python = ">=3.8, <3.11"
 # license = "None"
 keywords = [
     "Observability",
@@ -16,8 +16,9 @@ maintainers = []
 classifiers = [
   "Development Status :: 1 - Planning",
   "Programming Language :: Python",
+  "Programming Language :: Python :: 3.8",
+  "Programming Language :: Python :: 3.9",
   "Programming Language :: Python :: 3.10",
-  "Programming Language :: Python :: 3.11",
 ]
 dependencies = [
     "numpy",
@@ -27,7 +28,7 @@ dependencies = [
     "starlette",
     "uvicorn",
     "psutil",
-    "tables",
+#    "tables",
     "strawberry-graphql",
 ]
 dynamic = ["version"]
@@ -91,7 +92,11 @@ tests = "pytest {args}"
 coverage = "pytest --cov-report=term-missing --cov-config=pyproject.toml --cov=src/phoenix --cov=tests {args}"
 
 [[tool.hatch.envs.test.matrix]]
-python = ["310"]
+python = [
+#    "38",
+#    "39",
+    "310"
+]
 
 [tool.pytest.ini_options]
 addopts = "-rA"
