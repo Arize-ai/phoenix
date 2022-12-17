@@ -1,7 +1,4 @@
 from os import path
-from typing import Any, TypeVar
-
-T = TypeVar("T", bound=type[Any])
 
 
 def is_url(filepath: str) -> bool:
