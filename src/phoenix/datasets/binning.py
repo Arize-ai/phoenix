@@ -46,7 +46,7 @@ def compute_histogram(
 def _compute_median_and_standard_deviation(
     df: pd.DataFrame, max_workers: Optional[int] = None
 ) -> pd.DataFrame:
-    stats_df = pd.DataFrame(index=["median", "standard_deviation"])
+    stats_data = {}
     with cf.ThreadPoolExecutor(max_workers=max_workers) as executor:
         future_to_column_name = {
             executor.submit(
@@ -57,7 +57,9 @@ def _compute_median_and_standard_deviation(
         }
         for future in cf.as_completed(future_to_column_name):
             column = future_to_column_name[future]
-            stats_df[column] = list(future.result())
+            stats_data[column] = list(future.result())
+    stats_df = pd.DataFrame.from_dict(stats_data)
+    stats_df.index = pd.Index(["median", "standard_deviation"])
     return stats_df
 
 
@@ -71,7 +73,7 @@ def _compute_default_bins_from_stats_column(stats_column: "pd.Series[float]") ->
 
 def _compute_histogram_for_column_using_bins(
     array: npt.NDArray[np.float64], interior_bin_boundaries: npt.NDArray[np.float64]
-) -> npt.NDArray[np.float64]:
+) -> npt.NDArray[np.int64]:
     bin_indexes = np.searchsorted(interior_bin_boundaries, array)
     histogram = np.bincount(bin_indexes)
     pad_width = interior_bin_boundaries.shape[0] - histogram.shape[0] + 1
