@@ -56,7 +56,32 @@ To build `phoenix`, run
 ```shell
 hatch build
 ```
-If successful, the build will appear in the `dist` folder at the repo base directory.
+If successful, a source distribution (a tarball) and a Python `wheel` will appear in the `dist` folder at the repo base directory.
+
+### Install the Built Package
+
+We recommend using a separate virtual environment (e.g., `phoenix-test-env`) for installing and testing the builds created above.
+
+To install `phoenix` from the source distribution (i.e., tarball), run
+```shell
+pip install /path/to/source/distribution/tarball.tar.gz
+```
+
+To install `phoenix` from the Python `wheel`, you must first install `wheel` with
+```shell
+pip install wheel
+```
+Then run
+```shell
+pip install /path/to/wheel.whl
+```
+(You should only install one of the source distribution or the `wheel` at a time.)
+
+To make sure everything works, install `jupyter` with
+```shell
+pip install jupyter
+```
+and run the notebooks in the `examples` directory.
 
 ## Useful Resources
 - [Hatch Quickstart](https://hatch.pypa.io/latest/)
