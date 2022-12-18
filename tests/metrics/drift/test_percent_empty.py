@@ -4,12 +4,20 @@ Test percent empty.
 
 import numpy as np
 import pandas as pd
+import pytest
 from numpy.testing import assert_array_almost_equal
 
 from phoenix.metrics.percent_empty import percent_empty
 
 
-def test_percent_empty_returns_expected_values_on_range_of_percents_including_zero_and_100():
+@pytest.fixture
+def random_seed():
+    np.random.seed(0)
+
+
+def test_percent_empty_returns_expected_values_on_range_of_percents_including_zero_and_100(
+    random_seed,
+):
     num_features = 11
     num_samples = 100
     column_names = [f"feature{index}" for index in range(num_features)]
