@@ -31,7 +31,7 @@ def compute_histogram(
         future_to_column_name = {
             executor.submit(
                 _compute_histogram_for_column_using_bins,
-                df[col],
+                df[col].to_numpy(),
                 interior_bin_boundaries=bins_df[col].to_numpy(),
             ): col
             for col in df.columns
