@@ -13,5 +13,4 @@ starlette
 uvicorn
 psutil
 strawberry-graphql[debug-server]
-openpyxl
 scipy

@@ -59,7 +59,6 @@ build_dir = "src/phoenix/nbextension/static"
 
 [tool.hatch.envs.default]
 dependencies = [
-  "openpyxl",
   "pytest",
   "pytest-cov",
 ]
