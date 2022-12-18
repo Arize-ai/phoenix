@@ -15,7 +15,7 @@ def random_seed():
     np.random.seed(0)
 
 
-def test_percent_empty_returns_expected_values_on_range_of_percents_including_zero_and_100(
+def test_percent_empty_returns_expected_values_on_range_of_percents_including_0_and_100(
     random_seed,
 ):
     num_features = 11
