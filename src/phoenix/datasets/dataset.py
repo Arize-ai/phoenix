@@ -63,11 +63,12 @@ class Dataset:
         self.__directory: str = os.path.join(dataset_dir, self.name)
 
         # Sync the dataset to disc so that the server can pick up the data
+        self.__is_persisted: bool = False
         if persist_to_disc:
             self.to_disc()
         else:
             # Assume that the dataset is already persisted to disc
-            self.__is_persisted: bool = True
+            self.__is_persisted = True
 
         self.to_disc()
         logger.info(f"""Dataset: {self.__name} initialized""")

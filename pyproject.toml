@@ -64,6 +64,9 @@ dependencies = [
   "pytest-cov",
 ]
 
+#[tool.hatch.envs.default.env-vars]
+#HDF5_DIR = "/opt/homebrew/Cellar/hdf5/1.12.2_2"
+
 [tool.hatch.envs.type]
 dependencies = [
   "mypy",
@@ -93,8 +96,8 @@ coverage = "pytest --cov-report=term-missing --cov-config=pyproject.toml --cov=s
 
 [[tool.hatch.envs.test.matrix]]
 python = [
-#    "38",
-#    "39",
+    "38",
+    "39",
     "310"
 ]
 
