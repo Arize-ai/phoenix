@@ -25,7 +25,7 @@ def compute_histogram(
     """
     Computes histogram of raw counts.
     """
-    num_bins = bins_df.shape[0] + 1
+    num_bins = bins_df.shape[0] - 1
     histogram_df = pd.DataFrame(columns=df.columns, index=np.arange(num_bins))
     with cf.ThreadPoolExecutor(max_workers=max_workers) as executor:
         future_to_column_name = {
@@ -64,9 +64,16 @@ def _compute_median_and_standard_deviation(
 
 
 def _compute_default_bins_from_stats_column(stats_column: "pd.Series[float]") -> "pd.Series[float]":
-    bin_boundaries = (
-        np.linspace(-4 / 3, 4 / 3, 9) * stats_column["standard_deviation"] + stats_column["median"]
+    bin_boundaries = np.concatenate(
+        [
+            np.array([-np.inf]),
+            np.linspace(-4 / 3, 4 / 3, 9) * stats_column["standard_deviation"] + stats_column[
+                "median"],
+            np.array([np.inf]),
+        ]
     )
+
+
     bins_column: "pd.Series[float]" = pd.Series(bin_boundaries)
     return bins_column
 
@@ -74,8 +81,9 @@ def _compute_default_bins_from_stats_column(stats_column: "pd.Series[float]") ->
 def _compute_histogram_for_column_using_bins(
     array: npt.NDArray[np.float64], interior_bin_boundaries: npt.NDArray[np.float64]
 ) -> npt.NDArray[np.int64]:
-    bin_indexes = np.searchsorted(interior_bin_boundaries, array)
-    histogram = np.bincount(bin_indexes)
-    pad_width = interior_bin_boundaries.shape[0] - histogram.shape[0] + 1
-    histogram = np.pad(histogram, (0, pad_width))
+    histogram, _ = np.histogram(array, bins=interior_bin_boundaries)
+    # # bin_indexes = np.searchsorted(interior_bin_boundaries, array)
+    # # histogram = np.bincount(bin_indexes)
+    # pad_width = interior_bin_boundaries.shape[0] - histogram.shape[0] + 1
+    # histogram = np.pad(histogram, (0, pad_width))
     return histogram
