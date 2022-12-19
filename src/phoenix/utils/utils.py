@@ -1,11 +1,4 @@
 from os import path
-from typing import Any, List, Sequence, TypeGuard, TypeVar
-
-T = TypeVar("T", bound=type[Any])
-
-
-def is_list_of(lst: Sequence[object], tp: T) -> TypeGuard[List[T]]:
-    return isinstance(lst, list) and all(isinstance(x, tp) for x in lst)
 
 
 def is_url(filepath: str) -> bool:
