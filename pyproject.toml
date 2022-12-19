@@ -28,7 +28,6 @@ dependencies = [
     "starlette",
     "uvicorn",
     "psutil",
-#    "tables",
     "strawberry-graphql",
 ]
 dynamic = ["version"]
@@ -64,9 +63,6 @@ dependencies = [
   "pytest-cov",
 ]
 
-#[tool.hatch.envs.default.env-vars]
-#HDF5_DIR = "/opt/homebrew/Cellar/hdf5/1.12.2_2"
-
 [tool.hatch.envs.type]
 dependencies = [
   "mypy",
@@ -95,11 +91,7 @@ tests = "pytest {args}"
 coverage = "pytest --cov-report=term-missing --cov-config=pyproject.toml --cov=src/phoenix --cov=tests {args}"
 
 [[tool.hatch.envs.test.matrix]]
-python = [
-    "38",
-    "39",
-    "310"
-]
+python = ["310"]
 
 [tool.pytest.ini_options]
 addopts = "-rA"
