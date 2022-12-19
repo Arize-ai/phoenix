@@ -13,4 +13,3 @@ starlette
 uvicorn
 psutil
 strawberry-graphql[debug-server]
-pyarrow
