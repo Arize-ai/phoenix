@@ -53,9 +53,13 @@ only-packages = true
 [tool.hatch.build.hooks.jupyter-builder]
 dependencies = ["hatch-jupyter-builder"]
 build-function = "hatch_jupyter_builder.npm_builder"
+ensured-targets = ["src/phoenix/server/static/index.js"]
 
 [hatch_jupyter_builder.utils.npm_builder]
-build_dir = "src/phoenix/nbextension/static"
+build_dir = "src/phoenix/server/static"
+
+[tool.hatch.build.targets.sdist]
+artifacts = ["src/phoenix/server/static"]
 
 [tool.hatch.envs.default]
 dependencies = [

@@ -1,7 +1,7 @@
 import logging
 from typing import Optional
 
-from IPython.display import IFrame
+from IPython.display import IFrame  # type: ignore
 
 import phoenix.config as config
 from phoenix.datasets import Dataset

@@ -9,8 +9,8 @@ dist
 **/.ipynb_checkpoints/
 **/.DS_Store
 
-# Server files
-/src/phoenix/server/static/index.js
+# Server static files
+/src/phoenix/server/static/
 
 # Data files
 *.csv
