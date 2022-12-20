@@ -7,7 +7,7 @@ from phoenix.services import AppService
 
 try:
     from IPython.display import IFrame  # type: ignore
-except: # noqa
+except:  # noqa
     pass
 
 logger = logging.getLogger(__name__)
