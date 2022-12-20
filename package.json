@@ -24,9 +24,10 @@
         "typescript": "^4.8.4"
     },
     "scripts": {
-        "build": "esbuild app/src/index.tsx --bundle --minify --target=es2020 --jsx=automatic --format=esm --outfile=src/phoenix/nbextension/static/index.js",
-        "watch": "esbuild app/src/index.tsx --bundle --minify --target=es2020 --jsx=automatic --format=esm --outfile=src/phoenix/nbextension/static/index.js --watch",
-        "dev": "serve . & npm run watch",
+        "build": "esbuild app/src/index.tsx --bundle --minify --target=es2020 --jsx=automatic --format=esm --outfile=src/phoenix/server/static/index.js",
+        "watch": "esbuild app/src/index.tsx --bundle --minify --target=es2020 --jsx=automatic --format=esm --outfile=src/phoenix/server/static/index.js --watch",
+        "dev": "npm run dev:server & npm run watch",
+        "dev:server": "python3 ./src/phoenix/server/main.py --primary=primary --reference=reference",
         "typecheck": "tsc --noEmit"
     }
 }

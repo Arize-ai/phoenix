@@ -39,6 +39,7 @@ class Dataset:
 
     _data_file_name: str = "data.parquet"
     _schema_file_name: str = "schema.json"
+    _is_persisted: bool = False
 
     def __init__(
         self,
@@ -67,7 +68,7 @@ class Dataset:
             self.to_disc()
         else:
             # Assume that the dataset is already persisted to disc
-            self.__is_persisted: bool = True
+            self._is_persisted: bool = True
 
         self.to_disc()
         logger.info(f"""Dataset: {self.__name} initialized""")
@@ -86,7 +87,7 @@ class Dataset:
 
     @property
     def is_persisted(self) -> bool:
-        return self.__is_persisted
+        return self._is_persisted
 
     @property
     def directory(self) -> str:
@@ -272,7 +273,7 @@ class Dataset:
     def to_disc(self) -> None:
         """writes the data and schema to disc"""
 
-        if self.__is_persisted:
+        if self._is_persisted:
             logger.info("Dataset already persisted")
             return
 
@@ -286,7 +287,7 @@ class Dataset:
             schema_file.write(schema_json_data)
 
         # set the persisted flag so that we don't have to perform this operation again
-        self.__is_persisted = True
+        self._is_persisted = True
         logger.info(f"Dataset info written to '{directory}'")
 
 

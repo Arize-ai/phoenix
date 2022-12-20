@@ -1,6 +1,8 @@
 import logging
 from typing import Optional
 
+from IPython.display import IFrame
+
 import phoenix.config as config
 from phoenix.datasets import Dataset
 from phoenix.services import AppService
@@ -17,8 +19,14 @@ class Session:
     def __init__(self, primary: Dataset, reference: Dataset, port: int):
         self.primary = primary
         self.reference = reference
+        self.port = port
         # Initialize an app service that keeps the server running
         self._app_service = AppService(port, primary.name, reference.name)
+
+    def view(self) -> IFrame:
+        # Display the app in an iframe
+        print("Launching Phoenix view on port", self.port)
+        return IFrame(src=f"http://127.0.0.1:{self.port}", width=500, height=1000)
 
     def end(self) -> None:
         "Ends the session and closes the app service"
@@ -34,6 +42,7 @@ def launch_app(primary: Dataset, reference: Dataset) -> "Session":
 
     # TODO close previous session if it exists
     _session = Session(primary, reference, port=config.port)
+
     return _session
 
 
