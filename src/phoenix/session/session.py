@@ -26,7 +26,7 @@ class Session:
         # Initialize an app service that keeps the server running
         self._app_service = AppService(port, primary.name, reference.name)
 
-    def view(self) -> IFrame:
+    def view(self) -> "IFrame":
         # Display the app in an iframe
         # TODO(mikeldking) switch this out for different display options for colab
         return IFrame(src=f"http://127.0.0.1:{self.port}", width=500, height=1000)
