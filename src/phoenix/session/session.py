@@ -1,11 +1,14 @@
 import logging
 from typing import Optional
 
-from IPython.display import IFrame  # type: ignore
-
 import phoenix.config as config
 from phoenix.datasets import Dataset
 from phoenix.services import AppService
+
+try:
+    from IPython.display import IFrame  # type: ignore
+except: # noqa
+    pass
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +28,7 @@ class Session:
 
     def view(self) -> IFrame:
         # Display the app in an iframe
-        print("Launching Phoenix view on port", self.port)
+        # TODO(mikeldking) switch this out for different display options for colab
         return IFrame(src=f"http://127.0.0.1:{self.port}", width=500, height=1000)
 
     def end(self) -> None:
