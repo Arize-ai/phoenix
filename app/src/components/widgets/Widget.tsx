@@ -1,5 +1,5 @@
 import { Card, CardProps } from "@arizeai/components";
-import React, { ReactNode } from "react";
+import React from "react";
 
 export type WidgetProps = CardProps;
 
