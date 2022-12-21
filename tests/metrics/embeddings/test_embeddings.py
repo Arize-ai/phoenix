@@ -1,5 +1,5 @@
 """
-Test Euclidean distance for embeddings. ab
+Test Euclidean distance for embeddings.
 """
 
 import numpy as np
