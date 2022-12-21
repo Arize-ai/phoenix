@@ -44,7 +44,7 @@ jobs:
     needs: [ lint ]
     strategy:
       matrix:
-        os: [ macos-latest ]
+        os: [ macos-latest, windows-latest, ubuntu-latest ]
         python-version: [ "3.8", "3.9", "3.10" ]
     steps:
       - name: Checkout Repository
