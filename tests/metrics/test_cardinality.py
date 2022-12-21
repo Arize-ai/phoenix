@@ -39,7 +39,7 @@ def unique_ints(request, random_seed):
 
 
 @pytest.fixture(params=[8, 13, 21])
-def unique_ints_with_nans(request, random_seed):
+def unique_ints_with_nan(request, random_seed):
     num_values = request.param
     values = list(np.random.choice(np.arange(30), num_values, replace=False))
     values[0] = float("nan")
@@ -52,29 +52,60 @@ def unique_ints_and_strings():
 
 
 @pytest.mark.parametrize(
-    "unique_values, max_count",
+    "unique_values",
     [
-        (lazy_fixture("unique_ints"), 10),
-        (lazy_fixture("unique_strings"), 15),
-        (lazy_fixture("unique_ints_with_nans"), 20),
-        (lazy_fixture("unique_ints_and_strings"), 25),
+        lazy_fixture("unique_ints"),
+        lazy_fixture("unique_strings"),
+        lazy_fixture("unique_ints_with_nan"),
+        lazy_fixture("unique_ints_and_strings"),
+    ],
+    ids=[
+        "all_integer_column",
+        "all_string_column",
+        "mixed_integer_and_nan_column",
+        "mixed_integer_and_string_column",
     ],
 )
 def test_cardinality_produces_correct_counts_for_columns_of_various_data_types(
-    unique_values, max_count, random_seed
+    unique_values, random_seed
 ):
+    max_count = 30
     value_to_count = {value: random.randint(1, max_count) for value in unique_values}
+    column, expected_counts_column = _get_data_column_and_expected_counts_column(value_to_count)
+    input_df = pd.DataFrame.from_dict({"feature0": column})
+    output_data = cardinality(input_df)
+    assert set(output_data.keys()) == set(input_df.columns)
+    output_counts_column = output_data["feature0"].sort_index(key=lambda x: x.astype("str"))
+    assert output_counts_column.equals(expected_counts_column)
+
+
+@pytest.mark.parametrize("unique_ints, unique_strings", [(4, 4), (6, 6), (9, 9)], indirect=True)
+def test_cardinality_produces_correct_counts_for_dataframe_with_multiple_columns(
+    unique_ints, unique_strings
+):
+    first_column, first_expected_counts_column = _get_data_column_and_expected_counts_column(
+        {value: (index + 1) ** 2 for index, value in enumerate(unique_ints)}
+    )
+    second_column, second_expected_counts_column = _get_data_column_and_expected_counts_column(
+        {value: (index + 1) ** 2 for index, value in enumerate(unique_strings)}
+    )
+    input_df = pd.DataFrame.from_dict({"feature0": first_column, "feature1": second_column})
+    output_data = cardinality(input_df)
+    assert set(output_data.keys()) == set(input_df.columns)
+    first_counts_column = output_data["feature0"].sort_index(key=lambda x: x.astype("str"))
+    second_counts_column = output_data["feature1"].sort_index(key=lambda x: x.astype("str"))
+    assert first_counts_column.equals(first_expected_counts_column)
+    assert second_counts_column.equals(second_expected_counts_column)
+
+
+def _get_data_column_and_expected_counts_column(value_to_count):
     column = []
     for value, count in value_to_count.items():
         column.extend([value] * count)
     random.shuffle(column)
     column = pd.Series(column)
-    input_df = pd.DataFrame.from_dict({"feature0": column})
-    output_df = cardinality(input_df)
     expected_column_values, expected_counts = zip(*value_to_count.items())
-    expected_df = pd.DataFrame(
-        expected_counts, index=expected_column_values, columns=input_df.columns
+    expected_column = pd.Series(expected_counts, index=expected_column_values).sort_index(
+        key=lambda x: x.astype("str")
     )
-    output_df = output_df.sort_index(key=lambda x: x.astype("str"))
-    expected_df = expected_df.sort_index(key=lambda x: x.astype("str"))
-    assert expected_df.equals(output_df)
+    return column, expected_column

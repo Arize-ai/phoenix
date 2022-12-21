@@ -61,6 +61,7 @@ build_dir = "src/phoenix/nbextension/static"
 dependencies = [
   "pytest",
   "pytest-cov",
+  "pytest-lazy-fixture",
 ]
 
 [tool.hatch.envs.type]
