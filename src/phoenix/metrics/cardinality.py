@@ -16,7 +16,7 @@ def cardinality(df: pd.DataFrame, max_workers: Optional[int] = None) -> Dict[str
             executor.submit(value_counts, df[col], dropna=False): str(col) for col in df.columns
         }
         for future in cf.as_completed(future_to_column_name):
-            column_name: str = future_to_column_name[future]
-            column: pd.Series[Any] = future.result()
+            column_name = future_to_column_name[future]
+            column = future.result()
             data[column_name] = column
     return data
