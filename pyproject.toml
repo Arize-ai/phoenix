@@ -32,6 +32,18 @@ dependencies = [
 ]
 dynamic = ["version"]
 
+[project.optional-dependencies]
+dev = [
+    "black",
+    "hatch",
+    "jupyter",
+    "pandas-stubs",
+    "pytest",
+    "pytest-cov",
+    "strawberry-graphql[debug-server]",
+    "tables"
+]
+
 [project.urls]
 Documentation = "https://github.com/Arize-ai/phoenix#readme"
 Issues = "https://github.com/Arize-ai/phoenix/issues"

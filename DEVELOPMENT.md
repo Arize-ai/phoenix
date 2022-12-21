@@ -9,9 +9,9 @@ This tutorial shows you how to:
 
 ### Set Up Development Environment
 
-Set up your development environment using `pyenv` and `virtualenvwrapper`. If you do not have Python 3.10 already installed, run
+Set up your development environment using `pyenv` and `virtualenvwrapper`. We currently support Python 3.8 and above. Install a supported Python version, e.g., `3.10.8`, with
 ```shell
-export PHOENIX_PYTHON_VERSION=3.10.8
+export PHOENIX_PYTHON_VERSION=<your-supported-python-version-here>
 pyenv install $PHOENIX_PYTHON_VERSION
 ```
 Set the global `pyenv` version with
@@ -22,10 +22,11 @@ Create a new virtual environment with
 ```shell
 mkvirtualenv phoenix-env
 ```
-Install development dependencies with
+Install `phoenix` in development mode (using the `-e` flag) and with development dependencies (using the `[dev]` extra) by running
 ```shell
-pip install -r requirements-dev.txt
+pip install -e '.[dev]'
 ```
+from the repository root.
 
 ### Learn to Run Scripts with `hatch`
 
