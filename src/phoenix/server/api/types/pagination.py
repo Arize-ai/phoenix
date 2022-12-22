@@ -34,12 +34,12 @@ class PageInfo:
     end_cursor: Optional[str]
 
 
+Cursor = str
+
+
 @strawberry.type
 class Edge(Generic[GenericType]):
     """An edge may contain additional information of the relationship. This is the trivial case"""
 
     node: GenericType
     cursor: str
-
-
-Cursor = str
