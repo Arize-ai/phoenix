@@ -73,7 +73,7 @@ def test_cardinality_produces_correct_counts_for_columns_of_various_data_types(
     value_to_count = {value: random.randint(1, max_count) for value in unique_values}
     column, expected_counts_column = _get_data_column_and_expected_counts_column(value_to_count)
     input_df = pd.DataFrame.from_dict({"feature0": column})
-    output_data = cardinality(input_df)
+    output_data = cardinality(input_df, input_df.columns)
     assert set(output_data.keys()) == set(input_df.columns)
     output_counts_column = output_data["feature0"].sort_index(key=lambda x: x.astype("str"))
     assert output_counts_column.equals(expected_counts_column)
@@ -89,9 +89,13 @@ def test_cardinality_produces_correct_counts_for_dataframe_with_multiple_columns
     second_column, second_expected_counts_column = _get_data_column_and_expected_counts_column(
         {value: (index + 1) ** 2 for index, value in enumerate(unique_strings)}
     )
-    input_df = pd.DataFrame.from_dict({"feature0": first_column, "feature1": second_column})
-    output_data = cardinality(input_df)
-    assert set(output_data.keys()) == set(input_df.columns)
+    third_column = pd.Series(np.zeros(first_column.shape[0], dtype=np.int8))  # omitted column
+    input_df = pd.DataFrame.from_dict(
+        {"feature0": first_column, "feature1": second_column, "feature2": third_column}
+    )
+    column_names = ["feature0", "feature1"]
+    output_data = cardinality(input_df, column_names)
+    assert set(output_data.keys()) == set(column_names)
     first_counts_column = output_data["feature0"].sort_index(key=lambda x: x.astype("str"))
     second_counts_column = output_data["feature1"].sort_index(key=lambda x: x.astype("str"))
     assert first_counts_column.equals(first_expected_counts_column)
