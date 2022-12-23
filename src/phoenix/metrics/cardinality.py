@@ -8,7 +8,7 @@ from typing import Any, Dict, List, Optional, TypeAlias
 import pandas as pd
 from pandas.core.algorithms import value_counts
 
-Column: TypeAlias = pd.Series[Any]
+Column: TypeAlias = "pd.Series[Any]"
 
 
 def cardinality(
