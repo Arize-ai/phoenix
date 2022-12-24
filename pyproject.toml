@@ -29,6 +29,8 @@ dependencies = [
     "uvicorn",
     "psutil",
     "strawberry-graphql",
+    "pyarrow",
+    "fastparquet",
 ]
 dynamic = ["version"]
 

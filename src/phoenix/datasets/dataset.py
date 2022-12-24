@@ -1,19 +1,16 @@
 import json
 import logging
 import os
-import os.path
 import sys
-import tempfile
 import uuid
 import warnings
 from typing import Any, Literal, Optional, Union
-from urllib import request
 
 from numpy import fromstring
-from pandas import DataFrame, Series, read_csv, read_hdf, read_parquet
+from pandas import DataFrame, Series, read_csv, read_parquet
 
 from phoenix.config import dataset_dir
-from phoenix.utils import is_url, parse_file_format, parse_filename
+from phoenix.utils import is_url, parse_file_format
 
 from . import errors as err
 from .schema import EmbeddingColumnNames, Schema
@@ -30,6 +27,7 @@ if hasattr(sys, "ps1"):
     logger.setLevel(logging.INFO)
 
 ParquetEngine = Literal["pyarrow", "fastparquet", "auto"]
+FilePath = Union[str, os.PathLike[str]]
 
 
 class Dataset:
@@ -175,13 +173,13 @@ class Dataset:
         return cls(dataframe, schema, name)
 
     @classmethod
-    def from_csv(cls, filepath: str, schema: Schema, name: Optional[str] = None) -> "Dataset":
+    def from_csv(cls, filepath: FilePath, schema: Schema, name: Optional[str] = None) -> "Dataset":
         dataframe: DataFrame = read_csv(filepath)
         dataframe_columns = set(dataframe.columns)
         if schema.embedding_feature_column_names is not None:
             warnings.warn(
-                "Reading embeddings from csv files can be slow. Consider using other "
-                "formats such as parquet or hdf5.",
+                "Reading embeddings from csv files can be slow. Consider using a different "
+                "format such as parquet.",
                 stacklevel=2,
             )
             for emb_col_names in schema.embedding_feature_column_names.values():
@@ -196,35 +194,20 @@ class Dataset:
         return cls(dataframe, schema, name)
 
     @classmethod
-    def from_hdf(
-        cls, filepath: str, schema: Schema, name: Optional[str], key: Optional[str] = None
-    ) -> "Dataset":
-        df = read_hdf(filepath, key)
-        if not isinstance(df, DataFrame):
-            raise TypeError("Reading from hdf must yield a dataframe")
-        return cls(df, schema, name)
-
-    @classmethod
     def from_url(
         cls,
-        url_path: str,
+        url_path: FilePath,
         schema: Schema,
         name: Optional[str] = None,
-        hdf_key: Optional[str] = None,
+        parquet_engine: Optional[ParquetEngine] = None,
     ) -> "Dataset":
         if not is_url(url_path):
             raise ValueError("Invalid url")
         file_format = parse_file_format(url_path)
         if file_format == ".csv":
             return cls.from_csv(url_path, schema, name)
-        elif file_format == ".hdf5" or file_format == ".hdf":
-            filename = parse_filename(url_path)
-            with tempfile.TemporaryDirectory() as temp_dir:
-                local_file_path = os.path.join(temp_dir, filename)
-                print(f"Downloading file: {filename}")
-                request.urlretrieve(url_path, local_file_path, show_progress)
-                print("\n")
-                return cls.from_hdf(local_file_path, schema, name, hdf_key)
+        elif file_format == ".parquet":
+            return cls.from_parquet(url_path, schema, name, engine=parquet_engine)
         raise ValueError(
             f"File format {file_format} not supported. Currently supported "
             f"formats are: {', '.join(SUPPORTED_URL_FORMATS)}."
@@ -232,7 +215,11 @@ class Dataset:
 
     @classmethod
     def from_parquet(
-        cls, filepath: str, schema: Schema, name: Optional[str], engine: ParquetEngine = "pyarrow"
+        cls,
+        filepath: FilePath,
+        schema: Schema,
+        name: Optional[str] = None,
+        engine: ParquetEngine = "pyarrow",
     ) -> "Dataset":
         return cls(read_parquet(filepath, engine=engine), schema, name)
 
