@@ -10,7 +10,7 @@ from numpy import fromstring
 from pandas import DataFrame, Series, read_csv, read_parquet
 
 from phoenix.config import dataset_dir
-from phoenix.utils import is_url, parse_file_format
+from phoenix.utils import FilePath, is_url, parse_file_format
 
 from . import errors as err
 from .schema import EmbeddingColumnNames, Schema
@@ -26,8 +26,7 @@ if hasattr(sys, "ps1"):
     logger.addHandler(log_handler)
     logger.setLevel(logging.INFO)
 
-ParquetEngine = Literal["pyarrow", "fastparquet", "auto"]
-FilePath = Union[str, os.PathLike[str]]
+ParquetEngine = Literal["auto", "fastparquet", "pyarrow"]
 
 
 class Dataset:
@@ -207,7 +206,12 @@ class Dataset:
         if file_format == ".csv":
             return cls.from_csv(url_path, schema, name)
         elif file_format == ".parquet":
-            return cls.from_parquet(url_path, schema, name, engine=parquet_engine)
+            return cls.from_parquet(
+                url_path,
+                schema,
+                name,
+                engine=parquet_engine if parquet_engine is not None else "pyarrow",
+            )
         raise ValueError(
             f"File format {file_format} not supported. Currently supported "
             f"formats are: {', '.join(SUPPORTED_URL_FORMATS)}."
