@@ -191,7 +191,7 @@ def test_from_url_correctly_loads_data_for_supported_protocols_and_file_formats(
             assert_non_embedding_columns_almost_equal(actual_column, expected_column)
 
 
-def assert_non_embedding_columns_almost_equal(actual_column: pd.Series, expected_column: pd.Series):
+def assert_non_embedding_columns_almost_equal(actual_column, expected_column):
     """
     Rows of dataframe may have been permuted after ingestion, hence the values must be sorted to
     compare.
