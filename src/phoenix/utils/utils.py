@@ -5,9 +5,9 @@ from typing import Union
 FilePath = Union[str, Path]
 
 
-def is_url(filepath: FilePath) -> bool:
+def is_url(filepath: str) -> bool:
     url_prefixes = ["http://", "https://"]
-    return any([str(filepath).startswith(prefix) for prefix in url_prefixes])
+    return any([filepath.startswith(prefix) for prefix in url_prefixes])
 
 
 def parse_file_format(filepath: FilePath) -> str:

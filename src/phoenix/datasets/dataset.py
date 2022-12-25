@@ -195,7 +195,7 @@ class Dataset:
     @classmethod
     def from_url(
         cls,
-        url_path: FilePath,
+        url_path: str,
         schema: Schema,
         name: Optional[str] = None,
         parquet_engine: Optional[ParquetEngine] = None,
