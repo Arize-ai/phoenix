@@ -1,8 +1,8 @@
-import os
 from os import path
+from pathlib import Path
 from typing import Union
 
-FilePath = Union[str, os.PathLike[str]]
+FilePath = Union[str, Path]
 
 
 def is_url(filepath: FilePath) -> bool:
