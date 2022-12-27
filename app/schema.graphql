@@ -4,11 +4,16 @@ type Dataset {
 
 type Dimension {
   name: String!
+  dataQuality: DimensionDataQuality!
 }
 
 type DimensionConnection {
   pageInfo: PageInfo!
   edges: [DimensionEdge!]!
+}
+
+type DimensionDataQuality {
+  cardinality: Int
 }
 
 type DimensionEdge {
