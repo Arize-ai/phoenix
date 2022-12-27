@@ -11,7 +11,6 @@ import pytest
 from numpy.testing import assert_array_almost_equal
 from pytest_lazyfixture import lazy_fixture
 
-import phoenix.datasets.dataset
 from phoenix.datasets.dataset import Dataset, EmbeddingColumnNames, Schema
 
 
@@ -130,56 +129,6 @@ def test_dataset_initialization_class_methods_correctly_load_data_with_and_witho
 ):
     dataset_name = "dataset-name"
     dataset = initialization_class_method(filepath=filepath, schema=schema, name=dataset_name)
-    assert dataset.name == dataset_name
-    for column_name in expected_df.columns:
-        assert column_name in dataset.dataframe
-        actual_column = dataset.dataframe[column_name]
-        expected_column = expected_df[column_name]
-        if column_name == "embeddings":
-            assert_embedding_columns_almost_equal(actual_column, expected_column)
-        else:
-            assert_non_embedding_columns_almost_equal(actual_column, expected_column)
-
-
-@pytest.mark.parametrize(
-    "include_embeddings, protocol, file_format",
-    [(True, "s3", ".csv"), (True, "https", ".hdf")],
-    ids=[
-        "test_from_url_unsupported_protocol_raises_value_error",
-        "test_from_url_unsupported_file_format_raises_value_error",
-    ],
-)
-def test_from_url_unsupported_inputs_raise_value_errors(
-    include_embeddings, protocol, file_format, schema
-):
-    url = f"{protocol}://path/to/file{file_format}"
-    dataset_name = "dataset-name"
-    with pytest.raises(ValueError):
-        Dataset.from_url(url, schema, dataset_name)
-
-
-@pytest.mark.parametrize(
-    "include_embeddings, protocol, file_format, read_method",
-    [
-        (False, "http", "csv", "read_csv"),
-        (False, "https", "csv", "read_csv"),
-        (False, "http", "parquet", "read_parquet"),
-        (False, "https", "parquet", "read_parquet"),
-    ],
-    ids=[
-        "test_from_url_correctly_loads_data_for_http_csv",
-        "test_from_url_correctly_loads_data_for_https_csv",
-        "test_from_url_correctly_loads_data_for_http_parquet",
-        "test_from_url_correctly_loads_data_for_https_parquet",
-    ],
-)
-def test_from_url_correctly_loads_data_for_supported_protocols_and_file_formats(
-    monkeypatch, include_embeddings, expected_df, protocol, file_format, read_method, schema
-):
-    url = f"{protocol}://path/to/file.{file_format}"
-    monkeypatch.setattr(phoenix.datasets.dataset, read_method, lambda *_, **__: expected_df)
-    dataset_name = "dataset-name"
-    dataset = Dataset.from_url(url, schema, dataset_name)
     assert dataset.name == dataset_name
     for column_name in expected_df.columns:
         assert column_name in dataset.dataframe
