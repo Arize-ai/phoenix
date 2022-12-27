@@ -163,6 +163,11 @@ check = [
   "interrogate -vv src/",
 ]
 
+[tool.hatch.envs.gql]
+
+[tool.hatch.envs.gql.scripts]
+build = 'strawberry export-schema phoenix.server.api.schema:schema > app/schema.graphql'
+
 [tool.interrogate]
 fail-under = 0
 exclude=["src/phoenix/__about__.py"]

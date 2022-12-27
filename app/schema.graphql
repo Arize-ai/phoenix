@@ -1,0 +1,39 @@
+type Dataset {
+  name: String!
+}
+
+type Dimension {
+  name: String!
+  dataQuality: DimensionDataQuality!
+}
+
+type DimensionConnection {
+  pageInfo: PageInfo!
+  edges: [DimensionEdge!]!
+}
+
+type DimensionDataQuality {
+  cardinality: Int
+}
+
+type DimensionEdge {
+  node: Dimension!
+  cursor: String!
+}
+
+type Model {
+  dimensions(first: Int! = 10, after: String): DimensionConnection!
+}
+
+type PageInfo {
+  hasNextPage: Boolean!
+  hasPreviousPage: Boolean!
+  startCursor: String
+  endCursor: String
+}
+
+type Query {
+  primaryDataset: Dataset!
+  referenceDataset: Dataset!
+  model: Model!
+}
