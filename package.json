@@ -5,10 +5,9 @@
     "license": "None",
     "private": true,
     "dependencies": {
-        "@arizeai/components": "^0.8.1",
+        "@arizeai/components": "0.9.2",
         "@arizeai/point-cloud": "^2.1.1",
-        "@emotion/core": "^10.1.1",
-        "@emotion/css": "^11.10.5",
+        "@emotion/react": "^11.10.5",
         "@react-three/drei": "9.5.7",
         "@react-three/fiber": "8.0.12",
         "polished": "^4.2.2",
@@ -29,7 +28,7 @@
         "build:static": "cp -r app/static src/phoenix/server",
         "build:ts": "esbuild app/src/index.tsx --bundle --minify --target=es2020 --jsx=automatic --format=esm --outfile=src/phoenix/server/static/index.js",
         "watch": "esbuild app/src/index.tsx --bundle --minify --target=es2020 --jsx=automatic --format=esm --outfile=src/phoenix/server/static/index.js --watch",
-        "dev": "npm run dev:server & npm build:static npm run watch",
+        "dev": "npm run dev:server & npm run build:static && npm run watch",
         "dev:server": "python3 ./src/phoenix/server/main.py --primary=primary --reference=reference",
         "typecheck": "tsc --noEmit"
     }

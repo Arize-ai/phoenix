@@ -22,7 +22,7 @@ import {
     RadioGroup,
     theme,
 } from "@arizeai/components";
-import { css } from "@emotion/css";
+import { css } from "@emotion/react";
 import { shade } from "polished";
 import { ControlPanel } from "./ControlPanel";
 
@@ -61,7 +61,7 @@ function CanvasTools(props: {
 }) {
     return (
         <div
-            className={css`
+            css={css`
                 position: absolute;
                 /* left: ${CONTROL_PANEL_WIDTH +
                 2 * theme.spacing.margin8}px; */
@@ -96,7 +96,7 @@ function CanvasTools(props: {
 function AccordionSection({ children }: { children: ReactNode }) {
     return (
         <section
-            className={css`
+            css={css`
                 margin: ${theme.spacing.margin8};
             `}
         >
