@@ -4,7 +4,7 @@ from typing import Optional
 import strawberry
 from strawberry.arguments import UNSET
 
-from .Dimension import Dimension
+from .Dimension import Dimension, get_dimension_data_quality
 from .pagination import Connection, Cursor, Edge, PageInfo
 
 
@@ -37,7 +37,7 @@ class Model:
         # TODO: passed down from model
         dimensions = [
             Dimension(
-                name=f"Name {x}",
+                name=f"Name {x}", dataQuality=strawberry.field(resolver=get_dimension_data_quality)
             )
             for x in range(20)
         ]
