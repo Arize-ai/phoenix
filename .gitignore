@@ -6,11 +6,11 @@ node_modules
 dist
 *__pycache__*
 **/.pytest_cache
-**/.ipynb_checkpoints/*
+**/.ipynb_checkpoints/
 **/.DS_Store
 
 # Server static files
-/src/phoenix/server/static/
+/src/phoenix/server/static/*
 
 # Data files
 *.csv
