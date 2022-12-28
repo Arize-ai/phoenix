@@ -1,4 +1,8 @@
 from os import path
+from pathlib import Path
+from typing import Union
+
+FilePath = Union[str, Path]
 
 
 def is_url(filepath: str) -> bool:
@@ -6,9 +10,9 @@ def is_url(filepath: str) -> bool:
     return any([filepath.startswith(prefix) for prefix in url_prefixes])
 
 
-def parse_file_format(filepath: str) -> str:
+def parse_file_format(filepath: FilePath) -> str:
     return path.splitext(filepath)[-1]
 
 
-def parse_filename(filepath: str) -> str:
+def parse_filename(filepath: FilePath) -> str:
     return path.basename(filepath)
