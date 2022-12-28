@@ -29,8 +29,6 @@ dependencies = [
     "uvicorn",
     "psutil",
     "strawberry-graphql",
-    "pyarrow",
-    "fastparquet",
 ]
 dynamic = ["version"]
 
@@ -43,7 +41,8 @@ dev = [
     "pytest",
     "pytest-cov",
     "strawberry-graphql[debug-server]",
-    "tables"
+    "pyarrow",
+    "fastparquet",
 ]
 
 [project.urls]
@@ -77,6 +76,8 @@ artifacts = ["src/phoenix/server/static"]
 
 [tool.hatch.envs.default]
 dependencies = [
+  "fastparquet",
+  "pyarrow",
   "pytest",
   "pytest-cov",
 ]
