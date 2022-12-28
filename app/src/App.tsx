@@ -5,21 +5,16 @@ import React, { Suspense } from "react";
 import ReactDom from "react-dom/client";
 import { GlobalStyles } from "./GlobalStyles";
 import { ThemeProvider } from "@emotion/react";
-import { RelayEnvironmentProvider, graphql, loadQuery } from "react-relay";
+import {
+    PreloadedQuery,
+    RelayEnvironmentProvider,
+    graphql,
+    loadQuery,
+    usePreloadedQuery,
+} from "react-relay";
 import RelayEnvironment from "./RelayEnvironment";
+import { AppRootQuery } from "./__generated__/AppRootQuery.graphql";
 
-export function App() {
-    return (
-        <div>
-            <Navbar>
-                <Brand />
-            </Navbar>
-            <Home />
-        </div>
-    );
-}
-
-// Define a query
 const RootQuery = graphql`
     query AppRootQuery {
         primaryDataset {
@@ -31,15 +26,38 @@ const RootQuery = graphql`
     }
 `;
 
+type AppProps = {
+    preloadedQuery: PreloadedQuery<AppRootQuery>;
+};
+
+function App(props: AppProps) {
+    const data = usePreloadedQuery(RootQuery, props.preloadedQuery);
+    return (
+        <div>
+            <Navbar>
+                <Brand />
+            </Navbar>
+            <Home
+                primaryDatasetName={data.primaryDataset.name}
+                referenceDatasetName={data.referenceDataset.name}
+            />
+        </div>
+    );
+}
+
 export function AppRoot() {
-    const preloadedQuery = loadQuery(RelayEnvironment, RootQuery, {});
+    const preloadedQuery = loadQuery<AppRootQuery>(
+        RelayEnvironment,
+        RootQuery,
+        {}
+    );
     return (
         <Provider>
             <ThemeProvider theme={theme}>
                 <RelayEnvironmentProvider environment={RelayEnvironment}>
                     <GlobalStyles />
                     <Suspense fallback={"Loading..."}>
-                        <App />
+                        <App preloadedQuery={preloadedQuery} />
                     </Suspense>
                 </RelayEnvironmentProvider>
             </ThemeProvider>

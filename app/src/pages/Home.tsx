@@ -2,7 +2,12 @@ import { css } from "@emotion/react";
 import { Card } from "@arizeai/components";
 import React from "react";
 
-export function Home() {
+type HomePageProps = {
+    primaryDatasetName: string;
+    referenceDatasetName: string;
+};
+export function Home(props: HomePageProps) {
+    const { primaryDatasetName, referenceDatasetName } = props;
     return (
         <main
             css={(theme) =>
@@ -11,7 +16,11 @@ export function Home() {
                 `
             }
         >
-            <Card title="Model Schema" variant="compact">
+            <Card
+                title="Model Schema"
+                subTitle={`primary: ${primaryDatasetName}, reference: ${referenceDatasetName}`}
+                variant="compact"
+            >
                 Schema here
             </Card>
         </main>

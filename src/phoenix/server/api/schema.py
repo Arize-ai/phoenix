@@ -14,7 +14,7 @@ def get_primary_dataset() -> Dataset:
 def get_reference_dataset() -> Dataset:
     from phoenix.server.app import app
 
-    name = app.state.primary
+    name = app.state.reference
     return Dataset(name=name)
 
 
