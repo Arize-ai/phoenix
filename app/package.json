@@ -31,7 +31,7 @@
         "prebuild": "rm -rf ../src/phoenix/server/static",
         "build": "npm run build:static & npm run build:relay && npm run build:ts",
         "build:static": "cp -r ./static ../src/phoenix/server",
-        "build:ts": "./esbuild.config.mjs",
+        "build:ts": "node ./esbuild.config.mjs",
         "build:relay": "relay-compiler",
         "watch": "./esbuild.config.mjs dev",
         "dev": "npm run dev:server & npm run build:static && npm run watch",
