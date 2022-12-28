@@ -66,10 +66,11 @@ only-packages = true
 [tool.hatch.build.hooks.jupyter-builder]
 dependencies = ["hatch-jupyter-builder"]
 build-function = "hatch_jupyter_builder.npm_builder"
-ensured-targets = ["src/phoenix/server/static/index.js"]
+ensured-targets = ["src/phoenix/server/static/index.js", "src/phoenix/server/static/index.html"]
 
-[hatch_jupyter_builder.utils.npm_builder]
-build_dir = "src/phoenix/server/static"
+[tool.hatch.build.hooks.jupyter-builder.build-kwargs]
+path = "app"
+source_dir = "app"
 
 [tool.hatch.build.targets.sdist]
 artifacts = ["src/phoenix/server/static"]
