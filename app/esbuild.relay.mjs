@@ -3,6 +3,9 @@ import crypto from "crypto";
 import path from "path";
 import { print, parse } from "graphql";
 
+/**
+ * A relay plugin for esbuild.
+ */
 export const relay = {
     name: "relay",
     setup: (build) => {
@@ -19,8 +22,6 @@ export const relay = {
                         const name = /(fragment|mutation|query) (\w+)/.exec(
                             formatted
                         )[2];
-                        // const hash = crypto.createHash("md5").update(formatted, "utf8").digest("hex");
-
                         let id = `graphql__${crypto
                             .randomBytes(10)
                             .toString("hex")}`;
