@@ -7,14 +7,14 @@ from phoenix.server.api.types.Model import Model
 def get_primary_dataset() -> Dataset:
     from phoenix.server.app import app
 
-    name = app.state.primary
+    name = app.state.model.primary_dataset_name
     return Dataset(name=name)
 
 
 def get_reference_dataset() -> Dataset:
     from phoenix.server.app import app
 
-    name = app.state.reference
+    name = app.state.model.reference_dataset_name
     return Dataset(name=name)
 
 

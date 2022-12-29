@@ -4,6 +4,7 @@ import logging
 import uvicorn
 
 import phoenix.config as config
+from phoenix.core.model import Model
 from phoenix.server.app import app
 
 logger = logging.getLogger(__name__)
@@ -27,7 +28,6 @@ if __name__ == "__main__":
     )
 
     # store the primary and reference datasets in the app state
-    app.state.primary = args.primary
-    app.state.reference = args.reference
+    app.state.model = Model(args.primary, args.reference)
 
     uvicorn.run(app, port=args.port)
