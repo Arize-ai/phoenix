@@ -10,11 +10,14 @@ class Model:
         # self.primary_dataset = Dataset.from_name(primary_dataset_name)
         # self.reference_dataset = Dataset.from_name(reference_dataset_name)
 
+        # Fail if you can't find the datasets on disc
+
         # TODO construct model dimensions from the dataset schemas
 
     @property
     def dimensions(self) -> List[str]:
         # TODO return the model dimensions as a list of tuples (name, dimension_type)
+        #
         return ["bank", "chargeAmount"]
 
     @property

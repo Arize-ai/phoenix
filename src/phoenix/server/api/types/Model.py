@@ -5,6 +5,7 @@ import strawberry
 from strawberry.arguments import UNSET
 
 from .Dimension import Dimension
+from .DimensionDataType import DimensionDataType
 from .pagination import Connection, Cursor, Edge, PageInfo
 
 
@@ -38,7 +39,10 @@ class Model:
 
         # TODO: passed down from model
         print(app.state.model.dimensions)
-        dimensions = [Dimension(name=x) for x in app.state.model.dimensions]
+        dimensions = [
+            Dimension(name=x, dataType=DimensionDataType.categorical)
+            for x in app.state.model.dimensions
+        ]
 
         # after_id = None
         # if isinstance(after, Cursor):

@@ -12,6 +12,10 @@ from pandas.core.algorithms import value_counts
 def cardinality(
     df: pd.DataFrame, column_names: List[str], max_workers: Optional[int] = None
 ) -> Dict[str, "pd.Series[Any]"]:
+    """
+    Compute the cardinality of each str column in the dataframe
+    E.x. if the dataframe column contains ["dog", "cat", "dog", "mouse"], the cardinality is 3
+    """
     data = {}
     with cf.ThreadPoolExecutor(max_workers=max_workers) as executor:
         future_to_column_name = {
