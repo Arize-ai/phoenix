@@ -10,7 +10,7 @@ dist
 **/.DS_Store
 
 # Server static files
-/src/phoenix/server/static/
+/src/phoenix/server/static/*
 
 # Data files
 *.csv

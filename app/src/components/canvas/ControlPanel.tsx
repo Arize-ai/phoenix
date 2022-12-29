@@ -1,4 +1,4 @@
-import { css } from "@emotion/css";
+import { css } from "@emotion/react";
 import React, { ReactNode } from "react";
 import { theme } from "@arizeai/components";
 
@@ -39,11 +39,7 @@ export function ControlPanel({
     width?: number | string;
 }) {
     return (
-        <section
-            className={controlsCSS}
-            data-position={position}
-            style={{ width }}
-        >
+        <section css={controlsCSS} data-position={position} style={{ width }}>
             {children}
         </section>
     );
