@@ -4,6 +4,7 @@ Test cardinality.
 
 import random
 import string
+from typing import Dict, Union
 
 import numpy as np
 import pandas as pd
@@ -72,35 +73,28 @@ def test_cardinality_produces_correct_counts_for_columns_of_various_data_types(
     max_count = 30
     value_to_count = {value: random.randint(1, max_count) for value in unique_values}
     column, expected_cardinality = _get_data_column_and_expected_cardinality(value_to_count)
-    expected_output_column = pd.Series([expected_cardinality], index=["feature0"])
+    expected_cardinality_data = {"feature0": expected_cardinality}
     input_df = pd.DataFrame.from_dict({"feature0": column})
-    output_column = cardinality(input_df, input_df.columns)
-    assert output_column.equals(expected_output_column)
+    cardinality_data = cardinality(input_df, input_df.columns)
+    assert cardinality_data == expected_cardinality_data
 
 
-@pytest.mark.parametrize("unique_ints, unique_strings", [(4, 4), (6, 6), (9, 9)], indirect=True)
-def test_cardinality_produces_correct_counts_for_dataframe_with_multiple_columns(
-    unique_ints, unique_strings
-):
-    first_column, first_expected_cardinality = _get_data_column_and_expected_cardinality(
-        {value: (index + 1) ** 2 for index, value in enumerate(unique_ints)}
-    )
-    second_column, second_expected_cardinality = _get_data_column_and_expected_cardinality(
-        {value: (index + 1) ** 2 for index, value in enumerate(unique_strings)}
-    )
-    third_column = pd.Series(np.zeros(first_column.shape[0], dtype=np.int8))  # omitted column
+def test_cardinality_produces_correct_counts_for_dataframe_with_multiple_columns():
+    first_column = pd.Series(["a", "b", "a", "a", "c"])
+    second_column = pd.Series([1, 2, 3, 4, 5], dtype=np.int8)
+    third_column = pd.Series([0, 0, 0, 0, 0], dtype=np.int8)  # omitted column
     input_df = pd.DataFrame.from_dict(
         {"feature0": first_column, "feature1": second_column, "feature2": third_column}
     )
     column_names = ["feature0", "feature1"]
-    output_column = cardinality(input_df, column_names)
-    assert output_column.to_dict() == {
-        "feature0": first_expected_cardinality,
-        "feature1": second_expected_cardinality,
+    cardinality_data = cardinality(input_df, column_names)
+    assert cardinality_data == {
+        "feature0": 3,
+        "feature1": 5,
     }
 
 
-def _get_data_column_and_expected_cardinality(value_to_count):
+def _get_data_column_and_expected_cardinality(value_to_count: Dict[Union[str, float], int]):
     column = []
     for value, count in value_to_count.items():
         column.extend([value] * count)
