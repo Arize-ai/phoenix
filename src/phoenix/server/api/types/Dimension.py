@@ -3,9 +3,11 @@ from typing import Any, Optional
 import strawberry
 from strawberry.types import Info
 
-from .DimensionDataType import DimensionDataType
+from phoenix.datasets import Dataset
+from phoenix.metrics.cardinality import cardinality
 
-# import phoenix.metrics as metrics
+from .DimensionDataType import DimensionDataType
+from .DimensionType import DimensionType
 
 
 @strawberry.type
@@ -16,13 +18,18 @@ class DimensionDataQuality:
 @strawberry.type
 class Dimension:
     name: str
-    dataType: DimensionDataType
+    dataset: strawberry.Private[Dataset]
+    type: DimensionType
+    data_type: DimensionDataType
 
     @strawberry.field
-    def dataQuality(self, info: Info[Any, Any]) -> DimensionDataQuality:
+    def data_quality(self, info: Info[Any, Any]) -> DimensionDataQuality:
         # count would be N
+        # TODO attach to datasets to context
         # metrics.cardinality(info.context.primary_df, [self.name])
-        if self.dataType == DimensionDataType.categorical:
-            return DimensionDataQuality(cardinality=5)
+        if self.data_type == DimensionDataType.CATEGORICAL:
+            return DimensionDataQuality(
+                cardinality=cardinality(self.dataset.dataframe, column_names=[self.name])[self.name]
+            )
         else:
             return DimensionDataQuality(cardinality=None)

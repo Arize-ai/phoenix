@@ -1,4 +1,3 @@
-import json
 import logging
 import os
 import sys
@@ -8,8 +7,10 @@ from typing import Any, Literal, Optional, Union
 
 from numpy import fromstring
 from pandas import DataFrame, Series, read_csv, read_parquet
+from pandas.api.types import is_numeric_dtype, is_object_dtype
 
 from phoenix.config import dataset_dir
+from phoenix.core import DimensionDataType
 from phoenix.utils import FilePath
 
 from . import errors as err
@@ -165,6 +166,14 @@ class Dataset:
             )
         return self.dataframe[column_names.link_to_data_column_name]
 
+    def get_dimension_data_type(self, dimension_name: str) -> DimensionDataType:
+        dataframe_dtype = self.dataframe[dimension_name].dtype
+        if is_numeric_dtype(dataframe_dtype):  # type: ignore
+            return DimensionDataType.NUMERIC
+        elif is_object_dtype(dataframe_dtype):  # type: ignore
+            return DimensionDataType.CATEGORICAL
+        raise ValueError()
+
     @classmethod
     def from_dataframe(
         cls, dataframe: DataFrame, schema: Schema, name: Optional[str] = None
@@ -207,10 +216,10 @@ class Dataset:
         """Retrieves a dataset by name from the file system"""
         directory = os.path.join(dataset_dir, name)
         df = read_parquet(os.path.join(directory, cls._data_file_name))
-        with open(os.path.join(directory, cls._schema_file_name), "rb") as schema_file:
-            schema_json = json.load(schema_file)
-            schema = Schema.from_json(schema_json)
-            return cls(df, schema, name, persist_to_disc=False)
+        with open(os.path.join(directory, cls._schema_file_name)) as schema_file:
+            schema_json = schema_file.read()
+        schema = Schema.from_json(schema_json)
+        return cls(df, schema, name, persist_to_disc=False)
 
     @staticmethod
     def _parse_dataframe(dataframe: DataFrame, schema: Schema) -> DataFrame:

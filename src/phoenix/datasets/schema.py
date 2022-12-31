@@ -15,6 +15,7 @@ class Schema(Dict[str, Any]):
     prediction_id_column_name: Optional[str] = None
     timestamp_column_name: Optional[str] = None
     feature_column_names: Optional[List[str]] = None
+    tag_column_names: Optional[List[str]] = None
     prediction_label_column_name: Optional[str] = None
     prediction_score_column_name: Optional[str] = None
     actual_label_column_name: Optional[str] = None

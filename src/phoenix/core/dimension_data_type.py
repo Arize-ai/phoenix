@@ -1,9 +1,6 @@
 from enum import Enum
 
-import strawberry
 
-
-@strawberry.enum
 class DimensionDataType(Enum):
-    CATEGORICAL = "CATEGORICAL"
     NUMERIC = "NUMERIC"
+    CATEGORICAL = "CATEGORICAL"

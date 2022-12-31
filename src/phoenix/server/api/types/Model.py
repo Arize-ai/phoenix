@@ -4,8 +4,11 @@ from typing import Optional
 import strawberry
 from strawberry.arguments import UNSET
 
+from phoenix.datasets import Dataset
+
 from .Dimension import Dimension
 from .DimensionDataType import DimensionDataType
+from .DimensionType import DimensionType
 from .pagination import Connection, Cursor, Edge, PageInfo
 
 
@@ -37,11 +40,14 @@ class Model:
         """
         from phoenix.server.app import app
 
-        # TODO: passed down from model
-        print(app.state.model.dimensions)
         dimensions = [
-            Dimension(name=x, dataType=DimensionDataType.categorical)
-            for x in app.state.model.dimensions
+            Dimension(
+                dataset=Dataset.from_name("primary"),
+                name=dim.name,
+                data_type=DimensionDataType[dim.data_type.value],
+                type=DimensionType[dim.type.value],
+            )
+            for dim in app.state.model.dimensions
         ]
 
         # after_id = None

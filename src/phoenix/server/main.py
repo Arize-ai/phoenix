@@ -30,4 +30,5 @@ if __name__ == "__main__":
     # store the primary and reference datasets in the app state
     app.state.model = Model(args.primary, args.reference)
 
-    uvicorn.run("main:app", reload=config.server_reload, port=args.port)
+    # uvicorn.run("main:app", reload=config.server_reload, port=args.port)
+    uvicorn.run(app, port=args.port)
