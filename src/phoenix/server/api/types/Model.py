@@ -1,11 +1,11 @@
 import base64
-from typing import Optional
+from typing import Any, Optional
 
 import strawberry
 from strawberry.arguments import UNSET
+from strawberry.types import Info
 
-from phoenix.datasets import Dataset
-
+from .context import Context
 from .Dimension import Dimension
 from .DimensionDataType import DimensionDataType
 from .DimensionType import DimensionType
@@ -32,22 +32,22 @@ def parse_dimension_cursor(cursor: Cursor) -> int:
 @strawberry.type
 class Model:
     @strawberry.field
-    def dimensions(self, first: int = 10, after: Optional[Cursor] = UNSET) -> Connection[Dimension]:
+    def dimensions(
+        self, info: Info[Context, Any], first: int = 10, after: Optional[Cursor] = UNSET
+    ) -> Connection[Dimension]:
         """
         A non-trivial implementation should efficiently fetch only
         the necessary books after the offset.
         For simplicity, here we build the list and then slice it accordingly
         """
-        from phoenix.server.app import app
 
         dimensions = [
             Dimension(
-                dataset=Dataset.from_name("primary"),
                 name=dim.name,
                 data_type=DimensionDataType[dim.data_type.value],
                 type=DimensionType[dim.type.value],
             )
-            for dim in app.state.model.dimensions
+            for dim in info.context.model.dimensions
         ]
 
         # after_id = None

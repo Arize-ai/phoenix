@@ -1,32 +1,26 @@
-import strawberry
+from typing import Any
 
+import strawberry
+from strawberry.types import Info
+
+from phoenix.server.api.types.context import Context
 from phoenix.server.api.types.Dataset import Dataset
 from phoenix.server.api.types.Model import Model
 
 
-def get_primary_dataset() -> Dataset:
-    from phoenix.server.app import app
-
-    name = app.state.model.primary_dataset_name
-    return Dataset(name=name)
-
-
-def get_reference_dataset() -> Dataset:
-    from phoenix.server.app import app
-
-    name = app.state.model.reference_dataset_name
-    return Dataset(name=name)
-
-
-def get_model() -> Model:
-    return Model()
-
-
 @strawberry.type
 class Query:
-    primaryDataset: Dataset = strawberry.field(resolver=get_primary_dataset)
-    referenceDataset: Dataset = strawberry.field(resolver=get_reference_dataset)
-    model: Model = strawberry.field(resolver=get_model)
+    @strawberry.field
+    def primary_dataset(self, info: Info[Context, Any]) -> Dataset:
+        return Dataset(name=info.context.model.primary_dataset.name)
+
+    @strawberry.field
+    def reference_dataset(self, info: Info[Context, Any]) -> Dataset:
+        return Dataset(name=info.context.model.reference_dataset.name)
+
+    @strawberry.field
+    def model(self) -> Model:
+        return Model()
 
 
 schema = strawberry.Schema(query=Query)

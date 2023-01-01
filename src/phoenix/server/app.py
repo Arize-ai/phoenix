@@ -1,13 +1,20 @@
 import os
+from typing import Any, Optional, Union
 
 from starlette.applications import Starlette
+from starlette.requests import Request
 from starlette.responses import Response
 from starlette.routing import Mount, Route, WebSocketRoute
 from starlette.staticfiles import StaticFiles
 from starlette.types import Scope
+from starlette.websockets import WebSocket
 from strawberry.asgi import GraphQL
+from strawberry.schema import BaseSchema
+
+from phoenix.core.model import Model
 
 from .api.schema import schema
+from .api.types.context import Context
 
 
 class Static(StaticFiles):
@@ -26,24 +33,40 @@ class Static(StaticFiles):
         return response
 
 
-app = Starlette(
-    debug=True,
-    routes=[
-        Route(
-            "/graphql",
-            GraphQL(schema, graphiql=True),
-        ),
-        WebSocketRoute("/graphql", GraphQL(schema, graphiql=True)),
-        Mount(
-            "/",
-            app=Static(
-                directory=os.path.join(
-                    os.path.dirname(__file__),
-                    "static",
-                ),
-                html=True,
+class GraphQLWithModelContext(GraphQL):
+    def __init__(self, schema: BaseSchema, model: Model, **kwargs: Any) -> None:
+        self.model = model
+        super().__init__(schema, **kwargs)
+
+    async def get_context(
+        self,
+        request: Union[Request, WebSocket],
+        response: Optional[Response] = None,
+    ) -> Context:
+
+        return Context(request=request, response=response, model=self.model)
+
+
+def create_app(model: Model, graphiql: bool = False) -> Starlette:
+    graphql = GraphQLWithModelContext(schema, model, graphiql=graphiql)
+    return Starlette(
+        debug=True,
+        routes=[
+            Route(
+                "/graphql",
+                graphql,
             ),
-            name="static",
-        ),
-    ],
-)
+            WebSocketRoute("/graphql", graphql),
+            Mount(
+                "/",
+                app=Static(
+                    directory=os.path.join(
+                        os.path.dirname(__file__),
+                        "static",
+                    ),
+                    html=True,
+                ),
+                name="static",
+            ),
+        ],
+    )

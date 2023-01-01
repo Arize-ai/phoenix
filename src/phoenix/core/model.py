@@ -8,11 +8,9 @@ from .dimension_type import DimensionType
 
 class Model:
     def __init__(self, primary_dataset_name: str, reference_dataset_name: str):
-        self.primary_dataset_name = primary_dataset_name
-        self.reference_dataset_name = reference_dataset_name
         # TODO Fail if you can't find the datasets on disc
-        self.primary_dataset = Dataset.from_name(primary_dataset_name)
-        self.reference_dataset = Dataset.from_name(reference_dataset_name)
+        self.__primary_dataset = Dataset.from_name(primary_dataset_name)
+        self.__reference_dataset = Dataset.from_name(reference_dataset_name)
         # TODO construct model dimensions from the dataset schemas
         self.__dimensions = self._get_dimensions(self.primary_dataset, self.reference_dataset)
         self.__embedding_dimensions = self._get_embedding_dimensions(
@@ -127,6 +125,14 @@ class Model:
         # return dimensions
 
         return []
+
+    @property
+    def primary_dataset(self) -> Dataset:
+        return self.__primary_dataset
+
+    @property
+    def reference_dataset(self) -> Dataset:
+        return self.__reference_dataset
 
     @property
     def dimensions(self) -> List[Dimension]:
