@@ -5,5 +5,5 @@ import strawberry
 
 @strawberry.enum
 class DimensionDataType(Enum):
-    CATEGORICAL = "CATEGORICAL"
-    NUMERIC = "NUMERIC"
+    categorical = "categorical"
+    numeric = "numeric"

@@ -5,8 +5,8 @@ import strawberry
 
 @strawberry.enum
 class DimensionType(Enum):
-    PREDICTION = "PREDICTION"
-    ACTUAL = "ACTUAL"
-    FEATURE = "FEATURE"
-    TAG = "TAG"
-    EMBEDDING = "EMBEDDING"
+    prediction = "prediction"
+    actual = "actual"
+    feature = "feature"
+    tag = "tag"
+    embedding = "embedding"

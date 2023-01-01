@@ -26,7 +26,7 @@ class Dimension:
         # count would be N
         # TODO attach to datasets to context
         # metrics.cardinality(info.context.primary_df, [self.name])
-        if self.data_type == DimensionDataType.CATEGORICAL:
+        if self.data_type == DimensionDataType.categorical:
             return DimensionDataQuality(
                 cardinality=cardinality(
                     info.context.model.primary_dataset.dataframe, column_names=[self.name]
