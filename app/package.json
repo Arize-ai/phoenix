@@ -2,6 +2,7 @@
     "name": "phoenix-ui",
     "version": "0.0.1",
     "author": "mikyo@arize.com",
+    "url": "https://github.com/Arize-ai/phoenix/issues",
     "license": "None",
     "private": true,
     "dependencies": {
