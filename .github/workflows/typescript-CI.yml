@@ -27,3 +27,6 @@ jobs:
             - name: Install dependencies
               working-directory: ./app
               run: npm ci
+            - name: Type Check
+              working-directory: ./app
+              run: npm run typecheck
