@@ -6,9 +6,9 @@ import { Item, Radio, RadioGroup } from "@arizeai/components";
 export type UMAPWidgetProps = DriftPointCloudProps;
 
 export function UMAPWidget(props: UMAPWidgetProps) {
-    return (
-        <Widget title="UMAP Comparison" collapsible variant="compact">
-            <DriftPointCloud {...props} />
-        </Widget>
-    );
+  return (
+    <Widget title="UMAP Comparison" collapsible variant="compact">
+      <DriftPointCloud {...props} />
+    </Widget>
+  );
 }
