@@ -7,10 +7,8 @@ from typing import Any, Literal, Optional, Union
 
 from numpy import fromstring
 from pandas import DataFrame, Series, read_csv, read_parquet
-from pandas.api.types import is_numeric_dtype, is_object_dtype
 
 from phoenix.config import dataset_dir
-from phoenix.core import DimensionDataType
 from phoenix.utils import FilePath
 
 from . import errors as err
@@ -165,14 +163,6 @@ class Dataset:
                 err.MissingEmbeddingFeatureLinkToDataColumnName(embedding_feature_name)
             )
         return self.dataframe[column_names.link_to_data_column_name]
-
-    def get_dimension_data_type(self, dimension_name: str) -> DimensionDataType:
-        dataframe_dtype = self.dataframe[dimension_name].dtype
-        if is_numeric_dtype(dataframe_dtype):  # type: ignore
-            return DimensionDataType.NUMERIC
-        elif is_object_dtype(dataframe_dtype):  # type: ignore
-            return DimensionDataType.CATEGORICAL
-        raise ValueError()
 
     @classmethod
     def from_dataframe(

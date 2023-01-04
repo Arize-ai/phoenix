@@ -29,13 +29,12 @@ class MetricLoader:
 
 
 async def cardinality_load_function(model: Model, column_names: List[str]) -> List[Optional[int]]:
-    column_name_to_cardinality: Dict[str, Optional[int]] = {}
     dimension_data_type_to_column_names: Dict[DimensionDataType, List[str]] = {
         ddt: [] for ddt in DimensionDataType
     }
-    for column_name in column_names:
-        dimension_data_type = model.primary_dataset.get_dimension_data_type(column_name)
-        dimension_data_type_to_column_names[dimension_data_type].append(column_name)
+    for dim in model.dimensions:
+        dimension_data_type_to_column_names[dim.data_type].append(dim.name)
+    column_name_to_cardinality: Dict[str, Optional[int]] = {}
     column_name_to_cardinality.update(
         {col: None for col in dimension_data_type_to_column_names[DimensionDataType.NUMERIC]}
     )
