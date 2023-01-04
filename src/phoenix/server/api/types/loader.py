@@ -24,11 +24,26 @@ LoadFunction = Callable[[List[str]], Awaitable[Sequence[Union[T, BaseException]]
 
 
 @dataclass
-class MetricLoader:
+class Loader:
     cardinality: DataLoader[str, Optional[int]]
 
 
-async def cardinality_load_function(model: Model, column_names: List[str]) -> List[Optional[int]]:
+def create_loader(model: Model) -> Loader:
+    cardinality_dataloader = _get_metric_dataloader(
+        model=model, metric_load_fn=_cardinality_load_function
+    )
+    return Loader(cardinality=cardinality_dataloader)
+
+
+def _get_metric_dataloader(
+    model: Model, metric_load_fn: MetricLoadFunction[T], **kwargs: Any
+) -> DataLoader[str, T]:
+    load_fn: LoadFunction[T] = partial(metric_load_fn, model)
+    dataloader: DataLoader[str, T] = DataLoader(load_fn=load_fn, **kwargs)
+    return dataloader
+
+
+async def _cardinality_load_function(model: Model, column_names: List[str]) -> List[Optional[int]]:
     dimension_data_type_to_column_names: Dict[DimensionDataType, List[str]] = {
         ddt: [] for ddt in DimensionDataType
     }
@@ -45,18 +60,3 @@ async def cardinality_load_function(model: Model, column_names: List[str]) -> Li
         )
     )
     return [column_name_to_cardinality[col] for col in column_names]
-
-
-def get_metric_dataloader(
-    model: Model, metric_load_fn: MetricLoadFunction[T], **kwargs: Any
-) -> DataLoader[str, T]:
-    load_fn: LoadFunction[T] = partial(metric_load_fn, model)
-    dataloader: DataLoader[str, T] = DataLoader(load_fn=load_fn, **kwargs)
-    return dataloader
-
-
-def get_default_loader(model: Model) -> MetricLoader:
-    cardinality_dataloader = get_metric_dataloader(
-        model=model, metric_load_fn=cardinality_load_function
-    )
-    return MetricLoader(cardinality=cardinality_dataloader)
