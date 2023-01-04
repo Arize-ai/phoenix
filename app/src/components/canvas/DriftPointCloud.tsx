@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 import React, { ReactNode, useCallback, useMemo, useState } from "react";
 import {
   ThreeDimensionalCanvas,
@@ -30,7 +31,7 @@ const DIM_AMOUNT = 0.5;
 
 export type ThreeDimensionalPointItem = {
   position: ThreeDimensionalPoint;
-  metaData: any;
+  metaData: unknown;
 };
 
 export type DriftPointCloudProps = {
@@ -104,6 +105,7 @@ function AccordionSection({ children }: { children: ReactNode }) {
   );
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function DisplayControlPanel() {
   return (
     <ControlPanel position="top-left" width={CONTROL_PANEL_WIDTH}>
@@ -122,6 +124,7 @@ function DisplayControlPanel() {
   );
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function SelectionControlPanel({ selectedIds }: { selectedIds: Set<string> }) {
   return (
     <ControlPanel position="top-right" width={CONTROL_PANEL_WIDTH}>

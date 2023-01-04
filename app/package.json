@@ -23,7 +23,11 @@
   "devDependencies": {
     "@types/react-dom": "^18.0.8",
     "@types/react-relay": "^14.1.2",
+    "@typescript-eslint/eslint-plugin": "^5.48.0",
+    "@typescript-eslint/parser": "^5.48.0",
     "esbuild": "^0.15.13",
+    "eslint": "^8.31.0",
+    "eslint-plugin-react": "^7.31.11",
     "graphql": "^15.8.0",
     "husky": "^8.0.3",
     "lint-staged": "^13.1.0",
@@ -41,11 +45,13 @@
     "dev": "npm run dev:server & npm run build:static && npm run watch",
     "dev:server": "python3 ../src/phoenix/server/main.py --primary=primary --reference=reference",
     "typecheck": "tsc --noEmit",
+    "lint": "eslint ./src",
     "prettier": "prettier --write './src/**/*'",
     "prettier:check": "prettier --check './src/**/*'",
     "prepare": "husky install"
   },
   "lint-staged": {
-    "**/*": "prettier --write --ignore-unknown"
+    "src/*.{ts,tsx,js}": "eslint --cache --fix",
+    "src/*.{js,ts,tsx,md}": "prettier --write --ignore-unknown"
   }
 }

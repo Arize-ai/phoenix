@@ -2,7 +2,6 @@ import { Navbar, Brand } from "./components/nav";
 import { Home } from "./pages";
 import { Provider, theme } from "@arizeai/components";
 import React, { Suspense } from "react";
-import ReactDom from "react-dom/client";
 import { GlobalStyles } from "./GlobalStyles";
 import { ThemeProvider } from "@emotion/react";
 import {
