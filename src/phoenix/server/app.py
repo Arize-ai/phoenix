@@ -11,7 +11,6 @@ from starlette.websockets import WebSocket
 from strawberry.asgi import GraphQL
 from strawberry.schema import BaseSchema
 
-from phoenix import config
 from phoenix.core.model import Model
 
 from .api.schema import schema
@@ -50,12 +49,20 @@ class GraphQLWithContext(GraphQL):
         return Context(request=request, response=response, model=self.model, loader=self.loader)
 
 
-def create_app(model: Model, graphiql: bool = False) -> Starlette:
+def create_app(
+    primary_dataset_name: str,
+    reference_dataset_name: str,
+    debug: bool = False,
+    graphiql: bool = False,
+) -> Starlette:
+    model = Model(
+        primary_dataset_name=primary_dataset_name, reference_dataset_name=reference_dataset_name
+    )
     graphql = GraphQLWithContext(
         schema=schema, model=model, loader=create_loader(model), graphiql=graphiql
     )
     return Starlette(
-        debug=config.debug,
+        debug=debug,
         routes=[
             Route(
                 "/graphql",

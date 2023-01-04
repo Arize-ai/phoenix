@@ -4,7 +4,6 @@ import logging
 import uvicorn
 
 import phoenix.config as config
-from phoenix.core.model import Model
 from phoenix.server import create_app
 
 logger = logging.getLogger(__name__)
@@ -27,7 +26,11 @@ if __name__ == "__main__":
             reference dataset: {args.reference}"""
     )
 
-    model = Model(primary_dataset_name=args.primary, reference_dataset_name=args.reference)
-    app = create_app(model, graphiql=config.graphiql)
+    app = create_app(
+        primary_dataset_name=args.primary,
+        reference_dataset_name=args.reference,
+        debug=config.debug,
+        graphiql=config.graphiql,
+    )
 
     uvicorn.run(app, port=args.port)
