@@ -21,3 +21,4 @@ server_dir = os.path.join(PHOENIX_DIR, "server")
 # The port the server will run on after launch_app is called
 port = 6060
 graphiql = True
+debug = True

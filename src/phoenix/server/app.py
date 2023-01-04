@@ -11,6 +11,7 @@ from starlette.websockets import WebSocket
 from strawberry.asgi import GraphQL
 from strawberry.schema import BaseSchema
 
+from phoenix import config
 from phoenix.core.model import Model
 
 from .api.schema import schema
@@ -54,7 +55,7 @@ def create_app(model: Model, graphiql: bool = False) -> Starlette:
         schema=schema, model=model, loader=create_loader(model), graphiql=graphiql
     )
     return Starlette(
-        debug=True,
+        debug=config.debug,
         routes=[
             Route(
                 "/graphql",
