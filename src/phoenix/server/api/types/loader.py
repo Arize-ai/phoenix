@@ -39,11 +39,12 @@ async def cardinality_load_function(model: Model, column_names: List[str]) -> Li
     column_name_to_cardinality.update(
         {col: None for col in dimension_data_type_to_column_names[DimensionDataType.NUMERIC]}
     )
-    categorical_column_name_to_cardinality = cardinality(
-        model.primary_dataset.dataframe,
-        dimension_data_type_to_column_names[DimensionDataType.CATEGORICAL],
+    column_name_to_cardinality.update(
+        cardinality(
+            model.primary_dataset.dataframe,
+            dimension_data_type_to_column_names[DimensionDataType.CATEGORICAL],
+        )
     )
-    column_name_to_cardinality.update(categorical_column_name_to_cardinality)
     return [column_name_to_cardinality[col] for col in column_names]
 
 

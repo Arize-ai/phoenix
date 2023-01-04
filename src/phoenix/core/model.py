@@ -17,19 +17,16 @@ class Model:
 
     @staticmethod
     def _get_dimensions(primary_dataset: Dataset, reference_dataset: Dataset) -> List[Dimension]:
-
+        # TODO: improve to include reference dataset
         dimensions: List[Dimension] = []
         primary_schema = primary_dataset.schema
-        reference_schema = reference_dataset.schema
 
-        # check actual column names are identical and add to output
-        primary_actuals, reference_actuals = [
-            [schema.actual_label_column_name, schema.actual_score_column_name]
-            for schema in [primary_schema, reference_schema]
+        # add actual dimensions
+        primary_actual_column_names = [
+            primary_schema.actual_label_column_name,
+            primary_schema.actual_score_column_name,
         ]
-        if primary_actuals != reference_actuals:
-            raise ValueError()
-        for name in primary_actuals:
+        for name in primary_actual_column_names:
             if name is not None:
                 dimensions.append(
                     Dimension(
@@ -39,14 +36,12 @@ class Model:
                     )
                 )
 
-        # check prediction column names are identical and add to output
-        primary_predictions, reference_predictions = [
-            [schema.actual_label_column_name, schema.actual_score_column_name]
-            for schema in [primary_schema, reference_schema]
+        # add predicted dimensions
+        primary_prediction_column_names = [
+            primary_schema.actual_label_column_name,
+            primary_schema.actual_score_column_name,
         ]
-        if primary_predictions != reference_predictions:
-            raise ValueError()
-        for name in primary_predictions:
+        for name in primary_prediction_column_names:
             if name is not None:
                 dimensions.append(
                     Dimension(
@@ -56,14 +51,9 @@ class Model:
                     )
                 )
 
-        # check features column names are identical and add to output
+        # add feature dimensions
         primary_feature_names = primary_schema.feature_column_names
-        reference_feature_names = reference_schema.feature_column_names
-        if (primary_feature_names is None) != (reference_feature_names is None):
-            raise ValueError()
-        if primary_feature_names is not None and reference_feature_names is not None:
-            if set(primary_feature_names) != set(reference_feature_names):
-                raise ValueError()
+        if primary_feature_names is not None:
             for name in primary_feature_names:
                 dimensions.append(
                     Dimension(
@@ -73,14 +63,9 @@ class Model:
                     )
                 )
 
-        # check tag column names are identical and add to output
+        # add tag dimensions
         primary_tag_names = primary_schema.tag_column_names
-        reference_tag_names = reference_schema.tag_column_names
-        if (primary_tag_names is None) != (reference_tag_names is None):
-            raise ValueError()
-        if primary_tag_names is not None and reference_tag_names is not None:
-            if set(primary_tag_names) != set(reference_tag_names):
-                raise ValueError()
+        if primary_tag_names is not None:
             for name in primary_tag_names:
                 dimensions.append(
                     Dimension(
