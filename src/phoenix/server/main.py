@@ -30,5 +30,4 @@ if __name__ == "__main__":
     model = Model(primary_dataset_name=args.primary, reference_dataset_name=args.reference)
     app = create_app(model, graphiql=config.graphiql)
 
-    # uvicorn.run("main:app", reload=config.server_reload, port=args.port)
     uvicorn.run(app, port=args.port)

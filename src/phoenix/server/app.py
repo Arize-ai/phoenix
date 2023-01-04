@@ -34,7 +34,7 @@ class Static(StaticFiles):
         return response
 
 
-class GraphQLWithModelContext(GraphQL):
+class GraphQLWithContext(GraphQL):
     def __init__(
         self, schema: BaseSchema, model: Model, loader: MetricLoader, **kwargs: Any
     ) -> None:
@@ -52,7 +52,7 @@ class GraphQLWithModelContext(GraphQL):
 
 
 def create_app(model: Model, graphiql: bool = False) -> Starlette:
-    graphql = GraphQLWithModelContext(
+    graphql = GraphQLWithContext(
         schema=schema, model=model, loader=get_default_loader(model), graphiql=graphiql
     )
     return Starlette(

@@ -11,16 +11,14 @@ class Model:
         # TODO Fail if you can't find the datasets on disc
         self.__primary_dataset = Dataset.from_name(primary_dataset_name)
         self.__reference_dataset = Dataset.from_name(reference_dataset_name)
-        # TODO construct model dimensions from the dataset schemas
         self.__dimensions = self._get_dimensions(self.primary_dataset, self.reference_dataset)
-        self.__embedding_dimensions = self._get_embedding_dimensions(
-            self.primary_dataset, self.reference_dataset
-        )
+        # TODO construct embedding dimensions from the dataset schemas
+        self.__embedding_dimensions: List[Dimension] = []
 
     @staticmethod
     def _get_dimensions(primary_dataset: Dataset, reference_dataset: Dataset) -> List[Dimension]:
 
-        dimensions = []
+        dimensions: List[Dimension] = []
         primary_schema = primary_dataset.schema
         reference_schema = reference_dataset.schema
 
@@ -98,33 +96,7 @@ class Model:
     def _get_embedding_dimensions(
         primary_dataset: Dataset, reference_dataset: Dataset
     ) -> List[Dimension]:
-        # dimensions = []
-        # primary_schema = primary_dataset.schema
-        # reference_schema = reference_dataset.schema
-        # primary_embedding_feature_names = primary_schema.embedding_feature_column_names
-        # reference_embedding_feature_names = reference_schema.embedding_feature_column_names
-        # num_datasets_with_embeddings = sum(
-        #     x is not None
-        #     for x in [primary_embedding_feature_names, reference_embedding_feature_names]
-        # )
-
-        # if num_datasets_with_embeddings == 1 or (
-        #     num_datasets_with_embeddings == 2
-        #     and set(primary_embedding_feature_names) != set(reference_embedding_feature_names)
-        # ):
-        #     raise ValueError()
-        # elif num_datasets_with_embeddings == 2:
-        #     for name in primary_schema.embedding_feature_column_names:
-        #         dimensions.append(
-        #             Dimension(
-        #                 name=name,
-        #                 data_type=primary_dataset.get_dimension_data_type(name),
-        #                 type=DimensionType.EMBEDDING,
-        #             )
-        #         )
-        # return dimensions
-
-        return []
+        raise NotImplementedError()
 
     @property
     def primary_dataset(self) -> Dataset:
