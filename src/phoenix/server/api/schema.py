@@ -1,5 +1,3 @@
-from typing import Any
-
 import strawberry
 from strawberry.types import Info
 
@@ -11,11 +9,11 @@ from phoenix.server.api.types.Model import Model
 @strawberry.type
 class Query:
     @strawberry.field
-    def primary_dataset(self, info: Info[Context, Any]) -> Dataset:
+    def primary_dataset(self, info: Info[Context, None]) -> Dataset:
         return Dataset(name=info.context.model.primary_dataset.name)
 
     @strawberry.field
-    def reference_dataset(self, info: Info[Context, Any]) -> Dataset:
+    def reference_dataset(self, info: Info[Context, None]) -> Dataset:
         return Dataset(name=info.context.model.reference_dataset.name)
 
     @strawberry.field

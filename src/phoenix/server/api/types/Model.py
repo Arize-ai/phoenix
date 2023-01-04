@@ -1,5 +1,5 @@
 import base64
-from typing import Any, Optional
+from typing import Optional
 
 import strawberry
 from strawberry.arguments import UNSET
@@ -33,7 +33,7 @@ def parse_dimension_cursor(cursor: Cursor) -> int:
 class Model:
     @strawberry.field
     def dimensions(
-        self, info: Info[Context, Any], first: int = 10, after: Optional[Cursor] = UNSET
+        self, info: Info[Context, None], first: int = 10, after: Optional[Cursor] = UNSET
     ) -> Connection[Dimension]:
         """
         A non-trivial implementation should efficiently fetch only
@@ -56,8 +56,6 @@ class Model:
 
         # Fetch the requested dimensions plus one, just to calculate `has_next_page`
         # dimensions[0 : first + 1]
-
-        print(f"num dimensions: {len(dimensions)}")
 
         edges = [
             Edge(node=dimension, cursor=build_dimension_cursor(dimension))
