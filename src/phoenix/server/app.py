@@ -15,6 +15,7 @@ from phoenix.core.model import Model
 
 from .api.schema import schema
 from .api.types.context import Context
+from .api.types.loader import MetricLoader, get_default_loader
 
 
 class Static(StaticFiles):
@@ -34,8 +35,11 @@ class Static(StaticFiles):
 
 
 class GraphQLWithModelContext(GraphQL):
-    def __init__(self, schema: BaseSchema, model: Model, **kwargs: Any) -> None:
+    def __init__(
+        self, schema: BaseSchema, model: Model, loader: MetricLoader, **kwargs: Any
+    ) -> None:
         self.model = model
+        self.loader = loader
         super().__init__(schema, **kwargs)
 
     async def get_context(
@@ -44,11 +48,13 @@ class GraphQLWithModelContext(GraphQL):
         response: Optional[Response] = None,
     ) -> Context:
 
-        return Context(request=request, response=response, model=self.model)
+        return Context(request=request, response=response, model=self.model, loader=self.loader)
 
 
 def create_app(model: Model, graphiql: bool = False) -> Starlette:
-    graphql = GraphQLWithModelContext(schema, model, graphiql=graphiql)
+    graphql = GraphQLWithModelContext(
+        schema=schema, model=model, loader=get_default_loader(model), graphiql=graphiql
+    )
     return Starlette(
         debug=True,
         routes=[

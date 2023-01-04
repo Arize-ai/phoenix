@@ -7,9 +7,12 @@ from starlette.websockets import WebSocket
 
 from phoenix.core.model import Model
 
+from .loader import MetricLoader
+
 
 @dataclass
 class Context:
     request: Union[Request, WebSocket]
     response: Optional[Response]
     model: Model
+    loader: MetricLoader
