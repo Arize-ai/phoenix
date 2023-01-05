@@ -48,7 +48,7 @@ class GraphQLWithContext(GraphQL):
         response: Optional[Response] = None,
     ) -> Context:
 
-        return Context(request=request, response=response, model=self.model, loader=self.loader)
+        return Context(request=request, response=response, model=self.model, loaders=self.loader)
 
 
 def create_app(

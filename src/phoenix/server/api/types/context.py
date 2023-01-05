@@ -15,4 +15,4 @@ class Context:
     request: Union[Request, WebSocket]
     response: Optional[Response]
     model: Model
-    loader: Loader
+    loaders: Loader

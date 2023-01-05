@@ -12,4 +12,4 @@ class DimensionDataQuality:
 
     @strawberry.field
     async def cardinality(self, info: Info[Context, None]) -> Optional[int]:
-        return await info.context.loader.cardinality.load(self.dimension_name)
+        return await info.context.loaders.cardinality.load(self.dimension_name)
