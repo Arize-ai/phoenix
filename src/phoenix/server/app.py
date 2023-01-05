@@ -15,7 +15,7 @@ from phoenix.core.model import Model
 
 from .api.schema import schema
 from .api.types.context import Context
-from .api.types.loader import Loader, create_loaders
+from .api.types.loaders import Loader, create_loaders
 
 
 class Static(StaticFiles):

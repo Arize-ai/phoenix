@@ -7,7 +7,7 @@ from starlette.websockets import WebSocket
 
 from phoenix.core.model import Model
 
-from .loader import Loader
+from .loaders import Loader
 
 
 @dataclass
