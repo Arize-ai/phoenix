@@ -4,6 +4,7 @@ type Dataset {
 
 type Dimension {
   name: String!
+  dataType: DimensionDataType!
   dataQuality: DimensionDataQuality!
 }
 
@@ -14,6 +15,11 @@ type DimensionConnection {
 
 type DimensionDataQuality {
   cardinality: Int
+}
+
+enum DimensionDataType {
+  categorical
+  numeric
 }
 
 type DimensionEdge {

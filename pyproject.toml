@@ -115,9 +115,12 @@ coverage = "pytest --cov-report=term-missing --cov-config=pyproject.toml --cov=s
 python = ["310"]
 
 [tool.pytest.ini_options]
-addopts = "-rA"
+addopts = [
+  "-rA",
+  "--import-mode=importlib",
+]
 testpaths = [
-    "tests",
+  "tests",
 ]
 
 [tool.coverage.run]

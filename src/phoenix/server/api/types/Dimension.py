@@ -1,18 +1,14 @@
-from typing import Optional
-
 import strawberry
 
-
-def get_dimension_data_quality() -> "DimensionDataQuality":
-    return DimensionDataQuality(cardinality=None)
-
-
-@strawberry.type
-class DimensionDataQuality:
-    cardinality: Optional[int]
+from .DimensionDataQuality import DimensionDataQuality
+from .DimensionDataType import DimensionDataType
 
 
 @strawberry.type
 class Dimension:
     name: str
-    dataQuality: DimensionDataQuality
+    dataType: DimensionDataType
+
+    @strawberry.field
+    def dataQuality(self) -> DimensionDataQuality:
+        return DimensionDataQuality(dimension_name=self.name)

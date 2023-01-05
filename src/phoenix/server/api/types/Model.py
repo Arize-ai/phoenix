@@ -3,8 +3,11 @@ from typing import Optional
 
 import strawberry
 from strawberry.arguments import UNSET
+from strawberry.types import Info
 
-from .Dimension import Dimension, get_dimension_data_quality
+from .context import Context
+from .Dimension import Dimension
+from .DimensionDataType import DimensionDataType
 from .pagination import Connection, Cursor, Edge, PageInfo
 
 
@@ -28,18 +31,20 @@ def parse_dimension_cursor(cursor: Cursor) -> int:
 @strawberry.type
 class Model:
     @strawberry.field
-    def dimensions(self, first: int = 10, after: Optional[Cursor] = UNSET) -> Connection[Dimension]:
+    def dimensions(
+        self, info: Info[Context, None], first: int = 10, after: Optional[Cursor] = UNSET
+    ) -> Connection[Dimension]:
         """
         A non-trivial implementation should efficiently fetch only
         the necessary books after the offset.
         For simplicity, here we build the list and then slice it accordingly
         """
-        # TODO: passed down from model
         dimensions = [
             Dimension(
-                name=f"Name {x}", dataQuality=strawberry.field(resolver=get_dimension_data_quality)
+                name=dim.name,
+                dataType=DimensionDataType[dim.data_type.value],
             )
-            for x in range(20)
+            for dim in info.context.model.dimensions
         ]
 
         after_id = None

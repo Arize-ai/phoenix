@@ -1,13 +1,21 @@
 import os
+from typing import Optional, Union
 
 from starlette.applications import Starlette
+from starlette.requests import Request
 from starlette.responses import Response
 from starlette.routing import Mount, Route, WebSocketRoute
 from starlette.staticfiles import StaticFiles
 from starlette.types import Scope
+from starlette.websockets import WebSocket
 from strawberry.asgi import GraphQL
+from strawberry.schema import BaseSchema
+
+from phoenix.core.model import Model
 
 from .api.schema import schema
+from .api.types.context import Context
+from .api.types.loaders import Loaders, create_loaders
 
 
 class Static(StaticFiles):
@@ -26,24 +34,53 @@ class Static(StaticFiles):
         return response
 
 
-app = Starlette(
-    debug=True,
-    routes=[
-        Route(
-            "/graphql",
-            GraphQL(schema, graphiql=True),
-        ),
-        WebSocketRoute("/graphql", GraphQL(schema, graphiql=True)),
-        Mount(
-            "/",
-            app=Static(
-                directory=os.path.join(
-                    os.path.dirname(__file__),
-                    "static",
-                ),
-                html=True,
+class GraphQLWithContext(GraphQL):
+    def __init__(
+        self, schema: BaseSchema, model: Model, loader: Loaders, graphiql: bool = False
+    ) -> None:
+        self.model = model
+        self.loader = loader
+        super().__init__(schema, graphiql=graphiql)
+
+    async def get_context(
+        self,
+        request: Union[Request, WebSocket],
+        response: Optional[Response] = None,
+    ) -> Context:
+
+        return Context(request=request, response=response, model=self.model, loaders=self.loader)
+
+
+def create_app(
+    primary_dataset_name: str,
+    reference_dataset_name: str,
+    debug: bool = False,
+    graphiql: bool = False,
+) -> Starlette:
+    model = Model(
+        primary_dataset_name=primary_dataset_name, reference_dataset_name=reference_dataset_name
+    )
+    graphql = GraphQLWithContext(
+        schema=schema, model=model, loader=create_loaders(model), graphiql=graphiql
+    )
+    return Starlette(
+        debug=debug,
+        routes=[
+            Route(
+                "/graphql",
+                graphql,
             ),
-            name="static",
-        ),
-    ],
-)
+            WebSocketRoute("/graphql", graphql),
+            Mount(
+                "/",
+                app=Static(
+                    directory=os.path.join(
+                        os.path.dirname(__file__),
+                        "static",
+                    ),
+                    html=True,
+                ),
+                name="static",
+            ),
+        ],
+    )

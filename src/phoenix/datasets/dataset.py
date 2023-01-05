@@ -1,4 +1,3 @@
-import json
 import logging
 import os
 import sys
@@ -184,10 +183,10 @@ class Dataset:
         """Retrieves a dataset by name from the file system"""
         directory = os.path.join(dataset_dir, name)
         df = read_parquet(os.path.join(directory, cls._data_file_name))
-        with open(os.path.join(directory, cls._schema_file_name), "rb") as schema_file:
-            schema_json = json.load(schema_file)
-            schema = Schema.from_json(schema_json)
-            return cls(df, schema, name, persist_to_disc=False)
+        with open(os.path.join(directory, cls._schema_file_name)) as schema_file:
+            schema_json = schema_file.read()
+        schema = Schema.from_json(schema_json)
+        return cls(df, schema, name, persist_to_disc=False)
 
     @staticmethod
     def _parse_dataframe(dataframe: DataFrame, schema: Schema) -> DataFrame:
