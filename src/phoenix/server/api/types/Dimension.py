@@ -9,8 +9,8 @@ from .DimensionType import DimensionType
 class Dimension:
     name: str
     type: DimensionType
-    data_type: DimensionDataType
+    dataType: DimensionDataType
 
     @strawberry.field
-    def data_quality(self) -> DimensionDataQuality:
+    def dataQuality(self) -> DimensionDataQuality:
         return DimensionDataQuality(dimension_name=self.name)

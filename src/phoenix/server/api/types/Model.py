@@ -40,22 +40,21 @@ class Model:
         the necessary books after the offset.
         For simplicity, here we build the list and then slice it accordingly
         """
-
         dimensions = [
             Dimension(
                 name=dim.name,
-                data_type=DimensionDataType[dim.data_type.value],
+                dataType=DimensionDataType[dim.data_type.value],
                 type=DimensionType[dim.type.value],
             )
             for dim in info.context.model.dimensions
         ]
 
-        # after_id = None
-        # if isinstance(after, Cursor):
-        #     after_id = parse_dimension_cursor(after)
+        after_id = None
+        if isinstance(after, Cursor):
+            after_id = parse_dimension_cursor(after)
 
         # Fetch the requested dimensions plus one, just to calculate `has_next_page`
-        # dimensions[0 : first + 1]
+        dimensions[after_id : first + 1]
 
         edges = [
             Edge(node=dimension, cursor=build_dimension_cursor(dimension))
@@ -69,5 +68,5 @@ class Model:
                 start_cursor=edges[0].cursor if edges else None,
                 end_cursor=edges[-2].cursor if len(edges) > 1 else None,
             ),
-            edges=edges,
+            edges=edges[:-1],  # exclude last one as it was fetched to know if there is a next page
         )
