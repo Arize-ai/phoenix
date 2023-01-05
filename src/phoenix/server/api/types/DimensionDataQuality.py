@@ -3,7 +3,7 @@ from typing import Optional
 import strawberry
 from strawberry.types import Info
 
-from .context import Context
+from phoenix.server.api.context import Context
 
 
 @strawberry.type

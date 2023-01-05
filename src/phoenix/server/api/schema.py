@@ -1,7 +1,7 @@
 import strawberry
 from strawberry.types import Info
 
-from phoenix.server.api.types.context import Context
+from phoenix.server.api.context import Context
 from phoenix.server.api.types.Dataset import Dataset
 from phoenix.server.api.types.Model import Model
 
