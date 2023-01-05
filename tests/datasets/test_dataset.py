@@ -40,13 +40,6 @@ def expected_df(include_embeddings, random_seed):
 
 
 @pytest.fixture
-def csv_path(expected_df, tmp_path):
-    path = tmp_path / "data.csv"
-    expected_df.to_csv(path)
-    return path
-
-
-@pytest.fixture
 def pyarrow_parquet_path(expected_df, tmp_path):
     path = tmp_path / "data_pyarrow.parquet"
     expected_df.to_parquet(path, engine="pyarrow")
@@ -82,11 +75,6 @@ def schema(include_embeddings):
     [
         (
             True,
-            Dataset.from_csv,
-            lazy_fixture("csv_path"),
-        ),
-        (
-            True,
             partial(Dataset.from_parquet, engine="pyarrow"),
             lazy_fixture("pyarrow_parquet_path"),
         ),
@@ -94,11 +82,6 @@ def schema(include_embeddings):
             True,
             partial(Dataset.from_parquet, engine="fastparquet"),
             lazy_fixture("fastparquet_path"),
-        ),
-        (
-            False,
-            Dataset.from_csv,
-            lazy_fixture("csv_path"),
         ),
         (
             False,
@@ -112,15 +95,13 @@ def schema(include_embeddings):
         ),
     ],
     ids=[
-        "test_dataset_from_csv_correctly_loads_data_with_embeddings",
         "test_dataset_from_parquet_with_pyarrow_engine_correctly_loads_data_with_embeddings",
         "test_dataset_from_parquet_with_fastparquet_engine_correctly_loads_data_with_embeddings",
-        "test_dataset_from_csv_correctly_loads_data_without_embeddings",
         "test_dataset_from_parquet_with_pyarrow_engine_correctly_loads_data_without_embeddings",
         "test_dataset_from_parquet_with_fastparquet_engine_correctly_loads_data_without_embeddings",
     ],
 )
-def test_dataset_initialization_class_methods_correctly_load_data_with_and_without_embeddings(
+def test_dataset_from_parquet_correctly_load_data_with_and_without_embeddings(
     include_embeddings,
     initialization_class_method,
     filepath,
