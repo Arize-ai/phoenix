@@ -3,11 +3,9 @@ import logging
 import os
 import sys
 import uuid
-import warnings
 from typing import Any, Literal, Optional, Union
 
-from numpy import fromstring
-from pandas import DataFrame, Series, read_csv, read_parquet
+from pandas import DataFrame, Series, read_parquet
 
 from phoenix.config import dataset_dir
 from phoenix.utils import FilePath
@@ -169,27 +167,6 @@ class Dataset:
     def from_dataframe(
         cls, dataframe: DataFrame, schema: Schema, name: Optional[str] = None
     ) -> "Dataset":
-        return cls(dataframe, schema, name)
-
-    @classmethod
-    def from_csv(cls, filepath: FilePath, schema: Schema, name: Optional[str] = None) -> "Dataset":
-        dataframe: DataFrame = read_csv(filepath)
-        dataframe_columns = set(dataframe.columns)
-        if schema.embedding_feature_column_names is not None:
-            warnings.warn(
-                "Reading embeddings from csv files can be slow. Consider using a different "
-                "format such as parquet.",
-                stacklevel=2,
-            )
-            for emb_col_names in schema.embedding_feature_column_names.values():
-                if emb_col_names.vector_column_name not in dataframe_columns:
-                    e = err.MissingVectorColumn(emb_col_names.vector_column_name)
-                    logger.error(e)
-                    raise err.DatasetError(e)
-                dataframe[emb_col_names.vector_column_name] = dataframe[
-                    emb_col_names.vector_column_name
-                ].map(lambda s: fromstring(s.strip("[]"), dtype=float, sep=" "))
-
         return cls(dataframe, schema, name)
 
     @classmethod
