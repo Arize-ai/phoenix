@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 
 def _write_pid_file():
-    with open(_get_pid_file(), "w") as outfile:
+    with open(_get_pid_file(), "w"):
         pass
 
 

@@ -55,8 +55,8 @@ class Service:
     @staticmethod
     def stop_any() -> None:
         """Stops any running instance of the service, whether the instance is being run
-        within the current session or if it is being run in a separate process on the same host machine.
-        In either case, the instance will be forcibly stopped.
+        within the current session or if it is being run in a separate process on the
+        same host machine. In either case, the instance will be forcibly stopped.
         """
         pids_path = server.get_pids_path()
         for filename in os.listdir(pids_path):
