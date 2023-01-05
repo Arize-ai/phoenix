@@ -3,24 +3,25 @@ import os
 import subprocess
 import sys
 from typing import List
-
 import psutil
-
 import phoenix.config as config
+import phoenix.server as server
+import signal
 
 logger = logging.getLogger(__name__)
 
 
 class Service:
     """Interface for phoenix services.
-
     All services must define a ``command`` property.
     """
 
     working_dir = "."
 
     def __init__(self) -> None:
+        self.child = None
         self.start()
+
 
     @property
     def command(self) -> List[str]:
@@ -28,6 +29,12 @@ class Service:
 
     def start(self) -> None:
         """Starts the service."""
+
+        if len(os.listdir(server.get_pids_path())) > 0:
+            # Currently, only one instance of Phoenix can be running at any given time.
+            # Support for multiple concurrently running instances may be supported in the future.
+            logger.warning("Existing running Phoenix instance detected! Shutting it down...")
+            Service.stop_any()
 
         self.child = psutil.Popen(
             self.command,
@@ -37,13 +44,24 @@ class Service:
         )
 
     def stop(self) -> None:
-        """Stops the service."""
+        """Gracefully stops the service."""
         self.child.stdin.close()
         try:
-            # TODO(mikeldking) make this reliable
-            self.child.wait(timeout=100)
-        except TypeError:
-            pass
+            self.child.wait(timeout=5)
+        except psutil.TimeoutExpired:
+            self.child.terminate()
+
+    @staticmethod
+    def stop_any() -> None:
+        """Stops any running instance of the service, whether the instance is being run
+        within the current session or if it is being run in a separate process on the same host machine.
+        In either case, the instance will be forcibly stopped.
+        """
+        pids_path = server.get_pids_path()
+        for filename in os.listdir(pids_path):
+            os.kill(int(filename), signal.SIGKILL)
+            filename_path = os.path.join(pids_path, filename)
+            os.unlink(filename_path)
 
 
 class AppService(Service):
