@@ -15,7 +15,7 @@ from phoenix.core.model import Model
 
 from .api.schema import schema
 from .api.types.context import Context
-from .api.types.loaders import Loader, create_loaders
+from .api.types.loaders import Loaders, create_loaders
 
 
 class Static(StaticFiles):
@@ -36,7 +36,7 @@ class Static(StaticFiles):
 
 class GraphQLWithContext(GraphQL):
     def __init__(
-        self, schema: BaseSchema, model: Model, loader: Loader, graphiql: bool = False
+        self, schema: BaseSchema, model: Model, loader: Loaders, graphiql: bool = False
     ) -> None:
         self.model = model
         self.loader = loader

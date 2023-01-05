@@ -9,12 +9,12 @@ from phoenix.metrics.cardinality import cardinality
 
 
 @dataclass
-class Loader:
+class Loaders:
     cardinality: DataLoader[str, Optional[int]]
 
 
-def create_loaders(model: Model) -> Loader:
-    return Loader(cardinality=_get_cardinality_dataloader(model=model))
+def create_loaders(model: Model) -> Loaders:
+    return Loaders(cardinality=_get_cardinality_dataloader(model=model))
 
 
 def _get_cardinality_dataloader(model: Model) -> DataLoader[str, Optional[int]]:
