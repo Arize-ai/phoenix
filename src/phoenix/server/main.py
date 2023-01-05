@@ -1,9 +1,11 @@
 import argparse
-import logging
-import os
-import uvicorn
 import atexit
 import errno
+import logging
+import os
+
+import uvicorn
+
 import phoenix.config as config
 from phoenix.server import create_app, get_pids_path
 

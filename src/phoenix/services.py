@@ -1,12 +1,14 @@
 import logging
 import os
+import signal
 import subprocess
 import sys
 from typing import List
+
 import psutil
+
 import phoenix.config as config
 import phoenix.server as server
-import signal
 
 logger = logging.getLogger(__name__)
 
