@@ -5,7 +5,8 @@ import strawberry
 from strawberry.arguments import UNSET
 from strawberry.types import Info
 
-from .context import Context
+from phoenix.server.api.context import Context
+
 from .Dimension import Dimension
 from .DimensionDataType import DimensionDataType
 from .pagination import Connection, Cursor, Edge, PageInfo

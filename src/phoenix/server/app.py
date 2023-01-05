@@ -13,9 +13,9 @@ from strawberry.schema import BaseSchema
 
 from phoenix.core.model import Model
 
+from .api.context import Context
+from .api.loaders import Loaders, create_loaders
 from .api.schema import schema
-from .api.types.context import Context
-from .api.types.loaders import Loaders, create_loaders
 
 
 class Static(StaticFiles):
