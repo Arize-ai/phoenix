@@ -1,16 +1,5 @@
 from dataclasses import dataclass
-from functools import partial
-from typing import (
-    Any,
-    Awaitable,
-    Callable,
-    Dict,
-    List,
-    Optional,
-    Sequence,
-    TypeVar,
-    Union,
-)
+from typing import Dict, List, Optional
 
 from strawberry.dataloader import DataLoader
 
@@ -18,45 +7,33 @@ from phoenix.core import DimensionDataType
 from phoenix.core.model import Model
 from phoenix.metrics.cardinality import cardinality
 
-T = TypeVar("T")
-MetricLoadFunction = Callable[[Model, List[str]], Awaitable[Sequence[Union[T, BaseException]]]]
-LoadFunction = Callable[[List[str]], Awaitable[Sequence[Union[T, BaseException]]]]
-
 
 @dataclass
 class Loader:
     cardinality: DataLoader[str, Optional[int]]
 
 
-def create_loader(model: Model) -> Loader:
-    cardinality_dataloader = _get_metric_dataloader(
-        model=model, metric_load_fn=_cardinality_load_function
-    )
-    return Loader(cardinality=cardinality_dataloader)
+def create_loaders(model: Model) -> Loader:
+    return Loader(cardinality=_get_cardinality_dataloader(model=model))
 
 
-def _get_metric_dataloader(
-    model: Model, metric_load_fn: MetricLoadFunction[T], **kwargs: Any
-) -> DataLoader[str, T]:
-    load_fn: LoadFunction[T] = partial(metric_load_fn, model)
-    dataloader: DataLoader[str, T] = DataLoader(load_fn=load_fn, **kwargs)
-    return dataloader
-
-
-async def _cardinality_load_function(model: Model, column_names: List[str]) -> List[Optional[int]]:
-    dimension_data_type_to_column_names: Dict[DimensionDataType, List[str]] = {
-        ddt: [] for ddt in DimensionDataType
-    }
-    for dim in model.dimensions:
-        dimension_data_type_to_column_names[dim.data_type].append(dim.name)
-    column_name_to_cardinality: Dict[str, Optional[int]] = {}
-    column_name_to_cardinality.update(
-        {col: None for col in dimension_data_type_to_column_names[DimensionDataType.NUMERIC]}
-    )
-    column_name_to_cardinality.update(
-        cardinality(
-            model.primary_dataset.dataframe,
-            dimension_data_type_to_column_names[DimensionDataType.CATEGORICAL],
+def _get_cardinality_dataloader(model: Model) -> DataLoader[str, Optional[int]]:
+    async def _cardinality_load_function(column_names: List[str]) -> List[Optional[int]]:
+        dimension_data_type_to_column_names: Dict[DimensionDataType, List[str]] = {
+            ddt: [] for ddt in DimensionDataType
+        }
+        for dim in model.dimensions:
+            dimension_data_type_to_column_names[dim.data_type].append(dim.name)
+        column_name_to_cardinality: Dict[str, Optional[int]] = {}
+        column_name_to_cardinality.update(
+            {col: None for col in dimension_data_type_to_column_names[DimensionDataType.NUMERIC]}
         )
-    )
-    return [column_name_to_cardinality[col] for col in column_names]
+        column_name_to_cardinality.update(
+            cardinality(
+                model.primary_dataset.dataframe,
+                dimension_data_type_to_column_names[DimensionDataType.CATEGORICAL],
+            )
+        )
+        return [column_name_to_cardinality[col] for col in column_names]
+
+    return DataLoader(load_fn=_cardinality_load_function)

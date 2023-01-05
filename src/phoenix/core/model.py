@@ -1,4 +1,4 @@
-from typing import List
+from typing import Dict, List
 
 from pandas.api.types import is_numeric_dtype, is_object_dtype
 
@@ -39,59 +39,42 @@ class Model:
     ) -> List[Dimension]:
         # TODO: include reference dataset dimensions
         dimensions: List[Dimension] = []
-        primary_schema = primary_dataset.schema
+        schema = primary_dataset.schema
 
-        # add actual dimensions
-        primary_actual_column_names = [
-            primary_schema.actual_label_column_name,
-            primary_schema.actual_score_column_name,
+        actual_column_names = [
+            name
+            for name in [
+                schema.actual_label_column_name,
+                schema.actual_score_column_name,
+            ]
+            if name is not None
         ]
-        for name in primary_actual_column_names:
-            if name is not None:
-                dimensions.append(
-                    Dimension(
-                        name=name,
-                        data_type=self._infer_dimension_data_type(name),
-                        type=DimensionType.ACTUAL,
-                    )
-                )
-
-        # add predicted dimensions
-        primary_prediction_column_names = [
-            primary_schema.actual_label_column_name,
-            primary_schema.actual_score_column_name,
+        prediction_column_names = [
+            name
+            for name in [
+                schema.prediction_label_column_name,
+                schema.prediction_score_column_name,
+            ]
+            if name is not None
         ]
-        for name in primary_prediction_column_names:
-            if name is not None:
-                dimensions.append(
-                    Dimension(
-                        name=name,
-                        data_type=self._infer_dimension_data_type(name),
-                        type=DimensionType.PREDICTION,
-                    )
-                )
+        feature_column_names = (
+            schema.feature_column_names if schema.feature_column_names is not None else []
+        )
+        tag_column_names = schema.tag_column_names if schema.tag_column_names is not None else []
+        dimension_type_to_column_names: Dict[DimensionType, List[str]] = {
+            DimensionType.ACTUAL: actual_column_names,
+            DimensionType.PREDICTION: prediction_column_names,
+            DimensionType.FEATURE: feature_column_names,
+            DimensionType.TAG: tag_column_names,
+        }
 
-        # add feature dimensions
-        primary_feature_names = primary_schema.feature_column_names
-        if primary_feature_names is not None:
-            for name in primary_feature_names:
+        for dimension_type, column_names in dimension_type_to_column_names.items():
+            for name in column_names:
                 dimensions.append(
                     Dimension(
                         name=name,
                         data_type=self._infer_dimension_data_type(name),
-                        type=DimensionType.FEATURE,
-                    )
-                )
-
-        # add tag dimensions
-        primary_tag_names = primary_schema.tag_column_names
-        if primary_tag_names is not None:
-            for name in primary_tag_names:
-                dimensions.append(
-                    Dimension(
-                        name=name,
-                        data_type=self._infer_dimension_data_type(name),
-                        type=DimensionType.TAG,
+                        type=dimension_type,
                     )
                 )
 
@@ -105,9 +88,9 @@ class Model:
 
     def _infer_dimension_data_type(self, dimension_name: str) -> DimensionDataType:
         # TODO: verify corresponding dimension of reference dataset has same type
-        dataframe_dtype = self.primary_dataset.dataframe[dimension_name].dtype
-        if is_numeric_dtype(dataframe_dtype):  # type: ignore
+        dimension_pandas_dtype = self.primary_dataset.dataframe[dimension_name].dtype
+        if is_numeric_dtype(dimension_pandas_dtype):  # type: ignore
             return DimensionDataType.NUMERIC
-        elif is_object_dtype(dataframe_dtype):  # type: ignore
+        elif is_object_dtype(dimension_pandas_dtype):  # type: ignore
             return DimensionDataType.CATEGORICAL
         raise ValueError("Unrecognized dimension type")

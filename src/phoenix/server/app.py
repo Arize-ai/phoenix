@@ -1,5 +1,5 @@
 import os
-from typing import Any, Optional, Union
+from typing import Optional, Union
 
 from starlette.applications import Starlette
 from starlette.requests import Request
@@ -15,7 +15,7 @@ from phoenix.core.model import Model
 
 from .api.schema import schema
 from .api.types.context import Context
-from .api.types.loader import Loader, create_loader
+from .api.types.loader import Loader, create_loaders
 
 
 class Static(StaticFiles):
@@ -35,10 +35,12 @@ class Static(StaticFiles):
 
 
 class GraphQLWithContext(GraphQL):
-    def __init__(self, schema: BaseSchema, model: Model, loader: Loader, **kwargs: Any) -> None:
+    def __init__(
+        self, schema: BaseSchema, model: Model, loader: Loader, graphiql: bool = False
+    ) -> None:
         self.model = model
         self.loader = loader
-        super().__init__(schema, **kwargs)
+        super().__init__(schema, graphiql=graphiql)
 
     async def get_context(
         self,
@@ -59,7 +61,7 @@ def create_app(
         primary_dataset_name=primary_dataset_name, reference_dataset_name=reference_dataset_name
     )
     graphql = GraphQLWithContext(
-        schema=schema, model=model, loader=create_loader(model), graphiql=graphiql
+        schema=schema, model=model, loader=create_loaders(model), graphiql=graphiql
     )
     return Starlette(
         debug=debug,

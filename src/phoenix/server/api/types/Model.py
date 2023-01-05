@@ -8,7 +8,6 @@ from strawberry.types import Info
 from .context import Context
 from .Dimension import Dimension
 from .DimensionDataType import DimensionDataType
-from .DimensionType import DimensionType
 from .pagination import Connection, Cursor, Edge, PageInfo
 
 
@@ -44,7 +43,6 @@ class Model:
             Dimension(
                 name=dim.name,
                 dataType=DimensionDataType[dim.data_type.value],
-                type=DimensionType[dim.type.value],
             )
             for dim in info.context.model.dimensions
         ]
