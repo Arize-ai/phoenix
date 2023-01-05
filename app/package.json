@@ -15,6 +15,7 @@
     "react": "18.2",
     "react-dom": "18.2",
     "react-relay": "^14.1.0",
+    "react-table": "^7.8.0",
     "relay-runtime": "^14.1.0",
     "shade": "^0.1.1",
     "three": "0.139",
