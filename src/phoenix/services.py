@@ -24,7 +24,6 @@ class Service:
         self.child = None
         self.start()
 
-
     @property
     def command(self) -> List[str]:
         raise NotImplementedError(f"{type(self)} must define `command`")

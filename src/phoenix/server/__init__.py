@@ -6,8 +6,7 @@ from .app import create_app
 
 
 def _get_temp_path() -> str:
-    """Get path to  directory in which to store temp phoenix server files.
-    """
+    """Get path to  directory in which to store temp phoenix server files."""
     return os.path.join(tempfile.gettempdir(), ".arize-phoenix")
 
 
