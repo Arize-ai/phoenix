@@ -4,7 +4,6 @@ type Dataset {
 
 type Dimension {
   name: String!
-  type: DimensionType!
   dataType: DimensionDataType!
   dataQuality: DimensionDataQuality!
 }
@@ -26,14 +25,6 @@ enum DimensionDataType {
 type DimensionEdge {
   node: Dimension!
   cursor: String!
-}
-
-enum DimensionType {
-  prediction
-  actual
-  feature
-  tag
-  embedding
 }
 
 type Model {
