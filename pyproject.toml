@@ -1,18 +1,18 @@
 [project]
-name = "phoenix"
-description = "WRITE A BRIEF SUMMARY OF THE PROJECT."
+name = "arize-phoenix"
+description = "ML Observability in your notebook"
 readme = "README.md"
 requires-python = ">=3.8, <3.11"
-# license = "None"
+license = "Elastic-2.0"
+license-files = { paths = ["LICENSE"] }
 keywords = [
-    "Observability",
-    "Monitoring",
-    "Explainability",
+  "Observability",
+  "Monitoring",
+  "Explainability",
 ]
 authors = [
-  { name = "Arize AI", email = "FIXEMAIL@arize.com" },
+  { name = "Arize AI", email = "phoenix-devs@arize.com" },
 ]
-maintainers = []
 classifiers = [
   "Development Status :: 1 - Planning",
   "Programming Language :: Python",
@@ -21,29 +21,29 @@ classifiers = [
   "Programming Language :: Python :: 3.10",
 ]
 dependencies = [
-    "numpy",
-    "pandas",
-    "umap-learn",
-    "hdbscan",
-    "starlette",
-    "uvicorn",
-    "psutil",
-    "strawberry-graphql",
-    "pyarrow",
+  "numpy",
+  "pandas",
+  "umap-learn",
+  "hdbscan",
+  "starlette",
+  "uvicorn",
+  "psutil",
+  "strawberry-graphql",
+  "pyarrow",
 ]
 dynamic = ["version"]
 
 [project.optional-dependencies]
 dev = [
-    "black",
-    "hatch",
-    "jupyter",
-    "pandas-stubs",
-    "pytest",
-    "pytest-cov",
-    "pytest-lazy-fixture",
-    "strawberry-graphql[debug-server]",
-    "fastparquet",
+  "black",
+  "hatch",
+  "jupyter",
+  "pandas-stubs",
+  "pytest",
+  "pytest-cov",
+  "pytest-lazy-fixture",
+  "strawberry-graphql[debug-server]",
+  "fastparquet",
 ]
 
 [project.urls]
@@ -202,8 +202,8 @@ exclude = [
 
 [[tool.mypy.overrides]]
 module = [
-    "hdbscan",
-    "umap",
+  "hdbscan",
+  "umap",
 ]
 ignore_missing_imports = true
 
