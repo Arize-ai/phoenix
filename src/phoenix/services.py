@@ -8,7 +8,6 @@ from typing import List
 import psutil
 
 import phoenix.config as config
-import phoenix.server as server
 
 logger = logging.getLogger(__name__)
 
@@ -21,23 +20,22 @@ class Service:
     working_dir = "."
 
     def __init__(self) -> None:
-        self.child = None
-        self.start()
+        self.child = self.start()
 
     @property
     def command(self) -> List[str]:
         raise NotImplementedError(f"{type(self)} must define `command`")
 
-    def start(self) -> None:
+    def start(self) -> psutil.Popen:
         """Starts the service."""
 
-        if len(os.listdir(server.get_pids_path())) > 0:
+        if len(os.listdir(config.get_pids_path())) > 0:
             # Currently, only one instance of Phoenix can be running at any given time.
             # Support for multiple concurrently running instances may be supported in the future.
             logger.warning("Existing running Phoenix instance detected! Shutting it down...")
             Service.stop_any()
 
-        self.child = psutil.Popen(
+        return psutil.Popen(
             self.command,
             cwd=self.working_dir,
             stdin=subprocess.PIPE,
@@ -58,7 +56,7 @@ class Service:
         within the current session or if it is being run in a separate process on the
         same host machine. In either case, the instance will be forcibly stopped.
         """
-        pids_path = server.get_pids_path()
+        pids_path = config.get_pids_path()
         for filename in os.listdir(pids_path):
             os.kill(int(filename), signal.SIGKILL)
             filename_path = os.path.join(pids_path, filename)

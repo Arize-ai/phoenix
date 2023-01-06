@@ -7,12 +7,12 @@ import os
 import uvicorn
 
 import phoenix.config as config
-from phoenix.server import create_app, get_pids_path
+from phoenix.server.app import create_app
 
 logger = logging.getLogger(__name__)
 
 
-def _write_pid_file():
+def _write_pid_file() -> None:
     with open(_get_pid_file(), "w"):
         pass
 
@@ -30,7 +30,7 @@ def _remove_pid_file() -> None:
 
 
 def _get_pid_file() -> str:
-    return os.path.join(get_pids_path(), "%d" % os.getpid())
+    return os.path.join(config.get_pids_path(), "%d" % os.getpid())
 
 
 if __name__ == "__main__":
