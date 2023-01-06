@@ -2,10 +2,11 @@ import strawberry
 
 from .DimensionDataQuality import DimensionDataQuality
 from .DimensionDataType import DimensionDataType
+from .node import Node
 
 
 @strawberry.type
-class Dimension:
+class Dimension(Node):
     name: str
     dataType: DimensionDataType
 

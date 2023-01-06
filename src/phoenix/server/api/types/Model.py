@@ -42,10 +42,11 @@ class Model:
         """
         dimensions = [
             Dimension(
-                name=dim.name,
-                dataType=DimensionDataType[dim.data_type.value],
+                id_attr=index,
+                name=dimension.name,
+                dataType=DimensionDataType[dimension.data_type.value],
             )
-            for dim in info.context.model.dimensions
+            for index, dimension in enumerate(info.context.model.dimensions)
         ]
 
         after_id = None
