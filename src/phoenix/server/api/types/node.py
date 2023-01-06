@@ -8,15 +8,15 @@ from strawberry.custom_scalar import ScalarDefinition
 from strawberry.schema.types.scalar import DEFAULT_SCALAR_REGISTRY
 
 
-def to_global_id(type: str, id: int) -> str:
+def to_global_id(type_name: str, node_id: int) -> str:
     """
     Encode the given id into a global id.
 
-    :param type: The type of the node.
-    :param id: The id of the node.
+    :param type_name: The type of the node.
+    :param node_id: The id of the node.
     :return: A global id.
     """
-    return base64.b64encode(f"{type}:{id}".encode("utf-8")).decode()
+    return base64.b64encode(f"{type_name}:{node_id}".encode("utf-8")).decode()
 
 
 def from_global_id(global_id: str) -> Tuple[str, int]:
@@ -26,15 +26,15 @@ def from_global_id(global_id: str) -> Tuple[str, int]:
     :param global_id: The global id to decode.
     :return: A tuple of type and id.
     """
-    type, id = base64.b64decode(global_id).decode().split(":")
-    return type, int(id)
+    type_name, node_id = base64.b64decode(global_id).decode().split(":")
+    return type_name, int(node_id)
 
 
 class GlobalIDValueError(ValueError):
     """GlobalID value error, usually related to parsing or serialization."""
 
 
-@dataclasses.dataclass(order=True, frozen=True)
+@dataclasses.dataclass(frozen=True)
 class GlobalID:
     """Global ID for relay types.
     Different from `strawberry.ID`, this ID wraps the original object ID in a string
@@ -57,12 +57,10 @@ class GlobalID:
     def __post_init__(self) -> None:
         if not isinstance(self.type_name, str):
             raise GlobalIDValueError(
-                f"type_name is expected to be a string, found {repr(self.type_name)}"
+                f"type_name is expected to be a string, found {self.type_name}"
             )
         if not isinstance(self.node_id, int):
-            raise GlobalIDValueError(
-                f"node_id is expected to be an int, found {repr(self.node_id)}"
-            )
+            raise GlobalIDValueError(f"node_id is expected to be an int, found {self.node_id}")
 
     def __str__(self) -> str:
         return to_global_id(self.type_name, self.node_id)

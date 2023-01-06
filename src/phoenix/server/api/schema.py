@@ -24,13 +24,13 @@ class Query:
 
     @strawberry.field
     def node(self, id: GlobalID, info: Info[Context, None]) -> Node:
-        type, node_id = from_global_id(str(id))
-        print(f"node: {type} {node_id}")
-        if type == "Dimension":
+        type_name, node_id = from_global_id(str(id))
+        print(f"node: {type_name} {node_id}")
+        if type_name == "Dimension":
             dimension = info.context.model.dimensions[node_id]
             return to_gql_dimension(node_id, dimension)
 
-        raise Exception(f"Unknown type: {type}")
+        raise Exception(f"Unknown node type: {type}")
 
 
 schema = strawberry.Schema(query=Query)
