@@ -7,8 +7,7 @@ from strawberry.types import Info
 
 from phoenix.server.api.context import Context
 
-from .Dimension import Dimension
-from .DimensionDataType import DimensionDataType
+from .Dimension import Dimension, to_gql_dimension
 from .pagination import Connection, Cursor, Edge, PageInfo
 
 
@@ -41,11 +40,8 @@ class Model:
         For simplicity, here we build the list and then slice it accordingly
         """
         dimensions = [
-            Dimension(
-                name=dim.name,
-                dataType=DimensionDataType[dim.data_type.value],
-            )
-            for dim in info.context.model.dimensions
+            to_gql_dimension(index, dimension)
+            for index, dimension in enumerate(info.context.model.dimensions)
         ]
 
         after_id = None
