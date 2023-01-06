@@ -43,7 +43,6 @@ def launch_app(primary: Dataset, reference: Dataset) -> "Session":
     logger.info("Launching Phoenix App")
     global _session
 
-    # TODO close previous session if it exists
     _session = Session(primary, reference, port=config.port)
 
     return _session
