@@ -98,7 +98,7 @@ class Node:
             The raw id field of node. Typically a database id or index
     """
 
-    id_attr: int
+    id_attr: strawberry.Private[int]
 
     @strawberry.field
     def id(self) -> GlobalID:

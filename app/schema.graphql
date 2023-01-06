@@ -3,7 +3,6 @@ type Dataset {
 }
 
 type Dimension implements Node {
-  idAttr: Int!
   id: GlobalID!
   name: String!
   dataType: DimensionDataType!
@@ -40,7 +39,6 @@ type Model {
 
 """A node in the graph with a globally unique ID"""
 interface Node {
-  idAttr: Int!
   id: GlobalID!
 }
 
