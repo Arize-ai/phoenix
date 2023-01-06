@@ -32,7 +32,10 @@ class Service:
         if len(os.listdir(config.get_pids_path())) > 0:
             # Currently, only one instance of Phoenix can be running at any given time.
             # Support for multiple concurrently running instances may be supported in the future.
-            logger.warning("Existing running Phoenix instance detected! Shutting it down...")
+            logger.warning(
+                "Existing running Phoenix instance detected! Shutting "
+                "it down and starting a new instance..."
+            )
             Service.stop_any()
 
         return psutil.Popen(
