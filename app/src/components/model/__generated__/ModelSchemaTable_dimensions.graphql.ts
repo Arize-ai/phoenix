@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a72da0c954c2d34ed44846409aa2aabe>>
+ * @generated SignedSource<<72c42d360dc7e496629a0af7a720a15b>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,12 +9,17 @@
 // @ts-nocheck
 
 import { ReaderFragment, RefetchableFragment } from 'relay-runtime';
+export type DimensionDataType = "categorical" | "numeric" | "%future added value";
 import { FragmentRefs } from "relay-runtime";
 export type ModelSchemaTable_dimensions$data = {
   readonly model: {
     readonly dimensions: {
       readonly edges: ReadonlyArray<{
-        readonly node: {
+        readonly dimension: {
+          readonly dataQuality: {
+            readonly cardinality: number | null;
+          };
+          readonly dataType: DimensionDataType;
           readonly name: string;
         };
       }>;
@@ -95,7 +100,7 @@ return {
               "plural": true,
               "selections": [
                 {
-                  "alias": null,
+                  "alias": "dimension",
                   "args": null,
                   "concreteType": "Dimension",
                   "kind": "LinkedField",
@@ -113,7 +118,25 @@ return {
                       "alias": null,
                       "args": null,
                       "kind": "ScalarField",
-                      "name": "__typename",
+                      "name": "dataType",
+                      "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "concreteType": "DimensionDataQuality",
+                      "kind": "LinkedField",
+                      "name": "dataQuality",
+                      "plural": false,
+                      "selections": [
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
+                          "name": "cardinality",
+                          "storageKey": null
+                        }
+                      ],
                       "storageKey": null
                     }
                   ],
@@ -124,6 +147,24 @@ return {
                   "args": null,
                   "kind": "ScalarField",
                   "name": "cursor",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "concreteType": "Dimension",
+                  "kind": "LinkedField",
+                  "name": "node",
+                  "plural": false,
+                  "selections": [
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "__typename",
+                      "storageKey": null
+                    }
+                  ],
                   "storageKey": null
                 }
               ],
@@ -166,6 +207,6 @@ return {
 };
 })();
 
-(node as any).hash = "8c574457cd6c94f7e80bb1f79ff4f0d6";
+(node as any).hash = "c8b5cd2ef9dd84202355b8b9d6813f95";
 
 export default node;

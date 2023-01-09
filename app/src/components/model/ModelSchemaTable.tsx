@@ -1,6 +1,8 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
 import { ModelSchemaTable_dimensions$key } from "./__generated__/ModelSchemaTable_dimensions.graphql";
+import { Table } from "../table/Table";
+import { Column } from "react-table";
 
 type ModelSchemaTableProps = {
   model: ModelSchemaTable_dimensions$key;
@@ -19,8 +21,12 @@ export function ModelSchemaTable(props: ModelSchemaTableProps) {
           dimensions(first: $count, after: $cursor)
             @connection(key: "ModelSchemaTable_dimensions") {
             edges {
-              node {
+              dimension: node {
                 name
+                dataType
+                dataQuality {
+                  cardinality
+                }
               }
             }
           }
@@ -29,12 +35,37 @@ export function ModelSchemaTable(props: ModelSchemaTableProps) {
     `,
     props.model
   );
-  const dimensions = data.model.dimensions.edges.map((edge) => edge.node);
-  return (
-    <ul>
-      {dimensions.map((d, index) => (
-        <li key={index}>{d.name}</li>
-      ))}
-    </ul>
+  const tableData = useMemo(
+    () =>
+      data.model.dimensions.edges.map(({ dimension }) => {
+        // Normalize the data
+        return {
+          ...dimension,
+          cardinality: dimension.dataQuality.cardinality,
+        };
+      }),
+    [data]
   );
+
+  // Declare the columns
+  const columns = React.useMemo(() => {
+    const cols: Column<typeof tableData[number]>[] = [
+      {
+        Header: "Name",
+        accessor: "name",
+      },
+      {
+        Header: "Data Type",
+        accessor: "dataType",
+      },
+      {
+        Header: "Cardinality",
+        accessor: "cardinality",
+      },
+    ];
+    return cols;
+  }, []);
+
+  // Render the UI for your table
+  return <Table columns={columns} data={tableData} />;
 }

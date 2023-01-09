@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<898959caccaa7ccbc21b9480996a9046>>
+ * @generated SignedSource<<513aa446b2cda76d236787b58a4c457f>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -105,7 +105,7 @@ return {
                 "plural": true,
                 "selections": [
                   {
-                    "alias": null,
+                    "alias": "dimension",
                     "args": null,
                     "concreteType": "Dimension",
                     "kind": "LinkedField",
@@ -123,7 +123,25 @@ return {
                         "alias": null,
                         "args": null,
                         "kind": "ScalarField",
-                        "name": "__typename",
+                        "name": "dataType",
+                        "storageKey": null
+                      },
+                      {
+                        "alias": null,
+                        "args": null,
+                        "concreteType": "DimensionDataQuality",
+                        "kind": "LinkedField",
+                        "name": "dataQuality",
+                        "plural": false,
+                        "selections": [
+                          {
+                            "alias": null,
+                            "args": null,
+                            "kind": "ScalarField",
+                            "name": "cardinality",
+                            "storageKey": null
+                          }
+                        ],
                         "storageKey": null
                       }
                     ],
@@ -134,6 +152,24 @@ return {
                     "args": null,
                     "kind": "ScalarField",
                     "name": "cursor",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "concreteType": "Dimension",
+                    "kind": "LinkedField",
+                    "name": "node",
+                    "plural": false,
+                    "selections": [
+                      {
+                        "alias": null,
+                        "args": null,
+                        "kind": "ScalarField",
+                        "name": "__typename",
+                        "storageKey": null
+                      }
+                    ],
                     "storageKey": null
                   }
                 ],
@@ -182,16 +218,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "3fcb93186d02ab31830ff820aa0f5b73",
+    "cacheID": "573ad79a9bbd7bed80b18f6d17d4a624",
     "id": null,
     "metadata": {},
     "name": "ModelSchemaTableDimensionsQuery",
     "operationKind": "query",
-    "text": "query ModelSchemaTableDimensionsQuery(\n  $count: Int = 50\n  $cursor: String = null\n) {\n  ...ModelSchemaTable_dimensions_1G22uz\n}\n\nfragment ModelSchemaTable_dimensions_1G22uz on Query {\n  model {\n    dimensions(first: $count, after: $cursor) {\n      edges {\n        node {\n          name\n          __typename\n        }\n        cursor\n      }\n      pageInfo {\n        endCursor\n        hasNextPage\n      }\n    }\n  }\n}\n"
+    "text": "query ModelSchemaTableDimensionsQuery(\n  $count: Int = 50\n  $cursor: String = null\n) {\n  ...ModelSchemaTable_dimensions_1G22uz\n}\n\nfragment ModelSchemaTable_dimensions_1G22uz on Query {\n  model {\n    dimensions(first: $count, after: $cursor) {\n      edges {\n        dimension: node {\n          name\n          dataType\n          dataQuality {\n            cardinality\n          }\n        }\n        cursor\n        node {\n          __typename\n        }\n      }\n      pageInfo {\n        endCursor\n        hasNextPage\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "8c574457cd6c94f7e80bb1f79ff4f0d6";
+(node as any).hash = "c8b5cd2ef9dd84202355b8b9d6813f95";
 
 export default node;

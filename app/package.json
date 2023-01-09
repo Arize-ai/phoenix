@@ -11,6 +11,7 @@
     "@emotion/react": "^11.10.5",
     "@react-three/drei": "9.5.7",
     "@react-three/fiber": "8.0.12",
+    "@types/react-table": "^7.7.14",
     "polished": "^4.2.2",
     "react": "18.2",
     "react-dom": "18.2",

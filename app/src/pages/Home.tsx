@@ -32,6 +32,9 @@ export function Home(props: HomePageProps) {
         title="Model Schema"
         subTitle={`primary: ${primaryDatasetName}, reference: ${referenceDatasetName}`}
         variant="compact"
+        bodyStyle={{
+          padding: 0,
+        }}
       >
         <ModelSchemaTable model={data} />
       </Card>
