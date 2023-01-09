@@ -74,7 +74,7 @@ Install pre-commit hooks with
 ```bash
 pre-commit install
 ```
-If installed, the pre-commit hooks configured in `.pre-commit-config.yaml` will automatically run prior to each `git commit`.
+Once installed, the pre-commit hooks configured in `.pre-commit-config.yaml` will automatically run prior to each `git commit`.
 
 ## Building the `phoenix` Package
 
