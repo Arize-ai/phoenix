@@ -70,11 +70,11 @@ The following resources are helpful to learn more about the capabilities of `hat
 
 ## Installing Pre-Commit Hooks
 
-Install pre-commit hooks with
+We recommend to install project pre-commit hooks with
 ```bash
 pre-commit install
 ```
-Once installed, the pre-commit hooks configured in `.pre-commit-config.yaml` will automatically run prior to each `git commit`.
+Once installed, the pre-commit hooks configured in `.pre-commit-config.yaml` will automatically run prior to each `git commit`. Pre-commit hooks can be skipped by passing the `-n`/ `--no-verify` flag to the `git commit` command.
 
 ## Building the `phoenix` Package
 
