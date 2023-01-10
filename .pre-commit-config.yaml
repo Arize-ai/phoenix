@@ -1,13 +1,21 @@
 repos:
--   repo: https://github.com/pycqa/isort
+  - repo: https://github.com/pycqa/isort
     rev: 5.11.4
     hooks:
       - id: isort
--   repo: https://github.com/psf/black
+  - repo: https://github.com/psf/black
     rev: 22.12.0
     hooks:
-    - id: black
--   repo: https://github.com/PyCQA/flake8
+      - id: black
+  - repo: https://github.com/PyCQA/flake8
     rev: 6.0.0
     hooks:
-    - id: flake8
+      - id: flake8
+  - repo: https://github.com/pre-commit/mirrors-eslint
+    rev: v8.31.0
+    hooks:
+      - id: eslint
+  - repo: https://github.com/pre-commit/mirrors-prettier
+    rev: v2.7.1
+    hooks:
+      - id: prettier
