@@ -3,6 +3,7 @@
 - [Developer's Guide](#developers-guide)
   - [Setting Up Your macOS Development Environment](#setting-up-your-macos-development-environment)
   - [Running Scripts with `hatch`](#running-scripts-with-hatch)
+  - [Installing Pre-Commit Hooks](#installing-pre-commit-hooks)
   - [Building the `phoenix` Package](#building-the-phoenix-package)
   - [Installing a `phoenix` Build](#installing-a-phoenix-build)
   - [Setting Up Your Windows Test Environment](#setting-up-your-windows-test-environment)
@@ -66,6 +67,14 @@ hatch run test:coverage
 The following resources are helpful to learn more about the capabilities of `hatch` and to familiarize yourself with the CLI.
 - [Hatch Quickstart](https://hatch.pypa.io/latest/)
 - [Hatch CLI Reference](https://hatch.pypa.io/latest/cli/reference/)
+
+## Installing Pre-Commit Hooks
+
+We recommend to install project pre-commit hooks with
+```bash
+pre-commit install
+```
+Once installed, the pre-commit hooks configured in `.pre-commit-config.yaml` will automatically run prior to each `git commit`. Pre-commit hooks can be skipped by passing the `-n`/ `--no-verify` flag to the `git commit` command.
 
 ## Building the `phoenix` Package
 
