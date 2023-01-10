@@ -6,7 +6,7 @@
   "license": "None",
   "private": true,
   "dependencies": {
-    "@arizeai/components": "0.9.2",
+    "@arizeai/components": "^0.9.3",
     "@arizeai/point-cloud": "^2.1.1",
     "@emotion/react": "^11.10.5",
     "@react-three/drei": "9.5.7",

@@ -110,8 +110,7 @@ export function Table<DataRow extends object>({
           onClick={() => previousPage()}
           disabled={!canPreviousPage}
           aria-label="Previous Page"
-          // TODO(mikeldking): fix the icon here
-          icon={<Icon svg={<Icons.ArrowIosForwardOutline />} />}
+          icon={<Icon svg={<Icons.ArrowIosBackOutline />} />}
         />
 
         <Button

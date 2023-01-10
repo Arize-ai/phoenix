@@ -29,7 +29,7 @@ class Session:
     def view(self) -> "IFrame":
         # Display the app in an iframe
         # TODO(mikeldking) switch this out for different display options for colab
-        return IFrame(src=f"http://127.0.0.1:{self.port}", width=500, height=1000)
+        return IFrame(src=f"http://127.0.0.1:{self.port}", width="100%", height=1000)
 
     def end(self) -> None:
         "Ends the session and closes the app service"
