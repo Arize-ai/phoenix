@@ -18,7 +18,17 @@ repos:
     rev: v1.3.1
     hooks:
       - id: insert-license
-        files: ^(src|tests)/.+[.]py$
+        files: ^src/.+[.]py$
         args:
           - --license-filepath
           - copyright_license_header.txt
+  - repo: https://github.com/Lucas-C/pre-commit-hooks
+    rev: v1.3.1
+    hooks:
+      - id: insert-license
+        files: ^app/src/.+[.](js|jsx|ts|tsx)$
+        args:
+          - --license-filepath
+          - copyright_license_header.txt
+          - --comment-style
+          - /*| *| */
