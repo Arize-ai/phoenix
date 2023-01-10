@@ -3,11 +3,36 @@ repos:
     rev: 5.11.4
     hooks:
       - id: isort
+        files: ^(src|tests)/.+[.]py$
   - repo: https://github.com/psf/black
     rev: 22.12.0
     hooks:
       - id: black
+        files: ^(src|tests)/.+[.]py$
   - repo: https://github.com/PyCQA/flake8
     rev: 6.0.0
     hooks:
       - id: flake8
+        files: ^(src|tests)/.+[.]py$
+  - repo: https://github.com/Lucas-C/pre-commit-hooks
+    rev: v1.3.1
+    hooks:
+      - name: python-copyright-and-license-check
+        id: insert-license
+        files: ^src/.+[.]py$
+        exclude: __init__.py$
+        args:
+          - --license-filepath
+          - copyright_license_header.txt
+  - repo: https://github.com/Lucas-C/pre-commit-hooks
+    rev: v1.3.1
+    hooks:
+      - name: typescript-copyright-and-license-check
+        id: insert-license
+        files: ^app/src/.+[.](js|jsx|ts|tsx)$
+        exclude: ^app/src/__generated__/
+        args:
+          - --license-filepath
+          - copyright_license_header.txt
+          - --comment-style
+          - /*| *| */
