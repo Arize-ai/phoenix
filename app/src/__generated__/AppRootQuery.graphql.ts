@@ -1,9 +1,3 @@
-/*
- *                    Copyright 2023 Arize AI and contributors.
- *                     Licensed under the Elastic License 2.0;
- *   you may not use this file except in compliance with the Elastic License 2.0.
- */
-
 /**
  * @generated SignedSource<<9c85aa6b1076be42ab12314c83978e59>>
  * @lightSyntaxTransform
