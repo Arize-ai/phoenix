@@ -1,3 +1,7 @@
+#                    Copyright 2023 Arize AI and contributors.
+#                     Licensed under the Elastic License 2.0;
+#   you may not use this file except in compliance with the Elastic License 2.0.
+
 from os import path
 from pathlib import Path
 from typing import Union
