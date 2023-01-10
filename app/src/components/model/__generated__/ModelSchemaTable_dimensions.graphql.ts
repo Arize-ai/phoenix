@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<72c42d360dc7e496629a0af7a720a15b>>
+ * @generated SignedSource<<ddc8f499fa60be340dcfe8f76f8b57c2>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,7 +9,7 @@
 // @ts-nocheck
 
 import { ReaderFragment, RefetchableFragment } from 'relay-runtime';
-export type DimensionDataType = "categorical" | "numeric" | "%future added value";
+export type DimensionDataType = "categorical" | "numeric";
 import { FragmentRefs } from "relay-runtime";
 export type ModelSchemaTable_dimensions$data = {
   readonly model: {
