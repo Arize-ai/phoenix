@@ -1,5 +1,43 @@
 import React from "react";
 import { useTable, usePagination, Column } from "react-table";
+import { css, Theme } from "@emotion/react";
+import { Button, Icon, Icons } from "@arizeai/components";
+
+const tableCSS = (theme: Theme) => css`
+  font-size: ${theme.typography.sizes.medium.fontSize}px;
+  width: 100%;
+  border-collapse: collapse;
+  thead {
+    background-color: ${theme.colors.gray500};
+    tr {
+      th {
+        padding: ${theme.spacing.margin4}px ${theme.spacing.margin8}px;
+        text-align: left;
+      }
+    }
+  }
+  tbody {
+    tr {
+      &:nth-of-type(even) {
+        background-color: ${theme.colors.gray700};
+      }
+      &:hover {
+        background-color: ${theme.colors.gray600};
+      }
+      & > td {
+        padding: ${theme.spacing.margin8}px;
+      }
+    }
+  }
+`;
+
+const paginationCSS = (theme: Theme) => css`
+  display: flex;
+  justify-content: flex-end;
+  padding: ${theme.spacing.margin8}px;
+  gap: ${theme.spacing.margin4}px;
+  border-top: 1px solid ${theme.colors.gray500};
+`;
 
 type TableProps<DataRow extends object> = {
   columns: Column<DataRow>[];
@@ -15,19 +53,13 @@ export function Table<DataRow extends object>({
     getTableBodyProps,
     headerGroups,
     prepareRow,
-    page, // Instead of using 'rows', we'll use page,
+    page,
+    // Instead of using 'rows', we'll use page,
     // which has only the rows for the active page
-
-    // The rest of these things are super handy, too ;)
     canPreviousPage,
     canNextPage,
-    pageOptions,
-    pageCount,
-    gotoPage,
     nextPage,
     previousPage,
-    setPageSize,
-    state: { pageIndex, pageSize },
   } = useTable<DataRow>(
     {
       columns,
@@ -38,7 +70,7 @@ export function Table<DataRow extends object>({
   );
   return (
     <>
-      <table {...getTableProps()}>
+      <table {...getTableProps()} css={tableCSS}>
         <thead>
           {headerGroups.map((headerGroup, idx) => (
             <tr {...headerGroup.getHeaderGroupProps()} key={idx}>
@@ -68,52 +100,28 @@ export function Table<DataRow extends object>({
         </tbody>
       </table>
       {/* 
-          Pagination can be built however you'd like. 
-          This is just a very basic UI implementation:
+        TODO(mikeldking): style tables
+          This is just a very basic UI implementation
         */}
-      <div className="pagination">
-        <button onClick={() => gotoPage(0)} disabled={!canPreviousPage}>
-          {"<<"}
-        </button>{" "}
-        <button onClick={() => previousPage()} disabled={!canPreviousPage}>
-          {"<"}
-        </button>{" "}
-        <button onClick={() => nextPage()} disabled={!canNextPage}>
-          {">"}
-        </button>{" "}
-        <button onClick={() => gotoPage(pageCount - 1)} disabled={!canNextPage}>
-          {">>"}
-        </button>{" "}
-        <span>
-          Page{" "}
-          <strong>
-            {pageIndex + 1} of {pageOptions.length}
-          </strong>{" "}
-        </span>
-        <span>
-          | Go to page:{" "}
-          <input
-            type="number"
-            defaultValue={pageIndex + 1}
-            onChange={(e) => {
-              const page = e.target.value ? Number(e.target.value) - 1 : 0;
-              gotoPage(page);
-            }}
-            style={{ width: "100px" }}
-          />
-        </span>{" "}
-        <select
-          value={pageSize}
-          onChange={(e) => {
-            setPageSize(Number(e.target.value));
-          }}
-        >
-          {[10, 20, 30, 40, 50].map((pageSize) => (
-            <option key={pageSize} value={pageSize}>
-              Show {pageSize}
-            </option>
-          ))}
-        </select>
+      <div css={paginationCSS}>
+        <Button
+          variant="default"
+          size="compact"
+          onClick={() => previousPage()}
+          disabled={!canPreviousPage}
+          aria-label="Previous Page"
+          // TODO(mikeldking): fix the icon here
+          icon={<Icon svg={<Icons.ArrowIosForwardOutline />} />}
+        />
+
+        <Button
+          variant="default"
+          size="compact"
+          onClick={() => nextPage()}
+          disabled={!canNextPage}
+          aria-label="Next Page"
+          icon={<Icon svg={<Icons.ArrowIosForwardOutline />} />}
+        />
       </div>
     </>
   );
