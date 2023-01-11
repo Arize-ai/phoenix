@@ -3,7 +3,7 @@ import { css, Theme } from "@emotion/react";
 
 const navCSS = (theme: Theme) => css`
   padding: ${theme.spacing.padding8}px;
-  border-bottom: 1px solid ${theme.colors.gray600};
+  border-bottom: 1px solid ${theme.colors.gray500};
 `;
 
 const brandCSS = (theme: Theme) =>
