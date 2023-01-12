@@ -72,7 +72,7 @@ def _get_url(port: int, is_colab: bool) -> str:
 def _is_colab() -> bool:
     """Determines whether this is in a Colab"""
     try:
-        import google.colab  # type: ignore
+        import google.colab  # type: ignore # noqa: F401
         import IPython  # type: ignore
     except ImportError:
         return False
