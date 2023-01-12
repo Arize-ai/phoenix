@@ -25,10 +25,11 @@ class Session:
         self.port = port
         # Initialize an app service that keeps the server running
         self._app_service = AppService(port, primary.name, reference.name)
+        self._is_colab = _is_colab()
 
     def view(self) -> "IFrame":
         # Display the app in an iframe
-        return IFrame(src=_get_url(self.port), width="100%", height=1000)
+        return IFrame(src=_get_url(self.port, self._is_colab), width="100%", height=1000)
 
     def end(self) -> None:
         "Ends the session and closes the app service"
@@ -58,9 +59,9 @@ def close_app() -> None:
     logger.info("Session closed")
 
 
-def _get_url(port: int) -> str:
+def _get_url(port: int, is_colab: Optional[bool] = False) -> str:
     """Determines the iframe url based on whether this is in a Colab"""
-    if _is_colab():
+    if is_colab:
         from google.colab.output import eval_js  # noqa: F401
 
         return eval_js(f"google.colab.kernel.proxyPort({port}, {{'cache': true}})")
@@ -71,8 +72,8 @@ def _get_url(port: int) -> str:
 def _is_colab() -> bool:
     """Determines whether this is in a Colab"""
     try:
-        import IPython  # noqa: F401
         import google.colab  # noqa: F401
+        import IPython  # noqa: F401
     except ImportError:
         return False
 
