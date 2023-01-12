@@ -62,9 +62,9 @@ def close_app() -> None:
 def _get_url(port: int, is_colab: Optional[bool] = False) -> str:
     """Determines the iframe url based on whether this is in a Colab"""
     if is_colab:
-        from google.colab.output import eval_js  # noqa: F401
+        from google.colab.output import eval_js  # type: ignore
 
-        return eval_js(f"google.colab.kernel.proxyPort({port}, {{'cache': true}})")
+        return str(eval_js(f"google.colab.kernel.proxyPort({port}, {{'cache': true}})"))
 
     return f"http://localhost:{port}/"
 
@@ -72,8 +72,8 @@ def _get_url(port: int, is_colab: Optional[bool] = False) -> str:
 def _is_colab() -> bool:
     """Determines whether this is in a Colab"""
     try:
-        import google.colab  # noqa: F401
-        import IPython  # noqa: F401
+        import google.colab  # type: ignore
+        import IPython  # type: ignore
     except ImportError:
         return False
 
