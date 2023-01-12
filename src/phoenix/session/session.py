@@ -28,8 +28,7 @@ class Session:
 
     def view(self) -> "IFrame":
         # Display the app in an iframe
-        # TODO(mikeldking) switch this out for different display options for colab
-        return IFrame(src=f"http://127.0.0.1:{self.port}", width="100%", height=1000)
+        return IFrame(src=_get_url(self.port), width="100%", height=1000)
 
     def end(self) -> None:
         "Ends the session and closes the app service"
@@ -57,3 +56,24 @@ def close_app() -> None:
     _session.end()
     _session = None
     logger.info("Session closed")
+
+
+def _get_url(port: int) -> str:
+    """Determines the iframe url based on whether this is in a Colab"""
+    if _is_colab():
+        from google.colab.output import eval_js  # noqa: F401
+
+        return eval_js(f"google.colab.kernel.proxyPort({port}, {{'cache': true}})")
+
+    return f"http://localhost:{port}/"
+
+
+def _is_colab() -> bool:
+    """Determines whether this is in a Colab"""
+    try:
+        import IPython  # noqa: F401
+        import google.colab  # noqa: F401
+    except ImportError:
+        return False
+
+    return IPython.get_ipython() is not None
