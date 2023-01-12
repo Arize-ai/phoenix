@@ -61,6 +61,7 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/phoenix"]
+artifacts = ["src/phoenix/server/static"]
 
 [tool.hatch.build]
 only-packages = true
