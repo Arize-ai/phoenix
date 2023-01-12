@@ -59,7 +59,7 @@ def close_app() -> None:
     logger.info("Session closed")
 
 
-def _get_url(port: int, is_colab: Optional[bool] = False) -> str:
+def _get_url(port: int, is_colab: bool) -> str:
     """Determines the iframe url based on whether this is in a Colab"""
     if is_colab:
         from google.colab.output import eval_js  # type: ignore
