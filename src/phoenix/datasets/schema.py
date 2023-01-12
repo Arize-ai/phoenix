@@ -4,7 +4,8 @@ from typing import Any, Dict, List, Optional
 
 
 @dataclass(frozen=True)
-class EmbeddingColumnNames(Dict[str, Any]):
+class EmbeddingFeature(Dict[str, Any]):
+    name: str
     vector_column_name: str
     raw_data_column_name: Optional[str] = None
     link_to_data_column_name: Optional[str] = None
@@ -20,7 +21,7 @@ class Schema(Dict[str, Any]):
     prediction_score_column_name: Optional[str] = None
     actual_label_column_name: Optional[str] = None
     actual_score_column_name: Optional[str] = None
-    embedding_feature_column_names: Optional[Dict[str, EmbeddingColumnNames]] = None
+    embedding_features: Optional[List[EmbeddingFeature]] = None
 
     def to_json(self) -> str:
         "Converts the schema to a dict for JSON serialization"
