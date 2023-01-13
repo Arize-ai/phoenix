@@ -21,7 +21,7 @@ def exclude_columns_and_discover_features(
     column_name_to_include_flag: Dict[str, bool] = {}
     for schema_field in fields(schema):
         schema_field_name = schema_field.name
-        if _is_scalar_field(schema, schema_field_name):
+        if _is_scalar_field_for_schema(schema_field_name, schema):
             column_name: str = getattr(schema, schema_field_name)
             include_column = column_name not in excludes
             column_name_to_include_flag[column_name] = include_column
@@ -113,8 +113,8 @@ def exclude_columns_and_discover_features(
 
     # Update dataframe and schema
     included_column_names: List[str] = [
-        col for col in dataframe.columns if column_name_to_include_flag.get(col, False)
-    ]  # type: ignore
+        col for col in dataframe.columns if column_name_to_include_flag.get(col, False)  # type: ignore
+    ]
     parsed_dataframe = dataframe[included_column_names]
     parsed_schema = replace(schema, excludes=None, **schema_field_name_to_replaced_value)
 
@@ -152,6 +152,6 @@ def _exclude_columns(
     column_name_to_include_flag.update(field_column_name_to_include_flag)
 
 
-def _is_scalar_field(schema: Schema, field_name: str) -> bool:
+def _is_scalar_field_for_schema(field_name: str, schema: Schema) -> bool:
     schema_field_value = getattr(schema, field_name)
     return isinstance(schema_field_value, str) or isinstance(schema_field_value, float)
