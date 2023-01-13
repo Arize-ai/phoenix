@@ -3,7 +3,7 @@ import logging
 import os
 import sys
 import uuid
-from typing import Any, Literal, Optional, Union
+from typing import Any, Callable, Dict, Literal, Optional, Union
 
 from pandas import DataFrame, Series, Timestamp, read_parquet
 
@@ -191,15 +191,17 @@ class Dataset:
 
     @staticmethod
     def _parse_dataframe(dataframe: DataFrame, schema: Schema) -> DataFrame:
-        cols_to_add = dict()
+        cols_to_add: Dict[str, Callable[[Any], Union[Timestamp, str]]] = dict()
         if schema.timestamp_column_name is None:
+            now = Timestamp.now()
             schema = dataclasses.replace(schema, timestamp_column_name="timestamp")
-            cols_to_add["timestamp"] = Timestamp.now
+            cols_to_add["timestamp"] = lambda _: now
         if schema.prediction_id_column_name is None:
             schema = dataclasses.replace(schema, prediction_id_column_name="prediction_id")
-            cols_to_add["prediction_id"] = lambda: str(uuid.uuid4())
+            cols_to_add["prediction_id"] = lambda _: str(uuid.uuid4())
 
-        dataframe = dataframe.assign(**cols_to_add)
+        if len(cols_to_add) > 0:
+            dataframe = dataframe.assign(**cols_to_add)
 
         schema_cols = [
             schema.timestamp_column_name,

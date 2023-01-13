@@ -29,7 +29,11 @@ def include_embeddings(request):
 def expected_df(include_embeddings, random_seed):
     num_samples = 9
     embedding_dimension = 15
+
+    ts = pd.Timestamp.now()
     data = {
+        "prediction_id": [n for n in range(num_samples)],
+        "timestamp": [ts for _ in range(num_samples)],
         "feature0": [random.random() for _ in range(num_samples)],
         "feature1": [random.random() for _ in range(num_samples)],
         "predicted_score": [random.random() for _ in range(num_samples)],
@@ -60,6 +64,8 @@ def fastparquet_path(include_embeddings, expected_df, tmp_path):
 @pytest.fixture
 def schema(include_embeddings):
     kwargs = {
+        "prediction_id_column_name": "prediction_id",
+        "timestamp_column_name": "timestamp",
         "feature_column_names": ["feature0", "feature1"],
         "prediction_score_column_name": "predicted_score",
     }
@@ -110,6 +116,8 @@ def test_dataset_from_parquet_correctly_load_data_with_and_without_embeddings(
 ):
     dataset_name = "dataset-name"
     dataset = initialization_class_method(filepath=filepath, schema=schema, name=dataset_name)
+    print(dataset.dataframe)
+    print(dataset.dataframe.dtypes)
     assert dataset.name == dataset_name
     for column_name in expected_df.columns:
         assert column_name in dataset.dataframe
@@ -117,6 +125,8 @@ def test_dataset_from_parquet_correctly_load_data_with_and_without_embeddings(
         expected_column = expected_df[column_name]
         if column_name == "embeddings":
             assert_embedding_columns_almost_equal(actual_column, expected_column)
+        elif column_name == "timestamp":
+            pd.testing.assert_series_equal(actual_column, expected_column)
         else:
             assert_non_embedding_columns_almost_equal(actual_column, expected_column)
 
@@ -144,3 +154,28 @@ def assert_embedding_columns_almost_equal(actual_embeddings_columns, expected_em
         actual_embeddings_columns, expected_embeddings_column
     ):
         assert_array_almost_equal(actual_embedding, expected_embedding)
+
+
+def test_dataset_column_normalization():
+    num_samples = 10
+    data = {
+        "feature0": range(num_samples),
+        "feature1": range(num_samples),
+        "predicted_score": range(num_samples),
+    }
+    df = pd.DataFrame.from_dict(data)
+    kwargs = {
+        "feature_column_names": ["feature0", "feature1"],
+        "prediction_score_column_name": "predicted_score",
+    }
+    schema = Schema(**kwargs)
+    dataset = Dataset(dataframe=df, schema=schema)
+
+    for column_name in df:
+        assert column_name in dataset.dataframe
+        actual_column = dataset.dataframe[column_name]
+        expected_column = df[column_name]
+        assert_non_embedding_columns_almost_equal(actual_column, expected_column)
+
+    assert "prediction_id" in dataset.dataframe
+    assert "timestamp" in dataset.dataframe
