@@ -112,9 +112,10 @@ def exclude_columns_and_discover_features(
         )
 
     # Update dataframe and schema
-    included_column_names: List[str] = [
-        col for col in dataframe.columns if column_name_to_include_flag.get(col, False)  # type: ignore
-    ]
+    included_column_names: List[str] = []
+    for col in dataframe:
+        if column_name_to_include_flag.get(col, False):  # type: ignore
+            included_column_names.append(col)
     parsed_dataframe = dataframe[included_column_names]
     parsed_schema = replace(schema, excludes=None, **schema_field_name_to_replaced_value)
 
