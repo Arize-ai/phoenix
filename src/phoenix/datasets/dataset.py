@@ -194,10 +194,10 @@ class Dataset:
         cols_to_add = dict()
         if schema.timestamp_column_name is None:
             schema = dataclasses.replace(schema, timestamp_column_name="timestamp")
-            cols_to_add["timestamp"] = lambda x: Timestamp.now()
+            cols_to_add["timestamp"] = Timestamp.now
         if schema.prediction_id_column_name is None:
             schema = dataclasses.replace(schema, prediction_id_column_name="prediction_id")
-            cols_to_add["prediction_id"] = range(len(dataframe))
+            cols_to_add["prediction_id"] = lambda: str(uuid.uuid4())
 
         dataframe = dataframe.assign(**cols_to_add)
 
