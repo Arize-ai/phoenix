@@ -111,11 +111,11 @@ def exclude_columns_and_discover_features(
             "not found in the dataframe: {}".format(", ".join(excludes))
         )
 
-    # Update dataframe and schema
+    # Create updated dataframe and schema
     included_column_names: List[str] = []
     for col in dataframe.columns:
-        if col in column_name_to_include_flag and column_name_to_include_flag[col]:
-            included_column_names.append(col)
+        if column_name_to_include_flag.get(str(col), False):
+            included_column_names.append(str(col))
     parsed_dataframe = dataframe[included_column_names]
     parsed_schema = replace(schema, excludes=None, **schema_field_name_to_replaced_value)
 
