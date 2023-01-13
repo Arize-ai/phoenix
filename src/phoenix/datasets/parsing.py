@@ -113,8 +113,7 @@ def exclude_columns_and_discover_features(
 
     # Update dataframe and schema
     included_column_names: List[str] = []
-    col: str
-    for col in dataframe.columns:
+    for col in dataframe.columns:  # type: ignore
         if column_name_to_include_flag.get(col, False):  # type: ignore
             included_column_names.append(col)
     parsed_dataframe = dataframe[included_column_names]
