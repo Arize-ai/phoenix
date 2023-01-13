@@ -21,6 +21,7 @@ class Schema(Dict[str, Any]):
     actual_label_column_name: Optional[str] = None
     actual_score_column_name: Optional[str] = None
     embedding_feature_column_names: Optional[Dict[str, EmbeddingColumnNames]] = None
+    excludes: Optional[List[str]] = None
 
     def to_json(self) -> str:
         "Converts the schema to a dict for JSON serialization"

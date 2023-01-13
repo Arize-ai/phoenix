@@ -7,13 +7,11 @@ from typing import Any, Literal, Optional, Union
 from pandas import DataFrame, Series, read_parquet
 
 from phoenix.config import dataset_dir
-from phoenix.utils import FilePath
 
 from . import errors as err
+from .parsing import exclude_columns_and_discover_features
 from .schema import EmbeddingColumnNames, Schema
 from .validation import validate_dataset_inputs
-
-SUPPORTED_URL_FORMATS = sorted(["hdf", "csv"])
 
 logger = logging.getLogger(__name__)
 if hasattr(sys, "ps1"):
@@ -50,10 +48,9 @@ class Dataset:
             for e in errors:
                 logger.error(e)
             raise err.DatasetError(errors)
-        parsed_dataframe = self._parse_dataframe(dataframe, schema)
-
+        parsed_dataframe, parsed_schema = exclude_columns_and_discover_features(dataframe, schema)
+        self.__schema: Schema = parsed_schema
         self.__dataframe: DataFrame = parsed_dataframe
-        self.__schema: Schema = schema
         self.__name: str = name if name is not None else f"""dataset_{str(uuid.uuid4())}"""
         self.__directory: str = os.path.join(dataset_dir, self.name)
 
@@ -169,16 +166,6 @@ class Dataset:
         return cls(dataframe, schema, name)
 
     @classmethod
-    def from_parquet(
-        cls,
-        filepath: FilePath,
-        schema: Schema,
-        name: Optional[str] = None,
-        engine: ParquetEngine = "pyarrow",
-    ) -> "Dataset":
-        return cls(read_parquet(filepath, engine=engine), schema, name)
-
-    @classmethod
     def from_name(cls, name: str) -> "Dataset":
         """Retrieves a dataset by name from the file system"""
         directory = os.path.join(dataset_dir, name)
@@ -187,30 +174,6 @@ class Dataset:
             schema_json = schema_file.read()
         schema = Schema.from_json(schema_json)
         return cls(df, schema, name, persist_to_disc=False)
-
-    @staticmethod
-    def _parse_dataframe(dataframe: DataFrame, schema: Schema) -> DataFrame:
-        schema_cols = [
-            schema.timestamp_column_name,
-            schema.prediction_label_column_name,
-            schema.prediction_score_column_name,
-            schema.actual_label_column_name,
-            schema.actual_score_column_name,
-        ]
-        # Append the feature column names to the columns if present
-        if schema.feature_column_names is not None:
-            schema_cols += schema.feature_column_names
-
-        if schema.embedding_feature_column_names is not None:
-            for emb_feat_cols in schema.embedding_feature_column_names.values():
-                schema_cols.append(emb_feat_cols.vector_column_name)
-                if emb_feat_cols.raw_data_column_name:
-                    schema_cols.append(emb_feat_cols.raw_data_column_name)
-                if emb_feat_cols.link_to_data_column_name:
-                    schema_cols.append(emb_feat_cols.link_to_data_column_name)
-
-        drop_cols = [col for col in dataframe.columns if col not in schema_cols]
-        return dataframe.drop(columns=drop_cols)
 
     def to_disc(self) -> None:
         """writes the data and schema to disc"""

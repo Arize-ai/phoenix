@@ -13,6 +13,7 @@ dist
 /src/phoenix/server/static/*
 
 # Data files
+coverage.xml
 *.csv
 *.hdf
 *.hdf5

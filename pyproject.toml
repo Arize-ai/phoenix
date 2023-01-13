@@ -43,7 +43,6 @@ dev = [
   "pytest-cov",
   "pytest-lazy-fixture",
   "strawberry-graphql[debug-server]",
-  "fastparquet",
   "pre-commit",
 ]
 
