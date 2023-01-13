@@ -3,8 +3,9 @@ import os
 import sys
 import uuid
 from typing import Any, Literal, Optional, Union
+import dataclasses
 
-from pandas import DataFrame, Series, read_parquet
+from pandas import DataFrame, Series, read_parquet, Timestamp
 
 from phoenix.config import dataset_dir
 from phoenix.utils import FilePath
@@ -190,8 +191,19 @@ class Dataset:
 
     @staticmethod
     def _parse_dataframe(dataframe: DataFrame, schema: Schema) -> DataFrame:
+        cols_to_add = dict()
+        if schema.timestamp_column_name is None:
+            schema = dataclasses.replace(schema, timestamp_column_name="timestamp")
+            cols_to_add['timestamp'] = lambda x: Timestamp.now()
+        if schema.prediction_id_column_name is None:
+            schema = dataclasses.replace(schema, prediction_id_column_name="prediction_id")
+            cols_to_add['prediction_id'] = range(len(dataframe))
+
+        dataframe = dataframe.assign(**cols_to_add)
+
         schema_cols = [
             schema.timestamp_column_name,
+            schema.prediction_id_column_name,
             schema.prediction_label_column_name,
             schema.prediction_score_column_name,
             schema.actual_label_column_name,
@@ -211,6 +223,7 @@ class Dataset:
 
         drop_cols = [col for col in dataframe.columns if col not in schema_cols]
         return dataframe.drop(columns=drop_cols)
+
 
     def to_disc(self) -> None:
         """writes the data and schema to disc"""
