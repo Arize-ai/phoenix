@@ -9,7 +9,7 @@ from pandas import DataFrame, Series, read_parquet
 from phoenix.config import dataset_dir
 
 from . import errors as err
-from .parsing import exclude_columns_and_discover_features
+from .parsing import parse_dataframe_and_schema
 from .schema import EmbeddingColumnNames, Schema
 from .validation import validate_dataset_inputs
 
@@ -48,7 +48,7 @@ class Dataset:
             for e in errors:
                 logger.error(e)
             raise err.DatasetError(errors)
-        parsed_dataframe, parsed_schema = exclude_columns_and_discover_features(dataframe, schema)
+        parsed_dataframe, parsed_schema = parse_dataframe_and_schema(dataframe, schema)
         self.__schema: Schema = parsed_schema
         self.__dataframe: DataFrame = parsed_dataframe
         self.__name: str = name if name is not None else f"""dataset_{str(uuid.uuid4())}"""

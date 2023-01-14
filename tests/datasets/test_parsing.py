@@ -6,7 +6,7 @@ import pandas as pd
 import pytest
 
 from phoenix.datasets import EmbeddingColumnNames, Schema
-from phoenix.datasets.parsing import exclude_columns_and_discover_features
+from phoenix.datasets.parsing import parse_dataframe_and_schema
 
 
 def test_dataframe_columns_match_schema_columns_preserves_inputs(caplog):
@@ -33,9 +33,7 @@ def test_dataframe_columns_match_schema_columns_preserves_inputs(caplog):
         actual_label_column_name=None,
         actual_score_column_name=None,
     )
-    output_df, output_schema = exclude_columns_and_discover_features(
-        dataframe=input_df, schema=input_schema
-    )
+    output_df, output_schema = parse_dataframe_and_schema(dataframe=input_df, schema=input_schema)
 
     assert output_df.equals(input_df)
     assert output_schema == input_schema
@@ -69,9 +67,7 @@ def test_column_present_in_dataframe_but_missing_from_schema_is_dropped(caplog):
     )
     expected_columns = [col for col in input_df.columns if col != "ts"]
     expected_schema = replace(input_schema, timestamp_column_name=None)
-    output_df, output_schema = exclude_columns_and_discover_features(
-        dataframe=input_df, schema=input_schema
-    )
+    output_df, output_schema = parse_dataframe_and_schema(dataframe=input_df, schema=input_schema)
 
     assert output_df.equals(input_df[expected_columns])
     assert output_schema == expected_schema
@@ -107,9 +103,7 @@ def test_features_as_none_and_no_excludes_discovers_features(caplog):
     excepted_schema = replace(
         input_schema, feature_column_names=["feature0", "feature1", "feature2"]
     )
-    output_df, output_schema = exclude_columns_and_discover_features(
-        dataframe=input_df, schema=input_schema
-    )
+    output_df, output_schema = parse_dataframe_and_schema(dataframe=input_df, schema=input_schema)
 
     assert output_df.equals(input_df[expected_columns])
     assert output_schema == excepted_schema
@@ -150,9 +144,7 @@ def test_list_of_excludes_discovers_non_excluded_features(caplog):
         tag_column_names=["tag1"],  # Excluded tag removed
         excludes=None,  # Excludes discarded after parsing
     )
-    output_df, output_schema = exclude_columns_and_discover_features(
-        dataframe=input_df, schema=input_schema
-    )
+    output_df, output_schema = parse_dataframe_and_schema(dataframe=input_df, schema=input_schema)
 
     assert output_df.equals(input_df[excepted_columns])
     assert output_schema == expected_schema
@@ -186,9 +178,7 @@ def test_excluded_column_not_contained_in_dataframe_logs_warning(caplog):
         excludes=excludes,
     )
     expected_schema = replace(input_schema, excludes=None)
-    output_df, output_schema = exclude_columns_and_discover_features(
-        dataframe=input_df, schema=input_schema
-    )
+    output_df, output_schema = parse_dataframe_and_schema(dataframe=input_df, schema=input_schema)
 
     assert output_df.equals(input_df)
     assert output_schema == expected_schema
@@ -215,9 +205,7 @@ def test_embedding_feature_all_embedding_columns_included_in_output_feature(capl
         }
     )
     expected_schema = input_schema
-    output_df, output_schema = exclude_columns_and_discover_features(
-        dataframe=input_df, schema=input_schema
-    )
+    output_df, output_schema = parse_dataframe_and_schema(dataframe=input_df, schema=input_schema)
 
     assert output_df.equals(input_df)
     assert output_schema == expected_schema
@@ -264,9 +252,7 @@ def test_excluded_embedding_feature_columns_are_removed(caplog):
         excludes=None,
     )
     expected_columns = ["embedding_vector1", "link_to_data1", "raw_data_column1"]
-    output_df, output_schema = exclude_columns_and_discover_features(
-        dataframe=input_df, schema=input_schema
-    )
+    output_df, output_schema = parse_dataframe_and_schema(dataframe=input_df, schema=input_schema)
 
     assert output_df.equals(input_df[expected_columns])
     assert output_schema == expected_schema
@@ -298,9 +284,7 @@ def test_excluding_an_embedding_column_rather_than_the_embedding_feature_name_lo
         excludes=None,
     )
     expected_columns = ["embedding_vector0", "link_to_data0", "raw_data_column0"]
-    output_df, output_schema = exclude_columns_and_discover_features(
-        dataframe=input_df, schema=input_schema
-    )
+    output_df, output_schema = parse_dataframe_and_schema(dataframe=input_df, schema=input_schema)
 
     assert output_df.equals(input_df[expected_columns])
     assert output_schema == expected_schema
@@ -335,9 +319,7 @@ def test_excluding_embedding_feature_that_has_same_name_as_an_embedding_column_d
         excludes=None,
     )
     expected_columns = []
-    output_df, output_schema = exclude_columns_and_discover_features(
-        dataframe=input_df, schema=input_schema
-    )
+    output_df, output_schema = parse_dataframe_and_schema(dataframe=input_df, schema=input_schema)
 
     assert output_df.equals(input_df[expected_columns])  # Expect empty dataframe
     assert output_schema == expected_schema
