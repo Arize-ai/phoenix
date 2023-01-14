@@ -75,6 +75,45 @@ def test_column_present_in_dataframe_but_missing_from_schema_is_dropped(caplog):
     assert not _warning_logged(caplog)
 
 
+def test_all_features_and_tags_excluded_sets_schema_features_and_tags_field_to_none(caplog):
+    num_records = 5
+    input_df = pd.DataFrame(
+        {
+            "prediction_id": list(range(num_records)),
+            "prediction_label": [f"label{index}" for index in range(num_records)],
+            "feature0": np.random.rand(num_records),
+            "feature1": np.random.rand(num_records),
+            "tag0": ["tag" for _ in range(num_records)],
+        }
+    )
+    excludes = ["feature0", "feature1", "tag0"]
+    input_schema = Schema(
+        prediction_id_column_name="prediction_id",
+        timestamp_column_name=None,
+        feature_column_names=["feature0", "feature1"],  # Feature names should be discovered
+        tag_column_names=["tag0"],
+        prediction_label_column_name="prediction_label",
+        prediction_score_column_name=None,
+        actual_label_column_name=None,
+        actual_score_column_name=None,
+        excludes=excludes,
+    )
+    excepted_columns = [col for col in input_df.columns if col not in excludes]
+    expected_schema = replace(
+        input_schema,
+        prediction_label_column_name="prediction_label",
+        feature_column_names=None,  # All features excluded
+        tag_column_names=None,  # All tags excluded
+        excludes=None,  # Excludes discarded after parsing
+    )
+    output_df, output_schema = parse_dataframe_and_schema(dataframe=input_df, schema=input_schema)
+
+    assert output_df.equals(input_df[excepted_columns])
+    assert output_schema == expected_schema
+    assert output_schema is not input_schema  # Verify method returns a copy
+    assert not _warning_logged(caplog)
+
+
 def test_features_as_none_and_no_excludes_discovers_features(caplog):
     num_features = 5
     tag_column_names = [f"tag{index}" for index in range(num_features)]
@@ -252,6 +291,39 @@ def test_excluded_embedding_feature_columns_are_removed(caplog):
         excludes=None,
     )
     expected_columns = ["embedding_vector1", "link_to_data1", "raw_data_column1"]
+    output_df, output_schema = parse_dataframe_and_schema(dataframe=input_df, schema=input_schema)
+
+    assert output_df.equals(input_df[expected_columns])
+    assert output_schema == expected_schema
+    assert output_schema is not input_schema  # Verify method returns a copy
+    assert not _warning_logged(caplog)
+
+
+def test_excluding_all_embedding_features_sets_schema_embedding_field_to_none(caplog):
+    num_records = 5
+    input_df = pd.DataFrame(
+        {
+            "embedding_vector0": [np.zeros(7) for _ in range(num_records)],
+            "link_to_data0": [f"some-link{index}" for index in range(num_records)],
+            "raw_data_column0": [f"some-text{index}" for index in range(num_records)],
+        }
+    )
+    input_schema = Schema(
+        embedding_feature_column_names={
+            "embedding_feature0": EmbeddingColumnNames(
+                vector_column_name="embedding_vector0",
+                link_to_data_column_name="link_to_data0",
+                raw_data_column_name="raw_data_column0",
+            ),
+        },
+        excludes=["embedding_feature0"],
+    )
+    expected_schema = replace(
+        input_schema,
+        embedding_feature_column_names=None,  # This field should be set to None
+        excludes=None,
+    )
+    expected_columns = []
     output_df, output_schema = parse_dataframe_and_schema(dataframe=input_df, schema=input_schema)
 
     assert output_df.equals(input_df[expected_columns])

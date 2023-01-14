@@ -154,7 +154,9 @@ def _check_multi_column_schema_field_for_excludes(
                     excluded_column_names=", ".join(excluded_column_names),
                 )
             )
-        schema_field_name_to_replaced_value[schema_field_name] = included_column_names
+        schema_field_name_to_replaced_value[schema_field_name] = (
+            included_column_names if included_column_names else None
+        )
         column_name_to_include_flag.update(field_column_name_to_include_flag)
 
 
