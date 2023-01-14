@@ -47,8 +47,8 @@ class Dataset:
                 logger.error(e)
             raise err.DatasetError(errors)
         parsed_dataframe, parsed_schema = parse_dataframe_and_schema(dataframe, schema)
-        self.__schema: Schema = parsed_schema
         self.__dataframe: DataFrame = parsed_dataframe
+        self.__schema: Schema = parsed_schema
         self.__name: str = name if name is not None else f"""dataset_{str(uuid.uuid4())}"""
         self.__directory: str = os.path.join(dataset_dir, self.name)
 
