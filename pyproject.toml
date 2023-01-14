@@ -78,7 +78,6 @@ artifacts = ["src/phoenix/server/static"]
 
 [tool.hatch.envs.default]
 dependencies = [
-  "fastparquet",
   "pytest",
   "pytest-cov",
   "pytest-lazy-fixture",

@@ -2,7 +2,7 @@ import logging
 import os
 import sys
 import uuid
-from typing import Any, Literal, Optional, Union
+from typing import Any, Optional, Union
 
 from pandas import DataFrame, Series, read_parquet
 
@@ -20,8 +20,6 @@ if hasattr(sys, "ps1"):
     log_handler.setLevel(logging.INFO)
     logger.addHandler(log_handler)
     logger.setLevel(logging.INFO)
-
-ParquetEngine = Literal["auto", "fastparquet", "pyarrow"]
 
 
 class Dataset:
