@@ -1,5 +1,5 @@
 [project]
-name = "arize-phoenix"
+name = "phoenix"
 description = "ML Observability in your notebook"
 readme = "README.md"
 requires-python = ">=3.8, <3.11"
