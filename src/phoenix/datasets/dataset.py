@@ -1,19 +1,13 @@
-import json
 import logging
 import os
-import os.path
 import sys
-import tempfile
 import uuid
-import warnings
 from typing import Any, Literal, Optional, Union
-from urllib import request
 
-from numpy import fromstring
-from pandas import DataFrame, Series, read_csv, read_hdf, read_parquet
+from pandas import DataFrame, Series, read_parquet
 
 from phoenix.config import dataset_dir
-from phoenix.utils import is_url, parse_file_format, parse_filename
+from phoenix.utils import FilePath
 
 from . import errors as err
 from .schema import EmbeddingColumnNames, Schema
@@ -29,7 +23,7 @@ if hasattr(sys, "ps1"):
     logger.addHandler(log_handler)
     logger.setLevel(logging.INFO)
 
-ParquetEngine = Literal["pyarrow", "fastparquet", "auto"]
+ParquetEngine = Literal["auto", "fastparquet", "pyarrow"]
 
 
 class Dataset:
@@ -39,6 +33,7 @@ class Dataset:
 
     _data_file_name: str = "data.parquet"
     _schema_file_name: str = "schema.json"
+    _is_persisted: bool = False
 
     def __init__(
         self,
@@ -67,7 +62,7 @@ class Dataset:
             self.to_disc()
         else:
             # Assume that the dataset is already persisted to disc
-            self.__is_persisted: bool = True
+            self._is_persisted: bool = True
 
         self.to_disc()
         logger.info(f"""Dataset: {self.__name} initialized""")
@@ -86,7 +81,7 @@ class Dataset:
 
     @property
     def is_persisted(self) -> bool:
-        return self.__is_persisted
+        return self._is_persisted
 
     @property
     def directory(self) -> str:
@@ -174,64 +169,12 @@ class Dataset:
         return cls(dataframe, schema, name)
 
     @classmethod
-    def from_csv(cls, filepath: str, schema: Schema, name: Optional[str] = None) -> "Dataset":
-        dataframe: DataFrame = read_csv(filepath)
-        dataframe_columns = set(dataframe.columns)
-        if schema.embedding_feature_column_names is not None:
-            warnings.warn(
-                "Reading embeddings from csv files can be slow. Consider using other "
-                "formats such as parquet or hdf5.",
-                stacklevel=2,
-            )
-            for emb_col_names in schema.embedding_feature_column_names.values():
-                if emb_col_names.vector_column_name not in dataframe_columns:
-                    e = err.MissingVectorColumn(emb_col_names.vector_column_name)
-                    logger.error(e)
-                    raise err.DatasetError(e)
-                dataframe[emb_col_names.vector_column_name] = dataframe[
-                    emb_col_names.vector_column_name
-                ].map(lambda s: fromstring(s.strip("[]"), dtype=float, sep=" "))
-
-        return cls(dataframe, schema, name)
-
-    @classmethod
-    def from_hdf(
-        cls, filepath: str, schema: Schema, name: Optional[str], key: Optional[str] = None
-    ) -> "Dataset":
-        df = read_hdf(filepath, key)
-        if not isinstance(df, DataFrame):
-            raise TypeError("Reading from hdf must yield a dataframe")
-        return cls(df, schema, name)
-
-    @classmethod
-    def from_url(
+    def from_parquet(
         cls,
-        url_path: str,
+        filepath: FilePath,
         schema: Schema,
         name: Optional[str] = None,
-        hdf_key: Optional[str] = None,
-    ) -> "Dataset":
-        if not is_url(url_path):
-            raise ValueError("Invalid url")
-        file_format = parse_file_format(url_path)
-        if file_format == ".csv":
-            return cls.from_csv(url_path, schema, name)
-        elif file_format == ".hdf5" or file_format == ".hdf":
-            filename = parse_filename(url_path)
-            with tempfile.TemporaryDirectory() as temp_dir:
-                local_file_path = os.path.join(temp_dir, filename)
-                print(f"Downloading file: {filename}")
-                request.urlretrieve(url_path, local_file_path, show_progress)
-                print("\n")
-                return cls.from_hdf(local_file_path, schema, name, hdf_key)
-        raise ValueError(
-            f"File format {file_format} not supported. Currently supported "
-            f"formats are: {', '.join(SUPPORTED_URL_FORMATS)}."
-        )
-
-    @classmethod
-    def from_parquet(
-        cls, filepath: str, schema: Schema, name: Optional[str], engine: ParquetEngine = "pyarrow"
+        engine: ParquetEngine = "pyarrow",
     ) -> "Dataset":
         return cls(read_parquet(filepath, engine=engine), schema, name)
 
@@ -240,10 +183,10 @@ class Dataset:
         """Retrieves a dataset by name from the file system"""
         directory = os.path.join(dataset_dir, name)
         df = read_parquet(os.path.join(directory, cls._data_file_name))
-        with open(os.path.join(directory, cls._schema_file_name), "rb") as schema_file:
-            schema_json = json.load(schema_file)
-            schema = Schema.from_json(schema_json)
-            return cls(df, schema, name, persist_to_disc=False)
+        with open(os.path.join(directory, cls._schema_file_name)) as schema_file:
+            schema_json = schema_file.read()
+        schema = Schema.from_json(schema_json)
+        return cls(df, schema, name, persist_to_disc=False)
 
     @staticmethod
     def _parse_dataframe(dataframe: DataFrame, schema: Schema) -> DataFrame:
@@ -272,7 +215,7 @@ class Dataset:
     def to_disc(self) -> None:
         """writes the data and schema to disc"""
 
-        if self.__is_persisted:
+        if self._is_persisted:
             logger.info("Dataset already persisted")
             return
 
@@ -286,7 +229,7 @@ class Dataset:
             schema_file.write(schema_json_data)
 
         # set the persisted flag so that we don't have to perform this operation again
-        self.__is_persisted = True
+        self._is_persisted = True
         logger.info(f"Dataset info written to '{directory}'")
 
 

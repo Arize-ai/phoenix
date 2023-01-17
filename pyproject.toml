@@ -1,36 +1,51 @@
 [project]
-name = "phoenix"
-description = "WRITE A BRIEF SUMMARY OF THE PROJECT."
+name = "arize-phoenix"
+description = "ML Observability in your notebook"
 readme = "README.md"
-requires-python = ">=3.10, <3.11"
-# license = "None"
+requires-python = ">=3.8, <3.11"
+license = "Elastic-2.0"
+license-files = { paths = ["LICENSE"] }
 keywords = [
-    "Observability",
-    "Monitoring",
-    "Explainability",
+  "Observability",
+  "Monitoring",
+  "Explainability",
 ]
 authors = [
-  { name = "Arize AI", email = "FIXEMAIL@arize.com" },
+  { name = "Arize AI", email = "phoenix-devs@arize.com" },
 ]
-maintainers = []
 classifiers = [
   "Development Status :: 1 - Planning",
   "Programming Language :: Python",
+  "Programming Language :: Python :: 3.8",
+  "Programming Language :: Python :: 3.9",
   "Programming Language :: Python :: 3.10",
-  "Programming Language :: Python :: 3.11",
 ]
 dependencies = [
-    "numpy",
-    "pandas",
-    "umap-learn",
-    "hdbscan",
-    "starlette",
-    "uvicorn",
-    "psutil",
-    "tables",
-    "strawberry-graphql",
+  "numpy",
+  "pandas",
+  "umap-learn",
+  "hdbscan",
+  "starlette",
+  "uvicorn",
+  "psutil",
+  "strawberry-graphql",
+  "pyarrow",
 ]
 dynamic = ["version"]
+
+[project.optional-dependencies]
+dev = [
+  "black",
+  "hatch",
+  "jupyter",
+  "pandas-stubs",
+  "pytest",
+  "pytest-cov",
+  "pytest-lazy-fixture",
+  "strawberry-graphql[debug-server]",
+  "fastparquet",
+  "pre-commit",
+]
 
 [project.urls]
 Documentation = "https://github.com/Arize-ai/phoenix#readme"
@@ -46,6 +61,7 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/phoenix"]
+artifacts = ["src/phoenix/server/static"]
 
 [tool.hatch.build]
 only-packages = true
@@ -53,14 +69,21 @@ only-packages = true
 [tool.hatch.build.hooks.jupyter-builder]
 dependencies = ["hatch-jupyter-builder"]
 build-function = "hatch_jupyter_builder.npm_builder"
+ensured-targets = ["src/phoenix/server/static/index.js", "src/phoenix/server/static/index.html"]
 
-[hatch_jupyter_builder.utils.npm_builder]
-build_dir = "src/phoenix/nbextension/static"
+[tool.hatch.build.hooks.jupyter-builder.build-kwargs]
+path = "app"
+source_dir = "app"
+
+[tool.hatch.build.targets.sdist]
+artifacts = ["src/phoenix/server/static"]
 
 [tool.hatch.envs.default]
 dependencies = [
+  "fastparquet",
   "pytest",
   "pytest-cov",
+  "pytest-lazy-fixture",
 ]
 
 [tool.hatch.envs.type]
@@ -94,9 +117,12 @@ coverage = "pytest --cov-report=term-missing --cov-config=pyproject.toml --cov=s
 python = ["310"]
 
 [tool.pytest.ini_options]
-addopts = "-rA"
+addopts = [
+  "-rA",
+  "--import-mode=importlib",
+]
 testpaths = [
-    "tests",
+  "tests",
 ]
 
 [tool.coverage.run]
@@ -145,6 +171,11 @@ check = [
   "interrogate -vv src/",
 ]
 
+[tool.hatch.envs.gql]
+
+[tool.hatch.envs.gql.scripts]
+build = 'strawberry export-schema phoenix.server.api.schema:schema > app/schema.graphql'
+
 [tool.interrogate]
 fail-under = 0
 exclude=["src/phoenix/__about__.py"]
@@ -173,8 +204,8 @@ exclude = [
 
 [[tool.mypy.overrides]]
 module = [
-    "hdbscan",
-    "umap",
+  "hdbscan",
+  "umap",
 ]
 ignore_missing_imports = true
 

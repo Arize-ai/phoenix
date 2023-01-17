@@ -1,0 +1,57 @@
+type Dataset {
+  name: String!
+}
+
+type Dimension implements Node {
+  id: GlobalID!
+  name: String!
+  dataType: DimensionDataType!
+  dataQuality: DimensionDataQuality!
+}
+
+type DimensionConnection {
+  pageInfo: PageInfo!
+  edges: [DimensionEdge!]!
+}
+
+type DimensionDataQuality {
+  cardinality: Int
+}
+
+enum DimensionDataType {
+  categorical
+  numeric
+}
+
+type DimensionEdge {
+  node: Dimension!
+  cursor: String!
+}
+
+"""
+The `ID` scalar type represents a unique identifier, often used to refetch an object or as key for a cache. The ID type appears in a JSON response as a String; however, it is not intended to be human-readable. When expected as an input type, any string (such as `"4"`) or integer (such as `4`) input value will be accepted as an ID.
+"""
+scalar GlobalID @specifiedBy(url: "https://relay.dev/graphql/objectidentification.htm")
+
+type Model {
+  dimensions(first: Int! = 10, after: String): DimensionConnection!
+}
+
+"""A node in the graph with a globally unique ID"""
+interface Node {
+  id: GlobalID!
+}
+
+type PageInfo {
+  hasNextPage: Boolean!
+  hasPreviousPage: Boolean!
+  startCursor: String
+  endCursor: String
+}
+
+type Query {
+  primaryDataset: Dataset!
+  referenceDataset: Dataset!
+  model: Model!
+  node(id: GlobalID!): Node!
+}

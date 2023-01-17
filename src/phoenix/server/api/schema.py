@@ -1,29 +1,36 @@
 import strawberry
+from strawberry.types import Info
 
-
-@strawberry.type
-class Dataset:
-    name: str
-
-
-def get_primary_dataset() -> Dataset:
-    from phoenix.server.app import app
-
-    name = app.state.primary
-    return Dataset(name=name)
-
-
-def get_reference_dataset() -> Dataset:
-    from phoenix.server.app import app
-
-    name = app.state.primary
-    return Dataset(name=name)
+from .context import Context
+from .types.Dataset import Dataset
+from .types.Dimension import to_gql_dimension
+from .types.Model import Model
+from .types.node import GlobalID, Node, from_global_id
 
 
 @strawberry.type
 class Query:
-    primaryDataset: Dataset = strawberry.field(resolver=get_primary_dataset)
-    referenceDataset: Dataset = strawberry.field(resolver=get_reference_dataset)
+    @strawberry.field
+    def primary_dataset(self, info: Info[Context, None]) -> Dataset:
+        return Dataset(name=info.context.model.primary_dataset.name)
+
+    @strawberry.field
+    def reference_dataset(self, info: Info[Context, None]) -> Dataset:
+        return Dataset(name=info.context.model.reference_dataset.name)
+
+    @strawberry.field
+    def model(self) -> Model:
+        return Model()
+
+    @strawberry.field
+    def node(self, id: GlobalID, info: Info[Context, None]) -> Node:
+        type_name, node_id = from_global_id(str(id))
+        print(f"node: {type_name} {node_id}")
+        if type_name == "Dimension":
+            dimension = info.context.model.dimensions[node_id]
+            return to_gql_dimension(node_id, dimension)
+
+        raise Exception(f"Unknown node type: {type}")
 
 
 schema = strawberry.Schema(query=Query)
