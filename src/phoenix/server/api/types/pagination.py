@@ -128,12 +128,12 @@ def connection_from_list_slice(
 
     after_offset = get_offset_with_default(args.after, -1)
 
-    if 0 <= after_offset and after_offset < list_length:
+    if 0 <= after_offset < list_length:
         start_offset = max(start_offset, after_offset + 1)
 
     before_offset = get_offset_with_default(args.before, end_offset)
 
-    if 0 <= before_offset and before_offset < list_length:
+    if 0 <= before_offset < list_length:
         end_offset = min(end_offset, before_offset)
 
     if isinstance(args.first, int):
