@@ -38,13 +38,10 @@ def get_pids_path() -> str:
 
 
 PHOENIX_DIR = os.path.dirname(os.path.abspath(__file__))
-ROOT_DIR = os.path.join("~", "phoenix")
+ROOT_DIR = os.path.join("~", ".phoenix")
 dataset_dir = normalize_path(os.path.join(ROOT_DIR, "datasets"))
 
 # Server config
 server_dir = os.path.join(PHOENIX_DIR, "server")
 # The port the server will run on after launch_app is called
 port = 6060
-# TODO(#154) inject environment variables into runtime
-graphiql = True
-debug = True

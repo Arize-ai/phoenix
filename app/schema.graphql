@@ -34,7 +34,7 @@ The `ID` scalar type represents a unique identifier, often used to refetch an ob
 scalar GlobalID @specifiedBy(url: "https://relay.dev/graphql/objectidentification.htm")
 
 type Model {
-  dimensions(first: Int! = 10, after: String): DimensionConnection!
+  dimensions(first: Int = 50, last: Int = null, after: String, before: String): DimensionConnection!
 }
 
 """A node in the graph with a globally unique ID"""
