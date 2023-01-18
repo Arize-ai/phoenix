@@ -5,7 +5,8 @@ import sys
 import uuid
 from typing import Any, Callable, Dict, Literal, Optional, Union
 
-from pandas import DataFrame, Series, Timestamp, read_parquet
+from pandas import DataFrame, Series, Timestamp, read_parquet, to_datetime
+from pandas.api.types import is_numeric_dtype
 
 from phoenix.config import dataset_dir
 from phoenix.utils import FilePath
@@ -193,12 +194,19 @@ class Dataset:
     def _parse_dataframe(dataframe: DataFrame, schema: Schema) -> DataFrame:
         cols_to_add: Dict[str, Callable[[Any], Union[Timestamp, str]]] = dict()
         if schema.timestamp_column_name is None:
-            now = Timestamp.now()
+            now = Timestamp.utcnow()
             schema = dataclasses.replace(schema, timestamp_column_name="timestamp")
             cols_to_add["timestamp"] = lambda _: now
+        elif is_numeric_dtype(dataframe.dtypes[schema.timestamp_column_name]):
+            dataframe[schema.timestamp_column_name] = to_datetime(
+                dataframe[schema.timestamp_column_name], unit="ms"
+            )
+
         if schema.prediction_id_column_name is None:
             schema = dataclasses.replace(schema, prediction_id_column_name="prediction_id")
             cols_to_add["prediction_id"] = lambda _: str(uuid.uuid4())
+        elif is_numeric_dtype(dataframe.dtypes[schema.prediction_id_column_name]):
+            dataframe["prediction_id"] = dataframe["prediction_id"].apply(str)
 
         if len(cols_to_add) > 0:
             dataframe = dataframe.assign(**cols_to_add)

@@ -49,6 +49,16 @@ class DatasetError(Exception):
         self.errors = errors
 
 
+class InvalidColumnType(ValidationError):
+    """An error raised when the column type is invalid"""
+
+    def __init__(self, error_msgs: Iterable[str]) -> None:
+        self.error_msgs = error_msgs
+
+    def error_message(self) -> str:
+        return f"Invalid column types: {self.error_msgs}"
+
+
 class MissingField(ValidationError):
     """An error raised when trying to access a field that is absent from the Schema"""
 

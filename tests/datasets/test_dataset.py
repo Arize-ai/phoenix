@@ -3,6 +3,7 @@ Test dataset
 """
 
 import random
+import uuid
 from functools import partial
 
 import numpy as np
@@ -12,6 +13,9 @@ from numpy.testing import assert_array_almost_equal
 from pytest_lazyfixture import lazy_fixture
 
 from phoenix.datasets.dataset import Dataset, EmbeddingColumnNames, Schema
+from phoenix.datasets.errors import DatasetError
+
+num_samples = 9
 
 
 @pytest.fixture
@@ -27,12 +31,11 @@ def include_embeddings(request):
 
 @pytest.fixture
 def expected_df(include_embeddings, random_seed):
-    num_samples = 9
     embedding_dimension = 15
 
     ts = pd.Timestamp.now()
     data = {
-        "prediction_id": [n for n in range(num_samples)],
+        "prediction_id": [str(n) for n in range(num_samples)],
         "timestamp": [ts for _ in range(num_samples)],
         "feature0": [random.random() for _ in range(num_samples)],
         "feature1": [random.random() for _ in range(num_samples)],
@@ -123,12 +126,18 @@ def test_dataset_from_parquet_correctly_load_data_with_and_without_embeddings(
         assert column_name in dataset.dataframe
         actual_column = dataset.dataframe[column_name]
         expected_column = expected_df[column_name]
-        if column_name == "embeddings":
-            assert_embedding_columns_almost_equal(actual_column, expected_column)
-        elif column_name == "timestamp":
-            pd.testing.assert_series_equal(actual_column, expected_column)
-        else:
-            assert_non_embedding_columns_almost_equal(actual_column, expected_column)
+        assert_column(column_name, actual_column, expected_column)
+
+
+def assert_column(column_name, actual_column, expected_column):
+    if column_name == "embeddings":
+        assert_embedding_columns_almost_equal(actual_column, expected_column)
+    elif column_name == "timestamp":
+        pd.testing.assert_series_equal(actual_column, expected_column)
+    elif column_name == "prediction_id":
+        pd.testing.assert_series_equal(actual_column, expected_column)
+    else:
+        assert_non_embedding_columns_almost_equal(actual_column, expected_column)
 
 
 def assert_non_embedding_columns_almost_equal(actual_column, expected_column):
@@ -156,26 +165,136 @@ def assert_embedding_columns_almost_equal(actual_embeddings_columns, expected_em
         assert_array_almost_equal(actual_embedding, expected_embedding)
 
 
-def test_dataset_column_normalization():
-    num_samples = 10
+def random_uuids():
+    return [str(uuid.uuid4()) for _ in range(num_samples)]
+
+
+@pytest.mark.parametrize(
+    "input_df, input_schema",
+    [
+        (
+            {
+                "timestamp": np.full(
+                    shape=num_samples, fill_value=pd.Timestamp.utcnow(), dtype=pd.Timestamp
+                ),
+                "prediction_id": random_uuids(),
+            },
+            {"timestamp_column_name": "timestamp", "prediction_id_column_name": "prediction_id"},
+        ),
+        (
+            {
+                "timestamp": np.full(
+                    shape=num_samples, fill_value=pd.Timestamp.utcnow().timestamp(), dtype=int
+                ),
+                "prediction_id": random_uuids(),
+            },
+            {"timestamp_column_name": "timestamp", "prediction_id_column_name": "prediction_id"},
+        ),
+        (
+            {
+                "timestamp": np.full(
+                    shape=num_samples, fill_value=pd.Timestamp.utcnow(), dtype=pd.Timestamp
+                ),
+                "prediction_id": range(num_samples),
+            },
+            {"timestamp_column_name": "timestamp", "prediction_id_column_name": "prediction_id"},
+        ),
+        (
+            {
+                "prediction_id": random_uuids(),
+            },
+            {"prediction_id_column_name": "prediction_id"},
+        ),
+        (
+            {
+                "timestamp": np.full(
+                    shape=num_samples, fill_value=pd.Timestamp.utcnow(), dtype=pd.Timestamp
+                ),
+            },
+            {"timestamp_column_name": "timestamp"},
+        ),
+        (
+            dict(),
+            dict(),
+        ),
+    ],
+    ids=[
+        "test_dataset_normalization_columns_already_normalized",
+        "test_dataset_normalization_timestamp_integer_to_datetime",
+        "test_dataset_normalization_prediction_id_integer_to_string",
+        "test_dataset_normalization_add_missing_timestamp",
+        "test_dataset_normalization_add_missing_prediction_id",
+        "test_dataset_normalization_add_missing_timestamp_and_prediction_id",
+    ],
+    indirect=True,
+)
+def test_dataset_normalization(input_df, input_schema) -> None:
+    dataset = Dataset(dataframe=input_df, schema=input_schema)
+
+    # Ensure existing data
+    for column_name in input_df:
+        assert column_name in dataset.dataframe.columns
+        actual_column = dataset.dataframe[column_name]
+        expected_column = input_df[column_name]
+        assert_column(column_name, actual_column, expected_column)
+
+    # Ensure normalized columns exist if they did not exist in the initial normalization_df
+    assert "timestamp" in dataset.dataframe
+    assert dataset.dataframe.dtypes["timestamp"], "datetime[nz]"
+    assert "prediction_id" in dataset.dataframe
+    assert dataset.dataframe.dtypes["prediction_id"], "string"
+
+
+@pytest.mark.parametrize(
+    "input_df, input_schema",
+    [
+        (
+            {
+                "prediction_id": np.full(
+                    shape=num_samples, fill_value=pd.Timestamp.utcnow(), dtype=pd.Timestamp
+                ),
+            },
+            {"prediction_id_column_name": "prediction_id"},
+        ),
+        (
+            {
+                "timestamp": random_uuids(),
+            },
+            {"timestamp_column_name": "timestamp"},
+        ),
+    ],
+    indirect=True,
+)
+def test_dataset_validation(input_df, input_schema) -> None:
+    with pytest.raises(DatasetError):
+        Dataset(dataframe=input_df, schema=input_schema)
+
+
+@pytest.fixture
+def input_df(request):
+    """
+    Provides a dataframe fixture with a base set of columns and an optional configurable set of additional columns
+    :param request: params contains the additional columns to add to the dataframe
+    :return: pd.DataFrame
+    """
     data = {
-        "feature0": range(num_samples),
-        "feature1": range(num_samples),
+        "feature": range(num_samples),
         "predicted_score": range(num_samples),
     }
-    df = pd.DataFrame.from_dict(data)
-    kwargs = {
-        "feature_column_names": ["feature0", "feature1"],
+    data.update(request.param)
+    return pd.DataFrame.from_dict(data)
+
+
+@pytest.fixture
+def input_schema(request):
+    """
+    Provides a phoneix Schema fixture with a base set of columns and an optional configurable set of additional columns
+    :param request: params contains the additional columns to add to the Schema
+    :return: Schema
+    """
+    schema = {
+        "feature_column_names": ["feature"],
         "prediction_score_column_name": "predicted_score",
     }
-    schema = Schema(**kwargs)
-    dataset = Dataset(dataframe=df, schema=schema)
-
-    for column_name in df:
-        assert column_name in dataset.dataframe
-        actual_column = dataset.dataframe[column_name]
-        expected_column = df[column_name]
-        assert_non_embedding_columns_almost_equal(actual_column, expected_column)
-
-    assert "prediction_id" in dataset.dataframe
-    assert "timestamp" in dataset.dataframe
+    schema.update(request.param)
+    return Schema(**schema)

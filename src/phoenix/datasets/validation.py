@@ -2,14 +2,43 @@ from itertools import chain
 from typing import List
 
 from pandas import DataFrame
+from pandas.api.types import is_datetime64_any_dtype as is_datetime
+from pandas.api.types import is_numeric_dtype, is_string_dtype
 
 from . import errors as err
 from .schema import Schema
 
 
 def validate_dataset_inputs(dataframe: DataFrame, schema: Schema) -> List[err.ValidationError]:
-    general_checks = chain(check_missing_columns(dataframe, schema))
+    general_checks = chain(
+        check_missing_columns(dataframe, schema), check_column_type(dataframe, schema)
+    )
     return list(general_checks)
+
+
+def check_column_type(dataframe: DataFrame, schema: Schema) -> List[err.ValidationError]:
+    wrong_type_cols = []
+    if schema.timestamp_column_name is not None:
+        if not (
+            is_numeric_dtype(dataframe.dtypes[schema.timestamp_column_name])
+            or is_datetime(dataframe.dtypes[schema.timestamp_column_name])
+        ):
+            wrong_type_cols.append(
+                f"{schema.timestamp_column_name} should be of timestamp or numeric type"
+            )
+
+    if schema.prediction_id_column_name is not None:
+        if not (
+            is_numeric_dtype(dataframe.dtypes[schema.prediction_id_column_name])
+            or is_string_dtype(dataframe.dtypes[schema.prediction_id_column_name])
+        ):
+            wrong_type_cols.append(
+                f"{schema.prediction_id_column_name} should be a string or numeric type"
+            )
+
+    if len(wrong_type_cols) > 0:
+        return [err.InvalidColumnType(wrong_type_cols)]
+    return []
 
 
 def check_missing_columns(dataframe: DataFrame, schema: Schema) -> List[err.MissingColumns]:
