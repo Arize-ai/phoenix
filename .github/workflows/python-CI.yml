@@ -5,8 +5,7 @@ on:
         branches: [main]
     pull_request:
         paths:
-            - "src/*"
-            - "tests/*"
+            - "**.py"
             - "pyproject.toml"
     # Allows you to run this workflow manually from the Actions tab
     workflow_dispatch:
