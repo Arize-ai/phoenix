@@ -31,21 +31,26 @@ def parse_dataframe_and_schema(dataframe: DataFrame, schema: Schema) -> Tuple[Da
     column_name_to_include: Dict[str, bool] = {}
     schema_field_name_to_replace_value: Dict[str, Any] = {}
 
-    # Check single-column schema fields for excludes and update state
-    for schema_field in fields(schema):
-        schema_field_name = schema_field.name
-        if _is_single_column_schema_field(schema_field_name, schema):
-            _check_single_column_schema_field_for_excludes(
-                schema,
-                schema_field_name,
-                unseen_excludes,
-                schema_field_name_to_replace_value,
-                column_name_to_include,
-                unseen_column_names,
-            )
+    single_column_schema_field_names = [
+        "prediction_id_column_name",
+        "timestamp_column_name",
+        "prediction_label_column_name",
+        "prediction_score_column_name",
+        "actual_label_column_name",
+        "actual_score_column_name",
+    ]
+    for schema_field_name in single_column_schema_field_names:
+        _check_single_column_schema_field_for_excludes(
+            schema,
+            schema_field_name,
+            unseen_excludes,
+            schema_field_name_to_replace_value,
+            column_name_to_include,
+            unseen_column_names,
+        )
 
-    # Check features and tags for excludes and update state
-    for schema_field_name in ["feature_column_names", "tag_column_names"]:
+    multi_column_schema_field_names = ["feature_column_names", "tag_column_names"]
+    for schema_field_name in multi_column_schema_field_names:
         _check_multi_column_schema_field_for_excludes(
             schema,
             schema_field_name,
@@ -55,7 +60,6 @@ def parse_dataframe_and_schema(dataframe: DataFrame, schema: Schema) -> Tuple[Da
             unseen_column_names,
         )
 
-    # Check embedding features for excludes and update state
     if schema.embedding_feature_column_names:
         _check_embedding_features_schema_field_for_excludes(
             schema.embedding_feature_column_names,
@@ -65,7 +69,6 @@ def parse_dataframe_and_schema(dataframe: DataFrame, schema: Schema) -> Tuple[Da
             unseen_column_names,
         )
 
-    # Automatically discover feature columns and update state
     if not schema.feature_column_names and unseen_column_names:
         _discover_feature_columns(
             dataframe,
@@ -75,29 +78,17 @@ def parse_dataframe_and_schema(dataframe: DataFrame, schema: Schema) -> Tuple[Da
             unseen_column_names,
         )
 
-    # Warn user if any excludes were not found in the dataframe
     if unseen_excludes:
         logger.warning(
             "The following columns and embedding features were excluded in the schema but were "
             "not found in the dataframe: {}".format(", ".join(unseen_excludes))
         )
 
-    # Create updated dataframe and schema from state
     parsed_dataframe, parsed_schema = _create_parsed_dataframe_and_schema(
         dataframe, schema, schema_field_name_to_replace_value, column_name_to_include
     )
 
     return parsed_dataframe, parsed_schema
-
-
-def _is_single_column_schema_field(field_name: str, schema: Schema) -> bool:
-    """
-    Checks whether `field_name` refers to a single-column field on `schema`.
-    For example, `prediction_id_column_name` is a single-column field while
-    `feature_column_names` is not.
-    """
-    schema_field_value = getattr(schema, field_name)
-    return isinstance(schema_field_value, str)
 
 
 def _check_single_column_schema_field_for_excludes(
