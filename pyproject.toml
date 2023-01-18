@@ -176,7 +176,6 @@ pypi = [
   "twine upload --verbose dist/*",
 ]
 
-
 [tool.isort]
 profile = "black"
 
@@ -225,4 +224,3 @@ module = [
   "umap",
 ]
 ignore_missing_imports = true
-
