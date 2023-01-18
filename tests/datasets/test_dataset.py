@@ -119,8 +119,7 @@ def test_dataset_from_parquet_correctly_load_data_with_and_without_embeddings(
 ):
     dataset_name = "dataset-name"
     dataset = initialization_class_method(filepath=filepath, schema=schema, name=dataset_name)
-    print(dataset.dataframe)
-    print(dataset.dataframe.dtypes)
+
     assert dataset.name == dataset_name
     for column_name in expected_df.columns:
         assert column_name in dataset.dataframe
