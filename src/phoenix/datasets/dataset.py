@@ -205,8 +205,9 @@ class Dataset:
 
 def _parse_dataframe_and_schema(dataframe: DataFrame, schema: Schema) -> Tuple[DataFrame, Schema]:
     """
-    Parses `dataframe` according to `schema` and infers feature names when
-    `feature_column_names` is excluded.
+    Parses a dataframe according to a schema, infers feature columns names when
+    they are not explicitly provided, and removes excluded column names from
+    both dataframe and schema.
 
     Removes column names in `schema.excludes` from the input dataframe and
     schema. To remove an embedding feature and all associated columns, add the
@@ -224,7 +225,7 @@ def _parse_dataframe_and_schema(dataframe: DataFrame, schema: Schema) -> Tuple[D
     schema_patch: Dict[SchemaFieldName, SchemaFieldValue] = {}
 
     for schema_field_name in SINGLE_COLUMN_SCHEMA_FIELD_NAMES:
-        _check_single_column_schema_field_for_excludes(
+        _check_single_column_schema_field_for_excluded_columns(
             schema,
             schema_field_name,
             unseen_excluded_column_names,
@@ -234,7 +235,7 @@ def _parse_dataframe_and_schema(dataframe: DataFrame, schema: Schema) -> Tuple[D
         )
 
     for schema_field_name in MULTI_COLUMN_SCHEMA_FIELD_NAMES:
-        _check_multi_column_schema_field_for_excludes(
+        _check_multi_column_schema_field_for_excluded_columns(
             schema,
             schema_field_name,
             unseen_excluded_column_names,
@@ -244,7 +245,7 @@ def _parse_dataframe_and_schema(dataframe: DataFrame, schema: Schema) -> Tuple[D
         )
 
     if schema.embedding_feature_column_names:
-        _check_embedding_features_schema_field_for_excludes(
+        _check_embedding_features_schema_field_for_excluded_columns(
             schema.embedding_feature_column_names,
             unseen_excluded_column_names,
             schema_patch,
@@ -274,7 +275,7 @@ def _parse_dataframe_and_schema(dataframe: DataFrame, schema: Schema) -> Tuple[D
     return parsed_dataframe, parsed_schema
 
 
-def _check_single_column_schema_field_for_excludes(
+def _check_single_column_schema_field_for_excluded_columns(
     schema: Schema,
     schema_field_name: str,
     unseen_excluded_column_names: Set[str],
@@ -295,7 +296,7 @@ def _check_single_column_schema_field_for_excludes(
     unseen_column_names.discard(column_name)
 
 
-def _check_multi_column_schema_field_for_excludes(
+def _check_multi_column_schema_field_for_excluded_columns(
     schema: Schema,
     schema_field_name: str,
     unseen_excluded_column_names: Set[str],
@@ -323,7 +324,7 @@ def _check_multi_column_schema_field_for_excludes(
         schema_patch[schema_field_name] = included_column_names if included_column_names else None
 
 
-def _check_embedding_features_schema_field_for_excludes(
+def _check_embedding_features_schema_field_for_excluded_columns(
     embedding_features: EmbeddingFeatures,
     unseen_excluded_column_names: Set[str],
     schema_patch: Dict[SchemaFieldName, SchemaFieldValue],
