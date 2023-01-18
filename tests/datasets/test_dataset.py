@@ -272,7 +272,8 @@ def test_dataset_validation(input_df, input_schema) -> None:
 @pytest.fixture
 def input_df(request):
     """
-    Provides a dataframe fixture with a base set of columns and an optional configurable set of additional columns
+    Provides a dataframe fixture with a base set of columns and an optional configurable
+    set of additional columns.
     :param request: params contains the additional columns to add to the dataframe
     :return: pd.DataFrame
     """
@@ -287,7 +288,8 @@ def input_df(request):
 @pytest.fixture
 def input_schema(request):
     """
-    Provides a phoneix Schema fixture with a base set of columns and an optional configurable set of additional columns
+    Provides a phoneix Schema fixture with a base set of columns and an optional configurable
+    set of additional columns
     :param request: params contains the additional columns to add to the Schema
     :return: Schema
     """
