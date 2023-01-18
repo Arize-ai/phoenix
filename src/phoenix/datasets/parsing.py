@@ -1,16 +1,13 @@
 import logging
 from copy import deepcopy
 from dataclasses import fields, replace
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Dict, List, Optional, Set, Tuple
 
 from pandas import DataFrame
 
-from .schema import EmbeddingColumnNames, Schema
+from .schema import EmbeddingFeatures, Schema, SchemaFieldName, SchemaFieldValue
 
 logger = logging.getLogger(__name__)
-
-
-EmbeddingFeatures = Dict[str, EmbeddingColumnNames]
 
 
 def parse_dataframe_and_schema(dataframe: DataFrame, schema: Schema) -> Tuple[DataFrame, Schema]:
@@ -29,7 +26,7 @@ def parse_dataframe_and_schema(dataframe: DataFrame, schema: Schema) -> Tuple[Da
     unseen_excludes: Set[str] = set(schema.excludes) if schema.excludes is not None else set()
     unseen_column_names: Set[str] = set(dataframe.columns.to_list())
     column_name_to_include: Dict[str, bool] = {}
-    schema_field_name_to_replace_value: Dict[str, Any] = {}
+    schema_field_name_to_replace_value: Dict[SchemaFieldName, SchemaFieldValue] = {}
 
     single_column_schema_field_names = [
         "prediction_id_column_name",
@@ -95,7 +92,7 @@ def _check_single_column_schema_field_for_excludes(
     schema: Schema,
     schema_field_name: str,
     unseen_excludes: Set[str],
-    schema_field_name_to_replaced_value: Dict[str, Any],
+    schema_field_name_to_replaced_value: Dict[SchemaFieldName, SchemaFieldValue],
     column_name_to_include: Dict[str, bool],
     unseen_column_names: Set[str],
 ) -> None:
@@ -116,7 +113,7 @@ def _check_multi_column_schema_field_for_excludes(
     schema: Schema,
     schema_field_name: str,
     unseen_excludes: Set[str],
-    schema_field_name_to_replaced_value: Dict[str, Optional[List[str]]],
+    schema_field_name_to_replaced_value: Dict[SchemaFieldName, SchemaFieldValue],
     column_name_to_include: Dict[str, bool],
     unseen_column_names: Set[str],
 ) -> None:
@@ -146,7 +143,7 @@ def _check_multi_column_schema_field_for_excludes(
 def _check_embedding_features_schema_field_for_excludes(
     embedding_features: EmbeddingFeatures,
     unseen_excludes: Set[str],
-    schema_field_name_to_replace_value: Dict[str, Optional[EmbeddingFeatures]],
+    schema_field_name_to_replace_value: Dict[SchemaFieldName, SchemaFieldValue],
     column_name_to_include: Dict[str, bool],
     unseen_column_names: Set[str],
 ) -> None:
@@ -188,7 +185,7 @@ def _check_embedding_features_schema_field_for_excludes(
 def _discover_feature_columns(
     dataframe: DataFrame,
     unseen_excludes: Set[str],
-    schema_field_name_to_replace_value: Dict[str, Any],
+    schema_field_name_to_replace_value: Dict[SchemaFieldName, SchemaFieldValue],
     column_name_to_include: Dict[str, bool],
     unseen_column_names: Set[str],
 ) -> None:
@@ -219,7 +216,7 @@ def _discover_feature_columns(
 def _create_parsed_dataframe_and_schema(
     dataframe: DataFrame,
     schema: Schema,
-    schema_field_name_to_replaced_value: Dict[str, Any],
+    schema_field_name_to_replaced_value: Dict[SchemaFieldName, SchemaFieldValue],
     column_name_to_include: Dict[str, bool],
 ) -> Tuple[DataFrame, Schema]:
     """
