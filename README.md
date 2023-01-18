@@ -1,6 +1,14 @@
 # Arize Phoenix
 
-## About
+<p>
+    <a href="https://pypi.org/project/arize-phoenix/">
+        <img src="https://img.shields.io/pypi/v/arize-phoenix">
+    </a>
+    <a href="https://pypi.org/project/arize-phoenix/">
+        <img src="https://img.shields.io/pypi/pyversions/arize-phoenix">
+    </a>
+</p>
+
 
 Phoenix provides MLOps insights at lightning speed with zero-config observability for model drift, performance, and data quality.
 
@@ -11,10 +19,3 @@ Phoenix provides MLOps insights at lightning speed with zero-config observabilit
 ```shell
 pip install arize-phoenix
 ```
-
-### Troubleshooting
-
-If are you using an Apple silicon machine and encounter the error `incompatible architecture (have (x86_64), need (arm64e))` during installation, take the following steps:
-1. Run `softwareupdate --install-rosetta` to install Rosetta2.
-2. Purge the `pip` cache with `pip cache purge`.
-3. Re-run `pip install arize-phoenix`.
