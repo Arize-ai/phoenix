@@ -17,3 +17,6 @@ dist
 !tests/**/fixtures/*.csv
 *.hdf
 *.hdf5
+
+# Testing
+coverage.xml

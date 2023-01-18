@@ -43,7 +43,6 @@ dev = [
   "pytest-cov",
   "pytest-lazy-fixture",
   "strawberry-graphql[debug-server]",
-  "fastparquet",
   "pre-commit",
 ]
 
@@ -80,7 +79,6 @@ artifacts = ["src/phoenix/server/static"]
 
 [tool.hatch.envs.default]
 dependencies = [
-  "fastparquet",
   "pytest",
   "pytest-cov",
   "pytest-lazy-fixture",

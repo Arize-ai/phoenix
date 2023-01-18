@@ -2,18 +2,25 @@ import logging
 import os
 import sys
 import uuid
-from typing import Any, Literal, Optional, Union
+from copy import deepcopy
+from dataclasses import fields, replace
+from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
 from pandas import DataFrame, Series, read_parquet
 
 from phoenix.config import dataset_dir
-from phoenix.utils import FilePath
 
 from . import errors as err
-from .schema import EmbeddingColumnNames, Schema
+from .schema import (
+    MULTI_COLUMN_SCHEMA_FIELD_NAMES,
+    SINGLE_COLUMN_SCHEMA_FIELD_NAMES,
+    EmbeddingColumnNames,
+    EmbeddingFeatures,
+    Schema,
+    SchemaFieldName,
+    SchemaFieldValue,
+)
 from .validation import validate_dataset_inputs
-
-SUPPORTED_URL_FORMATS = sorted(["hdf", "csv"])
 
 logger = logging.getLogger(__name__)
 if hasattr(sys, "ps1"):
@@ -22,8 +29,6 @@ if hasattr(sys, "ps1"):
     log_handler.setLevel(logging.INFO)
     logger.addHandler(log_handler)
     logger.setLevel(logging.INFO)
-
-ParquetEngine = Literal["auto", "fastparquet", "pyarrow"]
 
 
 class Dataset:
@@ -50,10 +55,9 @@ class Dataset:
             for e in errors:
                 logger.error(e)
             raise err.DatasetError(errors)
-        parsed_dataframe = self._parse_dataframe(dataframe, schema)
-
+        parsed_dataframe, parsed_schema = _parse_dataframe_and_schema(dataframe, schema)
         self.__dataframe: DataFrame = parsed_dataframe
-        self.__schema: Schema = schema
+        self.__schema: Schema = parsed_schema
         self.__name: str = name if name is not None else f"""dataset_{str(uuid.uuid4())}"""
         self.__directory: str = os.path.join(dataset_dir, self.name)
 
@@ -169,16 +173,6 @@ class Dataset:
         return cls(dataframe, schema, name)
 
     @classmethod
-    def from_parquet(
-        cls,
-        filepath: FilePath,
-        schema: Schema,
-        name: Optional[str] = None,
-        engine: ParquetEngine = "pyarrow",
-    ) -> "Dataset":
-        return cls(read_parquet(filepath, engine=engine), schema, name)
-
-    @classmethod
     def from_name(cls, name: str) -> "Dataset":
         """Retrieves a dataset by name from the file system"""
         directory = os.path.join(dataset_dir, name)
@@ -187,30 +181,6 @@ class Dataset:
             schema_json = schema_file.read()
         schema = Schema.from_json(schema_json)
         return cls(df, schema, name, persist_to_disc=False)
-
-    @staticmethod
-    def _parse_dataframe(dataframe: DataFrame, schema: Schema) -> DataFrame:
-        schema_cols = [
-            schema.timestamp_column_name,
-            schema.prediction_label_column_name,
-            schema.prediction_score_column_name,
-            schema.actual_label_column_name,
-            schema.actual_score_column_name,
-        ]
-        # Append the feature column names to the columns if present
-        if schema.feature_column_names is not None:
-            schema_cols += schema.feature_column_names
-
-        if schema.embedding_feature_column_names is not None:
-            for emb_feat_cols in schema.embedding_feature_column_names.values():
-                schema_cols.append(emb_feat_cols.vector_column_name)
-                if emb_feat_cols.raw_data_column_name:
-                    schema_cols.append(emb_feat_cols.raw_data_column_name)
-                if emb_feat_cols.link_to_data_column_name:
-                    schema_cols.append(emb_feat_cols.link_to_data_column_name)
-
-        drop_cols = [col for col in dataframe.columns if col not in schema_cols]
-        return dataframe.drop(columns=drop_cols)
 
     def to_disc(self) -> None:
         """writes the data and schema to disc"""
@@ -233,6 +203,217 @@ class Dataset:
         logger.info(f"Dataset info written to '{directory}'")
 
 
-def show_progress(block_num: int, block_size: int, total_size: int) -> None:
-    progress = round(block_num * block_size / total_size * 100, 2)
-    print("[" + int(progress) * "=" + (100 - int(progress)) * " " + f"] {progress}%", end="\r")
+def _parse_dataframe_and_schema(dataframe: DataFrame, schema: Schema) -> Tuple[DataFrame, Schema]:
+    """
+    Parses a dataframe according to a schema, infers feature columns names when
+    they are not explicitly provided, and removes excluded column names from
+    both dataframe and schema.
+
+    Removes column names in `schema.excludes` from the input dataframe and
+    schema. To remove an embedding feature and all associated columns, add the
+    name of the embedding feature to `schema.excludes` rather than the
+    associated column names. If `schema.feature_column_names` is `None`,
+    automatically discovers features by adding all column names present in the
+    dataframe but not included in any other schema fields.
+    """
+
+    unseen_excluded_column_names: Set[str] = (
+        set(schema.excludes) if schema.excludes is not None else set()
+    )
+    unseen_column_names: Set[str] = set(dataframe.columns.to_list())
+    column_name_to_include: Dict[str, bool] = {}
+    schema_patch: Dict[SchemaFieldName, SchemaFieldValue] = {}
+
+    for schema_field_name in SINGLE_COLUMN_SCHEMA_FIELD_NAMES:
+        _check_single_column_schema_field_for_excluded_columns(
+            schema,
+            schema_field_name,
+            unseen_excluded_column_names,
+            schema_patch,
+            column_name_to_include,
+            unseen_column_names,
+        )
+
+    for schema_field_name in MULTI_COLUMN_SCHEMA_FIELD_NAMES:
+        _check_multi_column_schema_field_for_excluded_columns(
+            schema,
+            schema_field_name,
+            unseen_excluded_column_names,
+            schema_patch,
+            column_name_to_include,
+            unseen_column_names,
+        )
+
+    if schema.embedding_feature_column_names:
+        _check_embedding_features_schema_field_for_excluded_columns(
+            schema.embedding_feature_column_names,
+            unseen_excluded_column_names,
+            schema_patch,
+            column_name_to_include,
+            unseen_column_names,
+        )
+
+    if not schema.feature_column_names and unseen_column_names:
+        _discover_feature_columns(
+            dataframe,
+            unseen_excluded_column_names,
+            schema_patch,
+            column_name_to_include,
+            unseen_column_names,
+        )
+
+    if unseen_excluded_column_names:
+        logger.warning(
+            "The following columns and embedding features were excluded in the schema but were "
+            "not found in the dataframe: {}".format(", ".join(unseen_excluded_column_names))
+        )
+
+    parsed_dataframe, parsed_schema = _create_parsed_dataframe_and_schema(
+        dataframe, schema, schema_patch, column_name_to_include
+    )
+
+    return parsed_dataframe, parsed_schema
+
+
+def _check_single_column_schema_field_for_excluded_columns(
+    schema: Schema,
+    schema_field_name: str,
+    unseen_excluded_column_names: Set[str],
+    schema_patch: Dict[SchemaFieldName, SchemaFieldValue],
+    column_name_to_include: Dict[str, bool],
+    unseen_column_names: Set[str],
+) -> None:
+    """
+    Checks single-column schema fields for excluded column names.
+    """
+    column_name: str = getattr(schema, schema_field_name)
+    include_column: bool = column_name not in unseen_excluded_column_names
+    column_name_to_include[column_name] = include_column
+    if not include_column:
+        schema_patch[schema_field_name] = None
+        unseen_excluded_column_names.discard(column_name)
+        logger.debug(f"excluded {schema_field_name}: {column_name}")
+    unseen_column_names.discard(column_name)
+
+
+def _check_multi_column_schema_field_for_excluded_columns(
+    schema: Schema,
+    schema_field_name: str,
+    unseen_excluded_column_names: Set[str],
+    schema_patch: Dict[SchemaFieldName, SchemaFieldValue],
+    column_name_to_include: Dict[str, bool],
+    unseen_column_names: Set[str],
+) -> None:
+    """
+    Checks multi-column schema fields for excluded columns names.
+    """
+    column_names: Optional[List[str]] = getattr(schema, schema_field_name)
+    if column_names:
+        included_column_names: List[str] = []
+        excluded_column_names: List[str] = []
+        for column_name in column_names:
+            is_included_column = column_name not in unseen_excluded_column_names
+            column_name_to_include[column_name] = is_included_column
+            if is_included_column:
+                included_column_names.append(column_name)
+            else:
+                excluded_column_names.append(column_name)
+                unseen_excluded_column_names.discard(column_name)
+                logger.debug(f"excluded {schema_field_name}: {column_name}")
+            unseen_column_names.discard(column_name)
+        schema_patch[schema_field_name] = included_column_names if included_column_names else None
+
+
+def _check_embedding_features_schema_field_for_excluded_columns(
+    embedding_features: EmbeddingFeatures,
+    unseen_excluded_column_names: Set[str],
+    schema_patch: Dict[SchemaFieldName, SchemaFieldValue],
+    column_name_to_include: Dict[str, bool],
+    unseen_column_names: Set[str],
+) -> None:
+    """
+    Check embedding features for excluded column names.
+    """
+    included_embedding_features: EmbeddingFeatures = {}
+    for (
+        embedding_feature_name,
+        embedding_column_name_mapping,
+    ) in embedding_features.items():
+        include_embedding_feature = embedding_feature_name not in unseen_excluded_column_names
+        if include_embedding_feature:
+            included_embedding_features[embedding_feature_name] = deepcopy(
+                embedding_column_name_mapping
+            )
+        else:
+            unseen_excluded_column_names.discard(embedding_feature_name)
+
+        for embedding_field in fields(embedding_column_name_mapping):
+            column_name: Optional[str] = getattr(
+                embedding_column_name_mapping, embedding_field.name
+            )
+            if column_name is not None:
+                column_name_to_include[column_name] = include_embedding_feature
+                if (
+                    column_name != embedding_feature_name
+                    and column_name in unseen_excluded_column_names
+                ):
+                    logger.warning(
+                        f"Excluding embedding feature columns such as "
+                        f'"{column_name}" has no effect; instead exclude the '
+                        f'corresponding embedding feature name "{embedding_feature_name}".'
+                    )
+                    unseen_excluded_column_names.discard(column_name)
+                unseen_column_names.discard(column_name)
+    schema_patch["embedding_feature_column_names"] = (
+        included_embedding_features if included_embedding_features else None
+    )
+
+
+def _discover_feature_columns(
+    dataframe: DataFrame,
+    unseen_excluded_column_names: Set[str],
+    schema_patch: Dict[SchemaFieldName, SchemaFieldValue],
+    column_name_to_include: Dict[str, bool],
+    unseen_column_names: Set[str],
+) -> None:
+    """
+    Adds unseen and unexcluded columns as features.
+    """
+    discovered_feature_column_names = []
+    for column_name in unseen_column_names:
+        if column_name not in unseen_excluded_column_names:
+            discovered_feature_column_names.append(column_name)
+            column_name_to_include[column_name] = True
+        else:
+            unseen_excluded_column_names.discard(column_name)
+            logger.debug(f"excluded feature: {column_name}")
+    original_column_positions: List[int] = dataframe.columns.get_indexer(
+        discovered_feature_column_names
+    )  # type: ignore
+    feature_column_name_to_position: Dict[str, int] = dict(
+        zip(discovered_feature_column_names, original_column_positions)
+    )
+    discovered_feature_column_names.sort(key=lambda col: feature_column_name_to_position[col])
+    schema_patch["feature_column_names"] = discovered_feature_column_names
+    logger.debug(
+        "Discovered feature column names: {}".format(", ".join(discovered_feature_column_names))
+    )
+
+
+def _create_parsed_dataframe_and_schema(
+    dataframe: DataFrame,
+    schema: Schema,
+    schema_patch: Dict[SchemaFieldName, SchemaFieldValue],
+    column_name_to_include: Dict[str, bool],
+) -> Tuple[DataFrame, Schema]:
+    """
+    Creates new dataframe and schema objects to reflect excluded column names
+    and discovered features.
+    """
+    included_column_names: List[str] = []
+    for column_name in dataframe.columns:
+        if column_name_to_include.get(str(column_name), False):
+            included_column_names.append(str(column_name))
+    parsed_dataframe = dataframe[included_column_names]
+    parsed_schema = replace(schema, excludes=None, **schema_patch)
+    return parsed_dataframe, parsed_schema
