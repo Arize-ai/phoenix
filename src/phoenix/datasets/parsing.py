@@ -28,7 +28,7 @@ def parse_dataframe_and_schema(dataframe: DataFrame, schema: Schema) -> Tuple[Da
     # Initialize state
     unseen_excludes: Set[str] = set(schema.excludes) if schema.excludes is not None else set()
     unseen_column_names: Set[str] = set(dataframe.columns.to_list())
-    column_name_to_include_flag: Dict[str, bool] = {}
+    column_name_to_include: Dict[str, bool] = {}
     schema_field_name_to_replace_value: Dict[str, Any] = {}
 
     # Check single-column schema fields for excludes and update state
@@ -40,7 +40,7 @@ def parse_dataframe_and_schema(dataframe: DataFrame, schema: Schema) -> Tuple[Da
                 schema_field_name,
                 unseen_excludes,
                 schema_field_name_to_replace_value,
-                column_name_to_include_flag,
+                column_name_to_include,
                 unseen_column_names,
             )
 
@@ -51,7 +51,7 @@ def parse_dataframe_and_schema(dataframe: DataFrame, schema: Schema) -> Tuple[Da
             schema_field_name,
             unseen_excludes,
             schema_field_name_to_replace_value,
-            column_name_to_include_flag,
+            column_name_to_include,
             unseen_column_names,
         )
 
@@ -61,7 +61,7 @@ def parse_dataframe_and_schema(dataframe: DataFrame, schema: Schema) -> Tuple[Da
             schema.embedding_feature_column_names,
             unseen_excludes,
             schema_field_name_to_replace_value,
-            column_name_to_include_flag,
+            column_name_to_include,
             unseen_column_names,
         )
 
@@ -71,7 +71,7 @@ def parse_dataframe_and_schema(dataframe: DataFrame, schema: Schema) -> Tuple[Da
             dataframe,
             unseen_excludes,
             schema_field_name_to_replace_value,
-            column_name_to_include_flag,
+            column_name_to_include,
             unseen_column_names,
         )
 
@@ -84,7 +84,7 @@ def parse_dataframe_and_schema(dataframe: DataFrame, schema: Schema) -> Tuple[Da
 
     # Create updated dataframe and schema from state
     parsed_dataframe, parsed_schema = _create_parsed_dataframe_and_schema(
-        dataframe, schema, schema_field_name_to_replace_value, column_name_to_include_flag
+        dataframe, schema, schema_field_name_to_replace_value, column_name_to_include
     )
 
     return parsed_dataframe, parsed_schema
@@ -105,7 +105,7 @@ def _check_single_column_schema_field_for_excludes(
     schema_field_name: str,
     unseen_excludes: Set[str],
     schema_field_name_to_replaced_value: Dict[str, Any],
-    column_name_to_include_flag: Dict[str, bool],
+    column_name_to_include: Dict[str, bool],
     unseen_column_names: Set[str],
 ) -> None:
     """
@@ -113,7 +113,7 @@ def _check_single_column_schema_field_for_excludes(
     """
     column_name: str = getattr(schema, schema_field_name)
     include_column: bool = column_name not in unseen_excludes
-    column_name_to_include_flag[column_name] = include_column
+    column_name_to_include[column_name] = include_column
     if not include_column:
         schema_field_name_to_replaced_value[schema_field_name] = None
         unseen_excludes.discard(column_name)
@@ -126,7 +126,7 @@ def _check_multi_column_schema_field_for_excludes(
     schema_field_name: str,
     unseen_excludes: Set[str],
     schema_field_name_to_replaced_value: Dict[str, Optional[List[str]]],
-    column_name_to_include_flag: Dict[str, bool],
+    column_name_to_include: Dict[str, bool],
     unseen_column_names: Set[str],
 ) -> None:
     """
@@ -139,7 +139,7 @@ def _check_multi_column_schema_field_for_excludes(
         excluded_column_names: List[str] = []
         for column_name in column_names:
             is_included_column = column_name not in unseen_excludes
-            column_name_to_include_flag[column_name] = is_included_column
+            column_name_to_include[column_name] = is_included_column
             if is_included_column:
                 included_column_names.append(column_name)
             else:
@@ -156,7 +156,7 @@ def _check_embedding_features_schema_field_for_excludes(
     embedding_features: EmbeddingFeatures,
     unseen_excludes: Set[str],
     schema_field_name_to_replace_value: Dict[str, Optional[EmbeddingFeatures]],
-    column_name_to_include_flag: Dict[str, bool],
+    column_name_to_include: Dict[str, bool],
     unseen_column_names: Set[str],
 ) -> None:
     """
@@ -180,7 +180,7 @@ def _check_embedding_features_schema_field_for_excludes(
                 embedding_column_name_mapping, embedding_field.name
             )
             if column_name is not None:
-                column_name_to_include_flag[column_name] = include_embedding_feature
+                column_name_to_include[column_name] = include_embedding_feature
                 if column_name != embedding_feature_name and column_name in unseen_excludes:
                     logger.warning(
                         f"Excluding embedding feature columns such as "
@@ -198,7 +198,7 @@ def _discover_feature_columns(
     dataframe: DataFrame,
     unseen_excludes: Set[str],
     schema_field_name_to_replace_value: Dict[str, Any],
-    column_name_to_include_flag: Dict[str, bool],
+    column_name_to_include: Dict[str, bool],
     unseen_column_names: Set[str],
 ) -> None:
     """
@@ -208,7 +208,7 @@ def _discover_feature_columns(
     for column_name in unseen_column_names:
         if column_name not in unseen_excludes:
             discovered_feature_column_names.append(column_name)
-            column_name_to_include_flag[column_name] = True
+            column_name_to_include[column_name] = True
         else:
             unseen_excludes.discard(column_name)
             logger.debug(f"excluded feature: {column_name}")
@@ -229,7 +229,7 @@ def _create_parsed_dataframe_and_schema(
     dataframe: DataFrame,
     schema: Schema,
     schema_field_name_to_replaced_value: Dict[str, Any],
-    column_name_to_include_flag: Dict[str, bool],
+    column_name_to_include: Dict[str, bool],
 ) -> Tuple[DataFrame, Schema]:
     """
     Creates new dataframe and schema objects to reflect exclusions and
@@ -237,7 +237,7 @@ def _create_parsed_dataframe_and_schema(
     """
     included_column_names: List[str] = []
     for column_name in dataframe.columns:
-        if column_name_to_include_flag.get(str(column_name), False):
+        if column_name_to_include.get(str(column_name), False):
             included_column_names.append(str(column_name))
     parsed_dataframe = dataframe[included_column_names]
     parsed_schema = replace(schema, excludes=None, **schema_field_name_to_replaced_value)
