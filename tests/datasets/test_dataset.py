@@ -6,12 +6,12 @@ from pandas import DataFrame
 from pytest import LogCaptureFixture
 
 from phoenix.datasets import EmbeddingColumnNames, Schema
-from phoenix.datasets.dataset import Dataset
+from phoenix.datasets.dataset import _parse_dataframe_and_schema
 
 
-class TestDatasetParseDataFrameAndSchema:
+class TestParseDataFrameAndSchema:
     """
-    Tests for `Dataset._parse_dataframe_and_schema`
+    Tests for `_parse_dataframe_and_schema`
     """
 
     _NUM_RECORDS = 5
@@ -460,7 +460,7 @@ class TestDatasetParseDataFrameAndSchema:
         should_log_warning_to_user: bool,
         caplog: LogCaptureFixture,
     ) -> None:
-        parsed_dataframe, parsed_schema = Dataset._parse_dataframe_and_schema(
+        parsed_dataframe, parsed_schema = _parse_dataframe_and_schema(
             dataframe=input_dataframe, schema=input_schema
         )
         assert parsed_dataframe.equals(expected_parsed_dataframe)

@@ -1,10 +1,20 @@
 import json
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 EmbeddingFeatures = Dict[str, "EmbeddingColumnNames"]
 SchemaFieldName = str
 SchemaFieldValue = Union[Optional[str], Optional[List[str]], Optional[EmbeddingFeatures]]
+
+MULTI_COLUMN_SCHEMA_FIELD_NAMES: Tuple[str, ...] = ("feature_column_names", "tag_column_names")
+SINGLE_COLUMN_SCHEMA_FIELD_NAMES: Tuple[str, ...] = (
+    "prediction_id_column_name",
+    "timestamp_column_name",
+    "prediction_label_column_name",
+    "prediction_score_column_name",
+    "actual_label_column_name",
+    "actual_score_column_name",
+)
 
 
 @dataclass(frozen=True)
