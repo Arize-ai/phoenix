@@ -17,8 +17,6 @@ from .api.context import Context
 from .api.loaders import Loaders, create_loaders
 from .api.schema import schema
 
-print("temp change to be reverted")
-
 
 class Static(StaticFiles):
     "Static file serving with a fallback to index.html"
