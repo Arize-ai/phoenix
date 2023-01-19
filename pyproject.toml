@@ -1,5 +1,5 @@
 [project]
-name = "arize-phoenix"
+name = "phoenix"
 description = "ML Observability in your notebook"
 readme = "README.md"
 requires-python = ">=3.8, <3.11"
@@ -43,7 +43,6 @@ dev = [
   "pytest-cov",
   "pytest-lazy-fixture",
   "strawberry-graphql[debug-server]",
-  "fastparquet",
   "pre-commit",
 ]
 
@@ -80,7 +79,6 @@ artifacts = ["src/phoenix/server/static"]
 
 [tool.hatch.envs.default]
 dependencies = [
-  "fastparquet",
   "pytest",
   "pytest-cov",
   "pytest-lazy-fixture",

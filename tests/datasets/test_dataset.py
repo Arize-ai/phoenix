@@ -15,160 +15,513 @@ from pytest_lazyfixture import lazy_fixture
 from phoenix.datasets.dataset import Dataset, EmbeddingColumnNames, Schema
 from phoenix.datasets.errors import DatasetError
 
-num_samples = 9
+import logging
+from dataclasses import replace
+
+import numpy as np
+from pandas import DataFrame
+from pytest import LogCaptureFixture
+
+from phoenix.datasets import EmbeddingColumnNames, Schema
+from phoenix.datasets.dataset import _parse_dataframe_and_schema
 
 
-@pytest.fixture
-def random_seed():
-    np.random.seed(0)
-    random.seed(0)
-
-
-@pytest.fixture
-def include_embeddings(request):
-    return request.param
-
-
-@pytest.fixture
-def expected_df(include_embeddings, random_seed):
-    embedding_dimension = 15
-
-    ts = pd.Timestamp.now()
-    data = {
-        "prediction_id": [str(n) for n in range(num_samples)],
-        "timestamp": [ts for _ in range(num_samples)],
-        "feature0": [random.random() for _ in range(num_samples)],
-        "feature1": [random.random() for _ in range(num_samples)],
-        "predicted_score": [random.random() for _ in range(num_samples)],
-    }
-    if include_embeddings:
-        data["embeddings"] = [np.random.rand(embedding_dimension) for _ in range(num_samples)]
-    return pd.DataFrame.from_dict(data)
-
-
-@pytest.fixture
-def pyarrow_parquet_path(expected_df, tmp_path):
-    path = tmp_path / "data_pyarrow.parquet"
-    expected_df.to_parquet(path, engine="pyarrow")
-    return path
-
-
-@pytest.fixture
-def fastparquet_path(include_embeddings, expected_df, tmp_path):
-    path = tmp_path / "data_fastparquet.parquet"
-    if include_embeddings:
-        expected_df["embeddings"] = expected_df["embeddings"].map(
-            list
-        )  # Necessary due to a quirk in the fastparquet writer.
-    expected_df.to_parquet(path, engine="fastparquet")
-    return path
-
-
-@pytest.fixture
-def schema(include_embeddings):
-    kwargs = {
-        "prediction_id_column_name": "prediction_id",
-        "timestamp_column_name": "timestamp",
-        "feature_column_names": ["feature0", "feature1"],
-        "prediction_score_column_name": "predicted_score",
-    }
-    if include_embeddings:
-        kwargs["embedding_feature_column_names"] = {
-            "embedding_feature_name": EmbeddingColumnNames(vector_column_name="embeddings")
-        }
-    return Schema(**kwargs)
-
-
-@pytest.mark.parametrize(
-    "include_embeddings, initialization_class_method, filepath",
-    [
-        (
-            True,
-            partial(Dataset.from_parquet, engine="pyarrow"),
-            lazy_fixture("pyarrow_parquet_path"),
-        ),
-        (
-            True,
-            partial(Dataset.from_parquet, engine="fastparquet"),
-            lazy_fixture("fastparquet_path"),
-        ),
-        (
-            False,
-            partial(Dataset.from_parquet, engine="pyarrow"),
-            lazy_fixture("pyarrow_parquet_path"),
-        ),
-        (
-            False,
-            partial(Dataset.from_parquet, engine="fastparquet"),
-            lazy_fixture("fastparquet_path"),
-        ),
-    ],
-    ids=[
-        "test_dataset_from_parquet_with_pyarrow_engine_correctly_loads_data_with_embeddings",
-        "test_dataset_from_parquet_with_fastparquet_engine_correctly_loads_data_with_embeddings",
-        "test_dataset_from_parquet_with_pyarrow_engine_correctly_loads_data_without_embeddings",
-        "test_dataset_from_parquet_with_fastparquet_engine_correctly_loads_data_without_embeddings",
-    ],
-)
-def test_dataset_from_parquet_correctly_load_data_with_and_without_embeddings(
-    include_embeddings,
-    initialization_class_method,
-    filepath,
-    expected_df,
-    schema,
-):
-    dataset_name = "dataset-name"
-    dataset = initialization_class_method(filepath=filepath, schema=schema, name=dataset_name)
-
-    assert dataset.name == dataset_name
-    for column_name in expected_df.columns:
-        assert column_name in dataset.dataframe
-        actual_column = dataset.dataframe[column_name]
-        expected_column = expected_df[column_name]
-        assert_column(column_name, actual_column, expected_column)
-
-
-def assert_column(column_name, actual_column, expected_column):
-    if column_name == "embeddings":
-        assert_embedding_columns_almost_equal(actual_column, expected_column)
-    elif column_name == "timestamp":
-        pd.testing.assert_series_equal(actual_column, expected_column)
-    elif column_name == "prediction_id":
-        pd.testing.assert_series_equal(actual_column, expected_column)
-    else:
-        assert_non_embedding_columns_almost_equal(actual_column, expected_column)
-
-
-def assert_non_embedding_columns_almost_equal(actual_column, expected_column):
+class TestParseDataFrameAndSchema:
     """
-    Rows of dataframe may have been permuted after ingestion, hence the values must be sorted to
-    compare.
+    Tests for `_parse_dataframe_and_schema`
     """
-    assert_array_almost_equal(actual_column.sort_values(), expected_column.sort_values())
 
+    _NUM_RECORDS = 5
+    _EMBEDDING_DIMENSION = 7
 
-def assert_embedding_columns_almost_equal(actual_embeddings_columns, expected_embeddings_column):
-    """
-    Rows of dataframe may have been permuted after ingestion, hence the embeddings are sorted by
-    their first entry before comparing.
-    """
-    actual_embeddings_columns = actual_embeddings_columns.sort_values(
-        key=lambda col: col.map(lambda emb: emb[0])
-    )
-    expected_embeddings_column = expected_embeddings_column.sort_values(
-        key=lambda col: col.map(lambda emb: emb[0])
-    )
-    for actual_embedding, expected_embedding in zip(
-        actual_embeddings_columns, expected_embeddings_column
+    def test_schema_contains_all_dataframe_columns_results_in_unchanged_output(self, caplog):
+        input_dataframe = DataFrame(
+            {
+                "prediction_id": list(range(self.num_records)),
+                "ts": list(range(self.num_records)),
+                "prediction_label": [f"label{index}" for index in range(self.num_records)],
+                "feature0": np.zeros(self.num_records),
+                "feature1": np.ones(self.num_records),
+                "tag0": ["tag" for _ in range(self.num_records)],
+            }
+        )
+        input_schema = Schema(
+            prediction_id_column_name="prediction_id",
+            timestamp_column_name="ts",
+            feature_column_names=["feature0", "feature1"],
+            tag_column_names=["tag0"],
+            prediction_label_column_name="prediction_label",
+            prediction_score_column_name=None,
+            actual_label_column_name=None,
+            actual_score_column_name=None,
+        )
+        self._run_function_and_check_output(
+            input_dataframe=input_dataframe,
+            input_schema=input_schema,
+            expected_parsed_dataframe=input_dataframe,
+            expected_parsed_schema=input_schema,
+            should_log_warning_to_user=False,
+            caplog=caplog,
+        )
+
+    def test_column_present_in_dataframe_but_missing_from_schema_is_dropped(self, caplog):
+        input_dataframe = DataFrame(
+            {
+                "prediction_id": list(range(self.num_records)),
+                "ts": list(range(self.num_records)),
+                "prediction_label": [f"label{index}" for index in range(self.num_records)],
+                "feature0": np.zeros(self.num_records),
+                "feature1": np.ones(self.num_records),
+                "tag0": ["tag" for _ in range(self.num_records)],
+            }
+        )
+        input_schema = Schema(
+            prediction_id_column_name="prediction_id",
+            feature_column_names=["feature0", "feature1"],
+            tag_column_names=["tag0"],
+            prediction_label_column_name="prediction_label",
+        )
+        self._run_function_and_check_output(
+            input_dataframe=input_dataframe,
+            input_schema=input_schema,
+            expected_parsed_dataframe=input_dataframe[
+                [col for col in input_dataframe.columns if col != "ts"]
+            ],
+            expected_parsed_schema=replace(input_schema, timestamp_column_name=None),
+            should_log_warning_to_user=False,
+            caplog=caplog,
+        )
+
+    def test_some_features_excluded_removes_excluded_features_columns_and_keeps_the_rest(
+        self, caplog
     ):
-        assert_array_almost_equal(actual_embedding, expected_embedding)
+        input_dataframe = DataFrame(
+            {
+                "prediction_id": list(range(self.num_records)),
+                "prediction_label": [f"label{index}" for index in range(self.num_records)],
+                "feature0": np.zeros(self.num_records),
+                "feature1": np.ones(self.num_records),
+                "tag0": ["tag" for _ in range(self.num_records)],
+            }
+        )
+        input_schema = Schema(
+            prediction_id_column_name="prediction_id",
+            feature_column_names=["feature0", "feature1"],
+            tag_column_names=["tag0"],
+            prediction_label_column_name="prediction_label",
+            excludes=["feature1"],
+        )
+        self._run_function_and_check_output(
+            input_dataframe=input_dataframe,
+            input_schema=input_schema,
+            expected_parsed_dataframe=input_dataframe[
+                ["prediction_id", "prediction_label", "feature0", "tag0"]
+            ],
+            expected_parsed_schema=replace(
+                input_schema,
+                prediction_label_column_name="prediction_label",
+                feature_column_names=["feature0"],
+                tag_column_names=["tag0"],
+                excludes=None,
+            ),
+            should_log_warning_to_user=False,
+            caplog=caplog,
+        )
+
+    def test_all_features_and_tags_excluded_sets_schema_features_and_tags_fields_to_none(
+        self, caplog
+    ):
+        input_dataframe = DataFrame(
+            {
+                "prediction_id": list(range(self.num_records)),
+                "prediction_label": [f"label{index}" for index in range(self.num_records)],
+                "feature0": np.zeros(self.num_records),
+                "feature1": np.ones(self.num_records),
+                "tag0": ["tag" for _ in range(self.num_records)],
+            }
+        )
+        excludes = ["feature0", "feature1", "tag0"]
+        input_schema = Schema(
+            prediction_id_column_name="prediction_id",
+            feature_column_names=["feature0", "feature1"],
+            tag_column_names=["tag0"],
+            prediction_label_column_name="prediction_label",
+            excludes=excludes,
+        )
+        self._run_function_and_check_output(
+            input_dataframe=input_dataframe,
+            input_schema=input_schema,
+            expected_parsed_dataframe=input_dataframe[["prediction_id", "prediction_label"]],
+            expected_parsed_schema=replace(
+                input_schema,
+                prediction_label_column_name="prediction_label",
+                feature_column_names=None,
+                tag_column_names=None,
+                excludes=None,
+            ),
+            should_log_warning_to_user=False,
+            caplog=caplog,
+        )
+
+    def test_excluded_single_column_schema_fields_set_to_none(self, caplog):
+        input_dataframe = DataFrame(
+            {
+                "prediction_id": list(range(self.num_records)),
+                "ts": list(range(self.num_records)),
+                "prediction_label": [f"label{index}" for index in range(self.num_records)],
+                "feature0": np.zeros(self.num_records),
+                "feature1": np.ones(self.num_records),
+            }
+        )
+        input_schema = Schema(
+            prediction_id_column_name="prediction_id",
+            timestamp_column_name="ts",
+            prediction_label_column_name="prediction_label",
+            feature_column_names=["feature0", "feature1"],
+            excludes=["prediction_label", "ts"],
+        )
+        self._run_function_and_check_output(
+            input_dataframe=input_dataframe,
+            input_schema=input_schema,
+            expected_parsed_dataframe=input_dataframe[["prediction_id", "feature0", "feature1"]],
+            expected_parsed_schema=replace(
+                input_schema,
+                prediction_label_column_name=None,
+                timestamp_column_name=None,
+                excludes=None,
+            ),
+            should_log_warning_to_user=False,
+            caplog=caplog,
+        )
+
+    def test_no_input_schema_features_and_no_excludes_discovers_features(self, caplog):
+        input_dataframe = DataFrame(
+            {
+                "prediction_id": list(range(self.num_records)),
+                "prediction_label": [f"label{index}" for index in range(self.num_records)],
+                "feature0": np.zeros(self.num_records),
+                "feature1": np.ones(self.num_records),
+                "feature2": np.ones(self.num_records) + 1,
+            }
+        )
+        input_schema = Schema(
+            prediction_id_column_name="prediction_id",
+            prediction_label_column_name="prediction_label",
+        )
+        self._run_function_and_check_output(
+            input_dataframe=input_dataframe,
+            input_schema=input_schema,
+            expected_parsed_dataframe=input_dataframe,
+            expected_parsed_schema=replace(
+                input_schema, feature_column_names=["feature0", "feature1", "feature2"]
+            ),
+            should_log_warning_to_user=False,
+            caplog=caplog,
+        )
+
+    def test_no_input_schema_features_and_list_of_excludes_discovers_non_excluded_features(
+        self, caplog
+    ):
+        input_dataframe = DataFrame(
+            {
+                "prediction_id": list(range(self.num_records)),
+                "prediction_label": [f"label{index}" for index in range(self.num_records)],
+                "feature0": np.zeros(self.num_records),
+                "feature1": np.ones(self.num_records),
+                "feature2": np.ones(self.num_records) + 1,
+                "tag0": ["tag0" for _ in range(self.num_records)],
+                "tag1": ["tag1" for _ in range(self.num_records)],
+            }
+        )
+        excludes = ["prediction_label", "feature1", "tag0"]
+        input_schema = Schema(
+            prediction_id_column_name="prediction_id",
+            tag_column_names=["tag0", "tag1"],
+            prediction_label_column_name="prediction_label",
+            excludes=excludes,
+        )
+        self._run_function_and_check_output(
+            input_dataframe=input_dataframe,
+            input_schema=input_schema,
+            expected_parsed_dataframe=input_dataframe[
+                ["prediction_id", "feature0", "feature2", "tag1"]
+            ],
+            expected_parsed_schema=replace(
+                input_schema,
+                prediction_label_column_name=None,
+                feature_column_names=["feature0", "feature2"],
+                tag_column_names=["tag1"],
+                excludes=None,
+            ),
+            should_log_warning_to_user=False,
+            caplog=caplog,
+        )
+
+    def test_excluded_column_not_contained_in_dataframe_logs_warning(self, caplog):
+        input_dataframe = DataFrame(
+            {
+                "prediction_id": list(range(self.num_records)),
+                "prediction_label": [f"label{index}" for index in range(self.num_records)],
+                "feature0": np.zeros(self.num_records),
+                "feature1": np.ones(self.num_records),
+                "feature2": np.ones(self.num_records) + 1,
+                "tag0": ["tag0" for _ in range(self.num_records)],
+                "tag1": ["tag1" for _ in range(self.num_records)],
+            }
+        )
+        excludes = ["prediction_label", "column_not_in_dataframe"]
+        input_schema = Schema(
+            prediction_id_column_name="prediction_id",
+            feature_column_names=["feature0", "feature1", "feature2"],
+            tag_column_names=["tag0", "tag1"],
+            prediction_label_column_name="prediction_label",
+            excludes=excludes,
+        )
+        self._run_function_and_check_output(
+            input_dataframe=input_dataframe,
+            input_schema=input_schema,
+            expected_parsed_dataframe=input_dataframe[
+                ["prediction_id", "feature0", "feature1", "feature2", "tag0", "tag1"]
+            ],
+            expected_parsed_schema=replace(
+                input_schema, prediction_label_column_name=None, excludes=None
+            ),
+            should_log_warning_to_user=True,
+            caplog=caplog,
+        )
+
+    def test_schema_includes_embedding_feature_has_all_embedding_columns_included(self, caplog):
+        input_dataframe = DataFrame(
+            {
+                "embedding_vector0": [
+                    np.zeros(self.embedding_dimension) for _ in range(self.num_records)
+                ],
+                "link_to_data0": [f"some-link{index}" for index in range(self.num_records)],
+                "raw_data_column0": [f"some-text{index}" for index in range(self.num_records)],
+            }
+        )
+        input_schema = Schema(
+            embedding_feature_column_names={
+                "embedding_feature0": EmbeddingColumnNames(
+                    vector_column_name="embedding_vector0",
+                    link_to_data_column_name="link_to_data0",
+                    raw_data_column_name="raw_data_column0",
+                ),
+            }
+        )
+        self._run_function_and_check_output(
+            input_dataframe=input_dataframe,
+            input_schema=input_schema,
+            expected_parsed_dataframe=input_dataframe,
+            expected_parsed_schema=input_schema,
+            should_log_warning_to_user=False,
+            caplog=caplog,
+        )
+
+    def test_embedding_columns_of_excluded_embedding_feature_are_removed(self, caplog):
+        input_dataframe = DataFrame(
+            {
+                "embedding_vector0": [
+                    np.zeros(self.embedding_dimension) for _ in range(self.num_records)
+                ],
+                "link_to_data0": [f"some-link{index}" for index in range(self.num_records)],
+                "raw_data_column0": [f"some-text{index}" for index in range(self.num_records)],
+                "embedding_vector1": [np.zeros(9) for _ in range(self.num_records)],
+                "link_to_data1": [f"some-link{index}" for index in range(self.num_records)],
+                "raw_data_column1": [f"some-text{index}" for index in range(self.num_records)],
+            }
+        )
+        input_schema = Schema(
+            embedding_feature_column_names={
+                "embedding_feature0": EmbeddingColumnNames(
+                    vector_column_name="embedding_vector0",
+                    link_to_data_column_name="link_to_data0",
+                    raw_data_column_name="raw_data_column0",
+                ),
+                "embedding_feature1": EmbeddingColumnNames(
+                    vector_column_name="embedding_vector1",
+                    link_to_data_column_name="link_to_data1",
+                    raw_data_column_name="raw_data_column1",
+                ),
+            },
+            excludes=["embedding_feature0"],
+        )
+        self._run_function_and_check_output(
+            input_dataframe=input_dataframe,
+            input_schema=input_schema,
+            expected_parsed_dataframe=input_dataframe[
+                ["embedding_vector1", "link_to_data1", "raw_data_column1"]
+            ],
+            expected_parsed_schema=replace(
+                input_schema,
+                embedding_feature_column_names={
+                    "embedding_feature1": EmbeddingColumnNames(
+                        vector_column_name="embedding_vector1",
+                        link_to_data_column_name="link_to_data1",
+                        raw_data_column_name="raw_data_column1",
+                    )
+                },
+                excludes=None,
+            ),
+            should_log_warning_to_user=False,
+            caplog=caplog,
+        )
+
+    def test_excluding_all_embedding_features_sets_schema_embedding_field_to_none(self, caplog):
+        input_dataframe = DataFrame(
+            {
+                "embedding_vector0": [
+                    np.zeros(self.embedding_dimension) for _ in range(self.num_records)
+                ],
+                "link_to_data0": [f"some-link{index}" for index in range(self.num_records)],
+                "raw_data_column0": [f"some-text{index}" for index in range(self.num_records)],
+            }
+        )
+        input_schema = Schema(
+            embedding_feature_column_names={
+                "embedding_feature0": EmbeddingColumnNames(
+                    vector_column_name="embedding_vector0",
+                    link_to_data_column_name="link_to_data0",
+                    raw_data_column_name="raw_data_column0",
+                ),
+            },
+            excludes=["embedding_feature0"],
+        )
+        self._run_function_and_check_output(
+            input_dataframe=input_dataframe,
+            input_schema=input_schema,
+            expected_parsed_dataframe=input_dataframe[[]],
+            expected_parsed_schema=replace(
+                input_schema,
+                embedding_feature_column_names=None,
+                excludes=None,
+            ),
+            should_log_warning_to_user=False,
+            caplog=caplog,
+        )
+
+    def test_excluding_an_embedding_column_rather_than_the_embedding_feature_name_logs_warning(
+        self, caplog
+    ):
+        input_dataframe = DataFrame(
+            {
+                "embedding_vector0": [
+                    np.zeros(self.embedding_dimension) for _ in range(self.num_records)
+                ],
+                "link_to_data0": [f"some-link{index}" for index in range(self.num_records)],
+                "raw_data_column0": [f"some-text{index}" for index in range(self.num_records)],
+            }
+        )
+        input_schema = Schema(
+            embedding_feature_column_names={
+                "embedding_feature0": EmbeddingColumnNames(
+                    vector_column_name="embedding_vector0",
+                    link_to_data_column_name="link_to_data0",
+                    raw_data_column_name="raw_data_column0",
+                ),
+            },
+            excludes=["embedding_vector0"],
+        )
+        self._run_function_and_check_output(
+            input_dataframe=input_dataframe,
+            input_schema=input_schema,
+            expected_parsed_dataframe=input_dataframe,
+            expected_parsed_schema=replace(
+                input_schema,
+                excludes=None,
+            ),
+            should_log_warning_to_user=True,
+            caplog=caplog,
+        )
+
+    def test_excluding_embedding_feature_with_same_name_as_embedding_column_does_not_warn_user(
+        self,
+        caplog,
+    ):
+        input_dataframe = DataFrame(
+            {
+                "embedding0": [np.zeros(self.embedding_dimension) for _ in range(self.num_records)],
+                "link_to_data0": [f"some-link{index}" for index in range(self.num_records)],
+                "raw_data_column0": [f"some-text{index}" for index in range(self.num_records)],
+            }
+        )
+        input_schema = Schema(
+            embedding_feature_column_names={
+                "embedding0": EmbeddingColumnNames(
+                    vector_column_name="embedding0",
+                    link_to_data_column_name="link_to_data0",
+                    raw_data_column_name="raw_data_column0",
+                ),
+            },
+            excludes=["embedding0"],
+        )
+        self._run_function_and_check_output(
+            input_dataframe=input_dataframe,
+            input_schema=input_schema,
+            expected_parsed_dataframe=input_dataframe[[]],
+            expected_parsed_schema=replace(
+                input_schema,
+                embedding_feature_column_names=None,
+                excludes=None,
+            ),
+            should_log_warning_to_user=False,
+            caplog=caplog,
+        )
+
+    def _run_function_and_check_output(
+        self,
+        input_dataframe: DataFrame,
+        input_schema: Schema,
+        expected_parsed_dataframe: DataFrame,
+        expected_parsed_schema: Schema,
+        should_log_warning_to_user: bool,
+        caplog: LogCaptureFixture,
+    ) -> None:
+        parsed_dataframe, parsed_schema = _parse_dataframe_and_schema(
+            dataframe=input_dataframe, schema=input_schema
+        )
+        assert parsed_dataframe.equals(expected_parsed_dataframe)
+        assert parsed_schema == expected_parsed_schema
+        assert self._warning_logged(caplog) is should_log_warning_to_user
+
+    @staticmethod
+    def _warning_logged(caplog: LogCaptureFixture) -> bool:
+        """
+        Scans captured logs to check whether a warning is logged to the user
+        """
+        for record in caplog.records:
+            if logging.WARNING == record.levelno:
+                return True
+        return False
+
+    @property
+    def num_records(self):
+        return self._NUM_RECORDS
+
+    @property
+    def embedding_dimension(self):
+        return self._EMBEDDING_DIMENSION
 
 
-def random_uuids():
-    return [str(uuid.uuid4()) for _ in range(num_samples)]
+  num_samples = 9
 
 
-@pytest.mark.parametrize(
+  @pytest.fixture
+  def random_seed():
+      np.random.seed(0)
+      random.seed(0)
+
+
+  @pytest.fixture
+  def include_embeddings(request):
+      return request.param
+
+
+  def random_uuids():
+      return [str(uuid.uuid4()) for _ in range(num_samples)]
+
+
+  @pytest.mark.parametrize(
     "input_df, input_schema",
     [
         (
@@ -227,6 +580,8 @@ def random_uuids():
     ],
     indirect=True,
 )
+
+
 def test_dataset_normalization(input_df, input_schema) -> None:
     dataset = Dataset(dataframe=input_df, schema=input_schema)
 
@@ -299,3 +654,4 @@ def input_schema(request):
     }
     schema.update(request.param)
     return Schema(**schema)
+    

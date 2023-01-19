@@ -39,9 +39,11 @@ if __name__ == "__main__":
     _write_pid_file()
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--port", type=int, default=config.port)
     parser.add_argument("--primary", type=str)
     parser.add_argument("--reference", type=str)
+    parser.add_argument("--port", type=int, default=config.port)
+    parser.add_argument("--graphiql", action="store_true")
+    parser.add_argument("--debug", action="store_true")
     args = parser.parse_args()
 
     # Validate the required args
@@ -58,8 +60,8 @@ if __name__ == "__main__":
     app = create_app(
         primary_dataset_name=args.primary,
         reference_dataset_name=args.reference,
-        debug=config.debug,
-        graphiql=config.graphiql,
+        debug=args.debug,
+        graphiql=args.graphiql,
     )
 
     uvicorn.run(app, port=args.port)
