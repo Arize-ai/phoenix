@@ -11,7 +11,7 @@ from .schema import Schema
 
 def validate_dataset_inputs(dataframe: DataFrame, schema: Schema) -> List[err.ValidationError]:
     general_checks = chain(
-        check_missing_columns(dataframe, schema), check_column_type(dataframe, schema)
+        check_missing_columns(dataframe, schema), check_column_types(dataframe, schema)
     )
     return list(general_checks)
 
