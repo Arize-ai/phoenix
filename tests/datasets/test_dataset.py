@@ -3,23 +3,17 @@ Test dataset
 """
 
 import logging
-import random
 import uuid
 from dataclasses import replace
 
 import numpy as np
 import pandas as pd
-import pytest
 from pandas import DataFrame
 from pytest import LogCaptureFixture
 
-from phoenix.datasets.dataset import (
-    Dataset,
-    EmbeddingColumnNames,
-    Schema,
-    _parse_dataframe_and_schema,
-)
-from phoenix.datasets.errors import DatasetError
+from phoenix.datasets.dataset import Dataset, EmbeddingColumnNames, Schema
+
+# from phoenix.datasets.errors import DatasetError
 
 
 class TestParseDataFrameAndSchema:
