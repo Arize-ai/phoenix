@@ -17,7 +17,7 @@ def validate_dataset_inputs(dataframe: DataFrame, schema: Schema) -> List[err.Va
 
 
 def check_column_types(dataframe: DataFrame, schema: Schema) -> List[err.ValidationError]:
-    wrong_type_cols: str = []
+    wrong_type_cols: List[str] = []
     if schema.timestamp_column_name is not None:
         if not (
             is_numeric_dtype(dataframe.dtypes[schema.timestamp_column_name])
