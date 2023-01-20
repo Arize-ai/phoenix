@@ -3,10 +3,9 @@ import logging
 import os
 import sys
 import uuid
-
 from copy import deepcopy
 from dataclasses import fields, replace
-from typing import Any, Dict, List, Optional, Set, Tuple, Union, Callable, Literal
+from typing import Any, Callable, Dict, List, Literal, Optional, Set, Tuple, Union
 
 from pandas import DataFrame, Series, Timestamp, read_parquet, to_datetime
 from pandas.api.types import is_numeric_dtype
@@ -184,52 +183,6 @@ class Dataset:
             schema_json = schema_file.read()
         schema = Schema.from_json(schema_json)
         return cls(df, schema, name, persist_to_disc=False)
-
-
-    @staticmethod
-    def _parse_dataframe(dataframe: DataFrame, schema: Schema) -> DataFrame:
-        cols_to_add: Dict[str, Callable[[Any], Union[Timestamp, str]]] = dict()
-        if schema.timestamp_column_name is None:
-            now = Timestamp.utcnow()
-            schema = dataclasses.replace(schema, timestamp_column_name="timestamp")
-            cols_to_add["timestamp"] = lambda _: now
-        elif is_numeric_dtype(dataframe.dtypes[schema.timestamp_column_name]):
-            dataframe[schema.timestamp_column_name] = to_datetime(
-                dataframe[schema.timestamp_column_name], unit="ms"
-            )
-
-        if schema.prediction_id_column_name is None:
-            schema = dataclasses.replace(schema, prediction_id_column_name="prediction_id")
-            cols_to_add["prediction_id"] = lambda _: str(uuid.uuid4())
-        elif is_numeric_dtype(dataframe.dtypes[schema.prediction_id_column_name]):
-            dataframe["prediction_id"] = dataframe["prediction_id"].apply(str)
-
-        if len(cols_to_add) > 0:
-            dataframe = dataframe.assign(**cols_to_add)
-
-        schema_cols = [
-            schema.timestamp_column_name,
-            schema.prediction_id_column_name,
-            schema.prediction_label_column_name,
-            schema.prediction_score_column_name,
-            schema.actual_label_column_name,
-            schema.actual_score_column_name,
-        ]
-        # Append the feature column names to the columns if present
-        if schema.feature_column_names is not None:
-            schema_cols += schema.feature_column_names
-
-        if schema.embedding_feature_column_names is not None:
-            for emb_feat_cols in schema.embedding_feature_column_names.values():
-                schema_cols.append(emb_feat_cols.vector_column_name)
-                if emb_feat_cols.raw_data_column_name:
-                    schema_cols.append(emb_feat_cols.raw_data_column_name)
-                if emb_feat_cols.link_to_data_column_name:
-                    schema_cols.append(emb_feat_cols.link_to_data_column_name)
-
-        drop_cols = [col for col in dataframe.columns if col not in schema_cols]
-        return dataframe.drop(columns=drop_cols)
-
 
     def to_disc(self) -> None:
         """writes the data and schema to disc"""
@@ -463,6 +416,24 @@ def _create_parsed_dataframe_and_schema(
     for column_name in dataframe.columns:
         if column_name_to_include.get(str(column_name), False):
             included_column_names.append(str(column_name))
-    parsed_dataframe = dataframe[included_column_names]
+    parsed_dataframe = dataframe[included_column_names].copy()
     parsed_schema = replace(schema, excludes=None, **schema_patch)
+
+    if parsed_schema.timestamp_column_name is None:
+        now = Timestamp.utcnow()
+        parsed_schema = dataclasses.replace(parsed_schema, timestamp_column_name="timestamp")
+        parsed_dataframe["timestamp"] = now
+    elif is_numeric_dtype(dataframe.dtypes[schema.timestamp_column_name]):
+        parsed_dataframe[schema.timestamp_column_name] = parsed_dataframe[schema.timestamp_column_name].apply(
+            lambda x: to_datetime(x, unit="ms")
+        )
+
+    if parsed_schema.prediction_id_column_name is None:
+        parsed_schema = dataclasses.replace(
+            parsed_schema, prediction_id_column_name="prediction_id"
+        )
+        parsed_dataframe["prediction_id"] = parsed_dataframe.apply(lambda _: str(uuid.uuid4()))
+    elif is_numeric_dtype(parsed_dataframe.dtypes[schema.prediction_id_column_name]):
+        parsed_dataframe[schema.prediction_id_column_name] = parsed_dataframe[schema.prediction_id_column_name].astype(str)
+    print(parsed_dataframe.to_string())
     return parsed_dataframe, parsed_schema
