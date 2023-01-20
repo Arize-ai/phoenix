@@ -419,23 +419,23 @@ def _create_parsed_dataframe_and_schema(
     parsed_dataframe = dataframe[included_column_names].copy()
     parsed_schema = replace(schema, excludes=None, **schema_patch)
 
-    if parsed_schema.timestamp_column_name is None:
+    ts_col_name = parsed_schema.timestamp_column_name
+    if ts_col_name is None:
         now = Timestamp.utcnow()
         parsed_schema = dataclasses.replace(parsed_schema, timestamp_column_name="timestamp")
         parsed_dataframe["timestamp"] = now
-    elif is_numeric_dtype(dataframe.dtypes[schema.timestamp_column_name]):
-        parsed_dataframe[schema.timestamp_column_name] = parsed_dataframe[
-            schema.timestamp_column_name
-        ].apply(lambda x: to_datetime(x, unit="ms"))
+    elif is_numeric_dtype(dataframe.dtypes[ts_col_name]):
+        parsed_dataframe[ts_col_name] = parsed_dataframe[ts_col_name].apply(
+            lambda x: to_datetime(x, unit="ms")
+        )
 
-    if parsed_schema.prediction_id_column_name is None:
+    pred_col_name = parsed_schema.prediction_id_column_name
+    if pred_col_name is None:
         parsed_schema = dataclasses.replace(
             parsed_schema, prediction_id_column_name="prediction_id"
         )
         parsed_dataframe["prediction_id"] = parsed_dataframe.apply(lambda _: str(uuid.uuid4()))
-    elif is_numeric_dtype(parsed_dataframe.dtypes[schema.prediction_id_column_name]):
-        parsed_dataframe[schema.prediction_id_column_name] = parsed_dataframe[
-            schema.prediction_id_column_name
-        ].astype(str)
+    elif is_numeric_dtype(parsed_dataframe.dtypes[pred_col_name]):
+        parsed_dataframe[pred_col_name] = parsed_dataframe[pred_col_name].astype(str)
 
     return parsed_dataframe, parsed_schema
