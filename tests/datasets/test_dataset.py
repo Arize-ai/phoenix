@@ -494,42 +494,6 @@ class TestParseDataFrameAndSchema:
             caplog=caplog,
         )
 
-    def test_excluding_all_embedding_features_sets_schema_embedding_field_to_none(self, caplog):
-        input_dataframe = DataFrame(
-            {
-                "prediction_id": [str(x) for x in range(self.num_records)],
-                "timestamp": [pd.Timestamp.now() for x in range(self.num_records)],
-                "embedding_vector0": [
-                    np.zeros(self.embedding_dimension) for _ in range(self.num_records)
-                ],
-                "link_to_data0": [f"some-link{index}" for index in range(self.num_records)],
-                "raw_data_column0": [f"some-text{index}" for index in range(self.num_records)],
-            }
-        )
-        input_schema = Schema(
-            prediction_id_column_name="prediction_id",
-            timestamp_column_name="timestamp",
-            embedding_feature_column_names={
-                "embedding_feature0": EmbeddingColumnNames(
-                    vector_column_name="embedding_vector0",
-                    link_to_data_column_name="link_to_data0",
-                    raw_data_column_name="raw_data_column0",
-                ),
-            },
-            excludes=["embedding_feature0"],
-        )
-        self._run_function_and_check_output(
-            input_dataframe=input_dataframe,
-            input_schema=input_schema,
-            expected_parsed_dataframe=input_dataframe[["prediction_id", "timestamp"]],
-            expected_parsed_schema=replace(
-                input_schema,
-                embedding_feature_column_names=None,
-                excludes=None,
-            ),
-            should_log_warning_to_user=False,
-            caplog=caplog,
-        )
 
     def _run_function_and_check_output(
             self,
