@@ -435,5 +435,5 @@ def _create_parsed_dataframe_and_schema(
         parsed_dataframe["prediction_id"] = parsed_dataframe.apply(lambda _: str(uuid.uuid4()))
     elif is_numeric_dtype(parsed_dataframe.dtypes[schema.prediction_id_column_name]):
         parsed_dataframe[schema.prediction_id_column_name] = parsed_dataframe[schema.prediction_id_column_name].astype(str)
-    print(parsed_dataframe.to_string())
+
     return parsed_dataframe, parsed_schema
