@@ -1,15 +1,158 @@
-import argparse
 import atexit
 import errno
 import logging
 import os
+from argparse import ArgumentParser, Namespace
+from copy import deepcopy
+from dataclasses import dataclass
+from typing import Tuple
 
 import uvicorn
+from pandas import read_parquet
 
 import phoenix.config as config
+from phoenix.datasets import Dataset, EmbeddingColumnNames, Schema
 from phoenix.server.app import create_app
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class _Fixture:
+    name: str
+    schema: Schema
+    primary_dataset_url: str
+    reference_dataset_url: str
+
+
+_FIXTURE_URL_PREFIX = "https://storage.googleapis.com/arize-assets/phoenix/datasets/"
+_FIXTURES: Tuple[_Fixture] = (
+    _Fixture(
+        name="sentiment_classification_language_drift",
+        schema=Schema(
+            timestamp_column_name="prediction_ts",
+            feature_column_names=[
+                "reviewer_age",
+                "reviewer_gender",
+                "product_category",
+                "language",
+            ],
+            embedding_feature_column_names={
+                "text_embedding": EmbeddingColumnNames(vector_column_name="text_vector")
+            },
+        ),
+        primary_dataset_url=os.path.join(
+            _FIXTURE_URL_PREFIX,
+            "unstructured/nlp/sentiment_classification_language_drift_production.parquet",
+        ),
+        reference_dataset_url=os.path.join(
+            _FIXTURE_URL_PREFIX,
+            "unstructured/nlp/sentiment_classification_language_drift_training.parquet",
+        ),
+    ),
+)
+
+
+def _parse_arguments_and_download_fixtures_if_necessary(
+    arguments: Namespace,
+) -> Namespace:
+    """
+    Returns a new set of parsed command line arguments and downloads fixtures if
+    specified by name and not found locally.
+
+    Primary and reference datasets can be specified either explicitly by naming
+    existing datasets or implicitly by passing the name of a fixture. If a
+    fixture is specified and is not found locally, the corresponding primary and
+    reference datasets will be downloaded. Returns a parsed `Namespace` object
+    with updated primary and reference dataset names and with the fixture
+    argument removed.
+    """
+    primary_dataset_name: str
+    reference_dataset_name: str
+    provided_primary_and_reference_flags_only = (
+        isinstance(arguments.primary, str)
+        and isinstance(arguments.reference, str)
+        and arguments.fixture is None
+    )
+    provided_fixture_flag_only = (
+        arguments.primary is None
+        and arguments.reference is None
+        and isinstance(arguments.fixture, str)
+    )
+    if provided_primary_and_reference_flags_only:
+        primary_dataset_name = arguments.primary
+        reference_dataset_name = arguments.reference
+    elif provided_fixture_flag_only:
+        (
+            primary_dataset_name,
+            reference_dataset_name,
+        ) = _download_fixture_if_missing(fixture_name=arguments.fixture)
+    else:
+        raise ValueError(
+            'Primary and reference datasets can be specified either explicitly via the "--primary" '
+            'and "--reference" flags (in which case the "--fixture" flag should be omitted) or '
+            'implicitly via the "--fixture" flag (in which case the "--primary" and "--reference" '
+            "flags should be omitted)."
+        )
+    parsed_arguments = deepcopy(arguments)
+    parsed_arguments.primary = primary_dataset_name
+    parsed_arguments.reference = reference_dataset_name
+    parsed_arguments.fixture = None
+    return parsed_arguments
+
+
+def _download_fixture_if_missing(fixture_name: str) -> Tuple[str, str]:
+    """
+    Downloads primary and reference datasets for a fixture if they are not found
+    locally. Returns the names of the primary and reference datasets.
+    """
+    fixture = _find_fixture_by_name(fixture_name=fixture_name)
+    primary_dataset_name = f"{fixture_name}_primary"
+    reference_dataset_name = f"{fixture_name}_reference"
+    _download_and_persist_dataset_if_missing(
+        dataset_name=primary_dataset_name,
+        dataset_url=fixture.primary_dataset_url,
+        schema=fixture.schema,
+    )
+    _download_and_persist_dataset_if_missing(
+        dataset_name=reference_dataset_name,
+        dataset_url=fixture.reference_dataset_url,
+        schema=fixture.schema,
+    )
+    return primary_dataset_name, reference_dataset_name
+
+
+def _find_fixture_by_name(fixture_name: str) -> _Fixture:
+    """
+    Returns the fixture whose name matches the input name. Raises a ValueError
+    if the input fixture name does not match any known fixture names.
+    """
+    for fixture in _FIXTURES:
+        if fixture.name == fixture_name:
+            return fixture
+    raise ValueError(f'"{fixture_name}" is not a valid fixture name.')
+
+
+def _download_and_persist_dataset_if_missing(
+    dataset_name: str, dataset_url: str, schema: Schema
+) -> None:
+    """
+    Downloads a dataset from the given URL if it is not found locally.
+    """
+    try:
+        Dataset.from_name(dataset_name)
+        return
+    except FileNotFoundError:
+        pass
+
+    print(f'Downloading dataset: "{dataset_name}"')
+    Dataset(
+        dataframe=read_parquet(dataset_url),
+        schema=schema,
+        name=dataset_name,
+        persist_to_disc=True,
+    )
+    print("Download complete.")
 
 
 def _write_pid_file() -> None:
@@ -38,19 +181,17 @@ if __name__ == "__main__":
     atexit.register(_remove_pid_file)
     _write_pid_file()
 
-    parser = argparse.ArgumentParser()
+    parser = ArgumentParser()
     parser.add_argument("--primary", type=str)
     parser.add_argument("--reference", type=str)
+    parser.add_argument("--fixture", type=str, choices=[fixture.name for fixture in _FIXTURES])
     parser.add_argument("--port", type=int, default=config.port)
     parser.add_argument("--graphiql", action="store_true")
     parser.add_argument("--debug", action="store_true")
     args = parser.parse_args()
 
-    # Validate the required args
-    if args.primary is None:
-        raise ValueError("Primary dataset is required via the --primary flag")
-    if args.reference is None:
-        raise ValueError("Reference dataset is required via the --reference flag")
+    args = _parse_arguments_and_download_fixtures_if_necessary(args)
+
     print(
         f"""Starting Phoenix App
             primary dataset: {args.primary}
