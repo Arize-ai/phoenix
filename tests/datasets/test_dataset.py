@@ -151,7 +151,9 @@ class TestParseDataFrameAndSchema:
         self._run_function_and_check_output(
             input_dataframe=input_dataframe,
             input_schema=input_schema,
-            expected_parsed_dataframe=input_dataframe[["prediction_id", "timestamp", "prediction_label"]],
+            expected_parsed_dataframe=input_dataframe[
+                ["prediction_id", "timestamp", "prediction_label"]
+            ],
             expected_parsed_schema=replace(
                 input_schema,
                 prediction_label_column_name="prediction_label",
@@ -183,7 +185,9 @@ class TestParseDataFrameAndSchema:
         self._run_function_and_check_output(
             input_dataframe=input_dataframe,
             input_schema=input_schema,
-            expected_parsed_dataframe=input_dataframe[["prediction_id", "timestamp", "feature0", "feature1"]],
+            expected_parsed_dataframe=input_dataframe[
+                ["prediction_id", "timestamp", "feature0", "feature1"]
+            ],
             expected_parsed_schema=replace(
                 input_schema,
                 prediction_label_column_name=None,
@@ -317,7 +321,7 @@ class TestParseDataFrameAndSchema:
                     link_to_data_column_name="link_to_data0",
                     raw_data_column_name="raw_data_column0",
                 ),
-            }
+            },
         )
         self._run_function_and_check_output(
             input_dataframe=input_dataframe,
@@ -364,7 +368,13 @@ class TestParseDataFrameAndSchema:
             input_dataframe=input_dataframe,
             input_schema=input_schema,
             expected_parsed_dataframe=input_dataframe[
-                ["prediction_id", "timestamp", "embedding_vector1", "link_to_data1", "raw_data_column1"]
+                [
+                    "prediction_id",
+                    "timestamp",
+                    "embedding_vector1",
+                    "link_to_data1",
+                    "raw_data_column1",
+                ]
             ],
             expected_parsed_schema=replace(
                 input_schema,
@@ -494,15 +504,14 @@ class TestParseDataFrameAndSchema:
             caplog=caplog,
         )
 
-
     def _run_function_and_check_output(
-            self,
-            input_dataframe: DataFrame,
-            input_schema: Schema,
-            expected_parsed_dataframe: DataFrame,
-            expected_parsed_schema: Schema,
-            should_log_warning_to_user: bool,
-            caplog: LogCaptureFixture,
+        self,
+        input_dataframe: DataFrame,
+        input_schema: Schema,
+        expected_parsed_dataframe: DataFrame,
+        expected_parsed_schema: Schema,
+        should_log_warning_to_user: bool,
+        caplog: LogCaptureFixture,
     ) -> None:
         dataset = Dataset(dataframe=input_dataframe, schema=input_schema)
         parsed_dataframe = dataset.dataframe
@@ -563,7 +572,9 @@ class TestParseDataFrameAndSchema:
         )
 
         dataset = Dataset(dataframe=input_dataframe, schema=input_schema)
-        dataset.dataframe.drop(columns=["timestamp"]).equals(input_dataframe.drop(columns=["timestamp"]))
+        dataset.dataframe.drop(columns=["timestamp"]).equals(
+            input_dataframe.drop(columns=["timestamp"])
+        )
 
     def test_dataset_normalization_prediction_id_integer_to_string(self):
         input_dataframe = DataFrame(
@@ -584,7 +595,9 @@ class TestParseDataFrameAndSchema:
         )
 
         dataset = Dataset(dataframe=input_dataframe, schema=input_schema)
-        dataset.dataframe.drop(columns=["prediction_id"]).equals(input_dataframe.drop(columns=["prediction_id"]))
+        dataset.dataframe.drop(columns=["prediction_id"]).equals(
+            input_dataframe.drop(columns=["prediction_id"])
+        )
 
     def test_dataset_normalization_columns_add_missing_prediction_id(self):
         input_dataframe = DataFrame(
@@ -628,7 +641,6 @@ class TestParseDataFrameAndSchema:
         assert "timestamp" in dataset.dataframe
         assert dataset.dataframe.dtypes["timestamp"], "datetime[nz]"
 
-
     def test_dataset_normalization_columns_missing_prediction_id_and_timestamp(self):
         input_dataframe = DataFrame(
             {
@@ -646,7 +658,6 @@ class TestParseDataFrameAndSchema:
         dataset.dataframe.equals(input_dataframe)
         assert "timestamp" in dataset.dataframe
         assert dataset.dataframe.dtypes["timestamp"], "datetime[nz]"
-
 
     def random_uuids(self):
         return [str(uuid.uuid4()) for _ in range(self.num_records)]
