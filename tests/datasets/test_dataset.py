@@ -542,7 +542,7 @@ class TestParseDataFrameAndSchema:
         )
 
         dataset = Dataset(dataframe=input_dataframe, schema=input_schema)
-        self.validate_normalization(dataset, input_dataframe)
+        dataset.dataframe.equals(input_dataframe)
 
     def test_dataset_normalization_timestamp_integer_to_datetime(self):
         input_dataframe = DataFrame(
@@ -563,7 +563,7 @@ class TestParseDataFrameAndSchema:
         )
 
         dataset = Dataset(dataframe=input_dataframe, schema=input_schema)
-        self.validate_normalization(dataset, input_dataframe)
+        dataset.dataframe.drop(columns=["timestamp"]).equals(input_dataframe.drop(columns=["timestamp"]))
 
     def test_dataset_normalization_prediction_id_integer_to_string(self):
         input_dataframe = DataFrame(
@@ -584,7 +584,7 @@ class TestParseDataFrameAndSchema:
         )
 
         dataset = Dataset(dataframe=input_dataframe, schema=input_schema)
-        self.validate_normalization(dataset, input_dataframe)
+        dataset.dataframe.drop(columns=["prediction_id"]).equals(input_dataframe.drop(columns=["prediction_id"]))
 
     def test_dataset_normalization_columns_add_missing_prediction_id(self):
         input_dataframe = DataFrame(
@@ -604,7 +604,9 @@ class TestParseDataFrameAndSchema:
         )
 
         dataset = Dataset(dataframe=input_dataframe, schema=input_schema)
-        self.validate_normalization(dataset, input_dataframe)
+        dataset.dataframe.equals(input_dataframe)
+        assert "prediction_id" in dataset.dataframe
+        assert dataset.dataframe.dtypes["prediction_id"], "string"
 
     def test_dataset_normalization_columns_add_missing_timestamp(self):
         input_dataframe = DataFrame(
@@ -622,7 +624,10 @@ class TestParseDataFrameAndSchema:
         )
 
         dataset = Dataset(dataframe=input_dataframe, schema=input_schema)
-        self.validate_normalization(dataset, input_dataframe)
+        dataset.dataframe.equals(input_dataframe)
+        assert "timestamp" in dataset.dataframe
+        assert dataset.dataframe.dtypes["timestamp"], "datetime[nz]"
+
 
     def test_dataset_normalization_columns_missing_prediction_id_and_timestamp(self):
         input_dataframe = DataFrame(
@@ -638,21 +643,10 @@ class TestParseDataFrameAndSchema:
         )
 
         dataset = Dataset(dataframe=input_dataframe, schema=input_schema)
-        self.validate_normalization(dataset, input_dataframe)
-
-    @staticmethod
-    def validate_normalization(dataset, input_dataframe):
-        for column_name in input_dataframe:
-            assert column_name in dataset.dataframe.columns
-            actual_column = dataset.dataframe[column_name]
-            expected_column = input_dataframe[column_name]
-            pd.testing.assert_series_equal(actual_column, expected_column)
-
-        # Ensure normalized columns exist if they did not exist in the initial normalization_df
+        dataset.dataframe.equals(input_dataframe)
         assert "timestamp" in dataset.dataframe
         assert dataset.dataframe.dtypes["timestamp"], "datetime[nz]"
-        assert "prediction_id" in dataset.dataframe
-        assert dataset.dataframe.dtypes["prediction_id"], "string"
+
 
     def random_uuids(self):
         return [str(uuid.uuid4()) for _ in range(self.num_records)]
