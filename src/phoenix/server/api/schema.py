@@ -31,8 +31,8 @@ class Query:
             dimension = info.context.model.dimensions[node_id]
             return to_gql_dimension(node_id, dimension)
         elif type_name == "EmbeddingDimension":
-            dimension = info.context.model.embedding_dimensions[node_id]
-            return to_gql_embedding_dimension(node_id, dimension)
+            embedding_dimension = info.context.model.embedding_dimensions[node_id]
+            return to_gql_embedding_dimension(node_id, embedding_dimension)
 
         raise Exception(f"Unknown node type: {type}")
 
