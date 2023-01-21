@@ -4,6 +4,7 @@ from strawberry.types import Info
 from .context import Context
 from .types.Dataset import Dataset
 from .types.Dimension import to_gql_dimension
+from .types.EmbeddingDimension import to_gql_embedding_dimension
 from .types.Model import Model
 from .types.node import GlobalID, Node, from_global_id
 
@@ -29,6 +30,9 @@ class Query:
         if type_name == "Dimension":
             dimension = info.context.model.dimensions[node_id]
             return to_gql_dimension(node_id, dimension)
+        elif type_name == "EmbeddingDimension":
+            dimension = info.context.model.embedding_dimensions[node_id]
+            return to_gql_embedding_dimension(node_id, dimension)
 
         raise Exception(f"Unknown node type: {type}")
 
