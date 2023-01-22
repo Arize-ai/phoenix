@@ -1,12 +1,14 @@
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 from pandas.api.types import is_numeric_dtype, is_object_dtype
 
 from phoenix.datasets import Dataset
+from phoenix.datasets.schema import EmbeddingFeatures
 
 from .dimension import Dimension
 from .dimension_data_type import DimensionDataType
 from .dimension_type import DimensionType
+from .embedding_dimension import EmbeddingDimension
 
 
 class Model:
@@ -15,8 +17,9 @@ class Model:
         self.__primary_dataset = Dataset.from_name(primary_dataset_name)
         self.__reference_dataset = Dataset.from_name(reference_dataset_name)
         self.__dimensions = self._get_dimensions(self.primary_dataset, self.reference_dataset)
-        # TODO construct embedding dimensions from the dataset schemas
-        self.__embedding_dimensions: List[Dimension] = []
+        self.__embedding_dimensions: List[EmbeddingDimension] = self._get_embedding_dimensions(
+            self.primary_dataset, self.reference_dataset
+        )
 
     @property
     def primary_dataset(self) -> Dataset:
@@ -31,7 +34,7 @@ class Model:
         return self.__dimensions
 
     @property
-    def embedding_dimensions(self) -> List[Dimension]:
+    def embedding_dimensions(self) -> List[EmbeddingDimension]:
         return self.__embedding_dimensions
 
     def _get_dimensions(
@@ -83,8 +86,16 @@ class Model:
     @staticmethod
     def _get_embedding_dimensions(
         primary_dataset: Dataset, reference_dataset: Dataset
-    ) -> List[Dimension]:
-        raise NotImplementedError()
+    ) -> List[EmbeddingDimension]:
+        # TODO: Include reference dataset embedding dimensions
+        embedding_dimensions = []
+        embedding_features: Optional[
+            EmbeddingFeatures
+        ] = primary_dataset.schema.embedding_feature_column_names
+        if embedding_features is not None:
+            for embedding_feature_name in embedding_features:
+                embedding_dimensions.append(EmbeddingDimension(name=embedding_feature_name))
+        return embedding_dimensions
 
     def _infer_dimension_data_type(self, dimension_name: str) -> DimensionDataType:
         # TODO: verify corresponding dimension of reference dataset has same type
