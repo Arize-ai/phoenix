@@ -1,4 +1,3 @@
-import { Navbar, Brand } from "./components/nav";
 import { Provider, theme } from "@arizeai/components";
 import React, { Suspense } from "react";
 import { GlobalStyles } from "./GlobalStyles";
@@ -13,6 +12,7 @@ import {
 import RelayEnvironment from "./RelayEnvironment";
 import { AppRootQuery } from "./__generated__/AppRootQuery.graphql";
 import { AppRoutes } from "./Routes";
+import { DatasetsProvider } from "./contexts";
 
 const RootQuery = graphql`
   query AppRootQuery {
@@ -32,14 +32,12 @@ type AppProps = {
 function App(props: AppProps) {
   const data = usePreloadedQuery(RootQuery, props.preloadedQuery);
   return (
-    <div>
-      <Navbar>
-        <Brand />
-        <span>{data.primaryDataset.name}</span>
-        <span>{data.referenceDataset.name}</span>
-      </Navbar>
+    <DatasetsProvider
+      primaryDataset={data.primaryDataset}
+      referenceDataset={data.referenceDataset}
+    >
       <AppRoutes />
-    </div>
+    </DatasetsProvider>
   );
 }
 
