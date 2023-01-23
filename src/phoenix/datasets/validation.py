@@ -9,14 +9,36 @@ from . import errors as err
 from .schema import Schema
 
 
+def _check_valid_schema(schema: Schema) -> List[err.ValidationError]:
+    errs: List[str] = []
+    if schema.excludes is None:
+        return []
+
+    if schema.timestamp_column_name in schema.excludes:
+        errs.append(
+            f"{schema.timestamp_column_name} cannot be excluded because "
+            f"it is already being used as the timestamp column")
+
+    if schema.prediction_id_column_name in schema.excludes:
+        errs.append(
+            f"{schema.prediction_id_column_name} cannot be excluded because "
+            f"it is already being used as the prediction id column")
+
+    if len(errs) > 0:
+        return [err.InvalidSchemaError(errs)]
+
+    return []
+
+
 def validate_dataset_inputs(dataframe: DataFrame, schema: Schema) -> List[err.ValidationError]:
     general_checks = chain(
-        check_missing_columns(dataframe, schema), check_column_types(dataframe, schema)
+        _check_missing_columns(dataframe, schema), _check_column_types(dataframe, schema),
+        _check_valid_schema(schema),
     )
     return list(general_checks)
 
 
-def check_column_types(dataframe: DataFrame, schema: Schema) -> List[err.ValidationError]:
+def _check_column_types(dataframe: DataFrame, schema: Schema) -> List[err.ValidationError]:
     wrong_type_cols: List[str] = []
     if schema.timestamp_column_name is not None:
         if not (
@@ -41,7 +63,7 @@ def check_column_types(dataframe: DataFrame, schema: Schema) -> List[err.Validat
     return []
 
 
-def check_missing_columns(dataframe: DataFrame, schema: Schema) -> List[err.MissingColumns]:
+def _check_missing_columns(dataframe: DataFrame, schema: Schema) -> List[err.MissingColumns]:
     # converting to a set first makes the checks run a lot faster
     existing_columns = set(dataframe.columns)
     missing_columns = []

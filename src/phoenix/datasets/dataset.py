@@ -270,7 +270,7 @@ def _parse_dataframe_and_schema(dataframe: DataFrame, schema: Schema) -> Tuple[D
             "not found in the dataframe: {}".format(", ".join(unseen_excluded_column_names))
         )
 
-    parsed_dataframe, parsed_schema = _create_parsed_dataframe_and_schema(
+    parsed_dataframe, parsed_schema = _create_and_normalize_dataframe_and_schema(
         dataframe, schema, schema_patch, column_name_to_include
     )
 
@@ -402,7 +402,7 @@ def _discover_feature_columns(
     )
 
 
-def _create_parsed_dataframe_and_schema(
+def _create_and_normalize_dataframe_and_schema(
     dataframe: DataFrame,
     schema: Schema,
     schema_patch: Dict[SchemaFieldName, SchemaFieldValue],
@@ -422,7 +422,7 @@ def _create_parsed_dataframe_and_schema(
     ts_col_name = parsed_schema.timestamp_column_name
     if ts_col_name is None:
         now = Timestamp.utcnow()
-        parsed_schema = dataclasses.replace(parsed_schema, timestamp_column_name="timestamp")
+        parsed_schema = replace(parsed_schema, timestamp_column_name="timestamp")
         parsed_dataframe["timestamp"] = now
     elif is_numeric_dtype(dataframe.dtypes[ts_col_name]):
         parsed_dataframe[ts_col_name] = parsed_dataframe[ts_col_name].apply(
@@ -431,7 +431,7 @@ def _create_parsed_dataframe_and_schema(
 
     pred_col_name = parsed_schema.prediction_id_column_name
     if pred_col_name is None:
-        parsed_schema = dataclasses.replace(
+        parsed_schema = replace(
             parsed_schema, prediction_id_column_name="prediction_id"
         )
         parsed_dataframe["prediction_id"] = parsed_dataframe.apply(lambda _: str(uuid.uuid4()))
