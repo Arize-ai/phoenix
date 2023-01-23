@@ -41,6 +41,7 @@ class MissingColumns(ValidationError):
             f"{', '.join(map(str, self.missing_cols))}."
         )
 
+
 class InvalidSchemaError(ValidationError):
     def __repr__(self) -> str:
         return self.__class__.__name__
@@ -49,10 +50,8 @@ class InvalidSchemaError(ValidationError):
         self.invalid_props = invalid_props
 
     def error_message(self) -> str:
-        return (
-            "The schema is invalid: "
-            f"{', '.join(map(str, self.invalid_props))}."
-        )
+        return "The schema is invalid: " f"{', '.join(map(str, self.invalid_props))}."
+
 
 class DatasetError(Exception):
     """An error raised when the dataset is invalid or incomplete"""

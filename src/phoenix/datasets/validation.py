@@ -17,12 +17,14 @@ def _check_valid_schema(schema: Schema) -> List[err.ValidationError]:
     if schema.timestamp_column_name in schema.excludes:
         errs.append(
             f"{schema.timestamp_column_name} cannot be excluded because "
-            f"it is already being used as the timestamp column")
+            f"it is already being used as the timestamp column"
+        )
 
     if schema.prediction_id_column_name in schema.excludes:
         errs.append(
             f"{schema.prediction_id_column_name} cannot be excluded because "
-            f"it is already being used as the prediction id column")
+            f"it is already being used as the prediction id column"
+        )
 
     if len(errs) > 0:
         return [err.InvalidSchemaError(errs)]
@@ -32,7 +34,8 @@ def _check_valid_schema(schema: Schema) -> List[err.ValidationError]:
 
 def validate_dataset_inputs(dataframe: DataFrame, schema: Schema) -> List[err.ValidationError]:
     general_checks = chain(
-        _check_missing_columns(dataframe, schema), _check_column_types(dataframe, schema),
+        _check_missing_columns(dataframe, schema),
+        _check_column_types(dataframe, schema),
         _check_valid_schema(schema),
     )
     return list(general_checks)

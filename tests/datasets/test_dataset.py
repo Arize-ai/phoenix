@@ -11,9 +11,13 @@ import pandas as pd
 from pandas import DataFrame, to_datetime
 from pytest import LogCaptureFixture, raises
 
-from phoenix.datasets.dataset import Dataset, EmbeddingColumnNames, Schema
+from phoenix.datasets.dataset import (
+    Dataset,
+    EmbeddingColumnNames,
+    Schema,
+    _parse_dataframe_and_schema,
+)
 from phoenix.datasets.errors import DatasetError
-from phoenix.datasets.dataset import _parse_dataframe_and_schema
 
 
 class TestParseDataFrameAndSchema:
@@ -506,7 +510,9 @@ class TestParseDataFrameAndSchema:
         should_log_warning_to_user: bool,
         caplog: LogCaptureFixture,
     ) -> None:
-        parsed_dataframe, parsed_schema = _parse_dataframe_and_schema(dataframe=input_dataframe, schema=input_schema)
+        parsed_dataframe, parsed_schema = _parse_dataframe_and_schema(
+            dataframe=input_dataframe, schema=input_schema
+        )
 
         assert parsed_dataframe.equals(expected_parsed_dataframe)
         assert parsed_schema == expected_parsed_schema
@@ -541,7 +547,9 @@ class TestParseDataFrameAndSchema:
             prediction_label_column_name="prediction_label",
         )
 
-        expected_dataframe, _ = _parse_dataframe_and_schema(dataframe=input_dataframe, schema=input_schema)
+        expected_dataframe, _ = _parse_dataframe_and_schema(
+            dataframe=input_dataframe, schema=input_schema
+        )
 
         assert expected_dataframe.equals(input_dataframe)
 
@@ -563,7 +571,9 @@ class TestParseDataFrameAndSchema:
             prediction_label_column_name="prediction_label",
         )
 
-        expected_dataframe, _ = _parse_dataframe_and_schema(dataframe=input_dataframe, schema=input_schema)
+        expected_dataframe, _ = _parse_dataframe_and_schema(
+            dataframe=input_dataframe, schema=input_schema
+        )
 
         input_dataframe["timestamp"] = input_dataframe["timestamp"].apply(
             lambda x: to_datetime(x, unit="ms")
@@ -588,7 +598,9 @@ class TestParseDataFrameAndSchema:
             prediction_label_column_name="prediction_label",
         )
 
-        expected_dataframe, _ = _parse_dataframe_and_schema(dataframe=input_dataframe, schema=input_schema)
+        expected_dataframe, _ = _parse_dataframe_and_schema(
+            dataframe=input_dataframe, schema=input_schema
+        )
 
         input_dataframe["prediction_id"] = input_dataframe["prediction_id"].astype(str)
         assert expected_dataframe.equals(input_dataframe)
@@ -610,10 +622,14 @@ class TestParseDataFrameAndSchema:
             prediction_label_column_name="prediction_label",
         )
 
-        expected_dataframe, _ = _parse_dataframe_and_schema(dataframe=input_dataframe, schema=input_schema)
+        expected_dataframe, _ = _parse_dataframe_and_schema(
+            dataframe=input_dataframe, schema=input_schema
+        )
 
         assert len(expected_dataframe.columns) == 4
-        assert expected_dataframe[["prediction_label", "feature0", "timestamp"]].equals(input_dataframe)
+        assert expected_dataframe[["prediction_label", "feature0", "timestamp"]].equals(
+            input_dataframe
+        )
         assert "prediction_id" in expected_dataframe
         assert expected_dataframe.dtypes["prediction_id"], "string"
 
@@ -632,10 +648,14 @@ class TestParseDataFrameAndSchema:
             prediction_label_column_name="prediction_label",
         )
 
-        expected_dataframe, _ = _parse_dataframe_and_schema(dataframe=input_dataframe, schema=input_schema)
+        expected_dataframe, _ = _parse_dataframe_and_schema(
+            dataframe=input_dataframe, schema=input_schema
+        )
 
         assert len(expected_dataframe.columns) == 4
-        assert expected_dataframe[["prediction_label", "feature0", "prediction_id"]].equals(input_dataframe)
+        assert expected_dataframe[["prediction_label", "feature0", "prediction_id"]].equals(
+            input_dataframe
+        )
         assert "timestamp" in expected_dataframe
         assert expected_dataframe.dtypes["timestamp"], "datetime[nz]"
 
@@ -652,7 +672,9 @@ class TestParseDataFrameAndSchema:
             prediction_label_column_name="prediction_label",
         )
 
-        expected_dataframe, _ = _parse_dataframe_and_schema(dataframe=input_dataframe, schema=input_schema)
+        expected_dataframe, _ = _parse_dataframe_and_schema(
+            dataframe=input_dataframe, schema=input_schema
+        )
 
         assert len(expected_dataframe.columns) == 4
         assert expected_dataframe[["prediction_label", "feature0"]].equals(input_dataframe)
@@ -712,13 +734,13 @@ class TestParseDataFrameAndSchema:
             timestamp_column_name="timestamp",
             feature_column_names=["feature0"],
             prediction_label_column_name="prediction_label",
-            excludes=["timestamp"]
+            excludes=["timestamp"],
         )
 
         with raises(DatasetError):
             Dataset(dataframe=input_df, schema=input_schema)
 
-    def test_dataset_validate_invalid_schema_excludes_timestamp(self) -> None:
+    def test_dataset_validate_invalid_schema_excludes_prediction_id(self) -> None:
         input_df = DataFrame(
             {
                 "prediction_id": [str(x) for x in range(self.num_records)],
@@ -732,7 +754,7 @@ class TestParseDataFrameAndSchema:
             prediction_id_column_name="prediction_id",
             feature_column_names=["feature0"],
             prediction_label_column_name="prediction_label",
-            excludes=["prediction_id"]
+            excludes=["prediction_id"],
         )
 
         with raises(DatasetError):

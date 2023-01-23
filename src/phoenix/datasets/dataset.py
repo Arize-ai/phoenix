@@ -1,4 +1,3 @@
-import dataclasses
 import logging
 import os
 import sys
@@ -433,9 +432,7 @@ def _create_and_normalize_dataframe_and_schema(
 
     pred_col_name = parsed_schema.prediction_id_column_name
     if pred_col_name is None:
-        parsed_schema = replace(
-            parsed_schema, prediction_id_column_name="prediction_id"
-        )
+        parsed_schema = replace(parsed_schema, prediction_id_column_name="prediction_id")
         parsed_dataframe["prediction_id"] = parsed_dataframe.apply(lambda _: str(uuid.uuid4()))
     elif is_numeric_dtype(parsed_dataframe.dtypes[pred_col_name]):
         parsed_dataframe[pred_col_name] = parsed_dataframe[pred_col_name].astype(str)
