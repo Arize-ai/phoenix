@@ -20,27 +20,30 @@ logger = logging.getLogger(__name__)
 @dataclass(frozen=True)
 class _Fixture:
     name: str
-    schema: Schema
     primary_dataset_url: str
     reference_dataset_url: str
+    primary_schema: Schema
+    reference_schema: Schema
 
 
+_SENTIMENT_CLASSIFICTION_LANGUAGE_DRIFT_SCHEMA = Schema(
+    timestamp_column_name="prediction_ts",
+    feature_column_names=[
+        "reviewer_age",
+        "reviewer_gender",
+        "product_category",
+        "language",
+    ],
+    embedding_feature_column_names={
+        "text_embedding": EmbeddingColumnNames(vector_column_name="text_vector")
+    },
+)
 _FIXTURE_URL_PREFIX = "https://storage.googleapis.com/arize-assets/phoenix/datasets/"
 _FIXTURES: Tuple[_Fixture] = (
     _Fixture(
         name="sentiment_classification_language_drift",
-        schema=Schema(
-            timestamp_column_name="prediction_ts",
-            feature_column_names=[
-                "reviewer_age",
-                "reviewer_gender",
-                "product_category",
-                "language",
-            ],
-            embedding_feature_column_names={
-                "text_embedding": EmbeddingColumnNames(vector_column_name="text_vector")
-            },
-        ),
+        primary_schema=_SENTIMENT_CLASSIFICTION_LANGUAGE_DRIFT_SCHEMA,
+        reference_schema=_SENTIMENT_CLASSIFICTION_LANGUAGE_DRIFT_SCHEMA,
         primary_dataset_url=os.path.join(
             _FIXTURE_URL_PREFIX,
             "unstructured/nlp/sentiment_classification_language_drift_production.parquet",
@@ -48,6 +51,36 @@ _FIXTURES: Tuple[_Fixture] = (
         reference_dataset_url=os.path.join(
             _FIXTURE_URL_PREFIX,
             "unstructured/nlp/sentiment_classification_language_drift_training.parquet",
+        ),
+    ),
+    _Fixture(
+        name="fashion_mnist",
+        primary_schema=Schema(
+            timestamp_column_name="prediction_ts",
+            embedding_feature_column_names={
+                "embedding": EmbeddingColumnNames(
+                    vector_column_name="embeddings", link_to_data_column_name="image_url"
+                ),
+            },
+            actual_label_column_name="actual_label",
+            prediction_label_column_name="predicted_label",
+        ),
+        reference_schema=Schema(
+            embedding_feature_column_names={
+                "embedding": EmbeddingColumnNames(
+                    vector_column_name="embeddings", link_to_data_column_name="image_url"
+                ),
+            },
+            actual_label_column_name="actual_label",
+            prediction_label_column_name="predicted_label",
+        ),
+        primary_dataset_url=os.path.join(
+            _FIXTURE_URL_PREFIX,
+            "unstructured/cv/fashion-mnist/fashion_mnist_production.parquet",
+        ),
+        reference_dataset_url=os.path.join(
+            _FIXTURE_URL_PREFIX,
+            "unstructured/cv/fashion-mnist/fashion_mnist_train.parquet",
         ),
     ),
 )
@@ -112,12 +145,12 @@ def _download_fixture_if_missing(fixture_name: str) -> Tuple[str, str]:
     _download_and_persist_dataset_if_missing(
         dataset_name=primary_dataset_name,
         dataset_url=fixture.primary_dataset_url,
-        schema=fixture.schema,
+        schema=fixture.primary_schema,
     )
     _download_and_persist_dataset_if_missing(
         dataset_name=reference_dataset_name,
         dataset_url=fixture.reference_dataset_url,
-        schema=fixture.schema,
+        schema=fixture.reference_schema,
     )
     return primary_dataset_name, reference_dataset_name
 
