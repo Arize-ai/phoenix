@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
-class _Fixture:
+class Fixture:
     name: str
     primary_dataset_url: str
     reference_dataset_url: str
@@ -26,7 +26,9 @@ class _Fixture:
     reference_schema: Schema
 
 
-_SENTIMENT_CLASSIFICTION_LANGUAGE_DRIFT_SCHEMA = Schema(
+FIXTURE_URL_PREFIX = "https://storage.googleapis.com/arize-assets/phoenix/datasets/"
+
+sentiment_classification_language_drift_schema = Schema(
     timestamp_column_name="prediction_ts",
     feature_column_names=[
         "reviewer_age",
@@ -38,51 +40,56 @@ _SENTIMENT_CLASSIFICTION_LANGUAGE_DRIFT_SCHEMA = Schema(
         "text_embedding": EmbeddingColumnNames(vector_column_name="text_vector")
     },
 )
-_FIXTURE_URL_PREFIX = "https://storage.googleapis.com/arize-assets/phoenix/datasets/"
-_FIXTURES: Tuple[_Fixture] = (
-    _Fixture(
-        name="sentiment_classification_language_drift",
-        primary_schema=_SENTIMENT_CLASSIFICTION_LANGUAGE_DRIFT_SCHEMA,
-        reference_schema=_SENTIMENT_CLASSIFICTION_LANGUAGE_DRIFT_SCHEMA,
-        primary_dataset_url=os.path.join(
-            _FIXTURE_URL_PREFIX,
-            "unstructured/nlp/sentiment_classification_language_drift_production.parquet",
-        ),
-        reference_dataset_url=os.path.join(
-            _FIXTURE_URL_PREFIX,
-            "unstructured/nlp/sentiment_classification_language_drift_training.parquet",
-        ),
+sentiment_classification_language_drift_fixture = Fixture(
+    name="sentiment_classification_language_drift",
+    primary_schema=sentiment_classification_language_drift_schema,
+    reference_schema=sentiment_classification_language_drift_schema,
+    primary_dataset_url=os.path.join(
+        FIXTURE_URL_PREFIX,
+        "unstructured/nlp/sentiment_classification_language_drift_production.parquet",
     ),
-    _Fixture(
-        name="fashion_mnist",
-        primary_schema=Schema(
-            timestamp_column_name="prediction_ts",
-            embedding_feature_column_names={
-                "embedding": EmbeddingColumnNames(
-                    vector_column_name="embeddings", link_to_data_column_name="image_url"
-                ),
-            },
-            actual_label_column_name="actual_label",
-            prediction_label_column_name="predicted_label",
-        ),
-        reference_schema=Schema(
-            embedding_feature_column_names={
-                "embedding": EmbeddingColumnNames(
-                    vector_column_name="embeddings", link_to_data_column_name="image_url"
-                ),
-            },
-            actual_label_column_name="actual_label",
-            prediction_label_column_name="predicted_label",
-        ),
-        primary_dataset_url=os.path.join(
-            _FIXTURE_URL_PREFIX,
-            "unstructured/cv/fashion-mnist/fashion_mnist_production.parquet",
-        ),
-        reference_dataset_url=os.path.join(
-            _FIXTURE_URL_PREFIX,
-            "unstructured/cv/fashion-mnist/fashion_mnist_train.parquet",
-        ),
+    reference_dataset_url=os.path.join(
+        FIXTURE_URL_PREFIX,
+        "unstructured/nlp/sentiment_classification_language_drift_training.parquet",
     ),
+)
+
+fashion_mnist_primary_schema = Schema(
+    timestamp_column_name="prediction_ts",
+    embedding_feature_column_names={
+        "embedding": EmbeddingColumnNames(
+            vector_column_name="embeddings", link_to_data_column_name="image_url"
+        ),
+    },
+    actual_label_column_name="actual_label",
+    prediction_label_column_name="predicted_label",
+)
+fashion_mnist_reference_schema = Schema(
+    embedding_feature_column_names={
+        "embedding": EmbeddingColumnNames(
+            vector_column_name="embeddings", link_to_data_column_name="image_url"
+        ),
+    },
+    actual_label_column_name="actual_label",
+    prediction_label_column_name="predicted_label",
+)
+fashion_mnist_fixture = Fixture(
+    name="fashion_mnist",
+    primary_schema=fashion_mnist_primary_schema,
+    reference_schema=fashion_mnist_reference_schema,
+    primary_dataset_url=os.path.join(
+        FIXTURE_URL_PREFIX,
+        "unstructured/cv/fashion-mnist/fashion_mnist_production.parquet",
+    ),
+    reference_dataset_url=os.path.join(
+        FIXTURE_URL_PREFIX,
+        "unstructured/cv/fashion-mnist/fashion_mnist_train.parquet",
+    ),
+)
+
+FIXTURES: Tuple[Fixture] = (
+    sentiment_classification_language_drift_fixture,
+    fashion_mnist_fixture,
 )
 
 
@@ -155,12 +162,12 @@ def _download_fixture_if_missing(fixture_name: str) -> Tuple[str, str]:
     return primary_dataset_name, reference_dataset_name
 
 
-def _find_fixture_by_name(fixture_name: str) -> _Fixture:
+def _find_fixture_by_name(fixture_name: str) -> Fixture:
     """
     Returns the fixture whose name matches the input name. Raises a ValueError
     if the input fixture name does not match any known fixture names.
     """
-    for fixture in _FIXTURES:
+    for fixture in FIXTURES:
         if fixture.name == fixture_name:
             return fixture
     raise ValueError(f'"{fixture_name}" is not a valid fixture name.')
@@ -217,7 +224,7 @@ if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument("--primary", type=str)
     parser.add_argument("--reference", type=str)
-    parser.add_argument("--fixture", type=str, choices=[fixture.name for fixture in _FIXTURES])
+    parser.add_argument("--fixture", type=str, choices=[fixture.name for fixture in FIXTURES])
     parser.add_argument("--port", type=int, default=config.port)
     parser.add_argument("--graphiql", action="store_true")
     parser.add_argument("--debug", action="store_true")
