@@ -410,7 +410,9 @@ def _create_and_normalize_dataframe_and_schema(
 ) -> Tuple[DataFrame, Schema]:
     """
     Creates new dataframe and schema objects to reflect excluded column names
-    and discovered features.
+    and discovered features. This also normalizes dataframe columns to ensure a
+    standard set of columns (i.e. timestamp and prediction_id) and datatypes for
+    those columns.
     """
     included_column_names: List[str] = []
     for column_name in dataframe.columns:
