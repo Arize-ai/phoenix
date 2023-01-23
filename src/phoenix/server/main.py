@@ -87,9 +87,36 @@ fashion_mnist_fixture = Fixture(
     ),
 )
 
+ner_token_drift_schema = Schema(
+    timestamp_column_name="prediction_ts",
+    feature_column_names=["language"],
+    actual_label_column_name="label",
+    prediction_label_column_name="pred_label",
+    embedding_feature_column_names={
+        "embedding": EmbeddingColumnNames(
+            vector_column_name="token_vector", raw_data_column_name="text"
+        )
+    },
+)
+ner_token_drift_fixture = Fixture(
+    name="ner_token_drift",
+    primary_schema=ner_token_drift_schema,
+    reference_schema=ner_token_drift_schema,
+    primary_dataset_url=os.path.join(
+        FIXTURE_URL_PREFIX,
+        "unstructured/nlp/named-entity-recognition/ner_token_drift_production.parquet",
+    ),
+    reference_dataset_url=os.path.join(
+        FIXTURE_URL_PREFIX,
+        "unstructured/nlp/named-entity-recognition/ner_token_drift_train.parquet",
+    ),
+)
+
+
 FIXTURES: Tuple[Fixture, ...] = (
     sentiment_classification_language_drift_fixture,
     fashion_mnist_fixture,
+    ner_token_drift_fixture,
 )
 
 
