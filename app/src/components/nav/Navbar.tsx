@@ -2,8 +2,9 @@ import React, { ReactNode } from "react";
 import { css, Theme } from "@emotion/react";
 
 const navCSS = (theme: Theme) => css`
-  padding: ${theme.spacing.padding8}px;
+  padding: ${theme.spacing.padding16}px;
   border-bottom: 1px solid ${theme.colors.gray500};
+  background-color: ${theme.colors.gray900};
 `;
 
 const brandCSS = (theme: Theme) =>

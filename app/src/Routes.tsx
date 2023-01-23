@@ -1,6 +1,6 @@
 import React from "react";
 import { Routes, Route } from "react-router";
-import { Home } from "./pages";
+import { Home, EmbeddingDetails } from "./pages";
 import { BrowserRouter } from "react-router-dom";
 
 export function AppRoutes() {
@@ -8,6 +8,10 @@ export function AppRoutes() {
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<Home />}></Route>
+        <Route
+          path="/embeddings/:embeddingDimensionId"
+          element={<EmbeddingDetails />}
+        ></Route>
       </Routes>
     </BrowserRouter>
   );

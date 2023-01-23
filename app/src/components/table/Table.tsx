@@ -11,7 +11,7 @@ const tableCSS = (theme: Theme) => css`
     background-color: ${theme.colors.gray500};
     tr {
       th {
-        padding: ${theme.spacing.margin4}px ${theme.spacing.margin8}px;
+        padding: ${theme.spacing.margin4}px ${theme.spacing.margin16}px;
         text-align: left;
       }
     }
@@ -25,7 +25,7 @@ const tableCSS = (theme: Theme) => css`
         background-color: ${theme.colors.gray600};
       }
       & > td {
-        padding: ${theme.spacing.margin8}px;
+        padding: ${theme.spacing.margin8}px ${theme.spacing.margin16}px;
       }
     }
   }
