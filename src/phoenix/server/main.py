@@ -87,7 +87,7 @@ fashion_mnist_fixture = Fixture(
     ),
 )
 
-FIXTURES: Tuple[Fixture] = (
+FIXTURES: Tuple[Fixture, ...] = (
     sentiment_classification_language_drift_fixture,
     fashion_mnist_fixture,
 )
