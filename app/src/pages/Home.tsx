@@ -1,6 +1,6 @@
 import { css } from "@emotion/react";
 import { TabbedCard, Tabs, TabPane } from "@arizeai/components";
-import { ModelSchemaTable } from "../components/model";
+import { ModelSchemaTable, ModelEmbeddingsTable } from "../components/model";
 import React from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { HomeQuery } from "./__generated__/HomeQuery.graphql";
@@ -12,6 +12,7 @@ export function Home(_props: HomePageProps) {
     graphql`
       query HomeQuery {
         ...ModelSchemaTable_dimensions
+        ...ModelEmbeddingsTable_embeddingDimensions
       }
     `,
     {}
@@ -37,7 +38,7 @@ export function Home(_props: HomePageProps) {
               <ModelSchemaTable model={data} />
             </TabPane>
             <TabPane name="Embeddings">
-              <ModelSchemaTable model={data} />
+              <ModelEmbeddingsTable model={data} />
             </TabPane>
           </Tabs>
         </TabbedCard>

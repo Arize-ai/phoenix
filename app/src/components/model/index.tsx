@@ -1,2 +1,2 @@
 export * from "./ModelSchemaTable";
-export * from "./ModelEmbeddingTable";
+export * from "./ModelEmbeddingsTable";

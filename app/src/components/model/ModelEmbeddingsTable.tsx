@@ -2,26 +2,28 @@ import React, { useMemo } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
 import { Table } from "../table/Table";
 import { Column } from "react-table";
+import { ModelEmbeddingsTable_embeddingDimensions$key } from "./__generated__/ModelEmbeddingsTable_embeddingDimensions.graphql";
 
-// type ModelSchemaTableProps = {
-//   model: ModelSchemaTable_dimensions$key;
-// };
+type ModelEmbeddingsTable = {
+  model: ModelEmbeddingsTable_embeddingDimensions$key;
+};
 
-export function ModelEmbeddingsTable(props: any) {
+export function ModelEmbeddingsTable(props: ModelEmbeddingsTable) {
   const { data } = usePaginationFragment(
     graphql`
-      fragment ModelEmbeddingsTable_dimensions on Query
+      fragment ModelEmbeddingsTable_embeddingDimensions on Query
       @refetchable(queryName: "ModelEmbeddingsTableEmbeddingDimensionsQuery")
       @argumentDefinitions(
         count: { type: "Int", defaultValue: 50 }
         cursor: { type: "String", defaultValue: null }
       ) {
         model {
-          embeddings(first: $count, after: $cursor)
-            @connection(key: "ModelEmbeddingsTable_embeddings") {
+          embeddingDimensions(first: $count, after: $cursor)
+            @connection(key: "ModelEmbeddingsTable_embeddingDimensions") {
             edges {
               embedding: node {
                 name
+              }
             }
           }
         }
@@ -31,7 +33,7 @@ export function ModelEmbeddingsTable(props: any) {
   );
   const tableData = useMemo(
     () =>
-      data.model.dimensions.edges.map(({ embedding }) => {
+      data.model.embeddingDimensions.edges.map(({ embedding }) => {
         // Normalize the data
         return {
           ...embedding,
