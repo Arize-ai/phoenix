@@ -108,19 +108,21 @@ ner_token_drift_fixture = Fixture(
 credit_card_fraud_schema = Schema(
     prediction_id_column_name="prediction_id",
     prediction_label_column_name="predicted_label",
+    prediction_score_column_name="predicted_score",
     actual_label_column_name="actual_label",
     timestamp_column_name="prediction_timestamp",
+    tag_column_names=["age"],
 )
 credit_card_fraud_fixture = Fixture(
     name="credit_card_fraud",
     primary_schema=credit_card_fraud_schema,
     reference_schema=credit_card_fraud_schema,
     primary_dataset_url=os.path.join(
-        FIXTURE_URL_PREFIX, "structured/credit_card_fraud/credit_card_fraud_production.parquet"
+        FIXTURE_URL_PREFIX, "structured/credit-card-fraud/credit_card_fraud_production.parquet"
     ),
     reference_dataset_url=os.path.join(
         FIXTURE_URL_PREFIX,
-        "structured/credit_card_fraud/credit_card_fraud_train.parquet",
+        "structured/credit-card-fraud/credit_card_fraud_train.parquet",
     ),
 )
 
