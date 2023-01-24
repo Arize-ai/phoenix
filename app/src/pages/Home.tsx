@@ -33,7 +33,7 @@ export function Home(_props: HomePageProps) {
         }}
       >
         <Tabs>
-          <TabPane name="Features">
+          <TabPane name="Dimensions">
             <ModelSchemaTable model={data} />
           </TabPane>
           <TabPane name="Embeddings">
