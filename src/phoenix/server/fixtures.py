@@ -124,6 +124,25 @@ credit_card_fraud_fixture = Fixture(
     ),
 )
 
+click_through_rate_schema = Schema(
+    timestamp_column_name="prediction_timestamp",
+    prediction_id_column_name="prediction_id",
+    prediction_label_column_name="predicted_label",
+    prediction_score_column_name="predicted_score",
+    actual_label_column_name="actual_label",
+)
+click_through_rate_fixture = Fixture(
+    name="click_through_rate",
+    primary_schema=click_through_rate_schema,
+    reference_schema=click_through_rate_schema,
+    primary_dataset_url=os.path.join(
+        FIXTURE_URL_PREFIX, "structured/click-through-rate/click_through_rate_production.parquet"
+    ),
+    reference_dataset_url=os.path.join(
+        FIXTURE_URL_PREFIX, "structured/click-through-rate/click_through_rate_train.parquet"
+    ),
+)
+
 wide_data_primary_schema = Schema(
     actual_label_column_name="actual_label",
     prediction_label_column_name="predicted_label",
@@ -175,6 +194,7 @@ FIXTURES: Tuple[Fixture, ...] = (
     fashion_mnist_fixture,
     ner_token_drift_fixture,
     credit_card_fraud_fixture,
+    click_through_rate_fixture,
     wide_data_fixture,
     deep_data_fixture,
 )
