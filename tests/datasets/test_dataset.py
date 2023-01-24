@@ -547,11 +547,11 @@ class TestParseDataFrameAndSchema:
             prediction_label_column_name="prediction_label",
         )
 
-        expected_dataframe, _ = _parse_dataframe_and_schema(
+        output_dataframe, _ = _parse_dataframe_and_schema(
             dataframe=input_dataframe, schema=input_schema
         )
 
-        assert expected_dataframe.equals(input_dataframe)
+        assert output_dataframe.equals(input_dataframe)
 
     def test_dataset_normalization_timestamp_integer_to_datetime(self):
         input_dataframe = DataFrame(
@@ -571,14 +571,15 @@ class TestParseDataFrameAndSchema:
             prediction_label_column_name="prediction_label",
         )
 
-        expected_dataframe, _ = _parse_dataframe_and_schema(
+        output_dataframe, _ = _parse_dataframe_and_schema(
             dataframe=input_dataframe, schema=input_schema
         )
 
-        input_dataframe["timestamp"] = input_dataframe["timestamp"].apply(
+        expected_dataframe = input_dataframe
+        expected_dataframe["timestamp"] = expected_dataframe["timestamp"].apply(
             lambda x: to_datetime(x, unit="ms")
         )
-        assert expected_dataframe.equals(input_dataframe)
+        assert output_dataframe.equals(expected_dataframe)
 
     def test_dataset_normalization_prediction_id_integer_to_string(self):
         input_dataframe = DataFrame(
@@ -598,12 +599,13 @@ class TestParseDataFrameAndSchema:
             prediction_label_column_name="prediction_label",
         )
 
-        expected_dataframe, _ = _parse_dataframe_and_schema(
+        output_dataframe, _ = _parse_dataframe_and_schema(
             dataframe=input_dataframe, schema=input_schema
         )
 
-        input_dataframe["prediction_id"] = input_dataframe["prediction_id"].astype(str)
-        assert expected_dataframe.equals(input_dataframe)
+        expected_dataframe = input_dataframe
+        expected_dataframe["prediction_id"] = expected_dataframe["prediction_id"].astype(str)
+        assert output_dataframe.equals(expected_dataframe)
 
     def test_dataset_normalization_columns_add_missing_prediction_id(self):
         input_dataframe = DataFrame(
@@ -622,16 +624,16 @@ class TestParseDataFrameAndSchema:
             prediction_label_column_name="prediction_label",
         )
 
-        expected_dataframe, _ = _parse_dataframe_and_schema(
+        output_dataframe, _ = _parse_dataframe_and_schema(
             dataframe=input_dataframe, schema=input_schema
         )
 
-        assert len(expected_dataframe.columns) == 4
-        assert expected_dataframe[["prediction_label", "feature0", "timestamp"]].equals(
+        assert len(output_dataframe.columns) == 4
+        assert output_dataframe[["prediction_label", "feature0", "timestamp"]].equals(
             input_dataframe
         )
-        assert "prediction_id" in expected_dataframe
-        assert expected_dataframe.dtypes["prediction_id"], "string"
+        assert "prediction_id" in output_dataframe
+        assert output_dataframe.dtypes["prediction_id"], "string"
 
     def test_dataset_normalization_columns_add_missing_timestamp(self):
         input_dataframe = DataFrame(
@@ -648,16 +650,16 @@ class TestParseDataFrameAndSchema:
             prediction_label_column_name="prediction_label",
         )
 
-        expected_dataframe, _ = _parse_dataframe_and_schema(
+        output_dataframe, _ = _parse_dataframe_and_schema(
             dataframe=input_dataframe, schema=input_schema
         )
 
-        assert len(expected_dataframe.columns) == 4
-        assert expected_dataframe[["prediction_label", "feature0", "prediction_id"]].equals(
+        assert len(output_dataframe.columns) == 4
+        assert output_dataframe[["prediction_label", "feature0", "prediction_id"]].equals(
             input_dataframe
         )
-        assert "timestamp" in expected_dataframe
-        assert expected_dataframe.dtypes["timestamp"], "datetime[nz]"
+        assert "timestamp" in output_dataframe
+        assert output_dataframe.dtypes["timestamp"], "datetime[nz]"
 
     def test_dataset_normalization_columns_missing_prediction_id_and_timestamp(self):
         input_dataframe = DataFrame(
@@ -672,16 +674,16 @@ class TestParseDataFrameAndSchema:
             prediction_label_column_name="prediction_label",
         )
 
-        expected_dataframe, _ = _parse_dataframe_and_schema(
+        output_dataframe, _ = _parse_dataframe_and_schema(
             dataframe=input_dataframe, schema=input_schema
         )
 
-        assert len(expected_dataframe.columns) == 4
-        assert expected_dataframe[["prediction_label", "feature0"]].equals(input_dataframe)
-        assert "prediction_id" in expected_dataframe
-        assert expected_dataframe.dtypes["prediction_id"], "string"
-        assert "timestamp" in expected_dataframe
-        assert expected_dataframe.dtypes["timestamp"], "datetime[nz]"
+        assert len(output_dataframe.columns) == 4
+        assert output_dataframe[["prediction_label", "feature0"]].equals(input_dataframe)
+        assert "prediction_id" in output_dataframe
+        assert output_dataframe.dtypes["prediction_id"], "string"
+        assert "timestamp" in output_dataframe
+        assert output_dataframe.dtypes["timestamp"], "datetime[nz]"
 
     def test_dataset_validate_invalid_prediction_id_datatype(self) -> None:
         input_df = DataFrame(
@@ -796,8 +798,8 @@ class TestDataset:
         )
 
         dataset = Dataset(dataframe=input_dataframe, schema=input_schema)
-        expected_dataframe = dataset.dataframe
-        expected_schema = dataset.schema
+        output_dataframe = dataset.dataframe
+        output_schema = dataset.schema
 
-        assert expected_dataframe.equals(input_dataframe)
-        assert expected_schema == input_schema
+        assert output_dataframe.equals(input_dataframe)
+        assert output_schema == input_schema
