@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<02ca25c014d8d30ca863118e00d89629>>
+ * @generated SignedSource<<3bf6e0a2bc007131d8b55181cd828691>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -116,6 +116,13 @@ return {
                         "alias": null,
                         "args": null,
                         "kind": "ScalarField",
+                        "name": "id",
+                        "storageKey": null
+                      },
+                      {
+                        "alias": null,
+                        "args": null,
+                        "kind": "ScalarField",
                         "name": "name",
                         "storageKey": null
                       }
@@ -193,16 +200,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "ae75e1971cf941bbe2a5e493b2e208bb",
+    "cacheID": "2d7fdb95ec51954768fe143bf22a456a",
     "id": null,
     "metadata": {},
     "name": "ModelEmbeddingsTableEmbeddingDimensionsQuery",
     "operationKind": "query",
-    "text": "query ModelEmbeddingsTableEmbeddingDimensionsQuery(\n  $count: Int = 50\n  $cursor: String = null\n) {\n  ...ModelEmbeddingsTable_embeddingDimensions_1G22uz\n}\n\nfragment ModelEmbeddingsTable_embeddingDimensions_1G22uz on Query {\n  model {\n    embeddingDimensions(first: $count, after: $cursor) {\n      edges {\n        embedding: node {\n          name\n        }\n        cursor\n        node {\n          __typename\n        }\n      }\n      pageInfo {\n        endCursor\n        hasNextPage\n      }\n    }\n  }\n}\n"
+    "text": "query ModelEmbeddingsTableEmbeddingDimensionsQuery(\n  $count: Int = 50\n  $cursor: String = null\n) {\n  ...ModelEmbeddingsTable_embeddingDimensions_1G22uz\n}\n\nfragment ModelEmbeddingsTable_embeddingDimensions_1G22uz on Query {\n  model {\n    embeddingDimensions(first: $count, after: $cursor) {\n      edges {\n        embedding: node {\n          id\n          name\n        }\n        cursor\n        node {\n          __typename\n        }\n      }\n      pageInfo {\n        endCursor\n        hasNextPage\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "74bb48ec2fdef62a359f8754e372a2db";
+(node as any).hash = "8123420376d1fc45319d86f7174a5e98";
 
 export default node;

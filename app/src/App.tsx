@@ -31,12 +31,13 @@ type AppProps = {
 };
 
 function Nav() {
-  const datasets = useDatasets();
+  // TODO(mikeldking): Add dataset selectors
+  // const datasets = useDatasets();
   return (
     <Navbar>
       <Brand />
-      <span>{datasets.primaryDataset.name}</span>
-      <span>{datasets.referenceDataset.name}</span>
+      {/* <span>{datasets.primaryDataset.name}</span>
+      <span>{datasets.referenceDataset.name}</span> */}
     </Navbar>
   );
 }

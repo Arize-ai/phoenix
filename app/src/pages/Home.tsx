@@ -18,31 +18,29 @@ export function Home(_props: HomePageProps) {
     {}
   );
   return (
-    <>
-      <main
-        css={(theme) =>
-          css`
-            margin: ${theme.spacing.margin8}px;
-          `
-        }
+    <main
+      css={(theme) =>
+        css`
+          margin: ${theme.spacing.margin8}px;
+        `
+      }
+    >
+      <TabbedCard
+        title="Model Schema"
+        variant="compact"
+        bodyStyle={{
+          padding: 0,
+        }}
       >
-        <TabbedCard
-          title="Model Schema"
-          variant="compact"
-          bodyStyle={{
-            padding: 0,
-          }}
-        >
-          <Tabs>
-            <TabPane name="Features">
-              <ModelSchemaTable model={data} />
-            </TabPane>
-            <TabPane name="Embeddings">
-              <ModelEmbeddingsTable model={data} />
-            </TabPane>
-          </Tabs>
-        </TabbedCard>
-      </main>
-    </>
+        <Tabs>
+          <TabPane name="Features">
+            <ModelSchemaTable model={data} />
+          </TabPane>
+          <TabPane name="Embeddings">
+            <ModelEmbeddingsTable model={data} />
+          </TabPane>
+        </Tabs>
+      </TabbedCard>
+    </main>
   );
 }

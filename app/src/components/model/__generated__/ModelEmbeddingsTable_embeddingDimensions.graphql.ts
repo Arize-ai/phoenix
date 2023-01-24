@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<1ef9418cc3616ba3c365d85e1c57474a>>
+ * @generated SignedSource<<146596aa10d3a47ceec1903441dca95f>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -15,6 +15,7 @@ export type ModelEmbeddingsTable_embeddingDimensions$data = {
     readonly embeddingDimensions: {
       readonly edges: ReadonlyArray<{
         readonly embedding: {
+          readonly id: String;
           readonly name: string;
         };
       }>;
@@ -106,6 +107,13 @@ return {
                       "alias": null,
                       "args": null,
                       "kind": "ScalarField",
+                      "name": "id",
+                      "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
                       "name": "name",
                       "storageKey": null
                     }
@@ -177,6 +185,6 @@ return {
 };
 })();
 
-(node as any).hash = "74bb48ec2fdef62a359f8754e372a2db";
+(node as any).hash = "8123420376d1fc45319d86f7174a5e98";
 
 export default node;

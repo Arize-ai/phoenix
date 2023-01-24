@@ -1,7 +1,8 @@
 import React, { useMemo } from "react";
+import { Link } from "react-router-dom";
 import { graphql, usePaginationFragment } from "react-relay";
 import { Table } from "../table/Table";
-import { Column } from "react-table";
+import { CellProps, Column } from "react-table";
 import { ModelEmbeddingsTable_embeddingDimensions$key } from "./__generated__/ModelEmbeddingsTable_embeddingDimensions.graphql";
 
 type ModelEmbeddingsTable = {
@@ -22,6 +23,7 @@ export function ModelEmbeddingsTable(props: ModelEmbeddingsTable) {
             @connection(key: "ModelEmbeddingsTable_embeddingDimensions") {
             edges {
               embedding: node {
+                id
                 name
               }
             }
@@ -43,11 +45,15 @@ export function ModelEmbeddingsTable(props: ModelEmbeddingsTable) {
   );
 
   // Declare the columns
+  type TableRow = typeof tableData[number];
   const columns = React.useMemo(() => {
-    const cols: Column<typeof tableData[number]>[] = [
+    const cols: Column<TableRow>[] = [
       {
         Header: "Name",
         accessor: "name",
+        Cell: ({ row, value }: CellProps<TableRow, string>) => (
+          <Link to={`/embeddings/${row.id}`}>{value}</Link>
+        ),
       },
     ];
     return cols;
