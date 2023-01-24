@@ -17,7 +17,7 @@ from phoenix.datasets.dataset import (
     Schema,
     _parse_dataframe_and_schema,
 )
-from phoenix.datasets.errors import InvalidColumnType, InvalidSchemaError
+from phoenix.datasets.errors import DatasetError
 
 
 class TestParseDataFrameAndSchema:
@@ -536,7 +536,7 @@ class TestParseDataFrameAndSchema:
                 "timestamp": np.full(
                     shape=self.num_records, fill_value=pd.Timestamp.utcnow(), dtype=pd.Timestamp
                 ),
-                "prediction_id": self._random_uuids(),
+                "prediction_id": random_uuids(self.num_records),
             }
         )
 
@@ -561,7 +561,7 @@ class TestParseDataFrameAndSchema:
                 "timestamp": np.full(
                     shape=self.num_records, fill_value=pd.Timestamp.utcnow().timestamp(), dtype=int
                 ),
-                "prediction_id": self._random_uuids(),
+                "prediction_id": random_uuids(self.num_records),
             }
         )
         input_schema = Schema(
@@ -640,7 +640,7 @@ class TestParseDataFrameAndSchema:
             {
                 "prediction_label": [f"label{index}" for index in range(self.num_records)],
                 "feature0": np.zeros(self.num_records),
-                "prediction_id": self._random_uuids(),
+                "prediction_id": random_uuids(self.num_records),
             }
         )
 
@@ -685,6 +685,45 @@ class TestParseDataFrameAndSchema:
         assert "timestamp" in output_dataframe
         assert output_dataframe.dtypes["timestamp"], "datetime[nz]"
 
+    @property
+    def num_records(self):
+        return self._NUM_RECORDS
+
+    @property
+    def embedding_dimension(self):
+        return self._EMBEDDING_DIMENSION
+
+
+class TestDataset:
+    _NUM_RECORDS = 9
+
+    def test_dataset_normalization_columns_already_normalized(self):
+        input_dataframe = DataFrame(
+            {
+                "prediction_label": [f"label{index}" for index in range(self.num_records)],
+                "feature0": np.zeros(self._NUM_RECORDS),
+                "timestamp": np.full(
+                    shape=self._NUM_RECORDS, fill_value=pd.Timestamp.utcnow(), dtype=pd.Timestamp
+                ),
+                "prediction_id": random_uuids(self.num_records),
+            }
+        )
+
+        input_schema = Schema(
+            prediction_id_column_name="prediction_id",
+            timestamp_column_name="timestamp",
+            feature_column_names=["feature0"],
+            prediction_label_column_name="prediction_label",
+        )
+
+        dataset = Dataset(dataframe=input_dataframe, schema=input_schema)
+        output_dataframe = dataset.dataframe
+        output_schema = dataset.schema
+
+        assert output_dataframe.equals(input_dataframe)
+        assert output_schema == input_schema
+
+    # TODO: Move validation tests to validation module; keep one validation integration test
     def test_dataset_validate_invalid_prediction_id_datatype(self) -> None:
         input_df = DataFrame(
             {
@@ -702,15 +741,15 @@ class TestParseDataFrameAndSchema:
             prediction_label_column_name="prediction_label",
         )
 
-        with raises(InvalidColumnType):
-            _parse_dataframe_and_schema(dataframe=input_df, schema=input_schema)
+        with raises(DatasetError):
+            Dataset(dataframe=input_df, schema=input_schema)
 
     def test_dataset_validate_invalid_timestamp_datatype(self) -> None:
         input_df = DataFrame(
             {
                 "prediction_label": [f"label{index}" for index in range(self.num_records)],
                 "feature0": np.zeros(self.num_records),
-                "timestamp": self._random_uuids(),
+                "timestamp": random_uuids(self.num_records),
             },
         )
 
@@ -720,15 +759,15 @@ class TestParseDataFrameAndSchema:
             prediction_label_column_name="prediction_label",
         )
 
-        with raises(InvalidColumnType):
-            _parse_dataframe_and_schema(dataframe=input_df, schema=input_schema)
+        with raises(DatasetError):
+            Dataset(dataframe=input_df, schema=input_schema)
 
     def test_dataset_validate_invalid_schema_excludes_timestamp(self) -> None:
         input_df = DataFrame(
             {
                 "prediction_label": [f"label{index}" for index in range(self.num_records)],
                 "feature0": np.zeros(self.num_records),
-                "timestamp": self._random_uuids(),
+                "timestamp": random_uuids(self.num_records),
             },
         )
 
@@ -739,8 +778,8 @@ class TestParseDataFrameAndSchema:
             excludes=["timestamp"],
         )
 
-        with raises(InvalidSchemaError):
-            _parse_dataframe_and_schema(dataframe=input_df, schema=input_schema)
+        with raises(DatasetError):
+            Dataset(dataframe=input_df, schema=input_schema)
 
     def test_dataset_validate_invalid_schema_excludes_prediction_id(self) -> None:
         input_df = DataFrame(
@@ -748,7 +787,7 @@ class TestParseDataFrameAndSchema:
                 "prediction_id": [str(x) for x in range(self.num_records)],
                 "prediction_label": [f"label{index}" for index in range(self.num_records)],
                 "feature0": np.zeros(self.num_records),
-                "timestamp": self._random_uuids(),
+                "timestamp": random_uuids(self.num_records),
             },
         )
 
@@ -759,47 +798,13 @@ class TestParseDataFrameAndSchema:
             excludes=["prediction_id"],
         )
 
-        with raises(InvalidSchemaError):
-            _parse_dataframe_and_schema(dataframe=input_df, schema=input_schema)
-
-    def _random_uuids(self):
-        return [str(uuid.uuid4()) for _ in range(self.num_records)]
+        with raises(DatasetError):
+            Dataset(dataframe=input_df, schema=input_schema)
 
     @property
     def num_records(self):
         return self._NUM_RECORDS
 
-    @property
-    def embedding_dimension(self):
-        return self._EMBEDDING_DIMENSION
 
-
-class TestDataset:
-
-    _NUM_RECORDS = 9
-
-    def test_dataset_normalization_columns_already_normalized(self):
-        input_dataframe = DataFrame(
-            {
-                "prediction_label": [f"label{index}" for index in range(self._NUM_RECORDS)],
-                "feature0": np.zeros(self._NUM_RECORDS),
-                "timestamp": np.full(
-                    shape=self._NUM_RECORDS, fill_value=pd.Timestamp.utcnow(), dtype=pd.Timestamp
-                ),
-                "prediction_id": [str(uuid.uuid4()) for _ in range(self._NUM_RECORDS)],
-            }
-        )
-
-        input_schema = Schema(
-            prediction_id_column_name="prediction_id",
-            timestamp_column_name="timestamp",
-            feature_column_names=["feature0"],
-            prediction_label_column_name="prediction_label",
-        )
-
-        dataset = Dataset(dataframe=input_dataframe, schema=input_schema)
-        output_dataframe = dataset.dataframe
-        output_schema = dataset.schema
-
-        assert output_dataframe.equals(input_dataframe)
-        assert output_schema == input_schema
+def random_uuids(num_records: int):
+    return [str(uuid.uuid4()) for _ in range(num_records)]
