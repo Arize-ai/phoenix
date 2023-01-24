@@ -50,7 +50,7 @@ class InvalidSchemaError(ValidationError):
         self.invalid_props = invalid_props
 
     def error_message(self) -> str:
-        errors_string = ', '.join(map(str, self.invalid_props))
+        errors_string = ", ".join(map(str, self.invalid_props))
         return f"The schema is invalid: {errors_string}."
 
 
