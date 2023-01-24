@@ -1,2 +1,3 @@
 export * from "./Home";
-export * from "./EmbeddingDetails";
+export * from "./Embedding";
+export * from "./Layout";

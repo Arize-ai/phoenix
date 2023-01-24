@@ -1,5 +1,5 @@
 import React, { useMemo } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "..";
 import { graphql, usePaginationFragment } from "react-relay";
 import { Table } from "../table/Table";
 import { CellProps, Column } from "react-table";

@@ -12,8 +12,7 @@ import {
 import RelayEnvironment from "./RelayEnvironment";
 import { AppRootQuery } from "./__generated__/AppRootQuery.graphql";
 import { AppRoutes } from "./Routes";
-import { DatasetsProvider, useDatasets } from "./contexts";
-import { Brand, Navbar } from "./components/nav";
+import { DatasetsProvider } from "./contexts";
 
 const RootQuery = graphql`
   query AppRootQuery {
@@ -30,18 +29,6 @@ type AppProps = {
   preloadedQuery: PreloadedQuery<AppRootQuery>;
 };
 
-function Nav() {
-  // TODO(mikeldking): Add dataset selectors
-  // const datasets = useDatasets();
-  return (
-    <Navbar>
-      <Brand />
-      {/* <span>{datasets.primaryDataset.name}</span>
-      <span>{datasets.referenceDataset.name}</span> */}
-    </Navbar>
-  );
-}
-
 function App(props: AppProps) {
   const data = usePreloadedQuery(RootQuery, props.preloadedQuery);
   return (
@@ -49,7 +36,6 @@ function App(props: AppProps) {
       primaryDataset={data.primaryDataset}
       referenceDataset={data.referenceDataset}
     >
-      <Nav />
       <AppRoutes />
     </DatasetsProvider>
   );
