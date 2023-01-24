@@ -39,7 +39,7 @@ class Schema(Dict[SchemaFieldName, SchemaFieldValue]):
 
     def to_json(self) -> str:
         "Converts the schema to a dict for JSON serialization"
-        dictionary = self.__dict__
+        dictionary = {}
 
         for field in self.__dataclass_fields__:
             value = getattr(self, field)

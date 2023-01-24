@@ -1,8 +1,8 @@
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 from typing import Iterable, List, Union
 
 
-class ValidationError(ABC):
+class ValidationError(Exception):
     def __repr__(self) -> str:
         return self.__class__.__name__
 
@@ -42,11 +42,33 @@ class MissingColumns(ValidationError):
         )
 
 
+class InvalidSchemaError(ValidationError):
+    def __repr__(self) -> str:
+        return self.__class__.__name__
+
+    def __init__(self, invalid_props: Iterable[str]) -> None:
+        self.invalid_props = invalid_props
+
+    def error_message(self) -> str:
+        errors_string = ", ".join(map(str, self.invalid_props))
+        return f"The schema is invalid: {errors_string}."
+
+
 class DatasetError(Exception):
     """An error raised when the dataset is invalid or incomplete"""
 
     def __init__(self, errors: Union[ValidationError, List[ValidationError]]):
         self.errors = errors
+
+
+class InvalidColumnType(ValidationError):
+    """An error raised when the column type is invalid"""
+
+    def __init__(self, error_msgs: Iterable[str]) -> None:
+        self.error_msgs = error_msgs
+
+    def error_message(self) -> str:
+        return f"Invalid column types: {self.error_msgs}"
 
 
 class MissingField(ValidationError):

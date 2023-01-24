@@ -6,7 +6,8 @@ from copy import deepcopy
 from dataclasses import fields, replace
 from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
-from pandas import DataFrame, Series, read_parquet
+from pandas import DataFrame, Series, Timestamp, read_parquet, to_datetime
+from pandas.api.types import is_numeric_dtype
 
 from phoenix.config import dataset_dir
 
@@ -268,7 +269,7 @@ def _parse_dataframe_and_schema(dataframe: DataFrame, schema: Schema) -> Tuple[D
             "not found in the dataframe: {}".format(", ".join(unseen_excluded_column_names))
         )
 
-    parsed_dataframe, parsed_schema = _create_parsed_dataframe_and_schema(
+    parsed_dataframe, parsed_schema = _create_and_normalize_dataframe_and_schema(
         dataframe, schema, schema_patch, column_name_to_include
     )
 
@@ -400,7 +401,7 @@ def _discover_feature_columns(
     )
 
 
-def _create_parsed_dataframe_and_schema(
+def _create_and_normalize_dataframe_and_schema(
     dataframe: DataFrame,
     schema: Schema,
     schema_patch: Dict[SchemaFieldName, SchemaFieldValue],
@@ -408,12 +409,32 @@ def _create_parsed_dataframe_and_schema(
 ) -> Tuple[DataFrame, Schema]:
     """
     Creates new dataframe and schema objects to reflect excluded column names
-    and discovered features.
+    and discovered features. This also normalizes dataframe columns to ensure a
+    standard set of columns (i.e. timestamp and prediction_id) and datatypes for
+    those columns.
     """
     included_column_names: List[str] = []
     for column_name in dataframe.columns:
         if column_name_to_include.get(str(column_name), False):
             included_column_names.append(str(column_name))
-    parsed_dataframe = dataframe[included_column_names]
+    parsed_dataframe = dataframe[included_column_names].copy()
     parsed_schema = replace(schema, excludes=None, **schema_patch)
+
+    ts_col_name = parsed_schema.timestamp_column_name
+    if ts_col_name is None:
+        now = Timestamp.utcnow()
+        parsed_schema = replace(parsed_schema, timestamp_column_name="timestamp")
+        parsed_dataframe["timestamp"] = now
+    elif is_numeric_dtype(dataframe.dtypes[ts_col_name]):
+        parsed_dataframe[ts_col_name] = parsed_dataframe[ts_col_name].apply(
+            lambda x: to_datetime(x, unit="ms")
+        )
+
+    pred_col_name = parsed_schema.prediction_id_column_name
+    if pred_col_name is None:
+        parsed_schema = replace(parsed_schema, prediction_id_column_name="prediction_id")
+        parsed_dataframe["prediction_id"] = parsed_dataframe.apply(lambda _: str(uuid.uuid4()))
+    elif is_numeric_dtype(parsed_dataframe.dtypes[pred_col_name]):
+        parsed_dataframe[pred_col_name] = parsed_dataframe[pred_col_name].astype(str)
+
     return parsed_dataframe, parsed_schema

@@ -2,17 +2,71 @@ from itertools import chain
 from typing import List
 
 from pandas import DataFrame
+from pandas.api.types import is_datetime64_any_dtype as is_datetime
+from pandas.api.types import is_numeric_dtype, is_string_dtype
 
 from . import errors as err
 from .schema import Schema
 
 
+def _check_valid_schema(schema: Schema) -> List[err.ValidationError]:
+    errs: List[str] = []
+    if schema.excludes is None:
+        return []
+
+    if schema.timestamp_column_name in schema.excludes:
+        errs.append(
+            f"{schema.timestamp_column_name} cannot be excluded because "
+            f"it is already being used as the timestamp column"
+        )
+
+    if schema.prediction_id_column_name in schema.excludes:
+        errs.append(
+            f"{schema.prediction_id_column_name} cannot be excluded because "
+            f"it is already being used as the prediction id column"
+        )
+
+    if len(errs) > 0:
+        return [err.InvalidSchemaError(errs)]
+
+    return []
+
+
 def validate_dataset_inputs(dataframe: DataFrame, schema: Schema) -> List[err.ValidationError]:
-    general_checks = chain(check_missing_columns(dataframe, schema))
+    general_checks = chain(
+        _check_missing_columns(dataframe, schema),
+        _check_column_types(dataframe, schema),
+        _check_valid_schema(schema),
+    )
     return list(general_checks)
 
 
-def check_missing_columns(dataframe: DataFrame, schema: Schema) -> List[err.MissingColumns]:
+def _check_column_types(dataframe: DataFrame, schema: Schema) -> List[err.ValidationError]:
+    wrong_type_cols: List[str] = []
+    if schema.timestamp_column_name is not None:
+        if not (
+            is_numeric_dtype(dataframe.dtypes[schema.timestamp_column_name])
+            or is_datetime(dataframe.dtypes[schema.timestamp_column_name])
+        ):
+            wrong_type_cols.append(
+                f"{schema.timestamp_column_name} should be of timestamp or numeric type"
+            )
+
+    if schema.prediction_id_column_name is not None:
+        if not (
+            is_numeric_dtype(dataframe.dtypes[schema.prediction_id_column_name])
+            or is_string_dtype(dataframe.dtypes[schema.prediction_id_column_name])
+        ):
+            wrong_type_cols.append(
+                f"{schema.prediction_id_column_name} should be a string or numeric type"
+            )
+
+    if len(wrong_type_cols) > 0:
+        return [err.InvalidColumnType(wrong_type_cols)]
+    return []
+
+
+def _check_missing_columns(dataframe: DataFrame, schema: Schema) -> List[err.MissingColumns]:
     # converting to a set first makes the checks run a lot faster
     existing_columns = set(dataframe.columns)
     missing_columns = []
@@ -45,4 +99,5 @@ def check_missing_columns(dataframe: DataFrame, schema: Schema) -> List[err.Miss
 
     if missing_columns:
         return [err.MissingColumns(missing_columns)]
+
     return []
