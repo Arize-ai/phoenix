@@ -52,7 +52,7 @@ export function ModelEmbeddingsTable(props: ModelEmbeddingsTable) {
         Header: "Name",
         accessor: "name",
         Cell: ({ row, value }: CellProps<TableRow, string>) => (
-          <Link to={`/embeddings/${row.id}`}>{value}</Link>
+          <Link to={`/embeddings/${row.original.id}`}>{value}</Link>
         ),
       },
     ];
