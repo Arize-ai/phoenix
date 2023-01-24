@@ -17,7 +17,7 @@ from phoenix.datasets.dataset import (
     Schema,
     _parse_dataframe_and_schema,
 )
-from phoenix.datasets.errors import InvalidSchemaError, InvalidColumnType
+from phoenix.datasets.errors import InvalidColumnType, InvalidSchemaError
 
 
 class TestParseDataFrameAndSchema:
