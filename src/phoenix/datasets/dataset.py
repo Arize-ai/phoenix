@@ -4,6 +4,7 @@ import sys
 import uuid
 from copy import deepcopy
 from dataclasses import fields, replace
+from itertools import takewhile
 from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
 from pandas import DataFrame, Series, Timestamp, read_parquet, to_datetime
@@ -48,14 +49,11 @@ class Dataset:
         name: Optional[str] = None,
         persist_to_disc: bool = True,
     ):
-        errors = validate_dataset_inputs(
-            dataframe=dataframe,
-            schema=schema,
-        )
-        if errors:
+        for errors in validate_dataset_inputs(dataframe=dataframe, schema=schema):
             for e in errors:
                 logger.error(e)
-            raise err.DatasetError(errors)
+            if errors:
+                raise err.DatasetError(errors)
         parsed_dataframe, parsed_schema = _parse_dataframe_and_schema(dataframe, schema)
         self.__dataframe: DataFrame = parsed_dataframe
         self.__schema: Schema = parsed_schema

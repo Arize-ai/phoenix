@@ -1,5 +1,5 @@
 from itertools import chain
-from typing import List
+from typing import List, Generator
 
 from pandas import DataFrame
 from pandas.api.types import is_datetime64_any_dtype as is_datetime
@@ -32,13 +32,12 @@ def _check_valid_schema(schema: Schema) -> List[err.ValidationError]:
     return []
 
 
-def validate_dataset_inputs(dataframe: DataFrame, schema: Schema) -> List[err.ValidationError]:
-    general_checks = chain(
-        _check_missing_columns(dataframe, schema),
-        _check_column_types(dataframe, schema),
-        _check_valid_schema(schema),
-    )
-    return list(general_checks)
+def validate_dataset_inputs(
+    dataframe: DataFrame, schema: Schema
+) -> Generator[List[err.ValidationError], None, None]:
+    yield _check_missing_columns(dataframe, schema)
+    yield _check_column_types(dataframe, schema)
+    yield _check_valid_schema(schema)
 
 
 def _check_column_types(dataframe: DataFrame, schema: Schema) -> List[err.ValidationError]:
