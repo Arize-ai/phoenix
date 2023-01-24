@@ -105,6 +105,25 @@ ner_token_drift_fixture = Fixture(
     ),
 )
 
+credit_card_fraud_schema = Schema(
+    prediction_id_column_name="prediction_id",
+    prediction_label_column_name="predicted_label",
+    actual_label_column_name="actual_label",
+    timestamp_column_name="prediction_timestamp",
+)
+credit_card_fraud_fixture = Fixture(
+    name="credit_card_fraud",
+    primary_schema=credit_card_fraud_schema,
+    reference_schema=credit_card_fraud_schema,
+    primary_dataset_url=os.path.join(
+        FIXTURE_URL_PREFIX, "structured/credit_card_fraud/credit_card_fraud_production.parquet"
+    ),
+    reference_dataset_url=os.path.join(
+        FIXTURE_URL_PREFIX,
+        "structured/credit_card_fraud/credit_card_fraud_train.parquet",
+    ),
+)
+
 wide_data_primary_schema = Schema(
     actual_label_column_name="actual_label",
     prediction_label_column_name="predicted_label",
@@ -128,11 +147,36 @@ wide_data_fixture = Fixture(
     ),
 )
 
+deep_data_primary_schema = Schema(
+    timestamp_column_name="prediction_ts",
+    actual_label_column_name="actual_label",
+    prediction_label_column_name="predicted_label",
+)
+deep_data_reference_schema = Schema(
+    actual_label_column_name="actual_label",
+    prediction_label_column_name="predicted_label",
+)
+deep_data_fixture = Fixture(
+    name="deep_data",
+    primary_schema=deep_data_primary_schema,
+    reference_schema=deep_data_reference_schema,
+    primary_dataset_url=os.path.join(
+        FIXTURE_URL_PREFIX,
+        "structured/deep-data/deep_data_production.parquet",
+    ),
+    reference_dataset_url=os.path.join(
+        FIXTURE_URL_PREFIX,
+        "structured/deep-data/deep_data_train.parquet",
+    ),
+)
+
 FIXTURES: Tuple[Fixture, ...] = (
     sentiment_classification_language_drift_fixture,
     fashion_mnist_fixture,
     ner_token_drift_fixture,
+    credit_card_fraud_fixture,
     wide_data_fixture,
+    deep_data_fixture,
 )
 NAME_TO_FIXTURE = {fixture.name: fixture for fixture in FIXTURES}
 
