@@ -154,8 +154,9 @@ def connection_from_list_slice(
         for index, node in enumerate(slice)
     ]
 
-    first_edge = edges[0]
-    last_edge = edges[-1]
+    has_edges = len(edges) > 0
+    first_edge = edges[0] if has_edges else None
+    last_edge = edges[-1] if has_edges else None
     lower_bound = after_offset + 1 if args.after is not None else 0
     upper_bound = before_offset if args.before is not None else list_length
 
