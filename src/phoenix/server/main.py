@@ -112,11 +112,34 @@ ner_token_drift_fixture = Fixture(
     ),
 )
 
+wide_data_primary_schema = Schema(
+    actual_label_column_name="actual_label",
+    prediction_label_column_name="predicted_label",
+    timestamp_column_name="prediction_ts",
+)
+wide_data_reference_schema = Schema(
+    actual_label_column_name="actual_label",
+    prediction_label_column_name="predicted_label",
+)
+wide_data_fixture = Fixture(
+    name="wide_data",
+    primary_schema=wide_data_primary_schema,
+    reference_schema=wide_data_reference_schema,
+    primary_dataset_url=os.path.join(
+        FIXTURE_URL_PREFIX,
+        "structured/wide-data/wide_data_production.parquet",
+    ),
+    reference_dataset_url=os.path.join(
+        FIXTURE_URL_PREFIX,
+        "structured/wide-data/wide_data_train.parquet",
+    ),
+)
 
 FIXTURES: Tuple[Fixture, ...] = (
     sentiment_classification_language_drift_fixture,
     fashion_mnist_fixture,
     ner_token_drift_fixture,
+    wide_data_fixture,
 )
 
 
