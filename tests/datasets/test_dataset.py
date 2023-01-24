@@ -17,7 +17,7 @@ from phoenix.datasets.dataset import (
     Schema,
     _parse_dataframe_and_schema,
 )
-from phoenix.datasets.errors import DatasetError
+from phoenix.datasets.errors import InvalidSchemaError, InvalidColumnType
 
 
 class TestParseDataFrameAndSchema:
@@ -700,7 +700,7 @@ class TestParseDataFrameAndSchema:
             prediction_label_column_name="prediction_label",
         )
 
-        with raises(DatasetError):
+        with raises(InvalidColumnType):
             Dataset(dataframe=input_df, schema=input_schema)
 
     def test_dataset_validate_invalid_timestamp_datatype(self) -> None:
@@ -718,7 +718,7 @@ class TestParseDataFrameAndSchema:
             prediction_label_column_name="prediction_label",
         )
 
-        with raises(DatasetError):
+        with raises(InvalidColumnType):
             Dataset(dataframe=input_df, schema=input_schema)
 
     def test_dataset_validate_invalid_schema_excludes_timestamp(self) -> None:
@@ -737,7 +737,7 @@ class TestParseDataFrameAndSchema:
             excludes=["timestamp"],
         )
 
-        with raises(DatasetError):
+        with raises(InvalidSchemaError):
             Dataset(dataframe=input_df, schema=input_schema)
 
     def test_dataset_validate_invalid_schema_excludes_prediction_id(self) -> None:
@@ -757,7 +757,7 @@ class TestParseDataFrameAndSchema:
             excludes=["prediction_id"],
         )
 
-        with raises(DatasetError):
+        with raises(InvalidSchemaError):
             Dataset(dataframe=input_df, schema=input_schema)
 
     def _random_uuids(self):

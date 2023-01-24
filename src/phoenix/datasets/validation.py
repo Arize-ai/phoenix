@@ -99,4 +99,5 @@ def _check_missing_columns(dataframe: DataFrame, schema: Schema) -> List[err.Mis
 
     if missing_columns:
         return [err.MissingColumns(missing_columns)]
+    
     return []

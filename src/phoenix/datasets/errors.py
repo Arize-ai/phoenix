@@ -1,8 +1,8 @@
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 from typing import Iterable, List, Union
 
 
-class ValidationError(ABC):
+class ValidationError(Exception):
     def __repr__(self) -> str:
         return self.__class__.__name__
 
