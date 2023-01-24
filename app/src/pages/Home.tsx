@@ -1,21 +1,18 @@
 import { css } from "@emotion/react";
-import { Card } from "@arizeai/components";
-import { ModelSchemaTable } from "../components/model";
+import { TabbedCard, Tabs, TabPane } from "@arizeai/components";
+import { ModelSchemaTable, ModelEmbeddingsTable } from "../components/model";
 import React from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { HomeQuery } from "./__generated__/HomeQuery.graphql";
 
-type HomePageProps = {
-  primaryDatasetName: string;
-  referenceDatasetName: string;
-};
+type HomePageProps = Readonly<object>;
 
-export function Home(props: HomePageProps) {
-  const { primaryDatasetName, referenceDatasetName } = props;
+export function Home(_props: HomePageProps) {
   const data = useLazyLoadQuery<HomeQuery>(
     graphql`
       query HomeQuery {
         ...ModelSchemaTable_dimensions
+        ...ModelEmbeddingsTable_embeddingDimensions
       }
     `,
     {}
@@ -28,16 +25,22 @@ export function Home(props: HomePageProps) {
         `
       }
     >
-      <Card
+      <TabbedCard
         title="Model Schema"
-        subTitle={`primary: ${primaryDatasetName}, reference: ${referenceDatasetName}`}
         variant="compact"
         bodyStyle={{
           padding: 0,
         }}
       >
-        <ModelSchemaTable model={data} />
-      </Card>
+        <Tabs>
+          <TabPane name="Dimensions">
+            <ModelSchemaTable model={data} />
+          </TabPane>
+          <TabPane name="Embeddings">
+            <ModelEmbeddingsTable model={data} />
+          </TabPane>
+        </Tabs>
+      </TabbedCard>
     </main>
   );
 }
