@@ -701,7 +701,7 @@ class TestParseDataFrameAndSchema:
         )
 
         with raises(InvalidColumnType):
-            Dataset(dataframe=input_df, schema=input_schema)
+            _parse_dataframe_and_schema(dataframe=input_df, schema=input_schema)
 
     def test_dataset_validate_invalid_timestamp_datatype(self) -> None:
         input_df = DataFrame(
@@ -719,7 +719,7 @@ class TestParseDataFrameAndSchema:
         )
 
         with raises(InvalidColumnType):
-            Dataset(dataframe=input_df, schema=input_schema)
+            _parse_dataframe_and_schema(dataframe=input_df, schema=input_schema)
 
     def test_dataset_validate_invalid_schema_excludes_timestamp(self) -> None:
         input_df = DataFrame(
@@ -738,7 +738,7 @@ class TestParseDataFrameAndSchema:
         )
 
         with raises(InvalidSchemaError):
-            Dataset(dataframe=input_df, schema=input_schema)
+            _parse_dataframe_and_schema(dataframe=input_df, schema=input_schema)
 
     def test_dataset_validate_invalid_schema_excludes_prediction_id(self) -> None:
         input_df = DataFrame(
@@ -758,7 +758,7 @@ class TestParseDataFrameAndSchema:
         )
 
         with raises(InvalidSchemaError):
-            Dataset(dataframe=input_df, schema=input_schema)
+            _parse_dataframe_and_schema(dataframe=input_df, schema=input_schema)
 
     def _random_uuids(self):
         return [str(uuid.uuid4()) for _ in range(self.num_records)]
