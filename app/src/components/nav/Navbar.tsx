@@ -73,12 +73,20 @@ export function GitHubLink() {
   return (
     <a
       href="https://github.com/arize-ai/phoenix"
-      css={() => css`
+      css={(theme) => css`
         padding: ${theme.spacing.padding4}px;
+        width: 20px;
+        height: 20px;
+        display: block;
         svg {
+          fill: ${theme.textColors.white50};
+          transition: fill 0.2s ease-in-out;
+        }
+        &:hover svg {
           fill: ${theme.textColors.white90};
         }
       `}
+      aria-label="GitHub"
     >
       <GitHubSVG />
     </a>
