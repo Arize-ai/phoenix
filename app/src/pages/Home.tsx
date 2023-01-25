@@ -1,5 +1,11 @@
 import { css } from "@emotion/react";
-import { TabbedCard, Tabs, TabPane } from "@arizeai/components";
+import {
+  TabbedCard,
+  Tabs,
+  TabPane,
+  Breadcrumbs,
+  Item,
+} from "@arizeai/components";
 import { ModelSchemaTable, ModelEmbeddingsTable } from "../components/model";
 import React from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
@@ -22,9 +28,16 @@ export function Home(_props: HomePageProps) {
       css={(theme) =>
         css`
           margin: ${theme.spacing.margin8}px;
+          nav {
+            margin-bottom: ${theme.spacing.margin8}px;
+          }
         `
       }
     >
+      <Breadcrumbs>
+        <Item key="model">Model</Item>
+        <Item key="overview">Overview</Item>
+      </Breadcrumbs>
       <TabbedCard
         title="Model Schema"
         variant="compact"
