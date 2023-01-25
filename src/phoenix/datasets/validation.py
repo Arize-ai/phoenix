@@ -1,5 +1,5 @@
 from itertools import chain
-from typing import List, Generator
+from typing import Generator, List
 
 from pandas import DataFrame
 from pandas.api.types import is_datetime64_any_dtype as is_datetime
