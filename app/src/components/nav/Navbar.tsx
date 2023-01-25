@@ -1,7 +1,6 @@
 import React, { ReactNode } from "react";
 import { css, Theme } from "@emotion/react";
 import { Link } from "react-router-dom";
-import { theme } from "@arizeai/components";
 
 const navCSS = (theme: Theme) => css`
   padding: ${theme.spacing.padding8}px;
