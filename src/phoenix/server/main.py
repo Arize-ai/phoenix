@@ -3,8 +3,7 @@ import errno
 import logging
 import os
 from argparse import ArgumentParser, Namespace
-from copy import deepcopy
-from typing import Optional
+from typing import Optional, Tuple
 
 import uvicorn
 
@@ -19,22 +18,18 @@ from phoenix.server.fixtures import (
 logger = logging.getLogger(__name__)
 
 
-def _parse_and_validate_arguments(
+def _validate_arguments(
     arguments: Namespace,
-) -> Namespace:
+) -> None:
     """
-    Parses and validates command line arguments.
+    Validates command line arguments.
 
     Primary and reference datasets can be specified either explicitly by naming
-    existing datasets or implicitly by passing the name of a fixture. In the
-    case where the user provides a fixture name, primary and reference dataset
-    names will be inferred. Returns a copy of the input arguments, possibly with
-    updated primary and reference fields.
+    existing datasets (in which case no fixture should be provided) or
+    implicitly by passing the name of a fixture (in which case no datasets
+    should be provided).
     """
 
-    primary_dataset_name: str
-    reference_dataset_name: str
-    fixture_name: Optional[str] = None
     provided_primary_and_reference_flags_only = (
         isinstance(arguments.primary, str)
         and isinstance(arguments.reference, str)
@@ -45,26 +40,33 @@ def _parse_and_validate_arguments(
         and arguments.reference is None
         and isinstance(arguments.fixture, str)
     )
-    if provided_primary_and_reference_flags_only:
-        primary_dataset_name = arguments.primary
-        reference_dataset_name = arguments.reference
-    elif provided_fixture_flag_only:
-        fixture_name = args.fixture
-        primary_dataset_name, reference_dataset_name = get_dataset_names_from_fixture_name(
-            args.fixture
-        )
-    else:
+    if not (provided_primary_and_reference_flags_only or provided_fixture_flag_only):
         raise ValueError(
             'Primary and reference datasets can be specified either explicitly via the "--primary" '
             'and "--reference" flags (in which case the "--fixture" flag should be omitted) or '
             'implicitly via the "--fixture" flag (in which case the "--primary" and "--reference" '
             "flags should be omitted)."
         )
-    parsed_arguments = deepcopy(arguments)
-    parsed_arguments.primary = primary_dataset_name
-    parsed_arguments.reference = reference_dataset_name
-    parsed_arguments.fixture = fixture_name
-    return parsed_arguments
+
+
+def _get_dataset_and_fixture_names(args: Namespace) -> Tuple[str, str, Optional[str]]:
+    """
+    Gets primary dataset name, reference dataset name, and fixture name from
+    command line arguments. In the case where the fixture name is provided,
+    primary and reference dataset names will be inferred.
+    """
+    primary_dataset_name: str
+    reference_dataset_name: str
+    fixture_name: Optional[str]
+    if args.fixture is not None:
+        primary_dataset_name, reference_dataset_name = get_dataset_names_from_fixture_name(
+            args.fixture
+        )
+        fixture_name = args.fixture
+    else:
+        primary_dataset_name = args.primary
+        reference_dataset_name = args.reference
+    return primary_dataset_name, reference_dataset_name, fixture_name
 
 
 def _write_pid_file() -> None:
@@ -102,19 +104,22 @@ if __name__ == "__main__":
     parser.add_argument("--debug", action="store_true")
     args = parser.parse_args()
 
-    args = _parse_and_validate_arguments(args)
-    if args.fixture is not None:
-        download_fixture_if_missing(args.fixture)
+    _validate_arguments(args)
+    primary_dataset_name, reference_dataset_name, fixture_name = _get_dataset_and_fixture_names(
+        args
+    )
+    if fixture_name is not None:
+        download_fixture_if_missing(fixture_name)
 
     print(
         f"""Starting Phoenix App
-            primary dataset: {args.primary}
-            reference dataset: {args.reference}"""
+            primary dataset: {primary_dataset_name}
+            reference dataset: {reference_dataset_name}"""
     )
 
     app = create_app(
-        primary_dataset_name=args.primary,
-        reference_dataset_name=args.reference,
+        primary_dataset_name=primary_dataset_name,
+        reference_dataset_name=reference_dataset_name,
         debug=args.debug,
         graphiql=args.graphiql,
     )
