@@ -1,5 +1,5 @@
 import React from "react";
-import { Brand, Navbar } from "../components/nav";
+import { Brand, Navbar, GitHubLink } from "../components/nav";
 import { Outlet } from "react-router";
 
 export function Layout() {
@@ -7,6 +7,7 @@ export function Layout() {
     <>
       <Navbar>
         <Brand />
+        <GitHubLink />
       </Navbar>
       <Outlet />
     </>
