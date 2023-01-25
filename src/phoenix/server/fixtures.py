@@ -203,14 +203,13 @@ FIXTURES: Tuple[Fixture, ...] = (
 NAME_TO_FIXTURE = {fixture.name: fixture for fixture in FIXTURES}
 
 
-def download_fixture_if_missing(fixture_name: str) -> Tuple[str, str]:
+def download_fixture_if_missing(fixture_name: str) -> None:
     """
     Downloads primary and reference datasets for a fixture if they are not found
-    locally. Returns the names of the primary and reference datasets.
+    locally.
     """
     fixture = _get_fixture_by_name(fixture_name=fixture_name)
-    primary_dataset_name = f"{fixture_name}_primary"
-    reference_dataset_name = f"{fixture_name}_reference"
+    primary_dataset_name, reference_dataset_name = get_dataset_names_from_fixture_name(fixture_name)
     _download_and_persist_dataset_if_missing(
         dataset_name=primary_dataset_name,
         dataset_url=fixture.primary_dataset_url,
@@ -221,6 +220,14 @@ def download_fixture_if_missing(fixture_name: str) -> Tuple[str, str]:
         dataset_url=fixture.reference_dataset_url,
         schema=fixture.reference_schema,
     )
+
+
+def get_dataset_names_from_fixture_name(fixture_name: str) -> Tuple[str, str]:
+    """
+    Gets primary and reference dataset names from fixture name.
+    """
+    primary_dataset_name = f"{fixture_name}_primary"
+    reference_dataset_name = f"{fixture_name}_reference"
     return primary_dataset_name, reference_dataset_name
 
 

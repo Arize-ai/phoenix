@@ -4,32 +4,37 @@ import logging
 import os
 from argparse import ArgumentParser, Namespace
 from copy import deepcopy
+from typing import Optional
 
 import uvicorn
 
 import phoenix.config as config
 from phoenix.server.app import create_app
-from phoenix.server.fixtures import FIXTURES, download_fixture_if_missing
+from phoenix.server.fixtures import (
+    FIXTURES,
+    download_fixture_if_missing,
+    get_dataset_names_from_fixture_name,
+)
 
 logger = logging.getLogger(__name__)
 
 
-def _parse_arguments_and_download_fixtures_if_necessary(
+def _parse_and_validate_arguments(
     arguments: Namespace,
 ) -> Namespace:
     """
-    Returns a new set of parsed command line arguments and downloads fixtures if
-    specified by name and not found locally.
+    Parses and validates command line arguments.
 
     Primary and reference datasets can be specified either explicitly by naming
-    existing datasets or implicitly by passing the name of a fixture. If a
-    fixture is specified and is not found locally, the corresponding primary and
-    reference datasets will be downloaded. Returns a parsed `Namespace` object
-    with updated primary and reference dataset names and with the fixture
-    argument removed.
+    existing datasets or implicitly by passing the name of a fixture. In the
+    case where the user provides a fixture name, primary and reference dataset
+    names will be inferred. Returns a copy of the input arguments, possibly with
+    updated primary and reference fields.
     """
+
     primary_dataset_name: str
     reference_dataset_name: str
+    fixture_name: Optional[str] = None
     provided_primary_and_reference_flags_only = (
         isinstance(arguments.primary, str)
         and isinstance(arguments.reference, str)
@@ -44,10 +49,10 @@ def _parse_arguments_and_download_fixtures_if_necessary(
         primary_dataset_name = arguments.primary
         reference_dataset_name = arguments.reference
     elif provided_fixture_flag_only:
-        (
-            primary_dataset_name,
-            reference_dataset_name,
-        ) = download_fixture_if_missing(fixture_name=arguments.fixture)
+        fixture_name = args.fixture
+        primary_dataset_name, reference_dataset_name = get_dataset_names_from_fixture_name(
+            args.fixture
+        )
     else:
         raise ValueError(
             'Primary and reference datasets can be specified either explicitly via the "--primary" '
@@ -58,7 +63,7 @@ def _parse_arguments_and_download_fixtures_if_necessary(
     parsed_arguments = deepcopy(arguments)
     parsed_arguments.primary = primary_dataset_name
     parsed_arguments.reference = reference_dataset_name
-    parsed_arguments.fixture = None
+    parsed_arguments.fixture = fixture_name
     return parsed_arguments
 
 
@@ -97,7 +102,9 @@ if __name__ == "__main__":
     parser.add_argument("--debug", action="store_true")
     args = parser.parse_args()
 
-    args = _parse_arguments_and_download_fixtures_if_necessary(args)
+    args = _parse_and_validate_arguments(args)
+    if args.fixture is not None:
+        download_fixture_if_missing(args.fixture)
 
     print(
         f"""Starting Phoenix App
