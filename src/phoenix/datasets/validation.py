@@ -1,4 +1,3 @@
-from itertools import chain
 from typing import Generator, List
 
 from pandas import DataFrame
