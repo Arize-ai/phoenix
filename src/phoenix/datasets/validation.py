@@ -1,4 +1,3 @@
-from itertools import chain
 from typing import List
 
 from pandas import DataFrame
@@ -33,12 +32,16 @@ def _check_valid_schema(schema: Schema) -> List[err.ValidationError]:
 
 
 def validate_dataset_inputs(dataframe: DataFrame, schema: Schema) -> List[err.ValidationError]:
-    general_checks = chain(
-        _check_missing_columns(dataframe, schema),
-        _check_column_types(dataframe, schema),
-        _check_valid_schema(schema),
-    )
-    return list(general_checks)
+    errors = _check_missing_columns(dataframe, schema)
+    if errors:
+        return errors
+    errors = _check_column_types(dataframe, schema)
+    if errors:
+        return errors
+    errors = _check_valid_schema(schema)
+    if errors:
+        return errors
+    return []
 
 
 def _check_column_types(dataframe: DataFrame, schema: Schema) -> List[err.ValidationError]:
@@ -66,7 +69,7 @@ def _check_column_types(dataframe: DataFrame, schema: Schema) -> List[err.Valida
     return []
 
 
-def _check_missing_columns(dataframe: DataFrame, schema: Schema) -> List[err.MissingColumns]:
+def _check_missing_columns(dataframe: DataFrame, schema: Schema) -> List[err.ValidationError]:
     # converting to a set first makes the checks run a lot faster
     existing_columns = set(dataframe.columns)
     missing_columns = []
