@@ -64,7 +64,7 @@ def _check_column_types(dataframe: DataFrame, schema: Schema) -> List[err.Valida
     return []
 
 
-def _check_missing_columns(dataframe: DataFrame, schema: Schema) -> List[err.MissingColumns]:
+def _check_missing_columns(dataframe: DataFrame, schema: Schema) -> List[err.ValidationError]:
     # converting to a set first makes the checks run a lot faster
     existing_columns = set(dataframe.columns)
     missing_columns = []
