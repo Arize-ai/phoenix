@@ -48,11 +48,14 @@ class Dataset:
         name: Optional[str] = None,
         persist_to_disc: bool = True,
     ):
-        for errors in validate_dataset_inputs(dataframe=dataframe, schema=schema):
+        errors = validate_dataset_inputs(
+            dataframe=dataframe,
+            schema=schema,
+        )
+        if errors:
             for e in errors:
                 logger.error(e)
-            if errors:
-                raise err.DatasetError(errors)
+            raise err.DatasetError(errors)
         parsed_dataframe, parsed_schema = _parse_dataframe_and_schema(dataframe, schema)
         self.__dataframe: DataFrame = parsed_dataframe
         self.__schema: Schema = parsed_schema

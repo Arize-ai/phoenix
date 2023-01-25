@@ -1,4 +1,4 @@
-from typing import Generator, List
+from typing import List
 
 from pandas import DataFrame
 from pandas.api.types import is_datetime64_any_dtype as is_datetime
@@ -31,12 +31,17 @@ def _check_valid_schema(schema: Schema) -> List[err.ValidationError]:
     return []
 
 
-def validate_dataset_inputs(
-    dataframe: DataFrame, schema: Schema
-) -> Generator[List[err.ValidationError], None, None]:
-    yield _check_missing_columns(dataframe, schema)
-    yield _check_column_types(dataframe, schema)
-    yield _check_valid_schema(schema)
+def validate_dataset_inputs(dataframe: DataFrame, schema: Schema) -> List[err.ValidationError]:
+    errors = _check_missing_columns(dataframe, schema)
+    if errors:
+        return errors
+    errors = _check_column_types(dataframe, schema)
+    if errors:
+        return errors
+    errors = _check_valid_schema(schema)
+    if errors:
+        return errors
+    return []
 
 
 def _check_column_types(dataframe: DataFrame, schema: Schema) -> List[err.ValidationError]:
