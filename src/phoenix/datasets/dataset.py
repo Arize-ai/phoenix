@@ -5,13 +5,13 @@ import uuid
 from copy import deepcopy
 from dataclasses import fields, replace
 from datetime import datetime
+from functools import cached_property
 from typing import Any, Dict, List, Optional, Set, Tuple, Union, cast
 
 from pandas import DataFrame, Series, Timestamp, read_parquet, to_datetime
 from pandas.api.types import is_numeric_dtype
 
 from phoenix.config import dataset_dir
-from functools import cached_property
 
 from . import errors as err
 from .schema import (
