@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<9c85aa6b1076be42ab12314c83978e59>>
+ * @generated SignedSource<<3319c722f670a28782c8e3f59c8947d3>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -12,10 +12,14 @@ import { ConcreteRequest, Query } from 'relay-runtime';
 export type AppRootQuery$variables = {};
 export type AppRootQuery$data = {
   readonly primaryDataset: {
+    readonly endTime: any | null;
     readonly name: string;
+    readonly startTime: any | null;
   };
   readonly referenceDataset: {
+    readonly endTime: any | null;
     readonly name: string;
+    readonly startTime: any | null;
   };
 };
 export type AppRootQuery = {
@@ -30,6 +34,20 @@ var v0 = [
     "args": null,
     "kind": "ScalarField",
     "name": "name",
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "startTime",
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "endTime",
     "storageKey": null
   }
 ],
@@ -73,16 +91,16 @@ return {
     "selections": (v1/*: any*/)
   },
   "params": {
-    "cacheID": "a29bf65580844ece1a908f8ede2cf3a0",
+    "cacheID": "d4307243a1ca8536ced464cf7c3359ce",
     "id": null,
     "metadata": {},
     "name": "AppRootQuery",
     "operationKind": "query",
-    "text": "query AppRootQuery {\n  primaryDataset {\n    name\n  }\n  referenceDataset {\n    name\n  }\n}\n"
+    "text": "query AppRootQuery {\n  primaryDataset {\n    name\n    startTime\n    endTime\n  }\n  referenceDataset {\n    name\n    startTime\n    endTime\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "f77baf0de9c7173d430a629e89533a72";
+(node as any).hash = "2f1366a7b6eae055b970061fb3e965b7";
 
 export default node;
