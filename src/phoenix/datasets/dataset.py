@@ -5,7 +5,7 @@ import uuid
 from copy import deepcopy
 from dataclasses import fields, replace
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Set, Tuple, Union
+from typing import Any, Dict, List, Optional, Set, Tuple, Union, cast
 
 from pandas import DataFrame, Series, Timestamp, read_parquet, to_datetime
 from pandas.api.types import is_numeric_dtype
@@ -76,14 +76,14 @@ class Dataset:
     @property
     def start_time(self) -> datetime:
         """Returns the datetime of the earliest inference in the dataset"""
-        ts_col_name: str = self.schema.timestamp_column_name
+        ts_col_name: str = cast(str, self.schema.timestamp_column_name)
         dt: datetime = self.__dataframe[ts_col_name].min()
         return dt
 
     @property
     def end_time(self) -> datetime:
         """Returns the datetime of the latest inference in the dataset"""
-        ts_col_name: str = self.schema.timestamp_column_name
+        ts_col_name: str = cast(str, self.schema.timestamp_column_name)
         dt: datetime = self.__dataframe[ts_col_name].max()
         return dt
 
