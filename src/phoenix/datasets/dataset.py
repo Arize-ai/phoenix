@@ -11,6 +11,7 @@ from pandas import DataFrame, Series, Timestamp, read_parquet, to_datetime
 from pandas.api.types import is_numeric_dtype
 
 from phoenix.config import dataset_dir
+from functools import cached_property
 
 from . import errors as err
 from .schema import (
@@ -73,14 +74,14 @@ class Dataset:
         self.to_disc()
         logger.info(f"""Dataset: {self.__name} initialized""")
 
-    @property
+    @cached_property
     def start_time(self) -> datetime:
         """Returns the datetime of the earliest inference in the dataset"""
         timestamp_col_name: str = cast(str, self.schema.timestamp_column_name)
         start_datetime: datetime = self.__dataframe[timestamp_col_name].min()
         return start_datetime
 
-    @property
+    @cached_property
     def end_time(self) -> datetime:
         """Returns the datetime of the latest inference in the dataset"""
         timestamp_col_name: str = cast(str, self.schema.timestamp_column_name)
