@@ -1,13 +1,13 @@
 import pytest
 from pandas import DataFrame, Timestamp
 
-from phoenix.datasets import Dataset as CoreDataset
+from phoenix.datasets import Dataset as InputDataset
 from phoenix.datasets import Schema
 from phoenix.server.api.types import Dataset
 
 
 @pytest.fixture
-def core_dataset():
+def input_dataset():
     input_df = DataFrame(
         {
             "prediction_label": ["apple", "orange", "grape"],
@@ -23,12 +23,12 @@ def core_dataset():
         prediction_label_column_name="prediction_label",
         timestamp_column_name="timestamp",
     )
-    return CoreDataset(dataframe=input_df, schema=input_schema)
+    return InputDataset(dataframe=input_df, schema=input_schema)
 
 
-def test_dataset_serialization(core_dataset):
-    converted_gql_dataset = Dataset.to_gql_dataset(core_dataset)
+def test_dataset_serialization(input_dataset):
+    converted_gql_dataset = Dataset.to_gql_dataset(input_dataset)
 
-    expected_dataset = core_dataset
+    expected_dataset = input_dataset
     assert converted_gql_dataset.start_time == expected_dataset.start_time
     assert converted_gql_dataset.end_time == expected_dataset.end_time
