@@ -73,19 +73,19 @@ class Dataset:
         self.to_disc()
         logger.info(f"""Dataset: {self.__name} initialized""")
 
-    @property
+    @cached_property
     def start_time(self) -> datetime:
         """Returns the datetime of the earliest inference in the dataset"""
-        ts_col_name: str = cast(str, self.schema.timestamp_column_name)
-        dt: datetime = self.__dataframe[ts_col_name].min()
-        return dt
+        timestamp_col_name: str = cast(str, self.schema.timestamp_column_name)
+        start_datetime: datetime = self.__dataframe[timestamp_col_name].min()
+        return start_datetime
 
     @property
     def end_time(self) -> datetime:
         """Returns the datetime of the latest inference in the dataset"""
-        ts_col_name: str = cast(str, self.schema.timestamp_column_name)
-        dt: datetime = self.__dataframe[ts_col_name].max()
-        return dt
+        timestamp_col_name: str = cast(str, self.schema.timestamp_column_name)
+        end_datetime: datetime = self.__dataframe[timestamp_col_name].max()
+        return end_datetime
 
     @property
     def dataframe(self) -> DataFrame:
