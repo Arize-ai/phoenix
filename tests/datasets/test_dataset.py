@@ -11,13 +11,13 @@ import pandas as pd
 from pandas import DataFrame, to_datetime
 from pytest import LogCaptureFixture, raises
 
-from phoenix.datasets.dataset import (
+from phoenix.core.datasets.dataset import (
     Dataset,
     EmbeddingColumnNames,
     Schema,
     _parse_dataframe_and_schema,
 )
-from phoenix.datasets.errors import DatasetError
+from phoenix.core.datasets.errors import DatasetError
 
 
 class TestParseDataFrameAndSchema:

@@ -1,5 +1,5 @@
 from datetime import datetime
-from src.phoenix.datasets import Dataset as PhoenixDataset
+from phoenix.core.datasets import Dataset as InternalDataset
 import strawberry
 
 
@@ -10,7 +10,7 @@ class Dataset:
     end_time: datetime
 
 
-def to_gql_dataset(dataset: PhoenixDataset) -> Dataset:
+def to_gql_dataset(dataset: InternalDataset) -> Dataset:
     """
     Converts a phoenix.datasets.Dataset to a phoenix.server.api.types.Dataset
     """

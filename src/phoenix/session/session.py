@@ -2,7 +2,7 @@ import logging
 from typing import Optional
 
 import phoenix.config as config
-from phoenix.datasets import Dataset
+from phoenix.core.datasets import Dataset
 from phoenix.services import AppService
 
 try:

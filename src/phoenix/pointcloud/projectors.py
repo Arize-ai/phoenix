@@ -6,7 +6,7 @@ from hdbscan import HDBSCAN
 from numpy.typing import ArrayLike
 from umap import UMAP
 
-from phoenix.datasets import Dataset
+from phoenix.core.datasets import Dataset
 
 from .pointcloud import (
     Cluster,

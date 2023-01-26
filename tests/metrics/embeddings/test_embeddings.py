@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from phoenix.datasets import Dataset, EmbeddingColumnNames, Schema
+from phoenix.core.datasets import Dataset, EmbeddingColumnNames, Schema
 from phoenix.metrics.embeddings import euclidean_distance
 
 

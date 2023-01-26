@@ -2,8 +2,8 @@ from typing import Dict, List, Optional
 
 from pandas.api.types import is_numeric_dtype, is_object_dtype
 
-from phoenix.datasets import Dataset
-from phoenix.datasets.schema import EmbeddingFeatures
+from phoenix.core.datasets import Dataset
+from phoenix.core.datasets.schema import EmbeddingFeatures
 
 from .dimension import Dimension
 from .dimension_data_type import DimensionDataType
