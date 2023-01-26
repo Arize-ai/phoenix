@@ -23,14 +23,12 @@ FIXTURE_URL_PREFIX = "https://storage.googleapis.com/arize-assets/phoenix/datase
 
 sentiment_classification_language_drift_schema = Schema(
     timestamp_column_name="prediction_ts",
-    feature_column_names=[
-        "reviewer_age",
-        "reviewer_gender",
-        "product_category",
-        "language",
-    ],
+    prediction_label_column_name="pred_label",
+    actual_label_column_name="label",
     embedding_feature_column_names={
-        "text_embedding": EmbeddingColumnNames(vector_column_name="text_vector")
+        "text_embedding": EmbeddingColumnNames(
+            vector_column_name="text_vector", raw_data_column_name="text"
+        ),
     },
 )
 sentiment_classification_language_drift_fixture = Fixture(
