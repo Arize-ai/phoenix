@@ -1,6 +1,6 @@
 import logging
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Tuple
 
 from pandas import read_parquet
@@ -55,15 +55,7 @@ fashion_mnist_primary_schema = Schema(
     actual_label_column_name="actual_label",
     prediction_label_column_name="predicted_label",
 )
-fashion_mnist_reference_schema = Schema(
-    embedding_feature_column_names={
-        "embedding": EmbeddingColumnNames(
-            vector_column_name="embeddings", link_to_data_column_name="image_url"
-        ),
-    },
-    actual_label_column_name="actual_label",
-    prediction_label_column_name="predicted_label",
-)
+fashion_mnist_reference_schema = replace(fashion_mnist_primary_schema, timestamp_column_name=None)
 fashion_mnist_fixture = Fixture(
     name="fashion_mnist",
     primary_schema=fashion_mnist_primary_schema,
@@ -148,10 +140,7 @@ wide_data_primary_schema = Schema(
     prediction_label_column_name="predicted_label",
     timestamp_column_name="prediction_ts",
 )
-wide_data_reference_schema = Schema(
-    actual_label_column_name="actual_label",
-    prediction_label_column_name="predicted_label",
-)
+wide_data_reference_schema = replace(wide_data_primary_schema, timestamp_column_name=None)
 wide_data_fixture = Fixture(
     name="wide_data",
     primary_schema=wide_data_primary_schema,
@@ -171,10 +160,7 @@ deep_data_primary_schema = Schema(
     actual_label_column_name="actual_label",
     prediction_label_column_name="predicted_label",
 )
-deep_data_reference_schema = Schema(
-    actual_label_column_name="actual_label",
-    prediction_label_column_name="predicted_label",
-)
+deep_data_reference_schema = replace(deep_data_primary_schema, timestamp_column_name=None)
 deep_data_fixture = Fixture(
     name="deep_data",
     primary_schema=deep_data_primary_schema,
