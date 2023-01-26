@@ -1,4 +1,4 @@
-import datetime
+from datetime import datetime
 import logging
 import os
 import sys
@@ -33,7 +33,7 @@ if hasattr(sys, "ps1"):
     logger.setLevel(logging.INFO)
 
 
-class dataset:
+class Dataset:
     """
     A dataset represents data for a set of inferences. It is represented as a dataframe + schema
     """
@@ -74,11 +74,13 @@ class dataset:
         logger.info(f"""Dataset: {self.__name} initialized""")
 
     @property
-    def start_time(self) -> datetime.datetime:
+    def start_time(self) -> datetime:
+        """Returns the datetime of the earliest inference in the dataset"""
         return self.__dataframe[self.schema.timestamp_column_name].min()
 
     @property
-    def end_time(self) -> datetime.datetime:
+    def end_time(self) -> datetime:
+        """Returns the datetime of the latest inference in the dataset"""
         return self.__dataframe[self.schema.timestamp_column_name].max()
 
     @property

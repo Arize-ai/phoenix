@@ -1,5 +1,5 @@
 from datetime import datetime
-from src.phoenix.datasets import Dataset as CoreDataset
+from src.phoenix.datasets import Dataset as PhoenixDataset
 import strawberry
 
 
@@ -10,9 +10,9 @@ class Dataset:
     end_time: datetime
 
 
-def to_gql_dataset(dataset: CoreDataset) -> Dataset:
+def to_gql_dataset(dataset: PhoenixDataset) -> Dataset:
     """
-    Converts a phoenix.core.Dimension to a phoenix.server.api.types.Dimension
+    Converts a phoenix.datasets.Dataset to a phoenix.server.api.types.Dataset
     """
     return Dataset(
         name=dataset.name,
