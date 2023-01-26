@@ -1,6 +1,8 @@
 from datetime import datetime
-from phoenix.core.datasets import Dataset as InternalDataset
+
 import strawberry
+
+from phoenix.core.datasets import Dataset as InternalDataset
 
 
 @strawberry.type

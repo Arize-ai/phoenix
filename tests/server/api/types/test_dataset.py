@@ -1,9 +1,9 @@
 import pytest
-
-from phoenix.server.api.types import Dataset
-from phoenix.core.datasets import Schema, Dataset as CoreDataset
-
 from pandas import DataFrame, Timestamp
+
+from phoenix.core.datasets import Dataset as CoreDataset
+from phoenix.core.datasets import Schema
+from phoenix.server.api.types import Dataset
 
 
 @pytest.fixture
@@ -15,7 +15,7 @@ def core_dataset():
                 Timestamp(year=2023, month=1, day=1, hour=2, second=30),
                 Timestamp(year=2023, month=1, day=5, hour=4, second=25),
                 Timestamp(year=2023, month=1, day=10, hour=6, second=20),
-            ]
+            ],
         }
     )
 
