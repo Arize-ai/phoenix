@@ -1,3 +1,8 @@
+type Coordinate {
+  x: Float!
+  y: Float!
+}
+
 type Dataset {
   name: String!
 }
@@ -31,6 +36,7 @@ type DimensionEdge {
 type EmbeddingDimension implements Node {
   id: GlobalID!
   name: String!
+  UMAPPoints: UMAPPoints!
 }
 
 type EmbeddingDimensionConnection {
@@ -70,4 +76,9 @@ type Query {
   referenceDataset: Dataset!
   model: Model!
   node(id: GlobalID!): Node!
+}
+
+type UMAPPoints {
+  coordinates: [Coordinate!]!
+  referenceCoordinates: [Coordinate!]!
 }
