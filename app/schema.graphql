@@ -5,8 +5,8 @@ scalar DateTime
 
 type Dataset {
   name: String!
-  startTime: DateTime
-  endTime: DateTime
+  startTime: DateTime!
+  endTime: DateTime!
 }
 
 type Dimension implements Node {

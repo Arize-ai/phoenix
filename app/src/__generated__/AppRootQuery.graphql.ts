@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<3319c722f670a28782c8e3f59c8947d3>>
+ * @generated SignedSource<<89597fa86d05c567e72b09660ea9fa73>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -12,14 +12,14 @@ import { ConcreteRequest, Query } from 'relay-runtime';
 export type AppRootQuery$variables = {};
 export type AppRootQuery$data = {
   readonly primaryDataset: {
-    readonly endTime: any | null;
+    readonly endTime: any;
     readonly name: string;
-    readonly startTime: any | null;
+    readonly startTime: any;
   };
   readonly referenceDataset: {
-    readonly endTime: any | null;
+    readonly endTime: any;
     readonly name: string;
-    readonly startTime: any | null;
+    readonly startTime: any;
   };
 };
 export type AppRootQuery = {
