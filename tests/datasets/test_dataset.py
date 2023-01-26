@@ -11,13 +11,13 @@ import pandas as pd
 from pandas import DataFrame, to_datetime
 from pytest import LogCaptureFixture, raises
 
-from phoenix.core.datasets.dataset import (
+from phoenix.datasets.dataset import (
     Dataset,
     EmbeddingColumnNames,
     Schema,
     _parse_dataframe_and_schema,
 )
-from phoenix.core.datasets.errors import DatasetError
+from phoenix.datasets.errors import DatasetError
 
 
 class TestParseDataFrameAndSchema:
@@ -800,6 +800,29 @@ class TestDataset:
 
         with raises(DatasetError):
             Dataset(dataframe=input_df, schema=input_schema)
+
+    def test_dataset_bookends(self) -> None:
+        expected_start_time = pd.Timestamp(year=2023, month=1, day=1, hour=2, second=30)
+        expected_end_time = pd.Timestamp(year=2023, month=1, day=10, hour=6, second=20)
+        input_df = DataFrame(
+            {
+                "prediction_label": ["apple", "orange", "grape"],
+                "timestamp": [
+                    expected_end_time,
+                    expected_start_time,
+                    pd.Timestamp(year=2023, month=1, day=5, hour=4, second=25),
+                ],
+            }
+        )
+
+        input_schema = Schema(
+            prediction_label_column_name="prediction_label",
+            timestamp_column_name="timestamp",
+        )
+        output_dataset = Dataset(dataframe=input_df, schema=input_schema)
+
+        assert output_dataset.start_time == expected_start_time
+        assert output_dataset.end_time == expected_end_time
 
     @property
     def num_records(self):

@@ -3,7 +3,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
-from phoenix.core.datasets import Dataset
+from phoenix.datasets import Dataset
 
 
 def euclidean_distance(

@@ -1,8 +1,8 @@
 import pytest
 from pandas import DataFrame, Timestamp
 
-from phoenix.core.datasets import Dataset as CoreDataset
-from phoenix.core.datasets import Schema
+from phoenix.datasets import Dataset as CoreDataset
+from phoenix.datasets import Schema
 from phoenix.server.api.types import Dataset
 
 
