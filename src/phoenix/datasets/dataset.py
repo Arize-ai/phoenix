@@ -73,7 +73,7 @@ class Dataset:
         self.to_disc()
         logger.info(f"""Dataset: {self.__name} initialized""")
 
-    @cached_property
+    @property
     def start_time(self) -> datetime:
         """Returns the datetime of the earliest inference in the dataset"""
         timestamp_col_name: str = cast(str, self.schema.timestamp_column_name)
