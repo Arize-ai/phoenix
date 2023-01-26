@@ -76,12 +76,14 @@ class Dataset:
     @property
     def start_time(self) -> datetime:
         """Returns the datetime of the earliest inference in the dataset"""
-        return self.__dataframe[self.schema.timestamp_column_name].min()
+        dt: datetime = self.__dataframe[self.schema.timestamp_column_name].min()
+        return dt
 
     @property
     def end_time(self) -> datetime:
         """Returns the datetime of the latest inference in the dataset"""
-        return self.__dataframe[self.schema.timestamp_column_name].max()
+        dt: datetime = self.__dataframe[self.schema.timestamp_column_name].max()
+        return dt
 
     @property
     def dataframe(self) -> DataFrame:
