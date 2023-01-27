@@ -8,6 +8,7 @@ import {
 } from "./__generated__/EmbeddingLoaderQuery.graphql";
 import { Breadcrumbs, Item } from "@arizeai/components";
 import { css } from "@emotion/react";
+import { DriftPointCloud } from "../components/canvas";
 
 export function Embedding() {
   const navigate = useNavigate();
@@ -31,6 +32,15 @@ export function Embedding() {
         <Item>Embeddings</Item>
         <Item>{data.embedding.name}</Item>
       </Breadcrumbs>
+      <div
+        css={css`
+          width: 100%;
+          height: 100%;
+          position: relative;
+        `}
+      >
+        <DriftPointCloud primaryData={[]} referenceData={[]} />
+      </div>
     </main>
   );
 }
