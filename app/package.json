@@ -47,7 +47,7 @@
     "build:relay": "relay-compiler",
     "watch": "./esbuild.config.mjs dev",
     "dev": "npm run dev:server & npm run build:static && npm run watch",
-    "dev:server": "python3 -m phoenix.server.main --graphiql --debug datasets --primary primary --reference reference",
+    "dev:server": "python3 -m phoenix.server.main datasets --primary primary --reference reference",
     "typecheck": "tsc --noEmit",
     "lint": "eslint ./src",
     "prettier": "prettier --write './src/**/*'",

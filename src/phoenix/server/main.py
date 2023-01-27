@@ -46,8 +46,7 @@ if __name__ == "__main__":
     parser = ArgumentParser()
 
     parser.add_argument("--port", type=int, default=config.port)
-    parser.add_argument("--graphiql", action="store_true")
-    parser.add_argument("--debug", action="store_true")
+    parser.add_argument("--debug", action="store_false")  # TODO: Disable before public launch
     subparsers = parser.add_subparsers(dest="command", required=True)
     datasets_parser = subparsers.add_parser("datasets")
     datasets_parser.add_argument("--primary", type=str, required=True)
@@ -77,7 +76,6 @@ if __name__ == "__main__":
         primary_dataset_name=primary_dataset_name,
         reference_dataset_name=reference_dataset_name,
         debug=args.debug,
-        graphiql=args.graphiql,
     )
 
     uvicorn.run(app, port=args.port)
