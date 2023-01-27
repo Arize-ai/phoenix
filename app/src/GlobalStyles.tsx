@@ -11,9 +11,10 @@ export function GlobalStyles() {
           font-family: "Roboto";
           font-size: ${theme.typography.sizes.medium.fontSize}px;
           margin: 0;
-          width: 100%;
-          height: 100%;
-          background-color: green;
+          #root,
+          #root > div[data-overlay-container="true"] {
+            height: 100vh;
+          }
         }
       `}
     />

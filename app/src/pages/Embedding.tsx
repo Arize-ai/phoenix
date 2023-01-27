@@ -17,8 +17,11 @@ export function Embedding() {
   return (
     <main
       css={(theme) => css`
+        height: 100%;
         nav {
           margin: ${theme.spacing.margin8}px;
+          display: flex;
+          flex-direction: column;
         }
       `}
     >
@@ -40,8 +43,7 @@ export function Embedding() {
           position: relative;
         `}
       >
-        {/* @ts-ignore */}
-        <DriftPointCloud primaryData={primaryData} referenceData={[]} />
+        <DriftPointCloud primaryData={primaryData as any} referenceData={[]} />
       </div>
     </main>
   );

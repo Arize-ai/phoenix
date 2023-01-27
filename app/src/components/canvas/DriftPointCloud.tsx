@@ -202,7 +202,6 @@ export function DriftPointCloud({
   const isMoveMode = canvasMode === CanvasMode.move;
   return (
     <ErrorBoundary>
-      <button>Yo</button>
       {/* <DisplayControlPanel /> */}
       {/* <SelectionControlPanel selectedIds={selectedIds} /> */}
       <CanvasTools mode={canvasMode} onChange={setCanvasMode} />
