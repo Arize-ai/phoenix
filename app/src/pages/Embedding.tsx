@@ -9,6 +9,7 @@ import {
 import { Breadcrumbs, Item } from "@arizeai/components";
 import { css } from "@emotion/react";
 import { DriftPointCloud } from "../components/canvas";
+import { data as primaryData } from "../data/umapData";
 
 export function Embedding() {
   const navigate = useNavigate();
@@ -39,7 +40,8 @@ export function Embedding() {
           position: relative;
         `}
       >
-        <DriftPointCloud primaryData={[]} referenceData={[]} />
+        {/* @ts-ignore */}
+        <DriftPointCloud primaryData={primaryData} referenceData={[]} />
       </div>
     </main>
   );
