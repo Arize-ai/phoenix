@@ -18,9 +18,13 @@ const RootQuery = graphql`
   query AppRootQuery {
     primaryDataset {
       name
+      startTime
+      endTime
     }
     referenceDataset {
       name
+      startTime
+      endTime
     }
   }
 `;
