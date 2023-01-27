@@ -1,5 +1,5 @@
 [project]
-name = "phoenix"
+name = "arize-phoenix"
 description = "ML Observability in your notebook"
 readme = "README.md"
 requires-python = ">=3.8, <3.11"
@@ -158,6 +158,22 @@ fix = [
   "flake8 .",
 ]
 
+[tool.hatch.envs.publish]
+dependencies = [
+  "check-wheel-contents",
+  "twine",
+]
+
+[tool.hatch.envs.publish.scripts]
+testpypi = [
+  "check-wheel-contents dist/",
+  "twine upload  --verbose --repository testpypi dist/*",
+]
+pypi = [
+  "check-wheel-contents dist/",
+  "twine upload --verbose dist/*",
+]
+
 [tool.isort]
 profile = "black"
 
@@ -206,4 +222,3 @@ module = [
   "umap",
 ]
 ignore_missing_imports = true
-
