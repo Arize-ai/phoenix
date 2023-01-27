@@ -72,13 +72,12 @@ def create_app(
     primary_dataset_name: str,
     reference_dataset_name: str,
     debug: bool = False,
-    graphiql: bool = False,
 ) -> Starlette:
     model = Model(
         primary_dataset_name=primary_dataset_name, reference_dataset_name=reference_dataset_name
     )
     graphql = GraphQLWithContext(
-        schema=schema, model=model, loader=create_loaders(model), graphiql=graphiql
+        schema=schema, model=model, loader=create_loaders(model), graphiql=True
     )
     return Starlette(
         middleware=[

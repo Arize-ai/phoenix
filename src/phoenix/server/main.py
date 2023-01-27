@@ -1,13 +1,18 @@
-import argparse
 import atexit
 import errno
 import logging
 import os
+from argparse import ArgumentParser
 
 import uvicorn
 
 import phoenix.config as config
 from phoenix.server.app import create_app
+from phoenix.server.fixtures import (
+    FIXTURES,
+    download_fixture_if_missing,
+    get_dataset_names_from_fixture_name,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -38,30 +43,39 @@ if __name__ == "__main__":
     atexit.register(_remove_pid_file)
     _write_pid_file()
 
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--primary", type=str)
-    parser.add_argument("--reference", type=str)
+    parser = ArgumentParser()
+
     parser.add_argument("--port", type=int, default=config.port)
-    parser.add_argument("--graphiql", action="store_true")
-    parser.add_argument("--debug", action="store_true")
+    parser.add_argument("--debug", action="store_false")  # TODO: Disable before public launch
+    subparsers = parser.add_subparsers(dest="command", required=True)
+    datasets_parser = subparsers.add_parser("datasets")
+    datasets_parser.add_argument("--primary", type=str, required=True)
+    datasets_parser.add_argument("--reference", type=str, required=True)
+    fixture_parser = subparsers.add_parser("fixture")
+    fixture_parser.add_argument("fixture", type=str, choices=[fixture.name for fixture in FIXTURES])
     args = parser.parse_args()
 
-    # Validate the required args
-    if args.primary is None:
-        raise ValueError("Primary dataset is required via the --primary flag")
-    if args.reference is None:
-        raise ValueError("Reference dataset is required via the --reference flag")
+    if args.command == "datasets":
+        primary_dataset_name = args.primary
+        reference_dataset_name = args.reference
+    else:
+        fixture_name = args.fixture
+        primary_dataset_name, reference_dataset_name = get_dataset_names_from_fixture_name(
+            fixture_name
+        )
+        print(f'Downloading fixture "{fixture_name}" if missing')
+        download_fixture_if_missing(fixture_name)
+
     print(
         f"""Starting Phoenix App
-            primary dataset: {args.primary}
-            reference dataset: {args.reference}"""
+            primary dataset: {primary_dataset_name}
+            reference dataset: {reference_dataset_name}"""
     )
 
     app = create_app(
-        primary_dataset_name=args.primary,
-        reference_dataset_name=args.reference,
+        primary_dataset_name=primary_dataset_name,
+        reference_dataset_name=reference_dataset_name,
         debug=args.debug,
-        graphiql=args.graphiql,
     )
 
     uvicorn.run(app, port=args.port)

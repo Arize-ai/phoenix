@@ -85,6 +85,7 @@ class AppService(Service):
             "main.py",
             "--port",
             str(self.port),
+            "datasets",
             "--primary",
             str(self.__primary_dataset_name),
             "--reference",
