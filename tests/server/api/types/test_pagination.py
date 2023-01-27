@@ -41,3 +41,10 @@ def test_connection_from_list_reverse():
     )
     assert len(next_connection.edges) == 1
     assert next_connection.page_info.has_previous_page is False
+
+
+def test_connection_from_empty_list():
+    connection = connection_from_list([], ConnectionArgs(first=2))
+
+    assert len(connection.edges) == 0
+    assert connection.page_info.has_next_page is False

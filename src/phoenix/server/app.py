@@ -1,7 +1,11 @@
+import logging
 import os
 from typing import Optional, Union
 
 from starlette.applications import Starlette
+from starlette.exceptions import HTTPException
+from starlette.middleware import Middleware
+from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.requests import Request
 from starlette.responses import Response
 from starlette.routing import Mount, Route, WebSocketRoute
@@ -17,20 +21,33 @@ from .api.context import Context
 from .api.loaders import Loaders, create_loaders
 from .api.schema import schema
 
+logger = logging.getLogger(__name__)
+
 
 class Static(StaticFiles):
     "Static file serving with a fallback to index.html"
 
     async def get_response(self, path: str, scope: Scope) -> Response:
-
-        response = await super().get_response(path, scope)
-        print("code", response.status_code)
-        if response.status_code == 404:
+        response = None
+        try:
+            response = await super().get_response(path, scope)
+        except HTTPException as e:
+            if e.status_code != 404:
+                raise e
+            # Fallback to to the index.html
             full_path, stat_result = self.lookup_path("index.html")
             if stat_result is None:
-                raise RuntimeError("Filed to find index.html")
-            return self.file_response(full_path, stat_result, scope)
+                raise RuntimeError("Failed to find index.html")
+            response = self.file_response(full_path, stat_result, scope)
+        except Exception as e:
+            raise e
+        return response
 
+
+class HeadersMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
+        response = await call_next(request)
+        response.headers["x-colab-notebook-cache-control"] = "no-cache"
         return response
 
 
@@ -64,6 +81,9 @@ def create_app(
         schema=schema, model=model, loader=create_loaders(model), graphiql=graphiql
     )
     return Starlette(
+        middleware=[
+            Middleware(HeadersMiddleware),
+        ],
         debug=debug,
         routes=[
             Route(

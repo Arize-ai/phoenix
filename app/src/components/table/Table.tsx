@@ -11,12 +11,12 @@ const tableCSS = (theme: Theme) => css`
     background-color: ${theme.colors.gray500};
     tr {
       th {
-        padding: ${theme.spacing.margin4}px ${theme.spacing.margin8}px;
+        padding: ${theme.spacing.margin4}px ${theme.spacing.margin16}px;
         text-align: left;
       }
     }
   }
-  tbody {
+  tbody:not(.is-empty) {
     tr {
       &:nth-of-type(even) {
         background-color: ${theme.colors.gray700};
@@ -25,7 +25,7 @@ const tableCSS = (theme: Theme) => css`
         background-color: ${theme.colors.gray600};
       }
       & > td {
-        padding: ${theme.spacing.margin8}px;
+        padding: ${theme.spacing.margin8}px ${theme.spacing.margin16}px;
       }
     }
   }
@@ -68,6 +68,29 @@ export function Table<DataRow extends object>({
     },
     usePagination
   );
+
+  const hasContent = page.length > 0;
+  const body = hasContent ? (
+    <tbody {...getTableBodyProps()}>
+      {page.map((row, idx) => {
+        prepareRow(row);
+        return (
+          <tr {...row.getRowProps()} key={idx}>
+            {row.cells.map((cell, idx) => {
+              return (
+                <td {...cell.getCellProps()} key={idx}>
+                  {cell.render("Cell")}
+                </td>
+              );
+            })}
+          </tr>
+        );
+      })}
+    </tbody>
+  ) : (
+    <TableEmpty />
+  );
+
   return (
     <>
       <table {...getTableProps()} css={tableCSS}>
@@ -82,22 +105,7 @@ export function Table<DataRow extends object>({
             </tr>
           ))}
         </thead>
-        <tbody {...getTableBodyProps()}>
-          {page.map((row, idx) => {
-            prepareRow(row);
-            return (
-              <tr {...row.getRowProps()} key={idx}>
-                {row.cells.map((cell, idx) => {
-                  return (
-                    <td {...cell.getCellProps()} key={idx}>
-                      {cell.render("Cell")}
-                    </td>
-                  );
-                })}
-              </tr>
-            );
-          })}
-        </tbody>
+        {body}
       </table>
       {/* 
         TODO(mikeldking): style tables
@@ -123,5 +131,23 @@ export function Table<DataRow extends object>({
         />
       </div>
     </>
+  );
+}
+
+function TableEmpty() {
+  return (
+    <tbody className="is-empty">
+      <tr>
+        <td
+          colSpan={100}
+          css={(theme) => css`
+            text-align: center;
+            padding: ${theme.spacing.margin24}px ${theme.spacing.margin24}px !important;
+          `}
+        >
+          No data
+        </td>
+      </tr>
+    </tbody>
   );
 }
