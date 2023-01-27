@@ -37,11 +37,13 @@ sentiment_classification_language_drift_fixture = Fixture(
     reference_schema=sentiment_classification_language_drift_schema,
     primary_dataset_url=os.path.join(
         FIXTURE_URL_PREFIX,
-        "unstructured/nlp/sentiment_classification_language_drift_production.parquet",
+        "unstructured/nlp/sentiment-classification-language-drift",
+        "sentiment_classification_language_drift_production.parquet",
     ),
     reference_dataset_url=os.path.join(
         FIXTURE_URL_PREFIX,
-        "unstructured/nlp/sentiment_classification_language_drift_training.parquet",
+        "unstructured/nlp/sentiment-classification-language-drift",
+        "sentiment_classification_language_drift_training.parquet",
     ),
 )
 
