@@ -10,6 +10,7 @@ scalar DateTime
 type Dimension implements Node {
   id: GlobalID!
   name: String!
+  type: DimensionType!
   dataType: DimensionDataType!
   dataQuality: DimensionDataQuality!
 }
@@ -31,6 +32,13 @@ enum DimensionDataType {
 type DimensionEdge {
   node: Dimension!
   cursor: String!
+}
+
+enum DimensionType {
+  feature
+  tag
+  prediction
+  actual
 }
 
 type EmbeddingDimension implements Node {

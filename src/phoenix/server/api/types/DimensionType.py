@@ -4,7 +4,7 @@ import strawberry
 
 
 @strawberry.enum
-class DimensionCategory(Enum):
+class DimensionType(Enum):
     feature = "feature"
     tag = "tag"
     prediction = "prediction"

@@ -23,6 +23,7 @@ export function ModelSchemaTable(props: ModelSchemaTableProps) {
             edges {
               dimension: node {
                 name
+                type
                 dataType
                 dataQuality {
                   cardinality
@@ -53,6 +54,10 @@ export function ModelSchemaTable(props: ModelSchemaTableProps) {
       {
         Header: "Name",
         accessor: "name",
+      },
+      {
+        Header: "Type",
+        accessor: "type",
       },
       {
         Header: "Data Type",

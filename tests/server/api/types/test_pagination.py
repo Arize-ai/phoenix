@@ -4,9 +4,9 @@ from phoenix.server.api.types.pagination import ConnectionArgs, connection_from_
 
 def test_connection_from_list():
     dimensions = [
-        Dimension(id_attr=0, name="first", dataType="categorical"),
-        Dimension(id_attr=1, name="second", dataType="categorical"),
-        Dimension(id_attr=2, name="third", dataType="categorical"),
+        Dimension(id_attr=0, name="first", type="feature", dataType="categorical"),
+        Dimension(id_attr=1, name="second", type="feature", dataType="categorical"),
+        Dimension(id_attr=2, name="third", type="feature", dataType="categorical"),
     ]
     connection = connection_from_list(dimensions, ConnectionArgs(first=2))
 
@@ -24,9 +24,9 @@ def test_connection_from_list():
 
 def test_connection_from_list_reverse():
     dimensions = [
-        Dimension(id_attr=0, name="first", dataType="categorical"),
-        Dimension(id_attr=1, name="second", dataType="categorical"),
-        Dimension(id_attr=2, name="third", dataType="categorical"),
+        Dimension(id_attr=0, name="first", type="feature", dataType="categorical"),
+        Dimension(id_attr=1, name="second", type="feature", dataType="categorical"),
+        Dimension(id_attr=2, name="third", type="feature", dataType="categorical"),
     ]
     connection = connection_from_list(dimensions, ConnectionArgs(last=2))
 
