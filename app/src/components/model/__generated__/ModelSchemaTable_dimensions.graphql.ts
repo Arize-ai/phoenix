@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<ddc8f499fa60be340dcfe8f76f8b57c2>>
+ * @generated SignedSource<<32dcfb0b68e5199bbcca4130dedd3d23>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,6 +10,7 @@
 
 import { ReaderFragment, RefetchableFragment } from 'relay-runtime';
 export type DimensionDataType = "categorical" | "numeric";
+export type DimensionType = "actual" | "feature" | "prediction" | "tag";
 import { FragmentRefs } from "relay-runtime";
 export type ModelSchemaTable_dimensions$data = {
   readonly model: {
@@ -21,6 +22,7 @@ export type ModelSchemaTable_dimensions$data = {
           };
           readonly dataType: DimensionDataType;
           readonly name: string;
+          readonly type: DimensionType;
         };
       }>;
     };
@@ -118,6 +120,13 @@ return {
                       "alias": null,
                       "args": null,
                       "kind": "ScalarField",
+                      "name": "type",
+                      "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
                       "name": "dataType",
                       "storageKey": null
                     },
@@ -207,6 +216,6 @@ return {
 };
 })();
 
-(node as any).hash = "c8b5cd2ef9dd84202355b8b9d6813f95";
+(node as any).hash = "0558909f226e1a65a704920caf8e5cf6";
 
 export default node;
