@@ -1,5 +1,5 @@
 import React from "react";
-import { Brand, Navbar, GitHubLink } from "../components/nav";
+import { Brand, Navbar, GitHubLink, NavBreadcrumb } from "../components/nav";
 import { Outlet } from "react-router";
 import { css } from "@emotion/react";
 
@@ -10,11 +10,13 @@ const linksCSS = css`
   list-style: none;
   padding-inline-start: 0;
 `;
+
 export function Layout() {
   return (
     <>
       <Navbar>
         <Brand />
+        <NavBreadcrumb />
         <ul css={linksCSS}>
           <li>
             <GitHubLink />

@@ -56,7 +56,7 @@ export function AppRoot() {
       <ThemeProvider theme={theme}>
         <RelayEnvironmentProvider environment={RelayEnvironment}>
           <GlobalStyles />
-          <Suspense fallback={"Loading..."}>
+          <Suspense>
             <App preloadedQuery={preloadedQuery} />
           </Suspense>
         </RelayEnvironmentProvider>
