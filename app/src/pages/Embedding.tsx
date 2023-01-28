@@ -2,16 +2,12 @@ import React from "react";
 import { fetchQuery, graphql } from "react-relay";
 import { LoaderFunctionArgs, useLoaderData } from "react-router";
 import RelayEnvironment from "../RelayEnvironment";
-import {
-  EmbeddingLoaderQuery,
-  EmbeddingLoaderQuery$data,
-} from "./__generated__/EmbeddingLoaderQuery.graphql";
+import { EmbeddingLoaderQuery } from "./__generated__/EmbeddingLoaderQuery.graphql";
 import { css } from "@emotion/react";
 import { DriftPointCloud } from "../components/canvas";
 import { data as primaryData } from "../data/umapData";
 
 export function Embedding() {
-  const _data = useLoaderData() as EmbeddingLoaderQuery$data;
   return (
     <main
       css={(theme) => css`
