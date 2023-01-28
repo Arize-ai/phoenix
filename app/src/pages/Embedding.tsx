@@ -1,6 +1,6 @@
 import React from "react";
 import { fetchQuery, graphql } from "react-relay";
-import { LoaderFunctionArgs, useLoaderData } from "react-router";
+import { LoaderFunctionArgs } from "react-router";
 import RelayEnvironment from "../RelayEnvironment";
 import { EmbeddingLoaderQuery } from "./__generated__/EmbeddingLoaderQuery.graphql";
 import { css } from "@emotion/react";
