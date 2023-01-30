@@ -3,7 +3,7 @@ import strawberry
 from phoenix.core import EmbeddingDimension as CoreEmbeddingDimension
 
 from .node import Node
-from .UMAPPoints import UMAPPoints
+from .UMAPPoints import UMAPPoints, UMAPPointsData
 
 
 @strawberry.type
@@ -13,7 +13,8 @@ class EmbeddingDimension(Node):
     @strawberry.field
     def UMAPPoints(self) -> UMAPPoints:
         # UMAP code goes here
-        return UMAPPoints(coordinates=[], reference_coordinates=[])
+        data = UMAPPointsData(coordinates=[])
+        return UMAPPoints(data=data)
 
 
 def to_gql_embedding_dimension(
