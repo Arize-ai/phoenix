@@ -18,9 +18,13 @@ const RootQuery = graphql`
   query AppRootQuery {
     primaryDataset {
       name
+      startTime
+      endTime
     }
     referenceDataset {
       name
+      startTime
+      endTime
     }
   }
 `;
@@ -52,7 +56,7 @@ export function AppRoot() {
       <ThemeProvider theme={theme}>
         <RelayEnvironmentProvider environment={RelayEnvironment}>
           <GlobalStyles />
-          <Suspense fallback={"Loading..."}>
+          <Suspense>
             <App preloadedQuery={preloadedQuery} />
           </Suspense>
         </RelayEnvironmentProvider>

@@ -4,12 +4,14 @@ from phoenix.core import Dimension as CoreDimension
 
 from .DimensionDataQuality import DimensionDataQuality
 from .DimensionDataType import DimensionDataType
+from .DimensionType import DimensionType
 from .node import Node
 
 
 @strawberry.type
 class Dimension(Node):
     name: str
+    type: DimensionType
     dataType: DimensionDataType
 
     @strawberry.field
@@ -24,5 +26,6 @@ def to_gql_dimension(id_attr: int, dimension: CoreDimension) -> Dimension:
     return Dimension(
         id_attr=id_attr,
         name=dimension.name,
+        type=DimensionType[dimension.type.value],
         dataType=DimensionDataType[dimension.data_type.value],
     )

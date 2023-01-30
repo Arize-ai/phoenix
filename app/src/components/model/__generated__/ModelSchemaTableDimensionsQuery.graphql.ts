@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<513aa446b2cda76d236787b58a4c457f>>
+ * @generated SignedSource<<2c12c45586282226a43ff462df7369bf>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -123,6 +123,13 @@ return {
                         "alias": null,
                         "args": null,
                         "kind": "ScalarField",
+                        "name": "type",
+                        "storageKey": null
+                      },
+                      {
+                        "alias": null,
+                        "args": null,
+                        "kind": "ScalarField",
                         "name": "dataType",
                         "storageKey": null
                       },
@@ -218,16 +225,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "573ad79a9bbd7bed80b18f6d17d4a624",
+    "cacheID": "5de8bea4b12e14eebdb3cec454e50969",
     "id": null,
     "metadata": {},
     "name": "ModelSchemaTableDimensionsQuery",
     "operationKind": "query",
-    "text": "query ModelSchemaTableDimensionsQuery(\n  $count: Int = 50\n  $cursor: String = null\n) {\n  ...ModelSchemaTable_dimensions_1G22uz\n}\n\nfragment ModelSchemaTable_dimensions_1G22uz on Query {\n  model {\n    dimensions(first: $count, after: $cursor) {\n      edges {\n        dimension: node {\n          name\n          dataType\n          dataQuality {\n            cardinality\n          }\n        }\n        cursor\n        node {\n          __typename\n        }\n      }\n      pageInfo {\n        endCursor\n        hasNextPage\n      }\n    }\n  }\n}\n"
+    "text": "query ModelSchemaTableDimensionsQuery(\n  $count: Int = 50\n  $cursor: String = null\n) {\n  ...ModelSchemaTable_dimensions_1G22uz\n}\n\nfragment ModelSchemaTable_dimensions_1G22uz on Query {\n  model {\n    dimensions(first: $count, after: $cursor) {\n      edges {\n        dimension: node {\n          name\n          type\n          dataType\n          dataQuality {\n            cardinality\n          }\n        }\n        cursor\n        node {\n          __typename\n        }\n      }\n      pageInfo {\n        endCursor\n        hasNextPage\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "c8b5cd2ef9dd84202355b8b9d6813f95";
+(node as any).hash = "0558909f226e1a65a704920caf8e5cf6";
 
 export default node;

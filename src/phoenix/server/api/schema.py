@@ -2,7 +2,7 @@ import strawberry
 from strawberry.types import Info
 
 from .context import Context
-from .types.Dataset import Dataset
+from .types.Dataset import Dataset, to_gql_dataset
 from .types.Dimension import to_gql_dimension
 from .types.EmbeddingDimension import to_gql_embedding_dimension
 from .types.Model import Model
@@ -13,11 +13,11 @@ from .types.node import GlobalID, Node, from_global_id
 class Query:
     @strawberry.field
     def primary_dataset(self, info: Info[Context, None]) -> Dataset:
-        return Dataset(name=info.context.model.primary_dataset.name)
+        return to_gql_dataset(info.context.model.primary_dataset)
 
     @strawberry.field
     def reference_dataset(self, info: Info[Context, None]) -> Dataset:
-        return Dataset(name=info.context.model.reference_dataset.name)
+        return to_gql_dataset(info.context.model.reference_dataset)
 
     @strawberry.field
     def model(self) -> Model:

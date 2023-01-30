@@ -9,6 +9,7 @@ const navCSS = (theme: Theme) => css`
   display: flex;
   flex-direction: row;
   justify-content: space-between;
+  align-items: center;
 `;
 
 const brandCSS = (theme: Theme) =>
@@ -16,8 +17,6 @@ const brandCSS = (theme: Theme) =>
     color: ${theme.textColors.white90};
     font-size: ${theme.typography.sizes.large.fontSize}px;
     text-decoration: none;
-    display: flex;
-    flex-direction: row;
     svg {
       margin-right: ${theme.spacing.margin8}px;
     }
@@ -25,8 +24,8 @@ const brandCSS = (theme: Theme) =>
 
 const BrandSVG = () => (
   <svg
-    width="20"
-    height="20"
+    width="22"
+    height="22"
     viewBox="0 0 27 24"
     fill="none"
     xmlns="http://www.w3.org/2000/svg"
@@ -72,6 +71,7 @@ export function GitHubLink() {
   return (
     <a
       href="https://github.com/arize-ai/phoenix"
+      target="_blank"
       css={(theme) => css`
         padding: ${theme.spacing.padding4}px;
         width: 20px;
@@ -86,6 +86,7 @@ export function GitHubLink() {
         }
       `}
       aria-label="GitHub"
+      rel="noreferrer"
     >
       <GitHubSVG />
     </a>
@@ -96,7 +97,6 @@ export function Brand() {
   return (
     <Link to="/" css={brandCSS}>
       <BrandSVG />
-      Phoenix
     </Link>
   );
 }
