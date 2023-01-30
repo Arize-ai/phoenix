@@ -1,6 +1,8 @@
 from typing import List, Union
+from uuid import UUID
 
 import strawberry
+from strawberry.scalars import ID
 
 
 @strawberry.type
@@ -16,12 +18,31 @@ class TwoDimensionalPoint:
 
 
 @strawberry.type
-class UMAPPointsData:
-    """points and meta data for a UMAP plot"""
+class UMAPPoint:
+    """point and meta data for a UMAP plot"""
 
-    coordinates: List[Union[ThreeDimensionalPoint, TwoDimensionalPoint]]
+    """A unique ID for the the point"""
+    uuid: UUID
+
+    """The prediction ID that the point is derived from"""
+    prediction_id: ID
+
+    """The coordinates of the point. Can be two or three dimensional"""
+    coordinates: Union[ThreeDimensionalPoint, TwoDimensionalPoint]
+
+
+class Cluster:
+    """A grouping of points in a UMAP plot"""
+
+    """The ID of the cluster"""
+    id: ID
+
+    """A list of points that belong to the cluster"""
+    points: List[UUID]
 
 
 @strawberry.type
 class UMAPPoints:
-    data: UMAPPointsData
+    data: List[UMAPPoint]
+    reference_data: List[UMAPPoint]
+    clusters: List[Cluster]
