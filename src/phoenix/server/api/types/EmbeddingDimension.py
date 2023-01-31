@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Annotated, Optional
 
 import strawberry
 
@@ -16,15 +16,31 @@ DEFAULT_N_NEIGHBORS = 30
 
 @strawberry.type
 class EmbeddingDimension(Node):
+    """A embedding dimension of a model. Represents unstructured data"""
+
     name: str
 
     @strawberry.field
     def UMAPPoints(
         self,
-        time_range: TimeRange,
-        n_components: Optional[int],
-        min_dist: Optional[int],
-        n_neighbors: Optional[int],
+        time_range: Annotated[
+            TimeRange,
+            strawberry.argument(
+                description="The time range of the primary dataset to generate the UMAP points for"
+            ),
+        ],
+        n_components: Annotated[
+            Optional[int],
+            strawberry.argument(description="UMAP target dimension hyperparameter. Must be 2 or 3"),
+        ],
+        min_dist: Annotated[
+            Optional[int],
+            strawberry.argument(description="UMAP minimum distance hyperparameter"),
+        ],
+        n_neighbors: Annotated[
+            Optional[int],
+            strawberry.argument(description="UMAP N neighbors hyperparameter"),
+        ],
     ) -> UMAPPoints:
         # TODO validate time_range.
 
