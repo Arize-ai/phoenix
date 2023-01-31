@@ -1,6 +1,7 @@
-from typing import Annotated, Optional
+from typing import Optional
 
 import strawberry
+from typing_extensions import Annotated
 
 from phoenix.core import EmbeddingDimension as CoreEmbeddingDimension
 from phoenix.server.api.input_types.TimeRange import TimeRange
