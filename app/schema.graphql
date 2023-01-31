@@ -54,13 +54,13 @@ type EmbeddingDimension implements Node {
     timeRange: TimeRange!
 
     """UMAP target dimension hyperparameter. Must be 2 or 3"""
-    nComponents: Int
+    nComponents: Int = 3
 
     """UMAP minimum distance hyperparameter"""
-    minDist: Int
+    minDist: Int = 0
 
     """UMAP N neighbors hyperparameter"""
-    nNeighbors: Int
+    nNeighbors: Int = 30
   ): UMAPPoints!
 }
 

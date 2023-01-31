@@ -31,16 +31,22 @@ class EmbeddingDimension(Node):
         ],
         n_components: Annotated[
             Optional[int],
-            strawberry.argument(description="UMAP target dimension hyperparameter. Must be 2 or 3"),
-        ],
+            strawberry.argument(
+                description="UMAP target dimension hyperparameter. Must be 2 or 3",
+            ),
+        ] = DEFAULT_N_COMPONENTS,
         min_dist: Annotated[
             Optional[int],
-            strawberry.argument(description="UMAP minimum distance hyperparameter"),
-        ],
+            strawberry.argument(
+                description="UMAP minimum distance hyperparameter",
+            ),
+        ] = DEFAULT_MIN_DIST,
         n_neighbors: Annotated[
             Optional[int],
-            strawberry.argument(description="UMAP N neighbors hyperparameter"),
-        ],
+            strawberry.argument(
+                description="UMAP N neighbors hyperparameter",
+            ),
+        ] = DEFAULT_N_NEIGHBORS,
     ) -> UMAPPoints:
         # TODO validate time_range.
 
