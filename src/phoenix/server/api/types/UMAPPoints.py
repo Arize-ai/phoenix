@@ -1,4 +1,4 @@
-from typing import List, Union
+from typing import List, Optional, Union
 from uuid import UUID
 
 import strawberry
@@ -18,6 +18,23 @@ class Point2D:
     y: float
 
 
+class EmbeddingMetadata:
+    """Embedding specific metadata. E.g. the raw text and image source"""
+
+    raw_data: Optional[str]
+    link_to_data: Optional[str]
+
+
+class EventMetadata:
+    """The metadata associated with a specific prediction event"""
+
+    prediction_id: ID
+    prediction_score: Optional[float]
+    prediction_label: Optional[str]
+    actual_score: Optional[float]
+    actual_label: Optional[str]
+
+
 @strawberry.type
 class UMAPPoint:
     """point and meta data for a UMAP plot"""
@@ -25,11 +42,14 @@ class UMAPPoint:
     """A unique ID for the the point"""
     uuid: UUID
 
-    """The prediction ID that the point is derived from"""
-    prediction_id: ID
-
     """The coordinates of the point. Can be two or three dimensional"""
     coordinates: Union[Point3D, Point3D]
+
+    """The metadata associated with the embedding"""
+    embedding_metadata: EmbeddingMetadata
+
+    """The metadata associated with the prediction event"""
+    event_metadata: EventMetadata
 
 
 @strawberry.type
