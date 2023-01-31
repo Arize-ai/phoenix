@@ -8,20 +8,35 @@ from phoenix.server.api.input_types.TimeRange import TimeRange
 from .node import Node
 from .UMAPPoints import UMAPPoints
 
+# Default UMAP hyperparameters
+DEFAULT_N_COMPONENTS = 3
+DEFAULT_MIN_DIST = 0
+DEFAULT_N_NEIGHBORS = 30
+
 
 @strawberry.type
 class EmbeddingDimension(Node):
     name: str
 
     @strawberry.field
-    def UMAPPoints(self, time_range: TimeRange, n_components: Optional[int]) -> UMAPPoints:
+    def UMAPPoints(
+        self,
+        time_range: TimeRange,
+        n_components: Optional[int],
+        min_dist: Optional[int],
+        n_neighbors: Optional[int],
+    ) -> UMAPPoints:
         # TODO validate time_range.
 
-        # validate n_components
-        n_components = 3 if n_components is None else n_components
+        # validate n_components to be 2 or 3
+        n_components = DEFAULT_N_COMPONENTS if n_components is None else n_components
         if not 2 <= n_components <= 3:
             raise Exception(f"n_components must be 2 or 3, got {n_components}")
-        # UMAP code goes here
+
+        min_dist = DEFAULT_MIN_DIST if min_dist is None else min_dist
+        n_neighbors = DEFAULT_N_NEIGHBORS if n_neighbors is None else n_neighbors
+
+        # TODO UMAP generation code goes here
         return UMAPPoints(data=[], reference_data=[], clusters=[])
 
 

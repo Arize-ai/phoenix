@@ -49,7 +49,7 @@ enum DimensionType {
 type EmbeddingDimension implements Node {
   id: GlobalID!
   name: String!
-  UMAPPoints(timeRange: TimeRange!): UMAPPoints!
+  UMAPPoints(timeRange: TimeRange!, nComponents: Int, minDist: Int, nNeighbors: Int): UMAPPoints!
 }
 
 type EmbeddingDimensionConnection {
