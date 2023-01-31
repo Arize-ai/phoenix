@@ -52,8 +52,14 @@ type EmbeddingDimension implements Node {
   UMAPPoints(
     """The time range of the primary dataset to generate the UMAP points for"""
     timeRange: TimeRange!
+
+    """UMAP target dimension hyperparameter. Must be 2 or 3"""
     nComponents: Int
+
+    """UMAP minimum distance hyperparameter"""
     minDist: Int
+
+    """UMAP N neighbors hyperparameter"""
     nNeighbors: Int
   ): UMAPPoints!
 }
