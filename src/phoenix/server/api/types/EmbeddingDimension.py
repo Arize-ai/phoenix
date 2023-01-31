@@ -23,12 +23,7 @@ class EmbeddingDimension(Node):
     @strawberry.field
     def UMAPPoints(
         self,
-        time_range: Annotated[
-            TimeRange,
-            strawberry.argument(
-                description="The time range of the primary dataset to generate the UMAP points for"
-            ),
-        ],
+        time_range: TimeRange,
         n_components: Annotated[
             Optional[int],
             strawberry.argument(

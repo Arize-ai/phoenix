@@ -30,6 +30,7 @@ dependencies = [
   "psutil",
   "strawberry-graphql",
   "pyarrow",
+  "typing_extensions",
 ]
 dynamic = ["version"]
 
