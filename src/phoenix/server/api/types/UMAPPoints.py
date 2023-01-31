@@ -6,13 +6,14 @@ from strawberry.scalars import ID
 
 
 @strawberry.type
-class ThreeDimensionalPoint:
+class Point3D:
     x: float
     y: float
     z: float
 
 
-class TwoDimensionalPoint:
+@strawberry.type
+class Point2D:
     x: float
     y: float
 
@@ -28,9 +29,10 @@ class UMAPPoint:
     prediction_id: ID
 
     """The coordinates of the point. Can be two or three dimensional"""
-    coordinates: Union[ThreeDimensionalPoint, TwoDimensionalPoint]
+    coordinates: Union[Point3D, Point3D]
 
 
+@strawberry.type
 class Cluster:
     """A grouping of points in a UMAP plot"""
 
@@ -38,7 +40,7 @@ class Cluster:
     id: ID
 
     """A list of points that belong to the cluster"""
-    points: List[UUID]
+    point_uuids: List[UUID]
 
 
 @strawberry.type

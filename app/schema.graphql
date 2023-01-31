@@ -1,6 +1,6 @@
-type Coordinate {
-  x: Float!
-  y: Float!
+type Cluster {
+  id: ID!
+  pointUuids: [UUID!]!
 }
 
 type Dataset {
@@ -49,7 +49,7 @@ enum DimensionType {
 type EmbeddingDimension implements Node {
   id: GlobalID!
   name: String!
-  UMAPPoints: UMAPPoints!
+  UMAPPoints(timeRange: TimeRange!): UMAPPoints!
 }
 
 type EmbeddingDimensionConnection {
@@ -84,6 +84,12 @@ type PageInfo {
   endCursor: String
 }
 
+type Point3D {
+  x: Float!
+  y: Float!
+  z: Float!
+}
+
 type Query {
   primaryDataset: Dataset!
   referenceDataset: Dataset!
@@ -91,7 +97,21 @@ type Query {
   node(id: GlobalID!): Node!
 }
 
-type UMAPPoints {
-  coordinates: [Coordinate!]!
-  referenceCoordinates: [Coordinate!]!
+input TimeRange {
+  start: DateTime!
+  end: DateTime!
 }
+
+type UMAPPoint {
+  uuid: UUID!
+  predictionId: ID!
+  coordinates: Point3D!
+}
+
+type UMAPPoints {
+  data: [UMAPPoint!]!
+  referenceData: [UMAPPoint!]!
+  clusters: [Cluster!]!
+}
+
+scalar UUID

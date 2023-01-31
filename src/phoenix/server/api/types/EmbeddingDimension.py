@@ -1,6 +1,7 @@
 import strawberry
 
 from phoenix.core import EmbeddingDimension as CoreEmbeddingDimension
+from phoenix.server.api.input_types.TimeRange import TimeRange
 
 from .node import Node
 from .UMAPPoints import UMAPPoints
@@ -11,7 +12,7 @@ class EmbeddingDimension(Node):
     name: str
 
     @strawberry.field
-    def UMAPPoints(self) -> UMAPPoints:
+    def UMAPPoints(self, time_range: TimeRange) -> UMAPPoints:
         # UMAP code goes here
         return UMAPPoints(data=[], reference_data=[], clusters=[])
 
