@@ -1,3 +1,5 @@
+from typing import Optional
+
 import strawberry
 
 from phoenix.core import EmbeddingDimension as CoreEmbeddingDimension
@@ -12,7 +14,13 @@ class EmbeddingDimension(Node):
     name: str
 
     @strawberry.field
-    def UMAPPoints(self, time_range: TimeRange) -> UMAPPoints:
+    def UMAPPoints(self, time_range: TimeRange, n_components: Optional[int]) -> UMAPPoints:
+        # TODO validate time_range.
+
+        # validate n_components
+        n_components = 3 if n_components is None else n_components
+        if not 2 <= n_components <= 3:
+            raise Exception(f"n_components must be 2 or 3, got {n_components}")
         # UMAP code goes here
         return UMAPPoints(data=[], reference_data=[], clusters=[])
 
