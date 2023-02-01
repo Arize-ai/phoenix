@@ -46,7 +46,7 @@ class UMAPPoint:
     uuid: UUID
 
     """The coordinates of the point. Can be two or three dimensional"""
-    coordinates: Union[Point3D, Point3D]
+    coordinates: Union[Point2D, Point3D]
 
     """The metadata associated with the embedding"""
     embedding_metadata: EmbeddingMetadata

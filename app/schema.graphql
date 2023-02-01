@@ -101,6 +101,13 @@ type PageInfo {
   endCursor: String
 }
 
+type Point2D {
+  x: Float!
+  y: Float!
+}
+
+union Point2DPoint3D = Point2D | Point3D
+
 type Point3D {
   x: Float!
   y: Float!
@@ -121,7 +128,7 @@ input TimeRange {
 
 type UMAPPoint {
   uuid: UUID!
-  coordinates: Point3D!
+  coordinates: Point2DPoint3D!
   embeddingMetadata: EmbeddingMetadata!
 }
 
