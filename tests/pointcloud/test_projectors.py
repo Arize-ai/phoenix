@@ -1,6 +1,6 @@
 import numpy as np
 import pytest
-from pointcloud.projectors import Parameters, Umap
+from phoenix.pointcloud.projectors import Parameters, Umap
 
 
 @pytest.mark.parametrize("samp_size,n_features,n_components", [(10, 8, 5), (15, 7, 3)])
