@@ -8,7 +8,7 @@ DEFAULT_MIN_CLUSTER_SIZE = 20
 DEFAULT_MIN_SAMPLES = 1
 
 
-@dataclass(kw_only=True, frozen=True)
+@dataclass(frozen=True)
 class Parameters:
     min_cluster_size: int = DEFAULT_MIN_CLUSTER_SIZE
     min_samples: float = DEFAULT_MIN_SAMPLES

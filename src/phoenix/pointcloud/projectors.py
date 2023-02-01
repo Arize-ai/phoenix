@@ -9,7 +9,7 @@ DEFAULT_N_NEIGHBORS = 15
 DEFAULT_MIN_DIST = 0.1
 
 
-@dataclass(kw_only=True, frozen=True)
+@dataclass(frozen=True)
 class Parameters:
     n_neighbors: int = DEFAULT_N_NEIGHBORS
     min_dist: float = DEFAULT_MIN_DIST

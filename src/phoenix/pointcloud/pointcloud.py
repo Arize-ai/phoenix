@@ -1,11 +1,10 @@
 from dataclasses import dataclass
-from typing import Hashable, Mapping, Protocol, TypeAlias, TypeVar
+from typing import Hashable, Mapping, Protocol, TypeVar
 
 import numpy as np
 import numpy.typing as npt
 
 Identifier = TypeVar("Identifier", bound=Hashable)
-Vector: TypeAlias = npt.NDArray[np.float64]
 
 
 class DimensionalityReducer(Protocol):
@@ -18,16 +17,16 @@ class ClustersFinder(Protocol):
         ...
 
 
-@dataclass(kw_only=True, frozen=True)
+@dataclass(frozen=True)
 class PointCloud:
     dimensionalityReducer: DimensionalityReducer
     clustersFinder: ClustersFinder
 
     def generate(
         self,
-        vectors: Mapping[Identifier, Vector],
+        vectors: Mapping[Identifier, npt.NDArray[np.float64]],
         n_components: int,
-    ) -> tuple[dict[Identifier, Vector], list[set[Identifier]]]:
+    ) -> tuple[dict[Identifier, npt.NDArray[np.float64]], list[set[Identifier]]]:
         ids, vs = zip(*vectors.items())
         projections = self.dimensionalityReducer.project(np.stack(vs), n_components=n_components)
         return dict(zip(ids, projections)), [
