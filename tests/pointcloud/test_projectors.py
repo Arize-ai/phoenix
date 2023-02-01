@@ -1,5 +1,6 @@
 import numpy as np
 import pytest
+
 from phoenix.pointcloud.projectors import Parameters, Umap
 
 
