@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Hashable, List, Mapping, Protocol, Set, TypeVar
+from typing import Dict, Hashable, List, Mapping, Protocol, Set, Tuple, TypeVar
 
 import numpy as np
 import numpy.typing as npt
@@ -26,7 +26,7 @@ class PointCloud:
         self,
         vectors: Mapping[Identifier, npt.NDArray[np.float64]],
         n_components: int,
-    ) -> tuple[dict[Identifier, npt.NDArray[np.float64]], List[Set[Identifier]]]:
+    ) -> Tuple[Dict[Identifier, npt.NDArray[np.float64]], List[Set[Identifier]]]:
         ids, vs = zip(*vectors.items())
         projections = self.dimensionalityReducer.project(np.stack(vs), n_components=n_components)
         return dict(zip(ids, projections)), [

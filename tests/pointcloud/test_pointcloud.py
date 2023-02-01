@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from functools import reduce
 from itertools import cycle
 from operator import or_
-from typing import List, Set
+from typing import Dict, List, Set
 
 import numpy as np
 import numpy.typing as npt
@@ -22,10 +22,10 @@ class MockProjector:
 
 @dataclass
 class MockClustersFinder:
-    cluster_assignments: dict[int, int]
+    cluster_assignments: Dict[int, int]
 
     def find_clusters(self, arr: npt.NDArray[np.float64]) -> List[Set[int]]:
-        ans: List[set[int]] = [set() for _ in range(len(set(self.cluster_assignments.values())))]
+        ans: List[Set[int]] = [set() for _ in range(len(set(self.cluster_assignments.values())))]
         for i in range(arr.shape[0]):
             ans[self.cluster_assignments[i]].add(i)
         return ans
