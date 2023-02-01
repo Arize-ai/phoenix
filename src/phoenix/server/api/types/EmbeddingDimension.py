@@ -37,7 +37,7 @@ class EmbeddingDimension(Node):
             ),
         ] = DEFAULT_N_COMPONENTS,
         min_dist: Annotated[
-            Optional[int],
+            Optional[float],
             strawberry.argument(
                 description="UMAP minimum distance hyperparameter",
             ),

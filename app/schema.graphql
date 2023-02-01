@@ -57,7 +57,7 @@ type EmbeddingDimension implements Node {
     nComponents: Int = 3
 
     """UMAP minimum distance hyperparameter"""
-    minDist: Int = 0
+    minDist: Float = 0
 
     """UMAP N neighbors hyperparameter"""
     nNeighbors: Int = 30
