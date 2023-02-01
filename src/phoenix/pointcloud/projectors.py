@@ -1,9 +1,8 @@
 from dataclasses import asdict, dataclass
-from typing import Hashable, Literal, Mapping, TypeVar, cast
+from typing import cast
 
 import numpy as np
 import numpy.typing as npt
-from typing_extensions import Annotated
 from umap import UMAP
 
 DEFAULT_N_NEIGHBORS = 15

@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Hashable, Mapping, Protocol, Sequence, TypeAlias, TypeVar
+from typing import Hashable, Mapping, Protocol, TypeAlias, TypeVar
 
 import numpy as np
 import numpy.typing as npt
@@ -20,7 +20,6 @@ class ClustersFinder(Protocol):
 
 @dataclass(kw_only=True, frozen=True)
 class PointCloud:
-
     dimensionalityReducer: DimensionalityReducer
     clustersFinder: ClustersFinder
 
