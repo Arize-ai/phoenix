@@ -64,7 +64,6 @@ class GraphQLWithContext(GraphQL):
         request: Union[Request, WebSocket],
         response: Optional[Response] = None,
     ) -> Context:
-
         return Context(request=request, response=response, model=self.model, loaders=self.loader)
 
 

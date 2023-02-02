@@ -79,7 +79,6 @@ class AppService(Service):
 
     @property
     def command(self) -> List[str]:
-
         command = [
             sys.executable,
             "main.py",
