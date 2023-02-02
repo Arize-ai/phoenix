@@ -135,7 +135,6 @@ class UMAPProjector:
             map_cluster_id_point_ids[cluster_id].append(primary_points[i].id)
             map_cluster_id_primary_count[cluster_id] += 1
         for i, cluster_id in enumerate(reference_cluster_ids):
-
             if cluster_id == -1:  # Exclude "unknown" cluster
                 continue
             map_cluster_id_point_ids[cluster_id].append(reference_points[i].id)
