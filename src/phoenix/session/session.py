@@ -1,4 +1,5 @@
 import logging
+from functools import cached_property
 from typing import Optional
 
 import phoenix.config as config
@@ -27,9 +28,14 @@ class Session:
         self._app_service = AppService(port, primary.name, reference.name)
         self._is_colab = _is_colab()
 
-    def view(self) -> "IFrame":
+    def view(self, height: int = 500) -> "IFrame":
         # Display the app in an iframe
-        return IFrame(src=_get_url(self.port, self._is_colab), width="100%", height=1000)
+        return IFrame(src=self.url, width="100%", height=500)
+
+    @cached_property
+    def url(self) -> str:
+        "Returns the url for the phoenix app"
+        return _get_url(self.port, self._is_colab)
 
     def end(self) -> None:
         "Ends the session and closes the app service"
