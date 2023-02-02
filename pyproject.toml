@@ -112,7 +112,7 @@ tests = "pytest {args}"
 coverage = "pytest --cov-report=term-missing --cov-config=pyproject.toml --cov=src/phoenix --cov=tests {args}"
 
 [[tool.hatch.envs.test.matrix]]
-python = ["310"]
+python = ["3.8"]
 
 [tool.pytest.ini_options]
 addopts = [
