@@ -96,10 +96,10 @@ dependencies = [
 [tool.hatch.envs.style]
 detached = true
 dependencies = [
-  "black",
-  "black[jupyter]",
-  "flake8",
-  "isort",
+  "black~=23.1.0",
+  "black[jupyter]~=23.1.0",
+  "flake8~=6.0.0",
+  "isort~=5.12.0",
 ]
 
 [tool.hatch.envs.docs]
