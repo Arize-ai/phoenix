@@ -1,5 +1,8 @@
+from typing import cast
+
 import numpy as np
 import numpy.typing as npt
+from scipy.spatial.distance import euclidean  # type: ignore
 
 
 def euclidean_distance(
@@ -9,4 +12,6 @@ def euclidean_distance(
     """
     Computes Euclidean distance between the centroids of two arrays.
     """
-    return np.linalg.norm(np.mean(array0, axis=0) - np.mean(array1, axis=0)).tolist()
+    centroid0 = np.mean(array0, axis=0)
+    centroid1 = np.mean(array1, axis=0)
+    return cast(float, euclidean(centroid0, centroid1))
