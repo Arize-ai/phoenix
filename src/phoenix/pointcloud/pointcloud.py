@@ -30,16 +30,40 @@ class PointCloud:
 
     def generate(
         self,
-        vectors: Mapping[Identifier, Vector],
-        n_components: int,
+        data: Mapping[Identifier, Vector],
+        n_components: int = 3,
     ) -> Tuple[Dict[Identifier, Vector], Dict[Identifier, ClusterId]]:
-        all_identifiers, all_vectors = zip(*vectors.items())
+        """
+        Given a set of vectors, projects them onto lower dimensions, and
+        finds clusters among the projections.
+
+        Parameters
+        ----------
+        data : mapping
+            Mapping of input vectors by their identifiers.
+
+        n_components: int, default=3
+            Number of dimensions in the projected space.
+
+        Returns
+        -------
+        projections : dictionary
+            Projected vectors in the low demension space, mapped back to the
+            input vectors' identifiers.
+
+        cluster_membership: dictinary
+            Cluster membership by way of cluster_ids in the form of integers
+            0,1,2,... mapped back to the input vectors' identifiers. Note that
+            some vectors may not belong to any cluster and are excluded here.
+
+        """
+        identifiers, vectors = zip(*data.items())
         projections = self.dimensionalityReducer.project(
-            np.stack(all_vectors), n_components=n_components
+            np.stack(vectors), n_components=n_components
         )
         clusters = self.clustersFinder.find_clusters(projections)
-        return dict(zip(all_identifiers, projections)), {
-            all_identifiers[row_index]: cluster_id
+        return dict(zip(identifiers, projections)), {
+            identifiers[row_index]: cluster_id
             for cluster_id, cluster in enumerate(clusters)
             for row_index in cluster
         }
