@@ -55,8 +55,8 @@ def _get_euclidean_distance_dataloader(model: Model) -> DataLoader[str, Optional
             reference_embeddings = model.reference_dataset.get_embedding_vector_column(emb)
             distances.append(
                 euclidean_distance(
-                    np.stack(primary_embeddings.to_numpy()),
-                    np.stack(reference_embeddings.to_numpy()),
+                    np.stack(primary_embeddings.to_numpy()),  # type: ignore
+                    np.stack(reference_embeddings.to_numpy()),  # type: ignore
                 )
             )
         return distances
