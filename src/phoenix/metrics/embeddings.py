@@ -12,6 +12,4 @@ def euclidean_distance(
     """
     Computes Euclidean distance between the centroids of two arrays.
     """
-    centroid0 = np.mean(array0, axis=0)
-    centroid1 = np.mean(array1, axis=0)
-    return cast(float, euclidean(centroid0, centroid1))
+    return cast(float, euclidean(np.mean(array0, axis=0), np.mean(array1, axis=0)))
