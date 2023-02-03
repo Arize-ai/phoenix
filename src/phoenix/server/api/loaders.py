@@ -11,6 +11,7 @@ from phoenix.metrics.cardinality import cardinality
 @dataclass
 class Loaders:
     cardinality: DataLoader[str, Optional[int]]
+    percent_empty: DataLoader[str, Optional[float]]
 
 
 def create_loaders(model: Model) -> Loaders:

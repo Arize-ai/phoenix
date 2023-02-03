@@ -1,9 +1,14 @@
-"""
-Percent empty
-"""
+from typing import Dict, Optional
 
-import pandas as pd
+from pandas import DataFrame
 
 
-def percent_empty(df: pd.DataFrame) -> "pd.Series[float]":
-    return df.isnull().sum() / df.shape[0]
+def percent_empty(dataframe: DataFrame) -> Optional[Dict[str, float]]:
+    """
+    Returns a map of the dataframe column names to the percent of empty entries
+    for each row.
+    """
+    num_records = dataframe.shape[0]
+    if num_records == 0:
+        return None
+    return dataframe.isnull().sum() / dataframe.shape[0]

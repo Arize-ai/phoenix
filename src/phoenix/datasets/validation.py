@@ -5,7 +5,7 @@ from pandas.api.types import is_datetime64_any_dtype as is_datetime
 from pandas.api.types import is_numeric_dtype, is_string_dtype
 
 from . import errors as err
-from .schema import Schema
+from .schema import EmbeddingFeatures, Schema
 
 
 def _check_valid_schema(schema: Schema) -> List[err.ValidationError]:
@@ -104,3 +104,14 @@ def _check_missing_columns(dataframe: DataFrame, schema: Schema) -> List[err.Val
         return [err.MissingColumns(missing_columns)]
 
     return []
+
+
+def _check_embeddings(dataframe: DataFrame, schema: Schema):
+    """
+    Ensure that embedding columns are missing no values and have a 
+    """
+
+    if schema.embedding_feature_column_names is not None:
+        for emb_col_names in schema.embedding_feature_column_names.values():
+            if emb_col_names.vector_column_name not in existing_columns:
+
