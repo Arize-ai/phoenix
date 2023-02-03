@@ -1,9 +1,11 @@
 from typing import Optional
 
 import strawberry
+from strawberry.types import Info
 from typing_extensions import Annotated
 
 from phoenix.core import EmbeddingDimension as CoreEmbeddingDimension
+from phoenix.server.api.context import Context
 from phoenix.server.api.input_types.TimeRange import TimeRange
 
 from .node import Node
@@ -61,6 +63,10 @@ class EmbeddingDimension(Node):
 
         # TODO UMAP generation code goes here
         return UMAPPoints(data=[], reference_data=[], clusters=[])
+
+    @strawberry.field
+    async def euclideanDistance(self, info: Info[Context, None]) -> Optional[float]:
+        return await info.context.loaders.euclidean_distance.load(self.name)
 
 
 def to_gql_embedding_dimension(
