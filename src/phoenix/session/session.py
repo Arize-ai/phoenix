@@ -1,9 +1,15 @@
 import logging
+from functools import cached_property
 from typing import Optional
 
 import phoenix.config as config
 from phoenix.datasets import Dataset
 from phoenix.services import AppService
+
+try:
+    from IPython.display import IFrame  # type: ignore
+except:  # noqa
+    pass
 
 logger = logging.getLogger(__name__)
 
@@ -17,8 +23,19 @@ class Session:
     def __init__(self, primary: Dataset, reference: Dataset, port: int):
         self.primary = primary
         self.reference = reference
+        self.port = port
         # Initialize an app service that keeps the server running
         self._app_service = AppService(port, primary.name, reference.name)
+        self._is_colab = _is_colab()
+
+    def view(self, height: int = 500) -> "IFrame":
+        # Display the app in an iframe
+        return IFrame(src=self.url, width="100%", height=height)
+
+    @cached_property
+    def url(self) -> str:
+        "Returns the url for the phoenix app"
+        return _get_url(self.port, self._is_colab)
 
     def end(self) -> None:
         "Ends the session and closes the app service"
@@ -32,8 +49,8 @@ def launch_app(primary: Dataset, reference: Dataset) -> "Session":
     logger.info("Launching Phoenix App")
     global _session
 
-    # TODO close previous session if it exists
     _session = Session(primary, reference, port=config.port)
+
     return _session
 
 
@@ -46,3 +63,24 @@ def close_app() -> None:
     _session.end()
     _session = None
     logger.info("Session closed")
+
+
+def _get_url(port: int, is_colab: bool) -> str:
+    """Determines the iframe url based on whether this is in a Colab"""
+    if is_colab:
+        from google.colab.output import eval_js  # type: ignore
+
+        return str(eval_js(f"google.colab.kernel.proxyPort({port}, {{'cache': true}})"))
+
+    return f"http://localhost:{port}/"
+
+
+def _is_colab() -> bool:
+    """Determines whether this is in a Colab"""
+    try:
+        import google.colab  # type: ignore # noqa: F401
+        import IPython  # type: ignore
+    except ImportError:
+        return False
+
+    return IPython.get_ipython() is not None

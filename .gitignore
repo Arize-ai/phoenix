@@ -4,12 +4,20 @@
 .coverage
 node_modules
 dist
+sdist
 *__pycache__*
 **/.pytest_cache
 **/.ipynb_checkpoints/
 **/.DS_Store
 
+# Server static files
+/src/phoenix/server/static/*
+
 # Data files
 *.csv
+!tests/**/fixtures/*.csv
 *.hdf
 *.hdf5
+
+# Testing
+coverage.xml

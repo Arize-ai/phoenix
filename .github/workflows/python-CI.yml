@@ -1,98 +1,104 @@
 name: Python CI
 
 on:
-  push:
-    branches: [ main ]
-  pull_request:
-    paths:
-      - "**.py"
-  # Allows you to run this workflow manually from the Actions tab
-  workflow_dispatch:
+    push:
+        branches: [main]
+    pull_request:
+        paths:
+            - "src/**"
+            - "tests/**"
+            - "pyproject.toml"
+    # Allows you to run this workflow manually from the Actions tab
+    workflow_dispatch:
 
 concurrency:
-  group: test-python-${{ github.head_ref }}
-  cancel-in-progress: true
+    group: test-python-${{ github.head_ref }}
+    cancel-in-progress: true
 
 env:
-  pip-version: 22.3.1
+    pip-version: 22.3.1
 
 jobs:
-  lint:
-    name: Lint Python
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v3
-      - name: Set up python 3.10
-        uses: actions/setup-python@v4
-        with:
-          python-version: "3.10"
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip==${{ env.pip-version }}
-          pip install hatch
-      - name: Check format
-        run: |
-          hatch run style:check
-      - name: Check types
-        run: |
-          hatch run type:check
+    lint:
+        name: Lint Python
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout Repository
+              uses: actions/checkout@v3
+            - name: Set up python 3.10
+              uses: actions/setup-python@v4
+              with:
+                  python-version: "3.10"
+            - name: Install dependencies
+              run: |
+                  python -m pip install --upgrade pip==${{ env.pip-version }}
+                  pip install hatch
+            - name: Check format
+              run: |
+                  hatch run style:check
+            - name: Check types
+              run: |
+                  hatch run type:check
+            - name: Gql codegen
+              run: |
+                  hatch run gql:build
+                  git diff --exit-code
 
-  test:
-    name: Test Python
-    runs-on: ${{ matrix.os }}
-    needs: [ lint ]
-    strategy:
-      matrix:
-        os: [ macos-latest ]
-        python-version: [ "3.10" ]
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v3
-      - name: Set up python ${{ matrix.python-version }}
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ matrix.python-version }}
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip==${{ env.pip-version }}
-          pip install hatch
-      - name: Run tests
-        run: |
-          hatch run tests
+    test:
+        name: Test Python
+        runs-on: ${{ matrix.os }}
+        needs: [lint]
+        strategy:
+            matrix:
+                os: [macos-latest, windows-latest, ubuntu-latest]
+                python-version: ["3.8"]
+        steps:
+            - name: Checkout Repository
+              uses: actions/checkout@v3
+            - name: Set up python ${{ matrix.python-version }}
+              uses: actions/setup-python@v4
+              with:
+                  python-version: ${{ matrix.python-version }}
+            - name: Install dependencies
+              run: |
+                  python -m pip install --upgrade pip==${{ env.pip-version }}
+                  pip install hatch
+            - name: Run tests
+              run: |
+                  hatch run tests
 
-  # test-coverage:
-  #     name: Test Coverage
-  #     runs-on: ubuntu-latest
-  #     steps:
-  #         - name: Checkout Repository
-  #           uses: actions/checkout@v3
-  #         - name: Set up python 3.10
-  #           uses: actions/setup-python@v4
-  #           with:
-  #               python-version: "3.10"
-  #         - name: Install dependencies
-  #           run: |
-  #               python -m pip install --upgrade pip==${{ env.pip-version }}
-  #               pip install hatch
-  #         - name: Test coverage
-  #           run: |
-  #               hatch run coverage
+    # test-coverage:
+    #     name: Test Coverage
+    #     runs-on: ubuntu-latest
+    #     steps:
+    #         - name: Checkout Repository
+    #           uses: actions/checkout@v3
+    #         - name: Set up python 3.10
+    #           uses: actions/setup-python@v4
+    #           with:
+    #               python-version: "3.10"
+    #         - name: Install dependencies
+    #           run: |
+    #               python -m pip install --upgrade pip==${{ env.pip-version }}
+    #               pip install hatch
+    #         - name: Test coverage
+    #           run: |
+    #               hatch run coverage
 
-  # docs-coverage:
-  #     name: Documentation Coverage
-  #     runs-on: ubuntu-latest
-  #     steps:
-  #         - name: Checkout Repository
-  #           uses: actions/checkout@v3
-  #         - name: Set up python 3.11
-  #           uses: actions/setup-python@v4
-  #           with:
-  #               python-version: 3.11
-  #         - name: Install dependencies
-  #           run: |
-  #               python -m pip install --upgrade pip==${{ env.pip-version }}
-  #               pip install hatch
-  #         - name: Check documentation coverage
-  #           run: |
-  #               hatch run docs:check
+    # docs-coverage:
+    #     name: Documentation Coverage
+    #     runs-on: ubuntu-latest
+    #     steps:
+    #         - name: Checkout Repository
+    #           uses: actions/checkout@v3
+    #         - name: Set up python 3.11
+    #           uses: actions/setup-python@v4
+    #           with:
+    #               python-version: 3.11
+    #         - name: Install dependencies
+    #           run: |
+    #               python -m pip install --upgrade pip==${{ env.pip-version }}
+    #               pip install hatch
+    #         - name: Check documentation coverage
+    #           run: |
+    #               hatch run docs:check

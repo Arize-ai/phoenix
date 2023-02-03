@@ -1,0 +1,45 @@
+name: Typescript CI
+
+on:
+    push:
+        branches: [main]
+    pull_request:
+        paths:
+            - "app/**"
+    # Allows you to run this workflow manually from the Actions tab
+    workflow_dispatch:
+
+concurrency:
+    group: test-typescript-${{ github.head_ref }}
+    cancel-in-progress: true
+
+jobs:
+    lint:
+        name: Lint Typescript
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout Repository
+              uses: actions/checkout@v3
+            - name: Set up Nodejs
+              uses: actions/setup-node@v3
+              with:
+                  node-version: 16
+            - name: Install dependencies
+              working-directory: ./app
+              run: npm ci
+            - name: Type Check
+              working-directory: ./app
+              run: npm run typecheck
+            - name: Formatting
+              working-directory: ./app
+              run: |
+                  npm run prettier:check
+            - name: Lint
+              working-directory: ./app
+              run: |
+                  npm run lint
+            - name: Relay Codegen
+              working-directory: ./app
+              run: |
+                  npm run build:relay
+                  git diff --exit-code

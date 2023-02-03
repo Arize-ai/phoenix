@@ -1,25 +1,29 @@
-import json
 import logging
 import os
-import os.path
 import sys
-import tempfile
 import uuid
-import warnings
-from typing import Any, Literal, Optional, Union
-from urllib import request
+from copy import deepcopy
+from dataclasses import fields, replace
+from datetime import datetime
+from functools import cached_property
+from typing import Any, Dict, List, Optional, Set, Tuple, Union, cast
 
-from numpy import fromstring
-from pandas import DataFrame, Series, read_csv, read_hdf, read_parquet
+from pandas import DataFrame, Series, Timestamp, read_parquet, to_datetime
+from pandas.api.types import is_numeric_dtype
 
 from phoenix.config import dataset_dir
-from phoenix.utils import is_url, parse_file_format, parse_filename
 
 from . import errors as err
-from .schema import EmbeddingColumnNames, Schema
+from .schema import (
+    MULTI_COLUMN_SCHEMA_FIELD_NAMES,
+    SINGLE_COLUMN_SCHEMA_FIELD_NAMES,
+    EmbeddingColumnNames,
+    EmbeddingFeatures,
+    Schema,
+    SchemaFieldName,
+    SchemaFieldValue,
+)
 from .validation import validate_dataset_inputs
-
-SUPPORTED_URL_FORMATS = sorted(["hdf", "csv"])
 
 logger = logging.getLogger(__name__)
 if hasattr(sys, "ps1"):
@@ -29,8 +33,6 @@ if hasattr(sys, "ps1"):
     logger.addHandler(log_handler)
     logger.setLevel(logging.INFO)
 
-ParquetEngine = Literal["pyarrow", "fastparquet", "auto"]
-
 
 class Dataset:
     """
@@ -39,6 +41,7 @@ class Dataset:
 
     _data_file_name: str = "data.parquet"
     _schema_file_name: str = "schema.json"
+    _is_persisted: bool = False
 
     def __init__(
         self,
@@ -55,10 +58,9 @@ class Dataset:
             for e in errors:
                 logger.error(e)
             raise err.DatasetError(errors)
-        parsed_dataframe = self._parse_dataframe(dataframe, schema)
-
+        parsed_dataframe, parsed_schema = _parse_dataframe_and_schema(dataframe, schema)
         self.__dataframe: DataFrame = parsed_dataframe
-        self.__schema: Schema = schema
+        self.__schema: Schema = parsed_schema
         self.__name: str = name if name is not None else f"""dataset_{str(uuid.uuid4())}"""
         self.__directory: str = os.path.join(dataset_dir, self.name)
 
@@ -67,10 +69,24 @@ class Dataset:
             self.to_disc()
         else:
             # Assume that the dataset is already persisted to disc
-            self.__is_persisted: bool = True
+            self._is_persisted: bool = True
 
         self.to_disc()
         logger.info(f"""Dataset: {self.__name} initialized""")
+
+    @cached_property
+    def start_time(self) -> datetime:
+        """Returns the datetime of the earliest inference in the dataset"""
+        timestamp_col_name: str = cast(str, self.schema.timestamp_column_name)
+        start_datetime: datetime = self.__dataframe[timestamp_col_name].min()
+        return start_datetime
+
+    @cached_property
+    def end_time(self) -> datetime:
+        """Returns the datetime of the latest inference in the dataset"""
+        timestamp_col_name: str = cast(str, self.schema.timestamp_column_name)
+        end_datetime: datetime = self.__dataframe[timestamp_col_name].max()
+        return end_datetime
 
     @property
     def dataframe(self) -> DataFrame:
@@ -86,7 +102,7 @@ class Dataset:
 
     @property
     def is_persisted(self) -> bool:
-        return self.__is_persisted
+        return self._is_persisted
 
     @property
     def directory(self) -> str:
@@ -174,105 +190,19 @@ class Dataset:
         return cls(dataframe, schema, name)
 
     @classmethod
-    def from_csv(cls, filepath: str, schema: Schema, name: Optional[str] = None) -> "Dataset":
-        dataframe: DataFrame = read_csv(filepath)
-        dataframe_columns = set(dataframe.columns)
-        if schema.embedding_feature_column_names is not None:
-            warnings.warn(
-                "Reading embeddings from csv files can be slow. Consider using other "
-                "formats such as parquet or hdf5.",
-                stacklevel=2,
-            )
-            for emb_col_names in schema.embedding_feature_column_names.values():
-                if emb_col_names.vector_column_name not in dataframe_columns:
-                    e = err.MissingVectorColumn(emb_col_names.vector_column_name)
-                    logger.error(e)
-                    raise err.DatasetError(e)
-                dataframe[emb_col_names.vector_column_name] = dataframe[
-                    emb_col_names.vector_column_name
-                ].map(lambda s: fromstring(s.strip("[]"), dtype=float, sep=" "))
-
-        return cls(dataframe, schema, name)
-
-    @classmethod
-    def from_hdf(
-        cls, filepath: str, schema: Schema, name: Optional[str], key: Optional[str] = None
-    ) -> "Dataset":
-        df = read_hdf(filepath, key)
-        if not isinstance(df, DataFrame):
-            raise TypeError("Reading from hdf must yield a dataframe")
-        return cls(df, schema, name)
-
-    @classmethod
-    def from_url(
-        cls,
-        url_path: str,
-        schema: Schema,
-        name: Optional[str] = None,
-        hdf_key: Optional[str] = None,
-    ) -> "Dataset":
-        if not is_url(url_path):
-            raise ValueError("Invalid url")
-        file_format = parse_file_format(url_path)
-        if file_format == ".csv":
-            return cls.from_csv(url_path, schema, name)
-        elif file_format == ".hdf5" or file_format == ".hdf":
-            filename = parse_filename(url_path)
-            with tempfile.TemporaryDirectory() as temp_dir:
-                local_file_path = os.path.join(temp_dir, filename)
-                print(f"Downloading file: {filename}")
-                request.urlretrieve(url_path, local_file_path, show_progress)
-                print("\n")
-                return cls.from_hdf(local_file_path, schema, name, hdf_key)
-        raise ValueError(
-            f"File format {file_format} not supported. Currently supported "
-            f"formats are: {', '.join(SUPPORTED_URL_FORMATS)}."
-        )
-
-    @classmethod
-    def from_parquet(
-        cls, filepath: str, schema: Schema, name: Optional[str], engine: ParquetEngine = "pyarrow"
-    ) -> "Dataset":
-        return cls(read_parquet(filepath, engine=engine), schema, name)
-
-    @classmethod
     def from_name(cls, name: str) -> "Dataset":
         """Retrieves a dataset by name from the file system"""
         directory = os.path.join(dataset_dir, name)
         df = read_parquet(os.path.join(directory, cls._data_file_name))
-        with open(os.path.join(directory, cls._schema_file_name), "rb") as schema_file:
-            schema_json = json.load(schema_file)
-            schema = Schema.from_json(schema_json)
-            return cls(df, schema, name, persist_to_disc=False)
-
-    @staticmethod
-    def _parse_dataframe(dataframe: DataFrame, schema: Schema) -> DataFrame:
-        schema_cols = [
-            schema.timestamp_column_name,
-            schema.prediction_label_column_name,
-            schema.prediction_score_column_name,
-            schema.actual_label_column_name,
-            schema.actual_score_column_name,
-        ]
-        # Append the feature column names to the columns if present
-        if schema.feature_column_names is not None:
-            schema_cols += schema.feature_column_names
-
-        if schema.embedding_feature_column_names is not None:
-            for emb_feat_cols in schema.embedding_feature_column_names.values():
-                schema_cols.append(emb_feat_cols.vector_column_name)
-                if emb_feat_cols.raw_data_column_name:
-                    schema_cols.append(emb_feat_cols.raw_data_column_name)
-                if emb_feat_cols.link_to_data_column_name:
-                    schema_cols.append(emb_feat_cols.link_to_data_column_name)
-
-        drop_cols = [col for col in dataframe.columns if col not in schema_cols]
-        return dataframe.drop(columns=drop_cols)
+        with open(os.path.join(directory, cls._schema_file_name)) as schema_file:
+            schema_json = schema_file.read()
+        schema = Schema.from_json(schema_json)
+        return cls(df, schema, name, persist_to_disc=False)
 
     def to_disc(self) -> None:
         """writes the data and schema to disc"""
 
-        if self.__is_persisted:
+        if self._is_persisted:
             logger.info("Dataset already persisted")
             return
 
@@ -286,10 +216,241 @@ class Dataset:
             schema_file.write(schema_json_data)
 
         # set the persisted flag so that we don't have to perform this operation again
-        self.__is_persisted = True
+        self._is_persisted = True
         logger.info(f"Dataset info written to '{directory}'")
 
 
-def show_progress(block_num: int, block_size: int, total_size: int) -> None:
-    progress = round(block_num * block_size / total_size * 100, 2)
-    print("[" + int(progress) * "=" + (100 - int(progress)) * " " + f"] {progress}%", end="\r")
+def _parse_dataframe_and_schema(dataframe: DataFrame, schema: Schema) -> Tuple[DataFrame, Schema]:
+    """
+    Parses a dataframe according to a schema, infers feature columns names when
+    they are not explicitly provided, and removes excluded column names from
+    both dataframe and schema.
+
+    Removes column names in `schema.excludes` from the input dataframe and
+    schema. To remove an embedding feature and all associated columns, add the
+    name of the embedding feature to `schema.excludes` rather than the
+    associated column names. If `schema.feature_column_names` is `None`,
+    automatically discovers features by adding all column names present in the
+    dataframe but not included in any other schema fields.
+    """
+
+    unseen_excluded_column_names: Set[str] = (
+        set(schema.excludes) if schema.excludes is not None else set()
+    )
+    unseen_column_names: Set[str] = set(dataframe.columns.to_list())
+    column_name_to_include: Dict[str, bool] = {}
+    schema_patch: Dict[SchemaFieldName, SchemaFieldValue] = {}
+
+    for schema_field_name in SINGLE_COLUMN_SCHEMA_FIELD_NAMES:
+        _check_single_column_schema_field_for_excluded_columns(
+            schema,
+            schema_field_name,
+            unseen_excluded_column_names,
+            schema_patch,
+            column_name_to_include,
+            unseen_column_names,
+        )
+
+    for schema_field_name in MULTI_COLUMN_SCHEMA_FIELD_NAMES:
+        _check_multi_column_schema_field_for_excluded_columns(
+            schema,
+            schema_field_name,
+            unseen_excluded_column_names,
+            schema_patch,
+            column_name_to_include,
+            unseen_column_names,
+        )
+
+    if schema.embedding_feature_column_names:
+        _check_embedding_features_schema_field_for_excluded_columns(
+            schema.embedding_feature_column_names,
+            unseen_excluded_column_names,
+            schema_patch,
+            column_name_to_include,
+            unseen_column_names,
+        )
+
+    if not schema.feature_column_names and unseen_column_names:
+        _discover_feature_columns(
+            dataframe,
+            unseen_excluded_column_names,
+            schema_patch,
+            column_name_to_include,
+            unseen_column_names,
+        )
+
+    if unseen_excluded_column_names:
+        logger.warning(
+            "The following columns and embedding features were excluded in the schema but were "
+            "not found in the dataframe: {}".format(", ".join(unseen_excluded_column_names))
+        )
+
+    parsed_dataframe, parsed_schema = _create_and_normalize_dataframe_and_schema(
+        dataframe, schema, schema_patch, column_name_to_include
+    )
+
+    return parsed_dataframe, parsed_schema
+
+
+def _check_single_column_schema_field_for_excluded_columns(
+    schema: Schema,
+    schema_field_name: str,
+    unseen_excluded_column_names: Set[str],
+    schema_patch: Dict[SchemaFieldName, SchemaFieldValue],
+    column_name_to_include: Dict[str, bool],
+    unseen_column_names: Set[str],
+) -> None:
+    """
+    Checks single-column schema fields for excluded column names.
+    """
+    column_name: str = getattr(schema, schema_field_name)
+    include_column: bool = column_name not in unseen_excluded_column_names
+    column_name_to_include[column_name] = include_column
+    if not include_column:
+        schema_patch[schema_field_name] = None
+        unseen_excluded_column_names.discard(column_name)
+        logger.debug(f"excluded {schema_field_name}: {column_name}")
+    unseen_column_names.discard(column_name)
+
+
+def _check_multi_column_schema_field_for_excluded_columns(
+    schema: Schema,
+    schema_field_name: str,
+    unseen_excluded_column_names: Set[str],
+    schema_patch: Dict[SchemaFieldName, SchemaFieldValue],
+    column_name_to_include: Dict[str, bool],
+    unseen_column_names: Set[str],
+) -> None:
+    """
+    Checks multi-column schema fields for excluded columns names.
+    """
+    column_names: Optional[List[str]] = getattr(schema, schema_field_name)
+    if column_names:
+        included_column_names: List[str] = []
+        excluded_column_names: List[str] = []
+        for column_name in column_names:
+            is_included_column = column_name not in unseen_excluded_column_names
+            column_name_to_include[column_name] = is_included_column
+            if is_included_column:
+                included_column_names.append(column_name)
+            else:
+                excluded_column_names.append(column_name)
+                unseen_excluded_column_names.discard(column_name)
+                logger.debug(f"excluded {schema_field_name}: {column_name}")
+            unseen_column_names.discard(column_name)
+        schema_patch[schema_field_name] = included_column_names if included_column_names else None
+
+
+def _check_embedding_features_schema_field_for_excluded_columns(
+    embedding_features: EmbeddingFeatures,
+    unseen_excluded_column_names: Set[str],
+    schema_patch: Dict[SchemaFieldName, SchemaFieldValue],
+    column_name_to_include: Dict[str, bool],
+    unseen_column_names: Set[str],
+) -> None:
+    """
+    Check embedding features for excluded column names.
+    """
+    included_embedding_features: EmbeddingFeatures = {}
+    for (
+        embedding_feature_name,
+        embedding_column_name_mapping,
+    ) in embedding_features.items():
+        include_embedding_feature = embedding_feature_name not in unseen_excluded_column_names
+        if include_embedding_feature:
+            included_embedding_features[embedding_feature_name] = deepcopy(
+                embedding_column_name_mapping
+            )
+        else:
+            unseen_excluded_column_names.discard(embedding_feature_name)
+
+        for embedding_field in fields(embedding_column_name_mapping):
+            column_name: Optional[str] = getattr(
+                embedding_column_name_mapping, embedding_field.name
+            )
+            if column_name is not None:
+                column_name_to_include[column_name] = include_embedding_feature
+                if (
+                    column_name != embedding_feature_name
+                    and column_name in unseen_excluded_column_names
+                ):
+                    logger.warning(
+                        f"Excluding embedding feature columns such as "
+                        f'"{column_name}" has no effect; instead exclude the '
+                        f'corresponding embedding feature name "{embedding_feature_name}".'
+                    )
+                    unseen_excluded_column_names.discard(column_name)
+                unseen_column_names.discard(column_name)
+    schema_patch["embedding_feature_column_names"] = (
+        included_embedding_features if included_embedding_features else None
+    )
+
+
+def _discover_feature_columns(
+    dataframe: DataFrame,
+    unseen_excluded_column_names: Set[str],
+    schema_patch: Dict[SchemaFieldName, SchemaFieldValue],
+    column_name_to_include: Dict[str, bool],
+    unseen_column_names: Set[str],
+) -> None:
+    """
+    Adds unseen and unexcluded columns as features.
+    """
+    discovered_feature_column_names = []
+    for column_name in unseen_column_names:
+        if column_name not in unseen_excluded_column_names:
+            discovered_feature_column_names.append(column_name)
+            column_name_to_include[column_name] = True
+        else:
+            unseen_excluded_column_names.discard(column_name)
+            logger.debug(f"excluded feature: {column_name}")
+    original_column_positions: List[int] = dataframe.columns.get_indexer(
+        discovered_feature_column_names
+    )  # type: ignore
+    feature_column_name_to_position: Dict[str, int] = dict(
+        zip(discovered_feature_column_names, original_column_positions)
+    )
+    discovered_feature_column_names.sort(key=lambda col: feature_column_name_to_position[col])
+    schema_patch["feature_column_names"] = discovered_feature_column_names
+    logger.debug(
+        "Discovered feature column names: {}".format(", ".join(discovered_feature_column_names))
+    )
+
+
+def _create_and_normalize_dataframe_and_schema(
+    dataframe: DataFrame,
+    schema: Schema,
+    schema_patch: Dict[SchemaFieldName, SchemaFieldValue],
+    column_name_to_include: Dict[str, bool],
+) -> Tuple[DataFrame, Schema]:
+    """
+    Creates new dataframe and schema objects to reflect excluded column names
+    and discovered features. This also normalizes dataframe columns to ensure a
+    standard set of columns (i.e. timestamp and prediction_id) and datatypes for
+    those columns.
+    """
+    included_column_names: List[str] = []
+    for column_name in dataframe.columns:
+        if column_name_to_include.get(str(column_name), False):
+            included_column_names.append(str(column_name))
+    parsed_dataframe = dataframe[included_column_names].copy()
+    parsed_schema = replace(schema, excludes=None, **schema_patch)
+
+    ts_col_name = parsed_schema.timestamp_column_name
+    if ts_col_name is None:
+        now = Timestamp.utcnow()
+        parsed_schema = replace(parsed_schema, timestamp_column_name="timestamp")
+        parsed_dataframe["timestamp"] = now
+    elif is_numeric_dtype(dataframe.dtypes[ts_col_name]):
+        parsed_dataframe[ts_col_name] = parsed_dataframe[ts_col_name].apply(
+            lambda x: to_datetime(x, unit="ms")
+        )
+
+    pred_col_name = parsed_schema.prediction_id_column_name
+    if pred_col_name is None:
+        parsed_schema = replace(parsed_schema, prediction_id_column_name="prediction_id")
+        parsed_dataframe["prediction_id"] = parsed_dataframe.apply(lambda _: str(uuid.uuid4()))
+    elif is_numeric_dtype(parsed_dataframe.dtypes[pred_col_name]):
+        parsed_dataframe[pred_col_name] = parsed_dataframe[pred_col_name].astype(str)
+
+    return parsed_dataframe, parsed_schema

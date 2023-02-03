@@ -1,0 +1,141 @@
+type Cluster {
+  id: ID!
+  pointUuids: [UUID!]!
+}
+
+type Dataset {
+  name: String!
+  startTime: DateTime!
+  endTime: DateTime!
+}
+
+"""Date with time (isoformat)"""
+scalar DateTime
+
+type Dimension implements Node {
+  id: GlobalID!
+  name: String!
+  type: DimensionType!
+  dataType: DimensionDataType!
+  dataQuality: DimensionDataQuality!
+}
+
+type DimensionConnection {
+  pageInfo: PageInfo!
+  edges: [DimensionEdge!]!
+}
+
+type DimensionDataQuality {
+  cardinality: Int
+}
+
+enum DimensionDataType {
+  categorical
+  numeric
+}
+
+type DimensionEdge {
+  node: Dimension!
+  cursor: String!
+}
+
+enum DimensionType {
+  feature
+  tag
+  prediction
+  actual
+}
+
+type EmbeddingDimension implements Node {
+  id: GlobalID!
+  name: String!
+  UMAPPoints(
+    """The time range of the primary dataset to generate the UMAP points for"""
+    timeRange: TimeRange!
+
+    """UMAP target dimension hyperparameter. Must be 2 or 3"""
+    nComponents: Int = 3
+
+    """UMAP minimum distance hyperparameter"""
+    minDist: Float = 0
+
+    """UMAP N neighbors hyperparameter"""
+    nNeighbors: Int = 30
+  ): UMAPPoints!
+}
+
+type EmbeddingDimensionConnection {
+  pageInfo: PageInfo!
+  edges: [EmbeddingDimensionEdge!]!
+}
+
+type EmbeddingDimensionEdge {
+  node: EmbeddingDimension!
+  cursor: String!
+}
+
+type EmbeddingMetadata {
+  rawData: String
+  linkToData: String
+}
+
+"""
+The `ID` scalar type represents a unique identifier, often used to refetch an object or as key for a cache. The ID type appears in a JSON response as a String; however, it is not intended to be human-readable. When expected as an input type, any string (such as `"4"`) or integer (such as `4`) input value will be accepted as an ID.
+"""
+scalar GlobalID @specifiedBy(url: "https://relay.dev/graphql/objectidentification.htm")
+
+type Model {
+  dimensions(first: Int = 50, last: Int = null, after: String, before: String): DimensionConnection!
+  embeddingDimensions(first: Int = 50, last: Int = null, after: String, before: String): EmbeddingDimensionConnection!
+}
+
+"""A node in the graph with a globally unique ID"""
+interface Node {
+  id: GlobalID!
+}
+
+type PageInfo {
+  hasNextPage: Boolean!
+  hasPreviousPage: Boolean!
+  startCursor: String
+  endCursor: String
+}
+
+type Point2D {
+  x: Float!
+  y: Float!
+}
+
+union Point2DPoint3D = Point2D | Point3D
+
+type Point3D {
+  x: Float!
+  y: Float!
+  z: Float!
+}
+
+type Query {
+  primaryDataset: Dataset!
+  referenceDataset: Dataset!
+  model: Model!
+  node(id: GlobalID!): Node!
+}
+
+input TimeRange {
+  start: DateTime!
+  end: DateTime!
+}
+
+type UMAPPoint {
+  uuid: UUID!
+  coordinates: Point2DPoint3D!
+  embeddingMetadata: EmbeddingMetadata!
+}
+
+type UMAPPoints {
+  data: [UMAPPoint!]!
+  referenceData: [UMAPPoint!]!
+  clusters: [Cluster!]!
+}
+
+scalar UUID
