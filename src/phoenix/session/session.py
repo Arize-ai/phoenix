@@ -30,7 +30,7 @@ class Session:
 
     def view(self, height: int = 500) -> "IFrame":
         # Display the app in an iframe
-        return IFrame(src=self.url, width="100%", height=500)
+        return IFrame(src=self.url, width="100%", height=height)
 
     @cached_property
     def url(self) -> str:
