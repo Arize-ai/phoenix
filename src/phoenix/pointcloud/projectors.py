@@ -3,26 +3,20 @@ from typing import cast
 
 import numpy as np
 import numpy.typing as npt
+from typing_extensions import TypeAlias
 from umap import UMAP
 
-DEFAULT_N_NEIGHBORS = 15
-DEFAULT_MIN_DIST = 0.1
+Matrix: TypeAlias = npt.NDArray[np.float64]
 
 
-@dataclass(frozen=True)
-class Parameters:
-    n_neighbors: int = DEFAULT_N_NEIGHBORS
-    min_dist: float = DEFAULT_MIN_DIST
+def _center(arr: Matrix) -> Matrix:
+    return cast(Matrix, arr - np.mean(arr, axis=0))
 
 
 @dataclass(frozen=True)
 class Umap:
-    parameters: Parameters
+    n_neighbors: int = 15
+    min_dist: float = 0.1
 
-    def _center(self, arr: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
-        return cast(npt.NDArray[np.float64], arr - np.sum(arr, axis=0) / arr.shape[0])
-
-    def project(self, data: npt.NDArray[np.float64], n_components: int) -> npt.NDArray[np.float64]:
-        return self._center(
-            UMAP(**asdict(self.parameters), n_components=n_components).fit_transform(data)
-        )
+    def project(self, mat: Matrix, n_components: int) -> Matrix:
+        return _center(UMAP(**asdict(self), n_components=n_components).fit_transform(mat))

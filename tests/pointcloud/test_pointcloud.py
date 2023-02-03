@@ -1,8 +1,6 @@
 import uuid
 from dataclasses import dataclass
-from functools import reduce
 from itertools import cycle
-from operator import or_
 from typing import Dict, List, Set
 
 import numpy as np
@@ -13,7 +11,7 @@ from phoenix.pointcloud.pointcloud import PointCloud
 
 
 @dataclass
-class MockProjector:
+class MockDimensionalityReducer:
     samp_size: int
 
     def project(self, _: npt.NDArray[np.float64], n_components: int) -> npt.NDArray[np.float64]:
@@ -37,18 +35,17 @@ class MockClustersFinder:
 def test_point_cloud(samp_size: int, n_features: int, n_components: int, n_clusters: int) -> None:
     cluster_assignments = dict(zip(range(samp_size), cycle(range(n_clusters))))
 
-    projector = MockProjector(samp_size)
-    clusters_finder = MockClustersFinder(cluster_assignments)
     data = {str(uuid.uuid4()): np.random.rand(1, n_features) for i in range(samp_size)}
 
     points, clusters = PointCloud(
-        dimensionalityReducer=projector, clustersFinder=clusters_finder
+        dimensionalityReducer=(MockDimensionalityReducer(samp_size)),
+        clustersFinder=(MockClustersFinder(cluster_assignments)),
     ).generate(
         data,
         n_components,
     )
 
     assert np.stack(points.values()).shape == (samp_size, n_components)
-    assert len(clusters) == n_clusters
+    assert len(set(clusters.values())) == n_clusters
     assert set(points.keys()) == set(data.keys())
-    assert reduce(or_, clusters) == set(data.keys())
+    assert set(clusters.keys()) <= set(data.keys())
