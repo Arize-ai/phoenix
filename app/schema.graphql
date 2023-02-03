@@ -62,6 +62,7 @@ type EmbeddingDimension implements Node {
     """UMAP N neighbors hyperparameter"""
     nNeighbors: Int = 30
   ): UMAPPoints!
+  euclideanDistance: Float
 }
 
 type EmbeddingDimensionConnection {
