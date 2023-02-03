@@ -1,9 +1,7 @@
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Dict, List, Optional
 
 import numpy as np
-import numpy.typing as npt
-from pandas import Series
 from strawberry.dataloader import DataLoader
 
 from phoenix.core import DimensionDataType
@@ -51,21 +49,16 @@ def _get_euclidean_distance_dataloader(model: Model) -> DataLoader[str, Optional
     async def _euclidean_distance_load_function(
         embedding_feature_names: List[str],
     ) -> List[Optional[float]]:
-        return [
-            euclidean_distance(
-                _to_array(model.primary_dataset.get_embedding_vector_column(emb)),
-                _to_array(model.reference_dataset.get_embedding_vector_column(emb)),
+        distances = []
+        for emb in embedding_feature_names:
+            primary_embeddings = model.primary_dataset.get_embedding_vector_column(emb)
+            reference_embeddings = model.reference_dataset.get_embedding_vector_column(emb)
+            distances.append(
+                euclidean_distance(
+                    np.stack(primary_embeddings.to_numpy()),
+                    np.stack(reference_embeddings.to_numpy()),
+                )
             )
-            for emb in embedding_feature_names
-        ]
+        return distances
 
     return DataLoader(load_fn=_euclidean_distance_load_function)
-
-
-def _to_array(embeddings_column: "Series[Any]") -> npt.NDArray[np.float64]:
-    """
-    Converts an embedding column to a numpy array. Given a column containing N
-    entries where each entry is a numpy array of dimension M, the output array
-    has dimension N x M.
-    """
-    return np.stack(embeddings_column.to_numpy())  # type: ignore
