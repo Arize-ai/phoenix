@@ -88,7 +88,7 @@ dependencies = [
 
 [tool.hatch.envs.type]
 dependencies = [
-  "mypy",
+  "mypy==0.991",
   "pandas-stubs",
   "pytest",
   "types-psutil",
@@ -215,6 +215,8 @@ disallow_untyped_defs = true
 disallow_incomplete_defs  = true
 strict = true
 exclude = [
+  "dist/",
+  "sdist/",
   "tests/",
 ]
 

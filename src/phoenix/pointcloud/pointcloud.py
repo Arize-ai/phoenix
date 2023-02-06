@@ -1,103 +1,69 @@
-import json
-from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Any, Dict, List
+from typing import Dict, Hashable, List, Mapping, Protocol, Set, Tuple, TypeVar
 
-MAX_UMAP_POINTS = 500
+import numpy as np
+import numpy.typing as npt
+from typing_extensions import TypeAlias
 
-
-class Coordinates(ABC):
-    @abstractmethod
-    def get_coordinates(self) -> List[float]:
-        pass
-
-
-@dataclass
-class Coordinates2D(Coordinates):
-    x: float
-    y: float
-
-    def get_coordinates(self) -> List[float]:
-        return [float(self.x), float(self.y)]
+Identifier = TypeVar("Identifier", bound=Hashable)
+Vector: TypeAlias = npt.NDArray[np.float64]
+Matrix: TypeAlias = npt.NDArray[np.float64]
+ClusterId: TypeAlias = int
+RowIndex: TypeAlias = int
+Cluster: TypeAlias = Set[RowIndex]
 
 
-@dataclass
-class Coordinates3D(Coordinates):
-    x: float
-    y: float
-    z: float
+class DimensionalityReducer(Protocol):
+    def project(self, mat: Matrix, n_components: int) -> Matrix:
+        ...
 
-    def get_coordinates(self) -> List[float]:
-        return [float(self.x), float(self.y), float(self.z)]
+
+class ClustersFinder(Protocol):
+    def find_clusters(self, mat: Matrix) -> List[Cluster]:
+        ...
 
 
 @dataclass(frozen=True)
-class InferenceAttributes:
-    prediction_label: str
-    # prediction_score: float,
-    actual_label: str
-    # actual_score: float,
-    raw_text_data: str
-    # link_to_data: str,
+class PointCloud:
+    dimensionalityReducer: DimensionalityReducer
+    clustersFinder: ClustersFinder
 
+    def generate(
+        self,
+        data: Mapping[Identifier, Vector],
+        n_components: int = 3,
+    ) -> Tuple[Dict[Identifier, Vector], Dict[Identifier, ClusterId]]:
+        """
+        Given a set of vectors, projects them onto lower dimensions, and
+        finds clusters among the projections.
 
-@dataclass(frozen=True)
-class Point:
-    id: int
-    coordinates: Coordinates
-    inference_attributes: InferenceAttributes
+        Parameters
+        ----------
+        data : mapping
+            Mapping of input vectors by their identifiers.
 
+        n_components: int, default=3
+            Number of dimensions in the projected space.
 
-@dataclass(frozen=True)
-class Cluster:
-    id: int
-    point_ids: List[int]
-    purity_score: float
+        Returns
+        -------
+        projections : dictionary
+            Projected vectors in the low demension space, mapped back to the
+            input vectors' identifiers.
 
+        cluster_membership: dictinary
+            Cluster membership by way of cluster_ids in the form of integers
+            0,1,2,... mapped back to the input vectors' identifiers. Note that
+            some vectors may not belong to any cluster and are excluded here.
 
-@dataclass(frozen=True)
-class DriftPointCloud:
-    primary_points: List[Point]
-    reference_points: List[Point]
-    clusters: List[Cluster]
-
-    # For demo - passing to umap widget
-    def to_json(self) -> str:
-        primary_pts_json = self._points_to_json(self.primary_points)
-        reference_pts_json = self._points_to_json(self.reference_points)
-        clusters_json = self._clusters_to_json(self.clusters)
-
-        data = {
-            "primaryData": primary_pts_json,
-            "referenceData": reference_pts_json,
-            "clusters": clusters_json,
+        """
+        identifiers, vectors = zip(*data.items())
+        projections = self.dimensionalityReducer.project(
+            np.stack(vectors), n_components=n_components
+        )
+        clusters = self.clustersFinder.find_clusters(projections)
+        return dict(zip(identifiers, projections)), {
+            identifiers[row_index]: cluster_id
+            for cluster_id, cluster in enumerate(clusters)
+            for row_index in cluster
         }
-        return json.dumps(data)
-
-    @staticmethod
-    def _points_to_json(points: List[Point]) -> List[Dict[str, Any]]:
-        pts_json = []
-        for point in points:
-            point_json_obj = {
-                "position": point.coordinates.get_coordinates(),
-                "metaData": {
-                    "id": int(point.id),
-                    "rawTextData": [point.inference_attributes.raw_text_data],
-                    "predictionLabel": point.inference_attributes.prediction_label,
-                    "actualLabel": point.inference_attributes.actual_label,
-                },
-            }
-            pts_json.append(point_json_obj)
-        return pts_json
-
-    @staticmethod
-    def _clusters_to_json(clusters: List[Cluster]) -> List[Dict[str, Any]]:
-        clusters_json = []
-        for cluster in clusters:
-            cluster_json_obj = {
-                "id": int(cluster.id),
-                "pointIds": cluster.point_ids,
-                "purityScore": cluster.purity_score,
-            }
-            clusters_json.append(cluster_json_obj)
-        return clusters_json
