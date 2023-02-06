@@ -1,13 +1,60 @@
-import React from "react";
-import { fetchQuery, graphql } from "react-relay";
+import React, { useEffect } from "react";
+import {
+  PreloadedQuery,
+  fetchQuery,
+  graphql,
+  usePreloadedQuery,
+  useQueryLoader,
+} from "react-relay";
 import { LoaderFunctionArgs } from "react-router";
 import RelayEnvironment from "../RelayEnvironment";
 import { EmbeddingLoaderQuery } from "./__generated__/EmbeddingLoaderQuery.graphql";
 import { css } from "@emotion/react";
-import { DriftPointCloud } from "../components/canvas";
-import { data as primaryData } from "../data/umapData";
+import { PointCloud, ThreeDimensionalPointItem } from "../components/canvas";
+import {
+  EmbeddingUMAPQuery$data,
+  EmbeddingUMAPQuery as UMAPQueryType,
+} from "./__generated__/EmbeddingUMAPQuery.graphql";
+import { useEmbeddingDimensionId } from "../hooks";
 
+type UMAPPointsEntry = NonNullable<
+  EmbeddingUMAPQuery$data["embedding"]["UMAPPoints"]
+>["data"][number];
+
+const EmbeddingUMAPQuery = graphql`
+  query EmbeddingUMAPQuery($id: GlobalID!, $timeRange: TimeRange!) {
+    embedding: node(id: $id) {
+      ... on EmbeddingDimension {
+        UMAPPoints(timeRange: $timeRange) {
+          data {
+            coordinates {
+              ... on Point3D {
+                x
+                y
+                z
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+`;
 export function Embedding() {
+  const embeddingDimensionId = useEmbeddingDimensionId();
+  const [queryReference, loadQuery] =
+    useQueryLoader<UMAPQueryType>(EmbeddingUMAPQuery);
+
+  // Load the query on first render
+  useEffect(() => {
+    loadQuery({
+      id: embeddingDimensionId,
+      timeRange: {
+        start: new Date().toISOString(),
+        end: new Date().toISOString(),
+      },
+    });
+  }, []);
   return (
     <main
       css={(theme) => css`
@@ -26,11 +73,45 @@ export function Embedding() {
           position: relative;
         `}
       >
-        <DriftPointCloud primaryData={primaryData as any} referenceData={[]} />
+        {queryReference ? (
+          <PointCloudDisplay queryReference={queryReference} />
+        ) : null}
       </div>
     </main>
   );
 }
+
+function umapDataEntryToThreeDimensionalPointItem(
+  umapData: UMAPPointsEntry
+): ThreeDimensionalPointItem {
+  return {
+    position: [
+      umapData.coordinates.x,
+      umapData.coordinates.y,
+      umapData.coordinates.z,
+    ],
+    metaData: {},
+  };
+}
+/**
+ * Fetches the umap data for the embedding dimension and passes the data to the point cloud
+ */
+const PointCloudDisplay = ({
+  queryReference,
+}: {
+  queryReference: PreloadedQuery<UMAPQueryType>;
+}) => {
+  const data = usePreloadedQuery<UMAPQueryType>(
+    EmbeddingUMAPQuery,
+    queryReference
+  );
+
+  const primaryData = data.embedding?.UMAPPoints?.data?.map(
+    umapDataEntryToThreeDimensionalPointItem
+  );
+
+  return <PointCloud primaryData={primaryData} referenceData={[]} />;
+};
 
 export async function embeddingLoader(args: LoaderFunctionArgs) {
   const { embeddingDimensionId } = args.params;
