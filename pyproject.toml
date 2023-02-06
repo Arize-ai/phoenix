@@ -31,6 +31,7 @@ dependencies = [
   "strawberry-graphql",
   "pyarrow",
   "typing_extensions",
+  "scipy",
 ]
 dynamic = ["version"]
 

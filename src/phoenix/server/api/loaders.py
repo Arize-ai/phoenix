@@ -1,20 +1,26 @@
 from dataclasses import dataclass
 from typing import Dict, List, Optional
 
+import numpy as np
 from strawberry.dataloader import DataLoader
 
 from phoenix.core import DimensionDataType
 from phoenix.core.model import Model
 from phoenix.metrics.cardinality import cardinality
+from phoenix.metrics.embeddings import euclidean_distance
 
 
 @dataclass
 class Loaders:
     cardinality: DataLoader[str, Optional[int]]
+    euclidean_distance: DataLoader[str, Optional[float]]
 
 
 def create_loaders(model: Model) -> Loaders:
-    return Loaders(cardinality=_get_cardinality_dataloader(model=model))
+    return Loaders(
+        cardinality=_get_cardinality_dataloader(model=model),
+        euclidean_distance=_get_euclidean_distance_dataloader(model=model),
+    )
 
 
 def _get_cardinality_dataloader(model: Model) -> DataLoader[str, Optional[int]]:
@@ -37,3 +43,22 @@ def _get_cardinality_dataloader(model: Model) -> DataLoader[str, Optional[int]]:
         return [column_name_to_cardinality[col] for col in column_names]
 
     return DataLoader(load_fn=_cardinality_load_function)
+
+
+def _get_euclidean_distance_dataloader(model: Model) -> DataLoader[str, Optional[float]]:
+    async def _euclidean_distance_load_function(
+        embedding_feature_names: List[str],
+    ) -> List[Optional[float]]:
+        distances = []
+        for emb in embedding_feature_names:
+            primary_embeddings = model.primary_dataset.get_embedding_vector_column(emb)
+            reference_embeddings = model.reference_dataset.get_embedding_vector_column(emb)
+            distances.append(
+                euclidean_distance(
+                    np.stack(primary_embeddings.to_numpy()),  # type: ignore
+                    np.stack(reference_embeddings.to_numpy()),  # type: ignore
+                )
+            )
+        return distances
+
+    return DataLoader(load_fn=_euclidean_distance_load_function)
