@@ -1,4 +1,4 @@
-from typing import cast
+from typing import Optional, cast
 
 import numpy as np
 import numpy.typing as npt
@@ -8,7 +8,7 @@ from scipy.spatial.distance import euclidean  # type: ignore
 def euclidean_distance(
     array0: npt.NDArray[np.float64],
     array1: npt.NDArray[np.float64],
-) -> float:
+) -> Optional[float]:
     """
     Computes Euclidean distance between the centroids of two arrays.
     """
