@@ -7,7 +7,7 @@ from phoenix.datasets import Dataset
 from phoenix.services import AppService
 
 try:
-    from IPython.display import IFrame
+    from IPython.display import IFrame  # type: ignore
 except:  # noqa
     pass
 
@@ -79,8 +79,8 @@ def _is_colab() -> bool:
     """Determines whether this is in a Colab"""
     try:
         import google.colab  # type: ignore # noqa: F401
-        import IPython
+        import IPython  # type: ignore
     except ImportError:
         return False
 
-    return IPython.get_ipython() is not None  # type: ignore
+    return IPython.get_ipython() is not None
