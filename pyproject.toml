@@ -214,6 +214,8 @@ disallow_untyped_defs = true
 disallow_incomplete_defs  = true
 strict = true
 exclude = [
+  "dist/",
+  "sdist/",
   "tests/",
 ]
 
