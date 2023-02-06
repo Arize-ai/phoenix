@@ -61,7 +61,10 @@ class Service:
         """
         pids_path = config.get_pids_path()
         for filename in os.listdir(pids_path):
-            os.kill(int(filename), signal.SIGKILL)
+            try:
+                os.kill(int(filename), signal.SIGKILL)
+            except ProcessLookupError:
+                pass
             filename_path = os.path.join(pids_path, filename)
             os.unlink(filename_path)
 
