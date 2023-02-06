@@ -28,6 +28,7 @@ const EmbeddingUMAPQuery = graphql`
         UMAPPoints(timeRange: $timeRange) {
           data {
             coordinates {
+              __typename
               ... on Point3D {
                 x
                 y
@@ -84,12 +85,18 @@ export function Embedding() {
 function umapDataEntryToThreeDimensionalPointItem(
   umapData: UMAPPointsEntry
 ): ThreeDimensionalPointItem {
+  const { coordinates } = umapData;
+  if (!coordinates) {
+    throw new Error("No coordinates found for UMAP data entry");
+  }
+  if (coordinates.__typename !== "Point3D") {
+    throw new Error(
+      `Expected Point3D but got ${coordinates.__typename} for UMAP data entry`
+    );
+  }
+
   return {
-    position: [
-      umapData.coordinates.x,
-      umapData.coordinates.y,
-      umapData.coordinates.z,
-    ],
+    position: [coordinates.x, coordinates.y, coordinates.z],
     metaData: {},
   };
 }
@@ -106,9 +113,10 @@ const PointCloudDisplay = ({
     queryReference
   );
 
-  const primaryData = data.embedding?.UMAPPoints?.data?.map(
-    umapDataEntryToThreeDimensionalPointItem
-  );
+  const primaryData =
+    data.embedding?.UMAPPoints?.data?.map(
+      umapDataEntryToThreeDimensionalPointItem
+    ) ?? [];
 
   return <PointCloud primaryData={primaryData} referenceData={[]} />;
 };

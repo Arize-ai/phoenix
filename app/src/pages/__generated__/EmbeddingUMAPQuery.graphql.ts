@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<95584bfe15474b5726c03b3c3b6798e6>>
+ * @generated SignedSource<<0de2c378d6beccd46e07a02904fa13d6>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -22,9 +22,14 @@ export type EmbeddingUMAPQuery$data = {
     readonly UMAPPoints?: {
       readonly data: ReadonlyArray<{
         readonly coordinates: {
-          readonly x?: number;
-          readonly y?: number;
-          readonly z?: number;
+          readonly __typename: "Point3D";
+          readonly x: number;
+          readonly y: number;
+          readonly z: number;
+        } | {
+          // This will never be '%other', but we need some
+          // value in case none of the concrete values match.
+          readonly __typename: "%other";
         };
       }>;
     };
@@ -55,47 +60,87 @@ v1 = [
     "variableName": "id"
   }
 ],
-v2 = [
-  {
-    "kind": "Variable",
-    "name": "timeRange",
-    "variableName": "timeRange"
-  }
-],
-v3 = {
-  "kind": "InlineFragment",
-  "selections": [
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "x",
-      "storageKey": null
-    },
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "y",
-      "storageKey": null
-    },
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "z",
-      "storageKey": null
-    }
-  ],
-  "type": "Point3D",
-  "abstractKey": null
-},
-v4 = {
+v2 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "__typename",
   "storageKey": null
+},
+v3 = {
+  "kind": "InlineFragment",
+  "selections": [
+    {
+      "alias": null,
+      "args": [
+        {
+          "kind": "Variable",
+          "name": "timeRange",
+          "variableName": "timeRange"
+        }
+      ],
+      "concreteType": "UMAPPoints",
+      "kind": "LinkedField",
+      "name": "UMAPPoints",
+      "plural": false,
+      "selections": [
+        {
+          "alias": null,
+          "args": null,
+          "concreteType": "UMAPPoint",
+          "kind": "LinkedField",
+          "name": "data",
+          "plural": true,
+          "selections": [
+            {
+              "alias": null,
+              "args": null,
+              "concreteType": null,
+              "kind": "LinkedField",
+              "name": "coordinates",
+              "plural": false,
+              "selections": [
+                (v2/*: any*/),
+                {
+                  "kind": "InlineFragment",
+                  "selections": [
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "x",
+                      "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "y",
+                      "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "z",
+                      "storageKey": null
+                    }
+                  ],
+                  "type": "Point3D",
+                  "abstractKey": null
+                }
+              ],
+              "storageKey": null
+            }
+          ],
+          "storageKey": null
+        }
+      ],
+      "storageKey": null
+    }
+  ],
+  "type": "EmbeddingDimension",
+  "abstractKey": null
 };
 return {
   "fragment": {
@@ -112,47 +157,7 @@ return {
         "name": "node",
         "plural": false,
         "selections": [
-          {
-            "kind": "InlineFragment",
-            "selections": [
-              {
-                "alias": null,
-                "args": (v2/*: any*/),
-                "concreteType": "UMAPPoints",
-                "kind": "LinkedField",
-                "name": "UMAPPoints",
-                "plural": false,
-                "selections": [
-                  {
-                    "alias": null,
-                    "args": null,
-                    "concreteType": "UMAPPoint",
-                    "kind": "LinkedField",
-                    "name": "data",
-                    "plural": true,
-                    "selections": [
-                      {
-                        "alias": null,
-                        "args": null,
-                        "concreteType": null,
-                        "kind": "LinkedField",
-                        "name": "coordinates",
-                        "plural": false,
-                        "selections": [
-                          (v3/*: any*/)
-                        ],
-                        "storageKey": null
-                      }
-                    ],
-                    "storageKey": null
-                  }
-                ],
-                "storageKey": null
-              }
-            ],
-            "type": "EmbeddingDimension",
-            "abstractKey": null
-          }
+          (v3/*: any*/)
         ],
         "storageKey": null
       }
@@ -174,49 +179,8 @@ return {
         "name": "node",
         "plural": false,
         "selections": [
-          (v4/*: any*/),
-          {
-            "kind": "InlineFragment",
-            "selections": [
-              {
-                "alias": null,
-                "args": (v2/*: any*/),
-                "concreteType": "UMAPPoints",
-                "kind": "LinkedField",
-                "name": "UMAPPoints",
-                "plural": false,
-                "selections": [
-                  {
-                    "alias": null,
-                    "args": null,
-                    "concreteType": "UMAPPoint",
-                    "kind": "LinkedField",
-                    "name": "data",
-                    "plural": true,
-                    "selections": [
-                      {
-                        "alias": null,
-                        "args": null,
-                        "concreteType": null,
-                        "kind": "LinkedField",
-                        "name": "coordinates",
-                        "plural": false,
-                        "selections": [
-                          (v4/*: any*/),
-                          (v3/*: any*/)
-                        ],
-                        "storageKey": null
-                      }
-                    ],
-                    "storageKey": null
-                  }
-                ],
-                "storageKey": null
-              }
-            ],
-            "type": "EmbeddingDimension",
-            "abstractKey": null
-          },
+          (v2/*: any*/),
+          (v3/*: any*/),
           {
             "kind": "TypeDiscriminator",
             "abstractKey": "__isNode"
@@ -244,6 +208,6 @@ return {
 };
 })();
 
-(node as any).hash = "3babf734db23d331e02a6a7ed9329907";
+(node as any).hash = "84ea173ffd4442218680a739ce4222a0";
 
 export default node;
