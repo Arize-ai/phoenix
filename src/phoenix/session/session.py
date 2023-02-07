@@ -20,17 +20,21 @@ _session: Optional["Session"] = None
 class Session:
     "Session that maintains a 1-1 shared state with the Phoenix App."
 
-    def __init__(self, primary: Dataset, reference: Dataset, port: int):
+    def __init__(self, primary: Dataset, reference: Optional[Dataset], port: int):
         self.primary = primary
         self.reference = reference
         self.port = port
         # Initialize an app service that keeps the server running
-        self._app_service = AppService(port, primary.name, reference.name)
+        self._app_service = AppService(
+            port,
+            primary.name,
+            reference_dataset_name=reference.name if reference is not None else None,
+        )
         self._is_colab = _is_colab()
 
     def view(self, height: int = 500) -> "IFrame":
         # Display the app in an iframe
-        return IFrame(src=self.url, width="100%", height=500)
+        return IFrame(src=self.url, width="100%", height=height)
 
     @cached_property
     def url(self) -> str:
@@ -42,9 +46,8 @@ class Session:
         self._app_service.stop()
 
 
-# TODO(mikeldking): validate that we really want to require a reference dataset. Leaving it optional
 # Provides a level of flexibility
-def launch_app(primary: Dataset, reference: Dataset) -> "Session":
+def launch_app(primary: Dataset, reference: Optional[Dataset]) -> "Session":
     "Launches the phoenix application"
     logger.info("Launching Phoenix App")
     global _session

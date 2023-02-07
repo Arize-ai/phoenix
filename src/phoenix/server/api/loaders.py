@@ -49,10 +49,16 @@ def _get_euclidean_distance_dataloader(model: Model) -> DataLoader[str, Optional
     async def _euclidean_distance_load_function(
         embedding_feature_names: List[str],
     ) -> List[Optional[float]]:
+        primary_dataset = model.primary_dataset
+        reference_dataset = model.reference_dataset
+        # If there is no reference dataset, return None for all distances
+        # since we have nothing to calculate a distance against
+        if reference_dataset is None:
+            return [None] * len(embedding_feature_names)
         distances = []
         for emb in embedding_feature_names:
-            primary_embeddings = model.primary_dataset.get_embedding_vector_column(emb)
-            reference_embeddings = model.reference_dataset.get_embedding_vector_column(emb)
+            primary_embeddings = primary_dataset.get_embedding_vector_column(emb)
+            reference_embeddings = reference_dataset.get_embedding_vector_column(emb)
             distances.append(
                 euclidean_distance(
                     np.stack(primary_embeddings.to_numpy()),  # type: ignore

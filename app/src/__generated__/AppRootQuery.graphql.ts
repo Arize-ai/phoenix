@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<9f4785e848cb71e3425a6411f521e229>>
+ * @generated SignedSource<<53df753454de5335d81e4e3a5b0b44ed>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -11,15 +11,17 @@
 import { ConcreteRequest, Query } from 'relay-runtime';
 export type AppRootQuery$variables = {};
 export type AppRootQuery$data = {
-  readonly primaryDataset: {
-    readonly endTime: String;
-    readonly name: string;
-    readonly startTime: String;
-  };
-  readonly referenceDataset: {
-    readonly endTime: String;
-    readonly name: string;
-    readonly startTime: String;
+  readonly model: {
+    readonly primaryDataset: {
+      readonly endTime: String;
+      readonly name: string;
+      readonly startTime: String;
+    };
+    readonly referenceDataset: {
+      readonly endTime: String;
+      readonly name: string;
+      readonly startTime: String;
+    } | null;
   };
 };
 export type AppRootQuery = {
@@ -55,21 +57,32 @@ v1 = [
   {
     "alias": null,
     "args": null,
-    "concreteType": "Dataset",
+    "concreteType": "Model",
     "kind": "LinkedField",
-    "name": "primaryDataset",
+    "name": "model",
     "plural": false,
-    "selections": (v0/*: any*/),
-    "storageKey": null
-  },
-  {
-    "alias": null,
-    "args": null,
-    "concreteType": "Dataset",
-    "kind": "LinkedField",
-    "name": "referenceDataset",
-    "plural": false,
-    "selections": (v0/*: any*/),
+    "selections": [
+      {
+        "alias": null,
+        "args": null,
+        "concreteType": "Dataset",
+        "kind": "LinkedField",
+        "name": "primaryDataset",
+        "plural": false,
+        "selections": (v0/*: any*/),
+        "storageKey": null
+      },
+      {
+        "alias": null,
+        "args": null,
+        "concreteType": "Dataset",
+        "kind": "LinkedField",
+        "name": "referenceDataset",
+        "plural": false,
+        "selections": (v0/*: any*/),
+        "storageKey": null
+      }
+    ],
     "storageKey": null
   }
 ];
@@ -91,16 +104,16 @@ return {
     "selections": (v1/*: any*/)
   },
   "params": {
-    "cacheID": "d4307243a1ca8536ced464cf7c3359ce",
+    "cacheID": "a3f5a96fccf9435cfc5979e306389f78",
     "id": null,
     "metadata": {},
     "name": "AppRootQuery",
     "operationKind": "query",
-    "text": "query AppRootQuery {\n  primaryDataset {\n    name\n    startTime\n    endTime\n  }\n  referenceDataset {\n    name\n    startTime\n    endTime\n  }\n}\n"
+    "text": "query AppRootQuery {\n  model {\n    primaryDataset {\n      name\n      startTime\n      endTime\n    }\n    referenceDataset {\n      name\n      startTime\n      endTime\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "2f1366a7b6eae055b970061fb3e965b7";
+(node as any).hash = "d9826e558e9f04c1e5a8975085bbd64e";
 
 export default node;

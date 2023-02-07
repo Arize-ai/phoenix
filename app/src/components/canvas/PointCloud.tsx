@@ -34,9 +34,9 @@ export type ThreeDimensionalPointItem = {
   metaData: unknown;
 };
 
-export type DriftPointCloudProps = {
+export type PointCloudProps = {
   primaryData: ThreeDimensionalPointItem[];
-  referenceData: ThreeDimensionalPointItem[];
+  referenceData?: ThreeDimensionalPointItem[];
 };
 
 enum CanvasMode {
@@ -141,7 +141,7 @@ function UMAPPoints({
   primaryData,
   referenceData,
   selectedIds,
-}: DriftPointCloudProps & { selectedIds: Set<string> }) {
+}: PointCloudProps & { selectedIds: Set<string> }) {
   const primaryColor = "#7BFFFF";
   const referenceColor = "#d57bff";
   /** Colors to represent a dimmed variant of the color for "un-selected" */
@@ -182,20 +182,24 @@ function UMAPPoints({
   return (
     <>
       <Points data={primaryData} pointProps={{ color: primaryColorByFn }} />
-      <Points data={referenceData} pointProps={{ color: referenceColorByFn }} />
+      {referenceData && (
+        <Points
+          data={referenceData}
+          pointProps={{ color: referenceColorByFn }}
+        />
+      )}
     </>
   );
 }
 
-export function DriftPointCloud({
-  primaryData,
-  referenceData,
-}: DriftPointCloudProps) {
+export function PointCloud({ primaryData, referenceData }: PointCloudProps) {
   // AutoRotate the canvas on initial load
   const [autoRotate, setAutoRotate] = useState<boolean>(true);
   const [canvasMode, setCanvasMode] = useState<CanvasMode>(CanvasMode.move);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const allPoints = useMemo(() => [...primaryData, ...referenceData], []);
+  const allPoints = useMemo(() => {
+    return [...primaryData, ...(referenceData || [])];
+  }, []);
   const bounds = useMemo(() => {
     return getThreeDimensionalBounds(allPoints.map((p) => p.position));
   }, []);

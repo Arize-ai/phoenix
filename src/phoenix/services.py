@@ -3,7 +3,7 @@ import os
 import signal
 import subprocess
 import sys
-from typing import List
+from typing import List, Optional
 
 import psutil
 
@@ -61,7 +61,10 @@ class Service:
         """
         pids_path = config.get_pids_path()
         for filename in os.listdir(pids_path):
-            os.kill(int(filename), signal.SIGKILL)
+            try:
+                os.kill(int(filename), signal.SIGKILL)
+            except ProcessLookupError:
+                pass
             filename_path = os.path.join(pids_path, filename)
             os.unlink(filename_path)
 
@@ -71,7 +74,11 @@ class AppService(Service):
 
     working_dir = config.server_dir
 
-    def __init__(self, port: int, primary_dataset_name: str, reference_dataset_name: str):
+    # Internal references to the name / directory of the dataset(s)
+    __primary_dataset_name: str
+    __reference_dataset_name: Optional[str]
+
+    def __init__(self, port: int, primary_dataset_name: str, reference_dataset_name: Optional[str]):
         self.port = port
         self.__primary_dataset_name = primary_dataset_name
         self.__reference_dataset_name = reference_dataset_name
@@ -87,8 +94,8 @@ class AppService(Service):
             "datasets",
             "--primary",
             str(self.__primary_dataset_name),
-            "--reference",
-            str(self.__reference_dataset_name),
         ]
+        if self.__reference_dataset_name is not None:
+            command.extend(["--reference", str(self.__reference_dataset_name)])
         logger.info(f"command: {command}")
         return command
