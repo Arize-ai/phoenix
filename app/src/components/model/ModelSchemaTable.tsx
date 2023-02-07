@@ -25,9 +25,8 @@ export function ModelSchemaTable(props: ModelSchemaTableProps) {
                 name
                 type
                 dataType
-                dataQuality {
-                  cardinality
-                }
+                cardinality: dataQualityMetric(metric: cardinality)
+
               }
             }
           }
@@ -42,7 +41,6 @@ export function ModelSchemaTable(props: ModelSchemaTableProps) {
         // Normalize the data
         return {
           ...dimension,
-          cardinality: dimension.dataQuality.cardinality,
         };
       }),
     [data]

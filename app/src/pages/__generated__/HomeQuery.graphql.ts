@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<434a4bf87bdd98511abda2ae6f7acca1>>
+ * @generated SignedSource<<808257d8400ea5950d6863230f5a47a1>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -150,22 +150,17 @@ return {
                         "storageKey": null
                       },
                       {
-                        "alias": null,
-                        "args": null,
-                        "concreteType": "DimensionDataQuality",
-                        "kind": "LinkedField",
-                        "name": "dataQuality",
-                        "plural": false,
-                        "selections": [
+                        "alias": "cardinality",
+                        "args": [
                           {
-                            "alias": null,
-                            "args": null,
-                            "kind": "ScalarField",
-                            "name": "cardinality",
-                            "storageKey": null
+                            "kind": "Literal",
+                            "name": "metric",
+                            "value": "cardinality"
                           }
                         ],
-                        "storageKey": null
+                        "kind": "ScalarField",
+                        "name": "dataQualityMetric",
+                        "storageKey": "dataQualityMetric(metric:\"cardinality\")"
                       }
                     ],
                     "storageKey": null
@@ -265,12 +260,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "c8806777dde424c6a05778f768f095c3",
+    "cacheID": "b7f5a5c44432dd673cd373a6454fb2cd",
     "id": null,
     "metadata": {},
     "name": "HomeQuery",
     "operationKind": "query",
-    "text": "query HomeQuery {\n  ...ModelSchemaTable_dimensions\n  ...ModelEmbeddingsTable_embeddingDimensions\n}\n\nfragment ModelEmbeddingsTable_embeddingDimensions on Query {\n  model {\n    embeddingDimensions(first: 50) {\n      edges {\n        embedding: node {\n          id\n          name\n        }\n        cursor\n        node {\n          __typename\n        }\n      }\n      pageInfo {\n        endCursor\n        hasNextPage\n      }\n    }\n  }\n}\n\nfragment ModelSchemaTable_dimensions on Query {\n  model {\n    dimensions(first: 50) {\n      edges {\n        dimension: node {\n          name\n          type\n          dataType\n          dataQuality {\n            cardinality\n          }\n        }\n        cursor\n        node {\n          __typename\n        }\n      }\n      pageInfo {\n        endCursor\n        hasNextPage\n      }\n    }\n  }\n}\n"
+    "text": "query HomeQuery {\n  ...ModelSchemaTable_dimensions\n  ...ModelEmbeddingsTable_embeddingDimensions\n}\n\nfragment ModelEmbeddingsTable_embeddingDimensions on Query {\n  model {\n    embeddingDimensions(first: 50) {\n      edges {\n        embedding: node {\n          id\n          name\n        }\n        cursor\n        node {\n          __typename\n        }\n      }\n      pageInfo {\n        endCursor\n        hasNextPage\n      }\n    }\n  }\n}\n\nfragment ModelSchemaTable_dimensions on Query {\n  model {\n    dimensions(first: 50) {\n      edges {\n        dimension: node {\n          name\n          type\n          dataType\n          cardinality: dataQualityMetric(metric: cardinality)\n        }\n        cursor\n        node {\n          __typename\n        }\n      }\n      pageInfo {\n        endCursor\n        hasNextPage\n      }\n    }\n  }\n}\n"
   }
 };
 })();
