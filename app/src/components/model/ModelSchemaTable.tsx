@@ -26,7 +26,6 @@ export function ModelSchemaTable(props: ModelSchemaTableProps) {
                 type
                 dataType
                 cardinality: dataQualityMetric(metric: cardinality)
-
               }
             }
           }
