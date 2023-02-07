@@ -6,7 +6,7 @@ type DatasetDef = {
 
 type DatasetsContextType = {
   primaryDataset: DatasetDef;
-  referenceDataset: DatasetDef;
+  referenceDataset: DatasetDef | null;
 };
 
 export const DatasetsContext = React.createContext<DatasetsContextType | null>(
@@ -23,7 +23,7 @@ export function useDatasets() {
 
 type DatasetsProviderProps = {
   primaryDataset: DatasetDef;
-  referenceDataset: DatasetDef;
+  referenceDataset: DatasetDef | null;
   children: ReactNode;
 };
 

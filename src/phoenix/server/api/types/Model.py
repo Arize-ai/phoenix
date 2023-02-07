@@ -6,6 +6,7 @@ from strawberry.types import Info
 
 from phoenix.server.api.context import Context
 
+from .Dataset import Dataset, to_gql_dataset
 from .Dimension import Dimension, to_gql_dimension
 from .EmbeddingDimension import EmbeddingDimension, to_gql_embedding_dimension
 from .pagination import Connection, ConnectionArgs, Cursor, connection_from_list
@@ -39,6 +40,16 @@ class Model:
                 before=before if isinstance(before, Cursor) else None,
             ),
         )
+
+    @strawberry.field
+    def primary_dataset(self, info: Info[Context, None]) -> Dataset:
+        return to_gql_dataset(info.context.model.primary_dataset)
+
+    @strawberry.field
+    def reference_dataset(self, info: Info[Context, None]) -> Optional[Dataset]:
+        if info.context.model.reference_dataset is None:
+            return None
+        return to_gql_dataset(info.context.model.reference_dataset)
 
     @strawberry.field
     def embedding_dimensions(

@@ -87,6 +87,8 @@ scalar GlobalID @specifiedBy(url: "https://relay.dev/graphql/objectidentificatio
 
 type Model {
   dimensions(first: Int = 50, last: Int = null, after: String, before: String): DimensionConnection!
+  primaryDataset: Dataset!
+  referenceDataset: Dataset
   embeddingDimensions(first: Int = 50, last: Int = null, after: String, before: String): EmbeddingDimensionConnection!
 }
 
@@ -116,8 +118,6 @@ type Point3D {
 }
 
 type Query {
-  primaryDataset: Dataset!
-  referenceDataset: Dataset!
   model: Model!
   node(id: GlobalID!): Node!
 }
