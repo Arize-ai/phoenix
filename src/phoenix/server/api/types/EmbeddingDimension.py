@@ -70,7 +70,7 @@ class EmbeddingDimension(Node):
 
     @strawberry.field
     async def driftMetric(self, metric: DriftMetric, info: Info[Context, None]) -> Optional[float]:
-        if metric is DriftMetric.euclidean_distance:
+        if metric is DriftMetric.euclideanDistance:
             return _euclidean_distance(
                 primary_dataset=info.context.model.primary_dataset,
                 reference_dataset=info.context.model.reference_dataset,

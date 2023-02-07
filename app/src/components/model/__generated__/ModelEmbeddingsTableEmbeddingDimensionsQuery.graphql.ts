@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<3bf6e0a2bc007131d8b55181cd828691>>
+ * @generated SignedSource<<1486253f303388bf6f009900c5e376ca>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -125,6 +125,19 @@ return {
                         "kind": "ScalarField",
                         "name": "name",
                         "storageKey": null
+                      },
+                      {
+                        "alias": "euclideanDistance",
+                        "args": [
+                          {
+                            "kind": "Literal",
+                            "name": "metric",
+                            "value": "euclideanDistance"
+                          }
+                        ],
+                        "kind": "ScalarField",
+                        "name": "driftMetric",
+                        "storageKey": "driftMetric(metric:\"euclideanDistance\")"
                       }
                     ],
                     "storageKey": null
@@ -200,16 +213,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "2d7fdb95ec51954768fe143bf22a456a",
+    "cacheID": "08edac7d7ed633563e6031dfa9260854",
     "id": null,
     "metadata": {},
     "name": "ModelEmbeddingsTableEmbeddingDimensionsQuery",
     "operationKind": "query",
-    "text": "query ModelEmbeddingsTableEmbeddingDimensionsQuery(\n  $count: Int = 50\n  $cursor: String = null\n) {\n  ...ModelEmbeddingsTable_embeddingDimensions_1G22uz\n}\n\nfragment ModelEmbeddingsTable_embeddingDimensions_1G22uz on Query {\n  model {\n    embeddingDimensions(first: $count, after: $cursor) {\n      edges {\n        embedding: node {\n          id\n          name\n        }\n        cursor\n        node {\n          __typename\n        }\n      }\n      pageInfo {\n        endCursor\n        hasNextPage\n      }\n    }\n  }\n}\n"
+    "text": "query ModelEmbeddingsTableEmbeddingDimensionsQuery(\n  $count: Int = 50\n  $cursor: String = null\n) {\n  ...ModelEmbeddingsTable_embeddingDimensions_1G22uz\n}\n\nfragment ModelEmbeddingsTable_embeddingDimensions_1G22uz on Query {\n  model {\n    embeddingDimensions(first: $count, after: $cursor) {\n      edges {\n        embedding: node {\n          id\n          name\n          euclideanDistance: driftMetric(metric: euclideanDistance)\n        }\n        cursor\n        node {\n          __typename\n        }\n      }\n      pageInfo {\n        endCursor\n        hasNextPage\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "8123420376d1fc45319d86f7174a5e98";
+(node as any).hash = "1a1c6fbb5bc6349b18351e7db1d296b6";
 
 export default node;

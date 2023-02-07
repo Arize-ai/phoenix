@@ -47,7 +47,7 @@ enum DimensionType {
 }
 
 enum DriftMetric {
-  euclidean_distance
+  euclideanDistance
 }
 
 type EmbeddingDimension implements Node {
