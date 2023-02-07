@@ -12,10 +12,14 @@ from .embedding_dimension import EmbeddingDimension
 
 
 class Model:
-    def __init__(self, primary_dataset_name: str, reference_dataset_name: str):
+    __primary_dataset: Dataset
+    __reference_dataset: Optional[Dataset] = None
+
+    def __init__(self, primary_dataset_name: str, reference_dataset_name: Optional[str]):
         # TODO Fail if you can't find the datasets on disc
         self.__primary_dataset = Dataset.from_name(primary_dataset_name)
-        self.__reference_dataset = Dataset.from_name(reference_dataset_name)
+        if reference_dataset_name is not None:
+            self.__reference_dataset = Dataset.from_name(reference_dataset_name)
         self.__dimensions = self._get_dimensions(self.primary_dataset, self.reference_dataset)
         self.__embedding_dimensions: List[EmbeddingDimension] = self._get_embedding_dimensions(
             self.primary_dataset, self.reference_dataset
@@ -26,7 +30,7 @@ class Model:
         return self.__primary_dataset
 
     @property
-    def reference_dataset(self) -> Dataset:
+    def reference_dataset(self) -> Optional[Dataset]:
         return self.__reference_dataset
 
     @property
@@ -38,7 +42,7 @@ class Model:
         return self.__embedding_dimensions
 
     def _get_dimensions(
-        self, primary_dataset: Dataset, reference_dataset: Dataset
+        self, primary_dataset: Dataset, reference_dataset: Optional[Dataset]
     ) -> List[Dimension]:
         # TODO: include reference dataset dimensions
         dimensions: List[Dimension] = []
@@ -85,7 +89,7 @@ class Model:
 
     @staticmethod
     def _get_embedding_dimensions(
-        primary_dataset: Dataset, reference_dataset: Dataset
+        primary_dataset: Dataset, reference_dataset: Optional[Dataset]
     ) -> List[EmbeddingDimension]:
         # TODO: Include reference dataset embedding dimensions
         embedding_dimensions = []
