@@ -83,9 +83,9 @@ def _euclidean_distance(
     primary_dataset: Dataset, reference_dataset: Optional[Dataset], embedding_feature_name: str
 ) -> Optional[float]:
     """
-    Computes Euclidean distance between embeddings for primary and reference
-    datasets. Returns None if no reference dataset is provided since there is
-    nothing to compare against.
+    Computes global Euclidean distance between centroids of primary and
+    reference embeddings. Returns None if no reference dataset is provided since
+    there is nothing to compare against.
     """
     if reference_dataset is None:
         return None
