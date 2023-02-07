@@ -114,6 +114,7 @@ function umapDataEntryToThreeDimensionalPointItem(
     metaData: {},
   };
 }
+
 /**
  * Fetches the umap data for the embedding dimension and passes the data to the point cloud
  */
@@ -127,10 +128,9 @@ const PointCloudDisplay = ({
     queryReference
   );
 
+  const sourceData = data.embedding?.UMAPPoints?.data ?? [];
   const primaryData =
-    data.embedding?.UMAPPoints?.data?.map(
-      umapDataEntryToThreeDimensionalPointItem
-    ) ?? [];
+    sourceData.map(umapDataEntryToThreeDimensionalPointItem) ?? [];
 
   return <PointCloud primaryData={primaryData} referenceData={[]} />;
 };
