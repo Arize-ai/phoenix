@@ -16,15 +16,17 @@ import { DatasetsProvider } from "./contexts";
 
 const RootQuery = graphql`
   query AppRootQuery {
-    primaryDataset {
-      name
-      startTime
-      endTime
-    }
-    referenceDataset {
-      name
-      startTime
-      endTime
+    model {
+      primaryDataset {
+        name
+        startTime
+        endTime
+      }
+      referenceDataset {
+        name
+        startTime
+        endTime
+      }
     }
   }
 `;
@@ -37,8 +39,8 @@ function App(props: AppProps) {
   const data = usePreloadedQuery(RootQuery, props.preloadedQuery);
   return (
     <DatasetsProvider
-      primaryDataset={data.primaryDataset}
-      referenceDataset={data.referenceDataset}
+      primaryDataset={data.model.primaryDataset}
+      referenceDataset={data.model.referenceDataset ?? null}
     >
       <AppRoutes />
     </DatasetsProvider>
