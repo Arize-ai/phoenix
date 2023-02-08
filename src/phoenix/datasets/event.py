@@ -8,4 +8,4 @@ class EventId(NamedTuple):
     dataset_id: int = 0
 
     def __str__(self) -> str:
-        return ",".join(map(str, self))
+        return ":".join(map(str, self))
