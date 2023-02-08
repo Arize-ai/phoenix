@@ -35,6 +35,21 @@ const EmbeddingUMAPQuery = graphql`
                 z
               }
             }
+            embeddingMetadata {
+              linkToData
+              rawData
+            }
+            eventMetadata {
+              predictionId
+              predictionLabel
+              actualLabel
+              predictionScore
+              actualScore
+            }
+          }
+          clusters {
+            id
+            pointUuids
           }
         }
       }
