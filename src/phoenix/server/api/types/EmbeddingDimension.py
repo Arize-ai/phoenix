@@ -11,7 +11,7 @@ from strawberry.types import Info
 from typing_extensions import Annotated
 
 from phoenix.core import EmbeddingDimension as CoreEmbeddingDimension
-from phoenix.datasets.tuples import EventId
+from phoenix.datasets.event import EventId
 from phoenix.metrics.embeddings import euclidean_distance
 from phoenix.pointcloud.clustering import Hdbscan
 from phoenix.pointcloud.pointcloud import PointCloud
