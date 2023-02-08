@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a2dc28fd7d7dc96c7f0dbacbc6a12508>>
+ * @generated SignedSource<<c22eca98db935cc7de9e17da630513c7>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -21,8 +21,8 @@ export type EmbeddingUMAPQuery$data = {
   readonly embedding: {
     readonly UMAPPoints?: {
       readonly clusters: ReadonlyArray<{
+        readonly eventIds: ReadonlyArray<string>;
         readonly id: string;
-        readonly pointUuids: ReadonlyArray<String>;
       }>;
       readonly data: ReadonlyArray<{
         readonly coordinates: {
@@ -241,7 +241,7 @@ v4 = {
               "alias": null,
               "args": null,
               "kind": "ScalarField",
-              "name": "pointUuids",
+              "name": "eventIds",
               "storageKey": null
             }
           ],
@@ -304,16 +304,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "01ce74bd335899a71627ff8053486290",
+    "cacheID": "c816dde6ee237affc344e5da1a52a593",
     "id": null,
     "metadata": {},
     "name": "EmbeddingUMAPQuery",
     "operationKind": "query",
-    "text": "query EmbeddingUMAPQuery(\n  $id: GlobalID!\n  $timeRange: TimeRange!\n) {\n  embedding: node(id: $id) {\n    __typename\n    ... on EmbeddingDimension {\n      UMAPPoints(timeRange: $timeRange) {\n        data {\n          coordinates {\n            __typename\n            ... on Point3D {\n              x\n              y\n              z\n            }\n          }\n          embeddingMetadata {\n            linkToData\n            rawData\n          }\n          eventMetadata {\n            predictionId\n            predictionLabel\n            actualLabel\n            predictionScore\n            actualScore\n          }\n        }\n        clusters {\n          id\n          pointUuids\n        }\n      }\n    }\n    __isNode: __typename\n    id\n  }\n}\n"
+    "text": "query EmbeddingUMAPQuery(\n  $id: GlobalID!\n  $timeRange: TimeRange!\n) {\n  embedding: node(id: $id) {\n    __typename\n    ... on EmbeddingDimension {\n      UMAPPoints(timeRange: $timeRange) {\n        data {\n          coordinates {\n            __typename\n            ... on Point3D {\n              x\n              y\n              z\n            }\n          }\n          embeddingMetadata {\n            linkToData\n            rawData\n          }\n          eventMetadata {\n            predictionId\n            predictionLabel\n            actualLabel\n            predictionScore\n            actualScore\n          }\n        }\n        clusters {\n          id\n          eventIds\n        }\n      }\n    }\n    __isNode: __typename\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "2a0d173bb7f40617070e012af32a2d19";
+(node as any).hash = "2e5726e74a9bd2ec2cab3b4a71b06f45";
 
 export default node;

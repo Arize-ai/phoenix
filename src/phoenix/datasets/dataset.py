@@ -439,13 +439,15 @@ def _create_and_normalize_dataframe_and_schema(
     ts_col_name = parsed_schema.timestamp_column_name
     if ts_col_name is None:
         now = Timestamp.utcnow()
-        parsed_schema = replace(parsed_schema, timestamp_column_name="timestamp")
-        parsed_dataframe["timestamp"] = now
+        ts_col_name = "__timestamp"
+        parsed_schema = replace(parsed_schema, timestamp_column_name=ts_col_name)
+        parsed_dataframe[ts_col_name] = now
     elif is_numeric_dtype(dataframe.dtypes[ts_col_name]):
         parsed_dataframe[ts_col_name] = parsed_dataframe[ts_col_name].apply(
             lambda x: to_datetime(x, unit="ms")
         )
-
+    parsed_dataframe.set_index(ts_col_name, inplace=True)
+    parsed_dataframe.sort_index(inplace=True)
     pred_col_name = parsed_schema.prediction_id_column_name
     if pred_col_name is None:
         parsed_schema = replace(parsed_schema, prediction_id_column_name="prediction_id")

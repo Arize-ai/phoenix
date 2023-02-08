@@ -49,7 +49,7 @@ const EmbeddingUMAPQuery = graphql`
           }
           clusters {
             id
-            pointUuids
+            eventIds
           }
         }
       }
