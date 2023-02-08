@@ -6,7 +6,6 @@ from strawberry.types import Info
 from typing_extensions import Annotated
 
 from phoenix.core import EmbeddingDimension as CoreEmbeddingDimension
-from phoenix.datasets import Dataset
 from phoenix.metrics.embeddings import euclidean_distance
 from phoenix.server.api.context import Context
 from phoenix.server.api.input_types.TimeRange import TimeRange
@@ -70,31 +69,20 @@ class EmbeddingDimension(Node):
 
     @strawberry.field
     async def driftMetric(self, metric: DriftMetric, info: Info[Context, None]) -> Optional[float]:
+        model = info.context.model
+        primary_dataset = model.primary_dataset
+        reference_dataset = model.reference_dataset
+        if reference_dataset is None:
+            return None
+        embedding_feature_name = self.name
+        primary_embeddings = primary_dataset.get_embedding_vector_column(embedding_feature_name)
+        reference_embeddings = reference_dataset.get_embedding_vector_column(embedding_feature_name)
         if metric is DriftMetric.euclideanDistance:
-            return _euclidean_distance(
-                primary_dataset=info.context.model.primary_dataset,
-                reference_dataset=info.context.model.reference_dataset,
-                embedding_feature_name=self.name,
+            return euclidean_distance(
+                np.stack(primary_embeddings.to_numpy()),  # type: ignore
+                np.stack(reference_embeddings.to_numpy()),  # type: ignore
             )
         raise NotImplementedError(f"Metric {metric} has not been implemented.")
-
-
-def _euclidean_distance(
-    primary_dataset: Dataset, reference_dataset: Optional[Dataset], embedding_feature_name: str
-) -> Optional[float]:
-    """
-    Computes global Euclidean distance between centroids of primary and
-    reference embeddings. Returns None if no reference dataset is provided since
-    there is nothing to compare against.
-    """
-    if reference_dataset is None:
-        return None
-    primary_embeddings = primary_dataset.get_embedding_vector_column(embedding_feature_name)
-    reference_embeddings = reference_dataset.get_embedding_vector_column(embedding_feature_name)
-    return euclidean_distance(
-        np.stack(primary_embeddings.to_numpy()),  # type: ignore
-        np.stack(reference_embeddings.to_numpy()),  # type: ignore
-    )
 
 
 def to_gql_embedding_dimension(
