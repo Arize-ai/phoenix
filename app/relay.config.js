@@ -7,6 +7,7 @@ module.exports = {
   noFutureProofEnums: true,
   customScalars: {
     GlobalID: "String",
-    "DateTime": "String",
+    DateTime: "String",
+    UUID: "String",
   },
 };

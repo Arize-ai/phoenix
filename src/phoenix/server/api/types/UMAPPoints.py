@@ -26,16 +26,15 @@ class EmbeddingMetadata:
     link_to_data: Optional[str]
 
 
-# TODO: Flesh out how this can be lazily fetched if needed
-# @strawberry.type
-# class EventMetadata:
-#     """The metadata associated with a specific prediction event"""
+@strawberry.type
+class EventMetadata:
+    """A partial record of a model event. E.g. the predictions and actuals"""
 
-#     prediction_id: ID
-#     prediction_score: Optional[float]
-#     prediction_label: Optional[str]
-#     actual_score: Optional[float]
-#     actual_label: Optional[str]
+    prediction_id: ID
+    prediction_score: Optional[float]
+    prediction_label: Optional[str]
+    actual_score: Optional[float]
+    actual_label: Optional[str]
 
 
 @strawberry.type
@@ -51,8 +50,8 @@ class UMAPPoint:
     """The metadata associated with the embedding"""
     embedding_metadata: EmbeddingMetadata
 
-    # """The metadata associated with the prediction event"""
-    # event_metadata: EventMetadata
+    """A summary of the predictions and actuals of the model event"""
+    event_metadata: EventMetadata
 
 
 @strawberry.type
