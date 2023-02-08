@@ -50,6 +50,7 @@ class Dataset:
         name: Optional[str] = None,
         persist_to_disc: bool = True,
     ):
+        dataframe = dataframe.reset_index()
         errors = validate_dataset_inputs(
             dataframe=dataframe,
             schema=schema,
@@ -58,9 +59,10 @@ class Dataset:
             for e in errors:
                 logger.error(e)
             raise err.DatasetError(errors)
-        parsed_dataframe, parsed_schema = _parse_dataframe_and_schema(dataframe, schema)
-        self.__dataframe: DataFrame = parsed_dataframe
-        self.__schema: Schema = parsed_schema
+        dataframe, schema = _parse_dataframe_and_schema(dataframe, schema)
+        dataframe = _add_timestamp_index_and_sort(dataframe, schema)
+        self.__dataframe: DataFrame = dataframe
+        self.__schema: Schema = schema
         self.__name: str = name if name is not None else f"""dataset_{str(uuid.uuid4())}"""
         self.__directory: str = os.path.join(dataset_dir, self.name)
 
@@ -454,3 +456,15 @@ def _create_and_normalize_dataframe_and_schema(
         parsed_dataframe[pred_col_name] = parsed_dataframe[pred_col_name].astype(str)
 
     return parsed_dataframe, parsed_schema
+
+
+def _add_timestamp_index_and_sort(dataframe: DataFrame, schema: Schema) -> DataFrame:
+    """
+    Adds timestamp index and sorts dataframe by timestamp.
+    """
+    timestamp_column_name = schema.timestamp_column_name
+    if timestamp_column_name is None:
+        raise ValueError("Schema must specify a timestamp column name.")
+    dataframe = dataframe.set_index(timestamp_column_name)
+    dataframe = dataframe.sort_index()
+    return dataframe
