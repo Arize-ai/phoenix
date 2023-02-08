@@ -25,6 +25,7 @@ export function ModelEmbeddingsTable(props: ModelEmbeddingsTable) {
               embedding: node {
                 id
                 name
+                euclideanDistance: driftMetric(metric: euclideanDistance)
               }
             }
           }
@@ -54,6 +55,10 @@ export function ModelEmbeddingsTable(props: ModelEmbeddingsTable) {
         Cell: ({ row, value }: CellProps<TableRow, string>) => (
           <Link to={`/embeddings/${row.original.id}`}>{value}</Link>
         ),
+      },
+      {
+        Header: "Euclidean Distance",
+        accessor: "euclideanDistance",
       },
     ];
     return cols;

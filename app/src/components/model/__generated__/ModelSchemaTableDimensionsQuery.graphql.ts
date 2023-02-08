@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<2c12c45586282226a43ff462df7369bf>>
+ * @generated SignedSource<<b25c66657066f41a39d2e29c5906a7a3>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -134,22 +134,17 @@ return {
                         "storageKey": null
                       },
                       {
-                        "alias": null,
-                        "args": null,
-                        "concreteType": "DimensionDataQuality",
-                        "kind": "LinkedField",
-                        "name": "dataQuality",
-                        "plural": false,
-                        "selections": [
+                        "alias": "cardinality",
+                        "args": [
                           {
-                            "alias": null,
-                            "args": null,
-                            "kind": "ScalarField",
-                            "name": "cardinality",
-                            "storageKey": null
+                            "kind": "Literal",
+                            "name": "metric",
+                            "value": "cardinality"
                           }
                         ],
-                        "storageKey": null
+                        "kind": "ScalarField",
+                        "name": "dataQualityMetric",
+                        "storageKey": "dataQualityMetric(metric:\"cardinality\")"
                       }
                     ],
                     "storageKey": null
@@ -225,16 +220,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "5de8bea4b12e14eebdb3cec454e50969",
+    "cacheID": "bd6c0e63cb41a76bc1f4730a3ba354ac",
     "id": null,
     "metadata": {},
     "name": "ModelSchemaTableDimensionsQuery",
     "operationKind": "query",
-    "text": "query ModelSchemaTableDimensionsQuery(\n  $count: Int = 50\n  $cursor: String = null\n) {\n  ...ModelSchemaTable_dimensions_1G22uz\n}\n\nfragment ModelSchemaTable_dimensions_1G22uz on Query {\n  model {\n    dimensions(first: $count, after: $cursor) {\n      edges {\n        dimension: node {\n          name\n          type\n          dataType\n          dataQuality {\n            cardinality\n          }\n        }\n        cursor\n        node {\n          __typename\n        }\n      }\n      pageInfo {\n        endCursor\n        hasNextPage\n      }\n    }\n  }\n}\n"
+    "text": "query ModelSchemaTableDimensionsQuery(\n  $count: Int = 50\n  $cursor: String = null\n) {\n  ...ModelSchemaTable_dimensions_1G22uz\n}\n\nfragment ModelSchemaTable_dimensions_1G22uz on Query {\n  model {\n    dimensions(first: $count, after: $cursor) {\n      edges {\n        dimension: node {\n          name\n          type\n          dataType\n          cardinality: dataQualityMetric(metric: cardinality)\n        }\n        cursor\n        node {\n          __typename\n        }\n      }\n      pageInfo {\n        endCursor\n        hasNextPage\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "0558909f226e1a65a704920caf8e5cf6";
+(node as any).hash = "63ecf92afab2591e725e36d78618d7bf";
 
 export default node;

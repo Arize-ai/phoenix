@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<32dcfb0b68e5199bbcca4130dedd3d23>>
+ * @generated SignedSource<<20c2ac110971bd92606cd438f1190715>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -17,9 +17,7 @@ export type ModelSchemaTable_dimensions$data = {
     readonly dimensions: {
       readonly edges: ReadonlyArray<{
         readonly dimension: {
-          readonly dataQuality: {
-            readonly cardinality: number | null;
-          };
+          readonly cardinality: number | null;
           readonly dataType: DimensionDataType;
           readonly name: string;
           readonly type: DimensionType;
@@ -131,22 +129,17 @@ return {
                       "storageKey": null
                     },
                     {
-                      "alias": null,
-                      "args": null,
-                      "concreteType": "DimensionDataQuality",
-                      "kind": "LinkedField",
-                      "name": "dataQuality",
-                      "plural": false,
-                      "selections": [
+                      "alias": "cardinality",
+                      "args": [
                         {
-                          "alias": null,
-                          "args": null,
-                          "kind": "ScalarField",
-                          "name": "cardinality",
-                          "storageKey": null
+                          "kind": "Literal",
+                          "name": "metric",
+                          "value": "cardinality"
                         }
                       ],
-                      "storageKey": null
+                      "kind": "ScalarField",
+                      "name": "dataQualityMetric",
+                      "storageKey": "dataQualityMetric(metric:\"cardinality\")"
                     }
                   ],
                   "storageKey": null
@@ -216,6 +209,6 @@ return {
 };
 })();
 
-(node as any).hash = "0558909f226e1a65a704920caf8e5cf6";
+(node as any).hash = "63ecf92afab2591e725e36d78618d7bf";
 
 export default node;

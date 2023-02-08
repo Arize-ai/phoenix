@@ -1,13 +1,16 @@
 from typing import Optional
 
+import numpy as np
 import strawberry
 from strawberry.types import Info
 from typing_extensions import Annotated
 
 from phoenix.core import EmbeddingDimension as CoreEmbeddingDimension
+from phoenix.metrics.embeddings import euclidean_distance
 from phoenix.server.api.context import Context
 from phoenix.server.api.input_types.TimeRange import TimeRange
 
+from .DriftMetric import DriftMetric
 from .node import Node
 from .UMAPPoints import UMAPPoints
 
@@ -65,8 +68,21 @@ class EmbeddingDimension(Node):
         return UMAPPoints(data=[], reference_data=[], clusters=[])
 
     @strawberry.field
-    async def euclideanDistance(self, info: Info[Context, None]) -> Optional[float]:
-        return await info.context.loaders.euclidean_distance.load(self.name)
+    async def driftMetric(self, metric: DriftMetric, info: Info[Context, None]) -> Optional[float]:
+        model = info.context.model
+        primary_dataset = model.primary_dataset
+        reference_dataset = model.reference_dataset
+        if reference_dataset is None:
+            return None
+        embedding_feature_name = self.name
+        primary_embeddings = primary_dataset.get_embedding_vector_column(embedding_feature_name)
+        reference_embeddings = reference_dataset.get_embedding_vector_column(embedding_feature_name)
+        if metric is DriftMetric.euclideanDistance:
+            return euclidean_distance(
+                np.stack(primary_embeddings.to_numpy()),  # type: ignore
+                np.stack(reference_embeddings.to_numpy()),  # type: ignore
+            )
+        raise NotImplementedError(f"Metric {metric} has not been implemented.")
 
 
 def to_gql_embedding_dimension(
