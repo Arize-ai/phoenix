@@ -1,23 +1,51 @@
-from typing import Optional
+import random
+import string
+from collections import defaultdict
+from itertools import chain, repeat, starmap
+from typing import List, Mapping, Optional
 
 import numpy as np
 import strawberry
+from strawberry.scalars import ID
 from strawberry.types import Info
 from typing_extensions import Annotated
 
 from phoenix.core import EmbeddingDimension as CoreEmbeddingDimension
+from phoenix.datasets.dataset import DatasetType
+from phoenix.datasets.event import EventId
 from phoenix.metrics.embeddings import euclidean_distance
+from phoenix.pointcloud.clustering import Hdbscan
+from phoenix.pointcloud.pointcloud import PointCloud
+from phoenix.pointcloud.projectors import Umap
 from phoenix.server.api.context import Context
 from phoenix.server.api.input_types.TimeRange import TimeRange
 
 from .DriftMetric import DriftMetric
 from .node import Node
-from .UMAPPoints import UMAPPoints
+from .UMAPPoints import (
+    Cluster,
+    EmbeddingMetadata,
+    EventMetadata,
+    UMAPPoint,
+    UMAPPoints,
+    to_gql_coordinates,
+)
 
 # Default UMAP hyperparameters
 DEFAULT_N_COMPONENTS = 3
 DEFAULT_MIN_DIST = 0
 DEFAULT_N_NEIGHBORS = 30
+DEFAULT_N_SAMPLES = 500
+
+
+def to_gql_clusters(clusters: Mapping[EventId, int]) -> List[Cluster]:
+    clusteredEvents = defaultdict(list)
+    for event_id, cluster_id in clusters.items():
+        clusteredEvents[ID(str(cluster_id))].append(ID(str(event_id)))
+    return [
+        Cluster(id=cluster_id, point_ids=event_ids)
+        for cluster_id, event_ids in clusteredEvents.items()
+    ]
 
 
 @strawberry.type
@@ -29,6 +57,7 @@ class EmbeddingDimension(Node):
     @strawberry.field
     def UMAPPoints(
         self,
+        info: Info[Context, None],
         time_range: Annotated[
             TimeRange,
             strawberry.argument(
@@ -53,8 +82,32 @@ class EmbeddingDimension(Node):
                 description="UMAP N neighbors hyperparameter",
             ),
         ] = DEFAULT_N_NEIGHBORS,
+        n_samples: Annotated[
+            Optional[int],
+            strawberry.argument(
+                description="UMAP N samples",
+            ),
+        ] = DEFAULT_N_SAMPLES,
     ) -> UMAPPoints:
+        n_samples = n_samples or DEFAULT_N_SAMPLES
+
         # TODO validate time_range.
+
+        primary_dataset = info.context.model.primary_dataset
+        reference_dataset = info.context.model.reference_dataset
+
+        primary_data = zip(
+            starmap(EventId, zip(range(n_samples), repeat(DatasetType.PRIMARY))),
+            primary_dataset.get_embedding_vector_column(self.name).to_numpy()[:n_samples],
+        )
+        if reference_dataset:
+            reference_data = zip(
+                starmap(EventId, zip(range(n_samples), repeat(DatasetType.REFERENCE))),
+                reference_dataset.get_embedding_vector_column(self.name).to_numpy()[:n_samples],
+            )
+            data = dict(chain(primary_data, reference_data))
+        else:
+            data = dict(primary_data)
 
         # validate n_components to be 2 or 3
         n_components = DEFAULT_N_COMPONENTS if n_components is None else n_components
@@ -64,8 +117,42 @@ class EmbeddingDimension(Node):
         min_dist = DEFAULT_MIN_DIST if min_dist is None else min_dist
         n_neighbors = DEFAULT_N_NEIGHBORS if n_neighbors is None else n_neighbors
 
-        # TODO UMAP generation code goes here
-        return UMAPPoints(data=[], reference_data=[], clusters=[])
+        vectors, clusters = PointCloud(
+            dimensionalityReducer=Umap(n_neighbors=n_neighbors, min_dist=min_dist),
+            clustersFinder=Hdbscan(),
+        ).generate(data, n_components=n_components)
+
+        primary_points, reference_points = tuple(
+            map(
+                lambda dataset_id: [
+                    UMAPPoint(
+                        id=ID(str(event_id)),
+                        coordinates=to_gql_coordinates(vector),
+                        event_metadata=EventMetadata(
+                            prediction_label=random.choices(["A", "B", "C", "D", None])[0],
+                            prediction_score=random.random(),
+                            actual_label=random.choices(["A", "B", "C", "D", None])[0],
+                            actual_score=random.random(),
+                        ),
+                        embedding_metadata=EmbeddingMetadata(
+                            link_to_data="".join(
+                                random.choices(string.ascii_uppercase + string.digits, k=25)
+                            ),
+                            raw_data="".join(
+                                random.choices(string.ascii_uppercase + string.digits, k=25)
+                            ),
+                        ),
+                    )
+                    for event_id, vector in vectors.items()
+                    if event_id.dataset_id == dataset_id
+                ],
+                (DatasetType.PRIMARY, DatasetType.REFERENCE),
+            )
+        )
+
+        return UMAPPoints(
+            data=primary_points, reference_data=reference_points, clusters=to_gql_clusters(clusters)
+        )
 
     @strawberry.field
     async def driftMetric(self, metric: DriftMetric, info: Info[Context, None]) -> Optional[float]:
