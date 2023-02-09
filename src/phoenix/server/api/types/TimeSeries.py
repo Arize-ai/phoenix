@@ -8,10 +8,10 @@ import strawberry
 class TimeSeriesDataPoint:
     """A data point in a time series"""
 
-    """ the datetime of the data point"""
+    """The timestamp of the data point"""
     timestamp: datetime
 
-    """ the datetime of the data point"""
+    """The value of the data point"""
     value: Optional[float]
 
 
