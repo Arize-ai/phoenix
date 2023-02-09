@@ -61,7 +61,7 @@ class Dataset:
                 logger.error(e)
             raise err.DatasetError(errors)
         dataframe, schema = _parse_dataframe_and_schema(dataframe, schema)
-        dataframe = _add_timestamp_index_and_sort_by_time(dataframe, schema)
+        dataframe = _sort_dataframe_rows_by_timestamp(dataframe, schema)
         self.__dataframe: DataFrame = dataframe
         self.__schema: Schema = schema
         self.__name: str = name if name is not None else f"""dataset_{str(uuid.uuid4())}"""
@@ -464,9 +464,9 @@ class DatasetType(Enum):
     REFERENCE = 1
 
 
-def _add_timestamp_index_and_sort_by_time(dataframe: DataFrame, schema: Schema) -> DataFrame:
+def _sort_dataframe_rows_by_timestamp(dataframe: DataFrame, schema: Schema) -> DataFrame:
     """
-    Adds timestamp index and sorts dataframe rows by timestamp.
+    Sorts dataframe rows by timestamp.
     """
     timestamp_column_name = schema.timestamp_column_name
     if timestamp_column_name is None:
