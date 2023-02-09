@@ -9,7 +9,7 @@ from enum import Enum
 from functools import cached_property
 from typing import Any, Dict, List, Optional, Set, Tuple, Union, cast
 
-from pandas import DataFrame, Series, Timestamp, read_parquet, to_datetime
+from pandas import DataFrame, Index, Series, Timestamp, read_parquet, to_datetime
 from pandas.api.types import is_numeric_dtype
 
 from phoenix.config import dataset_dir
@@ -168,6 +168,10 @@ class Dataset:
                 err.MissingEmbeddingFeatureVectorColumnName(embedding_feature_name)
             )
         vector_column = self.dataframe[column_names.vector_column_name]
+        timestamp_column_name = self.schema.timestamp_column_name
+        if timestamp_column_name is None:
+            raise ValueError
+        vector_column = vector_column.set_axis(Index(self.dataframe[timestamp_column_name]))
         return vector_column
 
     def get_embedding_raw_data_column(self, embedding_feature_name: str) -> "Series[str]":

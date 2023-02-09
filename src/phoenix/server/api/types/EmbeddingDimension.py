@@ -1,11 +1,12 @@
 import random
 import string
 from collections import defaultdict
-from datetime import datetime
+from datetime import datetime, timedelta
 from itertools import chain, repeat, starmap
 from typing import List, Mapping, Optional
 
 import numpy as np
+import pandas as pd
 import strawberry
 from strawberry.scalars import ID
 from strawberry.types import Info
@@ -51,35 +52,15 @@ def to_gql_clusters(clusters: Mapping[EventId, int]) -> List[Cluster]:
     ]
 
 
+DRIFT_EVAL_WINDOW_NUM_INTERVALS = 72
+EVAL_INTERVAL_LENGTH = timedelta(hours=1)
+
+
 @strawberry.type
 class EmbeddingDimension(Node):
     """A embedding dimension of a model. Represents unstructured data"""
 
     name: str
-
-    @strawberry.field
-    def drift_time_series(
-        self,
-        info: Info[Context, None],
-        time_range: Annotated[
-            TimeRange,
-            strawberry.argument(
-                description="The time range of the primary dataset",
-            ),
-        ],
-    ) -> DriftTimeSeries:
-        return DriftTimeSeries(
-            data=[
-                TimeSeriesDataPoint(
-                    timestamp=datetime.now(),
-                    value=1,
-                ),
-                TimeSeriesDataPoint(
-                    timestamp=datetime.now(),
-                    value=2,
-                ),
-            ],
-        )
 
     @strawberry.field
     def UMAPPoints(
@@ -183,22 +164,66 @@ class EmbeddingDimension(Node):
             clusters=to_gql_clusters(clusters),
         )
 
+    # if no reference dataset, what to return? return empty array
+    # if no primary filtered points in a particular evaluation window, return none?
+    # what if input time range does not begin and end on hour mark? snap to hours?
+    # data point refers to statistic computed on data from the evaluation window ending at that timestamp? even if the beginning of the evaluation window is before the start of the input time range?
     @strawberry.field
-    async def driftMetric(self, metric: DriftMetric, info: Info[Context, None]) -> Optional[float]:
+    async def driftMetric(
+        self,
+        metric: DriftMetric,
+        time_range: Annotated[
+            TimeRange,
+            strawberry.argument(
+                description="The time range of the primary dataset to generate the UMAP points for",
+            ),
+        ],
+        info: Info[Context, None],
+    ) -> Optional[DriftTimeSeries]:
         model = info.context.model
         primary_dataset = model.primary_dataset
         reference_dataset = model.reference_dataset
         if reference_dataset is None:
             return None
         embedding_feature_name = self.name
-        primary_embeddings = primary_dataset.get_embedding_vector_column(embedding_feature_name)
-        reference_embeddings = reference_dataset.get_embedding_vector_column(embedding_feature_name)
+        timestamp_col_name = primary_dataset.schema.timestamp_column_name
+        primary_embeddings_column = primary_dataset.get_embedding_vector_column(
+            embedding_feature_name
+        )
+        reference_embeddings_column = reference_dataset.get_embedding_vector_column(
+            embedding_feature_name
+        )
+
+        time_series_data_points = []
         if metric is DriftMetric.euclideanDistance:
-            return euclidean_distance(
-                np.stack(primary_embeddings.to_numpy()),  # type: ignore
-                np.stack(reference_embeddings.to_numpy()),  # type: ignore
+            reference_centroid = np.mean(
+                np.stack(reference_embeddings_column.values, axis=1), axis=1  # type: ignore
             )
-        raise NotImplementedError(f"Metric {metric} has not been implemented.")
+            eval_window_end = round_timestamp_to_next_hour(time_range.start)
+            while eval_window_end < time_range.end:
+                eval_window_start = (
+                    eval_window_end - DRIFT_EVAL_WINDOW_NUM_INTERVALS * EVAL_INTERVAL_LENGTH
+                )
+                query_string = (
+                    f'"{eval_window_start}" <= `{timestamp_col_name}` < "{eval_window_end}"'
+                )
+                primary_embeddings_df = primary_embeddings_column.to_frame().reset_index()
+                filtered_primary_embeddings = primary_embeddings_df.query(
+                    query_string
+                ).text_vector.values
+                distance: Optional[float] = None
+                if filtered_primary_embeddings.shape[0] > 0:
+                    primary_centroid = np.stack(filtered_primary_embeddings).mean(axis=0)  # type: ignore
+                    distance = euclidean_distance(
+                        reference_centroid,
+                        primary_centroid,
+                    )
+                time_series_data_points.append(
+                    TimeSeriesDataPoint(timestamp=eval_window_end, value=distance)
+                )
+                eval_window_end += EVAL_INTERVAL_LENGTH
+            return DriftTimeSeries(data=time_series_data_points)
+        raise NotImplementedError("")
 
 
 def to_gql_embedding_dimension(
@@ -211,3 +236,11 @@ def to_gql_embedding_dimension(
         id_attr=id_attr,
         name=embedding_dimension.name,
     )
+
+
+def round_timestamp_to_next_hour(timestamp: datetime) -> datetime:
+    """
+    Rounds input datetime to the next whole hour datetime. If the input datetime
+    is a whole hour, returns the same datetime.
+    """
+    return pd.to_datetime(timestamp).ceil("H").to_pydatetime()
