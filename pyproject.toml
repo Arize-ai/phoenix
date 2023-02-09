@@ -28,7 +28,7 @@ dependencies = [
   "starlette",
   "uvicorn",
   "psutil",
-  "strawberry-graphql",
+  "strawberry-graphql==0.155.3",
   "pyarrow",
   "typing_extensions",
   "scipy",
@@ -44,7 +44,7 @@ dev = [
   "pytest",
   "pytest-cov",
   "pytest-lazy-fixture",
-  "strawberry-graphql[debug-server]",
+  "strawberry-graphql[debug-server]==0.155.3",
   "pre-commit",
 ]
 
