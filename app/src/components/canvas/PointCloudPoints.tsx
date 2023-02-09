@@ -26,7 +26,7 @@ type PointCloudPointsProps = {
   /**
    * Optional second set of data to display in the point cloud
    */
-  referenceData?: ThreeDimensionalPointItem[];
+  referenceData: ThreeDimensionalPointItem[] | null;
   primaryColor: PointColor;
   referenceColor: PointColor;
   selectedIds: Set<string>;

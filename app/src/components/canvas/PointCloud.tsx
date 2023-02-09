@@ -20,7 +20,7 @@ import { createColorFn } from "./coloring";
 
 export type PointCloudProps = {
   primaryData: ThreeDimensionalPointItem[];
-  referenceData?: ThreeDimensionalPointItem[];
+  referenceData: ThreeDimensionalPointItem[] | null;
 };
 
 const CONTROL_PANEL_WIDTH = 300;

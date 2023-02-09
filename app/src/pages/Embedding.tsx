@@ -34,6 +34,34 @@ const EmbeddingUMAPQuery = graphql`
                 y
                 z
               }
+              ... on Point2D {
+                x
+                y
+              }
+            }
+            embeddingMetadata {
+              linkToData
+              rawData
+            }
+            eventMetadata {
+              predictionLabel
+              actualLabel
+              predictionScore
+              actualScore
+            }
+          }
+          referenceData {
+            coordinates {
+              __typename
+              ... on Point3D {
+                x
+                y
+                z
+              }
+              ... on Point2D {
+                x
+                y
+              }
             }
             embeddingMetadata {
               linkToData
@@ -55,6 +83,7 @@ const EmbeddingUMAPQuery = graphql`
     }
   }
 `;
+
 export function Embedding() {
   const embeddingDimensionId = useEmbeddingDimensionId();
   const [queryReference, loadQuery] =
@@ -129,10 +158,20 @@ const PointCloudDisplay = ({
   );
 
   const sourceData = data.embedding?.UMAPPoints?.data ?? [];
-  const primaryData =
-    sourceData.map(umapDataEntryToThreeDimensionalPointItem) ?? [];
+  const referenceSourceData = data.embedding?.UMAPPoints?.referenceData;
 
-  return <PointCloud primaryData={primaryData} referenceData={[]} />;
+  return (
+    <PointCloud
+      primaryData={
+        sourceData.map(umapDataEntryToThreeDimensionalPointItem) ?? []
+      }
+      referenceData={
+        referenceSourceData
+          ? referenceSourceData.map(umapDataEntryToThreeDimensionalPointItem)
+          : null
+      }
+    />
+  );
 };
 
 export async function embeddingLoader(args: LoaderFunctionArgs) {
