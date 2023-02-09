@@ -142,7 +142,7 @@ class Dataset:
             raise err.SchemaError(err.MissingField("actual_label_column_name"))
         return self.dataframe[self.schema.actual_label_column_name]
 
-    def get_actual_score_column(self) -> "Union[Series[int], Series[float], Series[str]]":
+    def get_actual_score_column(self) -> "Union[Series[float]]":
         if self.schema.actual_score_column_name is None:
             raise err.SchemaError(err.MissingField("actual_score_column_name"))
         return self.dataframe[self.schema.actual_score_column_name]
