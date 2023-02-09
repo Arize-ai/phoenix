@@ -715,13 +715,12 @@ class TestDataset:
             feature_column_names=["feature0"],
             prediction_label_column_name="prediction_label",
         )
-        expected_dataframe = input_dataframe.set_index(keys=["timestamp"])
 
         dataset = Dataset(dataframe=input_dataframe, schema=input_schema)
         output_dataframe = dataset.dataframe
         output_schema = dataset.schema
 
-        assert output_dataframe.equals(expected_dataframe)
+        assert output_dataframe.equals(input_dataframe)
         assert output_schema == input_schema
 
     # TODO: Move validation tests to validation module; keep one validation integration test

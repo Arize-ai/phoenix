@@ -7,7 +7,7 @@ from dataclasses import fields, replace
 from datetime import datetime
 from enum import Enum
 from functools import cached_property
-from typing import Any, Dict, List, Optional, Set, Tuple, Union
+from typing import Any, Dict, List, Optional, Set, Tuple, Union, cast
 
 from pandas import DataFrame, Series, Timestamp, read_parquet, to_datetime
 from pandas.api.types import is_numeric_dtype
@@ -80,13 +80,15 @@ class Dataset:
     @cached_property
     def start_time(self) -> datetime:
         """Returns the datetime of the earliest inference in the dataset"""
-        start_datetime: datetime = self.dataframe.index.min()
+        timestamp_col_name: str = cast(str, self.schema.timestamp_column_name)
+        start_datetime: datetime = self.__dataframe[timestamp_col_name].min()
         return start_datetime
 
     @cached_property
     def end_time(self) -> datetime:
         """Returns the datetime of the latest inference in the dataset"""
-        end_datetime: datetime = self.dataframe.index.max()
+        timestamp_col_name: str = cast(str, self.schema.timestamp_column_name)
+        end_datetime: datetime = self.__dataframe[timestamp_col_name].max()
         return end_datetime
 
     @property
@@ -469,6 +471,5 @@ def _add_timestamp_index_and_sort_by_time(dataframe: DataFrame, schema: Schema) 
     timestamp_column_name = schema.timestamp_column_name
     if timestamp_column_name is None:
         raise ValueError("Schema must specify a timestamp column name.")
-    dataframe = dataframe.set_index(keys=[timestamp_column_name])
-    dataframe = dataframe.sort_index()
+    dataframe = dataframe.sort_values(by=[timestamp_column_name])
     return dataframe
