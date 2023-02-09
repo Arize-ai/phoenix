@@ -1,6 +1,6 @@
 type Cluster {
   id: ID!
-  pointUuids: [UUID!]!
+  pointIds: [ID!]!
 }
 
 enum DataQualityMetric {
@@ -73,6 +73,9 @@ type EmbeddingDimension implements Node {
 
     """UMAP N neighbors hyperparameter"""
     nNeighbors: Int = 30
+
+    """UMAP N samples"""
+    nSamples: Int = 500
   ): UMAPPoints!
   driftMetric(metric: DriftMetric!): Float
 }
@@ -93,7 +96,6 @@ type EmbeddingMetadata {
 }
 
 type EventMetadata {
-  predictionId: ID!
   predictionScore: Float
   predictionLabel: String
   actualScore: Float
@@ -157,7 +159,7 @@ type TimeSeriesDataPoint {
 }
 
 type UMAPPoint {
-  uuid: UUID!
+  id: ID!
   coordinates: Point2DPoint3D!
   embeddingMetadata: EmbeddingMetadata!
   eventMetadata: EventMetadata!
@@ -168,5 +170,3 @@ type UMAPPoints {
   referenceData: [UMAPPoint!]!
   clusters: [Cluster!]!
 }
-
-scalar UUID

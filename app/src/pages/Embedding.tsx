@@ -40,7 +40,6 @@ const EmbeddingUMAPQuery = graphql`
               rawData
             }
             eventMetadata {
-              predictionId
               predictionLabel
               actualLabel
               predictionScore
@@ -49,7 +48,7 @@ const EmbeddingUMAPQuery = graphql`
           }
           clusters {
             id
-            pointUuids
+            pointIds
           }
         }
       }

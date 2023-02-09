@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a2dc28fd7d7dc96c7f0dbacbc6a12508>>
+ * @generated SignedSource<<802b773fafd62d25ba7fe368c0f7b299>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -22,7 +22,7 @@ export type EmbeddingUMAPQuery$data = {
     readonly UMAPPoints?: {
       readonly clusters: ReadonlyArray<{
         readonly id: string;
-        readonly pointUuids: ReadonlyArray<String>;
+        readonly pointIds: ReadonlyArray<string>;
       }>;
       readonly data: ReadonlyArray<{
         readonly coordinates: {
@@ -42,7 +42,6 @@ export type EmbeddingUMAPQuery$data = {
         readonly eventMetadata: {
           readonly actualLabel: string | null;
           readonly actualScore: number | null;
-          readonly predictionId: string;
           readonly predictionLabel: string | null;
           readonly predictionScore: number | null;
         };
@@ -75,184 +74,149 @@ v1 = [
     "variableName": "id"
   }
 ],
-v2 = {
+v2 = [
+  {
+    "kind": "Variable",
+    "name": "timeRange",
+    "variableName": "timeRange"
+  }
+],
+v3 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "__typename",
   "storageKey": null
 },
-v3 = {
+v4 = {
+  "alias": null,
+  "args": null,
+  "concreteType": null,
+  "kind": "LinkedField",
+  "name": "coordinates",
+  "plural": false,
+  "selections": [
+    (v3/*: any*/),
+    {
+      "kind": "InlineFragment",
+      "selections": [
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "x",
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "y",
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "z",
+          "storageKey": null
+        }
+      ],
+      "type": "Point3D",
+      "abstractKey": null
+    }
+  ],
+  "storageKey": null
+},
+v5 = {
+  "alias": null,
+  "args": null,
+  "concreteType": "EmbeddingMetadata",
+  "kind": "LinkedField",
+  "name": "embeddingMetadata",
+  "plural": false,
+  "selections": [
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "linkToData",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "rawData",
+      "storageKey": null
+    }
+  ],
+  "storageKey": null
+},
+v6 = {
+  "alias": null,
+  "args": null,
+  "concreteType": "EventMetadata",
+  "kind": "LinkedField",
+  "name": "eventMetadata",
+  "plural": false,
+  "selections": [
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "predictionLabel",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "actualLabel",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "predictionScore",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "actualScore",
+      "storageKey": null
+    }
+  ],
+  "storageKey": null
+},
+v7 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "id",
   "storageKey": null
 },
-v4 = {
-  "kind": "InlineFragment",
+v8 = {
+  "alias": null,
+  "args": null,
+  "concreteType": "Cluster",
+  "kind": "LinkedField",
+  "name": "clusters",
+  "plural": true,
   "selections": [
+    (v7/*: any*/),
     {
       "alias": null,
-      "args": [
-        {
-          "kind": "Variable",
-          "name": "timeRange",
-          "variableName": "timeRange"
-        }
-      ],
-      "concreteType": "UMAPPoints",
-      "kind": "LinkedField",
-      "name": "UMAPPoints",
-      "plural": false,
-      "selections": [
-        {
-          "alias": null,
-          "args": null,
-          "concreteType": "UMAPPoint",
-          "kind": "LinkedField",
-          "name": "data",
-          "plural": true,
-          "selections": [
-            {
-              "alias": null,
-              "args": null,
-              "concreteType": null,
-              "kind": "LinkedField",
-              "name": "coordinates",
-              "plural": false,
-              "selections": [
-                (v2/*: any*/),
-                {
-                  "kind": "InlineFragment",
-                  "selections": [
-                    {
-                      "alias": null,
-                      "args": null,
-                      "kind": "ScalarField",
-                      "name": "x",
-                      "storageKey": null
-                    },
-                    {
-                      "alias": null,
-                      "args": null,
-                      "kind": "ScalarField",
-                      "name": "y",
-                      "storageKey": null
-                    },
-                    {
-                      "alias": null,
-                      "args": null,
-                      "kind": "ScalarField",
-                      "name": "z",
-                      "storageKey": null
-                    }
-                  ],
-                  "type": "Point3D",
-                  "abstractKey": null
-                }
-              ],
-              "storageKey": null
-            },
-            {
-              "alias": null,
-              "args": null,
-              "concreteType": "EmbeddingMetadata",
-              "kind": "LinkedField",
-              "name": "embeddingMetadata",
-              "plural": false,
-              "selections": [
-                {
-                  "alias": null,
-                  "args": null,
-                  "kind": "ScalarField",
-                  "name": "linkToData",
-                  "storageKey": null
-                },
-                {
-                  "alias": null,
-                  "args": null,
-                  "kind": "ScalarField",
-                  "name": "rawData",
-                  "storageKey": null
-                }
-              ],
-              "storageKey": null
-            },
-            {
-              "alias": null,
-              "args": null,
-              "concreteType": "EventMetadata",
-              "kind": "LinkedField",
-              "name": "eventMetadata",
-              "plural": false,
-              "selections": [
-                {
-                  "alias": null,
-                  "args": null,
-                  "kind": "ScalarField",
-                  "name": "predictionId",
-                  "storageKey": null
-                },
-                {
-                  "alias": null,
-                  "args": null,
-                  "kind": "ScalarField",
-                  "name": "predictionLabel",
-                  "storageKey": null
-                },
-                {
-                  "alias": null,
-                  "args": null,
-                  "kind": "ScalarField",
-                  "name": "actualLabel",
-                  "storageKey": null
-                },
-                {
-                  "alias": null,
-                  "args": null,
-                  "kind": "ScalarField",
-                  "name": "predictionScore",
-                  "storageKey": null
-                },
-                {
-                  "alias": null,
-                  "args": null,
-                  "kind": "ScalarField",
-                  "name": "actualScore",
-                  "storageKey": null
-                }
-              ],
-              "storageKey": null
-            }
-          ],
-          "storageKey": null
-        },
-        {
-          "alias": null,
-          "args": null,
-          "concreteType": "Cluster",
-          "kind": "LinkedField",
-          "name": "clusters",
-          "plural": true,
-          "selections": [
-            (v3/*: any*/),
-            {
-              "alias": null,
-              "args": null,
-              "kind": "ScalarField",
-              "name": "pointUuids",
-              "storageKey": null
-            }
-          ],
-          "storageKey": null
-        }
-      ],
+      "args": null,
+      "kind": "ScalarField",
+      "name": "pointIds",
       "storageKey": null
     }
   ],
-  "type": "EmbeddingDimension",
-  "abstractKey": null
+  "storageKey": null
 };
 return {
   "fragment": {
@@ -269,7 +233,39 @@ return {
         "name": "node",
         "plural": false,
         "selections": [
-          (v4/*: any*/)
+          {
+            "kind": "InlineFragment",
+            "selections": [
+              {
+                "alias": null,
+                "args": (v2/*: any*/),
+                "concreteType": "UMAPPoints",
+                "kind": "LinkedField",
+                "name": "UMAPPoints",
+                "plural": false,
+                "selections": [
+                  {
+                    "alias": null,
+                    "args": null,
+                    "concreteType": "UMAPPoint",
+                    "kind": "LinkedField",
+                    "name": "data",
+                    "plural": true,
+                    "selections": [
+                      (v4/*: any*/),
+                      (v5/*: any*/),
+                      (v6/*: any*/)
+                    ],
+                    "storageKey": null
+                  },
+                  (v8/*: any*/)
+                ],
+                "storageKey": null
+              }
+            ],
+            "type": "EmbeddingDimension",
+            "abstractKey": null
+          }
         ],
         "storageKey": null
       }
@@ -291,29 +287,62 @@ return {
         "name": "node",
         "plural": false,
         "selections": [
-          (v2/*: any*/),
-          (v4/*: any*/),
+          (v3/*: any*/),
+          {
+            "kind": "InlineFragment",
+            "selections": [
+              {
+                "alias": null,
+                "args": (v2/*: any*/),
+                "concreteType": "UMAPPoints",
+                "kind": "LinkedField",
+                "name": "UMAPPoints",
+                "plural": false,
+                "selections": [
+                  {
+                    "alias": null,
+                    "args": null,
+                    "concreteType": "UMAPPoint",
+                    "kind": "LinkedField",
+                    "name": "data",
+                    "plural": true,
+                    "selections": [
+                      (v4/*: any*/),
+                      (v5/*: any*/),
+                      (v6/*: any*/),
+                      (v7/*: any*/)
+                    ],
+                    "storageKey": null
+                  },
+                  (v8/*: any*/)
+                ],
+                "storageKey": null
+              }
+            ],
+            "type": "EmbeddingDimension",
+            "abstractKey": null
+          },
           {
             "kind": "TypeDiscriminator",
             "abstractKey": "__isNode"
           },
-          (v3/*: any*/)
+          (v7/*: any*/)
         ],
         "storageKey": null
       }
     ]
   },
   "params": {
-    "cacheID": "01ce74bd335899a71627ff8053486290",
+    "cacheID": "b55c61f5395270230ee21b6d270f7ea5",
     "id": null,
     "metadata": {},
     "name": "EmbeddingUMAPQuery",
     "operationKind": "query",
-    "text": "query EmbeddingUMAPQuery(\n  $id: GlobalID!\n  $timeRange: TimeRange!\n) {\n  embedding: node(id: $id) {\n    __typename\n    ... on EmbeddingDimension {\n      UMAPPoints(timeRange: $timeRange) {\n        data {\n          coordinates {\n            __typename\n            ... on Point3D {\n              x\n              y\n              z\n            }\n          }\n          embeddingMetadata {\n            linkToData\n            rawData\n          }\n          eventMetadata {\n            predictionId\n            predictionLabel\n            actualLabel\n            predictionScore\n            actualScore\n          }\n        }\n        clusters {\n          id\n          pointUuids\n        }\n      }\n    }\n    __isNode: __typename\n    id\n  }\n}\n"
+    "text": "query EmbeddingUMAPQuery(\n  $id: GlobalID!\n  $timeRange: TimeRange!\n) {\n  embedding: node(id: $id) {\n    __typename\n    ... on EmbeddingDimension {\n      UMAPPoints(timeRange: $timeRange) {\n        data {\n          coordinates {\n            __typename\n            ... on Point3D {\n              x\n              y\n              z\n            }\n          }\n          embeddingMetadata {\n            linkToData\n            rawData\n          }\n          eventMetadata {\n            predictionLabel\n            actualLabel\n            predictionScore\n            actualScore\n          }\n          id\n        }\n        clusters {\n          id\n          pointIds\n        }\n      }\n    }\n    __isNode: __typename\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "2a0d173bb7f40617070e012af32a2d19";
+(node as any).hash = "5570eb0dc63ef2fdb5f36a1099faf424";
 
 export default node;
