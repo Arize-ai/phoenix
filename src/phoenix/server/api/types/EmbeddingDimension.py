@@ -13,6 +13,7 @@ from typing_extensions import Annotated
 from phoenix.core import EmbeddingDimension as CoreEmbeddingDimension
 from phoenix.datasets.dataset import DatasetType
 from phoenix.datasets.event import EventId
+from phoenix.datasets.errors import SchemaError
 from phoenix.metrics.embeddings import euclidean_distance
 from phoenix.pointcloud.clustering import Hdbscan
 from phoenix.pointcloud.pointcloud import PointCloud
@@ -122,36 +123,74 @@ class EmbeddingDimension(Node):
             clustersFinder=Hdbscan(),
         ).generate(data, n_components=n_components)
 
-        primary_points, reference_points = tuple(
-            map(
-                lambda dataset_id: [
-                    UMAPPoint(
-                        id=ID(str(event_id)),
-                        coordinates=to_gql_coordinates(vector),
-                        event_metadata=EventMetadata(
-                            prediction_label=random.choices(["A", "B", "C", "D", None])[0],
-                            prediction_score=random.random(),
-                            actual_label=random.choices(["A", "B", "C", "D", None])[0],
-                            actual_score=random.random(),
-                        ),
-                        embedding_metadata=EmbeddingMetadata(
-                            link_to_data="".join(
-                                random.choices(string.ascii_uppercase + string.digits, k=25)
-                            ),
-                            raw_data="".join(
-                                random.choices(string.ascii_uppercase + string.digits, k=25)
-                            ),
-                        ),
-                    )
-                    for event_id, vector in vectors.items()
-                    if event_id.dataset_id == dataset_id
-                ],
-                (DatasetType.PRIMARY, DatasetType.REFERENCE),
+        datasets = {DatasetType.PRIMARY: primary_dataset, DatasetType.REFERENCE: reference_dataset}
+
+        points = defaultdict(list)
+
+        for event_id, vector in vectors.items():
+            row_id, dataset_id = event_id
+            dataset = datasets[dataset_id]
+            if dataset is None:
+                continue
+
+            prediction_label = None
+            prediction_score = None
+            actual_label = None
+            actual_score = None
+            link_to_data = None
+            raw_data = None
+
+            try:
+                prediction_label = dataset.get_prediction_label_column()[row_id]
+            except SchemaError:
+                pass
+
+            try:
+                prediction_score = dataset.get_prediction_score_column()[row_id]
+            except SchemaError:
+                pass
+
+            try:
+                actual_label = dataset.get_actual_label_column()[row_id]
+            except SchemaError:
+                pass
+
+            try:
+                actual_score = dataset.get_actual_score_column()[row_id]
+            except SchemaError:
+                pass
+
+            try:
+                link_to_data = dataset.get_embedding_link_to_data_column(self.name)[row_id]
+            except SchemaError:
+                pass
+
+            try:
+                raw_data = dataset.get_embedding_raw_data_column(self.name)[row_id]
+            except SchemaError:
+                pass
+
+            points[dataset_id].append(
+                UMAPPoint(
+                    id=ID(str(event_id)),
+                    coordinates=to_gql_coordinates(vector),
+                    event_metadata=EventMetadata(
+                        prediction_label=prediction_label,
+                        prediction_score=prediction_score,
+                        actual_label=actual_label,
+                        actual_score=actual_score,
+                    ),
+                    embedding_metadata=EmbeddingMetadata(
+                        link_to_data=link_to_data,
+                        raw_data=raw_data,
+                    ),
+                )
             )
-        )
 
         return UMAPPoints(
-            data=primary_points, reference_data=reference_points, clusters=to_gql_clusters(clusters)
+            data=points[DatasetType.PRIMARY],
+            reference_data=points[DatasetType.REFERENCE],
+            clusters=to_gql_clusters(clusters),
         )
 
     @strawberry.field
