@@ -146,7 +146,7 @@ class EmbeddingDimension(Node):
                     for event_id, vector in vectors.items()
                     if event_id.dataset_id == dataset_id
                 ],
-                (0, 1),
+                (DatasetType.PRIMARY, DatasetType.REFERENCE),
             )
         )
 
