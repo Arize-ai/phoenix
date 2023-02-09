@@ -40,7 +40,6 @@ class EmbeddingDimension(Node):
             ),
         ],
     ) -> DriftTimeSeries:
-
         return DriftTimeSeries(
             data=[
                 TimeSeriesDataPoint(
