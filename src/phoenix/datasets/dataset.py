@@ -5,6 +5,7 @@ import uuid
 from copy import deepcopy
 from dataclasses import fields, replace
 from datetime import datetime
+from enum import Enum
 from functools import cached_property
 from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
@@ -454,6 +455,11 @@ def _create_and_normalize_dataframe_and_schema(
         parsed_dataframe[pred_col_name] = parsed_dataframe[pred_col_name].astype(str)
 
     return parsed_dataframe, parsed_schema
+
+
+class DatasetType(Enum):
+    PRIMARY = 0
+    REFERENCE = 1
 
 
 def _add_timestamp_index_and_sort_by_time(dataframe: DataFrame, schema: Schema) -> DataFrame:

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<434a4bf87bdd98511abda2ae6f7acca1>>
+ * @generated SignedSource<<cda809d77d7658312487037e6bf66553>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -150,22 +150,17 @@ return {
                         "storageKey": null
                       },
                       {
-                        "alias": null,
-                        "args": null,
-                        "concreteType": "DimensionDataQuality",
-                        "kind": "LinkedField",
-                        "name": "dataQuality",
-                        "plural": false,
-                        "selections": [
+                        "alias": "cardinality",
+                        "args": [
                           {
-                            "alias": null,
-                            "args": null,
-                            "kind": "ScalarField",
-                            "name": "cardinality",
-                            "storageKey": null
+                            "kind": "Literal",
+                            "name": "metric",
+                            "value": "cardinality"
                           }
                         ],
-                        "storageKey": null
+                        "kind": "ScalarField",
+                        "name": "dataQualityMetric",
+                        "storageKey": "dataQualityMetric(metric:\"cardinality\")"
                       }
                     ],
                     "storageKey": null
@@ -228,7 +223,20 @@ return {
                         "name": "id",
                         "storageKey": null
                       },
-                      (v1/*: any*/)
+                      (v1/*: any*/),
+                      {
+                        "alias": "euclideanDistance",
+                        "args": [
+                          {
+                            "kind": "Literal",
+                            "name": "metric",
+                            "value": "euclideanDistance"
+                          }
+                        ],
+                        "kind": "ScalarField",
+                        "name": "driftMetric",
+                        "storageKey": "driftMetric(metric:\"euclideanDistance\")"
+                      }
                     ],
                     "storageKey": null
                   },
@@ -265,12 +273,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "c8806777dde424c6a05778f768f095c3",
+    "cacheID": "3606140f6d640477b03ceb0073f5c5f5",
     "id": null,
     "metadata": {},
     "name": "HomeQuery",
     "operationKind": "query",
-    "text": "query HomeQuery {\n  ...ModelSchemaTable_dimensions\n  ...ModelEmbeddingsTable_embeddingDimensions\n}\n\nfragment ModelEmbeddingsTable_embeddingDimensions on Query {\n  model {\n    embeddingDimensions(first: 50) {\n      edges {\n        embedding: node {\n          id\n          name\n        }\n        cursor\n        node {\n          __typename\n        }\n      }\n      pageInfo {\n        endCursor\n        hasNextPage\n      }\n    }\n  }\n}\n\nfragment ModelSchemaTable_dimensions on Query {\n  model {\n    dimensions(first: 50) {\n      edges {\n        dimension: node {\n          name\n          type\n          dataType\n          dataQuality {\n            cardinality\n          }\n        }\n        cursor\n        node {\n          __typename\n        }\n      }\n      pageInfo {\n        endCursor\n        hasNextPage\n      }\n    }\n  }\n}\n"
+    "text": "query HomeQuery {\n  ...ModelSchemaTable_dimensions\n  ...ModelEmbeddingsTable_embeddingDimensions\n}\n\nfragment ModelEmbeddingsTable_embeddingDimensions on Query {\n  model {\n    embeddingDimensions(first: 50) {\n      edges {\n        embedding: node {\n          id\n          name\n          euclideanDistance: driftMetric(metric: euclideanDistance)\n        }\n        cursor\n        node {\n          __typename\n        }\n      }\n      pageInfo {\n        endCursor\n        hasNextPage\n      }\n    }\n  }\n}\n\nfragment ModelSchemaTable_dimensions on Query {\n  model {\n    dimensions(first: 50) {\n      edges {\n        dimension: node {\n          name\n          type\n          dataType\n          cardinality: dataQualityMetric(metric: cardinality)\n        }\n        cursor\n        node {\n          __typename\n        }\n      }\n      pageInfo {\n        endCursor\n        hasNextPage\n      }\n    }\n  }\n}\n"
   }
 };
 })();
