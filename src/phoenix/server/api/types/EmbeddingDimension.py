@@ -1,7 +1,7 @@
 import random
 import string
 from collections import defaultdict
-from itertools import chain, cycle, starmap
+from itertools import chain, repeat, starmap
 from typing import List, Mapping, Optional
 
 import numpy as np
@@ -11,6 +11,7 @@ from strawberry.types import Info
 from typing_extensions import Annotated
 
 from phoenix.core import EmbeddingDimension as CoreEmbeddingDimension
+from phoenix.datasets.dataset import DatasetType
 from phoenix.datasets.event import EventId
 from phoenix.metrics.embeddings import euclidean_distance
 from phoenix.pointcloud.clustering import Hdbscan
@@ -38,10 +39,13 @@ DEFAULT_N_SAMPLES = 500
 
 
 def to_gql_clusters(clusters: Mapping[EventId, int]) -> List[Cluster]:
-    d = defaultdict(list)
+    clusteredEvents = defaultdict(list)
     for event_id, cluster_id in clusters.items():
-        d[ID(str(cluster_id))].append(ID(str(event_id)))
-    return [Cluster(id=cluster_id, point_ids=event_ids) for cluster_id, event_ids in d.items()]
+        clusteredEvents[ID(str(cluster_id))].append(ID(str(event_id)))
+    return [
+        Cluster(id=cluster_id, point_ids=event_ids)
+        for cluster_id, event_ids in clusteredEvents.items()
+    ]
 
 
 @strawberry.type
@@ -93,12 +97,12 @@ class EmbeddingDimension(Node):
         reference_dataset = info.context.model.reference_dataset
 
         primary_data = zip(
-            starmap(EventId, zip(range(n_samples), cycle([0]))),
+            starmap(EventId, zip(range(n_samples), repeat(DatasetType.PRIMARY))),
             primary_dataset.get_embedding_vector_column(self.name).to_numpy()[:n_samples],
         )
         if reference_dataset:
             reference_data = zip(
-                starmap(EventId, zip(range(n_samples), cycle([1]))),
+                starmap(EventId, zip(range(n_samples), repeat(DatasetType.REFERENCE))),
                 reference_dataset.get_embedding_vector_column(self.name).to_numpy()[:n_samples],
             )
             data = dict(chain(primary_data, reference_data))
