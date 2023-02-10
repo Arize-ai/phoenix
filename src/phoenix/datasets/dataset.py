@@ -160,18 +160,17 @@ class Dataset:
             raise err.SchemaError(err.MissingEmbeddingFeatureColumnNames(embedding_feature_name))
         return embedding_feature_column_names[embedding_feature_name]
 
-    # TODO(mikeldking): add strong vector type
-    def get_embedding_vector_column(self, embedding_feature_name: str) -> "Series[Any]":
+    def get_embedding_vector_column_name(self, embedding_feature_name: str) -> str:
         column_names = self._get_embedding_feature_column_names(embedding_feature_name)
         if column_names.vector_column_name is None:
             raise err.SchemaError(
                 err.MissingEmbeddingFeatureVectorColumnName(embedding_feature_name)
             )
+        return column_names.vector_column_name
+
+    # TODO(mikeldking): add strong vector type
+    def get_embedding_vector_column(self, embedding_feature_name: str) -> "Series[Any]":
         vector_column = self.dataframe[column_names.vector_column_name]
-        timestamp_column_name = self.schema.timestamp_column_name
-        if timestamp_column_name is None:
-            raise ValueError
-        vector_column = vector_column.set_axis(Index(self.dataframe[timestamp_column_name]))
         return vector_column
 
     def get_embedding_raw_data_column(self, embedding_feature_name: str) -> "Series[str]":
@@ -189,6 +188,13 @@ class Dataset:
                 err.MissingEmbeddingFeatureLinkToDataColumnName(embedding_feature_name)
             )
         return self.dataframe[column_names.link_to_data_column_name]
+
+    def get_dataframe_view(
+        self,
+        column_names: List[str],
+        embedding_feature_names: List[str],
+    ) -> DataFrame:
+        return
 
     @classmethod
     def from_dataframe(

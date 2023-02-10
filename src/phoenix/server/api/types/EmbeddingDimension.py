@@ -6,13 +6,15 @@ from itertools import chain, repeat, starmap
 from typing import List, Mapping, Optional
 
 import numpy as np
-import pandas as pd
+import numpy.typing as npt
 import strawberry
+from pandas import DataFrame, Series, to_datetime
 from strawberry.scalars import ID
 from strawberry.types import Info
 from typing_extensions import Annotated
 
 from phoenix.core import EmbeddingDimension as CoreEmbeddingDimension
+from phoenix.datasets import Dataset, Schema
 from phoenix.datasets.dataset import DatasetType
 from phoenix.datasets.event import EventId
 from phoenix.metrics.embeddings import euclidean_distance
@@ -62,10 +64,12 @@ class EmbeddingDimension(Node):
 
     name: str
 
-    # if no reference dataset, what to return? return empty array
-    # if no primary filtered points in a particular evaluation window, return none?
-    # what if input time range does not begin and end on hour mark? snap to hours?
-    # data point refers to statistic computed on data from the evaluation window ending at that timestamp? even if the beginning of the evaluation window is before the start of the input time range?
+    # if no reference dataset, what to return? return empty array if no primary
+    # filtered points in a particular evaluation window, return none? what if
+    # input time range does not begin and end on hour mark? snap to hours? data
+    # point refers to statistic computed on data from the evaluation window
+    # ending at that timestamp? even if the beginning of the evaluation window
+    # is before the start of the input time range?
     @strawberry.field
     def drift_time_series(
         self,
@@ -77,7 +81,7 @@ class EmbeddingDimension(Node):
             ),
         ],
         info: Info[Context, None],
-    ) -> DriftTimeSeries:
+    ) -> Optional[DriftTimeSeries]:
         model = info.context.model
         primary_dataset = model.primary_dataset
         reference_dataset = model.reference_dataset
@@ -97,17 +101,17 @@ class EmbeddingDimension(Node):
             reference_centroid = np.mean(
                 np.stack(reference_embeddings_column.values, axis=1), axis=1  # type: ignore
             )
-            eval_window_end = round_timestamp_to_next_hour(time_range.start)
+            eval_window_end = _round_timestamp_to_next_hour(time_range.start)
             while eval_window_end < time_range.end:
                 eval_window_start = (
                     eval_window_end - DRIFT_EVAL_WINDOW_NUM_INTERVALS * EVAL_INTERVAL_LENGTH
                 )
-                query_string = (
-                    f'"{eval_window_start}" <= `{timestamp_col_name}` < "{eval_window_end}"'
-                )
                 primary_embeddings_df = primary_embeddings_column.to_frame().reset_index()
-                filtered_primary_embeddings = primary_embeddings_df.query(
-                    query_string
+                filtered_primary_embeddings = apply_query(
+                    dataset=primary_dataset,
+                    column_names=["text_vector"],
+                    start=eval_window_start,
+                    end=eval_window_end,
                 ).text_vector.values
                 distance: Optional[float] = None
                 if filtered_primary_embeddings.shape[0] > 0:
@@ -229,20 +233,31 @@ class EmbeddingDimension(Node):
         )
 
     @strawberry.field
-    async def drift_metric(self, metric: DriftMetric, info: Info[Context, None]) -> Optional[float]:
+    async def drift_metric(
+        self, metric: DriftMetric, time_range: TimeRange, info: Info[Context, None]
+    ) -> Optional[float]:
         model = info.context.model
         primary_dataset = model.primary_dataset
         reference_dataset = model.reference_dataset
         if reference_dataset is None:
             return None
         embedding_feature_name = self.name
-        primary_embeddings = primary_dataset.get_embedding_vector_column(embedding_feature_name)
-        reference_embeddings = reference_dataset.get_embedding_vector_column(embedding_feature_name)
+        primary_embeddings_column = primary_dataset.get_embedding_vector_column(
+            embedding_feature_name
+        )
+        reference_embeddings_column = reference_dataset.get_embedding_vector_column(
+            embedding_feature_name
+        )
+        apply_query(
+            dataset=reference_dataset,
+            embedding_feature_name=self.name,
+            start=time_range.start,
+            end=time_range.end,
+        )
+        primary_centroid = np.stack(primary_embeddings_column.to_numpy()).mean(axis=1)  # type: ignore
+        reference_centroid = np.stack(reference_embeddings_column.to_numpy()).mean(axis=1)  # type: ignore
         if metric is DriftMetric.euclideanDistance:
-            return euclidean_distance(
-                np.stack(primary_embeddings.to_numpy()),  # type: ignore
-                np.stack(reference_embeddings.to_numpy()),  # type: ignore
-            )
+            return euclidean_distance(primary_centroid, reference_centroid)
         raise NotImplementedError(f"Metric {metric} has not been implemented.")
 
 
@@ -258,9 +273,43 @@ def to_gql_embedding_dimension(
     )
 
 
-def round_timestamp_to_next_hour(timestamp: datetime) -> datetime:
+# TODO: Expand to retrieve other columns
+def retrieve_columns(dataset: Dataset, embedding_feature_names=List[str]) -> None:
+    pass
+
+
+def apply_query(
+    dataset: Dataset,
+    embedding_feature_name: str,
+    start: datetime,
+    end: datetime,
+) -> DataFrame:
+    dataframe = dataset.dataframe
+    schema = dataset.schema
+    timestamp_col_name = schema.timestamp_column_name
+    if timestamp_col_name is None:
+        raise ValueError
+    column_names = []
+    embedding_vector_column = dataset.get_embedding_vector_column(embedding_feature_name)
+    query_string = f'"{start}" <= `{timestamp_col_name}` < "{end}"'
+    return (
+        dataframe[column_names + [timestamp_col_name]]
+        .query(query_string)
+        .drop(timestamp_col_name, axis=1)
+    )
+
+
+def _round_timestamp_to_next_hour(timestamp: datetime) -> datetime:
     """
     Rounds input datetime to the next whole hour datetime. If the input datetime
     is a whole hour, returns the same datetime.
     """
-    return pd.to_datetime(timestamp).ceil("H").to_pydatetime()
+    return to_datetime(timestamp).ceil("H").to_pydatetime()
+
+
+def _compute_mean_vector(embeddings: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
+    return embeddings.mean()
+
+
+def time_range_query(timestamp_column_name: str, start: datetime, end: datetime) -> str:
+    return f'"{start}" <= `{timestamp_col_name}` < "{end}"'
