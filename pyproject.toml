@@ -28,9 +28,10 @@ dependencies = [
   "starlette",
   "uvicorn",
   "psutil",
-  "strawberry-graphql",
+  "strawberry-graphql==0.155.3",
   "pyarrow",
   "typing_extensions",
+  "scipy",
 ]
 dynamic = ["version"]
 
@@ -43,7 +44,7 @@ dev = [
   "pytest",
   "pytest-cov",
   "pytest-lazy-fixture",
-  "strawberry-graphql[debug-server]",
+  "strawberry-graphql[debug-server]==0.155.3",
   "pre-commit",
 ]
 
@@ -87,7 +88,7 @@ dependencies = [
 
 [tool.hatch.envs.type]
 dependencies = [
-  "mypy",
+  "mypy==0.991",
   "pandas-stubs",
   "pytest",
   "types-psutil",
@@ -214,6 +215,8 @@ disallow_untyped_defs = true
 disallow_incomplete_defs  = true
 strict = true
 exclude = [
+  "dist/",
+  "sdist/",
   "tests/",
 ]
 

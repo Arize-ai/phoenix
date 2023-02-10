@@ -3,6 +3,7 @@ import errno
 import logging
 import os
 from argparse import ArgumentParser
+from typing import Optional
 
 import uvicorn
 
@@ -39,6 +40,8 @@ def _get_pid_file() -> str:
 
 
 if __name__ == "__main__":
+    primary_dataset_name: str
+    reference_dataset_name: Optional[str]
     # automatically remove the pid file when the process is being gracefully terminated
     atexit.register(_remove_pid_file)
     _write_pid_file()
@@ -50,7 +53,7 @@ if __name__ == "__main__":
     subparsers = parser.add_subparsers(dest="command", required=True)
     datasets_parser = subparsers.add_parser("datasets")
     datasets_parser.add_argument("--primary", type=str, required=True)
-    datasets_parser.add_argument("--reference", type=str, required=True)
+    datasets_parser.add_argument("--reference", type=str, required=False)
     fixture_parser = subparsers.add_parser("fixture")
     fixture_parser.add_argument("fixture", type=str, choices=[fixture.name for fixture in FIXTURES])
     args = parser.parse_args()

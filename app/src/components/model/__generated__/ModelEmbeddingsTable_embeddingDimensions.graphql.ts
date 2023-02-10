@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<146596aa10d3a47ceec1903441dca95f>>
+ * @generated SignedSource<<a36b6f084455b0213512c2a170984980>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -15,6 +15,7 @@ export type ModelEmbeddingsTable_embeddingDimensions$data = {
     readonly embeddingDimensions: {
       readonly edges: ReadonlyArray<{
         readonly embedding: {
+          readonly euclideanDistance: number | null;
           readonly id: String;
           readonly name: string;
         };
@@ -116,6 +117,19 @@ return {
                       "kind": "ScalarField",
                       "name": "name",
                       "storageKey": null
+                    },
+                    {
+                      "alias": "euclideanDistance",
+                      "args": [
+                        {
+                          "kind": "Literal",
+                          "name": "metric",
+                          "value": "euclideanDistance"
+                        }
+                      ],
+                      "kind": "ScalarField",
+                      "name": "driftMetric",
+                      "storageKey": "driftMetric(metric:\"euclideanDistance\")"
                     }
                   ],
                   "storageKey": null
@@ -185,6 +199,6 @@ return {
 };
 })();
 
-(node as any).hash = "8123420376d1fc45319d86f7174a5e98";
+(node as any).hash = "1a1c6fbb5bc6349b18351e7db1d296b6";
 
 export default node;

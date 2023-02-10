@@ -1,6 +1,10 @@
 type Cluster {
   id: ID!
-  pointUuids: [UUID!]!
+  pointIds: [ID!]!
+}
+
+enum DataQualityMetric {
+  cardinality
 }
 
 type Dataset {
@@ -17,16 +21,12 @@ type Dimension implements Node {
   name: String!
   type: DimensionType!
   dataType: DimensionDataType!
-  dataQuality: DimensionDataQuality!
+  dataQualityMetric(metric: DataQualityMetric!): Int
 }
 
 type DimensionConnection {
   pageInfo: PageInfo!
   edges: [DimensionEdge!]!
-}
-
-type DimensionDataQuality {
-  cardinality: Int
 }
 
 enum DimensionDataType {
@@ -46,6 +46,10 @@ enum DimensionType {
   actual
 }
 
+enum DriftMetric {
+  euclideanDistance
+}
+
 type EmbeddingDimension implements Node {
   id: GlobalID!
   name: String!
@@ -61,7 +65,11 @@ type EmbeddingDimension implements Node {
 
     """UMAP N neighbors hyperparameter"""
     nNeighbors: Int = 30
+
+    """UMAP N samples"""
+    nSamples: Int = 500
   ): UMAPPoints!
+  driftMetric(metric: DriftMetric!): Float
 }
 
 type EmbeddingDimensionConnection {
@@ -79,6 +87,13 @@ type EmbeddingMetadata {
   linkToData: String
 }
 
+type EventMetadata {
+  predictionScore: Float
+  predictionLabel: String
+  actualScore: Float
+  actualLabel: String
+}
+
 """
 The `ID` scalar type represents a unique identifier, often used to refetch an object or as key for a cache. The ID type appears in a JSON response as a String; however, it is not intended to be human-readable. When expected as an input type, any string (such as `"4"`) or integer (such as `4`) input value will be accepted as an ID.
 """
@@ -86,6 +101,8 @@ scalar GlobalID @specifiedBy(url: "https://relay.dev/graphql/objectidentificatio
 
 type Model {
   dimensions(first: Int = 50, last: Int = null, after: String, before: String): DimensionConnection!
+  primaryDataset: Dataset!
+  referenceDataset: Dataset
   embeddingDimensions(first: Int = 50, last: Int = null, after: String, before: String): EmbeddingDimensionConnection!
 }
 
@@ -115,8 +132,6 @@ type Point3D {
 }
 
 type Query {
-  primaryDataset: Dataset!
-  referenceDataset: Dataset!
   model: Model!
   node(id: GlobalID!): Node!
 }
@@ -127,9 +142,10 @@ input TimeRange {
 }
 
 type UMAPPoint {
-  uuid: UUID!
+  id: ID!
   coordinates: Point2DPoint3D!
   embeddingMetadata: EmbeddingMetadata!
+  eventMetadata: EventMetadata!
 }
 
 type UMAPPoints {
@@ -137,5 +153,3 @@ type UMAPPoints {
   referenceData: [UMAPPoint!]!
   clusters: [Cluster!]!
 }
-
-scalar UUID

@@ -1,1 +1,2 @@
-export * from "./DriftPointCloud";
+export * from "./PointCloud";
+export * from "./types";

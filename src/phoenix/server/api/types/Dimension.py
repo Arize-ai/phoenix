@@ -1,8 +1,12 @@
+from typing import Optional
+
 import strawberry
+from strawberry.types import Info
 
 from phoenix.core import Dimension as CoreDimension
+from phoenix.server.api.context import Context
 
-from .DimensionDataQuality import DimensionDataQuality
+from .DataQualityMetric import DataQualityMetric
 from .DimensionDataType import DimensionDataType
 from .DimensionType import DimensionType
 from .node import Node
@@ -15,8 +19,15 @@ class Dimension(Node):
     dataType: DimensionDataType
 
     @strawberry.field
-    def dataQuality(self) -> DimensionDataQuality:
-        return DimensionDataQuality(dimension_name=self.name)
+    async def dataQualityMetric(
+        self, metric: DataQualityMetric, info: Info[Context, None]
+    ) -> Optional[float]:
+        dimension_name = self.name
+        if metric is DataQualityMetric.cardinality:
+            return await info.context.loaders.cardinality.load(dimension_name)
+        elif metric is DataQualityMetric.percent_empty:
+            return await info.context.loaders.percent_empty.load(dimension_name)
+        raise NotImplementedError(f"Metric {metric} is not implemented.")
 
 
 def to_gql_dimension(id_attr: int, dimension: CoreDimension) -> Dimension:

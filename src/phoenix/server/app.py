@@ -69,7 +69,7 @@ class GraphQLWithContext(GraphQL):
 
 def create_app(
     primary_dataset_name: str,
-    reference_dataset_name: str,
+    reference_dataset_name: Optional[str],
     debug: bool = False,
 ) -> Starlette:
     model = Model(
