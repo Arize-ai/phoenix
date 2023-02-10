@@ -11,4 +11,4 @@ def percent_empty(dataframe: DataFrame, column_names: List[str]) -> Dict[str, Op
     num_records = dataframe.shape[0]
     if num_records == 0:
         return {col: None for col in column_names}
-    return dict(dataframe[column_names].isnull().sum() / dataframe.shape[0])
+    return dict(dataframe[column_names].isnull().sum() / num_records)
