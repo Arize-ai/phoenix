@@ -5,6 +5,17 @@ type ColoringConfig = {
   defaultColor: string;
 };
 
+const colorByCorrectness: PointColor = (point) => {
+  const {
+    metaData: { predictionLabel, actualLabel },
+  } = point;
+  if (predictionLabel === actualLabel) {
+    return "green";
+  } else {
+    return "red";
+  }
+};
+
 /**
  * A curried function that generates a color function based on the given config.
  * @param {ColoringConfig} config
@@ -12,12 +23,12 @@ type ColoringConfig = {
  */
 export const createColorFn =
   (config: ColoringConfig): PointColor =>
-  (_point) => {
+  (point) => {
     const { coloringStrategy, defaultColor } = config;
     switch (coloringStrategy) {
       case ColoringStrategy.dataset:
         return defaultColor;
       case ColoringStrategy.correctness:
-        return "green";
+        return colorByCorrectness(point);
     }
   };
