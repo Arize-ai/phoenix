@@ -5,6 +5,7 @@ type Cluster {
 
 enum DataQualityMetric {
   cardinality
+  percent_empty
 }
 
 type Dataset {
@@ -21,7 +22,7 @@ type Dimension implements Node {
   name: String!
   type: DimensionType!
   dataType: DimensionDataType!
-  dataQualityMetric(metric: DataQualityMetric!): Int
+  dataQualityMetric(metric: DataQualityMetric!): Float
 }
 
 type DimensionConnection {
