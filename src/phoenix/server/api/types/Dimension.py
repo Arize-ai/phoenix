@@ -25,7 +25,7 @@ class Dimension(Node):
         dimension_name = self.name
         if metric is DataQualityMetric.cardinality:
             return await info.context.loaders.cardinality.load(dimension_name)
-        elif metric is DataQualityMetric.percent_empty:
+        elif metric is DataQualityMetric.percentEmpty:
             return await info.context.loaders.percent_empty.load(dimension_name)
         raise NotImplementedError(f"Metric {metric} is not implemented.")
 
