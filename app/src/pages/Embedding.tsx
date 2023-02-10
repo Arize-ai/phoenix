@@ -128,7 +128,7 @@ export function Embedding() {
 function umapDataEntryToThreeDimensionalPointItem(
   umapData: UMAPPointsEntry
 ): ThreeDimensionalPointItem {
-  const { coordinates } = umapData;
+  const { coordinates, eventMetadata, embeddingMetadata } = umapData;
   if (!coordinates) {
     throw new Error("No coordinates found for UMAP data entry");
   }
@@ -140,7 +140,10 @@ function umapDataEntryToThreeDimensionalPointItem(
 
   return {
     position: [coordinates.x, coordinates.y, coordinates.z],
-    metaData: {},
+    metaData: {
+      ...eventMetadata,
+      ...embeddingMetadata,
+    },
   };
 }
 
