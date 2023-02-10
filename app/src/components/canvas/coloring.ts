@@ -1,4 +1,5 @@
 import { ColoringStrategy, PointColor } from "./types";
+import { ColorSchemes } from "@arizeai/point-cloud";
 
 type ColoringConfig = {
   coloringStrategy: ColoringStrategy;
@@ -10,9 +11,9 @@ const colorByCorrectness: PointColor = (point) => {
     metaData: { predictionLabel, actualLabel },
   } = point;
   if (predictionLabel === actualLabel) {
-    return "green";
+    return ColorSchemes.Discrete2.LightBlueOrange[0];
   } else {
-    return "red";
+    return ColorSchemes.Discrete2.LightBlueOrange[1];
   }
 };
 
