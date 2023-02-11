@@ -6,6 +6,8 @@ import strawberry
 from strawberry.scalars import ID
 from typing_extensions import TypeAlias
 
+from .EmbeddingMetadata import EmbeddingMetadata
+
 EventId: TypeAlias = ID
 ClusterId: TypeAlias = ID
 
@@ -29,14 +31,6 @@ def to_gql_coordinates(vector: npt.NDArray[np.float64]) -> Union[Point2D, Point3
     if vector.shape[0] == 3:
         return Point3D(x=vector[0], y=vector[1], z=vector[2])
     raise ValueError("invalid vector shape for coordinate")
-
-
-@strawberry.type
-class EmbeddingMetadata:
-    """Embedding specific metadata. E.g. the raw text and image source"""
-
-    raw_data: Optional[str]
-    link_to_data: Optional[str]
 
 
 @strawberry.type

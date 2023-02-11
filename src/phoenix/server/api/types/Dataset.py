@@ -1,8 +1,12 @@
 from datetime import datetime
+from typing import List
 
 import strawberry
+from strawberry.scalars import ID
 
 from phoenix.datasets import Dataset as InternalDataset
+
+from .ModelEvent import ModelEvent
 
 
 @strawberry.type
@@ -10,6 +14,11 @@ class Dataset:
     name: str
     start_time: datetime
     end_time: datetime
+
+    @strawberry.field
+    def events(self, event_ids: List[ID]) -> List[ModelEvent]:
+        # TODO implement
+        raise NotImplementedError("To be implemented")
 
 
 def to_gql_dataset(dataset: InternalDataset) -> Dataset:

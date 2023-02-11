@@ -20,10 +20,10 @@ from phoenix.server.api.context import Context
 from phoenix.server.api.input_types.TimeRange import TimeRange
 
 from .DriftMetric import DriftMetric
+from .EmbeddingMetadata import EmbeddingMetadata
 from .node import Node
 from .UMAPPoints import (
     Cluster,
-    EmbeddingMetadata,
     EventMetadata,
     UMAPPoint,
     UMAPPoints,
