@@ -1,12 +1,13 @@
 from datetime import datetime
-from typing import List
+from typing import List, Optional
 
 import strawberry
 from strawberry.scalars import ID
 
 from phoenix.datasets import Dataset as InternalDataset
+from phoenix.server.api.input_types.DimensionInput import DimensionInput
 
-from .ModelEvent import ModelEvent
+from .Event import Event
 
 
 @strawberry.type
@@ -16,7 +17,11 @@ class Dataset:
     end_time: datetime
 
     @strawberry.field
-    def events(self, event_ids: List[ID]) -> List[ModelEvent]:
+    def events(
+        self,
+        event_ids: List[ID],
+        dimensions: Optional[List[DimensionInput]],
+    ) -> List[Event]:
         # TODO implement
         raise NotImplementedError("To be implemented")
 
