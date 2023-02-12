@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<b25c66657066f41a39d2e29c5906a7a3>>
+ * @generated SignedSource<<651a9f1821b5d0f2d5364b854bb8a2f9>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -145,6 +145,19 @@ return {
                         "kind": "ScalarField",
                         "name": "dataQualityMetric",
                         "storageKey": "dataQualityMetric(metric:\"cardinality\")"
+                      },
+                      {
+                        "alias": "percentEmpty",
+                        "args": [
+                          {
+                            "kind": "Literal",
+                            "name": "metric",
+                            "value": "percentEmpty"
+                          }
+                        ],
+                        "kind": "ScalarField",
+                        "name": "dataQualityMetric",
+                        "storageKey": "dataQualityMetric(metric:\"percentEmpty\")"
                       }
                     ],
                     "storageKey": null
@@ -220,16 +233,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "bd6c0e63cb41a76bc1f4730a3ba354ac",
+    "cacheID": "b290a3b0b858198cce8c752125b7e7da",
     "id": null,
     "metadata": {},
     "name": "ModelSchemaTableDimensionsQuery",
     "operationKind": "query",
-    "text": "query ModelSchemaTableDimensionsQuery(\n  $count: Int = 50\n  $cursor: String = null\n) {\n  ...ModelSchemaTable_dimensions_1G22uz\n}\n\nfragment ModelSchemaTable_dimensions_1G22uz on Query {\n  model {\n    dimensions(first: $count, after: $cursor) {\n      edges {\n        dimension: node {\n          name\n          type\n          dataType\n          cardinality: dataQualityMetric(metric: cardinality)\n        }\n        cursor\n        node {\n          __typename\n        }\n      }\n      pageInfo {\n        endCursor\n        hasNextPage\n      }\n    }\n  }\n}\n"
+    "text": "query ModelSchemaTableDimensionsQuery(\n  $count: Int = 50\n  $cursor: String = null\n) {\n  ...ModelSchemaTable_dimensions_1G22uz\n}\n\nfragment ModelSchemaTable_dimensions_1G22uz on Query {\n  model {\n    dimensions(first: $count, after: $cursor) {\n      edges {\n        dimension: node {\n          name\n          type\n          dataType\n          cardinality: dataQualityMetric(metric: cardinality)\n          percentEmpty: dataQualityMetric(metric: percentEmpty)\n        }\n        cursor\n        node {\n          __typename\n        }\n      }\n      pageInfo {\n        endCursor\n        hasNextPage\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "63ecf92afab2591e725e36d78618d7bf";
+(node as any).hash = "8adfc820d01526b9bc2e9dc3212a8049";
 
 export default node;
