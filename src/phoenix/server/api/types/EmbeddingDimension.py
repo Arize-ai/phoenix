@@ -64,6 +64,41 @@ class EmbeddingDimension(Node):
     name: str
 
     @strawberry.field
+    def drift_metric(
+        self, metric: DriftMetric, time_range: TimeRange, info: Info[Context, None]
+    ) -> Optional[float]:
+        """
+        Computes a drift metric between all reference data and the primary data
+        belonging to the input time range (inclusive of the time range start and
+        exclusive of the time range end). Returns None if no reference dataset
+        exists, if no primary data exists in the input time range, or if the
+        input time range is invalid.
+        """
+        model = info.context.model
+        primary_dataset = model.primary_dataset
+        reference_dataset = model.reference_dataset
+        if reference_dataset is None or not time_range.is_valid():
+            return None
+        embedding_feature_name = self.name
+        reference_embeddings_column = reference_dataset.get_embedding_vector_column(
+            embedding_feature_name
+        )
+        reference_embeddings = _to_array(reference_embeddings_column)
+        primary_embeddings = _get_embeddings_array_for_time_range(
+            dataset=primary_dataset,
+            embedding_feature_name=embedding_feature_name,
+            start=time_range.start,
+            end=time_range.end,
+        )
+        if primary_embeddings is None:
+            return None
+        primary_centroid = _compute_mean_vector(primary_embeddings)
+        reference_centroid = _compute_mean_vector(reference_embeddings)
+        if metric is DriftMetric.euclideanDistance:
+            return euclidean_distance(primary_centroid, reference_centroid)
+        raise NotImplementedError(f'Metric "{metric}" has not been implemented.')
+
+    @strawberry.field
     def drift_time_series(
         self,
         metric: DriftMetric,
@@ -75,6 +110,17 @@ class EmbeddingDimension(Node):
         ],
         info: Info[Context, None],
     ) -> Optional[DriftTimeSeries]:
+        """
+        Computes a drift time-series between the primary and reference datasets.
+        The output drift time-series contains one data point for each whole hour
+        in the input time range (inclusive of the time range start and exclusive
+        of the time range end). Each data point contains the drift metric value
+        between all reference data and the primary data within the evaluation
+        window ending at the corresponding time.
+
+        Returns None if no reference dataset exists or if the input time range
+        is invalid.
+        """
         model = info.context.model
         primary_dataset = model.primary_dataset
         reference_dataset = model.reference_dataset
@@ -253,34 +299,6 @@ class EmbeddingDimension(Node):
             reference_data=points[DatasetType.REFERENCE],
             clusters=to_gql_clusters(clusters),
         )
-
-    @strawberry.field
-    def drift_metric(
-        self, metric: DriftMetric, time_range: TimeRange, info: Info[Context, None]
-    ) -> Optional[float]:
-        model = info.context.model
-        primary_dataset = model.primary_dataset
-        reference_dataset = model.reference_dataset
-        if reference_dataset is None or not time_range.is_valid():
-            return None
-        embedding_feature_name = self.name
-        reference_embeddings_column = reference_dataset.get_embedding_vector_column(
-            embedding_feature_name
-        )
-        reference_embeddings = _to_array(reference_embeddings_column)
-        primary_embeddings = _get_embeddings_array_for_time_range(
-            dataset=primary_dataset,
-            embedding_feature_name=embedding_feature_name,
-            start=time_range.start,
-            end=time_range.end,
-        )
-        if primary_embeddings is None:
-            return None
-        primary_centroid = _compute_mean_vector(primary_embeddings)
-        reference_centroid = _compute_mean_vector(reference_embeddings)
-        if metric is DriftMetric.euclideanDistance:
-            return euclidean_distance(primary_centroid, reference_centroid)
-        raise NotImplementedError(f'Metric "{metric}" has not been implemented.')
 
 
 def to_gql_embedding_dimension(
