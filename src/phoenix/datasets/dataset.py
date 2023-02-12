@@ -163,7 +163,7 @@ class Dataset:
     def get_timestamp_column(self) -> "Series[Any]":
         timestamp_column_name = self.schema.timestamp_column_name
         if timestamp_column_name is None:
-            raise Exception("Missing timestamp column.")
+            raise err.SchemaError(err.MissingTimestampColumnName())
         return self.dataframe[timestamp_column_name]
 
     # TODO(mikeldking): add strong vector type

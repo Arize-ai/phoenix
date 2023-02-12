@@ -70,7 +70,7 @@ class EmbeddingDimension(Node):
         time_range: Annotated[
             TimeRange,
             strawberry.argument(
-                description="The time range of the primary dataset to generate the UMAP points for",
+                description="The time range of the primary dataset",
             ),
         ],
         info: Info[Context, None],
@@ -85,9 +85,9 @@ class EmbeddingDimension(Node):
             embedding_feature_name
         )
         reference_embeddings = _to_array(reference_embeddings_column)
+        reference_centroid = _compute_mean_vector(reference_embeddings)
         time_series_data_points = []
         if metric is DriftMetric.euclideanDistance:
-            reference_centroid = _compute_mean_vector(reference_embeddings)
             eval_window_end = _round_timestamp_to_next_hour(time_range.start)
             while eval_window_end < time_range.end:
                 eval_window_start = (
@@ -114,7 +114,7 @@ class EmbeddingDimension(Node):
                 )
                 eval_window_end += EVAL_INTERVAL_LENGTH
             return DriftTimeSeries(data=time_series_data_points)
-        raise NotImplementedError("")
+        raise NotImplementedError(f'Metric "{metric}" has not been implemented.')
 
     @strawberry.field
     def UMAPPoints(
@@ -296,9 +296,23 @@ def to_gql_embedding_dimension(
     )
 
 
+def _compute_mean_vector(embeddings: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
+    """
+    Computes mean vector for an embeddings array. If the embeddings array has
+    dimensions num_records x num_embedding_dimensions, the output mean vector is
+    a one-dimensional array of length num_embedding_dimensions.
+    """
+    return embeddings.mean(axis=0)  # type: ignore
+
+
 def _get_embeddings_array_for_time_range(
     dataset: Dataset, embedding_feature_name: str, start: datetime, end: datetime
 ) -> Optional[npt.NDArray[np.float64]]:
+    """
+    Returns the embeddings belonging to a particular dataset and time range as
+    an array, or returns None if no embeddings from the dataset belong to the
+    desired time range.
+    """
     embeddings_column = dataset.get_embedding_vector_column(embedding_feature_name)
     timestamp_column = dataset.get_timestamp_column()
     dataframe = DataFrame({"embeddings": embeddings_column, "timestamp": timestamp_column})
@@ -310,14 +324,6 @@ def _get_embeddings_array_for_time_range(
     return _to_array(embeddings_column)
 
 
-def _to_array(embeddings_column: "Series[Any]") -> npt.NDArray[np.float64]:
-    """
-    Converts embeddings column to numpy array. If the embeddings column contains
-    N embeddings, each of dimension M, the output array has dimensions N x M.
-    """
-    return np.stack(embeddings_column.to_numpy())  # type: ignore
-
-
 def _round_timestamp_to_next_hour(timestamp: datetime) -> datetime:
     """
     Rounds input datetime to the next whole hour. If the input datetime is a
@@ -326,18 +332,18 @@ def _round_timestamp_to_next_hour(timestamp: datetime) -> datetime:
     return to_datetime(timestamp).ceil("H").to_pydatetime()
 
 
-def _compute_mean_vector(embeddings: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
-    """
-    Computes mean vector for an embeddings array. If the embeddings array has
-    dimensions num_records x num_embedding_dimensions, the output mean vector is
-    a one-dimensional array of length num_embedding_dimensions.
-    """
-    return embeddings.mean(axis=0)  # type: ignore
-
-
 def _time_range_query(timestamp_column_name: str, start: datetime, end: datetime) -> str:
     """
     Returns a string used to query a dataframe for rows belonging to a
-    particular timeframe.
+    particular time range.
     """
     return f'"{start}" <= `{timestamp_column_name}` < "{end}"'
+
+
+def _to_array(embeddings_column: "Series[Any]") -> npt.NDArray[np.float64]:
+    """
+    Converts an embeddings column to a numpy array. If the embeddings column
+    contains N embeddings, each of dimension M, the output array has dimensions
+    N x M.
+    """
+    return np.stack(embeddings_column.to_numpy())  # type: ignore

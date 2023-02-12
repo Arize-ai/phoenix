@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 from typing import Callable, Optional
 
 import numpy as np
+import pytest
 from numpy.testing import assert_almost_equal
 from pandas import DataFrame
 from strawberry.types.info import Info
@@ -56,7 +57,28 @@ class TestDriftMetricTimeSeries:
         )
         assert drift_time_series is None
 
-    def test_invalid_time_range_returns_none(self, info_mock_factory: InfoMockFactory) -> None:
+    @pytest.mark.parametrize(
+        "query_time_range",
+        [
+            pytest.param(
+                TimeRange(
+                    start=datetime(year=2000, month=1, day=2),
+                    end=datetime(year=2000, month=1, day=2),
+                ),
+                id="time_range_start_equals_time_range_end",
+            ),
+            pytest.param(
+                TimeRange(
+                    start=datetime(year=2000, month=1, day=2),
+                    end=datetime(year=2000, month=1, day=1),
+                ),
+                id="time_range_start_later_than_time_range_end",
+            ),
+        ],
+    )
+    def test_invalid_time_range_returns_none(
+        self, query_time_range: TimeRange, info_mock_factory: InfoMockFactory
+    ) -> None:
         primary_dataframe = DataFrame(
             {
                 "embedding_vector": [
@@ -95,9 +117,7 @@ class TestDriftMetricTimeSeries:
         )
         distance = EmbeddingDimension(name="embedding_feature", id_attr=0).drift_time_series(
             metric=DriftMetric.euclideanDistance,
-            time_range=TimeRange(
-                start=datetime(year=2000, month=1, day=2), end=datetime(year=2000, month=1, day=2)
-            ),
+            time_range=query_time_range,
             info=info_mock_factory(primary_dataset, reference_dataset),
         )
         assert distance is None
@@ -294,7 +314,28 @@ class TestDriftMetric:
         )
         assert distance is None
 
-    def test_invalid_time_range_returns_none(self, info_mock_factory: InfoMockFactory) -> None:
+    @pytest.mark.parametrize(
+        "query_time_range",
+        [
+            pytest.param(
+                TimeRange(
+                    start=datetime(year=2000, month=1, day=2),
+                    end=datetime(year=2000, month=1, day=2),
+                ),
+                id="time_range_start_equals_time_range_end",
+            ),
+            pytest.param(
+                TimeRange(
+                    start=datetime(year=2000, month=1, day=2),
+                    end=datetime(year=2000, month=1, day=1),
+                ),
+                id="time_range_start_later_than_time_range_end",
+            ),
+        ],
+    )
+    def test_invalid_time_range_returns_none(
+        self, query_time_range: TimeRange, info_mock_factory: InfoMockFactory
+    ) -> None:
         primary_dataframe = DataFrame(
             {
                 "embedding_vector": [
@@ -333,9 +374,7 @@ class TestDriftMetric:
         )
         distance = EmbeddingDimension(name="embedding_feature", id_attr=0).drift_metric(
             metric=DriftMetric.euclideanDistance,
-            time_range=TimeRange(
-                start=datetime(year=2000, month=1, day=2), end=datetime(year=2000, month=1, day=1)
-            ),
+            time_range=query_time_range,
             info=info_mock_factory(primary_dataset, reference_dataset),
         )
         assert distance is None
@@ -406,3 +445,58 @@ class TestDriftMetric:
             ),
         )
         assert_almost_equal(actual=distance, desired=5.0)
+
+    def test_no_primary_embeddings_in_time_range_returns_none(
+        self, info_mock_factory: InfoMockFactory
+    ) -> None:
+        primary_dataframe = DataFrame(
+            {
+                "embedding_vector": [
+                    np.array([3.0, 4.0]),
+                    np.array([4.0, 5.0]),
+                    np.array([2.0, 3.0]),
+                ],
+                "timestamp": [
+                    datetime(year=2000, month=1, day=1),
+                    datetime(year=2000, month=1, day=2),
+                    datetime(year=2000, month=1, day=3),
+                ],
+            }
+        )
+        # reference embeddings with mean vector at (0, 0)
+        reference_dataframe = DataFrame(
+            {
+                "embedding_vector": [
+                    np.array([0.0, 0.0]),
+                    np.array([1.0, 1.0]),
+                    np.array([-1.0, -1.0]),
+                ],
+                "timestamp": [
+                    datetime(year=1999, month=1, day=1, hour=1, minute=0),
+                    datetime(year=1999, month=1, day=1, hour=1, minute=1),
+                    datetime(year=1999, month=1, day=1, hour=1, minute=3),
+                ],
+            }
+        )
+        schema = Schema(
+            timestamp_column_name="timestamp",
+            embedding_feature_column_names={
+                "embedding_feature": EmbeddingColumnNames(vector_column_name="embedding_vector")
+            },
+        )
+        primary_dataset = Dataset(dataframe=primary_dataframe, schema=schema, persist_to_disc=False)
+        reference_dataset = Dataset(
+            dataframe=reference_dataframe, schema=schema, persist_to_disc=False
+        )
+        distance = EmbeddingDimension(name="embedding_feature", id_attr=0).drift_metric(
+            metric=DriftMetric.euclideanDistance,
+            time_range=TimeRange(
+                start=datetime(year=2000, month=1, day=4),
+                end=datetime(year=2000, month=1, day=10),
+            ),
+            info=info_mock_factory(
+                primary_dataset,
+                reference_dataset,
+            ),
+        )
+        assert distance is None
