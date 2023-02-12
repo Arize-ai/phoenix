@@ -1,4 +1,5 @@
 from collections import defaultdict
+from datetime import datetime
 from itertools import chain, repeat, starmap
 from typing import List, Mapping, Optional
 
@@ -20,7 +21,9 @@ from phoenix.server.api.context import Context
 from phoenix.server.api.input_types.TimeRange import TimeRange
 
 from .DriftMetric import DriftMetric
+from .DriftTimeSeries import DriftTimeSeries
 from .node import Node
+from .TimeSeries import TimeSeriesDataPoint
 from .UMAPPoints import (
     Cluster,
     EmbeddingMetadata,
@@ -52,6 +55,30 @@ class EmbeddingDimension(Node):
     """A embedding dimension of a model. Represents unstructured data"""
 
     name: str
+
+    @strawberry.field
+    def drift_time_series(
+        self,
+        info: Info[Context, None],
+        time_range: Annotated[
+            TimeRange,
+            strawberry.argument(
+                description="The time range of the primary dataset",
+            ),
+        ],
+    ) -> DriftTimeSeries:
+        return DriftTimeSeries(
+            data=[
+                TimeSeriesDataPoint(
+                    timestamp=datetime.now(),
+                    value=1,
+                ),
+                TimeSeriesDataPoint(
+                    timestamp=datetime.now(),
+                    value=2,
+                ),
+            ],
+        )
 
     @strawberry.field
     def UMAPPoints(

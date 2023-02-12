@@ -51,9 +51,17 @@ enum DriftMetric {
   euclideanDistance
 }
 
+type DriftTimeSeries implements TimeSeries {
+  data: [TimeSeriesDataPoint!]!
+}
+
 type EmbeddingDimension implements Node {
   id: GlobalID!
   name: String!
+  driftTimeSeries(
+    """The time range of the primary dataset"""
+    timeRange: TimeRange!
+  ): DriftTimeSeries!
   UMAPPoints(
     """The time range of the primary dataset to generate the UMAP points for"""
     timeRange: TimeRange!
@@ -140,6 +148,15 @@ type Query {
 input TimeRange {
   start: DateTime!
   end: DateTime!
+}
+
+interface TimeSeries {
+  data: [TimeSeriesDataPoint!]!
+}
+
+type TimeSeriesDataPoint {
+  timestamp: DateTime!
+  value: Float
 }
 
 type UMAPPoint {
