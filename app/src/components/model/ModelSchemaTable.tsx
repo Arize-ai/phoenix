@@ -26,6 +26,7 @@ export function ModelSchemaTable(props: ModelSchemaTableProps) {
                 type
                 dataType
                 cardinality: dataQualityMetric(metric: cardinality)
+                percentEmpty: dataQualityMetric(metric: percentEmpty)
               }
             }
           }
@@ -63,6 +64,10 @@ export function ModelSchemaTable(props: ModelSchemaTableProps) {
       {
         Header: "Cardinality",
         accessor: "cardinality",
+      },
+      {
+        Header: "Percent Empty",
+        accessor: "percentEmpty",
       },
     ];
     return cols;

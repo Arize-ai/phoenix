@@ -34,6 +34,34 @@ const EmbeddingUMAPQuery = graphql`
                 y
                 z
               }
+              ... on Point2D {
+                x
+                y
+              }
+            }
+            embeddingMetadata {
+              linkToData
+              rawData
+            }
+            eventMetadata {
+              predictionLabel
+              actualLabel
+              predictionScore
+              actualScore
+            }
+          }
+          referenceData {
+            coordinates {
+              __typename
+              ... on Point3D {
+                x
+                y
+                z
+              }
+              ... on Point2D {
+                x
+                y
+              }
             }
             embeddingMetadata {
               linkToData
@@ -55,6 +83,7 @@ const EmbeddingUMAPQuery = graphql`
     }
   }
 `;
+
 export function Embedding() {
   const embeddingDimensionId = useEmbeddingDimensionId();
   const [queryReference, loadQuery] =
@@ -99,7 +128,7 @@ export function Embedding() {
 function umapDataEntryToThreeDimensionalPointItem(
   umapData: UMAPPointsEntry
 ): ThreeDimensionalPointItem {
-  const { coordinates } = umapData;
+  const { coordinates, eventMetadata, embeddingMetadata } = umapData;
   if (!coordinates) {
     throw new Error("No coordinates found for UMAP data entry");
   }
@@ -111,9 +140,13 @@ function umapDataEntryToThreeDimensionalPointItem(
 
   return {
     position: [coordinates.x, coordinates.y, coordinates.z],
-    metaData: {},
+    metaData: {
+      ...eventMetadata,
+      ...embeddingMetadata,
+    },
   };
 }
+
 /**
  * Fetches the umap data for the embedding dimension and passes the data to the point cloud
  */
@@ -127,12 +160,21 @@ const PointCloudDisplay = ({
     queryReference
   );
 
-  const primaryData =
-    data.embedding?.UMAPPoints?.data?.map(
-      umapDataEntryToThreeDimensionalPointItem
-    ) ?? [];
+  const sourceData = data.embedding?.UMAPPoints?.data ?? [];
+  const referenceSourceData = data.embedding?.UMAPPoints?.referenceData;
 
-  return <PointCloud primaryData={primaryData} referenceData={[]} />;
+  return (
+    <PointCloud
+      primaryData={
+        sourceData.map(umapDataEntryToThreeDimensionalPointItem) ?? []
+      }
+      referenceData={
+        referenceSourceData
+          ? referenceSourceData.map(umapDataEntryToThreeDimensionalPointItem)
+          : null
+      }
+    />
+  );
 };
 
 export async function embeddingLoader(args: LoaderFunctionArgs) {

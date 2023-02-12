@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<802b773fafd62d25ba7fe368c0f7b299>>
+ * @generated SignedSource<<872ae35d7c0e3b32b7782657f7614a42>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -26,6 +26,36 @@ export type EmbeddingUMAPQuery$data = {
       }>;
       readonly data: ReadonlyArray<{
         readonly coordinates: {
+          readonly __typename: "Point2D";
+          readonly x: number;
+          readonly y: number;
+        } | {
+          readonly __typename: "Point3D";
+          readonly x: number;
+          readonly y: number;
+          readonly z: number;
+        } | {
+          // This will never be '%other', but we need some
+          // value in case none of the concrete values match.
+          readonly __typename: "%other";
+        };
+        readonly embeddingMetadata: {
+          readonly linkToData: string | null;
+          readonly rawData: string | null;
+        };
+        readonly eventMetadata: {
+          readonly actualLabel: string | null;
+          readonly actualScore: number | null;
+          readonly predictionLabel: string | null;
+          readonly predictionScore: number | null;
+        };
+      }>;
+      readonly referenceData: ReadonlyArray<{
+        readonly coordinates: {
+          readonly __typename: "Point2D";
+          readonly x: number;
+          readonly y: number;
+        } | {
           readonly __typename: "Point3D";
           readonly x: number;
           readonly y: number;
@@ -91,6 +121,20 @@ v3 = {
 v4 = {
   "alias": null,
   "args": null,
+  "kind": "ScalarField",
+  "name": "x",
+  "storageKey": null
+},
+v5 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "y",
+  "storageKey": null
+},
+v6 = {
+  "alias": null,
+  "args": null,
   "concreteType": null,
   "kind": "LinkedField",
   "name": "coordinates",
@@ -100,20 +144,8 @@ v4 = {
     {
       "kind": "InlineFragment",
       "selections": [
-        {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
-          "name": "x",
-          "storageKey": null
-        },
-        {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
-          "name": "y",
-          "storageKey": null
-        },
+        (v4/*: any*/),
+        (v5/*: any*/),
         {
           "alias": null,
           "args": null,
@@ -124,11 +156,20 @@ v4 = {
       ],
       "type": "Point3D",
       "abstractKey": null
+    },
+    {
+      "kind": "InlineFragment",
+      "selections": [
+        (v4/*: any*/),
+        (v5/*: any*/)
+      ],
+      "type": "Point2D",
+      "abstractKey": null
     }
   ],
   "storageKey": null
 },
-v5 = {
+v7 = {
   "alias": null,
   "args": null,
   "concreteType": "EmbeddingMetadata",
@@ -153,7 +194,7 @@ v5 = {
   ],
   "storageKey": null
 },
-v6 = {
+v8 = {
   "alias": null,
   "args": null,
   "concreteType": "EventMetadata",
@@ -192,14 +233,19 @@ v6 = {
   ],
   "storageKey": null
 },
-v7 = {
+v9 = [
+  (v6/*: any*/),
+  (v7/*: any*/),
+  (v8/*: any*/)
+],
+v10 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "id",
   "storageKey": null
 },
-v8 = {
+v11 = {
   "alias": null,
   "args": null,
   "concreteType": "Cluster",
@@ -207,7 +253,7 @@ v8 = {
   "name": "clusters",
   "plural": true,
   "selections": [
-    (v7/*: any*/),
+    (v10/*: any*/),
     {
       "alias": null,
       "args": null,
@@ -217,7 +263,13 @@ v8 = {
     }
   ],
   "storageKey": null
-};
+},
+v12 = [
+  (v6/*: any*/),
+  (v7/*: any*/),
+  (v8/*: any*/),
+  (v10/*: any*/)
+];
 return {
   "fragment": {
     "argumentDefinitions": (v0/*: any*/),
@@ -251,14 +303,20 @@ return {
                     "kind": "LinkedField",
                     "name": "data",
                     "plural": true,
-                    "selections": [
-                      (v4/*: any*/),
-                      (v5/*: any*/),
-                      (v6/*: any*/)
-                    ],
+                    "selections": (v9/*: any*/),
                     "storageKey": null
                   },
-                  (v8/*: any*/)
+                  {
+                    "alias": null,
+                    "args": null,
+                    "concreteType": "UMAPPoint",
+                    "kind": "LinkedField",
+                    "name": "referenceData",
+                    "plural": true,
+                    "selections": (v9/*: any*/),
+                    "storageKey": null
+                  },
+                  (v11/*: any*/)
                 ],
                 "storageKey": null
               }
@@ -306,15 +364,20 @@ return {
                     "kind": "LinkedField",
                     "name": "data",
                     "plural": true,
-                    "selections": [
-                      (v4/*: any*/),
-                      (v5/*: any*/),
-                      (v6/*: any*/),
-                      (v7/*: any*/)
-                    ],
+                    "selections": (v12/*: any*/),
                     "storageKey": null
                   },
-                  (v8/*: any*/)
+                  {
+                    "alias": null,
+                    "args": null,
+                    "concreteType": "UMAPPoint",
+                    "kind": "LinkedField",
+                    "name": "referenceData",
+                    "plural": true,
+                    "selections": (v12/*: any*/),
+                    "storageKey": null
+                  },
+                  (v11/*: any*/)
                 ],
                 "storageKey": null
               }
@@ -326,23 +389,23 @@ return {
             "kind": "TypeDiscriminator",
             "abstractKey": "__isNode"
           },
-          (v7/*: any*/)
+          (v10/*: any*/)
         ],
         "storageKey": null
       }
     ]
   },
   "params": {
-    "cacheID": "b55c61f5395270230ee21b6d270f7ea5",
+    "cacheID": "01483fd42cd9c8074f0f1904871c19b5",
     "id": null,
     "metadata": {},
     "name": "EmbeddingUMAPQuery",
     "operationKind": "query",
-    "text": "query EmbeddingUMAPQuery(\n  $id: GlobalID!\n  $timeRange: TimeRange!\n) {\n  embedding: node(id: $id) {\n    __typename\n    ... on EmbeddingDimension {\n      UMAPPoints(timeRange: $timeRange) {\n        data {\n          coordinates {\n            __typename\n            ... on Point3D {\n              x\n              y\n              z\n            }\n          }\n          embeddingMetadata {\n            linkToData\n            rawData\n          }\n          eventMetadata {\n            predictionLabel\n            actualLabel\n            predictionScore\n            actualScore\n          }\n          id\n        }\n        clusters {\n          id\n          pointIds\n        }\n      }\n    }\n    __isNode: __typename\n    id\n  }\n}\n"
+    "text": "query EmbeddingUMAPQuery(\n  $id: GlobalID!\n  $timeRange: TimeRange!\n) {\n  embedding: node(id: $id) {\n    __typename\n    ... on EmbeddingDimension {\n      UMAPPoints(timeRange: $timeRange) {\n        data {\n          coordinates {\n            __typename\n            ... on Point3D {\n              x\n              y\n              z\n            }\n            ... on Point2D {\n              x\n              y\n            }\n          }\n          embeddingMetadata {\n            linkToData\n            rawData\n          }\n          eventMetadata {\n            predictionLabel\n            actualLabel\n            predictionScore\n            actualScore\n          }\n          id\n        }\n        referenceData {\n          coordinates {\n            __typename\n            ... on Point3D {\n              x\n              y\n              z\n            }\n            ... on Point2D {\n              x\n              y\n            }\n          }\n          embeddingMetadata {\n            linkToData\n            rawData\n          }\n          eventMetadata {\n            predictionLabel\n            actualLabel\n            predictionScore\n            actualScore\n          }\n          id\n        }\n        clusters {\n          id\n          pointIds\n        }\n      }\n    }\n    __isNode: __typename\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "5570eb0dc63ef2fdb5f36a1099faf424";
+(node as any).hash = "f807ff579322f11dc73d2131be4b9091";
 
 export default node;

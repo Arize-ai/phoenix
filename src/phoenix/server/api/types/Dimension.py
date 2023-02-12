@@ -21,9 +21,12 @@ class Dimension(Node):
     @strawberry.field
     async def dataQualityMetric(
         self, metric: DataQualityMetric, info: Info[Context, None]
-    ) -> Optional[int]:
+    ) -> Optional[float]:
+        dimension_name = self.name
         if metric is DataQualityMetric.cardinality:
-            return await info.context.loaders.cardinality.load(self.name)
+            return await info.context.loaders.cardinality.load(dimension_name)
+        elif metric is DataQualityMetric.percentEmpty:
+            return await info.context.loaders.percent_empty.load(dimension_name)
         raise NotImplementedError(f"Metric {metric} is not implemented.")
 
 
