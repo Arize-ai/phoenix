@@ -7,4 +7,4 @@ from .TimeSeries import TimeSeries
 class DriftTimeSeries(TimeSeries):
     """A time series of drift metrics"""
 
-    pass
+    ...

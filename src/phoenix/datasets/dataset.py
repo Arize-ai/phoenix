@@ -9,7 +9,7 @@ from enum import Enum
 from functools import cached_property
 from typing import Any, Dict, List, Optional, Set, Tuple, Union, cast
 
-from pandas import DataFrame, Index, Series, Timestamp, read_parquet, to_datetime
+from pandas import DataFrame, Series, Timestamp, read_parquet, to_datetime
 from pandas.api.types import is_numeric_dtype
 
 from phoenix.config import dataset_dir
@@ -142,7 +142,7 @@ class Dataset:
             raise err.SchemaError(err.MissingField("actual_label_column_name"))
         return self.dataframe[self.schema.actual_label_column_name]
 
-    def get_actual_score_column(self) -> "Union[Series[int], Series[float], Series[str]]":
+    def get_actual_score_column(self) -> "Union[Series[float]]":
         if self.schema.actual_score_column_name is None:
             raise err.SchemaError(err.MissingField("actual_score_column_name"))
         return self.dataframe[self.schema.actual_score_column_name]
@@ -160,16 +160,19 @@ class Dataset:
             raise err.SchemaError(err.MissingEmbeddingFeatureColumnNames(embedding_feature_name))
         return embedding_feature_column_names[embedding_feature_name]
 
-    def get_embedding_vector_column_name(self, embedding_feature_name: str) -> str:
+    def get_timestamp_column(self) -> "Series[Any]":
+        timestamp_column_name = self.schema.timestamp_column_name
+        if timestamp_column_name is None:
+            raise Exception("Missing timestamp column.")
+        return self.dataframe[timestamp_column_name]
+
+    # TODO(mikeldking): add strong vector type
+    def get_embedding_vector_column(self, embedding_feature_name: str) -> "Series[Any]":
         column_names = self._get_embedding_feature_column_names(embedding_feature_name)
         if column_names.vector_column_name is None:
             raise err.SchemaError(
                 err.MissingEmbeddingFeatureVectorColumnName(embedding_feature_name)
             )
-        return column_names.vector_column_name
-
-    # TODO(mikeldking): add strong vector type
-    def get_embedding_vector_column(self, embedding_feature_name: str) -> "Series[Any]":
         vector_column = self.dataframe[column_names.vector_column_name]
         return vector_column
 
@@ -188,13 +191,6 @@ class Dataset:
                 err.MissingEmbeddingFeatureLinkToDataColumnName(embedding_feature_name)
             )
         return self.dataframe[column_names.link_to_data_column_name]
-
-    def get_dataframe_view(
-        self,
-        column_names: List[str],
-        embedding_feature_names: List[str],
-    ) -> DataFrame:
-        return
 
     @classmethod
     def from_dataframe(
