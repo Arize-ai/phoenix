@@ -444,7 +444,7 @@ def _create_and_normalize_dataframe_and_schema(
         now = Timestamp.utcnow()
         parsed_schema = replace(parsed_schema, timestamp_column_name="timestamp")
         parsed_dataframe["timestamp"] = now
-    elif is_numeric_dtype(dataframe.dtypes[ts_col_name]):
+    elif dataframe[ts_col_name].dtype.kind == 'iuf':
         parsed_dataframe[ts_col_name] = parsed_dataframe[ts_col_name].apply(
             lambda x: to_datetime(x, unit="ms")
         )
@@ -453,7 +453,7 @@ def _create_and_normalize_dataframe_and_schema(
     if pred_col_name is None:
         parsed_schema = replace(parsed_schema, prediction_id_column_name="prediction_id")
         parsed_dataframe["prediction_id"] = parsed_dataframe.apply(lambda _: str(uuid.uuid4()))
-    elif is_numeric_dtype(parsed_dataframe.dtypes[pred_col_name]):
+    elif parsed_dataframe[pred_col_name].dtype.kind == 'iuf':
         parsed_dataframe[pred_col_name] = parsed_dataframe[pred_col_name].astype(str)
 
     return parsed_dataframe, parsed_schema
