@@ -61,8 +61,8 @@ def _check_valid_embedding_data(dataframe: DataFrame, schema: Schema) -> List[er
         # Fail if vector is not of supported iterable type
         if not any(isinstance(current_vector, t) for t in (list, np.ndarray, Series)):
             embedding_errors.append(
-                f'Embedding feature "{embedding_name}" has vector type {type(current_vector)}. Must be list, '
-                f"np.ndarray or pd.Series"
+                f"Embedding feature {embedding_name} has vector type {type(current_vector)}. "
+                f"Must be list, np.ndarray or pd.Series"
             )
             continue
 
@@ -90,6 +90,7 @@ def _check_valid_embedding_data(dataframe: DataFrame, schema: Schema) -> List[er
                 )
 
     if len(embedding_errors) > 0:
+        # replace error type with appropriate one
         return [err.InvalidSchemaError(embedding_errors)]
     return []
 
