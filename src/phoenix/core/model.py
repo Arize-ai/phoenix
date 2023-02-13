@@ -1,10 +1,10 @@
 from typing import Dict, List, Optional, cast
 
+import numpy.typing as npt
 from pandas.api.types import is_numeric_dtype, is_object_dtype
 
 from phoenix.datasets import Dataset
 from phoenix.datasets.schema import EmbeddingFeatures
-import numpy.typing as npt
 
 from .dimension import Dimension
 from .dimension_data_type import DimensionDataType
@@ -104,7 +104,9 @@ class Model:
 
     def _infer_dimension_data_type(self, dimension_name: str) -> DimensionDataType:
         # TODO: verify corresponding dimension of reference dataset has same type
-        dimension_pandas_dtype = cast(npt.DTypeLike, self.primary_dataset.dataframe[dimension_name].dtype)
+        dimension_pandas_dtype = cast(
+            npt.DTypeLike, self.primary_dataset.dataframe[dimension_name].dtype
+        )
         if is_numeric_dtype(dimension_pandas_dtype):
             return DimensionDataType.NUMERIC
         elif is_object_dtype(dimension_pandas_dtype):

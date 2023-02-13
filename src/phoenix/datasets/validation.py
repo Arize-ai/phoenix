@@ -1,9 +1,9 @@
 from typing import List
 
+import numpy as np
 from pandas import DataFrame, Series
 from pandas.api.types import is_datetime64_any_dtype as is_datetime
 from pandas.api.types import is_numeric_dtype, is_string_dtype
-import numpy as np
 
 from . import errors as err
 from .schema import Schema
@@ -98,8 +98,8 @@ def _check_column_types(dataframe: DataFrame, schema: Schema) -> List[err.Valida
     wrong_type_cols: List[str] = []
     if schema.timestamp_column_name is not None:
         if not (
-            dataframe.dtypes[schema.timestamp_column_name].kind == 'iuf'
-            or dataframe.dtypes[schema.timestamp_column_name] == 'datetime64[ns]'
+            is_numeric_dtype(dataframe.dtypes[schema.timestamp_column_name])
+            or is_datetime(dataframe.dtypes[schema.timestamp_column_name])
         ):
             wrong_type_cols.append(
                 f"{schema.timestamp_column_name} should be of timestamp or numeric type"
@@ -107,8 +107,8 @@ def _check_column_types(dataframe: DataFrame, schema: Schema) -> List[err.Valida
 
     if schema.prediction_id_column_name is not None:
         if not (
-            dataframe.dtypes[schema.prediction_id_column_name].kind == 'iuf'
-            or dataframe.dtypes[schema.prediction_id_column_name] == 'string'
+            is_numeric_dtype(dataframe.dtypes[schema.prediction_id_column_name])
+            or is_string_dtype(dataframe.dtypes[schema.prediction_id_column_name])
         ):
             wrong_type_cols.append(
                 f"{schema.prediction_id_column_name} should be a string or numeric type"
