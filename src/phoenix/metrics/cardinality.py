@@ -1,7 +1,3 @@
-"""
-Cardinality metrics
-"""
-
 import concurrent.futures as cf
 from typing import Dict, List, Optional
 

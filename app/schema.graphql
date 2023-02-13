@@ -5,6 +5,7 @@ type Cluster {
 
 enum DataQualityMetric {
   cardinality
+  percentEmpty
 }
 
 type Dataset {
@@ -21,7 +22,7 @@ type Dimension implements Node {
   name: String!
   type: DimensionType!
   dataType: DimensionDataType!
-  dataQualityMetric(metric: DataQualityMetric!): Int
+  dataQualityMetric(metric: DataQualityMetric!): Float
 }
 
 type DimensionConnection {
@@ -50,9 +51,17 @@ enum DriftMetric {
   euclideanDistance
 }
 
+type DriftTimeSeries implements TimeSeries {
+  data: [TimeSeriesDataPoint!]!
+}
+
 type EmbeddingDimension implements Node {
   id: GlobalID!
   name: String!
+  driftTimeSeries(
+    """The time range of the primary dataset"""
+    timeRange: TimeRange!
+  ): DriftTimeSeries!
   UMAPPoints(
     """The time range of the primary dataset to generate the UMAP points for"""
     timeRange: TimeRange!
@@ -139,6 +148,15 @@ type Query {
 input TimeRange {
   start: DateTime!
   end: DateTime!
+}
+
+interface TimeSeries {
+  data: [TimeSeriesDataPoint!]!
+}
+
+type TimeSeriesDataPoint {
+  timestamp: DateTime!
+  value: Float
 }
 
 type UMAPPoint {

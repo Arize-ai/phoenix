@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<20c2ac110971bd92606cd438f1190715>>
+ * @generated SignedSource<<fbe68a99083df7bbf0ba63c9859d18b0>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -20,6 +20,7 @@ export type ModelSchemaTable_dimensions$data = {
           readonly cardinality: number | null;
           readonly dataType: DimensionDataType;
           readonly name: string;
+          readonly percentEmpty: number | null;
           readonly type: DimensionType;
         };
       }>;
@@ -140,6 +141,19 @@ return {
                       "kind": "ScalarField",
                       "name": "dataQualityMetric",
                       "storageKey": "dataQualityMetric(metric:\"cardinality\")"
+                    },
+                    {
+                      "alias": "percentEmpty",
+                      "args": [
+                        {
+                          "kind": "Literal",
+                          "name": "metric",
+                          "value": "percentEmpty"
+                        }
+                      ],
+                      "kind": "ScalarField",
+                      "name": "dataQualityMetric",
+                      "storageKey": "dataQualityMetric(metric:\"percentEmpty\")"
                     }
                   ],
                   "storageKey": null
@@ -209,6 +223,6 @@ return {
 };
 })();
 
-(node as any).hash = "63ecf92afab2591e725e36d78618d7bf";
+(node as any).hash = "8adfc820d01526b9bc2e9dc3212a8049";
 
 export default node;
