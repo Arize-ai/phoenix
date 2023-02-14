@@ -56,38 +56,45 @@ def _check_valid_embedding_data(dataframe: DataFrame, schema: Schema) -> List[er
     embedding_errors: List[str] = []
     for embedding_name, column_names in embedding_col_names.items():
         vector_length = None
-        current_vector = dataframe[column_names.vector_column_name]
+        vector_column = dataframe[column_names.vector_column_name]
 
-        # Fail if vector is not of supported iterable type
-        if not any(isinstance(current_vector, t) for t in (list, np.ndarray, Series)):
-            embedding_errors.append(
-                f"Embedding feature {embedding_name} has vector type {type(current_vector)}. "
-                f"Must be list, np.ndarray or pd.Series"
-            )
-            continue
+        for vector in vector_column:
+            if vector is None:
+                continue
 
-        # Fail if not all elements in every vector are int/floats
-        allowed_types = (int, float, np.int16, np.int32, np.float16, np.float32)
-        if not all(isinstance(val, allowed_types) for val in current_vector):
-            embedding_errors.append(
-                f"Embedding vector must be a vector of integers and/or floats. Got "
-                f"{embedding_name}.vector = {current_vector}"
-            )
-            continue
-
-        # Fail if vectors in the dataframe are not of the same length, or of length < 1
-        if vector_length is not None and len(current_vector) != vector_length:
-            embedding_errors.append(
-                f"Embedding vectors must be of same length. "
-                f"{embedding_name}.vector = {current_vector}"
-            )
-        else:
-            vector_length = len(current_vector)
-            if vector_length <= 1:
+            # Fail if vector is not of supported iterable type
+            if not isinstance(vector, (list, np.ndarray, Series)):
                 embedding_errors.append(
-                    f"Embedding vectors must be greater than 1. "
-                    f"{embedding_name}.vector = {vector_length}"
+                    f"Embedding feature {embedding_name} has vector type {type(vector_column)}. "
+                    f"Must be list, np.ndarray or pd.Series"
                 )
+                continue
+
+            # Fail if not all elements in every vector are int/floats
+            allowed_types = (int, float, np.int16, np.int32, np.float16, np.float32)
+            if not all(isinstance(val, allowed_types) for val in vector):
+                embedding_errors.append(
+                    f"Embedding vector must be a vector of integers and/or floats. Got "
+                    f"{embedding_name}.vector = {vector_column}"
+                )
+                continue
+
+            if len(vector) == 0:
+                continue
+
+            # Fail if vectors in the dataframe are not of the same length, or of length < 1
+            if vector_length is not None and len(vector) != vector_length:
+                embedding_errors.append(
+                    f"Embedding vectors must be of same length. "
+                    f"{embedding_name}.vector = {vector_column}"
+                )
+            else:
+                vector_length = len(vector)
+                if vector_length == 1:
+                    embedding_errors.append(
+                        f"Embedding vectors cannot be of length 1. "
+                        f"{embedding_name}.vector = {vector_length}"
+                    )
 
     if len(embedding_errors) > 0:
         # replace error type with appropriate one

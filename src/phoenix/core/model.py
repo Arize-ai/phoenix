@@ -1,10 +1,11 @@
-from typing import Dict, List, Optional, cast
+from typing import Any, Dict, List, Optional, cast
 
 import numpy.typing as npt
+import pandas
 from pandas.api.types import is_numeric_dtype, is_object_dtype
 
 from phoenix.datasets import Dataset
-from phoenix.datasets.schema import EmbeddingFeatures
+from phoenix.datasets.schema import EmbeddingColumnNames, EmbeddingFeatures
 
 from .dimension import Dimension
 from .dimension_data_type import DimensionDataType
@@ -88,19 +89,67 @@ class Model:
 
         return dimensions
 
-    @staticmethod
     def _get_embedding_dimensions(
-        primary_dataset: Dataset, reference_dataset: Optional[Dataset]
+        self, primary_dataset: Dataset, reference_dataset: Optional[Dataset]
     ) -> List[EmbeddingDimension]:
-        # TODO: Include reference dataset embedding dimensions
-        embedding_dimensions = []
-        embedding_features: Optional[
+        embedding_dimensions: List[EmbeddingDimension] = []
+        embedding_features: Dict[str, EmbeddingColumnNames] = {}
+
+        primary_embedding_features: Optional[
             EmbeddingFeatures
         ] = primary_dataset.schema.embedding_feature_column_names
-        if embedding_features is not None:
-            for embedding_feature_name in embedding_features:
-                embedding_dimensions.append(EmbeddingDimension(name=embedding_feature_name))
+
+        if primary_embedding_features is not None:
+            embedding_features.update(primary_embedding_features)
+        if reference_dataset is not None:
+            reference_embedding_features: Optional[
+                Dict[str, EmbeddingColumnNames]
+            ] = reference_dataset.schema.embedding_feature_column_names
+            if reference_embedding_features is not None:
+                embedding_features.update(reference_embedding_features)
+
+        for embedding_feature, embedding_column_names in embedding_features.items():
+            embedding_dimensions.append(EmbeddingDimension(name=embedding_feature))
+            if reference_dataset is not None:
+                self._check_embedding_vector_lengths(
+                    embedding_column_names, primary_dataset, reference_dataset
+                )
+
         return embedding_dimensions
+
+    @classmethod
+    def _check_embedding_vector_lengths(
+        cls,
+        embedding_column_names: EmbeddingColumnNames,
+        primary_dataset: Dataset,
+        reference_dataset: Dataset,
+    ) -> None:
+        primary_column = primary_dataset.dataframe.embedding_column_names.vector_column_name
+        reference_column = reference_dataset.dataframe.embedding_column_names.vector_column_name
+
+        if primary_column is None or reference_column is None:
+            return
+
+        primary_vector_length = cls._get_column_vector_length(primary_column)
+        reference_vector_length = cls._get_column_vector_length(reference_column)
+
+        if primary_vector_length is None or reference_vector_length is None:
+            return
+
+        if primary_vector_length != reference_vector_length:
+            raise ValueError(
+                f"Embedding vector length must match for "
+                f"both datasets; vector_column={embedding_column_names.vector_column_name}"
+            )
+
+    @staticmethod
+    def _get_column_vector_length(column: pandas.Series[Any]) -> Optional[int]:
+        for row in column:
+            if row is None:
+                continue
+            return len(row)
+
+        return None
 
     def _infer_dimension_data_type(self, dimension_name: str) -> DimensionDataType:
         # TODO: verify corresponding dimension of reference dataset has same type
