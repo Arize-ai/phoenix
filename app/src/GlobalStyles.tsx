@@ -16,6 +16,20 @@ export function GlobalStyles() {
             height: 100vh;
           }
         }
+
+        /* Remove list styling */
+        ul {
+          display: block;
+          list-style-type: none;
+          margin-block-start: none;
+          margin-block-end: 0;
+          padding-inline-start: 0;
+        }
+
+        :root {
+          --px-primary-color: #9efcfd;
+          --px-reference-color: #baa1f9;
+        }
       `}
     />
   );

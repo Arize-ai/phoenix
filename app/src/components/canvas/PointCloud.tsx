@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { ReactNode, useMemo, useState } from "react";
 import {
   ThreeDimensionalCanvas,
   ThreeDimensionalControls,
@@ -7,7 +7,6 @@ import {
   LassoSelect,
   ColorSchemes,
 } from "@arizeai/point-cloud";
-import { ErrorBoundary } from "../ErrorBoundary";
 import { theme } from "@arizeai/components";
 import { css } from "@emotion/react";
 import { ControlPanel } from "./ControlPanel";
@@ -76,6 +75,19 @@ function SelectionControlPanel({ selectedIds }: { selectedIds: Set<string> }) {
   );
 }
 
+function CanvasWrap({ children }: { children: ReactNode }) {
+  return (
+    <div
+      css={css`
+        flex: 1 1 auto;
+        position: relative;
+      `}
+    >
+      {children}
+    </div>
+  );
+}
+
 export function PointCloud({ primaryData, referenceData }: PointCloudProps) {
   // AutoRotate the canvas on initial load
   const [autoRotate, setAutoRotate] = useState<boolean>(true);
@@ -101,7 +113,7 @@ export function PointCloud({ primaryData, referenceData }: PointCloudProps) {
     defaultColor: DEFAULT_COLOR_SCHEME[1],
   });
   return (
-    <ErrorBoundary>
+    <CanvasWrap>
       {/* <SelectionControlPanel selectedIds={selectedIds} /> */}
       <CanvasTools
         coloringStrategy={coloringStrategy}
@@ -138,6 +150,6 @@ export function PointCloud({ primaryData, referenceData }: PointCloudProps) {
           />
         </ThreeDimensionalBounds>
       </ThreeDimensionalCanvas>
-    </ErrorBoundary>
+    </CanvasWrap>
   );
 }

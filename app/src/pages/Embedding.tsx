@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { Suspense, useEffect } from "react";
 import {
   PreloadedQuery,
   fetchQuery,
@@ -16,6 +16,9 @@ import {
   EmbeddingUMAPQuery as UMAPQueryType,
 } from "./__generated__/EmbeddingUMAPQuery.graphql";
 import { useEmbeddingDimensionId } from "../hooks";
+import { LoadingMask } from "../components";
+import { ClusterItem } from "../components/cluster";
+import { Tabs, TabPane } from "@arizeai/components";
 
 type UMAPPointsEntry = NonNullable<
   EmbeddingUMAPQuery$data["embedding"]["UMAPPoints"]
@@ -117,9 +120,11 @@ export function Embedding() {
           position: relative;
         `}
       >
-        {queryReference ? (
-          <PointCloudDisplay queryReference={queryReference} />
-        ) : null}
+        <Suspense fallback={<LoadingMask />}>
+          {queryReference ? (
+            <PointCloudDisplay queryReference={queryReference} />
+          ) : null}
+        </Suspense>
       </div>
     </main>
   );
@@ -162,18 +167,64 @@ const PointCloudDisplay = ({
 
   const sourceData = data.embedding?.UMAPPoints?.data ?? [];
   const referenceSourceData = data.embedding?.UMAPPoints?.referenceData;
+  const clusters = data.embedding?.UMAPPoints?.clusters || [];
 
   return (
-    <PointCloud
-      primaryData={
-        sourceData.map(umapDataEntryToThreeDimensionalPointItem) ?? []
-      }
-      referenceData={
-        referenceSourceData
-          ? referenceSourceData.map(umapDataEntryToThreeDimensionalPointItem)
-          : null
-      }
-    />
+    <div
+      css={css`
+        display: flex;
+        flex-direction: row;
+        align-items: stretch;
+        width: 100%;
+        height: 100%;
+      `}
+    >
+      <section
+        css={(theme) => css`
+          flex: none;
+          width: 300px;
+          background-color: ${theme.colors.gray900};
+        `}
+      >
+        {/* @ts-expect-error only render 1 tab for now */}
+        <Tabs>
+          <TabPane name="Clusters">
+            <ul
+              css={(theme) =>
+                css`
+                  display: flex;
+                  flex-direction: column;
+                  gap: ${theme.spacing.margin8}px;
+                  margin: ${theme.spacing.margin8}px;
+                `
+              }
+            >
+              {clusters.map((cluster) => {
+                return (
+                  <li key={cluster.id}>
+                    <ClusterItem
+                      clusterId={cluster.id}
+                      numPoints={cluster.pointIds.length}
+                    />
+                  </li>
+                );
+              })}
+            </ul>
+          </TabPane>
+        </Tabs>
+      </section>
+
+      <PointCloud
+        primaryData={
+          sourceData.map(umapDataEntryToThreeDimensionalPointItem) ?? []
+        }
+        referenceData={
+          referenceSourceData
+            ? referenceSourceData.map(umapDataEntryToThreeDimensionalPointItem)
+            : null
+        }
+      />
+    </div>
   );
 };
 
