@@ -720,7 +720,9 @@ class TestDataset:
         output_dataframe = dataset.dataframe
         output_schema = dataset.schema
 
-        assert output_dataframe.equals(input_dataframe)
+        assert output_dataframe.equals(
+            input_dataframe.set_index("timestamp", drop=False).sort_index()
+        )
         assert output_schema == input_schema
 
     # TODO: Move validation tests to validation module; keep one validation integration test

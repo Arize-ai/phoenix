@@ -6,6 +6,8 @@ type Cluster {
 enum DataQualityMetric {
   cardinality
   percentEmpty
+  mean
+  sum
 }
 
 type Dataset {
@@ -22,7 +24,7 @@ type Dimension implements Node {
   name: String!
   type: DimensionType!
   dataType: DimensionDataType!
-  dataQualityMetric(metric: DataQualityMetric!): Float
+  dataQualityMetric(metric: DataQualityMetric!, timeRange: TimeRange = null): TimeSeries
 }
 
 type DimensionConnection {
@@ -58,12 +60,12 @@ type DriftTimeSeries implements TimeSeries {
 type EmbeddingDimension implements Node {
   id: GlobalID!
   name: String!
-  driftMetric(metric: DriftMetric!, timeRange: TimeRange!): Float
+  driftMetric(metric: DriftMetric!, timeRange: TimeRange = null): Float
   driftTimeSeries(
     metric: DriftMetric!
 
     """The time range of the primary dataset"""
-    timeRange: TimeRange!
+    timeRange: TimeRange = null
   ): DriftTimeSeries
   UMAPPoints(
     """The time range of the primary dataset to generate the UMAP points for"""
@@ -110,6 +112,11 @@ The `ID` scalar type represents a unique identifier, often used to refetch an ob
 """
 scalar GlobalID @specifiedBy(url: "https://relay.dev/graphql/objectidentification.htm")
 
+input Granularity {
+  evaluationWindowInMinutes: Int!
+  samplingIntervalInMinutes: Int
+}
+
 type Model {
   dimensions(first: Int = 50, last: Int = null, after: String, before: String): DimensionConnection!
   primaryDataset: Dataset!
@@ -150,6 +157,7 @@ type Query {
 input TimeRange {
   start: DateTime!
   end: DateTime!
+  granularity: Granularity
 }
 
 interface TimeSeries {

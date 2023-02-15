@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<5d06fc5116b7ef671179d2470a7b3e38>>
+ * @generated SignedSource<<7b7bff4a398e9e6919b65ba13a327342>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -38,19 +38,41 @@ v2 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "cursor",
+  "name": "__typename",
   "storageKey": null
 },
 v3 = [
+  (v2/*: any*/),
   {
     "alias": null,
     "args": null,
-    "kind": "ScalarField",
-    "name": "__typename",
+    "concreteType": "TimeSeriesDataPoint",
+    "kind": "LinkedField",
+    "name": "data",
+    "plural": true,
+    "selections": [
+      {
+        "alias": null,
+        "args": null,
+        "kind": "ScalarField",
+        "name": "value",
+        "storageKey": null
+      }
+    ],
     "storageKey": null
   }
 ],
 v4 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "cursor",
+  "storageKey": null
+},
+v5 = [
+  (v2/*: any*/)
+],
+v6 = {
   "alias": null,
   "args": null,
   "concreteType": "PageInfo",
@@ -158,8 +180,11 @@ return {
                             "value": "cardinality"
                           }
                         ],
-                        "kind": "ScalarField",
+                        "concreteType": null,
+                        "kind": "LinkedField",
                         "name": "dataQualityMetric",
+                        "plural": false,
+                        "selections": (v3/*: any*/),
                         "storageKey": "dataQualityMetric(metric:\"cardinality\")"
                       },
                       {
@@ -171,14 +196,17 @@ return {
                             "value": "percentEmpty"
                           }
                         ],
-                        "kind": "ScalarField",
+                        "concreteType": null,
+                        "kind": "LinkedField",
                         "name": "dataQualityMetric",
+                        "plural": false,
+                        "selections": (v3/*: any*/),
                         "storageKey": "dataQualityMetric(metric:\"percentEmpty\")"
                       }
                     ],
                     "storageKey": null
                   },
-                  (v2/*: any*/),
+                  (v4/*: any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -186,13 +214,13 @@ return {
                     "kind": "LinkedField",
                     "name": "node",
                     "plural": false,
-                    "selections": (v3/*: any*/),
+                    "selections": (v5/*: any*/),
                     "storageKey": null
                   }
                 ],
                 "storageKey": null
               },
-              (v4/*: any*/)
+              (v6/*: any*/)
             ],
             "storageKey": "dimensions(first:50)"
           },
@@ -261,7 +289,7 @@ return {
                     ],
                     "storageKey": null
                   },
-                  (v2/*: any*/),
+                  (v4/*: any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -269,13 +297,13 @@ return {
                     "kind": "LinkedField",
                     "name": "node",
                     "plural": false,
-                    "selections": (v3/*: any*/),
+                    "selections": (v5/*: any*/),
                     "storageKey": null
                   }
                 ],
                 "storageKey": null
               },
-              (v4/*: any*/)
+              (v6/*: any*/)
             ],
             "storageKey": "embeddingDimensions(first:50)"
           },
@@ -294,12 +322,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "1100e885b533b751dbe9ab69800b081b",
+    "cacheID": "eb09df898570acf009a332f6a245af7f",
     "id": null,
     "metadata": {},
     "name": "HomeQuery",
     "operationKind": "query",
-    "text": "query HomeQuery {\n  ...ModelSchemaTable_dimensions\n  ...ModelEmbeddingsTable_embeddingDimensions\n}\n\nfragment ModelEmbeddingsTable_embeddingDimensions on Query {\n  model {\n    embeddingDimensions(first: 50) {\n      edges {\n        embedding: node {\n          id\n          name\n          euclideanDistance: driftMetric(metric: euclideanDistance, timeRange: {start: \"1970-01-20 02:00:00\", end: \"1970-01-20 04:00:00\"})\n        }\n        cursor\n        node {\n          __typename\n        }\n      }\n      pageInfo {\n        endCursor\n        hasNextPage\n      }\n    }\n  }\n}\n\nfragment ModelSchemaTable_dimensions on Query {\n  model {\n    dimensions(first: 50) {\n      edges {\n        dimension: node {\n          name\n          type\n          dataType\n          cardinality: dataQualityMetric(metric: cardinality)\n          percentEmpty: dataQualityMetric(metric: percentEmpty)\n        }\n        cursor\n        node {\n          __typename\n        }\n      }\n      pageInfo {\n        endCursor\n        hasNextPage\n      }\n    }\n  }\n}\n"
+    "text": "query HomeQuery {\n  ...ModelSchemaTable_dimensions\n  ...ModelEmbeddingsTable_embeddingDimensions\n}\n\nfragment ModelEmbeddingsTable_embeddingDimensions on Query {\n  model {\n    embeddingDimensions(first: 50) {\n      edges {\n        embedding: node {\n          id\n          name\n          euclideanDistance: driftMetric(metric: euclideanDistance, timeRange: {start: \"1970-01-20 02:00:00\", end: \"1970-01-20 04:00:00\"})\n        }\n        cursor\n        node {\n          __typename\n        }\n      }\n      pageInfo {\n        endCursor\n        hasNextPage\n      }\n    }\n  }\n}\n\nfragment ModelSchemaTable_dimensions on Query {\n  model {\n    dimensions(first: 50) {\n      edges {\n        dimension: node {\n          name\n          type\n          dataType\n          cardinality: dataQualityMetric(metric: cardinality) {\n            __typename\n            data {\n              value\n            }\n          }\n          percentEmpty: dataQualityMetric(metric: percentEmpty) {\n            __typename\n            data {\n              value\n            }\n          }\n        }\n        cursor\n        node {\n          __typename\n        }\n      }\n      pageInfo {\n        endCursor\n        hasNextPage\n      }\n    }\n  }\n}\n"
   }
 };
 })();

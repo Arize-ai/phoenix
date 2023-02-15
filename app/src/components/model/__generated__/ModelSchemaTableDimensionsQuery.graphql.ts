@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<651a9f1821b5d0f2d5364b854bb8a2f9>>
+ * @generated SignedSource<<9a09a4a523236f3fd464b5122a2ccf66>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -45,6 +45,34 @@ v1 = [
     "kind": "Variable",
     "name": "first",
     "variableName": "count"
+  }
+],
+v2 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "__typename",
+  "storageKey": null
+},
+v3 = [
+  (v2/*: any*/),
+  {
+    "alias": null,
+    "args": null,
+    "concreteType": "TimeSeriesDataPoint",
+    "kind": "LinkedField",
+    "name": "data",
+    "plural": true,
+    "selections": [
+      {
+        "alias": null,
+        "args": null,
+        "kind": "ScalarField",
+        "name": "value",
+        "storageKey": null
+      }
+    ],
+    "storageKey": null
   }
 ];
 return {
@@ -142,8 +170,11 @@ return {
                             "value": "cardinality"
                           }
                         ],
-                        "kind": "ScalarField",
+                        "concreteType": null,
+                        "kind": "LinkedField",
                         "name": "dataQualityMetric",
+                        "plural": false,
+                        "selections": (v3/*: any*/),
                         "storageKey": "dataQualityMetric(metric:\"cardinality\")"
                       },
                       {
@@ -155,8 +186,11 @@ return {
                             "value": "percentEmpty"
                           }
                         ],
-                        "kind": "ScalarField",
+                        "concreteType": null,
+                        "kind": "LinkedField",
                         "name": "dataQualityMetric",
+                        "plural": false,
+                        "selections": (v3/*: any*/),
                         "storageKey": "dataQualityMetric(metric:\"percentEmpty\")"
                       }
                     ],
@@ -177,13 +211,7 @@ return {
                     "name": "node",
                     "plural": false,
                     "selections": [
-                      {
-                        "alias": null,
-                        "args": null,
-                        "kind": "ScalarField",
-                        "name": "__typename",
-                        "storageKey": null
-                      }
+                      (v2/*: any*/)
                     ],
                     "storageKey": null
                   }
@@ -233,16 +261,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "b290a3b0b858198cce8c752125b7e7da",
+    "cacheID": "7ff10bc34a0e6d130acdaaade42dd509",
     "id": null,
     "metadata": {},
     "name": "ModelSchemaTableDimensionsQuery",
     "operationKind": "query",
-    "text": "query ModelSchemaTableDimensionsQuery(\n  $count: Int = 50\n  $cursor: String = null\n) {\n  ...ModelSchemaTable_dimensions_1G22uz\n}\n\nfragment ModelSchemaTable_dimensions_1G22uz on Query {\n  model {\n    dimensions(first: $count, after: $cursor) {\n      edges {\n        dimension: node {\n          name\n          type\n          dataType\n          cardinality: dataQualityMetric(metric: cardinality)\n          percentEmpty: dataQualityMetric(metric: percentEmpty)\n        }\n        cursor\n        node {\n          __typename\n        }\n      }\n      pageInfo {\n        endCursor\n        hasNextPage\n      }\n    }\n  }\n}\n"
+    "text": "query ModelSchemaTableDimensionsQuery(\n  $count: Int = 50\n  $cursor: String = null\n) {\n  ...ModelSchemaTable_dimensions_1G22uz\n}\n\nfragment ModelSchemaTable_dimensions_1G22uz on Query {\n  model {\n    dimensions(first: $count, after: $cursor) {\n      edges {\n        dimension: node {\n          name\n          type\n          dataType\n          cardinality: dataQualityMetric(metric: cardinality) {\n            __typename\n            data {\n              value\n            }\n          }\n          percentEmpty: dataQualityMetric(metric: percentEmpty) {\n            __typename\n            data {\n              value\n            }\n          }\n        }\n        cursor\n        node {\n          __typename\n        }\n      }\n      pageInfo {\n        endCursor\n        hasNextPage\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "8adfc820d01526b9bc2e9dc3212a8049";
+(node as any).hash = "29bdc592a4251c07d7e67721f239fb7e";
 
 export default node;
