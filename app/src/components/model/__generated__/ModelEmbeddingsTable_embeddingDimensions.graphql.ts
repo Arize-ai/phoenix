@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a36b6f084455b0213512c2a170984980>>
+ * @generated SignedSource<<5b379b3453090e491d5e13c2addbcd5a>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -125,11 +125,19 @@ return {
                           "kind": "Literal",
                           "name": "metric",
                           "value": "euclideanDistance"
+                        },
+                        {
+                          "kind": "Literal",
+                          "name": "timeRange",
+                          "value": {
+                            "end": "1970-01-20 04:00:00",
+                            "start": "1970-01-20 02:00:00"
+                          }
                         }
                       ],
                       "kind": "ScalarField",
                       "name": "driftMetric",
-                      "storageKey": "driftMetric(metric:\"euclideanDistance\")"
+                      "storageKey": "driftMetric(metric:\"euclideanDistance\",timeRange:{\"end\":\"1970-01-20 04:00:00\",\"start\":\"1970-01-20 02:00:00\"})"
                     }
                   ],
                   "storageKey": null
@@ -199,6 +207,6 @@ return {
 };
 })();
 
-(node as any).hash = "1a1c6fbb5bc6349b18351e7db1d296b6";
+(node as any).hash = "2b7241a0292c0fb6ff14e61874923b84";
 
 export default node;

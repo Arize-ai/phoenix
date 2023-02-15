@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<ffa7559e9dfde1f3054856e377dd4639>>
+ * @generated SignedSource<<5d06fc5116b7ef671179d2470a7b3e38>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -244,11 +244,19 @@ return {
                             "kind": "Literal",
                             "name": "metric",
                             "value": "euclideanDistance"
+                          },
+                          {
+                            "kind": "Literal",
+                            "name": "timeRange",
+                            "value": {
+                              "end": "1970-01-20 04:00:00",
+                              "start": "1970-01-20 02:00:00"
+                            }
                           }
                         ],
                         "kind": "ScalarField",
                         "name": "driftMetric",
-                        "storageKey": "driftMetric(metric:\"euclideanDistance\")"
+                        "storageKey": "driftMetric(metric:\"euclideanDistance\",timeRange:{\"end\":\"1970-01-20 04:00:00\",\"start\":\"1970-01-20 02:00:00\"})"
                       }
                     ],
                     "storageKey": null
@@ -286,12 +294,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "cc3b1dd774826829df91451a7f861dd3",
+    "cacheID": "1100e885b533b751dbe9ab69800b081b",
     "id": null,
     "metadata": {},
     "name": "HomeQuery",
     "operationKind": "query",
-    "text": "query HomeQuery {\n  ...ModelSchemaTable_dimensions\n  ...ModelEmbeddingsTable_embeddingDimensions\n}\n\nfragment ModelEmbeddingsTable_embeddingDimensions on Query {\n  model {\n    embeddingDimensions(first: 50) {\n      edges {\n        embedding: node {\n          id\n          name\n          euclideanDistance: driftMetric(metric: euclideanDistance)\n        }\n        cursor\n        node {\n          __typename\n        }\n      }\n      pageInfo {\n        endCursor\n        hasNextPage\n      }\n    }\n  }\n}\n\nfragment ModelSchemaTable_dimensions on Query {\n  model {\n    dimensions(first: 50) {\n      edges {\n        dimension: node {\n          name\n          type\n          dataType\n          cardinality: dataQualityMetric(metric: cardinality)\n          percentEmpty: dataQualityMetric(metric: percentEmpty)\n        }\n        cursor\n        node {\n          __typename\n        }\n      }\n      pageInfo {\n        endCursor\n        hasNextPage\n      }\n    }\n  }\n}\n"
+    "text": "query HomeQuery {\n  ...ModelSchemaTable_dimensions\n  ...ModelEmbeddingsTable_embeddingDimensions\n}\n\nfragment ModelEmbeddingsTable_embeddingDimensions on Query {\n  model {\n    embeddingDimensions(first: 50) {\n      edges {\n        embedding: node {\n          id\n          name\n          euclideanDistance: driftMetric(metric: euclideanDistance, timeRange: {start: \"1970-01-20 02:00:00\", end: \"1970-01-20 04:00:00\"})\n        }\n        cursor\n        node {\n          __typename\n        }\n      }\n      pageInfo {\n        endCursor\n        hasNextPage\n      }\n    }\n  }\n}\n\nfragment ModelSchemaTable_dimensions on Query {\n  model {\n    dimensions(first: 50) {\n      edges {\n        dimension: node {\n          name\n          type\n          dataType\n          cardinality: dataQualityMetric(metric: cardinality)\n          percentEmpty: dataQualityMetric(metric: percentEmpty)\n        }\n        cursor\n        node {\n          __typename\n        }\n      }\n      pageInfo {\n        endCursor\n        hasNextPage\n      }\n    }\n  }\n}\n"
   }
 };
 })();
