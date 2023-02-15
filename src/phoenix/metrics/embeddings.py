@@ -6,10 +6,10 @@ from scipy.spatial.distance import euclidean  # type: ignore
 
 
 def euclidean_distance(
-    array0: npt.NDArray[np.float64],
-    array1: npt.NDArray[np.float64],
+    pt0: npt.NDArray[np.float64],
+    pt1: npt.NDArray[np.float64],
 ) -> Optional[float]:
     """
-    Computes Euclidean distance between the centroids of two arrays.
+    Computes Euclidean distance between two points.
     """
-    return cast(float, euclidean(np.mean(array0, axis=0), np.mean(array1, axis=0)))
+    return cast(float, euclidean(pt0, pt1))

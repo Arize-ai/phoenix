@@ -58,10 +58,13 @@ type DriftTimeSeries implements TimeSeries {
 type EmbeddingDimension implements Node {
   id: GlobalID!
   name: String!
+  driftMetric(metric: DriftMetric!, timeRange: TimeRange!): Float
   driftTimeSeries(
+    metric: DriftMetric!
+
     """The time range of the primary dataset"""
     timeRange: TimeRange!
-  ): DriftTimeSeries!
+  ): DriftTimeSeries
   UMAPPoints(
     """The time range of the primary dataset to generate the UMAP points for"""
     timeRange: TimeRange!
@@ -78,7 +81,6 @@ type EmbeddingDimension implements Node {
     """UMAP N samples"""
     nSamples: Int = 500
   ): UMAPPoints!
-  driftMetric(metric: DriftMetric!): Float
 }
 
 type EmbeddingDimensionConnection {

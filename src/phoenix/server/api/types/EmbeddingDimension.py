@@ -1,15 +1,18 @@
 from collections import defaultdict
-from datetime import datetime
+from datetime import datetime, timedelta
 from itertools import chain, repeat, starmap
-from typing import List, Mapping, Optional
+from typing import Any, List, Mapping, Optional
 
 import numpy as np
+import numpy.typing as npt
 import strawberry
+from pandas import DataFrame, Series
 from strawberry.scalars import ID
 from strawberry.types import Info
 from typing_extensions import Annotated
 
 from phoenix.core import EmbeddingDimension as CoreEmbeddingDimension
+from phoenix.datasets import Dataset
 from phoenix.datasets.dataset import DatasetType
 from phoenix.datasets.errors import SchemaError
 from phoenix.datasets.event import EventId
@@ -50,6 +53,10 @@ def to_gql_clusters(clusters: Mapping[EventId, int]) -> List[Cluster]:
     ]
 
 
+DRIFT_EVAL_WINDOW_NUM_INTERVALS = 72
+EVAL_INTERVAL_LENGTH = timedelta(hours=1)
+
+
 @strawberry.type
 class EmbeddingDimension(Node):
     """A embedding dimension of a model. Represents unstructured data"""
@@ -57,28 +64,103 @@ class EmbeddingDimension(Node):
     name: str
 
     @strawberry.field
+    def drift_metric(
+        self, metric: DriftMetric, time_range: TimeRange, info: Info[Context, None]
+    ) -> Optional[float]:
+        """
+        Computes a drift metric between all reference data and the primary data
+        belonging to the input time range (inclusive of the time range start and
+        exclusive of the time range end). Returns None if no reference dataset
+        exists, if no primary data exists in the input time range, or if the
+        input time range is invalid.
+        """
+        model = info.context.model
+        primary_dataset = model.primary_dataset
+        reference_dataset = model.reference_dataset
+        if reference_dataset is None or not time_range.is_valid():
+            return None
+        embedding_feature_name = self.name
+        reference_embeddings_column = reference_dataset.get_embedding_vector_column(
+            embedding_feature_name
+        )
+        reference_embeddings = _to_array(reference_embeddings_column)
+        primary_embeddings = _get_embeddings_array_for_time_range(
+            dataset=primary_dataset,
+            embedding_feature_name=embedding_feature_name,
+            start=time_range.start,
+            end=time_range.end,
+        )
+        if primary_embeddings is None:
+            return None
+        primary_centroid = _compute_mean_vector(primary_embeddings)
+        reference_centroid = _compute_mean_vector(reference_embeddings)
+        if metric is DriftMetric.euclideanDistance:
+            return euclidean_distance(primary_centroid, reference_centroid)
+        raise NotImplementedError(f'Metric "{metric}" has not been implemented.')
+
+    @strawberry.field
     def drift_time_series(
         self,
-        info: Info[Context, None],
+        metric: DriftMetric,
         time_range: Annotated[
             TimeRange,
             strawberry.argument(
                 description="The time range of the primary dataset",
             ),
         ],
-    ) -> DriftTimeSeries:
-        return DriftTimeSeries(
-            data=[
-                TimeSeriesDataPoint(
-                    timestamp=datetime.now(),
-                    value=1,
-                ),
-                TimeSeriesDataPoint(
-                    timestamp=datetime.now(),
-                    value=2,
-                ),
-            ],
+        info: Info[Context, None],
+    ) -> Optional[DriftTimeSeries]:
+        """
+        Computes a drift time-series between the primary and reference datasets.
+        The output drift time-series contains one data point for each whole hour
+        in the input time range (inclusive of the time range start and exclusive
+        of the time range end). Each data point contains the drift metric value
+        between all reference data and the primary data within the evaluation
+        window ending at the corresponding time.
+
+        Returns None if no reference dataset exists or if the input time range
+        is invalid.
+        """
+        model = info.context.model
+        primary_dataset = model.primary_dataset
+        reference_dataset = model.reference_dataset
+        if reference_dataset is None or not time_range.is_valid():
+            return None
+        embedding_feature_name = self.name
+        reference_embeddings_column = reference_dataset.get_embedding_vector_column(
+            embedding_feature_name
         )
+        reference_embeddings = _to_array(reference_embeddings_column)
+        reference_centroid = _compute_mean_vector(reference_embeddings)
+        time_series_data_points = []
+        if metric is DriftMetric.euclideanDistance:
+            eval_window_end = time_range.start
+            while eval_window_end < time_range.end:
+                eval_window_start = (
+                    eval_window_end - DRIFT_EVAL_WINDOW_NUM_INTERVALS * EVAL_INTERVAL_LENGTH
+                )
+                primary_embeddings = _get_embeddings_array_for_time_range(
+                    dataset=primary_dataset,
+                    embedding_feature_name=embedding_feature_name,
+                    start=eval_window_start,
+                    end=eval_window_end,
+                )
+                distance: Optional[float] = None
+                if primary_embeddings is not None:
+                    primary_centroid = _compute_mean_vector(primary_embeddings)
+                    distance = euclidean_distance(
+                        reference_centroid,
+                        primary_centroid,
+                    )
+                time_series_data_points.append(
+                    TimeSeriesDataPoint(
+                        timestamp=eval_window_end,
+                        value=distance,
+                    )
+                )
+                eval_window_end += EVAL_INTERVAL_LENGTH
+            return DriftTimeSeries(data=time_series_data_points)
+        raise NotImplementedError(f'Metric "{metric}" has not been implemented.')
 
     @strawberry.field
     def UMAPPoints(
@@ -218,31 +300,60 @@ class EmbeddingDimension(Node):
             clusters=to_gql_clusters(clusters),
         )
 
-    @strawberry.field
-    async def driftMetric(self, metric: DriftMetric, info: Info[Context, None]) -> Optional[float]:
-        model = info.context.model
-        primary_dataset = model.primary_dataset
-        reference_dataset = model.reference_dataset
-        if reference_dataset is None:
-            return None
-        embedding_feature_name = self.name
-        primary_embeddings = primary_dataset.get_embedding_vector_column(embedding_feature_name)
-        reference_embeddings = reference_dataset.get_embedding_vector_column(embedding_feature_name)
-        if metric is DriftMetric.euclideanDistance:
-            return euclidean_distance(
-                np.stack(primary_embeddings.to_numpy()),  # type: ignore
-                np.stack(reference_embeddings.to_numpy()),  # type: ignore
-            )
-        raise NotImplementedError(f"Metric {metric} has not been implemented.")
-
 
 def to_gql_embedding_dimension(
     id_attr: int, embedding_dimension: CoreEmbeddingDimension
 ) -> EmbeddingDimension:
     """
-    Converts a phoenix.core.EmbeddingDimension to a phoenix.server.api.types.EmbeddingDimension
+    Converts a phoenix.core.EmbeddingDimension to a
+    phoenix.server.api.types.EmbeddingDimension
     """
     return EmbeddingDimension(
         id_attr=id_attr,
         name=embedding_dimension.name,
     )
+
+
+def _compute_mean_vector(embeddings: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
+    """
+    Computes mean vector for an embeddings array. If the embeddings array has
+    dimensions num_records x num_embedding_dimensions, the output mean vector is
+    a one-dimensional array of length num_embedding_dimensions.
+    """
+    return embeddings.mean(axis=0)  # type: ignore
+
+
+def _get_embeddings_array_for_time_range(
+    dataset: Dataset, embedding_feature_name: str, start: datetime, end: datetime
+) -> Optional[npt.NDArray[np.float64]]:
+    """
+    Returns the embeddings belonging to a particular dataset and time range as
+    an array, or returns None if no embeddings from the dataset belong to the
+    desired time range.
+    """
+    embeddings_column = dataset.get_embedding_vector_column(embedding_feature_name)
+    timestamp_column = dataset.get_timestamp_column()
+    dataframe = DataFrame({"embeddings": embeddings_column, "timestamp": timestamp_column})
+    query = _time_range_query(timestamp_column_name="timestamp", start=start, end=end)
+    embeddings_column = dataframe.query(query).embeddings
+    num_embeddings = embeddings_column.shape[0]
+    if num_embeddings == 0:
+        return None
+    return _to_array(embeddings_column)
+
+
+def _time_range_query(timestamp_column_name: str, start: datetime, end: datetime) -> str:
+    """
+    Returns a string used to query a dataframe for rows belonging to a
+    particular time range.
+    """
+    return f'"{start}" <= `{timestamp_column_name}` < "{end}"'
+
+
+def _to_array(embeddings_column: "Series[Any]") -> npt.NDArray[np.float64]:
+    """
+    Converts an embeddings column to a numpy array. If the embeddings column
+    contains N embeddings, each of dimension M, the output array has dimensions
+    N x M.
+    """
+    return np.stack(embeddings_column.to_numpy())  # type: ignore
