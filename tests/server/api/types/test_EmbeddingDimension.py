@@ -205,7 +205,7 @@ class TestDriftMetricTimeSeries:
         for index in range(len(actual_timestamps) - 1):
             assert actual_timestamps[index + 1] - actual_timestamps[index] == timedelta(hours=1)
 
-    def test_left_time_range_boundary_rounded_to_next_hour_and_right_boundary_excluded(
+    def test_left_time_range_boundary_included_right_time_range_boundary_excluded(
         self, info_mock_factory: InfoMockFactory
     ) -> None:
         primary_dataframe = DataFrame(
@@ -256,10 +256,8 @@ class TestDriftMetricTimeSeries:
         ).drift_time_series(
             metric=DriftMetric.euclideanDistance,
             time_range=TimeRange(
-                start=datetime(
-                    year=2000, month=1, day=1, hour=1, minute=30  # rounded to next hour
-                ),
-                end=datetime(year=2000, month=1, day=1, hour=3),  # excluded
+                start=datetime(year=2000, month=1, day=1, hour=2),
+                end=datetime(year=2000, month=1, day=1, hour=3),
             ),
             info=info_mock_factory(primary_dataset, reference_dataset),
         )

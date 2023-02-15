@@ -6,7 +6,7 @@ from typing import Any, List, Mapping, Optional
 import numpy as np
 import numpy.typing as npt
 import strawberry
-from pandas import DataFrame, Series, to_datetime
+from pandas import DataFrame, Series
 from strawberry.scalars import ID
 from strawberry.types import Info
 from typing_extensions import Annotated
@@ -134,7 +134,7 @@ class EmbeddingDimension(Node):
         reference_centroid = _compute_mean_vector(reference_embeddings)
         time_series_data_points = []
         if metric is DriftMetric.euclideanDistance:
-            eval_window_end = _round_timestamp_to_next_hour(time_range.start)
+            eval_window_end = time_range.start
             while eval_window_end < time_range.end:
                 eval_window_start = (
                     eval_window_end - DRIFT_EVAL_WINDOW_NUM_INTERVALS * EVAL_INTERVAL_LENGTH
@@ -340,14 +340,6 @@ def _get_embeddings_array_for_time_range(
     if num_embeddings == 0:
         return None
     return _to_array(embeddings_column)
-
-
-def _round_timestamp_to_next_hour(timestamp: datetime) -> datetime:
-    """
-    Rounds input datetime to the next whole hour. If the input datetime is a
-    whole hour, returns the same datetime.
-    """
-    return to_datetime(timestamp).ceil("H").to_pydatetime()
 
 
 def _time_range_query(timestamp_column_name: str, start: datetime, end: datetime) -> str:
