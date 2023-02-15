@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<61a5859c11b533816d9b3fd87fffe3af>>
+ * @generated SignedSource<<44c6858ee53928e29f058b85d3ba1868>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -16,7 +16,7 @@ export type TimeRange = {
 };
 export type Granularity = {
   evaluationWindowInMinutes: number;
-  frequencyInMinutes?: number | null;
+  samplingIntervalInMinutes?: number | null;
 };
 export type EmbeddingUMAPQuery$variables = {
   id: String;

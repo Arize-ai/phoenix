@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<7b7bff4a398e9e6919b65ba13a327342>>
+ * @generated SignedSource<<fb0522f491fbfbdadbbc26b9799915bb>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -51,6 +51,13 @@ v3 = [
     "name": "data",
     "plural": true,
     "selections": [
+      {
+        "alias": null,
+        "args": null,
+        "kind": "ScalarField",
+        "name": "timestamp",
+        "storageKey": null
+      },
       {
         "alias": null,
         "args": null,
@@ -322,12 +329,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "eb09df898570acf009a332f6a245af7f",
+    "cacheID": "46f5ca96d32c59a1ad494186479f1e23",
     "id": null,
     "metadata": {},
     "name": "HomeQuery",
     "operationKind": "query",
-    "text": "query HomeQuery {\n  ...ModelSchemaTable_dimensions\n  ...ModelEmbeddingsTable_embeddingDimensions\n}\n\nfragment ModelEmbeddingsTable_embeddingDimensions on Query {\n  model {\n    embeddingDimensions(first: 50) {\n      edges {\n        embedding: node {\n          id\n          name\n          euclideanDistance: driftMetric(metric: euclideanDistance, timeRange: {start: \"1970-01-20 02:00:00\", end: \"1970-01-20 04:00:00\"})\n        }\n        cursor\n        node {\n          __typename\n        }\n      }\n      pageInfo {\n        endCursor\n        hasNextPage\n      }\n    }\n  }\n}\n\nfragment ModelSchemaTable_dimensions on Query {\n  model {\n    dimensions(first: 50) {\n      edges {\n        dimension: node {\n          name\n          type\n          dataType\n          cardinality: dataQualityMetric(metric: cardinality) {\n            __typename\n            data {\n              value\n            }\n          }\n          percentEmpty: dataQualityMetric(metric: percentEmpty) {\n            __typename\n            data {\n              value\n            }\n          }\n        }\n        cursor\n        node {\n          __typename\n        }\n      }\n      pageInfo {\n        endCursor\n        hasNextPage\n      }\n    }\n  }\n}\n"
+    "text": "query HomeQuery {\n  ...ModelSchemaTable_dimensions\n  ...ModelEmbeddingsTable_embeddingDimensions\n}\n\nfragment ModelEmbeddingsTable_embeddingDimensions on Query {\n  model {\n    embeddingDimensions(first: 50) {\n      edges {\n        embedding: node {\n          id\n          name\n          euclideanDistance: driftMetric(metric: euclideanDistance, timeRange: {start: \"1970-01-20 02:00:00\", end: \"1970-01-20 04:00:00\"})\n        }\n        cursor\n        node {\n          __typename\n        }\n      }\n      pageInfo {\n        endCursor\n        hasNextPage\n      }\n    }\n  }\n}\n\nfragment ModelSchemaTable_dimensions on Query {\n  model {\n    dimensions(first: 50) {\n      edges {\n        dimension: node {\n          name\n          type\n          dataType\n          cardinality: dataQualityMetric(metric: cardinality) {\n            __typename\n            data {\n              timestamp\n              value\n            }\n          }\n          percentEmpty: dataQualityMetric(metric: percentEmpty) {\n            __typename\n            data {\n              timestamp\n              value\n            }\n          }\n        }\n        cursor\n        node {\n          __typename\n        }\n      }\n      pageInfo {\n        endCursor\n        hasNextPage\n      }\n    }\n  }\n}\n"
   }
 };
 })();

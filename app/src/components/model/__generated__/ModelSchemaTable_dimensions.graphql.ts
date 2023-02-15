@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<2b670efa8e98bb5ff5849a6fae3de6af>>
+ * @generated SignedSource<<f1d8a755e495a3382afbe245677c792b>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -19,6 +19,7 @@ export type ModelSchemaTable_dimensions$data = {
         readonly dimension: {
           readonly cardinality: {
             readonly data: ReadonlyArray<{
+              readonly timestamp: String;
               readonly value: number | null;
             }>;
           } | null;
@@ -26,6 +27,7 @@ export type ModelSchemaTable_dimensions$data = {
           readonly name: string;
           readonly percentEmpty: {
             readonly data: ReadonlyArray<{
+              readonly timestamp: String;
               readonly value: number | null;
             }>;
           } | null;
@@ -55,6 +57,13 @@ v1 = [
     "name": "data",
     "plural": true,
     "selections": [
+      {
+        "alias": null,
+        "args": null,
+        "kind": "ScalarField",
+        "name": "timestamp",
+        "storageKey": null
+      },
       {
         "alias": null,
         "args": null,
@@ -257,6 +266,6 @@ return {
 };
 })();
 
-(node as any).hash = "29bdc592a4251c07d7e67721f239fb7e";
+(node as any).hash = "cf4335b053eda6c2e057d907ebb3670c";
 
 export default node;

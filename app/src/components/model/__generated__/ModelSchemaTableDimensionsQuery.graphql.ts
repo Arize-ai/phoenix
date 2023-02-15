@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<9a09a4a523236f3fd464b5122a2ccf66>>
+ * @generated SignedSource<<2978c0374af3fb0056aca38128929e69>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -64,6 +64,13 @@ v3 = [
     "name": "data",
     "plural": true,
     "selections": [
+      {
+        "alias": null,
+        "args": null,
+        "kind": "ScalarField",
+        "name": "timestamp",
+        "storageKey": null
+      },
       {
         "alias": null,
         "args": null,
@@ -261,16 +268,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "7ff10bc34a0e6d130acdaaade42dd509",
+    "cacheID": "9493d92a90e67a28b81b3f7664579612",
     "id": null,
     "metadata": {},
     "name": "ModelSchemaTableDimensionsQuery",
     "operationKind": "query",
-    "text": "query ModelSchemaTableDimensionsQuery(\n  $count: Int = 50\n  $cursor: String = null\n) {\n  ...ModelSchemaTable_dimensions_1G22uz\n}\n\nfragment ModelSchemaTable_dimensions_1G22uz on Query {\n  model {\n    dimensions(first: $count, after: $cursor) {\n      edges {\n        dimension: node {\n          name\n          type\n          dataType\n          cardinality: dataQualityMetric(metric: cardinality) {\n            __typename\n            data {\n              value\n            }\n          }\n          percentEmpty: dataQualityMetric(metric: percentEmpty) {\n            __typename\n            data {\n              value\n            }\n          }\n        }\n        cursor\n        node {\n          __typename\n        }\n      }\n      pageInfo {\n        endCursor\n        hasNextPage\n      }\n    }\n  }\n}\n"
+    "text": "query ModelSchemaTableDimensionsQuery(\n  $count: Int = 50\n  $cursor: String = null\n) {\n  ...ModelSchemaTable_dimensions_1G22uz\n}\n\nfragment ModelSchemaTable_dimensions_1G22uz on Query {\n  model {\n    dimensions(first: $count, after: $cursor) {\n      edges {\n        dimension: node {\n          name\n          type\n          dataType\n          cardinality: dataQualityMetric(metric: cardinality) {\n            __typename\n            data {\n              timestamp\n              value\n            }\n          }\n          percentEmpty: dataQualityMetric(metric: percentEmpty) {\n            __typename\n            data {\n              timestamp\n              value\n            }\n          }\n        }\n        cursor\n        node {\n          __typename\n        }\n      }\n      pageInfo {\n        endCursor\n        hasNextPage\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "29bdc592a4251c07d7e67721f239fb7e";
+(node as any).hash = "cf4335b053eda6c2e057d907ebb3670c";
 
 export default node;
