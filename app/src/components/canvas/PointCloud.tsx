@@ -6,6 +6,7 @@ import {
   ThreeDimensionalBounds,
   LassoSelect,
   ColorSchemes,
+  Cluster,
 } from "@arizeai/point-cloud";
 import { theme } from "@arizeai/components";
 import { css } from "@emotion/react";
@@ -14,12 +15,17 @@ import { ColoringStrategyPicker } from "./ColoringStrategyPicker";
 import { CanvasMode, CanvasModeRadioGroup } from "./CanvasModeRadioGroup";
 import { PointCloudPoints } from "./PointCloudPoints";
 import { ThreeDimensionalPointItem } from "./types";
-import { ColoringStrategy } from "./types";
+import { ColoringStrategy, ClusterItem } from "./types";
 import { createColorFn } from "./coloring";
 
 export type PointCloudProps = {
   primaryData: ThreeDimensionalPointItem[];
   referenceData: ThreeDimensionalPointItem[] | null;
+  clusters: readonly ClusterItem[];
+  /**
+   * The id of the cluster that is currently selected
+   */
+  selectedClusterId: string | null;
 };
 
 const CONTROL_PANEL_WIDTH = 300;
@@ -88,7 +94,12 @@ function CanvasWrap({ children }: { children: ReactNode }) {
   );
 }
 
-export function PointCloud({ primaryData, referenceData }: PointCloudProps) {
+export function PointCloud({
+  primaryData,
+  referenceData,
+  clusters,
+  selectedClusterId,
+}: PointCloudProps) {
   // AutoRotate the canvas on initial load
   const [autoRotate, setAutoRotate] = useState<boolean>(true);
   const [coloringStrategy, onColoringStrategyChange] =
@@ -98,9 +109,19 @@ export function PointCloud({ primaryData, referenceData }: PointCloudProps) {
   const allPoints = useMemo(() => {
     return [...primaryData, ...(referenceData || [])];
   }, []);
+
+  // Keep a map of point id to position for fast lookup
+  const pointPositionsMap = useMemo(() => {
+    return allPoints.reduce((acc, point) => {
+      acc[(point.metaData as any).id as string] = point.position;
+      return acc;
+    }, {} as Record<string, ThreeDimensionalPointItem["position"]>);
+  }, [allPoints]);
+
   const bounds = useMemo(() => {
     return getThreeDimensionalBounds(allPoints.map((p) => p.position));
   }, []);
+
   const isMoveMode = canvasMode === CanvasMode.move;
 
   // Determine the color of the points based on the strategy
@@ -112,6 +133,19 @@ export function PointCloud({ primaryData, referenceData }: PointCloudProps) {
     coloringStrategy,
     defaultColor: DEFAULT_COLOR_SCHEME[1],
   });
+
+  // Interleave the cluster point locations with the cluster
+  const clustersWithData = useMemo(() => {
+    return clusters.map((cluster) => {
+      const { pointIds } = cluster;
+      return {
+        ...cluster,
+        data: pointIds.map((pointId) => ({
+          position: pointPositionsMap[pointId],
+        })),
+      };
+    });
+  }, [pointPositionsMap]);
   return (
     <CanvasWrap>
       {/* <SelectionControlPanel selectedIds={selectedIds} /> */}
@@ -148,6 +182,14 @@ export function PointCloud({ primaryData, referenceData }: PointCloudProps) {
             primaryColor={primaryColor}
             referenceColor={referenceColor}
           />
+          {clustersWithData.map((cluster) => (
+            <Cluster
+              key={cluster.id}
+              data={cluster.data}
+              opacity={cluster.id === selectedClusterId ? 0.2 : 0}
+              wireframe
+            />
+          ))}
         </ThreeDimensionalBounds>
       </ThreeDimensionalCanvas>
     </CanvasWrap>

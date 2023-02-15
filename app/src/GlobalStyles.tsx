@@ -28,6 +28,7 @@ export function GlobalStyles() {
 
         :root {
           --px-primary-color: #9efcfd;
+          --px-primary-color--transparent: rgb(158, 252, 253, 0.2);
           --px-reference-color: #baa1f9;
         }
       `}

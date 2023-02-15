@@ -5,6 +5,11 @@ export type ThreeDimensionalPointItem = {
   metaData: unknown;
 };
 
+export type ClusterItem = {
+  readonly id: string;
+  readonly pointIds: readonly string[];
+};
+
 export enum ColoringStrategy {
   dataset = "dataset",
   correctness = "correctness",

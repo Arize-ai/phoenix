@@ -30,6 +30,7 @@ const EmbeddingUMAPQuery = graphql`
       ... on EmbeddingDimension {
         UMAPPoints(timeRange: $timeRange) {
           data {
+            id
             coordinates {
               __typename
               ... on Point3D {
@@ -54,6 +55,7 @@ const EmbeddingUMAPQuery = graphql`
             }
           }
           referenceData {
+            id
             coordinates {
               __typename
               ... on Point3D {
@@ -133,7 +135,7 @@ export function Embedding() {
 function umapDataEntryToThreeDimensionalPointItem(
   umapData: UMAPPointsEntry
 ): ThreeDimensionalPointItem {
-  const { coordinates, eventMetadata, embeddingMetadata } = umapData;
+  const { id, coordinates, eventMetadata, embeddingMetadata } = umapData;
   if (!coordinates) {
     throw new Error("No coordinates found for UMAP data entry");
   }
@@ -146,6 +148,7 @@ function umapDataEntryToThreeDimensionalPointItem(
   return {
     position: [coordinates.x, coordinates.y, coordinates.z],
     metaData: {
+      id,
       ...eventMetadata,
       ...embeddingMetadata,
     },
@@ -168,6 +171,9 @@ const PointCloudDisplay = ({
   const sourceData = data.embedding?.UMAPPoints?.data ?? [];
   const referenceSourceData = data.embedding?.UMAPPoints?.referenceData;
   const clusters = data.embedding?.UMAPPoints?.clusters || [];
+  const [selectedClusterId, setSelectedClusterId] = React.useState<
+    string | null
+  >(null);
 
   return (
     <div
@@ -205,6 +211,10 @@ const PointCloudDisplay = ({
                     <ClusterItem
                       clusterId={cluster.id}
                       numPoints={cluster.pointIds.length}
+                      isSelected={selectedClusterId === cluster.id}
+                      onClick={() => {
+                        setSelectedClusterId(cluster.id);
+                      }}
                     />
                   </li>
                 );
@@ -223,6 +233,8 @@ const PointCloudDisplay = ({
             ? referenceSourceData.map(umapDataEntryToThreeDimensionalPointItem)
             : null
         }
+        clusters={clusters}
+        selectedClusterId={selectedClusterId}
       />
     </div>
   );
