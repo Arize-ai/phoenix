@@ -134,6 +134,16 @@ class MissingEmbeddingFeatureLinkToDataColumnName(ValidationError):
         )
 
 
+class MissingTimestampColumnName(ValidationError):
+    """
+    An error raised when trying to access a timestamp column that is absent from
+    the schema.
+    """
+
+    def error_message(self) -> str:
+        return "Schema is missing timestamp_column_name."
+
+
 class SchemaError(Exception):
     """An error raised when the Schema is invalid or incomplete"""
 

@@ -25,7 +25,13 @@ export function ModelEmbeddingsTable(props: ModelEmbeddingsTable) {
               embedding: node {
                 id
                 name
-                euclideanDistance: driftMetric(metric: euclideanDistance)
+                euclideanDistance: driftMetric(
+                  metric: euclideanDistance
+                  timeRange: {
+                    start: "1970-01-20 02:00:00"
+                    end: "1970-01-20 04:00:00"
+                  }
+                )
               }
             }
           }
