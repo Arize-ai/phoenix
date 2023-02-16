@@ -18,12 +18,12 @@ export function ColoringStrategyPicker(props: ColoringStrategyPickerProps) {
     <Picker
       defaultSelectedKey={strategy}
       aria-label="Coloring strategy"
-      addonBefore="Color by"
       onSelectionChange={(key) => {
         if (isColoringStrategy(key)) {
           onChange(key);
         }
       }}
+      label="Color By"
     >
       {ColoringStrategies.map((item) => (
         <Item key={item}>{item}</Item>

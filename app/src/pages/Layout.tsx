@@ -3,6 +3,17 @@ import { Brand, Navbar, GitHubLink, NavBreadcrumb } from "../components/nav";
 import { Outlet } from "react-router";
 import { css } from "@emotion/react";
 
+const layoutCSS = css`
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+`;
+
+const contentCSS = css`
+  flex: 1 1 auto;
+  height: 100%;
+`;
+
 const linksCSS = css`
   display: flex;
   flex-direction: row;
@@ -13,7 +24,7 @@ const linksCSS = css`
 
 export function Layout() {
   return (
-    <>
+    <div css={layoutCSS} data-testid="layout">
       <Navbar>
         <Brand />
         <NavBreadcrumb />
@@ -23,7 +34,9 @@ export function Layout() {
           </li>
         </ul>
       </Navbar>
-      <Outlet />
-    </>
+      <div data-testid="content" css={contentCSS}>
+        <Outlet />
+      </div>
+    </div>
   );
 }

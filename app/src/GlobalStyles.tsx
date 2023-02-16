@@ -27,6 +27,9 @@ export function GlobalStyles() {
         }
 
         :root {
+          --px-blue-color: ${theme.colors.arizeBlue};
+          --px-light-blue-color: ${theme.colors.arizeLightBlue};
+
           --px-primary-color: #9efcfd;
           --px-primary-color--transparent: rgb(158, 252, 253, 0.2);
           --px-reference-color: #baa1f9;

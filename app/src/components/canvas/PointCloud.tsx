@@ -11,17 +11,18 @@ import {
 import { theme } from "@arizeai/components";
 import { css } from "@emotion/react";
 import { ControlPanel } from "./ControlPanel";
-import { ColoringStrategyPicker } from "./ColoringStrategyPicker";
 import { CanvasMode, CanvasModeRadioGroup } from "./CanvasModeRadioGroup";
 import { PointCloudPoints } from "./PointCloudPoints";
 import { ThreeDimensionalPointItem } from "./types";
 import { ColoringStrategy, ClusterItem } from "./types";
 import { createColorFn } from "./coloring";
+import { usePointCloud } from "./PointCloudContext";
 
 export type PointCloudProps = {
   primaryData: ThreeDimensionalPointItem[];
   referenceData: ThreeDimensionalPointItem[] | null;
   clusters: readonly ClusterItem[];
+  coloringStrategy: ColoringStrategy;
   /**
    * The id of the cluster that is currently selected
    */
@@ -35,17 +36,10 @@ const DEFAULT_COLOR_SCHEME = ColorSchemes.Discrete2.WhiteLightBlue;
  * E.g. move vs select
  */
 function CanvasTools(props: {
-  coloringStrategy: ColoringStrategy;
-  onColoringStrategyChange: (strategy: ColoringStrategy) => void;
   canvasMode: CanvasMode;
   onCanvasModeChange: (mode: CanvasMode) => void;
 }) {
-  const {
-    coloringStrategy,
-    onColoringStrategyChange,
-    canvasMode,
-    onCanvasModeChange,
-  } = props;
+  const { canvasMode, onCanvasModeChange } = props;
   return (
     <div
       css={css`
@@ -59,10 +53,6 @@ function CanvasTools(props: {
         gap: ${theme.spacing.margin8}px;
       `}
     >
-      <ColoringStrategyPicker
-        strategy={coloringStrategy}
-        onChange={onColoringStrategyChange}
-      />
       <CanvasModeRadioGroup mode={canvasMode} onChange={onCanvasModeChange} />
     </div>
   );
@@ -86,7 +76,9 @@ function CanvasWrap({ children }: { children: ReactNode }) {
     <div
       css={css`
         flex: 1 1 auto;
+        height: 100%;
         position: relative;
+        background-color: black;
       `}
     >
       {children}
@@ -99,13 +91,12 @@ export function PointCloud({
   referenceData,
   clusters,
   selectedClusterId,
+  coloringStrategy,
 }: PointCloudProps) {
   // AutoRotate the canvas on initial load
   const [autoRotate, setAutoRotate] = useState<boolean>(true);
-  const [coloringStrategy, onColoringStrategyChange] =
-    useState<ColoringStrategy>(ColoringStrategy.dataset);
   const [canvasMode, setCanvasMode] = useState<CanvasMode>(CanvasMode.move);
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const { selectedPointIds, setSelectedPointIds } = usePointCloud();
   const allPoints = useMemo(() => {
     return [...primaryData, ...(referenceData || [])];
   }, []);
@@ -148,13 +139,7 @@ export function PointCloud({
   }, [pointPositionsMap]);
   return (
     <CanvasWrap>
-      {/* <SelectionControlPanel selectedIds={selectedIds} /> */}
-      <CanvasTools
-        coloringStrategy={coloringStrategy}
-        onColoringStrategyChange={onColoringStrategyChange}
-        canvasMode={canvasMode}
-        onCanvasModeChange={setCanvasMode}
-      />
+      <CanvasTools canvasMode={canvasMode} onCanvasModeChange={setCanvasMode} />
       <ThreeDimensionalCanvas camera={{ position: [0, 0, 10] }}>
         <ThreeDimensionalControls
           autoRotate={autoRotate}
@@ -170,7 +155,7 @@ export function PointCloud({
           <LassoSelect
             points={allPoints}
             onChange={(selection) => {
-              setSelectedIds(new Set(selection.map((s) => s.metaData.id)));
+              setSelectedPointIds(new Set(selection.map((s) => s.metaData.id)));
             }}
             enabled={canvasMode === CanvasMode.select}
           />
@@ -178,7 +163,7 @@ export function PointCloud({
           <PointCloudPoints
             primaryData={primaryData}
             referenceData={referenceData}
-            selectedIds={selectedIds}
+            selectedIds={selectedPointIds}
             primaryColor={primaryColor}
             referenceColor={referenceColor}
           />

@@ -6,6 +6,7 @@ const navCSS = (theme: Theme) => css`
   padding: ${theme.spacing.padding8}px;
   border-bottom: 1px solid ${theme.colors.gray500};
   background-color: ${theme.colors.gray900};
+  flex: none;
   display: flex;
   flex-direction: row;
   justify-content: space-between;
