@@ -143,7 +143,7 @@ class Model:
             )
 
     @staticmethod
-    def _get_column_vector_length(column: pandas.Series[Any]) -> Optional[int]:
+    def _get_column_vector_length(column: "Series[str]") -> Optional[int]:
         for row in column:
             if row is None:
                 continue
