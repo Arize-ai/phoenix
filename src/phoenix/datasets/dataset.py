@@ -160,6 +160,12 @@ class Dataset:
             raise err.SchemaError(err.MissingEmbeddingFeatureColumnNames(embedding_feature_name))
         return embedding_feature_column_names[embedding_feature_name]
 
+    def get_timestamp_column(self) -> "Series[Any]":
+        timestamp_column_name = self.schema.timestamp_column_name
+        if timestamp_column_name is None:
+            raise err.SchemaError(err.MissingTimestampColumnName())
+        return self.dataframe[timestamp_column_name]
+
     # TODO(mikeldking): add strong vector type
     def get_embedding_vector_column(self, embedding_feature_name: str) -> "Series[Any]":
         column_names = self._get_embedding_feature_column_names(embedding_feature_name)

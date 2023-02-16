@@ -6,8 +6,8 @@
   "license": "None",
   "private": true,
   "dependencies": {
-    "@arizeai/components": "^0.9.6",
-    "@arizeai/point-cloud": "^2.1.1",
+    "@arizeai/components": "^0.9.10",
+    "@arizeai/point-cloud": "^2.1.5",
     "@emotion/react": "^11.10.5",
     "@react-three/drei": "9.5.7",
     "@react-three/fiber": "8.0.12",
@@ -38,7 +38,7 @@
     "lint-staged": "^13.1.0",
     "prettier": "2.8.1",
     "relay-compiler": "^14.1.0",
-    "typescript": "^4.8.4"
+    "typescript": "4.8"
   },
   "scripts": {
     "prebuild": "rm -rf ../src/phoenix/server/static",
