@@ -1,8 +1,8 @@
 from typing import Dict, List, Optional, cast
 
 import numpy.typing as npt
-from pandas.api.types import is_numeric_dtype, is_object_dtype
 from pandas import Series
+from pandas.api.types import is_numeric_dtype, is_object_dtype
 
 from phoenix.datasets import Dataset
 from phoenix.datasets.schema import EmbeddingColumnNames, EmbeddingFeatures
