@@ -53,7 +53,7 @@ def _check_valid_embedding_data(dataframe: DataFrame, schema: Schema) -> List[er
     if embedding_col_names is None:
         return []
 
-    embedding_errors: List[str] = []
+    embedding_errors: List[err.ValidationError] = []
     for embedding_name, column_names in embedding_col_names.items():
         vector_length = None
         vector_column = dataframe[column_names.vector_column_name]
@@ -65,41 +65,48 @@ def _check_valid_embedding_data(dataframe: DataFrame, schema: Schema) -> List[er
             # Fail if vector is not of supported iterable type
             if not isinstance(vector, (list, np.ndarray, Series)):
                 embedding_errors.append(
-                    f"Embedding feature {embedding_name} has vector type {type(vector_column)}. "
-                    f"Must be list, np.ndarray or pd.Series"
+                    err.InvalidEmbeddingVectorDataType(
+                        embedding_feature_name=embedding_name,
+                        vector_column_type=str(type(vector_column)),
+                    )
                 )
-                continue
+                break
 
             # Fail if not all elements in every vector are int/floats
             allowed_types = (int, float, np.int16, np.int32, np.float16, np.float32)
             if not all(isinstance(val, allowed_types) for val in vector):
                 embedding_errors.append(
-                    f"Embedding vector must be a vector of integers and/or floats. Got "
-                    f"{embedding_name}.vector = {vector_column}"
+                    err.InvalidEmbeddingVectorValuesDataType(
+                        embedding_feature_name=embedding_name,
+                        vector_column_name=column_names.vector_column_name,
+                    )
                 )
-                continue
+                break
 
-            if len(vector) == 0:
-                continue
+            if vector_length is None:
+                vector_length = len(vector)
 
             # Fail if vectors in the dataframe are not of the same length, or of length < 1
-            if vector_length is not None and len(vector) != vector_length:
+            if len(vector) != vector_length:
                 embedding_errors.append(
-                    f"Embedding vectors must be of same length. "
-                    f"{embedding_name}.vector = {vector_column}"
-                )
-            else:
-                vector_length = len(vector)
-                if vector_length == 1:
-                    embedding_errors.append(
-                        f"Embedding vectors cannot be of length 1. "
-                        f"{embedding_name}.vector = {vector_length}"
+                    err.InvalidEmbeddingVectorSizeMismatch(
+                        embedding_name,
+                        column_names.vector_column_name,
+                        [vector_length, len(vector)],
                     )
+                )
+                break
+            elif vector_length <= 1:
+                embedding_errors.append(
+                    err.InvalidEmbeddingVectorSize(
+                        embedding_name,
+                        column_names.vector_column_name,
+                        vector_length,
+                    )
+                )
+                break
 
-    if len(embedding_errors) > 0:
-        # replace error type with appropriate one
-        return [err.InvalidSchemaError(embedding_errors)]
-    return []
+    return embedding_errors
 
 
 def _check_column_types(dataframe: DataFrame, schema: Schema) -> List[err.ValidationError]:
