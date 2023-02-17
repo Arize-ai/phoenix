@@ -29,7 +29,7 @@ type Dimension implements Node {
   type: DimensionType!
   dataType: DimensionDataType!
   dataQualityMetric(metric: DataQualityMetric!): Float
-  dataQualityTimeSeries(metric: DataQualityMetric!, timeRange: TimeRange): DataQualityTimeSeries
+  dataQualityTimeSeries(metric: DataQualityMetric!, timeRange: TimeRange = null): DataQualityTimeSeries
 }
 
 type DimensionConnection {
@@ -119,7 +119,7 @@ scalar GlobalID @specifiedBy(url: "https://relay.dev/graphql/objectidentificatio
 
 input Granularity {
   evaluationWindowInMinutes: Int!
-  samplingIntervalInMinutes: Int
+  samplingIntervalInMinutes: Int = null
 }
 
 type Model {
