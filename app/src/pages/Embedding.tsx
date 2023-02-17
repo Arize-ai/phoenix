@@ -25,7 +25,7 @@ import {
 import { useEmbeddingDimensionId } from "../hooks";
 import { LoadingMask } from "../components";
 import { ClusterItem } from "../components/cluster";
-import { Tabs, TabPane, Button, Icon, Icons } from "@arizeai/components";
+import { Tabs, TabPane, Switch } from "@arizeai/components";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { Toolbar } from "../components/filter";
 import { PointCloudDisplaySettings } from "../components/canvas/PointCloudDisplaySettings";
@@ -130,15 +130,14 @@ export function Embedding() {
     >
       <Toolbar
         extra={
-          <Button
-            variant={showDriftChart ? "primary" : "default"}
-            size="compact"
-            onClick={() => {
-              setShowDriftChart(!showDriftChart);
+          <Switch
+            onChange={(isSelected) => {
+              setShowDriftChart(isSelected);
             }}
-            icon={<Icon svg={<Icons.Cube />} />}
-            title="Toggle chart display"
-          />
+            labelPlacement="start"
+          >
+            Show Drift Chart
+          </Switch>
         }
       ></Toolbar>
       <PanelGroup direction="vertical">
