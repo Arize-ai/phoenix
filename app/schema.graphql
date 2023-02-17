@@ -12,6 +12,7 @@ type Dataset {
   name: String!
   startTime: DateTime!
   endTime: DateTime!
+  events(eventIds: [ID!]!, dimensions: [DimensionInput!]): [Event!]!
 }
 
 """Date with time (isoformat)"""
@@ -40,11 +41,21 @@ type DimensionEdge {
   cursor: String!
 }
 
+input DimensionInput {
+  name: String!
+  type: DimensionType!
+}
+
 enum DimensionType {
   feature
   tag
   prediction
   actual
+}
+
+type DimensionWithValue {
+  dimension: Dimension!
+  value: String!
 }
 
 enum DriftMetric {
@@ -96,6 +107,11 @@ type EmbeddingDimensionEdge {
 type EmbeddingMetadata {
   rawData: String
   linkToData: String
+}
+
+type Event {
+  eventMetadata: EventMetadata!
+  dimensions: [DimensionWithValue!]!
 }
 
 type EventMetadata {
