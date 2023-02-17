@@ -37,4 +37,4 @@ def to_gql_timeseries(
                 value=None if math.isnan(value) else value,
             )
         )
-    return DataQualityTimeSeries(data=data)
+    return DataQualityTimeSeries(data=sorted(data))
