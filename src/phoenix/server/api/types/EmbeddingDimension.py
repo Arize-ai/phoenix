@@ -26,15 +26,10 @@ from phoenix.server.api.input_types.TimeRange import TimeRange
 from .DriftMetric import DriftMetric
 from .DriftTimeSeries import DriftTimeSeries
 from .EmbeddingMetadata import EmbeddingMetadata
+from .EventMetadata import EventMetadata
 from .node import Node
 from .TimeSeries import TimeSeriesDataPoint
-from .UMAPPoints import (
-    Cluster,
-    EventMetadata,
-    UMAPPoint,
-    UMAPPoints,
-    to_gql_coordinates,
-)
+from .UMAPPoints import Cluster, UMAPPoint, UMAPPoints, to_gql_coordinates
 
 # Default UMAP hyperparameters
 DEFAULT_N_COMPONENTS = 3

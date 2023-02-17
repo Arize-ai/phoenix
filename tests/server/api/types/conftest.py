@@ -19,9 +19,9 @@ def info_mock_factory() -> Callable[[Dataset, Optional[Dataset]], Info[Context, 
     def create_info_mock(primary_dataset: Dataset, reference_dataset: Optional[Dataset]) -> Mock:
         info_mock = Mock(spec=Info)
         info_mock.context = Mock(spec=Context)
-        info_mock.context.model = Mock(spec=Model)
-        info_mock.context.model.primary_dataset = primary_dataset
-        info_mock.context.model.reference_dataset = reference_dataset
+        info_mock.context.model = Model(
+            primary_dataset=primary_dataset, reference_dataset=reference_dataset
+        )
         return info_mock
 
     return create_info_mock
