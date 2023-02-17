@@ -49,7 +49,7 @@
     "build:relay": "relay-compiler",
     "watch": "./esbuild.config.mjs dev",
     "dev": "npm run dev:server & npm run build:static && npm run watch",
-    "dev:server": "python3 -m phoenix.server.main fixture sentiment_classification_language_drift",
+    "dev:server": "python3 -m phoenix.server.main datasets --primary sentiment_classification_language_drift_primary",
     "typecheck": "tsc --noEmit",
     "lint": "eslint ./src",
     "prettier": "prettier --write './src/**/*'",
