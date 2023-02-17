@@ -6,7 +6,7 @@
   "license": "None",
   "private": true,
   "dependencies": {
-    "@arizeai/components": "^0.9.10",
+    "@arizeai/components": "^0.9.12",
     "@arizeai/point-cloud": "^2.1.5",
     "@emotion/react": "^11.10.5",
     "@react-three/drei": "9.5.7",
@@ -17,6 +17,7 @@
     "react": "18.2",
     "react-dom": "18.2",
     "react-relay": "^14.1.0",
+    "react-resizable-panels": "^0.0.36",
     "react-router": "^6.7.0",
     "react-router-dom": "^6.7.0",
     "react-table": "^7.8.0",

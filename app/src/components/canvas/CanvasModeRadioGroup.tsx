@@ -23,7 +23,7 @@ export function CanvasModeRadioGroup(props: CanvasModeRadioGroupProps) {
     <RadioGroup
       defaultValue={props.mode}
       variant="inline-button"
-      size="normal"
+      size="compact"
       onChange={(v) => {
         if (isCanvasMode(v)) {
           props.onChange(v);
