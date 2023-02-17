@@ -25,18 +25,8 @@ export function ModelSchemaTable(props: ModelSchemaTableProps) {
                 name
                 type
                 dataType
-                cardinality: dataQualityMetric(metric: cardinality) {
-                  data {
-                    timestamp
-                    value
-                  }
-                }
-                percentEmpty: dataQualityMetric(metric: percentEmpty) {
-                  data {
-                    timestamp
-                    value
-                  }
-                }
+                cardinality: dataQualityMetric(metric: cardinality)
+                percentEmpty: dataQualityMetric(metric: percentEmpty)
               }
             }
           }

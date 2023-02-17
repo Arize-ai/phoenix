@@ -1,67 +1,77 @@
 from abc import ABC, abstractmethod
-from typing import Any, Hashable, Optional, Protocol, Sequence, Tuple, Union
+from typing import Any, Hashable, Iterable, Optional, Protocol, Tuple, Union
 
+import numpy as np
 import pandas as pd
 from typing_extensions import TypeAlias
 
 ColumnName: TypeAlias = str
-Shape: TypeAlias = Union[int, Tuple[int, ...]]
 
 
 class Metric(Protocol):
     def __call__(self, df: pd.DataFrame) -> Tuple[Hashable, Any]:
         ...
 
-    def input_columns(self) -> Sequence[ColumnName]:
-        ...
-
-    def empty_result(self) -> pd.DataFrame:
+    def input_columns(self) -> Iterable[ColumnName]:
         ...
 
 
-class IndexableContainer(Protocol):
-    def __getitem__(self, key: Hashable) -> Any:
-        ...
+class ZeroInitialValue(ABC):
+    def initial_value(self) -> Any:
+        if isinstance(self, VectorOperator):
+            return np.zeros(self.shape)
+        return 0
 
 
-class HasId(ABC):
-    id: Hashable
+class VectorOperator(ABC):
+    shape: Union[int, Tuple[int, ...]]
 
-    def __init__(self, **kwargs: Any) -> None:
-        self.id = id(self)
-        super().__init__(**kwargs)
-
-    def get_value(self, container: IndexableContainer) -> Any:
-        return container[self.id]
-
-
-class VectorMetric(ABC):
-    shape: Shape
-
-    def __init__(self, shape: Shape, **kwargs: Any):
+    def __init__(self, shape: Union[int, Tuple[int, ...]], **kwargs: Any):
         self.shape = shape
         super().__init__(**kwargs)
 
 
-class SingleOperandMetric(ABC):
+class UnaryOperator(ABC):
+    """
+    A unary operator is a function with one operand or argument as input.
+    See https://en.wikipedia.org/wiki/Arity
+    """
+
     operand: ColumnName
 
-    def __init__(self, col: ColumnName, **kwargs: Any):
-        self.operand = col
+    def __init__(self, column_name: ColumnName, **kwargs: Any):
+        self.operand = column_name
         super().__init__(**kwargs)
 
     def input_columns(self) -> Tuple[ColumnName, ...]:
         return (self.operand,) if self.operand else ()
 
 
-class OptionalOperandMetric(SingleOperandMetric):
-    def __init__(self, col: Optional[ColumnName] = None, **kwargs: Any):
-        super().__init__(col or "", **kwargs)
+class OptionalUnaryOperator(UnaryOperator):
+    def __init__(self, column_name: Optional[ColumnName] = None, **kwargs: Any):
+        super().__init__(column_name or "", **kwargs)
 
 
-class BaseMetric(HasId, ABC):
-    def empty_result(self) -> pd.DataFrame:
-        return pd.DataFrame(columns=(self.id,))
+class BaseMetric(ABC):
+    id: int
+    """
+    id is a unique identifier for each metric instance. This is used to extract
+    the metric's own vaule from a collective output containing results from
+    other metrics.
+    """
+
+    def __init__(self, **kwargs: Any) -> None:
+        self.id = id(self)
+        super().__init__(**kwargs)
+
+    def initial_value(self) -> Any:
+        return float("nan")
+
+    def get_value(self, result: Any) -> Any:
+        try:
+            return result[self.id]
+        except KeyError:
+            return self.initial_value()
 
     @abstractmethod
     def calc(self, df: pd.DataFrame) -> Any:

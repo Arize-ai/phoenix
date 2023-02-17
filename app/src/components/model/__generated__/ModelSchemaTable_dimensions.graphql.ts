@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f1d8a755e495a3382afbe245677c792b>>
+ * @generated SignedSource<<fbe68a99083df7bbf0ba63c9859d18b0>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -17,20 +17,10 @@ export type ModelSchemaTable_dimensions$data = {
     readonly dimensions: {
       readonly edges: ReadonlyArray<{
         readonly dimension: {
-          readonly cardinality: {
-            readonly data: ReadonlyArray<{
-              readonly timestamp: String;
-              readonly value: number | null;
-            }>;
-          } | null;
+          readonly cardinality: number | null;
           readonly dataType: DimensionDataType;
           readonly name: string;
-          readonly percentEmpty: {
-            readonly data: ReadonlyArray<{
-              readonly timestamp: String;
-              readonly value: number | null;
-            }>;
-          } | null;
+          readonly percentEmpty: number | null;
           readonly type: DimensionType;
         };
       }>;
@@ -47,33 +37,6 @@ const node: ReaderFragment = (function(){
 var v0 = [
   "model",
   "dimensions"
-],
-v1 = [
-  {
-    "alias": null,
-    "args": null,
-    "concreteType": "TimeSeriesDataPoint",
-    "kind": "LinkedField",
-    "name": "data",
-    "plural": true,
-    "selections": [
-      {
-        "alias": null,
-        "args": null,
-        "kind": "ScalarField",
-        "name": "timestamp",
-        "storageKey": null
-      },
-      {
-        "alias": null,
-        "args": null,
-        "kind": "ScalarField",
-        "name": "value",
-        "storageKey": null
-      }
-    ],
-    "storageKey": null
-  }
 ];
 return {
   "argumentDefinitions": [
@@ -175,11 +138,8 @@ return {
                           "value": "cardinality"
                         }
                       ],
-                      "concreteType": null,
-                      "kind": "LinkedField",
+                      "kind": "ScalarField",
                       "name": "dataQualityMetric",
-                      "plural": false,
-                      "selections": (v1/*: any*/),
                       "storageKey": "dataQualityMetric(metric:\"cardinality\")"
                     },
                     {
@@ -191,11 +151,8 @@ return {
                           "value": "percentEmpty"
                         }
                       ],
-                      "concreteType": null,
-                      "kind": "LinkedField",
+                      "kind": "ScalarField",
                       "name": "dataQualityMetric",
-                      "plural": false,
-                      "selections": (v1/*: any*/),
                       "storageKey": "dataQualityMetric(metric:\"percentEmpty\")"
                     }
                   ],
@@ -266,6 +223,6 @@ return {
 };
 })();
 
-(node as any).hash = "cf4335b053eda6c2e057d907ebb3670c";
+(node as any).hash = "8adfc820d01526b9bc2e9dc3212a8049";
 
 export default node;

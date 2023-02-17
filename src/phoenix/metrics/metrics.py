@@ -1,62 +1,72 @@
 import warnings
-from typing import Any, cast
+from typing import Union, cast
 
 import numpy as np
+import numpy.typing as npt
 import pandas as pd
 import sklearn  # type: ignore
 
-from phoenix.metrics.mixins import (
+from .mixins import (
     BaseMetric,
     EvaluationMetric,
-    OptionalOperandMetric,
-    SingleOperandMetric,
-    VectorMetric,
+    OptionalUnaryOperator,
+    UnaryOperator,
+    VectorOperator,
+    ZeroInitialValue,
 )
 
 
-class Count(OptionalOperandMetric, BaseMetric):
+class Count(OptionalUnaryOperator, ZeroInitialValue, BaseMetric):
     def calc(self, df: pd.DataFrame) -> int:
         return df.loc[:, self.operand].count() if self.operand else len(df)
 
 
-class Sum(SingleOperandMetric, BaseMetric):
-    def calc(self, df: pd.DataFrame) -> Any:
-        return df.loc[:, self.operand].sum()
+class Sum(UnaryOperator, BaseMetric):
+    def calc(self, df: pd.DataFrame) -> float:
+        return cast(float, df.loc[:, self.operand].sum())
 
 
-class VectorSum(SingleOperandMetric, VectorMetric, BaseMetric):
-    def calc(self, df: pd.DataFrame) -> Any:
+class VectorSum(UnaryOperator, VectorOperator, ZeroInitialValue, BaseMetric):
+    def calc(self, df: pd.DataFrame) -> Union[float, npt.NDArray[np.float64]]:
         return np.sum(  # type: ignore
             df.loc[:, self.operand].to_numpy(),
-            initial=np.zeros(self.shape),
+            initial=self.initial_value(),
         )
 
 
-class Mean(SingleOperandMetric, BaseMetric):
-    def calc(self, df: pd.DataFrame) -> Any:
+class Mean(UnaryOperator, BaseMetric):
+    def calc(self, df: pd.DataFrame) -> float:
         return df.loc[:, self.operand].mean()
 
 
-class VectorMean(SingleOperandMetric, VectorMetric, BaseMetric):
-    def calc(self, df: pd.DataFrame) -> Any:
+class VectorMean(UnaryOperator, VectorOperator, BaseMetric):
+    def calc(self, df: pd.DataFrame) -> Union[float, npt.NDArray[np.float64]]:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", category=RuntimeWarning)
-            return np.mean(
-                df.loc[:, self.operand].to_numpy(),
+            return cast(
+                Union[float, npt.NDArray[np.float64]],
+                np.mean(
+                    df.loc[:, self.operand].to_numpy(),
+                ),
             )
 
 
-class Cardinality(SingleOperandMetric, BaseMetric):
+class Cardinality(UnaryOperator, BaseMetric):
     def calc(self, df: pd.DataFrame) -> int:
         return df.loc[:, self.operand].nunique()
 
 
-class PercentEmpty(SingleOperandMetric, BaseMetric):
+class PercentEmpty(UnaryOperator, BaseMetric):
     def calc(self, df: pd.DataFrame) -> float:
         return df.loc[:, self.operand].isna().mean() * 100
 
 
 class AccuracyScore(EvaluationMetric):
+    """
+    AccuracyScore calculates the percentage of times that actual equals predicted.
+    """
+
     def calc(self, df: pd.DataFrame) -> float:
-        y_true, y_pred = df.loc[:, self.actual], df.loc[:, self.predicted]
-        return cast(float, sklearn.metrics.accuracy_score(y_true, y_pred))
+        return cast(
+            float, sklearn.metrics.accuracy_score(df.loc[:, self.actual], df.loc[:, self.predicted])
+        )
