@@ -21,6 +21,7 @@
     "react-router": "^6.7.0",
     "react-router-dom": "^6.7.0",
     "react-table": "^7.8.0",
+    "recharts": "^2.4.3",
     "relay-runtime": "^14.1.0",
     "shade": "^0.1.1",
     "three": "0.139",
