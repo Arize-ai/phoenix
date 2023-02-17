@@ -16,6 +16,24 @@ export function GlobalStyles() {
             height: 100vh;
           }
         }
+
+        /* Remove list styling */
+        ul {
+          display: block;
+          list-style-type: none;
+          margin-block-start: none;
+          margin-block-end: 0;
+          padding-inline-start: 0;
+        }
+
+        :root {
+          --px-blue-color: ${theme.colors.arizeBlue};
+          --px-light-blue-color: ${theme.colors.arizeLightBlue};
+
+          --px-primary-color: #9efcfd;
+          --px-primary-color--transparent: rgb(158, 252, 253, 0.2);
+          --px-reference-color: #baa1f9;
+        }
       `}
     />
   );

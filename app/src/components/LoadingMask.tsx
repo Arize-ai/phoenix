@@ -1,0 +1,23 @@
+import React from "react";
+import { ProgressCircle } from "@arizeai/components";
+import { css } from "@emotion/react";
+
+export const LoadingMask = () => {
+  return (
+    <div
+      css={css`
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        background-color: rgba(0, 0, 0, 0.2);
+      `}
+    >
+      <ProgressCircle isIndeterminate />
+    </div>
+  );
+};

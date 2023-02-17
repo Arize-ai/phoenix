@@ -79,7 +79,7 @@ export function PointCloudPoints({
       {referenceData && (
         <Points
           data={referenceData}
-          pointProps={{ color: referenceColorByFn }}
+          pointProps={{ color: referenceColorByFn, size: 5 }}
         />
       )}
     </>

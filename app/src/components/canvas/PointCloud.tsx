@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { ReactNode, useMemo, useState } from "react";
 import {
   ThreeDimensionalCanvas,
   ThreeDimensionalControls,
@@ -6,21 +6,27 @@ import {
   ThreeDimensionalBounds,
   LassoSelect,
   ColorSchemes,
+  Cluster,
 } from "@arizeai/point-cloud";
-import { ErrorBoundary } from "../ErrorBoundary";
 import { theme } from "@arizeai/components";
 import { css } from "@emotion/react";
 import { ControlPanel } from "./ControlPanel";
-import { ColoringStrategyPicker } from "./ColoringStrategyPicker";
 import { CanvasMode, CanvasModeRadioGroup } from "./CanvasModeRadioGroup";
 import { PointCloudPoints } from "./PointCloudPoints";
 import { ThreeDimensionalPointItem } from "./types";
-import { ColoringStrategy } from "./types";
+import { ColoringStrategy, ClusterItem } from "./types";
 import { createColorFn } from "./coloring";
+import { usePointCloud } from "./PointCloudContext";
 
 export type PointCloudProps = {
   primaryData: ThreeDimensionalPointItem[];
   referenceData: ThreeDimensionalPointItem[] | null;
+  clusters: readonly ClusterItem[];
+  coloringStrategy: ColoringStrategy;
+  /**
+   * The id of the cluster that is currently selected
+   */
+  selectedClusterId: string | null;
 };
 
 const CONTROL_PANEL_WIDTH = 300;
@@ -30,17 +36,10 @@ const DEFAULT_COLOR_SCHEME = ColorSchemes.Discrete2.WhiteLightBlue;
  * E.g. move vs select
  */
 function CanvasTools(props: {
-  coloringStrategy: ColoringStrategy;
-  onColoringStrategyChange: (strategy: ColoringStrategy) => void;
   canvasMode: CanvasMode;
   onCanvasModeChange: (mode: CanvasMode) => void;
 }) {
-  const {
-    coloringStrategy,
-    onColoringStrategyChange,
-    canvasMode,
-    onCanvasModeChange,
-  } = props;
+  const { canvasMode, onCanvasModeChange } = props;
   return (
     <div
       css={css`
@@ -54,10 +53,6 @@ function CanvasTools(props: {
         gap: ${theme.spacing.margin8}px;
       `}
     >
-      <ColoringStrategyPicker
-        strategy={coloringStrategy}
-        onChange={onColoringStrategyChange}
-      />
       <CanvasModeRadioGroup mode={canvasMode} onChange={onCanvasModeChange} />
     </div>
   );
@@ -76,19 +71,48 @@ function SelectionControlPanel({ selectedIds }: { selectedIds: Set<string> }) {
   );
 }
 
-export function PointCloud({ primaryData, referenceData }: PointCloudProps) {
+function CanvasWrap({ children }: { children: ReactNode }) {
+  return (
+    <div
+      css={css`
+        flex: 1 1 auto;
+        height: 100%;
+        position: relative;
+        background-color: black;
+      `}
+    >
+      {children}
+    </div>
+  );
+}
+
+export function PointCloud({
+  primaryData,
+  referenceData,
+  clusters,
+  selectedClusterId,
+  coloringStrategy,
+}: PointCloudProps) {
   // AutoRotate the canvas on initial load
   const [autoRotate, setAutoRotate] = useState<boolean>(true);
-  const [coloringStrategy, onColoringStrategyChange] =
-    useState<ColoringStrategy>(ColoringStrategy.dataset);
   const [canvasMode, setCanvasMode] = useState<CanvasMode>(CanvasMode.move);
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const { selectedPointIds, setSelectedPointIds } = usePointCloud();
   const allPoints = useMemo(() => {
     return [...primaryData, ...(referenceData || [])];
   }, []);
+
+  // Keep a map of point id to position for fast lookup
+  const pointPositionsMap = useMemo(() => {
+    return allPoints.reduce((acc, point) => {
+      acc[(point.metaData as any).id as string] = point.position;
+      return acc;
+    }, {} as Record<string, ThreeDimensionalPointItem["position"]>);
+  }, [allPoints]);
+
   const bounds = useMemo(() => {
     return getThreeDimensionalBounds(allPoints.map((p) => p.position));
   }, []);
+
   const isMoveMode = canvasMode === CanvasMode.move;
 
   // Determine the color of the points based on the strategy
@@ -100,15 +124,22 @@ export function PointCloud({ primaryData, referenceData }: PointCloudProps) {
     coloringStrategy,
     defaultColor: DEFAULT_COLOR_SCHEME[1],
   });
+
+  // Interleave the cluster point locations with the cluster
+  const clustersWithData = useMemo(() => {
+    return clusters.map((cluster) => {
+      const { pointIds } = cluster;
+      return {
+        ...cluster,
+        data: pointIds.map((pointId) => ({
+          position: pointPositionsMap[pointId],
+        })),
+      };
+    });
+  }, [pointPositionsMap]);
   return (
-    <ErrorBoundary>
-      {/* <SelectionControlPanel selectedIds={selectedIds} /> */}
-      <CanvasTools
-        coloringStrategy={coloringStrategy}
-        onColoringStrategyChange={onColoringStrategyChange}
-        canvasMode={canvasMode}
-        onCanvasModeChange={setCanvasMode}
-      />
+    <CanvasWrap>
+      <CanvasTools canvasMode={canvasMode} onCanvasModeChange={setCanvasMode} />
       <ThreeDimensionalCanvas camera={{ position: [0, 0, 10] }}>
         <ThreeDimensionalControls
           autoRotate={autoRotate}
@@ -124,7 +155,7 @@ export function PointCloud({ primaryData, referenceData }: PointCloudProps) {
           <LassoSelect
             points={allPoints}
             onChange={(selection) => {
-              setSelectedIds(new Set(selection.map((s) => s.metaData.id)));
+              setSelectedPointIds(new Set(selection.map((s) => s.metaData.id)));
             }}
             enabled={canvasMode === CanvasMode.select}
           />
@@ -132,12 +163,20 @@ export function PointCloud({ primaryData, referenceData }: PointCloudProps) {
           <PointCloudPoints
             primaryData={primaryData}
             referenceData={referenceData}
-            selectedIds={selectedIds}
+            selectedIds={selectedPointIds}
             primaryColor={primaryColor}
             referenceColor={referenceColor}
           />
+          {clustersWithData.map((cluster) => (
+            <Cluster
+              key={cluster.id}
+              data={cluster.data}
+              opacity={cluster.id === selectedClusterId ? 0.2 : 0}
+              wireframe
+            />
+          ))}
         </ThreeDimensionalBounds>
       </ThreeDimensionalCanvas>
-    </ErrorBoundary>
+    </CanvasWrap>
   );
 }
