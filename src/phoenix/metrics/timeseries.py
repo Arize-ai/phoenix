@@ -75,25 +75,14 @@ def _groupers(
     evaluation_window: timedelta,
     sampling_interval: timedelta,
 ) -> Generator[Tuple[slice, pd.Grouper], None, None]:
-    if evaluation_window % sampling_interval:  # not divisible
-        max_offset = end_time - start_time
-
-        def time_slice(offset: timedelta) -> slice:
-            # Because pandas time indexing is end inclusive, a microsecond
-            # timedelta is subtracted from the end time.
-            return slice(
-                max(start_time, end_time - offset - evaluation_window),
-                end_time - offset - timedelta(microseconds=1),
-            )
-
-    else:
-        max_offset = evaluation_window
-
-        def time_slice(offset: timedelta) -> slice:
-            # Because pandas time indexing is end inclusive, a microsecond
-            # timedelta is subtracted from the end time.
-            return slice(start_time, end_time - offset - timedelta(microseconds=1))
-
+    divisible = evaluation_window % sampling_interval == timedelta()
+    max_offset = evaluation_window if divisible else end_time - start_time
+    time_slice: Callable[[timedelta], slice] = lambda offset: slice(
+        start_time if divisible else max(start_time, end_time - offset - evaluation_window),
+        # Because pandas time indexing is end inclusive, a microsecond is
+        # subtracted from the end time.
+        end_time - offset - timedelta(microseconds=1),
+    )
     yield from (
         (
             time_slice(offset),
@@ -107,15 +96,21 @@ def _groupers(
                 sort=False,
             ),
         )
-        # Each Grouper is like a row in a brick wall, and each brick represents
-        # an evaluation window. By shifting each row of bricks by the sampling
+        # Each Grouper is like a row in a brick wall, where each brick is an
+        # evaluation window. By shifting each row of bricks by the sampling
         # interval, we can get all of the brick's right edges to line up with
-        # the points of the time series, and together they will summarize the
-        # data for the entire time series.
-        #    ┌─────┬─────┬─────┬─────┐
-        #    └─┬───┴─┬───┴─┬───┴─┬───┴─┐
-        #      └─┬───┴─┬───┴─┬───┴─┬───┴─┐
-        #        └─────┴─────┴─────┴─────┘
+        # the points of the time series, and together they will summarize data
+        # for the whole time series.
+        #
+        #                   evaluation window
+        #                   ┌──┴──┐
+        #       ┌─────┬─────┬─────┬─────┐    offset groupers
+        #     ┌─┴───┬─┴───┬─┴───┬─┴───┬─┘0 │ by sampling interval
+        #   ┌─┴───┬─┴───┬─┴───┬─┴───┬─┘1   │
+        #   └─────┴─────┴─────┴─────┘2     ▼
+        #         ┌─┬─┬─┬─┬─┬─┬─┬─┬─┬─┬─┐    combine into
+        #         └─┴─┴─┴─┴─┴─┴─┴─┴─┴2┴1┘0   final time series
+        #
         for offset in takewhile(
             lambda offset: offset < max_offset,
             accumulate(repeat(sampling_interval), initial=timedelta()),
