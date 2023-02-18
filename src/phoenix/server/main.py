@@ -69,6 +69,7 @@ if __name__ == "__main__":
         print(f'Downloading fixture "{fixture_name}" if missing')
         download_fixture_if_missing(fixture_name)
 
+    print("\n")
     print(
         f"""Starting Phoenix App
             primary dataset: {primary_dataset_name}
