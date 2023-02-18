@@ -2,6 +2,8 @@ import React, { ReactNode, createContext } from "react";
 
 type DatasetDef = {
   name: string;
+  startTime: string;
+  endTime: string;
 };
 
 type DatasetsContextType = {

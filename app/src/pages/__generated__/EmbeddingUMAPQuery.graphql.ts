@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<e7ab15366afa9efd9083c54f54757e25>>
+ * @generated SignedSource<<b0af490ccf73ac004bc14e07af35226d>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,11 +10,11 @@
 
 import { ConcreteRequest, Query } from 'relay-runtime';
 export type TimeRange = {
-  end: String;
-  start: String;
+  end: string;
+  start: string;
 };
 export type EmbeddingUMAPQuery$variables = {
-  id: String;
+  id: string;
   timeRange: TimeRange;
 };
 export type EmbeddingUMAPQuery$data = {

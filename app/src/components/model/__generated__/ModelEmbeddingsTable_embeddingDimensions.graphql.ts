@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<5b379b3453090e491d5e13c2addbcd5a>>
+ * @generated SignedSource<<423ff994120abb9b770078edb0d673fa>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -16,7 +16,7 @@ export type ModelEmbeddingsTable_embeddingDimensions$data = {
       readonly edges: ReadonlyArray<{
         readonly embedding: {
           readonly euclideanDistance: number | null;
-          readonly id: String;
+          readonly id: string;
           readonly name: string;
         };
       }>;
