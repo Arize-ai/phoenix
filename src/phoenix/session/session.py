@@ -1,6 +1,9 @@
 import logging
+import sys
+import time
 from functools import cached_property
 from typing import Optional
+from urllib.request import urlopen
 
 import phoenix.config as config
 from phoenix.datasets import Dataset
@@ -46,13 +49,32 @@ class Session:
         self._app_service.stop()
 
 
-# Provides a level of flexibility
-def launch_app(primary: Dataset, reference: Optional[Dataset]) -> "Session":
+def _wait_for_boot(url: str, polling_interval_secs: int = 1, max_retries: int = 10) -> None:
+    retries = 0
+    while True:
+        try:
+            # Give some feedback to the user of the boot
+            sys.stdout.write(f"\r⏳Launching Phoenix{retries % 4 * '.'}")
+            urlopen(url)
+            print("🚀 Phoenix launched")
+            break
+        except Exception:
+            retries += 1
+            if retries > max_retries:
+                print("Phoenix failed to launch. Please try again.")
+                break
+            time.sleep(polling_interval_secs)
+
+
+def launch_app(
+    primary: Dataset, reference: Optional[Dataset], wait_for_boot: Optional[bool] = True
+) -> "Session":
     "Launches the phoenix application"
-    logger.info("Launching Phoenix App")
     global _session
 
     _session = Session(primary, reference, port=config.port)
+    if wait_for_boot:
+        _wait_for_boot(_session.url)
 
     return _session
 
