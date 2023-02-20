@@ -1,7 +1,7 @@
-from typing import Any, Callable, Dict, List, Optional
+from typing import Callable, Literal, Optional
 
 import pytest
-from pandas import DataFrame, Series, Timestamp
+from pandas import DataFrame, Timestamp
 from strawberry.schema import Schema as StrawberrySchema
 from typing_extensions import TypeAlias
 
@@ -34,7 +34,7 @@ def input_dataset() -> InternalDataset:
 
 
 def test_dataset_serialization(input_dataset: InternalDataset) -> None:
-    converted_gql_dataset = to_gql_dataset(input_dataset)
+    converted_gql_dataset = to_gql_dataset(input_dataset, type="primary")
 
     expected_dataset = input_dataset
     assert converted_gql_dataset.start_time == expected_dataset.start_time
@@ -42,33 +42,6 @@ def test_dataset_serialization(input_dataset: InternalDataset) -> None:
 
 
 class TestDatasetEvents:
-    #         pytest.param(
-    #             "primaryDataset",
-    #             ["0:DatasetType.PRIMARY", "2:DatasetType.PRIMARY"],
-    #             [
-    #                 DimensionInput(name="feature0", type=DimensionType.feature),
-    #                 DimensionInput(name="tag0", type=DimensionType.tag),
-    #             ],
-    #             ["feature0", "tag0"],
-    #             id="test_primary_dataset_with_input_dimensions",
-    #         ),
-    #         pytest.param(
-    #             "primaryDataset",
-    #             [],
-    #             None,
-    #             [],
-    #             id="test_empty_ids_returns_empty_list",
-    #         ),
-    #         pytest.param(
-    #             "referenceDataset",
-    #             ["1:DatasetType.REFERENCE", "2:DatasetType.REFERENCE"],
-    #             [],
-    #             [],
-    #             id="test_empty_dimension_inputs_return_events_with_empty_dimensions",
-    #         ),
-    #     ],
-    # )
-
     def test_no_input_dimensions_correctly_selects_event_ids_and_all_features_and_tags(
         self,
         primary_dataset: InternalDataset,
@@ -76,70 +49,174 @@ class TestDatasetEvents:
         context_factory: ContextFactory,
         strawberry_schema: StrawberrySchema,
     ) -> None:
-        query = """
-            fragment EventDetails on Event {
-                eventMetadata {
-                    predictionLabel
-                    predictionScore
-                    actualLabel
-                    actualScore
-                }
-                dimensions {
-                    dimension {
-                        name
-                    }
-                    value
-                }
-            }
-            query Events($primaryEventIds: [ID!]!, $referenceEventIds: [ID!]!) {
+        result = strawberry_schema.execute_sync(
+            query=self._get_events_query("primaryDataset"),
+            context_value=context_factory(primary_dataset, reference_dataset),
+            variable_values={
+                "eventIds": ["0:DatasetType.PRIMARY"],
+            },
+        )
+        assert result.errors is None
+        assert result.data is not None
+        events = result.data["model"]["primaryDataset"]["events"]
+        assert len(events) == 1
+        assert [
+            dim_with_value["dimension"]["name"] for dim_with_value in events[0]["dimensions"]
+        ] == ["feature0", "feature1", "tag0"]
+        assert [dim_with_value["value"] for dim_with_value in events[0]["dimensions"]] == [
+            "9.0",
+            "blue",
+            "tag0",
+        ]
+        assert events[0]["eventMetadata"] == {
+            "predictionLabel": "class0",
+            "predictionScore": 1.0,
+            "actualLabel": "class4",
+            "actualScore": 4.0,
+        }
+
+    def test_input_dimensions_correctly_selects_event_ids_and_dimensions(
+        self,
+        primary_dataset: InternalDataset,
+        reference_dataset: InternalDataset,
+        context_factory: ContextFactory,
+        strawberry_schema: StrawberrySchema,
+    ) -> None:
+        result = strawberry_schema.execute_sync(
+            query=self._get_events_query("referenceDataset"),
+            context_value=context_factory(primary_dataset, reference_dataset),
+            variable_values={
+                "eventIds": ["1:DatasetType.REFERENCE", "2:DatasetType.REFERENCE"],
+                "dimensions": [
+                    {"name": "tag0", "type": "tag"},
+                ],
+            },
+        )
+
+        assert result.errors is None
+        assert result.data is not None
+        events = result.data["model"]["referenceDataset"]["events"]
+        assert len(events) == 2
+        assert [
+            dim_with_value["dimension"]["name"] for dim_with_value in events[0]["dimensions"]
+        ] == ["tag0"]
+        assert [dim_with_value["value"] for dim_with_value in events[0]["dimensions"]] == [
+            "tag1",
+        ]
+        assert events[0]["eventMetadata"] == {
+            "predictionLabel": "class1",
+            "predictionScore": None,
+            "actualLabel": None,
+            "actualScore": 3.0,
+        }
+        assert [
+            dim_with_value["dimension"]["name"] for dim_with_value in events[1]["dimensions"]
+        ] == ["tag0"]
+        assert [dim_with_value["value"] for dim_with_value in events[1]["dimensions"]] == [
+            "tag2",
+        ]
+        assert events[1]["eventMetadata"] == {
+            "predictionLabel": "class2",
+            "predictionScore": None,
+            "actualLabel": None,
+            "actualScore": 2.0,
+        }
+
+    def test_empty_event_ids_returns_empty_list(
+        self,
+        primary_dataset: InternalDataset,
+        reference_dataset: InternalDataset,
+        context_factory: ContextFactory,
+        strawberry_schema: StrawberrySchema,
+    ) -> None:
+        result = strawberry_schema.execute_sync(
+            query=self._get_events_query("primaryDataset"),
+            context_value=context_factory(primary_dataset, reference_dataset),
+            variable_values={
+                "eventIds": [],
+            },
+        )
+        assert result.errors is None
+        assert result.data is not None
+        assert len(result.data["model"]["primaryDataset"]["events"]) == 0
+
+    def test_empty_input_dimensions_returns_events_with_empty_dimensions(
+        self,
+        primary_dataset: InternalDataset,
+        reference_dataset: InternalDataset,
+        context_factory: ContextFactory,
+        strawberry_schema: StrawberrySchema,
+    ) -> None:
+        result = strawberry_schema.execute_sync(
+            query=self._get_events_query("referenceDataset"),
+            context_value=context_factory(primary_dataset, reference_dataset),
+            variable_values={
+                "eventIds": ["1:DatasetType.REFERENCE"],
+                "dimensions": [],
+            },
+        )
+
+        assert result.errors is None
+        assert result.data is not None
+        events = result.data["model"]["referenceDataset"]["events"]
+        assert len(events) == 1
+        assert len(events[0]["dimensions"]) == 0
+        assert events[0]["eventMetadata"] == {
+            "predictionLabel": "class1",
+            "predictionScore": None,
+            "actualLabel": None,
+            "actualScore": 3.0,
+        }
+
+    def test_event_ids_from_incorrect_dataset_returns_error(
+        self,
+        primary_dataset: InternalDataset,
+        reference_dataset: InternalDataset,
+        context_factory: ContextFactory,
+        strawberry_schema: StrawberrySchema,
+    ) -> None:
+        result = strawberry_schema.execute_sync(
+            query=self._get_events_query("primaryDataset"),
+            context_value=context_factory(primary_dataset, reference_dataset),
+            variable_values={
+                "eventIds": ["0:DatasetType.PRIMARY", "1:DatasetType.REFERENCE"],
+            },
+        )
+        assert result.errors is not None
+        assert len(result.errors) == 1
+        assert "incorrect dataset" in str(result.errors[0])
+        assert result.data is None
+
+    @staticmethod
+    def _get_events_query(dataset_split: Literal["primaryDataset", "referenceDataset"]) -> str:
+        """
+        Returns a formatted events query for the input dataset split.
+        """
+        return (
+            """
+            query Events($eventIds: [ID!]!, $dimensions: [DimensionInput!]) {
                 model {
-                    primaryDataset {
-                        events(eventIds: $primaryEventIds) {
-                            ...EventDetails
-                        }
-                    }
-                    referenceDataset {
-                        events(eventIds: $referenceEventIds) {
-                            ...EventDetails
+                    %s {
+                        events(eventIds: $eventIds, dimensions: $dimensions) {
+                            eventMetadata {
+                                predictionLabel
+                                predictionScore
+                                actualLabel
+                                actualScore
+                            }
+                            dimensions {
+                                dimension {
+                                    name
+                                }
+                                value
+                            }
                         }
                     }
                 }
             }
         """
-        primary_event_ids = ["0:DatasetType.PRIMARY", "2:DatasetType.PRIMARY"]
-        reference_event_ids = ["1:DatasetType.REFERENCE", "2:DatasetType.REFERENCE"]
-        result = strawberry_schema.execute_sync(
-            query=query,
-            context_value=context_factory(primary_dataset, reference_dataset),
-            variable_values={
-                "primaryEventIds": primary_event_ids,
-                "referenceEventIds": reference_event_ids,
-            },
+            % dataset_split
         )
-        expected_dimension_names = ["feature0", "feature1", "tag0"]
-        assert result.errors is None
-        assert result.data is not None
-        for dataset_split, dataset, event_ids in [
-            ("primaryDataset", primary_dataset, primary_event_ids),
-            ("referenceDataset", reference_dataset, reference_event_ids),
-        ]:
-            events = result.data["model"][dataset_split]["events"]
-            dataframe = dataset.dataframe
-            assert len(events) == len(event_ids)
-            for event_id, event in zip(event_ids, events):
-                row_id = int(str(event_id).split(":")[0])
-                dataframe_row = dataframe.iloc[row_id]
-                self._assert_event_contains_expected_dimensions(
-                    event=event, expected_dimension_names=expected_dimension_names
-                )
-                self._assert_event_values_match_dataframe_row_values(
-                    event=event,
-                    dataframe_row=dataframe_row,
-                    expected_dimension_names=expected_dimension_names,
-                )
-                self._assert_event_metadata_values_match_dataframe_row_values(
-                    event_metadata=event["eventMetadata"], dataframe_row=dataframe_row
-                )
 
     @staticmethod
     @pytest.fixture
@@ -194,28 +271,3 @@ class TestDatasetEvents:
             name="reference",
             persist_to_disc=False,
         )
-
-    @staticmethod
-    def _assert_event_contains_expected_dimensions(
-        event: Dict[str, Any], expected_dimension_names: List[str]
-    ) -> None:
-        assert [
-            dim_with_value["dimension"]["name"] for dim_with_value in event["dimensions"]
-        ] == expected_dimension_names
-
-    @staticmethod
-    def _assert_event_values_match_dataframe_row_values(
-        event: Dict[str, Any], dataframe_row: "Series[Any]", expected_dimension_names: List[str]
-    ) -> None:
-        event_dimension_values = [dim_with_value["value"] for dim_with_value in event["dimensions"]]
-        dataframe_row_values = list(map(str, dataframe_row[expected_dimension_names].tolist()))
-        assert event_dimension_values == dataframe_row_values
-
-    @staticmethod
-    def _assert_event_metadata_values_match_dataframe_row_values(
-        event_metadata: Dict[str, Any], dataframe_row: "Series[Any]"
-    ) -> None:
-        assert event_metadata.get("predictionLabel") == dataframe_row.get("prediction_label")
-        assert event_metadata.get("predictionScore") == dataframe_row.get("prediction_score")
-        assert event_metadata.get("actualLabel") == dataframe_row.get("actual_label")
-        assert event_metadata.get("actualScore") == dataframe_row.get("actual_score")

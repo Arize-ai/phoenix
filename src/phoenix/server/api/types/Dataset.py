@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any, List, Optional, Set, Tuple
+from typing import Any, List, Literal, Optional, Set
 
 import strawberry
 from pandas import Series
@@ -26,6 +26,8 @@ class Dataset:
     name: str
     start_time: datetime
     end_time: datetime
+    dataset: strawberry.Private[InternalDataset]
+    type: strawberry.Private[DatasetType]
 
     @strawberry.field
     def events(
@@ -34,19 +36,17 @@ class Dataset:
         event_ids: List[ID],
         dimensions: Optional[List[DimensionInput]] = UNSET,
     ) -> List[Event]:
+        """
+        Returns events for specific event IDs and dimensions. If no input
+        dimensions are provided, returns all features and tags.
+        """
         if not event_ids:
             return []
-        dataset_type, row_indexes = self._parse_event_ids(event_ids)
-        model = info.context.model
-        dataset = model.primary_dataset
-        if dataset_type == str(DatasetType.REFERENCE):
-            if model.reference_dataset is None:
-                raise ValueError("event_ids contains IDs from non-existent reference dataset.")
-            dataset = model.reference_dataset
-        dataframe = dataset.dataframe
-        schema = dataset.schema
-        requested_gql_dimensions = self._get_requested_dimensions(
-            core_dimensions=model.dimensions,
+        row_indexes = self._parse_event_ids(event_ids)
+        dataframe = self.dataset.dataframe
+        schema = self.dataset.schema
+        requested_gql_dimensions = self._get_requested_features_and_tags(
+            core_dimensions=info.context.model.dimensions,
             requested_dimension_names=set(dim.name for dim in dimensions)
             if isinstance(dimensions, list)
             else None,
@@ -70,24 +70,28 @@ class Dataset:
             for _, row in dataframe.iterrows()
         ]
 
-    @staticmethod
-    def _parse_event_ids(event_ids: List[ID]) -> Tuple[str, List[int]]:
+    def _parse_event_ids(self, event_ids: List[ID]) -> List[int]:
+        """
+        Parses event IDs and returns the corresponding row indexes.
+        """
         row_indexes = []
-        dataset_types = set()
         for event_id in event_ids:
             row_index, dataset_type = str(event_id).split(":")
+            if dataset_type != str(self.type):
+                raise ValueError("eventIds contains IDs from incorrect dataset.")
             row_indexes.append(int(row_index))
-            dataset_types.add(dataset_type)
-        if len(dataset_types) != 1:
-            raise ValueError("eventIds contains IDs from multiple datasets.")
-        dataset_type = dataset_types.pop()
-        return dataset_type, row_indexes
+        return row_indexes
 
     @staticmethod
-    def _get_requested_dimensions(
+    def _get_requested_features_and_tags(
         core_dimensions: List[CoreDimension],
         requested_dimension_names: Optional[Set[str]] = None,
     ) -> List[Dimension]:
+        """
+        Returns requested features and tags as a list of strawberry Dataset
+        objects. If no dimensions are explicitly requested, returns all features
+        and tags.
+        """
         requested_features_and_tags = []
         for id, dim in enumerate(core_dimensions):
             is_requested = (
@@ -100,6 +104,10 @@ class Dataset:
 
     @staticmethod
     def _create_event(row: "Series[Any]", schema: Schema, dimensions: List[Dimension]) -> Event:
+        """
+        Reads dimension values and event metadata from a dataframe row and
+        returns an event containing this information.
+        """
         event_metadata = EventMetadata(
             prediction_label=row[col]
             if (col := schema.prediction_label_column_name) is not None
@@ -120,12 +128,14 @@ class Dataset:
         return Event(eventMetadata=event_metadata, dimensions=dimensions_with_values)
 
 
-def to_gql_dataset(dataset: InternalDataset) -> Dataset:
+def to_gql_dataset(dataset: InternalDataset, type: Literal["primary", "reference"]) -> Dataset:
     """
-    Converts a phoenix.datasets.Dataset to a phoenix.server.api.types.Dataset
+    Converts an internal dataset to a strawberry Dataset type.
     """
     return Dataset(
         name=dataset.name,
         start_time=dataset.start_time,
         end_time=dataset.end_time,
+        type=DatasetType.PRIMARY if type == "primary" else DatasetType.REFERENCE,
+        dataset=dataset,
     )
