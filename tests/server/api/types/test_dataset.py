@@ -53,7 +53,7 @@ def test_dataset_serialization(input_dataset: InternalDataset) -> None:
     [
         pytest.param(
             "primary",
-            [0, 2],
+            ["0:DatasetType.PRIMARY", "2:DatasetType.PRIMARY"],
             None,
             [
                 "feature0",
@@ -64,7 +64,7 @@ def test_dataset_serialization(input_dataset: InternalDataset) -> None:
         ),
         pytest.param(
             "reference",
-            [0, 1, 2],
+            ["0:DatasetType.REFERENCE", "1:DatasetType.REFERENCE", "2:DatasetType.REFERENCE"],
             None,
             [
                 "feature0",
@@ -75,7 +75,7 @@ def test_dataset_serialization(input_dataset: InternalDataset) -> None:
         ),
         pytest.param(
             "primary",
-            [0, 2],
+            ["0:DatasetType.PRIMARY", "2:DatasetType.PRIMARY"],
             [
                 DimensionInput(name="feature0", type=DimensionType.feature),
                 DimensionInput(name="tag0", type=DimensionType.tag),
@@ -92,7 +92,7 @@ def test_dataset_serialization(input_dataset: InternalDataset) -> None:
         ),
         pytest.param(
             "reference",
-            [1, 2],
+            ["1:DatasetType.REFERENCE", "2:DatasetType.REFERENCE"],
             [],
             [],
             id="test_empty_dimension_inputs_return_events_with_empty_dimensions",
@@ -162,7 +162,8 @@ def test_dataset_events_correctly_selects_event_ids_and_input_dimensions(
     )
     assert len(events) == len(event_ids)
     for event_id, event in zip(event_ids, events):
-        dataframe_row = dataframe.iloc[event_id]
+        row_id = int(str(event_id).split(":")[0])
+        dataframe_row = dataframe.iloc[row_id]
         _assert_event_contains_expected_dimensions(
             event=event, expected_dimension_names=expected_dimension_names
         )

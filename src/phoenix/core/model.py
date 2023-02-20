@@ -109,10 +109,3 @@ class Model:
         elif is_object_dtype(dimension_pandas_dtype):
             return DimensionDataType.CATEGORICAL
         raise ValueError("Unrecognized dimension type")
-
-    def get_dataset_by_name(self, dataset_name: str) -> Dataset:
-        if dataset_name == self.primary_dataset.name:
-            return self.primary_dataset
-        elif self.reference_dataset is not None and dataset_name == self.reference_dataset.name:
-            return self.reference_dataset
-        raise ValueError(f'Unknown dataset name "{dataset_name}".')
