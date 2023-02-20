@@ -60,15 +60,20 @@ class TestDatasetEvents:
         assert result.data is not None
         events = result.data["model"]["primaryDataset"]["events"]
         assert len(events) == 1
-        assert [
+        event_dimension_names = [
             dim_with_value["dimension"]["name"] for dim_with_value in events[0]["dimensions"]
-        ] == ["feature0", "feature1", "tag0"]
-        assert [dim_with_value["value"] for dim_with_value in events[0]["dimensions"]] == [
+        ]
+        event_dimension_values = [
+            dim_with_value["value"] for dim_with_value in events[0]["dimensions"]
+        ]
+        event_metadata = events[0]["eventMetadata"]
+        assert event_dimension_names == ["feature0", "feature1", "tag0"]
+        assert event_dimension_values == [
             "9.0",
             "blue",
             "tag0",
         ]
-        assert events[0]["eventMetadata"] == {
+        assert event_metadata == {
             "predictionLabel": "class0",
             "predictionScore": 1.0,
             "actualLabel": "class4",
@@ -97,25 +102,35 @@ class TestDatasetEvents:
         assert result.data is not None
         events = result.data["model"]["referenceDataset"]["events"]
         assert len(events) == 2
-        assert [
+        event_dimension_names = [
             dim_with_value["dimension"]["name"] for dim_with_value in events[0]["dimensions"]
-        ] == ["tag0"]
-        assert [dim_with_value["value"] for dim_with_value in events[0]["dimensions"]] == [
+        ]
+        event_dimension_values = [
+            dim_with_value["value"] for dim_with_value in events[0]["dimensions"]
+        ]
+        event_metadata = events[0]["eventMetadata"]
+        assert event_dimension_names == ["tag0"]
+        assert event_dimension_values == [
             "tag1",
         ]
-        assert events[0]["eventMetadata"] == {
+        assert event_metadata == {
             "predictionLabel": "class1",
             "predictionScore": None,
             "actualLabel": None,
             "actualScore": 3.0,
         }
-        assert [
+        event_dimension_names = [
             dim_with_value["dimension"]["name"] for dim_with_value in events[1]["dimensions"]
-        ] == ["tag0"]
-        assert [dim_with_value["value"] for dim_with_value in events[1]["dimensions"]] == [
+        ]
+        event_dimension_values = [
+            dim_with_value["value"] for dim_with_value in events[1]["dimensions"]
+        ]
+        event_metadata = events[1]["eventMetadata"]
+        assert event_dimension_names == ["tag0"]
+        assert event_dimension_values == [
             "tag2",
         ]
-        assert events[1]["eventMetadata"] == {
+        assert event_metadata == {
             "predictionLabel": "class2",
             "predictionScore": None,
             "actualLabel": None,
@@ -160,8 +175,10 @@ class TestDatasetEvents:
         assert result.data is not None
         events = result.data["model"]["referenceDataset"]["events"]
         assert len(events) == 1
-        assert len(events[0]["dimensions"]) == 0
-        assert events[0]["eventMetadata"] == {
+        event_dimensions = events[0]["dimensions"]
+        assert len(event_dimensions) == 0
+        event_metadata = events[0]["eventMetadata"]
+        assert event_metadata == {
             "predictionLabel": "class1",
             "predictionScore": None,
             "actualLabel": None,
@@ -188,9 +205,9 @@ class TestDatasetEvents:
         assert result.data is None
 
     @staticmethod
-    def _get_events_query(dataset_split: Literal["primaryDataset", "referenceDataset"]) -> str:
+    def _get_events_query(dataset_type: Literal["primaryDataset", "referenceDataset"]) -> str:
         """
-        Returns a formatted events query for the input dataset split.
+        Returns a formatted events query for the input dataset type.
         """
         return (
             """
@@ -215,7 +232,7 @@ class TestDatasetEvents:
                 }
             }
         """
-            % dataset_split
+            % dataset_type
         )
 
     @staticmethod

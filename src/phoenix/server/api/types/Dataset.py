@@ -88,9 +88,8 @@ class Dataset:
         requested_dimension_names: Optional[Set[str]] = None,
     ) -> List[Dimension]:
         """
-        Returns requested features and tags as a list of strawberry Dataset
-        objects. If no dimensions are explicitly requested, returns all features
-        and tags.
+        Returns requested features and tags as a list of strawberry Datasets. If
+        no dimensions are explicitly requested, returns all features and tags.
         """
         requested_features_and_tags = []
         for id, dim in enumerate(core_dimensions):

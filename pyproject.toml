@@ -111,7 +111,7 @@ dependencies = [
 
 [tool.hatch.envs.default.scripts]
 tests = "pytest {args}"
-coverage = "pytest --cov-report xml --cov-config pyproject.toml --cov=src/phoenix {args}"
+coverage = "pytest --cov-report=term-missing --cov-config=pyproject.toml --cov=src/phoenix --cov=tests {args}"
 
 [[tool.hatch.envs.test.matrix]]
 python = ["3.8"]

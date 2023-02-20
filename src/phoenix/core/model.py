@@ -16,7 +16,6 @@ class Model:
     __reference_dataset: Optional[Dataset] = None
 
     def __init__(self, primary_dataset: Dataset, reference_dataset: Optional[Dataset]):
-        # TODO Fail if you can't find the datasets on disc
         self.__primary_dataset = primary_dataset
         if reference_dataset is not None:
             self.__reference_dataset = reference_dataset
