@@ -134,6 +134,48 @@ class MissingEmbeddingFeatureLinkToDataColumnName(ValidationError):
         )
 
 
+class InvalidEmbeddingVectorSize(ValidationError):
+    """An error raised when trying to access an EmbeddingColumnNames.link_to_data_column_name
+    absent from the schema"""
+
+    def __init__(self, embedding_feature_name: str) -> None:
+        self.embedding_feature_name = embedding_feature_name
+
+    def error_message(self) -> str:
+        return (
+            f"Schema is missing link_to_data_column_name of embedding_feature_column_names"
+            f"[{self.embedding_feature_name}]"
+        )
+
+
+class InvalidEmbeddingVectorDataType(ValidationError):
+    """An error raised when trying to access an EmbeddingColumnNames.link_to_data_column_name
+    absent from the schema"""
+
+    def __init__(self, embedding_feature_name: str) -> None:
+        self.embedding_feature_name = embedding_feature_name
+
+    def error_message(self) -> str:
+        return (
+            f"Schema is missing link_to_data_column_name of embedding_feature_column_names"
+            f"[{self.embedding_feature_name}]"
+        )
+
+
+class InvalidEmbeddingVectorValuesDataType(ValidationError):
+    """An error raised when trying to access an EmbeddingColumnNames.link_to_data_column_name
+    absent from the schema"""
+
+    def __init__(self, embedding_feature_name: str) -> None:
+        self.embedding_feature_name = embedding_feature_name
+
+    def error_message(self) -> str:
+        return (
+            f"Schema is missing link_to_data_column_name of embedding_feature_column_names"
+            f"[{self.embedding_feature_name}]"
+        )
+
+
 class MissingTimestampColumnName(ValidationError):
     """
     An error raised when trying to access a timestamp column that is absent from

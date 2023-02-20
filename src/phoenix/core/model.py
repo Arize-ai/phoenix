@@ -89,8 +89,9 @@ class Model:
 
         return dimensions
 
+    @classmethod
     def _get_embedding_dimensions(
-        self, primary_dataset: Dataset, reference_dataset: Optional[Dataset]
+        cls, primary_dataset: Dataset, reference_dataset: Optional[Dataset]
     ) -> List[EmbeddingDimension]:
         embedding_dimensions: List[EmbeddingDimension] = []
         embedding_features: Dict[str, EmbeddingColumnNames] = {}
@@ -111,7 +112,7 @@ class Model:
         for embedding_feature, embedding_column_names in embedding_features.items():
             embedding_dimensions.append(EmbeddingDimension(name=embedding_feature))
             if reference_dataset is not None:
-                self._check_embedding_vector_lengths(
+                cls._check_embedding_vector_lengths(
                     embedding_column_names, primary_dataset, reference_dataset
                 )
 
@@ -124,8 +125,8 @@ class Model:
         primary_dataset: Dataset,
         reference_dataset: Dataset,
     ) -> None:
-        primary_column = primary_dataset.dataframe.embedding_column_names.vector_column_name
-        reference_column = reference_dataset.dataframe.embedding_column_names.vector_column_name
+        primary_column = primary_dataset.dataframe[embedding_column_names.vector_column_name]
+        reference_column = reference_dataset.dataframe[embedding_column_names.vector_column_name]
 
         if primary_column is None or reference_column is None:
             return
