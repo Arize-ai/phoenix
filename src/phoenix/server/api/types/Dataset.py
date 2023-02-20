@@ -8,8 +8,8 @@ from phoenix.datasets import Dataset as InternalDataset
 @strawberry.type
 class Dataset:
     name: str
-    start_time: datetime
-    end_time: datetime
+    start_time: datetime = strawberry.field(description="The start bookend of the data")
+    end_time: datetime = strawberry.field(description="The end bookend of the data")
 
 
 def to_gql_dataset(dataset: InternalDataset) -> Dataset:

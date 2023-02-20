@@ -15,8 +15,13 @@ from .node import Node
 @strawberry.type
 class Dimension(Node):
     name: str
-    type: DimensionType
-    dataType: DimensionDataType
+    type: DimensionType = strawberry.field(
+        description="Whether the dimension represents a feature, tag, prediction, or actual."
+    )
+
+    dataType: DimensionDataType = strawberry.field(
+        description="The data type of the column. Categorical or numeric."
+    )
 
     @strawberry.field
     async def dataQualityMetric(
