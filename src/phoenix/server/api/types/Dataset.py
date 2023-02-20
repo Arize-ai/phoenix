@@ -79,7 +79,7 @@ class Dataset:
             row_indexes.append(int(row_index))
             dataset_types.add(dataset_type)
         if len(dataset_types) != 1:
-            raise ValueError("event_ids contains IDs from multiple datasets.")
+            raise ValueError("eventIds contains IDs from multiple datasets.")
         dataset_type = dataset_types.pop()
         return dataset_type, row_indexes
 
