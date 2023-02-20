@@ -77,13 +77,3 @@ class Model:
                 before=before if isinstance(before, Cursor) else None,
             ),
         )
-
-    # FIXME: Move code here or remove this.
-    # @strawberry.field
-    # def events(
-    #     self,
-    #     event_ids: List[EventId],
-    #     dimensions: Optional[List[DimensionInput]],
-    #     info: Info[Context, None],
-    # ) -> List[Event]:
-    #     raise NotImplementedError()
