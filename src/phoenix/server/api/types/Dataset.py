@@ -7,7 +7,7 @@ from phoenix.datasets import Dataset as InternalDataset
 
 @strawberry.type
 class Dataset:
-    name: str
+    name: str = strawberry.field(description="The given name of the dataset")
     start_time: datetime = strawberry.field(description="The start bookend of the data")
     end_time: datetime = strawberry.field(description="The end bookend of the data")
 

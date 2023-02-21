@@ -14,7 +14,7 @@ from .node import Node
 
 @strawberry.type
 class Dimension(Node):
-    name: str
+    name: str = strawberry.field(description="The name of the dimension (a.k.a. the column name)")
     type: DimensionType = strawberry.field(
         description="Whether the dimension represents a feature, tag, prediction, or actual."
     )
