@@ -22,6 +22,8 @@ def timeseries(
     column is identified by each Metric's ID. Apply each metric's get_value() on
     the rows to extract the corresponding metric output value.
     """
+    assert evaluation_window > timedelta()
+    assert sampling_interval > timedelta()
 
     return partial(
         _aggregator,
