@@ -1,6 +1,7 @@
-# Arize Phoenix
-
-<p>
+<p align="center">
+    <a target="_blank" href="https://arize.com" style="background:none">
+    <img alt="phoenix logo" src="https://raw.githubusercontent.com/dagster-io/dagster/main/.github/phonix-logo-light.svg" width="auto" height="120">
+  </a>
     <a href="https://pypi.org/project/arize-phoenix/">
         <img src="https://img.shields.io/pypi/v/arize-phoenix">
     </a>
@@ -9,10 +10,9 @@
     </a>
 </p>
 
-
 Phoenix provides MLOps insights at lightning speed with zero-config observability for model drift, performance, and data quality.
 
-***Phoenix is under active development. APIs may change at any time.***
+**_Phoenix is under active development. APIs may change at any time._**
 
 ## Installation
 
