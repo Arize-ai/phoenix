@@ -2,12 +2,12 @@ import numpy as np
 import pandas as pd
 from pandas import DataFrame
 
+from phoenix.datasets import errors as err
 from phoenix.datasets.dataset import (
     EmbeddingColumnNames,
     Schema,
-    validate_dataset_inputs
+    validate_dataset_inputs,
 )
-from phoenix.datasets import errors as err
 
 _NUM_RECORDS = 5
 _EMBEDDING_DIMENSION = 7
@@ -18,9 +18,7 @@ def test_embeddings_vector_length_mismatch():
         {
             "prediction_id": [str(x) for x in range(_NUM_RECORDS)],
             "timestamp": [pd.Timestamp.now() for x in range(_NUM_RECORDS)],
-            "embedding_vector0": [
-                np.zeros(_EMBEDDING_DIMENSION) for _ in range(_NUM_RECORDS)
-            ],
+            "embedding_vector0": [np.zeros(_EMBEDDING_DIMENSION) for _ in range(_NUM_RECORDS)],
             "link_to_data0": [f"some-link{index}" for index in range(_NUM_RECORDS)],
             "raw_data_column0": [f"some-text{index}" for index in range(_NUM_RECORDS)],
         }
@@ -55,7 +53,8 @@ def test_embeddings_vector_invalid_type():
             "link_to_data1": [f"some-link{index}" for index in range(_NUM_RECORDS)],
             "raw_data_column1": [f"some-text{index}" for index in range(_NUM_RECORDS)],
             "embedding_vector1": [
-                np.array(['abba' for _ in range(_EMBEDDING_DIMENSION)], dtype=object) for _ in range(_NUM_RECORDS)
+                np.array(["abba" for _ in range(_EMBEDDING_DIMENSION)], dtype=object)
+                for _ in range(_NUM_RECORDS)
             ],
             "link_to_data0": [f"some-link{index}" for index in range(_NUM_RECORDS)],
             "raw_data_column0": [f"some-text{index}" for index in range(_NUM_RECORDS)],
@@ -85,4 +84,3 @@ def test_embeddings_vector_invalid_type():
     assert len(errors) == 2
     assert isinstance(errors[0], err.InvalidEmbeddingVectorDataType)
     assert isinstance(errors[1], err.InvalidEmbeddingVectorValuesDataType)
-

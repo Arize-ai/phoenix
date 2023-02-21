@@ -66,8 +66,8 @@ def _check_valid_embedding_data(dataframe: DataFrame, schema: Schema) -> List[er
             if not isinstance(vector, (list, np.ndarray, Series)):
                 embedding_errors.append(
                     err.InvalidEmbeddingVectorDataType(
-                        f"Embedding feature {embedding_name} has vector type {type(vector_column)}. "
-                        f"Must be list, np.ndarray or pd.Series"
+                        f"Embedding feature {embedding_name} has vector type "
+                        f"{type(vector_column)}. Must be list, np.ndarray or pd.Series"
                     )
                 )
                 break
@@ -75,10 +75,12 @@ def _check_valid_embedding_data(dataframe: DataFrame, schema: Schema) -> List[er
             # Fail if not all elements in every vector are int/floats
             allowed_types = (int, float, np.int16, np.int32, np.float16, np.float32)
             if not all(isinstance(val, allowed_types) for val in vector):
-                embedding_errors.append(err.InvalidEmbeddingVectorValuesDataType(
-                    f"Embedding vector must be a vector of integers and/or floats. Got "
-                    f"{embedding_name}.vector = {column_names.vector_column_name}"
-                ))
+                embedding_errors.append(
+                    err.InvalidEmbeddingVectorValuesDataType(
+                        f"Embedding vector must be a vector of integers and/or floats. Got "
+                        f"{embedding_name}.vector = {column_names.vector_column_name}"
+                    )
+                )
                 break
 
             if vector_length is None:
@@ -86,17 +88,21 @@ def _check_valid_embedding_data(dataframe: DataFrame, schema: Schema) -> List[er
 
             # Fail if vectors in the dataframe are not of the same length, or of length < 1
             if len(vector) != vector_length:
-                embedding_errors.append(err.InvalidEmbeddingVectorSize(
-                    f"Embedding vectors for an embedding feature must be of same length. "
-                    f"{embedding_name}.vector = {column_names.vector_column_name}"
-                ))
+                embedding_errors.append(
+                    err.InvalidEmbeddingVectorSize(
+                        f"Embedding vectors for an embedding feature must be of same length. "
+                        f"{embedding_name}.vector = {column_names.vector_column_name}"
+                    )
+                )
                 break
             elif vector_length <= 1:
-                embedding_errors.append(err.InvalidEmbeddingVectorSize(
-                    f"Embedding vectors cannot be less than 2 in size. Found vector"
-                    f" with size of {vector_length}; {embedding_name}.vector = "
-                    f"{column_names.vector_column_name}"
-                ))
+                embedding_errors.append(
+                    err.InvalidEmbeddingVectorSize(
+                        f"Embedding vectors cannot be less than 2 in size. Found vector"
+                        f" with size of {vector_length}; {embedding_name}.vector = "
+                        f"{column_names.vector_column_name}"
+                    )
+                )
                 break
 
     return embedding_errors

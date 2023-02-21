@@ -128,6 +128,7 @@ class Model:
         primary_column = primary_dataset.dataframe[embedding_column_names.vector_column_name]
         reference_column = reference_dataset.dataframe[embedding_column_names.vector_column_name]
 
+        # if one of the datasets doesn't have the embedding column at all, that's okay
         if primary_column is None or reference_column is None:
             return
 
