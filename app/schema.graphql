@@ -9,6 +9,7 @@ enum DataQualityMetric {
 }
 
 type Dataset {
+  """The given name of the dataset"""
   name: String!
 
   """The start bookend of the data"""
@@ -23,6 +24,8 @@ scalar DateTime
 
 type Dimension implements Node {
   id: GlobalID!
+
+  """The name of the dimension (a.k.a. the column name)"""
   name: String!
 
   """
