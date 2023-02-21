@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 from functools import partial
 from itertools import accumulate, chain, repeat, takewhile
-from typing import Callable, Generator, Iterable, NamedTuple, Optional, Tuple, Union
+from typing import Callable, Generator, Iterable, Tuple, Union
 
 import pandas as pd
 
@@ -113,10 +113,3 @@ def _groupers(
             accumulate(repeat(sampling_interval), initial=timedelta()),
         )
     )
-
-
-class TimeseriesParams(NamedTuple):
-    start_time: datetime
-    end_time: datetime
-    evaluation_window: Optional[timedelta] = None
-    sampling_interval: Optional[timedelta] = None
