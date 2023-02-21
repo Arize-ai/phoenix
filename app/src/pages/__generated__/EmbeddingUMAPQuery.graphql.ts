@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<4e2e2d6de9eb98ff740cfb3b9604812b>>
+ * @generated SignedSource<<e7ab15366afa9efd9083c54f54757e25>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -11,12 +11,7 @@
 import { ConcreteRequest, Query } from 'relay-runtime';
 export type TimeRange = {
   end: String;
-  granularity?: Granularity | null;
   start: String;
-};
-export type Granularity = {
-  evaluationWindowInMinutes: number;
-  samplingIntervalInMinutes?: number | null;
 };
 export type EmbeddingUMAPQuery$variables = {
   id: String;

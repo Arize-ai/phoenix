@@ -65,7 +65,8 @@ def _aggregator(
                     sampling_interval=sampling_interval,
                 )
             ),
-        )
+        ),
+        verify_integrity=True,
     )
 
 

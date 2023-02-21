@@ -1,6 +1,6 @@
 from datetime import timedelta
 from io import StringIO
-from typing import NamedTuple, Union
+from typing import NamedTuple, Union, cast
 
 import numpy as np
 import numpy.typing as npt
@@ -29,7 +29,6 @@ names = list(map(lambda t: t.name, metric_tests))
 metrics = list(map(lambda t: t.metric, metric_tests))
 start = pd.to_datetime("2023-01-01 11:50:52")
 end = pd.to_datetime("2023-01-28 11:26:50")  # end instant is exclusive
-empty = pd.DataFrame()
 
 # The `index` column is added here because it can be a common occurrence in
 # dataframes read from csv files, and it will confuse `pandas.DataFrame.query()`
@@ -229,16 +228,16 @@ def test_timeseries_all_granularity() -> None:
 
 
 def test_timeseries_empty_result() -> None:
-    compare(empty, data.pipe(timeseries(end, start), metrics=metrics))
+    compare(pd.DataFrame(), data.pipe(timeseries(end, start), metrics=metrics))
 
 
 def compare(expected: pd.DataFrame, actual: pd.DataFrame) -> None:
     assert len(expected) >= len(actual)
     for timestamp, row in expected.iterrows():
         try:
-            result = actual.loc[timestamp, :]
+            result = actual.iloc[cast(int, actual.index.get_loc(timestamp)), :].to_dict()
         except KeyError:
-            result = empty
+            result = None
         assert row.equals(
             pd.Series({name: metric.get_value(result) for name, metric in zip(names, metrics)})
         )

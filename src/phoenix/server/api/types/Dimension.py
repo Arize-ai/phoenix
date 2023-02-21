@@ -8,7 +8,13 @@ from phoenix.metrics.mixins import UnaryOperator
 from phoenix.metrics.timeseries import timeseries
 from phoenix.server.api.context import Context
 
-from ..input_types.TimeRange import TimeRange, ensure_time_range
+from ..input_types.TimeRange import (
+    Granularity,
+    TimeRange,
+    ensure_time_range,
+    to_timeseries_params,
+    to_timestamps,
+)
 from . import METRICS
 from .DataQualityMetric import DataQualityMetric
 from .DataQualityTimeSeries import DataQualityTimeSeries, to_gql_timeseries
@@ -40,6 +46,7 @@ class Dimension(Node):
         info: Info[Context, None],
         metric: DataQualityMetric,
         time_range: Optional[TimeRange] = None,
+        granularity: Optional[Granularity] = None,
     ) -> Optional[DataQualityTimeSeries]:
         dimension_name = self.name
         metric_cls = METRICS.get(metric.value, None)
@@ -49,9 +56,13 @@ class Dimension(Node):
         time_range = ensure_time_range(dataset, time_range)
         metric_instance = metric_cls(dimension_name)
         return dataset.dataframe.pipe(
-            timeseries(**(time_range.to_timeseries_params()._asdict())),
+            timeseries(**(to_timeseries_params(time_range, granularity)._asdict())),
             metrics=(metric_instance,),
-        ).pipe(to_gql_timeseries, metric=metric_instance, timestamps=time_range.to_timestamps())
+        ).pipe(
+            to_gql_timeseries,
+            metric=metric_instance,
+            timestamps=to_timestamps(time_range, granularity),
+        )
 
 
 def to_gql_dimension(id_attr: int, dimension: CoreDimension) -> Dimension:

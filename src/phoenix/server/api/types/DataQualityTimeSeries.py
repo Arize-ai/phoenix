@@ -1,9 +1,11 @@
 import math
 from datetime import datetime
-from typing import Any, Iterable, Protocol
+from typing import Iterable, cast
 
 import pandas as pd
 import strawberry
+
+from phoenix.metrics.mixins import Metric
 
 from .TimeSeries import TimeSeries, TimeSeriesDataPoint
 
@@ -15,21 +17,15 @@ class DataQualityTimeSeries(TimeSeries):
     ...
 
 
-class CanGetValue(Protocol):
-    def get_value(self, result: Any) -> Any:
-        ...
-
-
 def to_gql_timeseries(
-    df: pd.DataFrame, metric: CanGetValue, timestamps: Iterable[datetime]
+    df: pd.DataFrame, metric: Metric, timestamps: Iterable[datetime]
 ) -> DataQualityTimeSeries:
-    empty = pd.DataFrame()
     data = []
     for timestamp in timestamps:
         try:
-            row = df.loc[timestamp, :]
+            row = df.iloc[cast(int, df.index.get_loc(timestamp)), :].to_dict()
         except KeyError:
-            row = empty
+            row = None
         value = metric.get_value(row)
         data.append(
             TimeSeriesDataPoint(

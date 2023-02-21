@@ -51,7 +51,6 @@ class Dataset:
         name: Optional[str] = None,
         persist_to_disc: bool = True,
     ):
-        dataframe = dataframe.reset_index()
         errors = validate_dataset_inputs(
             dataframe=dataframe,
             schema=schema,

@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Any, Hashable, Iterable, Optional, Protocol, Tuple, Union
+from typing import Any, Hashable, Iterable, Mapping, Optional, Protocol, Tuple, Union
 
 import numpy as np
 import pandas as pd
@@ -13,6 +13,9 @@ class Metric(Protocol):
         ...
 
     def input_columns(self) -> Iterable[ColumnName]:
+        ...
+
+    def get_value(self, result: Optional[Mapping[Hashable, Any]]) -> Any:
         ...
 
 
@@ -67,7 +70,9 @@ class BaseMetric(ABC):
     def initial_value(self) -> Any:
         return float("nan")
 
-    def get_value(self, result: Any) -> Any:
+    def get_value(self, result: Optional[Mapping[Hashable, Any]] = None) -> Any:
+        if result is None:
+            return self.initial_value()
         try:
             return result[self.id]
         except KeyError:

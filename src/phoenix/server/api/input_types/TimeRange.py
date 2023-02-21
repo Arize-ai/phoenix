@@ -22,7 +22,7 @@ class Granularity:
     from the end-time of the TimeRange.
     """
 
-    evaluation_window_in_minutes: Annotated[
+    evaluation_window_minutes: Annotated[
         int,
         strawberry.argument(
             description="evaluation_window is the length of a sub-interval of "
@@ -34,7 +34,7 @@ class Granularity:
             "72 hours worth of data ending at the point's timestamp.",
         ),
     ]
-    sampling_interval_in_minutes: Annotated[
+    sampling_interval_minutes: Annotated[
         Optional[int],
         strawberry.argument(
             description="sampling_interval is the time interval between each "
@@ -60,47 +60,51 @@ class TimeRange:
             description="The end instant is excluded from the TimeRange interval.",
         ),
     ]
-    granularity: Annotated[
-        Optional[Granularity],
-        strawberry.argument(
-            description="Specifies the frequency and evaluation window of the "
-            "points in the time series.",
-        ),
-    ]
-
-    def evaluation_window(self) -> timedelta:
-        if self.granularity:
-            return timedelta(minutes=self.granularity.evaluation_window_in_minutes)
-        return self.end - self.start
-
-    def sampling_interval(self) -> timedelta:
-        if self.granularity and self.granularity.sampling_interval_in_minutes:
-            return timedelta(minutes=self.granularity.sampling_interval_in_minutes)
-        return self.evaluation_window()
-
-    def to_timeseries_params(self) -> TimeseriesParams:
-        return TimeseriesParams(
-            start_time=self.start,
-            end_time=self.end,
-            evaluation_window=self.evaluation_window(),
-            sampling_interval=self.sampling_interval(),
-        )
-
-    def to_timestamps(self) -> Generator[datetime, None, None]:
-        yield from (
-            takewhile(
-                lambda t: self.start < t,  # type: ignore
-                accumulate(repeat(-self.sampling_interval()), initial=self.end),
-            )
-        )
 
     def is_valid(self) -> bool:
         return self.start < self.end
+
+
+def evaluation_window(
+    time_range: TimeRange, granularity: Optional[Granularity] = None
+) -> timedelta:
+    if granularity:
+        return timedelta(minutes=granularity.evaluation_window_minutes)
+    return time_range.end - time_range.start
+
+
+def sampling_interval(
+    time_range: TimeRange, granularity: Optional[Granularity] = None
+) -> timedelta:
+    if granularity and granularity.sampling_interval_minutes:
+        return timedelta(minutes=granularity.sampling_interval_minutes)
+    return evaluation_window(time_range, granularity)
+
+
+def to_timeseries_params(
+    time_range: TimeRange, granularity: Optional[Granularity] = None
+) -> TimeseriesParams:
+    return TimeseriesParams(
+        start_time=time_range.start,
+        end_time=time_range.end,
+        evaluation_window=evaluation_window(time_range, granularity),
+        sampling_interval=sampling_interval(time_range, granularity),
+    )
+
+
+def to_timestamps(
+    time_range: TimeRange, granularity: Optional[Granularity] = None
+) -> Generator[datetime, None, None]:
+    yield from (
+        takewhile(
+            lambda t: time_range.start < t,  # type: ignore
+            accumulate(repeat(-sampling_interval(time_range, granularity)), initial=time_range.end),
+        )
+    )
 
 
 def ensure_time_range(dataset: Dataset, time_range: Optional[TimeRange] = None) -> TimeRange:
     return time_range or TimeRange(
         start=dataset.start_time,
         end=dataset.end_time + timedelta(microseconds=1),  # end instant is exclusive
-        granularity=None,
     )
