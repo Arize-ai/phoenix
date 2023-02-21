@@ -6,8 +6,8 @@ import numpy as np
 import numpy.typing as npt
 import pandas as pd
 
+from phoenix.metrics import Metric
 from phoenix.metrics.metrics import Count, Mean, VectorMean, VectorSum
-from phoenix.metrics.mixins import Metric
 from phoenix.metrics.timeseries import timeseries
 
 

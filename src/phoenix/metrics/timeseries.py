@@ -1,11 +1,11 @@
 from datetime import datetime, timedelta
 from functools import partial
 from itertools import accumulate, chain, repeat, takewhile
-from typing import Callable, Generator, Iterable, List, Tuple, Union, cast
+from typing import Any, Callable, Generator, Iterable, List, Tuple, Union, cast
 
 import pandas as pd
 
-from .mixins import Metric
+from . import Metric
 
 
 def timeseries(
@@ -16,10 +16,10 @@ def timeseries(
     sampling_interval: timedelta,
 ) -> Callable[..., pd.DataFrame]:
     """
-    timeseries returns an aggregator for use by pandas.DataFrame.pipe() in
-    conjunction with a list of Metrics to return a final time-series output in
-    the form of a pandas.DataFrame where the row index is timestamp and each
-    column is identified by each Metric's ID. Apply each metric's get_value() on
+    Returns an aggregator for use by pandas.DataFrame.pipe() in conjunction
+    with a list of Metrics to return a final time-series output in the form
+    of a pandas.DataFrame where the row index is timestamp and each column
+    is identified by each Metric's ID. Apply each metric's get_value() on
     the rows to extract the corresponding metric output value.
     """
 
@@ -32,6 +32,20 @@ def timeseries(
     )
 
 
+def _calculate(df: pd.DataFrame, calcs: Iterable[Metric]) -> "pd.Series[Any]":
+    """
+    Calculates each metric on the dataframe.
+    """
+    return pd.Series(dict(calc(df) for calc in calcs))
+
+
+def _time_slice_from_sorted_index(idx: pd.Index, start: datetime, end: datetime) -> slice:
+    """
+    Returns end exclusive time slice from sorted index.
+    """
+    return slice(*cast(List[int], idx.searchsorted((start, end))))
+
+
 def _aggregator(
     dataframe: pd.DataFrame,
     *,
@@ -41,6 +55,9 @@ def _aggregator(
     evaluation_window: timedelta,
     sampling_interval: timedelta,
 ) -> pd.DataFrame:
+    """
+    Calls groupby on the dataframe and apply metric calculations on each group.
+    """
     calcs: Tuple[Metric, ...] = tuple(metrics)
     columns: Union[List[int], slice] = list(
         set(
@@ -54,12 +71,12 @@ def _aggregator(
             (pd.DataFrame(),),
             (
                 dataframe.iloc[
-                    slice(*cast(List[int], dataframe.index.searchsorted((start, end)))),
+                    _time_slice_from_sorted_index(dataframe.index, start, end),
                     columns,
                 ]
                 .groupby(group, group_keys=True)
-                .apply(lambda df: pd.Series(dict(calc(df) for calc in calcs)))  # type: ignore
-                .loc[start_time:end_time, :]  # type: ignore
+                .apply(partial(_calculate, calcs=calcs))
+                .loc[start_time:end_time, :]  # type: ignore  # slice has no overload for datetime
                 for start, end, group in _groupers(
                     start_time=start_time,
                     end_time=end_time,
@@ -78,13 +95,16 @@ def _groupers(
     evaluation_window: timedelta,
     sampling_interval: timedelta,
 ) -> Generator[Tuple[datetime, datetime, pd.Grouper], None, None]:
+    """
+    Yields pandas.Groupers from time series parameters.
+    """
     divisible = evaluation_window % sampling_interval == timedelta()
     max_offset = evaluation_window if divisible else end_time - start_time
     yield from (
         (
             start_time if divisible else max(start_time, end_time - offset - evaluation_window),
             end_time - offset,
-            pd.Grouper(  # type: ignore
+            pd.Grouper(  # type: ignore  # mypy finds the wrong Grouper
                 freq=evaluation_window,
                 origin=end_time,
                 offset=offset,

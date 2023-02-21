@@ -1,8 +1,7 @@
 from importlib import import_module
 from inspect import getmembers, isclass
 
-from phoenix.metrics import metrics
-from phoenix.metrics.mixins import Metric
+from phoenix.metrics import Metric, metrics
 
 METRICS = dict(
     getmembers(

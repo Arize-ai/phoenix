@@ -5,7 +5,7 @@ from typing import Iterable, cast
 import pandas as pd
 import strawberry
 
-from phoenix.metrics.mixins import Metric
+from phoenix.metrics import Metric
 
 from .TimeSeries import TimeSeries, TimeSeriesDataPoint
 

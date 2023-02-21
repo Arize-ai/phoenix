@@ -41,7 +41,14 @@ class Dimension(Node):
             return await info.context.loaders.percent_empty.load(dimension_name)
         raise NotImplementedError(f"Metric {metric} is not implemented.")
 
-    @strawberry.field
+    @strawberry.field(
+        description=(
+            "Returns the time series of the specified metric for data within timeRange. Data points"
+            " are generated starting at the end time, are separated by the sampling interval. Each"
+            " data point is labeled by the end instant of and contains data from their respective"
+            " evaluation window."
+        )
+    )  # type: ignore  # https://github.com/strawberry-graphql/strawberry/issues/1929
     def data_quality_time_series(
         self,
         info: Info[Context, None],

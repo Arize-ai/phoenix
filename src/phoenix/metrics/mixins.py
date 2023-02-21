@@ -1,32 +1,16 @@
+"""
+Mixins are behavioral building blocks of metrics. All metrics inherit from
+BaseMetric. Other mixins provide specialized functionalities. Mixins rely
+on cooperative multiple inheritance and method resolution order in Python.
+"""
 from abc import ABC, abstractmethod
-from typing import (
-    Any,
-    Iterable,
-    Mapping,
-    Optional,
-    Protocol,
-    Tuple,
-    Union,
-    runtime_checkable,
-)
+from typing import Any, Mapping, Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd
 from typing_extensions import TypeAlias
 
 ColumnName: TypeAlias = str
-
-
-@runtime_checkable
-class Metric(Protocol):
-    def __call__(self, df: pd.DataFrame) -> Tuple[int, Any]:
-        ...
-
-    def input_columns(self) -> Iterable[ColumnName]:
-        ...
-
-    def get_value(self, result: Mapping[int, Any]) -> Any:
-        ...
 
 
 class ZeroInitialValue(ABC):
