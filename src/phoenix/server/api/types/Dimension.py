@@ -1,3 +1,4 @@
+from datetime import timedelta
 from typing import Optional
 
 import strawberry
@@ -8,13 +9,7 @@ from phoenix.metrics.mixins import UnaryOperator
 from phoenix.metrics.timeseries import timeseries
 from phoenix.server.api.context import Context
 
-from ..input_types.TimeRange import (
-    Granularity,
-    TimeRange,
-    ensure_time_range,
-    to_timeseries_params,
-    to_timestamps,
-)
+from ..input_types.TimeRange import Granularity, TimeRange, to_timestamps
 from . import METRICS
 from .DataQualityMetric import DataQualityMetric
 from .DataQualityTimeSeries import DataQualityTimeSeries, to_gql_timeseries
@@ -45,18 +40,22 @@ class Dimension(Node):
         self,
         info: Info[Context, None],
         metric: DataQualityMetric,
-        time_range: Optional[TimeRange] = None,
-        granularity: Optional[Granularity] = None,
+        time_range: TimeRange,
+        granularity: Granularity,
     ) -> DataQualityTimeSeries:
         dimension_name = self.name
         metric_cls = METRICS.get(metric.value, None)
         if not metric_cls or not issubclass(metric_cls, UnaryOperator):
             raise NotImplementedError(f"Metric {metric} is not implemented.")
         dataset = info.context.model.primary_dataset
-        time_range = ensure_time_range(dataset, time_range)
         metric_instance = metric_cls(dimension_name)
         return dataset.dataframe.pipe(
-            timeseries(**(to_timeseries_params(time_range, granularity)._asdict())),
+            timeseries(
+                start_time=time_range.start,
+                end_time=time_range.end,
+                evaluation_window=timedelta(minutes=granularity.evaluation_window_minutes),
+                sampling_interval=timedelta(minutes=granularity.sampling_interval_minutes),
+            ),
             metrics=(metric_instance,),
         ).pipe(
             to_gql_timeseries,

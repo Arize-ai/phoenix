@@ -9,10 +9,11 @@ from .mixins import Metric
 
 
 def timeseries(
+    *,
     start_time: datetime,
     end_time: datetime,
-    evaluation_window: Optional[timedelta] = None,
-    sampling_interval: Optional[timedelta] = None,
+    evaluation_window: timedelta,
+    sampling_interval: timedelta,
 ) -> Callable[..., pd.DataFrame]:
     """
     timeseries returns an aggregator for use by pandas.DataFrame.pipe() in
@@ -21,10 +22,6 @@ def timeseries(
     column is identified by each Metric's ID. Apply each metric's get_value() on
     the rows to extract the corresponding metric output value.
     """
-    if not evaluation_window:
-        evaluation_window = end_time - start_time
-    if not sampling_interval:
-        sampling_interval = evaluation_window
 
     return partial(
         _aggregator,

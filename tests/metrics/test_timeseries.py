@@ -99,7 +99,12 @@ def test_timeseries_durational_granularity() -> None:
     compare(
         expected,
         data.pipe(
-            timeseries(start, end, timedelta(hours=72), timedelta(hours=24)),
+            timeseries(
+                start_time=start,
+                end_time=end,
+                evaluation_window=timedelta(hours=72),
+                sampling_interval=timedelta(hours=24),
+            ),
             metrics=metrics,
         ),
     )
@@ -130,7 +135,12 @@ def test_timeseries_durational_granularity() -> None:
     compare(
         expected,
         data.pipe(
-            timeseries(start, end, timedelta(hours=72), timedelta(hours=48)),
+            timeseries(
+                start_time=start,
+                end_time=end,
+                evaluation_window=timedelta(hours=72),
+                sampling_interval=timedelta(hours=48),
+            ),
             metrics=metrics,
         ),
     )
@@ -157,7 +167,12 @@ def test_timeseries_durational_granularity() -> None:
     compare(
         expected,
         data.pipe(
-            timeseries(start, end, timedelta(hours=100), timedelta(hours=99)),
+            timeseries(
+                start_time=start,
+                end_time=end,
+                evaluation_window=timedelta(hours=100),
+                sampling_interval=timedelta(hours=99),
+            ),
             metrics=metrics,
         ),
     )
@@ -179,7 +194,12 @@ def test_timeseries_durational_granularity() -> None:
     compare(
         expected,
         data.pipe(
-            timeseries(start, end, timedelta(hours=100), timedelta(hours=396)),
+            timeseries(
+                start_time=start,
+                end_time=end,
+                evaluation_window=timedelta(hours=100),
+                sampling_interval=timedelta(hours=396),
+            ),
             metrics=metrics,
         ),
     )
@@ -207,7 +227,18 @@ def test_timeseries_simple_granularity() -> None:
     )
     expected["VectorSum(v)"] = expected["VectorSum(v)"].apply(txt2arr)
     expected["VectorMean(v)"] = expected["VectorMean(v)"].apply(txt2arr)
-    compare(expected, data.pipe(timeseries(start, end, timedelta(hours=80)), metrics=metrics))
+    compare(
+        expected,
+        data.pipe(
+            timeseries(
+                start_time=start,
+                end_time=end,
+                evaluation_window=timedelta(hours=80),
+                sampling_interval=timedelta(hours=80),
+            ),
+            metrics=metrics,
+        ),
+    )
 
 
 def test_timeseries_all_granularity() -> None:
@@ -224,11 +255,33 @@ def test_timeseries_all_granularity() -> None:
     )
     expected["VectorSum(v)"] = expected["VectorSum(v)"].apply(txt2arr)
     expected["VectorMean(v)"] = expected["VectorMean(v)"].apply(txt2arr)
-    compare(expected, data.pipe(timeseries(start, end), metrics=metrics))
+    compare(
+        expected,
+        data.pipe(
+            timeseries(
+                start_time=start,
+                end_time=end,
+                evaluation_window=end - start,
+                sampling_interval=end - start,
+            ),
+            metrics=metrics,
+        ),
+    )
 
 
 def test_timeseries_empty_result() -> None:
-    compare(pd.DataFrame(), data.pipe(timeseries(end, start), metrics=metrics))
+    compare(
+        pd.DataFrame(),
+        data.pipe(
+            timeseries(
+                start_time=end,
+                end_time=start,
+                evaluation_window=end - start,
+                sampling_interval=end - start,
+            ),
+            metrics=metrics,
+        ),
+    )
 
 
 def compare(expected: pd.DataFrame, actual: pd.DataFrame) -> None:

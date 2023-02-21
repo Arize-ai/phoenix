@@ -1,12 +1,9 @@
 from datetime import datetime, timedelta
 from itertools import accumulate, repeat, takewhile
-from typing import Generator, Optional
+from typing import Generator
 
 import strawberry
 from typing_extensions import Annotated
-
-from phoenix.datasets import Dataset
-from phoenix.metrics.timeseries import TimeseriesParams
 
 
 @strawberry.input
@@ -35,14 +32,14 @@ class Granularity:
         ),
     ]
     sampling_interval_minutes: Annotated[
-        Optional[int],
+        int,
         strawberry.argument(
             description="sampling_interval is the time interval between each "
             "point in the time-series. All points in the time-series are "
             "separated by the same length of time. When sampling_interval is "
             "omitted, it will be set to equal evaluation_window by default.",
         ),
-    ] = None
+    ]
 
 
 @strawberry.input
@@ -65,46 +62,15 @@ class TimeRange:
         return self.start < self.end
 
 
-def evaluation_window(
-    time_range: TimeRange, granularity: Optional[Granularity] = None
-) -> timedelta:
-    if granularity:
-        return timedelta(minutes=granularity.evaluation_window_minutes)
-    return time_range.end - time_range.start
-
-
-def sampling_interval(
-    time_range: TimeRange, granularity: Optional[Granularity] = None
-) -> timedelta:
-    if granularity and granularity.sampling_interval_minutes:
-        return timedelta(minutes=granularity.sampling_interval_minutes)
-    return evaluation_window(time_range, granularity)
-
-
-def to_timeseries_params(
-    time_range: TimeRange, granularity: Optional[Granularity] = None
-) -> TimeseriesParams:
-    return TimeseriesParams(
-        start_time=time_range.start,
-        end_time=time_range.end,
-        evaluation_window=evaluation_window(time_range, granularity),
-        sampling_interval=sampling_interval(time_range, granularity),
-    )
-
-
 def to_timestamps(
-    time_range: TimeRange, granularity: Optional[Granularity] = None
+    time_range: TimeRange, granularity: Granularity
 ) -> Generator[datetime, None, None]:
     yield from (
         takewhile(
             lambda t: time_range.start < t,  # type: ignore
-            accumulate(repeat(-sampling_interval(time_range, granularity)), initial=time_range.end),
+            accumulate(
+                repeat(-timedelta(minutes=granularity.sampling_interval_minutes)),
+                initial=time_range.end,
+            ),
         )
-    )
-
-
-def ensure_time_range(dataset: Dataset, time_range: Optional[TimeRange] = None) -> TimeRange:
-    return time_range or TimeRange(
-        start=dataset.start_time,
-        end=dataset.end_time + timedelta(microseconds=1),  # end instant is exclusive
     )

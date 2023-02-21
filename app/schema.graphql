@@ -29,7 +29,7 @@ type Dimension implements Node {
   type: DimensionType!
   dataType: DimensionDataType!
   dataQualityMetric(metric: DataQualityMetric!): Float
-  dataQualityTimeSeries(metric: DataQualityMetric!, timeRange: TimeRange = null, granularity: Granularity = null): DataQualityTimeSeries!
+  dataQualityTimeSeries(metric: DataQualityMetric!, timeRange: TimeRange!, granularity: Granularity!): DataQualityTimeSeries!
 }
 
 type DimensionConnection {
@@ -65,12 +65,12 @@ type DriftTimeSeries implements TimeSeries {
 type EmbeddingDimension implements Node {
   id: GlobalID!
   name: String!
-  driftMetric(metric: DriftMetric!, timeRange: TimeRange = null): Float
+  driftMetric(metric: DriftMetric!, timeRange: TimeRange!): Float
   driftTimeSeries(
     metric: DriftMetric!
 
     """The time range of the primary dataset"""
-    timeRange: TimeRange = null
+    timeRange: TimeRange!
   ): DriftTimeSeries
   UMAPPoints(
     """The time range of the primary dataset to generate the UMAP points for"""
@@ -119,7 +119,7 @@ scalar GlobalID @specifiedBy(url: "https://relay.dev/graphql/objectidentificatio
 
 input Granularity {
   evaluationWindowMinutes: Int!
-  samplingIntervalMinutes: Int = null
+  samplingIntervalMinutes: Int!
 }
 
 type Model {

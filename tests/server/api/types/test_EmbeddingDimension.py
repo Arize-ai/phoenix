@@ -51,8 +51,7 @@ class TestDriftMetricTimeSeries:
         ).drift_time_series(
             metric=DriftMetric.euclideanDistance,
             time_range=TimeRange(
-                start=datetime(year=2000, month=1, day=1),
-                end=datetime(year=2000, month=1, day=2),
+                start=datetime(year=2000, month=1, day=1), end=datetime(year=2000, month=1, day=2)
             ),
             info=info_mock_factory(primary_dataset, None),
         )
@@ -307,8 +306,7 @@ class TestDriftMetric:
         distance = EmbeddingDimension(name="embedding_feature", id_attr=0).drift_metric(
             metric=DriftMetric.euclideanDistance,
             time_range=TimeRange(
-                start=datetime(year=2000, month=1, day=1),
-                end=datetime(year=2000, month=1, day=2),
+                start=datetime(year=2000, month=1, day=1), end=datetime(year=2000, month=1, day=2)
             ),
             info=info_mock_factory(primary_dataset, None),
         )

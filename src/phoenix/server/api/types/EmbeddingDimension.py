@@ -21,7 +21,7 @@ from phoenix.pointcloud.clustering import Hdbscan
 from phoenix.pointcloud.pointcloud import PointCloud
 from phoenix.pointcloud.projectors import Umap
 from phoenix.server.api.context import Context
-from phoenix.server.api.input_types.TimeRange import TimeRange, ensure_time_range
+from phoenix.server.api.input_types.TimeRange import TimeRange
 
 from .DriftMetric import DriftMetric
 from .DriftTimeSeries import DriftTimeSeries
@@ -65,7 +65,7 @@ class EmbeddingDimension(Node):
 
     @strawberry.field
     def drift_metric(
-        self, info: Info[Context, None], metric: DriftMetric, time_range: Optional[TimeRange] = None
+        self, metric: DriftMetric, time_range: TimeRange, info: Info[Context, None]
     ) -> Optional[float]:
         """
         Computes a drift metric between all reference data and the primary data
@@ -76,7 +76,6 @@ class EmbeddingDimension(Node):
         """
         model = info.context.model
         primary_dataset = model.primary_dataset
-        time_range = ensure_time_range(primary_dataset, time_range)
         reference_dataset = model.reference_dataset
         if reference_dataset is None or not time_range.is_valid():
             return None
@@ -102,14 +101,14 @@ class EmbeddingDimension(Node):
     @strawberry.field
     def drift_time_series(
         self,
-        info: Info[Context, None],
         metric: DriftMetric,
         time_range: Annotated[
-            Optional[TimeRange],
+            TimeRange,
             strawberry.argument(
                 description="The time range of the primary dataset",
             ),
-        ] = None,
+        ],
+        info: Info[Context, None],
     ) -> Optional[DriftTimeSeries]:
         """
         Computes a drift time-series between the primary and reference datasets.
@@ -124,7 +123,6 @@ class EmbeddingDimension(Node):
         """
         model = info.context.model
         primary_dataset = model.primary_dataset
-        time_range = ensure_time_range(primary_dataset, time_range)
         reference_dataset = model.reference_dataset
         if reference_dataset is None or not time_range.is_valid():
             return None
