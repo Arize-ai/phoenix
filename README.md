@@ -3,6 +3,7 @@
         <img alt="phoenix logo" src="/assets/phoenix-logo-light.svg" width="auto" height="200"></img>
     </a>
     <br/>
+    <br/>
     <a href="https://pypi.org/project/arize-phoenix/">
         <img src="https://img.shields.io/pypi/v/arize-phoenix">
     </a>
