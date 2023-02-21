@@ -59,7 +59,7 @@ class BaseMetric(ABC):
     id: int
     """
     id is a unique identifier for each metric instance. This is used to extract
-    the metric's own vaule from a collective output containing results from
+    the metric's own value from a collective output containing results from
     other metrics.
     """
 
