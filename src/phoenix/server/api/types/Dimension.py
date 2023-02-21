@@ -9,7 +9,8 @@ from phoenix.metrics.mixins import UnaryOperator
 from phoenix.metrics.timeseries import timeseries
 from phoenix.server.api.context import Context
 
-from ..input_types.TimeRange import Granularity, TimeRange, to_timestamps
+from ..input_types.Granularity import Granularity, to_timestamps
+from ..input_types.TimeRange import TimeRange
 from . import METRICS
 from .DataQualityMetric import DataQualityMetric
 from .DataQualityTimeSeries import DataQualityTimeSeries, to_gql_timeseries
