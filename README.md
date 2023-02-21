@@ -1,6 +1,6 @@
 <p align="center">
     <a target="_blank" href="https://arize.com" style="background:none">
-    <img alt="phoenix logo" src="https://raw.githubusercontent.com/Arize-ai/phoenix/main/.github/phonix-logo-light.svg" width="auto" height="120">
+    <img alt="phoenix logo" src="../.github/phoenix-logo-light.svg" width="auto" height="120">
   </a>
     <a href="https://pypi.org/project/arize-phoenix/">
         <img src="https://img.shields.io/pypi/v/arize-phoenix">
