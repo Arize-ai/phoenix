@@ -1,7 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import (
     Any,
-    Hashable,
     Iterable,
     Mapping,
     Optional,
@@ -20,13 +19,13 @@ ColumnName: TypeAlias = str
 
 @runtime_checkable
 class Metric(Protocol):
-    def __call__(self, df: pd.DataFrame) -> Tuple[Hashable, Any]:
+    def __call__(self, df: pd.DataFrame) -> Tuple[int, Any]:
         ...
 
     def input_columns(self) -> Iterable[ColumnName]:
         ...
 
-    def get_value(self, result: Optional[Mapping[Hashable, Any]]) -> Any:
+    def get_value(self, result: Mapping[int, Any]) -> Any:
         ...
 
 
@@ -81,9 +80,7 @@ class BaseMetric(ABC):
     def initial_value(self) -> Any:
         return float("nan")
 
-    def get_value(self, result: Optional[Mapping[Hashable, Any]] = None) -> Any:
-        if result is None:
-            return self.initial_value()
+    def get_value(self, result: Mapping[int, Any]) -> Any:
         try:
             return result[self.id]
         except KeyError:
@@ -93,7 +90,7 @@ class BaseMetric(ABC):
     def calc(self, df: pd.DataFrame) -> Any:
         ...
 
-    def __call__(self, df: pd.DataFrame) -> Tuple[Hashable, Any]:
+    def __call__(self, df: pd.DataFrame) -> Tuple[int, Any]:
         return (self.id, self.calc(df))
 
 

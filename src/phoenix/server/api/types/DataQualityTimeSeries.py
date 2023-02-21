@@ -25,7 +25,7 @@ def to_gql_timeseries(
         try:
             row = df.iloc[cast(int, df.index.get_loc(timestamp)), :].to_dict()
         except KeyError:
-            row = None
+            row = {}
         value = metric.get_value(row)
         data.append(
             TimeSeriesDataPoint(

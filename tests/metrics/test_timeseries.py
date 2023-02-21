@@ -290,7 +290,7 @@ def compare(expected: pd.DataFrame, actual: pd.DataFrame) -> None:
         try:
             result = actual.iloc[cast(int, actual.index.get_loc(timestamp)), :].to_dict()
         except KeyError:
-            result = None
+            result = {}
         assert row.equals(
             pd.Series({name: metric.get_value(result) for name, metric in zip(names, metrics)})
         )
