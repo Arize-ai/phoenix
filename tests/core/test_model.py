@@ -8,7 +8,7 @@ from phoenix.datasets import Dataset, EmbeddingColumnNames, Schema
 
 
 @pytest.fixture
-def input_dataset():
+def dataset_with_larger_embedding_vector():
     num_records = 3
     embedding_dimensions = 7
 
@@ -41,7 +41,7 @@ def input_dataset():
 
 
 @pytest.fixture
-def second_dataset():
+def dataset_with_smaller_embedding_vector():
     num_records = 3
     embedding_dimensions = 5
 
@@ -70,11 +70,17 @@ def second_dataset():
     return Dataset(dataframe=input_dataframe, schema=input_schema)
 
 
-def test_invalid_model_primary_and_ref_embedding_size_mismatch(input_dataset, second_dataset):
+def test_invalid_model_embeddings_primary_and_ref_embedding_size_mismatch(
+    dataset_with_smaller_embedding_vector, dataset_with_larger_embedding_vector
+):
     with pytest.raises(ValueError):
-        _ = Model._get_embedding_dimensions(input_dataset, second_dataset)
+        _ = Model._get_embedding_dimensions(
+            dataset_with_smaller_embedding_vector, dataset_with_larger_embedding_vector
+        )
 
 
-def test_valid_model_primary_and_ref_embedding_size_åmismatch(input_dataset):
-    embedding_dimensions = Model._get_embedding_dimensions(input_dataset, input_dataset)
+def test_valid_model_embeddings(dataset_with_smaller_embedding_vector):
+    embedding_dimensions = Model._get_embedding_dimensions(
+        dataset_with_smaller_embedding_vector, dataset_with_smaller_embedding_vector
+    )
     assert len(embedding_dimensions) == 1
