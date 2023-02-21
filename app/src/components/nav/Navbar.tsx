@@ -1,9 +1,10 @@
 import React, { ReactNode } from "react";
 import { css, Theme } from "@emotion/react";
 import { Link } from "react-router-dom";
+import { Logo } from "./Logo";
 
 const navCSS = (theme: Theme) => css`
-  padding: ${theme.spacing.padding8}px;
+  padding: ${theme.spacing.padding8}px ${theme.spacing.padding16}px;
   border-bottom: 1px solid ${theme.colors.gray500};
   background-color: ${theme.colors.gray900};
   flex: none;
@@ -19,37 +20,9 @@ const brandCSS = (theme: Theme) =>
     font-size: ${theme.typography.sizes.large.fontSize}px;
     text-decoration: none;
     svg {
-      margin-right: ${theme.spacing.margin8}px;
+      margin-right: ${theme.spacing.margin16}px;
     }
   `;
-
-const BrandSVG = () => (
-  <svg
-    width="22"
-    height="22"
-    viewBox="0 0 27 24"
-    fill="none"
-    xmlns="http://www.w3.org/2000/svg"
-  >
-    <path
-      d="M13.5 24L0.0766047 0.750003L26.9234 0.75L13.5 24Z"
-      fill="url(#paint0_linear_139_3946)"
-    />
-    <defs>
-      <linearGradient
-        id="paint0_linear_139_3946"
-        x1="26.2239"
-        y1="6.40834"
-        x2="7.2602"
-        y2="-4.23741"
-        gradientUnits="userSpaceOnUse"
-      >
-        <stop stopColor="#5742D8" />
-        <stop offset="1" stopColor="#B7D5F0" />
-      </linearGradient>
-    </defs>
-  </svg>
-);
 
 const GitHubSVG = () => (
   <svg
@@ -97,7 +70,7 @@ export function GitHubLink() {
 export function Brand() {
   return (
     <Link to="/" css={brandCSS}>
-      <BrandSVG />
+      <Logo />
     </Link>
   );
 }
