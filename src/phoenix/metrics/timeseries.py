@@ -39,13 +39,13 @@ def timeseries(
 def _aggregator(
     dataframe: pd.DataFrame,
     *,
+    metrics: Iterable[Metric],
     start_time: datetime,
     end_time: datetime,
     evaluation_window: timedelta,
     sampling_interval: timedelta,
-    metrics: Optional[Iterable[Metric]] = None,
 ) -> pd.DataFrame:
-    calcs: Tuple[Metric, ...] = tuple(metrics or (Count(),))
+    calcs: Tuple[Metric, ...] = tuple(metrics)
     input_columns: Union[Tuple[str, ...], pd.Index] = (
         tuple(set(column_name for calc in calcs for column_name in calc.input_columns()))
         or dataframe.columns
