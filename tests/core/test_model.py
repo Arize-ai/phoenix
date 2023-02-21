@@ -5,7 +5,6 @@ from pandas import DataFrame, Timestamp
 
 from phoenix.core.model import Model
 from phoenix.datasets import Dataset, EmbeddingColumnNames, Schema
-from phoenix.datasets.errors import InvalidEmbeddingVectorSize
 
 
 @pytest.fixture
