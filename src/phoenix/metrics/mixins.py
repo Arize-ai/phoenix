@@ -1,5 +1,15 @@
 from abc import ABC, abstractmethod
-from typing import Any, Hashable, Iterable, Mapping, Optional, Protocol, Tuple, Union
+from typing import (
+    Any,
+    Hashable,
+    Iterable,
+    Mapping,
+    Optional,
+    Protocol,
+    Tuple,
+    Union,
+    runtime_checkable,
+)
 
 import numpy as np
 import pandas as pd
@@ -8,6 +18,7 @@ from typing_extensions import TypeAlias
 ColumnName: TypeAlias = str
 
 
+@runtime_checkable
 class Metric(Protocol):
     def __call__(self, df: pd.DataFrame) -> Tuple[Hashable, Any]:
         ...

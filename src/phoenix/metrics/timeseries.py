@@ -5,7 +5,6 @@ from typing import Callable, Generator, Iterable, NamedTuple, Optional, Tuple, U
 
 import pandas as pd
 
-from .metrics import Count
 from .mixins import Metric
 
 
@@ -55,7 +54,7 @@ def _aggregator(
             (pd.DataFrame(),),
             (
                 dataframe.loc[time_slice, input_columns]  # type: ignore
-                .groupby(group)
+                .groupby(group, group_keys=True)
                 .apply(lambda df: pd.Series(dict(calc(df) for calc in calcs)))  # type: ignore
                 .loc[start_time:end_time, :]  # type: ignore
                 for time_slice, group in _groupers(
