@@ -66,14 +66,11 @@ if __name__ == "__main__":
         primary_dataset_name, reference_dataset_name = get_dataset_names_from_fixture_name(
             fixture_name
         )
-        print(f'Downloading fixture "{fixture_name}" if missing')
+        print(f'🌎 Downloading fixture "{fixture_name}" if missing')
         download_fixture_if_missing(fixture_name)
 
-    print(
-        f"""Starting Phoenix App
-            primary dataset: {primary_dataset_name}
-            reference dataset: {reference_dataset_name}"""
-    )
+    print(f"1️⃣ primary dataset: {primary_dataset_name}")
+    print(f"2️⃣ reference dataset: {reference_dataset_name}")
 
     app = create_app(
         primary_dataset_name=primary_dataset_name,

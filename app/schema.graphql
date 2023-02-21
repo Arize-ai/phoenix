@@ -15,8 +15,13 @@ type DataQualityTimeSeries implements TimeSeries {
 }
 
 type Dataset {
+  """The given name of the dataset"""
   name: String!
+
+  """The start bookend of the data"""
   startTime: DateTime!
+
+  """The end bookend of the data"""
   endTime: DateTime!
 }
 
@@ -25,8 +30,16 @@ scalar DateTime
 
 type Dimension implements Node {
   id: GlobalID!
+
+  """The name of the dimension (a.k.a. the column name)"""
   name: String!
+
+  """
+  Whether the dimension represents a feature, tag, prediction, or actual.
+  """
   type: DimensionType!
+
+  """The data type of the column. Categorical or numeric."""
   dataType: DimensionDataType!
   dataQualityMetric(metric: DataQualityMetric!): Float
   dataQualityTimeSeries(metric: DataQualityMetric!, timeRange: TimeRange!, granularity: Granularity!): DataQualityTimeSeries!
@@ -160,7 +173,10 @@ type Query {
 }
 
 input TimeRange {
+  """The start of the time range"""
   start: DateTime!
+
+  """The end of the time range. Right exclusive."""
   end: DateTime!
 }
 

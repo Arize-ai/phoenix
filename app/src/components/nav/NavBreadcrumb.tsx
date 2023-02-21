@@ -25,7 +25,6 @@ export function NavBreadcrumb() {
   // Get rid of any matches that don't have handle and crumb
   const matchesWithCrumb = matches.filter(isRouteMatchWithCrumb);
 
-  console.dir(matchesWithCrumb);
   return (
     <Breadcrumbs
       onAction={(index) => {

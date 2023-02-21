@@ -6,19 +6,10 @@ from typing_extensions import Annotated
 
 @strawberry.input
 class TimeRange:
-    """
-    TimeRange specifies the interval of time by which data is filtered. By
-    convention, the end instant is excluded from the interval, i.e. TimeRange is
-    a right-open interval.
-    """
-
-    start: datetime
-    end: Annotated[
-        datetime,
-        strawberry.argument(
-            description="The end instant is excluded from the TimeRange interval.",
-        ),
-    ]
+    start: datetime.datetime = strawberry.field(description="The start of the time range")
+    end: datetime.datetime = strawberry.field(
+        description="The end of the time range. Right exclusive."
+    )
 
     def is_valid(self) -> bool:
         return self.start < self.end
