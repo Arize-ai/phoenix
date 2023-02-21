@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 from functools import partial
 from itertools import accumulate, chain, repeat, takewhile
-from typing import Callable, Generator, Iterable, Tuple, Union
+from typing import Callable, Generator, Iterable, List, Tuple, Union, cast
 
 import pandas as pd
 
@@ -22,8 +22,6 @@ def timeseries(
     column is identified by each Metric's ID. Apply each metric's get_value() on
     the rows to extract the corresponding metric output value.
     """
-    assert evaluation_window > timedelta()
-    assert sampling_interval > timedelta()
 
     return partial(
         _aggregator,
@@ -44,19 +42,25 @@ def _aggregator(
     sampling_interval: timedelta,
 ) -> pd.DataFrame:
     calcs: Tuple[Metric, ...] = tuple(metrics)
-    input_columns: Union[Tuple[str, ...], pd.Index] = (
-        tuple(set(column_name for calc in calcs for column_name in calc.input_columns()))
-        or dataframe.columns
-    )
+    columns: Union[List[int], slice] = list(
+        set(
+            dataframe.columns.get_loc(column_name)
+            for calc in calcs
+            for column_name in calc.input_columns()
+        ),
+    ) or slice(None)
     return pd.concat(
         chain(
             (pd.DataFrame(),),
             (
-                dataframe.loc[time_slice, input_columns]  # type: ignore
+                dataframe.iloc[
+                    slice(*cast(List[int], dataframe.index.searchsorted((start, end)))),
+                    columns,
+                ]
                 .groupby(group, group_keys=True)
                 .apply(lambda df: pd.Series(dict(calc(df) for calc in calcs)))  # type: ignore
                 .loc[start_time:end_time, :]  # type: ignore
-                for time_slice, group in _groupers(
+                for start, end, group in _groupers(
                     start_time=start_time,
                     end_time=end_time,
                     evaluation_window=evaluation_window,
@@ -73,18 +77,14 @@ def _groupers(
     end_time: datetime,
     evaluation_window: timedelta,
     sampling_interval: timedelta,
-) -> Generator[Tuple[slice, pd.Grouper], None, None]:
+) -> Generator[Tuple[datetime, datetime, pd.Grouper], None, None]:
+    assert sampling_interval > timedelta()
     divisible = evaluation_window % sampling_interval == timedelta()
     max_offset = evaluation_window if divisible else end_time - start_time
-    time_slice: Callable[[timedelta], slice] = lambda offset: slice(
-        start_time if divisible else max(start_time, end_time - offset - evaluation_window),
-        # Because pandas time indexing is end inclusive, a microsecond is
-        # subtracted from the end time.
-        end_time - offset - timedelta(microseconds=1),
-    )
     yield from (
         (
-            time_slice(offset),
+            start_time if divisible else max(start_time, end_time - offset - evaluation_window),
+            end_time - offset,
             pd.Grouper(  # type: ignore
                 freq=evaluation_window,
                 origin=end_time,
@@ -97,9 +97,9 @@ def _groupers(
         )
         # Each Grouper is like a row in a brick wall, where each brick is an
         # evaluation window. By shifting each row of bricks by the sampling
-        # interval, we can get all of the brick's right edges to line up with
-        # the points of the time series, and together they will summarize data
-        # for the whole time series.
+        # interval, we can get all the brick's right edges to line up with the
+        # points of the time series, and together they will summarize data for
+        # the whole time series.
         #
         #                   evaluation window
         #                   ┌──┴──┐
