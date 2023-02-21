@@ -17,7 +17,7 @@ export function Toolbar(props: ToolbarProps) {
     <div
       role="toolbar"
       css={(theme) => css`
-        padding: ${theme.spacing.padding8}px;
+        padding: ${theme.spacing.padding8}px ${theme.spacing.padding16}px;
         display: flex;
         flex-direction: row;
         justify-content: space-between;
