@@ -29,7 +29,7 @@ type Dimension implements Node {
   type: DimensionType!
   dataType: DimensionDataType!
   dataQualityMetric(metric: DataQualityMetric!): Float
-  dataQualityTimeSeries(metric: DataQualityMetric!, timeRange: TimeRange = null, granularity: Granularity = null): DataQualityTimeSeries
+  dataQualityTimeSeries(metric: DataQualityMetric!, timeRange: TimeRange = null, granularity: Granularity = null): DataQualityTimeSeries!
 }
 
 type DimensionConnection {

@@ -47,7 +47,7 @@ class Dimension(Node):
         metric: DataQualityMetric,
         time_range: Optional[TimeRange] = None,
         granularity: Optional[Granularity] = None,
-    ) -> Optional[DataQualityTimeSeries]:
+    ) -> DataQualityTimeSeries:
         dimension_name = self.name
         metric_cls = METRICS.get(metric.value, None)
         if not metric_cls or not issubclass(metric_cls, UnaryOperator):
