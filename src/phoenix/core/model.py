@@ -112,41 +112,61 @@ class Model:
         for embedding_feature, embedding_column_names in embedding_features.items():
             embedding_dimensions.append(EmbeddingDimension(name=embedding_feature))
             if reference_dataset is not None:
-                cls._check_embedding_vector_lengths(
-                    embedding_column_names, primary_dataset, reference_dataset
+                cls._check_embedding_vector_lengths_match_across_datasets(
+                    embedding_feature, embedding_column_names, primary_dataset, reference_dataset
                 )
 
         return embedding_dimensions
 
     @classmethod
-    def _check_embedding_vector_lengths(
+    def _check_embedding_vector_lengths_match_across_datasets(
         cls,
+        embedding_feature_name: str,
         embedding_column_names: EmbeddingColumnNames,
         primary_dataset: Dataset,
         reference_dataset: Dataset,
     ) -> None:
-        primary_column = primary_dataset.dataframe[embedding_column_names.vector_column_name]
-        reference_column = reference_dataset.dataframe[embedding_column_names.vector_column_name]
+        """
+        Ensure that for each embedding feature, the vector lengths match across the primary and reference datasets
+        which is required for calculating embedding drift (vector distance)
+        """
+        primary_vector_length = cls._get_column_vector_length(
+            primary_dataset, embedding_column_names.vector_column_name
+        )
+        reference_vector_length = cls._get_column_vector_length(
+            reference_dataset, embedding_column_names.vector_column_name
+        )
 
-        # if one of the datasets doesn't have the embedding column at all, that's okay
-        if primary_column is None or reference_column is None:
-            return
-
-        primary_vector_length = cls._get_column_vector_length(primary_column)
-        reference_vector_length = cls._get_column_vector_length(reference_column)
-
+        # if one of the datasets doesn't have the embedding column at all, which is fine since we
+        # just consider this as missing from one of the datasets and won't need to worry about
+        # calculating drift
         if primary_vector_length is None or reference_vector_length is None:
             return
 
         if primary_vector_length != reference_vector_length:
             raise ValueError(
                 f"Embedding vector length must match for "
-                f"both datasets; vector_column={embedding_column_names.vector_column_name}"
+                f"both datasets; embedding_feature={embedding_feature_name} "
+                f"vector_column={embedding_column_names.vector_column_name}"
             )
 
     @staticmethod
-    def _get_column_vector_length(column: "Series[str]") -> Optional[int]:
+    def _get_column_vector_length(
+        dataset: Dataset, embedding_vector_column_name: str
+    ) -> Optional[int]:
+        """
+        Because a dataset has already been constructed, we can assume that the lengths
+        of the vectors for any given embedding feature in the dataset are the same.
+        Returns the length a vector by getting the length first non-null vector.
+        """
+        if embedding_vector_column_name not in dataset.dataframe:
+            return None
+
+        column = dataset.dataframe[embedding_vector_column_name]
+
         for row in column:
+            # None is a valid entry for a row and represents the fact that the embedding feature
+            # is missing/empty. Skip until a row is found with a non-empty vector
             if row is None:
                 continue
             return len(row)
