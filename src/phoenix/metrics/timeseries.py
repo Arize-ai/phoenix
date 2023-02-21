@@ -78,7 +78,6 @@ def _groupers(
     evaluation_window: timedelta,
     sampling_interval: timedelta,
 ) -> Generator[Tuple[datetime, datetime, pd.Grouper], None, None]:
-    assert sampling_interval > timedelta()
     divisible = evaluation_window % sampling_interval == timedelta()
     max_offset = evaluation_window if divisible else end_time - start_time
     yield from (
