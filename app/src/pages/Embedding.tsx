@@ -147,15 +147,24 @@ export function Embedding() {
         {showDriftChart ? (
           <>
             <Panel defaultSize={15} collapsible order={1}>
-              <Suspense fallback={<LoadingMask />}>
-                <EuclideanDistanceTimeSeries
-                  embeddingDimensionId={embeddingDimensionId}
-                  timeRange={{
-                    start: new Date(primaryDataset.startTime),
-                    end: new Date(primaryDataset.endTime),
-                  }}
-                />
-              </Suspense>
+              <div
+                css={css`
+                  flex: 1 1 auto;
+                  width: 100%;
+                  height: 100%;
+                  position: relative;
+                `}
+              >
+                <Suspense fallback={<LoadingMask />}>
+                  <EuclideanDistanceTimeSeries
+                    embeddingDimensionId={embeddingDimensionId}
+                    timeRange={{
+                      start: new Date(primaryDataset.startTime),
+                      end: new Date(primaryDataset.endTime),
+                    }}
+                  />
+                </Suspense>
+              </div>
             </Panel>
             <PanelResizeHandle css={resizeHandleCSS} />
           </>

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<423ff994120abb9b770078edb0d673fa>>
+ * @generated SignedSource<<a4be71a3322de7e7d9f02feb316f5c10>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -45,6 +45,16 @@ return {
       "defaultValue": null,
       "kind": "LocalArgument",
       "name": "cursor"
+    },
+    {
+      "defaultValue": null,
+      "kind": "LocalArgument",
+      "name": "endTime"
+    },
+    {
+      "defaultValue": null,
+      "kind": "LocalArgument",
+      "name": "startTime"
     }
   ],
   "kind": "Fragment",
@@ -127,17 +137,25 @@ return {
                           "value": "euclideanDistance"
                         },
                         {
-                          "kind": "Literal",
-                          "name": "timeRange",
-                          "value": {
-                            "end": "1970-01-20 04:00:00",
-                            "start": "1970-01-20 02:00:00"
-                          }
+                          "fields": [
+                            {
+                              "kind": "Variable",
+                              "name": "end",
+                              "variableName": "endTime"
+                            },
+                            {
+                              "kind": "Variable",
+                              "name": "start",
+                              "variableName": "startTime"
+                            }
+                          ],
+                          "kind": "ObjectValue",
+                          "name": "timeRange"
                         }
                       ],
                       "kind": "ScalarField",
                       "name": "driftMetric",
-                      "storageKey": "driftMetric(metric:\"euclideanDistance\",timeRange:{\"end\":\"1970-01-20 04:00:00\",\"start\":\"1970-01-20 02:00:00\"})"
+                      "storageKey": null
                     }
                   ],
                   "storageKey": null
@@ -207,6 +225,6 @@ return {
 };
 })();
 
-(node as any).hash = "2b7241a0292c0fb6ff14e61874923b84";
+(node as any).hash = "fb7f125f75d1d33a555c16e198dbcbf8";
 
 export default node;

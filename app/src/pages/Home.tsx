@@ -5,18 +5,21 @@ import React from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { HomeQuery } from "./__generated__/HomeQuery.graphql";
 import { Toolbar } from "../components/filter";
+import { useDatasets } from "../contexts";
 
 type HomePageProps = Readonly<object>;
 
 export function Home(_props: HomePageProps) {
+  const { primaryDataset } = useDatasets();
   const data = useLazyLoadQuery<HomeQuery>(
     graphql`
-      query HomeQuery {
+      query HomeQuery($startTime: DateTime!, $endTime: DateTime!) {
         ...ModelSchemaTable_dimensions
         ...ModelEmbeddingsTable_embeddingDimensions
+          @arguments(startTime: $startTime, endTime: $endTime)
       }
     `,
-    {}
+    { startTime: primaryDataset.startTime, endTime: primaryDataset.endTime }
   );
   return (
     <main>

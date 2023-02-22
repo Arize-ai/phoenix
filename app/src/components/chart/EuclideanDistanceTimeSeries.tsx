@@ -1,5 +1,6 @@
 import { theme } from "@arizeai/components";
 import React from "react";
+import { timeFormat } from "d3-time-format";
 import { useLazyLoadQuery } from "react-relay";
 import {
   Area,
@@ -47,11 +48,12 @@ export function EuclideanDistanceTimeSeries({
       },
     }
   );
+  const chartData = data.embedding.driftTimeSeries?.data;
   return (
     <ResponsiveContainer width="100%" height="100%">
       <AreaChart
-        data={data as unknown as any[]}
-        margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
+        data={chartData as unknown as any[]}
+        margin={{ top: 20, right: 50, left: 0, bottom: 10 }}
       >
         <defs>
           <linearGradient id="colorUv" x1="0" y1="0" x2="0" y2="1">
@@ -59,7 +61,12 @@ export function EuclideanDistanceTimeSeries({
             <stop offset="95%" stopColor="#8884d8" stopOpacity={0} />
           </linearGradient>
         </defs>
-        <XAxis dataKey="name" stroke={theme.colors.gray200} />
+        <XAxis
+          dataKey="timestamp"
+          stroke={theme.colors.gray200}
+          // TODO: Fix this to be a cleaner interface
+          tickFormatter={(x) => timeFormat("%x")(new Date(x))}
+        />
         <YAxis stroke={theme.colors.gray200} />
         <CartesianGrid
           strokeDasharray="3 3"
@@ -69,7 +76,7 @@ export function EuclideanDistanceTimeSeries({
         <Tooltip />
         <Area
           type="monotone"
-          dataKey="uv"
+          dataKey="value"
           stroke="#8884d8"
           fillOpacity={1}
           fill="url(#colorUv)"

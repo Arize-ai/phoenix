@@ -452,7 +452,7 @@ def _create_and_normalize_dataframe_and_schema(
         parsed_dataframe["timestamp"] = now
     elif is_numeric_dtype(dataframe.dtypes[ts_col_name]):
         parsed_dataframe[ts_col_name] = parsed_dataframe[ts_col_name].apply(
-            lambda x: to_datetime(x, unit="ms")
+            lambda x: to_datetime(x, unit="s", utc=True)
         )
 
     pred_col_name = parsed_schema.prediction_id_column_name
