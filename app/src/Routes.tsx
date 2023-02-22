@@ -2,7 +2,7 @@ import React from "react";
 import { Route, createRoutesFromElements, RouterProvider } from "react-router";
 import { Home, Embedding, embeddingLoader, Layout } from "./pages";
 import { createBrowserRouter } from "react-router-dom";
-import { EmbeddingLoaderQuery$data } from "./pages/__generated__/EmbeddingLoaderQuery.graphql";
+import { embeddingLoaderQuery$data } from "./pages/embedding/__generated__/embeddingLoaderQuery.graphql";
 
 const router = createBrowserRouter(
   createRoutesFromElements(
@@ -18,7 +18,7 @@ const router = createBrowserRouter(
             // to make this one a function so we can pass
             // the data from the loader to it so that our
             // breadcrumb is made up of dynamic content
-            crumb: (data: EmbeddingLoaderQuery$data) => data.embedding.name,
+            crumb: (data: embeddingLoaderQuery$data) => data.embedding.name,
           }}
         />
       </Route>

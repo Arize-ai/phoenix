@@ -1,3 +1,3 @@
-export * from "./Home";
-export * from "./Embedding";
+export * from "./home";
+export * from "./embedding";
 export * from "./Layout";

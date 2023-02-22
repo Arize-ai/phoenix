@@ -51,7 +51,10 @@ export function EuclideanDistanceTimeSeries({
         embedding: node(id: $embeddingDimensionId) {
           id
           ... on EmbeddingDimension {
-            driftTimeSeries(metric: euclideanDistance, timeRange: $timeRange) {
+            euclideanDistanceTimeSeries: driftTimeSeries(
+              metric: euclideanDistance
+              timeRange: $timeRange
+            ) {
               data {
                 timestamp
                 value
@@ -69,7 +72,7 @@ export function EuclideanDistanceTimeSeries({
       },
     }
   );
-  const chartData = data.embedding.driftTimeSeries?.data;
+  const chartData = data.embedding.euclideanDistanceTimeSeries?.data;
   return (
     <ResponsiveContainer width="100%" height="100%">
       <AreaChart

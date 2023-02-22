@@ -1,15 +1,11 @@
 import React, { Suspense, useEffect, useState } from "react";
 import {
   PreloadedQuery,
-  fetchQuery,
   graphql,
   useLazyLoadQuery,
   usePreloadedQuery,
   useQueryLoader,
 } from "react-relay";
-import { LoaderFunctionArgs } from "react-router";
-import RelayEnvironment from "../RelayEnvironment";
-import { EmbeddingLoaderQuery } from "./__generated__/EmbeddingLoaderQuery.graphql";
 import { css } from "@emotion/react";
 import {
   ColoringStrategy,
@@ -17,21 +13,21 @@ import {
   PointCloudProvider,
   ThreeDimensionalPointItem,
   usePointCloud,
-} from "../components/canvas";
-import { resizeHandleCSS } from "../components/resize/styles";
+} from "../../components/canvas";
+import { resizeHandleCSS } from "../../components/resize/styles";
 import {
   EmbeddingUMAPQuery$data,
   EmbeddingUMAPQuery as UMAPQueryType,
 } from "./__generated__/EmbeddingUMAPQuery.graphql";
-import { useEmbeddingDimensionId } from "../hooks";
-import { LoadingMask } from "../components";
-import { ClusterItem } from "../components/cluster";
+import { useEmbeddingDimensionId } from "../../hooks";
+import { LoadingMask } from "../../components";
+import { ClusterItem } from "../../components/cluster";
 import { Tabs, TabPane, Switch } from "@arizeai/components";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
-import { Toolbar } from "../components/filter";
-import { PointCloudDisplaySettings } from "../components/canvas/PointCloudDisplaySettings";
-import { useDatasets } from "../contexts";
-import { EuclideanDistanceTimeSeries } from "../components/chart/EuclideanDistanceTimeSeries";
+import { Toolbar } from "../../components/filter";
+import { PointCloudDisplaySettings } from "../../components/canvas/PointCloudDisplaySettings";
+import { useDatasets } from "../../contexts";
+import { EuclideanDistanceTimeSeries } from "./EuclideanDistanceTimeSeries";
 
 type UMAPPointsEntry = NonNullable<
   EmbeddingUMAPQuery$data["embedding"]["UMAPPoints"]
@@ -407,27 +403,4 @@ function SelectionPanelContent({
       <TabPane name="Selection">{JSON.stringify(data)}</TabPane>
     </Tabs>
   );
-}
-
-/**
- * Loads in the necessary page data, e.g. info about the embedding
- */
-export async function embeddingLoader(args: LoaderFunctionArgs) {
-  const { embeddingDimensionId } = args.params;
-  return fetchQuery<EmbeddingLoaderQuery>(
-    RelayEnvironment,
-    graphql`
-      query EmbeddingLoaderQuery($id: GlobalID!) {
-        embedding: node(id: $id) {
-          ... on EmbeddingDimension {
-            id
-            name
-          }
-        }
-      }
-    `,
-    {
-      id: embeddingDimensionId as string,
-    }
-  ).toPromise();
 }

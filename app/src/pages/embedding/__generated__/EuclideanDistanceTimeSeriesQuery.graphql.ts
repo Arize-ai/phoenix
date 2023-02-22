@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<50f999345b21155baf819ce6f2958703>>
+ * @generated SignedSource<<800d881a6741bcbb6d567317ff155661>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -19,7 +19,7 @@ export type EuclideanDistanceTimeSeriesQuery$variables = {
 };
 export type EuclideanDistanceTimeSeriesQuery$data = {
   readonly embedding: {
-    readonly driftTimeSeries?: {
+    readonly euclideanDistanceTimeSeries?: {
       readonly data: ReadonlyArray<{
         readonly timestamp: string;
         readonly value: number | null;
@@ -64,7 +64,7 @@ v3 = {
   "kind": "InlineFragment",
   "selections": [
     {
-      "alias": null,
+      "alias": "euclideanDistanceTimeSeries",
       "args": [
         {
           "kind": "Literal",
@@ -167,16 +167,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "9317e493b57da23b0867f6c4a1d5d57b",
+    "cacheID": "7cb0ebbb8c7e16add1ea091b859f664e",
     "id": null,
     "metadata": {},
     "name": "EuclideanDistanceTimeSeriesQuery",
     "operationKind": "query",
-    "text": "query EuclideanDistanceTimeSeriesQuery(\n  $embeddingDimensionId: GlobalID!\n  $timeRange: TimeRange!\n) {\n  embedding: node(id: $embeddingDimensionId) {\n    __typename\n    id\n    ... on EmbeddingDimension {\n      driftTimeSeries(metric: euclideanDistance, timeRange: $timeRange) {\n        data {\n          timestamp\n          value\n        }\n      }\n    }\n  }\n}\n"
+    "text": "query EuclideanDistanceTimeSeriesQuery(\n  $embeddingDimensionId: GlobalID!\n  $timeRange: TimeRange!\n) {\n  embedding: node(id: $embeddingDimensionId) {\n    __typename\n    id\n    ... on EmbeddingDimension {\n      euclideanDistanceTimeSeries: driftTimeSeries(metric: euclideanDistance, timeRange: $timeRange) {\n        data {\n          timestamp\n          value\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "c0a64953742cdd8735223e2bd407473d";
+(node as any).hash = "6aed47f21e902103c4d77bdacad96bd4";
 
 export default node;
