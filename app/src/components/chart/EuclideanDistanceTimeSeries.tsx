@@ -22,7 +22,7 @@ function TooltipContent({ active, payload, label }: TooltipProps<any, any>) {
     return (
       <div
         css={(theme) => css`
-          background-color: ${theme.colors.gray900};
+          background-color: ${theme.colors.gray700};
           border: 1px solid transparent;
           padding: ${theme.spacing.margin4}px;
         `}
@@ -78,8 +78,8 @@ export function EuclideanDistanceTimeSeries({
       >
         <defs>
           <linearGradient id="colorUv" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor="#ffffff8e" stopOpacity={0.8} />
-            <stop offset="95%" stopColor="#ffffff8e" stopOpacity={0} />
+            <stop offset="5%" stopColor="#ffffff" stopOpacity={0.8} />
+            <stop offset="95%" stopColor="#ffffff" stopOpacity={0} />
           </linearGradient>
         </defs>
         <XAxis
@@ -106,7 +106,7 @@ export function EuclideanDistanceTimeSeries({
         <Area
           type="monotone"
           dataKey="value"
-          stroke="#ffffff8e"
+          stroke="#ffffff"
           fillOpacity={1}
           fill="url(#colorUv)"
         />
