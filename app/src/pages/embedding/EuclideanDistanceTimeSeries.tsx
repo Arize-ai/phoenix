@@ -60,8 +60,6 @@ export function EuclideanDistanceTimeSeries({
                 value
               }
             }
-            trafficTimeSeries: dataQualityTimeSeries(
-              m
           }
         }
       }
