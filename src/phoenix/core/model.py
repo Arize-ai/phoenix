@@ -12,13 +12,9 @@ from .embedding_dimension import EmbeddingDimension
 
 
 class Model:
-    __primary_dataset: Dataset
-    __reference_dataset: Optional[Dataset] = None
-
-    def __init__(self, primary_dataset: Dataset, reference_dataset: Optional[Dataset]):
+    def __init__(self, primary_dataset: Dataset, reference_dataset: Optional[Dataset] = None):
         self.__primary_dataset = primary_dataset
-        if reference_dataset is not None:
-            self.__reference_dataset = reference_dataset
+        self.__reference_dataset = reference_dataset
         self.__dimensions = self._get_dimensions(self.primary_dataset, self.reference_dataset)
         self.__embedding_dimensions: List[EmbeddingDimension] = self._get_embedding_dimensions(
             self.primary_dataset, self.reference_dataset
