@@ -16,6 +16,7 @@ from strawberry.asgi import GraphQL
 from strawberry.schema import BaseSchema
 
 from phoenix.core.model import Model
+from phoenix.datasets import Dataset
 
 from .api.context import Context
 from .api.loaders import Loaders, create_loaders
@@ -73,7 +74,10 @@ def create_app(
     debug: bool = False,
 ) -> Starlette:
     model = Model(
-        primary_dataset_name=primary_dataset_name, reference_dataset_name=reference_dataset_name
+        primary_dataset=Dataset.from_name(primary_dataset_name),
+        reference_dataset=Dataset.from_name(reference_dataset_name)
+        if reference_dataset_name is not None
+        else None,
     )
     graphql = GraphQLWithContext(
         schema=schema, model=model, loader=create_loaders(model), graphiql=True

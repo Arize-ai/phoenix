@@ -3,6 +3,7 @@ import {
   PreloadedQuery,
   fetchQuery,
   graphql,
+  useLazyLoadQuery,
   usePreloadedQuery,
   useQueryLoader,
 } from "react-relay";
@@ -293,7 +294,11 @@ const PointCloudDisplay = ({
                   collapsible
                   order={2}
                 >
-                  <SelectionPanelContent />
+                  <Suspense fallback={"Loading..."}>
+                    <SelectionPanelContent
+                      selectedPointIds={selectedPointIds}
+                    />
+                  </Suspense>
                 </Panel>
               </>
             ) : null}
@@ -347,11 +352,39 @@ function ClustersPanelContents({
   );
 }
 
-function SelectionPanelContent() {
+function SelectionPanelContent({
+  selectedPointIds,
+}: {
+  selectedPointIds: Set<string>;
+}) {
+  const data = useLazyLoadQuery(
+    graphql`
+      query EmbeddingSelectionPanelContentQuery($eventIds: [ID!]!) {
+        model {
+          primaryDataset {
+            events(eventIds: $eventIds) {
+              dimensions {
+                dimension {
+                  name
+                  type
+                }
+                value
+              }
+              eventMetadata {
+                predictionLabel
+                actualLabel
+              }
+            }
+          }
+        }
+      }
+    `,
+    { eventIds: [...selectedPointIds] }
+  );
   return (
+    // @ts-expect-error add more tabs
     <Tabs>
-      <TabPane name="Selection">Selection</TabPane>
-      <TabPane name="More Selection">Selection</TabPane>
+      <TabPane name="Selection">{JSON.stringify(data)}</TabPane>
     </Tabs>
   );
 }
