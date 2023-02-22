@@ -5,5 +5,7 @@ import strawberry
 
 @strawberry.enum
 class DataQualityMetric(Enum):
-    cardinality = "cardinality"
-    percentEmpty = "percentEmpty"
+    cardinality = "Cardinality"
+    percentEmpty = "PercentEmpty"
+    mean = "Mean"
+    sum = "Sum"

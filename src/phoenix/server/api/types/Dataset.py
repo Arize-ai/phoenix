@@ -23,9 +23,9 @@ from .EventMetadata import EventMetadata
 
 @strawberry.type
 class Dataset:
-    name: str
-    start_time: datetime
-    end_time: datetime
+    name: str = strawberry.field(description="The given name of the dataset")
+    start_time: datetime = strawberry.field(description="The start bookend of the data")
+    end_time: datetime = strawberry.field(description="The end bookend of the data")
     dataset: strawberry.Private[InternalDataset]
     type: strawberry.Private[DatasetType]
 

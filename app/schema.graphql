@@ -6,11 +6,22 @@ type Cluster {
 enum DataQualityMetric {
   cardinality
   percentEmpty
+  mean
+  sum
+}
+
+type DataQualityTimeSeries implements TimeSeries {
+  data: [TimeSeriesDataPoint!]!
 }
 
 type Dataset {
+  """The given name of the dataset"""
   name: String!
+
+  """The start bookend of the data"""
   startTime: DateTime!
+
+  """The end bookend of the data"""
   endTime: DateTime!
   events(eventIds: [ID!]!, dimensions: [DimensionInput!]): [Event!]!
 }
@@ -20,10 +31,23 @@ scalar DateTime
 
 type Dimension implements Node {
   id: GlobalID!
+
+  """The name of the dimension (a.k.a. the column name)"""
   name: String!
+
+  """
+  Whether the dimension represents a feature, tag, prediction, or actual.
+  """
   type: DimensionType!
+
+  """The data type of the column. Categorical or numeric."""
   dataType: DimensionDataType!
   dataQualityMetric(metric: DataQualityMetric!): Float
+
+  """
+  Returns the time series of the specified metric for data within timeRange. Data points are generated starting at the end time, are separated by the sampling interval. Each data point is labeled by the end instant of and contains data from their respective evaluation window.
+  """
+  dataQualityTimeSeries(metric: DataQualityMetric!, timeRange: TimeRange!, granularity: Granularity!): DataQualityTimeSeries!
 }
 
 type DimensionConnection {
@@ -126,6 +150,21 @@ The `ID` scalar type represents a unique identifier, often used to refetch an ob
 """
 scalar GlobalID @specifiedBy(url: "https://relay.dev/graphql/objectidentification.htm")
 
+"""
+Granularity specifies the distance between points in a time-series and the duration of time (i.e. evaluation window) by which data is aggregated for  each data point. By convention all time intervals are right-open intervals, i.e. the end instant of the evaluation window is excluded from the interval. As a matter of standardization, each point in a time-series aggregates data  corresponding to an interval of time (i.e. the evaluation window) ending at the point's timestamp, and each time-series enumerates its points starting from the end instant of the TimeRange.
+"""
+input Granularity {
+  """
+  Specifies the length of time by which the data are grouped for aggregation. Each point in a time-series will have the same evaluation_window, but the evaluation_window for each point can overlap in real time. For example, when the points are 24 hours apart but the eval window is 72 hours, it means that each point in the time-series is aggregating 72 hours worth of data ending at the point's timestamp.
+  """
+  evaluationWindowMinutes: Int!
+
+  """
+  Specifies the time interval between each point in the time-series. All points in the time-series are separated by the same length of time, and are generated starting from the end time of the time range.
+  """
+  samplingIntervalMinutes: Int!
+}
+
 type Model {
   dimensions(first: Int = 50, last: Int = null, after: String, before: String): DimensionConnection!
   primaryDataset: Dataset!
@@ -164,7 +203,10 @@ type Query {
 }
 
 input TimeRange {
+  """The start of the time range"""
   start: DateTime!
+
+  """The end of the time range. Right exclusive."""
   end: DateTime!
 }
 
