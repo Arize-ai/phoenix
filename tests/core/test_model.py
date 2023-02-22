@@ -24,7 +24,7 @@ def dataset_with_large_embedding_vector():
             "embedding_vector0": [np.zeros(embedding_dimensions) for _ in range(num_records)],
             "link_to_data0": [f"some-link{index}" for index in range(num_records)],
             "raw_data_column0": [f"some-text{index}" for index in range(num_records)],
-            "embedding_vector1": [np.zeros(embedding_dimensions+1) for _ in range(num_records)],
+            "embedding_vector1": [np.zeros(embedding_dimensions + 1) for _ in range(num_records)],
             "link_to_data1": [f"some-link{index}" for index in range(num_records)],
             "raw_data_column1": [f"some-text{index}" for index in range(num_records)],
         }
@@ -62,6 +62,9 @@ def dataset_with_embedding_vector():
             "embedding_vector0": [np.zeros(embedding_dimensions) for _ in range(num_records)],
             "link_to_data0": [f"some-link{index}" for index in range(num_records)],
             "raw_data_column0": [f"some-text{index}" for index in range(num_records)],
+            "embedding_vector1": [np.zeros(embedding_dimensions) for _ in range(num_records)],
+            "link_to_data1": [f"some-link{index}" for index in range(num_records)],
+            "raw_data_column1": [f"some-text{index}" for index in range(num_records)],
         }
     )
 
@@ -73,6 +76,11 @@ def dataset_with_embedding_vector():
                 vector_column_name="embedding_vector0",
                 link_to_data_column_name="link_to_data0",
                 raw_data_column_name="raw_data_column0",
+            ),
+            "embedding_feature1": EmbeddingColumnNames(
+                vector_column_name="embedding_vector1",
+                link_to_data_column_name="link_to_data1",
+                raw_data_column_name="raw_data_column1",
             ),
         },
     )
@@ -92,20 +100,15 @@ def test_valid_model_embeddings(dataset_with_embedding_vector):
     embedding_dimensions = Model._get_embedding_dimensions(
         dataset_with_embedding_vector, dataset_with_embedding_vector
     )
-    assert len(embedding_dimensions) == 1
-    assert embedding_dimensions[0] == EmbeddingDimension(name="embedding_feature0")
-
-def test_valid_model_embeddings(dataset_with_embedding_vector):
-    embedding_dimensions = Model._get_embedding_dimensions(
-        dataset_with_embedding_vector, dataset_with_embedding_vector
-    )
-    assert len(embedding_dimensions) == 1
-    assert embedding_dimensions == list(
-        EmbeddingDimension(name="embedding_feature0"), EmbeddingDimension(name="embedding_feature1"))
+    assert len(embedding_dimensions) == 2
+    assert embedding_dimensions == [
+        EmbeddingDimension(name="embedding_feature0"),
+        EmbeddingDimension(name="embedding_feature1"),
+    ]
 
 
 def test_valid_model_embeddings_one_dataset_missing_embeddings_feature(
-    dataset_with_embedding_vector
+    dataset_with_embedding_vector,
 ):
     num_records = 3
     input_dataframe = DataFrame(
@@ -125,5 +128,8 @@ def test_valid_model_embeddings_one_dataset_missing_embeddings_feature(
     embedding_dimensions = Model._get_embedding_dimensions(
         dataset_with_embedding_vector, dataset_with_missing_embedding_vector
     )
-    assert len(embedding_dimensions) == 1
-    assert embedding_dimensions[0] == EmbeddingDimension(name="embedding_feature0")
+    assert len(embedding_dimensions) == 2
+    assert embedding_dimensions == [
+        EmbeddingDimension(name="embedding_feature0"),
+        EmbeddingDimension(name="embedding_feature1"),
+    ]

@@ -1,7 +1,6 @@
 from typing import Dict, List, Optional, cast
 
 import numpy.typing as npt
-from pandas import Series
 from pandas.api.types import is_numeric_dtype, is_object_dtype
 
 from phoenix.datasets import Dataset
@@ -127,8 +126,8 @@ class Model:
         reference_dataset: Dataset,
     ) -> None:
         """
-        Ensure that for each embedding feature, the vector lengths match across the primary and reference datasets
-        which is required for calculating embedding drift (vector distance)
+        Ensure that for each embedding feature, the vector lengths match across the primary
+        and reference datasets which is required for calculating embedding drift (vector distance)
         """
         primary_vector_length = cls._get_column_vector_length(
             primary_dataset, embedding_column_names.vector_column_name
