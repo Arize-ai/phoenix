@@ -62,11 +62,17 @@ class Dataset:
             ]
             if col is not None
         ]
-        dataframe = dataframe[requested_dimension_names + prediction_and_actual_column_names].iloc[
-            row_indexes
+        column_indexes = [
+            dataframe.columns.get_loc(name)
+            for name in (requested_dimension_names + prediction_and_actual_column_names)
         ]
         return [
-            _create_event(row, schema, requested_gql_dimensions) for _, row in dataframe.iterrows()
+            _create_event(
+                row=dataframe.iloc[row_index, column_indexes],
+                schema=schema,
+                dimensions=requested_gql_dimensions,
+            )
+            for row_index in row_indexes
         ]
 
     def _parse_event_ids(self, event_ids: List[ID]) -> List[int]:
