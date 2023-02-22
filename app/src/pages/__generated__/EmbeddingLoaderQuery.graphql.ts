@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c89c5bca84b29de912df7331b59b4509>>
+ * @generated SignedSource<<2f19c0c319dc24dc5fbcbe0dba07ed27>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,11 +10,11 @@
 
 import { ConcreteRequest, Query } from 'relay-runtime';
 export type EmbeddingLoaderQuery$variables = {
-  id: String;
+  id: string;
 };
 export type EmbeddingLoaderQuery$data = {
   readonly embedding: {
-    readonly id?: String;
+    readonly id?: string;
     readonly name?: string;
   };
 };

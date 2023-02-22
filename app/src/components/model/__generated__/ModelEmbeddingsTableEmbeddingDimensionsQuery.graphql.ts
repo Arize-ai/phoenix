@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<0ae9472eb5742ef82e23fab45a9525f9>>
+ * @generated SignedSource<<c9370eeb454da237dc29644b01e92f4d>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -13,6 +13,8 @@ import { FragmentRefs } from "relay-runtime";
 export type ModelEmbeddingsTableEmbeddingDimensionsQuery$variables = {
   count?: number | null;
   cursor?: string | null;
+  endTime: string;
+  startTime: string;
 };
 export type ModelEmbeddingsTableEmbeddingDimensionsQuery$data = {
   readonly " $fragmentSpreads": FragmentRefs<"ModelEmbeddingsTable_embeddingDimensions">;
@@ -33,6 +35,16 @@ var v0 = [
     "defaultValue": null,
     "kind": "LocalArgument",
     "name": "cursor"
+  },
+  {
+    "defaultValue": null,
+    "kind": "LocalArgument",
+    "name": "endTime"
+  },
+  {
+    "defaultValue": null,
+    "kind": "LocalArgument",
+    "name": "startTime"
   }
 ],
 v1 = [
@@ -65,6 +77,16 @@ return {
             "kind": "Variable",
             "name": "cursor",
             "variableName": "cursor"
+          },
+          {
+            "kind": "Variable",
+            "name": "endTime",
+            "variableName": "endTime"
+          },
+          {
+            "kind": "Variable",
+            "name": "startTime",
+            "variableName": "startTime"
           }
         ],
         "kind": "FragmentSpread",
@@ -135,17 +157,25 @@ return {
                             "value": "euclideanDistance"
                           },
                           {
-                            "kind": "Literal",
-                            "name": "timeRange",
-                            "value": {
-                              "end": "1970-01-20 04:00:00",
-                              "start": "1970-01-20 02:00:00"
-                            }
+                            "fields": [
+                              {
+                                "kind": "Variable",
+                                "name": "end",
+                                "variableName": "endTime"
+                              },
+                              {
+                                "kind": "Variable",
+                                "name": "start",
+                                "variableName": "startTime"
+                              }
+                            ],
+                            "kind": "ObjectValue",
+                            "name": "timeRange"
                           }
                         ],
                         "kind": "ScalarField",
                         "name": "driftMetric",
-                        "storageKey": "driftMetric(metric:\"euclideanDistance\",timeRange:{\"end\":\"1970-01-20 04:00:00\",\"start\":\"1970-01-20 02:00:00\"})"
+                        "storageKey": null
                       }
                     ],
                     "storageKey": null
@@ -221,16 +251,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "b2a594e926dedb39f5178a415ec7484f",
+    "cacheID": "d0057a41a1d9795383a58de89e72ad76",
     "id": null,
     "metadata": {},
     "name": "ModelEmbeddingsTableEmbeddingDimensionsQuery",
     "operationKind": "query",
-    "text": "query ModelEmbeddingsTableEmbeddingDimensionsQuery(\n  $count: Int = 50\n  $cursor: String = null\n) {\n  ...ModelEmbeddingsTable_embeddingDimensions_1G22uz\n}\n\nfragment ModelEmbeddingsTable_embeddingDimensions_1G22uz on Query {\n  model {\n    embeddingDimensions(first: $count, after: $cursor) {\n      edges {\n        embedding: node {\n          id\n          name\n          euclideanDistance: driftMetric(metric: euclideanDistance, timeRange: {start: \"1970-01-20 02:00:00\", end: \"1970-01-20 04:00:00\"})\n        }\n        cursor\n        node {\n          __typename\n        }\n      }\n      pageInfo {\n        endCursor\n        hasNextPage\n      }\n    }\n  }\n}\n"
+    "text": "query ModelEmbeddingsTableEmbeddingDimensionsQuery(\n  $count: Int = 50\n  $cursor: String = null\n  $endTime: DateTime!\n  $startTime: DateTime!\n) {\n  ...ModelEmbeddingsTable_embeddingDimensions_4sIU9C\n}\n\nfragment ModelEmbeddingsTable_embeddingDimensions_4sIU9C on Query {\n  model {\n    embeddingDimensions(first: $count, after: $cursor) {\n      edges {\n        embedding: node {\n          id\n          name\n          euclideanDistance: driftMetric(metric: euclideanDistance, timeRange: {start: $startTime, end: $endTime})\n        }\n        cursor\n        node {\n          __typename\n        }\n      }\n      pageInfo {\n        endCursor\n        hasNextPage\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "2b7241a0292c0fb6ff14e61874923b84";
+(node as any).hash = "fb7f125f75d1d33a555c16e198dbcbf8";
 
 export default node;

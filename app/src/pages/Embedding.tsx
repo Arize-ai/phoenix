@@ -30,6 +30,8 @@ import { Tabs, TabPane, Switch } from "@arizeai/components";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { Toolbar } from "../components/filter";
 import { PointCloudDisplaySettings } from "../components/canvas/PointCloudDisplaySettings";
+import { useDatasets } from "../contexts";
+import { EuclideanDistanceTimeSeries } from "../components/chart/EuclideanDistanceTimeSeries";
 
 type UMAPPointsEntry = NonNullable<
   EmbeddingUMAPQuery$data["embedding"]["UMAPPoints"]
@@ -106,7 +108,8 @@ const EmbeddingUMAPQuery = graphql`
 
 export function Embedding() {
   const embeddingDimensionId = useEmbeddingDimensionId();
-  const [showDriftChart, setShowDriftChart] = useState<boolean>(false);
+  const { primaryDataset } = useDatasets();
+  const [showDriftChart, setShowDriftChart] = useState<boolean>(true);
   const [queryReference, loadQuery] =
     useQueryLoader<UMAPQueryType>(EmbeddingUMAPQuery);
 
@@ -115,8 +118,8 @@ export function Embedding() {
     loadQuery({
       id: embeddingDimensionId,
       timeRange: {
-        start: new Date().toISOString(),
-        end: new Date().toISOString(),
+        start: primaryDataset.startTime,
+        end: primaryDataset.endTime,
       },
     });
   }, []);
@@ -144,8 +147,25 @@ export function Embedding() {
       <PanelGroup direction="vertical">
         {showDriftChart ? (
           <>
-            <Panel defaultSize={10} collapsible order={1}>
-              Euclidean distance over time
+            <Panel defaultSize={15} collapsible order={1}>
+              <div
+                css={css`
+                  flex: 1 1 auto;
+                  width: 100%;
+                  height: 100%;
+                  position: relative;
+                `}
+              >
+                <Suspense fallback={<LoadingMask />}>
+                  <EuclideanDistanceTimeSeries
+                    embeddingDimensionId={embeddingDimensionId}
+                    timeRange={{
+                      start: new Date(primaryDataset.startTime),
+                      end: new Date(primaryDataset.endTime),
+                    }}
+                  />
+                </Suspense>
+              </div>
             </Panel>
             <PanelResizeHandle css={resizeHandleCSS} />
           </>
