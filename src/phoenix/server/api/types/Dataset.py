@@ -45,7 +45,7 @@ class Dataset:
         row_indexes = self._parse_event_ids(event_ids)
         dataframe = self.dataset.dataframe
         schema = self.dataset.schema
-        requested_gql_dimensions = self._get_requested_features_and_tags(
+        requested_gql_dimensions = _get_requested_features_and_tags(
             core_dimensions=info.context.model.dimensions,
             requested_dimension_names=set(dim.name for dim in dimensions)
             if isinstance(dimensions, list)
@@ -66,8 +66,7 @@ class Dataset:
             row_indexes
         ]
         return [
-            self._create_event(row, schema, requested_gql_dimensions)
-            for _, row in dataframe.iterrows()
+            _create_event(row, schema, requested_gql_dimensions) for _, row in dataframe.iterrows()
         ]
 
     def _parse_event_ids(self, event_ids: List[ID]) -> List[int]:
@@ -82,50 +81,6 @@ class Dataset:
             row_indexes.append(int(row_index))
         return row_indexes
 
-    @staticmethod
-    def _get_requested_features_and_tags(
-        core_dimensions: List[CoreDimension],
-        requested_dimension_names: Optional[Set[str]] = None,
-    ) -> List[Dimension]:
-        """
-        Returns requested features and tags as a list of strawberry Datasets. If
-        no dimensions are explicitly requested, returns all features and tags.
-        """
-        requested_features_and_tags = []
-        for id, dim in enumerate(core_dimensions):
-            is_requested = (
-                requested_dimension_names is None or dim.name in requested_dimension_names
-            )
-            is_feature_or_tag = dim.type in [DimensionType.FEATURE, DimensionType.TAG]
-            if is_requested and is_feature_or_tag:
-                requested_features_and_tags.append(to_gql_dimension(id_attr=id, dimension=dim))
-        return requested_features_and_tags
-
-    @staticmethod
-    def _create_event(row: "Series[Any]", schema: Schema, dimensions: List[Dimension]) -> Event:
-        """
-        Reads dimension values and event metadata from a dataframe row and
-        returns an event containing this information.
-        """
-        event_metadata = EventMetadata(
-            prediction_label=row[col]
-            if (col := schema.prediction_label_column_name) is not None
-            else None,
-            prediction_score=row[col]
-            if (col := schema.prediction_score_column_name) is not None
-            else None,
-            actual_label=row[col] if (col := schema.actual_label_column_name) is not None else None,
-            actual_score=row[col] if (col := schema.actual_score_column_name) is not None else None,
-        )
-        dimensions_with_values = [
-            DimensionWithValue(
-                dimension=dim,
-                value=row[dim.name],
-            )
-            for dim in dimensions
-        ]
-        return Event(eventMetadata=event_metadata, dimensions=dimensions_with_values)
-
 
 def to_gql_dataset(dataset: InternalDataset, type: Literal["primary", "reference"]) -> Dataset:
     """
@@ -138,3 +93,45 @@ def to_gql_dataset(dataset: InternalDataset, type: Literal["primary", "reference
         type=DatasetType.PRIMARY if type == "primary" else DatasetType.REFERENCE,
         dataset=dataset,
     )
+
+
+def _get_requested_features_and_tags(
+    core_dimensions: List[CoreDimension],
+    requested_dimension_names: Optional[Set[str]] = None,
+) -> List[Dimension]:
+    """
+    Returns requested features and tags as a list of strawberry Datasets. If no
+    dimensions are explicitly requested, returns all features and tags.
+    """
+    requested_features_and_tags = []
+    for id, dim in enumerate(core_dimensions):
+        is_requested = requested_dimension_names is None or dim.name in requested_dimension_names
+        is_feature_or_tag = dim.type in [DimensionType.FEATURE, DimensionType.TAG]
+        if is_requested and is_feature_or_tag:
+            requested_features_and_tags.append(to_gql_dimension(id_attr=id, dimension=dim))
+    return requested_features_and_tags
+
+
+def _create_event(row: "Series[Any]", schema: Schema, dimensions: List[Dimension]) -> Event:
+    """
+    Reads dimension values and event metadata from a dataframe row and returns
+    an event containing this information.
+    """
+    event_metadata = EventMetadata(
+        prediction_label=row[col]
+        if (col := schema.prediction_label_column_name) is not None
+        else None,
+        prediction_score=row[col]
+        if (col := schema.prediction_score_column_name) is not None
+        else None,
+        actual_label=row[col] if (col := schema.actual_label_column_name) is not None else None,
+        actual_score=row[col] if (col := schema.actual_score_column_name) is not None else None,
+    )
+    dimensions_with_values = [
+        DimensionWithValue(
+            dimension=dim,
+            value=row[dim.name],
+        )
+        for dim in dimensions
+    ]
+    return Event(eventMetadata=event_metadata, dimensions=dimensions_with_values)
