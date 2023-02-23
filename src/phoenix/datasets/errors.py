@@ -134,45 +134,70 @@ class MissingEmbeddingFeatureLinkToDataColumnName(ValidationError):
         )
 
 
-class InvalidEmbeddingVectorSize(ValidationError):
-    """An error raised when trying to access an EmbeddingColumnNames.link_to_data_column_name
-    absent from the schema"""
+class EmbeddingVectorSizeMismatch(ValidationError):
+    """An error raised when there is an embedding feature with multiple different
+    vector lengths"""
 
-    def __init__(self, embedding_feature_name: str) -> None:
+    def __init__(
+        self, embedding_feature_name: str, vector_column_name: str, vector_lengths: List[int]
+    ) -> None:
         self.embedding_feature_name = embedding_feature_name
+        self.vector_column_name = vector_column_name
+        self.vector_lengths = vector_lengths
 
     def error_message(self) -> str:
         return (
-            f"Schema is missing link_to_data_column_name of embedding_feature_column_names"
-            f"[{self.embedding_feature_name}]"
+            f"Embedding vectors for an embedding feature must be of same length. "
+            f"Found vectors with lengths of {self.vector_lengths} "
+            f"{self.embedding_feature_name}.vector = {self.vector_column_name}"
+        )
+
+
+class InvalidEmbeddingVectorSize(ValidationError):
+    """An error raised when there is an embedding feature with an invalid vector length"""
+
+    def __init__(
+        self, embedding_feature_name: str, vector_column_name: str, vector_length: int
+    ) -> None:
+        self.embedding_feature_name = embedding_feature_name
+        self.vector_column_name = vector_column_name
+        self.vector_length = vector_length
+
+    def error_message(self) -> str:
+        return (
+            f"Embedding vectors cannot be less than 2 in size. Found vector"
+            f" with size of {self.vector_length}; {self.embedding_feature_name}.vector = "
+            f"{self.vector_column_name}"
         )
 
 
 class InvalidEmbeddingVectorDataType(ValidationError):
-    """An error raised when trying to access an EmbeddingColumnNames.link_to_data_column_name
-    absent from the schema"""
+    """An error raised when there is an embedding feature with a vector of an unsupported
+    data type"""
 
-    def __init__(self, embedding_feature_name: str) -> None:
+    def __init__(self, embedding_feature_name: str, vector_column_type: str) -> None:
         self.embedding_feature_name = embedding_feature_name
+        self.vector_column_type = vector_column_type
 
     def error_message(self) -> str:
         return (
-            f"Schema is missing link_to_data_column_name of embedding_feature_column_names"
-            f"[{self.embedding_feature_name}]"
+            f"Embedding feature {self.embedding_feature_name} has vector type "
+            f"{self.vector_column_type}. Must be list, np.ndarray or pd.Series"
         )
 
 
 class InvalidEmbeddingVectorValuesDataType(ValidationError):
-    """An error raised when trying to access an EmbeddingColumnNames.link_to_data_column_name
-    absent from the schema"""
+    """An error raised when there is an embedding feature with a vector that has
+    values of an unsupported data type"""
 
-    def __init__(self, embedding_feature_name: str) -> None:
+    def __init__(self, embedding_feature_name: str, vector_column_name: str) -> None:
         self.embedding_feature_name = embedding_feature_name
+        self.vector_column_name = vector_column_name
 
     def error_message(self) -> str:
         return (
-            f"Schema is missing link_to_data_column_name of embedding_feature_column_names"
-            f"[{self.embedding_feature_name}]"
+            f"Embedding vector must be a vector of integers and/or floats. Got "
+            f"{self.embedding_feature_name}.vector = {self.vector_column_name}"
         )
 
 

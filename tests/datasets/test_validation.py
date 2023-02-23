@@ -41,6 +41,36 @@ def test_embeddings_vector_length_mismatch():
         schema=input_schema,
     )
     assert len(errors) == 1
+    assert isinstance(errors[0], err.EmbeddingVectorSizeMismatch)
+
+
+def test_embeddings_vector_length_mismatch():
+    input_dataframe = DataFrame(
+        {
+            "prediction_id": [str(x) for x in range(_NUM_RECORDS)],
+            "timestamp": [pd.Timestamp.now() for x in range(_NUM_RECORDS)],
+            "embedding_vector0": [np.zeros(1) for _ in range(_NUM_RECORDS)],
+            "link_to_data0": [f"some-link{index}" for index in range(_NUM_RECORDS)],
+            "raw_data_column0": [f"some-text{index}" for index in range(_NUM_RECORDS)],
+        }
+    )
+    input_schema = Schema(
+        prediction_id_column_name="prediction_id",
+        timestamp_column_name="timestamp",
+        embedding_feature_column_names={
+            "embedding_feature0": EmbeddingColumnNames(
+                vector_column_name="embedding_vector0",
+                link_to_data_column_name="link_to_data0",
+                raw_data_column_name="raw_data_column0",
+            ),
+        },
+    )
+
+    errors = validate_dataset_inputs(
+        dataframe=input_dataframe,
+        schema=input_schema,
+    )
+    assert len(errors) == 1
     assert isinstance(errors[0], err.InvalidEmbeddingVectorSize)
 
 
