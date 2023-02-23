@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<53df753454de5335d81e4e3a5b0b44ed>>
+ * @generated SignedSource<<a9adbc8a74881bcbd5cb692e4546aa49>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -13,14 +13,14 @@ export type AppRootQuery$variables = {};
 export type AppRootQuery$data = {
   readonly model: {
     readonly primaryDataset: {
-      readonly endTime: String;
+      readonly endTime: string;
       readonly name: string;
-      readonly startTime: String;
+      readonly startTime: string;
     };
     readonly referenceDataset: {
-      readonly endTime: String;
+      readonly endTime: string;
       readonly name: string;
-      readonly startTime: String;
+      readonly startTime: string;
     } | null;
   };
 };

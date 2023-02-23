@@ -17,6 +17,8 @@ export function ModelEmbeddingsTable(props: ModelEmbeddingsTable) {
       @argumentDefinitions(
         count: { type: "Int", defaultValue: 50 }
         cursor: { type: "String", defaultValue: null }
+        startTime: { type: "DateTime!" }
+        endTime: { type: "DateTime!" }
       ) {
         model {
           embeddingDimensions(first: $count, after: $cursor)
@@ -27,10 +29,7 @@ export function ModelEmbeddingsTable(props: ModelEmbeddingsTable) {
                 name
                 euclideanDistance: driftMetric(
                   metric: euclideanDistance
-                  timeRange: {
-                    start: "1970-01-20 02:00:00"
-                    end: "1970-01-20 04:00:00"
-                  }
+                  timeRange: { start: $startTime, end: $endTime }
                 )
               }
             }

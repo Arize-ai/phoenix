@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<5b379b3453090e491d5e13c2addbcd5a>>
+ * @generated SignedSource<<a4be71a3322de7e7d9f02feb316f5c10>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -16,7 +16,7 @@ export type ModelEmbeddingsTable_embeddingDimensions$data = {
       readonly edges: ReadonlyArray<{
         readonly embedding: {
           readonly euclideanDistance: number | null;
-          readonly id: String;
+          readonly id: string;
           readonly name: string;
         };
       }>;
@@ -45,6 +45,16 @@ return {
       "defaultValue": null,
       "kind": "LocalArgument",
       "name": "cursor"
+    },
+    {
+      "defaultValue": null,
+      "kind": "LocalArgument",
+      "name": "endTime"
+    },
+    {
+      "defaultValue": null,
+      "kind": "LocalArgument",
+      "name": "startTime"
     }
   ],
   "kind": "Fragment",
@@ -127,17 +137,25 @@ return {
                           "value": "euclideanDistance"
                         },
                         {
-                          "kind": "Literal",
-                          "name": "timeRange",
-                          "value": {
-                            "end": "1970-01-20 04:00:00",
-                            "start": "1970-01-20 02:00:00"
-                          }
+                          "fields": [
+                            {
+                              "kind": "Variable",
+                              "name": "end",
+                              "variableName": "endTime"
+                            },
+                            {
+                              "kind": "Variable",
+                              "name": "start",
+                              "variableName": "startTime"
+                            }
+                          ],
+                          "kind": "ObjectValue",
+                          "name": "timeRange"
                         }
                       ],
                       "kind": "ScalarField",
                       "name": "driftMetric",
-                      "storageKey": "driftMetric(metric:\"euclideanDistance\",timeRange:{\"end\":\"1970-01-20 04:00:00\",\"start\":\"1970-01-20 02:00:00\"})"
+                      "storageKey": null
                     }
                   ],
                   "storageKey": null
@@ -207,6 +225,6 @@ return {
 };
 })();
 
-(node as any).hash = "2b7241a0292c0fb6ff14e61874923b84";
+(node as any).hash = "fb7f125f75d1d33a555c16e198dbcbf8";
 
 export default node;

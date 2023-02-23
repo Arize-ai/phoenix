@@ -13,14 +13,9 @@ from .embedding_dimension import EmbeddingDimension
 
 
 class Model:
-    __primary_dataset: Dataset
-    __reference_dataset: Optional[Dataset] = None
-
-    def __init__(self, primary_dataset_name: str, reference_dataset_name: Optional[str]):
-        # TODO Fail if you can't find the datasets on disc
-        self.__primary_dataset = Dataset.from_name(primary_dataset_name)
-        if reference_dataset_name is not None:
-            self.__reference_dataset = Dataset.from_name(reference_dataset_name)
+    def __init__(self, primary_dataset: Dataset, reference_dataset: Optional[Dataset] = None):
+        self.__primary_dataset = primary_dataset
+        self.__reference_dataset = reference_dataset
         self.__dimensions = self._get_dimensions(self.primary_dataset, self.reference_dataset)
         self.__embedding_dimensions: List[EmbeddingDimension] = self._get_embedding_dimensions(
             self.primary_dataset, self.reference_dataset

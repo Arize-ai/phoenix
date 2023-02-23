@@ -51,7 +51,6 @@ class Dataset:
         name: Optional[str] = None,
         persist_to_disc: bool = True,
     ):
-        dataframe = dataframe.reset_index()
         errors = validate_dataset_inputs(
             dataframe=dataframe,
             schema=schema,
@@ -451,7 +450,7 @@ def _create_and_normalize_dataframe_and_schema(
         parsed_dataframe["timestamp"] = now
     elif is_numeric_dtype(dataframe.dtypes[ts_col_name]):
         parsed_dataframe[ts_col_name] = parsed_dataframe[ts_col_name].apply(
-            lambda x: to_datetime(x, unit="s")
+            lambda x: to_datetime(x, unit="s", utc=True)
         )
 
     pred_col_name = parsed_schema.prediction_id_column_name
@@ -476,5 +475,6 @@ def _sort_dataframe_rows_by_timestamp(dataframe: DataFrame, schema: Schema) -> D
     timestamp_column_name = schema.timestamp_column_name
     if timestamp_column_name is None:
         raise ValueError("Schema must specify a timestamp column name.")
-    dataframe = dataframe.sort_values(by=[timestamp_column_name])
+    dataframe.set_index(timestamp_column_name, drop=False, inplace=True)
+    dataframe.sort_index(inplace=True)
     return dataframe

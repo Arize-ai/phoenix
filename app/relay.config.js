@@ -6,8 +6,8 @@ module.exports = {
   exclude: ["**/node_modules/**", "**/__mocks__/**", "**/__generated__/**"],
   noFutureProofEnums: true,
   customScalars: {
-    GlobalID: "String",
-    DateTime: "String",
-    UUID: "String",
+    GlobalID: "string",
+    DateTime: "string",
+    UUID: "string",
   },
 };

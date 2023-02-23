@@ -1,8 +1,8 @@
 from typing import Optional
 
 import strawberry
-from strawberry.arguments import UNSET
 from strawberry.types import Info
+from strawberry.unset import UNSET
 
 from phoenix.server.api.context import Context
 
@@ -43,13 +43,13 @@ class Model:
 
     @strawberry.field
     def primary_dataset(self, info: Info[Context, None]) -> Dataset:
-        return to_gql_dataset(info.context.model.primary_dataset)
+        return to_gql_dataset(dataset=info.context.model.primary_dataset, type="primary")
 
     @strawberry.field
     def reference_dataset(self, info: Info[Context, None]) -> Optional[Dataset]:
         if info.context.model.reference_dataset is None:
             return None
-        return to_gql_dataset(info.context.model.reference_dataset)
+        return to_gql_dataset(dataset=info.context.model.reference_dataset, type="reference")
 
     @strawberry.field
     def embedding_dimensions(

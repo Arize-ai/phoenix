@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c89c5bca84b29de912df7331b59b4509>>
+ * @generated SignedSource<<9c3a56ed50eccfb9b192f6658da78c50>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,18 +9,18 @@
 // @ts-nocheck
 
 import { ConcreteRequest, Query } from 'relay-runtime';
-export type EmbeddingLoaderQuery$variables = {
-  id: String;
+export type embeddingLoaderQuery$variables = {
+  id: string;
 };
-export type EmbeddingLoaderQuery$data = {
+export type embeddingLoaderQuery$data = {
   readonly embedding: {
-    readonly id?: String;
+    readonly id?: string;
     readonly name?: string;
   };
 };
-export type EmbeddingLoaderQuery = {
-  response: EmbeddingLoaderQuery$data;
-  variables: EmbeddingLoaderQuery$variables;
+export type embeddingLoaderQuery = {
+  response: embeddingLoaderQuery$data;
+  variables: embeddingLoaderQuery$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -57,7 +57,7 @@ return {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "EmbeddingLoaderQuery",
+    "name": "embeddingLoaderQuery",
     "selections": [
       {
         "alias": "embedding",
@@ -87,7 +87,7 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
-    "name": "EmbeddingLoaderQuery",
+    "name": "embeddingLoaderQuery",
     "selections": [
       {
         "alias": "embedding",
@@ -123,16 +123,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "fb6388494302beaa7a89e280d8396c60",
+    "cacheID": "cff0ac130f1ef79784f7bef4161ac60d",
     "id": null,
     "metadata": {},
-    "name": "EmbeddingLoaderQuery",
+    "name": "embeddingLoaderQuery",
     "operationKind": "query",
-    "text": "query EmbeddingLoaderQuery(\n  $id: GlobalID!\n) {\n  embedding: node(id: $id) {\n    __typename\n    ... on EmbeddingDimension {\n      id\n      name\n    }\n    __isNode: __typename\n    id\n  }\n}\n"
+    "text": "query embeddingLoaderQuery(\n  $id: GlobalID!\n) {\n  embedding: node(id: $id) {\n    __typename\n    ... on EmbeddingDimension {\n      id\n      name\n    }\n    __isNode: __typename\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "d89ee55a8b26122feeddf4c9eef1a89e";
+(node as any).hash = "c049e57d92943f64b5e751e0daa89dc8";
 
 export default node;

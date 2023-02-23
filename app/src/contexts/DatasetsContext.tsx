@@ -1,7 +1,9 @@
-import React, { ReactNode } from "react";
+import React, { ReactNode, createContext } from "react";
 
 type DatasetDef = {
   name: string;
+  startTime: string;
+  endTime: string;
 };
 
 type DatasetsContextType = {
@@ -9,9 +11,7 @@ type DatasetsContextType = {
   referenceDataset: DatasetDef | null;
 };
 
-export const DatasetsContext = React.createContext<DatasetsContextType | null>(
-  null
-);
+export const DatasetsContext = createContext<DatasetsContextType | null>(null);
 
 export function useDatasets() {
   const context = React.useContext(DatasetsContext);
