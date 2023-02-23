@@ -59,9 +59,14 @@ jobs:
               uses: actions/setup-python@v4
               with:
                   python-version: ${{ matrix.python-version }}
+            - name: Setup PDM
+              uses: pdm-project/setup-pdm@v3
+              with:
+                  python-version: ${{ matrix.python-version }}
             - name: Install dependencies
               run: |
                   python -m pip install --upgrade pip==${{ env.pip-version }}
+                  pdm sync
                   pip install hatch
             - name: Run tests
               run: |
