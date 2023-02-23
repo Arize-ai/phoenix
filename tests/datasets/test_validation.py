@@ -44,7 +44,7 @@ def test_embeddings_vector_length_mismatch():
     assert isinstance(errors[0], err.EmbeddingVectorSizeMismatch)
 
 
-def test_embeddings_vector_length_mismatch():
+def test_invalid_embeddings_vector_length():
     input_dataframe = DataFrame(
         {
             "prediction_id": [str(x) for x in range(_NUM_RECORDS)],
