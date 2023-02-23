@@ -59,6 +59,8 @@ def _check_valid_embedding_data(dataframe: DataFrame, schema: Schema) -> List[er
         vector_column = dataframe[column_names.vector_column_name]
 
         for vector in vector_column:
+            # None is a valid entry and represents the fact that the embedding feature
+            # is missing/empty, so skip.
             if vector is None:
                 continue
 
@@ -86,7 +88,7 @@ def _check_valid_embedding_data(dataframe: DataFrame, schema: Schema) -> List[er
             if vector_length is None:
                 vector_length = len(vector)
 
-            # Fail if vectors in the dataframe are not of the same length, or of length < 1
+            # Fail if vectors in the dataframe are not of the same length, or of length <= 1
             if len(vector) != vector_length:
                 embedding_errors.append(
                     err.EmbeddingVectorSizeMismatch(
