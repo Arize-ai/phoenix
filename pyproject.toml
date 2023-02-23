@@ -28,7 +28,7 @@ dependencies = [
   "starlette",
   "uvicorn",
   "psutil",
-  "strawberry-graphql==0.155.3",
+  "strawberry-graphql",
   "pyarrow",
   "typing_extensions",
   "scipy",
@@ -44,7 +44,7 @@ dev = [
   "pytest",
   "pytest-cov",
   "pytest-lazy-fixture",
-  "strawberry-graphql[debug-server]==0.155.3",
+  "strawberry-graphql[debug-server]",
   "pre-commit",
 ]
 
@@ -88,7 +88,7 @@ dependencies = [
 
 [tool.hatch.envs.type]
 dependencies = [
-  "mypy==0.991",
+  "mypy",
   "pandas-stubs",
   "pytest",
   "types-psutil",
@@ -97,10 +97,10 @@ dependencies = [
 [tool.hatch.envs.style]
 detached = true
 dependencies = [
-  "black~=23.1.0",
-  "black[jupyter]~=23.1.0",
-  "flake8~=6.0.0",
-  "isort~=5.12.0",
+  "black",
+  "black[jupyter]",
+  "flake8",
+  "isort",
 ]
 
 [tool.hatch.envs.docs]
