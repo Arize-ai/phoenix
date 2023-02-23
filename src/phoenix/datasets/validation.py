@@ -89,7 +89,7 @@ def _check_valid_embedding_data(dataframe: DataFrame, schema: Schema) -> List[er
             # Fail if vectors in the dataframe are not of the same length, or of length < 1
             if len(vector) != vector_length:
                 embedding_errors.append(
-                    err.InvalidEmbeddingVectorSizeMismatch(
+                    err.EmbeddingVectorSizeMismatch(
                         embedding_name,
                         column_names.vector_column_name,
                         [vector_length, len(vector)],
