@@ -173,10 +173,6 @@ export function Embedding() {
                 <Suspense fallback={<LoadingMask />}>
                   <EuclideanDistanceTimeSeries
                     embeddingDimensionId={embeddingDimensionId}
-                    timeRange={{
-                      start: new Date(primaryDataset.startTime),
-                      end: new Date(primaryDataset.endTime),
-                    }}
                   />
                 </Suspense>
               </div>
