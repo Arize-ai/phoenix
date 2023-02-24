@@ -2,6 +2,7 @@ import React from "react";
 
 import { css } from "@emotion/react";
 import { Heading, Text } from "@arizeai/components";
+import { transparentize } from "polished";
 
 type ClusterItemProps = {
   clusterId: string;
@@ -30,11 +31,14 @@ export function ClusterItem(props: ClusterItemProps) {
         border-radius: 4px;
         overflow: hidden;
         transition: background-color 0.2s ease-in-out;
+
         &:hover {
-          background-color: ${theme.colors.gray500};
+          background-color: ${transparentize(0.9, theme.colors.arizeLightBlue)};
+          border-color: ${transparentize(0.5, theme.colors.arizeLightBlue)};
         }
         &.is-selected {
           border-color: ${theme.colors.arizeLightBlue};
+          background-color: ${transparentize(0.8, theme.colors.arizeLightBlue)};
         }
       `}
       className={props.isSelected ? "is-selected" : ""}

@@ -13,6 +13,7 @@ import RelayEnvironment from "./RelayEnvironment";
 import { AppRootQuery } from "./__generated__/AppRootQuery.graphql";
 import { AppRoutes } from "./Routes";
 import { DatasetsProvider } from "./contexts";
+import { TimeRangeProvider } from "./contexts/TimeRangeContext";
 
 const RootQuery = graphql`
   query AppRootQuery {
@@ -36,13 +37,23 @@ type AppProps = {
 };
 
 function App(props: AppProps) {
-  const data = usePreloadedQuery(RootQuery, props.preloadedQuery);
+  const {
+    model: { primaryDataset, referenceDataset },
+  } = usePreloadedQuery(RootQuery, props.preloadedQuery);
+
   return (
     <DatasetsProvider
-      primaryDataset={data.model.primaryDataset}
-      referenceDataset={data.model.referenceDataset ?? null}
+      primaryDataset={primaryDataset}
+      referenceDataset={referenceDataset ?? null}
     >
-      <AppRoutes />
+      <TimeRangeProvider
+        timeRangeBounds={{
+          start: new Date(primaryDataset.startTime),
+          end: new Date(primaryDataset.endTime),
+        }}
+      >
+        <AppRoutes />
+      </TimeRangeProvider>
     </DatasetsProvider>
   );
 }

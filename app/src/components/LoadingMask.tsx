@@ -17,7 +17,7 @@ export const LoadingMask = () => {
         background-color: rgba(0, 0, 0, 0.2);
       `}
     >
-      <ProgressCircle isIndeterminate />
+      <ProgressCircle isIndeterminate aria-label="loading" />
     </div>
   );
 };

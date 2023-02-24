@@ -6,7 +6,7 @@
   "license": "None",
   "private": true,
   "dependencies": {
-    "@arizeai/components": "^0.9.12",
+    "@arizeai/components": "^0.9.15-0",
     "@arizeai/point-cloud": "^2.1.5",
     "@emotion/react": "^11.10.5",
     "@react-three/drei": "9.5.7",
@@ -14,6 +14,7 @@
     "@types/react-table": "^7.7.14",
     "@types/recharts": "^1.8.24",
     "d3-time-format": "^4.1.0",
+    "date-fns": "^2.29.3",
     "normalize.css": "^8.0.1",
     "polished": "^4.2.2",
     "react": "18.2",

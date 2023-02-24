@@ -4,17 +4,18 @@ import { timeFormat } from "d3-time-format";
 import { useLazyLoadQuery } from "react-relay";
 import {
   Area,
-  AreaChart,
   CartesianGrid,
   Tooltip,
   XAxis,
   YAxis,
   ResponsiveContainer,
   TooltipProps,
+  ComposedChart,
 } from "recharts";
 import { graphql } from "relay-runtime";
 import { EuclideanDistanceTimeSeriesQuery } from "./__generated__/EuclideanDistanceTimeSeriesQuery.graphql";
 import { css } from "@emotion/react";
+import { useTimeRange } from "../../contexts/TimeRangeContext";
 
 const timeFormatter = timeFormat("%x");
 function TooltipContent({ active, payload, label }: TooltipProps<any, any>) {
@@ -37,11 +38,10 @@ function TooltipContent({ active, payload, label }: TooltipProps<any, any>) {
 }
 export function EuclideanDistanceTimeSeries({
   embeddingDimensionId,
-  timeRange,
 }: {
   embeddingDimensionId: string;
-  timeRange: TimeRange;
 }) {
+  const { timeRange } = useTimeRange();
   const data = useLazyLoadQuery<EuclideanDistanceTimeSeriesQuery>(
     graphql`
       query EuclideanDistanceTimeSeriesQuery(
@@ -75,14 +75,14 @@ export function EuclideanDistanceTimeSeries({
   const chartData = data.embedding.euclideanDistanceTimeSeries?.data;
   return (
     <ResponsiveContainer width="100%" height="100%">
-      <AreaChart
+      <ComposedChart
         data={chartData as unknown as any[]}
-        margin={{ top: 20, right: 50, left: 30, bottom: 10 }}
+        margin={{ top: 20, right: 18, left: 18, bottom: 10 }}
       >
         <defs>
           <linearGradient id="colorUv" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor="#ffffff" stopOpacity={0.8} />
-            <stop offset="95%" stopColor="#ffffff" stopOpacity={0} />
+            <stop offset="5%" stopColor="#9E98C8" stopOpacity={0.8} />
+            <stop offset="95%" stopColor="#9E98C8" stopOpacity={0} />
           </linearGradient>
         </defs>
         <XAxis
@@ -90,6 +90,7 @@ export function EuclideanDistanceTimeSeries({
           stroke={theme.colors.gray200}
           // TODO: Fix this to be a cleaner interface
           tickFormatter={(x) => timeFormatter(new Date(x))}
+          style={{ fill: theme.textColors.white70 }}
         />
         <YAxis
           stroke={theme.colors.gray200}
@@ -97,23 +98,35 @@ export function EuclideanDistanceTimeSeries({
             value: "Euc. Distance",
             angle: -90,
             position: "insideLeft",
-            style: { textAnchor: "middle" },
+            style: { textAnchor: "middle", fill: theme.textColors.white90 },
           }}
+          style={{ fill: theme.textColors.white70 }}
+        />
+        <YAxis
+          yAxisId="right"
+          orientation="right"
+          label={{
+            value: "Traffic",
+            angle: 90,
+            position: "insideRight",
+            style: { textAnchor: "middle", fill: theme.textColors.white90 },
+          }}
+          style={{ fill: theme.textColors.white70 }}
         />
         <CartesianGrid
-          strokeDasharray="3 3"
+          strokeDasharray="4 4"
           stroke={theme.colors.gray200}
-          strokeOpacity={0.3}
+          strokeOpacity={0.5}
         />
         <Tooltip content={<TooltipContent />} />
         <Area
           type="monotone"
           dataKey="value"
-          stroke="#ffffff"
+          stroke="#9E98C8"
           fillOpacity={1}
           fill="url(#colorUv)"
         />
-      </AreaChart>
+      </ComposedChart>
     </ResponsiveContainer>
   );
 }
