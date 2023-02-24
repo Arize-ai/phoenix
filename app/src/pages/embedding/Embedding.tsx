@@ -24,7 +24,11 @@ import { LoadingMask } from "../../components";
 import { ClusterItem } from "../../components/cluster";
 import { Tabs, TabPane, Switch } from "@arizeai/components";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
-import { Toolbar } from "../../components/filter";
+import {
+  PrimaryDatasetTimeRange,
+  Toolbar,
+  ReferenceDatasetTimeRange,
+} from "../../components/filter";
 import { PointCloudDisplaySettings } from "../../components/canvas/PointCloudDisplaySettings";
 import { useDatasets } from "../../contexts";
 import { EuclideanDistanceTimeSeries } from "./EuclideanDistanceTimeSeries";
@@ -104,7 +108,7 @@ const EmbeddingUMAPQuery = graphql`
 
 export function Embedding() {
   const embeddingDimensionId = useEmbeddingDimensionId();
-  const { primaryDataset } = useDatasets();
+  const { primaryDataset, referenceDataset } = useDatasets();
   const [showDriftChart, setShowDriftChart] = useState<boolean>(true);
   const [queryReference, loadQuery] =
     useQueryLoader<UMAPQueryType>(EmbeddingUMAPQuery);
@@ -130,16 +134,30 @@ export function Embedding() {
     >
       <Toolbar
         extra={
-          <Switch
-            onChange={(isSelected) => {
-              setShowDriftChart(isSelected);
-            }}
-            labelPlacement="start"
-          >
-            Show Drift Chart
-          </Switch>
+          referenceDataset ? (
+            <Switch
+              onChange={(isSelected) => {
+                setShowDriftChart(isSelected);
+              }}
+              defaultSelected={true}
+              labelPlacement="start"
+            >
+              Show Drift Chart
+            </Switch>
+          ) : null
         }
-      ></Toolbar>
+      >
+        <PrimaryDatasetTimeRange />
+        {referenceDataset ? (
+          <ReferenceDatasetTimeRange
+            datasetType="reference"
+            timeRange={{
+              start: new Date(referenceDataset.startTime),
+              end: new Date(referenceDataset.endTime),
+            }}
+          />
+        ) : null}
+      </Toolbar>
       <PanelGroup direction="vertical">
         {showDriftChart ? (
           <>
@@ -155,10 +173,6 @@ export function Embedding() {
                 <Suspense fallback={<LoadingMask />}>
                   <EuclideanDistanceTimeSeries
                     embeddingDimensionId={embeddingDimensionId}
-                    timeRange={{
-                      start: new Date(primaryDataset.startTime),
-                      end: new Date(primaryDataset.endTime),
-                    }}
                   />
                 </Suspense>
               </div>
