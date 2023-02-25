@@ -10,13 +10,10 @@ description: >-
 Phoenix is under active development and its API may change at any time
 {% endhint %}
 
-## How to install
-
-Phoenix is available to install via `pypi`
+Phoenix works with python 3.8 and above and is available to install via `pypi`
 
 ```shell
 pip install arize-phoenix
 ```
 
 you are now ready to use the `phoenix` package inside of your notebook!
-
