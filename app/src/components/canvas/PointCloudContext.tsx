@@ -9,6 +9,14 @@ type PointCloudContextType = {
    * Sets the selected point IDs to the given value.
    */
   setSelectedPointIds: (ids: Set<string>) => void;
+  /**
+   * The IDs of the clusters that are currently selected.
+   */
+  selectedClusterId: string | null;
+  /**
+   * Sets the selected cluster id to the given value.
+   */
+  setSelectedClusterId: (ids: string | null) => void;
 };
 
 export const PointCloudContext = createContext<PointCloudContextType | null>(
@@ -27,9 +35,17 @@ export function PointCloudProvider({ children }: { children: ReactNode }) {
   const [selectedPointIds, setSelectedPointIds] = useState<Set<string>>(
     new Set()
   );
+  const [selectedClusterId, setSelectedClusterId] = useState<null | string>(
+    null
+  );
   return (
     <PointCloudContext.Provider
-      value={{ selectedPointIds, setSelectedPointIds }}
+      value={{
+        selectedPointIds,
+        setSelectedPointIds,
+        selectedClusterId,
+        setSelectedClusterId,
+      }}
     >
       {children}
     </PointCloudContext.Provider>
