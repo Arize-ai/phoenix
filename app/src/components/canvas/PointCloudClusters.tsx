@@ -1,5 +1,7 @@
 import React, { useMemo } from "react";
+
 import { Cluster } from "@arizeai/point-cloud";
+
 import { ClusterItem, ThreeDimensionalPointItem } from "./types";
 
 type PointCloudClustersProps = {

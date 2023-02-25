@@ -1,19 +1,21 @@
-import { Provider, theme } from "@arizeai/components";
 import React, { Suspense } from "react";
-import { GlobalStyles } from "./GlobalStyles";
-import { ThemeProvider } from "@emotion/react";
 import {
-  PreloadedQuery,
-  RelayEnvironmentProvider,
   graphql,
   loadQuery,
+  PreloadedQuery,
+  RelayEnvironmentProvider,
   usePreloadedQuery,
 } from "react-relay";
-import RelayEnvironment from "./RelayEnvironment";
+import { ThemeProvider } from "@emotion/react";
+
+import { Provider, theme } from "@arizeai/components";
+
 import { AppRootQuery } from "./__generated__/AppRootQuery.graphql";
-import { AppRoutes } from "./Routes";
-import { DatasetsProvider } from "./contexts";
 import { TimeRangeProvider } from "./contexts/TimeRangeContext";
+import { DatasetsProvider } from "./contexts";
+import { GlobalStyles } from "./GlobalStyles";
+import RelayEnvironment from "./RelayEnvironment";
+import { AppRoutes } from "./Routes";
 
 const RootQuery = graphql`
   query AppRootQuery {

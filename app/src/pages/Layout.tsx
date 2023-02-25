@@ -1,12 +1,13 @@
 import React from "react";
-import {
-  Brand,
-  Navbar,
-  GitHubLink,
-  NavBreadcrumb,
-} from "@phoenix/components/nav";
 import { Outlet } from "react-router";
 import { css } from "@emotion/react";
+
+import {
+  Brand,
+  GitHubLink,
+  Navbar,
+  NavBreadcrumb,
+} from "@phoenix/components/nav";
 
 const layoutCSS = css`
   display: flex;

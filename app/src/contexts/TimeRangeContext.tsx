@@ -1,14 +1,15 @@
 import React, {
   createContext,
-  useContext,
   ReactNode,
-  useState,
-  useMemo,
-  useCallback,
   startTransition,
+  useCallback,
+  useContext,
+  useMemo,
+  useState,
 } from "react";
-import { assertUnreachable } from "@phoenix/typeUtils";
 import { subDays } from "date-fns";
+
+import { assertUnreachable } from "@phoenix/typeUtils";
 
 /**
  * Preset amounts of time to select from

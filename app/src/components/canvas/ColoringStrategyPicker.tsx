@@ -1,5 +1,7 @@
 import React from "react";
-import { Picker, Item } from "@arizeai/components";
+
+import { Item,Picker } from "@arizeai/components";
+
 import { ColoringStrategy } from "./types";
 
 function isColoringStrategy(strategy: unknown): strategy is ColoringStrategy {

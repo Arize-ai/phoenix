@@ -1,23 +1,25 @@
 import React, { ReactNode, useMemo, useState } from "react";
+import { css } from "@emotion/react";
+
+import { theme } from "@arizeai/components";
 import {
+  Axes,
+  ColorSchemes,
+  getThreeDimensionalBounds,
+  LassoSelect,
+  ThreeDimensionalBounds,
   ThreeDimensionalCanvas,
   ThreeDimensionalControls,
-  getThreeDimensionalBounds,
-  ThreeDimensionalBounds,
-  LassoSelect,
-  ColorSchemes,
-  Axes,
 } from "@arizeai/point-cloud";
-import { theme } from "@arizeai/components";
-import { css } from "@emotion/react";
-import { ControlPanel } from "./ControlPanel";
+
 import { CanvasMode, CanvasModeRadioGroup } from "./CanvasModeRadioGroup";
+import { createColorFn } from "./coloring";
+import { ControlPanel } from "./ControlPanel";
+import { PointCloudClusters } from "./PointCloudClusters";
+import { usePointCloud } from "./PointCloudContext";
 import { PointCloudPoints } from "./PointCloudPoints";
 import { ThreeDimensionalPointItem } from "./types";
-import { ColoringStrategy, ClusterItem } from "./types";
-import { createColorFn } from "./coloring";
-import { usePointCloud } from "./PointCloudContext";
-import { PointCloudClusters } from "./PointCloudClusters";
+import { ClusterItem,ColoringStrategy } from "./types";
 
 const RADIUS_BOUNDS_3D_DIVISOR = 400;
 const CLUSTER_POINT_RADIUS_MULTIPLIER = 6;

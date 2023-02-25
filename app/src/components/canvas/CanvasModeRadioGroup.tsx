@@ -1,5 +1,6 @@
-import { Icon, Icons, Radio, RadioGroup } from "@arizeai/components";
 import React from "react";
+
+import { Icon, Icons, Radio, RadioGroup } from "@arizeai/components";
 
 export enum CanvasMode {
   move = "move",

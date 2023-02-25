@@ -1,12 +1,19 @@
 import React, { Suspense, useEffect, useMemo, useState } from "react";
 import {
-  PreloadedQuery,
   graphql,
+  PreloadedQuery,
   useLazyLoadQuery,
   usePreloadedQuery,
   useQueryLoader,
 } from "react-relay";
+import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
+import { Column } from "react-table";
+import { subDays } from "date-fns";
 import { css } from "@emotion/react";
+
+import { Switch, TabPane, Tabs } from "@arizeai/components";
+
+import { Loading, LoadingMask } from "@phoenix/components";
 import {
   ColoringStrategy,
   PointCloud,
@@ -14,32 +21,28 @@ import {
   ThreeDimensionalPointItem,
   usePointCloud,
 } from "@phoenix/components/canvas";
-import { resizeHandleCSS } from "@phoenix/components/resize/styles";
-import {
-  EmbeddingUMAPQuery$data,
-  EmbeddingUMAPQuery as UMAPQueryType,
-} from "./__generated__/EmbeddingUMAPQuery.graphql";
-import { useEmbeddingDimensionId } from "@phoenix/hooks";
-import { Loading, LoadingMask } from "@phoenix/components";
+import { PointCloudDisplaySettings } from "@phoenix/components/canvas/PointCloudDisplaySettings";
 import { ClusterItem } from "@phoenix/components/cluster";
-import { Tabs, TabPane, Switch } from "@arizeai/components";
-import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import {
   PrimaryDatasetTimeRange,
-  Toolbar,
   ReferenceDatasetTimeRange,
+  Toolbar,
 } from "@phoenix/components/filter";
-import { PointCloudDisplaySettings } from "@phoenix/components/canvas/PointCloudDisplaySettings";
+import { resizeHandleCSS } from "@phoenix/components/resize/styles";
+import { Table } from "@phoenix/components/table";
 import { useDatasets } from "@phoenix/contexts";
-import { EuclideanDistanceTimeSeries } from "./EuclideanDistanceTimeSeries";
 import {
   TimeSliceContextProvider,
   useTimeSlice,
 } from "@phoenix/contexts/TimeSliceContext";
-import { subDays } from "date-fns";
+import { useEmbeddingDimensionId } from "@phoenix/hooks";
+
 import { EmbeddingSelectionPanelContentQuery } from "./__generated__/EmbeddingSelectionPanelContentQuery.graphql";
-import { Table } from "@phoenix/components/table";
-import { Column } from "react-table";
+import {
+  EmbeddingUMAPQuery as UMAPQueryType,
+  EmbeddingUMAPQuery$data,
+} from "./__generated__/EmbeddingUMAPQuery.graphql";
+import { EuclideanDistanceTimeSeries } from "./EuclideanDistanceTimeSeries";
 
 type UMAPPointsEntry = NonNullable<
   EmbeddingUMAPQuery$data["embedding"]["UMAPPoints"]

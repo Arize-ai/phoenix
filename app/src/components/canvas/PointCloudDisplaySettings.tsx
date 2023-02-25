@@ -1,8 +1,10 @@
-import { Form } from "@arizeai/components";
 import React from "react";
+import { css } from "@emotion/react";
+
+import { Form } from "@arizeai/components";
+
 import { ColoringStrategyPicker } from "./ColoringStrategyPicker";
 import { ColoringStrategy } from "./types";
-import { css } from "@emotion/react";
 
 type PointCloudDisplaySettingsProps = {
   coloringStrategy: ColoringStrategy;

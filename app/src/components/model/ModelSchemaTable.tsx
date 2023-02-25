@@ -1,8 +1,10 @@
 import React, { useMemo } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
-import { ModelSchemaTable_dimensions$key } from "./__generated__/ModelSchemaTable_dimensions.graphql";
-import { Table } from "@phoenix/components/table";
 import { Column } from "react-table";
+
+import { Table } from "@phoenix/components/table";
+
+import { ModelSchemaTable_dimensions$key } from "./__generated__/ModelSchemaTable_dimensions.graphql";
 
 type ModelSchemaTableProps = {
   model: ModelSchemaTable_dimensions$key;
