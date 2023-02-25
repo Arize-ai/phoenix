@@ -1,6 +1,7 @@
 import React from "react";
-import { Breadcrumbs, Item } from "@arizeai/components";
 import { useMatches, useNavigate } from "react-router";
+
+import { Breadcrumbs, Item } from "@arizeai/components";
 
 export type CrumbFn = (data: unknown) => string;
 type Matches = ReturnType<typeof useMatches>;

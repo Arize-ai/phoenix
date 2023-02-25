@@ -1,3 +1,7 @@
+import React from "react";
+import { timeFormat } from "d3-time-format";
+import { css } from "@emotion/react";
+
 import {
   FieldColorDesignation,
   TextField,
@@ -5,9 +9,6 @@ import {
   TooltipTrigger,
   TriggerWrap,
 } from "@arizeai/components";
-import { css } from "@emotion/react";
-import { timeFormat } from "d3-time-format";
-import React from "react";
 
 const timeFormatter = timeFormat("%x %X");
 type ReferenceDatasetTimeRangeProps = {

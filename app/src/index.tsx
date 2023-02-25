@@ -1,6 +1,8 @@
 import React from "react";
 import ReactDom from "react-dom/client";
+
 import { AppRoot } from "./App";
+
 import "normalize.css";
 
 const rootEl = document.getElementById("root");

@@ -1,8 +1,8 @@
 import React from "react";
-
-import { css } from "@emotion/react";
-import { Heading, Text } from "@arizeai/components";
 import { transparentize } from "polished";
+import { css } from "@emotion/react";
+
+import { Heading, Text } from "@arizeai/components";
 
 type ClusterItemProps = {
   clusterId: string;

@@ -1,8 +1,10 @@
 import React, { useMemo } from "react";
-import { Link } from "@phoenix/components";
 import { graphql, usePaginationFragment } from "react-relay";
-import { Table } from "@phoenix/components/table/Table";
 import { CellProps, Column } from "react-table";
+
+import { Link } from "@phoenix/components";
+import { Table } from "@phoenix/components/table/Table";
+
 import { ModelEmbeddingsTable_embeddingDimensions$key } from "./__generated__/ModelEmbeddingsTable_embeddingDimensions.graphql";
 
 type ModelEmbeddingsTable = {

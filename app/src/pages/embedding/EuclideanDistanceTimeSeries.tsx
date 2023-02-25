@@ -1,24 +1,27 @@
-import { theme } from "@arizeai/components";
 import React, { useCallback } from "react";
-import { timeFormat } from "d3-time-format";
 import { useLazyLoadQuery } from "react-relay";
+import { timeFormat } from "d3-time-format";
 import {
   Area,
   CartesianGrid,
-  Tooltip,
-  XAxis,
-  YAxis,
-  ResponsiveContainer,
-  TooltipProps,
   ComposedChart,
   ReferenceLine,
+  ResponsiveContainer,
+  Tooltip,
+  TooltipProps,
+  XAxis,
+  YAxis,
 } from "recharts";
-import { graphql } from "relay-runtime";
-import { EuclideanDistanceTimeSeriesQuery } from "./__generated__/EuclideanDistanceTimeSeriesQuery.graphql";
-import { css } from "@emotion/react";
-import { useTimeRange } from "@phoenix/contexts/TimeRangeContext";
 import { CategoricalChartFunc } from "recharts/types/chart/generateCategoricalChart";
+import { graphql } from "relay-runtime";
+import { css } from "@emotion/react";
+
+import { theme } from "@arizeai/components";
+
+import { useTimeRange } from "@phoenix/contexts/TimeRangeContext";
 import { useTimeSlice } from "@phoenix/contexts/TimeSliceContext";
+
+import { EuclideanDistanceTimeSeriesQuery } from "./__generated__/EuclideanDistanceTimeSeriesQuery.graphql";
 
 const timeFormatter = timeFormat("%x");
 

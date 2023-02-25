@@ -1,7 +1,9 @@
 import React from "react";
-import { shade } from "polished";
-import { Points, PointBaseProps } from "@arizeai/point-cloud";
 import { useCallback, useMemo } from "react";
+import { shade } from "polished";
+
+import { PointBaseProps, Points } from "@arizeai/point-cloud";
+
 import { PointColor, ThreeDimensionalPointItem } from "./types";
 
 const DIM_AMOUNT = 0.5;

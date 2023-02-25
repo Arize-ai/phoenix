@@ -1,12 +1,14 @@
+import React from "react";
+
 import {
   FieldColorDesignation,
   Item,
   Picker,
-  TooltipTrigger,
   Tooltip,
+  TooltipTrigger,
   TriggerWrap,
 } from "@arizeai/components";
-import React from "react";
+
 import { TimePreset, useTimeRange } from "@phoenix/contexts/TimeRangeContext";
 
 type PrimaryDatasetTimeRangeProps = object;
