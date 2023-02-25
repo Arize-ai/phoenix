@@ -7,7 +7,7 @@ import React, {
   useCallback,
   startTransition,
 } from "react";
-import { assertUnreachable } from "../typeUtils";
+import { assertUnreachable } from "@phoenix/typeUtils";
 import { subDays } from "date-fns";
 
 /**
