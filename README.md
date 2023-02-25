@@ -76,17 +76,17 @@ For in-depth examples and explanations, read the [docs](https://docs.arize.com/p
 
 Join our community to connect with thousands of machine learning practitioners and ML observability enthusiasts 👁️
 
-- Join the [Arize Slack community](https://join.slack.com/t/arize-ai/shared_invite/zt-1px8dcmlf-fmThhDFD_V_48oU7ALan4Q) 🌍
-- Ask questions and provide feedback in the *#phoenix-support* channel 💡
-- Leave a 🌟 on our [GitHub](https://github.com/Arize-ai/phoenix)
-- Report bugs with [GitHub Issues](https://github.com/Arize-ai/phoenix/issues) 🐞
-- Check out our [roadmap](https://github.com/orgs/Arize-ai/projects/45) to see where we're heading next 🗺️📍
-- Learn the fundamentals of ML observability with our [introductory](https://arize.com/ml-observability-fundamentals/) and [advanced](https://arize.com/blog-course/) courses 🎓
-- Check out the [Arize blog](https://arize.com/blog/) ✏️ TODO(#291): Add blog filter for Phoenix
-- Subscribe to the Arize newsletter ✉️ TODO(#294): Add link
-- Watch the [Arize YouTube channel](https://www.youtube.com/@arizeai9240/videos) 📺
-- Follow us on [Twitter](https://twitter.com/ArizePhoenix) 🐦
-- Check out our LinkedIn 👔 TODO(#292): Add link, fix badge
+- 🌍 Join the [Arize Slack community](https://join.slack.com/t/arize-ai/shared_invite/zt-1px8dcmlf-fmThhDFD_V_48oU7ALan4Q)
+- 💡 Ask questions and provide feedback in the *#phoenix-support* channel
+- 🌟 Leave a star on our [GitHub](https://github.com/Arize-ai/phoenix)
+- 🐞 Report bugs with [GitHub Issues](https://github.com/Arize-ai/phoenix/issues)
+- 🗺️ Check out our [roadmap](https://github.com/orgs/Arize-ai/projects/45) to see where we're heading next
+- 🎓 Learn the fundamentals of ML observability with our [introductory](https://arize.com/ml-observability-fundamentals/) and [advanced](https://arize.com/blog-course/) courses
+- ✏️ Check out the [Arize blog](https://arize.com/blog/) TODO(#291): Add blog filter for Phoenix
+- ✉️ Subscribe to the Arize newsletter TODO(#294): Add link
+- 📺 Watch the [Arize YouTube channel](https://www.youtube.com/@arizeai9240/videos)
+- 🐦 Follow us on [Twitter](https://twitter.com/ArizePhoenix)
+- 👔 Check out our LinkedIn TODO(#292): Add link, fix badge
 
 ## Contributing
 
