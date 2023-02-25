@@ -15,11 +15,16 @@ type PointCloudClustersProps = {
    * The id of the cluster that is currently selected
    */
   selectedClusterId: string | null;
+  /**
+   * The radius of the points in the point cloud
+   */
+  radius: number;
 };
 export function PointCloudClusters({
   points,
   clusters,
   selectedClusterId,
+  radius,
 }: PointCloudClustersProps) {
   // const { selectedClusterId } = usePointCloud();
   // Keep a map of point id to position for fast lookup
@@ -51,6 +56,7 @@ export function PointCloudClusters({
           data={cluster.data}
           opacity={cluster.id === selectedClusterId ? 0.2 : 0}
           wireframe
+          pointRadius={radius}
         />
       ))}
     </>

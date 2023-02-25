@@ -6,6 +6,7 @@ import {
   ThreeDimensionalBounds,
   LassoSelect,
   ColorSchemes,
+  Axes,
 } from "@arizeai/point-cloud";
 import { theme } from "@arizeai/components";
 import { css } from "@emotion/react";
@@ -17,6 +18,10 @@ import { ColoringStrategy, ClusterItem } from "./types";
 import { createColorFn } from "./coloring";
 import { usePointCloud } from "./PointCloudContext";
 import { PointCloudClusters } from "./PointCloudClusters";
+
+const RADIUS_BOUNDS_3D_DIVISOR = 400;
+const CLUSTER_POINT_RADIUS_MULTIPLIER = 6;
+const BOUNDS_3D_ZOOM_PADDING_FACTOR = 0.5;
 
 export interface PointCloudProps {
   primaryData: ThreeDimensionalPointItem[];
@@ -102,8 +107,12 @@ function Projection(props: ProjectionProps) {
     props;
   // AutoRotate the canvas on initial load
   const [autoRotate, setAutoRotate] = useState<boolean>(true);
-  const { selectedPointIds, setSelectedPointIds, selectedClusterId } =
-    usePointCloud();
+  const {
+    selectedPointIds,
+    setSelectedPointIds,
+    selectedClusterId,
+    setSelectedClusterId,
+  } = usePointCloud();
   const allPoints = useMemo(() => {
     return [...primaryData, ...(referenceData || [])];
   }, [primaryData, referenceData]);
@@ -111,6 +120,13 @@ function Projection(props: ProjectionProps) {
   const bounds = useMemo(() => {
     return getThreeDimensionalBounds(allPoints.map((p) => p.position));
   }, [allPoints]);
+
+  const radius =
+    (bounds.maxX - bounds.minX + (bounds.maxY - bounds.minY)) /
+    2 /
+    RADIUS_BOUNDS_3D_DIVISOR;
+
+  const clusterPointRadius = radius * CLUSTER_POINT_RADIUS_MULTIPLIER;
 
   const isMoveMode = canvasMode === CanvasMode.move;
 
@@ -135,26 +151,32 @@ function Projection(props: ProjectionProps) {
           setAutoRotate(false);
         }}
       />
-      <ThreeDimensionalBounds bounds={bounds}>
+      <ThreeDimensionalBounds
+        bounds={bounds}
+        boundsZoomPaddingFactor={BOUNDS_3D_ZOOM_PADDING_FACTOR}
+      >
         <LassoSelect
           points={allPoints}
           onChange={(selection) => {
             setSelectedPointIds(new Set(selection.map((s) => s.metaData.id)));
+            setSelectedClusterId(null);
           }}
           enabled={canvasMode === CanvasMode.select}
         />
-
+        <Axes size={(bounds.maxX - bounds.minX) / 2} color={"blue"} />
         <PointCloudPoints
           primaryData={primaryData}
           referenceData={referenceData}
           selectedIds={selectedPointIds}
           primaryColor={primaryColor}
           referenceColor={referenceColor}
+          radius={radius}
         />
         <PointCloudClusters
           clusters={clusters}
           points={allPoints}
           selectedClusterId={selectedClusterId}
+          radius={clusterPointRadius}
         />
       </ThreeDimensionalBounds>
     </ThreeDimensionalCanvas>

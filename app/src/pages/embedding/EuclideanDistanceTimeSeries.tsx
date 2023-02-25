@@ -29,6 +29,7 @@ function TooltipContent({ active, payload, label }: TooltipProps<any, any>) {
           background-color: ${theme.colors.gray700};
           border: 1px solid transparent;
           padding: ${theme.spacing.margin4}px;
+          border-radius: ${theme.rounding.rounding4}px;
         `}
       >
         <p>{`${timeFormatter(new Date(label))}`}</p>
@@ -150,7 +151,15 @@ export function EuclideanDistanceTimeSeries({
           fill="url(#colorUv)"
         />
         {selectedTimestamp != null ? (
-          <ReferenceLine x={selectedTimestamp.toISOString()} stroke="white" />
+          <ReferenceLine
+            x={selectedTimestamp.toISOString()}
+            stroke="white"
+            label={{
+              value: "Selection",
+              position: "insideTopRight",
+              style: { fill: theme.textColors.white90 },
+            }}
+          />
         ) : null}
       </ComposedChart>
     </ResponsiveContainer>

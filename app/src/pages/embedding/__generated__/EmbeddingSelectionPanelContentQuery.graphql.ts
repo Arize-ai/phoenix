@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<0a113ed594c1ad4b33b192ad4ad730d9>>
+ * @generated SignedSource<<bb4e93e3bf3d24acd06c8d6b43a26246>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -11,7 +11,8 @@
 import { ConcreteRequest, Query } from 'relay-runtime';
 export type DimensionType = "actual" | "feature" | "prediction" | "tag";
 export type EmbeddingSelectionPanelContentQuery$variables = {
-  eventIds: ReadonlyArray<string>;
+  primaryEventIds: ReadonlyArray<string>;
+  referenceEventIds: ReadonlyArray<string>;
 };
 export type EmbeddingSelectionPanelContentQuery$data = {
   readonly model: {
@@ -30,6 +31,21 @@ export type EmbeddingSelectionPanelContentQuery$data = {
         };
       }>;
     };
+    readonly referenceDataset: {
+      readonly events: ReadonlyArray<{
+        readonly dimensions: ReadonlyArray<{
+          readonly dimension: {
+            readonly name: string;
+            readonly type: DimensionType;
+          };
+          readonly value: string;
+        }>;
+        readonly eventMetadata: {
+          readonly actualLabel: string | null;
+          readonly predictionLabel: string | null;
+        };
+      }>;
+    } | null;
   };
 };
 export type EmbeddingSelectionPanelContentQuery = {
@@ -42,10 +58,85 @@ var v0 = [
   {
     "defaultValue": null,
     "kind": "LocalArgument",
-    "name": "eventIds"
+    "name": "primaryEventIds"
+  },
+  {
+    "defaultValue": null,
+    "kind": "LocalArgument",
+    "name": "referenceEventIds"
   }
 ],
 v1 = [
+  {
+    "alias": null,
+    "args": null,
+    "concreteType": "DimensionWithValue",
+    "kind": "LinkedField",
+    "name": "dimensions",
+    "plural": true,
+    "selections": [
+      {
+        "alias": null,
+        "args": null,
+        "concreteType": "Dimension",
+        "kind": "LinkedField",
+        "name": "dimension",
+        "plural": false,
+        "selections": [
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "name",
+            "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "type",
+            "storageKey": null
+          }
+        ],
+        "storageKey": null
+      },
+      {
+        "alias": null,
+        "args": null,
+        "kind": "ScalarField",
+        "name": "value",
+        "storageKey": null
+      }
+    ],
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "concreteType": "EventMetadata",
+    "kind": "LinkedField",
+    "name": "eventMetadata",
+    "plural": false,
+    "selections": [
+      {
+        "alias": null,
+        "args": null,
+        "kind": "ScalarField",
+        "name": "predictionLabel",
+        "storageKey": null
+      },
+      {
+        "alias": null,
+        "args": null,
+        "kind": "ScalarField",
+        "name": "actualLabel",
+        "storageKey": null
+      }
+    ],
+    "storageKey": null
+  }
+],
+v2 = [
   {
     "alias": null,
     "args": null,
@@ -68,83 +159,41 @@ v1 = [
               {
                 "kind": "Variable",
                 "name": "eventIds",
-                "variableName": "eventIds"
+                "variableName": "primaryEventIds"
               }
             ],
             "concreteType": "Event",
             "kind": "LinkedField",
             "name": "events",
             "plural": true,
-            "selections": [
+            "selections": (v1/*: any*/),
+            "storageKey": null
+          }
+        ],
+        "storageKey": null
+      },
+      {
+        "alias": null,
+        "args": null,
+        "concreteType": "Dataset",
+        "kind": "LinkedField",
+        "name": "referenceDataset",
+        "plural": false,
+        "selections": [
+          {
+            "alias": null,
+            "args": [
               {
-                "alias": null,
-                "args": null,
-                "concreteType": "DimensionWithValue",
-                "kind": "LinkedField",
-                "name": "dimensions",
-                "plural": true,
-                "selections": [
-                  {
-                    "alias": null,
-                    "args": null,
-                    "concreteType": "Dimension",
-                    "kind": "LinkedField",
-                    "name": "dimension",
-                    "plural": false,
-                    "selections": [
-                      {
-                        "alias": null,
-                        "args": null,
-                        "kind": "ScalarField",
-                        "name": "name",
-                        "storageKey": null
-                      },
-                      {
-                        "alias": null,
-                        "args": null,
-                        "kind": "ScalarField",
-                        "name": "type",
-                        "storageKey": null
-                      }
-                    ],
-                    "storageKey": null
-                  },
-                  {
-                    "alias": null,
-                    "args": null,
-                    "kind": "ScalarField",
-                    "name": "value",
-                    "storageKey": null
-                  }
-                ],
-                "storageKey": null
-              },
-              {
-                "alias": null,
-                "args": null,
-                "concreteType": "EventMetadata",
-                "kind": "LinkedField",
-                "name": "eventMetadata",
-                "plural": false,
-                "selections": [
-                  {
-                    "alias": null,
-                    "args": null,
-                    "kind": "ScalarField",
-                    "name": "predictionLabel",
-                    "storageKey": null
-                  },
-                  {
-                    "alias": null,
-                    "args": null,
-                    "kind": "ScalarField",
-                    "name": "actualLabel",
-                    "storageKey": null
-                  }
-                ],
-                "storageKey": null
+                "kind": "Variable",
+                "name": "eventIds",
+                "variableName": "referenceEventIds"
               }
             ],
+            "concreteType": "Event",
+            "kind": "LinkedField",
+            "name": "events",
+            "plural": true,
+            "selections": (v1/*: any*/),
             "storageKey": null
           }
         ],
@@ -160,7 +209,7 @@ return {
     "kind": "Fragment",
     "metadata": null,
     "name": "EmbeddingSelectionPanelContentQuery",
-    "selections": (v1/*: any*/),
+    "selections": (v2/*: any*/),
     "type": "Query",
     "abstractKey": null
   },
@@ -169,19 +218,19 @@ return {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
     "name": "EmbeddingSelectionPanelContentQuery",
-    "selections": (v1/*: any*/)
+    "selections": (v2/*: any*/)
   },
   "params": {
-    "cacheID": "4d6471efc00d831a5520cd03a8ecf556",
+    "cacheID": "bc091f564c7cfd949513be0509d04e52",
     "id": null,
     "metadata": {},
     "name": "EmbeddingSelectionPanelContentQuery",
     "operationKind": "query",
-    "text": "query EmbeddingSelectionPanelContentQuery(\n  $eventIds: [ID!]!\n) {\n  model {\n    primaryDataset {\n      events(eventIds: $eventIds) {\n        dimensions {\n          dimension {\n            name\n            type\n          }\n          value\n        }\n        eventMetadata {\n          predictionLabel\n          actualLabel\n        }\n      }\n    }\n  }\n}\n"
+    "text": "query EmbeddingSelectionPanelContentQuery(\n  $primaryEventIds: [ID!]!\n  $referenceEventIds: [ID!]!\n) {\n  model {\n    primaryDataset {\n      events(eventIds: $primaryEventIds) {\n        dimensions {\n          dimension {\n            name\n            type\n          }\n          value\n        }\n        eventMetadata {\n          predictionLabel\n          actualLabel\n        }\n      }\n    }\n    referenceDataset {\n      events(eventIds: $referenceEventIds) {\n        dimensions {\n          dimension {\n            name\n            type\n          }\n          value\n        }\n        eventMetadata {\n          predictionLabel\n          actualLabel\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "464586ee8f03a2388c73949e4e988db8";
+(node as any).hash = "4878229c945fb2d1c9357e7033623a13";
 
 export default node;
