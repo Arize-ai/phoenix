@@ -7,7 +7,7 @@ import {
   TriggerWrap,
 } from "@arizeai/components";
 import React from "react";
-import { TimePreset, useTimeRange } from "../../contexts/TimeRangeContext";
+import { TimePreset, useTimeRange } from "@phoenix/contexts/TimeRangeContext";
 
 type PrimaryDatasetTimeRangeProps = object;
 

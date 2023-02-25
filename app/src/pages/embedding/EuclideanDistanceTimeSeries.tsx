@@ -16,11 +16,12 @@ import {
 import { graphql } from "relay-runtime";
 import { EuclideanDistanceTimeSeriesQuery } from "./__generated__/EuclideanDistanceTimeSeriesQuery.graphql";
 import { css } from "@emotion/react";
-import { useTimeRange } from "../../contexts/TimeRangeContext";
+import { useTimeRange } from "@phoenix/contexts/TimeRangeContext";
 import { CategoricalChartFunc } from "recharts/types/chart/generateCategoricalChart";
-import { useTimeSlice } from "../../contexts/TimeSliceContext";
+import { useTimeSlice } from "@phoenix/contexts/TimeSliceContext";
 
 const timeFormatter = timeFormat("%x");
+
 function TooltipContent({ active, payload, label }: TooltipProps<any, any>) {
   if (active && payload && payload.length) {
     return (

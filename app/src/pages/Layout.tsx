@@ -1,5 +1,10 @@
 import React from "react";
-import { Brand, Navbar, GitHubLink, NavBreadcrumb } from "../components/nav";
+import {
+  Brand,
+  Navbar,
+  GitHubLink,
+  NavBreadcrumb,
+} from "@phoenix/components/nav";
 import { Outlet } from "react-router";
 import { css } from "@emotion/react";
 

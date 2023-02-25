@@ -13,32 +13,32 @@ import {
   PointCloudProvider,
   ThreeDimensionalPointItem,
   usePointCloud,
-} from "../../components/canvas";
-import { resizeHandleCSS } from "../../components/resize/styles";
+} from "@phoenix/components/canvas";
+import { resizeHandleCSS } from "@phoenix/components/resize/styles";
 import {
   EmbeddingUMAPQuery$data,
   EmbeddingUMAPQuery as UMAPQueryType,
 } from "./__generated__/EmbeddingUMAPQuery.graphql";
-import { useEmbeddingDimensionId } from "../../hooks";
-import { Loading, LoadingMask } from "../../components";
-import { ClusterItem } from "../../components/cluster";
+import { useEmbeddingDimensionId } from "@phoenix/hooks";
+import { Loading, LoadingMask } from "@phoenix/components";
+import { ClusterItem } from "@phoenix/components/cluster";
 import { Tabs, TabPane, Switch } from "@arizeai/components";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import {
   PrimaryDatasetTimeRange,
   Toolbar,
   ReferenceDatasetTimeRange,
-} from "../../components/filter";
-import { PointCloudDisplaySettings } from "../../components/canvas/PointCloudDisplaySettings";
-import { useDatasets } from "../../contexts";
+} from "@phoenix/components/filter";
+import { PointCloudDisplaySettings } from "@phoenix/components/canvas/PointCloudDisplaySettings";
+import { useDatasets } from "@phoenix/contexts";
 import { EuclideanDistanceTimeSeries } from "./EuclideanDistanceTimeSeries";
 import {
   TimeSliceContextProvider,
   useTimeSlice,
-} from "../../contexts/TimeSliceContext";
+} from "@phoenix/contexts/TimeSliceContext";
 import { subDays } from "date-fns";
 import { EmbeddingSelectionPanelContentQuery } from "./__generated__/EmbeddingSelectionPanelContentQuery.graphql";
-import { Table } from "../../components/table/Table";
+import { Table } from "@phoenix/components/table";
 import { Column } from "react-table";
 
 type UMAPPointsEntry = NonNullable<
