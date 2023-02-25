@@ -1,5 +1,5 @@
 import { theme } from "@arizeai/components";
-import React from "react";
+import React, { useCallback, useMemo } from "react";
 import { timeFormat } from "d3-time-format";
 import { useLazyLoadQuery } from "react-relay";
 import {
@@ -11,11 +11,13 @@ import {
   ResponsiveContainer,
   TooltipProps,
   ComposedChart,
+  ReferenceLine,
 } from "recharts";
 import { graphql } from "relay-runtime";
 import { EuclideanDistanceTimeSeriesQuery } from "./__generated__/EuclideanDistanceTimeSeriesQuery.graphql";
 import { css } from "@emotion/react";
 import { useTimeRange } from "../../contexts/TimeRangeContext";
+import { CategoricalChartFunc } from "recharts/types/chart/generateCategoricalChart";
 
 const timeFormatter = timeFormat("%x");
 function TooltipContent({ active, payload, label }: TooltipProps<any, any>) {
@@ -30,6 +32,7 @@ function TooltipContent({ active, payload, label }: TooltipProps<any, any>) {
       >
         <p>{`${timeFormatter(new Date(label))}`}</p>
         <p>{`${payload[0].value}`}</p>
+        <p>Click to view drift at this time</p>
       </div>
     );
   }
@@ -72,12 +75,31 @@ export function EuclideanDistanceTimeSeries({
       },
     }
   );
+
+  const [selectedTimestamp, setSelectedTimestamp] = React.useState<
+    string | null
+  >(null);
+
+  const onClick: CategoricalChartFunc = useCallback(
+    (state) => {
+      // Parse out the timestamp from the first chart
+      const { activePayload } = state;
+      if (activePayload != null && activePayload.length > 0) {
+        const payload = activePayload[0].payload;
+        setSelectedTimestamp(payload.timestamp);
+      }
+    },
+    [setSelectedTimestamp]
+  );
+
+  console.log(selectedTimestamp);
   const chartData = data.embedding.euclideanDistanceTimeSeries?.data;
   return (
     <ResponsiveContainer width="100%" height="100%">
       <ComposedChart
         data={chartData as unknown as any[]}
         margin={{ top: 20, right: 18, left: 18, bottom: 10 }}
+        onClick={onClick}
       >
         <defs>
           <linearGradient id="colorUv" x1="0" y1="0" x2="0" y2="1">
@@ -126,6 +148,9 @@ export function EuclideanDistanceTimeSeries({
           fillOpacity={1}
           fill="url(#colorUv)"
         />
+        {selectedTimestamp != null ? (
+          <ReferenceLine x={selectedTimestamp} stroke="white" />
+        ) : null}
       </ComposedChart>
     </ResponsiveContainer>
   );
