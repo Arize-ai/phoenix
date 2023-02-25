@@ -70,7 +70,7 @@ px.close_app()
 
 ## Documentation
 
-For in-depth examples and explanations, read the docs 📖 TODO(#296): Add link
+For in-depth examples and explanations, read the [docs](https://docs.arize.com/phoenix)
 
 ## Community
 
