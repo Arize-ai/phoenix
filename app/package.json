@@ -39,6 +39,7 @@
     "esbuild": "^0.15.13",
     "eslint": "^8.31.0",
     "eslint-plugin-react": "^7.31.11",
+    "eslint-plugin-react-hooks": "^4.6.0",
     "graphql": "^15.8.0",
     "husky": "^8.0.3",
     "lint-staged": "^13.1.0",

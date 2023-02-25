@@ -1,4 +1,4 @@
-import React, { Suspense, useEffect, useState } from "react";
+import React, { Suspense, useEffect, useMemo, useState } from "react";
 import {
   PreloadedQuery,
   graphql,
@@ -32,6 +32,11 @@ import {
 import { PointCloudDisplaySettings } from "../../components/canvas/PointCloudDisplaySettings";
 import { useDatasets } from "../../contexts";
 import { EuclideanDistanceTimeSeries } from "./EuclideanDistanceTimeSeries";
+import {
+  TimeSliceContextProvider,
+  useTimeSlice,
+} from "../../contexts/TimeSliceContext";
+import { subDays } from "date-fns";
 
 type UMAPPointsEntry = NonNullable<
   EmbeddingUMAPQuery$data["embedding"]["UMAPPoints"]
@@ -106,23 +111,48 @@ const EmbeddingUMAPQuery = graphql`
   }
 `;
 
+const chartWrapCSS = css`
+  flex: 1 1 auto;
+  width: 100%;
+  height: 100%;
+  position: relative;
+`;
+
 export function Embedding() {
+  return (
+    <PointCloudProvider>
+      <TimeSliceContextProvider>
+        <EmbeddingMain />
+      </TimeSliceContextProvider>
+    </PointCloudProvider>
+  );
+}
+
+function EmbeddingMain() {
   const embeddingDimensionId = useEmbeddingDimensionId();
   const { primaryDataset, referenceDataset } = useDatasets();
   const [showDriftChart, setShowDriftChart] = useState<boolean>(true);
   const [queryReference, loadQuery] =
     useQueryLoader<UMAPQueryType>(EmbeddingUMAPQuery);
+  const { selectedTimestamp } = useTimeSlice();
+  const endTime = useMemo(
+    () => selectedTimestamp ?? new Date(primaryDataset.endTime),
+    [selectedTimestamp, primaryDataset.endTime]
+  );
+  const timeRange = useMemo(() => {
+    return {
+      start: subDays(endTime, 2).toISOString(),
+      end: endTime.toISOString(),
+    };
+  }, [endTime]);
 
   // Load the query on first render
   useEffect(() => {
     loadQuery({
       id: embeddingDimensionId,
-      timeRange: {
-        start: primaryDataset.startTime,
-        end: primaryDataset.endTime,
-      },
+      timeRange,
     });
-  }, []);
+  }, [embeddingDimensionId, loadQuery, timeRange]);
 
   return (
     <main
@@ -162,14 +192,7 @@ export function Embedding() {
         {showDriftChart ? (
           <>
             <Panel defaultSize={15} collapsible order={1}>
-              <div
-                css={css`
-                  flex: 1 1 auto;
-                  width: 100%;
-                  height: 100%;
-                  position: relative;
-                `}
-              >
+              <div css={chartWrapCSS}>
                 <Suspense fallback={<LoadingMask />}>
                   <EuclideanDistanceTimeSeries
                     embeddingDimensionId={embeddingDimensionId}
@@ -191,9 +214,7 @@ export function Embedding() {
           >
             <Suspense fallback={<LoadingMask />}>
               {queryReference ? (
-                <PointCloudProvider>
-                  <PointCloudDisplay queryReference={queryReference} />
-                </PointCloudProvider>
+                <PointCloudDisplay queryReference={queryReference} />
               ) : null}
             </Suspense>
           </div>
@@ -243,9 +264,6 @@ const PointCloudDisplay = ({
   const referenceSourceData = data.embedding?.UMAPPoints?.referenceData;
   const clusters = data.embedding?.UMAPPoints?.clusters || [];
   const { selectedPointIds } = usePointCloud();
-  const [selectedClusterId, setSelectedClusterId] = React.useState<
-    string | null
-  >(null);
   const [coloringStrategy, setColoringStrategy] = useState<ColoringStrategy>(
     ColoringStrategy.dataset
   );
@@ -275,11 +293,7 @@ const PointCloudDisplay = ({
             direction="vertical"
           >
             <Panel>
-              <ClustersPanelContents
-                selectedClusterId={selectedClusterId}
-                setSelectedClusterId={setSelectedClusterId}
-                clusters={clusters}
-              />
+              <ClustersPanelContents clusters={clusters} />
             </Panel>
             <PanelResizeHandle css={resizeHandleCSS} />
             <Panel>
@@ -311,7 +325,6 @@ const PointCloudDisplay = ({
                     : null
                 }
                 clusters={clusters}
-                selectedClusterId={selectedClusterId}
                 coloringStrategy={coloringStrategy}
               />
             </Panel>
@@ -341,13 +354,10 @@ const PointCloudDisplay = ({
 
 function ClustersPanelContents({
   clusters,
-  selectedClusterId,
-  setSelectedClusterId,
 }: {
-  setSelectedClusterId: (id: string | null) => void;
-  selectedClusterId: string | null;
   clusters: readonly UMAPClusterEntry[];
 }) {
+  const { selectedClusterId, setSelectedClusterId } = usePointCloud();
   return (
     // @ts-expect-error add more tabs
     <Tabs>

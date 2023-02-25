@@ -1,5 +1,5 @@
 import { theme } from "@arizeai/components";
-import React, { useCallback, useMemo } from "react";
+import React, { useCallback } from "react";
 import { timeFormat } from "d3-time-format";
 import { useLazyLoadQuery } from "react-relay";
 import {
@@ -18,6 +18,7 @@ import { EuclideanDistanceTimeSeriesQuery } from "./__generated__/EuclideanDista
 import { css } from "@emotion/react";
 import { useTimeRange } from "../../contexts/TimeRangeContext";
 import { CategoricalChartFunc } from "recharts/types/chart/generateCategoricalChart";
+import { useTimeSlice } from "../../contexts/TimeSliceContext";
 
 const timeFormatter = timeFormat("%x");
 function TooltipContent({ active, payload, label }: TooltipProps<any, any>) {
@@ -45,6 +46,7 @@ export function EuclideanDistanceTimeSeries({
   embeddingDimensionId: string;
 }) {
   const { timeRange } = useTimeRange();
+  const { selectedTimestamp, setSelectedTimestamp } = useTimeSlice();
   const data = useLazyLoadQuery<EuclideanDistanceTimeSeriesQuery>(
     graphql`
       query EuclideanDistanceTimeSeriesQuery(
@@ -76,24 +78,23 @@ export function EuclideanDistanceTimeSeries({
     }
   );
 
-  const [selectedTimestamp, setSelectedTimestamp] = React.useState<
-    string | null
-  >(null);
-
   const onClick: CategoricalChartFunc = useCallback(
     (state) => {
       // Parse out the timestamp from the first chart
       const { activePayload } = state;
       if (activePayload != null && activePayload.length > 0) {
         const payload = activePayload[0].payload;
-        setSelectedTimestamp(payload.timestamp);
+        setSelectedTimestamp(new Date(payload.timestamp));
       }
     },
     [setSelectedTimestamp]
   );
 
-  console.log(selectedTimestamp);
-  const chartData = data.embedding.euclideanDistanceTimeSeries?.data;
+  let chartData = data.embedding.euclideanDistanceTimeSeries?.data || [];
+  chartData = chartData.map((d) => ({
+    ...d,
+    timestamp: new Date(d.timestamp).toISOString(),
+  }));
   return (
     <ResponsiveContainer width="100%" height="100%">
       <ComposedChart
@@ -128,7 +129,7 @@ export function EuclideanDistanceTimeSeries({
           yAxisId="right"
           orientation="right"
           label={{
-            value: "Traffic",
+            value: "Count",
             angle: 90,
             position: "insideRight",
             style: { textAnchor: "middle", fill: theme.textColors.white90 },
@@ -149,7 +150,7 @@ export function EuclideanDistanceTimeSeries({
           fill="url(#colorUv)"
         />
         {selectedTimestamp != null ? (
-          <ReferenceLine x={selectedTimestamp} stroke="white" />
+          <ReferenceLine x={selectedTimestamp.toISOString()} stroke="white" />
         ) : null}
       </ComposedChart>
     </ResponsiveContainer>
