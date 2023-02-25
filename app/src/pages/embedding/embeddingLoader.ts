@@ -1,6 +1,6 @@
 import { fetchQuery, graphql } from "react-relay";
 import { LoaderFunctionArgs } from "react-router";
-import RelayEnvironment from "../../RelayEnvironment";
+import RelayEnvironment from "@phoenix/RelayEnvironment";
 import { embeddingLoaderQuery } from "./__generated__/embeddingLoaderQuery.graphql";
 
 /**

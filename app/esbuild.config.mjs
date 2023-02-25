@@ -20,8 +20,10 @@ esbuild
     format: "esm",
     plugins: [relay],
     watch: isDev,
+    sourcemap: isDev ? "linked" : false,
   })
   .catch((e) => {
+    // eslint-disable-next-line no-console
     console.error("Failed to build", e);
     process.exit(1);
   });

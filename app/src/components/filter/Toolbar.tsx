@@ -21,13 +21,21 @@ export function Toolbar(props: ToolbarProps) {
         display: flex;
         flex-direction: row;
         justify-content: space-between;
+        align-items: center;
         gap: ${theme.spacing.padding8}px;
         border-bottom: 1px solid ${theme.colors.gray500};
         flex: none;
         min-height: 29px;
+        .toolbar__main {
+          display: flex;
+          flex-direction: row;
+          gap: ${theme.spacing.padding8}px;
+        }
       `}
     >
-      <div data-testid="toolbar-main">{props.children}</div>
+      <div data-testid="toolbar-main" className="toolbar__main">
+        {props.children}
+      </div>
       {props.extra ? (
         <div data-testid="toolbar-extra">{props.extra}</div>
       ) : null}

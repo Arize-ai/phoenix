@@ -1,7 +1,7 @@
 ---
 description: >-
-    Phoenix provides MLOps insights at lightning speed with zero-config
-    observability for model drift, performance, and data quality.
+  Phoenix provides MLOps insights at lightning speed with zero-config
+  observability for model drift, performance, and data quality.
 ---
 
 # Arize Phoenix

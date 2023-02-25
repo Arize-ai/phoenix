@@ -30,6 +30,7 @@ type PointCloudPointsProps = {
   primaryColor: PointColor;
   referenceColor: PointColor;
   selectedIds: Set<string>;
+  radius: number;
 };
 export function PointCloudPoints({
   primaryData,
@@ -37,6 +38,7 @@ export function PointCloudPoints({
   selectedIds,
   primaryColor,
   referenceColor,
+  radius,
 }: PointCloudPointsProps) {
   /** Colors to represent a dimmed variant of the color for "un-selected" */
   const dimmedPrimaryColor = useMemo<PointColor>(() => {
@@ -75,11 +77,14 @@ export function PointCloudPoints({
 
   return (
     <>
-      <Points data={primaryData} pointProps={{ color: primaryColorByFn }} />
+      <Points
+        data={primaryData}
+        pointProps={{ color: primaryColorByFn, radius }}
+      />
       {referenceData && (
         <Points
           data={referenceData}
-          pointProps={{ color: referenceColorByFn, size: 5 }}
+          pointProps={{ color: referenceColorByFn, radius }}
         />
       )}
     </>
