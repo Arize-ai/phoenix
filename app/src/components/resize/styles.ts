@@ -1,4 +1,4 @@
-import { css,Theme } from "@emotion/react";
+import { css, Theme } from "@emotion/react";
 
 export const resizeHandleCSS = (theme: Theme) => css`
   transition: 250ms linear background-color;

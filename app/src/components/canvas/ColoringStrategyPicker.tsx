@@ -1,6 +1,6 @@
 import React from "react";
 
-import { Item,Picker } from "@arizeai/components";
+import { Item, Picker } from "@arizeai/components";
 
 import { ColoringStrategy } from "./types";
 

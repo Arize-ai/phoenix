@@ -19,7 +19,7 @@ import { PointCloudClusters } from "./PointCloudClusters";
 import { usePointCloud } from "./PointCloudContext";
 import { PointCloudPoints } from "./PointCloudPoints";
 import { ThreeDimensionalPointItem } from "./types";
-import { ClusterItem,ColoringStrategy } from "./types";
+import { ClusterItem, ColoringStrategy } from "./types";
 
 const RADIUS_BOUNDS_3D_DIVISOR = 400;
 const CLUSTER_POINT_RADIUS_MULTIPLIER = 6;
