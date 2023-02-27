@@ -77,7 +77,7 @@ class Model:
                         name=name,
                         data_type=self._infer_dimension_data_type(name),
                         type=dimension_type,
-                        data=[primary_dataset.dataframe.loc[:, name]]
+                        data=lambda: [primary_dataset.dataframe.loc[:, name]]
                         + (
                             [reference_dataset.dataframe.loc[:, name]]
                             if reference_dataset is not None
