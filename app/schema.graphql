@@ -43,6 +43,10 @@ type Dimension implements Node {
   """The data type of the column. Categorical or numeric."""
   dataType: DimensionDataType!
   dataQualityMetric(metric: DataQualityMetric!): Float
+
+  """
+  Returns unique string values in lexicographical order. Non-string values and missing values are ignored.
+  """
   uniqueStringValues: [String!]!
 
   """

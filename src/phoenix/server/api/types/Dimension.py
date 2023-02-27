@@ -41,8 +41,13 @@ class Dimension(Node):
             return await info.context.loaders.percent_empty.load(dimension_name)
         raise NotImplementedError(f"Metric {metric} is not implemented.")
 
-    @strawberry.field
-    def uniqueStringValues(self, info: Info[Context, None]) -> List[str]:
+    @strawberry.field(
+        description=(
+            "Returns unique string values in lexicographical order. Non-string values and missing"
+            " values are ignored."
+        )
+    )  # type: ignore  # https://github.com/strawberry-graphql/strawberry/issues/1929
+    def unique_string_values(self, info: Info[Context, None]) -> List[str]:
         for dim in info.context.model.dimensions:
             if dim.name == self.name:
                 return dim.unique_string_values

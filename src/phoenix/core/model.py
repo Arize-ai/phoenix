@@ -77,12 +77,18 @@ class Model:
                         name=name,
                         data_type=self._infer_dimension_data_type(name),
                         type=dimension_type,
-                        data=lambda: [primary_dataset.dataframe.loc[:, name]]
-                        + (
-                            [reference_dataset.dataframe.loc[:, name]]
-                            if reference_dataset is not None
-                            else []
-                        ),
+                        data=(  # type: ignore  # mypy doesn't understand this
+                            lambda name: (
+                                yield from (
+                                    [primary_dataset.dataframe.loc[:, name]]
+                                    + (
+                                        [reference_dataset.dataframe.loc[:, name]]
+                                        if reference_dataset is not None
+                                        else []
+                                    )
+                                )
+                            )
+                        )(name),
                     )
                 )
 
