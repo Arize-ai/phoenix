@@ -1,5 +1,5 @@
 from datetime import timedelta
-from typing import Optional
+from typing import List, Optional
 
 import strawberry
 from strawberry.types import Info
@@ -40,6 +40,13 @@ class Dimension(Node):
         elif metric is DataQualityMetric.percentEmpty:
             return await info.context.loaders.percent_empty.load(dimension_name)
         raise NotImplementedError(f"Metric {metric} is not implemented.")
+
+    @strawberry.field
+    def uniqueStringValues(self, info: Info[Context, None]) -> List[str]:
+        for dim in info.context.model.dimensions:
+            if dim.name == self.name:
+                return dim.unique_string_values
+        return []
 
     @strawberry.field(
         description=(

@@ -43,6 +43,7 @@ type Dimension implements Node {
   """The data type of the column. Categorical or numeric."""
   dataType: DimensionDataType!
   dataQualityMetric(metric: DataQualityMetric!): Float
+  uniqueStringValues: [String!]!
 
   """
   Returns the time series of the specified metric for data within timeRange. Data points are generated starting at the end time, are separated by the sampling interval. Each data point is labeled by the end instant of and contains data from their respective evaluation window.
