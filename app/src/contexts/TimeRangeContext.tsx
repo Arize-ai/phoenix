@@ -19,6 +19,7 @@ export enum TimePreset {
   last_week = "Last Week",
   last_month = "Last Month",
 }
+
 /**
  * The state stored in context for the overall time range of the app
  */
