@@ -77,9 +77,9 @@ class Model:
                         name=name,
                         data_type=self._infer_dimension_data_type(name),
                         type=dimension_type,
-                        data=(  # type: ignore  # mypy doesn't understand this
+                        data=(
                             lambda name: (
-                                yield from (
+                                lambda: (
                                     [primary_dataset.dataframe.loc[:, name]]
                                     + (
                                         [reference_dataset.dataframe.loc[:, name]]
