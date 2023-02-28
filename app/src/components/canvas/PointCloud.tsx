@@ -165,7 +165,7 @@ function Projection(props: ProjectionProps) {
           }}
           enabled={canvasMode === CanvasMode.select}
         />
-        <Axes size={(bounds.maxX - bounds.minX) / 2} />
+        <Axes size={(bounds.maxX - bounds.minX) / 4} />
         <PointCloudPoints
           primaryData={primaryData}
           referenceData={referenceData}

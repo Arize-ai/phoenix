@@ -309,7 +309,7 @@ const PointCloudDisplay = ({
         </Panel>
         <PanelResizeHandle css={resizeHandleCSS} />
         <Panel>
-          <PanelGroup autoSaveId="embedding-main" direction="vertical">
+          <PanelGroup direction="vertical">
             <Panel order={1}>
               <PointCloud
                 primaryData={
@@ -338,26 +338,16 @@ const PointCloudDisplay = ({
 function SelectionPanel() {
   const { selectedPointIds } = usePointCloud();
   const selectionPanelRef = useRef<ImperativePanelHandle>(null);
-  useEffect(() => {
-    if (selectionPanelRef.current) {
-      if (selectedPointIds.size === 0) {
-        selectionPanelRef.current.collapse();
-      } else {
-        selectionPanelRef.current.expand();
-      }
-    }
-  }, [selectedPointIds]);
 
-  useEffect(() => {
-    if (selectionPanelRef.current) {
-      selectionPanelRef.current.collapse();
-    }
-  }, []);
+  if (selectedPointIds.size === 0) {
+    return null;
+  }
 
   return (
     <Panel
       id="embedding-point-selection"
       defaultSize={20}
+      minSize={20}
       collapsible
       order={2}
       ref={selectionPanelRef}
