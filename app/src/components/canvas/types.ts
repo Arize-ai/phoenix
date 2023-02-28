@@ -10,9 +10,4 @@ export type ClusterItem = {
   readonly pointIds: readonly string[];
 };
 
-export enum ColoringStrategy {
-  dataset = "dataset",
-  correctness = "correctness",
-}
-
 export type PointColor = PointsProps["pointProps"]["color"];

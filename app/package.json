@@ -28,7 +28,8 @@
     "relay-runtime": "^14.1.0",
     "shade": "^0.1.1",
     "three": "0.139",
-    "three-stdlib": "^2.17.3"
+    "three-stdlib": "^2.17.3",
+    "zustand": "^4.3.5"
   },
   "devDependencies": {
     "@types/d3-time-format": "^4.0.0",

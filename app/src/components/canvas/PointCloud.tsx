@@ -12,14 +12,15 @@ import {
   ThreeDimensionalControls,
 } from "@arizeai/point-cloud";
 
+import { usePointCloudStore } from "@phoenix/store";
+
 import { CanvasMode, CanvasModeRadioGroup } from "./CanvasModeRadioGroup";
 import { createColorFn } from "./coloring";
 import { ControlPanel } from "./ControlPanel";
 import { PointCloudClusters } from "./PointCloudClusters";
-import { usePointCloud } from "./PointCloudContext";
 import { PointCloudPoints } from "./PointCloudPoints";
 import { ThreeDimensionalPointItem } from "./types";
-import { ClusterItem, ColoringStrategy } from "./types";
+import { ClusterItem } from "./types";
 
 const RADIUS_BOUNDS_3D_DIVISOR = 400;
 const CLUSTER_POINT_RADIUS_MULTIPLIER = 6;
@@ -29,7 +30,6 @@ export interface PointCloudProps {
   primaryData: ThreeDimensionalPointItem[];
   referenceData: ThreeDimensionalPointItem[] | null;
   clusters: readonly ClusterItem[];
-  coloringStrategy: ColoringStrategy;
 }
 
 interface ProjectionProps extends PointCloudProps {
@@ -105,16 +105,25 @@ export function PointCloud(props: PointCloudProps) {
 }
 
 function Projection(props: ProjectionProps) {
-  const { primaryData, referenceData, clusters, coloringStrategy, canvasMode } =
-    props;
+  const { primaryData, referenceData, clusters, canvasMode } = props;
+  const coloringStrategy = usePointCloudStore(
+    (state) => state.coloringStrategy
+  );
   // AutoRotate the canvas on initial load
   const [autoRotate, setAutoRotate] = useState<boolean>(true);
-  const {
-    selectedPointIds,
-    setSelectedPointIds,
-    selectedClusterId,
-    setSelectedClusterId,
-  } = usePointCloud();
+  const selectedPointIds = usePointCloudStore(
+    (state) => state.selectedPointIds
+  );
+  const setSelectedPointIds = usePointCloudStore(
+    (state) => state.setSelectedPointIds
+  );
+  const selectedClusterId = usePointCloudStore(
+    (state) => state.selectedClusterId
+  );
+  const setSelectedClusterId = usePointCloudStore(
+    (state) => state.setSelectedClusterId
+  );
+
   const allPoints = useMemo(() => {
     return [...primaryData, ...(referenceData || [])];
   }, [primaryData, referenceData]);

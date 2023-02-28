@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /* eslint-disable no-undef */
 import esbuild from "esbuild";
+
 import { relay } from "./esbuild.relay.mjs";
 
 let mode = "build";

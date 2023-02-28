@@ -18,11 +18,8 @@ import { Switch, TabPane, Tabs } from "@arizeai/components";
 
 import { Loading, LoadingMask } from "@phoenix/components";
 import {
-  ColoringStrategy,
   PointCloud,
-  PointCloudProvider,
   ThreeDimensionalPointItem,
-  usePointCloud,
 } from "@phoenix/components/canvas";
 import { PointCloudDisplaySettings } from "@phoenix/components/canvas/PointCloudDisplaySettings";
 import { ClusterItem } from "@phoenix/components/cluster";
@@ -38,6 +35,7 @@ import {
   useTimeSlice,
 } from "@phoenix/contexts/TimeSliceContext";
 import { useEmbeddingDimensionId } from "@phoenix/hooks";
+import { usePointCloudStore } from "@phoenix/store";
 
 import {
   EmbeddingUMAPQuery as UMAPQueryType,
@@ -209,13 +207,11 @@ function EmbeddingMain() {
               position: relative;
             `}
           >
-            <PointCloudProvider>
-              <Suspense fallback={<LoadingMask />}>
-                {queryReference ? (
-                  <PointCloudDisplay queryReference={queryReference} />
-                ) : null}
-              </Suspense>
-            </PointCloudProvider>
+            <Suspense fallback={<LoadingMask />}>
+              {queryReference ? (
+                <PointCloudDisplay queryReference={queryReference} />
+              ) : null}
+            </Suspense>
           </div>
         </Panel>
       </PanelGroup>
@@ -262,9 +258,6 @@ const PointCloudDisplay = ({
   const sourceData = data.embedding?.UMAPPoints?.data ?? [];
   const referenceSourceData = data.embedding?.UMAPPoints?.referenceData;
   const clusters = data.embedding?.UMAPPoints?.clusters || [];
-  const [coloringStrategy, setColoringStrategy] = useState<ColoringStrategy>(
-    ColoringStrategy.dataset
-  );
 
   return (
     <div
@@ -297,10 +290,7 @@ const PointCloudDisplay = ({
             <Panel>
               <Tabs>
                 <TabPane name="Display">
-                  <PointCloudDisplaySettings
-                    coloringStrategy={coloringStrategy}
-                    onColoringStrategyChange={setColoringStrategy}
-                  />
+                  <PointCloudDisplaySettings />
                 </TabPane>
                 <TabPane name="Parameters">Parameters</TabPane>
               </Tabs>
@@ -323,7 +313,6 @@ const PointCloudDisplay = ({
                     : null
                 }
                 clusters={clusters}
-                coloringStrategy={coloringStrategy}
               />
             </Panel>
             <PanelResizeHandle css={resizeHandleCSS} />
@@ -336,7 +325,9 @@ const PointCloudDisplay = ({
 };
 
 function SelectionPanel() {
-  const { selectedPointIds } = usePointCloud();
+  const selectedPointIds = usePointCloudStore(
+    (state) => state.selectedPointIds
+  );
   const selectionPanelRef = useRef<ImperativePanelHandle>(null);
 
   if (selectedPointIds.size === 0) {
@@ -364,7 +355,13 @@ function ClustersPanelContents({
 }: {
   clusters: readonly UMAPClusterEntry[];
 }) {
-  const { selectedClusterId, setSelectedClusterId } = usePointCloud();
+  const selectedClusterId = usePointCloudStore(
+    (state) => state.selectedClusterId
+  );
+  const setSelectedClusterId = usePointCloudStore(
+    (state) => state.setSelectedClusterId
+  );
+
   return (
     // @ts-expect-error add more tabs
     <Tabs>
