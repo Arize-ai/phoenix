@@ -1,7 +1,7 @@
 from collections import defaultdict
 from datetime import datetime, timedelta
 from itertools import chain
-from typing import Any, List, Mapping, Optional
+from typing import Any, Optional
 
 import numpy as np
 import numpy.typing as npt
@@ -35,24 +35,13 @@ from .EmbeddingMetadata import EmbeddingMetadata
 from .EventMetadata import EventMetadata
 from .node import Node
 from .TimeSeries import TimeSeriesDataPoint
-from .UMAPPoints import Cluster, UMAPPoint, UMAPPoints, to_gql_coordinates
+from .UMAPPoints import UMAPPoint, UMAPPoints, to_gql_clusters, to_gql_coordinates
 
 # Default UMAP hyperparameters
 DEFAULT_N_COMPONENTS = 3
 DEFAULT_MIN_DIST = 0
 DEFAULT_N_NEIGHBORS = 30
 DEFAULT_N_SAMPLES = 500
-
-
-def to_gql_clusters(clusters: Mapping[EventId, int]) -> List[Cluster]:
-    clusteredEvents = defaultdict(list)
-    for event_id, cluster_id in clusters.items():
-        clusteredEvents[ID(str(cluster_id))].append(ID(str(event_id)))
-    return [
-        Cluster(id=cluster_id, point_ids=event_ids)
-        for cluster_id, event_ids in clusteredEvents.items()
-    ]
-
 
 DRIFT_EVAL_WINDOW_NUM_INTERVALS = 72
 EVAL_INTERVAL_LENGTH = timedelta(hours=1)
@@ -276,7 +265,7 @@ class EmbeddingDimension(Node):
         min_dist = DEFAULT_MIN_DIST if min_dist is None else min_dist
         n_neighbors = DEFAULT_N_NEIGHBORS if n_neighbors is None else n_neighbors
 
-        vectors, clusters = PointCloud(
+        vectors, cluster_membership = PointCloud(
             dimensionalityReducer=Umap(n_neighbors=n_neighbors, min_dist=min_dist),
             clustersFinder=Hdbscan(),
         ).generate(data, n_components=n_components)
@@ -316,10 +305,10 @@ class EmbeddingDimension(Node):
             except SchemaError:
                 pass
 
-            if col := dataset.get_embedding_link_to_data_column(self.name):
+            if len(col := dataset.get_embedding_link_to_data_column(self.name)):
                 link_to_data = col[row_id]
 
-            if col := dataset.get_embedding_raw_data_column(self.name):
+            if len(col := dataset.get_embedding_raw_data_column(self.name)):
                 raw_data = col[row_id]
 
             points[dataset_id].append(
@@ -342,7 +331,7 @@ class EmbeddingDimension(Node):
         return UMAPPoints(
             data=points[DatasetType.PRIMARY],
             reference_data=points[DatasetType.REFERENCE],
-            clusters=to_gql_clusters(clusters),
+            clusters=to_gql_clusters(cluster_membership),
         )
 
 

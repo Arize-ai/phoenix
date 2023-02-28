@@ -110,6 +110,7 @@ const EmbeddingUMAPQuery = graphql`
           clusters {
             id
             pointIds
+            driftRatio
           }
         }
       }
@@ -388,6 +389,7 @@ function ClustersPanelContents({
                   clusterId={cluster.id}
                   numPoints={cluster.pointIds.length}
                   isSelected={selectedClusterId === cluster.id}
+                  driftRatio={cluster.driftRatio}
                   onClick={() => {
                     setSelectedClusterId(cluster.id);
                   }}

@@ -1,16 +1,16 @@
 from dataclasses import dataclass
-from typing import Dict, Hashable, List, Mapping, Protocol, Set, Tuple, TypeVar
+from typing import Dict, Hashable, List, Mapping, Protocol, Tuple, TypeVar
 
 import numpy as np
 import numpy.typing as npt
 from typing_extensions import TypeAlias
 
-Identifier = TypeVar("Identifier", bound=Hashable)
+from phoenix.pointcloud.clustering import RawCluster
+
 Vector: TypeAlias = npt.NDArray[np.float64]
 Matrix: TypeAlias = npt.NDArray[np.float64]
-ClusterId: TypeAlias = int
 RowIndex: TypeAlias = int
-Cluster: TypeAlias = Set[RowIndex]
+Identifier = TypeVar("Identifier", bound=Hashable)
 
 
 class DimensionalityReducer(Protocol):
@@ -19,7 +19,7 @@ class DimensionalityReducer(Protocol):
 
 
 class ClustersFinder(Protocol):
-    def find_clusters(self, mat: Matrix) -> List[Cluster]:
+    def find_clusters(self, mat: Matrix) -> List[RawCluster]:
         ...
 
 
@@ -32,7 +32,7 @@ class PointCloud:
         self,
         data: Mapping[Identifier, Vector],
         n_components: int = 3,
-    ) -> Tuple[Dict[Identifier, Vector], Dict[Identifier, ClusterId]]:
+    ) -> Tuple[Dict[Identifier, Vector], Dict[Identifier, int]]:
         """
         Given a set of vectors, projects them onto lower dimensions, and
         finds clusters among the projections.
@@ -48,15 +48,16 @@ class PointCloud:
         Returns
         -------
         projections : dictionary
-            Projected vectors in the low demension space, mapped back to the
+            Projected vectors in the low dimensional space, mapped back to the
             input vectors' identifiers.
 
-        cluster_membership: dictinary
+        cluster_membership: dictionary
             Cluster membership by way of cluster_ids in the form of integers
             0,1,2,... mapped back to the input vectors' identifiers. Note that
             some vectors may not belong to any cluster and are excluded here.
 
         """
+
         if not data:
             return {}, {}
         identifiers, vectors = zip(*data.items())

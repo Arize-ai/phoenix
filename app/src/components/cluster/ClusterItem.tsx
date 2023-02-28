@@ -19,6 +19,10 @@ type ClusterItemProps = {
    * The callback to invoke when the cluster is clicked
    */
   onClick: () => void;
+  /**
+   * blahblahblah
+   */
+  driftRatio?: number | null;
 };
 /**
  * A UI component that displays a cluster and it's aggregate data
@@ -61,6 +65,9 @@ export function ClusterItem(props: ClusterItemProps) {
           <Heading level={3}>{`Cluster ${props.clusterId}`}</Heading>
           <Text color="white70" textSize="small">
             {`${props.numPoints} points`}
+          </Text>
+          <Text color="white70" textSize="small">
+            {`drift ratio: ${props.driftRatio}`}
           </Text>
         </div>
       </div>
