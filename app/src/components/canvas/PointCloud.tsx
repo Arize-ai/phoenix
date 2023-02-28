@@ -12,11 +12,12 @@ import {
   ThreeDimensionalControls,
 } from "@arizeai/point-cloud";
 
+import { usePointCloudStore } from "@phoenix/store";
+
 import { CanvasMode, CanvasModeRadioGroup } from "./CanvasModeRadioGroup";
 import { createColorFn } from "./coloring";
 import { ControlPanel } from "./ControlPanel";
 import { PointCloudClusters } from "./PointCloudClusters";
-import { usePointCloud } from "./PointCloudContext";
 import { PointCloudPoints } from "./PointCloudPoints";
 import { ThreeDimensionalPointItem } from "./types";
 import { ClusterItem, ColoringStrategy } from "./types";
@@ -109,12 +110,19 @@ function Projection(props: ProjectionProps) {
     props;
   // AutoRotate the canvas on initial load
   const [autoRotate, setAutoRotate] = useState<boolean>(true);
-  const {
-    selectedPointIds,
-    setSelectedPointIds,
-    selectedClusterId,
-    setSelectedClusterId,
-  } = usePointCloud();
+  const selectedPointIds = usePointCloudStore(
+    (state) => state.selectedPointIds
+  );
+  const setSelectedPointIds = usePointCloudStore(
+    (state) => state.setSelectedPointIds
+  );
+  const selectedClusterId = usePointCloudStore(
+    (state) => state.selectedClusterId
+  );
+  const setSelectedClusterId = usePointCloudStore(
+    (state) => state.setSelectedClusterId
+  );
+
   const allPoints = useMemo(() => {
     return [...primaryData, ...(referenceData || [])];
   }, [primaryData, referenceData]);
