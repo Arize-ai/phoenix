@@ -1,5 +1,5 @@
 from abc import abstractmethod
-from typing import Iterable, List, Union
+from typing import Any, Iterable, List, Union
 
 
 class ValidationError(Exception):
@@ -190,13 +190,14 @@ class InvalidEmbeddingVectorValuesDataType(ValidationError):
     """An error raised when there is an embedding feature with a vector that has
     values of an unsupported data type"""
 
-    def __init__(self, embedding_feature_name: str, vector_column_name: str) -> None:
+    def __init__(self, embedding_feature_name: str, vector_column_name: str, vector: Any) -> None:
         self.embedding_feature_name = embedding_feature_name
         self.vector_column_name = vector_column_name
+        self.vector = vector
 
     def error_message(self) -> str:
         return (
-            f"Embedding vector must be a vector of integers and/or floats. Got "
+            f"Embedding vector must be a vector of integers and/or floats. Got {self.vector}; "
             f"{self.embedding_feature_name}.vector = {self.vector_column_name}"
         )
 

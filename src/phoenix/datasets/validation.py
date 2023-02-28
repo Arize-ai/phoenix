@@ -81,6 +81,7 @@ def _check_valid_embedding_data(dataframe: DataFrame, schema: Schema) -> List[er
                     err.InvalidEmbeddingVectorValuesDataType(
                         embedding_feature_name=embedding_name,
                         vector_column_name=column_names.vector_column_name,
+                        vector=vector,
                     )
                 )
                 break
