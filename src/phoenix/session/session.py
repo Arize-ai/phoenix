@@ -3,7 +3,7 @@ import sys
 import time
 from functools import cached_property
 from typing import Optional
-from urllib.request import urlopen
+from urllib.request import HTTPError, urlopen
 
 import phoenix.config as config
 from phoenix.datasets import Dataset
@@ -49,7 +49,7 @@ class Session:
         self._app_service.stop()
 
 
-def _wait_for_boot(url: str, polling_interval_secs: int = 1, max_retries: int = 10) -> None:
+def _wait_for_boot(url: str, polling_interval_secs: int = 1, max_retries: int = 15) -> None:
     retries = 0
     while True:
         try:
@@ -58,7 +58,12 @@ def _wait_for_boot(url: str, polling_interval_secs: int = 1, max_retries: int = 
             urlopen(url)
             print("🚀 Phoenix launched")
             break
-        except Exception:
+        except Exception as e:
+            if isinstance(e, HTTPError) and e.code == 403:
+                # The server actually started but is responding with a 403
+                # This happens with colab as the request is not authenticated
+                print("🚀 Phoenix launched")
+                break
             retries += 1
             if retries > max_retries:
                 print("Phoenix failed to launch. Please try again.")
