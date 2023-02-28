@@ -4,7 +4,7 @@ import pytest
 from pandas import DataFrame, Timestamp
 
 from phoenix.core import EmbeddingDimension
-from phoenix.core.model import Model
+from phoenix.core.model import _get_embedding_dimensions
 from phoenix.datasets import Dataset, EmbeddingColumnNames, Schema
 
 
@@ -91,13 +91,13 @@ def test_invalid_model_embeddings_primary_and_ref_embedding_size_mismatch(
     dataset_with_embedding_vector, dataset_with_large_embedding_vector
 ):
     with pytest.raises(ValueError):
-        _ = Model._get_embedding_dimensions(
+        _ = _get_embedding_dimensions(
             dataset_with_embedding_vector, dataset_with_large_embedding_vector
         )
 
 
 def test_valid_model_embeddings(dataset_with_embedding_vector):
-    embedding_dimensions = Model._get_embedding_dimensions(
+    embedding_dimensions = _get_embedding_dimensions(
         dataset_with_embedding_vector, dataset_with_embedding_vector
     )
     assert len(embedding_dimensions) == 2
@@ -125,7 +125,7 @@ def test_valid_model_embeddings_one_dataset_missing_embeddings_feature(
     )
     dataset_with_missing_embedding_vector = Dataset(dataframe=input_dataframe, schema=input_schema)
 
-    embedding_dimensions = Model._get_embedding_dimensions(
+    embedding_dimensions = _get_embedding_dimensions(
         dataset_with_embedding_vector, dataset_with_missing_embedding_vector
     )
     assert len(embedding_dimensions) == 2
