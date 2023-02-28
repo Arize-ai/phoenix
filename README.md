@@ -32,10 +32,7 @@ Phoenix provides MLOps insights at lightning speed with zero-config observabilit
 - [Contributing](#contributing)
 - [License](#license)
 
-
 ## Installation
-
-Install with `pip` 🐍
 
 ```shell
 pip install arize-phoenix
@@ -43,55 +40,52 @@ pip install arize-phoenix
 
 ## Getting Started
 
-Import `phoenix` 🔥🐦
+In this section, you will get Phoenix up and running with a few lines of code.
 
-```
+After installing `arize-phoenix` in your Jupyter or Colab environment, open your notebook and run
+
+```python
 import phoenix as px
-```
 
-Load example datasets 📊
-```
 train_ds, prod_ds = px.load_dataset("sentiment_classification_language_drift")
+px.launch_app(train_ds, prod_ds)
 ```
 
-Launch the app 🛫
-```
-px.launch_app()
-```
-
-Explore your embeddings to identify problematic clusters of your production data 🌌
+Next, visualize your embeddings and inspect problematic clusters of your production data.
 
 TODO(#297): Include GIF where we navigate to embeddings, zoom in and rotate, and select a cluster.
 
-Close the app when you're done 🛬
+Don't forget to close the app when you're done.
 ```
 px.close_app()
 ```
 
+For more details, check out the [Sentiment Classification Tutorial](./examples/sentiment_classification_tutorial.ipynb).
+
 ## Documentation
 
-For in-depth examples and explanations, read the [docs](https://docs.arize.com/phoenix)
+For in-depth examples and explanations, read the [docs](https://docs.arize.com/phoenix).
 
 ## Community
 
 Join our community to connect with thousands of machine learning practitioners and ML observability enthusiasts 👁️
 
-- 🌍 Join the [Arize Slack community](https://join.slack.com/t/arize-ai/shared_invite/zt-1px8dcmlf-fmThhDFD_V_48oU7ALan4Q)
-- 💡 Ask questions and provide feedback in the *#phoenix-support* channel
-- 🌟 Leave a star on our [GitHub](https://github.com/Arize-ai/phoenix)
-- 🐞 Report bugs with [GitHub Issues](https://github.com/Arize-ai/phoenix/issues)
-- 🗺️ Check out our [roadmap](https://github.com/orgs/Arize-ai/projects/45) to see where we're heading next
-- 🎓 Learn the fundamentals of ML observability with our [introductory](https://arize.com/ml-observability-fundamentals/) and [advanced](https://arize.com/blog-course/) courses
-- ✏️ Check out the [Arize blog](https://arize.com/blog/) TODO(#291): Add blog filter for Phoenix
-- ✉️ Subscribe to the Arize newsletter TODO(#294): Add link
-- 📺 Watch the [Arize YouTube channel](https://www.youtube.com/@arizeai9240/videos)
-- 🐦 Follow us on [Twitter](https://twitter.com/ArizePhoenix)
-- 👔 Check out our LinkedIn TODO(#292): Add link, fix badge
+- 🌍 Join the [Arize Slack community](https://join.slack.com/t/arize-ai/shared_invite/zt-1px8dcmlf-fmThhDFD_V_48oU7ALan4Q).
+- 💡 Ask questions and provide feedback in the *#phoenix-support* channel.
+- 🌟 Leave a star on our [GitHub](https://github.com/Arize-ai/phoenix).
+- 🐞 Report bugs with [GitHub Issues](https://github.com/Arize-ai/phoenix/issues).
+- 🗺️ Check out our [roadmap](https://github.com/orgs/Arize-ai/projects/45) to see where we're heading next.
+- 🎓 Learn the fundamentals of ML observability with our [introductory](https://arize.com/ml-observability-fundamentals/) and [advanced](https://arize.com/blog-course/) courses.
+- ✏️ Check out the [Arize blog](https://arize.com/blog/). TODO(#291): Add blog filter for Phoenix
+- ✉️ Subscribe to the Arize newsletter. TODO(#294): Add link
+- 📺 Watch the [Arize YouTube channel](https://www.youtube.com/@arizeai9240/videos).
+- 🐦 Follow us on [Twitter](https://twitter.com/ArizePhoenix).
+- 👔 Check out our LinkedIn. TODO(#292): Add link, fix badge
 
 ## Contributing
 
-- Read our [developer's guide](./DEVELOPMENT.md) 💻
-- Join the [Arize Slack community](https://join.slack.com/t/arize-ai/shared_invite/zt-1px8dcmlf-fmThhDFD_V_48oU7ALan4Q) and chat with us in the *#phoenix-devs* channel 🗣️
+- 💻 Read our [developer's guide](./DEVELOPMENT.md).
+- 🗣️ Join the [Arize Slack community](https://join.slack.com/t/arize-ai/shared_invite/zt-1px8dcmlf-fmThhDFD_V_48oU7ALan4Q) and chat with us in the *#phoenix-devs* channel.
 
 ## License
 Arize-Phoenix is licensed under the [Elastic License 2.0 (ELv2)](./LICENSE).
