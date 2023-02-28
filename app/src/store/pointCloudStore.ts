@@ -1,6 +1,8 @@
 import { create, StateCreator } from "zustand";
 import { devtools } from "zustand/middleware";
 
+import { ColoringStrategy } from "@phoenix/types";
+
 export type PointCloudState = {
   /**
    * The IDs of the points that are currently selected.
@@ -18,6 +20,14 @@ export type PointCloudState = {
    * Sets the selected cluster id to the given value.
    */
   setSelectedClusterId: (ids: string | null) => void;
+  /**
+   * The coloring strategy to use for the point cloud.
+   */
+  coloringStrategy: ColoringStrategy;
+  /**
+   * Sets the coloring strategy to the given value.
+   */
+  setColoringStrategy: (strategy: ColoringStrategy) => void;
 };
 
 const pointCloudStore: StateCreator<PointCloudState> = (set) => ({
@@ -25,6 +35,8 @@ const pointCloudStore: StateCreator<PointCloudState> = (set) => ({
   setSelectedPointIds: (ids) => set({ selectedPointIds: ids }),
   selectedClusterId: null,
   setSelectedClusterId: (id) => set({ selectedClusterId: id }),
+  coloringStrategy: ColoringStrategy.dataset,
+  setColoringStrategy: (strategy) => set({ coloringStrategy: strategy }),
 });
 
 export const usePointCloudStore = create<PointCloudState>()(

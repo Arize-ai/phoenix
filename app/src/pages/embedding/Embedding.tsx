@@ -18,7 +18,6 @@ import { Switch, TabPane, Tabs } from "@arizeai/components";
 
 import { Loading, LoadingMask } from "@phoenix/components";
 import {
-  ColoringStrategy,
   PointCloud,
   ThreeDimensionalPointItem,
 } from "@phoenix/components/canvas";
@@ -259,9 +258,6 @@ const PointCloudDisplay = ({
   const sourceData = data.embedding?.UMAPPoints?.data ?? [];
   const referenceSourceData = data.embedding?.UMAPPoints?.referenceData;
   const clusters = data.embedding?.UMAPPoints?.clusters || [];
-  const [coloringStrategy, setColoringStrategy] = useState<ColoringStrategy>(
-    ColoringStrategy.dataset
-  );
 
   return (
     <div
@@ -294,10 +290,7 @@ const PointCloudDisplay = ({
             <Panel>
               <Tabs>
                 <TabPane name="Display">
-                  <PointCloudDisplaySettings
-                    coloringStrategy={coloringStrategy}
-                    onColoringStrategyChange={setColoringStrategy}
-                  />
+                  <PointCloudDisplaySettings />
                 </TabPane>
                 <TabPane name="Parameters">Parameters</TabPane>
               </Tabs>
@@ -320,7 +313,6 @@ const PointCloudDisplay = ({
                     : null
                 }
                 clusters={clusters}
-                coloringStrategy={coloringStrategy}
               />
             </Panel>
             <PanelResizeHandle css={resizeHandleCSS} />

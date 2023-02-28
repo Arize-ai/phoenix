@@ -3,17 +3,14 @@ import { css } from "@emotion/react";
 
 import { Form } from "@arizeai/components";
 
-import { ColoringStrategyPicker } from "./ColoringStrategyPicker";
-import { ColoringStrategy } from "./types";
+import { usePointCloudStore } from "@phoenix/store";
 
-type PointCloudDisplaySettingsProps = {
-  coloringStrategy: ColoringStrategy;
-  onColoringStrategyChange: (strategy: ColoringStrategy) => void;
-};
-export function PointCloudDisplaySettings(
-  props: PointCloudDisplaySettingsProps
-) {
-  const { coloringStrategy, onColoringStrategyChange } = props;
+import { ColoringStrategyPicker } from "./ColoringStrategyPicker";
+
+export function PointCloudDisplaySettings() {
+  const [coloringStrategy, setColoringStrategy] = usePointCloudStore(
+    (state) => [state.coloringStrategy, state.setColoringStrategy]
+  );
   return (
     <section
       css={(theme) =>
@@ -25,7 +22,7 @@ export function PointCloudDisplaySettings(
       <Form>
         <ColoringStrategyPicker
           strategy={coloringStrategy}
-          onChange={onColoringStrategyChange}
+          onChange={setColoringStrategy}
         />
       </Form>
     </section>

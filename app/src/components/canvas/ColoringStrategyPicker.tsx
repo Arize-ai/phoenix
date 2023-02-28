@@ -2,7 +2,7 @@ import React from "react";
 
 import { Item, Picker } from "@arizeai/components";
 
-import { ColoringStrategy } from "./types";
+import { ColoringStrategy } from "@phoenix/types";
 
 function isColoringStrategy(strategy: unknown): strategy is ColoringStrategy {
   return typeof strategy === "string" && strategy in ColoringStrategy;

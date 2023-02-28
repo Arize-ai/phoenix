@@ -20,7 +20,7 @@ import { ControlPanel } from "./ControlPanel";
 import { PointCloudClusters } from "./PointCloudClusters";
 import { PointCloudPoints } from "./PointCloudPoints";
 import { ThreeDimensionalPointItem } from "./types";
-import { ClusterItem, ColoringStrategy } from "./types";
+import { ClusterItem } from "./types";
 
 const RADIUS_BOUNDS_3D_DIVISOR = 400;
 const CLUSTER_POINT_RADIUS_MULTIPLIER = 6;
@@ -30,7 +30,6 @@ export interface PointCloudProps {
   primaryData: ThreeDimensionalPointItem[];
   referenceData: ThreeDimensionalPointItem[] | null;
   clusters: readonly ClusterItem[];
-  coloringStrategy: ColoringStrategy;
 }
 
 interface ProjectionProps extends PointCloudProps {
@@ -106,8 +105,10 @@ export function PointCloud(props: PointCloudProps) {
 }
 
 function Projection(props: ProjectionProps) {
-  const { primaryData, referenceData, clusters, coloringStrategy, canvasMode } =
-    props;
+  const { primaryData, referenceData, clusters, canvasMode } = props;
+  const coloringStrategy = usePointCloudStore(
+    (state) => state.coloringStrategy
+  );
   // AutoRotate the canvas on initial load
   const [autoRotate, setAutoRotate] = useState<boolean>(true);
   const selectedPointIds = usePointCloudStore(
