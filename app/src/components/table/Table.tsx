@@ -1,6 +1,7 @@
 import React from "react";
-import { useTable, usePagination, Column } from "react-table";
+import { Column, usePagination, useTable } from "react-table";
 import { css, Theme } from "@emotion/react";
+
 import { Button, Icon, Icons } from "@arizeai/components";
 
 const tableCSS = (theme: Theme) => css`

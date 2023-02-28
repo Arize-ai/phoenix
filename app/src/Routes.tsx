@@ -1,8 +1,9 @@
 import React from "react";
-import { Route, createRoutesFromElements, RouterProvider } from "react-router";
-import { Home, Embedding, embeddingLoader, Layout } from "./pages";
+import { createRoutesFromElements, Route, RouterProvider } from "react-router";
 import { createBrowserRouter } from "react-router-dom";
+
 import { embeddingLoaderQuery$data } from "./pages/embedding/__generated__/embeddingLoaderQuery.graphql";
+import { Embedding, embeddingLoader, Home, Layout } from "./pages";
 
 const router = createBrowserRouter(
   createRoutesFromElements(

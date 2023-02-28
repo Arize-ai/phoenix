@@ -35,7 +35,7 @@ from .UMAPPoints import Cluster, UMAPPoint, UMAPPoints, to_gql_coordinates
 DEFAULT_N_COMPONENTS = 3
 DEFAULT_MIN_DIST = 0
 DEFAULT_N_NEIGHBORS = 30
-DEFAULT_N_SAMPLES = 500
+DEFAULT_N_SAMPLES = 5000
 
 
 def to_gql_clusters(clusters: Mapping[EventId, int]) -> List[Cluster]:

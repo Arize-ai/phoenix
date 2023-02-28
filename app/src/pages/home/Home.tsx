@@ -1,14 +1,17 @@
-import { css } from "@emotion/react";
-import { TabbedCard, Tabs, TabPane } from "@arizeai/components";
-import {
-  ModelSchemaTable,
-  ModelEmbeddingsTable,
-} from "@phoenix/components/model";
 import React from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
-import { HomeQuery } from "./__generated__/HomeQuery.graphql";
+import { css } from "@emotion/react";
+
+import { TabbedCard, TabPane, Tabs } from "@arizeai/components";
+
 import { Toolbar } from "@phoenix/components/filter";
+import {
+  ModelEmbeddingsTable,
+  ModelSchemaTable,
+} from "@phoenix/components/model";
 import { useDatasets } from "@phoenix/contexts";
+
+import { HomeQuery } from "./__generated__/HomeQuery.graphql";
 
 type HomePageProps = Readonly<object>;
 

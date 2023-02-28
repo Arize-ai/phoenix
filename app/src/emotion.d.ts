@@ -1,5 +1,6 @@
-import "@emotion/react";
 import { theme } from "@arizeai/components";
+
+import "@emotion/react";
 
 type ACTheme = typeof theme;
 declare module "@emotion/react" {

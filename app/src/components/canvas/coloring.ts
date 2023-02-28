@@ -1,5 +1,6 @@
-import { ColoringStrategy, PointColor } from "./types";
 import { ColorSchemes } from "@arizeai/point-cloud";
+
+import { ColoringStrategy, PointColor } from "./types";
 
 type ColoringConfig = {
   coloringStrategy: ColoringStrategy;

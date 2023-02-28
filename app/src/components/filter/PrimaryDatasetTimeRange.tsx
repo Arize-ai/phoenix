@@ -1,12 +1,14 @@
+import React from "react";
+
 import {
   FieldColorDesignation,
   Item,
   Picker,
-  TooltipTrigger,
   Tooltip,
+  TooltipTrigger,
   TriggerWrap,
 } from "@arizeai/components";
-import React from "react";
+
 import { TimePreset, useTimeRange } from "@phoenix/contexts/TimeRangeContext";
 
 type PrimaryDatasetTimeRangeProps = object;
@@ -31,6 +33,7 @@ export function PrimaryDatasetTimeRange(_: PrimaryDatasetTimeRangeProps) {
             <Item key={TimePreset.last_day}>Last Day</Item>
             <Item key={TimePreset.last_week}>Last Week</Item>
             <Item key={TimePreset.last_month}>Last Month</Item>
+            <Item key={TimePreset.last_3_months}>Last 3 Months</Item>
           </Picker>
         </TriggerWrap>
         <Tooltip>The time range within the primary dataset to display</Tooltip>

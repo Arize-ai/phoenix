@@ -1,6 +1,7 @@
 import React, { ReactNode } from "react";
-import { css, Theme } from "@emotion/react";
 import { Link } from "react-router-dom";
+import { css, Theme } from "@emotion/react";
+
 import { Logo } from "./Logo";
 
 const navCSS = (theme: Theme) => css`

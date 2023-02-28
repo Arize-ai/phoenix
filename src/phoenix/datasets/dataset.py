@@ -185,11 +185,10 @@ class Dataset:
 
     def get_embedding_link_to_data_column(self, embedding_feature_name: str) -> "Series[str]":
         column_names = self._get_embedding_feature_column_names(embedding_feature_name)
-        if column_names.link_to_data_column_name is None:
-            raise err.SchemaError(
-                err.MissingEmbeddingFeatureLinkToDataColumnName(embedding_feature_name)
-            )
-        return self.dataframe[column_names.link_to_data_column_name]
+        if column_names.link_to_data_column_name is not None:
+            return self.dataframe[column_names.link_to_data_column_name]
+
+        return Series(dtype=str)
 
     @classmethod
     def from_dataframe(
