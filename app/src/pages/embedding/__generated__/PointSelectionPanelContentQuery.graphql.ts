@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<bb4e93e3bf3d24acd06c8d6b43a26246>>
+ * @generated SignedSource<<153355ed9f88bcc1dcef6a3291a1659f>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,11 +10,11 @@
 
 import { ConcreteRequest, Query } from 'relay-runtime';
 export type DimensionType = "actual" | "feature" | "prediction" | "tag";
-export type EmbeddingSelectionPanelContentQuery$variables = {
+export type PointSelectionPanelContentQuery$variables = {
   primaryEventIds: ReadonlyArray<string>;
   referenceEventIds: ReadonlyArray<string>;
 };
-export type EmbeddingSelectionPanelContentQuery$data = {
+export type PointSelectionPanelContentQuery$data = {
   readonly model: {
     readonly primaryDataset: {
       readonly events: ReadonlyArray<{
@@ -48,9 +48,9 @@ export type EmbeddingSelectionPanelContentQuery$data = {
     } | null;
   };
 };
-export type EmbeddingSelectionPanelContentQuery = {
-  response: EmbeddingSelectionPanelContentQuery$data;
-  variables: EmbeddingSelectionPanelContentQuery$variables;
+export type PointSelectionPanelContentQuery = {
+  response: PointSelectionPanelContentQuery$data;
+  variables: PointSelectionPanelContentQuery$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -208,7 +208,7 @@ return {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "EmbeddingSelectionPanelContentQuery",
+    "name": "PointSelectionPanelContentQuery",
     "selections": (v2/*: any*/),
     "type": "Query",
     "abstractKey": null
@@ -217,20 +217,20 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
-    "name": "EmbeddingSelectionPanelContentQuery",
+    "name": "PointSelectionPanelContentQuery",
     "selections": (v2/*: any*/)
   },
   "params": {
-    "cacheID": "bc091f564c7cfd949513be0509d04e52",
+    "cacheID": "f6adb3e543f43f69eff7bf548ec1c139",
     "id": null,
     "metadata": {},
-    "name": "EmbeddingSelectionPanelContentQuery",
+    "name": "PointSelectionPanelContentQuery",
     "operationKind": "query",
-    "text": "query EmbeddingSelectionPanelContentQuery(\n  $primaryEventIds: [ID!]!\n  $referenceEventIds: [ID!]!\n) {\n  model {\n    primaryDataset {\n      events(eventIds: $primaryEventIds) {\n        dimensions {\n          dimension {\n            name\n            type\n          }\n          value\n        }\n        eventMetadata {\n          predictionLabel\n          actualLabel\n        }\n      }\n    }\n    referenceDataset {\n      events(eventIds: $referenceEventIds) {\n        dimensions {\n          dimension {\n            name\n            type\n          }\n          value\n        }\n        eventMetadata {\n          predictionLabel\n          actualLabel\n        }\n      }\n    }\n  }\n}\n"
+    "text": "query PointSelectionPanelContentQuery(\n  $primaryEventIds: [ID!]!\n  $referenceEventIds: [ID!]!\n) {\n  model {\n    primaryDataset {\n      events(eventIds: $primaryEventIds) {\n        dimensions {\n          dimension {\n            name\n            type\n          }\n          value\n        }\n        eventMetadata {\n          predictionLabel\n          actualLabel\n        }\n      }\n    }\n    referenceDataset {\n      events(eventIds: $referenceEventIds) {\n        dimensions {\n          dimension {\n            name\n            type\n          }\n          value\n        }\n        eventMetadata {\n          predictionLabel\n          actualLabel\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "4878229c945fb2d1c9357e7033623a13";
+(node as any).hash = "34de659f525e55bd322b47171511a9a7";
 
 export default node;

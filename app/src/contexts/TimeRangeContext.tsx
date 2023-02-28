@@ -18,7 +18,9 @@ export enum TimePreset {
   last_day = "Last Day",
   last_week = "Last Week",
   last_month = "Last Month",
+  last_3_months = "Last 3 Months",
 }
+
 /**
  * The state stored in context for the overall time range of the app
  */
@@ -64,6 +66,11 @@ function useTimeRangeMemo(timePreset: TimePreset, timeRangeBounds: TimeRange) {
       case TimePreset.last_month:
         return {
           start: subDays(timeRangeBounds.end, 30),
+          end: timeRangeBounds.end,
+        };
+      case TimePreset.last_3_months:
+        return {
+          start: subDays(timeRangeBounds.end, 90),
           end: timeRangeBounds.end,
         };
       default:

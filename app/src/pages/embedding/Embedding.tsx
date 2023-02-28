@@ -1,13 +1,16 @@
-import React, { Suspense, useEffect, useMemo, useState } from "react";
+import React, { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import {
   graphql,
   PreloadedQuery,
-  useLazyLoadQuery,
   usePreloadedQuery,
   useQueryLoader,
 } from "react-relay";
-import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
-import { Column } from "react-table";
+import {
+  ImperativePanelHandle,
+  Panel,
+  PanelGroup,
+  PanelResizeHandle,
+} from "react-resizable-panels";
 import { subDays } from "date-fns";
 import { css } from "@emotion/react";
 
@@ -29,7 +32,6 @@ import {
   Toolbar,
 } from "@phoenix/components/filter";
 import { resizeHandleCSS } from "@phoenix/components/resize/styles";
-import { Table } from "@phoenix/components/table";
 import { useDatasets } from "@phoenix/contexts";
 import {
   TimeSliceContextProvider,
@@ -37,12 +39,12 @@ import {
 } from "@phoenix/contexts/TimeSliceContext";
 import { useEmbeddingDimensionId } from "@phoenix/hooks";
 
-import { EmbeddingSelectionPanelContentQuery } from "./__generated__/EmbeddingSelectionPanelContentQuery.graphql";
 import {
   EmbeddingUMAPQuery as UMAPQueryType,
   EmbeddingUMAPQuery$data,
 } from "./__generated__/EmbeddingUMAPQuery.graphql";
 import { EuclideanDistanceTimeSeries } from "./EuclideanDistanceTimeSeries";
+import { PointSelectionPanelContent } from "./PointSelectionPanelContent";
 
 type UMAPPointsEntry = NonNullable<
   EmbeddingUMAPQuery$data["embedding"]["UMAPPoints"]
@@ -307,7 +309,7 @@ const PointCloudDisplay = ({
         </Panel>
         <PanelResizeHandle css={resizeHandleCSS} />
         <Panel>
-          <PanelGroup autoSaveId="embedding-main" direction="vertical">
+          <PanelGroup direction="vertical">
             <Panel order={1}>
               <PointCloud
                 primaryData={
@@ -324,24 +326,38 @@ const PointCloudDisplay = ({
                 coloringStrategy={coloringStrategy}
               />
             </Panel>
-
             <PanelResizeHandle css={resizeHandleCSS} />
-            <Panel
-              id="embedding-point-selection"
-              defaultSize={20}
-              collapsible
-              order={2}
-            >
-              <Suspense fallback={"Loading..."}>
-                <SelectionPanelContent />
-              </Suspense>
-            </Panel>
+            <SelectionPanel />
           </PanelGroup>
         </Panel>
       </PanelGroup>
     </div>
   );
 };
+
+function SelectionPanel() {
+  const { selectedPointIds } = usePointCloud();
+  const selectionPanelRef = useRef<ImperativePanelHandle>(null);
+
+  if (selectedPointIds.size === 0) {
+    return null;
+  }
+
+  return (
+    <Panel
+      id="embedding-point-selection"
+      defaultSize={20}
+      minSize={20}
+      collapsible
+      order={2}
+      ref={selectionPanelRef}
+    >
+      <Suspense fallback={"Loading..."}>
+        <PointSelectionPanelContent />
+      </Suspense>
+    </Panel>
+  );
+}
 
 function ClustersPanelContents({
   clusters,
@@ -378,102 +394,6 @@ function ClustersPanelContents({
             );
           })}
         </ul>
-      </TabPane>
-    </Tabs>
-  );
-}
-
-function SelectionPanelContent() {
-  const { selectedPointIds } = usePointCloud();
-  const { primaryEventIds, referenceEventIds } = useMemo(() => {
-    const primaryEventIds: string[] = [];
-    const referenceEventIds: string[] = [];
-    selectedPointIds.forEach((id) => {
-      if (id.includes("PRIMARY")) {
-        primaryEventIds.push(id);
-      } else {
-        referenceEventIds.push(id);
-      }
-    });
-    return { primaryEventIds, referenceEventIds };
-  }, [selectedPointIds]);
-  const data = useLazyLoadQuery<EmbeddingSelectionPanelContentQuery>(
-    graphql`
-      query EmbeddingSelectionPanelContentQuery(
-        $primaryEventIds: [ID!]!
-        $referenceEventIds: [ID!]!
-      ) {
-        model {
-          primaryDataset {
-            events(eventIds: $primaryEventIds) {
-              dimensions {
-                dimension {
-                  name
-                  type
-                }
-                value
-              }
-              eventMetadata {
-                predictionLabel
-                actualLabel
-              }
-            }
-          }
-          referenceDataset {
-            events(eventIds: $referenceEventIds) {
-              dimensions {
-                dimension {
-                  name
-                  type
-                }
-                value
-              }
-              eventMetadata {
-                predictionLabel
-                actualLabel
-              }
-            }
-          }
-        }
-      }
-    `,
-    {
-      primaryEventIds: [...primaryEventIds],
-      referenceEventIds: [...referenceEventIds],
-    }
-  );
-
-  const allEvents = useMemo(() => {
-    const primaryEvents = data.model?.primaryDataset?.events ?? [];
-    const referenceEvents = data.model?.referenceDataset?.events ?? [];
-    return [...primaryEvents, ...referenceEvents];
-  }, [data]);
-
-  const tableData = useMemo(() => {
-    return allEvents.map((event) => {
-      return {
-        actualLabel: event.eventMetadata?.actualLabel,
-        predictionLabel: event.eventMetadata?.predictionLabel,
-      };
-    });
-  }, [allEvents]);
-
-  const columns: Column<typeof tableData[number]>[] = [
-    {
-      Header: "Actual Label",
-      accessor: "actualLabel",
-    },
-    {
-      Header: "Prediction Label",
-      accessor: "predictionLabel",
-    },
-  ];
-
-  return (
-    // @ts-expect-error add more tabs
-    <Tabs>
-      <TabPane name="Selection">
-        <Table columns={columns} data={tableData} />
       </TabPane>
     </Tabs>
   );
