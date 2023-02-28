@@ -21,7 +21,7 @@ class Dimension:
         if self.data_type == DimensionDataType.NUMERIC:
             return []
         return sorted(
-            v
-            for v in set(chain.from_iterable(s.unique() for s in self.data()))
-            if isinstance(v, str)
+            value
+            for value in set(chain.from_iterable(series.unique() for series in self.data()))
+            if isinstance(value, str)
         )
