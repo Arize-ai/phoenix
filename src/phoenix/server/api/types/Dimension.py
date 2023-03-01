@@ -43,9 +43,9 @@ class Dimension(Node):
 
     @strawberry.field(
         description=(
-            "Returns the categories of a categorical dimension (usually a dimension of string"
-            " values) as a list of unique string labels sorted in lexicographical order. Missing"
-            " values are excluded. Non-categorical dimensions return an empty list."
+            "Returns the observed categories of a categorical dimension (usually a dimension of"
+            " string values) as a list of unique string labels sorted in lexicographical order."
+            " Missing values are excluded. Non-categorical dimensions return an empty list."
         )
     )  # type: ignore  # https://github.com/strawberry-graphql/strawberry/issues/1929
     def categories(self, info: Info[Context, None]) -> List[str]:
