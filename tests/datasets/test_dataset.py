@@ -8,6 +8,7 @@ from dataclasses import replace
 
 import numpy as np
 import pandas as pd
+import pytz
 from pandas import DataFrame, to_datetime
 from pytest import LogCaptureFixture, raises
 
@@ -804,7 +805,39 @@ class TestDataset:
             Dataset(dataframe=input_df, schema=input_schema)
 
     def test_dataset_bookends(self) -> None:
-        expected_start_time = pd.Timestamp(year=2023, month=1, day=1, hour=2, second=30)
+        expected_start_time = pd.Timestamp(
+            year=2023, month=1, day=1, hour=2, second=30, tz=pytz.UTC
+        )
+        expected_end_time = pd.Timestamp(year=2023, month=1, day=10, hour=6, second=20, tz=pytz.UTC)
+        input_df = DataFrame(
+            {
+                "prediction_label": ["apple", "orange", "grape"],
+                "timestamp": [
+                    expected_end_time,
+                    expected_start_time,
+                    pd.Timestamp(year=2023, month=1, day=5, hour=4, second=25, tz=pytz.UTC),
+                ],
+            }
+        )
+
+        input_schema = Schema(
+            prediction_label_column_name="prediction_label",
+            timestamp_column_name="timestamp",
+        )
+        output_dataset = Dataset(dataframe=input_df, schema=input_schema)
+
+        assert output_dataset.start_time == expected_start_time
+        assert output_dataset.end_time == expected_end_time
+
+    def test_dataset_bookends_no_tz(self) -> None:
+        """Test that bookends are returned in UTC if no timezone is specified."""
+        expected_start_time = pd.Timestamp(
+            year=2023,
+            month=1,
+            day=1,
+            hour=2,
+            second=30,
+        )
         expected_end_time = pd.Timestamp(year=2023, month=1, day=10, hour=6, second=20)
         input_df = DataFrame(
             {
@@ -822,9 +855,8 @@ class TestDataset:
             timestamp_column_name="timestamp",
         )
         output_dataset = Dataset(dataframe=input_df, schema=input_schema)
-
-        assert output_dataset.start_time == expected_start_time
-        assert output_dataset.end_time == expected_end_time
+        assert output_dataset.start_time == expected_start_time.replace(tzinfo=pytz.UTC)
+        assert output_dataset.end_time == expected_end_time.replace(tzinfo=pytz.UTC)
 
     @property
     def num_records(self):

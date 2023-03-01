@@ -9,6 +9,7 @@ from enum import Enum
 from functools import cached_property
 from typing import Any, Dict, List, Optional, Set, Tuple, Union, cast
 
+import pytz
 from pandas import DataFrame, Series, Timestamp, read_parquet, to_datetime
 from pandas.api.types import is_numeric_dtype
 
@@ -81,14 +82,15 @@ class Dataset:
         """Returns the datetime of the earliest inference in the dataset"""
         timestamp_col_name: str = cast(str, self.schema.timestamp_column_name)
         start_datetime: datetime = self.__dataframe[timestamp_col_name].min()
-        return start_datetime
+        # Ensure that the returned datetime is in UTC
+        return start_datetime.replace(tzinfo=pytz.UTC)
 
     @cached_property
     def end_time(self) -> datetime:
         """Returns the datetime of the latest inference in the dataset"""
         timestamp_col_name: str = cast(str, self.schema.timestamp_column_name)
         end_datetime: datetime = self.__dataframe[timestamp_col_name].max()
-        return end_datetime
+        return end_datetime.replace(tzinfo=pytz.UTC)
 
     @property
     def dataframe(self) -> DataFrame:
