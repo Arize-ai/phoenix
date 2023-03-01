@@ -4,7 +4,6 @@ import { css } from "@emotion/react";
 import { theme } from "@arizeai/components";
 import {
   Axes,
-  ColorSchemes,
   getThreeDimensionalBounds,
   LassoSelect,
   ThreeDimensionalBounds,
@@ -16,6 +15,7 @@ import { usePointCloudStore } from "@phoenix/store";
 
 import { CanvasMode, CanvasModeRadioGroup } from "./CanvasModeRadioGroup";
 import { createColorFn } from "./coloring";
+import { DEFAULT_COLOR_SCHEME } from "./constants";
 import { ControlPanel } from "./ControlPanel";
 import { PointCloudClusters } from "./PointCloudClusters";
 import { PointCloudPoints } from "./PointCloudPoints";
@@ -37,7 +37,6 @@ interface ProjectionProps extends PointCloudProps {
 }
 
 const CONTROL_PANEL_WIDTH = 300;
-const DEFAULT_COLOR_SCHEME = ColorSchemes.Discrete2.WhiteLightBlue;
 /**
  * Displays the tools available on the point cloud
  * E.g. move vs select
