@@ -3,6 +3,14 @@ import { devtools } from "zustand/middleware";
 
 import { ColoringStrategy } from "@phoenix/types";
 
+/**
+ * The visibility of the two datasets in the point cloud.
+ */
+type DatasetVisibility = {
+  primary: boolean;
+  reference: boolean;
+};
+
 export type PointCloudState = {
   /**
    * The IDs of the points that are currently selected.
@@ -28,6 +36,17 @@ export type PointCloudState = {
    * Sets the coloring strategy to the given value.
    */
   setColoringStrategy: (strategy: ColoringStrategy) => void;
+  /**
+   * The visibility of the two datasets in the point cloud.
+   * @default { primary: true, reference: true }
+   */
+  datasetVisibility: DatasetVisibility;
+  /**
+   * Sets the dataset visibility to the given value.
+   * @param {DatasetVisibility} visibility
+   * @returns {void}
+   */
+  setDatasetVisibility: (visibility: DatasetVisibility) => void;
 };
 
 const pointCloudStore: StateCreator<PointCloudState> = (set) => ({
@@ -37,6 +56,8 @@ const pointCloudStore: StateCreator<PointCloudState> = (set) => ({
   setSelectedClusterId: (id) => set({ selectedClusterId: id }),
   coloringStrategy: ColoringStrategy.dataset,
   setColoringStrategy: (strategy) => set({ coloringStrategy: strategy }),
+  datasetVisibility: { primary: true, reference: true },
+  setDatasetVisibility: (visibility) => set({ datasetVisibility: visibility }),
 });
 
 export const usePointCloudStore = create<PointCloudState>()(
