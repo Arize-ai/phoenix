@@ -17,8 +17,8 @@ class Dimension:
     data: Callable[[], List["pd.Series[Any]"]]
 
     @cached_property
-    def unique_string_values(self) -> List[str]:
-        if self.data_type == DimensionDataType.NUMERIC:
+    def categories(self) -> List[str]:
+        if self.data_type != DimensionDataType.CATEGORICAL:
             return []
         return sorted(
             value

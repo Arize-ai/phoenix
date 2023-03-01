@@ -43,14 +43,15 @@ class Dimension(Node):
 
     @strawberry.field(
         description=(
-            "Returns unique string values in lexicographical order. Non-string values and missing"
-            " values are ignored."
+            "Returns the categories of a categorical dimension (usually a dimension of string"
+            " values) as a list of unique string labels sorted in lexicographical order. Missing"
+            " values are excluded. Non-categorical dimensions return an empty list."
         )
     )  # type: ignore  # https://github.com/strawberry-graphql/strawberry/issues/1929
-    def unique_string_values(self, info: Info[Context, None]) -> List[str]:
+    def categories(self, info: Info[Context, None]) -> List[str]:
         for dim in info.context.model.dimensions:
             if dim.name == self.name:
-                return dim.unique_string_values
+                return dim.categories
         return []
 
     @strawberry.field(
