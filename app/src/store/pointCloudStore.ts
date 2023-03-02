@@ -1,7 +1,10 @@
 import { create, StateCreator } from "zustand";
 import { devtools } from "zustand/middleware";
 
+import { ColorSchemes } from "@arizeai/point-cloud";
+
 import { ColoringStrategy } from "@phoenix/types";
+import { assertUnreachable } from "@phoenix/typeUtils";
 
 /**
  * The visibility of the two datasets in the point cloud.
@@ -44,9 +47,21 @@ export type PointCloudState = {
   /**
    * Sets the dataset visibility to the given value.
    * @param {DatasetVisibility} visibility
-   * @returns {void}
    */
   setDatasetVisibility: (visibility: DatasetVisibility) => void;
+  /**
+   * The visibility of the point groups in the point cloud.
+   */
+  pointGroupVisibility: Record<string, boolean>;
+  /**
+   * Sets the point group visibility for the entire point cloud
+   * @param {Record<string, PointGroupVisibility>} visibility
+   */
+  setPointGroupVisibility: (visibility: Record<string, boolean>) => void;
+  /**
+   * The colors of each point group in the point cloud.
+   */
+  pointGroupColors: Record<string, string>;
 };
 
 const pointCloudStore: StateCreator<PointCloudState> = (set) => ({
@@ -55,9 +70,35 @@ const pointCloudStore: StateCreator<PointCloudState> = (set) => ({
   selectedClusterId: null,
   setSelectedClusterId: (id) => set({ selectedClusterId: id }),
   coloringStrategy: ColoringStrategy.dataset,
-  setColoringStrategy: (strategy) => set({ coloringStrategy: strategy }),
+  setColoringStrategy: (strategy) => {
+    set({ coloringStrategy: strategy });
+    switch (strategy) {
+      case ColoringStrategy.correctness:
+        set({
+          pointGroupVisibility: {
+            correct: true,
+            incorrect: true,
+          },
+          pointGroupColors: {
+            correct: ColorSchemes.Discrete2.LightBlueOrange[0],
+            incorrect: ColorSchemes.Discrete2.LightBlueOrange[1],
+          },
+        });
+        break;
+      case ColoringStrategy.dataset:
+        // Clear out the point groups as there are no groups
+        set({ pointGroupVisibility: {} });
+        break;
+      default:
+        assertUnreachable(strategy);
+    }
+  },
   datasetVisibility: { primary: true, reference: true },
   setDatasetVisibility: (visibility) => set({ datasetVisibility: visibility }),
+  pointGroupVisibility: {},
+  setPointGroupVisibility: (visibility) =>
+    set({ pointGroupVisibility: visibility }),
+  pointGroupColors: {},
 });
 
 export const usePointCloudStore = create<PointCloudState>()(

@@ -145,10 +145,15 @@ function EmbeddingMain() {
 
   // Load the query on first render
   useEffect(() => {
-    loadQuery({
-      id: embeddingDimensionId,
-      timeRange,
-    });
+    loadQuery(
+      {
+        id: embeddingDimensionId,
+        timeRange,
+      },
+      {
+        fetchPolicy: "network-only",
+      }
+    );
   }, [embeddingDimensionId, loadQuery, timeRange]);
 
   return (
