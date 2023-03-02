@@ -1,8 +1,15 @@
 import { PointsProps, ThreeDimensionalPoint } from "@arizeai/point-cloud";
 
+export interface PontMetaData {
+  id: string;
+  predictionLabel?: string | null;
+  actualLabel?: string | null;
+  predictionScore?: number | null;
+  actualScore?: number | null;
+}
 export type ThreeDimensionalPointItem = {
   position: ThreeDimensionalPoint;
-  metaData: unknown;
+  metaData: PontMetaData;
 };
 
 export type ClusterItem = {

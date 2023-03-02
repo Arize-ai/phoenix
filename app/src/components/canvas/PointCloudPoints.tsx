@@ -38,8 +38,10 @@ type PointCloudPointsProps = {
    * Optional second set of data to display in the point cloud
    */
   referenceData: ThreeDimensionalPointItem[] | null;
-  primaryColor: PointColor;
-  referenceColor: PointColor;
+  /**
+   * How the points should be colored
+   */
+  color: PointColor;
   selectedIds: Set<string>;
   radius: number;
 };
@@ -52,8 +54,7 @@ export function PointCloudPoints({
   primaryData,
   referenceData,
   selectedIds,
-  primaryColor,
-  referenceColor,
+  color,
   radius,
 }: PointCloudPointsProps) {
   const { datasetVisibility, coloringStrategy } = usePointCloudStore(
@@ -72,38 +73,21 @@ export function PointCloudPoints({
   );
 
   /** Colors to represent a dimmed variant of the color for "un-selected" */
-  const dimmedPrimaryColor = useMemo<PointColor>(() => {
-    if (typeof primaryColor === "function") {
-      return (p: PointBaseProps) => shade(DIM_AMOUNT)(primaryColor(p));
+  const dimmedColor = useMemo<PointColor>(() => {
+    if (typeof color === "function") {
+      return (p: PointBaseProps) => shade(DIM_AMOUNT)(color(p));
     }
-    return shade(DIM_AMOUNT, primaryColor);
-  }, [primaryColor]);
+    return shade(DIM_AMOUNT, color);
+  }, [color]);
 
-  const dimmedReferenceColor = useMemo<PointColor>(() => {
-    if (typeof referenceColor === "function") {
-      return (p: PointBaseProps) => shade(DIM_AMOUNT)(referenceColor(p));
-    }
-    return shade(DIM_AMOUNT, referenceColor);
-  }, [referenceColor]);
-
-  const primaryColorByFn = useCallback(
+  const colorByFn = useCallback(
     (point: PointBaseProps) => {
       if (!selectedIds.has(point.metaData.id) && selectedIds.size > 0) {
-        return invokeColor(point, dimmedPrimaryColor);
+        return invokeColor(point, dimmedColor);
       }
-      return invokeColor(point, primaryColor);
+      return invokeColor(point, color);
     },
-    [selectedIds, primaryColor, dimmedPrimaryColor]
-  );
-
-  const referenceColorByFn = useCallback(
-    (point: PointBaseProps) => {
-      if (!selectedIds.has(point.metaData.id) && selectedIds.size > 0) {
-        return invokeColor(point, dimmedReferenceColor);
-      }
-      return invokeColor(point, referenceColor);
-    },
-    [referenceColor, selectedIds, dimmedReferenceColor]
+    [selectedIds, color, dimmedColor]
   );
 
   const showReferencePoints = datasetVisibility.reference && referenceData;
@@ -111,16 +95,13 @@ export function PointCloudPoints({
   return (
     <>
       {datasetVisibility.primary ? (
-        <Points
-          data={primaryData}
-          pointProps={{ color: primaryColorByFn, radius }}
-        />
+        <Points data={primaryData} pointProps={{ color: colorByFn, radius }} />
       ) : null}
       {showReferencePoints ? (
         <Points
           data={referenceData}
           pointProps={{
-            color: referenceColorByFn,
+            color: colorByFn,
             radius,
             size: radius ? radius * CUBE_RADIUS_MULTIPLIER : undefined,
           }}
