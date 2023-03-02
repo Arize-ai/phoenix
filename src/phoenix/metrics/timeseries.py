@@ -4,6 +4,7 @@ from itertools import accumulate, chain, repeat, takewhile
 from typing import Any, Callable, Generator, Iterable, List, Tuple, Union, cast
 
 import pandas as pd
+from typing_extensions import TypeAlias
 
 from . import Metric
 
@@ -39,11 +40,17 @@ def _calculate(df: pd.DataFrame, calcs: Iterable[Metric]) -> "pd.Series[Any]":
     return pd.Series(dict(calc(df) for calc in calcs))
 
 
-def _time_slice_from_sorted_index(idx: pd.Index, start: datetime, end: datetime) -> slice:
+Start: TypeAlias = int
+Stop: TypeAlias = int
+
+
+def row_interval_from_sorted_time_index(
+    idx: pd.Index, start: datetime, end: datetime
+) -> Tuple[Start, Stop]:
     """
     Returns end exclusive time slice from sorted index.
     """
-    return slice(*cast(List[int], idx.searchsorted((start, end))))
+    return cast(Tuple[Start, Stop], idx.searchsorted((start, end)))
 
 
 def _aggregator(
@@ -71,7 +78,7 @@ def _aggregator(
             (pd.DataFrame(),),
             (
                 dataframe.iloc[
-                    _time_slice_from_sorted_index(dataframe.index, start, end),
+                    slice(*row_interval_from_sorted_time_index(dataframe.index, start, end)),
                     columns,
                 ]
                 .groupby(group, group_keys=True)
