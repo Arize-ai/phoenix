@@ -4,10 +4,12 @@ description: >-
   observability for model drift, performance, and data quality.
 ---
 
-# Arize Phoenix
+# ML Observability in Your Notebook
 
-{% hint style="info" %}
-Phoenix is under active development and its API may change at any time
+
+
+{% hint style="warning" %}
+Phoenix is under active development and its API may change at any time.
 {% endhint %}
 
 Phoenix works with python 3.8 and above and is available to install via `pypi`

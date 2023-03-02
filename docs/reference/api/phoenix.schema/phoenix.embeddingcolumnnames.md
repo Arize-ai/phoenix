@@ -1,0 +1,2 @@
+# phoenix.EmbeddingColumnNames
+
