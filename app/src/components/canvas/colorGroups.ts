@@ -36,9 +36,8 @@ export function getPointCorrectnessGroup(
 
 /**
  * A curried function that maps a point to a color group based on the given coloring strategy.
- * @param coloringStrategy
+ * @param coloringStrategy - The coloring strategy for the pont cloud (e.x. dataset, correctness)
  * @param fallbackGroup - The group to return if the coloring strategy is not determined by the point itself
- * @returns
  */
 export const getPointColorGroup =
   (coloringStrategy: ColoringStrategy) =>
