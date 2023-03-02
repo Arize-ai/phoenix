@@ -4,13 +4,15 @@ import { Column } from "react-table";
 
 import { TabPane, Tabs } from "@arizeai/components";
 
-import { usePointCloud } from "@phoenix/components/canvas";
 import { Table } from "@phoenix/components/table";
+import { usePointCloudStore } from "@phoenix/store";
 
 import { PointSelectionPanelContentQuery } from "./__generated__/PointSelectionPanelContentQuery.graphql";
 
 export function PointSelectionPanelContent() {
-  const { selectedPointIds } = usePointCloud();
+  const selectedPointIds = usePointCloudStore(
+    (state) => state.selectedPointIds
+  );
   const { primaryEventIds, referenceEventIds } = useMemo(() => {
     const primaryEventIds: string[] = [];
     const referenceEventIds: string[] = [];

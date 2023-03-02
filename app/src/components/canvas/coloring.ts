@@ -1,6 +1,9 @@
 import { ColorSchemes } from "@arizeai/point-cloud";
 
-import { ColoringStrategy, PointColor } from "./types";
+import { ColoringStrategy } from "@phoenix/types";
+import { assertUnreachable } from "@phoenix/typeUtils";
+
+import { PointColor } from "./types";
 
 type ColoringConfig = {
   coloringStrategy: ColoringStrategy;
@@ -32,5 +35,7 @@ export const createColorFn =
         return defaultColor;
       case ColoringStrategy.correctness:
         return colorByCorrectness(point);
+      default:
+        assertUnreachable(coloringStrategy);
     }
   };

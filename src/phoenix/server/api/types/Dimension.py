@@ -1,5 +1,5 @@
 from datetime import timedelta
-from typing import Optional
+from typing import List, Optional
 
 import strawberry
 from strawberry.types import Info
@@ -40,6 +40,19 @@ class Dimension(Node):
         elif metric is DataQualityMetric.percentEmpty:
             return await info.context.loaders.percent_empty.load(dimension_name)
         raise NotImplementedError(f"Metric {metric} is not implemented.")
+
+    @strawberry.field(
+        description=(
+            "Returns the observed categories of a categorical dimension (usually a dimension of"
+            " string values) as a list of unique string labels sorted in lexicographical order."
+            " Missing values are excluded. Non-categorical dimensions return an empty list."
+        )
+    )  # type: ignore  # https://github.com/strawberry-graphql/strawberry/issues/1929
+    def categories(self, info: Info[Context, None]) -> List[str]:
+        for dim in info.context.model.dimensions:
+            if dim.name == self.name:
+                return dim.categories
+        return []
 
     @strawberry.field(
         description=(

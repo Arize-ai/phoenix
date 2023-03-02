@@ -1,6 +1,6 @@
 from collections import defaultdict
 from datetime import datetime, timedelta
-from itertools import chain, repeat, starmap
+from itertools import chain
 from typing import Any, List, Mapping, Optional
 
 import numpy as np
@@ -17,6 +17,7 @@ from phoenix.datasets.dataset import DatasetType
 from phoenix.datasets.errors import SchemaError
 from phoenix.datasets.event import EventId
 from phoenix.metrics.embeddings import euclidean_distance
+from phoenix.metrics.timeseries import row_interval_from_sorted_time_index
 from phoenix.pointcloud.clustering import Hdbscan
 from phoenix.pointcloud.pointcloud import PointCloud
 from phoenix.pointcloud.projectors import Umap
@@ -35,7 +36,7 @@ from .UMAPPoints import Cluster, UMAPPoint, UMAPPoints, to_gql_coordinates
 DEFAULT_N_COMPONENTS = 3
 DEFAULT_MIN_DIST = 0
 DEFAULT_N_NEIGHBORS = 30
-DEFAULT_N_SAMPLES = 5000
+DEFAULT_N_SAMPLES = 500
 
 
 def to_gql_clusters(clusters: Mapping[EventId, int]) -> List[Cluster]:
@@ -194,23 +195,31 @@ class EmbeddingDimension(Node):
     ) -> UMAPPoints:
         n_samples = n_samples or DEFAULT_N_SAMPLES
 
-        # TODO validate time_range.
+        datasets = {
+            DatasetType.PRIMARY: info.context.model.primary_dataset,
+            DatasetType.REFERENCE: info.context.model.reference_dataset,
+        }
 
-        primary_dataset = info.context.model.primary_dataset
-        reference_dataset = info.context.model.reference_dataset
-
-        primary_data = zip(
-            starmap(EventId, zip(range(n_samples), repeat(DatasetType.PRIMARY))),
-            primary_dataset.get_embedding_vector_column(self.name).to_numpy()[:n_samples],
-        )
-        if reference_dataset:
-            reference_data = zip(
-                starmap(EventId, zip(range(n_samples), repeat(DatasetType.REFERENCE))),
-                reference_dataset.get_embedding_vector_column(self.name).to_numpy()[:n_samples],
+        data = dict(
+            chain.from_iterable(
+                (
+                    ()
+                    if dataset is None
+                    else (
+                        (
+                            EventId(row_id, dataset_id),
+                            dataset.get_embedding_vector_column(self.name).iloc[row_id],
+                        )
+                        for row_id in range(
+                            *row_interval_from_sorted_time_index(
+                                dataset.dataframe.index, start=time_range.start, end=time_range.end
+                            )
+                        )[:n_samples]
+                    )
+                )
+                for dataset_id, dataset in datasets.items()
             )
-            data = dict(chain(primary_data, reference_data))
-        else:
-            data = dict(primary_data)
+        )
 
         # validate n_components to be 2 or 3
         n_components = DEFAULT_N_COMPONENTS if n_components is None else n_components
@@ -224,8 +233,6 @@ class EmbeddingDimension(Node):
             dimensionalityReducer=Umap(n_neighbors=n_neighbors, min_dist=min_dist),
             clustersFinder=Hdbscan(),
         ).generate(data, n_components=n_components)
-
-        datasets = {DatasetType.PRIMARY: primary_dataset, DatasetType.REFERENCE: reference_dataset}
 
         points = defaultdict(list)
 

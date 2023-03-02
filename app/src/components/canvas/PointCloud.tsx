@@ -1,25 +1,26 @@
-import React, { ReactNode, useMemo, useState } from "react";
+import React, { ReactNode, useCallback, useMemo, useState } from "react";
 import { css } from "@emotion/react";
 
 import { theme } from "@arizeai/components";
 import {
   Axes,
-  ColorSchemes,
   getThreeDimensionalBounds,
   LassoSelect,
+  PointBaseProps,
   ThreeDimensionalBounds,
   ThreeDimensionalCanvas,
   ThreeDimensionalControls,
 } from "@arizeai/point-cloud";
 
+import { usePointCloudStore } from "@phoenix/store";
+
 import { CanvasMode, CanvasModeRadioGroup } from "./CanvasModeRadioGroup";
-import { createColorFn } from "./coloring";
+import { getPointColorGroup } from "./colorGroups";
 import { ControlPanel } from "./ControlPanel";
 import { PointCloudClusters } from "./PointCloudClusters";
-import { usePointCloud } from "./PointCloudContext";
 import { PointCloudPoints } from "./PointCloudPoints";
 import { ThreeDimensionalPointItem } from "./types";
-import { ClusterItem, ColoringStrategy } from "./types";
+import { ClusterItem } from "./types";
 
 const RADIUS_BOUNDS_3D_DIVISOR = 400;
 const CLUSTER_POINT_RADIUS_MULTIPLIER = 6;
@@ -29,7 +30,6 @@ export interface PointCloudProps {
   primaryData: ThreeDimensionalPointItem[];
   referenceData: ThreeDimensionalPointItem[] | null;
   clusters: readonly ClusterItem[];
-  coloringStrategy: ColoringStrategy;
 }
 
 interface ProjectionProps extends PointCloudProps {
@@ -37,7 +37,6 @@ interface ProjectionProps extends PointCloudProps {
 }
 
 const CONTROL_PANEL_WIDTH = 300;
-const DEFAULT_COLOR_SCHEME = ColorSchemes.Discrete2.WhiteLightBlue;
 /**
  * Displays the tools available on the point cloud
  * E.g. move vs select
@@ -105,16 +104,33 @@ export function PointCloud(props: PointCloudProps) {
 }
 
 function Projection(props: ProjectionProps) {
-  const { primaryData, referenceData, clusters, coloringStrategy, canvasMode } =
-    props;
+  const { primaryData, referenceData, clusters, canvasMode } = props;
+
+  const coloringStrategy = usePointCloudStore(
+    (state) => state.coloringStrategy
+  );
+  const selectedPointIds = usePointCloudStore(
+    (state) => state.selectedPointIds
+  );
+  const setSelectedPointIds = usePointCloudStore(
+    (state) => state.setSelectedPointIds
+  );
+  const selectedClusterId = usePointCloudStore(
+    (state) => state.selectedClusterId
+  );
+  const setSelectedClusterId = usePointCloudStore(
+    (state) => state.setSelectedClusterId
+  );
+  const pointGroupColors = usePointCloudStore(
+    (state) => state.pointGroupColors
+  );
+  const pointGroupVisibility = usePointCloudStore(
+    (state) => state.pointGroupVisibility
+  );
+
   // AutoRotate the canvas on initial load
   const [autoRotate, setAutoRotate] = useState<boolean>(true);
-  const {
-    selectedPointIds,
-    setSelectedPointIds,
-    selectedClusterId,
-    setSelectedClusterId,
-  } = usePointCloud();
+
   const allPoints = useMemo(() => {
     return [...primaryData, ...(referenceData || [])];
   }, [primaryData, referenceData]);
@@ -132,15 +148,40 @@ function Projection(props: ProjectionProps) {
 
   const isMoveMode = canvasMode === CanvasMode.move;
 
-  // Determine the color of the points based on the strategy
-  const primaryColor = createColorFn({
-    coloringStrategy,
-    defaultColor: DEFAULT_COLOR_SCHEME[0],
-  });
-  const referenceColor = createColorFn({
-    coloringStrategy,
-    defaultColor: DEFAULT_COLOR_SCHEME[1],
-  });
+  const pointToColorGroup = useMemo(() => {
+    const pointToGroup = getPointColorGroup(coloringStrategy);
+    return allPoints.reduce((acc, point) => {
+      acc[point.metaData.id] = pointToGroup(point);
+      return acc;
+    }, {} as Record<string, string>);
+  }, [coloringStrategy, allPoints]);
+
+  // Color the points by their corresponding group
+  const colorFn = useCallback(
+    (point: PointBaseProps) => {
+      const group = pointToColorGroup[point.metaData.id];
+      return pointGroupColors[group];
+    },
+    [pointGroupColors, pointToColorGroup]
+  );
+
+  // Filter the points by the group visibility
+  const filteredPrimaryData = useMemo(() => {
+    return primaryData.filter((point) => {
+      const group = pointToColorGroup[point.metaData.id];
+      return pointGroupVisibility[group];
+    });
+  }, [primaryData, pointToColorGroup, pointGroupVisibility]);
+
+  const filteredReferenceData = useMemo(() => {
+    if (!referenceData) {
+      return null;
+    }
+    return referenceData.filter((point) => {
+      const group = pointToColorGroup[point.metaData.id];
+      return pointGroupVisibility[group];
+    });
+  }, [referenceData, pointToColorGroup, pointGroupVisibility]);
   return (
     <ThreeDimensionalCanvas camera={{ position: [0, 0, 10] }}>
       <ThreeDimensionalControls
@@ -167,11 +208,10 @@ function Projection(props: ProjectionProps) {
         />
         <Axes size={(bounds.maxX - bounds.minX) / 4} />
         <PointCloudPoints
-          primaryData={primaryData}
-          referenceData={referenceData}
+          primaryData={filteredPrimaryData}
+          referenceData={filteredReferenceData}
           selectedIds={selectedPointIds}
-          primaryColor={primaryColor}
-          referenceColor={referenceColor}
+          color={colorFn}
           radius={radius}
         />
         <PointCloudClusters

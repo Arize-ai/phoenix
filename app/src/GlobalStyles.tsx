@@ -33,6 +33,16 @@ export function GlobalStyles() {
           --px-primary-color: #9efcfd;
           --px-primary-color--transparent: rgb(158, 252, 253, 0.2);
           --px-reference-color: #baa1f9;
+
+          --px-flex-gap-sm: ${theme.spacing.margin4}px;
+          --px-flex-gap-sm: ${theme.spacing.margin8}px;
+
+          --px-border-color-500: ${theme.colors.gray500};
+
+          --px-section-background-color: ${theme.colors.gray500};
+
+          --px-padding-sm: ${theme.spacing.padding4}px;
+          --px-padding-med: ${theme.spacing.padding8}px;
         }
       `}
     />

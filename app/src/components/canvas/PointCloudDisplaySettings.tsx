@@ -3,31 +3,45 @@ import { css } from "@emotion/react";
 
 import { Form } from "@arizeai/components";
 
-import { ColoringStrategyPicker } from "./ColoringStrategyPicker";
-import { ColoringStrategy } from "./types";
+import { useDatasets } from "@phoenix/contexts";
+import { usePointCloudStore } from "@phoenix/store";
+import { ColoringStrategy } from "@phoenix/types";
 
-type PointCloudDisplaySettingsProps = {
-  coloringStrategy: ColoringStrategy;
-  onColoringStrategyChange: (strategy: ColoringStrategy) => void;
-};
-export function PointCloudDisplaySettings(
-  props: PointCloudDisplaySettingsProps
-) {
-  const { coloringStrategy, onColoringStrategyChange } = props;
+import { ColoringStrategyPicker } from "./ColoringStrategyPicker";
+import { DatasetVisibilitySettings } from "./DatasetVisibilitySettings";
+import { PointGroupVisibilitySettings } from "./PointGroupVisibilitySettings";
+
+export function PointCloudDisplaySettings() {
+  const { referenceDataset } = useDatasets();
+  const [coloringStrategy, setColoringStrategy] = usePointCloudStore(
+    (state) => [state.coloringStrategy, state.setColoringStrategy]
+  );
+
+  const showDatasetVisibilitySettings = referenceDataset != null;
+  // Show the point group visibility settings if the strategy is not dataset.
+  const showPointGroupVisibilitySettings =
+    coloringStrategy !== ColoringStrategy.dataset;
+
   return (
     <section
-      css={(theme) =>
-        css`
-          padding: ${theme.spacing.padding8}px;
-        `
-      }
+      css={css`
+        & > .ac-form {
+          padding: var(--px-padding-med) var(--px-padding-med) 0
+            var(--px-padding-med);
+        }
+      `}
     >
       <Form>
         <ColoringStrategyPicker
           strategy={coloringStrategy}
-          onChange={onColoringStrategyChange}
+          onChange={setColoringStrategy}
         />
       </Form>
+
+      {showDatasetVisibilitySettings ? <DatasetVisibilitySettings /> : null}
+      {showPointGroupVisibilitySettings ? (
+        <PointGroupVisibilitySettings />
+      ) : null}
     </section>
   );
 }

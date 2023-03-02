@@ -57,6 +57,8 @@ class PointCloud:
             some vectors may not belong to any cluster and are excluded here.
 
         """
+        if not data:
+            return {}, {}
         identifiers, vectors = zip(*data.items())
         projections = self.dimensionalityReducer.project(
             np.stack(vectors), n_components=n_components
