@@ -60,7 +60,7 @@ Don't forget to close the app when you're done.
 px.close_app()
 ```
 
-For more details, check out the [Sentiment Classification Tutorial](./examples/sentiment_classification_tutorial.ipynb).
+For more details, check out the [Sentiment Classification Tutorial](./tutorials/sentiment_classification_tutorial.ipynb).
 
 ## Documentation
 
@@ -68,8 +68,7 @@ For in-depth examples and explanations, read the [docs](https://docs.arize.com/p
 
 ## Community
 
-Join our community to connect with thousands of machine learning practitioners and ML observability enthusiasts 👁️
-
+Join our community to connect with thousands of machine learning practitioners and ML observability enthusiasts.
 - 🌍 Join our [Slack community](https://join.slack.com/t/arize-ai/shared_invite/zt-1px8dcmlf-fmThhDFD_V_48oU7ALan4Q).
 - 💡 Ask questions and provide feedback in the *#phoenix-support* channel.
 - 🌟 Leave a star on our [GitHub](https://github.com/Arize-ai/phoenix).
