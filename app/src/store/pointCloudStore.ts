@@ -3,7 +3,11 @@ import { devtools } from "zustand/middleware";
 
 import { ColorSchemes } from "@arizeai/point-cloud";
 
-import { ColoringStrategy } from "@phoenix/types";
+import {
+  ColoringStrategy,
+  CorrectnessGroup,
+  DatasetGroup,
+} from "@phoenix/types";
 import { assertUnreachable } from "@phoenix/typeUtils";
 
 /**
@@ -76,18 +80,25 @@ const pointCloudStore: StateCreator<PointCloudState> = (set) => ({
       case ColoringStrategy.correctness:
         set({
           pointGroupVisibility: {
-            correct: true,
-            incorrect: true,
+            [CorrectnessGroup.correct]: true,
+            [CorrectnessGroup.incorrect]: true,
           },
           pointGroupColors: {
-            correct: ColorSchemes.Discrete2.LightBlueOrange[0],
-            incorrect: ColorSchemes.Discrete2.LightBlueOrange[1],
+            [CorrectnessGroup.correct]:
+              ColorSchemes.Discrete2.LightBlueOrange[0],
+            [CorrectnessGroup.incorrect]:
+              ColorSchemes.Discrete2.LightBlueOrange[1],
           },
         });
         break;
       case ColoringStrategy.dataset:
         // Clear out the point groups as there are no groups
-        set({ pointGroupVisibility: {} });
+        set({
+          pointGroupVisibility: {
+            [DatasetGroup.primary]: true,
+            [DatasetGroup.reference]: true,
+          },
+        });
         break;
       default:
         assertUnreachable(strategy);
@@ -95,10 +106,16 @@ const pointCloudStore: StateCreator<PointCloudState> = (set) => ({
   },
   datasetVisibility: { primary: true, reference: true },
   setDatasetVisibility: (visibility) => set({ datasetVisibility: visibility }),
-  pointGroupVisibility: {},
+  pointGroupVisibility: {
+    [DatasetGroup.primary]: true,
+    [DatasetGroup.reference]: true,
+  },
   setPointGroupVisibility: (visibility) =>
     set({ pointGroupVisibility: visibility }),
-  pointGroupColors: {},
+  pointGroupColors: {
+    [DatasetGroup.primary]: ColorSchemes.Discrete2.WhiteLightBlue[0],
+    [DatasetGroup.reference]: ColorSchemes.Discrete2.WhiteLightBlue[1],
+  },
 });
 
 export const usePointCloudStore = create<PointCloudState>()(

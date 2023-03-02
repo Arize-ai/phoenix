@@ -1,4 +1,4 @@
-import React, { ReactNode, useMemo, useState } from "react";
+import React, { ReactNode, useCallback, useMemo, useState } from "react";
 import { css } from "@emotion/react";
 
 import { theme } from "@arizeai/components";
@@ -6,6 +6,7 @@ import {
   Axes,
   getThreeDimensionalBounds,
   LassoSelect,
+  PointBaseProps,
   ThreeDimensionalBounds,
   ThreeDimensionalCanvas,
   ThreeDimensionalControls,
@@ -14,8 +15,7 @@ import {
 import { usePointCloudStore } from "@phoenix/store";
 
 import { CanvasMode, CanvasModeRadioGroup } from "./CanvasModeRadioGroup";
-import { createColorFn } from "./coloring";
-import { DEFAULT_COLOR_SCHEME } from "./constants";
+import { getPointColorGroup } from "./colorGroups";
 import { ControlPanel } from "./ControlPanel";
 import { PointCloudClusters } from "./PointCloudClusters";
 import { PointCloudPoints } from "./PointCloudPoints";
@@ -105,11 +105,10 @@ export function PointCloud(props: PointCloudProps) {
 
 function Projection(props: ProjectionProps) {
   const { primaryData, referenceData, clusters, canvasMode } = props;
+
   const coloringStrategy = usePointCloudStore(
     (state) => state.coloringStrategy
   );
-  // AutoRotate the canvas on initial load
-  const [autoRotate, setAutoRotate] = useState<boolean>(true);
   const selectedPointIds = usePointCloudStore(
     (state) => state.selectedPointIds
   );
@@ -122,6 +121,15 @@ function Projection(props: ProjectionProps) {
   const setSelectedClusterId = usePointCloudStore(
     (state) => state.setSelectedClusterId
   );
+  const pointGroupColors = usePointCloudStore(
+    (state) => state.pointGroupColors
+  );
+  const pointGroupVisibility = usePointCloudStore(
+    (state) => state.pointGroupVisibility
+  );
+
+  // AutoRotate the canvas on initial load
+  const [autoRotate, setAutoRotate] = useState<boolean>(true);
 
   const allPoints = useMemo(() => {
     return [...primaryData, ...(referenceData || [])];
@@ -140,15 +148,40 @@ function Projection(props: ProjectionProps) {
 
   const isMoveMode = canvasMode === CanvasMode.move;
 
-  // Determine the color of the points based on the strategy
-  const primaryColor = createColorFn({
-    coloringStrategy,
-    defaultColor: DEFAULT_COLOR_SCHEME[0],
-  });
-  const referenceColor = createColorFn({
-    coloringStrategy,
-    defaultColor: DEFAULT_COLOR_SCHEME[1],
-  });
+  const pointToColorGroup = useMemo(() => {
+    const pointToGroup = getPointColorGroup(coloringStrategy);
+    return allPoints.reduce((acc, point) => {
+      acc[point.metaData.id] = pointToGroup(point);
+      return acc;
+    }, {} as Record<string, string>);
+  }, [coloringStrategy, allPoints]);
+
+  // Color the points by their corresponding group
+  const colorFn = useCallback(
+    (point: PointBaseProps) => {
+      const group = pointToColorGroup[point.metaData.id];
+      return pointGroupColors[group];
+    },
+    [pointGroupColors, pointToColorGroup]
+  );
+
+  // Filter the points by the group visibility
+  const filteredPrimaryData = useMemo(() => {
+    return primaryData.filter((point) => {
+      const group = pointToColorGroup[point.metaData.id];
+      return pointGroupVisibility[group];
+    });
+  }, [primaryData, pointToColorGroup, pointGroupVisibility]);
+
+  const filteredReferenceData = useMemo(() => {
+    if (!referenceData) {
+      return null;
+    }
+    return referenceData.filter((point) => {
+      const group = pointToColorGroup[point.metaData.id];
+      return pointGroupVisibility[group];
+    });
+  }, [referenceData, pointToColorGroup, pointGroupVisibility]);
   return (
     <ThreeDimensionalCanvas camera={{ position: [0, 0, 10] }}>
       <ThreeDimensionalControls
@@ -175,11 +208,10 @@ function Projection(props: ProjectionProps) {
         />
         <Axes size={(bounds.maxX - bounds.minX) / 4} />
         <PointCloudPoints
-          primaryData={primaryData}
-          referenceData={referenceData}
+          primaryData={filteredPrimaryData}
+          referenceData={filteredReferenceData}
           selectedIds={selectedPointIds}
-          primaryColor={primaryColor}
-          referenceColor={referenceColor}
+          color={colorFn}
           radius={radius}
         />
         <PointCloudClusters
