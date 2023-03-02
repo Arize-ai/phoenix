@@ -210,9 +210,17 @@ class EmbeddingDimension(Node):
                             EventId(row_id, dataset_id),
                             dataset.get_embedding_vector_column(self.name).iloc[row_id],
                         )
-                        for row_id in range(
-                            *row_interval_from_sorted_time_index(
-                                dataset.dataframe.index, start=time_range.start, end=time_range.end
+                        for row_id in (
+                            range(
+                                *(
+                                    row_interval_from_sorted_time_index(
+                                        dataset.dataframe.index,
+                                        start=time_range.start,
+                                        end=time_range.end,
+                                    )
+                                    if dataset_id == DatasetType.PRIMARY
+                                    else (len(dataset.dataframe),)
+                                )
                             )
                         )[:n_samples]
                     )
