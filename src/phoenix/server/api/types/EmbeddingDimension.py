@@ -200,7 +200,6 @@ class EmbeddingDimension(Node):
             DatasetType.REFERENCE: info.context.model.reference_dataset,
         }
 
-        # TODO: actual random sampling with seed
         data = dict(
             chain.from_iterable(
                 (

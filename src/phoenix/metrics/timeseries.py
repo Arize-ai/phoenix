@@ -40,17 +40,17 @@ def _calculate(df: pd.DataFrame, calcs: Iterable[Metric]) -> "pd.Series[Any]":
     return pd.Series(dict(calc(df) for calc in calcs))
 
 
-Start: TypeAlias = int
-Stop: TypeAlias = int
+StartIndex: TypeAlias = int
+StopIndex: TypeAlias = int
 
 
 def row_interval_from_sorted_time_index(
     idx: pd.Index, start: datetime, end: datetime
-) -> Tuple[Start, Stop]:
+) -> Tuple[StartIndex, StopIndex]:
     """
     Returns end exclusive time slice from sorted index.
     """
-    return cast(Tuple[Start, Stop], idx.searchsorted((start, end)))
+    return cast(Tuple[StartIndex, StopIndex], idx.searchsorted((start, end)))
 
 
 def _aggregator(
