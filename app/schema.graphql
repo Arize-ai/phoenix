@@ -8,6 +8,9 @@ enum DataQualityMetric {
   percentEmpty
   mean
   sum
+  min
+  max
+  count
 }
 
 type DataQualityTimeSeries implements TimeSeries {
