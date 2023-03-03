@@ -99,6 +99,11 @@ type EmbeddingDimension implements Node {
   id: GlobalID!
   name: String!
   driftMetric(metric: DriftMetric!, timeRange: TimeRange!): Float
+
+  """
+  Returns the time series of the specified metric for data within timeRange. Data points are generated starting at the end time, are separated by the sampling interval. Each data point is labeled by the end instant of and contains data from their respective evaluation window.
+  """
+  dataQualityTimeSeries(metric: DataQualityMetric!, timeRange: TimeRange!, granularity: Granularity!): DataQualityTimeSeries!
   driftTimeSeries(
     metric: DriftMetric!
 
