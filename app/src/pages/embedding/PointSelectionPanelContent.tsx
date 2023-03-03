@@ -1,18 +1,44 @@
 import React, { useMemo } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { Column } from "react-table";
+import { css } from "@emotion/react";
 
-import { TabPane, Tabs } from "@arizeai/components";
+import { Button, CloseOutline, Icon, TabPane, Tabs } from "@arizeai/components";
 
+import { SelectionDisplayRadioGroup } from "@phoenix/components/canvas";
+import { EventItem } from "@phoenix/components/event";
+import { Toolbar } from "@phoenix/components/filter";
 import { Table } from "@phoenix/components/table";
 import { usePointCloudStore } from "@phoenix/store";
+import { SelectionDisplay } from "@phoenix/types";
 
-import { PointSelectionPanelContentQuery } from "./__generated__/PointSelectionPanelContentQuery.graphql";
+import {
+  PointSelectionPanelContentQuery,
+  PointSelectionPanelContentQuery$data,
+} from "./__generated__/PointSelectionPanelContentQuery.graphql";
+import { UMAPPointsEntry } from "./types";
 
-export function PointSelectionPanelContent() {
+type EventsList =
+  PointSelectionPanelContentQuery$data["model"]["primaryDataset"]["events"];
+
+export function PointSelectionPanelContent({
+  pointIdToDataMap,
+}: {
+  pointIdToDataMap: Record<string, UMAPPointsEntry>;
+}) {
   const selectedPointIds = usePointCloudStore(
     (state) => state.selectedPointIds
   );
+  const setSelectedPointIds = usePointCloudStore(
+    (state) => state.setSelectedPointIds
+  );
+  const { selectionDisplay, setSelectionDisplay } = usePointCloudStore(
+    (state) => ({
+      selectionDisplay: state.selectionDisplay,
+      setSelectionDisplay: state.setSelectionDisplay,
+    })
+  );
+
   const { primaryEventIds, referenceEventIds } = useMemo(() => {
     const primaryEventIds: string[] = [];
     const referenceEventIds: string[] = [];
@@ -73,20 +99,24 @@ export function PointSelectionPanelContent() {
     }
   );
 
-  const allEvents = useMemo(() => {
+  const allSelectedEvents = useMemo(() => {
     const primaryEvents = data.model?.primaryDataset?.events ?? [];
     const referenceEvents = data.model?.referenceDataset?.events ?? [];
     return [...primaryEvents, ...referenceEvents];
   }, [data]);
 
+  const onClose = () => {
+    setSelectedPointIds(new Set());
+  };
+
   const tableData = useMemo(() => {
-    return allEvents.map((event) => {
+    return allSelectedEvents.map((event) => {
       return {
         actualLabel: event.eventMetadata?.actualLabel,
         predictionLabel: event.eventMetadata?.predictionLabel,
       };
     });
-  }, [allEvents]);
+  }, [allSelectedEvents]);
 
   const columns: Column<typeof tableData[number]>[] = [
     {
@@ -100,11 +130,85 @@ export function PointSelectionPanelContent() {
   ];
 
   return (
-    // @ts-expect-error add more tabs
-    <Tabs>
-      <TabPane name="Selection">
-        <Table columns={columns} data={tableData} />
-      </TabPane>
-    </Tabs>
+    <section
+      css={css`
+        width: 100%;
+        height: 100%;
+        position: relative;
+        /* Give spacing for the close icon */
+        & > .ac-tabs {
+          padding-top: 17px;
+        }
+      `}
+    >
+      <div
+        role="toolbar"
+        css={css`
+          position: absolute;
+          top: var(--px-spacing-med);
+          right: var(--px-spacing-lg);
+        `}
+      >
+        <Button
+          variant="default"
+          size="compact"
+          icon={<Icon svg={<CloseOutline />} />}
+          aria-label="Clear selection"
+          onClick={onClose}
+        />
+      </div>
+      {/* @ts-expect-error more tabs to come */}
+      <Tabs>
+        <TabPane name="Selection">
+          <Toolbar
+            extra={
+              <SelectionDisplayRadioGroup
+                mode={selectionDisplay}
+                onChange={(displayMode) => {
+                  setSelectionDisplay(displayMode);
+                }}
+              />
+            }
+          />
+          {selectionDisplay === SelectionDisplay.list ? (
+            <Table columns={columns} data={tableData} />
+          ) : (
+            <SelectionGridView events={allSelectedEvents} />
+          )}
+        </TabPane>
+      </Tabs>
+    </section>
+  );
+}
+
+type SelectionGridViewProps = {
+  events: EventsList;
+  pointIdToDataMap: Record<string, UMAPPointsEntry>;
+};
+function SelectionGridView(props: SelectionGridViewProps) {
+  const { events } = props;
+  return (
+    <ul
+      css={css`
+        margin: var(--px-spacing-lg);
+        display: flex;
+        flex-direction: row;
+        flex-wrap: wrap;
+        gap: var(--px-spacing-lg);
+        & > li {
+          min-width: 200px;
+          height: 200px;
+        }
+      `}
+    >
+      {events.map((event, idx) => {
+        const data = pointIdToDataMap[event.id];
+        return (
+          <li key={idx}>
+            <EventItem rawData={"blabla"} />
+          </li>
+        );
+      })}
+    </ul>
   );
 }

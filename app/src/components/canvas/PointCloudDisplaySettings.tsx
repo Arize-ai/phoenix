@@ -26,8 +26,8 @@ export function PointCloudDisplaySettings() {
     <section
       css={css`
         & > .ac-form {
-          padding: var(--px-padding-med) var(--px-padding-med) 0
-            var(--px-padding-med);
+          padding: var(--px-spacing-med) var(--px-spacing-med) 0
+            var(--px-spacing-med);
         }
       `}
     >

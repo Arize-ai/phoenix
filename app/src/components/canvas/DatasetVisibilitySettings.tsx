@@ -61,7 +61,7 @@ export function DatasetVisibilitySettings() {
       css={css`
         display: flex;
         flex-direction: column;
-        padding: var(--px-padding-med);
+        padding: var(--px-spacing-med);
       `}
     >
       <VisibilityCheckboxField

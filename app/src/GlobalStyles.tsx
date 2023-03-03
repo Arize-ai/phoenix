@@ -41,8 +41,9 @@ export function GlobalStyles() {
 
           --px-section-background-color: ${theme.colors.gray500};
 
-          --px-padding-sm: ${theme.spacing.padding4}px;
-          --px-padding-med: ${theme.spacing.padding8}px;
+          --px-spacing-sm: ${theme.spacing.padding4}px;
+          --px-spacing-med: ${theme.spacing.padding8}px;
+          --px-spacing-lg: ${theme.spacing.padding16}px;
         }
       `}
     />
