@@ -51,6 +51,16 @@ class VectorMean(UnaryOperator, VectorOperator, BaseMetric):
             )
 
 
+class Min(UnaryOperator, BaseMetric):
+    def calc(self, df: pd.DataFrame) -> float:
+        return cast(float, df.loc[:, self.operand].min())
+
+
+class Max(UnaryOperator, BaseMetric):
+    def calc(self, df: pd.DataFrame) -> float:
+        return cast(float, df.loc[:, self.operand].max())
+
+
 class Cardinality(UnaryOperator, BaseMetric):
     def calc(self, df: pd.DataFrame) -> int:
         return df.loc[:, self.operand].nunique()

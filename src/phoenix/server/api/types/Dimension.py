@@ -1,3 +1,4 @@
+import math
 from datetime import timedelta
 from typing import List, Optional
 
@@ -34,12 +35,12 @@ class Dimension(Node):
     async def dataQualityMetric(
         self, metric: DataQualityMetric, info: Info[Context, None]
     ) -> Optional[float]:
-        dimension_name = self.name
-        if metric is DataQualityMetric.cardinality:
-            return await info.context.loaders.cardinality.load(dimension_name)
-        elif metric is DataQualityMetric.percentEmpty:
-            return await info.context.loaders.percent_empty.load(dimension_name)
-        raise NotImplementedError(f"Metric {metric} is not implemented.")
+        metric_cls = METRICS.get(metric.value, None)
+        if not metric_cls or not issubclass(metric_cls, UnaryOperator):
+            raise NotImplementedError(f"Metric {metric} is not implemented.")
+        df = info.context.model.primary_dataset.dataframe
+        _, ans = metric_cls(self.name)(df)
+        return None if math.isnan(ans) else ans
 
     @strawberry.field(
         description=(
