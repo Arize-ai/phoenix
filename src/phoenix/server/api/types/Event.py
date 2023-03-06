@@ -1,4 +1,4 @@
-from typing import List, TypeAlias
+from typing import List
 
 import strawberry
 
