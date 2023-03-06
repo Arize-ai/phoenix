@@ -139,6 +139,7 @@ type EmbeddingMetadata {
 }
 
 type Event {
+  id: ID!
   eventMetadata: EventMetadata!
   dimensions: [DimensionWithValue!]!
 }

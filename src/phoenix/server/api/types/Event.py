@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, TypeAlias
 
 import strawberry
 
@@ -8,5 +8,6 @@ from .EventMetadata import EventMetadata
 
 @strawberry.type
 class Event:
+    id: strawberry.ID
     eventMetadata: EventMetadata
     dimensions: List[DimensionWithValue]
