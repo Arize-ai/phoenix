@@ -226,3 +226,4 @@ exclude = ["__init__.py", ".git", "__pycache__", "docs/source/conf.py"]
 ignore = []
 line-length = 100
 select = ["E", "F", "W"]
+target-version = "py38"
