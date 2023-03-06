@@ -317,12 +317,14 @@ class EmbeddingDimension(Node):
                 pass
 
             try:
-                link_to_data = dataset.get_embedding_link_to_data_column(self.name)[row_id]
+                if col := dataset.get_embedding_link_to_data_column(self.name):
+                    link_to_data = col[row_id]
             except SchemaError:
                 pass
 
             try:
-                raw_data = dataset.get_embedding_raw_data_column(self.name)[row_id]
+                if col := dataset.get_embedding_raw_data_column(self.name):
+                    raw_data = col[row_id]
             except SchemaError:
                 pass
 
