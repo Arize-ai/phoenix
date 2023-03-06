@@ -173,9 +173,6 @@ pypi = [
   "twine upload --verbose dist/*",
 ]
 
-[tool.isort]
-profile = "black"
-
 [tool.black]
 line-length = 100
 
