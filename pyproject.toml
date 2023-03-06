@@ -99,8 +99,7 @@ detached = true
 dependencies = [
   "black~=23.1.0",
   "black[jupyter]~=23.1.0",
-  "flake8~=6.0.0",
-  "isort~=5.12.0",
+  "ruff~=0.0.254",
 ]
 
 [tool.hatch.envs.docs]
@@ -150,14 +149,12 @@ check = [
 
 [tool.hatch.envs.style.scripts]
 check = [
-  "isort --check-only --diff .",
   "black --check --diff --color .",
-  "flake8 .",
+  "ruff .",
 ]
 fix = [
-  "isort .",
   "black .",
-  "flake8 .",
+  "ruff .",
 ]
 
 [tool.hatch.envs.publish]
@@ -226,3 +223,9 @@ module = [
   "umap",
 ]
 ignore_missing_imports = true
+
+[tool.ruff]
+exclude = ["__init__.py", ".git", "__pycache__", "docs/source/conf.py"]
+ignore = []
+line-length = 100
+select = ["E", "F", "W"]
