@@ -34,6 +34,7 @@ export function PointSelectionPanelContent() {
         model {
           primaryDataset {
             events(eventIds: $primaryEventIds) {
+              id
               dimensions {
                 dimension {
                   name
@@ -49,6 +50,7 @@ export function PointSelectionPanelContent() {
           }
           referenceDataset {
             events(eventIds: $referenceEventIds) {
+              id
               dimensions {
                 dimension {
                   name

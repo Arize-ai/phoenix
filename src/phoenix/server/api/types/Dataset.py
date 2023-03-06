@@ -12,6 +12,7 @@ from phoenix.core.dimension_type import DimensionType
 from phoenix.datasets import Dataset as InternalDataset
 from phoenix.datasets import Schema
 from phoenix.datasets.dataset import DatasetType
+from phoenix.datasets.event import EventId
 
 from ..context import Context
 from ..input_types.DimensionInput import DimensionInput
@@ -68,6 +69,8 @@ class Dataset:
         ]
         return [
             _create_event(
+                row_index=row_index,
+                dataset_type=self.type,
                 row=dataframe.iloc[row_index, column_indexes],
                 schema=schema,
                 dimensions=requested_gql_dimensions,
@@ -118,7 +121,13 @@ def _get_requested_features_and_tags(
     return requested_features_and_tags
 
 
-def _create_event(row: "Series[Any]", schema: Schema, dimensions: List[Dimension]) -> Event:
+def _create_event(
+    row_index: int,
+    dataset_type: "DatasetType",
+    row: "Series[Any]",
+    schema: Schema,
+    dimensions: List[Dimension],
+) -> Event:
     """
     Reads dimension values and event metadata from a dataframe row and returns
     an event containing this information.
@@ -140,4 +149,9 @@ def _create_event(row: "Series[Any]", schema: Schema, dimensions: List[Dimension
         )
         for dim in dimensions
     ]
-    return Event(eventMetadata=event_metadata, dimensions=dimensions_with_values)
+
+    return Event(
+        id=ID(str(EventId(row_id=row_index, dataset_id=dataset_type))),
+        eventMetadata=event_metadata,
+        dimensions=dimensions_with_values,
+    )
