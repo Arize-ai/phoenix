@@ -277,15 +277,13 @@ class EmbeddingDimension(Node):
             except SchemaError:
                 pass
 
-            try:
-                link_to_data = dataset.get_embedding_link_to_data_column(self.name)[row_id]
-            except SchemaError:
-                pass
+            link_to_data_column = dataset.get_embedding_link_to_data_column(self.name)
+            if link_to_data_column is not None:
+                link_to_data = link_to_data_column[row_id]
 
-            try:
-                raw_data = dataset.get_embedding_raw_data_column(self.name)[row_id]
-            except SchemaError:
-                pass
+            embedding_raw_data_column = dataset.get_embedding_raw_data_column(self.name)
+            if embedding_raw_data_column is not None:
+                raw_data = embedding_raw_data_column[row_id]
 
             points[dataset_id].append(
                 UMAPPoint(

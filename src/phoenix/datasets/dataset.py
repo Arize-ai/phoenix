@@ -175,15 +175,15 @@ class Dataset:
         vector_column = self.dataframe[column_names.vector_column_name]
         return vector_column
 
-    def get_embedding_raw_data_column(self, embedding_feature_name: str) -> "Series[str]":
+    def get_embedding_raw_data_column(self, embedding_feature_name: str) -> "Optional[Series[str]]":
         column_names = self._get_embedding_feature_column_names(embedding_feature_name)
-        if column_names.raw_data_column_name is None:
-            raise err.SchemaError(
-                err.MissingEmbeddingFeatureRawDataColumnName(embedding_feature_name)
-            )
-        return self.dataframe[column_names.raw_data_column_name]
+        if column_names.raw_data_column_name is not None:
+            return self.dataframe[column_names.raw_data_column_name]
+        return None
 
-    def get_embedding_link_to_data_column(self, embedding_feature_name: str) -> "Series[str]":
+    def get_embedding_link_to_data_column(
+        self, embedding_feature_name: str
+    ) -> "Optional[Series[str]]":
         column_names = self._get_embedding_feature_column_names(embedding_feature_name)
         if column_names.link_to_data_column_name is not None:
             return self.dataframe[column_names.link_to_data_column_name]
