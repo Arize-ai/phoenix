@@ -316,10 +316,12 @@ class EmbeddingDimension(Node):
             except SchemaError:
                 pass
 
-            if col := dataset.get_embedding_link_to_data_column(self.name):
+            col = dataset.get_embedding_link_to_data_column(self.name)
+            if len(col):
                 link_to_data = col[row_id]
 
-            if col := dataset.get_embedding_raw_data_column(self.name):
+            col = dataset.get_embedding_raw_data_column(self.name)
+            if len(col):
                 raw_data = col[row_id]
 
             points[dataset_id].append(
