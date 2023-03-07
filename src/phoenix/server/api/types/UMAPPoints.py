@@ -79,7 +79,7 @@ class UMAPPoint:
     """point and metadata for a UMAP plot"""
 
     """A unique ID for the the point"""
-    id: ID
+    id: PointId
 
     """The coordinates of the point. Can be two or three dimensional"""
     coordinates: Union[Point2D, Point3D]
