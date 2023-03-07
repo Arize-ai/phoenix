@@ -6,13 +6,14 @@ import strawberry
 from strawberry.scalars import ID
 from typing_extensions import TypeAlias
 
-from phoenix.datasets.dataset import DatasetType
+from phoenix.core.embedding_dimension import calculate_drift_ratio
 from phoenix.datasets.event import EventId
 
 from .EmbeddingMetadata import EmbeddingMetadata
 from .EventMetadata import EventMetadata
 
 ClusterId: TypeAlias = ID
+PointId: TypeAlias = ID
 
 
 @strawberry.type
@@ -20,10 +21,10 @@ class Cluster:
     """A grouping of points in a UMAP plot"""
 
     """The ID of the cluster"""
-    id: ID
+    id: PointId
 
     """A list of points that belong to the cluster"""
-    point_ids: List[EventId]
+    point_ids: List[PointId]
 
     """A list of points that belong to the cluster"""
     drift_ratio: Optional[float] = strawberry.field(
@@ -34,37 +35,23 @@ class Cluster:
 def to_gql_clusters(cluster_membership: Dict[EventId, int]) -> List[Cluster]:
     clusters: Dict[int, Set[EventId]] = {}
     for event_id, cluster_id in cluster_membership.items():
-        if clusters[cluster_id] is None:
-            clusters[cluster_id] = {event_id}
-        else:
+        if cluster_id in clusters:
             clusters[cluster_id].add(event_id)
+        else:
+            clusters[cluster_id] = {event_id}
 
     gql_clusters: List[Cluster] = []
     for cluster_id, cluster_events in clusters.items():
         gql_clusters.append(
             Cluster(
                 id=ID(str(cluster_id)),
-                point_ids=list(cluster_events),
-                drift_ratio=_calculate_drift_ratio(cluster_events),
+                point_ids=[ID(str(event)) for event in cluster_events],
+                drift_ratio=calculate_drift_ratio(cluster_events),
             )
         )
 
     return gql_clusters
 
-
-def _calculate_drift_ratio(events: Set[EventId]) -> float:
-    primary_point_count = 0
-    reference_point_count = 0
-
-    for event in events:
-        if event.dataset_id == DatasetType.PRIMARY:
-            primary_point_count += 1
-        else:
-            reference_point_count += 1
-
-    return (primary_point_count - reference_point_count) / (
-        primary_point_count + reference_point_count
-    )
 
 
 @strawberry.type
