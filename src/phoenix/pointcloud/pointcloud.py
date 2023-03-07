@@ -11,6 +11,7 @@ Vector: TypeAlias = npt.NDArray[np.float64]
 Matrix: TypeAlias = npt.NDArray[np.float64]
 RowIndex: TypeAlias = int
 Identifier = TypeVar("Identifier", bound=Hashable)
+ClusterId: TypeAlias = int
 
 
 class DimensionalityReducer(Protocol):
@@ -32,7 +33,7 @@ class PointCloud:
         self,
         data: Mapping[Identifier, Vector],
         n_components: int = 3,
-    ) -> Tuple[Dict[Identifier, Vector], Dict[Identifier, int]]:
+    ) -> Tuple[Dict[Identifier, Vector], Dict[Identifier, ClusterId]]:
         """
         Given a set of vectors, projects them onto lower dimensions, and
         finds clusters among the projections.

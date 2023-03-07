@@ -21,7 +21,7 @@ class Cluster:
     """A grouping of points in a UMAP plot"""
 
     """The ID of the cluster"""
-    id: PointId
+    id: ClusterId
 
     """A list of points that belong to the cluster"""
     point_ids: List[PointId]
