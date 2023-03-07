@@ -225,5 +225,5 @@ ignore_missing_imports = true
 exclude = ["__init__.py", ".git", "__pycache__", "docs/source/conf.py"]
 ignore = []
 line-length = 100
-select = ["E", "F", "W", "I001"]
+select = ["E", "F", "W", "I"]
 target-version = "py38"
