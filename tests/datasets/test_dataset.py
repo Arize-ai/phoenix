@@ -9,8 +9,6 @@ from dataclasses import replace
 import numpy as np
 import pandas as pd
 from pandas import DataFrame, to_datetime
-from pytest import LogCaptureFixture, raises
-
 from phoenix.datasets.dataset import (
     Dataset,
     EmbeddingColumnNames,
@@ -18,6 +16,7 @@ from phoenix.datasets.dataset import (
     _parse_dataframe_and_schema,
 )
 from phoenix.datasets.errors import DatasetError
+from pytest import LogCaptureFixture, raises
 
 
 class TestParseDataFrameAndSchema:
