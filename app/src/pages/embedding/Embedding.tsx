@@ -401,7 +401,9 @@ function SelectionPanel(props: {
         >
           <PointSelectionPanelContentWrap>
             <Suspense fallback={"Loading"}>
-              <PointSelectionPanelContent pointIdToDataMap={pointIdToDataMap} />
+              <PointSelectionPanelContent
+                pointIdToDataMap={props.pointIdToDataMap}
+              />
             </Suspense>
           </PointSelectionPanelContentWrap>
         </Panel>

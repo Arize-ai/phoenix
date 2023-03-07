@@ -24,6 +24,7 @@ export function GlobalStyles() {
           margin-block-start: none;
           margin-block-end: 0;
           padding-inline-start: 0;
+          margin-block-start: 0;
         }
 
         :root {
@@ -33,6 +34,7 @@ export function GlobalStyles() {
           --px-primary-color: #9efcfd;
           --px-primary-color--transparent: rgb(158, 252, 253, 0.2);
           --px-reference-color: #baa1f9;
+          --px-reference-color--transparent: #baa1f982;
 
           --px-flex-gap-sm: ${theme.spacing.margin4}px;
           --px-flex-gap-sm: ${theme.spacing.margin8}px;
@@ -44,6 +46,8 @@ export function GlobalStyles() {
           --px-spacing-sm: ${theme.spacing.padding4}px;
           --px-spacing-med: ${theme.spacing.padding8}px;
           --px-spacing-lg: ${theme.spacing.padding16}px;
+
+          --px-gradient-bar-height: 8px;
         }
       `}
     />

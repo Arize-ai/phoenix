@@ -3,14 +3,21 @@ import { graphql, useLazyLoadQuery } from "react-relay";
 import { Column } from "react-table";
 import { css } from "@emotion/react";
 
-import { Button, CloseOutline, Icon, TabPane, Tabs } from "@arizeai/components";
+import {
+  Button,
+  CloseOutline,
+  Icon,
+  TabPane,
+  Tabs,
+  Text,
+} from "@arizeai/components";
 
 import { SelectionDisplayRadioGroup } from "@phoenix/components/canvas";
 import { EventItem } from "@phoenix/components/event";
 import { Toolbar } from "@phoenix/components/filter";
 import { Table } from "@phoenix/components/table";
 import { usePointCloudStore } from "@phoenix/store";
-import { SelectionDisplay } from "@phoenix/types";
+import { DatasetType, SelectionDisplay } from "@phoenix/types";
 
 import {
   PointSelectionPanelContentQuery,
@@ -21,11 +28,10 @@ import { UMAPPointsEntry } from "./types";
 type EventsList =
   PointSelectionPanelContentQuery$data["model"]["primaryDataset"]["events"];
 
-export function PointSelectionPanelContent({
-  pointIdToDataMap,
-}: {
-  pointIdToDataMap: Record<string, UMAPPointsEntry>;
+export function PointSelectionPanelContent(props: {
+  pointIdToDataMap: Map<string, UMAPPointsEntry>;
 }) {
+  const { pointIdToDataMap } = props;
   const selectedPointIds = usePointCloudStore(
     (state) => state.selectedPointIds
   );
@@ -130,17 +136,7 @@ export function PointSelectionPanelContent({
   ];
 
   return (
-    <section
-      css={css`
-        width: 100%;
-        height: 100%;
-        position: relative;
-        /* Give spacing for the close icon */
-        & > .ac-tabs {
-          padding-top: 17px;
-        }
-      `}
-    >
+    <section css={pointSelectionPanelCSS}>
       <div
         role="toolbar"
         css={css`
@@ -169,11 +165,16 @@ export function PointSelectionPanelContent({
                 }}
               />
             }
-          />
+          >
+            <Text>{`${allSelectedEvents.length} points selected`}</Text>
+          </Toolbar>
           {selectionDisplay === SelectionDisplay.list ? (
             <Table columns={columns} data={tableData} />
           ) : (
-            <SelectionGridView events={allSelectedEvents} />
+            <SelectionGridView
+              events={allSelectedEvents}
+              pointIdToDataMap={pointIdToDataMap}
+            />
           )}
         </TabPane>
       </Tabs>
@@ -183,29 +184,73 @@ export function PointSelectionPanelContent({
 
 type SelectionGridViewProps = {
   events: EventsList;
-  pointIdToDataMap: Record<string, UMAPPointsEntry>;
+  pointIdToDataMap: Map<string, UMAPPointsEntry>;
 };
+
+const pointSelectionPanelCSS = css`
+  width: 100%;
+  height: 100%;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  /* Give spacing for the close icon */
+  & > .ac-tabs {
+    padding-top: 17px;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    [role="tablist"] {
+      flex: none;
+    }
+    .ac-tabs__pane-container {
+      display: flex;
+      flex-direction: column;
+      flex: 1 1 auto;
+      overflow: hidden;
+      [role="tabpanel"] {
+        display: flex;
+        flex-direction: column;
+        flex: 1 1 auto;
+        overflow: hidden;
+      }
+    }
+  }
+`;
+
 function SelectionGridView(props: SelectionGridViewProps) {
-  const { events } = props;
+  const { events, pointIdToDataMap } = props;
   return (
     <ul
       css={css`
-        margin: var(--px-spacing-lg);
-        display: flex;
-        flex-direction: row;
+        padding: var(--px-spacing-lg);
+        flex: 1 1 auto;
+        overflow-y: auto;
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
         flex-wrap: wrap;
         gap: var(--px-spacing-lg);
         & > li {
           min-width: 200px;
-          height: 200px;
+          height: 208px;
         }
       `}
     >
       {events.map((event, idx) => {
-        const data = pointIdToDataMap[event.id];
+        const data = pointIdToDataMap.get(event.id);
+        const { rawData = null, linkToData = null } =
+          data?.embeddingMetadata ?? {};
+        const datasetType = event.id.includes("PRIMARY")
+          ? DatasetType.primary
+          : DatasetType.reference;
         return (
           <li key={idx}>
-            <EventItem rawData={"blabla"} />
+            <EventItem
+              rawData={rawData}
+              linkToData={linkToData}
+              datasetType={datasetType}
+            />
           </li>
         );
       })}

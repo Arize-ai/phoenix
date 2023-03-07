@@ -125,7 +125,7 @@ const pointCloudStore: StateCreator<PointCloudState> = (set) => ({
     [DatasetGroup.primary]: ColorSchemes.Discrete2.WhiteLightBlue[0],
     [DatasetGroup.reference]: ColorSchemes.Discrete2.WhiteLightBlue[1],
   },
-  selectionDisplay: SelectionDisplay.list,
+  selectionDisplay: SelectionDisplay.gallery,
   setSelectionDisplay: (display) => set({ selectionDisplay: display }),
 });
 
