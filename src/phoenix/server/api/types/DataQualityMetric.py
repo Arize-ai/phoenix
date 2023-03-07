@@ -9,3 +9,6 @@ class DataQualityMetric(Enum):
     percentEmpty = "PercentEmpty"
     mean = "Mean"
     sum = "Sum"
+    min = "Min"
+    max = "Max"
+    count = "Count"

@@ -2,13 +2,12 @@ from typing import Callable, Optional
 from unittest.mock import Mock
 
 import pytest
-from strawberry.schema import Schema as StrawberrySchema
-from strawberry.types.info import Info
-
 from phoenix.core.model import Model
 from phoenix.datasets import Dataset
 from phoenix.server.api.context import Context
 from phoenix.server.api.schema import Query
+from strawberry.schema import Schema as StrawberrySchema
+from strawberry.types.info import Info
 
 
 @pytest.fixture

@@ -17,13 +17,18 @@ from phoenix.datasets.dataset import DatasetType
 from phoenix.datasets.errors import SchemaError
 from phoenix.datasets.event import EventId
 from phoenix.metrics.embeddings import euclidean_distance
-from phoenix.metrics.timeseries import row_interval_from_sorted_time_index
+from phoenix.metrics.mixins import UnaryOperator
+from phoenix.metrics.timeseries import row_interval_from_sorted_time_index, timeseries
 from phoenix.pointcloud.clustering import Hdbscan
 from phoenix.pointcloud.pointcloud import PointCloud
 from phoenix.pointcloud.projectors import Umap
 from phoenix.server.api.context import Context
 from phoenix.server.api.input_types.TimeRange import TimeRange
 
+from ..input_types.Granularity import Granularity, to_timestamps
+from . import METRICS
+from .DataQualityMetric import DataQualityMetric
+from .DataQualityTimeSeries import DataQualityTimeSeries, to_gql_timeseries
 from .DriftMetric import DriftMetric
 from .DriftTimeSeries import DriftTimeSeries
 from .EmbeddingMetadata import EmbeddingMetadata
@@ -93,6 +98,40 @@ class EmbeddingDimension(Node):
         if metric is DriftMetric.euclideanDistance:
             return euclidean_distance(primary_centroid, reference_centroid)
         raise NotImplementedError(f'Metric "{metric}" has not been implemented.')
+
+    @strawberry.field(
+        description=(
+            "Returns the time series of the specified metric for data within timeRange. Data points"
+            " are generated starting at the end time, are separated by the sampling interval. Each"
+            " data point is labeled by the end instant of and contains data from their respective"
+            " evaluation window."
+        )
+    )  # type: ignore  # https://github.com/strawberry-graphql/strawberry/issues/1929
+    def data_quality_time_series(
+        self,
+        info: Info[Context, None],
+        metric: DataQualityMetric,
+        time_range: TimeRange,
+        granularity: Granularity,
+    ) -> DataQualityTimeSeries:
+        metric_cls = METRICS.get(metric.value, None)
+        if not metric_cls or not issubclass(metric_cls, UnaryOperator):
+            raise NotImplementedError(f"Metric {metric} is not implemented.")
+        dataset = info.context.model.primary_dataset
+        metric_instance = metric_cls(dataset.get_embedding_vector_column(self.name).name)
+        return dataset.dataframe.pipe(
+            timeseries(
+                start_time=time_range.start,
+                end_time=time_range.end,
+                evaluation_window=timedelta(minutes=granularity.evaluation_window_minutes),
+                sampling_interval=timedelta(minutes=granularity.sampling_interval_minutes),
+            ),
+            metrics=(metric_instance,),
+        ).pipe(
+            to_gql_timeseries,
+            metric=metric_instance,
+            timestamps=to_timestamps(time_range, granularity),
+        )
 
     @strawberry.field
     def drift_time_series(

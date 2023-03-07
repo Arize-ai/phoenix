@@ -5,14 +5,13 @@ import numpy as np
 import pytest
 from numpy.testing import assert_almost_equal
 from pandas import DataFrame
-from strawberry.types.info import Info
-from typing_extensions import TypeAlias
-
 from phoenix.datasets import Dataset, EmbeddingColumnNames, Schema
 from phoenix.server.api.context import Context
 from phoenix.server.api.input_types.TimeRange import TimeRange
 from phoenix.server.api.types.DriftMetric import DriftMetric
 from phoenix.server.api.types.EmbeddingDimension import EmbeddingDimension
+from strawberry.types.info import Info
+from typing_extensions import TypeAlias
 
 InfoMockFactory: TypeAlias = Callable[[Dataset, Optional[Dataset]], Info[Context, None]]
 

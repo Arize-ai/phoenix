@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<153355ed9f88bcc1dcef6a3291a1659f>>
+ * @generated SignedSource<<6da20bfdf537e095e9c6107659fcf24b>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -29,6 +29,7 @@ export type PointSelectionPanelContentQuery$data = {
           readonly actualLabel: string | null;
           readonly predictionLabel: string | null;
         };
+        readonly id: string;
       }>;
     };
     readonly referenceDataset: {
@@ -44,6 +45,7 @@ export type PointSelectionPanelContentQuery$data = {
           readonly actualLabel: string | null;
           readonly predictionLabel: string | null;
         };
+        readonly id: string;
       }>;
     } | null;
   };
@@ -67,6 +69,13 @@ var v0 = [
   }
 ],
 v1 = [
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "id",
+    "storageKey": null
+  },
   {
     "alias": null,
     "args": null,
@@ -221,16 +230,16 @@ return {
     "selections": (v2/*: any*/)
   },
   "params": {
-    "cacheID": "f6adb3e543f43f69eff7bf548ec1c139",
+    "cacheID": "4ab2b408ffa6453b5ba49fc362c0b25b",
     "id": null,
     "metadata": {},
     "name": "PointSelectionPanelContentQuery",
     "operationKind": "query",
-    "text": "query PointSelectionPanelContentQuery(\n  $primaryEventIds: [ID!]!\n  $referenceEventIds: [ID!]!\n) {\n  model {\n    primaryDataset {\n      events(eventIds: $primaryEventIds) {\n        dimensions {\n          dimension {\n            name\n            type\n          }\n          value\n        }\n        eventMetadata {\n          predictionLabel\n          actualLabel\n        }\n      }\n    }\n    referenceDataset {\n      events(eventIds: $referenceEventIds) {\n        dimensions {\n          dimension {\n            name\n            type\n          }\n          value\n        }\n        eventMetadata {\n          predictionLabel\n          actualLabel\n        }\n      }\n    }\n  }\n}\n"
+    "text": "query PointSelectionPanelContentQuery(\n  $primaryEventIds: [ID!]!\n  $referenceEventIds: [ID!]!\n) {\n  model {\n    primaryDataset {\n      events(eventIds: $primaryEventIds) {\n        id\n        dimensions {\n          dimension {\n            name\n            type\n          }\n          value\n        }\n        eventMetadata {\n          predictionLabel\n          actualLabel\n        }\n      }\n    }\n    referenceDataset {\n      events(eventIds: $referenceEventIds) {\n        id\n        dimensions {\n          dimension {\n            name\n            type\n          }\n          value\n        }\n        eventMetadata {\n          predictionLabel\n          actualLabel\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "34de659f525e55bd322b47171511a9a7";
+(node as any).hash = "89d17228e9e6465e198d6996afd02c24";
 
 export default node;
