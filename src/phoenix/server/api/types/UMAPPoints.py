@@ -53,7 +53,6 @@ def to_gql_clusters(cluster_membership: Dict[EventId, int]) -> List[Cluster]:
     return gql_clusters
 
 
-
 @strawberry.type
 class Point3D:
     x: float
