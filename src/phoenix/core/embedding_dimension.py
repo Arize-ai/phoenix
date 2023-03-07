@@ -11,6 +11,17 @@ class EmbeddingDimension:
 
 
 def calculate_drift_ratio(events: Set[EventId]) -> float:
+    """
+    Calculates the drift score of the cluster. The score will be a value
+    representing the balance of points between the primary and the reference
+    datasets, and will be on a scale between 1 (all primary) and -1 (all
+    reference), with 0 being an even balance between the two datasets.
+
+    Returns
+    -------
+    drift_ratio : float
+
+    """
     primary_point_count = 0
     reference_point_count = 0
 
