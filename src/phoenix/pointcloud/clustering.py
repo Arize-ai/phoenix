@@ -7,7 +7,7 @@ from hdbscan import HDBSCAN
 from typing_extensions import TypeAlias
 
 RowIndex: TypeAlias = int
-Cluster: TypeAlias = Set[RowIndex]
+RawCluster: TypeAlias = Set[RowIndex]
 Matrix: TypeAlias = npt.NDArray[np.float64]
 
 
@@ -16,9 +16,9 @@ class Hdbscan:
     min_cluster_size: int = 20
     min_samples: float = 1
 
-    def find_clusters(self, mat: Matrix) -> List[Cluster]:
+    def find_clusters(self, mat: Matrix) -> List[RawCluster]:
         cluster_ids: npt.NDArray[np.int_] = HDBSCAN(**asdict(self)).fit_predict(mat)
-        ans: List[Cluster] = [set() for _ in range(np.max(cluster_ids) + 1)]
+        ans: List[RawCluster] = [set() for _ in range(np.max(cluster_ids) + 1)]
         for row_idx, cluster_id in enumerate(cluster_ids):
             if cluster_id > -1:
                 ans[cluster_id].add(row_idx)
