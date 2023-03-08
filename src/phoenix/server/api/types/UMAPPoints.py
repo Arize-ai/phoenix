@@ -1,3 +1,4 @@
+import math
 from typing import Dict, List, Optional, Set, Union
 
 import numpy as np
@@ -46,7 +47,9 @@ def to_gql_clusters(cluster_membership: Dict[EventId, int]) -> List[Cluster]:
             Cluster(
                 id=ID(str(cluster_id)),
                 point_ids=[ID(str(event)) for event in cluster_events],
-                drift_ratio=calculate_drift_ratio(cluster_events),
+                drift_ratio=(
+                    None if math.isnan(ratio := calculate_drift_ratio(cluster_events)) else ratio
+                ),
             )
         )
 

@@ -22,6 +22,9 @@ def calculate_drift_ratio(events: Set[EventId]) -> float:
     drift_ratio : float
 
     """
+    if not events:
+        return float("nan")
+
     primary_point_count = 0
     reference_point_count = 0
 
