@@ -4,7 +4,7 @@ import sys
 import uuid
 from copy import deepcopy
 from dataclasses import fields, replace
-from datetime import datetime
+from datetime import datetime, timedelta
 from enum import Enum
 from functools import cached_property
 from typing import Any, Dict, List, Optional, Set, Tuple, Union, cast
@@ -85,9 +85,15 @@ class Dataset:
 
     @cached_property
     def end_time(self) -> datetime:
-        """Returns the datetime of the latest inference in the dataset"""
+        """
+        Returns the datetime of the latest inference in the dataset.
+        end_datetime equals max(timestamp) + 1 microsecond, so that it can be
+        used as part of a right-open interval.
+        """
         timestamp_col_name: str = cast(str, self.schema.timestamp_column_name)
-        end_datetime: datetime = self.__dataframe[timestamp_col_name].max()
+        end_datetime: datetime = self.__dataframe[timestamp_col_name].max() + timedelta(
+            microseconds=1,
+        )  # adding a microsecond, so it can be used as part of a right open interval
         return end_datetime
 
     @property

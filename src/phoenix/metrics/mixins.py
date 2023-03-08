@@ -4,7 +4,7 @@ BaseMetric. Other mixins provide specialized functionalities. Mixins rely
 on cooperative multiple inheritance and method resolution order in Python.
 """
 from abc import ABC, abstractmethod
-from typing import Any, Mapping, Optional, Tuple, Union
+from typing import Any, Mapping, Optional, Tuple
 
 import numpy as np
 import pandas as pd
@@ -21,9 +21,9 @@ class ZeroInitialValue(ABC):
 
 
 class VectorOperator(ABC):
-    shape: Union[int, Tuple[int, ...]]
+    shape: int
 
-    def __init__(self, shape: Union[int, Tuple[int, ...]], **kwargs: Any):
+    def __init__(self, shape: int = 0, **kwargs: Any):
         self.shape = shape
         super().__init__(**kwargs)
 
@@ -89,3 +89,11 @@ class EvaluationMetric(BaseMetric, ABC):
 
     def input_columns(self) -> Tuple[ColumnName, ...]:
         return (self.predicted, self.actual)
+
+
+class DriftMetric(UnaryOperator, BaseMetric, ABC):
+    ref_data: Optional[pd.DataFrame]
+
+    def __init__(self, ref_data: Optional[pd.DataFrame] = None, **kwargs: Any):
+        self.ref_data = ref_data
+        super().__init__(**kwargs)

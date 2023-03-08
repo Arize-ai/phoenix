@@ -57,6 +57,7 @@ export function EuclideanDistanceTimeSeries({
       query EuclideanDistanceTimeSeriesQuery(
         $embeddingDimensionId: GlobalID!
         $timeRange: TimeRange!
+        $granularity: Granularity!
       ) {
         embedding: node(id: $embeddingDimensionId) {
           id
@@ -64,6 +65,7 @@ export function EuclideanDistanceTimeSeries({
             euclideanDistanceTimeSeries: driftTimeSeries(
               metric: euclideanDistance
               timeRange: $timeRange
+              granularity: $granularity
             ) {
               data {
                 timestamp
@@ -79,6 +81,18 @@ export function EuclideanDistanceTimeSeries({
       timeRange: {
         start: timeRange.start.toISOString(),
         end: timeRange.end.toISOString(),
+      },
+      granularity: {
+        evaluationWindowMinutes: Math.round(
+          (((timeRange.end.getTime() - timeRange.start.getTime()) % 86400000) %
+            3600000) /
+            60000
+        ),
+        samplingIntervalMinutes: Math.round(
+          (((timeRange.end.getTime() - timeRange.start.getTime()) % 86400000) %
+            3600000) /
+            60000
+        ),
       },
     }
   );

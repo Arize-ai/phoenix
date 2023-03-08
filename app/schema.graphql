@@ -45,7 +45,7 @@ type Dimension implements Node {
 
   """The data type of the column. Categorical or numeric."""
   dataType: DimensionDataType!
-  dataQualityMetric(metric: DataQualityMetric!): Float
+  dataQualityMetric(metric: DataQualityMetric!, timeRange: TimeRange = null): Float
 
   """
   Returns the observed categories of a categorical dimension (usually a dimension of string values) as a list of unique string labels sorted in lexicographical order. Missing values are excluded. Non-categorical dimensions return an empty list.
@@ -101,18 +101,13 @@ type DriftTimeSeries implements TimeSeries {
 type EmbeddingDimension implements Node {
   id: GlobalID!
   name: String!
-  driftMetric(metric: DriftMetric!, timeRange: TimeRange!): Float
+  driftMetric(metric: DriftMetric!, timeRange: TimeRange = null): Float
 
   """
   Returns the time series of the specified metric for data within timeRange. Data points are generated starting at the end time, are separated by the sampling interval. Each data point is labeled by the end instant of and contains data from their respective evaluation window.
   """
   dataQualityTimeSeries(metric: DataQualityMetric!, timeRange: TimeRange!, granularity: Granularity!): DataQualityTimeSeries!
-  driftTimeSeries(
-    metric: DriftMetric!
-
-    """The time range of the primary dataset"""
-    timeRange: TimeRange!
-  ): DriftTimeSeries
+  driftTimeSeries(metric: DriftMetric!, timeRange: TimeRange!, granularity: Granularity!): DriftTimeSeries!
   UMAPPoints(
     """The time range of the primary dataset to generate the UMAP points for"""
     timeRange: TimeRange!

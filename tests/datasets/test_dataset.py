@@ -5,6 +5,7 @@ Test dataset
 import logging
 import uuid
 from dataclasses import replace
+from datetime import timedelta
 
 import numpy as np
 import pandas as pd
@@ -823,7 +824,7 @@ class TestDataset:
         output_dataset = Dataset(dataframe=input_df, schema=input_schema)
 
         assert output_dataset.start_time == expected_start_time
-        assert output_dataset.end_time == expected_end_time
+        assert output_dataset.end_time == expected_end_time + timedelta(microseconds=1)
 
     @property
     def num_records(self):

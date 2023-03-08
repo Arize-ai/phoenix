@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<800d881a6741bcbb6d567317ff155661>>
+ * @generated SignedSource<<43c12d3f6dd0b8064bae79bb2dca61eb>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -13,8 +13,13 @@ export type TimeRange = {
   end: string;
   start: string;
 };
+export type Granularity = {
+  evaluationWindowMinutes: number;
+  samplingIntervalMinutes: number;
+};
 export type EuclideanDistanceTimeSeriesQuery$variables = {
   embeddingDimensionId: string;
+  granularity: Granularity;
   timeRange: TimeRange;
 };
 export type EuclideanDistanceTimeSeriesQuery$data = {
@@ -24,7 +29,7 @@ export type EuclideanDistanceTimeSeriesQuery$data = {
         readonly timestamp: string;
         readonly value: number | null;
       }>;
-    } | null;
+    };
     readonly id: string;
   };
 };
@@ -34,38 +39,46 @@ export type EuclideanDistanceTimeSeriesQuery = {
 };
 
 const node: ConcreteRequest = (function(){
-var v0 = [
-  {
-    "defaultValue": null,
-    "kind": "LocalArgument",
-    "name": "embeddingDimensionId"
-  },
-  {
-    "defaultValue": null,
-    "kind": "LocalArgument",
-    "name": "timeRange"
-  }
-],
-v1 = [
+var v0 = {
+  "defaultValue": null,
+  "kind": "LocalArgument",
+  "name": "embeddingDimensionId"
+},
+v1 = {
+  "defaultValue": null,
+  "kind": "LocalArgument",
+  "name": "granularity"
+},
+v2 = {
+  "defaultValue": null,
+  "kind": "LocalArgument",
+  "name": "timeRange"
+},
+v3 = [
   {
     "kind": "Variable",
     "name": "id",
     "variableName": "embeddingDimensionId"
   }
 ],
-v2 = {
+v4 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "id",
   "storageKey": null
 },
-v3 = {
+v5 = {
   "kind": "InlineFragment",
   "selections": [
     {
       "alias": "euclideanDistanceTimeSeries",
       "args": [
+        {
+          "kind": "Variable",
+          "name": "granularity",
+          "variableName": "granularity"
+        },
         {
           "kind": "Literal",
           "name": "metric",
@@ -116,21 +129,25 @@ v3 = {
 };
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": [
+      (v0/*: any*/),
+      (v1/*: any*/),
+      (v2/*: any*/)
+    ],
     "kind": "Fragment",
     "metadata": null,
     "name": "EuclideanDistanceTimeSeriesQuery",
     "selections": [
       {
         "alias": "embedding",
-        "args": (v1/*: any*/),
+        "args": (v3/*: any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
-          (v2/*: any*/),
-          (v3/*: any*/)
+          (v4/*: any*/),
+          (v5/*: any*/)
         ],
         "storageKey": null
       }
@@ -140,13 +157,17 @@ return {
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": [
+      (v0/*: any*/),
+      (v2/*: any*/),
+      (v1/*: any*/)
+    ],
     "kind": "Operation",
     "name": "EuclideanDistanceTimeSeriesQuery",
     "selections": [
       {
         "alias": "embedding",
-        "args": (v1/*: any*/),
+        "args": (v3/*: any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
@@ -159,24 +180,24 @@ return {
             "name": "__typename",
             "storageKey": null
           },
-          (v2/*: any*/),
-          (v3/*: any*/)
+          (v4/*: any*/),
+          (v5/*: any*/)
         ],
         "storageKey": null
       }
     ]
   },
   "params": {
-    "cacheID": "7cb0ebbb8c7e16add1ea091b859f664e",
+    "cacheID": "7e6f01c63408d44b5e90f95af16e62ef",
     "id": null,
     "metadata": {},
     "name": "EuclideanDistanceTimeSeriesQuery",
     "operationKind": "query",
-    "text": "query EuclideanDistanceTimeSeriesQuery(\n  $embeddingDimensionId: GlobalID!\n  $timeRange: TimeRange!\n) {\n  embedding: node(id: $embeddingDimensionId) {\n    __typename\n    id\n    ... on EmbeddingDimension {\n      euclideanDistanceTimeSeries: driftTimeSeries(metric: euclideanDistance, timeRange: $timeRange) {\n        data {\n          timestamp\n          value\n        }\n      }\n    }\n  }\n}\n"
+    "text": "query EuclideanDistanceTimeSeriesQuery(\n  $embeddingDimensionId: GlobalID!\n  $timeRange: TimeRange!\n  $granularity: Granularity!\n) {\n  embedding: node(id: $embeddingDimensionId) {\n    __typename\n    id\n    ... on EmbeddingDimension {\n      euclideanDistanceTimeSeries: driftTimeSeries(metric: euclideanDistance, timeRange: $timeRange, granularity: $granularity) {\n        data {\n          timestamp\n          value\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "6aed47f21e902103c4d77bdacad96bd4";
+(node as any).hash = "1c561f44b9b4822f9772c87877426772";
 
 export default node;
