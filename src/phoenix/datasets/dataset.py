@@ -188,7 +188,7 @@ class Dataset:
         if column_names.link_to_data_column_name is not None:
             return self.dataframe[column_names.link_to_data_column_name]
 
-        return Series(dtype=str)
+        return None
 
     @classmethod
     def from_dataframe(

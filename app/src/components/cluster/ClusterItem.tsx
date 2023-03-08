@@ -72,7 +72,7 @@ export function ClusterItem(props: ClusterItemProps) {
             var(--px-primary-color--transparent) 0%,
             var(--px-primary-color)
           );
-          height: 8px;
+          height: var(--px-gradient-bar-height);
         `}
       />
     </div>

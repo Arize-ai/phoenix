@@ -1,16 +1,17 @@
-import React, { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  ReactNode,
+  Suspense,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import {
   graphql,
   PreloadedQuery,
   usePreloadedQuery,
   useQueryLoader,
 } from "react-relay";
-import {
-  ImperativePanelHandle,
-  Panel,
-  PanelGroup,
-  PanelResizeHandle,
-} from "react-resizable-panels";
+import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { subDays } from "date-fns";
 import { css } from "@emotion/react";
 
@@ -160,7 +161,9 @@ function EmbeddingMain() {
     <main
       css={(theme) => css`
         flex: 1 1 auto;
-        height: 100%;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
         background-color: ${theme.colors.gray900};
       `}
     >
@@ -206,7 +209,6 @@ function EmbeddingMain() {
         <Panel order={2}>
           <div
             css={css`
-              flex: 1 1 auto;
               width: 100%;
               height: 100%;
               position: relative;
@@ -260,9 +262,31 @@ const PointCloudDisplay = ({
     queryReference
   );
 
-  const sourceData = data.embedding?.UMAPPoints?.data ?? [];
-  const referenceSourceData = data.embedding?.UMAPPoints?.referenceData;
+  const sourceData = useMemo(
+    () => data.embedding?.UMAPPoints?.data ?? [],
+    [data]
+  );
+  const referenceSourceData = useMemo(
+    () => data.embedding?.UMAPPoints?.referenceData ?? [],
+    [data]
+  );
   const clusters = data.embedding?.UMAPPoints?.clusters || [];
+
+  // Construct a map of point ids to their data
+  const allSourceData = useMemo(() => {
+    if (referenceSourceData) {
+      return [...sourceData, ...referenceSourceData];
+    }
+    return sourceData;
+  }, [referenceSourceData, sourceData]);
+
+  const pointIdToDataMap = useMemo(() => {
+    const map = new Map<string, UMAPPointsEntry>();
+    allSourceData.forEach((entry) => {
+      map.set(entry.id, entry);
+    });
+    return map;
+  }, [allSourceData]);
 
   return (
     <div
@@ -287,6 +311,16 @@ const PointCloudDisplay = ({
           <PanelGroup
             autoSaveId="embedding-controls-vertical"
             direction="vertical"
+            css={css`
+              .ac-tabs {
+                height: 100%;
+                overflow: hidden;
+                .ac-tabs__pane-container {
+                  height: 100%;
+                  overflow-y: auto;
+                }
+              }
+            `}
           >
             <Panel>
               <ClustersPanelContents clusters={clusters} />
@@ -304,57 +338,113 @@ const PointCloudDisplay = ({
         </Panel>
         <PanelResizeHandle css={resizeHandleCSS} />
         <Panel>
-          <PanelGroup direction="vertical">
-            <Panel order={1}>
-              <PointCloud
-                primaryData={
-                  sourceData.map(umapDataEntryToThreeDimensionalPointItem) ?? []
-                }
-                referenceData={
-                  referenceSourceData
-                    ? referenceSourceData.map(
-                        umapDataEntryToThreeDimensionalPointItem
-                      )
-                    : null
-                }
-                clusters={clusters}
-              />
-            </Panel>
-            <PanelResizeHandle css={resizeHandleCSS} />
-            <SelectionPanel />
-          </PanelGroup>
+          <div
+            css={css`
+              position: relative;
+              width: 100%;
+              height: 100%;
+            `}
+          >
+            <PointCloud
+              primaryData={
+                sourceData.map(umapDataEntryToThreeDimensionalPointItem) ?? []
+              }
+              referenceData={
+                referenceSourceData
+                  ? referenceSourceData.map(
+                      umapDataEntryToThreeDimensionalPointItem
+                    )
+                  : null
+              }
+              clusters={clusters}
+            />
+            <SelectionPanel pointIdToDataMap={pointIdToDataMap} />
+          </div>
         </Panel>
       </PanelGroup>
     </div>
   );
 };
 
-function SelectionPanel() {
+function SelectionPanel(props: {
+  pointIdToDataMap: Map<string, UMAPPointsEntry>;
+}) {
   const selectedPointIds = usePointCloudStore(
     (state) => state.selectedPointIds
   );
-  const selectionPanelRef = useRef<ImperativePanelHandle>(null);
+  const setSelectedPointIds = usePointCloudStore(
+    (state) => state.setSelectedPointIds
+  );
+  const setSelectedClusterId = usePointCloudStore(
+    (state) => state.setSelectedClusterId
+  );
 
   if (selectedPointIds.size === 0) {
     return null;
   }
 
   return (
-    <Panel
-      id="embedding-point-selection"
-      defaultSize={20}
-      minSize={20}
-      collapsible
-      order={2}
-      ref={selectionPanelRef}
+    <div
+      css={css`
+        position: absolute;
+        top: 0;
+        left: 0;
+        bottom: 0;
+        right: 0;
+      `}
+      data-testid="selection-panel"
     >
-      <Suspense fallback={"Loading..."}>
-        <PointSelectionPanelContent />
-      </Suspense>
-    </Panel>
+      <PanelGroup direction="vertical">
+        <Panel>
+          <div
+            data-testid="point-cloud-mask"
+            role="button"
+            css={css`
+              width: 100%;
+              height: 100%;
+            `}
+            onClick={() => {
+              setSelectedPointIds(new Set());
+              setSelectedClusterId(null);
+            }}
+          />
+        </Panel>
+        <PanelResizeHandle css={resizeHandleCSS} />
+        <Panel
+          id="embedding-point-selection"
+          defaultSize={40}
+          minSize={20}
+          order={2}
+        >
+          <PointSelectionPanelContentWrap>
+            <Suspense fallback={<Loading />}>
+              <PointSelectionPanelContent
+                pointIdToDataMap={props.pointIdToDataMap}
+              />
+            </Suspense>
+          </PointSelectionPanelContentWrap>
+        </Panel>
+      </PanelGroup>
+    </div>
   );
 }
 
+/**
+ * Wraps the content of the point selection panel so that it can be styled
+ */
+function PointSelectionPanelContentWrap(props: { children: ReactNode }) {
+  return (
+    <div
+      css={(theme) => css`
+        background-color: ${theme.colors.gray900};
+        width: 100%;
+        height: 100%;
+      `}
+    >
+      {props.children}
+    </div>
+  );
+}
 function ClustersPanelContents({
   clusters,
 }: {
@@ -366,6 +456,9 @@ function ClustersPanelContents({
   const setSelectedClusterId = usePointCloudStore(
     (state) => state.setSelectedClusterId
   );
+  const setSelectedPointIds = usePointCloudStore(
+    (state) => state.setSelectedPointIds
+  );
 
   return (
     // @ts-expect-error add more tabs
@@ -374,6 +467,8 @@ function ClustersPanelContents({
         <ul
           css={(theme) =>
             css`
+              flex: 1 1 auto;
+              overflow-y: auto;
               display: flex;
               flex-direction: column;
               gap: ${theme.spacing.margin8}px;
@@ -390,6 +485,7 @@ function ClustersPanelContents({
                   isSelected={selectedClusterId === cluster.id}
                   onClick={() => {
                     setSelectedClusterId(cluster.id);
+                    setSelectedPointIds(new Set(cluster.pointIds));
                   }}
                 />
               </li>
