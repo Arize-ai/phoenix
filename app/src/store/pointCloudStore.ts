@@ -7,6 +7,7 @@ import {
   ColoringStrategy,
   CorrectnessGroup,
   DatasetGroup,
+  SelectionDisplay,
 } from "@phoenix/types";
 import { assertUnreachable } from "@phoenix/typeUtils";
 
@@ -66,6 +67,14 @@ export type PointCloudState = {
    * The colors of each point group in the point cloud.
    */
   pointGroupColors: Record<string, string>;
+  /**
+   * The way in which the selected points are displayed in the selection panel
+   */
+  selectionDisplay: SelectionDisplay;
+  /**
+   * Set the selection display of the selection panel
+   */
+  setSelectionDisplay: (display: SelectionDisplay) => void;
 };
 
 const pointCloudStore: StateCreator<PointCloudState> = (set) => ({
@@ -116,6 +125,8 @@ const pointCloudStore: StateCreator<PointCloudState> = (set) => ({
     [DatasetGroup.primary]: ColorSchemes.Discrete2.WhiteLightBlue[0],
     [DatasetGroup.reference]: ColorSchemes.Discrete2.WhiteLightBlue[1],
   },
+  selectionDisplay: SelectionDisplay.gallery,
+  setSelectionDisplay: (display) => set({ selectionDisplay: display }),
 });
 
 export const usePointCloudStore = create<PointCloudState>()(

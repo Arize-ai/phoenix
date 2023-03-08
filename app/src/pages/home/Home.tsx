@@ -37,13 +37,7 @@ export function Home(_props: HomePageProps) {
           `
         }
       >
-        <TabbedCard
-          title="Model Schema"
-          variant="compact"
-          bodyStyle={{
-            padding: 0,
-          }}
-        >
+        <TabbedCard title="Model Schema" variant="compact">
           <Tabs>
             <TabPane name="Dimensions">
               <ModelSchemaTable model={data} />

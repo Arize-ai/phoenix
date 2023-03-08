@@ -3,6 +3,11 @@ export enum ColoringStrategy {
   correctness = "correctness",
 }
 
+export enum SelectionDisplay {
+  list = "list",
+  gallery = "gallery",
+}
+
 /**
  * Definitions for the color groups as determined by the coloring strategy.
  */
