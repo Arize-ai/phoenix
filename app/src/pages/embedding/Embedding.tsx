@@ -161,7 +161,9 @@ function EmbeddingMain() {
     <main
       css={(theme) => css`
         flex: 1 1 auto;
-        height: 100%;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
         background-color: ${theme.colors.gray900};
       `}
     >
@@ -207,7 +209,6 @@ function EmbeddingMain() {
         <Panel order={2}>
           <div
             css={css`
-              flex: 1 1 auto;
               width: 100%;
               height: 100%;
               position: relative;
@@ -310,6 +311,16 @@ const PointCloudDisplay = ({
           <PanelGroup
             autoSaveId="embedding-controls-vertical"
             direction="vertical"
+            css={css`
+              .ac-tabs {
+                height: 100%;
+                overflow: hidden;
+                .ac-tabs__pane-container {
+                  height: 100%;
+                  overflow-y: auto;
+                }
+              }
+            `}
           >
             <Panel>
               <ClustersPanelContents clusters={clusters} />
@@ -364,6 +375,9 @@ function SelectionPanel(props: {
   const setSelectedPointIds = usePointCloudStore(
     (state) => state.setSelectedPointIds
   );
+  const setSelectedClusterId = usePointCloudStore(
+    (state) => state.setSelectedClusterId
+  );
 
   if (selectedPointIds.size === 0) {
     return null;
@@ -375,8 +389,8 @@ function SelectionPanel(props: {
         position: absolute;
         top: 0;
         left: 0;
-        width: 100%;
-        height: 100%;
+        bottom: 0;
+        right: 0;
       `}
       data-testid="selection-panel"
     >
@@ -389,7 +403,10 @@ function SelectionPanel(props: {
               width: 100%;
               height: 100%;
             `}
-            onClick={() => setSelectedPointIds(new Set())}
+            onClick={() => {
+              setSelectedPointIds(new Set());
+              setSelectedClusterId(null);
+            }}
           />
         </Panel>
         <PanelResizeHandle css={resizeHandleCSS} />
@@ -400,7 +417,7 @@ function SelectionPanel(props: {
           order={2}
         >
           <PointSelectionPanelContentWrap>
-            <Suspense fallback={"Loading"}>
+            <Suspense fallback={<Loading />}>
               <PointSelectionPanelContent
                 pointIdToDataMap={props.pointIdToDataMap}
               />
@@ -439,6 +456,9 @@ function ClustersPanelContents({
   const setSelectedClusterId = usePointCloudStore(
     (state) => state.setSelectedClusterId
   );
+  const setSelectedPointIds = usePointCloudStore(
+    (state) => state.setSelectedPointIds
+  );
 
   return (
     // @ts-expect-error add more tabs
@@ -447,6 +467,8 @@ function ClustersPanelContents({
         <ul
           css={(theme) =>
             css`
+              flex: 1 1 auto;
+              overflow-y: auto;
               display: flex;
               flex-direction: column;
               gap: ${theme.spacing.margin8}px;
@@ -463,6 +485,7 @@ function ClustersPanelContents({
                   isSelected={selectedClusterId === cluster.id}
                   onClick={() => {
                     setSelectedClusterId(cluster.id);
+                    setSelectedPointIds(new Set(cluster.pointIds));
                   }}
                 />
               </li>

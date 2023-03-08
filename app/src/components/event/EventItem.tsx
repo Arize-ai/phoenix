@@ -59,7 +59,16 @@ export function EventItem(props: EventItemProps) {
           `}
         />
       ) : (
-        <p>{rawData}</p>
+        <p
+          css={css`
+            flex: 1 1 auto;
+            padding: var(--px-spacing-med);
+            margin-block-start: 0;
+            margin-block-end: 0;
+          `}
+        >
+          {rawData}
+        </p>
       )}
       <div
         data-testid="event-association"

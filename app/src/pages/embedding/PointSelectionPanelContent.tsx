@@ -38,6 +38,9 @@ export function PointSelectionPanelContent(props: {
   const setSelectedPointIds = usePointCloudStore(
     (state) => state.setSelectedPointIds
   );
+  const setSelectedClusterId = usePointCloudStore(
+    (state) => state.setSelectedClusterId
+  );
   const { selectionDisplay, setSelectionDisplay } = usePointCloudStore(
     (state) => ({
       selectionDisplay: state.selectionDisplay,
@@ -113,6 +116,7 @@ export function PointSelectionPanelContent(props: {
 
   const onClose = () => {
     setSelectedPointIds(new Set());
+    setSelectedClusterId(null);
   };
 
   const tableData = useMemo(() => {
@@ -222,38 +226,44 @@ const pointSelectionPanelCSS = css`
 function SelectionGridView(props: SelectionGridViewProps) {
   const { events, pointIdToDataMap } = props;
   return (
-    <ul
+    <div
       css={css`
-        padding: var(--px-spacing-lg);
         flex: 1 1 auto;
         overflow-y: auto;
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-        flex-wrap: wrap;
-        gap: var(--px-spacing-lg);
-        & > li {
-          min-width: 200px;
-          height: 208px;
-        }
       `}
+      data-testid="grid-view-scroll-container"
     >
-      {events.map((event, idx) => {
-        const data = pointIdToDataMap.get(event.id);
-        const { rawData = null, linkToData = null } =
-          data?.embeddingMetadata ?? {};
-        const datasetType = event.id.includes("PRIMARY")
-          ? DatasetType.primary
-          : DatasetType.reference;
-        return (
-          <li key={idx}>
-            <EventItem
-              rawData={rawData}
-              linkToData={linkToData}
-              datasetType={datasetType}
-            />
-          </li>
-        );
-      })}
-    </ul>
+      <ul
+        css={css`
+          padding: var(--px-spacing-lg);
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+          flex-wrap: wrap;
+          gap: var(--px-spacing-lg);
+          & > li {
+            min-width: 200px;
+            min-height: 208px;
+          }
+        `}
+      >
+        {events.map((event, idx) => {
+          const data = pointIdToDataMap.get(event.id);
+          const { rawData = null, linkToData = null } =
+            data?.embeddingMetadata ?? {};
+          const datasetType = event.id.includes("PRIMARY")
+            ? DatasetType.primary
+            : DatasetType.reference;
+          return (
+            <li key={idx}>
+              <EventItem
+                rawData={rawData}
+                linkToData={linkToData}
+                datasetType={datasetType}
+              />
+            </li>
+          );
+        })}
+      </ul>
+    </div>
   );
 }
