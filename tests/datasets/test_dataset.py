@@ -804,14 +804,14 @@ class TestDataset:
             Dataset(dataframe=input_df, schema=input_schema)
 
     def test_dataset_bookends(self) -> None:
-        expected_start_time = pd.Timestamp(year=2023, month=1, day=1, hour=2, second=30)
-        expected_end_time = pd.Timestamp(year=2023, month=1, day=10, hour=6, second=20)
+        raw_data_min_time = pd.Timestamp(year=2023, month=1, day=1, hour=2, second=30)
+        raw_data_max_time = pd.Timestamp(year=2023, month=1, day=10, hour=6, second=20)
         input_df = DataFrame(
             {
                 "prediction_label": ["apple", "orange", "grape"],
                 "timestamp": [
-                    expected_end_time,
-                    expected_start_time,
+                    raw_data_max_time,
+                    raw_data_min_time,
                     pd.Timestamp(year=2023, month=1, day=5, hour=4, second=25),
                 ],
             }
@@ -823,8 +823,8 @@ class TestDataset:
         )
         output_dataset = Dataset(dataframe=input_df, schema=input_schema)
 
-        assert output_dataset.start_time == expected_start_time
-        assert output_dataset.end_time == expected_end_time + timedelta(microseconds=1)
+        assert output_dataset.start_time == raw_data_min_time
+        assert output_dataset.end_time == raw_data_max_time + timedelta(microseconds=1)
 
     @property
     def num_records(self):
