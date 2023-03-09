@@ -91,7 +91,7 @@ class EvaluationMetric(BaseMetric, ABC):
         return (self.predicted, self.actual)
 
 
-class DriftMetric(UnaryOperator, BaseMetric, ABC):
+class DriftOperator(UnaryOperator, BaseMetric, ABC):
     ref_data: Optional[pd.DataFrame]
 
     def __init__(self, ref_data: Optional[pd.DataFrame] = None, **kwargs: Any):

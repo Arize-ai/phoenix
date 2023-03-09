@@ -1,7 +1,7 @@
 from collections import defaultdict
 from datetime import datetime, timedelta
 from itertools import chain
-from typing import Any, Optional, cast
+from typing import Any, Optional
 
 import numpy as np
 import numpy.typing as npt
@@ -29,7 +29,7 @@ from .DriftMetric import DriftMetric
 from .EmbeddingMetadata import EmbeddingMetadata
 from .EventMetadata import EventMetadata
 from .node import Node
-from .TimeSeries import DataQualityTimeSeries, DriftTimeSeries, get_timeseries
+from .TimeSeries import DataQualityTimeSeries, DriftTimeSeries
 from .UMAPPoints import UMAPPoint, UMAPPoints, to_gql_clusters, to_gql_coordinates
 
 # Default UMAP hyperparameters
@@ -62,7 +62,14 @@ class EmbeddingDimension(Node):
         exists, if no primary data exists in the input time range, or if the
         input time range is invalid.
         """
-        if len(data := get_timeseries(self.name, info, metric, time_range).data):
+        if len(
+            data := DriftTimeSeries(
+                self.name,
+                info.context.model,
+                metric,
+                time_range,
+            ).data
+        ):
             return data.pop().value
         return None
 
@@ -81,11 +88,13 @@ class EmbeddingDimension(Node):
         time_range: TimeRange,
         granularity: Granularity,
     ) -> DataQualityTimeSeries:
-        assert (
-            type(ans := get_timeseries(self.name, info, metric, time_range, granularity))
-            is DataQualityTimeSeries
+        return DataQualityTimeSeries(
+            self.name,
+            info.context.model,
+            metric,
+            time_range,
+            granularity,
         )
-        return cast(DataQualityTimeSeries, ans)
 
     @strawberry.field
     def drift_time_series(
@@ -106,11 +115,7 @@ class EmbeddingDimension(Node):
         Returns None if no reference dataset exists or if the input time range
         is invalid.
         """
-        assert (
-            type(ans := get_timeseries(self.name, info, metric, time_range, granularity))
-            is DriftTimeSeries
-        )
-        return cast(DriftTimeSeries, ans)
+        return DriftTimeSeries(self.name, info.context.model, metric, time_range, granularity)
 
     @strawberry.field
     def UMAPPoints(

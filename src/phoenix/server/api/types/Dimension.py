@@ -1,4 +1,4 @@
-from typing import List, Optional, cast
+from typing import List, Optional
 
 import strawberry
 from strawberry.types import Info
@@ -12,7 +12,7 @@ from .DataQualityMetric import DataQualityMetric
 from .DimensionDataType import DimensionDataType
 from .DimensionType import DimensionType
 from .node import Node
-from .TimeSeries import DataQualityTimeSeries, get_timeseries
+from .TimeSeries import DataQualityTimeSeries
 
 
 @strawberry.type
@@ -33,7 +33,14 @@ class Dimension(Node):
         metric: DataQualityMetric,
         time_range: Optional[TimeRange] = None,
     ) -> Optional[float]:
-        if len(data := get_timeseries(self.name, info, metric, time_range).data):
+        if len(
+            data := DataQualityTimeSeries(
+                self.name,
+                info.context.model,
+                metric,
+                time_range,
+            ).data
+        ):
             return data.pop().value
         return None
 
@@ -65,11 +72,13 @@ class Dimension(Node):
         time_range: TimeRange,
         granularity: Granularity,
     ) -> DataQualityTimeSeries:
-        assert (
-            type(ans := get_timeseries(self.name, info, metric, time_range, granularity))
-            is DataQualityTimeSeries
+        return DataQualityTimeSeries(
+            self.name,
+            info.context.model,
+            metric,
+            time_range,
+            granularity,
         )
-        return cast(DataQualityTimeSeries, ans)
 
 
 def to_gql_dimension(id_attr: int, dimension: CoreDimension) -> Dimension:

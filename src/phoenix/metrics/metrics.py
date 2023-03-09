@@ -11,7 +11,7 @@ from scipy.spatial.distance import euclidean  # type: ignore
 
 from .mixins import (
     BaseMetric,
-    DriftMetric,
+    DriftOperator,
     EvaluationMetric,
     OptionalUnaryOperator,
     UnaryOperator,
@@ -84,7 +84,7 @@ class AccuracyScore(EvaluationMetric):
         )
 
 
-class EuclideanDistance(DriftMetric, VectorOperator):
+class EuclideanDistance(DriftOperator, VectorOperator):
     @cached_property
     def ref_value(self) -> Union[float, npt.NDArray[np.float64]]:
         if self.ref_data is None or self.ref_data.empty:
