@@ -199,14 +199,15 @@ class TestDriftMetricTimeSeries:
             ]
         )
         actual_timestamps = [data_point.timestamp for data_point in drift_time_series.data]
+        DAILY_HOURS = 24
         expected_distances = np.array(
-            ([np.nan] * 24)
-            + ([0] * 24)
-            + ([15] * 24)
-            + ([10] * 24)
-            + ([15] * 24)
-            + ([0] * 24)
-            + ([np.nan] * 24)
+            ([np.nan] * DAILY_HOURS)
+            + ([0] * DAILY_HOURS)
+            + ([15] * DAILY_HOURS)
+            + ([10] * DAILY_HOURS)
+            + ([15] * DAILY_HOURS)
+            + ([0] * DAILY_HOURS)
+            + ([np.nan] * DAILY_HOURS)
         )
         assert_almost_equal(
             actual=actual_distances,
