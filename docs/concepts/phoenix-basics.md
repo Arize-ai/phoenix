@@ -37,28 +37,61 @@ With a single dataset, Phoenix provides insights into model performance and data
 
 ### Which dataset is which?
 
-> Your baseline dataset provides a reference against which to compare your primary dataset.
+> Your reference dataset provides a baseline against which to compare your primary dataset.
 
-To compare two datasets with Phoenix, you must select one dataset as _primary_ and one to serve as a _baseline_. As the name suggests, your primary dataset contains the data you care about most, perhaps because your model's performance on this data directly affects your customers or users. Your baseline dataset, in contrast, is usually of secondary importance and serves as a reference against which to compare your primary dataset.
+To compare two datasets with Phoenix, you must select one dataset as _primary_ and one to serve as a _reference_. As the name suggests, your primary dataset contains the data you care about most, perhaps because your model's performance on this data directly affects your customers or users. Your reference dataset, in contrast, is usually of secondary importance and serves as a baseline against which to compare your primary dataset.
 
-Very often, your primary dataset will contain production data and your baseline dataset will contain training data. However, that's not always the case; you can imagine a scenario where you want to check your test set for drift relative to your training data, or use your test set as a baseline against which to compare your production data. When choosing primary and baseline datasets, it matters less _where_ your data comes from than _how important_ the data is and _what role_ the data serves relative to your other data.
+Very often, your primary dataset will contain production data and your reference dataset will contain training data. However, that's not always the case; you can imagine a scenario where you want to check your test set for drift relative to your training data, or use your test set as a baseline against which to compare your production data. When choosing primary and reference datasets, it matters less _where_ your data comes from than _how important_ the data is and _what role_ the data serves relative to your other data.
 
 ## Schemas
 
 A _Phoenix schema_ is an instance of `phoenix.Schema` that maps the columns of your DataFrame to fields that Phoenix expects and understands. Use your schema to tell Phoenix what the data in your DataFrame means.
 
-For example, if you have a DataFrame that looks like this:
+For example, if you have a DataFrame containing Fisher's Iris data that looks like this:
 
-you might create a schema that look like this:
+| sepal\_length | sepal\_width | petal\_length | petal\_width | target     | prediction |
+| ------------- | ------------ | ------------- | ------------ | ---------- | ---------- |
+| 6.1           | 2.9          | 4.7           | 1.4          | versicolor | versicolor |
+| 5.0           | 2.3          | 3.3           | 1.0          | versicolor | virginica  |
+| 5.0           | 3.4          | 1.6           | 0.4          | setosa     | setosa     |
+| 4.8           | 3.0          | 1.4           | 0.3          | setosa     | setosa     |
+| 4.9           | 2.5          | 4.5           | 1.7          | virginica  | virginica  |
+
+
+
+your schema might look like this:
+
+```python
+schema = px.Schema(
+    feature_column_names=[
+        "sepal_length",
+        "sepal_width",
+        "petal_length",
+        "petal_width",
+    ],
+    actual_label_column_name="target",
+    prediction_label_column_name="prediction",
+)
+```
 
 ### How many schemas do I need?
 
 > Usually one, sometimes two.
 
-Each dataset needs a schema. If your primary and baseline datasets have the same format, then you only need one schema. For example, if you have DataFrames `train_df` and `prod_df` that share an identical format described by a schema named `schema`, then you can define datasets `train_ds` and `prod_ds` with
+Each dataset needs a schema. If your primary and reference datasets have the same format, then you only need one schema. For example, if you have DataFrames `train_df` and `prod_df` that share an identical format described by a schema named `schema`, then you can define datasets `train_ds` and `prod_ds` with
 
 <pre class="language-python"><code class="lang-python">train_ds = px.Dataset(train_df, schema, "training")
 <strong>prod_ds = px.Dataset(prod_df, schema, "production")
 </strong></code></pre>
 
-Occasionally, however, you'll encounter scenarios where the formats of your primary and baseline datasets differ.
+Sometimes, you'll encounter scenarios where the formats of your primary and reference datasets differ. For example, you'll need two schemas if:
+
+* Your production data has timestamps indicating the time at which an inference was made, but your training data does not.
+* Your training data has ground truth, but your production data does not.
+* A new version of your model has a differing set of features from a previous version.
+
+In cases like these, you'll need to define two schemas, one for each dataset. For example, if you have DataFrames `train_df` and `prod_df` that are described by schemas `train_schema` and `prod_schema`, respectively, then you can define datasets `train_ds` and `prod_ds` with
+
+<pre class="language-python"><code class="lang-python">train_ds = px.Dataset(train_df, train_schema, "training")
+<strong>prod_ds = px.Dataset(prod_df, prod_schema, "production")
+</strong></code></pre>

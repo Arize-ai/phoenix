@@ -1,8 +1,12 @@
+---
+description: Your model schema tells Phoenix what the columns of your DataFrame represent
+---
+
 # Define Your Schema
 
-## Create Your Schema
 
-Your model schema tells Phoenix what the columns of your DataFrame represent.
+
+For example, if you have the DataFrame
 
 ```
 px.Schema()
@@ -10,10 +14,10 @@ px.Schema()
 
 ### Define Features and Tags
 
-#### Automatic Feature Discovery
+#### Inferring Features
 
 Sometimes, you have a large number of features and it is inconvenient to list them all.
 
 ### Define Embeddings
 
-In the&#x20;
+If you wish to visualize&#x20;
