@@ -195,7 +195,7 @@ function EmbeddingMain() {
         ) : null}
       </Toolbar>
       <PanelGroup direction="vertical">
-        {showDriftChart ? (
+        {referenceDataset && showDriftChart ? (
           <>
             <Panel defaultSize={15} collapsible order={1}>
               <Suspense fallback={<Loading />}>

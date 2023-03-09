@@ -19,50 +19,31 @@ type DatasetVisibility = {
   reference: boolean;
 };
 
-export type PointCloudState = {
+/**
+ * The properties of the point cloud store.
+ */
+export interface PointCloudProps {
   /**
    * The IDs of the points that are currently selected.
    */
   selectedPointIds: Set<string>;
   /**
-   * Sets the selected point IDs to the given value.
-   */
-  setSelectedPointIds: (ids: Set<string>) => void;
-  /**
    * The IDs of the clusters that are currently selected.
    */
   selectedClusterId: string | null;
   /**
-   * Sets the selected cluster id to the given value.
-   */
-  setSelectedClusterId: (ids: string | null) => void;
-  /**
    * The coloring strategy to use for the point cloud.
    */
   coloringStrategy: ColoringStrategy;
-  /**
-   * Sets the coloring strategy to the given value.
-   */
-  setColoringStrategy: (strategy: ColoringStrategy) => void;
   /**
    * The visibility of the two datasets in the point cloud.
    * @default { primary: true, reference: true }
    */
   datasetVisibility: DatasetVisibility;
   /**
-   * Sets the dataset visibility to the given value.
-   * @param {DatasetVisibility} visibility
-   */
-  setDatasetVisibility: (visibility: DatasetVisibility) => void;
-  /**
    * The visibility of the point groups in the point cloud.
    */
   pointGroupVisibility: Record<string, boolean>;
-  /**
-   * Sets the point group visibility for the entire point cloud
-   * @param {Record<string, PointGroupVisibility>} visibility
-   */
-  setPointGroupVisibility: (visibility: Record<string, boolean>) => void;
   /**
    * The colors of each point group in the point cloud.
    */
@@ -71,10 +52,55 @@ export type PointCloudState = {
    * The way in which the selected points are displayed in the selection panel
    */
   selectionDisplay: SelectionDisplay;
+}
+
+export interface PointCloudState extends PointCloudProps {
+  /**
+   * Sets the selected point IDs to the given value.
+   */
+  setSelectedPointIds: (ids: Set<string>) => void;
+
+  /**
+   * Sets the selected cluster id to the given value.
+   */
+  setSelectedClusterId: (ids: string | null) => void;
+  /**
+   * Sets the coloring strategy to the given value.
+   */
+  setColoringStrategy: (strategy: ColoringStrategy) => void;
+  /**
+   * Sets the dataset visibility to the given value.
+   * @param {DatasetVisibility} visibility
+   */
+  setDatasetVisibility: (visibility: DatasetVisibility) => void;
+  /**
+   * Sets the point group visibility for the entire point cloud
+   * @param {Record<string, PointGroupVisibility>} visibility
+   */
+  setPointGroupVisibility: (visibility: Record<string, boolean>) => void;
   /**
    * Set the selection display of the selection panel
    */
   setSelectionDisplay: (display: SelectionDisplay) => void;
+}
+
+/**
+ * The default point cloud properties in the case that there are two datasets.
+ */
+const DEFAULT_DRIFT_POINT_CLOUD_PROPS: PointCloudProps = {
+  selectedPointIds: new Set(),
+  selectedClusterId: null,
+  coloringStrategy: ColoringStrategy.dataset,
+  datasetVisibility: { primary: true, reference: true },
+  pointGroupVisibility: {
+    [DatasetGroup.primary]: true,
+    [DatasetGroup.reference]: true,
+  },
+  pointGroupColors: {
+    [DatasetGroup.primary]: ColorSchemes.Discrete2.WhiteLightBlue[0],
+    [DatasetGroup.reference]: ColorSchemes.Discrete2.WhiteLightBlue[1],
+  },
+  selectionDisplay: SelectionDisplay.gallery,
 };
 
 const pointCloudStore: StateCreator<PointCloudState> = (set) => ({
