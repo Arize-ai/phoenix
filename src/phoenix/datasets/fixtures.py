@@ -1,7 +1,7 @@
 import logging
 import os
 from dataclasses import dataclass, replace
-from typing import Tuple
+from typing import Dict, Tuple
 
 from pandas import read_parquet
 
@@ -252,7 +252,15 @@ def _download_and_persist_dataset_if_missing(
     return dataset
 
 
-def load_datasets(fixture_name: str) -> Tuple[Dataset, Dataset]:
+@dataclass(frozen=True)
+class DatasetDict(Dict[str, Dataset]):
+    """A dictionary of datasets, split out by dataset type (primary, reference)."""
+
+    primary: Dataset
+    reference: Dataset
+
+
+def load_datasets(fixture_name: str) -> DatasetDict:
     """
     Loads the primary and reference datasets for a fixture.
 
@@ -267,6 +275,12 @@ def load_datasets(fixture_name: str) -> Tuple[Dataset, Dataset]:
                 - "credit_card_fraud"
                 - "click_through_rate"
 
+
+    Returns
+    _______
+        datasets: DatasetDict
+            A dictionary of datasets, split out by dataset type (primary, reference).
+
     """
     primary_dataset, reference_dataset = download_fixture_if_missing(fixture_name)
-    return primary_dataset, reference_dataset
+    return DatasetDict(primary=primary_dataset, reference=reference_dataset)
