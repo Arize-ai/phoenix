@@ -1,23 +1,18 @@
-import math
-from datetime import timedelta
 from typing import List, Optional
 
 import strawberry
 from strawberry.types import Info
 
 from phoenix.core import Dimension as CoreDimension
-from phoenix.metrics.mixins import UnaryOperator
-from phoenix.metrics.timeseries import timeseries
 from phoenix.server.api.context import Context
 
-from ..input_types.Granularity import Granularity, to_timestamps
+from ..input_types.Granularity import Granularity
 from ..input_types.TimeRange import TimeRange
-from . import METRICS
 from .DataQualityMetric import DataQualityMetric
-from .DataQualityTimeSeries import DataQualityTimeSeries, to_gql_timeseries
 from .DimensionDataType import DimensionDataType
 from .DimensionType import DimensionType
 from .node import Node
+from .TimeSeries import DataQualityTimeSeries
 
 
 @strawberry.type
@@ -32,15 +27,22 @@ class Dimension(Node):
     )
 
     @strawberry.field
-    async def dataQualityMetric(
-        self, metric: DataQualityMetric, info: Info[Context, None]
+    async def data_quality_metric(
+        self,
+        info: Info[Context, None],
+        metric: DataQualityMetric,
+        time_range: Optional[TimeRange] = None,
     ) -> Optional[float]:
-        metric_cls = METRICS.get(metric.value, None)
-        if not metric_cls or not issubclass(metric_cls, UnaryOperator):
-            raise NotImplementedError(f"Metric {metric} is not implemented.")
-        df = info.context.model.primary_dataset.dataframe
-        _, ans = metric_cls(self.name)(df)
-        return None if math.isnan(ans) else ans
+        if len(
+            data := DataQualityTimeSeries(
+                self.name,
+                info.context.model,
+                metric,
+                time_range,
+            ).data
+        ):
+            return data.pop().value
+        return None
 
     @strawberry.field(
         description=(
@@ -70,24 +72,12 @@ class Dimension(Node):
         time_range: TimeRange,
         granularity: Granularity,
     ) -> DataQualityTimeSeries:
-        dimension_name = self.name
-        metric_cls = METRICS.get(metric.value, None)
-        if not metric_cls or not issubclass(metric_cls, UnaryOperator):
-            raise NotImplementedError(f"Metric {metric} is not implemented.")
-        dataset = info.context.model.primary_dataset
-        metric_instance = metric_cls(dimension_name)
-        return dataset.dataframe.pipe(
-            timeseries(
-                start_time=time_range.start,
-                end_time=time_range.end,
-                evaluation_window=timedelta(minutes=granularity.evaluation_window_minutes),
-                sampling_interval=timedelta(minutes=granularity.sampling_interval_minutes),
-            ),
-            metrics=(metric_instance,),
-        ).pipe(
-            to_gql_timeseries,
-            metric=metric_instance,
-            timestamps=to_timestamps(time_range, granularity),
+        return DataQualityTimeSeries(
+            self.name,
+            info.context.model,
+            metric,
+            time_range,
+            granularity,
         )
 
 
