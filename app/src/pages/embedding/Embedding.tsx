@@ -30,13 +30,17 @@ import {
   Toolbar,
 } from "@phoenix/components/filter";
 import { resizeHandleCSS } from "@phoenix/components/resize/styles";
+import { PointCloudProvider, usePointCloudContext } from "@phoenix/contexts";
 import { useDatasets } from "@phoenix/contexts";
 import {
   TimeSliceContextProvider,
   useTimeSlice,
 } from "@phoenix/contexts/TimeSliceContext";
 import { useEmbeddingDimensionId } from "@phoenix/hooks";
-import { usePointCloudStore } from "@phoenix/store";
+import {
+  DEFAULT_DRIFT_POINT_CLOUD_PROPS,
+  DEFAULT_SINGLE_DATASET_POINT_CLOUD_PROPS,
+} from "@phoenix/store";
 
 import {
   EmbeddingUMAPQuery as UMAPQueryType,
@@ -158,72 +162,81 @@ function EmbeddingMain() {
     );
   }, [embeddingDimensionId, loadQuery, timeRange]);
 
+  // Initialize the store based on whether or not there is a reference dataset
+  const defaultPointCloudProps = useMemo(() => {
+    return referenceDataset != null
+      ? DEFAULT_DRIFT_POINT_CLOUD_PROPS
+      : DEFAULT_SINGLE_DATASET_POINT_CLOUD_PROPS;
+  }, [referenceDataset]);
+
   return (
-    <main
-      css={(theme) => css`
-        flex: 1 1 auto;
-        display: flex;
-        flex-direction: column;
-        overflow: hidden;
-        background-color: ${theme.colors.gray900};
-      `}
-    >
-      <Toolbar
-        extra={
-          referenceDataset ? (
-            <Switch
-              onChange={(isSelected) => {
-                setShowDriftChart(isSelected);
-              }}
-              defaultSelected={true}
-              labelPlacement="start"
-            >
-              Show Drift Chart
-            </Switch>
-          ) : null
-        }
+    <PointCloudProvider {...defaultPointCloudProps}>
+      <main
+        css={(theme) => css`
+          flex: 1 1 auto;
+          display: flex;
+          flex-direction: column;
+          overflow: hidden;
+          background-color: ${theme.colors.gray900};
+        `}
       >
-        <PrimaryDatasetTimeRange />
-        {referenceDataset ? (
-          <ReferenceDatasetTimeRange
-            datasetType="reference"
-            timeRange={{
-              start: new Date(referenceDataset.startTime),
-              end: new Date(referenceDataset.endTime),
-            }}
-          />
-        ) : null}
-      </Toolbar>
-      <PanelGroup direction="vertical">
-        {referenceDataset && showDriftChart ? (
-          <>
-            <Panel defaultSize={15} collapsible order={1}>
-              <Suspense fallback={<Loading />}>
-                <EuclideanDistanceTimeSeries
-                  embeddingDimensionId={embeddingDimensionId}
-                />
+        <Toolbar
+          extra={
+            referenceDataset ? (
+              <Switch
+                onChange={(isSelected) => {
+                  setShowDriftChart(isSelected);
+                }}
+                defaultSelected={true}
+                labelPlacement="start"
+              >
+                Show Drift Chart
+              </Switch>
+            ) : null
+          }
+        >
+          <PrimaryDatasetTimeRange />
+          {referenceDataset ? (
+            <ReferenceDatasetTimeRange
+              datasetType="reference"
+              timeRange={{
+                start: new Date(referenceDataset.startTime),
+                end: new Date(referenceDataset.endTime),
+              }}
+            />
+          ) : null}
+        </Toolbar>
+        <PanelGroup direction="vertical">
+          {referenceDataset && showDriftChart ? (
+            <>
+              <Panel defaultSize={15} collapsible order={1}>
+                <Suspense fallback={<Loading />}>
+                  <EuclideanDistanceTimeSeries
+                    embeddingDimensionId={embeddingDimensionId}
+                  />
+                </Suspense>
+              </Panel>
+              <PanelResizeHandle css={resizeHandleCSS} />
+            </>
+          ) : null}
+          <Panel order={2}>
+            <div
+              css={css`
+                width: 100%;
+                height: 100%;
+                position: relative;
+              `}
+            >
+              <Suspense fallback={<LoadingMask />}>
+                {queryReference ? (
+                  <PointCloudDisplay queryReference={queryReference} />
+                ) : null}
               </Suspense>
-            </Panel>
-            <PanelResizeHandle css={resizeHandleCSS} />
-          </>
-        ) : null}
-        <Panel order={2}>
-          <div
-            css={css`
-              width: 100%;
-              height: 100%;
-              position: relative;
-            `}
-          >
-            <Suspense fallback={<LoadingMask />}>
-              {queryReference ? (
-                <PointCloudDisplay queryReference={queryReference} />
-              ) : null}
-            </Suspense>
-          </div>
-        </Panel>
-      </PanelGroup>
-    </main>
+            </div>
+          </Panel>
+        </PanelGroup>
+      </main>
+    </PointCloudProvider>
   );
 }
 
@@ -370,13 +383,13 @@ const PointCloudDisplay = ({
 function SelectionPanel(props: {
   pointIdToDataMap: Map<string, UMAPPointsEntry>;
 }) {
-  const selectedPointIds = usePointCloudStore(
+  const selectedPointIds = usePointCloudContext(
     (state) => state.selectedPointIds
   );
-  const setSelectedPointIds = usePointCloudStore(
+  const setSelectedPointIds = usePointCloudContext(
     (state) => state.setSelectedPointIds
   );
-  const setSelectedClusterId = usePointCloudStore(
+  const setSelectedClusterId = usePointCloudContext(
     (state) => state.setSelectedClusterId
   );
 
@@ -451,13 +464,13 @@ function ClustersPanelContents({
 }: {
   clusters: readonly UMAPClusterEntry[];
 }) {
-  const selectedClusterId = usePointCloudStore(
+  const selectedClusterId = usePointCloudContext(
     (state) => state.selectedClusterId
   );
-  const setSelectedClusterId = usePointCloudStore(
+  const setSelectedClusterId = usePointCloudContext(
     (state) => state.setSelectedClusterId
   );
-  const setSelectedPointIds = usePointCloudStore(
+  const setSelectedPointIds = usePointCloudContext(
     (state) => state.setSelectedPointIds
   );
 

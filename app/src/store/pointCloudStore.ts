@@ -87,11 +87,8 @@ export interface PointCloudState extends PointCloudProps {
 /**
  * The default point cloud properties in the case that there are two datasets.
  */
-const DEFAULT_DRIFT_POINT_CLOUD_PROPS: PointCloudProps = {
-  selectedPointIds: new Set(),
-  selectedClusterId: null,
+export const DEFAULT_DRIFT_POINT_CLOUD_PROPS: Partial<PointCloudProps> = {
   coloringStrategy: ColoringStrategy.dataset,
-  datasetVisibility: { primary: true, reference: true },
   pointGroupVisibility: {
     [DatasetGroup.primary]: true,
     [DatasetGroup.reference]: true,
@@ -100,61 +97,87 @@ const DEFAULT_DRIFT_POINT_CLOUD_PROPS: PointCloudProps = {
     [DatasetGroup.primary]: ColorSchemes.Discrete2.WhiteLightBlue[0],
     [DatasetGroup.reference]: ColorSchemes.Discrete2.WhiteLightBlue[1],
   },
-  selectionDisplay: SelectionDisplay.gallery,
 };
 
-const pointCloudStore: StateCreator<PointCloudState> = (set) => ({
-  selectedPointIds: new Set(),
-  setSelectedPointIds: (ids) => set({ selectedPointIds: ids }),
-  selectedClusterId: null,
-  setSelectedClusterId: (id) => set({ selectedClusterId: id }),
-  coloringStrategy: ColoringStrategy.dataset,
-  setColoringStrategy: (strategy) => {
-    set({ coloringStrategy: strategy });
-    switch (strategy) {
-      case ColoringStrategy.correctness:
-        set({
-          pointGroupVisibility: {
-            [CorrectnessGroup.correct]: true,
-            [CorrectnessGroup.incorrect]: true,
-          },
-          pointGroupColors: {
-            [CorrectnessGroup.correct]:
-              ColorSchemes.Discrete2.LightBlueOrange[0],
-            [CorrectnessGroup.incorrect]:
-              ColorSchemes.Discrete2.LightBlueOrange[1],
-          },
-        });
-        break;
-      case ColoringStrategy.dataset:
-        // Clear out the point groups as there are no groups
-        set({
-          pointGroupVisibility: {
-            [DatasetGroup.primary]: true,
-            [DatasetGroup.reference]: true,
-          },
-        });
-        break;
-      default:
-        assertUnreachable(strategy);
-    }
-  },
-  datasetVisibility: { primary: true, reference: true },
-  setDatasetVisibility: (visibility) => set({ datasetVisibility: visibility }),
-  pointGroupVisibility: {
-    [DatasetGroup.primary]: true,
-    [DatasetGroup.reference]: true,
-  },
-  setPointGroupVisibility: (visibility) =>
-    set({ pointGroupVisibility: visibility }),
-  pointGroupColors: {
-    [DatasetGroup.primary]: ColorSchemes.Discrete2.WhiteLightBlue[0],
-    [DatasetGroup.reference]: ColorSchemes.Discrete2.WhiteLightBlue[1],
-  },
-  selectionDisplay: SelectionDisplay.gallery,
-  setSelectionDisplay: (display) => set({ selectionDisplay: display }),
-});
+/**
+ * The default point cloud properties in the case that there is only one dataset.
+ */
+export const DEFAULT_SINGLE_DATASET_POINT_CLOUD_PROPS: Partial<PointCloudProps> =
+  {
+    coloringStrategy: ColoringStrategy.correctness,
+    pointGroupVisibility: {
+      [CorrectnessGroup.correct]: true,
+      [CorrectnessGroup.incorrect]: true,
+    },
+    pointGroupColors: {
+      [CorrectnessGroup.correct]: ColorSchemes.Discrete2.LightBlueOrange[0],
+      [CorrectnessGroup.incorrect]: ColorSchemes.Discrete2.LightBlueOrange[1],
+    },
+  };
 
-export const usePointCloudStore = create<PointCloudState>()(
-  devtools(pointCloudStore)
-);
+export type PointCloudStore = ReturnType<typeof createPointCloudStore>;
+
+export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
+  // The default props irrespective of the number of datasets
+  const defaultProps: PointCloudProps = {
+    selectedPointIds: new Set(),
+    selectedClusterId: null,
+    coloringStrategy: ColoringStrategy.dataset,
+    datasetVisibility: { primary: true, reference: true },
+    pointGroupVisibility: {
+      [DatasetGroup.primary]: true,
+      [DatasetGroup.reference]: true,
+    },
+    pointGroupColors: {
+      [DatasetGroup.primary]: ColorSchemes.Discrete2.WhiteLightBlue[0],
+      [DatasetGroup.reference]: ColorSchemes.Discrete2.WhiteLightBlue[1],
+    },
+    selectionDisplay: SelectionDisplay.gallery,
+  };
+
+  const pointCloudStore: StateCreator<PointCloudState> = (set) => ({
+    ...defaultProps,
+    ...initProps,
+    setSelectedPointIds: (ids) => set({ selectedPointIds: ids }),
+    setSelectedClusterId: (id) => set({ selectedClusterId: id }),
+    setColoringStrategy: (strategy) => {
+      set({ coloringStrategy: strategy });
+      switch (strategy) {
+        case ColoringStrategy.correctness:
+          set({
+            pointGroupVisibility: {
+              [CorrectnessGroup.correct]: true,
+              [CorrectnessGroup.incorrect]: true,
+            },
+            pointGroupColors: {
+              [CorrectnessGroup.correct]:
+                ColorSchemes.Discrete2.LightBlueOrange[0],
+              [CorrectnessGroup.incorrect]:
+                ColorSchemes.Discrete2.LightBlueOrange[1],
+            },
+          });
+          break;
+        case ColoringStrategy.dataset:
+          // Clear out the point groups as there are no groups
+          set({
+            pointGroupVisibility: {
+              [DatasetGroup.primary]: true,
+              [DatasetGroup.reference]: true,
+            },
+          });
+          break;
+        default:
+          assertUnreachable(strategy);
+      }
+    },
+    datasetVisibility: { primary: true, reference: true },
+    setDatasetVisibility: (visibility) =>
+      set({ datasetVisibility: visibility }),
+    setPointGroupVisibility: (visibility) =>
+      set({ pointGroupVisibility: visibility }),
+    selectionDisplay: SelectionDisplay.gallery,
+    setSelectionDisplay: (display) => set({ selectionDisplay: display }),
+  });
+
+  return create<PointCloudState>()(devtools(pointCloudStore));
+};

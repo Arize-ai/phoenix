@@ -4,7 +4,7 @@ import { shade } from "polished";
 
 import { PointBaseProps, Points } from "@arizeai/point-cloud";
 
-import { usePointCloudStore } from "@phoenix/store";
+import { usePointCloudContext } from "@phoenix/contexts";
 import { ColoringStrategy } from "@phoenix/types";
 
 import { PointColor, ThreeDimensionalPointItem } from "./types";
@@ -57,7 +57,7 @@ export function PointCloudPoints({
   color,
   radius,
 }: PointCloudPointsProps) {
-  const { datasetVisibility, coloringStrategy } = usePointCloudStore(
+  const { datasetVisibility, coloringStrategy } = usePointCloudContext(
     (state) => {
       return {
         datasetVisibility: state.datasetVisibility,

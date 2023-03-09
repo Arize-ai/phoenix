@@ -16,7 +16,7 @@ import { SelectionDisplayRadioGroup } from "@phoenix/components/canvas";
 import { EventItem } from "@phoenix/components/event";
 import { Toolbar } from "@phoenix/components/filter";
 import { Table } from "@phoenix/components/table";
-import { usePointCloudStore } from "@phoenix/store";
+import { usePointCloudContext } from "@phoenix/contexts";
 import { DatasetType, SelectionDisplay } from "@phoenix/types";
 
 import {
@@ -32,16 +32,16 @@ export function PointSelectionPanelContent(props: {
   pointIdToDataMap: Map<string, UMAPPointsEntry>;
 }) {
   const { pointIdToDataMap } = props;
-  const selectedPointIds = usePointCloudStore(
+  const selectedPointIds = usePointCloudContext(
     (state) => state.selectedPointIds
   );
-  const setSelectedPointIds = usePointCloudStore(
+  const setSelectedPointIds = usePointCloudContext(
     (state) => state.setSelectedPointIds
   );
-  const setSelectedClusterId = usePointCloudStore(
+  const setSelectedClusterId = usePointCloudContext(
     (state) => state.setSelectedClusterId
   );
-  const { selectionDisplay, setSelectionDisplay } = usePointCloudStore(
+  const { selectionDisplay, setSelectionDisplay } = usePointCloudContext(
     (state) => ({
       selectionDisplay: state.selectionDisplay,
       setSelectionDisplay: state.setSelectionDisplay,
