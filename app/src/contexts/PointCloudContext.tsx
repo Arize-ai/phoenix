@@ -18,7 +18,7 @@ export const PointCloudContext = createContext<PointCloudStore | null>(null);
 export function PointCloudProvider({
   children,
   ...props
-}: PropsWithChildren<PointCloudProps>) {
+}: PropsWithChildren<Partial<PointCloudProps>>) {
   const storeRef = useRef<PointCloudStore>();
   if (!storeRef.current) {
     storeRef.current = createPointCloudStore(props);
