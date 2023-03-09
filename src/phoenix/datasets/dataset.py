@@ -36,16 +36,20 @@ if hasattr(sys, "ps1"):
 
 
 class Dataset:
-    """A dataset to use for analysis using phoenix. Used to construct a phoenix session via px.launch_app
+    """
+    A dataset to use for analysis using phoenix.
+    Used to construct a phoenix session via px.launch_app
 
     Parameters
     ----------
     dataframe : pandas.DataFrame
         The pandas dataframe containing the data to analyze
     schema : phoenix.Schema
-        the schema of the dataset. Maps the dataframe columns to the appropriate model inference dimensions (features, predictions, actuals).
+        the schema of the dataset. Maps dataframe columns to the appropriate
+        model inference dimensions (features, predictions, actuals).
     name : str, optional
-        The name of the dataset. If not provided, a random name will be generated. Is helpful for identifying the dataset in the application.
+        The name of the dataset. If not provided, a random name will be generated.
+        Is helpful for identifying the dataset in the application.
 
     Returns
     -------
