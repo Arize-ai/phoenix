@@ -40,7 +40,6 @@ import { useEmbeddingDimensionId } from "@phoenix/hooks";
 import {
   DEFAULT_DRIFT_POINT_CLOUD_PROPS,
   DEFAULT_SINGLE_DATASET_POINT_CLOUD_PROPS,
-  PointCloudProps,
 } from "@phoenix/store";
 
 import {
@@ -164,7 +163,7 @@ function EmbeddingMain() {
   }, [embeddingDimensionId, loadQuery, timeRange]);
 
   // Initialize the store based on whether or not there is a reference dataset
-  const defaultPointCloudProps: Partial<PointCloudProps> = useMemo(() => {
+  const defaultPointCloudProps = useMemo(() => {
     return referenceDataset != null
       ? DEFAULT_DRIFT_POINT_CLOUD_PROPS
       : DEFAULT_SINGLE_DATASET_POINT_CLOUD_PROPS;
