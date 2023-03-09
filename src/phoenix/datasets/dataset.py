@@ -36,8 +36,25 @@ if hasattr(sys, "ps1"):
 
 
 class Dataset:
-    """
-    A dataset represents data for a set of inferences. It is represented as a dataframe + schema
+    """A dataset to use for analysis using phoenix. Used to construct a phoenix session via px.launch_app
+
+    Parameters
+    ----------
+    dataframe : pandas.DataFrame
+        The pandas dataframe containing the data to analyze
+    schema : phoenix.Schema
+        the schema of the dataset. Maps the dataframe columns to the appropriate model inference dimensions (features, predictions, actuals).
+    name : str, optional
+        The name of the dataset. If not provided, a random name will be generated. Is helpful for identifying the dataset in the application.
+
+    Returns
+    -------
+    dataset : Session
+        The session object that can be used to view the application
+
+    Examples
+    --------
+    >>> primary_dataset = px.Dataset(dataframe=production_dataframe, schema=schema, name="primary")
     """
 
     _data_file_name: str = "data.parquet"
