@@ -47,8 +47,8 @@ After installing `arize-phoenix` in your Jupyter or Colab environment, open your
 ```python
 import phoenix as px
 
-primary_dataset, reference_dataset = px.load_datasets("sentiment_classification_language_drift")
-session = px.launch_app(primary_dataset, reference_dataset)
+datasets= px.load_datasets("sentiment_classification_language_drift")
+session = px.launch_app(datasets.primary, reference_dataset)
 session.view()
 ```
 
