@@ -65,10 +65,11 @@ class Dimension(Node):
         time_range: TimeRange,
         granularity: Granularity,
     ) -> DataQualityTimeSeries:
-        return cast(
-            DataQualityTimeSeries,
-            get_timeseries(self.name, info, metric, time_range, granularity),
+        assert (
+            type(ans := get_timeseries(self.name, info, metric, time_range, granularity))
+            is DataQualityTimeSeries
         )
+        return cast(DataQualityTimeSeries, ans)
 
 
 def to_gql_dimension(id_attr: int, dimension: CoreDimension) -> Dimension:

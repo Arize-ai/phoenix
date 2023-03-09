@@ -81,10 +81,11 @@ class EmbeddingDimension(Node):
         time_range: TimeRange,
         granularity: Granularity,
     ) -> DataQualityTimeSeries:
-        return cast(
-            DataQualityTimeSeries,
-            get_timeseries(self.name, info, metric, time_range, granularity),
+        assert (
+            type(ans := get_timeseries(self.name, info, metric, time_range, granularity))
+            is DataQualityTimeSeries
         )
+        return cast(DataQualityTimeSeries, ans)
 
     @strawberry.field
     def drift_time_series(
@@ -105,10 +106,11 @@ class EmbeddingDimension(Node):
         Returns None if no reference dataset exists or if the input time range
         is invalid.
         """
-        return cast(
-            DriftTimeSeries,
-            get_timeseries(self.name, info, metric, time_range, granularity),
+        assert (
+            type(ans := get_timeseries(self.name, info, metric, time_range, granularity))
+            is DriftTimeSeries
         )
+        return cast(DriftTimeSeries, ans)
 
     @strawberry.field
     def UMAPPoints(
