@@ -1,19 +1,21 @@
 # Table of contents
 
 * [ML Observability in Your Notebook](README.md)
+* [Quickstart](quickstart.md)
 
 ## Concepts
 
 * [ML Observability](concepts/ml-observability.md)
 * [Embeddings](concepts/embeddings.md)
 * [Phoenix Basics](concepts/phoenix-basics.md)
+* [Open Inference](concepts/open-inference.md)
 
 ## Tutorials
 
-* [Quickstart](tutorials/quickstart.md)
-* [Sentiment Classification](tutorials/sentiment-classification.md)
-* [Credit Card Fraud](tutorials/credit-card-fraud.md)
-* [Image Classification](tutorials/image-classification.md)
+* [NLP (Sentiment Classification)](tutorials/nlp-sentiment-classification.md)
+* [CV (Image Classification)](tutorials/cv-image-classification.md)
+* [Generative LLM](tutorials/generative-llm.md)
+* [Tabular (Credit Card Fraud)](tutorials/tabular-credit-card-fraud.md)
 
 ## How-To
 
