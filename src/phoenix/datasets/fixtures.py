@@ -260,14 +260,14 @@ class DatasetDict(Dict[str, Dataset]):
     reference: Dataset
 
 
-def load_datasets(fixture_name: str) -> DatasetDict:
+def load_datasets(use_case: str) -> DatasetDict:
     """
-    Loads the primary and reference datasets for a fixture.
+    Loads the primary and reference datasets for a given use-case.
 
     Parameters
     ----------
-        fixture_name: str
-            Name of the fixture for which to load the datasets.
+        use_case: str
+            Name of the phoenix supported use case
             Valid values include:
                 - "sentiment_classification_language_drift"
                 - "fashion_mnist"
@@ -282,5 +282,5 @@ def load_datasets(fixture_name: str) -> DatasetDict:
             A dictionary of datasets, split out by dataset type (primary, reference).
 
     """
-    primary_dataset, reference_dataset = download_fixture_if_missing(fixture_name)
+    primary_dataset, reference_dataset = download_fixture_if_missing(use_case)
     return DatasetDict(primary=primary_dataset, reference=reference_dataset)
