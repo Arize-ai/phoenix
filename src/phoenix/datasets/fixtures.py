@@ -5,7 +5,8 @@ from typing import Tuple
 
 from pandas import read_parquet
 
-from phoenix.datasets import Dataset, EmbeddingColumnNames, Schema
+from .dataset import Dataset
+from .schema import EmbeddingColumnNames, Schema
 
 logger = logging.getLogger(__name__)
 
@@ -189,23 +190,24 @@ FIXTURES: Tuple[Fixture, ...] = (
 NAME_TO_FIXTURE = {fixture.name: fixture for fixture in FIXTURES}
 
 
-def download_fixture_if_missing(fixture_name: str) -> None:
+def download_fixture_if_missing(fixture_name: str) -> Tuple[Dataset, Dataset]:
     """
     Downloads primary and reference datasets for a fixture if they are not found
     locally.
     """
     fixture = _get_fixture_by_name(fixture_name=fixture_name)
     primary_dataset_name, reference_dataset_name = get_dataset_names_from_fixture_name(fixture_name)
-    _download_and_persist_dataset_if_missing(
+    primary_dataset = _download_and_persist_dataset_if_missing(
         dataset_name=primary_dataset_name,
         dataset_url=fixture.primary_dataset_url,
         schema=fixture.primary_schema,
     )
-    _download_and_persist_dataset_if_missing(
+    reference_dataset = _download_and_persist_dataset_if_missing(
         dataset_name=reference_dataset_name,
         dataset_url=fixture.reference_dataset_url,
         schema=fixture.reference_schema,
     )
+    return primary_dataset, reference_dataset
 
 
 def get_dataset_names_from_fixture_name(fixture_name: str) -> Tuple[str, str]:
@@ -223,27 +225,48 @@ def _get_fixture_by_name(fixture_name: str) -> Fixture:
     if the input fixture name does not match any known fixture names.
     """
     if fixture_name not in NAME_TO_FIXTURE:
-        raise ValueError(f'"{fixture_name}" is not a valid fixture name.')
+        valid_fixture_names = ", ".join(NAME_TO_FIXTURE.keys())
+        raise ValueError(f'"{fixture_name}" is invalid. Valid names are: {valid_fixture_names}')
     return NAME_TO_FIXTURE[fixture_name]
 
 
 def _download_and_persist_dataset_if_missing(
     dataset_name: str, dataset_url: str, schema: Schema
-) -> None:
+) -> Dataset:
     """
     Downloads a dataset from the given URL if it is not found locally.
     """
     try:
-        Dataset.from_name(dataset_name)
-        return
+        return Dataset.from_name(dataset_name)
     except FileNotFoundError:
         pass
 
     logger.info(f'Downloading dataset: "{dataset_name}"')
-    Dataset(
+    dataset = Dataset(
         dataframe=read_parquet(dataset_url),
         schema=schema,
         name=dataset_name,
         persist_to_disc=True,
     )
     logger.info("Download complete.")
+    return dataset
+
+
+def load_datasets(fixture_name: str) -> Tuple[Dataset, Dataset]:
+    """
+    Loads the primary and reference datasets for a fixture.
+
+    Parameters
+    ----------
+        fixture_name: str
+            Name of the fixture for which to load the datasets.
+            Valid values include:
+                - "sentiment_classification_language_drift"
+                - "fashion_mnist"
+                - "ner_token_drift"
+                - "credit_card_fraud"
+                - "click_through_rate"
+
+    """
+    primary_dataset, reference_dataset = download_fixture_if_missing(fixture_name)
+    return primary_dataset, reference_dataset

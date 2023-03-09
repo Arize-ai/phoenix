@@ -8,12 +8,12 @@ from typing import Optional
 import uvicorn
 
 import phoenix.config as config
-from phoenix.server.app import create_app
-from phoenix.server.fixtures import (
+from phoenix.datasets.fixtures import (
     FIXTURES,
     download_fixture_if_missing,
     get_dataset_names_from_fixture_name,
 )
+from phoenix.server.app import create_app
 
 logger = logging.getLogger(__name__)
 
@@ -66,7 +66,7 @@ if __name__ == "__main__":
         primary_dataset_name, reference_dataset_name = get_dataset_names_from_fixture_name(
             fixture_name
         )
-        print(f'🌎 Downloading fixture "{fixture_name}" if missing')
+        print(f'🌎 Initializing fixture: "{fixture_name}"')
         download_fixture_if_missing(fixture_name)
 
     print(f"1️⃣ primary dataset: {primary_dataset_name}")
