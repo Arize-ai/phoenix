@@ -1,6 +1,9 @@
 type Cluster {
   id: ID!
   pointIds: [ID!]!
+
+  """ratio of primary points over reference points"""
+  driftRatio: Float
 }
 
 enum DataQualityMetric {
