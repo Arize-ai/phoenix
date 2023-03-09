@@ -87,11 +87,11 @@ class AccuracyScore(EvaluationMetric):
 class EuclideanDistance(DriftOperator, VectorOperator):
     @cached_property
     def ref_value(self) -> Union[float, npt.NDArray[np.float64]]:
-        if self.ref_data is None or self.ref_data.empty:
+        if self.reference_data is None or self.reference_data.empty:
             return float("nan")
         return cast(
             Union[float, npt.NDArray[np.float64]],
-            np.mean(self.ref_data.loc[:, self.operand].dropna()),
+            np.mean(self.reference_data.loc[:, self.operand].dropna()),
         )
 
     def calc(self, df: pd.DataFrame) -> float:

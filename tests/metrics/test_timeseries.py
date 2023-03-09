@@ -16,7 +16,7 @@ def txt2arr(s: str) -> Union[float, npt.NDArray[np.float64]]:
     return float(s)
 
 
-ref_data = pd.read_csv(
+reference_data = pd.read_csv(
     StringIO(
         """
         2023-01-01 11:50:52,0,839,A,[1 2 3 4 5]
@@ -46,7 +46,7 @@ metric_tests = (
     MetricTest("VectorMean(v)", VectorMean(column_name="v", shape=5)),
     MetricTest(
         "EuclideanDistance(v)",
-        EuclideanDistance(column_name="v", shape=5, ref_data=ref_data),
+        EuclideanDistance(column_name="v", shape=5, reference_data=reference_data),
     ),
 )
 names = list(map(lambda t: t.name, metric_tests))

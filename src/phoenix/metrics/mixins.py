@@ -92,8 +92,8 @@ class EvaluationMetric(BaseMetric, ABC):
 
 
 class DriftOperator(UnaryOperator, BaseMetric, ABC):
-    ref_data: Optional[pd.DataFrame]
+    reference_data: Optional[pd.DataFrame]
 
-    def __init__(self, ref_data: Optional[pd.DataFrame] = None, **kwargs: Any):
-        self.ref_data = ref_data
+    def __init__(self, reference_data: Optional[pd.DataFrame] = None, **kwargs: Any):
+        self.reference_data = reference_data
         super().__init__(**kwargs)

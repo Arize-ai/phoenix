@@ -79,7 +79,7 @@ class TimeSeries:
             issubclass(metric_cls, DriftOperator)
             and (ref_dataset := model.reference_dataset) is not None
         ):
-            metric_instance.ref_data = ref_dataset.dataframe
+            metric_instance.reference_data = ref_dataset.dataframe
         if time_range is None:
             time_range = TimeRange(
                 start=dataset.start_time,
