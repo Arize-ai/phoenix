@@ -49,14 +49,60 @@ A _Phoenix schema_ is an instance of `phoenix.Schema` that maps the columns of y
 
 For example, if you have a DataFrame containing Fisher's Iris data that looks like this:
 
-| sepal\_length | sepal\_width | petal\_length | petal\_width | target     | prediction |
-| ------------- | ------------ | ------------- | ------------ | ---------- | ---------- |
-| 6.1           | 2.9          | 4.7           | 1.4          | versicolor | versicolor |
-| 5.0           | 2.3          | 3.3           | 1.0          | versicolor | virginica  |
-| 5.0           | 3.4          | 1.6           | 0.4          | setosa     | setosa     |
-| 4.8           | 3.0          | 1.4           | 0.3          | setosa     | setosa     |
-| 4.9           | 2.5          | 4.5           | 1.7          | virginica  | virginica  |
-
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th>sepal_length</th>
+      <th>sepal_width</th>
+      <th>petal_length</th>
+      <th>petal_width</th>
+      <th>target</th>
+      <th>prediction</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>7.7</td>
+      <td>3.0</td>
+      <td>6.1</td>
+      <td>2.3</td>
+      <td>virginica</td>
+      <td>versicolor</td>
+    </tr>
+    <tr>
+      <td>5.4</td>
+      <td>3.9</td>
+      <td>1.7</td>
+      <td>0.4</td>
+      <td>setosa</td>
+      <td>setosa</td>
+    </tr>
+    <tr>
+      <td>6.3</td>
+      <td>3.3</td>
+      <td>4.7</td>
+      <td>1.6</td>
+      <td>versicolor</td>
+      <td>versicolor</td>
+    </tr>
+    <tr>
+      <td>6.2</td>
+      <td>3.4</td>
+      <td>5.4</td>
+      <td>2.3</td>
+      <td>virginica</td>
+      <td>setosa</td>
+    </tr>
+    <tr>
+      <td>5.8</td>
+      <td>2.7</td>
+      <td>5.1</td>
+      <td>1.9</td>
+      <td>virginica</td>
+      <td>virginica</td>
+    </tr>
+  </tbody>
+</table>
 
 
 your schema might look like this:
