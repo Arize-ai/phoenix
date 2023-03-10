@@ -36,4 +36,3 @@
   * [Percent Empty](reference/metrics/percent-empty.md)
   * [Euclidean Distance](reference/metrics/euclidean-distance.md)
   * [PSI](reference/metrics/psi.md)
-* [FAQ](reference/faq.md)
