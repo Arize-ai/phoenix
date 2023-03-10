@@ -59,7 +59,7 @@ class TimeSeries:
 
     def __init__(
         self,
-        name: str,
+        column_name: str,
         model: Model,
         metric: Union[DriftMetric, DataQualityMetric],
         time_range: Optional[TimeRange] = None,
@@ -68,13 +68,7 @@ class TimeSeries:
         if not (metric_cls := METRICS.get(metric.value, None)):
             raise NotImplementedError(f"Metric {metric} is not implemented.")
         dataset = model.primary_dataset
-        metric_instance = metric_cls(
-            column_name=(
-                dataset.get_embedding_vector_column(name).name
-                if issubclass(metric_cls, VectorOperator)
-                else name
-            )
-        )
+        metric_instance = metric_cls(column_name=column_name)
         if (
             issubclass(metric_cls, DriftOperator)
             and (ref_dataset := model.reference_dataset) is not None
@@ -112,14 +106,14 @@ class DataQualityTimeSeries(TimeSeries):
 
     def __init__(
         self,
-        name: str,
+        column_name: str,
         model: Model,
         metric: DataQualityMetric,
         time_range: Optional[TimeRange] = None,
         granularity: Optional[Granularity] = None,
     ):
         super().__init__(
-            name,
+            column_name,
             model,
             metric,
             time_range,
@@ -133,14 +127,14 @@ class DriftTimeSeries(TimeSeries):
 
     def __init__(
         self,
-        name: str,
+        column_name: str,
         model: Model,
         metric: DriftMetric,
         time_range: Optional[TimeRange] = None,
         granularity: Optional[Granularity] = None,
     ):
         super().__init__(
-            name,
+            column_name,
             model,
             metric,
             time_range,
