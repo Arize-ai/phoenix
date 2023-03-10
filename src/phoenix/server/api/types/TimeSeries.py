@@ -8,7 +8,7 @@ import strawberry
 
 from phoenix.core.model import Model
 from phoenix.metrics import Metric
-from phoenix.metrics.mixins import DriftOperator, VectorOperator
+from phoenix.metrics.mixins import DriftOperator
 from phoenix.metrics.timeseries import timeseries
 from phoenix.server.api.input_types.Granularity import Granularity, to_timestamps
 from phoenix.server.api.input_types.TimeRange import TimeRange

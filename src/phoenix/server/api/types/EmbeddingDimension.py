@@ -64,7 +64,7 @@ class EmbeddingDimension(Node):
         """
         if len(
             data := DriftTimeSeries(
-                info.context.model.primary_dataset.get_embedding_vector_column(self.name).name,
+                str(info.context.model.primary_dataset.get_embedding_vector_column(self.name).name),
                 info.context.model,
                 metric,
                 time_range,
@@ -89,7 +89,7 @@ class EmbeddingDimension(Node):
         granularity: Granularity,
     ) -> DataQualityTimeSeries:
         return DataQualityTimeSeries(
-            info.context.model.primary_dataset.get_embedding_vector_column(self.name).name,
+            str(info.context.model.primary_dataset.get_embedding_vector_column(self.name).name),
             info.context.model,
             metric,
             time_range,
@@ -116,7 +116,7 @@ class EmbeddingDimension(Node):
         is invalid.
         """
         return DriftTimeSeries(
-            info.context.model.primary_dataset.get_embedding_vector_column(self.name).name,
+            str(info.context.model.primary_dataset.get_embedding_vector_column(self.name).name),
             info.context.model,
             metric,
             time_range,
