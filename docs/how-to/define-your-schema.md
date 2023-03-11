@@ -13,7 +13,7 @@ This section show you how to define your model schema with concrete examples.
 
 ## Predictions and Ground Truth
 
-Let's first see how to define a schema with predictions and ground truth. This example DataFrame contains inference data from a binary classification model that predicts whether a user clicked on an advertisement, including the scores output from the model. The timestamps represent the time at which the inference was made in production.
+Let's first see how to define a schema with predictions and ground truth. The example DataFrame below contains inference data from a binary classification model trained to predict whether a user will click on an advertisement. The timestamps represent the time at which each inference was made in production.
 
 ### DataFrame
 
@@ -37,15 +37,39 @@ schema = px.Schema(
 )
 ```
 
+This schema defines predicted and actual labels and scores, but you can run Phoenix with any subset of those fields, e.g., with only predicted labels.
+
 {% hint style="info" %}
 For more information on timestamps, including details on how Phoenix handles time zones, see the [API reference](../reference/api/phoenix.schema/).
 {% endhint %}
 
 ## Features and Tags
 
-### Implicit and Excluded Features
+Next, let's see an example of how to handle features and tags.
 
-Sometimes, you have a large number of features and it is inconvenient to list them all.
+{% hint style="info" %}
+Both features and tags can be used to apply filters to analyze subsets of your data. Unlike features, tags are not assumed to be inputs to your model.
+{% endhint %}
+
+### DataFrame
+
+
+
+### Schema
+
+
+
+If your data has a large number of features, it can be inconvenient to list them all. For example, the breast cancer dataset below contains 30 features that can be used to predict whether a breast mass is malignant or benign. Instead of explicitly listing each feature, you can leave the `feature_column_names` field of your schema set to its default value of `None`, in which case, any column of your DataFrame that does not appear in the schema is implicitly assumed to be a feature.
+
+### DataFrame
+
+
+
+### Schema
+
+
+
+
 
 ## Embeddings
 
