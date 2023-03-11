@@ -64,7 +64,7 @@ class EmbeddingDimension(Node):
         """
         if len(
             data := DriftTimeSeries(
-                self.name,
+                str(info.context.model.primary_dataset.get_embedding_vector_column(self.name).name),
                 info.context.model,
                 metric,
                 time_range,
@@ -89,7 +89,7 @@ class EmbeddingDimension(Node):
         granularity: Granularity,
     ) -> DataQualityTimeSeries:
         return DataQualityTimeSeries(
-            self.name,
+            str(info.context.model.primary_dataset.get_embedding_vector_column(self.name).name),
             info.context.model,
             metric,
             time_range,
@@ -115,7 +115,13 @@ class EmbeddingDimension(Node):
         Returns None if no reference dataset exists or if the input time range
         is invalid.
         """
-        return DriftTimeSeries(self.name, info.context.model, metric, time_range, granularity)
+        return DriftTimeSeries(
+            str(info.context.model.primary_dataset.get_embedding_vector_column(self.name).name),
+            info.context.model,
+            metric,
+            time_range,
+            granularity,
+        )
 
     @strawberry.field
     def UMAPPoints(

@@ -83,16 +83,8 @@ export function EuclideanDistanceTimeSeries({
         end: timeRange.end.toISOString(),
       },
       granularity: {
-        evaluationWindowMinutes: Math.round(
-          (((timeRange.end.getTime() - timeRange.start.getTime()) % 86400000) %
-            3600000) /
-            60000
-        ),
-        samplingIntervalMinutes: Math.round(
-          (((timeRange.end.getTime() - timeRange.start.getTime()) % 86400000) %
-            3600000) /
-            60000
-        ),
+        evaluationWindowMinutes: 4320,
+        samplingIntervalMinutes: 60,
       },
     }
   );
