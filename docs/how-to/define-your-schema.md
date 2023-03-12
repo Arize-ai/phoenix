@@ -153,9 +153,78 @@ schema = px.Schema(
 
 ### Text Data
 
+For NLP applications, you can associate a piece of each with each embedding using the `raw_data` field on `px.EmbeddingColumnNames`. The example below shows data from a sentiment classification model for product reviews.
+
 #### DataFrame
 
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th>name</th>
+      <th>category</th>
+      <th>sentiment</th>
+      <th>text</th>
+      <th>text_vector</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Magic Lamp</td>
+      <td>office</td>
+      <td>positive</td>
+      <td>Makes a great desk lamp!</td>
+      <td>[2.66, 0.89, 1.17, 2.21]</td>
+    </tr>
+    <tr>
+      <td>Ergo Desk Chair</td>
+      <td>office</td>
+      <td>neutral</td>
+      <td>This chair is pretty comfortable, but I wish it had better back support.</td>
+      <td>[3.33, 1.14, 2.57, 2.88]</td>
+    </tr>
+    <tr>
+      <td>Cloud Nine Mattress</td>
+      <td>bedroom</td>
+      <td>positive</td>
+      <td>I've been sleeping like a baby since I bought this thing.</td>
+      <td>[2.50, 3.74, 0.04, -0.94]</td>
+    </tr>
+    <tr>
+      <td>Dr. Fresh's Spearmint Toothpaste</td>
+      <td>personal_hygiene</td>
+      <td>negative</td>
+      <td>Avoid at all costs, it tastes like soap.</td>
+      <td>[1.78, -0.24, 1.37, 2.60]</td>
+    </tr>
+    <tr>
+      <td>Ultra-Fuzzy Bath Mat</td>
+      <td>bath</td>
+      <td>negative</td>
+      <td>Cheap quality, began fraying at the edges after the first wash.</td>
+      <td>[2.71, 0.98, -0.22, 2.10]</td>
+    </tr>
+  </tbody>
+</table>
+
 #### Schema
+
+```python
+schema = px.Schema(
+    actual_label_column_name="sentiment",
+    feature_column_names=[
+        "category",
+    ],
+    embedding_feature_column_names={
+        "product_embedding": px.EmbeddingColumnNames(
+            vector_column_name="text_vector",
+            raw_data_column_name="text",
+        )
+    },
+    tag_column_names=[
+        "name",
+    ],
+)
+```
 
 ### Multiple Embedding Features
 
