@@ -125,46 +125,17 @@ Metrics for comparing embeddings, such as Euclidean distance and cosine similari
 
 ### Image Data
 
-For computer vision applications, you can optionally provide links or local paths to images that will be displayed in the UI. The following example contains data for an image classification model that detects product defects on an assembly line.
+For computer vision applications, you can provide links or local paths to images you want to display in the UI. The following example contains data for an image classification model that detects product defects on an assembly line.
 
 #### DataFrame
 
-<table border="1" class="dataframe">
-  <thead>
-    <tr style="text-align: right;">
-      <th>defective</th>
-      <th>image</th>
-      <th>image_embedding</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td>okay</td>
-      <td>/path/to/your/first/image0.jpeg</td>
-      <td>[1.73, 2.67, 2.91, 1.79, 1.29]</td>
-    </tr>
-    <tr>
-      <td>defective</td>
-      <td>/path/to/your/second/image1.jpeg</td>
-      <td>[2.18, -0.21, 0.87, 3.84, -0.97]</td>
-    </tr>
-    <tr>
-      <td>okay</td>
-      <td>https://&lt;your-domain-here&gt;.com/image2.jpeg</td>
-      <td>[3.36, -0.62, 2.40, -0.94, 3.69]</td>
-    </tr>
-    <tr>
-      <td>defective</td>
-      <td>https://&lt;your-domain-here&gt;.com/image3.jpeg</td>
-      <td>[2.77, 2.79, 3.36, 0.60, 3.10]</td>
-    </tr>
-    <tr>
-      <td>okay</td>
-      <td>https://&lt;your-domain-here&gt;.com/image4.jpeg</td>
-      <td>[1.79, 2.06, 0.53, 3.58, 0.24]</td>
-    </tr>
-  </tbody>
-</table>
+| defective | image                                       | image\_embedding                  |
+| --------- | ------------------------------------------- | --------------------------------- |
+| okay      | /path/to/your/first/image0.jpeg             | \[1.73, 2.67, 2.91, 1.79, 1.29]   |
+| defective | /path/to/your/second/image1.jpeg            | \[2.18, -0.21, 0.87, 3.84, -0.97] |
+| okay      | https://\<your-domain-here>.com/image2.jpeg | \[3.36, -0.62, 2.40, -0.94, 3.69] |
+| defective | https://\<your-domain-here>.com/image3.jpeg | \[2.77, 2.79, 3.36, 0.60, 3.10]   |
+| okay      | https://\<your-domain-here>.com/image4.jpeg | \[1.79, 2.06, 0.53, 3.58, 0.24]   |
 
 #### Schema
 
@@ -197,4 +168,3 @@ For example
 {% hint style="info" %}
 Distinct embedding features can have embeddings of differing lengths. In the example above, X has embeddings of length 4 while Y has embeddings of length 5.
 {% endhint %}
-
