@@ -211,9 +211,9 @@ function EmbeddingMain() {
             <>
               <Panel defaultSize={15} collapsible order={1}>
                 <Suspense fallback={<Loading />}>
-                  {/* <EuclideanDistanceTimeSeries
+                  <EuclideanDistanceTimeSeries
                     embeddingDimensionId={embeddingDimensionId}
-                  /> */}
+                  />
                 </Suspense>
               </Panel>
               <PanelResizeHandle css={resizeHandleCSS} />

@@ -25,11 +25,16 @@ type ClusterItemProps = {
    */
   driftRatio?: number | null;
 };
+
 /**
  * A UI component that displays a cluster and it's aggregate data
  */
 export function ClusterItem(props: ClusterItemProps) {
   const { driftRatio, clusterId, isSelected, onClick } = props;
+
+  // Calculate the percentage of primary points in the cluster
+  const primaryPercentage = driftRatio ? ((driftRatio + 1) / 2) * 100 : 100;
+  const referencePercentage = 100 - primaryPercentage;
   return (
     <div
       css={(theme) => css`
@@ -76,15 +81,27 @@ export function ClusterItem(props: ClusterItemProps) {
           data-testid="cluster-metric"
           css={css`
             text-align: right;
+            display: flex;
+            flex-direction: column;
           `}
         >
+          <Text color="white90" textSize="large">
+            {driftRatio?.toPrecision(2) ?? "--"}
+          </Text>
           <Text color="white70" textSize="small">
-            {`drift ${driftRatio}`}
+            Cluster Drift
           </Text>
         </div>
       </div>
-      <div data-testid="dataset-distribution">
+      <div
+        data-testid="dataset-distribution"
+        css={css`
+          display: flex;
+          flex-direction: row;
+        `}
+      >
         <div
+          data-testid="primary-distribution"
           css={css`
             background-image: linear-gradient(
               to right,
@@ -92,7 +109,19 @@ export function ClusterItem(props: ClusterItemProps) {
               var(--px-primary-color)
             );
             height: var(--px-gradient-bar-height);
-            width: ${driftRatio * 100}%;
+            width: ${primaryPercentage}%;
+          `}
+        />
+        <div
+          data-testid="reference-distribution"
+          css={css`
+            background-image: linear-gradient(
+              to right,
+              var(--px-reference-color) 0%,
+              var(--px-reference-color--transparent)
+            );
+            height: var(--px-gradient-bar-height);
+            width: ${referencePercentage}%;
           `}
         />
       </div>
