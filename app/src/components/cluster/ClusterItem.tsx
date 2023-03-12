@@ -20,7 +20,8 @@ type ClusterItemProps = {
    */
   onClick: () => void;
   /**
-   * blahblahblah
+   * The ratio of the primary count / total count.
+   * Null if there is no reference
    */
   driftRatio?: number | null;
 };
@@ -28,6 +29,7 @@ type ClusterItemProps = {
  * A UI component that displays a cluster and it's aggregate data
  */
 export function ClusterItem(props: ClusterItemProps) {
+  const { driftRatio, clusterId, isSelected, onClick } = props;
   return (
     <div
       css={(theme) => css`
@@ -45,13 +47,16 @@ export function ClusterItem(props: ClusterItemProps) {
           background-color: ${transparentize(0.8, theme.colors.arizeLightBlue)};
         }
       `}
-      className={props.isSelected ? "is-selected" : ""}
+      className={isSelected ? "is-selected" : ""}
       role="button"
-      onClick={props.onClick}
+      onClick={onClick}
     >
       <div
         css={(theme) => css`
           padding: ${theme.spacing.padding8}px;
+          display: flex;
+          flex-direction: row;
+          justify-content: space-between;
         `}
       >
         <div
@@ -62,26 +67,35 @@ export function ClusterItem(props: ClusterItemProps) {
             gap: ${theme.spacing.margin4}px;
           `}
         >
-          <Heading level={3}>{`Cluster ${props.clusterId}`}</Heading>
+          <Heading level={3}>{`Cluster ${clusterId}`}</Heading>
           <Text color="white70" textSize="small">
             {`${props.numPoints} points`}
           </Text>
+        </div>
+        <div
+          data-testid="cluster-metric"
+          css={css`
+            text-align: right;
+          `}
+        >
           <Text color="white70" textSize="small">
-            {`drift ratio: ${props.driftRatio}`}
+            {`drift ${driftRatio}`}
           </Text>
         </div>
       </div>
-      <div
-        data-testid="dataset-distribution"
-        css={css`
-          background-image: linear-gradient(
-            to right,
-            var(--px-primary-color--transparent) 0%,
-            var(--px-primary-color)
-          );
-          height: var(--px-gradient-bar-height);
-        `}
-      />
+      <div data-testid="dataset-distribution">
+        <div
+          css={css`
+            background-image: linear-gradient(
+              to right,
+              var(--px-primary-color--transparent) 0%,
+              var(--px-primary-color)
+            );
+            height: var(--px-gradient-bar-height);
+            width: ${driftRatio * 100}%;
+          `}
+        />
+      </div>
     </div>
   );
 }
