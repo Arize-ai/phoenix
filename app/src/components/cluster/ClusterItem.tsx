@@ -34,7 +34,6 @@ export function ClusterItem(props: ClusterItemProps) {
 
   // Calculate the percentage of primary points in the cluster
   const primaryPercentage = driftRatio ? ((driftRatio + 1) / 2) * 100 : 100;
-  const referencePercentage = 100 - primaryPercentage;
   return (
     <div
       css={(theme) => css`
@@ -93,38 +92,44 @@ export function ClusterItem(props: ClusterItemProps) {
           </Text>
         </div>
       </div>
+      <DistributionBar primaryPercentage={primaryPercentage} />
+    </div>
+  );
+}
+
+function DistributionBar({ primaryPercentage }: { primaryPercentage: number }) {
+  return (
+    <div
+      data-testid="dataset-distribution"
+      css={css`
+        display: flex;
+        flex-direction: row;
+      `}
+    >
       <div
-        data-testid="dataset-distribution"
+        data-testid="primary-distribution"
         css={css`
-          display: flex;
-          flex-direction: row;
+          background-image: linear-gradient(
+            to right,
+            var(--px-primary-color--transparent) 0%,
+            var(--px-primary-color)
+          );
+          height: var(--px-gradient-bar-height);
+          width: ${primaryPercentage}%;
         `}
-      >
-        <div
-          data-testid="primary-distribution"
-          css={css`
-            background-image: linear-gradient(
-              to right,
-              var(--px-primary-color--transparent) 0%,
-              var(--px-primary-color)
-            );
-            height: var(--px-gradient-bar-height);
-            width: ${primaryPercentage}%;
-          `}
-        />
-        <div
-          data-testid="reference-distribution"
-          css={css`
-            background-image: linear-gradient(
-              to right,
-              var(--px-reference-color) 0%,
-              var(--px-reference-color--transparent)
-            );
-            height: var(--px-gradient-bar-height);
-            width: ${referencePercentage}%;
-          `}
-        />
-      </div>
+      />
+      <div
+        data-testid="reference-distribution"
+        css={css`
+          background-image: linear-gradient(
+            to right,
+            var(--px-reference-color) 0%,
+            var(--px-reference-color--transparent)
+          );
+          height: var(--px-gradient-bar-height);
+          width: ${100 - primaryPercentage}%;
+        `}
+      />
     </div>
   );
 }
