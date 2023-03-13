@@ -21,10 +21,13 @@ PointId: TypeAlias = ID
 class Cluster:
     """A grouping of points in a UMAP plot"""
 
-    id: ClusterId = strawberry.field(description="The ID of the cluster")
-    point_ids: List[PointId] = strawberry.field(
-        description="A list of points that belong to the cluster"
-    )
+    """The ID of the cluster"""
+    id: ClusterId
+
+    """A list of points that belong to the cluster"""
+    point_ids: List[PointId]
+
+    """A list of points that belong to the cluster"""
     drift_ratio: Optional[float] = strawberry.field(
         description="ratio of primary points over reference points",
         default=NoneIfNan(),

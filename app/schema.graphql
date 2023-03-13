@@ -1,8 +1,5 @@
 type Cluster {
-  """The ID of the cluster"""
   id: ID!
-
-  """A list of points that belong to the cluster"""
   pointIds: [ID!]!
 
   """ratio of primary points over reference points"""
@@ -230,10 +227,7 @@ interface TimeSeries {
 }
 
 type TimeSeriesDataPoint {
-  """The timestamp of the data point"""
   timestamp: DateTime!
-
-  """The value of the data point"""
   value: Float
 }
 

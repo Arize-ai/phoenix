@@ -22,11 +22,11 @@ from phoenix.server.api.validator import NoneIfNan
 class TimeSeriesDataPoint:
     """A data point in a time series"""
 
-    timestamp: datetime = strawberry.field(description="The timestamp of the data point")
-    value: Optional[float] = strawberry.field(
-        description="The value of the data point",
-        default=NoneIfNan(),
-    )
+    """The timestamp of the data point"""
+    timestamp: datetime
+
+    """The value of the data point"""
+    value: Optional[float] = strawberry.field(default=NoneIfNan())
 
     def __lt__(self, other: "TimeSeriesDataPoint") -> bool:
         return self.timestamp < other.timestamp
