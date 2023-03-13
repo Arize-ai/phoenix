@@ -9,7 +9,7 @@ from typing_extensions import TypeAlias
 from phoenix.core.embedding_dimension import calculate_drift_ratio
 from phoenix.datasets.event import EventId
 
-from ..validator import NoneIfNan
+from ..interceptor import NoneIfNan
 from .EmbeddingMetadata import EmbeddingMetadata
 from .EventMetadata import EventMetadata
 

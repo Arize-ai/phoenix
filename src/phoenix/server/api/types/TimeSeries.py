@@ -11,10 +11,10 @@ from phoenix.metrics.mixins import DriftOperator
 from phoenix.metrics.timeseries import timeseries
 from phoenix.server.api.input_types.Granularity import Granularity, to_timestamps
 from phoenix.server.api.input_types.TimeRange import TimeRange
+from phoenix.server.api.interceptor import NoneIfNan
 from phoenix.server.api.types import METRICS
 from phoenix.server.api.types.DataQualityMetric import DataQualityMetric
 from phoenix.server.api.types.DriftMetric import DriftMetric
-from phoenix.server.api.validator import NoneIfNan
 
 
 @strawberry.type

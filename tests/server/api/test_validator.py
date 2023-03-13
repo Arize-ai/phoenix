@@ -1,7 +1,7 @@
 from typing import Optional
 
 import strawberry
-from phoenix.server.api.validator import NoneIfNan
+from phoenix.server.api.interceptor import NoneIfNan
 
 
 @strawberry.type
