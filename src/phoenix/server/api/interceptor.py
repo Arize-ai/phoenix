@@ -4,6 +4,9 @@ from typing import Any
 
 
 class Interceptor(ABC):
+    """an abstract class making use of the descriptor protocol
+    see https://docs.python.org/3/howto/descriptor.html"""
+
     private_name: str
 
     def __set_name__(self, owner: Any, name: str) -> None:
