@@ -45,10 +45,10 @@ For more information on timestamps, including details on how Phoenix handles tim
 
 ## Features and Tags
 
-Define features and tags.
+Phoenix accepts not only predictions and ground truth but also input features of your model and tags that describe your data. In the example below, features such as FICO score and merchant ID are used to predict whether a credit card transaction is legitimate or fraudulent. In contrast, tags such as age and gender are not model inputs, but are used to filter your data and analyze meaningful cohorts in the app.
 
 {% hint style="info" %}
-Both features and tags can be used to apply filters to analyze subsets of your data. Unlike features, tags are not assumed to be inputs to your model.
+Both features and tags can be used to apply filters to analyze subsets of your data. Unlike features, however, tags are not inputs to your model.
 {% endhint %}
 
 #### DataFrame
