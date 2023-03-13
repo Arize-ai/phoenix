@@ -284,7 +284,25 @@ const PointCloudDisplay = ({
     () => data.embedding?.UMAPPoints?.referenceData ?? [],
     [data]
   );
-  const clusters = data.embedding?.UMAPPoints?.clusters || [];
+  const clusters = useMemo(() => {
+    let clusters = data.embedding?.UMAPPoints?.clusters || [];
+
+    // Sort the clusters by drift ratio so as to show the most drifted clusters first
+    clusters = [...clusters].sort((clusterA, clusterB) => {
+      let { driftRatio: driftRatioA } = clusterA;
+      let { driftRatio: driftRatioB } = clusterB;
+      driftRatioA = driftRatioA ?? 0;
+      driftRatioB = driftRatioB ?? 0;
+      if (driftRatioA > driftRatioB) {
+        return -1;
+      }
+      if (driftRatioB < driftRatioB) {
+        return 1;
+      }
+      return 0;
+    });
+    return clusters;
+  }, [data.embedding?.UMAPPoints?.clusters]);
 
   // Construct a map of point ids to their data
   const allSourceData = useMemo(() => {
