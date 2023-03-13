@@ -53,7 +53,119 @@ Both features and tags can be used to apply filters to analyze subsets of your d
 
 #### DataFrame
 
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th>fico_score</th>
+      <th>merchant_id</th>
+      <th>loan_amount</th>
+      <th>annual_income</th>
+      <th>home_ownership</th>
+      <th>num_credit_lines</th>
+      <th>inquests_in_last_6_months</th>
+      <th>months_since_last_delinquency</th>
+      <th>age</th>
+      <th>gender</th>
+      <th>predicted</th>
+      <th>target</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>578</td>
+      <td>Scammeds</td>
+      <td>4300</td>
+      <td>62966</td>
+      <td>RENT</td>
+      <td>110</td>
+      <td>0</td>
+      <td>0</td>
+      <td>25</td>
+      <td>male</td>
+      <td>not_fraud</td>
+      <td>fraud</td>
+    </tr>
+    <tr>
+      <td>507</td>
+      <td>Schiller Ltd</td>
+      <td>21000</td>
+      <td>52335</td>
+      <td>RENT</td>
+      <td>129</td>
+      <td>0</td>
+      <td>23</td>
+      <td>78</td>
+      <td>female</td>
+      <td>not_fraud</td>
+      <td>not_fraud</td>
+    </tr>
+    <tr>
+      <td>656</td>
+      <td>Kirlin and Sons</td>
+      <td>18000</td>
+      <td>94995</td>
+      <td>MORTGAGE</td>
+      <td>31</td>
+      <td>0</td>
+      <td>0</td>
+      <td>54</td>
+      <td>female</td>
+      <td>uncertain</td>
+      <td>uncertain</td>
+    </tr>
+    <tr>
+      <td>414</td>
+      <td>Scammeds</td>
+      <td>18000</td>
+      <td>32034</td>
+      <td>LEASE</td>
+      <td>81</td>
+      <td>2</td>
+      <td>0</td>
+      <td>34</td>
+      <td>male</td>
+      <td>fraud</td>
+      <td>not_fraud</td>
+    </tr>
+    <tr>
+      <td>512</td>
+      <td>Champlin and Sons</td>
+      <td>20000</td>
+      <td>46005</td>
+      <td>OWN</td>
+      <td>148</td>
+      <td>1</td>
+      <td>0</td>
+      <td>49</td>
+      <td>male</td>
+      <td>uncertain</td>
+      <td>uncertain</td>
+    </tr>
+  </tbody>
+</table>
+
 #### Schema
+
+```python
+schema = px.Schema(
+    prediction_label_column_name="predicted",
+    actual_label_column_name="target",
+    feature_column_names=[
+        "fico_score",
+        "merchant_id",
+        "loan_amount",
+        "annual_income",
+        "home_ownership",
+        "num_credit_lines",
+        "inquests_in_last_6_months",
+        "months_since_last_delinquency",
+    ],
+    tag_column_names=[
+        "age",
+        "gender",
+    ],
+)
+```
 
 ### Implicit Features
 
