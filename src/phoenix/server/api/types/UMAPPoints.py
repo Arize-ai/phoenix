@@ -1,4 +1,3 @@
-import math
 from typing import Dict, List, Optional, Set, Union
 
 import numpy as np
@@ -10,6 +9,7 @@ from typing_extensions import TypeAlias
 from phoenix.core.embedding_dimension import calculate_drift_ratio
 from phoenix.datasets.event import EventId
 
+from ..validator import NoneIfNan
 from .EmbeddingMetadata import EmbeddingMetadata
 from .EventMetadata import EventMetadata
 
@@ -21,15 +21,13 @@ PointId: TypeAlias = ID
 class Cluster:
     """A grouping of points in a UMAP plot"""
 
-    """The ID of the cluster"""
-    id: ClusterId
-
-    """A list of points that belong to the cluster"""
-    point_ids: List[PointId]
-
-    """A list of points that belong to the cluster"""
+    id: ClusterId = strawberry.field(description="The ID of the cluster")
+    point_ids: List[PointId] = strawberry.field(
+        description="A list of points that belong to the cluster"
+    )
     drift_ratio: Optional[float] = strawberry.field(
-        description="ratio of primary points over reference points"
+        description="ratio of primary points over reference points",
+        default=NoneIfNan(),
     )
 
 
@@ -47,9 +45,7 @@ def to_gql_clusters(cluster_membership: Dict[EventId, int]) -> List[Cluster]:
             Cluster(
                 id=ID(str(cluster_id)),
                 point_ids=[ID(str(event)) for event in cluster_events],
-                drift_ratio=(
-                    None if math.isnan(ratio := calculate_drift_ratio(cluster_events)) else ratio
-                ),
+                drift_ratio=calculate_drift_ratio(cluster_events),
             )
         )
 

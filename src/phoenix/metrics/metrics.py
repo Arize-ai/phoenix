@@ -95,7 +95,7 @@ class EuclideanDistance(DriftOperator, VectorOperator):
         )
 
     def calc(self, df: pd.DataFrame) -> float:
-        if df.empty or (isinstance(self.ref_value, float) and math.isnan(self.ref_value)):
+        if df.empty or (isinstance(self.ref_value, float) and not math.isfinite(self.ref_value)):
             return float("nan")
         return cast(
             float,
