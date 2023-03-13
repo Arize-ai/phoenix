@@ -1,4 +1,3 @@
-import math
 from datetime import datetime, timedelta
 from functools import total_ordering
 from typing import Iterable, List, Optional, Union, cast
@@ -12,6 +11,7 @@ from phoenix.metrics.mixins import DriftOperator
 from phoenix.metrics.timeseries import timeseries
 from phoenix.server.api.input_types.Granularity import Granularity, to_timestamps
 from phoenix.server.api.input_types.TimeRange import TimeRange
+from phoenix.server.api.interceptor import NoneIfNan
 from phoenix.server.api.types import METRICS
 from phoenix.server.api.types.DataQualityMetric import DataQualityMetric
 from phoenix.server.api.types.DriftMetric import DriftMetric
@@ -26,7 +26,7 @@ class TimeSeriesDataPoint:
     timestamp: datetime
 
     """The value of the data point"""
-    value: Optional[float]
+    value: Optional[float] = strawberry.field(default=NoneIfNan())
 
     def __lt__(self, other: "TimeSeriesDataPoint") -> bool:
         return self.timestamp < other.timestamp
@@ -41,11 +41,10 @@ def to_gql_datapoints(
             row = df.iloc[cast(int, df.index.get_loc(timestamp)), :].to_dict()
         except KeyError:
             row = {}
-        value = metric.get_value(row)
         data.append(
             TimeSeriesDataPoint(
                 timestamp=timestamp,
-                value=None if math.isnan(value) else value,
+                value=metric.get_value(row),
             )
         )
     return sorted(data)
