@@ -108,15 +108,17 @@ def _groupers(
     if not sampling_interval:
         return
     divisible = evaluation_window % sampling_interval == timedelta()
-    max_offset = evaluation_window if divisible else end_time - start_time
+    max_offset = end_time - start_time
+    if divisible and evaluation_window < max_offset:
+        max_offset = evaluation_window
     yield from (
         (
-            start_time if divisible else max(start_time, end_time - offset - evaluation_window),
+            (start_time if divisible else end_time - offset) - evaluation_window,
             end_time - offset,
             pd.Grouper(  # type: ignore  # mypy finds the wrong Grouper
                 freq=evaluation_window,
                 origin=end_time,
-                offset=offset,
+                offset=-offset,
                 # Each point in timeseries will be labeled by the end instant of
                 # its evaluation window.
                 label="right",
