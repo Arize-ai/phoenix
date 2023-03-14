@@ -140,105 +140,27 @@ Embedding features consist of vector data in addition to any unstructured data i
 {% endhint %}
 
 {% hint style="info" %}
-The example embeddings in this section are low-dimensional for the sake of easy viewing. Your embeddings in practice will typically have much higher dimension.
+The example in this section contain low-dimensional embeddings for the sake of easy viewing. Your embeddings in practice will typically have much higher dimension.
 {% endhint %}
 
 ### Embedding Vectors
 
-To define an embedding feature, you must at minimum provide Phoenix with the embedding vector data itself. Specify the DataFrame column that contains this data in the `vector_column_name` field on `px.EmbeddingColumnNames`. For example, the DataFrame below contains tabular credit card transaction data in addition to embedding vectors that represent each row. Notice that
+To define an embedding feature, you must at minimum provide Phoenix with the embedding vector data itself. Specify the DataFrame column that contains this data in the `vector_column_name` field on `px.EmbeddingColumnNames`. For example, the DataFrame below contains tabular credit card transaction data in addition to embedding vectors that represent each row. Notice that:
 
-* Unlike other fields, the argument to `embedding_feature_column_names` is a dictionary.
-* The key of this dictionary, "transaction\_embedding," is not itself a row of your DataFrame but is rather a descriptive name you choose for your embedding that appears in the UI.
+* Unlike other fields that take strings or lists of strings, the argument to `embedding_feature_column_names` is a dictionary.
+* The key of this dictionary, "transaction\_embedding," is not a column of your DataFrame but is name you choose for your embedding feature that appears in the UI.
 * The values of this dictionary are instances of `px.EmbeddingColumnNames`.
 * Each entry in the "embedding\_vector" column is a one-dimensional Numpy array of length 4.
 
 #### DataFrame
 
-<table border="1" class="dataframe">
-  <thead>
-    <tr style="text-align: right;">
-      <th>predicted</th>
-      <th>target</th>
-      <th>embedding_vector</th>
-      <th>fico_score</th>
-      <th>merchant_id</th>
-      <th>loan_amount</th>
-      <th>annual_income</th>
-      <th>home_ownership</th>
-      <th>num_credit_lines</th>
-      <th>inquests_in_last_6_months</th>
-      <th>months_since_last_delinquency</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td>fraud</td>
-      <td>not_fraud</td>
-      <td>[-0.97, 3.98, -0.03, 2.92]</td>
-      <td>604</td>
-      <td>Leannon Ward</td>
-      <td>22000</td>
-      <td>100781</td>
-      <td>RENT</td>
-      <td>108</td>
-      <td>0</td>
-      <td>0</td>
-    </tr>
-    <tr>
-      <td>fraud</td>
-      <td>not_fraud</td>
-      <td>[3.20, 3.95, 2.81, -0.09]</td>
-      <td>612</td>
-      <td>Scammeds</td>
-      <td>7500</td>
-      <td>116184</td>
-      <td>MORTGAGE</td>
-      <td>42</td>
-      <td>2</td>
-      <td>56</td>
-    </tr>
-    <tr>
-      <td>not_fraud</td>
-      <td>not_fraud</td>
-      <td>[-0.49, -0.62, 0.08, 2.03]</td>
-      <td>646</td>
-      <td>Leannon Ward</td>
-      <td>32000</td>
-      <td>73666</td>
-      <td>RENT</td>
-      <td>131</td>
-      <td>0</td>
-      <td>0</td>
-    </tr>
-    <tr>
-      <td>not_fraud</td>
-      <td>not_fraud</td>
-      <td>[1.69, 0.01, -0.76, 3.64]</td>
-      <td>560</td>
-      <td>Kirlin and Sons</td>
-      <td>19000</td>
-      <td>38589</td>
-      <td>MORTGAGE</td>
-      <td>131</td>
-      <td>0</td>
-      <td>0</td>
-    </tr>
-    <tr>
-      <td>uncertain</td>
-      <td>uncertain</td>
-      <td>[1.46, 0.69, 3.26, -0.17]</td>
-      <td>636</td>
-      <td>Champlin and Sons</td>
-      <td>10000</td>
-      <td>100251</td>
-      <td>MORTGAGE</td>
-      <td>10</td>
-      <td>0</td>
-      <td>3</td>
-    </tr>
-  </tbody>
-</table>
-
+| predicted  | target     | embedding\_vector           | fico\_score | merchant\_id      | loan\_amount | annual\_income | home\_ownership | num\_credit\_lines | inquests\_in\_last\_6\_months | months\_since\_last\_delinquency |
+| ---------- | ---------- | --------------------------- | ----------- | ----------------- | ------------ | -------------- | --------------- | ------------------ | ----------------------------- | -------------------------------- |
+| fraud      | not\_fraud | \[-0.97, 3.98, -0.03, 2.92] | 604         | Leannon Ward      | 22000        | 100781         | RENT            | 108                | 0                             | 0                                |
+| fraud      | not\_fraud | \[3.20, 3.95, 2.81, -0.09]  | 612         | Scammeds          | 7500         | 116184         | MORTGAGE        | 42                 | 2                             | 56                               |
+| not\_fraud | not\_fraud | \[-0.49, -0.62, 0.08, 2.03] | 646         | Leannon Ward      | 32000        | 73666          | RENT            | 131                | 0                             | 0                                |
+| not\_fraud | not\_fraud | \[1.69, 0.01, -0.76, 3.64]  | 560         | Kirlin and Sons   | 19000        | 38589          | MORTGAGE        | 131                | 0                             | 0                                |
+| uncertain  | uncertain  | \[1.46, 0.69, 3.26, -0.17]  | 636         | Champlin and Sons | 10000        | 100251         | MORTGAGE        | 10                 | 0                             | 3                                |
 
 #### Schema
 
@@ -249,8 +171,8 @@ schema = px.Schema(
     embedding_feature_column_names={
         "transaction_embeddings": px.EmbeddingColumnNames(
             vector_column_name="embedding_vector"
-        )
-    }
+        ),
+    },
 )
 ```
 
@@ -326,7 +248,7 @@ schema = px.Schema(
 
 ### Multiple Embedding Features
 
-Phoenix enables
+
 
 #### DataFrame
 
