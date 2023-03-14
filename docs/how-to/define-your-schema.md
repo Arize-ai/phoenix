@@ -47,102 +47,15 @@ For more information on timestamps, including details on how Phoenix handles tim
 
 Phoenix accepts not only predictions and ground truth but also input features of your model and tags that describe your data. In the example below, features such as FICO score and merchant ID are used to predict whether a credit card transaction is legitimate or fraudulent. In contrast, tags such as age and gender are not model inputs, but are used to filter your data and analyze meaningful cohorts in the app.
 
-{% hint style="info" %}
-Both features and tags can be used to apply filters to analyze subsets of your data. Unlike features, however, tags are not inputs to your model.
-{% endhint %}
-
 #### DataFrame
 
-<table border="1" class="dataframe">
-  <thead>
-    <tr style="text-align: right;">
-      <th>fico_score</th>
-      <th>merchant_id</th>
-      <th>loan_amount</th>
-      <th>annual_income</th>
-      <th>home_ownership</th>
-      <th>num_credit_lines</th>
-      <th>inquests_in_last_6_months</th>
-      <th>months_since_last_delinquency</th>
-      <th>age</th>
-      <th>gender</th>
-      <th>predicted</th>
-      <th>target</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td>578</td>
-      <td>Scammeds</td>
-      <td>4300</td>
-      <td>62966</td>
-      <td>RENT</td>
-      <td>110</td>
-      <td>0</td>
-      <td>0</td>
-      <td>25</td>
-      <td>male</td>
-      <td>not_fraud</td>
-      <td>fraud</td>
-    </tr>
-    <tr>
-      <td>507</td>
-      <td>Schiller Ltd</td>
-      <td>21000</td>
-      <td>52335</td>
-      <td>RENT</td>
-      <td>129</td>
-      <td>0</td>
-      <td>23</td>
-      <td>78</td>
-      <td>female</td>
-      <td>not_fraud</td>
-      <td>not_fraud</td>
-    </tr>
-    <tr>
-      <td>656</td>
-      <td>Kirlin and Sons</td>
-      <td>18000</td>
-      <td>94995</td>
-      <td>MORTGAGE</td>
-      <td>31</td>
-      <td>0</td>
-      <td>0</td>
-      <td>54</td>
-      <td>female</td>
-      <td>uncertain</td>
-      <td>uncertain</td>
-    </tr>
-    <tr>
-      <td>414</td>
-      <td>Scammeds</td>
-      <td>18000</td>
-      <td>32034</td>
-      <td>LEASE</td>
-      <td>81</td>
-      <td>2</td>
-      <td>0</td>
-      <td>34</td>
-      <td>male</td>
-      <td>fraud</td>
-      <td>not_fraud</td>
-    </tr>
-    <tr>
-      <td>512</td>
-      <td>Champlin and Sons</td>
-      <td>20000</td>
-      <td>46005</td>
-      <td>OWN</td>
-      <td>148</td>
-      <td>1</td>
-      <td>0</td>
-      <td>49</td>
-      <td>male</td>
-      <td>uncertain</td>
-      <td>uncertain</td>
-    </tr>
-  </tbody>
-</table>
+| fico\_score | merchant\_id      | loan\_amount | annual\_income | home\_ownership | num\_credit\_lines | inquests\_in\_last\_6\_months | months\_since\_last\_delinquency | age | gender | predicted  | target     |
+| ----------- | ----------------- | ------------ | -------------- | --------------- | ------------------ | ----------------------------- | -------------------------------- | --- | ------ | ---------- | ---------- |
+| 578         | Scammeds          | 4300         | 62966          | RENT            | 110                | 0                             | 0                                | 25  | male   | not\_fraud | fraud      |
+| 507         | Schiller Ltd      | 21000        | 52335          | RENT            | 129                | 0                             | 23                               | 78  | female | not\_fraud | not\_fraud |
+| 656         | Kirlin and Sons   | 18000        | 94995          | MORTGAGE        | 31                 | 0                             | 0                                | 54  | female | uncertain  | uncertain  |
+| 414         | Scammeds          | 18000        | 32034          | LEASE           | 81                 | 2                             | 0                                | 34  | male   | fraud      | not\_fraud |
+| 512         | Champlin and Sons | 20000        | 46005          | OWN             | 148                | 1                             | 0                                | 49  | male   | uncertain  | uncertain  |
 
 #### Schema
 
@@ -219,25 +132,32 @@ schema = px.Schema(
 
 ## Embedding Features
 
-Define embedding features with `px.EmbeddingColumnNames`.
+Embedding features consist of vector data in addition to any unstructured data in the form of text or images that the vectors represent. Unlike normal features, a single embedding feature may span multiple columns of your DataFrame. Use `px.EmbeddingColumnNames` to associate multiple DataFrame columns with the same embedding feature.
 
 {% hint style="info" %}
-For a conceptual overview of embeddings, see [Embeddings](../concepts/embeddings.md).
+* For a conceptual overview of embeddings, see [Embeddings](../concepts/embeddings.md).
+* For a comprehensive description of `px.EmbeddingColumnNames`, see the [API reference](../reference/api/phoenix.schema/phoenix.embeddingcolumnnames.md).
 {% endhint %}
+
+### Embedding Vectors
+
+To define an embedding feature, you must at minimum provide Phoenix with the embedding vector data itself. Specify the DataFrame column that contains this data in the `vector_column_name` field on `px.EmbeddingColumnNames`. For example, the DataFrame below contains tabular credit card transaction data in addition to embedding vectors that represent each row. Notice that each entry in the "embedding\_vector" column is a one-dimensional Numpy array of length 4.
 
 {% hint style="info" %}
-The examples in this section have low-dimensional embeddings so you can view them easily. In practice, the dimension of your embeddings may be much higher.
+The example embeddings in this section are low-dimensional for the sake of easy viewing. Your embeddings in practice will typically have much higher dimension.
 {% endhint %}
-
-In the simplest case, provide Phoenix with just the embeddings themselves. Note that "product\_review\_embedding" in the schema below is not a column of your DataFrame, but is a name you choose for your embedding feature that will appear in the Phoenix UI.
 
 {% hint style="warning" %}
-Metrics for comparing embeddings, such as Euclidean distance and cosine similarity, can only be computed between vectors of the same length. That means that your embeddings for any particular embedding feature must all have the same length.
+Ensure that all embedding vectors for a particular embedding feature are one-dimensional arrays of the same length, or else, Phoenix will throw an error.
 {% endhint %}
 
-### Image Data
+#### DataFrame
 
-For computer vision applications, you can provide links or local paths to images you want to display in the UI. The following example contains data for an image classification model that detects product defects on an assembly line.
+#### Schema
+
+### Embeddings of Images
+
+If your embeddings represent images, you can provide links or local paths to image files you want to display in the app by using the `link_to_data_column_name` field on `px.EmbeddingColumnNames`. The following example contains data for an image classification model that detects product defects on an assembly line.
 
 #### DataFrame
 
@@ -263,9 +183,9 @@ schema = px.Schema(
 )
 ```
 
-### Text Data
+### Embeddings of Text
 
-For NLP applications, you can associate a piece of each with each embedding using the `raw_data` field on `px.EmbeddingColumnNames`. The example below shows data from a sentiment classification model for product reviews.
+If your embeddings represent pieces of text, you can display that text in the app by using the `raw_data_column_name` field on `px.EmbeddingColumnNames`. The embeddings below were generated by a sentiment classification model trained on product reviews.
 
 #### DataFrame
 
@@ -299,10 +219,8 @@ schema = px.Schema(
 
 ### Multiple Embedding Features
 
+Phoenix enables
+
 #### DataFrame
 
 #### Schema
-
-{% hint style="info" %}
-Distinct embedding features can have embeddings of differing lengths. In the example above, X has embeddings of length 4 while Y has embeddings of length 5.
-{% endhint %}
