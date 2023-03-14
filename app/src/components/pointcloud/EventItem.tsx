@@ -42,7 +42,7 @@ export function EventItem(props: EventItemProps) {
         transition: background-color 0.2s ease-in-out;
         display: flex;
         flex-direction: column;
-
+        cursor: pointer;
         &:hover {
           background-color: ${transparentize(0.9, theme.colors.arizeLightBlue)};
           border-color: ${transparentize(0.5, theme.colors.arizeLightBlue)};

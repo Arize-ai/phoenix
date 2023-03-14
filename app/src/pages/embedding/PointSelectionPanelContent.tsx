@@ -1,14 +1,14 @@
 import React, { useMemo } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
-import { Column } from "react-table";
 import { css } from "@emotion/react";
 
 import {
+  Accordion,
+  AccordionItem,
   Button,
   CloseOutline,
   Dialog,
   DialogContainer,
-  Heading,
   Icon,
   TabPane,
   Tabs,
@@ -20,7 +20,6 @@ import {
   EventItem,
   SelectionDisplayRadioGroup,
 } from "@phoenix/components/pointcloud";
-import { Table } from "@phoenix/components/table";
 import { usePointCloudContext } from "@phoenix/contexts";
 import { DatasetType, SelectionDisplay } from "@phoenix/types";
 
@@ -28,7 +27,8 @@ import {
   PointSelectionPanelContentQuery,
   PointSelectionPanelContentQuery$data,
 } from "./__generated__/PointSelectionPanelContentQuery.graphql";
-import { UMAPPointsEntry } from "./types";
+import { PointSelectionTable } from "./PointSelectionTable";
+import { ModelEvent, UMAPPointsEntry } from "./types";
 
 type EventsList =
   PointSelectionPanelContentQuery$data["model"]["primaryDataset"]["events"];
@@ -127,36 +127,27 @@ export function PointSelectionPanelContent(props: {
     setSelectedClusterId(null);
   };
 
-  const tableData = useMemo(() => {
+  const allData: ModelEvent[] = useMemo(() => {
     return allSelectedEvents.map((event) => {
       const pointData = pointIdToDataMap.get(event.id);
       return {
-        actualLabel: event.eventMetadata?.actualLabel,
-        predictionLabel: event.eventMetadata?.predictionLabel,
-        rawData: pointData?.embeddingMetadata.rawData,
-        linkToData: pointData?.embeddingMetadata.linkToData,
+        id: event.id,
+        actualLabel: event.eventMetadata?.actualLabel ?? null,
+        predictionLabel: event.eventMetadata?.predictionLabel ?? null,
+        rawData: pointData?.embeddingMetadata.rawData ?? null,
+        linkToData: pointData?.embeddingMetadata.linkToData ?? null,
+        dimensions: event.dimensions,
       };
     });
   }, [allSelectedEvents, pointIdToDataMap]);
 
-  const columns: Column<typeof tableData[number]>[] = [
-    {
-      Header: "Link",
-      accessor: "linkToData",
-    },
-    {
-      Header: "Raw Data",
-      accessor: "rawData",
-    },
-    {
-      Header: "Prediction Label",
-      accessor: "predictionLabel",
-    },
-    {
-      Header: "Actual Label",
-      accessor: "actualLabel",
-    },
-  ];
+  const eventDetails: ModelEvent | null = useMemo(() => {
+    if (selectedDetailPointId) {
+      const event = allData.find((event) => event.id === selectedDetailPointId);
+      return event ?? null;
+    }
+    return null;
+  }, [allData, selectedDetailPointId]);
 
   return (
     <section css={pointSelectionPanelCSS}>
@@ -192,7 +183,17 @@ export function PointSelectionPanelContent(props: {
             <Text>{`${allSelectedEvents.length} points selected`}</Text>
           </Toolbar>
           {selectionDisplay === SelectionDisplay.list ? (
-            <Table columns={columns} data={tableData} />
+            <div
+              css={css`
+                flex: 1 1 auto;
+                overflow-y: auto;
+              `}
+            >
+              <PointSelectionTable
+                data={allData}
+                onPointSelected={setSelectedDetailPointId}
+              />
+            </div>
           ) : (
             <SelectionGridView
               events={allSelectedEvents}
@@ -207,13 +208,9 @@ export function PointSelectionPanelContent(props: {
         isDismissable
         onDismiss={() => setSelectedDetailPointId(null)}
       >
-        {selectedDetailPointId && (
-          <Dialog title="Event Details">
-            <EventDetails
-              event={
-                pointIdToDataMap.get(selectedDetailPointId) as UMAPPointsEntry
-              }
-            />
+        {eventDetails && (
+          <Dialog title="Event Details" size="L">
+            <EventDetails event={eventDetails} />
           </Dialog>
         )}
       </DialogContainer>
@@ -307,15 +304,42 @@ function SelectionGridView(props: SelectionGridViewProps) {
   );
 }
 
-function EventDetails({ event }: { event: UMAPPointsEntry }) {
+function EventDetails({ event }: { event: ModelEvent }) {
+  const imageUrl = event.linkToData || undefined;
   return (
     <section>
-      <img
-        src={event.embeddingMetadata?.linkToData ?? undefined}
-        alt="event image"
-        width="100%"
-      />
-      <Heading>{event.id}</Heading>
+      {imageUrl ? (
+        <img
+          src={imageUrl}
+          alt="event image"
+          width="100%"
+          height="200px"
+          css={css`
+            object-fit: contain;
+            background-color: black;
+          `}
+        />
+      ) : null}
+      <Accordion variant="compact">
+        <AccordionItem id="embedding" title="Embedding Data">
+          <pre
+            css={css`
+              padding: var(--px-spacing-lg);
+            `}
+          >
+            {event.rawData}
+          </pre>
+        </AccordionItem>
+        <AccordionItem id="dimensions" title="Dimensions">
+          <pre
+            css={css`
+              padding: var(--px-spacing-lg);
+            `}
+          >
+            {JSON.stringify(event.dimensions, null, 2)}
+          </pre>
+        </AccordionItem>
+      </Accordion>
     </section>
   );
 }

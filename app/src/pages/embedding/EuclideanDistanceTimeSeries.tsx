@@ -38,7 +38,8 @@ function TooltipContent({ active, payload, label }: TooltipProps<any, any>) {
         `}
       >
         <p>{`${timeFormatter(new Date(label))}`}</p>
-        <p>{`${payload[0].value}`}</p>
+        <p>{`Euclidean Distance: ${payload[1].value}`}</p>
+        <p>{`${payload[0].value} predictions`}</p>
         <p>Click to view drift at this time</p>
       </div>
     );
@@ -117,14 +118,17 @@ export function EuclideanDistanceTimeSeries({
   );
 
   let chartData = data.embedding.euclideanDistanceTimeSeries?.data || [];
-  const chartTrafficData = data.embedding.trafficTimeSeries?.data || [];
+  const trafficDataMap =
+    data.embedding.trafficTimeSeries?.data.reduce((acc, traffic) => {
+      acc[traffic.timestamp] = traffic.value;
+      return acc;
+    }, {} as Record<string, number | null>) ?? {};
+
   chartData = chartData.map((d) => {
-    const traffic = chartTrafficData.find(
-      (traffic) => traffic.timestamp === d.timestamp
-    );
+    const traffic = trafficDataMap[d.timestamp];
     return {
       ...d,
-      traffic: traffic?.value,
+      traffic: traffic,
       timestamp: new Date(d.timestamp).toISOString(),
     };
   });
