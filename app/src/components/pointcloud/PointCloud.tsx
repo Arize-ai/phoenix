@@ -20,7 +20,7 @@ import { getPointColorGroup } from "./colorGroups";
 import { PointCloudClusters } from "./PointCloudClusters";
 import { PointCloudPoints } from "./PointCloudPoints";
 import { ThreeDimensionalPointItem } from "./types";
-import { Cluster } from "./types";
+import { ClusterInfo } from "./types";
 
 const RADIUS_BOUNDS_3D_DIVISOR = 400;
 const CLUSTER_POINT_RADIUS_MULTIPLIER = 6;
@@ -29,7 +29,7 @@ const BOUNDS_3D_ZOOM_PADDING_FACTOR = 0.5;
 export interface PointCloudProps {
   primaryData: ThreeDimensionalPointItem[];
   referenceData: ThreeDimensionalPointItem[] | null;
-  clusters: readonly Cluster[];
+  clusters: readonly ClusterInfo[];
 }
 
 interface ProjectionProps extends PointCloudProps {
