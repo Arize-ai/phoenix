@@ -139,116 +139,28 @@ Embedding features consist of vector data in addition to any unstructured data i
 * For a comprehensive description of `px.EmbeddingColumnNames`, see the [API reference](../reference/api/phoenix.schema/phoenix.embeddingcolumnnames.md).
 {% endhint %}
 
-### Embedding Vectors
-
-To define an embedding feature, you must at minimum provide Phoenix with the embedding vector data itself. Specify the DataFrame column that contains this data in the `vector_column_name` field on `px.EmbeddingColumnNames`. For example, the DataFrame below contains tabular credit card transaction data in addition to embedding vectors that represent each row. Notice that each entry in the "embedding\_vector" column is a one-dimensional Numpy array of length 4. Also note that the name "transaction_embedding" does not refer to any column of your DataFrame.
-
 {% hint style="info" %}
 The example embeddings in this section are low-dimensional for the sake of easy viewing. Your embeddings in practice will typically have much higher dimension.
 {% endhint %}
 
-{% hint style="warning" %}
-Ensure that all embedding vectors for a particular embedding feature are one-dimensional arrays of the same length, or else, Phoenix will throw an error.
-{% endhint %}
+### Embedding Vectors
+
+To define an embedding feature, you must at minimum provide Phoenix with the embedding vector data itself. Specify the DataFrame column that contains this data in the `vector_column_name` field on `px.EmbeddingColumnNames`. For example, the DataFrame below contains tabular credit card transaction data in addition to embedding vectors that represent each row. Notice that
+
+* Unlike other fields, the argument to `embedding_feature_column_names` is a dictionary.
+* The key of this dictionary, "transaction\_embedding," is not itself a row of your DataFrame but is rather a descriptive name you choose for your embedding that appears in the UI.
+* The values of this dictionary are instances of `px.EmbeddingColumnNames`.
+* Each entry in the "embedding\_vector" column is a one-dimensional Numpy array of length 4.
 
 #### DataFrame
 
-<table border="1" class="dataframe">
-  <thead>
-    <tr style="text-align: right;">
-      <th>fico_score</th>
-      <th>merchant_id</th>
-      <th>loan_amount</th>
-      <th>annual_income</th>
-      <th>home_ownership</th>
-      <th>num_credit_lines</th>
-      <th>inquests_in_last_6_months</th>
-      <th>months_since_last_delinquency</th>
-      <th>age</th>
-      <th>gender</th>
-      <th>predicted</th>
-      <th>target</th>
-      <th>embedding_vector</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td>604</td>
-      <td>Leannon Ward</td>
-      <td>22000</td>
-      <td>100781</td>
-      <td>RENT</td>
-      <td>108</td>
-      <td>0</td>
-      <td>0</td>
-      <td>25</td>
-      <td>male</td>
-      <td>fraud</td>
-      <td>not_fraud</td>
-      <td>[-0.41, 0.16, 1.69, 1.56]</td>
-    </tr>
-    <tr>
-      <td>612</td>
-      <td>Scammeds</td>
-      <td>7500</td>
-      <td>116184</td>
-      <td>MORTGAGE</td>
-      <td>42</td>
-      <td>2</td>
-      <td>56</td>
-      <td>78</td>
-      <td>female</td>
-      <td>fraud</td>
-      <td>not_fraud</td>
-      <td>[0.97, 0.44, 2.09, 0.23]</td>
-    </tr>
-    <tr>
-      <td>646</td>
-      <td>Leannon Ward</td>
-      <td>32000</td>
-      <td>73666</td>
-      <td>RENT</td>
-      <td>131</td>
-      <td>0</td>
-      <td>0</td>
-      <td>54</td>
-      <td>female</td>
-      <td>not_fraud</td>
-      <td>not_fraud</td>
-      <td>[2.69, 0.05, 1.75, 2.86]</td>
-    </tr>
-    <tr>
-      <td>560</td>
-      <td>Kirlin and Sons</td>
-      <td>19000</td>
-      <td>38589</td>
-      <td>MORTGAGE</td>
-      <td>131</td>
-      <td>0</td>
-      <td>0</td>
-      <td>34</td>
-      <td>male</td>
-      <td>not_fraud</td>
-      <td>not_fraud</td>
-      <td>[-0.73, -0.31, 2.73, -0.92]</td>
-    </tr>
-    <tr>
-      <td>636</td>
-      <td>Champlin and Sons</td>
-      <td>10000</td>
-      <td>100251</td>
-      <td>MORTGAGE</td>
-      <td>10</td>
-      <td>0</td>
-      <td>3</td>
-      <td>49</td>
-      <td>male</td>
-      <td>uncertain</td>
-      <td>uncertain</td>
-      <td>[0.28, 1.21, 0.02, 1.10]</td>
-    </tr>
-  </tbody>
-</table>
+| fico\_score | merchant\_id      | loan\_amount | annual\_income | home\_ownership | num\_credit\_lines | inquests\_in\_last\_6\_months | months\_since\_last\_delinquency | age | gender | predicted  | target     | embedding\_vector            |
+| ----------- | ----------------- | ------------ | -------------- | --------------- | ------------------ | ----------------------------- | -------------------------------- | --- | ------ | ---------- | ---------- | ---------------------------- |
+| 604         | Leannon Ward      | 22000        | 100781         | RENT            | 108                | 0                             | 0                                | 25  | male   | fraud      | not\_fraud | \[-0.41, 0.16, 1.69, 1.56]   |
+| 612         | Scammeds          | 7500         | 116184         | MORTGAGE        | 42                 | 2                             | 56                               | 78  | female | fraud      | not\_fraud | \[0.97, 0.44, 2.09, 0.23]    |
+| 646         | Leannon Ward      | 32000        | 73666          | RENT            | 131                | 0                             | 0                                | 54  | female | not\_fraud | not\_fraud | \[2.69, 0.05, 1.75, 2.86]    |
+| 560         | Kirlin and Sons   | 19000        | 38589          | MORTGAGE        | 131                | 0                             | 0                                | 34  | male   | not\_fraud | not\_fraud | \[-0.73, -0.31, 2.73, -0.92] |
+| 636         | Champlin and Sons | 10000        | 100251         | MORTGAGE        | 10                 | 0                             | 3                                | 49  | male   | uncertain  | uncertain  | \[0.28, 1.21, 0.02, 1.10]    |
 
 #### Schema
 
@@ -256,27 +168,25 @@ Ensure that all embedding vectors for a particular embedding feature are one-dim
 schema = px.Schema(
     prediction_label_column_name="predicted",
     actual_label_column_name="target",
-    feature_column_names=[
-        "fico_score",
-        "merchant_id",
-        "loan_amount",
-        "annual_income",
-        "home_ownership",
-        "num_credit_lines",
-        "inquests_in_last_6_months",
-        "months_since_last_delinquency",
-    ],
     tag_column_names=[
         "age",
         "gender",
     ],
     embedding_feature_column_names={
-        "transaction_embedding": px.EmbeddingColumnNames(
+        "transaction_embeddings": px.EmbeddingColumnNames(
             vector_column_name="embedding_vector"
         )
     }
 )
 ```
+
+{% hint style="info" %}
+The features in this example are [implicitly inferred](define-your-schema.md#implicit-features) to be the columns of the DataFrame that do not appear in the schema.
+{% endhint %}
+
+{% hint style="warning" %}
+Ensure that all embedding vectors for a particular embedding feature are one-dimensional arrays of the same length, or else, Phoenix will throw an error.
+{% endhint %}
 
 ### Embeddings of Images
 
