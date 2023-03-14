@@ -1,21 +1,23 @@
 import React, { useMemo } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
-import { Column } from "react-table";
 import { css } from "@emotion/react";
 
 import {
   Button,
   CloseOutline,
+  Dialog,
+  DialogContainer,
   Icon,
   TabPane,
   Tabs,
   Text,
 } from "@arizeai/components";
 
-import { SelectionDisplayRadioGroup } from "@phoenix/components/canvas";
-import { EventItem } from "@phoenix/components/event";
 import { Toolbar } from "@phoenix/components/filter";
-import { Table } from "@phoenix/components/table";
+import {
+  EventItem,
+  SelectionDisplayRadioGroup,
+} from "@phoenix/components/pointcloud";
 import { usePointCloudContext } from "@phoenix/contexts";
 import { DatasetType, SelectionDisplay } from "@phoenix/types";
 
@@ -23,7 +25,9 @@ import {
   PointSelectionPanelContentQuery,
   PointSelectionPanelContentQuery$data,
 } from "./__generated__/PointSelectionPanelContentQuery.graphql";
-import { UMAPPointsEntry } from "./types";
+import { EventDetails } from "./EventDetails";
+import { PointSelectionTable } from "./PointSelectionTable";
+import { ModelEvent, UMAPPointsEntry } from "./types";
 
 type EventsList =
   PointSelectionPanelContentQuery$data["model"]["primaryDataset"]["events"];
@@ -47,6 +51,9 @@ export function PointSelectionPanelContent(props: {
       setSelectionDisplay: state.setSelectionDisplay,
     })
   );
+  const [selectedDetailPointId, setSelectedDetailPointId] = React.useState<
+    string | null
+  >(null);
 
   const { primaryEventIds, referenceEventIds } = useMemo(() => {
     const primaryEventIds: string[] = [];
@@ -119,25 +126,27 @@ export function PointSelectionPanelContent(props: {
     setSelectedClusterId(null);
   };
 
-  const tableData = useMemo(() => {
+  const allData: ModelEvent[] = useMemo(() => {
     return allSelectedEvents.map((event) => {
+      const pointData = pointIdToDataMap.get(event.id);
       return {
-        actualLabel: event.eventMetadata?.actualLabel,
-        predictionLabel: event.eventMetadata?.predictionLabel,
+        id: event.id,
+        actualLabel: event.eventMetadata?.actualLabel ?? null,
+        predictionLabel: event.eventMetadata?.predictionLabel ?? null,
+        rawData: pointData?.embeddingMetadata.rawData ?? null,
+        linkToData: pointData?.embeddingMetadata.linkToData ?? null,
+        dimensions: event.dimensions,
       };
     });
-  }, [allSelectedEvents]);
+  }, [allSelectedEvents, pointIdToDataMap]);
 
-  const columns: Column<typeof tableData[number]>[] = [
-    {
-      Header: "Actual Label",
-      accessor: "actualLabel",
-    },
-    {
-      Header: "Prediction Label",
-      accessor: "predictionLabel",
-    },
-  ];
+  const eventDetails: ModelEvent | null = useMemo(() => {
+    if (selectedDetailPointId) {
+      const event = allData.find((event) => event.id === selectedDetailPointId);
+      return event ?? null;
+    }
+    return null;
+  }, [allData, selectedDetailPointId]);
 
   return (
     <section css={pointSelectionPanelCSS}>
@@ -173,15 +182,37 @@ export function PointSelectionPanelContent(props: {
             <Text>{`${allSelectedEvents.length} points selected`}</Text>
           </Toolbar>
           {selectionDisplay === SelectionDisplay.list ? (
-            <Table columns={columns} data={tableData} />
+            <div
+              css={css`
+                flex: 1 1 auto;
+                overflow-y: auto;
+              `}
+            >
+              <PointSelectionTable
+                data={allData}
+                onPointSelected={setSelectedDetailPointId}
+              />
+            </div>
           ) : (
             <SelectionGridView
               events={allSelectedEvents}
               pointIdToDataMap={pointIdToDataMap}
+              onItemSelected={setSelectedDetailPointId}
             />
           )}
         </TabPane>
       </Tabs>
+      <DialogContainer
+        type="slideOver"
+        isDismissable
+        onDismiss={() => setSelectedDetailPointId(null)}
+      >
+        {eventDetails && (
+          <Dialog title="Embedding Details" size="L">
+            <EventDetails event={eventDetails} />
+          </Dialog>
+        )}
+      </DialogContainer>
     </section>
   );
 }
@@ -189,6 +220,7 @@ export function PointSelectionPanelContent(props: {
 type SelectionGridViewProps = {
   events: EventsList;
   pointIdToDataMap: Map<string, UMAPPointsEntry>;
+  onItemSelected: (pointId: string) => void;
 };
 
 const pointSelectionPanelCSS = css`
@@ -224,7 +256,7 @@ const pointSelectionPanelCSS = css`
 `;
 
 function SelectionGridView(props: SelectionGridViewProps) {
-  const { events, pointIdToDataMap } = props;
+  const { events, pointIdToDataMap, onItemSelected } = props;
   return (
     <div
       css={css`
@@ -237,12 +269,12 @@ function SelectionGridView(props: SelectionGridViewProps) {
         css={css`
           padding: var(--px-spacing-lg);
           display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+          grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
           flex-wrap: wrap;
           gap: var(--px-spacing-lg);
           & > li {
-            min-width: 200px;
-            min-height: 208px;
+            min-width: 160px;
+            min-height: 168px;
           }
         `}
       >
@@ -259,6 +291,9 @@ function SelectionGridView(props: SelectionGridViewProps) {
                 rawData={rawData}
                 linkToData={linkToData}
                 datasetType={datasetType}
+                onClick={() => {
+                  onItemSelected(event.id);
+                }}
               />
             </li>
           );

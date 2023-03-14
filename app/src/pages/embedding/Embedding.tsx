@@ -19,16 +19,17 @@ import { Switch, TabPane, Tabs } from "@arizeai/components";
 
 import { Loading, LoadingMask } from "@phoenix/components";
 import {
-  PointCloud,
-  ThreeDimensionalPointItem,
-} from "@phoenix/components/canvas";
-import { PointCloudDisplaySettings } from "@phoenix/components/canvas/PointCloudDisplaySettings";
-import { ClusterItem } from "@phoenix/components/cluster";
-import {
   PrimaryDatasetTimeRange,
   ReferenceDatasetTimeRange,
   Toolbar,
 } from "@phoenix/components/filter";
+import {
+  ClusterItem,
+  PointCloud,
+  PointCloudParameterSettings,
+  ThreeDimensionalPointItem,
+} from "@phoenix/components/pointcloud";
+import { PointCloudDisplaySettings } from "@phoenix/components/pointcloud/PointCloudDisplaySettings";
 import { resizeHandleCSS } from "@phoenix/components/resize/styles";
 import { PointCloudProvider, usePointCloudContext } from "@phoenix/contexts";
 import { useDatasets } from "@phoenix/contexts";
@@ -363,7 +364,9 @@ const PointCloudDisplay = ({
                 <TabPane name="Display">
                   <PointCloudDisplaySettings />
                 </TabPane>
-                <TabPane name="Parameters">Parameters</TabPane>
+                <TabPane name="Parameters">
+                  <PointCloudParameterSettings />
+                </TabPane>
               </Tabs>
             </Panel>
           </PanelGroup>
@@ -377,6 +380,7 @@ const PointCloudDisplay = ({
               height: 100%;
             `}
           >
+            <SelectionPanel pointIdToDataMap={pointIdToDataMap} />
             <PointCloud
               primaryData={
                 sourceData.map(umapDataEntryToThreeDimensionalPointItem) ?? []
@@ -390,7 +394,6 @@ const PointCloudDisplay = ({
               }
               clusters={clusters}
             />
-            <SelectionPanel pointIdToDataMap={pointIdToDataMap} />
           </div>
         </Panel>
       </PanelGroup>
@@ -403,12 +406,6 @@ function SelectionPanel(props: {
 }) {
   const selectedPointIds = usePointCloudContext(
     (state) => state.selectedPointIds
-  );
-  const setSelectedPointIds = usePointCloudContext(
-    (state) => state.setSelectedPointIds
-  );
-  const setSelectedClusterId = usePointCloudContext(
-    (state) => state.setSelectedClusterId
   );
 
   if (selectedPointIds.size === 0) {
@@ -427,26 +424,14 @@ function SelectionPanel(props: {
       data-testid="selection-panel"
     >
       <PanelGroup direction="vertical">
-        <Panel>
-          <div
-            data-testid="point-cloud-mask"
-            role="button"
-            css={css`
-              width: 100%;
-              height: 100%;
-            `}
-            onClick={() => {
-              setSelectedPointIds(new Set());
-              setSelectedClusterId(null);
-            }}
-          />
-        </Panel>
-        <PanelResizeHandle css={resizeHandleCSS} />
+        <Panel></Panel>
+        <PanelResizeHandle css={resizeHandleCSS} style={{ zIndex: 1 }} />
         <Panel
           id="embedding-point-selection"
           defaultSize={40}
           minSize={20}
           order={2}
+          style={{ zIndex: 1 }}
         >
           <PointSelectionPanelContentWrap>
             <Suspense fallback={<Loading />}>

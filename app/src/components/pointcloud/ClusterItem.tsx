@@ -32,10 +32,11 @@ type ClusterItemProps = {
 export function ClusterItem(props: ClusterItemProps) {
   const { driftRatio, clusterId, isSelected, onClick } = props;
 
-  // Calculate the percentage of primary points in the cluster
-  const primaryPercentage = driftRatio ? ((driftRatio + 1) / 2) * 100 : 100;
-
   const hasClusterMetric = driftRatio !== null;
+  // Calculate the percentage of primary points in the cluster
+  const primaryPercentage =
+    typeof driftRatio === "number" ? ((driftRatio + 1) / 2) * 100 : 100;
+
   return (
     <div
       css={(theme) => css`
@@ -43,7 +44,7 @@ export function ClusterItem(props: ClusterItemProps) {
         border-radius: 4px;
         overflow: hidden;
         transition: background-color 0.2s ease-in-out;
-
+        cursor: pointer;
         &:hover {
           background-color: ${transparentize(0.9, theme.colors.arizeLightBlue)};
           border-color: ${transparentize(0.5, theme.colors.arizeLightBlue)};
@@ -81,10 +82,11 @@ export function ClusterItem(props: ClusterItemProps) {
         {hasClusterMetric ? (
           <div
             data-testid="cluster-metric"
-            css={css`
+            css={(theme) => css`
               text-align: right;
               display: flex;
               flex-direction: column;
+              gap: ${theme.spacing.margin4}px;
             `}
           >
             <Text color="white90" textSize="large">

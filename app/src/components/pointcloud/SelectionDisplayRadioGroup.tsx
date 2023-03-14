@@ -35,11 +35,11 @@ export function SelectionDisplayRadioGroup(
         }
       }}
     >
-      <Radio label="Move" value={SelectionDisplay.gallery}>
-        <Icon svg={<Icons.Grid />} />
-      </Radio>
-      <Radio label="Select" value={SelectionDisplay.list}>
+      <Radio label="List" value={SelectionDisplay.list}>
         <Icon svg={<Icons.List />} />
+      </Radio>
+      <Radio label="Grid" value={SelectionDisplay.gallery}>
+        <Icon svg={<Icons.Grid />} />
       </Radio>
     </RadioGroup>
   );

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<43c12d3f6dd0b8064bae79bb2dca61eb>>
+ * @generated SignedSource<<392bec27428f3e8ad57f6d44146953da>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -31,6 +31,12 @@ export type EuclideanDistanceTimeSeriesQuery$data = {
       }>;
     };
     readonly id: string;
+    readonly trafficTimeSeries?: {
+      readonly data: ReadonlyArray<{
+        readonly timestamp: string;
+        readonly value: number | null;
+      }>;
+    };
   };
 };
 export type EuclideanDistanceTimeSeriesQuery = {
@@ -69,58 +75,79 @@ v4 = {
   "storageKey": null
 },
 v5 = {
+  "kind": "Variable",
+  "name": "granularity",
+  "variableName": "granularity"
+},
+v6 = {
+  "kind": "Variable",
+  "name": "timeRange",
+  "variableName": "timeRange"
+},
+v7 = [
+  {
+    "alias": null,
+    "args": null,
+    "concreteType": "TimeSeriesDataPoint",
+    "kind": "LinkedField",
+    "name": "data",
+    "plural": true,
+    "selections": [
+      {
+        "alias": null,
+        "args": null,
+        "kind": "ScalarField",
+        "name": "timestamp",
+        "storageKey": null
+      },
+      {
+        "alias": null,
+        "args": null,
+        "kind": "ScalarField",
+        "name": "value",
+        "storageKey": null
+      }
+    ],
+    "storageKey": null
+  }
+],
+v8 = {
   "kind": "InlineFragment",
   "selections": [
     {
       "alias": "euclideanDistanceTimeSeries",
       "args": [
-        {
-          "kind": "Variable",
-          "name": "granularity",
-          "variableName": "granularity"
-        },
+        (v5/*: any*/),
         {
           "kind": "Literal",
           "name": "metric",
           "value": "euclideanDistance"
         },
-        {
-          "kind": "Variable",
-          "name": "timeRange",
-          "variableName": "timeRange"
-        }
+        (v6/*: any*/)
       ],
       "concreteType": "DriftTimeSeries",
       "kind": "LinkedField",
       "name": "driftTimeSeries",
       "plural": false,
-      "selections": [
+      "selections": (v7/*: any*/),
+      "storageKey": null
+    },
+    {
+      "alias": "trafficTimeSeries",
+      "args": [
+        (v5/*: any*/),
         {
-          "alias": null,
-          "args": null,
-          "concreteType": "TimeSeriesDataPoint",
-          "kind": "LinkedField",
-          "name": "data",
-          "plural": true,
-          "selections": [
-            {
-              "alias": null,
-              "args": null,
-              "kind": "ScalarField",
-              "name": "timestamp",
-              "storageKey": null
-            },
-            {
-              "alias": null,
-              "args": null,
-              "kind": "ScalarField",
-              "name": "value",
-              "storageKey": null
-            }
-          ],
-          "storageKey": null
-        }
+          "kind": "Literal",
+          "name": "metric",
+          "value": "count"
+        },
+        (v6/*: any*/)
       ],
+      "concreteType": "DataQualityTimeSeries",
+      "kind": "LinkedField",
+      "name": "dataQualityTimeSeries",
+      "plural": false,
+      "selections": (v7/*: any*/),
       "storageKey": null
     }
   ],
@@ -147,7 +174,7 @@ return {
         "plural": false,
         "selections": [
           (v4/*: any*/),
-          (v5/*: any*/)
+          (v8/*: any*/)
         ],
         "storageKey": null
       }
@@ -181,23 +208,23 @@ return {
             "storageKey": null
           },
           (v4/*: any*/),
-          (v5/*: any*/)
+          (v8/*: any*/)
         ],
         "storageKey": null
       }
     ]
   },
   "params": {
-    "cacheID": "7e6f01c63408d44b5e90f95af16e62ef",
+    "cacheID": "7435341c763565a5361e7dcac5072ad9",
     "id": null,
     "metadata": {},
     "name": "EuclideanDistanceTimeSeriesQuery",
     "operationKind": "query",
-    "text": "query EuclideanDistanceTimeSeriesQuery(\n  $embeddingDimensionId: GlobalID!\n  $timeRange: TimeRange!\n  $granularity: Granularity!\n) {\n  embedding: node(id: $embeddingDimensionId) {\n    __typename\n    id\n    ... on EmbeddingDimension {\n      euclideanDistanceTimeSeries: driftTimeSeries(metric: euclideanDistance, timeRange: $timeRange, granularity: $granularity) {\n        data {\n          timestamp\n          value\n        }\n      }\n    }\n  }\n}\n"
+    "text": "query EuclideanDistanceTimeSeriesQuery(\n  $embeddingDimensionId: GlobalID!\n  $timeRange: TimeRange!\n  $granularity: Granularity!\n) {\n  embedding: node(id: $embeddingDimensionId) {\n    __typename\n    id\n    ... on EmbeddingDimension {\n      euclideanDistanceTimeSeries: driftTimeSeries(metric: euclideanDistance, timeRange: $timeRange, granularity: $granularity) {\n        data {\n          timestamp\n          value\n        }\n      }\n      trafficTimeSeries: dataQualityTimeSeries(metric: count, timeRange: $timeRange, granularity: $granularity) {\n        data {\n          timestamp\n          value\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "1c561f44b9b4822f9772c87877426772";
+(node as any).hash = "d5a28e46e63b395bc481888ac3e7cd59";
 
 export default node;

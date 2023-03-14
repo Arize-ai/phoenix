@@ -17,17 +17,22 @@ type EventItemProps = {
    * Which dataset the event belongs to
    */
   datasetType: DatasetType;
+  /**
+   * event handler for when the user clicks on the event item
+   */
+  onClick: () => void;
 };
 /**
  * An item that represents a single model event. To be displayed in a grid / list
  */
 export function EventItem(props: EventItemProps) {
-  const { rawData, linkToData } = props;
+  const { rawData, linkToData, onClick } = props;
   // Prioritize the image preview over raw text
   const previewType: "raw" | "image" = linkToData != null ? "image" : "raw";
   return (
     <div
       data-testid="event-item"
+      role="button"
       css={(theme) => css`
         width: 100%;
         height: 100%;
@@ -37,7 +42,7 @@ export function EventItem(props: EventItemProps) {
         transition: background-color 0.2s ease-in-out;
         display: flex;
         flex-direction: column;
-
+        cursor: pointer;
         &:hover {
           background-color: ${transparentize(0.9, theme.colors.arizeLightBlue)};
           border-color: ${transparentize(0.5, theme.colors.arizeLightBlue)};
@@ -47,6 +52,7 @@ export function EventItem(props: EventItemProps) {
           background-color: ${transparentize(0.8, theme.colors.arizeLightBlue)};
         }
       `}
+      onClick={onClick}
     >
       {previewType === "image" ? (
         <img
