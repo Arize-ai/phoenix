@@ -12,7 +12,7 @@ export type ThreeDimensionalPointItem = {
   metaData: PontMetaData;
 };
 
-export type ClusterItem = {
+export type Cluster = {
   readonly id: string;
   readonly pointIds: readonly string[];
 };

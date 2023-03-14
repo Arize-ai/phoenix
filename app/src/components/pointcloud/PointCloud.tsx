@@ -17,11 +17,10 @@ import { PointCloudContext, usePointCloudContext } from "@phoenix/contexts";
 
 import { CanvasMode, CanvasModeRadioGroup } from "./CanvasModeRadioGroup";
 import { getPointColorGroup } from "./colorGroups";
-import { ControlPanel } from "./ControlPanel";
 import { PointCloudClusters } from "./PointCloudClusters";
 import { PointCloudPoints } from "./PointCloudPoints";
 import { ThreeDimensionalPointItem } from "./types";
-import { ClusterItem } from "./types";
+import { Cluster } from "./types";
 
 const RADIUS_BOUNDS_3D_DIVISOR = 400;
 const CLUSTER_POINT_RADIUS_MULTIPLIER = 6;
@@ -30,7 +29,7 @@ const BOUNDS_3D_ZOOM_PADDING_FACTOR = 0.5;
 export interface PointCloudProps {
   primaryData: ThreeDimensionalPointItem[];
   referenceData: ThreeDimensionalPointItem[] | null;
-  clusters: readonly ClusterItem[];
+  clusters: readonly Cluster[];
 }
 
 interface ProjectionProps extends PointCloudProps {
@@ -62,19 +61,6 @@ function CanvasTools(props: {
     >
       <CanvasModeRadioGroup mode={canvasMode} onChange={onCanvasModeChange} />
     </div>
-  );
-}
-
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function SelectionControlPanel({ selectedIds }: { selectedIds: Set<string> }) {
-  return (
-    <ControlPanel position="top-right" width={CONTROL_PANEL_WIDTH}>
-      <ul>
-        {[...selectedIds].map((id) => (
-          <li key={id}>{id}</li>
-        ))}
-      </ul>
-    </ControlPanel>
   );
 }
 

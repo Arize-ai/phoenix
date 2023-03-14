@@ -71,6 +71,18 @@ export function ModelSchemaTable(props: ModelSchemaTableProps) {
         Header: "Percent Empty",
         accessor: "percentEmpty",
       },
+      // {
+      //   Header: "Min",
+      //   accessor: "min",
+      // },
+      // {
+      //   Header: "Mean",
+      //   accessor: "mean",
+      // },
+      // {
+      //   Header: "Max",
+      //   accessor: "max",
+      // },
     ];
     return cols;
   }, []);

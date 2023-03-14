@@ -32,10 +32,11 @@ type ClusterItemProps = {
 export function ClusterItem(props: ClusterItemProps) {
   const { driftRatio, clusterId, isSelected, onClick } = props;
 
-  // Calculate the percentage of primary points in the cluster
-  const primaryPercentage = driftRatio ? ((driftRatio + 1) / 2) * 100 : 100;
-
   const hasClusterMetric = driftRatio !== null;
+  // Calculate the percentage of primary points in the cluster
+  const primaryPercentage =
+    typeof driftRatio === "number" ? ((driftRatio + 1) / 2) * 100 : 100;
+
   return (
     <div
       css={(theme) => css`

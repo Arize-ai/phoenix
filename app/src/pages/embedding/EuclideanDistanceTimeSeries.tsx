@@ -3,6 +3,7 @@ import { useLazyLoadQuery } from "react-relay";
 import { timeFormat } from "d3-time-format";
 import {
   Area,
+  Bar,
   CartesianGrid,
   ComposedChart,
   ReferenceLine,
@@ -47,8 +48,12 @@ function TooltipContent({ active, payload, label }: TooltipProps<any, any>) {
 }
 export function EuclideanDistanceTimeSeries({
   embeddingDimensionId,
+  color = "#5899C5",
+  barColor = "#93b3c841",
 }: {
   embeddingDimensionId: string;
+  color?: string;
+  barColor?: string;
 }) {
   const { timeRange } = useTimeRange();
   const { selectedTimestamp, setSelectedTimestamp } = useTimeSlice();
@@ -72,6 +77,16 @@ export function EuclideanDistanceTimeSeries({
                 value
               }
             }
+            trafficTimeSeries: dataQualityTimeSeries(
+              metric: count
+              timeRange: $timeRange
+              granularity: $granularity
+            ) {
+              data {
+                timestamp
+                value
+              }
+            }
           }
         }
       }
@@ -84,7 +99,7 @@ export function EuclideanDistanceTimeSeries({
       },
       granularity: {
         evaluationWindowMinutes: 4320,
-        samplingIntervalMinutes: 60,
+        samplingIntervalMinutes: 60 * 24,
       },
     }
   );
@@ -102,10 +117,17 @@ export function EuclideanDistanceTimeSeries({
   );
 
   let chartData = data.embedding.euclideanDistanceTimeSeries?.data || [];
-  chartData = chartData.map((d) => ({
-    ...d,
-    timestamp: new Date(d.timestamp).toISOString(),
-  }));
+  const chartTrafficData = data.embedding.trafficTimeSeries?.data || [];
+  chartData = chartData.map((d) => {
+    const traffic = chartTrafficData.find(
+      (traffic) => traffic.timestamp === d.timestamp
+    );
+    return {
+      ...d,
+      traffic: traffic?.value,
+      timestamp: new Date(d.timestamp).toISOString(),
+    };
+  });
   return (
     <ResponsiveContainer width="100%" height="100%">
       <ComposedChart
@@ -115,8 +137,12 @@ export function EuclideanDistanceTimeSeries({
       >
         <defs>
           <linearGradient id="colorUv" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor="#9E98C8" stopOpacity={0.8} />
-            <stop offset="95%" stopColor="#9E98C8" stopOpacity={0} />
+            <stop offset="5%" stopColor={color} stopOpacity={0.8} />
+            <stop offset="95%" stopColor={color} stopOpacity={0} />
+          </linearGradient>
+          <linearGradient id="barColor" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="5%" stopColor={barColor} stopOpacity={0.8} />
+            <stop offset="95%" stopColor={barColor} stopOpacity={0} />
           </linearGradient>
         </defs>
         <XAxis
@@ -153,22 +179,29 @@ export function EuclideanDistanceTimeSeries({
           strokeOpacity={0.5}
         />
         <Tooltip content={<TooltipContent />} />
+        <Bar
+          yAxisId="right"
+          dataKey="traffic"
+          fill="url(#barColor)"
+          spacing={5}
+        />
         <Area
           type="monotone"
           dataKey="value"
-          stroke="#9E98C8"
+          stroke={color}
           fillOpacity={1}
           fill="url(#colorUv)"
         />
+
         {selectedTimestamp != null ? (
           <ReferenceLine
             x={selectedTimestamp.toISOString()}
             stroke="white"
-            label={{
-              value: "Selection",
-              position: "insideTopRight",
-              style: { fill: theme.textColors.white90 },
-            }}
+            // label={{
+            //   value: "Selection",
+            //   position: "insideTopRight",
+            //   style: { fill: theme.textColors.white90 },
+            // }}
           />
         ) : null}
       </ComposedChart>
