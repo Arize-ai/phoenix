@@ -2,7 +2,7 @@ import React, { useMemo } from "react";
 
 import { Cluster } from "@arizeai/point-cloud";
 
-import { ClusterItem, ThreeDimensionalPointItem } from "./types";
+import { ClusterInfo, ThreeDimensionalPointItem } from "./types";
 
 type PointCloudClustersProps = {
   /**
@@ -12,7 +12,7 @@ type PointCloudClustersProps = {
   /**
    * The cluster definitions in the point cloud
    */
-  clusters: readonly ClusterItem[];
+  clusters: readonly ClusterInfo[];
   /**
    * The id of the cluster that is currently selected
    */
