@@ -267,10 +267,12 @@ class EmbeddingDimension(Node):
                 )
             )
 
+        has_reference_data = datasets[DatasetType.REFERENCE] is not None
+
         return UMAPPoints(
             data=points[DatasetType.PRIMARY],
             reference_data=points[DatasetType.REFERENCE],
-            clusters=to_gql_clusters(cluster_membership),
+            clusters=to_gql_clusters(cluster_membership, has_reference_data=has_reference_data),
         )
 
 

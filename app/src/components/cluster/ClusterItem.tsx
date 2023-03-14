@@ -34,6 +34,8 @@ export function ClusterItem(props: ClusterItemProps) {
 
   // Calculate the percentage of primary points in the cluster
   const primaryPercentage = driftRatio ? ((driftRatio + 1) / 2) * 100 : 100;
+
+  const hasClusterMetric = driftRatio !== null;
   return (
     <div
       css={(theme) => css`
@@ -76,21 +78,23 @@ export function ClusterItem(props: ClusterItemProps) {
             {`${props.numPoints} points`}
           </Text>
         </div>
-        <div
-          data-testid="cluster-metric"
-          css={css`
-            text-align: right;
-            display: flex;
-            flex-direction: column;
-          `}
-        >
-          <Text color="white90" textSize="large">
-            {driftRatio?.toPrecision(2) ?? "--"}
-          </Text>
-          <Text color="white70" textSize="small">
-            Cluster Drift
-          </Text>
-        </div>
+        {hasClusterMetric ? (
+          <div
+            data-testid="cluster-metric"
+            css={css`
+              text-align: right;
+              display: flex;
+              flex-direction: column;
+            `}
+          >
+            <Text color="white90" textSize="large">
+              {driftRatio?.toPrecision(2) ?? "--"}
+            </Text>
+            <Text color="white70" textSize="small">
+              Cluster Drift
+            </Text>
+          </div>
+        ) : null}
       </div>
       <DistributionBar primaryPercentage={primaryPercentage} />
     </div>

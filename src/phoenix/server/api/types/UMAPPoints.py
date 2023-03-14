@@ -8,8 +8,8 @@ from typing_extensions import TypeAlias
 
 from phoenix.core.embedding_dimension import calculate_drift_ratio
 from phoenix.datasets.event import EventId
+from phoenix.server.api.interceptor import NoneIfNan
 
-from ..interceptor import NoneIfNan
 from .EmbeddingMetadata import EmbeddingMetadata
 from .EventMetadata import EventMetadata
 
@@ -34,7 +34,22 @@ class Cluster:
     )
 
 
-def to_gql_clusters(cluster_membership: Dict[EventId, int]) -> List[Cluster]:
+def to_gql_clusters(
+    cluster_membership: Dict[EventId, int],
+    has_reference_data: bool,
+) -> List[Cluster]:
+    """
+    Converts a dictionary of event IDs to cluster IDs to a list of clusters for the graphQL response
+
+    Parameters
+    ----------
+    cluster_membership: Dict[EventId, int]
+        A dictionary of event IDs to cluster IDs
+    has_reference_data: bool
+        Whether or not the model has reference data
+        Used to determine if drift ratio should be calculated
+    """
+
     clusters: Dict[int, Set[EventId]] = {}
     for event_id, cluster_id in cluster_membership.items():
         if cluster_id in clusters:
@@ -48,7 +63,9 @@ def to_gql_clusters(cluster_membership: Dict[EventId, int]) -> List[Cluster]:
             Cluster(
                 id=ID(str(cluster_id)),
                 point_ids=[ID(str(event)) for event in cluster_events],
-                drift_ratio=calculate_drift_ratio(cluster_events),
+                drift_ratio=calculate_drift_ratio(cluster_events)
+                if has_reference_data
+                else float("nan"),
             )
         )
 
