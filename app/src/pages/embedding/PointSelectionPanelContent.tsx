@@ -3,8 +3,6 @@ import { graphql, useLazyLoadQuery } from "react-relay";
 import { css } from "@emotion/react";
 
 import {
-  Accordion,
-  AccordionItem,
   Button,
   CloseOutline,
   Dialog,
@@ -27,6 +25,7 @@ import {
   PointSelectionPanelContentQuery,
   PointSelectionPanelContentQuery$data,
 } from "./__generated__/PointSelectionPanelContentQuery.graphql";
+import { EventDetails } from "./EventDetails";
 import { PointSelectionTable } from "./PointSelectionTable";
 import { ModelEvent, UMAPPointsEntry } from "./types";
 
@@ -209,7 +208,7 @@ export function PointSelectionPanelContent(props: {
         onDismiss={() => setSelectedDetailPointId(null)}
       >
         {eventDetails && (
-          <Dialog title="Event Details" size="L">
+          <Dialog title="Embedding Details" size="L">
             <EventDetails event={eventDetails} />
           </Dialog>
         )}
@@ -301,45 +300,5 @@ function SelectionGridView(props: SelectionGridViewProps) {
         })}
       </ul>
     </div>
-  );
-}
-
-function EventDetails({ event }: { event: ModelEvent }) {
-  const imageUrl = event.linkToData || undefined;
-  return (
-    <section>
-      {imageUrl ? (
-        <img
-          src={imageUrl}
-          alt="event image"
-          width="100%"
-          height="200px"
-          css={css`
-            object-fit: contain;
-            background-color: black;
-          `}
-        />
-      ) : null}
-      <Accordion variant="compact">
-        <AccordionItem id="embedding" title="Embedding Data">
-          <pre
-            css={css`
-              padding: var(--px-spacing-lg);
-            `}
-          >
-            {event.rawData}
-          </pre>
-        </AccordionItem>
-        <AccordionItem id="dimensions" title="Dimensions">
-          <pre
-            css={css`
-              padding: var(--px-spacing-lg);
-            `}
-          >
-            {JSON.stringify(event.dimensions, null, 2)}
-          </pre>
-        </AccordionItem>
-      </Accordion>
-    </section>
   );
 }

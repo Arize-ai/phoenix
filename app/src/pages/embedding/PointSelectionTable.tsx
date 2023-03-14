@@ -1,6 +1,5 @@
 import React, { useMemo } from "react";
 import { CellProps, Column, useTable } from "react-table";
-import { css } from "@emotion/react";
 
 import { Button } from "@arizeai/components";
 
