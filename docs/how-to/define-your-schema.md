@@ -154,13 +154,91 @@ To define an embedding feature, you must at minimum provide Phoenix with the emb
 
 #### DataFrame
 
-| fico\_score | merchant\_id      | loan\_amount | annual\_income | home\_ownership | num\_credit\_lines | inquests\_in\_last\_6\_months | months\_since\_last\_delinquency | age | gender | predicted  | target     | embedding\_vector            |
-| ----------- | ----------------- | ------------ | -------------- | --------------- | ------------------ | ----------------------------- | -------------------------------- | --- | ------ | ---------- | ---------- | ---------------------------- |
-| 604         | Leannon Ward      | 22000        | 100781         | RENT            | 108                | 0                             | 0                                | 25  | male   | fraud      | not\_fraud | \[-0.41, 0.16, 1.69, 1.56]   |
-| 612         | Scammeds          | 7500         | 116184         | MORTGAGE        | 42                 | 2                             | 56                               | 78  | female | fraud      | not\_fraud | \[0.97, 0.44, 2.09, 0.23]    |
-| 646         | Leannon Ward      | 32000        | 73666          | RENT            | 131                | 0                             | 0                                | 54  | female | not\_fraud | not\_fraud | \[2.69, 0.05, 1.75, 2.86]    |
-| 560         | Kirlin and Sons   | 19000        | 38589          | MORTGAGE        | 131                | 0                             | 0                                | 34  | male   | not\_fraud | not\_fraud | \[-0.73, -0.31, 2.73, -0.92] |
-| 636         | Champlin and Sons | 10000        | 100251         | MORTGAGE        | 10                 | 0                             | 3                                | 49  | male   | uncertain  | uncertain  | \[0.28, 1.21, 0.02, 1.10]    |
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th>predicted</th>
+      <th>target</th>
+      <th>embedding_vector</th>
+      <th>fico_score</th>
+      <th>merchant_id</th>
+      <th>loan_amount</th>
+      <th>annual_income</th>
+      <th>home_ownership</th>
+      <th>num_credit_lines</th>
+      <th>inquests_in_last_6_months</th>
+      <th>months_since_last_delinquency</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>fraud</td>
+      <td>not_fraud</td>
+      <td>[-0.97, 3.98, -0.03, 2.92]</td>
+      <td>604</td>
+      <td>Leannon Ward</td>
+      <td>22000</td>
+      <td>100781</td>
+      <td>RENT</td>
+      <td>108</td>
+      <td>0</td>
+      <td>0</td>
+    </tr>
+    <tr>
+      <td>fraud</td>
+      <td>not_fraud</td>
+      <td>[3.20, 3.95, 2.81, -0.09]</td>
+      <td>612</td>
+      <td>Scammeds</td>
+      <td>7500</td>
+      <td>116184</td>
+      <td>MORTGAGE</td>
+      <td>42</td>
+      <td>2</td>
+      <td>56</td>
+    </tr>
+    <tr>
+      <td>not_fraud</td>
+      <td>not_fraud</td>
+      <td>[-0.49, -0.62, 0.08, 2.03]</td>
+      <td>646</td>
+      <td>Leannon Ward</td>
+      <td>32000</td>
+      <td>73666</td>
+      <td>RENT</td>
+      <td>131</td>
+      <td>0</td>
+      <td>0</td>
+    </tr>
+    <tr>
+      <td>not_fraud</td>
+      <td>not_fraud</td>
+      <td>[1.69, 0.01, -0.76, 3.64]</td>
+      <td>560</td>
+      <td>Kirlin and Sons</td>
+      <td>19000</td>
+      <td>38589</td>
+      <td>MORTGAGE</td>
+      <td>131</td>
+      <td>0</td>
+      <td>0</td>
+    </tr>
+    <tr>
+      <td>uncertain</td>
+      <td>uncertain</td>
+      <td>[1.46, 0.69, 3.26, -0.17]</td>
+      <td>636</td>
+      <td>Champlin and Sons</td>
+      <td>10000</td>
+      <td>100251</td>
+      <td>MORTGAGE</td>
+      <td>10</td>
+      <td>0</td>
+      <td>3</td>
+    </tr>
+  </tbody>
+</table>
+
 
 #### Schema
 
@@ -168,10 +246,6 @@ To define an embedding feature, you must at minimum provide Phoenix with the emb
 schema = px.Schema(
     prediction_label_column_name="predicted",
     actual_label_column_name="target",
-    tag_column_names=[
-        "age",
-        "gender",
-    ],
     embedding_feature_column_names={
         "transaction_embeddings": px.EmbeddingColumnNames(
             vector_column_name="embedding_vector"
