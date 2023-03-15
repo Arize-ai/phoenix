@@ -218,54 +218,13 @@ If your embeddings represent pieces of text, you can display that text in the ap
 
 #### DataFrame
 
-<table border="1" class="dataframe">
-  <thead>
-    <tr style="text-align: right;">
-      <th>name</th>
-      <th>category</th>
-      <th>sentiment</th>
-      <th>text</th>
-      <th>text_vector</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td>Magic Lamp</td>
-      <td>office</td>
-      <td>positive</td>
-      <td>This is the best desk light I have had. So glad I chose this one. 3 types of light from bright, to more of a normal light, to a tinted softer light. Also it can be angled in such a versatile way to not shine in your eyes. I love the plug in features with two places to plug things in on the base and ability to plug in a USB as well. I would highly recommend this light. I work at home all hours and it adds just the right amount of light for my work surface.</td>
-      <td>[3.53, 3.22, 2.74, -0.79]</td>
-    </tr>
-    <tr>
-      <td>Ergo Desk Chair</td>
-      <td>office</td>
-      <td>neutral</td>
-      <td>This office chair sits nice and high, which I like, but the seat is SO BROAD (both front to back and side to side) that when I sit far enough back to take advantage of the lumbar support, my feet don't touch the ground (I'm 5'7" with long legs - I'm not short or weirdly proportioned or anything). My desks height requires I keep the chair at its highest setting to type comfortably, so there's that. The lumbar support height is adjustable, but not nearly deep enough - perhaps the chair needs breaking in, but I can barely touch the lumbar support through the back mesh (maybe I don't weigh enough?). No matter how I adjust the tilt tension knob the seat DOESN'T recline, but has this sort of back-and-forth ricketiness that allows you an inch or so of movement (maybe I really DON'T weigh enough!). The height adjustment lever is meant to be twisted, not lifted (as the instructions say) - took me a bit to figure that out. Overall - the primary reason I got this chair was for the lumbar support and height adjustment, but I feel like I'm sitting in a chair that was built for a MUCH larger human than myself. You get what you pay for.</td>
-      <td>[2.21, 1.34, -0.39, 1.87]</td>
-    </tr>
-    <tr>
-      <td>Cloud Nine Mattress</td>
-      <td>bedroom</td>
-      <td>positive</td>
-      <td>I bought the 6 inch version and after it arrived while it was 'unpacking' itself I thought it might not be enough, but turns out I was wrong. I have it on a metal frame and thought it might be too thin, but with myself at 5' 8" and 190 pounds, along with three large dogs 70lbs+ it holds up great. It is very comfortable and I sleep very well on it, the only thing if you have the metal frame like I do is make sure you take the sticky tape off or the mattress slides too easily.</td>
-      <td>[0.44, 0.14, 3.69, 2.26]</td>
-    </tr>
-    <tr>
-      <td>Dr. Fresh's Spearmint Toothpaste</td>
-      <td>personal_hygiene</td>
-      <td>negative</td>
-      <td>I purchased this two-pack of a toothpaste I really like. What I received had less than thirty days before its expiration date. Seriously folks, all this does is create a problem. It's going to take $20 worth of time and effort to return one really dreadfully fulfilled $8 order. Please be better than this.</td>
-      <td>[1.53, 3.84, 3.91, 2.33]</td>
-    </tr>
-    <tr>
-      <td>Ultra-Fuzzy Bath Mat</td>
-      <td>bath</td>
-      <td>negative</td>
-      <td>I guess I was expecting this to be a little bigger then what it is. It's very pretty and really soft and it seems to absorb as described. It's slippery on the bare floor which is not good at all!!! The only way I would continue to use this is if I put it on top of another rug that's way bigger to cover more area of the bathroom. But after all you get what you pay for!!</td>
-      <td>[3.93, 2.23, -0.57, 1.20]</td>
-    </tr>
-  </tbody>
-</table>
+| name                             | category          | sentiment | text                                                                     | text\_vector               |
+| -------------------------------- | ----------------- | --------- | ------------------------------------------------------------------------ | -------------------------- |
+| Magic Lamp                       | office            | positive  | Makes a great desk lamp!                                                 | \[2.66, 0.89, 1.17, 2.21]  |
+| Ergo Desk Chair                  | office            | neutral   | This chair is pretty comfortable, but I wish it had better back support. | \[3.33, 1.14, 2.57, 2.88]  |
+| Cloud Nine Mattress              | bedroom           | positive  | I've been sleeping like a baby since I bought this thing.                | \[2.50, 3.74, 0.04, -0.94] |
+| Dr. Fresh's Spearmint Toothpaste | personal\_hygiene | negative  | Avoid at all costs, it tastes like soap.                                 | \[1.78, -0.24, 1.37, 2.60] |
+| Ultra-Fuzzy Bath Mat             | bath              | negative  | Cheap quality, began fraying at the edges after the first wash.          | \[2.71, 0.98, -0.22, 2.10] |
 
 #### Schema
 
@@ -293,69 +252,4 @@ Sometimes it is useful to have more than one embedding feature for the same data
 
 #### DataFrame
 
-<table border="1" class="dataframe">
-  <thead>
-    <tr style="text-align: right;">
-      <th>name</th>
-      <th>description</th>
-      <th>description_vector</th>
-      <th>image</th>
-      <th>image_vector</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td>Magic Lamp</td>
-      <td>Multiple Functions: Equipped 1 Port USB Charger, 2 Outlet Power Strip(1250W), memory function, 3 light modes, 3 brightness Levels dimmable, 60-minute timer. College dorm room essentials for students.\nEye Care Dimmable Tech: Magic lamp is optimized for each activity. Enjoy the most comfortable setting every time for working, studying, relaxing or getting ready to sleep.\n1 Port Smart USB Charger: Extra USB port allow you to charge your smartphone, ipad, tablet or other smart device without plug in wall, handy, conveniently and organized. It can detects your device automatically to deliver its fastest possible charge speed up to 2.4 amps.\n2 Safe Outlet Power Socket: You can charge your laptops, printers,bluetooth speakers and other devices with this outlets power strip. The Total Output of this AC Outlet is 1250W.\nQUALITY GUARANTEE: We provide 90-Day Money Back Guarantee and 24-month warranty. If there is any quality issue for this desk lamp or you are not happy with your purchase, please do not hesitate to contact us. We will do our best to help you</td>
-      <td>[-0.79, 3.77, 2.96, 0.81]</td>
-      <td>/path/to/your/first/image0.jpeg</td>
-      <td>[-0.10, 1.94, 1.24, 1.95, 0.51]</td>
-    </tr>
-    <tr>
-      <td>Ergo Desk Chair</td>
-      <td>2022 NEW LAUNCH: The perfect mesh chair with padded armrests that flip up for versatility. Meticulously developed to deliver maximum comfort and high quality. Designed for every space in mind.\nStrong Support: Back support is made of breathable woven mesh that hugs your lower back and promotes an ergonomic upright posture.\nComfy Cushion: This well-balanced seat delivers reliable comfort all day long. Not too firm not too soft just right. Breeze through working gaming and focusing on your desk.\nEasy Assembly: Specifically made to be hassle-free! Assemble under 15 minutes with our molded backrest and armrest frames that fit right onto each other. Designed by NEO CHAIR.\nTwo Modes: Armrests UP: Sit more freely cross your legs or easily stow under your desk. Armrests DOWN: Rest your arms on the soft padded armrests for extra support while you focus.</td>
-      <td>[0.68, 3.32, 1.06, -0.12]</td>
-      <td>/path/to/your/second/image1.jpeg</td>
-      <td>[0.43, -0.63, 3.41, -0.34, 2.54]</td>
-    </tr>
-    <tr>
-      <td>Cloud Nine Mattress</td>
-      <td>Our Cloud Nine Mattress combines cool comfort with maximum affordability. Made to soothe you to sleep, this supportive foam mattress features an extra line of defense for hot sleepers. The secret to its comfy, cooling success? Cozy layers of supportive memory foam wrapped in a plush cover that breathes well to help regulate your body temperature while you snooze. Its dependable high-density foam layers are designed with durability and a feel that's not too soft and not too firm-perfect for all types of sleeping positions. Plus, like all of our mattresses, it arrives at your door compressed and rolled into one compact box. And despite its extremely reasonable price tag, the Cloud Nine Mattress still includes our 10 year worry-free warranty, so you get extra peace of mind when cozying up on top of it. If you're a fan of sound, comfortable sleep and a good value (like us), then this mattress will live up to your every expectation.</td>
-      <td>[3.02, 0.87, 3.36, 1.57]</td>
-      <td>https://&lt;your-domain-here&gt;.com/image2.jpeg</td>
-      <td>[0.92, -0.49, 1.59, 0.63, 3.73]</td>
-    </tr>
-    <tr>
-      <td>Dr. Fresh's Spearmint Toothpaste</td>
-      <td>WHAT YOU'LL GET: Two 5.5-ounce tubes of Dr. Fresh's Spearmint Toothpaste\nFLUORIDE-FREE TOOTHPASTE: Helps fight tartar buildup with anti-plaque formula\nWHITEN TEETH: Natural toothpaste helps remove surface stains for a brighter, whiter smile\nRECYCLABLE TUBE: Look for the blue recycling flag, squeeze out as much toothpaste as you can, replace the cap, and recycle\nTAKE CARE OF YOURSELF NATURALLY: Contains no artificial sweeteners, preservatives, colors or flavors and is not tested on animals</td>
-      <td>[3.89, 2.87, 3.16, 0.37]</td>
-      <td>https://&lt;your-domain-here&gt;.com/image3.jpeg</td>
-      <td>[1.02, 0.21, 3.74, 2.20, 2.24]</td>
-    </tr>
-    <tr>
-      <td>Ultra-Fuzzy Bath Mat</td>
-      <td>Heavy Density Microfiber: The bath mats are made up of 1.18-inch height premium thick, soft and fluffy microfiber, where with the help of unique fiber locking technique, the fluff is thicker, making it great for bathroom, vanity, vacation home, master bedroom, kids' bathroom, guest suite.\nNon-Skid TPR Backing: The mat is equipped with TP rubber backing and not PVC or glue, to provide you with slip free experience and durability. Please note not to place the mat on wet surface and make sure that the floors are dry underneath the rug, to prevent slippage.\nUltra-Absorbent &amp; Quick Dry: The soft shaggy microfiber fabric, will not let the water drip on to the floors, when you are stepping out of your bath, shower or getting ready by the sink. Further, there is moisture trapped inside the mat's deep pile, which allows the rug to dry quickly and cleanly.\nEasy Maintenance: OLANLY bathroom mats can be machine washed separately with cold water, mild detergent which has no chlorine or bleach and tumble dry on low speed or hang dry. Also, the color will not fade and will stay vibrant for many years even with after washing and drying many times.\nBeautiful Decor, Gifting &amp; Multipurpose: The mats have unique gradient color stripe design, to provide beautiful decor to nearly any space in your bathroom. The mats work perfectly in front of your single or double sink, shower, bathtub or anywhere you want to have support and warmth for your feet. Further, the mats make a perfect gifting choice for your friends and family during Christmas, Mother's Day, Father's Day or any other special occasion.</td>
-      <td>[0.21, 3.83, 1.36, 3.90]</td>
-      <td>https://&lt;your-domain-here&gt;.com/image4.jpeg</td>
-      <td>[3.81, -0.65, -0.41, -0.94, 1.86]</td>
-    </tr>
-  </tbody>
-</table>
-
 #### Schema
-
-```python
-schema = px.Schema(
-    tag_column_names=["name"],
-    embedding_feature_column_names={
-        "description_embedding": px.EmbeddingColumnNames(
-            vector_column_name="description_vector",
-            raw_data_column_name="description",
-        ),
-        "image_embedding": px.EmbeddingColumnNames(
-            vector_column_name="image_vector",
-            link_to_data_column_name="image",
-        ),
-    },
-)
-```
