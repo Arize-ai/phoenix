@@ -181,7 +181,7 @@ The features in this example are [implicitly inferred](define-your-schema.md#imp
 {% endhint %}
 
 {% hint style="warning" %}
-Ensure that all embedding vectors for a particular embedding feature are one-dimensional arrays of the same length, or else, Phoenix will throw an error.
+Ensure that all embedding vectors for a particular embedding feature are one-dimensional arrays of the same length, otherwise, Phoenix will throw an error.
 {% endhint %}
 
 ### Embeddings of Images
@@ -248,7 +248,7 @@ schema = px.Schema(
 
 ### Multiple Embedding Features
 
-
+Sometimes it is useful to have more than one embedding feature for the same data. This is often the case with multi-modal applications in which one embedding represents the text and another embedding represents the image associated with a particular data point. The example below has both image and text embeddings for products in an e-commerce site.&#x20;
 
 #### DataFrame
 
