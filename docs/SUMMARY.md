@@ -12,9 +12,9 @@
 
 ## Tutorials
 
+* [Generative LLM](tutorials/generative-llm.md)
 * [NLP (Sentiment Classification)](tutorials/nlp-sentiment-classification.md)
 * [CV (Image Classification)](tutorials/cv-image-classification.md)
-* [Generative LLM](tutorials/generative-llm.md)
 * [Tabular (Credit Card Fraud)](tutorials/tabular-credit-card-fraud.md)
 
 ## How-To
