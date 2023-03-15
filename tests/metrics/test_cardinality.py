@@ -9,9 +9,8 @@ from typing import Dict, Union
 import numpy as np
 import pandas as pd
 import pytest
-from pytest_lazyfixture import lazy_fixture
-
 from phoenix.metrics.cardinality import cardinality
+from pytest_lazyfixture import lazy_fixture
 
 
 @pytest.fixture

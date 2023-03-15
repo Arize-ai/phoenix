@@ -4,7 +4,7 @@ import sys
 import uuid
 from copy import deepcopy
 from dataclasses import fields, replace
-from datetime import datetime
+from datetime import datetime, timedelta
 from enum import Enum
 from functools import cached_property
 from typing import Any, Dict, List, Optional, Set, Tuple, Union, cast
@@ -37,7 +37,28 @@ if hasattr(sys, "ps1"):
 
 class Dataset:
     """
-    A dataset represents data for a set of inferences. It is represented as a dataframe + schema
+    A dataset to use for analysis using phoenix.
+    Used to construct a phoenix session via px.launch_app
+
+    Parameters
+    ----------
+    dataframe : pandas.DataFrame
+        The pandas dataframe containing the data to analyze
+    schema : phoenix.Schema
+        the schema of the dataset. Maps dataframe columns to the appropriate
+        model inference dimensions (features, predictions, actuals).
+    name : str, optional
+        The name of the dataset. If not provided, a random name will be generated.
+        Is helpful for identifying the dataset in the application.
+
+    Returns
+    -------
+    dataset : Session
+        The session object that can be used to view the application
+
+    Examples
+    --------
+    >>> primary_dataset = px.Dataset(dataframe=production_dataframe, schema=schema, name="primary")
     """
 
     _data_file_name: str = "data.parquet"
@@ -85,9 +106,15 @@ class Dataset:
 
     @cached_property
     def end_time(self) -> datetime:
-        """Returns the datetime of the latest inference in the dataset"""
+        """
+        Returns the datetime of the latest inference in the dataset.
+        end_datetime equals max(timestamp) + 1 microsecond, so that it can be
+        used as part of a right-open interval.
+        """
         timestamp_col_name: str = cast(str, self.schema.timestamp_column_name)
-        end_datetime: datetime = self.__dataframe[timestamp_col_name].max()
+        end_datetime: datetime = self.__dataframe[timestamp_col_name].max() + timedelta(
+            microseconds=1,
+        )  # adding a microsecond, so it can be used as part of a right open interval
         return end_datetime
 
     @property
@@ -175,20 +202,20 @@ class Dataset:
         vector_column = self.dataframe[column_names.vector_column_name]
         return vector_column
 
-    def get_embedding_raw_data_column(self, embedding_feature_name: str) -> "Series[str]":
+    def get_embedding_raw_data_column(self, embedding_feature_name: str) -> "Optional[Series[str]]":
         column_names = self._get_embedding_feature_column_names(embedding_feature_name)
-        if column_names.raw_data_column_name is None:
-            raise err.SchemaError(
-                err.MissingEmbeddingFeatureRawDataColumnName(embedding_feature_name)
-            )
-        return self.dataframe[column_names.raw_data_column_name]
+        if column_names.raw_data_column_name is not None:
+            return self.dataframe[column_names.raw_data_column_name]
+        return None
 
-    def get_embedding_link_to_data_column(self, embedding_feature_name: str) -> "Series[str]":
+    def get_embedding_link_to_data_column(
+        self, embedding_feature_name: str
+    ) -> "Optional[Series[str]]":
         column_names = self._get_embedding_feature_column_names(embedding_feature_name)
         if column_names.link_to_data_column_name is not None:
             return self.dataframe[column_names.link_to_data_column_name]
 
-        return Series(dtype=str)
+        return None
 
     @classmethod
     def from_dataframe(

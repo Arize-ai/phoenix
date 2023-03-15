@@ -1,7 +1,7 @@
 import React, { ChangeEvent, useCallback, useMemo } from "react";
 import { css } from "@emotion/react";
 
-import { usePointCloudStore } from "@phoenix/store";
+import { usePointCloudContext } from "@phoenix/contexts";
 import { ColoringStrategy } from "@phoenix/types";
 import { assertUnreachable } from "@phoenix/typeUtils";
 
@@ -14,7 +14,7 @@ import { VisibilityCheckboxField } from "./VisibilityCheckboxField";
  */
 export function DatasetVisibilitySettings() {
   const { datasetVisibility, setDatasetVisibility, coloringStrategy } =
-    usePointCloudStore((state) => ({
+    usePointCloudContext((state) => ({
       datasetVisibility: state.datasetVisibility,
       setDatasetVisibility: state.setDatasetVisibility,
       coloringStrategy: state.coloringStrategy,
@@ -61,7 +61,7 @@ export function DatasetVisibilitySettings() {
       css={css`
         display: flex;
         flex-direction: column;
-        padding: var(--px-padding-med);
+        padding: var(--px-spacing-med);
       `}
     >
       <VisibilityCheckboxField

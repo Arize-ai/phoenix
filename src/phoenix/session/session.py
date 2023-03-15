@@ -72,9 +72,31 @@ def _wait_for_boot(url: str, polling_interval_secs: int = 1, max_retries: int = 
 
 
 def launch_app(
-    primary: Dataset, reference: Optional[Dataset], wait_for_boot: Optional[bool] = True
+    primary: Dataset, reference: Optional[Dataset] = None, wait_for_boot: Optional[bool] = True
 ) -> "Session":
-    "Launches the phoenix application"
+    """
+    Launches the phoenix application and returns a session to interact with.
+
+    Parameters
+    ----------
+    primary : Dataset required
+        The primary dataset to analyze
+    reference : Dataset, optional
+        The reference dataset to compare against.
+        If not provided, drift analysis will not be available.
+
+    Returns
+    -------
+    session : Session
+        The session object that can be used to view the application
+
+    Examples
+    --------
+    >>> import phoenix as px
+    >>> # construct a dataset to analyze
+    >>> dataset = px.Dataset(...)
+    >>> px.launch_app(dataset)
+    """
     global _session
 
     _session = Session(primary, reference, port=config.port)
@@ -85,7 +107,10 @@ def launch_app(
 
 
 def close_app() -> None:
-    "Closes the phoenix application"
+    """
+    Closes the phoenix application.
+    The application server is shut down and will no longer be accessible.
+    """
     global _session
     if _session is None:
         print("No active session to close")
@@ -96,7 +121,7 @@ def close_app() -> None:
 
 
 def _get_url(port: int, is_colab: bool) -> str:
-    """Determines the iframe url based on whether this is in a Colab"""
+    """Determines the iframe url based on whether this is in a colab or in a local notebook"""
     if is_colab:
         from google.colab.output import eval_js  # type: ignore
 

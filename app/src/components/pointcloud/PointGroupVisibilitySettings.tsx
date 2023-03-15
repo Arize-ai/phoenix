@@ -1,7 +1,7 @@
 import React, { ChangeEvent, useCallback, useMemo } from "react";
 import { css } from "@emotion/react";
 
-import { usePointCloudStore } from "@phoenix/store";
+import { usePointCloudContext } from "@phoenix/contexts";
 
 import { VisibilityCheckboxField } from "./VisibilityCheckboxField";
 
@@ -11,7 +11,7 @@ import { VisibilityCheckboxField } from "./VisibilityCheckboxField";
  */
 export function PointGroupVisibilitySettings() {
   const { pointGroupVisibility, setPointGroupVisibility, pointGroupColors } =
-    usePointCloudStore((state) => ({
+    usePointCloudContext((state) => ({
       pointGroupVisibility: state.pointGroupVisibility,
       pointGroupColors: state.pointGroupColors,
       setPointGroupVisibility: state.setPointGroupVisibility,
@@ -42,7 +42,7 @@ export function PointGroupVisibilitySettings() {
       <PointGroupCheckbox />
       <div
         css={css`
-          padding: var(--px-padding-med);
+          padding: var(--px-spacing-med);
         `}
       >
         {pointGroups.map((groupName) => {
@@ -68,7 +68,7 @@ export function PointGroupVisibilitySettings() {
  */
 function PointGroupCheckbox() {
   const { pointGroupVisibility, setPointGroupVisibility, coloringStrategy } =
-    usePointCloudStore((state) => ({
+    usePointCloudContext((state) => ({
       pointGroupVisibility: state.pointGroupVisibility,
       setPointGroupVisibility: state.setPointGroupVisibility,
       coloringStrategy: state.coloringStrategy,
@@ -100,7 +100,7 @@ function PointGroupCheckbox() {
         display: flex;
         flex-direction: row;
         gap: var(--px-flex-gap-sm);
-        padding: var(--px-padding-sm) var(--px-padding-med);
+        padding: var(--px-spacing-sm) var(--px-spacing-med);
         background-color: var(--px-section-background-color);
       `}
     >

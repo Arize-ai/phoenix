@@ -1,4 +1,3 @@
-import uuid
 from dataclasses import dataclass
 from itertools import cycle
 from typing import Dict, List, Set
@@ -6,7 +5,7 @@ from typing import Dict, List, Set
 import numpy as np
 import numpy.typing as npt
 import pytest
-
+from phoenix.datasets.event import EventId
 from phoenix.pointcloud.pointcloud import PointCloud
 
 
@@ -35,7 +34,7 @@ class MockClustersFinder:
 def test_point_cloud(samp_size: int, n_features: int, n_components: int, n_clusters: int) -> None:
     cluster_assignments = dict(zip(range(samp_size), cycle(range(n_clusters))))
 
-    data = {str(uuid.uuid4()): np.random.rand(1, n_features) for i in range(samp_size)}
+    data = {EventId(row_id=i): np.random.rand(1, n_features) for i in range(samp_size)}
 
     points, clusters = PointCloud(
         dimensionalityReducer=(MockDimensionalityReducer(samp_size)),

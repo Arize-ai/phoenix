@@ -1,6 +1,5 @@
 from numpy.testing import assert_array_almost_equal
 from pandas import DataFrame
-
 from phoenix.metrics.percent_empty import percent_empty
 
 

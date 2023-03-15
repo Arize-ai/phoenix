@@ -40,6 +40,8 @@ class Granularity:
 def to_timestamps(
     time_range: TimeRange, granularity: Granularity
 ) -> Generator[datetime, None, None]:
+    if not granularity.sampling_interval_minutes:
+        return
     yield from (
         takewhile(
             lambda t: time_range.start < t,  # type: ignore

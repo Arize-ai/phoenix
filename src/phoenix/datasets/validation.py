@@ -69,7 +69,7 @@ def _check_valid_embedding_data(dataframe: DataFrame, schema: Schema) -> List[er
                 embedding_errors.append(
                     err.InvalidEmbeddingVectorDataType(
                         embedding_feature_name=embedding_name,
-                        vector_column_type=str(type(vector_column)),
+                        vector_column_type=str(type(vector)),
                     )
                 )
                 break

@@ -2,13 +2,12 @@ from typing import Callable, Literal, Optional
 
 import pytest
 from pandas import DataFrame, Timestamp
-from strawberry.schema import Schema as StrawberrySchema
-from typing_extensions import TypeAlias
-
 from phoenix.datasets import Dataset as InternalDataset
 from phoenix.datasets import Schema
 from phoenix.server.api.context import Context
 from phoenix.server.api.types.Dataset import to_gql_dataset
+from strawberry.schema import Schema as StrawberrySchema
+from typing_extensions import TypeAlias
 
 ContextFactory: TypeAlias = Callable[[InternalDataset, Optional[InternalDataset]], Context]
 

@@ -1,7 +1,7 @@
 from collections import defaultdict
 from datetime import datetime, timedelta
 from itertools import chain
-from typing import Any, List, Mapping, Optional
+from typing import Any, Optional
 
 import numpy as np
 import numpy.typing as npt
@@ -16,7 +16,6 @@ from phoenix.datasets import Dataset
 from phoenix.datasets.dataset import DatasetType
 from phoenix.datasets.errors import SchemaError
 from phoenix.datasets.event import EventId
-from phoenix.metrics.embeddings import euclidean_distance
 from phoenix.metrics.timeseries import row_interval_from_sorted_time_index
 from phoenix.pointcloud.clustering import Hdbscan
 from phoenix.pointcloud.pointcloud import PointCloud
@@ -24,30 +23,20 @@ from phoenix.pointcloud.projectors import Umap
 from phoenix.server.api.context import Context
 from phoenix.server.api.input_types.TimeRange import TimeRange
 
+from ..input_types.Granularity import Granularity
+from .DataQualityMetric import DataQualityMetric
 from .DriftMetric import DriftMetric
-from .DriftTimeSeries import DriftTimeSeries
 from .EmbeddingMetadata import EmbeddingMetadata
 from .EventMetadata import EventMetadata
 from .node import Node
-from .TimeSeries import TimeSeriesDataPoint
-from .UMAPPoints import Cluster, UMAPPoint, UMAPPoints, to_gql_coordinates
+from .TimeSeries import DataQualityTimeSeries, DriftTimeSeries
+from .UMAPPoints import UMAPPoint, UMAPPoints, to_gql_clusters, to_gql_coordinates
 
 # Default UMAP hyperparameters
 DEFAULT_N_COMPONENTS = 3
 DEFAULT_MIN_DIST = 0
 DEFAULT_N_NEIGHBORS = 30
 DEFAULT_N_SAMPLES = 500
-
-
-def to_gql_clusters(clusters: Mapping[EventId, int]) -> List[Cluster]:
-    clusteredEvents = defaultdict(list)
-    for event_id, cluster_id in clusters.items():
-        clusteredEvents[ID(str(cluster_id))].append(ID(str(event_id)))
-    return [
-        Cluster(id=cluster_id, point_ids=event_ids)
-        for cluster_id, event_ids in clusteredEvents.items()
-    ]
-
 
 DRIFT_EVAL_WINDOW_NUM_INTERVALS = 72
 EVAL_INTERVAL_LENGTH = timedelta(hours=1)
@@ -61,7 +50,10 @@ class EmbeddingDimension(Node):
 
     @strawberry.field
     def drift_metric(
-        self, metric: DriftMetric, time_range: TimeRange, info: Info[Context, None]
+        self,
+        info: Info[Context, None],
+        metric: DriftMetric,
+        time_range: Optional[TimeRange] = None,
     ) -> Optional[float]:
         """
         Computes a drift metric between all reference data and the primary data
@@ -70,42 +62,48 @@ class EmbeddingDimension(Node):
         exists, if no primary data exists in the input time range, or if the
         input time range is invalid.
         """
-        model = info.context.model
-        primary_dataset = model.primary_dataset
-        reference_dataset = model.reference_dataset
-        if reference_dataset is None or not time_range.is_valid():
-            return None
-        embedding_feature_name = self.name
-        reference_embeddings_column = reference_dataset.get_embedding_vector_column(
-            embedding_feature_name
+        if len(
+            data := DriftTimeSeries(
+                str(info.context.model.primary_dataset.get_embedding_vector_column(self.name).name),
+                info.context.model,
+                metric,
+                time_range,
+            ).data
+        ):
+            return data.pop().value
+        return None
+
+    @strawberry.field(
+        description=(
+            "Returns the time series of the specified metric for data within timeRange. Data points"
+            " are generated starting at the end time, are separated by the sampling interval. Each"
+            " data point is labeled by the end instant of and contains data from their respective"
+            " evaluation window."
         )
-        reference_embeddings = _to_array(reference_embeddings_column)
-        primary_embeddings = _get_embeddings_array_for_time_range(
-            dataset=primary_dataset,
-            embedding_feature_name=embedding_feature_name,
-            start=time_range.start,
-            end=time_range.end,
+    )  # type: ignore  # https://github.com/strawberry-graphql/strawberry/issues/1929
+    def data_quality_time_series(
+        self,
+        info: Info[Context, None],
+        metric: DataQualityMetric,
+        time_range: TimeRange,
+        granularity: Granularity,
+    ) -> DataQualityTimeSeries:
+        return DataQualityTimeSeries(
+            str(info.context.model.primary_dataset.get_embedding_vector_column(self.name).name),
+            info.context.model,
+            metric,
+            time_range,
+            granularity,
         )
-        if primary_embeddings is None:
-            return None
-        primary_centroid = _compute_mean_vector(primary_embeddings)
-        reference_centroid = _compute_mean_vector(reference_embeddings)
-        if metric is DriftMetric.euclideanDistance:
-            return euclidean_distance(primary_centroid, reference_centroid)
-        raise NotImplementedError(f'Metric "{metric}" has not been implemented.')
 
     @strawberry.field
     def drift_time_series(
         self,
-        metric: DriftMetric,
-        time_range: Annotated[
-            TimeRange,
-            strawberry.argument(
-                description="The time range of the primary dataset",
-            ),
-        ],
         info: Info[Context, None],
-    ) -> Optional[DriftTimeSeries]:
+        metric: DriftMetric,
+        time_range: TimeRange,
+        granularity: Granularity,
+    ) -> DriftTimeSeries:
         """
         Computes a drift time-series between the primary and reference datasets.
         The output drift time-series contains one data point for each whole hour
@@ -117,46 +115,13 @@ class EmbeddingDimension(Node):
         Returns None if no reference dataset exists or if the input time range
         is invalid.
         """
-        model = info.context.model
-        primary_dataset = model.primary_dataset
-        reference_dataset = model.reference_dataset
-        if reference_dataset is None or not time_range.is_valid():
-            return None
-        embedding_feature_name = self.name
-        reference_embeddings_column = reference_dataset.get_embedding_vector_column(
-            embedding_feature_name
+        return DriftTimeSeries(
+            str(info.context.model.primary_dataset.get_embedding_vector_column(self.name).name),
+            info.context.model,
+            metric,
+            time_range,
+            granularity,
         )
-        reference_embeddings = _to_array(reference_embeddings_column)
-        reference_centroid = _compute_mean_vector(reference_embeddings)
-        time_series_data_points = []
-        if metric is DriftMetric.euclideanDistance:
-            eval_window_end = time_range.start
-            while eval_window_end < time_range.end:
-                eval_window_start = (
-                    eval_window_end - DRIFT_EVAL_WINDOW_NUM_INTERVALS * EVAL_INTERVAL_LENGTH
-                )
-                primary_embeddings = _get_embeddings_array_for_time_range(
-                    dataset=primary_dataset,
-                    embedding_feature_name=embedding_feature_name,
-                    start=eval_window_start,
-                    end=eval_window_end,
-                )
-                distance: Optional[float] = None
-                if primary_embeddings is not None:
-                    primary_centroid = _compute_mean_vector(primary_embeddings)
-                    distance = euclidean_distance(
-                        reference_centroid,
-                        primary_centroid,
-                    )
-                time_series_data_points.append(
-                    TimeSeriesDataPoint(
-                        timestamp=eval_window_end,
-                        value=distance,
-                    )
-                )
-                eval_window_end += EVAL_INTERVAL_LENGTH
-            return DriftTimeSeries(data=time_series_data_points)
-        raise NotImplementedError(f'Metric "{metric}" has not been implemented.')
 
     @strawberry.field
     def UMAPPoints(
@@ -210,9 +175,17 @@ class EmbeddingDimension(Node):
                             EventId(row_id, dataset_id),
                             dataset.get_embedding_vector_column(self.name).iloc[row_id],
                         )
-                        for row_id in range(
-                            *row_interval_from_sorted_time_index(
-                                dataset.dataframe.index, start=time_range.start, end=time_range.end
+                        for row_id in (
+                            range(
+                                *(
+                                    row_interval_from_sorted_time_index(
+                                        dataset.dataframe.index,
+                                        start=time_range.start,
+                                        end=time_range.end,
+                                    )
+                                    if dataset_id == DatasetType.PRIMARY
+                                    else (len(dataset.dataframe),)
+                                )
                             )
                         )[:n_samples]
                     )
@@ -229,7 +202,7 @@ class EmbeddingDimension(Node):
         min_dist = DEFAULT_MIN_DIST if min_dist is None else min_dist
         n_neighbors = DEFAULT_N_NEIGHBORS if n_neighbors is None else n_neighbors
 
-        vectors, clusters = PointCloud(
+        vectors, cluster_membership = PointCloud(
             dimensionalityReducer=Umap(n_neighbors=n_neighbors, min_dist=min_dist),
             clustersFinder=Hdbscan(),
         ).generate(data, n_components=n_components)
@@ -269,15 +242,13 @@ class EmbeddingDimension(Node):
             except SchemaError:
                 pass
 
-            try:
-                link_to_data = dataset.get_embedding_link_to_data_column(self.name)[row_id]
-            except SchemaError:
-                pass
+            link_to_data_column = dataset.get_embedding_link_to_data_column(self.name)
+            if link_to_data_column is not None:
+                link_to_data = link_to_data_column[row_id]
 
-            try:
-                raw_data = dataset.get_embedding_raw_data_column(self.name)[row_id]
-            except SchemaError:
-                pass
+            embedding_raw_data_column = dataset.get_embedding_raw_data_column(self.name)
+            if embedding_raw_data_column is not None:
+                raw_data = embedding_raw_data_column[row_id]
 
             points[dataset_id].append(
                 UMAPPoint(
@@ -296,10 +267,12 @@ class EmbeddingDimension(Node):
                 )
             )
 
+        has_reference_data = datasets[DatasetType.REFERENCE] is not None
+
         return UMAPPoints(
             data=points[DatasetType.PRIMARY],
             reference_data=points[DatasetType.REFERENCE],
-            clusters=to_gql_clusters(clusters),
+            clusters=to_gql_clusters(cluster_membership, has_reference_data=has_reference_data),
         )
 
 

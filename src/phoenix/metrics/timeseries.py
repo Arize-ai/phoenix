@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 from functools import partial
 from itertools import accumulate, chain, repeat, takewhile
-from typing import Any, Callable, Generator, Iterable, List, Tuple, Union, cast
+from typing import Any, Callable, Generator, Iterable, List, Tuple, cast
 
 import pandas as pd
 from typing_extensions import TypeAlias
@@ -66,20 +66,20 @@ def _aggregator(
     Calls groupby on the dataframe and apply metric calculations on each group.
     """
     calcs: Tuple[Metric, ...] = tuple(metrics)
-    columns: Union[List[int], slice] = list(
+    columns: List[int] = list(
         set(
             dataframe.columns.get_loc(column_name)
             for calc in calcs
             for column_name in calc.input_columns()
         ),
-    ) or slice(None)
+    )
     return pd.concat(
         chain(
             (pd.DataFrame(),),
             (
                 dataframe.iloc[
                     slice(*row_interval_from_sorted_time_index(dataframe.index, start, end)),
-                    columns,
+                    columns or [0],  # need at least one, so take the first one
                 ]
                 .groupby(group, group_keys=True)
                 .apply(partial(_calculate, calcs=calcs))
@@ -105,16 +105,20 @@ def _groupers(
     """
     Yields pandas.Groupers from time series parameters.
     """
+    if not sampling_interval:
+        return
     divisible = evaluation_window % sampling_interval == timedelta()
-    max_offset = evaluation_window if divisible else end_time - start_time
+    max_offset = end_time - start_time
+    if divisible and evaluation_window < max_offset:
+        max_offset = evaluation_window
     yield from (
         (
-            start_time if divisible else max(start_time, end_time - offset - evaluation_window),
+            (start_time if divisible else end_time - offset) - evaluation_window,
             end_time - offset,
             pd.Grouper(  # type: ignore  # mypy finds the wrong Grouper
                 freq=evaluation_window,
                 origin=end_time,
-                offset=offset,
+                offset=-offset,
                 # Each point in timeseries will be labeled by the end instant of
                 # its evaluation window.
                 label="right",

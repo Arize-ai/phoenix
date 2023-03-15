@@ -5,14 +5,14 @@ import numpy as np
 import pytest
 from numpy.testing import assert_almost_equal
 from pandas import DataFrame
-from strawberry.types.info import Info
-from typing_extensions import TypeAlias
-
 from phoenix.datasets import Dataset, EmbeddingColumnNames, Schema
 from phoenix.server.api.context import Context
+from phoenix.server.api.input_types.Granularity import Granularity
 from phoenix.server.api.input_types.TimeRange import TimeRange
 from phoenix.server.api.types.DriftMetric import DriftMetric
 from phoenix.server.api.types.EmbeddingDimension import EmbeddingDimension
+from strawberry.types.info import Info
+from typing_extensions import TypeAlias
 
 InfoMockFactory: TypeAlias = Callable[[Dataset, Optional[Dataset]], Info[Context, None]]
 
@@ -54,8 +54,12 @@ class TestDriftMetricTimeSeries:
                 start=datetime(year=2000, month=1, day=1), end=datetime(year=2000, month=1, day=2)
             ),
             info=info_mock_factory(primary_dataset, None),
+            granularity=Granularity(
+                evaluation_window_minutes=1440,
+                sampling_interval_minutes=1440,
+            ),
         )
-        assert drift_time_series is None
+        assert drift_time_series.data.pop().value is None
 
     @pytest.mark.parametrize(
         "query_time_range",
@@ -119,8 +123,12 @@ class TestDriftMetricTimeSeries:
             metric=DriftMetric.euclideanDistance,
             time_range=query_time_range,
             info=info_mock_factory(primary_dataset, reference_dataset),
+            granularity=Granularity(
+                evaluation_window_minutes=11519,
+                sampling_interval_minutes=11519,
+            ),
         )
-        assert distance is None
+        assert len(distance.data) == 0
 
     def test_evaluation_window_correctly_filters_records(
         self, info_mock_factory: InfoMockFactory
@@ -176,9 +184,13 @@ class TestDriftMetricTimeSeries:
             metric=DriftMetric.euclideanDistance,
             time_range=TimeRange(
                 start=datetime(year=2000, month=1, day=1),
-                end=datetime(year=2000, month=1, day=7, hour=23, minute=59),
+                end=datetime(year=2000, month=1, day=8),
             ),
             info=info_mock_factory(primary_dataset, reference_dataset),
+            granularity=Granularity(
+                evaluation_window_minutes=4320,
+                sampling_interval_minutes=60,
+            ),
         )
         actual_distances = np.array(
             [
@@ -187,21 +199,22 @@ class TestDriftMetricTimeSeries:
             ]
         )
         actual_timestamps = [data_point.timestamp for data_point in drift_time_series.data]
+        DAILY_HOURS = 24
         expected_distances = np.array(
-            ([np.nan] * 25)
-            + ([0] * 24)
-            + ([15] * 24)
-            + ([10] * 24)
-            + ([15] * 24)
-            + ([0] * 24)
-            + ([np.nan] * 23)
+            ([np.nan] * DAILY_HOURS)
+            + ([0] * DAILY_HOURS)
+            + ([15] * DAILY_HOURS)
+            + ([10] * DAILY_HOURS)
+            + ([15] * DAILY_HOURS)
+            + ([0] * DAILY_HOURS)
+            + ([np.nan] * DAILY_HOURS)
         )
         assert_almost_equal(
             actual=actual_distances,
             desired=expected_distances,
         )
-        assert actual_timestamps[0] == datetime(year=2000, month=1, day=1)
-        assert actual_timestamps[-1] == datetime(year=2000, month=1, day=7, hour=23)
+        assert actual_timestamps[0] == datetime(year=2000, month=1, day=1, hour=1)
+        assert actual_timestamps[-1] == datetime(year=2000, month=1, day=8)
         for index in range(len(actual_timestamps) - 1):
             assert actual_timestamps[index + 1] - actual_timestamps[index] == timedelta(hours=1)
 
@@ -256,10 +269,14 @@ class TestDriftMetricTimeSeries:
         ).drift_time_series(
             metric=DriftMetric.euclideanDistance,
             time_range=TimeRange(
-                start=datetime(year=2000, month=1, day=1, hour=2),
-                end=datetime(year=2000, month=1, day=1, hour=3),
+                start=datetime(year=2000, month=1, day=1, hour=1),
+                end=datetime(year=2000, month=1, day=1, hour=2),
             ),
             info=info_mock_factory(primary_dataset, reference_dataset),
+            granularity=Granularity(
+                evaluation_window_minutes=60,
+                sampling_interval_minutes=60,
+            ),
         )
         actual_distances = np.array(
             [

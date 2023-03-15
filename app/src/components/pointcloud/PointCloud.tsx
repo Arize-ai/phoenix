@@ -1,4 +1,5 @@
 import React, { ReactNode, useCallback, useMemo, useState } from "react";
+import { useContextBridge } from "@react-three/drei";
 import { css } from "@emotion/react";
 
 import { theme } from "@arizeai/components";
@@ -12,15 +13,14 @@ import {
   ThreeDimensionalControls,
 } from "@arizeai/point-cloud";
 
-import { usePointCloudStore } from "@phoenix/store";
+import { PointCloudContext, usePointCloudContext } from "@phoenix/contexts";
 
 import { CanvasMode, CanvasModeRadioGroup } from "./CanvasModeRadioGroup";
 import { getPointColorGroup } from "./colorGroups";
-import { ControlPanel } from "./ControlPanel";
 import { PointCloudClusters } from "./PointCloudClusters";
 import { PointCloudPoints } from "./PointCloudPoints";
 import { ThreeDimensionalPointItem } from "./types";
-import { ClusterItem } from "./types";
+import { ClusterInfo } from "./types";
 
 const RADIUS_BOUNDS_3D_DIVISOR = 400;
 const CLUSTER_POINT_RADIUS_MULTIPLIER = 6;
@@ -29,7 +29,7 @@ const BOUNDS_3D_ZOOM_PADDING_FACTOR = 0.5;
 export interface PointCloudProps {
   primaryData: ThreeDimensionalPointItem[];
   referenceData: ThreeDimensionalPointItem[] | null;
-  clusters: readonly ClusterItem[];
+  clusters: readonly ClusterInfo[];
 }
 
 interface ProjectionProps extends PointCloudProps {
@@ -64,19 +64,6 @@ function CanvasTools(props: {
   );
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function SelectionControlPanel({ selectedIds }: { selectedIds: Set<string> }) {
-  return (
-    <ControlPanel position="top-right" width={CONTROL_PANEL_WIDTH}>
-      <ul>
-        {[...selectedIds].map((id) => (
-          <li key={id}>{id}</li>
-        ))}
-      </ul>
-    </ControlPanel>
-  );
-}
-
 function CanvasWrap({ children }: { children: ReactNode }) {
   return (
     <div
@@ -106,25 +93,25 @@ export function PointCloud(props: PointCloudProps) {
 function Projection(props: ProjectionProps) {
   const { primaryData, referenceData, clusters, canvasMode } = props;
 
-  const coloringStrategy = usePointCloudStore(
+  const coloringStrategy = usePointCloudContext(
     (state) => state.coloringStrategy
   );
-  const selectedPointIds = usePointCloudStore(
+  const selectedPointIds = usePointCloudContext(
     (state) => state.selectedPointIds
   );
-  const setSelectedPointIds = usePointCloudStore(
+  const setSelectedPointIds = usePointCloudContext(
     (state) => state.setSelectedPointIds
   );
-  const selectedClusterId = usePointCloudStore(
+  const selectedClusterId = usePointCloudContext(
     (state) => state.selectedClusterId
   );
-  const setSelectedClusterId = usePointCloudStore(
+  const setSelectedClusterId = usePointCloudContext(
     (state) => state.setSelectedClusterId
   );
-  const pointGroupColors = usePointCloudStore(
+  const pointGroupColors = usePointCloudContext(
     (state) => state.pointGroupColors
   );
-  const pointGroupVisibility = usePointCloudStore(
+  const pointGroupVisibility = usePointCloudContext(
     (state) => state.pointGroupVisibility
   );
 
@@ -182,45 +169,51 @@ function Projection(props: ProjectionProps) {
       return pointGroupVisibility[group];
     });
   }, [referenceData, pointToColorGroup, pointGroupVisibility]);
+
+  // Context cannot be passed through multiple reconcilers. Bridge the context
+  const ContextBridge = useContextBridge(PointCloudContext);
+
   return (
     <ThreeDimensionalCanvas camera={{ position: [0, 0, 10] }}>
-      <ThreeDimensionalControls
-        autoRotate={autoRotate}
-        autoRotateSpeed={2}
-        enableRotate={isMoveMode}
-        enablePan={isMoveMode}
-        onEnd={() => {
-          // Turn off auto rotate when the user interacts with the canvas
-          setAutoRotate(false);
-        }}
-      />
-      <ThreeDimensionalBounds
-        bounds={bounds}
-        boundsZoomPaddingFactor={BOUNDS_3D_ZOOM_PADDING_FACTOR}
-      >
-        <LassoSelect
-          points={allPoints}
-          onChange={(selection) => {
-            setSelectedPointIds(new Set(selection.map((s) => s.metaData.id)));
-            setSelectedClusterId(null);
+      <ContextBridge>
+        <ThreeDimensionalControls
+          autoRotate={autoRotate}
+          autoRotateSpeed={2}
+          enableRotate={isMoveMode}
+          enablePan={isMoveMode}
+          onEnd={() => {
+            // Turn off auto rotate when the user interacts with the canvas
+            setAutoRotate(false);
           }}
-          enabled={canvasMode === CanvasMode.select}
         />
-        <Axes size={(bounds.maxX - bounds.minX) / 4} />
-        <PointCloudPoints
-          primaryData={filteredPrimaryData}
-          referenceData={filteredReferenceData}
-          selectedIds={selectedPointIds}
-          color={colorFn}
-          radius={radius}
-        />
-        <PointCloudClusters
-          clusters={clusters}
-          points={allPoints}
-          selectedClusterId={selectedClusterId}
-          radius={clusterPointRadius}
-        />
-      </ThreeDimensionalBounds>
+        <ThreeDimensionalBounds
+          bounds={bounds}
+          boundsZoomPaddingFactor={BOUNDS_3D_ZOOM_PADDING_FACTOR}
+        >
+          <LassoSelect
+            points={allPoints}
+            onChange={(selection) => {
+              setSelectedPointIds(new Set(selection.map((s) => s.metaData.id)));
+              setSelectedClusterId(null);
+            }}
+            enabled={canvasMode === CanvasMode.select}
+          />
+          <Axes size={(bounds.maxX - bounds.minX) / 4} />
+          <PointCloudPoints
+            primaryData={filteredPrimaryData}
+            referenceData={filteredReferenceData}
+            selectedIds={selectedPointIds}
+            color={colorFn}
+            radius={radius}
+          />
+          <PointCloudClusters
+            clusters={clusters}
+            points={allPoints}
+            selectedClusterId={selectedClusterId}
+            radius={clusterPointRadius}
+          />
+        </ThreeDimensionalBounds>
+      </ContextBridge>
     </ThreeDimensionalCanvas>
   );
 }

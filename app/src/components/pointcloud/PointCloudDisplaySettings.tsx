@@ -4,7 +4,7 @@ import { css } from "@emotion/react";
 import { Form } from "@arizeai/components";
 
 import { useDatasets } from "@phoenix/contexts";
-import { usePointCloudStore } from "@phoenix/store";
+import { usePointCloudContext } from "@phoenix/contexts";
 import { ColoringStrategy } from "@phoenix/types";
 
 import { ColoringStrategyPicker } from "./ColoringStrategyPicker";
@@ -13,7 +13,7 @@ import { PointGroupVisibilitySettings } from "./PointGroupVisibilitySettings";
 
 export function PointCloudDisplaySettings() {
   const { referenceDataset } = useDatasets();
-  const [coloringStrategy, setColoringStrategy] = usePointCloudStore(
+  const [coloringStrategy, setColoringStrategy] = usePointCloudContext(
     (state) => [state.coloringStrategy, state.setColoringStrategy]
   );
 
@@ -26,8 +26,8 @@ export function PointCloudDisplaySettings() {
     <section
       css={css`
         & > .ac-form {
-          padding: var(--px-padding-med) var(--px-padding-med) 0
-            var(--px-padding-med);
+          padding: var(--px-spacing-med) var(--px-spacing-med) 0
+            var(--px-spacing-med);
         }
       `}
     >
