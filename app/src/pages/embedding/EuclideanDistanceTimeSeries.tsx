@@ -1,6 +1,5 @@
 import React, { useCallback } from "react";
-import { useLazyLoadQuery } from "react-relay";
-import { timeFormat } from "d3-time-format";
+import { graphql, useLazyLoadQuery } from "react-relay";
 import {
   Area,
   Bar,
@@ -14,34 +13,56 @@ import {
   YAxis,
 } from "recharts";
 import { CategoricalChartFunc } from "recharts/types/chart/generateCategoricalChart";
-import { graphql } from "relay-runtime";
-import { css } from "@emotion/react";
 
-import { theme } from "@arizeai/components";
+import { Text, theme } from "@arizeai/components";
 
+import {
+  ChartTooltip,
+  ChartTooltipDivider,
+  ChartTooltipItem,
+  fullTimeFormatter,
+} from "@phoenix/components/chart";
 import { useTimeRange } from "@phoenix/contexts/TimeRangeContext";
 import { useTimeSlice } from "@phoenix/contexts/TimeSliceContext";
 
 import { EuclideanDistanceTimeSeriesQuery } from "./__generated__/EuclideanDistanceTimeSeriesQuery.graphql";
 
-const timeFormatter = timeFormat("%x");
+const numberFormatter = new Intl.NumberFormat([], {
+  maximumFractionDigits: 2,
+});
+
+const color = "#5899C5";
+const barColor = "#93b3c841";
 
 function TooltipContent({ active, payload, label }: TooltipProps<any, any>) {
   if (active && payload && payload.length) {
+    const euclideanDistance = payload[1]?.value ?? null;
+    const count = payload[0]?.value ?? null;
+    const euclideanDistanceString =
+      typeof euclideanDistance === "number"
+        ? numberFormatter.format(euclideanDistance)
+        : "--";
+    const predictionCountString =
+      typeof count === "number" ? numberFormatter.format(count) : "--";
     return (
-      <div
-        css={(theme) => css`
-          background-color: ${theme.colors.gray700};
-          border: 1px solid transparent;
-          padding: ${theme.spacing.margin4}px;
-          border-radius: ${theme.rounding.rounding4}px;
-        `}
-      >
-        <p>{`${timeFormatter(new Date(label))}`}</p>
-        <p>{`Euclidean Distance: ${payload[1].value}`}</p>
-        <p>{`${payload[0].value} predictions`}</p>
-        <p>Click to view drift at this time</p>
-      </div>
+      <ChartTooltip>
+        <Text weight="heavy" textSize="large">{`${fullTimeFormatter(
+          new Date(label)
+        )}`}</Text>
+        <ChartTooltipItem
+          color={color}
+          name="Euc. Distance"
+          value={euclideanDistanceString}
+        />
+        <ChartTooltipItem
+          color={barColor}
+          shape="square"
+          name="Count"
+          value={predictionCountString}
+        />
+        <ChartTooltipDivider />
+        <Text>Click to view drift at this time</Text>
+      </ChartTooltip>
     );
   }
 
@@ -49,12 +70,8 @@ function TooltipContent({ active, payload, label }: TooltipProps<any, any>) {
 }
 export function EuclideanDistanceTimeSeries({
   embeddingDimensionId,
-  color = "#5899C5",
-  barColor = "#93b3c841",
 }: {
   embeddingDimensionId: string;
-  color?: string;
-  barColor?: string;
 }) {
   const { timeRange } = useTimeRange();
   const { selectedTimestamp, setSelectedTimestamp } = useTimeSlice();
@@ -153,7 +170,7 @@ export function EuclideanDistanceTimeSeries({
           dataKey="timestamp"
           stroke={theme.colors.gray200}
           // TODO: Fix this to be a cleaner interface
-          tickFormatter={(x) => timeFormatter(new Date(x))}
+          tickFormatter={(x) => fullTimeFormatter(new Date(x))}
           style={{ fill: theme.textColors.white70 }}
         />
         <YAxis
