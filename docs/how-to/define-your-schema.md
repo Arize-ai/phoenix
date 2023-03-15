@@ -252,4 +252,69 @@ Sometimes it is useful to have more than one embedding feature for the same data
 
 #### DataFrame
 
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th>name</th>
+      <th>description</th>
+      <th>description_vector</th>
+      <th>image</th>
+      <th>image_vector</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Magic Lamp</td>
+      <td>Enjoy the most comfortable setting every time for working, studying, relaxing or getting ready to sleep.</td>
+      <td>[2.47, -0.01, -0.22, 0.93]</td>
+      <td>/path/to/your/first/image0.jpeg</td>
+      <td>[2.42, 1.95, 0.81, 2.60, 0.27]</td>
+    </tr>
+    <tr>
+      <td>Ergo Desk Chair</td>
+      <td>The perfect mesh chair, meticulously developed to deliver maximum comfort and high quality.</td>
+      <td>[-0.25, 0.07, 2.90, 1.57]</td>
+      <td>/path/to/your/second/image1.jpeg</td>
+      <td>[3.17, 2.75, 1.39, 0.44, 3.30]</td>
+    </tr>
+    <tr>
+      <td>Cloud Nine Mattress</td>
+      <td>Our Cloud Nine Mattress combines cool comfort with maximum affordability.</td>
+      <td>[1.36, -0.88, -0.45, 0.84]</td>
+      <td>https://&lt;your-domain-here&gt;.com/image2.jpeg</td>
+      <td>[-0.22, 0.87, 1.10, -0.78, 1.25]</td>
+    </tr>
+    <tr>
+      <td>Dr. Fresh's Spearmint Toothpaste</td>
+      <td>Natural toothpaste helps remove surface stains for a brighter, whiter smile with anti-plaque formula</td>
+      <td>[-0.39, 1.29, 0.92, 2.51]</td>
+      <td>https://&lt;your-domain-here&gt;.com/image3.jpeg</td>
+      <td>[1.95, 2.66, 3.97, 0.90, 2.86]</td>
+    </tr>
+    <tr>
+      <td>Ultra-Fuzzy Bath Mat</td>
+      <td>Heavy Density Microfiber: The bath mats are made up of 1.18-inch height premium thick, soft and fluffy microfiber, making it great for bathroom, vanity, and master bedroom.</td>
+      <td>[0.37, 3.22, 1.29, 0.65]</td>
+      <td>https://&lt;your-domain-here&gt;.com/image4.jpeg</td>
+      <td>[0.77, 1.79, 0.52, 3.79, 0.47]</td>
+    </tr>
+  </tbody>
+</table>
+
 #### Schema
+
+```python
+schema = px.Schema(
+    tag_column_names=["name"],
+    embedding_feature_column_names={
+        "description_embedding": px.EmbeddingColumnNames(
+            vector_column_name="description_vector",
+            raw_data_column_name="description",
+        ),
+        "image_embedding": px.EmbeddingColumnNames(
+            vector_column_name="image_vector",
+            link_to_data_column_name="image",
+        ),
+    },
+)
+```
