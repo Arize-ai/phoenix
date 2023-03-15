@@ -248,58 +248,17 @@ schema = px.Schema(
 
 ### Multiple Embedding Features
 
-Sometimes it is useful to have more than one embedding feature for the same data. This is often the case with multi-modal applications in which one embedding represents the text and another embedding represents the image associated with a particular data point. The example below has both image and text embeddings for products in an e-commerce site.&#x20;
+Sometimes it is useful to have more than one embedding feature. Add additional embeddings to the embeddings dictionary. The example below shows a multi-modal applications in which one embedding represents the text and another embedding represents the image associated with a particular data point. The example below has both image and text embeddings for products in an e-commerce site.
 
 #### DataFrame
 
-<table border="1" class="dataframe">
-  <thead>
-    <tr style="text-align: right;">
-      <th>name</th>
-      <th>description</th>
-      <th>description_vector</th>
-      <th>image</th>
-      <th>image_vector</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td>Magic Lamp</td>
-      <td>Enjoy the most comfortable setting every time for working, studying, relaxing or getting ready to sleep.</td>
-      <td>[2.47, -0.01, -0.22, 0.93]</td>
-      <td>/path/to/your/first/image0.jpeg</td>
-      <td>[2.42, 1.95, 0.81, 2.60, 0.27]</td>
-    </tr>
-    <tr>
-      <td>Ergo Desk Chair</td>
-      <td>The perfect mesh chair, meticulously developed to deliver maximum comfort and high quality.</td>
-      <td>[-0.25, 0.07, 2.90, 1.57]</td>
-      <td>/path/to/your/second/image1.jpeg</td>
-      <td>[3.17, 2.75, 1.39, 0.44, 3.30]</td>
-    </tr>
-    <tr>
-      <td>Cloud Nine Mattress</td>
-      <td>Our Cloud Nine Mattress combines cool comfort with maximum affordability.</td>
-      <td>[1.36, -0.88, -0.45, 0.84]</td>
-      <td>https://&lt;your-domain-here&gt;.com/image2.jpeg</td>
-      <td>[-0.22, 0.87, 1.10, -0.78, 1.25]</td>
-    </tr>
-    <tr>
-      <td>Dr. Fresh's Spearmint Toothpaste</td>
-      <td>Natural toothpaste helps remove surface stains for a brighter, whiter smile with anti-plaque formula</td>
-      <td>[-0.39, 1.29, 0.92, 2.51]</td>
-      <td>https://&lt;your-domain-here&gt;.com/image3.jpeg</td>
-      <td>[1.95, 2.66, 3.97, 0.90, 2.86]</td>
-    </tr>
-    <tr>
-      <td>Ultra-Fuzzy Bath Mat</td>
-      <td>Heavy Density Microfiber: The bath mats are made up of 1.18-inch height premium thick, soft and fluffy microfiber, making it great for bathroom, vanity, and master bedroom.</td>
-      <td>[0.37, 3.22, 1.29, 0.65]</td>
-      <td>https://&lt;your-domain-here&gt;.com/image4.jpeg</td>
-      <td>[0.77, 1.79, 0.52, 3.79, 0.47]</td>
-    </tr>
-  </tbody>
-</table>
+| name                             | description                                                                                                                                        | description\_vector         | image                                       | image\_vector                     |
+| -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------- | ------------------------------------------- | --------------------------------- |
+| Magic Lamp                       | Enjoy the most comfortable setting every time for working, studying, relaxing or getting ready to sleep.                                           | \[2.47, -0.01, -0.22, 0.93] | /path/to/your/first/image0.jpeg             | \[2.42, 1.95, 0.81, 2.60, 0.27]   |
+| Ergo Desk Chair                  | The perfect mesh chair, meticulously developed to deliver maximum comfort and high quality.                                                        | \[-0.25, 0.07, 2.90, 1.57]  | /path/to/your/second/image1.jpeg            | \[3.17, 2.75, 1.39, 0.44, 3.30]   |
+| Cloud Nine Mattress              | Our Cloud Nine Mattress combines cool comfort with maximum affordability.                                                                          | \[1.36, -0.88, -0.45, 0.84] | https://\<your-domain-here>.com/image2.jpeg | \[-0.22, 0.87, 1.10, -0.78, 1.25] |
+| Dr. Fresh's Spearmint Toothpaste | Natural toothpaste helps remove surface stains for a brighter, whiter smile with anti-plaque formula                                               | \[-0.39, 1.29, 0.92, 2.51]  | https://\<your-domain-here>.com/image3.jpeg | \[1.95, 2.66, 3.97, 0.90, 2.86]   |
+| Ultra-Fuzzy Bath Mat             | The bath mats are made up of 1.18-inch height premium thick, soft and fluffy microfiber, making it great for bathroom, vanity, and master bedroom. | \[0.37, 3.22, 1.29, 0.65]   | https://\<your-domain-here>.com/image4.jpeg | \[0.77, 1.79, 0.52, 3.79, 0.47]   |
 
 #### Schema
 
@@ -318,3 +277,7 @@ schema = px.Schema(
     },
 )
 ```
+
+{% hint style="info" %}
+Distinct embedding features may have embedding vectors of differing length. The text embeddings in the above example have length 4 while the image embeddings have length 5.
+{% endhint %}
