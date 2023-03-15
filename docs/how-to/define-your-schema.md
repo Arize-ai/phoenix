@@ -248,7 +248,7 @@ schema = px.Schema(
 
 ### Multiple Embedding Features
 
-Sometimes it is useful to have more than one embedding feature. Add additional embeddings to the embeddings dictionary. The example below shows a multi-modal applications in which one embedding represents the text and another embedding represents the image associated with a particular data point. The example below has both image and text embeddings for products in an e-commerce site.
+Sometimes it is useful to have more than one embedding feature. The example below shows a multi-modal application in which one embedding represents the textual description and another embedding represents the image associated with products on an e-commerce site.
 
 #### DataFrame
 
