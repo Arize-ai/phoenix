@@ -27,7 +27,7 @@ class Count(OptionalUnaryOperator, ZeroInitialValue, BaseMetric):
 
 class Sum(UnaryOperator, BaseMetric):
     def calc(self, df: pd.DataFrame) -> float:
-        return cast(float, df.loc[:, self.operand].sum())
+        return cast(float, pd.to_numeric(df.loc[:, self.operand], errors="coerce").sum())
 
 
 class VectorSum(UnaryOperator, VectorOperator, ZeroInitialValue, BaseMetric):
@@ -40,7 +40,7 @@ class VectorSum(UnaryOperator, VectorOperator, ZeroInitialValue, BaseMetric):
 
 class Mean(UnaryOperator, BaseMetric):
     def calc(self, df: pd.DataFrame) -> float:
-        return df.loc[:, self.operand].mean()
+        return pd.to_numeric(df.loc[:, self.operand], errors="coerce").mean()
 
 
 class VectorMean(UnaryOperator, VectorOperator, BaseMetric):
@@ -55,12 +55,12 @@ class VectorMean(UnaryOperator, VectorOperator, BaseMetric):
 
 class Min(UnaryOperator, BaseMetric):
     def calc(self, df: pd.DataFrame) -> float:
-        return cast(float, df.loc[:, self.operand].min())
+        return cast(float, pd.to_numeric(df.loc[:, self.operand], errors="coerce").min())
 
 
 class Max(UnaryOperator, BaseMetric):
     def calc(self, df: pd.DataFrame) -> float:
-        return cast(float, df.loc[:, self.operand].max())
+        return cast(float, pd.to_numeric(df.loc[:, self.operand], errors="coerce").max())
 
 
 class Cardinality(UnaryOperator, BaseMetric):
