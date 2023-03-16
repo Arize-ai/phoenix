@@ -1,14 +1,20 @@
 ---
-description: Learn how to create your model schema for common data formats
+description: Create model schemas for common data formats
 ---
 
 # Define Your Schema
 
-This section shows you how to define your model schema with concrete examples.
+Given a Pandas DataFrame `df` and a `schema` object describing the format of that DataFrame, you can define a dataset named "data" with
+
+```python
+ds = px.Dataset(df, schema, "data")
+```
+
+This guide shows you how to match your schema to your DataFrame with concrete examples.
 
 {% hint style="info" %}
-* For a conceptual overview of the Phoenix API, including a high-level introduction to the notion of a schema, see [Phoenix Basics](../concepts/phoenix-basics.md#schemas).
-* For a comprehensive description of `phoenix.Schema`, including detailed descriptions of each field, see the [API reference](../reference/api/phoenix.schema).
+* For a conceptual overview of the Phoenix API, including a high-level introduction to the notion of datasets and schemas, see [Phoenix Basics](../concepts/phoenix-basics.md#schemas).
+* For a comprehensive description of `phoenix.Dataset` and `phoenix.Schema`, see the [API reference](../reference/api/).
 {% endhint %}
 
 ## Predictions and Ground Truth
