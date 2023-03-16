@@ -1,5 +1,5 @@
 from .dataset import Dataset
-from .fixtures import load_datasets
+from .fixtures import load_example
 from .schema import EmbeddingColumnNames, Schema
 
-__all__ = ["Dataset", "Schema", "EmbeddingColumnNames", "load_datasets"]
+__all__ = ["Dataset", "Schema", "EmbeddingColumnNames", "load_example"]
