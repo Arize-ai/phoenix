@@ -5,7 +5,7 @@ from .session.session import active_session, close_app, launch_app
 __doc__ = """
 arize-phoenix - ML Observability in a notebook
 =====================================================================
-**phoenix** is a Python package providing Phoenix provides MLOps insights at
+**phoenix** is a Python package that provides MLOps insights at
 lightning speed with zero-config observability for model drift, performance, and
 data quality. 
 
