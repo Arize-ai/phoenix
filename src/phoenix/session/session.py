@@ -35,8 +35,16 @@ class Session:
         )
         self._is_colab = _is_colab()
 
-    def view(self, height: int = 500) -> "IFrame":
-        # Display the app in an iframe
+    def view(self, height: int = 1000) -> "IFrame":
+        """
+        Returns an IFrame that can be displayed in a notebook to view the app.
+
+        Parameters
+        ----------
+        height : int, optional
+            The height of the IFrame in pixels. Defaults to 1000.
+        """
+        print(f"📺 Opening a view to the Phoenix app. The app is running at {self.url}")
         return IFrame(src=self.url, width="100%", height=height)
 
     @cached_property
@@ -95,14 +103,23 @@ def launch_app(
     >>> import phoenix as px
     >>> # construct a dataset to analyze
     >>> dataset = px.Dataset(...)
-    >>> px.launch_app(dataset)
+    >>> session = px.launch_app(dataset)
     """
     global _session
 
     _session = Session(primary, reference, port=config.port)
     if wait_for_boot:
         _wait_for_boot(_session.url)
+    print(f"🌍 To view the Phoenix app in your browser, visit {_session.url}")
+    print("📺 To view the Phoenix app in a notebook, run `px.active_session().view()`")
+    print("📖 For more information on how to use Phoenix, check out https://docs.arize.com/phoenix")
+    return _session
 
+
+def active_session() -> Optional["Session"]:
+    """
+    Returns the active session if one exists, otherwise returns None
+    """
     return _session
 
 
