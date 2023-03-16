@@ -8,7 +8,6 @@
 * [ML Observability](concepts/ml-observability.md)
 * [Embeddings](concepts/embeddings.md)
 * [Phoenix Basics](concepts/phoenix-basics.md)
-* [Open Inference](concepts/open-inference.md)
 
 ## Tutorials
 
@@ -26,6 +25,7 @@
 
 ## Reference
 
+* [Open Inference](reference/open-inference.md)
 * [API](reference/api/README.md)
   * [phoenix.Dataset](reference/api/phoenix.dataset.md)
   * [phoenix.Schema](reference/api/phoenix.schema/README.md)
