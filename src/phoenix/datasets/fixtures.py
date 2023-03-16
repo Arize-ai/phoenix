@@ -37,7 +37,7 @@ sentiment_classification_language_drift_fixture = Fixture(
     name="sentiment_classification_language_drift",
     description="""
     Highlights issues that occur maintaining a sentiment classification model.
-    This  model takes online reviews of your U.S.-based product as the input and predict whether
+    This  model takes online reviews of your U.S.-based product as the input and predicts whether
     the reviewer's sentiment was positive, negative, or neutral.
 
     You trained your sentiment classification model on English reviews.
@@ -79,7 +79,7 @@ fashion_mnist_fixture = Fixture(
     description="""
     Fashion-MNIST is a dataset of Zalando's article images—consisting of a training set of
     60,000 examples and a test set of 10,000 examples. Each example is a 28x28 grayscale image,
-    associated with a label from 10 classes. Fashion-MNIST to serve as a direct drop-in replacement
+    associated with a label from 10 classes. Fashion-MNIST serves as a direct drop-in replacement
     for the original MNIST dataset for benchmarking machine learning algorithms.
     It shares the same image size and structure of training and testing splits.
     """,
@@ -119,9 +119,6 @@ ner_token_drift_fixture = Fixture(
     In this example, text including locations is under-represented in the training set.
     This label imbalance impacts the model's performance. You can surface and troubleshoot this
     issue by analyzing the embedding vectors associated with the input text.
-
-    According to our research, inspecting embedding drift can surface problems with your data before
-    they cause performance degradation.
     """,
     primary_schema=ner_token_drift_schema,
     reference_schema=ner_token_drift_schema,
@@ -146,7 +143,7 @@ credit_card_fraud_schema = Schema(
 credit_card_fraud_fixture = Fixture(
     name="credit_card_fraud",
     description="""
-    Use-case that for a credit card fraud model at a large bank or payment processing company.
+    Use-case for a credit card fraud detection model at a large bank or payment processing company.
 
     You have been alerted by a spike in credit card chargebacks leading you to suspect that
     fraudsters are getting away with committing fraud undetected!
@@ -178,15 +175,16 @@ click_through_rate_fixture = Fixture(
     name="click_through_rate",
     description="""
     Investigate various performance related aspects of an online advertisement use-case.
-    More specifically we will be using Phoenix to monitor Click-through Rate (CTR) performance.
+    These datasets are designed for analyzing Click-through Rate (CTR) performance.
 
     You manage the models for an online advertising platform.
     You have spent a great deal of your time collecting online data and training models
     for best performance. With your models now in production you have no tools available to your
-    disposal to monitor the performance of your models, identify any issues or get insights into
-    how to improve your models. In this walkthrough we will look at a few scenarios common to an
-    advertisement use-case and more specifically looking at CTR predictions versus actuals for a
-    given ad or ad group.
+    disposal to monitor the performance of your models, identify any issues, or get insights into
+    how to improve your models.
+
+    This use-case highlights a common advertisement use-case and is tailored for analyzing CTR for
+    an ad or ad group.
     """,
     primary_schema=click_through_rate_schema,
     reference_schema=click_through_rate_schema,
