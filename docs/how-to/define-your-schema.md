@@ -1,14 +1,20 @@
 ---
-description: Learn how to create your model schema for common data formats
+description: How to create Phoenix schemas for common data formats
 ---
 
 # Define Your Schema
 
-This section shows you how to define your model schema with concrete examples.
+Given a Pandas DataFrame `df` and a `schema` object describing the format of that DataFrame, you can define a dataset named "data" with
+
+```python
+ds = px.Dataset(df, schema, "data")
+```
+
+This guide shows you how to match your schema to your DataFrame with concrete examples.
 
 {% hint style="info" %}
-* For a conceptual overview of the Phoenix API, including a high-level introduction to the notion of a schema, see [Phoenix Basics](../concepts/phoenix-basics.md#schemas).
-* For a comprehensive description of `phoenix.Schema`, including detailed descriptions of each field, see the [API reference](../reference/api/phoenix.schema).
+* For a conceptual overview of the Phoenix API, including a high-level introduction to the notion of datasets and schemas, see [Phoenix Basics](../concepts/phoenix-basics.md#schemas).
+* For a comprehensive description of `phoenix.Dataset` and `phoenix.Schema`, see the [API reference](../reference/api/).
 {% endhint %}
 
 ## Predictions and Ground Truth
@@ -181,7 +187,7 @@ The features in this example are [implicitly inferred](define-your-schema.md#imp
 {% endhint %}
 
 {% hint style="warning" %}
-Ensure that all embedding vectors for a particular embedding feature are one-dimensional arrays of the same length, or else, Phoenix will throw an error.
+Ensure that all embedding vectors for a particular embedding feature are one-dimensional arrays of the same length, otherwise, Phoenix will throw an error.
 {% endhint %}
 
 ### Embeddings of Images
@@ -248,8 +254,36 @@ schema = px.Schema(
 
 ### Multiple Embedding Features
 
-
+Sometimes it is useful to have more than one embedding feature. The example below shows a multi-modal application in which one embedding represents the textual description and another embedding represents the image associated with products on an e-commerce site.
 
 #### DataFrame
 
+| name                             | description                                                                                                                                        | description\_vector         | image                                       | image\_vector                     |
+| -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------- | ------------------------------------------- | --------------------------------- |
+| Magic Lamp                       | Enjoy the most comfortable setting every time for working, studying, relaxing or getting ready to sleep.                                           | \[2.47, -0.01, -0.22, 0.93] | /path/to/your/first/image0.jpeg             | \[2.42, 1.95, 0.81, 2.60, 0.27]   |
+| Ergo Desk Chair                  | The perfect mesh chair, meticulously developed to deliver maximum comfort and high quality.                                                        | \[-0.25, 0.07, 2.90, 1.57]  | /path/to/your/second/image1.jpeg            | \[3.17, 2.75, 1.39, 0.44, 3.30]   |
+| Cloud Nine Mattress              | Our Cloud Nine Mattress combines cool comfort with maximum affordability.                                                                          | \[1.36, -0.88, -0.45, 0.84] | https://\<your-domain-here>.com/image2.jpeg | \[-0.22, 0.87, 1.10, -0.78, 1.25] |
+| Dr. Fresh's Spearmint Toothpaste | Natural toothpaste helps remove surface stains for a brighter, whiter smile with anti-plaque formula                                               | \[-0.39, 1.29, 0.92, 2.51]  | https://\<your-domain-here>.com/image3.jpeg | \[1.95, 2.66, 3.97, 0.90, 2.86]   |
+| Ultra-Fuzzy Bath Mat             | The bath mats are made up of 1.18-inch height premium thick, soft and fluffy microfiber, making it great for bathroom, vanity, and master bedroom. | \[0.37, 3.22, 1.29, 0.65]   | https://\<your-domain-here>.com/image4.jpeg | \[0.77, 1.79, 0.52, 3.79, 0.47]   |
+
 #### Schema
+
+```python
+schema = px.Schema(
+    tag_column_names=["name"],
+    embedding_feature_column_names={
+        "description_embedding": px.EmbeddingColumnNames(
+            vector_column_name="description_vector",
+            raw_data_column_name="description",
+        ),
+        "image_embedding": px.EmbeddingColumnNames(
+            vector_column_name="image_vector",
+            link_to_data_column_name="image",
+        ),
+    },
+)
+```
+
+{% hint style="info" %}
+Distinct embedding features may have embedding vectors of differing length. The text embeddings in the above example have length 4 while the image embeddings have length 5.
+{% endhint %}
