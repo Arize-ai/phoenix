@@ -1,5 +1,5 @@
 ---
-description: Create model schemas for common data formats
+description: How to create Phoenix schemas for common data formats
 ---
 
 # Define Your Schema

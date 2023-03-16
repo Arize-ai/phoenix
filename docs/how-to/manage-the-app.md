@@ -1,6 +1,6 @@
 ---
 description: >-
-  Define your dataset(s), launch a Phoenix session, open the UI in your notebook
+  How to define your dataset(s), launch a session, open the UI in your notebook
   or browser, and close your session when you're done
 ---
 

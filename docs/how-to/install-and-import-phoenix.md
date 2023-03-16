@@ -1,5 +1,5 @@
 ---
-description: How to get Phoenix in flight
+description: How to fly with Phoenix
 ---
 
 # Install and Import Phoenix
