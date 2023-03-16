@@ -1,3 +1,7 @@
+---
+description: How to get Phoenix in flight
+---
+
 # Install and Import Phoenix
 
 Install Phoenix in your Jupyter or Colab environment with
