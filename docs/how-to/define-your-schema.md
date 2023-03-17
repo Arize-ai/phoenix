@@ -196,13 +196,13 @@ If your embeddings represent images, you can provide links or local paths to ima
 
 #### DataFrame
 
-| defective | image                                       | image\_embedding                  |
-| --------- | ------------------------------------------- | --------------------------------- |
-| okay      | /path/to/your/first/image0.jpeg             | \[1.73, 2.67, 2.91, 1.79, 1.29]   |
-| defective | /path/to/your/second/image1.jpeg            | \[2.18, -0.21, 0.87, 3.84, -0.97] |
-| okay      | https://\<your-domain-here>.com/image2.jpeg | \[3.36, -0.62, 2.40, -0.94, 3.69] |
-| defective | https://\<your-domain-here>.com/image3.jpeg | \[2.77, 2.79, 3.36, 0.60, 3.10]   |
-| okay      | https://\<your-domain-here>.com/image4.jpeg | \[1.79, 2.06, 0.53, 3.58, 0.24]   |
+| defective | image                               | image\_embedding                  |
+| --------- | ----------------------------------- | --------------------------------- |
+| okay      | https://www.example.com/image0.jpeg | \[1.73, 2.67, 2.91, 1.79, 1.29]   |
+| defective | https://www.example.com/image1.jpeg | \[2.18, -0.21, 0.87, 3.84, -0.97] |
+| okay      | https://www.example.com/image2.jpeg | \[3.36, -0.62, 2.40, -0.94, 3.69] |
+| defective | https://www.example.com/image3.jpeg | \[2.77, 2.79, 3.36, 0.60, 3.10]   |
+| okay      | https://www.example.com/image4.jpeg | \[1.79, 2.06, 0.53, 3.58, 0.24]   |
 
 #### Schema
 
@@ -217,6 +217,23 @@ schema = px.Schema(
     },
 )
 ```
+
+{% hint style="info" %}
+For local image data, we recommend the following steps to serve your images via a local HTTP server:
+
+1. In your terminal, navigate to a directory containing your image data and run `python -m http.server 8000`.
+2. Add URLs of the form "http://localhost:8000/rel/path/to/image.jpeg" to the appropriate column of your DataFrame.
+
+For example, suppose your HTTP server is running in a directory with the following contents:
+
+```python
+.
+└── image-data
+    └── example_image.jpeg
+```
+
+Then your image URL would be http://localhost:8000/image-data/example\_image.jpeg.
+{% endhint %}
 
 ### Embeddings of Text
 
@@ -258,13 +275,13 @@ Sometimes it is useful to have more than one embedding feature. The example belo
 
 #### DataFrame
 
-| name                             | description                                                                                                                                        | description\_vector         | image                                       | image\_vector                     |
-| -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------- | ------------------------------------------- | --------------------------------- |
-| Magic Lamp                       | Enjoy the most comfortable setting every time for working, studying, relaxing or getting ready to sleep.                                           | \[2.47, -0.01, -0.22, 0.93] | /path/to/your/first/image0.jpeg             | \[2.42, 1.95, 0.81, 2.60, 0.27]   |
-| Ergo Desk Chair                  | The perfect mesh chair, meticulously developed to deliver maximum comfort and high quality.                                                        | \[-0.25, 0.07, 2.90, 1.57]  | /path/to/your/second/image1.jpeg            | \[3.17, 2.75, 1.39, 0.44, 3.30]   |
-| Cloud Nine Mattress              | Our Cloud Nine Mattress combines cool comfort with maximum affordability.                                                                          | \[1.36, -0.88, -0.45, 0.84] | https://\<your-domain-here>.com/image2.jpeg | \[-0.22, 0.87, 1.10, -0.78, 1.25] |
-| Dr. Fresh's Spearmint Toothpaste | Natural toothpaste helps remove surface stains for a brighter, whiter smile with anti-plaque formula                                               | \[-0.39, 1.29, 0.92, 2.51]  | https://\<your-domain-here>.com/image3.jpeg | \[1.95, 2.66, 3.97, 0.90, 2.86]   |
-| Ultra-Fuzzy Bath Mat             | The bath mats are made up of 1.18-inch height premium thick, soft and fluffy microfiber, making it great for bathroom, vanity, and master bedroom. | \[0.37, 3.22, 1.29, 0.65]   | https://\<your-domain-here>.com/image4.jpeg | \[0.77, 1.79, 0.52, 3.79, 0.47]   |
+| name                             | description                                                                                                                                        | description\_vector         | image                               | image\_vector                     |
+| -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------- | ----------------------------------- | --------------------------------- |
+| Magic Lamp                       | Enjoy the most comfortable setting every time for working, studying, relaxing or getting ready to sleep.                                           | \[2.47, -0.01, -0.22, 0.93] | https://www.example.com/image0.jpeg | \[2.42, 1.95, 0.81, 2.60, 0.27]   |
+| Ergo Desk Chair                  | The perfect mesh chair, meticulously developed to deliver maximum comfort and high quality.                                                        | \[-0.25, 0.07, 2.90, 1.57]  | https://www.example.com/image1.jpeg | \[3.17, 2.75, 1.39, 0.44, 3.30]   |
+| Cloud Nine Mattress              | Our Cloud Nine Mattress combines cool comfort with maximum affordability.                                                                          | \[1.36, -0.88, -0.45, 0.84] | https://www.example.com/image2.jpeg | \[-0.22, 0.87, 1.10, -0.78, 1.25] |
+| Dr. Fresh's Spearmint Toothpaste | Natural toothpaste helps remove surface stains for a brighter, whiter smile with anti-plaque formula                                               | \[-0.39, 1.29, 0.92, 2.51]  | https://www.example.com/image3.jpeg | \[1.95, 2.66, 3.97, 0.90, 2.86]   |
+| Ultra-Fuzzy Bath Mat             | The bath mats are made up of 1.18-inch height premium thick, soft and fluffy microfiber, making it great for bathroom, vanity, and master bedroom. | \[0.37, 3.22, 1.29, 0.65]   | https://www.example.com/image4.jpeg | \[0.77, 1.79, 0.52, 3.79, 0.47]   |
 
 #### Schema
 

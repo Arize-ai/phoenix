@@ -25,7 +25,7 @@
 
 ## Reference
 
-* [Open Inference](reference/open-inference.md)
+* [Open Inference](concepts/open-inference.md)
 * [API](reference/api/README.md)
   * [phoenix.Dataset](reference/api/phoenix.dataset.md)
   * [phoenix.Schema](reference/api/phoenix.schema/README.md)
