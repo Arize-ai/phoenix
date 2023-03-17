@@ -17,54 +17,19 @@ This guide shows you how to match your schema to your DataFrame with concrete ex
 * For a comprehensive description of `phoenix.Dataset` and `phoenix.Schema`, see the [API reference](../reference/api/).
 {% endhint %}
 
-## Predictions and Ground Truth
+## Predictions and Actuals
 
-Let's first see how to define a schema with predictions and ground truth. The example DataFrame below contains inference data from a binary classification model trained to predict whether a user will click on an advertisement. The timestamps represent the time at which each inference was made in production.
+Let's first see how to define a schema with predictions and actuals (Phoenix's nomenclature for ground truth). The example DataFrame below contains inference data from a binary classification model trained to predict whether a user will click on an advertisement. The timestamps are `datetime.datetime` objects that represent the time at which each inference was made in production.
 
 #### DataFrame
 
-<table border="1" class="dataframe">
-  <thead>
-    <tr style="text-align: right;">
-      <th>timestamp</th>
-      <th>prediction_score</th>
-      <th>prediction</th>
-      <th>target</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td>2023-03-01 02:02:19</td>
-      <td>0.91</td>
-      <td>click</td>
-      <td>click</td>
-    </tr>
-    <tr>
-      <td>2023-02-17 23:45:48</td>
-      <td>0.37</td>
-      <td>no_click</td>
-      <td>no_click</td>
-    </tr>
-    <tr>
-      <td>2023-01-30 15:30:03</td>
-      <td>0.54</td>
-      <td>click</td>
-      <td>no_click</td>
-    </tr>
-    <tr>
-      <td>2023-02-03 19:56:09</td>
-      <td>0.74</td>
-      <td>click</td>
-      <td>click</td>
-    </tr>
-    <tr>
-      <td>2023-02-24 04:23:43</td>
-      <td>0.37</td>
-      <td>no_click</td>
-      <td>click</td>
-    </tr>
-  </tbody>
-</table>
+| timestamp           | prediction\_score | prediction | target    |
+| ------------------- | ----------------- | ---------- | --------- |
+| 2023-03-01 02:02:19 | 0.91              | click      | click     |
+| 2023-02-17 23:45:48 | 0.37              | no\_click  | no\_click |
+| 2023-01-30 15:30:03 | 0.54              | click      | no\_click |
+| 2023-02-03 19:56:09 | 0.74              | click      | click     |
+| 2023-02-24 04:23:43 | 0.37              | no\_click  | click     |
 
 #### Schema
 
