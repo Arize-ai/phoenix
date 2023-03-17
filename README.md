@@ -47,9 +47,8 @@ After installing `arize-phoenix` in your Jupyter or Colab environment, open your
 ```python
 import phoenix as px
 
-datasets = px.load_datasets("sentiment_classification_language_drift")
+datasets = px.load_example("sentiment_classification_language_drift")
 session = px.launch_app(datasets.primary, datasets.reference)
-session.view()
 ```
 
 Next, visualize your embeddings and inspect problematic clusters of your production data.
