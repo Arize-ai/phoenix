@@ -195,7 +195,7 @@ If your embeddings represent images, you can provide links or local paths to ima
 
 #### DataFrame
 
-| defective | image                               | image\_embedding                  |
+| defective | image                               | image\_vector                     |
 | --------- | ----------------------------------- | --------------------------------- |
 | okay      | https://www.example.com/image0.jpeg | \[1.73, 2.67, 2.91, 1.79, 1.29]   |
 | defective | https://www.example.com/image1.jpeg | \[2.18, -0.21, 0.87, 3.84, -0.97] |
@@ -209,8 +209,8 @@ If your embeddings represent images, you can provide links or local paths to ima
 schema = px.Schema(
     actual_label_column_name="defective",
     embedding_feature_column_names={
-        "product_image_embedding": px.EmbeddingColumnNames(
-            vector_column_name="image_embedding",
+        "image_embedding": px.EmbeddingColumnNames(
+            vector_column_name="image_vector",
             link_to_data_column_name="image",
         ),
     },
