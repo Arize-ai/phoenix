@@ -1,6 +1,5 @@
 from dataclasses import dataclass
-from functools import singledispatchmethod
-from typing import Any, Generator, Mapping, Optional, Protocol, Tuple, runtime_checkable, Type
+from typing import Any, Generator, Mapping, Optional, Protocol, runtime_checkable
 
 import pandas as pd
 
