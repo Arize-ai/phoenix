@@ -37,7 +37,7 @@ def _calculate(df: pd.DataFrame, calcs: Iterable[Metric]) -> "pd.Series[Any]":
     """
     Calculates each metric on the dataframe.
     """
-    return pd.Series(dict(calc(df) for calc in calcs))
+    return pd.Series({calc.id(): calc(df) for calc in calcs})
 
 
 StartIndex: TypeAlias = int

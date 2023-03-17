@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from functools import cached_property
 from itertools import takewhile
 from operator import itemgetter
-from typing import Any, Generator, Mapping, Optional, Tuple
+from typing import Any, Generator, Mapping, Optional
 
 import numpy as np
 import pandas as pd
@@ -61,31 +61,22 @@ class UnaryOperator(ABC):
         yield from takewhile(bool, (self.operand,))
 
 
-class ObjectIdentifier:
-    """A read-only descriptor returning the id of the managed instance."""
-
-    def __get__(self, instance: object, owner: type) -> int:
-        return id(instance)
-
-    def __set__(self, instance: object, value: Any) -> None:
-        """Read-only"""
-
-
 @dataclass
 class BaseMetric(ABC):
-    id: ObjectIdentifier = ObjectIdentifier()
-    """
-    id is a unique identifier for each metric instance. This is used to extract
-    the metric's own value from a collective output containing results from
-    other metrics. id is read-only.
-    """
+    def id(self) -> int:
+        """
+        id is a unique identifier for each metric instance. This is used to
+        extract the metric's own value from a collective output containing
+        results from other metrics.
+        """
+        return id(self)
 
     def initial_value(self) -> Any:
         return float("nan")
 
     def get_value(self, result: Mapping[int, Any]) -> Any:
         try:
-            return result[self.id]
+            return result[self.id()]
         except KeyError:
             return self.initial_value()
 
@@ -93,8 +84,8 @@ class BaseMetric(ABC):
     def calc(self, df: pd.DataFrame) -> Any:
         ...
 
-    def __call__(self, df: pd.DataFrame) -> Tuple[int, Any]:
-        return (self.id, self.calc(df))
+    def __call__(self, df: pd.DataFrame) -> Any:
+        return self.calc(df)
 
 
 @dataclass

@@ -27,7 +27,10 @@ class Column:
 
 @runtime_checkable
 class Metric(Protocol):
-    def __call__(self, df: pd.DataFrame) -> Tuple[int, Any]:
+    def __call__(self, df: pd.DataFrame) -> Any:
+        ...
+
+    def id(self) -> int:
         ...
 
     def operands(self) -> Generator[Column, None, None]:

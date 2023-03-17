@@ -131,6 +131,8 @@ class PSI(DiscreteDivergence):
         \mathrm{PSI}(P,Q) = D_{KL}(P||Q) + D_{KL}(Q||P)
     where :math:`D_{KL}` is the KL-divergence.
 
+    PSI is also known as Jeffreys divergence.
+
     See https://en.wikipedia.org/wiki/Kullback%E2%80%93Leibler_divergence#Symmetrised_divergence
     """
 
