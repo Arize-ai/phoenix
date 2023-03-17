@@ -9,7 +9,7 @@ from phoenix.datasets import Dataset, EmbeddingColumnNames, Schema
 from phoenix.server.api.context import Context
 from phoenix.server.api.input_types.Granularity import Granularity
 from phoenix.server.api.input_types.TimeRange import TimeRange
-from phoenix.server.api.types.DriftMetric import DriftMetric
+from phoenix.server.api.types.DriftMetric import VectorDriftMetric
 from phoenix.server.api.types.EmbeddingDimension import EmbeddingDimension
 from strawberry.types.info import Info
 from typing_extensions import TypeAlias
@@ -49,7 +49,7 @@ class TestDriftMetricTimeSeries:
         drift_time_series = EmbeddingDimension(
             name="embedding_feature", id_attr=0
         ).drift_time_series(
-            metric=DriftMetric.euclideanDistance,
+            metric=VectorDriftMetric.euclideanDistance,
             time_range=TimeRange(
                 start=datetime(year=2000, month=1, day=1), end=datetime(year=2000, month=1, day=2)
             ),
@@ -120,7 +120,7 @@ class TestDriftMetricTimeSeries:
             persist_to_disc=False,
         )
         distance = EmbeddingDimension(name="embedding_feature", id_attr=0).drift_time_series(
-            metric=DriftMetric.euclideanDistance,
+            metric=VectorDriftMetric.euclideanDistance,
             time_range=query_time_range,
             info=info_mock_factory(primary_dataset, reference_dataset),
             granularity=Granularity(
@@ -181,7 +181,7 @@ class TestDriftMetricTimeSeries:
         drift_time_series = EmbeddingDimension(
             name="embedding_feature", id_attr=0
         ).drift_time_series(
-            metric=DriftMetric.euclideanDistance,
+            metric=VectorDriftMetric.euclideanDistance,
             time_range=TimeRange(
                 start=datetime(year=2000, month=1, day=1),
                 end=datetime(year=2000, month=1, day=8),
@@ -267,7 +267,7 @@ class TestDriftMetricTimeSeries:
         drift_time_series = EmbeddingDimension(
             name="embedding_feature", id_attr=0
         ).drift_time_series(
-            metric=DriftMetric.euclideanDistance,
+            metric=VectorDriftMetric.euclideanDistance,
             time_range=TimeRange(
                 start=datetime(year=2000, month=1, day=1, hour=1),
                 end=datetime(year=2000, month=1, day=1, hour=2),
@@ -321,7 +321,7 @@ class TestDriftMetric:
             persist_to_disc=False,
         )
         distance = EmbeddingDimension(name="embedding_feature", id_attr=0).drift_metric(
-            metric=DriftMetric.euclideanDistance,
+            metric=VectorDriftMetric.euclideanDistance,
             time_range=TimeRange(
                 start=datetime(year=2000, month=1, day=1), end=datetime(year=2000, month=1, day=2)
             ),
@@ -388,7 +388,7 @@ class TestDriftMetric:
             persist_to_disc=False,
         )
         distance = EmbeddingDimension(name="embedding_feature", id_attr=0).drift_metric(
-            metric=DriftMetric.euclideanDistance,
+            metric=VectorDriftMetric.euclideanDistance,
             time_range=query_time_range,
             info=info_mock_factory(primary_dataset, reference_dataset),
         )
@@ -449,7 +449,7 @@ class TestDriftMetric:
             dataframe=reference_dataframe, schema=schema, persist_to_disc=False
         )
         distance = EmbeddingDimension(name="embedding_feature", id_attr=0).drift_metric(
-            metric=DriftMetric.euclideanDistance,
+            metric=VectorDriftMetric.euclideanDistance,
             time_range=TimeRange(
                 start=datetime(year=2000, month=1, day=1, hour=1, minute=0),
                 end=datetime(year=2000, month=1, day=1, hour=2, minute=0),
@@ -504,7 +504,7 @@ class TestDriftMetric:
             dataframe=reference_dataframe, schema=schema, persist_to_disc=False
         )
         distance = EmbeddingDimension(name="embedding_feature", id_attr=0).drift_metric(
-            metric=DriftMetric.euclideanDistance,
+            metric=VectorDriftMetric.euclideanDistance,
             time_range=TimeRange(
                 start=datetime(year=2000, month=1, day=4),
                 end=datetime(year=2000, month=1, day=10),

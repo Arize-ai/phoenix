@@ -6,7 +6,7 @@ import pandas as pd
 import strawberry
 
 from phoenix.core.model import Model
-from phoenix.metrics import Metric
+from phoenix.metrics import Metric, binning
 from phoenix.metrics.mixins import DriftOperator
 from phoenix.metrics.timeseries import timeseries
 from phoenix.server.api.input_types.Granularity import Granularity, to_timestamps
@@ -14,7 +14,8 @@ from phoenix.server.api.input_types.TimeRange import TimeRange
 from phoenix.server.api.interceptor import NoneIfNan
 from phoenix.server.api.types import METRICS
 from phoenix.server.api.types.DataQualityMetric import DataQualityMetric
-from phoenix.server.api.types.DriftMetric import DriftMetric
+from phoenix.server.api.types.DimensionDataType import DimensionDataType
+from phoenix.server.api.types.DriftMetric import ScalarDriftMetric, VectorDriftMetric
 
 
 @strawberry.type
@@ -60,19 +61,26 @@ class TimeSeries:
         self,
         column_name: str,
         model: Model,
-        metric: Union[DriftMetric, DataQualityMetric],
+        metric: Union[ScalarDriftMetric, VectorDriftMetric, DataQualityMetric],
         time_range: Optional[TimeRange] = None,
         granularity: Optional[Granularity] = None,
+        dtype: Optional[DimensionDataType] = None,
     ):
         if not (metric_cls := METRICS.get(metric.value, None)):
             raise NotImplementedError(f"Metric {metric} is not implemented.")
         dataset = model.primary_dataset
-        metric_instance = metric_cls(column_name=column_name)
+        metric_instance = metric_cls(operand=column_name)
         if (
             issubclass(metric_cls, DriftOperator)
-            and (ref_dataset := model.reference_dataset) is not None
+            and model.reference_dataset is not None
+            and not (data := model.reference_dataset.dataframe).empty
         ):
-            metric_instance.reference_data = ref_dataset.dataframe
+            metric_instance.reference_data = data
+            if dtype is DimensionDataType.numeric:
+                operand = next(metric_instance.operands())
+                metric_instance.binning = binning.Quantile(
+                    data=operand(data),
+                )
         if time_range is None:
             time_range = TimeRange(
                 start=dataset.start_time,
@@ -88,8 +96,12 @@ class TimeSeries:
             timeseries(
                 start_time=time_range.start,
                 end_time=time_range.end,
-                evaluation_window=timedelta(minutes=granularity.evaluation_window_minutes),
-                sampling_interval=timedelta(minutes=granularity.sampling_interval_minutes),
+                evaluation_window=timedelta(
+                    minutes=granularity.evaluation_window_minutes,
+                ),
+                sampling_interval=timedelta(
+                    minutes=granularity.sampling_interval_minutes,
+                ),
             ),
             metrics=(metric_instance,),
         ).pipe(
@@ -110,6 +122,7 @@ class DataQualityTimeSeries(TimeSeries):
         metric: DataQualityMetric,
         time_range: Optional[TimeRange] = None,
         granularity: Optional[Granularity] = None,
+        dtype: Optional[DimensionDataType] = None,
     ):
         super().__init__(
             column_name,
@@ -117,6 +130,7 @@ class DataQualityTimeSeries(TimeSeries):
             metric,
             time_range,
             granularity,
+            dtype,
         )
 
 
@@ -128,9 +142,10 @@ class DriftTimeSeries(TimeSeries):
         self,
         column_name: str,
         model: Model,
-        metric: DriftMetric,
+        metric: Union[ScalarDriftMetric, VectorDriftMetric],
         time_range: Optional[TimeRange] = None,
         granularity: Optional[Granularity] = None,
+        dtype: Optional[DimensionDataType] = None,
     ):
         super().__init__(
             column_name,
@@ -138,4 +153,5 @@ class DriftTimeSeries(TimeSeries):
             metric,
             time_range,
             granularity,
+            dtype,
         )

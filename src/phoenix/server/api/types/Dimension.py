@@ -11,8 +11,9 @@ from ..input_types.TimeRange import TimeRange
 from .DataQualityMetric import DataQualityMetric
 from .DimensionDataType import DimensionDataType
 from .DimensionType import DimensionType
+from .DriftMetric import ScalarDriftMetric
 from .node import Node
-from .TimeSeries import DataQualityTimeSeries
+from .TimeSeries import DataQualityTimeSeries, DriftTimeSeries
 
 
 @strawberry.type
@@ -25,6 +26,32 @@ class Dimension(Node):
     dataType: DimensionDataType = strawberry.field(
         description="The data type of the column. Categorical or numeric."
     )
+
+    @strawberry.field
+    def drift_metric(
+        self,
+        info: Info[Context, None],
+        metric: ScalarDriftMetric,
+        time_range: Optional[TimeRange] = None,
+    ) -> Optional[float]:
+        """
+        Computes a drift metric between all reference data and the primary data
+        belonging to the input time range (inclusive of the time range start and
+        exclusive of the time range end). Returns None if no reference dataset
+        exists, if no primary data exists in the input time range, or if the
+        input time range is invalid.
+        """
+        if len(
+            data := DriftTimeSeries(
+                self.name,
+                info.context.model,
+                metric,
+                time_range,
+                dtype=self.dataType,
+            ).data
+        ):
+            return data.pop().value
+        return None
 
     @strawberry.field
     async def data_quality_metric(
@@ -78,6 +105,30 @@ class Dimension(Node):
             metric,
             time_range,
             granularity,
+        )
+
+    @strawberry.field(
+        description=(
+            "Returns the time series of the specified metric for data within timeRange. Data points"
+            " are generated starting at the end time, are separated by the sampling interval. Each"
+            " data point is labeled by the end instant of and contains data from their respective"
+            " evaluation window."
+        )
+    )  # type: ignore  # https://github.com/strawberry-graphql/strawberry/issues/1929
+    def drift_time_series(
+        self,
+        info: Info[Context, None],
+        metric: ScalarDriftMetric,
+        time_range: TimeRange,
+        granularity: Granularity,
+    ) -> DriftTimeSeries:
+        return DriftTimeSeries(
+            self.name,
+            info.context.model,
+            metric,
+            time_range,
+            granularity,
+            dtype=self.dataType,
         )
 
 

@@ -66,12 +66,8 @@ def _aggregator(
     Calls groupby on the dataframe and apply metric calculations on each group.
     """
     calcs: Tuple[Metric, ...] = tuple(metrics)
-    columns: List[int] = list(
-        set(
-            dataframe.columns.get_loc(column_name)
-            for calc in calcs
-            for column_name in calc.input_columns()
-        ),
+    columns: List[int] = sorted(
+        {dataframe.columns.get_loc(column.name) for calc in calcs for column in calc.operands()}
     )
     return pd.concat(
         chain(

@@ -25,7 +25,7 @@ from phoenix.server.api.input_types.TimeRange import TimeRange
 
 from ..input_types.Granularity import Granularity
 from .DataQualityMetric import DataQualityMetric
-from .DriftMetric import DriftMetric
+from .DriftMetric import VectorDriftMetric
 from .EmbeddingMetadata import EmbeddingMetadata
 from .EventMetadata import EventMetadata
 from .node import Node
@@ -52,7 +52,7 @@ class EmbeddingDimension(Node):
     def drift_metric(
         self,
         info: Info[Context, None],
-        metric: DriftMetric,
+        metric: VectorDriftMetric,
         time_range: Optional[TimeRange] = None,
     ) -> Optional[float]:
         """
@@ -100,7 +100,7 @@ class EmbeddingDimension(Node):
     def drift_time_series(
         self,
         info: Info[Context, None],
-        metric: DriftMetric,
+        metric: VectorDriftMetric,
         time_range: TimeRange,
         granularity: Granularity,
     ) -> DriftTimeSeries:

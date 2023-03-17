@@ -40,13 +40,13 @@ reference_data = pd.read_csv(
 MetricTest = NamedTuple("MetricTest", [("name", str), ("metric", Metric)])
 
 metric_tests = (
-    MetricTest("Mean(x)", Mean("x")),
-    MetricTest("Count(x)", Count("x")),
-    MetricTest("VectorSum(v)", VectorSum(column_name="v", shape=5)),
-    MetricTest("VectorMean(v)", VectorMean(column_name="v", shape=5)),
+    MetricTest("Mean(x)", Mean(operand="x")),
+    MetricTest("Count(x)", Count(operand="x")),
+    MetricTest("VectorSum(v)", VectorSum(operand="v", shape=5)),
+    MetricTest("VectorMean(v)", VectorMean(operand="v", shape=5)),
     MetricTest(
         "EuclideanDistance(v)",
-        EuclideanDistance(column_name="v", shape=5, reference_data=reference_data),
+        EuclideanDistance(operand="v", shape=5, reference_data=reference_data),
     ),
 )
 names = list(map(lambda t: t.name, metric_tests))
