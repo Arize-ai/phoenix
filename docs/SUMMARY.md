@@ -23,15 +23,18 @@
 * [Manage the App](how-to/manage-the-app.md)
 * [Use the App](how-to/use-the-app.md)
 
+## API
+
+* [phoenix.Dataset](api/phoenix.dataset.md)
+* [phoenix.Schema](api/phoenix.schema.md)
+* [phoenix.EmbeddingColumnNames](api/phoenix.embeddingcolumnnames.md)
+* [phoenix.load\_example](api/phoenix.load\_example.md)
+
 ## Reference
 
-* [Open Inference](concepts/open-inference.md)
-* [API](reference/api/README.md)
-  * [phoenix.Dataset](reference/api/phoenix.dataset.md)
-  * [phoenix.Schema](reference/api/phoenix.schema/README.md)
-    * [phoenix.EmbeddingColumnNames](reference/api/phoenix.schema/phoenix.embeddingcolumnnames.md)
 * [Metrics](reference/metrics/README.md)
   * [Cardinality](reference/metrics/cardinality.md)
   * [Percent Empty](reference/metrics/percent-empty.md)
   * [Euclidean Distance](reference/metrics/euclidean-distance.md)
   * [PSI](reference/metrics/psi.md)
+* [Open Inference](concepts/open-inference.md)

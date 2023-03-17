@@ -7,7 +7,7 @@ description: Learn the foundational concepts of the Phoenix API
 This section introduces _datasets_ and _schemas,_ the starting concepts needed to use Phoenix.
 
 {% hint style="info" %}
-* For comprehensive descriptions of `phoenix.Dataset` and `phoenix.Schema`, see the [API reference](../reference/api/).
+* For comprehensive descriptions of `phoenix.Dataset` and `phoenix.Schema`, see the [API reference](broken-reference).
 * For code examples, see the [dataset](broken-reference) and [schema](../how-to/define-your-schema.md) how-to guides.
 {% endhint %}
 

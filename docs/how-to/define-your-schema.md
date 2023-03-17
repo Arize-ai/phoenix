@@ -14,7 +14,7 @@ This guide shows you how to match your schema to your DataFrame with concrete ex
 
 {% hint style="info" %}
 * For a conceptual overview of the Phoenix API, including a high-level introduction to the notion of datasets and schemas, see [Phoenix Basics](../concepts/phoenix-basics.md#schemas).
-* For a comprehensive description of `phoenix.Dataset` and `phoenix.Schema`, see the [API reference](../reference/api/).
+* For a comprehensive description of `phoenix.Dataset` and `phoenix.Schema`, see the [API reference](broken-reference).
 {% endhint %}
 
 ## Predictions and Actuals
@@ -141,7 +141,7 @@ Embedding features consist of vector data in addition to any unstructured data i
 
 {% hint style="info" %}
 * For a conceptual overview of embeddings, see [Embeddings](../concepts/embeddings.md).
-* For a comprehensive description of `px.EmbeddingColumnNames`, see the [API reference](../reference/api/phoenix.schema/phoenix.embeddingcolumnnames.md).
+* For a comprehensive description of `px.EmbeddingColumnNames`, see the [API reference](../api/phoenix.embeddingcolumnnames.md).
 {% endhint %}
 
 {% hint style="info" %}
