@@ -2,7 +2,14 @@ import React from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { css } from "@emotion/react";
 
-import { Accordion, AccordionItem, Card } from "@arizeai/components";
+import {
+  Accordion,
+  AccordionItem,
+  Card,
+  TabbedCard,
+  TabPane,
+  Tabs,
+} from "@arizeai/components";
 
 import { Toolbar } from "@phoenix/components/filter";
 import {
@@ -37,16 +44,30 @@ export function Home(_props: HomePageProps) {
           `
         }
       >
-        <Card title="Model Schema" variant="compact" bodyStyle={{ padding: 0 }}>
-          <Accordion variant="compact">
-            <AccordionItem title="Embeddings" id="embeddings">
+        <TabbedCard
+          title="Model Schema"
+          variant="compact"
+          bodyStyle={{ padding: 0 }}
+        >
+          <Tabs>
+            <TabPane name="All" key="all">
+              <Accordion variant="compact">
+                <AccordionItem title="Embeddings" id="embeddings">
+                  <ModelEmbeddingsTable model={data} />
+                </AccordionItem>
+                <AccordionItem title="Dimensions" id="dimensions">
+                  <ModelSchemaTable model={data} />
+                </AccordionItem>
+              </Accordion>
+            </TabPane>
+            <TabPane name="Embeddings" key="embeddings">
               <ModelEmbeddingsTable model={data} />
-            </AccordionItem>
-            <AccordionItem title="Dimensions" id="dimensions">
+            </TabPane>
+            <TabPane name="Dimensions" key="embeddings">
               <ModelSchemaTable model={data} />
-            </AccordionItem>
-          </Accordion>
-        </Card>
+            </TabPane>
+          </Tabs>
+        </TabbedCard>
       </section>
     </main>
   );
