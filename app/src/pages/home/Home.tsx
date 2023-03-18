@@ -2,7 +2,7 @@ import React from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { css } from "@emotion/react";
 
-import { TabbedCard, TabPane, Tabs } from "@arizeai/components";
+import { Accordion, AccordionItem, Card } from "@arizeai/components";
 
 import { Toolbar } from "@phoenix/components/filter";
 import {
@@ -37,16 +37,16 @@ export function Home(_props: HomePageProps) {
           `
         }
       >
-        <TabbedCard title="Model Schema" variant="compact">
-          <Tabs>
-            <TabPane name="Dimensions">
-              <ModelSchemaTable model={data} />
-            </TabPane>
-            <TabPane name="Embeddings">
+        <Card title="Model Schema" variant="compact" bodyStyle={{ padding: 0 }}>
+          <Accordion variant="compact">
+            <AccordionItem title="Embeddings" id="embeddings">
               <ModelEmbeddingsTable model={data} />
-            </TabPane>
-          </Tabs>
-        </TabbedCard>
+            </AccordionItem>
+            <AccordionItem title="Dimensions" id="dimensions">
+              <ModelSchemaTable model={data} />
+            </AccordionItem>
+          </Accordion>
+        </Card>
       </section>
     </main>
   );

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<fbe68a99083df7bbf0ba63c9859d18b0>>
+ * @generated SignedSource<<a812ab9a1c3ccf261638168321092465>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -19,8 +19,12 @@ export type ModelSchemaTable_dimensions$data = {
         readonly dimension: {
           readonly cardinality: number | null;
           readonly dataType: DimensionDataType;
+          readonly max: number | null;
+          readonly mean: number | null;
+          readonly min: number | null;
           readonly name: string;
           readonly percentEmpty: number | null;
+          readonly psi: number | null;
           readonly type: DimensionType;
         };
       }>;
@@ -154,6 +158,58 @@ return {
                       "kind": "ScalarField",
                       "name": "dataQualityMetric",
                       "storageKey": "dataQualityMetric(metric:\"percentEmpty\")"
+                    },
+                    {
+                      "alias": "min",
+                      "args": [
+                        {
+                          "kind": "Literal",
+                          "name": "metric",
+                          "value": "min"
+                        }
+                      ],
+                      "kind": "ScalarField",
+                      "name": "dataQualityMetric",
+                      "storageKey": "dataQualityMetric(metric:\"min\")"
+                    },
+                    {
+                      "alias": "mean",
+                      "args": [
+                        {
+                          "kind": "Literal",
+                          "name": "metric",
+                          "value": "mean"
+                        }
+                      ],
+                      "kind": "ScalarField",
+                      "name": "dataQualityMetric",
+                      "storageKey": "dataQualityMetric(metric:\"mean\")"
+                    },
+                    {
+                      "alias": "max",
+                      "args": [
+                        {
+                          "kind": "Literal",
+                          "name": "metric",
+                          "value": "max"
+                        }
+                      ],
+                      "kind": "ScalarField",
+                      "name": "dataQualityMetric",
+                      "storageKey": "dataQualityMetric(metric:\"max\")"
+                    },
+                    {
+                      "alias": "psi",
+                      "args": [
+                        {
+                          "kind": "Literal",
+                          "name": "metric",
+                          "value": "psi"
+                        }
+                      ],
+                      "kind": "ScalarField",
+                      "name": "driftMetric",
+                      "storageKey": "driftMetric(metric:\"psi\")"
                     }
                   ],
                   "storageKey": null
@@ -223,6 +279,6 @@ return {
 };
 })();
 
-(node as any).hash = "8adfc820d01526b9bc2e9dc3212a8049";
+(node as any).hash = "fdbee9f78e795b25c75649dfb377701a";
 
 export default node;
