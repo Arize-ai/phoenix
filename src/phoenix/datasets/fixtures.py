@@ -1,7 +1,7 @@
 import logging
 import os
 from dataclasses import dataclass, replace
-from typing import Dict, Tuple
+from typing import Dict, Tuple, cast
 
 from pandas import read_parquet
 
@@ -325,12 +325,18 @@ def _download_and_persist_dataset_if_missing(
     return dataset
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, repr=False)
 class DatasetDict(Dict[str, Dataset]):
     """A dictionary of datasets, split out by dataset type (primary, reference)."""
 
     primary: Dataset
     reference: Dataset
+
+    def __getitem__(self, key: str) -> Dataset:
+        try:
+            return cast(Dataset, getattr(self, key))
+        except AttributeError:
+            raise KeyError(f"Invalid key: {key}")
 
 
 def load_example(use_case: str) -> DatasetDict:
