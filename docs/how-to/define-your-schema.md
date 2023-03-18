@@ -14,7 +14,7 @@ This guide shows you how to match your schema to your DataFrame with concrete ex
 
 {% hint style="info" %}
 * For a conceptual overview of the Phoenix API, including a high-level introduction to the notion of datasets and schemas, see [Phoenix Basics](../concepts/phoenix-basics.md#schemas).
-* For a comprehensive description of `phoenix.Dataset` and `phoenix.Schema`, see the [API reference](broken-reference).
+* For a comprehensive description of `phoenix.Dataset` and `phoenix.Schema`, see the [API reference](broken-reference/).
 {% endhint %}
 
 ## Predictions and Actuals
@@ -186,7 +186,7 @@ The features in this example are [implicitly inferred](define-your-schema.md#imp
 {% endhint %}
 
 {% hint style="warning" %}
-Ensure that all embedding vectors for a particular embedding feature are one-dimensional arrays of the same length, otherwise, Phoenix will throw an error.
+To compare embeddings, Phoenix uses metrics such as Euclidean distance that can only be computed between vectors of the same length. Ensure that all embedding vectors for a particular embedding feature are one-dimensional arrays of the same length, otherwise, Phoenix will throw an error.
 {% endhint %}
 
 ### Embeddings of Images
@@ -240,54 +240,13 @@ If your embeddings represent pieces of text, you can display that text in the ap
 
 #### DataFrame
 
-<table border="1" class="dataframe">
-  <thead>
-    <tr style="text-align: right;">
-      <th>name</th>
-      <th>text</th>
-      <th>text_vector</th>
-      <th>category</th>
-      <th>sentiment</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td>Magic Lamp</td>
-      <td>Makes a great desk lamp!</td>
-      <td>[2.66, 0.89, 1.17, 2.21]</td>
-      <td>office</td>
-      <td>positive</td>
-    </tr>
-    <tr>
-      <td>Ergo Desk Chair</td>
-      <td>This chair is pretty comfortable, but I wish it had better back support.</td>
-      <td>[3.33, 1.14, 2.57, 2.88]</td>
-      <td>office</td>
-      <td>neutral</td>
-    </tr>
-    <tr>
-      <td>Cloud Nine Mattress</td>
-      <td>I've been sleeping like a baby since I bought this thing.</td>
-      <td>[2.5, 3.74, 0.04, -0.94]</td>
-      <td>bedroom</td>
-      <td>positive</td>
-    </tr>
-    <tr>
-      <td>Dr. Fresh's Spearmint Toothpaste</td>
-      <td>Avoid at all costs, it tastes like soap.</td>
-      <td>[1.78, -0.24, 1.37, 2.6]</td>
-      <td>personal_hygiene</td>
-      <td>negative</td>
-    </tr>
-    <tr>
-      <td>Ultra-Fuzzy Bath Mat</td>
-      <td>Cheap quality, began fraying at the edges after the first wash.</td>
-      <td>[2.71, 0.98, -0.22, 2.1]</td>
-      <td>bath</td>
-      <td>negative</td>
-    </tr>
-  </tbody>
-</table>
+| name                             | text                                                                     | text\_vector              | category          | sentiment |
+| -------------------------------- | ------------------------------------------------------------------------ | ------------------------- | ----------------- | --------- |
+| Magic Lamp                       | Makes a great desk lamp!                                                 | \[2.66, 0.89, 1.17, 2.21] | office            | positive  |
+| Ergo Desk Chair                  | This chair is pretty comfortable, but I wish it had better back support. | \[3.33, 1.14, 2.57, 2.88] | office            | neutral   |
+| Cloud Nine Mattress              | I've been sleeping like a baby since I bought this thing.                | \[2.5, 3.74, 0.04, -0.94] | bedroom           | positive  |
+| Dr. Fresh's Spearmint Toothpaste | Avoid at all costs, it tastes like soap.                                 | \[1.78, -0.24, 1.37, 2.6] | personal\_hygiene | negative  |
+| Ultra-Fuzzy Bath Mat             | Cheap quality, began fraying at the edges after the first wash.          | \[2.71, 0.98, -0.22, 2.1] | bath              | negative  |
 
 #### Schema
 
