@@ -8,7 +8,7 @@ This section introduces _datasets_ and _schemas,_ the starting concepts needed t
 
 {% hint style="info" %}
 * For comprehensive descriptions of `phoenix.Dataset` and `phoenix.Schema`, see the [API reference](broken-reference).
-* For code examples, see the [dataset](broken-reference) and [schema](../how-to/define-your-schema.md) how-to guides.
+* For tips on creating your own Phoenix datasets and schemas, see the [how-to guide](../how-to/define-your-schema.md).
 {% endhint %}
 
 ## Datasets
