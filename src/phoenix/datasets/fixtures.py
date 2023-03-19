@@ -346,7 +346,11 @@ class DatasetDict(Dict[str, Dataset]):
 
     @staticmethod
     def _format_dataset(dataset: Dataset) -> str:
-        return f"Dataset(dataframe=..., schema=..., name='{dataset.name}')"
+        return f"""Dataset(
+        dataframe=...,
+        schema=...,
+        name='{dataset.name}',
+    )"""
 
 
 def load_example(use_case: str) -> DatasetDict:
