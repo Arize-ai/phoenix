@@ -338,6 +338,16 @@ class DatasetDict(Dict[str, Dataset]):
         except AttributeError:
             raise KeyError(f"Invalid key: {key}")
 
+    def __repr__(self) -> str:
+        return f"""DatasetDict(
+    primary: {self._format_dataset(self.primary)},
+    reference: {self._format_dataset(self.reference)},
+)"""
+
+    @staticmethod
+    def _format_dataset(dataset: Dataset) -> str:
+        return f"Dataset(name: '{dataset.name}')"
+
 
 def load_example(use_case: str) -> DatasetDict:
     """
