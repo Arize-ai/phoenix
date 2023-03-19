@@ -20,12 +20,12 @@ def test_datasetdict_repr_happy_path() -> None:
         ),
     )
     expected_repr = """DatasetDict({
-    primary: Dataset(
+    'primary': Dataset(
         dataframe=...,
         schema=...,
         name='primary',
     ),
-    reference: Dataset(
+    'reference': Dataset(
         dataframe=...,
         schema=...,
         name='reference',

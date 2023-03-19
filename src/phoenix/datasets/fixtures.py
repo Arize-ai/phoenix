@@ -340,8 +340,8 @@ class DatasetDict(Dict[str, Dataset]):
 
     def __repr__(self) -> str:
         return f"""DatasetDict({{
-    primary: {self._format_dataset(self.primary)},
-    reference: {self._format_dataset(self.reference)},
+    'primary': {self._format_dataset(self.primary)},
+    'reference': {self._format_dataset(self.reference)},
 }})"""
 
     @staticmethod
