@@ -253,6 +253,19 @@ class Dataset:
         self._is_persisted = True
         logger.info(f"Dataset info written to '{directory}'")
 
+    def __repr__(self) -> str:
+        """
+        Return a string to display the dataset's name, dataframe, and schema.
+        """
+        repr_string = (
+            """Phoenix Dataset
+===============\n\n"""
+            + f"name: '{self.name}'\n\n"
+            + f"dataframe:\n{_indent_string(repr(self.dataframe))}\n\n"
+            + f"schema: {self.schema}"
+        )
+        return repr_string
+
 
 def _parse_dataframe_and_schema(dataframe: DataFrame, schema: Schema) -> Tuple[DataFrame, Schema]:
     """
@@ -505,3 +518,10 @@ def _sort_dataframe_rows_by_timestamp(dataframe: DataFrame, schema: Schema) -> D
     dataframe.set_index(timestamp_column_name, drop=False, inplace=True)
     dataframe.sort_index(inplace=True)
     return dataframe
+
+
+def _indent_string(string: str) -> str:
+    """Indents a string by 4 spaces"""
+    lines = string.split("\n")
+    lines = [" " * 4 + line for line in lines]
+    return "\n".join(lines)
