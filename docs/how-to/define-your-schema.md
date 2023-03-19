@@ -1,21 +1,29 @@
 ---
-description: How to create Phoenix schemas for common data formats
+description: How to create Phoenix datasets and schemas for common data formats
 ---
 
-# Define Your Schema
+# Create Your Own Dataset
 
-Given a Pandas DataFrame `df` and a `schema` object describing the format of that DataFrame, you can define a dataset named "data" with
-
-```python
-ds = px.Dataset(df, schema, "data")
-```
-
-This guide shows you how to match your schema to your DataFrame with concrete examples.
+This guide shows you how to define a Phoenix dataset using your own data.
 
 {% hint style="info" %}
 * For a conceptual overview of the Phoenix API, including a high-level introduction to the notion of datasets and schemas, see [Phoenix Basics](../concepts/phoenix-basics.md#schemas).
 * For a comprehensive description of `phoenix.Dataset` and `phoenix.Schema`, see the [API reference](broken-reference/).
 {% endhint %}
+
+Once you have a Pandas DataFrame `df` containing your data and a `schema` object describing the format of your DataFrame, you can define your Phoenix dataset either by running
+
+```python
+ds = px.Dataset(df, schema)
+```
+
+or by optionally providing a name for your dataset that will appear in the UI:
+
+```python
+ds = px.Dataset(df, schema, name="training")
+```
+
+As you can see, instantiating your dataset is the easy part. Before you run the code above, you must first wrangle your data into a Pandas DataFrame and then create a Phoenix schema to describe the format of your DataFrame. The rest of this guide shows you how to match your schema to your DataFrame with concrete examples.
 
 ## Predictions and Actuals
 
