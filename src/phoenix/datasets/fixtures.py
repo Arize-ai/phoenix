@@ -325,7 +325,7 @@ def _download_and_persist_dataset_if_missing(
     return dataset
 
 
-@dataclass(frozen=True, repr=False)
+@dataclass(frozen=True)
 class DatasetDict(Dict[str, Dataset]):
     """A dictionary of datasets, split out by dataset type (primary, reference)."""
 

@@ -1,6 +1,8 @@
 import json
 from dataclasses import dataclass, fields
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
+
+from typing_extensions import TypeGuard
 
 EmbeddingFeatures = Dict[str, "EmbeddingColumnNames"]
 SchemaFieldName = str
@@ -33,37 +35,34 @@ class Viewable:
         """
         This repr method produces output that a user can copy and paste to instantiate the dataclass
         """
-        argument_strings = []
-        schema_field_name_to_value = {
-            field.name: field_value
-            for field in fields(self)
-            if (field_value := getattr(self, field.name)) is not None
-        }
-        for index, (field_name, field_value) in enumerate(schema_field_name_to_value.items()):
-            if isinstance(field_value, str):
-                arguments = [f'{field_name}="{field_value}",']
-            elif isinstance(field_value, list):
-                arguments = [f"{field_name}=["]
-                for entry in field_value:
-                    arguments.append(f'{_TAB}"{entry}",')
-                arguments.append("],")
-            elif isinstance(field_value, dict):
-                arguments = [f"{field_name}={{"]
-                for key, value in field_value.items():
-                    value_lines = repr(value).split("\n")
-                    value_lines[0] = f'"{key}": {value_lines[0]}'
-                    value_lines[-1] = value_lines[-1] + ","
-                    value_lines = [_TAB + vl for vl in value_lines]
-                    arguments.extend(value_lines)
-                arguments.append("},")
+        inner_lines = []
+        for field in fields(self):
+            field_name = field.name
+            field_value = getattr(self, field.name)
+            lines_for_field: List[str] = []
+            if field_value is None:
+                continue
+            elif isinstance(field_value, str):
+                lines_for_field.append(
+                    _get_line_for_field_with_string_value(field_name, field_value)
+                )
+            elif _is_list_of_strings(field_value):
+                lines_for_field = _get_lines_for_field_with_list_value(field_name, field_value)
+            elif _is_embedding_feature(field_value):
+                lines_for_field = _get_lines_for_field_with_embedding_features_value(
+                    field_name, field_value
+                )
             else:
-                raise ValueError(f"Encountered valid field value of type {type(field_value)}.")
-            arguments = [_TAB + arg for arg in arguments]
-            argument_strings.extend(arguments)
-        schema_argument_string = "\n".join(argument_strings)
-        if schema_argument_string:
-            schema_argument_string = "\n" + schema_argument_string + "\n"
-        return f"{self.__class__.__name__}({schema_argument_string})"
+                lines_for_field = _get_lines_for_field_with_unrecognized_value(
+                    field_name, field_value
+                )
+            lines_for_field = [_TAB + line for line in lines_for_field]
+            inner_lines.extend(lines_for_field)
+        inner_args_string = "\n".join(inner_lines)
+        if inner_args_string:
+            inner_args_string = "\n" + inner_args_string + "\n"
+        repr_string = f"{self.__class__.__name__}({inner_args_string})"
+        return repr_string
 
 
 @dataclass(frozen=True, repr=False)
@@ -122,3 +121,65 @@ class Schema(Viewable, Dict[SchemaFieldName, SchemaFieldValue]):
                 )
             json_data["embedding_feature_column_names"] = embedding_feature_column_names
         return cls(**json_data)
+
+
+def _get_line_for_field_with_string_value(field_name: str, field_value: str) -> str:
+    """
+    Return a line that represents a field set to a string value.
+    """
+    return f"{field_name}='{field_value}',"
+
+
+def _get_lines_for_field_with_list_value(field_name: str, field_value: List[str]) -> List[str]:
+    """
+    Get lines that represent a field set to a list of string values.
+    """
+    lines_for_field = [f"{field_name}=["]
+    for entry in field_value:
+        lines_for_field.append(f"{_TAB}'{entry}',")
+    lines_for_field.append("],")
+    return lines_for_field
+
+
+def _get_lines_for_field_with_embedding_features_value(
+    field_name: str, field_value: EmbeddingFeatures
+) -> List[str]:
+    """
+    Get lines that represent a field set to a dictionary representing embedding features.
+    """
+    lines = [f"{field_name}={{"]
+    for key, value in field_value.items():
+        lines_for_value = repr(value).split("\n")
+        lines_for_value[0] = f"'{key}': {lines_for_value[0]}"
+        lines_for_value[-1] = lines_for_value[-1] + ","
+        lines_for_value = [_TAB + line for line in lines_for_value]
+        lines.extend(lines_for_value)
+    lines.append("},")
+    return lines
+
+
+def _get_lines_for_field_with_unrecognized_value(field_name: str, field_value: Any) -> List[str]:
+    """
+    Get lines that represent a field being set to an unrecognized object.
+    """
+    lines = repr(field_value).split("\n")
+    lines[0] = f"{field_name}={lines[0]}"
+    lines[-1] = lines[-1] + ","
+    lines[1:] = [" " * (len(field_name) + 1) + line for line in lines[1:]]
+    return lines
+
+
+def _is_list_of_strings(value: Any) -> TypeGuard[List[str]]:
+    """
+    A type guard for lists of strings.
+    """
+    return isinstance(value, list) and all(isinstance(item, str) for item in value)
+
+
+def _is_embedding_feature(value: Any) -> TypeGuard[EmbeddingFeatures]:
+    """
+    A type guard for embedding features.
+    """
+    return isinstance(value, dict) and all(
+        isinstance(key, str) and isinstance(val, EmbeddingColumnNames) for key, val in value.items()
+    )
