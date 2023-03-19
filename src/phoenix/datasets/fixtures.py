@@ -339,10 +339,10 @@ class DatasetDict(Dict[str, Dataset]):
             raise KeyError(f"Invalid key: {key}")
 
     def __repr__(self) -> str:
-        return f"""DatasetDict(
+        return f"""DatasetDict({{
     primary: {self._format_dataset(self.primary)},
     reference: {self._format_dataset(self.reference)},
-)"""
+}})"""
 
     @staticmethod
     def _format_dataset(dataset: Dataset) -> str:

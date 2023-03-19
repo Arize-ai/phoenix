@@ -19,8 +19,8 @@ def test_datasetdict_repr_happy_path() -> None:
             persist_to_disc=False,
         ),
     )
-    expected_repr = """DatasetDict(
+    expected_repr = """DatasetDict({
     primary: Dataset(dataframe=..., schema=..., name='primary'),
     reference: Dataset(dataframe=..., schema=..., name='reference'),
-)"""
+})"""
     assert repr(datasets) == expected_repr
