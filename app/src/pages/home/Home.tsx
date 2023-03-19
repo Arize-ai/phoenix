@@ -5,7 +5,6 @@ import { css } from "@emotion/react";
 import {
   Accordion,
   AccordionItem,
-  Card,
   TabbedCard,
   TabPane,
   Tabs,
