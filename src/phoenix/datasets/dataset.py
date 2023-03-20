@@ -53,8 +53,8 @@ class Dataset:
 
     Returns
     -------
-    dataset : Session
-        The session object that can be used to view the application
+    dataset : Dataset
+        The dataset object that can be used in a phoenix session
 
     Examples
     --------
@@ -244,7 +244,12 @@ class Dataset:
         if not os.path.isdir(directory):
             os.makedirs(directory)
 
-        self.dataframe.to_parquet(os.path.join(directory, self._data_file_name))
+        self.dataframe.to_parquet(
+            os.path.join(directory, self._data_file_name),
+            allow_truncated_timestamps=True,
+            coerce_timestamps="ms",
+        )
+
         schema_json_data = self.schema.to_json()
         with open(os.path.join(directory, self._schema_file_name), "w+") as schema_file:
             schema_file.write(schema_json_data)
