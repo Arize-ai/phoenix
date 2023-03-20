@@ -29,8 +29,10 @@ Run the following to download an example dataset and launch the app.
 ```python
 datasets = px.load_datasets("sentiment_classification_language_drift")
 session = px.launch_app(datasets.primary, datasets.reference)
-session.view()
+session
 ```
+
+Follow the instructions in the cell output to launch the Phoenix UI in either your notebook or a new browser tab.
 
 ## Find the Root Cause of Your Model's Performance Issue
 
