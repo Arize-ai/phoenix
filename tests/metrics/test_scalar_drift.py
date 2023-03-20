@@ -149,7 +149,7 @@ def test_psi_quantile_binning():
         normalize=binning.AdditiveSmoothing(pseudocount=1),
         binning=binning.Quantile(
             data=data.x,
-            prob=(0.25, 0.5, 0.75),
+            probabilities=(0.25, 0.5, 0.75),
         ),
     )
     assert_almost_equal(0.0, metric(data))
@@ -169,7 +169,7 @@ def test_psi_quantile_binning_with_missing():
         normalize=binning.AdditiveSmoothing(pseudocount=1),
         binning=binning.Quantile(
             data=data.x,
-            prob=(0.25, 0.5, 0.75),
+            probabilities=(0.25, 0.5, 0.75),
             special_missing_values=(-1,),
         ),
     )
@@ -190,7 +190,7 @@ def test_psi_quantile_binning_with_missing_and_dropna():
         normalize=binning.AdditiveSmoothing(pseudocount=1),
         binning=binning.Quantile(
             data=data.x,
-            prob=(0.25, 0.5, 0.75),
+            probabilities=(0.25, 0.5, 0.75),
             special_missing_values=(-1,),
             dropna=True,
         ),

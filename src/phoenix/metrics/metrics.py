@@ -113,11 +113,11 @@ Distribution: TypeAlias = "pd.Series[float]"
 Divergence: TypeAlias = Callable[[Distribution, Distribution], float]
 
 
-def symmetrized(div: Divergence) -> Divergence:
+def symmetrized(divergence: Divergence) -> Divergence:
     """Make a divergence symmetrical by averaging it with its dual.
 
     See https://en.wikipedia.org/wiki/Divergence_(statistics%29"""
-    return lambda pk, qk: (div(pk, qk) + div(qk, pk)) / 2
+    return lambda pk, qk: (divergence(pk, qk) + divergence(qk, pk)) / 2
 
 
 @dataclass

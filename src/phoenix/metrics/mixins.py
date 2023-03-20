@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from functools import cached_property
 from itertools import takewhile
 from operator import itemgetter
-from typing import Any, Generator, Mapping, Optional
+from typing import Any, Iterator, Mapping, Optional
 
 import numpy as np
 import pandas as pd
@@ -23,13 +23,13 @@ class Operand:
 
     private_name: str
 
-    def __set_name__(self, owner: Any, name: str) -> None:
+    def __set_name__(self, _: Any, name: str) -> None:
         self.private_name = "_" + name
 
     def __set__(self, instance: object, column_name: str) -> None:
         setattr(instance, self.private_name, column_name)
 
-    def __get__(self, instance: object, owner: Any = None) -> Any:
+    def __get__(self, instance: object, _: Any = None) -> Any:
         if instance is None:
             return self
         return Column(getattr(instance, self.private_name, None))
@@ -57,8 +57,8 @@ class UnaryOperator(ABC):
 
     operand: Operand = Operand()
 
-    def operands(self) -> Generator[Column, None, None]:
-        yield from takewhile(bool, (self.operand,))
+    def operands(self) -> Iterator[Column]:
+        return takewhile(bool, (self.operand,))
 
 
 @dataclass
@@ -93,8 +93,8 @@ class EvaluationMetric(BaseMetric, ABC):
     predicted: Operand = Operand()
     actual: Operand = Operand()
 
-    def operands(self) -> Generator[Column, None, None]:
-        yield from takewhile(bool, (self.predicted, self.actual))
+    def operands(self) -> Iterator[Column]:
+        return takewhile(bool, (self.predicted, self.actual))
 
 
 Data: TypeAlias = "pd.Series[Any]"

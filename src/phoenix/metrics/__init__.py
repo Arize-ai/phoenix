@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Any, Generator, Mapping, Optional, Protocol, runtime_checkable
+from typing import Any, Iterator, Mapping, Optional, Protocol, runtime_checkable
 
 import pandas as pd
 
@@ -32,7 +32,7 @@ class Metric(Protocol):
     def id(self) -> int:
         ...
 
-    def operands(self) -> Generator[Column, None, None]:
+    def operands(self) -> Iterator[Column]:
         ...
 
     def get_value(self, result: Mapping[int, Any]) -> Any:

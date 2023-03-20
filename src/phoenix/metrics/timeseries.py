@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 from functools import partial
 from itertools import accumulate, chain, repeat, takewhile
-from typing import Any, Callable, Generator, Iterable, List, Tuple, cast
+from typing import Any, Callable, Iterable, Iterator, List, Tuple, cast
 
 import pandas as pd
 from typing_extensions import TypeAlias
@@ -97,7 +97,7 @@ def _groupers(
     end_time: datetime,
     evaluation_window: timedelta,
     sampling_interval: timedelta,
-) -> Generator[Tuple[datetime, datetime, pd.Grouper], None, None]:
+) -> Iterator[Tuple[datetime, datetime, pd.Grouper]]:
     """
     Yields pandas.Groupers from time series parameters.
     """

@@ -7,7 +7,6 @@ from phoenix.metrics.binning import (
     Categorical,
     Interval,
     Quantile,
-    cuts_to_intervals,
 )
 
 
@@ -62,15 +61,6 @@ def test_additive_smoothing() -> None:
     ):
         assert_almost_equal(actual.sum(), 1, err_msg=f"i={i}")
         assert_series_equal(actual.round(4), desired)
-
-
-def test_cuts_to_intervals() -> None:
-    f = cuts_to_intervals
-    assert tuple(f(range(0))) == ((float("-inf"), float("inf")),)
-    assert tuple(f(range(1))) == ((float("-inf"), 0), (0, float("inf")))
-    assert tuple(f(range(2))) == ((float("-inf"), 0), (0, float("inf")))
-    assert tuple(f(range(3))) == ((float("-inf"), 1), (1, float("inf")))
-    assert tuple(f(range(4))) == ((float("-inf"), 1), (1, 2), (2, float("inf")))
 
 
 data = pd.Series([-1, 0, 1, 2, 3, None, ""], dtype=object)
@@ -134,11 +124,11 @@ def test_quantile_binning() -> None:
         )
     )
     assert_series_equal(
-        Quantile(prob=prob).histogram(data),
+        Quantile(probabilities=prob).histogram(data),
         pd.cut(data, bins).value_counts(dropna=False),
     )
     assert_series_equal(
-        Quantile(prob=prob, dropna=True).histogram(data),
+        Quantile(probabilities=prob, dropna=True).histogram(data),
         pd.cut(data, bins).value_counts(),
     )
 
@@ -151,10 +141,10 @@ def test_quantile_binning() -> None:
         )
     )
     assert_series_equal(
-        Quantile(prob=prob, special_missing_values=(-1,)).histogram(data),
+        Quantile(probabilities=prob, special_missing_values=(-1,)).histogram(data),
         pd.cut(data.replace(-1, pd.NA), bins).value_counts(dropna=False),
     )
     assert_series_equal(
-        Quantile(prob=prob, special_missing_values=(-1,), dropna=True).histogram(data),
+        Quantile(probabilities=prob, special_missing_values=(-1,), dropna=True).histogram(data),
         pd.cut(data.replace(-1, pd.NA), bins).value_counts(),
     )
