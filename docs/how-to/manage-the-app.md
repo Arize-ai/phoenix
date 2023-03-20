@@ -49,7 +49,7 @@ The Phoenix UI will appear in a window beneath the cell.
 
 
 {% hint style="info" %}
-The height of the window can be adjusted by passing a `height` parameter, e.g., `session.view(height=700)`. Defaults to 500 pixels.
+The height of the window can be adjusted by passing a `height` parameter, e.g., `session.view(height=1200)`. Defaults to 1000 pixels.
 {% endhint %}
 {% endtab %}
 
