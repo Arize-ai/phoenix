@@ -30,10 +30,14 @@ export function PrimaryDatasetTimeRange(_: PrimaryDatasetTimeRangeProps) {
               }
             }}
           >
+            <Item key={TimePreset.all}>All</Item>
             <Item key={TimePreset.last_day}>Last Day</Item>
             <Item key={TimePreset.last_week}>Last Week</Item>
             <Item key={TimePreset.last_month}>Last Month</Item>
             <Item key={TimePreset.last_3_months}>Last 3 Months</Item>
+            <Item key={TimePreset.first_day}>First Day</Item>
+            <Item key={TimePreset.first_week}>First Week</Item>
+            <Item key={TimePreset.first_month}>First Month</Item>
           </Picker>
         </TriggerWrap>
         <Tooltip>The time range within the primary dataset to display</Tooltip>
