@@ -138,9 +138,11 @@ The example above shows an exploded representation of the hierarchical data. \<t
 
 #### Regression
 
+<figure><img src="../.gitbook/assets/image.png" alt=""><figcaption></figcaption></figure>
+
 #### Classification
 
-<figure><img src="../.gitbook/assets/image.png" alt=""><figcaption></figcaption></figure>
+<figure><img src="../.gitbook/assets/image (1).png" alt=""><figcaption></figcaption></figure>
 
 #### &#x20;Classification + Score
 
