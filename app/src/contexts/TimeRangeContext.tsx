@@ -7,7 +7,7 @@ import React, {
   useMemo,
   useState,
 } from "react";
-import { subDays } from "date-fns";
+import { addDays, addSeconds, endOfHour, startOfHour, subDays } from "date-fns";
 
 import { assertUnreachable } from "@phoenix/typeUtils";
 
@@ -19,6 +19,10 @@ export enum TimePreset {
   last_week = "Last Week",
   last_month = "Last Month",
   last_3_months = "Last 3 Months",
+  first_day = "First Day",
+  first_week = "First Week",
+  first_month = "First Month",
+  all = "All",
 }
 
 /**
@@ -52,26 +56,50 @@ type TimeRangeProviderProps = {
 
 function useTimeRangeMemo(timePreset: TimePreset, timeRangeBounds: TimeRange) {
   const timeRange = useMemo(() => {
+    // The timeRangeBounds come from the start / end of the primary dataset
+    // Because our time windows are right open (don't include the right time), we need to expand it by a small amount
+    const endTimeBounds = endOfHour(addSeconds(timeRangeBounds.end, 1));
+    const startTimeBounds = startOfHour(timeRangeBounds.start);
     switch (timePreset) {
       case TimePreset.last_day:
         return {
-          start: subDays(timeRangeBounds.end, 1),
-          end: timeRangeBounds.end,
+          start: subDays(endTimeBounds, 1),
+          end: endTimeBounds,
         };
       case TimePreset.last_week:
         return {
-          start: subDays(timeRangeBounds.end, 7),
-          end: timeRangeBounds.end,
+          start: subDays(endTimeBounds, 7),
+          end: endTimeBounds,
         };
       case TimePreset.last_month:
         return {
-          start: subDays(timeRangeBounds.end, 30),
-          end: timeRangeBounds.end,
+          start: subDays(endTimeBounds, 30),
+          end: endTimeBounds,
         };
       case TimePreset.last_3_months:
         return {
-          start: subDays(timeRangeBounds.end, 90),
-          end: timeRangeBounds.end,
+          start: subDays(endTimeBounds, 90),
+          end: endTimeBounds,
+        };
+      case TimePreset.first_day:
+        return {
+          start: startTimeBounds,
+          end: addDays(startTimeBounds, 1),
+        };
+      case TimePreset.first_week:
+        return {
+          start: startTimeBounds,
+          end: addDays(startTimeBounds, 7),
+        };
+      case TimePreset.first_month:
+        return {
+          start: startTimeBounds,
+          end: addDays(startTimeBounds, 30),
+        };
+      case TimePreset.all:
+        return {
+          start: startTimeBounds,
+          end: endTimeBounds,
         };
       default:
         assertUnreachable(timePreset);
