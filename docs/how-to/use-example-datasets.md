@@ -6,10 +6,6 @@ description: Quickly explore Phoenix with concrete examples
 
 Phoenix ships with a collection of example datasets so you can quickly try out the app on concrete use-cases. This guide shows you how to download, inspect, and launch the app with example datasets.
 
-{% hint style="warning" %}
-Don't forget to first [install and import Phoenix](install-and-import-phoenix.md) in your notebook environment.
-{% endhint %}
-
 ## View Available Datasets
 
 To see a list of datasets available for download, run
