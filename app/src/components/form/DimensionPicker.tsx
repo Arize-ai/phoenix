@@ -82,7 +82,10 @@ export function ConnectedDimensionPicker<T>(
           }
         }
       `,
-      {}
+      {},
+      {
+        fetchPolicy: "store-or-network",
+      }
     )
       .toPromise()
       .then((data) => {

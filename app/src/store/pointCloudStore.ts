@@ -20,7 +20,11 @@ type DimensionMetadata = {
   /**
    * The min and max values of a numeric  dimension
    */
-  minMax: [number, number] | null;
+  readonly minMax: [number, number] | null;
+  /**
+   * The unique values of a categorical dimension
+   */
+  readonly categories: readonly string[] | null;
 };
 
 /**
@@ -242,9 +246,33 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
     },
     setDimension: async (dimension) => {
       set({ dimension, dimensionMetadata: null });
-      fetchDimensionMetadata(dimension).then((metadata) =>
-        set({ dimensionMetadata: metadata })
-      );
+      fetchDimensionMetadata(dimension).then((metadata) => {
+        set({ dimensionMetadata: metadata });
+        if (metadata.categories) {
+          set({
+            pointGroupVisibility: {
+              ...metadata.categories.reduce(
+                (acc, category) => ({
+                  ...acc,
+                  [category]: true,
+                }),
+                {}
+              ),
+              unknown: true,
+            },
+            pointGroupColors: {
+              ...metadata.categories.reduce(
+                (acc, category, idx) => ({
+                  ...acc,
+                  [category]: ColorSchemes.Discrete2.LightBlueOrange[idx],
+                }),
+                {}
+              ),
+              unknown: UnknownColor,
+            },
+          });
+        }
+      });
     },
     setDimensionMetadata: (dimensionMetadata) => set({ dimensionMetadata }),
   });
@@ -265,6 +293,7 @@ const fetchDimensionMetadata = async (
             id
             min: dataQualityMetric(metric: min)
             max: dataQualityMetric(metric: max)
+            categories
           }
         }
       }
@@ -287,5 +316,6 @@ const fetchDimensionMetadata = async (
   }
   return {
     minMax,
+    categories: dimensionData?.categories ?? null,
   };
 };
