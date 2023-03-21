@@ -103,12 +103,12 @@ class QuantileBinning(IntervalBinning):
     >>> import pandas as pd
     >>> import numpy as np
     >>> from phoenix.metrics import binning
-    >>> reference_data = pd.Series(range(1, 5), dtype=int)
+    >>> reference_series = pd.Series(range(1, 5), dtype=int)
     >>> probabilities=(0.25, 0.5, 0.75)
-    >>> np.nanquantile(reference_data, probabilities)
+    >>> np.nanquantile(reference_series, probabilities)
     array([1.75, 2.5 , 3.25])
     >>> new_data = pd.Series(range(6), dtype=int)
-    >>> binning.QuantileBinning(reference_data=reference_data,
+    >>> binning.QuantileBinning(reference_series=reference_series,
     ... probabilities=probabilities).histogram(new_data).sort_index()
     [-inf, 1.75)    2
     [1.75, 2.5)     1
@@ -139,15 +139,15 @@ class QuantileBinning(IntervalBinning):
 
     def __init__(
         self,
-        reference_data: Data = pd.Series(dtype=float),
+        reference_series: Data = pd.Series(dtype=float),
         probabilities: Iterable[float] = (np.arange(1, 10) / 10),
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
         self.probabilities = tuple(probabilities)
-        if reference_data.empty:
+        if reference_series.empty:
             return
-        numeric_series = pd.to_numeric(reference_data, errors="coerce")
+        numeric_series = pd.to_numeric(reference_series, errors="coerce")
         self.bins = self.numeric_bins(numeric_series)
 
 

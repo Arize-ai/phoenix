@@ -71,16 +71,17 @@ class TimeSeries:
             raise NotImplementedError(f"Metric {metric} is not implemented.")
         dataset = model.primary_dataset
         metric_instance = metric_cls(operand_column_name=column_name)
-        if (
-            issubclass(metric_cls, DriftOperator)
-            and model.reference_dataset is not None
-            and not (data := model.reference_dataset.dataframe).empty
-        ):
-            metric_instance.reference_data = data
+        if issubclass(metric_cls, DriftOperator) and model.reference_dataset is not None:
+            reference_data = model.reference_dataset.dataframe
+            metric_instance.reference_data = reference_data
             if dtype is DimensionDataType.numeric:
-                operand = next(metric_instance.operands())
+                operand_column_name = next(metric_instance.operands(), "")
+                if operand_column_name in reference_data.columns:
+                    reference_series = reference_data.loc[:, operand_column_name]
+                else:
+                    reference_series = pd.Series(dtype=float)
                 metric_instance.binning_method = binning.QuantileBinning(
-                    reference_data=operand(data),
+                    reference_series=reference_series,
                 )
         if time_range is None:
             time_range = TimeRange(

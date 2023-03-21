@@ -63,7 +63,7 @@ def test_psi_quantile_binning():
         reference_data=reference_data,
         normalize=binning.AdditiveSmoothing(pseudocount=1),
         binning_method=binning.QuantileBinning(
-            reference_data=reference_data.loc[:, column_name],
+            reference_series=reference_data.loc[:, column_name],
             probabilities=(0.25, 0.5, 0.75),
         ),
     )
