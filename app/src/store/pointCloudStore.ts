@@ -1,17 +1,27 @@
+import { fetchQuery, graphql } from "react-relay";
 import { create, StateCreator } from "zustand";
 import { devtools } from "zustand/middleware";
 
 import { ColorSchemes } from "@arizeai/point-cloud";
 
+import RelayEnvironment from "@phoenix/RelayEnvironment";
 import {
   ColoringStrategy,
   CorrectnessGroup,
   DatasetGroup,
+  Dimension,
   SelectionDisplay,
 } from "@phoenix/types";
 import { assertUnreachable } from "@phoenix/typeUtils";
 
-const UnknownColor = "rgba(255, 255, 255, 0.5)";
+import { pointCloudStore_dimensionMetadataQuery } from "./__generated__/pointCloudStore_dimensionMetadataQuery.graphql";
+
+type DimensionMetadata = {
+  /**
+   * The min and max values of a numeric  dimension
+   */
+  minMax: [number, number] | null;
+};
 
 /**
  * The visibility of the two datasets in the point cloud.
@@ -20,6 +30,8 @@ type DatasetVisibility = {
   primary: boolean;
   reference: boolean;
 };
+
+const UnknownColor = ColorSchemes.Discrete2.WhiteLightBlue[0];
 
 /**
  * The properties of the point cloud store.
@@ -52,8 +64,17 @@ export interface PointCloudProps {
   pointGroupColors: Record<string, string>;
   /**
    * The way in which the selected points are displayed in the selection panel
+   * E.g. as a gallery or a list
    */
   selectionDisplay: SelectionDisplay;
+  /**
+   * When the coloring strategy is set to `dimension`, this property is set lazily by the user
+   */
+  dimension: Dimension | null;
+  /**
+   * Dimension level metadata for the current selected dimension
+   */
+  dimensionMetadata: DimensionMetadata | null;
 }
 
 export interface PointCloudState extends PointCloudProps {
@@ -84,6 +105,14 @@ export interface PointCloudState extends PointCloudProps {
    * Set the selection display of the selection panel
    */
   setSelectionDisplay: (display: SelectionDisplay) => void;
+  /**
+   * Set the dimension to use for coloring the point cloud
+   */
+  setDimension: (dimension: Dimension) => void;
+  /**
+   * Set the dimension metadata for the current selected dimension
+   */
+  setDimensionMetadata: (dimensionMetadata: DimensionMetadata) => void;
   /**
    * Clear the selections in the point cloud
    * Done when the point cloud is re-loaded
@@ -140,6 +169,8 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
       [DatasetGroup.reference]: ColorSchemes.Discrete2.WhiteLightBlue[1],
     },
     selectionDisplay: SelectionDisplay.gallery,
+    dimension: null,
+    dimensionMetadata: null,
   };
 
   const pointCloudStore: StateCreator<PointCloudState> = (set) => ({
@@ -209,7 +240,52 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
         selectedClusterId: null,
       });
     },
+    setDimension: async (dimension) => {
+      set({ dimension, dimensionMetadata: null });
+      fetchDimensionMetadata(dimension).then((metadata) =>
+        set({ dimensionMetadata: metadata })
+      );
+    },
+    setDimensionMetadata: (dimensionMetadata) => set({ dimensionMetadata }),
   });
 
   return create<PointCloudState>()(devtools(pointCloudStore));
+};
+
+// ---- Async data retrieval functions ---
+const fetchDimensionMetadata = async (
+  dimension: Dimension
+): Promise<DimensionMetadata> => {
+  const data = await fetchQuery<pointCloudStore_dimensionMetadataQuery>(
+    RelayEnvironment,
+    graphql`
+      query pointCloudStore_dimensionMetadataQuery($id: GlobalID!) {
+        dimension: node(id: $id) @required(action: THROW) {
+          ... on Dimension {
+            id
+            min: dataQualityMetric(metric: min)
+            max: dataQualityMetric(metric: max)
+          }
+        }
+      }
+    `,
+    { id: dimension.id }
+  ).toPromise();
+
+  const dimensionData = data?.dimension;
+
+  if (!dimension) {
+    throw new Error("Dimension not found");
+  }
+
+  let minMax: [number, number] | null = null;
+  if (
+    typeof dimensionData?.min === "number" &&
+    typeof dimensionData?.max === "number"
+  ) {
+    minMax = [dimensionData.min, dimensionData.max];
+  }
+  return {
+    minMax,
+  };
 };

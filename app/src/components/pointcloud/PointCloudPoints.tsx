@@ -85,7 +85,8 @@ export function PointCloudPoints({
       if (!selectedIds.has(point.metaData.id) && selectedIds.size > 0) {
         return invokeColor(point, dimmedColor);
       }
-      return invokeColor(point, color);
+      const colorStr = invokeColor(point, color);
+      return colorStr;
     },
     [selectedIds, color, dimmedColor]
   );
