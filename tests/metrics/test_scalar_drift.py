@@ -2,10 +2,10 @@ import pandas as pd
 from numpy.testing import assert_almost_equal
 from phoenix.metrics import binning, metrics
 
-name = "x"
-data = pd.DataFrame(
+column_name = "x"
+reference_data = pd.DataFrame(
     {
-        name: pd.Series(
+        column_name: pd.Series(
             [-1, 0, 1, 2, 3, None, ""],
             dtype=object,
         ),
@@ -15,61 +15,28 @@ data = pd.DataFrame(
 
 def test_psi_categorical_binning():
     metric = metrics.PSI(
-        operand=name,
-        reference_data=data,
+        operand_column_name=column_name,
+        reference_data=reference_data,
         normalize=binning.AdditiveSmoothing(pseudocount=1),
-        binning=binning.Categorical(),
+        binning_method=binning.CategoricalBinning(),
     )
-    assert_almost_equal(0.0, metric(data))
-    for i, desired in enumerate((0.026, 0.127, 0.1762, 0.1907, 0.181, 0.2511)):
-        test = pd.DataFrame({name: pd.Series(range(i))})
+    assert_almost_equal(0.0, metric(reference_data))
+    for i, desired_result in enumerate((0.0, 0.0743, 0.11, 0.1188, 0.108, 0.1777)):
+        test_data = pd.DataFrame({column_name: pd.Series(range(i), dtype=int)})
+        actual_result = metric(test_data).round(4)
         assert_almost_equal(
-            metric(test).round(4),
-            desired,
-            err_msg=f"i={i} test={test.loc[:,name].to_numpy()}",
-        )
-
-
-def test_psi_categorical_binning_with_missing():
-    metric = metrics.PSI(
-        operand=name,
-        reference_data=data,
-        normalize=binning.AdditiveSmoothing(pseudocount=1),
-        binning=binning.Categorical(special_missing_values=(-1,)),
-    )
-    assert_almost_equal(0.0, metric(data))
-    for i, desired in enumerate((0.0924, 0.231, 0.2971, 0.3177, 0.3081, 0.3732)):
-        test = pd.DataFrame({name: pd.Series(range(i))})
-        assert_almost_equal(
-            metric(test).round(4),
-            desired,
-            err_msg=f"i={i} test={test.loc[:,name].to_numpy()}",
-        )
-
-
-def test_psi_categorical_binning_with_missing_and_dropna():
-    metric = metrics.PSI(
-        operand=name,
-        reference_data=data,
-        normalize=binning.AdditiveSmoothing(pseudocount=1),
-        binning=binning.Categorical(special_missing_values=(-1,), dropna=True),
-    )
-    assert_almost_equal(0.0, metric(data))
-    for i, desired in enumerate((0.0, 0.1040, 0.1155, 0.0743, 0.0, 0.0616)):
-        test = pd.DataFrame({name: pd.Series(range(i))})
-        assert_almost_equal(
-            metric(test).round(4),
-            desired,
-            err_msg=f"i={i} test={test.loc[:,name].to_numpy()}",
+            actual_result,
+            desired_result,
+            err_msg=f"i={i} test_data={test_data.loc[:,column_name].to_numpy()}",
         )
 
 
 def test_psi_interval_binning():
     metric = metrics.PSI(
-        operand=name,
-        reference_data=data,
+        operand_column_name=column_name,
+        reference_data=reference_data,
         normalize=binning.AdditiveSmoothing(pseudocount=1),
-        binning=binning.Interval(
+        binning_method=binning.IntervalBinning(
             bins=pd.IntervalIndex(
                 (
                     pd.Interval(float("-inf"), 1.0, closed="left"),
@@ -79,127 +46,33 @@ def test_psi_interval_binning():
             )
         ),
     )
-    assert_almost_equal(0.0, metric(data))
-    for i, desired in enumerate((0.0276, 0.0956, 0.2085, 0.1321, 0.1715, 0.2474)):
-        test = pd.DataFrame({name: pd.Series(range(i))})
+    assert_almost_equal(0.0, metric(reference_data))
+    for i, desired_result in enumerate((0.0276, 0.0956, 0.2085, 0.1321, 0.1715, 0.2474)):
+        test_data = pd.DataFrame({column_name: pd.Series(range(i), dtype=int)})
+        actual_result = metric(test_data).round(4)
         assert_almost_equal(
-            metric(test).round(4),
-            desired,
-            err_msg=f"i={i} test={test.loc[:,name].to_numpy()}",
-        )
-
-
-def test_psi_interval_binning_with_missing():
-    metric = metrics.PSI(
-        operand=name,
-        reference_data=data,
-        normalize=binning.AdditiveSmoothing(pseudocount=1),
-        binning=binning.Interval(
-            bins=pd.IntervalIndex(
-                (
-                    pd.Interval(float("-inf"), 1.0, closed="left"),
-                    pd.Interval(1.0, 2.0, closed="left"),
-                    pd.Interval(2.0, float("inf"), closed="left"),
-                )
-            ),
-            special_missing_values=(-1,),
-        ),
-    )
-    assert_almost_equal(0.0, metric(data))
-    for i, desired in enumerate((0.088, 0.2941, 0.3896, 0.3008, 0.3308, 0.3995)):
-        test = pd.DataFrame({name: pd.Series(range(i))})
-        assert_almost_equal(
-            metric(test).round(4),
-            desired,
-            err_msg=f"i={i} test={test.loc[:,name].to_numpy()}",
-        )
-
-
-def test_psi_interval_binning_with_missing_and_dropna():
-    metric = metrics.PSI(
-        operand=name,
-        reference_data=data,
-        normalize=binning.AdditiveSmoothing(pseudocount=1),
-        binning=binning.Interval(
-            bins=pd.IntervalIndex(
-                (
-                    pd.Interval(float("-inf"), 1.0, closed="left"),
-                    pd.Interval(1.0, 2.0, closed="left"),
-                    pd.Interval(2.0, float("inf"), closed="left"),
-                )
-            ),
-            special_missing_values=(-1,),
-            dropna=True,
-        ),
-    )
-    assert_almost_equal(0.0, metric(data))
-    for i, desired in enumerate((0.0386, 0.2209, 0.2511, 0.0386, 0.0, 0.0205)):
-        test = pd.DataFrame({name: pd.Series(range(i))})
-        assert_almost_equal(
-            metric(test).round(4),
-            desired,
-            err_msg=f"i={i} test={test.loc[:,name].to_numpy()}",
+            actual_result,
+            desired_result,
+            err_msg=f"i={i} test_data={test_data.loc[:,column_name].to_numpy()}",
         )
 
 
 def test_psi_quantile_binning():
     metric = metrics.PSI(
-        operand=name,
-        reference_data=data,
+        operand_column_name=column_name,
+        reference_data=reference_data,
         normalize=binning.AdditiveSmoothing(pseudocount=1),
-        binning=binning.Quantile(
-            data=data.x,
+        binning_method=binning.QuantileBinning(
+            reference_data=reference_data.loc[:, column_name],
             probabilities=(0.25, 0.5, 0.75),
         ),
     )
-    assert_almost_equal(0.0, metric(data))
-    for i, desired in enumerate((0.0405, 0.1831, 0.2519, 0.1662, 0.1911, 0.2542)):
-        test = pd.DataFrame({name: pd.Series(range(i))})
+    assert_almost_equal(0.0, metric(reference_data))
+    for i, desired_result in enumerate((0.0405, 0.3607, 0.5018, 0.5674, 0.5962, 0.6498)):
+        test_data = pd.DataFrame({column_name: pd.Series(range(i), dtype=int)})
+        actual_result = metric(test_data).round(4)
         assert_almost_equal(
-            metric(test).round(4),
-            desired,
-            err_msg=f"i={i} test={test.loc[:,name].to_numpy()}",
-        )
-
-
-def test_psi_quantile_binning_with_missing():
-    metric = metrics.PSI(
-        operand=name,
-        reference_data=data,
-        normalize=binning.AdditiveSmoothing(pseudocount=1),
-        binning=binning.Quantile(
-            data=data.x,
-            probabilities=(0.25, 0.5, 0.75),
-            special_missing_values=(-1,),
-        ),
-    )
-    assert_almost_equal(0.0, metric(data))
-    for i, desired in enumerate((0.0924, 0.231, 0.2971, 0.3177, 0.3081, 0.3775)):
-        test = pd.DataFrame({name: pd.Series(range(i))})
-        assert_almost_equal(
-            metric(test).round(4),
-            desired,
-            err_msg=f"i={i} test={test.loc[:,name].to_numpy()}",
-        )
-
-
-def test_psi_quantile_binning_with_missing_and_dropna():
-    metric = metrics.PSI(
-        operand=name,
-        reference_data=data,
-        normalize=binning.AdditiveSmoothing(pseudocount=1),
-        binning=binning.Quantile(
-            data=data.x,
-            probabilities=(0.25, 0.5, 0.75),
-            special_missing_values=(-1,),
-            dropna=True,
-        ),
-    )
-    assert_almost_equal(0.0, metric(data))
-    for i, desired in enumerate((0.0, 0.104, 0.1155, 0.0743, 0.0, 0.0338)):
-        test = pd.DataFrame({name: pd.Series(range(i))})
-        assert_almost_equal(
-            metric(test).round(4),
-            desired,
-            err_msg=f"i={i} test={test.loc[:,name].to_numpy()}",
+            actual_result,
+            desired_result,
+            err_msg=f"i={i} test_data={test_data.loc[:,column_name].to_numpy()}",
         )

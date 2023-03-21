@@ -69,7 +69,7 @@ class TimeSeries:
         if not (metric_cls := METRICS.get(metric.value, None)):
             raise NotImplementedError(f"Metric {metric} is not implemented.")
         dataset = model.primary_dataset
-        metric_instance = metric_cls(operand=column_name)
+        metric_instance = metric_cls(operand_column_name=column_name)
         if (
             issubclass(metric_cls, DriftOperator)
             and model.reference_dataset is not None
@@ -78,8 +78,8 @@ class TimeSeries:
             metric_instance.reference_data = data
             if dtype is DimensionDataType.numeric:
                 operand = next(metric_instance.operands())
-                metric_instance.binning = binning.Quantile(
-                    data=operand(data),
+                metric_instance.binning_method = binning.QuantileBinning(
+                    reference_data=operand(data),
                 )
         if time_range is None:
             time_range = TimeRange(

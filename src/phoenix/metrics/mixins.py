@@ -7,32 +7,18 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from functools import cached_property
 from itertools import takewhile
-from operator import itemgetter
 from typing import Any, Iterator, Mapping, Optional
 
 import numpy as np
 import pandas as pd
 from typing_extensions import TypeAlias
 
-from phoenix.metrics import Column
-from phoenix.metrics.binning import AdditiveSmoothing, Binning, Categorical, Normalizer
-
-
-class Operand:
-    """A descriptor representing a Column operand of a metric."""
-
-    private_name: str
-
-    def __set_name__(self, _: Any, name: str) -> None:
-        self.private_name = "_" + name
-
-    def __set__(self, instance: object, column_name: str) -> None:
-        setattr(instance, self.private_name, column_name)
-
-    def __get__(self, instance: object, _: Any = None) -> Any:
-        if instance is None:
-            return self
-        return Column(getattr(instance, self.private_name, None))
+from phoenix.metrics.binning import (
+    AdditiveSmoothing,
+    BinningMethod,
+    CategoricalBinning,
+    Normalizer,
+)
 
 
 @dataclass
@@ -48,6 +34,15 @@ class VectorOperator(ABC):
     shape: int = 0
 
 
+def _get_column_from_dataframe(
+    name: str,
+    dataframe: Optional[pd.DataFrame] = None,
+) -> "pd.Series[Any]":
+    if name and isinstance(dataframe, pd.DataFrame) and name in dataframe.columns:
+        return dataframe.loc[:, name]
+    return pd.Series(dtype=object)
+
+
 @dataclass
 class UnaryOperator(ABC):
     """
@@ -55,10 +50,19 @@ class UnaryOperator(ABC):
     See https://en.wikipedia.org/wiki/Arity
     """
 
-    operand: Operand = Operand()
+    operand_column_name: str = ""
 
-    def operands(self) -> Iterator[Column]:
-        return takewhile(bool, (self.operand,))
+    def get_operand_column(
+        self,
+        dataframe: Optional[pd.DataFrame] = None,
+    ) -> "pd.Series[Any]":
+        return _get_column_from_dataframe(
+            self.operand_column_name,
+            dataframe,
+        )
+
+    def operands(self) -> Iterator[str]:
+        return takewhile(bool, (self.operand_column_name,))
 
 
 @dataclass
@@ -81,20 +85,44 @@ class BaseMetric(ABC):
             return self.initial_value()
 
     @abstractmethod
-    def calc(self, df: pd.DataFrame) -> Any:
+    def calc(self, dataframe: pd.DataFrame) -> Any:
         ...
 
-    def __call__(self, df: pd.DataFrame) -> Any:
-        return self.calc(df)
+    def __call__(self, dataframe: pd.DataFrame) -> Any:
+        return self.calc(dataframe)
 
 
 @dataclass
 class EvaluationMetric(BaseMetric, ABC):
-    predicted: Operand = Operand()
-    actual: Operand = Operand()
+    predicted_column_name: str = ""
+    actual_column_name: str = ""
 
-    def operands(self) -> Iterator[Column]:
-        return takewhile(bool, (self.predicted, self.actual))
+    def get_predicted_column(
+        self,
+        dataframe: Optional[pd.DataFrame] = None,
+    ) -> "pd.Series[Any]":
+        return _get_column_from_dataframe(
+            self.predicted_column_name,
+            dataframe,
+        )
+
+    def get_actual_column(
+        self,
+        dataframe: Optional[pd.DataFrame] = None,
+    ) -> "pd.Series[Any]":
+        return _get_column_from_dataframe(
+            self.actual_column_name,
+            dataframe,
+        )
+
+    def operands(self) -> Iterator[str]:
+        return takewhile(
+            bool,
+            (
+                self.predicted_column_name,
+                self.actual_column_name,
+            ),
+        )
 
 
 Data: TypeAlias = "pd.Series[Any]"
@@ -111,10 +139,10 @@ Histogram: TypeAlias = "pd.Series[int]"
 
 @dataclass
 class Discretizer(ABC):
-    binning: Binning = Categorical()
+    binning_method: BinningMethod = CategoricalBinning()
 
-    def histogram(self, data: Data) -> Histogram:
-        return self.binning.histogram(data)
+    def histogram(self, series: Data) -> Histogram:
+        return self.binning_method.histogram(series)
 
 
 @dataclass
@@ -142,23 +170,25 @@ class DiscreteDivergence(Discretizer, DriftOperator):
         """
 
     @cached_property
-    def ref_histogram(self) -> Histogram:
-        return self.histogram(self.operand(self.reference_data)).rename("ref")
+    def reference_histogram(self) -> Histogram:
+        series = self.get_operand_column(self.reference_data)
+        return self.histogram(series).rename("reference_histogram")
 
-    def calc(self, df: pd.DataFrame) -> float:
+    def calc(self, dataframe: pd.DataFrame) -> float:
+        series = self.get_operand_column(dataframe)
+        # outer-join histograms and fill in zeros for missing categories
+        merged_counts = pd.merge(
+            self.histogram(series).rename("primary_histogram"),
+            self.reference_histogram,
+            left_index=True,
+            right_index=True,
+            how="outer",
+        ).fillna(0)
+        # remove rows with all zeros
+        merged_counts = merged_counts.loc[(merged_counts > 0).any(axis=1)]  # type: ignore
+        primary_histogram = merged_counts.primary_histogram
+        reference_histogram = merged_counts.reference_histogram
         return self.divergence(
-            *self.normalize(
-                *map(
-                    itemgetter(1),
-                    pd.merge(
-                        self.histogram(self.operand(df)).rename("prim"),
-                        self.ref_histogram,
-                        left_index=True,
-                        right_index=True,
-                        how="outer",
-                    )
-                    .fillna(0)
-                    .items(),
-                )
-            )
+            self.normalize(primary_histogram),
+            self.normalize(reference_histogram),
         )

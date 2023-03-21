@@ -24,14 +24,18 @@ from .mixins import (
 
 
 class Count(UnaryOperator, ZeroInitialValue, BaseMetric):
-    def calc(self, df: pd.DataFrame) -> int:
-        operand = self.operand
-        return cast(int, operand(df).count() if operand else len(df))
+    def calc(self, dataframe: pd.DataFrame) -> int:
+        if not self.operand_column_name:
+            return len(dataframe)
+        series = self.get_operand_column(dataframe)
+        return series.count()
 
 
 class Sum(UnaryOperator, BaseMetric):
-    def calc(self, df: pd.DataFrame) -> float:
-        return cast(float, pd.to_numeric(self.operand(df), errors="coerce").sum())
+    def calc(self, dataframe: pd.DataFrame) -> float:
+        series = self.get_operand_column(dataframe)
+        numeric_series = pd.to_numeric(series, errors="coerce")
+        return cast(float, numeric_series.sum())
 
 
 Vector: TypeAlias = Union[float, npt.NDArray[np.float64]]
@@ -39,11 +43,12 @@ Vector: TypeAlias = Union[float, npt.NDArray[np.float64]]
 
 @dataclass
 class VectorSum(UnaryOperator, VectorOperator, ZeroInitialValue, BaseMetric):
-    def calc(self, df: pd.DataFrame) -> Vector:
+    def calc(self, dataframe: pd.DataFrame) -> Vector:
+        series = self.get_operand_column(dataframe)
         return cast(
             Vector,
             np.sum(
-                self.operand(df).dropna().to_numpy(),
+                series.dropna().to_numpy(),
                 initial=self.initial_value(),
             ),
         )
@@ -51,40 +56,49 @@ class VectorSum(UnaryOperator, VectorOperator, ZeroInitialValue, BaseMetric):
 
 @dataclass
 class Mean(UnaryOperator, BaseMetric):
-    def calc(self, df: pd.DataFrame) -> float:
-        return cast(float, pd.to_numeric(self.operand(df), errors="coerce").mean())
+    def calc(self, dataframe: pd.DataFrame) -> float:
+        series = self.get_operand_column(dataframe)
+        numeric_series = pd.to_numeric(series, errors="coerce")
+        return numeric_series.mean()
 
 
 @dataclass
 class VectorMean(UnaryOperator, VectorOperator, BaseMetric):
-    def calc(self, df: pd.DataFrame) -> Vector:
+    def calc(self, dataframe: pd.DataFrame) -> Vector:
+        series = self.get_operand_column(dataframe)
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", category=RuntimeWarning)
-            return cast(Vector, np.mean(self.operand(df).dropna()))
+            return cast(Vector, np.mean(series.dropna()))
 
 
 @dataclass
 class Min(UnaryOperator, BaseMetric):
-    def calc(self, df: pd.DataFrame) -> float:
-        return cast(float, pd.to_numeric(self.operand(df), errors="coerce").min())
+    def calc(self, dataframe: pd.DataFrame) -> float:
+        series = self.get_operand_column(dataframe)
+        numeric_series = pd.to_numeric(series, errors="coerce")
+        return cast(float, numeric_series.min())
 
 
 @dataclass
 class Max(UnaryOperator, BaseMetric):
-    def calc(self, df: pd.DataFrame) -> float:
-        return cast(float, pd.to_numeric(self.operand(df), errors="coerce").max())
+    def calc(self, dataframe: pd.DataFrame) -> float:
+        series = self.get_operand_column(dataframe)
+        numeric_series = pd.to_numeric(series, errors="coerce")
+        return cast(float, numeric_series.max())
 
 
 @dataclass
 class Cardinality(UnaryOperator, BaseMetric):
-    def calc(self, df: pd.DataFrame) -> int:
-        return cast(int, self.operand(df).nunique())
+    def calc(self, dataframe: pd.DataFrame) -> int:
+        series = self.get_operand_column(dataframe)
+        return series.nunique()
 
 
 @dataclass
 class PercentEmpty(UnaryOperator, BaseMetric):
-    def calc(self, df: pd.DataFrame) -> float:
-        return cast(float, self.operand(df).isna().mean() * 100)
+    def calc(self, dataframe: pd.DataFrame) -> float:
+        series = self.get_operand_column(dataframe)
+        return series.isna().mean() * 100
 
 
 @dataclass
@@ -93,20 +107,32 @@ class AccuracyScore(EvaluationMetric):
     AccuracyScore calculates the percentage of times that actual equals predicted.
     """
 
-    def calc(self, df: pd.DataFrame) -> float:
-        return cast(float, accuracy_score(self.actual(df), self.predicted(df)))
+    def calc(self, dataframe: pd.DataFrame) -> float:
+        predicted = self.get_predicted_column(dataframe)
+        actual = self.get_actual_column(dataframe)
+        return cast(float, accuracy_score(actual, predicted))
 
 
 @dataclass
 class EuclideanDistance(DriftOperator, VectorOperator):
     @cached_property
-    def ref_value(self) -> Vector:
-        return cast(Vector, np.mean(self.operand(self.reference_data).dropna()))
+    def reference_value(self) -> Vector:
+        series = self.get_operand_column(self.reference_data)
+        return cast(Vector, np.mean(series.dropna()))
 
-    def calc(self, df: pd.DataFrame) -> float:
-        if df.empty or (isinstance(self.ref_value, float) and not math.isfinite(self.ref_value)):
+    def calc(self, dataframe: pd.DataFrame) -> float:
+        if dataframe.empty or (
+            isinstance(self.reference_value, float) and not math.isfinite(self.reference_value)
+        ):
             return float("nan")
-        return cast(float, euclidean(np.mean(self.operand(df).dropna()), self.ref_value))
+        series = self.get_operand_column(dataframe)
+        return cast(
+            float,
+            euclidean(
+                np.mean(series.dropna()),
+                self.reference_value,
+            ),
+        )
 
 
 Distribution: TypeAlias = "pd.Series[float]"
@@ -114,7 +140,7 @@ Divergence: TypeAlias = Callable[[Distribution, Distribution], float]
 
 
 def symmetrized(divergence: Divergence) -> Divergence:
-    """Make a divergence symmetrical by averaging it with its dual.
+    """Symmetrize a divergence function by averaging it with its dual.
 
     See https://en.wikipedia.org/wiki/Divergence_(statistics%29"""
     return lambda pk, qk: (divergence(pk, qk) + divergence(qk, pk)) / 2
@@ -125,13 +151,13 @@ class PSI(DiscreteDivergence):
     r"""Population stability index (PSI)
 
     The population stability index (PSI) between two probability distributions
-    `p` and `q` is defined as 2 times the symmetrized KL-divergence,
+    :math:`p` and :math:`q` is defined as 2 times the symmetrized KL-divergence,
 
     .. math::
         \mathrm{PSI}(P,Q) = D_{KL}(P||Q) + D_{KL}(Q||P)
     where :math:`D_{KL}` is the KL-divergence.
 
-    PSI is also known as Jeffreys divergence.
+    PSI is symmetrical and also known as Jeffreys divergence.
 
     See https://en.wikipedia.org/wiki/Kullback%E2%80%93Leibler_divergence#Symmetrised_divergence
     """
@@ -184,7 +210,7 @@ class JSDistance(DiscreteDivergence):
     r"""Jensen-Shannon Distance
 
     The Jensen-Shannon distance between two probability distributions
-    `p` and `q` is defined as,
+    :math:`p` and :math:`q` is defined as,
 
     .. math::
 

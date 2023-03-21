@@ -67,7 +67,11 @@ def _aggregator(
     """
     calcs: Tuple[Metric, ...] = tuple(metrics)
     columns: List[int] = sorted(
-        {dataframe.columns.get_loc(column.name) for calc in calcs for column in calc.operands()}
+        {
+            dataframe.columns.get_loc(column_name)
+            for calc in calcs
+            for column_name in calc.operands()
+        }
     )
     return pd.concat(
         chain(
