@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Any, Iterator, Mapping, Optional, Protocol, runtime_checkable
+from typing import Any, Iterable, Mapping, Optional, Protocol, runtime_checkable
 
 import pandas as pd
 
@@ -12,7 +12,7 @@ class Metric(Protocol):
     def id(self) -> int:
         ...
 
-    def operands(self) -> Iterator[str]:
+    def operands(self) -> Iterable[str]:
         ...
 
     def get_value(self, result: Mapping[int, Any]) -> Any:

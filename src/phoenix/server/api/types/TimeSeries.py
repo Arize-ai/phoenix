@@ -75,7 +75,7 @@ class TimeSeries:
             reference_data = model.reference_dataset.dataframe
             metric_instance.reference_data = reference_data
             if dtype is DimensionDataType.numeric:
-                operand_column_name = next(metric_instance.operands(), "")
+                operand_column_name = next(iter(metric_instance.operands()), "")
                 if operand_column_name in reference_data.columns:
                     reference_series = reference_data.loc[:, operand_column_name]
                 else:

@@ -181,7 +181,7 @@ Distribution: TypeAlias = "pd.Series[float]"
 
 @dataclass
 class Normalizer(ABC):
-    """A function that converts counts/frequencies to probabilities."""
+    """A function that normalizes counts/frequencies to probabilities."""
 
     @abstractmethod
     def __call__(self, counts: Histogram) -> Distribution:
@@ -190,12 +190,13 @@ class Normalizer(ABC):
 
 @dataclass
 class AdditiveSmoothing(Normalizer):
-    r"""A function that converts counts/frequencies to probabilities with
-    additive smoothing. Smoothing can be disabled by setting `pseudocount=0`.
+    r"""A function that normalizes counts/frequencies to probabilities with
+    additive smoothing. Defaults to Laplace smoothing with `pseudocount=1`.
+    Smoothing can be disabled by setting `pseudocount=0`.
 
     Parameters
     ----------
-    pseudocount: float, default=1
+    pseudocount: float, optional, default=1
         The :math:`\alpha` parameter in additive smoothing. Must be
         non-negative. Setting :math:`\alpha` to 0 results in no smoothing.
         The default value of 1 is also known as "add-1", Laplace or
