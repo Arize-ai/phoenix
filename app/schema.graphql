@@ -62,7 +62,7 @@ type Dimension implements Node {
   dataQualityTimeSeries(metric: DataQualityMetric!, timeRange: TimeRange!, granularity: Granularity!): DataQualityTimeSeries!
 
   """
-  Returns the time series of the specified metric for data within timeRange. Data points are generated starting at the end time, are separated by the sampling interval. Each data point is labeled by the end instant of and contains data from their respective evaluation window.
+  Returns the time series of the specified metric for data within a time range. Data points are generated starting at the end time and are separated by the sampling interval. Each data point is labeled by the end instant and contain data from their respective evaluation windows.
   """
   driftTimeSeries(metric: ScalarDriftMetric!, timeRange: TimeRange!, granularity: Granularity!): DriftTimeSeries!
 }
