@@ -27,15 +27,15 @@ class Count(UnaryOperator, ZeroInitialValue, BaseMetric):
     def calc(self, dataframe: pd.DataFrame) -> int:
         if not self.operand_column_name:
             return len(dataframe)
-        series = self.get_operand_column(dataframe)
-        return series.count()
+        data = self.get_operand_column(dataframe)
+        return data.count()
 
 
 class Sum(UnaryOperator, BaseMetric):
     def calc(self, dataframe: pd.DataFrame) -> float:
-        series = self.get_operand_column(dataframe)
-        numeric_series = pd.to_numeric(series, errors="coerce")
-        return cast(float, numeric_series.sum())
+        data = self.get_operand_column(dataframe)
+        numeric_data = pd.to_numeric(data, errors="coerce")
+        return cast(float, numeric_data.sum())
 
 
 Vector: TypeAlias = Union[float, npt.NDArray[np.float64]]
@@ -44,11 +44,11 @@ Vector: TypeAlias = Union[float, npt.NDArray[np.float64]]
 @dataclass
 class VectorSum(UnaryOperator, VectorOperator, ZeroInitialValue, BaseMetric):
     def calc(self, dataframe: pd.DataFrame) -> Vector:
-        series = self.get_operand_column(dataframe)
+        data = self.get_operand_column(dataframe)
         return cast(
             Vector,
             np.sum(
-                series.dropna().to_numpy(),
+                data.dropna().to_numpy(),
                 initial=self.initial_value(),
             ),
         )
@@ -57,48 +57,48 @@ class VectorSum(UnaryOperator, VectorOperator, ZeroInitialValue, BaseMetric):
 @dataclass
 class Mean(UnaryOperator, BaseMetric):
     def calc(self, dataframe: pd.DataFrame) -> float:
-        series = self.get_operand_column(dataframe)
-        numeric_series = pd.to_numeric(series, errors="coerce")
-        return numeric_series.mean()
+        data = self.get_operand_column(dataframe)
+        numeric_data = pd.to_numeric(data, errors="coerce")
+        return numeric_data.mean()
 
 
 @dataclass
 class VectorMean(UnaryOperator, VectorOperator, BaseMetric):
     def calc(self, dataframe: pd.DataFrame) -> Vector:
-        series = self.get_operand_column(dataframe)
+        data = self.get_operand_column(dataframe)
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", category=RuntimeWarning)
-            return cast(Vector, np.mean(series.dropna()))
+            return cast(Vector, np.mean(data.dropna()))
 
 
 @dataclass
 class Min(UnaryOperator, BaseMetric):
     def calc(self, dataframe: pd.DataFrame) -> float:
-        series = self.get_operand_column(dataframe)
-        numeric_series = pd.to_numeric(series, errors="coerce")
-        return cast(float, numeric_series.min())
+        data = self.get_operand_column(dataframe)
+        numeric_data = pd.to_numeric(data, errors="coerce")
+        return cast(float, numeric_data.min())
 
 
 @dataclass
 class Max(UnaryOperator, BaseMetric):
     def calc(self, dataframe: pd.DataFrame) -> float:
-        series = self.get_operand_column(dataframe)
-        numeric_series = pd.to_numeric(series, errors="coerce")
-        return cast(float, numeric_series.max())
+        data = self.get_operand_column(dataframe)
+        numeric_data = pd.to_numeric(data, errors="coerce")
+        return cast(float, numeric_data.max())
 
 
 @dataclass
 class Cardinality(UnaryOperator, BaseMetric):
     def calc(self, dataframe: pd.DataFrame) -> int:
-        series = self.get_operand_column(dataframe)
-        return series.nunique()
+        data = self.get_operand_column(dataframe)
+        return data.nunique()
 
 
 @dataclass
 class PercentEmpty(UnaryOperator, BaseMetric):
     def calc(self, dataframe: pd.DataFrame) -> float:
-        series = self.get_operand_column(dataframe)
-        return series.isna().mean() * 100
+        data = self.get_operand_column(dataframe)
+        return data.isna().mean() * 100
 
 
 @dataclass
@@ -117,19 +117,19 @@ class AccuracyScore(EvaluationMetric):
 class EuclideanDistance(DriftOperator, VectorOperator):
     @cached_property
     def reference_value(self) -> Vector:
-        series = self.get_operand_column(self.reference_data)
-        return cast(Vector, np.mean(series.dropna()))
+        data = self.get_operand_column(self.reference_data)
+        return cast(Vector, np.mean(data.dropna()))
 
     def calc(self, dataframe: pd.DataFrame) -> float:
         if dataframe.empty or (
             isinstance(self.reference_value, float) and not math.isfinite(self.reference_value)
         ):
             return float("nan")
-        series = self.get_operand_column(dataframe)
+        data = self.get_operand_column(dataframe)
         return cast(
             float,
             euclidean(
-                np.mean(series.dropna()),
+                np.mean(data.dropna()),
                 self.reference_value,
             ),
         )

@@ -22,7 +22,7 @@ class BinningMethod(ABC):
     missing values will be grouped into a bin of their own)"""
 
     @abstractmethod
-    def histogram(self, series: Data) -> Histogram:
+    def histogram(self, data: Data) -> Histogram:
         ...
 
 
@@ -76,10 +76,10 @@ class IntervalBinning(BinningMethod):
             )
         )
 
-    def histogram(self, series: Data) -> Histogram:
-        numeric_series = pd.to_numeric(series, errors="coerce")
-        bins = self.numeric_bins(numeric_series)
-        cut = pd.cut(numeric_series, bins)
+    def histogram(self, data: Data) -> Histogram:
+        numeric_data = pd.to_numeric(data, errors="coerce")
+        bins = self.numeric_bins(numeric_data)
+        cut = pd.cut(numeric_data, bins)
         return cut.value_counts(dropna=self.dropna)
 
 
@@ -124,12 +124,12 @@ class QuantileBinning(IntervalBinning):
     +inf as the left- and right-most bin boundaries. Default values are the
     decile probabilities."""
 
-    def numeric_bins(self, series: Data) -> NumericBins:
+    def numeric_bins(self, data: Data) -> NumericBins:
         # Always include min and max in quantiles.
         probabilities = sorted({0.0, 1.0}.union(set(self.probabilities)))
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", category=RuntimeWarning)
-            quantiles = np.nanquantile(series, probabilities)
+            quantiles = np.nanquantile(data, probabilities)
         breaks = sorted(set(quantiles[~np.isnan(quantiles)]))
         # Extend min and max to inifinties, unless len(breaks) < 3,
         # in which case the min is kept and two bins are created.
@@ -172,8 +172,8 @@ class CategoricalBinning(BinningMethod):
     dtype: int64
     """
 
-    def histogram(self, series: Data) -> Histogram:
-        return series.value_counts(dropna=self.dropna)
+    def histogram(self, data: Data) -> Histogram:
+        return data.value_counts(dropna=self.dropna)
 
 
 Distribution: TypeAlias = "pd.Series[float]"

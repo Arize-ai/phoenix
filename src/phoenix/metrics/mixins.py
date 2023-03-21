@@ -144,10 +144,11 @@ class Discretizer(ABC):
     This procedure is referred to as binning. Once binned, counts/frequencies
     are tabulated by group to create a histogram.
     """
+
     binning_method: BinningMethod = CategoricalBinning()
 
-    def histogram(self, series: Data) -> Histogram:
-        return self.binning_method.histogram(series)
+    def histogram(self, data: Data) -> Histogram:
+        return self.binning_method.histogram(data)
 
 
 @dataclass
@@ -176,14 +177,14 @@ class DiscreteDivergence(Discretizer, DriftOperator):
 
     @cached_property
     def reference_histogram(self) -> Histogram:
-        series = self.get_operand_column(self.reference_data)
-        return self.histogram(series).rename("reference_histogram")
+        data = self.get_operand_column(self.reference_data)
+        return self.histogram(data).rename("reference_histogram")
 
     def calc(self, dataframe: pd.DataFrame) -> float:
-        series = self.get_operand_column(dataframe)
+        data = self.get_operand_column(dataframe)
         # outer-join histograms and fill in zeros for missing categories
         merged_counts = pd.merge(
-            self.histogram(series).rename("primary_histogram"),
+            self.histogram(data).rename("primary_histogram"),
             self.reference_histogram,
             left_index=True,
             right_index=True,
