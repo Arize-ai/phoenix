@@ -168,20 +168,22 @@ function EmbeddingDimensionsTable({
         ))}
       </thead>
       <tbody {...getTableBodyProps()}>
-        {rows.map((row, idx) => {
-          prepareRow(row);
-          return (
-            <tr {...row.getRowProps()} key={idx}>
-              {row.cells.map((cell, idx) => {
-                return (
-                  <td {...cell.getCellProps()} key={idx}>
-                    {cell.render("Cell")}
-                  </td>
-                );
-              })}
-            </tr>
-          );
-        })}
+        {rows.length > 0
+          ? rows.map((row, idx) => {
+              prepareRow(row);
+              return (
+                <tr {...row.getRowProps()} key={idx}>
+                  {row.cells.map((cell, idx) => {
+                    return (
+                      <td {...cell.getCellProps()} key={idx}>
+                        {cell.render("Cell")}
+                      </td>
+                    );
+                  })}
+                </tr>
+              );
+            })
+          : null}
       </tbody>
     </table>
   );

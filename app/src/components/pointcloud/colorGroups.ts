@@ -34,6 +34,13 @@ export function getPointCorrectnessGroup(
   }
 }
 
+export function getPointDimensionGroup(
+  _point: ThreeDimensionalPointItem
+): string {
+  // TODO implement
+  return "unknown";
+}
+
 /**
  * A curried function that maps a point to a color group based on the given coloring strategy.
  * @param coloringStrategy - The coloring strategy for the pont cloud (e.x. dataset, correctness)
@@ -47,6 +54,8 @@ export const getPointColorGroup =
         return getPointDatasetGroup(point);
       case ColoringStrategy.correctness:
         return getPointCorrectnessGroup(point);
+      case ColoringStrategy.dimension:
+        return getPointDimensionGroup(point);
       default:
         assertUnreachable(coloringStrategy);
     }

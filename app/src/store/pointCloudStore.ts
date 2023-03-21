@@ -11,6 +11,8 @@ import {
 } from "@phoenix/types";
 import { assertUnreachable } from "@phoenix/typeUtils";
 
+const UnknownColor = "rgba(255, 255, 255, 0.5)";
+
 /**
  * The visibility of the two datasets in the point cloud.
  */
@@ -82,6 +84,11 @@ export interface PointCloudState extends PointCloudProps {
    * Set the selection display of the selection panel
    */
   setSelectionDisplay: (display: SelectionDisplay) => void;
+  /**
+   * Clear the selections in the point cloud
+   * Done when the point cloud is re-loaded
+   */
+  resetSelections: () => void;
 }
 
 /**
@@ -148,12 +155,14 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
             pointGroupVisibility: {
               [CorrectnessGroup.correct]: true,
               [CorrectnessGroup.incorrect]: true,
+              [CorrectnessGroup.unknown]: true,
             },
             pointGroupColors: {
               [CorrectnessGroup.correct]:
                 ColorSchemes.Discrete2.LightBlueOrange[0],
               [CorrectnessGroup.incorrect]:
                 ColorSchemes.Discrete2.LightBlueOrange[1],
+              [CorrectnessGroup.unknown]: UnknownColor,
             },
           });
           break;
@@ -163,6 +172,23 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
             pointGroupVisibility: {
               [DatasetGroup.primary]: true,
               [DatasetGroup.reference]: true,
+            },
+            pointGroupColors: {
+              [DatasetGroup.primary]: ColorSchemes.Discrete2.WhiteLightBlue[0],
+              [DatasetGroup.reference]:
+                ColorSchemes.Discrete2.WhiteLightBlue[1],
+            },
+          });
+          break;
+        case ColoringStrategy.dimension:
+          // For color by dimension, the visibility and the point group colors
+          // come dynamically from the dimension "values"
+          set({
+            pointGroupVisibility: {
+              unknown: true,
+            },
+            pointGroupColors: {
+              unknown: UnknownColor,
             },
           });
           break;
@@ -177,6 +203,12 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
       set({ pointGroupVisibility: visibility }),
     selectionDisplay: SelectionDisplay.gallery,
     setSelectionDisplay: (display) => set({ selectionDisplay: display }),
+    resetSelections: () => {
+      set({
+        selectedPointIds: new Set(),
+        selectedClusterId: null,
+      });
+    },
   });
 
   return create<PointCloudState>()(devtools(pointCloudStore));

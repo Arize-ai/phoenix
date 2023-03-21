@@ -36,6 +36,7 @@ export function DatasetVisibilitySettings() {
       case ColoringStrategy.dataset:
         return DEFAULT_COLOR_SCHEME[0];
       case ColoringStrategy.correctness:
+      case ColoringStrategy.dimension:
         return FALLBACK_COLOR;
       default:
         assertUnreachable(coloringStrategy);
@@ -47,6 +48,7 @@ export function DatasetVisibilitySettings() {
       case ColoringStrategy.dataset:
         return DEFAULT_COLOR_SCHEME[1];
       case ColoringStrategy.correctness:
+      case ColoringStrategy.dimension:
         return FALLBACK_COLOR;
       default:
         assertUnreachable(coloringStrategy);

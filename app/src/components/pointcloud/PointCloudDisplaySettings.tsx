@@ -3,6 +3,7 @@ import { css } from "@emotion/react";
 
 import { Form } from "@arizeai/components";
 
+import { DimensionPicker } from "@phoenix/components/form";
 import { useDatasets } from "@phoenix/contexts";
 import { usePointCloudContext } from "@phoenix/contexts";
 import { ColoringStrategy } from "@phoenix/types";
@@ -32,10 +33,21 @@ export function PointCloudDisplaySettings() {
       `}
     >
       <Form>
-        <ColoringStrategyPicker
-          strategy={coloringStrategy}
-          onChange={setColoringStrategy}
-        />
+        <>
+          <ColoringStrategyPicker
+            strategy={coloringStrategy}
+            onChange={setColoringStrategy}
+          />
+          {coloringStrategy === ColoringStrategy.dimension ? (
+            <DimensionPicker
+              selectedDimension={null}
+              dimensions={[{ name: "foo", type: "feature" }]}
+              onChange={() => {
+                return;
+              }}
+            />
+          ) : null}
+        </>
       </Form>
 
       {showDatasetVisibilitySettings ? <DatasetVisibilitySettings /> : null}
