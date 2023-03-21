@@ -15,7 +15,8 @@ from phoenix.server.api.interceptor import NoneIfNan
 from phoenix.server.api.types import METRICS
 from phoenix.server.api.types.DataQualityMetric import DataQualityMetric
 from phoenix.server.api.types.DimensionDataType import DimensionDataType
-from phoenix.server.api.types.DriftMetric import ScalarDriftMetric, VectorDriftMetric
+from phoenix.server.api.types.ScalarDriftMetricEnum import ScalarDriftMetric
+from phoenix.server.api.types.VectorDriftMetricEnum import VectorDriftMetric
 
 
 @strawberry.type

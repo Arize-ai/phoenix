@@ -9,8 +9,8 @@ from phoenix.datasets import Dataset, EmbeddingColumnNames, Schema
 from phoenix.server.api.context import Context
 from phoenix.server.api.input_types.Granularity import Granularity
 from phoenix.server.api.input_types.TimeRange import TimeRange
-from phoenix.server.api.types.DriftMetric import VectorDriftMetric
 from phoenix.server.api.types.EmbeddingDimension import EmbeddingDimension
+from phoenix.server.api.types.VectorDriftMetricEnum import VectorDriftMetric
 from strawberry.types.info import Info
 from typing_extensions import TypeAlias
 

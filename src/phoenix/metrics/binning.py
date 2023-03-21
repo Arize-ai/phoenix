@@ -79,7 +79,8 @@ class IntervalBinning(BinningMethod):
     def histogram(self, series: Data) -> Histogram:
         numeric_series = pd.to_numeric(series, errors="coerce")
         bins = self.numeric_bins(numeric_series)
-        return pd.cut(numeric_series, bins).value_counts(dropna=self.dropna)
+        cut = pd.cut(numeric_series, bins)
+        return cut.value_counts(dropna=self.dropna)
 
 
 @dataclass

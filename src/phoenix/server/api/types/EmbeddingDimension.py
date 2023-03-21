@@ -22,10 +22,10 @@ from phoenix.pointcloud.pointcloud import PointCloud
 from phoenix.pointcloud.projectors import Umap
 from phoenix.server.api.context import Context
 from phoenix.server.api.input_types.TimeRange import TimeRange
+from phoenix.server.api.types.VectorDriftMetricEnum import VectorDriftMetric
 
 from ..input_types.Granularity import Granularity
 from .DataQualityMetric import DataQualityMetric
-from .DriftMetric import VectorDriftMetric
 from .EmbeddingMetadata import EmbeddingMetadata
 from .EventMetadata import EventMetadata
 from .node import Node

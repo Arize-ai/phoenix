@@ -11,8 +11,8 @@ from ..input_types.TimeRange import TimeRange
 from .DataQualityMetric import DataQualityMetric
 from .DimensionDataType import DimensionDataType
 from .DimensionType import DimensionType
-from .DriftMetric import ScalarDriftMetric
 from .node import Node
+from .ScalarDriftMetricEnum import ScalarDriftMetric
 from .TimeSeries import DataQualityTimeSeries, DriftTimeSeries
 
 
@@ -86,10 +86,10 @@ class Dimension(Node):
 
     @strawberry.field(
         description=(
-            "Returns the time series of the specified metric for data within timeRange. Data points"
-            " are generated starting at the end time, are separated by the sampling interval. Each"
-            " data point is labeled by the end instant of and contains data from their respective"
-            " evaluation window."
+            "Returns the time series of the specified metric for data within a time range. Data"
+            " points are generated starting at the end time and are separated by the sampling"
+            " interval. Each data point is labeled by the end instant and contains data from their"
+            " respective evaluation windows."
         )
     )  # type: ignore  # https://github.com/strawberry-graphql/strawberry/issues/1929
     def data_quality_time_series(
@@ -109,10 +109,10 @@ class Dimension(Node):
 
     @strawberry.field(
         description=(
-            "Returns the time series of the specified metric for data within timeRange. Data points"
-            " are generated starting at the end time, are separated by the sampling interval. Each"
-            " data point is labeled by the end instant of and contains data from their respective"
-            " evaluation window."
+            "Returns the time series of the specified metric for data within a time range. Data"
+            " points are generated starting at the end time and are separated by the sampling"
+            " interval. Each data point is labeled by the end instant and contains data from their"
+            " respective evaluation windows."
         )
     )  # type: ignore  # https://github.com/strawberry-graphql/strawberry/issues/1929
     def drift_time_series(
