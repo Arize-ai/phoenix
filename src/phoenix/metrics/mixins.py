@@ -139,6 +139,11 @@ Histogram: TypeAlias = "pd.Series[int]"
 
 @dataclass
 class Discretizer(ABC):
+    """Ways to construct histograms from data. Numeric data are commonly
+    grouped into intervals while discrete data are grouped into categories.
+    This procedure is referred to as binning. Once binned, counts/frequencies
+    are tabulated by group to create a histogram.
+    """
     binning_method: BinningMethod = CategoricalBinning()
 
     def histogram(self, series: Data) -> Histogram:
