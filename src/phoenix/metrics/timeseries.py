@@ -170,6 +170,9 @@ def _results(
     evaluation_window: timedelta,
     sampling_interval: timedelta,
 ) -> Iterator[pd.DataFrame]:
+    """
+    Yields metric results for each data point in time series.
+    """
     yield pd.DataFrame()
     calculate_metrics = partial(_calculate, calcs=calcs)
     result_slice = slice(start_time, end_time)
