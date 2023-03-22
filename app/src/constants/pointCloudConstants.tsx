@@ -32,3 +32,11 @@ export enum CorrectnessGroup {
   incorrect = "incorrect",
   unknown = "unknown",
 }
+
+export const DEFAULT_COLOR_SCHEME = ["#9efcfd", "#baa1f9"];
+
+/**
+ * The default color to use when coloringStrategy does not apply.
+ */
+export const FALLBACK_COLOR = "#a5a5a5";
+export const UNKNOWN_COLOR = FALLBACK_COLOR;

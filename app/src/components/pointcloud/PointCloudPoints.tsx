@@ -4,8 +4,8 @@ import { shade } from "polished";
 
 import { PointBaseProps, Points } from "@arizeai/point-cloud";
 
+import { ColoringStrategy } from "@phoenix/constants/pointCloudConstants";
 import { usePointCloudContext } from "@phoenix/contexts";
-import { ColoringStrategy } from "@phoenix/types";
 
 import { PointColor, ThreeDimensionalPointItem } from "./types";
 
@@ -85,8 +85,7 @@ export function PointCloudPoints({
       if (!selectedIds.has(point.metaData.id) && selectedIds.size > 0) {
         return invokeColor(point, dimmedColor);
       }
-      const colorStr = invokeColor(point, color);
-      return colorStr;
+      return invokeColor(point, color);
     },
     [selectedIds, color, dimmedColor]
   );

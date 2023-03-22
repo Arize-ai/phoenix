@@ -2,7 +2,7 @@ import React from "react";
 
 import { Icon, Icons, Radio, RadioGroup } from "@arizeai/components";
 
-import { SelectionDisplay } from "@phoenix/types";
+import { SelectionDisplay } from "@phoenix/constants/pointCloudConstants";
 
 /**
  * TypeGuard for the view mode

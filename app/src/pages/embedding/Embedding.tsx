@@ -144,9 +144,7 @@ export function Embedding() {
 function EmbeddingMain() {
   const embeddingDimensionId = useEmbeddingDimensionId();
   const { primaryDataset, referenceDataset } = useDatasets();
-  const resetSelections = usePointCloudContext(
-    (state) => state.resetSelections
-  );
+  const resetPointCloudContext = usePointCloudContext((state) => state.reset);
   const [showDriftChart, setShowDriftChart] = useState<boolean>(true);
   const [queryReference, loadQuery] =
     useQueryLoader<UMAPQueryType>(EmbeddingUMAPQuery);
@@ -165,7 +163,7 @@ function EmbeddingMain() {
   // Load the query on first render
   useEffect(() => {
     // dispose of the selections in the context
-    resetSelections();
+    resetPointCloudContext();
     loadQuery(
       {
         id: embeddingDimensionId,
@@ -175,7 +173,7 @@ function EmbeddingMain() {
         fetchPolicy: "network-only",
       }
     );
-  }, [resetSelections, embeddingDimensionId, loadQuery, timeRange]);
+  }, [resetPointCloudContext, embeddingDimensionId, loadQuery, timeRange]);
 
   return (
     <main
@@ -325,6 +323,12 @@ const PointCloudDisplay = ({
     });
     return map;
   }, [allSourceData]);
+
+  // Keep the data in the view in-sync with the data in the context
+  const setPoints = usePointCloudContext((state) => state.setPoints);
+  useEffect(() => {
+    setPoints(allSourceData);
+  }, [allSourceData, setPoints]);
 
   return (
     <div

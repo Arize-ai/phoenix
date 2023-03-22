@@ -13,10 +13,10 @@ import {
   ThreeDimensionalControls,
 } from "@arizeai/point-cloud";
 
+import { UNKNOWN_COLOR } from "@phoenix/constants/pointCloudConstants";
 import { PointCloudContext, usePointCloudContext } from "@phoenix/contexts";
 
 import { CanvasMode, CanvasModeRadioGroup } from "./CanvasModeRadioGroup";
-import { getPointColorGroup } from "./colorGroups";
 import { PointCloudClusters } from "./PointCloudClusters";
 import { PointCloudPoints } from "./PointCloudPoints";
 import { ThreeDimensionalPointItem } from "./types";
@@ -93,9 +93,6 @@ export function PointCloud(props: PointCloudProps) {
 function Projection(props: ProjectionProps) {
   const { primaryData, referenceData, clusters, canvasMode } = props;
 
-  const coloringStrategy = usePointCloudContext(
-    (state) => state.coloringStrategy
-  );
   const selectedPointIds = usePointCloudContext(
     (state) => state.selectedPointIds
   );
@@ -135,40 +132,35 @@ function Projection(props: ProjectionProps) {
 
   const isMoveMode = canvasMode === CanvasMode.move;
 
-  const pointToColorGroup = useMemo(() => {
-    const pointToGroup = getPointColorGroup(coloringStrategy);
-    return allPoints.reduce((acc, point) => {
-      acc[point.metaData.id] = pointToGroup(point);
-      return acc;
-    }, {} as Record<string, string>);
-  }, [coloringStrategy, allPoints]);
+  const pointIdToGroup = usePointCloudContext((state) => state.pointIdToGroup);
 
   // Color the points by their corresponding group
   const colorFn = useCallback(
     (point: PointBaseProps) => {
-      const group = pointToColorGroup[point.metaData.id];
-      return pointGroupColors[group];
+      // Always fallback to unknown
+      const group = pointIdToGroup[point.metaData.id] || "unknown";
+      return pointGroupColors[group] || UNKNOWN_COLOR;
     },
-    [pointGroupColors, pointToColorGroup]
+    [pointGroupColors, pointIdToGroup]
   );
 
   // Filter the points by the group visibility
   const filteredPrimaryData = useMemo(() => {
     return primaryData.filter((point) => {
-      const group = pointToColorGroup[point.metaData.id];
+      const group = pointIdToGroup[point.metaData.id];
       return pointGroupVisibility[group];
     });
-  }, [primaryData, pointToColorGroup, pointGroupVisibility]);
+  }, [primaryData, pointIdToGroup, pointGroupVisibility]);
 
   const filteredReferenceData = useMemo(() => {
     if (!referenceData) {
       return null;
     }
     return referenceData.filter((point) => {
-      const group = pointToColorGroup[point.metaData.id];
+      const group = pointIdToGroup[point.metaData.id];
       return pointGroupVisibility[group];
     });
-  }, [referenceData, pointToColorGroup, pointGroupVisibility]);
+  }, [referenceData, pointIdToGroup, pointGroupVisibility]);
 
   // Context cannot be passed through multiple reconcilers. Bridge the context
   const ContextBridge = useContextBridge(PointCloudContext);

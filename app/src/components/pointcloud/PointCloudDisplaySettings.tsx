@@ -4,9 +4,11 @@ import { css } from "@emotion/react";
 import { Alert, Form } from "@arizeai/components";
 
 import { ConnectedDimensionPicker } from "@phoenix/components/form";
+import { ColoringStrategy } from "@phoenix/constants/pointCloudConstants";
 import { useDatasets } from "@phoenix/contexts";
 import { usePointCloudContext } from "@phoenix/contexts";
-import { ColoringStrategy } from "@phoenix/types";
+
+import { Loading } from "../Loading";
 
 import { ColoringStrategyPicker } from "./ColoringStrategyPicker";
 import { DatasetVisibilitySettings } from "./DatasetVisibilitySettings";
@@ -80,6 +82,20 @@ export function PointCloudDisplaySettings() {
         <Alert variant="info" showIcon={false}>
           {"Please select a dimension to color the point cloud by"}
         </Alert>
+      ) : null}
+      {isAwaitingDimensionMetadataRetrieval ? (
+        <div
+          css={css`
+            padding: var(--px-spacing-med);
+            min-height: 100px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+          `}
+        >
+          <Loading message="Calculating point colors" />
+        </div>
       ) : null}
     </section>
   );

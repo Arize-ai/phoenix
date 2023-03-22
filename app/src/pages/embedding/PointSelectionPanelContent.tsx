@@ -18,8 +18,9 @@ import {
   EventItem,
   SelectionDisplayRadioGroup,
 } from "@phoenix/components/pointcloud";
+import { SelectionDisplay } from "@phoenix/constants/pointCloudConstants";
 import { usePointCloudContext } from "@phoenix/contexts";
-import { DatasetType, SelectionDisplay } from "@phoenix/types";
+import { DatasetType } from "@phoenix/types";
 
 import {
   PointSelectionPanelContentQuery,
