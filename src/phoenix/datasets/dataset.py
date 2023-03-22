@@ -149,6 +149,13 @@ class Dataset:
         sampled_dataframe = self.dataframe.sample(n=num, ignore_index=True)
         return Dataset(sampled_dataframe, self.schema, f"""{self.name}_sample_{num}""")
 
+    def get_prediction_id_column(
+        self,
+    ) -> "Series[str]":
+        if self.schema.prediction_id_column_name is None:
+            raise err.SchemaError(err.MissingField("prediction_id_column_name"))
+        return self.dataframe[self.schema.prediction_id_column_name]
+
     def get_prediction_label_column(
         self,
     ) -> "Series[str]":
