@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 from functools import partial
 from itertools import accumulate, chain, repeat, takewhile
-from typing import Any, Callable, Generator, Iterable, List, Tuple, cast
+from typing import Any, Callable, Iterable, Iterator, List, Tuple, cast
 
 import pandas as pd
 from typing_extensions import TypeAlias
@@ -37,7 +37,7 @@ def _calculate(df: pd.DataFrame, calcs: Iterable[Metric]) -> "pd.Series[Any]":
     """
     Calculates each metric on the dataframe.
     """
-    return pd.Series(dict(calc(df) for calc in calcs))
+    return pd.Series({calc.id(): calc(df) for calc in calcs})
 
 
 StartIndex: TypeAlias = int
@@ -66,12 +66,12 @@ def _aggregator(
     Calls groupby on the dataframe and apply metric calculations on each group.
     """
     calcs: Tuple[Metric, ...] = tuple(metrics)
-    columns: List[int] = list(
-        set(
+    input_column_indices: List[int] = sorted(
+        {
             dataframe.columns.get_loc(column_name)
             for calc in calcs
-            for column_name in calc.input_columns()
-        ),
+            for column_name in calc.input_column_names()
+        }
     )
     return pd.concat(
         chain(
@@ -79,7 +79,7 @@ def _aggregator(
             (
                 dataframe.iloc[
                     slice(*row_interval_from_sorted_time_index(dataframe.index, start, end)),
-                    columns or [0],  # need at least one, so take the first one
+                    input_column_indices or [0],  # need at least one, so take the first one
                 ]
                 .groupby(group, group_keys=True)
                 .apply(partial(_calculate, calcs=calcs))
@@ -101,7 +101,7 @@ def _groupers(
     end_time: datetime,
     evaluation_window: timedelta,
     sampling_interval: timedelta,
-) -> Generator[Tuple[datetime, datetime, pd.Grouper], None, None]:
+) -> Iterator[Tuple[datetime, datetime, pd.Grouper]]:
     """
     Yields pandas.Groupers from time series parameters.
     """

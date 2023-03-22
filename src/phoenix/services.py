@@ -38,12 +38,22 @@ class Service:
             )
             Service.stop_any()
 
-        return psutil.Popen(
+        process = psutil.Popen(
             self.command,
             cwd=self.working_dir,
-            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            bufsize=1,
+            text=True,
             env={**os.environ},
         )
+        # TODO: convert to async with timeout because this can block forever
+        # if there's nothing to read. This is also brittle because it relies
+        # on a specific line of print output by a third party module (uvicorn).
+        for line in iter(process.stdout.readline, b""):
+            if "Uvicorn running on" in str(line):
+                break
+        return process
 
     def stop(self) -> None:
         """Gracefully stops the service."""
