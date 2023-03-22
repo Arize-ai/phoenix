@@ -176,10 +176,10 @@ class EmbeddingDimension(Node):
                     start=time_range.start,
                     end=time_range.end,
                 )
+            vector_column = dataset.get_embedding_vector_column(self.name)
             for row_id in range(start_index, stop_index)[:n_samples]:
-                event_id = EventId(row_id, dataset_id)
-                vector_column = dataset.get_embedding_vector_column(self.name)
                 embedding_vector = vector_column.iloc[row_id]
+                event_id = EventId(row_id, dataset_id)
                 data[event_id] = embedding_vector
 
         # validate n_components to be 2 or 3
