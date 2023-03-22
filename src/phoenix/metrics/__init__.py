@@ -1,5 +1,4 @@
-from dataclasses import dataclass
-from typing import Any, Iterable, Mapping, Optional, Protocol, runtime_checkable
+from typing import Any, List, Mapping, Protocol, runtime_checkable
 
 import pandas as pd
 
@@ -12,7 +11,7 @@ class Metric(Protocol):
     def id(self) -> int:
         ...
 
-    def operands(self) -> Iterable[str]:
+    def input_column_names(self) -> List[str]:
         ...
 
     def get_value(self, result: Mapping[int, Any]) -> Any:

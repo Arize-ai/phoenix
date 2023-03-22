@@ -6,8 +6,7 @@ on cooperative multiple inheritance and method resolution order in Python.
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from functools import cached_property
-from itertools import takewhile
-from typing import Any, Iterator, Mapping, Optional
+from typing import Any, List, Mapping, Optional
 
 import numpy as np
 import pandas as pd
@@ -61,8 +60,9 @@ class UnaryOperator(ABC):
             dataframe,
         )
 
-    def operands(self) -> Iterator[str]:
-        return takewhile(bool, (self.operand_column_name,))
+    def input_column_names(self) -> List[str]:
+        column_names = [self.operand_column_name]
+        return list(filter(len, column_names))
 
 
 @dataclass
@@ -115,14 +115,12 @@ class EvaluationMetric(BaseMetric, ABC):
             dataframe,
         )
 
-    def operands(self) -> Iterator[str]:
-        return takewhile(
-            bool,
-            (
-                self.predicted_column_name,
-                self.actual_column_name,
-            ),
-        )
+    def input_column_names(self) -> List[str]:
+        column_names = [
+            self.predicted_column_name,
+            self.actual_column_name,
+        ]
+        return list(filter(len, column_names))
 
 
 Data: TypeAlias = "pd.Series[Any]"

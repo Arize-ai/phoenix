@@ -66,11 +66,11 @@ def _aggregator(
     Calls groupby on the dataframe and apply metric calculations on each group.
     """
     calcs: Tuple[Metric, ...] = tuple(metrics)
-    columns: List[int] = sorted(
+    input_column_indices: List[int] = sorted(
         {
             dataframe.columns.get_loc(column_name)
             for calc in calcs
-            for column_name in calc.operands()
+            for column_name in calc.input_column_names()
         }
     )
     return pd.concat(
@@ -79,7 +79,7 @@ def _aggregator(
             (
                 dataframe.iloc[
                     slice(*row_interval_from_sorted_time_index(dataframe.index, start, end)),
-                    columns or [0],  # need at least one, so take the first one
+                    input_column_indices or [0],  # need at least one, so take the first one
                 ]
                 .groupby(group, group_keys=True)
                 .apply(partial(_calculate, calcs=calcs))
