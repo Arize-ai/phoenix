@@ -48,7 +48,8 @@ class Service:
             env={**os.environ},
         )
         # TODO: convert to async with timeout because this can block forever
-        # if there's nothing to read
+        # if there's nothing to read. This is also brittle because it relies
+        # on a specific line of print output by a third party module (uvicorn).
         for line in iter(process.stdout.readline, b""):
             if "Uvicorn running on" in str(line):
                 break
