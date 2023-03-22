@@ -56,7 +56,7 @@ class EmbeddingDimension(Node):
             "exists, if no primary data exists in the input time range, or if the "
             "input time range is invalid."
         )
-    )
+    )  # type: ignore  # https://github.com/strawberry-graphql/strawberry/issues/1929
     def drift_metric(
         self,
         info: Info[Context, None],
@@ -108,7 +108,7 @@ class EmbeddingDimension(Node):
             "Returns None if no reference dataset exists or if the input time range "
             "is invalid."
         )
-    )
+    )  # type: ignore  # https://github.com/strawberry-graphql/strawberry/issues/1929
     def drift_time_series(
         self,
         info: Info[Context, None],
@@ -212,7 +212,7 @@ class EmbeddingDimension(Node):
 
         for event_id, vector in vectors.items():
             row_id, dataset_id = event_id
-            dataset: Dataset = datasets[dataset_id]
+            dataset: Optional[Dataset] = datasets[dataset_id]
             if dataset is None:
                 continue
 
