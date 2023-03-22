@@ -3,6 +3,7 @@ import os
 import signal
 import subprocess
 import sys
+import time
 from typing import List, Optional
 
 import psutil
@@ -38,12 +39,21 @@ class Service:
             )
             Service.stop_any()
 
-        return psutil.Popen(
+        process = psutil.Popen(
             self.command,
             cwd=self.working_dir,
-            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            bufsize=1,
+            text=True,
             env={**os.environ},
         )
+        timeout = time.time() + 60
+        # wait until Uvicorn is running or when 60s is up
+        for line in iter(process.stdout.readline, b''):
+            if "Uvicorn running on" in str(line) or time.time() > timeout:
+                break
+        return process
 
     def stop(self) -> None:
         """Gracefully stops the service."""
