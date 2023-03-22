@@ -104,12 +104,20 @@ type DriftTimeSeries implements TimeSeries {
 type EmbeddingDimension implements Node {
   id: GlobalID!
   name: String!
+
+  """
+  Computes a drift metric between all reference data and the primary data belonging to the input time range (inclusive of the time range start and exclusive of the time range end). Returns None if no reference dataset exists, if no primary data exists in the input time range, or if the input time range is invalid.
+  """
   driftMetric(metric: DriftMetric!, timeRange: TimeRange = null): Float
 
   """
   Returns the time series of the specified metric for data within timeRange. Data points are generated starting at the end time, are separated by the sampling interval. Each data point is labeled by the end instant of and contains data from their respective evaluation window.
   """
   dataQualityTimeSeries(metric: DataQualityMetric!, timeRange: TimeRange!, granularity: Granularity!): DataQualityTimeSeries!
+
+  """
+  Computes a drift time-series between the primary and reference datasets. The output drift time-series contains one data point for each whole hour in the input time range (inclusive of the time range start and exclusive of the time range end). Each data point contains the drift metric value between all reference data and the primary data within the evaluation window ending at the corresponding time. Returns None if no reference dataset exists or if the input time range is invalid.
+  """
   driftTimeSeries(metric: DriftMetric!, timeRange: TimeRange!, granularity: Granularity!): DriftTimeSeries!
   UMAPPoints(
     """The time range of the primary dataset to generate the UMAP points for"""
@@ -140,6 +148,7 @@ type EmbeddingDimensionEdge {
 }
 
 type EmbeddingMetadata {
+  predictionId: String
   rawData: String
   linkToData: String
 }
