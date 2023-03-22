@@ -94,8 +94,8 @@ class BaseMetric(ABC):
 
 @dataclass
 class EvaluationMetric(BaseMetric, ABC):
-    predicted_column_name: str = ""
-    actual_column_name: str = ""
+    predicted_column_name: str
+    actual_column_name: str
 
     def get_predicted_column(
         self,
@@ -123,9 +123,6 @@ class EvaluationMetric(BaseMetric, ABC):
         return list(filter(len, column_names))
 
 
-Data: TypeAlias = "pd.Series[Any]"
-
-
 @dataclass
 class DriftOperator(UnaryOperator, BaseMetric, ABC):
     reference_data: Optional[pd.DataFrame] = None
@@ -145,7 +142,7 @@ class Discretizer(ABC):
 
     binning_method: BinningMethod = CategoricalBinning()
 
-    def histogram(self, data: Data) -> Histogram:
+    def histogram(self, data: "pd.Series[Any]") -> Histogram:
         return self.binning_method.histogram(data)
 
 

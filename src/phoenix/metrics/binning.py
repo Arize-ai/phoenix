@@ -7,7 +7,6 @@ import numpy as np
 import pandas as pd
 from typing_extensions import TypeAlias
 
-Data: TypeAlias = "pd.Series[Any]"
 Histogram: TypeAlias = "pd.Series[int]"
 
 
@@ -22,7 +21,7 @@ class BinningMethod(ABC):
     missing values will be grouped into a bin of their own)"""
 
     @abstractmethod
-    def histogram(self, data: Data) -> Histogram:
+    def histogram(self, data: "pd.Series[Any]") -> Histogram:
         ...
 
 
@@ -61,7 +60,7 @@ class IntervalBinning(BinningMethod):
 
     bins: Optional[NumericBins] = None
 
-    def numeric_bins(self, _: Data) -> NumericBins:
+    def numeric_bins(self, _: "pd.Series[Any]") -> NumericBins:
         return (
             self.bins
             if self.bins is not None
@@ -76,7 +75,7 @@ class IntervalBinning(BinningMethod):
             )
         )
 
-    def histogram(self, data: Data) -> Histogram:
+    def histogram(self, data: "pd.Series[Any]") -> Histogram:
         numeric_data = pd.to_numeric(data, errors="coerce")
         bins = self.numeric_bins(numeric_data)
         cut = pd.cut(numeric_data, bins)
@@ -124,7 +123,7 @@ class QuantileBinning(IntervalBinning):
     +inf as the left- and right-most bin boundaries. Default values are the
     decile probabilities."""
 
-    def numeric_bins(self, data: Data) -> NumericBins:
+    def numeric_bins(self, data: "pd.Series[Any]") -> NumericBins:
         # Always include min and max in quantiles.
         probabilities = sorted({0.0, 1.0}.union(set(self.probabilities)))
         with warnings.catch_warnings():
@@ -139,7 +138,7 @@ class QuantileBinning(IntervalBinning):
 
     def __init__(
         self,
-        reference_series: Data = pd.Series(dtype=float),
+        reference_series: "pd.Series[Any]" = pd.Series(dtype=float),
         probabilities: Iterable[float] = (np.arange(1, 10) / 10),
         **kwargs: Any,
     ) -> None:
@@ -172,7 +171,7 @@ class CategoricalBinning(BinningMethod):
     dtype: int64
     """
 
-    def histogram(self, data: Data) -> Histogram:
+    def histogram(self, data: "pd.Series[Any]") -> Histogram:
         return data.value_counts(dropna=self.dropna)
 
 
