@@ -1,6 +1,5 @@
 from collections import defaultdict
 from datetime import datetime, timedelta
-from itertools import chain
 from typing import Any, Optional
 
 import numpy as np
@@ -165,34 +164,23 @@ class EmbeddingDimension(Node):
             DatasetType.REFERENCE: info.context.model.reference_dataset,
         }
 
-        data = dict(
-            chain.from_iterable(
-                (
-                    ()
-                    if dataset is None
-                    else (
-                        (
-                            EventId(row_id, dataset_id),
-                            dataset.get_embedding_vector_column(self.name).iloc[row_id],
-                        )
-                        for row_id in (
-                            range(
-                                *(
-                                    row_interval_from_sorted_time_index(
-                                        dataset.dataframe.index,
-                                        start=time_range.start,
-                                        end=time_range.end,
-                                    )
-                                    if dataset_id == DatasetType.PRIMARY
-                                    else (len(dataset.dataframe),)
-                                )
-                            )
-                        )[:n_samples]
-                    )
+        data = {}
+        for dataset_id, dataset in datasets.items():
+            if dataset is None:
+                continue
+            dataframe = dataset.dataframe
+            start_index, stop_index = 0, len(dataframe)
+            if dataset_id == DatasetType.PRIMARY:
+                start_index, stop_index = row_interval_from_sorted_time_index(
+                    dataframe.index,
+                    start=time_range.start,
+                    end=time_range.end,
                 )
-                for dataset_id, dataset in datasets.items()
-            )
-        )
+            for row_id in range(start_index, stop_index)[:n_samples]:
+                event_id = EventId(row_id, dataset_id)
+                vector_column = dataset.get_embedding_vector_column(self.name)
+                embedding_vector = vector_column.iloc[row_id]
+                data[event_id] = embedding_vector
 
         # validate n_components to be 2 or 3
         n_components = DEFAULT_N_COMPONENTS if n_components is None else n_components
