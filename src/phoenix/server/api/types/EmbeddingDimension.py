@@ -169,15 +169,15 @@ class EmbeddingDimension(Node):
             if dataset is None:
                 continue
             dataframe = dataset.dataframe
-            start_index, stop_index = 0, len(dataframe)
+            row_id_start, row_id_stop = 0, len(dataframe)
             if dataset_id == DatasetType.PRIMARY:
-                start_index, stop_index = row_interval_from_sorted_time_index(
+                row_id_start, row_id_stop = row_interval_from_sorted_time_index(
                     dataframe.index,
                     start=time_range.start,
                     end=time_range.end,
                 )
             vector_column = dataset.get_embedding_vector_column(self.name)
-            for row_id in range(start_index, stop_index)[:n_samples]:
+            for row_id in range(row_id_start, row_id_stop)[:n_samples]:
                 embedding_vector = vector_column.iloc[row_id]
                 event_id = EventId(row_id, dataset_id)
                 data[event_id] = embedding_vector
