@@ -3,7 +3,6 @@ import os
 import signal
 import subprocess
 import sys
-import time
 from typing import List, Optional
 
 import psutil
@@ -48,10 +47,10 @@ class Service:
             text=True,
             env={**os.environ},
         )
-        timeout = time.time() + 60
-        # wait until Uvicorn is running or when 60s is up
+        # TODO: convert to async with timeout because this can block forever
+        # if there's nothing to read
         for line in iter(process.stdout.readline, b""):
-            if "Uvicorn running on" in str(line) or time.time() > timeout:
+            if "Uvicorn running on" in str(line):
                 break
         return process
 
