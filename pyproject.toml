@@ -119,6 +119,7 @@ python = ["3.8"]
 addopts = [
   "-rA",
   "--import-mode=importlib",
+  "--doctest-modules",
 ]
 testpaths = [
   "tests",
@@ -218,6 +219,8 @@ exclude = [
 module = [
   "hdbscan",
   "umap",
+  "scipy.*",
+  "sklearn.*",
 ]
 ignore_missing_imports = true
 

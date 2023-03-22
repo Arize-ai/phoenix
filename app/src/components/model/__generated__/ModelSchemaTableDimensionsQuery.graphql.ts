@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<651a9f1821b5d0f2d5364b854bb8a2f9>>
+ * @generated SignedSource<<67d2a2d6ce2e5b9a3c303e34711c7945>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -158,6 +158,58 @@ return {
                         "kind": "ScalarField",
                         "name": "dataQualityMetric",
                         "storageKey": "dataQualityMetric(metric:\"percentEmpty\")"
+                      },
+                      {
+                        "alias": "min",
+                        "args": [
+                          {
+                            "kind": "Literal",
+                            "name": "metric",
+                            "value": "min"
+                          }
+                        ],
+                        "kind": "ScalarField",
+                        "name": "dataQualityMetric",
+                        "storageKey": "dataQualityMetric(metric:\"min\")"
+                      },
+                      {
+                        "alias": "mean",
+                        "args": [
+                          {
+                            "kind": "Literal",
+                            "name": "metric",
+                            "value": "mean"
+                          }
+                        ],
+                        "kind": "ScalarField",
+                        "name": "dataQualityMetric",
+                        "storageKey": "dataQualityMetric(metric:\"mean\")"
+                      },
+                      {
+                        "alias": "max",
+                        "args": [
+                          {
+                            "kind": "Literal",
+                            "name": "metric",
+                            "value": "max"
+                          }
+                        ],
+                        "kind": "ScalarField",
+                        "name": "dataQualityMetric",
+                        "storageKey": "dataQualityMetric(metric:\"max\")"
+                      },
+                      {
+                        "alias": "psi",
+                        "args": [
+                          {
+                            "kind": "Literal",
+                            "name": "metric",
+                            "value": "psi"
+                          }
+                        ],
+                        "kind": "ScalarField",
+                        "name": "driftMetric",
+                        "storageKey": "driftMetric(metric:\"psi\")"
                       }
                     ],
                     "storageKey": null
@@ -233,16 +285,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "b290a3b0b858198cce8c752125b7e7da",
+    "cacheID": "130f5223ad19b1d70aa342925868739a",
     "id": null,
     "metadata": {},
     "name": "ModelSchemaTableDimensionsQuery",
     "operationKind": "query",
-    "text": "query ModelSchemaTableDimensionsQuery(\n  $count: Int = 50\n  $cursor: String = null\n) {\n  ...ModelSchemaTable_dimensions_1G22uz\n}\n\nfragment ModelSchemaTable_dimensions_1G22uz on Query {\n  model {\n    dimensions(first: $count, after: $cursor) {\n      edges {\n        dimension: node {\n          name\n          type\n          dataType\n          cardinality: dataQualityMetric(metric: cardinality)\n          percentEmpty: dataQualityMetric(metric: percentEmpty)\n        }\n        cursor\n        node {\n          __typename\n        }\n      }\n      pageInfo {\n        endCursor\n        hasNextPage\n      }\n    }\n  }\n}\n"
+    "text": "query ModelSchemaTableDimensionsQuery(\n  $count: Int = 50\n  $cursor: String = null\n) {\n  ...ModelSchemaTable_dimensions_1G22uz\n}\n\nfragment ModelSchemaTable_dimensions_1G22uz on Query {\n  model {\n    dimensions(first: $count, after: $cursor) {\n      edges {\n        dimension: node {\n          name\n          type\n          dataType\n          cardinality: dataQualityMetric(metric: cardinality)\n          percentEmpty: dataQualityMetric(metric: percentEmpty)\n          min: dataQualityMetric(metric: min)\n          mean: dataQualityMetric(metric: mean)\n          max: dataQualityMetric(metric: max)\n          psi: driftMetric(metric: psi)\n        }\n        cursor\n        node {\n          __typename\n        }\n      }\n      pageInfo {\n        endCursor\n        hasNextPage\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "8adfc820d01526b9bc2e9dc3212a8049";
+(node as any).hash = "fdbee9f78e795b25c75649dfb377701a";
 
 export default node;

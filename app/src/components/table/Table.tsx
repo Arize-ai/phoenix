@@ -39,7 +39,7 @@ export function Table<DataRow extends object>({
     {
       columns,
       data,
-      initialState: { pageIndex: 0 },
+      initialState: { pageIndex: 0, pageSize: 15 },
     },
     usePagination
   );

@@ -48,6 +48,7 @@ type Dimension implements Node {
 
   """The data type of the column. Categorical or numeric."""
   dataType: DimensionDataType!
+  driftMetric(metric: ScalarDriftMetric!, timeRange: TimeRange = null): Float
   dataQualityMetric(metric: DataQualityMetric!, timeRange: TimeRange = null): Float
 
   """
@@ -56,9 +57,14 @@ type Dimension implements Node {
   categories: [String!]!
 
   """
-  Returns the time series of the specified metric for data within timeRange. Data points are generated starting at the end time, are separated by the sampling interval. Each data point is labeled by the end instant of and contains data from their respective evaluation window.
+  Returns the time series of the specified metric for data within a time range. Data points are generated starting at the end time and are separated by the sampling interval. Each data point is labeled by the end instant and contains data from their respective evaluation windows.
   """
   dataQualityTimeSeries(metric: DataQualityMetric!, timeRange: TimeRange!, granularity: Granularity!): DataQualityTimeSeries!
+
+  """
+  Returns the time series of the specified metric for data within a time range. Data points are generated starting at the end time and are separated by the sampling interval. Each data point is labeled by the end instant and contains data from their respective evaluation windows.
+  """
+  driftTimeSeries(metric: ScalarDriftMetric!, timeRange: TimeRange!, granularity: Granularity!): DriftTimeSeries!
 }
 
 type DimensionConnection {
@@ -93,10 +99,6 @@ type DimensionWithValue {
   value: String!
 }
 
-enum DriftMetric {
-  euclideanDistance
-}
-
 type DriftTimeSeries implements TimeSeries {
   data: [TimeSeriesDataPoint!]!
 }
@@ -104,13 +106,13 @@ type DriftTimeSeries implements TimeSeries {
 type EmbeddingDimension implements Node {
   id: GlobalID!
   name: String!
-  driftMetric(metric: DriftMetric!, timeRange: TimeRange = null): Float
+  driftMetric(metric: VectorDriftMetric!, timeRange: TimeRange = null): Float
 
   """
   Returns the time series of the specified metric for data within timeRange. Data points are generated starting at the end time, are separated by the sampling interval. Each data point is labeled by the end instant of and contains data from their respective evaluation window.
   """
   dataQualityTimeSeries(metric: DataQualityMetric!, timeRange: TimeRange!, granularity: Granularity!): DataQualityTimeSeries!
-  driftTimeSeries(metric: DriftMetric!, timeRange: TimeRange!, granularity: Granularity!): DriftTimeSeries!
+  driftTimeSeries(metric: VectorDriftMetric!, timeRange: TimeRange!, granularity: Granularity!): DriftTimeSeries!
   UMAPPoints(
     """The time range of the primary dataset to generate the UMAP points for"""
     timeRange: TimeRange!
@@ -214,6 +216,12 @@ type Query {
   node(id: GlobalID!): Node!
 }
 
+enum ScalarDriftMetric {
+  psi
+  klDivergence
+  jsDistance
+}
+
 input TimeRange {
   """The start of the time range"""
   start: DateTime!
@@ -242,4 +250,8 @@ type UMAPPoints {
   data: [UMAPPoint!]!
   referenceData: [UMAPPoint!]!
   clusters: [Cluster!]!
+}
+
+enum VectorDriftMetric {
+  euclideanDistance
 }

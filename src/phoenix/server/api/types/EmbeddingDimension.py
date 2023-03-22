@@ -21,14 +21,19 @@ from phoenix.pointcloud.pointcloud import PointCloud
 from phoenix.pointcloud.projectors import Umap
 from phoenix.server.api.context import Context
 from phoenix.server.api.input_types.TimeRange import TimeRange
+from phoenix.server.api.types.VectorDriftMetricEnum import VectorDriftMetric
 
 from ..input_types.Granularity import Granularity
 from .DataQualityMetric import DataQualityMetric
-from .DriftMetric import DriftMetric
 from .EmbeddingMetadata import EmbeddingMetadata
 from .EventMetadata import EventMetadata
 from .node import Node
-from .TimeSeries import DataQualityTimeSeries, DriftTimeSeries
+from .TimeSeries import (
+    DataQualityTimeSeries,
+    DriftTimeSeries,
+    get_data_quality_timeseries_data,
+    get_drift_timeseries_data,
+)
 from .UMAPPoints import UMAPPoint, UMAPPoints, to_gql_clusters, to_gql_coordinates
 
 # Default UMAP hyperparameters
@@ -51,7 +56,7 @@ class EmbeddingDimension(Node):
     def drift_metric(
         self,
         info: Info[Context, None],
-        metric: DriftMetric,
+        metric: VectorDriftMetric,
         time_range: Optional[TimeRange] = None,
     ) -> Optional[float]:
         """
@@ -61,13 +66,17 @@ class EmbeddingDimension(Node):
         exists, if no primary data exists in the input time range, or if the
         input time range is invalid.
         """
+        if info.context.model.reference_dataset is None:
+            return None
+        dataset = info.context.model.primary_dataset
+        vector_column = dataset.get_embedding_vector_column(self.name)
         if len(
-            data := DriftTimeSeries(
-                str(info.context.model.primary_dataset.get_embedding_vector_column(self.name).name),
+            data := get_drift_timeseries_data(
+                str(vector_column.name),
                 info.context.model,
                 metric,
                 time_range,
-            ).data
+            )
         ):
             return data.pop().value
         return None
@@ -87,19 +96,23 @@ class EmbeddingDimension(Node):
         time_range: TimeRange,
         granularity: Granularity,
     ) -> DataQualityTimeSeries:
+        dataset = info.context.model.primary_dataset
+        vector_column = dataset.get_embedding_vector_column(self.name)
         return DataQualityTimeSeries(
-            str(info.context.model.primary_dataset.get_embedding_vector_column(self.name).name),
-            info.context.model,
-            metric,
-            time_range,
-            granularity,
+            data=get_data_quality_timeseries_data(
+                str(vector_column.name),
+                info.context.model,
+                metric,
+                time_range,
+                granularity,
+            )
         )
 
     @strawberry.field
     def drift_time_series(
         self,
         info: Info[Context, None],
-        metric: DriftMetric,
+        metric: VectorDriftMetric,
         time_range: TimeRange,
         granularity: Granularity,
     ) -> DriftTimeSeries:
@@ -114,12 +127,18 @@ class EmbeddingDimension(Node):
         Returns None if no reference dataset exists or if the input time range
         is invalid.
         """
+        if info.context.model.reference_dataset is None:
+            return DriftTimeSeries(data=[])
+        dataset = info.context.model.primary_dataset
+        vector_column = dataset.get_embedding_vector_column(self.name)
         return DriftTimeSeries(
-            str(info.context.model.primary_dataset.get_embedding_vector_column(self.name).name),
-            info.context.model,
-            metric,
-            time_range,
-            granularity,
+            data=get_drift_timeseries_data(
+                str(vector_column.name),
+                info.context.model,
+                metric,
+                time_range,
+                granularity,
+            )
         )
 
     @strawberry.field
