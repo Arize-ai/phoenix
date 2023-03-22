@@ -50,7 +50,7 @@ class Service:
         )
         timeout = time.time() + 60
         # wait until Uvicorn is running or when 60s is up
-        for line in iter(process.stdout.readline, b''):
+        for line in iter(process.stdout.readline, b""):
             if "Uvicorn running on" in str(line) or time.time() > timeout:
                 break
         return process
