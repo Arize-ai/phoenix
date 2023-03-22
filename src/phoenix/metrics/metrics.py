@@ -150,8 +150,8 @@ def symmetrized(divergence: Divergence) -> Divergence:
 class PSI(DiscreteDivergence):
     r"""Population stability index (PSI)
 
-    The population stability index (PSI) between two probability distributions
-    :math:`p` and :math:`q` is defined as 2 times the symmetrized KL-divergence,
+    PSI between two probability distributions :math:`p` and :math:`q` is
+    defined as 2 times the symmetrized KL-divergence,
 
     .. math::
         \mathrm{PSI}(P,Q) = D_{KL}(P||Q) + D_{KL}(Q||P)
