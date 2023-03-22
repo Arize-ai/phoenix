@@ -12,16 +12,15 @@
 
 ## Tutorials
 
+* [Generative LLM](tutorials/generative-llm.md)
 * [NLP (Sentiment Classification)](tutorials/nlp-sentiment-classification.md)
 * [CV (Image Classification)](tutorials/cv-image-classification.md)
-* [Generative LLM](tutorials/generative-llm.md)
 * [Tabular (Credit Card Fraud)](tutorials/tabular-credit-card-fraud.md)
 
 ## How-To
 
 * [Install and Import Phoenix](how-to/install-and-import-phoenix.md)
 * [Define Your Schema](how-to/define-your-schema.md)
-* [Define Your Dataset(s)](how-to/define-your-dataset-s.md)
 * [Manage the App](how-to/manage-the-app.md)
 * [Use the App](how-to/use-the-app.md)
 
