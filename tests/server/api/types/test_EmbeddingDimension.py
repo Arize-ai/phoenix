@@ -59,7 +59,7 @@ class TestDriftMetricTimeSeries:
                 sampling_interval_minutes=1440,
             ),
         )
-        assert drift_time_series.data.pop().value is None
+        assert len(drift_time_series.data) == 0
 
     @pytest.mark.parametrize(
         "query_time_range",
@@ -80,7 +80,7 @@ class TestDriftMetricTimeSeries:
             ),
         ],
     )
-    def test_invalid_time_range_returns_none(
+    def test_invalid_time_range_returns_empty_time_series(
         self, query_time_range: TimeRange, info_mock_factory: InfoMockFactory
     ) -> None:
         primary_dataframe = DataFrame(

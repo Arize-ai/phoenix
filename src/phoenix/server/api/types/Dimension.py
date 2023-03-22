@@ -13,7 +13,12 @@ from .DimensionDataType import DimensionDataType
 from .DimensionType import DimensionType
 from .node import Node
 from .ScalarDriftMetricEnum import ScalarDriftMetric
-from .TimeSeries import DataQualityTimeSeries, DriftTimeSeries
+from .TimeSeries import (
+    DataQualityTimeSeries,
+    DriftTimeSeries,
+    get_data_quality_timeseries_data,
+    get_drift_timeseries_data,
+)
 
 
 @strawberry.type
@@ -41,14 +46,16 @@ class Dimension(Node):
         exists, if no primary data exists in the input time range, or if the
         input time range is invalid.
         """
+        if info.context.model.reference_dataset is None:
+            return None
         if len(
-            data := DriftTimeSeries(
+            data := get_drift_timeseries_data(
                 self.name,
                 info.context.model,
                 metric,
                 time_range,
                 dtype=self.dataType,
-            ).data
+            )
         ):
             return data.pop().value
         return None
@@ -61,12 +68,12 @@ class Dimension(Node):
         time_range: Optional[TimeRange] = None,
     ) -> Optional[float]:
         if len(
-            data := DataQualityTimeSeries(
+            data := get_data_quality_timeseries_data(
                 self.name,
                 info.context.model,
                 metric,
                 time_range,
-            ).data
+            )
         ):
             return data.pop().value
         return None
@@ -100,11 +107,13 @@ class Dimension(Node):
         granularity: Granularity,
     ) -> DataQualityTimeSeries:
         return DataQualityTimeSeries(
-            self.name,
-            info.context.model,
-            metric,
-            time_range,
-            granularity,
+            data=get_data_quality_timeseries_data(
+                self.name,
+                info.context.model,
+                metric,
+                time_range,
+                granularity,
+            )
         )
 
     @strawberry.field(
@@ -122,13 +131,17 @@ class Dimension(Node):
         time_range: TimeRange,
         granularity: Granularity,
     ) -> DriftTimeSeries:
+        if info.context.model.reference_dataset is None:
+            return DriftTimeSeries(data=[])
         return DriftTimeSeries(
-            self.name,
-            info.context.model,
-            metric,
-            time_range,
-            granularity,
-            dtype=self.dataType,
+            data=get_drift_timeseries_data(
+                self.name,
+                info.context.model,
+                metric,
+                time_range,
+                granularity,
+                dtype=self.dataType,
+            )
         )
 
 
