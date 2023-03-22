@@ -7,7 +7,7 @@ The open inference data format is designed to provide an open interoperable data
 
 The goal of this is to define a specification for production inference logs that can be used on top of many file formats including Parquet, Avro, CSV and JSON. It will also support future formats such as Lance.
 
-<figure><img src="https://lh5.googleusercontent.com/tI-YqWsq9RbkrlhfDzbyVHMj45wPvtvyoEiwfkL-s6UM0eR2Xb2AN6YqR4jWaRrFZdBlgrsw_cJsMWbQBlfFMNELWSmYcM2b0B2WFYNVGhH_iS9I1R7QNzd_7XIpTUrcl8DP0lKIi1fEl--Ad81FZb4" alt=""><figcaption><p><strong>Inference Table in Inference Store</strong></p></figcaption></figure>
+<figure><img src="../.gitbook/assets/OpenInferenceGraphics_tables1.jpg" alt=""><figcaption><p><strong>Inference Table in Inference Store</strong></p></figcaption></figure>
 
 An inference store is a common approach to store model inferences, normally stored in a data lake or data warehouse.&#x20;
 
@@ -45,18 +45,18 @@ In an inference store the prediction ID is a unique identifier for a model predi
 
 In this section we will review a flat (non nested structure) prediction event, the following sections will cover how to handle nested structures.
 
-<figure><img src="https://lh6.googleusercontent.com/tMg0bwe276Z7d-SGuieLBP5J4NPqyZCPSsc1vfSl_KCG_soLufPJ98syu4ijsFoZfa2BMejjtarmVS3G9UbJvwHhvHzBsJL_xGNV6HrOi3ai4XbKQiaP89MrroPiuKeAVjM-9soaJb4_mbDkuhVfMwI" alt=""><figcaption><p>Prediction Inference Event Data</p></figcaption></figure>
+<figure><img src="../.gitbook/assets/OpenInferenceGraphics_Graph01.png" alt=""><figcaption><p>Prediction Inference Event Data</p></figcaption></figure>
 
 
 
-<figure><img src="https://lh6.googleusercontent.com/F1ll2Q1FfyaNmgQbTlWHIr-BrhRO9dvEbPhVC8Sqeq9bxcrh6ZCw-NfdTtsbdeis2wm_opRxblKdbNA_MYkzkian6qWBRme-JM1JbgUuBFPcSCrZHkGnfQrhdzioG7JlgIsY8TV0uERbqDjHPsMLl7w" alt=""><figcaption><p>LLM Inference Data</p></figcaption></figure>
+<figure><img src="../.gitbook/assets/OpenInferenceGraphics_Graph02.png" alt=""><figcaption><p>LLM Inference Data</p></figcaption></figure>
 
 A prediction event can represent a prompt response pair for LLMs where the conversation ID maintains the thread of conversation.&#x20;
 
 \
 
 
-<figure><img src="https://lh4.googleusercontent.com/PudqLcuRTJnYhXXS0hZj7XCA14TDWv-3WkUKyoSa0drmFZcG0KZo0WPQ8ieavNz-RuHUzvva-Ei1Z4D2kL0ROpkYkf5TlkNZr-sZBo1n5YmcBtEd2qGcxkDhW6dHahwirRaeOuatZzlaN6aa7Ym2jDI" alt=""><figcaption><p>Core Model Inference Data</p></figcaption></figure>
+<figure><img src="../.gitbook/assets/OpenInferenceGraphics_Graph03.png" alt=""><figcaption><p>Core Model Inference Data</p></figcaption></figure>
 
 The core components of an inference event are the:
 
@@ -101,11 +101,11 @@ Ground truth is required in the data in order to analyze performance metrics suc
 
 Latent ground truth data may need to be “joined” to a prediction ID to enable performance visualization. In Phoenix, the library requires ground truth to be pre-joined to prediction data. In an ML Observability system such as Arize the joining of ground truth is typically done by the system itself.
 
-<figure><img src="../.gitbook/assets/Screenshot 2023-03-15 at 4.31.32 PM.png" alt=""><figcaption><p>Latent Ground Truth</p></figcaption></figure>
+<figure><img src="../.gitbook/assets/OpenInferenceGraphics_Graph04 (1).png" alt=""><figcaption><p>Latent Ground Truth</p></figcaption></figure>
 
 The above image shows a common use case in ML Observability in which latent ground truth is received by a system and linked back to the original prediction based on a prediction ID.
 
-<figure><img src="../.gitbook/assets/Screenshot 2023-03-15 at 4.33.25 PM.png" alt=""><figcaption><p>Latent MetaData (Tags)</p></figcaption></figure>
+<figure><img src="../.gitbook/assets/OpenInferenceGraphics_Graph05 (1).png" alt=""><figcaption><p>Latent MetaData (Tags)</p></figcaption></figure>
 
 In addition to ground truth, latent metadata is also required to be linked to a prediction ID. Latent metadata can be critical to analyze model results using additional data tags linked to the original prediction ID.
 
@@ -126,7 +126,7 @@ A model may have multiple inputs with different embeddings and images for each g
 
 The above prediction shows hierarchical data. The current version of Phoenix is designed to ingest a flat structure so teams will need to flatten the above hierarchy. An example of flattening is below.
 
-<figure><img src="https://lh4.googleusercontent.com/eBFKL2_rOcikfJC47gzwCz6XZ0ktNDU9ILc5A6Owj7_5hLH9ep_yDOkFF-rNMePozy04ERj6RkB-RpclWf3BZLv_ZQ0SGPk4jpBIGW-BzoX8Yc6n2tR6C1bHiZqBeA_hCbV8AbCUR4-rbL8-v2YSCJY" alt=""><figcaption><p>Hierarchical Data Flattened</p></figcaption></figure>
+<figure><img src="../.gitbook/assets/OpenInferenceGraphics_tables2 (1).jpg" alt=""><figcaption><p>Hierarchical Data Flattened</p></figcaption></figure>
 
 The example above shows an exploded representation of the hierarchical data. \<todo fix, once team reviews approach internally>
 
