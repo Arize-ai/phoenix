@@ -52,20 +52,23 @@ class EmbeddingDimension(Node):
 
     name: str
 
-    @strawberry.field
+    @strawberry.field(
+        description=(
+            """
+            Computes a drift metric between all reference data and the primary data
+            belonging to the input time range (inclusive of the time range start and
+            exclusive of the time range end). Returns None if no reference dataset
+            exists, if no primary data exists in the input time range, or if the
+            input time range is invalid.
+            """
+        )
+    )  # type: ignore  # https://github.com/strawberry-graphql/strawberry/issues/1929
     def drift_metric(
         self,
         info: Info[Context, None],
         metric: VectorDriftMetric,
         time_range: Optional[TimeRange] = None,
     ) -> Optional[float]:
-        """
-        Computes a drift metric between all reference data and the primary data
-        belonging to the input time range (inclusive of the time range start and
-        exclusive of the time range end). Returns None if no reference dataset
-        exists, if no primary data exists in the input time range, or if the
-        input time range is invalid.
-        """
         if info.context.model.reference_dataset is None:
             return None
         dataset = info.context.model.primary_dataset
@@ -108,7 +111,21 @@ class EmbeddingDimension(Node):
             )
         )
 
-    @strawberry.field
+    @strawberry.field(
+        description=(
+            """
+            Computes a drift time-series between the primary and reference datasets.
+            The output drift time-series contains one data point for each whole hour
+            in the input time range (inclusive of the time range start and exclusive
+            of the time range end). Each data point contains the drift metric value
+            between all reference data and the primary data within the evaluation
+            window ending at the corresponding time.
+
+            Returns None if no reference dataset exists or if the input time range
+            is invalid.
+            """
+        )
+    )  # type: ignore  # https://github.com/strawberry-graphql/strawberry/issues/1929
     def drift_time_series(
         self,
         info: Info[Context, None],
@@ -116,17 +133,6 @@ class EmbeddingDimension(Node):
         time_range: TimeRange,
         granularity: Granularity,
     ) -> DriftTimeSeries:
-        """
-        Computes a drift time-series between the primary and reference datasets.
-        The output drift time-series contains one data point for each whole hour
-        in the input time range (inclusive of the time range start and exclusive
-        of the time range end). Each data point contains the drift metric value
-        between all reference data and the primary data within the evaluation
-        window ending at the corresponding time.
-
-        Returns None if no reference dataset exists or if the input time range
-        is invalid.
-        """
         if info.context.model.reference_dataset is None:
             return DriftTimeSeries(data=[])
         dataset = info.context.model.primary_dataset
@@ -222,12 +228,18 @@ class EmbeddingDimension(Node):
             if dataset is None:
                 continue
 
+            prediction_id = None
             prediction_label = None
             prediction_score = None
             actual_label = None
             actual_score = None
             link_to_data = None
             raw_data = None
+
+            try:
+                prediction_id = dataset.get_prediction_id_column()[row_id]
+            except SchemaError:
+                pass
 
             try:
                 prediction_label = dataset.get_prediction_label_column()[row_id]
@@ -268,6 +280,7 @@ class EmbeddingDimension(Node):
                         actual_score=actual_score,
                     ),
                     embedding_metadata=EmbeddingMetadata(
+                        prediction_id=prediction_id,
                         link_to_data=link_to_data,
                         raw_data=raw_data,
                     ),
