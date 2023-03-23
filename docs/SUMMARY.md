@@ -30,9 +30,4 @@
 
 ## Reference
 
-* [Metrics](reference/metrics/README.md)
-  * [Cardinality](reference/metrics/cardinality.md)
-  * [Percent Empty](reference/metrics/percent-empty.md)
-  * [Euclidean Distance](reference/metrics/euclidean-distance.md)
-  * [PSI](reference/metrics/psi.md)
 * [Open Inference](concepts/open-inference.md)
