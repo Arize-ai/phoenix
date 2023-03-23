@@ -21,12 +21,16 @@ type EventItemProps = {
    * event handler for when the user clicks on the event item
    */
   onClick: () => void;
+  /**
+   * The color accent for the event. Corresponds to the color of the group the event belongs to
+   */
+  color: string;
 };
 /**
  * An item that represents a single model event. To be displayed in a grid / list
  */
 export function EventItem(props: EventItemProps) {
-  const { rawData, linkToData, onClick } = props;
+  const { rawData, linkToData, onClick, color } = props;
   // Prioritize the image preview over raw text
   const previewType: "raw" | "image" = linkToData != null ? "image" : "raw";
   return (
@@ -82,20 +86,8 @@ export function EventItem(props: EventItemProps) {
         css={css`
           height: var(--px-gradient-bar-height);
           flex: none;
-          &[data-dataset-type="primary"] {
-            background-image: linear-gradient(
-              to right,
-              var(--px-primary-color--transparent) 0%,
-              var(--px-primary-color)
-            );
-          }
-          &[data-dataset-type="reference"] {
-            background-image: linear-gradient(
-              to right,
-              var(--px-reference-color--transparent) 0%,
-              var(--px-reference-color)
-            );
-          }
+          background-color: ${color};
+          transition: background-color 0.5s ease-in-out;
         `}
       />
     </div>

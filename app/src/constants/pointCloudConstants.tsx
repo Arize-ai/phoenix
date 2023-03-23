@@ -33,7 +33,7 @@ export enum CorrectnessGroup {
   unknown = "unknown",
 }
 
-export const DEFAULT_COLOR_SCHEME = ["#9efcfd", "#baa1f9"];
+export const DEFAULT_COLOR_SCHEME = ["#05fbff", "#cb8afd"];
 
 /**
  * The default color to use when coloringStrategy does not apply.

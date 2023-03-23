@@ -1,10 +1,18 @@
 import React, { startTransition, useEffect, useState } from "react";
 import { fetchQuery, graphql } from "react-relay";
+import { css } from "@emotion/react";
 
-import { Item, Picker, PickerProps } from "@arizeai/components";
+import {
+  Item,
+  Label,
+  LabelProps,
+  Picker,
+  PickerProps,
+} from "@arizeai/components";
 
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 import { Dimension } from "@phoenix/types";
+import { assertUnreachable } from "@phoenix/typeUtils";
 
 import { DimensionPickerQuery } from "./__generated__/DimensionPickerQuery.graphql";
 
@@ -21,6 +29,37 @@ type DimensionPickerProps<T> = Omit<
    */
   isLoading?: boolean;
 };
+
+function DimensionTypeLabel(props: { type: Dimension["type"] }) {
+  const { type } = props;
+  let labelColor: LabelProps["color"] = "gray";
+  let text = "";
+  switch (type) {
+    case "feature":
+      labelColor = "blue";
+      text = "FEA";
+      break;
+    case "tag":
+      labelColor = "purple";
+      text = "TAG";
+      break;
+    case "prediction":
+      labelColor = "white";
+      text = "PRE";
+      break;
+    case "actual":
+      labelColor = "orange";
+      text = "ACT";
+      break;
+    default:
+      assertUnreachable(type);
+  }
+  return (
+    <Label color={labelColor} aria-label={type} title="type">
+      {text}
+    </Label>
+  );
+}
 
 export function DimensionPicker<T>(props: DimensionPickerProps<T>) {
   const { selectedDimension, dimensions, onChange, isLoading, ...restProps } =
@@ -44,7 +83,18 @@ export function DimensionPicker<T>(props: DimensionPickerProps<T>) {
       placeholder={isLoading ? "Loading..." : "Select a dimension"}
     >
       {dimensions.map((dimension) => (
-        <Item key={dimension.name}>{dimension.name}</Item>
+        <Item key={dimension.name}>
+          <div
+            css={css`
+              .ac-label {
+                margin-right: var(--px-spacing-med);
+              }
+            `}
+          >
+            <DimensionTypeLabel type={dimension.type} />
+            {dimension.name}
+          </div>
+        </Item>
       ))}
     </Picker>
   );

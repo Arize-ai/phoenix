@@ -24,7 +24,7 @@ import { ClusterInfo } from "./types";
 
 const RADIUS_BOUNDS_3D_DIVISOR = 400;
 const CLUSTER_POINT_RADIUS_MULTIPLIER = 6;
-const BOUNDS_3D_ZOOM_PADDING_FACTOR = 0.5;
+const BOUNDS_3D_ZOOM_PADDING_FACTOR = 0.2;
 
 export interface PointCloudProps {
   primaryData: ThreeDimensionalPointItem[];

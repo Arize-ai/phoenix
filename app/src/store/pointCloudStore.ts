@@ -34,12 +34,14 @@ const sequentialColorScale = interpolateCool;
 const discreteColorScaleCategories = schemeCategory10;
 const discreteColorScale = (value: number) =>
   discreteColorScaleCategories[value];
+const numericColorScale = (idx: number) =>
+  sequentialColorScale(idx / NUM_NUMERIC_GROUPS);
 
 type DimensionMetadata = {
   /**
    * The min and max values of a numeric  dimension
    */
-  readonly minMax: [number, number] | null;
+  readonly interval: Interval | null;
   /**
    * The unique values of a categorical dimension
    */
@@ -251,12 +253,13 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
 
       // Re-compute the point coloring once the granular data is loaded
       const pointData = await fetchPointEvents(points.map((p) => p.id));
+
       set({
         pointData,
         pointIdToGroup: getPointIdToGroup({
           points,
           coloringStrategy: pointCloudState.coloringStrategy,
-          pointsData: pointCloudState.pointData ?? {},
+          pointsData: pointData ?? {},
           dimension: pointCloudState.dimension || null,
           dimensionMetadata: pointCloudState.dimensionMetadata,
         }),
@@ -400,27 +403,16 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
             dimensionMetadata,
           }),
         });
-      } else if (dimensionMetadata.minMax !== null) {
+      } else if (dimensionMetadata.interval !== null) {
         // Create color groups based on the min / max of the dimension
-        const [min, max] = dimensionMetadata.minMax;
-        const range = max - min;
-        // Break the range into 10 groups
-        const groupSliceSize = range / NUM_NUMERIC_GROUPS;
-        const groups = Array.from(
-          { length: NUM_NUMERIC_GROUPS },
-          (_, i) =>
-            `${min + i * groupSliceSize} - ${min + (i + 1) * groupSliceSize}`
-        );
-
-        const colorScaleFn = (idx: number) =>
-          sequentialColorScale(idx / NUM_NUMERIC_GROUPS);
+        const groups = getNumericGroupsFromInterval(dimensionMetadata.interval);
 
         set({
           pointGroupVisibility: {
             ...groups.reduce(
               (acc, group) => ({
                 ...acc,
-                [group]: true,
+                [group.name]: true,
               }),
               {}
             ),
@@ -430,12 +422,19 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
             ...groups.reduce(
               (acc, group, idx) => ({
                 ...acc,
-                [group]: colorScaleFn(idx),
+                [group.name]: numericColorScale(idx),
               }),
               {}
             ),
             unknown: UNKNOWN_COLOR,
           },
+          pointIdToGroup: getPointIdToGroup({
+            points: pointCloudState.points,
+            coloringStrategy: pointCloudState.coloringStrategy,
+            pointsData: pointCloudState.pointData ?? {},
+            dimension,
+            dimensionMetadata,
+          }),
         });
       }
     },
@@ -444,6 +443,163 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
 
   return create<PointCloudState>()(devtools(pointCloudStore));
 };
+
+// ---- Helper functions ----
+/**
+ * A numeric number Interval. Includes the min, excludes the max.
+ * E.g. [min, max)
+ */
+interface Interval {
+  min: number;
+  max: number;
+}
+
+/**
+ * An interval that represents a group of numeric values
+ */
+interface NumericGroupInterval extends Interval {
+  name: string;
+}
+
+const numberFormatter = new Intl.NumberFormat([], {
+  maximumFractionDigits: 2,
+});
+/**
+ * A human readable string representation of an interval
+ */
+function intervalToString({ min, max }: Interval): string {
+  return `${numberFormatter.format(min)} - ${numberFormatter.format(max)}`;
+}
+
+/**
+ * Calculates the groups for numeric dimensions and splits it into interval groups
+ * E.x. [0, 10] => [0, 1], [1, 2], [2, 3], [3, 4], [4, 5], [5, 6], [6, 7], [7, 8], [8, 9], [9, 10]
+ */
+function getNumericGroupsFromInterval({
+  min,
+  max,
+}: Interval): NumericGroupInterval[] {
+  const range = max - min;
+  // Break the range into 10 groups
+  const groupSliceSize = range / NUM_NUMERIC_GROUPS;
+  const groups: NumericGroupInterval[] = [];
+  for (let i = 0; i < NUM_NUMERIC_GROUPS; i++) {
+    const groupMin = min + i * groupSliceSize;
+    const groupMax = min + (i + 1) * groupSliceSize;
+    groups.push({
+      min: groupMin,
+      max: groupMax,
+      name: intervalToString({ min: groupMin, max: groupMax }),
+    });
+  }
+  return groups;
+}
+
+/**
+ * Calculates the group mapping for each point
+ */
+function getPointIdToGroup(
+  params: GetPointIdToGroupParams
+): Record<string, string> {
+  const { points, coloringStrategy, pointsData, dimension, dimensionMetadata } =
+    params;
+  const pointIdToGroup: Record<string, string> = {};
+  const pointIds = points.map((point) => point.id);
+  switch (coloringStrategy) {
+    case ColoringStrategy.dataset: {
+      const { primaryPointIds, referencePointIds } =
+        splitPointIdsByDataset(pointIds);
+      primaryPointIds.forEach((pointId) => {
+        pointIdToGroup[pointId] = DatasetGroup.primary;
+      });
+      referencePointIds.forEach((pointId) => {
+        pointIdToGroup[pointId] = DatasetGroup.reference;
+      });
+      break;
+    }
+    case ColoringStrategy.correctness: {
+      points.forEach((point) => {
+        let group = CorrectnessGroup.unknown;
+
+        const { predictionLabel, actualLabel } = point.eventMetadata;
+        if (predictionLabel !== null && actualLabel !== null) {
+          group =
+            predictionLabel === actualLabel
+              ? CorrectnessGroup.correct
+              : CorrectnessGroup.incorrect;
+        }
+        pointIdToGroup[point.id] = group;
+      });
+      break;
+    }
+    case ColoringStrategy.dimension: {
+      let numericGroupIntervals: NumericGroupInterval[] | null;
+      if (dimensionMetadata && dimensionMetadata?.interval !== null) {
+        numericGroupIntervals = getNumericGroupsFromInterval(
+          dimensionMetadata.interval
+        );
+      }
+      const isColorByPredictionLabel =
+        dimension?.type === "prediction" &&
+        dimension?.dataType === "categorical";
+      const isColorByActualLabel =
+        dimension?.type === "actual" && dimension?.dataType === "categorical";
+
+      points.forEach((point) => {
+        let group = "unknown";
+        const pointData = pointsData[point.id];
+
+        // Flag to determine if we have enough data to color by dimension
+        const haveSufficientDataToColorByDimension =
+          dimension != null && pointData != null;
+
+        if (haveSufficientDataToColorByDimension) {
+          if (isColorByPredictionLabel) {
+            group = pointData.eventMetadata.predictionLabel ?? "unknown";
+          } else if (isColorByActualLabel) {
+            group = pointData.eventMetadata.actualLabel ?? "unknown";
+          } else {
+            // It is a feature or tag. Find the dimension value
+            const dimensionWithValue = pointData.dimensions.find(
+              (dimensionWithValue) =>
+                dimensionWithValue.dimension.name === dimension.name
+            );
+            if (
+              dimensionWithValue != null &&
+              dimension.dataType === "categorical"
+            ) {
+              // The group is just the categorical value
+              group = dimensionWithValue.value;
+            } else if (
+              dimensionWithValue != null &&
+              dimension.dataType === "numeric" &&
+              numericGroupIntervals != null
+            ) {
+              const numericValue = parseFloat(dimensionWithValue.value);
+              if (typeof numericValue === "number") {
+                let groupIndex = numericGroupIntervals.findIndex(
+                  (group) =>
+                    numericValue >= group.min && numericValue < group.max
+                );
+                // If we fail to find the index, it means it belongs to the last group
+                groupIndex =
+                  groupIndex === -1 ? NUM_NUMERIC_GROUPS - 1 : groupIndex;
+                group = numericGroupIntervals[groupIndex].name;
+              }
+            }
+          }
+        }
+
+        pointIdToGroup[point.id] = group;
+      });
+
+      break;
+    }
+    default:
+      assertUnreachable(coloringStrategy);
+  }
+  return pointIdToGroup;
+}
 
 // ---- Async data retrieval functions ---
 
@@ -486,15 +642,15 @@ async function fetchDimensionMetadata(
     throw new Error("Dimension not found");
   }
 
-  let minMax: [number, number] | null = null;
+  let interval: Interval | null = null;
   if (
     typeof dimensionData?.min === "number" &&
     typeof dimensionData?.max === "number"
   ) {
-    minMax = [dimensionData.min, dimensionData.max];
+    interval = { min: dimensionData.min, max: dimensionData.max };
   }
   return {
-    minMax,
+    interval,
     categories: dimensionData?.categories ?? null,
   };
 }
@@ -512,87 +668,6 @@ type GetPointIdToGroupParams = {
    */
   dimensionMetadata?: DimensionMetadata | null;
 };
-
-/**
- * Calculates the group mapping for each point
- */
-function getPointIdToGroup(
-  params: GetPointIdToGroupParams
-): Record<string, string> {
-  const { points, coloringStrategy, pointsData, dimension } = params;
-  const pointIdToGroup: Record<string, string> = {};
-  const pointIds = points.map((point) => point.id);
-  switch (coloringStrategy) {
-    case ColoringStrategy.dataset: {
-      const { primaryPointIds, referencePointIds } =
-        splitPointIdsByDataset(pointIds);
-      primaryPointIds.forEach((pointId) => {
-        pointIdToGroup[pointId] = DatasetGroup.primary;
-      });
-      referencePointIds.forEach((pointId) => {
-        pointIdToGroup[pointId] = DatasetGroup.reference;
-      });
-      break;
-    }
-    case ColoringStrategy.correctness: {
-      points.forEach((point) => {
-        let group = CorrectnessGroup.unknown;
-
-        const { predictionLabel, actualLabel } = point.eventMetadata;
-        if (predictionLabel !== null && actualLabel !== null) {
-          group =
-            predictionLabel === actualLabel
-              ? CorrectnessGroup.correct
-              : CorrectnessGroup.incorrect;
-        }
-        pointIdToGroup[point.id] = group;
-      });
-      break;
-    }
-    case ColoringStrategy.dimension: {
-      points.forEach((point) => {
-        const pointData = pointsData[point.id];
-        let group = "unknown";
-
-        if (dimension != null && pointData != null) {
-          if (
-            dimension.type === "prediction" &&
-            dimension.dataType === "categorical"
-          ) {
-            group = pointData.eventMetadata.predictionLabel ?? "unknown";
-          } else if (
-            dimension.type === "actual" &&
-            dimension.dataType === "categorical"
-          ) {
-            group = pointData.eventMetadata.actualLabel ?? "unknown";
-          } else {
-            // It is a feature or tag
-            const dimensionWithValue = pointData.dimensions.find(
-              (dimensionWithValue) =>
-                dimensionWithValue.dimension.name === dimension.name
-            );
-
-            if (
-              dimensionWithValue != null &&
-              dimension.dataType === "categorical"
-            ) {
-              group = dimensionWithValue.value;
-            }
-
-            // TODO perform numeric coloring
-          }
-        }
-
-        pointIdToGroup[point.id] = group;
-      });
-
-      break;
-    }
-    default:
-      assertUnreachable(coloringStrategy);
-  }
-  return pointIdToGroup;
-}
 
 async function fetchPointEvents(pointIds: string[]): Promise<PointDataMap> {
   const { primaryPointIds, referencePointIds } = splitPointIdsByDataset([
