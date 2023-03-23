@@ -1,6 +1,5 @@
 from collections import defaultdict
 from datetime import datetime, timedelta
-from itertools import chain
 from typing import Any, Optional
 
 import numpy as np
@@ -22,14 +21,19 @@ from phoenix.pointcloud.pointcloud import PointCloud
 from phoenix.pointcloud.projectors import Umap
 from phoenix.server.api.context import Context
 from phoenix.server.api.input_types.TimeRange import TimeRange
+from phoenix.server.api.types.VectorDriftMetricEnum import VectorDriftMetric
 
 from ..input_types.Granularity import Granularity
 from .DataQualityMetric import DataQualityMetric
-from .DriftMetric import DriftMetric
 from .EmbeddingMetadata import EmbeddingMetadata
 from .EventMetadata import EventMetadata
 from .node import Node
-from .TimeSeries import DataQualityTimeSeries, DriftTimeSeries
+from .TimeSeries import (
+    DataQualityTimeSeries,
+    DriftTimeSeries,
+    get_data_quality_timeseries_data,
+    get_drift_timeseries_data,
+)
 from .UMAPPoints import UMAPPoint, UMAPPoints, to_gql_clusters, to_gql_coordinates
 
 # Default UMAP hyperparameters
@@ -48,27 +52,34 @@ class EmbeddingDimension(Node):
 
     name: str
 
-    @strawberry.field
+    @strawberry.field(
+        description=(
+            """
+            Computes a drift metric between all reference data and the primary data
+            belonging to the input time range (inclusive of the time range start and
+            exclusive of the time range end). Returns None if no reference dataset
+            exists, if no primary data exists in the input time range, or if the
+            input time range is invalid.
+            """
+        )
+    )  # type: ignore  # https://github.com/strawberry-graphql/strawberry/issues/1929
     def drift_metric(
         self,
         info: Info[Context, None],
-        metric: DriftMetric,
+        metric: VectorDriftMetric,
         time_range: Optional[TimeRange] = None,
     ) -> Optional[float]:
-        """
-        Computes a drift metric between all reference data and the primary data
-        belonging to the input time range (inclusive of the time range start and
-        exclusive of the time range end). Returns None if no reference dataset
-        exists, if no primary data exists in the input time range, or if the
-        input time range is invalid.
-        """
+        if info.context.model.reference_dataset is None:
+            return None
+        dataset = info.context.model.primary_dataset
+        vector_column = dataset.get_embedding_vector_column(self.name)
         if len(
-            data := DriftTimeSeries(
-                str(info.context.model.primary_dataset.get_embedding_vector_column(self.name).name),
+            data := get_drift_timeseries_data(
+                str(vector_column.name),
                 info.context.model,
                 metric,
                 time_range,
-            ).data
+            )
         ):
             return data.pop().value
         return None
@@ -88,39 +99,52 @@ class EmbeddingDimension(Node):
         time_range: TimeRange,
         granularity: Granularity,
     ) -> DataQualityTimeSeries:
+        dataset = info.context.model.primary_dataset
+        vector_column = dataset.get_embedding_vector_column(self.name)
         return DataQualityTimeSeries(
-            str(info.context.model.primary_dataset.get_embedding_vector_column(self.name).name),
-            info.context.model,
-            metric,
-            time_range,
-            granularity,
+            data=get_data_quality_timeseries_data(
+                str(vector_column.name),
+                info.context.model,
+                metric,
+                time_range,
+                granularity,
+            )
         )
 
-    @strawberry.field
+    @strawberry.field(
+        description=(
+            """
+            Computes a drift time-series between the primary and reference datasets.
+            The output drift time-series contains one data point for each whole hour
+            in the input time range (inclusive of the time range start and exclusive
+            of the time range end). Each data point contains the drift metric value
+            between all reference data and the primary data within the evaluation
+            window ending at the corresponding time.
+
+            Returns None if no reference dataset exists or if the input time range
+            is invalid.
+            """
+        )
+    )  # type: ignore  # https://github.com/strawberry-graphql/strawberry/issues/1929
     def drift_time_series(
         self,
         info: Info[Context, None],
-        metric: DriftMetric,
+        metric: VectorDriftMetric,
         time_range: TimeRange,
         granularity: Granularity,
     ) -> DriftTimeSeries:
-        """
-        Computes a drift time-series between the primary and reference datasets.
-        The output drift time-series contains one data point for each whole hour
-        in the input time range (inclusive of the time range start and exclusive
-        of the time range end). Each data point contains the drift metric value
-        between all reference data and the primary data within the evaluation
-        window ending at the corresponding time.
-
-        Returns None if no reference dataset exists or if the input time range
-        is invalid.
-        """
+        if info.context.model.reference_dataset is None:
+            return DriftTimeSeries(data=[])
+        dataset = info.context.model.primary_dataset
+        vector_column = dataset.get_embedding_vector_column(self.name)
         return DriftTimeSeries(
-            str(info.context.model.primary_dataset.get_embedding_vector_column(self.name).name),
-            info.context.model,
-            metric,
-            time_range,
-            granularity,
+            data=get_drift_timeseries_data(
+                str(vector_column.name),
+                info.context.model,
+                metric,
+                time_range,
+                granularity,
+            )
         )
 
     @strawberry.field
@@ -165,34 +189,23 @@ class EmbeddingDimension(Node):
             DatasetType.REFERENCE: info.context.model.reference_dataset,
         }
 
-        data = dict(
-            chain.from_iterable(
-                (
-                    ()
-                    if dataset is None
-                    else (
-                        (
-                            EventId(row_id, dataset_id),
-                            dataset.get_embedding_vector_column(self.name).iloc[row_id],
-                        )
-                        for row_id in (
-                            range(
-                                *(
-                                    row_interval_from_sorted_time_index(
-                                        dataset.dataframe.index,
-                                        start=time_range.start,
-                                        end=time_range.end,
-                                    )
-                                    if dataset_id == DatasetType.PRIMARY
-                                    else (len(dataset.dataframe),)
-                                )
-                            )
-                        )[:n_samples]
-                    )
+        data = {}
+        for dataset_id, dataset in datasets.items():
+            if dataset is None:
+                continue
+            dataframe = dataset.dataframe
+            row_id_start, row_id_stop = 0, len(dataframe)
+            if dataset_id == DatasetType.PRIMARY:
+                row_id_start, row_id_stop = row_interval_from_sorted_time_index(
+                    dataframe.index,
+                    start=time_range.start,
+                    end=time_range.end,
                 )
-                for dataset_id, dataset in datasets.items()
-            )
-        )
+            vector_column = dataset.get_embedding_vector_column(self.name)
+            for row_id in range(row_id_start, row_id_stop)[:n_samples]:
+                embedding_vector = vector_column.iloc[row_id]
+                event_id = EventId(row_id, dataset_id)
+                data[event_id] = embedding_vector
 
         # validate n_components to be 2 or 3
         n_components = DEFAULT_N_COMPONENTS if n_components is None else n_components
@@ -215,12 +228,18 @@ class EmbeddingDimension(Node):
             if dataset is None:
                 continue
 
+            prediction_id = None
             prediction_label = None
             prediction_score = None
             actual_label = None
             actual_score = None
             link_to_data = None
             raw_data = None
+
+            try:
+                prediction_id = dataset.get_prediction_id_column()[row_id]
+            except SchemaError:
+                pass
 
             try:
                 prediction_label = dataset.get_prediction_label_column()[row_id]
@@ -261,6 +280,7 @@ class EmbeddingDimension(Node):
                         actual_score=actual_score,
                     ),
                     embedding_metadata=EmbeddingMetadata(
+                        prediction_id=prediction_id,
                         link_to_data=link_to_data,
                         raw_data=raw_data,
                     ),

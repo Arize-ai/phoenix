@@ -125,9 +125,18 @@ const EmbeddingUMAPQuery = graphql`
 `;
 
 export function Embedding() {
+  const { referenceDataset } = useDatasets();
+  // Initialize the store based on whether or not there is a reference dataset
+  const defaultPointCloudProps = useMemo(() => {
+    return referenceDataset != null
+      ? DEFAULT_DRIFT_POINT_CLOUD_PROPS
+      : DEFAULT_SINGLE_DATASET_POINT_CLOUD_PROPS;
+  }, [referenceDataset]);
   return (
     <TimeSliceContextProvider>
-      <EmbeddingMain />
+      <PointCloudProvider {...defaultPointCloudProps}>
+        <EmbeddingMain />
+      </PointCloudProvider>
     </TimeSliceContextProvider>
   );
 }
@@ -135,6 +144,7 @@ export function Embedding() {
 function EmbeddingMain() {
   const embeddingDimensionId = useEmbeddingDimensionId();
   const { primaryDataset, referenceDataset } = useDatasets();
+  const resetPointCloudContext = usePointCloudContext((state) => state.reset);
   const [showDriftChart, setShowDriftChart] = useState<boolean>(true);
   const [queryReference, loadQuery] =
     useQueryLoader<UMAPQueryType>(EmbeddingUMAPQuery);
@@ -152,6 +162,8 @@ function EmbeddingMain() {
 
   // Load the query on first render
   useEffect(() => {
+    // dispose of the selections in the context
+    resetPointCloudContext();
     loadQuery(
       {
         id: embeddingDimensionId,
@@ -161,83 +173,74 @@ function EmbeddingMain() {
         fetchPolicy: "network-only",
       }
     );
-  }, [embeddingDimensionId, loadQuery, timeRange]);
-
-  // Initialize the store based on whether or not there is a reference dataset
-  const defaultPointCloudProps = useMemo(() => {
-    return referenceDataset != null
-      ? DEFAULT_DRIFT_POINT_CLOUD_PROPS
-      : DEFAULT_SINGLE_DATASET_POINT_CLOUD_PROPS;
-  }, [referenceDataset]);
+  }, [resetPointCloudContext, embeddingDimensionId, loadQuery, timeRange]);
 
   return (
-    <PointCloudProvider {...defaultPointCloudProps}>
-      <main
-        css={(theme) => css`
-          flex: 1 1 auto;
-          display: flex;
-          flex-direction: column;
-          overflow: hidden;
-          background-color: ${theme.colors.gray900};
-        `}
-      >
-        <Toolbar
-          extra={
-            referenceDataset ? (
-              <Switch
-                onChange={(isSelected) => {
-                  setShowDriftChart(isSelected);
-                }}
-                defaultSelected={true}
-                labelPlacement="start"
-              >
-                Show Drift Chart
-              </Switch>
-            ) : null
-          }
-        >
-          <PrimaryDatasetTimeRange />
-          {referenceDataset ? (
-            <ReferenceDatasetTimeRange
-              datasetType="reference"
-              timeRange={{
-                start: new Date(referenceDataset.startTime),
-                end: new Date(referenceDataset.endTime),
+    <main
+      css={(theme) => css`
+        flex: 1 1 auto;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        background-color: ${theme.colors.gray900};
+      `}
+    >
+      <Toolbar
+        extra={
+          referenceDataset ? (
+            <Switch
+              onChange={(isSelected) => {
+                setShowDriftChart(isSelected);
               }}
-            />
-          ) : null}
-        </Toolbar>
-        <PanelGroup direction="vertical">
-          {referenceDataset && showDriftChart ? (
-            <>
-              <Panel defaultSize={15} collapsible order={1}>
-                <Suspense fallback={<Loading />}>
-                  <EuclideanDistanceTimeSeries
-                    embeddingDimensionId={embeddingDimensionId}
-                  />
-                </Suspense>
-              </Panel>
-              <PanelResizeHandle css={resizeHandleCSS} />
-            </>
-          ) : null}
-          <Panel order={2}>
-            <div
-              css={css`
-                width: 100%;
-                height: 100%;
-                position: relative;
-              `}
+              defaultSelected={true}
+              labelPlacement="start"
             >
-              <Suspense fallback={<LoadingMask />}>
-                {queryReference ? (
-                  <PointCloudDisplay queryReference={queryReference} />
-                ) : null}
+              Show Drift Chart
+            </Switch>
+          ) : null
+        }
+      >
+        <PrimaryDatasetTimeRange />
+        {referenceDataset ? (
+          <ReferenceDatasetTimeRange
+            datasetType="reference"
+            timeRange={{
+              start: new Date(referenceDataset.startTime),
+              end: new Date(referenceDataset.endTime),
+            }}
+          />
+        ) : null}
+      </Toolbar>
+      <PanelGroup direction="vertical">
+        {referenceDataset && showDriftChart ? (
+          <>
+            <Panel defaultSize={15} collapsible order={1}>
+              <Suspense fallback={<Loading />}>
+                <EuclideanDistanceTimeSeries
+                  embeddingDimensionId={embeddingDimensionId}
+                />
               </Suspense>
-            </div>
-          </Panel>
-        </PanelGroup>
-      </main>
-    </PointCloudProvider>
+            </Panel>
+            <PanelResizeHandle css={resizeHandleCSS} />
+          </>
+        ) : null}
+        <Panel order={2}>
+          <div
+            css={css`
+              width: 100%;
+              height: 100%;
+              position: relative;
+            `}
+          >
+            <Suspense fallback={<LoadingMask />}>
+              {queryReference ? (
+                <PointCloudDisplay queryReference={queryReference} />
+              ) : null}
+            </Suspense>
+          </div>
+        </Panel>
+      </PanelGroup>
+    </main>
   );
 }
 
@@ -320,6 +323,12 @@ const PointCloudDisplay = ({
     });
     return map;
   }, [allSourceData]);
+
+  // Keep the data in the view in-sync with the data in the context
+  const setPoints = usePointCloudContext((state) => state.setPoints);
+  useEffect(() => {
+    setPoints(allSourceData);
+  }, [allSourceData, setPoints]);
 
   return (
     <div

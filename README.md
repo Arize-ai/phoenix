@@ -1,6 +1,6 @@
 <p align="center">
     <a target="_blank" href="https://arize.com" style="background:none">
-        <img alt="phoenix logo" src="./assets/phoenix-logo-light.svg" width="auto" height="200"></img>
+        <img alt="phoenix logo" src="https://github.com/Arize-ai/phoenix/blob/main/assets/phoenix-logo-light.svg" width="auto" height="200"></img>
     </a>
     <br/>
     <br/>

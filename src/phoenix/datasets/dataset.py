@@ -1,6 +1,5 @@
 import logging
 import os
-import sys
 import uuid
 from copy import deepcopy
 from dataclasses import fields, replace
@@ -27,12 +26,6 @@ from .schema import (
 from .validation import validate_dataset_inputs
 
 logger = logging.getLogger(__name__)
-if hasattr(sys, "ps1"):
-    # for python interactive mode
-    log_handler = logging.StreamHandler(sys.stdout)
-    log_handler.setLevel(logging.INFO)
-    logger.addHandler(log_handler)
-    logger.setLevel(logging.INFO)
 
 
 class Dataset:
@@ -53,8 +46,8 @@ class Dataset:
 
     Returns
     -------
-    dataset : Session
-        The session object that can be used to view the application
+    dataset : Dataset
+        The dataset object that can be used in a phoenix session
 
     Examples
     --------
@@ -148,6 +141,13 @@ class Dataset:
     def sample(self, num: int) -> "Dataset":
         sampled_dataframe = self.dataframe.sample(n=num, ignore_index=True)
         return Dataset(sampled_dataframe, self.schema, f"""{self.name}_sample_{num}""")
+
+    def get_prediction_id_column(
+        self,
+    ) -> "Series[str]":
+        if self.schema.prediction_id_column_name is None:
+            raise err.SchemaError(err.MissingField("prediction_id_column_name"))
+        return self.dataframe[self.schema.prediction_id_column_name]
 
     def get_prediction_label_column(
         self,
@@ -244,7 +244,12 @@ class Dataset:
         if not os.path.isdir(directory):
             os.makedirs(directory)
 
-        self.dataframe.to_parquet(os.path.join(directory, self._data_file_name))
+        self.dataframe.to_parquet(
+            os.path.join(directory, self._data_file_name),
+            allow_truncated_timestamps=True,
+            coerce_timestamps="ms",
+        )
+
         schema_json_data = self.schema.to_json()
         with open(os.path.join(directory, self._schema_file_name), "w+") as schema_file:
             schema_file.write(schema_json_data)

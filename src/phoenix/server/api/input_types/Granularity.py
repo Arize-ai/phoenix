@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 from itertools import accumulate, repeat, takewhile
-from typing import Generator
+from typing import Iterator
 
 import strawberry
 
@@ -38,16 +38,19 @@ class Granularity:
 
 
 def to_timestamps(
-    time_range: TimeRange, granularity: Granularity
-) -> Generator[datetime, None, None]:
+    time_range: TimeRange,
+    granularity: Granularity,
+) -> Iterator[datetime]:
     if not granularity.sampling_interval_minutes:
         return
-    yield from (
-        takewhile(
-            lambda t: time_range.start < t,  # type: ignore
-            accumulate(
-                repeat(-timedelta(minutes=granularity.sampling_interval_minutes)),
-                initial=time_range.end,
+    yield from takewhile(
+        lambda t: time_range.start < t,  # type: ignore
+        accumulate(
+            repeat(
+                -timedelta(
+                    minutes=granularity.sampling_interval_minutes,
+                )
             ),
-        )
+            initial=time_range.end,
+        ),
     )

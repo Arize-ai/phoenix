@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<e226f5a2e0026d2874b93e90fa1eb4a0>>
+ * @generated SignedSource<<8ff06300b7ab497c3e9147f837c24fe7>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -204,6 +204,58 @@ return {
                         "kind": "ScalarField",
                         "name": "dataQualityMetric",
                         "storageKey": "dataQualityMetric(metric:\"percentEmpty\")"
+                      },
+                      {
+                        "alias": "min",
+                        "args": [
+                          {
+                            "kind": "Literal",
+                            "name": "metric",
+                            "value": "min"
+                          }
+                        ],
+                        "kind": "ScalarField",
+                        "name": "dataQualityMetric",
+                        "storageKey": "dataQualityMetric(metric:\"min\")"
+                      },
+                      {
+                        "alias": "mean",
+                        "args": [
+                          {
+                            "kind": "Literal",
+                            "name": "metric",
+                            "value": "mean"
+                          }
+                        ],
+                        "kind": "ScalarField",
+                        "name": "dataQualityMetric",
+                        "storageKey": "dataQualityMetric(metric:\"mean\")"
+                      },
+                      {
+                        "alias": "max",
+                        "args": [
+                          {
+                            "kind": "Literal",
+                            "name": "metric",
+                            "value": "max"
+                          }
+                        ],
+                        "kind": "ScalarField",
+                        "name": "dataQualityMetric",
+                        "storageKey": "dataQualityMetric(metric:\"max\")"
+                      },
+                      {
+                        "alias": "psi",
+                        "args": [
+                          {
+                            "kind": "Literal",
+                            "name": "metric",
+                            "value": "psi"
+                          }
+                        ],
+                        "kind": "ScalarField",
+                        "name": "driftMetric",
+                        "storageKey": "driftMetric(metric:\"psi\")"
                       }
                     ],
                     "storageKey": null
@@ -332,12 +384,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "550602008784a6e84146412924f9b417",
+    "cacheID": "8d9e575414b81758ceaa7e13fa05e700",
     "id": null,
     "metadata": {},
     "name": "HomeQuery",
     "operationKind": "query",
-    "text": "query HomeQuery(\n  $startTime: DateTime!\n  $endTime: DateTime!\n) {\n  ...ModelSchemaTable_dimensions\n  ...ModelEmbeddingsTable_embeddingDimensions_3uKjWt\n}\n\nfragment ModelEmbeddingsTable_embeddingDimensions_3uKjWt on Query {\n  model {\n    embeddingDimensions(first: 50) {\n      edges {\n        embedding: node {\n          id\n          name\n          euclideanDistance: driftMetric(metric: euclideanDistance, timeRange: {start: $startTime, end: $endTime})\n        }\n        cursor\n        node {\n          __typename\n        }\n      }\n      pageInfo {\n        endCursor\n        hasNextPage\n      }\n    }\n  }\n}\n\nfragment ModelSchemaTable_dimensions on Query {\n  model {\n    dimensions(first: 50) {\n      edges {\n        dimension: node {\n          name\n          type\n          dataType\n          cardinality: dataQualityMetric(metric: cardinality)\n          percentEmpty: dataQualityMetric(metric: percentEmpty)\n        }\n        cursor\n        node {\n          __typename\n        }\n      }\n      pageInfo {\n        endCursor\n        hasNextPage\n      }\n    }\n  }\n}\n"
+    "text": "query HomeQuery(\n  $startTime: DateTime!\n  $endTime: DateTime!\n) {\n  ...ModelSchemaTable_dimensions\n  ...ModelEmbeddingsTable_embeddingDimensions_3uKjWt\n}\n\nfragment ModelEmbeddingsTable_embeddingDimensions_3uKjWt on Query {\n  model {\n    embeddingDimensions(first: 50) {\n      edges {\n        embedding: node {\n          id\n          name\n          euclideanDistance: driftMetric(metric: euclideanDistance, timeRange: {start: $startTime, end: $endTime})\n        }\n        cursor\n        node {\n          __typename\n        }\n      }\n      pageInfo {\n        endCursor\n        hasNextPage\n      }\n    }\n  }\n}\n\nfragment ModelSchemaTable_dimensions on Query {\n  model {\n    dimensions(first: 50) {\n      edges {\n        dimension: node {\n          name\n          type\n          dataType\n          cardinality: dataQualityMetric(metric: cardinality)\n          percentEmpty: dataQualityMetric(metric: percentEmpty)\n          min: dataQualityMetric(metric: min)\n          mean: dataQualityMetric(metric: mean)\n          max: dataQualityMetric(metric: max)\n          psi: driftMetric(metric: psi)\n        }\n        cursor\n        node {\n          __typename\n        }\n      }\n      pageInfo {\n        endCursor\n        hasNextPage\n      }\n    }\n  }\n}\n"
   }
 };
 })();

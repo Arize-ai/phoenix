@@ -1,11 +1,14 @@
 import React, { ChangeEvent, useCallback, useMemo } from "react";
 import { css } from "@emotion/react";
 
+import {
+  DEFAULT_COLOR_SCHEME,
+  FALLBACK_COLOR,
+} from "@phoenix/constants/pointCloudConstants";
+import { ColoringStrategy } from "@phoenix/constants/pointCloudConstants";
 import { usePointCloudContext } from "@phoenix/contexts";
-import { ColoringStrategy } from "@phoenix/types";
 import { assertUnreachable } from "@phoenix/typeUtils";
 
-import { DEFAULT_COLOR_SCHEME, FALLBACK_COLOR } from "./constants";
 import { Shape } from "./ShapeIcon";
 import { VisibilityCheckboxField } from "./VisibilityCheckboxField";
 
@@ -36,6 +39,7 @@ export function DatasetVisibilitySettings() {
       case ColoringStrategy.dataset:
         return DEFAULT_COLOR_SCHEME[0];
       case ColoringStrategy.correctness:
+      case ColoringStrategy.dimension:
         return FALLBACK_COLOR;
       default:
         assertUnreachable(coloringStrategy);
@@ -47,6 +51,7 @@ export function DatasetVisibilitySettings() {
       case ColoringStrategy.dataset:
         return DEFAULT_COLOR_SCHEME[1];
       case ColoringStrategy.correctness:
+      case ColoringStrategy.dimension:
         return FALLBACK_COLOR;
       default:
         assertUnreachable(coloringStrategy);

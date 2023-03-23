@@ -4,6 +4,7 @@ import { css } from "@emotion/react";
 
 import { Accordion, AccordionItem } from "@arizeai/components";
 
+import { Empty } from "@phoenix/components/Empty";
 import { tableCSS } from "@phoenix/components/table/styles";
 
 import { ModelEvent } from "./types";
@@ -110,6 +111,9 @@ export function EventDetails({ event }: { event: ModelEvent }) {
   );
 }
 
+/**
+ * A row of data to show in the table
+ */
 type DimensionRow = {
   name: string;
   type: string;
@@ -167,22 +171,47 @@ function EmbeddingDimensionsTable({
           </tr>
         ))}
       </thead>
-      <tbody {...getTableBodyProps()}>
-        {rows.map((row, idx) => {
-          prepareRow(row);
-          return (
-            <tr {...row.getRowProps()} key={idx}>
-              {row.cells.map((cell, idx) => {
-                return (
-                  <td {...cell.getCellProps()} key={idx}>
-                    {cell.render("Cell")}
-                  </td>
-                );
-              })}
-            </tr>
-          );
-        })}
-      </tbody>
+      {rows.length ? (
+        <tbody {...getTableBodyProps()}>
+          {rows.map((row, idx) => {
+            prepareRow(row);
+            return (
+              <tr {...row.getRowProps()} key={idx}>
+                {row.cells.map((cell, idx) => {
+                  return (
+                    <td {...cell.getCellProps()} key={idx}>
+                      {cell.render("Cell")}
+                    </td>
+                  );
+                })}
+              </tr>
+            );
+          })}
+        </tbody>
+      ) : (
+        <TableEmpty />
+      )}
     </table>
+  );
+}
+
+function TableEmpty() {
+  return (
+    <tbody className="is-empty">
+      <tr>
+        <td
+          colSpan={100}
+          css={(theme) => css`
+            text-align: center;
+            padding: ${theme.spacing.margin24}px ${theme.spacing.margin24}px !important;
+          `}
+        >
+          <Empty
+            graphicKey="documents"
+            message="This embedding has no associated dimensions"
+          />
+        </td>
+      </tr>
+    </tbody>
   );
 }

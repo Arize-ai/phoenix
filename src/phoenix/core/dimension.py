@@ -22,6 +22,6 @@ class Dimension:
             return []
         return sorted(
             value
-            for value in set(chain.from_iterable(series.unique() for series in self.data()))
+            for value in set(chain.from_iterable(data.unique() for data in self.data()))
             if isinstance(value, str)
         )

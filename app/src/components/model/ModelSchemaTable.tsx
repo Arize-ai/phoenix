@@ -29,6 +29,10 @@ export function ModelSchemaTable(props: ModelSchemaTableProps) {
                 dataType
                 cardinality: dataQualityMetric(metric: cardinality)
                 percentEmpty: dataQualityMetric(metric: percentEmpty)
+                min: dataQualityMetric(metric: min)
+                mean: dataQualityMetric(metric: mean)
+                max: dataQualityMetric(metric: max)
+                psi: driftMetric(metric: psi)
               }
             }
           }
@@ -52,37 +56,41 @@ export function ModelSchemaTable(props: ModelSchemaTableProps) {
   const columns = React.useMemo(() => {
     const cols: Column<typeof tableData[number]>[] = [
       {
-        Header: "Name",
+        Header: "name",
         accessor: "name",
       },
       {
-        Header: "Type",
+        Header: "type",
         accessor: "type",
       },
       {
-        Header: "Data Type",
+        Header: "data type",
         accessor: "dataType",
       },
       {
-        Header: "Cardinality",
+        Header: "cardinality",
         accessor: "cardinality",
       },
       {
-        Header: "Percent Empty",
+        Header: "% empty",
         accessor: "percentEmpty",
       },
-      // {
-      //   Header: "Min",
-      //   accessor: "min",
-      // },
-      // {
-      //   Header: "Mean",
-      //   accessor: "mean",
-      // },
-      // {
-      //   Header: "Max",
-      //   accessor: "max",
-      // },
+      {
+        Header: "min",
+        accessor: "min",
+      },
+      {
+        Header: "mean",
+        accessor: "mean",
+      },
+      {
+        Header: "max",
+        accessor: "max",
+      },
+      {
+        Header: "psi",
+        accessor: "psi",
+      },
     ];
     return cols;
   }, []);

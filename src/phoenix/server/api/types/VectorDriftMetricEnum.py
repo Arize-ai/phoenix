@@ -4,5 +4,5 @@ import strawberry
 
 
 @strawberry.enum
-class DriftMetric(Enum):
+class VectorDriftMetric(Enum):
     euclideanDistance = "EuclideanDistance"

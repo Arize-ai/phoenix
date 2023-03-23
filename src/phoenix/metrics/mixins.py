@@ -4,15 +4,23 @@ BaseMetric. Other mixins provide specialized functionalities. Mixins rely
 on cooperative multiple inheritance and method resolution order in Python.
 """
 from abc import ABC, abstractmethod
-from typing import Any, Mapping, Optional, Tuple
+from dataclasses import dataclass
+from functools import cached_property
+from typing import Any, List, Mapping, Optional
 
 import numpy as np
 import pandas as pd
 from typing_extensions import TypeAlias
 
-ColumnName: TypeAlias = str
+from phoenix.metrics.binning import (
+    AdditiveSmoothing,
+    BinningMethod,
+    CategoricalBinning,
+    Normalizer,
+)
 
 
+@dataclass
 class ZeroInitialValue(ABC):
     def initial_value(self) -> Any:
         if isinstance(self, VectorOperator):
@@ -20,80 +28,168 @@ class ZeroInitialValue(ABC):
         return 0
 
 
+@dataclass
 class VectorOperator(ABC):
-    shape: int
-
-    def __init__(self, shape: int = 0, **kwargs: Any):
-        self.shape = shape
-        super().__init__(**kwargs)
+    shape: int = 0
 
 
+def _get_column_from_dataframe(
+    name: str,
+    dataframe: Optional[pd.DataFrame] = None,
+) -> "pd.Series[Any]":
+    if name and isinstance(dataframe, pd.DataFrame) and name in dataframe.columns:
+        return dataframe.loc[:, name]
+    return pd.Series(dtype=object)
+
+
+@dataclass
 class UnaryOperator(ABC):
     """
     A unary operator is a function with one operand or argument as input.
     See https://en.wikipedia.org/wiki/Arity
     """
 
-    operand: ColumnName
+    operand_column_name: str = ""
 
-    def __init__(self, column_name: ColumnName, **kwargs: Any):
-        self.operand = column_name
-        super().__init__(**kwargs)
+    def get_operand_column(
+        self,
+        dataframe: Optional[pd.DataFrame] = None,
+    ) -> "pd.Series[Any]":
+        return _get_column_from_dataframe(
+            self.operand_column_name,
+            dataframe,
+        )
 
-    def input_columns(self) -> Tuple[ColumnName, ...]:
-        return (self.operand,) if self.operand else ()
+    def input_column_names(self) -> List[str]:
+        column_names = [self.operand_column_name]
+        return list(filter(len, column_names))
 
 
-class OptionalUnaryOperator(UnaryOperator):
-    def __init__(self, column_name: Optional[ColumnName] = None, **kwargs: Any):
-        super().__init__(column_name or "", **kwargs)
-
-
+@dataclass
 class BaseMetric(ABC):
-    id: int
-    """
-    id is a unique identifier for each metric instance. This is used to extract
-    the metric's own value from a collective output containing results from
-    other metrics.
-    """
-
-    def __init__(self, **kwargs: Any) -> None:
-        self.id = id(self)
-        super().__init__(**kwargs)
+    def id(self) -> int:
+        """
+        id is a unique identifier for each metric instance. This is used to
+        extract the metric's own value from a collective output containing
+        results from other metrics.
+        """
+        return id(self)
 
     def initial_value(self) -> Any:
         return float("nan")
 
     def get_value(self, result: Mapping[int, Any]) -> Any:
         try:
-            return result[self.id]
+            return result[self.id()]
         except KeyError:
             return self.initial_value()
 
     @abstractmethod
-    def calc(self, df: pd.DataFrame) -> Any:
+    def calc(self, dataframe: pd.DataFrame) -> Any:
         ...
 
-    def __call__(self, df: pd.DataFrame) -> Tuple[int, Any]:
-        return (self.id, self.calc(df))
+    def __call__(self, dataframe: pd.DataFrame) -> Any:
+        return self.calc(dataframe)
 
 
+@dataclass
 class EvaluationMetric(BaseMetric, ABC):
-    predicted: ColumnName
-    actual: ColumnName
+    predicted_column_name: str
+    actual_column_name: str
 
-    def __init__(self, predicted: ColumnName, actual: ColumnName, **kwargs: Any):
-        self.predicted = predicted
-        self.actual = actual
-        super().__init__(**kwargs)
+    def get_predicted_column(
+        self,
+        dataframe: Optional[pd.DataFrame] = None,
+    ) -> "pd.Series[Any]":
+        return _get_column_from_dataframe(
+            self.predicted_column_name,
+            dataframe,
+        )
 
-    def input_columns(self) -> Tuple[ColumnName, ...]:
-        return (self.predicted, self.actual)
+    def get_actual_column(
+        self,
+        dataframe: Optional[pd.DataFrame] = None,
+    ) -> "pd.Series[Any]":
+        return _get_column_from_dataframe(
+            self.actual_column_name,
+            dataframe,
+        )
+
+    def input_column_names(self) -> List[str]:
+        column_names = [
+            self.predicted_column_name,
+            self.actual_column_name,
+        ]
+        return list(filter(len, column_names))
 
 
+@dataclass
 class DriftOperator(UnaryOperator, BaseMetric, ABC):
-    reference_data: Optional[pd.DataFrame]
+    reference_data: Optional[pd.DataFrame] = None
 
-    def __init__(self, reference_data: Optional[pd.DataFrame] = None, **kwargs: Any):
-        self.reference_data = reference_data
-        super().__init__(**kwargs)
+
+Distribution: TypeAlias = "pd.Series[float]"
+Histogram: TypeAlias = "pd.Series[int]"
+
+
+@dataclass
+class Discretizer(ABC):
+    """Ways to construct histograms from data. Numeric data are commonly
+    grouped into intervals while discrete data are grouped into categories.
+    This procedure is referred to as binning. Once binned, counts/frequencies
+    are tabulated by group to create a histogram.
+    """
+
+    binning_method: BinningMethod = CategoricalBinning()
+
+    def histogram(self, data: "pd.Series[Any]") -> Histogram:
+        return self.binning_method.histogram(data)
+
+
+@dataclass
+class DiscreteDivergence(Discretizer, DriftOperator):
+    """See https://en.wikipedia.org/wiki/Divergence_(statistics%29"""
+
+    normalize: Normalizer = AdditiveSmoothing(pseudocount=1)
+    """Converts frequencies to probabilities (i.e. normalized to 1)."""
+
+    @abstractmethod
+    def divergence(self, pk: Distribution, qk: Distribution) -> float:
+        """
+        Parameters
+        ----------
+        pk: series, shape = (d_categories,)
+            (discrete) distribution of primary data
+        qk: series, shape = (d_categories,)
+            (discrete) distribution of reference data,
+            a.k.a. the prior distribution
+
+        Returns
+        -------
+        divergence: float
+            divergence of pk over qk
+        """
+
+    @cached_property
+    def reference_histogram(self) -> Histogram:
+        data = self.get_operand_column(self.reference_data)
+        return self.histogram(data).rename("reference_histogram")
+
+    def calc(self, dataframe: pd.DataFrame) -> float:
+        data = self.get_operand_column(dataframe)
+        # outer-join histograms and fill in zeros for missing categories
+        merged_counts = pd.merge(
+            self.histogram(data).rename("primary_histogram"),
+            self.reference_histogram,
+            left_index=True,
+            right_index=True,
+            how="outer",
+        ).fillna(0)
+        # remove rows with all zeros
+        merged_counts = merged_counts.loc[(merged_counts > 0).any(axis=1)]  # type: ignore
+        primary_histogram = merged_counts.primary_histogram
+        reference_histogram = merged_counts.reference_histogram
+        return self.divergence(
+            self.normalize(primary_histogram),
+            self.normalize(reference_histogram),
+        )

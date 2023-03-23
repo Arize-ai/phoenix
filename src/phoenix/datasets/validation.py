@@ -1,3 +1,4 @@
+import math
 from typing import List
 
 import numpy as np
@@ -59,9 +60,8 @@ def _check_valid_embedding_data(dataframe: DataFrame, schema: Schema) -> List[er
         vector_column = dataframe[column_names.vector_column_name]
 
         for vector in vector_column:
-            # None is a valid entry and represents the fact that the embedding feature
-            # is missing/empty, so skip.
-            if vector is None:
+            vector_is_missing = vector is None or (isinstance(vector, float) and math.isnan(vector))
+            if vector_is_missing:
                 continue
 
             # Fail if vector is not of supported iterable type
