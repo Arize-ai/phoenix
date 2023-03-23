@@ -1,6 +1,5 @@
 import logging
 import os
-import sys
 import uuid
 from copy import deepcopy
 from dataclasses import fields, replace
@@ -27,12 +26,6 @@ from .schema import (
 from .validation import validate_dataset_inputs
 
 logger = logging.getLogger(__name__)
-if hasattr(sys, "ps1"):
-    # for python interactive mode
-    log_handler = logging.StreamHandler(sys.stdout)
-    log_handler.setLevel(logging.INFO)
-    logger.addHandler(log_handler)
-    logger.setLevel(logging.INFO)
 
 
 class Dataset:
