@@ -8,30 +8,31 @@
 * [ML Observability](concepts/ml-observability.md)
 * [Embeddings](concepts/embeddings.md)
 * [Phoenix Basics](concepts/phoenix-basics.md)
-* [Open Inference](concepts/open-inference.md)
 
 ## Tutorials
 
-* [Generative LLM](tutorials/generative-llm.md)
-* [NLP (Sentiment Classification)](tutorials/nlp-sentiment-classification.md)
-* [CV (Image Classification)](tutorials/cv-image-classification.md)
-* [Tabular (Credit Card Fraud)](tutorials/tabular-credit-card-fraud.md)
+* [Notebooks](tutorials/notebooks.md)
 
 ## How-To
 
 * [Install and Import Phoenix](how-to/install-and-import-phoenix.md)
-* [Define Your Schema](how-to/define-your-schema.md)
+* [Use Example Datasets](how-to/use-example-datasets.md)
+* [Create Your Own Dataset](how-to/define-your-schema.md)
 * [Manage the App](how-to/manage-the-app.md)
 * [Use the App](how-to/use-the-app.md)
 
+## API
+
+* [phoenix.Dataset](api/phoenix.dataset.md)
+* [phoenix.Schema](api/phoenix.schema.md)
+* [phoenix.EmbeddingColumnNames](api/phoenix.embeddingcolumnnames.md)
+* [phoenix.load\_example](api/phoenix.load\_example.md)
+
 ## Reference
 
-* [API](reference/api/README.md)
-  * [phoenix.Dataset](reference/api/phoenix.dataset.md)
-  * [phoenix.Schema](reference/api/phoenix.schema/README.md)
-    * [phoenix.EmbeddingColumnNames](reference/api/phoenix.schema/phoenix.embeddingcolumnnames.md)
 * [Metrics](reference/metrics/README.md)
   * [Cardinality](reference/metrics/cardinality.md)
   * [Percent Empty](reference/metrics/percent-empty.md)
   * [Euclidean Distance](reference/metrics/euclidean-distance.md)
   * [PSI](reference/metrics/psi.md)
+* [Open Inference](concepts/open-inference.md)

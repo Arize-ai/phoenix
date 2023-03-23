@@ -1,45 +1,52 @@
 ---
-description: How to create Phoenix schemas for common data formats
+description: How to create Phoenix datasets and schemas for common data formats
 ---
 
-# Define Your Schema
+# Create Your Own Dataset
 
-Given a Pandas DataFrame `df` and a `schema` object describing the format of that DataFrame, you can define a dataset named "data" with
-
-```python
-ds = px.Dataset(df, schema, "data")
-```
-
-This guide shows you how to match your schema to your DataFrame with concrete examples.
+This guide shows you how to define a Phoenix dataset using your own data.
 
 {% hint style="info" %}
 * For a conceptual overview of the Phoenix API, including a high-level introduction to the notion of datasets and schemas, see [Phoenix Basics](../concepts/phoenix-basics.md#schemas).
-* For a comprehensive description of `phoenix.Dataset` and `phoenix.Schema`, see the [API reference](../reference/api/).
+* For a comprehensive description of `phoenix.Dataset` and `phoenix.Schema`, see the [API reference](broken-reference/).
 {% endhint %}
 
-## Predictions and Ground Truth
+Once you have a Pandas DataFrame `df` containing your data and a `schema` object describing the format of your DataFrame, you can define your Phoenix dataset either by running
 
-Let's first see how to define a schema with predictions and ground truth. The example DataFrame below contains inference data from a binary classification model trained to predict whether a user will click on an advertisement. The timestamps represent the time at which each inference was made in production.
+```python
+ds = px.Dataset(df, schema)
+```
+
+or by optionally providing a name for your dataset that will appear in the UI:
+
+```python
+ds = px.Dataset(df, schema, name="training")
+```
+
+As you can see, instantiating your dataset is the easy part. Before you run the code above, you must first wrangle your data into a Pandas DataFrame and then create a Phoenix schema to describe the format of your DataFrame. The rest of this guide shows you how to match your schema to your DataFrame with concrete examples.
+
+## Predictions and Actuals
+
+Let's first see how to define a schema with predictions and actuals (Phoenix's nomenclature for ground truth). The example DataFrame below contains inference data from a binary classification model trained to predict whether a user will click on an advertisement. The timestamps are `datetime.datetime` objects that represent the time at which each inference was made in production.
 
 #### DataFrame
 
-| timestamp           | prediction | target    | score | target\_score |
-| ------------------- | ---------- | --------- | ----- | ------------- |
-| 2023-03-01 02:02:19 | click      | click     | 0.91  | 1.0           |
-| 2023-02-17 23:45:48 | no\_click  | no\_click | 0.37  | 0.0           |
-| 2023-01-30 15:30:03 | click      | no\_click | 0.54  | 0.0           |
-| 2023-02-03 19:56:09 | click      | click     | 0.74  | 1.0           |
-| 2023-02-24 04:23:43 | no\_click  | click     | 0.37  | 1.0           |
+| timestamp           | prediction\_score | prediction | target    |
+| ------------------- | ----------------- | ---------- | --------- |
+| 2023-03-01 02:02:19 | 0.91              | click      | click     |
+| 2023-02-17 23:45:48 | 0.37              | no\_click  | no\_click |
+| 2023-01-30 15:30:03 | 0.54              | click      | no\_click |
+| 2023-02-03 19:56:09 | 0.74              | click      | click     |
+| 2023-02-24 04:23:43 | 0.37              | no\_click  | click     |
 
 #### Schema
 
 ```python
 schema = px.Schema(
     timestamp_column_name="timestamp",
+    prediction_score_column_name="prediction_score",
     prediction_label_column_name="prediction",
     actual_label_column_name="target",
-    prediction_score_column_name="score",
-    actual_score_column_name="target_score",
 )
 ```
 
@@ -142,7 +149,7 @@ Embedding features consist of vector data in addition to any unstructured data i
 
 {% hint style="info" %}
 * For a conceptual overview of embeddings, see [Embeddings](../concepts/embeddings.md).
-* For a comprehensive description of `px.EmbeddingColumnNames`, see the [API reference](../reference/api/phoenix.schema/phoenix.embeddingcolumnnames.md).
+* For a comprehensive description of `px.EmbeddingColumnNames`, see the [API reference](../api/phoenix.embeddingcolumnnames.md).
 {% endhint %}
 
 {% hint style="info" %}
@@ -187,7 +194,7 @@ The features in this example are [implicitly inferred](define-your-schema.md#imp
 {% endhint %}
 
 {% hint style="warning" %}
-Ensure that all embedding vectors for a particular embedding feature are one-dimensional arrays of the same length, otherwise, Phoenix will throw an error.
+To compare embeddings, Phoenix uses metrics such as Euclidean distance that can only be computed between vectors of the same length. Ensure that all embedding vectors for a particular embedding feature are one-dimensional arrays of the same length, otherwise, Phoenix will throw an error.
 {% endhint %}
 
 ### Embeddings of Images
@@ -196,13 +203,13 @@ If your embeddings represent images, you can provide links or local paths to ima
 
 #### DataFrame
 
-| defective | image                                       | image\_embedding                  |
-| --------- | ------------------------------------------- | --------------------------------- |
-| okay      | /path/to/your/first/image0.jpeg             | \[1.73, 2.67, 2.91, 1.79, 1.29]   |
-| defective | /path/to/your/second/image1.jpeg            | \[2.18, -0.21, 0.87, 3.84, -0.97] |
-| okay      | https://\<your-domain-here>.com/image2.jpeg | \[3.36, -0.62, 2.40, -0.94, 3.69] |
-| defective | https://\<your-domain-here>.com/image3.jpeg | \[2.77, 2.79, 3.36, 0.60, 3.10]   |
-| okay      | https://\<your-domain-here>.com/image4.jpeg | \[1.79, 2.06, 0.53, 3.58, 0.24]   |
+| defective | image                               | image\_vector                     |
+| --------- | ----------------------------------- | --------------------------------- |
+| okay      | https://www.example.com/image0.jpeg | \[1.73, 2.67, 2.91, 1.79, 1.29]   |
+| defective | https://www.example.com/image1.jpeg | \[2.18, -0.21, 0.87, 3.84, -0.97] |
+| okay      | https://www.example.com/image2.jpeg | \[3.36, -0.62, 2.40, -0.94, 3.69] |
+| defective | https://www.example.com/image3.jpeg | \[2.77, 2.79, 3.36, 0.60, 3.10]   |
+| okay      | https://www.example.com/image4.jpeg | \[1.79, 2.06, 0.53, 3.58, 0.24]   |
 
 #### Schema
 
@@ -210,13 +217,30 @@ If your embeddings represent images, you can provide links or local paths to ima
 schema = px.Schema(
     actual_label_column_name="defective",
     embedding_feature_column_names={
-        "product_image_embedding": px.EmbeddingColumnNames(
-            vector_column_name="image_embedding",
+        "image_embedding": px.EmbeddingColumnNames(
+            vector_column_name="image_vector",
             link_to_data_column_name="image",
         ),
     },
 )
 ```
+
+{% hint style="info" %}
+For local image data, we recommend the following steps to serve your images via a local HTTP server:
+
+1. In your terminal, navigate to a directory containing your image data and run `python -m http.server 8000`.
+2. Add URLs of the form "http://localhost:8000/rel/path/to/image.jpeg" to the appropriate column of your DataFrame.
+
+For example, suppose your HTTP server is running in a directory with the following contents:
+
+```python
+.
+└── image-data
+    └── example_image.jpeg
+```
+
+Then your image URL would be http://localhost:8000/image-data/example\_image.jpeg.
+{% endhint %}
 
 ### Embeddings of Text
 
@@ -224,13 +248,13 @@ If your embeddings represent pieces of text, you can display that text in the ap
 
 #### DataFrame
 
-| name                             | category          | sentiment | text                                                                     | text\_vector               |
-| -------------------------------- | ----------------- | --------- | ------------------------------------------------------------------------ | -------------------------- |
-| Magic Lamp                       | office            | positive  | Makes a great desk lamp!                                                 | \[2.66, 0.89, 1.17, 2.21]  |
-| Ergo Desk Chair                  | office            | neutral   | This chair is pretty comfortable, but I wish it had better back support. | \[3.33, 1.14, 2.57, 2.88]  |
-| Cloud Nine Mattress              | bedroom           | positive  | I've been sleeping like a baby since I bought this thing.                | \[2.50, 3.74, 0.04, -0.94] |
-| Dr. Fresh's Spearmint Toothpaste | personal\_hygiene | negative  | Avoid at all costs, it tastes like soap.                                 | \[1.78, -0.24, 1.37, 2.60] |
-| Ultra-Fuzzy Bath Mat             | bath              | negative  | Cheap quality, began fraying at the edges after the first wash.          | \[2.71, 0.98, -0.22, 2.10] |
+| name                             | text                                                                     | text\_vector              | category          | sentiment |
+| -------------------------------- | ------------------------------------------------------------------------ | ------------------------- | ----------------- | --------- |
+| Magic Lamp                       | Makes a great desk lamp!                                                 | \[2.66, 0.89, 1.17, 2.21] | office            | positive  |
+| Ergo Desk Chair                  | This chair is pretty comfortable, but I wish it had better back support. | \[3.33, 1.14, 2.57, 2.88] | office            | neutral   |
+| Cloud Nine Mattress              | I've been sleeping like a baby since I bought this thing.                | \[2.5, 3.74, 0.04, -0.94] | bedroom           | positive  |
+| Dr. Fresh's Spearmint Toothpaste | Avoid at all costs, it tastes like soap.                                 | \[1.78, -0.24, 1.37, 2.6] | personal\_hygiene | negative  |
+| Ultra-Fuzzy Bath Mat             | Cheap quality, began fraying at the edges after the first wash.          | \[2.71, 0.98, -0.22, 2.1] | bath              | negative  |
 
 #### Schema
 
@@ -258,13 +282,13 @@ Sometimes it is useful to have more than one embedding feature. The example belo
 
 #### DataFrame
 
-| name                             | description                                                                                                                                        | description\_vector         | image                                       | image\_vector                     |
-| -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------- | ------------------------------------------- | --------------------------------- |
-| Magic Lamp                       | Enjoy the most comfortable setting every time for working, studying, relaxing or getting ready to sleep.                                           | \[2.47, -0.01, -0.22, 0.93] | /path/to/your/first/image0.jpeg             | \[2.42, 1.95, 0.81, 2.60, 0.27]   |
-| Ergo Desk Chair                  | The perfect mesh chair, meticulously developed to deliver maximum comfort and high quality.                                                        | \[-0.25, 0.07, 2.90, 1.57]  | /path/to/your/second/image1.jpeg            | \[3.17, 2.75, 1.39, 0.44, 3.30]   |
-| Cloud Nine Mattress              | Our Cloud Nine Mattress combines cool comfort with maximum affordability.                                                                          | \[1.36, -0.88, -0.45, 0.84] | https://\<your-domain-here>.com/image2.jpeg | \[-0.22, 0.87, 1.10, -0.78, 1.25] |
-| Dr. Fresh's Spearmint Toothpaste | Natural toothpaste helps remove surface stains for a brighter, whiter smile with anti-plaque formula                                               | \[-0.39, 1.29, 0.92, 2.51]  | https://\<your-domain-here>.com/image3.jpeg | \[1.95, 2.66, 3.97, 0.90, 2.86]   |
-| Ultra-Fuzzy Bath Mat             | The bath mats are made up of 1.18-inch height premium thick, soft and fluffy microfiber, making it great for bathroom, vanity, and master bedroom. | \[0.37, 3.22, 1.29, 0.65]   | https://\<your-domain-here>.com/image4.jpeg | \[0.77, 1.79, 0.52, 3.79, 0.47]   |
+| name                             | description                                                                                                                                        | description\_vector         | image                               | image\_vector                     |
+| -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------- | ----------------------------------- | --------------------------------- |
+| Magic Lamp                       | Enjoy the most comfortable setting every time for working, studying, relaxing or getting ready to sleep.                                           | \[2.47, -0.01, -0.22, 0.93] | https://www.example.com/image0.jpeg | \[2.42, 1.95, 0.81, 2.60, 0.27]   |
+| Ergo Desk Chair                  | The perfect mesh chair, meticulously developed to deliver maximum comfort and high quality.                                                        | \[-0.25, 0.07, 2.90, 1.57]  | https://www.example.com/image1.jpeg | \[3.17, 2.75, 1.39, 0.44, 3.30]   |
+| Cloud Nine Mattress              | Our Cloud Nine Mattress combines cool comfort with maximum affordability.                                                                          | \[1.36, -0.88, -0.45, 0.84] | https://www.example.com/image2.jpeg | \[-0.22, 0.87, 1.10, -0.78, 1.25] |
+| Dr. Fresh's Spearmint Toothpaste | Natural toothpaste helps remove surface stains for a brighter, whiter smile with anti-plaque formula                                               | \[-0.39, 1.29, 0.92, 2.51]  | https://www.example.com/image3.jpeg | \[1.95, 2.66, 3.97, 0.90, 2.86]   |
+| Ultra-Fuzzy Bath Mat             | The bath mats are made up of 1.18-inch height premium thick, soft and fluffy microfiber, making it great for bathroom, vanity, and master bedroom. | \[0.37, 3.22, 1.29, 0.65]   | https://www.example.com/image4.jpeg | \[0.77, 1.79, 0.52, 3.79, 0.47]   |
 
 #### Schema
 
