@@ -191,7 +191,7 @@ class EmbeddingDimension(Node):
                 description="HDBSCAN minimum cluster size",
             ),
         ] = DEFAULT_MIN_CLUSTER_SIZE,
-        min_samples: Annotated[
+        cluster_min_samples: Annotated[
             int,
             strawberry.argument(
                 description="HDBSCAN minimum samples",
@@ -236,7 +236,7 @@ class EmbeddingDimension(Node):
             dimensionalityReducer=Umap(n_neighbors=n_neighbors, min_dist=min_dist),
             clustersFinder=Hdbscan(
                 min_cluster_size=min_cluster_size,
-                min_samples=min_samples,
+                min_samples=cluster_min_samples,
                 cluster_selection_epsilon=cluster_selection_epsilon,
             ),
         ).generate(data, n_components=n_components)

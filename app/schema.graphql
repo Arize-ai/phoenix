@@ -137,7 +137,7 @@ type EmbeddingDimension implements Node {
     minClusterSize: Int! = 10
 
     """HDBSCAN minimum samples"""
-    minSamples: Int! = 1
+    clusterMinSamples: Int! = 1
 
     """HDBSCAN cluster selection epsilon"""
     clusterSelectionEpsilon: Int! = 0
