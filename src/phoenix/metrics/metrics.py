@@ -32,15 +32,10 @@ class Count(UnaryOperator, ZeroInitialValue, BaseMetric):
 
 
 class Sum(UnaryOperator, BaseMetric):
-<<<<<<< HEAD
-    def calc(self, df: pd.DataFrame) -> float:
-        return cast(float, pd.to_numeric(df.loc[:, self.operand], errors="coerce").sum())
-=======
     def calc(self, dataframe: pd.DataFrame) -> float:
         data = self.get_operand_column(dataframe)
         numeric_data = pd.to_numeric(data, errors="coerce")
         return cast(float, numeric_data.sum())
->>>>>>> origin/main
 
 
 Vector: TypeAlias = Union[float, npt.NDArray[np.float64]]
@@ -61,15 +56,10 @@ class VectorSum(UnaryOperator, VectorOperator, ZeroInitialValue, BaseMetric):
 
 @dataclass
 class Mean(UnaryOperator, BaseMetric):
-<<<<<<< HEAD
-    def calc(self, df: pd.DataFrame) -> float:
-        return pd.to_numeric(df.loc[:, self.operand], errors="coerce").mean()
-=======
     def calc(self, dataframe: pd.DataFrame) -> float:
         data = self.get_operand_column(dataframe)
         numeric_data = pd.to_numeric(data, errors="coerce")
         return numeric_data.mean()
->>>>>>> origin/main
 
 
 @dataclass
@@ -83,28 +73,18 @@ class VectorMean(UnaryOperator, VectorOperator, BaseMetric):
 
 @dataclass
 class Min(UnaryOperator, BaseMetric):
-<<<<<<< HEAD
-    def calc(self, df: pd.DataFrame) -> float:
-        return cast(float, pd.to_numeric(df.loc[:, self.operand], errors="coerce").min())
-=======
     def calc(self, dataframe: pd.DataFrame) -> float:
         data = self.get_operand_column(dataframe)
         numeric_data = pd.to_numeric(data, errors="coerce")
         return cast(float, numeric_data.min())
->>>>>>> origin/main
 
 
 @dataclass
 class Max(UnaryOperator, BaseMetric):
-<<<<<<< HEAD
-    def calc(self, df: pd.DataFrame) -> float:
-        return cast(float, pd.to_numeric(df.loc[:, self.operand], errors="coerce").max())
-=======
     def calc(self, dataframe: pd.DataFrame) -> float:
         data = self.get_operand_column(dataframe)
         numeric_data = pd.to_numeric(data, errors="coerce")
         return cast(float, numeric_data.max())
->>>>>>> origin/main
 
 
 @dataclass
