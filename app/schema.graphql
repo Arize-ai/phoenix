@@ -30,6 +30,7 @@ type Dataset {
   """The end bookend of the data"""
   endTime: DateTime!
   events(eventIds: [ID!]!, dimensions: [DimensionInput!]): [Event!]!
+  export(eventIds: [ID!]!): ExportResponse!
 }
 
 """Date with time (isoformat)"""
@@ -162,6 +163,11 @@ type EventMetadata {
   predictionLabel: String
   actualScore: Float
   actualLabel: String
+}
+
+type ExportResponse {
+  filename: String!
+  directory: String!
 }
 
 """

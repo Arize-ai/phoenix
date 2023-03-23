@@ -6,6 +6,7 @@ from dataclasses import fields, replace
 from datetime import datetime, timedelta
 from enum import Enum
 from functools import cached_property
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple, Union, cast
 
 from pandas import DataFrame, Series, Timestamp, read_parquet, to_datetime
@@ -73,6 +74,7 @@ class Dataset:
             for e in errors:
                 logger.error(e)
             raise err.DatasetError(errors)
+        self._original_column_names = dataframe.columns
         dataframe, schema = _parse_dataframe_and_schema(dataframe, schema)
         dataframe = _sort_dataframe_rows_by_timestamp(dataframe, schema)
         self.__dataframe: DataFrame = dataframe
@@ -257,6 +259,44 @@ class Dataset:
         # set the persisted flag so that we don't have to perform this operation again
         self._is_persisted = True
         logger.info(f"Dataset info written to '{directory}'")
+
+    def export(self, rows: List[int]) -> Tuple[str, str]:
+        """
+        Given row numbers, exports dataframe subset into parquet file. Returns
+        exported filename and its directory. Duplicate rows are removed.
+
+        Parameters
+        ----------
+        rows: list[int]
+            list of row numbers
+
+        Returns
+        -------
+        filename: str
+            filename of exported file
+        directory: str
+            location of the exported file
+        """
+        directory = os.path.join(
+            self.directory,
+            "export",
+            datetime.now().strftime("%Y-%m-%d_%H-%M-%S"),
+        )
+        Path(directory).mkdir(
+            parents=True,
+            exist_ok=True,
+        )
+        filename = self.name + ".parquet"
+        column_indices = [
+            self.__dataframe.columns.get_loc(column_name)
+            for column_name in self._original_column_names
+        ]
+        rows = sorted(set(rows))
+        self.__dataframe.iloc[rows, column_indices].to_parquet(
+            os.path.join(directory, filename),
+            index=False,
+        )
+        return filename, directory
 
 
 def _parse_dataframe_and_schema(dataframe: DataFrame, schema: Schema) -> Tuple[DataFrame, Schema]:

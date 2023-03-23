@@ -20,6 +20,7 @@ from .Dimension import Dimension, to_gql_dimension
 from .DimensionWithValue import DimensionWithValue
 from .Event import Event
 from .EventMetadata import EventMetadata
+from .ExportResonse import ExportResponse
 
 
 @strawberry.type
@@ -43,7 +44,7 @@ class Dataset:
         """
         if not event_ids:
             return []
-        row_indexes = self._parse_event_ids(event_ids)
+        row_indexes = _parse_event_ids(event_ids, self.type)
         dataframe = self.dataset.dataframe
         schema = self.dataset.schema
         requested_gql_dimensions = _get_requested_features_and_tags(
@@ -78,17 +79,27 @@ class Dataset:
             for row_index in row_indexes
         ]
 
-    def _parse_event_ids(self, event_ids: List[ID]) -> List[int]:
-        """
-        Parses event IDs and returns the corresponding row indexes.
-        """
-        row_indexes = []
-        for event_id in event_ids:
-            row_index, dataset_type = str(event_id).split(":")
-            if dataset_type != str(self.type):
-                raise ValueError("eventIds contains IDs from incorrect dataset.")
-            row_indexes.append(int(row_index))
-        return row_indexes
+    @strawberry.field
+    def export(
+        self,
+        event_ids: List[ID],
+    ) -> ExportResponse:
+        row_ids = _parse_event_ids(event_ids, self.type)
+        filename, directory = self.dataset.export(row_ids)
+        return ExportResponse(filename=filename, directory=directory)
+
+
+def _parse_event_ids(event_ids: List[ID], expected_type: DatasetType) -> List[int]:
+    """
+    Parses event IDs and returns the corresponding row indexes.
+    """
+    row_indexes = []
+    for event_id in event_ids:
+        row_index, dataset_type = str(event_id).split(":")
+        if dataset_type != str(expected_type):
+            raise ValueError("eventIds contains IDs from incorrect dataset.")
+        row_indexes.append(int(row_index))
+    return row_indexes
 
 
 def to_gql_dataset(dataset: InternalDataset, type: Literal["primary", "reference"]) -> Dataset:
