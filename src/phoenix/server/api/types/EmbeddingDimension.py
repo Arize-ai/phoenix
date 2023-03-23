@@ -204,7 +204,6 @@ class EmbeddingDimension(Node):
             ),
         ] = DEFAULT_CLUSTER_SELECTION_EPSILON,
     ) -> UMAPPoints:
-
         datasets = {
             DatasetType.PRIMARY: info.context.model.primary_dataset,
             DatasetType.REFERENCE: info.context.model.reference_dataset,
