@@ -168,43 +168,42 @@ class EmbeddingDimension(Node):
             ),
         ] = DEFAULT_N_COMPONENTS,
         min_dist: Annotated[
-            Optional[float],
+            float,
             strawberry.argument(
                 description="UMAP minimum distance hyperparameter",
             ),
         ] = DEFAULT_MIN_DIST,
         n_neighbors: Annotated[
-            Optional[int],
+            int,
             strawberry.argument(
                 description="UMAP N neighbors hyperparameter",
             ),
         ] = DEFAULT_N_NEIGHBORS,
         n_samples: Annotated[
-            Optional[int],
+            int,
             strawberry.argument(
                 description="UMAP N samples",
             ),
         ] = DEFAULT_N_SAMPLES,
         min_cluster_size: Annotated[
-            Optional[int],
+            int,
             strawberry.argument(
                 description="HDBSCAN minimum cluster size",
             ),
         ] = DEFAULT_MIN_CLUSTER_SIZE,
         min_samples: Annotated[
-            Optional[int],
+            int,
             strawberry.argument(
                 description="HDBSCAN minimum samples",
             ),
         ] = DEFAULT_MIN_SAMPLES,
         cluster_selection_epsilon: Annotated[
-            Optional[int],
+            int,
             strawberry.argument(
                 description="HDBSCAN cluster selection epsilon",
             ),
         ] = DEFAULT_CLUSTER_SELECTION_EPSILON,
     ) -> UMAPPoints:
-        n_samples = n_samples or DEFAULT_N_SAMPLES
 
         datasets = {
             DatasetType.PRIMARY: info.context.model.primary_dataset,
@@ -233,20 +232,6 @@ class EmbeddingDimension(Node):
         n_components = DEFAULT_N_COMPONENTS if n_components is None else n_components
         if not 2 <= n_components <= 3:
             raise Exception(f"n_components must be 2 or 3, got {n_components}")
-
-        # Aren't these defaults set in the function call?
-        min_dist = DEFAULT_MIN_DIST if min_dist is None else min_dist
-        n_neighbors = DEFAULT_N_NEIGHBORS if n_neighbors is None else n_neighbors
-
-        min_cluster_size = (
-            DEFAULT_MIN_CLUSTER_SIZE if min_cluster_size is None else min_cluster_size
-        )
-        min_samples = DEFAULT_MIN_SAMPLES if min_samples is None else min_samples
-        cluster_selection_epsilon = (
-            DEFAULT_CLUSTER_SELECTION_EPSILON
-            if cluster_selection_epsilon is None
-            else cluster_selection_epsilon
-        )
 
         vectors, cluster_membership = PointCloud(
             dimensionalityReducer=Umap(n_neighbors=n_neighbors, min_dist=min_dist),
