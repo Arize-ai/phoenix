@@ -1,7 +1,7 @@
 import logging
 import os
 from dataclasses import dataclass, replace
-from typing import Dict, Tuple
+from typing import Tuple
 
 from pandas import read_parquet
 
@@ -325,9 +325,10 @@ def _download_and_persist_dataset_if_missing(
     return dataset
 
 
-@dataclass(frozen=True)
-class DatasetDict(Dict[str, Dataset]):
-    """A dictionary of datasets, split out by dataset type (primary, reference)."""
+class DatasetDict(dict):  # type: ignore
+    """
+    A dictionary of datasets, split out by dataset type (primary, reference).
+    """
 
     primary: Dataset
     reference: Dataset
