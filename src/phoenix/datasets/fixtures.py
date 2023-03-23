@@ -325,7 +325,7 @@ def _download_and_persist_dataset_if_missing(
     return dataset
 
 
-class DatasetDict(dict):
+class DatasetDict(dict):  # type: ignore
     """
     A dictionary of datasets, split out by dataset type (primary, reference).
     """
