@@ -25,12 +25,12 @@ Phoenix provides MLOps insights at lightning speed with zero-config observabilit
 
 **_Phoenix is under active development. APIs may change at any time._**
 
--   [Installation](#installation)
--   [Getting Started](#getting-started)
--   [Documentation](#documentation)
--   [Community](#community)
--   [Contributing](#contributing)
--   [License](#license)
+- [Installation](#installation)
+- [Getting Started](#getting-started)
+- [Documentation](#documentation)
+- [Community](#community)
+- [Contributing](#contributing)
+- [License](#license)
 
 ## Installation
 
@@ -48,7 +48,7 @@ After installing `arize-phoenix` in your Jupyter or Colab environment, open your
 import phoenix as px
 
 datasets = px.load_example("sentiment_classification_language_drift")
-session = px.launch_app(datasets.primary, datasets.reference)
+session = px.launch_app(datasets["primary"], datasets["reference"])
 ```
 
 Next, visualize your embeddings and inspect problematic clusters of your production data.
