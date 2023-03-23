@@ -6,7 +6,7 @@ from typing import Dict, Tuple, cast
 from pandas import read_parquet
 
 from .dataset import Dataset
-from .schema import EmbeddingColumnNames, Schema
+from .schema import EmbeddingColumnNames, Schema, Viewable
 
 logger = logging.getLogger(__name__)
 
@@ -74,7 +74,9 @@ fashion_mnist_primary_schema = Schema(
     actual_label_column_name="actual_label",
     prediction_label_column_name="predicted_label",
 )
-fashion_mnist_reference_schema = replace(fashion_mnist_primary_schema, timestamp_column_name=None)
+fashion_mnist_reference_schema = replace(
+    fashion_mnist_primary_schema, timestamp_column_name=None
+)
 fashion_mnist_fixture = Fixture(
     name="fashion_mnist",
     description="""
@@ -162,7 +164,8 @@ credit_card_fraud_fixture = Fixture(
     primary_schema=credit_card_fraud_schema,
     reference_schema=credit_card_fraud_schema,
     primary_dataset_url=os.path.join(
-        FIXTURE_URL_PREFIX, "structured/credit-card-fraud/credit_card_fraud_production.parquet"
+        FIXTURE_URL_PREFIX,
+        "structured/credit-card-fraud/credit_card_fraud_production.parquet",
     ),
     reference_dataset_url=os.path.join(
         FIXTURE_URL_PREFIX,
@@ -196,10 +199,12 @@ click_through_rate_fixture = Fixture(
     primary_schema=click_through_rate_schema,
     reference_schema=click_through_rate_schema,
     primary_dataset_url=os.path.join(
-        FIXTURE_URL_PREFIX, "structured/click-through-rate/click_through_rate_production.parquet"
+        FIXTURE_URL_PREFIX,
+        "structured/click-through-rate/click_through_rate_production.parquet",
     ),
     reference_dataset_url=os.path.join(
-        FIXTURE_URL_PREFIX, "structured/click-through-rate/click_through_rate_train.parquet"
+        FIXTURE_URL_PREFIX,
+        "structured/click-through-rate/click_through_rate_train.parquet",
     ),
 )
 
@@ -208,7 +213,9 @@ wide_data_primary_schema = Schema(
     prediction_label_column_name="predicted_label",
     timestamp_column_name="prediction_ts",
 )
-wide_data_reference_schema = replace(wide_data_primary_schema, timestamp_column_name=None)
+wide_data_reference_schema = replace(
+    wide_data_primary_schema, timestamp_column_name=None
+)
 wide_data_fixture = Fixture(
     name="wide_data",
     description="""
@@ -232,7 +239,9 @@ deep_data_primary_schema = Schema(
     actual_label_column_name="actual_label",
     prediction_label_column_name="predicted_label",
 )
-deep_data_reference_schema = replace(deep_data_primary_schema, timestamp_column_name=None)
+deep_data_reference_schema = replace(
+    deep_data_primary_schema, timestamp_column_name=None
+)
 deep_data_fixture = Fixture(
     name="deep_data",
     description="""
@@ -269,7 +278,9 @@ def download_fixture_if_missing(fixture_name: str) -> Tuple[Dataset, Dataset]:
     locally.
     """
     fixture = _get_fixture_by_name(fixture_name=fixture_name)
-    primary_dataset_name, reference_dataset_name = get_dataset_names_from_fixture_name(fixture_name)
+    primary_dataset_name, reference_dataset_name = get_dataset_names_from_fixture_name(
+        fixture_name
+    )
     primary_dataset = _download_and_persist_dataset_if_missing(
         dataset_name=primary_dataset_name,
         dataset_url=fixture.primary_dataset_url,
@@ -299,7 +310,9 @@ def _get_fixture_by_name(fixture_name: str) -> Fixture:
     """
     if fixture_name not in NAME_TO_FIXTURE:
         valid_fixture_names = ", ".join(NAME_TO_FIXTURE.keys())
-        raise ValueError(f'"{fixture_name}" is invalid. Valid names are: {valid_fixture_names}')
+        raise ValueError(
+            f'"{fixture_name}" is invalid. Valid names are: {valid_fixture_names}'
+        )
     return NAME_TO_FIXTURE[fixture_name]
 
 
@@ -326,7 +339,7 @@ def _download_and_persist_dataset_if_missing(
 
 
 @dataclass(frozen=True)
-class DatasetDict(Dict[str, Dataset]):
+class DatasetDict(Viewable, Dict[str, Dataset]):
     """A dictionary of datasets, split out by dataset type (primary, reference)."""
 
     primary: Dataset
@@ -337,20 +350,6 @@ class DatasetDict(Dict[str, Dataset]):
             return cast(Dataset, getattr(self, key))
         except AttributeError:
             raise KeyError(f"Invalid key: {key}")
-
-    def __repr__(self) -> str:
-        return f"""DatasetDict({{
-    'primary': {self._format_dataset(self.primary)},
-    'reference': {self._format_dataset(self.reference)},
-}})"""
-
-    @staticmethod
-    def _format_dataset(dataset: Dataset) -> str:
-        return f"""Dataset(
-        dataframe=...,
-        schema=...,
-        name='{dataset.name}',
-    )"""
 
 
 def load_example(use_case: str) -> DatasetDict:

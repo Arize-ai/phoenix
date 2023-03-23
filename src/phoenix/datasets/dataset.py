@@ -25,6 +25,7 @@ from .schema import (
     SchemaFieldValue,
 )
 from .validation import validate_dataset_inputs
+from .viewable import get_indented_lines_for_field
 
 logger = logging.getLogger(__name__)
 if hasattr(sys, "ps1"):
@@ -254,19 +255,13 @@ class Dataset:
         logger.info(f"Dataset info written to '{directory}'")
 
     def __repr__(self) -> str:
-        """
-        Return a string to display the dataset's name, dataframe, and schema.
-        """
-        repr_string = (
-            """Phoenix Dataset
-===============\n\n"""
-            + f"name: '{self.name}'\n\n"
-            + f"""dataframe:
-    columns: {list(self.dataframe.columns)}
-    shape: {self.dataframe.shape}\n\n"""
-            + f"schema: {self.schema}"
+        lines = get_indented_lines_for_field(field_name="dataframe", field_value_repr="...")
+        lines.extend(
+            get_indented_lines_for_field(field_name="schema", field_value_repr=repr(self.schema))
         )
-        return repr_string
+        lines.extend(get_indented_lines_for_field(field_name="name", field_value_repr=self.name))
+        arguments_string = "\n".join(lines)
+        return f"Dataset(\n{arguments_string}\n)"
 
 
 def _parse_dataframe_and_schema(dataframe: DataFrame, schema: Schema) -> Tuple[DataFrame, Schema]:
