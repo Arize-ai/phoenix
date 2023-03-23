@@ -125,13 +125,22 @@ type EmbeddingDimension implements Node {
     nComponents: Int = 3
 
     """UMAP minimum distance hyperparameter"""
-    minDist: Float = 0
+    minDist: Float! = 0
 
     """UMAP N neighbors hyperparameter"""
-    nNeighbors: Int = 30
+    nNeighbors: Int! = 30
 
     """UMAP N samples"""
-    nSamples: Int = 500
+    nSamples: Int! = 500
+
+    """HDBSCAN minimum cluster size"""
+    minClusterSize: Int! = 10
+
+    """HDBSCAN minimum samples"""
+    clusterMinSamples: Int! = 1
+
+    """HDBSCAN cluster selection epsilon"""
+    clusterSelectionEpsilon: Int! = 0
   ): UMAPPoints!
 }
 
