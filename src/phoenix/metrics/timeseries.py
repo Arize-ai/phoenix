@@ -49,15 +49,15 @@ StopIndex: TypeAlias = int
 
 def row_interval_from_sorted_time_index(
     time_index: pd.Index,
-    start_time: datetime,
-    end_time: datetime,
+    time_start: datetime,
+    time_stop: datetime,
 ) -> Tuple[StartIndex, StopIndex]:
     """
     Returns end exclusive time slice from sorted index.
     """
     return cast(
         Tuple[StartIndex, StopIndex],
-        time_index.searchsorted((start_time, end_time)),
+        time_index.searchsorted((time_start, time_stop)),
     )
 
 
@@ -150,14 +150,14 @@ def _groupers(
             label="right",
             sort=False,
         )
-        time_filter_end = end_time - offset
+        time_stop = end_time - offset
         if divisible:
-            time_filter_start = start_time - evaluation_window
+            time_start = start_time - evaluation_window
         else:
-            time_filter_start = time_filter_end - evaluation_window
+            time_start = time_stop - evaluation_window
         yield (
-            time_filter_start,
-            time_filter_end,
+            time_start,
+            time_stop,
             grouper,
         )
 
@@ -175,10 +175,11 @@ def _results(
     """
     yield pd.DataFrame()
     calculate_metrics = partial(_calculate, calcs=calcs)
+    # pandas time indexing is end-inclusive
     result_slice = slice(start_time, end_time)
     for (
-        time_filter_start,
-        time_filter_end,
+        time_start,  # inclusive
+        time_stop,  # exclusive
         group,
     ) in _groupers(
         start_time=start_time,
@@ -186,12 +187,13 @@ def _results(
         evaluation_window=evaluation_window,
         sampling_interval=sampling_interval,
     ):
-        row_start, row_end = row_interval_from_sorted_time_index(
+        row_start, row_stop = row_interval_from_sorted_time_index(
             time_index=dataframe.index,
-            start_time=time_filter_start,
-            end_time=time_filter_end,
+            time_start=time_start,  # inclusive
+            time_stop=time_stop,  # exclusive
         )
-        row_slice = slice(row_start, row_end)
+        # pandas row indexing is stop-exclusive
+        row_slice = slice(row_start, row_stop)
         filtered = dataframe.iloc[row_slice, :]
         yield filtered.groupby(
             group,
