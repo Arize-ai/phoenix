@@ -90,6 +90,9 @@ class Dataset:
         self.to_disc()
         logger.info(f"""Dataset: {self.__name} initialized""")
 
+    def __repr__(self) -> str:
+        return f'<Dataset "{self.name}">'
+
     @cached_property
     def start_time(self) -> datetime:
         """Returns the datetime of the earliest inference in the dataset"""
