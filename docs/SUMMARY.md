@@ -6,7 +6,7 @@
 ## Concepts
 
 * [ML Observability](concepts/ml-observability.md)
-* [Embeddings](concepts/embeddings.md)
+* [🌌 Embeddings](concepts/embeddings.md)
 * [Phoenix Basics](concepts/phoenix-basics.md)
 
 ## Tutorials
