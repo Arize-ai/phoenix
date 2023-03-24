@@ -4,7 +4,7 @@ description: >-
   or browser, and close your session when you're done
 ---
 
-# Manage the App
+# 🎛 Manage the App
 
 ## Define Your Dataset(s)
 

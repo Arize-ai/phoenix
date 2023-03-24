@@ -7,7 +7,7 @@ cover: >-
 coverY: 0
 ---
 
-# ML Observability in Your Notebook
+# 🌟 ML Observability in Your Notebook
 
 
 

@@ -2,7 +2,7 @@
 description: Get started with Phoenix in three easy steps
 ---
 
-# Quickstart
+# 🚀 Quickstart
 
 Follow along in your local Jupyter environment or in the Colab linked below to take your first flight with Phoenix.
 

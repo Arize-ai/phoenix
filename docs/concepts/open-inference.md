@@ -1,4 +1,4 @@
-# Open Inference
+# 📄 Open Inference
 
 ## Overview
 
