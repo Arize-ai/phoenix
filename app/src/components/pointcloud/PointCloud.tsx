@@ -60,7 +60,7 @@ function PointCloudInfo() {
     return [primaryPointIds.length, referencePointIds.length];
   }, [points]);
 
-  if (!selectedTimestamp || numPrimary === 0) {
+  if (!selectedTimestamp) {
     return null;
   }
   return (
