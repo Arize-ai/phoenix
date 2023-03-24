@@ -1,6 +1,8 @@
-import React, { ReactNode } from "react";
+import React, { PropsWithChildren, ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { css, Theme } from "@emotion/react";
+
+import { Icons } from "@arizeai/components";
 
 import { Logo } from "./Logo";
 
@@ -42,10 +44,10 @@ const GitHubSVG = () => (
   </svg>
 );
 
-export function GitHubLink() {
+function IconLink(props: PropsWithChildren<{ href: string }>) {
   return (
     <a
-      href="https://github.com/arize-ai/phoenix"
+      href={props.href}
       target="_blank"
       css={(theme) => css`
         padding: ${theme.spacing.padding4}px;
@@ -63,8 +65,24 @@ export function GitHubLink() {
       aria-label="GitHub"
       rel="noreferrer"
     >
-      <GitHubSVG />
+      {props.children}
     </a>
+  );
+}
+
+export function GitHubLink() {
+  return (
+    <IconLink href="https://github.com/arize-ai/phoenix">
+      <GitHubSVG />
+    </IconLink>
+  );
+}
+
+export function DocsLink() {
+  return (
+    <IconLink href="https://docs.arize.com/phoenix">
+      <Icons.BookFilled />
+    </IconLink>
   );
 }
 

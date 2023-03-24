@@ -33,6 +33,7 @@ import { PointCloudDisplaySettings } from "@phoenix/components/pointcloud/PointC
 import { resizeHandleCSS } from "@phoenix/components/resize/styles";
 import { PointCloudProvider, usePointCloudContext } from "@phoenix/contexts";
 import { useDatasets } from "@phoenix/contexts";
+import { useTimeRange } from "@phoenix/contexts/TimeRangeContext";
 import {
   TimeSliceContextProvider,
   useTimeSlice,
@@ -126,6 +127,7 @@ const EmbeddingUMAPQuery = graphql`
 
 export function Embedding() {
   const { referenceDataset } = useDatasets();
+  const { timeRange } = useTimeRange();
   // Initialize the store based on whether or not there is a reference dataset
   const defaultPointCloudProps = useMemo(() => {
     return referenceDataset != null
@@ -133,7 +135,7 @@ export function Embedding() {
       : DEFAULT_SINGLE_DATASET_POINT_CLOUD_PROPS;
   }, [referenceDataset]);
   return (
-    <TimeSliceContextProvider>
+    <TimeSliceContextProvider initialTimestamp={new Date(timeRange.end)}>
       <PointCloudProvider {...defaultPointCloudProps}>
         <EmbeddingMain />
       </PointCloudProvider>

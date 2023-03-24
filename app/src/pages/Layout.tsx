@@ -4,6 +4,7 @@ import { css } from "@emotion/react";
 
 import {
   Brand,
+  DocsLink,
   GitHubLink,
   Navbar,
   NavBreadcrumb,
@@ -27,6 +28,7 @@ const linksCSS = css`
   flex-direction: row;
   margin: 0;
   list-style: none;
+  gap: var(--px-spacing-sm);
   padding-inline-start: 0;
 `;
 
@@ -37,6 +39,9 @@ export function Layout() {
         <Brand />
         <NavBreadcrumb />
         <ul css={linksCSS}>
+          <li>
+            <DocsLink />
+          </li>
           <li>
             <GitHubLink />
           </li>

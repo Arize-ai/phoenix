@@ -1,4 +1,5 @@
 import React from "react";
+import { css } from "@emotion/react";
 
 import { Icon, Icons, Radio, RadioGroup } from "@arizeai/components";
 
@@ -7,6 +8,11 @@ export enum CanvasMode {
   select = "select",
 }
 
+const radioItemCSS = css`
+  display: flex;
+  flex-direction: row;
+  gap: var(--px-spacing-sm);
+`;
 /**
  * TypeGuard for the canvas mode
  */
@@ -34,10 +40,14 @@ export function CanvasModeRadioGroup(props: CanvasModeRadioGroupProps) {
       }}
     >
       <Radio label="Move" value={CanvasMode.move}>
-        <Icon svg={<Icons.MoveFilled />} />
+        <div css={radioItemCSS}>
+          <Icon svg={<Icons.MoveFilled />} /> Move
+        </div>
       </Radio>
       <Radio label="Select" value={CanvasMode.select}>
-        <Icon svg={<Icons.LassoOutline />} />
+        <div css={radioItemCSS}>
+          <Icon svg={<Icons.LassoOutline />} /> Select
+        </div>
       </Radio>
     </RadioGroup>
   );

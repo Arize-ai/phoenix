@@ -40,12 +40,19 @@ export function GlobalStyles() {
           --px-flex-gap-sm: ${theme.spacing.margin8}px;
 
           --px-border-color-500: ${theme.colors.gray500};
+          --px-border-color-300: ${theme.colors.gray300};
 
           --px-section-background-color: ${theme.colors.gray500};
 
           --px-spacing-sm: ${theme.spacing.padding4}px;
           --px-spacing-med: ${theme.spacing.padding8}px;
           --px-spacing-lg: ${theme.spacing.padding16}px;
+
+          --px-border-radius-med: ${theme.borderRadius.medium}px;
+
+          --px-font-size-sm: ${theme.typography.sizes.small.fontSize}px;
+          --px-font-size-med: ${theme.typography.sizes.medium.fontSize}px;
+          --px-font-size-lg: ${theme.typography.sizes.large.fontSize}px;
 
           --px-gradient-bar-height: 8px;
         }
