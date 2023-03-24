@@ -13,8 +13,9 @@ import {
   YAxis,
 } from "recharts";
 import { CategoricalChartFunc } from "recharts/types/chart/generateCategoricalChart";
+import { css } from "@emotion/react";
 
-import { Text, theme } from "@arizeai/components";
+import { Icon, InfoOutline, Text, theme } from "@arizeai/components";
 
 import {
   ChartTooltip,
@@ -61,7 +62,20 @@ function TooltipContent({ active, payload, label }: TooltipProps<any, any>) {
           value={predictionCountString}
         />
         <ChartTooltipDivider />
-        <Text>Click to view drift at this time</Text>
+        <div
+          css={css`
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            color: var(--px-light-blue-color);
+            gap: var(--px-spacing-sm);
+
+            margin-top: var(--px-spacing-sm);
+          `}
+        >
+          <Icon svg={<InfoOutline />} />
+          <span>Click to view the point cloud at this time</span>
+        </div>
       </ChartTooltip>
     );
   }
@@ -153,7 +167,7 @@ export function EuclideanDistanceTimeSeries({
     <ResponsiveContainer width="100%" height="100%">
       <ComposedChart
         data={chartData as unknown as any[]}
-        margin={{ top: 20, right: 18, left: 18, bottom: 10 }}
+        margin={{ top: 25, right: 18, left: 18, bottom: 10 }}
         onClick={onClick}
       >
         <defs>
@@ -215,15 +229,20 @@ export function EuclideanDistanceTimeSeries({
         />
 
         {selectedTimestamp != null ? (
-          <ReferenceLine
-            x={selectedTimestamp.toISOString()}
-            stroke="white"
-            // label={{
-            //   value: "Selection",
-            //   position: "insideTopRight",
-            //   style: { fill: theme.textColors.white90 },
-            // }}
-          />
+          <>
+            <ReferenceLine
+              x={selectedTimestamp.toISOString()}
+              stroke="white"
+              label={{
+                value: "▼",
+                position: "top",
+                style: {
+                  fill: "#fabe32",
+                  fontSize: theme.typography.sizes.small.fontSize,
+                },
+              }}
+            />
+          </>
         ) : null}
       </ComposedChart>
     </ResponsiveContainer>
