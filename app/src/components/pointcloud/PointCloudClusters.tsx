@@ -2,6 +2,8 @@ import React, { useMemo } from "react";
 
 import { Cluster } from "@arizeai/point-cloud";
 
+import { usePointCloudContext } from "@phoenix/contexts";
+
 import { ClusterInfo, ThreeDimensionalPointItem } from "./types";
 
 type PointCloudClustersProps = {
@@ -28,6 +30,7 @@ export function PointCloudClusters({
   selectedClusterId,
   radius,
 }: PointCloudClustersProps) {
+  const canvasTheme = usePointCloudContext((state) => state.canvasTheme);
   // const { selectedClusterId } = usePointCloud();
   // Keep a map of point id to position for fast lookup
   const pointPositionsMap = useMemo(() => {
@@ -59,6 +62,7 @@ export function PointCloudClusters({
           opacity={cluster.id === selectedClusterId ? 0.2 : 0}
           wireframe
           pointRadius={radius}
+          color={canvasTheme === "dark" ? "#999999" : "#555555"}
         />
       ))}
     </>

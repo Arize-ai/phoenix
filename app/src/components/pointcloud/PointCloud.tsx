@@ -28,12 +28,13 @@ import { splitPointIdsByDataset } from "@phoenix/utils/pointCloudUtils";
 import { fullTimeFormatter } from "../chart";
 
 import { CanvasMode, CanvasModeRadioGroup } from "./CanvasModeRadioGroup";
+import { CanvasThemeToggle } from "./CanvasThemeToggle";
 import { PointCloudClusters } from "./PointCloudClusters";
 import { PointCloudPoints } from "./PointCloudPoints";
 import { ThreeDimensionalPointItem } from "./types";
 import { ClusterInfo } from "./types";
 
-const RADIUS_BOUNDS_3D_DIVISOR = 400;
+const RADIUS_BOUNDS_3D_DIVISOR = 300;
 const CLUSTER_POINT_RADIUS_MULTIPLIER = 6;
 const BOUNDS_3D_ZOOM_PADDING_FACTOR = 0.2;
 
@@ -102,6 +103,7 @@ function CanvasTools(props: {
       `}
     >
       <CanvasModeRadioGroup mode={canvasMode} onChange={onCanvasModeChange} />
+      <CanvasThemeToggle />
     </div>
   );
 }
@@ -138,14 +140,24 @@ function CanvasInfo() {
 }
 
 function CanvasWrap({ children }: { children: ReactNode }) {
+  const canvasTheme = usePointCloudContext((state) => state.canvasTheme);
   return (
     <div
       css={css`
         flex: 1 1 auto;
         height: 100%;
         position: relative;
-        background-color: black;
+        &[data-theme="dark"] {
+          background: linear-gradient(
+            rgb(21, 25, 31) 11.4%,
+            rgb(11, 12, 14) 70.2%
+          );
+        }
+        &[data-theme="light"] {
+          background: linear-gradient(#d2def3 0%, #b2c5e8 74%);
+        }
       `}
+      data-theme={canvasTheme}
     >
       {children}
     </div>
@@ -185,6 +197,7 @@ function Projection(props: ProjectionProps) {
   const pointGroupVisibility = usePointCloudContext(
     (state) => state.pointGroupVisibility
   );
+  const canvasTheme = usePointCloudContext((state) => state.canvasTheme);
 
   // AutoRotate the canvas on initial load
   const [autoRotate, setAutoRotate] = useState<boolean>(true);
@@ -240,7 +253,7 @@ function Projection(props: ProjectionProps) {
   const ContextBridge = useContextBridge(PointCloudContext);
 
   return (
-    <ThreeDimensionalCanvas camera={{ position: [0, 0, 10] }}>
+    <ThreeDimensionalCanvas camera={{ position: [3, 3, 3] }}>
       <ContextBridge>
         <ThreeDimensionalControls
           autoRotate={autoRotate}
@@ -252,6 +265,7 @@ function Projection(props: ProjectionProps) {
             setAutoRotate(false);
           }}
         />
+
         <ThreeDimensionalBounds
           bounds={bounds}
           boundsZoomPaddingFactor={BOUNDS_3D_ZOOM_PADDING_FACTOR}
@@ -264,7 +278,11 @@ function Projection(props: ProjectionProps) {
             }}
             enabled={canvasMode === CanvasMode.select}
           />
-          <Axes size={(bounds.maxX - bounds.minX) / 4} />
+          <Axes
+            size={(bounds.maxX - bounds.minX) / 4}
+            color={canvasTheme == "dark" ? "#fff" : "#505050"}
+          />
+
           <PointCloudPoints
             primaryData={filteredPrimaryData}
             referenceData={filteredReferenceData}
