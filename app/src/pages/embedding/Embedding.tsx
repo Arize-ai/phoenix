@@ -29,8 +29,12 @@ import {
   PointCloudParameterSettings,
   ThreeDimensionalPointItem,
 } from "@phoenix/components/pointcloud";
+import ClusteringSettings from "@phoenix/components/pointcloud/ClusteringSettings";
 import { PointCloudDisplaySettings } from "@phoenix/components/pointcloud/PointCloudDisplaySettings";
-import { resizeHandleCSS } from "@phoenix/components/resize/styles";
+import {
+  compactResizeHandleCSS,
+  resizeHandleCSS,
+} from "@phoenix/components/resize/styles";
 import { PointCloudProvider, usePointCloudContext } from "@phoenix/contexts";
 import { useDatasets } from "@phoenix/contexts";
 import { useTimeRange } from "@phoenix/contexts/TimeRangeContext";
@@ -66,6 +70,9 @@ const EmbeddingUMAPQuery = graphql`
     $minDist: Float!
     $nNeighbors: Int!
     $nSamples: Int!
+    $minClusterSize: Int!
+    $clusterMinSamples: Int!
+    $clusterSelectionEpsilon: Int!
   ) {
     embedding: node(id: $id) {
       ... on EmbeddingDimension {
@@ -74,6 +81,9 @@ const EmbeddingUMAPQuery = graphql`
           minDist: $minDist
           nNeighbors: $nNeighbors
           nSamples: $nSamples
+          minClusterSize: $minClusterSize
+          clusterMinSamples: $clusterMinSamples
+          clusterSelectionEpsilon: $clusterSelectionEpsilon
         ) {
           data {
             id
@@ -158,6 +168,9 @@ function EmbeddingMain() {
   const embeddingDimensionId = useEmbeddingDimensionId();
   const { primaryDataset, referenceDataset } = useDatasets();
   const umapParameters = usePointCloudContext((state) => state.umapParameters);
+  const hdbscanParameters = usePointCloudContext(
+    (state) => state.hdbscanParameters
+  );
   const resetPointCloud = usePointCloudContext((state) => state.reset);
   const [showDriftChart, setShowDriftChart] = useState<boolean>(true);
   const [queryReference, loadQuery] =
@@ -169,7 +182,7 @@ function EmbeddingMain() {
   );
   const timeRange = useMemo(() => {
     return {
-      start: subDays(endTime, 2).toISOString(),
+      start: subDays(endTime, 5).toISOString(),
       end: endTime.toISOString(),
     };
   }, [endTime]);
@@ -183,6 +196,7 @@ function EmbeddingMain() {
         id: embeddingDimensionId,
         timeRange,
         ...umapParameters,
+        ...hdbscanParameters,
       },
       {
         fetchPolicy: "network-only",
@@ -193,6 +207,7 @@ function EmbeddingMain() {
     embeddingDimensionId,
     loadQuery,
     umapParameters,
+    hdbscanParameters,
     timeRange,
   ]);
 
@@ -394,14 +409,14 @@ const PointCloudDisplay = ({
                 <TabPane name="Display">
                   <PointCloudDisplaySettings />
                 </TabPane>
-                <TabPane name="UMAP">
+                <TabPane name="Hyperparameters">
                   <PointCloudParameterSettings />
                 </TabPane>
               </Tabs>
             </Panel>
           </PanelGroup>
         </Panel>
-        <PanelResizeHandle css={resizeHandleCSS} />
+        <PanelResizeHandle css={compactResizeHandleCSS} />
         <Panel>
           <div
             css={css`
@@ -508,7 +523,6 @@ function ClustersPanelContents({
   );
 
   return (
-    // @ts-expect-error add more tabs
     <Tabs>
       <TabPane name="Clusters">
         <ul
@@ -540,6 +554,9 @@ function ClustersPanelContents({
             );
           })}
         </ul>
+      </TabPane>
+      <TabPane name="Configuration">
+        <ClusteringSettings />
       </TabPane>
     </Tabs>
   );

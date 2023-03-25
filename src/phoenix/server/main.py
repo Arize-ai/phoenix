@@ -56,6 +56,7 @@ if __name__ == "__main__":
     datasets_parser.add_argument("--reference", type=str, required=False)
     fixture_parser = subparsers.add_parser("fixture")
     fixture_parser.add_argument("fixture", type=str, choices=[fixture.name for fixture in FIXTURES])
+    fixture_parser.add_argument("--primary-only", type=bool)
     args = parser.parse_args()
 
     if args.command == "datasets":
@@ -63,10 +64,12 @@ if __name__ == "__main__":
         reference_dataset_name = args.reference
     else:
         fixture_name = args.fixture
+        primary_only = args.primary_only
         primary_dataset_name, reference_dataset_name = get_dataset_names_from_fixture_name(
             fixture_name
         )
-        print(f'🌎 Initializing fixture: "{fixture_name}"')
+        if primary_only:
+            reference_dataset_name = None
         download_fixture_if_missing(fixture_name)
 
     print(f"1️⃣ primary dataset: {primary_dataset_name}")

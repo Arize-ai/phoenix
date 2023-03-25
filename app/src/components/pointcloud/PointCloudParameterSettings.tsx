@@ -1,4 +1,4 @@
-import React, { startTransition, useCallback } from "react";
+import React, { useCallback } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { css } from "@emotion/react";
 
@@ -42,18 +42,14 @@ export function PointCloudParameterSettings() {
 
         return;
       }
-      startTransition(() => {
-        setUMAPParameters({
-          minDist: minDist,
-          nNeighbors: parseInt(
-            newUMAPParameters.nNeighbors as unknown as string,
-            10
-          ),
-          nSamples: parseInt(
-            newUMAPParameters.nSamples as unknown as string,
-            10
-          ),
-        });
+
+      setUMAPParameters({
+        minDist: minDist,
+        nNeighbors: parseInt(
+          newUMAPParameters.nNeighbors as unknown as string,
+          10
+        ),
+        nSamples: parseInt(newUMAPParameters.nSamples as unknown as string, 10),
       });
     },
     [setUMAPParameters, setError]
@@ -73,13 +69,13 @@ export function PointCloudParameterSettings() {
           name="minDist"
           control={control}
           rules={{
-            required: "min dist is required",
+            required: "field is required",
           }}
           render={({ field, fieldState: { invalid, error } }) => (
             <TextField
               label="min distance"
               type="number"
-              description={`a number between ${MIN_MIN_DIST} and ${MAX_MIN_DIST}`}
+              description={`how tightly to pack points`}
               errorMessage={error?.message}
               validationState={invalid ? "invalid" : "valid"}
               {...field}
@@ -92,6 +88,14 @@ export function PointCloudParameterSettings() {
           control={control}
           rules={{
             required: "n neighbors is required",
+            min: {
+              value: MIN_N_NEIGHBORS,
+              message: `greater than or equal to ${MIN_N_NEIGHBORS}`,
+            },
+            max: {
+              value: MAX_N_NEIGHBORS,
+              message: `less than or equal to ${MAX_N_NEIGHBORS}`,
+            },
           }}
           render={({ field, fieldState: { invalid, error } }) => (
             <TextField
@@ -99,7 +103,7 @@ export function PointCloudParameterSettings() {
               type="number"
               // @ts-expect-error fix in the component
               step="0.01"
-              description={`a number between ${MIN_N_NEIGHBORS} and ${MAX_N_NEIGHBORS}`}
+              description={`balances local versus global structure`}
               errorMessage={error?.message}
               validationState={invalid ? "invalid" : "valid"}
               {...field}
@@ -126,7 +130,7 @@ export function PointCloudParameterSettings() {
               label="n samples"
               defaultValue="500"
               type="number"
-              description={`a number between ${MIN_DATASET_SAMPLE_SIZE} and ${MAX_DATASET_SAMPLE_SIZE}`}
+              description={`number of points to use per dataset`}
               errorMessage={error?.message}
               validationState={invalid ? "invalid" : "valid"}
               {...field}

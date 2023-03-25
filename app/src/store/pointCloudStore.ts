@@ -9,8 +9,11 @@ import {
   ColoringStrategy,
   CorrectnessGroup,
   DatasetGroup,
+  DEFAULT_CLUSTER_MIN_SAMPLES,
+  DEFAULT_CLUSTER_SELECTION_EPSILON,
   DEFAULT_COLOR_SCHEME,
   DEFAULT_DATASET_SAMPLE_SIZE,
+  DEFAULT_MIN_CLUSTER_SIZE,
   DEFAULT_MIN_DIST,
   DEFAULT_N_NEIGHBORS,
   SelectionDisplay,
@@ -97,6 +100,27 @@ type PointData =
 type PointDataMap = Record<string, PointData | undefined>;
 
 /**
+ * The clustering parameters for HDBSCAN
+ */
+type HDBSCANParameters = {
+  /**
+   * The minimum cluster size
+   * @default 10
+   */
+  minClusterSize: number;
+  /**
+   * The minimum number of samples in a cluster
+   * @default 1
+   */
+  clusterMinSamples: number;
+  /**
+   * The cluster selection epsilon
+   * @default 0
+   */
+  clusterSelectionEpsilon: number;
+};
+
+/**
  * The properties of the point cloud store.
  */
 export interface PointCloudProps {
@@ -160,6 +184,10 @@ export interface PointCloudProps {
    * UMAP Parameters
    */
   umapParameters: UMAPParameters;
+  /**
+   * The clustering / HDBSCAN parameters
+   */
+  hdbscanParameters: HDBSCANParameters;
 }
 
 export interface PointCloudState extends PointCloudProps {
@@ -210,6 +238,10 @@ export interface PointCloudState extends PointCloudProps {
    * Set the UMAP parameters
    */
   setUMAPParameters: (parameters: UMAPParameters) => void;
+  /**
+   * Set the HDBSCAN parameters
+   */
+  setHDBSCANParameters: (parameters: HDBSCANParameters) => void;
   /**
    * Clear the selections in the point cloud
    * Done when the point cloud is re-loaded
@@ -277,6 +309,11 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
       minDist: DEFAULT_MIN_DIST,
       nNeighbors: DEFAULT_N_NEIGHBORS,
       nSamples: DEFAULT_DATASET_SAMPLE_SIZE,
+    },
+    hdbscanParameters: {
+      minClusterSize: DEFAULT_MIN_CLUSTER_SIZE,
+      clusterMinSamples: DEFAULT_CLUSTER_MIN_SAMPLES,
+      clusterSelectionEpsilon: DEFAULT_CLUSTER_SELECTION_EPSILON,
     },
   };
 
@@ -489,6 +526,7 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
     },
     setDimensionMetadata: (dimensionMetadata) => set({ dimensionMetadata }),
     setUMAPParameters: (umapParameters) => set({ umapParameters }),
+    setHDBSCANParameters: (hdbscanParameters) => set({ hdbscanParameters }),
   });
 
   return create<PointCloudState>()(devtools(pointCloudStore));

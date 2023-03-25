@@ -1,4 +1,4 @@
-import React from "react";
+import React, { startTransition } from "react";
 import { useCallback, useMemo } from "react";
 import { lighten, shade } from "polished";
 
@@ -43,7 +43,6 @@ type PointCloudPointsProps = {
    * How the points should be colored
    */
   color: PointColor;
-  selectedIds: Set<string>;
   radius: number;
 };
 
@@ -54,18 +53,25 @@ type PointCloudPointsProps = {
 export function PointCloudPoints({
   primaryData,
   referenceData,
-  selectedIds,
   color,
   radius,
 }: PointCloudPointsProps) {
-  const { datasetVisibility, coloringStrategy, canvasTheme } =
-    usePointCloudContext((state) => {
-      return {
-        datasetVisibility: state.datasetVisibility,
-        coloringStrategy: state.coloringStrategy,
-        canvasTheme: state.canvasTheme,
-      };
-    });
+  const datasetVisibility = usePointCloudContext(
+    (state) => state.datasetVisibility
+  );
+  const coloringStrategy = usePointCloudContext(
+    (state) => state.coloringStrategy
+  );
+  const canvasTheme = usePointCloudContext((state) => state.canvasTheme);
+  const setSelectedPointIds = usePointCloudContext(
+    (state) => state.setSelectedPointIds
+  );
+  const selectedPointIds = usePointCloudContext(
+    (state) => state.selectedPointIds
+  );
+  const setSelectedClusterId = usePointCloudContext(
+    (state) => state.setSelectedClusterId
+  );
 
   // Only use a cube shape if the coloring strategy is not dataset
   const referenceDatasetPointShape = useMemo(
@@ -89,20 +95,37 @@ export function PointCloudPoints({
 
   const colorByFn = useCallback(
     (point: PointBaseProps) => {
-      if (!selectedIds.has(point.metaData.id) && selectedIds.size > 0) {
+      if (
+        !selectedPointIds.has(point.metaData.id) &&
+        selectedPointIds.size > 0
+      ) {
         return invokeColor(point, dimmedColor);
       }
       return invokeColor(point, color);
     },
-    [selectedIds, color, dimmedColor]
+    [selectedPointIds, color, dimmedColor]
   );
 
   const showReferencePoints = datasetVisibility.reference && referenceData;
 
+  const onPointClicked = useCallback(
+    (point: PointBaseProps) => {
+      startTransition(() => {
+        setSelectedPointIds(new Set([point.metaData.id]));
+        setSelectedClusterId(null);
+      });
+    },
+    [setSelectedPointIds]
+  );
+
   return (
     <>
       {datasetVisibility.primary ? (
-        <Points data={primaryData} pointProps={{ color: colorByFn, radius }} />
+        <Points
+          data={primaryData}
+          pointProps={{ color: colorByFn, radius }}
+          onPointClicked={onPointClicked}
+        />
       ) : null}
       {showReferencePoints ? (
         <Points
@@ -113,6 +136,7 @@ export function PointCloudPoints({
             size: radius ? radius * CUBE_RADIUS_MULTIPLIER : undefined,
           }}
           pointShape={referenceDatasetPointShape}
+          onPointClicked={onPointClicked}
         />
       ) : null}
     </>

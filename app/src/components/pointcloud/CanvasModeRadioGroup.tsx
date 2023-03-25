@@ -1,7 +1,15 @@
 import React from "react";
 import { css } from "@emotion/react";
 
-import { Icon, Icons, Radio, RadioGroup } from "@arizeai/components";
+import {
+  Icon,
+  Icons,
+  Radio,
+  RadioGroup,
+  Tooltip,
+  TooltipTrigger,
+  TriggerWrap,
+} from "@arizeai/components";
 
 export enum CanvasMode {
   move = "move",
@@ -40,14 +48,24 @@ export function CanvasModeRadioGroup(props: CanvasModeRadioGroupProps) {
       }}
     >
       <Radio label="Move" value={CanvasMode.move}>
-        <div css={radioItemCSS}>
-          <Icon svg={<Icons.MoveFilled />} /> Move
-        </div>
+        <TooltipTrigger placement="top" delay={0} offset={10}>
+          <TriggerWrap>
+            <div css={radioItemCSS}>
+              <Icon svg={<Icons.MoveFilled />} /> Move
+            </div>
+          </TriggerWrap>
+          <Tooltip>Move around the canvas using orbital controls</Tooltip>
+        </TooltipTrigger>
       </Radio>
       <Radio label="Select" value={CanvasMode.select}>
-        <div css={radioItemCSS}>
-          <Icon svg={<Icons.LassoOutline />} /> Select
-        </div>
+        <TooltipTrigger placement="top" delay={0} offset={10}>
+          <TriggerWrap>
+            <div css={radioItemCSS}>
+              <Icon svg={<Icons.LassoOutline />} /> Select
+            </div>
+          </TriggerWrap>
+          <Tooltip>Select points using the lasso tool</Tooltip>
+        </TooltipTrigger>
       </Radio>
     </RadioGroup>
   );
