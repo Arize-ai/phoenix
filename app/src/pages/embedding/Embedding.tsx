@@ -182,7 +182,7 @@ function EmbeddingMain() {
   );
   const timeRange = useMemo(() => {
     return {
-      start: subDays(endTime, 5).toISOString(),
+      start: subDays(endTime, 2).toISOString(),
       end: endTime.toISOString(),
     };
   }, [endTime]);
