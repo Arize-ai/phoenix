@@ -60,13 +60,11 @@ export type UMAPParameters = {
    * @default 0
    */
   minDist: number;
-
   /**
    * The number of neighbors to require for the UMAP projection
    * @default 30
    */
   nNeighbors: number;
-
   /**
    * The number of samples to use for the UMAP projection. The sample number is per dataset.
    * @default 500
