@@ -1,6 +1,6 @@
 import React from "react";
 import { useCallback, useMemo } from "react";
-import { shade } from "polished";
+import { lighten, shade } from "polished";
 
 import { PointBaseProps, Points } from "@arizeai/point-cloud";
 
@@ -9,7 +9,8 @@ import { usePointCloudContext } from "@phoenix/contexts";
 
 import { PointColor, ThreeDimensionalPointItem } from "./types";
 
-const DIM_AMOUNT = 0.5;
+const SHADE_AMOUNT = 0.5;
+const LIGHTEN_AMOUNT = 0.3;
 
 /**
  * The amount to multiply the radius by to get the appropriate cube size
@@ -57,14 +58,14 @@ export function PointCloudPoints({
   color,
   radius,
 }: PointCloudPointsProps) {
-  const { datasetVisibility, coloringStrategy } = usePointCloudContext(
-    (state) => {
+  const { datasetVisibility, coloringStrategy, canvasTheme } =
+    usePointCloudContext((state) => {
       return {
         datasetVisibility: state.datasetVisibility,
         coloringStrategy: state.coloringStrategy,
+        canvasTheme: state.canvasTheme,
       };
-    }
-  );
+    });
 
   // Only use a cube shape if the coloring strategy is not dataset
   const referenceDatasetPointShape = useMemo(
@@ -72,13 +73,19 @@ export function PointCloudPoints({
     [coloringStrategy]
   );
 
+  const colorDimFn = useMemo(() => {
+    return canvasTheme === "dark"
+      ? shade(SHADE_AMOUNT)
+      : lighten(LIGHTEN_AMOUNT);
+  }, [canvasTheme]);
+
   /** Colors to represent a dimmed variant of the color for "un-selected" */
   const dimmedColor = useMemo<PointColor>(() => {
     if (typeof color === "function") {
-      return (p: PointBaseProps) => shade(DIM_AMOUNT)(color(p));
+      return (p: PointBaseProps) => colorDimFn(color(p));
     }
-    return shade(DIM_AMOUNT, color);
-  }, [color]);
+    return colorDimFn(color);
+  }, [color, colorDimFn]);
 
   const colorByFn = useCallback(
     (point: PointBaseProps) => {
