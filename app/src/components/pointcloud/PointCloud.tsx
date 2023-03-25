@@ -92,7 +92,10 @@ function PointCloudInfo() {
           </div>
         ) : null}
       </dl>
-      <Heading level={3}>Clustering Parameters</Heading>
+      <br />
+      <Heading level={4} weight="heavy">
+        Clustering Parameters
+      </Heading>
       <dl css={descriptionListCSS}>
         <div>
           <dt>min cluster size</dt>
@@ -107,7 +110,10 @@ function PointCloudInfo() {
           <dd>{hdbscanParameters.clusterSelectionEpsilon}</dd>
         </div>
       </dl>
-      <Heading level={3}>UMAP Parameters</Heading>
+      <br />
+      <Heading level={4} weight="heavy">
+        UMAP Parameters
+      </Heading>
       <dl css={descriptionListCSS}>
         <div>
           <dt>min distance</dt>
@@ -118,7 +124,7 @@ function PointCloudInfo() {
           <dd>{umapParameters.nNeighbors}</dd>
         </div>
         <div>
-          <dt>n samples</dt>
+          <dt>n samples per dataset</dt>
           <dd>{umapParameters.nSamples}</dd>
         </div>
       </dl>
