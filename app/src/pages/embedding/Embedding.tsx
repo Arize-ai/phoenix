@@ -60,10 +60,21 @@ type UMAPClusterEntry = NonNullable<
 >["clusters"][number];
 
 const EmbeddingUMAPQuery = graphql`
-  query EmbeddingUMAPQuery($id: GlobalID!, $timeRange: TimeRange!) {
+  query EmbeddingUMAPQuery(
+    $id: GlobalID!
+    $timeRange: TimeRange!
+    $minDist: Float!
+    $nNeighbors: Int!
+    $nSamples: Int!
+  ) {
     embedding: node(id: $id) {
       ... on EmbeddingDimension {
-        UMAPPoints(timeRange: $timeRange) {
+        UMAPPoints(
+          timeRange: $timeRange
+          minDist: $minDist
+          nNeighbors: $nNeighbors
+          nSamples: $nSamples
+        ) {
           data {
             id
             coordinates {
@@ -146,7 +157,8 @@ export function Embedding() {
 function EmbeddingMain() {
   const embeddingDimensionId = useEmbeddingDimensionId();
   const { primaryDataset, referenceDataset } = useDatasets();
-  const resetPointCloudContext = usePointCloudContext((state) => state.reset);
+  const umapParameters = usePointCloudContext((state) => state.umapParameters);
+  const resetPointCloud = usePointCloudContext((state) => state.reset);
   const [showDriftChart, setShowDriftChart] = useState<boolean>(true);
   const [queryReference, loadQuery] =
     useQueryLoader<UMAPQueryType>(EmbeddingUMAPQuery);
@@ -165,17 +177,24 @@ function EmbeddingMain() {
   // Load the query on first render
   useEffect(() => {
     // dispose of the selections in the context
-    resetPointCloudContext();
+    resetPointCloud();
     loadQuery(
       {
         id: embeddingDimensionId,
         timeRange,
+        ...umapParameters,
       },
       {
         fetchPolicy: "network-only",
       }
     );
-  }, [resetPointCloudContext, embeddingDimensionId, loadQuery, timeRange]);
+  }, [
+    resetPointCloud,
+    embeddingDimensionId,
+    loadQuery,
+    umapParameters,
+    timeRange,
+  ]);
 
   return (
     <main
@@ -375,7 +394,7 @@ const PointCloudDisplay = ({
                 <TabPane name="Display">
                   <PointCloudDisplaySettings />
                 </TabPane>
-                <TabPane name="Parameters">
+                <TabPane name="UMAP">
                   <PointCloudParameterSettings />
                 </TabPane>
               </Tabs>

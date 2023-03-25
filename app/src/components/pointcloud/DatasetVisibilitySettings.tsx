@@ -16,12 +16,15 @@ import { VisibilityCheckboxField } from "./VisibilityCheckboxField";
  * Small checkbox form that controls the visibility of each dataset.
  */
 export function DatasetVisibilitySettings() {
-  const { datasetVisibility, setDatasetVisibility, coloringStrategy } =
-    usePointCloudContext((state) => ({
-      datasetVisibility: state.datasetVisibility,
-      setDatasetVisibility: state.setDatasetVisibility,
-      coloringStrategy: state.coloringStrategy,
-    }));
+  const datasetVisibility = usePointCloudContext(
+    (state) => state.datasetVisibility
+  );
+  const setDatasetVisibility = usePointCloudContext(
+    (state) => state.setDatasetVisibility
+  );
+  const coloringStrategy = usePointCloudContext(
+    (state) => state.coloringStrategy
+  );
 
   const handleDatasetVisibilityChange = useCallback(
     (event: ChangeEvent<HTMLInputElement>) => {

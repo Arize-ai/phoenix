@@ -10,6 +10,9 @@ import {
   CorrectnessGroup,
   DatasetGroup,
   DEFAULT_COLOR_SCHEME,
+  DEFAULT_DATASET_SAMPLE_SIZE,
+  DEFAULT_MIN_DIST,
+  DEFAULT_N_NEIGHBORS,
   SelectionDisplay,
   UNKNOWN_COLOR,
 } from "@phoenix/constants/pointCloudConstants";
@@ -46,6 +49,26 @@ type DimensionMetadata = {
    * The unique values of a categorical dimension
    */
   readonly categories: readonly string[] | null;
+};
+
+export type UMAPParameters = {
+  /**
+   * Minimum distance between points in the eUMAP projection
+   * @default 0
+   */
+  minDist: number;
+
+  /**
+   * The number of neighbors to require for the UMAP projection
+   * @default 30
+   */
+  nNeighbors: number;
+
+  /**
+   * The number of samples to use for the UMAP projection. The sample number is per dataset.
+   * @default 500
+   */
+  nSamples: number;
 };
 
 type CanvasTheme = "light" | "dark";
@@ -133,6 +156,10 @@ export interface PointCloudProps {
    * Dimension level metadata for the current selected dimension
    */
   dimensionMetadata: DimensionMetadata | null;
+  /**
+   * UMAP Parameters
+   */
+  umapParameters: UMAPParameters;
 }
 
 export interface PointCloudState extends PointCloudProps {
@@ -179,6 +206,10 @@ export interface PointCloudState extends PointCloudProps {
    * Set the dimension metadata for the current selected dimension
    */
   setDimensionMetadata: (dimensionMetadata: DimensionMetadata) => void;
+  /**
+   * Set the UMAP parameters
+   */
+  setUMAPParameters: (parameters: UMAPParameters) => void;
   /**
    * Clear the selections in the point cloud
    * Done when the point cloud is re-loaded
@@ -242,6 +273,11 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
     selectionDisplay: SelectionDisplay.gallery,
     dimension: null,
     dimensionMetadata: null,
+    umapParameters: {
+      minDist: DEFAULT_MIN_DIST,
+      nNeighbors: DEFAULT_N_NEIGHBORS,
+      nSamples: DEFAULT_DATASET_SAMPLE_SIZE,
+    },
   };
 
   const pointCloudStore: StateCreator<PointCloudState> = (set, get) => ({
@@ -452,6 +488,7 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
       }
     },
     setDimensionMetadata: (dimensionMetadata) => set({ dimensionMetadata }),
+    setUMAPParameters: (umapParameters) => set({ umapParameters }),
   });
 
   return create<PointCloudState>()(devtools(pointCloudStore));
