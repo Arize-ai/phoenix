@@ -16,19 +16,19 @@ export function Toolbar(props: ToolbarProps) {
     <div
       role="toolbar"
       css={(theme) => css`
-        padding: ${theme.spacing.padding8}px ${theme.spacing.padding16}px;
+        padding: var(--px-spacing-med) var(--px-spacing-lg);
         display: flex;
         flex-direction: row;
         justify-content: space-between;
         align-items: center;
-        gap: ${theme.spacing.padding8}px;
+        gap: var(--px-spacing-med);
         border-bottom: 1px solid ${theme.colors.gray500};
         flex: none;
         min-height: 29px;
         .toolbar__main {
           display: flex;
           flex-direction: row;
-          gap: ${theme.spacing.padding8}px;
+          gap: var(--px-spacing-med);
         }
       `}
     >

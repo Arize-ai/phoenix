@@ -29,8 +29,12 @@ import {
   PointCloudParameterSettings,
   ThreeDimensionalPointItem,
 } from "@phoenix/components/pointcloud";
+import ClusteringSettings from "@phoenix/components/pointcloud/ClusteringSettings";
 import { PointCloudDisplaySettings } from "@phoenix/components/pointcloud/PointCloudDisplaySettings";
-import { resizeHandleCSS } from "@phoenix/components/resize/styles";
+import {
+  compactResizeHandleCSS,
+  resizeHandleCSS,
+} from "@phoenix/components/resize/styles";
 import { PointCloudProvider, usePointCloudContext } from "@phoenix/contexts";
 import { useDatasets } from "@phoenix/contexts";
 import { useTimeRange } from "@phoenix/contexts/TimeRangeContext";
@@ -60,10 +64,27 @@ type UMAPClusterEntry = NonNullable<
 >["clusters"][number];
 
 const EmbeddingUMAPQuery = graphql`
-  query EmbeddingUMAPQuery($id: GlobalID!, $timeRange: TimeRange!) {
+  query EmbeddingUMAPQuery(
+    $id: GlobalID!
+    $timeRange: TimeRange!
+    $minDist: Float!
+    $nNeighbors: Int!
+    $nSamples: Int!
+    $minClusterSize: Int!
+    $clusterMinSamples: Int!
+    $clusterSelectionEpsilon: Int!
+  ) {
     embedding: node(id: $id) {
       ... on EmbeddingDimension {
-        UMAPPoints(timeRange: $timeRange) {
+        UMAPPoints(
+          timeRange: $timeRange
+          minDist: $minDist
+          nNeighbors: $nNeighbors
+          nSamples: $nSamples
+          minClusterSize: $minClusterSize
+          clusterMinSamples: $clusterMinSamples
+          clusterSelectionEpsilon: $clusterSelectionEpsilon
+        ) {
           data {
             id
             coordinates {
@@ -146,7 +167,11 @@ export function Embedding() {
 function EmbeddingMain() {
   const embeddingDimensionId = useEmbeddingDimensionId();
   const { primaryDataset, referenceDataset } = useDatasets();
-  const resetPointCloudContext = usePointCloudContext((state) => state.reset);
+  const umapParameters = usePointCloudContext((state) => state.umapParameters);
+  const hdbscanParameters = usePointCloudContext(
+    (state) => state.hdbscanParameters
+  );
+  const resetPointCloud = usePointCloudContext((state) => state.reset);
   const [showDriftChart, setShowDriftChart] = useState<boolean>(true);
   const [queryReference, loadQuery] =
     useQueryLoader<UMAPQueryType>(EmbeddingUMAPQuery);
@@ -165,17 +190,26 @@ function EmbeddingMain() {
   // Load the query on first render
   useEffect(() => {
     // dispose of the selections in the context
-    resetPointCloudContext();
+    resetPointCloud();
     loadQuery(
       {
         id: embeddingDimensionId,
         timeRange,
+        ...umapParameters,
+        ...hdbscanParameters,
       },
       {
         fetchPolicy: "network-only",
       }
     );
-  }, [resetPointCloudContext, embeddingDimensionId, loadQuery, timeRange]);
+  }, [
+    resetPointCloud,
+    embeddingDimensionId,
+    loadQuery,
+    umapParameters,
+    hdbscanParameters,
+    timeRange,
+  ]);
 
   return (
     <main
@@ -375,14 +409,14 @@ const PointCloudDisplay = ({
                 <TabPane name="Display">
                   <PointCloudDisplaySettings />
                 </TabPane>
-                <TabPane name="Parameters">
+                <TabPane name="Hyperparameters">
                   <PointCloudParameterSettings />
                 </TabPane>
               </Tabs>
             </Panel>
           </PanelGroup>
         </Panel>
-        <PanelResizeHandle css={resizeHandleCSS} />
+        <PanelResizeHandle css={compactResizeHandleCSS} />
         <Panel>
           <div
             css={css`
@@ -489,7 +523,6 @@ function ClustersPanelContents({
   );
 
   return (
-    // @ts-expect-error add more tabs
     <Tabs>
       <TabPane name="Clusters">
         <ul
@@ -521,6 +554,9 @@ function ClustersPanelContents({
             );
           })}
         </ul>
+      </TabPane>
+      <TabPane name="Configuration">
+        <ClusteringSettings />
       </TabPane>
     </Tabs>
   );

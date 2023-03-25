@@ -3,11 +3,11 @@ import { useContextBridge } from "@react-three/drei";
 import { css } from "@emotion/react";
 
 import {
+  ActionTooltip,
   Button,
   Heading,
   Icon,
   InfoOutline,
-  Tooltip,
   TooltipTrigger,
 } from "@arizeai/components";
 import {
@@ -54,6 +54,10 @@ interface ProjectionProps extends PointCloudProps {
 function PointCloudInfo() {
   const { selectedTimestamp } = useTimeSlice();
   const points = usePointCloudContext((state) => state.points);
+  const hdbscanParameters = usePointCloudContext(
+    (state) => state.hdbscanParameters
+  );
+  const umapParameters = usePointCloudContext((state) => state.umapParameters);
   const [numPrimary, numReference] = useMemo(() => {
     const { primaryPointIds, referencePointIds } = splitPointIdsByDataset(
       points.map((point) => point.id)
@@ -67,19 +71,79 @@ function PointCloudInfo() {
   return (
     <section
       css={css`
-        width: 200px;
+        width: 300px;
+        padding: var(--px-spacing-med);
       `}
     >
-      <Heading level={3} weight="heavy">
-        {fullTimeFormatter(selectedTimestamp)}
+      <dl css={descriptionListCSS}>
+        <div>
+          <dt>Timestamp</dt>
+          <dd>{fullTimeFormatter(selectedTimestamp)}</dd>
+        </div>
+
+        <div>
+          <dt>primary points</dt>
+          <dd>{numPrimary}</dd>
+        </div>
+        {numReference > 0 ? (
+          <div>
+            <dt>reference points</dt>
+            <dd>{numReference}</dd>
+          </div>
+        ) : null}
+      </dl>
+      <br />
+      <Heading level={4} weight="heavy">
+        Clustering Parameters
       </Heading>
-      <div>{`${numPrimary} primary points`}</div>
-      {numReference > 0 ? (
-        <div>{`${numReference} reference points`}</div>
-      ) : null}
+      <dl css={descriptionListCSS}>
+        <div>
+          <dt>min cluster size</dt>
+          <dd>{hdbscanParameters.minClusterSize}</dd>
+        </div>
+        <div>
+          <dt>cluster min samples</dt>
+          <dd>{hdbscanParameters.clusterMinSamples}</dd>
+        </div>
+        <div>
+          <dt>cluster selection epsilon</dt>
+          <dd>{hdbscanParameters.clusterSelectionEpsilon}</dd>
+        </div>
+      </dl>
+      <br />
+      <Heading level={4} weight="heavy">
+        UMAP Parameters
+      </Heading>
+      <dl css={descriptionListCSS}>
+        <div>
+          <dt>min distance</dt>
+          <dd>{umapParameters.minDist}</dd>
+        </div>
+        <div>
+          <dt>n neighbors</dt>
+          <dd>{umapParameters.nNeighbors}</dd>
+        </div>
+        <div>
+          <dt>n samples per dataset</dt>
+          <dd>{umapParameters.nSamples}</dd>
+        </div>
+      </dl>
     </section>
   );
 }
+
+const descriptionListCSS = css`
+  margin: 0;
+  padding: 0;
+  div {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--px-spacing-sm);
+  }
+`;
+
 /**
  * Displays the tools available on the point cloud
  * E.g. move vs select
@@ -131,9 +195,9 @@ function CanvasInfo() {
           icon={<Icon svg={<InfoOutline />} />}
           aria-label="Information bout the point-cloud display"
         />
-        <Tooltip>
+        <ActionTooltip title={"Point Cloud Summary"}>
           <PointCloudInfo />
-        </Tooltip>
+        </ActionTooltip>
       </TooltipTrigger>
     </div>
   );
@@ -179,9 +243,6 @@ export function PointCloud(props: PointCloudProps) {
 function Projection(props: ProjectionProps) {
   const { primaryData, referenceData, clusters, canvasMode } = props;
 
-  const selectedPointIds = usePointCloudContext(
-    (state) => state.selectedPointIds
-  );
   const setSelectedPointIds = usePointCloudContext(
     (state) => state.setSelectedPointIds
   );
@@ -286,7 +347,6 @@ function Projection(props: ProjectionProps) {
           <PointCloudPoints
             primaryData={filteredPrimaryData}
             referenceData={filteredReferenceData}
-            selectedIds={selectedPointIds}
             color={colorFn}
             radius={radius}
           />
