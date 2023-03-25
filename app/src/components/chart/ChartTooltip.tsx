@@ -17,7 +17,7 @@ export function ChartTooltip(props: ChartTooltipProps) {
   return (
     <div
       css={(theme) => css`
-        background-color: ${theme.colors.gray700};
+        background-color: ${theme.colors.gray500};
         border: 1px solid transparent;
         padding: var(--px-spacing-med);
         border-radius: ${theme.rounding.rounding4}px;

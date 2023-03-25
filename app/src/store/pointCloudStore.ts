@@ -48,6 +48,8 @@ type DimensionMetadata = {
   readonly categories: readonly string[] | null;
 };
 
+type CanvasTheme = "light" | "dark";
+
 /**
  * The visibility of the two datasets in the point cloud.
  */
@@ -92,6 +94,11 @@ export interface PointCloudProps {
    * The IDs of the clusters that are currently selected.
    */
   selectedClusterId: string | null;
+  /**
+   * The color scheme to use for the point cloud.
+   * @default "dark"
+   */
+  canvasTheme: CanvasTheme;
   /**
    * The coloring strategy to use for the point cloud.
    */
@@ -142,6 +149,10 @@ export interface PointCloudState extends PointCloudProps {
    * Sets the selected cluster id to the given value.
    */
   setSelectedClusterId: (ids: string | null) => void;
+  /**
+   * Set canvas theme to light or dark
+   */
+  setCanvasTheme: (theme: CanvasTheme) => void;
   /**
    * Sets the coloring strategy to the given value.
    */
@@ -215,6 +226,7 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
     pointData: null,
     selectedPointIds: new Set(),
     selectedClusterId: null,
+    canvasTheme: "dark",
     coloringStrategy: ColoringStrategy.dataset,
     datasetVisibility: { primary: true, reference: true },
     pointGroupVisibility: {
@@ -267,6 +279,7 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
     },
     setSelectedPointIds: (ids) => set({ selectedPointIds: ids }),
     setSelectedClusterId: (id) => set({ selectedClusterId: id }),
+    setCanvasTheme: (theme) => set({ canvasTheme: theme }),
     setColoringStrategy: (strategy) => {
       const pointCloudState = get();
 

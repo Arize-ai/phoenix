@@ -37,7 +37,7 @@ dynamic = ["version"]
 
 [project.optional-dependencies]
 dev = [
-  "black",
+  "black[jupyter]",
   "hatch",
   "jupyter",
   "pandas-stubs",

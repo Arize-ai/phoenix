@@ -7,7 +7,14 @@ import React, {
   useMemo,
   useState,
 } from "react";
-import { addDays, addSeconds, endOfHour, startOfHour, subDays } from "date-fns";
+import {
+  addDays,
+  addSeconds,
+  endOfHour,
+  roundToNearestMinutes,
+  startOfHour,
+  subDays,
+} from "date-fns";
 
 import { assertUnreachable } from "@phoenix/typeUtils";
 
@@ -58,7 +65,10 @@ function useTimeRangeMemo(timePreset: TimePreset, timeRangeBounds: TimeRange) {
   const timeRange = useMemo(() => {
     // The timeRangeBounds come from the start / end of the primary dataset
     // Because our time windows are right open (don't include the right time), we need to expand it by a small amount
-    const endTimeBounds = endOfHour(addSeconds(timeRangeBounds.end, 1));
+    const endTimeBounds = roundToNearestMinutes(
+      endOfHour(addSeconds(timeRangeBounds.end, 1)),
+      { roundingMethod: "floor" }
+    );
     const startTimeBounds = startOfHour(timeRangeBounds.start);
     switch (timePreset) {
       case TimePreset.last_day:

@@ -1,5 +1,6 @@
 import React, {
   createContext,
+  PropsWithChildren,
   startTransition,
   useContext,
   useState,
@@ -26,12 +27,13 @@ export const useTimeSlice = (): TimeSliceContextType => {
 };
 
 export const TimeSliceContextProvider = ({
+  initialTimestamp,
   children,
-}: {
-  children: React.ReactNode;
-}) => {
+}: PropsWithChildren<{
+  initialTimestamp: Date | null;
+}>) => {
   const [selectedTimestamp, _setSelectedTimestamp] = useState<Date | null>(
-    getInitialSelectedTimestamp()
+    initialTimestamp
   );
 
   const setSelectedTimestamp = (newTimestamp: Date | null) => {
@@ -51,16 +53,3 @@ export const TimeSliceContextProvider = ({
     </TimeSliceContext.Provider>
   );
 };
-
-/**
- * Utility function for retrieving the selected timestamp used for calculating drift
- */
-function getInitialSelectedTimestamp(): Date | null {
-  const searchParams = new URLSearchParams(window.location.search);
-
-  const endTimeslice = searchParams.get("timestamp");
-  if (endTimeslice != null) {
-    return new Date(parseInt(endTimeslice));
-  }
-  return null;
-}

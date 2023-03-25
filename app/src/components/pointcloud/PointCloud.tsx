@@ -2,7 +2,14 @@ import React, { ReactNode, useCallback, useMemo, useState } from "react";
 import { useContextBridge } from "@react-three/drei";
 import { css } from "@emotion/react";
 
-import { theme } from "@arizeai/components";
+import {
+  Button,
+  Heading,
+  Icon,
+  InfoOutline,
+  Tooltip,
+  TooltipTrigger,
+} from "@arizeai/components";
 import {
   Axes,
   getThreeDimensionalBounds,
@@ -15,14 +22,19 @@ import {
 
 import { UNKNOWN_COLOR } from "@phoenix/constants/pointCloudConstants";
 import { PointCloudContext, usePointCloudContext } from "@phoenix/contexts";
+import { useTimeSlice } from "@phoenix/contexts/TimeSliceContext";
+import { splitPointIdsByDataset } from "@phoenix/utils/pointCloudUtils";
+
+import { fullTimeFormatter } from "../chart";
 
 import { CanvasMode, CanvasModeRadioGroup } from "./CanvasModeRadioGroup";
+import { CanvasThemeToggle } from "./CanvasThemeToggle";
 import { PointCloudClusters } from "./PointCloudClusters";
 import { PointCloudPoints } from "./PointCloudPoints";
 import { ThreeDimensionalPointItem } from "./types";
 import { ClusterInfo } from "./types";
 
-const RADIUS_BOUNDS_3D_DIVISOR = 400;
+const RADIUS_BOUNDS_3D_DIVISOR = 300;
 const CLUSTER_POINT_RADIUS_MULTIPLIER = 6;
 const BOUNDS_3D_ZOOM_PADDING_FACTOR = 0.2;
 
@@ -36,7 +48,38 @@ interface ProjectionProps extends PointCloudProps {
   canvasMode: CanvasMode;
 }
 
-const CONTROL_PANEL_WIDTH = 300;
+/**
+ * Displays what is loaded in the point cloud
+ */
+function PointCloudInfo() {
+  const { selectedTimestamp } = useTimeSlice();
+  const points = usePointCloudContext((state) => state.points);
+  const [numPrimary, numReference] = useMemo(() => {
+    const { primaryPointIds, referencePointIds } = splitPointIdsByDataset(
+      points.map((point) => point.id)
+    );
+    return [primaryPointIds.length, referencePointIds.length];
+  }, [points]);
+
+  if (!selectedTimestamp) {
+    return null;
+  }
+  return (
+    <section
+      css={css`
+        width: 200px;
+      `}
+    >
+      <Heading level={3} weight="heavy">
+        {fullTimeFormatter(selectedTimestamp)}
+      </Heading>
+      <div>{`${numPrimary} primary points`}</div>
+      {numReference > 0 ? (
+        <div>{`${numReference} reference points`}</div>
+      ) : null}
+    </section>
+  );
+}
 /**
  * Displays the tools available on the point cloud
  * E.g. move vs select
@@ -50,29 +93,71 @@ function CanvasTools(props: {
     <div
       css={css`
         position: absolute;
-        /* left: ${CONTROL_PANEL_WIDTH + 2 * theme.spacing.margin8}px; */
-        left: ${theme.spacing.margin8}px;
-        top: ${theme.spacing.margin8}px;
+        left: var(--px-spacing-med);
+        top: var(--px-spacing-med);
         z-index: 1;
         display: flex;
         flex-direction: row;
-        gap: ${theme.spacing.margin8}px;
+        align-items: center;
+        gap: var(--px-spacing-med);
       `}
     >
       <CanvasModeRadioGroup mode={canvasMode} onChange={onCanvasModeChange} />
+      <CanvasThemeToggle />
+    </div>
+  );
+}
+
+/**
+ * Displays info about the canvas
+ */
+function CanvasInfo() {
+  return (
+    <div
+      css={css`
+        position: absolute;
+        right: var(--px-spacing-med);
+        top: var(--px-spacing-med);
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        gap: var(--px-spacing-med);
+      `}
+    >
+      <TooltipTrigger placement="left top" delay={0}>
+        <Button
+          variant="default"
+          size="compact"
+          icon={<Icon svg={<InfoOutline />} />}
+          aria-label="Information bout the point-cloud display"
+        />
+        <Tooltip>
+          <PointCloudInfo />
+        </Tooltip>
+      </TooltipTrigger>
     </div>
   );
 }
 
 function CanvasWrap({ children }: { children: ReactNode }) {
+  const canvasTheme = usePointCloudContext((state) => state.canvasTheme);
   return (
     <div
       css={css`
         flex: 1 1 auto;
         height: 100%;
         position: relative;
-        background-color: black;
+        &[data-theme="dark"] {
+          background: linear-gradient(
+            rgb(21, 25, 31) 11.4%,
+            rgb(11, 12, 14) 70.2%
+          );
+        }
+        &[data-theme="light"] {
+          background: linear-gradient(#d2def3 0%, #b2c5e8 74%);
+        }
       `}
+      data-theme={canvasTheme}
     >
       {children}
     </div>
@@ -86,6 +171,7 @@ export function PointCloud(props: PointCloudProps) {
     <CanvasWrap>
       <CanvasTools canvasMode={canvasMode} onCanvasModeChange={setCanvasMode} />
       <Projection canvasMode={canvasMode} {...props} />
+      <CanvasInfo />
     </CanvasWrap>
   );
 }
@@ -111,6 +197,7 @@ function Projection(props: ProjectionProps) {
   const pointGroupVisibility = usePointCloudContext(
     (state) => state.pointGroupVisibility
   );
+  const canvasTheme = usePointCloudContext((state) => state.canvasTheme);
 
   // AutoRotate the canvas on initial load
   const [autoRotate, setAutoRotate] = useState<boolean>(true);
@@ -166,7 +253,7 @@ function Projection(props: ProjectionProps) {
   const ContextBridge = useContextBridge(PointCloudContext);
 
   return (
-    <ThreeDimensionalCanvas camera={{ position: [0, 0, 10] }}>
+    <ThreeDimensionalCanvas camera={{ position: [3, 3, 3] }}>
       <ContextBridge>
         <ThreeDimensionalControls
           autoRotate={autoRotate}
@@ -178,6 +265,7 @@ function Projection(props: ProjectionProps) {
             setAutoRotate(false);
           }}
         />
+
         <ThreeDimensionalBounds
           bounds={bounds}
           boundsZoomPaddingFactor={BOUNDS_3D_ZOOM_PADDING_FACTOR}
@@ -190,7 +278,11 @@ function Projection(props: ProjectionProps) {
             }}
             enabled={canvasMode === CanvasMode.select}
           />
-          <Axes size={(bounds.maxX - bounds.minX) / 4} />
+          <Axes
+            size={(bounds.maxX - bounds.minX) / 4}
+            color={canvasTheme == "dark" ? "#fff" : "#505050"}
+          />
+
           <PointCloudPoints
             primaryData={filteredPrimaryData}
             referenceData={filteredReferenceData}

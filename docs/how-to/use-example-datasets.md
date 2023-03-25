@@ -71,18 +71,18 @@ to get an overview of your dataset's underlying DataFrame:
 <class 'pandas.core.frame.DataFrame'>
 DatetimeIndex: 33411 entries, 2022-05-01 07:00:16+00:00 to 2022-06-01 07:00:16+00:00
 Data columns (total 10 columns):
- #   Column            Non-Null Count  Dtype              
----  ------            --------------  -----              
+ #   Column            Non-Null Count  Dtype
+---  ------            --------------  -----
  0   prediction_ts     33411 non-null  datetime64[ns, UTC]
- 1   reviewer_age      33411 non-null  int16              
- 2   reviewer_gender   33411 non-null  object             
- 3   product_category  33411 non-null  object             
- 4   language          33411 non-null  object             
- 5   text              33411 non-null  object             
- 6   text_vector       33411 non-null  object             
- 7   label             33411 non-null  object             
- 8   pred_label        33411 non-null  object             
- 9   prediction_id     0 non-null      object             
+ 1   reviewer_age      33411 non-null  int16
+ 2   reviewer_gender   33411 non-null  object
+ 3   product_category  33411 non-null  object
+ 4   language          33411 non-null  object
+ 5   text              33411 non-null  object
+ 6   text_vector       33411 non-null  object
+ 7   label             33411 non-null  object
+ 8   pred_label        33411 non-null  object
+ 9   prediction_id     0 non-null      object
 dtypes: datetime64[ns, UTC](1), int16(1), object(8)
 memory usage: 2.6+ MB
 ```

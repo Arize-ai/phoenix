@@ -41,6 +41,10 @@ DEFAULT_N_COMPONENTS = 3
 DEFAULT_MIN_DIST = 0
 DEFAULT_N_NEIGHBORS = 30
 DEFAULT_N_SAMPLES = 500
+# Default HDBSCAN hyperparameters
+DEFAULT_MIN_CLUSTER_SIZE = 10
+DEFAULT_MIN_SAMPLES = 1
+DEFAULT_CLUSTER_SELECTION_EPSILON = 0
 
 DRIFT_EVAL_WINDOW_NUM_INTERVALS = 72
 EVAL_INTERVAL_LENGTH = timedelta(hours=1)
@@ -164,26 +168,42 @@ class EmbeddingDimension(Node):
             ),
         ] = DEFAULT_N_COMPONENTS,
         min_dist: Annotated[
-            Optional[float],
+            float,
             strawberry.argument(
                 description="UMAP minimum distance hyperparameter",
             ),
         ] = DEFAULT_MIN_DIST,
         n_neighbors: Annotated[
-            Optional[int],
+            int,
             strawberry.argument(
                 description="UMAP N neighbors hyperparameter",
             ),
         ] = DEFAULT_N_NEIGHBORS,
         n_samples: Annotated[
-            Optional[int],
+            int,
             strawberry.argument(
                 description="UMAP N samples",
             ),
         ] = DEFAULT_N_SAMPLES,
+        min_cluster_size: Annotated[
+            int,
+            strawberry.argument(
+                description="HDBSCAN minimum cluster size",
+            ),
+        ] = DEFAULT_MIN_CLUSTER_SIZE,
+        cluster_min_samples: Annotated[
+            int,
+            strawberry.argument(
+                description="HDBSCAN minimum samples",
+            ),
+        ] = DEFAULT_MIN_SAMPLES,
+        cluster_selection_epsilon: Annotated[
+            int,
+            strawberry.argument(
+                description="HDBSCAN cluster selection epsilon",
+            ),
+        ] = DEFAULT_CLUSTER_SELECTION_EPSILON,
     ) -> UMAPPoints:
-        n_samples = n_samples or DEFAULT_N_SAMPLES
-
         datasets = {
             DatasetType.PRIMARY: info.context.model.primary_dataset,
             DatasetType.REFERENCE: info.context.model.reference_dataset,
@@ -197,9 +217,9 @@ class EmbeddingDimension(Node):
             row_id_start, row_id_stop = 0, len(dataframe)
             if dataset_id == DatasetType.PRIMARY:
                 row_id_start, row_id_stop = row_interval_from_sorted_time_index(
-                    dataframe.index,
-                    start=time_range.start,
-                    end=time_range.end,
+                    time_index=dataframe.index,
+                    time_start=time_range.start,
+                    time_stop=time_range.end,
                 )
             vector_column = dataset.get_embedding_vector_column(self.name)
             for row_id in range(row_id_start, row_id_stop)[:n_samples]:
@@ -212,12 +232,13 @@ class EmbeddingDimension(Node):
         if not 2 <= n_components <= 3:
             raise Exception(f"n_components must be 2 or 3, got {n_components}")
 
-        min_dist = DEFAULT_MIN_DIST if min_dist is None else min_dist
-        n_neighbors = DEFAULT_N_NEIGHBORS if n_neighbors is None else n_neighbors
-
         vectors, cluster_membership = PointCloud(
             dimensionalityReducer=Umap(n_neighbors=n_neighbors, min_dist=min_dist),
-            clustersFinder=Hdbscan(),
+            clustersFinder=Hdbscan(
+                min_cluster_size=min_cluster_size,
+                min_samples=cluster_min_samples,
+                cluster_selection_epsilon=cluster_selection_epsilon,
+            ),
         ).generate(data, n_components=n_components)
 
         points = defaultdict(list)
