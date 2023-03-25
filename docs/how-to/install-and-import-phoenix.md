@@ -2,7 +2,7 @@
 description: How to fly with Phoenix
 ---
 
-# Install and Import Phoenix
+# ⬇ Install and Import Phoenix
 
 In your Jupyter or Colab environment, run
 
