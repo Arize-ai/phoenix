@@ -25,11 +25,10 @@ datasets = px.load_example("sentiment_classification_language_drift")
 datasets
 ```
 
-`px.load_example` returns your downloaded data in the form of a `DatasetDict` instance. After running the code above, you should see the following in your cell output.
+`px.load_example` returns your downloaded data in the form of an `ExampleDatasets` instance. After running the code above, you should see the following in your cell output.
 
 ```
-{'primary': <Dataset "sentiment_classification_language_drift_primary">,
- 'reference': <Dataset "sentiment_classification_language_drift_reference">}
+ExampleDatasets(primary=<Dataset "sentiment_classification_language_drift_primary">, reference=<Dataset "sentiment_classification_language_drift_reference">)
 ```
 
 ## Inspect Your Datasets
