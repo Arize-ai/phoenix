@@ -23,10 +23,10 @@
 
 ## ⌨ API
 
-* [#⃣ phoenix.Dataset](api/phoenix.dataset.md)
-* [#⃣ phoenix.Schema](api/phoenix.schema.md)
-* [#⃣ phoenix.EmbeddingColumnNames](api/phoenix.embeddingcolumnnames.md)
-* [#⃣ phoenix.load\_example](api/phoenix.load\_example.md)
+* [#⃣ #⃣ phoenix.Dataset](api/phoenix.dataset.md)
+* [#⃣ #⃣ phoenix.Schema](api/phoenix.schema.md)
+* [#⃣ #⃣ phoenix.EmbeddingColumnNames](api/phoenix.embeddingcolumnnames.md)
+* [#⃣ #⃣ phoenix.load\_example](api/phoenix.load\_example.md)
 
 ## 📚 Reference
 
