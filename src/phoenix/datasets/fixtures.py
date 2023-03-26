@@ -325,16 +325,17 @@ def _download_and_persist_dataset_if_missing(
     return dataset
 
 
-class DatasetDict(dict):  # type: ignore
+@dataclass
+class ExampleDatasets:
     """
-    A dictionary of datasets, split out by dataset type (primary, reference).
+    A pair of example primary and reference datasets.
     """
 
     primary: Dataset
     reference: Dataset
 
 
-def load_example(use_case: str) -> DatasetDict:
+def load_example(use_case: str) -> ExampleDatasets:
     """
     Loads an example primary and reference dataset for a given use-case.
 
@@ -361,4 +362,4 @@ def load_example(use_case: str) -> DatasetDict:
     print(f"📥 Loaded {use_case} example datasets.")
     print("ℹ️ About this use-case:")
     print(fixture.description)
-    return DatasetDict(primary=primary_dataset, reference=reference_dataset)
+    return ExampleDatasets(primary=primary_dataset, reference=reference_dataset)
