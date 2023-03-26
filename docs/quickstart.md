@@ -28,7 +28,7 @@ Run the following to download an example dataset and launch the app.
 
 ```python
 datasets = px.load_datasets("sentiment_classification_language_drift")
-session = px.launch_app(datasets["primary"], datasets["reference"])
+session = px.launch_app(datasets.primary, datasets.reference)
 session
 ```
 

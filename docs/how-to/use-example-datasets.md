@@ -37,7 +37,7 @@ datasets
 Next, inspect the name, DataFrame, and schema that define your primary dataset. First, run
 
 ```python
-prim_ds = datasets["primary"]
+prim_ds = datasets.primary
 prim_ds.name
 ```
 
@@ -96,7 +96,7 @@ The `dataframe` field on an instance of `phoenix.Dataset` is a lightly processed
 Launch Phoenix with
 
 ```python
-px.launch_app(datasets["primary"], datasets["reference"])
+px.launch_app(datasets.primary, datasets.reference)
 ```
 
 Follow the instructions in the cell output to open the Phoenix UI in your notebook or in a separate browser tab.
