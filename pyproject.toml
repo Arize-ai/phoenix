@@ -223,6 +223,7 @@ module = [
   "umap",
   "scipy.*",
   "sklearn.*",
+  "arize.*",
 ]
 ignore_missing_imports = true
 
