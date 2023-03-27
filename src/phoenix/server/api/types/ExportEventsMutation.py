@@ -6,14 +6,14 @@ import strawberry
 from strawberry import ID
 from strawberry.types import Info
 
-from phoenix.config import ROOT_DIR
+from phoenix.config import EXPORT_DIR
 from phoenix.server.api.context import Context
 from phoenix.server.api.types.Event import parse_event_ids
 
 
 @strawberry.type
 class ExportResponse:
-    filename: str
+    file_name: str
     directory: str
 
 
@@ -26,14 +26,10 @@ class ExportEventsMutation:
         event_ids: List[ID],
         file_name: Optional[str] = None,
     ) -> ExportResponse:
-        row_ids = parse_event_ids(event_ids)
         if file_name is None:
             file_name = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-        (directory := ROOT_DIR / "exports").mkdir(
-            parents=True,
-            exist_ok=True,
-        )
-        with open(directory / (file_name + ".parquet"), "wb") as fd:
+        row_ids = parse_event_ids(event_ids)
+        with open(EXPORT_DIR / (file_name + ".parquet"), "wb") as fd:
             loop = asyncio.get_running_loop()
             await loop.run_in_executor(
                 None,
@@ -41,4 +37,7 @@ class ExportEventsMutation:
                 row_ids,
                 fd,
             )
-        return ExportResponse(filename=file_name, directory=str(directory))
+        return ExportResponse(
+            file_name=file_name,
+            directory=str(EXPORT_DIR),
+        )

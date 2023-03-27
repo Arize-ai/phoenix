@@ -27,8 +27,12 @@ def get_pids_path() -> Path:
 
 
 PHOENIX_DIR = Path(__file__).resolve().parent
-ROOT_DIR = Path.home().resolve() / ".phoenix"
-DATASET_DIR = ROOT_DIR / "datasets"
+for dir in (
+    ROOT_DIR := Path.home().resolve() / ".phoenix",
+    EXPORT_DIR := ROOT_DIR / "exports",
+    DATASET_DIR := ROOT_DIR / "datasets",
+):
+    dir.mkdir(parents=True, exist_ok=True)
 
 # Server config
 SERVER_DIR = PHOENIX_DIR / "server"
