@@ -48,7 +48,7 @@ if __name__ == "__main__":
 
     parser = ArgumentParser()
 
-    parser.add_argument("--port", type=int, default=config.port)
+    parser.add_argument("--port", type=int, default=config.PORT)
     parser.add_argument("--debug", action="store_false")  # TODO: Disable before public launch
     subparsers = parser.add_subparsers(dest="command", required=True)
     datasets_parser = subparsers.add_parser("datasets")

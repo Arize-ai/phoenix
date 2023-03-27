@@ -83,7 +83,7 @@ class Service:
 class AppService(Service):
     """Service that controls the phoenix application."""
 
-    working_dir = config.server_dir
+    working_dir = config.SERVER_DIR
 
     # Internal references to the name / directory of the dataset(s)
     __primary_dataset_name: str

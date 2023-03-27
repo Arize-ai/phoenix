@@ -13,7 +13,7 @@ import pytz
 from pandas import DataFrame, Series, Timestamp, read_parquet, to_datetime
 from pandas.api.types import is_datetime64_any_dtype, is_datetime64tz_dtype, is_numeric_dtype
 
-from phoenix.config import dataset_dir
+from phoenix.config import DATASET_DIR
 
 from . import errors as err
 from .schema import (
@@ -84,7 +84,7 @@ class Dataset:
         self.__dataframe: DataFrame = dataframe
         self.__schema: Schema = schema
         self.__name: str = name if name is not None else f"""dataset_{str(uuid.uuid4())}"""
-        self.__directory = dataset_dir / self.name
+        self.__directory = DATASET_DIR / self.name
         self.__original_column_indices = [
             dataframe.columns.get_loc(column_name) for column_name in original_column_names
         ]
@@ -238,7 +238,7 @@ class Dataset:
     @classmethod
     def from_name(cls, name: str) -> "Dataset":
         """Retrieves a dataset by name from the file system"""
-        directory = dataset_dir / name
+        directory = DATASET_DIR / name
         df = read_parquet(directory / cls._data_file_name)
         with open(directory / cls._schema_file_name) as schema_file:
             schema_json = schema_file.read()

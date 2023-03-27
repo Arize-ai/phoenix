@@ -26,11 +26,11 @@ def get_pids_path() -> Path:
     return path
 
 
-PHOENIX_DIR = Path.cwd()
-ROOT_DIR = Path.home() / ".phoenix"
-dataset_dir = ROOT_DIR / "datasets"
+PHOENIX_DIR = Path(__file__).resolve().parent
+ROOT_DIR = Path.home().resolve() / ".phoenix"
+DATASET_DIR = ROOT_DIR / "datasets"
 
 # Server config
-server_dir = PHOENIX_DIR / "server"
+SERVER_DIR = PHOENIX_DIR / "server"
 # The port the server will run on after launch_app is called
-port = 6060
+PORT = 6060

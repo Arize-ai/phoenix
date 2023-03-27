@@ -1,5 +1,4 @@
 import logging
-from pathlib import Path
 from typing import Optional, Union
 
 from starlette.applications import Starlette
@@ -15,6 +14,7 @@ from starlette.websockets import WebSocket
 from strawberry.asgi import GraphQL
 from strawberry.schema import BaseSchema
 
+from phoenix.config import SERVER_DIR
 from phoenix.core.model import Model
 from phoenix.datasets import Dataset
 
@@ -112,7 +112,7 @@ def create_app(
             Mount(
                 "/",
                 app=Static(
-                    directory=Path.cwd() / "static",
+                    directory=SERVER_DIR / "static",
                     html=True,
                 ),
                 name="static",
