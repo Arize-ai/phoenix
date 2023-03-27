@@ -46,6 +46,7 @@ dev = [
   "pytest-lazy-fixture",
   "strawberry-graphql[debug-server]==0.155.3",
   "pre-commit",
+  "arize",
 ]
 
 [project.urls]
@@ -84,6 +85,7 @@ dependencies = [
   "pytest",
   "pytest-cov",
   "pytest-lazy-fixture",
+  "arize",
 ]
 
 [tool.hatch.envs.type]
@@ -92,7 +94,6 @@ dependencies = [
   "pandas-stubs",
   "pytest",
   "types-psutil",
-  "arize",
 ]
 
 [tool.hatch.envs.style]
