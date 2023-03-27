@@ -1,6 +1,6 @@
 # #⃣ phoenix.Dataset
 
-The `Dataset` class represents a dataset for analysis using the phoenix app. It can be used to construct a Phoenix session via `px.launch_app`.
+The `Dataset` class represents a dataset for analysis using the phoenix. It can be used to construct a Phoenix session via `px.launch_app`.
 
 ### Dataset
 
@@ -20,14 +20,13 @@ class Dataset:
 * `schema`: A Phoenix `Schema` object that maps dataframe columns to the appropriate model inference dimensions (features, predictions, actuals).
 * `name` (optional): The name of the dataset. If not provided, a random name will be generated. It is helpful for identifying the dataset in the application.
 
-#### Returns
-
-* A `Dataset` object that can be used in a Phoenix session.
-
 #### Example
 
 ```python
 primary_dataset = px.Dataset(dataframe=production_dataframe, schema=schema, name="primary")
+
+# Launch a phoenix session to analyze the dataset
+session = px.launch_app(primary_dataset)
 ```
 
 ### Properties
