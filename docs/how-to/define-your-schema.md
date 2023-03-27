@@ -7,10 +7,9 @@ description: How to create Phoenix datasets and schemas for common data formats
 This guide shows you how to define a Phoenix dataset using your own data.
 
 {% hint style="info" %}
-
--   For a conceptual overview of the Phoenix API, including a high-level introduction to the notion of datasets and schemas, see [Phoenix Basics](../concepts/phoenix-basics.md#schemas).
--   For a comprehensive description of `phoenix.Dataset` and `phoenix.Schema`, see the [API reference](broken-reference/).
-    {% endhint %}
+* For a conceptual overview of the Phoenix API, including a high-level introduction to the notion of datasets and schemas, see [Phoenix Basics](../concepts/phoenix-basics.md#schemas).
+* For a comprehensive description of `phoenix.Dataset` and `phoenix.Schema`, see the [API reference](broken-reference/).
+{% endhint %}
 
 Once you have a Pandas DataFrame `df` containing your data and a `schema` object describing the format of your DataFrame, you can define your Phoenix dataset either by running
 
@@ -32,13 +31,13 @@ Let's first see how to define a schema with predictions and actuals (Phoenix's n
 
 #### DataFrame
 
-| timestamp           | prediction_score | prediction | target   |
-| ------------------- | ---------------- | ---------- | -------- |
-| 2023-03-01 02:02:19 | 0.91             | click      | click    |
-| 2023-02-17 23:45:48 | 0.37             | no_click   | no_click |
-| 2023-01-30 15:30:03 | 0.54             | click      | no_click |
-| 2023-02-03 19:56:09 | 0.74             | click      | click    |
-| 2023-02-24 04:23:43 | 0.37             | no_click   | click    |
+| timestamp           | prediction\_score | prediction | target    |
+| ------------------- | ----------------- | ---------- | --------- |
+| 2023-03-01 02:02:19 | 0.91              | click      | click     |
+| 2023-02-17 23:45:48 | 0.37              | no\_click  | no\_click |
+| 2023-01-30 15:30:03 | 0.54              | click      | no\_click |
+| 2023-02-03 19:56:09 | 0.74              | click      | click     |
+| 2023-02-24 04:23:43 | 0.37              | no\_click  | click     |
 
 #### Schema
 
@@ -63,13 +62,13 @@ Phoenix accepts not only predictions and ground truth but also input features of
 
 #### DataFrame
 
-| fico_score | merchant_id       | loan_amount | annual_income | home_ownership | num_credit_lines | inquests_in_last_6_months | months_since_last_delinquency | age | gender | predicted | target    |
-| ---------- | ----------------- | ----------- | ------------- | -------------- | ---------------- | ------------------------- | ----------------------------- | --- | ------ | --------- | --------- |
-| 578        | Scammeds          | 4300        | 62966         | RENT           | 110              | 0                         | 0                             | 25  | male   | not_fraud | fraud     |
-| 507        | Schiller Ltd      | 21000       | 52335         | RENT           | 129              | 0                         | 23                            | 78  | female | not_fraud | not_fraud |
-| 656        | Kirlin and Sons   | 18000       | 94995         | MORTGAGE       | 31               | 0                         | 0                             | 54  | female | uncertain | uncertain |
-| 414        | Scammeds          | 18000       | 32034         | LEASE          | 81               | 2                         | 0                             | 34  | male   | fraud     | not_fraud |
-| 512        | Champlin and Sons | 20000       | 46005         | OWN            | 148              | 1                         | 0                             | 49  | male   | uncertain | uncertain |
+| fico\_score | merchant\_id      | loan\_amount | annual\_income | home\_ownership | num\_credit\_lines | inquests\_in\_last\_6\_months | months\_since\_last\_delinquency | age | gender | predicted  | target     |
+| ----------- | ----------------- | ------------ | -------------- | --------------- | ------------------ | ----------------------------- | -------------------------------- | --- | ------ | ---------- | ---------- |
+| 578         | Scammeds          | 4300         | 62966          | RENT            | 110                | 0                             | 0                                | 25  | male   | not\_fraud | fraud      |
+| 507         | Schiller Ltd      | 21000        | 52335          | RENT            | 129                | 0                             | 23                               | 78  | female | not\_fraud | not\_fraud |
+| 656         | Kirlin and Sons   | 18000        | 94995          | MORTGAGE        | 31                 | 0                             | 0                                | 54  | female | uncertain  | uncertain  |
+| 414         | Scammeds          | 18000        | 32034          | LEASE           | 81                 | 2                             | 0                                | 34  | male   | fraud      | not\_fraud |
+| 512         | Champlin and Sons | 20000        | 46005          | OWN             | 148                | 1                             | 0                                | 49  | male   | uncertain  | uncertain  |
 
 #### Schema
 
@@ -119,17 +118,17 @@ schema = px.Schema(
 
 ### Excluded Columns
 
-You can tell Phoenix to ignore certain columns of your DataFrame when implicitly inferring features by adding those column names to the `excludes` field of your schema. The DataFrame below contains all the same data as the breast cancer dataset above, in addition to "hospital" and "insurance_provider" fields that are not features of your model. Explicitly exclude these fields, otherwise, Phoenix will assume that they are features.
+You can tell Phoenix to ignore certain columns of your DataFrame when implicitly inferring features by adding those column names to the `excludes` field of your schema. The DataFrame below contains all the same data as the breast cancer dataset above, in addition to "hospital" and "insurance\_provider" fields that are not features of your model. Explicitly exclude these fields, otherwise, Phoenix will assume that they are features.
 
 #### DataFrame
 
-| target    | predicted | hospital                      | insurance_provider | mean radius | mean texture | mean perimeter | mean area | mean smoothness | mean compactness | mean concavity | mean concave points | mean symmetry | mean fractal dimension | radius error | texture error | perimeter error | area error | smoothness error | compactness error | concavity error | concave points error | symmetry error | fractal dimension error | worst radius | worst texture | worst perimeter | worst area | worst smoothness | worst compactness | worst concavity | worst concave points | worst symmetry | worst fractal dimension |
-| --------- | --------- | ----------------------------- | ------------------ | ----------- | ------------ | -------------- | --------- | --------------- | ---------------- | -------------- | ------------------- | ------------- | ---------------------- | ------------ | ------------- | --------------- | ---------- | ---------------- | ----------------- | --------------- | -------------------- | -------------- | ----------------------- | ------------ | ------------- | --------------- | ---------- | ---------------- | ----------------- | --------------- | -------------------- | -------------- | ----------------------- |
-| malignant | benign    | Pacific Clinics               | uninsured          | 15.49       | 19.97        | 102.40         | 744.7     | 0.11600         | 0.15620          | 0.18910        | 0.09113             | 0.1929        | 0.06744                | 0.6470       | 1.3310        | 4.675           | 66.91      | 0.007269         | 0.02928           | 0.04972         | 0.01639              | 0.01852        | 0.004232                | 21.20        | 29.41         | 142.10          | 1359.0     | 0.1681           | 0.3913            | 0.55530         | 0.21210              | 0.3187         | 0.10190                 |
-| malignant | malignant | Queens Hospital               | Anthem Blue Cross  | 17.01       | 20.26        | 109.70         | 904.3     | 0.08772         | 0.07304          | 0.06950        | 0.05390             | 0.2026        | 0.05223                | 0.5858       | 0.8554        | 4.106           | 68.46      | 0.005038         | 0.01503           | 0.01946         | 0.01123              | 0.02294        | 0.002581                | 19.80        | 25.05         | 130.00          | 1210.0     | 0.1111           | 0.1486            | 0.19320         | 0.10960              | 0.3275         | 0.06469                 |
-| malignant | malignant | St. Francis Memorial Hospital | Blue Shield of CA  | 17.99       | 10.38        | 122.80         | 1001.0    | 0.11840         | 0.27760          | 0.30010        | 0.14710             | 0.2419        | 0.07871                | 1.0950       | 0.9053        | 8.589           | 153.40     | 0.006399         | 0.04904           | 0.05373         | 0.01587              | 0.03003        | 0.006193                | 25.38        | 17.33         | 184.60          | 2019.0     | 0.1622           | 0.6656            | 0.71190         | 0.26540              | 0.4601         | 0.11890                 |
-| benign    | benign    | Pacific Clinics               | Kaiser Permanente  | 14.53       | 13.98        | 93.86          | 644.2     | 0.10990         | 0.09242          | 0.06895        | 0.06495             | 0.1650        | 0.06121                | 0.3060       | 0.7213        | 2.143           | 25.70      | 0.006133         | 0.01251           | 0.01615         | 0.01136              | 0.02207        | 0.003563                | 15.80        | 16.93         | 103.10          | 749.9      | 0.1347           | 0.1478            | 0.13730         | 0.10690              | 0.2606         | 0.07810                 |
-| benign    | benign    | CityMed                       | Anthem Blue Cross  | 10.26       | 14.71        | 66.20          | 321.6     | 0.09882         | 0.09159          | 0.03581        | 0.02037             | 0.1633        | 0.07005                | 0.3380       | 2.5090        | 2.394           | 19.33      | 0.017360         | 0.04671           | 0.02611         | 0.01296              | 0.03675        | 0.006758                | 10.88        | 19.48         | 70.89           | 357.1      | 0.1360           | 0.1636            | 0.07162         | 0.04074              | 0.2434         | 0.08488                 |
+| target    | predicted | hospital                      | insurance\_provider | mean radius | mean texture | mean perimeter | mean area | mean smoothness | mean compactness | mean concavity | mean concave points | mean symmetry | mean fractal dimension | radius error | texture error | perimeter error | area error | smoothness error | compactness error | concavity error | concave points error | symmetry error | fractal dimension error | worst radius | worst texture | worst perimeter | worst area | worst smoothness | worst compactness | worst concavity | worst concave points | worst symmetry | worst fractal dimension |
+| --------- | --------- | ----------------------------- | ------------------- | ----------- | ------------ | -------------- | --------- | --------------- | ---------------- | -------------- | ------------------- | ------------- | ---------------------- | ------------ | ------------- | --------------- | ---------- | ---------------- | ----------------- | --------------- | -------------------- | -------------- | ----------------------- | ------------ | ------------- | --------------- | ---------- | ---------------- | ----------------- | --------------- | -------------------- | -------------- | ----------------------- |
+| malignant | benign    | Pacific Clinics               | uninsured           | 15.49       | 19.97        | 102.40         | 744.7     | 0.11600         | 0.15620          | 0.18910        | 0.09113             | 0.1929        | 0.06744                | 0.6470       | 1.3310        | 4.675           | 66.91      | 0.007269         | 0.02928           | 0.04972         | 0.01639              | 0.01852        | 0.004232                | 21.20        | 29.41         | 142.10          | 1359.0     | 0.1681           | 0.3913            | 0.55530         | 0.21210              | 0.3187         | 0.10190                 |
+| malignant | malignant | Queens Hospital               | Anthem Blue Cross   | 17.01       | 20.26        | 109.70         | 904.3     | 0.08772         | 0.07304          | 0.06950        | 0.05390             | 0.2026        | 0.05223                | 0.5858       | 0.8554        | 4.106           | 68.46      | 0.005038         | 0.01503           | 0.01946         | 0.01123              | 0.02294        | 0.002581                | 19.80        | 25.05         | 130.00          | 1210.0     | 0.1111           | 0.1486            | 0.19320         | 0.10960              | 0.3275         | 0.06469                 |
+| malignant | malignant | St. Francis Memorial Hospital | Blue Shield of CA   | 17.99       | 10.38        | 122.80         | 1001.0    | 0.11840         | 0.27760          | 0.30010        | 0.14710             | 0.2419        | 0.07871                | 1.0950       | 0.9053        | 8.589           | 153.40     | 0.006399         | 0.04904           | 0.05373         | 0.01587              | 0.03003        | 0.006193                | 25.38        | 17.33         | 184.60          | 2019.0     | 0.1622           | 0.6656            | 0.71190         | 0.26540              | 0.4601         | 0.11890                 |
+| benign    | benign    | Pacific Clinics               | Kaiser Permanente   | 14.53       | 13.98        | 93.86          | 644.2     | 0.10990         | 0.09242          | 0.06895        | 0.06495             | 0.1650        | 0.06121                | 0.3060       | 0.7213        | 2.143           | 25.70      | 0.006133         | 0.01251           | 0.01615         | 0.01136              | 0.02207        | 0.003563                | 15.80        | 16.93         | 103.10          | 749.9      | 0.1347           | 0.1478            | 0.13730         | 0.10690              | 0.2606         | 0.07810                 |
+| benign    | benign    | CityMed                       | Anthem Blue Cross   | 10.26       | 14.71        | 66.20          | 321.6     | 0.09882         | 0.09159          | 0.03581        | 0.02037             | 0.1633        | 0.07005                | 0.3380       | 2.5090        | 2.394           | 19.33      | 0.017360         | 0.04671           | 0.02611         | 0.01296              | 0.03675        | 0.006758                | 10.88        | 19.48         | 70.89           | 357.1      | 0.1360           | 0.1636            | 0.07162         | 0.04074              | 0.2434         | 0.08488                 |
 
 #### Schema
 
@@ -149,10 +148,9 @@ schema = px.Schema(
 Embedding features consist of vector data in addition to any unstructured data in the form of text or images that the vectors represent. Unlike normal features, a single embedding feature may span multiple columns of your DataFrame. Use `px.EmbeddingColumnNames` to associate multiple DataFrame columns with the same embedding feature.
 
 {% hint style="info" %}
-
--   For a conceptual overview of embeddings, see [Embeddings](../concepts/embeddings.md).
--   For a comprehensive description of `px.EmbeddingColumnNames`, see the [API reference](../api/phoenix.embeddingcolumnnames.md).
-    {% endhint %}
+* For a conceptual overview of embeddings, see [Embeddings](../concepts/embeddings.md).
+* For a comprehensive description of `px.EmbeddingColumnNames`, see the [API reference](../api/phoenix.embeddingcolumnnames.md).
+{% endhint %}
 
 {% hint style="info" %}
 The example in this section contain low-dimensional embeddings for the sake of easy viewing. Your embeddings in practice will typically have much higher dimension.
@@ -162,20 +160,20 @@ The example in this section contain low-dimensional embeddings for the sake of e
 
 To define an embedding feature, you must at minimum provide Phoenix with the embedding vector data itself. Specify the DataFrame column that contains this data in the `vector_column_name` field on `px.EmbeddingColumnNames`. For example, the DataFrame below contains tabular credit card transaction data in addition to embedding vectors that represent each row. Notice that:
 
--   Unlike other fields that take strings or lists of strings, the argument to `embedding_feature_column_names` is a dictionary.
--   The key of this dictionary, "transaction_embedding," is not a column of your DataFrame but is name you choose for your embedding feature that appears in the UI.
--   The values of this dictionary are instances of `px.EmbeddingColumnNames`.
--   Each entry in the "embedding_vector" column is a one-dimensional Numpy array of length 4.
+* Unlike other fields that take strings or lists of strings, the argument to `embedding_feature_column_names` is a dictionary.
+* The key of this dictionary, "transaction\_embedding," is not a column of your DataFrame but is name you choose for your embedding feature that appears in the UI.
+* The values of this dictionary are instances of `px.EmbeddingColumnNames`.
+* Each entry in the "embedding\_vector" column is a list of length 4.
 
 #### DataFrame
 
-| predicted | target    | embedding_vector            | fico_score | merchant_id       | loan_amount | annual_income | home_ownership | num_credit_lines | inquests_in_last_6_months | months_since_last_delinquency |
-| --------- | --------- | --------------------------- | ---------- | ----------------- | ----------- | ------------- | -------------- | ---------------- | ------------------------- | ----------------------------- |
-| fraud     | not_fraud | \[-0.97, 3.98, -0.03, 2.92] | 604        | Leannon Ward      | 22000       | 100781        | RENT           | 108              | 0                         | 0                             |
-| fraud     | not_fraud | \[3.20, 3.95, 2.81, -0.09]  | 612        | Scammeds          | 7500        | 116184        | MORTGAGE       | 42               | 2                         | 56                            |
-| not_fraud | not_fraud | \[-0.49, -0.62, 0.08, 2.03] | 646        | Leannon Ward      | 32000       | 73666         | RENT           | 131              | 0                         | 0                             |
-| not_fraud | not_fraud | \[1.69, 0.01, -0.76, 3.64]  | 560        | Kirlin and Sons   | 19000       | 38589         | MORTGAGE       | 131              | 0                         | 0                             |
-| uncertain | uncertain | \[1.46, 0.69, 3.26, -0.17]  | 636        | Champlin and Sons | 10000       | 100251        | MORTGAGE       | 10               | 0                         | 3                             |
+| predicted  | target     | embedding\_vector           | fico\_score | merchant\_id      | loan\_amount | annual\_income | home\_ownership | num\_credit\_lines | inquests\_in\_last\_6\_months | months\_since\_last\_delinquency |
+| ---------- | ---------- | --------------------------- | ----------- | ----------------- | ------------ | -------------- | --------------- | ------------------ | ----------------------------- | -------------------------------- |
+| fraud      | not\_fraud | \[-0.97, 3.98, -0.03, 2.92] | 604         | Leannon Ward      | 22000        | 100781         | RENT            | 108                | 0                             | 0                                |
+| fraud      | not\_fraud | \[3.20, 3.95, 2.81, -0.09]  | 612         | Scammeds          | 7500         | 116184         | MORTGAGE        | 42                 | 2                             | 56                               |
+| not\_fraud | not\_fraud | \[-0.49, -0.62, 0.08, 2.03] | 646         | Leannon Ward      | 32000        | 73666          | RENT            | 131                | 0                             | 0                                |
+| not\_fraud | not\_fraud | \[1.69, 0.01, -0.76, 3.64]  | 560         | Kirlin and Sons   | 19000        | 38589          | MORTGAGE        | 131                | 0                             | 0                                |
+| uncertain  | uncertain  | \[1.46, 0.69, 3.26, -0.17]  | 636         | Champlin and Sons | 10000        | 100251         | MORTGAGE        | 10                 | 0                             | 3                                |
 
 #### Schema
 
@@ -205,7 +203,7 @@ If your embeddings represent images, you can provide links or local paths to ima
 
 #### DataFrame
 
-| defective | image                               | image_vector                      |
+| defective | image                               | image\_vector                     |
 | --------- | ----------------------------------- | --------------------------------- |
 | okay      | https://www.example.com/image0.jpeg | \[1.73, 2.67, 2.91, 1.79, 1.29]   |
 | defective | https://www.example.com/image1.jpeg | \[2.18, -0.21, 0.87, 3.84, -0.97] |
@@ -241,7 +239,7 @@ For example, suppose your HTTP server is running in a directory with the followi
     └── example_image.jpeg
 ```
 
-Then your image URL would be http://localhost:8000/image-data/example_image.jpeg.
+Then your image URL would be http://localhost:8000/image-data/example\_image.jpeg.
 {% endhint %}
 
 ### Embeddings of Text
@@ -250,13 +248,13 @@ If your embeddings represent pieces of text, you can display that text in the ap
 
 #### DataFrame
 
-| name                             | text                                                                     | text_vector               | category         | sentiment |
-| -------------------------------- | ------------------------------------------------------------------------ | ------------------------- | ---------------- | --------- |
-| Magic Lamp                       | Makes a great desk lamp!                                                 | \[2.66, 0.89, 1.17, 2.21] | office           | positive  |
-| Ergo Desk Chair                  | This chair is pretty comfortable, but I wish it had better back support. | \[3.33, 1.14, 2.57, 2.88] | office           | neutral   |
-| Cloud Nine Mattress              | I've been sleeping like a baby since I bought this thing.                | \[2.5, 3.74, 0.04, -0.94] | bedroom          | positive  |
-| Dr. Fresh's Spearmint Toothpaste | Avoid at all costs, it tastes like soap.                                 | \[1.78, -0.24, 1.37, 2.6] | personal_hygiene | negative  |
-| Ultra-Fuzzy Bath Mat             | Cheap quality, began fraying at the edges after the first wash.          | \[2.71, 0.98, -0.22, 2.1] | bath             | negative  |
+| name                             | text                                                                     | text\_vector              | category          | sentiment |
+| -------------------------------- | ------------------------------------------------------------------------ | ------------------------- | ----------------- | --------- |
+| Magic Lamp                       | Makes a great desk lamp!                                                 | \[2.66, 0.89, 1.17, 2.21] | office            | positive  |
+| Ergo Desk Chair                  | This chair is pretty comfortable, but I wish it had better back support. | \[3.33, 1.14, 2.57, 2.88] | office            | neutral   |
+| Cloud Nine Mattress              | I've been sleeping like a baby since I bought this thing.                | \[2.5, 3.74, 0.04, -0.94] | bedroom           | positive  |
+| Dr. Fresh's Spearmint Toothpaste | Avoid at all costs, it tastes like soap.                                 | \[1.78, -0.24, 1.37, 2.6] | personal\_hygiene | negative  |
+| Ultra-Fuzzy Bath Mat             | Cheap quality, began fraying at the edges after the first wash.          | \[2.71, 0.98, -0.22, 2.1] | bath              | negative  |
 
 #### Schema
 
@@ -284,7 +282,7 @@ Sometimes it is useful to have more than one embedding feature. The example belo
 
 #### DataFrame
 
-| name                             | description                                                                                                                                        | description_vector          | image                               | image_vector                      |
+| name                             | description                                                                                                                                        | description\_vector         | image                               | image\_vector                     |
 | -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------- | ----------------------------------- | --------------------------------- |
 | Magic Lamp                       | Enjoy the most comfortable setting every time for working, studying, relaxing or getting ready to sleep.                                           | \[2.47, -0.01, -0.22, 0.93] | https://www.example.com/image0.jpeg | \[2.42, 1.95, 0.81, 2.60, 0.27]   |
 | Ergo Desk Chair                  | The perfect mesh chair, meticulously developed to deliver maximum comfort and high quality.                                                        | \[-0.25, 0.07, 2.90, 1.57]  | https://www.example.com/image1.jpeg | \[3.17, 2.75, 1.39, 0.44, 3.30]   |
