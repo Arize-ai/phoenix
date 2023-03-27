@@ -6,7 +6,7 @@ from dataclasses import fields, replace
 from datetime import datetime, timedelta
 from enum import Enum
 from functools import cached_property
-from typing import Any, Dict, List, Optional, Set, Tuple, TypeAlias, Union, cast
+from typing import Any, Dict, List, Optional, Set, Tuple, Union, cast
 
 import pytz
 from pandas import DataFrame, Series, Timestamp, read_parquet, to_datetime
@@ -15,6 +15,7 @@ from pandas.api.types import (
     is_datetime64tz_dtype,
     is_numeric_dtype,
 )
+from typing_extensions import TypeAlias
 
 from phoenix.config import dataset_dir
 
