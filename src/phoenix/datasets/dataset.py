@@ -532,12 +532,9 @@ def _get_schema_from_unknown_schema_param(schemaLike: SchemaLike) -> Schema:
     Compatibility function for converting from arize.utils.types.Schema to phoenix.datasets.Schema
     """
     try:
-        from arize.utils.types import (
-            EmbeddingColumnNames as ArizeEmbeddingColumnNames,  # type: ignore
-        )
-        from arize.utils.types import Schema as ArizeSchema  # type: ignore # fmt: off
+        from arize.utils.types import EmbeddingColumnNames as ArizeEmbeddingColumnNames  # type: ignore
+        from arize.utils.types import Schema as ArizeSchema  # type: ignore
 
-        # fmt: on
         if isinstance(schemaLike, ArizeSchema):
             embedding_feature_column_names: Dict[str, EmbeddingColumnNames] = {}
             if schemaLike.embedding_feature_column_names is not None:
@@ -562,5 +559,7 @@ def _get_schema_from_unknown_schema_param(schemaLike: SchemaLike) -> Schema:
             )
         else:
             raise ValueError("Unknown schema passed to Dataset.")
+    except Exception:
+        raise ValueError("Unknown schema passed to Dataset. Please pass a phoenix Schema")
     except Exception:
         raise ValueError("Unknown schema passed to Dataset. Please pass a phoenix Schema")
