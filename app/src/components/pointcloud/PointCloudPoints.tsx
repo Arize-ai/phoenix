@@ -1,15 +1,16 @@
-import React from "react";
+import React, { startTransition } from "react";
 import { useCallback, useMemo } from "react";
-import { shade } from "polished";
+import { lighten, shade } from "polished";
 
 import { PointBaseProps, Points } from "@arizeai/point-cloud";
 
+import { ColoringStrategy } from "@phoenix/constants/pointCloudConstants";
 import { usePointCloudContext } from "@phoenix/contexts";
-import { ColoringStrategy } from "@phoenix/types";
 
 import { PointColor, ThreeDimensionalPointItem } from "./types";
 
-const DIM_AMOUNT = 0.5;
+const SHADE_AMOUNT = 0.5;
+const LIGHTEN_AMOUNT = 0.3;
 
 /**
  * The amount to multiply the radius by to get the appropriate cube size
@@ -42,7 +43,6 @@ type PointCloudPointsProps = {
    * How the points should be colored
    */
   color: PointColor;
-  selectedIds: Set<string>;
   radius: number;
 };
 
@@ -53,17 +53,24 @@ type PointCloudPointsProps = {
 export function PointCloudPoints({
   primaryData,
   referenceData,
-  selectedIds,
   color,
   radius,
 }: PointCloudPointsProps) {
-  const { datasetVisibility, coloringStrategy } = usePointCloudContext(
-    (state) => {
-      return {
-        datasetVisibility: state.datasetVisibility,
-        coloringStrategy: state.coloringStrategy,
-      };
-    }
+  const datasetVisibility = usePointCloudContext(
+    (state) => state.datasetVisibility
+  );
+  const coloringStrategy = usePointCloudContext(
+    (state) => state.coloringStrategy
+  );
+  const canvasTheme = usePointCloudContext((state) => state.canvasTheme);
+  const setSelectedPointIds = usePointCloudContext(
+    (state) => state.setSelectedPointIds
+  );
+  const selectedPointIds = usePointCloudContext(
+    (state) => state.selectedPointIds
+  );
+  const setSelectedClusterId = usePointCloudContext(
+    (state) => state.setSelectedClusterId
   );
 
   // Only use a cube shape if the coloring strategy is not dataset
@@ -72,30 +79,53 @@ export function PointCloudPoints({
     [coloringStrategy]
   );
 
+  const colorDimFn = useMemo(() => {
+    return canvasTheme === "dark"
+      ? shade(SHADE_AMOUNT)
+      : lighten(LIGHTEN_AMOUNT);
+  }, [canvasTheme]);
+
   /** Colors to represent a dimmed variant of the color for "un-selected" */
   const dimmedColor = useMemo<PointColor>(() => {
     if (typeof color === "function") {
-      return (p: PointBaseProps) => shade(DIM_AMOUNT)(color(p));
+      return (p: PointBaseProps) => colorDimFn(color(p));
     }
-    return shade(DIM_AMOUNT, color);
-  }, [color]);
+    return colorDimFn(color);
+  }, [color, colorDimFn]);
 
   const colorByFn = useCallback(
     (point: PointBaseProps) => {
-      if (!selectedIds.has(point.metaData.id) && selectedIds.size > 0) {
+      if (
+        !selectedPointIds.has(point.metaData.id) &&
+        selectedPointIds.size > 0
+      ) {
         return invokeColor(point, dimmedColor);
       }
       return invokeColor(point, color);
     },
-    [selectedIds, color, dimmedColor]
+    [selectedPointIds, color, dimmedColor]
   );
 
   const showReferencePoints = datasetVisibility.reference && referenceData;
 
+  const onPointClicked = useCallback(
+    (point: PointBaseProps) => {
+      startTransition(() => {
+        setSelectedPointIds(new Set([point.metaData.id]));
+        setSelectedClusterId(null);
+      });
+    },
+    [setSelectedPointIds]
+  );
+
   return (
     <>
       {datasetVisibility.primary ? (
-        <Points data={primaryData} pointProps={{ color: colorByFn, radius }} />
+        <Points
+          data={primaryData}
+          pointProps={{ color: colorByFn, radius }}
+          onPointClicked={onPointClicked}
+        />
       ) : null}
       {showReferencePoints ? (
         <Points
@@ -106,6 +136,7 @@ export function PointCloudPoints({
             size: radius ? radius * CUBE_RADIUS_MULTIPLIER : undefined,
           }}
           pointShape={referenceDatasetPointShape}
+          onPointClicked={onPointClicked}
         />
       ) : null}
     </>

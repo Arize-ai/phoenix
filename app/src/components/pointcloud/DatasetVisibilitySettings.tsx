@@ -1,11 +1,14 @@
 import React, { ChangeEvent, useCallback, useMemo } from "react";
 import { css } from "@emotion/react";
 
+import {
+  DEFAULT_COLOR_SCHEME,
+  FALLBACK_COLOR,
+} from "@phoenix/constants/pointCloudConstants";
+import { ColoringStrategy } from "@phoenix/constants/pointCloudConstants";
 import { usePointCloudContext } from "@phoenix/contexts";
-import { ColoringStrategy } from "@phoenix/types";
 import { assertUnreachable } from "@phoenix/typeUtils";
 
-import { DEFAULT_COLOR_SCHEME, FALLBACK_COLOR } from "./constants";
 import { Shape } from "./ShapeIcon";
 import { VisibilityCheckboxField } from "./VisibilityCheckboxField";
 
@@ -13,12 +16,15 @@ import { VisibilityCheckboxField } from "./VisibilityCheckboxField";
  * Small checkbox form that controls the visibility of each dataset.
  */
 export function DatasetVisibilitySettings() {
-  const { datasetVisibility, setDatasetVisibility, coloringStrategy } =
-    usePointCloudContext((state) => ({
-      datasetVisibility: state.datasetVisibility,
-      setDatasetVisibility: state.setDatasetVisibility,
-      coloringStrategy: state.coloringStrategy,
-    }));
+  const datasetVisibility = usePointCloudContext(
+    (state) => state.datasetVisibility
+  );
+  const setDatasetVisibility = usePointCloudContext(
+    (state) => state.setDatasetVisibility
+  );
+  const coloringStrategy = usePointCloudContext(
+    (state) => state.coloringStrategy
+  );
 
   const handleDatasetVisibilityChange = useCallback(
     (event: ChangeEvent<HTMLInputElement>) => {
@@ -36,6 +42,7 @@ export function DatasetVisibilitySettings() {
       case ColoringStrategy.dataset:
         return DEFAULT_COLOR_SCHEME[0];
       case ColoringStrategy.correctness:
+      case ColoringStrategy.dimension:
         return FALLBACK_COLOR;
       default:
         assertUnreachable(coloringStrategy);
@@ -47,6 +54,7 @@ export function DatasetVisibilitySettings() {
       case ColoringStrategy.dataset:
         return DEFAULT_COLOR_SCHEME[1];
       case ColoringStrategy.correctness:
+      case ColoringStrategy.dimension:
         return FALLBACK_COLOR;
       default:
         assertUnreachable(coloringStrategy);

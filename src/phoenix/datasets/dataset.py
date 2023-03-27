@@ -6,9 +6,9 @@ from dataclasses import fields, replace
 from datetime import datetime, timedelta
 from enum import Enum
 from functools import cached_property
-from pathlib import Path
-from typing import Any, Dict, List, Optional, Set, Tuple, Union, cast
+from typing import Any, Dict, Iterable, List, Optional, Set, Tuple, Union, cast
 
+import pandas as pd
 from pandas import DataFrame, Series, Timestamp, read_parquet, to_datetime
 from pandas.api.types import is_numeric_dtype
 
@@ -74,13 +74,16 @@ class Dataset:
             for e in errors:
                 logger.error(e)
             raise err.DatasetError(errors)
-        self._original_column_names = dataframe.columns
+        original_column_names = dataframe.columns
         dataframe, schema = _parse_dataframe_and_schema(dataframe, schema)
         dataframe = _sort_dataframe_rows_by_timestamp(dataframe, schema)
         self.__dataframe: DataFrame = dataframe
         self.__schema: Schema = schema
         self.__name: str = name if name is not None else f"""dataset_{str(uuid.uuid4())}"""
         self.__directory: str = os.path.join(dataset_dir, self.name)
+        self.__original_column_indices = [
+            dataframe.columns.get_loc(column_name) for column_name in original_column_names
+        ]
 
         # Sync the dataset to disc so that the server can pick up the data
         if persist_to_disc:
@@ -260,10 +263,10 @@ class Dataset:
         self._is_persisted = True
         logger.info(f"Dataset info written to '{directory}'")
 
-    def export(self, rows: List[int]) -> Tuple[str, str]:
+    def export_events(self, rows: Iterable[int]) -> pd.DataFrame:
         """
-        Given row numbers, exports dataframe subset into parquet file. Returns
-        exported filename and its directory. Duplicate rows are removed.
+        Given row numbers, create new data frame containing those rows, with
+        columns in their original ordering.
 
         Parameters
         ----------
@@ -272,31 +275,13 @@ class Dataset:
 
         Returns
         -------
-        filename: str
-            filename of exported file
-        directory: str
-            location of the exported file
+        dataframe: pandas.DataFrame
+            containing the rows specified in the input
         """
-        directory = os.path.join(
-            self.directory,
-            "export",
-            datetime.now().strftime("%Y-%m-%d_%H-%M-%S"),
-        )
-        Path(directory).mkdir(
-            parents=True,
-            exist_ok=True,
-        )
-        filename = self.name + ".parquet"
-        column_indices = [
-            self.__dataframe.columns.get_loc(column_name)
-            for column_name in self._original_column_names
+        return self.__dataframe.iloc[
+            sorted(set(rows)),
+            self.__original_column_indices,
         ]
-        rows = sorted(set(rows))
-        self.__dataframe.iloc[rows, column_indices].to_parquet(
-            os.path.join(directory, filename),
-            index=False,
-        )
-        return filename, directory
 
 
 def _parse_dataframe_and_schema(dataframe: DataFrame, schema: Schema) -> Tuple[DataFrame, Schema]:

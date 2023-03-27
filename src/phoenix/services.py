@@ -3,6 +3,7 @@ import os
 import signal
 import subprocess
 import sys
+from pathlib import Path
 from typing import List, Optional
 
 import psutil
@@ -17,7 +18,7 @@ class Service:
     All services must define a ``command`` property.
     """
 
-    working_dir = "."
+    working_dir = Path.cwd()
 
     def __init__(self) -> None:
         self.child = self.start()

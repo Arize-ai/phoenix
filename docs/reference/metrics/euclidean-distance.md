@@ -1,2 +1,0 @@
-# Euclidean Distance
-

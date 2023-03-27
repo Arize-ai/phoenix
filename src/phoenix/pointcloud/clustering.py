@@ -13,8 +13,9 @@ Matrix: TypeAlias = npt.NDArray[np.float64]
 
 @dataclass(frozen=True)
 class Hdbscan:
-    min_cluster_size: int = 20
+    min_cluster_size: int = 10
     min_samples: float = 1
+    cluster_selection_epsilon: float = 0.0
 
     def find_clusters(self, mat: Matrix) -> List[RawCluster]:
         cluster_ids: npt.NDArray[np.int_] = HDBSCAN(**asdict(self)).fit_predict(mat)

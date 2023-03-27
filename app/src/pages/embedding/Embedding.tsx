@@ -29,10 +29,15 @@ import {
   PointCloudParameterSettings,
   ThreeDimensionalPointItem,
 } from "@phoenix/components/pointcloud";
+import ClusteringSettings from "@phoenix/components/pointcloud/ClusteringSettings";
 import { PointCloudDisplaySettings } from "@phoenix/components/pointcloud/PointCloudDisplaySettings";
-import { resizeHandleCSS } from "@phoenix/components/resize/styles";
+import {
+  compactResizeHandleCSS,
+  resizeHandleCSS,
+} from "@phoenix/components/resize/styles";
 import { PointCloudProvider, usePointCloudContext } from "@phoenix/contexts";
 import { useDatasets } from "@phoenix/contexts";
+import { useTimeRange } from "@phoenix/contexts/TimeRangeContext";
 import {
   TimeSliceContextProvider,
   useTimeSlice,
@@ -59,10 +64,27 @@ type UMAPClusterEntry = NonNullable<
 >["clusters"][number];
 
 const EmbeddingUMAPQuery = graphql`
-  query EmbeddingUMAPQuery($id: GlobalID!, $timeRange: TimeRange!) {
+  query EmbeddingUMAPQuery(
+    $id: GlobalID!
+    $timeRange: TimeRange!
+    $minDist: Float!
+    $nNeighbors: Int!
+    $nSamples: Int!
+    $minClusterSize: Int!
+    $clusterMinSamples: Int!
+    $clusterSelectionEpsilon: Int!
+  ) {
     embedding: node(id: $id) {
       ... on EmbeddingDimension {
-        UMAPPoints(timeRange: $timeRange) {
+        UMAPPoints(
+          timeRange: $timeRange
+          minDist: $minDist
+          nNeighbors: $nNeighbors
+          nSamples: $nSamples
+          minClusterSize: $minClusterSize
+          clusterMinSamples: $clusterMinSamples
+          clusterSelectionEpsilon: $clusterSelectionEpsilon
+        ) {
           data {
             id
             coordinates {
@@ -125,9 +147,19 @@ const EmbeddingUMAPQuery = graphql`
 `;
 
 export function Embedding() {
+  const { referenceDataset } = useDatasets();
+  const { timeRange } = useTimeRange();
+  // Initialize the store based on whether or not there is a reference dataset
+  const defaultPointCloudProps = useMemo(() => {
+    return referenceDataset != null
+      ? DEFAULT_DRIFT_POINT_CLOUD_PROPS
+      : DEFAULT_SINGLE_DATASET_POINT_CLOUD_PROPS;
+  }, [referenceDataset]);
   return (
-    <TimeSliceContextProvider>
-      <EmbeddingMain />
+    <TimeSliceContextProvider initialTimestamp={new Date(timeRange.end)}>
+      <PointCloudProvider {...defaultPointCloudProps}>
+        <EmbeddingMain />
+      </PointCloudProvider>
     </TimeSliceContextProvider>
   );
 }
@@ -135,6 +167,11 @@ export function Embedding() {
 function EmbeddingMain() {
   const embeddingDimensionId = useEmbeddingDimensionId();
   const { primaryDataset, referenceDataset } = useDatasets();
+  const umapParameters = usePointCloudContext((state) => state.umapParameters);
+  const hdbscanParameters = usePointCloudContext(
+    (state) => state.hdbscanParameters
+  );
+  const resetPointCloud = usePointCloudContext((state) => state.reset);
   const [showDriftChart, setShowDriftChart] = useState<boolean>(true);
   const [queryReference, loadQuery] =
     useQueryLoader<UMAPQueryType>(EmbeddingUMAPQuery);
@@ -152,92 +189,94 @@ function EmbeddingMain() {
 
   // Load the query on first render
   useEffect(() => {
+    // dispose of the selections in the context
+    resetPointCloud();
     loadQuery(
       {
         id: embeddingDimensionId,
         timeRange,
+        ...umapParameters,
+        ...hdbscanParameters,
       },
       {
         fetchPolicy: "network-only",
       }
     );
-  }, [embeddingDimensionId, loadQuery, timeRange]);
-
-  // Initialize the store based on whether or not there is a reference dataset
-  const defaultPointCloudProps = useMemo(() => {
-    return referenceDataset != null
-      ? DEFAULT_DRIFT_POINT_CLOUD_PROPS
-      : DEFAULT_SINGLE_DATASET_POINT_CLOUD_PROPS;
-  }, [referenceDataset]);
+  }, [
+    resetPointCloud,
+    embeddingDimensionId,
+    loadQuery,
+    umapParameters,
+    hdbscanParameters,
+    timeRange,
+  ]);
 
   return (
-    <PointCloudProvider {...defaultPointCloudProps}>
-      <main
-        css={(theme) => css`
-          flex: 1 1 auto;
-          display: flex;
-          flex-direction: column;
-          overflow: hidden;
-          background-color: ${theme.colors.gray900};
-        `}
-      >
-        <Toolbar
-          extra={
-            referenceDataset ? (
-              <Switch
-                onChange={(isSelected) => {
-                  setShowDriftChart(isSelected);
-                }}
-                defaultSelected={true}
-                labelPlacement="start"
-              >
-                Show Drift Chart
-              </Switch>
-            ) : null
-          }
-        >
-          <PrimaryDatasetTimeRange />
-          {referenceDataset ? (
-            <ReferenceDatasetTimeRange
-              datasetType="reference"
-              timeRange={{
-                start: new Date(referenceDataset.startTime),
-                end: new Date(referenceDataset.endTime),
+    <main
+      css={(theme) => css`
+        flex: 1 1 auto;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        background-color: ${theme.colors.gray900};
+      `}
+    >
+      <Toolbar
+        extra={
+          referenceDataset ? (
+            <Switch
+              onChange={(isSelected) => {
+                setShowDriftChart(isSelected);
               }}
-            />
-          ) : null}
-        </Toolbar>
-        <PanelGroup direction="vertical">
-          {referenceDataset && showDriftChart ? (
-            <>
-              <Panel defaultSize={15} collapsible order={1}>
-                <Suspense fallback={<Loading />}>
-                  <EuclideanDistanceTimeSeries
-                    embeddingDimensionId={embeddingDimensionId}
-                  />
-                </Suspense>
-              </Panel>
-              <PanelResizeHandle css={resizeHandleCSS} />
-            </>
-          ) : null}
-          <Panel order={2}>
-            <div
-              css={css`
-                width: 100%;
-                height: 100%;
-                position: relative;
-              `}
+              defaultSelected={true}
+              labelPlacement="start"
             >
-              <Suspense fallback={<LoadingMask />}>
-                {queryReference ? (
-                  <PointCloudDisplay queryReference={queryReference} />
-                ) : null}
+              Show Drift Chart
+            </Switch>
+          ) : null
+        }
+      >
+        <PrimaryDatasetTimeRange />
+        {referenceDataset ? (
+          <ReferenceDatasetTimeRange
+            datasetType="reference"
+            timeRange={{
+              start: new Date(referenceDataset.startTime),
+              end: new Date(referenceDataset.endTime),
+            }}
+          />
+        ) : null}
+      </Toolbar>
+      <PanelGroup direction="vertical">
+        {referenceDataset && showDriftChart ? (
+          <>
+            <Panel defaultSize={15} collapsible order={1}>
+              <Suspense fallback={<Loading />}>
+                <EuclideanDistanceTimeSeries
+                  embeddingDimensionId={embeddingDimensionId}
+                />
               </Suspense>
-            </div>
-          </Panel>
-        </PanelGroup>
-      </main>
-    </PointCloudProvider>
+            </Panel>
+            <PanelResizeHandle css={resizeHandleCSS} />
+          </>
+        ) : null}
+        <Panel order={2}>
+          <div
+            css={css`
+              width: 100%;
+              height: 100%;
+              position: relative;
+            `}
+          >
+            <Suspense fallback={<LoadingMask />}>
+              {queryReference ? (
+                <PointCloudDisplay queryReference={queryReference} />
+              ) : null}
+            </Suspense>
+          </div>
+        </Panel>
+      </PanelGroup>
+    </main>
   );
 }
 
@@ -321,6 +360,12 @@ const PointCloudDisplay = ({
     return map;
   }, [allSourceData]);
 
+  // Keep the data in the view in-sync with the data in the context
+  const setPoints = usePointCloudContext((state) => state.setPoints);
+  useEffect(() => {
+    setPoints(allSourceData);
+  }, [allSourceData, setPoints]);
+
   return (
     <div
       css={css`
@@ -364,14 +409,14 @@ const PointCloudDisplay = ({
                 <TabPane name="Display">
                   <PointCloudDisplaySettings />
                 </TabPane>
-                <TabPane name="Parameters">
+                <TabPane name="Hyperparameters">
                   <PointCloudParameterSettings />
                 </TabPane>
               </Tabs>
             </Panel>
           </PanelGroup>
         </Panel>
-        <PanelResizeHandle css={resizeHandleCSS} />
+        <PanelResizeHandle css={compactResizeHandleCSS} />
         <Panel>
           <div
             css={css`
@@ -478,7 +523,6 @@ function ClustersPanelContents({
   );
 
   return (
-    // @ts-expect-error add more tabs
     <Tabs>
       <TabPane name="Clusters">
         <ul
@@ -510,6 +554,9 @@ function ClustersPanelContents({
             );
           })}
         </ul>
+      </TabPane>
+      <TabPane name="Configuration">
+        <ClusteringSettings />
       </TabPane>
     </Tabs>
   );

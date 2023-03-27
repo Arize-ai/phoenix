@@ -18,8 +18,9 @@ import {
   EventItem,
   SelectionDisplayRadioGroup,
 } from "@phoenix/components/pointcloud";
+import { SelectionDisplay } from "@phoenix/constants/pointCloudConstants";
 import { usePointCloudContext } from "@phoenix/contexts";
-import { DatasetType, SelectionDisplay } from "@phoenix/types";
+import { DatasetType } from "@phoenix/types";
 
 import {
   PointSelectionPanelContentQuery,
@@ -257,6 +258,12 @@ const pointSelectionPanelCSS = css`
 
 function SelectionGridView(props: SelectionGridViewProps) {
   const { events, pointIdToDataMap, onItemSelected } = props;
+  const { pointIdToGroup, pointGroupColors } = usePointCloudContext(
+    (state) => ({
+      pointIdToGroup: state.pointIdToGroup,
+      pointGroupColors: state.pointGroupColors,
+    })
+  );
   return (
     <div
       css={css`
@@ -285,6 +292,7 @@ function SelectionGridView(props: SelectionGridViewProps) {
           const datasetType = event.id.includes("PRIMARY")
             ? DatasetType.primary
             : DatasetType.reference;
+          const color = pointGroupColors[pointIdToGroup[event.id]];
           return (
             <li key={idx}>
               <EventItem
@@ -294,6 +302,7 @@ function SelectionGridView(props: SelectionGridViewProps) {
                 onClick={() => {
                   onItemSelected(event.id);
                 }}
+                color={color}
               />
             </li>
           );

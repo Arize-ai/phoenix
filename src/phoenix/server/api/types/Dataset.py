@@ -1,8 +1,7 @@
 from datetime import datetime
-from typing import Any, List, Literal, Optional, Set
+from typing import List, Literal, Optional, Set
 
 import strawberry
-from pandas import Series
 from strawberry.scalars import ID
 from strawberry.types import Info
 from strawberry.unset import UNSET
@@ -10,17 +9,12 @@ from strawberry.unset import UNSET
 from phoenix.core.dimension import Dimension as CoreDimension
 from phoenix.core.dimension_type import DimensionType
 from phoenix.datasets import Dataset as InternalDataset
-from phoenix.datasets import Schema
 from phoenix.datasets.dataset import DatasetType
-from phoenix.datasets.event import EventId
 
 from ..context import Context
 from ..input_types.DimensionInput import DimensionInput
 from .Dimension import Dimension, to_gql_dimension
-from .DimensionWithValue import DimensionWithValue
-from .Event import Event
-from .EventMetadata import EventMetadata
-from .ExportResonse import ExportResponse
+from .Event import Event, create_event, parse_event_ids
 
 
 @strawberry.type
@@ -44,7 +38,10 @@ class Dataset:
         """
         if not event_ids:
             return []
-        row_indexes = _parse_event_ids(event_ids, self.type)
+        row_ids = parse_event_ids(event_ids)
+        if len(row_ids) > 1 or self.type not in row_ids:
+            raise ValueError("eventIds contains IDs from incorrect dataset.")
+        row_indexes = row_ids.pop(self.type, [])
         dataframe = self.dataset.dataframe
         schema = self.dataset.schema
         requested_gql_dimensions = _get_requested_features_and_tags(
@@ -69,7 +66,7 @@ class Dataset:
             for name in (requested_dimension_names + prediction_and_actual_column_names)
         ]
         return [
-            _create_event(
+            create_event(
                 row_index=row_index,
                 dataset_type=self.type,
                 row=dataframe.iloc[row_index, column_indexes],
@@ -78,28 +75,6 @@ class Dataset:
             )
             for row_index in row_indexes
         ]
-
-    @strawberry.field
-    def export(
-        self,
-        event_ids: List[ID],
-    ) -> ExportResponse:
-        row_ids = _parse_event_ids(event_ids, self.type)
-        filename, directory = self.dataset.export(row_ids)
-        return ExportResponse(filename=filename, directory=directory)
-
-
-def _parse_event_ids(event_ids: List[ID], expected_type: DatasetType) -> List[int]:
-    """
-    Parses event IDs and returns the corresponding row indexes.
-    """
-    row_indexes = []
-    for event_id in event_ids:
-        row_index, dataset_type = str(event_id).split(":")
-        if dataset_type != str(expected_type):
-            raise ValueError("eventIds contains IDs from incorrect dataset.")
-        row_indexes.append(int(row_index))
-    return row_indexes
 
 
 def to_gql_dataset(dataset: InternalDataset, type: Literal["primary", "reference"]) -> Dataset:
@@ -130,39 +105,3 @@ def _get_requested_features_and_tags(
         if is_requested and is_feature_or_tag:
             requested_features_and_tags.append(to_gql_dimension(id_attr=id, dimension=dim))
     return requested_features_and_tags
-
-
-def _create_event(
-    row_index: int,
-    dataset_type: "DatasetType",
-    row: "Series[Any]",
-    schema: Schema,
-    dimensions: List[Dimension],
-) -> Event:
-    """
-    Reads dimension values and event metadata from a dataframe row and returns
-    an event containing this information.
-    """
-    event_metadata = EventMetadata(
-        prediction_label=row[col]
-        if (col := schema.prediction_label_column_name) is not None
-        else None,
-        prediction_score=row[col]
-        if (col := schema.prediction_score_column_name) is not None
-        else None,
-        actual_label=row[col] if (col := schema.actual_label_column_name) is not None else None,
-        actual_score=row[col] if (col := schema.actual_score_column_name) is not None else None,
-    )
-    dimensions_with_values = [
-        DimensionWithValue(
-            dimension=dim,
-            value=row[dim.name],
-        )
-        for dim in dimensions
-    ]
-
-    return Event(
-        id=ID(str(EventId(row_id=row_index, dataset_id=dataset_type))),
-        eventMetadata=event_metadata,
-        dimensions=dimensions_with_values,
-    )

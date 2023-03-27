@@ -10,12 +10,15 @@ import { VisibilityCheckboxField } from "./VisibilityCheckboxField";
  * E.x. "true positives", "false positives", "false negatives", etc.
  */
 export function PointGroupVisibilitySettings() {
-  const { pointGroupVisibility, setPointGroupVisibility, pointGroupColors } =
-    usePointCloudContext((state) => ({
-      pointGroupVisibility: state.pointGroupVisibility,
-      pointGroupColors: state.pointGroupColors,
-      setPointGroupVisibility: state.setPointGroupVisibility,
-    }));
+  const pointGroupVisibility = usePointCloudContext(
+    (state) => state.pointGroupVisibility
+  );
+  const setPointGroupVisibility = usePointCloudContext(
+    (state) => state.setPointGroupVisibility
+  );
+  const pointGroupColors = usePointCloudContext(
+    (state) => state.pointGroupColors
+  );
 
   const pointGroups = useMemo(
     () => Object.keys(pointGroupVisibility),
@@ -67,13 +70,15 @@ export function PointGroupVisibilitySettings() {
  * A checkbox that controls the entire group of points
  */
 function PointGroupCheckbox() {
-  const { pointGroupVisibility, setPointGroupVisibility, coloringStrategy } =
-    usePointCloudContext((state) => ({
-      pointGroupVisibility: state.pointGroupVisibility,
-      setPointGroupVisibility: state.setPointGroupVisibility,
-      coloringStrategy: state.coloringStrategy,
-    }));
-
+  const pointGroupVisibility = usePointCloudContext(
+    (state) => state.pointGroupVisibility
+  );
+  const setPointGroupVisibility = usePointCloudContext(
+    (state) => state.setPointGroupVisibility
+  );
+  const coloringStrategy = usePointCloudContext(
+    (state) => state.coloringStrategy
+  );
   const allNotVisible = useMemo(
     () => Object.values(pointGroupVisibility).every((visible) => !visible),
     [pointGroupVisibility]

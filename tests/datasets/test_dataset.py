@@ -1,19 +1,22 @@
 """
 Test dataset
 """
-
 import logging
 import uuid
 from dataclasses import replace
 from datetime import timedelta
+from typing import Optional
 
 import numpy as np
 import pandas as pd
-from pandas import DataFrame, to_datetime
+import pytest
+import pytz
+from pandas import DataFrame, Series, Timestamp
 from phoenix.datasets.dataset import (
     Dataset,
     EmbeddingColumnNames,
     Schema,
+    _normalize_timestamps,
     _parse_dataframe_and_schema,
 )
 from phoenix.datasets.errors import DatasetError
@@ -553,34 +556,6 @@ class TestParseDataFrameAndSchema:
 
         assert output_dataframe.equals(input_dataframe)
 
-    def test_dataset_normalization_timestamp_integer_to_datetime(self):
-        input_dataframe = DataFrame(
-            {
-                "prediction_label": [f"label{index}" for index in range(self.num_records)],
-                "feature0": np.zeros(self.num_records),
-                "timestamp": np.full(
-                    shape=self.num_records, fill_value=pd.Timestamp.utcnow().timestamp(), dtype=int
-                ),
-                "prediction_id": random_uuids(self.num_records),
-            }
-        )
-        input_schema = Schema(
-            prediction_id_column_name="prediction_id",
-            timestamp_column_name="timestamp",
-            feature_column_names=["feature0"],
-            prediction_label_column_name="prediction_label",
-        )
-
-        output_dataframe, _ = _parse_dataframe_and_schema(
-            dataframe=input_dataframe, schema=input_schema
-        )
-
-        expected_dataframe = input_dataframe
-        expected_dataframe["timestamp"] = expected_dataframe["timestamp"].apply(
-            lambda x: to_datetime(x, unit="s", utc=True)
-        )
-        assert output_dataframe.equals(expected_dataframe)
-
     def test_dataset_normalization_prediction_id_integer_to_string(self):
         input_dataframe = DataFrame(
             {
@@ -634,56 +609,6 @@ class TestParseDataFrameAndSchema:
         )
         assert "prediction_id" in output_dataframe
         assert output_dataframe.dtypes["prediction_id"], "string"
-
-    def test_dataset_normalization_columns_add_missing_timestamp(self):
-        input_dataframe = DataFrame(
-            {
-                "prediction_label": [f"label{index}" for index in range(self.num_records)],
-                "feature0": np.zeros(self.num_records),
-                "prediction_id": random_uuids(self.num_records),
-            }
-        )
-
-        input_schema = Schema(
-            prediction_id_column_name="prediction_id",
-            feature_column_names=["feature0"],
-            prediction_label_column_name="prediction_label",
-        )
-
-        output_dataframe, _ = _parse_dataframe_and_schema(
-            dataframe=input_dataframe, schema=input_schema
-        )
-
-        assert len(output_dataframe.columns) == 4
-        assert output_dataframe[["prediction_label", "feature0", "prediction_id"]].equals(
-            input_dataframe
-        )
-        assert "timestamp" in output_dataframe
-        assert output_dataframe.dtypes["timestamp"], "datetime[nz]"
-
-    def test_dataset_normalization_columns_missing_prediction_id_and_timestamp(self):
-        input_dataframe = DataFrame(
-            {
-                "prediction_label": [f"label{index}" for index in range(self.num_records)],
-                "feature0": np.zeros(self.num_records),
-            }
-        )
-
-        input_schema = Schema(
-            feature_column_names=["feature0"],
-            prediction_label_column_name="prediction_label",
-        )
-
-        output_dataframe, _ = _parse_dataframe_and_schema(
-            dataframe=input_dataframe, schema=input_schema
-        )
-
-        assert len(output_dataframe.columns) == 4
-        assert output_dataframe[["prediction_label", "feature0"]].equals(input_dataframe)
-        assert "prediction_id" in output_dataframe
-        assert output_dataframe.dtypes["prediction_id"], "string"
-        assert "timestamp" in output_dataframe
-        assert output_dataframe.dtypes["timestamp"], "datetime[nz]"
 
     @property
     def num_records(self):
@@ -804,15 +729,17 @@ class TestDataset:
             Dataset(dataframe=input_df, schema=input_schema)
 
     def test_dataset_bookends(self) -> None:
-        raw_data_min_time = pd.Timestamp(year=2023, month=1, day=1, hour=2, second=30)
-        raw_data_max_time = pd.Timestamp(year=2023, month=1, day=10, hour=6, second=20)
+        raw_data_min_time = Timestamp(year=2023, month=1, day=1, hour=2, second=30, tzinfo=pytz.utc)
+        raw_data_max_time = Timestamp(
+            year=2023, month=1, day=10, hour=6, second=20, tzinfo=pytz.utc
+        )
         input_df = DataFrame(
             {
                 "prediction_label": ["apple", "orange", "grape"],
                 "timestamp": [
                     raw_data_max_time,
                     raw_data_min_time,
-                    pd.Timestamp(year=2023, month=1, day=5, hour=4, second=25),
+                    Timestamp(year=2023, month=1, day=5, hour=4, second=25, tzinfo=pytz.utc),
                 ],
             }
         )
@@ -833,3 +760,338 @@ class TestDataset:
 
 def random_uuids(num_records: int):
     return [str(uuid.uuid4()) for _ in range(num_records)]
+
+
+@pytest.mark.parametrize(
+    "input_dataframe, input_schema, default_timestamp, expected_dataframe, expected_schema",
+    [
+        pytest.param(
+            DataFrame(
+                {
+                    "prediction_id": [1, 2, 3],
+                }
+            ),
+            Schema(prediction_id_column_name="prediction_id"),
+            Timestamp(year=2022, month=1, day=1, hour=0, minute=0, second=0, tzinfo=pytz.utc),
+            DataFrame(
+                {
+                    "prediction_id": [1, 2, 3],
+                    "timestamp": Series(
+                        [
+                            Timestamp(
+                                year=2022,
+                                month=1,
+                                day=1,
+                                hour=0,
+                                minute=0,
+                                second=0,
+                            )
+                        ]
+                        * 3
+                    ).dt.tz_localize(pytz.utc),
+                }
+            ),
+            Schema(timestamp_column_name="timestamp", prediction_id_column_name="prediction_id"),
+            id="missing_timestamp_updates_schema_and_adds_default_timestamp_column_to_dataframe",
+        ),
+        pytest.param(
+            DataFrame(
+                {
+                    "timestamp": [
+                        Timestamp(year=2022, month=1, day=1, hour=0, minute=0, second=0),
+                        Timestamp(year=2022, month=1, day=2, hour=0, minute=0, second=0),
+                        Timestamp(year=2022, month=1, day=3, hour=0, minute=0, second=0),
+                    ],
+                    "prediction_id": [1, 2, 3],
+                }
+            ),
+            Schema(timestamp_column_name="timestamp", prediction_id_column_name="prediction_id"),
+            None,
+            DataFrame(
+                {
+                    "timestamp": Series(
+                        [
+                            Timestamp(
+                                year=2022,
+                                month=1,
+                                day=1,
+                                hour=0,
+                                minute=0,
+                                second=0,
+                            ),
+                            Timestamp(
+                                year=2022,
+                                month=1,
+                                day=2,
+                                hour=0,
+                                minute=0,
+                                second=0,
+                            ),
+                            Timestamp(
+                                year=2022,
+                                month=1,
+                                day=3,
+                                hour=0,
+                                minute=0,
+                                second=0,
+                            ),
+                        ]
+                    ).dt.tz_localize(pytz.utc),
+                    "prediction_id": [1, 2, 3],
+                }
+            ),
+            Schema(timestamp_column_name="timestamp", prediction_id_column_name="prediction_id"),
+            id="tz_naive_timestamps_converted_to_utc",
+        ),
+        pytest.param(
+            DataFrame(
+                {
+                    "timestamp": Series(
+                        [
+                            Timestamp(
+                                year=2022,
+                                month=1,
+                                day=1,
+                                hour=0,
+                                minute=0,
+                                second=0,
+                            ),
+                            Timestamp(
+                                year=2022,
+                                month=1,
+                                day=2,
+                                hour=1,
+                                minute=0,
+                                second=0,
+                            ),
+                            Timestamp(
+                                year=2022,
+                                month=1,
+                                day=3,
+                                hour=2,
+                                minute=0,
+                                second=0,
+                            ),
+                        ]
+                    ).dt.tz_localize(pytz.utc),
+                    "prediction_id": [1, 2, 3],
+                }
+            ),
+            Schema(timestamp_column_name="timestamp", prediction_id_column_name="prediction_id"),
+            None,
+            DataFrame(
+                {
+                    "timestamp": Series(
+                        [
+                            Timestamp(
+                                year=2022,
+                                month=1,
+                                day=1,
+                                hour=0,
+                                minute=0,
+                                second=0,
+                            ),
+                            Timestamp(
+                                year=2022,
+                                month=1,
+                                day=2,
+                                hour=1,
+                                minute=0,
+                                second=0,
+                            ),
+                            Timestamp(
+                                year=2022,
+                                month=1,
+                                day=3,
+                                hour=2,
+                                minute=0,
+                                second=0,
+                            ),
+                        ]
+                    ).dt.tz_localize(pytz.utc),
+                    "prediction_id": [1, 2, 3],
+                }
+            ),
+            Schema(timestamp_column_name="timestamp", prediction_id_column_name="prediction_id"),
+            id="utc_timestamps_remain_unchanged",
+        ),
+        pytest.param(
+            DataFrame(
+                {
+                    "timestamp": Series(
+                        [
+                            Timestamp(
+                                year=2022,
+                                month=1,
+                                day=1,
+                                hour=0,
+                                minute=0,
+                                second=0,
+                            ),
+                            Timestamp(
+                                year=2022,
+                                month=1,
+                                day=2,
+                                hour=1,
+                                minute=0,
+                                second=0,
+                            ),
+                            Timestamp(
+                                year=2022,
+                                month=1,
+                                day=3,
+                                hour=2,
+                                minute=0,
+                                second=0,
+                            ),
+                        ]
+                    )
+                    .dt.tz_localize(pytz.utc)
+                    .apply(lambda dt: float(dt.timestamp())),
+                    "prediction_id": [1, 2, 3],
+                }
+            ),
+            Schema(timestamp_column_name="timestamp", prediction_id_column_name="prediction_id"),
+            None,
+            DataFrame(
+                {
+                    "timestamp": Series(
+                        [
+                            Timestamp(
+                                year=2022,
+                                month=1,
+                                day=1,
+                                hour=0,
+                                minute=0,
+                                second=0,
+                            ),
+                            Timestamp(
+                                year=2022,
+                                month=1,
+                                day=2,
+                                hour=1,
+                                minute=0,
+                                second=0,
+                            ),
+                            Timestamp(
+                                year=2022,
+                                month=1,
+                                day=3,
+                                hour=2,
+                                minute=0,
+                                second=0,
+                            ),
+                        ]
+                    ).dt.tz_localize(pytz.utc),
+                    "prediction_id": [1, 2, 3],
+                }
+            ),
+            Schema(timestamp_column_name="timestamp", prediction_id_column_name="prediction_id"),
+            id="unix_timestamps_converted_to_utc_timestamps",
+        ),
+        pytest.param(
+            DataFrame(
+                {
+                    "timestamp": Series(
+                        [
+                            Timestamp(
+                                year=2022,
+                                month=1,
+                                day=1,
+                                hour=0,
+                                minute=0,
+                                second=0,
+                            ),
+                            Timestamp(
+                                year=2022,
+                                month=1,
+                                day=2,
+                                hour=1,
+                                minute=0,
+                                second=0,
+                            ),
+                            Timestamp(
+                                year=2022,
+                                month=1,
+                                day=3,
+                                hour=2,
+                                minute=0,
+                                second=0,
+                            ),
+                        ]
+                    ).dt.tz_localize(pytz.timezone("US/Pacific")),
+                    "prediction_id": [1, 2, 3],
+                }
+            ),
+            Schema(timestamp_column_name="timestamp", prediction_id_column_name="prediction_id"),
+            None,
+            DataFrame(
+                {
+                    "timestamp": Series(
+                        [
+                            Timestamp(
+                                year=2022,
+                                month=1,
+                                day=1,
+                                hour=8,
+                                minute=0,
+                                second=0,
+                            ),
+                            Timestamp(
+                                year=2022,
+                                month=1,
+                                day=2,
+                                hour=9,
+                                minute=0,
+                                second=0,
+                            ),
+                            Timestamp(
+                                year=2022,
+                                month=1,
+                                day=3,
+                                hour=10,
+                                minute=0,
+                                second=0,
+                            ),
+                        ]
+                    ).dt.tz_localize(pytz.utc),
+                    "prediction_id": [1, 2, 3],
+                }
+            ),
+            Schema(timestamp_column_name="timestamp", prediction_id_column_name="prediction_id"),
+            id="us_pacific_timestamps_converted_to_utc",
+        ),
+    ],
+)
+def test_normalize_timestamps_produces_expected_output_for_valid_input(
+    input_dataframe: DataFrame,
+    input_schema: Schema,
+    default_timestamp: Optional[Timestamp],
+    expected_dataframe: DataFrame,
+    expected_schema: Schema,
+) -> None:
+    output_dataframe, output_schema = _normalize_timestamps(
+        dataframe=input_dataframe, schema=input_schema, default_timestamp=default_timestamp
+    )
+    assert output_schema == expected_schema
+    assert output_dataframe.equals(expected_dataframe)
+
+
+def test_normalize_timestamps_raises_value_error_for_invalid_input() -> None:
+    with pytest.raises(ValueError):
+        _normalize_timestamps(
+            dataframe=DataFrame(
+                {
+                    "timestamp": [
+                        "2023-03-24 10:00:00 UTC",
+                        "2023-03-24 11:30:00 UTC",
+                        "2023-03-24 14:15:00 UTC",
+                    ],
+                    "prediction_id": [1, 2, 3],
+                }
+            ),
+            schema=Schema(
+                timestamp_column_name="timestamp", prediction_id_column_name="prediction_id"
+            ),
+            default_timestamp=None,
+        )

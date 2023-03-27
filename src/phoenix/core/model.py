@@ -1,11 +1,13 @@
-from typing import Dict, List, Optional, cast
+from typing import BinaryIO, Dict, Iterable, List, Mapping, Optional, cast
 
 import numpy.typing as npt
+import pandas as pd
 from pandas.api.types import is_numeric_dtype, is_object_dtype
 
 from phoenix.datasets import Dataset
 from phoenix.datasets.schema import EmbeddingColumnNames, EmbeddingFeatures
 
+from ..datasets.dataset import DatasetType
 from .dimension import Dimension
 from .dimension_data_type import DimensionDataType
 from .dimension_type import DimensionType
@@ -20,6 +22,10 @@ class Model:
         self.__embedding_dimensions: List[EmbeddingDimension] = _get_embedding_dimensions(
             self.primary_dataset, self.reference_dataset
         )
+        self.__datasets = {
+            DatasetType.PRIMARY: primary_dataset,
+            DatasetType.REFERENCE: reference_dataset,
+        }
 
     @property
     def primary_dataset(self) -> Dataset:
@@ -105,6 +111,28 @@ class Model:
         elif is_object_dtype(dimension_pandas_dtype):
             return DimensionDataType.CATEGORICAL
         raise ValueError("Unrecognized dimension type")
+
+    def export_events_as_parquet_file(
+        self,
+        rows: Mapping[DatasetType, Iterable[int]],
+        parquet_file: BinaryIO,
+    ) -> None:
+        """
+        Given row numbers, exports dataframe subset into parquet file.
+        Duplicate rows are removed.
+
+        Parameters
+        ----------
+        rows: Mapping[DatasetType, Iterable[int]]
+            row numbers per dataset type
+        file: file handle
+            output file
+        """
+        pd.concat(
+            dataset.export_events(rows.get(dataset_type, ()))
+            for dataset_type, dataset in self.__datasets.items()
+            if dataset is not None
+        ).to_parquet(parquet_file, index=False)
 
 
 def _get_embedding_dimensions(

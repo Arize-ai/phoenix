@@ -13,8 +13,9 @@ import {
   YAxis,
 } from "recharts";
 import { CategoricalChartFunc } from "recharts/types/chart/generateCategoricalChart";
+import { css } from "@emotion/react";
 
-import { Text, theme } from "@arizeai/components";
+import { Icon, InfoOutline, Text, theme } from "@arizeai/components";
 
 import {
   ChartTooltip,
@@ -33,6 +34,60 @@ const numberFormatter = new Intl.NumberFormat([], {
 
 const color = "#5899C5";
 const barColor = "#93b3c841";
+
+function calculateGranularity(timeRange: TimeRange): {
+  evaluationWindowMinutes: number;
+  samplingIntervalMinutes: number;
+} {
+  const { start, end } = timeRange;
+  const timeRangeInHours = Math.floor(
+    (end.valueOf() - start.valueOf()) / 1000 / 60 / 60
+  );
+  if (timeRangeInHours <= 1) {
+    alert("day");
+    return {
+      evaluationWindowMinutes: 1,
+      samplingIntervalMinutes: 1,
+    };
+  } else if (timeRangeInHours <= 24) {
+    return {
+      evaluationWindowMinutes: 60,
+      samplingIntervalMinutes: 60,
+    };
+  } else {
+    return {
+      evaluationWindowMinutes: 60 * 24,
+      samplingIntervalMinutes: 60 * 24,
+    };
+  }
+}
+
+function calculateGranularityWithRollingAverage(timeRange: TimeRange): {
+  evaluationWindowMinutes: number;
+  samplingIntervalMinutes: number;
+} {
+  const { start, end } = timeRange;
+  const timeRangeInHours = Math.floor(
+    (end.valueOf() - start.valueOf()) / 1000 / 60 / 60
+  );
+  if (timeRangeInHours <= 1) {
+    alert("day");
+    return {
+      evaluationWindowMinutes: 72 * 60,
+      samplingIntervalMinutes: 1,
+    };
+  } else if (timeRangeInHours <= 24) {
+    return {
+      evaluationWindowMinutes: 72 * 60,
+      samplingIntervalMinutes: 60,
+    };
+  } else {
+    return {
+      evaluationWindowMinutes: 72 * 60,
+      samplingIntervalMinutes: 60 * 24,
+    };
+  }
+}
 
 function TooltipContent({ active, payload, label }: TooltipProps<any, any>) {
   if (active && payload && payload.length) {
@@ -61,7 +116,20 @@ function TooltipContent({ active, payload, label }: TooltipProps<any, any>) {
           value={predictionCountString}
         />
         <ChartTooltipDivider />
-        <Text>Click to view drift at this time</Text>
+        <div
+          css={css`
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            color: var(--px-light-blue-color);
+            gap: var(--px-spacing-sm);
+
+            margin-top: var(--px-spacing-sm);
+          `}
+        >
+          <Icon svg={<InfoOutline />} />
+          <span>Click to view the point cloud at this time</span>
+        </div>
       </ChartTooltip>
     );
   }
@@ -80,7 +148,8 @@ export function EuclideanDistanceTimeSeries({
       query EuclideanDistanceTimeSeriesQuery(
         $embeddingDimensionId: GlobalID!
         $timeRange: TimeRange!
-        $granularity: Granularity!
+        $driftGranularity: Granularity!
+        $countGranularity: Granularity!
       ) {
         embedding: node(id: $embeddingDimensionId) {
           id
@@ -88,7 +157,7 @@ export function EuclideanDistanceTimeSeries({
             euclideanDistanceTimeSeries: driftTimeSeries(
               metric: euclideanDistance
               timeRange: $timeRange
-              granularity: $granularity
+              granularity: $driftGranularity
             ) {
               data {
                 timestamp
@@ -98,7 +167,7 @@ export function EuclideanDistanceTimeSeries({
             trafficTimeSeries: dataQualityTimeSeries(
               metric: count
               timeRange: $timeRange
-              granularity: $granularity
+              granularity: $countGranularity
             ) {
               data {
                 timestamp
@@ -115,10 +184,8 @@ export function EuclideanDistanceTimeSeries({
         start: timeRange.start.toISOString(),
         end: timeRange.end.toISOString(),
       },
-      granularity: {
-        evaluationWindowMinutes: 4320,
-        samplingIntervalMinutes: 60 * 24,
-      },
+      driftGranularity: calculateGranularityWithRollingAverage(timeRange),
+      countGranularity: calculateGranularity(timeRange),
     }
   );
 
@@ -153,7 +220,7 @@ export function EuclideanDistanceTimeSeries({
     <ResponsiveContainer width="100%" height="100%">
       <ComposedChart
         data={chartData as unknown as any[]}
-        margin={{ top: 20, right: 18, left: 18, bottom: 10 }}
+        margin={{ top: 25, right: 18, left: 18, bottom: 10 }}
         onClick={onClick}
       >
         <defs>
@@ -215,15 +282,20 @@ export function EuclideanDistanceTimeSeries({
         />
 
         {selectedTimestamp != null ? (
-          <ReferenceLine
-            x={selectedTimestamp.toISOString()}
-            stroke="white"
-            // label={{
-            //   value: "Selection",
-            //   position: "insideTopRight",
-            //   style: { fill: theme.textColors.white90 },
-            // }}
-          />
+          <>
+            <ReferenceLine
+              x={selectedTimestamp.toISOString()}
+              stroke="white"
+              label={{
+                value: "▼",
+                position: "top",
+                style: {
+                  fill: "#fabe32",
+                  fontSize: theme.typography.sizes.small.fontSize,
+                },
+              }}
+            />
+          </>
         ) : null}
       </ComposedChart>
     </ResponsiveContainer>

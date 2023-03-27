@@ -1,6 +1,7 @@
 import errno
 import os
 import tempfile
+from pathlib import Path
 
 
 def normalize_path(path: str) -> str:
@@ -14,34 +15,34 @@ def normalize_path(path: str) -> str:
     return os.path.expanduser(path)
 
 
-def _get_temp_path() -> str:
+def _get_temp_path() -> Path:
     """Get path to  directory in which to store temp phoenix server files."""
-    return os.path.join(tempfile.gettempdir(), ".arize-phoenix")
+    return Path(tempfile.gettempdir()) / ".arize-phoenix"
 
 
-def get_pids_path() -> str:
+def get_pids_path() -> Path:
     """Get path to directory in which to store temp phoenix instance pid files.
     This directory is used to track any currently running instances of Arize Phoenix
     on the host machine. The directory will be created if it does not exist.
     """
-    path = os.path.join(_get_temp_path(), "pids")
+    path = _get_temp_path() / "pids"
     try:
-        os.makedirs(path)
+        path.mkdir(parents=True, exist_ok=True)
     except OSError as e:
         if e.errno == errno.EEXIST:
             pass
         else:
             raise
     else:
-        os.chmod(path, 0o777)
+        path.chmod(0o777)
     return path
 
 
-PHOENIX_DIR = os.path.dirname(os.path.abspath(__file__))
-ROOT_DIR = os.path.join("~", ".phoenix")
-dataset_dir = normalize_path(os.path.join(ROOT_DIR, "datasets"))
+PHOENIX_DIR = Path.cwd()
+ROOT_DIR = Path.home() / ".phoenix"
+dataset_dir = ROOT_DIR / "datasets"
 
 # Server config
-server_dir = os.path.join(PHOENIX_DIR, "server")
+server_dir = PHOENIX_DIR / "server"
 # The port the server will run on after launch_app is called
 port = 6060

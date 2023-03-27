@@ -2,13 +2,13 @@
 description: Learn the foundational concepts of the Phoenix API
 ---
 
-# Phoenix Basics
+# 🔢 Phoenix Basics
 
 This section introduces _datasets_ and _schemas,_ the starting concepts needed to use Phoenix.
 
 {% hint style="info" %}
-* For comprehensive descriptions of `phoenix.Dataset` and `phoenix.Schema`, see the [API reference](../reference/api/).
-* For code examples, see the [dataset](broken-reference) and [schema](../how-to/define-your-schema.md) how-to guides.
+* For comprehensive descriptions of `phoenix.Dataset` and `phoenix.Schema`, see the [API reference](broken-reference).
+* For tips on creating your own Phoenix datasets and schemas, see the [how-to guide](../how-to/define-your-schema.md).
 {% endhint %}
 
 ## Datasets
@@ -85,7 +85,7 @@ Each dataset needs a schema. If your primary and reference datasets have the sam
 Sometimes, you'll encounter scenarios where the formats of your primary and reference datasets differ. For example, you'll need two schemas if:
 
 * Your production data has timestamps indicating the time at which an inference was made, but your training data does not.
-* Your training data has ground truth, but your production data does not.
+* Your training data has ground truth (what we call _actuals_ in Phoenix nomenclature), but your production data does not.
 * A new version of your model has a differing set of features from a previous version.
 
 In cases like these, you'll need to define two schemas, one for each dataset. For example, if you have DataFrames `train_df` and `prod_df` that are described by schemas `train_schema` and `prod_schema`, respectively, then you can define datasets `train_ds` and `prod_ds` with
