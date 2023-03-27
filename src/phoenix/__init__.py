@@ -1,4 +1,4 @@
-from .datasets import Dataset, EmbeddingColumnNames, Schema, load_example
+from .datasets import Dataset, EmbeddingColumnNames, Schema, load_example, ExampleDatasets
 from .session.session import active_session, close_app, launch_app
 
 # module level doc-string
