@@ -9,8 +9,9 @@ from functools import cached_property
 from typing import Any, Dict, Iterable, List, Optional, Set, Tuple, Union, cast
 
 import pandas as pd
+import pytz
 from pandas import DataFrame, Series, Timestamp, read_parquet, to_datetime
-from pandas.api.types import is_numeric_dtype
+from pandas.api.types import is_datetime64_any_dtype, is_datetime64tz_dtype, is_numeric_dtype
 
 from phoenix.config import dataset_dir
 
@@ -76,6 +77,9 @@ class Dataset:
             raise err.DatasetError(errors)
         original_column_names = dataframe.columns
         dataframe, schema = _parse_dataframe_and_schema(dataframe, schema)
+        dataframe, schema = _normalize_timestamps(
+            dataframe, schema, default_timestamp=Timestamp.utcnow()
+        )
         dataframe = _sort_dataframe_rows_by_timestamp(dataframe, schema)
         self.__dataframe: DataFrame = dataframe
         self.__schema: Schema = schema
@@ -94,6 +98,9 @@ class Dataset:
 
         self.to_disc()
         logger.info(f"""Dataset: {self.__name} initialized""")
+
+    def __repr__(self) -> str:
+        return f'<Dataset "{self.name}">'
 
     @cached_property
     def start_time(self) -> datetime:
@@ -499,17 +506,6 @@ def _create_and_normalize_dataframe_and_schema(
             included_column_names.append(str(column_name))
     parsed_dataframe = dataframe[included_column_names].copy()
     parsed_schema = replace(schema, excludes=None, **schema_patch)
-
-    ts_col_name = parsed_schema.timestamp_column_name
-    if ts_col_name is None:
-        now = Timestamp.utcnow()
-        parsed_schema = replace(parsed_schema, timestamp_column_name="timestamp")
-        parsed_dataframe["timestamp"] = now
-    elif is_numeric_dtype(dataframe.dtypes[ts_col_name]):
-        parsed_dataframe[ts_col_name] = parsed_dataframe[ts_col_name].apply(
-            lambda x: to_datetime(x, unit="s", utc=True)
-        )
-
     pred_col_name = parsed_schema.prediction_id_column_name
     if pred_col_name is None:
         parsed_schema = replace(parsed_schema, prediction_id_column_name="prediction_id")
@@ -535,3 +531,33 @@ def _sort_dataframe_rows_by_timestamp(dataframe: DataFrame, schema: Schema) -> D
     dataframe.set_index(timestamp_column_name, drop=False, inplace=True)
     dataframe.sort_index(inplace=True)
     return dataframe
+
+
+def _normalize_timestamps(
+    dataframe: DataFrame,
+    schema: Schema,
+    default_timestamp: Timestamp,
+) -> Tuple[DataFrame, Schema]:
+    """
+    Ensures that the dataframe has a timestamp column and the schema has a timestamp field. If the
+    input dataframe contains a Unix or datetime timestamp column, it is converted to UTC timestamps.
+    If the input dataframe and schema do not contain timestamps, the default timestamp is used.
+    """
+    timestamp_column: Series[Timestamp]
+    if (timestamp_column_name := schema.timestamp_column_name) is None:
+        timestamp_column_name = "timestamp"
+        schema = replace(schema, timestamp_column_name=timestamp_column_name)
+        timestamp_column = Series([default_timestamp] * len(dataframe))
+    elif is_numeric_dtype(timestamp_column_dtype := dataframe[timestamp_column_name].dtype):
+        timestamp_column = to_datetime(dataframe[timestamp_column_name], unit="s", utc=True)
+    elif is_datetime64tz_dtype(timestamp_column_dtype):
+        timestamp_column = dataframe[timestamp_column_name].dt.tz_convert(pytz.utc)
+    elif is_datetime64_any_dtype(timestamp_column_dtype):
+        timestamp_column = dataframe[timestamp_column_name].dt.tz_localize(pytz.utc)
+    else:
+        raise ValueError(
+            "When provided, input timestamp column must have numeric or datetime dtype, "
+            f"but found {timestamp_column_dtype} instead."
+        )
+    dataframe[timestamp_column_name] = timestamp_column
+    return dataframe, schema
