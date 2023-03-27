@@ -30,7 +30,6 @@ type Dataset {
   """The end bookend of the data"""
   endTime: DateTime!
   events(eventIds: [ID!]!, dimensions: [DimensionInput!]): [Event!]!
-  exportEvents(eventIds: [ID!]!): ExportResponse!
 }
 
 """Date with time (isoformat)"""
@@ -204,6 +203,10 @@ type Model {
   primaryDataset: Dataset!
   referenceDataset: Dataset
   embeddingDimensions(first: Int = 50, last: Int = null, after: String, before: String): EmbeddingDimensionConnection!
+}
+
+type Mutation {
+  exportEvents(eventIds: [ID!]!, fileName: String = null): ExportResponse!
 }
 
 """A node in the graph with a globally unique ID"""
