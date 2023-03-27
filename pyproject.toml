@@ -46,7 +46,6 @@ dev = [
   "pytest-lazy-fixture",
   "strawberry-graphql[debug-server]==0.155.3",
   "pre-commit",
-  "mypy<0.1000",
 ]
 
 [project.urls]
