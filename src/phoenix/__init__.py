@@ -1,5 +1,5 @@
 from .datasets import Dataset, EmbeddingColumnNames, Schema, load_example, ExampleDatasets
-from .session.session import active_session, close_app, launch_app
+from .session import active_session, close_app, launch_app, Session
 
 # module level doc-string
 __doc__ = """
