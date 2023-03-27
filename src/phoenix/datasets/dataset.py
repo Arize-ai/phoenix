@@ -559,33 +559,29 @@ def _get_schema_from_unknown_schema_param(schemaLike: SchemaLike) -> Schema:
         )
         from arize.utils.types import Schema as ArizeSchema
 
-        if isinstance(schemaLike, ArizeSchema):
-            embedding_feature_column_names: Dict[str, EmbeddingColumnNames] = {}
-            if schemaLike.embedding_feature_column_names is not None:
-                for (
-                    embedding_name,
-                    arize_embedding_feature_column_names,
-                ) in schemaLike.embedding_feature_column_names.items():
-                    if isinstance(arize_embedding_feature_column_names, ArizeEmbeddingColumnNames):
-                        embedding_feature_column_names[embedding_name] = EmbeddingColumnNames(
-                            vector_column_name=arize_embedding_feature_column_names.vector_column_name,
-                            link_to_data_column_name=arize_embedding_feature_column_names.link_to_data_column_name,
-                            raw_data_column_name=arize_embedding_feature_column_names.data_column_name,
-                        )
-            return Schema(
-                feature_column_names=schemaLike.feature_column_names,
-                tag_column_names=schemaLike.tag_column_names,
-                prediction_label_column_name=schemaLike.prediction_label_column_name,
-                actual_label_column_name=schemaLike.actual_label_column_name,
-                prediction_id_column_name=schemaLike.prediction_id_column_name,
-                timestamp_column_name=schemaLike.timestamp_column_name,
-                embedding_feature_column_names=embedding_feature_column_names,
-            )
-        else:
-            raise ValueError("Unknown schema passed to Dataset.")
+        if not isinstance(schemaLike, ArizeSchema):
+            raise ValueError("Unknown schema passed to Dataset. Please pass a phoenix Schema")
+
+        embedding_feature_column_names: Dict[str, EmbeddingColumnNames] = {}
+        if schemaLike.embedding_feature_column_names is not None:
+            for (
+                embedding_name,
+                arize_embedding_feature_column_names,
+            ) in schemaLike.embedding_feature_column_names.items():
+                if isinstance(arize_embedding_feature_column_names, ArizeEmbeddingColumnNames):
+                    embedding_feature_column_names[embedding_name] = EmbeddingColumnNames(
+                        vector_column_name=arize_embedding_feature_column_names.vector_column_name,
+                        link_to_data_column_name=arize_embedding_feature_column_names.link_to_data_column_name,
+                        raw_data_column_name=arize_embedding_feature_column_names.data_column_name,
+                    )
+        return Schema(
+            feature_column_names=schemaLike.feature_column_names,
+            tag_column_names=schemaLike.tag_column_names,
+            prediction_label_column_name=schemaLike.prediction_label_column_name,
+            actual_label_column_name=schemaLike.actual_label_column_name,
+            prediction_id_column_name=schemaLike.prediction_id_column_name,
+            timestamp_column_name=schemaLike.timestamp_column_name,
+            embedding_feature_column_names=embedding_feature_column_names,
+        )
     except Exception:
-        raise ValueError("Unknown schema passed to Dataset. Please pass a phoenix Schema")
-        raise ValueError("Unknown schema passed to Dataset. Please pass a phoenix Schema")
-        raise ValueError("Unknown schema passed to Dataset. Please pass a phoenix Schema")
-        raise ValueError("Unknown schema passed to Dataset. Please pass a phoenix Schema")
         raise ValueError("Unknown schema passed to Dataset. Please pass a phoenix Schema")
