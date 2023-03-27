@@ -21,13 +21,13 @@
 * [🎛 Manage the App](how-to/manage-the-app.md)
 * [🖱 Use the App](how-to/use-the-app.md)
 
-## ⌨ API
+## API
 
 * [#⃣ phoenix.Dataset](api/phoenix.dataset.md)
 * [#⃣ phoenix.Schema](api/phoenix.schema.md)
 * [#⃣ phoenix.EmbeddingColumnNames](api/phoenix.embeddingcolumnnames.md)
 * [#⃣ phoenix.load\_example](api/phoenix.load\_example.md)
 
-## 📚 Reference
+## Reference
 
 * [📄 Open Inference](concepts/open-inference.md)
