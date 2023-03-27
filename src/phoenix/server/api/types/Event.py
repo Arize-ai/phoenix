@@ -5,7 +5,7 @@ import strawberry
 from pandas import Series
 from strawberry import ID
 
-from phoenix import Schema
+from phoenix.datasets import Schema
 from phoenix.datasets.dataset import DatasetType
 from phoenix.datasets.event import EventId
 
@@ -44,12 +44,12 @@ def create_event(
     an event containing this information.
     """
     event_metadata = EventMetadata(
-        prediction_label=row[col]
-        if (col := schema.prediction_label_column_name) is not None
-        else None,
-        prediction_score=row[col]
-        if (col := schema.prediction_score_column_name) is not None
-        else None,
+        prediction_label=(
+            row[col] if (col := schema.prediction_label_column_name) is not None else None
+        ),
+        prediction_score=(
+            row[col] if (col := schema.prediction_score_column_name) is not None else None
+        ),
         actual_label=row[col] if (col := schema.actual_label_column_name) is not None else None,
         actual_score=row[col] if (col := schema.actual_score_column_name) is not None else None,
     )

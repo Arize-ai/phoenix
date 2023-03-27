@@ -1,18 +1,6 @@
 import errno
-import os
 import tempfile
 from pathlib import Path
-
-
-def normalize_path(path: str) -> str:
-    """Normalizes the given path by converting it to an absolute path and
-    expanding the user directory, if necessary.
-    Args:
-        path: a path
-    Returns:
-        the normalized path
-    """
-    return os.path.expanduser(path)
 
 
 def _get_temp_path() -> Path:

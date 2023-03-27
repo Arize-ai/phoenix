@@ -1,5 +1,5 @@
 import logging
-import os
+from pathlib import Path
 from typing import Optional, Union
 
 from starlette.applications import Starlette
@@ -96,10 +96,7 @@ def create_app(
             Mount(
                 "/",
                 app=Static(
-                    directory=os.path.join(
-                        os.path.dirname(__file__),
-                        "static",
-                    ),
+                    directory=Path.cwd() / "static",
                     html=True,
                 ),
                 name="static",

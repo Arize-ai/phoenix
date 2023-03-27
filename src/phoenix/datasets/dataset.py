@@ -1,11 +1,11 @@
 import logging
-import os
 import uuid
 from copy import deepcopy
 from dataclasses import fields, replace
 from datetime import datetime, timedelta
 from enum import Enum
 from functools import cached_property
+from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Set, Tuple, Union, cast
 
 import pandas as pd
@@ -84,7 +84,7 @@ class Dataset:
         self.__dataframe: DataFrame = dataframe
         self.__schema: Schema = schema
         self.__name: str = name if name is not None else f"""dataset_{str(uuid.uuid4())}"""
-        self.__directory: str = os.path.join(dataset_dir, self.name)
+        self.__directory = dataset_dir / self.name
         self.__original_column_indices = [
             dataframe.columns.get_loc(column_name) for column_name in original_column_names
         ]
@@ -139,7 +139,7 @@ class Dataset:
         return self._is_persisted
 
     @property
-    def directory(self) -> str:
+    def directory(self) -> Path:
         """The directory under which the dataset metadata is stored"""
         return self.__directory
 
@@ -238,9 +238,9 @@ class Dataset:
     @classmethod
     def from_name(cls, name: str) -> "Dataset":
         """Retrieves a dataset by name from the file system"""
-        directory = os.path.join(dataset_dir, name)
-        df = read_parquet(os.path.join(directory, cls._data_file_name))
-        with open(os.path.join(directory, cls._schema_file_name)) as schema_file:
+        directory = dataset_dir / name
+        df = read_parquet(directory / cls._data_file_name)
+        with open(directory / cls._schema_file_name) as schema_file:
             schema_json = schema_file.read()
         schema = Schema.from_json(schema_json)
         return cls(df, schema, name, persist_to_disc=False)
@@ -252,23 +252,24 @@ class Dataset:
             logger.info("Dataset already persisted")
             return
 
-        directory = self.directory
-        if not os.path.isdir(directory):
-            os.makedirs(directory)
+        self.directory.mkdir(
+            parents=True,
+            exist_ok=True,
+        )
 
         self.dataframe.to_parquet(
-            os.path.join(directory, self._data_file_name),
+            self.directory / self._data_file_name,
             allow_truncated_timestamps=True,
             coerce_timestamps="ms",
         )
 
         schema_json_data = self.schema.to_json()
-        with open(os.path.join(directory, self._schema_file_name), "w+") as schema_file:
+        with open(self.directory / self._schema_file_name, "w+") as schema_file:
             schema_file.write(schema_json_data)
 
         # set the persisted flag so that we don't have to perform this operation again
         self._is_persisted = True
-        logger.info(f"Dataset info written to '{directory}'")
+        logger.info(f"Dataset info written to '{self.directory}'")
 
     def export_events(self, rows: Iterable[int]) -> pd.DataFrame:
         """
