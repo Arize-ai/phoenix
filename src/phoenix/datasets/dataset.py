@@ -532,7 +532,7 @@ def _get_schema_from_unknown_schema_param(schemaLike: SchemaLike) -> Schema:
     Compatibility function for converting from arize.utils.types.Schema to phoenix.datasets.Schema
     """
     try:
-        from arize.utils.types import EmbeddingColumnNames as ArizeEmbeddingColumnNames  # type: ignore
+        from arize.utils.types import EmbeddingColumnNames as AEmbColNames  # type: ignore
         from arize.utils.types import Schema as ArizeSchema  # type: ignore
 
         if isinstance(schemaLike, ArizeSchema):
@@ -542,7 +542,7 @@ def _get_schema_from_unknown_schema_param(schemaLike: SchemaLike) -> Schema:
                     embedding_name,
                     arize_embedding_feature_column_names,
                 ) in schemaLike.embedding_feature_column_names.items():
-                    if isinstance(arize_embedding_feature_column_names, ArizeEmbeddingColumnNames):
+                    if isinstance(arize_embedding_feature_column_names, AEmbColNames):
                         embedding_feature_column_names[embedding_name] = EmbeddingColumnNames(
                             vector_column_name=arize_embedding_feature_column_names.vector_column_name,
                             link_to_data_column_name=arize_embedding_feature_column_names.link_to_data_column_name,
@@ -561,5 +561,4 @@ def _get_schema_from_unknown_schema_param(schemaLike: SchemaLike) -> Schema:
             raise ValueError("Unknown schema passed to Dataset.")
     except Exception:
         raise ValueError("Unknown schema passed to Dataset. Please pass a phoenix Schema")
-    except Exception:
         raise ValueError("Unknown schema passed to Dataset. Please pass a phoenix Schema")

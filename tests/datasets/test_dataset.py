@@ -543,7 +543,7 @@ class TestParseDataFrameAndSchema:
 
         expected_dataframe = input_dataframe
         expected_dataframe["timestamp"] = expected_dataframe["timestamp"].apply(
-            lambda x: to_datetime(x, unit="s", utc=True)
+            lambda x: pd.to_datetime(x, unit="s", utc=True)
         )
         assert output_dataframe.equals(expected_dataframe)
 
