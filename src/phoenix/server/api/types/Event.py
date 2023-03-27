@@ -27,8 +27,9 @@ def parse_event_ids(event_ids: List[ID]) -> Dict[DatasetType, List[int]]:
     """
     row_indexes = defaultdict(list)
     for event_id in event_ids:
-        row_index, dataset_type = str(event_id).split(":")
-        row_indexes[DatasetType(dataset_type)].append(int(row_index))
+        row_index, dataset_type_str = str(event_id).split(":")
+        dataset_type = DatasetType[dataset_type_str.split(".")[-1]]
+        row_indexes[dataset_type].append(int(row_index))
     return row_indexes
 
 
