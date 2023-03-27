@@ -23,7 +23,7 @@ Embeddings are foundational to machine learning because:
 * They are the output of deep learning layers providing comprehensible linear views into complex non-linear relationships learned by models\
 
 
-Embeddings are used for a variety of machine learning problems. To learn more, chick out our course [here](https://arize.com/blog-course/embeddings-meaning-examples-and-how-to-compute/).\
+Embeddings are used for a variety of machine learning problems. To learn more, check out our course [here](https://arize.com/blog-course/embeddings-meaning-examples-and-how-to-compute/).\
 
 
 ### How to generate embeddings
