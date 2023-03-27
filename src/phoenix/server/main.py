@@ -65,9 +65,7 @@ if __name__ == "__main__":
     else:
         fixture_name = args.fixture
         primary_only = args.primary_only
-        primary_dataset_name, reference_dataset_name = get_dataset_names_from_fixture_name(
-            fixture_name
-        )
+        primary_dataset_name, reference_dataset_name = get_dataset_names_from_fixture_name(fixture_name)
         if primary_only:
             reference_dataset_name = None
         download_fixture_if_missing(fixture_name)

@@ -21,7 +21,5 @@ class Dimension:
         if self.data_type != DimensionDataType.CATEGORICAL:
             return []
         return sorted(
-            value
-            for value in set(chain.from_iterable(data.unique() for data in self.data()))
-            if isinstance(value, str)
+            value for value in set(chain.from_iterable(data.unique() for data in self.data())) if isinstance(value, str)
         )

@@ -149,10 +149,7 @@ def connection_from_list_slice(
     # If supplied slice is too large, trim it down before mapping over it.
     slice = list_slice[start_offset - slice_start : end_offset - slice_start]
 
-    edges = [
-        Edge(node=node, cursor=offset_to_cursor(start_offset + index))
-        for index, node in enumerate(slice)
-    ]
+    edges = [Edge(node=node, cursor=offset_to_cursor(start_offset + index)) for index, node in enumerate(slice)]
 
     has_edges = len(edges) > 0
     first_edge = edges[0] if has_edges else None

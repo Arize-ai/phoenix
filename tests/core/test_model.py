@@ -90,15 +90,11 @@ def test_invalid_model_embeddings_primary_and_ref_embedding_size_mismatch(
     dataset_with_embedding_vector, dataset_with_large_embedding_vector
 ):
     with pytest.raises(ValueError):
-        _ = _get_embedding_dimensions(
-            dataset_with_embedding_vector, dataset_with_large_embedding_vector
-        )
+        _ = _get_embedding_dimensions(dataset_with_embedding_vector, dataset_with_large_embedding_vector)
 
 
 def test_valid_model_embeddings(dataset_with_embedding_vector):
-    embedding_dimensions = _get_embedding_dimensions(
-        dataset_with_embedding_vector, dataset_with_embedding_vector
-    )
+    embedding_dimensions = _get_embedding_dimensions(dataset_with_embedding_vector, dataset_with_embedding_vector)
     assert len(embedding_dimensions) == 2
     assert embedding_dimensions == [
         EmbeddingDimension(name="embedding_feature0"),

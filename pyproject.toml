@@ -92,6 +92,7 @@ dependencies = [
   "pandas-stubs",
   "pytest",
   "types-psutil",
+  "arize",
 ]
 
 [tool.hatch.envs.style]
@@ -175,7 +176,7 @@ pypi = [
 ]
 
 [tool.black]
-line-length = 100
+line-length = 120
 
 [tool.hatch.envs.docs.scripts]
 check = [
@@ -227,6 +228,6 @@ ignore_missing_imports = true
 [tool.ruff]
 exclude = ["__init__.py", ".git", "__pycache__", "docs/source/conf.py"]
 ignore = []
-line-length = 100
+line-length = 120
 select = ["E", "F", "W", "I"]
 target-version = "py38"

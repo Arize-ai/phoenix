@@ -82,8 +82,7 @@ def test_embeddings_vector_invalid_type():
             "link_to_data1": [f"some-link{index}" for index in range(_NUM_RECORDS)],
             "raw_data_column1": [f"some-text{index}" for index in range(_NUM_RECORDS)],
             "embedding_vector1": [
-                np.array(["abba" for _ in range(_EMBEDDING_DIMENSION)], dtype=object)
-                for _ in range(_NUM_RECORDS)
+                np.array(["abba" for _ in range(_EMBEDDING_DIMENSION)], dtype=object) for _ in range(_NUM_RECORDS)
             ],
             "link_to_data0": [f"some-link{index}" for index in range(_NUM_RECORDS)],
             "raw_data_column0": [f"some-text{index}" for index in range(_NUM_RECORDS)],

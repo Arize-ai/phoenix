@@ -21,9 +21,7 @@ UTC = timezone(offset=timedelta(hours=0))
 
 
 class TestDriftMetricTimeSeries:
-    def test_no_reference_dataset_returns_empty_time_series(
-        self, info_mock_factory: InfoMockFactory
-    ) -> None:
+    def test_no_reference_dataset_returns_empty_time_series(self, info_mock_factory: InfoMockFactory) -> None:
         primary_dataframe = DataFrame(
             {
                 "embedding_vector": [
@@ -49,13 +47,9 @@ class TestDriftMetricTimeSeries:
             schema=schema,
             persist_to_disc=False,
         )
-        drift_time_series = EmbeddingDimension(
-            name="embedding_feature", id_attr=0
-        ).drift_time_series(
+        drift_time_series = EmbeddingDimension(name="embedding_feature", id_attr=0).drift_time_series(
             metric=VectorDriftMetric.euclideanDistance,
-            time_range=TimeRange(
-                start=datetime(year=2000, month=1, day=1), end=datetime(year=2000, month=1, day=2)
-            ),
+            time_range=TimeRange(start=datetime(year=2000, month=1, day=1), end=datetime(year=2000, month=1, day=2)),
             info=info_mock_factory(primary_dataset, None),
             granularity=Granularity(
                 evaluation_window_minutes=1440,
@@ -133,9 +127,7 @@ class TestDriftMetricTimeSeries:
         )
         assert len(distance.data) == 0
 
-    def test_evaluation_window_correctly_filters_records(
-        self, info_mock_factory: InfoMockFactory
-    ) -> None:
+    def test_evaluation_window_correctly_filters_records(self, info_mock_factory: InfoMockFactory) -> None:
         primary_dataframe = DataFrame(
             {
                 "embedding_vector": [
@@ -185,9 +177,7 @@ class TestDriftMetricTimeSeries:
             schema=schema,
             persist_to_disc=False,
         )
-        drift_time_series = EmbeddingDimension(
-            name="embedding_feature", id_attr=0
-        ).drift_time_series(
+        drift_time_series = EmbeddingDimension(name="embedding_feature", id_attr=0).drift_time_series(
             metric=VectorDriftMetric.euclideanDistance,
             time_range=TimeRange(
                 start=datetime(year=2000, month=1, day=1, tzinfo=UTC),
@@ -200,10 +190,7 @@ class TestDriftMetricTimeSeries:
             ),
         )
         actual_distances = np.array(
-            [
-                value if (value := data_point.value) is not None else np.nan
-                for data_point in drift_time_series.data
-            ]
+            [value if (value := data_point.value) is not None else np.nan for data_point in drift_time_series.data]
         )
         actual_timestamps = [data_point.timestamp for data_point in drift_time_series.data]
         DAILY_HOURS = 24
@@ -275,9 +262,7 @@ class TestDriftMetricTimeSeries:
             schema=schema,
             persist_to_disc=False,
         )
-        drift_time_series = EmbeddingDimension(
-            name="embedding_feature", id_attr=0
-        ).drift_time_series(
+        drift_time_series = EmbeddingDimension(name="embedding_feature", id_attr=0).drift_time_series(
             metric=VectorDriftMetric.euclideanDistance,
             time_range=TimeRange(
                 start=datetime(year=2000, month=1, day=1, hour=1, tzinfo=UTC),
@@ -290,10 +275,7 @@ class TestDriftMetricTimeSeries:
             ),
         )
         actual_distances = np.array(
-            [
-                value if (value := data_point.value) is not None else np.nan
-                for data_point in drift_time_series.data
-            ]
+            [value if (value := data_point.value) is not None else np.nan for data_point in drift_time_series.data]
         )
         actual_timestamps = [data_point.timestamp for data_point in drift_time_series.data]
         expected_distances = np.array([0.0])
@@ -333,9 +315,7 @@ class TestDriftMetric:
         )
         distance = EmbeddingDimension(name="embedding_feature", id_attr=0).drift_metric(
             metric=VectorDriftMetric.euclideanDistance,
-            time_range=TimeRange(
-                start=datetime(year=2000, month=1, day=1), end=datetime(year=2000, month=1, day=2)
-            ),
+            time_range=TimeRange(start=datetime(year=2000, month=1, day=1), end=datetime(year=2000, month=1, day=2)),
             info=info_mock_factory(primary_dataset, None),
         )
         assert distance is None
@@ -405,9 +385,7 @@ class TestDriftMetric:
         )
         assert distance is None
 
-    def test_includes_left_and_excludes_right_time_range_boundaries(
-        self, info_mock_factory: InfoMockFactory
-    ) -> None:
+    def test_includes_left_and_excludes_right_time_range_boundaries(self, info_mock_factory: InfoMockFactory) -> None:
         # primary embeddings inside time range have mean vector at (3, 4)
         primary_dataframe = DataFrame(
             {
@@ -460,9 +438,7 @@ class TestDriftMetric:
             },
         )
         primary_dataset = Dataset(dataframe=primary_dataframe, schema=schema, persist_to_disc=False)
-        reference_dataset = Dataset(
-            dataframe=reference_dataframe, schema=schema, persist_to_disc=False
-        )
+        reference_dataset = Dataset(dataframe=reference_dataframe, schema=schema, persist_to_disc=False)
         distance = EmbeddingDimension(name="embedding_feature", id_attr=0).drift_metric(
             metric=VectorDriftMetric.euclideanDistance,
             time_range=TimeRange(
@@ -476,9 +452,7 @@ class TestDriftMetric:
         )
         assert_almost_equal(actual=distance, desired=5.0)
 
-    def test_no_primary_embeddings_in_time_range_returns_none(
-        self, info_mock_factory: InfoMockFactory
-    ) -> None:
+    def test_no_primary_embeddings_in_time_range_returns_none(self, info_mock_factory: InfoMockFactory) -> None:
         primary_dataframe = DataFrame(
             {
                 "embedding_vector": [
@@ -519,9 +493,7 @@ class TestDriftMetric:
             },
         )
         primary_dataset = Dataset(dataframe=primary_dataframe, schema=schema, persist_to_disc=False)
-        reference_dataset = Dataset(
-            dataframe=reference_dataframe, schema=schema, persist_to_disc=False
-        )
+        reference_dataset = Dataset(dataframe=reference_dataframe, schema=schema, persist_to_disc=False)
         distance = EmbeddingDimension(name="embedding_feature", id_attr=0).drift_metric(
             metric=VectorDriftMetric.euclideanDistance,
             time_range=TimeRange(

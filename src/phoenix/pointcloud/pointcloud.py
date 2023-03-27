@@ -62,12 +62,8 @@ class PointCloud:
         if not data:
             return {}, {}
         identifiers, vectors = zip(*data.items())
-        projections = self.dimensionalityReducer.project(
-            np.stack(vectors), n_components=n_components
-        )
+        projections = self.dimensionalityReducer.project(np.stack(vectors), n_components=n_components)
         clusters = self.clustersFinder.find_clusters(projections)
         return dict(zip(identifiers, projections)), {
-            identifiers[row_index]: cluster_id
-            for cluster_id, cluster in enumerate(clusters)
-            for row_index in cluster
+            identifiers[row_index]: cluster_id for cluster_id, cluster in enumerate(clusters) for row_index in cluster
         }

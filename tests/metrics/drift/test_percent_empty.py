@@ -19,9 +19,7 @@ def test_percent_empty_returns_correct_percents_including_for_empty_and_full_col
         "col3": 0.0,
     }
     expected_column_names = ["col0", "col1", "col2", "col3"]
-    column_name_to_percent_empty = percent_empty(
-        dataframe=dataframe, column_names=["col0", "col1", "col2", "col3"]
-    )
+    column_name_to_percent_empty = percent_empty(dataframe=dataframe, column_names=["col0", "col1", "col2", "col3"])
     assert expected_column_names == sorted(column_name_to_percent_empty.keys())
     assert_array_almost_equal(
         [column_name_to_percent_empty[col] for col in expected_column_names],

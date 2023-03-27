@@ -23,8 +23,7 @@ class MissingVectorColumn(ValidationError):
 
     def error_message(self) -> str:
         return (
-            f"The embedding vector column {self.missing_col} is declared in the Schema "
-            "but is not found in the data."
+            f"The embedding vector column {self.missing_col} is declared in the Schema " "but is not found in the data."
         )
 
 
@@ -101,8 +100,7 @@ class MissingEmbeddingFeatureVectorColumnName(ValidationError):
 
     def error_message(self) -> str:
         return (
-            f"Schema is missing vector_column_name of embedding_feature_column_names"
-            f"[{self.embedding_feature_name}]"
+            f"Schema is missing vector_column_name of embedding_feature_column_names" f"[{self.embedding_feature_name}]"
         )
 
 
@@ -138,9 +136,7 @@ class EmbeddingVectorSizeMismatch(ValidationError):
     """An error raised when there is an embedding feature with multiple different
     vector lengths"""
 
-    def __init__(
-        self, embedding_feature_name: str, vector_column_name: str, vector_lengths: List[int]
-    ) -> None:
+    def __init__(self, embedding_feature_name: str, vector_column_name: str, vector_lengths: List[int]) -> None:
         self.embedding_feature_name = embedding_feature_name
         self.vector_column_name = vector_column_name
         self.vector_lengths = vector_lengths
@@ -156,9 +152,7 @@ class EmbeddingVectorSizeMismatch(ValidationError):
 class InvalidEmbeddingVectorSize(ValidationError):
     """An error raised when there is an embedding feature with an invalid vector length"""
 
-    def __init__(
-        self, embedding_feature_name: str, vector_column_name: str, vector_length: int
-    ) -> None:
+    def __init__(self, embedding_feature_name: str, vector_column_name: str, vector_length: int) -> None:
         self.embedding_feature_name = embedding_feature_name
         self.vector_column_name = vector_column_name
         self.vector_length = vector_length

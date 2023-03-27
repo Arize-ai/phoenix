@@ -317,9 +317,7 @@ class EmbeddingDimension(Node):
         )
 
 
-def to_gql_embedding_dimension(
-    id_attr: int, embedding_dimension: CoreEmbeddingDimension
-) -> EmbeddingDimension:
+def to_gql_embedding_dimension(id_attr: int, embedding_dimension: CoreEmbeddingDimension) -> EmbeddingDimension:
     """
     Converts a phoenix.core.EmbeddingDimension to a
     phoenix.server.api.types.EmbeddingDimension

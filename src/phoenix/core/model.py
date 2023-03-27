@@ -37,9 +37,7 @@ class Model:
     def embedding_dimensions(self) -> List[EmbeddingDimension]:
         return self.__embedding_dimensions
 
-    def _get_dimensions(
-        self, primary_dataset: Dataset, reference_dataset: Optional[Dataset]
-    ) -> List[Dimension]:
+    def _get_dimensions(self, primary_dataset: Dataset, reference_dataset: Optional[Dataset]) -> List[Dimension]:
         # TODO: include reference dataset dimensions
         dimensions: List[Dimension] = []
         schema = primary_dataset.schema
@@ -60,9 +58,7 @@ class Model:
             ]
             if name is not None
         ]
-        feature_column_names = (
-            schema.feature_column_names if schema.feature_column_names is not None else []
-        )
+        feature_column_names = schema.feature_column_names if schema.feature_column_names is not None else []
         tag_column_names = schema.tag_column_names if schema.tag_column_names is not None else []
         dimension_type_to_column_names: Dict[DimensionType, List[str]] = {
             DimensionType.ACTUAL: actual_column_names,
@@ -97,9 +93,7 @@ class Model:
 
     def _infer_dimension_data_type(self, dimension_name: str) -> DimensionDataType:
         # TODO: verify corresponding dimension of reference dataset has same type
-        dimension_pandas_dtype = cast(
-            npt.DTypeLike, self.primary_dataset.dataframe[dimension_name].dtype
-        )
+        dimension_pandas_dtype = cast(npt.DTypeLike, self.primary_dataset.dataframe[dimension_name].dtype)
         if is_numeric_dtype(dimension_pandas_dtype):
             return DimensionDataType.NUMERIC
         elif is_object_dtype(dimension_pandas_dtype):
@@ -113,9 +107,7 @@ def _get_embedding_dimensions(
     embedding_dimensions: List[EmbeddingDimension] = []
     embedding_features: Dict[str, EmbeddingColumnNames] = {}
 
-    primary_embedding_features: Optional[
-        EmbeddingFeatures
-    ] = primary_dataset.schema.embedding_feature_column_names
+    primary_embedding_features: Optional[EmbeddingFeatures] = primary_dataset.schema.embedding_feature_column_names
 
     if primary_embedding_features is not None:
         embedding_features.update(primary_embedding_features)
@@ -146,12 +138,8 @@ def _check_embedding_vector_lengths_match_across_datasets(
     Ensure that for each embedding feature, the vector lengths match across the primary
     and reference datasets which is required for calculating embedding drift (vector distance)
     """
-    primary_vector_length = _get_column_vector_length(
-        primary_dataset, embedding_column_names.vector_column_name
-    )
-    reference_vector_length = _get_column_vector_length(
-        reference_dataset, embedding_column_names.vector_column_name
-    )
+    primary_vector_length = _get_column_vector_length(primary_dataset, embedding_column_names.vector_column_name)
+    reference_vector_length = _get_column_vector_length(reference_dataset, embedding_column_names.vector_column_name)
 
     # if one of the datasets doesn't have the embedding column at all, which is fine since we
     # just consider this as missing from one of the datasets and won't need to worry about
