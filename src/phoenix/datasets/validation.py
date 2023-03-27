@@ -119,14 +119,18 @@ def _check_column_types(dataframe: DataFrame, schema: Schema) -> List[err.Valida
             is_numeric_dtype(dataframe.dtypes[schema.timestamp_column_name])
             or is_datetime(dataframe.dtypes[schema.timestamp_column_name])
         ):
-            wrong_type_cols.append(f"{schema.timestamp_column_name} should be of timestamp or numeric type")
+            wrong_type_cols.append(
+                f"{schema.timestamp_column_name} should be of timestamp or numeric type"
+            )
 
     if schema.prediction_id_column_name is not None:
         if not (
             is_numeric_dtype(dataframe.dtypes[schema.prediction_id_column_name])
             or is_string_dtype(dataframe.dtypes[schema.prediction_id_column_name])
         ):
-            wrong_type_cols.append(f"{schema.prediction_id_column_name} should be a string or numeric type")
+            wrong_type_cols.append(
+                f"{schema.prediction_id_column_name} should be a string or numeric type"
+            )
 
     if len(wrong_type_cols) > 0:
         return [err.InvalidColumnType(wrong_type_cols)]

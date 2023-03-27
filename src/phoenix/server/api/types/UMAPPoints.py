@@ -63,7 +63,9 @@ def to_gql_clusters(
             Cluster(
                 id=ID(str(cluster_id)),
                 point_ids=[ID(str(event)) for event in cluster_events],
-                drift_ratio=calculate_drift_ratio(cluster_events) if has_reference_data else float("nan"),
+                drift_ratio=calculate_drift_ratio(cluster_events)
+                if has_reference_data
+                else float("nan"),
             )
         )
 

@@ -28,7 +28,9 @@ sentiment_classification_language_drift_schema = Schema(
     prediction_label_column_name="pred_label",
     actual_label_column_name="label",
     embedding_feature_column_names={
-        "text_embedding": EmbeddingColumnNames(vector_column_name="text_vector", raw_data_column_name="text"),
+        "text_embedding": EmbeddingColumnNames(
+            vector_column_name="text_vector", raw_data_column_name="text"
+        ),
     },
 )
 sentiment_classification_language_drift_fixture = Fixture(
@@ -65,7 +67,9 @@ sentiment_classification_language_drift_fixture = Fixture(
 fashion_mnist_primary_schema = Schema(
     timestamp_column_name="prediction_ts",
     embedding_feature_column_names={
-        "embedding": EmbeddingColumnNames(vector_column_name="embeddings", link_to_data_column_name="image_url"),
+        "embedding": EmbeddingColumnNames(
+            vector_column_name="embeddings", link_to_data_column_name="image_url"
+        ),
     },
     actual_label_column_name="actual_label",
     prediction_label_column_name="predicted_label",
@@ -99,7 +103,9 @@ ner_token_drift_schema = Schema(
     actual_label_column_name="label",
     prediction_label_column_name="pred_label",
     embedding_feature_column_names={
-        "embedding": EmbeddingColumnNames(vector_column_name="token_vector", raw_data_column_name="text")
+        "embedding": EmbeddingColumnNames(
+            vector_column_name="token_vector", raw_data_column_name="text"
+        )
     },
 )
 ner_token_drift_fixture = Fixture(
@@ -297,7 +303,9 @@ def _get_fixture_by_name(fixture_name: str) -> Fixture:
     return NAME_TO_FIXTURE[fixture_name]
 
 
-def _download_and_persist_dataset_if_missing(dataset_name: str, dataset_url: str, schema: Schema) -> Dataset:
+def _download_and_persist_dataset_if_missing(
+    dataset_name: str, dataset_url: str, schema: Schema
+) -> Dataset:
     """
     Downloads a dataset from the given URL if it is not found locally.
     """

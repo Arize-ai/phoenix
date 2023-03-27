@@ -28,7 +28,9 @@ class Dimension(Node):
         description="Whether the dimension represents a feature, tag, prediction, or actual."
     )
 
-    dataType: DimensionDataType = strawberry.field(description="The data type of the column. Categorical or numeric.")
+    dataType: DimensionDataType = strawberry.field(
+        description="The data type of the column. Categorical or numeric."
+    )
 
     @strawberry.field
     def drift_metric(

@@ -43,7 +43,10 @@ class Schema(Dict[SchemaFieldName, SchemaFieldValue]):
 
         for field in self.__dataclass_fields__:
             value = getattr(self, field)
-            if field == "embedding_feature_column_names" and self.embedding_feature_column_names is not None:
+            if (
+                field == "embedding_feature_column_names"
+                and self.embedding_feature_column_names is not None
+            ):
                 embedding_feature_column_names = {}
                 for item in self.embedding_feature_column_names.items():
                     embedding_feature_column_names[item[0]] = item[1].__dict__

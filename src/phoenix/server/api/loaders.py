@@ -24,7 +24,9 @@ def create_loaders(model: Model) -> Loaders:
 
 def _get_cardinality_dataloader(model: Model) -> DataLoader[str, Optional[int]]:
     async def _cardinality_load_function(column_names: List[str]) -> List[Optional[int]]:
-        dimension_data_type_to_column_names: Dict[DimensionDataType, List[str]] = {ddt: [] for ddt in DimensionDataType}
+        dimension_data_type_to_column_names: Dict[DimensionDataType, List[str]] = {
+            ddt: [] for ddt in DimensionDataType
+        }
         for dim in model.dimensions:
             dimension_data_type_to_column_names[dim.data_type].append(dim.name)
         column_name_to_cardinality: Dict[str, Optional[int]] = {}

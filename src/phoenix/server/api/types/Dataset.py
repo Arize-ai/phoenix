@@ -48,7 +48,9 @@ class Dataset:
         schema = self.dataset.schema
         requested_gql_dimensions = _get_requested_features_and_tags(
             core_dimensions=info.context.model.dimensions,
-            requested_dimension_names=set(dim.name for dim in dimensions) if isinstance(dimensions, list) else None,
+            requested_dimension_names=set(dim.name for dim in dimensions)
+            if isinstance(dimensions, list)
+            else None,
         )
         requested_dimension_names = [dim.name for dim in requested_gql_dimensions]
         prediction_and_actual_column_names = [
@@ -62,7 +64,8 @@ class Dataset:
             if col is not None
         ]
         column_indexes = [
-            dataframe.columns.get_loc(name) for name in (requested_dimension_names + prediction_and_actual_column_names)
+            dataframe.columns.get_loc(name)
+            for name in (requested_dimension_names + prediction_and_actual_column_names)
         ]
         return [
             _create_event(
@@ -130,8 +133,12 @@ def _create_event(
     an event containing this information.
     """
     event_metadata = EventMetadata(
-        prediction_label=row[col] if (col := schema.prediction_label_column_name) is not None else None,
-        prediction_score=row[col] if (col := schema.prediction_score_column_name) is not None else None,
+        prediction_label=row[col]
+        if (col := schema.prediction_label_column_name) is not None
+        else None,
+        prediction_score=row[col]
+        if (col := schema.prediction_score_column_name) is not None
+        else None,
         actual_label=row[col] if (col := schema.actual_label_column_name) is not None else None,
         actual_score=row[col] if (col := schema.actual_score_column_name) is not None else None,
     )

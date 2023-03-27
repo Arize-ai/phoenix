@@ -4,7 +4,9 @@ from typing import Dict, List, Optional
 import pandas as pd
 
 
-def cardinality(df: pd.DataFrame, column_names: List[str], max_workers: Optional[int] = None) -> Dict[str, int]:
+def cardinality(
+    df: pd.DataFrame, column_names: List[str], max_workers: Optional[int] = None
+) -> Dict[str, int]:
     """
     Compute the cardinality of each str column in the dataframe
     E.x. if the dataframe column contains ["dog", "cat", "dog", "mouse"], the cardinality is 3

@@ -33,7 +33,8 @@ class Service:
             # Currently, only one instance of Phoenix can be running at any given time.
             # Support for multiple concurrently running instances may be supported in the future.
             logger.warning(
-                "Existing running Phoenix instance detected! Shutting " "it down and starting a new instance..."
+                "Existing running Phoenix instance detected! Shutting "
+                "it down and starting a new instance..."
             )
             Service.stop_any()
 

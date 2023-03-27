@@ -53,7 +53,9 @@ class HeadersMiddleware(BaseHTTPMiddleware):
 
 
 class GraphQLWithContext(GraphQL):
-    def __init__(self, schema: BaseSchema, model: Model, loader: Loaders, graphiql: bool = False) -> None:
+    def __init__(
+        self, schema: BaseSchema, model: Model, loader: Loaders, graphiql: bool = False
+    ) -> None:
         self.model = model
         self.loader = loader
         super().__init__(schema, graphiql=graphiql)
@@ -73,9 +75,13 @@ def create_app(
 ) -> Starlette:
     model = Model(
         primary_dataset=Dataset.from_name(primary_dataset_name),
-        reference_dataset=Dataset.from_name(reference_dataset_name) if reference_dataset_name is not None else None,
+        reference_dataset=Dataset.from_name(reference_dataset_name)
+        if reference_dataset_name is not None
+        else None,
     )
-    graphql = GraphQLWithContext(schema=schema, model=model, loader=create_loaders(model), graphiql=True)
+    graphql = GraphQLWithContext(
+        schema=schema, model=model, loader=create_loaders(model), graphiql=True
+    )
     return Starlette(
         middleware=[
             Middleware(HeadersMiddleware),

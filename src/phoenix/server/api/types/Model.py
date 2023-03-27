@@ -29,7 +29,10 @@ class Model:
         For simplicity, here we build the list and then slice it accordingly
         """
         return connection_from_list(
-            [to_gql_dimension(index, dimension) for index, dimension in enumerate(info.context.model.dimensions)],
+            [
+                to_gql_dimension(index, dimension)
+                for index, dimension in enumerate(info.context.model.dimensions)
+            ],
             args=ConnectionArgs(
                 first=first,
                 after=after if isinstance(after, Cursor) else None,

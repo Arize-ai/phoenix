@@ -85,7 +85,9 @@ class Dataset:
                 logger.error(e)
             raise err.DatasetError(errors)
         dataframe, schema = _parse_dataframe_and_schema(dataframe, schema)
-        dataframe, schema = _normalize_timestamps(dataframe, schema, default_timestamp=Timestamp.utcnow())
+        dataframe, schema = _normalize_timestamps(
+            dataframe, schema, default_timestamp=Timestamp.utcnow()
+        )
         dataframe = _sort_dataframe_rows_by_timestamp(dataframe, schema)
         self.__dataframe: DataFrame = dataframe
         self.__schema: Schema = schema
@@ -188,7 +190,9 @@ class Dataset:
             raise err.SchemaError(err.MissingField("actual_score_column_name"))
         return self.dataframe[self.schema.actual_score_column_name]
 
-    def _get_embedding_feature_column_names(self, embedding_feature_name: str) -> EmbeddingColumnNames:
+    def _get_embedding_feature_column_names(
+        self, embedding_feature_name: str
+    ) -> EmbeddingColumnNames:
         if self.schema.embedding_feature_column_names is None:
             raise err.SchemaError(err.MissingField("embedding_feature_column_names"))
         embedding_feature_column_names = self.schema.embedding_feature_column_names
@@ -209,7 +213,9 @@ class Dataset:
     def get_embedding_vector_column(self, embedding_feature_name: str) -> "Series[Any]":
         column_names = self._get_embedding_feature_column_names(embedding_feature_name)
         if column_names.vector_column_name is None:
-            raise err.SchemaError(err.MissingEmbeddingFeatureVectorColumnName(embedding_feature_name))
+            raise err.SchemaError(
+                err.MissingEmbeddingFeatureVectorColumnName(embedding_feature_name)
+            )
         vector_column = self.dataframe[column_names.vector_column_name]
         return vector_column
 
@@ -219,7 +225,9 @@ class Dataset:
             return self.dataframe[column_names.raw_data_column_name]
         return None
 
-    def get_embedding_link_to_data_column(self, embedding_feature_name: str) -> "Optional[Series[str]]":
+    def get_embedding_link_to_data_column(
+        self, embedding_feature_name: str
+    ) -> "Optional[Series[str]]":
         column_names = self._get_embedding_feature_column_names(embedding_feature_name)
         if column_names.link_to_data_column_name is not None:
             return self.dataframe[column_names.link_to_data_column_name]
@@ -227,7 +235,9 @@ class Dataset:
         return None
 
     @classmethod
-    def from_dataframe(cls, dataframe: DataFrame, schema: Schema, name: Optional[str] = None) -> "Dataset":
+    def from_dataframe(
+        cls, dataframe: DataFrame, schema: Schema, name: Optional[str] = None
+    ) -> "Dataset":
         return cls(dataframe, schema, name)
 
     @classmethod
@@ -280,7 +290,9 @@ def _parse_dataframe_and_schema(dataframe: DataFrame, schema: Schema) -> Tuple[D
     dataframe but not included in any other schema fields.
     """
 
-    unseen_excluded_column_names: Set[str] = set(schema.excludes) if schema.excludes is not None else set()
+    unseen_excluded_column_names: Set[str] = (
+        set(schema.excludes) if schema.excludes is not None else set()
+    )
     unseen_column_names: Set[str] = set(dataframe.columns.to_list())
     column_name_to_include: Dict[str, bool] = {}
     schema_patch: Dict[SchemaFieldName, SchemaFieldValue] = {}
@@ -402,15 +414,22 @@ def _check_embedding_features_schema_field_for_excluded_columns(
     ) in embedding_features.items():
         include_embedding_feature = embedding_feature_name not in unseen_excluded_column_names
         if include_embedding_feature:
-            included_embedding_features[embedding_feature_name] = deepcopy(embedding_column_name_mapping)
+            included_embedding_features[embedding_feature_name] = deepcopy(
+                embedding_column_name_mapping
+            )
         else:
             unseen_excluded_column_names.discard(embedding_feature_name)
 
         for embedding_field in fields(embedding_column_name_mapping):
-            column_name: Optional[str] = getattr(embedding_column_name_mapping, embedding_field.name)
+            column_name: Optional[str] = getattr(
+                embedding_column_name_mapping, embedding_field.name
+            )
             if column_name is not None:
                 column_name_to_include[column_name] = include_embedding_feature
-                if column_name != embedding_feature_name and column_name in unseen_excluded_column_names:
+                if (
+                    column_name != embedding_feature_name
+                    and column_name in unseen_excluded_column_names
+                ):
                     logger.warning(
                         f"Excluding embedding feature columns such as "
                         f'"{column_name}" has no effect; instead exclude the '
@@ -449,7 +468,9 @@ def _discover_feature_columns(
     )
     discovered_feature_column_names.sort(key=lambda col: feature_column_name_to_position[col])
     schema_patch["feature_column_names"] = discovered_feature_column_names
-    logger.debug("Discovered feature column names: {}".format(", ".join(discovered_feature_column_names)))
+    logger.debug(
+        "Discovered feature column names: {}".format(", ".join(discovered_feature_column_names))
+    )
 
 
 def _create_and_normalize_dataframe_and_schema(
@@ -532,7 +553,9 @@ def _get_schema_from_unknown_schema_param(schemaLike: SchemaLike) -> Schema:
     Compatibility function for converting from arize.utils.types.Schema to phoenix.datasets.Schema
     """
     try:
-        from arize.utils.types import EmbeddingColumnNames as ArizeEmbeddingColumnNames
+        from arize.utils.types import (
+            EmbeddingColumnNames as ArizeEmbeddingColumnNames,  # fmt: off type: ignore
+        )
         from arize.utils.types import Schema as ArizeSchema
 
         if isinstance(schemaLike, ArizeSchema):
@@ -560,5 +583,8 @@ def _get_schema_from_unknown_schema_param(schemaLike: SchemaLike) -> Schema:
         else:
             raise ValueError("Unknown schema passed to Dataset.")
     except Exception:
+        raise ValueError("Unknown schema passed to Dataset. Please pass a phoenix Schema")
+        raise ValueError("Unknown schema passed to Dataset. Please pass a phoenix Schema")
+        raise ValueError("Unknown schema passed to Dataset. Please pass a phoenix Schema")
         raise ValueError("Unknown schema passed to Dataset. Please pass a phoenix Schema")
         raise ValueError("Unknown schema passed to Dataset. Please pass a phoenix Schema")

@@ -56,7 +56,9 @@ class GlobalID:
 
     def __post_init__(self) -> None:
         if not isinstance(self.type_name, str):
-            raise GlobalIDValueError(f"type_name is expected to be a string, found {self.type_name}")
+            raise GlobalIDValueError(
+                f"type_name is expected to be a string, found {self.type_name}"
+            )
         if not isinstance(self.node_id, int):
             raise GlobalIDValueError(f"node_id is expected to be an int, found {self.node_id}")
 

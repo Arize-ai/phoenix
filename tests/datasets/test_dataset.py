@@ -81,13 +81,17 @@ class TestParseDataFrameAndSchema:
         self._parse_dataframe_and_schema_and_check_output(
             input_dataframe=input_dataframe,
             input_schema=input_schema,
-            expected_parsed_dataframe=input_dataframe[[col for col in input_dataframe.columns if col != "tag0"]],
+            expected_parsed_dataframe=input_dataframe[
+                [col for col in input_dataframe.columns if col != "tag0"]
+            ],
             expected_parsed_schema=replace(input_schema, tag_column_names=None),
             should_log_warning_to_user=False,
             caplog=caplog,
         )
 
-    def test_some_features_excluded_removes_excluded_features_columns_and_keeps_the_rest(self, caplog):
+    def test_some_features_excluded_removes_excluded_features_columns_and_keeps_the_rest(
+        self, caplog
+    ):
         input_dataframe = DataFrame(
             {
                 "prediction_id": [str(x) for x in range(self.num_records)],
@@ -123,7 +127,9 @@ class TestParseDataFrameAndSchema:
             caplog=caplog,
         )
 
-    def test_all_features_and_tags_excluded_sets_schema_features_and_tags_fields_to_none(self, caplog):
+    def test_all_features_and_tags_excluded_sets_schema_features_and_tags_fields_to_none(
+        self, caplog
+    ):
         input_dataframe = DataFrame(
             {
                 "prediction_id": [str(x) for x in range(self.num_records)],
@@ -146,7 +152,9 @@ class TestParseDataFrameAndSchema:
         self._parse_dataframe_and_schema_and_check_output(
             input_dataframe=input_dataframe,
             input_schema=input_schema,
-            expected_parsed_dataframe=input_dataframe[["prediction_id", "timestamp", "prediction_label"]],
+            expected_parsed_dataframe=input_dataframe[
+                ["prediction_id", "timestamp", "prediction_label"]
+            ],
             expected_parsed_schema=replace(
                 input_schema,
                 prediction_label_column_name="prediction_label",
@@ -178,7 +186,9 @@ class TestParseDataFrameAndSchema:
         self._parse_dataframe_and_schema_and_check_output(
             input_dataframe=input_dataframe,
             input_schema=input_schema,
-            expected_parsed_dataframe=input_dataframe[["prediction_id", "timestamp", "feature0", "feature1"]],
+            expected_parsed_dataframe=input_dataframe[
+                ["prediction_id", "timestamp", "feature0", "feature1"]
+            ],
             expected_parsed_schema=replace(
                 input_schema,
                 prediction_label_column_name=None,
@@ -208,12 +218,16 @@ class TestParseDataFrameAndSchema:
             input_dataframe=input_dataframe,
             input_schema=input_schema,
             expected_parsed_dataframe=input_dataframe,
-            expected_parsed_schema=replace(input_schema, feature_column_names=["feature0", "feature1", "feature2"]),
+            expected_parsed_schema=replace(
+                input_schema, feature_column_names=["feature0", "feature1", "feature2"]
+            ),
             should_log_warning_to_user=False,
             caplog=caplog,
         )
 
-    def test_no_input_schema_features_and_list_of_excludes_discovers_non_excluded_features(self, caplog):
+    def test_no_input_schema_features_and_list_of_excludes_discovers_non_excluded_features(
+        self, caplog
+    ):
         input_dataframe = DataFrame(
             {
                 "prediction_id": [str(x) for x in range(self.num_records)],
@@ -237,7 +251,9 @@ class TestParseDataFrameAndSchema:
         self._parse_dataframe_and_schema_and_check_output(
             input_dataframe=input_dataframe,
             input_schema=input_schema,
-            expected_parsed_dataframe=input_dataframe[["prediction_id", "timestamp", "feature0", "feature2", "tag1"]],
+            expected_parsed_dataframe=input_dataframe[
+                ["prediction_id", "timestamp", "feature0", "feature2", "tag1"]
+            ],
             expected_parsed_schema=replace(
                 input_schema,
                 prediction_label_column_name=None,
@@ -277,7 +293,9 @@ class TestParseDataFrameAndSchema:
             expected_parsed_dataframe=input_dataframe[
                 ["prediction_id", "timestamp", "feature0", "feature1", "feature2", "tag0", "tag1"]
             ],
-            expected_parsed_schema=replace(input_schema, prediction_label_column_name=None, excludes=None),
+            expected_parsed_schema=replace(
+                input_schema, prediction_label_column_name=None, excludes=None
+            ),
             should_log_warning_to_user=True,
             caplog=caplog,
         )
@@ -287,7 +305,9 @@ class TestParseDataFrameAndSchema:
             {
                 "prediction_id": [str(x) for x in range(self.num_records)],
                 "timestamp": [pd.Timestamp.now() for x in range(self.num_records)],
-                "embedding_vector0": [np.zeros(self.embedding_dimension) for _ in range(self.num_records)],
+                "embedding_vector0": [
+                    np.zeros(self.embedding_dimension) for _ in range(self.num_records)
+                ],
                 "link_to_data0": [f"some-link{index}" for index in range(self.num_records)],
                 "raw_data_column0": [f"some-text{index}" for index in range(self.num_records)],
             }
@@ -317,7 +337,9 @@ class TestParseDataFrameAndSchema:
             {
                 "prediction_id": [str(x) for x in range(self.num_records)],
                 "timestamp": [pd.Timestamp.now() for x in range(self.num_records)],
-                "embedding_vector0": [np.zeros(self.embedding_dimension) for _ in range(self.num_records)],
+                "embedding_vector0": [
+                    np.zeros(self.embedding_dimension) for _ in range(self.num_records)
+                ],
                 "link_to_data0": [f"some-link{index}" for index in range(self.num_records)],
                 "raw_data_column0": [f"some-text{index}" for index in range(self.num_records)],
                 "embedding_vector1": [np.zeros(9) for _ in range(self.num_records)],
@@ -374,7 +396,9 @@ class TestParseDataFrameAndSchema:
             {
                 "prediction_id": [str(x) for x in range(self.num_records)],
                 "timestamp": [pd.Timestamp.now() for x in range(self.num_records)],
-                "embedding_vector0": [np.zeros(self.embedding_dimension) for _ in range(self.num_records)],
+                "embedding_vector0": [
+                    np.zeros(self.embedding_dimension) for _ in range(self.num_records)
+                ],
                 "link_to_data0": [f"some-link{index}" for index in range(self.num_records)],
                 "raw_data_column0": [f"some-text{index}" for index in range(self.num_records)],
             }
@@ -404,12 +428,16 @@ class TestParseDataFrameAndSchema:
             caplog=caplog,
         )
 
-    def test_excluding_an_embedding_column_rather_than_the_embedding_feature_name_logs_warning(self, caplog):
+    def test_excluding_an_embedding_column_rather_than_the_embedding_feature_name_logs_warning(
+        self, caplog
+    ):
         input_dataframe = DataFrame(
             {
                 "prediction_id": [str(x) for x in range(self.num_records)],
                 "timestamp": [pd.Timestamp.now() for x in range(self.num_records)],
-                "embedding_vector0": [np.zeros(self.embedding_dimension) for _ in range(self.num_records)],
+                "embedding_vector0": [
+                    np.zeros(self.embedding_dimension) for _ in range(self.num_records)
+                ],
                 "link_to_data0": [f"some-link{index}" for index in range(self.num_records)],
                 "raw_data_column0": [f"some-text{index}" for index in range(self.num_records)],
             }
@@ -485,7 +513,9 @@ class TestParseDataFrameAndSchema:
         should_log_warning_to_user: bool,
         caplog: LogCaptureFixture,
     ) -> None:
-        parsed_dataframe, parsed_schema = _parse_dataframe_and_schema(dataframe=input_dataframe, schema=input_schema)
+        parsed_dataframe, parsed_schema = _parse_dataframe_and_schema(
+            dataframe=input_dataframe, schema=input_schema
+        )
 
         assert parsed_dataframe.equals(expected_parsed_dataframe)
         assert parsed_schema == expected_parsed_schema
@@ -506,7 +536,9 @@ class TestParseDataFrameAndSchema:
             {
                 "prediction_label": [f"label{index}" for index in range(self.num_records)],
                 "feature0": np.zeros(self.num_records),
-                "timestamp": np.full(shape=self.num_records, fill_value=pd.Timestamp.utcnow(), dtype=pd.Timestamp),
+                "timestamp": np.full(
+                    shape=self.num_records, fill_value=pd.Timestamp.utcnow(), dtype=pd.Timestamp
+                ),
                 "prediction_id": random_uuids(self.num_records),
             }
         )
@@ -518,7 +550,9 @@ class TestParseDataFrameAndSchema:
             prediction_label_column_name="prediction_label",
         )
 
-        output_dataframe, _ = _parse_dataframe_and_schema(dataframe=input_dataframe, schema=input_schema)
+        output_dataframe, _ = _parse_dataframe_and_schema(
+            dataframe=input_dataframe, schema=input_schema
+        )
 
         assert output_dataframe.equals(input_dataframe)
 
@@ -527,7 +561,9 @@ class TestParseDataFrameAndSchema:
             {
                 "prediction_label": [f"label{index}" for index in range(self.num_records)],
                 "feature0": np.zeros(self.num_records),
-                "timestamp": np.full(shape=self.num_records, fill_value=pd.Timestamp.utcnow(), dtype=pd.Timestamp),
+                "timestamp": np.full(
+                    shape=self.num_records, fill_value=pd.Timestamp.utcnow(), dtype=pd.Timestamp
+                ),
                 "prediction_id": range(self.num_records),
             }
         )
@@ -538,7 +574,9 @@ class TestParseDataFrameAndSchema:
             prediction_label_column_name="prediction_label",
         )
 
-        output_dataframe, _ = _parse_dataframe_and_schema(dataframe=input_dataframe, schema=input_schema)
+        output_dataframe, _ = _parse_dataframe_and_schema(
+            dataframe=input_dataframe, schema=input_schema
+        )
 
         expected_dataframe = input_dataframe
         expected_dataframe["prediction_id"] = expected_dataframe["prediction_id"].astype(str)
@@ -549,7 +587,9 @@ class TestParseDataFrameAndSchema:
             {
                 "prediction_label": [f"label{index}" for index in range(self.num_records)],
                 "feature0": np.zeros(self.num_records),
-                "timestamp": np.full(shape=self.num_records, fill_value=pd.Timestamp.utcnow(), dtype=pd.Timestamp),
+                "timestamp": np.full(
+                    shape=self.num_records, fill_value=pd.Timestamp.utcnow(), dtype=pd.Timestamp
+                ),
             }
         )
 
@@ -559,10 +599,14 @@ class TestParseDataFrameAndSchema:
             prediction_label_column_name="prediction_label",
         )
 
-        output_dataframe, _ = _parse_dataframe_and_schema(dataframe=input_dataframe, schema=input_schema)
+        output_dataframe, _ = _parse_dataframe_and_schema(
+            dataframe=input_dataframe, schema=input_schema
+        )
 
         assert len(output_dataframe.columns) == 4
-        assert output_dataframe[["prediction_label", "feature0", "timestamp"]].equals(input_dataframe)
+        assert output_dataframe[["prediction_label", "feature0", "timestamp"]].equals(
+            input_dataframe
+        )
         assert "prediction_id" in output_dataframe
         assert output_dataframe.dtypes["prediction_id"], "string"
 
@@ -583,7 +627,9 @@ class TestDataset:
             {
                 "prediction_label": [f"label{index}" for index in range(self.num_records)],
                 "feature0": np.zeros(self._NUM_RECORDS),
-                "timestamp": np.full(shape=self._NUM_RECORDS, fill_value=pd.Timestamp.utcnow(), dtype=pd.Timestamp),
+                "timestamp": np.full(
+                    shape=self._NUM_RECORDS, fill_value=pd.Timestamp.utcnow(), dtype=pd.Timestamp
+                ),
                 "prediction_id": random_uuids(self.num_records),
             }
         )
@@ -599,7 +645,9 @@ class TestDataset:
         output_dataframe = dataset.dataframe
         output_schema = dataset.schema
 
-        assert output_dataframe.equals(input_dataframe.set_index("timestamp", drop=False).sort_index())
+        assert output_dataframe.equals(
+            input_dataframe.set_index("timestamp", drop=False).sort_index()
+        )
         assert output_schema == input_schema
 
     # TODO: Move validation tests to validation module; keep one validation integration test
@@ -608,7 +656,9 @@ class TestDataset:
             {
                 "prediction_label": [f"label{index}" for index in range(self.num_records)],
                 "feature0": np.zeros(self.num_records),
-                "prediction_id": np.full(shape=self.num_records, fill_value=pd.Timestamp.utcnow(), dtype=pd.Timestamp),
+                "prediction_id": np.full(
+                    shape=self.num_records, fill_value=pd.Timestamp.utcnow(), dtype=pd.Timestamp
+                ),
             }
         )
 
@@ -680,7 +730,9 @@ class TestDataset:
 
     def test_dataset_bookends(self) -> None:
         raw_data_min_time = Timestamp(year=2023, month=1, day=1, hour=2, second=30, tzinfo=pytz.utc)
-        raw_data_max_time = Timestamp(year=2023, month=1, day=10, hour=6, second=20, tzinfo=pytz.utc)
+        raw_data_max_time = Timestamp(
+            year=2023, month=1, day=10, hour=6, second=20, tzinfo=pytz.utc
+        )
         input_df = DataFrame(
             {
                 "prediction_label": ["apple", "orange", "grape"],
@@ -1038,7 +1090,9 @@ def test_normalize_timestamps_raises_value_error_for_invalid_input() -> None:
                     "prediction_id": [1, 2, 3],
                 }
             ),
-            schema=Schema(timestamp_column_name="timestamp", prediction_id_column_name="prediction_id"),
+            schema=Schema(
+                timestamp_column_name="timestamp", prediction_id_column_name="prediction_id"
+            ),
             default_timestamp=None,
         )
 

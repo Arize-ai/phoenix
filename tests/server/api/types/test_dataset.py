@@ -59,8 +59,12 @@ class TestDatasetEvents:
         assert result.data is not None
         events = result.data["model"]["primaryDataset"]["events"]
         assert len(events) == 1
-        event_dimension_names = [dim_with_value["dimension"]["name"] for dim_with_value in events[0]["dimensions"]]
-        event_dimension_values = [dim_with_value["value"] for dim_with_value in events[0]["dimensions"]]
+        event_dimension_names = [
+            dim_with_value["dimension"]["name"] for dim_with_value in events[0]["dimensions"]
+        ]
+        event_dimension_values = [
+            dim_with_value["value"] for dim_with_value in events[0]["dimensions"]
+        ]
         event_metadata = events[0]["eventMetadata"]
         assert event_dimension_names == ["feature0", "feature1", "tag0"]
         assert event_dimension_values == [
@@ -97,8 +101,12 @@ class TestDatasetEvents:
         assert result.data is not None
         events = result.data["model"]["referenceDataset"]["events"]
         assert len(events) == 2
-        event_dimension_names = [dim_with_value["dimension"]["name"] for dim_with_value in events[0]["dimensions"]]
-        event_dimension_values = [dim_with_value["value"] for dim_with_value in events[0]["dimensions"]]
+        event_dimension_names = [
+            dim_with_value["dimension"]["name"] for dim_with_value in events[0]["dimensions"]
+        ]
+        event_dimension_values = [
+            dim_with_value["value"] for dim_with_value in events[0]["dimensions"]
+        ]
         event_metadata = events[0]["eventMetadata"]
         assert event_dimension_names == ["tag0"]
         assert event_dimension_values == [
@@ -110,8 +118,12 @@ class TestDatasetEvents:
             "actualLabel": None,
             "actualScore": 3.0,
         }
-        event_dimension_names = [dim_with_value["dimension"]["name"] for dim_with_value in events[1]["dimensions"]]
-        event_dimension_values = [dim_with_value["value"] for dim_with_value in events[1]["dimensions"]]
+        event_dimension_names = [
+            dim_with_value["dimension"]["name"] for dim_with_value in events[1]["dimensions"]
+        ]
+        event_dimension_values = [
+            dim_with_value["value"] for dim_with_value in events[1]["dimensions"]
+        ]
         event_metadata = events[1]["eventMetadata"]
         assert event_dimension_names == ["tag0"]
         assert event_dimension_values == [

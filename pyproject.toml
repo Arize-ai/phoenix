@@ -177,7 +177,7 @@ pypi = [
 ]
 
 [tool.black]
-line-length = 120
+line-length = 100
 
 [tool.hatch.envs.docs.scripts]
 check = [
@@ -230,6 +230,6 @@ ignore_missing_imports = true
 [tool.ruff]
 exclude = ["__init__.py", ".git", "__pycache__", "docs/source/conf.py"]
 ignore = []
-line-length = 120
+line-length = 100
 select = ["E", "F", "W", "I"]
 target-version = "py38"

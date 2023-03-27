@@ -15,4 +15,7 @@ def test_json_serialization():
 
     assert schema_from_json.embedding_feature_column_names is not None
     assert schema_from_json.embedding_feature_column_names["embedding_feature"] is not None
-    assert schema_from_json.embedding_feature_column_names["embedding_feature"].vector_column_name == "embedding_vector"
+    assert (
+        schema_from_json.embedding_feature_column_names["embedding_feature"].vector_column_name
+        == "embedding_vector"
+    )

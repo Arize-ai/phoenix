@@ -34,7 +34,9 @@ class TimeSeriesDataPoint:
         return self.timestamp < other.timestamp
 
 
-def to_gql_datapoints(df: pd.DataFrame, metric: Metric, timestamps: Iterable[datetime]) -> List[TimeSeriesDataPoint]:
+def to_gql_datapoints(
+    df: pd.DataFrame, metric: Metric, timestamps: Iterable[datetime]
+) -> List[TimeSeriesDataPoint]:
     data = []
     for timestamp in timestamps:
         try:

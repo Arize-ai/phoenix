@@ -28,7 +28,9 @@ class MockClustersFinder:
         return ans
 
 
-@pytest.mark.parametrize("samp_size,n_features,n_components,n_clusters", [(10, 20, 5, 3), (20, 30, 7, 5)])
+@pytest.mark.parametrize(
+    "samp_size,n_features,n_components,n_clusters", [(10, 20, 5, 3), (20, 30, 7, 5)]
+)
 def test_point_cloud(samp_size: int, n_features: int, n_components: int, n_clusters: int) -> None:
     cluster_assignments = dict(zip(range(samp_size), cycle(range(n_clusters))))
 

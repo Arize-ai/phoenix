@@ -66,7 +66,9 @@ def unique_ints_and_strings():
         "mixed_integer_and_string_column",
     ],
 )
-def test_cardinality_produces_correct_counts_for_columns_of_various_data_types(unique_values, random_seed):
+def test_cardinality_produces_correct_counts_for_columns_of_various_data_types(
+    unique_values, random_seed
+):
     max_count = 30
     value_to_count = {value: random.randint(1, max_count) for value in unique_values}
     column, expected_cardinality = _get_data_column_and_expected_cardinality(value_to_count)
@@ -80,7 +82,9 @@ def test_cardinality_produces_correct_counts_for_dataframe_with_multiple_columns
     first_column = pd.Series(["a", "b", "a", "a", "c"])
     second_column = pd.Series([1, 2, 3, 4, 5], dtype=np.int8)
     third_column = pd.Series([0, 0, 0, 0, 0], dtype=np.int8)  # omitted column
-    input_df = pd.DataFrame.from_dict({"feature0": first_column, "feature1": second_column, "feature2": third_column})
+    input_df = pd.DataFrame.from_dict(
+        {"feature0": first_column, "feature1": second_column, "feature2": third_column}
+    )
     column_names = ["feature0", "feature1"]
     cardinality_data = cardinality(input_df, column_names)
     assert cardinality_data == {

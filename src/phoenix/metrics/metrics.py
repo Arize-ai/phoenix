@@ -121,7 +121,9 @@ class EuclideanDistance(DriftOperator, VectorOperator):
         return cast(Vector, np.mean(data.dropna()))
 
     def calc(self, dataframe: pd.DataFrame) -> float:
-        if dataframe.empty or (isinstance(self.reference_value, float) and not math.isfinite(self.reference_value)):
+        if dataframe.empty or (
+            isinstance(self.reference_value, float) and not math.isfinite(self.reference_value)
+        ):
             return float("nan")
         data = self.get_operand_column(dataframe)
         return cast(

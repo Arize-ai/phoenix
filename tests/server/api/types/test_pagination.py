@@ -15,7 +15,9 @@ def test_connection_from_list():
     assert connection.page_info.has_next_page is True
 
     # Check that the connection can be paged forward
-    next_connection = connection_from_list(dimensions, ConnectionArgs(first=2, after=connection.page_info.end_cursor))
+    next_connection = connection_from_list(
+        dimensions, ConnectionArgs(first=2, after=connection.page_info.end_cursor)
+    )
     assert len(next_connection.edges) == 1
     assert next_connection.page_info.has_next_page is False
 
@@ -34,7 +36,9 @@ def test_connection_from_list_reverse():
     assert connection.page_info.has_next_page is False
 
     # Check that the connection can be paged backwards
-    next_connection = connection_from_list(dimensions, ConnectionArgs(last=2, before=connection.page_info.start_cursor))
+    next_connection = connection_from_list(
+        dimensions, ConnectionArgs(last=2, before=connection.page_info.start_cursor)
+    )
     assert len(next_connection.edges) == 1
     assert next_connection.page_info.has_previous_page is False
 

@@ -34,4 +34,6 @@ def calculate_drift_ratio(events: Set[EventId]) -> float:
         else:
             reference_point_count += 1
 
-    return (primary_point_count - reference_point_count) / (primary_point_count + reference_point_count)
+    return (primary_point_count - reference_point_count) / (
+        primary_point_count + reference_point_count
+    )
