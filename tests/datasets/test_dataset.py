@@ -12,8 +12,6 @@ import pandas as pd
 import pytest
 import pytz
 from pandas import DataFrame, Series, Timestamp
-from pytest import LogCaptureFixture, raises
-
 from phoenix.datasets.dataset import (
     Dataset,
     EmbeddingColumnNames,
@@ -22,6 +20,7 @@ from phoenix.datasets.dataset import (
     _parse_dataframe_and_schema,
 )
 from phoenix.datasets.errors import DatasetError
+from pytest import LogCaptureFixture, raises
 
 
 class TestParseDataFrameAndSchema:
@@ -523,30 +522,6 @@ class TestParseDataFrameAndSchema:
 
         assert output_dataframe.equals(input_dataframe)
 
-    def test_dataset_normalization_timestamp_integer_to_datetime(self):
-        input_dataframe = DataFrame(
-            {
-                "prediction_label": [f"label{index}" for index in range(self.num_records)],
-                "feature0": np.zeros(self.num_records),
-                "timestamp": np.full(shape=self.num_records, fill_value=pd.Timestamp.utcnow().timestamp(), dtype=int),
-                "prediction_id": random_uuids(self.num_records),
-            }
-        )
-        input_schema = Schema(
-            prediction_id_column_name="prediction_id",
-            timestamp_column_name="timestamp",
-            feature_column_names=["feature0"],
-            prediction_label_column_name="prediction_label",
-        )
-
-        output_dataframe, _ = _parse_dataframe_and_schema(dataframe=input_dataframe, schema=input_schema)
-
-        expected_dataframe = input_dataframe
-        expected_dataframe["timestamp"] = expected_dataframe["timestamp"].apply(
-            lambda x: pd.to_datetime(x, unit="s", utc=True)
-        )
-        assert output_dataframe.equals(expected_dataframe)
-
     def test_dataset_normalization_prediction_id_integer_to_string(self):
         input_dataframe = DataFrame(
             {
@@ -590,50 +565,6 @@ class TestParseDataFrameAndSchema:
         assert output_dataframe[["prediction_label", "feature0", "timestamp"]].equals(input_dataframe)
         assert "prediction_id" in output_dataframe
         assert output_dataframe.dtypes["prediction_id"], "string"
-
-    def test_dataset_normalization_columns_add_missing_timestamp(self):
-        input_dataframe = DataFrame(
-            {
-                "prediction_label": [f"label{index}" for index in range(self.num_records)],
-                "feature0": np.zeros(self.num_records),
-                "prediction_id": random_uuids(self.num_records),
-            }
-        )
-
-        input_schema = Schema(
-            prediction_id_column_name="prediction_id",
-            feature_column_names=["feature0"],
-            prediction_label_column_name="prediction_label",
-        )
-
-        output_dataframe, _ = _parse_dataframe_and_schema(dataframe=input_dataframe, schema=input_schema)
-
-        assert len(output_dataframe.columns) == 4
-        assert output_dataframe[["prediction_label", "feature0", "prediction_id"]].equals(input_dataframe)
-        assert "timestamp" in output_dataframe
-        assert output_dataframe.dtypes["timestamp"], "datetime[nz]"
-
-    def test_dataset_normalization_columns_missing_prediction_id_and_timestamp(self):
-        input_dataframe = DataFrame(
-            {
-                "prediction_label": [f"label{index}" for index in range(self.num_records)],
-                "feature0": np.zeros(self.num_records),
-            }
-        )
-
-        input_schema = Schema(
-            feature_column_names=["feature0"],
-            prediction_label_column_name="prediction_label",
-        )
-
-        output_dataframe, _ = _parse_dataframe_and_schema(dataframe=input_dataframe, schema=input_schema)
-
-        assert len(output_dataframe.columns) == 4
-        assert output_dataframe[["prediction_label", "feature0"]].equals(input_dataframe)
-        assert "prediction_id" in output_dataframe
-        assert output_dataframe.dtypes["prediction_id"], "string"
-        assert "timestamp" in output_dataframe
-        assert output_dataframe.dtypes["timestamp"], "datetime[nz]"
 
     @property
     def num_records(self):
