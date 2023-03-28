@@ -10,38 +10,56 @@ import {
   Tabs,
 } from "@arizeai/components";
 
-import { Toolbar } from "@phoenix/components/filter";
+import {
+  PrimaryDatasetTimeRange,
+  ReferenceDatasetTimeRange,
+  Toolbar,
+} from "@phoenix/components/filter";
 import {
   ModelEmbeddingsTable,
   ModelSchemaTable,
 } from "@phoenix/components/model";
-import { useDatasets } from "@phoenix/contexts";
+import { useDatasets, useTimeRange } from "@phoenix/contexts";
 
 import { HomeQuery } from "./__generated__/HomeQuery.graphql";
 
 type HomePageProps = Readonly<object>;
 
 export function Home(_props: HomePageProps) {
-  const { primaryDataset } = useDatasets();
+  const { referenceDataset } = useDatasets();
+  const { timeRange } = useTimeRange();
   const data = useLazyLoadQuery<HomeQuery>(
     graphql`
       query HomeQuery($startTime: DateTime!, $endTime: DateTime!) {
         ...ModelSchemaTable_dimensions
+          @arguments(startTime: $startTime, endTime: $endTime)
         ...ModelEmbeddingsTable_embeddingDimensions
           @arguments(startTime: $startTime, endTime: $endTime)
       }
     `,
-    { startTime: primaryDataset.startTime, endTime: primaryDataset.endTime }
+    {
+      startTime: timeRange.start.toISOString(),
+      endTime: timeRange.end.toISOString(),
+    }
   );
   return (
     <main>
-      <Toolbar />
+      <Toolbar>
+        <PrimaryDatasetTimeRange />
+        {referenceDataset ? (
+          <ReferenceDatasetTimeRange
+            datasetType="reference"
+            timeRange={{
+              start: new Date(referenceDataset.startTime),
+              end: new Date(referenceDataset.endTime),
+            }}
+          />
+        ) : null}
+      </Toolbar>
       <section
-        css={(theme) =>
-          css`
-            margin: ${theme.spacing.margin8}px;
-          `
-        }
+        css={css`
+          margin: var(--px-spacing-lg);
+        `}
       >
         <TabbedCard
           title="Model Schema"
