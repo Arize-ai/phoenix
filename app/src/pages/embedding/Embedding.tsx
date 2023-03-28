@@ -249,7 +249,7 @@ function EmbeddingMain() {
       <PanelGroup direction="vertical">
         {showChart ? (
           <>
-            <Panel defaultSize={15} collapsible order={1}>
+            <Panel defaultSize={20} collapsible order={1}>
               <Suspense fallback={<Loading />}>
                 {referenceDataset ? (
                   <EuclideanDistanceTimeSeries

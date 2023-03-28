@@ -3,6 +3,7 @@ import { graphql, usePaginationFragment } from "react-relay";
 import { CellProps, Column } from "react-table";
 
 import { Link } from "@phoenix/components";
+import { FloatCell } from "@phoenix/components/table";
 import { Table } from "@phoenix/components/table/Table";
 
 import { ModelEmbeddingsTable_embeddingDimensions$key } from "./__generated__/ModelEmbeddingsTable_embeddingDimensions.graphql";
@@ -57,15 +58,16 @@ export function ModelEmbeddingsTable(props: ModelEmbeddingsTable) {
   const columns = React.useMemo(() => {
     const cols: Column<TableRow>[] = [
       {
-        Header: "Name",
+        Header: "name",
         accessor: "name",
         Cell: ({ row, value }: CellProps<TableRow, string>) => (
           <Link to={`/embeddings/${row.original.id}`}>{value}</Link>
         ),
       },
       {
-        Header: "Euclidean Distance",
+        Header: "euclidean distance",
         accessor: "euclideanDistance",
+        Cell: FloatCell,
       },
     ];
     return cols;

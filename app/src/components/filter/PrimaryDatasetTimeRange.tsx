@@ -1,7 +1,10 @@
 import React from "react";
+import { timeFormat } from "d3-time-format";
+import { css } from "@emotion/react";
 
 import {
   FieldColorDesignation,
+  Heading,
   Item,
   Picker,
   Tooltip,
@@ -11,13 +14,22 @@ import {
 
 import { TimePreset, useTimeRange } from "@phoenix/contexts/TimeRangeContext";
 
+/**
+ * Formats time to be displayed in full
+ */
+export const fullTimeFormatter = timeFormat("%x %H:%M %p");
+
 type PrimaryDatasetTimeRangeProps = object;
 
 export function PrimaryDatasetTimeRange(_: PrimaryDatasetTimeRangeProps) {
-  const { timePreset: selectedTimePreset, setTimePreset } = useTimeRange();
+  const {
+    timeRange,
+    timePreset: selectedTimePreset,
+    setTimePreset,
+  } = useTimeRange();
   return (
     <FieldColorDesignation color={"designationTurquoise"}>
-      <TooltipTrigger>
+      <TooltipTrigger delay={0} placement="bottom right">
         <TriggerWrap>
           <Picker
             defaultSelectedKey={selectedTimePreset}
@@ -40,7 +52,19 @@ export function PrimaryDatasetTimeRange(_: PrimaryDatasetTimeRangeProps) {
             <Item key={TimePreset.first_month}>First Month</Item>
           </Picker>
         </TriggerWrap>
-        <Tooltip>The time range within the primary dataset to display</Tooltip>
+        <Tooltip>
+          <section
+            css={css`
+              h4 {
+                margin-bottom: 0.5rem;
+              }
+            `}
+          >
+            <Heading level={4}>primary dataset time range</Heading>
+            <div>start: {fullTimeFormatter(timeRange.start)}</div>
+            <div>end: {fullTimeFormatter(timeRange.end)}</div>
+          </section>
+        </Tooltip>
       </TooltipTrigger>
     </FieldColorDesignation>
   );
