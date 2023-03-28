@@ -86,7 +86,7 @@ class GraphQLWithContext(GraphQL):
 class Download(HTTPEndpoint):
     async def get(self, request: Request) -> FileResponse:
         params = QueryParams(request.query_params)
-        file = EXPORT_DIR / params.get("filename", "")
+        file = EXPORT_DIR / (params.get("filename", "") + ".parquet")
         if not file.is_file():
             raise HTTPException(status_code=404)
         return FileResponse(
@@ -103,9 +103,11 @@ def create_app(
 ) -> Starlette:
     model = Model(
         primary_dataset=Dataset.from_name(primary_dataset_name),
-        reference_dataset=Dataset.from_name(reference_dataset_name)
-        if reference_dataset_name is not None
-        else None,
+        reference_dataset=(
+            Dataset.from_name(reference_dataset_name)
+            if reference_dataset_name is not None
+            else None
+        ),
     )
     graphql = GraphQLWithContext(
         schema=schema,
