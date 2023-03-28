@@ -12,6 +12,8 @@ import pandas as pd
 import pytest
 import pytz
 from pandas import DataFrame, Series, Timestamp
+from pytest import LogCaptureFixture, raises
+
 from phoenix.datasets.dataset import (
     Dataset,
     EmbeddingColumnNames,
@@ -20,7 +22,6 @@ from phoenix.datasets.dataset import (
     _parse_dataframe_and_schema,
 )
 from phoenix.datasets.errors import DatasetError
-from pytest import LogCaptureFixture, raises
 
 
 class TestParseDataFrameAndSchema:
@@ -1132,3 +1133,8 @@ def test_dataset_with_arize_schema() -> None:
     )
     dataset = Dataset(dataframe=input_df, schema=input_schema)
     assert isinstance(dataset.schema, Schema)
+    assert dataset.schema.prediction_id_column_name == "prediction_id"
+    embedding_columns_def = dataset._get_embedding_feature_column_names(
+        embedding_feature_name="embedding"
+    )
+    assert embedding_columns_def.vector_column_name == "embedding"
