@@ -10,7 +10,12 @@ from typing import Any, Dict, List, Optional, Set, Tuple, Union, cast
 
 import pytz
 from pandas import DataFrame, Series, Timestamp, read_parquet, to_datetime
-from pandas.api.types import is_datetime64_any_dtype, is_datetime64tz_dtype, is_numeric_dtype
+from pandas.api.types import (
+    is_datetime64_any_dtype,
+    is_datetime64tz_dtype,
+    is_numeric_dtype,
+)
+from typing_extensions import TypeAlias
 
 from phoenix.config import dataset_dir
 
@@ -27,6 +32,9 @@ from .schema import (
 from .validation import validate_dataset_inputs
 
 logger = logging.getLogger(__name__)
+
+# A schema like object. Not recommended to use this directly
+SchemaLike: TypeAlias = Any
 
 
 class Dataset:
@@ -62,10 +70,13 @@ class Dataset:
     def __init__(
         self,
         dataframe: DataFrame,
-        schema: Schema,
+        schema: Union[Schema, SchemaLike],
         name: Optional[str] = None,
         persist_to_disc: bool = True,
     ):
+        # allow for schema like objects
+        if not isinstance(schema, Schema):
+            schema = _get_schema_from_unknown_schema_param(schema)
         errors = validate_dataset_inputs(
             dataframe=dataframe,
             schema=schema,
@@ -440,7 +451,7 @@ def _discover_feature_columns(
     unseen_column_names: Set[str],
 ) -> None:
     """
-    Adds unseen and unexcluded columns as features.
+    Adds unseen and un-excluded columns as features.
     """
     discovered_feature_column_names = []
     for column_name in unseen_column_names:
@@ -536,3 +547,41 @@ def _normalize_timestamps(
         )
     dataframe[timestamp_column_name] = timestamp_column
     return dataframe, schema
+
+
+def _get_schema_from_unknown_schema_param(schemaLike: SchemaLike) -> Schema:
+    """
+    Compatibility function for converting from arize.utils.types.Schema to phoenix.datasets.Schema
+    """
+    try:
+        from arize.utils.types import (
+            EmbeddingColumnNames as ArizeEmbeddingColumnNames,  # fmt: off type: ignore
+        )
+        from arize.utils.types import Schema as ArizeSchema
+
+        if not isinstance(schemaLike, ArizeSchema):
+            raise ValueError("Unknown schema passed to Dataset. Please pass a phoenix Schema")
+
+        embedding_feature_column_names: Dict[str, EmbeddingColumnNames] = {}
+        if schemaLike.embedding_feature_column_names is not None:
+            for (
+                embedding_name,
+                arize_embedding_feature_column_names,
+            ) in schemaLike.embedding_feature_column_names.items():
+                if isinstance(arize_embedding_feature_column_names, ArizeEmbeddingColumnNames):
+                    embedding_feature_column_names[embedding_name] = EmbeddingColumnNames(
+                        vector_column_name=arize_embedding_feature_column_names.vector_column_name,
+                        link_to_data_column_name=arize_embedding_feature_column_names.link_to_data_column_name,
+                        raw_data_column_name=arize_embedding_feature_column_names.data_column_name,
+                    )
+        return Schema(
+            feature_column_names=schemaLike.feature_column_names,
+            tag_column_names=schemaLike.tag_column_names,
+            prediction_label_column_name=schemaLike.prediction_label_column_name,
+            actual_label_column_name=schemaLike.actual_label_column_name,
+            prediction_id_column_name=schemaLike.prediction_id_column_name,
+            timestamp_column_name=schemaLike.timestamp_column_name,
+            embedding_feature_column_names=embedding_feature_column_names,
+        )
+    except Exception:
+        raise ValueError("Unknown schema passed to Dataset. Please pass a phoenix Schema")

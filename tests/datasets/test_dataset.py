@@ -1095,3 +1095,45 @@ def test_normalize_timestamps_raises_value_error_for_invalid_input() -> None:
             ),
             default_timestamp=None,
         )
+
+
+def test_dataset_with_arize_schema() -> None:
+    from arize.utils.types import EmbeddingColumnNames as ArizeEmbeddingColumnNames
+    from arize.utils.types import Schema as ArizeSchema
+
+    input_df = DataFrame(
+        {
+            "prediction_label": ["apple", "orange", "grape"],
+            "prediction_id": ["1", "2", "3"],
+            "timestamp": [
+                pd.Timestamp(year=2023, month=1, day=1, hour=2, second=30),
+                pd.Timestamp(year=2023, month=1, day=10, hour=6, second=20),
+                pd.Timestamp(year=2023, month=1, day=5, hour=4, second=25),
+            ],
+            "embedding": [[1, 2, 3], [4, 5, 6], [7, 8, 9]],
+            "url": [
+                "https://www.phoenix.com/apple.png",
+                "https://www.phoenix.com/apple.png",
+                "https://www.phoenix.com/apple.png",
+            ],
+        }
+    )
+
+    input_schema = ArizeSchema(
+        prediction_id_column_name="prediction_id",
+        prediction_label_column_name="prediction_label",
+        timestamp_column_name="timestamp",
+        embedding_feature_column_names={
+            "embedding": ArizeEmbeddingColumnNames(
+                vector_column_name="embedding",
+                link_to_data_column_name="url",
+            )
+        },
+    )
+    dataset = Dataset(dataframe=input_df, schema=input_schema)
+    assert isinstance(dataset.schema, Schema)
+    assert dataset.schema.prediction_id_column_name == "prediction_id"
+    embedding_columns_def = dataset._get_embedding_feature_column_names(
+        embedding_feature_name="embedding"
+    )
+    assert embedding_columns_def.vector_column_name == "embedding"
