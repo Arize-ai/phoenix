@@ -52,6 +52,7 @@ import {
   EmbeddingUMAPQuery as UMAPQueryType,
   EmbeddingUMAPQuery$data,
 } from "./__generated__/EmbeddingUMAPQuery.graphql";
+import { CountTimeSeries } from "./CountTimeSeries";
 import { EuclideanDistanceTimeSeries } from "./EuclideanDistanceTimeSeries";
 import { PointSelectionPanelContent } from "./PointSelectionPanelContent";
 
@@ -172,7 +173,7 @@ function EmbeddingMain() {
     (state) => state.hdbscanParameters
   );
   const resetPointCloud = usePointCloudContext((state) => state.reset);
-  const [showDriftChart, setShowDriftChart] = useState<boolean>(true);
+  const [showChart, setShowChart] = useState<boolean>(true);
   const [queryReference, loadQuery] =
     useQueryLoader<UMAPQueryType>(EmbeddingUMAPQuery);
   const { selectedTimestamp } = useTimeSlice();
@@ -223,17 +224,15 @@ function EmbeddingMain() {
     >
       <Toolbar
         extra={
-          referenceDataset ? (
-            <Switch
-              onChange={(isSelected) => {
-                setShowDriftChart(isSelected);
-              }}
-              defaultSelected={true}
-              labelPlacement="start"
-            >
-              Show Drift Chart
-            </Switch>
-          ) : null
+          <Switch
+            onChange={(isSelected) => {
+              setShowChart(isSelected);
+            }}
+            defaultSelected={true}
+            labelPlacement="start"
+          >
+            Show Timeseries
+          </Switch>
         }
       >
         <PrimaryDatasetTimeRange />
@@ -248,13 +247,19 @@ function EmbeddingMain() {
         ) : null}
       </Toolbar>
       <PanelGroup direction="vertical">
-        {referenceDataset && showDriftChart ? (
+        {showChart ? (
           <>
             <Panel defaultSize={15} collapsible order={1}>
               <Suspense fallback={<Loading />}>
-                <EuclideanDistanceTimeSeries
-                  embeddingDimensionId={embeddingDimensionId}
-                />
+                {referenceDataset ? (
+                  <EuclideanDistanceTimeSeries
+                    embeddingDimensionId={embeddingDimensionId}
+                  />
+                ) : (
+                  <CountTimeSeries
+                    embeddingDimensionId={embeddingDimensionId}
+                  />
+                )}
               </Suspense>
             </Panel>
             <PanelResizeHandle css={resizeHandleCSS} />
@@ -521,6 +526,9 @@ function ClustersPanelContents({
   const setSelectedPointIds = usePointCloudContext(
     (state) => state.setSelectedPointIds
   );
+  const setHighlightedClusterId = usePointCloudContext(
+    (state) => state.setHighlightedClusterId
+  );
 
   return (
     <Tabs>
@@ -548,6 +556,12 @@ function ClustersPanelContents({
                   onClick={() => {
                     setSelectedClusterId(cluster.id);
                     setSelectedPointIds(new Set(cluster.pointIds));
+                  }}
+                  onMouseEnter={() => {
+                    setHighlightedClusterId(cluster.id);
+                  }}
+                  onMouseLeave={() => {
+                    setHighlightedClusterId(null);
                   }}
                 />
               </li>

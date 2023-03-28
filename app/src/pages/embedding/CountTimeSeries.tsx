@@ -2,7 +2,6 @@ import React, { useCallback } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import {
   Area,
-  Bar,
   CartesianGrid,
   ComposedChart,
   ReferenceLine,
@@ -25,12 +24,9 @@ import {
 } from "@phoenix/components/chart";
 import { useTimeRange } from "@phoenix/contexts/TimeRangeContext";
 import { useTimeSlice } from "@phoenix/contexts/TimeSliceContext";
-import {
-  calculateGranularity,
-  calculateGranularityWithRollingAverage,
-} from "@phoenix/utils/timeSeriesUtils";
+import { calculateGranularity } from "@phoenix/utils/timeSeriesUtils";
 
-import { EuclideanDistanceTimeSeriesQuery } from "./__generated__/EuclideanDistanceTimeSeriesQuery.graphql";
+import { CountTimeSeriesQuery } from "./__generated__/CountTimeSeriesQuery.graphql";
 
 const numberFormatter = new Intl.NumberFormat([], {
   maximumFractionDigits: 2,
@@ -41,12 +37,7 @@ const barColor = "#93b3c841";
 
 function TooltipContent({ active, payload, label }: TooltipProps<any, any>) {
   if (active && payload && payload.length) {
-    const euclideanDistance = payload[1]?.value ?? null;
     const count = payload[0]?.value ?? null;
-    const euclideanDistanceString =
-      typeof euclideanDistance === "number"
-        ? numberFormatter.format(euclideanDistance)
-        : "--";
     const predictionCountString =
       typeof count === "number" ? numberFormatter.format(count) : "--";
     return (
@@ -54,11 +45,6 @@ function TooltipContent({ active, payload, label }: TooltipProps<any, any>) {
         <Text weight="heavy" textSize="large">{`${fullTimeFormatter(
           new Date(label)
         )}`}</Text>
-        <ChartTooltipItem
-          color={color}
-          name="Euc. Distance"
-          value={euclideanDistanceString}
-        />
         <ChartTooltipItem
           color={barColor}
           shape="square"
@@ -86,34 +72,23 @@ function TooltipContent({ active, payload, label }: TooltipProps<any, any>) {
 
   return null;
 }
-export function EuclideanDistanceTimeSeries({
+export function CountTimeSeries({
   embeddingDimensionId,
 }: {
   embeddingDimensionId: string;
 }) {
   const { timeRange } = useTimeRange();
   const { selectedTimestamp, setSelectedTimestamp } = useTimeSlice();
-  const data = useLazyLoadQuery<EuclideanDistanceTimeSeriesQuery>(
+  const data = useLazyLoadQuery<CountTimeSeriesQuery>(
     graphql`
-      query EuclideanDistanceTimeSeriesQuery(
+      query CountTimeSeriesQuery(
         $embeddingDimensionId: GlobalID!
         $timeRange: TimeRange!
-        $driftGranularity: Granularity!
         $countGranularity: Granularity!
       ) {
         embedding: node(id: $embeddingDimensionId) {
           id
           ... on EmbeddingDimension {
-            euclideanDistanceTimeSeries: driftTimeSeries(
-              metric: euclideanDistance
-              timeRange: $timeRange
-              granularity: $driftGranularity
-            ) {
-              data {
-                timestamp
-                value
-              }
-            }
             trafficTimeSeries: dataQualityTimeSeries(
               metric: count
               timeRange: $timeRange
@@ -134,7 +109,6 @@ export function EuclideanDistanceTimeSeries({
         start: timeRange.start.toISOString(),
         end: timeRange.end.toISOString(),
       },
-      driftGranularity: calculateGranularityWithRollingAverage(timeRange),
       countGranularity: calculateGranularity(timeRange),
     }
   );
@@ -151,7 +125,7 @@ export function EuclideanDistanceTimeSeries({
     [setSelectedTimestamp]
   );
 
-  let chartData = data.embedding.euclideanDistanceTimeSeries?.data || [];
+  let chartData = data.embedding.trafficTimeSeries?.data || [];
   const trafficDataMap =
     data.embedding.trafficTimeSeries?.data.reduce((acc, traffic) => {
       acc[traffic.timestamp] = traffic.value;
@@ -170,7 +144,7 @@ export function EuclideanDistanceTimeSeries({
     <ResponsiveContainer width="100%" height="100%">
       <ComposedChart
         data={chartData as unknown as any[]}
-        margin={{ top: 25, right: 18, left: 18, bottom: 10 }}
+        margin={{ top: 25, right: 80, left: 18, bottom: 10 }}
         onClick={onClick}
       >
         <defs>
@@ -193,20 +167,9 @@ export function EuclideanDistanceTimeSeries({
         <YAxis
           stroke={theme.colors.gray200}
           label={{
-            value: "Euc. Distance",
+            value: "Count",
             angle: -90,
             position: "insideLeft",
-            style: { textAnchor: "middle", fill: theme.textColors.white90 },
-          }}
-          style={{ fill: theme.textColors.white70 }}
-        />
-        <YAxis
-          yAxisId="right"
-          orientation="right"
-          label={{
-            value: "Count",
-            angle: 90,
-            position: "insideRight",
             style: { textAnchor: "middle", fill: theme.textColors.white90 },
           }}
           style={{ fill: theme.textColors.white70 }}
@@ -217,12 +180,6 @@ export function EuclideanDistanceTimeSeries({
           strokeOpacity={0.5}
         />
         <Tooltip content={<TooltipContent />} />
-        <Bar
-          yAxisId="right"
-          dataKey="traffic"
-          fill="url(#barColor)"
-          spacing={5}
-        />
         <Area
           type="monotone"
           dataKey="value"

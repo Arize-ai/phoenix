@@ -20,6 +20,14 @@ type ClusterItemProps = {
    */
   onClick: () => void;
   /**
+   * The callback for the mouse enter event
+   */
+  onMouseEnter?: () => void;
+  /**
+   * The callback for the mouse leave event
+   */
+  onMouseLeave?: () => void;
+  /**
    * The ratio of the primary count / total count.
    * Null if there is no reference
    */
@@ -30,7 +38,14 @@ type ClusterItemProps = {
  * A UI component that displays a cluster and it's aggregate data
  */
 export function ClusterItem(props: ClusterItemProps) {
-  const { driftRatio, clusterId, isSelected, onClick } = props;
+  const {
+    driftRatio,
+    clusterId,
+    isSelected,
+    onClick,
+    onMouseEnter,
+    onMouseLeave,
+  } = props;
 
   const hasClusterMetric = driftRatio !== null;
   // Calculate the percentage of primary points in the cluster
@@ -57,6 +72,8 @@ export function ClusterItem(props: ClusterItemProps) {
       className={isSelected ? "is-selected" : ""}
       role="button"
       onClick={onClick}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
     >
       <div
         css={(theme) => css`

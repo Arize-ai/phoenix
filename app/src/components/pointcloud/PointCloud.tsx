@@ -246,6 +246,9 @@ function Projection(props: ProjectionProps) {
   const setSelectedPointIds = usePointCloudContext(
     (state) => state.setSelectedPointIds
   );
+  const highlightedClusterId = usePointCloudContext(
+    (state) => state.highlightedClusterId
+  );
   const selectedClusterId = usePointCloudContext(
     (state) => state.selectedClusterId
   );
@@ -353,6 +356,7 @@ function Projection(props: ProjectionProps) {
           <PointCloudClusters
             clusters={clusters}
             points={allPoints}
+            highlightedClusterId={highlightedClusterId}
             selectedClusterId={selectedClusterId}
             radius={clusterPointRadius}
           />
