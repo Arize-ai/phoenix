@@ -5,7 +5,7 @@ export const tableCSS = (theme: Theme) => css`
   width: 100%;
   border-collapse: collapse;
   thead {
-    background-color: ${theme.colors.gray500};
+    background-color: ${theme.colors.gray600};
     tr {
       th {
         padding: ${theme.spacing.margin4}px ${theme.spacing.margin16}px;

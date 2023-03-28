@@ -58,14 +58,14 @@ export function ModelEmbeddingsTable(props: ModelEmbeddingsTable) {
   const columns = React.useMemo(() => {
     const cols: Column<TableRow>[] = [
       {
-        Header: "Name",
+        Header: "name",
         accessor: "name",
         Cell: ({ row, value }: CellProps<TableRow, string>) => (
           <Link to={`/embeddings/${row.original.id}`}>{value}</Link>
         ),
       },
       {
-        Header: "Euclidean Distance",
+        Header: "euclidean distance",
         accessor: "euclideanDistance",
         Cell: FloatCell,
       },
