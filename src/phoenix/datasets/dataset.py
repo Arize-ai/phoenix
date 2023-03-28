@@ -1,13 +1,14 @@
 import logging
-import os
 import uuid
 from copy import deepcopy
 from dataclasses import fields, replace
 from datetime import datetime, timedelta
 from enum import Enum
 from functools import cached_property
-from typing import Any, Dict, List, Optional, Set, Tuple, Union, cast
+from pathlib import Path
+from typing import Any, Dict, Iterable, List, Optional, Set, Tuple, Union, cast
 
+import pandas as pd
 import pytz
 from pandas import DataFrame, Series, Timestamp, read_parquet, to_datetime
 from pandas.api.types import (
@@ -17,7 +18,7 @@ from pandas.api.types import (
 )
 from typing_extensions import TypeAlias
 
-from phoenix.config import dataset_dir
+from phoenix.config import DATASET_DIR
 
 from . import errors as err
 from .schema import (
@@ -93,7 +94,7 @@ class Dataset:
         self.__dataframe: DataFrame = dataframe
         self.__schema: Schema = schema
         self.__name: str = name if name is not None else f"""dataset_{str(uuid.uuid4())}"""
-        self.__directory: str = os.path.join(dataset_dir, self.name)
+        self.__directory = DATASET_DIR / self.name
 
         # Sync the dataset to disc so that the server can pick up the data
         if persist_to_disc:
@@ -145,7 +146,7 @@ class Dataset:
         return self._is_persisted
 
     @property
-    def directory(self) -> str:
+    def directory(self) -> Path:
         """The directory under which the dataset metadata is stored"""
         return self.__directory
 
@@ -244,9 +245,9 @@ class Dataset:
     @classmethod
     def from_name(cls, name: str) -> "Dataset":
         """Retrieves a dataset by name from the file system"""
-        directory = os.path.join(dataset_dir, name)
-        df = read_parquet(os.path.join(directory, cls._data_file_name))
-        with open(os.path.join(directory, cls._schema_file_name)) as schema_file:
+        directory = DATASET_DIR / name
+        df = read_parquet(directory / cls._data_file_name)
+        with open(directory / cls._schema_file_name) as schema_file:
             schema_json = schema_file.read()
         schema = Schema.from_json(schema_json)
         return cls(df, schema, name, persist_to_disc=False)
@@ -258,23 +259,40 @@ class Dataset:
             logger.info("Dataset already persisted")
             return
 
-        directory = self.directory
-        if not os.path.isdir(directory):
-            os.makedirs(directory)
+        self.directory.mkdir(
+            parents=True,
+            exist_ok=True,
+        )
 
         self.dataframe.to_parquet(
-            os.path.join(directory, self._data_file_name),
+            self.directory / self._data_file_name,
             allow_truncated_timestamps=True,
             coerce_timestamps="ms",
         )
 
         schema_json_data = self.schema.to_json()
-        with open(os.path.join(directory, self._schema_file_name), "w+") as schema_file:
+        with open(self.directory / self._schema_file_name, "w+") as schema_file:
             schema_file.write(schema_json_data)
 
         # set the persisted flag so that we don't have to perform this operation again
         self._is_persisted = True
-        logger.info(f"Dataset info written to '{directory}'")
+        logger.info(f"Dataset info written to '{self.directory}'")
+
+    def get_events(self, rows: Iterable[int]) -> pd.DataFrame:
+        """
+        Given row numbers, return new data frame subset containing those rows.
+
+        Parameters
+        ----------
+        rows: Iterable[int]
+            row numbers
+
+        Returns
+        -------
+        dataframe: pandas.DataFrame
+            containing the subset of rows specified in the input
+        """
+        return self.__dataframe.iloc[sorted(set(rows))]
 
 
 def _parse_dataframe_and_schema(dataframe: DataFrame, schema: Schema) -> Tuple[DataFrame, Schema]:

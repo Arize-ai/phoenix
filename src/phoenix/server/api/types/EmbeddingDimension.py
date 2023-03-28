@@ -58,13 +58,10 @@ class EmbeddingDimension(Node):
 
     @strawberry.field(
         description=(
-            """
-            Computes a drift metric between all reference data and the primary data
-            belonging to the input time range (inclusive of the time range start and
-            exclusive of the time range end). Returns None if no reference dataset
-            exists, if no primary data exists in the input time range, or if the
-            input time range is invalid.
-            """
+            "Computes a drift metric between all reference data and the primary data belonging to"
+            " the input time range (inclusive of the time range start and exclusive of the time"
+            " range end). Returns None if no reference dataset exists, if no primary data exists in"
+            " the input time range, or if the input time range is invalid."
         )
     )  # type: ignore  # https://github.com/strawberry-graphql/strawberry/issues/1929
     def drift_metric(
@@ -117,17 +114,12 @@ class EmbeddingDimension(Node):
 
     @strawberry.field(
         description=(
-            """
-            Computes a drift time-series between the primary and reference datasets.
-            The output drift time-series contains one data point for each whole hour
-            in the input time range (inclusive of the time range start and exclusive
-            of the time range end). Each data point contains the drift metric value
-            between all reference data and the primary data within the evaluation
-            window ending at the corresponding time.
-
-            Returns None if no reference dataset exists or if the input time range
-            is invalid.
-            """
+            "Computes a drift time-series between the primary and reference datasets. The output"
+            " drift time-series contains one data point for each whole hour in the input time range"
+            " (inclusive of the time range start and exclusive of the time range end). Each data"
+            " point contains the drift metric value between all reference data and the primary data"
+            " within the evaluation window ending at the corresponding time. Returns None if no"
+            " reference dataset exists or if the input time range is invalid.           "
         )
     )  # type: ignore  # https://github.com/strawberry-graphql/strawberry/issues/1929
     def drift_time_series(

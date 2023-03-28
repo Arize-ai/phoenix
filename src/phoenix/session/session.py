@@ -80,7 +80,7 @@ def launch_app(primary: Dataset, reference: Optional[Dataset] = None) -> "Sessio
     """
     global _session
 
-    _session = Session(primary, reference, port=config.port)
+    _session = Session(primary, reference, port=config.PORT)
     print(f"🌍 To view the Phoenix app in your browser, visit {_session.url}")
     print("📺 To view the Phoenix app in a notebook, run `px.active_session().view()`")
     print("📖 For more information on how to use Phoenix, check out https://docs.arize.com/phoenix")

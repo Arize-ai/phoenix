@@ -1,5 +1,4 @@
 import logging
-import os
 from typing import Optional, Union
 
 from starlette.applications import Starlette
@@ -15,6 +14,7 @@ from starlette.websockets import WebSocket
 from strawberry.asgi import GraphQL
 from strawberry.schema import BaseSchema
 
+from phoenix.config import SERVER_DIR
 from phoenix.core.model import Model
 from phoenix.datasets import Dataset
 
@@ -46,7 +46,11 @@ class Static(StaticFiles):
 
 
 class HeadersMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
+    async def dispatch(
+        self,
+        request: Request,
+        call_next: RequestResponseEndpoint,
+    ) -> Response:
         response = await call_next(request)
         response.headers["x-colab-notebook-cache-control"] = "no-cache"
         return response
@@ -54,7 +58,11 @@ class HeadersMiddleware(BaseHTTPMiddleware):
 
 class GraphQLWithContext(GraphQL):
     def __init__(
-        self, schema: BaseSchema, model: Model, loader: Loaders, graphiql: bool = False
+        self,
+        schema: BaseSchema,
+        model: Model,
+        loader: Loaders,
+        graphiql: bool = False,
     ) -> None:
         self.model = model
         self.loader = loader
@@ -65,7 +73,12 @@ class GraphQLWithContext(GraphQL):
         request: Union[Request, WebSocket],
         response: Optional[Response] = None,
     ) -> Context:
-        return Context(request=request, response=response, model=self.model, loaders=self.loader)
+        return Context(
+            request=request,
+            response=response,
+            model=self.model,
+            loaders=self.loader,
+        )
 
 
 def create_app(
@@ -80,7 +93,10 @@ def create_app(
         else None,
     )
     graphql = GraphQLWithContext(
-        schema=schema, model=model, loader=create_loaders(model), graphiql=True
+        schema=schema,
+        model=model,
+        loader=create_loaders(model),
+        graphiql=True,
     )
     return Starlette(
         middleware=[
@@ -96,10 +112,7 @@ def create_app(
             Mount(
                 "/",
                 app=Static(
-                    directory=os.path.join(
-                        os.path.dirname(__file__),
-                        "static",
-                    ),
+                    directory=SERVER_DIR / "static",
                     html=True,
                 ),
                 name="static",

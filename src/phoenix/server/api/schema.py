@@ -4,6 +4,7 @@ from strawberry.types import Info
 from .context import Context
 from .types.Dimension import to_gql_dimension
 from .types.EmbeddingDimension import to_gql_embedding_dimension
+from .types.ExportEventsMutation import ExportEventsMutation
 from .types.Model import Model
 from .types.node import GlobalID, Node, from_global_id
 
@@ -28,4 +29,9 @@ class Query:
         raise Exception(f"Unknown node type: {type}")
 
 
-schema = strawberry.Schema(query=Query)
+@strawberry.type
+class Mutation(ExportEventsMutation):
+    ...
+
+
+schema = strawberry.Schema(query=Query, mutation=Mutation)
