@@ -12,16 +12,16 @@ from .schema import Schema
 
 def _check_valid_schema(schema: Schema) -> List[err.ValidationError]:
     errs: List[str] = []
-    if schema.excludes is None:
+    if schema.excluded_column_names is None:
         return []
 
-    if schema.timestamp_column_name in schema.excludes:
+    if schema.timestamp_column_name in schema.excluded_column_names:
         errs.append(
             f"{schema.timestamp_column_name} cannot be excluded because "
             f"it is already being used as the timestamp column"
         )
 
-    if schema.prediction_id_column_name in schema.excludes:
+    if schema.prediction_id_column_name in schema.excluded_column_names:
         errs.append(
             f"{schema.prediction_id_column_name} cannot be excluded because "
             f"it is already being used as the prediction id column"
