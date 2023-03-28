@@ -41,7 +41,7 @@ class Dataset:
         row_ids = parse_event_ids(event_ids)
         if len(row_ids) > 1 or self.type not in row_ids:
             raise ValueError("eventIds contains IDs from incorrect dataset.")
-        row_indexes = row_ids.pop(self.type, [])
+        row_indexes = row_ids.get(self.type, ())
         dataframe = self.dataset.dataframe
         schema = self.dataset.schema
         requested_gql_dimensions = _get_requested_features_and_tags(

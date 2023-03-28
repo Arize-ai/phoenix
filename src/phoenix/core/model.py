@@ -129,7 +129,7 @@ class Model:
             output parquet file handle
         """
         pd.concat(
-            dataset.export_events(rows.get(dataset_type, ()))
+            dataset.get_events(rows.get(dataset_type, ()))
             for dataset_type, dataset in self.__datasets.items()
             if dataset is not None
         ).to_parquet(parquet_file, index=False)

@@ -75,7 +75,6 @@ class Dataset:
             for e in errors:
                 logger.error(e)
             raise err.DatasetError(errors)
-        original_column_names = dataframe.columns
         dataframe, schema = _parse_dataframe_and_schema(dataframe, schema)
         dataframe, schema = _normalize_timestamps(
             dataframe, schema, default_timestamp=Timestamp.utcnow()
@@ -85,9 +84,6 @@ class Dataset:
         self.__schema: Schema = schema
         self.__name: str = name if name is not None else f"""dataset_{str(uuid.uuid4())}"""
         self.__directory = DATASET_DIR / self.name
-        self.__original_column_indices = [
-            dataframe.columns.get_loc(column_name) for column_name in original_column_names
-        ]
 
         # Sync the dataset to disc so that the server can pick up the data
         if persist_to_disc:
@@ -271,25 +267,21 @@ class Dataset:
         self._is_persisted = True
         logger.info(f"Dataset info written to '{self.directory}'")
 
-    def export_events(self, rows: Iterable[int]) -> pd.DataFrame:
+    def get_events(self, rows: Iterable[int]) -> pd.DataFrame:
         """
-        Given row numbers, create new data frame containing those rows, with
-        columns in their original ordering.
+        Given row numbers, return new data frame subset containing those rows.
 
         Parameters
         ----------
-        rows: list[int]
-            list of row numbers
+        rows: Iterable[int]
+            row numbers
 
         Returns
         -------
         dataframe: pandas.DataFrame
-            containing the rows specified in the input
+            containing the subset of rows specified in the input
         """
-        return self.__dataframe.iloc[
-            sorted(set(rows)),
-            self.__original_column_indices,
-        ]
+        return self.__dataframe.iloc[sorted(set(rows))]
 
 
 def _parse_dataframe_and_schema(dataframe: DataFrame, schema: Schema) -> Tuple[DataFrame, Schema]:
