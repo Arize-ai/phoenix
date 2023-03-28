@@ -7,21 +7,7 @@ cover: >-
 coverY: 0
 ---
 
-# 🌟 ML Observability in Your Notebook
-
-
-
-{% hint style="warning" %}
-Phoenix is under active development and its API may change at any time.
-{% endhint %}
-
-Phoenix works with python 3.8 and above and is available to install via `pypi`
-
-```shell
-pip install arize-phoenix
-```
-
-you are now ready to use the `phoenix` package inside of your notebook!
+# 🌟 ML Observability in a Notebook
 
 ## What is Phoenix?
 
