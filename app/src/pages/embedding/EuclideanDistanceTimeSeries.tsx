@@ -25,6 +25,10 @@ import {
 } from "@phoenix/components/chart";
 import { useTimeRange } from "@phoenix/contexts/TimeRangeContext";
 import { useTimeSlice } from "@phoenix/contexts/TimeSliceContext";
+import {
+  calculateGranularity,
+  calculateGranularityWithRollingAverage,
+} from "@phoenix/utils/timeseriesUtils";
 
 import { EuclideanDistanceTimeSeriesQuery } from "./__generated__/EuclideanDistanceTimeSeriesQuery.graphql";
 
@@ -34,60 +38,6 @@ const numberFormatter = new Intl.NumberFormat([], {
 
 const color = "#5899C5";
 const barColor = "#93b3c841";
-
-function calculateGranularity(timeRange: TimeRange): {
-  evaluationWindowMinutes: number;
-  samplingIntervalMinutes: number;
-} {
-  const { start, end } = timeRange;
-  const timeRangeInHours = Math.floor(
-    (end.valueOf() - start.valueOf()) / 1000 / 60 / 60
-  );
-  if (timeRangeInHours <= 1) {
-    alert("day");
-    return {
-      evaluationWindowMinutes: 1,
-      samplingIntervalMinutes: 1,
-    };
-  } else if (timeRangeInHours <= 24) {
-    return {
-      evaluationWindowMinutes: 60,
-      samplingIntervalMinutes: 60,
-    };
-  } else {
-    return {
-      evaluationWindowMinutes: 60 * 24,
-      samplingIntervalMinutes: 60 * 24,
-    };
-  }
-}
-
-function calculateGranularityWithRollingAverage(timeRange: TimeRange): {
-  evaluationWindowMinutes: number;
-  samplingIntervalMinutes: number;
-} {
-  const { start, end } = timeRange;
-  const timeRangeInHours = Math.floor(
-    (end.valueOf() - start.valueOf()) / 1000 / 60 / 60
-  );
-  if (timeRangeInHours <= 1) {
-    alert("day");
-    return {
-      evaluationWindowMinutes: 72 * 60,
-      samplingIntervalMinutes: 1,
-    };
-  } else if (timeRangeInHours <= 24) {
-    return {
-      evaluationWindowMinutes: 72 * 60,
-      samplingIntervalMinutes: 60,
-    };
-  } else {
-    return {
-      evaluationWindowMinutes: 72 * 60,
-      samplingIntervalMinutes: 60 * 24,
-    };
-  }
-}
 
 function TooltipContent({ active, payload, label }: TooltipProps<any, any>) {
   if (active && payload && payload.length) {
