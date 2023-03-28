@@ -520,7 +520,7 @@ def _create_and_normalize_dataframe_and_schema(
     return parsed_dataframe, parsed_schema
 
 
-class DatasetType(Enum):
+class DatasetRole(Enum):
     PRIMARY = 0
     REFERENCE = 1
 

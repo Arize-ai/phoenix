@@ -20,7 +20,7 @@ import {
 } from "@phoenix/components/pointcloud";
 import { SelectionDisplay } from "@phoenix/constants/pointCloudConstants";
 import { usePointCloudContext } from "@phoenix/contexts";
-import { DatasetType } from "@phoenix/types";
+import { DatasetRole } from "@phoenix/types";
 
 import {
   PointSelectionPanelContentQuery,
@@ -289,16 +289,16 @@ function SelectionGridView(props: SelectionGridViewProps) {
           const data = pointIdToDataMap.get(event.id);
           const { rawData = null, linkToData = null } =
             data?.embeddingMetadata ?? {};
-          const datasetType = event.id.includes("PRIMARY")
-            ? DatasetType.primary
-            : DatasetType.reference;
+          const datasetRole = event.id.includes("PRIMARY")
+            ? DatasetRole.primary
+            : DatasetRole.reference;
           const color = pointGroupColors[pointIdToGroup[event.id]];
           return (
             <li key={idx}>
               <EventItem
                 rawData={rawData}
                 linkToData={linkToData}
-                datasetType={datasetType}
+                datasetRole={datasetRole}
                 onClick={() => {
                   onItemSelected(event.id);
                 }}

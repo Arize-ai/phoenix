@@ -52,7 +52,7 @@ class TestDatasetEvents:
             query=self._get_events_query("primaryDataset"),
             context_value=context_factory(primary_dataset, reference_dataset),
             variable_values={
-                "eventIds": ["0:DatasetType.PRIMARY"],
+                "eventIds": ["0:DatasetRole.PRIMARY"],
             },
         )
         assert result.errors is None
@@ -90,7 +90,7 @@ class TestDatasetEvents:
             query=self._get_events_query("referenceDataset"),
             context_value=context_factory(primary_dataset, reference_dataset),
             variable_values={
-                "eventIds": ["1:DatasetType.REFERENCE", "2:DatasetType.REFERENCE"],
+                "eventIds": ["1:DatasetRole.REFERENCE", "2:DatasetRole.REFERENCE"],
                 "dimensions": [
                     {"name": "tag0", "type": "tag"},
                 ],
@@ -165,7 +165,7 @@ class TestDatasetEvents:
             query=self._get_events_query("referenceDataset"),
             context_value=context_factory(primary_dataset, reference_dataset),
             variable_values={
-                "eventIds": ["1:DatasetType.REFERENCE"],
+                "eventIds": ["1:DatasetRole.REFERENCE"],
                 "dimensions": [],
             },
         )
@@ -195,7 +195,7 @@ class TestDatasetEvents:
             query=self._get_events_query("primaryDataset"),
             context_value=context_factory(primary_dataset, reference_dataset),
             variable_values={
-                "eventIds": ["0:DatasetType.PRIMARY", "1:DatasetType.REFERENCE"],
+                "eventIds": ["0:DatasetRole.PRIMARY", "1:DatasetRole.REFERENCE"],
             },
         )
         assert result.errors is not None
@@ -204,7 +204,7 @@ class TestDatasetEvents:
         assert result.data is None
 
     @staticmethod
-    def _get_events_query(dataset_type: Literal["primaryDataset", "referenceDataset"]) -> str:
+    def _get_events_query(dataset_role: Literal["primaryDataset", "referenceDataset"]) -> str:
         """
         Returns a formatted events query for the input dataset type.
         """
@@ -231,7 +231,7 @@ class TestDatasetEvents:
                 }
             }
         """
-            % dataset_type
+            % dataset_role
         )
 
     @staticmethod

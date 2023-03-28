@@ -12,7 +12,7 @@ from typing_extensions import Annotated
 
 from phoenix.core import EmbeddingDimension as CoreEmbeddingDimension
 from phoenix.datasets import Dataset
-from phoenix.datasets.dataset import DatasetType
+from phoenix.datasets.dataset import DatasetRole
 from phoenix.datasets.errors import SchemaError
 from phoenix.datasets.event import EventId
 from phoenix.metrics.timeseries import row_interval_from_sorted_time_index
@@ -197,8 +197,8 @@ class EmbeddingDimension(Node):
         ] = DEFAULT_CLUSTER_SELECTION_EPSILON,
     ) -> UMAPPoints:
         datasets = {
-            DatasetType.PRIMARY: info.context.model.primary_dataset,
-            DatasetType.REFERENCE: info.context.model.reference_dataset,
+            DatasetRole.PRIMARY: info.context.model.primary_dataset,
+            DatasetRole.REFERENCE: info.context.model.reference_dataset,
         }
 
         data = {}
@@ -207,7 +207,7 @@ class EmbeddingDimension(Node):
                 continue
             dataframe = dataset.dataframe
             row_id_start, row_id_stop = 0, len(dataframe)
-            if dataset_id == DatasetType.PRIMARY:
+            if dataset_id == DatasetRole.PRIMARY:
                 row_id_start, row_id_stop = row_interval_from_sorted_time_index(
                     time_index=dataframe.index,
                     time_start=time_range.start,
@@ -300,11 +300,11 @@ class EmbeddingDimension(Node):
                 )
             )
 
-        has_reference_data = datasets[DatasetType.REFERENCE] is not None
+        has_reference_data = datasets[DatasetRole.REFERENCE] is not None
 
         return UMAPPoints(
-            data=points[DatasetType.PRIMARY],
-            reference_data=points[DatasetType.REFERENCE],
+            data=points[DatasetRole.PRIMARY],
+            reference_data=points[DatasetRole.REFERENCE],
             clusters=to_gql_clusters(cluster_membership, has_reference_data=has_reference_data),
         )
 

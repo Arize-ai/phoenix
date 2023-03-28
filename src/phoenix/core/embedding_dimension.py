@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import Set
 
-from phoenix.datasets.dataset import DatasetType
+from phoenix.datasets.dataset import DatasetRole
 from phoenix.datasets.event import EventId
 
 
@@ -29,7 +29,7 @@ def calculate_drift_ratio(events: Set[EventId]) -> float:
     reference_point_count = 0
 
     for event in events:
-        if event.dataset_id == DatasetType.PRIMARY:
+        if event.dataset_id == DatasetRole.PRIMARY:
             primary_point_count += 1
         else:
             reference_point_count += 1

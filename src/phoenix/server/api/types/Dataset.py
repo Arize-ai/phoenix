@@ -9,7 +9,7 @@ from strawberry.unset import UNSET
 from phoenix.core.dimension import Dimension as CoreDimension
 from phoenix.core.dimension_type import DimensionType
 from phoenix.datasets import Dataset as InternalDataset
-from phoenix.datasets.dataset import DatasetType
+from phoenix.datasets.dataset import DatasetRole
 
 from ..context import Context
 from ..input_types.DimensionInput import DimensionInput
@@ -23,7 +23,7 @@ class Dataset:
     start_time: datetime = strawberry.field(description="The start bookend of the data")
     end_time: datetime = strawberry.field(description="The end bookend of the data")
     dataset: strawberry.Private[InternalDataset]
-    type: strawberry.Private[DatasetType]
+    role: strawberry.Private[DatasetRole]
 
     @strawberry.field
     def events(
@@ -39,9 +39,9 @@ class Dataset:
         if not event_ids:
             return []
         row_ids = parse_event_ids(event_ids)
-        if len(row_ids) > 1 or self.type not in row_ids:
+        if len(row_ids) > 1 or self.role not in row_ids:
             raise ValueError("eventIds contains IDs from incorrect dataset.")
-        row_indexes = row_ids.get(self.type, ())
+        row_indexes = row_ids.get(self.role, ())
         dataframe = self.dataset.dataframe
         schema = self.dataset.schema
         requested_gql_dimensions = _get_requested_features_and_tags(
@@ -68,7 +68,7 @@ class Dataset:
         return [
             create_event(
                 row_index=row_index,
-                dataset_type=self.type,
+                dataset_role=self.role,
                 row=dataframe.iloc[row_index, column_indexes],
                 schema=schema,
                 dimensions=requested_gql_dimensions,
@@ -85,7 +85,7 @@ def to_gql_dataset(dataset: InternalDataset, type: Literal["primary", "reference
         name=dataset.name,
         start_time=dataset.start_time,
         end_time=dataset.end_time,
-        type=DatasetType.PRIMARY if type == "primary" else DatasetType.REFERENCE,
+        role=DatasetRole.PRIMARY if type == "primary" else DatasetRole.REFERENCE,
         dataset=dataset,
     )
 

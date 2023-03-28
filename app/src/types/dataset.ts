@@ -1,4 +1,4 @@
-export enum DatasetType {
+export enum DatasetRole {
   primary = "primary",
   reference = "reference",
 }

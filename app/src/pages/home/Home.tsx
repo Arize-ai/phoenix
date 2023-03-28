@@ -48,7 +48,7 @@ export function Home(_props: HomePageProps) {
         <PrimaryDatasetTimeRange />
         {referenceDataset ? (
           <ReferenceDatasetTimeRange
-            datasetType="reference"
+            datasetRole="reference"
             timeRange={{
               start: new Date(referenceDataset.startTime),
               end: new Date(referenceDataset.endTime),

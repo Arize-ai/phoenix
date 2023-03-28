@@ -6,7 +6,7 @@ from pandas import Series
 from strawberry import ID
 
 from phoenix.datasets import Schema
-from phoenix.datasets.dataset import DatasetType
+from phoenix.datasets.dataset import DatasetRole
 from phoenix.datasets.event import EventId
 
 from .Dimension import Dimension
@@ -21,21 +21,21 @@ class Event:
     dimensions: List[DimensionWithValue]
 
 
-def parse_event_ids(event_ids: List[ID]) -> Dict[DatasetType, List[int]]:
+def parse_event_ids(event_ids: List[ID]) -> Dict[DatasetRole, List[int]]:
     """
     Parses event IDs and returns the corresponding row indexes.
     """
     row_indexes = defaultdict(list)
     for event_id in event_ids:
-        row_index, dataset_type_str = str(event_id).split(":")
-        dataset_type = DatasetType[dataset_type_str.split(".")[-1]]
-        row_indexes[dataset_type].append(int(row_index))
+        row_index, dataset_role_str = str(event_id).split(":")
+        dataset_role = DatasetRole[dataset_role_str.split(".")[-1]]
+        row_indexes[dataset_role].append(int(row_index))
     return row_indexes
 
 
 def create_event(
     row_index: int,
-    dataset_type: "DatasetType",
+    dataset_role: "DatasetRole",
     row: "Series[Any]",
     schema: Schema,
     dimensions: List[Dimension],
@@ -63,7 +63,7 @@ def create_event(
     ]
 
     return Event(
-        id=ID(str(EventId(row_id=row_index, dataset_id=dataset_type))),
+        id=ID(str(EventId(row_id=row_index, dataset_id=dataset_role))),
         eventMetadata=event_metadata,
         dimensions=dimensions_with_values,
     )

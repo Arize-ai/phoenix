@@ -12,7 +12,7 @@ import {
 
 const timeFormatter = timeFormat("%x %X");
 type ReferenceDatasetTimeRangeProps = {
-  datasetType: DatasetType;
+  datasetRole: DatasetRole;
   /**
    * The bookend times of the dataset
    */
