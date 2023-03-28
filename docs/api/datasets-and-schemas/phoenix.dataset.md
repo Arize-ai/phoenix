@@ -1,4 +1,8 @@
-# #⃣ phoenix.Dataset
+---
+description: A detailed description of the phoenix.Dataset API
+---
+
+# phoenix.Dataset
 
 The `Dataset` class represents a dataset for analysis using the phoenix. It can be used to construct a Phoenix session via `px.launch_app`.
 
@@ -40,3 +44,23 @@ session = px.launch_app(primary_dataset)
 ### Methods
 
 * `head(num_rows: Optional[int] = 5)`: Returns the first `num_rows` rows of the dataframe. Default value is 5.
+
+## class [phoenix.Dataset](https://github.com/Arize-ai/phoenix/blob/main/src/phoenix/datasets/dataset.py)
+
+**(**\
+&#x20;       **dataframe:** pandas.DataFrame,\
+&#x20;       **schema:** [phoenix.Schema](phoenix.schema.md),\
+&#x20;       **name:** Optional\[str] = None,\
+**)**
+
+A dataset containing a split or cohort of data to be analyzed independently or compared to another cohort. Common examples include training, validation, test, or production datasets.
+
+### Parameters
+
+* **dataframe** (pandas.DataFrame): A DataFrame in which each row corresponds to a record of the dataset.
+* **schema** ([phoenix.Schema](phoenix.schema.md)): A schema that assigns the columns of the DataFrame to fields expected by Phoenix, such as features, predictions, and actuals.
+* **name** (Optional\[str]): A name for the dataset.
+
+### Usage
+
+TODO: Add examples

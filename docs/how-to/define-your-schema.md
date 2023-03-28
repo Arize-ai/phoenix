@@ -149,7 +149,7 @@ Embedding features consist of vector data in addition to any unstructured data i
 
 {% hint style="info" %}
 * For a conceptual overview of embeddings, see [Embeddings](../concepts/embeddings.md).
-* For a comprehensive description of `px.EmbeddingColumnNames`, see the [API reference](../api/phoenix.embeddingcolumnnames.md).
+* For a comprehensive description of `px.EmbeddingColumnNames`, see the [API reference](../api/datasets-and-schemas/phoenix.embeddingcolumnnames.md).
 {% endhint %}
 
 {% hint style="info" %}
@@ -225,7 +225,8 @@ schema = px.Schema(
 )
 ```
 
-{% hint style="info" %}
+#### Local Images
+
 For local image data, we recommend the following steps to serve your images via a local HTTP server:
 
 1. In your terminal, navigate to a directory containing your image data and run `python -m http.server 8000`.
@@ -240,7 +241,6 @@ For example, suppose your HTTP server is running in a directory with the followi
 ```
 
 Then your image URL would be http://localhost:8000/image-data/example\_image.jpeg.
-{% endhint %}
 
 ### Embeddings of Text
 
