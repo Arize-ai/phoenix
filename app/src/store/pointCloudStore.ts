@@ -136,7 +136,11 @@ export interface PointCloudProps {
    */
   selectedPointIds: Set<string>;
   /**
-   * The IDs of the clusters that are currently selected.
+   * The ID of the cluster that are currently highlighted.
+   */
+  highlightedClusterId: string | null;
+  /**
+   * The ID of the cluster that is currently selected.
    */
   selectedClusterId: string | null;
   /**
@@ -197,7 +201,10 @@ export interface PointCloudState extends PointCloudProps {
    * Sets the selected point IDs to the given value.
    */
   setSelectedPointIds: (ids: Set<string>) => void;
-
+  /**
+   * Sets the selected cluster id to the given value.
+   */
+  setHighlightedClusterId: (ids: string | null) => void;
   /**
    * Sets the selected cluster id to the given value.
    */
@@ -286,6 +293,7 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
     points: [],
     pointData: null,
     selectedPointIds: new Set(),
+    highlightedClusterId: null,
     selectedClusterId: null,
     canvasTheme: "dark",
     coloringStrategy: ColoringStrategy.dataset,
@@ -349,7 +357,9 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
       });
     },
     setSelectedPointIds: (ids) => set({ selectedPointIds: ids }),
-    setSelectedClusterId: (id) => set({ selectedClusterId: id }),
+    setHighlightedClusterId: (id) => set({ highlightedClusterId: id }),
+    setSelectedClusterId: (id) =>
+      set({ selectedClusterId: id, highlightedClusterId: null }),
     setCanvasTheme: (theme) => set({ canvasTheme: theme }),
     setColoringStrategy: (strategy) => {
       const pointCloudState = get();

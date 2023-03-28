@@ -16,6 +16,10 @@ type PointCloudClustersProps = {
    */
   clusters: readonly ClusterInfo[];
   /**
+   * The id of a cluster that is currently highlighted
+   */
+  highlightedClusterId: string | null;
+  /**
    * The id of the cluster that is currently selected
    */
   selectedClusterId: string | null;
@@ -27,6 +31,7 @@ type PointCloudClustersProps = {
 export function PointCloudClusters({
   points,
   clusters,
+  highlightedClusterId,
   selectedClusterId,
   radius,
 }: PointCloudClustersProps) {
@@ -55,16 +60,24 @@ export function PointCloudClusters({
 
   return (
     <>
-      {clustersWithData.map((cluster) => (
-        <Cluster
-          key={cluster.id}
-          data={cluster.data}
-          opacity={cluster.id === selectedClusterId ? 0.2 : 0}
-          wireframe
-          pointRadius={radius}
-          color={canvasTheme === "dark" ? "#999999" : "#555555"}
-        />
-      ))}
+      {clustersWithData.map((cluster) => {
+        let opacity = 0;
+        if (cluster.id === selectedClusterId) {
+          opacity = 0.2;
+        } else if (cluster.id === highlightedClusterId) {
+          opacity = 0.1;
+        }
+        return (
+          <Cluster
+            key={cluster.id}
+            data={cluster.data}
+            opacity={opacity}
+            wireframe
+            pointRadius={radius}
+            color={canvasTheme === "dark" ? "#999999" : "#555555"}
+          />
+        );
+      })}
     </>
   );
 }
