@@ -19,7 +19,7 @@ description: A detailed description of the phoenix.Schema API
 &#x20;       **excludes:** Optional\[List\[str]] = None,\
 **)**
 
-A dataclass that assigns the columns of a Pandas DataFrame to fields expected by Phoenix, such as predictions, actuals, and features. Each column of the DataFrame should appear in the corresponding schema at most once.
+A dataclass that assigns the columns of a Pandas DataFrame to the appropriate model dimensions (predictions, actuals, features, etc.). Each column of the DataFrame should appear in the corresponding schema at most once.
 
 ### Parameters
 
