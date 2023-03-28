@@ -40,4 +40,4 @@ A dataclass that assigns the columns of a Pandas DataFrame to the appropriate mo
 
 ### Usage
 
-TODO: Add examples
+See the guide on how to [create your own dataset](../../how-to/define-your-schema.md) for examples.
