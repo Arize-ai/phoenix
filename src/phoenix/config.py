@@ -1,7 +1,7 @@
 import tempfile
 from heapq import nlargest
 from pathlib import Path
-from typing import Iterator
+from typing import List
 
 
 def _get_temp_path() -> Path:
@@ -37,7 +37,7 @@ def get_exported_files(
     n_latest: int = 5,
     directory: Path = EXPORT_DIR,
     extension: str = "parquet",
-) -> Iterator[Path]:
+) -> List[Path]:
     """
     Yields n most recently exported files by descending modification time.
 
@@ -50,10 +50,10 @@ def get_exported_files(
 
     Returns
     -------
-    iterator: Iterator[Path]
-        An iterable of file path for the n most recent exported files.
+    list: List[Path]
+        List of paths of the n most recent exported files.
     """
-    yield from nlargest(
+    return nlargest(
         n_latest,
         directory.glob("*." + extension),
         lambda p: p.stat().st_mtime,
