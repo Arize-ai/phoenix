@@ -43,4 +43,16 @@ The input DataFrame and schema are lightly processed during dataset initializati
 
 ### Usage
 
-TODO: Add examples
+Define a dataset `ds` from a Pandas DataFrame `df` and a schema object `schema` by running
+
+```python
+ds = px.Dataset(df, schema)
+```
+
+Alternatively, provide a name for the dataset that will appear in the application:
+
+```python
+ds = px.Dataset(df, schema, name="training")
+```
+
+`ds` is then passed as the **primary** or **reference** argument to [phoenix.launch\_app](../sessions/phoenix.launch\_app.md).
