@@ -115,7 +115,7 @@ export function PointCloudPoints({
         setSelectedClusterId(null);
       });
     },
-    [setSelectedPointIds]
+    [setSelectedClusterId, setSelectedPointIds]
   );
 
   return (
