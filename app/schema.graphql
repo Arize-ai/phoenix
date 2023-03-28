@@ -107,7 +107,9 @@ type EmbeddingDimension implements Node {
   id: GlobalID!
   name: String!
 
-  "\n            Computes a drift metric between all reference data and the primary data\n            belonging to the input time range (inclusive of the time range start and\n            exclusive of the time range end). Returns None if no reference dataset\n            exists, if no primary data exists in the input time range, or if the\n            input time range is invalid.\n            "
+  """
+  Computes a drift metric between all reference data and the primary data belonging to the input time range (inclusive of the time range start and exclusive of the time range end). Returns None if no reference dataset exists, if no primary data exists in the input time range, or if the input time range is invalid.
+  """
   driftMetric(metric: VectorDriftMetric!, timeRange: TimeRange = null): Float
 
   """
@@ -115,7 +117,9 @@ type EmbeddingDimension implements Node {
   """
   dataQualityTimeSeries(metric: DataQualityMetric!, timeRange: TimeRange!, granularity: Granularity!): DataQualityTimeSeries!
 
-  "\n            Computes a drift time-series between the primary and reference datasets.\n            The output drift time-series contains one data point for each whole hour\n            in the input time range (inclusive of the time range start and exclusive\n            of the time range end). Each data point contains the drift metric value\n            between all reference data and the primary data within the evaluation\n            window ending at the corresponding time.\n\n            Returns None if no reference dataset exists or if the input time range\n            is invalid.\n            "
+  """
+  Computes a drift time-series between the primary and reference datasets. The output drift time-series contains one data point for each whole hour in the input time range (inclusive of the time range start and exclusive of the time range end). Each data point contains the drift metric value between all reference data and the primary data within the evaluation window ending at the corresponding time. Returns None if no reference dataset exists or if the input time range is invalid.           
+  """
   driftTimeSeries(metric: VectorDriftMetric!, timeRange: TimeRange!, granularity: Granularity!): DriftTimeSeries!
   UMAPPoints(
     """The time range of the primary dataset to generate the UMAP points for"""
@@ -173,8 +177,11 @@ type EventMetadata {
   actualLabel: String
 }
 
-type ExportResponse {
+type ExportedFile {
+  """File name without the file extension."""
   fileName: String!
+
+  """Disk location where the file is stored."""
   directory: String!
 }
 
@@ -206,7 +213,10 @@ type Model {
 }
 
 type Mutation {
-  exportEvents(eventIds: [ID!]!, fileName: String = null): ExportResponse!
+  """
+  Given a list of event ids, export the corresponding data subset in parquet format. File name is optional, but if specified, should be without file extension. By default the exported file name is current timestamp.
+  """
+  exportEvents(eventIds: [ID!]!, fileName: String = null): ExportedFile!
 }
 
 """A node in the graph with a globally unique ID"""

@@ -9,23 +9,24 @@ from strawberry.types import Info
 from phoenix.config import EXPORT_DIR
 from phoenix.server.api.context import Context
 from phoenix.server.api.types.Event import parse_event_ids
-
-
-@strawberry.type
-class ExportResponse:
-    file_name: str
-    directory: str
+from phoenix.server.api.types.ExportedFile import ExportedFile
 
 
 @strawberry.type
 class ExportEventsMutation:
-    @strawberry.mutation
+    @strawberry.mutation(
+        description=(
+            "Given a list of event ids, export the corresponding data subset in parquet format."
+            " File name is optional, but if specified, should be without file extension. By default"
+            " the exported file name is current timestamp."
+        ),
+    )  # type: ignore  # https://github.com/strawberry-graphql/strawberry/issues/1929
     async def export_events(
         self,
         info: Info[Context, None],
         event_ids: List[ID],
         file_name: Optional[str] = None,
-    ) -> ExportResponse:
+    ) -> ExportedFile:
         if file_name is None:
             file_name = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         row_ids = parse_event_ids(event_ids)
@@ -37,7 +38,7 @@ class ExportEventsMutation:
                 row_ids,
                 fd,
             )
-        return ExportResponse(
+        return ExportedFile(
             file_name=file_name,
             directory=str(EXPORT_DIR),
         )
