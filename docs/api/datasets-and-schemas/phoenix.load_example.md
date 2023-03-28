@@ -7,7 +7,7 @@ description: A detailed description of the phoenix.load_example API
 ## function [phoenix.load\_example](https://github.com/Arize-ai/phoenix/blob/main/src/phoenix/datasets/fixtures.py)
 
 **(**\
-&#x20;       **use\_case:** str\
+&#x20;       **use\_case:** str,\
 **)  ->**  [phoenix.ExampleDatasets](phoenix.exampledatasets.md)
 
 Downloads example datasets that enable users to quickly launch the app with concrete use-cases.
