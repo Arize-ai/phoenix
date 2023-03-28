@@ -52,10 +52,6 @@ schema = px.Schema(
 
 This schema defines predicted and actual labels and scores, but you can run Phoenix with any subset of those fields, e.g., with only predicted labels.
 
-{% hint style="info" %}
-For more information on timestamps, including details on how Phoenix handles time zones, see the [API reference](../reference/api/phoenix.schema).
-{% endhint %}
-
 ## Features and Tags
 
 Phoenix accepts not only predictions and ground truth but also input features of your model and tags that describe your data. In the example below, features such as FICO score and merchant ID are used to predict whether a credit card transaction is legitimate or fraudulent. In contrast, tags such as age and gender are not model inputs, but are used to filter your data and analyze meaningful cohorts in the app.
