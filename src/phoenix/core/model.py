@@ -124,9 +124,9 @@ class Model:
         Parameters
         ----------
         rows: Mapping[DatasetType, Iterable[int]]
-            row numbers per dataset type
-        file: file handle
-            output file
+            mapping of dataset type to list of row numbers
+        parquet_file: file handle
+            output parquet file handle
         """
         pd.concat(
             dataset.export_events(rows.get(dataset_type, ()))

@@ -26,7 +26,6 @@ def get_pids_path() -> Path:
     return path
 
 
-PHOENIX_DIR = Path(__file__).resolve().parent
 for dir in (
     ROOT_DIR := Path.home().resolve() / ".phoenix",
     EXPORT_DIR := ROOT_DIR / "exports",
@@ -34,6 +33,7 @@ for dir in (
 ):
     dir.mkdir(parents=True, exist_ok=True)
 
+PHOENIX_DIR = Path(__file__).resolve().parent
 # Server config
 SERVER_DIR = PHOENIX_DIR / "server"
 # The port the server will run on after launch_app is called
