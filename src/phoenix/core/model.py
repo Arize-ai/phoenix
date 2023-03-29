@@ -7,7 +7,7 @@ from pandas.api.types import is_numeric_dtype, is_object_dtype
 from phoenix.datasets import Dataset
 from phoenix.datasets.schema import EmbeddingColumnNames, EmbeddingFeatures
 
-from ..datasets.dataset import DatasetType
+from ..datasets.dataset import DatasetRole
 from .dimension import Dimension
 from .dimension_data_type import DimensionDataType
 from .dimension_type import DimensionType
@@ -23,8 +23,8 @@ class Model:
             self.primary_dataset, self.reference_dataset
         )
         self.__datasets = {
-            DatasetType.PRIMARY: primary_dataset,
-            DatasetType.REFERENCE: reference_dataset,
+            DatasetRole.PRIMARY: primary_dataset,
+            DatasetRole.REFERENCE: reference_dataset,
         }
 
     @property
@@ -114,7 +114,7 @@ class Model:
 
     def export_events_as_parquet_file(
         self,
-        rows: Mapping[DatasetType, Iterable[int]],
+        rows: Mapping[DatasetRole, Iterable[int]],
         parquet_file: BinaryIO,
     ) -> None:
         """
@@ -123,14 +123,14 @@ class Model:
 
         Parameters
         ----------
-        rows: Mapping[DatasetType, Iterable[int]]
+        rows: Mapping[DatasetRole, Iterable[int]]
             mapping of dataset type to list of row numbers
         parquet_file: file handle
             output parquet file handle
         """
         pd.concat(
-            dataset.get_events(rows.get(dataset_type, ()))
-            for dataset_type, dataset in self.__datasets.items()
+            dataset.get_events(rows.get(dataset_role, ()))
+            for dataset_role, dataset in self.__datasets.items()
             if dataset is not None
         ).to_parquet(parquet_file, index=False)
 

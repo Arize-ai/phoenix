@@ -2,7 +2,7 @@ import React from "react";
 import { transparentize } from "polished";
 import { css } from "@emotion/react";
 
-import { DatasetType } from "@phoenix/types";
+import { DatasetRole } from "@phoenix/types";
 
 type EventItemProps = {
   /**
@@ -16,7 +16,7 @@ type EventItemProps = {
   /**
    * Which dataset the event belongs to
    */
-  datasetType: DatasetType;
+  datasetRole: DatasetRole;
   /**
    * event handler for when the user clicks on the event item
    */
@@ -82,7 +82,7 @@ export function EventItem(props: EventItemProps) {
       )}
       <div
         data-testid="event-association"
-        data-dataset-type={props.datasetType}
+        data-dataset-type={props.datasetRole}
         css={css`
           height: var(--px-gradient-bar-height);
           flex: none;
