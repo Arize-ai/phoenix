@@ -114,7 +114,7 @@ export function ExportSelectionButton() {
                 </p>
               </div>
             </Alert>
-            <Accordion>
+            <Accordion variant="compact">
               <AccordionItem id="all-exports" title="Latest Exports">
                 <Suspense fallback={<Loading />}>
                   <ExportsList />
