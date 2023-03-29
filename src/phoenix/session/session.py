@@ -23,14 +23,14 @@ _session: Optional["Session"] = None
 
 @dataclass
 class ExportedFile:
-    """A Parquet file with the ability to load itself into a pd.DataFrame."""
+    """A Parquet file that can be loaded into a pd.DataFrame."""
 
     path: Path
 
     def __repr__(self) -> str:
         return f"<Parquet file: {self.path.stem}>"
 
-    @property
+    @cached_property
     def dataframe(self) -> pd.DataFrame:
         """Reads the Parquet file into a pandas.DataFrame"""
         return pd.read_parquet(self.path)
