@@ -115,7 +115,7 @@ A session that maintains the state of the Phoenix app.
 
 ### Methods
 
-* `def view(height: int = 1000) -> IPython.display.IFrame`\
+* **view**(height: int = 1000) -> IPython.display.IFrame\
   \
   Displays the Phoenix UI for a running session within an inline frame in the notebook.\
   \

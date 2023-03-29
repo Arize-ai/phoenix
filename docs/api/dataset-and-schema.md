@@ -28,9 +28,9 @@ A dataset containing a split or cohort of data to be analyzed independently or c
 
 ### Methods
 
-* **head(num\_rows:** Optional\[int] = 5**)  ->**  pandas.DataFrame\
+* **head**(num\_rows: Optional\[int] = 5) -> pandas.DataFrame\
   \
-  Returns the first **num\_rows** rows of the dataset's DataFrame. This method is useful for inspecting the dataset's underlying DataFrame to ensure it has the expected format and content.\
+  Returns the first `num_rows` rows of the dataset's DataFrame. This method is useful for inspecting the dataset's underlying DataFrame to ensure it has the expected format and content.\
   \
   **Parameters**
   * **num\_rows** (int): The number of rows in the returned DataFrame.
@@ -42,7 +42,7 @@ A dataset containing a split or cohort of data to be analyzed independently or c
 * **name** (str): The name of the dataset.
 
 {% hint style="info" %}
-The input DataFrame and schema are lightly processed during dataset initialization and are not necessarily identical to the corresponding **dataframe** and **schema** attributes.
+The input DataFrame and schema are lightly processed during dataset initialization and are not necessarily identical to the corresponding `dataframe` and `schema` attributes.
 {% endhint %}
 
 ### Usage
@@ -59,7 +59,7 @@ Alternatively, provide a name for the dataset that will appear in the applicatio
 ds = px.Dataset(df, schema, name="training")
 ```
 
-`ds` is then passed as the **primary** or **reference** argument to [phoenix.launch\_app](session.md#phoenix.launch\_app).
+`ds` is then passed as the `primary` or `reference` argument to [phoenix.launch\_app](session.md#phoenix.launch\_app).
 
 ## phoenix.Schema
 
@@ -90,14 +90,14 @@ A dataclass that assigns the columns of a Pandas DataFrame to the appropriate mo
   * If the column has datetime dtype and contains timezone-naive timestamps, Phoenix assumes those timestamps belong to the UTC timezone.
   * If the column has datetime dtype and contains timezone-aware timestamps, those timestamps are converted to UTC.
   * If no timestamp column is provided, each record in the dataset is assigned the current timestamp upon [phoenix.Dataset](dataset-and-schema.md#phoenix.dataset) initialization.
-* **feature\_column\_names** (Optional\[List\[str]]): The names of the DataFrame's feature columns, if any exist. If no feature column names are provided, all DataFrame column names that are not included elsewhere in the schema and are not explicitly excluded in the list of **excludes** are assumed to be features.
+* **feature\_column\_names** (Optional\[List\[str]]): The names of the DataFrame's feature columns, if any exist. If no feature column names are provided, all DataFrame column names that are not included elsewhere in the schema and are not explicitly excluded in `excluded_column_names` are assumed to be features.
 * **tag\_column\_names** (Optional\[List\[str]]): The names of the DataFrame's tag columns, if any exist. Tags, like features, are attributes that can be used for filtering records of the dataset while using the app. Unlike features, tags are not model inputs and are not used for computing metrics.
 * **prediction\_label\_column\_name** (Optional\[str]): The name of the DataFrame's predicted label column, if one exists. Predicted labels are used for classification problems with categorical model output.
 * **prediction\_score\_column\_name** (Optional\[str]): The name of the DataFrame's predicted score column, if one exists. Predicted scores are used for regression problems with continuous numerical model output.
 * **actual\_label\_column\_name** (Optional\[str]): The name of the DataFrame's actual label column, if one exists. Actual (i.e., ground truth) labels are used for classification problems with categorical model output.
 * **actual\_score\_column\_name** (Optional\[str]): The name of the DataFrame's actual score column, if one exists. Actual (i.e., ground truth) scores are used for regression problems with continuous numerical output.
 * **embedding\_feature\_column\_names** (Optional\[Dict\[str, [phoenix.EmbeddingColumnNames](dataset-and-schema.md#phoenix.embeddingcolumnnames)]]): A dictionary mapping the name of each embedding feature to an instance of [phoenix.EmbeddingColumnNames](dataset-and-schema.md#phoenix.embeddingcolumnnames) if any embedding features exist, otherwise, None. Each instance of [phoenix.EmbeddingColumnNames](dataset-and-schema.md#phoenix.embeddingcolumnnames) associates one or more DataFrame columns containing vector data, image links, or text with the same embedding feature. Note that the keys of the dictionary are user-specified names that appear in the Phoenix UI and do not refer to columns of the DataFrame.
-* **excludes** (Optional\[List\[str]]): The names of the DataFrame columns to be excluded from the implicitly inferred list of feature column names. This field should only be used for implicit feature discovery, i.e., when **feature\_column\_names** is unused and the DataFrame contains feature columns not explicitly included in the schema.
+* **excludes** (Optional\[List\[str]]): The names of the DataFrame columns to be excluded from the implicitly inferred list of feature column names. This field should only be used for implicit feature discovery, i.e., when `feature_column_names` is unused and the DataFrame contains feature columns not explicitly included in the schema.
 
 ### Usage
 
@@ -113,7 +113,7 @@ class EmbeddingColumnNames(
 )
 ```
 
-A dataclass that associates one or more columns of a DataFrame with an embedding feature. Instances of this class are only used as values in a dictionary passed to the **embedding\_feature\_column\_names** field of [phoenix.Schema](dataset-and-schema.md#phoenix.schema).
+A dataclass that associates one or more columns of a DataFrame with an embedding feature. Instances of this class are only used as values in a dictionary passed to the `embedding_feature_column_names` field of [phoenix.Schema](dataset-and-schema.md#phoenix.schema).
 
 **\[**[**source**](https://github.com/Arize-ai/phoenix/blob/main/src/phoenix/datasets/schema.py)**]**
 
