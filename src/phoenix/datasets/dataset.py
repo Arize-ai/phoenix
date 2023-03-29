@@ -301,16 +301,15 @@ def _parse_dataframe_and_schema(dataframe: DataFrame, schema: Schema) -> Tuple[D
     they are not explicitly provided, and removes excluded column names from
     both dataframe and schema.
 
-    Removes column names in `schema.excludes` from the input dataframe and
-    schema. To remove an embedding feature and all associated columns, add the
-    name of the embedding feature to `schema.excludes` rather than the
-    associated column names. If `schema.feature_column_names` is `None`,
-    automatically discovers features by adding all column names present in the
-    dataframe but not included in any other schema fields.
+    Removes column names in `schema.excluded_column_names` from the input dataframe and schema. To
+    remove an embedding feature and all associated columns, add the name of the embedding feature to
+    `schema.excluded_column_names` rather than the associated column names. If
+    `schema.feature_column_names` is `None`, automatically discovers features by adding all column
+    names present in the dataframe but not included in any other schema fields.
     """
 
     unseen_excluded_column_names: Set[str] = (
-        set(schema.excludes) if schema.excludes is not None else set()
+        set(schema.excluded_column_names) if schema.excluded_column_names is not None else set()
     )
     unseen_column_names: Set[str] = set(dataframe.columns.to_list())
     column_name_to_include: Dict[str, bool] = {}
@@ -509,7 +508,7 @@ def _create_and_normalize_dataframe_and_schema(
         if column_name_to_include.get(str(column_name), False):
             included_column_names.append(str(column_name))
     parsed_dataframe = dataframe[included_column_names].copy()
-    parsed_schema = replace(schema, excludes=None, **schema_patch)
+    parsed_schema = replace(schema, excluded_column_names=None, **schema_patch)
     pred_col_name = parsed_schema.prediction_id_column_name
     if pred_col_name is None:
         parsed_schema = replace(parsed_schema, prediction_id_column_name="prediction_id")

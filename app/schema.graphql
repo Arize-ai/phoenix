@@ -210,6 +210,11 @@ type Model {
   primaryDataset: Dataset!
   referenceDataset: Dataset
   embeddingDimensions(first: Int = 50, last: Int = null, after: String, before: String): EmbeddingDimensionConnection!
+
+  """
+  Returns n most recent exported Parquet files sorted by descending modification time.
+  """
+  exportedFiles(nLatest: Int! = 5): [ExportedFile!]!
 }
 
 type Mutation {
