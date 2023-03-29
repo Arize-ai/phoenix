@@ -1,8 +1,12 @@
 import logging
+from dataclasses import dataclass
 from functools import cached_property
-from typing import Optional
+from pathlib import Path
+from typing import List, Optional
 
-import phoenix.config as config
+import pandas as pd
+
+from phoenix.config import PORT, get_exported_files
 from phoenix.datasets import Dataset
 from phoenix.services import AppService
 
@@ -15,6 +19,21 @@ logger = logging.getLogger(__name__)
 
 
 _session: Optional["Session"] = None
+
+
+@dataclass
+class ExportedFile:
+    """A Parquet file that can be loaded into a pd.DataFrame."""
+
+    path: Path
+
+    def __repr__(self) -> str:
+        return f"<Parquet file: {self.path.stem}>"
+
+    @property
+    def dataframe(self) -> pd.DataFrame:
+        """Reads the Parquet file into a pandas.DataFrame"""
+        return pd.read_parquet(self.path)
 
 
 class Session:
@@ -31,6 +50,19 @@ class Session:
             reference_dataset_name=reference.name if reference is not None else None,
         )
         self._is_colab = _is_colab()
+
+    @property
+    def exports(self) -> List[ExportedFile]:
+        """Most recently exported Parquet files (showing up to 5), sorted in
+         descending order by modification date.
+
+        Returns
+        -------
+        list: exported Parquet files
+            List of exported Parquet files. Use the `.dataframe` property on
+            each object to convert it into a pd.DataFrame.
+        """
+        return list(map(ExportedFile, get_exported_files(5)))
 
     def view(self, height: int = 1000) -> "IFrame":
         """
@@ -80,7 +112,7 @@ def launch_app(primary: Dataset, reference: Optional[Dataset] = None) -> "Sessio
     """
     global _session
 
-    _session = Session(primary, reference, port=config.PORT)
+    _session = Session(primary, reference, port=PORT)
     print(f"🌍 To view the Phoenix app in your browser, visit {_session.url}")
     print("📺 To view the Phoenix app in a notebook, run `px.active_session().view()`")
     print("📖 For more information on how to use Phoenix, check out https://docs.arize.com/phoenix")
