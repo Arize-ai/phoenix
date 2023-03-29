@@ -51,10 +51,6 @@ Returns the active Phoenix session if one exists, otherwise, returns None.
 
 **\[**[**session**](https://github.com/Arize-ai/phoenix/blob/main/src/phoenix/session/session.py)**]**
 
-### Notes
-
-Use this function when you need access to an existing Phoenix session.
-
 ### Usage
 
 Suppose you previously ran
@@ -79,11 +75,11 @@ def close_app() -> None
 
 Closes the running Phoenix session, if it exists.
 
-**\[**[**source**](https://github.com/Arize-ai/phoenix/blob/main/src/phoenix/session/session.py)**]**
-
-### Notes
-
+{% hint style="warning" %}
 The Phoenix server will continue running in the background until it is explicitly closed, even if the Jupyter server and kernel are stopped.
+{% endhint %}
+
+**\[**[**source**](https://github.com/Arize-ai/phoenix/blob/main/src/phoenix/session/session.py)**]**
 
 ### Usage
 
@@ -126,11 +122,11 @@ A session that maintains the state of the Phoenix app.
 
 * **url** (str): The URL of the running Phoenix session. Can be copied and pasted to open the Phoenix UI in a new browser tab or window.
 
-### Notes
-
-Phoenix users should not instantiate their own phoenix.Session instances. They interact with this API only when an instance of the class is returned by [phoenix.launch\_app](session.md#phoenix.launch\_app) or [phoenix.active\_session](session.md#phoenix.active\_session).
-
 ### Usage
+
+{% hint style="warning" %}
+Phoenix users should not instantiate their own phoenix.Session instances. They interact with this API only when an instance of the class is returned by [phoenix.launch\_app](session.md#phoenix.launch\_app) or [phoenix.active\_session](session.md#phoenix.active\_session).
+{% endhint %}
 
 Launch Phoenix with primary and reference datasets `prim_ds` and `ref_ds`, both instances of [phoenix.Dataset](dataset-and-schema.md#phoenix.dataset), with
 

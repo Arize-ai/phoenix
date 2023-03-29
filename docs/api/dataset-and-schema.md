@@ -123,10 +123,10 @@ A dataclass that associates one or more columns of a DataFrame with an embedding
 * **raw\_data\_column\_name** (Optional\[str]): The name of the DataFrame column containing the raw text associated with an embedding feature, if such a column exists. This field is used when an embedding feature describes a piece of text, for example, in the context of NLP.
 * **link\_to\_data\_column\_name** (Optional\[str]): The name of the DataFrame column containing links to images associated with an embedding feature, if such a column exists. This field is used when an embedding feature describes an image, for example, in the context of computer vision.
 
-### Notes
-
+{% hint style="info" %}
 See [here](../how-to/define-your-schema.md#local-images) for recommendations on handling local image files.
+{% endhint %}
 
 ### Usage
 
-See the API reference for [phoenix.Schema](dataset-and-schema.md#phoenix.schema) for examples.
+See the guide on how to [create embedding features ](../how-to/define-your-schema.md#embedding-features)for examples.
