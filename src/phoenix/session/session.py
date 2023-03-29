@@ -30,7 +30,7 @@ class ExportedFile:
     def __repr__(self) -> str:
         return f"<Parquet file: {self.path.stem}>"
 
-    @cached_property
+    @property
     def dataframe(self) -> pd.DataFrame:
         """Reads the Parquet file into a pandas.DataFrame"""
         return pd.read_parquet(self.path)
@@ -53,8 +53,8 @@ class Session:
 
     @property
     def exports(self) -> List[ExportedFile]:
-        """Most recently exported Parquet files (showing up to 5 files) sorted
-        in descending order by modification date.
+        """Most recently exported Parquet files (showing up to 5), sorted in
+         descending order by modification date.
 
         Returns
         -------
