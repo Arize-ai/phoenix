@@ -47,6 +47,10 @@ def get_exported_files(
         Specifies the number of the most recent exported files to return. If
         there are fewer than n exported files then fewer than n files will
         be returned.
+    directory: Path, optional, default=EXPORT_DIR
+        Disk location to search exported files.
+    extension: str, optional, default="parquet"
+        File extension to search for.
 
     Returns
     -------
