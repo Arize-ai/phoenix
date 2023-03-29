@@ -7,7 +7,6 @@ import {
   CloseOutline,
   Dialog,
   DialogContainer,
-  Download,
   Icon,
   TabPane,
   Tabs,
