@@ -59,8 +59,8 @@ class Session:
         Returns
         -------
         list: exported Parquet files
-            List of exported Parquet files. Call the `.dataframe` attribute on
-            each object to read it into a pandas.DataFrame.
+            List of exported Parquet files. Use the `.dataframe` property on
+            each object to convert it into a pd.DataFrame.
         """
         return list(map(ExportedFile, get_exported_files(5)))
 
