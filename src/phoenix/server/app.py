@@ -2,11 +2,13 @@ import logging
 from typing import Optional, Union
 
 from starlette.applications import Starlette
+from starlette.datastructures import QueryParams
+from starlette.endpoints import HTTPEndpoint
 from starlette.exceptions import HTTPException
 from starlette.middleware import Middleware
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.requests import Request
-from starlette.responses import Response
+from starlette.responses import FileResponse, Response
 from starlette.routing import Mount, Route, WebSocketRoute
 from starlette.staticfiles import StaticFiles
 from starlette.types import Scope
@@ -14,7 +16,7 @@ from starlette.websockets import WebSocket
 from strawberry.asgi import GraphQL
 from strawberry.schema import BaseSchema
 
-from phoenix.config import SERVER_DIR
+from phoenix.config import EXPORT_DIR, SERVER_DIR
 from phoenix.core.model import Model
 from phoenix.datasets import Dataset
 
@@ -81,6 +83,19 @@ class GraphQLWithContext(GraphQL):
         )
 
 
+class Download(HTTPEndpoint):
+    async def get(self, request: Request) -> FileResponse:
+        params = QueryParams(request.query_params)
+        file = EXPORT_DIR / (params.get("filename", "") + ".parquet")
+        if not file.is_file():
+            raise HTTPException(status_code=404)
+        return FileResponse(
+            path=file,
+            filename=file.name,
+            media_type="application/x-octet-stream",
+        )
+
+
 def create_app(
     primary_dataset_name: str,
     reference_dataset_name: Optional[str],
@@ -88,9 +103,11 @@ def create_app(
 ) -> Starlette:
     model = Model(
         primary_dataset=Dataset.from_name(primary_dataset_name),
-        reference_dataset=Dataset.from_name(reference_dataset_name)
-        if reference_dataset_name is not None
-        else None,
+        reference_dataset=(
+            Dataset.from_name(reference_dataset_name)
+            if reference_dataset_name is not None
+            else None
+        ),
     )
     graphql = GraphQLWithContext(
         schema=schema,
@@ -104,6 +121,10 @@ def create_app(
         ],
         debug=debug,
         routes=[
+            Route(
+                "/exports",
+                Download,
+            ),
             Route(
                 "/graphql",
                 graphql,
