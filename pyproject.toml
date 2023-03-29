@@ -32,7 +32,6 @@ dependencies = [
   "pyarrow",
   "typing_extensions",
   "scipy",
-  "wrapt",
 ]
 dynamic = ["version"]
 
@@ -225,7 +224,6 @@ module = [
   "scipy.*",
   "sklearn.*",
   "arize.*",
-  "wrapt",
 ]
 ignore_missing_imports = true
 

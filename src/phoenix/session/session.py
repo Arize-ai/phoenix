@@ -1,10 +1,10 @@
 import logging
+from dataclasses import dataclass
 from functools import cached_property
 from pathlib import Path
 from typing import List, Optional
 
 import pandas as pd
-from wrapt import ObjectProxy
 
 from phoenix.config import PORT, get_exported_files
 from phoenix.datasets import Dataset
@@ -21,18 +21,19 @@ logger = logging.getLogger(__name__)
 _session: Optional["Session"] = None
 
 
-class ExportedFile(ObjectProxy):  # type: ignore  # mypy forbids inheritance
-    """Proxy object for pathlib.Path to a Parquet file with an added property
-    to load it into pd.DataFrame. (The `.dataframe` property is not cached.)
-    """
+@dataclass
+class ExportedFile:
+    """A Parquet file with the ability to load itself into a pd.DataFrame."""
+
+    path: Path
 
     def __repr__(self) -> str:
-        return f"<Parquet file: {self.stem}>"
+        return f"<Parquet file: {self.path.stem}>"
 
     @property
     def dataframe(self) -> pd.DataFrame:
         """Reads the Parquet file into a pandas.DataFrame"""
-        return pd.read_parquet(self.__wrapped__)
+        return pd.read_parquet(self.path)
 
 
 class Session:
@@ -51,7 +52,7 @@ class Session:
         self._is_colab = _is_colab()
 
     @property
-    def exports(self) -> List[Path]:
+    def exports(self) -> List[ExportedFile]:
         """Most recently exported Parquet files (showing up to 5 files) sorted
         in descending order by modification date.
 
