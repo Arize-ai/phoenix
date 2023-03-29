@@ -7,6 +7,7 @@ import {
   CloseOutline,
   Dialog,
   DialogContainer,
+  Download,
   Icon,
   TabPane,
   Tabs,
@@ -27,6 +28,7 @@ import {
   PointSelectionPanelContentQuery$data,
 } from "./__generated__/PointSelectionPanelContentQuery.graphql";
 import { EventDetails } from "./EventDetails";
+import { ExportSelectionButton } from "./ExportSelectionButton";
 import { PointSelectionTable } from "./PointSelectionTable";
 import { ModelEvent, UMAPPointsEntry } from "./types";
 
@@ -157,6 +159,9 @@ export function PointSelectionPanelContent(props: {
           position: absolute;
           top: var(--px-spacing-med);
           right: var(--px-spacing-lg);
+          display: flex;
+          flex-direction: row-reverse;
+          gap: var(--px-spacing-med);
         `}
       >
         <Button
@@ -166,6 +171,7 @@ export function PointSelectionPanelContent(props: {
           aria-label="Clear selection"
           onClick={onClose}
         />
+        <ExportSelectionButton />
       </div>
       {/* @ts-expect-error more tabs to come */}
       <Tabs>
