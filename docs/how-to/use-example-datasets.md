@@ -14,7 +14,7 @@ To see a list of datasets available for download, run
 px.load_example?
 ```
 
-This displays the docstring for the `px.load_example` function, which contain a list of datasets available for download.
+This displays the docstring for the `phoenix.load_example` function, which contain a list of datasets available for download.
 
 ## Download Your Dataset of Choice
 
@@ -25,11 +25,10 @@ datasets = px.load_example("sentiment_classification_language_drift")
 datasets
 ```
 
-`px.load_example` returns your downloaded data in the form of a `DatasetDict` instance. After running the code above, you should see the following in your cell output.
+`px.load_example` returns your downloaded data in the form of an `ExampleDatasets` instance. After running the code above, you should see the following in your cell output.
 
 ```
-{'primary': <Dataset "sentiment_classification_language_drift_primary">,
- 'reference': <Dataset "sentiment_classification_language_drift_reference">}
+ExampleDatasets(primary=<Dataset "sentiment_classification_language_drift_primary">, reference=<Dataset "sentiment_classification_language_drift_reference">)
 ```
 
 ## Inspect Your Datasets
@@ -37,7 +36,7 @@ datasets
 Next, inspect the name, DataFrame, and schema that define your primary dataset. First, run
 
 ```python
-prim_ds = datasets["primary"]
+prim_ds = datasets.primary
 prim_ds.name
 ```
 
@@ -87,16 +86,12 @@ dtypes: datetime64[ns, UTC](1), int16(1), object(8)
 memory usage: 2.6+ MB
 ```
 
-{% hint style="warning" %}
-The `dataframe` field on an instance of `phoenix.Dataset` is a lightly processed copy of your input DataFrame and is not intended to be updated by end users. If you need to update your dataset's DataFrame, create a new `phoenix.Dataset` instance rather than changing the `dataframe` field on your existing dataset.
-{% endhint %}
-
 ## Launch the App
 
 Launch Phoenix with
 
 ```python
-px.launch_app(datasets["primary"], datasets["reference"])
+px.launch_app(datasets.primary, datasets.reference)
 ```
 
 Follow the instructions in the cell output to open the Phoenix UI in your notebook or in a separate browser tab.
