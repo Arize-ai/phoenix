@@ -14,7 +14,7 @@ To see a list of datasets available for download, run
 px.load_example?
 ```
 
-This displays the docstring for the `px.load_example` function, which contain a list of datasets available for download.
+This displays the docstring for the `phoenix.load_example` function, which contain a list of datasets available for download.
 
 ## Download Your Dataset of Choice
 
@@ -85,10 +85,6 @@ Data columns (total 10 columns):
 dtypes: datetime64[ns, UTC](1), int16(1), object(8)
 memory usage: 2.6+ MB
 ```
-
-{% hint style="warning" %}
-The `dataframe` field on an instance of `phoenix.Dataset` is a lightly processed copy of your input DataFrame and is not intended to be updated by end users. If you need to update your dataset's DataFrame, create a new `phoenix.Dataset` instance rather than changing the `dataframe` field on your existing dataset.
-{% endhint %}
 
 ## Launch the App
 
