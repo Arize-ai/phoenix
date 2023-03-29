@@ -108,7 +108,7 @@ class TestParseDataFrameAndSchema:
             feature_column_names=["feature0", "feature1"],
             tag_column_names=["tag0"],
             prediction_label_column_name="prediction_label",
-            excludes=["feature1"],
+            excluded_column_names=["feature1"],
         )
         self._parse_dataframe_and_schema_and_check_output(
             input_dataframe=input_dataframe,
@@ -121,7 +121,7 @@ class TestParseDataFrameAndSchema:
                 prediction_label_column_name="prediction_label",
                 feature_column_names=["feature0"],
                 tag_column_names=["tag0"],
-                excludes=None,
+                excluded_column_names=None,
             ),
             should_log_warning_to_user=False,
             caplog=caplog,
@@ -140,14 +140,14 @@ class TestParseDataFrameAndSchema:
                 "tag0": ["tag" for _ in range(self.num_records)],
             }
         )
-        excludes = ["feature0", "feature1", "tag0"]
+        excluded_column_names = ["feature0", "feature1", "tag0"]
         input_schema = Schema(
             prediction_id_column_name="prediction_id",
             timestamp_column_name="timestamp",
             feature_column_names=["feature0", "feature1"],
             tag_column_names=["tag0"],
             prediction_label_column_name="prediction_label",
-            excludes=excludes,
+            excluded_column_names=excluded_column_names,
         )
         self._parse_dataframe_and_schema_and_check_output(
             input_dataframe=input_dataframe,
@@ -160,7 +160,7 @@ class TestParseDataFrameAndSchema:
                 prediction_label_column_name="prediction_label",
                 feature_column_names=None,
                 tag_column_names=None,
-                excludes=None,
+                excluded_column_names=None,
             ),
             should_log_warning_to_user=False,
             caplog=caplog,
@@ -181,7 +181,7 @@ class TestParseDataFrameAndSchema:
             timestamp_column_name="timestamp",
             prediction_label_column_name="prediction_label",
             feature_column_names=["feature0", "feature1"],
-            excludes=["prediction_label"],
+            excluded_column_names=["prediction_label"],
         )
         self._parse_dataframe_and_schema_and_check_output(
             input_dataframe=input_dataframe,
@@ -192,13 +192,13 @@ class TestParseDataFrameAndSchema:
             expected_parsed_schema=replace(
                 input_schema,
                 prediction_label_column_name=None,
-                excludes=None,
+                excluded_column_names=None,
             ),
             should_log_warning_to_user=False,
             caplog=caplog,
         )
 
-    def test_no_input_schema_features_and_no_excludes_discovers_features(self, caplog):
+    def test_no_input_schema_features_and_no_excluded_column_names_discovers_features(self, caplog):
         input_dataframe = DataFrame(
             {
                 "prediction_id": [str(x) for x in range(self.num_records)],
@@ -225,7 +225,7 @@ class TestParseDataFrameAndSchema:
             caplog=caplog,
         )
 
-    def test_no_input_schema_features_and_list_of_excludes_discovers_non_excluded_features(
+    def test_no_input_schema_features_and_nonempty_excluded_column_names_discovers_features(
         self, caplog
     ):
         input_dataframe = DataFrame(
@@ -240,13 +240,13 @@ class TestParseDataFrameAndSchema:
                 "tag1": ["tag1" for _ in range(self.num_records)],
             }
         )
-        excludes = ["prediction_label", "feature1", "tag0"]
+        excluded_column_names = ["prediction_label", "feature1", "tag0"]
         input_schema = Schema(
             prediction_id_column_name="prediction_id",
             timestamp_column_name="timestamp",
             tag_column_names=["tag0", "tag1"],
             prediction_label_column_name="prediction_label",
-            excludes=excludes,
+            excluded_column_names=excluded_column_names,
         )
         self._parse_dataframe_and_schema_and_check_output(
             input_dataframe=input_dataframe,
@@ -259,7 +259,7 @@ class TestParseDataFrameAndSchema:
                 prediction_label_column_name=None,
                 feature_column_names=["feature0", "feature2"],
                 tag_column_names=["tag1"],
-                excludes=None,
+                excluded_column_names=None,
             ),
             should_log_warning_to_user=False,
             caplog=caplog,
@@ -278,14 +278,14 @@ class TestParseDataFrameAndSchema:
                 "tag1": ["tag1" for _ in range(self.num_records)],
             }
         )
-        excludes = ["prediction_label", "column_not_in_dataframe"]
+        excluded_column_names = ["prediction_label", "column_not_in_dataframe"]
         input_schema = Schema(
             prediction_id_column_name="prediction_id",
             timestamp_column_name="timestamp",
             feature_column_names=["feature0", "feature1", "feature2"],
             tag_column_names=["tag0", "tag1"],
             prediction_label_column_name="prediction_label",
-            excludes=excludes,
+            excluded_column_names=excluded_column_names,
         )
         self._parse_dataframe_and_schema_and_check_output(
             input_dataframe=input_dataframe,
@@ -294,7 +294,7 @@ class TestParseDataFrameAndSchema:
                 ["prediction_id", "timestamp", "feature0", "feature1", "feature2", "tag0", "tag1"]
             ],
             expected_parsed_schema=replace(
-                input_schema, prediction_label_column_name=None, excludes=None
+                input_schema, prediction_label_column_name=None, excluded_column_names=None
             ),
             should_log_warning_to_user=True,
             caplog=caplog,
@@ -362,7 +362,7 @@ class TestParseDataFrameAndSchema:
                     raw_data_column_name="raw_data_column1",
                 ),
             },
-            excludes=["embedding_feature0"],
+            excluded_column_names=["embedding_feature0"],
         )
         self._parse_dataframe_and_schema_and_check_output(
             input_dataframe=input_dataframe,
@@ -385,7 +385,7 @@ class TestParseDataFrameAndSchema:
                         raw_data_column_name="raw_data_column1",
                     )
                 },
-                excludes=None,
+                excluded_column_names=None,
             ),
             should_log_warning_to_user=False,
             caplog=caplog,
@@ -413,7 +413,7 @@ class TestParseDataFrameAndSchema:
                     raw_data_column_name="raw_data_column0",
                 ),
             },
-            excludes=["embedding_feature0"],
+            excluded_column_names=["embedding_feature0"],
         )
         self._parse_dataframe_and_schema_and_check_output(
             input_dataframe=input_dataframe,
@@ -422,7 +422,7 @@ class TestParseDataFrameAndSchema:
             expected_parsed_schema=replace(
                 input_schema,
                 embedding_feature_column_names=None,
-                excludes=None,
+                excluded_column_names=None,
             ),
             should_log_warning_to_user=False,
             caplog=caplog,
@@ -452,7 +452,7 @@ class TestParseDataFrameAndSchema:
                     raw_data_column_name="raw_data_column0",
                 ),
             },
-            excludes=["embedding_vector0"],
+            excluded_column_names=["embedding_vector0"],
         )
         self._parse_dataframe_and_schema_and_check_output(
             input_dataframe=input_dataframe,
@@ -460,7 +460,7 @@ class TestParseDataFrameAndSchema:
             expected_parsed_dataframe=input_dataframe,
             expected_parsed_schema=replace(
                 input_schema,
-                excludes=None,
+                excluded_column_names=None,
             ),
             should_log_warning_to_user=True,
             caplog=caplog,
@@ -489,7 +489,7 @@ class TestParseDataFrameAndSchema:
                     raw_data_column_name="raw_data_column0",
                 ),
             },
-            excludes=["embedding0"],
+            excluded_column_names=["embedding0"],
         )
         self._parse_dataframe_and_schema_and_check_output(
             input_dataframe=input_dataframe,
@@ -498,7 +498,7 @@ class TestParseDataFrameAndSchema:
             expected_parsed_schema=replace(
                 input_schema,
                 embedding_feature_column_names=None,
-                excludes=None,
+                excluded_column_names=None,
             ),
             should_log_warning_to_user=False,
             caplog=caplog,
@@ -702,7 +702,7 @@ class TestDataset:
             timestamp_column_name="timestamp",
             feature_column_names=["feature0"],
             prediction_label_column_name="prediction_label",
-            excludes=["timestamp"],
+            excluded_column_names=["timestamp"],
         )
 
         with raises(DatasetError):
@@ -722,7 +722,7 @@ class TestDataset:
             prediction_id_column_name="prediction_id",
             feature_column_names=["feature0"],
             prediction_label_column_name="prediction_label",
-            excludes=["prediction_id"],
+            excluded_column_names=["prediction_id"],
         )
 
         with raises(DatasetError):
