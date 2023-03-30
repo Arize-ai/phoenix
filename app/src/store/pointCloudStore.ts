@@ -599,7 +599,7 @@ function getNumericGroupsFromInterval({
  * Calculates the group mapping for each point
  */
 function getEventIdToGroup(
-  params: GetPointIdToGroupParams
+  params: GetEventIdToGroupParams
 ): Record<string, string> {
   const { points, coloringStrategy, pointsData, dimension, dimensionMetadata } =
     params;
@@ -755,7 +755,7 @@ async function fetchDimensionMetadata(
   };
 }
 
-type GetPointIdToGroupParams = {
+type GetEventIdToGroupParams = {
   points: readonly Point[];
   coloringStrategy: ColoringStrategy;
   pointsData: PointDataMap;
