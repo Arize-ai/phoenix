@@ -32,4 +32,5 @@
 
 ***
 
+* [GitHub](https://github.com/Arize-ai/phoenix)
 * [Releases](https://github.com/Arize-ai/phoenix/releases)
