@@ -132,7 +132,7 @@ You can tell Phoenix to ignore certain columns of your DataFrame when implicitly
 schema = px.Schema(
     prediction_label_column_name="predicted",
     actual_label_column_name="target",
-    excludes=[
+    excluded_column_names=[
         "hospital",
         "insurance_provider",
     ],
