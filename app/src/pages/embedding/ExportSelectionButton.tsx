@@ -27,8 +27,8 @@ type ExportInfo = {
 };
 
 export function ExportSelectionButton() {
-  const selectedPointIds = usePointCloudContext(
-    (state) => state.selectedPointIds
+  const selectedEventIds = usePointCloudContext(
+    (state) => state.selectedEventIds
   );
 
   const [commit, isInFlight] =
@@ -44,13 +44,13 @@ export function ExportSelectionButton() {
   const onClick = useCallback(() => {
     commit({
       variables: {
-        eventIds: [...selectedPointIds],
+        eventIds: [...selectedEventIds],
       },
       onCompleted: (data) => {
         setExportInfo(data.exportEvents);
       },
     });
-  }, [commit, selectedPointIds]);
+  }, [commit, selectedEventIds]);
 
   return (
     <>

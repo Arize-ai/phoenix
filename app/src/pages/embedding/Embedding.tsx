@@ -88,6 +88,7 @@ const EmbeddingUMAPQuery = graphql`
         ) {
           data {
             id
+            eventId
             coordinates {
               __typename
               ... on Point3D {
@@ -113,6 +114,7 @@ const EmbeddingUMAPQuery = graphql`
           }
           referenceData {
             id
+            eventId
             coordinates {
               __typename
               ... on Point3D {
@@ -138,7 +140,7 @@ const EmbeddingUMAPQuery = graphql`
           }
           clusters {
             id
-            pointIds
+            eventIds
             driftRatio
           }
         }
@@ -288,7 +290,8 @@ function EmbeddingMain() {
 function umapDataEntryToThreeDimensionalPointItem(
   umapData: UMAPPointsEntry
 ): ThreeDimensionalPointItem {
-  const { id, coordinates, eventMetadata, embeddingMetadata } = umapData;
+  const { id, eventId, coordinates, eventMetadata, embeddingMetadata } =
+    umapData;
   if (!coordinates) {
     throw new Error("No coordinates found for UMAP data entry");
   }
@@ -302,6 +305,7 @@ function umapDataEntryToThreeDimensionalPointItem(
     position: [coordinates.x, coordinates.y, coordinates.z],
     metaData: {
       id,
+      eventId,
       ...eventMetadata,
       ...embeddingMetadata,
     },
@@ -357,10 +361,10 @@ const PointCloudDisplay = ({
     return sourceData;
   }, [referenceSourceData, sourceData]);
 
-  const pointIdToDataMap = useMemo(() => {
+  const eventIdToDataMap = useMemo(() => {
     const map = new Map<string, UMAPPointsEntry>();
     allSourceData.forEach((entry) => {
-      map.set(entry.id, entry);
+      map.set(entry.eventId, entry);
     });
     return map;
   }, [allSourceData]);
@@ -430,7 +434,7 @@ const PointCloudDisplay = ({
               height: 100%;
             `}
           >
-            <SelectionPanel pointIdToDataMap={pointIdToDataMap} />
+            <SelectionPanel eventIdToDataMap={eventIdToDataMap} />
             <PointCloud
               primaryData={
                 sourceData.map(umapDataEntryToThreeDimensionalPointItem) ?? []
@@ -452,13 +456,13 @@ const PointCloudDisplay = ({
 };
 
 function SelectionPanel(props: {
-  pointIdToDataMap: Map<string, UMAPPointsEntry>;
+  eventIdToDataMap: Map<string, UMAPPointsEntry>;
 }) {
-  const selectedPointIds = usePointCloudContext(
-    (state) => state.selectedPointIds
+  const selectedEventIds = usePointCloudContext(
+    (state) => state.selectedEventIds
   );
 
-  if (selectedPointIds.size === 0) {
+  if (selectedEventIds.size === 0) {
     return null;
   }
 
@@ -486,7 +490,7 @@ function SelectionPanel(props: {
           <PointSelectionPanelContentWrap>
             <Suspense fallback={<Loading />}>
               <PointSelectionPanelContent
-                pointIdToDataMap={props.pointIdToDataMap}
+                eventIdToDataMap={props.eventIdToDataMap}
               />
             </Suspense>
           </PointSelectionPanelContentWrap>
@@ -523,8 +527,8 @@ function ClustersPanelContents({
   const setSelectedClusterId = usePointCloudContext(
     (state) => state.setSelectedClusterId
   );
-  const setSelectedPointIds = usePointCloudContext(
-    (state) => state.setSelectedPointIds
+  const setSelectedEventIds = usePointCloudContext(
+    (state) => state.setSelectedEventIds
   );
   const setHighlightedClusterId = usePointCloudContext(
     (state) => state.setHighlightedClusterId
@@ -550,12 +554,12 @@ function ClustersPanelContents({
               <li key={cluster.id}>
                 <ClusterItem
                   clusterId={cluster.id}
-                  numPoints={cluster.pointIds.length}
+                  numPoints={cluster.eventIds.length}
                   isSelected={selectedClusterId === cluster.id}
                   driftRatio={cluster.driftRatio}
                   onClick={() => {
                     setSelectedClusterId(cluster.id);
-                    setSelectedPointIds(new Set(cluster.pointIds));
+                    setSelectedEventIds(new Set(cluster.eventIds));
                   }}
                   onMouseEnter={() => {
                     setHighlightedClusterId(cluster.id);

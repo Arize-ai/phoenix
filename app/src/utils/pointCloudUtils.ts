@@ -1,20 +1,20 @@
 /**
- * A function to split point ids by dataset
- * @param pointIds
+ * A function to split event ids by dataset
+ * @param eventIds
  * @returns
  */
-export function splitPointIdsByDataset(pointIds: string[]): {
-  primaryPointIds: string[];
-  referencePointIds: string[];
+export function splitEventIdsByDataset(eventIds: string[]): {
+  primaryEventIds: string[];
+  referenceEventIds: string[];
 } {
-  const primaryPointIds: string[] = [];
-  const referencePointIds: string[] = [];
-  pointIds.forEach((id) => {
+  const primaryEventIds: string[] = [];
+  const referenceEventIds: string[] = [];
+  eventIds.forEach((id) => {
     if (id.includes("PRIMARY")) {
-      primaryPointIds.push(id);
+      primaryEventIds.push(id);
     } else {
-      referencePointIds.push(id);
+      referenceEventIds.push(id);
     }
   });
-  return { primaryPointIds, referencePointIds };
+  return { primaryEventIds, referenceEventIds };
 }

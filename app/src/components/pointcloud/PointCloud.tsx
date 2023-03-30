@@ -23,7 +23,7 @@ import {
 import { UNKNOWN_COLOR } from "@phoenix/constants/pointCloudConstants";
 import { PointCloudContext, usePointCloudContext } from "@phoenix/contexts";
 import { useTimeSlice } from "@phoenix/contexts/TimeSliceContext";
-import { splitPointIdsByDataset } from "@phoenix/utils/pointCloudUtils";
+import { splitEventIdsByDataset } from "@phoenix/utils/pointCloudUtils";
 
 import { fullTimeFormatter } from "../chart";
 
@@ -59,10 +59,10 @@ function PointCloudInfo() {
   );
   const umapParameters = usePointCloudContext((state) => state.umapParameters);
   const [numPrimary, numReference] = useMemo(() => {
-    const { primaryPointIds, referencePointIds } = splitPointIdsByDataset(
-      points.map((point) => point.id)
+    const { primaryEventIds, referenceEventIds } = splitEventIdsByDataset(
+      points.map((point) => point.eventId)
     );
-    return [primaryPointIds.length, referencePointIds.length];
+    return [primaryEventIds.length, referenceEventIds.length];
   }, [points]);
 
   if (!selectedTimestamp) {
@@ -243,8 +243,8 @@ export function PointCloud(props: PointCloudProps) {
 function Projection(props: ProjectionProps) {
   const { primaryData, referenceData, clusters, canvasMode } = props;
 
-  const setSelectedPointIds = usePointCloudContext(
-    (state) => state.setSelectedPointIds
+  const setSelectedEventIds = usePointCloudContext(
+    (state) => state.setSelectedEventIds
   );
   const highlightedClusterId = usePointCloudContext(
     (state) => state.highlightedClusterId
@@ -283,35 +283,35 @@ function Projection(props: ProjectionProps) {
 
   const isMoveMode = canvasMode === CanvasMode.move;
 
-  const pointIdToGroup = usePointCloudContext((state) => state.pointIdToGroup);
+  const eventIdToGroup = usePointCloudContext((state) => state.eventIdToGroup);
 
   // Color the points by their corresponding group
   const colorFn = useCallback(
     (point: PointBaseProps) => {
       // Always fallback to unknown
-      const group = pointIdToGroup[point.metaData.id] || "unknown";
+      const group = eventIdToGroup[point.metaData.eventId] || "unknown";
       return pointGroupColors[group] || UNKNOWN_COLOR;
     },
-    [pointGroupColors, pointIdToGroup]
+    [pointGroupColors, eventIdToGroup]
   );
 
   // Filter the points by the group visibility
   const filteredPrimaryData = useMemo(() => {
     return primaryData.filter((point) => {
-      const group = pointIdToGroup[point.metaData.id];
+      const group = eventIdToGroup[point.metaData.eventId];
       return pointGroupVisibility[group];
     });
-  }, [primaryData, pointIdToGroup, pointGroupVisibility]);
+  }, [primaryData, eventIdToGroup, pointGroupVisibility]);
 
   const filteredReferenceData = useMemo(() => {
     if (!referenceData) {
       return null;
     }
     return referenceData.filter((point) => {
-      const group = pointIdToGroup[point.metaData.id];
+      const group = eventIdToGroup[point.metaData.eventId];
       return pointGroupVisibility[group];
     });
-  }, [referenceData, pointIdToGroup, pointGroupVisibility]);
+  }, [referenceData, eventIdToGroup, pointGroupVisibility]);
 
   // Context cannot be passed through multiple reconcilers. Bridge the context
   const ContextBridge = useContextBridge(PointCloudContext);
@@ -337,7 +337,9 @@ function Projection(props: ProjectionProps) {
           <LassoSelect
             points={allPoints}
             onChange={(selection) => {
-              setSelectedPointIds(new Set(selection.map((s) => s.metaData.id)));
+              setSelectedEventIds(
+                new Set(selection.map((s) => s.metaData.eventId))
+              );
               setSelectedClusterId(null);
             }}
             enabled={canvasMode === CanvasMode.select}

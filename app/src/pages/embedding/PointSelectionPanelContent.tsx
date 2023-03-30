@@ -35,14 +35,14 @@ type EventsList =
   PointSelectionPanelContentQuery$data["model"]["primaryDataset"]["events"];
 
 export function PointSelectionPanelContent(props: {
-  pointIdToDataMap: Map<string, UMAPPointsEntry>;
+  eventIdToDataMap: Map<string, UMAPPointsEntry>;
 }) {
-  const { pointIdToDataMap } = props;
-  const selectedPointIds = usePointCloudContext(
-    (state) => state.selectedPointIds
+  const { eventIdToDataMap } = props;
+  const selectedEventIds = usePointCloudContext(
+    (state) => state.selectedEventIds
   );
-  const setSelectedPointIds = usePointCloudContext(
-    (state) => state.setSelectedPointIds
+  const setSelectedEventIds = usePointCloudContext(
+    (state) => state.setSelectedEventIds
   );
   const setSelectedClusterId = usePointCloudContext(
     (state) => state.setSelectedClusterId
@@ -60,7 +60,7 @@ export function PointSelectionPanelContent(props: {
   const { primaryEventIds, referenceEventIds } = useMemo(() => {
     const primaryEventIds: string[] = [];
     const referenceEventIds: string[] = [];
-    selectedPointIds.forEach((id) => {
+    selectedEventIds.forEach((id) => {
       if (id.includes("PRIMARY")) {
         primaryEventIds.push(id);
       } else {
@@ -68,7 +68,7 @@ export function PointSelectionPanelContent(props: {
       }
     });
     return { primaryEventIds, referenceEventIds };
-  }, [selectedPointIds]);
+  }, [selectedEventIds]);
   const data = useLazyLoadQuery<PointSelectionPanelContentQuery>(
     graphql`
       query PointSelectionPanelContentQuery(
@@ -124,13 +124,13 @@ export function PointSelectionPanelContent(props: {
   }, [data]);
 
   const onClose = () => {
-    setSelectedPointIds(new Set());
+    setSelectedEventIds(new Set());
     setSelectedClusterId(null);
   };
 
   const allData: ModelEvent[] = useMemo(() => {
     return allSelectedEvents.map((event) => {
-      const pointData = pointIdToDataMap.get(event.id);
+      const pointData = eventIdToDataMap.get(event.id);
       return {
         id: event.id,
         actualLabel: event.eventMetadata?.actualLabel ?? null,
@@ -140,7 +140,7 @@ export function PointSelectionPanelContent(props: {
         dimensions: event.dimensions,
       };
     });
-  }, [allSelectedEvents, pointIdToDataMap]);
+  }, [allSelectedEvents, eventIdToDataMap]);
 
   const eventDetails: ModelEvent | null = useMemo(() => {
     if (selectedDetailPointId) {
@@ -202,7 +202,7 @@ export function PointSelectionPanelContent(props: {
           ) : (
             <SelectionGridView
               events={allSelectedEvents}
-              pointIdToDataMap={pointIdToDataMap}
+              eventIdToDataMap={eventIdToDataMap}
               onItemSelected={setSelectedDetailPointId}
             />
           )}
@@ -225,7 +225,7 @@ export function PointSelectionPanelContent(props: {
 
 type SelectionGridViewProps = {
   events: EventsList;
-  pointIdToDataMap: Map<string, UMAPPointsEntry>;
+  eventIdToDataMap: Map<string, UMAPPointsEntry>;
   onItemSelected: (pointId: string) => void;
 };
 
@@ -262,12 +262,10 @@ const pointSelectionPanelCSS = css`
 `;
 
 function SelectionGridView(props: SelectionGridViewProps) {
-  const { events, pointIdToDataMap, onItemSelected } = props;
-  const { pointIdToGroup, pointGroupColors } = usePointCloudContext(
-    (state) => ({
-      pointIdToGroup: state.pointIdToGroup,
-      pointGroupColors: state.pointGroupColors,
-    })
+  const { events, eventIdToDataMap, onItemSelected } = props;
+  const eventIdToGroup = usePointCloudContext((state) => state.eventIdToGroup);
+  const pointGroupColors = usePointCloudContext(
+    (state) => state.pointGroupColors
   );
   return (
     <div
@@ -291,13 +289,13 @@ function SelectionGridView(props: SelectionGridViewProps) {
         `}
       >
         {events.map((event, idx) => {
-          const data = pointIdToDataMap.get(event.id);
+          const data = eventIdToDataMap.get(event.id);
           const { rawData = null, linkToData = null } =
             data?.embeddingMetadata ?? {};
           const datasetRole = event.id.includes("PRIMARY")
             ? DatasetRole.primary
             : DatasetRole.reference;
-          const color = pointGroupColors[pointIdToGroup[event.id]];
+          const color = pointGroupColors[eventIdToGroup[event.id]];
           return (
             <li key={idx}>
               <EventItem
