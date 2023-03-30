@@ -170,7 +170,7 @@ export interface PointCloudProps {
    */
   pointGroupColors: Record<string, string>;
   /**
-   * The mapping from pointId to point group.
+   * The mapping from eventId to point group.
    */
   eventIdToGroup: Record<string, string>;
   /**
@@ -337,7 +337,7 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
         selectedEventIds: new Set(),
         selectedClusterId: null,
         pointData: null,
-        eventIdToGroup: getPointIdToGroup({
+        eventIdToGroup: getEventIdToGroup({
           points,
           coloringStrategy: pointCloudState.coloringStrategy,
           pointsData: pointCloudState.pointData ?? {},
@@ -351,7 +351,7 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
 
       set({
         pointData,
-        eventIdToGroup: getPointIdToGroup({
+        eventIdToGroup: getEventIdToGroup({
           points,
           coloringStrategy: pointCloudState.coloringStrategy,
           pointsData: pointData ?? {},
@@ -386,7 +386,7 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
             },
             dimension: null,
             dimensionMetadata: null,
-            eventIdToGroup: getPointIdToGroup({
+            eventIdToGroup: getEventIdToGroup({
               points: pointCloudState.points,
               coloringStrategy: strategy,
               pointsData: pointCloudState.pointData ?? {},
@@ -409,7 +409,7 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
             },
             dimension: null,
             dimensionMetadata: null,
-            eventIdToGroup: getPointIdToGroup({
+            eventIdToGroup: getEventIdToGroup({
               points: pointCloudState.points,
               coloringStrategy: strategy,
               pointsData: pointCloudState.pointData ?? {},
@@ -430,7 +430,7 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
             },
             dimension: null,
             dimensionMetadata: null,
-            eventIdToGroup: getPointIdToGroup({
+            eventIdToGroup: getEventIdToGroup({
               points: pointCloudState.points,
               coloringStrategy: strategy,
               pointsData: pointCloudState.pointData ?? {},
@@ -493,7 +493,7 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
             ),
             unknown: UNKNOWN_COLOR,
           },
-          eventIdToGroup: getPointIdToGroup({
+          eventIdToGroup: getEventIdToGroup({
             points: pointCloudState.points,
             coloringStrategy: pointCloudState.coloringStrategy,
             pointsData: pointCloudState.pointData ?? {},
@@ -526,7 +526,7 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
             ),
             unknown: UNKNOWN_COLOR,
           },
-          eventIdToGroup: getPointIdToGroup({
+          eventIdToGroup: getEventIdToGroup({
             points: pointCloudState.points,
             coloringStrategy: pointCloudState.coloringStrategy,
             pointsData: pointCloudState.pointData ?? {},
@@ -598,7 +598,7 @@ function getNumericGroupsFromInterval({
 /**
  * Calculates the group mapping for each point
  */
-function getPointIdToGroup(
+function getEventIdToGroup(
   params: GetPointIdToGroupParams
 ): Record<string, string> {
   const { points, coloringStrategy, pointsData, dimension, dimensionMetadata } =
