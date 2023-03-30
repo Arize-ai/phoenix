@@ -1,2 +1,2 @@
-# 🧠 ML Observability
+# ML Observability
 

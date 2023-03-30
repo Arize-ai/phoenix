@@ -2,7 +2,7 @@
 description: Get started with Phoenix in three easy steps
 ---
 
-# 🚀 Quickstart
+# Quickstart
 
 Follow along in your local Jupyter environment or in the Colab linked below to take your first flight with Phoenix.
 
@@ -44,6 +44,6 @@ To go further in depth with this particular example, check out the [tutorial not
 
 Congrats! You've taken your first flight with Phoenix. We recommend that you next:
 
-* Understand the [foundational concepts of the Phoenix API](concepts/phoenix-basics.md)
-* Experiment with our end-to-end [example notebooks](tutorials/notebooks.md)
-* Learn how to [use Phoenix with your own data](how-to/define-your-schema.md) and how to [manage](how-to/manage-the-app.md) and [use the app](how-to/use-the-app.md)
+* Understand the [foundational concepts of the Phoenix API](../concepts/phoenix-basics.md)
+* Experiment with our end-to-end [example notebooks](notebooks.md)
+* Learn how to [use Phoenix with your own data](../how-to/define-your-schema.md) and how to [manage](../how-to/manage-the-app.md) and [use the app](../how-to/use-the-app.md)

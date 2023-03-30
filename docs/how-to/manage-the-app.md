@@ -4,7 +4,7 @@ description: >-
   or browser, and close your session when you're done
 ---
 
-# 🎛 Manage the App
+# Manage the App
 
 ## Define Your Dataset(s)
 
@@ -34,7 +34,7 @@ Use `phoenix.launch_app` to start a session in the background. You can launch Ph
 
 ## Open the UI
 
-&#x20;You can view and interact with the Phoenix UI either directly in your notebook or in a separate browser tab or window.
+You can view and interact with the Phoenix UI either directly in your notebook or in a separate browser tab or window.
 
 {% tabs %}
 {% tab title="In the Browser" %}
@@ -45,8 +45,6 @@ session.url
 ```
 
 Copy and paste the output URL into a new browser tab or window.
-
-
 
 {% hint style="info" %}
 Browser-based sessions are supported in both local Jupyter environments and Colab.
@@ -61,8 +59,6 @@ session.view()
 ```
 
 The Phoenix UI will appear in a window beneath the cell.
-
-
 
 {% hint style="info" %}
 The height of the window can be adjusted by passing a `height` parameter, e.g., `session.view(height=1200)`. Defaults to 1000 pixels.

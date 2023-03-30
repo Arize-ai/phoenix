@@ -2,7 +2,7 @@
 description: Quickly explore Phoenix with concrete examples
 ---
 
-# 🖼 Use Example Datasets
+# Use Example Datasets
 
 Phoenix ships with a collection of example datasets so you can quickly try out the app on concrete use-cases. This guide shows you how to download, inspect, and launch the app with example datasets.
 

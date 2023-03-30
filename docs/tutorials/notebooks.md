@@ -4,7 +4,7 @@ description: >-
   use-cases
 ---
 
-# 📓 Notebooks
+# Notebooks
 
 ## Notebooks
 

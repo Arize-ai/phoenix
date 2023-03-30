@@ -2,7 +2,7 @@
 description: How to create Phoenix datasets and schemas for common data formats
 ---
 
-# ⚙ Create Your Own Dataset
+# Create Your Own Dataset
 
 This guide shows you how to define a Phoenix dataset using your own data.
 

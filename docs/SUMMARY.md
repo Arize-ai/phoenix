@@ -1,7 +1,6 @@
 # Table of contents
 
 * [ML Observability in a Notebook](README.md)
-* [Quickstart](quickstart.md)
 
 ## 💡 Concepts
 
@@ -11,6 +10,7 @@
 
 ## 🎓 Tutorials
 
+* [Quickstart](tutorials/quickstart.md)
 * [Notebooks](tutorials/notebooks.md)
 
 ## 🔢 How-To
