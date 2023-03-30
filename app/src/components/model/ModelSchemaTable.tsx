@@ -5,7 +5,7 @@ import { Column } from "react-table";
 import {
   FloatCell,
   IntCell,
-  NumericCellFactory,
+  PercentCell,
   Table,
 } from "@phoenix/components/table";
 
@@ -100,7 +100,7 @@ export function ModelSchemaTable(props: ModelSchemaTableProps) {
       {
         Header: "% empty",
         accessor: "percentEmpty",
-        Cell: NumericCellFactory({ suffix: "%" }),
+        Cell: PercentCell,
       },
       {
         Header: "min",
