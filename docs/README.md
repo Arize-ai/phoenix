@@ -9,9 +9,7 @@ coverY: 0
 
 # ML Observability in a Notebook
 
-Get up and running quickly with the [quickstart](quickstart.md).\
-\
-[![Try us in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/quickstart.ipynb)
+Get up and running quickly with the [quickstart](quickstart.md).
 
 ## What is Phoenix?
 
