@@ -10,7 +10,7 @@
 
 ## 🎓 Tutorials
 
-* [Quickstart](tutorials/quickstart.md)
+* [Quickstart](quickstart.md)
 * [Notebooks](tutorials/notebooks.md)
 
 ## 🔢 How-To
