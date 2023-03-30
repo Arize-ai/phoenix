@@ -119,7 +119,7 @@ A dataclass that associates one or more columns of a DataFrame with an embedding
 
 ### Parameters
 
-* **vector\_column\_name** (str): The name of the DataFrame column containing the embedding vector data. Each entry in the column must be a list, one-dimensional Numpy array, or pandas Series containing numeric values (floats or ints) and must have equal length to all the other entries in the column.
+* **vector\_column\_name** (str): The name of the DataFrame column containing the embedding vector data. Each entry in the column must be a list, one-dimensional NumPy array, or pandas Series containing numeric values (floats or ints) and must have equal length to all the other entries in the column.
 * **raw\_data\_column\_name** (Optional\[str]): The name of the DataFrame column containing the raw text associated with an embedding feature, if such a column exists. This field is used when an embedding feature describes a piece of text, for example, in the context of NLP.
 * **link\_to\_data\_column\_name** (Optional\[str]): The name of the DataFrame column containing links to images associated with an embedding feature, if such a column exists. This field is used when an embedding feature describes an image, for example, in the context of computer vision.
 
