@@ -202,7 +202,7 @@ export interface PointCloudState extends PointCloudProps {
    */
   setPoints: (points: readonly Point[]) => void;
   /**
-   * Sets the selected point IDs to the given value.
+   * Sets the selected eventIds to the given value.
    */
   setSelectedEventIds: (ids: Set<string>) => void;
   /**
