@@ -114,7 +114,7 @@ schema = px.Schema(
 
 ### Excluded Columns
 
-You can tell Phoenix to ignore certain columns of your DataFrame when implicitly inferring features by adding those column names to the `excludes` field of your schema. The DataFrame below contains all the same data as the breast cancer dataset above, in addition to "hospital" and "insurance\_provider" fields that are not features of your model. Explicitly exclude these fields, otherwise, Phoenix will assume that they are features.
+You can tell Phoenix to ignore certain columns of your DataFrame when implicitly inferring features by adding those column names to the `excluded_column_names` field of your schema. The DataFrame below contains all the same data as the breast cancer dataset above, in addition to "hospital" and "insurance\_provider" fields that are not features of your model. Explicitly exclude these fields, otherwise, Phoenix will assume that they are features.
 
 #### DataFrame
 

@@ -74,7 +74,7 @@ class Schema(
     actual_label_column_name: Optional[str] = None,
     actual_score_column_name: Optional[str] = None,
     embedding_feature_column_names: Optional[Dict[str, EmbeddingColumnNames]] = None,
-    excludes: Optional[List[str]] = None,
+    excluded_column_names: Optional[List[str]] = None,
 )
 ```
 
@@ -97,7 +97,7 @@ A dataclass that assigns the columns of a pandas DataFrame to the appropriate mo
 * **actual\_label\_column\_name** (Optional\[str]): The name of the DataFrame's actual label column, if one exists. Actual (i.e., ground truth) labels are used for classification problems with categorical model output.
 * **actual\_score\_column\_name** (Optional\[str]): The name of the DataFrame's actual score column, if one exists. Actual (i.e., ground truth) scores are used for regression problems with continuous numerical output.
 * **embedding\_feature\_column\_names** (Optional\[Dict\[str, [phoenix.EmbeddingColumnNames](dataset-and-schema.md#phoenix.embeddingcolumnnames)]]): A dictionary mapping the name of each embedding feature to an instance of [phoenix.EmbeddingColumnNames](dataset-and-schema.md#phoenix.embeddingcolumnnames) if any embedding features exist, otherwise, None. Each instance of [phoenix.EmbeddingColumnNames](dataset-and-schema.md#phoenix.embeddingcolumnnames) associates one or more DataFrame columns containing vector data, image links, or text with the same embedding feature. Note that the keys of the dictionary are user-specified names that appear in the Phoenix UI and do not refer to columns of the DataFrame.
-* **excludes** (Optional\[List\[str]]): The names of the DataFrame columns to be excluded from the implicitly inferred list of feature column names. This field should only be used for implicit feature discovery, i.e., when `feature_column_names` is unused and the DataFrame contains feature columns not explicitly included in the schema.
+* **excluded_column_names** (Optional\[List\[str]]): The names of the DataFrame columns to be excluded from the implicitly inferred list of feature column names. This field should only be used for implicit feature discovery, i.e., when `feature_column_names` is unused and the DataFrame contains feature columns not explicitly included in the schema.
 
 ### Usage
 
