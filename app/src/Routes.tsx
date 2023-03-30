@@ -3,11 +3,22 @@ import { createRoutesFromElements, Route, RouterProvider } from "react-router";
 import { createBrowserRouter } from "react-router-dom";
 
 import { embeddingLoaderQuery$data } from "./pages/embedding/__generated__/embeddingLoaderQuery.graphql";
-import { Embedding, embeddingLoader, Home, Layout } from "./pages";
+import {
+  Embedding,
+  embeddingLoader,
+  ErrorElement,
+  Home,
+  Layout,
+} from "./pages";
 
 const router = createBrowserRouter(
   createRoutesFromElements(
-    <Route path="/" element={<Layout />} handle={{ crumb: () => "Home" }}>
+    <Route
+      path="/"
+      element={<Layout />}
+      handle={{ crumb: () => "Home" }}
+      errorElement={<ErrorElement />}
+    >
       <Route index element={<Home />} />
       <Route path="/embeddings">
         <Route
