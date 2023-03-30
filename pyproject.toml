@@ -50,7 +50,7 @@ dev = [
 ]
 
 [project.urls]
-Documentation = "https://github.com/Arize-ai/phoenix#readme"
+Documentation = "https://docs.arize.com/phoenix/"
 Issues = "https://github.com/Arize-ai/phoenix/issues"
 Source = "https://github.com/Arize-ai/phoenix"
 

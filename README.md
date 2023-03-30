@@ -1,6 +1,6 @@
 <p align="center">
     <a target="_blank" href="https://arize.com" style="background:none">
-        <img alt="phoenix logo" src="https://github.com/Arize-ai/phoenix/blob/main/assets/phoenix-logo-light.svg" width="auto" height="200"></img>
+        <img alt="phoenix logo" src="https://storage.googleapis.com/arize-assets/phoenix/assets/phoenix-logo-light.svg" width="auto" height="200"></img>
     </a>
     <br/>
     <br/>
@@ -24,13 +24,6 @@
 Phoenix provides MLOps insights at lightning speed with zero-config observability for model drift, performance, and data quality.
 
 **_Phoenix is under active development. APIs may change at any time._**
-
--   [Installation](#installation)
--   [Getting Started](#getting-started)
--   [Documentation](#documentation)
--   [Community](#community)
--   [Contributing](#contributing)
--   [License](#license)
 
 ## Installation
 
