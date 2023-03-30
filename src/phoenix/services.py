@@ -57,12 +57,8 @@ class Service:
         return process
 
     def stop(self) -> None:
-        """Gracefully stops the service."""
-        self.child.stdin.close()
-        try:
-            self.child.wait(timeout=5)
-        except psutil.TimeoutExpired:
-            self.child.terminate()
+        """Stops the service."""
+        self.child.terminate()
 
     @staticmethod
     def stop_any() -> None:
