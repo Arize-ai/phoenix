@@ -55,9 +55,9 @@ In order to use Phoenix:
 
 The picture above shows the flow of execution of Phoenix, from pointing it to your data, running it to find problems or insights, grabbing groups of data for insights and then exporting for fine tuning.&#x20;
 
-#### Load Data Into Pandas:
+#### Load Data Into pandas:
 
-Phoenix currently requires Pandas dataframes which can be downloaded from either an ML observability platform, a table or a raw log file. The data is assumed to be formatted in the Open Inference format with a well defined column structure, normally including a set of inputs/features, outputs/predictions and ground truth.&#x20;
+Phoenix currently requires pandas dataframes which can be downloaded from either an ML observability platform, a table or a raw log file. The data is assumed to be formatted in the Open Inference format with a well defined column structure, normally including a set of inputs/features, outputs/predictions and ground truth.&#x20;
 
 #### Leverage SDK Embeddings and LLM Eval Generators:
 
