@@ -6,7 +6,7 @@ description: Get started with Phoenix in three easy steps
 
 Follow along in your local Jupyter environment or in the Colab linked below to take your first flight with Phoenix.
 
-TODO: Add Colab link
+[![Try us in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/quickstart.ipynb)
 
 ## Install and Import Phoenix
 

@@ -9,16 +9,13 @@ coverY: 0
 
 # ML Observability in a Notebook
 
+Get up and running quickly with the [quickstart](quickstart.md).\
+\
 [![Try us in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/quickstart.ipynb)
-
 
 ## What is Phoenix?
 
 Phoenix is an ML Observability library designed for the Notebook. The toolset is designed to ingest model inference data for LLMs, CV, NLP and tabular datasets. It allows Data Scientists to quickly visualize their model data, monitor performance, track down issues & insights, and easily export to improve. Unstructured data such as text (prompts and responses) and images are a first class citizen in Phoenix, with embeddings analysis designed as the core foundation of the library.
-
-{% hint style="info" %}
-Get up and running quickly with the [quickstart](quickstart.md).
-{% endhint %}
 
 ### Core Functionality:
 
