@@ -15,7 +15,6 @@ from .EventMetadata import EventMetadata
 from .node import GlobalID
 
 ClusterId: TypeAlias = ID
-EventId: TypeAlias = ID
 
 
 @strawberry.type
@@ -26,7 +25,7 @@ class Cluster:
     id: ClusterId
 
     """A list of events that belong to the cluster"""
-    event_ids: List[EventId]
+    event_ids: List[ID]
 
     """A list of points that belong to the cluster"""
     drift_ratio: Optional[float] = strawberry.field(
