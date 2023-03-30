@@ -25,13 +25,6 @@ Phoenix provides MLOps insights at lightning speed with zero-config observabilit
 
 **_Phoenix is under active development. APIs may change at any time._**
 
--   [Installation](#installation)
--   [Getting Started](#getting-started)
--   [Documentation](#documentation)
--   [Community](#community)
--   [Contributing](#contributing)
--   [License](#license)
-
 ## Installation
 
 ```shell
