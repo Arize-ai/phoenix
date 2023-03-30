@@ -1,6 +1,6 @@
 type Cluster {
   id: ID!
-  pointIds: [ID!]!
+  eventIds: [ID!]!
 
   """ratio of primary points over reference points"""
   driftRatio: Float
@@ -278,7 +278,10 @@ type TimeSeriesDataPoint {
 }
 
 type UMAPPoint {
-  id: ID!
+  id: GlobalID!
+
+  """The ID of the event that the point is a projection of"""
+  eventId: ID!
   coordinates: Point2DPoint3D!
   embeddingMetadata: EmbeddingMetadata!
   eventMetadata: EventMetadata!

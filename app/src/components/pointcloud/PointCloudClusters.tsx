@@ -37,10 +37,10 @@ export function PointCloudClusters({
 }: PointCloudClustersProps) {
   const canvasTheme = usePointCloudContext((state) => state.canvasTheme);
   // const { selectedClusterId } = usePointCloud();
-  // Keep a map of point id to position for fast lookup
-  const pointPositionsMap = useMemo(() => {
+  // Keep a map of event id to position for fast lookup
+  const eventPositionMap = useMemo(() => {
     return points.reduce((acc, point) => {
-      acc[(point.metaData as any).id as string] = point.position;
+      acc[point.metaData.eventId] = point.position;
       return acc;
     }, {} as Record<string, ThreeDimensionalPointItem["position"]>);
   }, [points]);
@@ -48,24 +48,24 @@ export function PointCloudClusters({
   // Interleave the cluster point locations with the cluster
   const clustersWithData = useMemo(() => {
     return clusters.map((cluster) => {
-      const { pointIds } = cluster;
+      const { eventIds } = cluster;
       return {
         ...cluster,
-        data: pointIds.map((pointId) => ({
-          position: pointPositionsMap[pointId],
+        data: eventIds.map((eventId) => ({
+          position: eventPositionMap[eventId],
         })),
       };
     });
-  }, [clusters, pointPositionsMap]);
+  }, [clusters, eventPositionMap]);
 
   return (
     <>
       {clustersWithData.map((cluster) => {
         let opacity = 0;
         if (cluster.id === selectedClusterId) {
-          opacity = 0.2;
+          opacity = 0.3;
         } else if (cluster.id === highlightedClusterId) {
-          opacity = 0.1;
+          opacity = 0.2;
         }
         return (
           <Cluster

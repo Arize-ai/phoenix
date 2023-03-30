@@ -27,7 +27,7 @@ from ..input_types.Granularity import Granularity
 from .DataQualityMetric import DataQualityMetric
 from .EmbeddingMetadata import EmbeddingMetadata
 from .EventMetadata import EventMetadata
-from .node import Node
+from .node import GlobalID, Node
 from .TimeSeries import (
     DataQualityTimeSeries,
     DriftTimeSeries,
@@ -284,7 +284,8 @@ class EmbeddingDimension(Node):
 
             points[dataset_id].append(
                 UMAPPoint(
-                    id=ID(str(event_id)),
+                    id=GlobalID(f"{type(self).__name__}:{str(dataset_id)}", row_id),
+                    event_id=ID(str(event_id)),
                     coordinates=to_gql_coordinates(vector),
                     event_metadata=EventMetadata(
                         prediction_label=prediction_label,

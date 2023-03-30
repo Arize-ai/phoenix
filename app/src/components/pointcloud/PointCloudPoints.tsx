@@ -63,11 +63,11 @@ export function PointCloudPoints({
     (state) => state.coloringStrategy
   );
   const canvasTheme = usePointCloudContext((state) => state.canvasTheme);
-  const setSelectedPointIds = usePointCloudContext(
-    (state) => state.setSelectedPointIds
+  const setSelectedEventIds = usePointCloudContext(
+    (state) => state.setSelectedEventIds
   );
-  const selectedPointIds = usePointCloudContext(
-    (state) => state.selectedPointIds
+  const selectedEventIds = usePointCloudContext(
+    (state) => state.selectedEventIds
   );
   const setSelectedClusterId = usePointCloudContext(
     (state) => state.setSelectedClusterId
@@ -96,14 +96,14 @@ export function PointCloudPoints({
   const colorByFn = useCallback(
     (point: PointBaseProps) => {
       if (
-        !selectedPointIds.has(point.metaData.id) &&
-        selectedPointIds.size > 0
+        !selectedEventIds.has(point.metaData.eventId) &&
+        selectedEventIds.size > 0
       ) {
         return invokeColor(point, dimmedColor);
       }
       return invokeColor(point, color);
     },
-    [selectedPointIds, color, dimmedColor]
+    [selectedEventIds, color, dimmedColor]
   );
 
   const showReferencePoints = datasetVisibility.reference && referenceData;
@@ -111,11 +111,11 @@ export function PointCloudPoints({
   const onPointClicked = useCallback(
     (point: PointBaseProps) => {
       startTransition(() => {
-        setSelectedPointIds(new Set([point.metaData.id]));
+        setSelectedEventIds(new Set([point.metaData.eventId]));
         setSelectedClusterId(null);
       });
     },
-    [setSelectedClusterId, setSelectedPointIds]
+    [setSelectedClusterId, setSelectedEventIds]
   );
 
   return (

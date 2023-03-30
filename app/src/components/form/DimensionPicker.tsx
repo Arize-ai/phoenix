@@ -83,7 +83,7 @@ export function DimensionPicker<T>(props: DimensionPickerProps<T>) {
       placeholder={isLoading ? "Loading..." : "Select a dimension"}
     >
       {dimensions.map((dimension) => (
-        <Item key={dimension.name}>
+        <Item key={dimension.name} textValue={dimension.name}>
           <div
             css={css`
               .ac-label {

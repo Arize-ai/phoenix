@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<6cb9a034aab47caced845e93135a5e0b>>
+ * @generated SignedSource<<efc62aca851aac73084b393e13e479af>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -28,8 +28,8 @@ export type EmbeddingUMAPQuery$data = {
     readonly UMAPPoints?: {
       readonly clusters: ReadonlyArray<{
         readonly driftRatio: number | null;
+        readonly eventIds: ReadonlyArray<string>;
         readonly id: string;
-        readonly pointIds: ReadonlyArray<string>;
       }>;
       readonly data: ReadonlyArray<{
         readonly coordinates: {
@@ -50,6 +50,7 @@ export type EmbeddingUMAPQuery$data = {
           readonly linkToData: string | null;
           readonly rawData: string | null;
         };
+        readonly eventId: string;
         readonly eventMetadata: {
           readonly actualLabel: string | null;
           readonly actualScore: number | null;
@@ -77,6 +78,7 @@ export type EmbeddingUMAPQuery$data = {
           readonly linkToData: string | null;
           readonly rawData: string | null;
         };
+        readonly eventId: string;
         readonly eventMetadata: {
           readonly actualLabel: string | null;
           readonly actualScore: number | null;
@@ -171,6 +173,13 @@ v12 = {
 },
 v13 = [
   (v9/*: any*/),
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "eventId",
+    "storageKey": null
+  },
   {
     "alias": null,
     "args": null,
@@ -353,7 +362,7 @@ v14 = {
               "alias": null,
               "args": null,
               "kind": "ScalarField",
-              "name": "pointIds",
+              "name": "eventIds",
               "storageKey": null
             },
             {
@@ -441,16 +450,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "915e9044c56890d36e070fc983673969",
+    "cacheID": "c631c258a7dd02bdd681c40ad8dc4e4b",
     "id": null,
     "metadata": {},
     "name": "EmbeddingUMAPQuery",
     "operationKind": "query",
-    "text": "query EmbeddingUMAPQuery(\n  $id: GlobalID!\n  $timeRange: TimeRange!\n  $minDist: Float!\n  $nNeighbors: Int!\n  $nSamples: Int!\n  $minClusterSize: Int!\n  $clusterMinSamples: Int!\n  $clusterSelectionEpsilon: Int!\n) {\n  embedding: node(id: $id) {\n    __typename\n    ... on EmbeddingDimension {\n      UMAPPoints(timeRange: $timeRange, minDist: $minDist, nNeighbors: $nNeighbors, nSamples: $nSamples, minClusterSize: $minClusterSize, clusterMinSamples: $clusterMinSamples, clusterSelectionEpsilon: $clusterSelectionEpsilon) {\n        data {\n          id\n          coordinates {\n            __typename\n            ... on Point3D {\n              x\n              y\n              z\n            }\n            ... on Point2D {\n              x\n              y\n            }\n          }\n          embeddingMetadata {\n            linkToData\n            rawData\n          }\n          eventMetadata {\n            predictionLabel\n            actualLabel\n            predictionScore\n            actualScore\n          }\n        }\n        referenceData {\n          id\n          coordinates {\n            __typename\n            ... on Point3D {\n              x\n              y\n              z\n            }\n            ... on Point2D {\n              x\n              y\n            }\n          }\n          embeddingMetadata {\n            linkToData\n            rawData\n          }\n          eventMetadata {\n            predictionLabel\n            actualLabel\n            predictionScore\n            actualScore\n          }\n        }\n        clusters {\n          id\n          pointIds\n          driftRatio\n        }\n      }\n    }\n    __isNode: __typename\n    id\n  }\n}\n"
+    "text": "query EmbeddingUMAPQuery(\n  $id: GlobalID!\n  $timeRange: TimeRange!\n  $minDist: Float!\n  $nNeighbors: Int!\n  $nSamples: Int!\n  $minClusterSize: Int!\n  $clusterMinSamples: Int!\n  $clusterSelectionEpsilon: Int!\n) {\n  embedding: node(id: $id) {\n    __typename\n    ... on EmbeddingDimension {\n      UMAPPoints(timeRange: $timeRange, minDist: $minDist, nNeighbors: $nNeighbors, nSamples: $nSamples, minClusterSize: $minClusterSize, clusterMinSamples: $clusterMinSamples, clusterSelectionEpsilon: $clusterSelectionEpsilon) {\n        data {\n          id\n          eventId\n          coordinates {\n            __typename\n            ... on Point3D {\n              x\n              y\n              z\n            }\n            ... on Point2D {\n              x\n              y\n            }\n          }\n          embeddingMetadata {\n            linkToData\n            rawData\n          }\n          eventMetadata {\n            predictionLabel\n            actualLabel\n            predictionScore\n            actualScore\n          }\n        }\n        referenceData {\n          id\n          eventId\n          coordinates {\n            __typename\n            ... on Point3D {\n              x\n              y\n              z\n            }\n            ... on Point2D {\n              x\n              y\n            }\n          }\n          embeddingMetadata {\n            linkToData\n            rawData\n          }\n          eventMetadata {\n            predictionLabel\n            actualLabel\n            predictionScore\n            actualScore\n          }\n        }\n        clusters {\n          id\n          eventIds\n          driftRatio\n        }\n      }\n    }\n    __isNode: __typename\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "efb6e0527517da93761f89ccd855edbf";
+(node as any).hash = "aaedcb83e9ef94fd13cb33af3d49184b";
 
 export default node;
