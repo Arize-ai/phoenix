@@ -100,7 +100,7 @@ export function ModelSchemaTable(props: ModelSchemaTableProps) {
       {
         Header: "% empty",
         accessor: "percentEmpty",
-        Cell: NumericCellFactory({ suffix: " %" }),
+        Cell: NumericCellFactory({ suffix: "%" }),
       },
       {
         Header: "min",
