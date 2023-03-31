@@ -36,7 +36,7 @@ Follow the instructions in the cell output to launch the Phoenix UI in either yo
 
 Navigate to the "Embeddings" tab and click on "text\_embedding" to explore your datasets.
 
-To go further in depth with this particular example, check out the [tutorial notebook](https://github.com/Arize-ai/phoenix/blob/main/tutorials/sentiment\_classification\_tutorial.ipynb). TODO: Link Colab
+To go further in depth with this particular example, check out the sentiment classification tutorial.
 
 ## Next Steps
 
