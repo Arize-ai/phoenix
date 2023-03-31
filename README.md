@@ -4,14 +4,8 @@
     </a>
     <br/>
     <br/>
-    <a href="https://twitter.com/ArizePhoenix">
-        <img src="https://img.shields.io/badge/twitter-%40ArizePhoenix-blue.svg?logo=twitter&logoColor=white"/>
-    </a>
     <a href="https://join.slack.com/t/arize-ai/shared_invite/zt-1px8dcmlf-fmThhDFD_V_48oU7ALan4Q">
         <img src="https://img.shields.io/badge/slack-Arize%20AI%20Community-blue.svg?logo=slack"/>
-    </a>
-    <a href="https://www.linkedin.com/company/arizeai/mycompany/">
-        <img src="https://img.shields.io/badge/linkedin-Arize--Phoenix-blue.svg?logo=linkedin"/>
     </a>
     <a href="https://pypi.org/project/arize-phoenix/">
         <img src="https://img.shields.io/pypi/v/arize-phoenix?color=blue">
@@ -68,9 +62,6 @@ Join our community to connect with thousands of machine learning practitioners a
 -   🐞 Report bugs with [GitHub Issues](https://github.com/Arize-ai/phoenix/issues).
 -   🗺️ Check out our [roadmap](https://github.com/orgs/Arize-ai/projects/45) to see where we're heading next.
 -   🎓 Learn the fundamentals of ML observability with our [introductory](https://arize.com/ml-observability-fundamentals/) and [advanced](https://arize.com/blog-course/) courses.
--   ✏️ Check out our [blog](https://arize.com/blog/).
--   🐦 Follow us on [Twitter](https://twitter.com/arizeai).
--   👔 Check out our [LinkedIn](https://www.linkedin.com/company/arizeai)
 
 ## Contributing
 
