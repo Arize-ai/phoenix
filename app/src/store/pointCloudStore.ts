@@ -668,14 +668,17 @@ function getEventIdToGroup(
               dimensionWithValue != null &&
               dimension.dataType === "categorical"
             ) {
-              // The group is just the categorical value
-              group = dimensionWithValue.value;
+              // The group is just the categorical value. If it is null, we use "unknown" for now
+              group = dimensionWithValue.value ?? "unknown";
             } else if (
               dimensionWithValue != null &&
               dimension.dataType === "numeric" &&
               numericGroupIntervals != null
             ) {
-              const numericValue = parseFloat(dimensionWithValue.value);
+              const numericValue =
+                typeof dimensionWithValue?.value === "string"
+                  ? parseFloat(dimensionWithValue.value)
+                  : null;
               if (typeof numericValue === "number") {
                 let groupIndex = numericGroupIntervals.findIndex(
                   (group) =>
@@ -685,6 +688,9 @@ function getEventIdToGroup(
                 groupIndex =
                   groupIndex === -1 ? NUM_NUMERIC_GROUPS - 1 : groupIndex;
                 group = numericGroupIntervals[groupIndex].name;
+              } else {
+                // We cannot determine the group of the numeric value
+                group = "unknown";
               }
             }
           }

@@ -18,6 +18,6 @@ export interface ModelEvent {
       name: string;
       type: string;
     };
-    value: string;
+    value: string | null;
   }[];
 }

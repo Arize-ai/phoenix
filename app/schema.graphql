@@ -96,7 +96,9 @@ enum DimensionType {
 
 type DimensionWithValue {
   dimension: Dimension!
-  value: String!
+
+  """The string representation of the dimension's value"""
+  value: String
 }
 
 type DriftTimeSeries implements TimeSeries {

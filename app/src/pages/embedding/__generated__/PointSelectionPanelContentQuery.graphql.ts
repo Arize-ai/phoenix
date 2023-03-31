@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<6da20bfdf537e095e9c6107659fcf24b>>
+ * @generated SignedSource<<2f9c24ee4c80e79a4f34c54f611dd3e0>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -23,7 +23,7 @@ export type PointSelectionPanelContentQuery$data = {
             readonly name: string;
             readonly type: DimensionType;
           };
-          readonly value: string;
+          readonly value: string | null;
         }>;
         readonly eventMetadata: {
           readonly actualLabel: string | null;
@@ -39,7 +39,7 @@ export type PointSelectionPanelContentQuery$data = {
             readonly name: string;
             readonly type: DimensionType;
           };
-          readonly value: string;
+          readonly value: string | null;
         }>;
         readonly eventMetadata: {
           readonly actualLabel: string | null;

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<88bcc6bafa77ec478aed54965188847a>>
+ * @generated SignedSource<<ffb8835413b3215a86d3560df7afcf3f>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -23,7 +23,7 @@ export type pointCloudStore_eventsQuery$data = {
             readonly name: string;
             readonly type: DimensionType;
           };
-          readonly value: string;
+          readonly value: string | null;
         }>;
         readonly eventMetadata: {
           readonly actualLabel: string | null;
@@ -40,7 +40,7 @@ export type pointCloudStore_eventsQuery$data = {
             readonly name: string;
             readonly type: DimensionType;
           };
-          readonly value: string;
+          readonly value: string | null;
         }>;
         readonly eventMetadata: {
           readonly actualLabel: string | null;
