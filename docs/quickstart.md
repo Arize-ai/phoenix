@@ -38,6 +38,8 @@ Navigate to the "Embeddings" tab and click on "text\_embedding" to explore your 
 
 To go further in depth with this particular example, check out the sentiment classification tutorial.
 
+[![Open in Colab](https://img.shields.io/static/v1?message=Open%20in%20Colab&logo=googlecolab&labelColor=grey&color=blue&logoColor=orange&label=%20)](https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/sentiment\_classification\_tutorial.ipynb) [![Open in GitHub](https://img.shields.io/static/v1?message=Open%20in%20GitHub\&logo=github\&labelColor=grey\&color=blue\&logoColor=white\&label=%20)](https://github.com/Arize-ai/phoenix/blob/main/tutorials/sentiment\_classification\_tutorial.ipynb)
+
 ## Next Steps
 
 Congrats! You've taken your first flight with Phoenix. We recommend that you next:
