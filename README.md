@@ -31,7 +31,7 @@ Phoenix provides MLOps insights at lightning speed with zero-config observabilit
 pip install arize-phoenix
 ```
 
-## Getting Started
+## Try it out
 
 In this section, you will get Phoenix up and running with a few lines of code.
 
@@ -45,8 +45,6 @@ session = px.launch_app(datasets.primary, datasets.reference)
 ```
 
 Next, visualize your embeddings and inspect problematic clusters of your production data.
-
-TODO(#297): Include GIF where we navigate to embeddings, zoom in and rotate, and select a cluster.
 
 Don't forget to close the app when you're done.
 
@@ -70,10 +68,9 @@ Join our community to connect with thousands of machine learning practitioners a
 -   🐞 Report bugs with [GitHub Issues](https://github.com/Arize-ai/phoenix/issues).
 -   🗺️ Check out our [roadmap](https://github.com/orgs/Arize-ai/projects/45) to see where we're heading next.
 -   🎓 Learn the fundamentals of ML observability with our [introductory](https://arize.com/ml-observability-fundamentals/) and [advanced](https://arize.com/blog-course/) courses.
--   ✏️ Check out our [blog](https://arize.com/blog/). TODO(#291): Add blog filter for Phoenix
--   ✉️ Subscribe to our mailing list. TODO(#294): Add link
--   🐦 Follow us on [Twitter](https://twitter.com/ArizePhoenix).
--   👔 Check out our LinkedIn. TODO(#292): Add link, fix badge
+-   ✏️ Check out our [blog](https://arize.com/blog/).
+-   🐦 Follow us on [Twitter](https://twitter.com/arizeai).
+-   👔 Check out our [LinkedIn](https://www.linkedin.com/company/arizeai)
 
 ## Contributing
 
