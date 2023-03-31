@@ -1,3 +1,5 @@
+from typing import Optional
+
 import strawberry
 
 from .Dimension import Dimension
@@ -11,4 +13,6 @@ class DimensionWithValue:
     """
 
     dimension: Dimension
-    value: str
+    value: Optional[str] = strawberry.field(
+        description="The string representation of the dimension's value"
+    )
