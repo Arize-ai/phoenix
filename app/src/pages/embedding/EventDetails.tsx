@@ -130,7 +130,7 @@ function EmbeddingDimensionsTable({
       return {
         name: dimension.dimension.name,
         type: dimension.dimension.type,
-        value: dimension.value,
+        value: dimension.value ?? "--",
       };
     });
   }, [dimensions]);
