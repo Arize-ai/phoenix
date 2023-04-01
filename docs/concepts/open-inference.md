@@ -132,10 +132,6 @@ The example above shows an exploded representation of the hierarchical data. \<t
 
 ### Examples: Supported Schemas&#x20;
 
-#### NLP - LLM Generative/Summarization/Translation
-
-#### NLP - Classification   &#x20;
-
 #### Regression
 
 <figure><img src="../.gitbook/assets/image.png" alt=""><figcaption></figcaption></figure>
@@ -144,15 +140,11 @@ The example above shows an exploded representation of the hierarchical data. \<t
 
 <figure><img src="../.gitbook/assets/image (1) (1).png" alt=""><figcaption></figcaption></figure>
 
-#### &#x20;Classification + Score
-
 #### Ranking
 
 <figure><img src="../.gitbook/assets/image (2).png" alt=""><figcaption></figcaption></figure>
 
-#### CV - Classification&#x20;
-
-
+More examples to come soon.
 
 ####
 

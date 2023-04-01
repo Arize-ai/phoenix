@@ -39,7 +39,7 @@ Phoenix is an ML Observability library designed for the Notebook. The toolset is
 
 Phoenix is designed to run locally on a single server in conjunction with the Notebook.
 
-<figure><img src="https://lh3.googleusercontent.com/JVbbKGB2DocrWGNum_xKVZMRVAb7c4oBcJFCL23M-diqMmerKUJKVU9ZvMLhtNTIa4RuwbcNLAr3ZSd5pku5iFw-nb9pdHF-myKWLdtAkBxFPWu2jFQ_6ugHfaMLwGUDGc-kln4It1qLyVmP6m005Tk" alt=""><figcaption><p><strong>Phoenix Architecture</strong></p></figcaption></figure>
+<figure><img src=".gitbook/assets/Phoenix docs graphics-03 (1).jpg" alt=""><figcaption><p><strong>Phoenix Architecture</strong></p></figcaption></figure>
 
 Phoenix runs locally, close to your data, in an environment that interfaces to Notebook cells on the Notebook server. Designing Phoenix to run locally, enables fast iteration on top of local data.
 
@@ -53,7 +53,7 @@ In order to use Phoenix:
 4. Investigate problems
 5. Export data
 
-<figure><img src="https://lh3.googleusercontent.com/uzRSF5MXNsti1NVxbn82Pnsx-pPpFznpQyV8ZYofFr2maqc5KbmdAf2zQ1wmDMeVwB8n0quoqpNozuGjKFwwtEXjO45Q5fplz4Oo3CbdeAuP-UomkjFglxkFjVtGDjHnVZ_ZyQpDq7TmtX69Iwn9f4M" alt=""><figcaption></figcaption></figure>
+<figure><img src=".gitbook/assets/Phoenix docs graphics-02 (1).jpg" alt=""><figcaption></figcaption></figure>
 
 The picture above shows the flow of execution of Phoenix, from pointing it to your data, running it to find problems or insights, grabbing groups of data for insights and then exporting for fine tuning.
 
@@ -81,10 +81,6 @@ A common use case in ML is for teams to have 2x datasets they are comparing such
 
 Once instantiated, teams can dive into Phoenix on a feature by feature basis, analyzing performance and tracking down issues.
 
-<mark style="color:red;">< example of embedding drift></mark>
-
-The above example shows embedding drift between clusters of data, where a cluster in production has a large drift relative to the training set.
-
 #### Export Cluster:
 
 Once an issue is found, the cluster can be exported back into a dataframe for further analysis. Clusters can be used to create groups of similar data points for use downstream, these include:
@@ -97,4 +93,14 @@ Once an issue is found, the cluster can be exported back into a dataframe for fu
 
 Phoenix is designed to monitor, analyze and troubleshoot issues on top of your model data allowing for interactive workflows all within a Notebook environment.
 
-<figure><img src="https://lh5.googleusercontent.com/hpNMLyQQ5lpaHzrLuPUzRn_2i-IMySUpaXr6kumnaLXnzR_-tAvQtBtuumYf10FwAmnFyHT1riAgeP-cvc7xDDqMhMllZ4wl1SWrF5kNDuF7BBoqm9jtjRKh3aMVaI9MM6SDdBG_nwgM_kdltPaM_NE" alt=""><figcaption><p><strong>How Phoenix Fits into the ML Stack</strong></p></figcaption></figure>
+<figure><img src=".gitbook/assets/Phoenix docs graphics-01.jpg" alt=""><figcaption><p><strong>How Phoenix Fits into the ML Stack</strong></p></figcaption></figure>
+
+The above picture shows the use of Phoenix with a cloud observability system (this is not required). In this example the cloud observability system allows the easy download (or synchronization) of data to the Notebook typically based on model, batch, environment, and time ranges. Normally this download is done to analyze data at the tail end of troubleshooting workflow, or periodically to use the notebook environment to monitor your models.&#x20;
+
+Once in a notebook environment the downloaded data can power Observability workflows that are highly interactive. Phoenix can be used to find clusters of data problems and export those clusters back to the Observability platform for use in monitoring and active learning workflows.&#x20;
+
+Note: Data can also be downloaded from any data warehouse system for use in Phoenix without the requirement of a cloud ML observability solution.&#x20;
+
+In the first version of Phoenix it is assumed the data is available locally but we’ve also designed it with some broader visions in mind. For example, Phoenix was designed with a stateless metrics engine as a first class citizen, enabling any metrics checks to be run in any python data pipeline.&#x20;
+
+\
