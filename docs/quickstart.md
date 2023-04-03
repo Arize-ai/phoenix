@@ -16,7 +16,7 @@ Follow along in your local Jupyter environment or in Colab to take your first fl
 
 [![Open in Colab](https://img.shields.io/static/v1?message=Open%20in%20Colab\&logo=googlecolab\&labelColor=grey\&color=blue\&logoColor=orange\&label=%20)](https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/image\_classification\_tutorial.ipynb) [![Open in GitHub](https://img.shields.io/static/v1?message=Open%20in%20GitHub\&logo=github\&labelColor=grey\&color=blue\&logoColor=white\&label=%20)](https://github.com/Arize-ai/phoenix/blob/main/tutorials/image\_classification\_tutorial.ipynb)
 
-## 1. Install Dependencies and Import Libraries
+## Install Dependencies and Import Libraries
 
 Install Phoenix and its dependencies in your notebook environment.
 
@@ -50,7 +50,7 @@ import pandas as pd
 import phoenix as px
 ```
 
-## 2. Download and Inspect the Data
+## Download and Inspect the Data
 
 Download the curated dataset.
 
@@ -126,7 +126,7 @@ _Cell Output:_
 | fighting       | fighting          | ![](https://storage.googleapis.com/arize-assets/fixtures/Embeddings/CV-public-images/human-actions-quality-drift/training/fighting/0001.png) |
 | sitting        | sitting           | ![](https://storage.googleapis.com/arize-assets/fixtures/Embeddings/CV-public-images/human-actions-quality-drift/training/sitting/0000.png)  |
 
-## 3. Prepare the Data
+## Prepare the Data
 
 The original data is from April 2022. Update the timestamps to the current time.
 
@@ -139,9 +139,9 @@ train_df['prediction_ts'] = (train_df['prediction_ts'] + delta).astype(float)
 prod_df['prediction_ts'] = (prod_df['prediction_ts'] + delta).astype(float)
 ```
 
-## 4. Launch Phoenix
+## Launch Phoenix
 
-### a) Define Your Schema
+### Define Your Schema
 
 To launch Phoenix with your data, you first need to define a schema that tells Phoenix which columns of your DataFrames correspond to features, predictions, actuals (i.e., ground truth), embeddings, etc.
 
@@ -169,7 +169,7 @@ The schema for your production data is the same, except it does not have an actu
 prod_schema = replace(train_schema, actual_label_column_name=None)
 ```
 
-### b) Define Your Datasets
+### Define Your Datasets
 
 Next, define your primary and reference datasets. In this case, your reference dataset contains training data and your primary dataset contains production data.
 
@@ -178,7 +178,7 @@ prod_ds = px.Dataset(prod_df, prod_schema)
 train_ds = px.Dataset(train_df, train_schema)
 ```
 
-### c) Create a Phoenix Session
+### Create a Phoenix Session
 
 ```python
 session = px.launch_app(prod_ds, train_ds)
@@ -192,7 +192,7 @@ _Cell Output:_
     📖 For more information on how to use Phoenix, check out https://docs.arize.com/phoenix
 ```
 
-### d) Launch the Phoenix UI
+### Launch the Phoenix UI
 
 You can view and interact with the Phoenix UI either directly in your notebook or in a separate browser tab or window.
 
@@ -218,7 +218,7 @@ The Phoenix UI will appear in an inline frame in the cell output.
 {% endtab %}
 {% endtabs %}
 
-## 5. Find and Export Problematic Clusters
+## Find and Export Problematic Clusters
 
 ### Steps
 
@@ -262,7 +262,7 @@ Your model was trained crisp and high-resolution images. In production, your mod
 
 </details>
 
-## 6. Load and View Exported Data
+## Load and View Exported Data
 
 View your exported files.
 
@@ -311,7 +311,7 @@ _Cell Output:_
 
 You've pinpointed the blurry or noisy images that are hurting your model's performance in production. As an actionable next step, you can label your exported production data and fine-tune your model to improve performance.
 
-## 7. Close the App
+## Close the App
 
 When you're done, don't forget to close the app.
 
