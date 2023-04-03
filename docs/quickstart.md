@@ -36,9 +36,11 @@ Follow the instructions in the cell output to launch the Phoenix UI in either yo
 
 Navigate to the "Embeddings" tab and click on "text\_embedding" to explore your datasets.
 
-To go further in depth with this particular example, check out the sentiment classification tutorial.
+{% hint style="info" %}
+To go further in depth with this particular example, check out the sentiment classification tutorial:
 
-[![Open in Colab](https://img.shields.io/static/v1?message=Open%20in%20Colab&logo=googlecolab&labelColor=grey&color=blue&logoColor=orange&label=%20)](https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/sentiment\_classification\_tutorial.ipynb) [![Open in GitHub](https://img.shields.io/static/v1?message=Open%20in%20GitHub\&logo=github\&labelColor=grey\&color=blue\&logoColor=white\&label=%20)](https://github.com/Arize-ai/phoenix/blob/main/tutorials/sentiment\_classification\_tutorial.ipynb)
+[![Open in Colab](https://img.shields.io/static/v1?message=Open%20in%20Colab\&logo=googlecolab\&labelColor=grey\&color=blue\&logoColor=orange\&label=%20)](https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/sentiment\_classification\_tutorial.ipynb) [![Open in GitHub](https://img.shields.io/static/v1?message=Open%20in%20GitHub\&logo=github\&labelColor=grey\&color=blue\&logoColor=white\&label=%20)](https://github.com/Arize-ai/phoenix/blob/main/tutorials/sentiment\_classification\_tutorial.ipynb)
+{% endhint %}
 
 ## Next Steps
 
@@ -46,4 +48,4 @@ Congrats! You've taken your first flight with Phoenix. We recommend that you nex
 
 * Understand the [foundational concepts of the Phoenix API](concepts/phoenix-basics.md)
 * Experiment with our end-to-end [example notebooks](tutorials/notebooks.md)
-* Learn how to [use Phoenix with your own data](how-to/define-your-schema.md) and how to [manage](how-to/manage-the-app.md) and [use the app](broken-reference)
+* Learn how to [use Phoenix with your own data](how-to/define-your-schema.md) and how to [manage](how-to/manage-the-app.md) and [use the app](broken-reference/)
