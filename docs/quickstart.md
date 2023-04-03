@@ -194,29 +194,37 @@ _Cell Output:_
 
 ### d) Launch the Phoenix UI
 
-You can open Phoenix by copying and pasting the output of `session.url` into a new browser tab.
+You can view and interact with the Phoenix UI either directly in your notebook or in a separate browser tab or window.
+
+{% tabs %}
+{% tab title="In the Browser" %}
+In a notebook cell, run
 
 ```python
 session.url
 ```
 
-_Cell Output:_
+Copy and paste the output URL into a new browser tab or window.
 
-```
-    'http://localhost:6060/'
-```
+{% hint style="info" %}
+Browser-based sessions are supported in both local Jupyter environments and Colab.
+{% endhint %}
+{% endtab %}
 
-Alternatively, you can open the Phoenix UI in your notebook with
+{% tab title="In Your Notebook" %}
+In a notebook cell, run
 
 ```python
 session.view()
 ```
 
-_Cell Output:_
+The Phoenix UI will appear in a window beneath the cell.
 
-```
-    📺 Opening a view to the Phoenix app. The app is running at http://localhost:6060/
-```
+{% hint style="info" %}
+The height of the window can be adjusted by passing a `height` parameter, e.g., `session.view(height=1200)`. Defaults to 1000 pixels.
+{% endhint %}
+{% endtab %}
+{% endtabs %}
 
 ## 5. Find and Export Problematic Clusters
 
