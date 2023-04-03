@@ -13,7 +13,7 @@ In this quickstart, you will:
 * Export problematic production data for labeling and fine-tuning
 
 {% hint style="info" %}
-Follow along in your local Jupyter environment or in Colab to take your first flight with Phoenix.
+Follow along in your Jupyter or Colab environment to take your first flight with Phoenix.
 
 [![Open in Colab](https://img.shields.io/static/v1?message=Open%20in%20Colab\&logo=googlecolab\&labelColor=grey\&color=blue\&logoColor=orange\&label=%20)](https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/image\_classification\_tutorial.ipynb) [![Open in GitHub](https://img.shields.io/static/v1?message=Open%20in%20GitHub\&logo=github\&labelColor=grey\&color=blue\&logoColor=white\&label=%20)](https://github.com/Arize-ai/phoenix/blob/main/tutorials/image\_classification\_tutorial.ipynb)
 {% endhint %}
