@@ -5,13 +5,12 @@ import strawberry
 from strawberry.types import Info
 from strawberry.unset import UNSET
 
-from phoenix.config import EXPORT_DIR, get_exported_files
+from phoenix.config import get_exported_files
 from phoenix.server.api.context import Context
 
 from .Dataset import Dataset, to_gql_dataset
 from .Dimension import Dimension, to_gql_dimension
 from .EmbeddingDimension import EmbeddingDimension, to_gql_embedding_dimension
-from .ExportedFile import ExportedFile
 from .pagination import Connection, ConnectionArgs, Cursor, connection_from_list
 
 
@@ -90,23 +89,22 @@ class Model:
         )
 
     @strawberry.field(
-        description=(
-            "Returns n most recent exported Parquet files sorted by descending modification time."
-        ),
+        description="Returns exported file names sorted by descending modification time.",
     )  # type: ignore  # https://github.com/strawberry-graphql/strawberry/issues/1929
     async def exported_files(
         self,
-        n_latest: int = 5,
-    ) -> List[ExportedFile]:
+        info: Info[Context, None],
+    ) -> List[str]:
         loop = asyncio.get_running_loop()
         return [
-            ExportedFile(
-                file_name=path.stem,
-                directory=str(EXPORT_DIR),
-            )
-            for path in await loop.run_in_executor(
-                None,
-                get_exported_files,
-                n_latest,
+            path.stem
+            for path in sorted(
+                await loop.run_in_executor(
+                    None,
+                    get_exported_files,
+                    info.context.export_path,
+                ),
+                key=lambda p: p.stat().st_mtime,
+                reverse=True,
             )
         ]

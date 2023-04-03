@@ -21,11 +21,6 @@ import { usePointCloudContext } from "@phoenix/contexts";
 import { ExportSelectionButtonExportsQuery } from "./__generated__/ExportSelectionButtonExportsQuery.graphql";
 import { ExportSelectionButtonMutation } from "./__generated__/ExportSelectionButtonMutation.graphql";
 
-type ExportInfo = {
-  directory: string;
-  fileName: string;
-};
-
 export function ExportSelectionButton() {
   const selectedEventIds = usePointCloudContext(
     (state) => state.selectedEventIds
@@ -34,20 +29,17 @@ export function ExportSelectionButton() {
   const [commit, isInFlight] =
     useMutation<ExportSelectionButtonMutation>(graphql`
       mutation ExportSelectionButtonMutation($eventIds: [ID!]!) {
-        exportEvents(eventIds: $eventIds) {
-          directory
-          fileName
-        }
+        exportEvents(eventIds: $eventIds)
       }
     `);
-  const [exportInfo, setExportInfo] = useState<ExportInfo | null>(null);
+  const [exportFileName, setExportFileName] = useState<string | null>(null);
   const onClick = useCallback(() => {
     commit({
       variables: {
         eventIds: [...selectedEventIds],
       },
       onCompleted: (data) => {
-        setExportInfo(data.exportEvents);
+        setExportFileName(data.exportEvents);
       },
     });
   }, [commit, selectedEventIds]);
@@ -67,9 +59,9 @@ export function ExportSelectionButton() {
       <DialogContainer
         type="slideOver"
         isDismissable
-        onDismiss={() => setExportInfo(null)}
+        onDismiss={() => setExportFileName(null)}
       >
-        {exportInfo != null && (
+        {exportFileName != null && (
           <Dialog title="Cluster Exports" size="M">
             <Alert
               variant="success"
@@ -80,10 +72,7 @@ export function ExportSelectionButton() {
                   variant="success"
                   size="compact"
                   onClick={() => {
-                    window.open(
-                      `/exports?filename=${exportInfo.fileName}`,
-                      "_self"
-                    );
+                    window.open(`/exports?filename=${exportFileName}`, "_self");
                   }}
                 >
                   Download
@@ -133,18 +122,18 @@ function ExportsList() {
     graphql`
       query ExportSelectionButtonExportsQuery {
         model {
-          exportedFiles {
-            fileName
-            directory
-          }
+          exportedFiles
         }
       }
     `,
-    {}
+    {},
+    {
+      fetchPolicy: "store-or-network",
+    }
   );
   return (
     <List>
-      {data.model.exportedFiles.map((fileInfo, index) => (
+      {data.model.exportedFiles.map((fileName, index) => (
         <ListItem key={index}>
           <div
             css={css`
@@ -154,14 +143,14 @@ function ExportsList() {
               align-items: center;
             `}
           >
-            {fileInfo.fileName}
+            {fileName}
             <Button
               size="compact"
               aria-label="Download"
               variant="default"
               icon={<Icon svg={<Download />} />}
               onClick={() => {
-                window.open(`/exports?filename=${fileInfo.fileName}`, "_self");
+                window.open(`/exports?filename=${fileName}`, "_self");
               }}
             />
           </div>

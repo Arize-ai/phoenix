@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a3175a465b0aebfd1dbb194c29f181bf>>
+ * @generated SignedSource<<2c6d334fcdd43b45d1ac180d6c1c9c97>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -12,10 +12,7 @@ import { ConcreteRequest, Query } from 'relay-runtime';
 export type ExportSelectionButtonExportsQuery$variables = {};
 export type ExportSelectionButtonExportsQuery$data = {
   readonly model: {
-    readonly exportedFiles: ReadonlyArray<{
-      readonly directory: string;
-      readonly fileName: string;
-    }>;
+    readonly exportedFiles: ReadonlyArray<string>;
   };
 };
 export type ExportSelectionButtonExportsQuery = {
@@ -36,26 +33,8 @@ var v0 = [
       {
         "alias": null,
         "args": null,
-        "concreteType": "ExportedFile",
-        "kind": "LinkedField",
+        "kind": "ScalarField",
         "name": "exportedFiles",
-        "plural": true,
-        "selections": [
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "fileName",
-            "storageKey": null
-          },
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "directory",
-            "storageKey": null
-          }
-        ],
         "storageKey": null
       }
     ],
@@ -80,16 +59,16 @@ return {
     "selections": (v0/*: any*/)
   },
   "params": {
-    "cacheID": "de284b736ea3e2b329144ba1f4749143",
+    "cacheID": "8696c09fa08220c2e558496b3294370c",
     "id": null,
     "metadata": {},
     "name": "ExportSelectionButtonExportsQuery",
     "operationKind": "query",
-    "text": "query ExportSelectionButtonExportsQuery {\n  model {\n    exportedFiles {\n      fileName\n      directory\n    }\n  }\n}\n"
+    "text": "query ExportSelectionButtonExportsQuery {\n  model {\n    exportedFiles\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "036999220197c96b84fcdfabd7fb4d27";
+(node as any).hash = "bc2ec3ce8dff0dd0d729b247de4a84f8";
 
 export default node;

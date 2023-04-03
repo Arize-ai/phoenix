@@ -85,7 +85,14 @@ class AppService(Service):
     __primary_dataset_name: str
     __reference_dataset_name: Optional[str]
 
-    def __init__(self, port: int, primary_dataset_name: str, reference_dataset_name: Optional[str]):
+    def __init__(
+        self,
+        export_path: Path,
+        port: int,
+        primary_dataset_name: str,
+        reference_dataset_name: Optional[str],
+    ):
+        self.export_path = export_path
         self.port = port
         self.__primary_dataset_name = primary_dataset_name
         self.__reference_dataset_name = reference_dataset_name
@@ -96,6 +103,8 @@ class AppService(Service):
         command = [
             sys.executable,
             "main.py",
+            "--export_path",
+            str(self.export_path),
             "--port",
             str(self.port),
             "datasets",

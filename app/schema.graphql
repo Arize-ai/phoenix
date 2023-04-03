@@ -179,14 +179,6 @@ type EventMetadata {
   actualLabel: String
 }
 
-type ExportedFile {
-  """File name without the file extension."""
-  fileName: String!
-
-  """Disk location where the file is stored."""
-  directory: String!
-}
-
 """
 The `ID` scalar type represents a unique identifier, often used to refetch an object or as key for a cache. The ID type appears in a JSON response as a String; however, it is not intended to be human-readable. When expected as an input type, any string (such as `"4"`) or integer (such as `4`) input value will be accepted as an ID.
 """
@@ -213,17 +205,15 @@ type Model {
   referenceDataset: Dataset
   embeddingDimensions(first: Int = 50, last: Int = null, after: String, before: String): EmbeddingDimensionConnection!
 
-  """
-  Returns n most recent exported Parquet files sorted by descending modification time.
-  """
-  exportedFiles(nLatest: Int! = 5): [ExportedFile!]!
+  """Returns exported file names sorted by descending modification time."""
+  exportedFiles: [String!]!
 }
 
 type Mutation {
   """
-  Given a list of event ids, export the corresponding data subset in parquet format. File name is optional, but if specified, should be without file extension. By default the exported file name is current timestamp.
+  Given a list of event ids, export the corresponding data subset in Parquet format. File name is optional, but if specified, should be without file extension. By default the exported file name is current timestamp.
   """
-  exportEvents(eventIds: [ID!]!, fileName: String = null): ExportedFile!
+  exportEvents(eventIds: [ID!]!, fileName: String = null): String!
 }
 
 """A node in the graph with a globally unique ID"""
