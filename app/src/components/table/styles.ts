@@ -10,6 +10,24 @@ export const tableCSS = (theme: Theme) => css`
       th {
         padding: ${theme.spacing.margin4}px ${theme.spacing.margin16}px;
         text-align: left;
+        .resizer {
+          display: inline-block;
+
+          width: 2px;
+          height: 100%;
+          position: absolute;
+          right: 0;
+          top: 0;
+          transform: translateX(50%);
+          z-index: 1;
+          touch-action: none;
+          &.isResizing {
+            background: var(--px-light-blue-color);
+          }
+        }
+        &:hover .resizer {
+          background: ${theme.colors.gray300};
+        }
       }
     }
   }
