@@ -205,10 +205,6 @@ session.url
 ```
 
 Copy and paste the output URL into a new browser tab or window.
-
-{% hint style="info" %}
-Browser-based sessions are supported in both local Jupyter environments and Colab.
-{% endhint %}
 {% endtab %}
 
 {% tab title="In Your Notebook" %}
@@ -218,11 +214,7 @@ In a notebook cell, run
 session.view()
 ```
 
-The Phoenix UI will appear in a window beneath the cell.
-
-{% hint style="info" %}
-The height of the window can be adjusted by passing a `height` parameter, e.g., `session.view(height=1200)`. Defaults to 1000 pixels.
-{% endhint %}
+The Phoenix UI will appear in an inline frame beneath the cell.
 {% endtab %}
 {% endtabs %}
 
