@@ -214,7 +214,7 @@ In a notebook cell, run
 session.view()
 ```
 
-The Phoenix UI will appear in an inline frame beneath the cell.
+The Phoenix UI will appear in an inline frame in the cell output.
 {% endtab %}
 {% endtabs %}
 

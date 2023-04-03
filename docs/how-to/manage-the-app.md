@@ -58,7 +58,7 @@ In a notebook cell, run
 session.view()
 ```
 
-The Phoenix UI will appear in a window beneath the cell.
+The Phoenix UI will appear in an inline frame in the cell output.
 
 {% hint style="info" %}
 The height of the window can be adjusted by passing a `height` parameter, e.g., `session.view(height=1200)`. Defaults to 1000 pixels.
