@@ -12,11 +12,7 @@ In this quickstart, you will:
 * Investigate problematic clusters
 * Export problematic production data for labeling and fine-tuning
 
-{% hint style="info" %}
-Follow along in your Jupyter or Colab environment to take your first flight with Phoenix.
-
 [![Open in Colab](https://img.shields.io/static/v1?message=Open%20in%20Colab\&logo=googlecolab\&labelColor=grey\&color=blue\&logoColor=orange\&label=%20)](https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/image\_classification\_tutorial.ipynb) [![Open in GitHub](https://img.shields.io/static/v1?message=Open%20in%20GitHub\&logo=github\&labelColor=grey\&color=blue\&logoColor=white\&label=%20)](https://github.com/Arize-ai/phoenix/blob/main/tutorials/image\_classification\_tutorial.ipynb)
-{% endhint %}
 
 ## Install Dependencies and Import Libraries
 
@@ -127,19 +123,6 @@ _Cell Output:_
 | clapping       | clapping          | ![](https://storage.googleapis.com/arize-assets/fixtures/Embeddings/CV-public-images/human-actions-quality-drift/training/clapping/0000.png) |
 | fighting       | fighting          | ![](https://storage.googleapis.com/arize-assets/fixtures/Embeddings/CV-public-images/human-actions-quality-drift/training/fighting/0001.png) |
 | sitting        | sitting           | ![](https://storage.googleapis.com/arize-assets/fixtures/Embeddings/CV-public-images/human-actions-quality-drift/training/sitting/0000.png)  |
-
-## Prepare the Data
-
-The original data is from April 2022. Update the timestamps to the current time.
-
-```python
-latest_timestamp = max(prod_df['prediction_ts'])
-current_timestamp = datetime.timestamp(datetime.now())
-delta = current_timestamp - latest_timestamp
-
-train_df['prediction_ts'] = (train_df['prediction_ts'] + delta).astype(float)
-prod_df['prediction_ts'] = (prod_df['prediction_ts'] + delta).astype(float)
-```
 
 ## Launch Phoenix
 
