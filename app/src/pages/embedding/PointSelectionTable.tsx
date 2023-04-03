@@ -1,9 +1,13 @@
 import React, { useMemo } from "react";
-import { CellProps, Column, useTable } from "react-table";
+import {
+  CellProps,
+  Column,
+  useFlexLayout,
+  useResizeColumns,
+  useTable,
+} from "react-table";
 
-import { Button } from "@arizeai/components";
-
-import { ExternalLink } from "@phoenix/components";
+import { ExternalLink, LinkButton } from "@phoenix/components";
 import { tableCSS } from "@phoenix/components/table/styles";
 
 import { ModelEvent } from "./types";
@@ -56,26 +60,30 @@ export function PointSelectionTable({
       {
         Header: "Prediction Label",
         accessor: "predictionLabel",
+        resizable: false,
+        width: 50,
       },
       {
         Header: "Actual Label",
         accessor: "actualLabel",
+        resizable: false,
+        width: 50,
       },
       {
         Header: "",
         accessor: "id",
+        resizable: false,
+        width: 50,
         Cell: ({ value }: CellProps<ModelEvent>) => {
           return (
-            <Button
-              variant="default"
-              size="compact"
+            <LinkButton
               aria-label="view point details"
               onClick={() => {
                 onPointSelected(value);
               }}
             >
               view details
-            </Button>
+            </LinkButton>
           );
         },
       },
@@ -83,10 +91,14 @@ export function PointSelectionTable({
   }, [data, onPointSelected]);
 
   const { getTableProps, getTableBodyProps, headerGroups, prepareRow, rows } =
-    useTable<ModelEvent>({
-      columns,
-      data,
-    });
+    useTable<ModelEvent>(
+      {
+        columns,
+        data,
+      },
+      useFlexLayout,
+      useResizeColumns
+    );
 
   return (
     <table {...getTableProps()} css={tableCSS}>
@@ -96,6 +108,15 @@ export function PointSelectionTable({
             {headerGroup.headers.map((column, idx) => (
               <th {...column.getHeaderProps()} key={idx}>
                 {column.render("Header")}
+                {/* Use column.getResizerProps to hook up the events correctly */}
+                {column.canResize && (
+                  <div
+                    {...column.getResizerProps()}
+                    className={`resizer ${
+                      column.isResizing ? "isResizing" : ""
+                    }`}
+                  />
+                )}
               </th>
             ))}
           </tr>
