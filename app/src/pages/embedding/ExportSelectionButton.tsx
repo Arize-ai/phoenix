@@ -128,7 +128,7 @@ function ExportsList() {
     `,
     {},
     {
-      fetchPolicy: "store-or-network",
+      fetchPolicy: "network-only",
     }
   );
   return (
