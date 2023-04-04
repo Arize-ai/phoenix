@@ -5,7 +5,7 @@
     <br/>
     <br/>
     <a href="https://join.slack.com/t/arize-ai/shared_invite/zt-1px8dcmlf-fmThhDFD_V_48oU7ALan4Q">
-        <img src="https://img.shields.io/badge/slack-Arize%20AI%20Community-blue.svg?logo=slack"/>
+        <img src="https://img.shields.io/static/v1?message=Community&logo=slack&labelColor=grey&color=blue&logoColor=white&label=%20"/>
     </a>
     <a href="https://pypi.org/project/arize-phoenix/">
         <img src="https://img.shields.io/pypi/v/arize-phoenix?color=blue">
@@ -25,28 +25,76 @@ Phoenix provides MLOps insights at lightning speed with zero-config observabilit
 pip install arize-phoenix
 ```
 
-## Try it out
+## Quickstart
 
-In this section, you will get Phoenix up and running with a few lines of code.
+[![Open in Colab](https://img.shields.io/static/v1?message=Open%20in%20Colab\&logo=googlecolab\&labelColor=grey\&color=blue\&logoColor=orange\&label=%20)](https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/quickstart.ipynb) [![Open in GitHub](https://img.shields.io/static/v1?message=Open%20in%20GitHub\&logo=github\&labelColor=grey\&color=blue\&logoColor=white\&label=%20)](https://github.com/Arize-ai/phoenix/blob/main/tutorials/quickstart.ipynb)
 
-After installing `arize-phoenix` in your Jupyter or Colab environment, open your notebook and run
+Import libraries.
 
 ```python
+from dataclasses import replace
+import pandas as pd
 import phoenix as px
-
-datasets = px.load_example("sentiment_classification_language_drift")
-session = px.launch_app(datasets.primary, datasets.reference)
 ```
 
-Next, visualize your embeddings and inspect problematic clusters of your production data.
+Download curated datasets and load them into pandas DataFrames.
 
-Don't forget to close the app when you're done.
-
+```python
+train_df = pd.read_parquet(
+    "https://storage.googleapis.com/arize-assets/phoenix/datasets/unstructured/cv/human-actions/human_actions_training.parquet"
+)
+prod_df = pd.read_parquet(
+    "https://storage.googleapis.com/arize-assets/phoenix/datasets/unstructured/cv/human-actions/human_actions_production.parquet"
+)
 ```
+
+Define schemas that tell Phoenix which columns of your DataFrames correspond to features, predictions, actuals (i.e., ground truth), embeddings, etc.
+
+```python
+train_schema = px.Schema(
+    timestamp_column_name="prediction_ts",
+    prediction_label_column_name="predicted_action",
+    actual_label_column_name="actual_action",
+    embedding_feature_column_names={
+        "image_embedding": px.EmbeddingColumnNames(
+            vector_column_name="image_vector",
+            link_to_data_column_name="url",
+        ),
+    },
+)
+prod_schema = replace(train_schema, actual_label_column_name=None)
+```
+
+Define your production and training datasets.
+
+```python
+prod_ds = px.Dataset(prod_df, prod_schema)
+train_ds = px.Dataset(train_df, train_schema)
+```
+
+Launch the app.
+
+```python
+session = px.launch_app(prod_ds, train_ds)
+```
+
+You can open Phoenix by copying and pasting the output of `session.url` into a new browser tab.
+
+```python
+session.url
+```
+
+Alternatively, you can open the Phoenix UI in your notebook with
+
+```python
+session.view()
+```
+
+When you're done, don't forget to close the app.
+
+```python
 px.close_app()
 ```
-
-For more details, check out the [Sentiment Classification Tutorial](./tutorials/sentiment_classification_tutorial.ipynb).
 
 ## Documentation
 

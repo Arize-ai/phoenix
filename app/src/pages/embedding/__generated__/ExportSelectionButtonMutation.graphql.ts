@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<28505b3ed3ba65dcf15dcc70983bca3e>>
+ * @generated SignedSource<<c8eb841a7d431a2662165f2f5e7cd929>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -14,7 +14,6 @@ export type ExportSelectionButtonMutation$variables = {
 };
 export type ExportSelectionButtonMutation$data = {
   readonly exportEvents: {
-    readonly directory: string;
     readonly fileName: string;
   };
 };
@@ -50,13 +49,6 @@ v1 = [
         "alias": null,
         "args": null,
         "kind": "ScalarField",
-        "name": "directory",
-        "storageKey": null
-      },
-      {
-        "alias": null,
-        "args": null,
-        "kind": "ScalarField",
         "name": "fileName",
         "storageKey": null
       }
@@ -82,16 +74,16 @@ return {
     "selections": (v1/*: any*/)
   },
   "params": {
-    "cacheID": "5da94d6d7ccf522e31264ae10908ce46",
+    "cacheID": "d370df04ca30a5059288c7aa298239a8",
     "id": null,
     "metadata": {},
     "name": "ExportSelectionButtonMutation",
     "operationKind": "mutation",
-    "text": "mutation ExportSelectionButtonMutation(\n  $eventIds: [ID!]!\n) {\n  exportEvents(eventIds: $eventIds) {\n    directory\n    fileName\n  }\n}\n"
+    "text": "mutation ExportSelectionButtonMutation(\n  $eventIds: [ID!]!\n) {\n  exportEvents(eventIds: $eventIds) {\n    fileName\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "d79bee03d9b17c1e6e276ef7b124de81";
+(node as any).hash = "8b0d6962e2034d4c148d1b9919111d2f";
 
 export default node;

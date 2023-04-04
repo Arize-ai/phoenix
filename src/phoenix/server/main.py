@@ -3,6 +3,7 @@ import errno
 import logging
 import os
 from argparse import ArgumentParser
+from pathlib import Path
 from typing import Optional
 
 import uvicorn
@@ -47,7 +48,7 @@ if __name__ == "__main__":
     _write_pid_file()
 
     parser = ArgumentParser()
-
+    parser.add_argument("--export_path")
     parser.add_argument("--port", type=int, default=config.PORT)
     parser.add_argument("--debug", action="store_false")  # TODO: Disable before public launch
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -58,7 +59,7 @@ if __name__ == "__main__":
     fixture_parser.add_argument("fixture", type=str, choices=[fixture.name for fixture in FIXTURES])
     fixture_parser.add_argument("--primary-only", type=bool)
     args = parser.parse_args()
-
+    export_path = Path(args.export_path) if args.export_path else config.EXPORT_DIR
     if args.command == "datasets":
         primary_dataset_name = args.primary
         reference_dataset_name = args.reference
@@ -76,6 +77,7 @@ if __name__ == "__main__":
     print(f"2️⃣ reference dataset: {reference_dataset_name}")
 
     app = create_app(
+        export_path=export_path,
         primary_dataset_name=primary_dataset_name,
         reference_dataset_name=reference_dataset_name,
         debug=args.debug,

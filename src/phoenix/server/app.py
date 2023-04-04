@@ -1,4 +1,5 @@
 import logging
+from pathlib import Path
 from typing import Optional, Union
 
 from starlette.applications import Starlette
@@ -16,7 +17,7 @@ from starlette.websockets import WebSocket
 from strawberry.asgi import GraphQL
 from strawberry.schema import BaseSchema
 
-from phoenix.config import EXPORT_DIR, SERVER_DIR
+from phoenix.config import SERVER_DIR
 from phoenix.core.model import Model
 from phoenix.datasets import Dataset
 
@@ -63,10 +64,12 @@ class GraphQLWithContext(GraphQL):
         self,
         schema: BaseSchema,
         model: Model,
+        export_path: Path,
         loader: Loaders,
         graphiql: bool = False,
     ) -> None:
         self.model = model
+        self.export_path = export_path
         self.loader = loader
         super().__init__(schema, graphiql=graphiql)
 
@@ -79,14 +82,17 @@ class GraphQLWithContext(GraphQL):
             request=request,
             response=response,
             model=self.model,
+            export_path=self.export_path,
             loaders=self.loader,
         )
 
 
 class Download(HTTPEndpoint):
+    path: Path
+
     async def get(self, request: Request) -> FileResponse:
         params = QueryParams(request.query_params)
-        file = EXPORT_DIR / (params.get("filename", "") + ".parquet")
+        file = self.path / (params.get("filename", "") + ".parquet")
         if not file.is_file():
             raise HTTPException(status_code=404)
         return FileResponse(
@@ -97,6 +103,7 @@ class Download(HTTPEndpoint):
 
 
 def create_app(
+    export_path: Path,
     primary_dataset_name: str,
     reference_dataset_name: Optional[str],
     debug: bool = False,
@@ -112,6 +119,7 @@ def create_app(
     graphql = GraphQLWithContext(
         schema=schema,
         model=model,
+        export_path=export_path,
         loader=create_loaders(model),
         graphiql=True,
     )
@@ -123,7 +131,11 @@ def create_app(
         routes=[
             Route(
                 "/exports",
-                Download,
+                type(
+                    "DownloadExports",
+                    (Download,),
+                    {"path": export_path},
+                ),
             ),
             Route(
                 "/graphql",

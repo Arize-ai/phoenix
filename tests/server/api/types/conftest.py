@@ -1,3 +1,5 @@
+from pathlib import Path
+from tempfile import TemporaryDirectory
 from typing import Callable, Optional
 from unittest.mock import Mock
 
@@ -40,6 +42,7 @@ def context_factory() -> Callable[[Dataset, Optional[Dataset]], Context]:
             request=Mock(),
             response=None,
             model=Model(primary_dataset=primary_dataset, reference_dataset=reference_dataset),
+            export_path=Path(TemporaryDirectory().name),
             loaders=Mock(),
         )
 

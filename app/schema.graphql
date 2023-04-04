@@ -182,9 +182,6 @@ type EventMetadata {
 type ExportedFile {
   """File name without the file extension."""
   fileName: String!
-
-  """Disk location where the file is stored."""
-  directory: String!
 }
 
 """
@@ -213,15 +210,13 @@ type Model {
   referenceDataset: Dataset
   embeddingDimensions(first: Int = 50, last: Int = null, after: String, before: String): EmbeddingDimensionConnection!
 
-  """
-  Returns n most recent exported Parquet files sorted by descending modification time.
-  """
-  exportedFiles(nLatest: Int! = 5): [ExportedFile!]!
+  """Returns exported file names sorted by descending modification time."""
+  exportedFiles: [ExportedFile!]!
 }
 
 type Mutation {
   """
-  Given a list of event ids, export the corresponding data subset in parquet format. File name is optional, but if specified, should be without file extension. By default the exported file name is current timestamp.
+  Given a list of event ids, export the corresponding data subset in Parquet format. File name is optional, but if specified, should be without file extension. By default the exported file name is current timestamp.
   """
   exportEvents(eventIds: [ID!]!, fileName: String = null): ExportedFile!
 }

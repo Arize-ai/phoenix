@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Optional, Union
 
 from starlette.requests import Request
@@ -15,4 +16,5 @@ class Context:
     request: Union[Request, WebSocket]
     response: Optional[Response]
     model: Model
+    export_path: Path
     loaders: Loaders

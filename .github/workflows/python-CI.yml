@@ -7,6 +7,7 @@ on:
         paths:
             - "src/**"
             - "tests/**"
+            - "tutorials/**"
             - "pyproject.toml"
     # Allows you to run this workflow manually from the Actions tab
     workflow_dispatch:
