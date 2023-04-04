@@ -131,7 +131,11 @@ def create_app(
         routes=[
             Route(
                 "/exports",
-                type("DownloadExports", (Download,), {"path": export_path}),
+                type(
+                    "DownloadExports",
+                    (Download,),
+                    {"path": export_path},
+                ),
             ),
             Route(
                 "/graphql",
