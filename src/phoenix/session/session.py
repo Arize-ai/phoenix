@@ -36,7 +36,7 @@ class ExportedData(_BaseList):
         super().__init__()
 
     def __repr__(self) -> str:
-        return repr([f"<DataFrame {name}>" for name in self.names])
+        return f"[{', '.join(f'<DataFrame {name}>' for name in self.names)}]"
 
     def add(self, paths: Iterable[Path]) -> None:
         new_paths = sorted(
