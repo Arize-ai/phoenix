@@ -15,7 +15,7 @@
 ## 🔢 How-To
 
 * [Install and Import Phoenix](how-to/install-and-import-phoenix.md)
-* [Create Your Own Dataset](how-to/define-your-schema.md)
+* [Import Your Data](how-to/define-your-schema.md)
 * [Manage the App](how-to/manage-the-app.md)
 * [Use Example Datasets](how-to/use-example-datasets.md)
 
