@@ -67,7 +67,7 @@ The Phoenix library heavily uses embeddings as a method for data visualization a
 
 #### Start Phoenix:
 
-Phoenix is typically started in a notebook from which a local Phoenix server is kicked off. Two approaches can be taken to the overall use of Phoenix::
+Phoenix is typically started in a notebook from which a local Phoenix server is kicked off. Two approaches can be taken to the overall use of Phoenix:
 
 1. **Single Dataset**
 
