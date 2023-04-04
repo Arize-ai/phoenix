@@ -36,6 +36,13 @@ In a notebook cell, execute
 {% endtab %}
 {% endtabs %}
 
+Import libraries for the quickstart.
+
+```python
+from dataclasses import replace
+import phoenix as px
+```
+
 ## Download the Data
 
 Download the curated dataset.
