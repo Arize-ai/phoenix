@@ -11,6 +11,7 @@ from phoenix.server.api.context import Context
 from .Dataset import Dataset, to_gql_dataset
 from .Dimension import Dimension, to_gql_dimension
 from .EmbeddingDimension import EmbeddingDimension, to_gql_embedding_dimension
+from .ExportedFile import ExportedFile
 from .pagination import Connection, ConnectionArgs, Cursor, connection_from_list
 
 
@@ -94,10 +95,10 @@ class Model:
     async def exported_files(
         self,
         info: Info[Context, None],
-    ) -> List[str]:
+    ) -> List[ExportedFile]:
         loop = asyncio.get_running_loop()
         return [
-            path.stem
+            ExportedFile(file_name=path.stem)
             for path in sorted(
                 await loop.run_in_executor(
                     None,

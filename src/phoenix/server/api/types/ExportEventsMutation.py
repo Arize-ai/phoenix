@@ -8,6 +8,7 @@ from strawberry.types import Info
 
 from phoenix.server.api.context import Context
 from phoenix.server.api.types.Event import parse_event_ids
+from phoenix.server.api.types.ExportedFile import ExportedFile
 
 
 @strawberry.type
@@ -24,7 +25,7 @@ class ExportEventsMutation:
         info: Info[Context, None],
         event_ids: List[ID],
         file_name: Optional[str] = None,
-    ) -> str:
+    ) -> ExportedFile:
         if file_name is None:
             file_name = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         row_ids = parse_event_ids(event_ids)
@@ -37,4 +38,4 @@ class ExportEventsMutation:
                 row_ids,
                 fd,
             )
-        return file_name
+        return ExportedFile(file_name=file_name)

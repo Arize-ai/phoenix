@@ -18,6 +18,7 @@ except:  # noqa
 
 logger = logging.getLogger(__name__)
 
+
 _session: Optional["Session"] = None
 
 # type workaround
@@ -28,7 +29,7 @@ else:
     _BaseList = UserList
 
 
-class ExportedFiles(_BaseList):
+class ExportedData(_BaseList):
     def __init__(self) -> None:
         self.paths: Set[Path] = set()
         self.names: List[str] = []
@@ -57,7 +58,7 @@ class Session:
         self.temp_dir = TemporaryDirectory()
         self.export_path = Path(self.temp_dir.name) / "exports"
         self.export_path.mkdir(parents=True, exist_ok=True)
-        self.exported_files = ExportedFiles()
+        self.exported_data = ExportedData()
         # Initialize an app service that keeps the server running
         self._app_service = AppService(
             self.export_path,
@@ -68,19 +69,17 @@ class Session:
         self._is_colab = _is_colab()
 
     @property
-    def exports(self) -> ExportedFiles:
-        """Most recently exported Parquet files (showing up to 5), sorted in
-         descending order by modification date.
+    def exports(self) -> ExportedData:
+        """Exported data sorted in descending order by modification date.
 
         Returns
         -------
-        list: exported Parquet files
-            List of exported Parquet files. Use the `.dataframe` property on
-            each object to convert it into a pd.DataFrame.
+        dataframes: list
+            List of dataframes
         """
         files = get_exported_files(self.export_path)
-        self.exported_files.add(files)
-        return self.exported_files
+        self.exported_data.add(files)
+        return self.exported_data
 
     def view(self, height: int = 1000) -> "IFrame":
         """
