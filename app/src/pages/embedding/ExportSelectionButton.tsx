@@ -22,7 +22,6 @@ import { ExportSelectionButtonExportsQuery } from "./__generated__/ExportSelecti
 import { ExportSelectionButtonMutation } from "./__generated__/ExportSelectionButtonMutation.graphql";
 
 type ExportInfo = {
-  directory: string;
   fileName: string;
 };
 
@@ -35,7 +34,6 @@ export function ExportSelectionButton() {
     useMutation<ExportSelectionButtonMutation>(graphql`
       mutation ExportSelectionButtonMutation($eventIds: [ID!]!) {
         exportEvents(eventIds: $eventIds) {
-          directory
           fileName
         }
       }
@@ -135,12 +133,14 @@ function ExportsList() {
         model {
           exportedFiles {
             fileName
-            directory
           }
         }
       }
     `,
-    {}
+    {},
+    {
+      fetchPolicy: "network-only",
+    }
   );
   return (
     <List>

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a3175a465b0aebfd1dbb194c29f181bf>>
+ * @generated SignedSource<<f7ee9d3574969ba690b28c0473c3959f>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -13,7 +13,6 @@ export type ExportSelectionButtonExportsQuery$variables = {};
 export type ExportSelectionButtonExportsQuery$data = {
   readonly model: {
     readonly exportedFiles: ReadonlyArray<{
-      readonly directory: string;
       readonly fileName: string;
     }>;
   };
@@ -47,13 +46,6 @@ var v0 = [
             "kind": "ScalarField",
             "name": "fileName",
             "storageKey": null
-          },
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "directory",
-            "storageKey": null
           }
         ],
         "storageKey": null
@@ -80,16 +72,16 @@ return {
     "selections": (v0/*: any*/)
   },
   "params": {
-    "cacheID": "de284b736ea3e2b329144ba1f4749143",
+    "cacheID": "2f7e3554305121746dc799b6a8d120da",
     "id": null,
     "metadata": {},
     "name": "ExportSelectionButtonExportsQuery",
     "operationKind": "query",
-    "text": "query ExportSelectionButtonExportsQuery {\n  model {\n    exportedFiles {\n      fileName\n      directory\n    }\n  }\n}\n"
+    "text": "query ExportSelectionButtonExportsQuery {\n  model {\n    exportedFiles {\n      fileName\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "036999220197c96b84fcdfabd7fb4d27";
+(node as any).hash = "7e6db431afe21f137e54505645c787f4";
 
 export default node;

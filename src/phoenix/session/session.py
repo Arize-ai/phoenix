@@ -1,8 +1,9 @@
 import logging
-from dataclasses import dataclass
+from collections import UserList
 from functools import cached_property
 from pathlib import Path
-from typing import List, Optional
+from tempfile import TemporaryDirectory
+from typing import TYPE_CHECKING, Iterable, List, Optional, Set
 
 import pandas as pd
 
@@ -20,20 +21,31 @@ logger = logging.getLogger(__name__)
 
 _session: Optional["Session"] = None
 
+# type workaround
+# https://github.com/python/mypy/issues/5264#issuecomment-399407428
+if TYPE_CHECKING:
+    _BaseList = UserList[pd.DataFrame]
+else:
+    _BaseList = UserList
 
-@dataclass
-class ExportedFile:
-    """A Parquet file that can be loaded into a pd.DataFrame."""
 
-    path: Path
+class ExportedData(_BaseList):
+    def __init__(self) -> None:
+        self.paths: Set[Path] = set()
+        self.names: List[str] = []
+        super().__init__()
 
     def __repr__(self) -> str:
-        return f"<Parquet file: {self.path.stem}>"
+        return f"[{', '.join(f'<DataFrame {name}>' for name in self.names)}]"
 
-    @property
-    def dataframe(self) -> pd.DataFrame:
-        """Reads the Parquet file into a pandas.DataFrame"""
-        return pd.read_parquet(self.path)
+    def add(self, paths: Iterable[Path]) -> None:
+        new_paths = sorted(
+            set(paths) - self.paths,
+            key=lambda p: p.stat().st_mtime,
+        )
+        self.paths.update(new_paths)
+        self.names.extend(path.stem for path in new_paths)
+        self.data.extend(pd.read_parquet(path) for path in new_paths)
 
 
 class Session:
@@ -43,8 +55,13 @@ class Session:
         self.primary = primary
         self.reference = reference
         self.port = port
+        self.temp_dir = TemporaryDirectory()
+        self.export_path = Path(self.temp_dir.name) / "exports"
+        self.export_path.mkdir(parents=True, exist_ok=True)
+        self.exported_data = ExportedData()
         # Initialize an app service that keeps the server running
         self._app_service = AppService(
+            self.export_path,
             port,
             primary.name,
             reference_dataset_name=reference.name if reference is not None else None,
@@ -52,17 +69,17 @@ class Session:
         self._is_colab = _is_colab()
 
     @property
-    def exports(self) -> List[ExportedFile]:
-        """Most recently exported Parquet files (showing up to 5), sorted in
-         descending order by modification date.
+    def exports(self) -> ExportedData:
+        """Exported data sorted in descending order by modification date.
 
         Returns
         -------
-        list: exported Parquet files
-            List of exported Parquet files. Use the `.dataframe` property on
-            each object to convert it into a pd.DataFrame.
+        dataframes: list
+            List of dataframes
         """
-        return list(map(ExportedFile, get_exported_files(5)))
+        files = get_exported_files(self.export_path)
+        self.exported_data.add(files)
+        return self.exported_data
 
     def view(self, height: int = 1000) -> "IFrame":
         """
@@ -84,6 +101,7 @@ class Session:
     def end(self) -> None:
         "Ends the session and closes the app service"
         self._app_service.stop()
+        self.temp_dir.cleanup()
 
 
 def launch_app(primary: Dataset, reference: Optional[Dataset] = None) -> "Session":
