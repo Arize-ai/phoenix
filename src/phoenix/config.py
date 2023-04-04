@@ -34,7 +34,7 @@ PORT = 6060
 
 def get_exported_files(directory: Path) -> List[Path]:
     """
-    Yields n most recently exported files by descending modification time.
+    Yields the list of paths of exported files.
 
     Parameters
     ----------
@@ -44,6 +44,6 @@ def get_exported_files(directory: Path) -> List[Path]:
     Returns
     -------
     list: List[Path]
-        List of paths of the n most recent exported files.
+        List of paths of the exported files.
     """
     return list(directory.glob("*.parquet"))
