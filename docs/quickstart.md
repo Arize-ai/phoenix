@@ -138,4 +138,4 @@ Congrats! You've taken your first flight with Phoenix. We recommend that you nex
 
 * Understand the [foundational concepts of the Phoenix API](concepts/phoenix-basics.md)
 * Experiment with our end-to-end [example notebooks](tutorials/notebooks.md)
-* Learn how to [use Phoenix with your own data](how-to/define-your-schema.md) and how to [manage](how-to/manage-the-app.md) and [use the app](broken-reference/)
+* Learn how to [use Phoenix with your own data](how-to/define-your-schema.md) and how to [manage the app](how-to/manage-the-app.md).
