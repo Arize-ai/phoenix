@@ -166,6 +166,7 @@ def launch_app(
     _session = Session(primary, reference)
     # TODO: catch exceptions from thread
     if not _session.active:
+        print("app failed to launch")
         return None
 
     open_btn = widgets.Button(description="▶ Open")
