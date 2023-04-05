@@ -558,8 +558,13 @@ function ClustersPanelContents({
                   isSelected={selectedClusterId === cluster.id}
                   driftRatio={cluster.driftRatio}
                   onClick={() => {
-                    setSelectedClusterId(cluster.id);
-                    setSelectedEventIds(new Set(cluster.eventIds));
+                    if (selectedClusterId !== cluster.id) {
+                      setSelectedClusterId(cluster.id);
+                      setSelectedEventIds(new Set(cluster.eventIds));
+                    } else {
+                      setSelectedClusterId(null);
+                      setSelectedEventIds(new Set());
+                    }
                   }}
                   onMouseEnter={() => {
                     setHighlightedClusterId(cluster.id);
