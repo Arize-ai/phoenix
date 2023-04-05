@@ -2,7 +2,7 @@
 description: Meaning, Examples and How To Compute
 ---
 
-# 🌌 Embeddings
+# Embeddings
 
 ### What's an embedding?
 

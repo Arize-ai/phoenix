@@ -2,7 +2,7 @@
 description: Quickly explore Phoenix with concrete examples
 ---
 
-# 🖼 Use Example Datasets
+# Use Example Datasets
 
 Phoenix ships with a collection of example datasets so you can quickly try out the app on concrete use-cases. This guide shows you how to download, inspect, and launch the app with example datasets.
 
@@ -55,7 +55,7 @@ prim_ds.schema
 to see your dataset's schema in the cell output:
 
 ```
-Schema(prediction_id_column_name='prediction_id', timestamp_column_name='prediction_ts', feature_column_names=['reviewer_age', 'reviewer_gender', 'product_category', 'language'], tag_column_names=None, prediction_label_column_name='pred_label', prediction_score_column_name=None, actual_label_column_name='label', actual_score_column_name=None, embedding_feature_column_names={'text_embedding': EmbeddingColumnNames(vector_column_name='text_vector', raw_data_column_name='text', link_to_data_column_name=None)}, excludes=None)
+Schema(prediction_id_column_name='prediction_id', timestamp_column_name='prediction_ts', feature_column_names=['reviewer_age', 'reviewer_gender', 'product_category', 'language'], tag_column_names=None, prediction_label_column_name='pred_label', prediction_score_column_name=None, actual_label_column_name='label', actual_score_column_name=None, embedding_feature_column_names={'text_embedding': EmbeddingColumnNames(vector_column_name='text_vector', raw_data_column_name='text', link_to_data_column_name=None)}, excluded_column_names=None)
 ```
 
 Last, run

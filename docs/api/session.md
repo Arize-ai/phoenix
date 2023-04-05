@@ -121,6 +121,7 @@ A session that maintains the state of the Phoenix app.
 ### Attributes
 
 * **url** (str): The URL of the running Phoenix session. Can be copied and pasted to open the Phoenix UI in a new browser tab or window.
+* **exports** (List\[DataFrame]): List of pandas DataFrame. To access the most recently exported data, use `exports[-1]`.
 
 ### Usage
 
@@ -161,3 +162,12 @@ session.url
 ```
 
 and copying and pasting the URL.
+
+Once a cluster is selected in the UI it can be exported as a Parquet file on disk. To list the exported files, use the `exports` property on the `session` as follows.
+
+```python
+session.exports
+# [<DataFrame 2023-03-29_22-14-37>]
+session.exports[-1]
+# pandas.DataFrame
+```
