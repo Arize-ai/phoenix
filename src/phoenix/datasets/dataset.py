@@ -605,5 +605,5 @@ def _get_schema_from_unknown_schema_param(schemaLike: SchemaLike) -> Schema:
         raise ValueError("Unknown schema passed to Dataset. Please pass a phoenix Schema")
 
 
-def _add_prediction_id(num_rows: int) -> List["str"]:
+def _add_prediction_id(num_rows: int) -> List[str]:
     return [str(uuid.uuid4()) for _ in range(num_rows)]
