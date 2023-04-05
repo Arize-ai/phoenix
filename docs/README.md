@@ -39,7 +39,7 @@ Phoenix is an ML Observability library designed for the Notebook. The toolset is
 
 Phoenix is designed to run locally on a single server in conjunction with the Notebook.
 
-<figure><img src=".gitbook/assets/Phoenix docs graphics-03 (1).jpg" alt=""><figcaption><p><strong>Phoenix Architecture</strong></p></figcaption></figure>
+<figure><img src=".gitbook/assets/Phoenix docs graphics-03.jpg" alt=""><figcaption><p><strong>Phoenix Architecture</strong></p></figcaption></figure>
 
 Phoenix runs locally, close to your data, in an environment that interfaces to Notebook cells on the Notebook server. Designing Phoenix to run locally, enables fast iteration on top of local data.
 
@@ -53,7 +53,7 @@ In order to use Phoenix:
 4. Investigate problems
 5. Export data
 
-<figure><img src=".gitbook/assets/Phoenix docs graphics-02 (1).jpg" alt=""><figcaption></figcaption></figure>
+<figure><img src=".gitbook/assets/Phoenix docs graphics-02 (2).jpg" alt=""><figcaption></figcaption></figure>
 
 The picture above shows the flow of execution of Phoenix, from pointing it to your data, running it to find problems or insights, grabbing groups of data for insights and then exporting for fine tuning.
 

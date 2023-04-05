@@ -19,7 +19,7 @@ An inference store is a common approach to store model inferences, normally stor
 * Text Classification
 *   NER Span Categorization
 
-    ****
+
 
 **Tabular:**
 
