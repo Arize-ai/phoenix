@@ -1,7 +1,6 @@
 import React, { useCallback } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import {
-  Area,
   Bar,
   CartesianGrid,
   ComposedChart,
@@ -33,7 +32,6 @@ const numberFormatter = new Intl.NumberFormat([], {
   maximumFractionDigits: 2,
 });
 
-const color = "#5899C5";
 const barColor = "#93b3c841";
 
 function TooltipContent({ active, payload, label }: TooltipProps<any, any>) {
