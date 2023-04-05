@@ -4,6 +4,7 @@
 
 ## 💡 Concepts
 
+* [LLM Observability](concepts/llm-observability.md)
 * [Embeddings](concepts/embeddings.md)
 * [Phoenix Basics](concepts/phoenix-basics.md)
 
