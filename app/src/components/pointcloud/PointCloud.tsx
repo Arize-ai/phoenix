@@ -23,11 +23,12 @@ import {
 import { UNKNOWN_COLOR } from "@phoenix/constants/pointCloudConstants";
 import { PointCloudContext, usePointCloudContext } from "@phoenix/contexts";
 import { useTimeSlice } from "@phoenix/contexts/TimeSliceContext";
+import { CanvasMode } from "@phoenix/store";
 import { splitEventIdsByDataset } from "@phoenix/utils/pointCloudUtils";
 
 import { fullTimeFormatter } from "../chart";
 
-import { CanvasMode, CanvasModeRadioGroup } from "./CanvasModeRadioGroup";
+import { CanvasModeRadioGroup } from "./CanvasModeRadioGroup";
 import { CanvasThemeToggle } from "./CanvasThemeToggle";
 import { PointCloudClusters } from "./PointCloudClusters";
 import { PointCloudPoints } from "./PointCloudPoints";
@@ -229,7 +230,8 @@ function CanvasWrap({ children }: { children: ReactNode }) {
 }
 
 export function PointCloud(props: PointCloudProps) {
-  const [canvasMode, setCanvasMode] = useState<CanvasMode>(CanvasMode.move);
+  const canvasMode = usePointCloudContext((state) => state.canvasMode);
+  const setCanvasMode = usePointCloudContext((state) => state.setCanvasMode);
 
   return (
     <CanvasWrap>

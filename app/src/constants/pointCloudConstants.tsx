@@ -12,7 +12,7 @@ export const MAX_MIN_DIST = 0.99;
 /**
  * The default sample size for a single dataset for UMAP, if a primary and reference dataset are requested, the entire cloud will be twice this number
  */
-export const DEFAULT_DATASET_SAMPLE_SIZE = 1500;
+export const DEFAULT_DATASET_SAMPLE_SIZE = 500;
 export const MIN_DATASET_SAMPLE_SIZE = 300;
 export const MAX_DATASET_SAMPLE_SIZE = 2500;
 

@@ -11,10 +11,7 @@ import {
   TriggerWrap,
 } from "@arizeai/components";
 
-export enum CanvasMode {
-  move = "move",
-  select = "select",
-}
+import { CanvasMode } from "@phoenix/store";
 
 const radioItemCSS = css`
   display: flex;

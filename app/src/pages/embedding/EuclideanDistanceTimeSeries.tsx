@@ -15,7 +15,15 @@ import {
 import { CategoricalChartFunc } from "recharts/types/chart/generateCategoricalChart";
 import { css } from "@emotion/react";
 
-import { Icon, InfoOutline, Text, theme } from "@arizeai/components";
+import {
+  Content,
+  ContextualHelp,
+  Heading,
+  Icon,
+  InfoOutline,
+  Text,
+  theme,
+} from "@arizeai/components";
 
 import {
   ChartTooltip,
@@ -39,6 +47,16 @@ const numberFormatter = new Intl.NumberFormat([], {
 const color = "#5899C5";
 const barColor = "#93b3c841";
 
+const embeddingDriftContextualHelp = (
+  <ContextualHelp>
+    <Heading level={4}>Embedding Drift</Heading>
+    <Content>
+      {`Euclidean distance over time displays a timeseries graph of how much
+    your primary dataset's embeddings are drifting from the reference
+    data. Euclidean distance of the embeddings is calculated by taking the centroid of the embedding vectors for each dataset and calculating the distance between the two centroids.`}
+    </Content>
+  </ContextualHelp>
+);
 function TooltipContent({ active, payload, label }: TooltipProps<any, any>) {
   if (active && payload && payload.length) {
     const euclideanDistance = payload[1]?.value ?? null;
@@ -167,87 +185,116 @@ export function EuclideanDistanceTimeSeries({
     };
   });
   return (
-    <ResponsiveContainer width="100%" height="100%">
-      <ComposedChart
-        data={chartData as unknown as any[]}
-        margin={{ top: 25, right: 18, left: 18, bottom: 10 }}
-        onClick={onClick}
-      >
-        <defs>
-          <linearGradient id="colorUv" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor={color} stopOpacity={0.8} />
-            <stop offset="95%" stopColor={color} stopOpacity={0} />
-          </linearGradient>
-          <linearGradient id="barColor" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor={barColor} stopOpacity={0.8} />
-            <stop offset="95%" stopColor={barColor} stopOpacity={0} />
-          </linearGradient>
-        </defs>
-        <XAxis
-          dataKey="timestamp"
-          stroke={theme.colors.gray200}
-          // TODO: Fix this to be a cleaner interface
-          tickFormatter={(x) => fullTimeFormatter(new Date(x))}
-          style={{ fill: theme.textColors.white70 }}
-        />
-        <YAxis
-          stroke={theme.colors.gray200}
-          label={{
-            value: "Euc. Distance",
-            angle: -90,
-            position: "insideLeft",
-            style: { textAnchor: "middle", fill: theme.textColors.white90 },
-          }}
-          style={{ fill: theme.textColors.white70 }}
-        />
-        <YAxis
-          yAxisId="right"
-          orientation="right"
-          label={{
-            value: "Count",
-            angle: 90,
-            position: "insideRight",
-            style: { textAnchor: "middle", fill: theme.textColors.white90 },
-          }}
-          style={{ fill: theme.textColors.white70 }}
-        />
-        <CartesianGrid
-          strokeDasharray="4 4"
-          stroke={theme.colors.gray200}
-          strokeOpacity={0.5}
-        />
-        <Tooltip content={<TooltipContent />} />
-        <Bar
-          yAxisId="right"
-          dataKey="traffic"
-          fill="url(#barColor)"
-          spacing={5}
-        />
-        <Area
-          type="monotone"
-          dataKey="value"
-          stroke={color}
-          fillOpacity={1}
-          fill="url(#colorUv)"
-        />
-
-        {selectedTimestamp != null ? (
-          <>
-            <ReferenceLine
-              x={selectedTimestamp.toISOString()}
-              stroke="white"
-              label={{
-                value: "▼",
-                position: "top",
-                style: {
-                  fill: "#fabe32",
-                  fontSize: theme.typography.sizes.small.fontSize,
-                },
-              }}
+    <section
+      css={css`
+        width: 100%;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        h3 {
+          padding: var(--px-spacing-sm) var(--px-spacing-lg) 0
+            var(--px-spacing-lg);
+          flex: none;
+          .ac-action-button {
+            margin-left: var(--px-spacing-sm);
+          }
+        }
+        & > div {
+          flex: 1 1 auto;
+          width: 100%;
+          overflow: hidden;
+        }
+      `}
+    >
+      <Heading level={3}>
+        Embedding Drift
+        {embeddingDriftContextualHelp}
+      </Heading>
+      <div>
+        <ResponsiveContainer width="100%" height="100%">
+          <ComposedChart
+            data={chartData as unknown as any[]}
+            margin={{ top: 25, right: 18, left: 18, bottom: 10 }}
+            onClick={onClick}
+          >
+            <defs>
+              <linearGradient id="colorUv" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor={color} stopOpacity={0.8} />
+                <stop offset="95%" stopColor={color} stopOpacity={0} />
+              </linearGradient>
+              <linearGradient id="barColor" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor={barColor} stopOpacity={0.8} />
+                <stop offset="95%" stopColor={barColor} stopOpacity={0} />
+              </linearGradient>
+            </defs>
+            <XAxis
+              dataKey="timestamp"
+              stroke={theme.colors.gray200}
+              // TODO: Fix this to be a cleaner interface
+              tickFormatter={(x) => fullTimeFormatter(new Date(x))}
+              style={{ fill: theme.textColors.white70 }}
             />
-          </>
-        ) : null}
-      </ComposedChart>
-    </ResponsiveContainer>
+            <YAxis
+              stroke={theme.colors.gray200}
+              label={{
+                value: "Euc. Distance",
+                angle: -90,
+                position: "insideLeft",
+                style: { textAnchor: "middle", fill: theme.textColors.white90 },
+              }}
+              style={{ fill: theme.textColors.white70 }}
+            />
+            <YAxis
+              yAxisId="right"
+              orientation="right"
+              label={{
+                value: "Count",
+                angle: 90,
+                position: "insideRight",
+                style: { textAnchor: "middle", fill: theme.textColors.white90 },
+              }}
+              style={{ fill: theme.textColors.white70 }}
+            />
+            <CartesianGrid
+              strokeDasharray="4 4"
+              stroke={theme.colors.gray200}
+              strokeOpacity={0.5}
+            />
+            <Tooltip content={<TooltipContent />} />
+            <Bar
+              yAxisId="right"
+              dataKey="traffic"
+              fill="url(#barColor)"
+              spacing={5}
+            />
+            <Area
+              type="monotone"
+              dataKey="value"
+              stroke={color}
+              fillOpacity={1}
+              fill="url(#colorUv)"
+            />
+
+            {selectedTimestamp != null ? (
+              <>
+                <ReferenceLine
+                  x={selectedTimestamp.toISOString()}
+                  stroke="white"
+                  label={{
+                    value: "▼",
+                    position: "top",
+                    style: {
+                      fill: "#fabe32",
+                      fontSize: theme.typography.sizes.small.fontSize,
+                    },
+                  }}
+                />
+              </>
+            ) : null}
+          </ComposedChart>
+        </ResponsiveContainer>
+      </div>
+    </section>
   );
 }
