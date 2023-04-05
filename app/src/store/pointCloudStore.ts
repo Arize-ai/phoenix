@@ -75,6 +75,14 @@ export type UMAPParameters = {
 type CanvasTheme = "light" | "dark";
 
 /**
+ * The tool mode of the canvas
+ */
+export enum CanvasMode {
+  move = "move",
+  select = "select",
+}
+
+/**
  * The visibility of the two datasets in the point cloud.
  */
 type DatasetVisibility = {
@@ -148,6 +156,11 @@ export interface PointCloudProps {
    */
   selectedClusterId: string | null;
   /**
+   * The canvas mode of the point cloud.
+   * @default "move"
+   */
+  canvasMode: CanvasMode;
+  /**
    * The color scheme to use for the point cloud.
    * @default "dark"
    */
@@ -213,6 +226,10 @@ export interface PointCloudState extends PointCloudProps {
    * Sets the selected cluster id to the given value.
    */
   setSelectedClusterId: (ids: string | null) => void;
+  /**
+   * set the canvas mode
+   */
+  setCanvasMode: (mode: CanvasMode) => void;
   /**
    * Set canvas theme to light or dark
    */
@@ -299,6 +316,7 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
     selectedEventIds: new Set(),
     highlightedClusterId: null,
     selectedClusterId: null,
+    canvasMode: CanvasMode.move,
     canvasTheme: "dark",
     coloringStrategy: ColoringStrategy.dataset,
     datasetVisibility: { primary: true, reference: true },
@@ -365,6 +383,7 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
     setSelectedClusterId: (id) =>
       set({ selectedClusterId: id, highlightedClusterId: null }),
     setCanvasTheme: (theme) => set({ canvasTheme: theme }),
+    setCanvasMode: (mode) => set({ canvasMode: mode }),
     setColoringStrategy: (strategy) => {
       const pointCloudState = get();
 

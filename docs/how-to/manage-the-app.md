@@ -4,7 +4,7 @@ description: >-
   or browser, and close your session when you're done
 ---
 
-# 🎛 Manage the App
+# Manage the App
 
 ## Define Your Dataset(s)
 
@@ -12,7 +12,7 @@ description: >-
 For a conceptual overview of datasets, including an explanation of when to use a single dataset vs. primary and reference datasets, see [Phoenix Basics](../concepts/phoenix-basics.md#datasets).
 {% endhint %}
 
-To define a dataset, you must load your data into a Pandas DataFrame and [create a matching schema](define-your-schema.md). If you have a DataFrame `prim_df` and a matching `prim_schema`, you can define a dataset named "primary" with
+To define a dataset, you must load your data into a pandas DataFrame and [create a matching schema](define-your-schema.md). If you have a DataFrame `prim_df` and a matching `prim_schema`, you can define a dataset named "primary" with
 
 ```python
 prim_ds = px.Dataset(prim_df, prim_schema, "primary")
@@ -34,7 +34,7 @@ Use `phoenix.launch_app` to start a session in the background. You can launch Ph
 
 ## Open the UI
 
-&#x20;You can view and interact with the Phoenix UI either directly in your notebook or in a separate browser tab or window.
+You can view and interact with the Phoenix UI either directly in your notebook or in a separate browser tab or window.
 
 {% tabs %}
 {% tab title="In the Browser" %}
@@ -45,8 +45,6 @@ session.url
 ```
 
 Copy and paste the output URL into a new browser tab or window.
-
-
 
 {% hint style="info" %}
 Browser-based sessions are supported in both local Jupyter environments and Colab.
@@ -60,9 +58,7 @@ In a notebook cell, run
 session.view()
 ```
 
-The Phoenix UI will appear in a window beneath the cell.
-
-
+The Phoenix UI will appear in an inline frame in the cell output.
 
 {% hint style="info" %}
 The height of the window can be adjusted by passing a `height` parameter, e.g., `session.view(height=1200)`. Defaults to 1000 pixels.

@@ -2,7 +2,7 @@
 description: Learn the foundational concepts of the Phoenix API
 ---
 
-# 🔢 Phoenix Basics
+# Phoenix Basics
 
 This section introduces _datasets_ and _schemas,_ the starting concepts needed to use Phoenix.
 
@@ -15,7 +15,7 @@ This section introduces _datasets_ and _schemas,_ the starting concepts needed t
 
 A _Phoenix dataset_ is an instance of `phoenix.Dataset` that contains three pieces of information:
 
-* The data itself (a Pandas DataFrame)
+* The data itself (a pandas DataFrame)
 * A schema (a `phoenix.Schema` instance) that describes the columns of your DataFrame
 * A dataset name that appears in the UI
 

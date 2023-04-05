@@ -2,7 +2,7 @@
 description: How to create Phoenix datasets and schemas for common data formats
 ---
 
-# ⚙ Create Your Own Dataset
+# Create Your Own Dataset
 
 This guide shows you how to define a Phoenix dataset using your own data.
 
@@ -11,7 +11,7 @@ This guide shows you how to define a Phoenix dataset using your own data.
 * For a comprehensive description of `phoenix.Dataset` and `phoenix.Schema`, see the [API reference](../api/dataset-and-schema.md).
 {% endhint %}
 
-Once you have a Pandas DataFrame `df` containing your data and a `schema` object describing the format of your DataFrame, you can define your Phoenix dataset either by running
+Once you have a pandas DataFrame `df` containing your data and a `schema` object describing the format of your DataFrame, you can define your Phoenix dataset either by running
 
 ```python
 ds = px.Dataset(df, schema)
@@ -23,7 +23,7 @@ or by optionally providing a name for your dataset that will appear in the UI:
 ds = px.Dataset(df, schema, name="training")
 ```
 
-As you can see, instantiating your dataset is the easy part. Before you run the code above, you must first wrangle your data into a Pandas DataFrame and then create a Phoenix schema to describe the format of your DataFrame. The rest of this guide shows you how to match your schema to your DataFrame with concrete examples.
+As you can see, instantiating your dataset is the easy part. Before you run the code above, you must first wrangle your data into a pandas DataFrame and then create a Phoenix schema to describe the format of your DataFrame. The rest of this guide shows you how to match your schema to your DataFrame with concrete examples.
 
 ## Predictions and Actuals
 
@@ -114,7 +114,7 @@ schema = px.Schema(
 
 ### Excluded Columns
 
-You can tell Phoenix to ignore certain columns of your DataFrame when implicitly inferring features by adding those column names to the `excludes` field of your schema. The DataFrame below contains all the same data as the breast cancer dataset above, in addition to "hospital" and "insurance\_provider" fields that are not features of your model. Explicitly exclude these fields, otherwise, Phoenix will assume that they are features.
+You can tell Phoenix to ignore certain columns of your DataFrame when implicitly inferring features by adding those column names to the `excluded_column_names` field of your schema. The DataFrame below contains all the same data as the breast cancer dataset above, in addition to "hospital" and "insurance\_provider" fields that are not features of your model. Explicitly exclude these fields, otherwise, Phoenix will assume that they are features.
 
 #### DataFrame
 
@@ -132,7 +132,7 @@ You can tell Phoenix to ignore certain columns of your DataFrame when implicitly
 schema = px.Schema(
     prediction_label_column_name="predicted",
     actual_label_column_name="target",
-    excludes=[
+    excluded_column_names=[
         "hospital",
         "insurance_provider",
     ],
