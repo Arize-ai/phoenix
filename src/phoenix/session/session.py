@@ -229,7 +229,7 @@ class _Server(uvicorn.Server):  # type: ignore  # can't inherit from Any type
         pass
 
     def run_in_thread(self) -> Generator[Thread, None, None]:
-        thread = Thread(target=self.run)
+        thread = Thread(target=self.run, daemon=True)
         thread.start()
         try:
             while not self.started and thread.is_alive():
