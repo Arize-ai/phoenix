@@ -1,25 +1,24 @@
 import logging
 from collections import UserList
-from functools import cached_property
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import TYPE_CHECKING, Iterable, List, Optional, Set
+from threading import Thread
+from time import sleep
+from typing import TYPE_CHECKING, Generator, Iterable, List, Optional, Set
 
 import pandas as pd
+import uvicorn
+from IPython.core.display import Javascript, display
+from IPython.core.getipython import get_ipython
+from IPython.display import IFrame
+from ipywidgets import widgets
+from portpicker import pick_unused_port
 
-from phoenix.config import PORT, get_exported_files
+from phoenix.config import get_exported_files
 from phoenix.datasets import Dataset
-from phoenix.services import AppService
-
-try:
-    from IPython.display import IFrame  # type: ignore
-except:  # noqa
-    pass
+from phoenix.server.app import create_app
 
 logger = logging.getLogger(__name__)
-
-
-_session: Optional["Session"] = None
 
 # type workaround
 # https://github.com/python/mypy/issues/5264#issuecomment-399407428
@@ -49,24 +48,46 @@ class ExportedData(_BaseList):
 
 
 class Session:
-    "Session that maintains a 1-1 shared state with the Phoenix App."
+    """Session that maintains a 1-1 shared state with the Phoenix App."""
 
-    def __init__(self, primary: Dataset, reference: Optional[Dataset], port: int):
-        self.primary = primary
-        self.reference = reference
-        self.port = port
+    def __dir__(self) -> List[str]:
+        return ["exports", "view", "url"]
+
+    def __init__(
+        self,
+        primary_dataset: Dataset,
+        reference_dataset: Optional[Dataset] = None,
+        port: Optional[int] = None,
+    ):
+        self.primary_dataset = primary_dataset
+        self.reference_dataset = reference_dataset
+        self.port = port or pick_unused_port()
         self.temp_dir = TemporaryDirectory()
         self.export_path = Path(self.temp_dir.name) / "exports"
         self.export_path.mkdir(parents=True, exist_ok=True)
         self.exported_data = ExportedData()
+        self.is_colab = _is_colab()
         # Initialize an app service that keeps the server running
-        self._app_service = AppService(
-            self.export_path,
-            port,
-            primary.name,
-            reference_dataset_name=reference.name if reference is not None else None,
+        self.app = create_app(
+            export_path=self.export_path,
+            primary_dataset=self.primary_dataset,
+            reference_dataset=self.reference_dataset,
         )
-        self._is_colab = _is_colab()
+        self.server_config = uvicorn.Config(
+            self.app,
+            port=self.port,
+            # TODO: save logs to file
+            log_level=logging.ERROR,
+        )
+        self.server = _Server(
+            config=self.server_config,
+        ).run_in_thread()
+        # start the server
+        self.server_thread = next(self.server)
+
+    @property
+    def active(self) -> bool:
+        return self.server_thread.is_alive()
 
     @property
     def exports(self) -> ExportedData:
@@ -81,7 +102,7 @@ class Session:
         self.exported_data.add(files)
         return self.exported_data
 
-    def view(self, height: int = 1000) -> "IFrame":
+    def view(self, height: int = 1000) -> IFrame:
         """
         Returns an IFrame that can be displayed in a notebook to view the app.
 
@@ -93,18 +114,24 @@ class Session:
         print(f"📺 Opening a view to the Phoenix app. The app is running at {self.url}")
         return IFrame(src=self.url, width="100%", height=height)
 
-    @cached_property
+    @property
     def url(self) -> str:
-        "Returns the url for the phoenix app"
-        return _get_url(self.port, self._is_colab)
+        """Returns the url for the phoenix app"""
+        return _get_url(self.port, self.is_colab)
 
     def end(self) -> None:
-        "Ends the session and closes the app service"
-        self._app_service.stop()
+        """Ends the session and closes the app service"""
+        self.server.close()
         self.temp_dir.cleanup()
 
 
-def launch_app(primary: Dataset, reference: Optional[Dataset] = None) -> "Session":
+_session: Optional[Session] = None
+
+
+def launch_app(
+    primary: Dataset,
+    reference: Optional[Dataset] = None,
+) -> Optional[Session]:
     """
     Launches the phoenix application and returns a session to interact with.
 
@@ -129,15 +156,31 @@ def launch_app(primary: Dataset, reference: Optional[Dataset] = None) -> "Sessio
     >>> session = px.launch_app(dataset)
     """
     global _session
+    if _session is not None and _session.active:
+        logger.warning(
+            "Existing running Phoenix instance detected! Shutting "
+            "it down and starting a new instance..."
+        )
+        _session.end()
 
-    _session = Session(primary, reference, port=PORT)
-    print(f"🌍 To view the Phoenix app in your browser, visit {_session.url}")
+    _session = Session(primary, reference)
+    # TODO: catch exceptions from thread
+    if not _session.active:
+        return None
+
+    open_btn = widgets.Button(description="▶ Open")
+    open_btn.on_click(
+        lambda _: display(
+            Javascript(f"window.open('{_session.url}')"),  # type: ignore
+        )
+    )
+    display(open_btn)
     print("📺 To view the Phoenix app in a notebook, run `px.active_session().view()`")
     print("📖 For more information on how to use Phoenix, check out https://docs.arize.com/phoenix")
     return _session
 
 
-def active_session() -> Optional["Session"]:
+def active_session() -> Optional[Session]:
     """
     Returns the active session if one exists, otherwise returns None
     """
@@ -172,8 +215,25 @@ def _is_colab() -> bool:
     """Determines whether this is in a Colab"""
     try:
         import google.colab  # type: ignore # noqa: F401
-        import IPython  # type: ignore
     except ImportError:
         return False
 
-    return IPython.get_ipython() is not None
+    return get_ipython() is not None  # type: ignore
+
+
+class _Server(uvicorn.Server):  # type: ignore  # can't inherit from Any type
+    """Uvicorn server that can run in a thread"""
+
+    def install_signal_handlers(self) -> None:
+        pass
+
+    def run_in_thread(self) -> Generator[Thread, None, None]:
+        thread = Thread(target=self.run)
+        thread.start()
+        try:
+            while not self.started and thread.is_alive():
+                sleep(1e-3)
+            yield thread
+        finally:
+            self.should_exit = True
+            thread.join()
