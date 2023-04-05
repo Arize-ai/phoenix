@@ -264,6 +264,9 @@ function Projection(props: ProjectionProps) {
     (state) => state.pointGroupVisibility
   );
   const canvasTheme = usePointCloudContext((state) => state.canvasTheme);
+  const datasetVisibility = usePointCloudContext(
+    (state) => state.datasetVisibility
+  );
 
   // AutoRotate the canvas on initial load
   const [autoRotate, setAutoRotate] = useState<boolean>(true);
@@ -315,6 +318,21 @@ function Projection(props: ProjectionProps) {
     });
   }, [referenceData, eventIdToGroup, pointGroupVisibility]);
 
+  // Keep track of all the points in the view, minus the ones filtered out by visibility controls
+  const allVisiblePoints = useMemo(() => {
+    const visiblePrimaryPoints = datasetVisibility.primary
+      ? filteredPrimaryData
+      : [];
+    const visibleReferencePoints = datasetVisibility.reference
+      ? filteredReferenceData
+      : [];
+    const visiblePoints = [
+      ...visiblePrimaryPoints,
+      ...(visibleReferencePoints || []),
+    ];
+    return visiblePoints;
+  }, [filteredPrimaryData, filteredReferenceData, datasetVisibility]);
+
   // Context cannot be passed through multiple reconcilers. Bridge the context
   const ContextBridge = useContextBridge(PointCloudContext);
 
@@ -337,7 +355,7 @@ function Projection(props: ProjectionProps) {
           boundsZoomPaddingFactor={BOUNDS_3D_ZOOM_PADDING_FACTOR}
         >
           <LassoSelect
-            points={allPoints}
+            points={allVisiblePoints}
             onChange={(selection) => {
               setSelectedEventIds(
                 new Set(selection.map((s) => s.metaData.eventId))
