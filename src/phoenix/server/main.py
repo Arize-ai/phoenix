@@ -9,9 +9,11 @@ from typing import Optional
 import uvicorn
 
 import phoenix.config as config
+from phoenix.datasets import Dataset
 from phoenix.datasets.fixtures import (
     FIXTURES,
     download_fixture_if_missing,
+    get_dataset_names_from_fixture_name,
 )
 from phoenix.server.app import create_app
 
@@ -51,12 +53,36 @@ if __name__ == "__main__":
     parser.add_argument("--port", type=int, default=config.PORT)
     parser.add_argument("--debug", action="store_false")  # TODO: Disable before public launch
     subparsers = parser.add_subparsers(dest="command", required=True)
+    datasets_parser = subparsers.add_parser("datasets")
+    datasets_parser.add_argument("--primary", type=str, required=True)
+    datasets_parser.add_argument("--reference", type=str, required=False)
     fixture_parser = subparsers.add_parser("fixture")
     fixture_parser.add_argument("fixture", type=str, choices=[fixture.name for fixture in FIXTURES])
     fixture_parser.add_argument("--primary-only", type=bool)
     args = parser.parse_args()
     export_path = Path(args.export_path) if args.export_path else config.EXPORT_DIR
-    primary_dataset, reference_dataset = download_fixture_if_missing(args.fixture)
+    if args.command == "datasets":
+        primary_dataset_name = args.primary
+        reference_dataset_name = args.reference
+        primary_dataset = Dataset.from_name(primary_dataset_name)
+        reference_dataset = (
+            Dataset.from_name(reference_dataset_name)
+            if reference_dataset_name is not None
+            else None
+        )
+    else:
+        fixture_name = args.fixture
+        primary_only = args.primary_only
+        primary_dataset_name, reference_dataset_name = get_dataset_names_from_fixture_name(
+            fixture_name
+        )
+        primary_dataset, reference_dataset = download_fixture_if_missing(fixture_name)
+        if primary_only:
+            reference_dataset_name = None
+            reference_dataset = None
+
+    print(f"1️⃣ primary dataset: {primary_dataset_name}")
+    print(f"2️⃣ reference dataset: {reference_dataset_name}")
 
     app = create_app(
         export_path=export_path,

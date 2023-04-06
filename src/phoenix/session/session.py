@@ -112,7 +112,7 @@ class Session(ABC):
 _session: Optional[Session] = None
 
 
-class RunAsProcess(Session):
+class ProcessSession(Session):
     def __init__(
         self,
         primary_dataset: Dataset,
@@ -129,9 +129,9 @@ class RunAsProcess(Session):
             self.export_path,
             self.port,
             self.primary_dataset.name,
-            reference_dataset_name=self.reference_dataset.name
-            if self.reference_dataset is not None
-            else None,
+            reference_dataset_name=(
+                self.reference_dataset.name if self.reference_dataset is not None else None
+            ),
         )
 
     @property
@@ -143,7 +143,7 @@ class RunAsProcess(Session):
         self.temp_dir.cleanup()
 
 
-class RunAsThread(Session):
+class ThreadSession(Session):
     def __init__(
         self,
         primary_dataset: Dataset,
@@ -193,10 +193,10 @@ def launch_app(
     reference : Dataset, optional
         The reference dataset to compare against.
         If not provided, drift analysis will not be available.
+    port: int, optional
+        The port on which the server listens.
     run_in_thread: bool, optional, default=False
         Whether the server should run in a Thread or Process.
-    port: int, optional, default=False
-        The port on which the server listens.
 
     Returns
     -------
@@ -219,13 +219,16 @@ def launch_app(
                 "it down and starting a new instance..."
             )
             _session.end()
-        _session = RunAsThread(primary, reference, port=port)
+        _session = ThreadSession(primary, reference, port=port)
         # TODO: catch exceptions from thread
         if not _session.active:
-            print("app failed to launch")
+            logger.error(
+                "💥 Phoenix failed to start. Please try again or file an issue "
+                "with us at https://github.com/Arize-ai/phoenix"
+            )
             return None
     else:
-        _session = RunAsProcess(primary, reference, port=port)
+        _session = ProcessSession(primary, reference, port=port)
 
     print(f"🌍 To view the Phoenix app in your browser, visit {_session.url}")
     print("📺 To view the Phoenix app in a notebook, run `px.active_session().view()`")

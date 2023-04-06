@@ -1,6 +1,6 @@
 import logging
 from threading import Thread
-from time import sleep
+from time import sleep, time
 from typing import Generator
 
 from starlette.applications import Starlette
@@ -27,10 +27,12 @@ class ThreadServer(Server):  # type: ignore  # can't inherit from Any type
         pass
 
     def run_in_thread(self) -> Generator[Thread, None, None]:
+        """A coroutine to keep the server running in a thread."""
         thread = Thread(target=self.run)
         thread.start()
+        time_limit = time() + 5  # 5 seconds
         try:
-            while not self.started and thread.is_alive():
+            while not self.started and thread.is_alive() and time() < time_limit:
                 sleep(1e-3)
             yield thread
         finally:
