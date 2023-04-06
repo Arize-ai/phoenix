@@ -56,7 +56,7 @@ Issues = "https://github.com/Arize-ai/phoenix/issues"
 Source = "https://github.com/Arize-ai/phoenix"
 
 [tool.hatch.version]
-path = "src/phoenix/__about__.py"
+path = "src/phoenix/__init__.py"
 
 [build-system]
 requires = ["hatchling"]
@@ -132,7 +132,6 @@ testpaths = [
 branch = true
 parallel = true
 omit = [
-  "src/phoenix/__about__.py",
   "**/__init__.py",
 ]
 
@@ -192,7 +191,6 @@ build = 'strawberry export-schema phoenix.server.api.schema:schema > app/schema.
 
 [tool.interrogate]
 fail-under = 0
-exclude=["src/phoenix/__about__.py"]
 # generate-badge = "badges/"
 omit-covered-files = true
 ignore-init-method = true
