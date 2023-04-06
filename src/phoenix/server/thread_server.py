@@ -34,6 +34,8 @@ class ThreadServer(Server):  # type: ignore  # can't inherit from Any type
         try:
             while not self.started and thread.is_alive() and time() < time_limit:
                 sleep(1e-3)
+            if time() > time_limit:
+                raise RuntimeError("server took too long to start")
             yield thread
         finally:
             self.should_exit = True
