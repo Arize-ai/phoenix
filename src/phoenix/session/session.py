@@ -6,7 +6,6 @@ from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING, Iterable, List, Optional, Set
 
 import pandas as pd
-import uvicorn
 from portpicker import pick_unused_port
 
 from phoenix.config import PORT, get_exported_files
@@ -162,14 +161,9 @@ class RunAsThread(Session):
             primary_dataset=self.primary_dataset,
             reference_dataset=self.reference_dataset,
         )
-        self.server_config = uvicorn.Config(
-            self.app,
-            port=self.port,
-            # TODO: save logs to file
-            log_level=logging.ERROR,
-        )
         self.server = ThreadServer(
-            config=self.server_config,
+            app=self.app,
+            port=self.port,
         ).run_in_thread()
         # start the server
         self.server_thread = next(self.server)

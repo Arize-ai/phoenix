@@ -1,12 +1,27 @@
+import logging
 from threading import Thread
 from time import sleep
 from typing import Generator
 
-import uvicorn
+from starlette.applications import Starlette
+from uvicorn import Config, Server
 
 
-class ThreadServer(uvicorn.Server):  # type: ignore  # can't inherit from Any type
+class ThreadServer(Server):  # type: ignore  # can't inherit from Any type
     """Server that runs in a (non-daemon) thread"""
+
+    def __init__(
+        self,
+        app: Starlette,
+        port: int,
+    ) -> None:
+        config = Config(
+            app=app,
+            port=port,
+            # TODO: save logs to file
+            log_level=logging.ERROR,
+        )
+        super().__init__(config=config)
 
     def install_signal_handlers(self) -> None:
         pass
