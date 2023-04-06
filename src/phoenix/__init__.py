@@ -1,5 +1,7 @@
-from .datasets import Dataset, EmbeddingColumnNames, Schema, load_example, ExampleDatasets
-from .session import active_session, close_app, launch_app, Session
+from .datasets import Dataset, EmbeddingColumnNames, ExampleDatasets, Schema, load_example
+from .session import Session, active_session, close_app, launch_app
+
+__version__ = "0.0.8"
 
 # module level doc-string
 __doc__ = """
@@ -16,3 +18,15 @@ Here are just a few of the things that phoenix does well:
   - Identify problematic embeddings cohorts using UMAP and clustering
   - Explore model performance, drift, and data quality metrics
 """
+
+__all__ = [
+    "Dataset",
+    "EmbeddingColumnNames",
+    "Schema",
+    "load_example",
+    "ExampleDatasets",
+    "active_session",
+    "close_app",
+    "launch_app",
+    "Session",
+]
