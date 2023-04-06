@@ -468,11 +468,12 @@ def _discover_feature_columns(
     unseen_column_names: Set[str],
 ) -> None:
     """
-    Adds unseen and un-excluded columns as features.
+    Adds unseen and un-excluded columns as features, with the exception of "prediction_id"
+    which is reserved
     """
     discovered_feature_column_names = []
     for column_name in unseen_column_names:
-        if column_name not in unseen_excluded_column_names:
+        if column_name not in unseen_excluded_column_names and column_name != "prediction_id":
             discovered_feature_column_names.append(column_name)
             column_name_to_include[column_name] = True
         else:
@@ -509,12 +510,12 @@ def _create_and_normalize_dataframe_and_schema(
             included_column_names.append(str(column_name))
     parsed_dataframe = dataframe[included_column_names].copy()
     parsed_schema = replace(schema, excluded_column_names=None, **schema_patch)
-    pred_col_name = parsed_schema.prediction_id_column_name
-    if pred_col_name is None:
+    pred_id_col_name = parsed_schema.prediction_id_column_name
+    if pred_id_col_name is None:
         parsed_schema = replace(parsed_schema, prediction_id_column_name="prediction_id")
-        parsed_dataframe["prediction_id"] = parsed_dataframe.apply(lambda _: str(uuid.uuid4()))
-    elif is_numeric_dtype(parsed_dataframe.dtypes[pred_col_name]):
-        parsed_dataframe[pred_col_name] = parsed_dataframe[pred_col_name].astype(str)
+        parsed_dataframe["prediction_id"] = _add_prediction_id(len(parsed_dataframe))
+    elif is_numeric_dtype(parsed_dataframe.dtypes[pred_id_col_name]):
+        parsed_dataframe[pred_id_col_name] = parsed_dataframe[pred_id_col_name].astype(str)
 
     return parsed_dataframe, parsed_schema
 
@@ -602,3 +603,7 @@ def _get_schema_from_unknown_schema_param(schemaLike: SchemaLike) -> Schema:
         )
     except Exception:
         raise ValueError("Unknown schema passed to Dataset. Please pass a phoenix Schema")
+
+
+def _add_prediction_id(num_rows: int) -> List[str]:
+    return [str(uuid.uuid4()) for _ in range(num_rows)]

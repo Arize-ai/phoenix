@@ -87,9 +87,9 @@ class Model:
                         data=(
                             lambda name: (
                                 lambda: (
-                                    [primary_dataset.dataframe.loc[:, name]]
+                                    [primary_dataset.dataframe[name]]
                                     + (
-                                        [reference_dataset.dataframe.loc[:, name]]
+                                        [reference_dataset.dataframe[name]]
                                         if reference_dataset is not None
                                         else []
                                     )
