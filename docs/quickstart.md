@@ -63,7 +63,7 @@ prod_df = pd.read_parquet(
 
 To launch Phoenix with your data, you first need to define a schema that tells Phoenix which columns of your DataFrames correspond to features, predictions, actuals (i.e., ground truth), embeddings, etc.
 
-The trickiest part is defining embedding features. In this case, each embedding feature has two pieces of information: the embedding vector itself contained in the "image\_vector" column and the link to the image contained in the "url" column.
+The trickiest part is defining [embedding features](concepts/embeddings.md#whats-an-embedding). In this case, each embedding feature has two pieces of information: the embedding vector itself contained in the "image\_vector" column and the link to the image contained in the "url" column.
 
 Define a schema for your training data.
 
