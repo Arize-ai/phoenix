@@ -1,5 +1,5 @@
 ---
-description: Take your first flight with Phoenix
+description: Take your first flight with Phoenix in your Jupyter or Colab notebook
 ---
 
 # Quickstart
@@ -19,19 +19,19 @@ Let's get started!
 Install Phoenix and its dependencies in your notebook environment.
 
 {% tabs %}
-{% tab title="Install from Terminal" %}
-From your terminal, run
-
-```
-pip install arize-phoenix
-```
-{% endtab %}
-
 {% tab title="Install from Notebook Cell" %}
 In a notebook cell, execute
 
 ```python
 %pip install arize-phoenix
+```
+{% endtab %}
+
+{% tab title="Install from Terminal" %}
+From your terminal, run
+
+```
+pip install arize-phoenix
 ```
 {% endtab %}
 {% endtabs %}
@@ -40,6 +40,7 @@ Import libraries for the quickstart.
 
 ```python
 from dataclasses import replace
+import pandas as pd
 import phoenix as px
 ```
 
