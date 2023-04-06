@@ -11,8 +11,11 @@ import { ThemeProvider } from "@emotion/react";
 import { Provider, theme } from "@arizeai/components";
 
 import { AppRootQuery } from "./__generated__/AppRootQuery.graphql";
-import { TimeRangeProvider } from "./contexts/TimeRangeContext";
-import { DatasetsProvider } from "./contexts";
+import {
+  DatasetsProvider,
+  NotificationProvider,
+  TimeRangeProvider,
+} from "./contexts";
 import { GlobalStyles } from "./GlobalStyles";
 import RelayEnvironment from "./RelayEnvironment";
 import { AppRoutes } from "./Routes";
@@ -46,19 +49,21 @@ function App(props: AppProps) {
   } = usePreloadedQuery(RootQuery, props.preloadedQuery);
 
   return (
-    <DatasetsProvider
-      primaryDataset={primaryDataset}
-      referenceDataset={referenceDataset ?? null}
-    >
-      <TimeRangeProvider
-        timeRangeBounds={{
-          start: new Date(primaryDataset.startTime),
-          end: new Date(primaryDataset.endTime),
-        }}
+    <NotificationProvider>
+      <DatasetsProvider
+        primaryDataset={primaryDataset}
+        referenceDataset={referenceDataset ?? null}
       >
-        <AppRoutes />
-      </TimeRangeProvider>
-    </DatasetsProvider>
+        <TimeRangeProvider
+          timeRangeBounds={{
+            start: new Date(primaryDataset.startTime),
+            end: new Date(primaryDataset.endTime),
+          }}
+        >
+          <AppRoutes />
+        </TimeRangeProvider>
+      </DatasetsProvider>
+    </NotificationProvider>
   );
 }
 
