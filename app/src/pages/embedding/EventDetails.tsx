@@ -15,7 +15,12 @@ import { ModelEvent } from "./types";
 export function EventDetails({ event }: { event: ModelEvent }) {
   const imageUrl = event.linkToData || undefined;
   return (
-    <section>
+    <section
+      css={css`
+        height: 100%;
+        overflow-y: auto;
+      `}
+    >
       {imageUrl ? (
         <img
           src={imageUrl}
