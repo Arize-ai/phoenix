@@ -112,7 +112,7 @@ class Session(ABC):
 _session: Optional[Session] = None
 
 
-class ServeAsProcess(Session):
+class RunAsProcess(Session):
     def __init__(
         self,
         primary_dataset: Dataset,
@@ -225,7 +225,7 @@ def launch_app(
             print("app failed to launch")
             return None
     else:
-        _session = ServeAsProcess(primary, reference, port=port)
+        _session = RunAsProcess(primary, reference, port=port)
 
     print(f"🌍 To view the Phoenix app in your browser, visit {_session.url}")
     print("📺 To view the Phoenix app in a notebook, run `px.active_session().view()`")
