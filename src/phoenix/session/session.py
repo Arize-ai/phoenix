@@ -181,7 +181,7 @@ def launch_app(
     primary: Dataset,
     reference: Optional[Dataset] = None,
     port: Optional[int] = None,
-    run_in_thread: Optional[bool] = False,
+    run_in_thread: Optional[bool] = True,
 ) -> Optional[Session]:
     """
     Launches the phoenix application and returns a session to interact with.
@@ -195,7 +195,7 @@ def launch_app(
         If not provided, drift analysis will not be available.
     port: int, optional
         The port on which the server listens.
-    run_in_thread: bool, optional, default=False
+    run_in_thread: bool, optional, default=True
         Whether the server should run in a Thread or Process.
 
     Returns
