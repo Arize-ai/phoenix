@@ -53,6 +53,7 @@ if __name__ == "__main__":
     subparsers = parser.add_subparsers(dest="command", required=True)
     fixture_parser = subparsers.add_parser("fixture")
     fixture_parser.add_argument("fixture", type=str, choices=[fixture.name for fixture in FIXTURES])
+    fixture_parser.add_argument("--primary-only", type=bool)
     args = parser.parse_args()
     export_path = Path(args.export_path) if args.export_path else config.EXPORT_DIR
     primary_dataset, reference_dataset = download_fixture_if_missing(args.fixture)
