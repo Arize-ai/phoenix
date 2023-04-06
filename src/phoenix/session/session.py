@@ -136,7 +136,7 @@ class ProcessSession(Session):
 
     @property
     def active(self) -> bool:
-        return self.app_service.child.is_running()
+        return self.app_service.active
 
     def end(self) -> None:
         self.app_service.stop()

@@ -56,6 +56,10 @@ class Service:
                 break
         return process
 
+    @property
+    def active(self) -> bool:
+        return self.child.is_running()
+
     def stop(self) -> None:
         """Stops the service."""
         self.child.terminate()
