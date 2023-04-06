@@ -9,10 +9,10 @@ arize-phoenix - ML Observability in a notebook
 =====================================================================
 **phoenix** is a Python package that provides MLOps insights at
 lightning speed with zero-config observability for model drift, performance, and
-data quality. 
+data quality.
 
-Main Features 
-------------- 
+Main Features
+-------------
 Here are just a few of the things that phoenix does well:
   - Compare two sets of model inferences against one another
   - Identify problematic embeddings cohorts using UMAP and clustering
