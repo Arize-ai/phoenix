@@ -52,6 +52,7 @@ Define schemas that tell Phoenix which columns of your DataFrames correspond to 
 
 ```python
 train_schema = px.Schema(
+    prediction_id_column_name="prediction_id",
     timestamp_column_name="prediction_ts",
     prediction_label_column_name="predicted_action",
     actual_label_column_name="actual_action",
