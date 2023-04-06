@@ -39,4 +39,4 @@ class ThreadServer(Server):  # type: ignore  # can't inherit from Any type
             yield thread
         finally:
             self.should_exit = True
-            thread.join()
+            thread.join(timeout=5)
