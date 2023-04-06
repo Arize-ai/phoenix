@@ -9,6 +9,7 @@ from typing import Optional
 import uvicorn
 
 import phoenix.config as config
+from phoenix.datasets import Dataset
 from phoenix.datasets.fixtures import (
     FIXTURES,
     download_fixture_if_missing,
@@ -76,10 +77,14 @@ if __name__ == "__main__":
     print(f"1️⃣ primary dataset: {primary_dataset_name}")
     print(f"2️⃣ reference dataset: {reference_dataset_name}")
 
+    primary_dataset = Dataset.from_name(primary_dataset_name)
+    reference_dataset = (
+        Dataset.from_name(reference_dataset_name) if reference_dataset_name is not None else None
+    )
     app = create_app(
         export_path=export_path,
-        primary_dataset_name=primary_dataset_name,
-        reference_dataset_name=reference_dataset_name,
+        primary_dataset=primary_dataset,
+        reference_dataset=reference_dataset,
         debug=args.debug,
     )
 

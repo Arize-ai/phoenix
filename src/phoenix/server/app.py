@@ -104,17 +104,13 @@ class Download(HTTPEndpoint):
 
 def create_app(
     export_path: Path,
-    primary_dataset_name: str,
-    reference_dataset_name: Optional[str],
+    primary_dataset: Dataset,
+    reference_dataset: Optional[Dataset],
     debug: bool = False,
 ) -> Starlette:
     model = Model(
-        primary_dataset=Dataset.from_name(primary_dataset_name),
-        reference_dataset=(
-            Dataset.from_name(reference_dataset_name)
-            if reference_dataset_name is not None
-            else None
-        ),
+        primary_dataset=primary_dataset,
+        reference_dataset=reference_dataset,
     )
     graphql = GraphQLWithContext(
         schema=schema,

@@ -32,6 +32,7 @@ dependencies = [
   "pyarrow",
   "typing_extensions",
   "scipy",
+  "portpicker",
 ]
 dynamic = ["version"]
 
@@ -222,6 +223,7 @@ module = [
   "scipy.*",
   "sklearn.*",
   "arize.*",
+  "portpicker",
 ]
 ignore_missing_imports = true
 
