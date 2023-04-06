@@ -35,7 +35,11 @@ import {
   compactResizeHandleCSS,
   resizeHandleCSS,
 } from "@phoenix/components/resize/styles";
-import { PointCloudProvider, usePointCloudContext } from "@phoenix/contexts";
+import {
+  PointCloudProvider,
+  useGlobalNotification,
+  usePointCloudContext,
+} from "@phoenix/contexts";
 import { useDatasets } from "@phoenix/contexts";
 import { useTimeRange } from "@phoenix/contexts/TimeRangeContext";
 import {
@@ -224,6 +228,7 @@ function EmbeddingMain() {
         background-color: ${theme.colors.gray900};
       `}
     >
+      <PointCloudNotifications />
       <Toolbar
         extra={
           <Switch
@@ -583,4 +588,29 @@ function ClustersPanelContents({
       </TabPane>
     </Tabs>
   );
+}
+
+function PointCloudNotifications() {
+  const { notifyError } = useGlobalNotification();
+  const errorMessage = usePointCloudContext((state) => state.errorMessage);
+  const setErrorMessage = usePointCloudContext(
+    (state) => state.setErrorMessage
+  );
+
+  useEffect(() => {
+    if (errorMessage !== null) {
+      notifyError({
+        title: "An error occurred",
+        message: errorMessage,
+        action: {
+          text: "Dismiss",
+          onClick: () => {
+            setErrorMessage(null);
+          },
+        },
+      });
+    }
+  }, [errorMessage, notifyError, setErrorMessage]);
+
+  return null;
 }

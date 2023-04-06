@@ -207,6 +207,10 @@ export interface PointCloudProps {
    * The clustering / HDBSCAN parameters
    */
   hdbscanParameters: HDBSCANParameters;
+  /**
+   * An error message if anything occurs during point-cloud data loads
+   */
+  errorMessage: string | null;
 }
 
 export interface PointCloudState extends PointCloudProps {
@@ -273,6 +277,10 @@ export interface PointCloudState extends PointCloudProps {
    * Done when the point cloud is re-loaded
    */
   reset: () => void;
+  /**
+   * Set the error message
+   */
+  setErrorMessage: (message: string | null) => void;
 }
 
 /**
@@ -311,6 +319,7 @@ export type PointCloudStore = ReturnType<typeof createPointCloudStore>;
 export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
   // The default props irrespective of the number of datasets
   const defaultProps: PointCloudProps = {
+    errorMessage: null,
     points: [],
     pointData: null,
     selectedEventIds: new Set(),
@@ -365,7 +374,11 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
       });
 
       // Re-compute the point coloring once the granular data is loaded
-      const pointData = await fetchPointEvents(points.map((p) => p.eventId));
+      const pointData = await fetchPointEvents(
+        points.map((p) => p.eventId)
+      ).catch(() => set({ errorMessage: "Failed to load the point events" }));
+
+      if (!pointData) return; // The error occurred above
 
       set({
         pointData,
@@ -481,7 +494,11 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
     setDimension: async (dimension) => {
       const pointCloudState = get();
       set({ dimension, dimensionMetadata: null });
-      const dimensionMetadata = await fetchDimensionMetadata(dimension);
+      const dimensionMetadata = await fetchDimensionMetadata(dimension).catch(
+        () => set({ errorMessage: "Failed to load the dimension metadata" })
+      );
+      if (!dimensionMetadata) return; // The error occurred above
+
       set({ dimensionMetadata });
       if (dimensionMetadata.categories && dimensionMetadata.categories.length) {
         const numCategories = dimensionMetadata.categories.length;
@@ -558,6 +575,7 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
     setDimensionMetadata: (dimensionMetadata) => set({ dimensionMetadata }),
     setUMAPParameters: (umapParameters) => set({ umapParameters }),
     setHDBSCANParameters: (hdbscanParameters) => set({ hdbscanParameters }),
+    setErrorMessage: (errorMessage) => set({ errorMessage }),
   });
 
   return create<PointCloudState>()(devtools(pointCloudStore));
