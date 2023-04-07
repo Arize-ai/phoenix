@@ -64,23 +64,26 @@ if __name__ == "__main__":
     if args.command == "datasets":
         primary_dataset_name = args.primary
         reference_dataset_name = args.reference
+        primary_dataset = Dataset.from_name(primary_dataset_name)
+        reference_dataset = (
+            Dataset.from_name(reference_dataset_name)
+            if reference_dataset_name is not None
+            else None
+        )
     else:
         fixture_name = args.fixture
         primary_only = args.primary_only
         primary_dataset_name, reference_dataset_name = get_dataset_names_from_fixture_name(
             fixture_name
         )
+        primary_dataset, reference_dataset = download_fixture_if_missing(fixture_name)
         if primary_only:
             reference_dataset_name = None
-        download_fixture_if_missing(fixture_name)
+            reference_dataset = None
 
     print(f"1️⃣ primary dataset: {primary_dataset_name}")
     print(f"2️⃣ reference dataset: {reference_dataset_name}")
 
-    primary_dataset = Dataset.from_name(primary_dataset_name)
-    reference_dataset = (
-        Dataset.from_name(reference_dataset_name) if reference_dataset_name is not None else None
-    )
     app = create_app(
         export_path=export_path,
         primary_dataset=primary_dataset,

@@ -270,12 +270,12 @@ def download_fixture_if_missing(fixture_name: str) -> Tuple[Dataset, Dataset]:
     """
     fixture = _get_fixture_by_name(fixture_name=fixture_name)
     primary_dataset_name, reference_dataset_name = get_dataset_names_from_fixture_name(fixture_name)
-    primary_dataset = _download_and_persist_dataset_if_missing(
+    primary_dataset = _download_dataset_if_missing(
         dataset_name=primary_dataset_name,
         dataset_url=fixture.primary_dataset_url,
         schema=fixture.primary_schema,
     )
-    reference_dataset = _download_and_persist_dataset_if_missing(
+    reference_dataset = _download_dataset_if_missing(
         dataset_name=reference_dataset_name,
         dataset_url=fixture.reference_dataset_url,
         schema=fixture.reference_schema,
@@ -303,9 +303,7 @@ def _get_fixture_by_name(fixture_name: str) -> Fixture:
     return NAME_TO_FIXTURE[fixture_name]
 
 
-def _download_and_persist_dataset_if_missing(
-    dataset_name: str, dataset_url: str, schema: Schema
-) -> Dataset:
+def _download_dataset_if_missing(dataset_name: str, dataset_url: str, schema: Schema) -> Dataset:
     """
     Downloads a dataset from the given URL if it is not found locally.
     """
@@ -319,7 +317,6 @@ def _download_and_persist_dataset_if_missing(
         dataframe=read_parquet(dataset_url),
         schema=schema,
         name=dataset_name,
-        persist_to_disc=True,
     )
     logger.info("Download complete.")
     return dataset
