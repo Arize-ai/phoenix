@@ -124,6 +124,9 @@ class ProcessSession(Session):
             reference_dataset=reference_dataset,
             port=port or PORT,
         )
+        primary_dataset.to_disc()
+        if isinstance(reference_dataset, Dataset):
+            reference_dataset.to_disc()
         # Initialize an app service that keeps the server running
         self.app_service = AppService(
             self.export_path,

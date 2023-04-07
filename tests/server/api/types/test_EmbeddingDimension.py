@@ -47,7 +47,6 @@ class TestDriftMetricTimeSeries:
         primary_dataset = Dataset(
             dataframe=primary_dataframe,
             schema=schema,
-            persist_to_disc=False,
         )
         drift_time_series = EmbeddingDimension(
             name="embedding_feature", id_attr=0
@@ -115,12 +114,10 @@ class TestDriftMetricTimeSeries:
         primary_dataset = Dataset(
             dataframe=primary_dataframe,
             schema=schema,
-            persist_to_disc=False,
         )
         reference_dataset = Dataset(
             dataframe=reference_dataframe,
             schema=schema,
-            persist_to_disc=False,
         )
         distance = EmbeddingDimension(name="embedding_feature", id_attr=0).drift_time_series(
             metric=VectorDriftMetric.euclideanDistance,
@@ -178,12 +175,10 @@ class TestDriftMetricTimeSeries:
         primary_dataset = Dataset(
             dataframe=primary_dataframe,
             schema=schema,
-            persist_to_disc=False,
         )
         reference_dataset = Dataset(
             dataframe=reference_dataframe,
             schema=schema,
-            persist_to_disc=False,
         )
         drift_time_series = EmbeddingDimension(
             name="embedding_feature", id_attr=0
@@ -268,12 +263,10 @@ class TestDriftMetricTimeSeries:
         primary_dataset = Dataset(
             dataframe=primary_dataframe,
             schema=schema,
-            persist_to_disc=False,
         )
         reference_dataset = Dataset(
             dataframe=reference_dataframe,
             schema=schema,
-            persist_to_disc=False,
         )
         drift_time_series = EmbeddingDimension(
             name="embedding_feature", id_attr=0
@@ -329,7 +322,6 @@ class TestDriftMetric:
         primary_dataset = Dataset(
             dataframe=primary_dataframe,
             schema=schema,
-            persist_to_disc=False,
         )
         distance = EmbeddingDimension(name="embedding_feature", id_attr=0).drift_metric(
             metric=VectorDriftMetric.euclideanDistance,
@@ -391,12 +383,10 @@ class TestDriftMetric:
         primary_dataset = Dataset(
             dataframe=primary_dataframe,
             schema=schema,
-            persist_to_disc=False,
         )
         reference_dataset = Dataset(
             dataframe=reference_dataframe,
             schema=schema,
-            persist_to_disc=False,
         )
         distance = EmbeddingDimension(name="embedding_feature", id_attr=0).drift_metric(
             metric=VectorDriftMetric.euclideanDistance,
@@ -459,10 +449,8 @@ class TestDriftMetric:
                 "embedding_feature": EmbeddingColumnNames(vector_column_name="embedding_vector")
             },
         )
-        primary_dataset = Dataset(dataframe=primary_dataframe, schema=schema, persist_to_disc=False)
-        reference_dataset = Dataset(
-            dataframe=reference_dataframe, schema=schema, persist_to_disc=False
-        )
+        primary_dataset = Dataset(dataframe=primary_dataframe, schema=schema)
+        reference_dataset = Dataset(dataframe=reference_dataframe, schema=schema)
         distance = EmbeddingDimension(name="embedding_feature", id_attr=0).drift_metric(
             metric=VectorDriftMetric.euclideanDistance,
             time_range=TimeRange(
@@ -518,10 +506,8 @@ class TestDriftMetric:
                 "embedding_feature": EmbeddingColumnNames(vector_column_name="embedding_vector")
             },
         )
-        primary_dataset = Dataset(dataframe=primary_dataframe, schema=schema, persist_to_disc=False)
-        reference_dataset = Dataset(
-            dataframe=reference_dataframe, schema=schema, persist_to_disc=False
-        )
+        primary_dataset = Dataset(dataframe=primary_dataframe, schema=schema)
+        reference_dataset = Dataset(dataframe=reference_dataframe, schema=schema)
         distance = EmbeddingDimension(name="embedding_feature", id_attr=0).drift_metric(
             metric=VectorDriftMetric.euclideanDistance,
             time_range=TimeRange(

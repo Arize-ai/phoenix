@@ -260,7 +260,6 @@ class TestDatasetEvents:
                 tag_column_names=["tag0"],
             ),
             name="primary",
-            persist_to_disc=False,
         )
 
     @staticmethod
@@ -285,5 +284,4 @@ class TestDatasetEvents:
                 tag_column_names=["tag0"],
             ),
             name="reference",
-            persist_to_disc=False,
         )

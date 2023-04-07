@@ -73,7 +73,6 @@ class Dataset:
         dataframe: DataFrame,
         schema: Union[Schema, SchemaLike],
         name: Optional[str] = None,
-        persist_to_disc: bool = True,
     ):
         # allow for schema like objects
         if not isinstance(schema, Schema):
@@ -94,16 +93,6 @@ class Dataset:
         self.__dataframe: DataFrame = dataframe
         self.__schema: Schema = schema
         self.__name: str = name if name is not None else f"""dataset_{str(uuid.uuid4())}"""
-        self.__directory = DATASET_DIR / self.name
-
-        # Sync the dataset to disc so that the server can pick up the data
-        if persist_to_disc:
-            self.to_disc()
-        else:
-            # Assume that the dataset is already persisted to disc
-            self._is_persisted: bool = True
-
-        self.to_disc()
         logger.info(f"""Dataset: {self.__name} initialized""")
 
     def __repr__(self) -> str:
@@ -140,15 +129,6 @@ class Dataset:
     @property
     def name(self) -> str:
         return self.__name
-
-    @property
-    def is_persisted(self) -> bool:
-        return self._is_persisted
-
-    @property
-    def directory(self) -> Path:
-        """The directory under which the dataset metadata is stored"""
-        return self.__directory
 
     def head(self, num_rows: Optional[int] = 5) -> DataFrame:
         num_rows = 5 if num_rows is None else num_rows
@@ -243,40 +223,27 @@ class Dataset:
         return cls(dataframe, schema, name)
 
     @classmethod
-    def from_name(cls, name: str) -> "Dataset":
+    def from_name(cls, name: str, directory: Path = DATASET_DIR) -> "Dataset":
         """Retrieves a dataset by name from the file system"""
-        directory = DATASET_DIR / name
+        directory = directory / name
         df = read_parquet(directory / cls._data_file_name)
         with open(directory / cls._schema_file_name) as schema_file:
             schema_json = schema_file.read()
         schema = Schema.from_json(schema_json)
-        return cls(df, schema, name, persist_to_disc=False)
+        return cls(df, schema, name)
 
-    def to_disc(self) -> None:
+    def to_disc(self, directory: Path = DATASET_DIR) -> None:
         """writes the data and schema to disc"""
-
-        if self._is_persisted:
-            logger.info("Dataset already persisted")
-            return
-
-        self.directory.mkdir(
-            parents=True,
-            exist_ok=True,
-        )
-
+        directory = directory / self.name
+        directory.mkdir(parents=True, exist_ok=True)
         self.dataframe.to_parquet(
-            self.directory / self._data_file_name,
+            directory / self._data_file_name,
             allow_truncated_timestamps=True,
             coerce_timestamps="ms",
         )
-
         schema_json_data = self.schema.to_json()
-        with open(self.directory / self._schema_file_name, "w+") as schema_file:
+        with open(directory / self._schema_file_name, "w+") as schema_file:
             schema_file.write(schema_json_data)
-
-        # set the persisted flag so that we don't have to perform this operation again
-        self._is_persisted = True
-        logger.info(f"Dataset info written to '{self.directory}'")
 
     def get_events(self, rows: Iterable[int]) -> pd.DataFrame:
         """
