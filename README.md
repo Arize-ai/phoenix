@@ -115,7 +115,7 @@ Join our community to connect with thousands of machine learning practitioners a
 ## Thanks
 
 -   [UMAP](https://github.com/lmcinnes/umap) For unlocking the ability to visualize and reason about embeddings
--   [HDBSCAN](https://github.com/scikit-learn-contrib/hdbscan) For providing a clustering algorithm aids in the discovery of drift and performance degredation
+-   [HDBSCAN](https://github.com/scikit-learn-contrib/hdbscan) For providing a clustering algorithm to aid in the discovery of drift and performance degradation
 
 ## License
 
