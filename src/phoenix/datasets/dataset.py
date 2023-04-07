@@ -5,7 +5,6 @@ from dataclasses import fields, replace
 from datetime import datetime, timedelta
 from enum import Enum
 from functools import cached_property
-from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Set, Tuple, Union, cast
 
 import pandas as pd
@@ -223,18 +222,18 @@ class Dataset:
         return cls(dataframe, schema, name)
 
     @classmethod
-    def from_name(cls, name: str, directory: Path = DATASET_DIR) -> "Dataset":
+    def from_name(cls, name: str) -> "Dataset":
         """Retrieves a dataset by name from the file system"""
-        directory = directory / name
+        directory = DATASET_DIR / name
         df = read_parquet(directory / cls._data_file_name)
         with open(directory / cls._schema_file_name) as schema_file:
             schema_json = schema_file.read()
         schema = Schema.from_json(schema_json)
         return cls(df, schema, name)
 
-    def to_disc(self, directory: Path = DATASET_DIR) -> None:
+    def to_disc(self) -> None:
         """writes the data and schema to disc"""
-        directory = directory / self.name
+        directory = DATASET_DIR / self.name
         directory.mkdir(parents=True, exist_ok=True)
         self.dataframe.to_parquet(
             directory / self._data_file_name,
