@@ -112,10 +112,10 @@ Join our community to connect with thousands of machine learning practitioners a
 -   🗺️ Check out our [roadmap](https://github.com/orgs/Arize-ai/projects/45) to see where we're heading next.
 -   🎓 Learn the fundamentals of ML observability with our [introductory](https://arize.com/ml-observability-fundamentals/) and [advanced](https://arize.com/blog-course/) courses.
 
-## Contributing
+## Thanks
 
--   💻 Read our [developer's guide](./DEVELOPMENT.md).
--   🗣️ Join our [Slack community](https://join.slack.com/t/arize-ai/shared_invite/zt-1px8dcmlf-fmThhDFD_V_48oU7ALan4Q) and chat with us in the _#phoenix-devs_ channel.
+-   [UMAP](https://github.com/lmcinnes/umap) For unlocking the ability to visualize and reason about embeddings
+-   [HDBSCAN](https://github.com/scikit-learn-contrib/hdbscan) For providing a clustering algorithm aids in the discovery of drift and performance degredation
 
 ## License
 
