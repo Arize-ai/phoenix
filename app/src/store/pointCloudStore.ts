@@ -17,6 +17,7 @@ import {
   DEFAULT_MIN_DIST,
   DEFAULT_N_NEIGHBORS,
   SelectionDisplay,
+  SelectionGridSize,
   UNKNOWN_COLOR,
 } from "@phoenix/constants/pointCloudConstants";
 import RelayEnvironment from "@phoenix/RelayEnvironment";
@@ -192,6 +193,11 @@ export interface PointCloudProps {
    */
   selectionDisplay: SelectionDisplay;
   /**
+   * The grid size of the selections when displayed as a grid
+   * @default "medium"
+   */
+  selectionGridSize: SelectionGridSize;
+  /**
    * When the coloring strategy is set to `dimension`, this property is set lazily by the user
    */
   dimension: Dimension | null;
@@ -256,6 +262,10 @@ export interface PointCloudState extends PointCloudProps {
    * Set the selection display of the selection panel
    */
   setSelectionDisplay: (display: SelectionDisplay) => void;
+  /**
+   * Set the grid size of the selections when displayed as a grid
+   */
+  setSelectionGridSize: (size: SelectionGridSize) => void;
   /**
    * Set the dimension to use for coloring the point cloud
    */
@@ -340,6 +350,7 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
     },
     eventIdToGroup: {},
     selectionDisplay: SelectionDisplay.gallery,
+    selectionGridSize: SelectionGridSize.medium,
     dimension: null,
     dimensionMetadata: null,
     umapParameters: {
@@ -483,6 +494,7 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
       set({ pointGroupVisibility: visibility }),
     selectionDisplay: SelectionDisplay.gallery,
     setSelectionDisplay: (display) => set({ selectionDisplay: display }),
+    setSelectionGridSize: (size) => set({ selectionGridSize: size }),
     reset: () => {
       set({
         points: [],

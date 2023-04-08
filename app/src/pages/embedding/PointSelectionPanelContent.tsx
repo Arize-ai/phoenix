@@ -18,6 +18,7 @@ import {
   EventItem,
   SelectionDisplayRadioGroup,
 } from "@phoenix/components/pointcloud";
+import { SelectionGridSizeRadioGroup } from "@phoenix/components/pointcloud/SelectionGridSizeRadioGroup";
 import { SelectionDisplay } from "@phoenix/constants/pointCloudConstants";
 import { usePointCloudContext } from "@phoenix/contexts";
 import { DatasetRole } from "@phoenix/types";
@@ -47,12 +48,19 @@ export function PointSelectionPanelContent(props: {
   const setSelectedClusterId = usePointCloudContext(
     (state) => state.setSelectedClusterId
   );
-  const { selectionDisplay, setSelectionDisplay } = usePointCloudContext(
-    (state) => ({
-      selectionDisplay: state.selectionDisplay,
-      setSelectionDisplay: state.setSelectionDisplay,
-    })
+  const selectionDisplay = usePointCloudContext(
+    (state) => state.selectionDisplay
   );
+  const setSelectionDisplay = usePointCloudContext(
+    (state) => state.setSelectionDisplay
+  );
+  const selectionGridSize = usePointCloudContext(
+    (state) => state.selectionGridSize
+  );
+  const setSelectionGridSize = usePointCloudContext(
+    (state) => state.setSelectionGridSize
+  );
+
   const [selectedDetailPointId, setSelectedDetailPointId] = React.useState<
     string | null
   >(null);
@@ -177,12 +185,26 @@ export function PointSelectionPanelContent(props: {
         <TabPane name="Selection">
           <Toolbar
             extra={
-              <SelectionDisplayRadioGroup
-                mode={selectionDisplay}
-                onChange={(displayMode) => {
-                  setSelectionDisplay(displayMode);
-                }}
-              />
+              <div
+                css={css`
+                  display: flex;
+                  flex-direction: row;
+                  gap: var(--px-spacing-med);
+                `}
+              >
+                {selectionDisplay === SelectionDisplay.gallery && (
+                  <SelectionGridSizeRadioGroup
+                    size={selectionGridSize}
+                    onChange={setSelectionGridSize}
+                  />
+                )}
+                <SelectionDisplayRadioGroup
+                  mode={selectionDisplay}
+                  onChange={(displayMode) => {
+                    setSelectionDisplay(displayMode);
+                  }}
+                />
+              </div>
             }
           >
             <Text>{`${allSelectedEvents.length} points selected`}</Text>
@@ -267,6 +289,10 @@ function SelectionGridView(props: SelectionGridViewProps) {
   const pointGroupColors = usePointCloudContext(
     (state) => state.pointGroupColors
   );
+  const selectionGridSize = usePointCloudContext(
+    (state) => state.selectionGridSize
+  );
+
   return (
     <div
       css={css`
@@ -276,15 +302,32 @@ function SelectionGridView(props: SelectionGridViewProps) {
       data-testid="grid-view-scroll-container"
     >
       <ul
+        data-grid-size={selectionGridSize}
         css={css`
+          &[data-grid-size="small"] {
+            --grid-item-min-width: 70px;
+            --grid-item-min-height: 70px;
+          }
+          &[data-grid-size="medium"] {
+            --grid-item-min-width: 160px;
+            --grid-item-min-height: 168px;
+          }
+          &[data-grid-size="large"] {
+            --grid-item-min-width: 300px;
+            --grid-item-min-height: 168px;
+          }
           padding: var(--px-spacing-lg);
+          transition: all 0.2s ease-in-out;
           display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+          grid-template-columns: repeat(
+            auto-fill,
+            minmax(var(--grid-item-min-width), 1fr)
+          );
           flex-wrap: wrap;
           gap: var(--px-spacing-lg);
           & > li {
-            min-width: 160px;
-            min-height: 168px;
+            min-width: var(--grid-item-min-width);
+            min-height: var(--grid-item-min-height);
           }
         `}
       >
