@@ -25,18 +25,24 @@ type EventItemProps = {
    * The color accent for the event. Corresponds to the color of the group the event belongs to
    */
   color: string;
+  /**
+   * The size of the event item
+   */
+  size: "small" | "medium" | "large";
 };
 /**
  * An item that represents a single model event. To be displayed in a grid / list
  */
 export function EventItem(props: EventItemProps) {
-  const { rawData, linkToData, onClick, color } = props;
+  const { rawData, linkToData, onClick, color, size } = props;
   // Prioritize the image preview over raw text
   const previewType: "raw" | "image" = linkToData != null ? "image" : "raw";
+  const showColorFooter = size !== "small";
   return (
     <div
       data-testid="event-item"
       role="button"
+      data-size={size}
       css={(theme) => css`
         width: 100%;
         height: 100%;
@@ -47,6 +53,18 @@ export function EventItem(props: EventItemProps) {
         display: flex;
         flex-direction: column;
         cursor: pointer;
+        &[data-zie="small"] {
+          border-width: 3px;
+          border-color: ${color};
+        }
+        &[data-zie="medium"] {
+          border-width: 1px;
+          border-color: var(--px-border-color-500);
+        }
+        &[data-zie="large"] {
+          border-width: 1px;
+          border-color: var(--px-border-color-500);
+        }
         &:hover {
           background-color: ${transparentize(0.9, theme.colors.arizeLightBlue)};
           border-color: ${transparentize(0.5, theme.colors.arizeLightBlue)};
@@ -80,16 +98,18 @@ export function EventItem(props: EventItemProps) {
           {rawData}
         </p>
       )}
-      <div
-        data-testid="event-association"
-        data-dataset-type={props.datasetRole}
-        css={css`
-          height: var(--px-gradient-bar-height);
-          flex: none;
-          background-color: ${color};
-          transition: background-color 0.5s ease-in-out;
-        `}
-      />
+      {showColorFooter ? (
+        <div
+          data-testid="event-association"
+          data-dataset-type={props.datasetRole}
+          css={css`
+            height: var(--px-gradient-bar-height);
+            flex: none;
+            background-color: ${color};
+            transition: background-color 0.5s ease-in-out;
+          `}
+        />
+      ) : null}
     </div>
   );
 }

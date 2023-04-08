@@ -349,6 +349,7 @@ function SelectionGridView(props: SelectionGridViewProps) {
                   onItemSelected(event.id);
                 }}
                 color={color}
+                size={selectionGridSize}
               />
             </li>
           );
