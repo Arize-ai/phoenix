@@ -44,6 +44,10 @@ jobs:
               run: |
                   hatch run gql:build
                   git diff --exit-code
+            - name: Check notebooks have cleaned output and metadata
+              run: |
+                  hatch run notebooks:clean
+                  git diff --exit-code
 
     test:
         name: Test Python
