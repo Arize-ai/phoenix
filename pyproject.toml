@@ -105,6 +105,12 @@ dependencies = [
   "ruff~=0.0.254",
 ]
 
+[tool.hatch.envs.notebooks]
+detached = true
+dependencies = [
+  "jupyter",
+]
+
 [tool.hatch.envs.docs]
 detached = true
 dependencies = [
@@ -158,6 +164,11 @@ check = [
 fix = [
   "black .",
   "ruff --fix .",
+]
+
+[tool.hatch.envs.notebooks.scripts]
+clean = [
+  "jupyter nbconvert --ClearOutputPreprocessor.enabled=True --ClearMetadataPreprocessor.enabled=True --inplace tutorials/*.ipynb",
 ]
 
 [tool.hatch.envs.publish]
