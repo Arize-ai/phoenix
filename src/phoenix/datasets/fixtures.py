@@ -143,6 +143,9 @@ credit_card_fraud_schema = Schema(
     actual_label_column_name="actual_label",
     timestamp_column_name="prediction_timestamp",
     tag_column_names=["age"],
+    embedding_feature_column_names={
+        "tabular_embedding": EmbeddingColumnNames(vector_column_name="tabular_vector"),
+    },
 )
 credit_card_fraud_fixture = Fixture(
     name="credit_card_fraud",
