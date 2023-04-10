@@ -307,10 +307,12 @@ export const DEFAULT_SINGLE_DATASET_POINT_CLOUD_PROPS: Partial<PointCloudProps> 
     pointGroupVisibility: {
       [CorrectnessGroup.correct]: true,
       [CorrectnessGroup.incorrect]: true,
+      [CorrectnessGroup.unknown]: true,
     },
     pointGroupColors: {
       [CorrectnessGroup.correct]: ColorSchemes.Discrete2.LightBlueOrange[0],
       [CorrectnessGroup.incorrect]: ColorSchemes.Discrete2.LightBlueOrange[1],
+      [CorrectnessGroup.unknown]: UNKNOWN_COLOR,
     },
   };
 
