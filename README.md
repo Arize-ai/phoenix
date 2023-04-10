@@ -117,6 +117,8 @@ Join our community to connect with thousands of machine learning practitioners a
 -   [UMAP](https://github.com/lmcinnes/umap) For unlocking the ability to visualize and reason about embeddings
 -   [HDBSCAN](https://github.com/scikit-learn-contrib/hdbscan) For providing a clustering algorithm to aid in the discovery of drift and performance degradation
 
-## License
+## Copyright and License
 
-Arize-Phoenix is licensed under the [Elastic License 2.0 (ELv2)](./LICENSE).
+Copyright 2023 Arize AI, Inc. All Rights Reserved.
+
+This software is licensed under the terms of the Elastic License 2.0 (ELv2)
