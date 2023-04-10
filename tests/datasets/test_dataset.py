@@ -750,8 +750,14 @@ class TestDataset:
         )
         output_dataset = Dataset(dataframe=input_df, schema=input_schema)
 
-        assert output_dataset.start_time == raw_data_min_time
-        assert output_dataset.end_time == raw_data_max_time + timedelta(microseconds=1)
+        assert output_dataset.start_time == raw_data_min_time.replace(
+            second=0,
+            microsecond=0,
+        )
+        assert output_dataset.end_time == (raw_data_max_time + timedelta(minutes=1)).replace(
+            second=0,
+            microsecond=0,
+        )
 
     @property
     def num_records(self):
