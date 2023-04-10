@@ -23,7 +23,7 @@ Install Phoenix and its dependencies in your notebook environment.
 In a notebook cell, execute
 
 ```python
-%pip install arize-phoenix
+!pip install arize-phoenix
 ```
 {% endtab %}
 
