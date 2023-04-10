@@ -10,6 +10,8 @@ description: How to fly with Phoenix test 2
 
 ![](../.gitbook/assets/book-blue.png)
 
+![](../.gitbook/assets/human\_actions.png)
+
 In your Jupyter or Colab environment, run
 
 ```
