@@ -132,7 +132,12 @@ class Model:
             dataset.get_events(rows.get(dataset_role, ()))
             for dataset_role, dataset in self.__datasets.items()
             if dataset is not None
-        ).to_parquet(parquet_file, index=False)
+        ).to_parquet(
+            parquet_file,
+            index=False,
+            allow_truncated_timestamps=True,
+            coerce_timestamps="ms",
+        )
 
 
 def _get_embedding_dimensions(
