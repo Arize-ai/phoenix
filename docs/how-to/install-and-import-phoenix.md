@@ -6,6 +6,8 @@ description: How to fly with Phoenix
 
 <figure><img src="../.gitbook/assets/phoenix-logo-light-no-text.svg" alt=""><figcaption><p>test image</p></figcaption></figure>
 
+![](../.gitbook/assets/csv-file-format-extension.png)
+
 In your Jupyter or Colab environment, run
 
 ```
