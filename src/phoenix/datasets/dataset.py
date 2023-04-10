@@ -108,13 +108,13 @@ class Dataset:
     def end_time(self) -> datetime:
         """
         Returns the datetime of the latest inference in the dataset.
-        end_datetime equals max(timestamp) + 1 microsecond, so that it can be
+        end_datetime equals max(timestamp) + 1 minute, so that it can be
         used as part of a right-open interval.
         """
         timestamp_col_name: str = cast(str, self.schema.timestamp_column_name)
         end_datetime: datetime = self.__dataframe[timestamp_col_name].max() + timedelta(
-            microseconds=1,
-        )  # adding a microsecond, so it can be used as part of a right open interval
+            minutes=1,
+        )  # adding a minute, so it can be used as part of a right open interval
         return end_datetime
 
     @property
