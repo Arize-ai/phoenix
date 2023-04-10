@@ -102,20 +102,21 @@ class Dataset:
         """Returns the datetime of the earliest inference in the dataset"""
         timestamp_col_name: str = cast(str, self.schema.timestamp_column_name)
         start_datetime: datetime = self.__dataframe[timestamp_col_name].min()
-        return start_datetime
+        return start_datetime.replace(second=0, microsecond=0)
 
     @cached_property
     def end_time(self) -> datetime:
         """
         Returns the datetime of the latest inference in the dataset.
         end_datetime equals max(timestamp) + 1 minute, so that it can be
-        used as part of a right-open interval.
+        used as part of a right-open interval. Note that one minute is the
+        smallest interval that is currently allowed.
         """
         timestamp_col_name: str = cast(str, self.schema.timestamp_column_name)
         end_datetime: datetime = self.__dataframe[timestamp_col_name].max() + timedelta(
             minutes=1,
-        )  # adding a minute, so it can be used as part of a right open interval
-        return end_datetime
+        )  # adding a minute, because it's the smallest interval allowed
+        return end_datetime.replace(second=0, microsecond=0)
 
     @property
     def dataframe(self) -> DataFrame:
