@@ -8,6 +8,8 @@ description: How to fly with Phoenix test
 
 ![](../.gitbook/assets/csv-file-format-extension.png)
 
+![](../.gitbook/assets/book-blue.png)
+
 In your Jupyter or Colab environment, run
 
 ```
