@@ -121,7 +121,7 @@ A session that maintains the state of the Phoenix app.
 ### Attributes
 
 * **url** (str): The URL of the running Phoenix session. Can be copied and pasted to open the Phoenix UI in a new browser tab or window.
-* **exports** (List\[pandas.DataFrame]): A list of pandas DataFrames containing exported data, sorted in chronological order. To access the most recently exported data, use `exports[-1]`.
+* **exports** (List\[pandas.DataFrame]): A list of pandas DataFrames containing exported data, sorted in chronological order.
 
 ### Usage
 
