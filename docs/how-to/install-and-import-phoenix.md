@@ -1,16 +1,8 @@
 ---
-description: How to fly with Phoenix test 2
+description: How to fly with Phoenix
 ---
 
 # Install and Import Phoenix
-
-<figure><img src="../.gitbook/assets/phoenix-logo-light-no-text.svg" alt=""><figcaption><p>test image</p></figcaption></figure>
-
-![](../.gitbook/assets/csv-file-format-extension.png)
-
-![](../.gitbook/assets/book-blue.png)
-
-![](../.gitbook/assets/human\_actions.png)
 
 In your Jupyter or Colab environment, run
 
