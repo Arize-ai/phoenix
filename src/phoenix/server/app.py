@@ -92,7 +92,7 @@ class Download(HTTPEndpoint):
 
     async def get(self, request: Request) -> FileResponse:
         params = QueryParams(request.query_params)
-        file = self.path / (params.get("filename", "") + ".parquet")
+        file = self.path / (params.get("filename", "") + ".pickle")
         if not file.is_file():
             raise HTTPException(status_code=404)
         return FileResponse(

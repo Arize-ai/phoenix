@@ -30,11 +30,11 @@ class ExportEventsMutation:
             file_name = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         row_ids = parse_event_ids(event_ids)
         path = info.context.export_path
-        with open(path / (file_name + ".parquet"), "wb") as fd:
+        with open(path / (file_name + ".pickle"), "wb") as fd:
             loop = asyncio.get_running_loop()
             await loop.run_in_executor(
                 None,
-                info.context.model.export_events_as_parquet_file,
+                info.context.model.export_events_as_pickle_file,
                 row_ids,
                 fd,
             )

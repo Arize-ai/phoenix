@@ -46,4 +46,4 @@ def get_exported_files(directory: Path) -> List[Path]:
     list: List[Path]
         List of paths of the exported files.
     """
-    return list(directory.glob("*.parquet"))
+    return list(directory.glob("*.pickle"))

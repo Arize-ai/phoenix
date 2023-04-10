@@ -112,10 +112,10 @@ class Model:
             return DimensionDataType.CATEGORICAL
         raise ValueError("Unrecognized dimension type")
 
-    def export_events_as_parquet_file(
+    def export_events_as_pickle_file(
         self,
         rows: Mapping[DatasetRole, Iterable[int]],
-        parquet_file: BinaryIO,
+        output_file: BinaryIO,
     ) -> None:
         """
         Given row numbers, exports dataframe subset into parquet file.
@@ -125,14 +125,14 @@ class Model:
         ----------
         rows: Mapping[DatasetRole, Iterable[int]]
             mapping of dataset type to list of row numbers
-        parquet_file: file handle
-            output parquet file handle
+        output_file: file handle
+            pickle file handle
         """
         pd.concat(
             dataset.get_events(rows.get(dataset_role, ()))
             for dataset_role, dataset in self.__datasets.items()
             if dataset is not None
-        ).to_parquet(parquet_file, index=False)
+        ).to_pickle(output_file)
 
 
 def _get_embedding_dimensions(

@@ -45,7 +45,7 @@ class ExportedData(_BaseList):
         )
         self.paths.update(new_paths)
         self.names.extend(path.stem for path in new_paths)
-        self.data.extend(pd.read_parquet(path) for path in new_paths)
+        self.data.extend(pd.read_pickle(path) for path in new_paths)
 
 
 class Session(ABC):
