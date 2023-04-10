@@ -6,6 +6,10 @@ description: Take your first flight with Phoenix in your Jupyter or Colab notebo
 
 [![Open in Colab](https://img.shields.io/static/v1?message=Open%20in%20Colab\&logo=googlecolab\&labelColor=grey\&color=blue\&logoColor=orange\&label=%20)](https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/quickstart.ipynb) [![Open in GitHub](https://img.shields.io/static/v1?message=Open%20in%20GitHub\&logo=github\&labelColor=grey\&color=blue\&logoColor=white\&label=%20)](https://github.com/Arize-ai/phoenix/blob/main/tutorials/quickstart.ipynb)
 
+
+
+<table data-view="cards"><thead><tr><th></th><th></th><th></th><th data-hidden data-card-target data-type="content-ref"></th></tr></thead><tbody><tr><td></td><td>Computer Vision</td><td></td><td></td></tr><tr><td></td><td>Natural Language Processing</td><td></td><td></td></tr><tr><td></td><td>Tabular Data</td><td></td><td></td></tr></tbody></table>
+
 In this quickstart, you will:
 
 * Download curated datasets of embeddings and predictions and load them into a pandas DataFrame
