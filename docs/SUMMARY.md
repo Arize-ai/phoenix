@@ -1,12 +1,12 @@
 # Table of contents
 
 * [ML Observability in a Notebook](README.md)
+* [LLM Observability](llm-observability.md)
 
 ## 💡 Concepts
 
 * [Phoenix Basics](concepts/phoenix-basics.md)
 * [Generating Embeddings](concepts/generating-embeddings.md)
-* [LLM Observability](concepts/llm-observability.md)
 
 ## 🎓 Tutorials
 
