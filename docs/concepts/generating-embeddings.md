@@ -1,10 +1,12 @@
 # Generating Embeddings
 
+Phoenix supports any type of dense embedding generated for almost any type of data.&#x20;
+
+But what if I don't have embeddings handy? Well, that is not a problem. The model data can be analyzed by the embeddings Auto-Generated for Phoenix.&#x20;
+
 ### What are Auto-Embeddings?
 
 Generating embeddings is likely another problem to solve, on top of ensuring your model is performing properly. With our Python SDK, you can offload that task to the SDK and we will generate the embeddings for you. We use large, pre-trained models that will capture information from your inputs and encode it into embedding vectors.&#x20;
-
-Phoenix supports any type of dense embedding generated for almost any type of data.
 
 We also support generating embeddings for you for the following types of data:
 
