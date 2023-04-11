@@ -191,6 +191,192 @@ px.close_app()
 
 ## Natural Language Processing
 
+Install Phoenix.
+
+```python
+!pip install -q arize-phoenix
+```
+
+Import dependencies.
+
+```python
+import pandas as pd
+import phoenix as px
+```
+
+Download training and production data from a model that classifies the sentiment of product reviews as positive, negative, or neutral.
+
+```python
+train_df = pd.read_parquet(
+    "https://storage.googleapis.com/arize-assets/phoenix/datasets/unstructured/nlp/sentiment-classification-language-drift/sentiment_classification_language_drift_training.parquet",
+)
+prod_df = pd.read_parquet(
+    "https://storage.googleapis.com/arize-assets/phoenix/datasets/unstructured/nlp/sentiment-classification-language-drift/sentiment_classification_language_drift_production.parquet",
+)
+```
+
+View a few training data points.
+
+```python
+train_df.head()
+```
+
+<div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>prediction_ts</th>
+      <th>reviewer_age</th>
+      <th>reviewer_gender</th>
+      <th>product_category</th>
+      <th>language</th>
+      <th>text</th>
+      <th>text_vector</th>
+      <th>label</th>
+      <th>pred_label</th>
+      <th>prediction_id</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>1.650092e+09</td>
+      <td>21</td>
+      <td>female</td>
+      <td>apparel</td>
+      <td>english</td>
+      <td>Poor quality of fabric and ridiculously tight ...</td>
+      <td>[-0.070516996, 0.6640034, 0.33579218, -0.26907...</td>
+      <td>negative</td>
+      <td>negative</td>
+      <td>8e6aa6b9-1c64-4f14-89ca-4fa13f9bdf22</td>
+    </tr>
+    <tr>
+      <th>1</th>
+      <td>1.650093e+09</td>
+      <td>29</td>
+      <td>male</td>
+      <td>kitchen</td>
+      <td>english</td>
+      <td>Love these glasses, thought they'd be everyday...</td>
+      <td>[-0.0024410924, -0.5406275, 0.31713492, -0.033...</td>
+      <td>positive</td>
+      <td>positive</td>
+      <td>b2e80b12-eaea-4ce5-952d-8bb47ae850e8</td>
+    </tr>
+    <tr>
+      <th>2</th>
+      <td>1.650093e+09</td>
+      <td>26</td>
+      <td>female</td>
+      <td>sports</td>
+      <td>english</td>
+      <td>These are disgusting, it tastes like you are "...</td>
+      <td>[0.40487882, 0.8235396, 0.38333943, -0.4269158...</td>
+      <td>negative</td>
+      <td>negative</td>
+      <td>d405e813-e120-4209-bf56-0f3b3eb15a10</td>
+    </tr>
+    <tr>
+      <th>3</th>
+      <td>1.650093e+09</td>
+      <td>26</td>
+      <td>male</td>
+      <td>other</td>
+      <td>english</td>
+      <td>My husband has a pair of TaoTronics so I decid...</td>
+      <td>[0.018816521, 0.53441304, 0.4907303, -0.024163...</td>
+      <td>neutral</td>
+      <td>neutral</td>
+      <td>2707a745-6cc2-4690-96d8-7a4c0d25eae4</td>
+    </tr>
+    <tr>
+      <th>4</th>
+      <td>1.650093e+09</td>
+      <td>37</td>
+      <td>male</td>
+      <td>home_improvement</td>
+      <td>english</td>
+      <td>Threads too deep. Engages on tank, but gasket ...</td>
+      <td>[-0.25348073, 0.31603432, 0.35810202, -0.24672...</td>
+      <td>negative</td>
+      <td>negative</td>
+      <td>db0f1d5a-ea00-44e4-ae61-47db679a1e54</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+The columns of the DataFrame are:
+- **prediction_ts:** the Unix timestamps of your predictions
+- **review_age**, **reviewer_gender**, **product_category**, **language:** the features of your model
+- **text:** the text of each product review
+- **text_vector:** the embedding vectors representing each review
+- **pred_label:** the label your model predicted
+- **label:** the ground-truth label for each review
+
+Define your schema.
+
+```python
+schema = px.Schema(
+    timestamp_column_name="prediction_ts",
+    prediction_label_column_name="pred_label",
+    actual_label_column_name="label",
+    embedding_feature_column_names={
+        "text_embedding": px.EmbeddingColumnNames(
+            vector_column_name="text_vector", raw_data_column_name="text"
+        ),
+    },
+)
+```
+
+Define your primary and reference datasets.
+
+```python
+prim_ds = px.Dataset(dataframe=prod_df, schema=schema, name="production")
+ref_ds = px.Dataset(dataframe=train_df, schema=schema, name="training")
+```
+
+Launch Phoenix.
+
+```python
+session = px.launch_app(primary=prim_ds, reference=ref_ds)
+```
+
+Open Phoenix by copying and pasting the output of `session.url` into a new browser tab.
+
+```python
+session.url
+```
+
+Alternatively, open the Phoenix UI in your notebook.
+
+```python
+session.view()
+```
+
+Navigate to the embeddings page. Select a period of high drift. Click on the clusters on the left and inspect the data in each cluster. One cluster contains positive reviews, one contains negative reviews, and another contains production data that has drifted from the training distribution.
+
+Close the app.
+
+```python
+px.close_app()
+```
+
 ## Tabular Data
 
 ## Next Steps
