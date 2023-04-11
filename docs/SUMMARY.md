@@ -4,8 +4,8 @@
 
 ## 💡 Concepts
 
+* [Generating Embeddings](concepts/generating-embeddings.md)
 * [LLM Observability](concepts/llm-observability.md)
-* [Embeddings](concepts/embeddings.md)
 * [Phoenix Basics](concepts/phoenix-basics.md)
 
 ## 🎓 Tutorials
@@ -27,6 +27,7 @@
 
 ## 📚 Reference
 
+* [Embeddings](reference/embeddings.md)
 * [Open Inference](concepts/open-inference.md)
 
 ***
