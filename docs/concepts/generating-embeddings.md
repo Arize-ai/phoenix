@@ -4,6 +4,12 @@
 
 Generating embeddings is likely another problem to solve, on top of ensuring your model is performing properly. With our Python SDK, you can offload that task to the SDK and we will generate the embeddings for you. We use large, pre-trained models that will capture information from your inputs and encode it into embedding vectors.&#x20;
 
+We support the following types of data out of the box:
+
+* CV - Computer Vision&#x20;
+* NLP - Natural Language&#x20;
+* Tabular Data - Pandas DataFrames&#x20;
+
 We extract the embeddings in the appropriate way depending on your use case, and we return it to you to include in your pandas DataFrame, which you can then analyze using Phoenix.
 
 Auto-Embeddings works end-to-end, you don't have to worry about formatting your inputs for the correct model. By simply passing your input, an embedding will come out as a result. We take care of everything in between.
@@ -77,7 +83,7 @@ df["text_vector"] = generator.generate_embeddings(text_col=df["text"])
 ```
 {% endtab %}
 
-{% tab title="Tabular Data" %}
+{% tab title="Tabular Data - Pandas DataFrame" %}
 <pre class="language-python"><code class="lang-python">from arize.pandas.embeddings import EmbeddingGenerator, UseCases
 <strong>
 </strong><strong>df = df.reset_index(drop=True)
