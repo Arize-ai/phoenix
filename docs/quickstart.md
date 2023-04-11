@@ -4,7 +4,7 @@ description: Take your first flight with Phoenix in your Jupyter or Colab notebo
 
 # Quickstart
 
-This quickstart dives straight into the code with minimal explanation. Click on the tabs below to explore the capabilities of Phoenix for various tasks.
+This quickstart dives straight into the code with minimal explanation. Click below to explore the capabilities of Phoenix for various tasks.
 
 <table data-view="cards"><thead><tr><th align="center"></th><th data-hidden data-card-target data-type="content-ref"></th></tr></thead><tbody><tr><td align="center"><strong>Computer Vision</strong></td><td><a href="quickstart.md#computer-vision">#computer-vision</a></td></tr><tr><td align="center"><strong>Natural Language Processing</strong></td><td><a href="quickstart.md#natural-language-processing">#natural-language-processing</a></td></tr><tr><td align="center"><strong>Tabular Data</strong></td><td><a href="quickstart.md#tabular-data">#tabular-data</a></td></tr></tbody></table>
 
