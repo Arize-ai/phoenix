@@ -1,4 +1,4 @@
-import React from "react";
+import React, { PropsWithChildren, ReactNode } from "react";
 import { transparentize } from "polished";
 import { css } from "@emotion/react";
 
@@ -37,7 +37,26 @@ export function EventItem(props: EventItemProps) {
   const { rawData, linkToData, onClick, color, size } = props;
   // Prioritize the image preview over raw text
   const previewType: "raw" | "image" = linkToData != null ? "image" : "raw";
-  const showColorFooter = size !== "small";
+
+  let secondaryPreview: ReactNode | null = null;
+  let footer: ReactNode | null = null;
+  if (size !== "small") {
+    // Only show secondary previews for medium and large sizes
+    switch (previewType) {
+      case "image": {
+        if (rawData != null) {
+          secondaryPreview = (
+            <RawTextPreview size={size}>{rawData}</RawTextPreview>
+          );
+        } else {
+          secondaryPreview = null;
+        }
+        break;
+      }
+    }
+    footer = <EventItemFooter datasetRole={DatasetRole} />;
+  }
+
   return (
     <div
       data-testid="event-item"
@@ -46,70 +65,99 @@ export function EventItem(props: EventItemProps) {
       css={(theme) => css`
         width: 100%;
         height: 100%;
-        border: 1px solid ${theme.colors.gray400};
+        box-sizing: border-box;
+        border-style: solid;
         border-radius: 4px;
         overflow: hidden;
-        transition: background-color 0.2s ease-in-out;
+
         display: flex;
         flex-direction: column;
         cursor: pointer;
-        &[data-zie="small"] {
-          border-width: 3px;
-          border-color: ${color};
-        }
-        &[data-zie="medium"] {
-          border-width: 1px;
-          border-color: var(--px-border-color-500);
-        }
-        &[data-zie="large"] {
-          border-width: 1px;
-          border-color: var(--px-border-color-500);
-        }
+        overflow: hidden;
+
+        border-width: 2px;
+        border-color: ${color};
+        border-radius: 8px;
         &:hover {
           background-color: ${transparentize(0.9, theme.colors.arizeLightBlue)};
-          border-color: ${transparentize(0.5, theme.colors.arizeLightBlue)};
-        }
-        &.is-selected {
-          border-color: ${theme.colors.arizeLightBlue};
-          background-color: ${transparentize(0.8, theme.colors.arizeLightBlue)};
         }
       `}
       onClick={onClick}
     >
-      {previewType === "image" ? (
-        <img
-          src={linkToData as string}
-          css={css`
-            flex: 1 1 auto;
-            min-height: 0;
-            // Maintain aspect ratio while having normalized height
-            object-fit: contain;
-          `}
-        />
-      ) : (
-        <p
-          css={css`
-            flex: 1 1 auto;
-            padding: var(--px-spacing-med);
-            margin-block-start: 0;
-            margin-block-end: 0;
-          `}
-        >
-          {rawData}
-        </p>
-      )}
-      {showColorFooter ? (
-        <div
-          data-testid="event-association"
-          data-dataset-type={props.datasetRole}
-          css={css`
-            height: var(--px-gradient-bar-height);
-            flex: none;
-            background-color: ${color};
-            transition: background-color 0.5s ease-in-out;
-          `}
-        />
-      ) : null}
+      <div
+        className="event-item__preview-wrap"
+        css={css`
+          display: flex;
+          flex-direction: row;
+          flex: 1 1 auto;
+          overflow: hidden;
+        `}
+      >
+        {previewType === "image" ? (
+          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+          <ImagePreview linkToData={linkToData!} />
+        ) : (
+          <RawTextPreview size={size}>{rawData}</RawTextPreview>
+        )}
+        {secondaryPreview}
+      </div>
+      {footer}
     </div>
+  );
+}
+
+function ImagePreview(props: { linkToData: string }) {
+  return (
+    <img
+      src={props.linkToData}
+      css={css`
+        width: 100%;
+        height: 100%;
+        min-height: 0;
+        // Maintain aspect ratio while having normalized height
+        object-fit: contain;
+      `}
+    />
+  );
+}
+function RawTextPreview(
+  props: PropsWithChildren<{
+    size: "small" | "medium" | "large";
+  }>
+) {
+  return (
+    <p
+      data-size={props.size}
+      css={(theme) => css`
+        flex: 1 1 auto;
+        padding: var(--px-spacing-med);
+        margin-block-start: 0;
+        margin-block-end: 0;
+        position: relative;
+
+        &[data-size="small"] {
+          padding: var(--px-spacing-sm);
+          font-size: ${theme.typography.sizes.small.fontSize}px;
+          box-sizing: border-box;
+        }
+
+        &[data-size="large"] {
+        }
+        &:before {
+          content: "";
+          width: 100%;
+          height: 100%;
+          position: absolute;
+          left: 0;
+          top: 0;
+          background: linear-gradient(
+            transparent 85%,
+            var(--px-item-background-color) 98%
+          );
+        }
+      `}
+    >
+      {props.children}
+    </p>
   );
 }
