@@ -2,9 +2,9 @@
 
 ### What are Auto-Embeddings?
 
-Generating embeddings is likely another problem to solve, on top of ensuring your model is performing properly. With our Python SDK, you can offload that task to Arize and we will generate the embeddings for you. We use large, pre-trained models that will capture information from your inputs and encode it into embedding vectors.&#x20;
+Generating embeddings is likely another problem to solve, on top of ensuring your model is performing properly. With our Python SDK, you can offload that task to the SDK and we will generate the embeddings for you. We use large, pre-trained models that will capture information from your inputs and encode it into embedding vectors.&#x20;
 
-We extract the embeddings in the appropriate way depending on your use case, and we return it to you to include in your pandas DataFrame, which you then send to Arize.
+We extract the embeddings in the appropriate way depending on your use case, and we return it to you to include in your pandas DataFrame, which you can then analyze using Phoenix.
 
 Auto-Embeddings works end-to-end, you don't have to worry about formatting your inputs for the correct model. By simply passing your input, an embedding will come out as a result. We take care of everything in between.
 

@@ -144,7 +144,7 @@ schema = px.Schema(
 Embedding features consist of vector data in addition to any unstructured data in the form of text or images that the vectors represent. Unlike normal features, a single embedding feature may span multiple columns of your DataFrame. Use `px.EmbeddingColumnNames` to associate multiple DataFrame columns with the same embedding feature.
 
 {% hint style="info" %}
-* For a conceptual overview of embeddings, see [Embeddings](../reference/embeddings.md).
+* For a conceptual overview of embeddings, see [Embeddings](../concepts/embeddings.md).
 * For a comprehensive description of `px.EmbeddingColumnNames`, see the [API reference](../api/dataset-and-schema.md#phoenix.embeddingcolumnnames).
 {% endhint %}
 

@@ -27,7 +27,7 @@
 
 ## 📚 Reference
 
-* [Embeddings](reference/embeddings.md)
+* [Embeddings](concepts/embeddings.md)
 * [Open Inference](concepts/open-inference.md)
 
 ***
