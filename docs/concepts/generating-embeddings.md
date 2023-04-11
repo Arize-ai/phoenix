@@ -8,7 +8,7 @@ But what if I don't have embeddings handy? Well, that is not a problem. The mode
 
 Generating embeddings is likely another problem to solve, on top of ensuring your model is performing properly. With our Python SDK, you can offload that task to the SDK and we will generate the embeddings for you. We use large, pre-trained models that will capture information from your inputs and encode it into embedding vectors.&#x20;
 
-We also support generating embeddings for you for the following types of data:
+We support generating embeddings for you for the following types of data:
 
 * CV - Computer Vision&#x20;
 * NLP - Natural Language&#x20;

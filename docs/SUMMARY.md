@@ -4,8 +4,8 @@
 
 ## 💡 Concepts
 
-* [Generating Embeddings](concepts/generating-embeddings.md)
 * [Phoenix Basics](concepts/phoenix-basics.md)
+* [Generating Embeddings](concepts/generating-embeddings.md)
 * [LLM Observability](concepts/llm-observability.md)
 
 ## 🎓 Tutorials
