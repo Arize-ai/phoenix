@@ -186,7 +186,7 @@ class DiscreteDivergence(Discretizer, DriftOperator):
             how="outer",
         ).fillna(0)
         # remove rows with all zeros
-        merged_counts = merged_counts.loc[(merged_counts > 0).any(axis=1)]  # type: ignore
+        merged_counts = merged_counts.loc[(merged_counts > 0).any(axis=1)]
         primary_histogram = merged_counts.primary_histogram
         reference_histogram = merged_counts.reference_histogram
         return self.divergence(
