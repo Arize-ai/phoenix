@@ -31,7 +31,6 @@ const RootQuery = graphql`
         endTime
       }
       referenceDataset {
-        id
         name
         startTime
         endTime
