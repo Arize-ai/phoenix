@@ -212,9 +212,11 @@ def _get_column_vector_length(dataset: Dataset, embedding_vector_column_name: st
     column = dataset.dataframe[embedding_vector_column_name]
 
     for row in column:
-        # None is a valid entry for a row and represents the fact that the embedding feature
-        # is missing/empty. Skip until a row is found with a non-empty vector
-        if row is None:
+        # None/NaN is a valid entry for a row and represents the fact that the
+        # embedding feature is missing/empty. Skip until a row is found with a
+        # non-empty vector. Check the presence of dunder method __len__ to skip
+        # scalar values, e.g. None/NaN.
+        if not hasattr(row, "__len__"):
             continue
         return len(row)
 
