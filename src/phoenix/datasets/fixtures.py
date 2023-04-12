@@ -64,6 +64,35 @@ sentiment_classification_language_drift_fixture = Fixture(
     ),
 )
 
+image_classification_schema = Schema(
+    timestamp_column_name="prediction_ts",
+    prediction_label_column_name="predicted_action",
+    actual_label_column_name="actual_action",
+    embedding_feature_column_names={
+        "image_embedding": EmbeddingColumnNames(
+            vector_column_name="image_vector",
+            link_to_data_column_name="url",
+        ),
+    },
+)
+
+image_classification_fixture = Fixture(
+    name="image_classification",
+    description="""
+    Imagine you're in charge of maintaining a model that classifies the action
+    of people in photographs. Your model initially performs well in production,
+    but its performance gradually degrades over time.
+    """,
+    primary_schema=replace(image_classification_schema, actual_label_column_name=None),
+    reference_schema=image_classification_schema,
+    primary_dataset_url=os.path.join(
+        FIXTURE_URL_PREFIX, "unstructured/cv/human-actions/human_actions_production.parquet"
+    ),
+    reference_dataset_url=os.path.join(
+        FIXTURE_URL_PREFIX, "unstructured/cv/human-actions/human_actions_training.parquet"
+    ),
+)
+
 fashion_mnist_primary_schema = Schema(
     timestamp_column_name="prediction_ts",
     embedding_feature_column_names={
@@ -256,6 +285,7 @@ deep_data_fixture = Fixture(
 
 FIXTURES: Tuple[Fixture, ...] = (
     sentiment_classification_language_drift_fixture,
+    image_classification_fixture,
     fashion_mnist_fixture,
     ner_token_drift_fixture,
     credit_card_fraud_fixture,
@@ -344,6 +374,7 @@ def load_example(use_case: str) -> ExampleDatasets:
         use_case: str
             Name of the phoenix supported use case Valid values include:
                 - "sentiment_classification_language_drift"
+                - "image_classification"
                 - "fashion_mnist"
                 - "ner_token_drift"
                 - "credit_card_fraud"
