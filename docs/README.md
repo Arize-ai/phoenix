@@ -23,10 +23,11 @@ Phoenix is an Open Source ML Observability library designed for the Notebook. Th
 
 #### Context&#x20;
 
-* Deep Learning Models (CV, LLM, Generative) are an amazing technology that will power many of the future ML use cases. &#x20;
-* Many of these technologies are being deployed into businesses (the real world) in what we consider a production setting.
-* When they are in production, data scientists have no idea when models fail, make wrong decisions, give poor responses (LLM), and incorrectly generalize.&#x20;
+* Deep Learning Models (CV, LLM, and Generative) are an amazing technology that will power many of the future ML use cases. &#x20;
+* A large set of these technologies are being deployed into businesses (the real world) in what we consider a production setting.
+* When they are in production, data scientists have no idea when models fail, when they make wrong decisions, or give poor responses (LLM), and incorrectly generalize.&#x20;
 * One paradigm that's emerged is the use of embeddings and latent structure to analyze model decisions and find clusters of problems.&#x20;
+* Fixing the problem typically consists of augmenting/editing upstream data, changing a prompt template or exporting data for use in training and/or fine tuning.&#x20;
 
 #### Proposed Solution
 
@@ -36,11 +37,11 @@ This is where Phoenix comes in 😃 ML Observability helps you visualize, troubl
 * Provides easy tools to generate and visualize embeddings
 * Automatically find clusters of embeddings that represent "ideas" that the model has learned (manifolds)&#x20;
 * Sorts clusters of issues using performance metrics or drift
-* Workflows for model improvement&#x20;
+* Built in workflows for model improvement&#x20;
 
 
 
-Phoenix Functionality&#x20;
+**Phoenix Functionality**&#x20;
 
 * **Discover How Embeddings Represent Your Data:** Map structured features onto embeddings for deeper insights into how embeddings represent your data.&#x20;
 * **Evaluate LLM Tasks:** Troubleshoot tasks such as summarization or question/answering to find problem clusters with misleading or false answers.&#x20;
@@ -55,6 +56,6 @@ Phoenix Functionality&#x20;
 * CV&#x20;
 * NLP
 * LLM
-* Ranking \* coming soon
+* Ranking\* (coming soon)
 
 \
