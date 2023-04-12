@@ -1,17 +1,19 @@
 # Table of contents
 
-* [ML Observability in a Notebook](README.md)
-* [LLM Observability](llm-observability.md)
+* [Phoenix: ML Observability in a Notebook](README.md)
 
 ## 💡 Concepts
 
 * [Phoenix Basics](concepts/phoenix-basics.md)
 * [Generating Embeddings](concepts/generating-embeddings.md)
+* [What is LLM Observability?](concepts/llm-observability.md)
 
-## 🎓 Tutorials
+## 🎓 Tutorials/Use Cases
 
-* [Quickstart](quickstart.md)
-* [Notebooks](tutorials/notebooks.md)
+* [Quickstart - Computer Vision](tutorials-use-cases/quickstart.md)
+* [Quickstart - NLP](tutorials-use-cases/quickstart-1.md)
+* [Quickstart - Tabular Data](tutorials-use-cases/quickstart-2.md)
+* [Notebooks](tutorials-use-cases/notebooks.md)
 
 ## 🔢 How-To
 
@@ -27,6 +29,7 @@
 
 ## 📚 Reference
 
+* [Phoenix Architecture](reference/phoenix-architecture.md)
 * [Embeddings](concepts/embeddings.md)
 * [Open Inference](concepts/open-inference.md)
 
