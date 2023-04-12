@@ -72,8 +72,5 @@
     "lint": "eslint ./src",
     "prettier": "prettier --write './src/**/*'",
     "prettier:check": "prettier --check './src/**/*'"
-  },
-  "lint-staged": {
-    "src/*.{ts,tsx,js}": "eslint --cache --fix"
   }
 }
