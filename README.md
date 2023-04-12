@@ -117,7 +117,7 @@ Join our community to connect with thousands of machine learning practitioners a
 -   [UMAP](https://github.com/lmcinnes/umap) For unlocking the ability to visualize and reason about embeddings
 -   [HDBSCAN](https://github.com/scikit-learn-contrib/hdbscan) For providing a clustering algorithm to aid in the discovery of drift and performance degradation
 
-## Copyright and License
+## Copyright, Patent, and License
 
 Copyright 2023 Arize AI, Inc. All Rights Reserved.
 
