@@ -4,7 +4,7 @@ description = "ML Observability in your notebook"
 readme = "README.md"
 requires-python = ">=3.8, <3.11"
 license = "Elastic-2.0"
-license-files = { paths = ["LICENSE"] }
+license-files = { paths = ["LICENSE", "IP_NOTICE"] }
 keywords = [
   "Observability",
   "Monitoring",
