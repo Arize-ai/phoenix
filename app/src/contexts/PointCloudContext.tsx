@@ -32,7 +32,7 @@ export function PointCloudProvider({
 
 export function usePointCloudContext<T>(
   selector: (state: PointCloudState) => T,
-  equalityFn?: (left: T, right: T) => boolean
+  equalityFn?: (left: T, right: T) => boolean,
 ): T {
   const store = useContext(PointCloudContext);
   if (!store) throw new Error("Missing PointCloudContext.Provider in the tree");

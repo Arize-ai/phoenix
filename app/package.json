@@ -50,9 +50,7 @@
     "eslint-plugin-react-hooks": "^4.6.0",
     "eslint-plugin-simple-import-sort": "^10.0.0",
     "graphql": "^15.8.0",
-    "husky": "^8.0.3",
-    "lint-staged": "^13.1.0",
-    "prettier": "2.8.1",
+    "prettier": "^3.0.0-alpha.6",
     "relay-compiler": "^14.1.0",
     "typescript": "^5.0.4"
   },
@@ -74,9 +72,5 @@
     "lint": "eslint ./src",
     "prettier": "prettier --write './src/**/*'",
     "prettier:check": "prettier --check './src/**/*'"
-  },
-  "lint-staged": {
-    "src/*.{ts,tsx,js}": "eslint --cache --fix",
-    "src/*.{js,ts,tsx,md}": "prettier --write --ignore-unknown"
   }
 }

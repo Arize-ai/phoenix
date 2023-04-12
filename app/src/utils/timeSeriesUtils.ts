@@ -9,7 +9,7 @@ export function calculateGranularity(timeRange: TimeRange): {
 } {
   const { start, end } = timeRange;
   const timeRangeInHours = Math.floor(
-    (end.valueOf() - start.valueOf()) / 1000 / 60 / 60
+    (end.valueOf() - start.valueOf()) / 1000 / 60 / 60,
   );
   if (timeRangeInHours <= 1) {
     return {
@@ -40,7 +40,7 @@ export function calculateGranularityWithRollingAverage(timeRange: TimeRange): {
 } {
   const { start, end } = timeRange;
   const timeRangeInHours = Math.floor(
-    (end.valueOf() - start.valueOf()) / 1000 / 60 / 60
+    (end.valueOf() - start.valueOf()) / 1000 / 60 / 60,
   );
   if (timeRangeInHours <= 1) {
     return {

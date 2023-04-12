@@ -40,7 +40,7 @@ export function ModelEmbeddingsTable(props: ModelEmbeddingsTable) {
         }
       }
     `,
-    props.model
+    props.model,
   );
   const tableData = useMemo(
     () =>
@@ -50,11 +50,11 @@ export function ModelEmbeddingsTable(props: ModelEmbeddingsTable) {
           ...embedding,
         };
       }),
-    [data]
+    [data],
   );
 
   // Declare the columns
-  type TableRow = typeof tableData[number];
+  type TableRow = (typeof tableData)[number];
   const columns = React.useMemo(() => {
     const cols: Column<TableRow>[] = [
       {

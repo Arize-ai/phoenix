@@ -176,7 +176,7 @@ function EmbeddingMain() {
   const { primaryDataset, referenceDataset } = useDatasets();
   const umapParameters = usePointCloudContext((state) => state.umapParameters);
   const hdbscanParameters = usePointCloudContext(
-    (state) => state.hdbscanParameters
+    (state) => state.hdbscanParameters,
   );
   const resetPointCloud = usePointCloudContext((state) => state.reset);
   const [showChart, setShowChart] = useState<boolean>(true);
@@ -185,7 +185,7 @@ function EmbeddingMain() {
   const { selectedTimestamp } = useTimeSlice();
   const endTime = useMemo(
     () => selectedTimestamp ?? new Date(primaryDataset.endTime),
-    [selectedTimestamp, primaryDataset.endTime]
+    [selectedTimestamp, primaryDataset.endTime],
   );
   const timeRange = useMemo(() => {
     return {
@@ -207,7 +207,7 @@ function EmbeddingMain() {
       },
       {
         fetchPolicy: "network-only",
-      }
+      },
     );
   }, [
     resetPointCloud,
@@ -293,7 +293,7 @@ function EmbeddingMain() {
 }
 
 function umapDataEntryToThreeDimensionalPointItem(
-  umapData: UMAPPointsEntry
+  umapData: UMAPPointsEntry,
 ): ThreeDimensionalPointItem {
   const { id, eventId, coordinates, eventMetadata, embeddingMetadata } =
     umapData;
@@ -302,7 +302,7 @@ function umapDataEntryToThreeDimensionalPointItem(
   }
   if (coordinates.__typename !== "Point3D") {
     throw new Error(
-      `Expected Point3D but got ${coordinates.__typename} for UMAP data entry`
+      `Expected Point3D but got ${coordinates.__typename} for UMAP data entry`,
     );
   }
 
@@ -327,16 +327,16 @@ const PointCloudDisplay = ({
 }) => {
   const data = usePreloadedQuery<UMAPQueryType>(
     EmbeddingUMAPQuery,
-    queryReference
+    queryReference,
   );
 
   const sourceData = useMemo(
     () => data.embedding?.UMAPPoints?.data ?? [],
-    [data]
+    [data],
   );
   const referenceSourceData = useMemo(
     () => data.embedding?.UMAPPoints?.referenceData ?? [],
-    [data]
+    [data],
   );
   const clusters = useMemo(() => {
     let clusters = data.embedding?.UMAPPoints?.clusters || [];
@@ -447,7 +447,7 @@ const PointCloudDisplay = ({
               referenceData={
                 referenceSourceData
                   ? referenceSourceData.map(
-                      umapDataEntryToThreeDimensionalPointItem
+                      umapDataEntryToThreeDimensionalPointItem,
                     )
                   : null
               }
@@ -464,7 +464,7 @@ function SelectionPanel(props: {
   eventIdToDataMap: Map<string, UMAPPointsEntry>;
 }) {
   const selectedEventIds = usePointCloudContext(
-    (state) => state.selectedEventIds
+    (state) => state.selectedEventIds,
   );
 
   if (selectedEventIds.size === 0) {
@@ -527,32 +527,30 @@ function ClustersPanelContents({
   clusters: readonly UMAPClusterEntry[];
 }) {
   const selectedClusterId = usePointCloudContext(
-    (state) => state.selectedClusterId
+    (state) => state.selectedClusterId,
   );
   const setSelectedClusterId = usePointCloudContext(
-    (state) => state.setSelectedClusterId
+    (state) => state.setSelectedClusterId,
   );
   const setSelectedEventIds = usePointCloudContext(
-    (state) => state.setSelectedEventIds
+    (state) => state.setSelectedEventIds,
   );
   const setHighlightedClusterId = usePointCloudContext(
-    (state) => state.setHighlightedClusterId
+    (state) => state.setHighlightedClusterId,
   );
 
   return (
     <Tabs>
       <TabPane name="Clusters">
         <ul
-          css={(theme) =>
-            css`
-              flex: 1 1 auto;
-              overflow-y: auto;
-              display: flex;
-              flex-direction: column;
-              gap: ${theme.spacing.margin8}px;
-              margin: ${theme.spacing.margin8}px;
-            `
-          }
+          css={(theme) => css`
+            flex: 1 1 auto;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: ${theme.spacing.margin8}px;
+            margin: ${theme.spacing.margin8}px;
+          `}
         >
           {clusters.map((cluster) => {
             return (
@@ -594,7 +592,7 @@ function PointCloudNotifications() {
   const { notifyError } = useGlobalNotification();
   const errorMessage = usePointCloudContext((state) => state.errorMessage);
   const setErrorMessage = usePointCloudContext(
-    (state) => state.setErrorMessage
+    (state) => state.setErrorMessage,
   );
 
   useEffect(() => {

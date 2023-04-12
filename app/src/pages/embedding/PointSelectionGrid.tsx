@@ -16,10 +16,10 @@ export function PointSelectionGrid(props: PointSelectionGridProps) {
   const { events, eventIdToDataMap, onItemSelected } = props;
   const eventIdToGroup = usePointCloudContext((state) => state.eventIdToGroup);
   const pointGroupColors = usePointCloudContext(
-    (state) => state.pointGroupColors
+    (state) => state.pointGroupColors,
   );
   const selectionGridSize = usePointCloudContext(
-    (state) => state.selectionGridSize
+    (state) => state.selectionGridSize,
   );
 
   return (

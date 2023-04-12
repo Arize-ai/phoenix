@@ -124,7 +124,7 @@ function PreviewShape({ color, shape = "line" }: PreviewShapeProps) {
         css`
           background-color: ${color};
           flex: none;
-        `
+        `,
       )}
     />
   );

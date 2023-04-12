@@ -17,15 +17,14 @@ const navCSS = (theme: Theme) => css`
   align-items: center;
 `;
 
-const brandCSS = (theme: Theme) =>
-  css`
-    color: ${theme.textColors.white90};
-    font-size: ${theme.typography.sizes.large.fontSize}px;
-    text-decoration: none;
-    svg {
-      margin-right: ${theme.spacing.margin16}px;
-    }
-  `;
+const brandCSS = (theme: Theme) => css`
+  color: ${theme.textColors.white90};
+  font-size: ${theme.typography.sizes.large.fontSize}px;
+  text-decoration: none;
+  svg {
+    margin-right: ${theme.spacing.margin16}px;
+  }
+`;
 
 const GitHubSVG = () => (
   <svg
