@@ -214,10 +214,16 @@ class EmbeddingDimension(Node):
                     time_stop=time_range.end,
                 )
             vector_column = dataset.get_embedding_vector_column(self.name)
-            for row_id in range(row_id_start, row_id_stop)[:n_samples]:
+            samples_added = 0
+            for row_id in range(row_id_start, row_id_stop):
+                if samples_added == n_samples:
+                    break
                 embedding_vector = vector_column.iloc[row_id]
+                if not hasattr(embedding_vector, "__len__"):
+                    continue
                 event_id = EventId(row_id, dataset_id)
                 data[event_id] = embedding_vector
+                samples_added += 1
 
         # validate n_components to be 2 or 3
         n_components = DEFAULT_N_COMPONENTS if n_components is None else n_components
