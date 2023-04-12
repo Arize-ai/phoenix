@@ -1,9 +1,17 @@
-import React, { PropsWithChildren, ReactNode } from "react";
+import React, { ReactNode } from "react";
 import { transparentize } from "polished";
 import { css } from "@emotion/react";
 
 import { DatasetRole } from "@phoenix/types";
+import { assertUnreachable } from "@phoenix/typeUtils";
 
+import { Shape, ShapeIcon } from "./ShapeIcon";
+
+type EventItemSize = "small" | "medium" | "large";
+/**
+ * The type of preview to display for the event item. For a large display, the top two previews are shown
+ */
+type EventPreviewType = "raw" | "image" | "event_metadata";
 type EventItemProps = {
   /**
    * The event's raw textual data (e.g. NLP text)
@@ -14,6 +22,14 @@ type EventItemProps = {
    */
   linkToData: string | null;
   /**
+   * the event's prediction label
+   */
+  predictionLabel: string | null;
+  /**
+   * the event's actual label
+   */
+  actualLabel: string | null;
+  /**
    * Which dataset the event belongs to
    */
   datasetRole: DatasetRole;
@@ -22,47 +38,68 @@ type EventItemProps = {
    */
   onClick: () => void;
   /**
+   * The event's current grouping (color group)
+   */
+  group: string;
+  /**
    * The color accent for the event. Corresponds to the color of the group the event belongs to
    */
   color: string;
   /**
    * The size of the event item
    */
-  size: "small" | "medium" | "large";
+  size: EventItemSize;
 };
+
+/**
+ * Get the primary preview type for the event item. This is the preview that is shown first
+ */
+function getPrimaryPreviewType(props: EventItemProps): EventPreviewType {
+  const { rawData, linkToData } = props;
+  if (linkToData != null) {
+    return "image";
+  } else if (rawData != null) {
+    return "raw";
+  } else {
+    return "event_metadata";
+  }
+}
+
+/**
+ * Get the secondary preview type for the event item.
+ */
+function getSecondaryPreviewType(
+  primaryPreviewType: EventPreviewType,
+  props: EventItemProps
+): EventPreviewType | null {
+  const { rawData } = props;
+  if (primaryPreviewType === "image" && rawData != null) {
+    return "raw";
+  } else if (primaryPreviewType !== "event_metadata") {
+    return "event_metadata";
+  }
+  return null;
+}
+
 /**
  * An item that represents a single model event. To be displayed in a grid / list
  */
 export function EventItem(props: EventItemProps) {
-  const { rawData, linkToData, onClick, color, size } = props;
+  const { onClick, color, size, datasetRole, group } = props;
   // Prioritize the image preview over raw text
-  const previewType: "raw" | "image" = linkToData != null ? "image" : "raw";
-
-  let secondaryPreview: ReactNode | null = null;
-  let footer: ReactNode | null = null;
-  if (size !== "small") {
-    // Only show secondary previews for medium and large sizes
-    switch (previewType) {
-      case "image": {
-        if (rawData != null) {
-          secondaryPreview = (
-            <RawTextPreview size={size}>{rawData}</RawTextPreview>
-          );
-        } else {
-          secondaryPreview = null;
-        }
-        break;
-      }
-    }
-    footer = <EventItemFooter datasetRole={DatasetRole} />;
-  }
+  const primaryPreviewType = getPrimaryPreviewType(props);
+  // only show the secondary preview for large size
+  const secondaryPreviewType =
+    size === "large"
+      ? getSecondaryPreviewType(primaryPreviewType, props)
+      : null;
 
   return (
     <div
       data-testid="event-item"
       role="button"
       data-size={size}
-      css={(theme) => css`
+      css={css`
         width: 100%;
         height: 100%;
         box-sizing: border-box;
@@ -75,56 +112,110 @@ export function EventItem(props: EventItemProps) {
         cursor: pointer;
         overflow: hidden;
 
-        border-width: 2px;
+        border-width: 1px;
         border-color: ${color};
         border-radius: 8px;
+        transition: border-color 0.2s ease-in-out;
+        transition: transform 0.2s ease-in-out;
         &:hover {
-          background-color: ${transparentize(0.9, theme.colors.arizeLightBlue)};
+          transform: scale(1.04);
+        }
+        &[data-size="small"] {
+          border-width: 2px;
         }
       `}
       onClick={onClick}
     >
       <div
         className="event-item__preview-wrap"
+        data-size={size}
         css={css`
           display: flex;
           flex-direction: row;
           flex: 1 1 auto;
           overflow: hidden;
+          & > *:nth-child(1) {
+            flex: 1 1 auto;
+            overflow: hidden;
+          }
+          & > *:nth-child(2) {
+            flex: none;
+            width: 43%;
+          }
+          &[data-size="large"] {
+            & > *:nth-child(1) {
+              margin: var(--px-spacing-med);
+              border-radius: 8px;
+            }
+          }
         `}
       >
-        {previewType === "image" ? (
-          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-          <ImagePreview linkToData={linkToData!} />
-        ) : (
-          <RawTextPreview size={size}>{rawData}</RawTextPreview>
+        <EventPreview previewType={primaryPreviewType} {...props} />
+        {secondaryPreviewType != null && (
+          <EventPreview previewType={secondaryPreviewType} {...props} />
         )}
-        {secondaryPreview}
       </div>
-      {footer}
+      {size !== "small" && (
+        <EventItemFooter
+          color={color}
+          group={group}
+          datasetRole={datasetRole}
+          showDataset={size === "large"}
+        />
+      )}
     </div>
   );
 }
 
-function ImagePreview(props: { linkToData: string }) {
+/**
+ * Higher order component that renders a specific preview type for the event item
+ */
+function EventPreview(
+  props: { previewType: EventPreviewType } & EventItemProps
+) {
+  const { previewType } = props;
+  let preview: ReactNode | null = null;
+  switch (previewType) {
+    case "image": {
+      preview = <ImagePreview {...props} />;
+      break;
+    }
+    case "raw": {
+      preview = <RawTextPreview {...props} />;
+      break;
+    }
+    case "event_metadata": {
+      preview = <EventMetadataPreview {...props} />;
+      break;
+    }
+    default:
+      assertUnreachable(previewType);
+  }
+  return preview;
+}
+
+/**
+ * Shows an image preview of the event's data
+ */
+function ImagePreview(props: Pick<EventItemProps, "linkToData" | "color">) {
   return (
     <img
-      src={props.linkToData}
+      src={props.linkToData || "[error] unexpected missing url"}
       css={css`
-        width: 100%;
-        height: 100%;
         min-height: 0;
         // Maintain aspect ratio while having normalized height
         object-fit: contain;
+        transition: background-color 0.2s ease-in-out;
+        background-color: ${transparentize(0.85, props.color)};
       `}
     />
   );
 }
-function RawTextPreview(
-  props: PropsWithChildren<{
-    size: "small" | "medium" | "large";
-  }>
-) {
+
+/**
+ * Shows textual preview of the event's raw data
+ */
+function RawTextPreview(props: Pick<EventItemProps, "rawData" | "size">) {
   return (
     <p
       data-size={props.size}
@@ -134,6 +225,8 @@ function RawTextPreview(
         margin-block-start: 0;
         margin-block-end: 0;
         position: relative;
+        --text-preview-background-color: ${theme.colors.gray600};
+        background-color: var(--text-preview-background-color);
 
         &[data-size="small"] {
           padding: var(--px-spacing-sm);
@@ -151,13 +244,87 @@ function RawTextPreview(
           left: 0;
           top: 0;
           background: linear-gradient(
-            transparent 85%,
-            var(--px-item-background-color) 98%
+            transparent 90%,
+            var(--text-preview-background-color) 98%,
+            var(--text-preview-background-color) 100%
           );
         }
       `}
     >
-      {props.children}
+      {props.rawData}
     </p>
+  );
+}
+
+/**
+ * Shows an image preview of the event's metadata (e.g. the conclusion of the model)
+ */
+function EventMetadataPreview(
+  props: Pick<EventItemProps, "predictionLabel" | "actualLabel">
+) {
+  return (
+    <dl
+      css={css`
+        margin: 0;
+        padding: var(--px-spacing-lg);
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: var(--px-spacing-med);
+
+        dt {
+          font-weight: bold;
+        }
+        dd {
+          margin-inline-start: var(--px-spacing-med);
+        }
+      `}
+    >
+      <div>
+        <dt>prediction label</dt>
+        <dd>{props.predictionLabel || "--"}</dd>
+      </div>
+      <div>
+        <dt>actual label</dt>
+        <dd>{props.predictionLabel || "--"}</dd>
+      </div>
+    </dl>
+  );
+}
+
+function EventItemFooter({
+  datasetRole,
+  color,
+  group,
+  showDataset,
+}: Pick<EventItemProps, "group" | "color" | "datasetRole"> & {
+  showDataset: boolean;
+}) {
+  return (
+    <footer
+      css={css`
+        display: flex;
+        flex-direction: row;
+        justify-content: space-between;
+        padding: var(--px-spacing-sm) var(--px-spacing-med) var(--px-spacing-sm)
+          7px;
+        border-top: 1px solid var(--px-item-border-color);
+      `}
+    >
+      <div
+        css={css`
+          display: flex;
+          flex-direction: row;
+          align-items: center;
+          gap: var(--px-spacing-sm);
+        `}
+      >
+        <ShapeIcon shape={Shape.circle} color={color} />
+        {group}
+      </div>
+      {showDataset ? (
+        <div title="the dataset the point belongs to">{datasetRole}</div>
+      ) : null}
+    </footer>
   );
 }

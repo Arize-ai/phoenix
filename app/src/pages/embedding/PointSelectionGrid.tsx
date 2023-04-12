@@ -38,12 +38,12 @@ export function PointSelectionGrid(props: PointSelectionGridProps) {
             --grid-item-height: 100px;
           }
           &[data-grid-size="medium"] {
-            --grid-item-min-width: 160px;
-            --grid-item-height: 168px;
+            --grid-item-min-width: 200px;
+            --grid-item-height: 200px;
           }
           &[data-grid-size="large"] {
             --grid-item-min-width: 300px;
-            --grid-item-height: 168px;
+            --grid-item-height: 200px;
           }
           padding: var(--px-spacing-lg);
           transition: all 0.2s ease-in-out;
@@ -57,7 +57,6 @@ export function PointSelectionGrid(props: PointSelectionGridProps) {
           & > li {
             min-width: var(--grid-item-min-width);
             height: var(--grid-item-height);
-            overflow: hidden;
           }
         `}
       >
@@ -65,21 +64,27 @@ export function PointSelectionGrid(props: PointSelectionGridProps) {
           const data = eventIdToDataMap.get(event.id);
           const { rawData = null, linkToData = null } =
             data?.embeddingMetadata ?? {};
+          const { predictionLabel = null, actualLabel = null } =
+            data?.eventMetadata ?? {};
           const datasetRole = event.id.includes("PRIMARY")
             ? DatasetRole.primary
             : DatasetRole.reference;
-          const color = pointGroupColors[eventIdToGroup[event.id]];
+          const group = eventIdToGroup[event.id];
+          const color = pointGroupColors[group];
           return (
             <li key={idx}>
               <EventItem
                 rawData={rawData}
                 linkToData={linkToData}
                 datasetRole={datasetRole}
+                group={group}
                 onClick={() => {
                   onItemSelected(event.id);
                 }}
                 color={color}
                 size={selectionGridSize}
+                predictionLabel={predictionLabel}
+                actualLabel={actualLabel}
               />
             </li>
           );

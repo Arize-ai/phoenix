@@ -67,7 +67,10 @@ export function GlobalStyles() {
           --px-border-color-300: ${theme.colors.gray300};
 
           --px-section-background-color: ${theme.colors.gray500};
+
+          /* An item is a typically something in a list */
           --px-item-background-color: ${theme.colors.gray800};
+          --px-item-border-color: ${theme.colors.gray600};
 
           --px-spacing-sm: ${theme.spacing.padding4}px;
           --px-spacing-med: ${theme.spacing.padding8}px;
