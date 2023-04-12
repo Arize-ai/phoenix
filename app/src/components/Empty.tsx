@@ -17,14 +17,12 @@ export function Empty(props: EmptyProps) {
       `}
     >
       <div
-        css={(theme) =>
-          css`
-            margin: ${theme.spacing.margin24}px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-          `
-        }
+        css={(theme) => css`
+          margin: ${theme.spacing.margin24}px;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+        `}
       >
         <EmptyGraphic {...graphicsProps} />
         {message && <Text>{message}</Text>}

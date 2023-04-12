@@ -97,7 +97,7 @@ export function PointSelectionTable({
         data,
       },
       useFlexLayout,
-      useResizeColumns
+      useResizeColumns,
     );
 
   return (

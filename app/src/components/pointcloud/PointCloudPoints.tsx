@@ -57,20 +57,20 @@ export function PointCloudPoints({
   radius,
 }: PointCloudPointsProps) {
   const datasetVisibility = usePointCloudContext(
-    (state) => state.datasetVisibility
+    (state) => state.datasetVisibility,
   );
   const coloringStrategy = usePointCloudContext(
-    (state) => state.coloringStrategy
+    (state) => state.coloringStrategy,
   );
   const canvasTheme = usePointCloudContext((state) => state.canvasTheme);
   const setSelectedEventIds = usePointCloudContext(
-    (state) => state.setSelectedEventIds
+    (state) => state.setSelectedEventIds,
   );
   const selectedEventIds = usePointCloudContext(
-    (state) => state.selectedEventIds
+    (state) => state.selectedEventIds,
   );
   const setSelectedClusterId = usePointCloudContext(
-    (state) => state.setSelectedClusterId
+    (state) => state.setSelectedClusterId,
   );
 
   const canvasMode = usePointCloudContext((state) => state.canvasMode);
@@ -78,7 +78,7 @@ export function PointCloudPoints({
   // Only use a cube shape if the coloring strategy is not dataset
   const referenceDatasetPointShape = useMemo(
     () => (coloringStrategy !== ColoringStrategy.dataset ? "cube" : "sphere"),
-    [coloringStrategy]
+    [coloringStrategy],
   );
 
   const colorDimFn = useMemo(() => {
@@ -105,7 +105,7 @@ export function PointCloudPoints({
       }
       return invokeColor(point, color);
     },
-    [selectedEventIds, color, dimmedColor]
+    [selectedEventIds, color, dimmedColor],
   );
 
   const showReferencePoints = datasetVisibility.reference && referenceData;
@@ -117,7 +117,7 @@ export function PointCloudPoints({
         setSelectedClusterId(null);
       });
     },
-    [setSelectedClusterId, setSelectedEventIds]
+    [setSelectedClusterId, setSelectedEventIds],
   );
 
   return (

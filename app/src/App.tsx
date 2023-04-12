@@ -71,7 +71,7 @@ export function AppRoot() {
   const preloadedQuery = loadQuery<AppRootQuery>(
     RelayEnvironment,
     RootQuery,
-    {}
+    {},
   );
   return (
     <Provider>

@@ -64,7 +64,7 @@ export function ModelSchemaTable(props: ModelSchemaTableProps) {
         }
       }
     `,
-    props.model
+    props.model,
   );
   const tableData = useMemo(
     () =>
@@ -74,12 +74,12 @@ export function ModelSchemaTable(props: ModelSchemaTableProps) {
           ...dimension,
         };
       }),
-    [data]
+    [data],
   );
 
   // Declare the columns
   const columns = React.useMemo(() => {
-    const cols: Column<typeof tableData[number]>[] = [
+    const cols: Column<(typeof tableData)[number]>[] = [
       {
         Header: "name",
         accessor: "name",

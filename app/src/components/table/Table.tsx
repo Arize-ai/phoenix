@@ -41,7 +41,7 @@ export function Table<DataRow extends object>({
       data,
       initialState: { pageIndex: 0, pageSize: 15 },
     },
-    usePagination
+    usePagination,
   );
 
   const hasContent = page.length > 0;

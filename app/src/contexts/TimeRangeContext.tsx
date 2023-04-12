@@ -42,7 +42,7 @@ type TimeRangeContextType = {
 };
 
 export const TimeRangeContext = createContext<TimeRangeContextType | null>(
-  null
+  null,
 );
 
 export function useTimeRange() {
@@ -67,7 +67,7 @@ function useTimeRangeMemo(timePreset: TimePreset, timeRangeBounds: TimeRange) {
     // Because our time windows are right open (don't include the right time), we need to expand it by a small amount
     const endTimeBounds = roundToNearestMinutes(
       endOfHour(addSeconds(timeRangeBounds.end, 1)),
-      { roundingMethod: "floor" }
+      { roundingMethod: "floor" },
     );
     const startTimeBounds = startOfHour(timeRangeBounds.start);
     switch (timePreset) {

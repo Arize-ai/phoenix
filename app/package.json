@@ -52,7 +52,7 @@
     "graphql": "^15.8.0",
     "husky": "^8.0.3",
     "lint-staged": "^13.1.0",
-    "prettier": "2.8.1",
+    "prettier": "^3.0.0-alpha.6",
     "relay-compiler": "^14.1.0",
     "typescript": "^5.0.4"
   },
