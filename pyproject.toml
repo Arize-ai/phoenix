@@ -14,7 +14,6 @@ authors = [
   { name = "Arize AI", email = "phoenix-devs@arize.com" },
 ]
 classifiers = [
-  "Development Status :: 1 - Planning",
   "Programming Language :: Python",
   "Programming Language :: Python :: 3.8",
   "Programming Language :: Python :: 3.9",
