@@ -26,7 +26,7 @@ Phoenix is an Open Source ML Observability library designed for the Notebook. Th
 * Deep Learning Models (CV, LLM, and Generative) are an amazing technology that will power many of the future ML use cases. &#x20;
 * A large set of these technologies are being deployed into businesses (the real world) in what we consider a production setting.
 * When they are in production, data scientists have no idea when models fail, when they make wrong decisions, or give poor responses (LLM), and incorrectly generalize.&#x20;
-* One paradigm that's emerged is the use of embeddings and latent structure to analyze model decisions and find clusters of problems.&#x20;
+* One paradigm that has emerged is the use of embeddings and latent structure to analyze model decisions and find clusters of problems.&#x20;
 * Fixing the problem typically consists of augmenting/editing upstream data, changing a prompt template or exporting data for use in training and/or fine tuning.&#x20;
 
 #### Proposed Solution
