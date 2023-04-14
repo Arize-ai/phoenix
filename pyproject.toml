@@ -73,6 +73,7 @@ only-packages = true
 dependencies = ["hatch-jupyter-builder"]
 build-function = "hatch_jupyter_builder.npm_builder"
 ensured-targets = ["src/phoenix/server/static/index.js", "src/phoenix/server/static/index.html"]
+skip-if-exists = ["src/phoenix/server/static/index.js", "src/phoenix/server/static/index.html"]
 
 [tool.hatch.build.hooks.jupyter-builder.build-kwargs]
 path = "app"
