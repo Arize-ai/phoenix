@@ -2,7 +2,7 @@ from typing import BinaryIO, Dict, Iterable, List, Mapping, Optional, cast
 
 import numpy.typing as npt
 import pandas as pd
-from pandas.api.types import is_numeric_dtype, is_object_dtype
+from pandas.api.types import is_numeric_dtype
 
 from phoenix.datasets import Dataset
 from phoenix.datasets.schema import EmbeddingColumnNames, EmbeddingFeatures
@@ -108,9 +108,8 @@ class Model:
         )
         if is_numeric_dtype(dimension_pandas_dtype):
             return DimensionDataType.NUMERIC
-        elif is_object_dtype(dimension_pandas_dtype):
+        else:
             return DimensionDataType.CATEGORICAL
-        raise ValueError("Unrecognized dimension type")
 
     def export_events_as_parquet_file(
         self,
