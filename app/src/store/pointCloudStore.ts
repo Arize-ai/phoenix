@@ -194,7 +194,7 @@ export interface PointCloudProps {
   selectionDisplay: SelectionDisplay;
   /**
    * The grid size of the selections when displayed as a grid
-   * @default "medium"
+   * @default "large"
    */
   selectionGridSize: SelectionGridSize;
   /**
@@ -352,7 +352,7 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
     },
     eventIdToGroup: {},
     selectionDisplay: SelectionDisplay.gallery,
-    selectionGridSize: SelectionGridSize.medium,
+    selectionGridSize: SelectionGridSize.large,
     dimension: null,
     dimensionMetadata: null,
     umapParameters: {

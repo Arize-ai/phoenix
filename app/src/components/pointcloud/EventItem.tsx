@@ -8,10 +8,15 @@ import { assertUnreachable } from "@phoenix/typeUtils";
 import { Shape, ShapeIcon } from "./ShapeIcon";
 
 type EventItemSize = "small" | "medium" | "large";
+
+type PromptResponse = {
+  prompt: string;
+  response: string;
+};
 /**
  * The type of preview to display for the event item. For a large display, the top two previews are shown
  */
-type EventPreviewType = "raw" | "image" | "event_metadata";
+type EventPreviewType = "raw" | "prompt_response" | "image" | "event_metadata";
 type EventItemProps = {
   /**
    * The event's raw textual data (e.g. NLP text)
@@ -29,6 +34,10 @@ type EventItemProps = {
    * the event's actual label
    */
   actualLabel: string | null;
+  /**
+   * The event's prompt / response (LLM use-case)
+   */
+  promptAndResponse: PromptResponse | null;
   /**
    * Which dataset the event belongs to
    */
@@ -55,7 +64,11 @@ type EventItemProps = {
  * Get the primary preview type for the event item. This is the preview that is shown first
  */
 function getPrimaryPreviewType(props: EventItemProps): EventPreviewType {
-  const { rawData, linkToData } = props;
+  const { rawData, linkToData, promptAndResponse } = props;
+
+  if (promptAndResponse != null) {
+    return "prompt_response";
+  }
   if (linkToData != null) {
     return "image";
   } else if (rawData != null) {
@@ -73,7 +86,9 @@ function getSecondaryPreviewType(
   props: EventItemProps,
 ): EventPreviewType | null {
   const { rawData } = props;
-  if (primaryPreviewType === "image" && rawData != null) {
+  if (primaryPreviewType) {
+    return null;
+  } else if (primaryPreviewType === "image" && rawData != null) {
     return "raw";
   } else if (primaryPreviewType !== "event_metadata") {
     return "event_metadata";
@@ -176,6 +191,10 @@ function EventPreview(
   const { previewType } = props;
   let preview: ReactNode | null = null;
   switch (previewType) {
+    case "prompt_response": {
+      preview = <PromptResponsePreview {...props} />;
+      break;
+    }
     case "image": {
       preview = <ImagePreview {...props} />;
       break;
@@ -209,6 +228,20 @@ function ImagePreview(props: Pick<EventItemProps, "linkToData" | "color">) {
         background-color: ${transparentize(0.85, props.color)};
       `}
     />
+  );
+}
+
+/**
+ * Shows textual preview of the event's raw data
+ */
+function PromptResponsePreview(
+  props: Pick<EventItemProps, "promptAndResponse" | "size">,
+) {
+  return (
+    <section data-size={props.size}>
+      <p>{props.promptAndResponse?.prompt}</p>
+      <p>{props.promptAndResponse?.response}</p>
+    </section>
   );
 }
 
