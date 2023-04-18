@@ -4,7 +4,7 @@ description = "ML Observability in your notebook"
 readme = "README.md"
 requires-python = ">=3.8, <3.11"
 license = "Elastic-2.0"
-license-files = { paths = ["LICENSE"] }
+license-files = { paths = ["LICENSE", "IP_NOTICE"] }
 keywords = [
   "Observability",
   "Monitoring",
@@ -14,7 +14,6 @@ authors = [
   { name = "Arize AI", email = "phoenix-devs@arize.com" },
 ]
 classifiers = [
-  "Development Status :: 1 - Planning",
   "Programming Language :: Python",
   "Programming Language :: Python :: 3.8",
   "Programming Language :: Python :: 3.9",
@@ -73,6 +72,7 @@ only-packages = true
 dependencies = ["hatch-jupyter-builder"]
 build-function = "hatch_jupyter_builder.npm_builder"
 ensured-targets = ["src/phoenix/server/static/index.js", "src/phoenix/server/static/index.html"]
+skip-if-exists = ["src/phoenix/server/static/index.js", "src/phoenix/server/static/index.html"]
 
 [tool.hatch.build.hooks.jupyter-builder.build-kwargs]
 path = "app"

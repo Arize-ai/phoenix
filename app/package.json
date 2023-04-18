@@ -50,11 +50,9 @@
     "eslint-plugin-react-hooks": "^4.6.0",
     "eslint-plugin-simple-import-sort": "^10.0.0",
     "graphql": "^15.8.0",
-    "husky": "^8.0.3",
-    "lint-staged": "^13.1.0",
-    "prettier": "2.8.1",
+    "prettier": "^3.0.0-alpha.6",
     "relay-compiler": "^14.1.0",
-    "typescript": "4.8"
+    "typescript": "^5.0.4"
   },
   "scripts": {
     "prebuild": "rm -rf ../src/phoenix/server/static",
@@ -63,18 +61,16 @@
     "build:ts": "node ./esbuild.config.mjs",
     "build:relay": "relay-compiler",
     "watch": "./esbuild.config.mjs dev",
-    "dev": "npm run dev:server:mnist & npm run build:static && npm run watch",
+    "dev": "npm run dev:server:sentiment & npm run build:static && npm run watch",
     "dev:server:mnist": "python3 -m phoenix.server.main fixture fashion_mnist",
     "dev:server:mnist:single": "python3 -m phoenix.server.main fixture fashion_mnist --primary-only true",
     "dev:server:sentiment": "python3 -m phoenix.server.main fixture sentiment_classification_language_drift",
+    "dev:server:image": "python3 -m phoenix.server.main fixture image_classification",
     "dev:server:ner": "python3 -m phoenix.server.main fixture ner_token_drift",
+    "dev:server:credit_card_fraud": "python3 -m phoenix.server.main fixture credit_card_fraud",
     "typecheck": "tsc --noEmit",
     "lint": "eslint ./src",
     "prettier": "prettier --write './src/**/*'",
     "prettier:check": "prettier --check './src/**/*'"
-  },
-  "lint-staged": {
-    "src/*.{ts,tsx,js}": "eslint --cache --fix",
-    "src/*.{js,ts,tsx,md}": "prettier --write --ignore-unknown"
   }
 }

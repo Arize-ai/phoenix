@@ -155,7 +155,7 @@ function EmbeddingDimensionsTable({
         accessor: "value",
       },
     ],
-    []
+    [],
   );
 
   const { getTableProps, getTableBodyProps, headerGroups, prepareRow, rows } =

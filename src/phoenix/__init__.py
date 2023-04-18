@@ -1,7 +1,7 @@
 from .datasets import Dataset, EmbeddingColumnNames, ExampleDatasets, Schema, load_example
 from .session import Session, active_session, close_app, launch_app
 
-__version__ = "0.0.11"
+__version__ = "0.0.13"
 
 # module level doc-string
 __doc__ = """

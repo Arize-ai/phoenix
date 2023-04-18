@@ -39,10 +39,13 @@ export function PointCloudClusters({
   // const { selectedClusterId } = usePointCloud();
   // Keep a map of event id to position for fast lookup
   const eventPositionMap = useMemo(() => {
-    return points.reduce((acc, point) => {
-      acc[point.metaData.eventId] = point.position;
-      return acc;
-    }, {} as Record<string, ThreeDimensionalPointItem["position"]>);
+    return points.reduce(
+      (acc, point) => {
+        acc[point.metaData.eventId] = point.position;
+        return acc;
+      },
+      {} as Record<string, ThreeDimensionalPointItem["position"]>,
+    );
   }, [points]);
 
   // Interleave the cluster point locations with the cluster

@@ -100,7 +100,7 @@ const nSamplesContextualHelp = (
 export function PointCloudParameterSettings() {
   const umapParameters = usePointCloudContext((state) => state.umapParameters);
   const setUMAPParameters = usePointCloudContext(
-    (state) => state.setUMAPParameters
+    (state) => state.setUMAPParameters,
   );
   const {
     handleSubmit,
@@ -115,7 +115,7 @@ export function PointCloudParameterSettings() {
     (newUMAPParameters: UMAPParameters) => {
       // TODO: fix the types coming back from the component
       const minDist = parseFloat(
-        newUMAPParameters.minDist as unknown as string
+        newUMAPParameters.minDist as unknown as string,
       );
       if (minDist < MIN_MIN_DIST || minDist > MAX_MIN_DIST) {
         setError("minDist", {
@@ -129,12 +129,12 @@ export function PointCloudParameterSettings() {
         minDist: minDist,
         nNeighbors: parseInt(
           newUMAPParameters.nNeighbors as unknown as string,
-          10
+          10,
         ),
         nSamples: parseInt(newUMAPParameters.nSamples as unknown as string, 10),
       });
     },
-    [setUMAPParameters, setError]
+    [setUMAPParameters, setError],
   );
 
   return (

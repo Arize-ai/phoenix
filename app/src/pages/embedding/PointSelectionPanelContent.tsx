@@ -14,45 +14,76 @@ import {
 } from "@arizeai/components";
 
 import { Toolbar } from "@phoenix/components/filter";
-import {
-  EventItem,
-  SelectionDisplayRadioGroup,
-} from "@phoenix/components/pointcloud";
+import { SelectionDisplayRadioGroup } from "@phoenix/components/pointcloud";
+import { SelectionGridSizeRadioGroup } from "@phoenix/components/pointcloud/SelectionGridSizeRadioGroup";
 import { SelectionDisplay } from "@phoenix/constants/pointCloudConstants";
 import { usePointCloudContext } from "@phoenix/contexts";
-import { DatasetRole } from "@phoenix/types";
 
-import {
-  PointSelectionPanelContentQuery,
-  PointSelectionPanelContentQuery$data,
-} from "./__generated__/PointSelectionPanelContentQuery.graphql";
+import { PointSelectionPanelContentQuery } from "./__generated__/PointSelectionPanelContentQuery.graphql";
 import { EventDetails } from "./EventDetails";
 import { ExportSelectionButton } from "./ExportSelectionButton";
+import { PointSelectionGrid } from "./PointSelectionGrid";
 import { PointSelectionTable } from "./PointSelectionTable";
 import { ModelEvent, UMAPPointsEntry } from "./types";
 
-type EventsList =
-  PointSelectionPanelContentQuery$data["model"]["primaryDataset"]["events"];
+const pointSelectionPanelCSS = css`
+  width: 100%;
+  height: 100%;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  /* Give spacing for the close icon */
+  & > .ac-tabs {
+    padding-top: 17px;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    [role="tablist"] {
+      flex: none;
+    }
+    .ac-tabs__pane-container {
+      display: flex;
+      flex-direction: column;
+      flex: 1 1 auto;
+      overflow: hidden;
+      [role="tabpanel"] {
+        display: flex;
+        flex-direction: column;
+        flex: 1 1 auto;
+        overflow: hidden;
+      }
+    }
+  }
+`;
 
 export function PointSelectionPanelContent(props: {
   eventIdToDataMap: Map<string, UMAPPointsEntry>;
 }) {
   const { eventIdToDataMap } = props;
   const selectedEventIds = usePointCloudContext(
-    (state) => state.selectedEventIds
+    (state) => state.selectedEventIds,
   );
   const setSelectedEventIds = usePointCloudContext(
-    (state) => state.setSelectedEventIds
+    (state) => state.setSelectedEventIds,
   );
   const setSelectedClusterId = usePointCloudContext(
-    (state) => state.setSelectedClusterId
+    (state) => state.setSelectedClusterId,
   );
-  const { selectionDisplay, setSelectionDisplay } = usePointCloudContext(
-    (state) => ({
-      selectionDisplay: state.selectionDisplay,
-      setSelectionDisplay: state.setSelectionDisplay,
-    })
+  const selectionDisplay = usePointCloudContext(
+    (state) => state.selectionDisplay,
   );
+  const setSelectionDisplay = usePointCloudContext(
+    (state) => state.setSelectionDisplay,
+  );
+  const selectionGridSize = usePointCloudContext(
+    (state) => state.selectionGridSize,
+  );
+  const setSelectionGridSize = usePointCloudContext(
+    (state) => state.setSelectionGridSize,
+  );
+
   const [selectedDetailPointId, setSelectedDetailPointId] = React.useState<
     string | null
   >(null);
@@ -114,7 +145,7 @@ export function PointSelectionPanelContent(props: {
     {
       primaryEventIds: [...primaryEventIds],
       referenceEventIds: [...referenceEventIds],
-    }
+    },
   );
 
   const allSelectedEvents = useMemo(() => {
@@ -177,12 +208,26 @@ export function PointSelectionPanelContent(props: {
         <TabPane name="Selection">
           <Toolbar
             extra={
-              <SelectionDisplayRadioGroup
-                mode={selectionDisplay}
-                onChange={(displayMode) => {
-                  setSelectionDisplay(displayMode);
-                }}
-              />
+              <div
+                css={css`
+                  display: flex;
+                  flex-direction: row;
+                  gap: var(--px-spacing-med);
+                `}
+              >
+                {selectionDisplay === SelectionDisplay.gallery && (
+                  <SelectionGridSizeRadioGroup
+                    size={selectionGridSize}
+                    onChange={setSelectionGridSize}
+                  />
+                )}
+                <SelectionDisplayRadioGroup
+                  mode={selectionDisplay}
+                  onChange={(displayMode) => {
+                    setSelectionDisplay(displayMode);
+                  }}
+                />
+              </div>
             }
           >
             <Text>{`${allSelectedEvents.length} points selected`}</Text>
@@ -200,7 +245,7 @@ export function PointSelectionPanelContent(props: {
               />
             </div>
           ) : (
-            <SelectionGridView
+            <PointSelectionGrid
               events={allSelectedEvents}
               eventIdToDataMap={eventIdToDataMap}
               onItemSelected={setSelectedDetailPointId}
@@ -220,97 +265,5 @@ export function PointSelectionPanelContent(props: {
         )}
       </DialogContainer>
     </section>
-  );
-}
-
-type SelectionGridViewProps = {
-  events: EventsList;
-  eventIdToDataMap: Map<string, UMAPPointsEntry>;
-  onItemSelected: (pointId: string) => void;
-};
-
-const pointSelectionPanelCSS = css`
-  width: 100%;
-  height: 100%;
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  /* Give spacing for the close icon */
-  & > .ac-tabs {
-    padding-top: 17px;
-    width: 100%;
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    [role="tablist"] {
-      flex: none;
-    }
-    .ac-tabs__pane-container {
-      display: flex;
-      flex-direction: column;
-      flex: 1 1 auto;
-      overflow: hidden;
-      [role="tabpanel"] {
-        display: flex;
-        flex-direction: column;
-        flex: 1 1 auto;
-        overflow: hidden;
-      }
-    }
-  }
-`;
-
-function SelectionGridView(props: SelectionGridViewProps) {
-  const { events, eventIdToDataMap, onItemSelected } = props;
-  const eventIdToGroup = usePointCloudContext((state) => state.eventIdToGroup);
-  const pointGroupColors = usePointCloudContext(
-    (state) => state.pointGroupColors
-  );
-  return (
-    <div
-      css={css`
-        flex: 1 1 auto;
-        overflow-y: auto;
-      `}
-      data-testid="grid-view-scroll-container"
-    >
-      <ul
-        css={css`
-          padding: var(--px-spacing-lg);
-          display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-          flex-wrap: wrap;
-          gap: var(--px-spacing-lg);
-          & > li {
-            min-width: 160px;
-            min-height: 168px;
-          }
-        `}
-      >
-        {events.map((event, idx) => {
-          const data = eventIdToDataMap.get(event.id);
-          const { rawData = null, linkToData = null } =
-            data?.embeddingMetadata ?? {};
-          const datasetRole = event.id.includes("PRIMARY")
-            ? DatasetRole.primary
-            : DatasetRole.reference;
-          const color = pointGroupColors[eventIdToGroup[event.id]];
-          return (
-            <li key={idx}>
-              <EventItem
-                rawData={rawData}
-                linkToData={linkToData}
-                datasetRole={datasetRole}
-                onClick={() => {
-                  onItemSelected(event.id);
-                }}
-                color={color}
-              />
-            </li>
-          );
-        })}
-      </ul>
-    </div>
   );
 }

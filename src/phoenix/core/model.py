@@ -2,7 +2,7 @@ from typing import BinaryIO, Dict, Iterable, List, Mapping, Optional, cast
 
 import numpy.typing as npt
 import pandas as pd
-from pandas.api.types import is_numeric_dtype, is_object_dtype
+from pandas.api.types import is_numeric_dtype
 
 from phoenix.datasets import Dataset
 from phoenix.datasets.schema import EmbeddingColumnNames, EmbeddingFeatures
@@ -108,9 +108,8 @@ class Model:
         )
         if is_numeric_dtype(dimension_pandas_dtype):
             return DimensionDataType.NUMERIC
-        elif is_object_dtype(dimension_pandas_dtype):
+        else:
             return DimensionDataType.CATEGORICAL
-        raise ValueError("Unrecognized dimension type")
 
     def export_events_as_parquet_file(
         self,
@@ -232,9 +231,11 @@ def _get_column_vector_length(dataset: Dataset, embedding_vector_column_name: st
     column = dataset.dataframe[embedding_vector_column_name]
 
     for row in column:
-        # None is a valid entry for a row and represents the fact that the embedding feature
-        # is missing/empty. Skip until a row is found with a non-empty vector
-        if row is None:
+        # None/NaN is a valid entry for a row and represents the fact that the
+        # embedding feature is missing/empty. Skip until a row is found with a
+        # non-empty vector. Check the presence of dunder method __len__ to skip
+        # scalar values, e.g. None/NaN.
+        if not hasattr(row, "__len__"):
             continue
         return len(row)
 

@@ -44,6 +44,12 @@ export enum SelectionDisplay {
   gallery = "gallery",
 }
 
+export enum SelectionGridSize {
+  small = "small",
+  medium = "medium",
+  large = "large",
+}
+
 /**
  * Definitions for the color groups as determined by the coloring strategy.
  */
