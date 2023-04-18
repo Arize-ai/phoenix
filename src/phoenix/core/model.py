@@ -168,7 +168,7 @@ def _get_embedding_dimensions(
         if reference_embedding_features is not None:
             embedding_features.update(reference_embedding_features)
         reference_prompt_column_names: Optional[
-            EmbeddingFeatures
+            EmbeddingColumnNames
         ] = reference_dataset.schema.prompt_column_names
         if reference_prompt_column_names is not None:
             embedding_features.update({"prompt": reference_prompt_column_names})
