@@ -7,6 +7,9 @@ import { assertUnreachable } from "@phoenix/typeUtils";
 
 import { Shape, ShapeIcon } from "./ShapeIcon";
 
+// Dummy data
+const loremIpsum =
+  "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.";
 type EventItemSize = "small" | "medium" | "large";
 
 type PromptResponse = {
@@ -165,7 +168,11 @@ export function EventItem(props: EventItemProps) {
           }
         `}
       >
-        <EventPreview previewType={primaryPreviewType} {...props} />
+        <EventPreview
+          previewType={primaryPreviewType}
+          {...props}
+          promptAndResponse={{ prompt: loremIpsum, response: loremIpsum }}
+        />
         {secondaryPreviewType != null && (
           <EventPreview previewType={secondaryPreviewType} {...props} />
         )}
@@ -238,10 +245,74 @@ function PromptResponsePreview(
   props: Pick<EventItemProps, "promptAndResponse" | "size">,
 ) {
   return (
-    <section data-size={props.size}>
-      <p>{props.promptAndResponse?.prompt}</p>
-      <p>{props.promptAndResponse?.response}</p>
-    </section>
+    <div
+      data-size={props.size}
+      css={css`
+        --prompt-response-preview-background-color: var(
+          --px-background-color-500
+        );
+        background-color: var(--prompt-response-preview-background-color);
+        &[data-size="small"] {
+          display: flex;
+          flex-direction: column;
+          padding: var(--px-spacing-sm);
+          font-size: var(--px-font-size-sm);
+          section {
+            flex: 1 1 auto;
+            overflow: hidden;
+            header {
+              display: none;
+            }
+          }
+        }
+        &[data-size="medium"] {
+          display: flex;
+          flex-direction: column;
+          gap: var(--px-spacing-sm);
+          padding: var(--px-spacing-med);
+          section {
+            flex: 1 1 auto;
+            overflow: hidden;
+          }
+        }
+        &[data-size="large"] {
+          display: flex;
+          flex-direction: row;
+          section {
+            padding: var(--px-spacing-sm);
+          }
+        }
+        & > section {
+          position: relative;
+
+          header {
+            font-weight: bold;
+            margin-bottom: var(--px-spacing-sm);
+          }
+          &:before {
+            content: "";
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            left: 0;
+            top: 0;
+            background: linear-gradient(
+              transparent 80%,
+              var(--prompt-response-preview-background-color) 100%
+            );
+          }
+        }
+      `}
+    >
+      <section>
+        <header>prompt</header>
+        {props.promptAndResponse?.prompt}
+      </section>
+      <section>
+        <header>response</header>
+        {props.promptAndResponse?.response}
+      </section>
+    </div>
   );
 }
 
@@ -265,9 +336,6 @@ function RawTextPreview(props: Pick<EventItemProps, "rawData" | "size">) {
           padding: var(--px-spacing-sm);
           font-size: ${theme.typography.sizes.small.fontSize}px;
           box-sizing: border-box;
-        }
-
-        &[data-size="large"] {
         }
         &:before {
           content: "";
