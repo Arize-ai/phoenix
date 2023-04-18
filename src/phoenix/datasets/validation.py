@@ -199,33 +199,20 @@ def _check_missing_columns(dataframe: DataFrame, schema: Schema) -> List[err.Val
             ):
                 missing_columns.append(emb_col_names.link_to_data_column_name)
 
-    if schema.prompt_column_names is not None:
-        if schema.prompt_column_names.vector_column_name not in existing_columns:
-            missing_columns.append(schema.prompt_column_names.vector_column_name)
-        if (
-            schema.prompt_column_names.raw_data_column_name is not None
-            and schema.prompt_column_names.raw_data_column_name not in existing_columns
-        ):
-            missing_columns.append(schema.prompt_column_names.raw_data_column_name)
-        if (
-            schema.prompt_column_names.link_to_data_column_name is not None
-            and schema.prompt_column_names.link_to_data_column_name not in existing_columns
-        ):
-            missing_columns.append(schema.prompt_column_names.link_to_data_column_name)
-
-    if schema.response_column_names is not None:
-        if schema.response_column_names.vector_column_name not in existing_columns:
-            missing_columns.append(schema.response_column_names.vector_column_name)
-        if (
-            schema.response_column_names.raw_data_column_name is not None
-            and schema.response_column_names.raw_data_column_name not in existing_columns
-        ):
-            missing_columns.append(schema.response_column_names.raw_data_column_name)
-        if (
-            schema.response_column_names.link_to_data_column_name is not None
-            and schema.response_column_names.link_to_data_column_name not in existing_columns
-        ):
-            missing_columns.append(schema.response_column_names.link_to_data_column_name)
+    for column_names in (schema.prompt_column_names, schema.response_column_names):
+        if column_names is not None:
+            if column_names.vector_column_name not in existing_columns:
+                missing_columns.append(column_names.vector_column_name)
+            if (
+                column_names.raw_data_column_name is not None
+                and column_names.raw_data_column_name not in existing_columns
+            ):
+                missing_columns.append(column_names.raw_data_column_name)
+            if (
+                column_names.link_to_data_column_name is not None
+                and column_names.link_to_data_column_name not in existing_columns
+            ):
+                missing_columns.append(column_names.link_to_data_column_name)
 
     if missing_columns:
         return [err.MissingColumns(missing_columns)]
