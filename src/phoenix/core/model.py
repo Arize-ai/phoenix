@@ -151,7 +151,7 @@ def _get_embedding_dimensions(
     if primary_embedding_features is not None:
         embedding_features.update(primary_embedding_features)
     primary_prompt_column_names: Optional[
-        EmbeddingFeatures
+        EmbeddingColumnNames
     ] = primary_dataset.schema.prompt_column_names
     if primary_prompt_column_names is not None:
         embedding_features.update({"prompt": primary_prompt_column_names})
