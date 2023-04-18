@@ -551,7 +551,6 @@ def _normalize_timestamps(
     return dataframe, schema
 
 
-# TODO(Kiko): Add prompt_response
 def _get_schema_from_unknown_schema_param(schemaLike: SchemaLike) -> Schema:
     """
     Compatibility function for converting from arize.utils.types.Schema to phoenix.datasets.Schema

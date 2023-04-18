@@ -1,5 +1,5 @@
 import json
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 EmbeddingFeatures = Dict[str, "EmbeddingColumnNames"]
@@ -38,6 +38,12 @@ class Schema(Dict[SchemaFieldName, SchemaFieldValue]):
     response_column_names: Optional[EmbeddingColumnNames] = None
     embedding_feature_column_names: Optional[EmbeddingFeatures] = None
     excluded_column_names: Optional[List[str]] = None
+
+    def replace(self, **changes):
+        return replace(self, **changes)
+
+    def asdict(self) -> Dict[str, str]:
+        return asdict(self)
 
     def to_json(self) -> str:
         "Converts the schema to a dict for JSON serialization"
