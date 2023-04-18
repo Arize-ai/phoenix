@@ -376,7 +376,7 @@ function EventMetadataPreview(
       </div>
       <div>
         <dt>actual label</dt>
-        <dd>{props.predictionLabel || "--"}</dd>
+        <dd>{props.actualLabel || "--"}</dd>
       </div>
     </dl>
   );
