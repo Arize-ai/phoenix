@@ -143,7 +143,7 @@ def _get_embedding_dimensions(
     primary_dataset: Dataset, reference_dataset: Optional[Dataset]
 ) -> List[EmbeddingDimension]:
     embedding_dimensions: List[EmbeddingDimension] = []
-    embedding_features: Dict[str, EmbeddingColumnNames] = {}
+    embedding_features: EmbeddingFeatures = {}
 
     primary_embedding_features: Optional[
         EmbeddingFeatures
