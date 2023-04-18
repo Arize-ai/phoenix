@@ -39,7 +39,7 @@ class Schema(Dict[SchemaFieldName, SchemaFieldValue]):
     embedding_feature_column_names: Optional[EmbeddingFeatures] = None
     excluded_column_names: Optional[List[str]] = None
 
-    def replace(self, **changes):
+    def replace(self, **changes: str) -> "Schema":
         return replace(self, **changes)
 
     def asdict(self) -> Dict[str, str]:
