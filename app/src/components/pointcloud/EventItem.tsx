@@ -8,10 +8,15 @@ import { assertUnreachable } from "@phoenix/typeUtils";
 import { Shape, ShapeIcon } from "./ShapeIcon";
 
 type EventItemSize = "small" | "medium" | "large";
+
+type PromptResponse = {
+  prompt: string;
+  response: string;
+};
 /**
  * The type of preview to display for the event item. For a large display, the top two previews are shown
  */
-type EventPreviewType = "raw" | "image" | "event_metadata";
+type EventPreviewType = "raw" | "prompt_response" | "image" | "event_metadata";
 type EventItemProps = {
   /**
    * The event's raw textual data (e.g. NLP text)
@@ -29,6 +34,10 @@ type EventItemProps = {
    * the event's actual label
    */
   actualLabel: string | null;
+  /**
+   * The event's prompt / response (LLM use-case)
+   */
+  promptAndResponse: PromptResponse | null;
   /**
    * Which dataset the event belongs to
    */
@@ -55,7 +64,11 @@ type EventItemProps = {
  * Get the primary preview type for the event item. This is the preview that is shown first
  */
 function getPrimaryPreviewType(props: EventItemProps): EventPreviewType {
-  const { rawData, linkToData } = props;
+  const { rawData, linkToData, promptAndResponse } = props;
+
+  if (promptAndResponse != null) {
+    return "prompt_response";
+  }
   if (linkToData != null) {
     return "image";
   } else if (rawData != null) {
@@ -73,7 +86,9 @@ function getSecondaryPreviewType(
   props: EventItemProps,
 ): EventPreviewType | null {
   const { rawData } = props;
-  if (primaryPreviewType === "image" && rawData != null) {
+  if (primaryPreviewType) {
+    return null;
+  } else if (primaryPreviewType === "image" && rawData != null) {
     return "raw";
   } else if (primaryPreviewType !== "event_metadata") {
     return "event_metadata";
@@ -176,6 +191,10 @@ function EventPreview(
   const { previewType } = props;
   let preview: ReactNode | null = null;
   switch (previewType) {
+    case "prompt_response": {
+      preview = <PromptResponsePreview {...props} />;
+      break;
+    }
     case "image": {
       preview = <ImagePreview {...props} />;
       break;
@@ -215,6 +234,84 @@ function ImagePreview(props: Pick<EventItemProps, "linkToData" | "color">) {
 /**
  * Shows textual preview of the event's raw data
  */
+function PromptResponsePreview(
+  props: Pick<EventItemProps, "promptAndResponse" | "size">,
+) {
+  return (
+    <div
+      data-size={props.size}
+      css={css`
+        --prompt-response-preview-background-color: var(
+          --px-background-color-500
+        );
+        background-color: var(--prompt-response-preview-background-color);
+        &[data-size="small"] {
+          display: flex;
+          flex-direction: column;
+          padding: var(--px-spacing-sm);
+          font-size: var(--px-font-size-sm);
+          section {
+            flex: 1 1 auto;
+            overflow: hidden;
+            header {
+              display: none;
+            }
+          }
+        }
+        &[data-size="medium"] {
+          display: flex;
+          flex-direction: column;
+          gap: var(--px-spacing-sm);
+          padding: var(--px-spacing-med);
+          section {
+            flex: 1 1 auto;
+            overflow: hidden;
+          }
+        }
+        &[data-size="large"] {
+          display: flex;
+          flex-direction: row;
+          section {
+            padding: var(--px-spacing-sm);
+          }
+        }
+        & > section {
+          position: relative;
+
+          header {
+            font-weight: bold;
+            margin-bottom: var(--px-spacing-sm);
+          }
+          &:before {
+            content: "";
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            left: 0;
+            top: 0;
+            background: linear-gradient(
+              transparent 80%,
+              var(--prompt-response-preview-background-color) 100%
+            );
+          }
+        }
+      `}
+    >
+      <section>
+        <header>prompt</header>
+        {props.promptAndResponse?.prompt}
+      </section>
+      <section>
+        <header>response</header>
+        {props.promptAndResponse?.response}
+      </section>
+    </div>
+  );
+}
+
+/**
+ * Shows textual preview of the event's raw data
+ */
 function RawTextPreview(props: Pick<EventItemProps, "rawData" | "size">) {
   return (
     <p
@@ -232,9 +329,6 @@ function RawTextPreview(props: Pick<EventItemProps, "rawData" | "size">) {
           padding: var(--px-spacing-sm);
           font-size: ${theme.typography.sizes.small.fontSize}px;
           box-sizing: border-box;
-        }
-
-        &[data-size="large"] {
         }
         &:before {
           content: "";

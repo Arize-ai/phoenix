@@ -21,6 +21,7 @@ esbuild
     format: "esm",
     plugins: [relay],
     watch: isDev,
+    logLevel: "debug",
     sourcemap: isDev ? "linked" : false,
   })
   .catch((e) => {

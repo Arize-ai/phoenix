@@ -60,6 +60,9 @@ export function GlobalStyles() {
           --px-reference-color: #baa1f9;
           --px-reference-color--transparent: #baa1f982;
 
+          --px-background-color-800: ${theme.colors.gray800};
+          --px-background-color-500: ${theme.colors.gray500};
+
           --px-flex-gap-sm: ${theme.spacing.margin4}px;
           --px-flex-gap-sm: ${theme.spacing.margin8}px;
 
