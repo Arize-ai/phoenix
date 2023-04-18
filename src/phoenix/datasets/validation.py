@@ -87,9 +87,9 @@ def _check_valid_prompt_response_data(
 
 
 def _validate_embedding_vector(
-    name: str, vector_column: Series, vector_column_name: str
+    name: str, vector_column: Series[float], vector_column_name: str
 ) -> List[err.ValidationError]:
-    errors = []
+    errors: List[err.ValidationError] = []
     vector_length = None
 
     for vector in vector_column:
@@ -109,7 +109,7 @@ def _validate_embedding_vector(
 
         # Fail if not all elements in every vector are int/floats
         allowed_types = (int, float, np.int16, np.int32, np.float16, np.float32)
-        if not all(isinstance(val, allowed_types) for val in vector):  # type: ignore
+        if not all(isinstance(val, allowed_types) for val in vector):
             errors.append(
                 err.InvalidEmbeddingVectorValuesDataType(
                     embedding_feature_name=name,
@@ -120,15 +120,15 @@ def _validate_embedding_vector(
             break
 
         if vector_length is None:
-            vector_length = len(vector)  # type: ignore
+            vector_length = len(vector)
 
         # Fail if vectors in the dataframe are not of the same length, or of length <= 1
-        if len(vector) != vector_length:  # type: ignore
+        if len(vector) != vector_length:
             errors.append(
                 err.EmbeddingVectorSizeMismatch(
                     name,
                     vector_column_name,
-                    [vector_length, len(vector)],  # type: ignore
+                    [vector_length, len(vector)],
                 )
             )
             break
