@@ -59,9 +59,8 @@ def _check_valid_embedding_data(dataframe: DataFrame, schema: Schema) -> List[er
 
     embedding_errors: List[err.ValidationError] = []
     for embedding_name, column_names in embedding_col_names.items():
-        vector_column = dataframe[column_names.vector_column_name]
         embedding_errors += _validate_embedding_vector(
-            embedding_name, vector_column, column_names.vector_column_name
+            dataframe, embedding_name, column_names.vector_column_name
         )
 
     return embedding_errors
@@ -78,17 +77,17 @@ def _check_valid_prompt_response_data(
     }
     for name, column_names in prompt_response_column_names.items():
         if column_names is not None:
-            vector_column = dataframe[column_names.vector_column_name]
             prompt_response_errors += _validate_embedding_vector(
-                name, vector_column, column_names.vector_column_name
+                dataframe, name, column_names.vector_column_name
             )
 
     return prompt_response_errors
 
 
 def _validate_embedding_vector(
-    name: str, vector_column: Series[float], vector_column_name: str
+    dataframe: DataFrame, name: str, vector_column_name: str
 ) -> List[err.ValidationError]:
+    vector_column = dataframe[vector_column_name]
     errors: List[err.ValidationError] = []
     vector_length = None
 
