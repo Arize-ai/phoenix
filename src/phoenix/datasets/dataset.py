@@ -10,11 +10,7 @@ from typing import Any, Dict, Iterable, List, Optional, Set, Tuple, Union, cast
 import pandas as pd
 import pytz
 from pandas import DataFrame, Series, Timestamp, read_parquet, to_datetime
-from pandas.api.types import (
-    is_datetime64_any_dtype,
-    is_datetime64tz_dtype,
-    is_numeric_dtype,
-)
+from pandas.api.types import is_datetime64_any_dtype, is_datetime64tz_dtype, is_numeric_dtype
 from typing_extensions import TypeAlias
 
 from phoenix.config import DATASET_DIR
@@ -175,15 +171,36 @@ class Dataset:
     def _get_embedding_feature_column_names(
         self, embedding_feature_name: str
     ) -> EmbeddingColumnNames:
-        if self.schema.embedding_feature_column_names is None:
-            raise err.SchemaError(err.MissingField("embedding_feature_column_names"))
-        embedding_feature_column_names = self.schema.embedding_feature_column_names
-        if (
-            embedding_feature_name not in embedding_feature_column_names
-            or embedding_feature_column_names[embedding_feature_name] is None
-        ):
-            raise err.SchemaError(err.MissingEmbeddingFeatureColumnNames(embedding_feature_name))
-        return embedding_feature_column_names[embedding_feature_name]
+        if embedding_feature_name == "prompt":
+            if self.schema.prompt_column_names is None:
+                raise err.SchemaError(err.MissingField("prompt_column_names"))
+            return self._get_prompt_column_names()
+        elif embedding_feature_name == "response":
+            if self.schema.response_column_names is None:
+                raise err.SchemaError(err.MissingField("response_column_names"))
+            return self._get_response_column_names()
+        else:
+            if self.schema.embedding_feature_column_names is None:
+                raise err.SchemaError(err.MissingField("embedding_feature_column_names"))
+            embedding_feature_column_names = self.schema.embedding_feature_column_names
+            if (
+                embedding_feature_name not in embedding_feature_column_names
+                or embedding_feature_column_names[embedding_feature_name] is None
+            ):
+                raise err.SchemaError(
+                    err.MissingEmbeddingFeatureColumnNames(embedding_feature_name)
+                )
+            return embedding_feature_column_names[embedding_feature_name]
+
+    def _get_prompt_column_names(self) -> EmbeddingColumnNames:
+        if self.schema.prompt_column_names is None:
+            raise err.SchemaError(err.MissingField("prompt_column_names"))
+        return self.schema.prompt_column_names
+
+    def _get_response_column_names(self) -> EmbeddingColumnNames:
+        if self.schema.response_column_names is None:
+            raise err.SchemaError(err.MissingField("response_column_names"))
+        return self.schema.response_column_names
 
     def get_timestamp_column(self) -> "Series[Any]":
         timestamp_column_name = self.schema.timestamp_column_name
@@ -534,6 +551,7 @@ def _normalize_timestamps(
     return dataframe, schema
 
 
+# TODO(Kiko): Add prompt_response
 def _get_schema_from_unknown_schema_param(schemaLike: SchemaLike) -> Schema:
     """
     Compatibility function for converting from arize.utils.types.Schema to phoenix.datasets.Schema
@@ -559,6 +577,24 @@ def _get_schema_from_unknown_schema_param(schemaLike: SchemaLike) -> Schema:
                         link_to_data_column_name=arize_embedding_feature_column_names.link_to_data_column_name,
                         raw_data_column_name=arize_embedding_feature_column_names.data_column_name,
                     )
+        prompt_column_names: Optional[EmbeddingColumnNames] = None
+        if schemaLike.prompt_column_names is not None and isinstance(
+            schemaLike.prompt_column_names, ArizeEmbeddingColumnNames
+        ):
+            prompt_column_names = EmbeddingColumnNames(
+                vector_column_name=schemaLike.prompt_column_names.vector_column_name,
+                raw_data_column_name=schemaLike.prompt_column_names.data_column_name,
+                link_to_data_column_name=schemaLike.prompt_column_names.link_to_data_column_name,
+            )
+        response_column_names: Optional[EmbeddingColumnNames] = None
+        if schemaLike.response_column_names is not None and isinstance(
+            schemaLike.response_column_names, ArizeEmbeddingColumnNames
+        ):
+            response_column_names = EmbeddingColumnNames(
+                vector_column_name=schemaLike.response_column_names.vector_column_name,
+                raw_data_column_name=schemaLike.response_column_names.data_column_name,
+                link_to_data_column_name=schemaLike.response_column_names.link_to_data_column_name,
+            )
         return Schema(
             feature_column_names=schemaLike.feature_column_names,
             tag_column_names=schemaLike.tag_column_names,
@@ -567,6 +603,8 @@ def _get_schema_from_unknown_schema_param(schemaLike: SchemaLike) -> Schema:
             prediction_id_column_name=schemaLike.prediction_id_column_name,
             timestamp_column_name=schemaLike.timestamp_column_name,
             embedding_feature_column_names=embedding_feature_column_names,
+            prompt_column_names=prompt_column_names,
+            response_column_names=response_column_names,
         )
     except Exception:
         raise ValueError("Unknown schema passed to Dataset. Please pass a phoenix Schema")
