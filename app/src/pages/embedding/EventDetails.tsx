@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { PropsWithChildren, useMemo } from "react";
 import { Column, useTable } from "react-table";
 import { css } from "@emotion/react";
 
@@ -9,11 +9,34 @@ import { tableCSS } from "@phoenix/components/table/styles";
 
 import { ModelEvent } from "./types";
 
+function TextPre(props: PropsWithChildren) {
+  return (
+    <div
+      css={css`
+        max-height: 200px;
+        overflow-y: auto;
+      `}
+    >
+      <pre
+        css={(theme) => css`
+          padding: var(--px-spacing-lg);
+          background-color: ${theme.colors.gray900};
+          color: ${theme.textColors.white90};
+          white-space: normal;
+          margin: 0;
+        `}
+      >
+        {props.children}
+      </pre>
+    </div>
+  );
+}
 /**
  * Displays the details of an event in a slide over panel
  */
 export function EventDetails({ event }: { event: ModelEvent }) {
   const imageUrl = event.linkToData || undefined;
+  const promptAndResponse = event.promptAndResponse;
   return (
     <section
       css={css`
@@ -33,19 +56,7 @@ export function EventDetails({ event }: { event: ModelEvent }) {
           `}
         />
       ) : null}
-      {event.rawData ? (
-        <pre
-          css={(theme) => css`
-            padding: var(--px-spacing-lg);
-            background-color: ${theme.colors.gray900};
-            color: ${theme.textColors.white90};
-            white-space: normal;
-            margin: 0;
-          `}
-        >
-          {event.rawData}
-        </pre>
-      ) : null}
+      {event.rawData ? <TextPre>{event.rawData}</TextPre> : null}
       <Accordion variant="compact">
         <AccordionItem id="prediction" title="Prediction Details">
           <dl
@@ -108,6 +119,16 @@ export function EventDetails({ event }: { event: ModelEvent }) {
             )} */}
           </dl>
         </AccordionItem>
+        {promptAndResponse ? (
+          <AccordionItem id="prompt" title="Prompt">
+            <TextPre>{promptAndResponse.prompt}</TextPre>
+          </AccordionItem>
+        ) : null}
+        {promptAndResponse ? (
+          <AccordionItem id="response" title="Response">
+            <TextPre>{promptAndResponse.response}</TextPre>
+          </AccordionItem>
+        ) : null}
         <AccordionItem id="dimensions" title="Dimensions">
           <EmbeddingDimensionsTable dimensions={event.dimensions} />
         </AccordionItem>

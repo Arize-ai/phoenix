@@ -9,10 +9,6 @@ import { Shape, ShapeIcon } from "./ShapeIcon";
 
 type EventItemSize = "small" | "medium" | "large";
 
-type PromptResponse = {
-  prompt: string;
-  response: string;
-};
 /**
  * The type of preview to display for the event item. For a large display, the top two previews are shown
  */
@@ -86,7 +82,7 @@ function getSecondaryPreviewType(
   props: EventItemProps,
 ): EventPreviewType | null {
   const { rawData } = props;
-  if (primaryPreviewType) {
+  if (primaryPreviewType === "prompt_response") {
     return null;
   } else if (primaryPreviewType === "image" && rawData != null) {
     return "raw";

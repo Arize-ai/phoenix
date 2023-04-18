@@ -21,6 +21,7 @@ export interface ModelEvent {
     };
     value: string | null;
   }[];
+  promptAndResponse?: PromptResponse;
 }
 
 export type EventsList =
