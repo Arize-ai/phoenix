@@ -22,11 +22,6 @@ import { AppRoutes } from "./Routes";
 
 import "normalize.css";
 
-
-
-
-addSeconds;
-
 const RootQuery = graphql`
   query AppRootQuery {
     model {
@@ -76,7 +71,7 @@ export function AppRoot() {
   const preloadedQuery = loadQuery<AppRootQuery>(
     RelayEnvironment,
     RootQuery,
-    {},
+    {}
   );
   return (
     <Provider>

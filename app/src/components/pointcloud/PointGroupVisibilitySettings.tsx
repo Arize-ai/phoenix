@@ -11,18 +11,18 @@ import { VisibilityCheckboxField } from "./VisibilityCheckboxField";
  */
 export function PointGroupVisibilitySettings() {
   const pointGroupVisibility = usePointCloudContext(
-    (state) => state.pointGroupVisibility,
+    (state) => state.pointGroupVisibility
   );
   const setPointGroupVisibility = usePointCloudContext(
-    (state) => state.setPointGroupVisibility,
+    (state) => state.setPointGroupVisibility
   );
   const pointGroupColors = usePointCloudContext(
-    (state) => state.pointGroupColors,
+    (state) => state.pointGroupColors
   );
 
   const pointGroups = useMemo(
     () => Object.keys(pointGroupVisibility),
-    [pointGroupVisibility],
+    [pointGroupVisibility]
   );
 
   const onChange = useCallback(
@@ -33,7 +33,7 @@ export function PointGroupVisibilitySettings() {
         [name]: checked,
       });
     },
-    [pointGroupVisibility, setPointGroupVisibility],
+    [pointGroupVisibility, setPointGroupVisibility]
   );
   return (
     <form
@@ -71,17 +71,17 @@ export function PointGroupVisibilitySettings() {
  */
 function PointGroupCheckbox() {
   const pointGroupVisibility = usePointCloudContext(
-    (state) => state.pointGroupVisibility,
+    (state) => state.pointGroupVisibility
   );
   const setPointGroupVisibility = usePointCloudContext(
-    (state) => state.setPointGroupVisibility,
+    (state) => state.setPointGroupVisibility
   );
   const coloringStrategy = usePointCloudContext(
-    (state) => state.coloringStrategy,
+    (state) => state.coloringStrategy
   );
   const allNotVisible = useMemo(
     () => Object.values(pointGroupVisibility).every((visible) => !visible),
-    [pointGroupVisibility],
+    [pointGroupVisibility]
   );
 
   const onChange = useCallback(
@@ -92,11 +92,11 @@ function PointGroupCheckbox() {
           acc[groupName] = checked;
           return acc;
         },
-        {} as Record<string, boolean>,
+        {} as Record<string, boolean>
       );
       setPointGroupVisibility(newPointGroupVisibility);
     },
-    [pointGroupVisibility, setPointGroupVisibility],
+    [pointGroupVisibility, setPointGroupVisibility]
   );
 
   return (

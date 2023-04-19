@@ -79,7 +79,7 @@ function getPrimaryPreviewType(props: EventItemProps): EventPreviewType {
  */
 function getSecondaryPreviewType(
   primaryPreviewType: EventPreviewType,
-  props: EventItemProps,
+  props: EventItemProps
 ): EventPreviewType | null {
   const { rawData } = props;
   if (primaryPreviewType === "prompt_response") {
@@ -182,7 +182,7 @@ export function EventItem(props: EventItemProps) {
  * Higher order component that renders a specific preview type for the event item
  */
 function EventPreview(
-  props: { previewType: EventPreviewType } & EventItemProps,
+  props: { previewType: EventPreviewType } & EventItemProps
 ) {
   const { previewType } = props;
   let preview: ReactNode | null = null;
@@ -231,7 +231,7 @@ function ImagePreview(props: Pick<EventItemProps, "linkToData" | "color">) {
  * Shows textual preview of the event's raw data
  */
 function PromptResponsePreview(
-  props: Pick<EventItemProps, "promptAndResponse" | "size">,
+  props: Pick<EventItemProps, "promptAndResponse" | "size">
 ) {
   return (
     <div
@@ -350,7 +350,7 @@ function RawTextPreview(props: Pick<EventItemProps, "rawData" | "size">) {
  * Shows an image preview of the event's metadata (e.g. the conclusion of the model)
  */
 function EventMetadataPreview(
-  props: Pick<EventItemProps, "predictionLabel" | "actualLabel">,
+  props: Pick<EventItemProps, "predictionLabel" | "actualLabel">
 ) {
   return (
     <dl

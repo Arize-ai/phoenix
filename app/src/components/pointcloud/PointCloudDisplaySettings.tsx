@@ -17,14 +17,14 @@ import { PointGroupVisibilitySettings } from "./PointGroupVisibilitySettings";
 export function PointCloudDisplaySettings() {
   const { referenceDataset } = useDatasets();
   const coloringStrategy = usePointCloudContext(
-    (state) => state.coloringStrategy,
+    (state) => state.coloringStrategy
   );
   const setColoringStrategy = usePointCloudContext(
-    (state) => state.setColoringStrategy,
+    (state) => state.setColoringStrategy
   );
   const dimension = usePointCloudContext((state) => state.dimension);
   const dimensionMetadata = usePointCloudContext(
-    (state) => state.dimensionMetadata,
+    (state) => state.dimensionMetadata
   );
   const setDimension = usePointCloudContext((state) => state.setDimension);
 

@@ -34,8 +34,8 @@ const fetchRelay: FetchFunction = async (params, variables, _cacheConfig) => {
       `Error fetching GraphQL query '${
         params.name
       }' with variables '${JSON.stringify(variables)}': ${JSON.stringify(
-        json.errors,
-      )}`,
+        json.errors
+      )}`
     );
   }
 

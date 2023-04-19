@@ -40,7 +40,7 @@ export function Home(_props: HomePageProps) {
     {
       startTime: timeRange.start.toISOString(),
       endTime: timeRange.end.toISOString(),
-    },
+    }
   );
   return (
     <main>

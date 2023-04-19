@@ -27,7 +27,7 @@ type ExportInfo = {
 
 export function ExportSelectionButton() {
   const selectedEventIds = usePointCloudContext(
-    (state) => state.selectedEventIds,
+    (state) => state.selectedEventIds
   );
 
   const [commit, isInFlight] = useMutation<ExportSelectionButtonMutation>(
@@ -37,7 +37,7 @@ export function ExportSelectionButton() {
           fileName
         }
       }
-    `,
+    `
   );
   const [exportInfo, setExportInfo] = useState<ExportInfo | null>(null);
   const onClick = useCallback(() => {
@@ -81,7 +81,7 @@ export function ExportSelectionButton() {
                   onClick={() => {
                     window.open(
                       `/exports?filename=${exportInfo.fileName}`,
-                      "_self",
+                      "_self"
                     );
                   }}
                 >
@@ -141,7 +141,7 @@ function ExportsList() {
     {},
     {
       fetchPolicy: "network-only",
-    },
+    }
   );
   return (
     <List>
