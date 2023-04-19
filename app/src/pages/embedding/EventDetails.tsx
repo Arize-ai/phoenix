@@ -36,7 +36,10 @@ function TextPre(props: PropsWithChildren) {
  */
 export function EventDetails({ event }: { event: ModelEvent }) {
   const imageUrl = event.linkToData || undefined;
-  const promptAndResponse = event.promptAndResponse;
+  const promptAndResponse: PromptResponse | null =
+    event.prompt || event.response
+      ? { prompt: event.prompt, response: event.response }
+      : null;
   return (
     <section
       css={css`
