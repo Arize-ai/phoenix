@@ -8,6 +8,7 @@ import {
 } from "react-table";
 
 import { ExternalLink, LinkButton } from "@phoenix/components";
+import { TextCell } from "@phoenix/components/table";
 import { tableCSS } from "@phoenix/components/table/styles";
 
 import { ModelEvent } from "./types";
@@ -24,13 +25,17 @@ export function PointSelectionTable({
 }) {
   const columns: Column<ModelEvent>[] = useMemo(() => {
     let hasLinkToData = false,
-      hasRawData = false;
+      hasRawData = false,
+      hasPromptAndResponse = false;
     data.forEach((point) => {
       if (point.linkToData) {
         hasLinkToData = true;
       }
       if (point.rawData) {
         hasRawData = true;
+      }
+      if (point.prompt || point.response) {
+        hasPromptAndResponse = true;
       }
     });
     // Columns that are only visible if certain data is available
@@ -48,7 +53,20 @@ export function PointSelectionTable({
         },
       });
     }
-    if (hasRawData) {
+    if (hasPromptAndResponse) {
+      dataDrivenColumns.push({
+        Header: "Prompt",
+        accessor: "prompt",
+        width: 300,
+        Cell: TextCell,
+      });
+      dataDrivenColumns.push({
+        Header: "Response",
+        accessor: "response",
+        width: 300,
+        Cell: TextCell,
+      });
+    } else if (hasRawData) {
       dataDrivenColumns.push({
         Header: "Raw Data",
         accessor: "rawData",

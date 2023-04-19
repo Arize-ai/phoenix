@@ -169,6 +169,8 @@ export function PointSelectionPanelContent(props: {
         rawData: pointData?.embeddingMetadata.rawData ?? null,
         linkToData: pointData?.embeddingMetadata.linkToData ?? null,
         dimensions: event.dimensions,
+        prompt: null,
+        response: null,
       };
     });
   }, [allSelectedEvents, eventIdToDataMap]);

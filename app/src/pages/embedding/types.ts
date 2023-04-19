@@ -21,7 +21,14 @@ export interface ModelEvent {
     };
     value: string | null;
   }[];
-  promptAndResponse?: PromptResponse;
+  /**
+   * the LLM prompt that was used to generate this event
+   */
+  prompt: string | null;
+  /**
+   * the LLM response
+   */
+  response: string | null;
 }
 
 export type EventsList =
