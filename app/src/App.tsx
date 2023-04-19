@@ -24,6 +24,9 @@ import "normalize.css";
 
 
 
+
+addSeconds;
+
 const RootQuery = graphql`
   query AppRootQuery {
     model {
