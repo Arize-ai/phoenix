@@ -19,7 +19,7 @@ repos:
       rev: "6f3cb139ef36133b6f903b97facc57b07cef57c9"
       hooks:
           - id: prettier
-            types_or: [css, javascript]
+            types_or: [css, ts]
     - repo: https://github.com/pre-commit/mirrors-eslint
       rev: "8ddcbd412c0b348841f0f82c837702f432539652"
       hooks:
