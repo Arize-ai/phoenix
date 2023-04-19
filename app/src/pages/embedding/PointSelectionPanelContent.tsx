@@ -121,6 +121,10 @@ export function PointSelectionPanelContent(props: {
                 predictionLabel
                 actualLabel
               }
+              promptAndResponse {
+                prompt
+                response
+              }
             }
           }
           referenceDataset {
@@ -136,6 +140,10 @@ export function PointSelectionPanelContent(props: {
               eventMetadata {
                 predictionLabel
                 actualLabel
+              }
+              promptAndResponse {
+                prompt
+                response
               }
             }
           }
@@ -169,8 +177,8 @@ export function PointSelectionPanelContent(props: {
         rawData: pointData?.embeddingMetadata.rawData ?? null,
         linkToData: pointData?.embeddingMetadata.linkToData ?? null,
         dimensions: event.dimensions,
-        prompt: null,
-        response: null,
+        prompt: event.promptAndResponse?.prompt ?? null,
+        response: event.promptAndResponse?.response ?? null,
       };
     });
   }, [allSelectedEvents, eventIdToDataMap]);
