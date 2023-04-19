@@ -5,8 +5,8 @@ import strawberry
 from strawberry.types import Info
 from strawberry.unset import UNSET
 
-import phoenix.core.model_schema as ms
 from phoenix.config import get_exported_files
+from phoenix.core.model_schema import PRIMARY, REFERENCE
 from phoenix.server.api.context import Context
 
 from .Dataset import Dataset
@@ -48,7 +48,7 @@ class Model:
 
     @strawberry.field
     def primary_dataset(self, info: Info[Context, None]) -> Dataset:
-        dataset = info.context.model[ms.PRIMARY]
+        dataset = info.context.model[PRIMARY]
         start, end = dataset.time_range
         return Dataset(
             name=dataset.name,
@@ -59,7 +59,7 @@ class Model:
 
     @strawberry.field
     def reference_dataset(self, info: Info[Context, None]) -> Optional[Dataset]:
-        if (dataset := info.context.model[ms.REFERENCE]).empty:
+        if (dataset := info.context.model[REFERENCE]).empty:
             return None
         start, end = dataset.time_range
         return Dataset(
