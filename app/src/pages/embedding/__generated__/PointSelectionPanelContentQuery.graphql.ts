@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<2f9c24ee4c80e79a4f34c54f611dd3e0>>
+ * @generated SignedSource<<aa31c843d963c0dee7a0e3bcd8fd2ae4>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -30,6 +30,10 @@ export type PointSelectionPanelContentQuery$data = {
           readonly predictionLabel: string | null;
         };
         readonly id: string;
+        readonly promptAndResponse: {
+          readonly prompt: string | null;
+          readonly response: string | null;
+        } | null;
       }>;
     };
     readonly referenceDataset: {
@@ -46,6 +50,10 @@ export type PointSelectionPanelContentQuery$data = {
           readonly predictionLabel: string | null;
         };
         readonly id: string;
+        readonly promptAndResponse: {
+          readonly prompt: string | null;
+          readonly response: string | null;
+        } | null;
       }>;
     } | null;
   };
@@ -143,6 +151,31 @@ v1 = [
       }
     ],
     "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "concreteType": "PromptResponse",
+    "kind": "LinkedField",
+    "name": "promptAndResponse",
+    "plural": false,
+    "selections": [
+      {
+        "alias": null,
+        "args": null,
+        "kind": "ScalarField",
+        "name": "prompt",
+        "storageKey": null
+      },
+      {
+        "alias": null,
+        "args": null,
+        "kind": "ScalarField",
+        "name": "response",
+        "storageKey": null
+      }
+    ],
+    "storageKey": null
   }
 ],
 v2 = [
@@ -230,16 +263,16 @@ return {
     "selections": (v2/*: any*/)
   },
   "params": {
-    "cacheID": "4ab2b408ffa6453b5ba49fc362c0b25b",
+    "cacheID": "f9e7b91fc6c0556ccfbcd94cc783655e",
     "id": null,
     "metadata": {},
     "name": "PointSelectionPanelContentQuery",
     "operationKind": "query",
-    "text": "query PointSelectionPanelContentQuery(\n  $primaryEventIds: [ID!]!\n  $referenceEventIds: [ID!]!\n) {\n  model {\n    primaryDataset {\n      events(eventIds: $primaryEventIds) {\n        id\n        dimensions {\n          dimension {\n            name\n            type\n          }\n          value\n        }\n        eventMetadata {\n          predictionLabel\n          actualLabel\n        }\n      }\n    }\n    referenceDataset {\n      events(eventIds: $referenceEventIds) {\n        id\n        dimensions {\n          dimension {\n            name\n            type\n          }\n          value\n        }\n        eventMetadata {\n          predictionLabel\n          actualLabel\n        }\n      }\n    }\n  }\n}\n"
+    "text": "query PointSelectionPanelContentQuery(\n  $primaryEventIds: [ID!]!\n  $referenceEventIds: [ID!]!\n) {\n  model {\n    primaryDataset {\n      events(eventIds: $primaryEventIds) {\n        id\n        dimensions {\n          dimension {\n            name\n            type\n          }\n          value\n        }\n        eventMetadata {\n          predictionLabel\n          actualLabel\n        }\n        promptAndResponse {\n          prompt\n          response\n        }\n      }\n    }\n    referenceDataset {\n      events(eventIds: $referenceEventIds) {\n        id\n        dimensions {\n          dimension {\n            name\n            type\n          }\n          value\n        }\n        eventMetadata {\n          predictionLabel\n          actualLabel\n        }\n        promptAndResponse {\n          prompt\n          response\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "89d17228e9e6465e198d6996afd02c24";
+(node as any).hash = "e104d47d175f9301d04a0303e0af2227";
 
 export default node;

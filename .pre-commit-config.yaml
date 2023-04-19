@@ -19,7 +19,8 @@ repos:
       rev: "6f3cb139ef36133b6f903b97facc57b07cef57c9"
       hooks:
           - id: prettier
-            files: '\.(jsx?|tsx?|css)$'
+            files: \.(jsx?|tsx?|css)$
+            exclude: \.*__generated__.*$
             additional_dependencies:
                 - prettier@2.8.7
     - repo: https://github.com/pre-commit/mirrors-eslint

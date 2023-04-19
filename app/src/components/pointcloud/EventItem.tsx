@@ -247,7 +247,7 @@ function PromptResponsePreview(
           padding: var(--px-spacing-sm);
           font-size: var(--px-font-size-sm);
           section {
-            flex: 1 1 auto;
+            flex: 1 1 0;
             overflow: hidden;
             header {
               display: none;
@@ -260,7 +260,7 @@ function PromptResponsePreview(
           gap: var(--px-spacing-sm);
           padding: var(--px-spacing-med);
           section {
-            flex: 1 1 auto;
+            flex: 1 1 0;
             overflow: hidden;
           }
         }
@@ -269,6 +269,7 @@ function PromptResponsePreview(
           flex-direction: row;
           section {
             padding: var(--px-spacing-sm);
+            flex: 1 1 0;
           }
         }
         & > section {
