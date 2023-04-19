@@ -105,7 +105,7 @@ class Download(HTTPEndpoint):
 def create_app(
     export_path: Path,
     primary_dataset: Dataset,
-    reference_dataset: Optional[Dataset],
+    reference_dataset: Optional[Dataset] = None,
     debug: bool = False,
 ) -> Starlette:
     model = Model(
