@@ -7,7 +7,7 @@ cover: >-
 coverY: 0
 ---
 
-# Phoenix: ML Observability in a Notebook
+# ML Observability in a Notebook
 
 Running Phoenix for the first time? Get up and running with the [quickstart](tutorials-use-cases/quickstart.md).
 
@@ -19,7 +19,7 @@ Phoenix is an Open Source ML Observability library designed for the Notebook. Th
 
 <figure><img src=".gitbook/assets/Phoenix docs graphics-02.jpg" alt=""><figcaption></figcaption></figure>
 
-## 🚀 Overview
+## Overview
 
 #### Context&#x20;
 

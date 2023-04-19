@@ -1,12 +1,12 @@
 # Table of contents
 
-* [Phoenix: ML Observability in a Notebook](README.md)
+* [ML Observability in a Notebook](README.md)
 
 ## 💡 Concepts
 
 * [Phoenix Basics](concepts/phoenix-basics.md)
 * [Generating Embeddings](concepts/generating-embeddings.md)
-* [What is LLM Observability?](concepts/llm-observability.md)
+* [LLM Observability](concepts/llm-observability.md)
 
 ## 🎓 Tutorials/Use Cases
 
@@ -29,8 +29,8 @@
 
 ## 📚 Reference
 
-* [Phoenix Architecture](reference/phoenix-architecture.md)
 * [Embeddings](concepts/embeddings.md)
+* [Architecture](reference/architecture.md)
 * [Open Inference](concepts/open-inference.md)
 
 ***
