@@ -9,12 +9,10 @@ from typing import Optional
 
 import numpy as np
 import pandas as pd
+import phoenix.datasets.errors as err
 import pytest
 import pytz
 from pandas import DataFrame, Series, Timestamp
-from pytest import LogCaptureFixture, raises
-
-import phoenix.datasets.errors as err
 from phoenix.datasets.dataset import (
     Dataset,
     EmbeddingColumnNames,
@@ -23,6 +21,7 @@ from phoenix.datasets.dataset import (
     _parse_dataframe_and_schema,
 )
 from phoenix.datasets.errors import DatasetError
+from pytest import LogCaptureFixture, raises
 
 
 class TestParseDataFrameAndSchema:
