@@ -1,5 +1,5 @@
 from collections import defaultdict
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 import strawberry
 from pandas import Series
@@ -12,6 +12,7 @@ from phoenix.datasets.event import EventId
 from .Dimension import Dimension
 from .DimensionWithValue import DimensionWithValue
 from .EventMetadata import EventMetadata
+from .PromptResponse import PromptResponse
 
 
 @strawberry.type
@@ -19,6 +20,9 @@ class Event:
     id: strawberry.ID
     eventMetadata: EventMetadata
     dimensions: List[DimensionWithValue]
+    prompt_and_response: Optional[PromptResponse] = strawberry.field(
+        description="The prompt and response pair associated with the event"
+    )
 
 
 def parse_event_ids(event_ids: List[ID]) -> Dict[DatasetRole, List[int]]:
@@ -66,4 +70,34 @@ def create_event(
         id=ID(str(EventId(row_id=row_index, dataset_id=dataset_role))),
         eventMetadata=event_metadata,
         dimensions=dimensions_with_values,
+        prompt_and_response=create_prompt_and_response(schema=schema, row=row),
     )
+
+
+def create_prompt_and_response(
+    schema: Schema,
+    row: "Series[Any]",
+) -> Optional[PromptResponse]:
+    prompt_raw_data_column_name = (
+        schema.prompt_column_names.raw_data_column_name
+        if schema.prompt_column_names is not None
+        else None
+    )
+    response_raw_data_column_name = (
+        schema.response_column_names.raw_data_column_name
+        if schema.response_column_names is not None
+        else None
+    )
+
+    prompt_and_response: Optional[PromptResponse] = None
+    if prompt_raw_data_column_name is not None or response_raw_data_column_name is not None:
+        return PromptResponse(
+            prompt=row[prompt_raw_data_column_name]
+            if prompt_raw_data_column_name is not None
+            else None,
+            response=row[response_raw_data_column_name]
+            if response_raw_data_column_name is not None
+            else None,
+        )
+
+    return prompt_and_response
