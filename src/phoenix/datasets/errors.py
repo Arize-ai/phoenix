@@ -153,6 +153,26 @@ class EmbeddingVectorSizeMismatch(ValidationError):
         )
 
 
+class InvalidEmbeddingReservedName(ValidationError):
+    """An error raised when there is an embedding feature with a name, i.e. dictionary key,
+    that is reserved
+    """
+
+    def __init__(
+        self,
+        reserved_name: str,
+        schema_field: str,
+    ) -> None:
+        self.reserved_name = reserved_name
+        self.schema_field = schema_field
+
+    def error_message(self) -> str:
+        return (
+            f"Embedding feature name '{self.reserved_name}' is reserved and cannot be used. "
+            f"This is the case when '{self.schema_field}' is not None."
+        )
+
+
 class InvalidEmbeddingVectorSize(ValidationError):
     """An error raised when there is an embedding feature with an invalid vector length"""
 

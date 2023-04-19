@@ -9,6 +9,8 @@ from pandas.api.types import is_numeric_dtype, is_string_dtype
 from . import errors as err
 from .schema import Schema
 
+RESERVED_EMBEDDING_NAMES = ("prompt", "response")
+
 
 def _check_valid_schema(schema: Schema) -> List[err.ValidationError]:
     errs: List[str] = []
@@ -59,6 +61,8 @@ def _check_valid_embedding_data(dataframe: DataFrame, schema: Schema) -> List[er
 
     embedding_errors: List[err.ValidationError] = []
     for embedding_name, column_names in embedding_col_names.items():
+        if embedding_name in RESERVED_EMBEDDING_NAMES:
+            embedding_errors += _validate_reserved_embedding_name(embedding_name, schema)
         embedding_errors += _validate_embedding_vector(
             dataframe, embedding_name, column_names.vector_column_name
         )
@@ -82,6 +86,16 @@ def _check_valid_prompt_response_data(
             )
 
     return prompt_response_errors
+
+
+def _validate_reserved_embedding_name(
+    embedding_name: str, schema: Schema
+) -> List[err.ValidationError]:
+    if embedding_name == "prompt" and schema.prompt_column_names is not None:
+        return [err.InvalidEmbeddingReservedName(embedding_name, "schema.prompt_column_names")]
+    elif embedding_name == "response" and schema.response_column_names is not None:
+        return [err.InvalidEmbeddingReservedName(embedding_name, "schema.response_column_names")]
+    return []
 
 
 def _validate_embedding_vector(

@@ -12,6 +12,9 @@ import pandas as pd
 import pytest
 import pytz
 from pandas import DataFrame, Series, Timestamp
+from pytest import LogCaptureFixture, raises
+
+import phoenix.datasets.errors as err
 from phoenix.datasets.dataset import (
     Dataset,
     EmbeddingColumnNames,
@@ -20,7 +23,6 @@ from phoenix.datasets.dataset import (
     _parse_dataframe_and_schema,
 )
 from phoenix.datasets.errors import DatasetError
-from pytest import LogCaptureFixture, raises
 
 
 class TestParseDataFrameAndSchema:
@@ -725,8 +727,10 @@ class TestDataset:
             excluded_column_names=["prediction_id"],
         )
 
-        with raises(DatasetError):
+        with pytest.raises(Exception) as exc_info:
             Dataset(dataframe=input_df, schema=input_schema)
+        assert isinstance(exc_info.value, DatasetError)
+        assert isinstance(exc_info.value.errors[0], err.InvalidSchemaError)
 
     def test_dataset_bookends(self) -> None:
         raw_data_min_time = Timestamp(year=2023, month=1, day=1, hour=2, second=30, tzinfo=pytz.utc)
