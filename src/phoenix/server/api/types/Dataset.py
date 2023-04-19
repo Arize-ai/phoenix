@@ -7,6 +7,7 @@ from strawberry.types import Info
 from strawberry.unset import UNSET
 
 import phoenix.core.model_schema as ms
+from phoenix.core.model_schema import FEATURE, TAG, ScalarDimension
 
 from ..context import Context
 from ..input_types.DimensionInput import DimensionInput
@@ -54,7 +55,7 @@ class Dataset:
 
 
 def _get_requested_features_and_tags(
-    core_dimensions: Iterable[ms.ScalarDimension],
+    core_dimensions: Iterable[ScalarDimension],
     requested_dimension_names: Optional[Set[str]] = None,
 ) -> List[Dimension]:
     """
@@ -64,7 +65,7 @@ def _get_requested_features_and_tags(
     requested_features_and_tags: List[Dimension] = []
     for id, dim in enumerate(core_dimensions):
         is_requested = requested_dimension_names is None or dim.name in requested_dimension_names
-        is_feature_or_tag = dim.role in (ms.FEATURE, ms.TAG)
+        is_feature_or_tag = dim.role in (FEATURE, TAG)
         if is_requested and is_feature_or_tag:
             requested_features_and_tags.append(to_gql_dimension(id_attr=id, dimension=dim))
     return requested_features_and_tags

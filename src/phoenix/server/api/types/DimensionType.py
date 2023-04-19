@@ -31,4 +31,4 @@ class DimensionType(Enum):
             return cls.prediction
         if role in (ACTUAL_LABEL, ACTUAL_SCORE):
             return cls.actual
-        raise ValueError("unrecognized type for dimension %s" % dim)
+        raise ValueError("invalid type for dimension %s" % repr(dim))
