@@ -70,7 +70,7 @@ function TooltipContent({ active, payload, label }: TooltipProps<any, any>) {
     return (
       <ChartTooltip>
         <Text weight="heavy" textSize="large">{`${fullTimeFormatter(
-          new Date(label),
+          new Date(label)
         )}`}</Text>
         <ChartTooltipItem
           color={color}
@@ -154,7 +154,7 @@ export function EuclideanDistanceTimeSeries({
       },
       driftGranularity: calculateGranularityWithRollingAverage(timeRange),
       countGranularity: calculateGranularity(timeRange),
-    },
+    }
   );
 
   const onClick: CategoricalChartFunc = useCallback(
@@ -166,18 +166,15 @@ export function EuclideanDistanceTimeSeries({
         setSelectedTimestamp(new Date(payload.timestamp));
       }
     },
-    [setSelectedTimestamp],
+    [setSelectedTimestamp]
   );
 
   let chartData = data.embedding.euclideanDistanceTimeSeries?.data || [];
   const trafficDataMap =
-    data.embedding.trafficTimeSeries?.data.reduce(
-      (acc, traffic) => {
-        acc[traffic.timestamp] = traffic.value;
-        return acc;
-      },
-      {} as Record<string, number | null>,
-    ) ?? {};
+    data.embedding.trafficTimeSeries?.data.reduce((acc, traffic) => {
+      acc[traffic.timestamp] = traffic.value;
+      return acc;
+    }, {} as Record<string, number | null>) ?? {};
 
   chartData = chartData.map((d) => {
     const traffic = trafficDataMap[d.timestamp];

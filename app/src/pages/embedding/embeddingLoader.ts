@@ -24,6 +24,6 @@ export async function embeddingLoader(args: LoaderFunctionArgs) {
     `,
     {
       id: embeddingDimensionId as string,
-    },
+    }
   ).toPromise();
 }

@@ -63,25 +63,25 @@ export function PointSelectionPanelContent(props: {
 }) {
   const { eventIdToDataMap } = props;
   const selectedEventIds = usePointCloudContext(
-    (state) => state.selectedEventIds,
+    (state) => state.selectedEventIds
   );
   const setSelectedEventIds = usePointCloudContext(
-    (state) => state.setSelectedEventIds,
+    (state) => state.setSelectedEventIds
   );
   const setSelectedClusterId = usePointCloudContext(
-    (state) => state.setSelectedClusterId,
+    (state) => state.setSelectedClusterId
   );
   const selectionDisplay = usePointCloudContext(
-    (state) => state.selectionDisplay,
+    (state) => state.selectionDisplay
   );
   const setSelectionDisplay = usePointCloudContext(
-    (state) => state.setSelectionDisplay,
+    (state) => state.setSelectionDisplay
   );
   const selectionGridSize = usePointCloudContext(
-    (state) => state.selectionGridSize,
+    (state) => state.selectionGridSize
   );
   const setSelectionGridSize = usePointCloudContext(
-    (state) => state.setSelectionGridSize,
+    (state) => state.setSelectionGridSize
   );
 
   const [selectedDetailPointId, setSelectedDetailPointId] = React.useState<
@@ -145,7 +145,7 @@ export function PointSelectionPanelContent(props: {
     {
       primaryEventIds: [...primaryEventIds],
       referenceEventIds: [...referenceEventIds],
-    },
+    }
   );
 
   const allSelectedEvents = useMemo(() => {

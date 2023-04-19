@@ -34,8 +34,8 @@ const router = createBrowserRouter(
           }}
         />
       </Route>
-    </Route>,
-  ),
+    </Route>
+  )
 );
 
 export function AppRoutes() {

@@ -388,7 +388,7 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
 
       // Re-compute the point coloring once the granular data is loaded
       const pointData = await fetchPointEvents(
-        points.map((p) => p.eventId),
+        points.map((p) => p.eventId)
       ).catch(() => set({ errorMessage: "Failed to load the point events" }));
 
       if (!pointData) return; // The error occurred above
@@ -509,7 +509,7 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
       const pointCloudState = get();
       set({ dimension, dimensionMetadata: null });
       const dimensionMetadata = await fetchDimensionMetadata(dimension).catch(
-        () => set({ errorMessage: "Failed to load the dimension metadata" }),
+        () => set({ errorMessage: "Failed to load the dimension metadata" })
       );
       if (!dimensionMetadata) return; // The error occurred above
 
@@ -529,7 +529,7 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
                 ...acc,
                 [category]: true,
               }),
-              {},
+              {}
             ),
             unknown: true,
           },
@@ -539,7 +539,7 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
                 ...acc,
                 [category]: colorScaleFn(idx),
               }),
-              {},
+              {}
             ),
             unknown: UNKNOWN_COLOR,
           },
@@ -562,7 +562,7 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
                 ...acc,
                 [group.name]: true,
               }),
-              {},
+              {}
             ),
             unknown: true,
           },
@@ -572,7 +572,7 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
                 ...acc,
                 [group.name]: numericColorScale(idx),
               }),
-              {},
+              {}
             ),
             unknown: UNKNOWN_COLOR,
           },
@@ -650,7 +650,7 @@ function getNumericGroupsFromInterval({
  * Calculates the group mapping for each point
  */
 function getEventIdToGroup(
-  params: GetEventIdToGroupParams,
+  params: GetEventIdToGroupParams
 ): Record<string, string> {
   const { points, coloringStrategy, pointsData, dimension, dimensionMetadata } =
     params;
@@ -687,7 +687,7 @@ function getEventIdToGroup(
       let numericGroupIntervals: NumericGroupInterval[] | null;
       if (dimensionMetadata && dimensionMetadata?.interval !== null) {
         numericGroupIntervals = getNumericGroupsFromInterval(
-          dimensionMetadata.interval,
+          dimensionMetadata.interval
         );
       }
       const isColorByPredictionLabel =
@@ -713,7 +713,7 @@ function getEventIdToGroup(
             // It is a feature or tag. Find the dimension value
             const dimensionWithValue = pointData.dimensions.find(
               (dimensionWithValue) =>
-                dimensionWithValue.dimension.name === dimension.name,
+                dimensionWithValue.dimension.name === dimension.name
             );
             if (
               dimensionWithValue != null &&
@@ -733,7 +733,7 @@ function getEventIdToGroup(
               if (typeof numericValue === "number") {
                 let groupIndex = numericGroupIntervals.findIndex(
                   (group) =>
-                    numericValue >= group.min && numericValue < group.max,
+                    numericValue >= group.min && numericValue < group.max
                 );
                 // If we fail to find the index, it means it belongs to the last group
                 groupIndex =
@@ -764,7 +764,7 @@ function getEventIdToGroup(
  * Fetches the dimension metadata for coloring group computation
  */
 async function fetchDimensionMetadata(
-  dimension: Dimension,
+  dimension: Dimension
 ): Promise<DimensionMetadata> {
   const data = await fetchQuery<pointCloudStore_dimensionMetadataQuery>(
     RelayEnvironment,
@@ -790,7 +790,7 @@ async function fetchDimensionMetadata(
       id: dimension.id,
       getDimensionMinMax: dimension.dataType === "numeric",
       getDimensionCategories: dimension.dataType === "categorical",
-    },
+    }
   ).toPromise();
 
   const dimensionData = data?.dimension;
@@ -877,7 +877,7 @@ async function fetchPointEvents(eventIds: string[]): Promise<PointDataMap> {
     {
       primaryEventIds: primaryEventIds,
       referenceEventIds: referenceEventIds,
-    },
+    }
   ).toPromise();
   // Construct a map of point id to the event data
   const primaryEvents = data?.model?.primaryDataset?.events ?? [];
