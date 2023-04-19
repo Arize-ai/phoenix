@@ -2,9 +2,7 @@ type Cluster {
   id: ID!
   eventIds: [ID!]!
 
-  """
-  ratio of primary points over reference points
-  """
+  """ratio of primary points over reference points"""
   driftRatio: Float
 }
 
@@ -23,34 +21,24 @@ type DataQualityTimeSeries implements TimeSeries {
 }
 
 type Dataset {
-  """
-  The given name of the dataset
-  """
+  """The given name of the dataset"""
   name: String!
 
-  """
-  The start bookend of the data
-  """
+  """The start bookend of the data"""
   startTime: DateTime!
 
-  """
-  The end bookend of the data
-  """
+  """The end bookend of the data"""
   endTime: DateTime!
   events(eventIds: [ID!]!, dimensions: [DimensionInput!]): [Event!]!
 }
 
-"""
-Date with time (isoformat)
-"""
+"""Date with time (isoformat)"""
 scalar DateTime
 
 type Dimension implements Node {
   id: GlobalID!
 
-  """
-  The name of the dimension (a.k.a. the column name)
-  """
+  """The name of the dimension (a.k.a. the column name)"""
   name: String!
 
   """
@@ -58,15 +46,10 @@ type Dimension implements Node {
   """
   type: DimensionType!
 
-  """
-  The data type of the column. Categorical or numeric.
-  """
+  """The data type of the column. Categorical or numeric."""
   dataType: DimensionDataType!
   driftMetric(metric: ScalarDriftMetric!, timeRange: TimeRange = null): Float
-  dataQualityMetric(
-    metric: DataQualityMetric!
-    timeRange: TimeRange = null
-  ): Float
+  dataQualityMetric(metric: DataQualityMetric!, timeRange: TimeRange = null): Float
 
   """
   Returns the observed categories of a categorical dimension (usually a dimension of string values) as a list of unique string labels sorted in lexicographical order. Missing values are excluded. Non-categorical dimensions return an empty list.
@@ -76,20 +59,12 @@ type Dimension implements Node {
   """
   Returns the time series of the specified metric for data within a time range. Data points are generated starting at the end time and are separated by the sampling interval. Each data point is labeled by the end instant and contains data from their respective evaluation windows.
   """
-  dataQualityTimeSeries(
-    metric: DataQualityMetric!
-    timeRange: TimeRange!
-    granularity: Granularity!
-  ): DataQualityTimeSeries!
+  dataQualityTimeSeries(metric: DataQualityMetric!, timeRange: TimeRange!, granularity: Granularity!): DataQualityTimeSeries!
 
   """
   Returns the time series of the specified metric for data within a time range. Data points are generated starting at the end time and are separated by the sampling interval. Each data point is labeled by the end instant and contains data from their respective evaluation windows.
   """
-  driftTimeSeries(
-    metric: ScalarDriftMetric!
-    timeRange: TimeRange!
-    granularity: Granularity!
-  ): DriftTimeSeries!
+  driftTimeSeries(metric: ScalarDriftMetric!, timeRange: TimeRange!, granularity: Granularity!): DriftTimeSeries!
 }
 
 type DimensionConnection {
@@ -122,9 +97,7 @@ enum DimensionType {
 type DimensionWithValue {
   dimension: Dimension!
 
-  """
-  The string representation of the dimension's value
-  """
+  """The string representation of the dimension's value"""
   value: String
 }
 
@@ -144,59 +117,35 @@ type EmbeddingDimension implements Node {
   """
   Returns the time series of the specified metric for data within timeRange. Data points are generated starting at the end time, are separated by the sampling interval. Each data point is labeled by the end instant of and contains data from their respective evaluation window.
   """
-  dataQualityTimeSeries(
-    metric: DataQualityMetric!
-    timeRange: TimeRange!
-    granularity: Granularity!
-  ): DataQualityTimeSeries!
+  dataQualityTimeSeries(metric: DataQualityMetric!, timeRange: TimeRange!, granularity: Granularity!): DataQualityTimeSeries!
 
   """
-  Computes a drift time-series between the primary and reference datasets. The output drift time-series contains one data point for each whole hour in the input time range (inclusive of the time range start and exclusive of the time range end). Each data point contains the drift metric value between all reference data and the primary data within the evaluation window ending at the corresponding time. Returns None if no reference dataset exists or if the input time range is invalid.
+  Computes a drift time-series between the primary and reference datasets. The output drift time-series contains one data point for each whole hour in the input time range (inclusive of the time range start and exclusive of the time range end). Each data point contains the drift metric value between all reference data and the primary data within the evaluation window ending at the corresponding time. Returns None if no reference dataset exists or if the input time range is invalid.           
   """
-  driftTimeSeries(
-    metric: VectorDriftMetric!
-    timeRange: TimeRange!
-    granularity: Granularity!
-  ): DriftTimeSeries!
+  driftTimeSeries(metric: VectorDriftMetric!, timeRange: TimeRange!, granularity: Granularity!): DriftTimeSeries!
   UMAPPoints(
-    """
-    The time range of the primary dataset to generate the UMAP points for
-    """
+    """The time range of the primary dataset to generate the UMAP points for"""
     timeRange: TimeRange!
 
-    """
-    UMAP target dimension hyperparameter. Must be 2 or 3
-    """
+    """UMAP target dimension hyperparameter. Must be 2 or 3"""
     nComponents: Int = 3
 
-    """
-    UMAP minimum distance hyperparameter
-    """
+    """UMAP minimum distance hyperparameter"""
     minDist: Float! = 0
 
-    """
-    UMAP N neighbors hyperparameter
-    """
+    """UMAP N neighbors hyperparameter"""
     nNeighbors: Int! = 30
 
-    """
-    UMAP N samples
-    """
+    """UMAP N samples"""
     nSamples: Int! = 500
 
-    """
-    HDBSCAN minimum cluster size
-    """
+    """HDBSCAN minimum cluster size"""
     minClusterSize: Int! = 10
 
-    """
-    HDBSCAN minimum samples
-    """
+    """HDBSCAN minimum samples"""
     clusterMinSamples: Int! = 1
 
-    """
-    HDBSCAN cluster selection epsilon
-    """
+    """HDBSCAN cluster selection epsilon"""
     clusterSelectionEpsilon: Int! = 0
   ): UMAPPoints!
 }
@@ -222,9 +171,7 @@ type Event {
   eventMetadata: EventMetadata!
   dimensions: [DimensionWithValue!]!
 
-  """
-  The prompt and response pair associated with the event
-  """
+  """The prompt and response pair associated with the event"""
   promptAndResponse: PromptResponse
 }
 
@@ -236,17 +183,14 @@ type EventMetadata {
 }
 
 type ExportedFile {
-  """
-  File name without the file extension.
-  """
+  """File name without the file extension."""
   fileName: String!
 }
 
 """
 The `ID` scalar type represents a unique identifier, often used to refetch an object or as key for a cache. The ID type appears in a JSON response as a String; however, it is not intended to be human-readable. When expected as an input type, any string (such as `"4"`) or integer (such as `4`) input value will be accepted as an ID.
 """
-scalar GlobalID
-  @specifiedBy(url: "https://relay.dev/graphql/objectidentification.htm")
+scalar GlobalID @specifiedBy(url: "https://relay.dev/graphql/objectidentification.htm")
 
 """
 Granularity specifies the distance between points in a time-series and the duration of time (i.e. evaluation window) by which data is aggregated for  each data point. By convention all time intervals are right-open intervals, i.e. the end instant of the evaluation window is excluded from the interval. As a matter of standardization, each point in a time-series aggregates data  corresponding to an interval of time (i.e. the evaluation window) ending at the point's timestamp, and each time-series enumerates its points starting from the end instant of the TimeRange.
@@ -264,24 +208,12 @@ input Granularity {
 }
 
 type Model {
-  dimensions(
-    first: Int = 50
-    last: Int = null
-    after: String
-    before: String
-  ): DimensionConnection!
+  dimensions(first: Int = 50, last: Int = null, after: String, before: String): DimensionConnection!
   primaryDataset: Dataset!
   referenceDataset: Dataset
-  embeddingDimensions(
-    first: Int = 50
-    last: Int = null
-    after: String
-    before: String
-  ): EmbeddingDimensionConnection!
+  embeddingDimensions(first: Int = 50, last: Int = null, after: String, before: String): EmbeddingDimensionConnection!
 
-  """
-  Returns exported file names sorted by descending modification time.
-  """
+  """Returns exported file names sorted by descending modification time."""
   exportedFiles: [ExportedFile!]!
 }
 
@@ -292,9 +224,7 @@ type Mutation {
   exportEvents(eventIds: [ID!]!, fileName: String = null): ExportedFile!
 }
 
-"""
-A node in the graph with a globally unique ID
-"""
+"""A node in the graph with a globally unique ID"""
 interface Node {
   id: GlobalID!
 }
@@ -320,14 +250,10 @@ type Point3D {
 }
 
 type PromptResponse {
-  """
-  The prompt submitted to the LLM
-  """
+  """The prompt submitted to the LLM"""
   prompt: String
 
-  """
-  The response generated by the LLM
-  """
+  """The response generated by the LLM"""
   response: String
 }
 
@@ -343,14 +269,10 @@ enum ScalarDriftMetric {
 }
 
 input TimeRange {
-  """
-  The start of the time range
-  """
+  """The start of the time range"""
   start: DateTime!
 
-  """
-  The end of the time range. Right exclusive.
-  """
+  """The end of the time range. Right exclusive."""
   end: DateTime!
 }
 
@@ -366,9 +288,7 @@ type TimeSeriesDataPoint {
 type UMAPPoint {
   id: GlobalID!
 
-  """
-  The ID of the event that the point is a projection of
-  """
+  """The ID of the event that the point is a projection of"""
   eventId: ID!
   coordinates: Point2DPoint3D!
   embeddingMetadata: EmbeddingMetadata!
