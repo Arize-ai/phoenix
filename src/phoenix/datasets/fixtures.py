@@ -1,7 +1,7 @@
 import logging
 import os
 from dataclasses import dataclass, replace
-from typing import Tuple
+from typing import Optional, Tuple
 
 from pandas import read_parquet
 
@@ -16,7 +16,7 @@ class Fixture:
     name: str
     description: str
     primary_dataset_url: str
-    reference_dataset_url: str
+    reference_dataset_url: Optional[str]
     primary_schema: Schema
     reference_schema: Schema
 
@@ -283,6 +283,37 @@ deep_data_fixture = Fixture(
     ),
 )
 
+
+llm_summarization_schema = Schema(
+    timestamp_column_name="prediction_ts",
+    tag_column_names=[
+        "sacreBLEU_score",
+        "rouge1_score",
+        "rouge2_score",
+        "rougeL_score",
+        "rougeLsum_score",
+    ],
+    prompt_column_names=EmbeddingColumnNames(
+        vector_column_name="document_vector", raw_data_column_name="document"
+    ),
+    response_column_names=EmbeddingColumnNames(
+        vector_column_name="summary_vector", raw_data_column_name="summary"
+    ),
+)
+llm_summarization_fixture = Fixture(
+    name="llm_summarization",
+    description="""
+    LLM summarization data.
+    """,
+    primary_schema=llm_summarization_schema,
+    reference_schema=llm_summarization_schema,
+    primary_dataset_url=os.path.join(
+        FIXTURE_URL_PREFIX,
+        "unstructured/llm/summarization/llm_summarization.parquet",
+    ),
+    reference_dataset_url=None,
+)
+
 FIXTURES: Tuple[Fixture, ...] = (
     sentiment_classification_language_drift_fixture,
     image_classification_fixture,
@@ -292,11 +323,12 @@ FIXTURES: Tuple[Fixture, ...] = (
     click_through_rate_fixture,
     wide_data_fixture,
     deep_data_fixture,
+    llm_summarization_fixture,
 )
 NAME_TO_FIXTURE = {fixture.name: fixture for fixture in FIXTURES}
 
 
-def download_fixture_if_missing(fixture_name: str) -> Tuple[Dataset, Dataset]:
+def download_fixture_if_missing(fixture_name: str) -> Tuple[Dataset, Optional[Dataset]]:
     """
     Downloads primary and reference datasets for a fixture if they are not found
     locally.
@@ -308,11 +340,13 @@ def download_fixture_if_missing(fixture_name: str) -> Tuple[Dataset, Dataset]:
         dataset_url=fixture.primary_dataset_url,
         schema=fixture.primary_schema,
     )
-    reference_dataset = _download_dataset_if_missing(
-        dataset_name=reference_dataset_name,
-        dataset_url=fixture.reference_dataset_url,
-        schema=fixture.reference_schema,
-    )
+    reference_dataset = None
+    if fixture.reference_dataset_url is not None:
+        reference_dataset = _download_dataset_if_missing(
+            dataset_name=reference_dataset_name,
+            dataset_url=fixture.reference_dataset_url,
+            schema=fixture.reference_schema,
+        )
     return primary_dataset, reference_dataset
 
 
@@ -358,11 +392,11 @@ def _download_dataset_if_missing(dataset_name: str, dataset_url: str, schema: Sc
 @dataclass
 class ExampleDatasets:
     """
-    A pair of example primary and reference datasets.
+    A primary and optional reference dataset pair.
     """
 
     primary: Dataset
-    reference: Dataset
+    reference: Optional[Dataset]
 
 
 def load_example(use_case: str) -> ExampleDatasets:
