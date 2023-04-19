@@ -2,7 +2,7 @@ from typing import BinaryIO, Dict, Iterable, List, Mapping, Optional, cast
 
 import numpy.typing as npt
 import pandas as pd
-from pandas.api.types import is_numeric_dtype
+from pandas.api.types import is_bool_dtype, is_numeric_dtype
 
 from phoenix.datasets import Dataset
 from phoenix.datasets.schema import EmbeddingColumnNames, EmbeddingFeatures
@@ -106,7 +106,7 @@ class Model:
         dimension_pandas_dtype = cast(
             npt.DTypeLike, self.primary_dataset.dataframe[dimension_name].dtype
         )
-        if is_numeric_dtype(dimension_pandas_dtype):
+        if is_numeric_dtype(dimension_pandas_dtype) and not is_bool_dtype(dimension_pandas_dtype):
             return DimensionDataType.NUMERIC
         else:
             return DimensionDataType.CATEGORICAL
