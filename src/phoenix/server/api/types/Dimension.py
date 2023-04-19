@@ -24,7 +24,7 @@ from .TimeSeries import (
 
 @strawberry.type
 class Dimension(Node):
-    name: str = strawberry.field(description="The name of the dimension.")
+    name: str = strawberry.field(description="The name of the dimension. (a.k.a. the column name)")
     type: DimensionType = strawberry.field(
         description="Whether the dimension represents a feature, tag, prediction, or actual."
     )
