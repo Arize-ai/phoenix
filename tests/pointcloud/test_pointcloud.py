@@ -5,7 +5,7 @@ from typing import Dict, List, Set
 import numpy as np
 import numpy.typing as npt
 import pytest
-from phoenix.datasets.event import EventId
+from phoenix.core.model_schema import EventId
 from phoenix.pointcloud.pointcloud import PointCloud
 
 

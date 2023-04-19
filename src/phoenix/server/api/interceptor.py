@@ -24,5 +24,9 @@ class NoneIfNan(Interceptor):
     """descriptor that converts NaN and Inf to None because NaN can't be
     serialized to JSON by the graphql object"""
 
-    def __set__(self, instance: Any, value: float) -> None:
-        setattr(instance, self.private_name, value if math.isfinite(value) else None)
+    def __set__(self, instance: Any, value: Any) -> None:
+        setattr(
+            instance,
+            self.private_name,
+            None if isinstance(value, float) and not math.isfinite(value) else value,
+        )

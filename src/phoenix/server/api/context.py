@@ -6,9 +6,7 @@ from starlette.requests import Request
 from starlette.responses import Response
 from starlette.websockets import WebSocket
 
-from phoenix.core.model import Model
-
-from .loaders import Loaders
+from phoenix.core.model_schema import Model
 
 
 @dataclass
@@ -17,4 +15,3 @@ class Context:
     response: Optional[Response]
     model: Model
     export_path: Path
-    loaders: Loaders

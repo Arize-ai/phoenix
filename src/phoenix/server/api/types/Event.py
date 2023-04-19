@@ -1,13 +1,18 @@
 from collections import defaultdict
-from typing import Any, Dict, List
+from typing import Dict, List
 
 import strawberry
-from pandas import Series
 from strawberry import ID
 
-from phoenix.datasets import Schema
-from phoenix.datasets.dataset import DatasetRole
-from phoenix.datasets.event import EventId
+import phoenix.core.model_schema as ms
+from phoenix.core.model_schema import (
+    ACTUAL_LABEL,
+    ACTUAL_SCORE,
+    PREDICTION_LABEL,
+    PREDICTION_SCORE,
+    DatasetRole,
+    EventId,
+)
 
 from .Dimension import Dimension
 from .DimensionWithValue import DimensionWithValue
@@ -25,7 +30,7 @@ def parse_event_ids(event_ids: List[ID]) -> Dict[DatasetRole, List[int]]:
     """
     Parses event IDs and returns the corresponding row indexes.
     """
-    row_indexes = defaultdict(list)
+    row_indexes: Dict[DatasetRole, List[int]] = defaultdict(list)
     for event_id in event_ids:
         row_index, dataset_role_str = str(event_id).split(":")
         dataset_role = DatasetRole[dataset_role_str.split(".")[-1]]
@@ -34,10 +39,7 @@ def parse_event_ids(event_ids: List[ID]) -> Dict[DatasetRole, List[int]]:
 
 
 def create_event(
-    row_index: int,
-    dataset_role: "DatasetRole",
-    row: "Series[Any]",
-    schema: Schema,
+    event: ms.Event,
     dimensions: List[Dimension],
 ) -> Event:
     """
@@ -45,25 +47,22 @@ def create_event(
     an event containing this information.
     """
     event_metadata = EventMetadata(
-        prediction_label=(
-            row[col] if (col := schema.prediction_label_column_name) is not None else None
-        ),
-        prediction_score=(
-            row[col] if (col := schema.prediction_score_column_name) is not None else None
-        ),
-        actual_label=row[col] if (col := schema.actual_label_column_name) is not None else None,
-        actual_score=row[col] if (col := schema.actual_score_column_name) is not None else None,
+        prediction_label=event[PREDICTION_LABEL],
+        prediction_score=event[PREDICTION_SCORE],
+        actual_label=event[ACTUAL_LABEL],
+        actual_score=event[ACTUAL_SCORE],
     )
     dimensions_with_values = [
         DimensionWithValue(
             dimension=dim,
-            value=row[dim.name],
+            value=event[dim.dimension],
         )
         for dim in dimensions
     ]
-
+    row_id = event.id.row_id
+    dataset_id = event.id.dataset_id
     return Event(
-        id=ID(str(EventId(row_id=row_index, dataset_id=dataset_role))),
+        id=ID(str(EventId(row_id=row_id, dataset_id=dataset_id))),
         eventMetadata=event_metadata,
         dimensions=dimensions_with_values,
     )

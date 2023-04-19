@@ -32,6 +32,7 @@ dependencies = [
   "typing_extensions",
   "scipy",
   "portpicker",
+  "wrapt",
 ]
 dynamic = ["version"]
 
@@ -235,6 +236,7 @@ module = [
   "sklearn.*",
   "arize.*",
   "portpicker",
+  "wrapt",
 ]
 ignore_missing_imports = true
 

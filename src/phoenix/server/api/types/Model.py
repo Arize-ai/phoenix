@@ -5,10 +5,11 @@ import strawberry
 from strawberry.types import Info
 from strawberry.unset import UNSET
 
+import phoenix.core.model_schema as ms
 from phoenix.config import get_exported_files
 from phoenix.server.api.context import Context
 
-from .Dataset import Dataset, to_gql_dataset
+from .Dataset import Dataset
 from .Dimension import Dimension, to_gql_dimension
 from .EmbeddingDimension import EmbeddingDimension, to_gql_embedding_dimension
 from .ExportedFile import ExportedFile
@@ -31,10 +32,11 @@ class Model:
         the necessary books after the offset.
         For simplicity, here we build the list and then slice it accordingly
         """
+        model = info.context.model
         return connection_from_list(
             [
                 to_gql_dimension(index, dimension)
-                for index, dimension in enumerate(info.context.model.dimensions)
+                for index, dimension in enumerate(model.scalar_dimensions)
             ],
             args=ConnectionArgs(
                 first=first,
@@ -46,18 +48,25 @@ class Model:
 
     @strawberry.field
     def primary_dataset(self, info: Info[Context, None]) -> Dataset:
-        return to_gql_dataset(
-            dataset=info.context.model.primary_dataset,
-            type="primary",
+        dataset = info.context.model[ms.PRIMARY]
+        start, end = dataset.time_range
+        return Dataset(
+            name=dataset.name,
+            start_time=start,
+            end_time=end,
+            dataset=dataset,
         )
 
     @strawberry.field
     def reference_dataset(self, info: Info[Context, None]) -> Optional[Dataset]:
-        if info.context.model.reference_dataset is None:
+        if (dataset := info.context.model[ms.REFERENCE]).empty:
             return None
-        return to_gql_dataset(
-            dataset=info.context.model.reference_dataset,
-            type="reference",
+        start, end = dataset.time_range
+        return Dataset(
+            name=dataset.name,
+            start_time=start,
+            end_time=end,
+            dataset=dataset,
         )
 
     @strawberry.field
@@ -74,11 +83,12 @@ class Model:
         the necessary books after the offset.
         For simplicity, here we build the list and then slice it accordingly
         """
+        model = info.context.model
         return connection_from_list(
             [
                 to_gql_embedding_dimension(index, embedding_dimension)
                 for index, embedding_dimension in enumerate(
-                    info.context.model.embedding_dimensions,
+                    model.embedding_dimensions,
                 )
             ],
             args=ConnectionArgs(

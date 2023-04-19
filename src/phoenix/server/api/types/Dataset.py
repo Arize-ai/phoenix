@@ -1,15 +1,12 @@
 from datetime import datetime
-from typing import List, Literal, Optional, Set
+from typing import Iterable, List, Optional, Set
 
 import strawberry
 from strawberry.scalars import ID
 from strawberry.types import Info
 from strawberry.unset import UNSET
 
-from phoenix.core.dimension import Dimension as CoreDimension
-from phoenix.core.dimension_type import DimensionType
-from phoenix.datasets import Dataset as InternalDataset
-from phoenix.datasets.dataset import DatasetRole
+import phoenix.core.model_schema as ms
 
 from ..context import Context
 from ..input_types.DimensionInput import DimensionInput
@@ -22,8 +19,7 @@ class Dataset:
     name: str = strawberry.field(description="The given name of the dataset")
     start_time: datetime = strawberry.field(description="The start bookend of the data")
     end_time: datetime = strawberry.field(description="The end bookend of the data")
-    dataset: strawberry.Private[InternalDataset]
-    role: strawberry.Private[DatasetRole]
+    dataset: strawberry.Private[ms.Dataset]
 
     @strawberry.field
     def events(
@@ -39,69 +35,36 @@ class Dataset:
         if not event_ids:
             return []
         row_ids = parse_event_ids(event_ids)
-        if len(row_ids) > 1 or self.role not in row_ids:
+        if len(row_ids) > 1 or self.dataset.role not in row_ids:
             raise ValueError("eventIds contains IDs from incorrect dataset.")
-        row_indexes = row_ids.get(self.role, ())
-        dataframe = self.dataset.dataframe
-        schema = self.dataset.schema
+        events = self.dataset[row_ids[self.dataset.role]]
         requested_gql_dimensions = _get_requested_features_and_tags(
-            core_dimensions=info.context.model.dimensions,
+            core_dimensions=info.context.model.scalar_dimensions,
             requested_dimension_names=set(dim.name for dim in dimensions)
             if isinstance(dimensions, list)
             else None,
         )
-        requested_dimension_names = [dim.name for dim in requested_gql_dimensions]
-        prediction_and_actual_column_names = [
-            col
-            for col in [
-                schema.prediction_label_column_name,
-                schema.prediction_score_column_name,
-                schema.actual_label_column_name,
-                schema.actual_score_column_name,
-            ]
-            if col is not None
-        ]
-        column_indexes = [
-            dataframe.columns.get_loc(name)
-            for name in (requested_dimension_names + prediction_and_actual_column_names)
-        ]
         return [
             create_event(
-                row_index=row_index,
-                dataset_role=self.role,
-                row=dataframe.iloc[row_index, column_indexes],
-                schema=schema,
+                event=event,
                 dimensions=requested_gql_dimensions,
             )
-            for row_index in row_indexes
+            for event in events
         ]
-
-
-def to_gql_dataset(dataset: InternalDataset, type: Literal["primary", "reference"]) -> Dataset:
-    """
-    Converts an internal dataset to a strawberry Dataset type.
-    """
-    return Dataset(
-        name=dataset.name,
-        start_time=dataset.start_time,
-        end_time=dataset.end_time,
-        role=DatasetRole.PRIMARY if type == "primary" else DatasetRole.REFERENCE,
-        dataset=dataset,
-    )
 
 
 def _get_requested_features_and_tags(
-    core_dimensions: List[CoreDimension],
+    core_dimensions: Iterable[ms.ScalarDimension],
     requested_dimension_names: Optional[Set[str]] = None,
 ) -> List[Dimension]:
     """
     Returns requested features and tags as a list of strawberry Datasets. If no
     dimensions are explicitly requested, returns all features and tags.
     """
-    requested_features_and_tags = []
+    requested_features_and_tags: List[Dimension] = []
     for id, dim in enumerate(core_dimensions):
         is_requested = requested_dimension_names is None or dim.name in requested_dimension_names
-        is_feature_or_tag = dim.type in [DimensionType.FEATURE, DimensionType.TAG]
+        is_feature_or_tag = dim.role in (ms.FEATURE, ms.TAG)
         if is_requested and is_feature_or_tag:
             requested_features_and_tags.append(to_gql_dimension(id_attr=id, dimension=dim))
     return requested_features_and_tags
