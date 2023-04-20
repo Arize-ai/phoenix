@@ -40,3 +40,5 @@ def test_json_serialization_with_LLM():
 
     assert schema_from_json.prompt_column_names is not None
     assert schema_from_json.prompt_column_names.vector_column_name == "prompt_vector"
+    assert schema_from_json.response_column_names is not None
+    assert schema_from_json.response_column_names.vector_column_name == "response_vector"
