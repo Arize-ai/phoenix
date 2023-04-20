@@ -4,11 +4,11 @@ description: >-
   your workflows.
 ---
 
-# Phoenix Architecture
+# Architecture
 
 Phoenix is designed to run locally on a single server in conjunction with the Notebook.
 
-<figure><img src="../.gitbook/assets/Phoenix docs graphics-03 (2).jpg" alt=""><figcaption><p><strong>Phoenix Architecture</strong></p></figcaption></figure>
+<figure><img src="../.gitbook/assets/Docs graphics-03.jpg" alt=""><figcaption><p><strong>Phoenix Architecture</strong></p></figcaption></figure>
 
 Phoenix runs locally, close to your data, in an environment that interfaces to Notebook cells on the Notebook server. Designing Phoenix to run locally, enables fast iteration on top of local data.
 
@@ -60,7 +60,7 @@ Once an issue is found, the cluster can be exported back into a dataframe for fu
 
 Phoenix is designed to monitor, analyze and troubleshoot issues on top of your model data allowing for interactive workflows all within a Notebook environment.
 
-<figure><img src="../.gitbook/assets/Phoenix docs graphics-01.jpg" alt=""><figcaption><p><strong>How Phoenix Fits into the ML Stack</strong></p></figcaption></figure>
+<figure><img src="../.gitbook/assets/Docs graphics-01.jpg" alt=""><figcaption><p><strong>How Phoenix Fits into the ML Stack</strong></p></figcaption></figure>
 
 The above picture shows the use of Phoenix with a cloud observability system (this is not required). In this example the cloud observability system allows the easy download (or synchronization) of data to the Notebook typically based on model, batch, environment, and time ranges. Normally this download is done to analyze data at the tail end of troubleshooting workflow, or periodically to use the notebook environment to monitor your models.&#x20;
 

@@ -17,7 +17,7 @@ Running Phoenix for the first time? Get up and running with the [quickstart](tut
 
 Phoenix is an Open Source ML Observability library designed for the Notebook. The toolset is designed to ingest model inference data for LLMs, CV, NLP and tabular datasets. It allows Data Scientists to quickly visualize their model data, monitor performance, track down issues & insights, and easily export to improve.&#x20;
 
-<figure><img src=".gitbook/assets/Phoenix docs graphics-02.jpg" alt=""><figcaption></figcaption></figure>
+<figure><img src=".gitbook/assets/Docs graphics-02.jpg" alt=""><figcaption></figcaption></figure>
 
 ## Overview
 
@@ -39,7 +39,7 @@ This is where Phoenix comes in 😃 ML Observability helps you visualize, troubl
 * Sorts clusters of issues using performance metrics or drift
 * Built in workflows for model improvement&#x20;
 
-
+<figure><img src=".gitbook/assets/Phoenix pipeline diagram - dark.png" alt=""><figcaption></figcaption></figure>
 
 **Phoenix Functionality**&#x20;
 
