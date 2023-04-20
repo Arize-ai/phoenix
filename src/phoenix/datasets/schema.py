@@ -15,6 +15,7 @@ SINGLE_COLUMN_SCHEMA_FIELD_NAMES: Tuple[str, ...] = (
     "actual_label_column_name",
     "actual_score_column_name",
 )
+LLM_SCHEMA_FIELD_NAMES = ["prompt_column_names", "response_column_names"]
 
 
 @dataclass(frozen=True)

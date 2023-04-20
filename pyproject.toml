@@ -47,7 +47,7 @@ dev = [
   "pytest-lazy-fixture",
   "strawberry-graphql[debug-server]==0.155.3",
   "pre-commit",
-  "arize",
+  "arize[AutoEmbeddings, LLM_Evaluation]",
 ]
 
 [project.urls]

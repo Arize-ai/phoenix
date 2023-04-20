@@ -40,7 +40,7 @@ export function ModelEmbeddingsTable(props: ModelEmbeddingsTable) {
         }
       }
     `,
-    props.model,
+    props.model
   );
   const tableData = useMemo(
     () =>
@@ -50,7 +50,7 @@ export function ModelEmbeddingsTable(props: ModelEmbeddingsTable) {
           ...embedding,
         };
       }),
-    [data],
+    [data]
   );
 
   // Declare the columns

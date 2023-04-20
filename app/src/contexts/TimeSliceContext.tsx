@@ -33,7 +33,7 @@ export const TimeSliceContextProvider = ({
   initialTimestamp: Date | null;
 }>) => {
   const [selectedTimestamp, _setSelectedTimestamp] = useState<Date | null>(
-    initialTimestamp,
+    initialTimestamp
   );
 
   const setSelectedTimestamp = (newTimestamp: Date | null) => {

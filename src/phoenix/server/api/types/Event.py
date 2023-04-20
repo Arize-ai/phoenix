@@ -79,3 +79,32 @@ def create_event(
         )
         or None,
     )
+
+
+def create_prompt_and_response(
+    schema: Schema,
+    row: "Series[Any]",
+) -> Optional[PromptResponse]:
+    prompt_raw_data_column_name = (
+        schema.prompt_column_names.raw_data_column_name
+        if schema.prompt_column_names is not None
+        else None
+    )
+    response_raw_data_column_name = (
+        schema.response_column_names.raw_data_column_name
+        if schema.response_column_names is not None
+        else None
+    )
+
+    prompt_and_response: Optional[PromptResponse] = None
+    if prompt_raw_data_column_name is not None or response_raw_data_column_name is not None:
+        return PromptResponse(
+            prompt=row[prompt_raw_data_column_name]
+            if prompt_raw_data_column_name is not None
+            else None,
+            response=row[response_raw_data_column_name]
+            if response_raw_data_column_name is not None
+            else None,
+        )
+
+    return prompt_and_response

@@ -20,7 +20,7 @@ type SelectionGridSizeRadioGroupProps = {
  * Selects the size of the grid view of the points
  */
 export function SelectionGridSizeRadioGroup(
-  props: SelectionGridSizeRadioGroupProps,
+  props: SelectionGridSizeRadioGroupProps
 ) {
   return (
     <RadioGroup
