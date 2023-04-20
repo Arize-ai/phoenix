@@ -50,26 +50,11 @@ class Dataset:
             if isinstance(dimensions, list)
             else None,
         )
-        requested_dimension_names = [dim.name for dim in requested_gql_dimensions]
-        prediction_and_actual_column_names = [
-            col
-            for col in [
-                schema.prediction_label_column_name,
-                schema.prediction_score_column_name,
-                schema.actual_label_column_name,
-                schema.actual_score_column_name,
-            ]
-            if col is not None
-        ]
-        column_indexes = [
-            dataframe.columns.get_loc(name)
-            for name in (requested_dimension_names + prediction_and_actual_column_names)
-        ]
         return [
             create_event(
                 row_index=row_index,
                 dataset_role=self.role,
-                row=dataframe.iloc[row_index, column_indexes],
+                row=dataframe.iloc[row_index, :],
                 schema=schema,
                 dimensions=requested_gql_dimensions,
             )
