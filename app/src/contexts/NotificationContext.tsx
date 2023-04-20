@@ -36,7 +36,7 @@ export function NotificationProvider({
         ...notice,
       });
     },
-    [notify],
+    [notify]
   );
 
   const notifySuccess = useCallback(
@@ -46,7 +46,7 @@ export function NotificationProvider({
         ...notice,
       });
     },
-    [notify],
+    [notify]
   );
 
   return (
@@ -63,7 +63,7 @@ export function useGlobalNotification() {
   const context = useContext(NotificationContext);
   if (context === null) {
     throw new Error(
-      "useGlobalNotification must be used within a NotificationProvider",
+      "useGlobalNotification must be used within a NotificationProvider"
     );
   }
   return context;

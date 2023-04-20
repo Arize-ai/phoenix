@@ -64,7 +64,7 @@ export function ModelSchemaTable(props: ModelSchemaTableProps) {
         }
       }
     `,
-    props.model,
+    props.model
   );
   const tableData = useMemo(
     () =>
@@ -74,7 +74,7 @@ export function ModelSchemaTable(props: ModelSchemaTableProps) {
           ...dimension,
         };
       }),
-    [data],
+    [data]
   );
 
   // Declare the columns

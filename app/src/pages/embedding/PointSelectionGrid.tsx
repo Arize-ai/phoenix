@@ -16,10 +16,10 @@ export function PointSelectionGrid(props: PointSelectionGridProps) {
   const { events, eventIdToDataMap, onItemSelected } = props;
   const eventIdToGroup = usePointCloudContext((state) => state.eventIdToGroup);
   const pointGroupColors = usePointCloudContext(
-    (state) => state.pointGroupColors,
+    (state) => state.pointGroupColors
   );
   const selectionGridSize = usePointCloudContext(
-    (state) => state.selectionGridSize,
+    (state) => state.selectionGridSize
   );
 
   return (
@@ -85,7 +85,7 @@ export function PointSelectionGrid(props: PointSelectionGridProps) {
                 size={selectionGridSize}
                 predictionLabel={predictionLabel}
                 actualLabel={actualLabel}
-                promptAndResponse={null}
+                promptAndResponse={event.promptAndResponse}
               />
             </li>
           );

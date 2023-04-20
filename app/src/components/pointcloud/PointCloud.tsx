@@ -56,12 +56,12 @@ function PointCloudInfo() {
   const { selectedTimestamp } = useTimeSlice();
   const points = usePointCloudContext((state) => state.points);
   const hdbscanParameters = usePointCloudContext(
-    (state) => state.hdbscanParameters,
+    (state) => state.hdbscanParameters
   );
   const umapParameters = usePointCloudContext((state) => state.umapParameters);
   const [numPrimary, numReference] = useMemo(() => {
     const { primaryEventIds, referenceEventIds } = splitEventIdsByDataset(
-      points.map((point) => point.eventId),
+      points.map((point) => point.eventId)
     );
     return [primaryEventIds.length, referenceEventIds.length];
   }, [points]);
@@ -246,26 +246,26 @@ function Projection(props: ProjectionProps) {
   const { primaryData, referenceData, clusters, canvasMode } = props;
 
   const setSelectedEventIds = usePointCloudContext(
-    (state) => state.setSelectedEventIds,
+    (state) => state.setSelectedEventIds
   );
   const highlightedClusterId = usePointCloudContext(
-    (state) => state.highlightedClusterId,
+    (state) => state.highlightedClusterId
   );
   const selectedClusterId = usePointCloudContext(
-    (state) => state.selectedClusterId,
+    (state) => state.selectedClusterId
   );
   const setSelectedClusterId = usePointCloudContext(
-    (state) => state.setSelectedClusterId,
+    (state) => state.setSelectedClusterId
   );
   const pointGroupColors = usePointCloudContext(
-    (state) => state.pointGroupColors,
+    (state) => state.pointGroupColors
   );
   const pointGroupVisibility = usePointCloudContext(
-    (state) => state.pointGroupVisibility,
+    (state) => state.pointGroupVisibility
   );
   const canvasTheme = usePointCloudContext((state) => state.canvasTheme);
   const datasetVisibility = usePointCloudContext(
-    (state) => state.datasetVisibility,
+    (state) => state.datasetVisibility
   );
 
   // AutoRotate the canvas on initial load
@@ -297,7 +297,7 @@ function Projection(props: ProjectionProps) {
       const group = eventIdToGroup[point.metaData.eventId] || "unknown";
       return pointGroupColors[group] || UNKNOWN_COLOR;
     },
-    [pointGroupColors, eventIdToGroup],
+    [pointGroupColors, eventIdToGroup]
   );
 
   // Filter the points by the group visibility
@@ -358,7 +358,7 @@ function Projection(props: ProjectionProps) {
             points={allVisiblePoints}
             onChange={(selection) => {
               setSelectedEventIds(
-                new Set(selection.map((s) => s.metaData.eventId)),
+                new Set(selection.map((s) => s.metaData.eventId))
               );
               setSelectedClusterId(null);
             }}
