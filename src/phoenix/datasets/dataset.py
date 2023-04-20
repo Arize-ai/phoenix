@@ -328,6 +328,15 @@ def _parse_dataframe_and_schema(dataframe: DataFrame, schema: Schema) -> Tuple[D
             unseen_column_names,
         )
 
+    for schema_field_name in ["prompt_column_names", "response_column_names"]:
+        embedding_column_name_mapping = getattr(schema, schema_field_name)
+        if embedding_column_name_mapping is not None:
+            _check_embedding_column_names_for_excluded_columns(
+                embedding_column_name_mapping,
+                column_name_to_include,
+                unseen_column_names,
+            )
+
     if not schema.feature_column_names and unseen_column_names:
         _discover_feature_columns(
             dataframe,
@@ -442,6 +451,23 @@ def _check_embedding_features_schema_field_for_excluded_columns(
     schema_patch["embedding_feature_column_names"] = (
         included_embedding_features if included_embedding_features else None
     )
+
+
+def _check_embedding_column_names_for_excluded_columns(
+    embedding_column_name_mapping: EmbeddingColumnNames,
+    column_name_to_include: Dict[str, bool],
+    unseen_column_names: Set[str],
+) -> None:
+    """
+    Check embedding features for excluded column names.
+    """
+    included_embedding_features = {}
+    included_embedding_features[""] = deepcopy(embedding_column_name_mapping)
+    for embedding_field in fields(embedding_column_name_mapping):
+        column_name: Optional[str] = getattr(embedding_column_name_mapping, embedding_field.name)
+        if column_name is not None:
+            column_name_to_include[column_name] = True
+            unseen_column_names.discard(column_name)
 
 
 def _discover_feature_columns(
