@@ -1,5 +1,5 @@
 from collections import defaultdict
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, cast
 
 import strawberry
 from strawberry import ID
@@ -69,8 +69,10 @@ def create_event(
     ]
     row_id = event.id.row_id
     dataset_id = event.id.dataset_id
-    prompt = event[event._self_model[PROMPT].raw_data]
-    response = event[event._self_model[RESPONSE].raw_data]
+    prompt = event[cast(ms.EmbeddingDimension, cast(ms.Model, event._self_model)[PROMPT]).raw_data]
+    response = event[
+        cast(ms.EmbeddingDimension, cast(ms.Model, event._self_model)[RESPONSE]).raw_data
+    ]
     prompt_and_response = (
         PromptResponse(
             prompt=prompt,
