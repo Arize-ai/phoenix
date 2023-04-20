@@ -119,7 +119,7 @@ class SchemaSpec(ABC):
 
 @dataclass(frozen=True)
 class CompositeDimensionSpec(SchemaSpec, ABC):
-    """A dimension referencing multiple columns (besides its primary column)."""
+    """A dimension referencing multiple columns (besides its primary column). E.x. Embedding can point to 3 columns"""
 
 
 @dataclass(frozen=True)
