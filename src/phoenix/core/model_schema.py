@@ -1,4 +1,3 @@
-import json
 import re
 from abc import ABC, abstractmethod
 from collections import defaultdict
@@ -13,7 +12,6 @@ from typing import (
     BinaryIO,
     Callable,
     Dict,
-    Hashable,
     Iterable,
     Iterator,
     List,
@@ -21,7 +19,6 @@ from typing import (
     NamedTuple,
     Optional,
     Sequence,
-    Set,
     Tuple,
     Type,
     TypeVar,
@@ -36,6 +33,7 @@ from weakref import ProxyType, proxy
 import numpy as np
 import pandas as pd
 from pandas.core.dtypes.common import (
+    is_bool_dtype,
     is_datetime64_any_dtype,
     is_datetime64tz_dtype,
     is_numeric_dtype,
@@ -50,6 +48,8 @@ class DimensionRole(IntEnum):
 
 @unique
 class SingularDimensionalRole(DimensionRole):
+    """Roles that cannot be assigned to more than one dimension."""
+
     UNASSIGNED = auto()
     PREDICTION_ID = auto()
     TIME = auto()
@@ -57,22 +57,33 @@ class SingularDimensionalRole(DimensionRole):
     PREDICTION_SCORE = auto()
     ACTUAL_LABEL = auto()
     ACTUAL_SCORE = auto()
+    # Large Language Model (LLM) prompt and response pairs
+    PROMPT = auto()
+    RESPONSE = auto()
 
 
 @unique
 class MultiDimensionalRole(DimensionRole):
-    FEATURE = 1 + len(SingularDimensionalRole)
+    # It's important to keep the numeric values disjoint among all subclass
+    # enums (hence the +1 here), because we'll use `groupby(sorted(...))` to
+    # collate the dimensions.
+    FEATURE = len(SingularDimensionalRole) + 1
     TAG = auto()
 
 
-# global vars for ease of reference
+# Global variables for ease of making references.
 UNASSIGNED = SingularDimensionalRole.UNASSIGNED
 PREDICTION_ID = SingularDimensionalRole.PREDICTION_ID
 TIME = SingularDimensionalRole.TIME
+
 PREDICTION_LABEL = SingularDimensionalRole.PREDICTION_LABEL
 PREDICTION_SCORE = SingularDimensionalRole.PREDICTION_SCORE
 ACTUAL_LABEL = SingularDimensionalRole.ACTUAL_LABEL
 ACTUAL_SCORE = SingularDimensionalRole.ACTUAL_SCORE
+
+PROMPT = SingularDimensionalRole.PROMPT
+RESPONSE = SingularDimensionalRole.RESPONSE
+
 FEATURE = MultiDimensionalRole.FEATURE
 TAG = MultiDimensionalRole.TAG
 
@@ -80,12 +91,17 @@ TAG = MultiDimensionalRole.TAG
 def _rand_str() -> str:
     """Generates a random string, useful for adding a new column to a
     dataframe, such that it won't conflict with the existing column names.
+    It's intended to be short and gibberish looking.
     """
     return hex(int(random() * 1e9))
 
 
 @dataclass(frozen=True)
 class SchemaSpec(ABC):
+    """Superclass for the Schema itself and any of its components, all of
+    which share the trait that they use column names to define the model
+    structure (or substructures)."""
+
     def __post_init__(self) -> None:
         """Ensure column names are string at run time, which may not be true
         if the user takes them directly from `pd.dataframe.columns`, which
@@ -97,8 +113,8 @@ class SchemaSpec(ABC):
             if f.type is str or set(get_args(f.type)) <= {str, type(None)}:
                 # Ensure string if type is `str` or `Optional[str]` (the
                 # latter being `Union[str, None]` under the hood). Use
-                # `__setattr__` because `self` is read-only.
-                object.__setattr__(self, f.name, _ensure_str(getattr(self, f.name)))
+                # `__setattr__` because `self` is read-only, i.e. frozen.
+                object.__setattr__(self, f.name, _coerce_str(getattr(self, f.name)))
 
 
 @dataclass(frozen=True)
@@ -109,9 +125,10 @@ class CompositeDimensionSpec(SchemaSpec, ABC):
 @dataclass(frozen=True)
 class Embedding(CompositeDimensionSpec):
     vector: str
+    """The column name of the vector values."""
     vector_length: Optional[int] = None
     raw_data: Optional[str] = None
-    link: Optional[str] = None
+    link_to_data: Optional[str] = None
     display_name: Optional[str] = None
 
 
@@ -135,16 +152,24 @@ def _series_nan(length: int) -> "pd.Series[float]":
 
 
 DataFrameOrSeries: TypeAlias = Union[pd.DataFrame, "pd.Series[Any]"]
+"""Either a table or a single row of data. Using a series to represent one
+row of data (instead of a one-row dataframe) ensures that only scalar values
+are extracted (instead of getting a column back)."""
 
 
 @dataclass(frozen=True)
 class Column:
-    """Extracts value from pd.Series or series from pd.DataFrame. If not
-    found, returns NaN or a series of NaNs, respectively.
+    """Extracts a value (i.e. scalar) from pd.Series or a series (i.e. a
+    column) from pd.DataFrame. If not found, returns NaN or a series of NaNs,
+    respectively.
     """
 
     name: str = ""
     is_dummy: bool = False
+    """dummy columns are fillers for the model structure, so our functions
+    can remain relatively declarative and compact, i.e. by not having to keep
+    writing `if ... is not None:` everywhere. Dummy columns always return NaNs,
+    because they have random column names not found in any dataframe."""
 
     def __post_init__(self) -> None:
         if not self.name:
@@ -159,14 +184,16 @@ class Column:
     def __call__(self, data: "pd.Series[Any]") -> Any:
         ...
 
-    def __call__(self, data: Any) -> Any:
-        """Extracts series from dataframe, or value from series,
-        returning NaN if not found.
+    def __call__(self, data: DataFrameOrSeries) -> Any:
+        """Extracts a value from series, or a series from a dataframe. If
+        not found, return NaN or a series of NaNs, respectively.
         """
         if isinstance(data, pd.DataFrame):
             try:
                 return data.loc[:, self.name]
             except KeyError:
+                # It's important to glue the index to the NaN series, so it
+                # would look like the series came from the dataframe.
                 return _series_nan(len(data)).set_axis(data.index)
         if isinstance(data, pd.Series):
             try:
@@ -181,14 +208,11 @@ class Column:
         """
         yield self.name
 
-    def __str__(self) -> str:
-        return self.name
-
 
 class DataType(IntEnum):
     UNKNOWN = auto()
-    DISCRETE = auto()
-    CONTINUOUS = auto()
+    DISCRETE = auto()  # usually names, e.g. California, or Monday.
+    CONTINUOUS = auto()  # usually amounts, e.g. 5 bucks, or 6.7 miles.
 
 
 UNKNOWN = DataType.UNKNOWN
@@ -209,8 +233,8 @@ class Dimension(Column, ABC):
     """Denotes whether the dimension values are continuous or discrete, useful
     for binning."""
     _model: Optional["ProxyType[Model]"] = field(repr=False, default=None)
-    """Holds a weak reference to the parent model, if any. This is the channel
-    for talking to actual data, so the model can also help out if needed."""
+    """Holds a weak reference to the parent Model, if any. This is the channel
+    for talking to actual data, and the Model can help out if needed."""
 
     def __post_init__(self) -> None:
         super().__post_init__()
@@ -285,10 +309,10 @@ class EmbeddingDimension(Dimension):
         replace() and we don't want to clobber the generated version.
         """
         return cls(
-            _ensure_str(emb.vector),
-            link=Column(_ensure_str(emb.link)),
-            raw_data=Column(_ensure_str(emb.raw_data)),
-            display_name=_ensure_str(emb.display_name),
+            _coerce_str(emb.vector),
+            link=Column(_coerce_str(emb.link_to_data)),
+            raw_data=Column(_coerce_str(emb.raw_data)),
+            display_name=_coerce_str(emb.display_name),
             **kwargs,
         )
 
@@ -351,6 +375,8 @@ class TimeRange(NamedTuple):
 
 
 class ModelData(ObjectProxy, ABC):  # type: ignore
+    """pd.DataFrame or pd.Series wrapped with extra functions and metadata."""
+
     def __init__(
         self,
         data: DataFrameOrSeries,
@@ -387,6 +413,8 @@ class EventId(NamedTuple):
 
 
 class Event(ModelData):
+    """pd.Series wrapped with extra functions and metadata."""
+
     def __init__(
         self,
         series: "pd.Series[Any]",
@@ -417,6 +445,8 @@ class Event(ModelData):
 
 
 class Events(ModelData):
+    """pd.DataFrame wrapped with extra functions and metadata."""
+
     def __init__(
         self,
         df: pd.DataFrame,
@@ -428,20 +458,16 @@ class Events(ModelData):
         self._self_role = role
 
     @property
-    def null_value(self) -> Any:
+    def null_value(self) -> "pd.Series[Any]":
         return pd.Series(dtype=object)
 
-    @property
+    @cached_property
     def time_range(self) -> TimeRange:
         if self._self_model is None or self.empty:
             # NOTE: as of Python 3.8.16, pandas 1.5.3:
             # >>> isinstance(pd.NaT, datetime.datetime)
             # True
             return TimeRange(pd.NaT, pd.NaT)  # type: ignore
-        return self._time_range
-
-    @cached_property
-    def _time_range(self) -> TimeRange:
         model = cast(Model, self._self_model)
         min_max = _agg_min_max(model[TIME](self))
         start_time = cast(datetime, min_max.min())
@@ -533,10 +559,8 @@ class Model:
 
     _datasets: Dict[DatasetRole, Dataset]
     _dimensions: Dict[Name, Dimension]
-    _dim_roles: Dict[DimensionRole, List[Name]]
-    _original_columns: Dict[DatasetRole, pd.Index]
-    # now is used as the substitute for dataframes without timestamps.
-    _now: datetime
+    _dim_names_by_role: Dict[DimensionRole, List[Name]]
+    _original_columns_by_role: Dict[DatasetRole, pd.Index]
 
     def __init__(
         self,
@@ -551,11 +575,11 @@ class Model:
     ):
         df_names, dfs = cast(
             Tuple[Iterable[Name], Iterable[pd.DataFrame]],
-            zip(*_ensure_tuple(dataframes)),
+            zip(*_coerce_tuple(dataframes)),
         )
-        str_col_dfs = _ensure_str_column_names(dfs)
-        padded_dfs = _pad(str_col_dfs, pd.DataFrame)
-        padded_df_names = _pad(df_names, _rand_str)
+        str_col_dfs = _coerce_str_column_names(dfs)
+        padded_dfs = _add_padding(str_col_dfs, pd.DataFrame)
+        padded_df_names = _add_padding(df_names, _rand_str)
         datasets = starmap(
             self._new_dataset,
             zip(padded_dfs, padded_df_names, DatasetRole),
@@ -564,13 +588,13 @@ class Model:
         object.__setattr__(
             self,
             "_datasets",
-            {ds.role: ds for ds in datasets},
+            {dataset.role: dataset for dataset in datasets},
         )
         # Preserve originals, useful for exporting.
         object.__setattr__(
             self,
-            "_original_columns",
-            {role: ds.columns for role, ds in self._datasets.items()},
+            "_original_columns_by_role",
+            {role: dataset.columns for role, dataset in self._datasets.items()},
         )
 
         # Store dimensions by name. In general, a dimension's name is that of
@@ -595,7 +619,7 @@ class Model:
         # Group dimension names by roles. Store in a `defaultdict(list)`.
         object.__setattr__(
             self,
-            "_dim_roles",
+            "_dim_names_by_role",
             defaultdict(list, _group_names_by_dim_role(self._dimensions.values())),
         )
 
@@ -606,7 +630,7 @@ class Model:
                 data_type = _guess_data_type(map(dim, self._datasets.values()))
                 self._dimensions[dim.name] = replace(dim, data_type=data_type)
 
-        object.__setattr__(self, "_now", datetime.now(timezone.utc))
+        default_timestamp = datetime.now(timezone.utc)
 
         # Add PREDICTION_ID if missing.
         # Add TIMESTAMP if missing.
@@ -614,25 +638,25 @@ class Model:
         # If needed, sort the dataframes by time.
         for dataset_role, dataset in list(self._datasets.items()):
             df = dataset.__wrapped__
-            df_original_columns = self._original_columns[dataset_role]
+            df_original_columns = self._original_columns_by_role[dataset_role]
 
             # PREDICTION_ID
             dim_pred_id = self._dimensions.get(
-                next(iter(self._dim_roles[PREDICTION_ID]), ""),
+                next(iter(self._dim_names_by_role[PREDICTION_ID]), ""),
                 self._new_dimension(PREDICTION_ID),
             )
             if dim_pred_id.name not in df_original_columns:
                 df[dim_pred_id.name] = _series_uuid(len(df))
             self._dimensions[dim_pred_id.name] = dim_pred_id
-            self._dim_roles[PREDICTION_ID] = [dim_pred_id.name]
+            self._dim_names_by_role[PREDICTION_ID] = [dim_pred_id.name]
 
             # TIMESTAMP
             dim_time = self._dimensions.get(
-                next(iter(self._dim_roles[TIME]), ""),
+                next(iter(self._dim_names_by_role[TIME]), ""),
                 self._new_dimension(TIME),
             )
             if dim_time.name not in df_original_columns:
-                df[dim_time.name] = _series_constant(len(df), self._now)
+                df[dim_time.name] = _series_constant(len(df), default_timestamp)
             else:
                 if not timestamps_already_normalized:
                     # Don't clobber the original (or any other column).
@@ -645,7 +669,7 @@ class Model:
                     # Sort data for faster search.
                     df = df.sort_values(dim_time.name)
             self._dimensions[dim_time.name] = dim_time
-            self._dim_roles[TIME] = [dim_time.name]
+            self._dim_names_by_role[TIME] = [dim_time.name]
             # Set time column as index for use by pd.Grouper.
             df = df.set_index(dim_time.name, drop=False)
 
@@ -671,7 +695,9 @@ class Model:
             output parquet file handle
         """
         pd.concat(
-            self[dataset_role][sorted(row_numbers)].loc[:, self._original_columns[dataset_role]]
+            self[dataset_role][sorted(row_numbers)].loc[
+                :, self._original_columns_by_role[dataset_role]
+            ]
             for dataset_role, row_numbers in rows.items()
         ).to_parquet(
             parquet_file,
@@ -772,23 +798,23 @@ class Model:
             return filter(lambda dim: type(dim) is EmbeddingDimension, self._dimensions.values())
         if key is Dimension:
             return self._dimensions.values()
-        raise KeyError("invalid key: %s" % repr(key))
+        raise KeyError(f"invalid key: {repr(key)}")
 
     def _get_dim(self, key: ColumnKey) -> Dimension:
         if isinstance(key, DimensionRole):
-            key = self._dim_roles[key][0]
+            key = self._dim_names_by_role[key][0]
         if isinstance(key, str):
             return self._dimensions[key]
-        raise KeyError("invalid key: %s" % repr(key))
+        raise KeyError(f"invalid key: {repr(key)}")
 
     def _get_multi_dims(self, key: MultiDimensionKey) -> Iterator[Dimension]:
-        for k in _dedup(key) if isinstance(key, Sequence) else (key,):
+        for k in _coerce_sequence(key):
             if isinstance(k, DimensionRole):
-                for name in self._dim_roles[k]:
+                for name in self._dim_names_by_role[k]:
                     yield self._dimensions[name]
-            elif isinstance(k, str):
+            if isinstance(k, str):
                 yield self._dimensions[k]
-            raise KeyError("invalid key: %s" % repr(key))
+            raise KeyError(f"invalid key: {repr(key)}")
 
     def _get_multi_dims_by_type(
         self,
@@ -810,12 +836,19 @@ class Model:
 
     @overload
     def _new_dimension(
-        self, obj: Name, cls: Type[Dimension] = ScalarDimension, **kwargs: Any
+        self,
+        obj: Name,
+        cls: Type[Dimension] = ScalarDimension,
+        **kwargs: Any,
     ) -> Dimension:
         ...
 
     @overload
-    def _new_dimension(self, obj: Dimension, **kwargs: Any) -> Dimension:
+    def _new_dimension(
+        self,
+        obj: Dimension,
+        **kwargs: Any,
+    ) -> Dimension:
         ...
 
     def _new_dimension(
@@ -830,9 +863,15 @@ class Model:
             return cls(role=obj, **kwargs, _model=proxy(self))
         if isinstance(obj, Dimension):
             return replace(obj, **kwargs, _model=proxy(self))
-        raise ValueError("invalid argument: %s" % repr(obj))
+        raise ValueError(f"invalid argument: {repr(obj)}")
 
-    def _new_dataset(self, df: pd.DataFrame, /, name: str, role: DatasetRole) -> Dataset:
+    def _new_dataset(
+        self,
+        df: pd.DataFrame,
+        /,
+        name: str,
+        role: DatasetRole,
+    ) -> Dataset:
         """Creates a new Dataset, setting the model weak reference to the
         `self` Model instance.
         """
@@ -847,7 +886,8 @@ class Schema(SchemaSpec):
     prediction_score: Optional[str] = None
     actual_label: Optional[str] = None
     actual_score: Optional[str] = None
-
+    prompt: Optional[Embedding] = None
+    response: Optional[Embedding] = None
     features: Iterable[Union[str, CompositeDimensionSpec]] = field(default_factory=list)
     tags: Iterable[Union[str, CompositeDimensionSpec]] = field(default_factory=list)
 
@@ -857,23 +897,20 @@ class Schema(SchemaSpec):
     )
 
     def __post_init__(self) -> None:
+        super().__post_init__()
         # Deduplicate using set().
         object.__setattr__(self, "features", set(self.features))
         object.__setattr__(self, "tags", set(self.tags))
-        # Raise ValueError if one column name is assigned to two different
-        # roles, e.g. as both features and tags.
-        for name, group in groupby(sorted(self._make_dims(), key=str), key=str):
+        sorted_by_name = sorted(self._make_dims(), key=lambda dim: dim.name)
+        grouped_by_name = groupby(sorted_by_name, key=lambda dim: dim.name)
+        for name, group in grouped_by_name:
             if len(dims := list(group)) > 1:
+                # Raise ValueError if one column name is assigned to two
+                # different roles, e.g. as both features and tags.
                 raise ValueError(
-                    "`%s` is specified as both `%s` and `%s`"
-                    % (
-                        name,
-                        dims[0].role.name,
-                        dims[1].role.name,
-                    )
+                    f"`{name}` is specified as both `{dims[0].role.name}` and `{dims[1].role.name}`"
                 )
             self._dimensions.append(dims[0])
-        super().__post_init__()
 
     def _make_dims(self) -> Iterator[Dimension]:
         """Iterate over all dimensions defined by the Schema, substituting
@@ -888,19 +925,21 @@ class Schema(SchemaSpec):
                 (self.prediction_score, PREDICTION_SCORE, CONTINUOUS),
                 (self.actual_label, ACTUAL_LABEL, DISCRETE),
                 (self.actual_score, ACTUAL_SCORE, CONTINUOUS),
+                (self.prompt, PROMPT, DISCRETE),
+                (self.response, RESPONSE, DISCRETE),
             ),
             zip(self.features, repeat(FEATURE), repeat(UNKNOWN)),
             zip(self.tags, repeat(TAG), repeat(UNKNOWN)),
         ):
             if not isinstance(spec, CompositeDimensionSpec):
-                spec = _ensure_str(spec)
+                spec = _coerce_str(spec)
             assert isinstance(role, DimensionRole)  # for mypy
             if isinstance(spec, str):
                 yield ScalarDimension(spec, role=role, data_type=data_type)
             elif isinstance(spec, Embedding):
                 yield EmbeddingDimension.from_(spec, role=role, data_type=data_type)
             else:
-                raise TypeError("%s has unrecognized type: %s" % (role, type(spec)))
+                raise TypeError(f"{role} has unrecognized type: {type(spec)}")
 
     def __call__(
         self,
@@ -910,14 +949,6 @@ class Schema(SchemaSpec):
         """Dimensions are the "baton" that Schema hands over to Model."""
         _raise_if_too_many_dataframes(len(dataframes))
         return Model(iter(self._dimensions), dataframes, **kwargs)
-
-    def to_json(self, **kwargs: Any) -> str:
-        return json.dumps(_jsonify(self), **kwargs)
-
-    @classmethod
-    def from_json(cls, json_string: str) -> Any:
-        json_data = json.loads(json_string)
-        return cls(**_objectify(json_data))
 
 
 def _agg_min_max(series: "pd.Series[Any]") -> "pd.Series[Any]":
@@ -936,26 +967,32 @@ def _get_omitted_column_names(
 def _group_names_by_dim_role(
     dimensions: Iterable[Dimension],
 ) -> Iterator[Tuple[DimensionRole, List[str]]]:
-    for role, dims in groupby(sorted(dimensions, key=_dim_role), key=_dim_role):
-        yield role, list(map(str, dims))
+    for role, dims in groupby(
+        sorted(dimensions, key=lambda dim: dim.role),
+        key=lambda dim: dim.role,
+    ):
+        yield role, [dim.name for dim in dims]
 
 
 def _guess_data_type(series: Iterable["pd.Series[Any]"]) -> DataType:
     for s in series:
+        if is_bool_dtype(s):
+            break
         if is_numeric_dtype(s) or is_datetime64_any_dtype(s):
             return CONTINUOUS
     return DISCRETE
 
 
-_H = TypeVar("_H", bound=Hashable)
-
-
-def _dedup(it: Iterable[_H]) -> Iterator[_H]:
-    seen: Set[_H] = set()
-    for item in it:
-        if item not in seen:
-            seen.add(item)
-            yield item
+def _coerce_sequence(key: MultiDimensionKey) -> Iterator[DimensionRole]:
+    seen = set()
+    if isinstance(key, Sequence):
+        for k in key:
+            if k in seen:
+                continue
+            seen.add(k)
+            yield k
+    else:
+        yield key
 
 
 @lru_cache(maxsize=len(DatasetRole))
@@ -970,26 +1007,26 @@ def _series_uuid(length: int) -> "pd.Series[str]":
 
 def _raise_if_too_many_dataframes(given: int) -> None:
     if not 0 < given <= (limit := len(DatasetRole)):
-        raise ValueError("expected between 1 to %s dataframes, but %s were given" % (limit, given))
+        raise ValueError(f"expected between 1 to {limit} dataframes, but {given} were given")
 
 
-def _ensure_str(obj: Optional[str]) -> str:
+def _coerce_str(obj: Optional[str]) -> str:
     return "" if obj is None else str(obj)
 
 
-def _ensure_tuple(
+def _coerce_tuple(
     dataframes: Iterable[Union[pd.DataFrame, Tuple[Name, pd.DataFrame]]],
 ) -> Iterator[Tuple[Name, pd.DataFrame]]:
-    for df in dataframes:
-        if type(df) is pd.DataFrame:
-            yield (_rand_str(), df)
-        elif _is_named_df(df):
-            yield df
+    for dataframe in dataframes:
+        if type(dataframe) is pd.DataFrame:
+            yield (_rand_str(), dataframe)
+        elif _is_named_df(dataframe):
+            yield dataframe
         else:
-            raise ValueError("unexpected type: %s" % type(df))
+            raise ValueError(f"unexpected type: {type(dataframe)}")
 
 
-def _ensure_str_column_names(
+def _coerce_str_column_names(
     dataframes: Iterable[pd.DataFrame],
 ) -> Iterator[pd.DataFrame]:
     for df in dataframes:
@@ -999,11 +1036,11 @@ def _ensure_str_column_names(
 _T = TypeVar("_T")
 
 
-def _pad(
-    it: Iterable[_T],
+def _add_padding(
+    iterable: Iterable[_T],
     padding: Callable[[], _T],
 ) -> Iterator[_T]:
-    for item in it:
+    for item in iterable:
         yield item if item is not None else padding()
     while True:
         yield padding()
@@ -1011,52 +1048,15 @@ def _pad(
 
 def _normalize_timestamps(timestamps: "pd.Series[Any]") -> "pd.Series[Any]":
     data_type = timestamps.dtype
-    if is_numeric_dtype(data_type):
+    if is_numeric_dtype(data_type) and not is_bool_dtype(data_type):
         return pd.to_datetime(timestamps, unit="s", utc=True)
-    elif is_datetime64tz_dtype(data_type):
+    if is_datetime64tz_dtype(data_type):
         return timestamps.dt.tz_convert(timezone.utc)
-    elif is_datetime64_any_dtype(data_type):
+    if is_datetime64_any_dtype(data_type):
         return timestamps.dt.tz_localize(timezone.utc)
     raise ValueError(
-        "When provided, the timestamps must be numeric or datetime, "
-        "but found %s instead." % data_type
+        f"When provided, the timestamps must be numeric or datetime, but found {data_type} instead."
     )
-
-
-def _dim_role(dim: Dimension) -> DimensionRole:
-    return dim.role
-
-
-def _jsonify(obj: Any) -> Any:
-    if type(obj) is str:
-        return str
-    if getattr(obj, "__dataclass_fields__", None):
-        return {
-            attribute.name: _jsonify(
-                getattr(obj, attribute.name),
-            )
-            for attribute in fields(obj)
-            if attribute.init
-        }
-    if isinstance(obj, Iterable):
-        return list(map(_jsonify, iter(obj)))
-    return obj
-
-
-def _objectify(json_data: Any) -> Any:
-    if isinstance(json_data, str):
-        return json_data
-    if isinstance(json_data, list):
-        return list(map(_objectify, json_data))
-    assert isinstance(json_data, dict)
-    json_data = {key: _objectify(value) for key, value in json_data.items()}
-    # Note that this Looks only at the immediate subclasses (for now).
-    for cls in CompositeDimensionSpec.__subclasses__():
-        try:
-            return cls(**json_data)
-        except TypeError:
-            pass
-    raise ValueError("invalid json data: %s" % json_data)
 
 
 _id_pat = re.compile(r"\bid\b", re.IGNORECASE)

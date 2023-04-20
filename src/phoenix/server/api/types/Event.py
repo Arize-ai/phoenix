@@ -1,5 +1,5 @@
 from collections import defaultdict
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 import strawberry
 from strawberry import ID
@@ -10,13 +10,17 @@ from phoenix.core.model_schema import (
     ACTUAL_SCORE,
     PREDICTION_LABEL,
     PREDICTION_SCORE,
+    PROMPT,
+    RESPONSE,
     DatasetRole,
     EventId,
 )
 
+from ..interceptor import NoneIfNan
 from .Dimension import Dimension
 from .DimensionWithValue import DimensionWithValue
 from .EventMetadata import EventMetadata
+from .PromptResponse import PromptResponse
 
 
 @strawberry.type
@@ -24,6 +28,10 @@ class Event:
     id: strawberry.ID
     eventMetadata: EventMetadata
     dimensions: List[DimensionWithValue]
+    prompt_and_response: Optional[PromptResponse] = strawberry.field(
+        description="The prompt and response pair associated with the event",
+        default=NoneIfNan(),
+    )
 
 
 def parse_event_ids(event_ids: List[ID]) -> Dict[DatasetRole, List[int]]:
@@ -65,4 +73,9 @@ def create_event(
         id=ID(str(EventId(row_id=row_id, dataset_id=dataset_id))),
         eventMetadata=event_metadata,
         dimensions=dimensions_with_values,
+        prompt_and_response=PromptResponse(
+            prompt=event[PROMPT],
+            response=event[RESPONSE],
+        )
+        or None,
     )
