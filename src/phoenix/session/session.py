@@ -9,6 +9,7 @@ import pandas as pd
 from portpicker import pick_unused_port
 
 from phoenix.config import PORT, get_exported_files
+from phoenix.core.model_schema_adapter import create_model_from_datasets
 from phoenix.datasets import Dataset
 from phoenix.server.app import create_app
 from phoenix.server.thread_server import ThreadServer
@@ -62,6 +63,10 @@ class Session(ABC):
     ):
         self.primary_dataset = primary_dataset
         self.reference_dataset = reference_dataset
+        self.model = create_model_from_datasets(
+            primary_dataset,
+            reference_dataset,
+        )
         self.port = port
         self.temp_dir = TemporaryDirectory()
         self.export_path = Path(self.temp_dir.name) / "exports"
@@ -161,8 +166,7 @@ class ThreadSession(Session):
         # Initialize an app service that keeps the server running
         self.app = create_app(
             export_path=self.export_path,
-            primary_dataset=self.primary_dataset,
-            reference_dataset=self.reference_dataset,
+            model=self.model,
         )
         self.server = ThreadServer(
             app=self.app,

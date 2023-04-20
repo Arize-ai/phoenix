@@ -1,3 +1,4 @@
+from collections import Counter
 from typing import Dict, List, Optional, Set, Union
 
 import numpy as np
@@ -6,8 +7,7 @@ import strawberry
 from strawberry.scalars import ID
 from typing_extensions import TypeAlias
 
-from phoenix.core.embedding_dimension import calculate_drift_ratio
-from phoenix.datasets.event import EventId
+from phoenix.core.model_schema import PRIMARY, REFERENCE, EventId
 from phoenix.server.api.interceptor import NoneIfNan
 
 from .EmbeddingMetadata import EmbeddingMetadata
@@ -70,6 +70,24 @@ def to_gql_clusters(
         )
 
     return gql_clusters
+
+
+def calculate_drift_ratio(events: Set[EventId]) -> float:
+    """
+    Calculates the drift score of the cluster. The score will be a value
+    representing the balance of points between the primary and the reference
+    datasets, and will be on a scale between 1 (all primary) and -1 (all
+    reference), with 0 being an even balance between the two datasets.
+
+    Returns
+    -------
+    drift_ratio : float
+    """
+    return (
+        (cnt := Counter(e.dataset_id for e in events))
+        and (cnt[PRIMARY] - cnt[REFERENCE]) / (cnt[PRIMARY] + cnt[REFERENCE])
+        or float("nan")
+    )
 
 
 @strawberry.type

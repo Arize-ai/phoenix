@@ -5,7 +5,6 @@ from pandas import DataFrame, Timestamp
 from phoenix.datasets import Dataset as InternalDataset
 from phoenix.datasets import Schema
 from phoenix.server.api.context import Context
-from phoenix.server.api.types.Dataset import to_gql_dataset
 from strawberry.schema import Schema as StrawberrySchema
 from typing_extensions import TypeAlias
 
@@ -30,14 +29,6 @@ def input_dataset() -> InternalDataset:
         timestamp_column_name="timestamp",
     )
     return InternalDataset(dataframe=input_df, schema=input_schema)
-
-
-def test_dataset_serialization(input_dataset: InternalDataset) -> None:
-    converted_gql_dataset = to_gql_dataset(input_dataset, type="primary")
-
-    expected_dataset = input_dataset
-    assert converted_gql_dataset.start_time == expected_dataset.start_time
-    assert converted_gql_dataset.end_time == expected_dataset.end_time
 
 
 class TestDatasetEvents:

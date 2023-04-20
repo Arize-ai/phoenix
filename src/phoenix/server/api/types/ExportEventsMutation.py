@@ -34,7 +34,7 @@ class ExportEventsMutation:
             loop = asyncio.get_running_loop()
             await loop.run_in_executor(
                 None,
-                info.context.model.export_events_as_parquet_file,
+                info.context.model.export_rows_as_parquet_file,
                 row_ids,
                 fd,
             )
