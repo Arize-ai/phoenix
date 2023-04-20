@@ -17,6 +17,7 @@ from phoenix.config import DATASET_DIR
 
 from . import errors as err
 from .schema import (
+    LLM_SCHEMA_FIELD_NAMES,
     MULTI_COLUMN_SCHEMA_FIELD_NAMES,
     SINGLE_COLUMN_SCHEMA_FIELD_NAMES,
     EmbeddingColumnNames,
@@ -328,8 +329,8 @@ def _parse_dataframe_and_schema(dataframe: DataFrame, schema: Schema) -> Tuple[D
             unseen_column_names,
         )
 
-    for schema_field_name in ["prompt_column_names", "response_column_names"]:
-        embedding_column_name_mapping = getattr(schema, schema_field_name)
+    for llm_schema_field_name in LLM_SCHEMA_FIELD_NAMES:
+        embedding_column_name_mapping = getattr(schema, llm_schema_field_name)
         if embedding_column_name_mapping is not None:
             _check_embedding_column_names_for_excluded_columns(
                 embedding_column_name_mapping,
@@ -459,10 +460,8 @@ def _check_embedding_column_names_for_excluded_columns(
     unseen_column_names: Set[str],
 ) -> None:
     """
-    Check embedding features for excluded column names.
+    Check embedding column names for excluded column names.
     """
-    included_embedding_features = {}
-    included_embedding_features[""] = deepcopy(embedding_column_name_mapping)
     for embedding_field in fields(embedding_column_name_mapping):
         column_name: Optional[str] = getattr(embedding_column_name_mapping, embedding_field.name)
         if column_name is not None:
