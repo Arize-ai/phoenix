@@ -107,7 +107,7 @@ class SchemaSpec(ABC):
         if the user takes them directly from `pd.dataframe.columns`, which
         can contain numbers. Phoenix always uses string to refer to columns
         and dimensions, so this step is intended to eliminate any potential
-        issues caused by any pd.dataframe having numbers as column names.
+        issues caused by any pd.DataFrame having numbers as column names.
         """
         for f in fields(self):
             if f.type is str or set(get_args(f.type)) == {str, type(None)}:
