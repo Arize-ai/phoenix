@@ -69,13 +69,18 @@ def create_event(
     ]
     row_id = event.id.row_id
     dataset_id = event.id.dataset_id
+    prompt = event[event._self_model[PROMPT].raw_data]
+    response = event[event._self_model[RESPONSE].raw_data]
+    prompt_and_response = (
+        PromptResponse(
+            prompt=prompt,
+            response=response,
+        )
+        or None
+    )
     return Event(
         id=ID(str(EventId(row_id=row_id, dataset_id=dataset_id))),
         eventMetadata=event_metadata,
         dimensions=dimensions_with_values,
-        prompt_and_response=PromptResponse(
-            prompt=event[PROMPT],
-            response=event[RESPONSE],
-        )
-        or None,
+        prompt_and_response=prompt_and_response,
     )

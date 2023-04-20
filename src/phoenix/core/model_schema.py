@@ -110,7 +110,7 @@ class SchemaSpec(ABC):
         issues caused by any pd.dataframe having numbers as column names.
         """
         for f in fields(self):
-            if f.type is str or set(get_args(f.type)) <= {str, type(None)}:
+            if f.type is str or set(get_args(f.type)) == {str, type(None)}:
                 # Ensure string if type is `str` or `Optional[str]` (the
                 # latter being `Union[str, None]` under the hood). Use
                 # `__setattr__` because `self` is read-only, i.e. frozen.
@@ -294,7 +294,7 @@ class ScalarDimension(Dimension):
 
 @dataclass(frozen=True)
 class EmbeddingDimension(Dimension):
-    link: Column = field(default_factory=Column)
+    link_to_data: Column = field(default_factory=Column)
     raw_data: Column = field(default_factory=Column)
     display_name: str = ""
 
@@ -310,7 +310,7 @@ class EmbeddingDimension(Dimension):
         """
         return cls(
             _coerce_str(emb.vector),
-            link=Column(_coerce_str(emb.link_to_data)),
+            link_to_data=Column(_coerce_str(emb.link_to_data)),
             raw_data=Column(_coerce_str(emb.raw_data)),
             display_name=_coerce_str(emb.display_name),
             **kwargs,
@@ -322,7 +322,7 @@ class EmbeddingDimension(Dimension):
         """
         yield from super().__iter__()
         yield from self.raw_data
-        yield from self.link
+        yield from self.link_to_data
 
 
 Name: TypeAlias = str
@@ -935,7 +935,10 @@ class Schema(SchemaSpec):
                 spec = _coerce_str(spec)
             assert isinstance(role, DimensionRole)  # for mypy
             if isinstance(spec, str):
-                yield ScalarDimension(spec, role=role, data_type=data_type)
+                if role in (PROMPT, RESPONSE):
+                    yield EmbeddingDimension(spec, role=role, data_type=data_type)
+                else:
+                    yield ScalarDimension(spec, role=role, data_type=data_type)
             elif isinstance(spec, Embedding):
                 yield EmbeddingDimension.from_(spec, role=role, data_type=data_type)
             else:

@@ -244,7 +244,7 @@ class EmbeddingDimension(Node):
                     ),
                     embedding_metadata=EmbeddingMetadata(
                         prediction_id=dataset[PREDICTION_ID][row_id],
-                        link_to_data=dataset[self.dimension.link][row_id],
+                        link_to_data=dataset[self.dimension.link_to_data][row_id],
                         raw_data=dataset[self.dimension.raw_data][row_id],
                     ),
                 )
