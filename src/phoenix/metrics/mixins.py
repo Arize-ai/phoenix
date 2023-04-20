@@ -89,7 +89,10 @@ class BaseMetric(ABC):
         ...
 
     def __call__(self, dataframe: pd.DataFrame) -> Any:
-        return self.calc(dataframe)
+        try:
+            return self.calc(dataframe)
+        except TypeError:
+            return float("nan")
 
 
 @dataclass
