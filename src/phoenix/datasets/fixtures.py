@@ -292,6 +292,7 @@ llm_summarization_schema = Schema(
         "rouge2_score",
         "rougeL_score",
         "rougeLsum_score",
+        "reference_summary",
     ],
     prompt_column_names=EmbeddingColumnNames(
         vector_column_name="document_vector", raw_data_column_name="document"
