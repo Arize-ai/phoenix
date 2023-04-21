@@ -478,8 +478,8 @@ class Events(ModelData):
         # open and one minute is the smallest interval allowed.
         stop_time = end_time + timedelta(minutes=1)
         # Round down to the nearest minute.
-        start = start_time.replace(second=0, microsecond=0)
-        stop = stop_time.replace(second=0, microsecond=0)
+        start = _floor_to_minute(start_time)
+        stop = _floor_to_minute(stop_time)
         return TimeRange(start, stop)
 
     def __iter__(self) -> Iterator[Event]:
@@ -1072,3 +1072,8 @@ _id_pat = re.compile(r"\bid\b", re.IGNORECASE)
 def _title_case_no_underscore(name: str) -> str:
     """E.g. `PREDICTION_ID` turns into `Prediction ID`"""
     return _id_pat.sub("ID", name.replace("_", " ").title())
+
+
+def _floor_to_minute(t: datetime) -> datetime:
+    MINUTE_FMT = "%Y-%m-%dT%H:%M:00%z"
+    return datetime.strptime(t.astimezone(timezone.utc).strftime(MINUTE_FMT), MINUTE_FMT)
