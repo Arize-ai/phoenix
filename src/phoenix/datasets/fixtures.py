@@ -308,11 +308,8 @@ llm_summarization_fixture = Fixture(
     """,
     primary_schema=llm_summarization_schema,
     reference_schema=llm_summarization_schema,
-    primary_dataset_url=os.path.join(
-        FIXTURE_URL_PREFIX,
-        "unstructured/llm/summarization/llm_summarization.parquet",
-    ),
-    reference_dataset_url=None,
+    primary_dataset_url="/Users/xandersong/Desktop/llm_prod.parquet",
+    reference_dataset_url="/Users/xandersong/Desktop/llm_train.parquet",
 )
 
 FIXTURES: Tuple[Fixture, ...] = (
