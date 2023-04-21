@@ -1,11 +1,13 @@
 from datetime import datetime, timedelta, timezone
-from typing import Callable, Optional
+from typing import Callable
 
 import numpy as np
 import pytest
 import pytz
 from numpy.testing import assert_almost_equal
 from pandas import DataFrame, Series, Timestamp
+from phoenix.core.model_schema import Model
+from phoenix.core.model_schema_adapter import create_model_from_datasets
 from phoenix.datasets import Dataset, EmbeddingColumnNames, Schema
 from phoenix.server.api.context import Context
 from phoenix.server.api.input_types.Granularity import Granularity
@@ -15,7 +17,7 @@ from phoenix.server.api.types.VectorDriftMetricEnum import VectorDriftMetric
 from strawberry.types.info import Info
 from typing_extensions import TypeAlias
 
-InfoMockFactory: TypeAlias = Callable[[Dataset, Optional[Dataset]], Info[Context, None]]
+InfoMockFactory: TypeAlias = Callable[[Model], Info[Context, None]]
 
 UTC = timezone(offset=timedelta(hours=0))
 
@@ -48,14 +50,17 @@ class TestDriftMetricTimeSeries:
             dataframe=primary_dataframe,
             schema=schema,
         )
+        model = create_model_from_datasets(primary_dataset)
         drift_time_series = EmbeddingDimension(
-            name="embedding_feature", id_attr=0
+            name="embedding_feature",
+            id_attr=0,
+            dimension=model["embedding_vector"],
         ).drift_time_series(
             metric=VectorDriftMetric.euclideanDistance,
             time_range=TimeRange(
                 start=datetime(year=2000, month=1, day=1), end=datetime(year=2000, month=1, day=2)
             ),
-            info=info_mock_factory(primary_dataset, None),
+            info=info_mock_factory(model),
             granularity=Granularity(
                 evaluation_window_minutes=1440,
                 sampling_interval_minutes=1440,
@@ -119,10 +124,15 @@ class TestDriftMetricTimeSeries:
             dataframe=reference_dataframe,
             schema=schema,
         )
-        distance = EmbeddingDimension(name="embedding_feature", id_attr=0).drift_time_series(
+        model = create_model_from_datasets(primary_dataset, reference_dataset)
+        distance = EmbeddingDimension(
+            name="embedding_feature",
+            id_attr=0,
+            dimension=model["embedding_vector"],
+        ).drift_time_series(
             metric=VectorDriftMetric.euclideanDistance,
             time_range=query_time_range,
-            info=info_mock_factory(primary_dataset, reference_dataset),
+            info=info_mock_factory(model),
             granularity=Granularity(
                 evaluation_window_minutes=11519,
                 sampling_interval_minutes=11519,
@@ -180,15 +190,18 @@ class TestDriftMetricTimeSeries:
             dataframe=reference_dataframe,
             schema=schema,
         )
+        model = create_model_from_datasets(primary_dataset, reference_dataset)
         drift_time_series = EmbeddingDimension(
-            name="embedding_feature", id_attr=0
+            name="embedding_feature",
+            id_attr=0,
+            dimension=model["embedding_vector"],
         ).drift_time_series(
             metric=VectorDriftMetric.euclideanDistance,
             time_range=TimeRange(
                 start=datetime(year=2000, month=1, day=1, tzinfo=UTC),
                 end=datetime(year=2000, month=1, day=8, tzinfo=UTC),
             ),
-            info=info_mock_factory(primary_dataset, reference_dataset),
+            info=info_mock_factory(model),
             granularity=Granularity(
                 evaluation_window_minutes=4320,
                 sampling_interval_minutes=60,
@@ -268,15 +281,18 @@ class TestDriftMetricTimeSeries:
             dataframe=reference_dataframe,
             schema=schema,
         )
+        model = create_model_from_datasets(primary_dataset, reference_dataset)
         drift_time_series = EmbeddingDimension(
-            name="embedding_feature", id_attr=0
+            name="embedding_feature",
+            id_attr=0,
+            dimension=model["embedding_vector"],
         ).drift_time_series(
             metric=VectorDriftMetric.euclideanDistance,
             time_range=TimeRange(
                 start=datetime(year=2000, month=1, day=1, hour=1, tzinfo=UTC),
                 end=datetime(year=2000, month=1, day=1, hour=2, tzinfo=UTC),
             ),
-            info=info_mock_factory(primary_dataset, reference_dataset),
+            info=info_mock_factory(model),
             granularity=Granularity(
                 evaluation_window_minutes=60,
                 sampling_interval_minutes=60,
@@ -323,12 +339,17 @@ class TestDriftMetric:
             dataframe=primary_dataframe,
             schema=schema,
         )
-        distance = EmbeddingDimension(name="embedding_feature", id_attr=0).drift_metric(
+        model = create_model_from_datasets(primary_dataset)
+        distance = EmbeddingDimension(
+            name="embedding_feature",
+            id_attr=0,
+            dimension=model["embedding_vector"],
+        ).drift_metric(
             metric=VectorDriftMetric.euclideanDistance,
             time_range=TimeRange(
                 start=datetime(year=2000, month=1, day=1), end=datetime(year=2000, month=1, day=2)
             ),
-            info=info_mock_factory(primary_dataset, None),
+            info=info_mock_factory(model),
         )
         assert distance is None
 
@@ -388,10 +409,15 @@ class TestDriftMetric:
             dataframe=reference_dataframe,
             schema=schema,
         )
-        distance = EmbeddingDimension(name="embedding_feature", id_attr=0).drift_metric(
+        model = create_model_from_datasets(primary_dataset, reference_dataset)
+        distance = EmbeddingDimension(
+            name="embedding_feature",
+            id_attr=0,
+            dimension=model["embedding_vector"],
+        ).drift_metric(
             metric=VectorDriftMetric.euclideanDistance,
             time_range=query_time_range,
-            info=info_mock_factory(primary_dataset, reference_dataset),
+            info=info_mock_factory(model),
         )
         assert distance is None
 
@@ -451,16 +477,18 @@ class TestDriftMetric:
         )
         primary_dataset = Dataset(dataframe=primary_dataframe, schema=schema)
         reference_dataset = Dataset(dataframe=reference_dataframe, schema=schema)
-        distance = EmbeddingDimension(name="embedding_feature", id_attr=0).drift_metric(
+        model = create_model_from_datasets(primary_dataset, reference_dataset)
+        distance = EmbeddingDimension(
+            name="embedding_feature",
+            id_attr=0,
+            dimension=model["embedding_vector"],
+        ).drift_metric(
             metric=VectorDriftMetric.euclideanDistance,
             time_range=TimeRange(
                 start=datetime(year=2000, month=1, day=1, hour=1, minute=0, tzinfo=UTC),
                 end=datetime(year=2000, month=1, day=1, hour=2, minute=0, tzinfo=UTC),
             ),
-            info=info_mock_factory(
-                primary_dataset,
-                reference_dataset,
-            ),
+            info=info_mock_factory(model),
         )
         assert_almost_equal(actual=distance, desired=5.0)
 
@@ -508,15 +536,17 @@ class TestDriftMetric:
         )
         primary_dataset = Dataset(dataframe=primary_dataframe, schema=schema)
         reference_dataset = Dataset(dataframe=reference_dataframe, schema=schema)
-        distance = EmbeddingDimension(name="embedding_feature", id_attr=0).drift_metric(
+        model = create_model_from_datasets(primary_dataset, reference_dataset)
+        distance = EmbeddingDimension(
+            name="embedding_feature",
+            id_attr=0,
+            dimension=model["embedding_vector"],
+        ).drift_metric(
             metric=VectorDriftMetric.euclideanDistance,
             time_range=TimeRange(
                 start=datetime(year=2000, month=1, day=4, tzinfo=UTC),
                 end=datetime(year=2000, month=1, day=10, tzinfo=UTC),
             ),
-            info=info_mock_factory(
-                primary_dataset,
-                reference_dataset,
-            ),
+            info=info_mock_factory(model),
         )
         assert distance is None

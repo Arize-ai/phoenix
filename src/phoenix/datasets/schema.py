@@ -55,7 +55,7 @@ class Schema(Dict[SchemaFieldName, SchemaFieldValue]):
         json_data = json.loads(json_string)
 
         # parse embedding_feature_column_names
-        if json_data["embedding_feature_column_names"] is not None:
+        if json_data.get("embedding_feature_column_names") is not None:
             embedding_feature_column_names = {}
             for feature_name, column_names in json_data["embedding_feature_column_names"].items():
                 embedding_feature_column_names[feature_name] = EmbeddingColumnNames(
@@ -66,7 +66,7 @@ class Schema(Dict[SchemaFieldName, SchemaFieldValue]):
             json_data["embedding_feature_column_names"] = embedding_feature_column_names
 
         # parse prompt_column_names
-        if json_data["prompt_column_names"] is not None:
+        if json_data.get("prompt_column_names") is not None:
             prompt_column_names = EmbeddingColumnNames(
                 vector_column_name=json_data["prompt_column_names"]["vector_column_name"],
                 raw_data_column_name=json_data["prompt_column_names"]["raw_data_column_name"],
@@ -74,7 +74,7 @@ class Schema(Dict[SchemaFieldName, SchemaFieldValue]):
             json_data["prompt_column_names"] = prompt_column_names
 
         # parse response_column_names
-        if json_data["response_column_names"] is not None:
+        if json_data.get("response_column_names") is not None:
             response_column_names = EmbeddingColumnNames(
                 vector_column_name=json_data["response_column_names"]["vector_column_name"],
                 raw_data_column_name=json_data["response_column_names"]["raw_data_column_name"],

@@ -18,11 +18,9 @@ from strawberry.asgi import GraphQL
 from strawberry.schema import BaseSchema
 
 from phoenix.config import SERVER_DIR
-from phoenix.core.model import Model
-from phoenix.datasets import Dataset
+from phoenix.core.model_schema import Model
 
 from .api.context import Context
-from .api.loaders import Loaders, create_loaders
 from .api.schema import schema
 
 logger = logging.getLogger(__name__)
@@ -65,12 +63,10 @@ class GraphQLWithContext(GraphQL):
         schema: BaseSchema,
         model: Model,
         export_path: Path,
-        loader: Loaders,
         graphiql: bool = False,
     ) -> None:
         self.model = model
         self.export_path = export_path
-        self.loader = loader
         super().__init__(schema, graphiql=graphiql)
 
     async def get_context(
@@ -83,7 +79,6 @@ class GraphQLWithContext(GraphQL):
             response=response,
             model=self.model,
             export_path=self.export_path,
-            loaders=self.loader,
         )
 
 
@@ -104,19 +99,13 @@ class Download(HTTPEndpoint):
 
 def create_app(
     export_path: Path,
-    primary_dataset: Dataset,
-    reference_dataset: Optional[Dataset] = None,
+    model: Model,
     debug: bool = False,
 ) -> Starlette:
-    model = Model(
-        primary_dataset=primary_dataset,
-        reference_dataset=reference_dataset,
-    )
     graphql = GraphQLWithContext(
         schema=schema,
         model=model,
         export_path=export_path,
-        loader=create_loaders(model),
         graphiql=True,
     )
     return Starlette(

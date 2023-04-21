@@ -9,6 +9,7 @@ from typing import Optional
 import uvicorn
 
 import phoenix.config as config
+from phoenix.core.model_schema_adapter import create_model_from_datasets
 from phoenix.datasets import Dataset
 from phoenix.datasets.fixtures import (
     FIXTURES,
@@ -84,10 +85,13 @@ if __name__ == "__main__":
     print(f"1️⃣ primary dataset: {primary_dataset_name}")
     print(f"2️⃣ reference dataset: {reference_dataset_name}")
 
+    model = create_model_from_datasets(
+        primary_dataset,
+        reference_dataset,
+    )
     app = create_app(
         export_path=export_path,
-        primary_dataset=primary_dataset,
-        reference_dataset=reference_dataset,
+        model=model,
         debug=args.debug,
     )
 
