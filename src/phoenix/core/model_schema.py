@@ -981,6 +981,8 @@ def _group_names_by_dim_role(
 
 def _guess_data_type(series: Iterable["pd.Series[Any]"]) -> DataType:
     for s in series:
+        if s.empty:
+            continue
         if is_bool_dtype(s):
             break
         if is_numeric_dtype(s) or is_datetime64_any_dtype(s):
