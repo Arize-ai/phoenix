@@ -17,6 +17,10 @@
 
 Phoenix provides MLOps insights at lightning speed with zero-config observability for model drift, performance, and data quality. Phoenix is notebook-first EDA tool that leverages embeddings to uncover problematic cohorts of your LLM, CV, NLP and tabular models.
 
+<p align="center">
+    <img width="auto" src="https://storage.googleapis.com/arize-assets/phoenix/assets/gifs/cv_eda_480px.gif" title="a rotating UMAP point cloud of a computer vision model"></img>
+</p>
+
 ## Installation
 
 ```shell
@@ -89,15 +93,35 @@ Alternatively, you can open the Phoenix UI in your notebook with
 session.view()
 ```
 
-<p align="center">
-    <img width="auto" src="https://storage.googleapis.com/arize-assets/phoenix/assets/gifs/cv_eda_480px.gif" title="a rotating UMAP point cloud of a computer vision model"></img>
-</p>
-
 When you're done, don't forget to close the app.
 
 ```python
 px.close_app()
 ```
+
+## Features
+
+### Embedding Drift Analysis
+
+Explore UMAP point-clouds at times of high euclidean distance and identify clusters of drift.
+
+![Euclidean distance drift analysis](https://storage.googleapis.com/arize-assets/phoenix/assets/images/ner_color_by_correctness.png)
+
+### UMAP-based Exploratory Data Analysis
+
+Color your UMAP point-clouds by your model's dimensions, drift, and performance to identify problematic cohorts.
+
+![UMAP-based EDA](https://storage.googleapis.com/arize-assets/phoenix/assets/images/cv_eda_selection.png)
+
+### Cluster-driven Drift and Performance Analysis
+
+Break-apart your data into clusters of high drift or bad performance using HDBSCAN
+
+![HDBSCAN clusters sorted by drift](https://storage.googleapis.com/arize-assets/phoenix/assets/images/HDBSCAN_drift_analysis.png)
+
+### Exportable Clusters
+
+Export your clusters to `parquet` files or dataframes for further analysis and fine-tuning.
 
 ## Documentation
 
