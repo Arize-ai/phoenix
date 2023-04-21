@@ -1074,11 +1074,14 @@ def _title_case_no_underscore(name: str) -> str:
     return _id_pat.sub("ID", name.replace("_", " ").title())
 
 
+MINUTE_DATETIME_FORMAT = "%Y-%m-%dT%H:%M:00%z"
+
+
 def _floor_to_minute(t: datetime) -> datetime:
     """Floor datetime to the minute by taking a round-trip through string
     format because there isn't always an available function to strip the
     nanoseconds if present."""
-    MINUTE_FMT = "%Y-%m-%dT%H:%M:00%z"
     return datetime.strptime(
-        t.astimezone(timezone.utc).strftime(MINUTE_FMT), MINUTE_FMT
+        t.astimezone(timezone.utc).strftime(MINUTE_DATETIME_FORMAT),
+        MINUTE_DATETIME_FORMAT,
     ).astimezone(timezone.utc)
