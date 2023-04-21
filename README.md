@@ -15,9 +15,10 @@
     </a>
 </p>
 
-Phoenix provides MLOps insights at lightning speed with zero-config observability for model drift, performance, and data quality.
+Phoenix provides MLOps insights at lightning speed with zero-config observability for model drift, performance, and data quality. Phoenix is notebook-first EDA tool that leverages embeddings to uncover problematic cohorts of your LLM, CV, NLP and tabular models.
 
-**_Phoenix is under active development. APIs may change at any time._**
+<br />
+<img src="https://storage.googleapis.com/arize-assets/phoenix/assets/gifs/cv_eda.gif" title="a rotating UMAP point cloud of a computer vision model"/>
 
 ## Installation
 
@@ -27,7 +28,7 @@ pip install arize-phoenix
 
 ## Quickstart
 
-[![Open in Colab](https://img.shields.io/static/v1?message=Open%20in%20Colab\&logo=googlecolab\&labelColor=grey\&color=blue\&logoColor=orange\&label=%20)](https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/quickstart.ipynb) [![Open in GitHub](https://img.shields.io/static/v1?message=Open%20in%20GitHub\&logo=github\&labelColor=grey\&color=blue\&logoColor=white\&label=%20)](https://github.com/Arize-ai/phoenix/blob/main/tutorials/quickstart.ipynb)
+[![Open in Colab](https://img.shields.io/static/v1?message=Open%20in%20Colab&logo=googlecolab&labelColor=grey&color=blue&logoColor=orange&label=%20)](https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/quickstart.ipynb) [![Open in GitHub](https://img.shields.io/static/v1?message=Open%20in%20GitHub&logo=github&labelColor=grey&color=blue&logoColor=white&label=%20)](https://github.com/Arize-ai/phoenix/blob/main/tutorials/quickstart.ipynb)
 
 Import libraries.
 
