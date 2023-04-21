@@ -73,18 +73,20 @@ class Schema(
     prediction_score_column_name: Optional[str] = None,
     actual_label_column_name: Optional[str] = None,
     actual_score_column_name: Optional[str] = None,
+    prompt_column_names: Optional[EmbeddingColumnNames] = None
+    response_column_names: Optional[EmbeddingColumnNames] = None
     embedding_feature_column_names: Optional[Dict[str, EmbeddingColumnNames]] = None,
     excluded_column_names: Optional[List[str]] = None,
 )
 ```
 
-A dataclass that assigns the columns of a pandas DataFrame to the appropriate model dimensions (predictions, actuals, features, etc.). Each column of the DataFrame should appear in the corresponding schema at most once.
+A `dataclass` that assigns the columns of a pandas `DataFrame` to the appropriate model dimensions (predictions, actuals, features, etc.). Each column of the `DataFrame` should appear in the corresponding schema at most once.
 
 **\[**[**source**](https://github.com/Arize-ai/phoenix/blob/main/src/phoenix/datasets/schema.py)**]**
 
 ### Parameters
 
-* **prediction\_id\_column\_name** __ (Optional\[str]): The name of the DataFrame's prediction ID column, if one exists. Prediction IDs are strings that uniquely identify each record in a Phoenix dataset (equivalently, each row in the DataFrame). If no prediction ID column name is provided, Phoenix will automatically generate unique UUIDs for each record of the dataset upon [phoenix.Dataset](dataset-and-schema.md#phoenix.dataset) initialization.
+* **prediction\_id\_column\_name** \_\_ (Optional\[str]): The name of the DataFrame's prediction ID column, if one exists. Prediction IDs are strings that uniquely identify each record in a Phoenix dataset (equivalently, each row in the DataFrame). If no prediction ID column name is provided, Phoenix will automatically generate unique UUIDs for each record of the dataset upon [phoenix.Dataset](dataset-and-schema.md#phoenix.dataset) initialization.
 * **timestamp\_column\_name** (Optional\[str]): The name of the DataFrame's timestamp column, if one exists. Timestamp columns must be pandas Series with numeric or datetime dtypes.
   * If the timestamp column has numeric dtype (int or float), the entries of the column are interpreted as Unix timestamps, i.e., the number of seconds since midnight on January 1st, 1970.
   * If the column has datetime dtype and contains timezone-naive timestamps, Phoenix assumes those timestamps belong to the UTC timezone.
@@ -96,8 +98,10 @@ A dataclass that assigns the columns of a pandas DataFrame to the appropriate mo
 * **prediction\_score\_column\_name** (Optional\[str]): The name of the DataFrame's predicted score column, if one exists. Predicted scores are used for regression problems with continuous numerical model output.
 * **actual\_label\_column\_name** (Optional\[str]): The name of the DataFrame's actual label column, if one exists. Actual (i.e., ground truth) labels are used for classification problems with categorical model output.
 * **actual\_score\_column\_name** (Optional\[str]): The name of the DataFrame's actual score column, if one exists. Actual (i.e., ground truth) scores are used for regression problems with continuous numerical output.
+* **prompt\_column\_names** (Optional\[[phoenix.EmbeddingColumnNames](dataset-and-schema.md#phoenix.embeddingcolumnnames)]): An instance of [phoenix.EmbeddingColumnNames](dataset-and-schema.md#phoenix.embeddingcolumnnames) delineating the column names of an LLM model's _prompt_ embedding vector, _prompt_ text, and optionally links to external resources.&#x20;
+* **response\_column\_names** (Optional\[[phoenix.EmbeddingColumnNames](dataset-and-schema.md#phoenix.embeddingcolumnnames)]): An instance of [phoenix.EmbeddingColumnNames](dataset-and-schema.md#phoenix.embeddingcolumnnames) delineating the column names of an LLM model's _response_ embedding vector, _response_ text, and optionally links to external resources.&#x20;
 * **embedding\_feature\_column\_names** (Optional\[Dict\[str, [phoenix.EmbeddingColumnNames](dataset-and-schema.md#phoenix.embeddingcolumnnames)]]): A dictionary mapping the name of each embedding feature to an instance of [phoenix.EmbeddingColumnNames](dataset-and-schema.md#phoenix.embeddingcolumnnames) if any embedding features exist, otherwise, None. Each instance of [phoenix.EmbeddingColumnNames](dataset-and-schema.md#phoenix.embeddingcolumnnames) associates one or more DataFrame columns containing vector data, image links, or text with the same embedding feature. Note that the keys of the dictionary are user-specified names that appear in the Phoenix UI and do not refer to columns of the DataFrame.
-* **excluded_column_names** (Optional\[List\[str]]): The names of the DataFrame columns to be excluded from the implicitly inferred list of feature column names. This field should only be used for implicit feature discovery, i.e., when `feature_column_names` is unused and the DataFrame contains feature columns not explicitly included in the schema.
+* **excluded\_column\_names** (Optional\[List\[str]]): The names of the DataFrame columns to be excluded from the implicitly inferred list of feature column names. This field should only be used for implicit feature discovery, i.e., when `feature_column_names` is unused and the DataFrame contains feature columns not explicitly included in the schema.
 
 ### Usage
 
