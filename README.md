@@ -17,7 +17,8 @@
 
 Phoenix provides MLOps insights at lightning speed with zero-config observability for model drift, performance, and data quality. Phoenix is notebook-first EDA tool that leverages embeddings to uncover problematic cohorts of your LLM, CV, NLP and tabular models.
 
-![a rotating UMAP point cloud of a computer vision model](https://storage.googleapis.com/arize-assets/phoenix/assets/gifs/cv_eda_480px.gif)
+<br />
+<img src="https://storage.googleapis.com/arize-assets/phoenix/assets/gifs/cv_eda_480px.gif" title="a rotating UMAP point cloud of a computer vision model">
 
 ## Installation
 
