@@ -12,6 +12,7 @@ import {
   TextField,
 } from "@arizeai/components";
 
+import { MAX_32_BIT_INTEGER } from "@phoenix/constants/numberConstants";
 import { MIN_MIN_CLUSTER_SIZE } from "@phoenix/constants/pointCloudConstants";
 import { usePointCloudContext } from "@phoenix/contexts";
 
@@ -138,6 +139,10 @@ export default function ClusteringSettings() {
               value: MIN_MIN_CLUSTER_SIZE,
               message: "must be greater than 1",
             },
+            max: {
+              value: MAX_32_BIT_INTEGER,
+              message: "must be less than 2,147,483,647",
+            },
           }}
           render={({ field, fieldState: { invalid, error } }) => (
             <TextField
@@ -157,6 +162,10 @@ export default function ClusteringSettings() {
           control={control}
           rules={{
             required: "field is required",
+            max: {
+              value: MAX_32_BIT_INTEGER,
+              message: "must be less than 2,147,483,647",
+            },
           }}
           render={({ field, fieldState: { invalid, error } }) => (
             <TextField
@@ -176,6 +185,10 @@ export default function ClusteringSettings() {
           control={control}
           rules={{
             required: "field is required",
+            max: {
+              value: MAX_32_BIT_INTEGER,
+              message: "must be less than 2,147,483,647",
+            },
           }}
           render={({ field, fieldState: { invalid, error } }) => (
             <TextField
