@@ -1076,4 +1076,6 @@ def _title_case_no_underscore(name: str) -> str:
 
 def _floor_to_minute(t: datetime) -> datetime:
     MINUTE_FMT = "%Y-%m-%dT%H:%M:00%z"
-    return datetime.strptime(t.astimezone(timezone.utc).strftime(MINUTE_FMT), MINUTE_FMT)
+    return datetime.strptime(
+        t.astimezone(timezone.utc).strftime(MINUTE_FMT), MINUTE_FMT
+    ).astimezone(timezone.utc)
