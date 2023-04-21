@@ -24,6 +24,7 @@ class Fixture:
 FIXTURE_URL_PREFIX = "http://storage.googleapis.com/arize-assets/phoenix/datasets/"
 
 sentiment_classification_language_drift_schema = Schema(
+    prediction_id_column_name="prediction_id",
     timestamp_column_name="prediction_ts",
     prediction_label_column_name="pred_label",
     actual_label_column_name="label",
