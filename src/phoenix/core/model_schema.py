@@ -50,6 +50,10 @@ class DimensionRole(IntEnum):
 class SingularDimensionalRole(DimensionRole):
     """Roles that cannot be assigned to more than one dimension."""
 
+    # The (integer) ordering here is important in that it'll be used
+    # as tie-breaker when e.g. the user assigns a column to both prediction
+    # label and predicton score, in which case the role with a lower
+    # integer value will prevail.
     UNASSIGNED = auto()
     PREDICTION_ID = auto()
     TIME = auto()
@@ -66,7 +70,10 @@ class SingularDimensionalRole(DimensionRole):
 class MultiDimensionalRole(DimensionRole):
     # It's important to keep the numeric values disjoint among all subclass
     # enums (hence the +1 here), because we'll use `groupby(sorted(...))` to
-    # collate the dimensions.
+    # collate the dimensions. The (integer) ordering here is also important
+    # in that it'll be used as tie-breaker when e.g. the user assigns a
+    # column to both feature and tag, in which case the role with a lower
+    # integer value will prevail.
     FEATURE = len(SingularDimensionalRole) + 1
     TAG = auto()
 
@@ -814,9 +821,10 @@ class Model:
             if isinstance(k, DimensionRole):
                 for name in self._dim_names_by_role[k]:
                     yield self._dimensions[name]
-            if isinstance(k, str):
+            elif isinstance(k, str):
                 yield self._dimensions[k]
-            raise KeyError(f"invalid key: {repr(key)}")
+            else:
+                raise KeyError(f"invalid key: {repr(key)}")
 
     def _get_multi_dims_by_type(
         self,
@@ -903,16 +911,12 @@ class Schema(SchemaSpec):
         # Deduplicate using set().
         object.__setattr__(self, "features", set(self.features))
         object.__setattr__(self, "tags", set(self.tags))
-        sorted_by_name = sorted(self._make_dims(), key=lambda dim: dim.name)
-        grouped_by_name = groupby(sorted_by_name, key=lambda dim: dim.name)
+        grouped_by_name = groupby(
+            sorted(self._make_dims(), key=lambda dim: (dim.name, dim.role)),
+            key=lambda dim: dim.name,
+        )
         for name, group in grouped_by_name:
-            if len(dims := list(group)) > 1:
-                # Raise ValueError if one column name is assigned to two
-                # different roles, e.g. as both features and tags.
-                raise ValueError(
-                    f"`{name}` is specified as both `{dims[0].role.name}` and `{dims[1].role.name}`"
-                )
-            self._dimensions.append(dims[0])
+            self._dimensions.append(next(group))
 
     def _make_dims(self) -> Iterator[Dimension]:
         """Iterate over all dimensions defined by the Schema, substituting
