@@ -286,17 +286,13 @@ deep_data_fixture = Fixture(
 
 
 llm_summarization_schema = Schema(
-    timestamp_column_name="prediction_ts",
+    timestamp_column_name="prediction_timestamp",
     tag_column_names=[
-        "sacreBLEU_score",
-        "rouge1_score",
-        "rouge2_score",
         "rougeL_score",
-        "rougeLsum_score",
         "reference_summary",
     ],
     prompt_column_names=EmbeddingColumnNames(
-        vector_column_name="document_vector", raw_data_column_name="document"
+        vector_column_name="article_vector", raw_data_column_name="article"
     ),
     response_column_names=EmbeddingColumnNames(
         vector_column_name="summary_vector", raw_data_column_name="summary"
@@ -309,8 +305,14 @@ llm_summarization_fixture = Fixture(
     """,
     primary_schema=llm_summarization_schema,
     reference_schema=llm_summarization_schema,
-    primary_dataset_url="/Users/xandersong/Desktop/llm_prod.parquet",
-    reference_dataset_url="/Users/xandersong/Desktop/llm_train.parquet",
+    primary_dataset_url=os.path.join(
+        FIXTURE_URL_PREFIX,
+        "unstructured/llm/summarization/llm_summarization_prod.parquet",
+    ),
+    reference_dataset_url=os.path.join(
+        FIXTURE_URL_PREFIX,
+        "unstructured/llm/summarization/llm_summarization_baseline.parquet",
+    ),
 )
 
 FIXTURES: Tuple[Fixture, ...] = (
