@@ -50,6 +50,10 @@ class DimensionRole(IntEnum):
 class SingularDimensionalRole(DimensionRole):
     """Roles that cannot be assigned to more than one dimension."""
 
+    # The (integer) ordering here is important in that it'll be used
+    # as tie-breaker when e.g. the user assigns a column to both prediction
+    # label and predicton score, in which case the role with a lower
+    # integer value will prevail.
     UNASSIGNED = auto()
     PREDICTION_ID = auto()
     TIME = auto()
@@ -66,7 +70,10 @@ class SingularDimensionalRole(DimensionRole):
 class MultiDimensionalRole(DimensionRole):
     # It's important to keep the numeric values disjoint among all subclass
     # enums (hence the +1 here), because we'll use `groupby(sorted(...))` to
-    # collate the dimensions.
+    # collate the dimensions. The (integer) ordering here is also important
+    # in that it'll be used as tie-breaker when e.g. the user assigns a
+    # column to both feature and tag, in which case the role with a lower
+    # integer value will prevail.
     FEATURE = len(SingularDimensionalRole) + 1
     TAG = auto()
 
@@ -478,8 +485,8 @@ class Events(ModelData):
         # open and one minute is the smallest interval allowed.
         stop_time = end_time + timedelta(minutes=1)
         # Round down to the nearest minute.
-        start = start_time.replace(second=0, microsecond=0)
-        stop = stop_time.replace(second=0, microsecond=0)
+        start = _floor_to_minute(start_time)
+        stop = _floor_to_minute(stop_time)
         return TimeRange(start, stop)
 
     def __iter__(self) -> Iterator[Event]:
@@ -814,9 +821,10 @@ class Model:
             if isinstance(k, DimensionRole):
                 for name in self._dim_names_by_role[k]:
                     yield self._dimensions[name]
-            if isinstance(k, str):
+            elif isinstance(k, str):
                 yield self._dimensions[k]
-            raise KeyError(f"invalid key: {repr(key)}")
+            else:
+                raise KeyError(f"invalid key: {repr(key)}")
 
     def _get_multi_dims_by_type(
         self,
@@ -903,16 +911,12 @@ class Schema(SchemaSpec):
         # Deduplicate using set().
         object.__setattr__(self, "features", set(self.features))
         object.__setattr__(self, "tags", set(self.tags))
-        sorted_by_name = sorted(self._make_dims(), key=lambda dim: dim.name)
-        grouped_by_name = groupby(sorted_by_name, key=lambda dim: dim.name)
+        grouped_by_name = groupby(
+            sorted(self._make_dims(), key=lambda dim: (dim.name, dim.role)),
+            key=lambda dim: dim.name,
+        )
         for name, group in grouped_by_name:
-            if len(dims := list(group)) > 1:
-                # Raise ValueError if one column name is assigned to two
-                # different roles, e.g. as both features and tags.
-                raise ValueError(
-                    f"`{name}` is specified as both `{dims[0].role.name}` and `{dims[1].role.name}`"
-                )
-            self._dimensions.append(dims[0])
+            self._dimensions.append(next(group))
 
     def _make_dims(self) -> Iterator[Dimension]:
         """Iterate over all dimensions defined by the Schema, substituting
@@ -1072,3 +1076,29 @@ _id_pat = re.compile(r"\bid\b", re.IGNORECASE)
 def _title_case_no_underscore(name: str) -> str:
     """E.g. `PREDICTION_ID` turns into `Prediction ID`"""
     return _id_pat.sub("ID", name.replace("_", " ").title())
+
+
+MINUTE_DATETIME_FORMAT = "%Y-%m-%dT%H:%M:00%z"
+
+
+def _floor_to_minute(dt: datetime) -> datetime:
+    """Floor datetime to the minute by taking a round-trip through string
+    format because there isn't always an available function to strip the
+    nanoseconds if present."""
+    try:
+        dt_as_string = dt.astimezone(
+            timezone.utc,
+        ).strftime(
+            MINUTE_DATETIME_FORMAT,
+        )
+    except ValueError:
+        # NOTE: as of Python 3.8.16, pandas 1.5.3:
+        # >>> isinstance(pd.NaT, datetime.datetime)
+        # True
+        return cast(datetime, pd.NaT)
+    return datetime.strptime(
+        dt_as_string,
+        MINUTE_DATETIME_FORMAT,
+    ).astimezone(
+        timezone.utc,
+    )
