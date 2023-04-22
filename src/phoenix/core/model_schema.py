@@ -1077,11 +1077,24 @@ def _title_case_no_underscore(name: str) -> str:
 MINUTE_DATETIME_FORMAT = "%Y-%m-%dT%H:%M:00%z"
 
 
-def _floor_to_minute(t: datetime) -> datetime:
+def _floor_to_minute(dt: datetime) -> datetime:
     """Floor datetime to the minute by taking a round-trip through string
     format because there isn't always an available function to strip the
     nanoseconds if present."""
+    try:
+        dt_as_string = dt.astimezone(
+            timezone.utc,
+        ).strftime(
+            MINUTE_DATETIME_FORMAT,
+        )
+    except ValueError:
+        # NOTE: as of Python 3.8.16, pandas 1.5.3:
+        # >>> isinstance(pd.NaT, datetime.datetime)
+        # True
+        return cast(datetime, pd.NaT)
     return datetime.strptime(
-        t.astimezone(timezone.utc).strftime(MINUTE_DATETIME_FORMAT),
+        dt_as_string,
         MINUTE_DATETIME_FORMAT,
-    ).astimezone(timezone.utc)
+    ).astimezone(
+        timezone.utc,
+    )
