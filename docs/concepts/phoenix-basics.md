@@ -1,5 +1,5 @@
 ---
-description: Learn the foundational concepts of the Phoenix API
+description: Learn the foundational concepts of the Phoenix API and Application
 ---
 
 # Phoenix Basics
@@ -93,3 +93,29 @@ In cases like these, you'll need to define two schemas, one for each dataset. Fo
 <pre class="language-python"><code class="lang-python">train_ds = px.Dataset(train_df, train_schema, "training")
 <strong>prod_ds = px.Dataset(prod_df, prod_schema, "production")
 </strong></code></pre>
+
+## Application
+
+Phoenix runs as an application that can be viewed in a web browser tab or within your notebook as a cell. To launch the app, simply pass one or more datasets into the `launch_app` function:
+
+```
+session = px.launch_app(prod_ds, train_ds)
+```
+
+### Embedding Details
+
+For each [embedding](phoenix-basics.md#embeddings) described in the dataset(s) [schema](../api/dataset-and-schema.md), Phoenix serves a embeddings troubleshooting view to help you identify areas of drift and performance degradation. Let's start with embedding drift.
+
+<figure><img src="https://storage.googleapis.com/arize-assets/phoenix/assets/images/ner_color_by_correctness.png" alt=""><figcaption></figcaption></figure>
+
+### Embedding Drift Over Time
+
+The picture below shows a timeseries graph of the drift between two groups of vectors –- the reference / baseline vectors and the primary (typically production) vectors. Phoenix uses euclidean distance as the primary measure of embedding drift.&#x20;
+
+<figure><img src="https://storage.googleapis.com/arize-assets/phoenix/assets/images/euclidean_distance_timeseries_graph.png" alt="Euclidean distance over time graph"><figcaption><p>Euclidean distance over time</p></figcaption></figure>
+
+Moments of high euclidean distance is an indication that the primary dataset is starting to drift from the reference dataset. As the primary dataset moves further away from the reference (both in angle and in magnitude), the euclidean distance increases as well. For this reason times of high euclidean distance are a good starting point for trying to identify new anomalies and areas of drift.\
+
+
+<figure><img src="https://storage.googleapis.com/arize-assets/phoenix/assets/images/euclidean_distance_vectors.png" alt="Breakdown of euclidean distance - two centroids of points diverging"><figcaption><p>Centroids of the two datasets are used to calculate euclidean and cosine distance</p></figcaption></figure>
+
