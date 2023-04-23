@@ -11,7 +11,7 @@ This guide shows you how to define a Phoenix dataset using your own data.
 * For a comprehensive description of `phoenix.Dataset` and `phoenix.Schema`, see the [API reference](../api/dataset-and-schema.md).
 {% endhint %}
 
-Once you have a pandas DataFrame `df` containing your data and a `schema` object describing the format of your DataFrame, you can define your Phoenix dataset either by running
+Once you have a pandas dataframe `df` containing your data and a `schema` object describing the format of your dataframe, you can define your Phoenix dataset either by running
 
 ```python
 ds = px.Dataset(df, schema)
@@ -23,13 +23,13 @@ or by optionally providing a name for your dataset that will appear in the UI:
 ds = px.Dataset(df, schema, name="training")
 ```
 
-As you can see, instantiating your dataset is the easy part. Before you run the code above, you must first wrangle your data into a pandas DataFrame and then create a Phoenix schema to describe the format of your DataFrame. The rest of this guide shows you how to match your schema to your DataFrame with concrete examples.
+As you can see, instantiating your dataset is the easy part. Before you run the code above, you must first wrangle your data into a pandas dataframe and then create a Phoenix schema to describe the format of your dataframe. The rest of this guide shows you how to match your schema to your dataframe with concrete examples.
 
 ## Predictions and Actuals
 
-Let's first see how to define a schema with predictions and actuals (Phoenix's nomenclature for ground truth). The example DataFrame below contains inference data from a binary classification model trained to predict whether a user will click on an advertisement. The timestamps are `datetime.datetime` objects that represent the time at which each inference was made in production.
+Let's first see how to define a schema with predictions and actuals (Phoenix's nomenclature for ground truth). The example dataframe below contains inference data from a binary classification model trained to predict whether a user will click on an advertisement. The timestamps are `datetime.datetime` objects that represent the time at which each inference was made in production.
 
-#### DataFrame
+#### Dataframe
 
 | timestamp           | prediction\_score | prediction | target    |
 | ------------------- | ----------------- | ---------- | --------- |
@@ -56,7 +56,7 @@ This schema defines predicted and actual labels and scores, but you can run Phoe
 
 Phoenix accepts not only predictions and ground truth but also input features of your model and tags that describe your data. In the example below, features such as FICO score and merchant ID are used to predict whether a credit card transaction is legitimate or fraudulent. In contrast, tags such as age and gender are not model inputs, but are used to filter your data and analyze meaningful cohorts in the app.
 
-#### DataFrame
+#### Dataframe
 
 | fico\_score | merchant\_id      | loan\_amount | annual\_income | home\_ownership | num\_credit\_lines | inquests\_in\_last\_6\_months | months\_since\_last\_delinquency | age | gender | predicted  | target     |
 | ----------- | ----------------- | ------------ | -------------- | --------------- | ------------------ | ----------------------------- | -------------------------------- | --- | ------ | ---------- | ---------- |
@@ -91,9 +91,9 @@ schema = px.Schema(
 
 ### Implicit Features
 
-If your data has a large number of features, it can be inconvenient to list them all. For example, the breast cancer dataset below contains 30 features that can be used to predict whether a breast mass is malignant or benign. Instead of explicitly listing each feature, you can leave the `feature_column_names` field of your schema set to its default value of `None`, in which case, any columns of your DataFrame that do not appear in your schema are implicitly assumed to be features.
+If your data has a large number of features, it can be inconvenient to list them all. For example, the breast cancer dataset below contains 30 features that can be used to predict whether a breast mass is malignant or benign. Instead of explicitly listing each feature, you can leave the `feature_column_names` field of your schema set to its default value of `None`, in which case, any columns of your dataframe that do not appear in your schema are implicitly assumed to be features.
 
-#### DataFrame
+#### Dataframe
 
 | target    | predicted | mean radius | mean texture | mean perimeter | mean area | mean smoothness | mean compactness | mean concavity | mean concave points | mean symmetry | mean fractal dimension | radius error | texture error | perimeter error | area error | smoothness error | compactness error | concavity error | concave points error | symmetry error | fractal dimension error | worst radius | worst texture | worst perimeter | worst area | worst smoothness | worst compactness | worst concavity | worst concave points | worst symmetry | worst fractal dimension |
 | --------- | --------- | ----------- | ------------ | -------------- | --------- | --------------- | ---------------- | -------------- | ------------------- | ------------- | ---------------------- | ------------ | ------------- | --------------- | ---------- | ---------------- | ----------------- | --------------- | -------------------- | -------------- | ----------------------- | ------------ | ------------- | --------------- | ---------- | ---------------- | ----------------- | --------------- | -------------------- | -------------- | ----------------------- |
@@ -114,9 +114,9 @@ schema = px.Schema(
 
 ### Excluded Columns
 
-You can tell Phoenix to ignore certain columns of your DataFrame when implicitly inferring features by adding those column names to the `excluded_column_names` field of your schema. The DataFrame below contains all the same data as the breast cancer dataset above, in addition to "hospital" and "insurance\_provider" fields that are not features of your model. Explicitly exclude these fields, otherwise, Phoenix will assume that they are features.
+You can tell Phoenix to ignore certain columns of your dataframe when implicitly inferring features by adding those column names to the `excluded_column_names` field of your schema. The dataframe below contains all the same data as the breast cancer dataset above, in addition to "hospital" and "insurance\_provider" fields that are not features of your model. Explicitly exclude these fields, otherwise, Phoenix will assume that they are features.
 
-#### DataFrame
+#### Dataframe
 
 | target    | predicted | hospital                      | insurance\_provider | mean radius | mean texture | mean perimeter | mean area | mean smoothness | mean compactness | mean concavity | mean concave points | mean symmetry | mean fractal dimension | radius error | texture error | perimeter error | area error | smoothness error | compactness error | concavity error | concave points error | symmetry error | fractal dimension error | worst radius | worst texture | worst perimeter | worst area | worst smoothness | worst compactness | worst concavity | worst concave points | worst symmetry | worst fractal dimension |
 | --------- | --------- | ----------------------------- | ------------------- | ----------- | ------------ | -------------- | --------- | --------------- | ---------------- | -------------- | ------------------- | ------------- | ---------------------- | ------------ | ------------- | --------------- | ---------- | ---------------- | ----------------- | --------------- | -------------------- | -------------- | ----------------------- | ------------ | ------------- | --------------- | ---------- | ---------------- | ----------------- | --------------- | -------------------- | -------------- | ----------------------- |
@@ -141,7 +141,7 @@ schema = px.Schema(
 
 ## Embedding Features
 
-Embedding features consist of vector data in addition to any unstructured data in the form of text or images that the vectors represent. Unlike normal features, a single embedding feature may span multiple columns of your DataFrame. Use `px.EmbeddingColumnNames` to associate multiple DataFrame columns with the same embedding feature.
+Embedding features consist of vector data in addition to any unstructured data in the form of text or images that the vectors represent. Unlike normal features, a single embedding feature may span multiple columns of your dataframe. Use `px.EmbeddingColumnNames` to associate multiple dataframe columns with the same embedding feature.
 
 {% hint style="info" %}
 * For a conceptual overview of embeddings, see [Embeddings](../concepts/embeddings.md).
@@ -154,14 +154,14 @@ The example in this section contain low-dimensional embeddings for the sake of e
 
 ### Embedding Vectors
 
-To define an embedding feature, you must at minimum provide Phoenix with the embedding vector data itself. Specify the DataFrame column that contains this data in the `vector_column_name` field on `px.EmbeddingColumnNames`. For example, the DataFrame below contains tabular credit card transaction data in addition to embedding vectors that represent each row. Notice that:
+To define an embedding feature, you must at minimum provide Phoenix with the embedding vector data itself. Specify the dataframe column that contains this data in the `vector_column_name` field on `px.EmbeddingColumnNames`. For example, the dataframe below contains tabular credit card transaction data in addition to embedding vectors that represent each row. Notice that:
 
 * Unlike other fields that take strings or lists of strings, the argument to `embedding_feature_column_names` is a dictionary.
-* The key of this dictionary, "transaction\_embedding," is not a column of your DataFrame but is name you choose for your embedding feature that appears in the UI.
+* The key of this dictionary, "transaction\_embedding," is not a column of your dataframe but is name you choose for your embedding feature that appears in the UI.
 * The values of this dictionary are instances of `px.EmbeddingColumnNames`.
 * Each entry in the "embedding\_vector" column is a list of length 4.
 
-#### DataFrame
+#### Dataframe
 
 | predicted  | target     | embedding\_vector           | fico\_score | merchant\_id      | loan\_amount | annual\_income | home\_ownership | num\_credit\_lines | inquests\_in\_last\_6\_months | months\_since\_last\_delinquency |
 | ---------- | ---------- | --------------------------- | ----------- | ----------------- | ------------ | -------------- | --------------- | ------------------ | ----------------------------- | -------------------------------- |
@@ -186,7 +186,7 @@ schema = px.Schema(
 ```
 
 {% hint style="info" %}
-The features in this example are [implicitly inferred](define-your-schema.md#implicit-features) to be the columns of the DataFrame that do not appear in the schema.
+The features in this example are [implicitly inferred](define-your-schema.md#implicit-features) to be the columns of the dataframe that do not appear in the schema.
 {% endhint %}
 
 {% hint style="warning" %}
@@ -197,7 +197,7 @@ To compare embeddings, Phoenix uses metrics such as Euclidean distance that can 
 
 If your embeddings represent images, you can provide links or local paths to image files you want to display in the app by using the `link_to_data_column_name` field on `px.EmbeddingColumnNames`. The following example contains data for an image classification model that detects product defects on an assembly line.
 
-#### DataFrame
+#### Dataframe
 
 | defective | image                               | image\_vector                     |
 | --------- | ----------------------------------- | --------------------------------- |
@@ -226,7 +226,7 @@ schema = px.Schema(
 For local image data, we recommend the following steps to serve your images via a local HTTP server:
 
 1. In your terminal, navigate to a directory containing your image data and run `python -m http.server 8000`.
-2. Add URLs of the form "http://localhost:8000/rel/path/to/image.jpeg" to the appropriate column of your DataFrame.
+2. Add URLs of the form "http://localhost:8000/rel/path/to/image.jpeg" to the appropriate column of your dataframe.
 
 For example, suppose your HTTP server is running in a directory with the following contents:
 
@@ -242,7 +242,7 @@ Then your image URL would be http://localhost:8000/image-data/example\_image.jpe
 
 If your embeddings represent pieces of text, you can display that text in the app by using the `raw_data_column_name` field on `px.EmbeddingColumnNames`. The embeddings below were generated by a sentiment classification model trained on product reviews.
 
-#### DataFrame
+#### Dataframe
 
 | name                             | text                                                                     | text\_vector              | category          | sentiment |
 | -------------------------------- | ------------------------------------------------------------------------ | ------------------------- | ----------------- | --------- |
@@ -276,7 +276,7 @@ schema = px.Schema(
 
 Sometimes it is useful to have more than one embedding feature. The example below shows a multi-modal application in which one embedding represents the textual description and another embedding represents the image associated with products on an e-commerce site.
 
-#### DataFrame
+#### Dataframe
 
 | name                             | description                                                                                                                                        | description\_vector         | image                               | image\_vector                     |
 | -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------- | ----------------------------------- | --------------------------------- |

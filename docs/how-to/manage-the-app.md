@@ -12,13 +12,13 @@ description: >-
 For a conceptual overview of datasets, including an explanation of when to use a single dataset vs. primary and reference datasets, see [Phoenix Basics](../concepts/phoenix-basics.md#datasets).
 {% endhint %}
 
-To define a dataset, you must load your data into a pandas DataFrame and [create a matching schema](define-your-schema.md). If you have a DataFrame `prim_df` and a matching `prim_schema`, you can define a dataset named "primary" with
+To define a dataset, you must load your data into a pandas dataframe and [create a matching schema](define-your-schema.md). If you have a dataframe `prim_df` and a matching `prim_schema`, you can define a dataset named "primary" with
 
 ```python
 prim_ds = px.Dataset(prim_df, prim_schema, "primary")
 ```
 
-If you additionally have a DataFrame `ref_df` and a matching `ref_schema`, you can define a dataset named "reference" with
+If you additionally have a dataframe `ref_df` and a matching `ref_schema`, you can define a dataset named "reference" with
 
 ```
 ref_ds = px.Dataset(ref_df, ref_schema, "reference")

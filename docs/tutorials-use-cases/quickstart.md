@@ -49,7 +49,7 @@ train_df.head()
 | 3     | 3e00c023-49b4-49c2-9922-7ecbf1349c04 | 1.655757e+09   | https://storage.googleapis.com/arize-assets/fi... | \[0.028404092, 0.063946, 1.0448836, 0.65191674,... | fighting       | fighting          |
 | 4     | fb38b050-fb12-43af-b27d-629653b5df86 | 1.655758e+09   | https://storage.googleapis.com/arize-assets/fi... | \[0.06121698, 0.5172761, 0.50730985, 0.5771937,... | sitting        | sitting           |
 
-The columns of the DataFrame are:
+The columns of the dataframe are:
 
 * **prediction\_id:** a unique identifier for each data point
 * **prediction\_ts:** the Unix timestamps of your predictions
@@ -148,7 +148,7 @@ session.view()
 
 Navigate to the embeddings view. Find a cluster of blurry or noisy production data and export the cluster.
 
-View the exported cluster as a DataFrame in your notebook.
+View the exported cluster as a dataframe in your notebook.
 
 ```python
 export_df = session.exports[-1]

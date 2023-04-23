@@ -12,9 +12,9 @@ We support generating embeddings for you for the following types of data:
 
 * CV - Computer Vision&#x20;
 * NLP - Natural Language&#x20;
-* Tabular Data - Pandas DataFrames&#x20;
+* Tabular Data - Pandas Dataframes&#x20;
 
-We extract the embeddings in the appropriate way depending on your use case, and we return it to you to include in your pandas DataFrame, which you can then analyze using Phoenix.
+We extract the embeddings in the appropriate way depending on your use case, and we return it to you to include in your pandas dataframe, which you can then analyze using Phoenix.
 
 Auto-Embeddings works end-to-end, you don't have to worry about formatting your inputs for the correct model. By simply passing your input, an embedding will come out as a result. We take care of everything in between.
 
@@ -46,7 +46,7 @@ Auto-Embeddings is designed to require minimal code from the user. We only requi
 ### Use Case Examples
 
 {% hint style="warning" %}
-Arize expects the DataFrame's index to be sorted and begin at 0. If you perform operations that might affect the index prior to generating embeddings, reset the index as follows:
+Arize expects the dataframe's index to be sorted and begin at 0. If you perform operations that might affect the index prior to generating embeddings, reset the index as follows:
 
 ```python
 df = df.reset_index(drop=True)
@@ -87,7 +87,7 @@ df["text_vector"] = generator.generate_embeddings(text_col=df["text"])
 ```
 {% endtab %}
 
-{% tab title="Tabular Data - Pandas DataFrame" %}
+{% tab title="Tabular Data - Pandas Dataframe" %}
 <pre class="language-python"><code class="lang-python">from arize.pandas.embeddings import EmbeddingGenerator, UseCases
 <strong>
 </strong><strong>df = df.reset_index(drop=True)

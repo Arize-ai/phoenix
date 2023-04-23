@@ -15,11 +15,11 @@ This section introduces _datasets_ and _schemas,_ the starting concepts needed t
 
 A _Phoenix dataset_ is an instance of `phoenix.Dataset` that contains three pieces of information:
 
-* The data itself (a pandas DataFrame)
-* A schema (a `phoenix.Schema` instance) that describes the columns of your DataFrame
+* The data itself (a pandas dataframe)
+* A schema (a `phoenix.Schema` instance) that describes the columns of your dataframe
 * A dataset name that appears in the UI
 
-For example, if you have a DataFrame `prod_df` that is described by a schema `prod_schema`, you can define a dataset `prod_ds` with
+For example, if you have a dataframe `prod_df` that is described by a schema `prod_schema`, you can define a dataset `prod_ds` with
 
 ```python
 prod_ds = px.Dataset(prod_df, prod_schema, "production")
@@ -45,9 +45,9 @@ Very often, your primary dataset will contain production data and your reference
 
 ## Schemas
 
-A _Phoenix schema_ is an instance of `phoenix.Schema` that maps the columns of your DataFrame to fields that Phoenix expects and understands. Use your schema to tell Phoenix what the data in your DataFrame means.
+A _Phoenix schema_ is an instance of `phoenix.Schema` that maps the columns of your dataframe to fields that Phoenix expects and understands. Use your schema to tell Phoenix what the data in your dataframe means.
 
-For example, if you have a DataFrame containing Fisher's Iris data that looks like this:
+For example, if you have a dataframe containing Fisher's Iris data that looks like this:
 
 | sepal\_length | sepal\_width | petal\_length | petal\_width | target     | prediction |
 | ------------- | ------------ | ------------- | ------------ | ---------- | ---------- |
@@ -76,7 +76,7 @@ schema = px.Schema(
 
 > Usually one, sometimes two.
 
-Each dataset needs a schema. If your primary and reference datasets have the same format, then you only need one schema. For example, if you have DataFrames `train_df` and `prod_df` that share an identical format described by a schema named `schema`, then you can define datasets `train_ds` and `prod_ds` with
+Each dataset needs a schema. If your primary and reference datasets have the same format, then you only need one schema. For example, if you have dataframes `train_df` and `prod_df` that share an identical format described by a schema named `schema`, then you can define datasets `train_ds` and `prod_ds` with
 
 <pre class="language-python"><code class="lang-python">train_ds = px.Dataset(train_df, schema, "training")
 <strong>prod_ds = px.Dataset(prod_df, schema, "production")
@@ -88,7 +88,7 @@ Sometimes, you'll encounter scenarios where the formats of your primary and refe
 * Your training data has ground truth (what we call _actuals_ in Phoenix nomenclature), but your production data does not.
 * A new version of your model has a differing set of features from a previous version.
 
-In cases like these, you'll need to define two schemas, one for each dataset. For example, if you have DataFrames `train_df` and `prod_df` that are described by schemas `train_schema` and `prod_schema`, respectively, then you can define datasets `train_ds` and `prod_ds` with
+In cases like these, you'll need to define two schemas, one for each dataset. For example, if you have dataframes `train_df` and `prod_df` that are described by schemas `train_schema` and `prod_schema`, respectively, then you can define datasets `train_ds` and `prod_ds` with
 
 <pre class="language-python"><code class="lang-python">train_ds = px.Dataset(train_df, train_schema, "training")
 <strong>prod_ds = px.Dataset(prod_df, prod_schema, "production")

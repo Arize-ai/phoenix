@@ -121,7 +121,7 @@ A session that maintains the state of the Phoenix app.
 ### Attributes
 
 * **url** (str): The URL of the running Phoenix session. Can be copied and pasted to open the Phoenix UI in a new browser tab or window.
-* **exports** (List\[pandas.DataFrame]): A list of pandas DataFrames containing exported data, sorted in chronological order.
+* **exports** (List\[pandas.DataFrame]): A list of pandas dataframes containing exported data, sorted in chronological order.
 
 ### Usage
 
@@ -163,13 +163,13 @@ session.url
 
 and copying and pasting the URL.
 
-Once a cluster or subset of your data is selected in the UI, it can be saved by clicking the "Export" button. You can then access your exported data in your notebook via the `exports` property on your `session` object, which returns a list of DataFrames containing each export.
+Once a cluster or subset of your data is selected in the UI, it can be saved by clicking the "Export" button. You can then access your exported data in your notebook via the `exports` property on your `session` object, which returns a list of dataframes containing each export.
 
 ```python
 session.exports
 ```
 
-Exported DataFrames are listed in chronological order. To access your most recent export, run
+Exported dataframes are listed in chronological order. To access your most recent export, run
 
 ```python
 session.exports[-1]

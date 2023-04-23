@@ -41,7 +41,7 @@ train_df.head()
 | 3     | 616         | 7500.0       | 36 months | 9.99           | 241.97      | B     | OWN             | 94880          | Not Verified         | n           | ... | uncertain     | uncertain        | 0.147598         | 6f24df12-5531-4557-a11e-e9baa312ad75 | 25  | TX    | Schiller Ltd    | 49                    | 1.669853e+09          | \[-0.37020123, -0.28127947, 0.44664872, 0.01211... |
 | 4     | 614         | 10800.0      | 36 months | 8.39           | 340.38      | A     | LEASE           | 83848          | Not Verified         | n           | ... | not\_fraud    | fraud            | 0.173840         | 047817c6-4113-429f-8db3-1a502f8b0fe8 | 29  | TX    | Schiller Ltd    | 64                    | 1.669853e+09          | \[-0.39094505, -0.2960744, 0.44086558, -0.01314... |
 
-The columns of the DataFrame are:
+The columns of the dataframe are:
 
 * **prediction\_id:** the unique ID for each prediction
 * **prediction\_timestamp:** the timestamps of your predictions
@@ -143,7 +143,7 @@ session.view()
 
 Navigate to the embeddings page. Select a period of high drift. Select a drifted cluster. Color your data by the `merchant_ID` feature. Select a cluster of drifted production data. Notice that much of this data consists of fraudulent transactions from the Scammeds merchant. Export the cluster.
 
-View your most recently exported data as a DataFrame.
+View your most recently exported data as a dataframe.
 
 ```python
 export_df = session.exports[-1]

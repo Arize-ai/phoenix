@@ -44,7 +44,7 @@ train_df.head()
 | 3     | 1.650093e+09   | 26            | male             | other             | english  | My husband has a pair of TaoTronics so I decid... | \[0.018816521, 0.53441304, 0.4907303, -0.024163... | neutral  | neutral     | 2707a745-6cc2-4690-96d8-7a4c0d25eae4 |
 | 4     | 1.650093e+09   | 37            | male             | home\_improvement | english  | Threads too deep. Engages on tank, but gasket ... | \[-0.25348073, 0.31603432, 0.35810202, -0.24672... | negative | negative    | db0f1d5a-ea00-44e4-ae61-47db679a1e54 |
 
-The columns of the DataFrame are:
+The columns of the dataframe are:
 
 * **prediction\_ts:** the Unix timestamps of your predictions
 * **review\_age**, **reviewer\_gender**, **product\_category**, **language:** the features of your model
