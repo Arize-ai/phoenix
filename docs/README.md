@@ -9,9 +9,9 @@ coverY: 0
 
 # ML Observability in a Notebook
 
-Running Phoenix for the first time? Get up and running with the [quickstart](tutorials-use-cases/quickstart.md).
+Running Phoenix for the first time? Check out the tutorials to explore the capabilities of Phoenix for various tasks and use cases.
 
-[![Open in Colab](https://img.shields.io/static/v1?message=Open%20in%20Colab\&logo=googlecolab\&labelColor=grey\&color=blue\&logoColor=orange\&label=%20)](https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/quickstart.ipynb) [![Open in GitHub](https://img.shields.io/static/v1?message=Open%20in%20GitHub\&logo=github\&labelColor=grey\&color=blue\&logoColor=white\&label=%20)](https://github.com/Arize-ai/phoenix/blob/main/tutorials/quickstart.ipynb)
+<table data-card-size="large" data-view="cards"><thead><tr><th align="center"></th><th data-hidden data-card-target data-type="content-ref"></th></tr></thead><tbody><tr><td align="center"><strong>Computer Vision</strong></td><td><a href="tutorials-use-cases/quickstart.md">quickstart.md</a></td></tr><tr><td align="center"><strong>NLP</strong></td><td><a href="tutorials-use-cases/quickstart-1.md">quickstart-1.md</a></td></tr><tr><td align="center"><strong>Tabular Data</strong></td><td><a href="tutorials-use-cases/quickstart-2.md">quickstart-2.md</a></td></tr><tr><td align="center"><strong>Generative LLMs</strong></td><td><a href="tutorials/generative-llms.md">generative-llms.md</a></td></tr></tbody></table>
 
 ## What is Phoenix?
 
