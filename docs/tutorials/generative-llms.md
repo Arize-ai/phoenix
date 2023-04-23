@@ -1,5 +1,5 @@
 ---
-description: Troubleshooting an LLM Summarization Task
+description: Troubleshooting an LLM summarization task
 ---
 
 # Generative LLMs
