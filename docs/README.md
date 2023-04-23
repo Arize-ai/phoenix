@@ -9,7 +9,7 @@ coverY: 0
 
 # ML Observability in a Notebook
 
-Running Phoenix for the first time? Get up and running with the [quickstart](tutorials-use-cases/quickstart.md).
+Running Phoenix for the first time? Get up and running with the [quickstart](tutorials/quickstart.md).
 
 [![Open in Colab](https://img.shields.io/static/v1?message=Open%20in%20Colab\&logo=googlecolab\&labelColor=grey\&color=blue\&logoColor=orange\&label=%20)](https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/quickstart.ipynb) [![Open in GitHub](https://img.shields.io/static/v1?message=Open%20in%20GitHub\&logo=github\&labelColor=grey\&color=blue\&logoColor=white\&label=%20)](https://github.com/Arize-ai/phoenix/blob/main/tutorials/quickstart.ipynb)
 

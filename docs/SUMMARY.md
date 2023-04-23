@@ -8,12 +8,13 @@
 * [Generating Embeddings](concepts/generating-embeddings.md)
 * [LLM Observability](concepts/llm-observability.md)
 
-## 🎓 Tutorials/Use Cases
+## 🎓 Tutorials
 
-* [Quickstart - Computer Vision](tutorials-use-cases/quickstart.md)
-* [Quickstart - NLP](tutorials-use-cases/quickstart-1.md)
-* [Quickstart - Tabular Data](tutorials-use-cases/quickstart-2.md)
-* [Notebooks](tutorials-use-cases/notebooks.md)
+* [Computer Vision](tutorials/quickstart.md)
+* [NLP](tutorials/quickstart-1.md)
+* [Tabular Data](tutorials/quickstart-2.md)
+* [Generative LLMs](tutorials/generative-llms.md)
+* [Notebooks](tutorials/notebooks.md)
 
 ## 🔢 How-To
 
