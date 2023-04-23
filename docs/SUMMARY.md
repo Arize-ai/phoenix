@@ -10,11 +10,11 @@
 
 ## 🎓 Tutorials
 
-* [Computer Vision](tutorials/quickstart.md)
-* [NLP](tutorials/quickstart-1.md)
-* [Tabular Data](tutorials/quickstart-2.md)
+* [Computer Vision](tutorials-use-cases/quickstart.md)
+* [NLP](tutorials-use-cases/quickstart-1.md)
+* [Tabular Data](tutorials-use-cases/quickstart-2.md)
 * [Generative LLMs](tutorials/generative-llms.md)
-* [Notebooks](tutorials/notebooks.md)
+* [Notebooks](tutorials-use-cases/notebooks.md)
 
 ## 🔢 How-To
 
