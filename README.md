@@ -17,9 +17,11 @@
 
 Phoenix provides MLOps insights at lightning speed with zero-config observability for model drift, performance, and data quality. Phoenix is notebook-first python library that leverages embeddings to uncover problematic cohorts of your LLM, CV, NLP and tabular models.
 
-<p align="center">
-    <img width="auto" src="https://storage.googleapis.com/arize-assets/phoenix/assets/gifs/cv_eda_480px.gif" title="a rotating UMAP point cloud of a computer vision model"></img>
-</p>
+<!-- EXCLUDE -->
+
+![a rotating UMAP point cloud of a computer vision model](https://github.com/Arize-ai/phoenix-assets/blob/main/gifs/computer_vision_color_by_prediction.gif?raw=true)
+
+<!-- /EXCLUDE -->
 
 ## Installation
 
