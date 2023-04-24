@@ -1000,11 +1000,12 @@ class Schema(SchemaSpec):
         return json.dumps(_jsonify(self))
 
     @classmethod
-    def from_json(cls, json_data: Any) -> "Schema":
+    def from_json(cls, input: str) -> "Schema":
+        data = json.loads(input)
         try:
-            return cls(**{k: _objectify(v) for k, v in json_data.items()})
+            return cls(**{k: _objectify(v) for k, v in data.items()})
         except ValueError as e:
-            raise ValueError(f"invalid json data: {repr(json_data)}") from e
+            raise ValueError(f"invalid json data: {repr(data)}") from e
 
 
 def _agg_min_max(series: "pd.Series[Any]") -> "pd.Series[Any]":

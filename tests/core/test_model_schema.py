@@ -1,4 +1,3 @@
-import json
 from itertools import chain
 from random import random
 from typing import Any, Iterable, Union
@@ -367,4 +366,4 @@ def test_raise_if_dim_role_is_unassigned():
     ],
 )
 def test_schema_to_json(schema: Schema):
-    assert schema == Schema.from_json(json.loads(schema.to_json()))
+    assert schema == Schema.from_json(schema.to_json())
