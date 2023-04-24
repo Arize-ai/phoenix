@@ -161,7 +161,7 @@ class Embedding(CompositeDimensionSpec):
     def __iter__(self) -> Iterator[str]:
         for value in (self.vector, self.raw_data, self.link_to_data):
             if isinstance(value, str) and value:
-                yield str(value)
+                yield value
 
 
 class DatasetRole(IntEnum):
@@ -985,14 +985,16 @@ class Schema(SchemaSpec):
                 continue
             value = getattr(self, f.name)
             if isinstance(value, str) and value:
-                yield str(value)
+                yield value
                 continue
             try:
                 for v in iter(value):
-                    if isinstance(v, CompositeDimensionSpec):
+                    if isinstance(v, str) and v:
+                        yield v
+                    try:
                         yield from iter(v)
-                    elif isinstance(v, str) and v:
-                        yield str(v)
+                    except TypeError:
+                        pass
             except TypeError:
                 pass
 
