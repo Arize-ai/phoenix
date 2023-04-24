@@ -120,14 +120,17 @@ For each [embedding](phoenix-basics.md#embeddings) described in the dataset(s) [
 
 ### Embedding Drift Over Time
 
-The picture below shows a time series graph of the drift between two groups of vectors –- the reference / baseline vectors and the primary (typically production) vectors. Phoenix uses euclidean distance as the primary measure of embedding drift.&#x20;
+The picture below shows a time series graph of the drift between two groups of vectors –- the primary (typically production) vectors and reference / baseline vectors. Phoenix uses euclidean distance as the primary measure of embedding drift and helps us identify times where your dataset is diverging from a given reference baseline.&#x20;
 
 <figure><img src="https://storage.googleapis.com/arize-assets/phoenix/assets/images/euclidean_distance_timeseries_graph.png" alt="Euclidean distance over time graph"><figcaption><p>Euclidean distance over time</p></figcaption></figure>
 
-Moments of high euclidean distance is an indication that the primary dataset is starting to drift from the reference dataset. As the primary dataset moves further away from the reference (both in angle and in magnitude), the euclidean distance increases as well. For this reason times of high euclidean distance are a good starting point for trying to identify new anomalies and areas of drift.\
-
+Moments of high euclidean distance is an indication that the primary dataset is starting to drift from the reference dataset. As the primary dataset moves further away from the reference (both in angle and in magnitude), the euclidean distance increases as well. For this reason times of high euclidean distance are a good starting point for trying to identify new anomalies and areas of drift.
 
 <figure><img src="https://storage.googleapis.com/arize-assets/phoenix/assets/images/euclidean_distance_vectors.png" alt="Breakdown of euclidean distance - two centroids of points diverging"><figcaption><p>Centroids of the two datasets are used to calculate euclidean and cosine distance</p></figcaption></figure>
+
+{% hint style="info" %}
+For an in-depth guide of euclidean distance and embedding drift, check out[ Arze's ML course ](https://arize.com/blog-course/embedding-drift-euclidean-distance/)
+{% endhint %}
 
 In phoenix, you can views the drift of a particular embedding in a time series graph at the top of the page. To diagnose the cause of the  drift, click on the graph at different times to view a breakdown of the embeddings at particular time.
 
