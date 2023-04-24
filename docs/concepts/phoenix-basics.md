@@ -98,9 +98,19 @@ In cases like these, you'll need to define two schemas, one for each dataset. Fo
 
 Phoenix runs as an application that can be viewed in a web browser tab or within your notebook as a cell. To launch the app, simply pass one or more datasets into the `launch_app` function:
 
-```
+```python
 session = px.launch_app(prod_ds, train_ds)
+# or just one dataset
+session = px.launch_app(prod_ds)
 ```
+
+The application provide you with a landing page that is populated with your model's `schema` (e.g. the features, tags, predictions, and actuals). This gives you a statistical overview of your data as well as links into the [embeddings details](phoenix-basics.md#embedding-details) views for analysis.&#x20;
+
+<figure><img src="https://storage.googleapis.com/arize-assets/phoenix/assets/images/cc_fraud_home.png" alt="the phoenix home page with an overview of the model"><figcaption><p>The phoenix homepage</p></figcaption></figure>
+
+{% hint style="info" %}
+The phoenix homepage is still work in progress. More features coming soon!
+{% endhint %}
 
 ### Embedding Details
 
@@ -110,7 +120,7 @@ For each [embedding](phoenix-basics.md#embeddings) described in the dataset(s) [
 
 ### Embedding Drift Over Time
 
-The picture below shows a timeseries graph of the drift between two groups of vectors –- the reference / baseline vectors and the primary (typically production) vectors. Phoenix uses euclidean distance as the primary measure of embedding drift.&#x20;
+The picture below shows a time series graph of the drift between two groups of vectors –- the reference / baseline vectors and the primary (typically production) vectors. Phoenix uses euclidean distance as the primary measure of embedding drift.&#x20;
 
 <figure><img src="https://storage.googleapis.com/arize-assets/phoenix/assets/images/euclidean_distance_timeseries_graph.png" alt="Euclidean distance over time graph"><figcaption><p>Euclidean distance over time</p></figcaption></figure>
 
@@ -118,4 +128,12 @@ Moments of high euclidean distance is an indication that the primary dataset is 
 
 
 <figure><img src="https://storage.googleapis.com/arize-assets/phoenix/assets/images/euclidean_distance_vectors.png" alt="Breakdown of euclidean distance - two centroids of points diverging"><figcaption><p>Centroids of the two datasets are used to calculate euclidean and cosine distance</p></figcaption></figure>
+
+In phoenix, you can views the drift of a particular embedding in a time series graph at the top of the page. To diagnose the cause of the  drift, click on the graph at different times to view a breakdown of the embeddings at particular time.
+
+<figure><img src="https://storage.googleapis.com/arize-assets/phoenix/assets/images/euclidean_distance_click_cta.png" alt="A time series graph of embeddings over time and a call to action to view details via a click"><figcaption><p>Click on a particular time to view why the inference embeddings are drifting</p></figcaption></figure>
+
+
+
+
 
