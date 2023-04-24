@@ -1,7 +1,7 @@
 ---
 description: >-
-  Phoenix provides MLOps insights at lightning speed with zero-config
-  observability for model drift, performance, and data quality.
+  Phoenix provides ML insights at lightning speed with zero-config observability
+  for model drift, performance, and data quality.
 cover: >-
   https://images.unsplash.com/photo-1610296669228-602fa827fc1f?crop=entropy&cs=tinysrgb&fm=jpg&ixid=MnwxOTcwMjR8MHwxfHNlYXJjaHw1fHxzcGFjZXxlbnwwfHx8fDE2NzkwOTMzODc&ixlib=rb-4.0.3&q=80
 coverY: 0
@@ -9,98 +9,53 @@ coverY: 0
 
 # ML Observability in a Notebook
 
-Get up and running quickly with the [quickstart](quickstart.md).
+Running Phoenix for the first time? Check out the tutorials to explore the capabilities of Phoenix for various tasks and use cases.
+
+<table data-card-size="large" data-view="cards"><thead><tr><th align="center"></th><th data-hidden data-card-target data-type="content-ref"></th></tr></thead><tbody><tr><td align="center"><strong>Computer Vision</strong></td><td><a href="tutorials/computer-vision.md">computer-vision.md</a></td></tr><tr><td align="center"><strong>NLP</strong></td><td><a href="tutorials/nlp.md">nlp.md</a></td></tr><tr><td align="center"><strong>Tabular Data</strong></td><td><a href="tutorials/tabular-data.md">tabular-data.md</a></td></tr><tr><td align="center"><strong>Generative LLMs</strong></td><td><a href="tutorials/generative-llms.md">generative-llms.md</a></td></tr></tbody></table>
 
 ## What is Phoenix?
 
-Phoenix is an ML Observability library designed for the Notebook. The toolset is designed to ingest model inference data for LLMs, CV, NLP and tabular datasets. It allows Data Scientists to quickly visualize their model data, monitor performance, track down issues & insights, and easily export to improve. Unstructured data such as text (prompts and responses) and images are a first class citizen in Phoenix, with embeddings analysis designed as the core foundation of the library.
+Phoenix is an Open Source ML Observability library designed for the Notebook. The toolset is designed to ingest model inference data for LLMs, CV, NLP and tabular datasets. It allows Data Scientists to quickly visualize their model data, monitor performance, track down issues & insights, and easily export to improve.&#x20;
 
-### Core Functionality:
+<figure><img src=".gitbook/assets/Docs graphics-02.jpg" alt=""><figcaption></figcaption></figure>
 
-* Unstructured & structured data drift
-* Troubleshooting LLM prompt/responses
-* Analytical tools for NLP/Image/Generative & tabular model analysis
-* Automatic visualization and clustering of embeddings
-* UMAP for dimension reduction & HDBScan for clustering analysis: designed to work together
-* Easy A/B data comparison workflows
-* Embedding drift analysis
-* Ingest embeddings if you have them or leverage embedding generation SDK
-* Generate embeddings using LLMs
-* Monitoring analysis to pinpoint issues\*
-* Automatic clustering to detect groups of problems
-* Workflows to export and fine tune
+## Overview
 
-#### Coming Soon:
+#### Context&#x20;
 
-* Dashboards
-* Monitors for structured data
+* Deep Learning Models (CV, LLM, and Generative) are an amazing technology that will power many of the future ML use cases. &#x20;
+* A large set of these technologies are being deployed into businesses (the real world) in what we consider a production setting.
+* When they are in production, data scientists have no idea when models fail, when they make wrong decisions, or give poor responses (LLM), and incorrectly generalize.&#x20;
+* One paradigm that has emerged is the use of embeddings and latent structure to analyze model decisions and find clusters of problems.&#x20;
+* Fixing the problem typically consists of augmenting/editing upstream data, changing a prompt template or exporting data for use in training and/or fine tuning.&#x20;
 
-### Phoenix Architecture
+#### Proposed Solution
 
-Phoenix is designed to run locally on a single server in conjunction with the Notebook.
+This is where Phoenix comes in 😃 ML Observability helps you visualize, troubleshoot, and monitor complex model data.
 
-<figure><img src=".gitbook/assets/Phoenix docs graphics-03.jpg" alt=""><figcaption><p><strong>Phoenix Architecture</strong></p></figcaption></figure>
+* Lightweight connections to dataframes&#x20;
+* Provides easy tools to generate and visualize embeddings
+* Automatically find clusters of embeddings that represent "ideas" that the model has learned (manifolds)&#x20;
+* Sorts clusters of issues using performance metrics or drift
+* Built in workflows for model improvement&#x20;
 
-Phoenix runs locally, close to your data, in an environment that interfaces to Notebook cells on the Notebook server. Designing Phoenix to run locally, enables fast iteration on top of local data.
+<figure><img src=".gitbook/assets/Phoenix pipeline diagram - dark.png" alt=""><figcaption></figcaption></figure>
 
-In order to use Phoenix:
+**Phoenix Functionality**&#x20;
 
-1. Load data into pandas dataframe
-2. Leverage SDK embeddings and LLM eval generators
-3. Start Phoenix
-   1. Single dataframe
-   2. Two dataframes: primary and reference
-4. Investigate problems
-5. Export data
+* **Discover How Embeddings Represent Your Data:** Map structured features onto embeddings for deeper insights into how embeddings represent your data.&#x20;
+* **Evaluate LLM Tasks:** Troubleshoot tasks such as summarization or question/answering to find problem clusters with misleading or false answers.&#x20;
+* **Find Clusters of Issues to Export for Model Improvement:** Find clusters of problems using performance metrics or drift. Export clusters for fine-tuning workflows.&#x20;
+* **Detect Anomalies:** Using LLM embeddings&#x20;
+* **Surface Model Drift and Multivariate Drift:** Use embedding drift to surface data drift for generative AI, LLMs, computer vision (CV) and tabular models.
+* **Easily Compare A/B Datasets:** Uncover high-impact clusters of data points missing from model training data when comparing training and production datasets.&#x20;
 
-<figure><img src=".gitbook/assets/Phoenix docs graphics-02 (2).jpg" alt=""><figcaption></figcaption></figure>
+### Phoenix Supported Model Types
 
-The picture above shows the flow of execution of Phoenix, from pointing it to your data, running it to find problems or insights, grabbing groups of data for insights and then exporting for fine tuning.
-
-#### Load Data Into pandas:
-
-Phoenix currently requires pandas dataframes which can be downloaded from either an ML observability platform, a table or a raw log file. The data is assumed to be formatted in the Open Inference format with a well defined column structure, normally including a set of inputs/features, outputs/predictions and ground truth.
-
-#### Leverage SDK Embeddings and LLM Eval Generators:
-
-The Phoenix library heavily uses embeddings as a method for data visualization and debugging. In order to use Phoenix with embeddings they can either be generated using an SDK call or they can be supplied by the user of the library. Phoenix supports generating embeddings for LLMs, Image, NLP, and tabular datasets.
-
-#### Start Phoenix:
-
-Phoenix is typically started in a notebook from which a local Phoenix server is kicked off. Two approaches can be taken to the overall use of Phoenix:
-
-1. **Single Dataset**
-
-In the case of a team that only wants to investigate a single dataset for exploratory data analysis (EDA), a single dataset instantiation of Phoenix can be used. In this scenario, a team is normally analyzing the data in an exploratory manner and is not doing A/B comparisons.
-
-2. **Two Datasets**
-
-A common use case in ML is for teams to have 2x datasets they are comparing such as: training vs production, model A vs model B, OR production time X vs production time Y, just to name a few. In this scenario there exists a primary and reference dataset. When using the primary and reference dataset, Phoenix supports drift analysis, embedding drift and many different A/B dataset comparisons.
-
-#### Investigate Problems:
-
-Once instantiated, teams can dive into Phoenix on a feature by feature basis, analyzing performance and tracking down issues.
-
-#### Export Cluster:
-
-Once an issue is found, the cluster can be exported back into a dataframe for further analysis. Clusters can be used to create groups of similar data points for use downstream, these include:
-
-* Finding Similar Examples
-* Monitoring
-* Steering Vectors / Steering Prompts
-
-### How Phoenix fits into the ML Stack
-
-Phoenix is designed to monitor, analyze and troubleshoot issues on top of your model data allowing for interactive workflows all within a Notebook environment.
-
-<figure><img src=".gitbook/assets/Phoenix docs graphics-01.jpg" alt=""><figcaption><p><strong>How Phoenix Fits into the ML Stack</strong></p></figcaption></figure>
-
-The above picture shows the use of Phoenix with a cloud observability system (this is not required). In this example the cloud observability system allows the easy download (or synchronization) of data to the Notebook typically based on model, batch, environment, and time ranges. Normally this download is done to analyze data at the tail end of troubleshooting workflow, or periodically to use the notebook environment to monitor your models.&#x20;
-
-Once in a notebook environment the downloaded data can power Observability workflows that are highly interactive. Phoenix can be used to find clusters of data problems and export those clusters back to the Observability platform for use in monitoring and active learning workflows.&#x20;
-
-Note: Data can also be downloaded from any data warehouse system for use in Phoenix without the requirement of a cloud ML observability solution.&#x20;
-
-In the first version of Phoenix it is assumed the data is available locally but we’ve also designed it with some broader visions in mind. For example, Phoenix was designed with a stateless metrics engine as a first class citizen, enabling any metrics checks to be run in any python data pipeline.&#x20;
+* Tabular - Regression, Classification&#x20;
+* CV&#x20;
+* NLP
+* LLM
+* Ranking\* (coming soon)
 
 \

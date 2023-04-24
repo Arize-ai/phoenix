@@ -1,5 +1,5 @@
 ---
-description: Learn the foundational concepts of the Phoenix API
+description: Learn the foundational concepts of the Phoenix API and Application
 ---
 
 # Phoenix Basics
@@ -15,11 +15,11 @@ This section introduces _datasets_ and _schemas,_ the starting concepts needed t
 
 A _Phoenix dataset_ is an instance of `phoenix.Dataset` that contains three pieces of information:
 
-* The data itself (a pandas DataFrame)
-* A schema (a `phoenix.Schema` instance) that describes the columns of your DataFrame
+* The data itself (a pandas dataframe)
+* A schema (a `phoenix.Schema` instance) that describes the columns of your dataframe
 * A dataset name that appears in the UI
 
-For example, if you have a DataFrame `prod_df` that is described by a schema `prod_schema`, you can define a dataset `prod_ds` with
+For example, if you have a dataframe `prod_df` that is described by a schema `prod_schema`, you can define a dataset `prod_ds` with
 
 ```python
 prod_ds = px.Dataset(prod_df, prod_schema, "production")
@@ -45,9 +45,9 @@ Very often, your primary dataset will contain production data and your reference
 
 ## Schemas
 
-A _Phoenix schema_ is an instance of `phoenix.Schema` that maps the columns of your DataFrame to fields that Phoenix expects and understands. Use your schema to tell Phoenix what the data in your DataFrame means.
+A _Phoenix schema_ is an instance of `phoenix.Schema` that maps the columns of your dataframe to fields that Phoenix expects and understands. Use your schema to tell Phoenix what the data in your dataframe means.
 
-For example, if you have a DataFrame containing Fisher's Iris data that looks like this:
+For example, if you have a dataframe containing Fisher's Iris data that looks like this:
 
 | sepal\_length | sepal\_width | petal\_length | petal\_width | target     | prediction |
 | ------------- | ------------ | ------------- | ------------ | ---------- | ---------- |
@@ -76,7 +76,7 @@ schema = px.Schema(
 
 > Usually one, sometimes two.
 
-Each dataset needs a schema. If your primary and reference datasets have the same format, then you only need one schema. For example, if you have DataFrames `train_df` and `prod_df` that share an identical format described by a schema named `schema`, then you can define datasets `train_ds` and `prod_ds` with
+Each dataset needs a schema. If your primary and reference datasets have the same format, then you only need one schema. For example, if you have dataframes `train_df` and `prod_df` that share an identical format described by a schema named `schema`, then you can define datasets `train_ds` and `prod_ds` with
 
 <pre class="language-python"><code class="lang-python">train_ds = px.Dataset(train_df, schema, "training")
 <strong>prod_ds = px.Dataset(prod_df, schema, "production")
@@ -88,8 +88,52 @@ Sometimes, you'll encounter scenarios where the formats of your primary and refe
 * Your training data has ground truth (what we call _actuals_ in Phoenix nomenclature), but your production data does not.
 * A new version of your model has a differing set of features from a previous version.
 
-In cases like these, you'll need to define two schemas, one for each dataset. For example, if you have DataFrames `train_df` and `prod_df` that are described by schemas `train_schema` and `prod_schema`, respectively, then you can define datasets `train_ds` and `prod_ds` with
+In cases like these, you'll need to define two schemas, one for each dataset. For example, if you have dataframes `train_df` and `prod_df` that are described by schemas `train_schema` and `prod_schema`, respectively, then you can define datasets `train_ds` and `prod_ds` with
 
 <pre class="language-python"><code class="lang-python">train_ds = px.Dataset(train_df, train_schema, "training")
 <strong>prod_ds = px.Dataset(prod_df, prod_schema, "production")
 </strong></code></pre>
+
+## Application
+
+Phoenix runs as an application that can be viewed in a web browser tab or within your notebook as a cell. To launch the app, simply pass one or more datasets into the `launch_app` function:
+
+```python
+session = px.launch_app(prod_ds, train_ds)
+# or just one dataset
+session = px.launch_app(prod_ds)
+```
+
+The application provide you with a landing page that is populated with your model's `schema` (e.g. the features, tags, predictions, and actuals). This gives you a statistical overview of your data as well as links into the [embeddings details](phoenix-basics.md#embedding-details) views for analysis.&#x20;
+
+<figure><img src="https://storage.googleapis.com/arize-assets/phoenix/assets/images/cc_fraud_home.png" alt="the phoenix home page with an overview of the model"><figcaption><p>The phoenix homepage</p></figcaption></figure>
+
+{% hint style="info" %}
+The phoenix homepage is still work in progress. More features coming soon!
+{% endhint %}
+
+### Embedding Details
+
+For each [embedding](phoenix-basics.md#embeddings) described in the dataset(s) [schema](../api/dataset-and-schema.md), Phoenix serves a embeddings troubleshooting view to help you identify areas of drift and performance degradation. Let's start with embedding drift.
+
+<figure><img src="https://storage.googleapis.com/arize-assets/phoenix/assets/images/ner_color_by_correctness.png" alt=""><figcaption></figcaption></figure>
+
+### Embedding Drift Over Time
+
+The picture below shows a time series graph of the drift between two groups of vectors –- the reference / baseline vectors and the primary (typically production) vectors. Phoenix uses euclidean distance as the primary measure of embedding drift.&#x20;
+
+<figure><img src="https://storage.googleapis.com/arize-assets/phoenix/assets/images/euclidean_distance_timeseries_graph.png" alt="Euclidean distance over time graph"><figcaption><p>Euclidean distance over time</p></figcaption></figure>
+
+Moments of high euclidean distance is an indication that the primary dataset is starting to drift from the reference dataset. As the primary dataset moves further away from the reference (both in angle and in magnitude), the euclidean distance increases as well. For this reason times of high euclidean distance are a good starting point for trying to identify new anomalies and areas of drift.\
+
+
+<figure><img src="https://storage.googleapis.com/arize-assets/phoenix/assets/images/euclidean_distance_vectors.png" alt="Breakdown of euclidean distance - two centroids of points diverging"><figcaption><p>Centroids of the two datasets are used to calculate euclidean and cosine distance</p></figcaption></figure>
+
+In phoenix, you can views the drift of a particular embedding in a time series graph at the top of the page. To diagnose the cause of the  drift, click on the graph at different times to view a breakdown of the embeddings at particular time.
+
+<figure><img src="https://storage.googleapis.com/arize-assets/phoenix/assets/images/euclidean_distance_click_cta.png" alt="A time series graph of embeddings over time and a call to action to view details via a click"><figcaption><p>Click on a particular time to view why the inference embeddings are drifting</p></figcaption></figure>
+
+
+
+
+

@@ -4,12 +4,16 @@
 
 ## 💡 Concepts
 
-* [Embeddings](concepts/embeddings.md)
 * [Phoenix Basics](concepts/phoenix-basics.md)
+* [Generating Embeddings](concepts/generating-embeddings.md)
+* [LLM Observability](concepts/llm-observability.md)
 
 ## 🎓 Tutorials
 
-* [Quickstart](quickstart.md)
+* [Computer Vision](tutorials/computer-vision.md)
+* [NLP](tutorials/nlp.md)
+* [Tabular Data](tutorials/tabular-data.md)
+* [Generative LLMs](tutorials/generative-llms.md)
 * [Notebooks](tutorials/notebooks.md)
 
 ## 🔢 How-To
@@ -26,6 +30,8 @@
 
 ## 📚 Reference
 
+* [Embeddings](concepts/embeddings.md)
+* [Architecture](reference/architecture.md)
 * [Open Inference](concepts/open-inference.md)
 
 ***

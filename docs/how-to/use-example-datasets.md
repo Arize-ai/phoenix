@@ -33,7 +33,7 @@ ExampleDatasets(primary=<Dataset "sentiment_classification_language_drift_primar
 
 ## Inspect Your Datasets
 
-Next, inspect the name, DataFrame, and schema that define your primary dataset. First, run
+Next, inspect the name, dataframe, and schema that define your primary dataset. First, run
 
 ```python
 prim_ds = datasets.primary
@@ -64,7 +64,7 @@ Last, run
 prim_ds.dataframe.info()
 ```
 
-to get an overview of your dataset's underlying DataFrame:
+to get an overview of your dataset's underlying dataframe:
 
 ```
 <class 'pandas.core.frame.DataFrame'>
