@@ -11,7 +11,7 @@ coverY: 0
 
 Running Phoenix for the first time? Check out the tutorials to explore the capabilities of Phoenix for various tasks and use cases.
 
-<table data-card-size="large" data-view="cards"><thead><tr><th align="center"></th><th data-hidden data-card-target data-type="content-ref"></th></tr></thead><tbody><tr><td align="center"><strong>Computer Vision</strong></td><td><a href="tutorials-use-cases/quickstart.md">quickstart.md</a></td></tr><tr><td align="center"><strong>NLP</strong></td><td><a href="tutorials-use-cases/quickstart-1.md">quickstart-1.md</a></td></tr><tr><td align="center"><strong>Tabular Data</strong></td><td><a href="tutorials-use-cases/quickstart-2.md">quickstart-2.md</a></td></tr><tr><td align="center"><strong>Generative LLMs</strong></td><td><a href="tutorials/generative-llms.md">generative-llms.md</a></td></tr></tbody></table>
+<table data-card-size="large" data-view="cards"><thead><tr><th align="center"></th><th data-hidden data-card-target data-type="content-ref"></th></tr></thead><tbody><tr><td align="center"><strong>Computer Vision</strong></td><td><a href="tutorials/computer-vision.md">computer-vision.md</a></td></tr><tr><td align="center"><strong>NLP</strong></td><td><a href="tutorials/nlp.md">nlp.md</a></td></tr><tr><td align="center"><strong>Tabular Data</strong></td><td><a href="tutorials/tabular-data.md">tabular-data.md</a></td></tr><tr><td align="center"><strong>Generative LLMs</strong></td><td><a href="tutorials/generative-llms.md">generative-llms.md</a></td></tr></tbody></table>
 
 ## What is Phoenix?
 
