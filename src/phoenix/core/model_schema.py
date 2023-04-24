@@ -368,7 +368,7 @@ def _is_multi_dimension_key(
     if isinstance(key, str):
         return False
     try:
-        for k in key:
+        for k in iter(key):
             if not isinstance(k, DimensionRole):
                 return False
         return True
@@ -1044,6 +1044,7 @@ def _guess_data_type(series: Iterable["pd.Series[Any]"]) -> DataType:
 
 
 def _iterate_except_str(obj: Any) -> Iterator[Any]:
+    """strings are iterable (by character), but we don't want to do that"""
     if isinstance(obj, str):
         yield obj
         return
@@ -1094,7 +1095,10 @@ def _coerce_str_column_names(
 _T = TypeVar("_T")
 
 
-def _add_padding(iterable: Iterable[_T], padding: Callable[[], _T]) -> Iterator[_T]:
+def _add_padding(
+    iterable: Iterable[_T],
+    padding: Callable[[], _T],
+) -> Iterator[_T]:
     return chain(
         (item if item is not None else padding() for item in iterable),
         repeat(padding()),
