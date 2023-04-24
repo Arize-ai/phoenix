@@ -1,6 +1,8 @@
 ---
-description: Root-cause analysis for a drifting sentiment classification model 
+description: Root-cause analysis for a drifting sentiment classification model
 ---
+
+# NLP
 
 Imagine you're in charge of maintaining a model that takes as input online reviews of your U.S.-based product and classifies the sentiment of each review as positive, negative, or neutral. Your model initially performs well in production, but its performance gradually degrades over time.
 
@@ -8,10 +10,10 @@ Phoenix helps you surface the reason for this regression by analyzing the embedd
 
 In this tutorial, you will:
 
-- Download curated datasets of embeddings and predictions
-- Define a schema to describe the format of your data
-- Launch Phoenix to visually explore your embeddings
-- Investigate problematic clusters to identify the root cause of your model performance issue
+* Download curated datasets of [embeddings](../concepts/embeddings.md) and predictions
+* Define a [schema](../api/dataset-and-schema.md#phoenix.schema) to describe the format of your data
+* [Launch](../api/session.md#phoenix.launch\_app) Phoenix to visually [explore](../concepts/phoenix-basics.md#embedding-details) your embeddings
+* Investigate problematic clusters to identify the root cause of your model performance issue
 
 Open the tutorial in Colab or GitHub to get started!
 

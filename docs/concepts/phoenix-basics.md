@@ -16,7 +16,7 @@ This section introduces _datasets_ and _schemas,_ the starting concepts needed t
 A _Phoenix dataset_ is an instance of `phoenix.Dataset` that contains three pieces of information:
 
 * The data itself (a pandas dataframe)
-* A schema (a `phoenix.Schema` instance) that describes the columns of your dataframe
+* A [schema](../api/dataset-and-schema.md#phoenix.schema) (a `phoenix.Schema` instance) that describes the [columns](../how-to/define-your-schema.md) of your dataframe
 * A dataset name that appears in the UI
 
 For example, if you have a dataframe `prod_df` that is described by a schema `prod_schema`, you can define a dataset `prod_ds` with
@@ -45,7 +45,7 @@ Very often, your primary dataset will contain production data and your reference
 
 ## Schemas
 
-A _Phoenix schema_ is an instance of `phoenix.Schema` that maps the columns of your dataframe to fields that Phoenix expects and understands. Use your schema to tell Phoenix what the data in your dataframe means.
+A _Phoenix schema_ is an instance of `phoenix.Schema` that maps the [columns](../how-to/define-your-schema.md) of your dataframe to fields that Phoenix expects and understands. Use your schema to tell Phoenix what the data in your dataframe means.
 
 For example, if you have a dataframe containing Fisher's Iris data that looks like this:
 
@@ -85,7 +85,7 @@ Each dataset needs a schema. If your primary and reference datasets have the sam
 Sometimes, you'll encounter scenarios where the formats of your primary and reference datasets differ. For example, you'll need two schemas if:
 
 * Your production data has timestamps indicating the time at which an inference was made, but your training data does not.
-* Your training data has ground truth (what we call _actuals_ in Phoenix nomenclature), but your production data does not.
+* Your training data has [ground truth](../how-to/define-your-schema.md#predictions-and-actuals) (what we call _actuals_ in Phoenix nomenclature), but your production data does not.
 * A new version of your model has a differing set of features from a previous version.
 
 In cases like these, you'll need to define two schemas, one for each dataset. For example, if you have dataframes `train_df` and `prod_df` that are described by schemas `train_schema` and `prod_schema`, respectively, then you can define datasets `train_ds` and `prod_ds` with
