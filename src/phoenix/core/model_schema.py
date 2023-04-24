@@ -1045,7 +1045,14 @@ def _guess_data_type(series: Iterable["pd.Series[Any]"]) -> DataType:
 
 
 def _iterate_except_str(obj: Any) -> Iterator[Any]:
-    """strings are iterable (by character), but we don't want to do that"""
+    """Strings are iterable (by character), but we don't want that because
+    e.g. in the event that we asked the user for a list of strings but the
+    user only had one string and just gave us the string itself (e.g. `"abc"`)
+    instead of putting it into a list (i.e. `["abc"]`), we don't want to take
+    "abc" and iterate it and end up with `["a", "b", "c"]`. Instead, we would
+    just put `"abc"` into a list on the user's behalf. Note that if
+    `["a", "b", "c"]` is really what the user wanted, the user can
+    alternatively specify it simply as `list("abc")`."""
     if isinstance(obj, str):
         yield obj
         return

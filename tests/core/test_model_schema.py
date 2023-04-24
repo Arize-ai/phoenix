@@ -28,7 +28,8 @@ from phoenix.core.model_schema import (
     SingularDimensionalRole,
 )
 
-# "123"[::-1] == "321"
+# Reverse the strings here for testing to make sure these values are not
+# hardcoded internally.
 prediction_id = "prediction id"[::-1]
 timestamp = "timestamp"[::-1]
 prediction_label = "prediction label"[::-1]
