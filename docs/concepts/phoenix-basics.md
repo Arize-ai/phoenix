@@ -137,7 +137,17 @@ In phoenix, you can views the drift of a particular embedding in a time series g
 
 Phoenix automatically breaks up your embeddings into groups of inferences using a clustering algorithm called [HDBSCAN](https://hdbscan.readthedocs.io/en/latest/index.html). This is particularly useful if you are trying to identify areas of your embeddings that are drifting or performing badly.
 
-<figure><img src="https://storage.googleapis.com/arize-assets/phoenix/assets/images/clusters_by_drift_score.png" alt=""><figcaption><p>Clusters ordered by drift</p></figcaption></figure>
+<figure><img src="https://storage.googleapis.com/arize-assets/phoenix/assets/images/HDBSCAN_drift_analysis.png" alt=""><figcaption></figcaption></figure>
 
-When two datasets are used to initialize phoenix, the clusters are automatically ordered by drift. This means that clusters that are suffering from the highest amount of under-sampling (more in the primary dataset than the reference) are bubbled to the top. You can click on these clusters to view the details of the points contained in each cluster.&#x20;
+When two datasets are used to initialize phoenix, the clusters are automatically ordered by drift. This means that clusters that are suffering from the highest amount of under-sampling (more in the primary dataset than the reference) are bubbled to the top. You can click on these clusters to view the details of the points contained in each cluster. \
+
+
+### UMAP Point-Cloud
+
+Phoenix projects the embeddings you provided into lower dimensional space (3 dimensions) using a dimension reduction algorithm called [UMAP](https://github.com/lmcinnes/umap) (stands for Uniform Manifold Approximation and Projection).  This lets us understand how your [embeddings have encoded semantic meaning](embeddings.md) in a visually understandable way.\
+\
+In addition to the point-cloud, another dimension we have at our disposal is color (and in some cases shape). Out of the box phoenix let's you assign colors to the UMAP point-cloud by dimension (features, tags, predictions, actuals), performance (correctness which distinguishes true positives and true negatives from the incorrect predictions), and dataset (to highlight areas of drift). This helps you explore your point-cloud from different perspectives depending on what you are looking for.\
+
+
+<figure><img src="https://storage.googleapis.com/arize-assets/phoenix/assets/images/umap_color_by.png" alt="Color by dataset vs color by correctness vs color by prediction for a computer vision model"><figcaption><p>Color by dataset vs color by correctness vs color by prediction for a computer vision model</p></figcaption></figure>
 
