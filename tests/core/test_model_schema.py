@@ -21,9 +21,9 @@ from phoenix.core.model_schema import (
     TIMESTAMP,
     DatasetRole,
     Dimension,
-    DimensionRole,
     Embedding,
     InvalidRole,
+    MultiDimensionalRole,
     Schema,
     SingularDimensionalRole,
 )
@@ -334,13 +334,13 @@ def test_embedding_dimensions_extraction() -> None:
 def test_raise_if_dim_role_is_unassigned():
     with pytest.raises(ValueError):
         _ = Dimension()
-    for cls in DimensionRole.__subclasses__():
-        for role in cls:
-            if cls is InvalidRole:
-                with pytest.raises(ValueError):
-                    _ = Dimension(role=role)
-            else:
-                _ = Dimension(role=role)
+    for role in InvalidRole:
+        with pytest.raises(ValueError):
+            _ = Dimension(role=role)
+    for role in SingularDimensionalRole:
+        _ = Dimension(role=role)
+    for role in MultiDimensionalRole:
+        _ = Dimension(role=role)
 
 
 @pytest.mark.parametrize(
