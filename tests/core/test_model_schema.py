@@ -101,6 +101,7 @@ FULL_SCHEMA = Schema(
         "K",
         "L",
         Embedding("H", "HH", "HHH", "HHHH"),
+        "XYZ",
     ],
     tags=[
         "M",
@@ -122,7 +123,7 @@ def test_iterable_column_names():
         set("ABCDEFGHIJKLMNOPQRSTU")
         | {"ID", "TS"}
         | {"AA", "BB", "CC", "DD", "FF", "GG", "HH", "SS", "TT", "UU"}
-        | {"DDD", "GGG", "HHH", "TTT", "UUU"}
+        | {"DDD", "GGG", "HHH", "TTT", "UUU", "XYZ"}
     )
     assert desired_names == set(iter(FULL_SCHEMA))
     model = FULL_SCHEMA(pd.DataFrame())

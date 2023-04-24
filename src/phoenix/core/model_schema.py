@@ -991,6 +991,7 @@ class Schema(SchemaSpec):
                 for v in iter(value):
                     if isinstance(v, str) and v:
                         yield v
+                        continue
                     try:
                         yield from iter(v)
                     except TypeError:
