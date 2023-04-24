@@ -7,7 +7,7 @@ from .datasets import (
 )
 from .session import Session, active_session, close_app, launch_app
 
-__version__ = "0.0.16"
+__version__ = "0.0.17"
 
 # module level doc-string
 __doc__ = """
