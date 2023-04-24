@@ -289,7 +289,7 @@ def test_tag_names(
     "schema,dataframes",
     [
         (Schema(), ()),
-        (Schema(), [pd.DataFrame] * (1 + len(DatasetRole))),
+        (Schema(), [pd.DataFrame()] * (1 + len(DatasetRole))),
     ],
 )
 def test_wrong_number_of_df(
