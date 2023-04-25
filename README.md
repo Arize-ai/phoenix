@@ -10,6 +10,9 @@
     <a href="https://pypi.org/project/arize-phoenix/">
         <img src="https://img.shields.io/pypi/v/arize-phoenix?color=blue">
     </a>
+    <a href="https://anaconda.org/conda-forge/arize-phoenix">
+        <img src="https://img.shields.io/conda/vn/conda-forge/arize-phoenix.svg?color=blue">
+    </a>
     <a href="https://pypi.org/project/arize-phoenix/">
         <img src="https://img.shields.io/pypi/pyversions/arize-phoenix">
     </a>
