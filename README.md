@@ -1,5 +1,5 @@
 <p align="center">
-    <a target="_blank" href="https://arize.com" style="background:none">
+    <a target="_blank" href="https://phoenix.arize.com" style="background:none">
         <img alt="phoenix logo" src="https://storage.googleapis.com/arize-assets/phoenix/assets/phoenix-logo-light.svg" width="auto" height="200"></img>
     </a>
     <br/>
