@@ -15,7 +15,7 @@ import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { subDays } from "date-fns";
 import { css } from "@emotion/react";
 
-import { Switch, TabPane, Tabs } from "@arizeai/components";
+import { Counter, Switch, TabPane, Tabs } from "@arizeai/components";
 
 import { Loading, LoadingMask } from "@phoenix/components";
 import {
@@ -541,7 +541,7 @@ function ClustersPanelContents({
 
   return (
     <Tabs>
-      <TabPane name="Clusters">
+      <TabPane name="Clusters" extra={<Counter>{clusters.length}</Counter>}>
         <ul
           css={(theme) => css`
             flex: 1 1 auto;
