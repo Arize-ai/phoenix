@@ -7,8 +7,8 @@ from strawberry.types import Info
 from strawberry.unset import UNSET
 
 import phoenix.core.model_schema as ms
-from phoenix.core.model_schema import FEATURE, TAG, ScalarDimension
-from phoenix.datasets import GENERATED_NAME_PREFIX, DatasetRole
+from phoenix.core.model_schema import FEATURE, TAG, DatasetRole, ScalarDimension
+from phoenix.datasets import GENERATED_NAME_PREFIX
 
 from ..context import Context
 from ..input_types.DimensionInput import DimensionInput

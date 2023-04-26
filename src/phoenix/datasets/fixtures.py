@@ -335,29 +335,19 @@ def download_fixture_if_missing(fixture_name: str) -> Tuple[Dataset, Optional[Da
     locally.
     """
     fixture = _get_fixture_by_name(fixture_name=fixture_name)
-    primary_dataset_name, reference_dataset_name = get_dataset_names_from_fixture_name(fixture_name)
     primary_dataset = _download_dataset_if_missing(
-        dataset_name=primary_dataset_name,
+        dataset_name="production",
         dataset_url=fixture.primary_dataset_url,
         schema=fixture.primary_schema,
     )
     reference_dataset = None
     if fixture.reference_dataset_url is not None:
         reference_dataset = _download_dataset_if_missing(
-            dataset_name=reference_dataset_name,
+            dataset_name="training",
             dataset_url=fixture.reference_dataset_url,
             schema=fixture.reference_schema,
         )
     return primary_dataset, reference_dataset
-
-
-def get_dataset_names_from_fixture_name(fixture_name: str) -> Tuple[str, str]:
-    """
-    Gets primary and reference dataset names from fixture name.
-    """
-    primary_dataset_name = f"{fixture_name}_primary"
-    reference_dataset_name = f"{fixture_name}_reference"
-    return primary_dataset_name, reference_dataset_name
 
 
 def _get_fixture_by_name(fixture_name: str) -> Fixture:

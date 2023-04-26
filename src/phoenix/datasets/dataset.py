@@ -3,6 +3,7 @@ import uuid
 from copy import deepcopy
 from dataclasses import fields, replace
 from datetime import datetime, timedelta
+from enum import Enum
 from functools import cached_property
 from typing import Any, Dict, Iterable, List, Optional, Set, Tuple, Union, cast
 
@@ -642,3 +643,8 @@ def _get_schema_from_unknown_schema_param(schemaLike: SchemaLike) -> Schema:
 
 def _add_prediction_id(num_rows: int) -> List[str]:
     return [str(uuid.uuid4()) for _ in range(num_rows)]
+
+
+class DatasetRole(Enum):
+    PRIMARY = 0
+    REFERENCE = 1
