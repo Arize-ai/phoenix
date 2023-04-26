@@ -1,9 +1,8 @@
 from dataclasses import dataclass
 from typing import Set
 
+from phoenix.datasets.dataset import DatasetRole
 from phoenix.datasets.event import EventId
-
-from .model_schema import DatasetRole
 
 
 @dataclass
