@@ -3,7 +3,6 @@ import uuid
 from copy import deepcopy
 from dataclasses import fields, replace
 from datetime import datetime, timedelta
-from enum import Enum
 from functools import cached_property
 from typing import Any, Dict, Iterable, List, Optional, Set, Tuple, Union, cast
 
@@ -31,6 +30,9 @@ from .schema import (
     SchemaFieldValue,
 )
 from .validation import validate_dataset_inputs
+
+# The prefix of datasets that are auto-assigned a name
+GENERATED_NAME_PREFIX = "phoenix_dataset_"
 
 logger = logging.getLogger(__name__)
 
@@ -92,7 +94,9 @@ class Dataset:
         dataframe = _sort_dataframe_rows_by_timestamp(dataframe, schema)
         self.__dataframe: DataFrame = dataframe
         self.__schema: Schema = schema
-        self.__name: str = name if name is not None else f"""dataset_{str(uuid.uuid4())}"""
+        self.__name: str = (
+            name if name is not None else f"""{GENERATED_NAME_PREFIX}{str(uuid.uuid4())}"""
+        )
         logger.info(f"""Dataset: {self.__name} initialized""")
 
     def __repr__(self) -> str:
@@ -531,11 +535,6 @@ def _create_and_normalize_dataframe_and_schema(
         parsed_dataframe[pred_id_col_name] = parsed_dataframe[pred_id_col_name].astype(str)
 
     return parsed_dataframe, parsed_schema
-
-
-class DatasetRole(Enum):
-    PRIMARY = 0
-    REFERENCE = 1
 
 
 def _sort_dataframe_rows_by_timestamp(dataframe: DataFrame, schema: Schema) -> DataFrame:

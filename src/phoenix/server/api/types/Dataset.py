@@ -8,6 +8,7 @@ from strawberry.unset import UNSET
 
 import phoenix.core.model_schema as ms
 from phoenix.core.model_schema import FEATURE, TAG, ScalarDimension
+from phoenix.datasets import GENERATED_NAME_PREFIX, DatasetRole
 
 from ..context import Context
 from ..input_types.DimensionInput import DimensionInput
@@ -17,10 +18,20 @@ from .Event import Event, create_event, parse_event_ids
 
 @strawberry.type
 class Dataset:
-    name: str = strawberry.field(description="The given name of the dataset")
     start_time: datetime = strawberry.field(description="The start bookend of the data")
     end_time: datetime = strawberry.field(description="The end bookend of the data")
     dataset: strawberry.Private[ms.Dataset]
+
+    @strawberry.field
+    def name(self) -> str:
+        """
+        Returns a human friendly name for the dataset.
+        """
+        ds_name = self.dataset.name
+        if ds_name.startswith(GENERATED_NAME_PREFIX):
+            # The generated names are UUIDs so use the role as the name
+            return "primary" if self.dataset.role is DatasetRole.PRIMARY else "reference"
+        return ds_name
 
     @strawberry.field
     def events(
