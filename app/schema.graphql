@@ -21,14 +21,14 @@ type DataQualityTimeSeries implements TimeSeries {
 }
 
 type Dataset {
-  """The given name of the dataset"""
-  name: String!
-
   """The start bookend of the data"""
   startTime: DateTime!
 
   """The end bookend of the data"""
   endTime: DateTime!
+
+  """Returns a human friendly name for the dataset."""
+  name: String!
   events(eventIds: [ID!]!, dimensions: [DimensionInput!]): [Event!]!
 }
 

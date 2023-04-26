@@ -22,11 +22,9 @@ class Dataset:
     end_time: datetime = strawberry.field(description="The end bookend of the data")
     dataset: strawberry.Private[ms.Dataset]
 
-    @strawberry.field
+    # type ignored here to get around the following: https://github.com/strawberry-graphql/strawberry/issues/1929
+    @strawberry.field(description="Returns a human friendly name for the dataset.")  # type: ignore
     def name(self) -> str:
-        """
-        Returns a human friendly name for the dataset.
-        """
         ds_name = self.dataset.name
         if ds_name.startswith(GENERATED_NAME_PREFIX):
             # The generated names are UUIDs so use the role as the name
