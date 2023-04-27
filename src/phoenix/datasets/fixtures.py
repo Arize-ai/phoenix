@@ -3,7 +3,7 @@ import logging
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, replace
 from pathlib import Path
-from typing import Dict, Iterator, NamedTuple, Optional, Tuple
+from typing import Iterator, NamedTuple, Optional, Tuple
 from urllib import request
 from urllib.parse import quote, urljoin
 
@@ -29,12 +29,12 @@ class Fixture:
 
     def paths(self) -> Iterator[Tuple[DatasetRole, Path]]:
         return (
-            (role, DATASET_DIR / self.prefix / name)
+            (role, Path(self.prefix) / name)
             for role, name in zip(
                 DatasetRole,
                 (self.primary, self.reference),
             )
-            if name is not None
+            if name
         )
 
 
@@ -311,7 +311,10 @@ def download_fixture_if_missing(
     locally.
     """
     fixture = _get_fixture_by_name(fixture_name=fixture_name)
-    paths = dict(fixture.paths()) if no_internet else _download(fixture, DATASET_DIR)
+    if no_internet:
+        paths = {role: DATASET_DIR / path for role, path in fixture.paths()}
+    else:
+        paths = dict(_download(fixture, DATASET_DIR))
     primary_dataset = Dataset(
         pd.read_parquet(paths[DatasetRole.PRIMARY]),
         fixture.primary_schema,
@@ -416,19 +419,9 @@ class GCS(NamedTuple):
         )
 
 
-def _download(fixture: Fixture, location: Path) -> Dict[DatasetRole, Path]:
-    return {
-        role: GCS()
-        .metadata(
-            Path(fixture.prefix) / name,
-        )
-        .save_media(location)
-        for role, name in zip(
-            DatasetRole,
-            (fixture.primary, fixture.reference),
-        )
-        if name
-    }
+def _download(fixture: Fixture, location: Path) -> Iterator[Tuple[DatasetRole, Path]]:
+    for role, path in fixture.paths():
+        yield role, GCS().metadata(path).save_media(location)
 
 
 # Download all fixtures
