@@ -1,6 +1,5 @@
 import json
 import logging
-from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Iterator, NamedTuple, Optional, Tuple
@@ -426,6 +425,8 @@ def _download(fixture: Fixture, location: Path) -> Iterator[Tuple[DatasetRole, P
 
 # Download all fixtures
 if __name__ == "__main__":
+    from concurrent.futures import ThreadPoolExecutor
+
     with ThreadPoolExecutor(len(FIXTURES)) as exe:
         for fixture in FIXTURES:
             exe.submit(_download, fixture, DATASET_DIR)
