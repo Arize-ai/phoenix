@@ -11,7 +11,7 @@ import uvicorn
 import phoenix.config as config
 from phoenix.core.model_schema_adapter import create_model_from_datasets
 from phoenix.datasets import Dataset
-from phoenix.datasets.fixtures import FIXTURES, download_fixture_if_missing
+from phoenix.datasets.fixtures import FIXTURES, get_datasets
 from phoenix.server.app import create_app
 
 logger = logging.getLogger(__name__)
@@ -71,7 +71,7 @@ if __name__ == "__main__":
     else:
         fixture_name = args.fixture
         primary_only = args.primary_only
-        primary_dataset, reference_dataset = download_fixture_if_missing(
+        primary_dataset, reference_dataset = get_datasets(
             fixture_name,
             args.no_internet,
         )

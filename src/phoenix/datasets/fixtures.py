@@ -302,7 +302,7 @@ FIXTURES: Tuple[Fixture, ...] = (
 NAME_TO_FIXTURE = {fixture.name: fixture for fixture in FIXTURES}
 
 
-def download_fixture_if_missing(
+def get_datasets(
     fixture_name: str,
     no_internet: bool = False,
 ) -> Tuple[Dataset, Optional[Dataset]]:
@@ -375,7 +375,7 @@ def load_example(use_case: str) -> ExampleDatasets:
 
     """
     fixture = _get_fixture_by_name(use_case)
-    primary_dataset, reference_dataset = download_fixture_if_missing(use_case)
+    primary_dataset, reference_dataset = get_datasets(use_case)
     print(f"📥 Loaded {use_case} example datasets.")
     print("ℹ️ About this use-case:")
     print(fixture.description)
@@ -383,12 +383,12 @@ def load_example(use_case: str) -> ExampleDatasets:
 
 
 class Metadata(NamedTuple):
-    name: str
+    path: str
     mediaLink: str
     md5Hash: str
 
     def save_media(self, location: Path) -> Path:
-        data_file = location / self.name
+        data_file = location / self.path
         md5_file = data_file.with_name(data_file.stem + ".md5")
         data_file.parents[0].mkdir(parents=True, exist_ok=True)
         if data_file.is_file() and md5_file.is_file():
