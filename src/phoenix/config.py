@@ -30,6 +30,8 @@ PHOENIX_DIR = Path(__file__).resolve().parent
 SERVER_DIR = PHOENIX_DIR / "server"
 # The port the server will run on after launch_app is called
 PORT = 6060
+# The prefix of datasets that are auto-assigned a name
+GENERATED_DATASET_NAME_PREFIX = "phoenix_dataset_"
 
 
 def get_exported_files(directory: Path) -> List[Path]:

@@ -2,6 +2,7 @@ import React, { ReactNode } from "react";
 import { transparentize } from "polished";
 import { css } from "@emotion/react";
 
+import { useDatasets } from "@phoenix/contexts";
 import { DatasetRole } from "@phoenix/types";
 import { assertUnreachable } from "@phoenix/typeUtils";
 
@@ -391,6 +392,9 @@ function EventItemFooter({
 }: Pick<EventItemProps, "group" | "color" | "datasetRole"> & {
   showDataset: boolean;
 }) {
+  const { primaryDataset, referenceDataset } = useDatasets();
+  const datasetName =
+    datasetRole === "primary" ? primaryDataset.name : referenceDataset?.name;
   return (
     <footer
       css={css`
@@ -414,7 +418,7 @@ function EventItemFooter({
         {group}
       </div>
       {showDataset ? (
-        <div title="the dataset the point belongs to">{datasetRole}</div>
+        <div title="the dataset the point belongs to">{datasetName}</div>
       ) : null}
     </footer>
   );
