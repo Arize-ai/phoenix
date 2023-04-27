@@ -17,7 +17,7 @@ from pandas.api.types import (
 )
 from typing_extensions import TypeAlias
 
-from phoenix.config import DATASET_DIR
+from phoenix.config import DATASET_DIR, GENERATED_DATASET_NAME_PREFIX
 
 from . import errors as err
 from .schema import (
@@ -31,9 +31,6 @@ from .schema import (
     SchemaFieldValue,
 )
 from .validation import validate_dataset_inputs
-
-# The prefix of datasets that are auto-assigned a name
-GENERATED_NAME_PREFIX = "phoenix_dataset_"
 
 logger = logging.getLogger(__name__)
 
@@ -96,7 +93,7 @@ class Dataset:
         self.__dataframe: DataFrame = dataframe
         self.__schema: Schema = schema
         self.__name: str = (
-            name if name is not None else f"""{GENERATED_NAME_PREFIX}{str(uuid.uuid4())}"""
+            name if name is not None else f"{GENERATED_DATASET_NAME_PREFIX}{str(uuid.uuid4())}"
         )
         logger.info(f"""Dataset: {self.__name} initialized""")
 

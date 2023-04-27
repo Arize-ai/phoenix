@@ -1,4 +1,4 @@
-from .dataset import GENERATED_NAME_PREFIX, Dataset
+from .dataset import Dataset
 from .fixtures import ExampleDatasets, load_example
 from .schema import EmbeddingColumnNames, Schema
 
@@ -8,5 +8,4 @@ __all__ = [
     "EmbeddingColumnNames",
     "load_example",
     "ExampleDatasets",
-    "GENERATED_NAME_PREFIX",
 ]

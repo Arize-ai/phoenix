@@ -7,8 +7,7 @@ from strawberry.types import Info
 from strawberry.unset import UNSET
 
 import phoenix.core.model_schema as ms
-from phoenix.core.model_schema import FEATURE, TAG, DatasetRole, ScalarDimension
-from phoenix.datasets import GENERATED_NAME_PREFIX
+from phoenix.core.model_schema import FEATURE, TAG, ScalarDimension
 
 from ..context import Context
 from ..input_types.DimensionInput import DimensionInput
@@ -25,11 +24,7 @@ class Dataset:
     # type ignored here to get around the following: https://github.com/strawberry-graphql/strawberry/issues/1929
     @strawberry.field(description="Returns a human friendly name for the dataset.")  # type: ignore
     def name(self) -> str:
-        ds_name = self.dataset.name
-        if ds_name.startswith(GENERATED_NAME_PREFIX):
-            # The generated names are UUIDs so use the role as the name
-            return "primary" if self.dataset.role is DatasetRole.PRIMARY else "reference"
-        return ds_name
+        return self.dataset.display_name
 
     @strawberry.field
     def events(
