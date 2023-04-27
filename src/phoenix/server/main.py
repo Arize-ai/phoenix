@@ -48,6 +48,7 @@ if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument("--export_path")
     parser.add_argument("--port", type=int, default=config.PORT)
+    parser.add_argument("--no-internet", action="store_true")
     parser.add_argument("--debug", action="store_false")  # TODO: Disable before public launch
     subparsers = parser.add_subparsers(dest="command", required=True)
     datasets_parser = subparsers.add_parser("datasets")
@@ -70,7 +71,10 @@ if __name__ == "__main__":
     else:
         fixture_name = args.fixture
         primary_only = args.primary_only
-        primary_dataset, reference_dataset = download_fixture_if_missing(fixture_name)
+        primary_dataset, reference_dataset = download_fixture_if_missing(
+            fixture_name,
+            args.no_internet,
+        )
         if primary_only:
             reference_dataset_name = None
             reference_dataset = None

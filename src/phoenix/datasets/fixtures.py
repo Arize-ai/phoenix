@@ -292,13 +292,26 @@ FIXTURES: Tuple[Fixture, ...] = (
 NAME_TO_FIXTURE = {fixture.name: fixture for fixture in FIXTURES}
 
 
-def download_fixture_if_missing(fixture_name: str) -> Tuple[Dataset, Optional[Dataset]]:
+def download_fixture_if_missing(
+    fixture_name: str,
+    no_internet: bool = False,
+) -> Tuple[Dataset, Optional[Dataset]]:
     """
     Downloads primary and reference datasets for a fixture if they are not found
     locally.
     """
     fixture = _get_fixture_by_name(fixture_name=fixture_name)
-    paths = _download(fixture, DATASET_DIR)
+    if no_internet:
+        paths = {
+            role: DATASET_DIR / fixture.prefix / name
+            for role, name in zip(
+                DatasetRole,
+                (fixture.primary, fixture.reference),
+            )
+            if name is not None
+        }
+    else:
+        paths = _download(fixture, DATASET_DIR)
     primary_dataset = Dataset(
         pd.read_parquet(paths[DatasetRole.PRIMARY]),
         fixture.primary_schema,
