@@ -3,7 +3,7 @@ import logging
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, replace
 from pathlib import Path
-from typing import Dict, NamedTuple, Optional, Tuple
+from typing import Dict, Iterator, NamedTuple, Optional, Tuple
 from urllib import request
 from urllib.parse import quote, urljoin
 
@@ -26,6 +26,16 @@ class Fixture:
     reference: Optional[str]
     primary_schema: Schema
     reference_schema: Schema
+
+    def paths(self) -> Iterator[Tuple[DatasetRole, Path]]:
+        return (
+            (role, DATASET_DIR / self.prefix / name)
+            for role, name in zip(
+                DatasetRole,
+                (self.primary, self.reference),
+            )
+            if name is not None
+        )
 
 
 sentiment_classification_language_drift_schema = Schema(
@@ -301,17 +311,7 @@ def download_fixture_if_missing(
     locally.
     """
     fixture = _get_fixture_by_name(fixture_name=fixture_name)
-    if no_internet:
-        paths = {
-            role: DATASET_DIR / fixture.prefix / name
-            for role, name in zip(
-                DatasetRole,
-                (fixture.primary, fixture.reference),
-            )
-            if name is not None
-        }
-    else:
-        paths = _download(fixture, DATASET_DIR)
+    paths = dict(fixture.paths()) if no_internet else _download(fixture, DATASET_DIR)
     primary_dataset = Dataset(
         pd.read_parquet(paths[DatasetRole.PRIMARY]),
         fixture.primary_schema,
