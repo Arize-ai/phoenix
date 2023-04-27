@@ -17,10 +17,14 @@ from .Event import Event, create_event, parse_event_ids
 
 @strawberry.type
 class Dataset:
-    name: str = strawberry.field(description="The given name of the dataset")
     start_time: datetime = strawberry.field(description="The start bookend of the data")
     end_time: datetime = strawberry.field(description="The end bookend of the data")
     dataset: strawberry.Private[ms.Dataset]
+
+    # type ignored here to get around the following: https://github.com/strawberry-graphql/strawberry/issues/1929
+    @strawberry.field(description="Returns a human friendly name for the dataset.")  # type: ignore
+    def name(self) -> str:
+        return self.dataset.display_name
 
     @strawberry.field
     def events(

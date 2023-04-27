@@ -43,6 +43,8 @@ from pandas.core.dtypes.common import (
 from typing_extensions import TypeAlias, TypeGuard
 from wrapt import ObjectProxy
 
+from phoenix.config import GENERATED_DATASET_NAME_PREFIX
+
 
 class DimensionRole(IntEnum):
     ...
@@ -552,6 +554,19 @@ class Dataset(Events):
     @property
     def name(self) -> str:
         return self._self_name
+
+    @property
+    def display_name(self) -> str:
+        """
+        Return a human-readable name for this dataset. If the user doesn't
+        provide a name, the name is generated but this name is not human
+        friendly. Falls back to the role of the dataset if no name is provided.
+        """
+        ds_name = self._self_name
+        if ds_name.startswith(GENERATED_DATASET_NAME_PREFIX):
+            # The generated names are UUIDs so use the role as the name
+            return "primary" if self.role is DatasetRole.PRIMARY else "reference"
+        return ds_name
 
     @property
     def role(self) -> DatasetRole:
@@ -1196,4 +1211,5 @@ def _objectify(json_data: Any) -> Any:
             return cls(**json_data)  # type: ignore
         except TypeError:
             pass
+    raise ValueError(f"invalid json data: {repr(json_data)}")
     raise ValueError(f"invalid json data: {repr(json_data)}")

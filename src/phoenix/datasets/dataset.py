@@ -17,7 +17,7 @@ from pandas.api.types import (
 )
 from typing_extensions import TypeAlias
 
-from phoenix.config import DATASET_DIR
+from phoenix.config import DATASET_DIR, GENERATED_DATASET_NAME_PREFIX
 
 from . import errors as err
 from .schema import (
@@ -92,7 +92,9 @@ class Dataset:
         dataframe = _sort_dataframe_rows_by_timestamp(dataframe, schema)
         self.__dataframe: DataFrame = dataframe
         self.__schema: Schema = schema
-        self.__name: str = name if name is not None else f"""dataset_{str(uuid.uuid4())}"""
+        self.__name: str = (
+            name if name is not None else f"{GENERATED_DATASET_NAME_PREFIX}{str(uuid.uuid4())}"
+        )
         logger.info(f"""Dataset: {self.__name} initialized""")
 
     def __repr__(self) -> str:
@@ -533,11 +535,6 @@ def _create_and_normalize_dataframe_and_schema(
     return parsed_dataframe, parsed_schema
 
 
-class DatasetRole(Enum):
-    PRIMARY = 0
-    REFERENCE = 1
-
-
 def _sort_dataframe_rows_by_timestamp(dataframe: DataFrame, schema: Schema) -> DataFrame:
     """
     Sorts dataframe rows by timestamp.
@@ -643,3 +640,8 @@ def _get_schema_from_unknown_schema_param(schemaLike: SchemaLike) -> Schema:
 
 def _add_prediction_id(num_rows: int) -> List[str]:
     return [str(uuid.uuid4()) for _ in range(num_rows)]
+
+
+class DatasetRole(Enum):
+    PRIMARY = 0
+    REFERENCE = 1

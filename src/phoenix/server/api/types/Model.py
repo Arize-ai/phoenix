@@ -51,7 +51,6 @@ class Model:
         dataset = info.context.model[PRIMARY]
         start, end = dataset.time_range
         return Dataset(
-            name=dataset.name,
             start_time=start,
             end_time=end,
             dataset=dataset,
@@ -63,7 +62,6 @@ class Model:
             return None
         start, end = dataset.time_range
         return Dataset(
-            name=dataset.name,
             start_time=start,
             end_time=end,
             dataset=dataset,

@@ -302,23 +302,16 @@ def download_fixture_if_missing(fixture_name: str) -> Tuple[Dataset, Optional[Da
     primary_dataset = Dataset(
         pd.read_parquet(paths[DatasetRole.PRIMARY]),
         fixture.primary_schema,
+        "production",
     )
     reference_dataset = None
     if fixture.reference is not None:
         primary_dataset = Dataset(
             pd.read_parquet(paths[DatasetRole.REFERENCE]),
             fixture.reference_schema,
+            "training",
         )
     return primary_dataset, reference_dataset
-
-
-def get_dataset_names_from_fixture_name(fixture_name: str) -> Tuple[str, str]:
-    """
-    Gets primary and reference dataset names from fixture name.
-    """
-    primary_dataset_name = f"{fixture_name}_primary"
-    reference_dataset_name = f"{fixture_name}_reference"
-    return primary_dataset_name, reference_dataset_name
 
 
 def _get_fixture_by_name(fixture_name: str) -> Fixture:
