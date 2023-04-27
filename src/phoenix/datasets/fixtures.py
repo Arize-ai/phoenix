@@ -7,7 +7,7 @@ from typing import Iterator, NamedTuple, Optional, Tuple
 from urllib import request
 from urllib.parse import quote, urljoin
 
-import pandas as pd
+from pandas import read_parquet
 
 from phoenix.config import DATASET_DIR
 from phoenix.core.model_schema import DatasetRole
@@ -316,14 +316,14 @@ def get_datasets(
     else:
         paths = dict(_download(fixture, DATASET_DIR))
     primary_dataset = Dataset(
-        pd.read_parquet(paths[DatasetRole.PRIMARY]),
+        read_parquet(paths[DatasetRole.PRIMARY]),
         fixture.primary_schema,
         "production",
     )
     reference_dataset = None
     if fixture.reference is not None:
         primary_dataset = Dataset(
-            pd.read_parquet(paths[DatasetRole.REFERENCE]),
+            read_parquet(paths[DatasetRole.REFERENCE]),
             fixture.reference_schema,
             "training",
         )
