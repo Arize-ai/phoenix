@@ -1,12 +1,18 @@
+import json
 import logging
-import os
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, replace
-from typing import Optional, Tuple
+from pathlib import Path
+from typing import Dict, NamedTuple, Optional, Tuple
+from urllib import request
+from urllib.parse import quote, urljoin
 
-from pandas import read_parquet
+import pandas as pd
 
-from .dataset import Dataset
-from .schema import EmbeddingColumnNames, Schema
+from phoenix.config import DATASET_DIR
+from phoenix.core.model_schema import DatasetRole
+from phoenix.datasets.dataset import Dataset
+from phoenix.datasets.schema import EmbeddingColumnNames, Schema
 
 logger = logging.getLogger(__name__)
 
@@ -15,13 +21,12 @@ logger = logging.getLogger(__name__)
 class Fixture:
     name: str
     description: str
-    primary_dataset_url: str
-    reference_dataset_url: Optional[str]
+    prefix: str
+    primary: str
+    reference: Optional[str]
     primary_schema: Schema
     reference_schema: Schema
 
-
-FIXTURE_URL_PREFIX = "http://storage.googleapis.com/arize-assets/phoenix/datasets/"
 
 sentiment_classification_language_drift_schema = Schema(
     prediction_id_column_name="prediction_id",
@@ -53,16 +58,9 @@ sentiment_classification_language_drift_fixture = Fixture(
     """,
     primary_schema=sentiment_classification_language_drift_schema,
     reference_schema=sentiment_classification_language_drift_schema,
-    primary_dataset_url=os.path.join(
-        FIXTURE_URL_PREFIX,
-        "unstructured/nlp/sentiment-classification-language-drift",
-        "sentiment_classification_language_drift_production.parquet",
-    ),
-    reference_dataset_url=os.path.join(
-        FIXTURE_URL_PREFIX,
-        "unstructured/nlp/sentiment-classification-language-drift",
-        "sentiment_classification_language_drift_training.parquet",
-    ),
+    prefix="unstructured/nlp/sentiment-classification-language-drift",
+    primary="sentiment_classification_language_drift_production.parquet",
+    reference="sentiment_classification_language_drift_training.parquet",
 )
 
 image_classification_schema = Schema(
@@ -86,12 +84,9 @@ image_classification_fixture = Fixture(
     """,
     primary_schema=replace(image_classification_schema, actual_label_column_name=None),
     reference_schema=image_classification_schema,
-    primary_dataset_url=os.path.join(
-        FIXTURE_URL_PREFIX, "unstructured/cv/human-actions/human_actions_production.parquet"
-    ),
-    reference_dataset_url=os.path.join(
-        FIXTURE_URL_PREFIX, "unstructured/cv/human-actions/human_actions_training.parquet"
-    ),
+    prefix="unstructured/cv/human-actions",
+    primary="human_actions_production.parquet",
+    reference="human_actions_training.parquet",
 )
 
 fashion_mnist_primary_schema = Schema(
@@ -117,14 +112,9 @@ fashion_mnist_fixture = Fixture(
     """,
     primary_schema=fashion_mnist_primary_schema,
     reference_schema=fashion_mnist_reference_schema,
-    primary_dataset_url=os.path.join(
-        FIXTURE_URL_PREFIX,
-        "unstructured/cv/fashion-mnist/fashion_mnist_production.parquet",
-    ),
-    reference_dataset_url=os.path.join(
-        FIXTURE_URL_PREFIX,
-        "unstructured/cv/fashion-mnist/fashion_mnist_train.parquet",
-    ),
+    prefix="unstructured/cv/fashion-mnist",
+    primary="fashion_mnist_production.parquet",
+    reference="fashion_mnist_train.parquet",
 )
 
 ner_token_drift_schema = Schema(
@@ -156,14 +146,9 @@ ner_token_drift_fixture = Fixture(
     """,
     primary_schema=ner_token_drift_schema,
     reference_schema=ner_token_drift_schema,
-    primary_dataset_url=os.path.join(
-        FIXTURE_URL_PREFIX,
-        "unstructured/nlp/named-entity-recognition/ner_token_drift_production.parquet",
-    ),
-    reference_dataset_url=os.path.join(
-        FIXTURE_URL_PREFIX,
-        "unstructured/nlp/named-entity-recognition/ner_token_drift_train.parquet",
-    ),
+    prefix="unstructured/nlp/named-entity-recognition",
+    primary="ner_token_drift_production.parquet",
+    reference="ner_token_drift_train.parquet",
 )
 
 credit_card_fraud_schema = Schema(
@@ -194,13 +179,9 @@ credit_card_fraud_fixture = Fixture(
     """,
     primary_schema=credit_card_fraud_schema,
     reference_schema=credit_card_fraud_schema,
-    primary_dataset_url=os.path.join(
-        FIXTURE_URL_PREFIX, "structured/credit-card-fraud/credit_card_fraud_production.parquet"
-    ),
-    reference_dataset_url=os.path.join(
-        FIXTURE_URL_PREFIX,
-        "structured/credit-card-fraud/credit_card_fraud_train.parquet",
-    ),
+    prefix="structured/credit-card-fraud",
+    primary="credit_card_fraud_production.parquet",
+    reference="credit_card_fraud_train.parquet",
 )
 
 click_through_rate_schema = Schema(
@@ -228,12 +209,9 @@ click_through_rate_fixture = Fixture(
     """,
     primary_schema=click_through_rate_schema,
     reference_schema=click_through_rate_schema,
-    primary_dataset_url=os.path.join(
-        FIXTURE_URL_PREFIX, "structured/click-through-rate/click_through_rate_production.parquet"
-    ),
-    reference_dataset_url=os.path.join(
-        FIXTURE_URL_PREFIX, "structured/click-through-rate/click_through_rate_train.parquet"
-    ),
+    prefix="structured/click-through-rate",
+    primary="click_through_rate_production.parquet",
+    reference="click_through_rate_train.parquet",
 )
 
 wide_data_primary_schema = Schema(
@@ -250,14 +228,9 @@ wide_data_fixture = Fixture(
     """,
     primary_schema=wide_data_primary_schema,
     reference_schema=wide_data_reference_schema,
-    primary_dataset_url=os.path.join(
-        FIXTURE_URL_PREFIX,
-        "structured/wide-data/wide_data_production.parquet",
-    ),
-    reference_dataset_url=os.path.join(
-        FIXTURE_URL_PREFIX,
-        "structured/wide-data/wide_data_train.parquet",
-    ),
+    prefix="structured/wide-data",
+    primary="wide_data_production.parquet",
+    reference="wide_data_train.parquet",
 )
 
 deep_data_primary_schema = Schema(
@@ -274,14 +247,9 @@ deep_data_fixture = Fixture(
     """,
     primary_schema=deep_data_primary_schema,
     reference_schema=deep_data_reference_schema,
-    primary_dataset_url=os.path.join(
-        FIXTURE_URL_PREFIX,
-        "structured/deep-data/deep_data_production.parquet",
-    ),
-    reference_dataset_url=os.path.join(
-        FIXTURE_URL_PREFIX,
-        "structured/deep-data/deep_data_train.parquet",
-    ),
+    prefix="structured/deep-data",
+    primary="deep_data_production.parquet",
+    reference="deep_data_train.parquet",
 )
 
 
@@ -305,14 +273,9 @@ llm_summarization_fixture = Fixture(
     """,
     primary_schema=llm_summarization_schema,
     reference_schema=llm_summarization_schema,
-    primary_dataset_url=os.path.join(
-        FIXTURE_URL_PREFIX,
-        "unstructured/llm/summarization/llm_summarization_prod.parquet",
-    ),
-    reference_dataset_url=os.path.join(
-        FIXTURE_URL_PREFIX,
-        "unstructured/llm/summarization/llm_summarization_baseline.parquet",
-    ),
+    prefix="unstructured/llm/summarization",
+    primary="llm_summarization_prod.parquet",
+    reference="llm_summarization_baseline.parquet",
 )
 
 FIXTURES: Tuple[Fixture, ...] = (
@@ -335,18 +298,16 @@ def download_fixture_if_missing(fixture_name: str) -> Tuple[Dataset, Optional[Da
     locally.
     """
     fixture = _get_fixture_by_name(fixture_name=fixture_name)
-    primary_dataset_name, reference_dataset_name = get_dataset_names_from_fixture_name(fixture_name)
-    primary_dataset = _download_dataset_if_missing(
-        dataset_name=primary_dataset_name,
-        dataset_url=fixture.primary_dataset_url,
-        schema=fixture.primary_schema,
+    paths = _download(fixture, DATASET_DIR)
+    primary_dataset = Dataset(
+        pd.read_parquet(paths[DatasetRole.PRIMARY]),
+        fixture.primary_schema,
     )
     reference_dataset = None
-    if fixture.reference_dataset_url is not None:
-        reference_dataset = _download_dataset_if_missing(
-            dataset_name=reference_dataset_name,
-            dataset_url=fixture.reference_dataset_url,
-            schema=fixture.reference_schema,
+    if fixture.reference is not None:
+        primary_dataset = Dataset(
+            pd.read_parquet(paths[DatasetRole.REFERENCE]),
+            fixture.reference_schema,
         )
     return primary_dataset, reference_dataset
 
@@ -369,25 +330,6 @@ def _get_fixture_by_name(fixture_name: str) -> Fixture:
         valid_fixture_names = ", ".join(NAME_TO_FIXTURE.keys())
         raise ValueError(f'"{fixture_name}" is invalid. Valid names are: {valid_fixture_names}')
     return NAME_TO_FIXTURE[fixture_name]
-
-
-def _download_dataset_if_missing(dataset_name: str, dataset_url: str, schema: Schema) -> Dataset:
-    """
-    Downloads a dataset from the given URL if it is not found locally.
-    """
-    try:
-        return Dataset.from_name(dataset_name)
-    except FileNotFoundError:
-        pass
-
-    logger.info(f'Downloading dataset: "{dataset_name}"')
-    dataset = Dataset(
-        dataframe=read_parquet(dataset_url),
-        schema=schema,
-        name=dataset_name,
-    )
-    logger.info("Download complete.")
-    return dataset
 
 
 @dataclass
@@ -429,3 +371,62 @@ def load_example(use_case: str) -> ExampleDatasets:
     print("ℹ️ About this use-case:")
     print(fixture.description)
     return ExampleDatasets(primary=primary_dataset, reference=reference_dataset)
+
+
+class Metadata(NamedTuple):
+    name: str
+    mediaLink: str
+    md5Hash: str
+
+    def save_media(self, location: Path) -> Path:
+        data_file = location / self.name
+        md5_file = data_file.with_name(data_file.stem + ".md5")
+        data_file.parents[0].mkdir(parents=True, exist_ok=True)
+        if data_file.is_file() and md5_file.is_file():
+            with open(md5_file, "r") as f:
+                if f.readline() == self.md5Hash:
+                    return data_file
+        request.urlretrieve(self.mediaLink, data_file)
+        with open(md5_file, "w") as f:
+            f.write(self.md5Hash)
+        return data_file
+
+
+class GCS(NamedTuple):
+    host: str = "https://storage.googleapis.com/"
+    bucket: str = "arize-assets"
+    prefix: str = "phoenix/datasets/"
+
+    def metadata(self, path: Path) -> Metadata:
+        url = urljoin(
+            urljoin(self.host, f"storage/v1/b/{self.bucket}/o/"),
+            quote(urljoin(self.prefix, str(path)), safe=""),
+        )
+        resp = json.loads(request.urlopen(request.Request(url)).read())
+        return Metadata(
+            resp["name"][len(self.prefix) :],
+            resp["mediaLink"],
+            resp["md5Hash"],
+        )
+
+
+def _download(fixture: Fixture, location: Path) -> Dict[DatasetRole, Path]:
+    return {
+        role: GCS()
+        .metadata(
+            Path(fixture.prefix) / name,
+        )
+        .save_media(location)
+        for role, name in zip(
+            DatasetRole,
+            (fixture.primary, fixture.reference),
+        )
+        if name
+    }
+
+
+# Download all fixtures
+if __name__ == "__main__":
+    with ThreadPoolExecutor(len(FIXTURES)) as exe:
+        for fixture in FIXTURES:
+            exe.submit(_download, fixture, DATASET_DIR)
