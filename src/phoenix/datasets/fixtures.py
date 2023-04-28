@@ -1,7 +1,6 @@
 import json
 import logging
 from dataclasses import dataclass, replace
-from itertools import starmap
 from pathlib import Path
 from typing import Iterator, NamedTuple, Optional, Tuple
 from urllib import request
