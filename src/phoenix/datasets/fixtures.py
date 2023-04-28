@@ -1,6 +1,7 @@
 import json
 import logging
 from dataclasses import dataclass, replace
+from itertools import starmap
 from pathlib import Path
 from typing import Iterator, NamedTuple, Optional, Tuple
 from urllib import request
@@ -21,8 +22,8 @@ class Fixture:
     name: str
     description: str
     prefix: str
-    primary: str
-    reference: Optional[str]
+    primary_file_name: str
+    reference_file_name: Optional[str]
     primary_schema: Schema
     reference_schema: Schema
 
@@ -31,7 +32,7 @@ class Fixture:
             (role, Path(self.prefix) / name)
             for role, name in zip(
                 DatasetRole,
-                (self.primary, self.reference),
+                (self.primary_file_name, self.reference_file_name),
             )
             if name
         )
@@ -68,8 +69,8 @@ sentiment_classification_language_drift_fixture = Fixture(
     primary_schema=sentiment_classification_language_drift_schema,
     reference_schema=sentiment_classification_language_drift_schema,
     prefix="unstructured/nlp/sentiment-classification-language-drift",
-    primary="sentiment_classification_language_drift_production.parquet",
-    reference="sentiment_classification_language_drift_training.parquet",
+    primary_file_name="sentiment_classification_language_drift_production.parquet",
+    reference_file_name="sentiment_classification_language_drift_training.parquet",
 )
 
 image_classification_schema = Schema(
@@ -94,8 +95,8 @@ image_classification_fixture = Fixture(
     primary_schema=replace(image_classification_schema, actual_label_column_name=None),
     reference_schema=image_classification_schema,
     prefix="unstructured/cv/human-actions",
-    primary="human_actions_production.parquet",
-    reference="human_actions_training.parquet",
+    primary_file_name="human_actions_production.parquet",
+    reference_file_name="human_actions_training.parquet",
 )
 
 fashion_mnist_primary_schema = Schema(
@@ -122,8 +123,8 @@ fashion_mnist_fixture = Fixture(
     primary_schema=fashion_mnist_primary_schema,
     reference_schema=fashion_mnist_reference_schema,
     prefix="unstructured/cv/fashion-mnist",
-    primary="fashion_mnist_production.parquet",
-    reference="fashion_mnist_train.parquet",
+    primary_file_name="fashion_mnist_production.parquet",
+    reference_file_name="fashion_mnist_train.parquet",
 )
 
 ner_token_drift_schema = Schema(
@@ -156,8 +157,8 @@ ner_token_drift_fixture = Fixture(
     primary_schema=ner_token_drift_schema,
     reference_schema=ner_token_drift_schema,
     prefix="unstructured/nlp/named-entity-recognition",
-    primary="ner_token_drift_production.parquet",
-    reference="ner_token_drift_train.parquet",
+    primary_file_name="ner_token_drift_production.parquet",
+    reference_file_name="ner_token_drift_train.parquet",
 )
 
 credit_card_fraud_schema = Schema(
@@ -189,8 +190,8 @@ credit_card_fraud_fixture = Fixture(
     primary_schema=credit_card_fraud_schema,
     reference_schema=credit_card_fraud_schema,
     prefix="structured/credit-card-fraud",
-    primary="credit_card_fraud_production.parquet",
-    reference="credit_card_fraud_train.parquet",
+    primary_file_name="credit_card_fraud_production.parquet",
+    reference_file_name="credit_card_fraud_train.parquet",
 )
 
 click_through_rate_schema = Schema(
@@ -219,8 +220,8 @@ click_through_rate_fixture = Fixture(
     primary_schema=click_through_rate_schema,
     reference_schema=click_through_rate_schema,
     prefix="structured/click-through-rate",
-    primary="click_through_rate_production.parquet",
-    reference="click_through_rate_train.parquet",
+    primary_file_name="click_through_rate_production.parquet",
+    reference_file_name="click_through_rate_train.parquet",
 )
 
 wide_data_primary_schema = Schema(
@@ -238,8 +239,8 @@ wide_data_fixture = Fixture(
     primary_schema=wide_data_primary_schema,
     reference_schema=wide_data_reference_schema,
     prefix="structured/wide-data",
-    primary="wide_data_production.parquet",
-    reference="wide_data_train.parquet",
+    primary_file_name="wide_data_production.parquet",
+    reference_file_name="wide_data_train.parquet",
 )
 
 deep_data_primary_schema = Schema(
@@ -257,8 +258,8 @@ deep_data_fixture = Fixture(
     primary_schema=deep_data_primary_schema,
     reference_schema=deep_data_reference_schema,
     prefix="structured/deep-data",
-    primary="deep_data_production.parquet",
-    reference="deep_data_train.parquet",
+    primary_file_name="deep_data_production.parquet",
+    reference_file_name="deep_data_train.parquet",
 )
 
 
@@ -283,8 +284,8 @@ llm_summarization_fixture = Fixture(
     primary_schema=llm_summarization_schema,
     reference_schema=llm_summarization_schema,
     prefix="unstructured/llm/summarization",
-    primary="llm_summarization_prod.parquet",
-    reference="llm_summarization_baseline.parquet",
+    primary_file_name="llm_summarization_prod.parquet",
+    reference_file_name="llm_summarization_baseline.parquet",
 )
 
 FIXTURES: Tuple[Fixture, ...] = (
@@ -320,8 +321,8 @@ def get_datasets(
         "production",
     )
     reference_dataset = None
-    if fixture.reference is not None:
-        primary_dataset = Dataset(
+    if fixture.reference_file_name is not None:
+        reference_dataset = Dataset(
             read_parquet(paths[DatasetRole.REFERENCE]),
             fixture.reference_schema,
             "training",
@@ -386,21 +387,21 @@ class Metadata(NamedTuple):
     mediaLink: str
     md5Hash: str
 
-    def save_media(self, location: Path) -> Path:
-        data_file = location / self.path
-        md5_file = data_file.with_name(data_file.stem + ".md5")
-        data_file.parents[0].mkdir(parents=True, exist_ok=True)
-        if data_file.is_file() and md5_file.is_file():
+    def save_artifact(self, location: Path) -> Path:
+        data_file_path = location / self.path
+        md5_file = data_file_path.with_name(data_file_path.stem + ".md5")
+        data_file_path.parents[0].mkdir(parents=True, exist_ok=True)
+        if data_file_path.is_file() and md5_file.is_file():
             with open(md5_file, "r") as f:
                 if f.readline() == self.md5Hash:
-                    return data_file
-        request.urlretrieve(self.mediaLink, data_file)
+                    return data_file_path
+        request.urlretrieve(self.mediaLink, data_file_path)
         with open(md5_file, "w") as f:
             f.write(self.md5Hash)
-        return data_file
+        return data_file_path
 
 
-class GCS(NamedTuple):
+class GCSAssets(NamedTuple):
     host: str = "https://storage.googleapis.com/"
     bucket: str = "arize-assets"
     prefix: str = "phoenix/datasets/"
@@ -420,7 +421,7 @@ class GCS(NamedTuple):
 
 def _download(fixture: Fixture, location: Path) -> Iterator[Tuple[DatasetRole, Path]]:
     for role, path in fixture.paths():
-        yield role, GCS().metadata(path).save_media(location)
+        yield role, GCSAssets().metadata(path).save_artifact(location)
 
 
 # Download all fixtures
