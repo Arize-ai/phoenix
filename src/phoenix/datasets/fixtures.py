@@ -425,8 +425,10 @@ def _download(fixture: Fixture, location: Path) -> Iterator[Tuple[DatasetRole, P
 
 # Download all fixtures
 if __name__ == "__main__":
-    from concurrent.futures import ThreadPoolExecutor
+    import time
 
-    with ThreadPoolExecutor(len(FIXTURES)) as exe:
-        for fixture in FIXTURES:
-            exe.submit(_download, fixture, DATASET_DIR)
+    for fixture in FIXTURES:
+        start_time = time.time()
+        print(f"getting {fixture.name}", end="...")
+        dict(_download(fixture, DATASET_DIR))
+        print(f"done ({time.time() - start_time:.2f}s)")
