@@ -39,6 +39,7 @@
     "@types/d3-format": "^3.0.1",
     "@types/d3-scale-chromatic": "^3.0.0",
     "@types/d3-time-format": "^4.0.0",
+    "@types/jest": "^29.5.1",
     "@types/react-dom": "^18.0.8",
     "@types/react-relay": "^14.1.2",
     "@types/three": "^0.149.0",
@@ -52,6 +53,7 @@
     "graphql": "^15.8.0",
     "prettier": "^2.8.7",
     "relay-compiler": "^14.1.0",
+    "ts-jest": "^29.1.0",
     "typescript": "^5.0.4"
   },
   "scripts": {
@@ -61,6 +63,7 @@
     "build:ts": "node ./esbuild.config.mjs",
     "build:relay": "relay-compiler",
     "watch": "./esbuild.config.mjs dev",
+    "test": "jest --config ./jest.config.js",
     "dev": "npm run dev:server:mnist & npm run build:static && npm run watch",
     "dev:server:mnist": "python3 -m phoenix.server.main fixture fashion_mnist",
     "dev:server:mnist:single": "python3 -m phoenix.server.main fixture fashion_mnist --primary-only true",

@@ -43,3 +43,7 @@ jobs:
               run: |
                   npm run build:relay
                   git diff --exit-code
+            - name: Test
+              working-directory: ./app
+              run: |
+                  npm run test
