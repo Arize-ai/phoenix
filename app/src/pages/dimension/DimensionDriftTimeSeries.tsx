@@ -21,7 +21,9 @@ import {
   ChartTooltip,
   ChartTooltipDivider,
   ChartTooltipItem,
+  colors,
   fullTimeFormatter,
+  shortTimeFormatter,
 } from "@phoenix/components/chart";
 import { useTimeRange } from "@phoenix/contexts/TimeRangeContext";
 import { useTimeSlice } from "@phoenix/contexts/TimeSliceContext";
@@ -36,7 +38,7 @@ const numberFormatter = new Intl.NumberFormat([], {
   maximumFractionDigits: 2,
 });
 
-const color = "#5899C5";
+const color = colors.orange300;
 const barColor = "#93b3c841";
 
 function TooltipContent({ active, payload, label }: TooltipProps<any, any>) {
@@ -151,19 +153,19 @@ export function DimensionDriftTimeSeries({
     [setSelectedTimestamp]
   );
 
-  let chartData = data.embedding.driftTimeSeries?.data || [];
+  const chartRawData = data.embedding.driftTimeSeries?.data || [];
   const trafficDataMap =
     data.embedding.trafficTimeSeries?.data.reduce((acc, traffic) => {
       acc[traffic.timestamp] = traffic.value;
       return acc;
     }, {} as Record<string, number | null>) ?? {};
 
-  chartData = chartData.map((d) => {
+  const chartData = chartRawData.map((d) => {
     const traffic = trafficDataMap[d.timestamp];
     return {
       ...d,
       traffic: traffic,
-      timestamp: new Date(d.timestamp).toISOString(),
+      timestamp: new Date(d.timestamp).valueOf(),
     };
   });
   return (
@@ -175,7 +177,7 @@ export function DimensionDriftTimeSeries({
         flex-direction: column;
         overflow: hidden;
         h3 {
-          padding: var(--px-spacing-sm) var(--px-spacing-lg) 0
+          padding: var(--px-spacing-lg) var(--px-spacing-lg) 0
             var(--px-spacing-lg);
           flex: none;
           .ac-action-button {
@@ -196,9 +198,16 @@ export function DimensionDriftTimeSeries({
             data={chartData as unknown as any[]}
             margin={{ top: 25, right: 18, left: 18, bottom: 10 }}
             onClick={onClick}
+            syncId={"dimensionDetails"}
           >
             <defs>
-              <linearGradient id="colorUv" x1="0" y1="0" x2="0" y2="1">
+              <linearGradient
+                id="dimensionDriftColorUv"
+                x1="0"
+                y1="0"
+                x2="0"
+                y2="1"
+              >
                 <stop offset="5%" stopColor={color} stopOpacity={0.8} />
                 <stop offset="95%" stopColor={color} stopOpacity={0} />
               </linearGradient>
@@ -211,8 +220,12 @@ export function DimensionDriftTimeSeries({
               dataKey="timestamp"
               stroke={theme.colors.gray200}
               // TODO: Fix this to be a cleaner interface
-              tickFormatter={(x) => fullTimeFormatter(new Date(x))}
+              tickFormatter={(x) => shortTimeFormatter(new Date(x))}
               style={{ fill: theme.textColors.white70 }}
+              scale="time"
+              type="number"
+              domain={["auto", "auto"]}
+              padding={{ left: 10, right: 10 }}
             />
             <YAxis
               stroke={theme.colors.gray200}
@@ -227,13 +240,9 @@ export function DimensionDriftTimeSeries({
             <YAxis
               yAxisId="right"
               orientation="right"
-              label={{
-                value: "Count",
-                angle: 90,
-                position: "insideRight",
-                style: { textAnchor: "middle", fill: theme.textColors.white90 },
-              }}
-              style={{ fill: theme.textColors.white70 }}
+              tick={false}
+              tickLine={false}
+              width={0}
             />
             <CartesianGrid
               strokeDasharray="4 4"
@@ -252,13 +261,13 @@ export function DimensionDriftTimeSeries({
               dataKey="value"
               stroke={color}
               fillOpacity={1}
-              fill="url(#colorUv)"
+              fill="url(#dimensionDriftColorUv)"
             />
 
             {selectedTimestamp != null ? (
               <>
                 <ReferenceLine
-                  x={selectedTimestamp.toISOString()}
+                  x={selectedTimestamp.valueOf()}
                   stroke="white"
                   label={{
                     value: "▼",
