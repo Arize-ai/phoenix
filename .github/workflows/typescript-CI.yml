@@ -14,8 +14,8 @@ concurrency:
     cancel-in-progress: true
 
 jobs:
-    lint:
-        name: Lint Typescript
+    ci:
+        name: CI Typescript
         runs-on: ubuntu-latest
         steps:
             - name: Checkout Repository
