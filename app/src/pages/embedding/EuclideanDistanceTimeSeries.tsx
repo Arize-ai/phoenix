@@ -5,11 +5,9 @@ import {
   Bar,
   CartesianGrid,
   ComposedChart,
-  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   TooltipProps,
-  XAxis,
   YAxis,
 } from "recharts";
 import { CategoricalChartFunc } from "recharts/types/chart/generateCategoricalChart";
@@ -30,6 +28,8 @@ import {
   ChartTooltipDivider,
   ChartTooltipItem,
   fullTimeFormatter,
+  SelectedTimestampReferenceLine,
+  TimeXAxis,
 } from "@phoenix/components/chart";
 import { useTimeRange } from "@phoenix/contexts/TimeRangeContext";
 import { useTimeSlice } from "@phoenix/contexts/TimeSliceContext";
@@ -169,21 +169,23 @@ export function EuclideanDistanceTimeSeries({
     [setSelectedTimestamp]
   );
 
-  let chartData = data.embedding.euclideanDistanceTimeSeries?.data || [];
+  const chartRawData = data.embedding.euclideanDistanceTimeSeries?.data || [];
   const trafficDataMap =
     data.embedding.trafficTimeSeries?.data.reduce((acc, traffic) => {
       acc[traffic.timestamp] = traffic.value;
       return acc;
     }, {} as Record<string, number | null>) ?? {};
 
-  chartData = chartData.map((d) => {
+  const chartData = chartRawData.map((d) => {
     const traffic = trafficDataMap[d.timestamp];
     return {
       ...d,
       traffic: traffic,
-      timestamp: new Date(d.timestamp).toISOString(),
+      timestamp: new Date(d.timestamp).valueOf(),
     };
   });
+
+  const showSelectedReferenceLine = selectedTimestamp != null;
   return (
     <section
       css={css`
@@ -228,13 +230,7 @@ export function EuclideanDistanceTimeSeries({
                 <stop offset="95%" stopColor={barColor} stopOpacity={0} />
               </linearGradient>
             </defs>
-            <XAxis
-              dataKey="timestamp"
-              stroke={theme.colors.gray200}
-              // TODO: Fix this to be a cleaner interface
-              tickFormatter={(x) => fullTimeFormatter(new Date(x))}
-              style={{ fill: theme.textColors.white70 }}
-            />
+            <TimeXAxis />
             <YAxis
               stroke={theme.colors.gray200}
               label={{
@@ -254,7 +250,7 @@ export function EuclideanDistanceTimeSeries({
                 position: "insideRight",
                 style: { textAnchor: "middle", fill: theme.textColors.white90 },
               }}
-              style={{ fill: theme.textColors.white70 }}
+              style={{ fill: "theme.textColors.white70" }}
             />
             <CartesianGrid
               strokeDasharray="4 4"
@@ -275,22 +271,10 @@ export function EuclideanDistanceTimeSeries({
               fillOpacity={1}
               fill="url(#colorUv)"
             />
-
-            {selectedTimestamp != null ? (
-              <>
-                <ReferenceLine
-                  x={selectedTimestamp.toISOString()}
-                  stroke="white"
-                  label={{
-                    value: "▼",
-                    position: "top",
-                    style: {
-                      fill: "#fabe32",
-                      fontSize: theme.typography.sizes.small.fontSize,
-                    },
-                  }}
-                />
-              </>
+            {showSelectedReferenceLine ? (
+              <SelectedTimestampReferenceLine
+                timestampEpochMs={selectedTimestamp.valueOf()}
+              />
             ) : null}
           </ComposedChart>
         </ResponsiveContainer>

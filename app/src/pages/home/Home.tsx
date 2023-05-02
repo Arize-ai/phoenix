@@ -80,7 +80,7 @@ export function Home(_props: HomePageProps) {
             <TabPane name="Embeddings" key="embeddings">
               <ModelEmbeddingsTable model={data} />
             </TabPane>
-            <TabPane name="Dimensions" key="embeddings">
+            <TabPane name="Dimensions" key="dimensions">
               <ModelSchemaTable model={data} />
             </TabPane>
           </Tabs>
