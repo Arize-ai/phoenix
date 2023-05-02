@@ -20,6 +20,8 @@ import {
   ChartTooltip,
   ChartTooltipDivider,
   ChartTooltipItem,
+  defaultSelectedTimestampReferenceLineProps,
+  defaultTimeXAxisProps,
   fullTimeFormatter,
 } from "@phoenix/components/chart";
 import { useTimeRange } from "@phoenix/contexts/TimeRangeContext";
@@ -124,19 +126,19 @@ export function CountTimeSeries({
     [setSelectedTimestamp]
   );
 
-  let chartData = data.embedding.trafficTimeSeries?.data || [];
+  const chartRawData = data.embedding.trafficTimeSeries?.data || [];
   const trafficDataMap =
     data.embedding.trafficTimeSeries?.data.reduce((acc, traffic) => {
       acc[traffic.timestamp] = traffic.value;
       return acc;
     }, {} as Record<string, number | null>) ?? {};
 
-  chartData = chartData.map((d) => {
+  const chartData = chartRawData.map((d) => {
     const traffic = trafficDataMap[d.timestamp];
     return {
       ...d,
       traffic: traffic,
-      timestamp: new Date(d.timestamp).toISOString(),
+      timestamp: new Date(d.timestamp).getTime(),
     };
   });
   return (
@@ -153,11 +155,9 @@ export function CountTimeSeries({
           </linearGradient>
         </defs>
         <XAxis
-          dataKey="timestamp"
-          stroke={theme.colors.gray200}
+          {...defaultTimeXAxisProps}
           // TODO: Fix this to be a cleaner interface
           tickFormatter={(x) => fullTimeFormatter(new Date(x))}
-          style={{ fill: theme.textColors.white70 }}
         />
         <YAxis
           stroke={theme.colors.gray200}
@@ -177,20 +177,10 @@ export function CountTimeSeries({
         <Tooltip content={<TooltipContent />} />
         <Bar dataKey="value" fill="url(#barColor)" spacing={5} />
         {selectedTimestamp != null ? (
-          <>
-            <ReferenceLine
-              x={selectedTimestamp.toISOString()}
-              stroke="white"
-              label={{
-                value: "▼",
-                position: "top",
-                style: {
-                  fill: "#fabe32",
-                  fontSize: theme.typography.sizes.small.fontSize,
-                },
-              }}
-            />
-          </>
+          <ReferenceLine
+            {...defaultSelectedTimestampReferenceLineProps}
+            x={selectedTimestamp.getTime()}
+          />
         ) : null}
       </ComposedChart>
     </ResponsiveContainer>
