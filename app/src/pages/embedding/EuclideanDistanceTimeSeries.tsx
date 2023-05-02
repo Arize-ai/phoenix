@@ -5,9 +5,11 @@ import {
   Bar,
   CartesianGrid,
   ComposedChart,
+  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   TooltipProps,
+  XAxis,
   YAxis,
 } from "recharts";
 import { CategoricalChartFunc } from "recharts/types/chart/generateCategoricalChart";
@@ -27,9 +29,9 @@ import {
   ChartTooltip,
   ChartTooltipDivider,
   ChartTooltipItem,
+  defaultSelectedTimestampReferenceLineProps,
+  defaultTimeXAxisProps,
   fullTimeFormatter,
-  SelectedTimestampReferenceLine,
-  TimeXAxis,
 } from "@phoenix/components/chart";
 import { useTimeRange } from "@phoenix/contexts/TimeRangeContext";
 import { useTimeSlice } from "@phoenix/contexts/TimeSliceContext";
@@ -181,11 +183,9 @@ export function EuclideanDistanceTimeSeries({
     return {
       ...d,
       traffic: traffic,
-      timestamp: new Date(d.timestamp).valueOf(),
+      timestamp: new Date(d.timestamp).getTime(),
     };
   });
-
-  const showSelectedReferenceLine = selectedTimestamp != null;
   return (
     <section
       css={css`
@@ -230,7 +230,11 @@ export function EuclideanDistanceTimeSeries({
                 <stop offset="95%" stopColor={barColor} stopOpacity={0} />
               </linearGradient>
             </defs>
-            <TimeXAxis />
+            <XAxis
+              {...defaultTimeXAxisProps}
+              // TODO: Fix this to be a cleaner interface
+              tickFormatter={(x) => fullTimeFormatter(new Date(x))}
+            />
             <YAxis
               stroke={theme.colors.gray200}
               label={{
@@ -250,7 +254,7 @@ export function EuclideanDistanceTimeSeries({
                 position: "insideRight",
                 style: { textAnchor: "middle", fill: theme.textColors.white90 },
               }}
-              style={{ fill: "theme.textColors.white70" }}
+              style={{ fill: theme.textColors.white70 }}
             />
             <CartesianGrid
               strokeDasharray="4 4"
@@ -271,9 +275,11 @@ export function EuclideanDistanceTimeSeries({
               fillOpacity={1}
               fill="url(#colorUv)"
             />
-            {showSelectedReferenceLine ? (
-              <SelectedTimestampReferenceLine
-                timestampEpochMs={selectedTimestamp.valueOf()}
+
+            {selectedTimestamp != null ? (
+              <ReferenceLine
+                {...defaultSelectedTimestampReferenceLineProps}
+                x={selectedTimestamp.getTime()}
               />
             ) : null}
           </ComposedChart>

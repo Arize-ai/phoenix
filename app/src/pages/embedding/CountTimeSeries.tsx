@@ -4,9 +4,11 @@ import {
   Bar,
   CartesianGrid,
   ComposedChart,
+  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   TooltipProps,
+  XAxis,
   YAxis,
 } from "recharts";
 import { CategoricalChartFunc } from "recharts/types/chart/generateCategoricalChart";
@@ -18,9 +20,9 @@ import {
   ChartTooltip,
   ChartTooltipDivider,
   ChartTooltipItem,
+  defaultSelectedTimestampReferenceLineProps,
+  defaultTimeXAxisProps,
   fullTimeFormatter,
-  SelectedTimestampReferenceLine,
-  TimeXAxis,
 } from "@phoenix/components/chart";
 import { useTimeRange } from "@phoenix/contexts/TimeRangeContext";
 import { useTimeSlice } from "@phoenix/contexts/TimeSliceContext";
@@ -139,8 +141,6 @@ export function CountTimeSeries({
       timestamp: new Date(d.timestamp).getTime(),
     };
   });
-
-  const showSelectedTimestamp = selectedTimestamp != null;
   return (
     <ResponsiveContainer width="100%" height="100%">
       <ComposedChart
@@ -154,7 +154,11 @@ export function CountTimeSeries({
             <stop offset="95%" stopColor={barColor} stopOpacity={0.4} />
           </linearGradient>
         </defs>
-        <TimeXAxis />
+        <XAxis
+          {...defaultTimeXAxisProps}
+          // TODO: Fix this to be a cleaner interface
+          tickFormatter={(x) => fullTimeFormatter(new Date(x))}
+        />
         <YAxis
           stroke={theme.colors.gray200}
           label={{
@@ -172,9 +176,10 @@ export function CountTimeSeries({
         />
         <Tooltip content={<TooltipContent />} />
         <Bar dataKey="value" fill="url(#barColor)" spacing={5} />
-        {showSelectedTimestamp ? (
-          <SelectedTimestampReferenceLine
-            timestampEpochMs={selectedTimestamp.getTime()}
+        {selectedTimestamp != null ? (
+          <ReferenceLine
+            {...defaultSelectedTimestampReferenceLineProps}
+            x={selectedTimestamp.getTime()}
           />
         ) : null}
       </ComposedChart>
