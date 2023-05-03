@@ -59,7 +59,7 @@ class Mean(UnaryOperator, BaseMetric):
     def calc(self, dataframe: pd.DataFrame) -> float:
         data = self.get_operand_column(dataframe)
         numeric_data = pd.to_numeric(data, errors="coerce")
-        return cast(float, numeric_data.mean())
+        return numeric_data.mean()
 
 
 @dataclass
@@ -100,7 +100,7 @@ class Cardinality(UnaryOperator, BaseMetric):
 class PercentEmpty(UnaryOperator, BaseMetric):
     def calc(self, dataframe: pd.DataFrame) -> float:
         data = self.get_operand_column(dataframe)
-        return cast(float, data.isna().mean() * 100)
+        return data.isna().mean() * 100
 
 
 @dataclass
