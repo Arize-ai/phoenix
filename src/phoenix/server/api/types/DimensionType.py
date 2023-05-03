@@ -21,7 +21,7 @@ class DimensionType(Enum):
     actual = "actual"
 
     @classmethod
-    def from_(cls, dim: Dimension) -> "DimensionType":
+    def from_dimension(cls, dim: Dimension) -> "DimensionType":
         role = dim.role
         if role in (FEATURE,):
             return cls.feature

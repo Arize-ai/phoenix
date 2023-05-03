@@ -11,7 +11,7 @@ class DimensionShape(Enum):
     discrete = "discrete"
 
     @classmethod
-    def from_(cls, dim: Dimension) -> "DimensionShape":
+    def from_dimension(cls, dim: Dimension) -> "DimensionShape":
         data_type = dim.data_type
         if data_type in (CONTINUOUS,):
             return cls.continuous
