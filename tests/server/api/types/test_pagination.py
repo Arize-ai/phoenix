@@ -11,6 +11,7 @@ def test_connection_from_list():
             name="first",
             type="feature",
             dataType="categorical",
+            shape="discrete",
             dimension=ms.Dimension(role=FEATURE),
         ),
         Dimension(
@@ -18,6 +19,7 @@ def test_connection_from_list():
             name="second",
             type="feature",
             dataType="categorical",
+            shape="discrete",
             dimension=ms.Dimension(role=FEATURE),
         ),
         Dimension(
@@ -25,6 +27,7 @@ def test_connection_from_list():
             name="third",
             type="feature",
             dataType="categorical",
+            shape="discrete",
             dimension=ms.Dimension(role=FEATURE),
         ),
     ]
@@ -49,6 +52,7 @@ def test_connection_from_list_reverse():
             name="first",
             type="feature",
             dataType="categorical",
+            shape="discrete",
             dimension=ms.Dimension(role=FEATURE),
         ),
         Dimension(
@@ -56,6 +60,7 @@ def test_connection_from_list_reverse():
             name="second",
             type="feature",
             dataType="categorical",
+            shape="discrete",
             dimension=ms.Dimension(role=FEATURE),
         ),
         Dimension(
@@ -63,6 +68,7 @@ def test_connection_from_list_reverse():
             name="third",
             type="feature",
             dataType="categorical",
+            shape="discrete",
             dimension=ms.Dimension(role=FEATURE),
         ),
     ]
