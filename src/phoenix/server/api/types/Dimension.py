@@ -10,6 +10,7 @@ from ..input_types.Granularity import Granularity
 from ..input_types.TimeRange import TimeRange
 from .DataQualityMetric import DataQualityMetric
 from .DimensionDataType import DimensionDataType
+from .DimensionShape import DimensionShape
 from .DimensionType import DimensionType
 from .node import Node
 from .ScalarDriftMetricEnum import ScalarDriftMetric
@@ -30,6 +31,9 @@ class Dimension(Node):
     )
     dataType: DimensionDataType = strawberry.field(
         description="The data type of the column. Categorical or numeric."
+    )
+    shape: DimensionShape = strawberry.field(
+        description="Whether the dimension data is continuous or discrete."
     )
     dimension: strawberry.Private[ScalarDimension]
 
@@ -128,7 +132,8 @@ def to_gql_dimension(id_attr: int, dimension: ScalarDimension) -> Dimension:
     return Dimension(
         id_attr=id_attr,
         name=dimension.name,
-        type=DimensionType.from_(dimension),
-        dataType=DimensionDataType.from_(dimension),
+        type=DimensionType.from_dimension(dimension),
+        dataType=DimensionDataType.from_dimension(dimension),
         dimension=dimension,
+        shape=DimensionShape.from_dimension(dimension),
     )

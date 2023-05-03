@@ -331,7 +331,7 @@ class EmbeddingDimension(Dimension):
             object.__setattr__(self, "display_name", self.name)
 
     @classmethod
-    def from_(cls, emb: Embedding, **kwargs: Any) -> "EmbeddingDimension":
+    def from_dimension(cls, emb: Embedding, **kwargs: Any) -> "EmbeddingDimension":
         """Use `from_` instead of `__init__` because the latter is needed by
         replace() and we don't want to clobber the generated version.
         """
@@ -981,7 +981,7 @@ class Schema(SchemaSpec):
                 else:
                     yield ScalarDimension(spec, role=role, data_type=data_type)
             elif isinstance(spec, Embedding):
-                yield EmbeddingDimension.from_(spec, role=role, data_type=data_type)
+                yield EmbeddingDimension.from_dimension(spec, role=role, data_type=data_type)
             else:
                 raise TypeError(f"{role} has unrecognized type: {type(spec)}")
 

@@ -48,6 +48,9 @@ type Dimension implements Node {
 
   """The data type of the column. Categorical or numeric."""
   dataType: DimensionDataType!
+
+  """Whether the dimension data is continuous or discrete."""
+  shape: DimensionShape!
   driftMetric(metric: ScalarDriftMetric!, timeRange: TimeRange = null): Float
   dataQualityMetric(metric: DataQualityMetric!, timeRange: TimeRange = null): Float
 
@@ -85,6 +88,11 @@ type DimensionEdge {
 input DimensionInput {
   name: String!
   type: DimensionType!
+}
+
+enum DimensionShape {
+  continuous
+  discrete
 }
 
 enum DimensionType {
