@@ -23,6 +23,7 @@ import {
   defaultSelectedTimestampReferenceLineProps,
   defaultTimeXAxisProps,
   fullTimeFormatter,
+  useTimeTickFormatter,
 } from "@phoenix/components/chart";
 import { useTimeRange } from "@phoenix/contexts/TimeRangeContext";
 import { useTimeSlice } from "@phoenix/contexts/TimeSliceContext";
@@ -80,6 +81,7 @@ export function CountTimeSeries({
 }) {
   const { timeRange } = useTimeRange();
   const { selectedTimestamp, setSelectedTimestamp } = useTimeSlice();
+  const granularity = calculateGranularity(timeRange);
   const data = useLazyLoadQuery<CountTimeSeriesQuery>(
     graphql`
       query CountTimeSeriesQuery(
@@ -110,7 +112,7 @@ export function CountTimeSeries({
         start: timeRange.start.toISOString(),
         end: timeRange.end.toISOString(),
       },
-      countGranularity: calculateGranularity(timeRange),
+      countGranularity: granularity,
     }
   );
 
@@ -125,6 +127,10 @@ export function CountTimeSeries({
     },
     [setSelectedTimestamp]
   );
+
+  const timeTickFormatter = useTimeTickFormatter({
+    samplingIntervalMinutes: granularity.samplingIntervalMinutes,
+  });
 
   const chartRawData = data.embedding.trafficTimeSeries?.data || [];
   const trafficDataMap =
@@ -156,8 +162,7 @@ export function CountTimeSeries({
         </defs>
         <XAxis
           {...defaultTimeXAxisProps}
-          // TODO: Fix this to be a cleaner interface
-          tickFormatter={(x) => fullTimeFormatter(new Date(x))}
+          tickFormatter={(x) => timeTickFormatter(new Date(x))}
         />
         <YAxis
           stroke={theme.colors.gray200}

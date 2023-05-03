@@ -14,8 +14,8 @@ concurrency:
     cancel-in-progress: true
 
 jobs:
-    lint:
-        name: Lint Typescript
+    ci:
+        name: CI Typescript
         runs-on: ubuntu-latest
         steps:
             - name: Checkout Repository
@@ -43,3 +43,7 @@ jobs:
               run: |
                   npm run build:relay
                   git diff --exit-code
+            - name: Test
+              working-directory: ./app
+              run: |
+                  npm run test

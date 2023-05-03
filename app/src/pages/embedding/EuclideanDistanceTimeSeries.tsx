@@ -33,6 +33,7 @@ import {
   defaultTimeXAxisProps,
   fullTimeFormatter,
 } from "@phoenix/components/chart";
+import { useTimeTickFormatter } from "@phoenix/components/chart";
 import { useTimeRange } from "@phoenix/contexts/TimeRangeContext";
 import { useTimeSlice } from "@phoenix/contexts/TimeSliceContext";
 import {
@@ -113,6 +114,7 @@ export function EuclideanDistanceTimeSeries({
 }) {
   const { timeRange } = useTimeRange();
   const { selectedTimestamp, setSelectedTimestamp } = useTimeSlice();
+  const granularity = calculateGranularity(timeRange);
   const data = useLazyLoadQuery<EuclideanDistanceTimeSeriesQuery>(
     graphql`
       query EuclideanDistanceTimeSeriesQuery(
@@ -155,9 +157,13 @@ export function EuclideanDistanceTimeSeries({
         end: timeRange.end.toISOString(),
       },
       driftGranularity: calculateGranularityWithRollingAverage(timeRange),
-      countGranularity: calculateGranularity(timeRange),
+      countGranularity: granularity,
     }
   );
+
+  const timeTickFormatter = useTimeTickFormatter({
+    samplingIntervalMinutes: granularity.samplingIntervalMinutes,
+  });
 
   const onClick: CategoricalChartFunc = useCallback(
     (state) => {
@@ -232,8 +238,8 @@ export function EuclideanDistanceTimeSeries({
             </defs>
             <XAxis
               {...defaultTimeXAxisProps}
-              // TODO: Fix this to be a cleaner interface
-              tickFormatter={(x) => fullTimeFormatter(new Date(x))}
+              tickFormatter={(x) => timeTickFormatter(new Date(x))}
+              style={{ fill: theme.textColors.white70 }}
             />
             <YAxis
               stroke={theme.colors.gray200}
