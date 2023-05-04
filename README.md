@@ -146,7 +146,7 @@ Join our community to connect with thousands of machine learning practitioners a
 -   💡 Ask questions and provide feedback in the _#phoenix-support_ channel.
 -   🌟 Leave a star on our [GitHub](https://github.com/Arize-ai/phoenix).
 -   🐞 Report bugs with [GitHub Issues](https://github.com/Arize-ai/phoenix/issues).
--   🐣 Follow us on [twitter](https://twitter.com/ArizePhoenix)
+-   🐣 Follow us on [twitter](https://twitter.com/ArizePhoenix).
 -   💌️ Sign up for our [mailing list](https://phoenix.arize.com/#updates).
 -   🗺️ Check out our [roadmap](https://github.com/orgs/Arize-ai/projects/45) to see where we're heading next.
 -   🎓 Learn the fundamentals of ML observability with our [introductory](https://arize.com/ml-observability-fundamentals/) and [advanced](https://arize.com/blog-course/) courses.
