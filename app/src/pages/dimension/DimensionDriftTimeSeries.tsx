@@ -67,7 +67,7 @@ function TooltipContent({ active, payload, label }: TooltipProps<any, any>) {
           name="Count"
           value={predictionCountString}
         />
-        <ChartTooltipDivider />
+        {/* <ChartTooltipDivider />
         <div
           css={css`
             display: flex;
@@ -81,7 +81,7 @@ function TooltipContent({ active, payload, label }: TooltipProps<any, any>) {
         >
           <Icon svg={<InfoOutline />} />
           <span>Click to view the distribution at this time</span>
-        </div>
+        </div> */}
       </ChartTooltip>
     );
   }
