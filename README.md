@@ -10,6 +10,9 @@
     <a target="_blank" href="https://join.slack.com/t/arize-ai/shared_invite/zt-1px8dcmlf-fmThhDFD_V_48oU7ALan4Q">
         <img src="https://img.shields.io/static/v1?message=Community&logo=slack&labelColor=grey&color=blue&logoColor=white&label=%20"/>
     </a>
+    <a target="_blank" href="https://twitter.com/ArizePhoenix">
+        <img src="https://img.shields.io/badge/-ArizePhoenix-blue.svg?color=blue&labelColor=gray&logo=twitter">
+    </a>
     <a target="_blank" href="https://pypi.org/project/arize-phoenix/">
         <img src="https://img.shields.io/pypi/v/arize-phoenix?color=blue">
     </a>
@@ -18,9 +21,6 @@
     </a>
     <a target="_blank" href="https://pypi.org/project/arize-phoenix/">
         <img src="https://img.shields.io/pypi/pyversions/arize-phoenix">
-    </a>
-     <a target="_blank" href="https://twitter.com/ArizePhoenix">
-        <img src="https://img.shields.io/badge/twitter-ArizePhoenix-blue.svg?color=blue&logo=twitter">
     </a>
 </p>
 
