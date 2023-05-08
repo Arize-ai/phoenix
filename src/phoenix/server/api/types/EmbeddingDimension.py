@@ -155,7 +155,7 @@ class EmbeddingDimension(Node):
         model = info.context.model
         if model[REFERENCE].empty:
             return DriftTimeSeries(data=[])
-        dataset = info.context.model[PRIMARY]
+        dataset = model[PRIMARY]
         time_range, granularity = ensure_timeseries_parameters(
             dataset,
             time_range,
