@@ -5,7 +5,7 @@ from typing import Iterable, List, Optional, Tuple, Union, cast
 import pandas as pd
 import strawberry
 
-from phoenix.core.model_schema import CONTINUOUS, PRIMARY, REFERENCE, Dimension, Model
+from phoenix.core.model_schema import CONTINUOUS, REFERENCE, Dataset, Dimension
 from phoenix.metrics import Metric, binning
 from phoenix.metrics.mixins import DriftOperator
 from phoenix.metrics.timeseries import timeseries
@@ -14,6 +14,7 @@ from phoenix.server.api.input_types.TimeRange import TimeRange
 from phoenix.server.api.interceptor import NoneIfNan
 from phoenix.server.api.types import METRICS
 from phoenix.server.api.types.DataQualityMetric import DataQualityMetric
+from phoenix.server.api.types.DatasetRole import DatasetRole
 from phoenix.server.api.types.ScalarDriftMetricEnum import ScalarDriftMetric
 from phoenix.server.api.types.VectorDriftMetricEnum import VectorDriftMetric
 
@@ -63,10 +64,11 @@ def _get_timeseries_data(
     metric: Union[ScalarDriftMetric, VectorDriftMetric, DataQualityMetric],
     time_range: TimeRange,
     granularity: Granularity,
+    dataset_role: DatasetRole,
 ) -> List[TimeSeriesDataPoint]:
     if not (metric_cls := METRICS.get(metric.value, None)):
         raise NotImplementedError(f"Metric {metric} is not implemented.")
-    data = dimension[PRIMARY]
+    data = dimension[dataset_role.value]
     metric_instance = metric_cls(operand_column_name=dimension.name)
     if issubclass(metric_cls, DriftOperator):
         ref_data = dimension[REFERENCE]
@@ -105,8 +107,15 @@ def get_data_quality_timeseries_data(
     metric: DataQualityMetric,
     time_range: TimeRange,
     granularity: Granularity,
+    dataset_role: DatasetRole,
 ) -> List[TimeSeriesDataPoint]:
-    return _get_timeseries_data(dimension, metric, time_range, granularity)
+    return _get_timeseries_data(
+        dimension,
+        metric,
+        time_range,
+        granularity,
+        dataset_role,
+    )
 
 
 @strawberry.type
@@ -120,16 +129,22 @@ def get_drift_timeseries_data(
     time_range: TimeRange,
     granularity: Granularity,
 ) -> List[TimeSeriesDataPoint]:
-    return _get_timeseries_data(dimension, metric, time_range, granularity)
+    return _get_timeseries_data(
+        dimension,
+        metric,
+        time_range,
+        granularity,
+        DatasetRole.primary,
+    )
 
 
 def ensure_timeseries_parameters(
-    model: Model,
+    dataset: Dataset,
     time_range: Optional[TimeRange] = None,
     granularity: Optional[Granularity] = None,
 ) -> Tuple[TimeRange, Granularity]:
     if time_range is None:
-        start, end = model[PRIMARY].time_range
+        start, end = dataset.time_range
         time_range = TimeRange(start=start, end=end)
     if granularity is None:
         total_minutes = int((time_range.end - time_range.start).total_seconds()) // 60
