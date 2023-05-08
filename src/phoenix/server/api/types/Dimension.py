@@ -14,6 +14,7 @@ from .DataQualityMetric import DataQualityMetric
 from .DimensionDataType import DimensionDataType
 from .DimensionShape import DimensionShape
 from .DimensionType import DimensionType
+from .Histogram import CategoricalHistogram, NumericHistogram
 from .node import Node
 from .ScalarDriftMetricEnum import ScalarDriftMetric
 from .TimeSeries import (
@@ -149,7 +150,7 @@ class Dimension(Node):
 
     @strawberry.field(
         description=(
-            "Returns the time series of the specified metric for data within a time range. Data"
+            "The time series of the specified metric for data within a time range. Data"
             " points are generated starting at the end time and are separated by the sampling"
             " interval. Each data point is labeled by the end instant and contains data from their"
             " respective evaluation windows."
@@ -179,6 +180,15 @@ class Dimension(Node):
                 granularity,
             )
         )
+
+    @strawberry.field(description="The distribution of the dimension's data")  # type: ignore
+    def distribution(self) -> NumericHistogram | CategoricalHistogram:
+        # TODO support datasetRole and timeRange
+        # TODO fill out implementation
+        if self.dataType is DimensionDataType.categorical:
+            return CategoricalHistogram(bins=[])
+        else:
+            return NumericHistogram(bins=[])
 
 
 def to_gql_dimension(id_attr: int, dimension: ScalarDimension) -> Dimension:

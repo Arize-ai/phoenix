@@ -1,3 +1,5 @@
+from typing import List
+
 import strawberry
 
 from .NumericRange import NumericRange
@@ -11,15 +13,29 @@ class HistogramBin:
     # TODO add units support
 
 
-@strawberry.interface
+@strawberry.type
 class NumericBin(HistogramBin):
     """A numeric bin in a histogram"""
 
     range: NumericRange
 
 
-@strawberry.interface
+@strawberry.type
 class CategoricalBin(HistogramBin):
     """A categorical bin in a histogram"""
 
     category: str
+
+
+@strawberry.type
+class NumericHistogram:
+    """A numeric histogram"""
+
+    bins: List[NumericBin]
+
+
+@strawberry.type
+class CategoricalHistogram:
+    """A categorical histogram"""
+
+    bins: List[CategoricalBin]

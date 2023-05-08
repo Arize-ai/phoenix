@@ -1,3 +1,12 @@
+type CategoricalBin implements HistogramBin {
+  value: Int!
+  category: String!
+}
+
+type CategoricalHistogram {
+  bins: [CategoricalBin!]!
+}
+
 type Cluster {
   id: ID!
   eventIds: [ID!]!
@@ -83,9 +92,12 @@ type Dimension implements Node {
   ): DataQualityTimeSeries!
 
   """
-  Returns the time series of the specified metric for data within a time range. Data points are generated starting at the end time and are separated by the sampling interval. Each data point is labeled by the end instant and contains data from their respective evaluation windows.
+  The time series of the specified metric for data within a time range. Data points are generated starting at the end time and are separated by the sampling interval. Each data point is labeled by the end instant and contains data from their respective evaluation windows.
   """
   driftTimeSeries(metric: ScalarDriftMetric!, timeRange: TimeRange!, granularity: Granularity!): DriftTimeSeries!
+
+  """The distribution of the dimension's data"""
+  distribution: NumericHistogramCategoricalHistogram!
 }
 
 type DimensionConnection {
@@ -240,6 +252,10 @@ input Granularity {
   samplingIntervalMinutes: Int!
 }
 
+interface HistogramBin {
+  value: Int!
+}
+
 type Model {
   dimensions(first: Int = 50, last: Int = null, after: String, before: String): DimensionConnection!
   primaryDataset: Dataset!
@@ -260,6 +276,22 @@ type Mutation {
 """A node in the graph with a globally unique ID"""
 interface Node {
   id: GlobalID!
+}
+
+type NumericBin implements HistogramBin {
+  value: Int!
+  range: NumericRange!
+}
+
+type NumericHistogram {
+  bins: [NumericBin!]!
+}
+
+union NumericHistogramCategoricalHistogram = NumericHistogram | CategoricalHistogram
+
+type NumericRange {
+  min: Float!
+  max: Float!
 }
 
 type PageInfo {
