@@ -71,7 +71,7 @@ export function DimensionCardinalityTimeSeries({
         $timeRange: TimeRange!
         $granularity: Granularity!
       ) {
-        embedding: node(id: $dimensionId) {
+        dimension: node(id: $dimensionId) {
           id
           ... on Dimension {
             cardinalityTimeSeries: dataQualityTimeSeries(
@@ -99,10 +99,10 @@ export function DimensionCardinalityTimeSeries({
   );
 
   const chartData =
-    data.embedding.cardinalityTimeSeries?.data.map((d) => {
+    data.dimension.cardinalityTimeSeries?.data.map((d) => {
       return {
         timestamp: new Date(d.timestamp).valueOf(),
-        cardinality: d.value,
+        value: d.value,
       };
     }) || [];
 

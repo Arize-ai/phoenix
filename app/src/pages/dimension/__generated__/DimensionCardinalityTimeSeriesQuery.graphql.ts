@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<5afbf9ce54cee908c46693203c6785c8>>
+ * @generated SignedSource<<354cb219437151f2d493f2becb0d2c6c>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -23,7 +23,7 @@ export type DimensionCardinalityTimeSeriesQuery$variables = {
   timeRange: TimeRange;
 };
 export type DimensionCardinalityTimeSeriesQuery$data = {
-  readonly embedding: {
+  readonly dimension: {
     readonly cardinalityTimeSeries?: {
       readonly data: ReadonlyArray<{
         readonly timestamp: string;
@@ -139,7 +139,7 @@ return {
     "name": "DimensionCardinalityTimeSeriesQuery",
     "selections": [
       {
-        "alias": "embedding",
+        "alias": "dimension",
         "args": (v3/*: any*/),
         "concreteType": null,
         "kind": "LinkedField",
@@ -166,7 +166,7 @@ return {
     "name": "DimensionCardinalityTimeSeriesQuery",
     "selections": [
       {
-        "alias": "embedding",
+        "alias": "dimension",
         "args": (v3/*: any*/),
         "concreteType": null,
         "kind": "LinkedField",
@@ -188,16 +188,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "28f34e8a07b9b9c0f117fbe16c1f14aa",
+    "cacheID": "f53e5ac5e0bfd6a0a6c50b761223a617",
     "id": null,
     "metadata": {},
     "name": "DimensionCardinalityTimeSeriesQuery",
     "operationKind": "query",
-    "text": "query DimensionCardinalityTimeSeriesQuery(\n  $dimensionId: GlobalID!\n  $timeRange: TimeRange!\n  $granularity: Granularity!\n) {\n  embedding: node(id: $dimensionId) {\n    __typename\n    id\n    ... on Dimension {\n      cardinalityTimeSeries: dataQualityTimeSeries(metric: cardinality, timeRange: $timeRange, granularity: $granularity) {\n        data {\n          timestamp\n          value\n        }\n      }\n    }\n  }\n}\n"
+    "text": "query DimensionCardinalityTimeSeriesQuery(\n  $dimensionId: GlobalID!\n  $timeRange: TimeRange!\n  $granularity: Granularity!\n) {\n  dimension: node(id: $dimensionId) {\n    __typename\n    id\n    ... on Dimension {\n      cardinalityTimeSeries: dataQualityTimeSeries(metric: cardinality, timeRange: $timeRange, granularity: $granularity) {\n        data {\n          timestamp\n          value\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "360cc9a3f31aa942f306c4e34e67ac39";
+(node as any).hash = "88ce04bb2022d5e2bc75c663abd7e5de";
 
 export default node;

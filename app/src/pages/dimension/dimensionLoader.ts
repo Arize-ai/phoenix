@@ -19,6 +19,7 @@ export async function dimensionLoader(args: LoaderFunctionArgs) {
             id
             name
             dataType
+            shape
           }
         }
       }

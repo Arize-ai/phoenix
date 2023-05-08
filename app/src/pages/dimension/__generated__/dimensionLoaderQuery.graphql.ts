@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<58369acfe803f4a2cda777dcc16db1c6>>
+ * @generated SignedSource<<62e9bd86a7acd0a0273a3e2effbb6873>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,6 +10,7 @@
 
 import { ConcreteRequest, Query } from 'relay-runtime';
 export type DimensionDataType = "categorical" | "numeric";
+export type DimensionShape = "continuous" | "discrete";
 export type dimensionLoaderQuery$variables = {
   id: string;
 };
@@ -18,6 +19,7 @@ export type dimensionLoaderQuery$data = {
     readonly dataType?: DimensionDataType;
     readonly id?: string;
     readonly name?: string;
+    readonly shape?: DimensionShape;
   };
 };
 export type dimensionLoaderQuery = {
@@ -60,6 +62,13 @@ v4 = {
   "kind": "ScalarField",
   "name": "dataType",
   "storageKey": null
+},
+v5 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "shape",
+  "storageKey": null
 };
 return {
   "fragment": {
@@ -81,7 +90,8 @@ return {
             "selections": [
               (v2/*: any*/),
               (v3/*: any*/),
-              (v4/*: any*/)
+              (v4/*: any*/),
+              (v5/*: any*/)
             ],
             "type": "Dimension",
             "abstractKey": null
@@ -123,7 +133,8 @@ return {
             "kind": "InlineFragment",
             "selections": [
               (v3/*: any*/),
-              (v4/*: any*/)
+              (v4/*: any*/),
+              (v5/*: any*/)
             ],
             "type": "Dimension",
             "abstractKey": null
@@ -134,16 +145,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "ee467ba3517563f655927e9c8cef28c1",
+    "cacheID": "03a9aafe3f08a9d093b029ff4a9e3253",
     "id": null,
     "metadata": {},
     "name": "dimensionLoaderQuery",
     "operationKind": "query",
-    "text": "query dimensionLoaderQuery(\n  $id: GlobalID!\n) {\n  dimension: node(id: $id) {\n    __typename\n    ... on Dimension {\n      id\n      name\n      dataType\n    }\n    __isNode: __typename\n    id\n  }\n}\n"
+    "text": "query dimensionLoaderQuery(\n  $id: GlobalID!\n) {\n  dimension: node(id: $id) {\n    __typename\n    ... on Dimension {\n      id\n      name\n      dataType\n      shape\n    }\n    __isNode: __typename\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "b4a0ac98a7b8d69c315b6ad7dfa15536";
+(node as any).hash = "5a662d77e69d2e9bb4eb2af4cad6b722";
 
 export default node;

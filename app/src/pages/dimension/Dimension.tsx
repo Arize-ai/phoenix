@@ -10,13 +10,16 @@ import { TimeSliceContextProvider } from "@phoenix/contexts/TimeSliceContext";
 
 import { dimensionLoaderQuery$data } from "./__generated__/dimensionLoaderQuery.graphql";
 import { DimensionCardinalityTimeSeries } from "./DimensionCardinalityTimeSeries";
-import { DimensionDriftTimeSeries } from "./DimensionDriftTimeseries";
+import { DimensionDriftTimeSeries } from "./DimensionDriftTimeSeries";
 import { DimensionPercentEmptyTimeSeries } from "./DimensionPercentEmptyTimeSeries";
 
 export function Dimension() {
   const { dimensionId } = useParams();
   const { timeRange } = useTimeRange();
   const data = useLoaderData() as dimensionLoaderQuery$data;
+  const shape = data.dimension.shape;
+  // Only show cardinality if if the shape is non-continuous
+  const showCardinality = shape !== "continuous";
   const navigate = useNavigate();
 
   if (!dimensionId) {
@@ -44,9 +47,11 @@ export function Dimension() {
               <View borderColor="dark" borderRadius="medium" height={200}>
                 <DimensionDriftTimeSeries dimensionId={dimensionId} />
               </View>
-              <View borderColor="dark" borderRadius="medium" height={200}>
-                <DimensionCardinalityTimeSeries dimensionId={dimensionId} />
-              </View>
+              {showCardinality ? (
+                <View borderColor="dark" borderRadius="medium" height={200}>
+                  <DimensionCardinalityTimeSeries dimensionId={dimensionId} />
+                </View>
+              ) : null}
               <View borderColor="dark" borderRadius="medium" height={200}>
                 <DimensionPercentEmptyTimeSeries dimensionId={dimensionId} />
               </View>
