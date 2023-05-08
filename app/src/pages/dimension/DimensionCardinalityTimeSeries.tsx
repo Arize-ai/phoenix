@@ -35,7 +35,7 @@ const color = colors.purple300;
 
 function TooltipContent({ active, payload, label }: TooltipProps<any, any>) {
   if (active && payload && payload.length) {
-    const cardinality = payload[1]?.value ?? null;
+    const cardinality = payload[0]?.value ?? null;
     const cardinalityString =
       typeof cardinality === "number"
         ? numberFormatter.format(cardinality)

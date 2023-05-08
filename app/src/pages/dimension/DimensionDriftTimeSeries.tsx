@@ -1,32 +1,28 @@
-import React, { useCallback } from "react";
+import React from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import {
   Area,
   Bar,
   CartesianGrid,
   ComposedChart,
-  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   TooltipProps,
   XAxis,
   YAxis,
 } from "recharts";
-import { CategoricalChartFunc } from "recharts/types/chart/generateCategoricalChart";
 import { css } from "@emotion/react";
 
-import { Heading, Icon, InfoOutline, Text, theme } from "@arizeai/components";
+import { Heading, Text, theme } from "@arizeai/components";
 
 import {
   ChartTooltip,
-  ChartTooltipDivider,
   ChartTooltipItem,
   colors,
   fullTimeFormatter,
   shortTimeFormatter,
 } from "@phoenix/components/chart";
 import { useTimeRange } from "@phoenix/contexts/TimeRangeContext";
-import { useTimeSlice } from "@phoenix/contexts/TimeSliceContext";
 import {
   calculateGranularity,
   calculateGranularityWithRollingAverage,
@@ -67,21 +63,6 @@ function TooltipContent({ active, payload, label }: TooltipProps<any, any>) {
           name="Count"
           value={predictionCountString}
         />
-        {/* <ChartTooltipDivider />
-        <div
-          css={css`
-            display: flex;
-            flex-direction: row;
-            align-items: center;
-            color: var(--px-light-blue-color);
-            gap: var(--px-spacing-sm);
-
-            margin-top: var(--px-spacing-sm);
-          `}
-        >
-          <Icon svg={<InfoOutline />} />
-          <span>Click to view the distribution at this time</span>
-        </div> */}
       </ChartTooltip>
     );
   }
@@ -94,7 +75,6 @@ export function DimensionDriftTimeSeries({
   dimensionId: string;
 }) {
   const { timeRange } = useTimeRange();
-  const { selectedTimestamp, setSelectedTimestamp } = useTimeSlice();
   const data = useLazyLoadQuery<DimensionDriftTimeSeriesQuery>(
     graphql`
       query DimensionDriftTimeSeriesQuery(
@@ -141,18 +121,6 @@ export function DimensionDriftTimeSeries({
     }
   );
 
-  const onClick: CategoricalChartFunc = useCallback(
-    (state) => {
-      // Parse out the timestamp from the first chart
-      const { activePayload } = state;
-      if (activePayload != null && activePayload.length > 0) {
-        const payload = activePayload[0].payload;
-        setSelectedTimestamp(new Date(payload.timestamp));
-      }
-    },
-    [setSelectedTimestamp]
-  );
-
   const chartRawData = data.embedding.driftTimeSeries?.data || [];
   const trafficDataMap =
     data.embedding.trafficTimeSeries?.data.reduce((acc, traffic) => {
@@ -197,7 +165,7 @@ export function DimensionDriftTimeSeries({
           <ComposedChart
             data={chartData as unknown as any[]}
             margin={{ top: 25, right: 18, left: 18, bottom: 10 }}
-            onClick={onClick}
+            // onClick={onClick}
             syncId={"dimensionDetails"}
           >
             <defs>
@@ -263,23 +231,6 @@ export function DimensionDriftTimeSeries({
               fillOpacity={1}
               fill="url(#dimensionDriftColorUv)"
             />
-
-            {selectedTimestamp != null ? (
-              <>
-                <ReferenceLine
-                  x={selectedTimestamp.valueOf()}
-                  stroke="white"
-                  label={{
-                    value: "▼",
-                    position: "top",
-                    style: {
-                      fill: "#fabe32",
-                      fontSize: theme.typography.sizes.small.fontSize,
-                    },
-                  }}
-                />
-              </>
-            ) : null}
           </ComposedChart>
         </ResponsiveContainer>
       </div>
