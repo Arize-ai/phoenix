@@ -5,7 +5,7 @@ import { css } from "@emotion/react";
 import { Dialog, DialogContainer, View } from "@arizeai/components";
 
 import { Loading } from "@phoenix/components";
-import { useTimeRange } from "@phoenix/contexts";
+import { useDatasets, useTimeRange } from "@phoenix/contexts";
 import { TimeSliceContextProvider } from "@phoenix/contexts/TimeSliceContext";
 
 import { dimensionLoaderQuery$data } from "./__generated__/dimensionLoaderQuery.graphql";
@@ -17,9 +17,10 @@ export function Dimension() {
   const { dimensionId } = useParams();
   const { timeRange } = useTimeRange();
   const data = useLoaderData() as dimensionLoaderQuery$data;
-  const shape = data.dimension.shape;
+  const { referenceDataset } = useDatasets();
+  const showDrift = referenceDataset !== null;
   // Only show cardinality if if the shape is non-continuous
-  const showCardinality = shape !== "continuous";
+  const showCardinality = data.dimension.shape !== "continuous";
   const navigate = useNavigate();
 
   if (!dimensionId) {
@@ -44,9 +45,11 @@ export function Dimension() {
             `}
           >
             <Suspense fallback={<Loading />}>
-              <View borderColor="dark" borderRadius="medium" height={200}>
-                <DimensionDriftTimeSeries dimensionId={dimensionId} />
-              </View>
+              {showDrift ? (
+                <View borderColor="dark" borderRadius="medium" height={200}>
+                  <DimensionDriftTimeSeries dimensionId={dimensionId} />
+                </View>
+              ) : null}
               {showCardinality ? (
                 <View borderColor="dark" borderRadius="medium" height={200}>
                   <DimensionCardinalityTimeSeries dimensionId={dimensionId} />

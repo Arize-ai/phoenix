@@ -46,7 +46,7 @@ function TooltipContent({ active, payload, label }: TooltipProps<any, any>) {
         )}`}</Text>
         <ChartTooltipItem
           color={color}
-          name="cardinality"
+          name="% Empty"
           value={percentEmptyString}
         />
         <ChartTooltipDivider />
