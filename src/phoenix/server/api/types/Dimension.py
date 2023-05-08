@@ -2,6 +2,7 @@ from typing import List, Optional
 
 import strawberry
 from strawberry.types import Info
+from typing_extensions import Annotated
 
 from phoenix.core.model_schema import PRIMARY, REFERENCE, ScalarDimension
 from phoenix.server.api.types.DatasetRole import DatasetRole
@@ -44,7 +45,6 @@ class Dimension(Node):
         info: Info[Context, None],
         metric: ScalarDriftMetric,
         time_range: Optional[TimeRange] = None,
-        dataset_role: Optional[DatasetRole] = None,
     ) -> Optional[float]:
         """
         Computes a drift metric between all reference data and the primary data
@@ -56,9 +56,7 @@ class Dimension(Node):
         model = info.context.model
         if model[REFERENCE].empty:
             return None
-        if dataset_role is None:
-            dataset_role = DatasetRole.primary
-        dataset = model[dataset_role.value]
+        dataset = model[PRIMARY]
         time_range, granularity = ensure_timeseries_parameters(
             dataset,
             time_range,
@@ -77,7 +75,12 @@ class Dimension(Node):
         info: Info[Context, None],
         metric: DataQualityMetric,
         time_range: Optional[TimeRange] = None,
-        dataset_role: Optional[DatasetRole] = None,
+        dataset_role: Annotated[
+            Optional[DatasetRole],
+            strawberry.argument(
+                description="The dataset (primary or reference) to query",
+            ),
+        ] = DatasetRole.primary,
     ) -> Optional[float]:
         if dataset_role is None:
             dataset_role = DatasetRole.primary
@@ -119,7 +122,12 @@ class Dimension(Node):
         metric: DataQualityMetric,
         time_range: TimeRange,
         granularity: Granularity,
-        dataset_role: Optional[DatasetRole] = None,
+        dataset_role: Annotated[
+            Optional[DatasetRole],
+            strawberry.argument(
+                description="The dataset (primary or reference) to query",
+            ),
+        ] = DatasetRole.primary,
     ) -> DataQualityTimeSeries:
         if dataset_role is None:
             dataset_role = DatasetRole.primary

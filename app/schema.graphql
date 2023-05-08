@@ -56,8 +56,14 @@ type Dimension implements Node {
 
   """Whether the dimension data is continuous or discrete."""
   shape: DimensionShape!
-  driftMetric(metric: ScalarDriftMetric!, timeRange: TimeRange = null, datasetRole: DatasetRole = null): Float
-  dataQualityMetric(metric: DataQualityMetric!, timeRange: TimeRange = null, datasetRole: DatasetRole = null): Float
+  driftMetric(metric: ScalarDriftMetric!, timeRange: TimeRange = null): Float
+  dataQualityMetric(
+    metric: DataQualityMetric!
+    timeRange: TimeRange = null
+
+    """The dataset (primary or reference) to query"""
+    datasetRole: DatasetRole = primary
+  ): Float
 
   """
   Returns the observed categories of a categorical dimension (usually a dimension of string values) as a list of unique string labels sorted in lexicographical order. Missing values are excluded. Non-categorical dimensions return an empty list.
@@ -67,7 +73,14 @@ type Dimension implements Node {
   """
   Returns the time series of the specified metric for data within a time range. Data points are generated starting at the end time and are separated by the sampling interval. Each data point is labeled by the end instant and contains data from their respective evaluation windows.
   """
-  dataQualityTimeSeries(metric: DataQualityMetric!, timeRange: TimeRange!, granularity: Granularity!, datasetRole: DatasetRole = null): DataQualityTimeSeries!
+  dataQualityTimeSeries(
+    metric: DataQualityMetric!
+    timeRange: TimeRange!
+    granularity: Granularity!
+
+    """The dataset (primary or reference) to query"""
+    datasetRole: DatasetRole = primary
+  ): DataQualityTimeSeries!
 
   """
   Returns the time series of the specified metric for data within a time range. Data points are generated starting at the end time and are separated by the sampling interval. Each data point is labeled by the end instant and contains data from their respective evaluation windows.
@@ -130,7 +143,14 @@ type EmbeddingDimension implements Node {
   """
   Returns the time series of the specified metric for data within timeRange. Data points are generated starting at the end time, are separated by the sampling interval. Each data point is labeled by the end instant of and contains data from their respective evaluation window.
   """
-  dataQualityTimeSeries(metric: DataQualityMetric!, timeRange: TimeRange!, granularity: Granularity!, datasetRole: DatasetRole = null): DataQualityTimeSeries!
+  dataQualityTimeSeries(
+    metric: DataQualityMetric!
+    timeRange: TimeRange!
+    granularity: Granularity!
+
+    """The dataset (primary or reference) to query"""
+    datasetRole: DatasetRole = primary
+  ): DataQualityTimeSeries!
 
   """
   Computes a drift time-series between the primary and reference datasets. The output drift time-series contains one data point for each whole hour in the input time range (inclusive of the time range start and exclusive of the time range end). Each data point contains the drift metric value between all reference data and the primary data within the evaluation window ending at the corresponding time. Returns None if no reference dataset exists or if the input time range is invalid.           

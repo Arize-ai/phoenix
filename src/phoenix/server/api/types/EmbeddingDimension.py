@@ -110,7 +110,12 @@ class EmbeddingDimension(Node):
         metric: DataQualityMetric,
         time_range: TimeRange,
         granularity: Granularity,
-        dataset_role: Optional[DatasetRole] = None,
+        dataset_role: Annotated[
+            Optional[DatasetRole],
+            strawberry.argument(
+                description="The dataset (primary or reference) to query",
+            ),
+        ] = DatasetRole.primary,
     ) -> DataQualityTimeSeries:
         if dataset_role is None:
             dataset_role = DatasetRole.primary
