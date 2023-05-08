@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import List, Optional, Union
 
 import strawberry
 from strawberry.types import Info
@@ -182,7 +182,7 @@ class Dimension(Node):
         )
 
     @strawberry.field(description="The distribution of the dimension's data")  # type: ignore
-    def distribution(self) -> NumericHistogram | CategoricalHistogram:
+    def distribution(self) -> Union[NumericHistogram, CategoricalHistogram]:
         # TODO support datasetRole and timeRange
         # TODO fill out implementation
         if self.dataType is DimensionDataType.categorical:
