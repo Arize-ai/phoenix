@@ -5,7 +5,7 @@ from typing import Iterable, List, Optional, Tuple, Union, cast
 import pandas as pd
 import strawberry
 
-from phoenix.core.model_schema import CONTINUOUS, PRIMARY, REFERENCE, Dataset, Dimension
+from phoenix.core.model_schema import CONTINUOUS, REFERENCE, Dataset, Dimension
 from phoenix.metrics import Metric, binning
 from phoenix.metrics.mixins import DriftOperator
 from phoenix.metrics.timeseries import timeseries
