@@ -20,7 +20,6 @@ from phoenix.core.model_schema import (
     PRIMARY,
     REFERENCE,
     Dataset,
-    DatasetRole,
     EventId,
 )
 from phoenix.metrics.timeseries import row_interval_from_sorted_time_index
@@ -29,6 +28,7 @@ from phoenix.pointcloud.pointcloud import PointCloud
 from phoenix.pointcloud.projectors import Umap
 from phoenix.server.api.context import Context
 from phoenix.server.api.input_types.TimeRange import TimeRange
+from phoenix.server.api.types.DatasetRole import DatasetRole
 from phoenix.server.api.types.VectorDriftMetricEnum import VectorDriftMetric
 
 from ..input_types.Granularity import Granularity
@@ -83,8 +83,17 @@ class EmbeddingDimension(Node):
         model = info.context.model
         if model[REFERENCE].empty:
             return None
-        time_range, granularity = ensure_timeseries_parameters(model, time_range)
-        data = get_drift_timeseries_data(self.dimension, metric, time_range, granularity)
+        dataset = model[PRIMARY]
+        time_range, granularity = ensure_timeseries_parameters(
+            dataset,
+            time_range,
+        )
+        data = get_drift_timeseries_data(
+            self.dimension,
+            metric,
+            time_range,
+            granularity,
+        )
         return data[0].value if len(data) else None
 
     @strawberry.field(
@@ -101,12 +110,24 @@ class EmbeddingDimension(Node):
         metric: DataQualityMetric,
         time_range: TimeRange,
         granularity: Granularity,
+        dataset_role: Optional[DatasetRole] = None,
     ) -> DataQualityTimeSeries:
+        if dataset_role is None:
+            dataset_role = DatasetRole.primary
+        dataset = info.context.model[dataset_role.value]
         time_range, granularity = ensure_timeseries_parameters(
-            info.context.model, time_range, granularity
+            dataset,
+            time_range,
+            granularity,
         )
         return DataQualityTimeSeries(
-            data=get_data_quality_timeseries_data(self.dimension, metric, time_range, granularity)
+            data=get_data_quality_timeseries_data(
+                self.dimension,
+                metric,
+                time_range,
+                granularity,
+                dataset_role,
+            )
         )
 
     @strawberry.field(
@@ -129,9 +150,19 @@ class EmbeddingDimension(Node):
         model = info.context.model
         if model[REFERENCE].empty:
             return DriftTimeSeries(data=[])
-        time_range, granularity = ensure_timeseries_parameters(model, time_range, granularity)
+        dataset = info.context.model[PRIMARY]
+        time_range, granularity = ensure_timeseries_parameters(
+            dataset,
+            time_range,
+            granularity,
+        )
         return DriftTimeSeries(
-            data=get_drift_timeseries_data(self.dimension, metric, time_range, granularity)
+            data=get_drift_timeseries_data(
+                self.dimension,
+                metric,
+                time_range,
+                granularity,
+            )
         )
 
     @strawberry.field
@@ -226,7 +257,7 @@ class EmbeddingDimension(Node):
             ),
         ).generate(data, n_components=n_components)
 
-        points: Dict[DatasetRole, List[UMAPPoint]] = defaultdict(list)
+        points: Dict[ms.DatasetRole, List[UMAPPoint]] = defaultdict(list)
         for event_id, vector in vectors.items():
             row_id = event_id.row_id
             dataset_id = event_id.dataset_id

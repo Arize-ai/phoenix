@@ -3,7 +3,8 @@ from typing import List, Optional
 import strawberry
 from strawberry.types import Info
 
-from phoenix.core.model_schema import REFERENCE, ScalarDimension
+from phoenix.core.model_schema import PRIMARY, REFERENCE, ScalarDimension
+from phoenix.server.api.types.DatasetRole import DatasetRole
 
 from ..context import Context
 from ..input_types.Granularity import Granularity
@@ -43,6 +44,7 @@ class Dimension(Node):
         info: Info[Context, None],
         metric: ScalarDriftMetric,
         time_range: Optional[TimeRange] = None,
+        dataset_role: Optional[DatasetRole] = None,
     ) -> Optional[float]:
         """
         Computes a drift metric between all reference data and the primary data
@@ -54,8 +56,19 @@ class Dimension(Node):
         model = info.context.model
         if model[REFERENCE].empty:
             return None
-        time_range, granularity = ensure_timeseries_parameters(model, time_range)
-        data = get_drift_timeseries_data(self.dimension, metric, time_range, granularity)
+        if dataset_role is None:
+            dataset_role = DatasetRole.primary
+        dataset = model[dataset_role.value]
+        time_range, granularity = ensure_timeseries_parameters(
+            dataset,
+            time_range,
+        )
+        data = get_drift_timeseries_data(
+            self.dimension,
+            metric,
+            time_range,
+            granularity,
+        )
         return data[0].value if len(data) else None
 
     @strawberry.field
@@ -64,9 +77,22 @@ class Dimension(Node):
         info: Info[Context, None],
         metric: DataQualityMetric,
         time_range: Optional[TimeRange] = None,
+        dataset_role: Optional[DatasetRole] = None,
     ) -> Optional[float]:
-        time_range, granularity = ensure_timeseries_parameters(info.context.model, time_range)
-        data = get_data_quality_timeseries_data(self.dimension, metric, time_range, granularity)
+        if dataset_role is None:
+            dataset_role = DatasetRole.primary
+        dataset = info.context.model[dataset_role.value]
+        time_range, granularity = ensure_timeseries_parameters(
+            dataset,
+            time_range,
+        )
+        data = get_data_quality_timeseries_data(
+            self.dimension,
+            metric,
+            time_range,
+            granularity,
+            dataset_role,
+        )
         return data[0].value if len(data) else None
 
     @strawberry.field(
@@ -93,12 +119,24 @@ class Dimension(Node):
         metric: DataQualityMetric,
         time_range: TimeRange,
         granularity: Granularity,
+        dataset_role: Optional[DatasetRole] = None,
     ) -> DataQualityTimeSeries:
+        if dataset_role is None:
+            dataset_role = DatasetRole.primary
+        dataset = info.context.model[dataset_role.value]
         time_range, granularity = ensure_timeseries_parameters(
-            info.context.model, time_range, granularity
+            dataset,
+            time_range,
+            granularity,
         )
         return DataQualityTimeSeries(
-            data=get_data_quality_timeseries_data(self.dimension, metric, time_range, granularity)
+            data=get_data_quality_timeseries_data(
+                self.dimension,
+                metric,
+                time_range,
+                granularity,
+                dataset_role,
+            )
         )
 
     @strawberry.field(
@@ -119,9 +157,19 @@ class Dimension(Node):
         model = info.context.model
         if model[REFERENCE].empty:
             return DriftTimeSeries(data=[])
-        time_range, granularity = ensure_timeseries_parameters(model, time_range, granularity)
+        dataset = model[PRIMARY]
+        time_range, granularity = ensure_timeseries_parameters(
+            dataset,
+            time_range,
+            granularity,
+        )
         return DriftTimeSeries(
-            data=get_drift_timeseries_data(self.dimension, metric, time_range, granularity)
+            data=get_drift_timeseries_data(
+                self.dimension,
+                metric,
+                time_range,
+                granularity,
+            )
         )
 
 
