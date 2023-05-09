@@ -8,15 +8,16 @@ from phoenix.core.model_schema import PRIMARY, REFERENCE, ScalarDimension
 from phoenix.server.api.types.DatasetRole import DatasetRole
 
 from ..context import Context
+from ..input_types.DatasetRole import DatasetRole
 from ..input_types.Granularity import Granularity
 from ..input_types.TimeRange import TimeRange
 from .DataQualityMetric import DataQualityMetric
 from .DimensionDataType import DimensionDataType
 from .DimensionShape import DimensionShape
 from .DimensionType import DimensionType
-from .Histogram import CategoricalHistogram, NumericHistogram
 from .node import Node
 from .ScalarDriftMetricEnum import ScalarDriftMetric
+from .Segment import Segment
 from .TimeSeries import (
     DataQualityTimeSeries,
     DriftTimeSeries,
@@ -181,14 +182,13 @@ class Dimension(Node):
             )
         )
 
-    @strawberry.field(description="The distribution of the dimension's data")  # type: ignore
-    def distribution(self) -> Union[NumericHistogram, CategoricalHistogram]:
-        # TODO support datasetRole and timeRange
-        # TODO fill out implementation
-        if self.dataType is DimensionDataType.categorical:
-            return CategoricalHistogram(bins=[])
-        else:
-            return NumericHistogram(bins=[])
+    @strawberry.field(
+        description="Split the dimension values into segments for analysis by bin",
+    )  # type: ignore
+    def segments(
+        self, timeRange: Optional[TimeRange], datasetRole: Optional[DatasetRole]
+    ) -> List[Segment]:
+        return []
 
 
 def to_gql_dimension(id_attr: int, dimension: ScalarDimension) -> Dimension:

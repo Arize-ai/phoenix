@@ -1,11 +1,4 @@
-type CategoricalBin implements HistogramBin {
-  value: Int!
-  category: String!
-}
-
-type CategoricalHistogram {
-  bins: [CategoricalBin!]!
-}
+union Bin = NominalBin | IntervalBin
 
 type Cluster {
   id: ID!
@@ -96,8 +89,8 @@ type Dimension implements Node {
   """
   driftTimeSeries(metric: ScalarDriftMetric!, timeRange: TimeRange!, granularity: Granularity!): DriftTimeSeries!
 
-  """The distribution of the dimension's data"""
-  distribution: NumericHistogramCategoricalHistogram!
+  """Split the dimension values into segments for analysis by bin"""
+  segments: [Segment!]!
 }
 
 type DimensionConnection {
@@ -252,8 +245,8 @@ input Granularity {
   samplingIntervalMinutes: Int!
 }
 
-interface HistogramBin {
-  value: Int!
+type IntervalBin {
+  range: NumericRange!
 }
 
 type Model {
@@ -278,16 +271,9 @@ interface Node {
   id: GlobalID!
 }
 
-type NumericBin implements HistogramBin {
-  value: Int!
-  range: NumericRange!
+type NominalBin {
+  name: String!
 }
-
-type NumericHistogram {
-  bins: [NumericBin!]!
-}
-
-union NumericHistogramCategoricalHistogram = NumericHistogram | CategoricalHistogram
 
 type NumericRange {
   min: Float!
@@ -331,6 +317,11 @@ enum ScalarDriftMetric {
   psi
   klDivergence
   jsDistance
+}
+
+type Segment {
+  bin: Bin!
+  values: [Float]!
 }
 
 input TimeRange {
