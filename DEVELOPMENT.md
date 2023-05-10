@@ -46,6 +46,10 @@ Create a new virtual environment with
 mkvirtualenv phoenix-env
 ```
 
+Install web build dependancies
+[NPM via nvm](https://github.com/nvm-sh/nvm) - LTS should work in most cases
+Make sure you have npm (node package manager) available on your terminal as well
+
 Install `phoenix` in development mode (using the `-e` flag) and with development dependencies (using the `[dev]` extra) by running
 
 ```bash
