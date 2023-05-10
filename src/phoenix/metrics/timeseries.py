@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from functools import partial
 from itertools import accumulate, repeat
 from typing import Any, Callable, Iterable, Iterator, Tuple, cast
@@ -195,9 +195,15 @@ def _results(
         # pandas row indexing is stop-exclusive
         row_slice = slice(row_start, row_stop)
         filtered = dataframe.iloc[row_slice, :]
-        yield filtered.groupby(
+        res = filtered.groupby(
             group,
             group_keys=True,
         ).apply(
             calculate_metrics,
-        ).loc[result_slice, :]
+        )
+
+        # NB: on ubuntu, we lose the timezone information when there is no data
+        if res.index.tzinfo is None:  # type: ignore
+            res = res.set_axis(res.index.tz_localize(timezone.utc), axis=0)  # type: ignore
+
+        yield res.loc[result_slice, :]
