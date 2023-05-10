@@ -14,7 +14,7 @@ export const MAX_MIN_DIST = 0.99;
  */
 export const DEFAULT_DATASET_SAMPLE_SIZE = 500;
 export const MIN_DATASET_SAMPLE_SIZE = 300;
-export const MAX_DATASET_SAMPLE_SIZE = 2500;
+export const MAX_DATASET_SAMPLE_SIZE = 10000;
 
 /**
  * HDBSCAN parameters
