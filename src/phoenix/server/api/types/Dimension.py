@@ -5,17 +5,18 @@ from strawberry.types import Info
 from typing_extensions import Annotated
 
 from phoenix.core.model_schema import PRIMARY, REFERENCE, ScalarDimension
-from phoenix.server.api.types.DatasetRole import DatasetRole
 
 from ..context import Context
 from ..input_types.Granularity import Granularity
 from ..input_types.TimeRange import TimeRange
 from .DataQualityMetric import DataQualityMetric
+from .DatasetRole import DatasetRole
 from .DimensionDataType import DimensionDataType
 from .DimensionShape import DimensionShape
 from .DimensionType import DimensionType
 from .node import Node
 from .ScalarDriftMetricEnum import ScalarDriftMetric
+from .Segments import DatasetValues, Segments
 from .TimeSeries import (
     DataQualityTimeSeries,
     DriftTimeSeries,
@@ -149,7 +150,7 @@ class Dimension(Node):
 
     @strawberry.field(
         description=(
-            "Returns the time series of the specified metric for data within a time range. Data"
+            "The time series of the specified metric for data within a time range. Data"
             " points are generated starting at the end time and are separated by the sampling"
             " interval. Each data point is labeled by the end instant and contains data from their"
             " respective evaluation windows."
@@ -179,6 +180,17 @@ class Dimension(Node):
                 granularity,
             )
         )
+
+    @strawberry.field(
+        description="Returns the segments across both datasets and returns the counts per segment",
+    )  # type: ignore
+    def segments_comparison(
+        self,
+        primary_time_range: Optional[TimeRange] = strawberry.UNSET,
+    ) -> Segments:
+        # TODO: Implement binning across primary and reference
+
+        return Segments(segments=[], total_counts=DatasetValues(primary_value=0, reference_value=0))
 
 
 def to_gql_dimension(id_attr: int, dimension: ScalarDimension) -> Dimension:

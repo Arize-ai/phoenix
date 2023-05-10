@@ -1,3 +1,5 @@
+union Bin = NominalBin | IntervalBin
+
 type Cluster {
   id: ID!
   eventIds: [ID!]!
@@ -35,6 +37,11 @@ type Dataset {
 enum DatasetRole {
   primary
   reference
+}
+
+type DatasetValues {
+  primaryValue: Float
+  referenceValue: Float
 }
 
 """Date with time (isoformat)"""
@@ -83,9 +90,14 @@ type Dimension implements Node {
   ): DataQualityTimeSeries!
 
   """
-  Returns the time series of the specified metric for data within a time range. Data points are generated starting at the end time and are separated by the sampling interval. Each data point is labeled by the end instant and contains data from their respective evaluation windows.
+  The time series of the specified metric for data within a time range. Data points are generated starting at the end time and are separated by the sampling interval. Each data point is labeled by the end instant and contains data from their respective evaluation windows.
   """
   driftTimeSeries(metric: ScalarDriftMetric!, timeRange: TimeRange!, granularity: Granularity!): DriftTimeSeries!
+
+  """
+  Returns the segments across both datasets and returns the counts per segment
+  """
+  segmentsComparison(primaryTimeRange: TimeRange): Segments!
 }
 
 type DimensionConnection {
@@ -240,6 +252,10 @@ input Granularity {
   samplingIntervalMinutes: Int!
 }
 
+type IntervalBin {
+  range: NumericRange!
+}
+
 type Model {
   dimensions(first: Int = 50, last: Int = null, after: String, before: String): DimensionConnection!
   primaryDataset: Dataset!
@@ -260,6 +276,15 @@ type Mutation {
 """A node in the graph with a globally unique ID"""
 interface Node {
   id: GlobalID!
+}
+
+type NominalBin {
+  name: String!
+}
+
+type NumericRange {
+  start: Float!
+  end: Float!
 }
 
 type PageInfo {
@@ -299,6 +324,16 @@ enum ScalarDriftMetric {
   psi
   klDivergence
   jsDistance
+}
+
+type Segment {
+  bin: Bin!
+  counts: DatasetValues!
+}
+
+type Segments {
+  segments: [Segment!]!
+  totalCounts: DatasetValues!
 }
 
 input TimeRange {
