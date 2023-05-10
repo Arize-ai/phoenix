@@ -1,10 +1,13 @@
-from datetime import datetime, timedelta
-from typing import Callable, Optional
+from datetime import datetime, timedelta, timezone
+from typing import Callable
 
 import numpy as np
 import pytest
+import pytz
 from numpy.testing import assert_almost_equal
-from pandas import DataFrame
+from pandas import DataFrame, Series, Timestamp
+from phoenix.core.model_schema import Model
+from phoenix.core.model_schema_adapter import create_model_from_datasets
 from phoenix.datasets import Dataset, EmbeddingColumnNames, Schema
 from phoenix.server.api.context import Context
 from phoenix.server.api.input_types.Granularity import Granularity
@@ -14,7 +17,9 @@ from phoenix.server.api.types.VectorDriftMetricEnum import VectorDriftMetric
 from strawberry.types.info import Info
 from typing_extensions import TypeAlias
 
-InfoMockFactory: TypeAlias = Callable[[Dataset, Optional[Dataset]], Info[Context, None]]
+InfoMockFactory: TypeAlias = Callable[[Model], Info[Context, None]]
+
+UTC = timezone(offset=timedelta(hours=0))
 
 
 class TestDriftMetricTimeSeries:
@@ -44,16 +49,18 @@ class TestDriftMetricTimeSeries:
         primary_dataset = Dataset(
             dataframe=primary_dataframe,
             schema=schema,
-            persist_to_disc=False,
         )
+        model = create_model_from_datasets(primary_dataset)
         drift_time_series = EmbeddingDimension(
-            name="embedding_feature", id_attr=0
+            name="embedding_feature",
+            id_attr=0,
+            dimension=model["embedding_vector"],
         ).drift_time_series(
             metric=VectorDriftMetric.euclideanDistance,
             time_range=TimeRange(
                 start=datetime(year=2000, month=1, day=1), end=datetime(year=2000, month=1, day=2)
             ),
-            info=info_mock_factory(primary_dataset, None),
+            info=info_mock_factory(model),
             granularity=Granularity(
                 evaluation_window_minutes=1440,
                 sampling_interval_minutes=1440,
@@ -112,17 +119,20 @@ class TestDriftMetricTimeSeries:
         primary_dataset = Dataset(
             dataframe=primary_dataframe,
             schema=schema,
-            persist_to_disc=False,
         )
         reference_dataset = Dataset(
             dataframe=reference_dataframe,
             schema=schema,
-            persist_to_disc=False,
         )
-        distance = EmbeddingDimension(name="embedding_feature", id_attr=0).drift_time_series(
+        model = create_model_from_datasets(primary_dataset, reference_dataset)
+        distance = EmbeddingDimension(
+            name="embedding_feature",
+            id_attr=0,
+            dimension=model["embedding_vector"],
+        ).drift_time_series(
             metric=VectorDriftMetric.euclideanDistance,
             time_range=query_time_range,
-            info=info_mock_factory(primary_dataset, reference_dataset),
+            info=info_mock_factory(model),
             granularity=Granularity(
                 evaluation_window_minutes=11519,
                 sampling_interval_minutes=11519,
@@ -140,11 +150,13 @@ class TestDriftMetricTimeSeries:
                     6 * np.array([3.0, 4.0]),
                     np.array([0.0, 0.0]),
                 ],
-                "timestamp": [
-                    datetime(year=2000, month=1, day=2),
-                    datetime(year=2000, month=1, day=3),
-                    datetime(year=2000, month=1, day=4),
-                ],
+                "timestamp": Series(
+                    [
+                        Timestamp(year=2000, month=1, day=2),
+                        Timestamp(year=2000, month=1, day=3),
+                        Timestamp(year=2000, month=1, day=4),
+                    ]
+                ).dt.tz_localize(pytz.utc),
             }
         )
         # reference embeddings with mean vector at (0, 0)
@@ -155,11 +167,13 @@ class TestDriftMetricTimeSeries:
                     np.array([1.0, 1.0]),
                     np.array([-1.0, -1.0]),
                 ],
-                "timestamp": [
-                    datetime(year=1999, month=1, day=1, hour=1, minute=0),
-                    datetime(year=1999, month=1, day=1, hour=1, minute=1),
-                    datetime(year=1999, month=1, day=1, hour=1, minute=3),
-                ],
+                "timestamp": Series(
+                    [
+                        Timestamp(year=1999, month=1, day=1, hour=1, minute=0),
+                        Timestamp(year=1999, month=1, day=1, hour=1, minute=1),
+                        Timestamp(year=1999, month=1, day=1, hour=1, minute=3),
+                    ]
+                ).dt.tz_localize(pytz.utc),
             }
         )
         schema = Schema(
@@ -171,22 +185,23 @@ class TestDriftMetricTimeSeries:
         primary_dataset = Dataset(
             dataframe=primary_dataframe,
             schema=schema,
-            persist_to_disc=False,
         )
         reference_dataset = Dataset(
             dataframe=reference_dataframe,
             schema=schema,
-            persist_to_disc=False,
         )
+        model = create_model_from_datasets(primary_dataset, reference_dataset)
         drift_time_series = EmbeddingDimension(
-            name="embedding_feature", id_attr=0
+            name="embedding_feature",
+            id_attr=0,
+            dimension=model["embedding_vector"],
         ).drift_time_series(
             metric=VectorDriftMetric.euclideanDistance,
             time_range=TimeRange(
-                start=datetime(year=2000, month=1, day=1),
-                end=datetime(year=2000, month=1, day=8),
+                start=datetime(year=2000, month=1, day=1, tzinfo=UTC),
+                end=datetime(year=2000, month=1, day=8, tzinfo=UTC),
             ),
-            info=info_mock_factory(primary_dataset, reference_dataset),
+            info=info_mock_factory(model),
             granularity=Granularity(
                 evaluation_window_minutes=4320,
                 sampling_interval_minutes=60,
@@ -213,8 +228,8 @@ class TestDriftMetricTimeSeries:
             actual=actual_distances,
             desired=expected_distances,
         )
-        assert actual_timestamps[0] == datetime(year=2000, month=1, day=1, hour=1)
-        assert actual_timestamps[-1] == datetime(year=2000, month=1, day=8)
+        assert actual_timestamps[0] == Timestamp(year=2000, month=1, day=1, hour=1, tzinfo=pytz.utc)
+        assert actual_timestamps[-1] == Timestamp(year=2000, month=1, day=8, tzinfo=pytz.utc)
         for index in range(len(actual_timestamps) - 1):
             assert actual_timestamps[index + 1] - actual_timestamps[index] == timedelta(hours=1)
 
@@ -227,10 +242,12 @@ class TestDriftMetricTimeSeries:
                     np.array([0.0, 0.0]),
                     np.array([1000000.0, 1000000.0]),
                 ],
-                "timestamp": [
-                    datetime(year=2000, month=1, day=1, hour=1, minute=45),
-                    datetime(year=2000, month=1, day=1, hour=3),
-                ],
+                "timestamp": Series(
+                    [
+                        Timestamp(year=2000, month=1, day=1, hour=1, minute=45),
+                        Timestamp(year=2000, month=1, day=1, hour=3),
+                    ]
+                ).dt.tz_localize(pytz.utc),
             }
         )
         # reference embeddings with mean vector at (0, 0)
@@ -241,11 +258,13 @@ class TestDriftMetricTimeSeries:
                     np.array([1.0, 1.0]),
                     np.array([-1.0, -1.0]),
                 ],
-                "timestamp": [
-                    datetime(year=1999, month=1, day=1, hour=1, minute=0),
-                    datetime(year=1999, month=1, day=1, hour=1, minute=1),
-                    datetime(year=1999, month=1, day=1, hour=1, minute=3),
-                ],
+                "timestamp": Series(
+                    [
+                        Timestamp(year=1999, month=1, day=1, hour=1, minute=0),
+                        Timestamp(year=1999, month=1, day=1, hour=1, minute=1),
+                        Timestamp(year=1999, month=1, day=1, hour=1, minute=3),
+                    ]
+                ).dt.tz_localize(pytz.utc),
             }
         )
         schema = Schema(
@@ -257,22 +276,23 @@ class TestDriftMetricTimeSeries:
         primary_dataset = Dataset(
             dataframe=primary_dataframe,
             schema=schema,
-            persist_to_disc=False,
         )
         reference_dataset = Dataset(
             dataframe=reference_dataframe,
             schema=schema,
-            persist_to_disc=False,
         )
+        model = create_model_from_datasets(primary_dataset, reference_dataset)
         drift_time_series = EmbeddingDimension(
-            name="embedding_feature", id_attr=0
+            name="embedding_feature",
+            id_attr=0,
+            dimension=model["embedding_vector"],
         ).drift_time_series(
             metric=VectorDriftMetric.euclideanDistance,
             time_range=TimeRange(
-                start=datetime(year=2000, month=1, day=1, hour=1),
-                end=datetime(year=2000, month=1, day=1, hour=2),
+                start=datetime(year=2000, month=1, day=1, hour=1, tzinfo=UTC),
+                end=datetime(year=2000, month=1, day=1, hour=2, tzinfo=UTC),
             ),
-            info=info_mock_factory(primary_dataset, reference_dataset),
+            info=info_mock_factory(model),
             granularity=Granularity(
                 evaluation_window_minutes=60,
                 sampling_interval_minutes=60,
@@ -290,7 +310,7 @@ class TestDriftMetricTimeSeries:
             actual=actual_distances,
             desired=expected_distances,
         )
-        assert actual_timestamps == [datetime(year=2000, month=1, day=1, hour=2)]
+        assert actual_timestamps == [Timestamp(year=2000, month=1, day=1, hour=2, tzinfo=pytz.utc)]
 
 
 class TestDriftMetric:
@@ -318,14 +338,18 @@ class TestDriftMetric:
         primary_dataset = Dataset(
             dataframe=primary_dataframe,
             schema=schema,
-            persist_to_disc=False,
         )
-        distance = EmbeddingDimension(name="embedding_feature", id_attr=0).drift_metric(
+        model = create_model_from_datasets(primary_dataset)
+        distance = EmbeddingDimension(
+            name="embedding_feature",
+            id_attr=0,
+            dimension=model["embedding_vector"],
+        ).drift_metric(
             metric=VectorDriftMetric.euclideanDistance,
             time_range=TimeRange(
                 start=datetime(year=2000, month=1, day=1), end=datetime(year=2000, month=1, day=2)
             ),
-            info=info_mock_factory(primary_dataset, None),
+            info=info_mock_factory(model),
         )
         assert distance is None
 
@@ -357,7 +381,7 @@ class TestDriftMetric:
                     np.array([3.0, 4.0]),
                 ],
                 "timestamp": [
-                    datetime(year=2000, month=1, day=1, hour=1, minute=0),
+                    Timestamp(year=2000, month=1, day=1, hour=1, minute=0, tzinfo=pytz.utc),
                 ],
             }
         )
@@ -367,7 +391,7 @@ class TestDriftMetric:
                     np.array([3.0, 4.0]),
                 ],
                 "timestamp": [
-                    datetime(year=2000, month=1, day=1, hour=1, minute=0),
+                    Timestamp(year=2000, month=1, day=1, hour=1, minute=0, tzinfo=pytz.utc),
                 ],
             }
         )
@@ -380,17 +404,20 @@ class TestDriftMetric:
         primary_dataset = Dataset(
             dataframe=primary_dataframe,
             schema=schema,
-            persist_to_disc=False,
         )
         reference_dataset = Dataset(
             dataframe=reference_dataframe,
             schema=schema,
-            persist_to_disc=False,
         )
-        distance = EmbeddingDimension(name="embedding_feature", id_attr=0).drift_metric(
+        model = create_model_from_datasets(primary_dataset, reference_dataset)
+        distance = EmbeddingDimension(
+            name="embedding_feature",
+            id_attr=0,
+            dimension=model["embedding_vector"],
+        ).drift_metric(
             metric=VectorDriftMetric.euclideanDistance,
             time_range=query_time_range,
-            info=info_mock_factory(primary_dataset, reference_dataset),
+            info=info_mock_factory(model),
         )
         assert distance is None
 
@@ -407,20 +434,22 @@ class TestDriftMetric:
                     np.array([2.0, 3.0]),
                     np.array([1000000.0, 1000000.0]),
                 ],
-                "timestamp": [
-                    datetime(year=2000, month=1, day=1, hour=0, minute=59),
-                    datetime(year=2000, month=1, day=1, hour=1, minute=0),
-                    datetime(year=2000, month=1, day=1, hour=1, minute=30),
-                    datetime(
-                        year=2000,
-                        month=1,
-                        day=1,
-                        hour=1,
-                        minute=59,
-                        second=59,
-                    ),
-                    datetime(year=2000, month=1, day=1, hour=2, minute=0),
-                ],
+                "timestamp": Series(
+                    [
+                        Timestamp(year=2000, month=1, day=1, hour=0, minute=59),
+                        Timestamp(year=2000, month=1, day=1, hour=1, minute=0),
+                        Timestamp(year=2000, month=1, day=1, hour=1, minute=30),
+                        Timestamp(
+                            year=2000,
+                            month=1,
+                            day=1,
+                            hour=1,
+                            minute=59,
+                            second=59,
+                        ),
+                        Timestamp(year=2000, month=1, day=1, hour=2, minute=0),
+                    ]
+                ).dt.tz_localize(pytz.utc),
             }
         )
         # reference embeddings with mean vector at (0, 0)
@@ -431,11 +460,13 @@ class TestDriftMetric:
                     np.array([1.0, 1.0]),
                     np.array([-1.0, -1.0]),
                 ],
-                "timestamp": [
-                    datetime(year=1999, month=1, day=1, hour=1, minute=0),
-                    datetime(year=1999, month=1, day=1, hour=1, minute=1),
-                    datetime(year=1999, month=1, day=1, hour=1, minute=3),
-                ],
+                "timestamp": Series(
+                    [
+                        Timestamp(year=1999, month=1, day=1, hour=1, minute=0),
+                        Timestamp(year=1999, month=1, day=1, hour=1, minute=1),
+                        Timestamp(year=1999, month=1, day=1, hour=1, minute=3),
+                    ]
+                ).dt.tz_localize(pytz.utc),
             }
         )
         schema = Schema(
@@ -444,20 +475,20 @@ class TestDriftMetric:
                 "embedding_feature": EmbeddingColumnNames(vector_column_name="embedding_vector")
             },
         )
-        primary_dataset = Dataset(dataframe=primary_dataframe, schema=schema, persist_to_disc=False)
-        reference_dataset = Dataset(
-            dataframe=reference_dataframe, schema=schema, persist_to_disc=False
-        )
-        distance = EmbeddingDimension(name="embedding_feature", id_attr=0).drift_metric(
+        primary_dataset = Dataset(dataframe=primary_dataframe, schema=schema)
+        reference_dataset = Dataset(dataframe=reference_dataframe, schema=schema)
+        model = create_model_from_datasets(primary_dataset, reference_dataset)
+        distance = EmbeddingDimension(
+            name="embedding_feature",
+            id_attr=0,
+            dimension=model["embedding_vector"],
+        ).drift_metric(
             metric=VectorDriftMetric.euclideanDistance,
             time_range=TimeRange(
-                start=datetime(year=2000, month=1, day=1, hour=1, minute=0),
-                end=datetime(year=2000, month=1, day=1, hour=2, minute=0),
+                start=datetime(year=2000, month=1, day=1, hour=1, minute=0, tzinfo=UTC),
+                end=datetime(year=2000, month=1, day=1, hour=2, minute=0, tzinfo=UTC),
             ),
-            info=info_mock_factory(
-                primary_dataset,
-                reference_dataset,
-            ),
+            info=info_mock_factory(model),
         )
         assert_almost_equal(actual=distance, desired=5.0)
 
@@ -471,11 +502,13 @@ class TestDriftMetric:
                     np.array([4.0, 5.0]),
                     np.array([2.0, 3.0]),
                 ],
-                "timestamp": [
-                    datetime(year=2000, month=1, day=1),
-                    datetime(year=2000, month=1, day=2),
-                    datetime(year=2000, month=1, day=3),
-                ],
+                "timestamp": Series(
+                    [
+                        datetime(year=2000, month=1, day=1),
+                        datetime(year=2000, month=1, day=2),
+                        datetime(year=2000, month=1, day=3),
+                    ]
+                ).dt.tz_localize(pytz.utc),
             }
         )
         # reference embeddings with mean vector at (0, 0)
@@ -486,11 +519,13 @@ class TestDriftMetric:
                     np.array([1.0, 1.0]),
                     np.array([-1.0, -1.0]),
                 ],
-                "timestamp": [
-                    datetime(year=1999, month=1, day=1, hour=1, minute=0),
-                    datetime(year=1999, month=1, day=1, hour=1, minute=1),
-                    datetime(year=1999, month=1, day=1, hour=1, minute=3),
-                ],
+                "timestamp": Series(
+                    [
+                        datetime(year=1999, month=1, day=1, hour=1, minute=0),
+                        datetime(year=1999, month=1, day=1, hour=1, minute=1),
+                        datetime(year=1999, month=1, day=1, hour=1, minute=3),
+                    ]
+                ).dt.tz_localize(pytz.utc),
             }
         )
         schema = Schema(
@@ -499,19 +534,19 @@ class TestDriftMetric:
                 "embedding_feature": EmbeddingColumnNames(vector_column_name="embedding_vector")
             },
         )
-        primary_dataset = Dataset(dataframe=primary_dataframe, schema=schema, persist_to_disc=False)
-        reference_dataset = Dataset(
-            dataframe=reference_dataframe, schema=schema, persist_to_disc=False
-        )
-        distance = EmbeddingDimension(name="embedding_feature", id_attr=0).drift_metric(
+        primary_dataset = Dataset(dataframe=primary_dataframe, schema=schema)
+        reference_dataset = Dataset(dataframe=reference_dataframe, schema=schema)
+        model = create_model_from_datasets(primary_dataset, reference_dataset)
+        distance = EmbeddingDimension(
+            name="embedding_feature",
+            id_attr=0,
+            dimension=model["embedding_vector"],
+        ).drift_metric(
             metric=VectorDriftMetric.euclideanDistance,
             time_range=TimeRange(
-                start=datetime(year=2000, month=1, day=4),
-                end=datetime(year=2000, month=1, day=10),
+                start=datetime(year=2000, month=1, day=4, tzinfo=UTC),
+                end=datetime(year=2000, month=1, day=10, tzinfo=UTC),
             ),
-            info=info_mock_factory(
-                primary_dataset,
-                reference_dataset,
-            ),
+            info=info_mock_factory(model),
         )
         assert distance is None

@@ -2,20 +2,25 @@ from typing import List, Optional
 
 import strawberry
 from strawberry.types import Info
+from typing_extensions import Annotated
 
-from phoenix.core import Dimension as CoreDimension
-from phoenix.server.api.context import Context
+from phoenix.core.model_schema import PRIMARY, REFERENCE, ScalarDimension
 
+from ..context import Context
 from ..input_types.Granularity import Granularity
 from ..input_types.TimeRange import TimeRange
 from .DataQualityMetric import DataQualityMetric
+from .DatasetRole import DatasetRole
 from .DimensionDataType import DimensionDataType
+from .DimensionShape import DimensionShape
 from .DimensionType import DimensionType
 from .node import Node
 from .ScalarDriftMetricEnum import ScalarDriftMetric
+from .Segments import DatasetValues, Segments
 from .TimeSeries import (
     DataQualityTimeSeries,
     DriftTimeSeries,
+    ensure_timeseries_parameters,
     get_data_quality_timeseries_data,
     get_drift_timeseries_data,
 )
@@ -27,10 +32,13 @@ class Dimension(Node):
     type: DimensionType = strawberry.field(
         description="Whether the dimension represents a feature, tag, prediction, or actual."
     )
-
     dataType: DimensionDataType = strawberry.field(
         description="The data type of the column. Categorical or numeric."
     )
+    shape: DimensionShape = strawberry.field(
+        description="Whether the dimension data is continuous or discrete."
+    )
+    dimension: strawberry.Private[ScalarDimension]
 
     @strawberry.field
     def drift_metric(
@@ -46,19 +54,21 @@ class Dimension(Node):
         exists, if no primary data exists in the input time range, or if the
         input time range is invalid.
         """
-        if info.context.model.reference_dataset is None:
+        model = info.context.model
+        if model[REFERENCE].empty:
             return None
-        if len(
-            data := get_drift_timeseries_data(
-                self.name,
-                info.context.model,
-                metric,
-                time_range,
-                dtype=self.dataType,
-            )
-        ):
-            return data.pop().value
-        return None
+        dataset = model[PRIMARY]
+        time_range, granularity = ensure_timeseries_parameters(
+            dataset,
+            time_range,
+        )
+        data = get_drift_timeseries_data(
+            self.dimension,
+            metric,
+            time_range,
+            granularity,
+        )
+        return data[0].value if len(data) else None
 
     @strawberry.field
     async def data_quality_metric(
@@ -66,17 +76,28 @@ class Dimension(Node):
         info: Info[Context, None],
         metric: DataQualityMetric,
         time_range: Optional[TimeRange] = None,
+        dataset_role: Annotated[
+            Optional[DatasetRole],
+            strawberry.argument(
+                description="The dataset (primary or reference) to query",
+            ),
+        ] = DatasetRole.primary,
     ) -> Optional[float]:
-        if len(
-            data := get_data_quality_timeseries_data(
-                self.name,
-                info.context.model,
-                metric,
-                time_range,
-            )
-        ):
-            return data.pop().value
-        return None
+        if dataset_role is None:
+            dataset_role = DatasetRole.primary
+        dataset = info.context.model[dataset_role.value]
+        time_range, granularity = ensure_timeseries_parameters(
+            dataset,
+            time_range,
+        )
+        data = get_data_quality_timeseries_data(
+            self.dimension,
+            metric,
+            time_range,
+            granularity,
+            dataset_role,
+        )
+        return data[0].value if len(data) else None
 
     @strawberry.field(
         description=(
@@ -85,11 +106,8 @@ class Dimension(Node):
             " Missing values are excluded. Non-categorical dimensions return an empty list."
         )
     )  # type: ignore  # https://github.com/strawberry-graphql/strawberry/issues/1929
-    def categories(self, info: Info[Context, None]) -> List[str]:
-        for dim in info.context.model.dimensions:
-            if dim.name == self.name:
-                return dim.categories
-        return []
+    def categories(self) -> List[str]:
+        return list(self.dimension.categories)
 
     @strawberry.field(
         description=(
@@ -105,20 +123,34 @@ class Dimension(Node):
         metric: DataQualityMetric,
         time_range: TimeRange,
         granularity: Granularity,
+        dataset_role: Annotated[
+            Optional[DatasetRole],
+            strawberry.argument(
+                description="The dataset (primary or reference) to query",
+            ),
+        ] = DatasetRole.primary,
     ) -> DataQualityTimeSeries:
+        if dataset_role is None:
+            dataset_role = DatasetRole.primary
+        dataset = info.context.model[dataset_role.value]
+        time_range, granularity = ensure_timeseries_parameters(
+            dataset,
+            time_range,
+            granularity,
+        )
         return DataQualityTimeSeries(
             data=get_data_quality_timeseries_data(
-                self.name,
-                info.context.model,
+                self.dimension,
                 metric,
                 time_range,
                 granularity,
+                dataset_role,
             )
         )
 
     @strawberry.field(
         description=(
-            "Returns the time series of the specified metric for data within a time range. Data"
+            "The time series of the specified metric for data within a time range. Data"
             " points are generated starting at the end time and are separated by the sampling"
             " interval. Each data point is labeled by the end instant and contains data from their"
             " respective evaluation windows."
@@ -131,27 +163,45 @@ class Dimension(Node):
         time_range: TimeRange,
         granularity: Granularity,
     ) -> DriftTimeSeries:
-        if info.context.model.reference_dataset is None:
+        model = info.context.model
+        if model[REFERENCE].empty:
             return DriftTimeSeries(data=[])
+        dataset = model[PRIMARY]
+        time_range, granularity = ensure_timeseries_parameters(
+            dataset,
+            time_range,
+            granularity,
+        )
         return DriftTimeSeries(
             data=get_drift_timeseries_data(
-                self.name,
-                info.context.model,
+                self.dimension,
                 metric,
                 time_range,
                 granularity,
-                dtype=self.dataType,
             )
         )
 
+    @strawberry.field(
+        description="Returns the segments across both datasets and returns the counts per segment",
+    )  # type: ignore
+    def segments_comparison(
+        self,
+        primary_time_range: Optional[TimeRange] = strawberry.UNSET,
+    ) -> Segments:
+        # TODO: Implement binning across primary and reference
 
-def to_gql_dimension(id_attr: int, dimension: CoreDimension) -> Dimension:
+        return Segments(segments=[], total_counts=DatasetValues(primary_value=0, reference_value=0))
+
+
+def to_gql_dimension(id_attr: int, dimension: ScalarDimension) -> Dimension:
     """
     Converts a phoenix.core.Dimension to a phoenix.server.api.types.Dimension
     """
     return Dimension(
         id_attr=id_attr,
         name=dimension.name,
-        type=DimensionType[dimension.type.value],
-        dataType=DimensionDataType[dimension.data_type.value],
+        type=DimensionType.from_dimension(dimension),
+        dataType=DimensionDataType.from_dimension(dimension),
+        dimension=dimension,
+        shape=DimensionShape.from_dimension(dimension),
     )

@@ -1,12 +1,35 @@
+import phoenix.core.model_schema as ms
+from phoenix.core.model_schema import FEATURE
 from phoenix.server.api.types.Dimension import Dimension
 from phoenix.server.api.types.pagination import ConnectionArgs, connection_from_list
 
 
 def test_connection_from_list():
     dimensions = [
-        Dimension(id_attr=0, name="first", type="feature", dataType="categorical"),
-        Dimension(id_attr=1, name="second", type="feature", dataType="categorical"),
-        Dimension(id_attr=2, name="third", type="feature", dataType="categorical"),
+        Dimension(
+            id_attr=0,
+            name="first",
+            type="feature",
+            dataType="categorical",
+            shape="discrete",
+            dimension=ms.Dimension(role=FEATURE),
+        ),
+        Dimension(
+            id_attr=1,
+            name="second",
+            type="feature",
+            dataType="categorical",
+            shape="discrete",
+            dimension=ms.Dimension(role=FEATURE),
+        ),
+        Dimension(
+            id_attr=2,
+            name="third",
+            type="feature",
+            dataType="categorical",
+            shape="discrete",
+            dimension=ms.Dimension(role=FEATURE),
+        ),
     ]
     connection = connection_from_list(dimensions, ConnectionArgs(first=2))
 
@@ -24,9 +47,30 @@ def test_connection_from_list():
 
 def test_connection_from_list_reverse():
     dimensions = [
-        Dimension(id_attr=0, name="first", type="feature", dataType="categorical"),
-        Dimension(id_attr=1, name="second", type="feature", dataType="categorical"),
-        Dimension(id_attr=2, name="third", type="feature", dataType="categorical"),
+        Dimension(
+            id_attr=0,
+            name="first",
+            type="feature",
+            dataType="categorical",
+            shape="discrete",
+            dimension=ms.Dimension(role=FEATURE),
+        ),
+        Dimension(
+            id_attr=1,
+            name="second",
+            type="feature",
+            dataType="categorical",
+            shape="discrete",
+            dimension=ms.Dimension(role=FEATURE),
+        ),
+        Dimension(
+            id_attr=2,
+            name="third",
+            type="feature",
+            dataType="categorical",
+            shape="discrete",
+            dimension=ms.Dimension(role=FEATURE),
+        ),
     ]
     connection = connection_from_list(dimensions, ConnectionArgs(last=2))
 

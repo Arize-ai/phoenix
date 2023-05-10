@@ -3,16 +3,15 @@ import errno
 import logging
 import os
 from argparse import ArgumentParser
+from pathlib import Path
 from typing import Optional
 
 import uvicorn
 
 import phoenix.config as config
-from phoenix.datasets.fixtures import (
-    FIXTURES,
-    download_fixture_if_missing,
-    get_dataset_names_from_fixture_name,
-)
+from phoenix.core.model_schema_adapter import create_model_from_datasets
+from phoenix.datasets import Dataset
+from phoenix.datasets.fixtures import FIXTURES, get_datasets
 from phoenix.server.app import create_app
 
 logger = logging.getLogger(__name__)
@@ -47,8 +46,9 @@ if __name__ == "__main__":
     _write_pid_file()
 
     parser = ArgumentParser()
-
-    parser.add_argument("--port", type=int, default=config.port)
+    parser.add_argument("--export_path")
+    parser.add_argument("--port", type=int, default=config.PORT)
+    parser.add_argument("--no-internet", action="store_true")
     parser.add_argument("--debug", action="store_false")  # TODO: Disable before public launch
     subparsers = parser.add_subparsers(dest="command", required=True)
     datasets_parser = subparsers.add_parser("datasets")
@@ -56,25 +56,36 @@ if __name__ == "__main__":
     datasets_parser.add_argument("--reference", type=str, required=False)
     fixture_parser = subparsers.add_parser("fixture")
     fixture_parser.add_argument("fixture", type=str, choices=[fixture.name for fixture in FIXTURES])
+    fixture_parser.add_argument("--primary-only", type=bool)
     args = parser.parse_args()
-
+    export_path = Path(args.export_path) if args.export_path else config.EXPORT_DIR
     if args.command == "datasets":
         primary_dataset_name = args.primary
         reference_dataset_name = args.reference
+        primary_dataset = Dataset.from_name(primary_dataset_name)
+        reference_dataset = (
+            Dataset.from_name(reference_dataset_name)
+            if reference_dataset_name is not None
+            else None
+        )
     else:
         fixture_name = args.fixture
-        primary_dataset_name, reference_dataset_name = get_dataset_names_from_fixture_name(
-            fixture_name
+        primary_only = args.primary_only
+        primary_dataset, reference_dataset = get_datasets(
+            fixture_name,
+            args.no_internet,
         )
-        print(f'🌎 Initializing fixture: "{fixture_name}"')
-        download_fixture_if_missing(fixture_name)
+        if primary_only:
+            reference_dataset_name = None
+            reference_dataset = None
 
-    print(f"1️⃣ primary dataset: {primary_dataset_name}")
-    print(f"2️⃣ reference dataset: {reference_dataset_name}")
-
+    model = create_model_from_datasets(
+        primary_dataset,
+        reference_dataset,
+    )
     app = create_app(
-        primary_dataset_name=primary_dataset_name,
-        reference_dataset_name=reference_dataset_name,
+        export_path=export_path,
+        model=model,
         debug=args.debug,
     )
 

@@ -6,13 +6,14 @@
   "license": "None",
   "private": true,
   "dependencies": {
-    "@arizeai/components": "^0.9.21",
+    "@arizeai/components": "0.9.24",
     "@arizeai/point-cloud": "^2.1.5",
     "@emotion/react": "^11.10.5",
     "@react-three/drei": "9.5.7",
     "@react-three/fiber": "8.0.12",
     "@types/react-table": "^7.7.14",
     "@types/recharts": "^1.8.24",
+    "d3-format": "^3.1.0",
     "d3-scale-chromatic": "^3.0.0",
     "d3-time-format": "^4.1.0",
     "date-fns": "^2.29.3",
@@ -20,6 +21,8 @@
     "polished": "^4.2.2",
     "react": "18.2",
     "react-dom": "18.2",
+    "react-error-boundary": "^4.0.3",
+    "react-hook-form": "^7.43.8",
     "react-relay": "^14.1.0",
     "react-resizable-panels": "^0.0.36",
     "react-router": "^6.7.0",
@@ -33,8 +36,10 @@
     "zustand": "^4.3.5"
   },
   "devDependencies": {
+    "@types/d3-format": "^3.0.1",
     "@types/d3-scale-chromatic": "^3.0.0",
     "@types/d3-time-format": "^4.0.0",
+    "@types/jest": "^29.5.1",
     "@types/react-dom": "^18.0.8",
     "@types/react-relay": "^14.1.2",
     "@types/three": "^0.149.0",
@@ -46,11 +51,10 @@
     "eslint-plugin-react-hooks": "^4.6.0",
     "eslint-plugin-simple-import-sort": "^10.0.0",
     "graphql": "^15.8.0",
-    "husky": "^8.0.3",
-    "lint-staged": "^13.1.0",
-    "prettier": "2.8.1",
+    "prettier": "^2.8.7",
     "relay-compiler": "^14.1.0",
-    "typescript": "4.8"
+    "ts-jest": "^29.1.0",
+    "typescript": "^5.0.4"
   },
   "scripts": {
     "prebuild": "rm -rf ../src/phoenix/server/static",
@@ -59,17 +63,19 @@
     "build:ts": "node ./esbuild.config.mjs",
     "build:relay": "relay-compiler",
     "watch": "./esbuild.config.mjs dev",
-    "dev": "npm run dev:server:mnist & npm run build:static && npm run watch",
+    "test": "jest --config ./jest.config.js",
+    "dev": "npm run dev:server:credit_card_fraud:single & npm run build:static && npm run watch",
     "dev:server:mnist": "python3 -m phoenix.server.main fixture fashion_mnist",
+    "dev:server:mnist:single": "python3 -m phoenix.server.main fixture fashion_mnist --primary-only true",
     "dev:server:sentiment": "python3 -m phoenix.server.main fixture sentiment_classification_language_drift",
+    "dev:server:image": "python3 -m phoenix.server.main fixture image_classification",
     "dev:server:ner": "python3 -m phoenix.server.main fixture ner_token_drift",
+    "dev:server:credit_card_fraud": "python3 -m phoenix.server.main fixture credit_card_fraud",
+    "dev:server:credit_card_fraud:single": "python3 -m phoenix.server.main fixture credit_card_fraud --primary-only true",
+    "dev:server:llm": "python3 -m phoenix.server.main fixture llm_summarization",
     "typecheck": "tsc --noEmit",
     "lint": "eslint ./src",
     "prettier": "prettier --write './src/**/*'",
     "prettier:check": "prettier --check './src/**/*'"
-  },
-  "lint-staged": {
-    "src/*.{ts,tsx,js}": "eslint --cache --fix",
-    "src/*.{js,ts,tsx,md}": "prettier --write --ignore-unknown"
   }
 }

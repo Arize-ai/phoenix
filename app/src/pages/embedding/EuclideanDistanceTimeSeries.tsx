@@ -15,16 +15,31 @@ import {
 import { CategoricalChartFunc } from "recharts/types/chart/generateCategoricalChart";
 import { css } from "@emotion/react";
 
-import { Icon, InfoOutline, Text, theme } from "@arizeai/components";
+import {
+  Content,
+  ContextualHelp,
+  Heading,
+  Icon,
+  InfoOutline,
+  Text,
+  theme,
+} from "@arizeai/components";
 
 import {
   ChartTooltip,
   ChartTooltipDivider,
   ChartTooltipItem,
+  defaultSelectedTimestampReferenceLineProps,
+  defaultTimeXAxisProps,
   fullTimeFormatter,
 } from "@phoenix/components/chart";
+import { useTimeTickFormatter } from "@phoenix/components/chart";
 import { useTimeRange } from "@phoenix/contexts/TimeRangeContext";
 import { useTimeSlice } from "@phoenix/contexts/TimeSliceContext";
+import {
+  calculateGranularity,
+  calculateGranularityWithRollingAverage,
+} from "@phoenix/utils/timeSeriesUtils";
 
 import { EuclideanDistanceTimeSeriesQuery } from "./__generated__/EuclideanDistanceTimeSeriesQuery.graphql";
 
@@ -35,6 +50,16 @@ const numberFormatter = new Intl.NumberFormat([], {
 const color = "#5899C5";
 const barColor = "#93b3c841";
 
+const embeddingDriftContextualHelp = (
+  <ContextualHelp>
+    <Heading level={4}>Embedding Drift</Heading>
+    <Content>
+      {`Euclidean distance over time displays a timeseries graph of how much
+    your primary dataset's embeddings are drifting from the reference
+    data. Euclidean distance of the embeddings is calculated by taking the centroid of the embedding vectors for each dataset and calculating the distance between the two centroids.`}
+    </Content>
+  </ContextualHelp>
+);
 function TooltipContent({ active, payload, label }: TooltipProps<any, any>) {
   if (active && payload && payload.length) {
     const euclideanDistance = payload[1]?.value ?? null;
@@ -89,12 +114,14 @@ export function EuclideanDistanceTimeSeries({
 }) {
   const { timeRange } = useTimeRange();
   const { selectedTimestamp, setSelectedTimestamp } = useTimeSlice();
+  const granularity = calculateGranularity(timeRange);
   const data = useLazyLoadQuery<EuclideanDistanceTimeSeriesQuery>(
     graphql`
       query EuclideanDistanceTimeSeriesQuery(
         $embeddingDimensionId: GlobalID!
         $timeRange: TimeRange!
-        $granularity: Granularity!
+        $driftGranularity: Granularity!
+        $countGranularity: Granularity!
       ) {
         embedding: node(id: $embeddingDimensionId) {
           id
@@ -102,7 +129,7 @@ export function EuclideanDistanceTimeSeries({
             euclideanDistanceTimeSeries: driftTimeSeries(
               metric: euclideanDistance
               timeRange: $timeRange
-              granularity: $granularity
+              granularity: $driftGranularity
             ) {
               data {
                 timestamp
@@ -112,7 +139,7 @@ export function EuclideanDistanceTimeSeries({
             trafficTimeSeries: dataQualityTimeSeries(
               metric: count
               timeRange: $timeRange
-              granularity: $granularity
+              granularity: $countGranularity
             ) {
               data {
                 timestamp
@@ -129,12 +156,14 @@ export function EuclideanDistanceTimeSeries({
         start: timeRange.start.toISOString(),
         end: timeRange.end.toISOString(),
       },
-      granularity: {
-        evaluationWindowMinutes: 4320,
-        samplingIntervalMinutes: 60 * 24,
-      },
+      driftGranularity: calculateGranularityWithRollingAverage(timeRange),
+      countGranularity: granularity,
     }
   );
+
+  const timeTickFormatter = useTimeTickFormatter({
+    samplingIntervalMinutes: granularity.samplingIntervalMinutes,
+  });
 
   const onClick: CategoricalChartFunc = useCallback(
     (state) => {
@@ -148,103 +177,120 @@ export function EuclideanDistanceTimeSeries({
     [setSelectedTimestamp]
   );
 
-  let chartData = data.embedding.euclideanDistanceTimeSeries?.data || [];
+  const chartRawData = data.embedding.euclideanDistanceTimeSeries?.data || [];
   const trafficDataMap =
     data.embedding.trafficTimeSeries?.data.reduce((acc, traffic) => {
       acc[traffic.timestamp] = traffic.value;
       return acc;
     }, {} as Record<string, number | null>) ?? {};
 
-  chartData = chartData.map((d) => {
+  const chartData = chartRawData.map((d) => {
     const traffic = trafficDataMap[d.timestamp];
     return {
       ...d,
       traffic: traffic,
-      timestamp: new Date(d.timestamp).toISOString(),
+      timestamp: new Date(d.timestamp).getTime(),
     };
   });
   return (
-    <ResponsiveContainer width="100%" height="100%">
-      <ComposedChart
-        data={chartData as unknown as any[]}
-        margin={{ top: 25, right: 18, left: 18, bottom: 10 }}
-        onClick={onClick}
-      >
-        <defs>
-          <linearGradient id="colorUv" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor={color} stopOpacity={0.8} />
-            <stop offset="95%" stopColor={color} stopOpacity={0} />
-          </linearGradient>
-          <linearGradient id="barColor" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor={barColor} stopOpacity={0.8} />
-            <stop offset="95%" stopColor={barColor} stopOpacity={0} />
-          </linearGradient>
-        </defs>
-        <XAxis
-          dataKey="timestamp"
-          stroke={theme.colors.gray200}
-          // TODO: Fix this to be a cleaner interface
-          tickFormatter={(x) => fullTimeFormatter(new Date(x))}
-          style={{ fill: theme.textColors.white70 }}
-        />
-        <YAxis
-          stroke={theme.colors.gray200}
-          label={{
-            value: "Euc. Distance",
-            angle: -90,
-            position: "insideLeft",
-            style: { textAnchor: "middle", fill: theme.textColors.white90 },
-          }}
-          style={{ fill: theme.textColors.white70 }}
-        />
-        <YAxis
-          yAxisId="right"
-          orientation="right"
-          label={{
-            value: "Count",
-            angle: 90,
-            position: "insideRight",
-            style: { textAnchor: "middle", fill: theme.textColors.white90 },
-          }}
-          style={{ fill: theme.textColors.white70 }}
-        />
-        <CartesianGrid
-          strokeDasharray="4 4"
-          stroke={theme.colors.gray200}
-          strokeOpacity={0.5}
-        />
-        <Tooltip content={<TooltipContent />} />
-        <Bar
-          yAxisId="right"
-          dataKey="traffic"
-          fill="url(#barColor)"
-          spacing={5}
-        />
-        <Area
-          type="monotone"
-          dataKey="value"
-          stroke={color}
-          fillOpacity={1}
-          fill="url(#colorUv)"
-        />
-
-        {selectedTimestamp != null ? (
-          <>
-            <ReferenceLine
-              x={selectedTimestamp.toISOString()}
-              stroke="white"
-              label={{
-                value: "▼",
-                position: "top",
-                style: {
-                  fill: "#fabe32",
-                  fontSize: theme.typography.sizes.small.fontSize,
-                },
-              }}
+    <section
+      css={css`
+        width: 100%;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        h3 {
+          padding: var(--px-spacing-sm) var(--px-spacing-lg) 0
+            var(--px-spacing-lg);
+          flex: none;
+          .ac-action-button {
+            margin-left: var(--px-spacing-sm);
+          }
+        }
+        & > div {
+          flex: 1 1 auto;
+          width: 100%;
+          overflow: hidden;
+        }
+      `}
+    >
+      <Heading level={3}>
+        Embedding Drift
+        {embeddingDriftContextualHelp}
+      </Heading>
+      <div>
+        <ResponsiveContainer width="100%" height="100%">
+          <ComposedChart
+            data={chartData as unknown as any[]}
+            margin={{ top: 25, right: 18, left: 18, bottom: 10 }}
+            onClick={onClick}
+          >
+            <defs>
+              <linearGradient id="colorUv" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor={color} stopOpacity={0.8} />
+                <stop offset="95%" stopColor={color} stopOpacity={0} />
+              </linearGradient>
+              <linearGradient id="barColor" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor={barColor} stopOpacity={0.8} />
+                <stop offset="95%" stopColor={barColor} stopOpacity={0} />
+              </linearGradient>
+            </defs>
+            <XAxis
+              {...defaultTimeXAxisProps}
+              tickFormatter={(x) => timeTickFormatter(new Date(x))}
+              style={{ fill: theme.textColors.white70 }}
             />
-          </>
-        ) : null}
-      </ComposedChart>
-    </ResponsiveContainer>
+            <YAxis
+              stroke={theme.colors.gray200}
+              label={{
+                value: "Euc. Distance",
+                angle: -90,
+                position: "insideLeft",
+                style: { textAnchor: "middle", fill: theme.textColors.white90 },
+              }}
+              style={{ fill: theme.textColors.white70 }}
+            />
+            <YAxis
+              yAxisId="right"
+              orientation="right"
+              label={{
+                value: "Count",
+                angle: 90,
+                position: "insideRight",
+                style: { textAnchor: "middle", fill: theme.textColors.white90 },
+              }}
+              style={{ fill: theme.textColors.white70 }}
+            />
+            <CartesianGrid
+              strokeDasharray="4 4"
+              stroke={theme.colors.gray200}
+              strokeOpacity={0.5}
+            />
+            <Tooltip content={<TooltipContent />} />
+            <Bar
+              yAxisId="right"
+              dataKey="traffic"
+              fill="url(#barColor)"
+              spacing={5}
+            />
+            <Area
+              type="monotone"
+              dataKey="value"
+              stroke={color}
+              fillOpacity={1}
+              fill="url(#colorUv)"
+            />
+
+            {selectedTimestamp != null ? (
+              <ReferenceLine
+                {...defaultSelectedTimestampReferenceLineProps}
+                x={selectedTimestamp.getTime()}
+              />
+            ) : null}
+          </ComposedChart>
+        </ResponsiveContainer>
+      </div>
+    </section>
   );
 }

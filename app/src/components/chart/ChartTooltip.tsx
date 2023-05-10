@@ -79,7 +79,7 @@ export function ChartTooltipDivider() {
       css={(theme) => css`
         height: 1px;
         background-color: ${theme.colors.gray400};
-        width: 100%%;
+        width: 100%;
       `}
     />
   );

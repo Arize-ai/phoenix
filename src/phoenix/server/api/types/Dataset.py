@@ -1,34 +1,30 @@
 from datetime import datetime
-from typing import Any, List, Literal, Optional, Set
+from typing import Iterable, List, Optional, Set
 
 import strawberry
-from pandas import Series
 from strawberry.scalars import ID
 from strawberry.types import Info
 from strawberry.unset import UNSET
 
-from phoenix.core.dimension import Dimension as CoreDimension
-from phoenix.core.dimension_type import DimensionType
-from phoenix.datasets import Dataset as InternalDataset
-from phoenix.datasets import Schema
-from phoenix.datasets.dataset import DatasetType
-from phoenix.datasets.event import EventId
+import phoenix.core.model_schema as ms
+from phoenix.core.model_schema import FEATURE, TAG, ScalarDimension
 
 from ..context import Context
 from ..input_types.DimensionInput import DimensionInput
 from .Dimension import Dimension, to_gql_dimension
-from .DimensionWithValue import DimensionWithValue
-from .Event import Event
-from .EventMetadata import EventMetadata
+from .Event import Event, create_event, parse_event_ids
 
 
 @strawberry.type
 class Dataset:
-    name: str = strawberry.field(description="The given name of the dataset")
     start_time: datetime = strawberry.field(description="The start bookend of the data")
     end_time: datetime = strawberry.field(description="The end bookend of the data")
-    dataset: strawberry.Private[InternalDataset]
-    type: strawberry.Private[DatasetType]
+    dataset: strawberry.Private[ms.Dataset]
+
+    # type ignored here to get around the following: https://github.com/strawberry-graphql/strawberry/issues/1929
+    @strawberry.field(description="Returns a human friendly name for the dataset.")  # type: ignore
+    def name(self) -> str:
+        return self.dataset.display_name
 
     @strawberry.field
     def events(
@@ -43,115 +39,37 @@ class Dataset:
         """
         if not event_ids:
             return []
-        row_indexes = self._parse_event_ids(event_ids)
-        dataframe = self.dataset.dataframe
-        schema = self.dataset.schema
+        row_ids = parse_event_ids(event_ids)
+        if len(row_ids) > 1 or self.dataset.role not in row_ids:
+            raise ValueError("eventIds contains IDs from incorrect dataset.")
+        events = self.dataset[row_ids[self.dataset.role]]
         requested_gql_dimensions = _get_requested_features_and_tags(
-            core_dimensions=info.context.model.dimensions,
+            core_dimensions=info.context.model.scalar_dimensions,
             requested_dimension_names=set(dim.name for dim in dimensions)
             if isinstance(dimensions, list)
             else None,
         )
-        requested_dimension_names = [dim.name for dim in requested_gql_dimensions]
-        prediction_and_actual_column_names = [
-            col
-            for col in [
-                schema.prediction_label_column_name,
-                schema.prediction_score_column_name,
-                schema.actual_label_column_name,
-                schema.actual_score_column_name,
-            ]
-            if col is not None
-        ]
-        column_indexes = [
-            dataframe.columns.get_loc(name)
-            for name in (requested_dimension_names + prediction_and_actual_column_names)
-        ]
         return [
-            _create_event(
-                row_index=row_index,
-                dataset_type=self.type,
-                row=dataframe.iloc[row_index, column_indexes],
-                schema=schema,
+            create_event(
+                event=event,
                 dimensions=requested_gql_dimensions,
             )
-            for row_index in row_indexes
+            for event in events
         ]
-
-    def _parse_event_ids(self, event_ids: List[ID]) -> List[int]:
-        """
-        Parses event IDs and returns the corresponding row indexes.
-        """
-        row_indexes = []
-        for event_id in event_ids:
-            row_index, dataset_type = str(event_id).split(":")
-            if dataset_type != str(self.type):
-                raise ValueError("eventIds contains IDs from incorrect dataset.")
-            row_indexes.append(int(row_index))
-        return row_indexes
-
-
-def to_gql_dataset(dataset: InternalDataset, type: Literal["primary", "reference"]) -> Dataset:
-    """
-    Converts an internal dataset to a strawberry Dataset type.
-    """
-    return Dataset(
-        name=dataset.name,
-        start_time=dataset.start_time,
-        end_time=dataset.end_time,
-        type=DatasetType.PRIMARY if type == "primary" else DatasetType.REFERENCE,
-        dataset=dataset,
-    )
 
 
 def _get_requested_features_and_tags(
-    core_dimensions: List[CoreDimension],
+    core_dimensions: Iterable[ScalarDimension],
     requested_dimension_names: Optional[Set[str]] = None,
 ) -> List[Dimension]:
     """
     Returns requested features and tags as a list of strawberry Datasets. If no
     dimensions are explicitly requested, returns all features and tags.
     """
-    requested_features_and_tags = []
+    requested_features_and_tags: List[Dimension] = []
     for id, dim in enumerate(core_dimensions):
         is_requested = requested_dimension_names is None or dim.name in requested_dimension_names
-        is_feature_or_tag = dim.type in [DimensionType.FEATURE, DimensionType.TAG]
+        is_feature_or_tag = dim.role in (FEATURE, TAG)
         if is_requested and is_feature_or_tag:
             requested_features_and_tags.append(to_gql_dimension(id_attr=id, dimension=dim))
     return requested_features_and_tags
-
-
-def _create_event(
-    row_index: int,
-    dataset_type: "DatasetType",
-    row: "Series[Any]",
-    schema: Schema,
-    dimensions: List[Dimension],
-) -> Event:
-    """
-    Reads dimension values and event metadata from a dataframe row and returns
-    an event containing this information.
-    """
-    event_metadata = EventMetadata(
-        prediction_label=row[col]
-        if (col := schema.prediction_label_column_name) is not None
-        else None,
-        prediction_score=row[col]
-        if (col := schema.prediction_score_column_name) is not None
-        else None,
-        actual_label=row[col] if (col := schema.actual_label_column_name) is not None else None,
-        actual_score=row[col] if (col := schema.actual_score_column_name) is not None else None,
-    )
-    dimensions_with_values = [
-        DimensionWithValue(
-            dimension=dim,
-            value=row[dim.name],
-        )
-        for dim in dimensions
-    ]
-
-    return Event(
-        id=ID(str(EventId(row_id=row_index, dataset_id=dataset_type))),
-        eventMetadata=event_metadata,
-        dimensions=dimensions_with_values,
-    )

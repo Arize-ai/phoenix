@@ -1,3 +1,4 @@
+from collections import Counter
 from typing import Dict, List, Optional, Set, Union
 
 import numpy as np
@@ -6,15 +7,14 @@ import strawberry
 from strawberry.scalars import ID
 from typing_extensions import TypeAlias
 
-from phoenix.core.embedding_dimension import calculate_drift_ratio
-from phoenix.datasets.event import EventId
+from phoenix.core.model_schema import PRIMARY, REFERENCE, EventId
 from phoenix.server.api.interceptor import NoneIfNan
 
 from .EmbeddingMetadata import EmbeddingMetadata
 from .EventMetadata import EventMetadata
+from .node import GlobalID
 
 ClusterId: TypeAlias = ID
-PointId: TypeAlias = ID
 
 
 @strawberry.type
@@ -24,8 +24,8 @@ class Cluster:
     """The ID of the cluster"""
     id: ClusterId
 
-    """A list of points that belong to the cluster"""
-    point_ids: List[PointId]
+    """A list of events that belong to the cluster"""
+    event_ids: List[ID]
 
     """A list of points that belong to the cluster"""
     drift_ratio: Optional[float] = strawberry.field(
@@ -62,7 +62,7 @@ def to_gql_clusters(
         gql_clusters.append(
             Cluster(
                 id=ID(str(cluster_id)),
-                point_ids=[ID(str(event)) for event in cluster_events],
+                event_ids=[ID(str(event)) for event in cluster_events],
                 drift_ratio=calculate_drift_ratio(cluster_events)
                 if has_reference_data
                 else float("nan"),
@@ -70,6 +70,24 @@ def to_gql_clusters(
         )
 
     return gql_clusters
+
+
+def calculate_drift_ratio(events: Set[EventId]) -> float:
+    """
+    Calculates the drift score of the cluster. The score will be a value
+    representing the balance of points between the primary and the reference
+    datasets, and will be on a scale between 1 (all primary) and -1 (all
+    reference), with 0 being an even balance between the two datasets.
+
+    Returns
+    -------
+    drift_ratio : float
+    """
+    return (
+        (cnt := Counter(e.dataset_id for e in events))
+        and (cnt[PRIMARY] - cnt[REFERENCE]) / (cnt[PRIMARY] + cnt[REFERENCE])
+        or float("nan")
+    )
 
 
 @strawberry.type
@@ -98,7 +116,11 @@ class UMAPPoint:
     """point and metadata for a UMAP plot"""
 
     """A unique ID for the the point"""
-    id: PointId
+    id: GlobalID
+
+    event_id: ID = strawberry.field(
+        description="The ID of the event that the point is a projection of"
+    )
 
     """The coordinates of the point. Can be two or three dimensional"""
     coordinates: Union[Point2D, Point3D]

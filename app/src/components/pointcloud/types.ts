@@ -2,6 +2,7 @@ import { PointsProps, ThreeDimensionalPoint } from "@arizeai/point-cloud";
 
 export interface PontMetaData {
   id: string;
+  eventId: string;
   predictionLabel?: string | null;
   actualLabel?: string | null;
   predictionScore?: number | null;
@@ -14,7 +15,7 @@ export type ThreeDimensionalPointItem = {
 
 export type ClusterInfo = {
   readonly id: string;
-  readonly pointIds: readonly string[];
+  readonly eventIds: readonly string[];
 };
 
 export type PointColor = PointsProps["pointProps"]["color"];

@@ -3,11 +3,15 @@ import { fetchQuery, graphql } from "react-relay";
 import { css } from "@emotion/react";
 
 import {
+  Content,
+  ContextualHelp,
+  Heading,
   Item,
   Label,
   LabelProps,
   Picker,
   PickerProps,
+  Text,
 } from "@arizeai/components";
 
 import RelayEnvironment from "@phoenix/RelayEnvironment";
@@ -61,6 +65,22 @@ function DimensionTypeLabel(props: { type: Dimension["type"] }) {
   );
 }
 
+const contextualHelp = (
+  <ContextualHelp>
+    <Heading weight="heavy" level={4}>
+      Model Dimension
+    </Heading>
+    <Content>
+      <Text>
+        A dimension is a feature, tag, prediction, or actual value that is
+        associated with a model inference. Features represent inputs, tags
+        represent metadata, predictions represent outputs, and actuals represent
+        ground truth.
+      </Text>
+    </Content>
+  </ContextualHelp>
+);
+
 export function DimensionPicker<T>(props: DimensionPickerProps<T>) {
   const { selectedDimension, dimensions, onChange, isLoading, ...restProps } =
     props;
@@ -79,11 +99,12 @@ export function DimensionPicker<T>(props: DimensionPickerProps<T>) {
         }
       }}
       label="Dimension"
+      labelExtra={contextualHelp}
       isDisabled={isLoading}
       placeholder={isLoading ? "Loading..." : "Select a dimension"}
     >
       {dimensions.map((dimension) => (
-        <Item key={dimension.name}>
+        <Item key={dimension.name} textValue={dimension.name}>
           <div
             css={css`
               .ac-label {

@@ -27,6 +27,30 @@ export function GlobalStyles() {
           margin-block-start: 0;
         }
 
+        /* this css class is added to html via modernizr @see modernizr.js */
+        .no-hiddenscroll {
+          /* Works on Firefox */
+          * {
+            scrollbar-width: thin;
+            scrollbar-color: ${theme.colors.gray300} ${theme.colors.gray500};
+          }
+
+          /* Works on Chrome, Edge, and Safari */
+          *::-webkit-scrollbar {
+            width: 14px;
+          }
+
+          *::-webkit-scrollbar-track {
+            background: ${theme.colors.gray700};
+          }
+
+          *::-webkit-scrollbar-thumb {
+            background-color: ${theme.colors.gray900};
+            border-radius: 8px;
+            border: 1px solid ${theme.colors.gray300};
+          }
+        }
+
         :root {
           --px-blue-color: ${theme.colors.arizeBlue};
           --px-light-blue-color: ${theme.colors.arizeLightBlue};
@@ -36,6 +60,9 @@ export function GlobalStyles() {
           --px-reference-color: #baa1f9;
           --px-reference-color--transparent: #baa1f982;
 
+          --px-background-color-800: ${theme.colors.gray800};
+          --px-background-color-500: ${theme.colors.gray500};
+
           --px-flex-gap-sm: ${theme.spacing.margin4}px;
           --px-flex-gap-sm: ${theme.spacing.margin8}px;
 
@@ -43,6 +70,10 @@ export function GlobalStyles() {
           --px-border-color-300: ${theme.colors.gray300};
 
           --px-section-background-color: ${theme.colors.gray500};
+
+          /* An item is a typically something in a list */
+          --px-item-background-color: ${theme.colors.gray800};
+          --px-item-border-color: ${theme.colors.gray600};
 
           --px-spacing-sm: ${theme.spacing.padding4}px;
           --px-spacing-med: ${theme.spacing.padding8}px;

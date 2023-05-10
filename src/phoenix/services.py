@@ -3,6 +3,7 @@ import os
 import signal
 import subprocess
 import sys
+from pathlib import Path
 from typing import List, Optional
 
 import psutil
@@ -17,7 +18,7 @@ class Service:
     All services must define a ``command`` property.
     """
 
-    working_dir = "."
+    working_dir = Path.cwd()
 
     def __init__(self) -> None:
         self.child = self.start()
@@ -55,13 +56,13 @@ class Service:
                 break
         return process
 
+    @property
+    def active(self) -> bool:
+        return self.child.is_running()
+
     def stop(self) -> None:
-        """Gracefully stops the service."""
-        self.child.stdin.close()
-        try:
-            self.child.wait(timeout=5)
-        except psutil.TimeoutExpired:
-            self.child.terminate()
+        """Stops the service."""
+        self.child.terminate()
 
     @staticmethod
     def stop_any() -> None:
@@ -82,13 +83,20 @@ class Service:
 class AppService(Service):
     """Service that controls the phoenix application."""
 
-    working_dir = config.server_dir
+    working_dir = config.SERVER_DIR
 
     # Internal references to the name / directory of the dataset(s)
     __primary_dataset_name: str
     __reference_dataset_name: Optional[str]
 
-    def __init__(self, port: int, primary_dataset_name: str, reference_dataset_name: Optional[str]):
+    def __init__(
+        self,
+        export_path: Path,
+        port: int,
+        primary_dataset_name: str,
+        reference_dataset_name: Optional[str],
+    ):
+        self.export_path = export_path
         self.port = port
         self.__primary_dataset_name = primary_dataset_name
         self.__reference_dataset_name = reference_dataset_name
@@ -99,6 +107,8 @@ class AppService(Service):
         command = [
             sys.executable,
             "main.py",
+            "--export_path",
+            str(self.export_path),
             "--port",
             str(self.port),
             "datasets",

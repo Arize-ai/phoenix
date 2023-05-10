@@ -3,11 +3,11 @@ import { useContextBridge } from "@react-three/drei";
 import { css } from "@emotion/react";
 
 import {
+  ActionTooltip,
   Button,
   Heading,
   Icon,
   InfoOutline,
-  Tooltip,
   TooltipTrigger,
 } from "@arizeai/components";
 import {
@@ -23,11 +23,12 @@ import {
 import { UNKNOWN_COLOR } from "@phoenix/constants/pointCloudConstants";
 import { PointCloudContext, usePointCloudContext } from "@phoenix/contexts";
 import { useTimeSlice } from "@phoenix/contexts/TimeSliceContext";
-import { splitPointIdsByDataset } from "@phoenix/utils/pointCloudUtils";
+import { CanvasMode } from "@phoenix/store";
+import { splitEventIdsByDataset } from "@phoenix/utils/pointCloudUtils";
 
 import { fullTimeFormatter } from "../chart";
 
-import { CanvasMode, CanvasModeRadioGroup } from "./CanvasModeRadioGroup";
+import { CanvasModeRadioGroup } from "./CanvasModeRadioGroup";
 import { CanvasThemeToggle } from "./CanvasThemeToggle";
 import { PointCloudClusters } from "./PointCloudClusters";
 import { PointCloudPoints } from "./PointCloudPoints";
@@ -54,11 +55,15 @@ interface ProjectionProps extends PointCloudProps {
 function PointCloudInfo() {
   const { selectedTimestamp } = useTimeSlice();
   const points = usePointCloudContext((state) => state.points);
+  const hdbscanParameters = usePointCloudContext(
+    (state) => state.hdbscanParameters
+  );
+  const umapParameters = usePointCloudContext((state) => state.umapParameters);
   const [numPrimary, numReference] = useMemo(() => {
-    const { primaryPointIds, referencePointIds } = splitPointIdsByDataset(
-      points.map((point) => point.id)
+    const { primaryEventIds, referenceEventIds } = splitEventIdsByDataset(
+      points.map((point) => point.eventId)
     );
-    return [primaryPointIds.length, referencePointIds.length];
+    return [primaryEventIds.length, referenceEventIds.length];
   }, [points]);
 
   if (!selectedTimestamp) {
@@ -67,19 +72,79 @@ function PointCloudInfo() {
   return (
     <section
       css={css`
-        width: 200px;
+        width: 300px;
+        padding: var(--px-spacing-med);
       `}
     >
-      <Heading level={3} weight="heavy">
-        {fullTimeFormatter(selectedTimestamp)}
+      <dl css={descriptionListCSS}>
+        <div>
+          <dt>Timestamp</dt>
+          <dd>{fullTimeFormatter(selectedTimestamp)}</dd>
+        </div>
+
+        <div>
+          <dt>primary points</dt>
+          <dd>{numPrimary}</dd>
+        </div>
+        {numReference > 0 ? (
+          <div>
+            <dt>reference points</dt>
+            <dd>{numReference}</dd>
+          </div>
+        ) : null}
+      </dl>
+      <br />
+      <Heading level={4} weight="heavy">
+        Clustering Parameters
       </Heading>
-      <div>{`${numPrimary} primary points`}</div>
-      {numReference > 0 ? (
-        <div>{`${numReference} reference points`}</div>
-      ) : null}
+      <dl css={descriptionListCSS}>
+        <div>
+          <dt>min cluster size</dt>
+          <dd>{hdbscanParameters.minClusterSize}</dd>
+        </div>
+        <div>
+          <dt>cluster min samples</dt>
+          <dd>{hdbscanParameters.clusterMinSamples}</dd>
+        </div>
+        <div>
+          <dt>cluster selection epsilon</dt>
+          <dd>{hdbscanParameters.clusterSelectionEpsilon}</dd>
+        </div>
+      </dl>
+      <br />
+      <Heading level={4} weight="heavy">
+        UMAP Parameters
+      </Heading>
+      <dl css={descriptionListCSS}>
+        <div>
+          <dt>min distance</dt>
+          <dd>{umapParameters.minDist}</dd>
+        </div>
+        <div>
+          <dt>n neighbors</dt>
+          <dd>{umapParameters.nNeighbors}</dd>
+        </div>
+        <div>
+          <dt>n samples per dataset</dt>
+          <dd>{umapParameters.nSamples}</dd>
+        </div>
+      </dl>
     </section>
   );
 }
+
+const descriptionListCSS = css`
+  margin: 0;
+  padding: 0;
+  div {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--px-spacing-sm);
+  }
+`;
+
 /**
  * Displays the tools available on the point cloud
  * E.g. move vs select
@@ -131,9 +196,9 @@ function CanvasInfo() {
           icon={<Icon svg={<InfoOutline />} />}
           aria-label="Information bout the point-cloud display"
         />
-        <Tooltip>
+        <ActionTooltip title={"Point Cloud Summary"}>
           <PointCloudInfo />
-        </Tooltip>
+        </ActionTooltip>
       </TooltipTrigger>
     </div>
   );
@@ -165,7 +230,8 @@ function CanvasWrap({ children }: { children: ReactNode }) {
 }
 
 export function PointCloud(props: PointCloudProps) {
-  const [canvasMode, setCanvasMode] = useState<CanvasMode>(CanvasMode.move);
+  const canvasMode = usePointCloudContext((state) => state.canvasMode);
+  const setCanvasMode = usePointCloudContext((state) => state.setCanvasMode);
 
   return (
     <CanvasWrap>
@@ -179,11 +245,11 @@ export function PointCloud(props: PointCloudProps) {
 function Projection(props: ProjectionProps) {
   const { primaryData, referenceData, clusters, canvasMode } = props;
 
-  const selectedPointIds = usePointCloudContext(
-    (state) => state.selectedPointIds
+  const setSelectedEventIds = usePointCloudContext(
+    (state) => state.setSelectedEventIds
   );
-  const setSelectedPointIds = usePointCloudContext(
-    (state) => state.setSelectedPointIds
+  const highlightedClusterId = usePointCloudContext(
+    (state) => state.highlightedClusterId
   );
   const selectedClusterId = usePointCloudContext(
     (state) => state.selectedClusterId
@@ -198,6 +264,9 @@ function Projection(props: ProjectionProps) {
     (state) => state.pointGroupVisibility
   );
   const canvasTheme = usePointCloudContext((state) => state.canvasTheme);
+  const datasetVisibility = usePointCloudContext(
+    (state) => state.datasetVisibility
+  );
 
   // AutoRotate the canvas on initial load
   const [autoRotate, setAutoRotate] = useState<boolean>(true);
@@ -219,35 +288,50 @@ function Projection(props: ProjectionProps) {
 
   const isMoveMode = canvasMode === CanvasMode.move;
 
-  const pointIdToGroup = usePointCloudContext((state) => state.pointIdToGroup);
+  const eventIdToGroup = usePointCloudContext((state) => state.eventIdToGroup);
 
   // Color the points by their corresponding group
   const colorFn = useCallback(
     (point: PointBaseProps) => {
       // Always fallback to unknown
-      const group = pointIdToGroup[point.metaData.id] || "unknown";
+      const group = eventIdToGroup[point.metaData.eventId] || "unknown";
       return pointGroupColors[group] || UNKNOWN_COLOR;
     },
-    [pointGroupColors, pointIdToGroup]
+    [pointGroupColors, eventIdToGroup]
   );
 
   // Filter the points by the group visibility
   const filteredPrimaryData = useMemo(() => {
     return primaryData.filter((point) => {
-      const group = pointIdToGroup[point.metaData.id];
+      const group = eventIdToGroup[point.metaData.eventId];
       return pointGroupVisibility[group];
     });
-  }, [primaryData, pointIdToGroup, pointGroupVisibility]);
+  }, [primaryData, eventIdToGroup, pointGroupVisibility]);
 
   const filteredReferenceData = useMemo(() => {
     if (!referenceData) {
       return null;
     }
     return referenceData.filter((point) => {
-      const group = pointIdToGroup[point.metaData.id];
+      const group = eventIdToGroup[point.metaData.eventId];
       return pointGroupVisibility[group];
     });
-  }, [referenceData, pointIdToGroup, pointGroupVisibility]);
+  }, [referenceData, eventIdToGroup, pointGroupVisibility]);
+
+  // Keep track of all the points in the view, minus the ones filtered out by visibility controls
+  const allVisiblePoints = useMemo(() => {
+    const visiblePrimaryPoints = datasetVisibility.primary
+      ? filteredPrimaryData
+      : [];
+    const visibleReferencePoints = datasetVisibility.reference
+      ? filteredReferenceData
+      : [];
+    const visiblePoints = [
+      ...visiblePrimaryPoints,
+      ...(visibleReferencePoints || []),
+    ];
+    return visiblePoints;
+  }, [filteredPrimaryData, filteredReferenceData, datasetVisibility]);
 
   // Context cannot be passed through multiple reconcilers. Bridge the context
   const ContextBridge = useContextBridge(PointCloudContext);
@@ -271,9 +355,11 @@ function Projection(props: ProjectionProps) {
           boundsZoomPaddingFactor={BOUNDS_3D_ZOOM_PADDING_FACTOR}
         >
           <LassoSelect
-            points={allPoints}
+            points={allVisiblePoints}
             onChange={(selection) => {
-              setSelectedPointIds(new Set(selection.map((s) => s.metaData.id)));
+              setSelectedEventIds(
+                new Set(selection.map((s) => s.metaData.eventId))
+              );
               setSelectedClusterId(null);
             }}
             enabled={canvasMode === CanvasMode.select}
@@ -286,13 +372,13 @@ function Projection(props: ProjectionProps) {
           <PointCloudPoints
             primaryData={filteredPrimaryData}
             referenceData={filteredReferenceData}
-            selectedIds={selectedPointIds}
             color={colorFn}
             radius={radius}
           />
           <PointCloudClusters
             clusters={clusters}
             points={allPoints}
+            highlightedClusterId={highlightedClusterId}
             selectedClusterId={selectedClusterId}
             radius={clusterPointRadius}
           />

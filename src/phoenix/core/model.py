@@ -1,11 +1,13 @@
-from typing import Dict, List, Optional, cast
+from typing import BinaryIO, Dict, Iterable, List, Mapping, Optional, cast
 
 import numpy.typing as npt
-from pandas.api.types import is_numeric_dtype, is_object_dtype
+import pandas as pd
+from pandas.api.types import is_bool_dtype, is_numeric_dtype
 
 from phoenix.datasets import Dataset
 from phoenix.datasets.schema import EmbeddingColumnNames, EmbeddingFeatures
 
+from ..datasets.dataset import DatasetRole
 from .dimension import Dimension
 from .dimension_data_type import DimensionDataType
 from .dimension_type import DimensionType
@@ -20,6 +22,10 @@ class Model:
         self.__embedding_dimensions: List[EmbeddingDimension] = _get_embedding_dimensions(
             self.primary_dataset, self.reference_dataset
         )
+        self.__datasets = {
+            DatasetRole.PRIMARY: primary_dataset,
+            DatasetRole.REFERENCE: reference_dataset,
+        }
 
     @property
     def primary_dataset(self) -> Dataset:
@@ -81,9 +87,9 @@ class Model:
                         data=(
                             lambda name: (
                                 lambda: (
-                                    [primary_dataset.dataframe.loc[:, name]]
+                                    [primary_dataset.dataframe[name]]
                                     + (
-                                        [reference_dataset.dataframe.loc[:, name]]
+                                        [reference_dataset.dataframe[name]]
                                         if reference_dataset is not None
                                         else []
                                     )
@@ -100,31 +106,77 @@ class Model:
         dimension_pandas_dtype = cast(
             npt.DTypeLike, self.primary_dataset.dataframe[dimension_name].dtype
         )
-        if is_numeric_dtype(dimension_pandas_dtype):
+        if is_numeric_dtype(dimension_pandas_dtype) and not is_bool_dtype(dimension_pandas_dtype):
             return DimensionDataType.NUMERIC
-        elif is_object_dtype(dimension_pandas_dtype):
+        else:
             return DimensionDataType.CATEGORICAL
-        raise ValueError("Unrecognized dimension type")
+
+    def export_events_as_parquet_file(
+        self,
+        rows: Mapping[DatasetRole, Iterable[int]],
+        parquet_file: BinaryIO,
+    ) -> None:
+        """
+        Given row numbers, exports dataframe subset into parquet file.
+        Duplicate rows are removed.
+
+        Parameters
+        ----------
+        rows: Mapping[DatasetRole, Iterable[int]]
+            mapping of dataset type to list of row numbers
+        parquet_file: file handle
+            output parquet file handle
+        """
+        pd.concat(
+            dataset.get_events(rows.get(dataset_role, ()))
+            for dataset_role, dataset in self.__datasets.items()
+            if dataset is not None
+        ).to_parquet(
+            parquet_file,
+            index=False,
+            allow_truncated_timestamps=True,
+            coerce_timestamps="ms",
+        )
 
 
 def _get_embedding_dimensions(
     primary_dataset: Dataset, reference_dataset: Optional[Dataset]
 ) -> List[EmbeddingDimension]:
     embedding_dimensions: List[EmbeddingDimension] = []
-    embedding_features: Dict[str, EmbeddingColumnNames] = {}
+    embedding_features: EmbeddingFeatures = {}
 
     primary_embedding_features: Optional[
         EmbeddingFeatures
     ] = primary_dataset.schema.embedding_feature_column_names
-
     if primary_embedding_features is not None:
         embedding_features.update(primary_embedding_features)
+    primary_prompt_column_names: Optional[
+        EmbeddingColumnNames
+    ] = primary_dataset.schema.prompt_column_names
+    if primary_prompt_column_names is not None:
+        embedding_features.update({"prompt": primary_prompt_column_names})
+    primary_response_column_names: Optional[
+        EmbeddingColumnNames
+    ] = primary_dataset.schema.response_column_names
+    if primary_response_column_names is not None:
+        embedding_features.update({"response": primary_response_column_names})
+
     if reference_dataset is not None:
         reference_embedding_features: Optional[
-            Dict[str, EmbeddingColumnNames]
+            EmbeddingFeatures
         ] = reference_dataset.schema.embedding_feature_column_names
         if reference_embedding_features is not None:
             embedding_features.update(reference_embedding_features)
+        reference_prompt_column_names: Optional[
+            EmbeddingColumnNames
+        ] = reference_dataset.schema.prompt_column_names
+        if reference_prompt_column_names is not None:
+            embedding_features.update({"prompt": reference_prompt_column_names})
+        reference_response_column_names: Optional[
+            EmbeddingColumnNames
+        ] = reference_dataset.schema.response_column_names
+        if reference_response_column_names is not None:
+            embedding_features.update({"response": reference_response_column_names})
 
     for embedding_feature, embedding_column_names in embedding_features.items():
         embedding_dimensions.append(EmbeddingDimension(name=embedding_feature))
@@ -179,9 +231,11 @@ def _get_column_vector_length(dataset: Dataset, embedding_vector_column_name: st
     column = dataset.dataframe[embedding_vector_column_name]
 
     for row in column:
-        # None is a valid entry for a row and represents the fact that the embedding feature
-        # is missing/empty. Skip until a row is found with a non-empty vector
-        if row is None:
+        # None/NaN is a valid entry for a row and represents the fact that the
+        # embedding feature is missing/empty. Skip until a row is found with a
+        # non-empty vector. Check the presence of dunder method __len__ to skip
+        # scalar values, e.g. None/NaN.
+        if not hasattr(row, "__len__"):
             continue
         return len(row)
 

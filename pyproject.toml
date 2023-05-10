@@ -4,7 +4,7 @@ description = "ML Observability in your notebook"
 readme = "README.md"
 requires-python = ">=3.8, <3.11"
 license = "Elastic-2.0"
-license-files = { paths = ["LICENSE"] }
+license-files = { paths = ["LICENSE", "IP_NOTICE"] }
 keywords = [
   "Observability",
   "Monitoring",
@@ -14,7 +14,6 @@ authors = [
   { name = "Arize AI", email = "phoenix-devs@arize.com" },
 ]
 classifiers = [
-  "Development Status :: 1 - Planning",
   "Programming Language :: Python",
   "Programming Language :: Python :: 3.8",
   "Programming Language :: Python :: 3.9",
@@ -32,6 +31,8 @@ dependencies = [
   "pyarrow",
   "typing_extensions",
   "scipy",
+  "portpicker",
+  "wrapt",
 ]
 dynamic = ["version"]
 
@@ -46,15 +47,16 @@ dev = [
   "pytest-lazy-fixture",
   "strawberry-graphql[debug-server]==0.155.3",
   "pre-commit",
+  "arize[AutoEmbeddings, LLM_Evaluation]",
 ]
 
 [project.urls]
-Documentation = "https://github.com/Arize-ai/phoenix#readme"
+Documentation = "https://docs.arize.com/phoenix/"
 Issues = "https://github.com/Arize-ai/phoenix/issues"
 Source = "https://github.com/Arize-ai/phoenix"
 
 [tool.hatch.version]
-path = "src/phoenix/__about__.py"
+path = "src/phoenix/__init__.py"
 
 [build-system]
 requires = ["hatchling"]
@@ -71,6 +73,7 @@ only-packages = true
 dependencies = ["hatch-jupyter-builder"]
 build-function = "hatch_jupyter_builder.npm_builder"
 ensured-targets = ["src/phoenix/server/static/index.js", "src/phoenix/server/static/index.html"]
+skip-if-exists = ["src/phoenix/server/static/index.js", "src/phoenix/server/static/index.html"]
 
 [tool.hatch.build.hooks.jupyter-builder.build-kwargs]
 path = "app"
@@ -84,6 +87,7 @@ dependencies = [
   "pytest",
   "pytest-cov",
   "pytest-lazy-fixture",
+  "arize",
 ]
 
 [tool.hatch.envs.type]
@@ -100,6 +104,12 @@ dependencies = [
   "black~=23.1.0",
   "black[jupyter]~=23.1.0",
   "ruff~=0.0.254",
+]
+
+[tool.hatch.envs.notebooks]
+detached = true
+dependencies = [
+  "jupyter",
 ]
 
 [tool.hatch.envs.docs]
@@ -129,7 +139,6 @@ testpaths = [
 branch = true
 parallel = true
 omit = [
-  "src/phoenix/__about__.py",
   "**/__init__.py",
 ]
 
@@ -156,6 +165,11 @@ check = [
 fix = [
   "black .",
   "ruff --fix .",
+]
+
+[tool.hatch.envs.notebooks.scripts]
+clean = [
+  "jupyter nbconvert --ClearOutputPreprocessor.enabled=True --ClearMetadataPreprocessor.enabled=True --inplace tutorials/*.ipynb",
 ]
 
 [tool.hatch.envs.publish]
@@ -189,7 +203,6 @@ build = 'strawberry export-schema phoenix.server.api.schema:schema > app/schema.
 
 [tool.interrogate]
 fail-under = 0
-exclude=["src/phoenix/__about__.py"]
 # generate-badge = "badges/"
 omit-covered-files = true
 ignore-init-method = true
@@ -221,6 +234,9 @@ module = [
   "umap",
   "scipy.*",
   "sklearn.*",
+  "arize.*",
+  "portpicker",
+  "wrapt",
 ]
 ignore_missing_imports = true
 

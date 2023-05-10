@@ -1,20 +1,27 @@
 import logging
-import os
 import uuid
 from copy import deepcopy
 from dataclasses import fields, replace
 from datetime import datetime, timedelta
 from enum import Enum
 from functools import cached_property
-from typing import Any, Dict, List, Optional, Set, Tuple, Union, cast
+from typing import Any, Dict, Iterable, List, Optional, Set, Tuple, Union, cast
 
+import pandas as pd
+import pytz
 from pandas import DataFrame, Series, Timestamp, read_parquet, to_datetime
-from pandas.api.types import is_numeric_dtype
+from pandas.api.types import (
+    is_datetime64_any_dtype,
+    is_datetime64tz_dtype,
+    is_numeric_dtype,
+)
+from typing_extensions import TypeAlias
 
-from phoenix.config import dataset_dir
+from phoenix.config import DATASET_DIR, GENERATED_DATASET_NAME_PREFIX
 
 from . import errors as err
 from .schema import (
+    LLM_SCHEMA_FIELD_NAMES,
     MULTI_COLUMN_SCHEMA_FIELD_NAMES,
     SINGLE_COLUMN_SCHEMA_FIELD_NAMES,
     EmbeddingColumnNames,
@@ -26,6 +33,9 @@ from .schema import (
 from .validation import validate_dataset_inputs
 
 logger = logging.getLogger(__name__)
+
+# A schema like object. Not recommended to use this directly
+SchemaLike: TypeAlias = Any
 
 
 class Dataset:
@@ -61,10 +71,12 @@ class Dataset:
     def __init__(
         self,
         dataframe: DataFrame,
-        schema: Schema,
+        schema: Union[Schema, SchemaLike],
         name: Optional[str] = None,
-        persist_to_disc: bool = True,
     ):
+        # allow for schema like objects
+        if not isinstance(schema, Schema):
+            schema = _get_schema_from_unknown_schema_param(schema)
         errors = validate_dataset_inputs(
             dataframe=dataframe,
             schema=schema,
@@ -74,20 +86,15 @@ class Dataset:
                 logger.error(e)
             raise err.DatasetError(errors)
         dataframe, schema = _parse_dataframe_and_schema(dataframe, schema)
+        dataframe, schema = _normalize_timestamps(
+            dataframe, schema, default_timestamp=Timestamp.utcnow()
+        )
         dataframe = _sort_dataframe_rows_by_timestamp(dataframe, schema)
         self.__dataframe: DataFrame = dataframe
         self.__schema: Schema = schema
-        self.__name: str = name if name is not None else f"""dataset_{str(uuid.uuid4())}"""
-        self.__directory: str = os.path.join(dataset_dir, self.name)
-
-        # Sync the dataset to disc so that the server can pick up the data
-        if persist_to_disc:
-            self.to_disc()
-        else:
-            # Assume that the dataset is already persisted to disc
-            self._is_persisted: bool = True
-
-        self.to_disc()
+        self.__name: str = (
+            name if name is not None else f"{GENERATED_DATASET_NAME_PREFIX}{str(uuid.uuid4())}"
+        )
         logger.info(f"""Dataset: {self.__name} initialized""")
 
     def __repr__(self) -> str:
@@ -98,20 +105,21 @@ class Dataset:
         """Returns the datetime of the earliest inference in the dataset"""
         timestamp_col_name: str = cast(str, self.schema.timestamp_column_name)
         start_datetime: datetime = self.__dataframe[timestamp_col_name].min()
-        return start_datetime
+        return start_datetime.replace(second=0, microsecond=0)
 
     @cached_property
     def end_time(self) -> datetime:
         """
         Returns the datetime of the latest inference in the dataset.
-        end_datetime equals max(timestamp) + 1 microsecond, so that it can be
-        used as part of a right-open interval.
+        end_datetime equals max(timestamp) + 1 minute, so that it can be
+        used as part of a right-open interval. Note that one minute is the
+        smallest interval that is currently allowed.
         """
         timestamp_col_name: str = cast(str, self.schema.timestamp_column_name)
         end_datetime: datetime = self.__dataframe[timestamp_col_name].max() + timedelta(
-            microseconds=1,
-        )  # adding a microsecond, so it can be used as part of a right open interval
-        return end_datetime
+            minutes=1,
+        )  # adding a minute, because it's the smallest interval allowed
+        return end_datetime.replace(second=0, microsecond=0)
 
     @property
     def dataframe(self) -> DataFrame:
@@ -124,15 +132,6 @@ class Dataset:
     @property
     def name(self) -> str:
         return self.__name
-
-    @property
-    def is_persisted(self) -> bool:
-        return self._is_persisted
-
-    @property
-    def directory(self) -> str:
-        """The directory under which the dataset metadata is stored"""
-        return self.__directory
 
     def head(self, num_rows: Optional[int] = 5) -> DataFrame:
         num_rows = 5 if num_rows is None else num_rows
@@ -179,15 +178,36 @@ class Dataset:
     def _get_embedding_feature_column_names(
         self, embedding_feature_name: str
     ) -> EmbeddingColumnNames:
-        if self.schema.embedding_feature_column_names is None:
-            raise err.SchemaError(err.MissingField("embedding_feature_column_names"))
-        embedding_feature_column_names = self.schema.embedding_feature_column_names
-        if (
-            embedding_feature_name not in embedding_feature_column_names
-            or embedding_feature_column_names[embedding_feature_name] is None
-        ):
-            raise err.SchemaError(err.MissingEmbeddingFeatureColumnNames(embedding_feature_name))
-        return embedding_feature_column_names[embedding_feature_name]
+        if embedding_feature_name == "prompt":
+            if self.schema.prompt_column_names is None:
+                raise err.SchemaError(err.MissingField("prompt_column_names"))
+            return self._get_prompt_column_names()
+        elif embedding_feature_name == "response":
+            if self.schema.response_column_names is None:
+                raise err.SchemaError(err.MissingField("response_column_names"))
+            return self._get_response_column_names()
+        else:
+            if self.schema.embedding_feature_column_names is None:
+                raise err.SchemaError(err.MissingField("embedding_feature_column_names"))
+            embedding_feature_column_names = self.schema.embedding_feature_column_names
+            if (
+                embedding_feature_name not in embedding_feature_column_names
+                or embedding_feature_column_names[embedding_feature_name] is None
+            ):
+                raise err.SchemaError(
+                    err.MissingEmbeddingFeatureColumnNames(embedding_feature_name)
+                )
+            return embedding_feature_column_names[embedding_feature_name]
+
+    def _get_prompt_column_names(self) -> EmbeddingColumnNames:
+        if self.schema.prompt_column_names is None:
+            raise err.SchemaError(err.MissingField("prompt_column_names"))
+        return self.schema.prompt_column_names
+
+    def _get_response_column_names(self) -> EmbeddingColumnNames:
+        if self.schema.response_column_names is None:
+            raise err.SchemaError(err.MissingField("response_column_names"))
+        return self.schema.response_column_names
 
     def get_timestamp_column(self) -> "Series[Any]":
         timestamp_column_name = self.schema.timestamp_column_name
@@ -229,37 +249,41 @@ class Dataset:
     @classmethod
     def from_name(cls, name: str) -> "Dataset":
         """Retrieves a dataset by name from the file system"""
-        directory = os.path.join(dataset_dir, name)
-        df = read_parquet(os.path.join(directory, cls._data_file_name))
-        with open(os.path.join(directory, cls._schema_file_name)) as schema_file:
+        directory = DATASET_DIR / name
+        df = read_parquet(directory / cls._data_file_name)
+        with open(directory / cls._schema_file_name) as schema_file:
             schema_json = schema_file.read()
         schema = Schema.from_json(schema_json)
-        return cls(df, schema, name, persist_to_disc=False)
+        return cls(df, schema, name)
 
     def to_disc(self) -> None:
         """writes the data and schema to disc"""
-
-        if self._is_persisted:
-            logger.info("Dataset already persisted")
-            return
-
-        directory = self.directory
-        if not os.path.isdir(directory):
-            os.makedirs(directory)
-
+        directory = DATASET_DIR / self.name
+        directory.mkdir(parents=True, exist_ok=True)
         self.dataframe.to_parquet(
-            os.path.join(directory, self._data_file_name),
+            directory / self._data_file_name,
             allow_truncated_timestamps=True,
             coerce_timestamps="ms",
         )
-
         schema_json_data = self.schema.to_json()
-        with open(os.path.join(directory, self._schema_file_name), "w+") as schema_file:
+        with open(directory / self._schema_file_name, "w+") as schema_file:
             schema_file.write(schema_json_data)
 
-        # set the persisted flag so that we don't have to perform this operation again
-        self._is_persisted = True
-        logger.info(f"Dataset info written to '{directory}'")
+    def get_events(self, rows: Iterable[int]) -> pd.DataFrame:
+        """
+        Given row numbers, return new data frame subset containing those rows.
+
+        Parameters
+        ----------
+        rows: Iterable[int]
+            row numbers
+
+        Returns
+        -------
+        dataframe: pandas.DataFrame
+            containing the subset of rows specified in the input
+        """
+        return self.__dataframe.iloc[sorted(set(rows))]
 
 
 def _parse_dataframe_and_schema(dataframe: DataFrame, schema: Schema) -> Tuple[DataFrame, Schema]:
@@ -268,16 +292,15 @@ def _parse_dataframe_and_schema(dataframe: DataFrame, schema: Schema) -> Tuple[D
     they are not explicitly provided, and removes excluded column names from
     both dataframe and schema.
 
-    Removes column names in `schema.excludes` from the input dataframe and
-    schema. To remove an embedding feature and all associated columns, add the
-    name of the embedding feature to `schema.excludes` rather than the
-    associated column names. If `schema.feature_column_names` is `None`,
-    automatically discovers features by adding all column names present in the
-    dataframe but not included in any other schema fields.
+    Removes column names in `schema.excluded_column_names` from the input dataframe and schema. To
+    remove an embedding feature and all associated columns, add the name of the embedding feature to
+    `schema.excluded_column_names` rather than the associated column names. If
+    `schema.feature_column_names` is `None`, automatically discovers features by adding all column
+    names present in the dataframe but not included in any other schema fields.
     """
 
     unseen_excluded_column_names: Set[str] = (
-        set(schema.excludes) if schema.excludes is not None else set()
+        set(schema.excluded_column_names) if schema.excluded_column_names is not None else set()
     )
     unseen_column_names: Set[str] = set(dataframe.columns.to_list())
     column_name_to_include: Dict[str, bool] = {}
@@ -311,6 +334,15 @@ def _parse_dataframe_and_schema(dataframe: DataFrame, schema: Schema) -> Tuple[D
             column_name_to_include,
             unseen_column_names,
         )
+
+    for llm_schema_field_name in LLM_SCHEMA_FIELD_NAMES:
+        embedding_column_name_mapping = getattr(schema, llm_schema_field_name)
+        if embedding_column_name_mapping is not None:
+            _check_embedding_column_names_for_excluded_columns(
+                embedding_column_name_mapping,
+                column_name_to_include,
+                unseen_column_names,
+            )
 
     if not schema.feature_column_names and unseen_column_names:
         _discover_feature_columns(
@@ -428,6 +460,21 @@ def _check_embedding_features_schema_field_for_excluded_columns(
     )
 
 
+def _check_embedding_column_names_for_excluded_columns(
+    embedding_column_name_mapping: EmbeddingColumnNames,
+    column_name_to_include: Dict[str, bool],
+    unseen_column_names: Set[str],
+) -> None:
+    """
+    Check embedding column names for excluded column names.
+    """
+    for embedding_field in fields(embedding_column_name_mapping):
+        column_name: Optional[str] = getattr(embedding_column_name_mapping, embedding_field.name)
+        if column_name is not None:
+            column_name_to_include[column_name] = True
+            unseen_column_names.discard(column_name)
+
+
 def _discover_feature_columns(
     dataframe: DataFrame,
     unseen_excluded_column_names: Set[str],
@@ -436,11 +483,12 @@ def _discover_feature_columns(
     unseen_column_names: Set[str],
 ) -> None:
     """
-    Adds unseen and unexcluded columns as features.
+    Adds unseen and un-excluded columns as features, with the exception of "prediction_id"
+    which is reserved
     """
     discovered_feature_column_names = []
     for column_name in unseen_column_names:
-        if column_name not in unseen_excluded_column_names:
+        if column_name not in unseen_excluded_column_names and column_name != "prediction_id":
             discovered_feature_column_names.append(column_name)
             column_name_to_include[column_name] = True
         else:
@@ -476,31 +524,15 @@ def _create_and_normalize_dataframe_and_schema(
         if column_name_to_include.get(str(column_name), False):
             included_column_names.append(str(column_name))
     parsed_dataframe = dataframe[included_column_names].copy()
-    parsed_schema = replace(schema, excludes=None, **schema_patch)
-
-    ts_col_name = parsed_schema.timestamp_column_name
-    if ts_col_name is None:
-        now = Timestamp.utcnow()
-        parsed_schema = replace(parsed_schema, timestamp_column_name="timestamp")
-        parsed_dataframe["timestamp"] = now
-    elif is_numeric_dtype(dataframe.dtypes[ts_col_name]):
-        parsed_dataframe[ts_col_name] = parsed_dataframe[ts_col_name].apply(
-            lambda x: to_datetime(x, unit="s", utc=True)
-        )
-
-    pred_col_name = parsed_schema.prediction_id_column_name
-    if pred_col_name is None:
+    parsed_schema = replace(schema, excluded_column_names=None, **schema_patch)
+    pred_id_col_name = parsed_schema.prediction_id_column_name
+    if pred_id_col_name is None:
         parsed_schema = replace(parsed_schema, prediction_id_column_name="prediction_id")
-        parsed_dataframe["prediction_id"] = parsed_dataframe.apply(lambda _: str(uuid.uuid4()))
-    elif is_numeric_dtype(parsed_dataframe.dtypes[pred_col_name]):
-        parsed_dataframe[pred_col_name] = parsed_dataframe[pred_col_name].astype(str)
+        parsed_dataframe["prediction_id"] = _add_prediction_id(len(parsed_dataframe))
+    elif is_numeric_dtype(parsed_dataframe.dtypes[pred_id_col_name]):
+        parsed_dataframe[pred_id_col_name] = parsed_dataframe[pred_id_col_name].astype(str)
 
     return parsed_dataframe, parsed_schema
-
-
-class DatasetType(Enum):
-    PRIMARY = 0
-    REFERENCE = 1
 
 
 def _sort_dataframe_rows_by_timestamp(dataframe: DataFrame, schema: Schema) -> DataFrame:
@@ -513,3 +545,103 @@ def _sort_dataframe_rows_by_timestamp(dataframe: DataFrame, schema: Schema) -> D
     dataframe.set_index(timestamp_column_name, drop=False, inplace=True)
     dataframe.sort_index(inplace=True)
     return dataframe
+
+
+def _normalize_timestamps(
+    dataframe: DataFrame,
+    schema: Schema,
+    default_timestamp: Timestamp,
+) -> Tuple[DataFrame, Schema]:
+    """
+    Ensures that the dataframe has a timestamp column and the schema has a timestamp field. If the
+    input dataframe contains a Unix or datetime timestamp column, it is converted to UTC timestamps.
+    If the input dataframe and schema do not contain timestamps, the default timestamp is used.
+    """
+    timestamp_column: Series[Timestamp]
+    if (timestamp_column_name := schema.timestamp_column_name) is None:
+        timestamp_column_name = "timestamp"
+        schema = replace(schema, timestamp_column_name=timestamp_column_name)
+        timestamp_column = Series([default_timestamp] * len(dataframe))
+    elif is_numeric_dtype(timestamp_column_dtype := dataframe[timestamp_column_name].dtype):
+        timestamp_column = to_datetime(dataframe[timestamp_column_name], unit="s", utc=True)
+    elif is_datetime64tz_dtype(timestamp_column_dtype):
+        timestamp_column = dataframe[timestamp_column_name].dt.tz_convert(pytz.utc)
+    elif is_datetime64_any_dtype(timestamp_column_dtype):
+        timestamp_column = dataframe[timestamp_column_name].dt.tz_localize(pytz.utc)
+    else:
+        raise ValueError(
+            "When provided, input timestamp column must have numeric or datetime dtype, "
+            f"but found {timestamp_column_dtype} instead."
+        )
+    dataframe[timestamp_column_name] = timestamp_column
+    return dataframe, schema
+
+
+def _get_schema_from_unknown_schema_param(schemaLike: SchemaLike) -> Schema:
+    """
+    Compatibility function for converting from arize.utils.types.Schema to phoenix.datasets.Schema
+    """
+    try:
+        from arize.utils.types import (
+            EmbeddingColumnNames as ArizeEmbeddingColumnNames,  # fmt: off type: ignore
+        )
+        from arize.utils.types import Schema as ArizeSchema
+
+        if not isinstance(schemaLike, ArizeSchema):
+            raise ValueError("Unknown schema passed to Dataset. Please pass a phoenix Schema")
+
+        embedding_feature_column_names: Dict[str, EmbeddingColumnNames] = {}
+        if schemaLike.embedding_feature_column_names is not None:
+            for (
+                embedding_name,
+                arize_embedding_feature_column_names,
+            ) in schemaLike.embedding_feature_column_names.items():
+                if isinstance(arize_embedding_feature_column_names, ArizeEmbeddingColumnNames):
+                    embedding_feature_column_names[embedding_name] = EmbeddingColumnNames(
+                        vector_column_name=arize_embedding_feature_column_names.vector_column_name,
+                        link_to_data_column_name=arize_embedding_feature_column_names.link_to_data_column_name,
+                        raw_data_column_name=arize_embedding_feature_column_names.data_column_name,
+                    )
+        prompt_column_names: Optional[EmbeddingColumnNames] = None
+        if schemaLike.prompt_column_names is not None and isinstance(
+            schemaLike.prompt_column_names, ArizeEmbeddingColumnNames
+        ):
+            prompt_column_names = EmbeddingColumnNames(
+                vector_column_name=schemaLike.prompt_column_names.vector_column_name,
+                raw_data_column_name=schemaLike.prompt_column_names.data_column_name,
+                link_to_data_column_name=schemaLike.prompt_column_names.link_to_data_column_name,
+            )
+        response_column_names: Optional[EmbeddingColumnNames] = None
+        if schemaLike.response_column_names is not None and isinstance(
+            schemaLike.response_column_names, ArizeEmbeddingColumnNames
+        ):
+            response_column_names = EmbeddingColumnNames(
+                vector_column_name=schemaLike.response_column_names.vector_column_name,
+                raw_data_column_name=schemaLike.response_column_names.data_column_name,
+                link_to_data_column_name=schemaLike.response_column_names.link_to_data_column_name,
+            )
+        return Schema(
+            feature_column_names=schemaLike.feature_column_names,
+            tag_column_names=schemaLike.tag_column_names,
+            prediction_label_column_name=schemaLike.prediction_label_column_name,
+            actual_label_column_name=schemaLike.actual_label_column_name,
+            prediction_id_column_name=schemaLike.prediction_id_column_name,
+            timestamp_column_name=schemaLike.timestamp_column_name,
+            embedding_feature_column_names=embedding_feature_column_names,
+            prompt_column_names=prompt_column_names,
+            response_column_names=response_column_names,
+        )
+    except Exception:
+        raise ValueError(
+            """Unsupported Arize Schema. Please pass a phoenix Schema or update
+            to the latest version of Arize."""
+        )
+
+
+def _add_prediction_id(num_rows: int) -> List[str]:
+    return [str(uuid.uuid4()) for _ in range(num_rows)]
+
+
+class DatasetRole(Enum):
+    PRIMARY = 0
+    REFERENCE = 1

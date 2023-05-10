@@ -1,13 +1,15 @@
 import logging
-import os
+from pathlib import Path
 from typing import Optional, Union
 
 from starlette.applications import Starlette
+from starlette.datastructures import QueryParams
+from starlette.endpoints import HTTPEndpoint
 from starlette.exceptions import HTTPException
 from starlette.middleware import Middleware
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.requests import Request
-from starlette.responses import Response
+from starlette.responses import FileResponse, Response
 from starlette.routing import Mount, Route, WebSocketRoute
 from starlette.staticfiles import StaticFiles
 from starlette.types import Scope
@@ -15,11 +17,10 @@ from starlette.websockets import WebSocket
 from strawberry.asgi import GraphQL
 from strawberry.schema import BaseSchema
 
-from phoenix.core.model import Model
-from phoenix.datasets import Dataset
+from phoenix.config import SERVER_DIR
+from phoenix.core.model_schema import Model
 
 from .api.context import Context
-from .api.loaders import Loaders, create_loaders
 from .api.schema import schema
 
 logger = logging.getLogger(__name__)
@@ -46,7 +47,11 @@ class Static(StaticFiles):
 
 
 class HeadersMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
+    async def dispatch(
+        self,
+        request: Request,
+        call_next: RequestResponseEndpoint,
+    ) -> Response:
         response = await call_next(request)
         response.headers["x-colab-notebook-cache-control"] = "no-cache"
         return response
@@ -54,10 +59,14 @@ class HeadersMiddleware(BaseHTTPMiddleware):
 
 class GraphQLWithContext(GraphQL):
     def __init__(
-        self, schema: BaseSchema, model: Model, loader: Loaders, graphiql: bool = False
+        self,
+        schema: BaseSchema,
+        model: Model,
+        export_path: Path,
+        graphiql: bool = False,
     ) -> None:
         self.model = model
-        self.loader = loader
+        self.export_path = export_path
         super().__init__(schema, graphiql=graphiql)
 
     async def get_context(
@@ -65,22 +74,39 @@ class GraphQLWithContext(GraphQL):
         request: Union[Request, WebSocket],
         response: Optional[Response] = None,
     ) -> Context:
-        return Context(request=request, response=response, model=self.model, loaders=self.loader)
+        return Context(
+            request=request,
+            response=response,
+            model=self.model,
+            export_path=self.export_path,
+        )
+
+
+class Download(HTTPEndpoint):
+    path: Path
+
+    async def get(self, request: Request) -> FileResponse:
+        params = QueryParams(request.query_params)
+        file = self.path / (params.get("filename", "") + ".parquet")
+        if not file.is_file():
+            raise HTTPException(status_code=404)
+        return FileResponse(
+            path=file,
+            filename=file.name,
+            media_type="application/x-octet-stream",
+        )
 
 
 def create_app(
-    primary_dataset_name: str,
-    reference_dataset_name: Optional[str],
+    export_path: Path,
+    model: Model,
     debug: bool = False,
 ) -> Starlette:
-    model = Model(
-        primary_dataset=Dataset.from_name(primary_dataset_name),
-        reference_dataset=Dataset.from_name(reference_dataset_name)
-        if reference_dataset_name is not None
-        else None,
-    )
     graphql = GraphQLWithContext(
-        schema=schema, model=model, loader=create_loaders(model), graphiql=True
+        schema=schema,
+        model=model,
+        export_path=export_path,
+        graphiql=True,
     )
     return Starlette(
         middleware=[
@@ -89,6 +115,14 @@ def create_app(
         debug=debug,
         routes=[
             Route(
+                "/exports",
+                type(
+                    "DownloadExports",
+                    (Download,),
+                    {"path": export_path},
+                ),
+            ),
+            Route(
                 "/graphql",
                 graphql,
             ),
@@ -96,10 +130,7 @@ def create_app(
             Mount(
                 "/",
                 app=Static(
-                    directory=os.path.join(
-                        os.path.dirname(__file__),
-                        "static",
-                    ),
+                    directory=SERVER_DIR / "static",
                     html=True,
                 ),
                 name="static",

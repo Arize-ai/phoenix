@@ -10,9 +10,11 @@ import {
   TriggerWrap,
 } from "@arizeai/components";
 
+import { useDatasets } from "@phoenix/contexts";
+
 const timeFormatter = timeFormat("%x %X");
 type ReferenceDatasetTimeRangeProps = {
-  datasetType: DatasetType;
+  datasetRole: DatasetRole;
   /**
    * The bookend times of the dataset
    */
@@ -22,6 +24,9 @@ type ReferenceDatasetTimeRangeProps = {
 export function ReferenceDatasetTimeRange({
   timeRange,
 }: ReferenceDatasetTimeRangeProps) {
+  const { referenceDataset } = useDatasets();
+  const name = referenceDataset?.name ?? "reference";
+  const nameAbbr = name.slice(0, 10);
   return (
     <div
       css={css`
@@ -39,7 +44,7 @@ export function ReferenceDatasetTimeRange({
               value={`${timeFormatter(timeRange.start)} - ${timeFormatter(
                 timeRange.end
               )}`}
-              addonBefore={"reference"}
+              addonBefore={nameAbbr}
             />
           </TriggerWrap>
           <Tooltip>The static time range of the reference dataset</Tooltip>

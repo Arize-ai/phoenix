@@ -1,8 +1,15 @@
 import React, { useMemo } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
-import { Column } from "react-table";
+import { CellProps, Column } from "react-table";
 
-import { Table } from "@phoenix/components/table";
+import {
+  FloatCell,
+  IntCell,
+  PercentCell,
+  Table,
+} from "@phoenix/components/table";
+
+import { Link } from "../Link";
 
 import { ModelSchemaTable_dimensions$key } from "./__generated__/ModelSchemaTable_dimensions.graphql";
 
@@ -18,21 +25,42 @@ export function ModelSchemaTable(props: ModelSchemaTableProps) {
       @argumentDefinitions(
         count: { type: "Int", defaultValue: 50 }
         cursor: { type: "String", defaultValue: null }
+        startTime: { type: "DateTime!" }
+        endTime: { type: "DateTime!" }
       ) {
         model {
           dimensions(first: $count, after: $cursor)
             @connection(key: "ModelSchemaTable_dimensions") {
             edges {
               dimension: node {
+                id
                 name
                 type
                 dataType
-                cardinality: dataQualityMetric(metric: cardinality)
-                percentEmpty: dataQualityMetric(metric: percentEmpty)
-                min: dataQualityMetric(metric: min)
-                mean: dataQualityMetric(metric: mean)
-                max: dataQualityMetric(metric: max)
-                psi: driftMetric(metric: psi)
+                cardinality: dataQualityMetric(
+                  metric: cardinality
+                  timeRange: { start: $startTime, end: $endTime }
+                )
+                percentEmpty: dataQualityMetric(
+                  metric: percentEmpty
+                  timeRange: { start: $startTime, end: $endTime }
+                )
+                min: dataQualityMetric(
+                  metric: min
+                  timeRange: { start: $startTime, end: $endTime }
+                )
+                mean: dataQualityMetric(
+                  metric: mean
+                  timeRange: { start: $startTime, end: $endTime }
+                )
+                max: dataQualityMetric(
+                  metric: max
+                  timeRange: { start: $startTime, end: $endTime }
+                )
+                psi: driftMetric(
+                  metric: psi
+                  timeRange: { start: $startTime, end: $endTime }
+                )
               }
             }
           }
@@ -54,10 +82,17 @@ export function ModelSchemaTable(props: ModelSchemaTableProps) {
 
   // Declare the columns
   const columns = React.useMemo(() => {
-    const cols: Column<typeof tableData[number]>[] = [
+    const cols: Column<(typeof tableData)[number]>[] = [
       {
         Header: "name",
         accessor: "name",
+        Cell: (props: CellProps<(typeof tableData)[number]>) => {
+          return (
+            <Link to={`/dimensions/${props.row.original.id}`}>
+              {props.value}
+            </Link>
+          );
+        },
       },
       {
         Header: "type",
@@ -70,26 +105,32 @@ export function ModelSchemaTable(props: ModelSchemaTableProps) {
       {
         Header: "cardinality",
         accessor: "cardinality",
+        Cell: IntCell,
       },
       {
         Header: "% empty",
         accessor: "percentEmpty",
+        Cell: PercentCell,
       },
       {
         Header: "min",
         accessor: "min",
+        Cell: FloatCell,
       },
       {
         Header: "mean",
         accessor: "mean",
+        Cell: FloatCell,
       },
       {
         Header: "max",
         accessor: "max",
+        Cell: FloatCell,
       },
       {
-        Header: "psi",
+        Header: "PSI",
         accessor: "psi",
+        Cell: FloatCell,
       },
     ];
     return cols;

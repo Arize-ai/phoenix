@@ -7,6 +7,7 @@ on:
         paths:
             - "src/**"
             - "tests/**"
+            - "tutorials/**"
             - "pyproject.toml"
     # Allows you to run this workflow manually from the Actions tab
     workflow_dispatch:
@@ -42,6 +43,10 @@ jobs:
             - name: Gql codegen
               run: |
                   hatch run gql:build
+                  git diff --exit-code
+            - name: Check notebooks have cleaned output and metadata
+              run: |
+                  hatch run notebooks:clean
                   git diff --exit-code
 
     test:

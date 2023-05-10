@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<8ff06300b7ab497c3e9147f837c24fe7>>
+ * @generated SignedSource<<4cfb38c9d7c2531ad5679566acb8a8ad>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -35,26 +35,61 @@ v1 = {
 },
 v2 = [
   {
+    "kind": "Variable",
+    "name": "endTime",
+    "variableName": "endTime"
+  },
+  {
+    "kind": "Variable",
+    "name": "startTime",
+    "variableName": "startTime"
+  }
+],
+v3 = [
+  {
     "kind": "Literal",
     "name": "first",
     "value": 50
   }
 ],
-v3 = {
+v4 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "id",
+  "storageKey": null
+},
+v5 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "name",
   "storageKey": null
 },
-v4 = {
+v6 = {
+  "fields": [
+    {
+      "kind": "Variable",
+      "name": "end",
+      "variableName": "endTime"
+    },
+    {
+      "kind": "Variable",
+      "name": "start",
+      "variableName": "startTime"
+    }
+  ],
+  "kind": "ObjectValue",
+  "name": "timeRange"
+},
+v7 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "cursor",
   "storageKey": null
 },
-v5 = [
+v8 = [
   {
     "alias": null,
     "args": null,
@@ -63,7 +98,7 @@ v5 = [
     "storageKey": null
   }
 ],
-v6 = {
+v9 = {
   "alias": null,
   "args": null,
   "concreteType": "PageInfo",
@@ -99,23 +134,12 @@ return {
     "name": "HomeQuery",
     "selections": [
       {
-        "args": null,
+        "args": (v2/*: any*/),
         "kind": "FragmentSpread",
         "name": "ModelSchemaTable_dimensions"
       },
       {
-        "args": [
-          {
-            "kind": "Variable",
-            "name": "endTime",
-            "variableName": "endTime"
-          },
-          {
-            "kind": "Variable",
-            "name": "startTime",
-            "variableName": "startTime"
-          }
-        ],
+        "args": (v2/*: any*/),
         "kind": "FragmentSpread",
         "name": "ModelEmbeddingsTable_embeddingDimensions"
       }
@@ -142,7 +166,7 @@ return {
         "selections": [
           {
             "alias": null,
-            "args": (v2/*: any*/),
+            "args": (v3/*: any*/),
             "concreteType": "DimensionConnection",
             "kind": "LinkedField",
             "name": "dimensions",
@@ -164,7 +188,8 @@ return {
                     "name": "node",
                     "plural": false,
                     "selections": [
-                      (v3/*: any*/),
+                      (v4/*: any*/),
+                      (v5/*: any*/),
                       {
                         "alias": null,
                         "args": null,
@@ -186,11 +211,12 @@ return {
                             "kind": "Literal",
                             "name": "metric",
                             "value": "cardinality"
-                          }
+                          },
+                          (v6/*: any*/)
                         ],
                         "kind": "ScalarField",
                         "name": "dataQualityMetric",
-                        "storageKey": "dataQualityMetric(metric:\"cardinality\")"
+                        "storageKey": null
                       },
                       {
                         "alias": "percentEmpty",
@@ -199,11 +225,12 @@ return {
                             "kind": "Literal",
                             "name": "metric",
                             "value": "percentEmpty"
-                          }
+                          },
+                          (v6/*: any*/)
                         ],
                         "kind": "ScalarField",
                         "name": "dataQualityMetric",
-                        "storageKey": "dataQualityMetric(metric:\"percentEmpty\")"
+                        "storageKey": null
                       },
                       {
                         "alias": "min",
@@ -212,11 +239,12 @@ return {
                             "kind": "Literal",
                             "name": "metric",
                             "value": "min"
-                          }
+                          },
+                          (v6/*: any*/)
                         ],
                         "kind": "ScalarField",
                         "name": "dataQualityMetric",
-                        "storageKey": "dataQualityMetric(metric:\"min\")"
+                        "storageKey": null
                       },
                       {
                         "alias": "mean",
@@ -225,11 +253,12 @@ return {
                             "kind": "Literal",
                             "name": "metric",
                             "value": "mean"
-                          }
+                          },
+                          (v6/*: any*/)
                         ],
                         "kind": "ScalarField",
                         "name": "dataQualityMetric",
-                        "storageKey": "dataQualityMetric(metric:\"mean\")"
+                        "storageKey": null
                       },
                       {
                         "alias": "max",
@@ -238,11 +267,12 @@ return {
                             "kind": "Literal",
                             "name": "metric",
                             "value": "max"
-                          }
+                          },
+                          (v6/*: any*/)
                         ],
                         "kind": "ScalarField",
                         "name": "dataQualityMetric",
-                        "storageKey": "dataQualityMetric(metric:\"max\")"
+                        "storageKey": null
                       },
                       {
                         "alias": "psi",
@@ -251,16 +281,17 @@ return {
                             "kind": "Literal",
                             "name": "metric",
                             "value": "psi"
-                          }
+                          },
+                          (v6/*: any*/)
                         ],
                         "kind": "ScalarField",
                         "name": "driftMetric",
-                        "storageKey": "driftMetric(metric:\"psi\")"
+                        "storageKey": null
                       }
                     ],
                     "storageKey": null
                   },
-                  (v4/*: any*/),
+                  (v7/*: any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -268,19 +299,19 @@ return {
                     "kind": "LinkedField",
                     "name": "node",
                     "plural": false,
-                    "selections": (v5/*: any*/),
+                    "selections": (v8/*: any*/),
                     "storageKey": null
                   }
                 ],
                 "storageKey": null
               },
-              (v6/*: any*/)
+              (v9/*: any*/)
             ],
             "storageKey": "dimensions(first:50)"
           },
           {
             "alias": null,
-            "args": (v2/*: any*/),
+            "args": (v3/*: any*/),
             "filters": null,
             "handle": "connection",
             "key": "ModelSchemaTable_dimensions",
@@ -289,7 +320,7 @@ return {
           },
           {
             "alias": null,
-            "args": (v2/*: any*/),
+            "args": (v3/*: any*/),
             "concreteType": "EmbeddingDimensionConnection",
             "kind": "LinkedField",
             "name": "embeddingDimensions",
@@ -311,14 +342,8 @@ return {
                     "name": "node",
                     "plural": false,
                     "selections": [
-                      {
-                        "alias": null,
-                        "args": null,
-                        "kind": "ScalarField",
-                        "name": "id",
-                        "storageKey": null
-                      },
-                      (v3/*: any*/),
+                      (v4/*: any*/),
+                      (v5/*: any*/),
                       {
                         "alias": "euclideanDistance",
                         "args": [
@@ -327,22 +352,7 @@ return {
                             "name": "metric",
                             "value": "euclideanDistance"
                           },
-                          {
-                            "fields": [
-                              {
-                                "kind": "Variable",
-                                "name": "end",
-                                "variableName": "endTime"
-                              },
-                              {
-                                "kind": "Variable",
-                                "name": "start",
-                                "variableName": "startTime"
-                              }
-                            ],
-                            "kind": "ObjectValue",
-                            "name": "timeRange"
-                          }
+                          (v6/*: any*/)
                         ],
                         "kind": "ScalarField",
                         "name": "driftMetric",
@@ -351,7 +361,7 @@ return {
                     ],
                     "storageKey": null
                   },
-                  (v4/*: any*/),
+                  (v7/*: any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -359,19 +369,19 @@ return {
                     "kind": "LinkedField",
                     "name": "node",
                     "plural": false,
-                    "selections": (v5/*: any*/),
+                    "selections": (v8/*: any*/),
                     "storageKey": null
                   }
                 ],
                 "storageKey": null
               },
-              (v6/*: any*/)
+              (v9/*: any*/)
             ],
             "storageKey": "embeddingDimensions(first:50)"
           },
           {
             "alias": null,
-            "args": (v2/*: any*/),
+            "args": (v3/*: any*/),
             "filters": null,
             "handle": "connection",
             "key": "ModelEmbeddingsTable_embeddingDimensions",
@@ -384,16 +394,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "8d9e575414b81758ceaa7e13fa05e700",
+    "cacheID": "6db0631cbbf60624630b2af341f2e8d1",
     "id": null,
     "metadata": {},
     "name": "HomeQuery",
     "operationKind": "query",
-    "text": "query HomeQuery(\n  $startTime: DateTime!\n  $endTime: DateTime!\n) {\n  ...ModelSchemaTable_dimensions\n  ...ModelEmbeddingsTable_embeddingDimensions_3uKjWt\n}\n\nfragment ModelEmbeddingsTable_embeddingDimensions_3uKjWt on Query {\n  model {\n    embeddingDimensions(first: 50) {\n      edges {\n        embedding: node {\n          id\n          name\n          euclideanDistance: driftMetric(metric: euclideanDistance, timeRange: {start: $startTime, end: $endTime})\n        }\n        cursor\n        node {\n          __typename\n        }\n      }\n      pageInfo {\n        endCursor\n        hasNextPage\n      }\n    }\n  }\n}\n\nfragment ModelSchemaTable_dimensions on Query {\n  model {\n    dimensions(first: 50) {\n      edges {\n        dimension: node {\n          name\n          type\n          dataType\n          cardinality: dataQualityMetric(metric: cardinality)\n          percentEmpty: dataQualityMetric(metric: percentEmpty)\n          min: dataQualityMetric(metric: min)\n          mean: dataQualityMetric(metric: mean)\n          max: dataQualityMetric(metric: max)\n          psi: driftMetric(metric: psi)\n        }\n        cursor\n        node {\n          __typename\n        }\n      }\n      pageInfo {\n        endCursor\n        hasNextPage\n      }\n    }\n  }\n}\n"
+    "text": "query HomeQuery(\n  $startTime: DateTime!\n  $endTime: DateTime!\n) {\n  ...ModelSchemaTable_dimensions_3uKjWt\n  ...ModelEmbeddingsTable_embeddingDimensions_3uKjWt\n}\n\nfragment ModelEmbeddingsTable_embeddingDimensions_3uKjWt on Query {\n  model {\n    embeddingDimensions(first: 50) {\n      edges {\n        embedding: node {\n          id\n          name\n          euclideanDistance: driftMetric(metric: euclideanDistance, timeRange: {start: $startTime, end: $endTime})\n        }\n        cursor\n        node {\n          __typename\n        }\n      }\n      pageInfo {\n        endCursor\n        hasNextPage\n      }\n    }\n  }\n}\n\nfragment ModelSchemaTable_dimensions_3uKjWt on Query {\n  model {\n    dimensions(first: 50) {\n      edges {\n        dimension: node {\n          id\n          name\n          type\n          dataType\n          cardinality: dataQualityMetric(metric: cardinality, timeRange: {start: $startTime, end: $endTime})\n          percentEmpty: dataQualityMetric(metric: percentEmpty, timeRange: {start: $startTime, end: $endTime})\n          min: dataQualityMetric(metric: min, timeRange: {start: $startTime, end: $endTime})\n          mean: dataQualityMetric(metric: mean, timeRange: {start: $startTime, end: $endTime})\n          max: dataQualityMetric(metric: max, timeRange: {start: $startTime, end: $endTime})\n          psi: driftMetric(metric: psi, timeRange: {start: $startTime, end: $endTime})\n        }\n        cursor\n        node {\n          __typename\n        }\n      }\n      pageInfo {\n        endCursor\n        hasNextPage\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "b18291d9164589c5a8afcc4d0a676ea0";
+(node as any).hash = "d95559edb9e035816e2424996ea6a5c8";
 
 export default node;

@@ -1,5 +1,5 @@
 import json
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass, replace
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 EmbeddingFeatures = Dict[str, "EmbeddingColumnNames"]
@@ -15,6 +15,7 @@ SINGLE_COLUMN_SCHEMA_FIELD_NAMES: Tuple[str, ...] = (
     "actual_label_column_name",
     "actual_score_column_name",
 )
+LLM_SCHEMA_FIELD_NAMES = ["prompt_column_names", "response_column_names"]
 
 
 @dataclass(frozen=True)
@@ -34,36 +35,27 @@ class Schema(Dict[SchemaFieldName, SchemaFieldValue]):
     prediction_score_column_name: Optional[str] = None
     actual_label_column_name: Optional[str] = None
     actual_score_column_name: Optional[str] = None
+    prompt_column_names: Optional[EmbeddingColumnNames] = None
+    response_column_names: Optional[EmbeddingColumnNames] = None
     embedding_feature_column_names: Optional[EmbeddingFeatures] = None
-    excludes: Optional[List[str]] = None
+    excluded_column_names: Optional[List[str]] = None
+
+    def replace(self, **changes: str) -> "Schema":
+        return replace(self, **changes)
+
+    def asdict(self) -> Dict[str, str]:
+        return asdict(self)
 
     def to_json(self) -> str:
         "Converts the schema to a dict for JSON serialization"
-        dictionary = {}
-
-        for field in self.__dataclass_fields__:
-            value = getattr(self, field)
-            if (
-                field == "embedding_feature_column_names"
-                and self.embedding_feature_column_names is not None
-            ):
-                embedding_feature_column_names = {}
-                for item in self.embedding_feature_column_names.items():
-                    embedding_feature_column_names[item[0]] = item[1].__dict__
-                json_value = embedding_feature_column_names
-
-            else:
-                json_value = value
-
-            dictionary[str(field)] = json_value
-        return json.dumps(dictionary)
+        return json.dumps(asdict(self))
 
     @classmethod
     def from_json(cls, json_string: str) -> "Schema":
         json_data = json.loads(json_string)
 
         # parse embedding_feature_column_names
-        if json_data["embedding_feature_column_names"] is not None:
+        if json_data.get("embedding_feature_column_names") is not None:
             embedding_feature_column_names = {}
             for feature_name, column_names in json_data["embedding_feature_column_names"].items():
                 embedding_feature_column_names[feature_name] = EmbeddingColumnNames(
@@ -72,4 +64,21 @@ class Schema(Dict[SchemaFieldName, SchemaFieldValue]):
                     link_to_data_column_name=column_names["link_to_data_column_name"],
                 )
             json_data["embedding_feature_column_names"] = embedding_feature_column_names
+
+        # parse prompt_column_names
+        if json_data.get("prompt_column_names") is not None:
+            prompt_column_names = EmbeddingColumnNames(
+                vector_column_name=json_data["prompt_column_names"]["vector_column_name"],
+                raw_data_column_name=json_data["prompt_column_names"]["raw_data_column_name"],
+            )
+            json_data["prompt_column_names"] = prompt_column_names
+
+        # parse response_column_names
+        if json_data.get("response_column_names") is not None:
+            response_column_names = EmbeddingColumnNames(
+                vector_column_name=json_data["response_column_names"]["vector_column_name"],
+                raw_data_column_name=json_data["response_column_names"]["raw_data_column_name"],
+            )
+            json_data["response_column_names"] = response_column_names
+
         return cls(**json_data)

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a812ab9a1c3ccf261638168321092465>>
+ * @generated SignedSource<<eb3a62cecea08a738939e01b66c32310>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -19,6 +19,7 @@ export type ModelSchemaTable_dimensions$data = {
         readonly dimension: {
           readonly cardinality: number | null;
           readonly dataType: DimensionDataType;
+          readonly id: string;
           readonly max: number | null;
           readonly mean: number | null;
           readonly min: number | null;
@@ -41,7 +42,23 @@ const node: ReaderFragment = (function(){
 var v0 = [
   "model",
   "dimensions"
-];
+],
+v1 = {
+  "fields": [
+    {
+      "kind": "Variable",
+      "name": "end",
+      "variableName": "endTime"
+    },
+    {
+      "kind": "Variable",
+      "name": "start",
+      "variableName": "startTime"
+    }
+  ],
+  "kind": "ObjectValue",
+  "name": "timeRange"
+};
 return {
   "argumentDefinitions": [
     {
@@ -53,6 +70,16 @@ return {
       "defaultValue": null,
       "kind": "LocalArgument",
       "name": "cursor"
+    },
+    {
+      "defaultValue": null,
+      "kind": "LocalArgument",
+      "name": "endTime"
+    },
+    {
+      "defaultValue": null,
+      "kind": "LocalArgument",
+      "name": "startTime"
     }
   ],
   "kind": "Fragment",
@@ -116,6 +143,13 @@ return {
                       "alias": null,
                       "args": null,
                       "kind": "ScalarField",
+                      "name": "id",
+                      "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
                       "name": "name",
                       "storageKey": null
                     },
@@ -140,11 +174,12 @@ return {
                           "kind": "Literal",
                           "name": "metric",
                           "value": "cardinality"
-                        }
+                        },
+                        (v1/*: any*/)
                       ],
                       "kind": "ScalarField",
                       "name": "dataQualityMetric",
-                      "storageKey": "dataQualityMetric(metric:\"cardinality\")"
+                      "storageKey": null
                     },
                     {
                       "alias": "percentEmpty",
@@ -153,11 +188,12 @@ return {
                           "kind": "Literal",
                           "name": "metric",
                           "value": "percentEmpty"
-                        }
+                        },
+                        (v1/*: any*/)
                       ],
                       "kind": "ScalarField",
                       "name": "dataQualityMetric",
-                      "storageKey": "dataQualityMetric(metric:\"percentEmpty\")"
+                      "storageKey": null
                     },
                     {
                       "alias": "min",
@@ -166,11 +202,12 @@ return {
                           "kind": "Literal",
                           "name": "metric",
                           "value": "min"
-                        }
+                        },
+                        (v1/*: any*/)
                       ],
                       "kind": "ScalarField",
                       "name": "dataQualityMetric",
-                      "storageKey": "dataQualityMetric(metric:\"min\")"
+                      "storageKey": null
                     },
                     {
                       "alias": "mean",
@@ -179,11 +216,12 @@ return {
                           "kind": "Literal",
                           "name": "metric",
                           "value": "mean"
-                        }
+                        },
+                        (v1/*: any*/)
                       ],
                       "kind": "ScalarField",
                       "name": "dataQualityMetric",
-                      "storageKey": "dataQualityMetric(metric:\"mean\")"
+                      "storageKey": null
                     },
                     {
                       "alias": "max",
@@ -192,11 +230,12 @@ return {
                           "kind": "Literal",
                           "name": "metric",
                           "value": "max"
-                        }
+                        },
+                        (v1/*: any*/)
                       ],
                       "kind": "ScalarField",
                       "name": "dataQualityMetric",
-                      "storageKey": "dataQualityMetric(metric:\"max\")"
+                      "storageKey": null
                     },
                     {
                       "alias": "psi",
@@ -205,11 +244,12 @@ return {
                           "kind": "Literal",
                           "name": "metric",
                           "value": "psi"
-                        }
+                        },
+                        (v1/*: any*/)
                       ],
                       "kind": "ScalarField",
                       "name": "driftMetric",
-                      "storageKey": "driftMetric(metric:\"psi\")"
+                      "storageKey": null
                     }
                   ],
                   "storageKey": null
@@ -279,6 +319,6 @@ return {
 };
 })();
 
-(node as any).hash = "fdbee9f78e795b25c75649dfb377701a";
+(node as any).hash = "fb4c57e0ea77548c4e96ceb418e06614";
 
 export default node;

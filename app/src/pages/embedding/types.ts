@@ -1,4 +1,5 @@
 import { EmbeddingUMAPQuery$data } from "./__generated__/EmbeddingUMAPQuery.graphql";
+import { PointSelectionPanelContentQuery$data } from "./__generated__/PointSelectionPanelContentQuery.graphql";
 
 export type UMAPPointsEntry = NonNullable<
   EmbeddingUMAPQuery$data["embedding"]["UMAPPoints"]
@@ -18,6 +19,17 @@ export interface ModelEvent {
       name: string;
       type: string;
     };
-    value: string;
+    value: string | null;
   }[];
+  /**
+   * the LLM prompt that was used to generate this event
+   */
+  prompt: string | null;
+  /**
+   * the LLM response
+   */
+  response: string | null;
 }
+
+export type EventsList =
+  PointSelectionPanelContentQuery$data["model"]["primaryDataset"]["events"];

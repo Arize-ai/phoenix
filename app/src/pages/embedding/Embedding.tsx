@@ -15,7 +15,7 @@ import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { subDays } from "date-fns";
 import { css } from "@emotion/react";
 
-import { Switch, TabPane, Tabs } from "@arizeai/components";
+import { Counter, Switch, TabPane, Tabs } from "@arizeai/components";
 
 import { Loading, LoadingMask } from "@phoenix/components";
 import {
@@ -29,9 +29,17 @@ import {
   PointCloudParameterSettings,
   ThreeDimensionalPointItem,
 } from "@phoenix/components/pointcloud";
+import ClusteringSettings from "@phoenix/components/pointcloud/ClusteringSettings";
 import { PointCloudDisplaySettings } from "@phoenix/components/pointcloud/PointCloudDisplaySettings";
-import { resizeHandleCSS } from "@phoenix/components/resize/styles";
-import { PointCloudProvider, usePointCloudContext } from "@phoenix/contexts";
+import {
+  compactResizeHandleCSS,
+  resizeHandleCSS,
+} from "@phoenix/components/resize/styles";
+import {
+  PointCloudProvider,
+  useGlobalNotification,
+  usePointCloudContext,
+} from "@phoenix/contexts";
 import { useDatasets } from "@phoenix/contexts";
 import { useTimeRange } from "@phoenix/contexts/TimeRangeContext";
 import {
@@ -48,6 +56,7 @@ import {
   EmbeddingUMAPQuery as UMAPQueryType,
   EmbeddingUMAPQuery$data,
 } from "./__generated__/EmbeddingUMAPQuery.graphql";
+import { CountTimeSeries } from "./CountTimeSeries";
 import { EuclideanDistanceTimeSeries } from "./EuclideanDistanceTimeSeries";
 import { PointSelectionPanelContent } from "./PointSelectionPanelContent";
 
@@ -60,12 +69,30 @@ type UMAPClusterEntry = NonNullable<
 >["clusters"][number];
 
 const EmbeddingUMAPQuery = graphql`
-  query EmbeddingUMAPQuery($id: GlobalID!, $timeRange: TimeRange!) {
+  query EmbeddingUMAPQuery(
+    $id: GlobalID!
+    $timeRange: TimeRange!
+    $minDist: Float!
+    $nNeighbors: Int!
+    $nSamples: Int!
+    $minClusterSize: Int!
+    $clusterMinSamples: Int!
+    $clusterSelectionEpsilon: Int!
+  ) {
     embedding: node(id: $id) {
       ... on EmbeddingDimension {
-        UMAPPoints(timeRange: $timeRange) {
+        UMAPPoints(
+          timeRange: $timeRange
+          minDist: $minDist
+          nNeighbors: $nNeighbors
+          nSamples: $nSamples
+          minClusterSize: $minClusterSize
+          clusterMinSamples: $clusterMinSamples
+          clusterSelectionEpsilon: $clusterSelectionEpsilon
+        ) {
           data {
             id
+            eventId
             coordinates {
               __typename
               ... on Point3D {
@@ -91,6 +118,7 @@ const EmbeddingUMAPQuery = graphql`
           }
           referenceData {
             id
+            eventId
             coordinates {
               __typename
               ... on Point3D {
@@ -116,7 +144,7 @@ const EmbeddingUMAPQuery = graphql`
           }
           clusters {
             id
-            pointIds
+            eventIds
             driftRatio
           }
         }
@@ -146,8 +174,12 @@ export function Embedding() {
 function EmbeddingMain() {
   const embeddingDimensionId = useEmbeddingDimensionId();
   const { primaryDataset, referenceDataset } = useDatasets();
-  const resetPointCloudContext = usePointCloudContext((state) => state.reset);
-  const [showDriftChart, setShowDriftChart] = useState<boolean>(true);
+  const umapParameters = usePointCloudContext((state) => state.umapParameters);
+  const hdbscanParameters = usePointCloudContext(
+    (state) => state.hdbscanParameters
+  );
+  const resetPointCloud = usePointCloudContext((state) => state.reset);
+  const [showChart, setShowChart] = useState<boolean>(true);
   const [queryReference, loadQuery] =
     useQueryLoader<UMAPQueryType>(EmbeddingUMAPQuery);
   const { selectedTimestamp } = useTimeSlice();
@@ -165,17 +197,26 @@ function EmbeddingMain() {
   // Load the query on first render
   useEffect(() => {
     // dispose of the selections in the context
-    resetPointCloudContext();
+    resetPointCloud();
     loadQuery(
       {
         id: embeddingDimensionId,
         timeRange,
+        ...umapParameters,
+        ...hdbscanParameters,
       },
       {
         fetchPolicy: "network-only",
       }
     );
-  }, [resetPointCloudContext, embeddingDimensionId, loadQuery, timeRange]);
+  }, [
+    resetPointCloud,
+    embeddingDimensionId,
+    loadQuery,
+    umapParameters,
+    hdbscanParameters,
+    timeRange,
+  ]);
 
   return (
     <main
@@ -187,25 +228,24 @@ function EmbeddingMain() {
         background-color: ${theme.colors.gray900};
       `}
     >
+      <PointCloudNotifications />
       <Toolbar
         extra={
-          referenceDataset ? (
-            <Switch
-              onChange={(isSelected) => {
-                setShowDriftChart(isSelected);
-              }}
-              defaultSelected={true}
-              labelPlacement="start"
-            >
-              Show Drift Chart
-            </Switch>
-          ) : null
+          <Switch
+            onChange={(isSelected) => {
+              setShowChart(isSelected);
+            }}
+            defaultSelected={true}
+            labelPlacement="start"
+          >
+            Show Timeseries
+          </Switch>
         }
       >
         <PrimaryDatasetTimeRange />
         {referenceDataset ? (
           <ReferenceDatasetTimeRange
-            datasetType="reference"
+            datasetRole="reference"
             timeRange={{
               start: new Date(referenceDataset.startTime),
               end: new Date(referenceDataset.endTime),
@@ -214,13 +254,19 @@ function EmbeddingMain() {
         ) : null}
       </Toolbar>
       <PanelGroup direction="vertical">
-        {referenceDataset && showDriftChart ? (
+        {showChart ? (
           <>
-            <Panel defaultSize={15} collapsible order={1}>
+            <Panel defaultSize={20} collapsible order={1}>
               <Suspense fallback={<Loading />}>
-                <EuclideanDistanceTimeSeries
-                  embeddingDimensionId={embeddingDimensionId}
-                />
+                {referenceDataset ? (
+                  <EuclideanDistanceTimeSeries
+                    embeddingDimensionId={embeddingDimensionId}
+                  />
+                ) : (
+                  <CountTimeSeries
+                    embeddingDimensionId={embeddingDimensionId}
+                  />
+                )}
               </Suspense>
             </Panel>
             <PanelResizeHandle css={resizeHandleCSS} />
@@ -249,7 +295,8 @@ function EmbeddingMain() {
 function umapDataEntryToThreeDimensionalPointItem(
   umapData: UMAPPointsEntry
 ): ThreeDimensionalPointItem {
-  const { id, coordinates, eventMetadata, embeddingMetadata } = umapData;
+  const { id, eventId, coordinates, eventMetadata, embeddingMetadata } =
+    umapData;
   if (!coordinates) {
     throw new Error("No coordinates found for UMAP data entry");
   }
@@ -263,6 +310,7 @@ function umapDataEntryToThreeDimensionalPointItem(
     position: [coordinates.x, coordinates.y, coordinates.z],
     metaData: {
       id,
+      eventId,
       ...eventMetadata,
       ...embeddingMetadata,
     },
@@ -318,10 +366,10 @@ const PointCloudDisplay = ({
     return sourceData;
   }, [referenceSourceData, sourceData]);
 
-  const pointIdToDataMap = useMemo(() => {
+  const eventIdToDataMap = useMemo(() => {
     const map = new Map<string, UMAPPointsEntry>();
     allSourceData.forEach((entry) => {
-      map.set(entry.id, entry);
+      map.set(entry.eventId, entry);
     });
     return map;
   }, [allSourceData]);
@@ -375,14 +423,14 @@ const PointCloudDisplay = ({
                 <TabPane name="Display">
                   <PointCloudDisplaySettings />
                 </TabPane>
-                <TabPane name="Parameters">
+                <TabPane name="Hyperparameters">
                   <PointCloudParameterSettings />
                 </TabPane>
               </Tabs>
             </Panel>
           </PanelGroup>
         </Panel>
-        <PanelResizeHandle css={resizeHandleCSS} />
+        <PanelResizeHandle css={compactResizeHandleCSS} />
         <Panel>
           <div
             css={css`
@@ -391,7 +439,7 @@ const PointCloudDisplay = ({
               height: 100%;
             `}
           >
-            <SelectionPanel pointIdToDataMap={pointIdToDataMap} />
+            <SelectionPanel eventIdToDataMap={eventIdToDataMap} />
             <PointCloud
               primaryData={
                 sourceData.map(umapDataEntryToThreeDimensionalPointItem) ?? []
@@ -413,13 +461,13 @@ const PointCloudDisplay = ({
 };
 
 function SelectionPanel(props: {
-  pointIdToDataMap: Map<string, UMAPPointsEntry>;
+  eventIdToDataMap: Map<string, UMAPPointsEntry>;
 }) {
-  const selectedPointIds = usePointCloudContext(
-    (state) => state.selectedPointIds
+  const selectedEventIds = usePointCloudContext(
+    (state) => state.selectedEventIds
   );
 
-  if (selectedPointIds.size === 0) {
+  if (selectedEventIds.size === 0) {
     return null;
   }
 
@@ -447,7 +495,7 @@ function SelectionPanel(props: {
           <PointSelectionPanelContentWrap>
             <Suspense fallback={<Loading />}>
               <PointSelectionPanelContent
-                pointIdToDataMap={props.pointIdToDataMap}
+                eventIdToDataMap={props.eventIdToDataMap}
               />
             </Suspense>
           </PointSelectionPanelContentWrap>
@@ -484,37 +532,48 @@ function ClustersPanelContents({
   const setSelectedClusterId = usePointCloudContext(
     (state) => state.setSelectedClusterId
   );
-  const setSelectedPointIds = usePointCloudContext(
-    (state) => state.setSelectedPointIds
+  const setSelectedEventIds = usePointCloudContext(
+    (state) => state.setSelectedEventIds
+  );
+  const setHighlightedClusterId = usePointCloudContext(
+    (state) => state.setHighlightedClusterId
   );
 
   return (
-    // @ts-expect-error add more tabs
     <Tabs>
-      <TabPane name="Clusters">
+      <TabPane name="Clusters" extra={<Counter>{clusters.length}</Counter>}>
         <ul
-          css={(theme) =>
-            css`
-              flex: 1 1 auto;
-              overflow-y: auto;
-              display: flex;
-              flex-direction: column;
-              gap: ${theme.spacing.margin8}px;
-              margin: ${theme.spacing.margin8}px;
-            `
-          }
+          css={(theme) => css`
+            flex: 1 1 auto;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: ${theme.spacing.margin8}px;
+            margin: ${theme.spacing.margin8}px;
+          `}
         >
           {clusters.map((cluster) => {
             return (
               <li key={cluster.id}>
                 <ClusterItem
                   clusterId={cluster.id}
-                  numPoints={cluster.pointIds.length}
+                  numPoints={cluster.eventIds.length}
                   isSelected={selectedClusterId === cluster.id}
                   driftRatio={cluster.driftRatio}
                   onClick={() => {
-                    setSelectedClusterId(cluster.id);
-                    setSelectedPointIds(new Set(cluster.pointIds));
+                    if (selectedClusterId !== cluster.id) {
+                      setSelectedClusterId(cluster.id);
+                      setSelectedEventIds(new Set(cluster.eventIds));
+                    } else {
+                      setSelectedClusterId(null);
+                      setSelectedEventIds(new Set());
+                    }
+                  }}
+                  onMouseEnter={() => {
+                    setHighlightedClusterId(cluster.id);
+                  }}
+                  onMouseLeave={() => {
+                    setHighlightedClusterId(null);
                   }}
                 />
               </li>
@@ -522,6 +581,34 @@ function ClustersPanelContents({
           })}
         </ul>
       </TabPane>
+      <TabPane name="Configuration">
+        <ClusteringSettings />
+      </TabPane>
     </Tabs>
   );
+}
+
+function PointCloudNotifications() {
+  const { notifyError } = useGlobalNotification();
+  const errorMessage = usePointCloudContext((state) => state.errorMessage);
+  const setErrorMessage = usePointCloudContext(
+    (state) => state.setErrorMessage
+  );
+
+  useEffect(() => {
+    if (errorMessage !== null) {
+      notifyError({
+        title: "An error occurred",
+        message: errorMessage,
+        action: {
+          text: "Dismiss",
+          onClick: () => {
+            setErrorMessage(null);
+          },
+        },
+      });
+    }
+  }, [errorMessage, notifyError, setErrorMessage]);
+
+  return null;
 }

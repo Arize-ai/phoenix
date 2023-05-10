@@ -5,7 +5,6 @@ from pandas import DataFrame, Timestamp
 from phoenix.datasets import Dataset as InternalDataset
 from phoenix.datasets import Schema
 from phoenix.server.api.context import Context
-from phoenix.server.api.types.Dataset import to_gql_dataset
 from strawberry.schema import Schema as StrawberrySchema
 from typing_extensions import TypeAlias
 
@@ -32,14 +31,6 @@ def input_dataset() -> InternalDataset:
     return InternalDataset(dataframe=input_df, schema=input_schema)
 
 
-def test_dataset_serialization(input_dataset: InternalDataset) -> None:
-    converted_gql_dataset = to_gql_dataset(input_dataset, type="primary")
-
-    expected_dataset = input_dataset
-    assert converted_gql_dataset.start_time == expected_dataset.start_time
-    assert converted_gql_dataset.end_time == expected_dataset.end_time
-
-
 class TestDatasetEvents:
     def test_no_input_dimensions_correctly_selects_event_ids_and_all_features_and_tags(
         self,
@@ -52,7 +43,7 @@ class TestDatasetEvents:
             query=self._get_events_query("primaryDataset"),
             context_value=context_factory(primary_dataset, reference_dataset),
             variable_values={
-                "eventIds": ["0:DatasetType.PRIMARY"],
+                "eventIds": ["0:DatasetRole.PRIMARY"],
             },
         )
         assert result.errors is None
@@ -90,7 +81,7 @@ class TestDatasetEvents:
             query=self._get_events_query("referenceDataset"),
             context_value=context_factory(primary_dataset, reference_dataset),
             variable_values={
-                "eventIds": ["1:DatasetType.REFERENCE", "2:DatasetType.REFERENCE"],
+                "eventIds": ["1:DatasetRole.REFERENCE", "2:DatasetRole.REFERENCE"],
                 "dimensions": [
                     {"name": "tag0", "type": "tag"},
                 ],
@@ -165,7 +156,7 @@ class TestDatasetEvents:
             query=self._get_events_query("referenceDataset"),
             context_value=context_factory(primary_dataset, reference_dataset),
             variable_values={
-                "eventIds": ["1:DatasetType.REFERENCE"],
+                "eventIds": ["1:DatasetRole.REFERENCE"],
                 "dimensions": [],
             },
         )
@@ -195,7 +186,7 @@ class TestDatasetEvents:
             query=self._get_events_query("primaryDataset"),
             context_value=context_factory(primary_dataset, reference_dataset),
             variable_values={
-                "eventIds": ["0:DatasetType.PRIMARY", "1:DatasetType.REFERENCE"],
+                "eventIds": ["0:DatasetRole.PRIMARY", "1:DatasetRole.REFERENCE"],
             },
         )
         assert result.errors is not None
@@ -204,7 +195,7 @@ class TestDatasetEvents:
         assert result.data is None
 
     @staticmethod
-    def _get_events_query(dataset_type: Literal["primaryDataset", "referenceDataset"]) -> str:
+    def _get_events_query(dataset_role: Literal["primaryDataset", "referenceDataset"]) -> str:
         """
         Returns a formatted events query for the input dataset type.
         """
@@ -231,7 +222,7 @@ class TestDatasetEvents:
                 }
             }
         """
-            % dataset_type
+            % dataset_role
         )
 
     @staticmethod
@@ -260,7 +251,6 @@ class TestDatasetEvents:
                 tag_column_names=["tag0"],
             ),
             name="primary",
-            persist_to_disc=False,
         )
 
     @staticmethod
@@ -285,5 +275,4 @@ class TestDatasetEvents:
                 tag_column_names=["tag0"],
             ),
             name="reference",
-            persist_to_disc=False,
         )
