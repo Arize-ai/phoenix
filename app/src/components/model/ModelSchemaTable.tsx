@@ -1,6 +1,6 @@
 import React, { useMemo } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
-import { Column } from "react-table";
+import { CellProps, Column } from "react-table";
 
 import {
   FloatCell,
@@ -8,6 +8,8 @@ import {
   PercentCell,
   Table,
 } from "@phoenix/components/table";
+
+import { Link } from "../Link";
 
 import { ModelSchemaTable_dimensions$key } from "./__generated__/ModelSchemaTable_dimensions.graphql";
 
@@ -31,6 +33,7 @@ export function ModelSchemaTable(props: ModelSchemaTableProps) {
             @connection(key: "ModelSchemaTable_dimensions") {
             edges {
               dimension: node {
+                id
                 name
                 type
                 dataType
@@ -83,6 +86,13 @@ export function ModelSchemaTable(props: ModelSchemaTableProps) {
       {
         Header: "name",
         accessor: "name",
+        Cell: (props: CellProps<(typeof tableData)[number]>) => {
+          return (
+            <Link to={`/dimensions/${props.row.original.id}`}>
+              {props.value}
+            </Link>
+          );
+        },
       },
       {
         Header: "type",

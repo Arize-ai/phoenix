@@ -1,5 +1,6 @@
 import React from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
+import { Outlet } from "react-router";
 import { css } from "@emotion/react";
 
 import {
@@ -86,6 +87,7 @@ export function Home(_props: HomePageProps) {
           </Tabs>
         </TabbedCard>
       </section>
+      <Outlet />
     </main>
   );
 }

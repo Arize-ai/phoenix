@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<682754976848d752f8722dd93aaa81d1>>
+ * @generated SignedSource<<eb3a62cecea08a738939e01b66c32310>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -19,6 +19,7 @@ export type ModelSchemaTable_dimensions$data = {
         readonly dimension: {
           readonly cardinality: number | null;
           readonly dataType: DimensionDataType;
+          readonly id: string;
           readonly max: number | null;
           readonly mean: number | null;
           readonly min: number | null;
@@ -138,6 +139,13 @@ return {
                   "name": "node",
                   "plural": false,
                   "selections": [
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "id",
+                      "storageKey": null
+                    },
                     {
                       "alias": null,
                       "args": null,
@@ -311,6 +319,6 @@ return {
 };
 })();
 
-(node as any).hash = "567dde6bbe888ee7145eccaa57766d2b";
+(node as any).hash = "fb4c57e0ea77548c4e96ceb418e06614";
 
 export default node;

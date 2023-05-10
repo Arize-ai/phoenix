@@ -4,6 +4,8 @@ import { createBrowserRouter } from "react-router-dom";
 
 import { embeddingLoaderQuery$data } from "./pages/embedding/__generated__/embeddingLoaderQuery.graphql";
 import {
+  Dimension,
+  dimensionLoader,
   Embedding,
   embeddingLoader,
   ErrorElement,
@@ -20,6 +22,15 @@ const router = createBrowserRouter(
       errorElement={<ErrorElement />}
     >
       <Route index element={<Home />} />
+      <Route element={<Home />}>
+        <Route path="/dimensions">
+          <Route
+            path="/dimensions/:dimensionId"
+            element={<Dimension />}
+            loader={dimensionLoader}
+          />
+        </Route>
+      </Route>
       <Route path="/embeddings">
         <Route
           path="/embeddings/:embeddingDimensionId"
