@@ -1,5 +1,6 @@
 import math
 from abc import ABC, abstractmethod
+from datetime import timezone
 from typing import Any
 
 
@@ -29,4 +30,13 @@ class NoneIfNan(Interceptor):
             instance,
             self.private_name,
             None if isinstance(value, float) and not math.isfinite(value) else value,
+        )
+
+
+class EnsureUTC(Interceptor):
+    def __set__(self, instance: Any, value: Any) -> None:
+        setattr(
+            instance,
+            self.private_name,
+            value.astimezone(timezone.utc),
         )
