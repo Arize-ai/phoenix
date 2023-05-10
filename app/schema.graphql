@@ -39,6 +39,11 @@ enum DatasetRole {
   reference
 }
 
+type DatasetValues {
+  primaryValue: Float
+  referenceValue: Float
+}
+
 """Date with time (isoformat)"""
 scalar DateTime
 
@@ -89,8 +94,10 @@ type Dimension implements Node {
   """
   driftTimeSeries(metric: ScalarDriftMetric!, timeRange: TimeRange!, granularity: Granularity!): DriftTimeSeries!
 
-  """Split the dimension values into segments for analysis by bin"""
-  segments: [Segment!]!
+  """
+  Returns the segments across both datasets and returns the counts per segment
+  """
+  segmentsComparison(primaryTimeRange: TimeRange): Segments!
 }
 
 type DimensionConnection {
@@ -276,8 +283,8 @@ type NominalBin {
 }
 
 type NumericRange {
-  min: Float!
-  max: Float!
+  start: Float!
+  end: Float!
 }
 
 type PageInfo {
@@ -321,7 +328,12 @@ enum ScalarDriftMetric {
 
 type Segment {
   bin: Bin!
-  values: [Float]!
+  counts: DatasetValues!
+}
+
+type Segments {
+  segments: [Segment!]!
+  totalCounts: DatasetValues!
 }
 
 input TimeRange {

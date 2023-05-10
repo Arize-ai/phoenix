@@ -5,6 +5,6 @@ import strawberry
 class NumericRange:
     """A numeric range to denote a bin or domain"""
 
-    min: float
-    max: float
+    start: float
+    end: float
     # TODO consider denoting right open or closed

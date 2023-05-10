@@ -1,23 +1,22 @@
-from typing import List, Optional, Union
+from typing import List, Optional
 
 import strawberry
 from strawberry.types import Info
 from typing_extensions import Annotated
 
 from phoenix.core.model_schema import PRIMARY, REFERENCE, ScalarDimension
-from phoenix.server.api.types.DatasetRole import DatasetRole
 
 from ..context import Context
-from ..input_types.DatasetRole import DatasetRole
 from ..input_types.Granularity import Granularity
 from ..input_types.TimeRange import TimeRange
 from .DataQualityMetric import DataQualityMetric
+from .DatasetRole import DatasetRole
 from .DimensionDataType import DimensionDataType
 from .DimensionShape import DimensionShape
 from .DimensionType import DimensionType
 from .node import Node
 from .ScalarDriftMetricEnum import ScalarDriftMetric
-from .Segment import Segment
+from .Segments import DatasetValues, Segments
 from .TimeSeries import (
     DataQualityTimeSeries,
     DriftTimeSeries,
@@ -183,12 +182,15 @@ class Dimension(Node):
         )
 
     @strawberry.field(
-        description="Split the dimension values into segments for analysis by bin",
+        description="Returns the segments across both datasets and returns the counts per segment",
     )  # type: ignore
-    def segments(
-        self, timeRange: Optional[TimeRange], datasetRole: Optional[DatasetRole]
-    ) -> List[Segment]:
-        return []
+    def segments_comparison(
+        self,
+        primary_time_range: Optional[TimeRange] = strawberry.UNSET,
+    ) -> Segments:
+        # TODO: Implement binning across primary and reference
+
+        return Segments(segments=[], total_counts=DatasetValues(primary_value=0, reference_value=0))
 
 
 def to_gql_dimension(id_attr: int, dimension: ScalarDimension) -> Dimension:
