@@ -1,18 +1,18 @@
 # Generating Embeddings
 
-Phoenix supports any type of dense embedding generated for almost any type of data.&#x20;
+Phoenix supports any type of dense [embedding](embeddings.md) generated for almost any type of data.
 
-But what if I don't have embeddings handy? Well, that is not a problem. The model data can be analyzed by the embeddings Auto-Generated for Phoenix.&#x20;
+But what if I don't have embeddings handy? Well, that is not a problem. The model data can be analyzed by the embeddings Auto-Generated for Phoenix.
 
 ### What are Auto-Embeddings?
 
-Generating embeddings is likely another problem to solve, on top of ensuring your model is performing properly. With our Python SDK, you can offload that task to the SDK and we will generate the embeddings for you. We use large, pre-trained models that will capture information from your inputs and encode it into embedding vectors.&#x20;
+Generating embeddings is likely another problem to solve, on top of ensuring your model is performing properly. With our Python [SDK](http://localhost:5000/s/-MAlgpMyBRcl2qFZRQ67/api-reference/arize.pandas/autoembeddings#the-embeddinggenerator-class), you can offload that task to the SDK and we will generate the embeddings for you. We use large, pre-trained [models](http://localhost:5000/s/-MAlgpMyBRcl2qFZRQ67/embeddings/let-arize-generate-your-embeddings/supported-models) that will capture information from your inputs and encode it into embedding vectors.
 
 We support generating embeddings for you for the following types of data:
 
-* CV - Computer Vision&#x20;
-* NLP - Natural Language&#x20;
-* Tabular Data - Pandas Dataframes&#x20;
+* CV - Computer Vision
+* NLP - Natural Language
+* Tabular Data - Pandas Dataframes
 
 We extract the embeddings in the appropriate way depending on your use case, and we return it to you to include in your pandas dataframe, which you can then analyze using Phoenix.
 
@@ -89,8 +89,8 @@ df["text_vector"] = generator.generate_embeddings(text_col=df["text"])
 
 {% tab title="Tabular Data - Pandas Dataframe" %}
 <pre class="language-python"><code class="lang-python">from arize.pandas.embeddings import EmbeddingGenerator, UseCases
-<strong>
-</strong><strong>df = df.reset_index(drop=True)
+
+<strong>df = df.reset_index(drop=True)
 </strong># Instantiate the embeddding generator
 generator = EmbeddingGeneratorForTabularFeatures(
     model_name="distilbert-base-uncased",

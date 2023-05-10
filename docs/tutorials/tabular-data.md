@@ -2,6 +2,8 @@
 description: Detecting fraud with tabular embeddings
 ---
 
+# Tabular Data
+
 Imagine you maintain a fraud-detection service for your e-commerce company. In the past few weeks, there's been an alarming spike in undetected cases of fraudulent credit card transactions. These false negatives are hurting your bottom line, and you've been tasked with solving the issue.
 
 Phoenix provides opinionated workflows to surface feature drift and data quality issues quickly so you can get straight to the root-cause of the problem. As you'll see, your fraud-detection service is receiving more and more traffic from an untrustworthy merchant, causing your model's false negative rate to skyrocket.
@@ -9,7 +11,7 @@ Phoenix provides opinionated workflows to surface feature drift and data quality
 In this tutorial, you will:
 
 * Download curated datasets of credit card transaction and fraud-detection data
-* Compute tabular embeddings to represent each transaction
+* Compute [tabular embeddings](../concepts/generating-embeddings.md#tabular-data-pandas-dataframe) to represent each transaction
 * Pinpoint fraudulent transactions from a suspicious merchant
 * Export data from this merchant to retrain your model
 

@@ -17,20 +17,20 @@ Phoenix runs locally, close to your data, in an environment that interfaces to N
 In order to use Phoenix:
 
 1. Load data into pandas dataframe
-2. Leverage SDK embeddings and LLM eval generators
+2. (Optional) Leverage [SDK](http://localhost:5000/s/-MAlgpMyBRcl2qFZRQ67/api-reference/arize.pandas/autoembeddings#the-embeddinggenerator-class) embeddings and LLM eval generators
 3. Start Phoenix
    1. Single dataframe
-   2. Two dataframes: primary and reference
+   2. (Optional) Two dataframes: primary and [reference](../concepts/phoenix-basics.md#which-dataset-is-which)
 4. Investigate problems
-5. Export data
+5. (Optional) Export data
 
 #### Load Data Into pandas:
 
-Phoenix currently requires pandas dataframes which can be downloaded from either an ML observability platform, a table or a raw log file. The data is assumed to be formatted in the Open Inference format with a well defined column structure, normally including a set of inputs/features, outputs/predictions and ground truth.
+Phoenix currently requires pandas dataframes which can be downloaded from either an ML observability platform, a table or a raw log file. The data is assumed to be formatted in the [Open Inference](../concepts/open-inference.md) format with a well defined column structure, normally including a set of inputs/features, outputs/predictions and ground truth.
 
 #### Leverage SDK Embeddings and LLM Eval Generators:
 
-The Phoenix library heavily uses embeddings as a method for data visualization and debugging. In order to use Phoenix with embeddings they can either be generated using an SDK call or they can be supplied by the user of the library. Phoenix supports generating embeddings for LLMs, Image, NLP, and tabular datasets.
+The Phoenix library heavily uses [embeddings](../concepts/embeddings.md) as a method for data visualization and debugging. In order to use Phoenix with embeddings they can either be generated using an SDK call or they can be supplied by the user of the library. Phoenix supports [generating](../concepts/generating-embeddings.md) embeddings for LLMs, Image, NLP, and tabular datasets.
 
 #### Start Phoenix:
 
@@ -58,7 +58,7 @@ Once an issue is found, the cluster can be exported back into a dataframe for fu
 
 ### How Phoenix fits into the ML Stack
 
-Phoenix is designed to monitor, analyze and troubleshoot issues on top of your model data allowing for interactive workflows all within a Notebook environment.
+Phoenix is designed to monitor, analyze and troubleshoot issues on top of your model data allowing for [interactive](../api/session.md#phoenix.launch\_app) workflows all within a Notebook environment.
 
 <figure><img src="../.gitbook/assets/Docs graphics-01.jpg" alt=""><figcaption><p><strong>How Phoenix Fits into the ML Stack</strong></p></figcaption></figure>
 

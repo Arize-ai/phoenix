@@ -2,17 +2,19 @@
 description: Active learning for a drifting image classification model
 ---
 
+# Computer Vision
+
 Imagine you're in charge of maintaining a model that classifies the action of people in photographs. Your model initially performs well in production, but its performance gradually degrades over time.
 
 Phoenix helps you surface the reason for this regression by analyzing the embeddings representing each image. Your model was trained on crisp and high-resolution images, but as you'll discover, it's encountering blurred and noisy images in production that it can't correctly classify.
 
 In this tutorial, you will:
 
-- Download curated datasets of embeddings and predictions
-- Define a schema to describe the format of your data
-- Launch Phoenix to visually explore your embeddings
-- Investigate problematic clusters
-- Export problematic production data for labeling and fine-tuning
+* Download curated datasets of [embeddings](../concepts/embeddings.md) and predictions
+* Define a [schema](../api/dataset-and-schema.md#phoenix.schema) to describe the format of your data
+* [Launch](../api/session.md#phoenix.launch\_app) Phoenix to visually [explore](../concepts/phoenix-basics.md#embedding-details) your embeddings
+* Investigate problematic clusters
+* Export problematic production data for labeling and fine-tuning
 
 Open the tutorial in Colab or GitHub to get started!
 

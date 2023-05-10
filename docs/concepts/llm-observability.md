@@ -30,7 +30,7 @@ The above picture shows what LLM observability looks like in the world of founda
 * Structured Metadata, tagging groups of predictions&#x20;
 * Embedded Metadata, additional metadata that is embedded
 
-<figure><img src="../.gitbook/assets/01 - OSS pandas chart-v2.png" alt=""><figcaption><p><strong>Example of Prompt &#x26; Response Dataframe</strong> </p></figcaption></figure>
+<figure><img src="../.gitbook/assets/01 - OSS pandas chart-v2.png" alt=""><figcaption><p><strong>Example of Prompt &#x26; Response DataFrame</strong> </p></figcaption></figure>
 
 The above data is collected from the interaction with the LLM. The above data can be seen as structured data that describes the LLM interaction, language like text strings which are inputs/outputs and embeddings which are latent structure information.&#x20;
 

@@ -15,7 +15,7 @@ Running Phoenix for the first time? Check out the tutorials to explore the capab
 
 ## What is Phoenix?
 
-Phoenix is an Open Source ML Observability library designed for the Notebook. The toolset is designed to ingest model inference data for LLMs, CV, NLP and tabular datasets. It allows Data Scientists to quickly visualize their model data, monitor performance, track down issues & insights, and easily export to improve.&#x20;
+Phoenix is an Open Source ML Observability library designed for the Notebook. The toolset is designed to ingest model inference data for [LLMs](concepts/llm-observability.md), CV, NLP and tabular datasets. It allows Data Scientists to quickly visualize their model data, monitor performance, track down issues & insights, and easily export to improve.&#x20;
 
 <figure><img src=".gitbook/assets/Docs graphics-02.jpg" alt=""><figcaption></figcaption></figure>
 
@@ -34,7 +34,7 @@ Phoenix is an Open Source ML Observability library designed for the Notebook. Th
 This is where Phoenix comes in 😃 ML Observability helps you visualize, troubleshoot, and monitor complex model data.
 
 * Lightweight connections to dataframes&#x20;
-* Provides easy tools to generate and visualize embeddings
+* Provides easy tools to generate and visualize [embeddings](concepts/embeddings.md#whats-an-embedding)
 * Automatically find clusters of embeddings that represent "ideas" that the model has learned (manifolds)&#x20;
 * Sorts clusters of issues using performance metrics or drift
 * Built in workflows for model improvement&#x20;
@@ -45,17 +45,17 @@ This is where Phoenix comes in 😃 ML Observability helps you visualize, troubl
 
 * **Discover How Embeddings Represent Your Data:** Map structured features onto embeddings for deeper insights into how embeddings represent your data.&#x20;
 * **Evaluate LLM Tasks:** Troubleshoot tasks such as summarization or question/answering to find problem clusters with misleading or false answers.&#x20;
-* **Find Clusters of Issues to Export for Model Improvement:** Find clusters of problems using performance metrics or drift. Export clusters for fine-tuning workflows.&#x20;
+* **Find Clusters of Issues to Export for Model Improvement:** Find [clusters](concepts/phoenix-basics.md#embedding-details) of problems using performance metrics or drift. Export clusters for fine-tuning workflows.&#x20;
 * **Detect Anomalies:** Using LLM embeddings&#x20;
-* **Surface Model Drift and Multivariate Drift:** Use embedding drift to surface data drift for generative AI, LLMs, computer vision (CV) and tabular models.
+* **Surface Model Drift and Multivariate Drift:** Use embedding [drift](concepts/phoenix-basics.md#embedding-drift-over-time) to surface data drift for generative AI, LLMs, computer vision (CV) and tabular models.
 * **Easily Compare A/B Datasets:** Uncover high-impact clusters of data points missing from model training data when comparing training and production datasets.&#x20;
 
 ### Phoenix Supported Model Types
 
-* Tabular - Regression, Classification&#x20;
-* CV&#x20;
-* NLP
-* LLM
+* [Tabular](tutorials/tabular-data.md) - Regression, Classification&#x20;
+* [CV](tutorials/computer-vision.md)&#x20;
+* [NLP](tutorials/nlp.md)
+* [LLM](tutorials/generative-llms.md)
 * Ranking\* (coming soon)
 
 \
