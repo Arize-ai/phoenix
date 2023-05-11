@@ -137,103 +137,77 @@ export function DimensionDriftTimeSeries({
     };
   });
   return (
-    <section
-      css={css`
-        width: 100%;
-        height: 100%;
-        display: flex;
-        flex-direction: column;
-        overflow: hidden;
-        h3 {
-          padding: var(--px-spacing-lg) var(--px-spacing-lg) 0
-            var(--px-spacing-lg);
-          flex: none;
-          .ac-action-button {
-            margin-left: var(--px-spacing-sm);
-          }
-        }
-        & > div {
-          flex: 1 1 auto;
-          width: 100%;
-          overflow: hidden;
-        }
-      `}
-    >
-      <Heading level={3}>Dimension Drift</Heading>
-      <div>
-        <ResponsiveContainer width="100%" height="100%">
-          <ComposedChart
-            data={chartData as unknown as any[]}
-            margin={{ top: 25, right: 18, left: 18, bottom: 10 }}
-            // onClick={onClick}
-            syncId={"dimensionDetails"}
+    <ResponsiveContainer width="100%" height="100%">
+      <ComposedChart
+        data={chartData as unknown as any[]}
+        margin={{ top: 25, right: 18, left: 18, bottom: 10 }}
+        // onClick={onClick}
+        syncId={"dimensionDetails"}
+      >
+        <defs>
+          <linearGradient
+            id="dimensionDriftColorUv"
+            x1="0"
+            y1="0"
+            x2="0"
+            y2="1"
           >
-            <defs>
-              <linearGradient
-                id="dimensionDriftColorUv"
-                x1="0"
-                y1="0"
-                x2="0"
-                y2="1"
-              >
-                <stop offset="5%" stopColor={color} stopOpacity={0.8} />
-                <stop offset="95%" stopColor={color} stopOpacity={0} />
-              </linearGradient>
-              <linearGradient id="barColor" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor={barColor} stopOpacity={0.8} />
-                <stop offset="95%" stopColor={barColor} stopOpacity={0} />
-              </linearGradient>
-            </defs>
-            <XAxis
-              dataKey="timestamp"
-              stroke={theme.colors.gray200}
-              // TODO: Fix this to be a cleaner interface
-              tickFormatter={(x) => shortTimeFormatter(new Date(x))}
-              style={{ fill: theme.textColors.white70 }}
-              scale="time"
-              type="number"
-              domain={["auto", "auto"]}
-              padding={{ left: 10, right: 10 }}
-            />
-            <YAxis
-              stroke={theme.colors.gray200}
-              label={{
-                value: "PSI",
-                angle: -90,
-                position: "insideLeft",
-                style: { textAnchor: "middle", fill: theme.textColors.white90 },
-              }}
-              style={{ fill: theme.textColors.white70 }}
-            />
-            <YAxis
-              yAxisId="right"
-              orientation="right"
-              tick={false}
-              tickLine={false}
-              width={0}
-            />
-            <CartesianGrid
-              strokeDasharray="4 4"
-              stroke={theme.colors.gray200}
-              strokeOpacity={0.5}
-            />
-            <Tooltip content={<TooltipContent />} />
-            <Bar
-              yAxisId="right"
-              dataKey="traffic"
-              fill="url(#barColor)"
-              spacing={5}
-            />
-            <Area
-              type="monotone"
-              dataKey="value"
-              stroke={color}
-              fillOpacity={1}
-              fill="url(#dimensionDriftColorUv)"
-            />
-          </ComposedChart>
-        </ResponsiveContainer>
-      </div>
-    </section>
+            <stop offset="5%" stopColor={color} stopOpacity={0.8} />
+            <stop offset="95%" stopColor={color} stopOpacity={0} />
+          </linearGradient>
+          <linearGradient id="barColor" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="5%" stopColor={barColor} stopOpacity={0.8} />
+            <stop offset="95%" stopColor={barColor} stopOpacity={0} />
+          </linearGradient>
+        </defs>
+        <XAxis
+          dataKey="timestamp"
+          stroke={theme.colors.gray200}
+          // TODO: Fix this to be a cleaner interface
+          tickFormatter={(x) => shortTimeFormatter(new Date(x))}
+          style={{ fill: theme.textColors.white70 }}
+          scale="time"
+          type="number"
+          domain={["auto", "auto"]}
+          padding={{ left: 10, right: 10 }}
+        />
+        <YAxis
+          stroke={theme.colors.gray200}
+          label={{
+            value: "PSI",
+            angle: -90,
+            position: "insideLeft",
+            style: { textAnchor: "middle", fill: theme.textColors.white90 },
+          }}
+          style={{ fill: theme.textColors.white70 }}
+        />
+        <YAxis
+          yAxisId="right"
+          orientation="right"
+          tick={false}
+          tickLine={false}
+          width={0}
+        />
+        <CartesianGrid
+          strokeDasharray="4 4"
+          stroke={theme.colors.gray200}
+          strokeOpacity={0.5}
+        />
+        <Tooltip content={<TooltipContent />} />
+        <Bar
+          yAxisId="right"
+          dataKey="traffic"
+          fill="url(#barColor)"
+          spacing={5}
+        />
+        <Area
+          type="monotone"
+          dataKey="value"
+          stroke={color}
+          fillOpacity={1}
+          fill="url(#dimensionDriftColorUv)"
+        />
+      </ComposedChart>
+    </ResponsiveContainer>
   );
 }

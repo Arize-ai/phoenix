@@ -2,9 +2,9 @@ import React, { Suspense } from "react";
 import { useLoaderData, useNavigate, useParams } from "react-router";
 import { css } from "@emotion/react";
 
-import { Dialog, DialogContainer, View } from "@arizeai/components";
+import { Dialog, DialogContainer, Text, View } from "@arizeai/components";
 
-import { Loading } from "@phoenix/components";
+import { Loading, ViewAside } from "@phoenix/components";
 import { useDatasets, useTimeRange } from "@phoenix/contexts";
 import { TimeSliceContextProvider } from "@phoenix/contexts/TimeSliceContext";
 
@@ -48,6 +48,10 @@ export function Dimension() {
               {showDrift ? (
                 <View borderColor="dark" borderRadius="medium" height={200}>
                   <DimensionDriftTimeSeries dimensionId={dimensionId} />
+                  <ViewAside>
+                    <h3>Drift</h3>
+                    <Text color="white90">123</Text>
+                  </ViewAside>
                 </View>
               ) : null}
               {showCardinality ? (
