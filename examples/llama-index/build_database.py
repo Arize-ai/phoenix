@@ -21,6 +21,7 @@ EmbeddingVector: TypeAlias = Any
 
 class DatabaseData(TypedDict):
     article_index: List[int]
+    paragraph_index: List[int]
     granular_subject: List[str]
     broad_subject: List[str]
     text: List[str]
@@ -37,7 +38,16 @@ class QueryData(TypedDict):
 
 def main() -> None:
     database_df, query_df = download_squad_training_data()
+    database_df = database_df.sample(n=2500)
+    database_df["granular_subject"]
+
+    # query_df = (
+    #     query_df.groupby(["granular_subject", "paragraph_index"], as_index=False)
+    #     .first()
+    #     .reset_index(drop=True)
+    # )
     split_to_dataframe = {"database": database_df, "query": query_df}
+    # split_to_dataframe = {"query": query_df}
     data_dir = os.path.expanduser("~/Desktop/llama-index-data")
     for split in split_to_dataframe:
         dataframe = split_to_dataframe[split]
@@ -80,6 +90,7 @@ def download_squad_training_data() -> Tuple[pd.DataFrame, pd.DataFrame]:
 
     database_data: DatabaseData = {
         "article_index": [],
+        "paragraph_index": [],
         "granular_subject": [],
         "broad_subject": [],
         "text": [],
@@ -94,6 +105,7 @@ def download_squad_training_data() -> Tuple[pd.DataFrame, pd.DataFrame]:
     }
     for article_index, article_data in enumerate(squad_data["data"]):
         for paragraph_index, paragraph_data in enumerate(article_data["paragraphs"]):
+            database_data["paragraph_index"] = paragraph_index
             database_data["article_index"].append(article_index)
             database_data["text"].append(paragraph_data["context"])
             database_data["granular_subject"].append(article_data["title"])
