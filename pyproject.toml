@@ -169,7 +169,7 @@ fix = [
 
 [tool.hatch.envs.notebooks.scripts]
 clean = [
-  "jupyter nbconvert --ClearOutputPreprocessor.enabled=True --ClearMetadataPreprocessor.enabled=True --inplace *.ipynb",
+  "jupyter nbconvert --ClearOutputPreprocessor.enabled=True --ClearMetadataPreprocessor.enabled=True --inplace **/*.ipynb",
 ]
 
 [tool.hatch.envs.publish]
