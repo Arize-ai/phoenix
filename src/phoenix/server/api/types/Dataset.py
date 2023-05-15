@@ -60,7 +60,7 @@ class Dataset:
 
 def _get_requested_features_and_tags(
     core_dimensions: Iterable[ScalarDimension],
-    requested_dimension_names: Optional[Set[str]] = None,
+    requested_dimension_names: Optional[Set[str]] = UNSET,
 ) -> List[Dimension]:
     """
     Returns requested features and tags as a list of strawberry Datasets. If no
@@ -68,7 +68,9 @@ def _get_requested_features_and_tags(
     """
     requested_features_and_tags: List[Dimension] = []
     for id, dim in enumerate(core_dimensions):
-        is_requested = requested_dimension_names is None or dim.name in requested_dimension_names
+        is_requested = (
+            not isinstance(requested_dimension_names, Set)
+        ) or dim.name in requested_dimension_names
         is_feature_or_tag = dim.role in (FEATURE, TAG)
         if is_requested and is_feature_or_tag:
             requested_features_and_tags.append(to_gql_dimension(id_attr=id, dimension=dim))

@@ -17,23 +17,26 @@ from .mixins import (
     DiscreteDivergence,
     DriftOperator,
     EvaluationMetric,
+    NullaryOperator,
     UnaryOperator,
     VectorOperator,
     ZeroInitialValue,
 )
 
 
-class Count(UnaryOperator, ZeroInitialValue, BaseMetric):
+class Count(NullaryOperator, ZeroInitialValue, BaseMetric):
     def calc(self, dataframe: pd.DataFrame) -> int:
-        if not self.operand_column_name:
-            return len(dataframe)
-        data = self.get_operand_column(dataframe)
-        return data.count()
+        return len(dataframe)
+
+
+class CountNotNull(UnaryOperator, ZeroInitialValue, BaseMetric):
+    def calc(self, dataframe: pd.DataFrame) -> int:
+        return self.operand(dataframe).count()
 
 
 class Sum(UnaryOperator, BaseMetric):
     def calc(self, dataframe: pd.DataFrame) -> float:
-        data = self.get_operand_column(dataframe)
+        data = self.operand(dataframe)
         numeric_data = pd.to_numeric(data, errors="coerce")
         return cast(float, numeric_data.sum())
 
@@ -44,7 +47,7 @@ Vector: TypeAlias = Union[float, npt.NDArray[np.float64]]
 @dataclass
 class VectorSum(UnaryOperator, VectorOperator, ZeroInitialValue, BaseMetric):
     def calc(self, dataframe: pd.DataFrame) -> Vector:
-        data = self.get_operand_column(dataframe)
+        data = self.operand(dataframe)
         return cast(
             Vector,
             np.sum(
@@ -57,7 +60,7 @@ class VectorSum(UnaryOperator, VectorOperator, ZeroInitialValue, BaseMetric):
 @dataclass
 class Mean(UnaryOperator, BaseMetric):
     def calc(self, dataframe: pd.DataFrame) -> float:
-        data = self.get_operand_column(dataframe)
+        data = self.operand(dataframe)
         numeric_data = pd.to_numeric(data, errors="coerce")
         return numeric_data.mean()
 
@@ -65,7 +68,7 @@ class Mean(UnaryOperator, BaseMetric):
 @dataclass
 class VectorMean(UnaryOperator, VectorOperator, BaseMetric):
     def calc(self, dataframe: pd.DataFrame) -> Vector:
-        data = self.get_operand_column(dataframe)
+        data = self.operand(dataframe)
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", category=RuntimeWarning)
             return cast(Vector, np.mean(data.dropna()))
@@ -74,7 +77,7 @@ class VectorMean(UnaryOperator, VectorOperator, BaseMetric):
 @dataclass
 class Min(UnaryOperator, BaseMetric):
     def calc(self, dataframe: pd.DataFrame) -> float:
-        data = self.get_operand_column(dataframe)
+        data = self.operand(dataframe)
         numeric_data = pd.to_numeric(data, errors="coerce")
         return cast(float, numeric_data.min())
 
@@ -82,7 +85,7 @@ class Min(UnaryOperator, BaseMetric):
 @dataclass
 class Max(UnaryOperator, BaseMetric):
     def calc(self, dataframe: pd.DataFrame) -> float:
-        data = self.get_operand_column(dataframe)
+        data = self.operand(dataframe)
         numeric_data = pd.to_numeric(data, errors="coerce")
         return cast(float, numeric_data.max())
 
@@ -90,7 +93,7 @@ class Max(UnaryOperator, BaseMetric):
 @dataclass
 class Cardinality(UnaryOperator, BaseMetric):
     def calc(self, dataframe: pd.DataFrame) -> float:
-        data = self.get_operand_column(dataframe)
+        data = self.operand(dataframe)
         if data.dtype.kind == "f":
             return float("nan")
         return cast(float, data.nunique())
@@ -99,7 +102,7 @@ class Cardinality(UnaryOperator, BaseMetric):
 @dataclass
 class PercentEmpty(UnaryOperator, BaseMetric):
     def calc(self, dataframe: pd.DataFrame) -> float:
-        data = self.get_operand_column(dataframe)
+        data = self.operand(dataframe)
         return data.isna().mean() * 100
 
 
@@ -110,8 +113,8 @@ class AccuracyScore(EvaluationMetric):
     """
 
     def calc(self, dataframe: pd.DataFrame) -> float:
-        predicted = self.get_predicted_column(dataframe)
-        actual = self.get_actual_column(dataframe)
+        predicted = self.predicted(dataframe)
+        actual = self.actual(dataframe)
         return cast(float, accuracy_score(actual, predicted))
 
 
@@ -119,7 +122,7 @@ class AccuracyScore(EvaluationMetric):
 class EuclideanDistance(DriftOperator, VectorOperator):
     @cached_property
     def reference_value(self) -> Vector:
-        data = self.get_operand_column(self.reference_data)
+        data = self.operand(self.reference_data)
         return cast(Vector, np.mean(data.dropna()))
 
     def calc(self, dataframe: pd.DataFrame) -> float:
@@ -127,7 +130,7 @@ class EuclideanDistance(DriftOperator, VectorOperator):
             isinstance(self.reference_value, float) and not math.isfinite(self.reference_value)
         ):
             return float("nan")
-        data = self.get_operand_column(dataframe)
+        data = self.operand(dataframe)
         return cast(
             float,
             euclidean(

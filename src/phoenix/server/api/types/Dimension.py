@@ -1,10 +1,16 @@
-from typing import List, Optional
+from collections import defaultdict
+from typing import Any, Dict, List, Optional
 
 import strawberry
+from strawberry import UNSET
 from strawberry.types import Info
 from typing_extensions import Annotated
 
-from phoenix.core.model_schema import PRIMARY, REFERENCE, ScalarDimension
+import phoenix.core.model_schema as ms
+from phoenix.core.model_schema import CONTINUOUS, PRIMARY, REFERENCE, ScalarDimension
+from phoenix.metrics import binning
+from phoenix.metrics.metrics import Count
+from phoenix.metrics.timeseries import row_interval_from_sorted_time_index
 
 from ..context import Context
 from ..input_types.Granularity import Granularity
@@ -16,7 +22,12 @@ from .DimensionShape import DimensionShape
 from .DimensionType import DimensionType
 from .node import Node
 from .ScalarDriftMetricEnum import ScalarDriftMetric
-from .Segments import DatasetValues, Segments
+from .Segments import (
+    DatasetValues,
+    GqlBinFactory,
+    Segment,
+    Segments,
+)
 from .TimeSeries import (
     DataQualityTimeSeries,
     DriftTimeSeries,
@@ -45,7 +56,7 @@ class Dimension(Node):
         self,
         info: Info[Context, None],
         metric: ScalarDriftMetric,
-        time_range: Optional[TimeRange] = None,
+        time_range: Optional[TimeRange] = UNSET,
     ) -> Optional[float]:
         """
         Computes a drift metric between all reference data and the primary data
@@ -75,7 +86,7 @@ class Dimension(Node):
         self,
         info: Info[Context, None],
         metric: DataQualityMetric,
-        time_range: Optional[TimeRange] = None,
+        time_range: Optional[TimeRange] = UNSET,
         dataset_role: Annotated[
             Optional[DatasetRole],
             strawberry.argument(
@@ -83,7 +94,7 @@ class Dimension(Node):
             ),
         ] = DatasetRole.primary,
     ) -> Optional[float]:
-        if dataset_role is None:
+        if not isinstance(dataset_role, DatasetRole):
             dataset_role = DatasetRole.primary
         dataset = info.context.model[dataset_role.value]
         time_range, granularity = ensure_timeseries_parameters(
@@ -130,7 +141,7 @@ class Dimension(Node):
             ),
         ] = DatasetRole.primary,
     ) -> DataQualityTimeSeries:
-        if dataset_role is None:
+        if not isinstance(dataset_role, DatasetRole):
             dataset_role = DatasetRole.primary
         dataset = info.context.model[dataset_role.value]
         time_range, granularity = ensure_timeseries_parameters(
@@ -186,11 +197,66 @@ class Dimension(Node):
     )  # type: ignore
     def segments_comparison(
         self,
-        primary_time_range: Optional[TimeRange] = strawberry.UNSET,
+        info: Info[Context, None],
+        primary_time_range: Optional[TimeRange] = UNSET,
     ) -> Segments:
         # TODO: Implement binning across primary and reference
 
-        return Segments(segments=[], total_counts=DatasetValues(primary_value=0, reference_value=0))
+        model = info.context.model
+        count = Count()
+        summaries = {}
+        binning_method = (
+            binning.QuantileBinning(
+                reference_series=self.dimension[REFERENCE],
+            )
+            if self.dimension.data_type is CONTINUOUS
+            else binning.CategoricalBinning()
+        )
+        for role, time_range in (
+            (PRIMARY, primary_time_range),
+            (REFERENCE, None),
+        ):
+            if (df := model[role]).empty:
+                continue
+            if time_range:
+                start, stop = row_interval_from_sorted_time_index(
+                    df.index,
+                    time_range.start,
+                    time_range.end,
+                )
+                df = df.iloc[start:stop]
+            summaries[role] = binning_method.segmented_summary(
+                self.dimension,
+                df,
+                (count,),  # type: ignore
+            )
+        segments = Segments()
+        lbound, ubound = self.dimension.min_max
+        gql_bin_factory = GqlBinFactory(
+            numeric_lbound=lbound,
+            numeric_ubound=ubound,
+        )
+        all_bins = summaries[PRIMARY].index.union(summaries[REFERENCE].index)
+        if isinstance(binning_method, binning.QuantileBinning):
+            all_bins = all_bins.union(binning_method.bins)  # type: ignore
+        for bin in all_bins:
+            values: Dict[ms.DatasetRole, Any] = defaultdict(lambda: None)
+            for role in ms.DatasetRole:
+                if model[role].empty:
+                    continue
+                try:
+                    result = summaries[role].loc[bin]
+                except KeyError:
+                    result = {}
+                values[role] = count.get_value(result)
+            segments <<= Segment(
+                bin=gql_bin_factory(bin),
+                counts=DatasetValues(
+                    primary_value=values[PRIMARY],
+                    reference_value=values[REFERENCE],
+                ),
+            )
+        return segments
 
 
 def to_gql_dimension(id_attr: int, dimension: ScalarDimension) -> Dimension:

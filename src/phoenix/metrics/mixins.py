@@ -6,12 +6,13 @@ on cooperative multiple inheritance and method resolution order in Python.
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from functools import cached_property
-from typing import Any, List, Mapping, Optional
+from typing import Any, Iterator, Mapping
 
 import numpy as np
 import pandas as pd
 from typing_extensions import TypeAlias
 
+from phoenix.core.model_schema import Column
 from phoenix.metrics.binning import (
     AdditiveSmoothing,
     BinningMethod,
@@ -33,13 +34,11 @@ class VectorOperator(ABC):
     shape: int = 0
 
 
-def _get_column_from_dataframe(
-    name: str,
-    dataframe: Optional[pd.DataFrame] = None,
-) -> "pd.Series[Any]":
-    if name and isinstance(dataframe, pd.DataFrame) and name in dataframe.columns:
-        return dataframe.loc[:, name]
-    return pd.Series(dtype=object)
+@dataclass
+class NullaryOperator(ABC):
+    @staticmethod
+    def input_column_names() -> Iterator[str]:
+        yield from ()
 
 
 @dataclass
@@ -49,20 +48,10 @@ class UnaryOperator(ABC):
     See https://en.wikipedia.org/wiki/Arity
     """
 
-    operand_column_name: str = ""
+    operand: Column = Column()
 
-    def get_operand_column(
-        self,
-        dataframe: Optional[pd.DataFrame] = None,
-    ) -> "pd.Series[Any]":
-        return _get_column_from_dataframe(
-            self.operand_column_name,
-            dataframe,
-        )
-
-    def input_column_names(self) -> List[str]:
-        column_names = [self.operand_column_name]
-        return list(filter(len, column_names))
+    def input_column_names(self) -> Iterator[str]:
+        yield from self.operand
 
 
 @dataclass
@@ -91,44 +80,23 @@ class BaseMetric(ABC):
     def __call__(self, dataframe: pd.DataFrame) -> Any:
         try:
             return self.calc(dataframe)
-        except TypeError:
+        except (TypeError, ValueError):
             return float("nan")
 
 
 @dataclass
 class EvaluationMetric(BaseMetric, ABC):
-    predicted_column_name: str
-    actual_column_name: str
+    predicted: Column = Column()
+    actual: Column = Column()
 
-    def get_predicted_column(
-        self,
-        dataframe: Optional[pd.DataFrame] = None,
-    ) -> "pd.Series[Any]":
-        return _get_column_from_dataframe(
-            self.predicted_column_name,
-            dataframe,
-        )
-
-    def get_actual_column(
-        self,
-        dataframe: Optional[pd.DataFrame] = None,
-    ) -> "pd.Series[Any]":
-        return _get_column_from_dataframe(
-            self.actual_column_name,
-            dataframe,
-        )
-
-    def input_column_names(self) -> List[str]:
-        column_names = [
-            self.predicted_column_name,
-            self.actual_column_name,
-        ]
-        return list(filter(len, column_names))
+    def input_column_names(self) -> Iterator[str]:
+        yield from self.predicted
+        yield from self.actual
 
 
 @dataclass
 class DriftOperator(UnaryOperator, BaseMetric, ABC):
-    reference_data: Optional[pd.DataFrame] = None
+    reference_data: pd.DataFrame = pd.DataFrame()
 
 
 Distribution: TypeAlias = "pd.Series[float]"
@@ -175,11 +143,11 @@ class DiscreteDivergence(Discretizer, DriftOperator):
 
     @cached_property
     def reference_histogram(self) -> Histogram:
-        data = self.get_operand_column(self.reference_data)
+        data = self.operand(self.reference_data)
         return self.histogram(data).rename("reference_histogram")
 
     def calc(self, dataframe: pd.DataFrame) -> float:
-        data = self.get_operand_column(dataframe)
+        data = self.operand(dataframe)
         # outer-join histograms and fill in zeros for missing categories
         merged_counts = pd.merge(
             self.histogram(data).rename("primary_histogram"),
@@ -187,6 +155,7 @@ class DiscreteDivergence(Discretizer, DriftOperator):
             left_index=True,
             right_index=True,
             how="outer",
+            copy=False,
         ).fillna(0)
         # remove rows with all zeros
         merged_counts = merged_counts.loc[(merged_counts > 0).any(axis=1)]  # type: ignore

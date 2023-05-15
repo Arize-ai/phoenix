@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import List, Optional
 
 import strawberry
-from strawberry import ID
+from strawberry import ID, UNSET
 from strawberry.types import Info
 
 from phoenix.server.api.context import Context
@@ -24,9 +24,9 @@ class ExportEventsMutation:
         self,
         info: Info[Context, None],
         event_ids: List[ID],
-        file_name: Optional[str] = None,
+        file_name: Optional[str] = UNSET,
     ) -> ExportedFile:
-        if file_name is None:
+        if not isinstance(file_name, str):
             file_name = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         row_ids = parse_event_ids(event_ids)
         path = info.context.export_path
