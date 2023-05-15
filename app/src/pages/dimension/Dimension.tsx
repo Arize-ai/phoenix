@@ -2,7 +2,7 @@ import React, { Suspense } from "react";
 import { useLoaderData, useNavigate, useParams } from "react-router";
 import { css } from "@emotion/react";
 
-import { Dialog, DialogContainer, Text, View } from "@arizeai/components";
+import { Dialog, DialogContainer, Flex, Text, View } from "@arizeai/components";
 
 import { Loading, ViewAside } from "@phoenix/components";
 import { useDatasets, useTimeRange } from "@phoenix/contexts";
@@ -46,21 +46,50 @@ export function Dimension() {
           >
             <Suspense fallback={<Loading />}>
               {showDrift ? (
-                <View borderColor="dark" borderRadius="medium" height={200}>
-                  <DimensionDriftTimeSeries dimensionId={dimensionId} />
-                  <ViewAside>
-                    <h3>Drift</h3>
-                    <Text color="white90">123</Text>
-                  </ViewAside>
+                <View
+                  borderColor="dark"
+                  borderRadius="medium"
+                  borderWidth="thin"
+                  height={200}
+                >
+                  <Flex direction="row" alignItems="stretch" height="100%">
+                    <DimensionDriftTimeSeries dimensionId={dimensionId} />
+                    <ViewAside>
+                      <h3>Drift</h3>
+                      <Text color="white90">123</Text>
+                    </ViewAside>
+                  </Flex>
                 </View>
               ) : null}
               {showCardinality ? (
-                <View borderColor="dark" borderRadius="medium" height={200}>
-                  <DimensionCardinalityTimeSeries dimensionId={dimensionId} />
+                <View
+                  borderColor="dark"
+                  borderRadius="medium"
+                  borderWidth="thin"
+                  height={200}
+                >
+                  <Flex direction="row" alignItems="stretch" height="100%">
+                    <DimensionCardinalityTimeSeries dimensionId={dimensionId} />
+                    <ViewAside>
+                      <h3>Cardinality</h3>
+                      <Text color="white90">123</Text>
+                    </ViewAside>
+                  </Flex>
                 </View>
               ) : null}
-              <View borderColor="dark" borderRadius="medium" height={200}>
-                <DimensionPercentEmptyTimeSeries dimensionId={dimensionId} />
+              <View
+                borderColor="dark"
+                borderRadius="medium"
+                borderWidth="thin"
+                height={200}
+              >
+                <Flex direction="row" alignItems="stretch" height="100%">
+                  <DimensionPercentEmptyTimeSeries dimensionId={dimensionId} />
+                  <ViewAside>
+                    <h3>Percent Empty</h3>
+                    <Text color="white90">123</Text>
+                  </ViewAside>
+                </Flex>
               </View>
             </Suspense>
           </main>

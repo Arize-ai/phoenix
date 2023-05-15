@@ -11,9 +11,8 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { css } from "@emotion/react";
 
-import { Heading, Text, theme } from "@arizeai/components";
+import { Text, theme } from "@arizeai/components";
 
 import {
   ChartTooltip,
