@@ -561,7 +561,7 @@ def _normalize_timestamps(
     if (timestamp_column_name := schema.timestamp_column_name) is None:
         timestamp_column_name = "timestamp"
         schema = replace(schema, timestamp_column_name=timestamp_column_name)
-        timestamp_column = Series([default_timestamp] * len(dataframe))
+        timestamp_column = Series([default_timestamp] * len(dataframe), index=dataframe.index)
     elif is_numeric_dtype(timestamp_column_dtype := dataframe[timestamp_column_name].dtype):
         timestamp_column = to_datetime(dataframe[timestamp_column_name], unit="s", utc=True)
     elif is_datetime64tz_dtype(timestamp_column_dtype):
