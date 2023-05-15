@@ -59,7 +59,10 @@ class GlobalID:
             raise GlobalIDValueError(
                 f"type_name is expected to be a string, found {self.type_name}"
             )
-        if not isinstance(self.node_id, int):
+        try:
+            # node_id could be numpy.int64, hence the need for coercion
+            object.__setattr__(self, "node_id", int(self.node_id))
+        except ValueError:
             raise GlobalIDValueError(f"node_id is expected to be an int, found {self.node_id}")
 
     def __str__(self) -> str:

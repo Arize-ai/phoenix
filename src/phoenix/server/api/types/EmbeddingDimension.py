@@ -1,6 +1,6 @@
 from collections import defaultdict
 from datetime import timedelta
-from typing import Dict, List, Optional, cast
+from typing import Dict, Iterator, List, Optional, cast
 
 import numpy as np
 import numpy.typing as npt
@@ -237,8 +237,12 @@ class EmbeddingDimension(Node):
                 )
             vector_column = self.dimension[dataset_id]
             samples_collected = 0
-            for row_id in range(row_id_start, row_id_stop):
-                if samples_collected == n_samples:
+            for row_id in _row_indices(
+                row_id_start,
+                row_id_stop,
+                shuffle=0 < n_samples < (row_id_stop - row_id_start),
+            ):
+                if samples_collected >= n_samples:
                     break
                 embedding_vector = vector_column.iloc[row_id]
                 # Exclude scalar values, e.g. None/NaN, by checking the presence
@@ -295,6 +299,20 @@ class EmbeddingDimension(Node):
                 has_reference_data=not model[REFERENCE].empty,
             ),
         )
+
+
+def _row_indices(
+    start: int,
+    stop: int,
+    /,
+    shuffle: bool = False,
+) -> Iterator[int]:
+    if not shuffle:
+        yield from range(start, stop)
+        return
+    shuffled_indices = np.arange(start, stop)
+    np.random.shuffle(shuffled_indices)
+    yield from shuffled_indices
 
 
 def to_gql_embedding_dimension(
