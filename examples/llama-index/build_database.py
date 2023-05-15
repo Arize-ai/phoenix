@@ -105,7 +105,7 @@ def download_squad_training_data() -> Tuple[pd.DataFrame, pd.DataFrame]:
     }
     for article_index, article_data in enumerate(squad_data["data"]):
         for paragraph_index, paragraph_data in enumerate(article_data["paragraphs"]):
-            database_data["paragraph_index"] = paragraph_index
+            database_data["paragraph_index"].append(paragraph_index)
             database_data["article_index"].append(article_index)
             database_data["text"].append(paragraph_data["context"])
             database_data["granular_subject"].append(article_data["title"])
