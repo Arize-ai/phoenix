@@ -237,8 +237,8 @@ class Dimension(Node):
             numeric_ubound=ubound,
         )
         all_bins = summaries[PRIMARY].index.union(summaries[REFERENCE].index)
-        if isinstance(binning_method, binning.QuantileBinning):
-            all_bins = all_bins.union(binning_method.bins)  # type: ignore
+        if isinstance(binning_method, binning.IntervalBinning) and binning_method.bins is not None:
+            all_bins = all_bins.union(binning_method.bins)
         for bin in all_bins:
             values: Dict[ms.DatasetRole, Any] = defaultdict(lambda: None)
             for role in ms.DatasetRole:

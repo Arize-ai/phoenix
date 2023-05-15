@@ -36,24 +36,24 @@ class GqlBinFactory:
     numeric_ubound: float = float("inf")
 
     @overload
-    def __call__(self, b: "pd.Interval[float]") -> IntervalBin:
+    def __call__(self, bin: "pd.Interval[float]") -> IntervalBin:
         ...
 
     @overload
-    def __call__(self, b: Union[str, int, float]) -> Union[NominalBin, MissingValueBin]:
+    def __call__(self, bin: Union[str, int, float]) -> Union[NominalBin, MissingValueBin]:
         ...
 
-    def __call__(self, b: Any) -> Union[NominalBin, IntervalBin, MissingValueBin]:
-        if isinstance(b, pd.Interval):
+    def __call__(self, bin: Any) -> Union[NominalBin, IntervalBin, MissingValueBin]:
+        if isinstance(bin, pd.Interval):
             return IntervalBin(
                 range=NumericRange(
-                    start=max(b.left, self.numeric_lbound),
-                    end=min(b.right, self.numeric_ubound),
+                    start=max(bin.left, self.numeric_lbound),
+                    end=min(bin.right, self.numeric_ubound),
                 )
             )
-        if isinstance(b, float) and math.isnan(b):
+        if isinstance(bin, float) and math.isnan(bin):
             return MissingValueBin()
-        return NominalBin(name=str(b))
+        return NominalBin(name=str(bin))
 
 
 @strawberry.type
