@@ -236,9 +236,15 @@ class EmbeddingDimension(Node):
                 )
             vector_column = self.dimension[dataset_id]
             samples_collected = 0
-            for row_id in range(row_id_start, row_id_stop):
+            shuffle: Optional[npt.NDArray[np.int64]] = None
+            total_row_count = row_id_stop - row_id_start
+            if 0 < n_samples < total_row_count:
+                shuffle = np.arange(total_row_count)
+                np.random.shuffle(shuffle)
+            for i in shuffle if shuffle is not None else range(total_row_count):  # type: ignore
                 if samples_collected == n_samples:
                     break
+                row_id = row_id_start + i
                 embedding_vector = vector_column.iloc[row_id]
                 # Exclude scalar values, e.g. None/NaN, by checking the presence
                 # of dunder method __len__.
