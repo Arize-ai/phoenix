@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<2116e56b2dc9b627e6eeb4cf83641715>>
+ * @generated SignedSource<<fc57884c189e42f41e775765decaac70>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -21,7 +21,7 @@ export type DimensionQuery$variables = {
 export type DimensionQuery$data = {
   readonly dimension: {
     readonly id?: string;
-    readonly " $fragmentSpreads": FragmentRefs<"DimensionCardinalityStats_dimension" | "DimensionCountStats_dimension" | "DimensionDriftStats_dimension" | "DimensionPercentEmptyStats_dimension">;
+    readonly " $fragmentSpreads": FragmentRefs<"DimensionCardinalityStats_dimension" | "DimensionCountStats_dimension" | "DimensionDriftStats_dimension" | "DimensionPercentEmptyStats_dimension" | "DimensionSegmentsBarChart_dimension">;
   };
 };
 export type DimensionQuery = {
@@ -63,6 +63,22 @@ v3 = {
 },
 v4 = [
   (v3/*: any*/)
+],
+v5 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "__typename",
+  "storageKey": null
+},
+v6 = [
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "primaryValue",
+    "storageKey": null
+  }
 ];
 return {
   "fragment": {
@@ -83,6 +99,11 @@ return {
             "kind": "InlineFragment",
             "selections": [
               (v2/*: any*/),
+              {
+                "args": (v4/*: any*/),
+                "kind": "FragmentSpread",
+                "name": "DimensionSegmentsBarChart_dimension"
+              },
               {
                 "args": (v4/*: any*/),
                 "kind": "FragmentSpread",
@@ -128,13 +149,7 @@ return {
         "name": "node",
         "plural": false,
         "selections": [
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "__typename",
-            "storageKey": null
-          },
+          (v5/*: any*/),
           {
             "kind": "TypeDiscriminator",
             "abstractKey": "__isNode"
@@ -143,6 +158,112 @@ return {
           {
             "kind": "InlineFragment",
             "selections": [
+              {
+                "alias": null,
+                "args": [
+                  {
+                    "kind": "Variable",
+                    "name": "primaryTimeRange",
+                    "variableName": "timeRange"
+                  }
+                ],
+                "concreteType": "Segments",
+                "kind": "LinkedField",
+                "name": "segmentsComparison",
+                "plural": false,
+                "selections": [
+                  {
+                    "alias": null,
+                    "args": null,
+                    "concreteType": "Segment",
+                    "kind": "LinkedField",
+                    "name": "segments",
+                    "plural": true,
+                    "selections": [
+                      {
+                        "alias": null,
+                        "args": null,
+                        "concreteType": null,
+                        "kind": "LinkedField",
+                        "name": "bin",
+                        "plural": false,
+                        "selections": [
+                          (v5/*: any*/),
+                          {
+                            "kind": "InlineFragment",
+                            "selections": [
+                              {
+                                "alias": null,
+                                "args": null,
+                                "kind": "ScalarField",
+                                "name": "name",
+                                "storageKey": null
+                              }
+                            ],
+                            "type": "NominalBin",
+                            "abstractKey": null
+                          },
+                          {
+                            "kind": "InlineFragment",
+                            "selections": [
+                              {
+                                "alias": null,
+                                "args": null,
+                                "concreteType": "NumericRange",
+                                "kind": "LinkedField",
+                                "name": "range",
+                                "plural": false,
+                                "selections": [
+                                  {
+                                    "alias": null,
+                                    "args": null,
+                                    "kind": "ScalarField",
+                                    "name": "start",
+                                    "storageKey": null
+                                  },
+                                  {
+                                    "alias": null,
+                                    "args": null,
+                                    "kind": "ScalarField",
+                                    "name": "end",
+                                    "storageKey": null
+                                  }
+                                ],
+                                "storageKey": null
+                              }
+                            ],
+                            "type": "IntervalBin",
+                            "abstractKey": null
+                          }
+                        ],
+                        "storageKey": null
+                      },
+                      {
+                        "alias": null,
+                        "args": null,
+                        "concreteType": "DatasetValues",
+                        "kind": "LinkedField",
+                        "name": "counts",
+                        "plural": false,
+                        "selections": (v6/*: any*/),
+                        "storageKey": null
+                      }
+                    ],
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "concreteType": "DatasetValues",
+                    "kind": "LinkedField",
+                    "name": "totalCounts",
+                    "plural": false,
+                    "selections": (v6/*: any*/),
+                    "storageKey": null
+                  }
+                ],
+                "storageKey": null
+              },
               {
                 "alias": "count",
                 "args": [
@@ -209,16 +330,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "9a82f49fd02e60241952b2a292c7f437",
+    "cacheID": "ccc3ece66b11b3143011511585b0b91a",
     "id": null,
     "metadata": {},
     "name": "DimensionQuery",
     "operationKind": "query",
-    "text": "query DimensionQuery(\n  $dimensionId: GlobalID!\n  $timeRange: TimeRange!\n) {\n  dimension: node(id: $dimensionId) {\n    __typename\n    ... on Dimension {\n      id\n      ...DimensionCountStats_dimension_3E0ZE6\n      ...DimensionDriftStats_dimension_3E0ZE6\n      ...DimensionCardinalityStats_dimension_3E0ZE6\n      ...DimensionPercentEmptyStats_dimension_3E0ZE6\n    }\n    __isNode: __typename\n    id\n  }\n}\n\nfragment DimensionCardinalityStats_dimension_3E0ZE6 on Dimension {\n  id\n  cardinality: dataQualityMetric(metric: cardinality, timeRange: $timeRange)\n}\n\nfragment DimensionCountStats_dimension_3E0ZE6 on Dimension {\n  id\n  count: dataQualityMetric(metric: count, timeRange: $timeRange)\n}\n\nfragment DimensionDriftStats_dimension_3E0ZE6 on Dimension {\n  id\n  psi: driftMetric(metric: psi, timeRange: $timeRange)\n}\n\nfragment DimensionPercentEmptyStats_dimension_3E0ZE6 on Dimension {\n  id\n  percentEmpty: dataQualityMetric(metric: percentEmpty, timeRange: $timeRange)\n}\n"
+    "text": "query DimensionQuery(\n  $dimensionId: GlobalID!\n  $timeRange: TimeRange!\n) {\n  dimension: node(id: $dimensionId) {\n    __typename\n    ... on Dimension {\n      id\n      ...DimensionSegmentsBarChart_dimension_3E0ZE6\n      ...DimensionCountStats_dimension_3E0ZE6\n      ...DimensionDriftStats_dimension_3E0ZE6\n      ...DimensionCardinalityStats_dimension_3E0ZE6\n      ...DimensionPercentEmptyStats_dimension_3E0ZE6\n    }\n    __isNode: __typename\n    id\n  }\n}\n\nfragment DimensionCardinalityStats_dimension_3E0ZE6 on Dimension {\n  id\n  cardinality: dataQualityMetric(metric: cardinality, timeRange: $timeRange)\n}\n\nfragment DimensionCountStats_dimension_3E0ZE6 on Dimension {\n  id\n  count: dataQualityMetric(metric: count, timeRange: $timeRange)\n}\n\nfragment DimensionDriftStats_dimension_3E0ZE6 on Dimension {\n  id\n  psi: driftMetric(metric: psi, timeRange: $timeRange)\n}\n\nfragment DimensionPercentEmptyStats_dimension_3E0ZE6 on Dimension {\n  id\n  percentEmpty: dataQualityMetric(metric: percentEmpty, timeRange: $timeRange)\n}\n\nfragment DimensionSegmentsBarChart_dimension_3E0ZE6 on Dimension {\n  id\n  segmentsComparison(primaryTimeRange: $timeRange) {\n    segments {\n      bin {\n        __typename\n        ... on NominalBin {\n          __typename\n          name\n        }\n        ... on IntervalBin {\n          __typename\n          range {\n            start\n            end\n          }\n        }\n        ... on MissingValueBin {\n          __typename\n        }\n      }\n      counts {\n        primaryValue\n      }\n    }\n    totalCounts {\n      primaryValue\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "79beaec0aa62d8b8881982157c94ba29";
+(node as any).hash = "4181f0d876bedede748b1cf8273f5325";
 
 export default node;

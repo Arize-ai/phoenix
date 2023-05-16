@@ -37,6 +37,8 @@ export function Dimension() {
         dimension: node(id: $dimensionId) {
           ... on Dimension {
             id
+            ...DimensionSegmentsBarChart_dimension
+              @arguments(timeRange: $timeRange)
             ...DimensionCountStats_dimension @arguments(timeRange: $timeRange)
             ...DimensionDriftStats_dimension @arguments(timeRange: $timeRange)
             ...DimensionCardinalityStats_dimension
@@ -85,7 +87,7 @@ export function Dimension() {
                 borderWidth="thin"
                 height="size-1600"
               >
-                <DimensionSegmentsBarChart />
+                <DimensionSegmentsBarChart dimension={data.dimension} />
               </View>
               <View
                 borderColor="dark"
