@@ -200,7 +200,10 @@ class _ConstantValueSeriesFactory:
     """
 
     value: Any = field(default=float("nan"))
-    cached_array: npt.NDArray[np.float64] = field(default=np.empty(0))
+    _cached_array: npt.NDArray[np.float64] = field(
+        init=False,
+        default=np.empty(0),
+    )
     """If a longer Series is requested, the cached array is expanded;
     otherwise, a subset can be returned, assuming it won't be altered by the
     caller.
@@ -209,28 +212,20 @@ class _ConstantValueSeriesFactory:
         init=False,
         default_factory=threading.Lock,
     )
-    """A lock is applied at the class instance level for reassurance on thread
-    safety, with minimal overhead expected, unless too many callers
-    simultaneously rely on the same instance.
+    """A lock is applied at the class instance level for thread safety, with
+    minimal overhead expected, unless too many callers simultaneously rely on
+    the same instance.
     """
-
-    def __post_init__(self) -> None:
-        if len(self.cached_array) > 0:
-            object.__setattr__(
-                self,
-                "value",
-                self.cached_array[0],
-            )
 
     def __call__(self, length: int) -> "pd.Series[Any]":
         with self._lock:
-            if length > len(self.cached_array):
+            if length > len(self._cached_array):
                 object.__setattr__(
                     self,
-                    "cached_array",
+                    "_cached_array",
                     np.full(length, self.value),
                 )
-            return pd.Series(self.cached_array[:length])
+            return pd.Series(self._cached_array[:length])
 
 
 _Key = TypeVar("_Key", bound=Hashable)
@@ -326,14 +321,10 @@ class Column:
 
     def __iter__(self) -> Iterator[str]:
         """This is to partake in the iteration of column names by a
-                larger data structure of which this object is a member. Dummy
-                columns need not be yielded because they represent columns
-                that don't (physically) exist (i.e. they are just fillers for
-        <<<<<<< Updated upstream
-                the Model).
-        =======
-                the Model to make the Schema whole).
-        >>>>>>> Stashed changes
+        larger data structure of which this object is a member. Dummy
+        columns need not be yielded because they represent columns
+        that don't (physically) exist (i.e. they are just fillers for
+        the Model to make the Schema whole).
         """
         if not self.is_dummy:
             yield self.name
@@ -771,22 +762,12 @@ class Model:
         object.__setattr__(
             self,
             "_nan_series_factory",
-            _ConstantValueSeriesFactory(
-                cached_array=np.full(
-                    max(*map(len, self._datasets.values())),
-                    float("nan"),
-                ),
-            ),
+            _ConstantValueSeriesFactory(float("nan")),
         )
         object.__setattr__(
             self,
             "_default_timestamps_factory",
-            _ConstantValueSeriesFactory(
-                cached_array=np.full(
-                    max(*map(len, self._datasets.values())),
-                    datetime.now(timezone.utc),
-                ),
-            ),
+            _ConstantValueSeriesFactory(datetime.now(timezone.utc)),
         )
 
         # Store dimensions by name. In general, a dimension's name is that of
