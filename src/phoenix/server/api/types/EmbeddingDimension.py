@@ -254,7 +254,7 @@ class EmbeddingDimension(Node):
                 samples_collected += 1
 
         # validate n_components to be 2 or 3
-        n_components = DEFAULT_N_COMPONENTS if not isinstance(n_components, int) else n_components
+        n_components = DEFAULT_N_COMPONENTS if n_components is None else n_components
         if not 2 <= n_components <= 3:
             raise Exception(f"n_components must be 2 or 3, got {n_components}")
 
