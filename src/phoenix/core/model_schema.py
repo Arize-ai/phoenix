@@ -4,6 +4,7 @@ import re
 import threading
 from abc import ABC, abstractmethod
 from collections import defaultdict
+from contextlib import contextmanager
 from dataclasses import dataclass, field, fields, replace
 from datetime import datetime, timedelta, timezone
 from enum import IntEnum, auto, unique
@@ -15,6 +16,8 @@ from typing import (
     BinaryIO,
     Callable,
     Dict,
+    Generic,
+    Hashable,
     Iterable,
     Iterator,
     List,
@@ -183,24 +186,84 @@ REFERENCE = DatasetRole.REFERENCE
 
 @dataclass(frozen=True, repr=False, eq=False)
 class _ConstantValueSeriesFactory:
+    """The intent is to share memory for readonly situations where a constant
+    value, e.g. NaN, is expected from a non-existent dataframe column by the
+    downstream calculations. To avoid duplicating memory when we require such
+    columns multiple times or need to subset them frequently, we first check for
+    a previously allocated array that's longer, and subset from it, thereby
+    sharing the memory already allocated (since the value is constant and does
+    not change). If the cached array is not long enough, we then allocate and
+    cache a new array, replacing the old one. This cache is intended to be
+    attached to a Model instance, and will be garbage collected alongside it,
+    while the `lru_cache` decorator's cache is scoped at the module level and
+    can potentially leak memory.
+    """
+
     value: Any = field(default=float("nan"))
-    _longest_array: npt.NDArray[np.float64] = field(
-        default=np.empty(0),
+    cached_array: npt.NDArray[np.float64] = field(default=np.empty(0))
+    """If a longer Series is requested, the cached array is expanded;
+    otherwise, a subset can be returned, assuming it won't be altered by the
+    caller.
+    """
+    _lock: threading.Lock = field(
+        init=False,
+        default_factory=threading.Lock,
+    )
+    """A lock is applied at the class instance level for reassurance on thread
+    safety, with minimal overhead expected, unless too many callers
+    simultaneously rely on the same instance.
+    """
+
+    def __post_init__(self) -> None:
+        if len(self.cached_array) > 0:
+            object.__setattr__(
+                self,
+                "value",
+                self.cached_array[0],
+            )
+
+    def __call__(self, length: int) -> "pd.Series[Any]":
+        with self._lock:
+            if length > len(self.cached_array):
+                object.__setattr__(
+                    self,
+                    "cached_array",
+                    np.full(length, self.value),
+                )
+            return pd.Series(self.cached_array[:length])
+
+
+_Key = TypeVar("_Key", bound=Hashable)
+_Value = TypeVar("_Value")
+
+
+@dataclass(frozen=True, repr=False, eq=False)
+class _Cache(Generic[_Key, _Value]):
+    """A thread-safe type-safe generic cache backed by a dictionary.
+
+    Example
+    -------
+    >>> c = _Cache[str, int]()
+    >>> with c() as cache:
+    >>>     cache["1"] = 2
+    >>> with c() as cache:
+    >>>     print(cache["1"])
+    2
+    """
+
+    _cache: Dict[_Key, _Value] = field(
+        init=False,
+        default_factory=dict,
     )
     _lock: threading.Lock = field(
         init=False,
         default_factory=threading.Lock,
     )
 
-    def __call__(self, length: int) -> "pd.Series[Any]":
+    @contextmanager
+    def __call__(self) -> Iterator[Dict[_Key, _Value]]:
         with self._lock:
-            if length > self._longest_array.shape[0]:
-                object.__setattr__(
-                    self,
-                    "_longest_array",
-                    np.full(length, self.value),
-                )
-        return pd.Series(self._longest_array[:length])
+            yield self._cache
 
 
 DataFrameOrSeries: TypeAlias = Union[pd.DataFrame, "pd.Series[Any]"]
@@ -263,10 +326,14 @@ class Column:
 
     def __iter__(self) -> Iterator[str]:
         """This is to partake in the iteration of column names by a
-        larger data structure of which this object is a member. Dummy
-        columns need not be yielded because they represent columns
-        that don't (physically) exist (i.e. they are just fillers for
-        the Model).
+                larger data structure of which this object is a member. Dummy
+                columns need not be yielded because they represent columns
+                that don't (physically) exist (i.e. they are just fillers for
+        <<<<<<< Updated upstream
+                the Model).
+        =======
+                the Model to make the Schema whole).
+        >>>>>>> Stashed changes
         """
         if not self.is_dummy:
             yield self.name
@@ -344,7 +411,7 @@ class ScalarDimension(Dimension):
         if self._model is None or self.data_type is CONTINUOUS:
             return ()
         model = cast(Model, self._model)
-        return tuple(model.dimension_categories_from_all_df(self.name).dropna())
+        return tuple(model.dimension_categories_from_all_datasets(self.name).dropna())
 
 
 @dataclass(frozen=True)
@@ -651,7 +718,8 @@ class Model:
     _original_columns_by_role: Dict[DatasetRole, pd.Index]
     _default_timestamps_factory: _ConstantValueSeriesFactory
     _nan_series_factory: _ConstantValueSeriesFactory
-    _dimension_min_max_from_all_df: Dict[str, Tuple[Any, Any]]
+    _dimension_categories_from_all_datasets: _Cache[Name, "pd.Series[Any]"]
+    _dimension_min_max_from_all_datasets: _Cache[Name, Tuple[float, float]]
 
     def __init__(
         self,
@@ -664,20 +732,16 @@ class Model:
         # TODO: Consider moving validations here.
         df_already_validated: bool = False,
     ):
+        # memoization
         object.__setattr__(
             self,
-            "_nan_series_factory",
-            _ConstantValueSeriesFactory(float("nan")),
+            "_dimension_categories_from_all_datasets",
+            _Cache[Name, "pd.Series[Any]"](),
         )
         object.__setattr__(
             self,
-            "_default_timestamps_factory",
-            _ConstantValueSeriesFactory(datetime.now(timezone.utc)),
-        )
-        object.__setattr__(
-            self,
-            "_dimension_min_max_from_all_df",
-            {},
+            "_dimension_min_max_from_all_datasets",
+            _Cache[Name, Tuple[float, float]](),
         )
 
         df_names, dfs = cast(
@@ -702,6 +766,27 @@ class Model:
             self,
             "_original_columns_by_role",
             {role: dataset.columns for role, dataset in self._datasets.items()},
+        )
+
+        object.__setattr__(
+            self,
+            "_nan_series_factory",
+            _ConstantValueSeriesFactory(
+                cached_array=np.full(
+                    max(*map(len, self._datasets.values())),
+                    float("nan"),
+                ),
+            ),
+        )
+        object.__setattr__(
+            self,
+            "_default_timestamps_factory",
+            _ConstantValueSeriesFactory(
+                cached_array=np.full(
+                    max(*map(len, self._datasets.values())),
+                    datetime.now(timezone.utc),
+                ),
+            ),
         )
 
         # Store dimensions by name. In general, a dimension's name is that of
@@ -835,25 +920,43 @@ class Model:
             if not dim.is_dummy and isinstance(dim, EmbeddingDimension)
         )
 
-    def dimension_categories_from_all_df(self, dimension_name: Name) -> "pd.Series[Any]":
+    def dimension_categories_from_all_datasets(
+        self,
+        dimension_name: Name,
+    ) -> "pd.Series[Any]":
         dim = self[dimension_name]
-        categories_by_df = (dim[role].unique() for role in DatasetRole)
-        all_values_combined = chain.from_iterable(categories_by_df)
-        return pd.Series(all_values_combined).sort_values().drop_duplicates()
+        if dim.data_type is CONTINUOUS:
+            return pd.Series(dtype=object)
+        with self._dimension_categories_from_all_datasets() as cache:
+            try:
+                return cache[dimension_name]
+            except KeyError:
+                pass
+        categories_by_dataset = (dim[role].unique() for role in DatasetRole)
+        all_values_combined = chain.from_iterable(categories_by_dataset)
+        ans = pd.Series(all_values_combined).sort_values().drop_duplicates()
+        with self._dimension_categories_from_all_datasets() as cache:
+            cache[dimension_name] = ans
+        return ans
 
-    def dimension_min_max_from_all_df(self, dimension_name: Name) -> Tuple[Any, Any]:
-        if dimension_name in self._dimension_min_max_from_all_df:
-            return self._dimension_min_max_from_all_df[dimension_name]
+    def dimension_min_max_from_all_df(
+        self,
+        dimension_name: Name,
+    ) -> Tuple[float, float]:
         dim = self[dimension_name]
         if dim.data_type is not CONTINUOUS:
-            ans = (float("nan"), float("nan"))
-            self._dimension_min_max_from_all_df[dimension_name] = ans
-            return ans
+            return (float("nan"), float("nan"))
+        with self._dimension_min_max_from_all_datasets() as cache:
+            try:
+                return cache[dimension_name]
+            except KeyError:
+                pass
         min_max_by_df = (_agg_min_max(dim[df_role]) for df_role in DatasetRole)
         all_values_combined = chain.from_iterable(min_max_by_df)
         min_max = _agg_min_max(pd.Series(all_values_combined))
         ans = (min_max.min(), min_max.max())
-        self._dimension_min_max_from_all_df[dimension_name] = ans
+        with self._dimension_min_max_from_all_datasets() as cache:
+            cache[dimension_name] = ans
         return ans
 
     @overload

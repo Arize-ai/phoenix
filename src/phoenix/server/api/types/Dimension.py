@@ -249,12 +249,14 @@ class Dimension(Node):
                 except KeyError:
                     result = {}
                 values[role] = count.get_value(result)
-            segments <<= Segment(
-                bin=gql_bin_factory(bin),
-                counts=DatasetValues(
-                    primary_value=values[PRIMARY],
-                    reference_value=values[REFERENCE],
-                ),
+            segments.append(
+                Segment(
+                    bin=gql_bin_factory(bin),
+                    counts=DatasetValues(
+                        primary_value=values[PRIMARY],
+                        reference_value=values[REFERENCE],
+                    ),
+                )
             )
         return segments
 

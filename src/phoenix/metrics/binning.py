@@ -100,6 +100,22 @@ class IntervalBinning(BinningMethod):
         dataframe: pd.DataFrame,
         metrics: Iterable[Metric],
     ) -> pd.DataFrame:
+        """Outputs a dataframe similar to the example below, with IntervalBins
+        as row indices and metric.id() as columns (for zero, one, or more
+        metrics). NaN represents the missing value bin when dropna=False.
+        Similar to SQL, unobserved bins are excluded and the output is not
+        sorted.
+
+        +-----------------+-----+-----+
+        | IntervalBin     | 123 | 456 | <- metric.id()
+        +=================+=====+=====+
+        | NaN             |   2 |   5 | <- NaN as bin for missing values
+        +-----------------+-----+-----+
+        | [-2.0, 2.0)     |   3 |   6 |
+        +-----------------+-----+-----+
+        | [-inf, -2000.0) |   1 |   1 |
+        +-----------------+-----+-----+
+        """
         segment_data = pd.to_numeric(
             segment_column(dataframe),
             errors="coerce",

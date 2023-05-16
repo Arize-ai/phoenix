@@ -105,7 +105,7 @@ class Segments:
         default_factory=DatasetValues,
     )
 
-    def __ilshift__(self, other: Segment) -> "Segments":
+    def append(self, other: Segment) -> "Segments":
         self.segments.append(other)
         self.total_counts += other.counts
         return self
