@@ -16,6 +16,11 @@ enum DataQualityMetric {
   min
   max
   count
+  p1
+  p25
+  p50
+  p75
+  p99
 }
 
 type DataQualityTimeSeries implements TimeSeries {
