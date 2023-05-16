@@ -3,4 +3,4 @@ export * from "./LinkButton";
 export * from "./ExternalLink";
 export * from "./LoadingMask";
 export * from "./Loading";
-export * from "./ViewAside";
+export * from "./ViewSummaryAside";

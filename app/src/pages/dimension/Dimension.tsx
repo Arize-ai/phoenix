@@ -1,31 +1,55 @@
 import React, { Suspense } from "react";
+import { graphql, useLazyLoadQuery } from "react-relay";
 import { useLoaderData, useNavigate, useParams } from "react-router";
 import { css } from "@emotion/react";
 
 import { Dialog, DialogContainer, Flex, Text, View } from "@arizeai/components";
 
-import { Loading, ViewAside } from "@phoenix/components";
+import { Loading, ViewSummaryAside } from "@phoenix/components";
 import { useDatasets, useTimeRange } from "@phoenix/contexts";
 import { TimeSliceContextProvider } from "@phoenix/contexts/TimeSliceContext";
 
 import { dimensionLoaderQuery$data } from "./__generated__/dimensionLoaderQuery.graphql";
+import { DimensionQuery } from "./__generated__/DimensionQuery.graphql";
 import { DimensionCardinalityTimeSeries } from "./DimensionCardinalityTimeSeries";
+import { DimensionDriftStats } from "./DimensionDriftStats";
 import { DimensionDriftTimeSeries } from "./DimensionDriftTimeSeries";
 import { DimensionPercentEmptyTimeSeries } from "./DimensionPercentEmptyTimeSeries";
 
 export function Dimension() {
   const { dimensionId } = useParams();
   const { timeRange } = useTimeRange();
-  const data = useLoaderData() as dimensionLoaderQuery$data;
+  const loaderData = useLoaderData() as dimensionLoaderQuery$data;
   const { referenceDataset } = useDatasets();
   const showDrift = referenceDataset !== null;
   // Only show cardinality if if the shape is non-continuous
-  const showCardinality = data.dimension.shape !== "continuous";
+  const showCardinality = loaderData.dimension.shape !== "continuous";
   const navigate = useNavigate();
+
+  const data = useLazyLoadQuery<DimensionQuery>(
+    graphql`
+      query DimensionQuery($dimensionId: GlobalID!, $timeRange: TimeRange!) {
+        dimension: node(id: $dimensionId) {
+          ... on Dimension {
+            id
+            ...DimensionDriftStats_dimension @arguments(timeRange: $timeRange)
+          }
+        }
+      }
+    `,
+    {
+      dimensionId: dimensionId!,
+      timeRange: {
+        start: timeRange.start.toISOString(),
+        end: timeRange.end.toISOString(),
+      },
+    }
+  );
 
   if (!dimensionId) {
     throw new Error("Dimension ID is required to display a dimension");
   }
+
   return (
     <TimeSliceContextProvider initialTimestamp={new Date(timeRange.end)}>
       <DialogContainer
@@ -33,7 +57,7 @@ export function Dimension() {
         isDismissable
         onDismiss={() => navigate("/")}
       >
-        <Dialog size="L" title={data.dimension.name}>
+        <Dialog size="L" title={loaderData.dimension.name}>
           <main
             css={css`
               padding: var(--px-spacing-med);
@@ -54,10 +78,9 @@ export function Dimension() {
                 >
                   <Flex direction="row" alignItems="stretch" height="100%">
                     <DimensionDriftTimeSeries dimensionId={dimensionId} />
-                    <ViewAside>
-                      <h3>Drift</h3>
-                      <Text color="white90">123</Text>
-                    </ViewAside>
+                    <ViewSummaryAside>
+                      <DimensionDriftStats dimension={data.dimension} />
+                    </ViewSummaryAside>
                   </Flex>
                 </View>
               ) : null}
@@ -70,10 +93,10 @@ export function Dimension() {
                 >
                   <Flex direction="row" alignItems="stretch" height="100%">
                     <DimensionCardinalityTimeSeries dimensionId={dimensionId} />
-                    <ViewAside>
+                    <ViewSummaryAside>
                       <h3>Cardinality</h3>
                       <Text color="white90">123</Text>
-                    </ViewAside>
+                    </ViewSummaryAside>
                   </Flex>
                 </View>
               ) : null}
@@ -85,10 +108,10 @@ export function Dimension() {
               >
                 <Flex direction="row" alignItems="stretch" height="100%">
                   <DimensionPercentEmptyTimeSeries dimensionId={dimensionId} />
-                  <ViewAside>
+                  <ViewSummaryAside>
                     <h3>Percent Empty</h3>
                     <Text color="white90">123</Text>
-                  </ViewAside>
+                  </ViewSummaryAside>
                 </Flex>
               </View>
             </Suspense>
