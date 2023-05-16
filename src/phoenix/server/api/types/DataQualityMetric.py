@@ -17,6 +17,6 @@ class DataQualityMetric(Enum):
     count = Count
     p1 = partial(Quantile, probability=0.01)
     p25 = partial(Quantile, probability=0.25)
-    p50 = partial(Quantile, probability=0.5)
+    p50 = partial(Quantile, probability=0.50)
     p75 = partial(Quantile, probability=0.75)
     p99 = partial(Quantile, probability=0.99)
