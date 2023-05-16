@@ -19,4 +19,6 @@ export const colors = Object.freeze({
   pink300: "#F66FB4",
   pink400: "#F33F9B",
   pink500: "#F10E82",
+  // Colors specific to the dataset role
+  primary: "#9efcfd",
 });
