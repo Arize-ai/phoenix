@@ -23,7 +23,7 @@ class Model:
         self,
         info: Info[Context, None],
         first: Optional[int] = 50,
-        last: Optional[int] = None,
+        last: Optional[int] = UNSET,
         after: Optional[Cursor] = UNSET,
         before: Optional[Cursor] = UNSET,
     ) -> Connection[Dimension]:
@@ -49,10 +49,10 @@ class Model:
     @strawberry.field
     def primary_dataset(self, info: Info[Context, None]) -> Dataset:
         dataset = info.context.model[PRIMARY]
-        start, end = dataset.time_range
+        start, stop = dataset.time_range
         return Dataset(
             start_time=start,
-            end_time=end,
+            end_time=stop,
             dataset=dataset,
         )
 
@@ -60,10 +60,10 @@ class Model:
     def reference_dataset(self, info: Info[Context, None]) -> Optional[Dataset]:
         if (dataset := info.context.model[REFERENCE]).empty:
             return None
-        start, end = dataset.time_range
+        start, stop = dataset.time_range
         return Dataset(
             start_time=start,
-            end_time=end,
+            end_time=stop,
             dataset=dataset,
         )
 
@@ -72,7 +72,7 @@ class Model:
         self,
         info: Info[Context, None],
         first: Optional[int] = 50,
-        last: Optional[int] = None,
+        last: Optional[int] = UNSET,
         after: Optional[Cursor] = UNSET,
         before: Optional[Cursor] = UNSET,
     ) -> Connection[EmbeddingDimension]:

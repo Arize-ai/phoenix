@@ -6,6 +6,7 @@ import numpy as np
 import numpy.typing as npt
 import pandas as pd
 import strawberry
+from strawberry import UNSET
 from strawberry.scalars import ID
 from strawberry.types import Info
 from typing_extensions import Annotated
@@ -78,7 +79,7 @@ class EmbeddingDimension(Node):
         self,
         info: Info[Context, None],
         metric: VectorDriftMetric,
-        time_range: Optional[TimeRange] = None,
+        time_range: Optional[TimeRange] = UNSET,
     ) -> Optional[float]:
         model = info.context.model
         if model[REFERENCE].empty:
@@ -117,7 +118,7 @@ class EmbeddingDimension(Node):
             ),
         ] = DatasetRole.primary,
     ) -> DataQualityTimeSeries:
-        if dataset_role is None:
+        if not isinstance(dataset_role, DatasetRole):
             dataset_role = DatasetRole.primary
         dataset = info.context.model[dataset_role.value]
         time_range, granularity = ensure_timeseries_parameters(

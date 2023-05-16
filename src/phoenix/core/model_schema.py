@@ -1,12 +1,14 @@
 import json
 import math
 import re
+import threading
 from abc import ABC, abstractmethod
 from collections import defaultdict
+from contextlib import contextmanager
 from dataclasses import dataclass, field, fields, replace
 from datetime import datetime, timedelta, timezone
 from enum import IntEnum, auto, unique
-from functools import cached_property, lru_cache
+from functools import cached_property
 from itertools import chain, groupby, repeat, starmap
 from random import random
 from typing import (
@@ -14,6 +16,8 @@ from typing import (
     BinaryIO,
     Callable,
     Dict,
+    Generic,
+    Hashable,
     Iterable,
     Iterator,
     List,
@@ -33,6 +37,7 @@ from uuid import uuid4
 from weakref import ProxyType, proxy
 
 import numpy as np
+import numpy.typing as npt
 import pandas as pd
 from pandas.core.dtypes.common import (
     is_bool_dtype,
@@ -179,10 +184,81 @@ PRIMARY = DatasetRole.PRIMARY
 REFERENCE = DatasetRole.REFERENCE
 
 
-@lru_cache(maxsize=len(DatasetRole))
-def _series_nan(length: int) -> "pd.Series[float]":
-    """Useful as a substitute for a non-existent column."""
-    return pd.Series(np.full(length, float("nan")))
+@dataclass(frozen=True, repr=False, eq=False)
+class _ConstantValueSeriesFactory:
+    """The intent is to share memory for readonly situations where a constant
+    value, e.g. NaN, is expected from a non-existent dataframe column by the
+    downstream calculations. To avoid duplicating memory when we require such
+    columns multiple times or need to subset them frequently, we first check for
+    a previously allocated array that's longer, and subset from it, thereby
+    sharing the memory already allocated (since the value is constant and does
+    not change). If the cached array is not long enough, we then allocate and
+    cache a new array, replacing the old one. This cache is intended to be
+    attached to a Model instance, and will be garbage collected alongside it,
+    while the `lru_cache` decorator's cache is scoped at the module level and
+    can potentially leak memory.
+    """
+
+    value: Any = field(default=float("nan"))
+    _cached_array: npt.NDArray[np.float64] = field(
+        init=False,
+        default=np.empty(0),
+    )
+    """If a longer Series is requested, the cached array is expanded;
+    otherwise, a subset can be returned, assuming it won't be altered by the
+    caller.
+    """
+    _lock: threading.Lock = field(
+        init=False,
+        default_factory=threading.Lock,
+    )
+    """A lock is applied at the class instance level for thread safety, with
+    minimal overhead expected, unless too many callers simultaneously rely on
+    the same instance.
+    """
+
+    def __call__(self, length: int) -> "pd.Series[Any]":
+        with self._lock:
+            if length > len(self._cached_array):
+                object.__setattr__(
+                    self,
+                    "_cached_array",
+                    np.full(length, self.value),
+                )
+            return pd.Series(self._cached_array[:length])
+
+
+_Key = TypeVar("_Key", bound=Hashable)
+_Value = TypeVar("_Value")
+
+
+@dataclass(frozen=True, repr=False, eq=False)
+class _Cache(Generic[_Key, _Value]):
+    """A thread-safe type-safe generic cache backed by a dictionary.
+
+    Example
+    -------
+    >>> c = _Cache[str, int]()
+    >>> with c() as cache:
+    >>>     cache["1"] = 2
+    >>> with c() as cache:
+    >>>     print(cache["1"])
+    2
+    """
+
+    _cache: Dict[_Key, _Value] = field(
+        init=False,
+        default_factory=dict,
+    )
+    _lock: threading.Lock = field(
+        init=False,
+        default_factory=threading.Lock,
+    )
+
+    @contextmanager
+    def __call__(self) -> Iterator[Dict[_Key, _Value]]:
+        with self._lock:
+            yield self._cache
 
 
 DataFrameOrSeries: TypeAlias = Union[pd.DataFrame, "pd.Series[Any]"]
@@ -194,8 +270,8 @@ are extracted (instead of getting a column back)."""
 @dataclass(frozen=True)
 class Column:
     """Extracts a value (i.e. scalar) from pd.Series or a series (i.e. a
-    column) from pd.DataFrame. If not found, returns NaN or a series of NaNs,
-    respectively.
+    column) from pd.DataFrame. If not found, return the default value
+    (e.g. NaN) or a series of the default value (on each row), respectively.
     """
 
     name: str = ""
@@ -204,6 +280,9 @@ class Column:
     can remain relatively declarative and compact, i.e. by not having to keep
     writing `if ... is not None:` everywhere. Dummy columns always return NaNs,
     because they have random column names not found in any dataframe."""
+    _default: _ConstantValueSeriesFactory = field(
+        default_factory=_ConstantValueSeriesFactory,
+    )
 
     def __post_init__(self) -> None:
         if not self.name:
@@ -220,25 +299,32 @@ class Column:
 
     def __call__(self, data: DataFrameOrSeries) -> Any:
         """Extracts a value from series, or a series from a dataframe. If
-        not found, return NaN or a series of NaNs, respectively.
+        not found, return the default value (e.g. NaN) or a series of the
+        default value (on each row), respectively.
         """
         if isinstance(data, pd.DataFrame):
             try:
                 return data.loc[:, self.name]
             except KeyError:
-                # It's important to glue the index to the NaN series, so it
-                # would look like the series came from the dataframe.
-                return _series_nan(len(data)).set_axis(data.index)
+                # It's important to glue the index to the default series,
+                # so it would look like the series came from the dataframe.
+                return self._default(len(data)).set_axis(
+                    data.index,
+                    copy=False,
+                )
         if isinstance(data, pd.Series):
             try:
                 return data.at[self.name]
             except KeyError:
-                return float("nan")
+                return self._default.value
         raise ValueError("invalid data: %s" % repr(data))
 
     def __iter__(self) -> Iterator[str]:
         """This is to partake in the iteration of column names by a
-        larger data structure of which this object is a member.
+        larger data structure of which this object is a member. Dummy
+        columns need not be yielded because they represent columns
+        that don't (physically) exist (i.e. they are just fillers for
+        the Model to make the Schema whole).
         """
         if not self.is_dummy:
             yield self.name
@@ -316,7 +402,7 @@ class ScalarDimension(Dimension):
         if self._model is None or self.data_type is CONTINUOUS:
             return ()
         model = cast(Model, self._model)
-        return tuple(model.dimension_categories_from_all_df(self.name).dropna())
+        return tuple(model.dimension_categories_from_all_datasets(self.name).dropna())
 
 
 @dataclass(frozen=True)
@@ -329,12 +415,24 @@ class EmbeddingDimension(Dimension):
         super().__post_init__()
         if not self.display_name:
             object.__setattr__(self, "display_name", self.name)
+        # optimization: share the default series factory
+        object.__setattr__(
+            self,
+            "link_to_data",
+            replace(self.link_to_data, _default=self._default),
+        )
+        # optimization: share the default series factory
+        object.__setattr__(
+            self,
+            "raw_data",
+            replace(self.raw_data, _default=self._default),
+        )
 
     @classmethod
-    def from_dimension(cls, emb: Embedding, **kwargs: Any) -> "EmbeddingDimension":
-        """Use `from_` instead of `__init__` because the latter is needed by
-        replace() and we don't want to clobber the generated version.
-        """
+    def from_embedding(cls, emb: Embedding, **kwargs: Any) -> "EmbeddingDimension":
+        # Use `from_embedding` instead of `__init__` because the latter is
+        # needed by replace() and we don't want to clobber the generated
+        # version.
         return cls(
             _coerce_str(emb.vector),
             link_to_data=Column(_coerce_str(emb.link_to_data)),
@@ -583,7 +681,10 @@ class Dataset(Events):
     def __getitem__(self, key: Any) -> Any:
         if isinstance(key, list):
             return Events(
-                self.iloc[key].set_axis(key),
+                self.iloc[key].set_axis(
+                    key,
+                    copy=False,
+                ),
                 role=self._self_role,
                 _model=self._self_model,
             )
@@ -606,6 +707,10 @@ class Model:
     _dimensions: Dict[Name, Dimension]
     _dim_names_by_role: Dict[DimensionRole, List[Name]]
     _original_columns_by_role: Dict[DatasetRole, pd.Index]
+    _default_timestamps_factory: _ConstantValueSeriesFactory
+    _nan_series_factory: _ConstantValueSeriesFactory
+    _dimension_categories_from_all_datasets: _Cache[Name, "pd.Series[Any]"]
+    _dimension_min_max_from_all_datasets: _Cache[Name, Tuple[float, float]]
 
     def __init__(
         self,
@@ -618,6 +723,18 @@ class Model:
         # TODO: Consider moving validations here.
         df_already_validated: bool = False,
     ):
+        # memoization
+        object.__setattr__(
+            self,
+            "_dimension_categories_from_all_datasets",
+            _Cache[Name, "pd.Series[Any]"](),
+        )
+        object.__setattr__(
+            self,
+            "_dimension_min_max_from_all_datasets",
+            _Cache[Name, Tuple[float, float]](),
+        )
+
         df_names, dfs = cast(
             Tuple[Iterable[Name], Iterable[pd.DataFrame]],
             zip(*_coerce_tuple(dataframes)),
@@ -640,6 +757,17 @@ class Model:
             self,
             "_original_columns_by_role",
             {role: dataset.columns for role, dataset in self._datasets.items()},
+        )
+
+        object.__setattr__(
+            self,
+            "_nan_series_factory",
+            _ConstantValueSeriesFactory(float("nan")),
+        )
+        object.__setattr__(
+            self,
+            "_default_timestamps_factory",
+            _ConstantValueSeriesFactory(datetime.now(timezone.utc)),
         )
 
         # Store dimensions by name. In general, a dimension's name is that of
@@ -675,8 +803,6 @@ class Model:
                 data_type = _guess_data_type(map(dim, self._datasets.values()))
                 self._dimensions[dim.name] = replace(dim, data_type=data_type)
 
-        default_timestamp = datetime.now(timezone.utc)
-
         # Add PREDICTION_ID if missing.
         # Add TIMESTAMP if missing.
         # If needed, normalize the timestamps values.
@@ -701,7 +827,7 @@ class Model:
                 self._new_dimension(TIMESTAMP),
             )
             if dim_time.name not in df_original_columns:
-                df[dim_time.name] = _series_constant(len(df), default_timestamp)
+                df[dim_time.name] = self._default_timestamps_factory(len(df))
             else:
                 if not timestamps_already_normalized:
                     # Don't clobber the original (or any other column).
@@ -775,18 +901,44 @@ class Model:
             if not dim.is_dummy and isinstance(dim, EmbeddingDimension)
         )
 
-    def dimension_categories_from_all_df(self, dimension_name: Name) -> "pd.Series[Any]":
+    def dimension_categories_from_all_datasets(
+        self,
+        dimension_name: Name,
+    ) -> "pd.Series[Any]":
         dim = self[dimension_name]
-        categories_by_df = (dim[role].unique() for role in DatasetRole)
-        all_values_combined = chain.from_iterable(categories_by_df)
-        return pd.Series(all_values_combined).sort_values().drop_duplicates()
+        if dim.data_type is CONTINUOUS:
+            return pd.Series(dtype=object)
+        with self._dimension_categories_from_all_datasets() as cache:
+            try:
+                return cache[dimension_name]
+            except KeyError:
+                pass
+        categories_by_dataset = (dim[role].unique() for role in DatasetRole)
+        all_values_combined = chain.from_iterable(categories_by_dataset)
+        ans = pd.Series(all_values_combined).sort_values().drop_duplicates()
+        with self._dimension_categories_from_all_datasets() as cache:
+            cache[dimension_name] = ans
+        return ans
 
-    def dimension_min_max_from_all_df(self, dimension_name: Name) -> Tuple[Any, Any]:
+    def dimension_min_max_from_all_df(
+        self,
+        dimension_name: Name,
+    ) -> Tuple[float, float]:
         dim = self[dimension_name]
+        if dim.data_type is not CONTINUOUS:
+            return (float("nan"), float("nan"))
+        with self._dimension_min_max_from_all_datasets() as cache:
+            try:
+                return cache[dimension_name]
+            except KeyError:
+                pass
         min_max_by_df = (_agg_min_max(dim[df_role]) for df_role in DatasetRole)
         all_values_combined = chain.from_iterable(min_max_by_df)
         min_max = _agg_min_max(pd.Series(all_values_combined))
-        return min_max.min(), min_max.max()
+        ans = (min_max.min(), min_max.max())
+        with self._dimension_min_max_from_all_datasets() as cache:
+            cache[dimension_name] = ans
+        return ans
 
     @overload
     def __getitem__(self, key: Type[Dataset]) -> Iterator[Dataset]:
@@ -838,9 +990,15 @@ class Model:
         if _is_dimension_type_filter(key):
             return self._get_multi_dims_by_type(key)
         if key is ScalarDimension:
-            return filter(lambda dim: type(dim) is ScalarDimension, self._dimensions.values())
+            return filter(
+                lambda dim: type(dim) is ScalarDimension,
+                self._dimensions.values(),
+            )
         if key is EmbeddingDimension:
-            return filter(lambda dim: type(dim) is EmbeddingDimension, self._dimensions.values())
+            return filter(
+                lambda dim: type(dim) is EmbeddingDimension,
+                self._dimensions.values(),
+            )
         if key is Dimension:
             return self._dimensions.values()
         raise KeyError(f"invalid key: {repr(key)}")
@@ -901,14 +1059,30 @@ class Model:
         self, obj: Any, cls: Type[Dimension] = ScalarDimension, **kwargs: Any
     ) -> Dimension:
         """Creates a new Dimension or copies an existing one, setting the
-        model weak reference to the `self` Model instance.
+        model weak reference to the `self` Model instance, and sharing the
+        NaN series factory as an optimization.
         """
         if isinstance(obj, Name):
-            return cls(obj, **kwargs, _model=proxy(self))
+            return cls(
+                obj,
+                **kwargs,
+                _model=proxy(self),
+                _default=self._nan_series_factory,
+            )
         if isinstance(obj, DimensionRole):
-            return cls(role=obj, **kwargs, _model=proxy(self))
+            return cls(
+                role=obj,
+                **kwargs,
+                _model=proxy(self),
+                _default=self._nan_series_factory,
+            )
         if isinstance(obj, Dimension):
-            return replace(obj, **kwargs, _model=proxy(self))
+            return replace(
+                obj,
+                **kwargs,
+                _model=proxy(self),
+                _default=self._nan_series_factory,
+            )
         raise ValueError(f"invalid argument: {repr(obj)}")
 
     def _new_dataset(
@@ -977,11 +1151,23 @@ class Schema(SchemaSpec):
             assert isinstance(role, DimensionRole)  # for mypy
             if isinstance(spec, str):
                 if role in (PROMPT, RESPONSE):
-                    yield EmbeddingDimension(spec, role=role, data_type=data_type)
+                    yield EmbeddingDimension(
+                        spec,
+                        role=role,
+                        data_type=data_type,
+                    )
                 else:
-                    yield ScalarDimension(spec, role=role, data_type=data_type)
+                    yield ScalarDimension(
+                        spec,
+                        role=role,
+                        data_type=data_type,
+                    )
             elif isinstance(spec, Embedding):
-                yield EmbeddingDimension.from_dimension(spec, role=role, data_type=data_type)
+                yield EmbeddingDimension.from_embedding(
+                    spec,
+                    role=role,
+                    data_type=data_type,
+                )
             else:
                 raise TypeError(f"{role} has unrecognized type: {type(spec)}")
 
@@ -1080,12 +1266,6 @@ def _iterate_except_str(obj: Any) -> Iterator[Any]:
         yield obj
 
 
-@lru_cache(maxsize=len(DatasetRole))
-# Note that NaN can't be cached, because NaN != NaN.
-def _series_constant(length: int, constant: Any) -> "pd.Series[Any]":
-    return pd.Series(np.full(length, constant))
-
-
 def _series_uuid(length: int) -> "pd.Series[str]":
     return pd.Series(map(lambda _: uuid4(), range(length)))
 
@@ -1115,7 +1295,14 @@ def _coerce_tuple(
 def _coerce_str_column_names(
     dataframes: Iterable[pd.DataFrame],
 ) -> Iterator[pd.DataFrame]:
-    return (df.set_axis(df.columns.astype(str), axis=1) for df in dataframes)
+    return (
+        df.set_axis(
+            df.columns.astype(str),
+            axis=1,
+            copy=False,
+        )
+        for df in dataframes
+    )
 
 
 _T = TypeVar("_T")

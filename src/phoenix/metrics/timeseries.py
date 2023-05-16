@@ -1,12 +1,12 @@
 from datetime import datetime, timedelta, timezone
 from functools import partial
 from itertools import accumulate, repeat
-from typing import Any, Callable, Iterable, Iterator, Tuple, cast
+from typing import Callable, Iterable, Iterator, Tuple, cast
 
 import pandas as pd
 from typing_extensions import TypeAlias
 
-from . import Metric
+from . import Metric, multi_calculate
 
 
 def timeseries(
@@ -31,16 +31,6 @@ def timeseries(
         evaluation_window=evaluation_window,
         sampling_interval=sampling_interval,
     )
-
-
-def _calculate(
-    df: pd.DataFrame,
-    calcs: Iterable[Metric],
-) -> "pd.Series[Any]":
-    """
-    Calculates each metric on the dataframe.
-    """
-    return pd.Series({calc.id(): calc(df) for calc in calcs})
 
 
 StartIndex: TypeAlias = int
@@ -74,17 +64,6 @@ def _aggregator(
     Calls groupby on the dataframe and apply metric calculations on each group.
     """
     calcs = tuple(metrics)
-    unique_input_column_indices = set()
-    for calc in calcs:
-        for column_name in calc.input_column_names():
-            column_index = dataframe.columns.get_loc(column_name)
-            unique_input_column_indices.add(column_index)
-    input_column_indices = sorted(unique_input_column_indices)
-    # need at least one column in the dataframe, so take the first one
-    # if input_column_indices is empty
-    if len(input_column_indices) == 0:
-        input_column_indices = [0]
-    dataframe = dataframe.iloc[:, input_column_indices]
     return pd.concat(
         _results(
             calcs=calcs,
@@ -174,7 +153,10 @@ def _results(
     Yields metric results for each data point in time series.
     """
     yield pd.DataFrame()
-    calculate_metrics = partial(_calculate, calcs=calcs)
+    calculate_metrics = partial(
+        multi_calculate,
+        calcs=calcs,
+    )
     # pandas time indexing is end-inclusive
     result_slice = slice(start_time, end_time)
     for (
@@ -204,6 +186,12 @@ def _results(
 
         # NB: on ubuntu, we lose the timezone information when there is no data
         if res.index.tzinfo is None:  # type: ignore
-            res = res.set_axis(res.index.tz_localize(timezone.utc), axis=0)  # type: ignore
+            res = res.set_axis(
+                res.index.tz_localize(  # type: ignore
+                    timezone.utc,
+                ),
+                axis=0,
+                copy=False,
+            )
 
         yield res.loc[result_slice, :]
