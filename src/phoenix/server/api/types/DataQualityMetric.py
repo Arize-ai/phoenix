@@ -15,7 +15,7 @@ class DataQualityMetric(Enum):
     min = Min
     max = Max
     count = Count
-    p1 = partial(Quantile, probability=0.01)
+    p01 = partial(Quantile, probability=0.01)
     p25 = partial(Quantile, probability=0.25)
     p50 = partial(Quantile, probability=0.50)
     p75 = partial(Quantile, probability=0.75)

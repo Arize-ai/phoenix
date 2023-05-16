@@ -16,7 +16,7 @@ enum DataQualityMetric {
   min
   max
   count
-  p1
+  p01
   p25
   p50
   p75
