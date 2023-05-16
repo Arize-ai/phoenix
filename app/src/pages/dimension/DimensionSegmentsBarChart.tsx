@@ -4,13 +4,15 @@ import {
   BarChart,
   CartesianGrid,
   ResponsiveContainer,
+  Tooltip,
+  TooltipProps,
   XAxis,
   YAxis,
 } from "recharts";
 
-import { theme } from "@arizeai/components";
+import { Text, theme } from "@arizeai/components";
 
-import { colors } from "@phoenix/components/chart";
+import { ChartTooltip, colors } from "@phoenix/components/chart";
 const data = [
   {
     name: "Page A",
@@ -51,6 +53,19 @@ const data = [
 
 const barColor = colors.primary;
 
+function TooltipContent({ active, payload, label }: TooltipProps<any, any>) {
+  if (active && payload && payload.length) {
+    return (
+      <ChartTooltip>
+        <Text weight="heavy" textSize="medium">
+          {label}
+        </Text>
+      </ChartTooltip>
+    );
+  }
+
+  return null;
+}
 export function DimensionSegmentsBarChart() {
   return (
     <ResponsiveContainer>
@@ -91,6 +106,7 @@ export function DimensionSegmentsBarChart() {
           stroke={theme.colors.gray200}
           strokeOpacity={0.5}
         />
+        <Tooltip content={<TooltipContent />} />
         <Bar dataKey="uv" fill="url(#dimensionSegmentsBarColor)" spacing={5} />
       </BarChart>
     </ResponsiveContainer>
