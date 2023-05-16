@@ -18,12 +18,13 @@ import {
   ChartTooltipDivider,
   ChartTooltipItem,
   fullTimeFormatter,
-  shortTimeFormatter,
+  useTimeTickFormatter,
 } from "@phoenix/components/chart";
 import { useTimeRange } from "@phoenix/contexts/TimeRangeContext";
 import { calculateGranularity } from "@phoenix/utils/timeSeriesUtils";
 
 import { DimensionPercentEmptyTimeSeriesQuery } from "./__generated__/DimensionPercentEmptyTimeSeriesQuery.graphql";
+import { timeSeriesChartMargins } from "./dimensionChartConstants";
 
 const numberFormatter = new Intl.NumberFormat([], {
   maximumFractionDigits: 2,
@@ -55,12 +56,14 @@ function TooltipContent({ active, payload, label }: TooltipProps<any, any>) {
 
   return null;
 }
+
 export function DimensionPercentEmptyTimeSeries({
   dimensionId,
 }: {
   dimensionId: string;
 }) {
   const { timeRange } = useTimeRange();
+  const granularity = calculateGranularity(timeRange);
   const data = useLazyLoadQuery<DimensionPercentEmptyTimeSeriesQuery>(
     graphql`
       query DimensionPercentEmptyTimeSeriesQuery(
@@ -91,7 +94,7 @@ export function DimensionPercentEmptyTimeSeries({
         start: timeRange.start.toISOString(),
         end: timeRange.end.toISOString(),
       },
-      granularity: calculateGranularity(timeRange),
+      granularity,
     }
   );
 
@@ -101,11 +104,15 @@ export function DimensionPercentEmptyTimeSeries({
       value: d.value,
     })) || [];
 
+  const timeTickFormatter = useTimeTickFormatter({
+    samplingIntervalMinutes: granularity.samplingIntervalMinutes,
+  });
+
   return (
     <ResponsiveContainer width="100%" height="100%">
       <ComposedChart
         data={chartData as unknown as any[]}
-        margin={{ top: 25, right: 18, left: 18, bottom: 10 }}
+        margin={timeSeriesChartMargins}
         syncId={"dimensionDetails"}
       >
         <defs>
@@ -117,8 +124,7 @@ export function DimensionPercentEmptyTimeSeries({
         <XAxis
           dataKey="timestamp"
           stroke={theme.colors.gray200}
-          // TODO: Fix this to be a cleaner interface
-          tickFormatter={(x) => shortTimeFormatter(new Date(x))}
+          tickFormatter={(x) => timeTickFormatter(new Date(x))}
           style={{ fill: theme.textColors.white70 }}
           scale="time"
           type="number"

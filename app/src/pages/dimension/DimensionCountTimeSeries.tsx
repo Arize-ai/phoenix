@@ -18,12 +18,13 @@ import {
   ChartTooltipItem,
   colors,
   fullTimeFormatter,
-  shortTimeFormatter,
+  useTimeTickFormatter,
 } from "@phoenix/components/chart";
 import { useTimeRange } from "@phoenix/contexts/TimeRangeContext";
 import { calculateGranularity } from "@phoenix/utils/timeSeriesUtils";
 
 import { DimensionCountTimeSeriesQuery } from "./__generated__/DimensionCountTimeSeriesQuery.graphql";
+import { timeSeriesChartMargins } from "./dimensionChartConstants";
 
 const numberFormatter = new Intl.NumberFormat([], {
   maximumFractionDigits: 2,
@@ -59,6 +60,7 @@ export function DimensionCountTimeSeries({
   dimensionId: string;
 }) {
   const { timeRange } = useTimeRange();
+  const countGranularity = calculateGranularity(timeRange);
   const data = useLazyLoadQuery<DimensionCountTimeSeriesQuery>(
     graphql`
       query DimensionCountTimeSeriesQuery(
@@ -89,7 +91,7 @@ export function DimensionCountTimeSeries({
         start: timeRange.start.toISOString(),
         end: timeRange.end.toISOString(),
       },
-      countGranularity: calculateGranularity(timeRange),
+      countGranularity,
     }
   );
 
@@ -101,11 +103,16 @@ export function DimensionCountTimeSeries({
       timestamp: new Date(d.timestamp).valueOf(),
     };
   });
+
+  const timeTickFormatter = useTimeTickFormatter({
+    samplingIntervalMinutes: countGranularity.samplingIntervalMinutes,
+  });
+
   return (
     <ResponsiveContainer width="100%" height="100%">
       <BarChart
         data={chartData as unknown as any[]}
-        margin={{ top: 25, right: 18, left: 18, bottom: 10 }}
+        margin={timeSeriesChartMargins}
         syncId={"dimensionDetails"}
       >
         <defs>
@@ -117,8 +124,7 @@ export function DimensionCountTimeSeries({
         <XAxis
           dataKey="timestamp"
           stroke={theme.colors.gray200}
-          // TODO: Fix this to be a cleaner interface
-          tickFormatter={(x) => shortTimeFormatter(new Date(x))}
+          tickFormatter={(x) => timeTickFormatter(new Date(x))}
           style={{ fill: theme.textColors.white70 }}
           scale="time"
           type="number"

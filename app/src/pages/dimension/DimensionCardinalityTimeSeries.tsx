@@ -19,12 +19,13 @@ import {
   ChartTooltipItem,
   colors,
   fullTimeFormatter,
-  shortTimeFormatter,
+  useTimeTickFormatter,
 } from "@phoenix/components/chart";
 import { useTimeRange } from "@phoenix/contexts/TimeRangeContext";
 import { calculateGranularity } from "@phoenix/utils/timeSeriesUtils";
 
 import { DimensionCardinalityTimeSeriesQuery } from "./__generated__/DimensionCardinalityTimeSeriesQuery.graphql";
+import { timeSeriesChartMargins } from "./dimensionChartConstants";
 
 const numberFormatter = new Intl.NumberFormat([], {
   maximumFractionDigits: 2,
@@ -47,7 +48,7 @@ function TooltipContent({ active, payload, label }: TooltipProps<any, any>) {
         )}`}</Text>
         <ChartTooltipItem
           color={color}
-          name="cardinality"
+          name="Cardinality"
           value={cardinalityString}
         />
         <ChartTooltipDivider />
@@ -63,6 +64,7 @@ export function DimensionCardinalityTimeSeries({
   dimensionId: string;
 }) {
   const { timeRange } = useTimeRange();
+  const granularity = calculateGranularity(timeRange);
   const data = useLazyLoadQuery<DimensionCardinalityTimeSeriesQuery>(
     graphql`
       query DimensionCardinalityTimeSeriesQuery(
@@ -93,7 +95,7 @@ export function DimensionCardinalityTimeSeries({
         start: timeRange.start.toISOString(),
         end: timeRange.end.toISOString(),
       },
-      granularity: calculateGranularity(timeRange),
+      granularity,
     }
   );
 
@@ -105,11 +107,15 @@ export function DimensionCardinalityTimeSeries({
       };
     }) || [];
 
+  const timeTickFormatter = useTimeTickFormatter({
+    samplingIntervalMinutes: granularity.samplingIntervalMinutes,
+  });
+
   return (
     <ResponsiveContainer width="100%" height="100%">
       <ComposedChart
         data={chartData as unknown as any[]}
-        margin={{ top: 25, right: 18, left: 18, bottom: 10 }}
+        margin={timeSeriesChartMargins}
         syncId={"dimensionDetails"}
       >
         <defs>
@@ -121,8 +127,7 @@ export function DimensionCardinalityTimeSeries({
         <XAxis
           dataKey="timestamp"
           stroke={theme.colors.gray200}
-          // TODO: Fix this to be a cleaner interface
-          tickFormatter={(x) => shortTimeFormatter(new Date(x))}
+          tickFormatter={(x) => timeTickFormatter(new Date(x))}
           style={{ fill: theme.textColors.white70 }}
           scale="time"
           type="number"

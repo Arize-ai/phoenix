@@ -19,7 +19,7 @@ import {
   ChartTooltipItem,
   colors,
   fullTimeFormatter,
-  shortTimeFormatter,
+  useTimeTickFormatter,
 } from "@phoenix/components/chart";
 import { useTimeRange } from "@phoenix/contexts/TimeRangeContext";
 import {
@@ -28,6 +28,7 @@ import {
 } from "@phoenix/utils/timeSeriesUtils";
 
 import { DimensionDriftTimeSeriesQuery } from "./__generated__/DimensionDriftTimeSeriesQuery.graphql";
+import { timeSeriesChartMargins } from "./dimensionChartConstants";
 
 const numberFormatter = new Intl.NumberFormat([], {
   maximumFractionDigits: 2,
@@ -74,6 +75,7 @@ export function DimensionDriftTimeSeries({
   dimensionId: string;
 }) {
   const { timeRange } = useTimeRange();
+  const countGranularity = calculateGranularity(timeRange);
   const data = useLazyLoadQuery<DimensionDriftTimeSeriesQuery>(
     graphql`
       query DimensionDriftTimeSeriesQuery(
@@ -116,7 +118,7 @@ export function DimensionDriftTimeSeries({
         end: timeRange.end.toISOString(),
       },
       driftGranularity: calculateGranularityWithRollingAverage(timeRange),
-      countGranularity: calculateGranularity(timeRange),
+      countGranularity,
     }
   );
 
@@ -135,11 +137,16 @@ export function DimensionDriftTimeSeries({
       timestamp: new Date(d.timestamp).valueOf(),
     };
   });
+
+  const timeTickFormatter = useTimeTickFormatter({
+    samplingIntervalMinutes: countGranularity.samplingIntervalMinutes,
+  });
+
   return (
     <ResponsiveContainer width="100%" height="100%">
       <ComposedChart
         data={chartData as unknown as any[]}
-        margin={{ top: 25, right: 18, left: 18, bottom: 10 }}
+        margin={timeSeriesChartMargins}
         // onClick={onClick}
         syncId={"dimensionDetails"}
       >
@@ -163,7 +170,7 @@ export function DimensionDriftTimeSeries({
           dataKey="timestamp"
           stroke={theme.colors.gray200}
           // TODO: Fix this to be a cleaner interface
-          tickFormatter={(x) => shortTimeFormatter(new Date(x))}
+          tickFormatter={(x) => timeTickFormatter(new Date(x))}
           style={{ fill: theme.textColors.white70 }}
           scale="time"
           type="number"
