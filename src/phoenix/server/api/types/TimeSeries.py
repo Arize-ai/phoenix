@@ -1,3 +1,4 @@
+from dataclasses import replace
 from datetime import datetime, timedelta
 from functools import total_ordering
 from typing import Iterable, List, Optional, Tuple, Union, cast
@@ -8,7 +9,7 @@ from strawberry import UNSET
 
 from phoenix.core.model_schema import CONTINUOUS, REFERENCE, Column, Dataset, Dimension
 from phoenix.metrics import Metric, binning
-from phoenix.metrics.mixins import DriftOperator, NullaryOperator, UnaryOperator
+from phoenix.metrics.mixins import DriftOperator, UnaryOperator
 from phoenix.metrics.timeseries import timeseries
 from phoenix.server.api.input_types.Granularity import Granularity, to_timestamps
 from phoenix.server.api.input_types.TimeRange import TimeRange
@@ -70,17 +71,24 @@ def _get_timeseries_data(
 ) -> List[TimeSeriesDataPoint]:
     metric_cls = metric.value
     data = dimension[dataset_role.value]
-    if issubclass(metric_cls, NullaryOperator):
-        metric_instance = metric_cls()
-    else:
-        assert issubclass(metric_cls, UnaryOperator)
-        metric_instance = metric_cls(operand=Column(dimension.name))
-    if issubclass(metric_cls, DriftOperator):
+    metric_instance = metric_cls()
+    if isinstance(metric_instance, UnaryOperator):
+        metric_instance = replace(
+            metric_instance,
+            operand=Column(dimension.name),
+        )
+    if isinstance(metric_instance, DriftOperator):
         ref_data = dimension[REFERENCE]
-        metric_instance.reference_data = pd.DataFrame({dimension.name: ref_data})
+        metric_instance = replace(
+            metric_instance,
+            reference_data=pd.DataFrame({dimension.name: ref_data}),
+        )
         if dimension.data_type is CONTINUOUS:
-            metric_instance.binning_method = binning.QuantileBinning(
-                reference_series=dimension[REFERENCE],
+            metric_instance = replace(
+                metric_instance,
+                binning_method=binning.QuantileBinning(
+                    reference_series=dimension[REFERENCE],
+                ),
             )
     df = pd.DataFrame({dimension.name: data})
     return df.pipe(

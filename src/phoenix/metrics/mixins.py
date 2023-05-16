@@ -21,7 +21,7 @@ from phoenix.metrics.binning import (
 )
 
 
-@dataclass
+@dataclass(frozen=True)
 class ZeroInitialValue(ABC):
     def initial_value(self) -> Any:
         if isinstance(self, VectorOperator):
@@ -29,19 +29,19 @@ class ZeroInitialValue(ABC):
         return 0
 
 
-@dataclass
+@dataclass(frozen=True)
 class VectorOperator(ABC):
     shape: int = 0
 
 
-@dataclass
+@dataclass(frozen=True)
 class NullaryOperator(ABC):
     @staticmethod
     def input_column_names() -> Iterator[str]:
         yield from ()
 
 
-@dataclass
+@dataclass(frozen=True)
 class UnaryOperator(ABC):
     """
     A unary operator is a function with one operand or argument as input.
@@ -54,7 +54,7 @@ class UnaryOperator(ABC):
         yield from self.operand
 
 
-@dataclass
+@dataclass(frozen=True)
 class BaseMetric(ABC):
     def id(self) -> int:
         """
@@ -84,7 +84,7 @@ class BaseMetric(ABC):
             return float("nan")
 
 
-@dataclass
+@dataclass(frozen=True)
 class EvaluationMetric(BaseMetric, ABC):
     predicted: Column = Column()
     actual: Column = Column()
@@ -94,7 +94,7 @@ class EvaluationMetric(BaseMetric, ABC):
         yield from self.actual
 
 
-@dataclass
+@dataclass(frozen=True)
 class DriftOperator(UnaryOperator, BaseMetric, ABC):
     reference_data: pd.DataFrame = pd.DataFrame()
 
@@ -103,7 +103,7 @@ Distribution: TypeAlias = "pd.Series[float]"
 Histogram: TypeAlias = "pd.Series[int]"
 
 
-@dataclass
+@dataclass(frozen=True)
 class Discretizer(ABC):
     """Ways to construct histograms from data. Numeric data are commonly
     grouped into intervals while discrete data are grouped into categories.
@@ -117,7 +117,7 @@ class Discretizer(ABC):
         return self.binning_method.histogram(data)
 
 
-@dataclass
+@dataclass(frozen=True)
 class DiscreteDivergence(Discretizer, DriftOperator):
     """See https://en.wikipedia.org/wiki/Divergence_(statistics%29"""
 
