@@ -105,7 +105,6 @@ class Segments:
         default_factory=DatasetValues,
     )
 
-    def append(self, other: Segment) -> "Segments":
+    def append(self, other: Segment) -> None:
         self.segments.append(other)
         self.total_counts += other.counts
-        return self
