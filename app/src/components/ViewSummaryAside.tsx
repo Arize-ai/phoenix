@@ -13,7 +13,7 @@ export function ViewSummaryAside(props: PropsWithChildren) {
       backgroundColor="gray-700"
       borderStartWidth="thin"
       borderStartColor="dark"
-      padding="size-100"
+      padding="size-200"
     >
       <Flex
         direction="column"

@@ -3,7 +3,7 @@ import { graphql, useLazyLoadQuery } from "react-relay";
 import { useLoaderData, useNavigate, useParams } from "react-router";
 import { css } from "@emotion/react";
 
-import { Dialog, DialogContainer, Flex, Text, View } from "@arizeai/components";
+import { Dialog, DialogContainer, Flex, View } from "@arizeai/components";
 
 import { Loading, ViewSummaryAside } from "@phoenix/components";
 import { useDatasets, useTimeRange } from "@phoenix/contexts";
@@ -11,9 +11,13 @@ import { TimeSliceContextProvider } from "@phoenix/contexts/TimeSliceContext";
 
 import { dimensionLoaderQuery$data } from "./__generated__/dimensionLoaderQuery.graphql";
 import { DimensionQuery } from "./__generated__/DimensionQuery.graphql";
+import { DimensionCardinalityStats } from "./DimensionCardinalityStats";
 import { DimensionCardinalityTimeSeries } from "./DimensionCardinalityTimeSeries";
+import { DimensionCountStats } from "./DimensionCountStats";
+import { DimensionCountTimeSeries } from "./DimensionCountTimeSeries";
 import { DimensionDriftStats } from "./DimensionDriftStats";
 import { DimensionDriftTimeSeries } from "./DimensionDriftTimeSeries";
+import { DimensionPercentEmptyStats } from "./DimensionPercentEmptyStats";
 import { DimensionPercentEmptyTimeSeries } from "./DimensionPercentEmptyTimeSeries";
 
 export function Dimension() {
@@ -32,7 +36,12 @@ export function Dimension() {
         dimension: node(id: $dimensionId) {
           ... on Dimension {
             id
+            ...DimensionCountStats_dimension @arguments(timeRange: $timeRange)
             ...DimensionDriftStats_dimension @arguments(timeRange: $timeRange)
+            ...DimensionCardinalityStats_dimension
+              @arguments(timeRange: $timeRange)
+            ...DimensionPercentEmptyStats_dimension
+              @arguments(timeRange: $timeRange)
           }
         }
       }
@@ -69,12 +78,25 @@ export function Dimension() {
             `}
           >
             <Suspense fallback={<Loading />}>
+              <View
+                borderColor="dark"
+                borderRadius="medium"
+                borderWidth="thin"
+                height="size-1600"
+              >
+                <Flex direction="row" alignItems="stretch" height="100%">
+                  <DimensionCountTimeSeries dimensionId={dimensionId} />
+                  <ViewSummaryAside>
+                    <DimensionCountStats dimension={data.dimension} />
+                  </ViewSummaryAside>
+                </Flex>
+              </View>
               {showDrift ? (
                 <View
                   borderColor="dark"
                   borderRadius="medium"
                   borderWidth="thin"
-                  height={200}
+                  height="size-1600"
                 >
                   <Flex direction="row" alignItems="stretch" height="100%">
                     <DimensionDriftTimeSeries dimensionId={dimensionId} />
@@ -89,13 +111,12 @@ export function Dimension() {
                   borderColor="dark"
                   borderRadius="medium"
                   borderWidth="thin"
-                  height={200}
+                  height="size-1600"
                 >
                   <Flex direction="row" alignItems="stretch" height="100%">
                     <DimensionCardinalityTimeSeries dimensionId={dimensionId} />
                     <ViewSummaryAside>
-                      <h3>Cardinality</h3>
-                      <Text color="white90">123</Text>
+                      <DimensionCardinalityStats dimension={data.dimension} />
                     </ViewSummaryAside>
                   </Flex>
                 </View>
@@ -104,13 +125,12 @@ export function Dimension() {
                 borderColor="dark"
                 borderRadius="medium"
                 borderWidth="thin"
-                height={200}
+                height="size-1600"
               >
                 <Flex direction="row" alignItems="stretch" height="100%">
                   <DimensionPercentEmptyTimeSeries dimensionId={dimensionId} />
                   <ViewSummaryAside>
-                    <h3>Percent Empty</h3>
-                    <Text color="white90">123</Text>
+                    <DimensionPercentEmptyStats dimension={data.dimension} />
                   </ViewSummaryAside>
                 </Flex>
               </View>

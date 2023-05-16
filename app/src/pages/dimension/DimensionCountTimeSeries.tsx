@@ -1,9 +1,9 @@
 import React from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import {
-  Area,
+  Bar,
+  BarChart,
   CartesianGrid,
-  ComposedChart,
   ResponsiveContainer,
   Tooltip,
   TooltipProps,
@@ -15,7 +15,6 @@ import { Text, theme } from "@arizeai/components";
 
 import {
   ChartTooltip,
-  ChartTooltipDivider,
   ChartTooltipItem,
   colors,
   fullTimeFormatter,
@@ -24,59 +23,56 @@ import {
 import { useTimeRange } from "@phoenix/contexts/TimeRangeContext";
 import { calculateGranularity } from "@phoenix/utils/timeSeriesUtils";
 
-import { DimensionCardinalityTimeSeriesQuery } from "./__generated__/DimensionCardinalityTimeSeriesQuery.graphql";
+import { DimensionCountTimeSeriesQuery } from "./__generated__/DimensionCountTimeSeriesQuery.graphql";
 
 const numberFormatter = new Intl.NumberFormat([], {
   maximumFractionDigits: 2,
 });
 
-const color = colors.purple300;
+const barColor = colors.primary;
 
 function TooltipContent({ active, payload, label }: TooltipProps<any, any>) {
   if (active && payload && payload.length) {
-    const cardinality = payload[0]?.value ?? null;
-    const cardinalityString =
-      typeof cardinality === "number"
-        ? numberFormatter.format(cardinality)
-        : "--";
-
+    const count = payload[0]?.value ?? null;
+    const predictionCountString =
+      typeof count === "number" ? numberFormatter.format(count) : "--";
     return (
       <ChartTooltip>
         <Text weight="heavy" textSize="large">{`${fullTimeFormatter(
           new Date(label)
         )}`}</Text>
         <ChartTooltipItem
-          color={color}
-          name="cardinality"
-          value={cardinalityString}
+          color={barColor}
+          shape="square"
+          name="Count"
+          value={predictionCountString}
         />
-        <ChartTooltipDivider />
       </ChartTooltip>
     );
   }
 
   return null;
 }
-export function DimensionCardinalityTimeSeries({
+export function DimensionCountTimeSeries({
   dimensionId,
 }: {
   dimensionId: string;
 }) {
   const { timeRange } = useTimeRange();
-  const data = useLazyLoadQuery<DimensionCardinalityTimeSeriesQuery>(
+  const data = useLazyLoadQuery<DimensionCountTimeSeriesQuery>(
     graphql`
-      query DimensionCardinalityTimeSeriesQuery(
+      query DimensionCountTimeSeriesQuery(
         $dimensionId: GlobalID!
         $timeRange: TimeRange!
-        $granularity: Granularity!
+        $countGranularity: Granularity!
       ) {
-        dimension: node(id: $dimensionId) {
+        embedding: node(id: $dimensionId) {
           id
           ... on Dimension {
-            cardinalityTimeSeries: dataQualityTimeSeries(
-              metric: cardinality
+            trafficTimeSeries: dataQualityTimeSeries(
+              metric: count
               timeRange: $timeRange
-              granularity: $granularity
+              granularity: $countGranularity
             ) {
               data {
                 timestamp
@@ -93,29 +89,29 @@ export function DimensionCardinalityTimeSeries({
         start: timeRange.start.toISOString(),
         end: timeRange.end.toISOString(),
       },
-      granularity: calculateGranularity(timeRange),
+      countGranularity: calculateGranularity(timeRange),
     }
   );
 
-  const chartData =
-    data.dimension.cardinalityTimeSeries?.data.map((d) => {
-      return {
-        timestamp: new Date(d.timestamp).valueOf(),
-        value: d.value,
-      };
-    }) || [];
+  const chartRawData = data.embedding.trafficTimeSeries?.data || [];
 
+  const chartData = chartRawData.map((d) => {
+    return {
+      ...d,
+      timestamp: new Date(d.timestamp).valueOf(),
+    };
+  });
   return (
     <ResponsiveContainer width="100%" height="100%">
-      <ComposedChart
+      <BarChart
         data={chartData as unknown as any[]}
         margin={{ top: 25, right: 18, left: 18, bottom: 10 }}
         syncId={"dimensionDetails"}
       >
         <defs>
-          <linearGradient id="cardinalityColorUv" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor={color} stopOpacity={0.8} />
-            <stop offset="95%" stopColor={color} stopOpacity={0} />
+          <linearGradient id="countBarColor" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="5%" stopColor={barColor} stopOpacity={1} />
+            <stop offset="95%" stopColor={barColor} stopOpacity={0.5} />
           </linearGradient>
         </defs>
         <XAxis
@@ -132,7 +128,7 @@ export function DimensionCardinalityTimeSeries({
         <YAxis
           stroke={theme.colors.gray200}
           label={{
-            value: "Cardinality",
+            value: "Count",
             angle: -90,
             position: "insideLeft",
             style: { textAnchor: "middle", fill: theme.textColors.white90 },
@@ -145,14 +141,8 @@ export function DimensionCardinalityTimeSeries({
           strokeOpacity={0.5}
         />
         <Tooltip content={<TooltipContent />} />
-        <Area
-          type="monotone"
-          dataKey="value"
-          stroke={color}
-          fillOpacity={1}
-          fill="url(#cardinalityColorUv)"
-        />
-      </ComposedChart>
+        <Bar dataKey="value" fill="url(#countBarColor)" spacing={5} />
+      </BarChart>
     </ResponsiveContainer>
   );
 }

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<e8149c9e2eb4ac2cb050fab0838aae84>>
+ * @generated SignedSource<<2116e56b2dc9b627e6eeb4cf83641715>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -21,7 +21,7 @@ export type DimensionQuery$variables = {
 export type DimensionQuery$data = {
   readonly dimension: {
     readonly id?: string;
-    readonly " $fragmentSpreads": FragmentRefs<"DimensionDriftStats_dimension">;
+    readonly " $fragmentSpreads": FragmentRefs<"DimensionCardinalityStats_dimension" | "DimensionCountStats_dimension" | "DimensionDriftStats_dimension" | "DimensionPercentEmptyStats_dimension">;
   };
 };
 export type DimensionQuery = {
@@ -60,7 +60,10 @@ v3 = {
   "kind": "Variable",
   "name": "timeRange",
   "variableName": "timeRange"
-};
+},
+v4 = [
+  (v3/*: any*/)
+];
 return {
   "fragment": {
     "argumentDefinitions": (v0/*: any*/),
@@ -81,11 +84,24 @@ return {
             "selections": [
               (v2/*: any*/),
               {
-                "args": [
-                  (v3/*: any*/)
-                ],
+                "args": (v4/*: any*/),
+                "kind": "FragmentSpread",
+                "name": "DimensionCountStats_dimension"
+              },
+              {
+                "args": (v4/*: any*/),
                 "kind": "FragmentSpread",
                 "name": "DimensionDriftStats_dimension"
+              },
+              {
+                "args": (v4/*: any*/),
+                "kind": "FragmentSpread",
+                "name": "DimensionCardinalityStats_dimension"
+              },
+              {
+                "args": (v4/*: any*/),
+                "kind": "FragmentSpread",
+                "name": "DimensionPercentEmptyStats_dimension"
               }
             ],
             "type": "Dimension",
@@ -128,6 +144,20 @@ return {
             "kind": "InlineFragment",
             "selections": [
               {
+                "alias": "count",
+                "args": [
+                  {
+                    "kind": "Literal",
+                    "name": "metric",
+                    "value": "count"
+                  },
+                  (v3/*: any*/)
+                ],
+                "kind": "ScalarField",
+                "name": "dataQualityMetric",
+                "storageKey": null
+              },
+              {
                 "alias": "psi",
                 "args": [
                   {
@@ -140,6 +170,34 @@ return {
                 "kind": "ScalarField",
                 "name": "driftMetric",
                 "storageKey": null
+              },
+              {
+                "alias": "cardinality",
+                "args": [
+                  {
+                    "kind": "Literal",
+                    "name": "metric",
+                    "value": "cardinality"
+                  },
+                  (v3/*: any*/)
+                ],
+                "kind": "ScalarField",
+                "name": "dataQualityMetric",
+                "storageKey": null
+              },
+              {
+                "alias": "percentEmpty",
+                "args": [
+                  {
+                    "kind": "Literal",
+                    "name": "metric",
+                    "value": "percentEmpty"
+                  },
+                  (v3/*: any*/)
+                ],
+                "kind": "ScalarField",
+                "name": "dataQualityMetric",
+                "storageKey": null
               }
             ],
             "type": "Dimension",
@@ -151,16 +209,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "2adefdde42e945604eb3a532ae85d13d",
+    "cacheID": "9a82f49fd02e60241952b2a292c7f437",
     "id": null,
     "metadata": {},
     "name": "DimensionQuery",
     "operationKind": "query",
-    "text": "query DimensionQuery(\n  $dimensionId: GlobalID!\n  $timeRange: TimeRange!\n) {\n  dimension: node(id: $dimensionId) {\n    __typename\n    ... on Dimension {\n      id\n      ...DimensionDriftStats_dimension_3E0ZE6\n    }\n    __isNode: __typename\n    id\n  }\n}\n\nfragment DimensionDriftStats_dimension_3E0ZE6 on Dimension {\n  id\n  psi: driftMetric(metric: psi, timeRange: $timeRange)\n}\n"
+    "text": "query DimensionQuery(\n  $dimensionId: GlobalID!\n  $timeRange: TimeRange!\n) {\n  dimension: node(id: $dimensionId) {\n    __typename\n    ... on Dimension {\n      id\n      ...DimensionCountStats_dimension_3E0ZE6\n      ...DimensionDriftStats_dimension_3E0ZE6\n      ...DimensionCardinalityStats_dimension_3E0ZE6\n      ...DimensionPercentEmptyStats_dimension_3E0ZE6\n    }\n    __isNode: __typename\n    id\n  }\n}\n\nfragment DimensionCardinalityStats_dimension_3E0ZE6 on Dimension {\n  id\n  cardinality: dataQualityMetric(metric: cardinality, timeRange: $timeRange)\n}\n\nfragment DimensionCountStats_dimension_3E0ZE6 on Dimension {\n  id\n  count: dataQualityMetric(metric: count, timeRange: $timeRange)\n}\n\nfragment DimensionDriftStats_dimension_3E0ZE6 on Dimension {\n  id\n  psi: driftMetric(metric: psi, timeRange: $timeRange)\n}\n\nfragment DimensionPercentEmptyStats_dimension_3E0ZE6 on Dimension {\n  id\n  percentEmpty: dataQualityMetric(metric: percentEmpty, timeRange: $timeRange)\n}\n"
   }
 };
 })();
 
-(node as any).hash = "a21e8eff2b530fad1ec4eb261fb70b4a";
+(node as any).hash = "79beaec0aa62d8b8881982157c94ba29";
 
 export default node;
