@@ -10,8 +10,10 @@ import urllib
 from typing import Any, List, Tuple, TypedDict
 
 import numpy as np
+import openai
 import pandas as pd
 import tiktoken
+import tqdm
 from llama_index import GPTVectorStoreIndex
 from llama_index.data_structs.node import DocumentRelationship, Node
 from typing_extensions import TypeAlias
@@ -34,6 +36,16 @@ class QueryData(TypedDict):
     paragraph_index: List[int]
     text: List[str]
     is_answerable: List[bool]
+
+
+def main_openai_embeddings() -> None:
+    """
+    Compute all embeddings with direct call to OpenAI API.
+    """
+    database_df, query_df = download_squad_training_data()
+    split_to_dataframe = {"database": database_df, "query": query_df}
+    for split, dataframe in split_to_dataframe.items():
+        compute_and_persist_embeddings(dataframe, split)
 
 
 def main() -> None:
@@ -136,6 +148,53 @@ def get_nodes(dataframe: pd.DataFrame) -> List[Node]:
             after_node.relationships[DocumentRelationship.PREVIOUS] = before_node.get_doc_id()
         nodes.extend(nodes_for_granular_subject)
     return nodes
+
+
+def compute_and_persist_embeddings(dataframe: pd.DataFrame, split: str) -> None:
+    for granular_subject, group in tqdm.tqdm(dataframe.groupby("granular_subject")):
+        save_path = os.path.expanduser(
+            f"~/Desktop/openai-embeddings/splits/{split}/{granular_subject}.npy"
+        )
+        save_dir = os.path.dirname(save_path)
+        if not os.path.exists(save_dir):
+            os.makedirs(save_dir, exist_ok=True)
+        if not os.path.exists(save_path):
+            try:
+                embeddings = compute_embeddings_with_openai(group["text"])
+                np.save(
+                    save_path,
+                    embeddings,
+                )
+            except Exception as err:
+                print(f'Error processing granular subject: "{granular_subject}"')
+                print(err)
+
+
+def compute_embeddings_with_openai(
+    text_column: "pd.Series[str]", model_name: str = "text-embedding-ada-002"
+) -> "pd.Series[Any]":
+    # def helper(text_list: List[str]) -> List[EmbeddingVector]:
+    #     response = openai.Embedding.create(input=text_list, model=model_name)
+    #     embeddings = []
+    #     for data in response["data"]:
+    #         embeddings.append(np.array(data["embedding"]))
+    #     return embeddings
+
+    # if len(text_column) == 0:
+    #     print("here")
+    # embeddings = []
+    # chunks = np.array_split(text_column, 25)
+    # if any(len(chunk) == 0 for chunk in chunks):
+    #     print("here")
+    # for chunk in chunks:
+    #     embeddings.extend(helper(chunk.to_list()))
+    # return pd.Series(embeddings)
+
+    response = openai.Embedding.create(input=text_column.to_list(), model=model_name)
+    embeddings = []
+    for data in response["data"]:
+        embeddings.append(np.array(data["embedding"]))
+    return pd.Series(embeddings)
 
 
 def build_index(nodes: List[Node]) -> GPTVectorStoreIndex:
@@ -613,5 +672,6 @@ GRANULAR_TO_BROAD_SUBJECT = {
 if __name__ == "__main__":
     logging.basicConfig(stream=sys.stdout, level=logging.INFO)
     logging.getLogger().addHandler(logging.StreamHandler(stream=sys.stdout))
-    main()
+    main_openai_embeddings()
+    # main()
     # print(f"OpenAI API Cost Estimate: ${get_openai_api_cost_estimate():.2f}")
