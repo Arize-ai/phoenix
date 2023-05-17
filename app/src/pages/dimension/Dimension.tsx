@@ -19,6 +19,7 @@ import { DimensionDriftStats } from "./DimensionDriftStats";
 import { DimensionDriftTimeSeries } from "./DimensionDriftTimeSeries";
 import { DimensionPercentEmptyStats } from "./DimensionPercentEmptyStats";
 import { DimensionPercentEmptyTimeSeries } from "./DimensionPercentEmptyTimeSeries";
+import { DimensionSegmentsBarChart } from "./DimensionSegmentsBarChart";
 
 export function Dimension() {
   const { dimensionId } = useParams();
@@ -36,6 +37,8 @@ export function Dimension() {
         dimension: node(id: $dimensionId) {
           ... on Dimension {
             id
+            ...DimensionSegmentsBarChart_dimension
+              @arguments(timeRange: $timeRange)
             ...DimensionCountStats_dimension @arguments(timeRange: $timeRange)
             ...DimensionDriftStats_dimension @arguments(timeRange: $timeRange)
             ...DimensionCardinalityStats_dimension
@@ -84,6 +87,15 @@ export function Dimension() {
                 borderWidth="thin"
                 height="size-1600"
               >
+                <DimensionSegmentsBarChart dimension={data.dimension} />
+              </View>
+              <View
+                borderColor="dark"
+                borderRadius="medium"
+                borderWidth="thin"
+                height="size-1600"
+                data-testid="dimension-count-time-series-view"
+              >
                 <Flex direction="row" alignItems="stretch" height="100%">
                   <DimensionCountTimeSeries dimensionId={dimensionId} />
                   <ViewSummaryAside>
@@ -91,6 +103,7 @@ export function Dimension() {
                   </ViewSummaryAside>
                 </Flex>
               </View>
+
               {showDrift ? (
                 <View
                   borderColor="dark"
