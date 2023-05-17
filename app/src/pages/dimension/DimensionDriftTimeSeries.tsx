@@ -1,27 +1,33 @@
-import React from "react";
+import React, { useCallback } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import {
   Area,
   Bar,
   CartesianGrid,
   ComposedChart,
+  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   TooltipProps,
   XAxis,
   YAxis,
 } from "recharts";
+import { CategoricalChartFunc } from "recharts/types/chart/generateCategoricalChart";
+import { css } from "@emotion/react";
 
-import { Text, theme } from "@arizeai/components";
+import { Icon, InfoOutline, Text, theme } from "@arizeai/components";
 
 import {
   ChartTooltip,
+  ChartTooltipDivider,
   ChartTooltipItem,
   colors,
+  defaultSelectedTimestampReferenceLineProps,
   fullTimeFormatter,
   useTimeTickFormatter,
 } from "@phoenix/components/chart";
 import { useTimeRange } from "@phoenix/contexts/TimeRangeContext";
+import { useTimeSlice } from "@phoenix/contexts/TimeSliceContext";
 import {
   calculateGranularity,
   calculateGranularityWithRollingAverage,
@@ -40,16 +46,13 @@ const barColor = "#93b3c841";
 function TooltipContent({ active, payload, label }: TooltipProps<any, any>) {
   if (active && payload && payload.length) {
     const euclideanDistance = payload[1]?.value ?? null;
-    const count = payload[0]?.value ?? null;
     const euclideanDistanceString =
       typeof euclideanDistance === "number"
         ? numberFormatter.format(euclideanDistance)
         : "--";
-    const predictionCountString =
-      typeof count === "number" ? numberFormatter.format(count) : "--";
     return (
       <ChartTooltip>
-        <Text weight="heavy" textSize="large">{`${fullTimeFormatter(
+        <Text weight="heavy" textSize="medium">{`${fullTimeFormatter(
           new Date(label)
         )}`}</Text>
         <ChartTooltipItem
@@ -57,12 +60,21 @@ function TooltipContent({ active, payload, label }: TooltipProps<any, any>) {
           name="PSI"
           value={euclideanDistanceString}
         />
-        <ChartTooltipItem
-          color={barColor}
-          shape="square"
-          name="Count"
-          value={predictionCountString}
-        />
+        <ChartTooltipDivider />
+        <div
+          css={css`
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            color: var(--px-light-blue-color);
+            gap: var(--px-spacing-sm);
+
+            margin-top: var(--px-spacing-sm);
+          `}
+        >
+          <Icon svg={<InfoOutline />} />
+          <span>Click to view details</span>
+        </div>
       </ChartTooltip>
     );
   }
@@ -75,6 +87,7 @@ export function DimensionDriftTimeSeries({
   dimensionId: string;
 }) {
   const { timeRange } = useTimeRange();
+  const { selectedTimestamp, setSelectedTimestamp } = useTimeSlice();
   const countGranularity = calculateGranularity(timeRange);
   const data = useLazyLoadQuery<DimensionDriftTimeSeriesQuery>(
     graphql`
@@ -142,12 +155,24 @@ export function DimensionDriftTimeSeries({
     samplingIntervalMinutes: countGranularity.samplingIntervalMinutes,
   });
 
+  const onClick: CategoricalChartFunc = useCallback(
+    (state) => {
+      // Parse out the timestamp from the first chart
+      const { activePayload } = state;
+      if (activePayload != null && activePayload.length > 0) {
+        const payload = activePayload[0].payload;
+        setSelectedTimestamp(new Date(payload.timestamp));
+      }
+    },
+    [setSelectedTimestamp]
+  );
+
   return (
     <ResponsiveContainer width="100%" height="100%">
       <ComposedChart
         data={chartData as unknown as any[]}
         margin={timeSeriesChartMargins}
-        // onClick={onClick}
+        onClick={onClick}
         syncId={"dimensionDetails"}
       >
         <defs>
@@ -213,6 +238,12 @@ export function DimensionDriftTimeSeries({
           fillOpacity={1}
           fill="url(#dimensionDriftColorUv)"
         />
+        {selectedTimestamp != null ? (
+          <ReferenceLine
+            {...defaultSelectedTimestampReferenceLineProps}
+            x={selectedTimestamp.getTime()}
+          />
+        ) : null}
       </ComposedChart>
     </ResponsiveContainer>
   );

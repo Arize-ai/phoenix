@@ -15,6 +15,7 @@ import { DimensionCardinalityStats } from "./DimensionCardinalityStats";
 import { DimensionCardinalityTimeSeries } from "./DimensionCardinalityTimeSeries";
 import { DimensionCountStats } from "./DimensionCountStats";
 import { DimensionCountTimeSeries } from "./DimensionCountTimeSeries";
+import { DimensionDriftBreakdownSegmentBarChart } from "./DimensionDriftBreakdownSegmentBarChart";
 import { DimensionDriftStats } from "./DimensionDriftStats";
 import { DimensionDriftTimeSeries } from "./DimensionDriftTimeSeries";
 import { DimensionPercentEmptyStats } from "./DimensionPercentEmptyStats";
@@ -109,13 +110,30 @@ export function Dimension() {
                   borderColor="dark"
                   borderRadius="medium"
                   borderWidth="thin"
-                  height="size-1600"
                 >
-                  <Flex direction="row" alignItems="stretch" height="100%">
-                    <DimensionDriftTimeSeries dimensionId={dimensionId} />
-                    <ViewSummaryAside>
-                      <DimensionDriftStats dimension={data.dimension} />
-                    </ViewSummaryAside>
+                  <Flex direction="column" alignItems="stretch">
+                    <View width="100%" height="size-1600">
+                      <Flex direction="row" alignItems="stretch" height="100%">
+                        <View flex>
+                          <DimensionDriftTimeSeries dimensionId={dimensionId} />
+                        </View>
+                        <ViewSummaryAside>
+                          <DimensionDriftStats dimension={data.dimension} />
+                        </ViewSummaryAside>
+                      </Flex>
+                    </View>
+                    <View
+                      height="size-1600"
+                      width="100%"
+                      borderTopColor="dark"
+                      borderTopWidth="thin"
+                    >
+                      <Suspense fallback={<Loading />}>
+                        <DimensionDriftBreakdownSegmentBarChart
+                          dimensionId={dimensionId}
+                        />
+                      </Suspense>
+                    </View>
                   </Flex>
                 </View>
               ) : null}

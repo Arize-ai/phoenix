@@ -14,6 +14,7 @@ export function ViewSummaryAside(props: PropsWithChildren) {
       borderStartWidth="thin"
       borderStartColor="dark"
       padding="size-200"
+      flex="none"
     >
       <Flex
         direction="column"

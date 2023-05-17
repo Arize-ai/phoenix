@@ -43,7 +43,7 @@ function TooltipContent({ active, payload, label }: TooltipProps<any, any>) {
 
     return (
       <ChartTooltip>
-        <Text weight="heavy" textSize="large">{`${fullTimeFormatter(
+        <Text weight="heavy" textSize="medium">{`${fullTimeFormatter(
           new Date(label)
         )}`}</Text>
         <ChartTooltipItem

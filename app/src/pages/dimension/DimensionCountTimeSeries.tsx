@@ -30,7 +30,7 @@ const numberFormatter = new Intl.NumberFormat([], {
   maximumFractionDigits: 2,
 });
 
-const barColor = colors.primary;
+const barColor = colors.blue300;
 
 function TooltipContent({ active, payload, label }: TooltipProps<any, any>) {
   if (active && payload && payload.length) {
@@ -39,7 +39,7 @@ function TooltipContent({ active, payload, label }: TooltipProps<any, any>) {
       typeof count === "number" ? numberFormatter.format(count) : "--";
     return (
       <ChartTooltip>
-        <Text weight="heavy" textSize="large">{`${fullTimeFormatter(
+        <Text weight="heavy" textSize="medium">{`${fullTimeFormatter(
           new Date(label)
         )}`}</Text>
         <ChartTooltipItem

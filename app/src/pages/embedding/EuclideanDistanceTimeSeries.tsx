@@ -72,7 +72,7 @@ function TooltipContent({ active, payload, label }: TooltipProps<any, any>) {
       typeof count === "number" ? numberFormatter.format(count) : "--";
     return (
       <ChartTooltip>
-        <Text weight="heavy" textSize="large">{`${fullTimeFormatter(
+        <Text weight="heavy" textSize="medium">{`${fullTimeFormatter(
           new Date(label)
         )}`}</Text>
         <ChartTooltipItem
