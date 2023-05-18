@@ -10,7 +10,7 @@ The use of GPT-4 as a replacement for various model tasks is growing daily. What
 
 <figure><img src="../.gitbook/assets/Docs graphics-05.jpg" alt=""><figcaption><p><strong>Evolution of Models</strong></p></figcaption></figure>
 
-The above example shows a set of niche text models from Huggingface that many teams deploy in production today. The movement toward using a foundational model and APIs is happening very fast given a single model can cover the broad set of tasks that used to be accomplished by many models.
+The above example shows a set of niche text models from Hugging Face that many teams deploy in production today. The movement toward using a foundational model and APIs is happening very fast given a single model can cover the broad set of tasks that used to be accomplished by many models.
 
 <figure><img src="../.gitbook/assets/Docs graphics-06.jpg" alt=""><figcaption><p><strong>Prompt and Response Paradigm</strong></p></figcaption></figure>
 
