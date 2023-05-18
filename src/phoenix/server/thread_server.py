@@ -7,7 +7,7 @@ from starlette.applications import Starlette
 from uvicorn import Config, Server
 
 
-class ThreadServer(Server):  # type: ignore  # can't inherit from Any type
+class ThreadServer(Server):
     """Server that runs in a (non-daemon) thread"""
 
     def __init__(
