@@ -83,6 +83,11 @@ function TooltipContent({
 
   return null;
 }
+
+/**
+ * Bar chart that displays the different segments of data for a given dimension
+ * E.x. dimension=state, segments=[CA, NY, TX, ...]
+ */
 export function DimensionSegmentsBarChart(props: {
   dimension: DimensionSegmentsBarChart_dimension$key;
 }) {

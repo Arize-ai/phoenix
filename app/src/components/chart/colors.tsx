@@ -21,4 +21,5 @@ export const colors = Object.freeze({
   pink500: "#F10E82",
   // Colors specific to the dataset role
   primary: "#9efcfd",
+  reference: "#baa1f9",
 });
