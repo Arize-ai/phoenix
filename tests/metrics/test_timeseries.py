@@ -5,8 +5,9 @@ from typing import NamedTuple, Union, cast
 import numpy as np
 import numpy.typing as npt
 import pandas as pd
+from phoenix.core.model_schema import Column
 from phoenix.metrics import Metric
-from phoenix.metrics.metrics import Count, EuclideanDistance, Mean, VectorMean, VectorSum
+from phoenix.metrics.metrics import CountNotNull, EuclideanDistance, Mean, VectorMean, VectorSum
 from phoenix.metrics.timeseries import timeseries
 
 
@@ -40,19 +41,23 @@ reference_data = pd.read_csv(
 MetricTest = NamedTuple("MetricTest", [("name", str), ("metric", Metric)])
 
 metric_tests = (
-    MetricTest("Mean(x)", Mean(operand_column_name="x")),
-    MetricTest("Count(x)", Count(operand_column_name="x")),
-    MetricTest("VectorSum(v)", VectorSum(operand_column_name="v", shape=5)),
-    MetricTest("VectorMean(v)", VectorMean(operand_column_name="v", shape=5)),
+    MetricTest("Mean(x)", Mean(operand=Column("x"))),
+    MetricTest("CountNotNull(x)", CountNotNull(operand=Column("x"))),
+    MetricTest("VectorSum(v)", VectorSum(operand=Column("v"), shape=5)),
+    MetricTest("VectorMean(v)", VectorMean(operand=Column("v"), shape=5)),
     MetricTest(
         "EuclideanDistance(v)",
-        EuclideanDistance(operand_column_name="v", shape=5, reference_data=reference_data),
+        EuclideanDistance(
+            operand=Column("v"),
+            shape=5,
+            reference_data=reference_data,
+        ),
     ),
 )
 names = list(map(lambda t: t.name, metric_tests))
 metrics = list(map(lambda t: t.metric, metric_tests))
 start = pd.to_datetime("2023-01-01 11:50:52")
-end = pd.to_datetime("2023-01-28 11:26:50")  # end instant is exclusive
+stop = pd.to_datetime("2023-01-28 11:26:50")  # end instant is exclusive
 
 # The `index` column is added here because it can be a common occurrence in
 # dataframes read from csv files, and it will confuse `pandas.DataFrame.query()`
@@ -93,7 +98,7 @@ def test_timeseries_durational_granularity() -> None:
     actual = data.pipe(
         timeseries(
             start_time=start,
-            end_time=end,
+            end_time=stop,
             evaluation_window=timedelta(hours=72),
             sampling_interval=timedelta(hours=24),
         ),
@@ -142,7 +147,7 @@ def test_timeseries_durational_granularity() -> None:
     actual = data.pipe(
         timeseries(
             start_time=start,
-            end_time=end,
+            end_time=stop,
             evaluation_window=timedelta(hours=72),
             sampling_interval=timedelta(hours=48),
         ),
@@ -175,7 +180,7 @@ def test_timeseries_durational_granularity() -> None:
     actual = data.pipe(
         timeseries(
             start_time=start,
-            end_time=end,
+            end_time=stop,
             evaluation_window=timedelta(hours=100),
             sampling_interval=timedelta(hours=99),
         ),
@@ -204,7 +209,7 @@ def test_timeseries_durational_granularity() -> None:
     actual = data.pipe(
         timeseries(
             start_time=start,
-            end_time=end,
+            end_time=stop,
             evaluation_window=timedelta(hours=100),
             sampling_interval=timedelta(hours=396),
         ),
@@ -230,7 +235,7 @@ def test_timeseries_simple_granularity() -> None:
     actual = data.pipe(
         timeseries(
             start_time=start,
-            end_time=end,
+            end_time=stop,
             evaluation_window=timedelta(hours=80),
             sampling_interval=timedelta(hours=80),
         ),
@@ -263,9 +268,9 @@ def test_timeseries_all_granularity() -> None:
     actual = data.pipe(
         timeseries(
             start_time=start,
-            end_time=end,
-            evaluation_window=end - start,
-            sampling_interval=end - start,
+            end_time=stop,
+            evaluation_window=stop - start,
+            sampling_interval=stop - start,
         ),
         metrics=metrics,
     )
@@ -289,10 +294,10 @@ def test_timeseries_empty_result() -> None:
         pd.DataFrame(),
         data.pipe(
             timeseries(
-                start_time=end,
+                start_time=stop,
                 end_time=start,
-                evaluation_window=end - start,
-                sampling_interval=end - start,
+                evaluation_window=stop - start,
+                sampling_interval=stop - start,
             ),
             metrics=metrics,
         ),

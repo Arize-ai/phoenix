@@ -53,7 +53,7 @@ Make sure you have npm (node package manager) available on your terminal as well
 Install `phoenix` in development mode (using the `-e` flag) and with development dependencies (using the `[dev]` extra) by running
 
 ```bash
-pip install -e '.[dev]'
+pip install -e ".[dev]"
 ```
 
 from the repository root.
@@ -227,7 +227,7 @@ mkvirtualenv phoenix-env
 Activate your virtual environment. You can now [install a `phoenix` build](#installing-a-phoenix-build). Alternatively, if you wish to run `phoenix` from source, clone the repo and install `phoenix` in development mode with
 
 ```powershell
-pip install -e '.[dev]'
+pip install -e ".[dev]"
 ```
 
 ### Configuring a Remote Interpreter

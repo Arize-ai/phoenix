@@ -1,34 +1,40 @@
-import React from "react";
+import React, { useCallback } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import {
   Area,
   Bar,
   CartesianGrid,
   ComposedChart,
+  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   TooltipProps,
   XAxis,
   YAxis,
 } from "recharts";
+import { CategoricalChartFunc } from "recharts/types/chart/generateCategoricalChart";
 import { css } from "@emotion/react";
 
-import { Heading, Text, theme } from "@arizeai/components";
+import { Icon, InfoOutline, Text, theme } from "@arizeai/components";
 
 import {
   ChartTooltip,
+  ChartTooltipDivider,
   ChartTooltipItem,
   colors,
+  defaultSelectedTimestampReferenceLineProps,
   fullTimeFormatter,
-  shortTimeFormatter,
+  useTimeTickFormatter,
 } from "@phoenix/components/chart";
 import { useTimeRange } from "@phoenix/contexts/TimeRangeContext";
+import { useTimeSlice } from "@phoenix/contexts/TimeSliceContext";
 import {
   calculateGranularity,
   calculateGranularityWithRollingAverage,
 } from "@phoenix/utils/timeSeriesUtils";
 
 import { DimensionDriftTimeSeriesQuery } from "./__generated__/DimensionDriftTimeSeriesQuery.graphql";
+import { timeSeriesChartMargins } from "./dimensionChartConstants";
 
 const numberFormatter = new Intl.NumberFormat([], {
   maximumFractionDigits: 2,
@@ -40,16 +46,13 @@ const barColor = "#93b3c841";
 function TooltipContent({ active, payload, label }: TooltipProps<any, any>) {
   if (active && payload && payload.length) {
     const euclideanDistance = payload[1]?.value ?? null;
-    const count = payload[0]?.value ?? null;
     const euclideanDistanceString =
       typeof euclideanDistance === "number"
         ? numberFormatter.format(euclideanDistance)
         : "--";
-    const predictionCountString =
-      typeof count === "number" ? numberFormatter.format(count) : "--";
     return (
       <ChartTooltip>
-        <Text weight="heavy" textSize="large">{`${fullTimeFormatter(
+        <Text weight="heavy" textSize="medium">{`${fullTimeFormatter(
           new Date(label)
         )}`}</Text>
         <ChartTooltipItem
@@ -57,12 +60,21 @@ function TooltipContent({ active, payload, label }: TooltipProps<any, any>) {
           name="PSI"
           value={euclideanDistanceString}
         />
-        <ChartTooltipItem
-          color={barColor}
-          shape="square"
-          name="Count"
-          value={predictionCountString}
-        />
+        <ChartTooltipDivider />
+        <div
+          css={css`
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            color: var(--px-light-blue-color);
+            gap: var(--px-spacing-sm);
+
+            margin-top: var(--px-spacing-sm);
+          `}
+        >
+          <Icon svg={<InfoOutline />} />
+          <span>Click to view details</span>
+        </div>
       </ChartTooltip>
     );
   }
@@ -75,6 +87,8 @@ export function DimensionDriftTimeSeries({
   dimensionId: string;
 }) {
   const { timeRange } = useTimeRange();
+  const { selectedTimestamp, setSelectedTimestamp } = useTimeSlice();
+  const countGranularity = calculateGranularity(timeRange);
   const data = useLazyLoadQuery<DimensionDriftTimeSeriesQuery>(
     graphql`
       query DimensionDriftTimeSeriesQuery(
@@ -117,7 +131,7 @@ export function DimensionDriftTimeSeries({
         end: timeRange.end.toISOString(),
       },
       driftGranularity: calculateGranularityWithRollingAverage(timeRange),
-      countGranularity: calculateGranularity(timeRange),
+      countGranularity,
     }
   );
 
@@ -136,104 +150,101 @@ export function DimensionDriftTimeSeries({
       timestamp: new Date(d.timestamp).valueOf(),
     };
   });
+
+  const timeTickFormatter = useTimeTickFormatter({
+    samplingIntervalMinutes: countGranularity.samplingIntervalMinutes,
+  });
+
+  const onClick: CategoricalChartFunc = useCallback(
+    (state) => {
+      // Parse out the timestamp from the first chart
+      const { activePayload } = state;
+      if (activePayload != null && activePayload.length > 0) {
+        const payload = activePayload[0].payload;
+        setSelectedTimestamp(new Date(payload.timestamp));
+      }
+    },
+    [setSelectedTimestamp]
+  );
+
   return (
-    <section
-      css={css`
-        width: 100%;
-        height: 100%;
-        display: flex;
-        flex-direction: column;
-        overflow: hidden;
-        h3 {
-          padding: var(--px-spacing-lg) var(--px-spacing-lg) 0
-            var(--px-spacing-lg);
-          flex: none;
-          .ac-action-button {
-            margin-left: var(--px-spacing-sm);
-          }
-        }
-        & > div {
-          flex: 1 1 auto;
-          width: 100%;
-          overflow: hidden;
-        }
-      `}
-    >
-      <Heading level={3}>Dimension Drift</Heading>
-      <div>
-        <ResponsiveContainer width="100%" height="100%">
-          <ComposedChart
-            data={chartData as unknown as any[]}
-            margin={{ top: 25, right: 18, left: 18, bottom: 10 }}
-            // onClick={onClick}
-            syncId={"dimensionDetails"}
+    <ResponsiveContainer width="100%" height="100%">
+      <ComposedChart
+        data={chartData as unknown as any[]}
+        margin={timeSeriesChartMargins}
+        onClick={onClick}
+        syncId={"dimensionDetails"}
+      >
+        <defs>
+          <linearGradient
+            id="dimensionDriftColorUv"
+            x1="0"
+            y1="0"
+            x2="0"
+            y2="1"
           >
-            <defs>
-              <linearGradient
-                id="dimensionDriftColorUv"
-                x1="0"
-                y1="0"
-                x2="0"
-                y2="1"
-              >
-                <stop offset="5%" stopColor={color} stopOpacity={0.8} />
-                <stop offset="95%" stopColor={color} stopOpacity={0} />
-              </linearGradient>
-              <linearGradient id="barColor" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor={barColor} stopOpacity={0.8} />
-                <stop offset="95%" stopColor={barColor} stopOpacity={0} />
-              </linearGradient>
-            </defs>
-            <XAxis
-              dataKey="timestamp"
-              stroke={theme.colors.gray200}
-              // TODO: Fix this to be a cleaner interface
-              tickFormatter={(x) => shortTimeFormatter(new Date(x))}
-              style={{ fill: theme.textColors.white70 }}
-              scale="time"
-              type="number"
-              domain={["auto", "auto"]}
-              padding={{ left: 10, right: 10 }}
-            />
-            <YAxis
-              stroke={theme.colors.gray200}
-              label={{
-                value: "PSI",
-                angle: -90,
-                position: "insideLeft",
-                style: { textAnchor: "middle", fill: theme.textColors.white90 },
-              }}
-              style={{ fill: theme.textColors.white70 }}
-            />
-            <YAxis
-              yAxisId="right"
-              orientation="right"
-              tick={false}
-              tickLine={false}
-              width={0}
-            />
-            <CartesianGrid
-              strokeDasharray="4 4"
-              stroke={theme.colors.gray200}
-              strokeOpacity={0.5}
-            />
-            <Tooltip content={<TooltipContent />} />
-            <Bar
-              yAxisId="right"
-              dataKey="traffic"
-              fill="url(#barColor)"
-              spacing={5}
-            />
-            <Area
-              type="monotone"
-              dataKey="value"
-              stroke={color}
-              fillOpacity={1}
-              fill="url(#dimensionDriftColorUv)"
-            />
-          </ComposedChart>
-        </ResponsiveContainer>
-      </div>
-    </section>
+            <stop offset="5%" stopColor={color} stopOpacity={0.8} />
+            <stop offset="95%" stopColor={color} stopOpacity={0} />
+          </linearGradient>
+          <linearGradient id="barColor" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="5%" stopColor={barColor} stopOpacity={0.8} />
+            <stop offset="95%" stopColor={barColor} stopOpacity={0} />
+          </linearGradient>
+        </defs>
+        <XAxis
+          dataKey="timestamp"
+          stroke={theme.colors.gray200}
+          // TODO: Fix this to be a cleaner interface
+          tickFormatter={(x) => timeTickFormatter(new Date(x))}
+          style={{ fill: theme.textColors.white70 }}
+          scale="time"
+          type="number"
+          domain={["auto", "auto"]}
+          padding={{ left: 10, right: 10 }}
+        />
+        <YAxis
+          stroke={theme.colors.gray200}
+          label={{
+            value: "PSI",
+            angle: -90,
+            position: "insideLeft",
+            style: { textAnchor: "middle", fill: theme.textColors.white90 },
+          }}
+          style={{ fill: theme.textColors.white70 }}
+        />
+        <YAxis
+          yAxisId="right"
+          orientation="right"
+          tick={false}
+          tickLine={false}
+          width={0}
+        />
+        <CartesianGrid
+          strokeDasharray="4 4"
+          stroke={theme.colors.gray200}
+          strokeOpacity={0.5}
+        />
+        <Tooltip content={<TooltipContent />} />
+        <Bar
+          yAxisId="right"
+          dataKey="traffic"
+          fill="url(#barColor)"
+          spacing={5}
+        />
+        <Area
+          type="monotone"
+          dataKey="value"
+          stroke={color}
+          fillOpacity={1}
+          fill="url(#dimensionDriftColorUv)"
+        />
+        {selectedTimestamp != null ? (
+          <ReferenceLine
+            {...defaultSelectedTimestampReferenceLineProps}
+            x={selectedTimestamp.getTime()}
+          />
+        ) : null}
+      </ComposedChart>
+    </ResponsiveContainer>
   );
 }

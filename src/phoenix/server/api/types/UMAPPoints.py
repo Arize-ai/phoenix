@@ -84,9 +84,9 @@ def calculate_drift_ratio(events: Set[EventId]) -> float:
     drift_ratio : float
     """
     return (
-        (cnt := Counter(e.dataset_id for e in events))
-        and (cnt[PRIMARY] - cnt[REFERENCE]) / (cnt[PRIMARY] + cnt[REFERENCE])
-        or float("nan")
+        float("nan")
+        if not (cnt := Counter(e.dataset_id for e in events))
+        else (cnt[PRIMARY] - cnt[REFERENCE]) / (cnt[PRIMARY] + cnt[REFERENCE])
     )
 
 

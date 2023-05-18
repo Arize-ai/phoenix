@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from typing import Generic, List, Optional, TypeVar
 
 import strawberry
+from strawberry import UNSET
 
 GenericType = TypeVar("GenericType")
 
@@ -75,7 +76,7 @@ def get_offset_with_default(cursor: Optional[Cursor], default_offset: int) -> in
     to use; if the cursor contains a valid offset, that will be used,
     otherwise it will be the default.
     """
-    if cursor is None:
+    if not isinstance(cursor, Cursor):
         return default_offset
     offset = cursor_to_offset(cursor)
     return offset if isinstance(offset, int) else default_offset
@@ -87,10 +88,10 @@ class ConnectionArgs:
     Arguments common to all connections
     """
 
-    first: Optional[int] = None
-    after: Optional[Cursor] = None
-    last: Optional[int] = None
-    before: Optional[Cursor] = None
+    first: Optional[int] = UNSET
+    after: Optional[Cursor] = UNSET
+    last: Optional[int] = UNSET
+    before: Optional[Cursor] = UNSET
 
 
 def connection_from_list(

@@ -1,6 +1,6 @@
 import math
 import warnings
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from functools import cached_property
 from typing import Callable, Union, cast
 
@@ -17,23 +17,29 @@ from .mixins import (
     DiscreteDivergence,
     DriftOperator,
     EvaluationMetric,
+    NullaryOperator,
     UnaryOperator,
     VectorOperator,
     ZeroInitialValue,
 )
 
 
-class Count(UnaryOperator, ZeroInitialValue, BaseMetric):
+@dataclass(frozen=True)
+class Count(NullaryOperator, ZeroInitialValue, BaseMetric):
     def calc(self, dataframe: pd.DataFrame) -> int:
-        if not self.operand_column_name:
-            return len(dataframe)
-        data = self.get_operand_column(dataframe)
-        return data.count()
+        return len(dataframe)
 
 
+@dataclass(frozen=True)
+class CountNotNull(UnaryOperator, ZeroInitialValue, BaseMetric):
+    def calc(self, dataframe: pd.DataFrame) -> int:
+        return self.operand(dataframe).count()
+
+
+@dataclass(frozen=True)
 class Sum(UnaryOperator, BaseMetric):
     def calc(self, dataframe: pd.DataFrame) -> float:
-        data = self.get_operand_column(dataframe)
+        data = self.operand(dataframe)
         numeric_data = pd.to_numeric(data, errors="coerce")
         return cast(float, numeric_data.sum())
 
@@ -41,10 +47,10 @@ class Sum(UnaryOperator, BaseMetric):
 Vector: TypeAlias = Union[float, npt.NDArray[np.float64]]
 
 
-@dataclass
+@dataclass(frozen=True)
 class VectorSum(UnaryOperator, VectorOperator, ZeroInitialValue, BaseMetric):
     def calc(self, dataframe: pd.DataFrame) -> Vector:
-        data = self.get_operand_column(dataframe)
+        data = self.operand(dataframe)
         return cast(
             Vector,
             np.sum(
@@ -54,72 +60,104 @@ class VectorSum(UnaryOperator, VectorOperator, ZeroInitialValue, BaseMetric):
         )
 
 
-@dataclass
+@dataclass(frozen=True)
 class Mean(UnaryOperator, BaseMetric):
     def calc(self, dataframe: pd.DataFrame) -> float:
-        data = self.get_operand_column(dataframe)
+        data = self.operand(dataframe)
         numeric_data = pd.to_numeric(data, errors="coerce")
         return numeric_data.mean()
 
 
-@dataclass
+@dataclass(frozen=True)
 class VectorMean(UnaryOperator, VectorOperator, BaseMetric):
     def calc(self, dataframe: pd.DataFrame) -> Vector:
-        data = self.get_operand_column(dataframe)
+        data = self.operand(dataframe)
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", category=RuntimeWarning)
             return cast(Vector, np.mean(data.dropna()))
 
 
-@dataclass
+@dataclass(frozen=True)
 class Min(UnaryOperator, BaseMetric):
     def calc(self, dataframe: pd.DataFrame) -> float:
-        data = self.get_operand_column(dataframe)
+        data = self.operand(dataframe)
         numeric_data = pd.to_numeric(data, errors="coerce")
         return cast(float, numeric_data.min())
 
 
-@dataclass
+@dataclass(frozen=True)
 class Max(UnaryOperator, BaseMetric):
     def calc(self, dataframe: pd.DataFrame) -> float:
-        data = self.get_operand_column(dataframe)
+        data = self.operand(dataframe)
         numeric_data = pd.to_numeric(data, errors="coerce")
         return cast(float, numeric_data.max())
 
 
-@dataclass
+@dataclass(frozen=True)
 class Cardinality(UnaryOperator, BaseMetric):
     def calc(self, dataframe: pd.DataFrame) -> float:
-        data = self.get_operand_column(dataframe)
+        data = self.operand(dataframe)
         if data.dtype.kind == "f":
             return float("nan")
         return cast(float, data.nunique())
 
 
-@dataclass
+@dataclass(frozen=True)
 class PercentEmpty(UnaryOperator, BaseMetric):
     def calc(self, dataframe: pd.DataFrame) -> float:
-        data = self.get_operand_column(dataframe)
+        data = self.operand(dataframe)
         return data.isna().mean() * 100
 
 
-@dataclass
+@dataclass(frozen=True)
+class Quantile(UnaryOperator, BaseMetric):
+    probability: float = field(default=0.5)
+
+    def __post_init__(self) -> None:
+        if not (0 <= self.probability <= 1):
+            raise ValueError(
+                "invalid quantile probability; "
+                "must be between 0 and 1 inclusive; "
+                f"got: {self.probability}"
+            )
+
+    def calc(self, dataframe: pd.DataFrame) -> float:
+        data = self.operand(dataframe)
+        numeric_data = pd.to_numeric(
+            data,
+            errors="coerce",
+        )
+        with warnings.catch_warnings():
+            warnings.simplefilter(
+                "ignore",
+                category=RuntimeWarning,
+            )
+            return cast(
+                float,
+                np.nanquantile(
+                    numeric_data,
+                    self.probability,
+                ),
+            )
+
+
+@dataclass(frozen=True)
 class AccuracyScore(EvaluationMetric):
     """
     AccuracyScore calculates the percentage of times that actual equals predicted.
     """
 
     def calc(self, dataframe: pd.DataFrame) -> float:
-        predicted = self.get_predicted_column(dataframe)
-        actual = self.get_actual_column(dataframe)
+        predicted = self.predicted(dataframe)
+        actual = self.actual(dataframe)
         return cast(float, accuracy_score(actual, predicted))
 
 
-@dataclass
+@dataclass(frozen=True)
 class EuclideanDistance(DriftOperator, VectorOperator):
     @cached_property
     def reference_value(self) -> Vector:
-        data = self.get_operand_column(self.reference_data)
+        data = self.operand(self.reference_data)
         return cast(Vector, np.mean(data.dropna()))
 
     def calc(self, dataframe: pd.DataFrame) -> float:
@@ -127,7 +165,7 @@ class EuclideanDistance(DriftOperator, VectorOperator):
             isinstance(self.reference_value, float) and not math.isfinite(self.reference_value)
         ):
             return float("nan")
-        data = self.get_operand_column(dataframe)
+        data = self.operand(dataframe)
         return cast(
             float,
             euclidean(
@@ -148,7 +186,7 @@ def symmetrized(divergence: Divergence) -> Divergence:
     return lambda pk, qk: (divergence(pk, qk) + divergence(qk, pk)) / 2
 
 
-@dataclass
+@dataclass(frozen=True)
 class PSI(DiscreteDivergence):
     r"""Population stability index (PSI)
 
@@ -182,7 +220,7 @@ class PSI(DiscreteDivergence):
         return 2 * symmetrized(entropy)(pk, qk)
 
 
-@dataclass
+@dataclass(frozen=True)
 class KLDivergence(DiscreteDivergence):
     r"""Kullback–Leibler divergence
 
@@ -207,7 +245,7 @@ class KLDivergence(DiscreteDivergence):
         return cast(float, entropy(pk, qk))
 
 
-@dataclass
+@dataclass(frozen=True)
 class JSDistance(DiscreteDivergence):
     r"""Jensen-Shannon Distance
 

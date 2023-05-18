@@ -57,7 +57,7 @@ class HeadersMiddleware(BaseHTTPMiddleware):
         return response
 
 
-class GraphQLWithContext(GraphQL):
+class GraphQLWithContext(GraphQL):  # type: ignore
     def __init__(
         self,
         schema: BaseSchema,

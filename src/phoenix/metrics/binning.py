@@ -1,16 +1,20 @@
 import warnings
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Any, Iterable, Optional, Sequence
+from functools import partial
+from typing import Any, Iterable, Optional, Sequence, cast
 
 import numpy as np
 import pandas as pd
 from typing_extensions import TypeAlias
 
+from phoenix.core.model_schema import Column
+from phoenix.metrics import Metric, multi_calculate
+
 Histogram: TypeAlias = "pd.Series[int]"
 
 
-@dataclass
+@dataclass(frozen=True)
 class BinningMethod(ABC):
     """Ways to construct histograms from data, e.g. we can treat each distinct
     value as a discrete category, or group an interval of numeric values
@@ -24,12 +28,21 @@ class BinningMethod(ABC):
     def histogram(self, data: "pd.Series[Any]") -> Histogram:
         ...
 
+    @abstractmethod
+    def segmented_summary(
+        self,
+        group_by: Column,
+        dataframe: pd.DataFrame,
+        metrics: Iterable[Metric],
+    ) -> pd.DataFrame:
+        ...
+
 
 NumericBin: TypeAlias = "pd.Interval[float]"
 NumericBins: TypeAlias = "pd.IntervalIndex[NumericBin]"
 
 
-@dataclass
+@dataclass(frozen=True)
 class IntervalBinning(BinningMethod):
     """Ways to construct histograms on numeric data by specifying the exact
     bins in the form of a `pandas.IntervalIndex`. Values outside the intervals
@@ -81,8 +94,71 @@ class IntervalBinning(BinningMethod):
         cut = pd.cut(numeric_data, bins)
         return cut.value_counts(dropna=self.dropna)
 
+    def segmented_summary(
+        self,
+        segment_column: Column,
+        dataframe: pd.DataFrame,
+        metrics: Iterable[Metric],
+    ) -> pd.DataFrame:
+        """Outputs a dataframe similar to the example below, with IntervalBins
+        as row indices and metric.id() as columns (for zero, one, or more
+        metrics). NaN represents the missing value bin when dropna=False.
+        Similar to SQL, unobserved bins are excluded and the output is not
+        sorted.
 
-@dataclass
+        +-----------------+-----+-----+
+        | IntervalBin     | 123 | 456 | <- metric.id()
+        +=================+=====+=====+
+        | NaN             |   2 |   5 | <- NaN as bin for missing values
+        +-----------------+-----+-----+
+        | [-2.0, 2.0)     |   3 |   6 |
+        +-----------------+-----+-----+
+        | [-inf, -2000.0) |   1 |   1 |
+        +-----------------+-----+-----+
+        """
+        segment_data = pd.to_numeric(
+            segment_column(dataframe),
+            errors="coerce",
+        )
+        calculate_metrics = partial(
+            multi_calculate,
+            calcs=metrics,
+        )
+        cut = pd.cut(
+            segment_data,
+            self.numeric_bins(segment_data),
+        )
+        if self.dropna:
+            return dataframe.groupby(
+                cut,
+                dropna=self.dropna,
+                observed=True,
+                group_keys=True,
+                sort=False,
+            ).apply(calculate_metrics)
+        # As of pandas 1.5.3, `dropna=False` has no effect for our use case
+        # below (i.e. NaN always gets dropped), so we resort to grouping by
+        # `cut.cat.codes first, and reconstituting the `cut.cat.categories`
+        # afterward.
+        summary = dataframe.groupby(
+            cut.cat.codes,
+            dropna=self.dropna,
+            observed=True,
+            group_keys=True,
+            sort=False,
+        ).apply(calculate_metrics)
+        categories = pd.Categorical.from_codes(
+            cast(Sequence[int], summary.index.values),
+            cut.cat.categories,
+        )
+        return summary.set_axis(
+            categories,
+            axis=0,
+            copy=False,
+        )
+
+
+@dataclass(frozen=True)
 class QuantileBinning(IntervalBinning):
     """Ways to construct histograms on numeric data using the quantiles
     of a reference data as the breaks (i.e. the left and right bounds of each
@@ -117,24 +193,29 @@ class QuantileBinning(IntervalBinning):
     """
 
     probabilities: Sequence[float] = ()
-    """Values between 0 and 1 inclusive to create quantiles as the boundraies
+    """Values between 0 and 1 inclusive to create quantiles as the boundaries
     between contiguous bins. Each bin is left-closed and right-open. Min and
     max (i.e. quantiles 0 and 1) are added and will be replaced by -inf and
     +inf as the left- and right-most bin boundaries. Default values are the
     decile probabilities."""
 
     def numeric_bins(self, data: "pd.Series[Any]") -> NumericBins:
+        if self.bins is not None:
+            return self.bins
         # Always include min and max in quantiles.
         probabilities = sorted({0.0, 1.0}.union(set(self.probabilities)))
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", category=RuntimeWarning)
             quantiles = np.nanquantile(data, probabilities)
         breaks = sorted(set(quantiles[~np.isnan(quantiles)]))
-        # Extend min and max to inifinties, unless len(breaks) < 3,
+        # Extend min and max to infinities, unless len(breaks) < 3,
         # in which case the min is kept and two bins are created.
         breaks = breaks[1:-1] if len(breaks) > 2 else breaks[:1]
         breaks = [float("-inf")] + breaks + [float("inf")]
-        return pd.IntervalIndex.from_breaks(breaks, closed="left")
+        return pd.IntervalIndex.from_breaks(
+            breaks,
+            closed="left",
+        )
 
     def __init__(
         self,
@@ -143,14 +224,27 @@ class QuantileBinning(IntervalBinning):
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
-        self.probabilities = tuple(probabilities)
+        object.__setattr__(
+            self,
+            "probabilities",
+            tuple(probabilities),
+        )
         if reference_series.empty:
             return
-        numeric_series = pd.to_numeric(reference_series, errors="coerce")
-        self.bins = self.numeric_bins(numeric_series)
+        numeric_series = pd.to_numeric(
+            reference_series,
+            errors="coerce",
+        )
+        object.__setattr__(
+            self,
+            "bins",
+            self.numeric_bins(
+                numeric_series,
+            ),
+        )
 
 
-@dataclass
+@dataclass(frozen=True)
 class CategoricalBinning(BinningMethod):
     """Ways to construct histograms by treating each distinct value a separate
     category. By default, missing values are grouped and counted. Setting
@@ -172,7 +266,27 @@ class CategoricalBinning(BinningMethod):
     """
 
     def histogram(self, data: "pd.Series[Any]") -> Histogram:
-        return data.value_counts(dropna=self.dropna)
+        return data.value_counts(
+            dropna=self.dropna,
+        )
+
+    def segmented_summary(
+        self,
+        segment_column: Column,
+        dataframe: pd.DataFrame,
+        metrics: Iterable[Metric],
+    ) -> pd.DataFrame:
+        calculate_metrics = partial(
+            multi_calculate,
+            calcs=metrics,
+        )
+        return dataframe.groupby(
+            segment_column(dataframe),
+            dropna=self.dropna,
+            observed=True,
+            group_keys=True,
+            sort=False,
+        ).apply(calculate_metrics)
 
 
 Distribution: TypeAlias = "pd.Series[float]"
@@ -191,7 +305,13 @@ class Normalizer(ABC):
 class AdditiveSmoothing(Normalizer):
     r"""A function that normalizes counts/frequencies to probabilities with
     additive smoothing. Defaults to Laplace smoothing with `pseudocount=1`.
-    Smoothing can be disabled by setting `pseudocount=0`.
+    Smoothing can be disabled by setting `pseudocount=0`. Smoothing can be
+    used when there is a (discretized) bin where one distribution has zero
+    empirical mass (e.g. count) while another distribution has non-zero mass
+    at the same bin. In that case, divergences such as KL and PSI will
+    output infinities. To avoid getting infinities from these divergences,
+    a small amount of mass can be added to the zero-mass bin, and that's
+    what smoothing is used for.
 
     Parameters
     ----------

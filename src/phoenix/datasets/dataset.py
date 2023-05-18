@@ -14,6 +14,7 @@ from pandas.api.types import (
     is_datetime64_any_dtype,
     is_datetime64tz_dtype,
     is_numeric_dtype,
+    is_object_dtype,
 )
 from typing_extensions import TypeAlias
 
@@ -554,20 +555,23 @@ def _normalize_timestamps(
 ) -> Tuple[DataFrame, Schema]:
     """
     Ensures that the dataframe has a timestamp column and the schema has a timestamp field. If the
-    input dataframe contains a Unix or datetime timestamp column, it is converted to UTC timestamps.
-    If the input dataframe and schema do not contain timestamps, the default timestamp is used.
+    input dataframe contains a Unix or datetime timestamp or ISO8601 timestamp strings column, it
+    is converted to UTC timestamps. If the input dataframe and schema do not contain timestamps,
+    the default timestamp is used.
     """
     timestamp_column: Series[Timestamp]
     if (timestamp_column_name := schema.timestamp_column_name) is None:
         timestamp_column_name = "timestamp"
         schema = replace(schema, timestamp_column_name=timestamp_column_name)
-        timestamp_column = Series([default_timestamp] * len(dataframe))
+        timestamp_column = Series([default_timestamp] * len(dataframe), index=dataframe.index)
     elif is_numeric_dtype(timestamp_column_dtype := dataframe[timestamp_column_name].dtype):
         timestamp_column = to_datetime(dataframe[timestamp_column_name], unit="s", utc=True)
     elif is_datetime64tz_dtype(timestamp_column_dtype):
         timestamp_column = dataframe[timestamp_column_name].dt.tz_convert(pytz.utc)
     elif is_datetime64_any_dtype(timestamp_column_dtype):
         timestamp_column = dataframe[timestamp_column_name].dt.tz_localize(pytz.utc)
+    elif is_object_dtype(timestamp_column_dtype):
+        timestamp_column = to_datetime(dataframe[timestamp_column_name], utc=True)
     else:
         raise ValueError(
             "When provided, input timestamp column must have numeric or datetime dtype, "

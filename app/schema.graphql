@@ -1,4 +1,4 @@
-union Bin = NominalBin | IntervalBin
+union Bin = NominalBin | IntervalBin | MissingValueBin
 
 type Cluster {
   id: ID!
@@ -16,6 +16,11 @@ enum DataQualityMetric {
   min
   max
   count
+  p01
+  p25
+  p50
+  p75
+  p99
 }
 
 type DataQualityTimeSeries implements TimeSeries {
@@ -63,10 +68,10 @@ type Dimension implements Node {
 
   """Whether the dimension data is continuous or discrete."""
   shape: DimensionShape!
-  driftMetric(metric: ScalarDriftMetric!, timeRange: TimeRange = null): Float
+  driftMetric(metric: ScalarDriftMetric!, timeRange: TimeRange): Float
   dataQualityMetric(
     metric: DataQualityMetric!
-    timeRange: TimeRange = null
+    timeRange: TimeRange
 
     """The dataset (primary or reference) to query"""
     datasetRole: DatasetRole = primary
@@ -150,7 +155,7 @@ type EmbeddingDimension implements Node {
   """
   Computes a drift metric between all reference data and the primary data belonging to the input time range (inclusive of the time range start and exclusive of the time range end). Returns None if no reference dataset exists, if no primary data exists in the input time range, or if the input time range is invalid.
   """
-  driftMetric(metric: VectorDriftMetric!, timeRange: TimeRange = null): Float
+  driftMetric(metric: VectorDriftMetric!, timeRange: TimeRange): Float
 
   """
   Returns the time series of the specified metric for data within timeRange. Data points are generated starting at the end time, are separated by the sampling interval. Each data point is labeled by the end instant of and contains data from their respective evaluation window.
@@ -256,11 +261,15 @@ type IntervalBin {
   range: NumericRange!
 }
 
+type MissingValueBin {
+  name: String
+}
+
 type Model {
-  dimensions(first: Int = 50, last: Int = null, after: String, before: String): DimensionConnection!
+  dimensions(first: Int = 50, last: Int, after: String, before: String): DimensionConnection!
   primaryDataset: Dataset!
   referenceDataset: Dataset
-  embeddingDimensions(first: Int = 50, last: Int = null, after: String, before: String): EmbeddingDimensionConnection!
+  embeddingDimensions(first: Int = 50, last: Int, after: String, before: String): EmbeddingDimensionConnection!
 
   """Returns exported file names sorted by descending modification time."""
   exportedFiles: [ExportedFile!]!
@@ -270,7 +279,7 @@ type Mutation {
   """
   Given a list of event ids, export the corresponding data subset in Parquet format. File name is optional, but if specified, should be without file extension. By default the exported file name is current timestamp.
   """
-  exportEvents(eventIds: [ID!]!, fileName: String = null): ExportedFile!
+  exportEvents(eventIds: [ID!]!, fileName: String): ExportedFile!
 }
 
 """A node in the graph with a globally unique ID"""

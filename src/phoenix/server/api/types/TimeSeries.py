@@ -1,18 +1,19 @@
+from dataclasses import replace
 from datetime import datetime, timedelta
 from functools import total_ordering
 from typing import Iterable, List, Optional, Tuple, Union, cast
 
 import pandas as pd
 import strawberry
+from strawberry import UNSET
 
-from phoenix.core.model_schema import CONTINUOUS, REFERENCE, Dataset, Dimension
+from phoenix.core.model_schema import CONTINUOUS, REFERENCE, Column, Dataset, Dimension
 from phoenix.metrics import Metric, binning
-from phoenix.metrics.mixins import DriftOperator
+from phoenix.metrics.mixins import DriftOperator, UnaryOperator
 from phoenix.metrics.timeseries import timeseries
 from phoenix.server.api.input_types.Granularity import Granularity, to_timestamps
 from phoenix.server.api.input_types.TimeRange import TimeRange
 from phoenix.server.api.interceptor import NoneIfNan
-from phoenix.server.api.types import METRICS
 from phoenix.server.api.types.DataQualityMetric import DataQualityMetric
 from phoenix.server.api.types.DatasetRole import DatasetRole
 from phoenix.server.api.types.ScalarDriftMetricEnum import ScalarDriftMetric
@@ -35,7 +36,9 @@ class TimeSeriesDataPoint:
 
 
 def to_gql_datapoints(
-    df: pd.DataFrame, metric: Metric, timestamps: Iterable[datetime]
+    df: pd.DataFrame,
+    metric: Metric,
+    timestamps: Iterable[datetime],
 ) -> List[TimeSeriesDataPoint]:
     data = []
     for timestamp in timestamps:
@@ -66,16 +69,26 @@ def _get_timeseries_data(
     granularity: Granularity,
     dataset_role: DatasetRole,
 ) -> List[TimeSeriesDataPoint]:
-    if not (metric_cls := METRICS.get(metric.value, None)):
-        raise NotImplementedError(f"Metric {metric} is not implemented.")
+    metric_cls = metric.value
     data = dimension[dataset_role.value]
-    metric_instance = metric_cls(operand_column_name=dimension.name)
-    if issubclass(metric_cls, DriftOperator):
+    metric_instance = metric_cls()
+    if isinstance(metric_instance, UnaryOperator):
+        metric_instance = replace(
+            metric_instance,
+            operand=Column(dimension.name),
+        )
+    if isinstance(metric_instance, DriftOperator):
         ref_data = dimension[REFERENCE]
-        metric_instance.reference_data = pd.DataFrame({dimension.name: ref_data})
+        metric_instance = replace(
+            metric_instance,
+            reference_data=pd.DataFrame({dimension.name: ref_data}),
+        )
         if dimension.data_type is CONTINUOUS:
-            metric_instance.binning_method = binning.QuantileBinning(
-                reference_series=dimension[REFERENCE],
+            metric_instance = replace(
+                metric_instance,
+                binning_method=binning.QuantileBinning(
+                    reference_series=dimension[REFERENCE],
+                ),
             )
     df = pd.DataFrame({dimension.name: data})
     return df.pipe(
@@ -140,13 +153,13 @@ def get_drift_timeseries_data(
 
 def ensure_timeseries_parameters(
     dataset: Dataset,
-    time_range: Optional[TimeRange] = None,
-    granularity: Optional[Granularity] = None,
+    time_range: Optional[TimeRange] = UNSET,
+    granularity: Optional[Granularity] = UNSET,
 ) -> Tuple[TimeRange, Granularity]:
-    if time_range is None:
-        start, end = dataset.time_range
-        time_range = TimeRange(start=start, end=end)
-    if granularity is None:
+    if not isinstance(time_range, TimeRange):
+        start, stop = dataset.time_range
+        time_range = TimeRange(start=start, end=stop)
+    if not isinstance(granularity, Granularity):
         total_minutes = int((time_range.end - time_range.start).total_seconds()) // 60
         granularity = Granularity(
             evaluation_window_minutes=total_minutes,

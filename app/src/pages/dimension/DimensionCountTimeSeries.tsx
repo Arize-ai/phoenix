@@ -1,9 +1,9 @@
 import React from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import {
+  Bar,
+  BarChart,
   CartesianGrid,
-  ComposedChart,
-  Line,
   ResponsiveContainer,
   Tooltip,
   TooltipProps,
@@ -15,69 +15,66 @@ import { Text, theme } from "@arizeai/components";
 
 import {
   ChartTooltip,
-  ChartTooltipDivider,
   ChartTooltipItem,
+  colors,
   fullTimeFormatter,
   useTimeTickFormatter,
 } from "@phoenix/components/chart";
 import { useTimeRange } from "@phoenix/contexts/TimeRangeContext";
 import { calculateGranularity } from "@phoenix/utils/timeSeriesUtils";
 
-import { DimensionPercentEmptyTimeSeriesQuery } from "./__generated__/DimensionPercentEmptyTimeSeriesQuery.graphql";
+import { DimensionCountTimeSeriesQuery } from "./__generated__/DimensionCountTimeSeriesQuery.graphql";
 import { timeSeriesChartMargins } from "./dimensionChartConstants";
 
 const numberFormatter = new Intl.NumberFormat([], {
   maximumFractionDigits: 2,
 });
 
-const color = "#aaaaaa";
+const barColor = colors.blue300;
 
 function TooltipContent({ active, payload, label }: TooltipProps<any, any>) {
   if (active && payload && payload.length) {
-    const percentEmpty = payload[0]?.value ?? null;
-    const percentEmptyString =
-      typeof percentEmpty === "number"
-        ? numberFormatter.format(percentEmpty)
-        : "--";
+    const count = payload[0]?.value ?? null;
+    const predictionCountString =
+      typeof count === "number" ? numberFormatter.format(count) : "--";
     return (
       <ChartTooltip>
         <Text weight="heavy" textSize="medium">{`${fullTimeFormatter(
           new Date(label)
         )}`}</Text>
         <ChartTooltipItem
-          color={color}
-          name="% Empty"
-          value={percentEmptyString}
+          color={barColor}
+          shape="square"
+          name="Count"
+          value={predictionCountString}
         />
-        <ChartTooltipDivider />
       </ChartTooltip>
     );
   }
 
   return null;
 }
-
-export function DimensionPercentEmptyTimeSeries({
+export function DimensionCountTimeSeries({
   dimensionId,
 }: {
   dimensionId: string;
 }) {
   const { timeRange } = useTimeRange();
-  const granularity = calculateGranularity(timeRange);
-  const data = useLazyLoadQuery<DimensionPercentEmptyTimeSeriesQuery>(
+  const countGranularity = calculateGranularity(timeRange);
+  const data = useLazyLoadQuery<DimensionCountTimeSeriesQuery>(
     graphql`
-      query DimensionPercentEmptyTimeSeriesQuery(
+      query DimensionCountTimeSeriesQuery(
         $dimensionId: GlobalID!
         $timeRange: TimeRange!
-        $granularity: Granularity!
+        $countGranularity: Granularity!
       ) {
         embedding: node(id: $dimensionId) {
           id
           ... on Dimension {
-            percentEmptyTimeSeries: dataQualityTimeSeries(
-              metric: percentEmpty
+            trafficTimeSeries: dataQualityTimeSeries(
+              metric: count
               timeRange: $timeRange
-              granularity: $granularity
+              granularity: $countGranularity
             ) {
               data {
                 timestamp
@@ -94,31 +91,34 @@ export function DimensionPercentEmptyTimeSeries({
         start: timeRange.start.toISOString(),
         end: timeRange.end.toISOString(),
       },
-      granularity,
+      countGranularity,
     }
   );
 
-  const chartData =
-    data.embedding.percentEmptyTimeSeries?.data.map((d) => ({
+  const chartRawData = data.embedding.trafficTimeSeries?.data || [];
+
+  const chartData = chartRawData.map((d) => {
+    return {
+      ...d,
       timestamp: new Date(d.timestamp).valueOf(),
-      value: d.value,
-    })) || [];
+    };
+  });
 
   const timeTickFormatter = useTimeTickFormatter({
-    samplingIntervalMinutes: granularity.samplingIntervalMinutes,
+    samplingIntervalMinutes: countGranularity.samplingIntervalMinutes,
   });
 
   return (
     <ResponsiveContainer width="100%" height="100%">
-      <ComposedChart
+      <BarChart
         data={chartData as unknown as any[]}
         margin={timeSeriesChartMargins}
         syncId={"dimensionDetails"}
       >
         <defs>
-          <linearGradient id="percentEmptyColorUv" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor={color} stopOpacity={0.8} />
-            <stop offset="95%" stopColor={color} stopOpacity={0} />
+          <linearGradient id="countBarColor" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="5%" stopColor={barColor} stopOpacity={1} />
+            <stop offset="95%" stopColor={barColor} stopOpacity={0.5} />
           </linearGradient>
         </defs>
         <XAxis
@@ -134,7 +134,7 @@ export function DimensionPercentEmptyTimeSeries({
         <YAxis
           stroke={theme.colors.gray200}
           label={{
-            value: "% Empty",
+            value: "Count",
             angle: -90,
             position: "insideLeft",
             style: { textAnchor: "middle", fill: theme.textColors.white90 },
@@ -147,14 +147,8 @@ export function DimensionPercentEmptyTimeSeries({
           strokeOpacity={0.5}
         />
         <Tooltip content={<TooltipContent />} />
-        <Line
-          type="monotone"
-          dataKey="value"
-          stroke={color}
-          fillOpacity={1}
-          fill="url(#percentEmptyColorUv)"
-        />
-      </ComposedChart>
+        <Bar dataKey="value" fill="url(#countBarColor)" spacing={5} />
+      </BarChart>
     </ResponsiveContainer>
   );
 }

@@ -30,7 +30,11 @@ def create_model_from_datasets(*datasets: Optional[Dataset]) -> Model:
     for dataset in filter(_is_dataset, datasets):
         df = dataset.dataframe
         # Coerce string column names at run time.
-        df = df.set_axis(map(str, df.columns), axis=1)
+        df = df.set_axis(
+            map(str, df.columns),
+            axis=1,
+            copy=False,
+        )
         named_dataframes.append((dataset.name, df))
         dataset_schema = dataset.schema if dataset.schema is not None else DatasetSchema()
         for display_name, embedding in (
