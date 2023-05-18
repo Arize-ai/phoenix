@@ -31,7 +31,7 @@ Phoenix is an Open Source ML Observability library designed for the Notebook. Th
 
 #### Proposed Solution
 
-This is where Phoenix comes in. ML Observability helps you visualize, troubleshoot, and monitor complex model data.
+This is where Phoenix comes in 😃 ML Observability helps you visualize, troubleshoot, and monitor complex model data.
 
 * Lightweight connections to dataframes&#x20;
 * Provides easy tools to generate and visualize [embeddings](concepts/embeddings.md#whats-an-embedding)
@@ -53,7 +53,7 @@ This is where Phoenix comes in. ML Observability helps you visualize, troublesho
 ### Phoenix Supported Model Types
 
 * [Tabular](tutorials/tabular-data.md) - Regression, Classification&#x20;
-* [CV](tutorials/computer-vision.md) - Image classification
+* [CV](tutorials/computer-vision.md)&#x20;
 * [NLP](tutorials/nlp.md)
 * [LLM](tutorials/generative-llms.md)
 * Ranking\* (coming soon)
