@@ -18,10 +18,10 @@ import {
   ChartTooltipDivider,
   ChartTooltipItem,
   colors,
-  fullTimeFormatter,
   useTimeTickFormatter,
 } from "@phoenix/components/chart";
 import { useTimeRange } from "@phoenix/contexts/TimeRangeContext";
+import { fullTimeFormatter } from "@phoenix/utils/timeFormatUtils";
 import { calculateGranularity } from "@phoenix/utils/timeSeriesUtils";
 
 import { DimensionCardinalityTimeSeriesQuery } from "./__generated__/DimensionCardinalityTimeSeriesQuery.graphql";

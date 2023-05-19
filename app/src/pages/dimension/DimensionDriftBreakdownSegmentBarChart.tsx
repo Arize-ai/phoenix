@@ -20,10 +20,10 @@ import {
   ChartTooltipItem,
   colors,
 } from "@phoenix/components/chart";
-import { fullTimeFormatter } from "@phoenix/components/filter";
 import { useDatasets } from "@phoenix/contexts";
 import { useTimeSlice } from "@phoenix/contexts/TimeSliceContext";
 import { assertUnreachable } from "@phoenix/typeUtils";
+import { fullTimeFormatter } from "@phoenix/utils/timeFormatUtils";
 
 import {
   DimensionDriftBreakdownSegmentBarChartQuery,

@@ -25,8 +25,7 @@ import { PointCloudContext, usePointCloudContext } from "@phoenix/contexts";
 import { useTimeSlice } from "@phoenix/contexts/TimeSliceContext";
 import { CanvasMode } from "@phoenix/store";
 import { splitEventIdsByDataset } from "@phoenix/utils/pointCloudUtils";
-
-import { fullTimeFormatter } from "../chart";
+import { fullTimeFormatter } from "@phoenix/utils/timeFormatUtils";
 
 import { CanvasModeRadioGroup } from "./CanvasModeRadioGroup";
 import { CanvasThemeToggle } from "./CanvasThemeToggle";
