@@ -1,6 +1,6 @@
 from abc import abstractmethod
 from dataclasses import dataclass
-from typing import Any, Callable, Generic, Hashable, Optional, TypeVar
+from typing import Any, Generic, Hashable, Optional, TypeVar
 
 from typing_extensions import ParamSpec
 
@@ -22,7 +22,6 @@ class Step(Generic[_Parameters, _Input, _Output]):
 @dataclass(frozen=True)
 class Pipeline(Generic[_Input, _Steps, _Output]):
     steps: _Steps.args
-    execute: Callable[[_Input], _Output]
 
     def __init__(
         self,
