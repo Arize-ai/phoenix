@@ -27,7 +27,7 @@ export function DimensionCountStats(props: {
   return (
     <>
       <Text elementType="h3" textSize="small" color="white70">
-        Total
+        Total Count
       </Text>
       <Text textSize="xlarge">{formatter(count)}</Text>
     </>

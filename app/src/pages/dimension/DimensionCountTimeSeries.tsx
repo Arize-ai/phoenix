@@ -30,7 +30,7 @@ const numberFormatter = new Intl.NumberFormat([], {
   maximumFractionDigits: 2,
 });
 
-const barColor = colors.blue300;
+const barColor = colors.gray300;
 
 function TooltipContent({ active, payload, label }: TooltipProps<any, any>) {
   if (active && payload && payload.length) {

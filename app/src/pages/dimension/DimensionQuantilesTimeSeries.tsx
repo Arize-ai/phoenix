@@ -1,0 +1,255 @@
+import React from "react";
+import { graphql, useLazyLoadQuery } from "react-relay";
+import {
+  Area,
+  CartesianGrid,
+  ComposedChart,
+  Line,
+  ResponsiveContainer,
+  Tooltip,
+  TooltipProps,
+  XAxis,
+  YAxis,
+} from "recharts";
+
+import { Text, theme } from "@arizeai/components";
+
+import {
+  ChartTooltip,
+  ChartTooltipItem,
+  colors,
+  fullTimeFormatter,
+  useTimeTickFormatter,
+} from "@phoenix/components/chart";
+import { useTimeRange } from "@phoenix/contexts/TimeRangeContext";
+import { calculateGranularity } from "@phoenix/utils/timeSeriesUtils";
+
+import { DimensionQuantilesTimeSeriesQuery } from "./__generated__/DimensionQuantilesTimeSeriesQuery.graphql";
+import { timeSeriesChartMargins } from "./dimensionChartConstants";
+
+type ChartDataItem = {
+  timestamp: number;
+  p99_p01: [number | null, number | null];
+  p75_p25: [number | null, number | null];
+  p50: number | null;
+};
+
+const numberFormatter = new Intl.NumberFormat([], {
+  maximumFractionDigits: 2,
+});
+
+function formatValue(value: number | null) {
+  return typeof value === "number" ? numberFormatter.format(value) : "--";
+}
+
+const outerColor = colors.gray500;
+const innerColor = colors.gray300;
+const lineColor = colors.white;
+
+function TooltipContent({
+  active,
+  payload,
+  label,
+}: TooltipProps<number | Array<number | string>, string>) {
+  if (active && payload && payload.length) {
+    const data: ChartDataItem = payload[0].payload;
+    return (
+      <ChartTooltip>
+        <Text weight="heavy" textSize="medium">{`${fullTimeFormatter(
+          new Date(label)
+        )}`}</Text>
+        <ChartTooltipItem
+          color={outerColor}
+          name="p99"
+          value={formatValue(data.p99_p01[0])}
+        />
+        <ChartTooltipItem
+          color={innerColor}
+          name="p75"
+          value={formatValue(data.p75_p25[0])}
+        />
+        <ChartTooltipItem
+          color={lineColor}
+          name="p50"
+          value={formatValue(data.p50)}
+        />
+        <ChartTooltipItem
+          color={innerColor}
+          name="p25"
+          value={formatValue(data.p75_p25[1])}
+        />
+        <ChartTooltipItem
+          color={outerColor}
+          name="p01"
+          value={formatValue(data.p99_p01[1])}
+        />
+      </ChartTooltip>
+    );
+  }
+
+  return null;
+}
+export function DimensionQuantilesTimeSeries({
+  dimensionId,
+}: {
+  dimensionId: string;
+}) {
+  const { timeRange } = useTimeRange();
+  const granularity = calculateGranularity(timeRange);
+  const data = useLazyLoadQuery<DimensionQuantilesTimeSeriesQuery>(
+    graphql`
+      query DimensionQuantilesTimeSeriesQuery(
+        $dimensionId: GlobalID!
+        $timeRange: TimeRange!
+        $granularity: Granularity!
+      ) {
+        dimension: node(id: $dimensionId) {
+          id
+          ... on Dimension {
+            p99TimeSeries: dataQualityTimeSeries(
+              metric: p99
+              timeRange: $timeRange
+              granularity: $granularity
+            ) {
+              data {
+                timestamp
+                value
+              }
+            }
+            p75TimeSeries: dataQualityTimeSeries(
+              metric: p75
+              timeRange: $timeRange
+              granularity: $granularity
+            ) {
+              data {
+                timestamp
+                value
+              }
+            }
+            p50TimeSeries: dataQualityTimeSeries(
+              metric: p50
+              timeRange: $timeRange
+              granularity: $granularity
+            ) {
+              data {
+                timestamp
+                value
+              }
+            }
+            p25TimeSeries: dataQualityTimeSeries(
+              metric: p25
+              timeRange: $timeRange
+              granularity: $granularity
+            ) {
+              data {
+                timestamp
+                value
+              }
+            }
+            p01TimeSeries: dataQualityTimeSeries(
+              metric: p01
+              timeRange: $timeRange
+              granularity: $granularity
+            ) {
+              data {
+                timestamp
+                value
+              }
+            }
+          }
+        }
+      }
+    `,
+    {
+      dimensionId,
+      timeRange: {
+        start: timeRange.start.toISOString(),
+        end: timeRange.end.toISOString(),
+      },
+      granularity,
+    }
+  );
+
+  const p99data = data.dimension.p99TimeSeries?.data.map((d) => d) || [];
+  const p01data = data.dimension.p01TimeSeries?.data.map((d) => d) || [];
+  const p75data = data.dimension.p75TimeSeries?.data.map((d) => d) || [];
+  const p25data = data.dimension.p25TimeSeries?.data.map((d) => d) || [];
+  const p50data = data.dimension.p50TimeSeries?.data.map((d) => d) || [];
+
+  const chartData = p99data.map((d, i) => {
+    return {
+      timestamp: new Date(d.timestamp).valueOf(),
+      p99_p01: [d.value, p01data[i].value],
+      p75_p25: [p75data[i].value, p25data[i].value],
+      p50: p50data[i].value,
+    };
+  });
+
+  const timeTickFormatter = useTimeTickFormatter({
+    samplingIntervalMinutes: granularity.samplingIntervalMinutes,
+  });
+
+  return (
+    <ResponsiveContainer width="100%" height="100%">
+      <ComposedChart
+        data={chartData as unknown as any[]}
+        margin={timeSeriesChartMargins}
+        syncId={"dimensionDetails"}
+      >
+        <defs>
+          <linearGradient id="p99_p01ColorUV" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="10%" stopColor={outerColor} stopOpacity={0.7} />
+            <stop offset="50%" stopColor={outerColor} stopOpacity={0.3} />
+            <stop offset="90%" stopColor={outerColor} stopOpacity={0.7} />
+          </linearGradient>
+          <linearGradient id="p75_p25ColorUV" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="10%" stopColor={innerColor} stopOpacity={0.7} />
+            <stop offset="50%" stopColor={innerColor} stopOpacity={0.3} />
+            <stop offset="90%" stopColor={innerColor} stopOpacity={0.7} />
+          </linearGradient>
+        </defs>
+        <XAxis
+          dataKey="timestamp"
+          stroke={theme.colors.gray200}
+          tickFormatter={(x) => timeTickFormatter(new Date(x))}
+          style={{ fill: theme.textColors.white70 }}
+          scale="time"
+          type="number"
+          domain={["auto", "auto"]}
+          padding={{ left: 10, right: 10 }}
+        />
+        <YAxis
+          stroke={theme.colors.gray200}
+          label={{
+            value: "Value",
+            angle: -90,
+            position: "insideLeft",
+            style: { textAnchor: "middle", fill: theme.textColors.white90 },
+          }}
+          style={{ fill: theme.textColors.white70 }}
+        />
+        <CartesianGrid
+          strokeDasharray="4 4"
+          stroke={theme.colors.gray200}
+          strokeOpacity={0.5}
+        />
+        <Tooltip content={<TooltipContent />} />
+        <Area
+          type="monotone"
+          dataKey="p99_p01"
+          fillOpacity={1}
+          fill="url(#p99_p01ColorUV)"
+          stroke={outerColor}
+        />
+        <Area
+          type="monotone"
+          dataKey="p75_p25"
+          fillOpacity={1}
+          stroke={innerColor}
+          fill="url(#p75_p25ColorUV)"
+        />
+        <Line type="monotone" dataKey="p50" stroke={lineColor} />
+      </ComposedChart>
+    </ResponsiveContainer>
+  );
+}

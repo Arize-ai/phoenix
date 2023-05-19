@@ -184,7 +184,7 @@ export function DimensionSegmentsBarChart(props: {
         <Bar
           dataKey="percent"
           fill="url(#dimensionSegmentsBarColor)"
-          spacing={5}
+          spacing={15}
         />
       </BarChart>
     </ResponsiveContainer>

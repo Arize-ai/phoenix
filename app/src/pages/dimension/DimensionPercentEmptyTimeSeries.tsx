@@ -15,7 +15,6 @@ import { Text, theme } from "@arizeai/components";
 
 import {
   ChartTooltip,
-  ChartTooltipDivider,
   ChartTooltipItem,
   fullTimeFormatter,
   useTimeTickFormatter,
@@ -49,7 +48,6 @@ function TooltipContent({ active, payload, label }: TooltipProps<any, any>) {
           name="% Empty"
           value={percentEmptyString}
         />
-        <ChartTooltipDivider />
       </ChartTooltip>
     );
   }

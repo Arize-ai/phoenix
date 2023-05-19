@@ -24,8 +24,8 @@ export function getFormatFromSamplingInterval(
     // Show a fill date
     format = "%x %H:%M %p";
   } else {
-    // Just show the year and date
-    format = "%x";
+    // Just show the month and date
+    format = "%-m/%-d";
   }
   return format;
 }
