@@ -11,7 +11,10 @@ from . import Config, OneOf
 
 @strawberry.input
 class UmapConfig(Config[Umap]):
-    """Uniform Manifold Approximation and Projection for Dimension Reduction"""
+    """Uniform Manifold Approximation and Projection for Dimension Reduction
+
+    https://umap-learn.readthedocs.io/en/latest/
+    """
 
     n_components: Optional[int] = strawberry.field(
         description="Dimension of the reduced space. Must be 2 or 3",
@@ -39,7 +42,10 @@ class UmapConfig(Config[Umap]):
 
 @strawberry.input
 class TsneConfig(Config[Tsne]):
-    """T-distributed Stochastic Neighbor Embedding"""
+    """T-distributed Stochastic Neighbor Embedding
+
+    https://scikit-learn.org/stable/modules/generated/sklearn.manifold.TSNE.html#sklearn.manifold.TSNE
+    """
 
     n_components: Optional[int] = strawberry.field(
         description="Dimension of the reduced space. Must be 2 or 3",
@@ -56,5 +62,13 @@ class TsneConfig(Config[Tsne]):
 
 @strawberry.input
 class DimensionalityReducer(OneOf[dimensionality.Reducer]):
-    umap: Optional[UmapConfig] = UNSET
-    tsne: Optional[TsneConfig] = UNSET
+    umap: Optional[UmapConfig] = strawberry.field(
+        description="Uniform Manifold Approximation and Projection for Dimension Reduction: "
+        "https://umap-learn.readthedocs.io/en/latest/",
+        default=UNSET,
+    )
+    tsne: Optional[TsneConfig] = strawberry.field(
+        description="T-distributed Stochastic Neighbor Embedding: "
+        "https://scikit-learn.org/stable/modules/generated/sklearn.manifold.TSNE.html#sklearn.manifold.TSNE",
+        default=UNSET,
+    )

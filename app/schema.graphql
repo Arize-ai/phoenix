@@ -9,7 +9,14 @@ type Cluster {
 }
 
 input ClustersFinder {
+  """
+  Hierarchical Density-Based Spatial Clustering of Applications with Noise: https://hdbscan.readthedocs.io/en/latest/index.html
+  """
   hdbscan: HdbscanConfig
+
+  """
+  K-Means Clustering: https://scikit-learn.org/stable/modules/generated/sklearn.cluster.KMeans.html
+  """
   kmeans: KmeansConfig
 }
 
@@ -160,7 +167,14 @@ type DimensionWithValue {
 }
 
 input DimensionalityReducer {
+  """
+  Uniform Manifold Approximation and Projection for Dimension Reduction: https://umap-learn.readthedocs.io/en/latest/
+  """
   umap: UmapConfig
+
+  """
+  T-distributed Stochastic Neighbor Embedding: https://scikit-learn.org/stable/modules/generated/sklearn.manifold.TSNE.html#sklearn.manifold.TSNE
+  """
   tsne: TsneConfig
 }
 

@@ -11,7 +11,10 @@ from . import Config, OneOf
 
 @strawberry.input
 class HdbscanConfig(Config[Hdbscan]):
-    """Hierarchical Density-Based Spatial Clustering of Applications with Noise"""
+    """Hierarchical Density-Based Spatial Clustering of Applications with Noise
+
+    https://hdbscan.readthedocs.io/en/latest/index.html
+    """
 
     min_cluster_size: Optional[int] = strawberry.field(
         description="Minimum cluster size: "
@@ -35,7 +38,10 @@ class HdbscanConfig(Config[Hdbscan]):
 
 @strawberry.input
 class KmeansConfig(Config[Kmeans]):
-    """K-Means clustering"""
+    """K-Means clustering
+
+    https://scikit-learn.org/stable/modules/generated/sklearn.cluster.KMeans.html
+    """
 
     n_clusters: Optional[int] = strawberry.field(
         description="number of clusters to form",
@@ -48,5 +54,13 @@ class KmeansConfig(Config[Kmeans]):
 
 @strawberry.input
 class ClustersFinder(OneOf[clusters.Finder]):
-    hdbscan: Optional[HdbscanConfig] = UNSET
-    kmeans: Optional[KmeansConfig] = UNSET
+    hdbscan: Optional[HdbscanConfig] = strawberry.field(
+        description="Hierarchical Density-Based Spatial Clustering of Applications with Noise: "
+        "https://hdbscan.readthedocs.io/en/latest/index.html",
+        default=UNSET,
+    )
+    kmeans: Optional[KmeansConfig] = strawberry.field(
+        description="K-Means Clustering: "
+        "https://scikit-learn.org/stable/modules/generated/sklearn.cluster.KMeans.html",
+        default=UNSET,
+    )

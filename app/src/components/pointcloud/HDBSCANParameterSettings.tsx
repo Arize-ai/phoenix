@@ -13,9 +13,9 @@ import {
 } from "@arizeai/components";
 
 import {
+  DEFAULT_CLUSTER_MIN_SAMPLES,
   DEFAULT_CLUSTER_SELECTION_EPSILON,
   DEFAULT_MIN_CLUSTER_SIZE,
-  DEFAULT_CLUSTER_MIN_SAMPLES,
   MAX_MIN_CLUSTER_SIZE,
   MIN_MIN_CLUSTER_SIZE,
 } from "@phoenix/constants/pointCloudConstants";
