@@ -22,11 +22,11 @@ import {
   ChartTooltipItem,
   defaultSelectedTimestampReferenceLineProps,
   defaultTimeXAxisProps,
-  fullTimeFormatter,
   useTimeTickFormatter,
 } from "@phoenix/components/chart";
 import { useTimeRange } from "@phoenix/contexts/TimeRangeContext";
 import { useTimeSlice } from "@phoenix/contexts/TimeSliceContext";
+import { fullTimeFormatter } from "@phoenix/utils/timeFormatUtils";
 import { calculateGranularity } from "@phoenix/utils/timeSeriesUtils";
 
 import { CountTimeSeriesQuery } from "./__generated__/CountTimeSeriesQuery.graphql";

@@ -20,6 +20,8 @@ import { DimensionDriftStats } from "./DimensionDriftStats";
 import { DimensionDriftTimeSeries } from "./DimensionDriftTimeSeries";
 import { DimensionPercentEmptyStats } from "./DimensionPercentEmptyStats";
 import { DimensionPercentEmptyTimeSeries } from "./DimensionPercentEmptyTimeSeries";
+import { DimensionQuantilesStats } from "./DimensionQuantilesStats";
+import { DimensionQuantilesTimeSeries } from "./DimensionQuantilesTimeSeries";
 import { DimensionSegmentsBarChart } from "./DimensionSegmentsBarChart";
 
 export function Dimension() {
@@ -30,6 +32,7 @@ export function Dimension() {
   const showDrift = referenceDataset !== null;
   // Only show cardinality if if the shape is non-continuous
   const showCardinality = loaderData.dimension.shape !== "continuous";
+  const showQuantiles = loaderData.dimension.dataType === "numeric";
   const navigate = useNavigate();
 
   const data = useLazyLoadQuery<DimensionQuery>(
@@ -45,6 +48,8 @@ export function Dimension() {
             ...DimensionCardinalityStats_dimension
               @arguments(timeRange: $timeRange)
             ...DimensionPercentEmptyStats_dimension
+              @arguments(timeRange: $timeRange)
+            ...DimensionQuantilesStats_dimension
               @arguments(timeRange: $timeRange)
           }
         }
@@ -134,6 +139,21 @@ export function Dimension() {
                         />
                       </Suspense>
                     </View>
+                  </Flex>
+                </View>
+              ) : null}
+              {showQuantiles ? (
+                <View
+                  borderColor="dark"
+                  borderRadius="medium"
+                  borderWidth="thin"
+                  height="size-3000"
+                >
+                  <Flex direction="row" alignItems="stretch" height="100%">
+                    <DimensionQuantilesTimeSeries dimensionId={dimensionId} />
+                    <ViewSummaryAside>
+                      <DimensionQuantilesStats dimension={data.dimension} />
+                    </ViewSummaryAside>
                   </Flex>
                 </View>
               ) : null}

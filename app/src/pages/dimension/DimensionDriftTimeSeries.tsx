@@ -23,11 +23,11 @@ import {
   ChartTooltipItem,
   colors,
   defaultSelectedTimestampReferenceLineProps,
-  fullTimeFormatter,
   useTimeTickFormatter,
 } from "@phoenix/components/chart";
 import { useTimeRange } from "@phoenix/contexts/TimeRangeContext";
 import { useTimeSlice } from "@phoenix/contexts/TimeSliceContext";
+import { fullTimeFormatter } from "@phoenix/utils/timeFormatUtils";
 import {
   calculateGranularity,
   calculateGranularityWithRollingAverage,

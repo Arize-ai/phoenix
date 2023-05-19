@@ -11,8 +11,8 @@ const date = new Date("2020-01-01T11:08:00.000Z");
 const cases: [number, string][] = [
   [1, "11:08 AM"],
   [ONE_HOUR_IN_MINUTES * 3, "1/1/2020 11:08 AM"],
-  [ONE_DAY_IN_MINUTES, "1/1/2020"],
-  [ONE_DAY_IN_MINUTES * 3, "1/1/2020"],
+  [ONE_DAY_IN_MINUTES, "1/1"],
+  [ONE_DAY_IN_MINUTES * 3, "1/1"],
 ];
 
 describe("getFormatFromSamplingInterval", () => {
