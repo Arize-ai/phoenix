@@ -4,7 +4,7 @@ from abc import ABC
 from dataclasses import dataclass, fields
 from typing import TYPE_CHECKING, Any, Iterator, get_args
 
-# workaround or type checker
+# workaround for type checker
 # https://github.com/python/mypy/issues/5446#issuecomment-412043677
 if TYPE_CHECKING:
     _BaseMapping = typing.Mapping[str, Any]

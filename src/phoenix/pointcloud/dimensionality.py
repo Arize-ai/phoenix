@@ -25,7 +25,10 @@ class Reducer(ABC):
 
 @dataclass(frozen=True)
 class Umap(Reducer, Parameters):
-    """Uniform Manifold Approximation and Projection for Dimension Reduction"""
+    """Uniform Manifold Approximation and Projection for Dimension Reduction
+
+    https://umap-learn.readthedocs.io/en/latest/
+    """
 
     n_neighbors: Optional[int] = 15
     min_dist: Optional[float] = 0.1
@@ -36,7 +39,10 @@ class Umap(Reducer, Parameters):
 
 @dataclass(frozen=True)
 class Tsne(Reducer, Parameters):
-    """T-distributed Stochastic Neighbor Embedding"""
+    """T-distributed Stochastic Neighbor Embedding
+
+    https://scikit-learn.org/stable/modules/generated/sklearn.manifold.TSNE.html#sklearn.manifold.TSNE
+    """
 
     perplexity: Optional[int] = 30
 

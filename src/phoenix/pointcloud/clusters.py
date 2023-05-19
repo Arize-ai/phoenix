@@ -24,7 +24,10 @@ class Finder(ABC):
 
 @dataclass(frozen=True)
 class Hdbscan(Finder, Parameters):
-    """Hierarchical Density-Based Spatial Clustering of Applications with Noise"""
+    """Hierarchical Density-Based Spatial Clustering of Applications with Noise
+
+    https://hdbscan.readthedocs.io/en/latest/index.html
+    """
 
     min_cluster_size: Optional[int] = 10
     min_samples: Optional[float] = 1
@@ -41,7 +44,10 @@ class Hdbscan(Finder, Parameters):
 
 @dataclass(frozen=True)
 class Kmeans(Finder, Parameters):
-    """K-Means Clustering"""
+    """K-Means Clustering
+
+    https://scikit-learn.org/stable/modules/generated/sklearn.cluster.KMeans.html#sklearn.cluster.KMeans
+    """
 
     n_clusters: Optional[int] = 8
 

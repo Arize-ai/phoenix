@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Any, Dict, Generic, Iterator, List, TypeVar, g
 
 import strawberry
 
-# workaround or type checker
+# workaround for type checker
 # https://github.com/python/mypy/issues/5446#issuecomment-412043677
 if TYPE_CHECKING:
     _BaseMapping = typing.Mapping[str, Any]
