@@ -9,12 +9,12 @@ import {
   ColoringStrategy,
   CorrectnessGroup,
   DatasetGroup,
-  DEFAULT_CLUSTER_MIN_SAMPLES,
   DEFAULT_CLUSTER_SELECTION_EPSILON,
   DEFAULT_COLOR_SCHEME,
   DEFAULT_DATASET_SAMPLE_SIZE,
   DEFAULT_MIN_CLUSTER_SIZE,
   DEFAULT_MIN_DIST,
+  DEFAULT_MIN_SAMPLES,
   DEFAULT_N_NEIGHBORS,
   SelectionDisplay,
   SelectionGridSize,
@@ -66,11 +66,6 @@ export type UMAPParameters = {
    * @default 30
    */
   nNeighbors: number;
-  /**
-   * The number of samples to use for the UMAP projection. The sample number is per dataset.
-   * @default 500
-   */
-  nSamples: number;
 };
 
 type CanvasTheme = "light" | "dark";
@@ -113,7 +108,7 @@ type PointDataMap = Record<string, EventData | undefined>;
 /**
  * The clustering parameters for HDBSCAN
  */
-type HDBSCANParameters = {
+export type HDBSCANParameters = {
   /**
    * The minimum cluster size
    * @default 10
@@ -123,7 +118,7 @@ type HDBSCANParameters = {
    * The minimum number of samples in a cluster
    * @default 1
    */
-  clusterMinSamples: number;
+  minSamples: number;
   /**
    * The cluster selection epsilon
    * @default 0
@@ -206,6 +201,11 @@ export interface PointCloudProps {
    */
   dimensionMetadata: DimensionMetadata | null;
   /**
+   * The number of samples to use for the UMAP projection. The sample number is per dataset.
+   * @default 500
+   */
+  nSamples: number;
+  /**
    * UMAP Parameters
    */
   umapParameters: UMAPParameters;
@@ -274,6 +274,10 @@ export interface PointCloudState extends PointCloudProps {
    * Set the dimension metadata for the current selected dimension
    */
   setDimensionMetadata: (dimensionMetadata: DimensionMetadata) => void;
+  /**
+   * Set n samples
+   */
+  setNSamples: (nSamples: number) => void;
   /**
    * Set the UMAP parameters
    */
@@ -355,14 +359,14 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
     selectionGridSize: SelectionGridSize.large,
     dimension: null,
     dimensionMetadata: null,
+    nSamples: DEFAULT_DATASET_SAMPLE_SIZE,
     umapParameters: {
       minDist: DEFAULT_MIN_DIST,
       nNeighbors: DEFAULT_N_NEIGHBORS,
-      nSamples: DEFAULT_DATASET_SAMPLE_SIZE,
     },
     hdbscanParameters: {
       minClusterSize: DEFAULT_MIN_CLUSTER_SIZE,
-      clusterMinSamples: DEFAULT_CLUSTER_MIN_SAMPLES,
+      minSamples: DEFAULT_MIN_SAMPLES,
       clusterSelectionEpsilon: DEFAULT_CLUSTER_SELECTION_EPSILON,
     },
   };
@@ -587,6 +591,7 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
       }
     },
     setDimensionMetadata: (dimensionMetadata) => set({ dimensionMetadata }),
+    setNSamples: (nSamples) => set({ nSamples }),
     setUMAPParameters: (umapParameters) => set({ umapParameters }),
     setHDBSCANParameters: (hdbscanParameters) => set({ hdbscanParameters }),
     setErrorMessage: (errorMessage) => set({ errorMessage }),

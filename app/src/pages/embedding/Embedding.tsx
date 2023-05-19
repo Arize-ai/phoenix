@@ -25,9 +25,10 @@ import {
 } from "@phoenix/components/filter";
 import {
   ClusterItem,
+  HDBSCANParameterSettings,
   PointCloud,
-  PointCloudParameterSettings,
   ThreeDimensionalPointItem,
+  UMAPParameterSettings,
 } from "@phoenix/components/pointcloud";
 import ClusteringSettings from "@phoenix/components/pointcloud/ClusteringSettings";
 import { PointCloudDisplaySettings } from "@phoenix/components/pointcloud/PointCloudDisplaySettings";
@@ -67,28 +68,20 @@ type UMAPPointsEntry = NonNullable<
 type UMAPClusterEntry = NonNullable<
   EmbeddingUMAPQuery$data["embedding"]["UMAPPoints"]
 >["clusters"][number];
-
+const DEFAULT_RANDOM_SEED = 1234567890;
 const EmbeddingUMAPQuery = graphql`
   query EmbeddingUMAPQuery(
     $id: GlobalID!
-    $timeRange: TimeRange!
-    $minDist: Float!
-    $nNeighbors: Int!
-    $nSamples: Int!
-    $minClusterSize: Int!
-    $clusterMinSamples: Int!
-    $clusterSelectionEpsilon: Int!
+    $dataSelector: DataSelector!
+    $dimensionalityReducer: DimensionalityReducer!
+    $clustersFinder: ClustersFinder!
   ) {
     embedding: node(id: $id) {
       ... on EmbeddingDimension {
         UMAPPoints(
-          timeRange: $timeRange
-          minDist: $minDist
-          nNeighbors: $nNeighbors
-          nSamples: $nSamples
-          minClusterSize: $minClusterSize
-          clusterMinSamples: $clusterMinSamples
-          clusterSelectionEpsilon: $clusterSelectionEpsilon
+          dataSelector: $dataSelector
+          dimensionalityReducer: $dimensionalityReducer
+          clustersFinder: $clustersFinder
         ) {
           data {
             id
@@ -174,6 +167,7 @@ export function Embedding() {
 function EmbeddingMain() {
   const embeddingDimensionId = useEmbeddingDimensionId();
   const { primaryDataset, referenceDataset } = useDatasets();
+  const nSamples = usePointCloudContext((state) => state.nSamples);
   const umapParameters = usePointCloudContext((state) => state.umapParameters);
   const hdbscanParameters = usePointCloudContext(
     (state) => state.hdbscanParameters
@@ -201,9 +195,12 @@ function EmbeddingMain() {
     loadQuery(
       {
         id: embeddingDimensionId,
-        timeRange,
-        ...umapParameters,
-        ...hdbscanParameters,
+        dataSelector: {
+          timeRange,
+          dataSampler: { seed: DEFAULT_RANDOM_SEED, nSamples },
+        },
+        dimensionalityReducer: { umap: umapParameters },
+        clustersFinder: { hdbscan: hdbscanParameters },
       },
       {
         fetchPolicy: "network-only",
@@ -213,6 +210,7 @@ function EmbeddingMain() {
     resetPointCloud,
     embeddingDimensionId,
     loadQuery,
+    nSamples,
     umapParameters,
     hdbscanParameters,
     timeRange,
@@ -424,7 +422,8 @@ const PointCloudDisplay = ({
                   <PointCloudDisplaySettings />
                 </TabPane>
                 <TabPane name="Hyperparameters">
-                  <PointCloudParameterSettings />
+                  <UMAPParameterSettings />
+                  <HDBSCANParameterSettings />
                 </TabPane>
               </Tabs>
             </Panel>

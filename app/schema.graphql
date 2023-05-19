@@ -8,6 +8,11 @@ type Cluster {
   driftRatio: Float
 }
 
+input ClustersFinder {
+  hdbscan: HdbscanConfig
+  kmeans: KmeansConfig
+}
+
 enum DataQualityMetric {
   cardinality
   percentEmpty
@@ -25,6 +30,16 @@ enum DataQualityMetric {
 
 type DataQualityTimeSeries implements TimeSeries {
   data: [TimeSeriesDataPoint!]!
+}
+
+input DataSampler {
+  seed: Int! = 1234567890
+  nSamples: Int! = 1000
+}
+
+input DataSelector {
+  timeRange: TimeRange
+  dataSampler: DataSampler
 }
 
 type Dataset {
@@ -144,6 +159,11 @@ type DimensionWithValue {
   value: String
 }
 
+input DimensionalityReducer {
+  umap: UmapConfig
+  tsne: TsneConfig
+}
+
 type DriftTimeSeries implements TimeSeries {
   data: [TimeSeriesDataPoint!]!
 }
@@ -170,33 +190,18 @@ type EmbeddingDimension implements Node {
   ): DataQualityTimeSeries!
 
   """
-  Computes a drift time-series between the primary and reference datasets. The output drift time-series contains one data point for each whole hour in the input time range (inclusive of the time range start and exclusive of the time range end). Each data point contains the drift metric value between all reference data and the primary data within the evaluation window ending at the corresponding time. Returns None if no reference dataset exists or if the input time range is invalid.           
+  Computes a drift time-series between the primary and reference datasets. The output drift time-series contains one data point for each whole hour in the input time range (inclusive of the time range start and exclusive of the time range end). Each data point contains the drift metric value between all reference data and the primary data within the evaluation window ending at the corresponding time. Returns None if no reference dataset exists or if the input time range is invalid.
   """
   driftTimeSeries(metric: VectorDriftMetric!, timeRange: TimeRange!, granularity: Granularity!): DriftTimeSeries!
   UMAPPoints(
-    """The time range of the primary dataset to generate the UMAP points for"""
-    timeRange: TimeRange!
+    """Clustering algorithm"""
+    dataSelector: DataSelector!
 
-    """UMAP target dimension hyperparameter. Must be 2 or 3"""
-    nComponents: Int = 3
+    """Dimensionality reduction algorithm"""
+    dimensionalityReducer: DimensionalityReducer!
 
-    """UMAP minimum distance hyperparameter"""
-    minDist: Float! = 0
-
-    """UMAP N neighbors hyperparameter"""
-    nNeighbors: Int! = 30
-
-    """UMAP N samples"""
-    nSamples: Int! = 500
-
-    """HDBSCAN minimum cluster size"""
-    minClusterSize: Int! = 10
-
-    """HDBSCAN minimum samples"""
-    clusterMinSamples: Int! = 1
-
-    """HDBSCAN cluster selection epsilon"""
-    clusterSelectionEpsilon: Int! = 0
+    """Clustering algorithm"""
+    clustersFinder: ClustersFinder!
   ): UMAPPoints!
 }
 
@@ -257,8 +262,24 @@ input Granularity {
   samplingIntervalMinutes: Int!
 }
 
+input HdbscanConfig {
+  """minimum cluster size"""
+  minClusterSize: Int = 10
+
+  """minimum samples"""
+  minSamples: Int = 1
+
+  """cluster selection epsilon"""
+  clusterSelectionEpsilon: Float = 0
+}
+
 type IntervalBin {
   range: NumericRange!
+}
+
+input KmeansConfig {
+  """number of clusters to form"""
+  nClusters: Int = 8
 }
 
 type MissingValueBin {
@@ -362,6 +383,14 @@ type TimeSeriesDataPoint {
   value: Float
 }
 
+input TsneConfig {
+  """Dimension of the reduced space. Must be 2 or 3"""
+  nComponents: Int = 3
+
+  """TBD"""
+  perplexity: Int = 30
+}
+
 type UMAPPoint {
   id: GlobalID!
 
@@ -376,6 +405,17 @@ type UMAPPoints {
   data: [UMAPPoint!]!
   referenceData: [UMAPPoint!]!
   clusters: [Cluster!]!
+}
+
+input UmapConfig {
+  """Dimension of the reduced space. Must be 2 or 3"""
+  nComponents: Int = 3
+
+  """Minimum distance"""
+  minDist: Int = 0
+
+  """N neighbors"""
+  nNeighbors: Int = 30
 }
 
 enum VectorDriftMetric {

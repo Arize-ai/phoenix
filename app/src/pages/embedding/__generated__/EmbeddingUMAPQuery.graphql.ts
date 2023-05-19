@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<efc62aca851aac73084b393e13e479af>>
+ * @generated SignedSource<<aafd3c35800d3b6ecb469a4401ee4af0>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,19 +9,48 @@
 // @ts-nocheck
 
 import { ConcreteRequest, Query } from 'relay-runtime';
+export type DataSelector = {
+  dataSampler?: DataSampler | null;
+  timeRange?: TimeRange | null;
+};
 export type TimeRange = {
   end: string;
   start: string;
 };
-export type EmbeddingUMAPQuery$variables = {
-  clusterMinSamples: number;
-  clusterSelectionEpsilon: number;
-  id: string;
-  minClusterSize: number;
-  minDist: number;
-  nNeighbors: number;
+export type DataSampler = {
   nSamples: number;
-  timeRange: TimeRange;
+  seed: number;
+};
+export type DimensionalityReducer = {
+  tsne?: TsneConfig | null;
+  umap?: UmapConfig | null;
+};
+export type UmapConfig = {
+  minDist?: number | null;
+  nComponents?: number | null;
+  nNeighbors?: number | null;
+};
+export type TsneConfig = {
+  nComponents?: number | null;
+  perplexity?: number | null;
+};
+export type ClustersFinder = {
+  hdbscan?: HdbscanConfig | null;
+  kmeans?: KmeansConfig | null;
+};
+export type HdbscanConfig = {
+  clusterSelectionEpsilon?: number | null;
+  minClusterSize?: number | null;
+  minSamples?: number | null;
+};
+export type KmeansConfig = {
+  nClusters?: number | null;
+};
+export type EmbeddingUMAPQuery$variables = {
+  clustersFinder: ClustersFinder;
+  dataSelector: DataSelector;
+  dimensionalityReducer: DimensionalityReducer;
+  id: string;
 };
 export type EmbeddingUMAPQuery$data = {
   readonly embedding: {
@@ -99,80 +128,60 @@ const node: ConcreteRequest = (function(){
 var v0 = {
   "defaultValue": null,
   "kind": "LocalArgument",
-  "name": "clusterMinSamples"
+  "name": "clustersFinder"
 },
 v1 = {
   "defaultValue": null,
   "kind": "LocalArgument",
-  "name": "clusterSelectionEpsilon"
+  "name": "dataSelector"
 },
 v2 = {
   "defaultValue": null,
   "kind": "LocalArgument",
-  "name": "id"
+  "name": "dimensionalityReducer"
 },
 v3 = {
   "defaultValue": null,
   "kind": "LocalArgument",
-  "name": "minClusterSize"
+  "name": "id"
 },
-v4 = {
-  "defaultValue": null,
-  "kind": "LocalArgument",
-  "name": "minDist"
-},
-v5 = {
-  "defaultValue": null,
-  "kind": "LocalArgument",
-  "name": "nNeighbors"
-},
-v6 = {
-  "defaultValue": null,
-  "kind": "LocalArgument",
-  "name": "nSamples"
-},
-v7 = {
-  "defaultValue": null,
-  "kind": "LocalArgument",
-  "name": "timeRange"
-},
-v8 = [
+v4 = [
   {
     "kind": "Variable",
     "name": "id",
     "variableName": "id"
   }
 ],
-v9 = {
+v5 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "id",
   "storageKey": null
 },
-v10 = {
+v6 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "__typename",
   "storageKey": null
 },
-v11 = {
+v7 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "x",
   "storageKey": null
 },
-v12 = {
+v8 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "y",
   "storageKey": null
 },
-v13 = [
-  (v9/*: any*/),
+v9 = [
+  (v5/*: any*/),
   {
     "alias": null,
     "args": null,
@@ -188,12 +197,12 @@ v13 = [
     "name": "coordinates",
     "plural": false,
     "selections": [
-      (v10/*: any*/),
+      (v6/*: any*/),
       {
         "kind": "InlineFragment",
         "selections": [
-          (v11/*: any*/),
-          (v12/*: any*/),
+          (v7/*: any*/),
+          (v8/*: any*/),
           {
             "alias": null,
             "args": null,
@@ -208,8 +217,8 @@ v13 = [
       {
         "kind": "InlineFragment",
         "selections": [
-          (v11/*: any*/),
-          (v12/*: any*/)
+          (v7/*: any*/),
+          (v8/*: any*/)
         ],
         "type": "Point2D",
         "abstractKey": null
@@ -282,7 +291,7 @@ v13 = [
     "storageKey": null
   }
 ],
-v14 = {
+v10 = {
   "kind": "InlineFragment",
   "selections": [
     {
@@ -290,38 +299,18 @@ v14 = {
       "args": [
         {
           "kind": "Variable",
-          "name": "clusterMinSamples",
-          "variableName": "clusterMinSamples"
+          "name": "clustersFinder",
+          "variableName": "clustersFinder"
         },
         {
           "kind": "Variable",
-          "name": "clusterSelectionEpsilon",
-          "variableName": "clusterSelectionEpsilon"
+          "name": "dataSelector",
+          "variableName": "dataSelector"
         },
         {
           "kind": "Variable",
-          "name": "minClusterSize",
-          "variableName": "minClusterSize"
-        },
-        {
-          "kind": "Variable",
-          "name": "minDist",
-          "variableName": "minDist"
-        },
-        {
-          "kind": "Variable",
-          "name": "nNeighbors",
-          "variableName": "nNeighbors"
-        },
-        {
-          "kind": "Variable",
-          "name": "nSamples",
-          "variableName": "nSamples"
-        },
-        {
-          "kind": "Variable",
-          "name": "timeRange",
-          "variableName": "timeRange"
+          "name": "dimensionalityReducer",
+          "variableName": "dimensionalityReducer"
         }
       ],
       "concreteType": "UMAPPoints",
@@ -336,7 +325,7 @@ v14 = {
           "kind": "LinkedField",
           "name": "data",
           "plural": true,
-          "selections": (v13/*: any*/),
+          "selections": (v9/*: any*/),
           "storageKey": null
         },
         {
@@ -346,7 +335,7 @@ v14 = {
           "kind": "LinkedField",
           "name": "referenceData",
           "plural": true,
-          "selections": (v13/*: any*/),
+          "selections": (v9/*: any*/),
           "storageKey": null
         },
         {
@@ -357,7 +346,7 @@ v14 = {
           "name": "clusters",
           "plural": true,
           "selections": [
-            (v9/*: any*/),
+            (v5/*: any*/),
             {
               "alias": null,
               "args": null,
@@ -388,11 +377,7 @@ return {
       (v0/*: any*/),
       (v1/*: any*/),
       (v2/*: any*/),
-      (v3/*: any*/),
-      (v4/*: any*/),
-      (v5/*: any*/),
-      (v6/*: any*/),
-      (v7/*: any*/)
+      (v3/*: any*/)
     ],
     "kind": "Fragment",
     "metadata": null,
@@ -400,13 +385,13 @@ return {
     "selections": [
       {
         "alias": "embedding",
-        "args": (v8/*: any*/),
+        "args": (v4/*: any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
-          (v14/*: any*/)
+          (v10/*: any*/)
         ],
         "storageKey": null
       }
@@ -417,49 +402,45 @@ return {
   "kind": "Request",
   "operation": {
     "argumentDefinitions": [
-      (v2/*: any*/),
-      (v7/*: any*/),
-      (v4/*: any*/),
-      (v5/*: any*/),
-      (v6/*: any*/),
       (v3/*: any*/),
-      (v0/*: any*/),
-      (v1/*: any*/)
+      (v1/*: any*/),
+      (v2/*: any*/),
+      (v0/*: any*/)
     ],
     "kind": "Operation",
     "name": "EmbeddingUMAPQuery",
     "selections": [
       {
         "alias": "embedding",
-        "args": (v8/*: any*/),
+        "args": (v4/*: any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
+          (v6/*: any*/),
           (v10/*: any*/),
-          (v14/*: any*/),
           {
             "kind": "TypeDiscriminator",
             "abstractKey": "__isNode"
           },
-          (v9/*: any*/)
+          (v5/*: any*/)
         ],
         "storageKey": null
       }
     ]
   },
   "params": {
-    "cacheID": "c631c258a7dd02bdd681c40ad8dc4e4b",
+    "cacheID": "2466f84d91e56e6166e54d5b4590b08b",
     "id": null,
     "metadata": {},
     "name": "EmbeddingUMAPQuery",
     "operationKind": "query",
-    "text": "query EmbeddingUMAPQuery(\n  $id: GlobalID!\n  $timeRange: TimeRange!\n  $minDist: Float!\n  $nNeighbors: Int!\n  $nSamples: Int!\n  $minClusterSize: Int!\n  $clusterMinSamples: Int!\n  $clusterSelectionEpsilon: Int!\n) {\n  embedding: node(id: $id) {\n    __typename\n    ... on EmbeddingDimension {\n      UMAPPoints(timeRange: $timeRange, minDist: $minDist, nNeighbors: $nNeighbors, nSamples: $nSamples, minClusterSize: $minClusterSize, clusterMinSamples: $clusterMinSamples, clusterSelectionEpsilon: $clusterSelectionEpsilon) {\n        data {\n          id\n          eventId\n          coordinates {\n            __typename\n            ... on Point3D {\n              x\n              y\n              z\n            }\n            ... on Point2D {\n              x\n              y\n            }\n          }\n          embeddingMetadata {\n            linkToData\n            rawData\n          }\n          eventMetadata {\n            predictionLabel\n            actualLabel\n            predictionScore\n            actualScore\n          }\n        }\n        referenceData {\n          id\n          eventId\n          coordinates {\n            __typename\n            ... on Point3D {\n              x\n              y\n              z\n            }\n            ... on Point2D {\n              x\n              y\n            }\n          }\n          embeddingMetadata {\n            linkToData\n            rawData\n          }\n          eventMetadata {\n            predictionLabel\n            actualLabel\n            predictionScore\n            actualScore\n          }\n        }\n        clusters {\n          id\n          eventIds\n          driftRatio\n        }\n      }\n    }\n    __isNode: __typename\n    id\n  }\n}\n"
+    "text": "query EmbeddingUMAPQuery(\n  $id: GlobalID!\n  $dataSelector: DataSelector!\n  $dimensionalityReducer: DimensionalityReducer!\n  $clustersFinder: ClustersFinder!\n) {\n  embedding: node(id: $id) {\n    __typename\n    ... on EmbeddingDimension {\n      UMAPPoints(dataSelector: $dataSelector, dimensionalityReducer: $dimensionalityReducer, clustersFinder: $clustersFinder) {\n        data {\n          id\n          eventId\n          coordinates {\n            __typename\n            ... on Point3D {\n              x\n              y\n              z\n            }\n            ... on Point2D {\n              x\n              y\n            }\n          }\n          embeddingMetadata {\n            linkToData\n            rawData\n          }\n          eventMetadata {\n            predictionLabel\n            actualLabel\n            predictionScore\n            actualScore\n          }\n        }\n        referenceData {\n          id\n          eventId\n          coordinates {\n            __typename\n            ... on Point3D {\n              x\n              y\n              z\n            }\n            ... on Point2D {\n              x\n              y\n            }\n          }\n          embeddingMetadata {\n            linkToData\n            rawData\n          }\n          eventMetadata {\n            predictionLabel\n            actualLabel\n            predictionScore\n            actualScore\n          }\n        }\n        clusters {\n          id\n          eventIds\n          driftRatio\n        }\n      }\n    }\n    __isNode: __typename\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "aaedcb83e9ef94fd13cb33af3d49184b";
+(node as any).hash = "f9ea243ce596d991d79c84a377dd306e";
 
 export default node;

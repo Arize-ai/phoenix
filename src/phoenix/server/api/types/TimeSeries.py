@@ -12,7 +12,7 @@ from phoenix.metrics import Metric, binning
 from phoenix.metrics.mixins import DriftOperator, UnaryOperator
 from phoenix.metrics.timeseries import timeseries
 from phoenix.server.api.input_types.Granularity import Granularity, to_timestamps
-from phoenix.server.api.input_types.TimeRange import TimeRange
+from phoenix.server.api.input_types.TimeRange import TimeRange, ensure_time_range
 from phoenix.server.api.interceptor import NoneIfNan
 from phoenix.server.api.types.DataQualityMetric import DataQualityMetric
 from phoenix.server.api.types.DatasetRole import DatasetRole
@@ -156,9 +156,7 @@ def ensure_timeseries_parameters(
     time_range: Optional[TimeRange] = UNSET,
     granularity: Optional[Granularity] = UNSET,
 ) -> Tuple[TimeRange, Granularity]:
-    if not isinstance(time_range, TimeRange):
-        start, stop = dataset.time_range
-        time_range = TimeRange(start=start, end=stop)
+    time_range = ensure_time_range(time_range, dataset)
     if not isinstance(granularity, Granularity):
         total_minutes = int((time_range.end - time_range.start).total_seconds()) // 60
         granularity = Granularity(

@@ -58,6 +58,7 @@ function PointCloudInfo() {
   const hdbscanParameters = usePointCloudContext(
     (state) => state.hdbscanParameters
   );
+  const nSamples = usePointCloudContext((state) => state.nSamples);
   const umapParameters = usePointCloudContext((state) => state.umapParameters);
   const [numPrimary, numReference] = useMemo(() => {
     const { primaryEventIds, referenceEventIds } = splitEventIdsByDataset(
@@ -104,7 +105,7 @@ function PointCloudInfo() {
         </div>
         <div>
           <dt>cluster min samples</dt>
-          <dd>{hdbscanParameters.clusterMinSamples}</dd>
+          <dd>{hdbscanParameters.minSamples}</dd>
         </div>
         <div>
           <dt>cluster selection epsilon</dt>
@@ -126,7 +127,7 @@ function PointCloudInfo() {
         </div>
         <div>
           <dt>n samples per dataset</dt>
-          <dd>{umapParameters.nSamples}</dd>
+          <dd>{nSamples}</dd>
         </div>
       </dl>
     </section>

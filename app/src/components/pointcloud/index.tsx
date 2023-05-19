@@ -4,4 +4,5 @@ export * from "./types";
 export * from "./SelectionDisplayRadioGroup";
 export * from "./EventItem";
 export * from "./ClusterItem";
-export * from "./PointCloudParameterSettings";
+export * from "./UMAPParameterSettings";
+export * from "./HDBSCANParameterSettings";

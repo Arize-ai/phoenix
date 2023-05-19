@@ -1,6 +1,9 @@
 from datetime import datetime, timezone
+from typing import Any, cast
 
 import strawberry
+
+from phoenix.core.model_schema import Dataset
 
 
 @strawberry.input
@@ -26,3 +29,13 @@ class TimeRange:
 
     def is_valid(self) -> bool:
         return self.start < self.end
+
+
+def ensure_time_range(
+    time_range: Any,
+    dataset: Dataset,
+) -> TimeRange:
+    if not isinstance(time_range, TimeRange):
+        start, stop = dataset.time_range
+        time_range = TimeRange(start=start, end=stop)
+    return cast(TimeRange, time_range)

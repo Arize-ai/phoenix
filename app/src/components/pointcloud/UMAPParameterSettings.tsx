@@ -21,7 +21,6 @@ import {
   MIN_N_NEIGHBORS,
 } from "@phoenix/constants/pointCloudConstants";
 import { usePointCloudContext } from "@phoenix/contexts";
-import { UMAPParameters } from "@phoenix/store";
 
 import { ExternalLink } from "../ExternalLink";
 
@@ -97,7 +96,9 @@ const nSamplesContextualHelp = (
   </ContextualHelp>
 );
 
-export function PointCloudParameterSettings() {
+export function UMAPParameterSettings() {
+  const nSamples = usePointCloudContext((state) => state.nSamples);
+  const setNSamples = usePointCloudContext((state) => state.setNSamples);
   const umapParameters = usePointCloudContext((state) => state.umapParameters);
   const setUMAPParameters = usePointCloudContext(
     (state) => state.setUMAPParameters
@@ -109,10 +110,14 @@ export function PointCloudParameterSettings() {
     formState: { isDirty, isValid },
   } = useForm({
     reValidateMode: "onChange",
-    defaultValues: umapParameters,
+    defaultValues: { nSamples, ...umapParameters },
   });
   const onSubmit = useCallback(
-    (newUMAPParameters: UMAPParameters) => {
+    (newUMAPParameters: {
+      minDist: number;
+      nSamples: number;
+      nNeighbors: number;
+    }) => {
       // TODO: fix the types coming back from the component
       const minDist = parseFloat(
         newUMAPParameters.minDist as unknown as string
@@ -124,17 +129,18 @@ export function PointCloudParameterSettings() {
 
         return;
       }
-
+      setNSamples(
+        parseInt(newUMAPParameters.nSamples as unknown as string, 10)
+      );
       setUMAPParameters({
-        minDist: minDist,
+        minDist: parseFloat(newUMAPParameters.minDist as unknown as string),
         nNeighbors: parseInt(
           newUMAPParameters.nNeighbors as unknown as string,
           10
         ),
-        nSamples: parseInt(newUMAPParameters.nSamples as unknown as string, 10),
       });
     },
-    [setUMAPParameters, setError]
+    [setNSamples, setUMAPParameters, setError]
   );
 
   return (
@@ -151,7 +157,7 @@ export function PointCloudParameterSettings() {
           name="minDist"
           control={control}
           rules={{
-            required: "field is required",
+            required: "min dist is required",
           }}
           render={({ field, fieldState: { invalid, error } }) => (
             <TextField
@@ -213,7 +219,6 @@ export function PointCloudParameterSettings() {
             <TextField
               label="n samples"
               labelExtra={nSamplesContextualHelp}
-              defaultValue="500"
               type="number"
               description={`number of points to use per dataset`}
               errorMessage={error?.message}

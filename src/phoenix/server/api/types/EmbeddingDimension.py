@@ -1,10 +1,8 @@
 from collections import defaultdict
 from datetime import timedelta
-from typing import Dict, Iterator, List, Optional, cast
+from typing import Dict, Iterator, List, Optional
 
 import numpy as np
-import numpy.typing as npt
-import pandas as pd
 import strawberry
 from strawberry import UNSET
 from strawberry.scalars import ID
@@ -12,6 +10,7 @@ from strawberry.types import Info
 from typing_extensions import Annotated
 
 import phoenix.core.model_schema as ms
+import phoenix.pointcloud.pointcloud as pc
 from phoenix.core.model_schema import (
     ACTUAL_LABEL,
     ACTUAL_SCORE,
@@ -20,18 +19,15 @@ from phoenix.core.model_schema import (
     PREDICTION_SCORE,
     PRIMARY,
     REFERENCE,
-    Dataset,
-    EventId,
 )
-from phoenix.metrics.timeseries import row_interval_from_sorted_time_index
-from phoenix.pointcloud.clustering import Hdbscan
-from phoenix.pointcloud.pointcloud import PointCloud
-from phoenix.pointcloud.projectors import Umap
 from phoenix.server.api.context import Context
 from phoenix.server.api.input_types.TimeRange import TimeRange
 from phoenix.server.api.types.DatasetRole import DatasetRole
 from phoenix.server.api.types.VectorDriftMetricEnum import VectorDriftMetric
 
+from ..input_types.ClustersFinder import ClustersFinder
+from ..input_types.DataSelector import DataSelector
+from ..input_types.DimensionalityReducer import DimensionalityReducer
 from ..input_types.Granularity import Granularity
 from .DataQualityMetric import DataQualityMetric
 from .EmbeddingMetadata import EmbeddingMetadata
@@ -46,16 +42,7 @@ from .TimeSeries import (
 )
 from .UMAPPoints import UMAPPoint, UMAPPoints, to_gql_clusters, to_gql_coordinates
 
-# Default UMAP hyperparameters
-DEFAULT_N_COMPONENTS = 3
-DEFAULT_MIN_DIST = 0
-DEFAULT_N_NEIGHBORS = 30
 DEFAULT_N_SAMPLES = 500
-# Default HDBSCAN hyperparameters
-DEFAULT_MIN_CLUSTER_SIZE = 10
-DEFAULT_MIN_SAMPLES = 1
-DEFAULT_CLUSTER_SELECTION_EPSILON = 0
-
 DRIFT_EVAL_WINDOW_NUM_INTERVALS = 72
 EVAL_INTERVAL_LENGTH = timedelta(hours=1)
 
@@ -143,7 +130,7 @@ class EmbeddingDimension(Node):
             " (inclusive of the time range start and exclusive of the time range end). Each data"
             " point contains the drift metric value between all reference data and the primary data"
             " within the evaluation window ending at the corresponding time. Returns None if no"
-            " reference dataset exists or if the input time range is invalid.           "
+            " reference dataset exists or if the input time range is invalid."
         )
     )  # type: ignore  # https://github.com/strawberry-graphql/strawberry/issues/1929
     def drift_time_series(
@@ -175,97 +162,43 @@ class EmbeddingDimension(Node):
     def UMAPPoints(
         self,
         info: Info[Context, None],
-        time_range: Annotated[
-            TimeRange,
+        data_selector: Annotated[
+            DataSelector,
             strawberry.argument(
-                description="The time range of the primary dataset to generate the UMAP points for",
+                description="Clustering algorithm",
             ),
         ],
-        n_components: Annotated[
-            Optional[int],
+        dimensionality_reducer: Annotated[
+            DimensionalityReducer,
             strawberry.argument(
-                description="UMAP target dimension hyperparameter. Must be 2 or 3",
+                description="Dimensionality reduction algorithm",
             ),
-        ] = DEFAULT_N_COMPONENTS,
-        min_dist: Annotated[
-            float,
+        ],
+        clusters_finder: Annotated[
+            ClustersFinder,
             strawberry.argument(
-                description="UMAP minimum distance hyperparameter",
+                description="Clustering algorithm",
             ),
-        ] = DEFAULT_MIN_DIST,
-        n_neighbors: Annotated[
-            int,
-            strawberry.argument(
-                description="UMAP N neighbors hyperparameter",
-            ),
-        ] = DEFAULT_N_NEIGHBORS,
-        n_samples: Annotated[
-            int,
-            strawberry.argument(
-                description="UMAP N samples",
-            ),
-        ] = DEFAULT_N_SAMPLES,
-        min_cluster_size: Annotated[
-            int,
-            strawberry.argument(
-                description="HDBSCAN minimum cluster size",
-            ),
-        ] = DEFAULT_MIN_CLUSTER_SIZE,
-        cluster_min_samples: Annotated[
-            int,
-            strawberry.argument(
-                description="HDBSCAN minimum samples",
-            ),
-        ] = DEFAULT_MIN_SAMPLES,
-        cluster_selection_epsilon: Annotated[
-            int,
-            strawberry.argument(
-                description="HDBSCAN cluster selection epsilon",
-            ),
-        ] = DEFAULT_CLUSTER_SELECTION_EPSILON,
+        ],
     ) -> UMAPPoints:
         model = info.context.model
-        data: Dict[EventId, npt.NDArray[np.float64]] = {}
-        for dataset in model[Dataset]:
-            dataset_id = dataset.role
-            row_id_start, row_id_stop = 0, len(dataset)
-            if dataset_id is PRIMARY:
-                row_id_start, row_id_stop = row_interval_from_sorted_time_index(
-                    time_index=cast(pd.DatetimeIndex, dataset.index),
-                    time_start=time_range.start,
-                    time_stop=time_range.end,
+
+        pipeline = pc.PointCloudPipeline(
+            pc.CollectData(
+                pc.DataCollectorParameters(
+                    data_selector,
+                    self.dimension.name,
                 )
-            vector_column = self.dimension[dataset_id]
-            samples_collected = 0
-            for row_id in _row_indices(
-                row_id_start,
-                row_id_stop,
-                shuffle=0 < n_samples < (row_id_stop - row_id_start),
-            ):
-                if samples_collected >= n_samples:
-                    break
-                embedding_vector = vector_column.iloc[row_id]
-                # Exclude scalar values, e.g. None/NaN, by checking the presence
-                # of dunder method __len__.
-                if not hasattr(embedding_vector, "__len__"):
-                    continue
-                event_id = EventId(row_id, dataset_id)
-                data[event_id] = embedding_vector
-                samples_collected += 1
-
-        # validate n_components to be 2 or 3
-        n_components = DEFAULT_N_COMPONENTS if n_components is None else n_components
-        if not 2 <= n_components <= 3:
-            raise Exception(f"n_components must be 2 or 3, got {n_components}")
-
-        vectors, cluster_membership = PointCloud(
-            dimensionalityReducer=Umap(n_neighbors=n_neighbors, min_dist=min_dist),
-            clustersFinder=Hdbscan(
-                min_cluster_size=min_cluster_size,
-                min_samples=cluster_min_samples,
-                cluster_selection_epsilon=cluster_selection_epsilon,
             ),
-        ).generate(data, n_components=n_components)
+            pc.ReduceDimensionality(
+                dimensionality_reducer,
+            ),
+            pc.FindClusters(
+                clusters_finder,
+            ),
+        )
+
+        vectors, cluster_membership = pipeline(model)
 
         points: Dict[ms.DatasetRole, List[UMAPPoint]] = defaultdict(list)
         for event_id, vector in vectors.items():

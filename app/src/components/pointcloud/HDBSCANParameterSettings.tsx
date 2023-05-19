@@ -12,24 +12,25 @@ import {
   TextField,
 } from "@arizeai/components";
 
-import { MAX_32_BIT_INTEGER } from "@phoenix/constants/numberConstants";
-import { MIN_MIN_CLUSTER_SIZE } from "@phoenix/constants/pointCloudConstants";
+import {
+  DEFAULT_CLUSTER_SELECTION_EPSILON,
+  DEFAULT_MIN_CLUSTER_SIZE,
+  DEFAULT_MIN_SAMPLES,
+  MAX_MIN_CLUSTER_SIZE,
+  MIN_MIN_CLUSTER_SIZE,
+} from "@phoenix/constants/pointCloudConstants";
 import { usePointCloudContext } from "@phoenix/contexts";
+import { HDBSCANParameters } from "@phoenix/store";
 
 import { ExternalLink } from "../ExternalLink";
 
 const minClusterSizeContextualHelp = (
   <ContextualHelp>
     <Heading weight="heavy" level={4}>
-      Minimum Cluster Size
+      HDBSCAN Min Cluster Size
     </Heading>
     <Content>
-      <Text elementType="p">
-        The primary parameter to effect the resulting clustering is
-        min_cluster_size. Ideally this is a relatively intuitive parameter to
-        select – set it to the smallest size grouping that you wish to consider
-        a cluster.
-      </Text>
+      <Text>TDB</Text>
     </Content>
     <footer>
       <ExternalLink href="https://hdbscan.readthedocs.io/en/latest/parameter_selection.html#selecting-min-cluster-size">
@@ -42,16 +43,10 @@ const minClusterSizeContextualHelp = (
 const minSamplesContextualHelp = (
   <ContextualHelp>
     <Heading weight="heavy" level={4}>
-      Minimum Samples
+      HDBSCAN Min Samples
     </Heading>
     <Content>
-      <Text elementType="p">
-        The simplest intuition for what min_samples does is provide a measure of
-        how conservative you want you clustering to be. The larger the value of
-        min_samples you provide, the more conservative the clustering – more
-        points will be declared as noise, and clusters will be restricted to
-        progressively more dense areas.
-      </Text>
+      <Text>TDB</Text>
     </Content>
     <footer>
       <ExternalLink href="https://hdbscan.readthedocs.io/en/latest/parameter_selection.html#selecting-min-samples">
@@ -64,18 +59,10 @@ const minSamplesContextualHelp = (
 const clusterSelectionEpsilonContextualHelp = (
   <ContextualHelp>
     <Heading weight="heavy" level={4}>
-      Cluster Selection Epsilon
+      HDBSCAN Cluster Selection Epsilon
     </Heading>
     <Content>
-      <Text elementType="p">
-        In some cases, we want to choose a small min_cluster_size because even
-        groups of few points might be of interest to us. However, if our data
-        set also contains partitions with high concentrations of objects, this
-        parameter setting can result in a large number of micro-clusters.
-        Selecting a value for cluster_selection_epsilon helps us to merge
-        clusters in these regions. Or in other words, it ensures that clusters
-        below the given threshold are not split up any further.
-      </Text>
+      <Text>TBD</Text>
     </Content>
     <footer>
       <ExternalLink href="https://hdbscan.readthedocs.io/en/latest/parameter_selection.html#selecting-cluster-selection-epsilon">
@@ -85,41 +72,52 @@ const clusterSelectionEpsilonContextualHelp = (
   </ContextualHelp>
 );
 
-export default function ClusteringSettings() {
+export function HDBSCANParameterSettings() {
   const hdbscanParameters = usePointCloudContext(
     (state) => state.hdbscanParameters
   );
   const setHDBSCANParameters = usePointCloudContext(
     (state) => state.setHDBSCANParameters
   );
-
   const {
-    control,
     handleSubmit,
+    control,
+    setError,
     formState: { isDirty, isValid },
   } = useForm({
+    reValidateMode: "onChange",
     defaultValues: hdbscanParameters,
   });
-
   const onSubmit = useCallback(
-    (newHDBSCANParameters: typeof hdbscanParameters) => {
+    (newHDBSCANParameters: HDBSCANParameters) => {
+      // TODO: fix the types coming back from the component
+      const minClusterSize = parseInt(
+        newHDBSCANParameters.minClusterSize as unknown as string,
+        10
+      );
+      if (
+        minClusterSize < MIN_MIN_CLUSTER_SIZE ||
+        MAX_MIN_CLUSTER_SIZE < minClusterSize
+      ) {
+        setError("minClusterSize", {
+          message: `must be between ${MIN_MIN_CLUSTER_SIZE} and ${MAX_MIN_CLUSTER_SIZE}`,
+        });
+        return;
+      }
       setHDBSCANParameters({
-        minClusterSize: parseInt(
-          newHDBSCANParameters.minClusterSize as unknown as string,
-          10
-        ),
+        minClusterSize: minClusterSize,
         minSamples: parseInt(
           newHDBSCANParameters.minSamples as unknown as string,
           10
         ),
-        clusterSelectionEpsilon: parseInt(
-          newHDBSCANParameters.clusterSelectionEpsilon as unknown as string,
-          10
+        clusterSelectionEpsilon: parseFloat(
+          newHDBSCANParameters.clusterSelectionEpsilon as unknown as string
         ),
       });
     },
-    [setHDBSCANParameters]
+    [setHDBSCANParameters, setError]
   );
+
   return (
     <section
       css={css`
@@ -134,22 +132,19 @@ export default function ClusteringSettings() {
           name="minClusterSize"
           control={control}
           rules={{
-            required: "field is required",
+            required: "min cluster size is required",
             min: {
               value: MIN_MIN_CLUSTER_SIZE,
-              message: "must be greater than 1",
-            },
-            max: {
-              value: MAX_32_BIT_INTEGER,
-              message: "must be less than 2,147,483,647",
+              message: `greater than or equal to ${MIN_MIN_CLUSTER_SIZE}`,
             },
           }}
           render={({ field, fieldState: { invalid, error } }) => (
             <TextField
               label="min cluster size"
               labelExtra={minClusterSizeContextualHelp}
+              defaultValue={DEFAULT_MIN_CLUSTER_SIZE.toString()}
               type="number"
-              description={`the smallest size for a cluster`}
+              description={`TBD`}
               errorMessage={error?.message}
               validationState={invalid ? "invalid" : "valid"}
               {...field}
@@ -161,22 +156,21 @@ export default function ClusteringSettings() {
           name="minSamples"
           control={control}
           rules={{
-            required: "field is required",
-            max: {
-              value: MAX_32_BIT_INTEGER,
-              message: "must be less than 2,147,483,647",
-            },
+            required: "n neighbors is required",
           }}
           render={({ field, fieldState: { invalid, error } }) => (
             <TextField
-              label="cluster minimum samples"
+              label="min samples"
               labelExtra={minSamplesContextualHelp}
+              defaultValue={DEFAULT_MIN_SAMPLES.toString()}
               type="number"
-              description={`determines if a point is a core point`}
+              // @ts-expect-error fix in the component
+              step="0.01"
+              description={`TBD`}
               errorMessage={error?.message}
               validationState={invalid ? "invalid" : "valid"}
               {...field}
-              value={field.value as unknown as string} // TODO: fix type in component
+              value={field.value as unknown as string}
             />
           )}
         />
@@ -184,22 +178,21 @@ export default function ClusteringSettings() {
           name="clusterSelectionEpsilon"
           control={control}
           rules={{
-            required: "field is required",
-            max: {
-              value: MAX_32_BIT_INTEGER,
-              message: "must be less than 2,147,483,647",
-            },
+            required: "cluster selection epsilon is required",
           }}
           render={({ field, fieldState: { invalid, error } }) => (
             <TextField
               label="cluster selection epsilon"
               labelExtra={clusterSelectionEpsilonContextualHelp}
+              defaultValue={DEFAULT_CLUSTER_SELECTION_EPSILON.toString()}
               type="number"
-              description={`A distance threshold`}
+              // @ts-expect-error fix in the component
+              step="0.01"
+              description={`TBD`}
               errorMessage={error?.message}
               validationState={invalid ? "invalid" : "valid"}
               {...field}
-              value={field.value as unknown as string} // TODO: fix type in component
+              value={field.value as unknown as string}
             />
           )}
         />
@@ -219,7 +212,7 @@ export default function ClusteringSettings() {
               width: 100%;
             `}
           >
-            Apply Clustering Config
+            Apply HDBSCAN Parameters
           </Button>
         </div>
       </Form>
