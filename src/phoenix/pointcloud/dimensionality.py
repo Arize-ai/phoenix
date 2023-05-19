@@ -24,12 +24,6 @@ class Reducer(ABC):
 
 
 @dataclass(frozen=True)
-class Identity(Reducer):
-    def reduce_dimensionality(self, mat: Matrix) -> Matrix:
-        return mat
-
-
-@dataclass(frozen=True)
 class Umap(Reducer, Parameters):
     """Uniform Manifold Approximation and Projection for Dimension Reduction"""
 
