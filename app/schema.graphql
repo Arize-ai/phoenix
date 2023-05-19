@@ -8,6 +8,7 @@ type Cluster {
   driftRatio: Float
 }
 
+"""Choose one (and only one) of the available options"""
 input ClustersFinder {
   """
   Hierarchical Density-Based Spatial Clustering of Applications with Noise: https://hdbscan.readthedocs.io/en/latest/index.html
@@ -166,6 +167,7 @@ type DimensionWithValue {
   value: String
 }
 
+"""Choose one (and only one) of the available options"""
 input DimensionalityReducer {
   """
   Uniform Manifold Approximation and Projection for Dimension Reduction: https://umap-learn.readthedocs.io/en/latest/
