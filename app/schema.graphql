@@ -263,13 +263,19 @@ input Granularity {
 }
 
 input HdbscanConfig {
-  """minimum cluster size"""
+  """
+  Minimum cluster size: https://hdbscan.readthedocs.io/en/latest/parameter_selection.html#selecting-min-cluster-size
+  """
   minClusterSize: Int = 10
 
-  """minimum samples"""
+  """
+  Minimum samples: https://hdbscan.readthedocs.io/en/latest/parameter_selection.html#selecting-min-samples
+  """
   minSamples: Int = 1
 
-  """cluster selection epsilon"""
+  """
+  Cluster selection epsilon: https://hdbscan.readthedocs.io/en/latest/parameter_selection.html#selecting-cluster-selection-epsilon
+  """
   clusterSelectionEpsilon: Float = 0
 }
 
@@ -411,10 +417,14 @@ input UmapConfig {
   """Dimension of the reduced space. Must be 2 or 3"""
   nComponents: Int = 3
 
-  """Minimum distance"""
+  """
+  Minimum distance: https://umap-learn.readthedocs.io/en/latest/parameters.html#min-dist
+  """
   minDist: Int = 0
 
-  """N neighbors"""
+  """
+  N neighbors: https://umap-learn.readthedocs.io/en/latest/parameters.html#n-neighbors
+  """
   nNeighbors: Int = 30
 }
 

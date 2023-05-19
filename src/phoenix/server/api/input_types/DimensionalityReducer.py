@@ -18,11 +18,13 @@ class UmapConfig(Config[Umap]):
         default=3,
     )
     min_dist: Optional[int] = strawberry.field(
-        description="Minimum distance",
+        description="Minimum distance: "
+        "https://umap-learn.readthedocs.io/en/latest/parameters.html#min-dist",
         default=0,
     )
     n_neighbors: Optional[int] = strawberry.field(
-        description="N neighbors",
+        description="N neighbors: "
+        "https://umap-learn.readthedocs.io/en/latest/parameters.html#n-neighbors",
         default=30,
     )
 

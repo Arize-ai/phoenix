@@ -14,15 +14,18 @@ class HdbscanConfig(Config[Hdbscan]):
     """Hierarchical Density-Based Spatial Clustering of Applications with Noise"""
 
     min_cluster_size: Optional[int] = strawberry.field(
-        description="minimum cluster size",
+        description="Minimum cluster size: "
+        "https://hdbscan.readthedocs.io/en/latest/parameter_selection.html#selecting-min-cluster-size",
         default=10,
     )
     min_samples: Optional[int] = strawberry.field(
-        description="minimum samples",
+        description="Minimum samples: "
+        "https://hdbscan.readthedocs.io/en/latest/parameter_selection.html#selecting-min-samples",
         default=1,
     )
     cluster_selection_epsilon: Optional[float] = strawberry.field(
-        description="cluster selection epsilon",
+        description="Cluster selection epsilon: "
+        "https://hdbscan.readthedocs.io/en/latest/parameter_selection.html#selecting-cluster-selection-epsilon",
         default=0.0,
     )
 
