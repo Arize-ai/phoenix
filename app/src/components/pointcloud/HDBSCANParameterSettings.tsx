@@ -15,7 +15,7 @@ import {
 import {
   DEFAULT_CLUSTER_SELECTION_EPSILON,
   DEFAULT_MIN_CLUSTER_SIZE,
-  DEFAULT_MIN_SAMPLES,
+  DEFAULT_CLUSTER_MIN_SAMPLES,
   MAX_MIN_CLUSTER_SIZE,
   MIN_MIN_CLUSTER_SIZE,
 } from "@phoenix/constants/pointCloudConstants";
@@ -162,7 +162,7 @@ export function HDBSCANParameterSettings() {
             <TextField
               label="min samples"
               labelExtra={minSamplesContextualHelp}
-              defaultValue={DEFAULT_MIN_SAMPLES.toString()}
+              defaultValue={DEFAULT_CLUSTER_MIN_SAMPLES.toString()}
               type="number"
               // @ts-expect-error fix in the component
               step="0.01"

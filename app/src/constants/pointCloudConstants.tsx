@@ -22,7 +22,7 @@ export const MAX_DATASET_SAMPLE_SIZE = 10000;
 export const DEFAULT_MIN_CLUSTER_SIZE = 10;
 export const MIN_MIN_CLUSTER_SIZE = 2;
 export const MAX_MIN_CLUSTER_SIZE = 100;
-export const DEFAULT_MIN_SAMPLES = 1;
+export const DEFAULT_CLUSTER_MIN_SAMPLES = 1;
 export const DEFAULT_CLUSTER_SELECTION_EPSILON = 0;
 
 export enum ColoringStrategy {
