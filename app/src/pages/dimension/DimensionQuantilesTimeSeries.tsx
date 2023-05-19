@@ -1,9 +1,11 @@
-import React from "react";
+import React, { useState } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import {
   Area,
   CartesianGrid,
   ComposedChart,
+  Legend,
+  LegendProps,
   Line,
   ResponsiveContainer,
   Tooltip,
@@ -27,11 +29,21 @@ import { calculateGranularity } from "@phoenix/utils/timeSeriesUtils";
 import { DimensionQuantilesTimeSeriesQuery } from "./__generated__/DimensionQuantilesTimeSeriesQuery.graphql";
 import { timeSeriesChartMargins } from "./dimensionChartConstants";
 
+enum Label {
+  p99_p01 = "p99_p01",
+  p75_p25 = "p75_p25",
+  p50 = "p50",
+}
+
+/**
+ * Track whether each label is hidden or not. boolean true means hidden.
+ */
+type ChartState = { [label in Label]: boolean };
 type ChartDataItem = {
   timestamp: number;
-  p99_p01: [number | null, number | null];
-  p75_p25: [number | null, number | null];
-  p50: number | null;
+  [Label.p99_p01]: [number | null, number | null];
+  [Label.p75_p25]: [number | null, number | null];
+  [Label.p50]: number | null;
 };
 
 const numberFormatter = new Intl.NumberFormat([], {
@@ -61,12 +73,12 @@ function TooltipContent({
         <ChartTooltipItem
           color={outerColor}
           name="p99"
-          value={formatValue(data.p99_p01[0])}
+          value={formatValue(data[Label.p99_p01][0])}
         />
         <ChartTooltipItem
           color={innerColor}
           name="p75"
-          value={formatValue(data.p75_p25[0])}
+          value={formatValue(data[Label.p75_p25][0])}
         />
         <ChartTooltipItem
           color={lineColor}
@@ -76,12 +88,12 @@ function TooltipContent({
         <ChartTooltipItem
           color={innerColor}
           name="p25"
-          value={formatValue(data.p75_p25[1])}
+          value={formatValue(data[Label.p75_p25][1])}
         />
         <ChartTooltipItem
           color={outerColor}
           name="p01"
-          value={formatValue(data.p99_p01[1])}
+          value={formatValue(data[Label.p99_p01][1])}
         />
       </ChartTooltip>
     );
@@ -189,6 +201,33 @@ export function DimensionQuantilesTimeSeries({
     samplingIntervalMinutes: granularity.samplingIntervalMinutes,
   });
 
+  // Legend interactivity
+  const [chartState, setChartState] = useState<ChartState>(
+    Object.keys(Label).reduce((a, key) => {
+      a[key as Label] = false;
+      return a;
+    }, {} as ChartState)
+  );
+
+  const handleLegendMouseEnter: LegendProps["onMouseEnter"] = (e) => {
+    if (!chartState[e.dataKey as Label]) {
+      setChartState({ ...chartState });
+    }
+  };
+
+  const handleLegendMouseLeave: LegendProps["onMouseLeave"] = () => {
+    setChartState({ ...chartState });
+  };
+
+  const selectBar: LegendProps["onClick"] = (e) => {
+    setChartState({
+      ...chartState,
+      [e.dataKey]: !chartState[e.dataKey as Label],
+    });
+  };
+
+  console.log(chartState);
+
   return (
     <ResponsiveContainer width="100%" height="100%">
       <ComposedChart
@@ -234,21 +273,35 @@ export function DimensionQuantilesTimeSeries({
           strokeOpacity={0.5}
         />
         <Tooltip content={<TooltipContent />} />
+        <Legend
+          onClick={selectBar}
+          onMouseOver={handleLegendMouseEnter}
+          onMouseOut={handleLegendMouseLeave}
+        />
         <Area
           type="monotone"
-          dataKey="p99_p01"
+          dataKey={Label.p99_p01}
+          name="p99 - p01"
           fillOpacity={1}
           fill="url(#p99_p01ColorUV)"
           stroke={outerColor}
+          hide={chartState[Label.p99_p01] === true}
         />
         <Area
           type="monotone"
-          dataKey="p75_p25"
+          dataKey={Label.p75_p25}
+          name="p75 - p25"
           fillOpacity={1}
           stroke={innerColor}
           fill="url(#p75_p25ColorUV)"
+          hide={chartState[Label.p75_p25] === true}
         />
-        <Line type="monotone" dataKey="p50" stroke={lineColor} />
+        <Line
+          type="monotone"
+          dataKey={Label.p50}
+          stroke={lineColor}
+          hide={chartState[Label.p50] === true}
+        />
       </ComposedChart>
     </ResponsiveContainer>
   );
