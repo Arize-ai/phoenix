@@ -219,14 +219,12 @@ export function DimensionQuantilesTimeSeries({
     setChartState({ ...chartState });
   };
 
-  const selectBar: LegendProps["onClick"] = (e) => {
+  const selectChartItem: LegendProps["onClick"] = (e) => {
     setChartState({
       ...chartState,
       [e.dataKey]: !chartState[e.dataKey as Label],
     });
   };
-
-  console.log(chartState);
 
   return (
     <ResponsiveContainer width="100%" height="100%">
@@ -274,7 +272,7 @@ export function DimensionQuantilesTimeSeries({
         />
         <Tooltip content={<TooltipContent />} />
         <Legend
-          onClick={selectBar}
+          onClick={selectChartItem}
           onMouseOver={handleLegendMouseEnter}
           onMouseOut={handleLegendMouseLeave}
         />
