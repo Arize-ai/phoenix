@@ -18,17 +18,7 @@ class Parameters(_BaseMapping, ABC):
         return getattr(self, key)
 
     def __iter__(self) -> Iterator[str]:
-        return (
-            f.name
-            for f in fields(self)
-            if f.init
-            and not f.name.startswith("_")
-            and isinstance(
-                (t := self[f.name]),
-                get_args(f.type),
-            )
-            and not isinstance(t, type(None))
-        )
+        return (f.name for f in fields(self) if f.init and not f.name.startswith("_"))
 
     def __len__(self) -> int:
         return sum(1 for _ in self)
