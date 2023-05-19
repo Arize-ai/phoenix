@@ -54,6 +54,8 @@ class KmeansConfig(Config[Kmeans]):
 
 @strawberry.input
 class ClustersFinder(OneOf[clusters.Finder]):
+    """Choose one (and only one) of the available options"""
+
     hdbscan: Optional[HdbscanConfig] = strawberry.field(
         description="Hierarchical Density-Based Spatial Clustering of Applications with Noise: "
         "https://hdbscan.readthedocs.io/en/latest/index.html",

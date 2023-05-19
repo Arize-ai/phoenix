@@ -62,6 +62,8 @@ class TsneConfig(Config[Tsne]):
 
 @strawberry.input
 class DimensionalityReducer(OneOf[dimensionality.Reducer]):
+    """Choose one (and only one) of the available options"""
+
     umap: Optional[UmapConfig] = strawberry.field(
         description="Uniform Manifold Approximation and Projection for Dimension Reduction: "
         "https://umap-learn.readthedocs.io/en/latest/",
