@@ -19,16 +19,13 @@ import {
   ChartTooltip,
   ChartTooltipItem,
   colors,
+  getBinName,
 } from "@phoenix/components/chart";
 import { useDatasets } from "@phoenix/contexts";
 import { useTimeSlice } from "@phoenix/contexts/TimeSliceContext";
-import { assertUnreachable } from "@phoenix/typeUtils";
 import { fullTimeFormatter } from "@phoenix/utils/timeFormatUtils";
 
-import {
-  DimensionDriftBreakdownSegmentBarChartQuery,
-  DimensionDriftBreakdownSegmentBarChartQuery$data,
-} from "./__generated__/DimensionDriftBreakdownSegmentBarChartQuery.graphql";
+import { DimensionDriftBreakdownSegmentBarChartQuery } from "./__generated__/DimensionDriftBreakdownSegmentBarChartQuery.graphql";
 // Type interfaces to conform to
 type BarChartItem = {
   name: string;
@@ -40,33 +37,6 @@ type BarChartItem = {
 
 const primaryBarColor = colors.primary;
 const referenceBarColor = colors.reference;
-
-type Bin = NonNullable<
-  DimensionDriftBreakdownSegmentBarChartQuery$data["dimension"]["segmentsComparison"]
->["segments"][number]["bin"];
-
-/**
- * Formats each bin into a string for charting
- * TODO(mikeldking) - refactor into an interface that can be re-used
- * @param bin
- * @returns
- */
-function getBinName(bin: Bin): string {
-  const binType = bin.__typename;
-  switch (binType) {
-    case "NominalBin":
-      return bin.name;
-    case "IntervalBin":
-      // TODO(mikeldking) - add a general case number formatter
-      return `${bin.range.start} - ${bin.range.end}`;
-    case "MissingValueBin":
-      return "(empty)";
-    case "%other":
-      throw new Error("Unexpected bin type %other");
-    default:
-      assertUnreachable(binType);
-  }
-}
 
 const formatter = format(".2f");
 
