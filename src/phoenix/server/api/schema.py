@@ -154,9 +154,9 @@ class Query:
         ).find_clusters(stacked_coordinates)
 
         cluster_membership = {
-            stacked_event_ids[row_index]: cluster_id
+            stacked_event_ids[row_id]: cluster_id
             for cluster_id, cluster in enumerate(clusters)
-            for row_index in cluster
+            for row_id in cluster
         }
 
         return to_gql_clusters(
