@@ -1,5 +1,6 @@
 """
-Downloads and persists SQuAD training data. Builds and persists LlamaIndex database.
+Downloads and persists SQuAD training data. Builds and persists LlamaIndex database. Computes OpenAI
+embeddings for query and database data.
 """
 
 import json
@@ -13,9 +14,9 @@ import numpy as np
 import openai
 import pandas as pd
 import tiktoken
-import tqdm
-from llama_index import GPTVectorStoreIndex
-from llama_index.data_structs.node import DocumentRelationship, Node
+import tqdm  # type: ignore
+from llama_index import GPTVectorStoreIndex  # type: ignore
+from llama_index.data_structs.node import DocumentRelationship, Node  # type: ignore
 from typing_extensions import TypeAlias
 
 EmbeddingVector: TypeAlias = Any
@@ -50,16 +51,7 @@ def main_openai_embeddings() -> None:
 
 def main() -> None:
     database_df, query_df = download_squad_training_data()
-    database_df = database_df.sample(n=2500)
-    database_df["granular_subject"]
-
-    # query_df = (
-    #     query_df.groupby(["granular_subject", "paragraph_index"], as_index=False)
-    #     .first()
-    #     .reset_index(drop=True)
-    # )
     split_to_dataframe = {"database": database_df, "query": query_df}
-    # split_to_dataframe = {"query": query_df}
     data_dir = os.path.expanduser("~/Desktop/llama-index-data")
     for split in split_to_dataframe:
         dataframe = split_to_dataframe[split]
@@ -173,23 +165,6 @@ def compute_and_persist_embeddings(dataframe: pd.DataFrame, split: str) -> None:
 def compute_embeddings_with_openai(
     text_column: "pd.Series[str]", model_name: str = "text-embedding-ada-002"
 ) -> "pd.Series[Any]":
-    # def helper(text_list: List[str]) -> List[EmbeddingVector]:
-    #     response = openai.Embedding.create(input=text_list, model=model_name)
-    #     embeddings = []
-    #     for data in response["data"]:
-    #         embeddings.append(np.array(data["embedding"]))
-    #     return embeddings
-
-    # if len(text_column) == 0:
-    #     print("here")
-    # embeddings = []
-    # chunks = np.array_split(text_column, 25)
-    # if any(len(chunk) == 0 for chunk in chunks):
-    #     print("here")
-    # for chunk in chunks:
-    #     embeddings.extend(helper(chunk.to_list()))
-    # return pd.Series(embeddings)
-
     response = openai.Embedding.create(input=text_column.to_list(), model=model_name)
     embeddings = []
     for data in response["data"]:
