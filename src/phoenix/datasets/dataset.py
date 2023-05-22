@@ -2,12 +2,8 @@ import logging
 import uuid
 from copy import deepcopy
 from dataclasses import fields, replace
-from datetime import datetime, timedelta
-from enum import Enum
-from functools import cached_property
-from typing import Any, Dict, Iterable, List, Optional, Set, Tuple, Union, cast
+from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
-import pandas as pd
 import pytz
 from pandas import DataFrame, Series, Timestamp, read_parquet, to_datetime
 from pandas.api.types import (
@@ -101,27 +97,6 @@ class Dataset:
     def __repr__(self) -> str:
         return f'<Dataset "{self.name}">'
 
-    @cached_property
-    def start_time(self) -> datetime:
-        """Returns the datetime of the earliest inference in the dataset"""
-        timestamp_col_name: str = cast(str, self.schema.timestamp_column_name)
-        start_datetime: datetime = self.__dataframe[timestamp_col_name].min()
-        return start_datetime.replace(second=0, microsecond=0)
-
-    @cached_property
-    def end_time(self) -> datetime:
-        """
-        Returns the datetime of the latest inference in the dataset.
-        end_datetime equals max(timestamp) + 1 minute, so that it can be
-        used as part of a right-open interval. Note that one minute is the
-        smallest interval that is currently allowed.
-        """
-        timestamp_col_name: str = cast(str, self.schema.timestamp_column_name)
-        end_datetime: datetime = self.__dataframe[timestamp_col_name].max() + timedelta(
-            minutes=1,
-        )  # adding a minute, because it's the smallest interval allowed
-        return end_datetime.replace(second=0, microsecond=0)
-
     @property
     def dataframe(self) -> DataFrame:
         return self.__dataframe
@@ -133,119 +108,6 @@ class Dataset:
     @property
     def name(self) -> str:
         return self.__name
-
-    def head(self, num_rows: Optional[int] = 5) -> DataFrame:
-        num_rows = 5 if num_rows is None else num_rows
-        return self.dataframe.head(num_rows)
-
-    def get_column(self, col_name: str) -> "Union[Series[int], Series[float], Series[str]]":
-        return self.dataframe[col_name]
-
-    def sample(self, num: int) -> "Dataset":
-        sampled_dataframe = self.dataframe.sample(n=num, ignore_index=True)
-        return Dataset(sampled_dataframe, self.schema, f"""{self.name}_sample_{num}""")
-
-    def get_prediction_id_column(
-        self,
-    ) -> "Series[str]":
-        if self.schema.prediction_id_column_name is None:
-            raise err.SchemaError(err.MissingField("prediction_id_column_name"))
-        return self.dataframe[self.schema.prediction_id_column_name]
-
-    def get_prediction_label_column(
-        self,
-    ) -> "Series[str]":
-        if self.schema.prediction_label_column_name is None:
-            raise err.SchemaError(err.MissingField("prediction_label_column_name"))
-        return self.dataframe[self.schema.prediction_label_column_name]
-
-    def get_prediction_score_column(
-        self,
-    ) -> "Series[float]":
-        if self.schema.prediction_score_column_name is None:
-            raise err.SchemaError(err.MissingField("prediction_score_column_name"))
-        return self.dataframe[self.schema.prediction_score_column_name]
-
-    def get_actual_label_column(self) -> "Series[str]":
-        if self.schema.actual_label_column_name is None:
-            raise err.SchemaError(err.MissingField("actual_label_column_name"))
-        return self.dataframe[self.schema.actual_label_column_name]
-
-    def get_actual_score_column(self) -> "Union[Series[float]]":
-        if self.schema.actual_score_column_name is None:
-            raise err.SchemaError(err.MissingField("actual_score_column_name"))
-        return self.dataframe[self.schema.actual_score_column_name]
-
-    def _get_embedding_feature_column_names(
-        self, embedding_feature_name: str
-    ) -> EmbeddingColumnNames:
-        if embedding_feature_name == "prompt":
-            if self.schema.prompt_column_names is None:
-                raise err.SchemaError(err.MissingField("prompt_column_names"))
-            return self._get_prompt_column_names()
-        elif embedding_feature_name == "response":
-            if self.schema.response_column_names is None:
-                raise err.SchemaError(err.MissingField("response_column_names"))
-            return self._get_response_column_names()
-        else:
-            if self.schema.embedding_feature_column_names is None:
-                raise err.SchemaError(err.MissingField("embedding_feature_column_names"))
-            embedding_feature_column_names = self.schema.embedding_feature_column_names
-            if (
-                embedding_feature_name not in embedding_feature_column_names
-                or embedding_feature_column_names[embedding_feature_name] is None
-            ):
-                raise err.SchemaError(
-                    err.MissingEmbeddingFeatureColumnNames(embedding_feature_name)
-                )
-            return embedding_feature_column_names[embedding_feature_name]
-
-    def _get_prompt_column_names(self) -> EmbeddingColumnNames:
-        if self.schema.prompt_column_names is None:
-            raise err.SchemaError(err.MissingField("prompt_column_names"))
-        return self.schema.prompt_column_names
-
-    def _get_response_column_names(self) -> EmbeddingColumnNames:
-        if self.schema.response_column_names is None:
-            raise err.SchemaError(err.MissingField("response_column_names"))
-        return self.schema.response_column_names
-
-    def get_timestamp_column(self) -> "Series[Any]":
-        timestamp_column_name = self.schema.timestamp_column_name
-        if timestamp_column_name is None:
-            raise err.SchemaError(err.MissingTimestampColumnName())
-        return self.dataframe[timestamp_column_name]
-
-    # TODO(mikeldking): add strong vector type
-    def get_embedding_vector_column(self, embedding_feature_name: str) -> "Series[Any]":
-        column_names = self._get_embedding_feature_column_names(embedding_feature_name)
-        if column_names.vector_column_name is None:
-            raise err.SchemaError(
-                err.MissingEmbeddingFeatureVectorColumnName(embedding_feature_name)
-            )
-        vector_column = self.dataframe[column_names.vector_column_name]
-        return vector_column
-
-    def get_embedding_raw_data_column(self, embedding_feature_name: str) -> "Optional[Series[str]]":
-        column_names = self._get_embedding_feature_column_names(embedding_feature_name)
-        if column_names.raw_data_column_name is not None:
-            return self.dataframe[column_names.raw_data_column_name]
-        return None
-
-    def get_embedding_link_to_data_column(
-        self, embedding_feature_name: str
-    ) -> "Optional[Series[str]]":
-        column_names = self._get_embedding_feature_column_names(embedding_feature_name)
-        if column_names.link_to_data_column_name is not None:
-            return self.dataframe[column_names.link_to_data_column_name]
-
-        return None
-
-    @classmethod
-    def from_dataframe(
-        cls, dataframe: DataFrame, schema: Schema, name: Optional[str] = None
-    ) -> "Dataset":
-        return cls(dataframe, schema, name)
 
     @classmethod
     def from_name(cls, name: str) -> "Dataset":
@@ -269,22 +131,6 @@ class Dataset:
         schema_json_data = self.schema.to_json()
         with open(directory / self._schema_file_name, "w+") as schema_file:
             schema_file.write(schema_json_data)
-
-    def get_events(self, rows: Iterable[int]) -> pd.DataFrame:
-        """
-        Given row numbers, return new data frame subset containing those rows.
-
-        Parameters
-        ----------
-        rows: Iterable[int]
-            row numbers
-
-        Returns
-        -------
-        dataframe: pandas.DataFrame
-            containing the subset of rows specified in the input
-        """
-        return self.__dataframe.iloc[sorted(set(rows))]
 
 
 def _parse_dataframe_and_schema(dataframe: DataFrame, schema: Schema) -> Tuple[DataFrame, Schema]:
@@ -644,8 +490,3 @@ def _get_schema_from_unknown_schema_param(schemaLike: SchemaLike) -> Schema:
 
 def _add_prediction_id(num_rows: int) -> List[str]:
     return [str(uuid.uuid4()) for _ in range(num_rows)]
-
-
-class DatasetRole(Enum):
-    PRIMARY = 0
-    REFERENCE = 1

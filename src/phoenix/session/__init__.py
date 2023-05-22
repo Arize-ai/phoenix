@@ -1,3 +1,8 @@
-from .session import active_session, close_app, launch_app, Session
+from .session import Session, active_session, close_app, launch_app
 
-__all__ = ["active_session", "close_app", "launch_app", "Session"]
+__all__ = [
+    "active_session",
+    "close_app",
+    "launch_app",
+    "Session",
+]
