@@ -32,7 +32,6 @@ from phoenix.server.api.input_types.TimeRange import TimeRange
 from phoenix.server.api.types.DatasetRole import DatasetRole
 from phoenix.server.api.types.VectorDriftMetricEnum import VectorDriftMetric
 
-from ..input_types import Coordinates
 from ..input_types.Granularity import Granularity
 from .DataQualityMetric import DataQualityMetric
 from .EmbeddingMetadata import EmbeddingMetadata
@@ -46,7 +45,6 @@ from .TimeSeries import (
     get_drift_timeseries_data,
 )
 from .UMAPPoints import (
-    Cluster,
     UMAPPoint,
     UMAPPoints,
     to_gql_clusters,
@@ -305,133 +303,6 @@ class EmbeddingDimension(Node):
                 cluster_membership,
                 has_reference_data=not model[REFERENCE].empty,
             ),
-        )
-
-    @strawberry.field
-    def hdbscan_clustering(
-        self,
-        event_ids: Annotated[
-            List[ID],
-            strawberry.argument(
-                description="Event ID of the coordinates",
-            ),
-        ],
-        coordinates_2d: Annotated[
-            Optional[List[Coordinates.InputCoordinate2D]],
-            strawberry.argument(
-                description="Point coordinates. Must be either 2D or 3D.",
-            ),
-        ] = UNSET,
-        coordinates_3d: Annotated[
-            Optional[List[Coordinates.InputCoordinate3D]],
-            strawberry.argument(
-                description="Point coordinates. Must be either 2D or 3D.",
-            ),
-        ] = UNSET,
-        min_cluster_size: Annotated[
-            int,
-            strawberry.argument(
-                description="HDBSCAN minimum cluster size",
-            ),
-        ] = DEFAULT_MIN_CLUSTER_SIZE,
-        cluster_min_samples: Annotated[
-            int,
-            strawberry.argument(
-                description="HDBSCAN minimum samples",
-            ),
-        ] = DEFAULT_MIN_SAMPLES,
-        cluster_selection_epsilon: Annotated[
-            int,
-            strawberry.argument(
-                description="HDBSCAN cluster selection epsilon",
-            ),
-        ] = DEFAULT_CLUSTER_SELECTION_EPSILON,
-    ) -> List[Cluster]:
-        if not isinstance(coordinates_3d, list):
-            coordinates_3d = []
-        assert isinstance(coordinates_3d, list)
-        if not isinstance(coordinates_2d, list):
-            coordinates_2d = []
-        assert isinstance(coordinates_2d, list)
-
-        if len(coordinates_3d) > 0 and len(coordinates_2d) > 0:
-            raise ValueError("must specify only one of 2D or 3D coordinates")
-
-        if len(coordinates_3d) > 0:
-            coordinates = list(
-                map(
-                    lambda coord: np.array(
-                        [coord.x, coord.y, coord.z],
-                    ),
-                    coordinates_3d,
-                )
-            )
-        else:
-            coordinates = list(
-                map(
-                    lambda coord: np.array(
-                        [coord.x, coord.y],
-                    ),
-                    coordinates_2d,
-                )
-            )
-
-        if len(event_ids) != len(coordinates):
-            raise ValueError(
-                f"mismatch length between"
-                f"event_ids ({len(event_ids)}) "
-                f"and coordinates ({len(coordinates)})"
-            )
-
-        if len(event_ids) == 0:
-            return []
-
-        primary_event_ids = []
-        reference_event_ids = []
-        primary_coordinates = []
-        reference_coordinates = []
-
-        for event_id, coordinate in zip(event_ids, coordinates):
-            row_id_str, dataset_role_str = str(event_id).split(":")
-            row_id = int(row_id_str)
-            dataset_role = ms.DatasetRole[dataset_role_str.split(".")[-1]]
-            if dataset_role == PRIMARY:
-                primary_coordinates.append(coordinate)
-                primary_event_ids.append(
-                    EventId(
-                        row_id=row_id,
-                        dataset_id=dataset_role,
-                    )
-                )
-            elif dataset_role == REFERENCE:
-                reference_coordinates.append(coordinate)
-                reference_event_ids.append(
-                    EventId(
-                        row_id=row_id,
-                        dataset_id=dataset_role,
-                    )
-                )
-            else:
-                raise ValueError(f"Invalid event id: {repr(event_id)}")
-
-        combined_event_ids = primary_event_ids + reference_event_ids
-        combined_matrix = np.stack(primary_coordinates + reference_coordinates)
-
-        clusters = Hdbscan(
-            min_cluster_size=min_cluster_size,
-            min_samples=cluster_min_samples,
-            cluster_selection_epsilon=cluster_selection_epsilon,
-        ).find_clusters(combined_matrix)
-
-        cluster_membership = {
-            combined_event_ids[row_index]: cluster_id
-            for cluster_id, cluster in enumerate(clusters)
-            for row_index in cluster
-        }
-
-        return to_gql_clusters(
-            cluster_membership,
-            has_reference_data=len(reference_event_ids) > 0,
         )
 
 
