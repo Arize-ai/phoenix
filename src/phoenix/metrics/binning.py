@@ -292,7 +292,7 @@ class CategoricalBinning(BinningMethod):
 Distribution: TypeAlias = "pd.Series[float]"
 
 
-@dataclass
+@dataclass(frozen=True)
 class Normalizer(ABC):
     """A function that normalizes counts/frequencies to probabilities."""
 
@@ -301,7 +301,7 @@ class Normalizer(ABC):
         ...
 
 
-@dataclass
+@dataclass(frozen=True)
 class AdditiveSmoothing(Normalizer):
     r"""A function that normalizes counts/frequencies to probabilities with
     additive smoothing. Defaults to Laplace smoothing with `pseudocount=1`.
