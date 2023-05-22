@@ -136,7 +136,7 @@ def test_iterable_column_names():
         (PREDICTION_LABEL, prediction_label, "Prediction Label", pd.Series(["10101"])),
         (PREDICTION_SCORE, prediction_score, "Prediction Score", pd.Series([0.2, 0.3, 0.1])),
         (ACTUAL_LABEL, actual_label, "Actual Label", pd.Series([False, True])),
-        (ACTUAL_SCORE, actual_score, "Actual Score", pd.Series([0.1, float("nan"), 0.2])),
+        (ACTUAL_SCORE, actual_score, "Actual Score", pd.Series([0.1, np.nan, 0.2])),
         (
             TIMESTAMP,
             timestamp,

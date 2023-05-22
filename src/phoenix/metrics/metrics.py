@@ -98,7 +98,7 @@ class Cardinality(UnaryOperator, BaseMetric):
     def calc(self, dataframe: pd.DataFrame) -> float:
         data = self.operand(dataframe)
         if data.dtype.kind == "f":
-            return float("nan")
+            return np.nan
         return cast(float, data.nunique())
 
 
@@ -164,7 +164,7 @@ class EuclideanDistance(DriftOperator, VectorOperator):
         if dataframe.empty or (
             isinstance(self.reference_value, float) and not math.isfinite(self.reference_value)
         ):
-            return float("nan")
+            return np.nan
         data = self.operand(dataframe)
         return cast(
             float,

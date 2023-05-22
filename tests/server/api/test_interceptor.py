@@ -1,5 +1,6 @@
 from typing import Optional
 
+import numpy as np
 import strawberry
 from phoenix.server.api.interceptor import NoneIfNan
 
@@ -10,4 +11,4 @@ class T:
 
 
 def test_none_if_nan():
-    assert T(x=float("nan")).x is None
+    assert T(x=np.nan).x is None

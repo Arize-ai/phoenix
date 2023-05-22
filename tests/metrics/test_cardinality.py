@@ -42,7 +42,7 @@ def unique_ints(request, random_seed):
 def unique_ints_with_nan(request, random_seed):
     num_values = request.param
     values = list(np.random.choice(np.arange(30), num_values, replace=False))
-    values[0] = float("nan")
+    values[0] = np.nan
     return pd.Categorical(values)
 
 
