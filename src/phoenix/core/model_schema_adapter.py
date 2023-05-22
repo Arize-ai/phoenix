@@ -5,6 +5,7 @@ import pandas as pd
 from typing_extensions import TypeAlias, TypeGuard
 
 from phoenix import Dataset, EmbeddingColumnNames
+from phoenix.core.model import _get_embedding_dimensions
 from phoenix.core.model_schema import Embedding, Model, Schema
 from phoenix.datasets.schema import Schema as DatasetSchema
 
@@ -14,6 +15,12 @@ DisplayName: TypeAlias = str
 
 
 def create_model_from_datasets(*datasets: Optional[Dataset]) -> Model:
+    # TODO: move this validation into model_schema.Model.
+    if len(datasets) > 1:
+        # Check that for each embedding dimension all vectors
+        # have the same length between datasets.
+        _ = _get_embedding_dimensions(*datasets[:2])
+
     named_dataframes: List[Tuple[DatasetName, pd.DataFrame]] = []
     prediction_ids: List[ColumnName] = []
     timestamps: List[ColumnName] = []
