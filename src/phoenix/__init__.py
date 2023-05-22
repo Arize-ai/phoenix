@@ -1,11 +1,7 @@
-from .datasets import (
-    Dataset,
-    EmbeddingColumnNames,
-    ExampleDatasets,
-    Schema,
-    load_example,
-)
-from .session import Session, active_session, close_app, launch_app
+from .datasets.dataset import Dataset
+from .datasets.fixtures import ExampleDatasets, load_example
+from .datasets.schema import EmbeddingColumnNames, Schema
+from .session.session import Session, active_session, close_app, launch_app
 
 __version__ = "0.0.19"
 

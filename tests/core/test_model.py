@@ -2,9 +2,8 @@ import numpy as np
 import pandas as pd
 import pytest
 from pandas import DataFrame, Timestamp
-from phoenix.core import EmbeddingDimension
-from phoenix.core.model import _get_embedding_dimensions
-from phoenix.datasets import Dataset, EmbeddingColumnNames, Schema
+from phoenix.core.model import EmbeddingDimension, _get_embedding_dimensions
+from phoenix.datasets.dataset import Dataset, EmbeddingColumnNames, Schema
 
 
 @pytest.fixture
