@@ -202,7 +202,7 @@ class _ConstantValueSeriesFactory:
     value: Any = field(default=float("nan"))
     _cached_array: npt.NDArray[np.float64] = field(
         init=False,
-        default=np.empty(0),
+        default_factory=lambda: np.empty(0),
     )
     """If a longer Series is requested, the cached array is expanded;
     otherwise, a subset can be returned, assuming it won't be altered by the
