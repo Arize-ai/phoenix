@@ -1,5 +1,5 @@
 from collections import defaultdict
-from typing import Dict, List, Optional, cast
+from typing import Dict, List, Optional, Tuple, cast
 
 import strawberry
 from strawberry import ID
@@ -34,15 +34,23 @@ class Event:
     )
 
 
+def unpack_event_id(
+    event_id: ID,
+) -> Tuple[int, ms.DatasetRole]:
+    row_id_str, dataset_role_str = str(event_id).split(":")
+    row_id = int(row_id_str)
+    dataset_role = ms.DatasetRole[dataset_role_str.split(".")[-1]]
+    return row_id, dataset_role
+
+
 def parse_event_ids(event_ids: List[ID]) -> Dict[DatasetRole, List[int]]:
     """
     Parses event IDs and returns the corresponding row indexes.
     """
     row_indexes: Dict[DatasetRole, List[int]] = defaultdict(list)
     for event_id in event_ids:
-        row_index, dataset_role_str = str(event_id).split(":")
-        dataset_role = DatasetRole[dataset_role_str.split(".")[-1]]
-        row_indexes[dataset_role].append(int(row_index))
+        row_id, dataset_role = unpack_event_id(event_id)
+        row_indexes[dataset_role].append(row_id)
     return row_indexes
 
 
