@@ -1,6 +1,6 @@
 from typing import List, Optional
 
-from phoenix.datasets import Dataset
+from phoenix.datasets.dataset import Dataset
 from phoenix.datasets.schema import EmbeddingColumnNames, EmbeddingFeatures
 
 from .embedding_dimension import EmbeddingDimension

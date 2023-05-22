@@ -8,7 +8,7 @@ from numpy.testing import assert_almost_equal
 from pandas import DataFrame, Series, Timestamp
 from phoenix.core.model_schema import Model
 from phoenix.core.model_schema_adapter import create_model_from_datasets
-from phoenix.datasets import Dataset, EmbeddingColumnNames, Schema
+from phoenix.datasets.dataset import Dataset, EmbeddingColumnNames, Schema
 from phoenix.server.api.context import Context
 from phoenix.server.api.input_types.Granularity import Granularity
 from phoenix.server.api.input_types.TimeRange import TimeRange

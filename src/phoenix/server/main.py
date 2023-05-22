@@ -10,7 +10,7 @@ import uvicorn
 
 import phoenix.config as config
 from phoenix.core.model_schema_adapter import create_model_from_datasets
-from phoenix.datasets import Dataset
+from phoenix.datasets.dataset import Dataset
 from phoenix.datasets.fixtures import FIXTURES, get_datasets
 from phoenix.server.app import create_app
 
