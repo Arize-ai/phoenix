@@ -199,7 +199,7 @@ class _ConstantValueSeriesFactory:
     can potentially leak memory.
     """
 
-    value: Any = field(default=float("nan"))
+    value: Any = field(default=np.nan)
     _cached_array: npt.NDArray[np.float64] = field(
         init=False,
         default_factory=lambda: np.empty(0),
@@ -393,7 +393,7 @@ class ScalarDimension(Dimension):
     @property
     def min_max(self) -> Tuple[Any, Any]:
         if self._model is None:
-            return float("nan"), float("nan")
+            return np.nan, np.nan
         model = cast(Model, self._model)
         return model.dimension_min_max_from_all_df(self.name)
 
@@ -560,7 +560,7 @@ class Event(ModelData):
         return self._self_id
 
     def null_value(self) -> float:
-        return float("nan")
+        return np.nan
 
     @overload
     def __getitem__(self, key: ColumnKey) -> Any:
@@ -762,7 +762,7 @@ class Model:
         object.__setattr__(
             self,
             "_nan_series_factory",
-            _ConstantValueSeriesFactory(float("nan")),
+            _ConstantValueSeriesFactory(np.nan),
         )
         object.__setattr__(
             self,
@@ -926,7 +926,7 @@ class Model:
     ) -> Tuple[float, float]:
         dim = self[dimension_name]
         if dim.data_type is not CONTINUOUS:
-            return (float("nan"), float("nan"))
+            return (np.nan, np.nan)
         with self._dimension_min_max_from_all_datasets() as cache:
             try:
                 return cache[dimension_name]

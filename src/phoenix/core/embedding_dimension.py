@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 from typing import Set
 
+import numpy as np
+
 from phoenix.datasets.dataset import DatasetRole
 from phoenix.datasets.event import EventId
 
@@ -23,7 +25,7 @@ def calculate_drift_ratio(events: Set[EventId]) -> float:
 
     """
     if not events:
-        return float("nan")
+        return np.nan
 
     primary_point_count = 0
     reference_point_count = 0
