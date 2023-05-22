@@ -202,10 +202,10 @@ type EmbeddingDimension implements Node {
     """Event ID of the coordinates"""
     eventIds: [ID!]!
 
-    """Point coordinates. Must be specify either 2D or 3D."""
+    """Point coordinates. Must be either 2D or 3D."""
     coordinates2d: [InputCoordinate2D!]
 
-    """Point coordinates. Must be specify either 2D or 3D."""
+    """Point coordinates. Must be either 2D or 3D."""
     coordinates3d: [InputCoordinate3D!]
 
     """HDBSCAN minimum cluster size"""
