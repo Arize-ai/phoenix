@@ -16,10 +16,10 @@ DisplayName: TypeAlias = str
 
 def create_model_from_datasets(*datasets: Optional[Dataset]) -> Model:
     # TODO: move this validation into model_schema.Model.
-    if len(datasets) > 1:
+    if len(datasets) > 1 and datasets[0] is not None:
         # Check that for each embedding dimension all vectors
         # have the same length between datasets.
-        _ = _get_embedding_dimensions(*datasets[:2])
+        _ = _get_embedding_dimensions(datasets[0], datasets[1])
 
     named_dataframes: List[Tuple[DatasetName, pd.DataFrame]] = []
     prediction_ids: List[ColumnName] = []
