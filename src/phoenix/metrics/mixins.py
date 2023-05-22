@@ -65,7 +65,7 @@ class BaseMetric(ABC):
         return id(self)
 
     def initial_value(self) -> Any:
-        return float("nan")
+        return np.nan
 
     def get_value(self, result: Mapping[int, Any]) -> Any:
         try:
@@ -81,7 +81,7 @@ class BaseMetric(ABC):
         try:
             return self.calc(dataframe)
         except (TypeError, ValueError):
-            return float("nan")
+            return np.nan
 
 
 @dataclass(frozen=True)

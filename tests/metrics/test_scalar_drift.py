@@ -1,3 +1,4 @@
+import numpy as np
 import pandas as pd
 from numpy.testing import assert_almost_equal
 from phoenix.core.model_schema import Column
@@ -40,9 +41,9 @@ def test_psi_interval_binning():
         binning_method=binning.IntervalBinning(
             bins=pd.IntervalIndex(
                 (
-                    pd.Interval(float("-inf"), 1.0, closed="left"),
+                    pd.Interval(np.NINF, 1.0, closed="left"),
                     pd.Interval(1.0, 2.0, closed="left"),
-                    pd.Interval(2.0, float("inf"), closed="left"),
+                    pd.Interval(2.0, np.inf, closed="left"),
                 )
             )
         ),

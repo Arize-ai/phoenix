@@ -135,7 +135,7 @@ def test_valid_model_embeddings_one_dataset_missing_embeddings_feature(
 
 
 def test_valid_model_with_nan_embeddings(dataset_with_embedding_vector):
-    dataset_with_embedding_vector.dataframe["embedding_vector0"] = float("nan")
+    dataset_with_embedding_vector.dataframe["embedding_vector0"] = np.nan
     embedding_dimensions = _get_embedding_dimensions(
         dataset_with_embedding_vector,
         dataset_with_embedding_vector,

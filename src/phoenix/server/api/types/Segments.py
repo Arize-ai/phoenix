@@ -2,6 +2,7 @@ import math
 from dataclasses import dataclass
 from typing import Any, List, Optional, Union, overload
 
+import numpy as np
 import pandas as pd
 import strawberry
 from strawberry import UNSET
@@ -32,8 +33,8 @@ class IntervalBin:
 
 @dataclass(frozen=True)
 class GqlBinFactory:
-    numeric_lbound: float = float("-inf")
-    numeric_ubound: float = float("inf")
+    numeric_lbound: float = np.NINF
+    numeric_ubound: float = np.inf
 
     @overload
     def __call__(self, bin: "pd.Interval[float]") -> IntervalBin:

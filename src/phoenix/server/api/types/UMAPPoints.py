@@ -63,9 +63,7 @@ def to_gql_clusters(
             Cluster(
                 id=ID(str(cluster_id)),
                 event_ids=[ID(str(event)) for event in cluster_events],
-                drift_ratio=calculate_drift_ratio(cluster_events)
-                if has_reference_data
-                else float("nan"),
+                drift_ratio=calculate_drift_ratio(cluster_events) if has_reference_data else np.nan,
             )
         )
 
@@ -84,7 +82,7 @@ def calculate_drift_ratio(events: Set[EventId]) -> float:
     drift_ratio : float
     """
     return (
-        float("nan")
+        np.nan
         if not (cnt := Counter(e.dataset_id for e in events))
         else (cnt[PRIMARY] - cnt[REFERENCE]) / (cnt[PRIMARY] + cnt[REFERENCE])
     )
