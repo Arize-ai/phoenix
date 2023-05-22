@@ -198,6 +198,25 @@ type EmbeddingDimension implements Node {
     """HDBSCAN cluster selection epsilon"""
     clusterSelectionEpsilon: Int! = 0
   ): UMAPPoints!
+  hdbscanClustering(
+    """Event ID of the coordinates"""
+    eventIds: [ID!]!
+
+    """Point coordinates. Must be specify either 2D or 3D."""
+    coordinates2d: [InputCoordinate2D!]
+
+    """Point coordinates. Must be specify either 2D or 3D."""
+    coordinates3d: [InputCoordinate3D!]
+
+    """HDBSCAN minimum cluster size"""
+    minClusterSize: Int! = 10
+
+    """HDBSCAN minimum samples"""
+    clusterMinSamples: Int! = 1
+
+    """HDBSCAN cluster selection epsilon"""
+    clusterSelectionEpsilon: Int! = 0
+  ): [Cluster!]!
 }
 
 type EmbeddingDimensionConnection {
@@ -255,6 +274,17 @@ input Granularity {
   Specifies the time interval between each point in the time-series. All points in the time-series are separated by the same length of time, and are generated starting from the end time of the time range.
   """
   samplingIntervalMinutes: Int!
+}
+
+input InputCoordinate2D {
+  x: Float!
+  y: Float!
+}
+
+input InputCoordinate3D {
+  x: Float!
+  y: Float!
+  z: Float!
 }
 
 type IntervalBin {
