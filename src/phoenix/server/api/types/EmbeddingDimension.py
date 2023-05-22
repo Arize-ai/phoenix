@@ -319,13 +319,13 @@ class EmbeddingDimension(Node):
         coordinates_2d: Annotated[
             Optional[List[Coordinates.InputCoordinate2D]],
             strawberry.argument(
-                description="Point coordinates. Must be specify either 2D or 3D.",
+                description="Point coordinates. Must be either 2D or 3D.",
             ),
         ] = UNSET,
         coordinates_3d: Annotated[
             Optional[List[Coordinates.InputCoordinate3D]],
             strawberry.argument(
-                description="Point coordinates. Must be specify either 2D or 3D.",
+                description="Point coordinates. Must be either 2D or 3D.",
             ),
         ] = UNSET,
         min_cluster_size: Annotated[
