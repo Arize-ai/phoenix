@@ -42,6 +42,7 @@ def context_factory() -> Callable[[Dataset, Optional[Dataset]], Context]:
             response=None,
             model=create_model_from_datasets(primary_dataset, reference_dataset),
             export_path=Path(TemporaryDirectory().name),
+            plumbers={},
         )
 
     return create_context

@@ -1,6 +1,7 @@
 import logging
+from collections import defaultdict
 from pathlib import Path
-from typing import Optional, Union
+from typing import Any, Dict, Hashable, Optional, Union
 
 from starlette.applications import Starlette
 from starlette.datastructures import QueryParams
@@ -19,9 +20,9 @@ from strawberry.schema import BaseSchema
 
 from phoenix.config import SERVER_DIR
 from phoenix.core.model_schema import Model
-
-from .api.context import Context
-from .api.schema import schema
+from phoenix.server.api.context import Context
+from phoenix.server.api.pipeline import ModelPlumberWithCache
+from phoenix.server.api.schema import schema
 
 logger = logging.getLogger(__name__)
 
@@ -66,6 +67,10 @@ class GraphQLWithContext(GraphQL):  # type: ignore
         graphiql: bool = False,
     ) -> None:
         self.model = model
+        self.plumbers: Dict[
+            Hashable,
+            ModelPlumberWithCache[Any, Any],
+        ] = defaultdict(lambda: ModelPlumberWithCache[Any, Any](model))
         self.export_path = export_path
         super().__init__(schema, graphiql=graphiql)
 
@@ -79,6 +84,7 @@ class GraphQLWithContext(GraphQL):  # type: ignore
             response=response,
             model=self.model,
             export_path=self.export_path,
+            plumbers=self.plumbers,
         )
 
 

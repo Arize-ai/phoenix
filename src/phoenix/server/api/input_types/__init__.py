@@ -2,9 +2,10 @@ import collections
 import typing
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field, fields
-from typing import TYPE_CHECKING, Any, Dict, Generic, Iterator, List, TypeVar, get_args
+from typing import TYPE_CHECKING, Any, Dict, Generic, Iterator, List, TypeVar
 
 import strawberry
+from strawberry import UNSET
 
 # workaround for type checker
 # https://github.com/python/mypy/issues/5446#issuecomment-412043677
@@ -47,11 +48,10 @@ class OneOf(Config[_T]):
             f.name
             for f in fields(self)
             if f.name in options
-            and isinstance(
-                (t := options[f.name]),
-                get_args(f.type),
+            and not isinstance(
+                options[f.name],
+                (type(None), type(UNSET)),
             )
-            and not isinstance(t, type(None))
         ]
         if (count := len(got)) != 1:
             name = _lower_first_letter(self.__class__.__name__)

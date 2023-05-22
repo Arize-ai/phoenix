@@ -163,7 +163,7 @@ Result: TypeAlias = Tuple[
 ]
 
 if TYPE_CHECKING:
-    _Pipeline: TypeAlias = Pipeline[
+    _BasePipeline: TypeAlias = Pipeline[
         Model,
         [
             CollectData,
@@ -173,7 +173,7 @@ if TYPE_CHECKING:
         Result,
     ]
 else:
-    _Pipeline: TypeAlias = Pipeline[
+    _BasePipeline: TypeAlias = Pipeline[
         Model,
         Tuple[
             CollectData,
@@ -184,5 +184,5 @@ else:
     ]
 
 
-class PointCloudPipeline(_Pipeline):
+class PointCloudPipeline(_BasePipeline):
     ...

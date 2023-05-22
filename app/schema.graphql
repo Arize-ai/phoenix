@@ -210,13 +210,13 @@ type EmbeddingDimension implements Node {
   """
   driftTimeSeries(metric: VectorDriftMetric!, timeRange: TimeRange!, granularity: Granularity!): DriftTimeSeries!
   UMAPPoints(
-    """Clustering algorithm"""
+    """Data selection (i.e. time range, sampling, etc.)"""
     dataSelector: DataSelector!
 
-    """Dimensionality reduction algorithm"""
+    """Dimensionality reduction technique (e.g. UMAP)"""
     dimensionalityReducer: DimensionalityReducer!
 
-    """Clustering algorithm"""
+    """Clustering method (e.g. HBDSCAN)"""
     clustersFinder: ClustersFinder!
   ): UMAPPoints!
 }

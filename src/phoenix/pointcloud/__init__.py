@@ -2,7 +2,7 @@ import collections
 import typing
 from abc import ABC
 from dataclasses import dataclass, fields
-from typing import TYPE_CHECKING, Any, Iterator, get_args
+from typing import TYPE_CHECKING, Any, Iterator
 
 # workaround for type checker
 # https://github.com/python/mypy/issues/5446#issuecomment-412043677

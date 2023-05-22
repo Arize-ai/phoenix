@@ -1,8 +1,9 @@
 from collections import defaultdict
 from datetime import timedelta
-from typing import Dict, Iterator, List, Optional
+from typing import Dict, Iterator, List, Optional, Tuple, cast
 
 import numpy as np
+import numpy.typing as npt
 import strawberry
 from strawberry import UNSET
 from strawberry.scalars import ID
@@ -42,7 +43,6 @@ from .TimeSeries import (
 )
 from .UMAPPoints import UMAPPoint, UMAPPoints, to_gql_clusters, to_gql_coordinates
 
-DEFAULT_N_SAMPLES = 500
 DRIFT_EVAL_WINDOW_NUM_INTERVALS = 72
 EVAL_INTERVAL_LENGTH = timedelta(hours=1)
 
@@ -165,19 +165,19 @@ class EmbeddingDimension(Node):
         data_selector: Annotated[
             DataSelector,
             strawberry.argument(
-                description="Clustering algorithm",
+                description="Data selection (i.e. time range, sampling, etc.)",
             ),
         ],
         dimensionality_reducer: Annotated[
             DimensionalityReducer,
             strawberry.argument(
-                description="Dimensionality reduction algorithm",
+                description="Dimensionality reduction technique (e.g. UMAP)",
             ),
         ],
         clusters_finder: Annotated[
             ClustersFinder,
             strawberry.argument(
-                description="Clustering algorithm",
+                description="Clustering method (e.g. HBDSCAN)",
             ),
         ],
     ) -> UMAPPoints:
@@ -197,8 +197,19 @@ class EmbeddingDimension(Node):
                 clusters_finder,
             ),
         )
-
-        vectors, cluster_membership = pipeline(model)
+        plumber = info.context.plumbers[
+            (
+                info.path.key,
+                info.path.typename,
+            )
+        ]
+        vectors, cluster_membership = cast(
+            Tuple[
+                Dict[ms.EventId, npt.NDArray[np.float64]],
+                Dict[ms.EventId, int],
+            ],
+            plumber(pipeline),
+        )
 
         points: Dict[ms.DatasetRole, List[UMAPPoint]] = defaultdict(list)
         for event_id, vector in vectors.items():

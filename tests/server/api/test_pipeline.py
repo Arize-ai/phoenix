@@ -47,8 +47,12 @@ def test_pipeline(seed: int) -> None:
     )
     for start in range(len(progression) - 1):
         for stop in range(start + 1, len(progression)):
-            assert_almost_equal(
+            for actual, desired in zip(
                 pipeline(progression[start], start, stop),
-                progression[stop],
-                err_msg=f"start={start}, stop={stop}",
-            )
+                progression[start + 1 : stop + 1],
+            ):
+                assert_almost_equal(
+                    actual,
+                    desired,
+                    err_msg=f"start={start}, stop={stop}",
+                )
