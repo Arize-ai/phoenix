@@ -17,6 +17,8 @@ import {
   ChartTooltip,
   ChartTooltipItem,
   colors,
+  defaultBarChartTooltipProps,
+  defaultTimeXAxisProps,
   useTimeTickFormatter,
 } from "@phoenix/components/chart";
 import { useTimeRange } from "@phoenix/contexts/TimeRangeContext";
@@ -32,7 +34,11 @@ const numberFormatter = new Intl.NumberFormat([], {
 
 const barColor = colors.gray300;
 
-function TooltipContent({ active, payload, label }: TooltipProps<any, any>) {
+function TooltipContent({
+  active,
+  payload,
+  label,
+}: TooltipProps<number, string>) {
   if (active && payload && payload.length) {
     const count = payload[0]?.value ?? null;
     const predictionCountString =
@@ -111,7 +117,7 @@ export function DimensionCountTimeSeries({
   return (
     <ResponsiveContainer width="100%" height="100%">
       <BarChart
-        data={chartData as unknown as any[]}
+        data={chartData}
         margin={timeSeriesChartMargins}
         syncId={"dimensionDetails"}
       >
@@ -122,14 +128,8 @@ export function DimensionCountTimeSeries({
           </linearGradient>
         </defs>
         <XAxis
-          dataKey="timestamp"
-          stroke={theme.colors.gray200}
+          {...defaultTimeXAxisProps}
           tickFormatter={(x) => timeTickFormatter(new Date(x))}
-          style={{ fill: theme.textColors.white70 }}
-          scale="time"
-          type="number"
-          domain={["auto", "auto"]}
-          padding={{ left: 10, right: 10 }}
         />
         <YAxis
           stroke={theme.colors.gray200}
@@ -146,7 +146,10 @@ export function DimensionCountTimeSeries({
           stroke={theme.colors.gray200}
           strokeOpacity={0.5}
         />
-        <Tooltip content={<TooltipContent />} />
+        <Tooltip
+          {...defaultBarChartTooltipProps}
+          content={<TooltipContent />}
+        />
         <Bar dataKey="value" fill="url(#countBarColor)" spacing={5} />
       </BarChart>
     </ResponsiveContainer>

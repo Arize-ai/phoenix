@@ -20,6 +20,8 @@ import {
   ChartTooltip,
   ChartTooltipDivider,
   ChartTooltipItem,
+  colors,
+  defaultBarChartTooltipProps,
   defaultSelectedTimestampReferenceLineProps,
   defaultTimeXAxisProps,
   useTimeTickFormatter,
@@ -35,9 +37,13 @@ const numberFormatter = new Intl.NumberFormat([], {
   maximumFractionDigits: 2,
 });
 
-const barColor = "#93b3c841";
+const barColor = colors.gray500;
 
-function TooltipContent({ active, payload, label }: TooltipProps<any, any>) {
+function TooltipContent({
+  active,
+  payload,
+  label,
+}: TooltipProps<number, string>) {
   if (active && payload && payload.length) {
     const count = payload[0]?.value ?? null;
     const predictionCountString =
@@ -61,7 +67,6 @@ function TooltipContent({ active, payload, label }: TooltipProps<any, any>) {
             align-items: center;
             color: var(--px-light-blue-color);
             gap: var(--px-spacing-sm);
-
             margin-top: var(--px-spacing-sm);
           `}
         >
@@ -179,7 +184,10 @@ export function CountTimeSeries({
           stroke={theme.colors.gray200}
           strokeOpacity={0.5}
         />
-        <Tooltip content={<TooltipContent />} />
+        <Tooltip
+          {...defaultBarChartTooltipProps}
+          content={<TooltipContent />}
+        />
         <Bar dataKey="value" fill="url(#barColor)" spacing={5} />
         {selectedTimestamp != null ? (
           <ReferenceLine

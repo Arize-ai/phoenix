@@ -23,6 +23,7 @@ import {
   ChartTooltipItem,
   colors,
   defaultSelectedTimestampReferenceLineProps,
+  defaultTimeXAxisProps,
   useTimeTickFormatter,
 } from "@phoenix/components/chart";
 import { useTimeRange } from "@phoenix/contexts/TimeRangeContext";
@@ -40,7 +41,11 @@ import { timeSeriesChartMargins } from "./dimensionChartConstants";
 const color = colors.orange300;
 const barColor = "#93b3c841";
 
-function TooltipContent({ active, payload, label }: TooltipProps<any, any>) {
+function TooltipContent({
+  active,
+  payload,
+  label,
+}: TooltipProps<number, string>) {
   if (active && payload && payload.length) {
     const euclideanDistance = payload[1]?.value ?? null;
 
@@ -164,7 +169,7 @@ export function DimensionDriftTimeSeries({
   return (
     <ResponsiveContainer width="100%" height="100%">
       <ComposedChart
-        data={chartData as unknown as any[]}
+        data={chartData}
         margin={timeSeriesChartMargins}
         onClick={onClick}
         syncId={"dimensionDetails"}
@@ -186,15 +191,8 @@ export function DimensionDriftTimeSeries({
           </linearGradient>
         </defs>
         <XAxis
-          dataKey="timestamp"
-          stroke={theme.colors.gray200}
-          // TODO: Fix this to be a cleaner interface
+          {...defaultTimeXAxisProps}
           tickFormatter={(x) => timeTickFormatter(new Date(x))}
-          style={{ fill: theme.textColors.white70 }}
-          scale="time"
-          type="number"
-          domain={["auto", "auto"]}
-          padding={{ left: 10, right: 10 }}
         />
         <YAxis
           stroke={theme.colors.gray200}

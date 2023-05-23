@@ -1,11 +1,39 @@
 import React from "react";
 import { graphql, useFragment } from "react-relay";
 
-import { Text } from "@arizeai/components";
+import {
+  Content,
+  ContextualHelp,
+  Flex,
+  Heading,
+  Text,
+} from "@arizeai/components";
 
+import { ExternalLink } from "@phoenix/components";
 import { floatFormatter } from "@phoenix/utils/numberFormatUtils";
 
 import { DimensionDriftStats_dimension$key } from "./__generated__/DimensionDriftStats_dimension.graphql";
+
+const contextualHelp = (
+  <ContextualHelp variant="info" placement="top end">
+    <Heading weight="heavy" level={4}>
+      Population Stability Index
+    </Heading>
+    <Content>
+      <Text>
+        PSI is a symmetric metric that measures the relative entropy, or
+        difference in information represented by two distributions. It can be
+        thought of as measuring the distance between two data distributions
+        showing how different the two distributions are from each other.
+      </Text>
+    </Content>
+    <footer>
+      <ExternalLink href="https://arize.com/blog-course/population-stability-index-psi/#:~:text=Population%20Stability%20Index%20(PSI)%20Overview,distributions%20are%20from%20each%20other.">
+        Learn more
+      </ExternalLink>
+    </footer>
+  </ContextualHelp>
+);
 
 export function DimensionDriftStats(props: {
   dimension: DimensionDriftStats_dimension$key;
@@ -23,9 +51,12 @@ export function DimensionDriftStats(props: {
 
   return (
     <>
-      <Text elementType="h3" textSize="small" color="white70">
-        PSI
-      </Text>
+      <Flex direction="row" alignItems="center" gap="size-25">
+        <Text elementType="h3" textSize="small" color="white70">
+          PSI
+        </Text>
+        {contextualHelp}
+      </Flex>
       <Text textSize="xlarge">{floatFormatter(data.psi)}</Text>
     </>
   );

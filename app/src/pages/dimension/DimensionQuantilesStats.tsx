@@ -26,7 +26,13 @@ export function DimensionQuantilesStats(props: {
   );
 
   return (
-    <ul>
+    <ul
+      css={css`
+        display: flex;
+        flex-direction: column;
+        gap: var(--px-spacing-sm);
+      `}
+    >
       {Object.keys(data).map((statName) => {
         const stat = data[statName as keyof typeof data];
         return (
@@ -38,10 +44,10 @@ export function DimensionQuantilesStats(props: {
               align-items: flex-end;
             `}
           >
-            <Text elementType="h3" textSize="small" color="white70">
+            <Text elementType="h3" textSize="xsmall" color="white70">
               {statName}
             </Text>
-            <Text textSize="large" data-raw={stat}>
+            <Text textSize="medium" data-raw={stat}>
               {numberFormatter(stat as number | null)}
             </Text>
           </li>
