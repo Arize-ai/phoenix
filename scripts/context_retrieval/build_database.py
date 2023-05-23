@@ -1,6 +1,6 @@
 """
-Downloads and persists Stanford Question Answering Dataset (SQuAD) training data. Builds and persists LlamaIndex database. Computes OpenAI
-embeddings for query and database data.
+Downloads and persists Stanford Question Answering Dataset (SQuAD) training data. Builds and
+persists LlamaIndex database. Computes OpenAI embeddings for query and database data.
 """
 
 import json
