@@ -26,7 +26,9 @@ export function formatInt(int: number): string {
  */
 export function formatFloat(float: number): string {
   const absValue = Math.abs(float);
-  if (absValue < 1000) return format(".3")(float);
+  if (absValue === 0.0) return "0.00";
+  else if (absValue < 0.01) return format(".2e")(float);
+  else if (absValue < 1000) return format("0.2f")(float);
   return format("0.2s")(float);
 }
 

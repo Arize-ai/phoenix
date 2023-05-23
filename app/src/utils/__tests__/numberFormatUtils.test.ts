@@ -12,12 +12,14 @@ describe("formatInt", () => {
 
 describe("formatFloat", () => {
   it("formats floats cleanly", () => {
+    expect(formatFloat(0)).toEqual("0.00");
+    expect(formatFloat(0.0000001)).toEqual("1.00e-7");
     expect(formatFloat(0.01)).toEqual("0.01");
-    expect(formatFloat(0.1)).toEqual("0.1");
+    expect(formatFloat(0.1)).toEqual("0.10");
     expect(formatFloat(1234234.2)).toEqual("1.2M");
     expect(formatFloat(1230.8)).toEqual("1.2k");
-    expect(formatFloat(123)).toEqual("123");
-    expect(formatFloat(123.23)).toEqual("123");
-    expect(formatFloat(12.23)).toEqual("12.2");
+    expect(formatFloat(123)).toEqual("123.00");
+    expect(formatFloat(123.23)).toEqual("123.23");
+    expect(formatFloat(12.23)).toEqual("12.23");
   });
 });

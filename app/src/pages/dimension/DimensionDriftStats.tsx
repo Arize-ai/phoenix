@@ -4,9 +4,9 @@ import { format } from "d3-format";
 
 import { Text } from "@arizeai/components";
 
-import { DimensionDriftStats_dimension$key } from "./__generated__/DimensionDriftStats_dimension.graphql";
+import { floatFormatter } from "@phoenix/utils/numberFormatUtils";
 
-const formatter = format(".2");
+import { DimensionDriftStats_dimension$key } from "./__generated__/DimensionDriftStats_dimension.graphql";
 
 export function DimensionDriftStats(props: {
   dimension: DimensionDriftStats_dimension$key;
@@ -25,11 +25,9 @@ export function DimensionDriftStats(props: {
   return (
     <>
       <Text elementType="h3" textSize="small" color="white70">
-        Drift
+        PSI
       </Text>
-      <Text textSize="xlarge">
-        {data.psi != null ? formatter(data.psi) : "--"}
-      </Text>
+      <Text textSize="xlarge">{floatFormatter(data.psi)}</Text>
     </>
   );
 }
