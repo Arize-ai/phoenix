@@ -248,12 +248,10 @@ export function DimensionDriftBreakdownSegmentBarChart(props: {
             <Bar
               dataKey="primaryPercent"
               fill="url(#dimensionPrimarySegmentsBarColor)"
-              spacing={5}
             />
             <Bar
               dataKey="referencePercent"
               fill="url(#dimensionReferenceSegmentsBarColor)"
-              spacing={5}
             />
           </BarChart>
         </ResponsiveContainer>
