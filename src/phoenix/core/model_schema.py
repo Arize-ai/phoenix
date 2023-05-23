@@ -398,11 +398,11 @@ class ScalarDimension(Dimension):
         return model.dimension_min_max_from_all_df(self.name)
 
     @property
-    def categories(self) -> Tuple[Any, ...]:
+    def categories(self) -> Tuple[str, ...]:
         if self._model is None or self.data_type is CONTINUOUS:
             return ()
         model = cast(Model, self._model)
-        return tuple(model.dimension_categories_from_all_datasets(self.name).dropna())
+        return model.dimension_categories_from_all_datasets(self.name)
 
 
 @dataclass(frozen=True)
@@ -709,7 +709,7 @@ class Model:
     _original_columns_by_role: Dict[DatasetRole, pd.Index]
     _default_timestamps_factory: _ConstantValueSeriesFactory
     _nan_series_factory: _ConstantValueSeriesFactory
-    _dimension_categories_from_all_datasets: _Cache[Name, "pd.Series[Any]"]
+    _dimension_categories_from_all_datasets: _Cache[Name, Tuple[str, ...]]
     _dimension_min_max_from_all_datasets: _Cache[Name, Tuple[float, float]]
 
     def __init__(
@@ -800,7 +800,11 @@ class Model:
         # features and tags.
         for dim in self[ScalarDimension]:
             if dim.data_type is UNKNOWN:
-                data_type = _guess_data_type(map(dim, self._datasets.values()))
+                phisical_series = []
+                for dataset in self._datasets.values():
+                    if dim.name in dataset.columns:
+                        phisical_series.append(dataset.loc[:, dim.name])
+                data_type = _guess_data_type(phisical_series)
                 self._dimensions[dim.name] = replace(dim, data_type=data_type)
 
         # Add PREDICTION_ID if missing.
@@ -904,18 +908,20 @@ class Model:
     def dimension_categories_from_all_datasets(
         self,
         dimension_name: Name,
-    ) -> "pd.Series[Any]":
+    ) -> Tuple[str, ...]:
         dim = self[dimension_name]
         if dim.data_type is CONTINUOUS:
-            return pd.Series(dtype=object)
+            return cast(Tuple[str, ...], ())
         with self._dimension_categories_from_all_datasets() as cache:
             try:
                 return cache[dimension_name]
             except KeyError:
                 pass
-        categories_by_dataset = (dim[role].unique() for role in DatasetRole)
+        categories_by_dataset = (
+            pd.Series(dim[role].unique()).dropna().astype(str) for role in DatasetRole
+        )
         all_values_combined = chain.from_iterable(categories_by_dataset)
-        ans = pd.Series(all_values_combined).sort_values().drop_duplicates()
+        ans = tuple(np.sort(pd.Series(all_values_combined).unique()))
         with self._dimension_categories_from_all_datasets() as cache:
             cache[dimension_name] = ans
         return ans
