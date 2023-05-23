@@ -2,9 +2,8 @@ import numpy as np
 import pandas as pd
 import pytest
 from pandas import DataFrame, Timestamp
-from phoenix.core import EmbeddingDimension
-from phoenix.core.model import _get_embedding_dimensions
-from phoenix.datasets import Dataset, EmbeddingColumnNames, Schema
+from phoenix.core.model import EmbeddingDimension, _get_embedding_dimensions
+from phoenix.datasets.dataset import Dataset, EmbeddingColumnNames, Schema
 
 
 @pytest.fixture
@@ -135,7 +134,7 @@ def test_valid_model_embeddings_one_dataset_missing_embeddings_feature(
 
 
 def test_valid_model_with_nan_embeddings(dataset_with_embedding_vector):
-    dataset_with_embedding_vector.dataframe["embedding_vector0"] = float("nan")
+    dataset_with_embedding_vector.dataframe["embedding_vector0"] = np.nan
     embedding_dimensions = _get_embedding_dimensions(
         dataset_with_embedding_vector,
         dataset_with_embedding_vector,

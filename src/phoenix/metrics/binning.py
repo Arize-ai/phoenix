@@ -80,8 +80,8 @@ class IntervalBinning(BinningMethod):
             else pd.IntervalIndex(
                 (
                     pd.Interval(
-                        float("-inf"),
-                        float("inf"),
+                        np.NINF,
+                        np.inf,
                         closed="neither",
                     ),
                 )
@@ -211,7 +211,7 @@ class QuantileBinning(IntervalBinning):
         # Extend min and max to infinities, unless len(breaks) < 3,
         # in which case the min is kept and two bins are created.
         breaks = breaks[1:-1] if len(breaks) > 2 else breaks[:1]
-        breaks = [float("-inf")] + breaks + [float("inf")]
+        breaks = [np.NINF] + breaks + [np.inf]
         return pd.IntervalIndex.from_breaks(
             breaks,
             closed="left",
@@ -292,7 +292,7 @@ class CategoricalBinning(BinningMethod):
 Distribution: TypeAlias = "pd.Series[float]"
 
 
-@dataclass
+@dataclass(frozen=True)
 class Normalizer(ABC):
     """A function that normalizes counts/frequencies to probabilities."""
 
@@ -301,7 +301,7 @@ class Normalizer(ABC):
         ...
 
 
-@dataclass
+@dataclass(frozen=True)
 class AdditiveSmoothing(Normalizer):
     r"""A function that normalizes counts/frequencies to probabilities with
     additive smoothing. Defaults to Laplace smoothing with `pseudocount=1`.

@@ -4,7 +4,6 @@ Test dataset
 import logging
 import uuid
 from dataclasses import replace
-from datetime import timedelta
 from typing import Optional
 
 import numpy as np
@@ -731,37 +730,6 @@ class TestDataset:
         assert isinstance(exc_info.value, DatasetError)
         assert isinstance(exc_info.value.errors[0], err.InvalidSchemaError)
 
-    def test_dataset_bookends(self) -> None:
-        raw_data_min_time = Timestamp(year=2023, month=1, day=1, hour=2, second=30, tzinfo=pytz.utc)
-        raw_data_max_time = Timestamp(
-            year=2023, month=1, day=10, hour=6, second=20, tzinfo=pytz.utc
-        )
-        input_df = DataFrame(
-            {
-                "prediction_label": ["apple", "orange", "grape"],
-                "timestamp": [
-                    raw_data_max_time,
-                    raw_data_min_time,
-                    Timestamp(year=2023, month=1, day=5, hour=4, second=25, tzinfo=pytz.utc),
-                ],
-            }
-        )
-
-        input_schema = Schema(
-            prediction_label_column_name="prediction_label",
-            timestamp_column_name="timestamp",
-        )
-        output_dataset = Dataset(dataframe=input_df, schema=input_schema)
-
-        assert output_dataset.start_time == raw_data_min_time.replace(
-            second=0,
-            microsecond=0,
-        )
-        assert output_dataset.end_time == (raw_data_max_time + timedelta(minutes=1)).replace(
-            second=0,
-            microsecond=0,
-        )
-
     @property
     def num_records(self):
         return self._NUM_RECORDS
@@ -1337,7 +1305,6 @@ def test_dataset_with_arize_schema() -> None:
     dataset = Dataset(dataframe=input_df, schema=input_schema)
     assert isinstance(dataset.schema, Schema)
     assert dataset.schema.prediction_id_column_name == "prediction_id"
-    embedding_columns_def = dataset._get_embedding_feature_column_names(
-        embedding_feature_name="embedding"
+    assert (
+        dataset.schema.embedding_feature_column_names["embedding"].vector_column_name == "embedding"
     )
-    assert embedding_columns_def.vector_column_name == "embedding"

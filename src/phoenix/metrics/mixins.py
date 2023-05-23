@@ -4,7 +4,7 @@ BaseMetric. Other mixins provide specialized functionalities. Mixins rely
 on cooperative multiple inheritance and method resolution order in Python.
 """
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from functools import cached_property
 from typing import Any, Iterator, Mapping
 
@@ -65,7 +65,7 @@ class BaseMetric(ABC):
         return id(self)
 
     def initial_value(self) -> Any:
-        return float("nan")
+        return np.nan
 
     def get_value(self, result: Mapping[int, Any]) -> Any:
         try:
@@ -81,7 +81,7 @@ class BaseMetric(ABC):
         try:
             return self.calc(dataframe)
         except (TypeError, ValueError):
-            return float("nan")
+            return np.nan
 
 
 @dataclass(frozen=True)
@@ -96,7 +96,9 @@ class EvaluationMetric(BaseMetric, ABC):
 
 @dataclass(frozen=True)
 class DriftOperator(UnaryOperator, BaseMetric, ABC):
-    reference_data: pd.DataFrame = pd.DataFrame()
+    reference_data: pd.DataFrame = field(
+        default_factory=pd.DataFrame,
+    )
 
 
 Distribution: TypeAlias = "pd.Series[float]"
