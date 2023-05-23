@@ -1,4 +1,5 @@
 import { assertUnreachable } from "@phoenix/typeUtils";
+import { formatNumber } from "@phoenix/utils/numberFormatUtils";
 
 /**
  * A object type to represent the graphql bin types
@@ -33,8 +34,9 @@ export function getBinName(bin: GqlBin): string {
     case "NominalBin":
       return bin.name;
     case "IntervalBin":
-      // TODO(mikeldking) - add a general case number formatter
-      return `${bin.range.start} - ${bin.range.end}`;
+      return `${formatNumber(bin.range.start)} - ${formatNumber(
+        bin.range.end
+      )}`;
     case "MissingValueBin":
       return "(empty)";
     case "%other":

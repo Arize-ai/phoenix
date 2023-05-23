@@ -4,15 +4,9 @@ import { css } from "@emotion/react";
 
 import { Text } from "@arizeai/components";
 
+import { numberFormatter } from "@phoenix/utils/numberFormatUtils";
+
 import { DimensionQuantilesStats_dimension$key } from "./__generated__/DimensionQuantilesStats_dimension.graphql";
-
-const numberFormatter = new Intl.NumberFormat([], {
-  maximumFractionDigits: 2,
-});
-
-function formatValue(value: number | null) {
-  return typeof value === "number" ? numberFormatter.format(value) : "--";
-}
 
 export function DimensionQuantilesStats(props: {
   dimension: DimensionQuantilesStats_dimension$key;
@@ -47,7 +41,9 @@ export function DimensionQuantilesStats(props: {
             <Text elementType="h3" textSize="small" color="white70">
               {statName}
             </Text>
-            <Text textSize="large">{formatValue(stat as number | null)}</Text>
+            <Text textSize="large" data-raw={stat}>
+              {numberFormatter(stat as number | null)}
+            </Text>
           </li>
         );
       })}
