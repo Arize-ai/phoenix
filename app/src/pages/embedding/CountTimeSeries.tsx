@@ -155,7 +155,7 @@ export function CountTimeSeries({
   return (
     <ResponsiveContainer width="100%" height="100%">
       <ComposedChart
-        data={chartData as unknown as any[]}
+        data={chartData}
         margin={{ top: 25, right: 80, left: 18, bottom: 10 }}
         onClick={onClick}
       >
