@@ -799,13 +799,18 @@ class Model:
         # Guess the data type, i.e. continuous or discrete, for scalar
         # features and tags.
         for dim in self[ScalarDimension]:
-            if dim.data_type is UNKNOWN:
-                phisical_series = []
-                for dataset in self._datasets.values():
-                    if dim.name in dataset.columns:
-                        phisical_series.append(dataset.loc[:, dim.name])
-                data_type = _guess_data_type(phisical_series)
-                self._dimensions[dim.name] = replace(dim, data_type=data_type)
+            if dim.data_type is not UNKNOWN:
+                continue
+            self._dimensions[dim.name] = replace(
+                dim,
+                data_type=(
+                    _guess_data_type(
+                        dataset.loc[:, dim.name]
+                        for dataset in self._datasets.values()
+                        if dim.name in dataset.columns
+                    )
+                ),
+            )
 
         # Add PREDICTION_ID if missing.
         # Add TIMESTAMP if missing.
