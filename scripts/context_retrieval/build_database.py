@@ -11,9 +11,9 @@ import urllib
 from typing import Any, List, Tuple, TypedDict
 
 import numpy as np
-import openai
+import openai  # type: ignore
 import pandas as pd
-import tiktoken
+import tiktoken  # type: ignore
 import tqdm  # type: ignore
 from llama_index import GPTVectorStoreIndex  # type: ignore
 from llama_index.data_structs.node import DocumentRelationship, Node  # type: ignore
