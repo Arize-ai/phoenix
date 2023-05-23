@@ -5,13 +5,10 @@ import { css } from "@emotion/react";
 import { Text } from "@arizeai/components";
 
 import { DimensionQuantilesStats_dimension$key } from "./__generated__/DimensionQuantilesStats_dimension.graphql";
-
-const numberFormatter = new Intl.NumberFormat([], {
-  maximumFractionDigits: 2,
-});
+import { formatFloat } from "@phoenix/utils/numberFormatUtils";
 
 function formatValue(value: number | null) {
-  return typeof value === "number" ? numberFormatter.format(value) : "--";
+  return typeof value === "number" ? formatFloat(value) : "--";
 }
 
 export function DimensionQuantilesStats(props: {
@@ -47,7 +44,9 @@ export function DimensionQuantilesStats(props: {
             <Text elementType="h3" textSize="small" color="white70">
               {statName}
             </Text>
-            <Text textSize="large">{formatValue(stat as number | null)}</Text>
+            <Text textSize="large" data-raw={stat}>
+              {formatValue(stat as number | null)}
+            </Text>
           </li>
         );
       })}

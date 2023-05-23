@@ -28,6 +28,12 @@ import { calculateGranularity } from "@phoenix/utils/timeSeriesUtils";
 
 import { DimensionQuantilesTimeSeriesQuery } from "./__generated__/DimensionQuantilesTimeSeriesQuery.graphql";
 import { timeSeriesChartMargins } from "./dimensionChartConstants";
+import { format } from "d3-format";
+
+/**
+ * Quantiles are floats so we want to create a trimmed down version of the significant digits
+ */
+const yTickFormatter = format("~s");
 
 enum Label {
   p99_p01 = "p99_p01",
@@ -263,6 +269,7 @@ export function DimensionQuantilesTimeSeries({
             position: "insideLeft",
             style: { textAnchor: "middle", fill: theme.textColors.white90 },
           }}
+          tickFormatter={(x) => yTickFormatter(x)}
           style={{ fill: theme.textColors.white70 }}
         />
         <CartesianGrid
