@@ -1,6 +1,7 @@
 from collections import defaultdict
 from typing import Any, Dict, List, Optional
 
+import pandas as pd
 import strawberry
 from strawberry import UNSET
 from strawberry.types import Info
@@ -204,7 +205,7 @@ class Dimension(Node):
 
         model = info.context.model
         count = Count()
-        summaries = {}
+        summaries = defaultdict(pd.DataFrame)
         binning_method = (
             binning.QuantileBinning(
                 reference_series=self.dimension[REFERENCE],
