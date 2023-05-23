@@ -10,7 +10,7 @@ from portpicker import pick_unused_port
 
 from phoenix.config import PORT, get_exported_files
 from phoenix.core.model_schema_adapter import create_model_from_datasets
-from phoenix.datasets import Dataset
+from phoenix.datasets.dataset import Dataset
 from phoenix.server.app import create_app
 from phoenix.server.thread_server import ThreadServer
 from phoenix.services import AppService

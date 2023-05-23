@@ -6,7 +6,7 @@ from unittest.mock import Mock
 import pytest
 from phoenix.core.model_schema import Model
 from phoenix.core.model_schema_adapter import create_model_from_datasets
-from phoenix.datasets import Dataset
+from phoenix.datasets.dataset import Dataset
 from phoenix.server.api.context import Context
 from phoenix.server.api.schema import Query
 from strawberry.schema import Schema as StrawberrySchema

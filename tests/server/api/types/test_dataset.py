@@ -2,8 +2,8 @@ from typing import Callable, Literal, Optional
 
 import pytest
 from pandas import DataFrame, Timestamp
-from phoenix.datasets import Dataset as InternalDataset
-from phoenix.datasets import Schema
+from phoenix.datasets.dataset import Dataset as InternalDataset
+from phoenix.datasets.dataset import Schema
 from phoenix.server.api.context import Context
 from strawberry.schema import Schema as StrawberrySchema
 from typing_extensions import TypeAlias
