@@ -18,6 +18,7 @@ import {
   ChartTooltip,
   ChartTooltipItem,
   colors,
+  defaultBarChartTooltipProps,
   getBinName,
 } from "@phoenix/components/chart";
 
@@ -151,7 +152,10 @@ export function DimensionSegmentsBarChart(props: {
           stroke={theme.colors.gray200}
           strokeOpacity={0.5}
         />
-        <Tooltip content={<TooltipContent />} />
+        <Tooltip
+          {...defaultBarChartTooltipProps}
+          content={<TooltipContent />}
+        />
         <Bar
           dataKey="percent"
           fill="url(#dimensionSegmentsBarColor)"

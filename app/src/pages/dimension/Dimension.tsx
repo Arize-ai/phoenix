@@ -81,83 +81,112 @@ export function Dimension() {
               padding: var(--px-spacing-med);
               display: flex;
               flex-direction: column;
-              gap: var(--px-spacing-med);
               min-height: 400px;
               overflow-y: auto;
+              height: 100%;
             `}
           >
             <Suspense fallback={<Loading />}>
-              <View
-                borderColor="dark"
-                borderRadius="medium"
-                borderWidth="thin"
-                height="size-1600"
-              >
-                <DimensionSegmentsBarChart dimension={data.dimension} />
-              </View>
-              <View
-                borderColor="dark"
-                borderRadius="medium"
-                borderWidth="thin"
-                height="size-1600"
-                data-testid="dimension-count-time-series-view"
-              >
-                <Flex direction="row" alignItems="stretch" height="100%">
-                  <DimensionCountTimeSeries dimensionId={dimensionId} />
-                  <ViewSummaryAside>
-                    <DimensionCountStats dimension={data.dimension} />
-                  </ViewSummaryAside>
-                </Flex>
-              </View>
-
-              {showDrift ? (
+              <Flex direction="column" gap="size-100">
                 <View
                   borderColor="dark"
                   borderRadius="medium"
                   borderWidth="thin"
+                  height="size-1600"
                 >
-                  <Flex direction="column" alignItems="stretch">
-                    <View width="100%" height="size-1600">
-                      <Flex direction="row" alignItems="stretch" height="100%">
-                        <View flex>
-                          <DimensionDriftTimeSeries dimensionId={dimensionId} />
-                        </View>
-                        <ViewSummaryAside>
-                          <DimensionDriftStats dimension={data.dimension} />
-                        </ViewSummaryAside>
-                      </Flex>
-                    </View>
-                    <View
-                      height="size-1600"
-                      width="100%"
-                      borderTopColor="dark"
-                      borderTopWidth="thin"
-                    >
-                      <Suspense fallback={<Loading />}>
-                        <DimensionDriftBreakdownSegmentBarChart
-                          dimensionId={dimensionId}
-                        />
-                      </Suspense>
-                    </View>
-                  </Flex>
+                  <DimensionSegmentsBarChart dimension={data.dimension} />
                 </View>
-              ) : null}
-              {showQuantiles ? (
                 <View
                   borderColor="dark"
                   borderRadius="medium"
                   borderWidth="thin"
-                  height="size-3000"
+                  height="size-1600"
+                  data-testid="dimension-count-time-series-view"
                 >
                   <Flex direction="row" alignItems="stretch" height="100%">
-                    <DimensionQuantilesTimeSeries dimensionId={dimensionId} />
+                    <DimensionCountTimeSeries dimensionId={dimensionId} />
                     <ViewSummaryAside>
-                      <DimensionQuantilesStats dimension={data.dimension} />
+                      <DimensionCountStats dimension={data.dimension} />
                     </ViewSummaryAside>
                   </Flex>
                 </View>
-              ) : null}
-              {showCardinality ? (
+
+                {showDrift ? (
+                  <View
+                    borderColor="dark"
+                    borderRadius="medium"
+                    borderWidth="thin"
+                  >
+                    <Flex direction="column" alignItems="stretch">
+                      <View width="100%" height="size-1600">
+                        <Flex
+                          direction="row"
+                          alignItems="stretch"
+                          height="100%"
+                        >
+                          <View flex>
+                            <DimensionDriftTimeSeries
+                              dimensionId={dimensionId}
+                            />
+                          </View>
+                          <ViewSummaryAside>
+                            <DimensionDriftStats dimension={data.dimension} />
+                          </ViewSummaryAside>
+                        </Flex>
+                      </View>
+                      <View
+                        height="size-1600"
+                        width="100%"
+                        borderTopColor="dark"
+                        borderTopWidth="thin"
+                      >
+                        <Suspense fallback={<Loading />}>
+                          <DimensionDriftBreakdownSegmentBarChart
+                            dimensionId={dimensionId}
+                          />
+                        </Suspense>
+                      </View>
+                    </Flex>
+                  </View>
+                ) : null}
+                {showQuantiles ? (
+                  <View
+                    borderColor="dark"
+                    borderRadius="medium"
+                    borderWidth="thin"
+                    height="size-3000"
+                  >
+                    <Flex direction="row" alignItems="stretch" height="100%">
+                      <View flex>
+                        <DimensionQuantilesTimeSeries
+                          dimensionId={dimensionId}
+                        />
+                      </View>
+                      <ViewSummaryAside>
+                        <DimensionQuantilesStats dimension={data.dimension} />
+                      </ViewSummaryAside>
+                    </Flex>
+                  </View>
+                ) : null}
+                {showCardinality ? (
+                  <View
+                    borderColor="dark"
+                    borderRadius="medium"
+                    borderWidth="thin"
+                    height="size-1600"
+                  >
+                    <Flex direction="row" alignItems="stretch" height="100%">
+                      <View flex>
+                        <DimensionCardinalityTimeSeries
+                          dimensionId={dimensionId}
+                        />
+                      </View>
+                      <ViewSummaryAside>
+                        <DimensionCardinalityStats dimension={data.dimension} />
+                      </ViewSummaryAside>
+                    </Flex>
+                  </View>
+                ) : null}
                 <View
                   borderColor="dark"
                   borderRadius="medium"
@@ -165,26 +194,15 @@ export function Dimension() {
                   height="size-1600"
                 >
                   <Flex direction="row" alignItems="stretch" height="100%">
-                    <DimensionCardinalityTimeSeries dimensionId={dimensionId} />
+                    <DimensionPercentEmptyTimeSeries
+                      dimensionId={dimensionId}
+                    />
                     <ViewSummaryAside>
-                      <DimensionCardinalityStats dimension={data.dimension} />
+                      <DimensionPercentEmptyStats dimension={data.dimension} />
                     </ViewSummaryAside>
                   </Flex>
                 </View>
-              ) : null}
-              <View
-                borderColor="dark"
-                borderRadius="medium"
-                borderWidth="thin"
-                height="size-1600"
-              >
-                <Flex direction="row" alignItems="stretch" height="100%">
-                  <DimensionPercentEmptyTimeSeries dimensionId={dimensionId} />
-                  <ViewSummaryAside>
-                    <DimensionPercentEmptyStats dimension={data.dimension} />
-                  </ViewSummaryAside>
-                </Flex>
-              </View>
+              </Flex>
             </Suspense>
           </main>
         </Dialog>
