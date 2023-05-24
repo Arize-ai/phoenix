@@ -29,6 +29,7 @@ import {
   ChartTooltip,
   ChartTooltipDivider,
   ChartTooltipItem,
+  colors,
   defaultSelectedTimestampReferenceLineProps,
   defaultTimeXAxisProps,
 } from "@phoenix/components/chart";
@@ -47,8 +48,8 @@ const numberFormatter = new Intl.NumberFormat([], {
   maximumFractionDigits: 2,
 });
 
-const color = "#5899C5";
-const barColor = "#93b3c841";
+const color = colors.blue400;
+const barColor = colors.gray500;
 
 const embeddingDriftContextualHelp = (
   <ContextualHelp>
@@ -60,7 +61,11 @@ const embeddingDriftContextualHelp = (
     </Content>
   </ContextualHelp>
 );
-function TooltipContent({ active, payload, label }: TooltipProps<any, any>) {
+function TooltipContent({
+  active,
+  payload,
+  label,
+}: TooltipProps<number, string>) {
   if (active && payload && payload.length) {
     const euclideanDistance = payload[1]?.value ?? null;
     const count = payload[0]?.value ?? null;
@@ -222,7 +227,7 @@ export function EuclideanDistanceTimeSeries({
       <div>
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart
-            data={chartData as unknown as any[]}
+            data={chartData}
             margin={{ top: 25, right: 18, left: 18, bottom: 10 }}
             onClick={onClick}
           >
@@ -232,7 +237,7 @@ export function EuclideanDistanceTimeSeries({
                 <stop offset="95%" stopColor={color} stopOpacity={0} />
               </linearGradient>
               <linearGradient id="barColor" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor={barColor} stopOpacity={0.8} />
+                <stop offset="5%" stopColor={barColor} stopOpacity={0.3} />
                 <stop offset="95%" stopColor={barColor} stopOpacity={0} />
               </linearGradient>
             </defs>

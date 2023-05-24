@@ -19,6 +19,7 @@ import {
   ChartTooltip,
   ChartTooltipItem,
   colors,
+  defaultBarChartTooltipProps,
   getBinName,
 } from "@phoenix/components/chart";
 import { useDatasets } from "@phoenix/contexts";
@@ -244,7 +245,10 @@ export function DimensionDriftBreakdownSegmentBarChart(props: {
               stroke={theme.colors.gray200}
               strokeOpacity={0.5}
             />
-            <Tooltip content={<TooltipContent />} />
+            <Tooltip
+              {...defaultBarChartTooltipProps}
+              content={<TooltipContent />}
+            />
             <Bar
               dataKey="primaryPercent"
               fill="url(#dimensionPrimarySegmentsBarColor)"

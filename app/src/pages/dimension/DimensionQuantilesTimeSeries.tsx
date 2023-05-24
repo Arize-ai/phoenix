@@ -21,6 +21,7 @@ import {
   ChartTooltip,
   ChartTooltipItem,
   colors,
+  defaultTimeXAxisProps,
   useTimeTickFormatter,
 } from "@phoenix/components/chart";
 import { useTimeRange } from "@phoenix/contexts/TimeRangeContext";
@@ -235,7 +236,7 @@ export function DimensionQuantilesTimeSeries({
   return (
     <ResponsiveContainer width="100%" height="100%">
       <ComposedChart
-        data={chartData as unknown as any[]}
+        data={chartData}
         margin={timeSeriesChartMargins}
         syncId={"dimensionDetails"}
       >
@@ -252,14 +253,8 @@ export function DimensionQuantilesTimeSeries({
           </linearGradient>
         </defs>
         <XAxis
-          dataKey="timestamp"
-          stroke={theme.colors.gray200}
+          {...defaultTimeXAxisProps}
           tickFormatter={(x) => timeTickFormatter(new Date(x))}
-          style={{ fill: theme.textColors.white70 }}
-          scale="time"
-          type="number"
-          domain={["auto", "auto"]}
-          padding={{ left: 10, right: 10 }}
         />
         <YAxis
           stroke={theme.colors.gray200}
