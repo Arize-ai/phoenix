@@ -1,12 +1,11 @@
 import React from "react";
 import { graphql, useFragment } from "react-relay";
-import { format } from "d3-format";
 
 import { Text } from "@arizeai/components";
 
-import { DimensionPercentEmptyStats_dimension$key } from "./__generated__/DimensionPercentEmptyStats_dimension.graphql";
+import { percentFormatter } from "@phoenix/utils/numberFormatUtils";
 
-const formatter = format(".2f");
+import { DimensionPercentEmptyStats_dimension$key } from "./__generated__/DimensionPercentEmptyStats_dimension.graphql";
 
 export function DimensionPercentEmptyStats(props: {
   dimension: DimensionPercentEmptyStats_dimension$key;
@@ -14,12 +13,19 @@ export function DimensionPercentEmptyStats(props: {
   const data = useFragment<DimensionPercentEmptyStats_dimension$key>(
     graphql`
       fragment DimensionPercentEmptyStats_dimension on Dimension
-      @argumentDefinitions(timeRange: { type: "TimeRange!" }) {
+      @argumentDefinitions(
+        timeRange: { type: "TimeRange!" }
+        hasReference: { type: "Boolean!" }
+      ) {
         id
         percentEmpty: dataQualityMetric(
           metric: percentEmpty
           timeRange: $timeRange
         )
+        referencePercentEmpty: dataQualityMetric(
+          metric: percentEmpty
+          datasetRole: reference
+        ) @include(if: $hasReference)
       }
     `,
     props.dimension
@@ -30,9 +36,17 @@ export function DimensionPercentEmptyStats(props: {
       <Text elementType="h3" textSize="small" color="white70">
         % Empty
       </Text>
-      <Text textSize="xlarge">
-        {data.percentEmpty != null ? `${formatter(data.percentEmpty)}%` : "--"}
-      </Text>
+      <Text textSize="xlarge">{percentFormatter(data.percentEmpty)}</Text>
+      {data.referencePercentEmpty != null && (
+        <Text
+          textSize="medium"
+          color="white70"
+          title="the reference percent empty"
+          className="reference-text-color"
+        >
+          {percentFormatter(data.referencePercentEmpty)}
+        </Text>
+      )}
     </>
   );
 }
