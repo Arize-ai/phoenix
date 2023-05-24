@@ -29,7 +29,8 @@ export function Dimension() {
   const { timeRange } = useTimeRange();
   const loaderData = useLoaderData() as dimensionLoaderQuery$data;
   const { referenceDataset } = useDatasets();
-  const showDrift = referenceDataset !== null;
+  const hasReference = referenceDataset !== null;
+  const showDrift = hasReference;
   // Only show cardinality if if the shape is non-continuous
   const showCardinality = loaderData.dimension.shape !== "continuous";
   const showQuantiles = loaderData.dimension.dataType === "numeric";
@@ -37,7 +38,11 @@ export function Dimension() {
 
   const data = useLazyLoadQuery<DimensionQuery>(
     graphql`
-      query DimensionQuery($dimensionId: GlobalID!, $timeRange: TimeRange!) {
+      query DimensionQuery(
+        $dimensionId: GlobalID!
+        $timeRange: TimeRange!
+        $hasReference: Boolean!
+      ) {
         dimension: node(id: $dimensionId) {
           ... on Dimension {
             id
@@ -46,9 +51,9 @@ export function Dimension() {
             ...DimensionCountStats_dimension @arguments(timeRange: $timeRange)
             ...DimensionDriftStats_dimension @arguments(timeRange: $timeRange)
             ...DimensionCardinalityStats_dimension
-              @arguments(timeRange: $timeRange)
+              @arguments(timeRange: $timeRange, hasReference: $hasReference)
             ...DimensionPercentEmptyStats_dimension
-              @arguments(timeRange: $timeRange)
+              @arguments(timeRange: $timeRange, hasReference: $hasReference)
             ...DimensionQuantilesStats_dimension
               @arguments(timeRange: $timeRange)
           }
@@ -61,6 +66,7 @@ export function Dimension() {
         start: timeRange.start.toISOString(),
         end: timeRange.end.toISOString(),
       },
+      hasReference,
     }
   );
 
@@ -84,6 +90,10 @@ export function Dimension() {
               min-height: 400px;
               overflow-y: auto;
               height: 100%;
+              // TODO: Remove this once we have text color support in the theme
+              .reference-text-color {
+                color: var(--px-reference-color);
+              }
             `}
           >
             <Suspense fallback={<Loading />}>

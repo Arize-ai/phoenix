@@ -32,6 +32,10 @@ export function formatFloat(float: number): string {
   return format("0.2s")(float);
 }
 
+export function formatPercent(float: number): string {
+  return format(".2f")(float) + "%";
+}
+
 /**
  * Formats a number to be displayed cleanly across different sizes.
  * NB: this may not work for every type of number but can be used when you want to display a number
@@ -61,3 +65,4 @@ export function createNumberFormatter(
 export const intFormatter = createNumberFormatter(formatInt);
 export const floatFormatter = createNumberFormatter(formatFloat);
 export const numberFormatter = createNumberFormatter(formatNumber);
+export const percentFormatter = createNumberFormatter(formatPercent);

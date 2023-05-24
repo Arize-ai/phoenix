@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<80f8d31eb805e9390bf5888c12a5ba80>>
+ * @generated SignedSource<<74e7fed5cd8c39a867075a85a2ca5bff>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -13,6 +13,7 @@ import { FragmentRefs } from "relay-runtime";
 export type DimensionCardinalityStats_dimension$data = {
   readonly cardinality: number | null;
   readonly id: string;
+  readonly referenceCardinality?: number | null;
   readonly " $fragmentType": "DimensionCardinalityStats_dimension";
 };
 export type DimensionCardinalityStats_dimension$key = {
@@ -20,8 +21,19 @@ export type DimensionCardinalityStats_dimension$key = {
   readonly " $fragmentSpreads": FragmentRefs<"DimensionCardinalityStats_dimension">;
 };
 
-const node: ReaderFragment = {
+const node: ReaderFragment = (function(){
+var v0 = {
+  "kind": "Literal",
+  "name": "metric",
+  "value": "cardinality"
+};
+return {
   "argumentDefinitions": [
+    {
+      "defaultValue": null,
+      "kind": "LocalArgument",
+      "name": "hasReference"
+    },
     {
       "defaultValue": null,
       "kind": "LocalArgument",
@@ -42,11 +54,7 @@ const node: ReaderFragment = {
     {
       "alias": "cardinality",
       "args": [
-        {
-          "kind": "Literal",
-          "name": "metric",
-          "value": "cardinality"
-        },
+        (v0/*: any*/),
         {
           "kind": "Variable",
           "name": "timeRange",
@@ -56,12 +64,34 @@ const node: ReaderFragment = {
       "kind": "ScalarField",
       "name": "dataQualityMetric",
       "storageKey": null
+    },
+    {
+      "condition": "hasReference",
+      "kind": "Condition",
+      "passingValue": true,
+      "selections": [
+        {
+          "alias": "referenceCardinality",
+          "args": [
+            {
+              "kind": "Literal",
+              "name": "datasetRole",
+              "value": "reference"
+            },
+            (v0/*: any*/)
+          ],
+          "kind": "ScalarField",
+          "name": "dataQualityMetric",
+          "storageKey": "dataQualityMetric(datasetRole:\"reference\",metric:\"cardinality\")"
+        }
+      ]
     }
   ],
   "type": "Dimension",
   "abstractKey": null
 };
+})();
 
-(node as any).hash = "8e8d84d4db09851503d43ce938c21c86";
+(node as any).hash = "64914c9034900600ea929cfbc657a000";
 
 export default node;
