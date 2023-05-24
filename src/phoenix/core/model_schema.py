@@ -200,7 +200,8 @@ class _ConstantValueSeriesFactory:
     """
 
     value: Any = field(default=np.nan)
-    _cached_array: npt.NDArray[np.float64] = field(
+    _dtype: Any = field(init=False, default=None)
+    _cached_array: npt.NDArray[Any] = field(
         init=False,
         default_factory=lambda: np.empty(0),
     )
@@ -217,13 +218,17 @@ class _ConstantValueSeriesFactory:
     the same instance.
     """
 
+    def __post_init__(self) -> None:
+        if isinstance(self.value, float) and math.isnan(self.value):
+            object.__setattr__(self, "_dtype", np.float16)
+
     def __call__(self, length: int) -> "pd.Series[Any]":
         with self._lock:
             if length > len(self._cached_array):
                 object.__setattr__(
                     self,
                     "_cached_array",
-                    np.full(length, self.value),
+                    np.full(length, self.value, dtype=self._dtype),
                 )
             return pd.Series(self._cached_array[:length])
 
