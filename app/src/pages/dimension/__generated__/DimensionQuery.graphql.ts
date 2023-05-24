@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c2ba4d65a81c7eeb2df0fb75c714cd36>>
+ * @generated SignedSource<<ab683213cc122d03b5533d576e6a56c6>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -16,6 +16,7 @@ export type TimeRange = {
 };
 export type DimensionQuery$variables = {
   dimensionId: string;
+  hasReference: boolean;
   timeRange: TimeRange;
 };
 export type DimensionQuery$data = {
@@ -30,48 +31,59 @@ export type DimensionQuery = {
 };
 
 const node: ConcreteRequest = (function(){
-var v0 = [
-  {
-    "defaultValue": null,
-    "kind": "LocalArgument",
-    "name": "dimensionId"
-  },
-  {
-    "defaultValue": null,
-    "kind": "LocalArgument",
-    "name": "timeRange"
-  }
-],
-v1 = [
+var v0 = {
+  "defaultValue": null,
+  "kind": "LocalArgument",
+  "name": "dimensionId"
+},
+v1 = {
+  "defaultValue": null,
+  "kind": "LocalArgument",
+  "name": "hasReference"
+},
+v2 = {
+  "defaultValue": null,
+  "kind": "LocalArgument",
+  "name": "timeRange"
+},
+v3 = [
   {
     "kind": "Variable",
     "name": "id",
     "variableName": "dimensionId"
   }
 ],
-v2 = {
+v4 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "id",
   "storageKey": null
 },
-v3 = {
+v5 = {
   "kind": "Variable",
   "name": "timeRange",
   "variableName": "timeRange"
 },
-v4 = [
-  (v3/*: any*/)
+v6 = [
+  (v5/*: any*/)
 ],
-v5 = {
+v7 = [
+  {
+    "kind": "Variable",
+    "name": "hasReference",
+    "variableName": "hasReference"
+  },
+  (v5/*: any*/)
+],
+v8 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "__typename",
   "storageKey": null
 },
-v6 = [
+v9 = [
   {
     "alias": null,
     "args": null,
@@ -79,17 +91,36 @@ v6 = [
     "name": "primaryValue",
     "storageKey": null
   }
-];
+],
+v10 = {
+  "kind": "Literal",
+  "name": "metric",
+  "value": "cardinality"
+},
+v11 = {
+  "kind": "Literal",
+  "name": "metric",
+  "value": "percentEmpty"
+},
+v12 = {
+  "kind": "Literal",
+  "name": "datasetRole",
+  "value": "reference"
+};
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": [
+      (v0/*: any*/),
+      (v1/*: any*/),
+      (v2/*: any*/)
+    ],
     "kind": "Fragment",
     "metadata": null,
     "name": "DimensionQuery",
     "selections": [
       {
         "alias": "dimension",
-        "args": (v1/*: any*/),
+        "args": (v3/*: any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
@@ -98,34 +129,34 @@ return {
           {
             "kind": "InlineFragment",
             "selections": [
-              (v2/*: any*/),
+              (v4/*: any*/),
               {
-                "args": (v4/*: any*/),
+                "args": (v6/*: any*/),
                 "kind": "FragmentSpread",
                 "name": "DimensionSegmentsBarChart_dimension"
               },
               {
-                "args": (v4/*: any*/),
+                "args": (v6/*: any*/),
                 "kind": "FragmentSpread",
                 "name": "DimensionCountStats_dimension"
               },
               {
-                "args": (v4/*: any*/),
+                "args": (v6/*: any*/),
                 "kind": "FragmentSpread",
                 "name": "DimensionDriftStats_dimension"
               },
               {
-                "args": (v4/*: any*/),
+                "args": (v7/*: any*/),
                 "kind": "FragmentSpread",
                 "name": "DimensionCardinalityStats_dimension"
               },
               {
-                "args": (v4/*: any*/),
+                "args": (v7/*: any*/),
                 "kind": "FragmentSpread",
                 "name": "DimensionPercentEmptyStats_dimension"
               },
               {
-                "args": (v4/*: any*/),
+                "args": (v6/*: any*/),
                 "kind": "FragmentSpread",
                 "name": "DimensionQuantilesStats_dimension"
               }
@@ -142,24 +173,28 @@ return {
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": [
+      (v0/*: any*/),
+      (v2/*: any*/),
+      (v1/*: any*/)
+    ],
     "kind": "Operation",
     "name": "DimensionQuery",
     "selections": [
       {
         "alias": "dimension",
-        "args": (v1/*: any*/),
+        "args": (v3/*: any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
-          (v5/*: any*/),
+          (v8/*: any*/),
           {
             "kind": "TypeDiscriminator",
             "abstractKey": "__isNode"
           },
-          (v2/*: any*/),
+          (v4/*: any*/),
           {
             "kind": "InlineFragment",
             "selections": [
@@ -193,7 +228,7 @@ return {
                         "name": "bin",
                         "plural": false,
                         "selections": [
-                          (v5/*: any*/),
+                          (v8/*: any*/),
                           {
                             "kind": "InlineFragment",
                             "selections": [
@@ -250,7 +285,7 @@ return {
                         "kind": "LinkedField",
                         "name": "counts",
                         "plural": false,
-                        "selections": (v6/*: any*/),
+                        "selections": (v9/*: any*/),
                         "storageKey": null
                       }
                     ],
@@ -263,7 +298,7 @@ return {
                     "kind": "LinkedField",
                     "name": "totalCounts",
                     "plural": false,
-                    "selections": (v6/*: any*/),
+                    "selections": (v9/*: any*/),
                     "storageKey": null
                   }
                 ],
@@ -277,7 +312,7 @@ return {
                     "name": "metric",
                     "value": "count"
                   },
-                  (v3/*: any*/)
+                  (v5/*: any*/)
                 ],
                 "kind": "ScalarField",
                 "name": "dataQualityMetric",
@@ -291,7 +326,7 @@ return {
                     "name": "metric",
                     "value": "psi"
                   },
-                  (v3/*: any*/)
+                  (v5/*: any*/)
                 ],
                 "kind": "ScalarField",
                 "name": "driftMetric",
@@ -300,12 +335,8 @@ return {
               {
                 "alias": "cardinality",
                 "args": [
-                  {
-                    "kind": "Literal",
-                    "name": "metric",
-                    "value": "cardinality"
-                  },
-                  (v3/*: any*/)
+                  (v10/*: any*/),
+                  (v5/*: any*/)
                 ],
                 "kind": "ScalarField",
                 "name": "dataQualityMetric",
@@ -314,12 +345,8 @@ return {
               {
                 "alias": "percentEmpty",
                 "args": [
-                  {
-                    "kind": "Literal",
-                    "name": "metric",
-                    "value": "percentEmpty"
-                  },
-                  (v3/*: any*/)
+                  (v11/*: any*/),
+                  (v5/*: any*/)
                 ],
                 "kind": "ScalarField",
                 "name": "dataQualityMetric",
@@ -333,7 +360,7 @@ return {
                     "name": "metric",
                     "value": "p99"
                   },
-                  (v3/*: any*/)
+                  (v5/*: any*/)
                 ],
                 "kind": "ScalarField",
                 "name": "dataQualityMetric",
@@ -347,7 +374,7 @@ return {
                     "name": "metric",
                     "value": "p75"
                   },
-                  (v3/*: any*/)
+                  (v5/*: any*/)
                 ],
                 "kind": "ScalarField",
                 "name": "dataQualityMetric",
@@ -361,7 +388,7 @@ return {
                     "name": "metric",
                     "value": "p50"
                   },
-                  (v3/*: any*/)
+                  (v5/*: any*/)
                 ],
                 "kind": "ScalarField",
                 "name": "dataQualityMetric",
@@ -375,7 +402,7 @@ return {
                     "name": "metric",
                     "value": "p25"
                   },
-                  (v3/*: any*/)
+                  (v5/*: any*/)
                 ],
                 "kind": "ScalarField",
                 "name": "dataQualityMetric",
@@ -389,11 +416,38 @@ return {
                     "name": "metric",
                     "value": "p01"
                   },
-                  (v3/*: any*/)
+                  (v5/*: any*/)
                 ],
                 "kind": "ScalarField",
                 "name": "dataQualityMetric",
                 "storageKey": null
+              },
+              {
+                "condition": "hasReference",
+                "kind": "Condition",
+                "passingValue": true,
+                "selections": [
+                  {
+                    "alias": "referenceCardinality",
+                    "args": [
+                      (v12/*: any*/),
+                      (v10/*: any*/)
+                    ],
+                    "kind": "ScalarField",
+                    "name": "dataQualityMetric",
+                    "storageKey": "dataQualityMetric(datasetRole:\"reference\",metric:\"cardinality\")"
+                  },
+                  {
+                    "alias": "referencePercentEmpty",
+                    "args": [
+                      (v12/*: any*/),
+                      (v11/*: any*/)
+                    ],
+                    "kind": "ScalarField",
+                    "name": "dataQualityMetric",
+                    "storageKey": "dataQualityMetric(datasetRole:\"reference\",metric:\"percentEmpty\")"
+                  }
+                ]
               }
             ],
             "type": "Dimension",
@@ -405,16 +459,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "0a0458b49b1cf74eed82a2fc22067410",
+    "cacheID": "40d5d2e77203169a9484786fb30a531a",
     "id": null,
     "metadata": {},
     "name": "DimensionQuery",
     "operationKind": "query",
-    "text": "query DimensionQuery(\n  $dimensionId: GlobalID!\n  $timeRange: TimeRange!\n) {\n  dimension: node(id: $dimensionId) {\n    __typename\n    ... on Dimension {\n      id\n      ...DimensionSegmentsBarChart_dimension_3E0ZE6\n      ...DimensionCountStats_dimension_3E0ZE6\n      ...DimensionDriftStats_dimension_3E0ZE6\n      ...DimensionCardinalityStats_dimension_3E0ZE6\n      ...DimensionPercentEmptyStats_dimension_3E0ZE6\n      ...DimensionQuantilesStats_dimension_3E0ZE6\n    }\n    __isNode: __typename\n    id\n  }\n}\n\nfragment DimensionCardinalityStats_dimension_3E0ZE6 on Dimension {\n  id\n  cardinality: dataQualityMetric(metric: cardinality, timeRange: $timeRange)\n}\n\nfragment DimensionCountStats_dimension_3E0ZE6 on Dimension {\n  id\n  count: dataQualityMetric(metric: count, timeRange: $timeRange)\n}\n\nfragment DimensionDriftStats_dimension_3E0ZE6 on Dimension {\n  id\n  psi: driftMetric(metric: psi, timeRange: $timeRange)\n}\n\nfragment DimensionPercentEmptyStats_dimension_3E0ZE6 on Dimension {\n  id\n  percentEmpty: dataQualityMetric(metric: percentEmpty, timeRange: $timeRange)\n}\n\nfragment DimensionQuantilesStats_dimension_3E0ZE6 on Dimension {\n  p99: dataQualityMetric(metric: p99, timeRange: $timeRange)\n  p75: dataQualityMetric(metric: p75, timeRange: $timeRange)\n  p50: dataQualityMetric(metric: p50, timeRange: $timeRange)\n  p25: dataQualityMetric(metric: p25, timeRange: $timeRange)\n  p1: dataQualityMetric(metric: p01, timeRange: $timeRange)\n}\n\nfragment DimensionSegmentsBarChart_dimension_3E0ZE6 on Dimension {\n  id\n  segmentsComparison(primaryTimeRange: $timeRange) {\n    segments {\n      bin {\n        __typename\n        ... on NominalBin {\n          __typename\n          name\n        }\n        ... on IntervalBin {\n          __typename\n          range {\n            start\n            end\n          }\n        }\n        ... on MissingValueBin {\n          __typename\n        }\n      }\n      counts {\n        primaryValue\n      }\n    }\n    totalCounts {\n      primaryValue\n    }\n  }\n}\n"
+    "text": "query DimensionQuery(\n  $dimensionId: GlobalID!\n  $timeRange: TimeRange!\n  $hasReference: Boolean!\n) {\n  dimension: node(id: $dimensionId) {\n    __typename\n    ... on Dimension {\n      id\n      ...DimensionSegmentsBarChart_dimension_3E0ZE6\n      ...DimensionCountStats_dimension_3E0ZE6\n      ...DimensionDriftStats_dimension_3E0ZE6\n      ...DimensionCardinalityStats_dimension_1JBzL3\n      ...DimensionPercentEmptyStats_dimension_1JBzL3\n      ...DimensionQuantilesStats_dimension_3E0ZE6\n    }\n    __isNode: __typename\n    id\n  }\n}\n\nfragment DimensionCardinalityStats_dimension_1JBzL3 on Dimension {\n  id\n  cardinality: dataQualityMetric(metric: cardinality, timeRange: $timeRange)\n  referenceCardinality: dataQualityMetric(metric: cardinality, datasetRole: reference) @include(if: $hasReference)\n}\n\nfragment DimensionCountStats_dimension_3E0ZE6 on Dimension {\n  id\n  count: dataQualityMetric(metric: count, timeRange: $timeRange)\n}\n\nfragment DimensionDriftStats_dimension_3E0ZE6 on Dimension {\n  id\n  psi: driftMetric(metric: psi, timeRange: $timeRange)\n}\n\nfragment DimensionPercentEmptyStats_dimension_1JBzL3 on Dimension {\n  id\n  percentEmpty: dataQualityMetric(metric: percentEmpty, timeRange: $timeRange)\n  referencePercentEmpty: dataQualityMetric(metric: percentEmpty, datasetRole: reference) @include(if: $hasReference)\n}\n\nfragment DimensionQuantilesStats_dimension_3E0ZE6 on Dimension {\n  p99: dataQualityMetric(metric: p99, timeRange: $timeRange)\n  p75: dataQualityMetric(metric: p75, timeRange: $timeRange)\n  p50: dataQualityMetric(metric: p50, timeRange: $timeRange)\n  p25: dataQualityMetric(metric: p25, timeRange: $timeRange)\n  p1: dataQualityMetric(metric: p01, timeRange: $timeRange)\n}\n\nfragment DimensionSegmentsBarChart_dimension_3E0ZE6 on Dimension {\n  id\n  segmentsComparison(primaryTimeRange: $timeRange) {\n    segments {\n      bin {\n        __typename\n        ... on NominalBin {\n          __typename\n          name\n        }\n        ... on IntervalBin {\n          __typename\n          range {\n            start\n            end\n          }\n        }\n        ... on MissingValueBin {\n          __typename\n        }\n      }\n      counts {\n        primaryValue\n      }\n    }\n    totalCounts {\n      primaryValue\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "69c0f81ca83c98cd33f7fe0f3c3582e8";
+(node as any).hash = "bc542618324720802447d15913a2b288";
 
 export default node;
