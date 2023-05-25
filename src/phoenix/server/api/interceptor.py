@@ -25,7 +25,7 @@ class Interceptor(ABC):
 class ValueMediatorForGql(Interceptor):
     """Converts values for compatibility with GraphQL, such as converting
     NaN and Inf to None (as NaN can't be serialized to JSON) and converting
-    numpy.number to Python primitives."""
+    numpy scalars to Python primitives."""
 
     def __set__(self, obj: Any, value: Any) -> None:
         if value is self:
