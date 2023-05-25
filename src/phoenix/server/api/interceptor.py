@@ -11,14 +11,14 @@ class Interceptor(ABC):
 
     private_name: str
 
-    def __set_name__(self, owner: Any, name: str) -> None:
+    def __set_name__(self, _: Any, name: str) -> None:
         self.private_name = "_" + name
 
-    def __get__(self, instance: Any, owner: Any) -> Any:
-        return self if instance is None else getattr(instance, self.private_name)
+    def __get__(self, obj: Any, _: Any = None) -> Any:
+        return self if obj is None else getattr(obj, self.private_name)
 
     @abstractmethod
-    def __set__(self, instance: Any, value: Any) -> None:
+    def __set__(self, obj: Any, value: Any) -> None:
         ...
 
 
@@ -27,7 +27,7 @@ class ValueMediatorForGql(Interceptor):
     NaN and Inf to None (as NaN can't be serialized to JSON) and converting
     numpy.number to Python primitives."""
 
-    def __set__(self, instance: Any, value: Any) -> None:
+    def __set__(self, obj: Any, value: Any) -> None:
         if value is self:
             value = None
         elif isinstance(value, (float, np.number)):
@@ -37,4 +37,4 @@ class ValueMediatorForGql(Interceptor):
                 value = float(value)
             elif isinstance(value, np.integer):
                 value = int(value)
-        object.__setattr__(instance, self.private_name, value)
+        object.__setattr__(obj, self.private_name, value)
