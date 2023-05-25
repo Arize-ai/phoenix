@@ -13,3 +13,9 @@ class T:
 def test_none_if_nan():
     assert T(x=np.nan).x is None
     assert T(x=np.array([np.nan], dtype=np.half)[0]).x is None
+    assert isinstance(T(x=1).x, int)
+    assert isinstance(T(x=int(1)).x, int)
+    assert isinstance(T(x=1.1).x, float)
+    assert isinstance(T(x=float(1.1)).x, float)
+    assert isinstance(T(x=np.array([1], dtype=np.int16)[0]).x, int)
+    assert isinstance(T(x=np.array([1.1], dtype=np.half)[0]).x, float)

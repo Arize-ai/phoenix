@@ -27,10 +27,13 @@ class NoneIfNan(Interceptor):
     serialized to JSON by the graphql object"""
 
     def __set__(self, instance: Any, value: Any) -> None:
-        object.__setattr__(
-            instance,
-            self.private_name,
-            None
-            if value is self or isinstance(value, (float, np.floating)) and not math.isfinite(value)
-            else value,
-        )
+        if value is self:
+            value = None
+        elif isinstance(value, (int, float, np.number)):
+            if not math.isfinite(value):
+                value = None
+            elif isinstance(value, np.inexact):
+                value = float(value)
+            elif isinstance(value, np.integer):
+                value = int(value)
+        object.__setattr__(instance, self.private_name, value)
