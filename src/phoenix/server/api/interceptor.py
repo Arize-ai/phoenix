@@ -9,13 +9,13 @@ class Interceptor(ABC):
     """an abstract class making use of the descriptor protocol
     see https://docs.python.org/3/howto/descriptor.html"""
 
-    private_name: str
+    _name: str
 
     def __set_name__(self, _: Any, name: str) -> None:
-        self.private_name = "_" + name
+        self._name = "_" + name
 
     def __get__(self, obj: Any, _: Any = None) -> Any:
-        return self if obj is None else getattr(obj, self.private_name)
+        return self if obj is None else getattr(obj, self._name)
 
     @abstractmethod
     def __set__(self, obj: Any, value: Any) -> None:
@@ -37,4 +37,4 @@ class ValueMediatorForGql(Interceptor):
                 value = float(value)
             elif isinstance(value, np.integer):
                 value = int(value)
-        object.__setattr__(obj, self.private_name, value)
+        object.__setattr__(obj, self._name, value)
