@@ -2,7 +2,7 @@ from typing import Optional
 
 import strawberry
 
-from ..interceptor import NoneIfNan
+from ..interceptor import ValueMediatorForGql
 from .Dimension import Dimension
 
 
@@ -16,5 +16,5 @@ class DimensionWithValue:
     dimension: Dimension
     value: Optional[str] = strawberry.field(
         description="The string representation of the dimension's value",
-        default=NoneIfNan(),
+        default=ValueMediatorForGql(),
     )

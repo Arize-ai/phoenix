@@ -8,7 +8,7 @@ from strawberry.scalars import ID
 from typing_extensions import TypeAlias
 
 from phoenix.core.model_schema import PRIMARY, REFERENCE, EventId
-from phoenix.server.api.interceptor import NoneIfNan
+from phoenix.server.api.interceptor import ValueMediatorForGql
 
 from .EmbeddingMetadata import EmbeddingMetadata
 from .EventMetadata import EventMetadata
@@ -30,7 +30,7 @@ class Cluster:
     """A list of points that belong to the cluster"""
     drift_ratio: Optional[float] = strawberry.field(
         description="ratio of primary points over reference points",
-        default=NoneIfNan(),
+        default=ValueMediatorForGql(),
     )
 
 

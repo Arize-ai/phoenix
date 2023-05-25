@@ -22,9 +22,10 @@ class Interceptor(ABC):
         ...
 
 
-class NoneIfNan(Interceptor):
-    """descriptor that converts NaN and Inf to None because NaN can't be
-    serialized to JSON by the graphql object"""
+class ValueMediatorForGql(Interceptor):
+    """Converts values for compatibility with GraphQL, such as converting
+    NaN and Inf to None (as NaN can't be serialized to JSON) and converting
+    numpy.number to Python primitives."""
 
     def __set__(self, instance: Any, value: Any) -> None:
         if value is self:
