@@ -37,4 +37,6 @@ class ValueMediatorForGql(Interceptor):
                 value = float(value)
             elif isinstance(value, np.integer):
                 value = int(value)
+        elif isinstance(value, np.bool_):
+            value = bool(value)
         object.__setattr__(obj, self._name, value)

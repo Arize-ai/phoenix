@@ -19,3 +19,4 @@ def test_value_mediator_for_gql():
     assert isinstance(T(x=float(1.1)).x, float)
     assert isinstance(T(x=np.array([1], dtype=np.int16)[0]).x, int)
     assert isinstance(T(x=np.array([1.1], dtype=np.half)[0]).x, float)
+    assert isinstance(T(x=np.array([1], dtype=np.bool_)[0]).x, bool)
