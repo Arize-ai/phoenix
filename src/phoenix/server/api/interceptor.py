@@ -30,7 +30,7 @@ class ValueMediatorForGql(Interceptor):
     def __set__(self, instance: Any, value: Any) -> None:
         if value is self:
             value = None
-        elif isinstance(value, (int, float, np.number)):
+        elif isinstance(value, (float, np.number)):
             if not math.isfinite(value):
                 value = None
             elif isinstance(value, np.inexact):
