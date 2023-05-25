@@ -2,6 +2,8 @@ import math
 from abc import ABC, abstractmethod
 from typing import Any
 
+import numpy as np
+
 
 class Interceptor(ABC):
     """an abstract class making use of the descriptor protocol
@@ -29,6 +31,6 @@ class NoneIfNan(Interceptor):
             instance,
             self.private_name,
             None
-            if value is self or isinstance(value, float) and not math.isfinite(value)
+            if value is self or isinstance(value, (float, np.floating)) and not math.isfinite(value)
             else value,
         )

@@ -12,3 +12,4 @@ class T:
 
 def test_none_if_nan():
     assert T(x=np.nan).x is None
+    assert T(x=np.array([np.nan], dtype=np.half)[0]).x is None
