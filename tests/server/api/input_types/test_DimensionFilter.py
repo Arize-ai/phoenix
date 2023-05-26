@@ -138,7 +138,7 @@ def test_dimension_filter(
                 DimensionFilter(
                     types=types,
                     shapes=shapes,
-                ),
+                ).matches,
                 dimensions,
             )
         ),

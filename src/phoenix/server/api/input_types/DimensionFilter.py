@@ -57,7 +57,7 @@ class DimensionFilter:
         setattr(self, "types", _ensure_list(self.types))
         setattr(self, "shapes", _ensure_list(self.shapes))
 
-    def __call__(self, dimension: Dimension) -> bool:
+    def matches(self, dimension: Dimension) -> bool:
         if self.types and DimensionType.from_dimension(dimension) not in self.types:
             return False
         if self.shapes and DimensionShape.from_dimension(dimension) not in self.shapes:
