@@ -2,15 +2,15 @@ from typing import Optional
 
 import numpy as np
 import strawberry
-from phoenix.server.api.interceptor import ValueMediatorForGql
+from phoenix.server.api.interceptor import GqlValueMediator
 
 
 @strawberry.type
 class T:
-    x: Optional[float] = strawberry.field(default=ValueMediatorForGql())
+    x: Optional[float] = strawberry.field(default=GqlValueMediator())
 
 
-def test_value_mediator_for_gql():
+def test_gql_value_mediator():
     assert T(x=np.nan).x is None
     assert T(x=np.array([np.nan], dtype=np.half)[0]).x is None
     assert isinstance(T(x=1).x, int)

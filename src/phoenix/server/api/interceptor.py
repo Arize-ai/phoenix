@@ -22,7 +22,7 @@ class Interceptor(ABC):
         ...
 
 
-class ValueMediatorForGql(Interceptor):
+class GqlValueMediator(Interceptor):
     """Converts values for compatibility with GraphQL, such as converting
     NaN and Inf to None (as NaN can't be serialized to JSON) and converting
     numpy scalars to Python primitives."""

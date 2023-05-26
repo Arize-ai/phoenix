@@ -13,7 +13,7 @@ from phoenix.metrics.mixins import DriftOperator, UnaryOperator
 from phoenix.metrics.timeseries import timeseries
 from phoenix.server.api.input_types.Granularity import Granularity, to_timestamps
 from phoenix.server.api.input_types.TimeRange import TimeRange
-from phoenix.server.api.interceptor import ValueMediatorForGql
+from phoenix.server.api.interceptor import GqlValueMediator
 from phoenix.server.api.types.DataQualityMetric import DataQualityMetric
 from phoenix.server.api.types.DatasetRole import DatasetRole
 from phoenix.server.api.types.ScalarDriftMetricEnum import ScalarDriftMetric
@@ -29,7 +29,7 @@ class TimeSeriesDataPoint:
     timestamp: datetime
 
     """The value of the data point"""
-    value: Optional[float] = strawberry.field(default=ValueMediatorForGql())
+    value: Optional[float] = strawberry.field(default=GqlValueMediator())
 
     def __lt__(self, other: "TimeSeriesDataPoint") -> bool:
         return self.timestamp < other.timestamp

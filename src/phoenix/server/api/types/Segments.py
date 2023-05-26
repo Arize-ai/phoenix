@@ -7,7 +7,7 @@ import pandas as pd
 import strawberry
 from strawberry import UNSET
 
-from ..interceptor import ValueMediatorForGql
+from ..interceptor import GqlValueMediator
 from .NumericRange import NumericRange
 
 
@@ -61,8 +61,8 @@ class GqlBinFactory:
 class DatasetValues:
     """Numeric values per dataset role"""
 
-    primary_value: Optional[float] = strawberry.field(default=ValueMediatorForGql())
-    reference_value: Optional[float] = strawberry.field(default=ValueMediatorForGql())
+    primary_value: Optional[float] = strawberry.field(default=GqlValueMediator())
+    reference_value: Optional[float] = strawberry.field(default=GqlValueMediator())
 
     def __iadd__(self, other: "DatasetValues") -> "DatasetValues":
         # TODO: right now NaN is ignored due to the logic of the NoneIfNan
