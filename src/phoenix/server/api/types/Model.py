@@ -9,6 +9,7 @@ from phoenix.config import get_exported_files
 from phoenix.core.model_schema import PRIMARY, REFERENCE
 from phoenix.server.api.context import Context
 
+from ..input_types.DimensionFilter import DimensionFilter
 from .Dataset import Dataset
 from .Dimension import Dimension, to_gql_dimension
 from .EmbeddingDimension import EmbeddingDimension, to_gql_embedding_dimension
@@ -26,6 +27,8 @@ class Model:
         last: Optional[int] = UNSET,
         after: Optional[Cursor] = UNSET,
         before: Optional[Cursor] = UNSET,
+        include: Optional[DimensionFilter] = UNSET,
+        exclude: Optional[DimensionFilter] = UNSET,
     ) -> Connection[Dimension]:
         """
         A non-trivial implementation should efficiently fetch only
@@ -37,6 +40,8 @@ class Model:
             [
                 to_gql_dimension(index, dimension)
                 for index, dimension in enumerate(model.scalar_dimensions)
+                if (not isinstance(include, DimensionFilter) or include(dimension))
+                and (not isinstance(exclude, DimensionFilter) or not exclude(dimension))
             ],
             args=ConnectionArgs(
                 first=first,
