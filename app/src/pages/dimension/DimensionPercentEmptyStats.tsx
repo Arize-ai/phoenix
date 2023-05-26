@@ -40,9 +40,8 @@ export function DimensionPercentEmptyStats(props: {
       {data.referencePercentEmpty != null && (
         <Text
           textSize="medium"
-          color="white70"
+          color="designationPurple"
           title="the reference percent empty"
-          className="reference-text-color"
         >
           {percentFormatter(data.referencePercentEmpty)}
         </Text>
