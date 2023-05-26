@@ -1,5 +1,4 @@
-from dataclasses import field
-from typing import Iterable, List, Optional, Set
+from typing import Any, Iterable, List, Optional
 
 import strawberry
 from strawberry import UNSET
@@ -54,24 +53,21 @@ class DimensionFilter:
     types: Optional[List[DimensionType]] = UNSET
     shapes: Optional[List[DimensionShape]] = UNSET
 
-    _types: strawberry.Private[Set[DimensionType]] = field(
-        init=False,
-        default_factory=set,
-    )
-    _shapes: strawberry.Private[Set[DimensionShape]] = field(
-        init=False,
-        default_factory=set,
-    )
-
     def __post_init__(self) -> None:
-        if isinstance(self.types, Iterable):
-            setattr(self, "_types", set(self.types))
-        if isinstance(self.shapes, Iterable):
-            setattr(self, "_shapes", set(self.shapes))
+        setattr(self, "types", _ensure_list(self.types))
+        setattr(self, "shapes", _ensure_list(self.shapes))
 
     def __call__(self, dimension: Dimension) -> bool:
-        if self._types and DimensionType.from_dimension(dimension) not in self._types:
+        if self.types and DimensionType.from_dimension(dimension) not in self.types:
             return False
-        if self._shapes and DimensionShape.from_dimension(dimension) not in self._shapes:
+        if self.shapes and DimensionShape.from_dimension(dimension) not in self.shapes:
             return False
         return True
+
+
+def _ensure_list(obj: Any) -> List[Any]:
+    if isinstance(obj, List):
+        return obj
+    if isinstance(obj, Iterable):
+        return list(obj)
+    return []
