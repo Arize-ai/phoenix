@@ -40,8 +40,8 @@ class Model:
             [
                 to_gql_dimension(index, dimension)
                 for index, dimension in enumerate(model.scalar_dimensions)
-                if (not isinstance(include, DimensionFilter) or include(dimension))
-                and (not isinstance(exclude, DimensionFilter) or not exclude(dimension))
+                if (not isinstance(include, DimensionFilter) or include.matches(dimension))
+                and (not isinstance(exclude, DimensionFilter) or not exclude.matches(dimension))
             ],
             args=ConnectionArgs(
                 first=first,
