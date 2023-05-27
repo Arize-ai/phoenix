@@ -1,10 +1,11 @@
+import warnings
 from dataclasses import asdict, dataclass
 from typing import cast
 
 import numpy as np
 import numpy.typing as npt
+from numba.core.errors import NumbaDeprecationWarning, NumbaPendingDeprecationWarning
 from typing_extensions import TypeAlias
-from umap import UMAP
 
 Matrix: TypeAlias = npt.NDArray[np.float64]
 
@@ -19,4 +20,8 @@ class Umap:
     min_dist: float = 0.1
 
     def project(self, mat: Matrix, n_components: int) -> Matrix:
+        warnings.simplefilter("ignore", category=NumbaDeprecationWarning)
+        warnings.simplefilter("ignore", category=NumbaPendingDeprecationWarning)
+        from umap import UMAP
+
         return _center(UMAP(**asdict(self), n_components=n_components).fit_transform(mat))
