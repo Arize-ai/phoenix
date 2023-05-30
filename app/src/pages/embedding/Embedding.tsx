@@ -77,7 +77,7 @@ const EmbeddingUMAPQuery = graphql`
     $nSamples: Int!
     $minClusterSize: Int!
     $clusterMinSamples: Int!
-    $clusterSelectionEpsilon: Int!
+    $clusterSelectionEpsilon: Float!
   ) {
     embedding: node(id: $id) {
       ... on EmbeddingDimension {

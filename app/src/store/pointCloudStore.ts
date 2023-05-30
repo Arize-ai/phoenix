@@ -988,7 +988,7 @@ async function fetchClusters({
         $coordinates: [InputCoordinate3D!]!
         $minClusterSize: Int!
         $clusterMinSamples: Int!
-        $clusterSelectionEpsilon: Int!
+        $clusterSelectionEpsilon: Float!
       ) {
         hdbscanClustering(
           eventIds: $eventIds

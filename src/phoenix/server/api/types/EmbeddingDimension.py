@@ -44,12 +44,7 @@ from .TimeSeries import (
     get_data_quality_timeseries_data,
     get_drift_timeseries_data,
 )
-from .UMAPPoints import (
-    UMAPPoint,
-    UMAPPoints,
-    to_gql_clusters,
-    to_gql_coordinates,
-)
+from .UMAPPoints import UMAPPoint, UMAPPoints, to_gql_clusters, to_gql_coordinates
 
 # Default UMAP hyperparameters
 DEFAULT_N_COMPONENTS = 3
@@ -223,7 +218,7 @@ class EmbeddingDimension(Node):
             ),
         ] = DEFAULT_MIN_SAMPLES,
         cluster_selection_epsilon: Annotated[
-            int,
+            float,
             strawberry.argument(
                 description="HDBSCAN cluster selection epsilon",
             ),

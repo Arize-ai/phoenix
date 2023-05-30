@@ -116,9 +116,8 @@ export default function ClusteringSettings() {
           newHDBSCANParameters.clusterMinSamples as unknown as string,
           10
         ),
-        clusterSelectionEpsilon: parseInt(
-          newHDBSCANParameters.clusterSelectionEpsilon as unknown as string,
-          10
+        clusterSelectionEpsilon: parseFloat(
+          newHDBSCANParameters.clusterSelectionEpsilon as unknown as string
         ),
       };
       setHDBSCANParameters(values);
@@ -191,6 +190,10 @@ export default function ClusteringSettings() {
           control={control}
           rules={{
             required: "field is required",
+            min: {
+              value: 0,
+              message: "must be a positive number",
+            },
             max: {
               value: MAX_32_BIT_INTEGER,
               message: "must be less than 2,147,483,647",
