@@ -13,7 +13,10 @@ import {
 } from "@arizeai/components";
 
 import { MAX_32_BIT_INTEGER } from "@phoenix/constants/numberConstants";
-import { MIN_MIN_CLUSTER_SIZE } from "@phoenix/constants/pointCloudConstants";
+import {
+  MIN_CLUSTER_MIN_SAMPLES,
+  MIN_MIN_CLUSTER_SIZE,
+} from "@phoenix/constants/pointCloudConstants";
 import { usePointCloudContext } from "@phoenix/contexts";
 
 import { ExternalLink } from "../ExternalLink";
@@ -167,6 +170,10 @@ export default function ClusteringSettings() {
           control={control}
           rules={{
             required: "field is required",
+            min: {
+              value: MIN_CLUSTER_MIN_SAMPLES,
+              message: `must be greater than ${MIN_CLUSTER_MIN_SAMPLES}`,
+            },
             max: {
               value: MAX_32_BIT_INTEGER,
               message: "must be less than 2,147,483,647",
