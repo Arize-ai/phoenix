@@ -1,11 +1,16 @@
+import warnings
 from dataclasses import asdict, dataclass
 from typing import cast
 
 import numpy as np
 import numpy.typing as npt
 from typing_extensions import TypeAlias
-from umap import UMAP
 
+with warnings.catch_warnings():
+    from numba.core.errors import NumbaWarning
+
+    warnings.simplefilter("ignore", category=NumbaWarning)
+    from umap import UMAP
 Matrix: TypeAlias = npt.NDArray[np.float64]
 
 
