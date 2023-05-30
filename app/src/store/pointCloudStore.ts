@@ -331,6 +331,11 @@ export interface PointCloudState extends PointCloudProps {
    */
   setHDBSCANParameters: (parameters: HDBSCANParameters) => void;
   /**
+   * This is a getter for the hdbscan parameters
+   * NB: this is so that useEffect doesn't trigger when the parameters are set
+   */
+  getHDSCANParameters: () => HDBSCANParameters;
+  /**
    * Clear the selections in the point cloud
    * Done when the point cloud is re-loaded
    */
@@ -662,6 +667,7 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
       });
       pointCloud.setClusters(clusters);
     },
+    getHDSCANParameters: () => get().hdbscanParameters,
     setErrorMessage: (errorMessage) => set({ errorMessage }),
   });
 
@@ -1000,6 +1006,9 @@ async function fetchClusters({
         z: p.position[2],
       })),
       ...hdbscanParameters,
+    },
+    {
+      fetchPolicy: "network-only",
     }
   ).toPromise();
   return data?.hdbscanClustering ?? [];

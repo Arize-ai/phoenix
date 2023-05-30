@@ -42,14 +42,12 @@ export interface PointCloudProps {
   referenceData: ThreeDimensionalPointItem[] | null;
 }
 
-interface ProjectionProps extends PointCloudProps {
-  canvasMode: CanvasMode;
-}
+type ProjectionProps = PointCloudProps;
 
 /**
  * Displays what is loaded in the point cloud
  */
-function PointCloudInfo() {
+const PointCloudInfo = function PointCloudInfo() {
   const { selectedTimestamp } = useTimeSlice();
   const points = usePointCloudContext((state) => state.points);
   const hdbscanParameters = usePointCloudContext(
@@ -128,7 +126,7 @@ function PointCloudInfo() {
       </dl>
     </section>
   );
-}
+};
 
 const descriptionListCSS = css`
   margin: 0;
@@ -146,11 +144,9 @@ const descriptionListCSS = css`
  * Displays the tools available on the point cloud
  * E.g. move vs select
  */
-function CanvasTools(props: {
-  canvasMode: CanvasMode;
-  onCanvasModeChange: (mode: CanvasMode) => void;
-}) {
-  const { canvasMode, onCanvasModeChange } = props;
+function CanvasTools() {
+  const canvasMode = usePointCloudContext((state) => state.canvasMode);
+  const setCanvasMode = usePointCloudContext((state) => state.setCanvasMode);
   return (
     <div
       css={css`
@@ -164,7 +160,7 @@ function CanvasTools(props: {
         gap: var(--px-spacing-med);
       `}
     >
-      <CanvasModeRadioGroup mode={canvasMode} onChange={onCanvasModeChange} />
+      <CanvasModeRadioGroup mode={canvasMode} onChange={setCanvasMode} />
       <CanvasThemeToggle />
     </div>
   );
@@ -227,25 +223,18 @@ function CanvasWrap({ children }: { children: ReactNode }) {
 }
 
 export function PointCloud(props: PointCloudProps) {
-  const canvasMode = usePointCloudContext((state) => state.canvasMode);
-  const setCanvasMode = usePointCloudContext((state) => state.setCanvasMode);
-
   return (
     <CanvasWrap>
-      <CanvasTools
-        key="canvas-tools"
-        canvasMode={canvasMode}
-        onCanvasModeChange={setCanvasMode}
-      />
-      <Projection key="projection" canvasMode={canvasMode} {...props} />
+      <CanvasTools key="canvas-tools" />
+      <Projection key="projection" {...props} />
       <CanvasInfo key="canvas-info" />
     </CanvasWrap>
   );
 }
 
-function Projection(props: ProjectionProps) {
-  const { primaryData, referenceData, canvasMode } = props;
-
+const Projection = React.memo(function Projection(props: ProjectionProps) {
+  const { primaryData, referenceData } = props;
+  const canvasMode = usePointCloudContext((state) => state.canvasMode);
   const setSelectedEventIds = usePointCloudContext(
     (state) => state.setSelectedEventIds
   );
@@ -385,4 +374,4 @@ function Projection(props: ProjectionProps) {
       </ContextBridge>
     </ThreeDimensionalCanvas>
   );
-}
+});

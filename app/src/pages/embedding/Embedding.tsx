@@ -14,7 +14,6 @@ import {
 } from "react-relay";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { subDays } from "date-fns";
-import useDeepCompareEffect from "use-deep-compare-effect";
 import { css } from "@emotion/react";
 
 import { Counter, Switch, TabPane, Tabs } from "@arizeai/components";
@@ -175,8 +174,8 @@ function EmbeddingMain() {
   const embeddingDimensionId = useEmbeddingDimensionId();
   const { primaryDataset, referenceDataset } = useDatasets();
   const umapParameters = usePointCloudContext((state) => state.umapParameters);
-  const hdbscanParametersInStore = usePointCloudContext(
-    (state) => state.hdbscanParameters
+  const getHDSCANParameters = usePointCloudContext(
+    (state) => state.getHDSCANParameters
   );
   const resetPointCloud = usePointCloudContext((state) => state.reset);
   const [showChart, setShowChart] = useState<boolean>(true);
@@ -194,16 +193,7 @@ function EmbeddingMain() {
     };
   }, [endTime]);
 
-  // We need to make a copy of the hdbscan parameters so that the point cloud
-  // doesn't re-load when the parameters change
-  const hdbscanParameters = useMemo(() => {
-    return hdbscanParametersInStore;
-    // The deps-array here is non-intuitive for a reason
-    // It's designed to only update the loaded query when the time range and umap parameters change
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [umapParameters, timeRange]);
-
-  useDeepCompareEffect(() => {
+  useEffect(() => {
     // dispose of the selections in the context
     resetPointCloud();
     loadQuery(
@@ -211,7 +201,7 @@ function EmbeddingMain() {
         id: embeddingDimensionId,
         timeRange,
         ...umapParameters,
-        ...hdbscanParameters,
+        ...getHDSCANParameters(),
       },
       {
         fetchPolicy: "network-only",
@@ -226,7 +216,7 @@ function EmbeddingMain() {
     loadQuery,
     disposeQuery,
     umapParameters,
-    hdbscanParameters,
+    getHDSCANParameters,
     timeRange,
   ]);
 
@@ -356,10 +346,6 @@ function PointCloudDisplay({
     () => data.embedding?.UMAPPoints?.referenceData ?? [],
     [data]
   );
-  const clustersData = useMemo(() => {
-    const clusters = data.embedding?.UMAPPoints?.clusters || [];
-    return clusters;
-  }, [data.embedding?.UMAPPoints?.clusters]);
 
   // Construct a map of point ids to their data
   const allSourceData = useMemo(() => {
@@ -379,9 +365,14 @@ function PointCloudDisplay({
   );
 
   useEffect(() => {
-    setPointsAndClusters({ points: allSourceData, clusters: clustersData });
-    // NB: we only want to set the data in the point cloud store when the query reference changes
-  }, [queryReference]);
+    const clusters = data.embedding?.UMAPPoints?.clusters || [];
+    setPointsAndClusters({ points: allSourceData, clusters });
+  }, [
+    allSourceData,
+    data.embedding?.UMAPPoints?.clusters,
+    queryReference,
+    setPointsAndClusters,
+  ]);
 
   return (
     <div
@@ -524,7 +515,7 @@ function PointSelectionPanelContentWrap(props: { children: ReactNode }) {
  * The tab index for which the HDBSCAN configuration is displayed
  */
 const CLUSTERING_CONFIG_TAB_INDEX = 1;
-const ClustersPanelContents = function ClustersPanelContents() {
+const ClustersPanelContents = React.memo(function ClustersPanelContents() {
   const clusters = usePointCloudContext((state) => state.clusters);
   const selectedClusterId = usePointCloudContext(
     (state) => state.selectedClusterId
@@ -600,7 +591,7 @@ const ClustersPanelContents = function ClustersPanelContents() {
       </TabPane>
     </Tabs>
   );
-};
+});
 
 function PointCloudNotifications() {
   const { notifyError } = useGlobalNotification();
