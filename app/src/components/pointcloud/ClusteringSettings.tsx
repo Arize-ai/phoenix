@@ -199,7 +199,7 @@ export default function ClusteringSettings() {
             required: "field is required",
             min: {
               value: 0,
-              message: "must be a positive number",
+              message: "must be a non-negative number",
             },
             max: {
               value: MAX_32_BIT_INTEGER,
