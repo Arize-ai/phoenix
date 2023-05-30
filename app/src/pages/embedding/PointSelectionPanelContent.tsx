@@ -24,7 +24,7 @@ import { EventDetails } from "./EventDetails";
 import { ExportSelectionButton } from "./ExportSelectionButton";
 import { PointSelectionGrid } from "./PointSelectionGrid";
 import { PointSelectionTable } from "./PointSelectionTable";
-import { ModelEvent, UMAPPointsEntry } from "./types";
+import { ModelEvent } from "./types";
 
 const pointSelectionPanelCSS = css`
   width: 100%;
@@ -58,10 +58,7 @@ const pointSelectionPanelCSS = css`
   }
 `;
 
-export function PointSelectionPanelContent(props: {
-  eventIdToDataMap: Map<string, UMAPPointsEntry>;
-}) {
-  const { eventIdToDataMap } = props;
+export function PointSelectionPanelContent() {
   const selectedEventIds = usePointCloudContext(
     (state) => state.selectedEventIds
   );
@@ -169,19 +166,18 @@ export function PointSelectionPanelContent(props: {
 
   const allData: ModelEvent[] = useMemo(() => {
     return allSelectedEvents.map((event) => {
-      const pointData = eventIdToDataMap.get(event.id);
       return {
         id: event.id,
         actualLabel: event.eventMetadata?.actualLabel ?? null,
         predictionLabel: event.eventMetadata?.predictionLabel ?? null,
-        rawData: pointData?.embeddingMetadata.rawData ?? null,
-        linkToData: pointData?.embeddingMetadata.linkToData ?? null,
+        rawData: null,
+        linkToData: null,
         dimensions: event.dimensions,
         prompt: event.promptAndResponse?.prompt ?? null,
         response: event.promptAndResponse?.response ?? null,
       };
     });
-  }, [allSelectedEvents, eventIdToDataMap]);
+  }, [allSelectedEvents]);
 
   const eventDetails: ModelEvent | null = useMemo(() => {
     if (selectedDetailPointId) {
@@ -257,7 +253,6 @@ export function PointSelectionPanelContent(props: {
           ) : (
             <PointSelectionGrid
               events={allSelectedEvents}
-              eventIdToDataMap={eventIdToDataMap}
               onItemSelected={setSelectedDetailPointId}
             />
           )}

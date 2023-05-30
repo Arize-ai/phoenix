@@ -92,18 +92,22 @@ export default function ClusteringSettings() {
   const setHDBSCANParameters = usePointCloudContext(
     (state) => state.setHDBSCANParameters
   );
+  const clustersLoading = usePointCloudContext(
+    (state) => state.clustersLoading
+  );
 
   const {
     control,
     handleSubmit,
     formState: { isDirty, isValid },
+    reset,
   } = useForm({
     defaultValues: hdbscanParameters,
   });
 
   const onSubmit = useCallback(
     (newHDBSCANParameters: typeof hdbscanParameters) => {
-      setHDBSCANParameters({
+      const values = {
         minClusterSize: parseInt(
           newHDBSCANParameters.minClusterSize as unknown as string,
           10
@@ -116,9 +120,11 @@ export default function ClusteringSettings() {
           newHDBSCANParameters.clusterSelectionEpsilon as unknown as string,
           10
         ),
-      });
+      };
+      setHDBSCANParameters(values);
+      reset(values);
     },
-    [setHDBSCANParameters]
+    [setHDBSCANParameters, reset]
   );
   return (
     <section
@@ -215,11 +221,14 @@ export default function ClusteringSettings() {
             variant={isDirty ? "primary" : "default"}
             type="submit"
             isDisabled={!isValid}
+            loading={clustersLoading}
             css={css`
               width: 100%;
             `}
           >
-            Apply Clustering Config
+            {clustersLoading
+              ? "Applying parameters"
+              : "Apply Clustering Config"}
           </Button>
         </div>
       </Form>

@@ -33,6 +33,7 @@
     "shade": "^0.1.1",
     "three": "0.139",
     "three-stdlib": "^2.17.3",
+    "use-deep-compare-effect": "^1.8.1",
     "zustand": "^4.3.5"
   },
   "devDependencies": {
@@ -66,7 +67,7 @@
     "build:relay": "relay-compiler",
     "watch": "./esbuild.config.mjs dev",
     "test": "jest --config ./jest.config.js",
-    "dev": "npm run dev:server:mnist & npm run build:static && npm run watch",
+    "dev": "npm run dev:server:image & npm run build:static && npm run watch",
     "dev:server:mnist": "python3 -m phoenix.server.main fixture fashion_mnist",
     "dev:server:mnist:single": "python3 -m phoenix.server.main fixture fashion_mnist --primary-only true",
     "dev:server:sentiment": "python3 -m phoenix.server.main fixture sentiment_classification_language_drift",

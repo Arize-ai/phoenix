@@ -32,7 +32,6 @@ import { CanvasThemeToggle } from "./CanvasThemeToggle";
 import { PointCloudClusters } from "./PointCloudClusters";
 import { PointCloudPoints } from "./PointCloudPoints";
 import { ThreeDimensionalPointItem } from "./types";
-import { ClusterInfo } from "./types";
 
 const RADIUS_BOUNDS_3D_DIVISOR = 300;
 const CLUSTER_POINT_RADIUS_MULTIPLIER = 6;
@@ -41,7 +40,6 @@ const BOUNDS_3D_ZOOM_PADDING_FACTOR = 0.2;
 export interface PointCloudProps {
   primaryData: ThreeDimensionalPointItem[];
   referenceData: ThreeDimensionalPointItem[] | null;
-  clusters: readonly ClusterInfo[];
 }
 
 interface ProjectionProps extends PointCloudProps {
@@ -234,15 +232,19 @@ export function PointCloud(props: PointCloudProps) {
 
   return (
     <CanvasWrap>
-      <CanvasTools canvasMode={canvasMode} onCanvasModeChange={setCanvasMode} />
-      <Projection canvasMode={canvasMode} {...props} />
-      <CanvasInfo />
+      <CanvasTools
+        key="canvas-tools"
+        canvasMode={canvasMode}
+        onCanvasModeChange={setCanvasMode}
+      />
+      <Projection key="projection" canvasMode={canvasMode} {...props} />
+      <CanvasInfo key="canvas-info" />
     </CanvasWrap>
   );
 }
 
 function Projection(props: ProjectionProps) {
-  const { primaryData, referenceData, clusters, canvasMode } = props;
+  const { primaryData, referenceData, canvasMode } = props;
 
   const setSelectedEventIds = usePointCloudContext(
     (state) => state.setSelectedEventIds
@@ -375,8 +377,6 @@ function Projection(props: ProjectionProps) {
             radius={radius}
           />
           <PointCloudClusters
-            clusters={clusters}
-            points={allPoints}
             highlightedClusterId={highlightedClusterId}
             selectedClusterId={selectedClusterId}
             radius={clusterPointRadius}
