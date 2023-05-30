@@ -426,13 +426,14 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
       const pointCloudState = get();
       const eventIdToDataMap = new Map<string, Point>();
 
+      // Calculate a map of event ID to point data
       points.forEach((p) => {
         eventIdToDataMap.set(p.eventId, p);
       });
       set({
         points: points,
         eventIdToDataMap,
-        clusters: clusters,
+        clusters: [...clusters].sort(clusterSortFn),
         selectedEventIds: new Set(),
         selectedClusterId: null,
         pointData: null,
@@ -464,19 +465,7 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
       });
     },
     setClusters: (clusters) => {
-      clusters = [...clusters].sort((clusterA, clusterB) => {
-        let { driftRatio: driftRatioA } = clusterA;
-        let { driftRatio: driftRatioB } = clusterB;
-        driftRatioA = driftRatioA ?? 0;
-        driftRatioB = driftRatioB ?? 0;
-        if (driftRatioA > driftRatioB) {
-          return -1;
-        }
-        if (driftRatioB < driftRatioB) {
-          return 1;
-        }
-        return 0;
-      });
+      clusters = [...clusters].sort(clusterSortFn);
       set({ clusters, clustersLoading: false });
     },
     setSelectedEventIds: (ids) => set({ selectedEventIds: ids }),
@@ -1014,4 +1003,18 @@ async function fetchClusters({
     }
   ).toPromise();
   return data?.hdbscanClustering ?? [];
+}
+
+function clusterSortFn(clusterA: Cluster, clusterB: Cluster) {
+  let { driftRatio: driftRatioA } = clusterA;
+  let { driftRatio: driftRatioB } = clusterB;
+  driftRatioA = driftRatioA ?? 0;
+  driftRatioB = driftRatioB ?? 0;
+  if (driftRatioA > driftRatioB) {
+    return -1;
+  }
+  if (driftRatioB < driftRatioB) {
+    return 1;
+  }
+  return 0;
 }
