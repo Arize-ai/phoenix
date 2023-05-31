@@ -16,7 +16,7 @@ from phoenix.core.model_schema import (
     EventId,
 )
 
-from ..interceptor import NoneIfNan
+from ..interceptor import GqlValueMediator
 from .Dimension import Dimension
 from .DimensionWithValue import DimensionWithValue
 from .EventMetadata import EventMetadata
@@ -30,7 +30,7 @@ class Event:
     dimensions: List[DimensionWithValue]
     prompt_and_response: Optional[PromptResponse] = strawberry.field(
         description="The prompt and response pair associated with the event",
-        default=NoneIfNan(),
+        default=GqlValueMediator(),
     )
 
 

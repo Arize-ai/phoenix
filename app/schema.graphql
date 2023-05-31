@@ -120,6 +120,11 @@ type DimensionEdge {
   cursor: String!
 }
 
+input DimensionFilter {
+  types: [DimensionType!]
+  shapes: [DimensionShape!]
+}
+
 input DimensionInput {
   name: String!
   type: DimensionType!
@@ -277,7 +282,7 @@ type MissingValueBin {
 }
 
 type Model {
-  dimensions(first: Int = 50, last: Int, after: String, before: String): DimensionConnection!
+  dimensions(first: Int = 50, last: Int, after: String, before: String, include: DimensionFilter, exclude: DimensionFilter): DimensionConnection!
   primaryDataset: Dataset!
   referenceDataset: Dataset
   embeddingDimensions(first: Int = 50, last: Int, after: String, before: String): EmbeddingDimensionConnection!

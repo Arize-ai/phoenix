@@ -90,10 +90,6 @@ export function Dimension() {
               min-height: 400px;
               overflow-y: auto;
               height: 100%;
-              // TODO: Remove this once we have text color support in the theme
-              .reference-text-color {
-                color: var(--px-reference-color);
-              }
             `}
           >
             <Suspense fallback={<Loading />}>
