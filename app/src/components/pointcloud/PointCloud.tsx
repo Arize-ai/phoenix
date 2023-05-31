@@ -31,18 +31,10 @@ import { CanvasModeRadioGroup } from "./CanvasModeRadioGroup";
 import { CanvasThemeToggle } from "./CanvasThemeToggle";
 import { PointCloudClusters } from "./PointCloudClusters";
 import { PointCloudPoints } from "./PointCloudPoints";
-import { ThreeDimensionalPointItem } from "./types";
 
 const RADIUS_BOUNDS_3D_DIVISOR = 300;
-const CLUSTER_POINT_RADIUS_MULTIPLIER = 6;
+const CLUSTER_POINT_RADIUS_MULTIPLIER = 3;
 const BOUNDS_3D_ZOOM_PADDING_FACTOR = 0.2;
-
-export interface PointCloudProps {
-  primaryData: ThreeDimensionalPointItem[];
-  referenceData: ThreeDimensionalPointItem[] | null;
-}
-
-type ProjectionProps = PointCloudProps;
 
 /**
  * Displays what is loaded in the point cloud
@@ -222,28 +214,23 @@ function CanvasWrap({ children }: { children: ReactNode }) {
   );
 }
 
-export function PointCloud(props: PointCloudProps) {
+export function PointCloud() {
   return (
     <CanvasWrap>
       <CanvasTools key="canvas-tools" />
-      <Projection key="projection" {...props} />
+      <Projection key="projection" />
       <CanvasInfo key="canvas-info" />
     </CanvasWrap>
   );
 }
 
-const Projection = React.memo(function Projection(props: ProjectionProps) {
-  const { primaryData, referenceData } = props;
+const Projection = React.memo(function Projection() {
+  const points = usePointCloudContext((state) => state.points);
   const canvasMode = usePointCloudContext((state) => state.canvasMode);
   const setSelectedEventIds = usePointCloudContext(
     (state) => state.setSelectedEventIds
   );
-  const highlightedClusterId = usePointCloudContext(
-    (state) => state.highlightedClusterId
-  );
-  const selectedClusterId = usePointCloudContext(
-    (state) => state.selectedClusterId
-  );
+
   const setSelectedClusterId = usePointCloudContext(
     (state) => state.setSelectedClusterId
   );
@@ -261,13 +248,9 @@ const Projection = React.memo(function Projection(props: ProjectionProps) {
   // AutoRotate the canvas on initial load
   const [autoRotate, setAutoRotate] = useState<boolean>(true);
 
-  const allPoints = useMemo(() => {
-    return [...primaryData, ...(referenceData || [])];
-  }, [primaryData, referenceData]);
-
   const bounds = useMemo(() => {
-    return getThreeDimensionalBounds(allPoints.map((p) => p.position));
-  }, [allPoints]);
+    return getThreeDimensionalBounds(points.map((p) => p.position));
+  }, [points]);
 
   const radius =
     (bounds.maxX - bounds.minX + (bounds.maxY - bounds.minY)) /
@@ -284,26 +267,38 @@ const Projection = React.memo(function Projection(props: ProjectionProps) {
   const colorFn = useCallback(
     (point: PointBaseProps) => {
       // Always fallback to unknown
-      const group = eventIdToGroup[point.metaData.eventId] || "unknown";
+      const group = eventIdToGroup[point.metaData.id] || "unknown";
       return pointGroupColors[group] || UNKNOWN_COLOR;
     },
     [pointGroupColors, eventIdToGroup]
   );
 
+  const primaryData = useMemo(() => {
+    return points.filter((point) => {
+      return point.eventId.includes("PRIMARY");
+    });
+  }, [points]);
+
+  const referenceData = useMemo(() => {
+    return points.filter((point) => {
+      return point.eventId.includes("REFERENCE");
+    });
+  }, [points]);
+
   // Filter the points by the group visibility
   const filteredPrimaryData = useMemo(() => {
     return primaryData.filter((point) => {
-      const group = eventIdToGroup[point.metaData.eventId];
+      const group = eventIdToGroup[point.eventId];
       return pointGroupVisibility[group];
     });
   }, [primaryData, eventIdToGroup, pointGroupVisibility]);
 
   const filteredReferenceData = useMemo(() => {
-    if (!referenceData) {
+    if (!referenceData || referenceData.length === 0) {
       return null;
     }
     return referenceData.filter((point) => {
-      const group = eventIdToGroup[point.metaData.eventId];
+      const group = eventIdToGroup[point.eventId];
       return pointGroupVisibility[group];
     });
   }, [referenceData, eventIdToGroup, pointGroupVisibility]);
@@ -347,9 +342,7 @@ const Projection = React.memo(function Projection(props: ProjectionProps) {
           <LassoSelect
             points={allVisiblePoints}
             onChange={(selection) => {
-              setSelectedEventIds(
-                new Set(selection.map((s) => s.metaData.eventId))
-              );
+              setSelectedEventIds(new Set(selection.map((s) => s.metaData.id)));
               setSelectedClusterId(null);
             }}
             enabled={canvasMode === CanvasMode.select}
@@ -358,18 +351,13 @@ const Projection = React.memo(function Projection(props: ProjectionProps) {
             size={(bounds.maxX - bounds.minX) / 4}
             color={canvasTheme == "dark" ? "#fff" : "#505050"}
           />
-
           <PointCloudPoints
             primaryData={filteredPrimaryData}
             referenceData={filteredReferenceData}
             color={colorFn}
             radius={radius}
           />
-          <PointCloudClusters
-            highlightedClusterId={highlightedClusterId}
-            selectedClusterId={selectedClusterId}
-            radius={clusterPointRadius}
-          />
+          <PointCloudClusters radius={clusterPointRadius} />
         </ThreeDimensionalBounds>
       </ContextBridge>
     </ThreeDimensionalCanvas>

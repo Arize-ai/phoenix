@@ -106,6 +106,12 @@ export interface Point {
    */
   readonly eventId: string;
   readonly position: ThreeDimensionalPosition;
+  /**
+   * Metadata about the point - used for point-cloud selection
+   */
+  readonly metaData: {
+    readonly id: string;
+  };
   readonly eventMetadata: {
     readonly actualLabel: string | null;
     readonly predictionLabel: string | null;
@@ -428,28 +434,32 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
     ...defaultProps,
     ...initProps,
     setPointsAndClusters: async ({ points, clusters }) => {
-      const pointCloudState = get();
+      const pointCloud = get();
       const eventIdToDataMap = new Map<string, Point>();
 
       // Calculate a map of event ID to point data
       points.forEach((p) => {
         eventIdToDataMap.set(p.eventId, p);
       });
+
+      const sortedClusters = [...clusters].sort(clusterSortFn);
       set({
         points: points,
         eventIdToDataMap,
-        clusters: [...clusters].sort(clusterSortFn),
+        clusters: sortedClusters,
+        clustersLoading: false,
         selectedEventIds: new Set(),
         selectedClusterId: null,
         pointData: null,
         eventIdToGroup: getEventIdToGroup({
           points,
-          coloringStrategy: pointCloudState.coloringStrategy,
-          pointsData: pointCloudState.pointData ?? {},
-          dimension: pointCloudState.dimension || null,
-          dimensionMetadata: pointCloudState.dimensionMetadata,
+          coloringStrategy: pointCloud.coloringStrategy,
+          pointsData: pointCloud.pointData ?? {},
+          dimension: pointCloud.dimension || null,
+          dimensionMetadata: pointCloud.dimensionMetadata,
         }),
       });
+      pointCloud.setClusters(clusters);
 
       // Re-compute the point coloring once the granular data is loaded
       const pointData = await fetchPointEvents(
@@ -460,18 +470,26 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
 
       set({
         pointData,
+        // TODO(mikeldking): For some reason the point-cloud doesn't rerender clusters unless this exists
+        clusters: sortedClusters,
+        clustersLoading: false,
         eventIdToGroup: getEventIdToGroup({
           points,
-          coloringStrategy: pointCloudState.coloringStrategy,
+          coloringStrategy: pointCloud.coloringStrategy,
           pointsData: pointData ?? {},
-          dimension: pointCloudState.dimension || null,
-          dimensionMetadata: pointCloudState.dimensionMetadata,
+          dimension: pointCloud.dimension || null,
+          dimensionMetadata: pointCloud.dimensionMetadata,
         }),
       });
     },
     setClusters: (clusters) => {
       clusters = [...clusters].sort(clusterSortFn);
-      set({ clusters, clustersLoading: false });
+      set({
+        clusters,
+        clustersLoading: false,
+        selectedClusterId: null,
+        highlightedClusterId: null,
+      });
     },
     setSelectedEventIds: (ids) => set({ selectedEventIds: ids }),
     setHighlightedClusterId: (id) => set({ highlightedClusterId: id }),

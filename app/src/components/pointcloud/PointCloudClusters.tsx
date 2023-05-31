@@ -6,41 +6,27 @@ import { Cluster, ThreeDimensionalPoint } from "@arizeai/point-cloud";
 import { usePointCloudContext } from "@phoenix/contexts";
 import { CanvasTheme, ClusterColorMode } from "@phoenix/store";
 
-import { ThreeDimensionalPointItem } from "./types";
-
 type PointCloudClustersProps = {
-  /**
-   * The id of a cluster that is currently highlighted
-   */
-  highlightedClusterId: string | null;
-  /**
-   * The id of the cluster that is currently selected
-   */
-  selectedClusterId: string | null;
   /**
    * The radius of the points in the point cloud
    */
   radius: number;
 };
-export function PointCloudClusters({
-  highlightedClusterId,
-  selectedClusterId,
-  radius,
-}: PointCloudClustersProps) {
-  const points = usePointCloudContext((state) => state.points);
+export function PointCloudClusters({ radius }: PointCloudClustersProps) {
+  const eventIdToDataMap = usePointCloudContext(
+    (state) => state.eventIdToDataMap
+  );
+  const highlightedClusterId = usePointCloudContext(
+    (state) => state.highlightedClusterId
+  );
+  const selectedClusterId = usePointCloudContext(
+    (state) => state.selectedClusterId
+  );
   const clusters = usePointCloudContext((state) => state.clusters);
   const canvasTheme = usePointCloudContext((state) => state.canvasTheme);
   const clusterColorMode = usePointCloudContext(
     (state) => state.clusterColorMode
   );
-  // const { selectedClusterId } = usePointCloud();
-  // Keep a map of event id to position for fast lookup
-  const eventPositionMap = useMemo(() => {
-    return points.reduce((acc, point) => {
-      acc[point.eventId] = point.position;
-      return acc;
-    }, {} as Record<string, ThreeDimensionalPointItem["position"] | undefined>);
-  }, [points]);
 
   // Interleave the cluster point locations with the cluster
   const clustersWithData = useMemo(() => {
@@ -48,11 +34,17 @@ export function PointCloudClusters({
       .map((cluster) => {
         const { eventIds } = cluster;
         const positionData = eventIds
-          .map((eventId) => ({
-            position: eventPositionMap[eventId],
-          }))
+          .map((eventId) => {
+            const position = eventIdToDataMap.get(eventId)?.position;
+            return {
+              position,
+            };
+          })
           .filter(
-            (d): d is { position: ThreeDimensionalPoint } => d.position != null
+            (
+              positionInfo
+            ): positionInfo is { position: ThreeDimensionalPoint } =>
+              positionInfo.position !== null
           );
         return {
           ...cluster,
@@ -60,7 +52,7 @@ export function PointCloudClusters({
         };
       })
       .filter((cluster) => cluster.data.length > 0); // Remove empty clusters
-  }, [clusters, eventPositionMap]);
+  }, [clusters, eventIdToDataMap]);
 
   return (
     <>
@@ -130,9 +122,9 @@ function clusterOpacity({
     // Show all the clusters
     return 0.5;
   } else if (selected) {
-    return 0.3;
+    return 0.5;
   } else if (highlighted) {
-    return 0.2;
+    return 0.3;
   }
   return 0;
 }

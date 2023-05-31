@@ -164,20 +164,25 @@ export function PointSelectionPanelContent() {
     setSelectedClusterId(null);
   };
 
+  const eventIdToDataMap = usePointCloudContext(
+    (state) => state.eventIdToDataMap
+  );
+
   const allData: ModelEvent[] = useMemo(() => {
     return allSelectedEvents.map((event) => {
+      const pointData = eventIdToDataMap.get(event.id);
       return {
         id: event.id,
         actualLabel: event.eventMetadata?.actualLabel ?? null,
         predictionLabel: event.eventMetadata?.predictionLabel ?? null,
-        rawData: null,
-        linkToData: null,
+        rawData: pointData?.embeddingMetadata.rawData ?? null,
+        linkToData: pointData?.embeddingMetadata.linkToData ?? null,
         dimensions: event.dimensions,
         prompt: event.promptAndResponse?.prompt ?? null,
         response: event.promptAndResponse?.response ?? null,
       };
     });
-  }, [allSelectedEvents]);
+  }, [allSelectedEvents, eventIdToDataMap]);
 
   const eventDetails: ModelEvent | null = useMemo(() => {
     if (selectedDetailPointId) {

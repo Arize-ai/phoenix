@@ -29,7 +29,6 @@ import {
   ClusterItem,
   PointCloud,
   PointCloudParameterSettings,
-  ThreeDimensionalPointItem,
 } from "@phoenix/components/pointcloud";
 import ClusteringSettings from "@phoenix/components/pointcloud/ClusteringSettings";
 import { PointCloudDisplaySettings } from "@phoenix/components/pointcloud/PointCloudDisplaySettings";
@@ -305,26 +304,6 @@ function coordinatesToThreeDimensionalPoint(
   return [coordinates.x, coordinates.y, coordinates.z];
 }
 
-function umapDataEntryToThreeDimensionalPointItem(
-  umapData: UMAPPointsEntry
-): ThreeDimensionalPointItem {
-  const { id, eventId, coordinates, eventMetadata, embeddingMetadata } =
-    umapData;
-  if (!coordinates) {
-    throw new Error("No coordinates found for UMAP data entry");
-  }
-
-  return {
-    position: coordinatesToThreeDimensionalPoint(coordinates),
-    metaData: {
-      id,
-      eventId,
-      ...eventMetadata,
-      ...embeddingMetadata,
-    },
-  };
-}
-
 /**
  * Fetches the umap data for the embedding dimension and passes the data to the point cloud
  */
@@ -356,6 +335,9 @@ function PointCloudDisplay({
     return allData.map((d) => ({
       ...d,
       position: coordinatesToThreeDimensionalPoint(d.coordinates),
+      metaData: {
+        id: d.eventId,
+      },
     }));
   }, [referenceSourceData, sourceData]);
 
@@ -363,15 +345,18 @@ function PointCloudDisplay({
   const setPointsAndClusters = usePointCloudContext(
     (state) => state.setPointsAndClusters
   );
+  const setClusters = usePointCloudContext((state) => state.setClusters);
 
   useEffect(() => {
     const clusters = data.embedding?.UMAPPoints?.clusters || [];
     setPointsAndClusters({ points: allSourceData, clusters });
+    setClusters(clusters);
   }, [
     allSourceData,
     data.embedding?.UMAPPoints?.clusters,
     queryReference,
     setPointsAndClusters,
+    setClusters,
   ]);
 
   return (
@@ -434,18 +419,7 @@ function PointCloudDisplay({
             `}
           >
             <SelectionPanel />
-            <PointCloud
-              primaryData={
-                sourceData.map(umapDataEntryToThreeDimensionalPointItem) ?? []
-              }
-              referenceData={
-                referenceSourceData
-                  ? referenceSourceData.map(
-                      umapDataEntryToThreeDimensionalPointItem
-                    )
-                  : null
-              }
-            />
+            <PointCloud />
           </div>
         </Panel>
       </PanelGroup>
