@@ -1,6 +1,7 @@
 import React, {
   ReactNode,
   Suspense,
+  useCallback,
   useEffect,
   useMemo,
   useState,
@@ -16,6 +17,7 @@ import { subDays } from "date-fns";
 import { css } from "@emotion/react";
 
 import { Counter, Switch, TabPane, Tabs } from "@arizeai/components";
+import { ThreeDimensionalPoint } from "@arizeai/point-cloud";
 
 import { Loading, LoadingMask } from "@phoenix/components";
 import {
@@ -27,7 +29,6 @@ import {
   ClusterItem,
   PointCloud,
   PointCloudParameterSettings,
-  ThreeDimensionalPointItem,
 } from "@phoenix/components/pointcloud";
 import ClusteringSettings from "@phoenix/components/pointcloud/ClusteringSettings";
 import { PointCloudDisplaySettings } from "@phoenix/components/pointcloud/PointCloudDisplaySettings";
@@ -48,6 +49,7 @@ import {
 } from "@phoenix/contexts/TimeSliceContext";
 import { useEmbeddingDimensionId } from "@phoenix/hooks";
 import {
+  ClusterColorMode,
   DEFAULT_DRIFT_POINT_CLOUD_PROPS,
   DEFAULT_SINGLE_DATASET_POINT_CLOUD_PROPS,
 } from "@phoenix/store";
@@ -64,10 +66,6 @@ type UMAPPointsEntry = NonNullable<
   EmbeddingUMAPQuery$data["embedding"]["UMAPPoints"]
 >["data"][number];
 
-type UMAPClusterEntry = NonNullable<
-  EmbeddingUMAPQuery$data["embedding"]["UMAPPoints"]
->["clusters"][number];
-
 const EmbeddingUMAPQuery = graphql`
   query EmbeddingUMAPQuery(
     $id: GlobalID!
@@ -77,7 +75,7 @@ const EmbeddingUMAPQuery = graphql`
     $nSamples: Int!
     $minClusterSize: Int!
     $clusterMinSamples: Int!
-    $clusterSelectionEpsilon: Int!
+    $clusterSelectionEpsilon: Float!
   ) {
     embedding: node(id: $id) {
       ... on EmbeddingDimension {
@@ -163,7 +161,7 @@ export function Embedding() {
       : DEFAULT_SINGLE_DATASET_POINT_CLOUD_PROPS;
   }, [referenceDataset]);
   return (
-    <TimeSliceContextProvider initialTimestamp={new Date(timeRange.end)}>
+    <TimeSliceContextProvider initialTimestamp={timeRange.end}>
       <PointCloudProvider {...defaultPointCloudProps}>
         <EmbeddingMain />
       </PointCloudProvider>
@@ -175,12 +173,12 @@ function EmbeddingMain() {
   const embeddingDimensionId = useEmbeddingDimensionId();
   const { primaryDataset, referenceDataset } = useDatasets();
   const umapParameters = usePointCloudContext((state) => state.umapParameters);
-  const hdbscanParameters = usePointCloudContext(
-    (state) => state.hdbscanParameters
+  const getHDSCANParameters = usePointCloudContext(
+    (state) => state.getHDSCANParameters
   );
   const resetPointCloud = usePointCloudContext((state) => state.reset);
   const [showChart, setShowChart] = useState<boolean>(true);
-  const [queryReference, loadQuery] =
+  const [queryReference, loadQuery, disposeQuery] =
     useQueryLoader<UMAPQueryType>(EmbeddingUMAPQuery);
   const { selectedTimestamp } = useTimeSlice();
   const endTime = useMemo(
@@ -194,7 +192,6 @@ function EmbeddingMain() {
     };
   }, [endTime]);
 
-  // Load the query on first render
   useEffect(() => {
     // dispose of the selections in the context
     resetPointCloud();
@@ -203,18 +200,22 @@ function EmbeddingMain() {
         id: embeddingDimensionId,
         timeRange,
         ...umapParameters,
-        ...hdbscanParameters,
+        ...getHDSCANParameters(),
       },
       {
         fetchPolicy: "network-only",
       }
     );
+    return () => {
+      disposeQuery();
+    };
   }, [
     resetPointCloud,
     embeddingDimensionId,
     loadQuery,
+    disposeQuery,
     umapParameters,
-    hdbscanParameters,
+    getHDSCANParameters,
     timeRange,
   ]);
 
@@ -292,39 +293,25 @@ function EmbeddingMain() {
   );
 }
 
-function umapDataEntryToThreeDimensionalPointItem(
-  umapData: UMAPPointsEntry
-): ThreeDimensionalPointItem {
-  const { id, eventId, coordinates, eventMetadata, embeddingMetadata } =
-    umapData;
-  if (!coordinates) {
-    throw new Error("No coordinates found for UMAP data entry");
-  }
+function coordinatesToThreeDimensionalPoint(
+  coordinates: UMAPPointsEntry["coordinates"]
+): ThreeDimensionalPoint {
   if (coordinates.__typename !== "Point3D") {
     throw new Error(
-      `Expected Point3D but got ${coordinates.__typename} for UMAP data entry`
+      `Expected Point3D but got ${coordinates.__typename} for coordinates`
     );
   }
-
-  return {
-    position: [coordinates.x, coordinates.y, coordinates.z],
-    metaData: {
-      id,
-      eventId,
-      ...eventMetadata,
-      ...embeddingMetadata,
-    },
-  };
+  return [coordinates.x, coordinates.y, coordinates.z];
 }
 
 /**
  * Fetches the umap data for the embedding dimension and passes the data to the point cloud
  */
-const PointCloudDisplay = ({
+function PointCloudDisplay({
   queryReference,
 }: {
   queryReference: PreloadedQuery<UMAPQueryType>;
-}) => {
+}) {
   const data = usePreloadedQuery<UMAPQueryType>(
     EmbeddingUMAPQuery,
     queryReference
@@ -338,47 +325,39 @@ const PointCloudDisplay = ({
     () => data.embedding?.UMAPPoints?.referenceData ?? [],
     [data]
   );
-  const clusters = useMemo(() => {
-    let clusters = data.embedding?.UMAPPoints?.clusters || [];
-
-    // Sort the clusters by drift ratio so as to show the most drifted clusters first
-    clusters = [...clusters].sort((clusterA, clusterB) => {
-      let { driftRatio: driftRatioA } = clusterA;
-      let { driftRatio: driftRatioB } = clusterB;
-      driftRatioA = driftRatioA ?? 0;
-      driftRatioB = driftRatioB ?? 0;
-      if (driftRatioA > driftRatioB) {
-        return -1;
-      }
-      if (driftRatioB < driftRatioB) {
-        return 1;
-      }
-      return 0;
-    });
-    return clusters;
-  }, [data.embedding?.UMAPPoints?.clusters]);
 
   // Construct a map of point ids to their data
   const allSourceData = useMemo(() => {
-    if (referenceSourceData) {
-      return [...sourceData, ...referenceSourceData];
-    }
-    return sourceData;
+    const allData = referenceSourceData
+      ? [...sourceData, ...referenceSourceData]
+      : sourceData;
+
+    return allData.map((d) => ({
+      ...d,
+      position: coordinatesToThreeDimensionalPoint(d.coordinates),
+      metaData: {
+        id: d.eventId,
+      },
+    }));
   }, [referenceSourceData, sourceData]);
 
-  const eventIdToDataMap = useMemo(() => {
-    const map = new Map<string, UMAPPointsEntry>();
-    allSourceData.forEach((entry) => {
-      map.set(entry.eventId, entry);
-    });
-    return map;
-  }, [allSourceData]);
-
   // Keep the data in the view in-sync with the data in the context
-  const setPoints = usePointCloudContext((state) => state.setPoints);
+  const setPointsAndClusters = usePointCloudContext(
+    (state) => state.setPointsAndClusters
+  );
+  const setClusters = usePointCloudContext((state) => state.setClusters);
+
   useEffect(() => {
-    setPoints(allSourceData);
-  }, [allSourceData, setPoints]);
+    const clusters = data.embedding?.UMAPPoints?.clusters || [];
+    setPointsAndClusters({ points: allSourceData, clusters });
+    setClusters(clusters);
+  }, [
+    allSourceData,
+    data.embedding?.UMAPPoints?.clusters,
+    queryReference,
+    setPointsAndClusters,
+    setClusters,
+  ]);
 
   return (
     <div
@@ -415,7 +394,7 @@ const PointCloudDisplay = ({
             `}
           >
             <Panel>
-              <ClustersPanelContents clusters={clusters} />
+              <ClustersPanelContents />
             </Panel>
             <PanelResizeHandle css={resizeHandleCSS} />
             <Panel>
@@ -439,30 +418,16 @@ const PointCloudDisplay = ({
               height: 100%;
             `}
           >
-            <SelectionPanel eventIdToDataMap={eventIdToDataMap} />
-            <PointCloud
-              primaryData={
-                sourceData.map(umapDataEntryToThreeDimensionalPointItem) ?? []
-              }
-              referenceData={
-                referenceSourceData
-                  ? referenceSourceData.map(
-                      umapDataEntryToThreeDimensionalPointItem
-                    )
-                  : null
-              }
-              clusters={clusters}
-            />
+            <SelectionPanel />
+            <PointCloud />
           </div>
         </Panel>
       </PanelGroup>
     </div>
   );
-};
+}
 
-function SelectionPanel(props: {
-  eventIdToDataMap: Map<string, UMAPPointsEntry>;
-}) {
+function SelectionPanel() {
   const selectedEventIds = usePointCloudContext(
     (state) => state.selectedEventIds
   );
@@ -494,9 +459,7 @@ function SelectionPanel(props: {
         >
           <PointSelectionPanelContentWrap>
             <Suspense fallback={<Loading />}>
-              <PointSelectionPanelContent
-                eventIdToDataMap={props.eventIdToDataMap}
-              />
+              <PointSelectionPanelContent />
             </Suspense>
           </PointSelectionPanelContentWrap>
         </Panel>
@@ -521,11 +484,13 @@ function PointSelectionPanelContentWrap(props: { children: ReactNode }) {
     </div>
   );
 }
-function ClustersPanelContents({
-  clusters,
-}: {
-  clusters: readonly UMAPClusterEntry[];
-}) {
+
+/**
+ * The tab index for which the HDBSCAN configuration is displayed
+ */
+const CLUSTERING_CONFIG_TAB_INDEX = 1;
+const ClustersPanelContents = React.memo(function ClustersPanelContents() {
+  const clusters = usePointCloudContext((state) => state.clusters);
   const selectedClusterId = usePointCloudContext(
     (state) => state.selectedClusterId
   );
@@ -538,9 +503,23 @@ function ClustersPanelContents({
   const setHighlightedClusterId = usePointCloudContext(
     (state) => state.setHighlightedClusterId
   );
+  const setClusterColorMode = usePointCloudContext(
+    (state) => state.setClusterColorMode
+  );
+
+  const onTabChange = useCallback(
+    (index: number) => {
+      if (index === CLUSTERING_CONFIG_TAB_INDEX) {
+        setClusterColorMode(ClusterColorMode.highlight);
+      } else {
+        setClusterColorMode(ClusterColorMode.default);
+      }
+    },
+    [setClusterColorMode]
+  );
 
   return (
-    <Tabs>
+    <Tabs onChange={onTabChange}>
       <TabPane name="Clusters" extra={<Counter>{clusters.length}</Counter>}>
         <ul
           css={(theme) => css`
@@ -586,7 +565,7 @@ function ClustersPanelContents({
       </TabPane>
     </Tabs>
   );
-}
+});
 
 function PointCloudNotifications() {
   const { notifyError } = useGlobalNotification();

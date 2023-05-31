@@ -8,11 +8,7 @@ from strawberry import ID, UNSET
 from strawberry.types import Info
 from typing_extensions import Annotated
 
-from phoenix.core.model_schema import (
-    PRIMARY,
-    REFERENCE,
-    EventId,
-)
+from phoenix.core.model_schema import PRIMARY, REFERENCE, EventId
 from phoenix.pointcloud.clustering import Hdbscan
 
 from .context import Context
@@ -83,7 +79,7 @@ class Query:
             ),
         ] = DEFAULT_MIN_SAMPLES,
         cluster_selection_epsilon: Annotated[
-            int,
+            float,
             strawberry.argument(
                 description="HDBSCAN cluster selection epsilon",
             ),

@@ -13,7 +13,10 @@ import {
 } from "@arizeai/components";
 
 import { MAX_32_BIT_INTEGER } from "@phoenix/constants/numberConstants";
-import { MIN_MIN_CLUSTER_SIZE } from "@phoenix/constants/pointCloudConstants";
+import {
+  MIN_CLUSTER_MIN_SAMPLES,
+  MIN_MIN_CLUSTER_SIZE,
+} from "@phoenix/constants/pointCloudConstants";
 import { usePointCloudContext } from "@phoenix/contexts";
 
 import { ExternalLink } from "../ExternalLink";
@@ -92,18 +95,22 @@ export default function ClusteringSettings() {
   const setHDBSCANParameters = usePointCloudContext(
     (state) => state.setHDBSCANParameters
   );
+  const clustersLoading = usePointCloudContext(
+    (state) => state.clustersLoading
+  );
 
   const {
     control,
     handleSubmit,
     formState: { isDirty, isValid },
+    reset,
   } = useForm({
     defaultValues: hdbscanParameters,
   });
 
   const onSubmit = useCallback(
     (newHDBSCANParameters: typeof hdbscanParameters) => {
-      setHDBSCANParameters({
+      const values = {
         minClusterSize: parseInt(
           newHDBSCANParameters.minClusterSize as unknown as string,
           10
@@ -112,13 +119,14 @@ export default function ClusteringSettings() {
           newHDBSCANParameters.clusterMinSamples as unknown as string,
           10
         ),
-        clusterSelectionEpsilon: parseInt(
-          newHDBSCANParameters.clusterSelectionEpsilon as unknown as string,
-          10
+        clusterSelectionEpsilon: parseFloat(
+          newHDBSCANParameters.clusterSelectionEpsilon as unknown as string
         ),
-      });
+      };
+      setHDBSCANParameters(values);
+      reset(values);
     },
-    [setHDBSCANParameters]
+    [setHDBSCANParameters, reset]
   );
   return (
     <section
@@ -162,6 +170,10 @@ export default function ClusteringSettings() {
           control={control}
           rules={{
             required: "field is required",
+            min: {
+              value: MIN_CLUSTER_MIN_SAMPLES,
+              message: `must be greater than ${MIN_CLUSTER_MIN_SAMPLES}`,
+            },
             max: {
               value: MAX_32_BIT_INTEGER,
               message: "must be less than 2,147,483,647",
@@ -185,6 +197,10 @@ export default function ClusteringSettings() {
           control={control}
           rules={{
             required: "field is required",
+            min: {
+              value: 0,
+              message: "must be a non-negative number",
+            },
             max: {
               value: MAX_32_BIT_INTEGER,
               message: "must be less than 2,147,483,647",
@@ -215,11 +231,14 @@ export default function ClusteringSettings() {
             variant={isDirty ? "primary" : "default"}
             type="submit"
             isDisabled={!isValid}
+            loading={clustersLoading}
             css={css`
               width: 100%;
             `}
           >
-            Apply Clustering Config
+            {clustersLoading
+              ? "Applying parameters"
+              : "Apply Clustering Config"}
           </Button>
         </div>
       </Form>

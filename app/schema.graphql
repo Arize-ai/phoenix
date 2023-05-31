@@ -201,7 +201,7 @@ type EmbeddingDimension implements Node {
     clusterMinSamples: Int! = 1
 
     """HDBSCAN cluster selection epsilon"""
-    clusterSelectionEpsilon: Int! = 0
+    clusterSelectionEpsilon: Float! = 0
   ): UMAPPoints!
 }
 
@@ -360,7 +360,7 @@ type Query {
     clusterMinSamples: Int! = 1
 
     """HDBSCAN cluster selection epsilon"""
-    clusterSelectionEpsilon: Int! = 0
+    clusterSelectionEpsilon: Float! = 0
   ): [Cluster!]!
 }
 

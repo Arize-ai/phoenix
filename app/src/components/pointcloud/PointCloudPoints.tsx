@@ -6,8 +6,9 @@ import { PointBaseProps, Points } from "@arizeai/point-cloud";
 
 import { ColoringStrategy } from "@phoenix/constants/pointCloudConstants";
 import { usePointCloudContext } from "@phoenix/contexts";
+import { Point } from "@phoenix/store";
 
-import { PointColor, ThreeDimensionalPointItem } from "./types";
+import { PointColor } from "./types";
 
 const SHADE_AMOUNT = 0.5;
 const LIGHTEN_AMOUNT = 0.3;
@@ -34,11 +35,11 @@ type PointCloudPointsProps = {
   /**
    * The primary data to display in the point cloud
    */
-  primaryData: ThreeDimensionalPointItem[];
+  primaryData: Point[];
   /**
    * Optional second set of data to display in the point cloud
    */
-  referenceData: ThreeDimensionalPointItem[] | null;
+  referenceData: Point[] | null;
   /**
    * How the points should be colored
    */
