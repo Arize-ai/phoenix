@@ -114,7 +114,7 @@ export function PointCloudPoints({
   const onPointClicked = useCallback(
     (point: PointBaseProps) => {
       startTransition(() => {
-        setSelectedEventIds(new Set([point.metaData.eventId]));
+        setSelectedEventIds(new Set([point.metaData.id]));
         setSelectedClusterId(null);
       });
     },
