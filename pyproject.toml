@@ -233,6 +233,7 @@ exclude = [
 module = [
   "hdbscan",
   "umap",
+  "numba.*",
   "scipy.*",
   "sklearn.*",
   "arize.*",
