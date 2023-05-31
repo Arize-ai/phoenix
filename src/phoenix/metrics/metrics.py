@@ -12,12 +12,12 @@ from scipy.stats import entropy
 from sklearn.metrics import accuracy_score
 from typing_extensions import TypeAlias
 
+from phoenix.metrics import Metric
+
 from .mixins import (
-    BaseMetric,
     DiscreteDivergence,
     DriftOperator,
     EvaluationMetric,
-    NullaryOperator,
     UnaryOperator,
     VectorOperator,
     ZeroInitialValue,
@@ -25,19 +25,19 @@ from .mixins import (
 
 
 @dataclass(frozen=True)
-class Count(NullaryOperator, ZeroInitialValue, BaseMetric):
+class Count(ZeroInitialValue, Metric):
     def calc(self, dataframe: pd.DataFrame) -> int:
         return len(dataframe)
 
 
 @dataclass(frozen=True)
-class CountNotNull(UnaryOperator, ZeroInitialValue, BaseMetric):
+class CountNotNull(UnaryOperator, ZeroInitialValue, Metric):
     def calc(self, dataframe: pd.DataFrame) -> int:
         return self.operand(dataframe).count()
 
 
 @dataclass(frozen=True)
-class Sum(UnaryOperator, BaseMetric):
+class Sum(UnaryOperator, Metric):
     def calc(self, dataframe: pd.DataFrame) -> float:
         data = self.operand(dataframe)
         numeric_data = pd.to_numeric(data, errors="coerce")
@@ -48,7 +48,7 @@ Vector: TypeAlias = Union[float, npt.NDArray[np.float64]]
 
 
 @dataclass(frozen=True)
-class VectorSum(UnaryOperator, VectorOperator, ZeroInitialValue, BaseMetric):
+class VectorSum(UnaryOperator, VectorOperator, ZeroInitialValue, Metric):
     def calc(self, dataframe: pd.DataFrame) -> Vector:
         data = self.operand(dataframe)
         return cast(
@@ -61,7 +61,7 @@ class VectorSum(UnaryOperator, VectorOperator, ZeroInitialValue, BaseMetric):
 
 
 @dataclass(frozen=True)
-class Mean(UnaryOperator, BaseMetric):
+class Mean(UnaryOperator, Metric):
     def calc(self, dataframe: pd.DataFrame) -> float:
         data = self.operand(dataframe)
         numeric_data = pd.to_numeric(data, errors="coerce")
@@ -69,7 +69,7 @@ class Mean(UnaryOperator, BaseMetric):
 
 
 @dataclass(frozen=True)
-class VectorMean(UnaryOperator, VectorOperator, BaseMetric):
+class VectorMean(UnaryOperator, VectorOperator, Metric):
     def calc(self, dataframe: pd.DataFrame) -> Vector:
         data = self.operand(dataframe)
         with warnings.catch_warnings():
@@ -78,7 +78,7 @@ class VectorMean(UnaryOperator, VectorOperator, BaseMetric):
 
 
 @dataclass(frozen=True)
-class Min(UnaryOperator, BaseMetric):
+class Min(UnaryOperator, Metric):
     def calc(self, dataframe: pd.DataFrame) -> float:
         data = self.operand(dataframe)
         numeric_data = pd.to_numeric(data, errors="coerce")
@@ -86,7 +86,7 @@ class Min(UnaryOperator, BaseMetric):
 
 
 @dataclass(frozen=True)
-class Max(UnaryOperator, BaseMetric):
+class Max(UnaryOperator, Metric):
     def calc(self, dataframe: pd.DataFrame) -> float:
         data = self.operand(dataframe)
         numeric_data = pd.to_numeric(data, errors="coerce")
@@ -94,7 +94,7 @@ class Max(UnaryOperator, BaseMetric):
 
 
 @dataclass(frozen=True)
-class Cardinality(UnaryOperator, BaseMetric):
+class Cardinality(UnaryOperator, Metric):
     def calc(self, dataframe: pd.DataFrame) -> float:
         data = self.operand(dataframe)
         if data.dtype.kind == "f":
@@ -103,14 +103,14 @@ class Cardinality(UnaryOperator, BaseMetric):
 
 
 @dataclass(frozen=True)
-class PercentEmpty(UnaryOperator, BaseMetric):
+class PercentEmpty(UnaryOperator, Metric):
     def calc(self, dataframe: pd.DataFrame) -> float:
         data = self.operand(dataframe)
         return data.isna().mean() * 100
 
 
 @dataclass(frozen=True)
-class Quantile(UnaryOperator, BaseMetric):
+class Quantile(UnaryOperator, Metric):
     probability: float = field(default=0.5)
 
     def __post_init__(self) -> None:

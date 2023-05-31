@@ -6,6 +6,7 @@ type Cluster {
 
   """ratio of primary points over reference points"""
   driftRatio: Float
+  dataQualityMetric: DatasetValues
 }
 
 enum DataQualityMetric {
@@ -21,6 +22,11 @@ enum DataQualityMetric {
   p50
   p75
   p99
+}
+
+input DataQualityMetricInput {
+  metric: DataQualityMetric!
+  columnName: String
 }
 
 type DataQualityTimeSeries implements TimeSeries {
@@ -202,6 +208,9 @@ type EmbeddingDimension implements Node {
 
     """HDBSCAN cluster selection epsilon"""
     clusterSelectionEpsilon: Float! = 0
+
+    """Data quality metric to be computed on each cluster"""
+    dataQualityMetric: DataQualityMetricInput
   ): UMAPPoints!
 }
 
@@ -361,6 +370,9 @@ type Query {
 
     """HDBSCAN cluster selection epsilon"""
     clusterSelectionEpsilon: Float! = 0
+
+    """Data quality metric to be computed on each cluster"""
+    dataQualityMetric: DataQualityMetricInput
   ): [Cluster!]!
 }
 

@@ -1,5 +1,5 @@
 from collections import Counter
-from typing import Dict, List, Optional, Set, Union
+from typing import Dict, List, Mapping, Optional, Set, Union
 
 import numpy as np
 import numpy.typing as npt
@@ -10,6 +10,7 @@ from typing_extensions import TypeAlias
 from phoenix.core.model_schema import PRIMARY, REFERENCE, EventId
 from phoenix.server.api.interceptor import GqlValueMediator
 
+from .DatasetValues import DatasetValues
 from .EmbeddingMetadata import EmbeddingMetadata
 from .EventMetadata import EventMetadata
 from .node import GlobalID
@@ -33,21 +34,26 @@ class Cluster:
         default=GqlValueMediator(),
     )
 
+    data_quality_metric: Optional[DatasetValues]
+
 
 def to_gql_clusters(
-    cluster_membership: Dict[EventId, int],
+    cluster_membership: Mapping[EventId, int],
     has_reference_data: bool,
+    metric_values_by_cluster: Mapping[int, DatasetValues] = {},
 ) -> List[Cluster]:
     """
     Converts a dictionary of event IDs to cluster IDs to a list of clusters for the graphQL response
 
     Parameters
     ----------
-    cluster_membership: Dict[EventId, int]
-        A dictionary of event IDs to cluster IDs
+    cluster_membership: Mapping[EventId, int]
+        A mapping of event IDs to cluster IDs
     has_reference_data: bool
         Whether or not the model has reference data
         Used to determine if drift ratio should be calculated
+    metric_values_by_cluster: Mapping[int, DatasetValues]
+        A mapping of cluster IDs to DatasetValues for data quality metric
     """
 
     clusters: Dict[int, Set[EventId]] = {}
@@ -64,6 +70,7 @@ def to_gql_clusters(
                 id=ID(str(cluster_id)),
                 event_ids=[ID(str(event)) for event in cluster_events],
                 drift_ratio=calculate_drift_ratio(cluster_events) if has_reference_data else np.nan,
+                data_quality_metric=metric_values_by_cluster.get(cluster_id),
             )
         )
 

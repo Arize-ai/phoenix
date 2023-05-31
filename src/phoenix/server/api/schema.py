@@ -10,9 +10,11 @@ from typing_extensions import Annotated
 
 from phoenix.core.model_schema import PRIMARY, REFERENCE, EventId
 from phoenix.pointcloud.clustering import Hdbscan
+from phoenix.server.api.helpers import compute_metric_by_cluster, ensure_list
 
 from .context import Context
 from .input_types import Coordinates
+from .input_types.DataQualityMetricInput import DataQualityMetricInput
 from .types.Dimension import to_gql_dimension
 from .types.EmbeddingDimension import (
     DEFAULT_CLUSTER_SELECTION_EPSILON,
@@ -48,6 +50,7 @@ class Query:
     @strawberry.field
     def hdbscan_clustering(
         self,
+        info: Info[Context, None],
         event_ids: Annotated[
             List[ID],
             strawberry.argument(
@@ -84,11 +87,15 @@ class Query:
                 description="HDBSCAN cluster selection epsilon",
             ),
         ] = DEFAULT_CLUSTER_SELECTION_EPSILON,
+        data_quality_metric: Annotated[
+            Optional[DataQualityMetricInput],
+            strawberry.argument(
+                description="Data quality metric to be computed on each cluster",
+            ),
+        ] = UNSET,
     ) -> List[Cluster]:
-        if not isinstance(coordinates_3d, list):
-            coordinates_3d = []
-        if not isinstance(coordinates_2d, list):
-            coordinates_2d = []
+        coordinates_3d = ensure_list(coordinates_3d)
+        coordinates_2d = ensure_list(coordinates_2d)
 
         if len(coordinates_3d) > 0 and len(coordinates_2d) > 0:
             raise ValueError("must specify only one of 2D or 3D coordinates")
@@ -155,9 +162,20 @@ class Query:
             for row_id in cluster
         }
 
+        metric_values_by_cluster = (
+            compute_metric_by_cluster(
+                cluster_membership=cluster_membership,
+                metric=data_quality_metric.metric_instance,
+                model=info.context.model,
+            )
+            if isinstance(data_quality_metric, DataQualityMetricInput)
+            else {}
+        )
+
         return to_gql_clusters(
             cluster_membership,
             has_reference_data=len(grouped_event_ids[REFERENCE]) > 0,
+            metric_values_by_cluster=metric_values_by_cluster,
         )
 
 

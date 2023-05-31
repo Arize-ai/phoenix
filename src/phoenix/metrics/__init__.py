@@ -1,21 +1,61 @@
-from typing import Any, Iterable, Iterator, Mapping, Protocol, runtime_checkable
+from abc import ABC, abstractmethod
+from dataclasses import dataclass
+from typing import Any, Iterable, Iterator, List, Mapping, Optional, Union
 
+import numpy as np
 import pandas as pd
 
+from phoenix.core.model_schema import Column
 
-@runtime_checkable
-class Metric(Protocol):
-    def __call__(self, df: pd.DataFrame) -> Any:
-        ...
 
+@dataclass(frozen=True)
+class Metric(ABC):
     def id(self) -> int:
-        ...
+        """
+        id is a unique identifier for each metric instance. This is used to
+        extract the metric's own value from a collective output containing
+        results from other metrics.
+        """
+        return id(self)
 
-    def input_column_names(self) -> Iterator[str]:
-        ...
+    def initial_value(self) -> Any:
+        return np.nan
 
     def get_value(self, result: Mapping[int, Any]) -> Any:
+        try:
+            return result[self.id()]
+        except KeyError:
+            return self.initial_value()
+
+    @abstractmethod
+    def calc(self, dataframe: pd.DataFrame) -> Any:
         ...
+
+    def operands(self) -> Iterator[Column]:
+        yield from ()
+
+    def __call__(
+        self,
+        df: pd.DataFrame,
+        /,
+        subset_rows: Optional[Union[slice, List[int]]] = None,
+    ) -> Any:
+        if subset_rows is None:
+            subset_rows = slice(None)
+        df = df.iloc[
+            subset_rows,
+            sorted(
+                {
+                    df.columns.get_loc(name)
+                    for name in map(str, self.operands())
+                    if name in df.columns
+                }
+            ),
+        ]
+        try:
+            return self.calc(df)
+        except (TypeError, ValueError):
+            return np.nan
 
 
 def multi_calculate(

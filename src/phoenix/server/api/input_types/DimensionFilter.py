@@ -1,9 +1,10 @@
-from typing import Any, Iterable, List, Optional
+from typing import List, Optional
 
 import strawberry
 from strawberry import UNSET
 
 from phoenix.core.model_schema import Dimension
+from phoenix.server.api.helpers import ensure_list
 from phoenix.server.api.types.DimensionShape import DimensionShape
 from phoenix.server.api.types.DimensionType import DimensionType
 
@@ -54,8 +55,8 @@ class DimensionFilter:
     shapes: Optional[List[DimensionShape]] = UNSET
 
     def __post_init__(self) -> None:
-        setattr(self, "types", _ensure_list(self.types))
-        setattr(self, "shapes", _ensure_list(self.shapes))
+        self.types = ensure_list(self.types)
+        self.shapes = ensure_list(self.shapes)
 
     def matches(self, dimension: Dimension) -> bool:
         if self.types and DimensionType.from_dimension(dimension) not in self.types:
@@ -63,11 +64,3 @@ class DimensionFilter:
         if self.shapes and DimensionShape.from_dimension(dimension) not in self.shapes:
             return False
         return True
-
-
-def _ensure_list(obj: Any) -> List[Any]:
-    if isinstance(obj, List):
-        return obj
-    if isinstance(obj, Iterable):
-        return list(obj)
-    return []
