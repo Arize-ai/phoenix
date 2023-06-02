@@ -3,6 +3,7 @@ from typing import Optional
 
 import strawberry
 from strawberry import UNSET
+from typing_extensions import Annotated
 
 from phoenix.core.model_schema import Column
 from phoenix.metrics import Metric
@@ -13,7 +14,14 @@ from phoenix.server.api.types.DataQualityMetric import DataQualityMetric
 @strawberry.input
 class DataQualityMetricInput:
     metric: DataQualityMetric
-    column_name: Optional[str] = UNSET
+    column_name: Annotated[
+        Optional[str],
+        strawberry.argument(
+            description="When required by the metric, this is the name of the "
+            "input column, e.g., to calculate mean, a specific column must be "
+            "specified as input to be averaged over.",
+        ),
+    ] = UNSET
 
     metric_instance: strawberry.Private[Metric] = field(init=False)
 

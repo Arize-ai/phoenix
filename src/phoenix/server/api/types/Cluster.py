@@ -5,7 +5,6 @@ import numpy as np
 import strawberry
 from strawberry import ID
 from strawberry.types import Info
-from typing_extensions import Annotated
 
 from phoenix.core.model_schema import PRIMARY, REFERENCE, DatasetRole, EventId
 from phoenix.server.api.context import Context
@@ -24,12 +23,14 @@ class Cluster:
     events: strawberry.Private[Set[EventId]]
     has_reference_data: strawberry.Private[bool]
 
-    @strawberry.field
+    @strawberry.field(
+        description="The event IDs of the points in the cluster",
+    )  # type: ignore
     def event_ids(self) -> List[ID]:
         return [ID(str(event)) for event in self.events]
 
     @strawberry.field(
-        description="""ratio of primary points over reference points""",
+        description="Ratio of primary points over reference points",
     )  # type: ignore
     def drift_ratio(self) -> Optional[float]:
         """
@@ -50,17 +51,14 @@ class Cluster:
             else (cnt[PRIMARY] - cnt[REFERENCE]) / (cnt[PRIMARY] + cnt[REFERENCE])
         )
 
-    @strawberry.field
+    @strawberry.field(
+        description="Data quality metric summarized by the respective "
+        "datasets of the clustered events",
+    )  # type: ignore
     def data_quality_metric(
         self,
         info: Info[Context, None],
-        metric: Annotated[
-            DataQualityMetricInput,
-            strawberry.argument(
-                description="Data quality metric summarized by the respective "
-                "datasets of the clustered events",
-            ),
-        ],
+        metric: DataQualityMetricInput,
     ) -> DatasetValues:
         model = info.context.model
         row_ids: Dict[DatasetRole, List[int]] = defaultdict(list)
