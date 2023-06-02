@@ -1,12 +1,18 @@
 union Bin = NominalBin | IntervalBin | MissingValueBin
 
 type Cluster {
+  """The ID of the cluster"""
   id: ID!
   eventIds: [ID!]!
 
   """ratio of primary points over reference points"""
   driftRatio: Float
-  dataQualityMetric: DatasetValues
+  dataQualityMetric(
+    """
+    Data quality metric summarized by the respective datasets of the clustered events
+    """
+    metric: DataQualityMetricInput!
+  ): DatasetValues!
 }
 
 enum DataQualityMetric {
@@ -208,9 +214,6 @@ type EmbeddingDimension implements Node {
 
     """HDBSCAN cluster selection epsilon"""
     clusterSelectionEpsilon: Float! = 0
-
-    """Data quality metric to be computed on each cluster"""
-    dataQualityMetric: DataQualityMetricInput
   ): UMAPPoints!
 }
 
@@ -370,9 +373,6 @@ type Query {
 
     """HDBSCAN cluster selection epsilon"""
     clusterSelectionEpsilon: Float! = 0
-
-    """Data quality metric to be computed on each cluster"""
-    dataQualityMetric: DataQualityMetricInput
   ): [Cluster!]!
 }
 

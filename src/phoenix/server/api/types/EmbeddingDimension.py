@@ -28,9 +28,8 @@ from phoenix.pointcloud.clustering import Hdbscan
 from phoenix.pointcloud.pointcloud import PointCloud
 from phoenix.pointcloud.projectors import Umap
 from phoenix.server.api.context import Context
-from phoenix.server.api.helpers import compute_metric_by_cluster
-from phoenix.server.api.input_types.DataQualityMetricInput import DataQualityMetricInput
 from phoenix.server.api.input_types.TimeRange import TimeRange
+from phoenix.server.api.types.Cluster import to_gql_clusters
 from phoenix.server.api.types.DatasetRole import DatasetRole
 from phoenix.server.api.types.VectorDriftMetricEnum import VectorDriftMetric
 
@@ -46,7 +45,7 @@ from .TimeSeries import (
     get_data_quality_timeseries_data,
     get_drift_timeseries_data,
 )
-from .UMAPPoints import UMAPPoint, UMAPPoints, to_gql_clusters, to_gql_coordinates
+from .UMAPPoints import UMAPPoint, UMAPPoints, to_gql_coordinates
 
 # Default UMAP hyperparameters
 DEFAULT_N_COMPONENTS = 3
@@ -225,12 +224,6 @@ class EmbeddingDimension(Node):
                 description="HDBSCAN cluster selection epsilon",
             ),
         ] = DEFAULT_CLUSTER_SELECTION_EPSILON,
-        data_quality_metric: Annotated[
-            Optional[DataQualityMetricInput],
-            strawberry.argument(
-                description="Data quality metric to be computed on each cluster",
-            ),
-        ] = UNSET,
     ) -> UMAPPoints:
         model = info.context.model
         data: Dict[EventId, npt.NDArray[np.float64]] = {}
@@ -266,7 +259,7 @@ class EmbeddingDimension(Node):
         if not 2 <= n_components <= 3:
             raise Exception(f"n_components must be 2 or 3, got {n_components}")
 
-        vectors, cluster_membership = PointCloud(
+        vectors, clustered_events = PointCloud(
             dimensionalityReducer=Umap(n_neighbors=n_neighbors, min_dist=min_dist),
             clustersFinder=Hdbscan(
                 min_cluster_size=min_cluster_size,
@@ -299,23 +292,12 @@ class EmbeddingDimension(Node):
                 )
             )
 
-        metric_values_by_cluster = (
-            compute_metric_by_cluster(
-                cluster_membership=cluster_membership,
-                metric=data_quality_metric.metric_instance,
-                model=info.context.model,
-            )
-            if isinstance(data_quality_metric, DataQualityMetricInput)
-            else {}
-        )
-
         return UMAPPoints(
             data=points[PRIMARY],
             reference_data=points[REFERENCE],
             clusters=to_gql_clusters(
-                cluster_membership,
+                clustered_events=clustered_events,
                 has_reference_data=not model[REFERENCE].empty,
-                metric_values_by_cluster=metric_values_by_cluster,
             ),
         )
 

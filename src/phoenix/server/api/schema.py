@@ -10,11 +10,11 @@ from typing_extensions import Annotated
 
 from phoenix.core.model_schema import PRIMARY, REFERENCE, EventId
 from phoenix.pointcloud.clustering import Hdbscan
-from phoenix.server.api.helpers import compute_metric_by_cluster, ensure_list
+from phoenix.server.api.helpers import ensure_list
+from phoenix.server.api.types.Cluster import Cluster, to_gql_clusters
 
 from .context import Context
 from .input_types import Coordinates
-from .input_types.DataQualityMetricInput import DataQualityMetricInput
 from .types.Dimension import to_gql_dimension
 from .types.EmbeddingDimension import (
     DEFAULT_CLUSTER_SELECTION_EPSILON,
@@ -26,7 +26,6 @@ from .types.Event import unpack_event_id
 from .types.ExportEventsMutation import ExportEventsMutation
 from .types.Model import Model
 from .types.node import GlobalID, Node, from_global_id
-from .types.UMAPPoints import Cluster, to_gql_clusters
 
 
 @strawberry.type
@@ -87,12 +86,6 @@ class Query:
                 description="HDBSCAN cluster selection epsilon",
             ),
         ] = DEFAULT_CLUSTER_SELECTION_EPSILON,
-        data_quality_metric: Annotated[
-            Optional[DataQualityMetricInput],
-            strawberry.argument(
-                description="Data quality metric to be computed on each cluster",
-            ),
-        ] = UNSET,
     ) -> List[Cluster]:
         coordinates_3d = ensure_list(coordinates_3d)
         coordinates_2d = ensure_list(coordinates_2d)
@@ -156,26 +149,14 @@ class Query:
             cluster_selection_epsilon=cluster_selection_epsilon,
         ).find_clusters(stacked_coordinates)
 
-        cluster_membership = {
-            stacked_event_ids[row_id]: cluster_id
+        clustered_events = {
+            cluster_id: {stacked_event_ids[row_idx] for row_idx in cluster}
             for cluster_id, cluster in enumerate(clusters)
-            for row_id in cluster
         }
 
-        metric_values_by_cluster = (
-            compute_metric_by_cluster(
-                cluster_membership=cluster_membership,
-                metric=data_quality_metric.metric_instance,
-                model=info.context.model,
-            )
-            if isinstance(data_quality_metric, DataQualityMetricInput)
-            else {}
-        )
-
         return to_gql_clusters(
-            cluster_membership,
+            clustered_events=clustered_events,
             has_reference_data=len(grouped_event_ids[REFERENCE]) > 0,
-            metric_values_by_cluster=metric_values_by_cluster,
         )
 
 
