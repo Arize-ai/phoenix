@@ -10,6 +10,7 @@ import {
 import { ExternalLink, LinkButton } from "@phoenix/components";
 import { TextCell } from "@phoenix/components/table";
 import { tableCSS } from "@phoenix/components/table/styles";
+import { useDatasets } from "@phoenix/contexts";
 
 import { ModelEvent } from "./types";
 
@@ -23,6 +24,7 @@ export function PointSelectionTable({
   data: ModelEvent[];
   onPointSelected: (pointId: string) => void;
 }) {
+  const { primaryDataset, referenceDataset } = useDatasets();
   const columns: Column<ModelEvent>[] = useMemo(() => {
     let hasLinkToData = false,
       hasRawData = false,
@@ -40,6 +42,23 @@ export function PointSelectionTable({
     });
     // Columns that are only visible if certain data is available
     const dataDrivenColumns: Column<ModelEvent>[] = [];
+    if (referenceDataset) {
+      // Only need to show the dataset if there are two
+      dataDrivenColumns.push({
+        Header: "Dataset",
+        accessor: "id",
+        width: 50,
+        Cell: ({ value }: CellProps<ModelEvent>) => {
+          return (
+            <EventDatasetCell
+              id={value}
+              primaryDatasetName={primaryDataset.name}
+              referenceDatasetName={referenceDataset?.name ?? "reference"}
+            />
+          );
+        },
+      });
+    }
     if (hasLinkToData) {
       dataDrivenColumns.push({
         Header: "Link",
@@ -89,7 +108,7 @@ export function PointSelectionTable({
       },
       {
         Header: "",
-        accessor: "id",
+        id: "view-details",
         resizable: false,
         width: 50,
         Cell: ({ value }: CellProps<ModelEvent>) => {
@@ -106,7 +125,7 @@ export function PointSelectionTable({
         },
       },
     ];
-  }, [data, onPointSelected]);
+  }, [data, onPointSelected, primaryDataset, referenceDataset]);
 
   const { getTableProps, getTableBodyProps, headerGroups, prepareRow, rows } =
     useTable<ModelEvent>(
@@ -157,5 +176,21 @@ export function PointSelectionTable({
         })}
       </tbody>
     </table>
+  );
+}
+
+function EventDatasetCell({
+  id,
+  primaryDatasetName,
+  referenceDatasetName,
+}: {
+  id: string;
+  primaryDatasetName: string;
+  referenceDatasetName: string;
+}) {
+  return (
+    <span>
+      {id.includes("PRIMARY") ? primaryDatasetName : referenceDatasetName}
+    </span>
   );
 }
