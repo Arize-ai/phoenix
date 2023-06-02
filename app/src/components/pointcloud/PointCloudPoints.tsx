@@ -74,8 +74,6 @@ export function PointCloudPoints({
     (state) => state.setSelectedClusterId
   );
 
-  const canvasMode = usePointCloudContext((state) => state.canvasMode);
-
   // Only use a cube shape if the coloring strategy is not dataset
   const referenceDatasetPointShape = useMemo(
     () => (coloringStrategy !== ColoringStrategy.dataset ? "cube" : "sphere"),
@@ -139,7 +137,7 @@ export function PointCloudPoints({
             size: radius ? radius * CUBE_RADIUS_MULTIPLIER : undefined,
           }}
           pointShape={referenceDatasetPointShape}
-          onPointClicked={canvasMode === "select" ? onPointClicked : undefined}
+          onPointClicked={onPointClicked}
         />
       ) : null}
     </>
