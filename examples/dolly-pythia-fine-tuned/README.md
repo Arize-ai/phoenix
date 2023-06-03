@@ -2,7 +2,7 @@
 
 The notebooks in this directory are used to:
 
-- Generate responses from prompts from the Alpaca dataset, an instruction-following dataset, using two generative LLM models, Dolly and Pythia. Pythia is a generative LLM from [Eleuther AI](https://www.eleuther.ai/). Dolly is a Pythia base model that has been fine-tuned on an instruction-following dataset (also named Dolly).
+- Generate responses from prompts from [Alpaca](https://huggingface.co/datasets/tatsu-lab/alpaca), an instruction-following dataset, using two generative LLM models, Dolly and Pythia. Pythia is a generative LLM from [Eleuther AI](https://www.eleuther.ai/). Dolly is a Pythia base model that has been fine-tuned on an instruction-following dataset (also named Dolly).
 - Extract and visualize embeddings from each model during response generation.
 - Evaluate each model using a more powerful LLM, in this case, GPT-4.
 - Visualize your data in Phoenix.
