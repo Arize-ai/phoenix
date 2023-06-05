@@ -5,6 +5,7 @@ from strawberry import UNSET
 
 from phoenix.core.model_schema import Dimension
 from phoenix.server.api.helpers import ensure_list
+from phoenix.server.api.types.DimensionDataType import DimensionDataType
 from phoenix.server.api.types.DimensionShape import DimensionShape
 from phoenix.server.api.types.DimensionType import DimensionType
 
@@ -53,14 +54,18 @@ class DimensionFilter:
 
     types: Optional[List[DimensionType]] = UNSET
     shapes: Optional[List[DimensionShape]] = UNSET
+    data_types: Optional[List[DimensionDataType]] = UNSET
 
     def __post_init__(self) -> None:
         self.types = ensure_list(self.types)
         self.shapes = ensure_list(self.shapes)
+        self.data_types = ensure_list(self.data_types)
 
     def matches(self, dimension: Dimension) -> bool:
         if self.types and DimensionType.from_dimension(dimension) not in self.types:
             return False
         if self.shapes and DimensionShape.from_dimension(dimension) not in self.shapes:
+            return False
+        if self.data_types and DimensionDataType.from_dimension(dimension) not in self.data_types:
             return False
         return True
