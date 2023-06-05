@@ -41,6 +41,17 @@ class Metric(ABC):
         /,
         subset_rows: Optional[Union[slice, List[int]]] = None,
     ) -> Any:
+        """
+        Computes the metric on a dataframe.
+
+        Parameters
+        ----------
+        df: pandas DataFrame
+            The dataframe input to the metric.
+        subset_rows: Optional[Union[slice, List[int]]] = None
+            Optionally specifying a subset of rows for the computation.
+            Can be a list or slice (e.g. `slice(100, 200)`) of integers.
+        """
         subset_rows = slice(None) if subset_rows is None else subset_rows
         df = df.iloc[
             subset_rows,
