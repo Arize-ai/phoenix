@@ -136,6 +136,7 @@ type DimensionEdge {
 input DimensionFilter {
   types: [DimensionType!]
   shapes: [DimensionShape!]
+  dataTypes: [DimensionDataType!]
 }
 
 input DimensionInput {
