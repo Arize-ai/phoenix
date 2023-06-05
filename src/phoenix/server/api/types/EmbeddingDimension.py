@@ -29,6 +29,7 @@ from phoenix.pointcloud.pointcloud import PointCloud
 from phoenix.pointcloud.projectors import Umap
 from phoenix.server.api.context import Context
 from phoenix.server.api.input_types.TimeRange import TimeRange
+from phoenix.server.api.types.Cluster import to_gql_clusters
 from phoenix.server.api.types.DatasetRole import DatasetRole
 from phoenix.server.api.types.VectorDriftMetricEnum import VectorDriftMetric
 
@@ -44,7 +45,7 @@ from .TimeSeries import (
     get_data_quality_timeseries_data,
     get_drift_timeseries_data,
 )
-from .UMAPPoints import UMAPPoint, UMAPPoints, to_gql_clusters, to_gql_coordinates
+from .UMAPPoints import UMAPPoint, UMAPPoints, to_gql_coordinates
 
 # Default UMAP hyperparameters
 DEFAULT_N_COMPONENTS = 3
@@ -258,7 +259,7 @@ class EmbeddingDimension(Node):
         if not 2 <= n_components <= 3:
             raise Exception(f"n_components must be 2 or 3, got {n_components}")
 
-        vectors, cluster_membership = PointCloud(
+        vectors, clustered_events = PointCloud(
             dimensionalityReducer=Umap(n_neighbors=n_neighbors, min_dist=min_dist),
             clustersFinder=Hdbscan(
                 min_cluster_size=min_cluster_size,
@@ -295,8 +296,7 @@ class EmbeddingDimension(Node):
             data=points[PRIMARY],
             reference_data=points[REFERENCE],
             clusters=to_gql_clusters(
-                cluster_membership,
-                has_reference_data=not model[REFERENCE].empty,
+                clustered_events=clustered_events,
             ),
         )
 

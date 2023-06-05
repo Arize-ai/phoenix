@@ -13,16 +13,8 @@ class TimeRange:
     )
 
     def __post_init__(self) -> None:
-        setattr(
-            self,
-            "start",
-            self.start.astimezone(timezone.utc),
-        )
-        setattr(
-            self,
-            "end",
-            self.end.astimezone(timezone.utc),
-        )
+        self.start = self.start.astimezone(timezone.utc)
+        self.end = self.end.astimezone(timezone.utc)
 
     def is_valid(self) -> bool:
         return self.start < self.end

@@ -1,11 +1,19 @@
 union Bin = NominalBin | IntervalBin | MissingValueBin
 
 type Cluster {
+  """The ID of the cluster"""
   id: ID!
+
+  """The event IDs of the points in the cluster"""
   eventIds: [ID!]!
 
-  """ratio of primary points over reference points"""
+  """Ratio of primary points over reference points"""
   driftRatio: Float
+
+  """
+  Data quality metric summarized by the respective datasets of the clustered events
+  """
+  dataQualityMetric(metric: DataQualityMetricInput!): DatasetValues!
 }
 
 enum DataQualityMetric {
@@ -21,6 +29,11 @@ enum DataQualityMetric {
   p50
   p75
   p99
+}
+
+input DataQualityMetricInput {
+  metric: DataQualityMetric!
+  columnName: String
 }
 
 type DataQualityTimeSeries implements TimeSeries {

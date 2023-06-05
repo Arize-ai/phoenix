@@ -10,6 +10,8 @@ from typing_extensions import Annotated
 
 from phoenix.core.model_schema import PRIMARY, REFERENCE, EventId
 from phoenix.pointcloud.clustering import Hdbscan
+from phoenix.server.api.helpers import ensure_list
+from phoenix.server.api.types.Cluster import Cluster, to_gql_clusters
 
 from .context import Context
 from .input_types import Coordinates
@@ -24,7 +26,6 @@ from .types.Event import unpack_event_id
 from .types.ExportEventsMutation import ExportEventsMutation
 from .types.Model import Model
 from .types.node import GlobalID, Node, from_global_id
-from .types.UMAPPoints import Cluster, to_gql_clusters
 
 
 @strawberry.type
@@ -48,6 +49,7 @@ class Query:
     @strawberry.field
     def hdbscan_clustering(
         self,
+        info: Info[Context, None],
         event_ids: Annotated[
             List[ID],
             strawberry.argument(
@@ -85,10 +87,8 @@ class Query:
             ),
         ] = DEFAULT_CLUSTER_SELECTION_EPSILON,
     ) -> List[Cluster]:
-        if not isinstance(coordinates_3d, list):
-            coordinates_3d = []
-        if not isinstance(coordinates_2d, list):
-            coordinates_2d = []
+        coordinates_3d = ensure_list(coordinates_3d)
+        coordinates_2d = ensure_list(coordinates_2d)
 
         if len(coordinates_3d) > 0 and len(coordinates_2d) > 0:
             raise ValueError("must specify only one of 2D or 3D coordinates")
@@ -149,15 +149,13 @@ class Query:
             cluster_selection_epsilon=cluster_selection_epsilon,
         ).find_clusters(stacked_coordinates)
 
-        cluster_membership = {
-            stacked_event_ids[row_id]: cluster_id
+        clustered_events = {
+            cluster_id: {stacked_event_ids[row_idx] for row_idx in cluster}
             for cluster_id, cluster in enumerate(clusters)
-            for row_id in cluster
         }
 
         return to_gql_clusters(
-            cluster_membership,
-            has_reference_data=len(grouped_event_ids[REFERENCE]) > 0,
+            clustered_events=clustered_events,
         )
 
 

@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from itertools import cycle
+from itertools import chain, cycle
 from typing import Dict, List, Set
 
 import numpy as np
@@ -36,7 +36,7 @@ def test_point_cloud(samp_size: int, n_features: int, n_components: int, n_clust
 
     data = {EventId(row_id=i): np.random.rand(1, n_features) for i in range(samp_size)}
 
-    points, clusters = PointCloud(
+    points, clustered_events = PointCloud(
         dimensionalityReducer=(MockDimensionalityReducer(samp_size)),
         clustersFinder=(MockClustersFinder(cluster_assignments)),
     ).generate(
@@ -45,6 +45,6 @@ def test_point_cloud(samp_size: int, n_features: int, n_components: int, n_clust
     )
 
     assert np.stack(points.values()).shape == (samp_size, n_components)
-    assert len(set(clusters.values())) == n_clusters
+    assert len(clustered_events) == n_clusters
     assert set(points.keys()) == set(data.keys())
-    assert set(clusters.keys()) <= set(data.keys())
+    assert set(chain.from_iterable(clustered_events.values())) <= set(data.keys())

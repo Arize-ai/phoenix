@@ -1,16 +1,16 @@
 from dataclasses import dataclass
-from typing import Dict, Hashable, List, Mapping, Protocol, Tuple, TypeVar
+from typing import Dict, List, Mapping, Protocol, Set, Tuple
 
 import numpy as np
 import numpy.typing as npt
 from typing_extensions import TypeAlias
 
+from phoenix.core.model_schema import EventId
 from phoenix.pointcloud.clustering import RawCluster
 
 Vector: TypeAlias = npt.NDArray[np.float64]
 Matrix: TypeAlias = npt.NDArray[np.float64]
 RowIndex: TypeAlias = int
-Identifier = TypeVar("Identifier", bound=Hashable)
 ClusterId: TypeAlias = int
 
 
@@ -31,9 +31,9 @@ class PointCloud:
 
     def generate(
         self,
-        data: Mapping[Identifier, Vector],
+        data: Mapping[EventId, Vector],
         n_components: int = 3,
-    ) -> Tuple[Dict[Identifier, Vector], Dict[Identifier, ClusterId]]:
+    ) -> Tuple[Dict[EventId, Vector], Dict[ClusterId, Set[EventId]]]:
         """
         Given a set of vectors, projects them onto lower dimensions, and
         finds clusters among the projections.
@@ -41,7 +41,7 @@ class PointCloud:
         Parameters
         ----------
         data : mapping
-            Mapping of input vectors by their identifiers.
+            Mapping of input vectors by their EventIds.
 
         n_components: int, default=3
             Number of dimensions in the projected space.
@@ -50,24 +50,23 @@ class PointCloud:
         -------
         projections : dictionary
             Projected vectors in the low dimensional space, mapped back to the
-            input vectors' identifiers.
+            input vectors' EventIds.
 
         cluster_membership: dictionary
             Cluster membership by way of cluster_ids in the form of integers
-            0,1,2,... mapped back to the input vectors' identifiers. Note that
+            0,1,2,... mapped back to the input vectors' EventIds. Note that
             some vectors may not belong to any cluster and are excluded here.
 
         """
 
         if not data:
             return {}, {}
-        identifiers, vectors = zip(*data.items())
+        event_ids, vectors = zip(*data.items())
         projections = self.dimensionalityReducer.project(
             np.stack(vectors), n_components=n_components
         )
         clusters = self.clustersFinder.find_clusters(projections)
-        return dict(zip(identifiers, projections)), {
-            identifiers[row_index]: cluster_id
+        return dict(zip(event_ids, projections)), {
+            cluster_id: {event_ids[row_index] for row_index in cluster}
             for cluster_id, cluster in enumerate(clusters)
-            for row_index in cluster
         }
