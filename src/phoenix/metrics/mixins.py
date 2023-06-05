@@ -24,6 +24,7 @@ from phoenix.metrics.binning import (
 
 @dataclass(frozen=True)
 class ZeroInitialValue(ABC):
+    @property
     def initial_value(self) -> Any:
         if isinstance(self, VectorOperator):
             return np.zeros(self.shape)

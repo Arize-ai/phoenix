@@ -56,7 +56,7 @@ class VectorSum(UnaryOperator, VectorOperator, ZeroInitialValue, Metric):
             Vector,
             np.sum(
                 data.dropna().to_numpy(),
-                initial=self.initial_value(),
+                initial=self.initial_value,
             ),
         )
 

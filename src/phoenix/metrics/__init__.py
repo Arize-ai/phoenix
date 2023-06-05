@@ -18,6 +18,7 @@ class Metric(ABC):
         """
         return id(self)
 
+    @property
     def initial_value(self) -> Any:
         return np.nan
 
@@ -25,7 +26,7 @@ class Metric(ABC):
         try:
             return result[self.id()]
         except KeyError:
-            return self.initial_value()
+            return self.initial_value
 
     @abstractmethod
     def calc(self, dataframe: pd.DataFrame) -> Any:
@@ -66,7 +67,7 @@ class Metric(ABC):
         try:
             return self.calc(df)
         except (TypeError, ValueError):
-            return np.nan
+            return self.initial_value
 
 
 def multi_calculate(
