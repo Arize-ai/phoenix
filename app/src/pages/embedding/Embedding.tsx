@@ -60,6 +60,7 @@ import {
 } from "./__generated__/EmbeddingUMAPQuery.graphql";
 import { CountTimeSeries } from "./CountTimeSeries";
 import { EuclideanDistanceTimeSeries } from "./EuclideanDistanceTimeSeries";
+import { MetricSelector } from "./MetricSelector";
 import { PointSelectionPanelContent } from "./PointSelectionPanelContent";
 
 type UMAPPointsEntry = NonNullable<
@@ -253,6 +254,7 @@ function EmbeddingMain() {
             }}
           />
         ) : null}
+        <MetricSelector model={} />
       </Toolbar>
       <PanelGroup direction="vertical">
         {showChart ? (

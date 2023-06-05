@@ -156,6 +156,19 @@ type HDBSCANParameters = {
   clusterSelectionEpsilon: number;
 };
 
+export type DriftMetric = {
+  type: "drift";
+  metric: "euclideanDistance";
+};
+
+export type DataQualityMetric = {
+  type: "dataQuality";
+  metric: "average";
+  dimensionName: string;
+};
+
+export type MetricDefinition = DriftMetric | DataQualityMetric;
+
 /**
  * The properties of the point cloud store.
  */
@@ -260,6 +273,10 @@ export interface PointCloudProps {
    * Whether or not the clusters are loading or not
    */
   clustersLoading: boolean;
+  /**
+   * The overall metric for the point cloud
+   */
+  metric: MetricDefinition;
 }
 
 export interface PointCloudState extends PointCloudProps {
@@ -350,6 +367,10 @@ export interface PointCloudState extends PointCloudProps {
    * Set the error message
    */
   setErrorMessage: (message: string | null) => void;
+  /**
+   * Set the overall metric used in the point-cloud
+   */
+  setMetric(metric: MetricDefinition): void;
 }
 
 /**
@@ -428,6 +449,10 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
       clusterSelectionEpsilon: DEFAULT_CLUSTER_SELECTION_EPSILON,
     },
     clustersLoading: false,
+    metric: {
+      type: "drift",
+      metric: "euclideanDistance",
+    },
   };
 
   const pointCloudStore: StateCreator<PointCloudState> = (set, get) => ({
@@ -687,6 +712,7 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
     },
     getHDSCANParameters: () => get().hdbscanParameters,
     setErrorMessage: (errorMessage) => set({ errorMessage }),
+    setMetric: (metric) => set({ metric }),
   });
 
   return create<PointCloudState>()(devtools(pointCloudStore));
