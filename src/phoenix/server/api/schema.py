@@ -156,7 +156,6 @@ class Query:
 
         return to_gql_clusters(
             clustered_events=clustered_events,
-            has_reference_data=len(grouped_event_ids[REFERENCE]) > 0,
         )
 
 

@@ -297,7 +297,6 @@ class EmbeddingDimension(Node):
             reference_data=points[REFERENCE],
             clusters=to_gql_clusters(
                 clustered_events=clustered_events,
-                has_reference_data=not model[REFERENCE].empty,
             ),
         )
 

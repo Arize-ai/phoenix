@@ -29,7 +29,7 @@ class DataQualityMetricInput:
         metric_instance = self.metric.value()
         if isinstance(metric_instance, UnaryOperator):
             if not isinstance(self.column_name, str):
-                raise ValueError(f"dimension must not be null for {self.metric.name}")
+                raise ValueError(f"column name must not be null for {self.metric.name}")
             metric_instance = replace(
                 metric_instance,
                 operand=Column(self.column_name),

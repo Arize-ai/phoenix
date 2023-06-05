@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Any, Iterable, Iterator, List, Mapping, Optional, Union
+from typing import Any, Iterable, List, Mapping, Optional, Union
 
 import numpy as np
 import pandas as pd
@@ -31,8 +31,9 @@ class Metric(ABC):
     def calc(self, dataframe: pd.DataFrame) -> Any:
         ...
 
-    def operands(self) -> Iterator[Column]:
-        yield from ()
+    @abstractmethod
+    def operands(self) -> List[Column]:
+        ...
 
     def __call__(
         self,
@@ -40,8 +41,7 @@ class Metric(ABC):
         /,
         subset_rows: Optional[Union[slice, List[int]]] = None,
     ) -> Any:
-        if subset_rows is None:
-            subset_rows = slice(None)
+        subset_rows = slice(None) if subset_rows is None else subset_rows
         df = df.iloc[
             subset_rows,
             sorted(

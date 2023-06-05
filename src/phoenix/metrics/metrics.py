@@ -18,6 +18,7 @@ from .mixins import (
     DiscreteDivergence,
     DriftOperator,
     EvaluationMetric,
+    NullaryOperator,
     UnaryOperator,
     VectorOperator,
     ZeroInitialValue,
@@ -25,7 +26,7 @@ from .mixins import (
 
 
 @dataclass(frozen=True)
-class Count(ZeroInitialValue, Metric):
+class Count(NullaryOperator, ZeroInitialValue, Metric):
     def calc(self, dataframe: pd.DataFrame) -> int:
         return len(dataframe)
 

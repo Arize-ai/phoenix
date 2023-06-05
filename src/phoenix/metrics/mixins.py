@@ -6,7 +6,7 @@ on cooperative multiple inheritance and method resolution order in Python.
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from functools import cached_property
-from typing import Any, Iterator
+from typing import Any, List
 
 import numpy as np
 import pandas as pd
@@ -36,6 +36,12 @@ class VectorOperator(ABC):
 
 
 @dataclass(frozen=True)
+class NullaryOperator(Metric, ABC):
+    def operands(self) -> List[Column]:
+        return []
+
+
+@dataclass(frozen=True)
 class UnaryOperator(Metric, ABC):
     """
     A unary operator is a function with one operand or argument as input.
@@ -44,8 +50,8 @@ class UnaryOperator(Metric, ABC):
 
     operand: Column = Column()
 
-    def operands(self) -> Iterator[Column]:
-        yield self.operand
+    def operands(self) -> List[Column]:
+        return [self.operand]
 
 
 @dataclass(frozen=True)
@@ -53,9 +59,8 @@ class EvaluationMetric(Metric, ABC):
     predicted: Column = Column()
     actual: Column = Column()
 
-    def operands(self) -> Iterator[Column]:
-        yield self.predicted
-        yield self.actual
+    def operands(self) -> List[Column]:
+        return [self.predicted, self.actual]
 
 
 @dataclass(frozen=True)

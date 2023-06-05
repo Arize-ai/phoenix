@@ -1,12 +1,14 @@
 from collections import defaultdict
-from typing import Any, Dict, Iterable, List, Mapping
+from typing import Dict, Iterable, List, Mapping, Optional, TypeVar
 
 from phoenix.core.model_schema import PRIMARY, REFERENCE, DatasetRole, EventId, Model
 from phoenix.metrics import Metric
 from phoenix.server.api.types.DatasetValues import DatasetValues
 
+T = TypeVar("T")
 
-def ensure_list(obj: Any) -> List[Any]:
+
+def ensure_list(obj: Optional[Iterable[T]]) -> List[T]:
     if isinstance(obj, List):
         return obj
     if isinstance(obj, Iterable):

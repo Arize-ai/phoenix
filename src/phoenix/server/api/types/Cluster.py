@@ -21,7 +21,6 @@ class Cluster:
     )
 
     events: strawberry.Private[Set[EventId]]
-    has_reference_data: strawberry.Private[bool]
 
     @strawberry.field(
         description="The event IDs of the points in the cluster",
@@ -32,7 +31,10 @@ class Cluster:
     @strawberry.field(
         description="Ratio of primary points over reference points",
     )  # type: ignore
-    def drift_ratio(self) -> Optional[float]:
+    def drift_ratio(
+        self,
+        info: Info[Context, None],
+    ) -> Optional[float]:
         """
         Calculates the drift score of the cluster. The score will be a value
         representing the balance of points between the primary and the reference
@@ -43,7 +45,8 @@ class Cluster:
         -------
         drift_ratio : Optional[float]
         """
-        if not self.has_reference_data:
+        model = info.context.model
+        if model[REFERENCE].empty:
             return None
         return (
             np.nan
@@ -78,7 +81,6 @@ class Cluster:
 
 def to_gql_clusters(
     clustered_events: Mapping[int, Set[EventId]],
-    has_reference_data: bool,
 ) -> List[Cluster]:
     """
     Converts a dictionary of event IDs to cluster IDs to a list of clusters
@@ -97,7 +99,6 @@ def to_gql_clusters(
         Cluster(
             id=ID(str(cluster_id)),
             events=events,
-            has_reference_data=has_reference_data,
         )
         for cluster_id, events in clustered_events.items()
     ]
