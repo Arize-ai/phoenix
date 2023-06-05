@@ -90,9 +90,6 @@ def to_gql_clusters(
     ----------
     cluster_membership: Mapping[int, Set[EventId]]
         A mapping of cluster ID to its set of event IDs
-    has_reference_data: bool
-        Whether or not the model has reference data
-        Used to determine if drift ratio should be calculated
     """
 
     return [
