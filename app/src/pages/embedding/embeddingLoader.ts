@@ -20,15 +20,6 @@ export async function embeddingLoader(args: LoaderFunctionArgs) {
             name
           }
         }
-        model {
-          numericDimensions: dimensions(include: { shapes: [continuous] }) {
-            edges {
-              node {
-                name
-              }
-            }
-          }
-        }
       }
     `,
     {

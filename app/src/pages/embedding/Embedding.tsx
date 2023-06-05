@@ -9,6 +9,7 @@ import React, {
 import {
   graphql,
   PreloadedQuery,
+  useLazyLoadQuery,
   usePreloadedQuery,
   useQueryLoader,
 } from "react-relay";
@@ -54,6 +55,7 @@ import {
   DEFAULT_SINGLE_DATASET_POINT_CLOUD_PROPS,
 } from "@phoenix/store";
 
+import { EmbeddingModelQuery } from "./__generated__/EmbeddingModelQuery.graphql";
 import {
   EmbeddingUMAPQuery as UMAPQueryType,
   EmbeddingUMAPQuery$data,
@@ -193,6 +195,18 @@ function EmbeddingMain() {
     };
   }, [endTime]);
 
+  // Additional data needed for the page
+  const modelData = useLazyLoadQuery<EmbeddingModelQuery>(
+    graphql`
+      query EmbeddingModelQuery {
+        model {
+          ...MetricSelector_dimensions
+        }
+      }
+    `,
+    {}
+  );
+
   useEffect(() => {
     // dispose of the selections in the context
     resetPointCloud();
@@ -254,7 +268,7 @@ function EmbeddingMain() {
             }}
           />
         ) : null}
-        <MetricSelector model={} />
+        <MetricSelector model={modelData.model} />
       </Toolbar>
       <PanelGroup direction="vertical">
         {showChart ? (
