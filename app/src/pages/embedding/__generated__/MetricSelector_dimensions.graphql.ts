@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<7526da24a440d2ce9da2b170ef14f77c>>
+ * @generated SignedSource<<9160b4413f627bfd72aea71f3de41439>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -15,6 +15,7 @@ export type MetricSelector_dimensions$data = {
   readonly numericDimensions: {
     readonly edges: ReadonlyArray<{
       readonly node: {
+        readonly id: string;
         readonly name: string;
         readonly type: DimensionType;
       };
@@ -71,6 +72,13 @@ const node: ReaderFragment = {
                   "alias": null,
                   "args": null,
                   "kind": "ScalarField",
+                  "name": "id",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
                   "name": "name",
                   "storageKey": null
                 },
@@ -95,6 +103,6 @@ const node: ReaderFragment = {
   "abstractKey": null
 };
 
-(node as any).hash = "7a65751d40633975d745a92085e0c875";
+(node as any).hash = "55d03de16503d7af254c17cef7d18ee0";
 
 export default node;

@@ -38,9 +38,9 @@ import { usePointCloudContext } from "@phoenix/contexts";
 import { useTimeRange } from "@phoenix/contexts/TimeRangeContext";
 import { useTimeSlice } from "@phoenix/contexts/TimeSliceContext";
 import { MetricDefinition } from "@phoenix/store";
+import { assertUnreachable } from "@phoenix/typeUtils";
 import {
   getMetricDescriptionByMetricKey,
-  getMetricNameByMetricKey,
   getMetricShortNameByMetricKey,
 } from "@phoenix/utils/metricFormatUtils";
 import { fullTimeFormatter } from "@phoenix/utils/timeFormatUtils";
@@ -110,20 +110,31 @@ function TooltipContent({
   return null;
 }
 
-function chartTitle(metric: MetricDefinition | null) {
+function getChartTitle(metric: MetricDefinition | null) {
   if (metric?.type === "drift") {
     return "Embedding Drift";
+  } else if (metric?.type === "dataQuality") {
+    return "Data Quality";
   }
   return "Embedding Count";
 }
 
-function getMetricShortName(metric: MetricDefinition | null) {
+function getMetricShortName(metric: MetricDefinition | null): string {
   if (!metric) {
+    // Fallback to count
     return "Count";
-  } else if (metric?.type === "drift") {
-    return getMetricNameByMetricKey(metric.metric);
+  } else {
+    const metricType = metric.type;
+    switch (metricType) {
+      case "drift":
+        return getMetricShortNameByMetricKey(metric.metric);
+      case "dataQuality":
+        // TODO make this more generic and don't assume avg
+        return `${metric.dimension.name} avg`;
+      default:
+        assertUnreachable(metricType);
+    }
   }
-  return "Count";
 }
 
 function getMetricDescription(metric: MetricDefinition | null) {
@@ -140,6 +151,11 @@ export function MetricTimeSeries({
   embeddingDimensionId: string;
 }) {
   const metric = usePointCloudContext((state) => state.metric);
+
+  // Modality of the metric as boolean values
+  const fetchDrift = metric?.type === "drift";
+  const fetchDataQuality = metric?.type === "dataQuality";
+
   const { timeRange } = useTimeRange();
   const { selectedTimestamp, setSelectedTimestamp } = useTimeSlice();
   const granularity = calculateGranularity(timeRange);
@@ -150,6 +166,9 @@ export function MetricTimeSeries({
         $timeRange: TimeRange!
         $metricGranularity: Granularity!
         $countGranularity: Granularity!
+        $fetchDrift: Boolean!
+        $fetchDataQuality: Boolean!
+        $dimensionId: GlobalID!
       ) {
         embedding: node(id: $embeddingDimensionId) {
           id
@@ -158,7 +177,7 @@ export function MetricTimeSeries({
               metric: euclideanDistance
               timeRange: $timeRange
               granularity: $metricGranularity
-            ) {
+            ) @include(if: $fetchDrift) {
               data {
                 timestamp
                 value
@@ -168,6 +187,21 @@ export function MetricTimeSeries({
               metric: count
               timeRange: $timeRange
               granularity: $countGranularity
+            ) {
+              data {
+                timestamp
+                value
+              }
+            }
+          }
+        }
+        dimension: node(id: $dimensionId) @include(if: $fetchDataQuality) {
+          ... on Dimension {
+            name
+            dataQualityTimeSeries(
+              metric: mean
+              timeRange: $timeRange
+              granularity: $metricGranularity
             ) {
               data {
                 timestamp
@@ -186,6 +220,12 @@ export function MetricTimeSeries({
       },
       metricGranularity: calculateGranularityWithRollingAverage(timeRange),
       countGranularity: granularity,
+      fetchDrift,
+      fetchDataQuality,
+      dimensionId:
+        metric?.type === "dataQuality"
+          ? metric.dimension.id
+          : embeddingDimensionId, // NEED to provide a placeholder id. This is super hacky but it works for now
     }
   );
 
@@ -206,7 +246,7 @@ export function MetricTimeSeries({
   );
 
   const chartPrimaryRawData = getChartPrimaryData(data);
-  const chartSecondaryRawData = getChartSecondaryData(data);
+  const chartSecondaryRawData = getTrafficData(data);
   const trafficDataMap =
     chartSecondaryRawData.reduce((acc, traffic) => {
       acc[traffic.timestamp] = traffic.value;
@@ -248,7 +288,7 @@ export function MetricTimeSeries({
       `}
     >
       <Heading level={3}>
-        {chartTitle(metric)}
+        {getChartTitle(metric)}
         {metricDescription != null ? (
           <ContextualHelp>
             <Heading level={4}>{metricDescription}</Heading>
@@ -346,6 +386,16 @@ function getChartPrimaryData(
       metricName: getMetricShortNameByMetricKey("euclideanDistance"),
       ...d,
     }));
+  } else if (
+    data.dimension &&
+    data.dimension?.dataQualityTimeSeries?.data != null &&
+    data.dimension.dataQualityTimeSeries.data.length > 0
+  ) {
+    const dimensionName = data.dimension.name || "unknown";
+    return data.dimension.dataQualityTimeSeries.data.map((d) => ({
+      metricName: `${dimensionName} avg`,
+      ...d,
+    }));
   } else if (data.embedding.trafficTimeSeries?.data != null) {
     return data.embedding.trafficTimeSeries.data.map((d) => ({
       metricName: "Count",
@@ -356,9 +406,9 @@ function getChartPrimaryData(
 }
 
 /**
- * Function that selects the secondary data for the chart
+ * Function that selects the secondary traffic (count) data for the chart
  */
-function getChartSecondaryData(
+function getTrafficData(
   data: MetricTimeSeriesQuery["response"]
 ): { timestamp: string; value: number | null }[] {
   if (data.embedding.trafficTimeSeries?.data != null) {

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<5a2d67744261d198fcf3a8adcd7c5b89>>
+ * @generated SignedSource<<7823b4d24614075846f36a3974064f5e>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -100,6 +100,13 @@ const node: ConcreteRequest = {
                         "alias": null,
                         "args": null,
                         "kind": "ScalarField",
+                        "name": "id",
+                        "storageKey": null
+                      },
+                      {
+                        "alias": null,
+                        "args": null,
+                        "kind": "ScalarField",
                         "name": "name",
                         "storageKey": null
                       },
@@ -125,12 +132,12 @@ const node: ConcreteRequest = {
     ]
   },
   "params": {
-    "cacheID": "eaeb64791f6db2202122b05b2046f766",
+    "cacheID": "05023ec3c1147ff161733abb93ec920c",
     "id": null,
     "metadata": {},
     "name": "EmbeddingModelQuery",
     "operationKind": "query",
-    "text": "query EmbeddingModelQuery {\n  model {\n    ...MetricSelector_dimensions\n  }\n}\n\nfragment MetricSelector_dimensions on Model {\n  numericDimensions: dimensions(include: {dataTypes: [numeric]}) {\n    edges {\n      node {\n        name\n        type\n      }\n    }\n  }\n}\n"
+    "text": "query EmbeddingModelQuery {\n  model {\n    ...MetricSelector_dimensions\n  }\n}\n\nfragment MetricSelector_dimensions on Model {\n  numericDimensions: dimensions(include: {dataTypes: [numeric]}) {\n    edges {\n      node {\n        id\n        name\n        type\n      }\n    }\n  }\n}\n"
   }
 };
 

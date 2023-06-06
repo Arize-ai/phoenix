@@ -164,7 +164,10 @@ export type DriftMetric = {
 export type DataQualityMetric = {
   type: "dataQuality";
   metric: "average";
-  dimensionName: string;
+  dimension: {
+    id: string;
+    name: string;
+  };
 };
 
 export type MetricDefinition = DriftMetric | DataQualityMetric;

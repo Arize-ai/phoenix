@@ -1,4 +1,4 @@
-import React, { Key, useCallback } from "react";
+import React, { Key, useCallback, useTransition } from "react";
 import { graphql, useFragment } from "react-relay";
 
 import { CollectionElement, Item, Picker, Section } from "@arizeai/components";
@@ -7,16 +7,69 @@ import { useDatasets, usePointCloudContext } from "@phoenix/contexts";
 import { DriftMetric, MetricDefinition } from "@phoenix/store";
 import { assertUnreachable } from "@phoenix/typeUtils";
 
-import { MetricSelector_dimensions$key } from "./__generated__/MetricSelector_dimensions.graphql";
+import {
+  MetricSelector_dimensions$data,
+  MetricSelector_dimensions$key,
+} from "./__generated__/MetricSelector_dimensions.graphql";
 
+/**
+ * Type guard for MetricDefinition["type"]
+ */
+function isMetricType(
+  maybeType: unknown
+): maybeType is MetricDefinition["type"] {
+  return ["drift", "dataQuality"].includes(maybeType as string);
+}
+/**
+ * A function that flattens the metrics into a single key
+ * E.x. "dataQuality:average:age"
+ * @param {MetricDefinition} metric
+ * @returns
+ */
 function getMetricKey(metric: MetricDefinition) {
   const { type, metric: metricName } = metric;
   switch (type) {
     case "drift":
-      return metricName;
+      return `${type}:${metricName}`;
     case "dataQuality": {
-      const { dimensionName } = metric;
-      return `${dimensionName} avg`;
+      const { name } = metric.dimension;
+      return `${type}:${metricName}:${name}`;
+    }
+    default:
+      assertUnreachable(type);
+  }
+}
+
+type ParseMetricKeyParams = {
+  metricKey: string;
+  dimensions: MetricSelector_dimensions$data["numericDimensions"]["edges"][number]["node"][];
+};
+/**
+ * Parses a metric key into a MetricDefinition
+ * @param {string} metricKey
+ * @returns {MetricDefinition} definition
+ */
+function parseMetricKey({
+  metricKey,
+  dimensions,
+}: ParseMetricKeyParams): MetricDefinition {
+  const [type, metricName, dimensionName] = metricKey.split(":");
+  if (!isMetricType(type)) {
+    throw new Error(`Invalid metric type: ${type}`);
+  }
+  switch (type) {
+    case "drift":
+      return { type, metric: metricName as DriftMetric["metric"] };
+    case "dataQuality": {
+      const dimension = dimensions.find((d) => d.name === dimensionName);
+      if (!dimension) {
+        throw new Error(`Invalid dimension name: ${dimensionName}`);
+      }
+      return {
+        type,
+        metric: metricName as "average",
+        dimension,
+      };
     }
     default:
       assertUnreachable(type);
@@ -27,12 +80,14 @@ export function MetricSelector({
 }: {
   model: MetricSelector_dimensions$key;
 }) {
+  const [isPendingTransition, startTransition] = useTransition();
   const data = useFragment<MetricSelector_dimensions$key>(
     graphql`
       fragment MetricSelector_dimensions on Model {
         numericDimensions: dimensions(include: { dataTypes: [numeric] }) {
           edges {
             node {
+              id
               name
               type
             }
@@ -46,26 +101,22 @@ export function MetricSelector({
   const hasReferenceDataset = !!referenceDataset;
   const metric = usePointCloudContext((state) => state.metric);
   const setMetric = usePointCloudContext((state) => state.setMetric);
-  const numericDimensionNames = data.numericDimensions.edges.map(
-    (edge) => edge.node.name
+  const numericDimensions = data.numericDimensions.edges.map(
+    (edge) => edge.node
   );
   const onSelectionChange = useCallback(
     (key: Key) => {
-      if (numericDimensionNames.includes(key as string)) {
-        setMetric({
-          type: "dataQuality",
-          metric: "average",
-          dimensionName: key as string,
-        });
-      } else {
-        setMetric({
-          type: "drift",
-          metric: key as DriftMetric["metric"],
-        });
-      }
+      const metricDefinition = parseMetricKey({
+        metricKey: key as string,
+        dimensions: numericDimensions,
+      });
+      startTransition(() => {
+        setMetric(metricDefinition);
+      });
     },
-    [setMetric, numericDimensionNames]
+    [setMetric, numericDimensions, startTransition]
   );
+  console.log("transitioning: ", isPendingTransition);
   return (
     <Picker
       label="metric"
@@ -75,15 +126,28 @@ export function MetricSelector({
     >
       {hasReferenceDataset ? (
         <Section title="Drift">
-          <Item key={"euclideanDistance"}>Euclidean Distance</Item>
+          <Item
+            key={getMetricKey({
+              type: "drift",
+              metric: "euclideanDistance",
+            })}
+          >
+            Euclidean Distance
+          </Item>
         </Section>
       ) : (
         (null as unknown as CollectionElement<unknown>)
       )}
       <Section title="Data Quality">
-        {numericDimensionNames.map((dimensionName) => {
+        {numericDimensions.map((dimension) => {
           return (
-            <Item key={`${dimensionName} avg`}>{`${dimensionName} avg`}</Item>
+            <Item
+              key={getMetricKey({
+                type: "dataQuality",
+                metric: "average",
+                dimension,
+              })}
+            >{`${dimension.name} avg`}</Item>
           );
         })}
       </Section>

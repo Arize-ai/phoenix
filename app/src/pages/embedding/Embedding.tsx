@@ -17,7 +17,7 @@ import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { subDays } from "date-fns";
 import { css } from "@emotion/react";
 
-import { Counter, Switch, TabPane, Tabs } from "@arizeai/components";
+import { Counter, Flex, Switch, TabPane, Tabs } from "@arizeai/components";
 import { ThreeDimensionalPoint } from "@arizeai/point-cloud";
 
 import { Loading, LoadingMask } from "@phoenix/components";
@@ -246,15 +246,17 @@ function EmbeddingMain() {
       <PointCloudNotifications />
       <Toolbar
         extra={
-          <Switch
-            onChange={(isSelected) => {
-              setShowChart(isSelected);
-            }}
-            defaultSelected={true}
-            labelPlacement="start"
-          >
-            Show Timeseries
-          </Switch>
+          <Flex marginTop="size-100">
+            <Switch
+              onChange={(isSelected) => {
+                setShowChart(isSelected);
+              }}
+              defaultSelected={true}
+              labelPlacement="start"
+            >
+              Show Timeseries
+            </Switch>
+          </Flex>
         }
       >
         <PrimaryDatasetTimeRange />
