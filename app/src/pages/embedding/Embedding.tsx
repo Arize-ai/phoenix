@@ -60,9 +60,8 @@ import {
   EmbeddingUMAPQuery as UMAPQueryType,
   EmbeddingUMAPQuery$data,
 } from "./__generated__/EmbeddingUMAPQuery.graphql";
-import { CountTimeSeries } from "./CountTimeSeries";
-import { EuclideanDistanceTimeSeries } from "./EuclideanDistanceTimeSeries";
 import { MetricSelector } from "./MetricSelector";
+import { MetricTimeSeries } from "./MetricTimeSeries";
 import { PointSelectionPanelContent } from "./PointSelectionPanelContent";
 
 type UMAPPointsEntry = NonNullable<
@@ -275,15 +274,7 @@ function EmbeddingMain() {
           <>
             <Panel defaultSize={20} collapsible order={1}>
               <Suspense fallback={<Loading />}>
-                {referenceDataset ? (
-                  <EuclideanDistanceTimeSeries
-                    embeddingDimensionId={embeddingDimensionId}
-                  />
-                ) : (
-                  <CountTimeSeries
-                    embeddingDimensionId={embeddingDimensionId}
-                  />
-                )}
+                <MetricTimeSeries embeddingDimensionId={embeddingDimensionId} />
               </Suspense>
             </Panel>
             <PanelResizeHandle css={resizeHandleCSS} />

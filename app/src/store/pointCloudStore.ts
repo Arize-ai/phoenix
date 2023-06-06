@@ -276,7 +276,7 @@ export interface PointCloudProps {
   /**
    * The overall metric for the point cloud
    */
-  metric: MetricDefinition;
+  metric: MetricDefinition | null;
 }
 
 export interface PointCloudState extends PointCloudProps {
@@ -404,6 +404,7 @@ export const DEFAULT_SINGLE_DATASET_POINT_CLOUD_PROPS: Partial<PointCloudProps> 
       [CorrectnessGroup.incorrect]: ColorSchemes.Discrete2.LightBlueOrange[1],
       [CorrectnessGroup.unknown]: UNKNOWN_COLOR,
     },
+    metric: null,
   };
 
 export type PointCloudStore = ReturnType<typeof createPointCloudStore>;

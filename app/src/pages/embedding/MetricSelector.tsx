@@ -67,7 +67,7 @@ export function MetricSelector({
   return (
     <Picker
       label="metric"
-      selectedKey={getMetricKey(metric)}
+      selectedKey={metric ? getMetricKey(metric) : undefined}
       onSelectionChange={onSelectionChange}
       placeholder="Select a metric"
     >
