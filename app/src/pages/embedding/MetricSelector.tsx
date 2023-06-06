@@ -1,9 +1,9 @@
 import React, { Key, useCallback } from "react";
 import { graphql, useFragment } from "react-relay";
 
-import { Item, Picker, Section } from "@arizeai/components";
+import { CollectionElement, Item, Picker, Section } from "@arizeai/components";
 
-import { usePointCloudContext } from "@phoenix/contexts";
+import { useDatasets, usePointCloudContext } from "@phoenix/contexts";
 import { DriftMetric, MetricDefinition } from "@phoenix/store";
 import { assertUnreachable } from "@phoenix/typeUtils";
 
@@ -42,6 +42,8 @@ export function MetricSelector({
     `,
     model
   );
+  const { referenceDataset } = useDatasets();
+  const hasReferenceDataset = !!referenceDataset;
   const metric = usePointCloudContext((state) => state.metric);
   const setMetric = usePointCloudContext((state) => state.setMetric);
   const numericDimensionNames = data.numericDimensions.edges.map(
@@ -71,9 +73,13 @@ export function MetricSelector({
       onSelectionChange={onSelectionChange}
       placeholder="Select a metric"
     >
-      <Section title="Drift">
-        <Item key={"euclideanDistance"}>Euclidean Distance</Item>
-      </Section>
+      {hasReferenceDataset ? (
+        <Section title="Drift">
+          <Item key={"euclideanDistance"}>Euclidean Distance</Item>
+        </Section>
+      ) : (
+        (null as unknown as CollectionElement<unknown>)
+      )}
       <Section title="Data Quality">
         {numericDimensionNames.map((dimensionName) => {
           return (
