@@ -1,13 +1,27 @@
 import React, { Key, useCallback } from "react";
 import { graphql, useFragment } from "react-relay";
 
-import { CollectionElement, Item, Picker, Section } from "@arizeai/components";
+import { Item, Picker, Section } from "@arizeai/components";
 
 import { usePointCloudContext } from "@phoenix/contexts";
-import { DriftMetric } from "@phoenix/store";
+import { DriftMetric, MetricDefinition } from "@phoenix/store";
+import { assertUnreachable } from "@phoenix/typeUtils";
 
 import { MetricSelector_dimensions$key } from "./__generated__/MetricSelector_dimensions.graphql";
 
+function getMetricKey(metric: MetricDefinition) {
+  const { type, metric: metricName } = metric;
+  switch (type) {
+    case "drift":
+      return metricName;
+    case "dataQuality": {
+      const { dimensionName } = metric;
+      return `${dimensionName} avg`;
+    }
+    default:
+      assertUnreachable(type);
+  }
+}
 export function MetricSelector({
   model,
 }: {
@@ -35,25 +49,36 @@ export function MetricSelector({
   );
   const onSelectionChange = useCallback(
     (key: Key) => {
-      setMetric({
-        type: "drift",
-        metric: key as DriftMetric["metric"],
-      });
+      if (numericDimensionNames.includes(key as string)) {
+        setMetric({
+          type: "dataQuality",
+          metric: "average",
+          dimensionName: key as string,
+        });
+      } else {
+        setMetric({
+          type: "drift",
+          metric: key as DriftMetric["metric"],
+        });
+      }
     },
-    [setMetric]
+    [setMetric, numericDimensionNames]
   );
   return (
     <Picker
       label="metric"
-      selectedKey={metric.metric}
+      selectedKey={getMetricKey(metric)}
       onSelectionChange={onSelectionChange}
+      placeholder="Select a metric"
     >
-      <Section title="Drift Metrics">
+      <Section title="Drift">
         <Item key={"euclideanDistance"}>Euclidean Distance</Item>
       </Section>
-      <Section title="Data Quality Metrics">
+      <Section title="Data Quality">
         {numericDimensionNames.map((dimensionName) => {
-          return <Item key={dimensionName}>{dimensionName}</Item>;
+          return (
+            <Item key={`${dimensionName} avg`}>{`${dimensionName} avg`}</Item>
+          );
         })}
       </Section>
     </Picker>
