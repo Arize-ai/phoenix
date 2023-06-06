@@ -1,7 +1,15 @@
 import React, { Key, useCallback, useTransition } from "react";
 import { graphql, useFragment } from "react-relay";
 
-import { CollectionElement, Item, Picker, Section } from "@arizeai/components";
+import {
+  CollectionElement,
+  Content,
+  ContextualHelp,
+  Heading,
+  Item,
+  Picker,
+  Section,
+} from "@arizeai/components";
 
 import { useDatasets, usePointCloudContext } from "@phoenix/contexts";
 import { DriftMetric, MetricDefinition } from "@phoenix/store";
@@ -75,12 +83,30 @@ function parseMetricKey({
       assertUnreachable(type);
   }
 }
+
+const contextualHelp = (
+  <ContextualHelp variant="info">
+    <Heading level={4}>Analysis Metric</Heading>
+    <Content>
+      <p>Select a metric to drive the analysis of your embeddings.</p>
+      <p>
+        To analyze the the drift between your two datasets, select a drift
+        metric and the UI will highlight areas of high drift.
+      </p>
+      <p>
+        To analyze the quality of your embeddings, select a dimension data
+        quality metric by which to analyze the point cloud. The UI will
+        highlight areas where the data quality is degrading.
+      </p>
+    </Content>
+  </ContextualHelp>
+);
 export function MetricSelector({
   model,
 }: {
   model: MetricSelector_dimensions$key;
 }) {
-  const [isPendingTransition, startTransition] = useTransition();
+  const [, startTransition] = useTransition();
   const data = useFragment<MetricSelector_dimensions$key>(
     graphql`
       fragment MetricSelector_dimensions on Model {
@@ -116,10 +142,10 @@ export function MetricSelector({
     },
     [setMetric, numericDimensions, startTransition]
   );
-  console.log("transitioning: ", isPendingTransition);
   return (
     <Picker
       label="metric"
+      labelExtra={contextualHelp}
       selectedKey={metric ? getMetricKey(metric) : undefined}
       onSelectionChange={onSelectionChange}
       placeholder="Select a metric"

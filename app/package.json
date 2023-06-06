@@ -34,6 +34,7 @@
     "three": "0.139",
     "three-stdlib": "^2.17.3",
     "use-deep-compare-effect": "^1.8.1",
+    "use-zustand": "^0.0.4",
     "zustand": "^4.3.5"
   },
   "devDependencies": {
