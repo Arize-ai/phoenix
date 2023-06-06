@@ -12,7 +12,7 @@ import {
 } from "@arizeai/components";
 
 import { useDatasets, usePointCloudContext } from "@phoenix/contexts";
-import { DriftMetric, MetricDefinition } from "@phoenix/store";
+import { DriftMetricDefinition, MetricDefinition } from "@phoenix/store";
 import { assertUnreachable } from "@phoenix/typeUtils";
 
 import {
@@ -20,6 +20,10 @@ import {
   MetricSelector_dimensions$key,
 } from "./__generated__/MetricSelector_dimensions.graphql";
 
+/**
+ * Delineates the tuple (or triple) of metric type and metric name
+ */
+const METRIC_KEY_SEPARATOR = ":";
 /**
  * Type guard for MetricDefinition["type"]
  */
@@ -38,10 +42,10 @@ function getMetricKey(metric: MetricDefinition) {
   const { type, metric: metricName } = metric;
   switch (type) {
     case "drift":
-      return `${type}:${metricName}`;
+      return `${type}${METRIC_KEY_SEPARATOR}${metricName}`;
     case "dataQuality": {
       const { name } = metric.dimension;
-      return `${type}:${metricName}:${name}`;
+      return `${type}${METRIC_KEY_SEPARATOR}${metricName}${METRIC_KEY_SEPARATOR}${name}`;
     }
     default:
       assertUnreachable(type);
@@ -61,13 +65,14 @@ function parseMetricKey({
   metricKey,
   dimensions,
 }: ParseMetricKeyParams): MetricDefinition {
-  const [type, metricName, dimensionName] = metricKey.split(":");
+  const [type, metricName, dimensionName] =
+    metricKey.split(METRIC_KEY_SEPARATOR);
   if (!isMetricType(type)) {
     throw new Error(`Invalid metric type: ${type}`);
   }
   switch (type) {
     case "drift":
-      return { type, metric: metricName as DriftMetric["metric"] };
+      return { type, metric: metricName as DriftMetricDefinition["metric"] };
     case "dataQuality": {
       const dimension = dimensions.find((d) => d.name === dimensionName);
       if (!dimension) {

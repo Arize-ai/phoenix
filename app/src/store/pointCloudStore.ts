@@ -156,12 +156,12 @@ type HDBSCANParameters = {
   clusterSelectionEpsilon: number;
 };
 
-export type DriftMetric = {
+export type DriftMetricDefinition = {
   type: "drift";
   metric: "euclideanDistance";
 };
 
-export type DataQualityMetric = {
+export type DataQualityMetricDefinition = {
   type: "dataQuality";
   metric: "average";
   dimension: {
@@ -170,7 +170,9 @@ export type DataQualityMetric = {
   };
 };
 
-export type MetricDefinition = DriftMetric | DataQualityMetric;
+export type MetricDefinition =
+  | DriftMetricDefinition
+  | DataQualityMetricDefinition;
 
 /**
  * The properties of the point cloud store.
