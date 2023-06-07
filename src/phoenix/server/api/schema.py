@@ -50,7 +50,6 @@ class Query:
     @strawberry.field
     def clusters(
         self,
-        info: Info[Context, None],
         clusters: List[ClusterInput],
     ) -> List[Cluster]:
         clustered_events: Dict[Any, Set[EventId]] = defaultdict(set)
