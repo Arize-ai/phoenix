@@ -10,7 +10,7 @@ from phoenix.metrics.wrappers import ClassificationEval, Eval, ScoredClassificat
 @strawberry.enum
 class PerformanceMetric(Enum):
     # NOTE: Strawberry (version 0.178.0) only recognizes these
-    # functions as enum values whey they're placed inside `partial`.
+    # functions as enum values when they're placed inside `partial`.
     accuracy_score = partial(ClassificationEval(metrics.accuracy_score))
     average_precision_score = partial(ScoredClassificationEval(metrics.average_precision_score))
     balanced_accuracy_score = partial(ClassificationEval(metrics.balanced_accuracy_score))
