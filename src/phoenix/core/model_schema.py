@@ -322,7 +322,7 @@ class Column:
                 return data.at[self.name]
             except KeyError:
                 return self._default.value
-        raise ValueError("invalid data: %s" % repr(data))
+        raise ValueError(f"invalid data: {repr(data)}")
 
     def __iter__(self) -> Iterator[str]:
         """This is to partake in the iteration of column names by a

@@ -9,6 +9,7 @@ from strawberry.types import Info
 from phoenix.core.model_schema import PRIMARY, REFERENCE, DatasetRole, EventId
 from phoenix.server.api.context import Context
 from phoenix.server.api.input_types.DataQualityMetricInput import DataQualityMetricInput
+from phoenix.server.api.input_types.PerformanceMetricInput import PerformanceMetricInput
 from phoenix.server.api.types.DatasetValues import DatasetValues
 
 
@@ -62,6 +63,30 @@ class Cluster:
         self,
         info: Info[Context, None],
         metric: DataQualityMetricInput,
+    ) -> DatasetValues:
+        model = info.context.model
+        row_ids: Dict[DatasetRole, List[int]] = defaultdict(list)
+        for event in self.events:
+            row_ids[event.dataset_id].append(event.row_id)
+        return DatasetValues(
+            primary_value=metric.metric_instance(
+                model[PRIMARY],
+                subset_rows=row_ids[PRIMARY],
+            ),
+            reference_value=metric.metric_instance(
+                model[REFERENCE],
+                subset_rows=row_ids[REFERENCE],
+            ),
+        )
+
+    @strawberry.field(
+        description="Performance metric summarized by the respective "
+        "datasets of the clustered events",
+    )  # type: ignore
+    def performance_metric(
+        self,
+        info: Info[Context, None],
+        metric: PerformanceMetricInput,
     ) -> DatasetValues:
         model = info.context.model
         row_ids: Dict[DatasetRole, List[int]] = defaultdict(list)

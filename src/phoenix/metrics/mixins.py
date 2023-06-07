@@ -3,10 +3,12 @@ Mixins are behavioral building blocks of metrics. All metrics inherit from
 BaseMetric. Other mixins provide specialized functionalities. Mixins rely
 on cooperative multiple inheritance and method resolution order in Python.
 """
+import collections
+import inspect
 from abc import ABC, abstractmethod
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields
 from functools import cached_property
-from typing import Any, List
+from typing import TYPE_CHECKING, Any, Callable, Dict, Iterator, List, Mapping, Optional
 
 import numpy as np
 import pandas as pd
@@ -55,13 +57,66 @@ class UnaryOperator(Metric, ABC):
         return [self.operand]
 
 
+Actual: TypeAlias = "pd.Series[Any]"
+Predicted: TypeAlias = "pd.Series[Any]"
+
+# workaround for type checker
+# https://github.com/python/mypy/issues/5446#issuecomment-412043677
+if TYPE_CHECKING:
+    _BaseMapping = Mapping[str, Any]
+else:
+    _BaseMapping = collections.abc.Mapping
+
+
+@dataclass(frozen=True)
+class EvaluationMetricKeywordParameters(_BaseMapping):
+    pos_label: Optional[Any] = None
+    sample_weight: Optional[Column] = None
+
+    def __getitem__(self, key: str) -> Any:
+        return getattr(self, key)
+
+    def __iter__(self) -> Iterator[str]:
+        return (f.name for f in fields(self) if getattr(self, f.name) is not None)
+
+    def __len__(self) -> int:
+        return sum(1 for _ in self)
+
+    @property
+    def columns(self) -> List[Column]:
+        return [v for v in self.values() if isinstance(v, Column)]
+
+    def __call__(self, df: pd.DataFrame) -> Dict[str, Any]:
+        return {k: v(df) if isinstance(v, Column) else v for k, v in self.items()}
+
+
+def dummy_eval(*args: Any, **kwargs: Any) -> float:
+    return np.nan
+
+
 @dataclass(frozen=True)
 class EvaluationMetric(Metric, ABC):
-    predicted: Column = Column()
     actual: Column = Column()
+    predicted: Column = Column()
+    eval: Callable[[Actual, Predicted], float] = dummy_eval
+    parameters: EvaluationMetricKeywordParameters = field(
+        default_factory=EvaluationMetricKeywordParameters,
+    )
+
+    def __post_init__(self) -> None:
+        valid = inspect.signature(self.eval).parameters.keys()
+        if invalid := self.parameters.keys() - valid:
+            raise ValueError(f"invalid parameters: {invalid}")
 
     def operands(self) -> List[Column]:
-        return [self.predicted, self.actual]
+        return [self.actual, self.predicted] + self.parameters.columns
+
+    def calc(self, df: pd.DataFrame) -> float:
+        return self.eval(
+            self.actual(df),
+            self.predicted(df),
+            **self.parameters(df),
+        )
 
 
 @dataclass(frozen=True)
