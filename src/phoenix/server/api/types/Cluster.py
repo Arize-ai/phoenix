@@ -1,7 +1,6 @@
 from collections import Counter, defaultdict
 from typing import Dict, List, Mapping, Optional, Set
 
-import numpy as np
 import strawberry
 from strawberry import ID
 from strawberry.types import Info
