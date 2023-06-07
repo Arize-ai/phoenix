@@ -156,6 +156,24 @@ type HDBSCANParameters = {
   clusterSelectionEpsilon: number;
 };
 
+export type DriftMetricDefinition = {
+  type: "drift";
+  metric: "euclideanDistance";
+};
+
+export type DataQualityMetricDefinition = {
+  type: "dataQuality";
+  metric: "average";
+  dimension: {
+    id: string;
+    name: string;
+  };
+};
+
+export type MetricDefinition =
+  | DriftMetricDefinition
+  | DataQualityMetricDefinition;
+
 /**
  * The properties of the point cloud store.
  */
@@ -260,6 +278,10 @@ export interface PointCloudProps {
    * Whether or not the clusters are loading or not
    */
   clustersLoading: boolean;
+  /**
+   * The overall metric for the point cloud
+   */
+  metric: MetricDefinition | null;
 }
 
 export interface PointCloudState extends PointCloudProps {
@@ -350,6 +372,10 @@ export interface PointCloudState extends PointCloudProps {
    * Set the error message
    */
   setErrorMessage: (message: string | null) => void;
+  /**
+   * Set the overall metric used in the point-cloud
+   */
+  setMetric(metric: MetricDefinition): void;
 }
 
 /**
@@ -383,6 +409,7 @@ export const DEFAULT_SINGLE_DATASET_POINT_CLOUD_PROPS: Partial<PointCloudProps> 
       [CorrectnessGroup.incorrect]: ColorSchemes.Discrete2.LightBlueOrange[1],
       [CorrectnessGroup.unknown]: UNKNOWN_COLOR,
     },
+    metric: null,
   };
 
 export type PointCloudStore = ReturnType<typeof createPointCloudStore>;
@@ -428,6 +455,10 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
       clusterSelectionEpsilon: DEFAULT_CLUSTER_SELECTION_EPSILON,
     },
     clustersLoading: false,
+    metric: {
+      type: "drift",
+      metric: "euclideanDistance",
+    },
   };
 
   const pointCloudStore: StateCreator<PointCloudState> = (set, get) => ({
@@ -687,6 +718,7 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
     },
     getHDSCANParameters: () => get().hdbscanParameters,
     setErrorMessage: (errorMessage) => set({ errorMessage }),
+    setMetric: (metric) => set({ metric }),
   });
 
   return create<PointCloudState>()(devtools(pointCloudStore));
