@@ -1,7 +1,6 @@
 from collections import Counter, defaultdict
 from typing import Dict, List, Mapping, Optional, Set
 
-import numpy as np
 import strawberry
 from strawberry import ID
 from strawberry.types import Info
@@ -49,7 +48,7 @@ class Cluster:
         if model[REFERENCE].empty:
             return None
         return (
-            np.nan
+            None
             if not (cnt := Counter(e.dataset_id for e in self.events))
             else (cnt[PRIMARY] - cnt[REFERENCE]) / (cnt[PRIMARY] + cnt[REFERENCE])
         )
