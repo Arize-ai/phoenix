@@ -566,7 +566,7 @@ const ClustersPanelContents = React.memo(function ClustersPanelContents() {
           <View
             borderBottomColor="dark"
             borderBottomWidth="thin"
-            backgroundColor="light"
+            backgroundColor="dark"
             flex="none"
             padding="size-50"
           >
