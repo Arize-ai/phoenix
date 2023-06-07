@@ -66,6 +66,6 @@ class PointCloud:
         )
         clusters = self.clustersFinder.find_clusters(projections)
         return dict(zip(event_ids, projections)), {
-            str(cluster_id): {event_ids[row_index] for row_index in cluster}
-            for cluster_id, cluster in enumerate(clusters)
+            str(i): {event_ids[row_index] for row_index in cluster}
+            for i, cluster in enumerate(clusters)
         }
