@@ -165,7 +165,7 @@ class Query:
         ).find_clusters(stacked_coordinates)
 
         clustered_events = {
-            cluster_id: {stacked_event_ids[row_idx] for row_idx in cluster}
+            str(cluster_id): {stacked_event_ids[row_idx] for row_idx in cluster}
             for cluster_id, cluster in enumerate(clusters)
         }
 
