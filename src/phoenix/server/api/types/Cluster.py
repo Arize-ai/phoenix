@@ -1,7 +1,6 @@
 from collections import Counter, defaultdict
 from typing import Dict, List, Mapping, Optional, Set
 
-import numpy as np
 import strawberry
 from strawberry import ID
 from strawberry.types import Info
@@ -49,7 +48,7 @@ class Cluster:
         if model[REFERENCE].empty:
             return None
         return (
-            np.nan
+            None
             if not (cnt := Counter(e.dataset_id for e in self.events))
             else (cnt[PRIMARY] - cnt[REFERENCE]) / (cnt[PRIMARY] + cnt[REFERENCE])
         )
@@ -80,7 +79,7 @@ class Cluster:
 
 
 def to_gql_clusters(
-    clustered_events: Mapping[int, Set[EventId]],
+    clustered_events: Mapping[str, Set[EventId]],
 ) -> List[Cluster]:
     """
     Converts a dictionary of event IDs to cluster IDs to a list of clusters
@@ -88,13 +87,13 @@ def to_gql_clusters(
 
     Parameters
     ----------
-    cluster_membership: Mapping[int, Set[EventId]]
+    cluster_membership: Mapping[str, Set[EventId]]
         A mapping of cluster ID to its set of event IDs
     """
 
     return [
         Cluster(
-            id=ID(str(cluster_id)),
+            id=ID(cluster_id),
             events=events,
         )
         for cluster_id, events in clustered_events.items()
