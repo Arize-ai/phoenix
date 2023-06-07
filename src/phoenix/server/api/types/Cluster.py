@@ -1,5 +1,5 @@
 from collections import Counter, defaultdict
-from typing import Dict, List, Mapping, Optional, Set
+from typing import Any, Dict, List, Mapping, Optional, Set
 
 import numpy as np
 import strawberry
@@ -80,7 +80,7 @@ class Cluster:
 
 
 def to_gql_clusters(
-    clustered_events: Mapping[int, Set[EventId]],
+    clustered_events: Mapping[Any, Set[EventId]],
 ) -> List[Cluster]:
     """
     Converts a dictionary of event IDs to cluster IDs to a list of clusters
@@ -88,7 +88,7 @@ def to_gql_clusters(
 
     Parameters
     ----------
-    cluster_membership: Mapping[int, Set[EventId]]
+    cluster_membership: Mapping[Any, Set[EventId]]
         A mapping of cluster ID to its set of event IDs
     """
 
