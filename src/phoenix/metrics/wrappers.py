@@ -90,6 +90,9 @@ def _binarize(
     pos_label: Any,
     s: "pd.Series[Any]",
 ) -> "pd.Series[float]":
+    """Given pos_label, converts series into a binary (0/1) variable, i.e.
+    rows are assigned 1 when their values match pos_label, and 0 otherwise.
+    Rows with missing values are assigned nan."""
     if is_categorical_dtype(s):
         try:
             t = s.cat.codes == s.cat.categories.get_loc(pos_label)
