@@ -34,15 +34,22 @@ import {
   defaultTimeXAxisProps,
 } from "@phoenix/components/chart";
 import { useTimeTickFormatter } from "@phoenix/components/chart";
+import { usePointCloudContext } from "@phoenix/contexts";
 import { useTimeRange } from "@phoenix/contexts/TimeRangeContext";
 import { useTimeSlice } from "@phoenix/contexts/TimeSliceContext";
+import { MetricDefinition } from "@phoenix/store";
+import { assertUnreachable } from "@phoenix/typeUtils";
+import {
+  getMetricDescriptionByMetricKey,
+  getMetricShortNameByMetricKey,
+} from "@phoenix/utils/metricFormatUtils";
 import { fullTimeFormatter } from "@phoenix/utils/timeFormatUtils";
 import {
   calculateGranularity,
   calculateGranularityWithRollingAverage,
 } from "@phoenix/utils/timeSeriesUtils";
 
-import { EuclideanDistanceTimeSeriesQuery } from "./__generated__/EuclideanDistanceTimeSeriesQuery.graphql";
+import { MetricTimeSeriesQuery } from "./__generated__/MetricTimeSeriesQuery.graphql";
 
 const numberFormatter = new Intl.NumberFormat([], {
   maximumFractionDigits: 2,
@@ -51,27 +58,17 @@ const numberFormatter = new Intl.NumberFormat([], {
 const color = colors.blue400;
 const barColor = colors.gray500;
 
-const embeddingDriftContextualHelp = (
-  <ContextualHelp>
-    <Heading level={4}>Embedding Drift</Heading>
-    <Content>
-      {`Euclidean distance over time displays a timeseries graph of how much
-    your primary dataset's embeddings are drifting from the reference
-    data. Euclidean distance of the embeddings is calculated by taking the centroid of the embedding vectors for each dataset and calculating the distance between the two centroids.`}
-    </Content>
-  </ContextualHelp>
-);
 function TooltipContent({
   active,
   payload,
   label,
 }: TooltipProps<number, string>) {
   if (active && payload && payload.length) {
-    const euclideanDistance = payload[1]?.value ?? null;
+    const metricValue = payload[1]?.value ?? null;
     const count = payload[0]?.value ?? null;
-    const euclideanDistanceString =
-      typeof euclideanDistance === "number"
-        ? numberFormatter.format(euclideanDistance)
+    const metricString =
+      typeof metricValue === "number"
+        ? numberFormatter.format(metricValue)
         : "--";
     const predictionCountString =
       typeof count === "number" ? numberFormatter.format(count) : "--";
@@ -82,8 +79,8 @@ function TooltipContent({
         )}`}</Text>
         <ChartTooltipItem
           color={color}
-          name="Euc. Distance"
-          value={euclideanDistanceString}
+          name={payload[1]?.payload.metricName ?? "Metric"}
+          value={metricString}
         />
         <ChartTooltipItem
           color={barColor}
@@ -112,21 +109,66 @@ function TooltipContent({
 
   return null;
 }
-export function EuclideanDistanceTimeSeries({
+
+function getChartTitle(metric: MetricDefinition | null) {
+  if (metric?.type === "drift") {
+    return "Embedding Drift";
+  } else if (metric?.type === "dataQuality") {
+    return "Data Quality";
+  }
+  return "Embedding Count";
+}
+
+function getMetricShortName(metric: MetricDefinition | null): string {
+  if (!metric) {
+    // Fallback to count
+    return "Count";
+  } else {
+    const metricType = metric.type;
+    switch (metricType) {
+      case "drift":
+        return getMetricShortNameByMetricKey(metric.metric);
+      case "dataQuality":
+        // TODO make this more generic and don't assume avg
+        return `${metric.dimension.name} avg`;
+      default:
+        assertUnreachable(metricType);
+    }
+  }
+}
+
+function getMetricDescription(metric: MetricDefinition | null) {
+  if (!metric) {
+    return null;
+  } else if (metric?.type === "drift") {
+    return getMetricDescriptionByMetricKey(metric.metric);
+  }
+  return null;
+}
+export function MetricTimeSeries({
   embeddingDimensionId,
 }: {
   embeddingDimensionId: string;
 }) {
+  const metric = usePointCloudContext((state) => state.metric);
+
+  // Modality of the metric as boolean values
+  const fetchDrift = metric?.type === "drift";
+  const fetchDataQuality = metric?.type === "dataQuality";
+
   const { timeRange } = useTimeRange();
   const { selectedTimestamp, setSelectedTimestamp } = useTimeSlice();
   const granularity = calculateGranularity(timeRange);
-  const data = useLazyLoadQuery<EuclideanDistanceTimeSeriesQuery>(
+  const data = useLazyLoadQuery<MetricTimeSeriesQuery>(
     graphql`
-      query EuclideanDistanceTimeSeriesQuery(
+      query MetricTimeSeriesQuery(
         $embeddingDimensionId: GlobalID!
         $timeRange: TimeRange!
-        $driftGranularity: Granularity!
+        $metricGranularity: Granularity!
         $countGranularity: Granularity!
+        $fetchDrift: Boolean!
+        $fetchDataQuality: Boolean!
+        $dimensionId: GlobalID!
       ) {
         embedding: node(id: $embeddingDimensionId) {
           id
@@ -134,8 +176,8 @@ export function EuclideanDistanceTimeSeries({
             euclideanDistanceTimeSeries: driftTimeSeries(
               metric: euclideanDistance
               timeRange: $timeRange
-              granularity: $driftGranularity
-            ) {
+              granularity: $metricGranularity
+            ) @include(if: $fetchDrift) {
               data {
                 timestamp
                 value
@@ -153,6 +195,21 @@ export function EuclideanDistanceTimeSeries({
             }
           }
         }
+        dimension: node(id: $dimensionId) @include(if: $fetchDataQuality) {
+          ... on Dimension {
+            name
+            dataQualityTimeSeries(
+              metric: mean
+              timeRange: $timeRange
+              granularity: $metricGranularity
+            ) {
+              data {
+                timestamp
+                value
+              }
+            }
+          }
+        }
       }
     `,
     {
@@ -161,8 +218,14 @@ export function EuclideanDistanceTimeSeries({
         start: timeRange.start.toISOString(),
         end: timeRange.end.toISOString(),
       },
-      driftGranularity: calculateGranularityWithRollingAverage(timeRange),
+      metricGranularity: calculateGranularityWithRollingAverage(timeRange),
       countGranularity: granularity,
+      fetchDrift,
+      fetchDataQuality,
+      dimensionId:
+        metric?.type === "dataQuality"
+          ? metric.dimension.id
+          : embeddingDimensionId, // NEED to provide a placeholder id. This is super hacky but it works for now
     }
   );
 
@@ -182,14 +245,15 @@ export function EuclideanDistanceTimeSeries({
     [setSelectedTimestamp]
   );
 
-  const chartRawData = data.embedding.euclideanDistanceTimeSeries?.data || [];
+  const chartPrimaryRawData = getChartPrimaryData(data);
+  const chartSecondaryRawData = getTrafficData(data);
   const trafficDataMap =
-    data.embedding.trafficTimeSeries?.data.reduce((acc, traffic) => {
+    chartSecondaryRawData.reduce((acc, traffic) => {
       acc[traffic.timestamp] = traffic.value;
       return acc;
     }, {} as Record<string, number | null>) ?? {};
 
-  const chartData = chartRawData.map((d) => {
+  const chartData = chartPrimaryRawData.map((d) => {
     const traffic = trafficDataMap[d.timestamp];
     return {
       ...d,
@@ -197,6 +261,9 @@ export function EuclideanDistanceTimeSeries({
       timestamp: new Date(d.timestamp).getTime(),
     };
   });
+  const metricShortName = getMetricShortName(metric);
+  const metricDescription = getMetricDescription(metric);
+
   return (
     <section
       css={css`
@@ -221,8 +288,13 @@ export function EuclideanDistanceTimeSeries({
       `}
     >
       <Heading level={3}>
-        Embedding Drift
-        {embeddingDriftContextualHelp}
+        {getChartTitle(metric)}
+        {metricDescription != null ? (
+          <ContextualHelp>
+            <Heading level={4}>{metricDescription}</Heading>
+            <Content>{metricDescription}</Content>
+          </ContextualHelp>
+        ) : null}
       </Heading>
       <div>
         <ResponsiveContainer width="100%" height="100%">
@@ -249,7 +321,7 @@ export function EuclideanDistanceTimeSeries({
             <YAxis
               stroke={theme.colors.gray200}
               label={{
-                value: "Euc. Distance",
+                value: metricShortName,
                 angle: -90,
                 position: "insideLeft",
                 style: { textAnchor: "middle", fill: theme.textColors.white90 },
@@ -298,4 +370,49 @@ export function EuclideanDistanceTimeSeries({
       </div>
     </section>
   );
+}
+
+/**
+ * Function that selects the primary data for the chart
+ */
+function getChartPrimaryData(
+  data: MetricTimeSeriesQuery["response"]
+): { metricName: string; timestamp: string; value: number | null }[] {
+  if (
+    data.embedding.euclideanDistanceTimeSeries?.data != null &&
+    data.embedding.euclideanDistanceTimeSeries.data.length > 0
+  ) {
+    return data.embedding.euclideanDistanceTimeSeries.data.map((d) => ({
+      metricName: getMetricShortNameByMetricKey("euclideanDistance"),
+      ...d,
+    }));
+  } else if (
+    data.dimension &&
+    data.dimension?.dataQualityTimeSeries?.data != null &&
+    data.dimension.dataQualityTimeSeries.data.length > 0
+  ) {
+    const dimensionName = data.dimension.name || "unknown";
+    return data.dimension.dataQualityTimeSeries.data.map((d) => ({
+      metricName: `${dimensionName} avg`,
+      ...d,
+    }));
+  } else if (data.embedding.trafficTimeSeries?.data != null) {
+    return data.embedding.trafficTimeSeries.data.map((d) => ({
+      metricName: "Count",
+      ...d,
+    }));
+  }
+  return [];
+}
+
+/**
+ * Function that selects the secondary traffic (count) data for the chart
+ */
+function getTrafficData(
+  data: MetricTimeSeriesQuery["response"]
+): { timestamp: string; value: number | null }[] {
+  if (data.embedding.trafficTimeSeries?.data != null) {
+    return [...data.embedding.trafficTimeSeries.data];
+  }
+  return [];
 }

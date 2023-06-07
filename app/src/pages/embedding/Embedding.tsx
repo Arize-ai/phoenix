@@ -9,6 +9,7 @@ import React, {
 import {
   graphql,
   PreloadedQuery,
+  useLazyLoadQuery,
   usePreloadedQuery,
   useQueryLoader,
 } from "react-relay";
@@ -16,7 +17,7 @@ import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { subDays } from "date-fns";
 import { css } from "@emotion/react";
 
-import { Counter, Switch, TabPane, Tabs } from "@arizeai/components";
+import { Counter, Flex, Switch, TabPane, Tabs } from "@arizeai/components";
 import { ThreeDimensionalPoint } from "@arizeai/point-cloud";
 
 import { Loading, LoadingMask } from "@phoenix/components";
@@ -54,12 +55,13 @@ import {
   DEFAULT_SINGLE_DATASET_POINT_CLOUD_PROPS,
 } from "@phoenix/store";
 
+import { EmbeddingModelQuery } from "./__generated__/EmbeddingModelQuery.graphql";
 import {
   EmbeddingUMAPQuery as UMAPQueryType,
   EmbeddingUMAPQuery$data,
 } from "./__generated__/EmbeddingUMAPQuery.graphql";
-import { CountTimeSeries } from "./CountTimeSeries";
-import { EuclideanDistanceTimeSeries } from "./EuclideanDistanceTimeSeries";
+import { MetricSelector } from "./MetricSelector";
+import { MetricTimeSeries } from "./MetricTimeSeries";
 import { PointSelectionPanelContent } from "./PointSelectionPanelContent";
 
 type UMAPPointsEntry = NonNullable<
@@ -192,6 +194,18 @@ function EmbeddingMain() {
     };
   }, [endTime]);
 
+  // Additional data needed for the page
+  const modelData = useLazyLoadQuery<EmbeddingModelQuery>(
+    graphql`
+      query EmbeddingModelQuery {
+        model {
+          ...MetricSelector_dimensions
+        }
+      }
+    `,
+    {}
+  );
+
   useEffect(() => {
     // dispose of the selections in the context
     resetPointCloud();
@@ -232,15 +246,17 @@ function EmbeddingMain() {
       <PointCloudNotifications />
       <Toolbar
         extra={
-          <Switch
-            onChange={(isSelected) => {
-              setShowChart(isSelected);
-            }}
-            defaultSelected={true}
-            labelPlacement="start"
-          >
-            Show Timeseries
-          </Switch>
+          <Flex marginTop="size-100">
+            <Switch
+              onChange={(isSelected) => {
+                setShowChart(isSelected);
+              }}
+              defaultSelected={true}
+              labelPlacement="start"
+            >
+              Show Timeseries
+            </Switch>
+          </Flex>
         }
       >
         <PrimaryDatasetTimeRange />
@@ -253,21 +269,14 @@ function EmbeddingMain() {
             }}
           />
         ) : null}
+        <MetricSelector model={modelData.model} />
       </Toolbar>
       <PanelGroup direction="vertical">
         {showChart ? (
           <>
             <Panel defaultSize={20} collapsible order={1}>
               <Suspense fallback={<Loading />}>
-                {referenceDataset ? (
-                  <EuclideanDistanceTimeSeries
-                    embeddingDimensionId={embeddingDimensionId}
-                  />
-                ) : (
-                  <CountTimeSeries
-                    embeddingDimensionId={embeddingDimensionId}
-                  />
-                )}
+                <MetricTimeSeries embeddingDimensionId={embeddingDimensionId} />
               </Suspense>
             </Panel>
             <PanelResizeHandle css={resizeHandleCSS} />
