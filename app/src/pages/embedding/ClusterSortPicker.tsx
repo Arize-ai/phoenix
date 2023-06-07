@@ -41,7 +41,7 @@ export function ClusterSortPicker() {
           }),
         },
         {
-          label: "Smallest",
+          label: "Smallest cluster",
           value: getSortKey({
             column: "size",
             dir: "asc",
