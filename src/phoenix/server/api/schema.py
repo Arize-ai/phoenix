@@ -1,6 +1,6 @@
 from collections import defaultdict
 from itertools import chain, starmap
-from typing import Any, Dict, List, Optional, Set
+from typing import Dict, List, Optional, Set
 
 import numpy as np
 import strawberry
@@ -52,9 +52,9 @@ class Query:
         self,
         clusters: List[ClusterInput],
     ) -> List[Cluster]:
-        clustered_events: Dict[Any, Set[EventId]] = defaultdict(set)
+        clustered_events: Dict[str, Set[EventId]] = defaultdict(set)
         for i, cluster in enumerate(clusters):
-            clustered_events[cluster.id or i].update(
+            clustered_events[cluster.id or str(i)].update(
                 starmap(EventId, map(unpack_event_id, cluster.event_ids))
             )
         return to_gql_clusters(
