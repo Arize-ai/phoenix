@@ -49,7 +49,7 @@ class Cluster:
         if model[REFERENCE].empty:
             return None
         return (
-            np.nan
+            None
             if not (cnt := Counter(e.dataset_id for e in self.events))
             else (cnt[PRIMARY] - cnt[REFERENCE]) / (cnt[PRIMARY] + cnt[REFERENCE])
         )
