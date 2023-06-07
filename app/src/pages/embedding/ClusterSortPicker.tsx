@@ -34,7 +34,7 @@ export function ClusterSortPicker() {
       return [
         ...dynamicItems,
         {
-          label: "Largest Cluster",
+          label: "Largest cluster",
           value: getSortKey({
             column: "size",
             dir: "desc",
