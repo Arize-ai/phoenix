@@ -220,7 +220,7 @@ class _ConstantValueSeriesFactory:
 
     def __post_init__(self) -> None:
         if isinstance(self.value, float) and math.isnan(self.value):
-            object.__setattr__(self, "_dtype", np.float16)
+            object.__setattr__(self, "_dtype", np.float32)
 
     def __call__(self, length: int) -> "pd.Series[Any]":
         with self._lock:
