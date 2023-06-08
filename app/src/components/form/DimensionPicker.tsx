@@ -101,7 +101,7 @@ export function DimensionPicker<T>(props: DimensionPickerProps<T>) {
       label="Dimension"
       labelExtra={contextualHelp}
       isDisabled={isLoading}
-      placeholder={isLoading ? "Loading..." : "Select a dimension"}
+      placeholder={isLoading ? "Loading..." : "Select a dimension..."}
     >
       {dimensions.map((dimension) => (
         <Item key={dimension.name} textValue={dimension.name}>
