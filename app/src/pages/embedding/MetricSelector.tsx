@@ -153,7 +153,7 @@ export function MetricSelector({
       labelExtra={contextualHelp}
       selectedKey={metric ? getMetricKey(metric) : undefined}
       onSelectionChange={onSelectionChange}
-      placeholder="Select a metric"
+      placeholder="Select a metric..."
     >
       {hasReferenceDataset ? (
         <Section title="Drift">
