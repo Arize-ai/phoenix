@@ -21,6 +21,11 @@ type Cluster {
   performanceMetric(metric: PerformanceMetricInput!): DatasetValues!
 }
 
+input ClusterInput {
+  eventIds: [ID!]!
+  id: ID
+}
+
 enum DataQualityMetric {
   cardinality
   percentEmpty
@@ -408,6 +413,7 @@ type PromptResponse {
 type Query {
   model: Model!
   node(id: GlobalID!): Node!
+  clusters(clusters: [ClusterInput!]!): [Cluster!]!
   hdbscanClustering(
     """Event ID of the coordinates"""
     eventIds: [ID!]!

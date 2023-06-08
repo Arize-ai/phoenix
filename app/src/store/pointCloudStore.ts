@@ -126,7 +126,22 @@ interface Cluster {
   readonly driftRatio: number | null;
   readonly eventIds: readonly string[];
   readonly id: string;
+  readonly size: number;
 }
+
+/**
+ * The subset of the cluster that is passed in
+ * The omitted fields are computed
+ */
+type ClusterInput = Omit<Cluster, "size">;
+
+/**
+ * The sort order of the clusters
+ */
+export type ClusterSort = {
+  dir: "asc" | "desc";
+  column: keyof Cluster;
+};
 
 type EventData =
   pointCloudStore_eventsQuery$data["model"]["primaryDataset"]["events"][number];
@@ -191,6 +206,11 @@ export interface PointCloudProps {
    * The clusters of points
    */
   clusters: readonly Cluster[];
+  /**
+   * The sort order of the clusters
+   * @default { dir: "desc", column: "driftRatio" }
+   */
+  clusterSort: ClusterSort;
   /**
    * The point information that is currently loaded into view
    * If it is null, the point data is being loaded.
@@ -290,12 +310,16 @@ export interface PointCloudState extends PointCloudProps {
    */
   setPointsAndClusters: (pointsAndClusters: {
     points: readonly Point[];
-    clusters: readonly Cluster[];
+    clusters: readonly ClusterInput[];
   }) => void;
   /**
    * Sets the clusters to be displayed within the point cloud
    */
-  setClusters: (clusters: readonly Cluster[]) => void;
+  setClusters: (clusters: readonly ClusterInput[]) => void;
+  /**
+   * Set the cluster sort order
+   */
+  setClusterSort: (sort: ClusterSort) => void;
   /**
    * Sets the selected eventIds to the given value.
    */
@@ -410,6 +434,7 @@ export const DEFAULT_SINGLE_DATASET_POINT_CLOUD_PROPS: Partial<PointCloudProps> 
       [CorrectnessGroup.unknown]: UNKNOWN_COLOR,
     },
     metric: null,
+    clusterSort: { dir: "desc", column: "size" },
   };
 
 export type PointCloudStore = ReturnType<typeof createPointCloudStore>;
@@ -421,6 +446,7 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
     points: [],
     eventIdToDataMap: new Map(),
     clusters: [],
+    clusterSort: { dir: "desc", column: "driftRatio" },
     pointData: null,
     selectedEventIds: new Set(),
     highlightedClusterId: null,
@@ -473,7 +499,10 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
         eventIdToDataMap.set(p.eventId, p);
       });
 
-      const sortedClusters = [...clusters].sort(clusterSortFn);
+      const sortedClusters = clusters
+        .map((c) => ({ ...c, size: c.eventIds.length }))
+        .sort(clusterSortFn(pointCloud.clusterSort));
+
       set({
         points: points,
         eventIdToDataMap,
@@ -490,8 +519,6 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
           dimensionMetadata: pointCloud.dimensionMetadata,
         }),
       });
-      pointCloud.setClusters(clusters);
-
       // Re-compute the point coloring once the granular data is loaded
       const pointData = await fetchPointEvents(
         points.map((p) => p.eventId)
@@ -514,13 +541,21 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
       });
     },
     setClusters: (clusters) => {
-      clusters = [...clusters].sort(clusterSortFn);
+      const pointCloud = get();
+      const sortedClusters = clusters
+        .map((c) => ({ ...c, size: c.eventIds.length }))
+        .sort(clusterSortFn(pointCloud.clusterSort));
       set({
-        clusters,
+        clusters: sortedClusters,
         clustersLoading: false,
         selectedClusterId: null,
         highlightedClusterId: null,
       });
+    },
+    setClusterSort: (sort) => {
+      const pointCloud = get();
+      const sortedClusters = [...pointCloud.clusters].sort(clusterSortFn(sort));
+      set({ clusterSort: sort, clusters: sortedClusters });
     },
     setSelectedEventIds: (ids) => set({ selectedEventIds: ids }),
     setHighlightedClusterId: (id) => set({ highlightedClusterId: id }),
@@ -1024,7 +1059,7 @@ async function fetchClusters({
 }: {
   points: readonly Point[];
   hdbscanParameters: HDBSCANParameters;
-}): Promise<readonly Cluster[]> {
+}): Promise<readonly ClusterInput[]> {
   const data = await fetchQuery<pointCloudStore_clustersQuery>(
     RelayEnvironment,
     graphql`
@@ -1064,16 +1099,20 @@ async function fetchClusters({
   return data?.hdbscanClustering ?? [];
 }
 
-function clusterSortFn(clusterA: Cluster, clusterB: Cluster) {
-  let { driftRatio: driftRatioA } = clusterA;
-  let { driftRatio: driftRatioB } = clusterB;
-  driftRatioA = driftRatioA ?? 0;
-  driftRatioB = driftRatioB ?? 0;
-  if (driftRatioA > driftRatioB) {
-    return -1;
-  }
-  if (driftRatioB < driftRatioB) {
-    return 1;
-  }
-  return 0;
-}
+/**
+ * A curried function that returns a sort function for the clusters given a sort config
+ */
+const clusterSortFn =
+  (sort: ClusterSort) => (clusterA: Cluster, clusterB: Cluster) => {
+    const { dir, column } = sort;
+    const isAsc = dir === "asc";
+    // For now assume a lack of a value is 0
+    const valueA = clusterA[column] || 0;
+    const valueB = clusterB[column] || 0;
+    if (valueA > valueB) {
+      return isAsc ? 1 : -1;
+    } else if (valueA < valueB) {
+      return isAsc ? -1 : 1;
+    }
+    return 0;
+  };

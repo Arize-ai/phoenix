@@ -11,7 +11,6 @@ from phoenix.pointcloud.clustering import RawCluster
 Vector: TypeAlias = npt.NDArray[np.float64]
 Matrix: TypeAlias = npt.NDArray[np.float64]
 RowIndex: TypeAlias = int
-ClusterId: TypeAlias = int
 
 
 class DimensionalityReducer(Protocol):
@@ -33,7 +32,7 @@ class PointCloud:
         self,
         data: Mapping[EventId, Vector],
         n_components: int = 3,
-    ) -> Tuple[Dict[EventId, Vector], Dict[ClusterId, Set[EventId]]]:
+    ) -> Tuple[Dict[EventId, Vector], Dict[str, Set[EventId]]]:
         """
         Given a set of vectors, projects them onto lower dimensions, and
         finds clusters among the projections.
@@ -67,6 +66,6 @@ class PointCloud:
         )
         clusters = self.clustersFinder.find_clusters(projections)
         return dict(zip(event_ids, projections)), {
-            cluster_id: {event_ids[row_index] for row_index in cluster}
-            for cluster_id, cluster in enumerate(clusters)
+            str(i): {event_ids[row_index] for row_index in cluster}
+            for i, cluster in enumerate(clusters)
         }
