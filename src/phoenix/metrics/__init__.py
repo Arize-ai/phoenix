@@ -1,3 +1,4 @@
+import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Any, Iterable, List, Mapping, Optional, Union
@@ -6,6 +7,8 @@ import numpy as np
 import pandas as pd
 
 from phoenix.core.model_schema import Column
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -66,7 +69,8 @@ class Metric(ABC):
         ]
         try:
             return self.calc(df)
-        except (TypeError, ValueError):
+        except (TypeError, ValueError, NotImplementedError) as exc:
+            logger.warning(exc, exc_info=True)
             return self.initial_value
 
 
