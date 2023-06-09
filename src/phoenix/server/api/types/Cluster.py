@@ -91,12 +91,13 @@ class Cluster:
         row_ids: Dict[DatasetRole, List[int]] = defaultdict(list)
         for event in self.events:
             row_ids[event.dataset_id].append(event.row_id)
+        metric_instance = metric.metric_instance(model)
         return DatasetValues(
-            primary_value=metric.metric_instance(
+            primary_value=metric_instance(
                 model[PRIMARY],
                 subset_rows=row_ids[PRIMARY],
             ),
-            reference_value=metric.metric_instance(
+            reference_value=metric_instance(
                 model[REFERENCE],
                 subset_rows=row_ids[REFERENCE],
             ),
