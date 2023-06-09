@@ -4,6 +4,8 @@ import { css } from "@emotion/react";
 
 import { Heading, Text } from "@arizeai/components";
 
+import { numberFormatter } from "@phoenix/utils/numberFormatUtils";
+
 type ClusterItemProps = {
   clusterId: string;
   /**
@@ -32,6 +34,22 @@ type ClusterItemProps = {
    * Null if there is no reference
    */
   driftRatio?: number | null;
+  /**
+   * The primary metric value
+   */
+  primaryMetricValue: number | null;
+  /**
+   * The reference metric value
+   */
+  referenceMetricValue: number | null;
+  /**
+   * The metric name
+   */
+  metricName: string;
+  /**
+   * Whether to hide the reference metric or not
+   */
+  hideReference: boolean;
 };
 
 /**
@@ -45,6 +63,10 @@ export function ClusterItem(props: ClusterItemProps) {
     onClick,
     onMouseEnter,
     onMouseLeave,
+    metricName,
+    primaryMetricValue,
+    referenceMetricValue,
+    hideReference,
   } = props;
 
   const hasClusterMetric = driftRatio !== null;
@@ -107,10 +129,15 @@ export function ClusterItem(props: ClusterItemProps) {
             `}
           >
             <Text color="white90" textSize="large">
-              {driftRatio?.toPrecision(2) ?? "--"}
+              {numberFormatter(primaryMetricValue)}
             </Text>
+            {!hideReference ? (
+              <Text color="designationPurple" textSize="large">
+                {numberFormatter(referenceMetricValue)}
+              </Text>
+            ) : null}
             <Text color="white70" textSize="small">
-              Cluster Drift
+              {metricName}
             </Text>
           </div>
         ) : null}

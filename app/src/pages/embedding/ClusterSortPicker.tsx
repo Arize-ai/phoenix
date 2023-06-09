@@ -34,16 +34,30 @@ export function ClusterSortPicker() {
       return [
         ...dynamicItems,
         {
-          label: "Largest cluster",
+          label: "Largest clusters",
           value: getSortKey({
             column: "size",
             dir: "desc",
           }),
         },
         {
-          label: "Smallest cluster",
+          label: "Smallest clusters",
           value: getSortKey({
             column: "size",
+            dir: "asc",
+          }),
+        },
+        {
+          label: "Highest metric value",
+          value: getSortKey({
+            column: "primaryMetricValue",
+            dir: "desc",
+          }),
+        },
+        {
+          label: "Lowest metric value",
+          value: getSortKey({
+            column: "primaryMetricValue",
             dir: "asc",
           }),
         },

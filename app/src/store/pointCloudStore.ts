@@ -122,18 +122,35 @@ export interface Point {
   };
 }
 
-interface Cluster {
+/**
+ * Values of the cluster that are computed
+ */
+interface ClusterComputedFields {
+  readonly size: number;
+  /**
+   * The two metric values for the cluster
+   */
+  readonly primaryMetricValue: number | null;
+  readonly referenceMetricValue: number | null;
+}
+
+interface ClusterBase {
   readonly driftRatio: number | null;
   readonly eventIds: readonly string[];
   readonly id: string;
-  readonly size: number;
+  /** data quality metric */
+  dataQualityMetric?: {
+    readonly primaryValue: number | null;
+    readonly referenceValue: number | null;
+  };
 }
+interface Cluster extends ClusterComputedFields, ClusterBase {}
 
 /**
  * The subset of the cluster that is passed in
  * The omitted fields are computed
  */
-type ClusterInput = Omit<Cluster, "size">;
+type ClusterInput = ClusterBase;
 
 /**
  * The sort order of the clusters
@@ -388,6 +405,11 @@ export interface PointCloudState extends PointCloudProps {
    */
   getHDSCANParameters: () => HDBSCANParameters;
   /**
+   * Retrieves the metric parameters for the point cloud
+   * Note that this is a getter so that useEffect doesn't trigger when the parameters are set
+   */
+  getMetric: () => MetricDefinition | null;
+  /**
    * Clear the selections in the point cloud
    * Done when the point cloud is re-loaded
    */
@@ -500,7 +522,7 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
       });
 
       const sortedClusters = clusters
-        .map((c) => ({ ...c, size: c.eventIds.length }))
+        .map(normalizeCluster)
         .sort(clusterSortFn(pointCloud.clusterSort));
 
       set({
@@ -543,7 +565,7 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
     setClusters: (clusters) => {
       const pointCloud = get();
       const sortedClusters = clusters
-        .map((c) => ({ ...c, size: c.eventIds.length }))
+        .map(normalizeCluster)
         .sort(clusterSortFn(pointCloud.clusterSort));
       set({
         clusters: sortedClusters,
@@ -746,12 +768,14 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
       const pointCloud = get();
       set({ hdbscanParameters, clustersLoading: true });
       const clusters = await fetchClusters({
+        metric: pointCloud.metric,
         points: pointCloud.points,
         hdbscanParameters,
       });
       pointCloud.setClusters(clusters);
     },
     getHDSCANParameters: () => get().hdbscanParameters,
+    getMetric: () => get().metric,
     setErrorMessage: (errorMessage) => set({ errorMessage }),
     setMetric: (metric) => set({ metric }),
   });
@@ -1054,9 +1078,11 @@ async function fetchPointEvents(eventIds: string[]): Promise<PointDataMap> {
 }
 
 async function fetchClusters({
+  metric,
   points,
   hdbscanParameters,
 }: {
+  metric: MetricDefinition | null;
   points: readonly Point[];
   hdbscanParameters: HDBSCANParameters;
 }): Promise<readonly ClusterInput[]> {
@@ -1069,6 +1095,8 @@ async function fetchClusters({
         $minClusterSize: Int!
         $clusterMinSamples: Int!
         $clusterSelectionEpsilon: Float!
+        $fetchDataQualityMetric: Boolean!
+        $dataQualityMetricColumnName: String
       ) {
         hdbscanClustering(
           eventIds: $eventIds
@@ -1080,6 +1108,12 @@ async function fetchClusters({
           id
           eventIds
           driftRatio
+          dataQualityMetric(
+            metric: { metric: mean, columnName: $dataQualityMetricColumnName }
+          ) @include(if: $fetchDataQualityMetric) {
+            primaryValue
+            referenceValue
+          }
         }
       }
     `,
@@ -1090,6 +1124,9 @@ async function fetchClusters({
         y: p.position[1],
         z: p.position[2],
       })),
+      fetchDataQualityMetric: metric?.type === "dataQuality",
+      dataQualityMetricColumnName:
+        metric?.type === "dataQuality" ? metric?.dimension.name : null,
       ...hdbscanParameters,
     },
     {
@@ -1116,3 +1153,18 @@ const clusterSortFn =
     }
     return 0;
   };
+
+/**
+ * Normalize the cluster data
+ */
+function normalizeCluster(cluster: ClusterInput) {
+  return {
+    ...cluster,
+    size: cluster.eventIds.length,
+    driftRatio: cluster.driftRatio ?? 0,
+    // A tad simplistic in logic but will refactor when perf comes
+    primaryMetricValue:
+      cluster.dataQualityMetric?.primaryValue ?? cluster.driftRatio,
+    referenceMetricValue: cluster.dataQualityMetric?.referenceValue ?? null,
+  };
+}
