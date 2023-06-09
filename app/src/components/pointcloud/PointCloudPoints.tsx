@@ -6,8 +6,9 @@ import { PointBaseProps, Points } from "@arizeai/point-cloud";
 
 import { ColoringStrategy } from "@phoenix/constants/pointCloudConstants";
 import { usePointCloudContext } from "@phoenix/contexts";
+import { Point } from "@phoenix/store";
 
-import { PointColor, ThreeDimensionalPointItem } from "./types";
+import { PointColor } from "./types";
 
 const SHADE_AMOUNT = 0.5;
 const LIGHTEN_AMOUNT = 0.3;
@@ -34,11 +35,11 @@ type PointCloudPointsProps = {
   /**
    * The primary data to display in the point cloud
    */
-  primaryData: ThreeDimensionalPointItem[];
+  primaryData: Point[];
   /**
    * Optional second set of data to display in the point cloud
    */
-  referenceData: ThreeDimensionalPointItem[] | null;
+  referenceData: Point[] | null;
   /**
    * How the points should be colored
    */
@@ -72,8 +73,6 @@ export function PointCloudPoints({
   const setSelectedClusterId = usePointCloudContext(
     (state) => state.setSelectedClusterId
   );
-
-  const canvasMode = usePointCloudContext((state) => state.canvasMode);
 
   // Only use a cube shape if the coloring strategy is not dataset
   const referenceDatasetPointShape = useMemo(
@@ -113,7 +112,7 @@ export function PointCloudPoints({
   const onPointClicked = useCallback(
     (point: PointBaseProps) => {
       startTransition(() => {
-        setSelectedEventIds(new Set([point.metaData.eventId]));
+        setSelectedEventIds(new Set([point.metaData.id]));
         setSelectedClusterId(null);
       });
     },
@@ -138,7 +137,7 @@ export function PointCloudPoints({
             size: radius ? radius * CUBE_RADIUS_MULTIPLIER : undefined,
           }}
           pointShape={referenceDatasetPointShape}
-          onPointClicked={canvasMode === "select" ? onPointClicked : undefined}
+          onPointClicked={onPointClicked}
         />
       ) : null}
     </>

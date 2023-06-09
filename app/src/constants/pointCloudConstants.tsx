@@ -14,12 +14,13 @@ export const MAX_MIN_DIST = 0.99;
  */
 export const DEFAULT_DATASET_SAMPLE_SIZE = 500;
 export const MIN_DATASET_SAMPLE_SIZE = 300;
-export const MAX_DATASET_SAMPLE_SIZE = 10000;
+export const MAX_DATASET_SAMPLE_SIZE = 100000;
 
 /**
  * HDBSCAN parameters
  */
 export const DEFAULT_MIN_CLUSTER_SIZE = 10;
+export const MIN_CLUSTER_MIN_SAMPLES = 1;
 export const MIN_MIN_CLUSTER_SIZE = 2;
 export const DEFAULT_CLUSTER_MIN_SAMPLES = 1;
 export const DEFAULT_CLUSTER_SELECTION_EPSILON = 0;

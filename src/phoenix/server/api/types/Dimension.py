@@ -1,6 +1,7 @@
 from collections import defaultdict
 from typing import Any, Dict, List, Optional
 
+import pandas as pd
 import strawberry
 from strawberry import UNSET
 from strawberry.types import Info
@@ -17,13 +18,13 @@ from ..input_types.Granularity import Granularity
 from ..input_types.TimeRange import TimeRange
 from .DataQualityMetric import DataQualityMetric
 from .DatasetRole import DatasetRole
+from .DatasetValues import DatasetValues
 from .DimensionDataType import DimensionDataType
 from .DimensionShape import DimensionShape
 from .DimensionType import DimensionType
 from .node import Node
 from .ScalarDriftMetricEnum import ScalarDriftMetric
 from .Segments import (
-    DatasetValues,
     GqlBinFactory,
     Segment,
     Segments,
@@ -204,7 +205,7 @@ class Dimension(Node):
 
         model = info.context.model
         count = Count()
-        summaries = {}
+        summaries = defaultdict(pd.DataFrame)
         binning_method = (
             binning.QuantileBinning(
                 reference_series=self.dimension[REFERENCE],
@@ -228,7 +229,7 @@ class Dimension(Node):
             summaries[role] = binning_method.segmented_summary(
                 self.dimension,
                 df,
-                (count,),  # type: ignore
+                (count,),
             )
         segments = Segments()
         lbound, ubound = self.dimension.min_max

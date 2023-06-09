@@ -5,15 +5,17 @@ import { EventItem } from "@phoenix/components/pointcloud";
 import { usePointCloudContext } from "@phoenix/contexts";
 import { DatasetRole } from "@phoenix/types";
 
-import { EventsList, UMAPPointsEntry } from "./types";
+import { EventsList } from "./types";
 type PointSelectionGridProps = {
   events: EventsList;
-  eventIdToDataMap: Map<string, UMAPPointsEntry>;
   onItemSelected: (pointId: string) => void;
 };
 
 export function PointSelectionGrid(props: PointSelectionGridProps) {
-  const { events, eventIdToDataMap, onItemSelected } = props;
+  const { events, onItemSelected } = props;
+  const eventIdToDataMap = usePointCloudContext(
+    (state) => state.eventIdToDataMap
+  );
   const eventIdToGroup = usePointCloudContext((state) => state.eventIdToGroup);
   const pointGroupColors = usePointCloudContext(
     (state) => state.pointGroupColors

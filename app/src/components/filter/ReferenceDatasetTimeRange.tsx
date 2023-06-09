@@ -39,6 +39,7 @@ export function ReferenceDatasetTimeRange({
         <TooltipTrigger>
           <TriggerWrap>
             <TextField
+              label="reference dataset"
               isReadOnly
               aria-label={"reference dataset time range"}
               value={`${timeFormatter(timeRange.start)} - ${timeFormatter(

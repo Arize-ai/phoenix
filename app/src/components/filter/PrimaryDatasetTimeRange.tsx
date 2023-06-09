@@ -1,5 +1,4 @@
 import React from "react";
-import { timeFormat } from "d3-time-format";
 import { css } from "@emotion/react";
 
 import {
@@ -14,11 +13,7 @@ import {
 
 import { useDatasets } from "@phoenix/contexts";
 import { TimePreset, useTimeRange } from "@phoenix/contexts/TimeRangeContext";
-
-/**
- * Formats time to be displayed in full
- */
-export const fullTimeFormatter = timeFormat("%x %H:%M %p");
+import { fullTimeFormatter } from "@phoenix/utils/timeFormatUtils";
 
 type PrimaryDatasetTimeRangeProps = object;
 
@@ -37,6 +32,7 @@ export function PrimaryDatasetTimeRange(_: PrimaryDatasetTimeRangeProps) {
       <TooltipTrigger delay={0} placement="bottom right">
         <TriggerWrap>
           <Picker
+            label="primary dataset"
             defaultSelectedKey={selectedTimePreset}
             data-testid="dataset-time-range"
             aria-label={`Time range for the primary dataset`}

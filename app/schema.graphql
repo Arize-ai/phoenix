@@ -1,11 +1,24 @@
 union Bin = NominalBin | IntervalBin | MissingValueBin
 
 type Cluster {
+  """The ID of the cluster"""
   id: ID!
+
+  """The event IDs of the points in the cluster"""
   eventIds: [ID!]!
 
-  """ratio of primary points over reference points"""
+  """Ratio of primary points over reference points"""
   driftRatio: Float
+
+  """
+  Data quality metric summarized by the respective datasets of the clustered events
+  """
+  dataQualityMetric(metric: DataQualityMetricInput!): DatasetValues!
+}
+
+input ClusterInput {
+  eventIds: [ID!]!
+  id: ID
 }
 
 enum DataQualityMetric {
@@ -21,6 +34,11 @@ enum DataQualityMetric {
   p50
   p75
   p99
+}
+
+input DataQualityMetricInput {
+  metric: DataQualityMetric!
+  columnName: String
 }
 
 type DataQualityTimeSeries implements TimeSeries {
@@ -120,6 +138,12 @@ type DimensionEdge {
   cursor: String!
 }
 
+input DimensionFilter {
+  types: [DimensionType!]
+  shapes: [DimensionShape!]
+  dataTypes: [DimensionDataType!]
+}
+
 input DimensionInput {
   name: String!
   type: DimensionType!
@@ -196,7 +220,7 @@ type EmbeddingDimension implements Node {
     clusterMinSamples: Int! = 1
 
     """HDBSCAN cluster selection epsilon"""
-    clusterSelectionEpsilon: Int! = 0
+    clusterSelectionEpsilon: Float! = 0
   ): UMAPPoints!
 }
 
@@ -257,6 +281,17 @@ input Granularity {
   samplingIntervalMinutes: Int!
 }
 
+input InputCoordinate2D {
+  x: Float!
+  y: Float!
+}
+
+input InputCoordinate3D {
+  x: Float!
+  y: Float!
+  z: Float!
+}
+
 type IntervalBin {
   range: NumericRange!
 }
@@ -266,7 +301,7 @@ type MissingValueBin {
 }
 
 type Model {
-  dimensions(first: Int = 50, last: Int, after: String, before: String): DimensionConnection!
+  dimensions(first: Int = 50, last: Int, after: String, before: String, include: DimensionFilter, exclude: DimensionFilter): DimensionConnection!
   primaryDataset: Dataset!
   referenceDataset: Dataset
   embeddingDimensions(first: Int = 50, last: Int, after: String, before: String): EmbeddingDimensionConnection!
@@ -327,6 +362,26 @@ type PromptResponse {
 type Query {
   model: Model!
   node(id: GlobalID!): Node!
+  clusters(clusters: [ClusterInput!]!): [Cluster!]!
+  hdbscanClustering(
+    """Event ID of the coordinates"""
+    eventIds: [ID!]!
+
+    """Point coordinates. Must be either 2D or 3D."""
+    coordinates2d: [InputCoordinate2D!]
+
+    """Point coordinates. Must be either 2D or 3D."""
+    coordinates3d: [InputCoordinate3D!]
+
+    """HDBSCAN minimum cluster size"""
+    minClusterSize: Int! = 10
+
+    """HDBSCAN minimum samples"""
+    clusterMinSamples: Int! = 1
+
+    """HDBSCAN cluster selection epsilon"""
+    clusterSelectionEpsilon: Float! = 0
+  ): [Cluster!]!
 }
 
 enum ScalarDriftMetric {

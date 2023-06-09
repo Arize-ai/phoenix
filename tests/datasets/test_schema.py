@@ -1,4 +1,4 @@
-from phoenix.datasets import EmbeddingColumnNames, Schema
+from phoenix.datasets.dataset import EmbeddingColumnNames, Schema
 
 
 def test_json_serialization():

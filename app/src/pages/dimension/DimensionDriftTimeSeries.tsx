@@ -23,11 +23,13 @@ import {
   ChartTooltipItem,
   colors,
   defaultSelectedTimestampReferenceLineProps,
-  fullTimeFormatter,
+  defaultTimeXAxisProps,
   useTimeTickFormatter,
 } from "@phoenix/components/chart";
 import { useTimeRange } from "@phoenix/contexts/TimeRangeContext";
 import { useTimeSlice } from "@phoenix/contexts/TimeSliceContext";
+import { floatFormatter } from "@phoenix/utils/numberFormatUtils";
+import { fullTimeFormatter } from "@phoenix/utils/timeFormatUtils";
 import {
   calculateGranularity,
   calculateGranularityWithRollingAverage,
@@ -36,20 +38,17 @@ import {
 import { DimensionDriftTimeSeriesQuery } from "./__generated__/DimensionDriftTimeSeriesQuery.graphql";
 import { timeSeriesChartMargins } from "./dimensionChartConstants";
 
-const numberFormatter = new Intl.NumberFormat([], {
-  maximumFractionDigits: 2,
-});
-
 const color = colors.orange300;
 const barColor = "#93b3c841";
 
-function TooltipContent({ active, payload, label }: TooltipProps<any, any>) {
+function TooltipContent({
+  active,
+  payload,
+  label,
+}: TooltipProps<number, string>) {
   if (active && payload && payload.length) {
     const euclideanDistance = payload[1]?.value ?? null;
-    const euclideanDistanceString =
-      typeof euclideanDistance === "number"
-        ? numberFormatter.format(euclideanDistance)
-        : "--";
+
     return (
       <ChartTooltip>
         <Text weight="heavy" textSize="medium">{`${fullTimeFormatter(
@@ -58,7 +57,7 @@ function TooltipContent({ active, payload, label }: TooltipProps<any, any>) {
         <ChartTooltipItem
           color={color}
           name="PSI"
-          value={euclideanDistanceString}
+          value={floatFormatter(euclideanDistance)}
         />
         <ChartTooltipDivider />
         <div
@@ -170,7 +169,7 @@ export function DimensionDriftTimeSeries({
   return (
     <ResponsiveContainer width="100%" height="100%">
       <ComposedChart
-        data={chartData as unknown as any[]}
+        data={chartData}
         margin={timeSeriesChartMargins}
         onClick={onClick}
         syncId={"dimensionDetails"}
@@ -192,15 +191,8 @@ export function DimensionDriftTimeSeries({
           </linearGradient>
         </defs>
         <XAxis
-          dataKey="timestamp"
-          stroke={theme.colors.gray200}
-          // TODO: Fix this to be a cleaner interface
+          {...defaultTimeXAxisProps}
           tickFormatter={(x) => timeTickFormatter(new Date(x))}
-          style={{ fill: theme.textColors.white70 }}
-          scale="time"
-          type="number"
-          domain={["auto", "auto"]}
-          padding={{ left: 10, right: 10 }}
         />
         <YAxis
           stroke={theme.colors.gray200}

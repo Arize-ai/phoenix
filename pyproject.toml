@@ -2,7 +2,7 @@
 name = "arize-phoenix"
 description = "ML Observability in your notebook"
 readme = "README.md"
-requires-python = ">=3.8, <3.11"
+requires-python = ">=3.8, <3.12"
 license = "Elastic-2.0"
 license-files = { paths = ["LICENSE", "IP_NOTICE"] }
 keywords = [
@@ -18,6 +18,7 @@ classifiers = [
   "Programming Language :: Python :: 3.8",
   "Programming Language :: Python :: 3.9",
   "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
 ]
 dependencies = [
   "numpy",
@@ -27,7 +28,7 @@ dependencies = [
   "starlette",
   "uvicorn",
   "psutil",
-  "strawberry-graphql==0.177.1",
+  "strawberry-graphql==0.178.0",
   "pyarrow",
   "typing_extensions",
   "scipy",
@@ -45,7 +46,7 @@ dev = [
   "pytest",
   "pytest-cov",
   "pytest-lazy-fixture",
-  "strawberry-graphql[debug-server]==0.177.1",
+  "strawberry-graphql[debug-server]==0.178.0",
   "pre-commit",
   "arize[AutoEmbeddings, LLM_Evaluation]",
 ]
@@ -123,7 +124,7 @@ tests = "pytest {args}"
 coverage = "pytest --cov-report=term-missing --cov-config=pyproject.toml --cov=src/phoenix --cov=tests {args}"
 
 [[tool.hatch.envs.test.matrix]]
-python = ["3.8"]
+python = ["3.8", "3.11"]
 
 [tool.pytest.ini_options]
 addopts = [
@@ -232,6 +233,7 @@ exclude = [
 module = [
   "hdbscan",
   "umap",
+  "numba.*",
   "scipy.*",
   "sklearn.*",
   "arize.*",
@@ -241,8 +243,8 @@ module = [
 ignore_missing_imports = true
 
 [tool.ruff]
-exclude = ["__init__.py", ".git", "__pycache__", "docs/source/conf.py"]
-ignore = []
+exclude = [".git", "__pycache__", "docs/source/conf.py"]
+ignore-init-module-imports = true
 line-length = 100
 select = ["E", "F", "W", "I"]
 target-version = "py38"

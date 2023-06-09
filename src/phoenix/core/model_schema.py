@@ -199,10 +199,11 @@ class _ConstantValueSeriesFactory:
     can potentially leak memory.
     """
 
-    value: Any = field(default=float("nan"))
-    _cached_array: npt.NDArray[np.float64] = field(
+    value: Any = field(default=np.nan)
+    _dtype: Any = field(init=False, default=None)
+    _cached_array: npt.NDArray[Any] = field(
         init=False,
-        default=np.empty(0),
+        default_factory=lambda: np.empty(0),
     )
     """If a longer Series is requested, the cached array is expanded;
     otherwise, a subset can be returned, assuming it won't be altered by the
@@ -217,13 +218,17 @@ class _ConstantValueSeriesFactory:
     the same instance.
     """
 
+    def __post_init__(self) -> None:
+        if isinstance(self.value, float) and math.isnan(self.value):
+            object.__setattr__(self, "_dtype", np.float32)
+
     def __call__(self, length: int) -> "pd.Series[Any]":
         with self._lock:
             if length > len(self._cached_array):
                 object.__setattr__(
                     self,
                     "_cached_array",
-                    np.full(length, self.value),
+                    np.full(length, self.value, dtype=self._dtype),
                 )
             return pd.Series(self._cached_array[:length])
 
@@ -393,16 +398,16 @@ class ScalarDimension(Dimension):
     @property
     def min_max(self) -> Tuple[Any, Any]:
         if self._model is None:
-            return float("nan"), float("nan")
+            return np.nan, np.nan
         model = cast(Model, self._model)
         return model.dimension_min_max_from_all_df(self.name)
 
     @property
-    def categories(self) -> Tuple[Any, ...]:
+    def categories(self) -> Tuple[str, ...]:
         if self._model is None or self.data_type is CONTINUOUS:
             return ()
         model = cast(Model, self._model)
-        return tuple(model.dimension_categories_from_all_datasets(self.name).dropna())
+        return model.dimension_categories_from_all_datasets(self.name)
 
 
 @dataclass(frozen=True)
@@ -560,7 +565,7 @@ class Event(ModelData):
         return self._self_id
 
     def null_value(self) -> float:
-        return float("nan")
+        return np.nan
 
     @overload
     def __getitem__(self, key: ColumnKey) -> Any:
@@ -709,7 +714,7 @@ class Model:
     _original_columns_by_role: Dict[DatasetRole, pd.Index]
     _default_timestamps_factory: _ConstantValueSeriesFactory
     _nan_series_factory: _ConstantValueSeriesFactory
-    _dimension_categories_from_all_datasets: _Cache[Name, "pd.Series[Any]"]
+    _dimension_categories_from_all_datasets: _Cache[Name, Tuple[str, ...]]
     _dimension_min_max_from_all_datasets: _Cache[Name, Tuple[float, float]]
 
     def __init__(
@@ -762,7 +767,7 @@ class Model:
         object.__setattr__(
             self,
             "_nan_series_factory",
-            _ConstantValueSeriesFactory(float("nan")),
+            _ConstantValueSeriesFactory(np.nan),
         )
         object.__setattr__(
             self,
@@ -799,9 +804,18 @@ class Model:
         # Guess the data type, i.e. continuous or discrete, for scalar
         # features and tags.
         for dim in self[ScalarDimension]:
-            if dim.data_type is UNKNOWN:
-                data_type = _guess_data_type(map(dim, self._datasets.values()))
-                self._dimensions[dim.name] = replace(dim, data_type=data_type)
+            if dim.data_type is not UNKNOWN:
+                continue
+            self._dimensions[dim.name] = replace(
+                dim,
+                data_type=(
+                    _guess_data_type(
+                        dataset.loc[:, dim.name]
+                        for dataset in self._datasets.values()
+                        if dim.name in dataset.columns
+                    )
+                ),
+            )
 
         # Add PREDICTION_ID if missing.
         # Add TIMESTAMP if missing.
@@ -904,18 +918,20 @@ class Model:
     def dimension_categories_from_all_datasets(
         self,
         dimension_name: Name,
-    ) -> "pd.Series[Any]":
+    ) -> Tuple[str, ...]:
         dim = self[dimension_name]
         if dim.data_type is CONTINUOUS:
-            return pd.Series(dtype=object)
+            return cast(Tuple[str, ...], ())
         with self._dimension_categories_from_all_datasets() as cache:
             try:
                 return cache[dimension_name]
             except KeyError:
                 pass
-        categories_by_dataset = (dim[role].unique() for role in DatasetRole)
+        categories_by_dataset = (
+            pd.Series(dim[role].unique()).dropna().astype(str) for role in DatasetRole
+        )
         all_values_combined = chain.from_iterable(categories_by_dataset)
-        ans = pd.Series(all_values_combined).sort_values().drop_duplicates()
+        ans = tuple(np.sort(pd.Series(all_values_combined).unique()))
         with self._dimension_categories_from_all_datasets() as cache:
             cache[dimension_name] = ans
         return ans
@@ -926,7 +942,7 @@ class Model:
     ) -> Tuple[float, float]:
         dim = self[dimension_name]
         if dim.data_type is not CONTINUOUS:
-            return (float("nan"), float("nan"))
+            return (np.nan, np.nan)
         with self._dimension_min_max_from_all_datasets() as cache:
             try:
                 return cache[dimension_name]

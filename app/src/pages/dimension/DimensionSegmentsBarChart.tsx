@@ -18,13 +18,11 @@ import {
   ChartTooltip,
   ChartTooltipItem,
   colors,
+  defaultBarChartTooltipProps,
+  getBinName,
 } from "@phoenix/components/chart";
-import { assertUnreachable } from "@phoenix/typeUtils";
 
-import {
-  DimensionSegmentsBarChart_dimension$data,
-  DimensionSegmentsBarChart_dimension$key,
-} from "./__generated__/DimensionSegmentsBarChart_dimension.graphql";
+import { DimensionSegmentsBarChart_dimension$key } from "./__generated__/DimensionSegmentsBarChart_dimension.graphql";
 
 // Type interfaces to conform to
 type BarChartItem = {
@@ -33,32 +31,6 @@ type BarChartItem = {
 };
 
 const barColor = colors.primary;
-
-type Bin =
-  DimensionSegmentsBarChart_dimension$data["segmentsComparison"]["segments"][number]["bin"];
-
-/**
- * Formats each bin into a string for charting
- * TODO(mikeldking) - refactor into an interface that can be re-used
- * @param bin
- * @returns
- */
-function getBinName(bin: Bin): string {
-  const binType = bin.__typename;
-  switch (binType) {
-    case "NominalBin":
-      return bin.name;
-    case "IntervalBin":
-      // TODO(mikeldking) - add a general case number formatter
-      return `${bin.range.start} - ${bin.range.end}`;
-    case "MissingValueBin":
-      return "(empty)";
-    case "%other":
-      throw new Error("Unexpected bin type %other");
-    default:
-      assertUnreachable(binType);
-  }
-}
 
 const formatter = format(".2f");
 
@@ -180,11 +152,14 @@ export function DimensionSegmentsBarChart(props: {
           stroke={theme.colors.gray200}
           strokeOpacity={0.5}
         />
-        <Tooltip content={<TooltipContent />} />
+        <Tooltip
+          {...defaultBarChartTooltipProps}
+          content={<TooltipContent />}
+        />
         <Bar
           dataKey="percent"
           fill="url(#dimensionSegmentsBarColor)"
-          spacing={5}
+          spacing={15}
         />
       </BarChart>
     </ResponsiveContainer>

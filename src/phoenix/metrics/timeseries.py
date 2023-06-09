@@ -6,7 +6,7 @@ from typing import Callable, Iterable, Iterator, Tuple, cast
 import pandas as pd
 from typing_extensions import TypeAlias
 
-from . import Metric, multi_calculate
+from phoenix.metrics import Metric, multi_calculate
 
 
 def timeseries(

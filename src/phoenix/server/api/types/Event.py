@@ -1,5 +1,5 @@
 from collections import defaultdict
-from typing import Dict, List, Optional, cast
+from typing import Dict, List, Optional, Tuple, cast
 
 import strawberry
 from strawberry import ID
@@ -16,7 +16,7 @@ from phoenix.core.model_schema import (
     EventId,
 )
 
-from ..interceptor import NoneIfNan
+from ..interceptor import GqlValueMediator
 from .Dimension import Dimension
 from .DimensionWithValue import DimensionWithValue
 from .EventMetadata import EventMetadata
@@ -30,8 +30,17 @@ class Event:
     dimensions: List[DimensionWithValue]
     prompt_and_response: Optional[PromptResponse] = strawberry.field(
         description="The prompt and response pair associated with the event",
-        default=NoneIfNan(),
+        default=GqlValueMediator(),
     )
+
+
+def unpack_event_id(
+    event_id: ID,
+) -> Tuple[int, ms.DatasetRole]:
+    row_id_str, dataset_role_str = str(event_id).split(":")
+    row_id = int(row_id_str)
+    dataset_role = ms.DatasetRole[dataset_role_str.split(".")[-1]]
+    return row_id, dataset_role
 
 
 def parse_event_ids(event_ids: List[ID]) -> Dict[DatasetRole, List[int]]:
@@ -40,9 +49,8 @@ def parse_event_ids(event_ids: List[ID]) -> Dict[DatasetRole, List[int]]:
     """
     row_indexes: Dict[DatasetRole, List[int]] = defaultdict(list)
     for event_id in event_ids:
-        row_index, dataset_role_str = str(event_id).split(":")
-        dataset_role = DatasetRole[dataset_role_str.split(".")[-1]]
-        row_indexes[dataset_role].append(int(row_index))
+        row_id, dataset_role = unpack_event_id(event_id)
+        row_indexes[dataset_role].append(row_id)
     return row_indexes
 
 

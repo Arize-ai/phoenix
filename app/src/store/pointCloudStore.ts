@@ -25,6 +25,7 @@ import { Dimension } from "@phoenix/types";
 import { assertUnreachable } from "@phoenix/typeUtils";
 import { splitEventIdsByDataset } from "@phoenix/utils/pointCloudUtils";
 
+import { pointCloudStore_clustersQuery } from "./__generated__/pointCloudStore_clustersQuery.graphql";
 import { pointCloudStore_dimensionMetadataQuery } from "./__generated__/pointCloudStore_dimensionMetadataQuery.graphql";
 import {
   pointCloudStore_eventsQuery,
@@ -73,7 +74,7 @@ export type UMAPParameters = {
   nSamples: number;
 };
 
-type CanvasTheme = "light" | "dark";
+export type CanvasTheme = "light" | "dark";
 
 /**
  * The tool mode of the canvas
@@ -83,6 +84,14 @@ export enum CanvasMode {
   select = "select",
 }
 
+export enum ClusterColorMode {
+  default = "default",
+  /**
+   * Highlights the different clusters all at once
+   */
+  highlight = "highlight",
+}
+
 /**
  * The visibility of the two datasets in the point cloud.
  */
@@ -90,18 +99,49 @@ type DatasetVisibility = {
   primary: boolean;
   reference: boolean;
 };
-
-interface Point {
+export interface Point {
   readonly id: string;
   /**
    * The id of event the point is associated to
    */
   readonly eventId: string;
+  readonly position: ThreeDimensionalPosition;
+  /**
+   * Metadata about the point - used for point-cloud selection
+   */
+  readonly metaData: {
+    readonly id: string;
+  };
   readonly eventMetadata: {
     readonly actualLabel: string | null;
     readonly predictionLabel: string | null;
   };
+  readonly embeddingMetadata: {
+    linkToData: string | null;
+    rawData: string | null;
+  };
 }
+
+interface Cluster {
+  readonly driftRatio: number | null;
+  readonly eventIds: readonly string[];
+  readonly id: string;
+  readonly size: number;
+}
+
+/**
+ * The subset of the cluster that is passed in
+ * The omitted fields are computed
+ */
+type ClusterInput = Omit<Cluster, "size">;
+
+/**
+ * The sort order of the clusters
+ */
+export type ClusterSort = {
+  dir: "asc" | "desc";
+  column: keyof Cluster;
+};
 
 type EventData =
   pointCloudStore_eventsQuery$data["model"]["primaryDataset"]["events"][number];
@@ -131,6 +171,24 @@ type HDBSCANParameters = {
   clusterSelectionEpsilon: number;
 };
 
+export type DriftMetricDefinition = {
+  type: "drift";
+  metric: "euclideanDistance";
+};
+
+export type DataQualityMetricDefinition = {
+  type: "dataQuality";
+  metric: "average";
+  dimension: {
+    id: string;
+    name: string;
+  };
+};
+
+export type MetricDefinition =
+  | DriftMetricDefinition
+  | DataQualityMetricDefinition;
+
 /**
  * The properties of the point cloud store.
  */
@@ -139,6 +197,20 @@ export interface PointCloudProps {
    * The point information that is currently loaded into view
    */
   points: readonly Point[];
+
+  /**
+   * A mapping of the event ID to the corresponding point data
+   */
+  eventIdToDataMap: Map<string, Point>;
+  /**
+   * The clusters of points
+   */
+  clusters: readonly Cluster[];
+  /**
+   * The sort order of the clusters
+   * @default { dir: "desc", column: "driftRatio" }
+   */
+  clusterSort: ClusterSort;
   /**
    * The point information that is currently loaded into view
    * If it is null, the point data is being loaded.
@@ -166,6 +238,11 @@ export interface PointCloudProps {
    * @default "dark"
    */
   canvasTheme: CanvasTheme;
+  /**
+   * the cluster color mode
+   * @default "default"
+   */
+  clusterColorMode: ClusterColorMode;
   /**
    * The coloring strategy to use for the point cloud.
    */
@@ -217,13 +294,32 @@ export interface PointCloudProps {
    * An error message if anything occurs during point-cloud data loads
    */
   errorMessage: string | null;
+  /**
+   * Whether or not the clusters are loading or not
+   */
+  clustersLoading: boolean;
+  /**
+   * The overall metric for the point cloud
+   */
+  metric: MetricDefinition | null;
 }
 
 export interface PointCloudState extends PointCloudProps {
   /**
    * Sets the points displayed within the point cloud
    */
-  setPoints: (points: readonly Point[]) => void;
+  setPointsAndClusters: (pointsAndClusters: {
+    points: readonly Point[];
+    clusters: readonly ClusterInput[];
+  }) => void;
+  /**
+   * Sets the clusters to be displayed within the point cloud
+   */
+  setClusters: (clusters: readonly ClusterInput[]) => void;
+  /**
+   * Set the cluster sort order
+   */
+  setClusterSort: (sort: ClusterSort) => void;
   /**
    * Sets the selected eventIds to the given value.
    */
@@ -244,6 +340,10 @@ export interface PointCloudState extends PointCloudProps {
    * Set canvas theme to light or dark
    */
   setCanvasTheme: (theme: CanvasTheme) => void;
+  /**
+   * set the cluster color mode
+   */
+  setClusterColorMode: (mode: ClusterColorMode) => void;
   /**
    * Sets the coloring strategy to the given value.
    */
@@ -283,6 +383,11 @@ export interface PointCloudState extends PointCloudProps {
    */
   setHDBSCANParameters: (parameters: HDBSCANParameters) => void;
   /**
+   * This is a getter for the hdbscan parameters
+   * NB: this is so that useEffect doesn't trigger when the parameters are set
+   */
+  getHDSCANParameters: () => HDBSCANParameters;
+  /**
    * Clear the selections in the point cloud
    * Done when the point cloud is re-loaded
    */
@@ -291,6 +396,10 @@ export interface PointCloudState extends PointCloudProps {
    * Set the error message
    */
   setErrorMessage: (message: string | null) => void;
+  /**
+   * Set the overall metric used in the point-cloud
+   */
+  setMetric(metric: MetricDefinition): void;
 }
 
 /**
@@ -324,6 +433,8 @@ export const DEFAULT_SINGLE_DATASET_POINT_CLOUD_PROPS: Partial<PointCloudProps> 
       [CorrectnessGroup.incorrect]: ColorSchemes.Discrete2.LightBlueOrange[1],
       [CorrectnessGroup.unknown]: UNKNOWN_COLOR,
     },
+    metric: null,
+    clusterSort: { dir: "desc", column: "size" },
   };
 
 export type PointCloudStore = ReturnType<typeof createPointCloudStore>;
@@ -333,12 +444,16 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
   const defaultProps: PointCloudProps = {
     errorMessage: null,
     points: [],
+    eventIdToDataMap: new Map(),
+    clusters: [],
+    clusterSort: { dir: "desc", column: "driftRatio" },
     pointData: null,
     selectedEventIds: new Set(),
     highlightedClusterId: null,
     selectedClusterId: null,
     canvasMode: CanvasMode.move,
     canvasTheme: "dark",
+    clusterColorMode: ClusterColorMode.default,
     coloringStrategy: ColoringStrategy.dataset,
     datasetVisibility: { primary: true, reference: true },
     pointGroupVisibility: {
@@ -365,27 +480,45 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
       clusterMinSamples: DEFAULT_CLUSTER_MIN_SAMPLES,
       clusterSelectionEpsilon: DEFAULT_CLUSTER_SELECTION_EPSILON,
     },
+    clustersLoading: false,
+    metric: {
+      type: "drift",
+      metric: "euclideanDistance",
+    },
   };
 
   const pointCloudStore: StateCreator<PointCloudState> = (set, get) => ({
     ...defaultProps,
     ...initProps,
-    setPoints: async (points) => {
-      const pointCloudState = get();
+    setPointsAndClusters: async ({ points, clusters }) => {
+      const pointCloud = get();
+      const eventIdToDataMap = new Map<string, Point>();
+
+      // Calculate a map of event ID to point data
+      points.forEach((p) => {
+        eventIdToDataMap.set(p.eventId, p);
+      });
+
+      const sortedClusters = clusters
+        .map((c) => ({ ...c, size: c.eventIds.length }))
+        .sort(clusterSortFn(pointCloud.clusterSort));
+
       set({
         points: points,
+        eventIdToDataMap,
+        clusters: sortedClusters,
+        clustersLoading: false,
         selectedEventIds: new Set(),
         selectedClusterId: null,
         pointData: null,
         eventIdToGroup: getEventIdToGroup({
           points,
-          coloringStrategy: pointCloudState.coloringStrategy,
-          pointsData: pointCloudState.pointData ?? {},
-          dimension: pointCloudState.dimension || null,
-          dimensionMetadata: pointCloudState.dimensionMetadata,
+          coloringStrategy: pointCloud.coloringStrategy,
+          pointsData: pointCloud.pointData ?? {},
+          dimension: pointCloud.dimension || null,
+          dimensionMetadata: pointCloud.dimensionMetadata,
         }),
       });
-
       // Re-compute the point coloring once the granular data is loaded
       const pointData = await fetchPointEvents(
         points.map((p) => p.eventId)
@@ -395,14 +528,34 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
 
       set({
         pointData,
+        // TODO(mikeldking): For some reason the point-cloud doesn't rerender clusters unless this exists
+        clusters: sortedClusters,
+        clustersLoading: false,
         eventIdToGroup: getEventIdToGroup({
           points,
-          coloringStrategy: pointCloudState.coloringStrategy,
+          coloringStrategy: pointCloud.coloringStrategy,
           pointsData: pointData ?? {},
-          dimension: pointCloudState.dimension || null,
-          dimensionMetadata: pointCloudState.dimensionMetadata,
+          dimension: pointCloud.dimension || null,
+          dimensionMetadata: pointCloud.dimensionMetadata,
         }),
       });
+    },
+    setClusters: (clusters) => {
+      const pointCloud = get();
+      const sortedClusters = clusters
+        .map((c) => ({ ...c, size: c.eventIds.length }))
+        .sort(clusterSortFn(pointCloud.clusterSort));
+      set({
+        clusters: sortedClusters,
+        clustersLoading: false,
+        selectedClusterId: null,
+        highlightedClusterId: null,
+      });
+    },
+    setClusterSort: (sort) => {
+      const pointCloud = get();
+      const sortedClusters = [...pointCloud.clusters].sort(clusterSortFn(sort));
+      set({ clusterSort: sort, clusters: sortedClusters });
     },
     setSelectedEventIds: (ids) => set({ selectedEventIds: ids }),
     setHighlightedClusterId: (id) => set({ highlightedClusterId: id }),
@@ -410,9 +563,9 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
       set({ selectedClusterId: id, highlightedClusterId: null }),
     setCanvasTheme: (theme) => set({ canvasTheme: theme }),
     setCanvasMode: (mode) => set({ canvasMode: mode }),
+    setClusterColorMode: (mode) => set({ clusterColorMode: mode }),
     setColoringStrategy: (strategy) => {
       const pointCloudState = get();
-
       set({ coloringStrategy: strategy });
       switch (strategy) {
         case ColoringStrategy.correctness:
@@ -500,6 +653,7 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
     reset: () => {
       set({
         points: [],
+        clusters: [],
         selectedEventIds: new Set(),
         selectedClusterId: null,
         eventIdToGroup: {},
@@ -588,8 +742,18 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
     },
     setDimensionMetadata: (dimensionMetadata) => set({ dimensionMetadata }),
     setUMAPParameters: (umapParameters) => set({ umapParameters }),
-    setHDBSCANParameters: (hdbscanParameters) => set({ hdbscanParameters }),
+    setHDBSCANParameters: async (hdbscanParameters) => {
+      const pointCloud = get();
+      set({ hdbscanParameters, clustersLoading: true });
+      const clusters = await fetchClusters({
+        points: pointCloud.points,
+        hdbscanParameters,
+      });
+      pointCloud.setClusters(clusters);
+    },
+    getHDSCANParameters: () => get().hdbscanParameters,
     setErrorMessage: (errorMessage) => set({ errorMessage }),
+    setMetric: (metric) => set({ metric }),
   });
 
   return create<PointCloudState>()(devtools(pointCloudStore));
@@ -888,3 +1052,67 @@ async function fetchPointEvents(eventIds: string[]): Promise<PointDataMap> {
     return acc;
   }, {} as PointDataMap);
 }
+
+async function fetchClusters({
+  points,
+  hdbscanParameters,
+}: {
+  points: readonly Point[];
+  hdbscanParameters: HDBSCANParameters;
+}): Promise<readonly ClusterInput[]> {
+  const data = await fetchQuery<pointCloudStore_clustersQuery>(
+    RelayEnvironment,
+    graphql`
+      query pointCloudStore_clustersQuery(
+        $eventIds: [ID!]!
+        $coordinates: [InputCoordinate3D!]!
+        $minClusterSize: Int!
+        $clusterMinSamples: Int!
+        $clusterSelectionEpsilon: Float!
+      ) {
+        hdbscanClustering(
+          eventIds: $eventIds
+          coordinates3d: $coordinates
+          minClusterSize: $minClusterSize
+          clusterMinSamples: $clusterMinSamples
+          clusterSelectionEpsilon: $clusterSelectionEpsilon
+        ) {
+          id
+          eventIds
+          driftRatio
+        }
+      }
+    `,
+    {
+      eventIds: points.map((point) => point.eventId),
+      coordinates: points.map((p) => ({
+        x: p.position[0],
+        y: p.position[1],
+        z: p.position[2],
+      })),
+      ...hdbscanParameters,
+    },
+    {
+      fetchPolicy: "network-only",
+    }
+  ).toPromise();
+  return data?.hdbscanClustering ?? [];
+}
+
+/**
+ * A curried function that returns a sort function for the clusters given a sort config
+ */
+const clusterSortFn =
+  (sort: ClusterSort) => (clusterA: Cluster, clusterB: Cluster) => {
+    const { dir, column } = sort;
+    const isAsc = dir === "asc";
+    // For now assume a lack of a value is 0
+    const valueA = clusterA[column] || 0;
+    const valueB = clusterB[column] || 0;
+    if (valueA > valueB) {
+      return isAsc ? 1 : -1;
+    } else if (valueA < valueB) {
+      return isAsc ? -1 : 1;
+    }
+    return 0;
+  };

@@ -1,93 +1,15 @@
-from collections import Counter
-from typing import Dict, List, Optional, Set, Union
+from typing import List, Union
 
 import numpy as np
 import numpy.typing as npt
 import strawberry
 from strawberry.scalars import ID
-from typing_extensions import TypeAlias
 
-from phoenix.core.model_schema import PRIMARY, REFERENCE, EventId
-from phoenix.server.api.interceptor import NoneIfNan
+from phoenix.server.api.types.Cluster import Cluster
 
 from .EmbeddingMetadata import EmbeddingMetadata
 from .EventMetadata import EventMetadata
 from .node import GlobalID
-
-ClusterId: TypeAlias = ID
-
-
-@strawberry.type
-class Cluster:
-    """A grouping of points in a UMAP plot"""
-
-    """The ID of the cluster"""
-    id: ClusterId
-
-    """A list of events that belong to the cluster"""
-    event_ids: List[ID]
-
-    """A list of points that belong to the cluster"""
-    drift_ratio: Optional[float] = strawberry.field(
-        description="ratio of primary points over reference points",
-        default=NoneIfNan(),
-    )
-
-
-def to_gql_clusters(
-    cluster_membership: Dict[EventId, int],
-    has_reference_data: bool,
-) -> List[Cluster]:
-    """
-    Converts a dictionary of event IDs to cluster IDs to a list of clusters for the graphQL response
-
-    Parameters
-    ----------
-    cluster_membership: Dict[EventId, int]
-        A dictionary of event IDs to cluster IDs
-    has_reference_data: bool
-        Whether or not the model has reference data
-        Used to determine if drift ratio should be calculated
-    """
-
-    clusters: Dict[int, Set[EventId]] = {}
-    for event_id, cluster_id in cluster_membership.items():
-        if cluster_id in clusters:
-            clusters[cluster_id].add(event_id)
-        else:
-            clusters[cluster_id] = {event_id}
-
-    gql_clusters: List[Cluster] = []
-    for cluster_id, cluster_events in clusters.items():
-        gql_clusters.append(
-            Cluster(
-                id=ID(str(cluster_id)),
-                event_ids=[ID(str(event)) for event in cluster_events],
-                drift_ratio=calculate_drift_ratio(cluster_events)
-                if has_reference_data
-                else float("nan"),
-            )
-        )
-
-    return gql_clusters
-
-
-def calculate_drift_ratio(events: Set[EventId]) -> float:
-    """
-    Calculates the drift score of the cluster. The score will be a value
-    representing the balance of points between the primary and the reference
-    datasets, and will be on a scale between 1 (all primary) and -1 (all
-    reference), with 0 being an even balance between the two datasets.
-
-    Returns
-    -------
-    drift_ratio : float
-    """
-    return (
-        float("nan")
-        if not (cnt := Counter(e.dataset_id for e in events))
-        else (cnt[PRIMARY] - cnt[REFERENCE]) / (cnt[PRIMARY] + cnt[REFERENCE])
-    )
 
 
 @strawberry.type
