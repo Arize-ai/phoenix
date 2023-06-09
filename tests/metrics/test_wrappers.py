@@ -3,7 +3,6 @@ from collections import ChainMap
 from typing import Any, Callable, Dict, Iterable, Optional, cast
 
 import numpy as np
-import numpy.typing as npt
 import pandas as pd
 import pytest
 from numpy.testing import assert_almost_equal
@@ -39,7 +38,7 @@ def gen_series(
     n: int,
     na_pct: float,
     cats: Optional[Iterable[Any]] = None,
-    f: Callable[..., npt.NDArray[Any]] = lambda x: x,  # type: ignore
+    f: Callable[[Any], Any] = lambda x: x,
 ) -> "pd.Series[Any]":
     if n == 0:
         return pd.Series(dtype=object)
@@ -57,7 +56,7 @@ def gen_df(
     n: int = N,
     na_pct: float = 0.1,
     cats: Iterable[Any] = "01",
-    f: Callable[..., Any] = lambda x: x,
+    f: Callable[[Any], Any] = lambda x: x,
 ) -> pd.DataFrame:
     df = pd.DataFrame(
         {

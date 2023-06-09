@@ -145,7 +145,7 @@ def _coerce_dtype_if_necessary(
     except ValueError as exc:
         if is_object_dtype(series):
             try:
-                series = series.astype(type(series.iloc[0]))
+                return series.astype(type(series.iloc[0]))
             except ValueError:
                 raise exc
         else:
