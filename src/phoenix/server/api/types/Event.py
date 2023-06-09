@@ -8,6 +8,7 @@ import phoenix.core.model_schema as ms
 from phoenix.core.model_schema import (
     ACTUAL_LABEL,
     ACTUAL_SCORE,
+    PREDICTION_ID,
     PREDICTION_LABEL,
     PREDICTION_SCORE,
     PROMPT,
@@ -63,6 +64,7 @@ def create_event(
     an event containing this information.
     """
     event_metadata = EventMetadata(
+        prediction_id=event[PREDICTION_ID],
         prediction_label=event[PREDICTION_LABEL],
         prediction_score=event[PREDICTION_SCORE],
         actual_label=event[ACTUAL_LABEL],
