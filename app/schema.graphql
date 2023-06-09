@@ -250,6 +250,7 @@ type Event {
 }
 
 type EventMetadata {
+  predictionId: String
   predictionScore: Float
   predictionLabel: String
   actualScore: Float
