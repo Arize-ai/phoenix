@@ -504,6 +504,45 @@ class TestParseDataFrameAndSchema:
             caplog=caplog,
         )
 
+    def test_dataset_coerce_vectors_from_lists_to_arrays(
+        self,
+        caplog,
+    ):
+        vectors = [list(np.random.random(self.embedding_dimension)), None] * self.num_records
+        input_dataframe = DataFrame(
+            {
+                "embedding0": vectors,
+                "embedding1": vectors,
+                "embedding2": vectors,
+            }
+        )
+        assert 0 < input_dataframe.isna().sum().sum() < input_dataframe.size
+        emb0 = EmbeddingColumnNames(vector_column_name="embedding0")
+        emb1 = EmbeddingColumnNames(vector_column_name="embedding1")
+        emb2 = EmbeddingColumnNames(vector_column_name="embedding2")
+        input_schema = Schema(
+            embedding_feature_column_names={"embedding0": emb0},
+            prompt_column_names=emb1,
+            response_column_names=emb2,
+        )
+        parsed_dataframe, _ = _parse_dataframe_and_schema(
+            dataframe=input_dataframe,
+            schema=input_schema,
+        )
+        assert len(parsed_dataframe) == len(input_dataframe)
+        for name in ("embedding0", "embedding1", "embedding2"):
+            for parsed, original in zip(
+                parsed_dataframe.loc[:, name],
+                input_dataframe.loc[:, name],
+            ):
+                assert (
+                    parsed is None
+                    and original is None
+                    or isinstance(parsed, np.ndarray)
+                    and isinstance(original, list)
+                    and list(parsed) == list(original)
+                )
+
     def _parse_dataframe_and_schema_and_check_output(
         self,
         input_dataframe: DataFrame,

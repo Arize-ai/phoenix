@@ -4,6 +4,8 @@ from copy import deepcopy
 from dataclasses import fields, replace
 from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
+import numpy as np
+import pandas as pd
 import pytz
 from pandas import DataFrame, Series, Timestamp, read_parquet, to_datetime
 from pandas.api.types import (
@@ -378,8 +380,32 @@ def _create_and_normalize_dataframe_and_schema(
         parsed_dataframe["prediction_id"] = _add_prediction_id(len(parsed_dataframe))
     elif is_numeric_dtype(parsed_dataframe.dtypes[pred_id_col_name]):
         parsed_dataframe[pred_id_col_name] = parsed_dataframe[pred_id_col_name].astype(str)
-
+    for embeddings in (
+        [parsed_schema.prompt_column_names, parsed_schema.response_column_names]
+        + list(parsed_schema.embedding_feature_column_names.values())
+        if parsed_schema.embedding_feature_column_names is not None
+        else []
+    ):
+        if embeddings is None:
+            continue
+        vector_column_name = embeddings.vector_column_name
+        if vector_column_name not in parsed_dataframe.columns:
+            continue
+        parsed_dataframe.loc[:, vector_column_name] = _coerce_vectors_as_arrays_if_necessary(
+            parsed_dataframe.loc[:, vector_column_name]
+        )
     return parsed_dataframe, parsed_schema
+
+
+def _coerce_vectors_as_arrays_if_necessary(
+    series: "pd.Series[Any]",
+) -> "pd.Series[Any]":
+    not_na = ~series.isna()
+    if not_na.sum() == 0:
+        return series
+    if set(map(type, series.loc[not_na])) - {np.ndarray}:
+        return series.mask(not_na, series.loc[not_na].apply(np.array))
+    return series
 
 
 def _sort_dataframe_rows_by_timestamp(dataframe: DataFrame, schema: Schema) -> DataFrame:
