@@ -7,9 +7,9 @@ import pandas as pd
 import strawberry
 from strawberry import UNSET
 
-from phoenix.core.model_schema import CONTINUOUS, REFERENCE, Column, Dataset, Dimension
+from phoenix.core.model_schema import CONTINUOUS, PRIMARY, REFERENCE, Column, Dataset, Dimension
 from phoenix.metrics import Metric, binning
-from phoenix.metrics.mixins import DriftOperator, UnaryOperator
+from phoenix.metrics.mixins import UnaryOperator
 from phoenix.metrics.timeseries import timeseries
 from phoenix.server.api.input_types.Granularity import Granularity, to_timestamps
 from phoenix.server.api.input_types.TimeRange import TimeRange
@@ -62,35 +62,12 @@ class TimeSeries:
     data: List[TimeSeriesDataPoint]
 
 
-def _get_timeseries_data(
-    dimension: Dimension,
-    metric: Union[ScalarDriftMetric, VectorDriftMetric, DataQualityMetric],
+def get_timeseries_data_points(
+    df: pd.DataFrame,
+    metric: Metric,
     time_range: TimeRange,
     granularity: Granularity,
-    dataset_role: DatasetRole,
 ) -> List[TimeSeriesDataPoint]:
-    metric_cls = metric.value
-    data = dimension[dataset_role.value]
-    metric_instance = metric_cls()
-    if isinstance(metric_instance, UnaryOperator):
-        metric_instance = replace(
-            metric_instance,
-            operand=Column(dimension.name),
-        )
-    if isinstance(metric_instance, DriftOperator):
-        ref_data = dimension[REFERENCE]
-        metric_instance = replace(
-            metric_instance,
-            reference_data=pd.DataFrame({dimension.name: ref_data}),
-        )
-        if dimension.data_type is CONTINUOUS:
-            metric_instance = replace(
-                metric_instance,
-                binning_method=binning.QuantileBinning(
-                    reference_series=dimension[REFERENCE],
-                ),
-            )
-    df = pd.DataFrame({dimension.name: data})
     return df.pipe(
         timeseries(
             start_time=time_range.start,
@@ -102,10 +79,10 @@ def _get_timeseries_data(
                 minutes=granularity.sampling_interval_minutes,
             ),
         ),
-        metrics=(metric_instance,),
+        metrics=(metric,),
     ).pipe(
         to_gql_datapoints,
-        metric=metric_instance,
+        metric=metric,
         timestamps=to_timestamps(time_range, granularity),
     )
 
@@ -115,19 +92,25 @@ class DataQualityTimeSeries(TimeSeries):
     """A time series of data quality metrics"""
 
 
-def get_data_quality_timeseries_data(
+def get_data_quality_timeseries_data_points(
     dimension: Dimension,
     metric: DataQualityMetric,
     time_range: TimeRange,
     granularity: Granularity,
     dataset_role: DatasetRole,
 ) -> List[TimeSeriesDataPoint]:
-    return _get_timeseries_data(
-        dimension,
-        metric,
+    metric_instance = metric.value()
+    if isinstance(metric_instance, UnaryOperator):
+        metric_instance = replace(
+            metric_instance,
+            operand=Column(dimension.name),
+        )
+    df = pd.DataFrame({dimension.name: dimension[dataset_role.value]})
+    return get_timeseries_data_points(
+        df,
+        metric_instance,
         time_range,
         granularity,
-        dataset_role,
     )
 
 
@@ -136,19 +119,37 @@ class DriftTimeSeries(TimeSeries):
     """A time series of drift metrics"""
 
 
-def get_drift_timeseries_data(
+def get_drift_timeseries_data_points(
     dimension: Dimension,
     metric: Union[ScalarDriftMetric, VectorDriftMetric],
     time_range: TimeRange,
     granularity: Granularity,
 ) -> List[TimeSeriesDataPoint]:
-    return _get_timeseries_data(
-        dimension,
-        metric,
+    metric_instance = metric.value()
+    metric_instance = replace(
+        metric_instance,
+        operand=Column(dimension.name),
+        reference_data=(pd.DataFrame({dimension.name: dimension[REFERENCE]})),
+    )
+    if isinstance(metric, ScalarDriftMetric) and dimension.data_type is CONTINUOUS:
+        metric_instance = replace(
+            metric_instance,
+            binning_method=binning.QuantileBinning(
+                reference_series=dimension[REFERENCE],
+            ),
+        )
+    df = pd.DataFrame({dimension.name: dimension[PRIMARY]})
+    return get_timeseries_data_points(
+        df,
+        metric_instance,
         time_range,
         granularity,
-        DatasetRole.primary,
     )
+
+
+@strawberry.type
+class PerformanceTimeSeries(TimeSeries):
+    """A time series of drift metrics"""
 
 
 def ensure_timeseries_parameters(

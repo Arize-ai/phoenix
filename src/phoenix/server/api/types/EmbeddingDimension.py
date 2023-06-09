@@ -42,8 +42,8 @@ from .TimeSeries import (
     DataQualityTimeSeries,
     DriftTimeSeries,
     ensure_timeseries_parameters,
-    get_data_quality_timeseries_data,
-    get_drift_timeseries_data,
+    get_data_quality_timeseries_data_points,
+    get_drift_timeseries_data_points,
 )
 from .UMAPPoints import UMAPPoint, UMAPPoints, to_gql_coordinates
 
@@ -90,7 +90,7 @@ class EmbeddingDimension(Node):
             dataset,
             time_range,
         )
-        data = get_drift_timeseries_data(
+        data = get_drift_timeseries_data_points(
             self.dimension,
             metric,
             time_range,
@@ -128,7 +128,7 @@ class EmbeddingDimension(Node):
             granularity,
         )
         return DataQualityTimeSeries(
-            data=get_data_quality_timeseries_data(
+            data=get_data_quality_timeseries_data_points(
                 self.dimension,
                 metric,
                 time_range,
@@ -164,7 +164,7 @@ class EmbeddingDimension(Node):
             granularity,
         )
         return DriftTimeSeries(
-            data=get_drift_timeseries_data(
+            data=get_drift_timeseries_data_points(
                 self.dimension,
                 metric,
                 time_range,
