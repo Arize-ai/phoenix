@@ -2,7 +2,7 @@ import React from "react";
 import { transparentize } from "polished";
 import { css } from "@emotion/react";
 
-import { Heading, Text } from "@arizeai/components";
+import { Flex, Heading, Text } from "@arizeai/components";
 
 import { numberFormatter } from "@phoenix/utils/numberFormatUtils";
 
@@ -103,42 +103,43 @@ export function ClusterItem(props: ClusterItemProps) {
           display: flex;
           flex-direction: row;
           justify-content: space-between;
+          align-items: center;
         `}
       >
-        <div
+        <Flex
           data-testid="cluster-description"
-          css={(theme) => css`
-            display: flex;
-            flex-direction: column;
-            gap: ${theme.spacing.margin4}px;
-          `}
+          direction="column"
+          gap="size-50"
+          alignItems="start"
         >
-          <Heading level={3}>{`Cluster ${clusterId}`}</Heading>
-          <Text color="white70" textSize="small">
-            {`${props.numPoints} points`}
-          </Text>
-        </div>
+          <Flex direction="column" alignItems="start">
+            <Heading level={3}>{`Cluster ${clusterId}`}</Heading>
+            <Text
+              color="white70"
+              textSize="small"
+            >{`${props.numPoints} points`}</Text>
+          </Flex>
+        </Flex>
         {hasClusterMetric ? (
           <div
             data-testid="cluster-metric"
-            css={(theme) => css`
-              text-align: right;
+            css={css`
               display: flex;
               flex-direction: column;
-              gap: ${theme.spacing.margin4}px;
+              align-items: end;
             `}
           >
-            <Text color="white90" textSize="large">
-              {numberFormatter(primaryMetricValue)}
-            </Text>
-            {!hideReference ? (
-              <Text color="designationPurple" textSize="large">
-                {numberFormatter(referenceMetricValue)}
-              </Text>
-            ) : null}
             <Text color="white70" textSize="small">
               {metricName}
             </Text>
+            <Text color="white90" textSize="medium">
+              {numberFormatter(primaryMetricValue)}
+            </Text>
+            {!hideReference ? (
+              <Text color="designationPurple" textSize="small">
+                {numberFormatter(referenceMetricValue)}
+              </Text>
+            ) : null}
           </div>
         ) : null}
       </div>

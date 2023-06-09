@@ -25,6 +25,7 @@ import { Dimension } from "@phoenix/types";
 import { assertUnreachable } from "@phoenix/typeUtils";
 import { splitEventIdsByDataset } from "@phoenix/utils/pointCloudUtils";
 
+import { pointCloudStore_clusterMetricsQuery } from "./__generated__/pointCloudStore_clusterMetricsQuery.graphql";
 import { pointCloudStore_clustersQuery } from "./__generated__/pointCloudStore_clustersQuery.graphql";
 import { pointCloudStore_dimensionMetadataQuery } from "./__generated__/pointCloudStore_dimensionMetadataQuery.graphql";
 import {
@@ -777,7 +778,17 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
     getHDSCANParameters: () => get().hdbscanParameters,
     getMetric: () => get().metric,
     setErrorMessage: (errorMessage) => set({ errorMessage }),
-    setMetric: (metric) => set({ metric }),
+    setMetric: async (metric) => {
+      const pointCloud = get();
+      set({ metric, clustersLoading: true });
+      // Re-calculates the cluster's metrics
+      const clusters = await fetchClusterMetrics({
+        metric,
+        clusters: pointCloud.clusters,
+        hdbscanParameters: pointCloud.hdbscanParameters,
+      });
+      pointCloud.setClusters(clusters);
+    },
   });
 
   return create<PointCloudState>()(devtools(pointCloudStore));
@@ -1134,6 +1145,56 @@ async function fetchClusters({
     }
   ).toPromise();
   return data?.hdbscanClustering ?? [];
+}
+
+/**
+ * A function that re-computes the cluster metrics for the point cloud
+ */
+async function fetchClusterMetrics({
+  metric,
+  clusters,
+  hdbscanParameters,
+}: {
+  metric: MetricDefinition | null;
+  clusters: readonly Cluster[];
+  hdbscanParameters: HDBSCANParameters;
+}): Promise<readonly ClusterInput[]> {
+  const data = await fetchQuery<pointCloudStore_clusterMetricsQuery>(
+    RelayEnvironment,
+    graphql`
+      query pointCloudStore_clusterMetricsQuery(
+        $clusters: [ClusterInput!]!
+        $fetchDataQualityMetric: Boolean!
+        $dataQualityMetricColumnName: String
+      ) {
+        clusters(clusters: $clusters) {
+          id
+          eventIds
+          driftRatio
+          dataQualityMetric(
+            metric: { metric: mean, columnName: $dataQualityMetricColumnName }
+          ) @include(if: $fetchDataQualityMetric) {
+            primaryValue
+            referenceValue
+          }
+        }
+      }
+    `,
+    {
+      clusters: clusters.map((cluster) => ({
+        id: cluster.id,
+        eventIds: cluster.eventIds,
+      })),
+      fetchDataQualityMetric: metric?.type === "dataQuality",
+      dataQualityMetricColumnName:
+        metric?.type === "dataQuality" ? metric?.dimension.name : null,
+      ...hdbscanParameters,
+    },
+    {
+      fetchPolicy: "network-only",
+    }
+  ).toPromise();
+  return data?.clusters ?? [];
 }
 
 /**

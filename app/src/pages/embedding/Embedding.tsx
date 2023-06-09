@@ -15,6 +15,7 @@ import {
 } from "react-relay";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { subDays } from "date-fns";
+import useDeepCompareEffect from "use-deep-compare-effect";
 import { css } from "@emotion/react";
 
 import {
@@ -378,16 +379,10 @@ function PointCloudDisplay({
   );
   const setClusters = usePointCloudContext((state) => state.setClusters);
 
-  useEffect(() => {
+  useDeepCompareEffect(() => {
     const clusters = data.embedding?.UMAPPoints?.clusters || [];
     setPointsAndClusters({ points: allSourceData, clusters });
-  }, [
-    allSourceData,
-    data.embedding?.UMAPPoints?.clusters,
-    queryReference,
-    setPointsAndClusters,
-    setClusters,
-  ]);
+  }, [allSourceData, queryReference, setPointsAndClusters, setClusters]);
 
   return (
     <div
