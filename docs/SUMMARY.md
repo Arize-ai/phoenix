@@ -39,6 +39,7 @@
 * [Embeddings](concepts/embeddings.md)
 * [Architecture](reference/architecture.md)
 * [Open Inference](concepts/open-inference.md)
+* [Frequently Asked Questions](reference/frequently-asked-questions.md)
 
 ***
 
