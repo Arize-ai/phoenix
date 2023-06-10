@@ -156,12 +156,12 @@ export function PointSelectionTable({
         Header: "",
         id: "view-details",
         width: 50,
-        Cell: ({ value }: CellProps<ModelEvent>) => {
+        Cell: ({ row }: CellProps<TableDataItem>) => {
           return (
             <LinkButton
               aria-label="view point details"
               onClick={() => {
-                onPointSelected(value);
+                onPointSelected(row.original.id);
               }}
             >
               view details
@@ -190,23 +190,23 @@ export function PointSelectionTable({
         {headerGroups.map((headerGroup, idx) => (
           <tr {...headerGroup.getHeaderGroupProps()} key={idx}>
             {headerGroup.headers.map((column, idx) => (
-              <th
-                {...column.getHeaderProps(column.getSortByToggleProps())}
-                key={idx}
-              >
-                {column.render("Header")}
-                {column.isSorted ? (
-                  <Icon
-                    className="sort-icon"
-                    svg={
-                      column.isSortedDesc ? (
-                        <Icons.ArrowDownFilled />
-                      ) : (
-                        <Icons.ArrowUpFilled />
-                      )
-                    }
-                  />
-                ) : null}
+              <th {...column.getHeaderProps()} key={idx}>
+                <span {...column.getSortByToggleProps()}>
+                  {column.render("Header")}
+                  {column.isSorted ? (
+                    <Icon
+                      className="sort-icon"
+                      svg={
+                        column.isSortedDesc ? (
+                          <Icons.ArrowDownFilled />
+                        ) : (
+                          <Icons.ArrowUpFilled />
+                        )
+                      }
+                    />
+                  ) : null}
+                </span>
+
                 {/* Use column.getResizerProps to hook up the events correctly */}
                 {column.canResize && (
                   <div

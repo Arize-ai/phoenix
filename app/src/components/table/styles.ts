@@ -12,6 +12,8 @@ export const tableCSS = (theme: Theme) => css`
         text-align: left;
         .sort-icon {
           margin-left: ${theme.spacing.margin4}px;
+          font-size: ${theme.typography.sizes.small.fontSize}px;
+          vertical-align: middle;
           display: inline-block;
         }
         .resizer {

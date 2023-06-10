@@ -131,8 +131,8 @@ interface ClusterComputedFields {
   /**
    * The two metric values for the cluster
    */
-  readonly primaryMetricValue?: number | null;
-  readonly referenceMetricValue?: number | null;
+  readonly primaryMetricValue: number | null;
+  readonly referenceMetricValue: number | null;
 }
 
 interface ClusterBase {
@@ -1221,16 +1221,17 @@ const clusterSortFn =
  */
 function normalizeCluster(cluster: ClusterInput): Cluster {
   const useDataQualityMetric = cluster.dataQualityMetric != null;
+  const primaryMetricValue = useDataQualityMetric
+    ? cluster.dataQualityMetric?.primaryValue
+    : cluster.driftRatio;
+  const referenceMetricValue = useDataQualityMetric
+    ? cluster.dataQualityMetric?.referenceValue
+    : null;
   return {
     ...cluster,
     size: cluster.eventIds.length,
     driftRatio: cluster.driftRatio ?? 0,
-    // A tad simplistic in logic but will refactor when perf comes
-    primaryMetricValue: useDataQualityMetric
-      ? cluster.dataQualityMetric?.primaryValue
-      : cluster.driftRatio,
-    referenceMetricValue: useDataQualityMetric
-      ? cluster.dataQualityMetric?.referenceValue
-      : null,
+    primaryMetricValue: primaryMetricValue ?? null,
+    referenceMetricValue: referenceMetricValue ?? null,
   };
 }
