@@ -10,6 +10,10 @@ export const tableCSS = (theme: Theme) => css`
       th {
         padding: ${theme.spacing.margin4}px ${theme.spacing.margin16}px;
         text-align: left;
+        .sort-icon {
+          margin-left: ${theme.spacing.margin4}px;
+          display: inline-block;
+        }
         .resizer {
           display: inline-block;
 

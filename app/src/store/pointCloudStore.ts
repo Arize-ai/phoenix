@@ -131,8 +131,8 @@ interface ClusterComputedFields {
   /**
    * The two metric values for the cluster
    */
-  readonly primaryMetricValue: number | null;
-  readonly referenceMetricValue: number | null;
+  readonly primaryMetricValue?: number | null;
+  readonly referenceMetricValue?: number | null;
 }
 
 interface ClusterBase {
@@ -1201,7 +1201,8 @@ async function fetchClusterMetrics({
  * A curried function that returns a sort function for the clusters given a sort config
  */
 const clusterSortFn =
-  (sort: ClusterSort) => (clusterA: Cluster, clusterB: Cluster) => {
+  (sort: ClusterSort) =>
+  (clusterA: Cluster, clusterB: Cluster): number => {
     const { dir, column } = sort;
     const isAsc = dir === "asc";
     // For now assume a lack of a value is 0
@@ -1218,14 +1219,18 @@ const clusterSortFn =
 /**
  * Normalize the cluster data
  */
-function normalizeCluster(cluster: ClusterInput) {
+function normalizeCluster(cluster: ClusterInput): Cluster {
+  const useDataQualityMetric = cluster.dataQualityMetric != null;
   return {
     ...cluster,
     size: cluster.eventIds.length,
     driftRatio: cluster.driftRatio ?? 0,
     // A tad simplistic in logic but will refactor when perf comes
-    primaryMetricValue:
-      cluster.dataQualityMetric?.primaryValue ?? cluster.driftRatio,
-    referenceMetricValue: cluster.dataQualityMetric?.referenceValue ?? null,
+    primaryMetricValue: useDataQualityMetric
+      ? cluster.dataQualityMetric?.primaryValue
+      : cluster.driftRatio,
+    referenceMetricValue: useDataQualityMetric
+      ? cluster.dataQualityMetric?.referenceValue
+      : null,
   };
 }

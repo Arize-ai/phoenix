@@ -39,7 +39,9 @@ export function PointSelectionTable({
     const tableData: TableDataItem[] = [...data];
     let hasLinkToData = false,
       hasRawData = false,
-      hasPromptAndResponse = false;
+      hasPromptAndResponse = false,
+      hasPredictionLabels = false,
+      hasActualLabels = false;
     data.forEach((point) => {
       if (point.linkToData) {
         hasLinkToData = true;
@@ -49,6 +51,12 @@ export function PointSelectionTable({
       }
       if (point.prompt || point.response) {
         hasPromptAndResponse = true;
+      }
+      if (point.predictionLabel) {
+        hasPredictionLabels = true;
+      }
+      if (point.actualLabel) {
+        hasActualLabels = true;
       }
     });
 
@@ -106,6 +114,20 @@ export function PointSelectionTable({
         width: 300,
       });
     }
+    if (hasPredictionLabels) {
+      dataDrivenColumns.push({
+        Header: "Prediction Label",
+        accessor: "predictionLabel",
+        width: 50,
+      });
+    }
+    if (hasActualLabels) {
+      dataDrivenColumns.push({
+        Header: "Actual Label",
+        accessor: "actualLabel",
+        width: 50,
+      });
+    }
 
     // If a dimension data quality metric is selected, show it
     const analysisColumns: Column<TableDataItem>[] = [];
@@ -126,22 +148,9 @@ export function PointSelectionTable({
         dataItem.metric = metricValue != null ? Number(metricValue) : null;
       });
     }
-    const metadataColumns: Column<TableDataItem>[] = [
-      {
-        Header: "Prediction Label",
-        accessor: "predictionLabel",
-        width: 50,
-      },
-      {
-        Header: "Actual Label",
-        accessor: "actualLabel",
-        width: 50,
-      },
-    ];
 
     const columns: Column<TableDataItem>[] = [
       ...dataDrivenColumns,
-      ...metadataColumns,
       ...analysisColumns,
       {
         Header: "",
@@ -188,14 +197,12 @@ export function PointSelectionTable({
                 {column.render("Header")}
                 {column.isSorted ? (
                   <Icon
-                    style={{
-                      marginLeft: "4px",
-                    }}
+                    className="sort-icon"
                     svg={
                       column.isSortedDesc ? (
-                        <Icons.ArrowIosDownwardOutline />
+                        <Icons.ArrowDownFilled />
                       ) : (
-                        <Icons.ArrowIosUpwardOutline />
+                        <Icons.ArrowUpFilled />
                       )
                     }
                   />
