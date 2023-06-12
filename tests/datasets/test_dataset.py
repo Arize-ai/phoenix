@@ -539,7 +539,7 @@ class TestParseDataFrameAndSchema:
                     parsed is None
                     and original is None
                     or isinstance(parsed, np.ndarray)
-                    and isinstance(original, list)
+                    and not isinstance(original, np.ndarray)
                     and list(parsed) == list(original)
                 )
 

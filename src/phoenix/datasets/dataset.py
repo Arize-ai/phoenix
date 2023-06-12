@@ -392,18 +392,24 @@ def _create_and_normalize_dataframe_and_schema(
         if vector_column_name not in parsed_dataframe.columns:
             continue
         parsed_dataframe.loc[:, vector_column_name] = _coerce_vectors_as_arrays_if_necessary(
-            parsed_dataframe.loc[:, vector_column_name]
+            parsed_dataframe.loc[:, vector_column_name],
+            vector_column_name,
         )
     return parsed_dataframe, parsed_schema
 
 
 def _coerce_vectors_as_arrays_if_necessary(
     series: "pd.Series[Any]",
+    column_name: str,
 ) -> "pd.Series[Any]":
     not_na = ~series.isna()
     if not_na.sum() == 0:
         return series
-    if set(map(type, series.loc[not_na])) - {np.ndarray}:
+    if invalid_types := set(map(type, series.loc[not_na])) - {np.ndarray}:
+        logger.warning(
+            f"converting items in the column `{column_name}` to numpy.ndarray, "
+            f"because they have the following types: {invalid_types}"
+        )
         return series.mask(not_na, series.loc[not_na].apply(np.array))
     return series
 
