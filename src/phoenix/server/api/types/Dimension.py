@@ -33,8 +33,8 @@ from .TimeSeries import (
     DataQualityTimeSeries,
     DriftTimeSeries,
     ensure_timeseries_parameters,
-    get_data_quality_timeseries_data_points,
-    get_drift_timeseries_data_points,
+    get_data_quality_timeseries_data,
+    get_drift_timeseries_data,
 )
 
 
@@ -74,7 +74,7 @@ class Dimension(Node):
             dataset,
             time_range,
         )
-        data = get_drift_timeseries_data_points(
+        data = get_drift_timeseries_data(
             self.dimension,
             metric,
             time_range,
@@ -102,7 +102,7 @@ class Dimension(Node):
             dataset,
             time_range,
         )
-        data = get_data_quality_timeseries_data_points(
+        data = get_data_quality_timeseries_data(
             self.dimension,
             metric,
             time_range,
@@ -151,7 +151,7 @@ class Dimension(Node):
             granularity,
         )
         return DataQualityTimeSeries(
-            data=get_data_quality_timeseries_data_points(
+            data=get_data_quality_timeseries_data(
                 self.dimension,
                 metric,
                 time_range,
@@ -185,7 +185,7 @@ class Dimension(Node):
             granularity,
         )
         return DriftTimeSeries(
-            data=get_drift_timeseries_data_points(
+            data=get_drift_timeseries_data(
                 self.dimension,
                 metric,
                 time_range,

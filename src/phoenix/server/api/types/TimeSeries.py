@@ -62,7 +62,7 @@ class TimeSeries:
     data: List[TimeSeriesDataPoint]
 
 
-def get_timeseries_data_points(
+def get_timeseries_data(
     df: pd.DataFrame,
     metric: Metric,
     time_range: TimeRange,
@@ -92,7 +92,7 @@ class DataQualityTimeSeries(TimeSeries):
     """A time series of data quality metrics"""
 
 
-def get_data_quality_timeseries_data_points(
+def get_data_quality_timeseries_data(
     dimension: Dimension,
     metric: DataQualityMetric,
     time_range: TimeRange,
@@ -109,7 +109,7 @@ def get_data_quality_timeseries_data_points(
         {dimension.name: dimension[dataset_role.value]},
         copy=False,
     )
-    return get_timeseries_data_points(
+    return get_timeseries_data(
         df,
         metric_instance,
         time_range,
@@ -122,7 +122,7 @@ class DriftTimeSeries(TimeSeries):
     """A time series of drift metrics"""
 
 
-def get_drift_timeseries_data_points(
+def get_drift_timeseries_data(
     dimension: Dimension,
     metric: Union[ScalarDriftMetric, VectorDriftMetric],
     time_range: TimeRange,
@@ -145,7 +145,7 @@ def get_drift_timeseries_data_points(
         {dimension.name: dimension[PRIMARY]},
         copy=False,
     )
-    return get_timeseries_data_points(
+    return get_timeseries_data(
         df,
         metric_instance,
         time_range,

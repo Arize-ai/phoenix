@@ -23,7 +23,7 @@ from .pagination import Connection, ConnectionArgs, Cursor, connection_from_list
 from .TimeSeries import (
     PerformanceTimeSeries,
     ensure_timeseries_parameters,
-    get_timeseries_data_points,
+    get_timeseries_data,
 )
 
 
@@ -155,7 +155,7 @@ class Model:
             time_range,
         )
         metric_instance = metric.metric_instance(model)
-        data = get_timeseries_data_points(
+        data = get_timeseries_data(
             dataset,
             metric_instance,
             time_range,
@@ -195,7 +195,7 @@ class Model:
         )
         metric_instance = metric.metric_instance(model)
         return PerformanceTimeSeries(
-            data=get_timeseries_data_points(
+            data=get_timeseries_data(
                 dataset,
                 metric_instance,
                 time_range,
