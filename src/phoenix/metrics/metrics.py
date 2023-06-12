@@ -9,7 +9,6 @@ import numpy.typing as npt
 import pandas as pd
 from scipy.spatial.distance import euclidean, jensenshannon
 from scipy.stats import entropy
-from sklearn.metrics import accuracy_score
 from typing_extensions import TypeAlias
 
 from phoenix.metrics import Metric
@@ -17,7 +16,6 @@ from phoenix.metrics import Metric
 from .mixins import (
     DiscreteDivergence,
     DriftOperator,
-    EvaluationMetric,
     NullaryOperator,
     UnaryOperator,
     VectorOperator,
@@ -140,18 +138,6 @@ class Quantile(UnaryOperator, Metric):
                     self.probability,
                 ),
             )
-
-
-@dataclass(frozen=True)
-class AccuracyScore(EvaluationMetric):
-    """
-    AccuracyScore calculates the percentage of times that actual equals predicted.
-    """
-
-    def calc(self, dataframe: pd.DataFrame) -> float:
-        predicted = self.predicted(dataframe)
-        actual = self.actual(dataframe)
-        return cast(float, accuracy_score(actual, predicted))
 
 
 @dataclass(frozen=True)

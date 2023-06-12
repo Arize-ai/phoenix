@@ -14,6 +14,11 @@ type Cluster {
   Data quality metric summarized by the respective datasets of the clustered events
   """
   dataQualityMetric(metric: DataQualityMetricInput!): DatasetValues!
+
+  """
+  Performance metric summarized by the respective datasets of the clustered events
+  """
+  performanceMetric(metric: PerformanceMetricInput!): DatasetValues!
 }
 
 input ClusterInput {
@@ -250,6 +255,7 @@ type Event {
 }
 
 type EventMetadata {
+  predictionId: String
   predictionScore: Float
   predictionLabel: String
   actualScore: Float
@@ -336,6 +342,14 @@ type PageInfo {
   hasPreviousPage: Boolean!
   startCursor: String
   endCursor: String
+}
+
+enum PerformanceMetric {
+  accuracy_score
+}
+
+input PerformanceMetricInput {
+  metric: PerformanceMetric!
 }
 
 type Point2D {
