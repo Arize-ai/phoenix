@@ -120,11 +120,11 @@ function clusterOpacity({
 }): number {
   if (clusterColorMode === ClusterColorMode.highlight) {
     // Show all the clusters
-    return 0.5;
+    return 1;
   } else if (selected) {
-    return 0.5;
+    return 0.7;
   } else if (highlighted) {
-    return 0.3;
+    return 0.5;
   }
   return 0;
 }

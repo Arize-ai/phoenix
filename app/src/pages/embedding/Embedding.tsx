@@ -15,6 +15,7 @@ import {
 } from "react-relay";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { subDays } from "date-fns";
+import useDeepCompareEffect from "use-deep-compare-effect";
 import { css } from "@emotion/react";
 
 import {
@@ -60,7 +61,9 @@ import {
   ClusterColorMode,
   DEFAULT_DRIFT_POINT_CLOUD_PROPS,
   DEFAULT_SINGLE_DATASET_POINT_CLOUD_PROPS,
+  MetricDefinition,
 } from "@phoenix/store";
+import { assertUnreachable } from "@phoenix/typeUtils";
 
 import { EmbeddingModelQuery } from "./__generated__/EmbeddingModelQuery.graphql";
 import {
@@ -86,6 +89,8 @@ const EmbeddingUMAPQuery = graphql`
     $minClusterSize: Int!
     $clusterMinSamples: Int!
     $clusterSelectionEpsilon: Float!
+    $fetchDataQualityMetric: Boolean!
+    $dataQualityMetricColumnName: String
   ) {
     embedding: node(id: $id) {
       ... on EmbeddingDimension {
@@ -154,6 +159,12 @@ const EmbeddingUMAPQuery = graphql`
             id
             eventIds
             driftRatio
+            dataQualityMetric(
+              metric: { columnName: $dataQualityMetricColumnName, metric: mean }
+            ) @include(if: $fetchDataQualityMetric) {
+              primaryValue
+              referenceValue
+            }
           }
         }
       }
@@ -186,6 +197,7 @@ function EmbeddingMain() {
   const getHDSCANParameters = usePointCloudContext(
     (state) => state.getHDSCANParameters
   );
+  const getMetric = usePointCloudContext((state) => state.getMetric);
   const resetPointCloud = usePointCloudContext((state) => state.reset);
   const [showChart, setShowChart] = useState<boolean>(true);
   const [queryReference, loadQuery, disposeQuery] =
@@ -217,12 +229,16 @@ function EmbeddingMain() {
   useEffect(() => {
     // dispose of the selections in the context
     resetPointCloud();
+    const metric = getMetric();
     loadQuery(
       {
         id: embeddingDimensionId,
         timeRange,
         ...umapParameters,
         ...getHDSCANParameters(),
+        fetchDataQualityMetric: metric?.type === "dataQuality",
+        dataQualityMetricColumnName:
+          metric?.type === "dataQuality" ? metric?.dimension.name : null,
       },
       {
         fetchPolicy: "network-only",
@@ -238,6 +254,7 @@ function EmbeddingMain() {
     disposeQuery,
     umapParameters,
     getHDSCANParameters,
+    getMetric,
     timeRange,
   ]);
 
@@ -254,17 +271,15 @@ function EmbeddingMain() {
       <PointCloudNotifications />
       <Toolbar
         extra={
-          <Flex marginTop="size-100">
-            <Switch
-              onChange={(isSelected) => {
-                setShowChart(isSelected);
-              }}
-              defaultSelected={true}
-              labelPlacement="start"
-            >
-              Show Timeseries
-            </Switch>
-          </Flex>
+          <Switch
+            onChange={(isSelected) => {
+              setShowChart(isSelected);
+            }}
+            defaultSelected={true}
+            labelPlacement="start"
+          >
+            Show Timeseries
+          </Switch>
         }
       >
         <PrimaryDatasetTimeRange />
@@ -364,17 +379,10 @@ function PointCloudDisplay({
   );
   const setClusters = usePointCloudContext((state) => state.setClusters);
 
-  useEffect(() => {
+  useDeepCompareEffect(() => {
     const clusters = data.embedding?.UMAPPoints?.clusters || [];
     setPointsAndClusters({ points: allSourceData, clusters });
-    setClusters(clusters);
-  }, [
-    allSourceData,
-    data.embedding?.UMAPPoints?.clusters,
-    queryReference,
-    setPointsAndClusters,
-    setClusters,
-  ]);
+  }, [allSourceData, queryReference, setPointsAndClusters, setClusters]);
 
   return (
     <div
@@ -531,10 +539,12 @@ function PointSelectionPanelContentWrap(props: { children: ReactNode }) {
  */
 const CLUSTERING_CONFIG_TAB_INDEX = 1;
 const ClustersPanelContents = React.memo(function ClustersPanelContents() {
+  const { referenceDataset } = useDatasets();
   const clusters = usePointCloudContext((state) => state.clusters);
   const selectedClusterId = usePointCloudContext(
     (state) => state.selectedClusterId
   );
+  const metric = usePointCloudContext((state) => state.metric);
   const setSelectedClusterId = usePointCloudContext(
     (state) => state.setSelectedClusterId
   );
@@ -547,7 +557,12 @@ const ClustersPanelContents = React.memo(function ClustersPanelContents() {
   const setClusterColorMode = usePointCloudContext(
     (state) => state.setClusterColorMode
   );
-
+  // Hide the reference metric if the following conditions are met:
+  // 1. There is no reference dataset
+  // 2. There is no metric selected
+  // 3. The metric is drift
+  const hideReference =
+    referenceDataset == null || metric == null || metric.type === "drift";
   const onTabChange = useCallback(
     (index: number) => {
       if (index === CLUSTERING_CONFIG_TAB_INDEX) {
@@ -592,6 +607,10 @@ const ClustersPanelContents = React.memo(function ClustersPanelContents() {
                       numPoints={cluster.eventIds.length}
                       isSelected={selectedClusterId === cluster.id}
                       driftRatio={cluster.driftRatio}
+                      primaryMetricValue={cluster.primaryMetricValue}
+                      referenceMetricValue={cluster.referenceMetricValue}
+                      metricName={getClusterMetricName(metric)}
+                      hideReference={hideReference}
                       onClick={() => {
                         if (selectedClusterId !== cluster.id) {
                           setSelectedClusterId(cluster.id);
@@ -623,6 +642,21 @@ const ClustersPanelContents = React.memo(function ClustersPanelContents() {
     </Tabs>
   );
 });
+
+function getClusterMetricName(metric: MetricDefinition | null) {
+  if (metric == null) {
+    return "metric";
+  }
+  const { type: metricType } = metric;
+  switch (metricType) {
+    case "dataQuality":
+      return `${metric.dimension.name} avg`;
+    case "drift":
+      return "cluster drift";
+    default:
+      assertUnreachable(metricType);
+  }
+}
 
 function PointCloudNotifications() {
   const { notifyError } = useGlobalNotification();
