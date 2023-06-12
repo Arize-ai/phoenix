@@ -98,20 +98,20 @@ export function PointSelectionTable({
       dataDrivenColumns.push({
         Header: "Prompt",
         accessor: "prompt",
-        width: 300,
+        width: 200,
         Cell: TextCell,
       });
       dataDrivenColumns.push({
         Header: "Response",
         accessor: "response",
-        width: 300,
+        width: 200,
         Cell: TextCell,
       });
     } else if (hasRawData) {
       dataDrivenColumns.push({
         Header: "Raw Data",
         accessor: "rawData",
-        width: 300,
+        width: 200,
       });
     }
     if (hasPredictionLabels) {
@@ -138,6 +138,7 @@ export function PointSelectionTable({
         accessor: "metric",
         width: 50,
         Cell: FloatCell,
+        sortType: "basic",
       });
 
       // Add the metric name to the table value
