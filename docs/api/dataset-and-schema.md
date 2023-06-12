@@ -26,15 +26,6 @@ A dataset containing a split or cohort of data to be analyzed independently or c
 * **schema** ([phoenix.Schema](dataset-and-schema.md#phoenix.schema)): A schema that assigns the columns of the dataframe to the appropriate model dimensions (features, predictions, actuals, etc.).
 * **name** (Optional\[str]): The name used to identify the dataset in the application. If not provided, a random name will be generated.
 
-### Methods
-
-* **head**(num\_rows: Optional\[int] = 5) -> pandas.DataFrame\
-  \
-  Returns the first `num_rows` rows of the dataset's dataframe. This method is useful for inspecting the dataset's underlying dataframe to ensure it has the expected format and content.\
-  \
-  **Parameters**
-  * **num\_rows** (int): The number of rows in the returned dataframe.
-
 ### Attributes
 
 * **dataframe** (pandas.DataFrame): The pandas dataframe of the dataset.

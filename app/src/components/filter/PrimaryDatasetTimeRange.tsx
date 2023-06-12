@@ -32,6 +32,7 @@ export function PrimaryDatasetTimeRange(_: PrimaryDatasetTimeRangeProps) {
       <TooltipTrigger delay={0} placement="bottom right">
         <TriggerWrap>
           <Picker
+            label="primary dataset"
             defaultSelectedKey={selectedTimePreset}
             data-testid="dataset-time-range"
             aria-label={`Time range for the primary dataset`}

@@ -1,6 +1,6 @@
 from collections import defaultdict
-from itertools import chain
-from typing import List, Optional
+from itertools import chain, starmap
+from typing import Dict, List, Optional, Set
 
 import numpy as np
 import strawberry
@@ -11,6 +11,7 @@ from typing_extensions import Annotated
 from phoenix.core.model_schema import PRIMARY, REFERENCE, EventId
 from phoenix.pointcloud.clustering import Hdbscan
 from phoenix.server.api.helpers import ensure_list
+from phoenix.server.api.input_types.ClusterInput import ClusterInput
 from phoenix.server.api.types.Cluster import Cluster, to_gql_clusters
 
 from .context import Context
@@ -45,6 +46,20 @@ class Query:
             return to_gql_embedding_dimension(node_id, embedding_dimension)
 
         raise Exception(f"Unknown node type: {type}")
+
+    @strawberry.field
+    def clusters(
+        self,
+        clusters: List[ClusterInput],
+    ) -> List[Cluster]:
+        clustered_events: Dict[str, Set[EventId]] = defaultdict(set)
+        for i, cluster in enumerate(clusters):
+            clustered_events[cluster.id or str(i)].update(
+                starmap(EventId, map(unpack_event_id, cluster.event_ids))
+            )
+        return to_gql_clusters(
+            clustered_events=clustered_events,
+        )
 
     @strawberry.field
     def hdbscan_clustering(
@@ -150,8 +165,8 @@ class Query:
         ).find_clusters(stacked_coordinates)
 
         clustered_events = {
-            cluster_id: {stacked_event_ids[row_idx] for row_idx in cluster}
-            for cluster_id, cluster in enumerate(clusters)
+            str(i): {stacked_event_ids[row_idx] for row_idx in cluster}
+            for i, cluster in enumerate(clusters)
         }
 
         return to_gql_clusters(

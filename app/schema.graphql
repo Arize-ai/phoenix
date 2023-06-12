@@ -14,6 +14,16 @@ type Cluster {
   Data quality metric summarized by the respective datasets of the clustered events
   """
   dataQualityMetric(metric: DataQualityMetricInput!): DatasetValues!
+
+  """
+  Performance metric summarized by the respective datasets of the clustered events
+  """
+  performanceMetric(metric: PerformanceMetricInput!): DatasetValues!
+}
+
+input ClusterInput {
+  eventIds: [ID!]!
+  id: ID
 }
 
 enum DataQualityMetric {
@@ -245,6 +255,7 @@ type Event {
 }
 
 type EventMetadata {
+  predictionId: String
   predictionScore: Float
   predictionLabel: String
   actualScore: Float
@@ -303,6 +314,25 @@ type Model {
 
   """Returns exported file names sorted by descending modification time."""
   exportedFiles: [ExportedFile!]!
+  performanceMetric(
+    metric: PerformanceMetricInput!
+    timeRange: TimeRange
+
+    """The dataset (primary or reference) to query"""
+    datasetRole: DatasetRole = primary
+  ): Float
+
+  """
+  Returns the time series of the specified metric for data within a time range. Data points are generated starting at the end time and are separated by the sampling interval. Each data point is labeled by the end instant and contains data from their respective evaluation windows.
+  """
+  performanceTimeSeries(
+    metric: PerformanceMetricInput!
+    timeRange: TimeRange!
+    granularity: Granularity!
+
+    """The dataset (primary or reference) to query"""
+    datasetRole: DatasetRole = primary
+  ): PerformanceTimeSeries!
 }
 
 type Mutation {
@@ -333,6 +363,18 @@ type PageInfo {
   endCursor: String
 }
 
+enum PerformanceMetric {
+  accuracy_score
+}
+
+input PerformanceMetricInput {
+  metric: PerformanceMetric!
+}
+
+type PerformanceTimeSeries implements TimeSeries {
+  data: [TimeSeriesDataPoint!]!
+}
+
 type Point2D {
   x: Float!
   y: Float!
@@ -357,6 +399,7 @@ type PromptResponse {
 type Query {
   model: Model!
   node(id: GlobalID!): Node!
+  clusters(clusters: [ClusterInput!]!): [Cluster!]!
   hdbscanClustering(
     """Event ID of the coordinates"""
     eventIds: [ID!]!

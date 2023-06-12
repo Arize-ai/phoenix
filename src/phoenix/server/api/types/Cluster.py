@@ -1,7 +1,6 @@
 from collections import Counter, defaultdict
 from typing import Dict, List, Mapping, Optional, Set
 
-import numpy as np
 import strawberry
 from strawberry import ID
 from strawberry.types import Info
@@ -9,6 +8,7 @@ from strawberry.types import Info
 from phoenix.core.model_schema import PRIMARY, REFERENCE, DatasetRole, EventId
 from phoenix.server.api.context import Context
 from phoenix.server.api.input_types.DataQualityMetricInput import DataQualityMetricInput
+from phoenix.server.api.input_types.PerformanceMetricInput import PerformanceMetricInput
 from phoenix.server.api.types.DatasetValues import DatasetValues
 
 
@@ -49,7 +49,7 @@ class Cluster:
         if model[REFERENCE].empty:
             return None
         return (
-            np.nan
+            None
             if not (cnt := Counter(e.dataset_id for e in self.events))
             else (cnt[PRIMARY] - cnt[REFERENCE]) / (cnt[PRIMARY] + cnt[REFERENCE])
         )
@@ -78,9 +78,34 @@ class Cluster:
             ),
         )
 
+    @strawberry.field(
+        description="Performance metric summarized by the respective "
+        "datasets of the clustered events",
+    )  # type: ignore
+    def performance_metric(
+        self,
+        info: Info[Context, None],
+        metric: PerformanceMetricInput,
+    ) -> DatasetValues:
+        model = info.context.model
+        row_ids: Dict[DatasetRole, List[int]] = defaultdict(list)
+        for event in self.events:
+            row_ids[event.dataset_id].append(event.row_id)
+        metric_instance = metric.metric_instance(model)
+        return DatasetValues(
+            primary_value=metric_instance(
+                model[PRIMARY],
+                subset_rows=row_ids[PRIMARY],
+            ),
+            reference_value=metric_instance(
+                model[REFERENCE],
+                subset_rows=row_ids[REFERENCE],
+            ),
+        )
+
 
 def to_gql_clusters(
-    clustered_events: Mapping[int, Set[EventId]],
+    clustered_events: Mapping[str, Set[EventId]],
 ) -> List[Cluster]:
     """
     Converts a dictionary of event IDs to cluster IDs to a list of clusters
@@ -88,13 +113,13 @@ def to_gql_clusters(
 
     Parameters
     ----------
-    cluster_membership: Mapping[int, Set[EventId]]
+    cluster_membership: Mapping[str, Set[EventId]]
         A mapping of cluster ID to its set of event IDs
     """
 
     return [
         Cluster(
-            id=ID(str(cluster_id)),
+            id=ID(cluster_id),
             events=events,
         )
         for cluster_id, events in clustered_events.items()

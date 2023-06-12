@@ -4,7 +4,7 @@ import React, {
   useContext,
   useRef,
 } from "react";
-import { useStore } from "zustand";
+import { useZustand } from "use-zustand";
 
 import {
   createPointCloudStore,
@@ -36,5 +36,5 @@ export function usePointCloudContext<T>(
 ): T {
   const store = useContext(PointCloudContext);
   if (!store) throw new Error("Missing PointCloudContext.Provider in the tree");
-  return useStore(store, selector, equalityFn);
+  return useZustand(store, selector, equalityFn);
 }
