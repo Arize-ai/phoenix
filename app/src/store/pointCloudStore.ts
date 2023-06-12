@@ -1205,10 +1205,14 @@ const clusterSortFn =
   (clusterA: Cluster, clusterB: Cluster): number => {
     const { dir, column } = sort;
     const isAsc = dir === "asc";
-    // For now assume a lack of a value is 0
-    const valueA = clusterA[column] || 0;
-    const valueB = clusterB[column] || 0;
-    if (valueA > valueB) {
+    const valueA = clusterA[column];
+    const valueB = clusterB[column];
+    if (valueA == null) {
+      // Always place null values at the end
+      return 1;
+    } else if (valueB == null) {
+      return -1;
+    } else if (valueA > valueB) {
       return isAsc ? 1 : -1;
     } else if (valueA < valueB) {
       return isAsc ? -1 : 1;
