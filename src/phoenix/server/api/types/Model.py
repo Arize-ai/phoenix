@@ -12,6 +12,7 @@ from phoenix.server.api.context import Context
 
 from ..input_types.DimensionFilter import DimensionFilter
 from ..input_types.Granularity import Granularity
+from ..input_types.PerformanceMetricInput import PerformanceMetricInput
 from ..input_types.TimeRange import TimeRange
 from .Dataset import Dataset
 from .DatasetRole import DatasetRole
@@ -136,7 +137,7 @@ class Model:
     def performance_metric(
         self,
         info: Info[Context, None],
-        metric: PerformanceMetric,
+        metric: PerformanceMetricInput,
         time_range: Optional[TimeRange] = UNSET,
         dataset_role: Annotated[
             Optional[DatasetRole],
@@ -173,7 +174,7 @@ class Model:
     def performance_time_series(
         self,
         info: Info[Context, None],
-        metric: PerformanceMetric,
+        metric: PerformanceMetricInput,
         time_range: TimeRange,
         granularity: Granularity,
         dataset_role: Annotated[

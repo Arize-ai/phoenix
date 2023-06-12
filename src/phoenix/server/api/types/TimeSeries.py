@@ -105,7 +105,10 @@ def get_data_quality_timeseries_data_points(
             metric_instance,
             operand=Column(dimension.name),
         )
-    df = pd.DataFrame({dimension.name: dimension[dataset_role.value]})
+    df = pd.DataFrame(
+        {dimension.name: dimension[dataset_role.value]},
+        copy=False,
+    )
     return get_timeseries_data_points(
         df,
         metric_instance,
@@ -138,7 +141,10 @@ def get_drift_timeseries_data_points(
                 reference_series=dimension[REFERENCE],
             ),
         )
-    df = pd.DataFrame({dimension.name: dimension[PRIMARY]})
+    df = pd.DataFrame(
+        {dimension.name: dimension[PRIMARY]},
+        copy=False,
+    )
     return get_timeseries_data_points(
         df,
         metric_instance,

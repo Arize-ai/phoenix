@@ -314,6 +314,25 @@ type Model {
 
   """Returns exported file names sorted by descending modification time."""
   exportedFiles: [ExportedFile!]!
+  performanceMetric(
+    metric: PerformanceMetricInput!
+    timeRange: TimeRange
+
+    """The dataset (primary or reference) to query"""
+    datasetRole: DatasetRole = primary
+  ): Float
+
+  """
+  Returns the time series of the specified metric for data within a time range. Data points are generated starting at the end time and are separated by the sampling interval. Each data point is labeled by the end instant and contains data from their respective evaluation windows.
+  """
+  performanceTimeSeries(
+    metric: PerformanceMetricInput!
+    timeRange: TimeRange!
+    granularity: Granularity!
+
+    """The dataset (primary or reference) to query"""
+    datasetRole: DatasetRole = primary
+  ): PerformanceTimeSeries!
 }
 
 type Mutation {
@@ -350,6 +369,10 @@ enum PerformanceMetric {
 
 input PerformanceMetricInput {
   metric: PerformanceMetric!
+}
+
+type PerformanceTimeSeries implements TimeSeries {
+  data: [TimeSeriesDataPoint!]!
 }
 
 type Point2D {
