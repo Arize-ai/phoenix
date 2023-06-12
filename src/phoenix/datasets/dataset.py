@@ -407,8 +407,10 @@ def _coerce_vectors_as_arrays_if_necessary(
         return series
     if invalid_types := set(map(type, series.loc[not_na])) - {np.ndarray}:
         logger.warning(
-            f"converting items in the column `{column_name}` to numpy.ndarray, "
-            f"because they have the following types: {invalid_types}"
+            f"converting items in column `{column_name}` to numpy.ndarray, "
+            f"because they have the following "
+            f"type{'s' if len(invalid_types) > 1 else ''}: "
+            f"{', '.join(map(lambda t: t.__name__, invalid_types))}"
         )
         return series.mask(not_na, series.loc[not_na].apply(np.array))
     return series

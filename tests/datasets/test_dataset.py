@@ -2,6 +2,7 @@
 Test dataset
 """
 import logging
+import math
 import uuid
 from dataclasses import replace
 from typing import Optional
@@ -508,12 +509,12 @@ class TestParseDataFrameAndSchema:
         self,
         caplog,
     ):
-        vectors = [list(np.random.random(self.embedding_dimension)), None] * self.num_records
+        vec = np.random.random(10)
         input_dataframe = DataFrame(
             {
-                "embedding0": vectors,
-                "embedding1": vectors,
-                "embedding2": vectors,
+                "embedding0": [tuple(vec), np.nan] * 20,
+                "embedding1": [list(vec), None] * 20,
+                "embedding2": [list(vec), None, tuple(vec), np.nan] * 10,
             }
         )
         assert 0 < input_dataframe.isna().sum().sum() < input_dataframe.size
@@ -538,6 +539,8 @@ class TestParseDataFrameAndSchema:
                 assert (
                     parsed is None
                     and original is None
+                    or (isinstance(parsed, float) and math.isnan(parsed))
+                    and (isinstance(original, float) and math.isnan(original))
                     or isinstance(parsed, np.ndarray)
                     and not isinstance(original, np.ndarray)
                     and list(parsed) == list(original)
