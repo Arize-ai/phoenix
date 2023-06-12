@@ -118,8 +118,11 @@ class EvaluationMetric(Metric, ABC):
     )
 
     def __post_init__(self) -> None:
-        # Ignore (i.e. remove) parameters not compatible with
-        # the eval function.
+        # Ignore (i.e. remove) parameters not compatible with the eval
+        # function. Note that same metrics, e.g. max_error, doesn't have
+        # sample_weight as a parameter, but that's because it doesn't change
+        # the result, not because of any inherent incompatibility in meaning,
+        # i.e. samples can still be weighted, but max_error will be the same.
         if (
             invalid_parameter_keys := self.parameters.keys()
             - inspect.signature(self.eval).parameters.keys()

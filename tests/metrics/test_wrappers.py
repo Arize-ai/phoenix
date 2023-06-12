@@ -1,4 +1,5 @@
 import inspect
+import math
 from collections import ChainMap
 from typing import Any, Callable, Dict, Iterable, Optional, cast
 
@@ -217,6 +218,9 @@ def run_test(
         if both_not_na.sum():
             raise exc
         desired_result = np.nan
+    # Since we are using random numbers as input, we want to make sure that we
+    # don't mess up something and inadvertently return NaN for comparisons.
+    assert not math.isnan(desired_result) or both_not_na.sum() == 0
     assert_almost_equal(actual_result, desired_result)
     # calculation with sample weights
     actual_result = EvaluationMetric(
@@ -255,6 +259,9 @@ def run_test(
         if all_not_na.sum():
             raise exc
         desired_result = np.nan
+    # Since we are using random numbers as input, we want to make sure that we
+    # don't mess up something and inadvertently return NaN for comparisons.
+    assert not math.isnan(desired_result) or both_not_na.sum() == 0
     assert_almost_equal(actual_result, desired_result)
 
 
