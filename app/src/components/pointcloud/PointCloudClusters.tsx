@@ -57,15 +57,16 @@ export function PointCloudClusters({ radius }: PointCloudClustersProps) {
   return (
     <>
       {clustersWithData.map((cluster, index) => {
+        const opacity = clusterOpacity({
+          selected: cluster.id === selectedClusterId,
+          highlighted: cluster.id === highlightedClusterId,
+          clusterColorMode: clusterColorMode,
+        });
         return (
           <Cluster
-            key={cluster.id}
+            key={`${cluster.id}__opacity_${String(opacity)}`} // NB: since the cluster id is not fully unique, we need to add the opacity to the key
             data={cluster.data}
-            opacity={clusterOpacity({
-              selected: cluster.id === selectedClusterId,
-              highlighted: cluster.id === highlightedClusterId,
-              clusterColorMode: clusterColorMode,
-            })}
+            opacity={opacity}
             wireframe
             pointRadius={radius}
             color={clusterColor({
