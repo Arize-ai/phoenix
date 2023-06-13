@@ -159,7 +159,7 @@ def _guess_vectors_vs_scalars(
     """A best-effort attempt at separating vector columns from scalar columns
     by examining the first non-null item of the column from each dataframe. If
     any item is `Iterable` and `Sized`, but not `str`, then the column is
-    returned as `Embedding`, else it's returned a scalar.
+    returned as `Embedding`, else it's returned as scalar.
     """
     scalars: List[str] = []
     vectors: List[Embedding] = []
