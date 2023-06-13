@@ -69,11 +69,9 @@ export function ClusterItem(props: ClusterItemProps) {
     hideReference,
   } = props;
 
-  const hasClusterMetric = driftRatio !== null;
   // Calculate the percentage of primary points in the cluster
   const primaryPercentage =
     typeof driftRatio === "number" ? ((driftRatio + 1) / 2) * 100 : 100;
-
   return (
     <div
       css={(theme) => css`
@@ -120,28 +118,26 @@ export function ClusterItem(props: ClusterItemProps) {
             >{`${props.numPoints} points`}</Text>
           </Flex>
         </Flex>
-        {hasClusterMetric ? (
-          <div
-            data-testid="cluster-metric"
-            css={css`
-              display: flex;
-              flex-direction: column;
-              align-items: end;
-            `}
-          >
-            <Text color="white70" textSize="small">
-              {metricName}
+        <div
+          data-testid="cluster-metric"
+          css={css`
+            display: flex;
+            flex-direction: column;
+            align-items: end;
+          `}
+        >
+          <Text color="white70" textSize="small">
+            {metricName}
+          </Text>
+          <Text color="white90" textSize="medium">
+            {numberFormatter(primaryMetricValue)}
+          </Text>
+          {!hideReference ? (
+            <Text color="designationPurple" textSize="small">
+              {numberFormatter(referenceMetricValue)}
             </Text>
-            <Text color="white90" textSize="medium">
-              {numberFormatter(primaryMetricValue)}
-            </Text>
-            {!hideReference ? (
-              <Text color="designationPurple" textSize="small">
-                {numberFormatter(referenceMetricValue)}
-              </Text>
-            ) : null}
-          </div>
-        ) : null}
+          ) : null}
+        </div>
       </div>
       <DistributionBar primaryPercentage={primaryPercentage} />
     </div>
