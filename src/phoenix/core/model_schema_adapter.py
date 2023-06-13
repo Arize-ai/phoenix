@@ -153,19 +153,19 @@ def _translate_embedding(
 
 
 def _guess_vectors_vs_scalars(
-    feature_names: Iterable[str],
+    names: Iterable[str],
     *dataframes: pd.DataFrame,
 ) -> Tuple[List[str], List[Embedding]]:
-    """A best-effort attempt at separating vector features from scalar features
-    by examining the first non-null item of the feature column from each
-    dataframe. If any item is `Iterable` and `Sized`, but not `str`, then the
-    feature is returned as `Embedding`, else it's returned a scalar feature.
+    """A best-effort attempt at separating vector columns from scalar columns
+    by examining the first non-null item of the column from each dataframe. If
+    any item is `Iterable` and `Sized`, but not `str`, then the column is
+    returned as `Embedding`, else it's returned a scalar.
     """
     scalars: List[str] = []
     vectors: List[Embedding] = []
     # convert to sets for a speedier lookup
     column_names = [set(df.columns) for df in dataframes]
-    for name in feature_names:
+    for name in names:
         for i, df in enumerate(dataframes):
             if df.empty or name not in column_names[i]:
                 continue
