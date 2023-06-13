@@ -83,7 +83,7 @@ export function EventDetails({ event }: { event: ModelEvent }) {
               }
             `}
           >
-            {/* {prediction.predictionId != null && (
+            {event.predictionId != null && (
               <div>
                 <dt>Prediction ID</dt>
                 <dd
@@ -92,10 +92,10 @@ export function EventDetails({ event }: { event: ModelEvent }) {
                     align-items: center;
                   `}
                 >
-                  {prediction.predictionId}
+                  {event.predictionId}
                 </dd>
               </div>
-            )} */}
+            )}
             {event.predictionLabel != null && (
               <div>
                 <dt>Prediction Label</dt>
