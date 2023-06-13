@@ -364,7 +364,7 @@ type PageInfo {
 }
 
 enum PerformanceMetric {
-  accuracy_score
+  accuracyScore
 }
 
 input PerformanceMetricInput {
