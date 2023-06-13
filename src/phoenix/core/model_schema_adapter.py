@@ -1,7 +1,9 @@
 from itertools import chain
-from typing import Dict, Iterable, List, Optional, Tuple
+from operator import itemgetter
+from typing import Dict, Iterable, List, Optional, Sized, Tuple
 
 import pandas as pd
+from pandas.api.types import is_object_dtype
 from typing_extensions import TypeAlias, TypeGuard
 
 from phoenix import Dataset, EmbeddingColumnNames
@@ -107,8 +109,19 @@ def create_model_from_datasets(*datasets: Optional[Dataset]) -> Model:
         prediction_score=_take_first_str(prediction_scores),
         actual_label=_take_first_str(actual_labels),
         actual_score=_take_first_str(actual_scores),
-        features=chain(features, translated_embeddings),
-        tags=tags,
+        features=chain(
+            *_split_vectors_vs_scalars(
+                features,
+                *map(itemgetter(1), named_dataframes),
+            ),
+            translated_embeddings,
+        ),
+        tags=chain(
+            *_split_vectors_vs_scalars(
+                tags,
+                *map(itemgetter(1), named_dataframes),
+            )
+        ),
         prompt=next(map(_translate_embedding, prompts), None),
         response=next(map(_translate_embedding, responses), None),
     )(
@@ -137,3 +150,37 @@ def _translate_embedding(
         link_to_data=embedding.link_to_data_column_name,
         display_name=display_name,
     )
+
+
+def _split_vectors_vs_scalars(
+    names: Iterable[str],
+    *dataframes: pd.DataFrame,
+) -> Tuple[List[str], List[Embedding]]:
+    """A best-effort attempt at separating vector columns from scalar columns
+    by examining the first non-null item of the column from each dataframe. If
+    any item is `Iterable` and `Sized`, but not `str`, then the column is
+    returned as `Embedding`, else it's returned as scalar.
+    """
+    scalars: List[str] = []
+    vectors: List[Embedding] = []
+    # convert to sets for a speedier lookup
+    column_names = [set(df.columns) for df in dataframes]
+    for name in names:
+        for i, df in enumerate(dataframes):
+            if df.empty or name not in column_names[i]:
+                continue
+            series = df.loc[:, name]
+            if not is_object_dtype(series):
+                continue
+            item = series.iat[series.isna().argmin()]
+            if (
+                isinstance(item, str)  # str is scalar, but Iterable
+                or not isinstance(item, Iterable)
+                or not isinstance(item, Sized)
+            ):
+                continue
+            vectors.append(Embedding(vector=name))
+            break
+        else:
+            scalars.append(name)
+    return scalars, vectors
