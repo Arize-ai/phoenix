@@ -168,9 +168,8 @@ const EmbeddingUMAPQuery = graphql`
               primaryValue
               referenceValue
             }
-            performanceMetric(
-              metric: { metric: { metric: $performanceMetric } }
-            ) @include(if: $fetchPerformanceMetric) {
+            performanceMetric(metric: { metric: $performanceMetric })
+              @include(if: $fetchPerformanceMetric) {
               primaryValue
               referenceValue
             }
@@ -245,10 +244,12 @@ function EmbeddingMain() {
         timeRange,
         ...umapParameters,
         ...getHDSCANParameters(),
-        fetchDataQualityMetric: metric?.type === "dataQuality",
-        fetchPerformanceMetric: metric?.type === "performance",
+        fetchDataQualityMetric: metric.type === "dataQuality",
+        fetchPerformanceMetric: metric.type === "performance",
         dataQualityMetricColumnName:
-          metric?.type === "dataQuality" ? metric?.dimension.name : null,
+          metric.type === "dataQuality" ? metric.dimension.name : null,
+        performanceMetric:
+          metric.type === "performance" ? metric.metric : "accuracyScore", // Note that the fallback should never happen but is to satisfy the type checker
       },
       {
         fetchPolicy: "network-only",

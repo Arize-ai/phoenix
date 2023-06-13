@@ -325,7 +325,7 @@ export interface PointCloudProps {
   /**
    * The overall metric for the point cloud
    */
-  metric: MetricDefinition | null;
+  metric: MetricDefinition;
 }
 
 export interface PointCloudState extends PointCloudProps {
@@ -415,7 +415,7 @@ export interface PointCloudState extends PointCloudProps {
    * Retrieves the metric parameters for the point cloud
    * Note that this is a getter so that useEffect doesn't trigger when the parameters are set
    */
-  getMetric: () => MetricDefinition | null;
+  getMetric: () => MetricDefinition;
   /**
    * Clear the selections in the point cloud
    * Done when the point cloud is re-loaded
@@ -444,6 +444,10 @@ export const DEFAULT_DRIFT_POINT_CLOUD_PROPS: Partial<PointCloudProps> = {
     [DatasetGroup.primary]: DEFAULT_COLOR_SCHEME[0],
     [DatasetGroup.reference]: DEFAULT_COLOR_SCHEME[1],
   },
+  metric: {
+    type: "drift",
+    metric: "euclideanDistance",
+  },
 };
 
 /**
@@ -462,7 +466,10 @@ export const DEFAULT_SINGLE_DATASET_POINT_CLOUD_PROPS: Partial<PointCloudProps> 
       [CorrectnessGroup.incorrect]: ColorSchemes.Discrete2.LightBlueOrange[1],
       [CorrectnessGroup.unknown]: UNKNOWN_COLOR,
     },
-    metric: null,
+    metric: {
+      type: "performance",
+      metric: "accuracyScore",
+    },
     clusterSort: { dir: "desc", column: "size" },
   };
 
@@ -1099,7 +1106,7 @@ async function fetchClusters({
   points,
   hdbscanParameters,
 }: {
-  metric: MetricDefinition | null;
+  metric: MetricDefinition;
   points: readonly Point[];
   hdbscanParameters: HDBSCANParameters;
 }): Promise<readonly ClusterInput[]> {
@@ -1114,6 +1121,8 @@ async function fetchClusters({
         $clusterSelectionEpsilon: Float!
         $fetchDataQualityMetric: Boolean!
         $dataQualityMetricColumnName: String
+        $fetchPerformanceMetric: Boolean!
+        $performanceMetric: PerformanceMetric!
       ) {
         hdbscanClustering(
           eventIds: $eventIds
@@ -1131,6 +1140,11 @@ async function fetchClusters({
             primaryValue
             referenceValue
           }
+          performanceMetric(metric: { metric: $performanceMetric })
+            @include(if: $fetchPerformanceMetric) {
+            primaryValue
+            referenceValue
+          }
         }
       }
     `,
@@ -1141,9 +1155,13 @@ async function fetchClusters({
         y: p.position[1],
         z: p.position[2],
       })),
-      fetchDataQualityMetric: metric?.type === "dataQuality",
+      fetchDataQualityMetric: metric.type === "dataQuality",
       dataQualityMetricColumnName:
-        metric?.type === "dataQuality" ? metric?.dimension.name : null,
+        metric.type === "dataQuality" ? metric.dimension.name : null,
+      fetchPerformanceMetric: metric.type === "performance",
+      // NB: fallback should never happen due to the conditional above
+      performanceMetric:
+        metric.type === "performance" ? metric.metric : "accuracyScore",
       ...hdbscanParameters,
     },
     {
@@ -1161,7 +1179,7 @@ async function fetchClusterMetrics({
   clusters,
   hdbscanParameters,
 }: {
-  metric: MetricDefinition | null;
+  metric: MetricDefinition;
   clusters: readonly Cluster[];
   hdbscanParameters: HDBSCANParameters;
 }): Promise<readonly ClusterInput[]> {
@@ -1193,7 +1211,7 @@ async function fetchClusterMetrics({
       })),
       fetchDataQualityMetric: metric?.type === "dataQuality",
       dataQualityMetricColumnName:
-        metric?.type === "dataQuality" ? metric?.dimension.name : null,
+        metric.type === "dataQuality" ? metric.dimension.name : null,
       ...hdbscanParameters,
     },
     {

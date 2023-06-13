@@ -110,13 +110,17 @@ function TooltipContent({
   return null;
 }
 
-function getChartTitle(metric: MetricDefinition | null) {
-  if (metric?.type === "drift") {
-    return "Embedding Drift";
-  } else if (metric?.type === "dataQuality") {
-    return "Data Quality";
+function getChartTitle(metric: MetricDefinition) {
+  switch (metric.type) {
+    case "drift":
+      return "Embedding Drift";
+    case "performance":
+      return "Model Performance";
+    case "dataQuality":
+      return "Data Quality";
+    default:
+      assertUnreachable(metric);
   }
-  return "Embedding Count";
 }
 
 function getMetricShortName(metric: MetricDefinition | null): string {
@@ -128,6 +132,8 @@ function getMetricShortName(metric: MetricDefinition | null): string {
     switch (metricType) {
       case "drift":
         return getMetricShortNameByMetricKey(metric.metric);
+      case "performance":
+        return getMetricShortNameByMetricKey(metric.metric);
       case "dataQuality":
         // TODO make this more generic and don't assume avg
         return `${metric.dimension.name} avg`;
@@ -137,14 +143,19 @@ function getMetricShortName(metric: MetricDefinition | null): string {
   }
 }
 
-function getMetricDescription(metric: MetricDefinition | null) {
-  if (!metric) {
-    return null;
-  } else if (metric?.type === "drift") {
-    return getMetricDescriptionByMetricKey(metric.metric);
+function getMetricDescription(metric: MetricDefinition) {
+  switch (metric.type) {
+    case "drift":
+      return getMetricDescriptionByMetricKey(metric.metric);
+    case "performance":
+      return getMetricDescriptionByMetricKey(metric.metric);
+    case "dataQuality":
+      return null;
+    default:
+      assertUnreachable(metric);
   }
-  return null;
 }
+
 export function MetricTimeSeries({
   embeddingDimensionId,
 }: {
@@ -153,8 +164,9 @@ export function MetricTimeSeries({
   const metric = usePointCloudContext((state) => state.metric);
 
   // Modality of the metric as boolean values
-  const fetchDrift = metric?.type === "drift";
-  const fetchDataQuality = metric?.type === "dataQuality";
+  const fetchDrift = metric.type === "drift";
+  const fetchDataQuality = metric.type === "dataQuality";
+  const fetchPerformance = metric.type === "performance";
 
   const { timeRange } = useTimeRange();
   const { selectedTimestamp, setSelectedTimestamp } = useTimeSlice();
@@ -169,6 +181,8 @@ export function MetricTimeSeries({
         $fetchDrift: Boolean!
         $fetchDataQuality: Boolean!
         $dimensionId: GlobalID!
+        $fetchPerformance: Boolean!
+        $performanceMetric: PerformanceMetric!
       ) {
         embedding: node(id: $embeddingDimensionId) {
           id
@@ -210,6 +224,18 @@ export function MetricTimeSeries({
             }
           }
         }
+        model {
+          performanceTimeSeries(
+            metric: { metric: $performanceMetric }
+            timeRange: $timeRange
+            granularity: $metricGranularity
+          ) @include(if: $fetchPerformance) {
+            data {
+              timestamp
+              value
+            }
+          }
+        }
       }
     `,
     {
@@ -222,10 +248,13 @@ export function MetricTimeSeries({
       countGranularity: granularity,
       fetchDrift,
       fetchDataQuality,
+      fetchPerformance,
       dimensionId:
-        metric?.type === "dataQuality"
+        metric.type === "dataQuality"
           ? metric.dimension.id
           : embeddingDimensionId, // NEED to provide a placeholder id. This is super hacky but it works for now
+      performanceMetric:
+        metric.type === "performance" ? metric.metric : "accuracyScore", // Need a placeholder metric
     }
   );
 
@@ -245,7 +274,7 @@ export function MetricTimeSeries({
     [setSelectedTimestamp]
   );
 
-  const chartPrimaryRawData = getChartPrimaryData(data);
+  const chartPrimaryRawData = getChartPrimaryData({ data, metric });
   const chartSecondaryRawData = getTrafficData(data);
   const trafficDataMap =
     chartSecondaryRawData.reduce((acc, traffic) => {
@@ -375,15 +404,19 @@ export function MetricTimeSeries({
 /**
  * Function that selects the primary data for the chart
  */
-function getChartPrimaryData(
-  data: MetricTimeSeriesQuery["response"]
-): { metricName: string; timestamp: string; value: number | null }[] {
+function getChartPrimaryData({
+  data,
+  metric,
+}: {
+  data: MetricTimeSeriesQuery["response"];
+  metric: MetricDefinition;
+}): { metricName: string; timestamp: string; value: number | null }[] {
   if (
     data.embedding.euclideanDistanceTimeSeries?.data != null &&
     data.embedding.euclideanDistanceTimeSeries.data.length > 0
   ) {
     return data.embedding.euclideanDistanceTimeSeries.data.map((d) => ({
-      metricName: getMetricShortNameByMetricKey("euclideanDistance"),
+      metricName: getMetricShortNameByMetricKey(metric.metric),
       ...d,
     }));
   } else if (
@@ -394,6 +427,15 @@ function getChartPrimaryData(
     const dimensionName = data.dimension.name || "unknown";
     return data.dimension.dataQualityTimeSeries.data.map((d) => ({
       metricName: `${dimensionName} avg`,
+      ...d,
+    }));
+  } else if (
+    data.model &&
+    data.model.performanceTimeSeries?.data != null &&
+    data.model.performanceTimeSeries.data.length > 0
+  ) {
+    return data.model.performanceTimeSeries.data.map((d) => ({
+      metricName: getMetricShortNameByMetricKey(metric.metric),
       ...d,
     }));
   } else if (data.embedding.trafficTimeSeries?.data != null) {
