@@ -64,6 +64,7 @@ import {
   MetricDefinition,
 } from "@phoenix/store";
 import { assertUnreachable } from "@phoenix/typeUtils";
+import { getMetricShortNameByMetricKey } from "@phoenix/utils/metricFormatUtils";
 
 import { EmbeddingModelQuery } from "./__generated__/EmbeddingModelQuery.graphql";
 import {
@@ -91,6 +92,8 @@ const EmbeddingUMAPQuery = graphql`
     $clusterSelectionEpsilon: Float!
     $fetchDataQualityMetric: Boolean!
     $dataQualityMetricColumnName: String
+    $fetchPerformanceMetric: Boolean!
+    $performanceMetric: PerformanceMetric!
   ) {
     embedding: node(id: $id) {
       ... on EmbeddingDimension {
@@ -162,6 +165,12 @@ const EmbeddingUMAPQuery = graphql`
             dataQualityMetric(
               metric: { columnName: $dataQualityMetricColumnName, metric: mean }
             ) @include(if: $fetchDataQualityMetric) {
+              primaryValue
+              referenceValue
+            }
+            performanceMetric(
+              metric: { metric: { metric: $performanceMetric } }
+            ) @include(if: $fetchPerformanceMetric) {
               primaryValue
               referenceValue
             }
@@ -237,6 +246,7 @@ function EmbeddingMain() {
         ...umapParameters,
         ...getHDSCANParameters(),
         fetchDataQualityMetric: metric?.type === "dataQuality",
+        fetchPerformanceMetric: metric?.type === "performance",
         dataQualityMetricColumnName:
           metric?.type === "dataQuality" ? metric?.dimension.name : null,
       },
@@ -647,12 +657,14 @@ function getClusterMetricName(metric: MetricDefinition | null) {
   if (metric == null) {
     return "metric";
   }
-  const { type: metricType } = metric;
+  const { type: metricType, metric: metricEnum } = metric;
   switch (metricType) {
     case "dataQuality":
       return `${metric.dimension.name} avg`;
     case "drift":
       return "cluster drift";
+    case "performance":
+      return getMetricShortNameByMetricKey(metricEnum);
     default:
       assertUnreachable(metricType);
   }

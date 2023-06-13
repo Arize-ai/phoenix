@@ -12,7 +12,11 @@ import {
 } from "@arizeai/components";
 
 import { useDatasets, usePointCloudContext } from "@phoenix/contexts";
-import { DriftMetricDefinition, MetricDefinition } from "@phoenix/store";
+import {
+  DriftMetricDefinition,
+  MetricDefinition,
+  PerformanceMetricDefinition,
+} from "@phoenix/store";
 import { assertUnreachable } from "@phoenix/typeUtils";
 
 import {
@@ -42,6 +46,8 @@ function getMetricKey(metric: MetricDefinition) {
   const { type, metric: metricName } = metric;
   switch (type) {
     case "drift":
+      return `${type}${METRIC_KEY_SEPARATOR}${metricName}`;
+    case "performance":
       return `${type}${METRIC_KEY_SEPARATOR}${metricName}`;
     case "dataQuality": {
       const { name } = metric.dimension;
@@ -73,6 +79,11 @@ function parseMetricKey({
   switch (type) {
     case "drift":
       return { type, metric: metricName as DriftMetricDefinition["metric"] };
+    case "performance":
+      return {
+        type,
+        metric: metricName as PerformanceMetricDefinition["metric"],
+      };
     case "dataQuality": {
       const dimension = dimensions.find((d) => d.name === dimensionName);
       if (!dimension) {
@@ -169,6 +180,16 @@ export function MetricSelector({
       ) : (
         (null as unknown as CollectionElement<unknown>)
       )}
+      <Section title="Performance">
+        <Item
+          key={getMetricKey({
+            type: "performance",
+            metric: "accuracyScore",
+          })}
+        >
+          Accuracy Score
+        </Item>
+      </Section>
       <Section title="Data Quality">
         {numericDimensions.map((dimension) => {
           return (

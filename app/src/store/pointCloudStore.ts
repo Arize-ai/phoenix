@@ -194,6 +194,11 @@ export type DriftMetricDefinition = {
   metric: "euclideanDistance";
 };
 
+export type PerformanceMetricDefinition = {
+  type: "performance";
+  metric: "accuracyScore";
+};
+
 export type DataQualityMetricDefinition = {
   type: "dataQuality";
   metric: "average";
@@ -205,6 +210,7 @@ export type DataQualityMetricDefinition = {
 
 export type MetricDefinition =
   | DriftMetricDefinition
+  | PerformanceMetricDefinition
   | DataQualityMetricDefinition;
 
 /**
