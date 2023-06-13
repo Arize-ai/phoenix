@@ -85,11 +85,11 @@ class Segments:
 
     def append(self, other: Segment) -> None:
         if (
-            other.counts.primary_value == 0
-            and other.counts.reference_value == 0
-            and isinstance(other.bin, IntervalBin)
+            isinstance(other.bin, IntervalBin)
             and not math.isfinite(other.bin.range.start)
             and not math.isfinite(other.bin.range.end)
+            and other.counts.primary_value == 0
+            and other.counts.reference_value == 0
         ):
             # Skip the interval bin with zero counts if it has -inf and +inf
             # as the endpoints, as it could occur due to all values being
