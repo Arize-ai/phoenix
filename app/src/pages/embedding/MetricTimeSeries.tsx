@@ -305,9 +305,10 @@ export function MetricTimeSeries({
           padding: var(--px-spacing-sm) var(--px-spacing-lg) 0
             var(--px-spacing-lg);
           flex: none;
-          .ac-action-button {
-            margin-left: var(--px-spacing-sm);
-          }
+          display: flex;
+          flex-direction: row;
+          align-items: center;
+          gap: var(--px-spacing-sm);
         }
         & > div {
           flex: 1 1 auto;
@@ -320,7 +321,7 @@ export function MetricTimeSeries({
         {getChartTitle(metric)}
         {metricDescription != null ? (
           <ContextualHelp>
-            <Heading level={4}>{metricDescription}</Heading>
+            <Heading level={4}>{metricShortName}</Heading>
             <Content>{metricDescription}</Content>
           </ContextualHelp>
         ) : null}

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<8465c15df123394d27e06c0a87c981d1>>
+ * @generated SignedSource<<158f240473ff0a8e7a67fbf6fe9d6dec>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,6 +9,7 @@
 // @ts-nocheck
 
 import { ConcreteRequest, Query } from 'relay-runtime';
+export type PerformanceMetric = "accuracyScore";
 export type ClusterInput = {
   eventIds: ReadonlyArray<string>;
   id?: string | null;
@@ -17,6 +18,8 @@ export type pointCloudStore_clusterMetricsQuery$variables = {
   clusters: ReadonlyArray<ClusterInput>;
   dataQualityMetricColumnName?: string | null;
   fetchDataQualityMetric: boolean;
+  fetchPerformanceMetric: boolean;
+  performanceMetric: PerformanceMetric;
 };
 export type pointCloudStore_clusterMetricsQuery$data = {
   readonly clusters: ReadonlyArray<{
@@ -27,6 +30,10 @@ export type pointCloudStore_clusterMetricsQuery$data = {
     readonly driftRatio: number | null;
     readonly eventIds: ReadonlyArray<string>;
     readonly id: string;
+    readonly performanceMetric?: {
+      readonly primaryValue: number | null;
+      readonly referenceValue: number | null;
+    };
   }>;
 };
 export type pointCloudStore_clusterMetricsQuery = {
@@ -50,7 +57,33 @@ v2 = {
   "kind": "LocalArgument",
   "name": "fetchDataQualityMetric"
 },
-v3 = [
+v3 = {
+  "defaultValue": null,
+  "kind": "LocalArgument",
+  "name": "fetchPerformanceMetric"
+},
+v4 = {
+  "defaultValue": null,
+  "kind": "LocalArgument",
+  "name": "performanceMetric"
+},
+v5 = [
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "primaryValue",
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "referenceValue",
+    "storageKey": null
+  }
+],
+v6 = [
   {
     "alias": null,
     "args": [
@@ -115,22 +148,36 @@ v3 = [
             "kind": "LinkedField",
             "name": "dataQualityMetric",
             "plural": false,
-            "selections": [
+            "selections": (v5/*: any*/),
+            "storageKey": null
+          }
+        ]
+      },
+      {
+        "condition": "fetchPerformanceMetric",
+        "kind": "Condition",
+        "passingValue": true,
+        "selections": [
+          {
+            "alias": null,
+            "args": [
               {
-                "alias": null,
-                "args": null,
-                "kind": "ScalarField",
-                "name": "primaryValue",
-                "storageKey": null
-              },
-              {
-                "alias": null,
-                "args": null,
-                "kind": "ScalarField",
-                "name": "referenceValue",
-                "storageKey": null
+                "fields": [
+                  {
+                    "kind": "Variable",
+                    "name": "metric",
+                    "variableName": "performanceMetric"
+                  }
+                ],
+                "kind": "ObjectValue",
+                "name": "metric"
               }
             ],
+            "concreteType": "DatasetValues",
+            "kind": "LinkedField",
+            "name": "performanceMetric",
+            "plural": false,
+            "selections": (v5/*: any*/),
             "storageKey": null
           }
         ]
@@ -144,12 +191,14 @@ return {
     "argumentDefinitions": [
       (v0/*: any*/),
       (v1/*: any*/),
-      (v2/*: any*/)
+      (v2/*: any*/),
+      (v3/*: any*/),
+      (v4/*: any*/)
     ],
     "kind": "Fragment",
     "metadata": null,
     "name": "pointCloudStore_clusterMetricsQuery",
-    "selections": (v3/*: any*/),
+    "selections": (v6/*: any*/),
     "type": "Query",
     "abstractKey": null
   },
@@ -158,23 +207,25 @@ return {
     "argumentDefinitions": [
       (v0/*: any*/),
       (v2/*: any*/),
-      (v1/*: any*/)
+      (v1/*: any*/),
+      (v3/*: any*/),
+      (v4/*: any*/)
     ],
     "kind": "Operation",
     "name": "pointCloudStore_clusterMetricsQuery",
-    "selections": (v3/*: any*/)
+    "selections": (v6/*: any*/)
   },
   "params": {
-    "cacheID": "cce7e820496ccfd87d2e3db9ee640583",
+    "cacheID": "e8ef2d6ff8ff0b147a19312264f16ef3",
     "id": null,
     "metadata": {},
     "name": "pointCloudStore_clusterMetricsQuery",
     "operationKind": "query",
-    "text": "query pointCloudStore_clusterMetricsQuery(\n  $clusters: [ClusterInput!]!\n  $fetchDataQualityMetric: Boolean!\n  $dataQualityMetricColumnName: String\n) {\n  clusters(clusters: $clusters) {\n    id\n    eventIds\n    driftRatio\n    dataQualityMetric(metric: {metric: mean, columnName: $dataQualityMetricColumnName}) @include(if: $fetchDataQualityMetric) {\n      primaryValue\n      referenceValue\n    }\n  }\n}\n"
+    "text": "query pointCloudStore_clusterMetricsQuery(\n  $clusters: [ClusterInput!]!\n  $fetchDataQualityMetric: Boolean!\n  $dataQualityMetricColumnName: String\n  $fetchPerformanceMetric: Boolean!\n  $performanceMetric: PerformanceMetric!\n) {\n  clusters(clusters: $clusters) {\n    id\n    eventIds\n    driftRatio\n    dataQualityMetric(metric: {metric: mean, columnName: $dataQualityMetricColumnName}) @include(if: $fetchDataQualityMetric) {\n      primaryValue\n      referenceValue\n    }\n    performanceMetric(metric: {metric: $performanceMetric}) @include(if: $fetchPerformanceMetric) {\n      primaryValue\n      referenceValue\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "9b3763586f9b6c654a2ee6fd11624622";
+(node as any).hash = "fe9bbb56950c7ecfa063c043df7667cd";
 
 export default node;

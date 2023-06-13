@@ -139,8 +139,13 @@ interface ClusterBase {
   readonly driftRatio: number | null;
   readonly eventIds: readonly string[];
   readonly id: string;
-  /** data quality metric */
+  /** data quality metric from graphql */
   dataQualityMetric?: {
+    readonly primaryValue: number | null;
+    readonly referenceValue: number | null;
+  };
+  /** performance metric from graphql */
+  performanceMetric?: {
     readonly primaryValue: number | null;
     readonly referenceValue: number | null;
   };
@@ -470,7 +475,8 @@ export const DEFAULT_SINGLE_DATASET_POINT_CLOUD_PROPS: Partial<PointCloudProps> 
       type: "performance",
       metric: "accuracyScore",
     },
-    clusterSort: { dir: "desc", column: "size" },
+    // Since we are showing clusters by accuracy, sort from lowest accuracy to highest
+    clusterSort: { dir: "asc", column: "primaryMetricValue" },
   };
 
 export type PointCloudStore = ReturnType<typeof createPointCloudStore>;
@@ -1190,6 +1196,8 @@ async function fetchClusterMetrics({
         $clusters: [ClusterInput!]!
         $fetchDataQualityMetric: Boolean!
         $dataQualityMetricColumnName: String
+        $fetchPerformanceMetric: Boolean!
+        $performanceMetric: PerformanceMetric!
       ) {
         clusters(clusters: $clusters) {
           id
@@ -1201,6 +1209,11 @@ async function fetchClusterMetrics({
             primaryValue
             referenceValue
           }
+          performanceMetric(metric: { metric: $performanceMetric })
+            @include(if: $fetchPerformanceMetric) {
+            primaryValue
+            referenceValue
+          }
         }
       }
     `,
@@ -1209,9 +1222,12 @@ async function fetchClusterMetrics({
         id: cluster.id,
         eventIds: cluster.eventIds,
       })),
-      fetchDataQualityMetric: metric?.type === "dataQuality",
+      fetchDataQualityMetric: metric.type === "dataQuality",
       dataQualityMetricColumnName:
         metric.type === "dataQuality" ? metric.dimension.name : null,
+      fetchPerformanceMetric: metric.type === "performance",
+      performanceMetric:
+        metric.type === "performance" ? metric.metric : "accuracyScore",
       ...hdbscanParameters,
     },
     {
@@ -1248,18 +1264,19 @@ const clusterSortFn =
  * Normalize the cluster data
  */
 function normalizeCluster(cluster: ClusterInput): Cluster {
-  const useDataQualityMetric = cluster.dataQualityMetric != null;
-  const primaryMetricValue = useDataQualityMetric
-    ? cluster.dataQualityMetric?.primaryValue
-    : cluster.driftRatio;
-  const referenceMetricValue = useDataQualityMetric
-    ? cluster.dataQualityMetric?.referenceValue
-    : null;
+  let primaryMetricValue = cluster.driftRatio,
+    referenceMetricValue = null;
+  if (cluster.dataQualityMetric) {
+    primaryMetricValue = cluster.dataQualityMetric.primaryValue;
+    referenceMetricValue = cluster.dataQualityMetric.referenceValue;
+  } else if (cluster.performanceMetric) {
+    primaryMetricValue = cluster.performanceMetric.primaryValue;
+    referenceMetricValue = cluster.performanceMetric.referenceValue;
+  }
   return {
     ...cluster,
     size: cluster.eventIds.length,
-    driftRatio: cluster.driftRatio ?? 0,
-    primaryMetricValue: primaryMetricValue ?? null,
-    referenceMetricValue: referenceMetricValue ?? null,
+    primaryMetricValue: primaryMetricValue,
+    referenceMetricValue: referenceMetricValue,
   };
 }
