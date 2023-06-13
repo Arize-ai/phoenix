@@ -146,6 +146,7 @@ export function MetricSelector({
   const numericDimensions = data.numericDimensions.edges.map(
     (edge) => edge.node
   );
+  const hasNumericDimensions = numericDimensions.length > 0;
   const onSelectionChange = useCallback(
     (key: Key) => {
       const metricDefinition = parseMetricKey({
@@ -190,19 +191,23 @@ export function MetricSelector({
           Accuracy Score
         </Item>
       </Section>
-      <Section title="Data Quality">
-        {numericDimensions.map((dimension) => {
-          return (
-            <Item
-              key={getMetricKey({
-                type: "dataQuality",
-                metric: "average",
-                dimension,
-              })}
-            >{`${dimension.name} avg`}</Item>
-          );
-        })}
-      </Section>
+      {hasNumericDimensions ? (
+        <Section title="Data Quality">
+          {numericDimensions.map((dimension) => {
+            return (
+              <Item
+                key={getMetricKey({
+                  type: "dataQuality",
+                  metric: "average",
+                  dimension,
+                })}
+              >{`${dimension.name} avg`}</Item>
+            );
+          })}
+        </Section>
+      ) : (
+        (null as unknown as CollectionElement<unknown>)
+      )}
     </Picker>
   );
 }
