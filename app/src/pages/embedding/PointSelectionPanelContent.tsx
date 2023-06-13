@@ -115,6 +115,7 @@ export function PointSelectionPanelContent() {
                 value
               }
               eventMetadata {
+                predictionId
                 predictionLabel
                 actualLabel
               }
@@ -135,6 +136,7 @@ export function PointSelectionPanelContent() {
                 value
               }
               eventMetadata {
+                predictionId
                 predictionLabel
                 actualLabel
               }
@@ -173,6 +175,7 @@ export function PointSelectionPanelContent() {
       const pointData = eventIdToDataMap.get(event.id);
       return {
         id: event.id,
+        predictionId: event.eventMetadata?.predictionId ?? null,
         actualLabel: event.eventMetadata?.actualLabel ?? null,
         predictionLabel: event.eventMetadata?.predictionLabel ?? null,
         rawData: pointData?.embeddingMetadata.rawData ?? null,

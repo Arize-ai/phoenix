@@ -12,6 +12,7 @@ export interface ModelEvent {
   id: string;
   linkToData: string | null;
   rawData: string | null;
+  predictionId: string | null;
   predictionLabel: string | null;
   actualLabel: string | null;
   readonly dimensions: readonly {

@@ -114,6 +114,7 @@ export interface Point {
     readonly id: string;
   };
   readonly eventMetadata: {
+    readonly predictionId: string | null;
     readonly actualLabel: string | null;
     readonly predictionLabel: string | null;
   };
