@@ -10,4 +10,4 @@ from phoenix.metrics.wrappers import SkEval
 class PerformanceMetric(Enum):
     # To become enum values, functions need to be wrapped in partial.
     # See https://stackoverflow.com/a/40339397
-    accuracy_score = partial(SkEval.accuracy_score)  # type: ignore
+    accuracyScore = partial(SkEval.accuracy_score)  # type: ignore
