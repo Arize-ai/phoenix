@@ -110,14 +110,14 @@ def create_model_from_datasets(*datasets: Optional[Dataset]) -> Model:
         actual_label=_take_first_str(actual_labels),
         actual_score=_take_first_str(actual_scores),
         features=chain(
-            *_guess_vectors_vs_scalars(
+            *_split_vectors_vs_scalars(
                 features,
                 *map(itemgetter(1), named_dataframes),
             ),
             translated_embeddings,
         ),
         tags=chain(
-            *_guess_vectors_vs_scalars(
+            *_split_vectors_vs_scalars(
                 tags,
                 *map(itemgetter(1), named_dataframes),
             )
@@ -152,7 +152,7 @@ def _translate_embedding(
     )
 
 
-def _guess_vectors_vs_scalars(
+def _split_vectors_vs_scalars(
     names: Iterable[str],
     *dataframes: pd.DataFrame,
 ) -> Tuple[List[str], List[Embedding]]:
