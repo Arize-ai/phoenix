@@ -8,11 +8,13 @@ import {
   useTable,
 } from "react-table";
 
-import { Icon, Icons } from "@arizeai/components";
+import { Flex, Icon, Icons } from "@arizeai/components";
 
 import { ExternalLink, LinkButton } from "@phoenix/components";
+import { Shape, ShapeIcon } from "@phoenix/components/pointcloud";
 import { FloatCell, TextCell } from "@phoenix/components/table";
 import { tableCSS } from "@phoenix/components/table/styles";
+import { DEFAULT_COLOR_SCHEME } from "@phoenix/constants/pointCloudConstants";
 import { useDatasets, usePointCloudContext } from "@phoenix/contexts";
 
 import { ModelEvent } from "./types";
@@ -251,9 +253,14 @@ function EventDatasetCell({
   primaryDatasetName: string;
   referenceDatasetName: string;
 }) {
+  const isPrimary = id.includes("PRIMARY");
   return (
-    <span>
-      {id.includes("PRIMARY") ? primaryDatasetName : referenceDatasetName}
-    </span>
+    <Flex direction="row" gap="size-100" alignItems="center">
+      <ShapeIcon
+        shape={Shape.circle}
+        color={DEFAULT_COLOR_SCHEME[isPrimary ? 0 : 1]}
+      />
+      {isPrimary ? primaryDatasetName : referenceDatasetName}
+    </Flex>
   );
 }

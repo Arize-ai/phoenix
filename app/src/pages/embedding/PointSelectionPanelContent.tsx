@@ -138,7 +138,9 @@ export function PointSelectionPanelContent() {
               eventMetadata {
                 predictionId
                 predictionLabel
+                predictionScore
                 actualLabel
+                actualScore
               }
               promptAndResponse {
                 prompt
@@ -177,7 +179,9 @@ export function PointSelectionPanelContent() {
         id: event.id,
         predictionId: event.eventMetadata?.predictionId ?? null,
         actualLabel: event.eventMetadata?.actualLabel ?? null,
+        actualScore: event.eventMetadata?.actualScore ?? null,
         predictionLabel: event.eventMetadata?.predictionLabel ?? null,
+        predictionScore: event.eventMetadata?.predictionScore ?? null,
         rawData: pointData?.embeddingMetadata.rawData ?? null,
         linkToData: pointData?.embeddingMetadata.linkToData ?? null,
         dimensions: event.dimensions,

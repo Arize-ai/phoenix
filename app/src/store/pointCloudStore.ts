@@ -115,8 +115,10 @@ export interface Point {
   };
   readonly eventMetadata: {
     readonly predictionId: string | null;
-    readonly actualLabel: string | null;
+    readonly predictionScore: number | null;
     readonly predictionLabel: string | null;
+    readonly actualScore: number | null;
+    readonly actualLabel: string | null;
   };
   readonly embeddingMetadata: {
     linkToData: string | null;

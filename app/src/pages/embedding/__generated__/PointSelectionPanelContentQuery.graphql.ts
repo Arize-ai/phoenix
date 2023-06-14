@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<b80330cd1df2975afaac637f2433b086>>
+ * @generated SignedSource<<516104a1d1caba9b33408945ab97e3eb>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -48,8 +48,10 @@ export type PointSelectionPanelContentQuery$data = {
         }>;
         readonly eventMetadata: {
           readonly actualLabel: string | null;
+          readonly actualScore: number | null;
           readonly predictionId: string | null;
           readonly predictionLabel: string | null;
+          readonly predictionScore: number | null;
         };
         readonly id: string;
         readonly promptAndResponse: {
@@ -78,116 +80,103 @@ var v0 = [
     "name": "referenceEventIds"
   }
 ],
-v1 = [
-  {
-    "alias": null,
-    "args": null,
-    "kind": "ScalarField",
-    "name": "id",
-    "storageKey": null
-  },
-  {
-    "alias": null,
-    "args": null,
-    "concreteType": "DimensionWithValue",
-    "kind": "LinkedField",
-    "name": "dimensions",
-    "plural": true,
-    "selections": [
-      {
-        "alias": null,
-        "args": null,
-        "concreteType": "Dimension",
-        "kind": "LinkedField",
-        "name": "dimension",
-        "plural": false,
-        "selections": [
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "name",
-            "storageKey": null
-          },
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "type",
-            "storageKey": null
-          }
-        ],
-        "storageKey": null
-      },
-      {
-        "alias": null,
-        "args": null,
-        "kind": "ScalarField",
-        "name": "value",
-        "storageKey": null
-      }
-    ],
-    "storageKey": null
-  },
-  {
-    "alias": null,
-    "args": null,
-    "concreteType": "EventMetadata",
-    "kind": "LinkedField",
-    "name": "eventMetadata",
-    "plural": false,
-    "selections": [
-      {
-        "alias": null,
-        "args": null,
-        "kind": "ScalarField",
-        "name": "predictionId",
-        "storageKey": null
-      },
-      {
-        "alias": null,
-        "args": null,
-        "kind": "ScalarField",
-        "name": "predictionLabel",
-        "storageKey": null
-      },
-      {
-        "alias": null,
-        "args": null,
-        "kind": "ScalarField",
-        "name": "actualLabel",
-        "storageKey": null
-      }
-    ],
-    "storageKey": null
-  },
-  {
-    "alias": null,
-    "args": null,
-    "concreteType": "PromptResponse",
-    "kind": "LinkedField",
-    "name": "promptAndResponse",
-    "plural": false,
-    "selections": [
-      {
-        "alias": null,
-        "args": null,
-        "kind": "ScalarField",
-        "name": "prompt",
-        "storageKey": null
-      },
-      {
-        "alias": null,
-        "args": null,
-        "kind": "ScalarField",
-        "name": "response",
-        "storageKey": null
-      }
-    ],
-    "storageKey": null
-  }
-],
-v2 = [
+v1 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "id",
+  "storageKey": null
+},
+v2 = {
+  "alias": null,
+  "args": null,
+  "concreteType": "DimensionWithValue",
+  "kind": "LinkedField",
+  "name": "dimensions",
+  "plural": true,
+  "selections": [
+    {
+      "alias": null,
+      "args": null,
+      "concreteType": "Dimension",
+      "kind": "LinkedField",
+      "name": "dimension",
+      "plural": false,
+      "selections": [
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "name",
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "type",
+          "storageKey": null
+        }
+      ],
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "value",
+      "storageKey": null
+    }
+  ],
+  "storageKey": null
+},
+v3 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "predictionId",
+  "storageKey": null
+},
+v4 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "predictionLabel",
+  "storageKey": null
+},
+v5 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "actualLabel",
+  "storageKey": null
+},
+v6 = {
+  "alias": null,
+  "args": null,
+  "concreteType": "PromptResponse",
+  "kind": "LinkedField",
+  "name": "promptAndResponse",
+  "plural": false,
+  "selections": [
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "prompt",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "response",
+      "storageKey": null
+    }
+  ],
+  "storageKey": null
+},
+v7 = [
   {
     "alias": null,
     "args": null,
@@ -217,7 +206,25 @@ v2 = [
             "kind": "LinkedField",
             "name": "events",
             "plural": true,
-            "selections": (v1/*: any*/),
+            "selections": [
+              (v1/*: any*/),
+              (v2/*: any*/),
+              {
+                "alias": null,
+                "args": null,
+                "concreteType": "EventMetadata",
+                "kind": "LinkedField",
+                "name": "eventMetadata",
+                "plural": false,
+                "selections": [
+                  (v3/*: any*/),
+                  (v4/*: any*/),
+                  (v5/*: any*/)
+                ],
+                "storageKey": null
+              },
+              (v6/*: any*/)
+            ],
             "storageKey": null
           }
         ],
@@ -244,7 +251,39 @@ v2 = [
             "kind": "LinkedField",
             "name": "events",
             "plural": true,
-            "selections": (v1/*: any*/),
+            "selections": [
+              (v1/*: any*/),
+              (v2/*: any*/),
+              {
+                "alias": null,
+                "args": null,
+                "concreteType": "EventMetadata",
+                "kind": "LinkedField",
+                "name": "eventMetadata",
+                "plural": false,
+                "selections": [
+                  (v3/*: any*/),
+                  (v4/*: any*/),
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "predictionScore",
+                    "storageKey": null
+                  },
+                  (v5/*: any*/),
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "actualScore",
+                    "storageKey": null
+                  }
+                ],
+                "storageKey": null
+              },
+              (v6/*: any*/)
+            ],
             "storageKey": null
           }
         ],
@@ -260,7 +299,7 @@ return {
     "kind": "Fragment",
     "metadata": null,
     "name": "PointSelectionPanelContentQuery",
-    "selections": (v2/*: any*/),
+    "selections": (v7/*: any*/),
     "type": "Query",
     "abstractKey": null
   },
@@ -269,19 +308,19 @@ return {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
     "name": "PointSelectionPanelContentQuery",
-    "selections": (v2/*: any*/)
+    "selections": (v7/*: any*/)
   },
   "params": {
-    "cacheID": "b66fbce4c658b402ab0fae39ba40076a",
+    "cacheID": "a5961ba90cd47491d31d084ab7fb6094",
     "id": null,
     "metadata": {},
     "name": "PointSelectionPanelContentQuery",
     "operationKind": "query",
-    "text": "query PointSelectionPanelContentQuery(\n  $primaryEventIds: [ID!]!\n  $referenceEventIds: [ID!]!\n) {\n  model {\n    primaryDataset {\n      events(eventIds: $primaryEventIds) {\n        id\n        dimensions {\n          dimension {\n            name\n            type\n          }\n          value\n        }\n        eventMetadata {\n          predictionId\n          predictionLabel\n          actualLabel\n        }\n        promptAndResponse {\n          prompt\n          response\n        }\n      }\n    }\n    referenceDataset {\n      events(eventIds: $referenceEventIds) {\n        id\n        dimensions {\n          dimension {\n            name\n            type\n          }\n          value\n        }\n        eventMetadata {\n          predictionId\n          predictionLabel\n          actualLabel\n        }\n        promptAndResponse {\n          prompt\n          response\n        }\n      }\n    }\n  }\n}\n"
+    "text": "query PointSelectionPanelContentQuery(\n  $primaryEventIds: [ID!]!\n  $referenceEventIds: [ID!]!\n) {\n  model {\n    primaryDataset {\n      events(eventIds: $primaryEventIds) {\n        id\n        dimensions {\n          dimension {\n            name\n            type\n          }\n          value\n        }\n        eventMetadata {\n          predictionId\n          predictionLabel\n          actualLabel\n        }\n        promptAndResponse {\n          prompt\n          response\n        }\n      }\n    }\n    referenceDataset {\n      events(eventIds: $referenceEventIds) {\n        id\n        dimensions {\n          dimension {\n            name\n            type\n          }\n          value\n        }\n        eventMetadata {\n          predictionId\n          predictionLabel\n          predictionScore\n          actualLabel\n          actualScore\n        }\n        promptAndResponse {\n          prompt\n          response\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "ff8616760bcd34aea8335b63a302b475";
+(node as any).hash = "93e0038470c7aabab855ebc4eb92e967";
 
 export default node;
