@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<516104a1d1caba9b33408945ab97e3eb>>
+ * @generated SignedSource<<9c8d664d75ca36dc2ed7e5c5d85cbfdb>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -27,8 +27,10 @@ export type PointSelectionPanelContentQuery$data = {
         }>;
         readonly eventMetadata: {
           readonly actualLabel: string | null;
+          readonly actualScore: number | null;
           readonly predictionId: string | null;
           readonly predictionLabel: string | null;
+          readonly predictionScore: number | null;
         };
         readonly id: string;
         readonly promptAndResponse: {
@@ -80,103 +82,130 @@ var v0 = [
     "name": "referenceEventIds"
   }
 ],
-v1 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "id",
-  "storageKey": null
-},
-v2 = {
-  "alias": null,
-  "args": null,
-  "concreteType": "DimensionWithValue",
-  "kind": "LinkedField",
-  "name": "dimensions",
-  "plural": true,
-  "selections": [
-    {
-      "alias": null,
-      "args": null,
-      "concreteType": "Dimension",
-      "kind": "LinkedField",
-      "name": "dimension",
-      "plural": false,
-      "selections": [
-        {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
-          "name": "name",
-          "storageKey": null
-        },
-        {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
-          "name": "type",
-          "storageKey": null
-        }
-      ],
-      "storageKey": null
-    },
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "value",
-      "storageKey": null
-    }
-  ],
-  "storageKey": null
-},
-v3 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "predictionId",
-  "storageKey": null
-},
-v4 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "predictionLabel",
-  "storageKey": null
-},
-v5 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "actualLabel",
-  "storageKey": null
-},
-v6 = {
-  "alias": null,
-  "args": null,
-  "concreteType": "PromptResponse",
-  "kind": "LinkedField",
-  "name": "promptAndResponse",
-  "plural": false,
-  "selections": [
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "prompt",
-      "storageKey": null
-    },
-    {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "response",
-      "storageKey": null
-    }
-  ],
-  "storageKey": null
-},
-v7 = [
+v1 = [
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "id",
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "concreteType": "DimensionWithValue",
+    "kind": "LinkedField",
+    "name": "dimensions",
+    "plural": true,
+    "selections": [
+      {
+        "alias": null,
+        "args": null,
+        "concreteType": "Dimension",
+        "kind": "LinkedField",
+        "name": "dimension",
+        "plural": false,
+        "selections": [
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "name",
+            "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "type",
+            "storageKey": null
+          }
+        ],
+        "storageKey": null
+      },
+      {
+        "alias": null,
+        "args": null,
+        "kind": "ScalarField",
+        "name": "value",
+        "storageKey": null
+      }
+    ],
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "concreteType": "EventMetadata",
+    "kind": "LinkedField",
+    "name": "eventMetadata",
+    "plural": false,
+    "selections": [
+      {
+        "alias": null,
+        "args": null,
+        "kind": "ScalarField",
+        "name": "predictionId",
+        "storageKey": null
+      },
+      {
+        "alias": null,
+        "args": null,
+        "kind": "ScalarField",
+        "name": "predictionLabel",
+        "storageKey": null
+      },
+      {
+        "alias": null,
+        "args": null,
+        "kind": "ScalarField",
+        "name": "predictionScore",
+        "storageKey": null
+      },
+      {
+        "alias": null,
+        "args": null,
+        "kind": "ScalarField",
+        "name": "actualLabel",
+        "storageKey": null
+      },
+      {
+        "alias": null,
+        "args": null,
+        "kind": "ScalarField",
+        "name": "actualScore",
+        "storageKey": null
+      }
+    ],
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "concreteType": "PromptResponse",
+    "kind": "LinkedField",
+    "name": "promptAndResponse",
+    "plural": false,
+    "selections": [
+      {
+        "alias": null,
+        "args": null,
+        "kind": "ScalarField",
+        "name": "prompt",
+        "storageKey": null
+      },
+      {
+        "alias": null,
+        "args": null,
+        "kind": "ScalarField",
+        "name": "response",
+        "storageKey": null
+      }
+    ],
+    "storageKey": null
+  }
+],
+v2 = [
   {
     "alias": null,
     "args": null,
@@ -206,25 +235,7 @@ v7 = [
             "kind": "LinkedField",
             "name": "events",
             "plural": true,
-            "selections": [
-              (v1/*: any*/),
-              (v2/*: any*/),
-              {
-                "alias": null,
-                "args": null,
-                "concreteType": "EventMetadata",
-                "kind": "LinkedField",
-                "name": "eventMetadata",
-                "plural": false,
-                "selections": [
-                  (v3/*: any*/),
-                  (v4/*: any*/),
-                  (v5/*: any*/)
-                ],
-                "storageKey": null
-              },
-              (v6/*: any*/)
-            ],
+            "selections": (v1/*: any*/),
             "storageKey": null
           }
         ],
@@ -251,39 +262,7 @@ v7 = [
             "kind": "LinkedField",
             "name": "events",
             "plural": true,
-            "selections": [
-              (v1/*: any*/),
-              (v2/*: any*/),
-              {
-                "alias": null,
-                "args": null,
-                "concreteType": "EventMetadata",
-                "kind": "LinkedField",
-                "name": "eventMetadata",
-                "plural": false,
-                "selections": [
-                  (v3/*: any*/),
-                  (v4/*: any*/),
-                  {
-                    "alias": null,
-                    "args": null,
-                    "kind": "ScalarField",
-                    "name": "predictionScore",
-                    "storageKey": null
-                  },
-                  (v5/*: any*/),
-                  {
-                    "alias": null,
-                    "args": null,
-                    "kind": "ScalarField",
-                    "name": "actualScore",
-                    "storageKey": null
-                  }
-                ],
-                "storageKey": null
-              },
-              (v6/*: any*/)
-            ],
+            "selections": (v1/*: any*/),
             "storageKey": null
           }
         ],
@@ -299,7 +278,7 @@ return {
     "kind": "Fragment",
     "metadata": null,
     "name": "PointSelectionPanelContentQuery",
-    "selections": (v7/*: any*/),
+    "selections": (v2/*: any*/),
     "type": "Query",
     "abstractKey": null
   },
@@ -308,19 +287,19 @@ return {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
     "name": "PointSelectionPanelContentQuery",
-    "selections": (v7/*: any*/)
+    "selections": (v2/*: any*/)
   },
   "params": {
-    "cacheID": "a5961ba90cd47491d31d084ab7fb6094",
+    "cacheID": "978d94d642f55fa204935518551a1961",
     "id": null,
     "metadata": {},
     "name": "PointSelectionPanelContentQuery",
     "operationKind": "query",
-    "text": "query PointSelectionPanelContentQuery(\n  $primaryEventIds: [ID!]!\n  $referenceEventIds: [ID!]!\n) {\n  model {\n    primaryDataset {\n      events(eventIds: $primaryEventIds) {\n        id\n        dimensions {\n          dimension {\n            name\n            type\n          }\n          value\n        }\n        eventMetadata {\n          predictionId\n          predictionLabel\n          actualLabel\n        }\n        promptAndResponse {\n          prompt\n          response\n        }\n      }\n    }\n    referenceDataset {\n      events(eventIds: $referenceEventIds) {\n        id\n        dimensions {\n          dimension {\n            name\n            type\n          }\n          value\n        }\n        eventMetadata {\n          predictionId\n          predictionLabel\n          predictionScore\n          actualLabel\n          actualScore\n        }\n        promptAndResponse {\n          prompt\n          response\n        }\n      }\n    }\n  }\n}\n"
+    "text": "query PointSelectionPanelContentQuery(\n  $primaryEventIds: [ID!]!\n  $referenceEventIds: [ID!]!\n) {\n  model {\n    primaryDataset {\n      events(eventIds: $primaryEventIds) {\n        id\n        dimensions {\n          dimension {\n            name\n            type\n          }\n          value\n        }\n        eventMetadata {\n          predictionId\n          predictionLabel\n          predictionScore\n          actualLabel\n          actualScore\n        }\n        promptAndResponse {\n          prompt\n          response\n        }\n      }\n    }\n    referenceDataset {\n      events(eventIds: $referenceEventIds) {\n        id\n        dimensions {\n          dimension {\n            name\n            type\n          }\n          value\n        }\n        eventMetadata {\n          predictionId\n          predictionLabel\n          predictionScore\n          actualLabel\n          actualScore\n        }\n        promptAndResponse {\n          prompt\n          response\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "93e0038470c7aabab855ebc4eb92e967";
+(node as any).hash = "9e8d487a72dd9fcf972bd5a692606b58";
 
 export default node;

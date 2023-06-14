@@ -117,7 +117,9 @@ export function PointSelectionPanelContent() {
               eventMetadata {
                 predictionId
                 predictionLabel
+                predictionScore
                 actualLabel
+                actualScore
               }
               promptAndResponse {
                 prompt
