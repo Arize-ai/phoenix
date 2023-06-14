@@ -14,7 +14,9 @@ export interface ModelEvent {
   rawData: string | null;
   predictionId: string | null;
   predictionLabel: string | null;
+  predictionScore: number | null;
   actualLabel: string | null;
+  actualScore: number | null;
   readonly dimensions: readonly {
     dimension: {
       name: string;
