@@ -599,10 +599,8 @@ class Events(ModelData):
     @cached_property
     def time_range(self) -> TimeRange:
         if self._self_model is None or self.empty:
-            # NOTE: as of Python 3.8.16, pandas 1.5.3:
-            # >>> isinstance(pd.NaT, datetime.datetime)
-            # True
-            return TimeRange(pd.NaT, pd.NaT)  # type: ignore
+            now = datetime.now(timezone.utc)
+            return TimeRange(now, now)
         model = cast(Model, self._self_model)
         min_max = _agg_min_max(model[TIMESTAMP](self))
         start_time = cast(datetime, min_max.min())
