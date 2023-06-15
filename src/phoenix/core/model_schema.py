@@ -881,7 +881,7 @@ class Model:
         parquet_file: file handle
             output parquet file handle
         cluster_ids: Optional[Mapping[DatasetRole, Mapping[int, str]]]
-            mapping of dataset role to mapping of row numbers to cluster ids.
+            mapping of dataset role to mapping of row number to cluster id.
             If cluster_ids is non-empty, a new column is inserted to the
             dataframe containing the cluster IDs of each row in the exported
             data. The name of the added column name is `__phoenix_cluster_id__`.
