@@ -11,7 +11,6 @@ from enum import IntEnum, auto, unique
 from functools import cached_property
 from itertools import chain, groupby, repeat, starmap
 from random import random
-from types import MappingProxyType
 from typing import (
     Any,
     BinaryIO,
@@ -866,7 +865,7 @@ class Model:
         self,
         row_numbers: Mapping[DatasetRole, Iterable[int]],
         parquet_file: BinaryIO,
-        cluster_ids: Mapping[DatasetRole, Mapping[int, str]] = MappingProxyType({}),
+        cluster_ids: Optional[Mapping[DatasetRole, Mapping[int, str]]] = None,
     ) -> None:
         """
         Given row numbers, exports dataframe subset into parquet file.
@@ -881,7 +880,7 @@ class Model:
             mapping of dataset role to list of row numbers
         parquet_file: file handle
             output parquet file handle
-        cluster_ids: Mapping[DatasetRole, Mapping[int, str]], optional
+        cluster_ids: Optional[Mapping[DatasetRole, Mapping[int, str]]]
             mapping of dataset role to mapping of row numbers to cluster ids.
             If cluster_ids is non-empty, a new column is inserted to the
             dataframe containing the cluster IDs of each row in the exported
