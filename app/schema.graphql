@@ -340,6 +340,11 @@ type Mutation {
   Given a list of event ids, export the corresponding data subset in Parquet format. File name is optional, but if specified, should be without file extension. By default the exported file name is current timestamp.
   """
   exportEvents(eventIds: [ID!]!, fileName: String): ExportedFile!
+
+  """
+  Given a list of clusters, export the corresponding data subset in Parquet format. File name is optional, but if specified, should be without file extension. By default the exported file name is current timestamp.
+  """
+  exportClusters(clusters: [ClusterInput!]!, fileName: String): ExportedFile!
 }
 
 """A node in the graph with a globally unique ID"""

@@ -11,6 +11,7 @@ from enum import IntEnum, auto, unique
 from functools import cached_property
 from itertools import chain, groupby, repeat, starmap
 from random import random
+from types import MappingProxyType
 from typing import (
     Any,
     BinaryIO,
@@ -863,26 +864,45 @@ class Model:
 
     def export_rows_as_parquet_file(
         self,
-        rows: Mapping[DatasetRole, Iterable[int]],
+        row_numbers: Mapping[DatasetRole, Iterable[int]],
         parquet_file: BinaryIO,
+        cluster_ids: Mapping[DatasetRole, Mapping[int, str]] = MappingProxyType({}),
     ) -> None:
         """
         Given row numbers, exports dataframe subset into parquet file.
-        Duplicate rows are removed.
+        Duplicate rows are removed. If the model hase more than one dataset, a
+        new column is added to the dataframe containing the dataset name of
+        each row in the exported data. The name of the added column will be
+        `__phoenix_dataset_name__`.
 
         Parameters
         ----------
-        rows: Mapping[DatasetRole, Iterable[int]]
-            mapping of dataset type to list of row numbers
+        row_numbers: Mapping[DatasetRole, Iterable[int]]
+            mapping of dataset role to list of row numbers
         parquet_file: file handle
             output parquet file handle
+        cluster_ids: Mapping[DatasetRole, Mapping[int, str]], optional
+            mapping of dataset role to mapping of row numbers to cluster ids.
+            If cluster_ids is non-empty, a new column is inserted to the
+            dataframe containing the cluster IDs of each row in the exported
+            data. The name of the added column name is `__phoenix_cluster_id__`.
         """
-        pd.concat(
-            self[dataset_role][sorted(row_numbers)].loc[
-                :, self._original_columns_by_role[dataset_role]
+        export_dataframes = [pd.DataFrame()]
+        model_has_multiple_datasets = sum(not df.empty for df in self._datasets.values()) > 1
+        for dataset_role, numbers in row_numbers.items():
+            df = self._datasets[dataset_role]
+            columns = [
+                df.columns.get_loc(column_name)
+                for column_name in self._original_columns_by_role[dataset_role]
             ]
-            for dataset_role, row_numbers in rows.items()
-        ).to_parquet(
+            rows = pd.Series(sorted(set(numbers)))
+            filtered_df = df.iloc[rows, columns].reset_index(drop=True)
+            if model_has_multiple_datasets:
+                filtered_df["__phoenix_dataset_name__"] = df.name
+            if cluster_ids and (ids := cluster_ids.get(dataset_role)):
+                filtered_df["__phoenix_cluster_id__"] = rows.apply(ids.get)
+            export_dataframes.append(filtered_df)
+        pd.concat(export_dataframes).to_parquet(
             parquet_file,
             index=False,
             allow_truncated_timestamps=True,
