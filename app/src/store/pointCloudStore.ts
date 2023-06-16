@@ -114,8 +114,11 @@ export interface Point {
     readonly id: string;
   };
   readonly eventMetadata: {
-    readonly actualLabel: string | null;
+    readonly predictionId: string | null;
+    readonly predictionScore: number | null;
     readonly predictionLabel: string | null;
+    readonly actualScore: number | null;
+    readonly actualLabel: string | null;
   };
   readonly embeddingMetadata: {
     linkToData: string | null;
@@ -139,8 +142,13 @@ interface ClusterBase {
   readonly driftRatio: number | null;
   readonly eventIds: readonly string[];
   readonly id: string;
-  /** data quality metric */
+  /** data quality metric from graphql */
   dataQualityMetric?: {
+    readonly primaryValue: number | null;
+    readonly referenceValue: number | null;
+  };
+  /** performance metric from graphql */
+  performanceMetric?: {
     readonly primaryValue: number | null;
     readonly referenceValue: number | null;
   };
@@ -194,6 +202,11 @@ export type DriftMetricDefinition = {
   metric: "euclideanDistance";
 };
 
+export type PerformanceMetricDefinition = {
+  type: "performance";
+  metric: "accuracyScore";
+};
+
 export type DataQualityMetricDefinition = {
   type: "dataQuality";
   metric: "average";
@@ -205,6 +218,7 @@ export type DataQualityMetricDefinition = {
 
 export type MetricDefinition =
   | DriftMetricDefinition
+  | PerformanceMetricDefinition
   | DataQualityMetricDefinition;
 
 /**
@@ -319,7 +333,7 @@ export interface PointCloudProps {
   /**
    * The overall metric for the point cloud
    */
-  metric: MetricDefinition | null;
+  metric: MetricDefinition;
 }
 
 export interface PointCloudState extends PointCloudProps {
@@ -409,7 +423,7 @@ export interface PointCloudState extends PointCloudProps {
    * Retrieves the metric parameters for the point cloud
    * Note that this is a getter so that useEffect doesn't trigger when the parameters are set
    */
-  getMetric: () => MetricDefinition | null;
+  getMetric: () => MetricDefinition;
   /**
    * Clear the selections in the point cloud
    * Done when the point cloud is re-loaded
@@ -438,6 +452,10 @@ export const DEFAULT_DRIFT_POINT_CLOUD_PROPS: Partial<PointCloudProps> = {
     [DatasetGroup.primary]: DEFAULT_COLOR_SCHEME[0],
     [DatasetGroup.reference]: DEFAULT_COLOR_SCHEME[1],
   },
+  metric: {
+    type: "drift",
+    metric: "euclideanDistance",
+  },
 };
 
 /**
@@ -456,8 +474,12 @@ export const DEFAULT_SINGLE_DATASET_POINT_CLOUD_PROPS: Partial<PointCloudProps> 
       [CorrectnessGroup.incorrect]: ColorSchemes.Discrete2.LightBlueOrange[1],
       [CorrectnessGroup.unknown]: UNKNOWN_COLOR,
     },
-    metric: null,
-    clusterSort: { dir: "desc", column: "size" },
+    metric: {
+      type: "performance",
+      metric: "accuracyScore",
+    },
+    // Since we are showing clusters by accuracy, sort from lowest accuracy to highest
+    clusterSort: { dir: "asc", column: "primaryMetricValue" },
   };
 
 export type PointCloudStore = ReturnType<typeof createPointCloudStore>;
@@ -1093,7 +1115,7 @@ async function fetchClusters({
   points,
   hdbscanParameters,
 }: {
-  metric: MetricDefinition | null;
+  metric: MetricDefinition;
   points: readonly Point[];
   hdbscanParameters: HDBSCANParameters;
 }): Promise<readonly ClusterInput[]> {
@@ -1108,6 +1130,8 @@ async function fetchClusters({
         $clusterSelectionEpsilon: Float!
         $fetchDataQualityMetric: Boolean!
         $dataQualityMetricColumnName: String
+        $fetchPerformanceMetric: Boolean!
+        $performanceMetric: PerformanceMetric!
       ) {
         hdbscanClustering(
           eventIds: $eventIds
@@ -1125,6 +1149,11 @@ async function fetchClusters({
             primaryValue
             referenceValue
           }
+          performanceMetric(metric: { metric: $performanceMetric })
+            @include(if: $fetchPerformanceMetric) {
+            primaryValue
+            referenceValue
+          }
         }
       }
     `,
@@ -1135,9 +1164,13 @@ async function fetchClusters({
         y: p.position[1],
         z: p.position[2],
       })),
-      fetchDataQualityMetric: metric?.type === "dataQuality",
+      fetchDataQualityMetric: metric.type === "dataQuality",
       dataQualityMetricColumnName:
-        metric?.type === "dataQuality" ? metric?.dimension.name : null,
+        metric.type === "dataQuality" ? metric.dimension.name : null,
+      fetchPerformanceMetric: metric.type === "performance",
+      // NB: fallback should never happen due to the conditional above
+      performanceMetric:
+        metric.type === "performance" ? metric.metric : "accuracyScore",
       ...hdbscanParameters,
     },
     {
@@ -1155,7 +1188,7 @@ async function fetchClusterMetrics({
   clusters,
   hdbscanParameters,
 }: {
-  metric: MetricDefinition | null;
+  metric: MetricDefinition;
   clusters: readonly Cluster[];
   hdbscanParameters: HDBSCANParameters;
 }): Promise<readonly ClusterInput[]> {
@@ -1166,6 +1199,8 @@ async function fetchClusterMetrics({
         $clusters: [ClusterInput!]!
         $fetchDataQualityMetric: Boolean!
         $dataQualityMetricColumnName: String
+        $fetchPerformanceMetric: Boolean!
+        $performanceMetric: PerformanceMetric!
       ) {
         clusters(clusters: $clusters) {
           id
@@ -1177,6 +1212,11 @@ async function fetchClusterMetrics({
             primaryValue
             referenceValue
           }
+          performanceMetric(metric: { metric: $performanceMetric })
+            @include(if: $fetchPerformanceMetric) {
+            primaryValue
+            referenceValue
+          }
         }
       }
     `,
@@ -1185,9 +1225,12 @@ async function fetchClusterMetrics({
         id: cluster.id,
         eventIds: cluster.eventIds,
       })),
-      fetchDataQualityMetric: metric?.type === "dataQuality",
+      fetchDataQualityMetric: metric.type === "dataQuality",
       dataQualityMetricColumnName:
-        metric?.type === "dataQuality" ? metric?.dimension.name : null,
+        metric.type === "dataQuality" ? metric.dimension.name : null,
+      fetchPerformanceMetric: metric.type === "performance",
+      performanceMetric:
+        metric.type === "performance" ? metric.metric : "accuracyScore",
       ...hdbscanParameters,
     },
     {
@@ -1205,10 +1248,14 @@ const clusterSortFn =
   (clusterA: Cluster, clusterB: Cluster): number => {
     const { dir, column } = sort;
     const isAsc = dir === "asc";
-    // For now assume a lack of a value is 0
-    const valueA = clusterA[column] || 0;
-    const valueB = clusterB[column] || 0;
-    if (valueA > valueB) {
+    const valueA = clusterA[column];
+    const valueB = clusterB[column];
+    if (valueA == null) {
+      // Always place null values at the end
+      return 1;
+    } else if (valueB == null) {
+      return -1;
+    } else if (valueA > valueB) {
       return isAsc ? 1 : -1;
     } else if (valueA < valueB) {
       return isAsc ? -1 : 1;
@@ -1220,18 +1267,19 @@ const clusterSortFn =
  * Normalize the cluster data
  */
 function normalizeCluster(cluster: ClusterInput): Cluster {
-  const useDataQualityMetric = cluster.dataQualityMetric != null;
-  const primaryMetricValue = useDataQualityMetric
-    ? cluster.dataQualityMetric?.primaryValue
-    : cluster.driftRatio;
-  const referenceMetricValue = useDataQualityMetric
-    ? cluster.dataQualityMetric?.referenceValue
-    : null;
+  let primaryMetricValue = cluster.driftRatio,
+    referenceMetricValue = null;
+  if (cluster.dataQualityMetric) {
+    primaryMetricValue = cluster.dataQualityMetric.primaryValue;
+    referenceMetricValue = cluster.dataQualityMetric.referenceValue;
+  } else if (cluster.performanceMetric) {
+    primaryMetricValue = cluster.performanceMetric.primaryValue;
+    referenceMetricValue = cluster.performanceMetric.referenceValue;
+  }
   return {
     ...cluster,
     size: cluster.eventIds.length,
-    driftRatio: cluster.driftRatio ?? 0,
-    primaryMetricValue: primaryMetricValue ?? null,
-    referenceMetricValue: referenceMetricValue ?? null,
+    primaryMetricValue: primaryMetricValue,
+    referenceMetricValue: referenceMetricValue,
   };
 }

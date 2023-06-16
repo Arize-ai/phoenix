@@ -64,6 +64,7 @@ import {
   MetricDefinition,
 } from "@phoenix/store";
 import { assertUnreachable } from "@phoenix/typeUtils";
+import { getMetricShortNameByMetricKey } from "@phoenix/utils/metricFormatUtils";
 
 import { EmbeddingModelQuery } from "./__generated__/EmbeddingModelQuery.graphql";
 import {
@@ -91,6 +92,8 @@ const EmbeddingUMAPQuery = graphql`
     $clusterSelectionEpsilon: Float!
     $fetchDataQualityMetric: Boolean!
     $dataQualityMetricColumnName: String
+    $fetchPerformanceMetric: Boolean!
+    $performanceMetric: PerformanceMetric!
   ) {
     embedding: node(id: $id) {
       ... on EmbeddingDimension {
@@ -123,6 +126,7 @@ const EmbeddingUMAPQuery = graphql`
               rawData
             }
             eventMetadata {
+              predictionId
               predictionLabel
               actualLabel
               predictionScore
@@ -149,6 +153,7 @@ const EmbeddingUMAPQuery = graphql`
               rawData
             }
             eventMetadata {
+              predictionId
               predictionLabel
               actualLabel
               predictionScore
@@ -162,6 +167,11 @@ const EmbeddingUMAPQuery = graphql`
             dataQualityMetric(
               metric: { columnName: $dataQualityMetricColumnName, metric: mean }
             ) @include(if: $fetchDataQualityMetric) {
+              primaryValue
+              referenceValue
+            }
+            performanceMetric(metric: { metric: $performanceMetric })
+              @include(if: $fetchPerformanceMetric) {
               primaryValue
               referenceValue
             }
@@ -236,9 +246,12 @@ function EmbeddingMain() {
         timeRange,
         ...umapParameters,
         ...getHDSCANParameters(),
-        fetchDataQualityMetric: metric?.type === "dataQuality",
+        fetchDataQualityMetric: metric.type === "dataQuality",
+        fetchPerformanceMetric: metric.type === "performance",
         dataQualityMetricColumnName:
-          metric?.type === "dataQuality" ? metric?.dimension.name : null,
+          metric.type === "dataQuality" ? metric.dimension.name : null,
+        performanceMetric:
+          metric.type === "performance" ? metric.metric : "accuracyScore", // Note that the fallback should never happen but is to satisfy the type checker
       },
       {
         fetchPolicy: "network-only",
@@ -559,10 +572,8 @@ const ClustersPanelContents = React.memo(function ClustersPanelContents() {
   );
   // Hide the reference metric if the following conditions are met:
   // 1. There is no reference dataset
-  // 2. There is no metric selected
   // 3. The metric is drift
-  const hideReference =
-    referenceDataset == null || metric == null || metric.type === "drift";
+  const hideReference = referenceDataset == null || metric.type === "drift";
   const onTabChange = useCallback(
     (index: number) => {
       if (index === CLUSTERING_CONFIG_TAB_INDEX) {
@@ -643,16 +654,15 @@ const ClustersPanelContents = React.memo(function ClustersPanelContents() {
   );
 });
 
-function getClusterMetricName(metric: MetricDefinition | null) {
-  if (metric == null) {
-    return "metric";
-  }
-  const { type: metricType } = metric;
+function getClusterMetricName(metric: MetricDefinition) {
+  const { type: metricType, metric: metricEnum } = metric;
   switch (metricType) {
     case "dataQuality":
       return `${metric.dimension.name} avg`;
     case "drift":
       return "cluster drift";
+    case "performance":
+      return getMetricShortNameByMetricKey(metricEnum);
     default:
       assertUnreachable(metricType);
   }
