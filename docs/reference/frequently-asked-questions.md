@@ -3,7 +3,7 @@
 ## Can I configure a default port for Phoenix?
 You can set the default port for phoenix each time you launch the application from jupyter notebook with an optional argument ``port`` in [launch_app()](https://github.com/Arize-ai/phoenix/blob/d21bbc8db4fc62989d127f8d2f7d5e7306bbb357/src/phoenix/session/session.py#L187). 
 
-## Can I Phoenix locally from a remote Jupyter instance?
+## Can I use Phoenix locally from a remote Jupyter instance?
 Yes, you can use either of the two methods below.
 
 ### 1.  Via ngrok (Preferred)
