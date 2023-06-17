@@ -97,7 +97,7 @@ export function PointCloudPoints({
   const colorByFn = useCallback(
     (point: PointBaseProps) => {
       if (
-        !selectedEventIds.has(point.metaData.eventId) &&
+        !selectedEventIds.has(point.metaData.id) &&
         selectedEventIds.size > 0
       ) {
         return invokeColor(point, dimmedColor);

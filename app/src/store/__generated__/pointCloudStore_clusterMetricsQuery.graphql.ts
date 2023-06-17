@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<3a9324986e40886fea88900abbd1f555>>
+ * @generated SignedSource<<158f240473ff0a8e7a67fbf6fe9d6dec>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,24 +10,19 @@
 
 import { ConcreteRequest, Query } from 'relay-runtime';
 export type PerformanceMetric = "accuracyScore";
-export type InputCoordinate3D = {
-  x: number;
-  y: number;
-  z: number;
-};
-export type pointCloudStore_clustersQuery$variables = {
-  clusterMinSamples: number;
-  clusterSelectionEpsilon: number;
-  coordinates: ReadonlyArray<InputCoordinate3D>;
-  dataQualityMetricColumnName?: string | null;
+export type ClusterInput = {
   eventIds: ReadonlyArray<string>;
+  id?: string | null;
+};
+export type pointCloudStore_clusterMetricsQuery$variables = {
+  clusters: ReadonlyArray<ClusterInput>;
+  dataQualityMetricColumnName?: string | null;
   fetchDataQualityMetric: boolean;
   fetchPerformanceMetric: boolean;
-  minClusterSize: number;
   performanceMetric: PerformanceMetric;
 };
-export type pointCloudStore_clustersQuery$data = {
-  readonly hdbscanClustering: ReadonlyArray<{
+export type pointCloudStore_clusterMetricsQuery$data = {
+  readonly clusters: ReadonlyArray<{
     readonly dataQualityMetric?: {
       readonly primaryValue: number | null;
       readonly referenceValue: number | null;
@@ -41,58 +36,38 @@ export type pointCloudStore_clustersQuery$data = {
     };
   }>;
 };
-export type pointCloudStore_clustersQuery = {
-  response: pointCloudStore_clustersQuery$data;
-  variables: pointCloudStore_clustersQuery$variables;
+export type pointCloudStore_clusterMetricsQuery = {
+  response: pointCloudStore_clusterMetricsQuery$data;
+  variables: pointCloudStore_clusterMetricsQuery$variables;
 };
 
 const node: ConcreteRequest = (function(){
 var v0 = {
   "defaultValue": null,
   "kind": "LocalArgument",
-  "name": "clusterMinSamples"
+  "name": "clusters"
 },
 v1 = {
   "defaultValue": null,
   "kind": "LocalArgument",
-  "name": "clusterSelectionEpsilon"
+  "name": "dataQualityMetricColumnName"
 },
 v2 = {
   "defaultValue": null,
   "kind": "LocalArgument",
-  "name": "coordinates"
+  "name": "fetchDataQualityMetric"
 },
 v3 = {
   "defaultValue": null,
   "kind": "LocalArgument",
-  "name": "dataQualityMetricColumnName"
+  "name": "fetchPerformanceMetric"
 },
 v4 = {
   "defaultValue": null,
   "kind": "LocalArgument",
-  "name": "eventIds"
-},
-v5 = {
-  "defaultValue": null,
-  "kind": "LocalArgument",
-  "name": "fetchDataQualityMetric"
-},
-v6 = {
-  "defaultValue": null,
-  "kind": "LocalArgument",
-  "name": "fetchPerformanceMetric"
-},
-v7 = {
-  "defaultValue": null,
-  "kind": "LocalArgument",
-  "name": "minClusterSize"
-},
-v8 = {
-  "defaultValue": null,
-  "kind": "LocalArgument",
   "name": "performanceMetric"
 },
-v9 = [
+v5 = [
   {
     "alias": null,
     "args": null,
@@ -108,39 +83,19 @@ v9 = [
     "storageKey": null
   }
 ],
-v10 = [
+v6 = [
   {
     "alias": null,
     "args": [
       {
         "kind": "Variable",
-        "name": "clusterMinSamples",
-        "variableName": "clusterMinSamples"
-      },
-      {
-        "kind": "Variable",
-        "name": "clusterSelectionEpsilon",
-        "variableName": "clusterSelectionEpsilon"
-      },
-      {
-        "kind": "Variable",
-        "name": "coordinates3d",
-        "variableName": "coordinates"
-      },
-      {
-        "kind": "Variable",
-        "name": "eventIds",
-        "variableName": "eventIds"
-      },
-      {
-        "kind": "Variable",
-        "name": "minClusterSize",
-        "variableName": "minClusterSize"
+        "name": "clusters",
+        "variableName": "clusters"
       }
     ],
     "concreteType": "Cluster",
     "kind": "LinkedField",
-    "name": "hdbscanClustering",
+    "name": "clusters",
     "plural": true,
     "selections": [
       {
@@ -193,7 +148,7 @@ v10 = [
             "kind": "LinkedField",
             "name": "dataQualityMetric",
             "plural": false,
-            "selections": (v9/*: any*/),
+            "selections": (v5/*: any*/),
             "storageKey": null
           }
         ]
@@ -222,7 +177,7 @@ v10 = [
             "kind": "LinkedField",
             "name": "performanceMetric",
             "plural": false,
-            "selections": (v9/*: any*/),
+            "selections": (v5/*: any*/),
             "storageKey": null
           }
         ]
@@ -238,47 +193,39 @@ return {
       (v1/*: any*/),
       (v2/*: any*/),
       (v3/*: any*/),
-      (v4/*: any*/),
-      (v5/*: any*/),
-      (v6/*: any*/),
-      (v7/*: any*/),
-      (v8/*: any*/)
+      (v4/*: any*/)
     ],
     "kind": "Fragment",
     "metadata": null,
-    "name": "pointCloudStore_clustersQuery",
-    "selections": (v10/*: any*/),
+    "name": "pointCloudStore_clusterMetricsQuery",
+    "selections": (v6/*: any*/),
     "type": "Query",
     "abstractKey": null
   },
   "kind": "Request",
   "operation": {
     "argumentDefinitions": [
-      (v4/*: any*/),
-      (v2/*: any*/),
-      (v7/*: any*/),
       (v0/*: any*/),
+      (v2/*: any*/),
       (v1/*: any*/),
-      (v5/*: any*/),
       (v3/*: any*/),
-      (v6/*: any*/),
-      (v8/*: any*/)
+      (v4/*: any*/)
     ],
     "kind": "Operation",
-    "name": "pointCloudStore_clustersQuery",
-    "selections": (v10/*: any*/)
+    "name": "pointCloudStore_clusterMetricsQuery",
+    "selections": (v6/*: any*/)
   },
   "params": {
-    "cacheID": "6f74afd7fff7f035a547d33c9e35053b",
+    "cacheID": "e8ef2d6ff8ff0b147a19312264f16ef3",
     "id": null,
     "metadata": {},
-    "name": "pointCloudStore_clustersQuery",
+    "name": "pointCloudStore_clusterMetricsQuery",
     "operationKind": "query",
-    "text": "query pointCloudStore_clustersQuery(\n  $eventIds: [ID!]!\n  $coordinates: [InputCoordinate3D!]!\n  $minClusterSize: Int!\n  $clusterMinSamples: Int!\n  $clusterSelectionEpsilon: Float!\n  $fetchDataQualityMetric: Boolean!\n  $dataQualityMetricColumnName: String\n  $fetchPerformanceMetric: Boolean!\n  $performanceMetric: PerformanceMetric!\n) {\n  hdbscanClustering(eventIds: $eventIds, coordinates3d: $coordinates, minClusterSize: $minClusterSize, clusterMinSamples: $clusterMinSamples, clusterSelectionEpsilon: $clusterSelectionEpsilon) {\n    id\n    eventIds\n    driftRatio\n    dataQualityMetric(metric: {metric: mean, columnName: $dataQualityMetricColumnName}) @include(if: $fetchDataQualityMetric) {\n      primaryValue\n      referenceValue\n    }\n    performanceMetric(metric: {metric: $performanceMetric}) @include(if: $fetchPerformanceMetric) {\n      primaryValue\n      referenceValue\n    }\n  }\n}\n"
+    "text": "query pointCloudStore_clusterMetricsQuery(\n  $clusters: [ClusterInput!]!\n  $fetchDataQualityMetric: Boolean!\n  $dataQualityMetricColumnName: String\n  $fetchPerformanceMetric: Boolean!\n  $performanceMetric: PerformanceMetric!\n) {\n  clusters(clusters: $clusters) {\n    id\n    eventIds\n    driftRatio\n    dataQualityMetric(metric: {metric: mean, columnName: $dataQualityMetricColumnName}) @include(if: $fetchDataQualityMetric) {\n      primaryValue\n      referenceValue\n    }\n    performanceMetric(metric: {metric: $performanceMetric}) @include(if: $fetchPerformanceMetric) {\n      primaryValue\n      referenceValue\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "4371042b8b65df77c8cba441031be7a0";
+(node as any).hash = "fe9bbb56950c7ecfa063c043df7667cd";
 
 export default node;

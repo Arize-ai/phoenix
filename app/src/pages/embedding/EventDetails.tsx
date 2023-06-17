@@ -35,11 +35,6 @@ function TextPre(props: PropsWithChildren) {
  * Displays the details of an event in a slide over panel
  */
 export function EventDetails({ event }: { event: ModelEvent }) {
-  const imageUrl = event.linkToData || undefined;
-  const promptAndResponse: PromptResponse | null =
-    event.prompt || event.response
-      ? { prompt: event.prompt, response: event.response }
-      : null;
   return (
     <section
       css={css`
@@ -47,19 +42,7 @@ export function EventDetails({ event }: { event: ModelEvent }) {
         overflow-y: auto;
       `}
     >
-      {imageUrl ? (
-        <img
-          src={imageUrl}
-          alt="event image"
-          width="100%"
-          height="200px"
-          css={css`
-            object-fit: contain;
-            background-color: black;
-          `}
-        />
-      ) : null}
-      {event.rawData ? <TextPre>{event.rawData}</TextPre> : null}
+      <EventPreview event={event} />
       <Accordion variant="compact">
         <AccordionItem id="prediction" title="Prediction Details">
           <dl
@@ -83,7 +66,7 @@ export function EventDetails({ event }: { event: ModelEvent }) {
               }
             `}
           >
-            {/* {prediction.predictionId != null && (
+            {event.predictionId != null && (
               <div>
                 <dt>Prediction ID</dt>
                 <dd
@@ -92,46 +75,36 @@ export function EventDetails({ event }: { event: ModelEvent }) {
                     align-items: center;
                   `}
                 >
-                  {prediction.predictionId}
+                  {event.predictionId}
                 </dd>
               </div>
-            )} */}
+            )}
             {event.predictionLabel != null && (
               <div>
                 <dt>Prediction Label</dt>
                 <dd>{event.predictionLabel}</dd>
               </div>
             )}
-            {/* {prediction.predictionScore != null && (
+            {event.predictionScore != null && (
               <div>
                 <dt>Prediction Score</dt>
-                <dd>{prediction.predictionScore}</dd>
+                <dd>{event.predictionScore}</dd>
               </div>
-            )} */}
+            )}
             {event.actualLabel != null && (
               <div>
                 <dt>Actual Label</dt>
                 <dd>{event.actualLabel}</dd>
               </div>
             )}
-            {/* {prediction.actualScore != null && (
+            {event.actualScore != null && (
               <div>
                 <dt>Actual Score</dt>
-                <dd>{prediction.actualScore}</dd>
+                <dd>{event.actualScore}</dd>
               </div>
-            )} */}
+            )}
           </dl>
         </AccordionItem>
-        {promptAndResponse ? (
-          <AccordionItem id="prompt" title="Prompt">
-            <TextPre>{promptAndResponse.prompt}</TextPre>
-          </AccordionItem>
-        ) : null}
-        {promptAndResponse ? (
-          <AccordionItem id="response" title="Response">
-            <TextPre>{promptAndResponse.response}</TextPre>
-          </AccordionItem>
-        ) : null}
         <AccordionItem id="dimensions" title="Dimensions">
           <EmbeddingDimensionsTable dimensions={event.dimensions} />
         </AccordionItem>
@@ -222,6 +195,48 @@ function EmbeddingDimensionsTable({
       )}
     </table>
   );
+}
+
+/**
+ * Renders a top-level preview of the event
+ */
+function EventPreview({ event }: { event: ModelEvent }) {
+  const imageUrl = event.linkToData || undefined;
+  const promptAndResponse: PromptResponse | null =
+    event.prompt || event.response
+      ? { prompt: event.prompt, response: event.response }
+      : null;
+  let content = null;
+  if (imageUrl) {
+    content = (
+      <img
+        src={imageUrl}
+        alt="event image"
+        width="100%"
+        height="200px"
+        css={css`
+          object-fit: contain;
+          background-color: black;
+        `}
+      />
+    );
+  } else if (promptAndResponse) {
+    content = (
+      <Accordion variant="compact">
+        <AccordionItem id="prompt" title="Prompt">
+          <TextPre>{promptAndResponse.prompt}</TextPre>
+        </AccordionItem>
+        <AccordionItem id="response" title="Response">
+          <TextPre>{promptAndResponse.response}</TextPre>
+        </AccordionItem>
+      </Accordion>
+    );
+  } else if (event.rawData) {
+    {
+      event.rawData ? <TextPre>{event.rawData}</TextPre> : null;
+    }
+  }
+  return content;
 }
 
 function TableEmpty() {
