@@ -2,7 +2,9 @@ import React from "react";
 import { transparentize } from "polished";
 import { css } from "@emotion/react";
 
-import { Heading, Text } from "@arizeai/components";
+import { Flex, Heading, Text } from "@arizeai/components";
+
+import { numberFormatter } from "@phoenix/utils/numberFormatUtils";
 
 type ClusterItemProps = {
   clusterId: string;
@@ -32,6 +34,22 @@ type ClusterItemProps = {
    * Null if there is no reference
    */
   driftRatio?: number | null;
+  /**
+   * The primary metric value
+   */
+  primaryMetricValue: number | null;
+  /**
+   * The reference metric value
+   */
+  referenceMetricValue: number | null;
+  /**
+   * The metric name
+   */
+  metricName: string;
+  /**
+   * Whether to hide the reference metric or not
+   */
+  hideReference: boolean;
 };
 
 /**
@@ -45,13 +63,15 @@ export function ClusterItem(props: ClusterItemProps) {
     onClick,
     onMouseEnter,
     onMouseLeave,
+    metricName,
+    primaryMetricValue,
+    referenceMetricValue,
+    hideReference,
   } = props;
 
-  const hasClusterMetric = driftRatio !== null;
   // Calculate the percentage of primary points in the cluster
   const primaryPercentage =
     typeof driftRatio === "number" ? ((driftRatio + 1) / 2) * 100 : 100;
-
   return (
     <div
       css={(theme) => css`
@@ -81,39 +101,43 @@ export function ClusterItem(props: ClusterItemProps) {
           display: flex;
           flex-direction: row;
           justify-content: space-between;
+          align-items: center;
         `}
       >
-        <div
+        <Flex
           data-testid="cluster-description"
-          css={(theme) => css`
+          direction="column"
+          gap="size-50"
+          alignItems="start"
+        >
+          <Flex direction="column" alignItems="start">
+            <Heading level={3}>{`Cluster ${clusterId}`}</Heading>
+            <Text
+              color="white70"
+              textSize="small"
+            >{`${props.numPoints} points`}</Text>
+          </Flex>
+        </Flex>
+        <div
+          data-testid="cluster-metric"
+          css={css`
             display: flex;
             flex-direction: column;
-            gap: ${theme.spacing.margin4}px;
+            align-items: end;
           `}
         >
-          <Heading level={3}>{`Cluster ${clusterId}`}</Heading>
           <Text color="white70" textSize="small">
-            {`${props.numPoints} points`}
+            {metricName}
           </Text>
+          <Text color="white90" textSize="medium">
+            {numberFormatter(primaryMetricValue)}
+          </Text>
+          {!hideReference ? (
+            <Text color="designationPurple" textSize="small">
+              {numberFormatter(referenceMetricValue)}
+            </Text>
+          ) : null}
         </div>
-        {hasClusterMetric ? (
-          <div
-            data-testid="cluster-metric"
-            css={(theme) => css`
-              text-align: right;
-              display: flex;
-              flex-direction: column;
-              gap: ${theme.spacing.margin4}px;
-            `}
-          >
-            <Text color="white90" textSize="large">
-              {driftRatio?.toPrecision(2) ?? "--"}
-            </Text>
-            <Text color="white70" textSize="small">
-              Cluster Drift
-            </Text>
-          </div>
-        ) : null}
       </div>
       <DistributionBar primaryPercentage={primaryPercentage} />
     </div>

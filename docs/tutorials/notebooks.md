@@ -1,7 +1,7 @@
 ---
 description: >-
-  Explore the capabilities of Phoenix with notebook tutorials for concrete
-  use-cases
+    Explore the capabilities of Phoenix with notebook tutorials for concrete
+    use-cases
 ---
 
 # Notebooks
@@ -17,4 +17,3 @@ description: >-
 | Collect Chats with GPT                                            | <ul><li>generative LLMs</li></ul>                                                  | [![Open in Colab](https://img.shields.io/static/v1?message=Open%20in%20Colab\&logo=googlecolab\&labelColor=grey\&color=blue\&logoColor=orange\&label=%20)](https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/llm\_generative\_gpt\_4.ipynb) [![Open in GitHub](https://img.shields.io/static/v1?message=Open%20in%20GitHub\&logo=github\&labelColor=grey\&color=blue\&logoColor=white\&label=%20)](https://github.com/Arize-ai/phoenix/blob/main/tutorials/llm\_generative\_gpt\_4.ipynb)                                               |
 | Find Clusters, Export, and Explore with GPT                       | <ul><li>generative LLMs</li></ul>                                                  | [![Open in Colab](https://img.shields.io/static/v1?message=Open%20in%20Colab\&logo=googlecolab\&labelColor=grey\&color=blue\&logoColor=orange\&label=%20)](https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/find\_cluster\_export\_and\_explore\_with\_gpt.ipynb) [![Open in GitHub](https://img.shields.io/static/v1?message=Open%20in%20GitHub\&logo=github\&labelColor=grey\&color=blue\&logoColor=white\&label=%20)](https://github.com/Arize-ai/phoenix/blob/main/tutorials/find\_cluster\_export\_and\_explore\_with\_gpt.ipynb) |
 | Running Phoenix Example Datasets                                  | <ul><li>built-in datasets</li></ul>                                                | [![Open in Colab](https://img.shields.io/static/v1?message=Open%20in%20Colab\&logo=googlecolab\&labelColor=grey\&color=blue\&logoColor=orange\&label=%20)](https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/example\_datasets.ipynb) [![Open in GitHub](https://img.shields.io/static/v1?message=Open%20in%20GitHub\&logo=github\&labelColor=grey\&color=blue\&logoColor=white\&label=%20)](https://github.com/Arize-ai/phoenix/blob/main/tutorials/example\_datasets.ipynb)                                                           |
-

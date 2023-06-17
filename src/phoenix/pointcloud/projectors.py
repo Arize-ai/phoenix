@@ -11,6 +11,7 @@ with warnings.catch_warnings():
 
     warnings.simplefilter("ignore", category=NumbaWarning)
     from umap import UMAP
+
 Matrix: TypeAlias = npt.NDArray[np.float64]
 
 
@@ -24,4 +25,11 @@ class Umap:
     min_dist: float = 0.1
 
     def project(self, mat: Matrix, n_components: int) -> Matrix:
-        return _center(UMAP(**asdict(self), n_components=n_components).fit_transform(mat))
+        config = asdict(self)
+        config["n_components"] = n_components
+        if len(mat) <= n_components:
+            # init='spectral', the default, cannot be used when n_components
+            # is greater or equal to the number of samples.
+            # see https://github.com/lmcinnes/umap/issues/201#issuecomment-462097103
+            config["init"] = "random"
+        return _center(UMAP(**config).fit_transform(mat))

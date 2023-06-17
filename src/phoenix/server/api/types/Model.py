@@ -4,17 +4,27 @@ from typing import List, Optional
 import strawberry
 from strawberry.types import Info
 from strawberry.unset import UNSET
+from typing_extensions import Annotated
 
 from phoenix.config import get_exported_files
 from phoenix.core.model_schema import PRIMARY, REFERENCE
 from phoenix.server.api.context import Context
 
 from ..input_types.DimensionFilter import DimensionFilter
+from ..input_types.Granularity import Granularity
+from ..input_types.PerformanceMetricInput import PerformanceMetricInput
+from ..input_types.TimeRange import TimeRange
 from .Dataset import Dataset
+from .DatasetRole import DatasetRole
 from .Dimension import Dimension, to_gql_dimension
 from .EmbeddingDimension import EmbeddingDimension, to_gql_embedding_dimension
 from .ExportedFile import ExportedFile
 from .pagination import Connection, ConnectionArgs, Cursor, connection_from_list
+from .TimeSeries import (
+    PerformanceTimeSeries,
+    ensure_timeseries_parameters,
+    get_timeseries_data,
+)
 
 
 @strawberry.type
@@ -122,3 +132,73 @@ class Model:
                 reverse=True,
             )
         ]
+
+    @strawberry.field
+    def performance_metric(
+        self,
+        info: Info[Context, None],
+        metric: PerformanceMetricInput,
+        time_range: Optional[TimeRange] = UNSET,
+        dataset_role: Annotated[
+            Optional[DatasetRole],
+            strawberry.argument(
+                description="The dataset (primary or reference) to query",
+            ),
+        ] = DatasetRole.primary,
+    ) -> Optional[float]:
+        if not isinstance(dataset_role, DatasetRole):
+            dataset_role = DatasetRole.primary
+        model = info.context.model
+        dataset = model[dataset_role.value]
+        time_range, granularity = ensure_timeseries_parameters(
+            dataset,
+            time_range,
+        )
+        metric_instance = metric.metric_instance(model)
+        data = get_timeseries_data(
+            dataset,
+            metric_instance,
+            time_range,
+            granularity,
+        )
+        return data[0].value if len(data) else None
+
+    @strawberry.field(
+        description=(
+            "Returns the time series of the specified metric for data within a time range. Data"
+            " points are generated starting at the end time and are separated by the sampling"
+            " interval. Each data point is labeled by the end instant and contains data from their"
+            " respective evaluation windows."
+        )
+    )  # type: ignore  # https://github.com/strawberry-graphql/strawberry/issues/1929
+    def performance_time_series(
+        self,
+        info: Info[Context, None],
+        metric: PerformanceMetricInput,
+        time_range: TimeRange,
+        granularity: Granularity,
+        dataset_role: Annotated[
+            Optional[DatasetRole],
+            strawberry.argument(
+                description="The dataset (primary or reference) to query",
+            ),
+        ] = DatasetRole.primary,
+    ) -> PerformanceTimeSeries:
+        if not isinstance(dataset_role, DatasetRole):
+            dataset_role = DatasetRole.primary
+        model = info.context.model
+        dataset = model[dataset_role.value]
+        time_range, granularity = ensure_timeseries_parameters(
+            dataset,
+            time_range,
+            granularity,
+        )
+        metric_instance = metric.metric_instance(model)
+        return PerformanceTimeSeries(
+            data=get_timeseries_data(
+                dataset,
+                metric_instance,
+                time_range,
+                granularity,
+            )
+        )

@@ -322,7 +322,7 @@ class Column:
                 return data.at[self.name]
             except KeyError:
                 return self._default.value
-        raise ValueError("invalid data: %s" % repr(data))
+        raise ValueError(f"invalid data: {repr(data)}")
 
     def __iter__(self) -> Iterator[str]:
         """This is to partake in the iteration of column names by a
@@ -599,10 +599,8 @@ class Events(ModelData):
     @cached_property
     def time_range(self) -> TimeRange:
         if self._self_model is None or self.empty:
-            # NOTE: as of Python 3.8.16, pandas 1.5.3:
-            # >>> isinstance(pd.NaT, datetime.datetime)
-            # True
-            return TimeRange(pd.NaT, pd.NaT)  # type: ignore
+            now = datetime.now(timezone.utc)
+            return TimeRange(now, now)
         model = cast(Model, self._self_model)
         min_max = _agg_min_max(model[TIMESTAMP](self))
         start_time = cast(datetime, min_max.min())
@@ -865,26 +863,45 @@ class Model:
 
     def export_rows_as_parquet_file(
         self,
-        rows: Mapping[DatasetRole, Iterable[int]],
+        row_numbers: Mapping[DatasetRole, Iterable[int]],
         parquet_file: BinaryIO,
+        cluster_ids: Optional[Mapping[DatasetRole, Mapping[int, str]]] = None,
     ) -> None:
         """
         Given row numbers, exports dataframe subset into parquet file.
-        Duplicate rows are removed.
+        Duplicate rows are removed. If the model hase more than one dataset, a
+        new column is added to the dataframe containing the dataset name of
+        each row in the exported data. The name of the added column will be
+        `__phoenix_dataset_name__`.
 
         Parameters
         ----------
-        rows: Mapping[DatasetRole, Iterable[int]]
-            mapping of dataset type to list of row numbers
+        row_numbers: Mapping[DatasetRole, Iterable[int]]
+            mapping of dataset role to list of row numbers
         parquet_file: file handle
             output parquet file handle
+        cluster_ids: Optional[Mapping[DatasetRole, Mapping[int, str]]]
+            mapping of dataset role to mapping of row number to cluster id.
+            If cluster_ids is non-empty, a new column is inserted to the
+            dataframe containing the cluster IDs of each row in the exported
+            data. The name of the added column name is `__phoenix_cluster_id__`.
         """
-        pd.concat(
-            self[dataset_role][sorted(row_numbers)].loc[
-                :, self._original_columns_by_role[dataset_role]
+        export_dataframes = [pd.DataFrame()]
+        model_has_multiple_datasets = sum(not df.empty for df in self._datasets.values()) > 1
+        for dataset_role, numbers in row_numbers.items():
+            df = self._datasets[dataset_role]
+            columns = [
+                df.columns.get_loc(column_name)
+                for column_name in self._original_columns_by_role[dataset_role]
             ]
-            for dataset_role, row_numbers in rows.items()
-        ).to_parquet(
+            rows = pd.Series(sorted(set(numbers)))
+            filtered_df = df.iloc[rows, columns].reset_index(drop=True)
+            if model_has_multiple_datasets:
+                filtered_df["__phoenix_dataset_name__"] = df.name
+            if cluster_ids and (ids := cluster_ids.get(dataset_role)):
+                filtered_df["__phoenix_cluster_id__"] = rows.apply(ids.get)
+            export_dataframes.append(filtered_df)
+        pd.concat(export_dataframes).to_parquet(
             parquet_file,
             index=False,
             allow_truncated_timestamps=True,

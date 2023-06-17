@@ -12,7 +12,11 @@ import {
 } from "@arizeai/components";
 
 import { useDatasets, usePointCloudContext } from "@phoenix/contexts";
-import { DriftMetricDefinition, MetricDefinition } from "@phoenix/store";
+import {
+  DriftMetricDefinition,
+  MetricDefinition,
+  PerformanceMetricDefinition,
+} from "@phoenix/store";
 import { assertUnreachable } from "@phoenix/typeUtils";
 
 import {
@@ -30,7 +34,7 @@ const METRIC_KEY_SEPARATOR = ":";
 function isMetricType(
   maybeType: unknown
 ): maybeType is MetricDefinition["type"] {
-  return ["drift", "dataQuality"].includes(maybeType as string);
+  return ["drift", "performance", "dataQuality"].includes(maybeType as string);
 }
 /**
  * A function that flattens the metrics into a single key
@@ -42,6 +46,8 @@ function getMetricKey(metric: MetricDefinition) {
   const { type, metric: metricName } = metric;
   switch (type) {
     case "drift":
+      return `${type}${METRIC_KEY_SEPARATOR}${metricName}`;
+    case "performance":
       return `${type}${METRIC_KEY_SEPARATOR}${metricName}`;
     case "dataQuality": {
       const { name } = metric.dimension;
@@ -73,6 +79,11 @@ function parseMetricKey({
   switch (type) {
     case "drift":
       return { type, metric: metricName as DriftMetricDefinition["metric"] };
+    case "performance":
+      return {
+        type,
+        metric: metricName as PerformanceMetricDefinition["metric"],
+      };
     case "dataQuality": {
       const dimension = dimensions.find((d) => d.name === dimensionName);
       if (!dimension) {
@@ -135,6 +146,7 @@ export function MetricSelector({
   const numericDimensions = data.numericDimensions.edges.map(
     (edge) => edge.node
   );
+  const hasNumericDimensions = numericDimensions.length > 0;
   const onSelectionChange = useCallback(
     (key: Key) => {
       const metricDefinition = parseMetricKey({
@@ -169,19 +181,33 @@ export function MetricSelector({
       ) : (
         (null as unknown as CollectionElement<unknown>)
       )}
-      <Section title="Data Quality">
-        {numericDimensions.map((dimension) => {
-          return (
-            <Item
-              key={getMetricKey({
-                type: "dataQuality",
-                metric: "average",
-                dimension,
-              })}
-            >{`${dimension.name} avg`}</Item>
-          );
-        })}
+      <Section title="Performance">
+        <Item
+          key={getMetricKey({
+            type: "performance",
+            metric: "accuracyScore",
+          })}
+        >
+          Accuracy Score
+        </Item>
       </Section>
+      {hasNumericDimensions ? (
+        <Section title="Data Quality">
+          {numericDimensions.map((dimension) => {
+            return (
+              <Item
+                key={getMetricKey({
+                  type: "dataQuality",
+                  metric: "average",
+                  dimension,
+                })}
+              >{`${dimension.name} avg`}</Item>
+            );
+          })}
+        </Section>
+      ) : (
+        (null as unknown as CollectionElement<unknown>)
+      )}
     </Picker>
   );
 }

@@ -12,6 +12,11 @@ import {
 import { useDatasets, usePointCloudContext } from "@phoenix/contexts";
 import { ClusterSort } from "@phoenix/store";
 
+type Item = {
+  label: string;
+  value: string;
+};
+
 function getSortKey(sort: ClusterSort): string {
   return `${sort.column}:${sort.dir}`;
 }
@@ -21,8 +26,8 @@ export function ClusterSortPicker() {
   const sort = usePointCloudContext((state) => state.clusterSort);
   const setSort = usePointCloudContext((state) => state.setClusterSort);
   const [isOpen, setIsOpen] = useState<boolean>(false);
-  const items = useMemo(() => {
-    const dynamicItems = [];
+  const items = useMemo<Item[]>(() => {
+    const dynamicItems: Item[] = [];
     if (hasReferenceDataset) {
       dynamicItems.push({
         label: "Most drift",
@@ -31,24 +36,38 @@ export function ClusterSortPicker() {
           dir: "desc",
         }),
       });
-      return [
-        ...dynamicItems,
-        {
-          label: "Largest cluster",
-          value: getSortKey({
-            column: "size",
-            dir: "desc",
-          }),
-        },
-        {
-          label: "Smallest cluster",
-          value: getSortKey({
-            column: "size",
-            dir: "asc",
-          }),
-        },
-      ];
     }
+    return [
+      ...dynamicItems,
+      {
+        label: "Largest clusters",
+        value: getSortKey({
+          column: "size",
+          dir: "desc",
+        }),
+      },
+      {
+        label: "Smallest clusters",
+        value: getSortKey({
+          column: "size",
+          dir: "asc",
+        }),
+      },
+      {
+        label: "Highest metric value",
+        value: getSortKey({
+          column: "primaryMetricValue",
+          dir: "desc",
+        }),
+      },
+      {
+        label: "Lowest metric value",
+        value: getSortKey({
+          column: "primaryMetricValue",
+          dir: "asc",
+        }),
+      },
+    ];
   }, [hasReferenceDataset]);
   const selectedSortKey = getSortKey(sort);
   return (
@@ -70,6 +89,7 @@ export function ClusterSortPicker() {
     >
       <DropdownTrigger
         placement="bottom right"
+        aria-label="Sort clusters by"
         isOpen={isOpen}
         onOpenChange={(newIsOpen) => setIsOpen(newIsOpen)}
       >

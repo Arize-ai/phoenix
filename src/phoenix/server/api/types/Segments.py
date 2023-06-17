@@ -84,5 +84,19 @@ class Segments:
     )
 
     def append(self, other: Segment) -> None:
+        if (
+            isinstance(other.bin, IntervalBin)
+            and not math.isfinite(other.bin.range.start)
+            and not math.isfinite(other.bin.range.end)
+            and other.counts.primary_value == 0
+            and other.counts.reference_value == 0
+        ):
+            # Skip the interval bin with zero counts if it has -inf and +inf
+            # as the endpoints, as it could occur due to all values being
+            # missing. Because such bin can exist a priori, the caller may
+            # still try to append it, but the bin has no real value at this
+            # point (and can cause problems for graphql because of the end
+            # points are not serializable to JSON).
+            return
         self.segments.append(other)
         self.total_counts += other.counts
