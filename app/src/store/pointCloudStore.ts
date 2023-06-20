@@ -226,6 +226,11 @@ export type MetricDefinition =
  */
 export interface PointCloudProps {
   /**
+   * Whether or not the point cloud is loading
+   * @default false
+   */
+  loading: boolean;
+  /**
    * The point information that is currently loaded into view
    */
   points: readonly Point[];
@@ -487,6 +492,7 @@ export type PointCloudStore = ReturnType<typeof createPointCloudStore>;
 export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
   // The default props irrespective of the number of datasets
   const defaultProps: PointCloudProps = {
+    loading: false,
     errorMessage: null,
     points: [],
     eventIdToDataMap: new Map(),
@@ -549,6 +555,7 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
         .sort(clusterSortFn(pointCloud.clusterSort));
 
       set({
+        loading: false,
         points: points,
         eventIdToDataMap,
         clusters: sortedClusters,
@@ -800,6 +807,7 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
     getHDSCANParameters: () => get().hdbscanParameters,
     getMetric: () => get().metric,
     setErrorMessage: (errorMessage) => set({ errorMessage }),
+    setLoading: (loading: boolean) => set({ loading }),
     setMetric: async (metric) => {
       const pointCloud = get();
       set({ metric, clustersLoading: true });

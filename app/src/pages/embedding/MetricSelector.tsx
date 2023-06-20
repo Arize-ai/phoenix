@@ -142,6 +142,7 @@ export function MetricSelector({
   const { referenceDataset } = useDatasets();
   const hasReferenceDataset = !!referenceDataset;
   const metric = usePointCloudContext((state) => state.metric);
+  const loading = usePointCloudContext((state) => state.loading);
   const setMetric = usePointCloudContext((state) => state.setMetric);
   const numericDimensions = data.numericDimensions.edges.map(
     (edge) => edge.node
@@ -166,6 +167,7 @@ export function MetricSelector({
       selectedKey={metric ? getMetricKey(metric) : undefined}
       onSelectionChange={onSelectionChange}
       placeholder="Select a metric..."
+      isDisabled={loading}
     >
       {hasReferenceDataset ? (
         <Section title="Drift">
