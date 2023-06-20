@@ -209,6 +209,7 @@ function EmbeddingMain() {
   );
   const getMetric = usePointCloudContext((state) => state.getMetric);
   const resetPointCloud = usePointCloudContext((state) => state.reset);
+  const setLoading = usePointCloudContext((state) => state.setLoading);
   const [showChart, setShowChart] = useState<boolean>(true);
   const [queryReference, loadQuery, disposeQuery] =
     useQueryLoader<UMAPQueryType>(EmbeddingUMAPQuery);
@@ -239,6 +240,7 @@ function EmbeddingMain() {
   useEffect(() => {
     // dispose of the selections in the context
     resetPointCloud();
+    setLoading(true);
     const metric = getMetric();
     loadQuery(
       {
@@ -261,6 +263,7 @@ function EmbeddingMain() {
       disposeQuery();
     };
   }, [
+    setLoading,
     resetPointCloud,
     embeddingDimensionId,
     loadQuery,
