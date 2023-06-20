@@ -439,6 +439,10 @@ export interface PointCloudState extends PointCloudProps {
    */
   setErrorMessage: (message: string | null) => void;
   /**
+   * Set the loading state
+   */
+  setLoading: (loading: boolean) => void;
+  /**
    * Set the overall metric used in the point-cloud
    */
   setMetric(metric: MetricDefinition): void;
