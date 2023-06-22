@@ -5,9 +5,19 @@ description: >-
   answers? Or can you change your embeddings?
 ---
 
-# Troubleshooting LLM Retrieval with Vector Stores
+# Troubleshooting LLM Search and Retrieval with Vector Stores
 
 Vector Stores enable teams to connect their own data to LLMs. A common application is chatbots looking across a company's knowledge base/context to answer specific questions.&#x20;
+
+Try this out on your own with our colabs:
+
+{% embed url="https://colab.research.google.com/github/Arize-ai/phoenix/blob/langchain-pinecone-search-and-retrieval/tutorials/langchain_pinecone_search_and_retrieval.ipynb" %}
+Evaluating and Improving Search and Retrieval Applications (LangChain, Pinecone)
+{% endembed %}
+
+{% embed url="https://colab.research.google.com/github/Arize-ai/phoenix/blob/llama-index-docs/llama_index.ipynb" %}
+Evaluating and Improving Search and Retrieval Applications (LlamaIndex)
+{% endembed %}
 
 Here's an example of what retrieval looks like for a chatbot application. A user asked a specific question, an embedding was generated for the query, all relevant context in the knowledge base was pulled in, and then added into the prompt to the LLM.
 
@@ -45,6 +55,8 @@ All you need to do is click the download a cluster button in Phoenix. The export
 Check out our colab for a step by step tutorial.&#x20;
 
 {% embed url="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/find_cluster_export_and_explore_with_gpt.ipynb#scrollTo=Ss2n6JJyLQBm" %}
+Find Clusters, Export, and Explore with GPT
+{% endembed %}
 
 #### Step 3: Add more specific context to the vector store
 
