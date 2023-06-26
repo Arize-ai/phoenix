@@ -7,7 +7,7 @@ from collections import defaultdict
 from contextlib import contextmanager
 from dataclasses import dataclass, field, fields, replace
 from datetime import datetime, timedelta, timezone
-from enum import IntEnum, auto, unique
+from enum import Enum, IntEnum, auto, unique
 from functools import cached_property
 from itertools import chain, groupby, repeat, starmap
 from random import random
@@ -171,7 +171,7 @@ class Embedding(CompositeDimensionSpec):
                 yield value
 
 
-class DatasetRole(IntEnum):
+class DatasetRole(Enum):
     """A dataframe's role in a Model: primary or reference (as
     baseline for drift).
     """
