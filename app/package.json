@@ -7,7 +7,7 @@
   "private": true,
   "dependencies": {
     "@arizeai/components": "^0.12.3",
-    "@arizeai/point-cloud": "^3.0.0",
+    "@arizeai/point-cloud": "^3.0.1",
     "@emotion/react": "^11.10.5",
     "@react-three/drei": "9.5.7",
     "@react-three/fiber": "8.0.12",
