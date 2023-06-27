@@ -2,8 +2,9 @@ import React from "react";
 import { css } from "@emotion/react";
 
 import { EventItem } from "@phoenix/components/pointcloud";
-import { usePointCloudContext } from "@phoenix/contexts";
+import { useDatasets, usePointCloudContext } from "@phoenix/contexts";
 import { DatasetRole } from "@phoenix/types";
+import { getDatasetRoleFromEventId } from "@phoenix/utils/pointCloudUtils";
 
 import { EventsList } from "./types";
 type PointSelectionGridProps = {
@@ -12,6 +13,7 @@ type PointSelectionGridProps = {
 };
 
 export function PointSelectionGrid(props: PointSelectionGridProps) {
+  const { primaryDataset, referenceDataset } = useDatasets();
   const { events, onItemSelected } = props;
   const eventIdToDataMap = usePointCloudContext(
     (state) => state.eventIdToDataMap
@@ -68,17 +70,20 @@ export function PointSelectionGrid(props: PointSelectionGridProps) {
             data?.embeddingMetadata ?? {};
           const { predictionLabel = null, actualLabel = null } =
             data?.eventMetadata ?? {};
-          const datasetRole = event.id.includes("PRIMARY")
-            ? DatasetRole.primary
-            : DatasetRole.reference;
+          const datasetRole = getDatasetRoleFromEventId(event.id);
+          const datasetName =
+            datasetRole === DatasetRole.primary
+              ? primaryDataset.name
+              : referenceDataset?.name || "reference";
           const group = eventIdToGroup[event.id];
           const color = pointGroupColors[group];
+
           return (
             <li key={idx}>
               <EventItem
                 rawData={rawData}
                 linkToData={linkToData}
-                datasetRole={datasetRole}
+                datasetName={datasetName}
                 group={group}
                 onClick={() => {
                   onItemSelected(event.id);

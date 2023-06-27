@@ -1,5 +1,6 @@
 import React, { startTransition } from "react";
 import { useCallback, useMemo } from "react";
+import debounce from "lodash/debounce";
 import { lighten, shade } from "polished";
 
 import { PointBaseProps, Points } from "@arizeai/point-cloud";
@@ -18,7 +19,16 @@ const LIGHTEN_AMOUNT = 0.3;
  * E.g. size = radius * CUBE_RADIUS_MULTIPLIER
  */
 const CUBE_RADIUS_MULTIPLIER = 1.7;
+/**
+ * The amount of time to wait before invoking the setHoveredEventId function
+ */
+const DEBOUNCE_WAIT = 40;
 
+/**
+ * The amount of time to wait before a point is deemed hovered.
+ * Needed to prevent the tooltip from flickering when the mouse moves quickly
+ */
+const POINT_ENTER_DELAY = 10;
 /**
  * Invokes the color function if it is a function, otherwise returns the color
  * @param point
@@ -70,9 +80,17 @@ export function PointCloudPoints({
   const selectedEventIds = usePointCloudContext(
     (state) => state.selectedEventIds
   );
+  const hoveredEventId = usePointCloudContext((state) => state.hoveredEventId);
   const setSelectedClusterId = usePointCloudContext(
     (state) => state.setSelectedClusterId
   );
+  const setHoveredEventId = usePointCloudContext(
+    (state) => state.setHoveredEventId
+  );
+
+  const debouncedSetEventId = useMemo(() => {
+    return debounce(setHoveredEventId, DEBOUNCE_WAIT);
+  }, [setHoveredEventId]);
 
   // Only use a cube shape if the coloring strategy is not dataset
   const referenceDatasetPointShape = useMemo(
@@ -86,6 +104,12 @@ export function PointCloudPoints({
       : lighten(LIGHTEN_AMOUNT);
   }, [canvasTheme]);
 
+  const colorLightenFn = useMemo(() => {
+    return canvasTheme === "dark"
+      ? lighten(LIGHTEN_AMOUNT)
+      : shade(SHADE_AMOUNT);
+  }, [canvasTheme]);
+
   /** Colors to represent a dimmed variant of the color for "un-selected" */
   const dimmedColor = useMemo<PointColor>(() => {
     if (typeof color === "function") {
@@ -94,6 +118,13 @@ export function PointCloudPoints({
     return colorDimFn(color);
   }, [color, colorDimFn]);
 
+  const lightenedColor = useMemo<PointColor>(() => {
+    if (typeof color === "function") {
+      return (p: PointBaseProps) => colorLightenFn(color(p));
+    }
+    return colorLightenFn(color);
+  }, [color, colorLightenFn]);
+
   const colorByFn = useCallback(
     (point: PointBaseProps) => {
       if (
@@ -101,10 +132,12 @@ export function PointCloudPoints({
         selectedEventIds.size > 0
       ) {
         return invokeColor(point, dimmedColor);
+      } else if (point.metaData.id === hoveredEventId) {
+        return invokeColor(point, lightenedColor);
       }
       return invokeColor(point, color);
     },
-    [selectedEventIds, color, dimmedColor]
+    [selectedEventIds, hoveredEventId, color, dimmedColor, lightenedColor]
   );
 
   const showReferencePoints = datasetVisibility.reference && referenceData;
@@ -118,6 +151,23 @@ export function PointCloudPoints({
     },
     [setSelectedClusterId, setSelectedEventIds]
   );
+  const onPointHovered = useCallback(
+    (point: PointBaseProps) => {
+      // NB point can be undefined
+      if (point == null || point.metaData == null) {
+        return;
+      }
+      const eventId = point.metaData.id;
+      setTimeout(() => {
+        debouncedSetEventId(eventId);
+      }, POINT_ENTER_DELAY);
+    },
+    [debouncedSetEventId]
+  );
+
+  const onPointerLeave = useCallback(() => {
+    debouncedSetEventId(null);
+  }, [debouncedSetEventId]);
 
   return (
     <>
@@ -126,6 +176,8 @@ export function PointCloudPoints({
           data={primaryData}
           pointProps={{ color: colorByFn, radius }}
           onPointClicked={onPointClicked}
+          onPointHovered={onPointHovered}
+          onPointerLeave={onPointerLeave}
         />
       ) : null}
       {showReferencePoints ? (
@@ -136,6 +188,8 @@ export function PointCloudPoints({
             radius,
             size: radius ? radius * CUBE_RADIUS_MULTIPLIER : undefined,
           }}
+          onPointHovered={onPointHovered}
+          onPointerLeave={onPointerLeave}
           pointShape={referenceDatasetPointShape}
           onPointClicked={onPointClicked}
         />

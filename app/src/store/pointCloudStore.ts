@@ -124,6 +124,10 @@ export interface Point {
     linkToData: string | null;
     rawData: string | null;
   };
+  promptAndResponse: {
+    prompt: string;
+    response: string;
+  };
 }
 
 /**
@@ -594,6 +598,7 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
 
       set({
         pointData,
+
         // TODO(mikeldking): For some reason the point-cloud doesn't rerender clusters unless this exists
         clusters: sortedClusters,
         clustersLoading: false,
@@ -1096,6 +1101,10 @@ async function fetchPointEvents(eventIds: string[]): Promise<PointDataMap> {
                 predictionLabel
                 actualLabel
               }
+              promptAndResponse {
+                prompt
+                response
+              }
             }
           }
           referenceDataset {
@@ -1112,6 +1121,10 @@ async function fetchPointEvents(eventIds: string[]): Promise<PointDataMap> {
               eventMetadata {
                 predictionLabel
                 actualLabel
+              }
+              promptAndResponse {
+                prompt
+                response
               }
             }
           }

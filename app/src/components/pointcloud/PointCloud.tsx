@@ -1,6 +1,7 @@
 import React, { ReactNode, useCallback, useMemo, useState } from "react";
 import { useContextBridge } from "@react-three/drei";
 import { css } from "@emotion/react";
+import { ThemeContext } from "@emotion/react";
 
 import {
   ActionTooltip,
@@ -21,7 +22,11 @@ import {
 } from "@arizeai/point-cloud";
 
 import { UNKNOWN_COLOR } from "@phoenix/constants/pointCloudConstants";
-import { PointCloudContext, usePointCloudContext } from "@phoenix/contexts";
+import {
+  DatasetsContext,
+  PointCloudContext,
+  usePointCloudContext,
+} from "@phoenix/contexts";
 import { useTimeSlice } from "@phoenix/contexts/TimeSliceContext";
 import { CanvasMode } from "@phoenix/store";
 import { splitEventIdsByDataset } from "@phoenix/utils/pointCloudUtils";
@@ -31,6 +36,7 @@ import { CanvasModeRadioGroup } from "./CanvasModeRadioGroup";
 import { CanvasThemeToggle } from "./CanvasThemeToggle";
 import { PointCloudClusters } from "./PointCloudClusters";
 import { PointCloudPoints } from "./PointCloudPoints";
+import { PointCloudPointTooltip } from "./PointCloudPointTooltip";
 
 const RADIUS_BOUNDS_3D_DIVISOR = 300;
 const CLUSTER_POINT_RADIUS_MULTIPLIER = 3;
@@ -319,7 +325,11 @@ const Projection = React.memo(function Projection() {
   }, [filteredPrimaryData, filteredReferenceData, datasetVisibility]);
 
   // Context cannot be passed through multiple reconcilers. Bridge the context
-  const ContextBridge = useContextBridge(PointCloudContext);
+  const ContextBridge = useContextBridge(
+    PointCloudContext,
+    DatasetsContext,
+    ThemeContext
+  );
 
   return (
     <ThreeDimensionalCanvas camera={{ position: [3, 3, 3] }}>
@@ -334,7 +344,6 @@ const Projection = React.memo(function Projection() {
             setAutoRotate(false);
           }}
         />
-
         <ThreeDimensionalBounds
           bounds={bounds}
           boundsZoomPaddingFactor={BOUNDS_3D_ZOOM_PADDING_FACTOR}
@@ -358,6 +367,7 @@ const Projection = React.memo(function Projection() {
             radius={radius}
           />
           <PointCloudClusters radius={clusterPointRadius} />
+          <PointCloudPointTooltip />
         </ThreeDimensionalBounds>
       </ContextBridge>
     </ThreeDimensionalCanvas>
