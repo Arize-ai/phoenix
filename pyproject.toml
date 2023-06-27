@@ -49,6 +49,10 @@ dev = [
   "strawberry-graphql[debug-server]==0.178.0",
   "pre-commit",
   "arize[AutoEmbeddings, LLM_Evaluation]",
+  "pinecone",
+  "tiktoken",
+  "langchain",
+  "openai",
 ]
 
 [project.urls]
