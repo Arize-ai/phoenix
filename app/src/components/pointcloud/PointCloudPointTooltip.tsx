@@ -8,7 +8,13 @@ import { getDatasetRoleFromEventId } from "@phoenix/utils/pointCloudUtils";
 
 import { EventItem } from "./EventItem";
 
+/**
+ * The size of the tooltip. E.g. 200px x 200px
+ */
 const TOOLTIP_SIZE = 200;
+/**
+ * The offset from the mouse position to the tooltip
+ */
 const TOOLTIP_OFFSET = 10;
 /**
  * Re-used position vector
