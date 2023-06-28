@@ -38,7 +38,7 @@ export function EmbeddingActionMenu() {
               onCompleted: (data) => {
                 const { fileName } = data.exportClusters;
                 notifySuccess({
-                  title: "Clusters exported",
+                  title: "Clusters Exported",
                   message: `dataframe is available via px.active_session().exports or can be downloaded by clicking below`,
 
                   action: {
