@@ -33,6 +33,7 @@ export function PointCloudPointHoverHalo({
       position={event.position}
       args={[pointRadius * POINT_RADIUS_MULTIPLIER]}
     >
+      {/* eslint-disable-next-line react/no-unknown-property */}
       <meshMatcapMaterial color={color} opacity={0.5} transparent />
     </Sphere>
   );
