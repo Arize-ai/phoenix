@@ -124,10 +124,6 @@ export interface Point {
     linkToData: string | null;
     rawData: string | null;
   };
-  promptAndResponse: {
-    prompt: string;
-    response: string;
-  };
 }
 
 /**
@@ -598,7 +594,6 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
 
       set({
         pointData,
-
         // TODO(mikeldking): For some reason the point-cloud doesn't rerender clusters unless this exists
         clusters: sortedClusters,
         clustersLoading: false,
