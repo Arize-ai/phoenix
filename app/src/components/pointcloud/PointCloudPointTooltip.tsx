@@ -1,5 +1,6 @@
 import React from "react";
 import { Html } from "@react-three/drei";
+import * as THREE from "three";
 import { css } from "@emotion/react";
 
 import { useDatasets, usePointCloudContext } from "@phoenix/contexts";
@@ -7,6 +8,12 @@ import { getDatasetRoleFromEventId } from "@phoenix/utils/pointCloudUtils";
 
 import { EventItem } from "./EventItem";
 
+const TOOLTIP_SIZE = 200;
+const TOOLTIP_OFFSET = 10;
+/**
+ * Re-used position vector
+ */
+const vec = new THREE.Vector3();
 export const PointCloudPointTooltip = () => {
   const { primaryDataset, referenceDataset } = useDatasets();
   const hoveredEventId = usePointCloudContext((state) => state.hoveredEventId);
@@ -34,16 +41,37 @@ export const PointCloudPointTooltip = () => {
       ? primaryDataset.name
       : referenceDataset?.name ?? "reference";
   return (
-    <Html position={baseEvent.position} pointerEvents="none">
+    <Html
+      position={baseEvent.position}
+      pointerEvents="none"
+      zIndexRange={[0, 1]}
+      calculatePosition={(el, camera, size) => {
+        const objectPos = vec.setFromMatrixPosition(el.matrixWorld);
+        objectPos.project(camera);
+        const widthHalf = size.width / 2;
+        const heightHalf = size.height / 2;
+        return [
+          Math.min(
+            size.width - TOOLTIP_SIZE - TOOLTIP_OFFSET,
+            Math.max(0, objectPos.x * widthHalf + widthHalf + TOOLTIP_OFFSET)
+          ),
+          Math.min(
+            size.height - TOOLTIP_SIZE - TOOLTIP_OFFSET,
+            Math.max(
+              0,
+              -(objectPos.y * heightHalf) + heightHalf + TOOLTIP_OFFSET
+            )
+          ),
+        ];
+      }}
+    >
       <div
         css={css`
-          --grid-item-min-width: 200px;
-          width: 200px;
-          height: 200px;
+          --grid-item-min-width: ${TOOLTIP_SIZE}px;
+          width: ${TOOLTIP_SIZE}px;
+          height: ${TOOLTIP_SIZE}px;
           background-color: var(--ac-global-background-color-dark);
           border-radius: var(--ac-global-rounding-medium);
-          // Give spacing for the cursor
-          margin: var(--px-spacing-med);
         `}
       >
         <EventItem

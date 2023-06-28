@@ -1,6 +1,5 @@
 import React, { startTransition } from "react";
 import { useCallback, useMemo } from "react";
-import debounce from "lodash/debounce";
 import { lighten, shade } from "polished";
 
 import { PointBaseProps, Points } from "@arizeai/point-cloud";
@@ -19,16 +18,7 @@ const LIGHTEN_AMOUNT = 0.3;
  * E.g. size = radius * CUBE_RADIUS_MULTIPLIER
  */
 const CUBE_RADIUS_MULTIPLIER = 1.7;
-/**
- * The amount of time to wait before invoking the setHoveredEventId function
- */
-const DEBOUNCE_WAIT = 40;
 
-/**
- * The amount of time to wait before a point is deemed hovered.
- * Needed to prevent the tooltip from flickering when the mouse moves quickly
- */
-const POINT_ENTER_DELAY = 10;
 /**
  * Invokes the color function if it is a function, otherwise returns the color
  * @param point
@@ -87,10 +77,6 @@ export function PointCloudPoints({
   const setHoveredEventId = usePointCloudContext(
     (state) => state.setHoveredEventId
   );
-
-  const debouncedSetEventId = useMemo(() => {
-    return debounce(setHoveredEventId, DEBOUNCE_WAIT);
-  }, [setHoveredEventId]);
 
   // Only use a cube shape if the coloring strategy is not dataset
   const referenceDatasetPointShape = useMemo(
@@ -153,21 +139,18 @@ export function PointCloudPoints({
   );
   const onPointHovered = useCallback(
     (point: PointBaseProps) => {
-      // NB point can be undefined
+      // NB: point can be undefined
       if (point == null || point.metaData == null) {
         return;
       }
-      const eventId = point.metaData.id;
-      setTimeout(() => {
-        debouncedSetEventId(eventId);
-      }, POINT_ENTER_DELAY);
+      setHoveredEventId(point.metaData.id);
     },
-    [debouncedSetEventId]
+    [setHoveredEventId]
   );
 
   const onPointerLeave = useCallback(() => {
-    debouncedSetEventId(null);
-  }, [debouncedSetEventId]);
+    setHoveredEventId(null);
+  }, [setHoveredEventId]);
 
   return (
     <>
