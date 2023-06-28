@@ -42,7 +42,6 @@
     "@types/d3-scale-chromatic": "^3.0.0",
     "@types/d3-time-format": "^4.0.0",
     "@types/jest": "^29.5.1",
-    "@types/lodash": "^4.14.195",
     "@types/react-dom": "^18.0.8",
     "@types/react-relay": "^14.1.2",
     "@types/three": "^0.149.0",
