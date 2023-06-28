@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<ffb8835413b3215a86d3560df7afcf3f>>
+ * @generated SignedSource<<c752f20798bf8d71d186dca8b82f77d9>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -30,6 +30,10 @@ export type pointCloudStore_eventsQuery$data = {
           readonly predictionLabel: string | null;
         };
         readonly id: string;
+        readonly promptAndResponse: {
+          readonly prompt: string | null;
+          readonly response: string | null;
+        } | null;
       }>;
     };
     readonly referenceDataset: {
@@ -47,6 +51,10 @@ export type pointCloudStore_eventsQuery$data = {
           readonly predictionLabel: string | null;
         };
         readonly id: string;
+        readonly promptAndResponse: {
+          readonly prompt: string | null;
+          readonly response: string | null;
+        } | null;
       }>;
     } | null;
   };
@@ -122,7 +130,32 @@ v5 = {
   ],
   "storageKey": null
 },
-v6 = [
+v6 = {
+  "alias": null,
+  "args": null,
+  "concreteType": "PromptResponse",
+  "kind": "LinkedField",
+  "name": "promptAndResponse",
+  "plural": false,
+  "selections": [
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "prompt",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "response",
+      "storageKey": null
+    }
+  ],
+  "storageKey": null
+},
+v7 = [
   {
     "alias": null,
     "args": null,
@@ -179,7 +212,8 @@ v6 = [
                 ],
                 "storageKey": null
               },
-              (v5/*: any*/)
+              (v5/*: any*/),
+              (v6/*: any*/)
             ],
             "storageKey": null
           }
@@ -235,7 +269,8 @@ v6 = [
                 ],
                 "storageKey": null
               },
-              (v5/*: any*/)
+              (v5/*: any*/),
+              (v6/*: any*/)
             ],
             "storageKey": null
           }
@@ -252,7 +287,7 @@ return {
     "kind": "Fragment",
     "metadata": null,
     "name": "pointCloudStore_eventsQuery",
-    "selections": (v6/*: any*/),
+    "selections": (v7/*: any*/),
     "type": "Query",
     "abstractKey": null
   },
@@ -261,19 +296,19 @@ return {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
     "name": "pointCloudStore_eventsQuery",
-    "selections": (v6/*: any*/)
+    "selections": (v7/*: any*/)
   },
   "params": {
-    "cacheID": "af4adff460b3c3c98e299370b904c58e",
+    "cacheID": "4001e8c17e0d700200f56c1701565a80",
     "id": null,
     "metadata": {},
     "name": "pointCloudStore_eventsQuery",
     "operationKind": "query",
-    "text": "query pointCloudStore_eventsQuery(\n  $primaryEventIds: [ID!]!\n  $referenceEventIds: [ID!]!\n) {\n  model {\n    primaryDataset {\n      events(eventIds: $primaryEventIds) {\n        id\n        dimensions {\n          dimension {\n            name\n            type\n          }\n          value\n        }\n        eventMetadata {\n          predictionLabel\n          actualLabel\n        }\n      }\n    }\n    referenceDataset {\n      events(eventIds: $referenceEventIds) {\n        id\n        dimensions {\n          dimension {\n            id\n            name\n            type\n          }\n          value\n        }\n        eventMetadata {\n          predictionLabel\n          actualLabel\n        }\n      }\n    }\n  }\n}\n"
+    "text": "query pointCloudStore_eventsQuery(\n  $primaryEventIds: [ID!]!\n  $referenceEventIds: [ID!]!\n) {\n  model {\n    primaryDataset {\n      events(eventIds: $primaryEventIds) {\n        id\n        dimensions {\n          dimension {\n            name\n            type\n          }\n          value\n        }\n        eventMetadata {\n          predictionLabel\n          actualLabel\n        }\n        promptAndResponse {\n          prompt\n          response\n        }\n      }\n    }\n    referenceDataset {\n      events(eventIds: $referenceEventIds) {\n        id\n        dimensions {\n          dimension {\n            id\n            name\n            type\n          }\n          value\n        }\n        eventMetadata {\n          predictionLabel\n          actualLabel\n        }\n        promptAndResponse {\n          prompt\n          response\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "1a9b5aaf6dfbf4a021c22a90405d8805";
+(node as any).hash = "0fbd4c521362be2f4b22de5ac30bb311";
 
 export default node;

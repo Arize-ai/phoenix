@@ -227,6 +227,7 @@ exclude = [
   "dist/",
   "sdist/",
   "tests/",
+  "tutorials/",
 ]
 
 [[tool.mypy.overrides]]
