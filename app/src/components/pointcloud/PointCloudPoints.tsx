@@ -1,5 +1,6 @@
 import React, { startTransition } from "react";
 import { useCallback, useMemo } from "react";
+import debounce from "lodash/debounce";
 import { lighten, shade } from "polished";
 
 import { PointBaseProps, Points } from "@arizeai/point-cloud";
@@ -12,6 +13,11 @@ import { PointColor } from "./types";
 
 const SHADE_AMOUNT = 0.5;
 const LIGHTEN_AMOUNT = 0.3;
+
+/**
+ * The amount of time to debounce the hover events
+ */
+const DEBOUNCE_WAIT = 100;
 
 /**
  * The amount to multiply the radius by to get the appropriate cube size
@@ -70,13 +76,16 @@ export function PointCloudPoints({
   const selectedEventIds = usePointCloudContext(
     (state) => state.selectedEventIds
   );
-  const hoveredEventId = usePointCloudContext((state) => state.hoveredEventId);
   const setSelectedClusterId = usePointCloudContext(
     (state) => state.setSelectedClusterId
   );
   const setHoveredEventId = usePointCloudContext(
     (state) => state.setHoveredEventId
   );
+
+  const debouncedSetHoveredEventId = useMemo(() => {
+    return debounce(setHoveredEventId, DEBOUNCE_WAIT);
+  }, [setHoveredEventId]);
 
   // Only use a cube shape if the coloring strategy is not dataset
   const referenceDatasetPointShape = useMemo(
@@ -90,12 +99,6 @@ export function PointCloudPoints({
       : lighten(LIGHTEN_AMOUNT);
   }, [canvasTheme]);
 
-  const colorLightenFn = useMemo(() => {
-    return canvasTheme === "dark"
-      ? lighten(LIGHTEN_AMOUNT)
-      : shade(SHADE_AMOUNT);
-  }, [canvasTheme]);
-
   /** Colors to represent a dimmed variant of the color for "un-selected" */
   const dimmedColor = useMemo<PointColor>(() => {
     if (typeof color === "function") {
@@ -104,13 +107,6 @@ export function PointCloudPoints({
     return colorDimFn(color);
   }, [color, colorDimFn]);
 
-  const lightenedColor = useMemo<PointColor>(() => {
-    if (typeof color === "function") {
-      return (p: PointBaseProps) => colorLightenFn(color(p));
-    }
-    return colorLightenFn(color);
-  }, [color, colorLightenFn]);
-
   const colorByFn = useCallback(
     (point: PointBaseProps) => {
       if (
@@ -118,12 +114,10 @@ export function PointCloudPoints({
         selectedEventIds.size > 0
       ) {
         return invokeColor(point, dimmedColor);
-      } else if (point.metaData.id === hoveredEventId) {
-        return invokeColor(point, lightenedColor);
       }
       return invokeColor(point, color);
     },
-    [selectedEventIds, hoveredEventId, color, dimmedColor, lightenedColor]
+    [selectedEventIds, color, dimmedColor]
   );
 
   const showReferencePoints = datasetVisibility.reference && referenceData;
@@ -143,14 +137,14 @@ export function PointCloudPoints({
       if (point == null || point.metaData == null) {
         return;
       }
-      setHoveredEventId(point.metaData.id);
+      debouncedSetHoveredEventId(point.metaData.id);
     },
-    [setHoveredEventId]
+    [debouncedSetHoveredEventId]
   );
 
   const onPointerLeave = useCallback(() => {
-    setHoveredEventId(null);
-  }, [setHoveredEventId]);
+    debouncedSetHoveredEventId(null);
+  }, [debouncedSetHoveredEventId]);
 
   return (
     <>

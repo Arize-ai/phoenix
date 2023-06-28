@@ -520,7 +520,7 @@ function SelectionPanel() {
           defaultSize={40}
           minSize={20}
           order={2}
-          style={{ zIndex: 100 }}
+          style={{ zIndex: 1 }}
         >
           <PointSelectionPanelContentWrap>
             <Suspense fallback={<Loading />}>

@@ -35,6 +35,7 @@ import { fullTimeFormatter } from "@phoenix/utils/timeFormatUtils";
 import { CanvasModeRadioGroup } from "./CanvasModeRadioGroup";
 import { CanvasThemeToggle } from "./CanvasThemeToggle";
 import { PointCloudClusters } from "./PointCloudClusters";
+import { PointCloudPointHoverHalo } from "./PointCloudPointHoverHalo";
 import { PointCloudPoints } from "./PointCloudPoints";
 import { PointCloudPointTooltip } from "./PointCloudPointTooltip";
 
@@ -368,6 +369,7 @@ const Projection = React.memo(function Projection() {
           />
           <PointCloudClusters radius={clusterPointRadius} />
           <PointCloudPointTooltip />
+          <PointCloudPointHoverHalo pointRadius={radius} />
         </ThreeDimensionalBounds>
       </ContextBridge>
     </ThreeDimensionalCanvas>
