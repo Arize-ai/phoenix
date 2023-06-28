@@ -258,6 +258,10 @@ export interface PointCloudProps {
    */
   selectedEventIds: Set<string>;
   /**
+   * The ID of the event that is currently hovered over.
+   */
+  hoveredEventId: string | null;
+  /**
    * The ID of the cluster that are currently highlighted.
    */
   highlightedClusterId: string | null;
@@ -361,6 +365,11 @@ export interface PointCloudState extends PointCloudProps {
    * Sets the selected eventIds to the given value.
    */
   setSelectedEventIds: (ids: Set<string>) => void;
+  /**
+   * Set the hovered event id
+   * @param {string | null} id
+   */
+  setHoveredEventId: (id: string | null) => void;
   /**
    * Sets the selected cluster id to the given value.
    */
@@ -504,6 +513,7 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
     clusterSort: { dir: "desc", column: "driftRatio" },
     pointData: null,
     selectedEventIds: new Set(),
+    hoveredEventId: null,
     highlightedClusterId: null,
     selectedClusterId: null,
     canvasMode: CanvasMode.move,
@@ -614,6 +624,7 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
       set({ clusterSort: sort, clusters: sortedClusters });
     },
     setSelectedEventIds: (ids) => set({ selectedEventIds: ids }),
+    setHoveredEventId: (id) => set({ hoveredEventId: id }),
     setHighlightedClusterId: (id) => set({ highlightedClusterId: id }),
     setSelectedClusterId: (id) =>
       set({ selectedClusterId: id, highlightedClusterId: null }),
@@ -1085,6 +1096,10 @@ async function fetchPointEvents(eventIds: string[]): Promise<PointDataMap> {
                 predictionLabel
                 actualLabel
               }
+              promptAndResponse {
+                prompt
+                response
+              }
             }
           }
           referenceDataset {
@@ -1101,6 +1116,10 @@ async function fetchPointEvents(eventIds: string[]): Promise<PointDataMap> {
               eventMetadata {
                 predictionLabel
                 actualLabel
+              }
+              promptAndResponse {
+                prompt
+                response
               }
             }
           }

@@ -1,5 +1,6 @@
 import React, { startTransition } from "react";
 import { useCallback, useMemo } from "react";
+import debounce from "lodash/debounce";
 import { lighten, shade } from "polished";
 
 import { PointBaseProps, Points } from "@arizeai/point-cloud";
@@ -12,6 +13,11 @@ import { PointColor } from "./types";
 
 const SHADE_AMOUNT = 0.5;
 const LIGHTEN_AMOUNT = 0.3;
+
+/**
+ * The amount of time to debounce the hover events
+ */
+const DEBOUNCE_WAIT = 100;
 
 /**
  * The amount to multiply the radius by to get the appropriate cube size
@@ -73,6 +79,13 @@ export function PointCloudPoints({
   const setSelectedClusterId = usePointCloudContext(
     (state) => state.setSelectedClusterId
   );
+  const setHoveredEventId = usePointCloudContext(
+    (state) => state.setHoveredEventId
+  );
+
+  const debouncedSetHoveredEventId = useMemo(() => {
+    return debounce(setHoveredEventId, DEBOUNCE_WAIT);
+  }, [setHoveredEventId]);
 
   // Only use a cube shape if the coloring strategy is not dataset
   const referenceDatasetPointShape = useMemo(
@@ -118,6 +131,20 @@ export function PointCloudPoints({
     },
     [setSelectedClusterId, setSelectedEventIds]
   );
+  const onPointHovered = useCallback(
+    (point: PointBaseProps) => {
+      // NB: point can be undefined
+      if (point == null || point.metaData == null) {
+        return;
+      }
+      debouncedSetHoveredEventId(point.metaData.id);
+    },
+    [debouncedSetHoveredEventId]
+  );
+
+  const onPointerLeave = useCallback(() => {
+    debouncedSetHoveredEventId(null);
+  }, [debouncedSetHoveredEventId]);
 
   return (
     <>
@@ -126,6 +153,8 @@ export function PointCloudPoints({
           data={primaryData}
           pointProps={{ color: colorByFn, radius }}
           onPointClicked={onPointClicked}
+          onPointHovered={onPointHovered}
+          onPointerLeave={onPointerLeave}
         />
       ) : null}
       {showReferencePoints ? (
@@ -136,6 +165,8 @@ export function PointCloudPoints({
             radius,
             size: radius ? radius * CUBE_RADIUS_MULTIPLIER : undefined,
           }}
+          onPointHovered={onPointHovered}
+          onPointerLeave={onPointerLeave}
           pointShape={referenceDatasetPointShape}
           onPointClicked={onPointClicked}
         />

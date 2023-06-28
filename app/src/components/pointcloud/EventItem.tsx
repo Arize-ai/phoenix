@@ -2,8 +2,6 @@ import React, { ReactNode } from "react";
 import { transparentize } from "polished";
 import { css } from "@emotion/react";
 
-import { useDatasets } from "@phoenix/contexts";
-import { DatasetRole } from "@phoenix/types";
 import { assertUnreachable } from "@phoenix/typeUtils";
 
 import { Shape, ShapeIcon } from "./ShapeIcon";
@@ -38,11 +36,11 @@ type EventItemProps = {
   /**
    * Which dataset the event belongs to
    */
-  datasetRole: DatasetRole;
+  datasetName: string;
   /**
    * event handler for when the user clicks on the event item
    */
-  onClick: () => void;
+  onClick?: () => void;
   /**
    * The event's current grouping (color group)
    */
@@ -97,7 +95,7 @@ function getSecondaryPreviewType(
  * An item that represents a single model event. To be displayed in a grid / list
  */
 export function EventItem(props: EventItemProps) {
-  const { onClick, color, size, datasetRole, group } = props;
+  const { onClick, color, size, datasetName, group } = props;
   // Prioritize the image preview over raw text
   const primaryPreviewType = getPrimaryPreviewType(props);
   // only show the secondary preview for large size
@@ -171,7 +169,7 @@ export function EventItem(props: EventItemProps) {
         <EventItemFooter
           color={color}
           group={group}
-          datasetRole={datasetRole}
+          datasetName={datasetName}
           showDataset={size === "large"}
         />
       )}
@@ -314,18 +312,18 @@ function RawTextPreview(props: Pick<EventItemProps, "rawData" | "size">) {
   return (
     <p
       data-size={props.size}
-      css={(theme) => css`
+      css={css`
         flex: 1 1 auto;
         padding: var(--px-spacing-med);
         margin-block-start: 0;
         margin-block-end: 0;
         position: relative;
-        --text-preview-background-color: ${theme.colors.gray600};
+        --text-preview-background-color: var(--ac-background-color-light);
         background-color: var(--text-preview-background-color);
 
         &[data-size="small"] {
           padding: var(--px-spacing-sm);
-          font-size: ${theme.typography.sizes.small.fontSize}px;
+          font-size: var(--ac-global-color-gray-600);
           box-sizing: border-box;
         }
         &:before {
@@ -385,16 +383,13 @@ function EventMetadataPreview(
 }
 
 function EventItemFooter({
-  datasetRole,
   color,
   group,
   showDataset,
-}: Pick<EventItemProps, "group" | "color" | "datasetRole"> & {
+  datasetName,
+}: Pick<EventItemProps, "group" | "color" | "datasetName"> & {
   showDataset: boolean;
 }) {
-  const { primaryDataset, referenceDataset } = useDatasets();
-  const datasetName =
-    datasetRole === "primary" ? primaryDataset.name : referenceDataset?.name;
   return (
     <footer
       css={css`
