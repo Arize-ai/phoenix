@@ -24,6 +24,7 @@ export function EmbeddingActionMenu() {
   return (
     <ActionMenu
       align="end"
+      buttonSize="compact"
       icon={isExportInFlight ? <Icon svg={<Icons.LoadingOutline />} /> : null}
       onAction={(action) => {
         switch (action) {
