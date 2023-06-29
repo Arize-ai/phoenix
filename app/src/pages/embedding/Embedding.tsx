@@ -72,6 +72,7 @@ import {
   EmbeddingUMAPQuery$data,
 } from "./__generated__/EmbeddingUMAPQuery.graphql";
 import { ClusterSortPicker } from "./ClusterSortPicker";
+import { EmbeddingActionMenu } from "./EmbeddingActionMenu";
 import { MetricSelector } from "./MetricSelector";
 import { MetricTimeSeries } from "./MetricTimeSeries";
 import { PointSelectionPanelContent } from "./PointSelectionPanelContent";
@@ -287,15 +288,23 @@ function EmbeddingMain() {
       <PointCloudNotifications />
       <Toolbar
         extra={
-          <Switch
-            onChange={(isSelected) => {
-              setShowChart(isSelected);
-            }}
-            defaultSelected={true}
-            labelPlacement="start"
+          <Flex
+            direction="row"
+            justifyContent="center"
+            alignItems="center"
+            gap="size-100"
           >
-            Show Timeseries
-          </Switch>
+            <Switch
+              onChange={(isSelected) => {
+                setShowChart(isSelected);
+              }}
+              defaultSelected={true}
+              labelPlacement="start"
+            >
+              Show Timeseries
+            </Switch>
+            <EmbeddingActionMenu />
+          </Flex>
         }
       >
         <PrimaryDatasetTimeRange />
