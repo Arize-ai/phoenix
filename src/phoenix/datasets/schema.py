@@ -49,11 +49,11 @@ class RelationshipColumnNames(Dict[str, Any]):
 
     A table view of the primary dataset would look like this:
 
-    | query |              document_ids            |
-    |-------|--------------------------------------|
-    | ...   | [document_1, document_5, document_3] |
-    | ...   | [document_1, document_5, document_5] |
-    | ...   | [document_3, document_5, document_1] |
+    | query |    document_ids       |
+    |-------|-----------------------|
+    | ...   | [doc_1, doc_5, doc_3] |
+    | ...   | [doc_1, doc_6, doc_2] |
+    | ...   | [doc_1, doc_6, doc_9] |
 
 
     The corresponding vector store dataset would look like this:
@@ -70,7 +70,7 @@ class RelationshipColumnNames(Dict[str, Any]):
     >>> schema = Schema(
     ...     relationship_column_names={
     ...         "retrieval": RelationshipColumnNames(
-    ...             vector_column_name="document_ids",
+    ...             ids_column_name="document_ids",
     ...         )
     """
 
