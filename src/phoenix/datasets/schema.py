@@ -3,8 +3,11 @@ from dataclasses import asdict, dataclass, replace
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 EmbeddingFeatures = Dict[str, "EmbeddingColumnNames"]
+Relationships = Dict[str, "RelationshipColumnNames"]
 SchemaFieldName = str
-SchemaFieldValue = Union[Optional[str], Optional[List[str]], Optional[EmbeddingFeatures]]
+SchemaFieldValue = Union[
+    Optional[str], Optional[List[str]], Optional[EmbeddingFeatures], Optional[Relationships]
+]
 
 MULTI_COLUMN_SCHEMA_FIELD_NAMES: Tuple[str, ...] = ("feature_column_names", "tag_column_names")
 SINGLE_COLUMN_SCHEMA_FIELD_NAMES: Tuple[str, ...] = (
@@ -34,6 +37,7 @@ class EmbeddingColumnNames(Dict[str, Any]):
 @dataclass(frozen=True)
 class RelationshipColumnNames(Dict[str, Any]):
     """
+    *** Experimental ***
     A relationship is a column that maps a prediction to another record.
 
     Example
@@ -43,13 +47,31 @@ class RelationshipColumnNames(Dict[str, Any]):
     In this case you would add a column to the dataset that maps the query
     to the vector store records. E.x. [document_1, document_5, document_3]
 
-    A table view of the dataset would look like this:
+    A table view of the primary dataset would look like this:
 
-    | query |              retrieval               |
+    | query |              document_ids            |
     |-------|--------------------------------------|
     | ...   | [document_1, document_5, document_3] |
     | ...   | [document_1, document_5, document_5] |
     | ...   | [document_3, document_5, document_1] |
+
+
+    The corresponding vector store dataset would look like this:
+
+    | document | vector | document_text |
+    |----------|--------|---------------|
+    | doc_1    | ...    | lorem ipsum   |
+    | doc_2    | ...    | lorem ipsum   |
+    | doc_3    | ...    | lorem ipsum   |
+
+
+    To declare this relationship in the schema, you would configure the schema as follows:
+
+    >>> schema = Schema(
+    ...     relationship_column_names={
+    ...         "retrieval": RelationshipColumnNames(
+    ...             vector_column_name="document_ids",
+    ...         )
     """
 
     ids_column_name: str
@@ -68,6 +90,7 @@ class Schema(Dict[SchemaFieldName, SchemaFieldValue]):
     prompt_column_names: Optional[EmbeddingColumnNames] = None
     response_column_names: Optional[EmbeddingColumnNames] = None
     embedding_feature_column_names: Optional[EmbeddingFeatures] = None
+    relationship_column_names: Optional[Relationships] = None
     excluded_column_names: Optional[List[str]] = None
 
     def replace(self, **changes: str) -> "Schema":
@@ -94,6 +117,15 @@ class Schema(Dict[SchemaFieldName, SchemaFieldValue]):
                     link_to_data_column_name=column_names["link_to_data_column_name"],
                 )
             json_data["embedding_feature_column_names"] = embedding_feature_column_names
+
+        # parse relationship_column_names
+        if json_data.get("relationship_column_names") is not None:
+            relationship_column_names = {}
+            for relationship_name, column_names in json_data["relationship_column_names"].items():
+                relationship_column_names[relationship_name] = RelationshipColumnNames(
+                    ids_column_name=column_names["ids_column_name"],
+                )
+            json_data["relationship_column_names"] = relationship_column_names
 
         # parse prompt_column_names
         if json_data.get("prompt_column_names") is not None:
