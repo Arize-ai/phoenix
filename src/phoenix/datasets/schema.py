@@ -20,9 +20,39 @@ LLM_SCHEMA_FIELD_NAMES = ["prompt_column_names", "response_column_names"]
 
 @dataclass(frozen=True)
 class EmbeddingColumnNames(Dict[str, Any]):
+    """
+    A dataclass to hold the column names for the embedding features.
+    An embedding feature is a feature that is represented by a vector.
+    The vector is a representation of unstructured data, such as text or an image
+    """
+
     vector_column_name: str
     raw_data_column_name: Optional[str] = None
     link_to_data_column_name: Optional[str] = None
+
+
+@dataclass(frozen=True)
+class RelationshipColumnNames(Dict[str, Any]):
+    """
+    A relationship is a column that maps a prediction to another record.
+
+    Example
+    -------
+    For example, in context retrieval from a vector store, a query is
+    embedded and used to search for relevant records in a vector store.
+    In this case you would add a column to the dataset that maps the query
+    to the vector store records. E.x. [document_1, document_5, document_3]
+
+    A table view of the dataset would look like this:
+
+    | query |              retrieval               |
+    |-------|--------------------------------------|
+    | ...   | [document_1, document_5, document_3] |
+    | ...   | [document_1, document_5, document_5] |
+    | ...   | [document_3, document_5, document_1] |
+    """
+
+    ids_column_name: str
 
 
 @dataclass(frozen=True)
