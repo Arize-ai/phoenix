@@ -25,7 +25,6 @@ from .schema import (
     SINGLE_COLUMN_SCHEMA_FIELD_NAMES,
     EmbeddingColumnNames,
     EmbeddingFeatures,
-    RelationshipColumnNames,
     Relationships,
     Schema,
     SchemaFieldName,
@@ -362,23 +361,6 @@ def _check_embedding_column_names_for_excluded_columns(
     """
     for embedding_field in fields(embedding_column_name_mapping):
         column_name: Optional[str] = getattr(embedding_column_name_mapping, embedding_field.name)
-        if column_name is not None:
-            column_name_to_include[column_name] = True
-            unseen_column_names.discard(column_name)
-
-
-def _check_relationship_column_names_for_excluded_columns(
-    relationship_column_name_mapping: RelationshipColumnNames,
-    column_name_to_include: Dict[str, bool],
-    unseen_column_names: Set[str],
-) -> None:
-    """
-    Check relationship column names for excluded column names.
-    """
-    for relationship_field in fields(relationship_column_name_mapping):
-        column_name: Optional[str] = getattr(
-            relationship_column_name_mapping, relationship_field.name
-        )
         if column_name is not None:
             column_name_to_include[column_name] = True
             unseen_column_names.discard(column_name)
