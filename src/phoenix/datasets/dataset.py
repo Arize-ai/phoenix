@@ -25,6 +25,7 @@ from .schema import (
     SINGLE_COLUMN_SCHEMA_FIELD_NAMES,
     EmbeddingColumnNames,
     EmbeddingFeatures,
+    Relationships,
     Schema,
     SchemaFieldName,
     SchemaFieldValue,
@@ -184,6 +185,15 @@ def _parse_dataframe_and_schema(dataframe: DataFrame, schema: Schema) -> Tuple[D
             unseen_column_names,
         )
 
+    if schema.relationship_column_names:
+        _check_relationship_schema_field_for_excluded_columns(
+            schema.relationship_column_names,
+            unseen_excluded_column_names,
+            schema_patch,
+            column_name_to_include,
+            unseen_column_names,
+        )
+
     for llm_schema_field_name in LLM_SCHEMA_FIELD_NAMES:
         embedding_column_name_mapping = getattr(schema, llm_schema_field_name)
         if embedding_column_name_mapping is not None:
@@ -306,6 +316,38 @@ def _check_embedding_features_schema_field_for_excluded_columns(
                 unseen_column_names.discard(column_name)
     schema_patch["embedding_feature_column_names"] = (
         included_embedding_features if included_embedding_features else None
+    )
+
+
+def _check_relationship_schema_field_for_excluded_columns(
+    relationships: Relationships,
+    unseen_excluded_column_names: Set[str],
+    schema_patch: Dict[SchemaFieldName, SchemaFieldValue],
+    column_name_to_include: Dict[str, bool],
+    unseen_column_names: Set[str],
+) -> None:
+    """
+    Check relationships for excluded column names.
+    """
+    included_relationships: Relationships = {}
+    for (
+        relationship_name,
+        relationship_column_name_mapping,
+    ) in relationships.items():
+        included_relationships[relationship_name] = deepcopy(relationship_column_name_mapping)
+        for relationship_field in fields(relationship_column_name_mapping):
+            column_name: Optional[str] = getattr(
+                relationship_column_name_mapping, relationship_field.name
+            )
+            if column_name is not None:
+                column_name_to_include[column_name] = True
+                if column_name in unseen_excluded_column_names:
+                    logger.warning(
+                        f"Excluding relationship columns such as {column_name} has no effect"
+                    )
+                unseen_column_names.discard(column_name)
+    schema_patch["relationship_column_names"] = (
+        included_relationships if included_relationships else None
     )
 
 

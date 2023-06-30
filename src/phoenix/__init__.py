@@ -1,6 +1,6 @@
 from .datasets.dataset import Dataset
 from .datasets.fixtures import ExampleDatasets, load_example
-from .datasets.schema import EmbeddingColumnNames, Schema
+from .datasets.schema import EmbeddingColumnNames, RelationshipColumnNames, Schema
 from .session.session import Session, active_session, close_app, launch_app
 
 __version__ = "0.0.27"
@@ -24,6 +24,7 @@ Here are just a few of the things that phoenix does well:
 __all__ = [
     "Dataset",
     "EmbeddingColumnNames",
+    "RelationshipColumnNames",
     "Schema",
     "load_example",
     "ExampleDatasets",

@@ -15,12 +15,15 @@ import pytz
 from pandas import DataFrame, Series, Timestamp
 from phoenix.datasets.dataset import (
     Dataset,
-    EmbeddingColumnNames,
-    Schema,
     _normalize_timestamps,
     _parse_dataframe_and_schema,
 )
 from phoenix.datasets.errors import DatasetError
+from phoenix.datasets.schema import (
+    EmbeddingColumnNames,
+    RelationshipColumnNames,
+    Schema,
+)
 from pytest import LogCaptureFixture, raises
 
 
@@ -321,6 +324,32 @@ class TestParseDataFrameAndSchema:
                     vector_column_name="embedding_vector0",
                     link_to_data_column_name="link_to_data0",
                     raw_data_column_name="raw_data_column0",
+                ),
+            },
+        )
+        self._parse_dataframe_and_schema_and_check_output(
+            input_dataframe=input_dataframe,
+            input_schema=input_schema,
+            expected_parsed_dataframe=input_dataframe,
+            expected_parsed_schema=input_schema,
+            should_log_warning_to_user=False,
+            caplog=caplog,
+        )
+
+    def test_schema_includes_relationships(self, caplog):
+        input_dataframe = DataFrame(
+            {
+                "prediction_id": [str(x) for x in range(self.num_records)],
+                "timestamp": [pd.Timestamp.now() for x in range(self.num_records)],
+                "document_ids": [["doc_id_1", "doc_id_4"] for _ in range(self.num_records)],
+            }
+        )
+        input_schema = Schema(
+            prediction_id_column_name="prediction_id",
+            timestamp_column_name="timestamp",
+            relationship_column_names={
+                "retrieval": RelationshipColumnNames(
+                    ids_column_name="document_ids",
                 ),
             },
         )
