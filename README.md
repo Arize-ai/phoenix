@@ -28,7 +28,7 @@ Phoenix provides MLOps insights at lightning speed with zero-config observabilit
 
 <!-- EXCLUDE -->
 
-![a rotating UMAP point cloud of a computer vision model](https://github.com/Arize-ai/phoenix-assets/blob/main/gifs/computer_vision_color_by_prediction.gif?raw=true)
+![a rotating UMAP point cloud of a computer vision model](https://github.com/Arize-ai/phoenix-assets/blob/main/gifs/image_classification_10mb.gif?raw=true)
 
 <!-- /EXCLUDE -->
 
