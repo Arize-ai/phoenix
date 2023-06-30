@@ -15,13 +15,15 @@ import pytz
 from pandas import DataFrame, Series, Timestamp
 from phoenix.datasets.dataset import (
     Dataset,
-    EmbeddingColumnNames,
-    RelationshipColumnNames,
-    Schema,
     _normalize_timestamps,
     _parse_dataframe_and_schema,
 )
 from phoenix.datasets.errors import DatasetError
+from phoenix.datasets.schema import (
+    EmbeddingColumnNames,
+    RelationshipColumnNames,
+    Schema,
+)
 from pytest import LogCaptureFixture, raises
 
 

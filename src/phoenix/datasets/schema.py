@@ -58,11 +58,11 @@ class RelationshipColumnNames(Dict[str, Any]):
 
     The corresponding vector store dataset would look like this:
 
-    | id | embedding_vector | document_text |
-    |----------|--------|---------------|
-    | doc_1    | ...    | lorem ipsum   |
-    | doc_2    | ...    | lorem ipsum   |
-    | doc_3    | ...    | lorem ipsum   |
+    |    id    | embedding_vector | document_text |
+    |----------|------------------|---------------|
+    | doc_1    | ...              |  lorem ipsum  |
+    | doc_2    | ...              | lorem ipsum   |
+    | doc_3    | ...              | lorem ipsum   |
 
 
     To declare this relationship in the schema, you would configure the schema as follows:
