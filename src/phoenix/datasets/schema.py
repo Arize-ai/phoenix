@@ -47,7 +47,7 @@ class RelationshipColumnNames(Dict[str, Any]):
     In this case you would add a column to the dataset that maps the query
     to the vector store records. E.x. [document_1, document_5, document_3]
 
-    A table view of the primary dataset would look like this:
+    A table view of the primary dataset could look like this:
 
     | query |    document_ids       |
     |-------|-----------------------|
