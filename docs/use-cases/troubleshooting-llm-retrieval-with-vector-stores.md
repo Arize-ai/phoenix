@@ -11,7 +11,7 @@ Vector Stores enable teams to connect their own data to LLMs. A common applicati
 
 Try this out on your own with our colabs:
 
-{% embed url="https://colab.research.google.com/github/Arize-ai/phoenix/blob/langchain-pinecone-search-and-retrieval/tutorials/langchain_pinecone_search_and_retrieval.ipynb" %}
+{% embed url="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/langchain_pinecone_search_and_retrieval_tutorial.ipynb" %}
 Evaluating and Improving Search and Retrieval Applications (LangChain, Pinecone)
 {% endembed %}
 
