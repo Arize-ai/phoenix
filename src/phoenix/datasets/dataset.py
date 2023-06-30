@@ -455,16 +455,6 @@ def _create_and_normalize_dataframe_and_schema(
             parsed_dataframe.loc[:, vector_column_name],
             vector_column_name,
         )
-    for relationship_definition in (
-        list(parsed_schema.relationship_column_names.values())
-        if parsed_schema.relationship_column_names is not None
-        else []
-    ):
-        if relationship_definition is None:
-            continue
-        ids_column_name = relationship_definition.ids_column_name
-        if ids_column_name not in parsed_dataframe.columns:
-            continue
     return parsed_dataframe, parsed_schema
 
 
