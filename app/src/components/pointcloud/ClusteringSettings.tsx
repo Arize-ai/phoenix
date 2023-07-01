@@ -152,7 +152,10 @@ export default function ClusteringSettings() {
               message: "must be less than 2,147,483,647",
             },
           }}
-          render={({ field, fieldState: { invalid, error } }) => (
+          render={({
+            field: { onChange, onBlur, value },
+            fieldState: { invalid, error },
+          }) => (
             <TextField
               label="min cluster size"
               labelExtra={minClusterSizeContextualHelp}
@@ -160,8 +163,9 @@ export default function ClusteringSettings() {
               description={`the smallest size for a cluster`}
               errorMessage={error?.message}
               validationState={invalid ? "invalid" : "valid"}
-              {...field}
-              value={field.value as unknown as string} // TODO: fix type in component
+              onChange={(v) => onChange(parseInt(v, 10))}
+              onBlur={onBlur}
+              value={value.toString()}
             />
           )}
         />
@@ -179,7 +183,10 @@ export default function ClusteringSettings() {
               message: "must be less than 2,147,483,647",
             },
           }}
-          render={({ field, fieldState: { invalid, error } }) => (
+          render={({
+            field: { onBlur, onChange, value },
+            fieldState: { invalid, error },
+          }) => (
             <TextField
               label="cluster minimum samples"
               labelExtra={minSamplesContextualHelp}
@@ -187,8 +194,9 @@ export default function ClusteringSettings() {
               description={`determines if a point is a core point`}
               errorMessage={error?.message}
               validationState={invalid ? "invalid" : "valid"}
-              {...field}
-              value={field.value as unknown as string} // TODO: fix type in component
+              onChange={(v) => onChange(parseInt(v, 10))}
+              onBlur={onBlur}
+              value={value.toString()}
             />
           )}
         />
@@ -206,7 +214,10 @@ export default function ClusteringSettings() {
               message: "must be less than 2,147,483,647",
             },
           }}
-          render={({ field, fieldState: { invalid, error } }) => (
+          render={({
+            field: { onBlur, onChange, value },
+            fieldState: { invalid, error },
+          }) => (
             <TextField
               label="cluster selection epsilon"
               labelExtra={clusterSelectionEpsilonContextualHelp}
@@ -214,8 +225,9 @@ export default function ClusteringSettings() {
               description={`A distance threshold`}
               errorMessage={error?.message}
               validationState={invalid ? "invalid" : "valid"}
-              {...field}
-              value={field.value as unknown as string} // TODO: fix type in component
+              onChange={(v) => onChange(parseInt(v, 10))}
+              onBlur={onBlur}
+              value={value.toString()}
             />
           )}
         />

@@ -153,7 +153,10 @@ export function PointCloudParameterSettings() {
           rules={{
             required: "field is required",
           }}
-          render={({ field, fieldState: { invalid, error } }) => (
+          render={({
+            field: { onChange, onBlur, value },
+            fieldState: { invalid, error },
+          }) => (
             <TextField
               label="min distance"
               labelExtra={minDistContextualHelp}
@@ -161,8 +164,9 @@ export function PointCloudParameterSettings() {
               description={`how tightly to pack points`}
               errorMessage={error?.message}
               validationState={invalid ? "invalid" : "valid"}
-              {...field}
-              value={field.value as unknown as string} // TODO: fix type in component
+              onChange={(v) => onChange(parseFloat(v))}
+              onBlur={onBlur}
+              value={value.toString()}
             />
           )}
         />
@@ -209,7 +213,10 @@ export function PointCloudParameterSettings() {
               message: `must be above ${MIN_DATASET_SAMPLE_SIZE}`,
             },
           }}
-          render={({ field, fieldState: { invalid, error } }) => (
+          render={({
+            field: { onChange, onBlur, value },
+            fieldState: { invalid, error },
+          }) => (
             <TextField
               label="n samples"
               labelExtra={nSamplesContextualHelp}
@@ -218,8 +225,9 @@ export function PointCloudParameterSettings() {
               description={`number of points to use per dataset`}
               errorMessage={error?.message}
               validationState={invalid ? "invalid" : "valid"}
-              {...field}
-              value={field.value as unknown as string}
+              onChange={(v) => onChange(parseInt(v, 10))}
+              onBlur={onBlur}
+              value={value.toString()}
             />
           )}
         />
