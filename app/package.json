@@ -52,7 +52,7 @@
     "cpy-cli": "^5.0.0",
     "esbuild": "^0.18.10",
     "eslint": "^8.44.0",
-    "eslint-plugin-react": "^7.25.3",
+    "eslint-plugin-react": "^7.32.2",
     "eslint-plugin-react-hooks": "^4.6.0",
     "eslint-plugin-simple-import-sort": "^10.0.0",
     "graphql": "^16.7.1",
