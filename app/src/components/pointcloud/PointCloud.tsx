@@ -36,6 +36,7 @@ import { CanvasModeRadioGroup } from "./CanvasModeRadioGroup";
 import { CanvasThemeToggle } from "./CanvasThemeToggle";
 import { PointCloudClusters } from "./PointCloudClusters";
 import { PointCloudPointHoverHalo } from "./PointCloudPointHoverHalo";
+import { PointCloudPointRelationships } from "./PointCloudPointRelationships";
 import { PointCloudPoints } from "./PointCloudPoints";
 import { PointCloudPointTooltip } from "./PointCloudPointTooltip";
 
@@ -370,6 +371,7 @@ const Projection = React.memo(function Projection() {
           <PointCloudClusters radius={clusterPointRadius} />
           <PointCloudPointTooltip />
           <PointCloudPointHoverHalo pointRadius={radius} />
+          <PointCloudPointRelationships />
         </ThreeDimensionalBounds>
       </ContextBridge>
     </ThreeDimensionalCanvas>

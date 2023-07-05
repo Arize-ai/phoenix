@@ -46,6 +46,8 @@ const discreteColorScale = (value: number) =>
 const numericColorScale = (idx: number) =>
   sequentialColorScale(idx / NUM_NUMERIC_GROUPS);
 
+type EventId = string;
+
 type DimensionMetadata = {
   /**
    * The min and max values of a numeric  dimension
@@ -100,18 +102,19 @@ type DatasetVisibility = {
   primary: boolean;
   reference: boolean;
 };
+
 export interface Point {
   readonly id: string;
   /**
    * The id of event the point is associated to
    */
-  readonly eventId: string;
+  readonly eventId: EventId;
   readonly position: ThreeDimensionalPosition;
   /**
    * Metadata about the point - used for point-cloud selection
    */
   readonly metaData: {
-    readonly id: string;
+    readonly id: EventId;
   };
   readonly eventMetadata: {
     readonly predictionId: string | null;
@@ -124,7 +127,14 @@ export interface Point {
     linkToData: string | null;
     rawData: string | null;
   };
+  relationships?: PointRelationships;
 }
+
+/**
+ * Relationship information for a specific point
+ * maps a relationship name to the point event IDs
+ */
+type PointRelationships = Record<string, Array<EventId>>;
 
 /**
  * Values of the cluster that are computed
@@ -558,9 +568,20 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
     setPointsAndClusters: async ({ points, clusters }) => {
       const pointCloud = get();
       const eventIdToDataMap = new Map<string, Point>();
-
+      const eventIds = points.map((p) => p.eventId);
+      function getRandomEventId() {
+        return eventIds[Math.floor(Math.random() * eventIds.length)];
+      }
       // Calculate a map of event ID to point data
       points.forEach((p) => {
+        // TODO(mikeldking): remove
+
+        p = {
+          ...p,
+          relationships: {
+            retrieval: [getRandomEventId(), getRandomEventId()],
+          },
+        };
         eventIdToDataMap.set(p.eventId, p);
       });
 
