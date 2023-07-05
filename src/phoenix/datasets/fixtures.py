@@ -290,8 +290,27 @@ llm_summarization_fixture = Fixture(
 wikipedia_fixture = Fixture(
     name="wiki",
     description="""
-    Simple English Wikipedia.
-    """,
+    Semantic search dataset including queries, answers, retrievals and corpus
+    documents. Queries are sampled from Google’s Natural Questions dataset
+    https://ai.google.com/research/NaturalQuestions, and documents (paragraphs)
+    are sampled from http://sbert.net/datasets/simplewiki-2020-11-01.jsonl.gz,
+    based on the Simple English Wikipedia. Embeddings for both questions and
+    documents are generated from the bi-encoder 'multi-qa-MiniLM-L6-cos-v1',
+    which produces normalized vectors that are 384-dimensional. Given a query
+    and its embedding, a small subset of documents are first retrieved based on
+    cosine similarity search on the document embeddings, then relevance scores
+    are computed on the retrieved documents using the cross-encoder
+    'cross-encoder/ms-marco-MiniLM-L-12-v2'. Answers (to the queries) are
+    generated from 'deepset/tinyroberta-squad2' using the most relevant
+    documents as the context input.
+
+    References:
+    - https://www.sbert.net/examples/applications/semantic-search/README.html
+    - https://github.com/UKPLab/sentence-transformers/tree/master/examples/applications/retrieve_rerank
+    - https://www.sbert.net/docs/pretrained_models.html
+    - https://www.sbert.net/docs/pretrained_cross-encoders.html
+    - https://ai.google.com/research/NaturalQuestions
+    """,  # noqa: E501
     primary_schema=Schema(
         prediction_id_column_name="id",
         prompt_column_names=EmbeddingColumnNames(
