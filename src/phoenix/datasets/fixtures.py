@@ -287,6 +287,34 @@ llm_summarization_fixture = Fixture(
     reference_file_name="llm_summarization_baseline.parquet",
 )
 
+wikipedia_fixture = Fixture(
+    name="wiki",
+    description="""
+    Simple English Wikipedia.
+    """,
+    primary_schema=Schema(
+        prediction_id_column_name="id",
+        prompt_column_names=EmbeddingColumnNames(
+            vector_column_name="embedding",
+            raw_data_column_name="question",
+        ),
+        response_column_names=EmbeddingColumnNames(
+            vector_column_name="answer_embedding",
+            raw_data_column_name="answer",
+        ),
+    ),
+    reference_schema=Schema(
+        prediction_id_column_name="id",
+        prompt_column_names=EmbeddingColumnNames(
+            vector_column_name="embedding",
+            raw_data_column_name="text",
+        ),
+    ),
+    prefix="unstructured/search/wiki",
+    primary_file_name="queries.parquet",
+    reference_file_name="corpus.parquet",
+)
+
 FIXTURES: Tuple[Fixture, ...] = (
     sentiment_classification_language_drift_fixture,
     image_classification_fixture,
@@ -297,6 +325,7 @@ FIXTURES: Tuple[Fixture, ...] = (
     wide_data_fixture,
     deep_data_fixture,
     llm_summarization_fixture,
+    wikipedia_fixture,
 )
 NAME_TO_FIXTURE = {fixture.name: fixture for fixture in FIXTURES}
 
