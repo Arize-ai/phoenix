@@ -5,7 +5,7 @@ from typing import NamedTuple, Union, cast
 import numpy as np
 import numpy.typing as npt
 import pandas as pd
-from phoenix.core.model_schema import Column
+from phoenix.core.column import Column
 from phoenix.metrics import Metric
 from phoenix.metrics.metrics import CountNotNull, EuclideanDistance, Mean, VectorMean, VectorSum
 from phoenix.metrics.timeseries import timeseries

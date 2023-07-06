@@ -15,7 +15,7 @@ import numpy as np
 import pandas as pd
 from typing_extensions import TypeAlias
 
-from phoenix.core.model_schema import Column
+from phoenix.core.column import Column
 from phoenix.metrics import Metric
 from phoenix.metrics.binning import (
     AdditiveSmoothing,

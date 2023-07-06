@@ -6,7 +6,7 @@ from starlette.requests import Request
 from starlette.responses import Response
 from starlette.websockets import WebSocket
 
-from phoenix.core.model_schema import Model
+from phoenix.core.model import Model
 
 
 @dataclass

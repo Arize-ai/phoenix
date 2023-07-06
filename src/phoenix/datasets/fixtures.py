@@ -9,7 +9,7 @@ from urllib.parse import quote, urljoin
 from pandas import read_parquet
 
 from phoenix.config import DATASET_DIR
-from phoenix.core.model_schema import DatasetRole
+from phoenix.core.dataset_role import DatasetRole
 from phoenix.datasets.dataset import Dataset
 from phoenix.datasets.schema import (
     EmbeddingColumnNames,

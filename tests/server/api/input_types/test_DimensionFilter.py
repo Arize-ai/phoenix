@@ -2,15 +2,10 @@ from typing import List, Optional
 
 import pytest
 from numpy.testing import assert_almost_equal
-from phoenix.core.model_schema import (
-    ACTUAL_LABEL,
-    ACTUAL_SCORE,
-    CONTINUOUS,
-    DISCRETE,
-    FEATURE,
-    TAG,
-    Dimension,
-)
+from phoenix.core.data_type import CONTINUOUS, DISCRETE
+from phoenix.core.dimension import Dimension
+from phoenix.core.multi_dimensional_role import FEATURE, TAG
+from phoenix.core.singular_dimensional_role import ACTUAL_LABEL, ACTUAL_SCORE
 from phoenix.server.api.input_types.DimensionFilter import DimensionFilter
 from phoenix.server.api.types.DimensionShape import DimensionShape
 from phoenix.server.api.types.DimensionType import DimensionType

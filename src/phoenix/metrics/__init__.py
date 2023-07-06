@@ -6,7 +6,7 @@ from typing import Any, Iterable, List, Mapping, Optional, Union
 import numpy as np
 import pandas as pd
 
-from phoenix.core.model_schema import Column
+from phoenix.core.column import Column
 
 logger = logging.getLogger(__name__)
 

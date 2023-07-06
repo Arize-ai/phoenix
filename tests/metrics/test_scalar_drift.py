@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 from numpy.testing import assert_almost_equal
-from phoenix.core.model_schema import Column
+from phoenix.core.column import Column
 from phoenix.metrics import binning, metrics
 
 column_name = "x"

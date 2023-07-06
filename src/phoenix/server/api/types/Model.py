@@ -7,7 +7,7 @@ from strawberry.unset import UNSET
 from typing_extensions import Annotated
 
 from phoenix.config import get_exported_files
-from phoenix.core.model_schema import PRIMARY, REFERENCE
+from phoenix.core.dataset_role import PRIMARY, REFERENCE
 from phoenix.server.api.context import Context
 
 from ..input_types.DimensionFilter import DimensionFilter

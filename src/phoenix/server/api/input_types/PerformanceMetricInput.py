@@ -1,6 +1,8 @@
 import strawberry
 
-from phoenix.core.model_schema import ACTUAL_LABEL, PREDICTION_LABEL, Column, Model
+from phoenix.core.column import Column
+from phoenix.core.model import Model
+from phoenix.core.singular_dimensional_role import ACTUAL_LABEL, PREDICTION_LABEL
 from phoenix.metrics import Metric
 from phoenix.metrics.mixins import EvaluationMetric
 from phoenix.server.api.types.PerformanceMetric import PerformanceMetric

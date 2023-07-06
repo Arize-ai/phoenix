@@ -2,7 +2,8 @@ from enum import Enum
 
 import strawberry
 
-from phoenix.core.model_schema import CONTINUOUS, Dimension
+from phoenix.core.data_type import CONTINUOUS
+from phoenix.core.dimension import Dimension
 
 
 @strawberry.enum

@@ -6,7 +6,7 @@ import pytest
 import pytz
 from numpy.testing import assert_almost_equal
 from pandas import DataFrame, Series, Timestamp
-from phoenix.core.model_schema import Model
+from phoenix.core.model import Model
 from phoenix.core.model_schema_adapter import create_model_from_datasets
 from phoenix.datasets.dataset import Dataset, EmbeddingColumnNames, Schema
 from phoenix.server.api.context import Context

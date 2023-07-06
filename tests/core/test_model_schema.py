@@ -6,25 +6,21 @@ import numpy as np
 import pandas as pd
 import pytest
 from pandas.testing import assert_series_equal
-from phoenix.core.model_schema import (
+from phoenix.core.dataset_role import PRIMARY, REFERENCE, DatasetRole
+from phoenix.core.dimension import Dimension
+from phoenix.core.embedding import Embedding
+from phoenix.core.invalid_role import InvalidRole
+from phoenix.core.model_schema import ModelSchema
+from phoenix.core.multi_dimensional_role import FEATURE, TAG, MultiDimensionalRole
+from phoenix.core.singular_dimensional_role import (
     ACTUAL_LABEL,
     ACTUAL_SCORE,
-    FEATURE,
     PREDICTION_ID,
     PREDICTION_LABEL,
     PREDICTION_SCORE,
-    PRIMARY,
     PROMPT,
-    REFERENCE,
     RESPONSE,
-    TAG,
     TIMESTAMP,
-    DatasetRole,
-    Dimension,
-    Embedding,
-    InvalidRole,
-    MultiDimensionalRole,
-    Schema,
     SingularDimensionalRole,
 )
 
@@ -41,11 +37,11 @@ response = "response"[::-1]
 
 
 def test_role_precedence() -> None:
-    schema = Schema(prediction_id=prediction_id, features=[prediction_id])
+    schema = ModelSchema(prediction_id=prediction_id, features=[prediction_id])
     model = schema(pd.DataFrame())
     assert model[PREDICTION_ID].name == prediction_id
     assert len(list(model[FEATURE])) == 0
-    schema = Schema(features=[prediction_id], tags=[prediction_id])
+    schema = ModelSchema(features=[prediction_id], tags=[prediction_id])
     model = schema(pd.DataFrame())
     assert next(model[FEATURE]).name == prediction_id
     assert len(list(model[FEATURE])) == 1
@@ -54,14 +50,14 @@ def test_role_precedence() -> None:
 
 def test_column_names_coerced_to_str():
     df = pd.DataFrame(columns=["0", 1, "2"])
-    model = Schema()(df)
+    model = ModelSchema()(df)
     assert set(model[PRIMARY].columns) == set(map(str, model[PRIMARY].columns))
     assert tuple(df.columns) == ("0", 1, "2")
     assert 1 in set(df.columns) - set(model[PRIMARY].columns)
 
 
 def test_df_padding():
-    model = Schema()(pd.DataFrame({"A": [1]}))
+    model = ModelSchema()(pd.DataFrame({"A": [1]}))
     ds_roles = iter(DatasetRole)
     assert not model[next(ds_roles)].empty
     for role in ds_roles:
@@ -71,7 +67,7 @@ def test_df_padding():
 
 
 def test_df_column_insertion():
-    model = Schema()(pd.DataFrame())
+    model = ModelSchema()(pd.DataFrame())
     for ds_role in DatasetRole:
         df = model[ds_role]
         assert model[TIMESTAMP].name in df.columns
@@ -83,7 +79,7 @@ def test_df_column_insertion():
                 assert not was_inserted
 
 
-FULL_SCHEMA = Schema(
+FULL_SCHEMA = ModelSchema(
     prediction_id="ID",
     timestamp="TS",
     prediction_label="A",
@@ -116,7 +112,7 @@ FULL_SCHEMA = Schema(
 
 
 def test_iterable_column_names():
-    assert set(iter(Schema())) == set()
+    assert set(iter(ModelSchema())) == set()
     desired_names = (
         set("ABCDEFGHIJKLMNRSTU")
         | {"ID", "TS"}
@@ -165,7 +161,7 @@ def test_singular_dimensional_role_one_df(
     display_name: str,
     series: "pd.Series[Any]",
 ) -> None:
-    schema = Schema(**{role.name.lower(): column_spec})
+    schema = ModelSchema(**{role.name.lower(): column_spec})
     for _, df in {
         "zero columns": pd.DataFrame(),
         "zero rows": pd.DataFrame({str(column_spec): pd.Series(dtype=series.dtype)}),
@@ -205,41 +201,45 @@ def test_singular_dimensional_role_one_df(
 @pytest.mark.parametrize(
     "schema,dataframes,expected_feature_names",
     [
-        (Schema(features="ABC"), (pd.DataFrame(),), ["ABC"]),
-        (Schema(features=np.array(list("ABCD"))), (pd.DataFrame(),), "ABCD"),
-        (Schema(features=np.array(range(5))), (pd.DataFrame(),), "01234"),
-        (Schema(features=pd.Index(list("ABC"))), (pd.DataFrame(),), "ABC"),
-        (Schema(features=pd.Index(range(3))), (pd.DataFrame(),), "012"),
-        (Schema(features=list("ABC")), (pd.DataFrame(),), "ABC"),
-        (Schema(features=list("ABC")), (pd.DataFrame({"D": []}),), "ABCD"),
-        (Schema(features=list("ABC")), (pd.DataFrame(), pd.DataFrame({"D": []})), "ABCD"),
-        (Schema(features=list("ABC")), (pd.DataFrame({"D": [], "E": []}),), "ABCDE"),
-        (Schema(features=list("ABC")), (pd.DataFrame({"E": []}), pd.DataFrame({"D": []})), "ABCDE"),
-        (Schema(features=["A", Embedding(*"BC")]), (pd.DataFrame(),), "AB"),
+        (ModelSchema(features="ABC"), (pd.DataFrame(),), ["ABC"]),
+        (ModelSchema(features=np.array(list("ABCD"))), (pd.DataFrame(),), "ABCD"),
+        (ModelSchema(features=np.array(range(5))), (pd.DataFrame(),), "01234"),
+        (ModelSchema(features=pd.Index(list("ABC"))), (pd.DataFrame(),), "ABC"),
+        (ModelSchema(features=pd.Index(range(3))), (pd.DataFrame(),), "012"),
+        (ModelSchema(features=list("ABC")), (pd.DataFrame(),), "ABC"),
+        (ModelSchema(features=list("ABC")), (pd.DataFrame({"D": []}),), "ABCD"),
+        (ModelSchema(features=list("ABC")), (pd.DataFrame(), pd.DataFrame({"D": []})), "ABCD"),
+        (ModelSchema(features=list("ABC")), (pd.DataFrame({"D": [], "E": []}),), "ABCDE"),
         (
-            Schema(features=["A", Embedding(*"BC")]),
+            ModelSchema(features=list("ABC")),
+            (pd.DataFrame({"E": []}), pd.DataFrame({"D": []})),
+            "ABCDE",
+        ),
+        (ModelSchema(features=["A", Embedding(*"BC")]), (pd.DataFrame(),), "AB"),
+        (
+            ModelSchema(features=["A", Embedding(*"BC")]),
             (pd.DataFrame({"B": []}), pd.DataFrame({"C": []})),
             "AB",
         ),
         (
-            Schema(features=["A", Embedding(*"BD")]),
+            ModelSchema(features=["A", Embedding(*"BD")]),
             (pd.DataFrame({"C": []}), pd.DataFrame({"D": []})),
             "ABC",
         ),
         (
-            Schema(features=["A", Embedding(*"BDE")]),
+            ModelSchema(features=["A", Embedding(*"BDE")]),
             (pd.DataFrame({"C": [], "E": []}), pd.DataFrame({"D": []})),
             "ABC",
         ),
         (
-            Schema(features=["A", Embedding(*"BDE")], tags=["C"]),
+            ModelSchema(features=["A", Embedding(*"BDE")], tags=["C"]),
             (pd.DataFrame({"C": [], "E": []}), pd.DataFrame({"D": []})),
             "AB",
         ),
     ],
 )
 def test_feature_names(
-    schema: Schema,
+    schema: ModelSchema,
     dataframes: Iterable[pd.DataFrame],
     expected_feature_names: Iterable[str],
 ) -> None:
@@ -250,36 +250,36 @@ def test_feature_names(
 @pytest.mark.parametrize(
     "schema,dataframes,expected_tag_names",
     [
-        (Schema(tags="ABC"), (pd.DataFrame(),), ["ABC"]),
-        (Schema(tags=np.array(list("ABCD"))), (pd.DataFrame(),), "ABCD"),
-        (Schema(tags=np.array(range(5))), (pd.DataFrame(),), "01234"),
-        (Schema(tags=pd.Index(list("ABC"))), (pd.DataFrame(),), "ABC"),
-        (Schema(tags=pd.Index(range(3))), (pd.DataFrame(),), "012"),
-        (Schema(tags=list("ABC")), (pd.DataFrame(),), "ABC"),
-        (Schema(tags=list("ABC")), (pd.DataFrame({"D": []}),), "ABC"),
-        (Schema(tags=list("ABC")), (pd.DataFrame(), pd.DataFrame({"D": []})), "ABC"),
-        (Schema(tags=list("ABC")), (pd.DataFrame({"D": [], "E": []}),), "ABC"),
-        (Schema(tags=list("ABC")), (pd.DataFrame({"E": []}), pd.DataFrame({"D": []})), "ABC"),
-        (Schema(tags=["A", Embedding(*"BC")]), (pd.DataFrame(),), "AB"),
+        (ModelSchema(tags="ABC"), (pd.DataFrame(),), ["ABC"]),
+        (ModelSchema(tags=np.array(list("ABCD"))), (pd.DataFrame(),), "ABCD"),
+        (ModelSchema(tags=np.array(range(5))), (pd.DataFrame(),), "01234"),
+        (ModelSchema(tags=pd.Index(list("ABC"))), (pd.DataFrame(),), "ABC"),
+        (ModelSchema(tags=pd.Index(range(3))), (pd.DataFrame(),), "012"),
+        (ModelSchema(tags=list("ABC")), (pd.DataFrame(),), "ABC"),
+        (ModelSchema(tags=list("ABC")), (pd.DataFrame({"D": []}),), "ABC"),
+        (ModelSchema(tags=list("ABC")), (pd.DataFrame(), pd.DataFrame({"D": []})), "ABC"),
+        (ModelSchema(tags=list("ABC")), (pd.DataFrame({"D": [], "E": []}),), "ABC"),
+        (ModelSchema(tags=list("ABC")), (pd.DataFrame({"E": []}), pd.DataFrame({"D": []})), "ABC"),
+        (ModelSchema(tags=["A", Embedding(*"BC")]), (pd.DataFrame(),), "AB"),
         (
-            Schema(tags=["A", Embedding(*"BC")]),
+            ModelSchema(tags=["A", Embedding(*"BC")]),
             (pd.DataFrame({"B": []}), pd.DataFrame({"C": []})),
             "AB",
         ),
         (
-            Schema(tags=["A", Embedding(*"BD")]),
+            ModelSchema(tags=["A", Embedding(*"BD")]),
             (pd.DataFrame({"C": []}), pd.DataFrame({"D": []})),
             "AB",
         ),
         (
-            Schema(tags=["A", Embedding(*"BDE")]),
+            ModelSchema(tags=["A", Embedding(*"BDE")]),
             (pd.DataFrame({"C": [], "E": []}), pd.DataFrame({"D": []})),
             "AB",
         ),
     ],
 )
 def test_tag_names(
-    schema: Schema,
+    schema: ModelSchema,
     dataframes: Iterable[pd.DataFrame],
     expected_tag_names: Iterable[str],
 ) -> None:
@@ -290,12 +290,12 @@ def test_tag_names(
 @pytest.mark.parametrize(
     "schema,dataframes",
     [
-        (Schema(), ()),
-        (Schema(), [pd.DataFrame()] * (1 + len(DatasetRole))),
+        (ModelSchema(), ()),
+        (ModelSchema(), [pd.DataFrame()] * (1 + len(DatasetRole))),
     ],
 )
 def test_wrong_number_of_df(
-    schema: Schema,
+    schema: ModelSchema,
     dataframes: Iterable[pd.DataFrame],
 ) -> None:
     with pytest.raises(ValueError):
@@ -306,7 +306,7 @@ def test_scalar_dimensions_extraction() -> None:
     assert dict(
         map(
             lambda dim: (str(dim), dim.role),
-            Schema(
+            ModelSchema(
                 prediction_id="A",
                 timestamp="B",
                 features=["C", Embedding("E")],
@@ -322,7 +322,7 @@ def test_embedding_dimensions_extraction() -> None:
     assert dict(
         map(
             lambda dim: (str(dim), dim.role),
-            Schema(
+            ModelSchema(
                 prediction_id="A",
                 timestamp="B",
                 features=["C", Embedding("E")],
@@ -348,25 +348,25 @@ def test_raise_if_dim_role_is_unassigned():
 @pytest.mark.parametrize(
     "schema",
     [
-        Schema(),
-        Schema(prediction_id="ID"),
-        Schema(timestamp="TS"),
-        Schema(prediction_label="A"),
-        Schema(prediction_score="AA"),
-        Schema(actual_label="B"),
-        Schema(actual_score="BB"),
-        Schema(prompt=Embedding("C")),
-        Schema(prompt=Embedding("C", "CC")),
-        Schema(prompt=Embedding("C", "CC", "CCC")),
-        Schema(prompt=Embedding("C", "CC", "CCC", "CCCC")),
-        Schema(response=Embedding("D")),
-        Schema(response=Embedding("D", "DD")),
-        Schema(response=Embedding("D", "DD", "DDD")),
-        Schema(response=Embedding("D", "DD", "DDD", "DDDD")),
-        Schema(features=FULL_SCHEMA.features),
-        Schema(tags=FULL_SCHEMA.tags),
+        ModelSchema(),
+        ModelSchema(prediction_id="ID"),
+        ModelSchema(timestamp="TS"),
+        ModelSchema(prediction_label="A"),
+        ModelSchema(prediction_score="AA"),
+        ModelSchema(actual_label="B"),
+        ModelSchema(actual_score="BB"),
+        ModelSchema(prompt=Embedding("C")),
+        ModelSchema(prompt=Embedding("C", "CC")),
+        ModelSchema(prompt=Embedding("C", "CC", "CCC")),
+        ModelSchema(prompt=Embedding("C", "CC", "CCC", "CCCC")),
+        ModelSchema(response=Embedding("D")),
+        ModelSchema(response=Embedding("D", "DD")),
+        ModelSchema(response=Embedding("D", "DD", "DDD")),
+        ModelSchema(response=Embedding("D", "DD", "DDD", "DDDD")),
+        ModelSchema(features=FULL_SCHEMA.features),
+        ModelSchema(tags=FULL_SCHEMA.tags),
         FULL_SCHEMA,
     ],
 )
-def test_schema_to_json(schema: Schema):
-    assert schema == Schema.from_json(schema.to_json())
+def test_schema_to_json(schema: ModelSchema):
+    assert schema == ModelSchema.from_json(schema.to_json())

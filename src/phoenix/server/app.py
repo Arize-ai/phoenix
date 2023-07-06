@@ -18,7 +18,7 @@ from strawberry.asgi import GraphQL
 from strawberry.schema import BaseSchema
 
 from phoenix.config import SERVER_DIR
-from phoenix.core.model_schema import Model
+from phoenix.core.model import Model
 
 from .api.context import Context
 from .api.schema import schema

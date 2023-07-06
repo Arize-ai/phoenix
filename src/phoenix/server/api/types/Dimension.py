@@ -7,8 +7,10 @@ from strawberry import UNSET
 from strawberry.types import Info
 from typing_extensions import Annotated
 
-import phoenix.core.model_schema as ms
-from phoenix.core.model_schema import CONTINUOUS, PRIMARY, REFERENCE, ScalarDimension
+import phoenix.core.dataset_role as dr
+from phoenix.core.data_type import CONTINUOUS
+from phoenix.core.dataset_role import PRIMARY, REFERENCE
+from phoenix.core.scalar_dimension import ScalarDimension
 from phoenix.metrics import binning
 from phoenix.metrics.metrics import Count
 from phoenix.metrics.timeseries import row_interval_from_sorted_time_index
@@ -241,8 +243,8 @@ class Dimension(Node):
         if isinstance(binning_method, binning.IntervalBinning) and binning_method.bins is not None:
             all_bins = all_bins.union(binning_method.bins)
         for bin in all_bins:
-            values: Dict[ms.DatasetRole, Any] = defaultdict(lambda: None)
-            for role in ms.DatasetRole:
+            values: Dict[dr.DatasetRole, Any] = defaultdict(lambda: None)
+            for role in dr.DatasetRole:
                 if model[role].empty:
                     continue
                 try:

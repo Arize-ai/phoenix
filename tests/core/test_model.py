@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import pytest
 from pandas import DataFrame, Timestamp
-from phoenix.core.model import EmbeddingDimension, _get_embedding_dimensions
+from phoenix.core.validations import EmbeddingDimension, get_embedding_dimensions
 from phoenix.datasets.dataset import Dataset, EmbeddingColumnNames, Schema
 
 
@@ -89,13 +89,13 @@ def test_invalid_model_embeddings_primary_and_ref_embedding_size_mismatch(
     dataset_with_embedding_vector, dataset_with_large_embedding_vector
 ):
     with pytest.raises(ValueError):
-        _ = _get_embedding_dimensions(
+        _ = get_embedding_dimensions(
             dataset_with_embedding_vector, dataset_with_large_embedding_vector
         )
 
 
 def test_valid_model_embeddings(dataset_with_embedding_vector):
-    embedding_dimensions = _get_embedding_dimensions(
+    embedding_dimensions = get_embedding_dimensions(
         dataset_with_embedding_vector, dataset_with_embedding_vector
     )
     assert len(embedding_dimensions) == 2
@@ -123,7 +123,7 @@ def test_valid_model_embeddings_one_dataset_missing_embeddings_feature(
     )
     dataset_with_missing_embedding_vector = Dataset(dataframe=input_dataframe, schema=input_schema)
 
-    embedding_dimensions = _get_embedding_dimensions(
+    embedding_dimensions = get_embedding_dimensions(
         dataset_with_embedding_vector, dataset_with_missing_embedding_vector
     )
     assert len(embedding_dimensions) == 2
@@ -135,7 +135,7 @@ def test_valid_model_embeddings_one_dataset_missing_embeddings_feature(
 
 def test_valid_model_with_nan_embeddings(dataset_with_embedding_vector):
     dataset_with_embedding_vector.dataframe["embedding_vector0"] = np.nan
-    embedding_dimensions = _get_embedding_dimensions(
+    embedding_dimensions = get_embedding_dimensions(
         dataset_with_embedding_vector,
         dataset_with_embedding_vector,
     )

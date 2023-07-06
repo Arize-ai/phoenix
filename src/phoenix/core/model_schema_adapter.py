@@ -7,8 +7,10 @@ from pandas.api.types import is_object_dtype
 from typing_extensions import TypeAlias, TypeGuard
 
 from phoenix import Dataset, EmbeddingColumnNames
-from phoenix.core.model import _get_embedding_dimensions
-from phoenix.core.model_schema import Embedding, Model, Schema
+from phoenix.core.embedding import Embedding
+from phoenix.core.model import Model
+from phoenix.core.model_schema import ModelSchema
+from phoenix.core.validations import get_embedding_dimensions
 from phoenix.datasets.schema import Schema as DatasetSchema
 
 DatasetName: TypeAlias = str
@@ -21,7 +23,7 @@ def create_model_from_datasets(*datasets: Optional[Dataset]) -> Model:
     if len(datasets) > 1 and datasets[0] is not None:
         # Check that for each embedding dimension all vectors
         # have the same length between datasets.
-        _ = _get_embedding_dimensions(datasets[0], datasets[1])
+        _ = get_embedding_dimensions(datasets[0], datasets[1])
 
     named_dataframes: List[Tuple[DatasetName, pd.DataFrame]] = []
     prediction_ids: List[ColumnName] = []
@@ -102,7 +104,7 @@ def create_model_from_datasets(*datasets: Optional[Dataset]) -> Model:
         for display_name, embedding in embeddings.items()
     )
 
-    return Schema(
+    return ModelSchema(
         prediction_id=_take_first_str(prediction_ids),
         timestamp=_take_first_str(timestamps),
         prediction_label=_take_first_str(prediction_labels),

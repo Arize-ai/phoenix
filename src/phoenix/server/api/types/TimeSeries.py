@@ -7,7 +7,11 @@ import pandas as pd
 import strawberry
 from strawberry import UNSET
 
-from phoenix.core.model_schema import CONTINUOUS, PRIMARY, REFERENCE, Column, Dataset, Dimension
+from phoenix.core.column import Column
+from phoenix.core.data_type import CONTINUOUS
+from phoenix.core.dataset import Dataset
+from phoenix.core.dataset_role import PRIMARY, REFERENCE
+from phoenix.core.dimension import Dimension
 from phoenix.metrics import Metric, binning
 from phoenix.metrics.mixins import UnaryOperator
 from phoenix.metrics.timeseries import timeseries

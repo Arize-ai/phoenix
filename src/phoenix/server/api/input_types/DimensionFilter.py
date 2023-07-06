@@ -3,7 +3,7 @@ from typing import List, Optional
 import strawberry
 from strawberry import UNSET
 
-from phoenix.core.model_schema import Dimension
+from phoenix.core.dimension import Dimension
 from phoenix.server.api.helpers import ensure_list
 from phoenix.server.api.types.DimensionDataType import DimensionDataType
 from phoenix.server.api.types.DimensionShape import DimensionShape

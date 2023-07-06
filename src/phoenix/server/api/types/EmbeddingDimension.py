@@ -11,17 +11,17 @@ from strawberry.scalars import ID
 from strawberry.types import Info
 from typing_extensions import Annotated
 
-import phoenix.core.model_schema as ms
-from phoenix.core.model_schema import (
+import phoenix.core.dataset_role as dr
+import phoenix.core.embedding_dimension as ed
+from phoenix.core.dataset import Dataset
+from phoenix.core.dataset_role import PRIMARY, REFERENCE
+from phoenix.core.record_id import RecordId
+from phoenix.core.singular_dimensional_role import (
     ACTUAL_LABEL,
     ACTUAL_SCORE,
     PREDICTION_ID,
     PREDICTION_LABEL,
     PREDICTION_SCORE,
-    PRIMARY,
-    REFERENCE,
-    Dataset,
-    EventId,
 )
 from phoenix.metrics.timeseries import row_interval_from_sorted_time_index
 from phoenix.pointcloud.clustering import Hdbscan
@@ -66,7 +66,7 @@ class EmbeddingDimension(Node):
     """A embedding dimension of a model. Represents unstructured data"""
 
     name: str
-    dimension: strawberry.Private[ms.EmbeddingDimension]
+    dimension: strawberry.Private[ed.EmbeddingDimension]
 
     @strawberry.field(
         description=(
@@ -226,7 +226,7 @@ class EmbeddingDimension(Node):
         ] = DEFAULT_CLUSTER_SELECTION_EPSILON,
     ) -> UMAPPoints:
         model = info.context.model
-        data: Dict[EventId, npt.NDArray[np.float64]] = {}
+        data: Dict[RecordId, npt.NDArray[np.float64]] = {}
         for dataset in model[Dataset]:
             dataset_id = dataset.role
             row_id_start, row_id_stop = 0, len(dataset)
@@ -250,7 +250,7 @@ class EmbeddingDimension(Node):
                 # of dunder method __len__.
                 if not hasattr(embedding_vector, "__len__"):
                     continue
-                event_id = EventId(row_id, dataset_id)
+                event_id = RecordId(row_id, dataset_id)
                 data[event_id] = embedding_vector
                 samples_collected += 1
 
@@ -268,7 +268,7 @@ class EmbeddingDimension(Node):
             ),
         ).generate(data, n_components=n_components)
 
-        points: Dict[ms.DatasetRole, List[UMAPPoint]] = defaultdict(list)
+        points: Dict[dr.DatasetRole, List[UMAPPoint]] = defaultdict(list)
         for event_id, vector in vectors.items():
             row_id = event_id.row_id
             dataset_id = event_id.dataset_id
@@ -317,7 +317,7 @@ def _row_indices(
 
 def to_gql_embedding_dimension(
     id_attr: int,
-    embedding_dimension: ms.EmbeddingDimension,
+    embedding_dimension: ed.EmbeddingDimension,
 ) -> EmbeddingDimension:
     """
     Converts a phoenix.core.model_schema.EmbeddingDimension to a

@@ -4,8 +4,12 @@ from typing import Dict, List, Optional, Tuple, cast
 import strawberry
 from strawberry import ID
 
-import phoenix.core.model_schema as ms
-from phoenix.core.model_schema import (
+import phoenix.core.embedding_dimension as ed
+import phoenix.core.event as e
+import phoenix.core.model as m
+from phoenix.core.dataset_role import DatasetRole
+from phoenix.core.record_id import RecordId
+from phoenix.core.singular_dimensional_role import (
     ACTUAL_LABEL,
     ACTUAL_SCORE,
     PREDICTION_ID,
@@ -13,8 +17,6 @@ from phoenix.core.model_schema import (
     PREDICTION_SCORE,
     PROMPT,
     RESPONSE,
-    DatasetRole,
-    EventId,
 )
 
 from ..interceptor import GqlValueMediator
@@ -37,10 +39,10 @@ class Event:
 
 def unpack_event_id(
     event_id: ID,
-) -> Tuple[int, ms.DatasetRole]:
+) -> Tuple[int, DatasetRole]:
     row_id_str, dataset_role_str = str(event_id).split(":")
     row_id = int(row_id_str)
-    dataset_role = ms.DatasetRole[dataset_role_str.split(".")[-1]]
+    dataset_role = DatasetRole[dataset_role_str.split(".")[-1]]
     return row_id, dataset_role
 
 
@@ -56,7 +58,7 @@ def parse_event_ids(event_ids: List[ID]) -> Dict[DatasetRole, List[int]]:
 
 
 def create_event(
-    event: ms.Event,
+    event: e.Event,
     dimensions: List[Dimension],
 ) -> Event:
     """
@@ -79,9 +81,17 @@ def create_event(
     ]
     row_id = event.id.row_id
     dataset_id = event.id.dataset_id
-    prompt = event[cast(ms.EmbeddingDimension, cast(ms.Model, event._self_model)[PROMPT]).raw_data]
+    prompt = event[
+        cast(
+            ed.EmbeddingDimension,
+            cast(m.Model, event._self_model)[PROMPT],
+        ).raw_data
+    ]
     response = event[
-        cast(ms.EmbeddingDimension, cast(ms.Model, event._self_model)[RESPONSE]).raw_data
+        cast(
+            ed.EmbeddingDimension,
+            cast(m.Model, event._self_model)[RESPONSE],
+        ).raw_data
     ]
     prompt_and_response = (
         PromptResponse(
@@ -91,7 +101,7 @@ def create_event(
         or None
     )
     return Event(
-        id=ID(str(EventId(row_id=row_id, dataset_id=dataset_id))),
+        id=ID(str(RecordId(row_id=row_id, dataset_id=dataset_id))),
         eventMetadata=event_metadata,
         dimensions=dimensions_with_values,
         prompt_and_response=prompt_and_response,

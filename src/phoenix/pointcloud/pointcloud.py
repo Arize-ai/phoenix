@@ -5,7 +5,7 @@ import numpy as np
 import numpy.typing as npt
 from typing_extensions import TypeAlias
 
-from phoenix.core.model_schema import EventId
+from phoenix.core.record_id import RecordId
 from phoenix.pointcloud.clustering import RawCluster
 
 Vector: TypeAlias = npt.NDArray[np.float64]
@@ -30,9 +30,9 @@ class PointCloud:
 
     def generate(
         self,
-        data: Mapping[EventId, Vector],
+        data: Mapping[RecordId, Vector],
         n_components: int = 3,
-    ) -> Tuple[Dict[EventId, Vector], Dict[str, Set[EventId]]]:
+    ) -> Tuple[Dict[RecordId, Vector], Dict[str, Set[RecordId]]]:
         """
         Given a set of vectors, projects them onto lower dimensions, and
         finds clusters among the projections.

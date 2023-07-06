@@ -5,7 +5,7 @@ import strawberry
 from strawberry import UNSET
 from typing_extensions import Annotated
 
-from phoenix.core.model_schema import Column
+from phoenix.core.column import Column
 from phoenix.metrics import Metric
 from phoenix.metrics.mixins import UnaryOperator
 from phoenix.server.api.types.DataQualityMetric import DataQualityMetric

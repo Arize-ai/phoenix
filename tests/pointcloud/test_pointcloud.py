@@ -5,7 +5,7 @@ from typing import Dict, List, Set
 import numpy as np
 import numpy.typing as npt
 import pytest
-from phoenix.core.model_schema import EventId
+from phoenix.core.record_id import RecordId
 from phoenix.pointcloud.pointcloud import PointCloud
 
 
@@ -34,7 +34,7 @@ class MockClustersFinder:
 def test_point_cloud(samp_size: int, n_features: int, n_components: int, n_clusters: int) -> None:
     cluster_assignments = dict(zip(range(samp_size), cycle(range(n_clusters))))
 
-    data = {EventId(row_id=i): np.random.rand(1, n_features) for i in range(samp_size)}
+    data = {RecordId(row_id=i): np.random.rand(1, n_features) for i in range(samp_size)}
 
     points, clustered_events = PointCloud(
         dimensionalityReducer=(MockDimensionalityReducer(samp_size)),

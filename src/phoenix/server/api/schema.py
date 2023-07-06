@@ -8,7 +8,8 @@ from strawberry import ID, UNSET
 from strawberry.types import Info
 from typing_extensions import Annotated
 
-from phoenix.core.model_schema import PRIMARY, REFERENCE, EventId
+from phoenix.core.dataset_role import PRIMARY, REFERENCE
+from phoenix.core.record_id import RecordId
 from phoenix.pointcloud.clustering import Hdbscan
 from phoenix.server.api.helpers import ensure_list
 from phoenix.server.api.input_types.ClusterInput import ClusterInput
@@ -52,10 +53,10 @@ class Query:
         self,
         clusters: List[ClusterInput],
     ) -> List[Cluster]:
-        clustered_events: Dict[str, Set[EventId]] = defaultdict(set)
+        clustered_events: Dict[str, Set[RecordId]] = defaultdict(set)
         for i, cluster in enumerate(clusters):
             clustered_events[cluster.id or str(i)].update(
-                starmap(EventId, map(unpack_event_id, cluster.event_ids))
+                starmap(RecordId, map(unpack_event_id, cluster.event_ids))
             )
         return to_gql_clusters(
             clustered_events=clustered_events,
@@ -144,7 +145,7 @@ class Query:
             row_id, dataset_role = unpack_event_id(event_id)
             grouped_coordinates[dataset_role].append(coordinate)
             grouped_event_ids[dataset_role].append(
-                EventId(
+                RecordId(
                     row_id=row_id,
                     dataset_id=dataset_role,
                 )

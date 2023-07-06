@@ -7,7 +7,7 @@ import strawberry
 from strawberry import ID, UNSET
 from strawberry.types import Info
 
-from phoenix.core.model_schema import DatasetRole
+from phoenix.core.dataset_role import DatasetRole
 from phoenix.server.api.context import Context
 from phoenix.server.api.input_types.ClusterInput import ClusterInput
 from phoenix.server.api.types.Event import parse_event_ids, unpack_event_id

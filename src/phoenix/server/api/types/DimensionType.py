@@ -2,14 +2,13 @@ from enum import Enum
 
 import strawberry
 
-from phoenix.core.model_schema import (
+from phoenix.core.dimension import Dimension
+from phoenix.core.multi_dimensional_role import FEATURE, TAG
+from phoenix.core.singular_dimensional_role import (
     ACTUAL_LABEL,
     ACTUAL_SCORE,
-    FEATURE,
     PREDICTION_LABEL,
     PREDICTION_SCORE,
-    TAG,
-    Dimension,
 )
 
 

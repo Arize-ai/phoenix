@@ -7,7 +7,7 @@ import pandas as pd
 import pytest
 from numpy.testing import assert_almost_equal
 from pandas.testing import assert_series_equal
-from phoenix.core.model_schema import Column
+from phoenix.core.column import Column
 from phoenix.metrics import Metric, binning
 from phoenix.metrics.metrics import Count, CountNotNull, Max
 

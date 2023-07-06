@@ -6,8 +6,9 @@ from strawberry.scalars import ID
 from strawberry.types import Info
 from strawberry.unset import UNSET
 
-import phoenix.core.model_schema as ms
-from phoenix.core.model_schema import FEATURE, TAG, ScalarDimension
+import phoenix.core.dataset as d
+from phoenix.core.multi_dimensional_role import FEATURE, TAG
+from phoenix.core.scalar_dimension import ScalarDimension
 
 from ..context import Context
 from ..input_types.DimensionInput import DimensionInput
@@ -19,7 +20,7 @@ from .Event import Event, create_event, parse_event_ids
 class Dataset:
     start_time: datetime = strawberry.field(description="The start bookend of the data")
     end_time: datetime = strawberry.field(description="The end bookend of the data")
-    dataset: strawberry.Private[ms.Dataset]
+    dataset: strawberry.Private[d.Dataset]
 
     # type ignored here to get around the following: https://github.com/strawberry-graphql/strawberry/issues/1929
     @strawberry.field(description="Returns a human friendly name for the dataset.")  # type: ignore
