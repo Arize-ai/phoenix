@@ -897,7 +897,7 @@ class Model:
             rows = pd.Series(sorted(set(numbers)))
             filtered_df = df.iloc[rows, columns].reset_index(drop=True)
             if model_has_multiple_datasets:
-                filtered_df["__phoenix_dataset_name__"] = df.name
+                filtered_df["__phoenix_dataset_name__"] = df.display_name
             if cluster_ids and (ids := cluster_ids.get(dataset_role)):
                 filtered_df["__phoenix_cluster_id__"] = rows.apply(ids.get)
             export_dataframes.append(filtered_df)
