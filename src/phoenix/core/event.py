@@ -3,8 +3,8 @@ from typing import Any, overload
 import numpy as np
 import pandas as pd
 
+from phoenix.core.event_id import EventId
 from phoenix.core.model_data import ModelData
-from phoenix.core.record_id import RecordId
 from phoenix.core.types import ColumnKey
 
 
@@ -15,14 +15,14 @@ class Event(ModelData):
         self,
         series: "pd.Series[Any]",
         /,
-        event_id: RecordId,
+        event_id: EventId,
         **kwargs: Any,
     ) -> None:
         super().__init__(series, **kwargs)
         self._self_id = event_id
 
     @property
-    def id(self) -> RecordId:
+    def id(self) -> EventId:
         return self._self_id
 
     def null_value(self) -> float:

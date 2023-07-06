@@ -6,7 +6,7 @@ from strawberry import ID
 from strawberry.types import Info
 
 from phoenix.core.dataset_role import PRIMARY, REFERENCE, DatasetRole
-from phoenix.core.record_id import RecordId
+from phoenix.core.event_id import EventId
 from phoenix.server.api.context import Context
 from phoenix.server.api.input_types.DataQualityMetricInput import DataQualityMetricInput
 from phoenix.server.api.input_types.PerformanceMetricInput import PerformanceMetricInput
@@ -21,7 +21,7 @@ class Cluster:
         description="The ID of the cluster",
     )
 
-    events: strawberry.Private[Set[RecordId]]
+    events: strawberry.Private[Set[EventId]]
 
     @strawberry.field(
         description="The event IDs of the points in the cluster",
@@ -106,7 +106,7 @@ class Cluster:
 
 
 def to_gql_clusters(
-    clustered_events: Mapping[str, Set[RecordId]],
+    clustered_events: Mapping[str, Set[EventId]],
 ) -> List[Cluster]:
     """
     Converts a dictionary of event IDs to cluster IDs to a list of clusters
@@ -114,7 +114,7 @@ def to_gql_clusters(
 
     Parameters
     ----------
-    cluster_membership: Mapping[str, Set[RecordId]]
+    cluster_membership: Mapping[str, Set[EventId]]
         A mapping of cluster ID to its set of event IDs
     """
 

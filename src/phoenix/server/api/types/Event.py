@@ -8,7 +8,7 @@ import phoenix.core.embedding_dimension as ed
 import phoenix.core.event as e
 import phoenix.core.model as m
 from phoenix.core.dataset_role import DatasetRole
-from phoenix.core.record_id import RecordId
+from phoenix.core.event_id import EventId
 from phoenix.core.singular_dimensional_role import (
     ACTUAL_LABEL,
     ACTUAL_SCORE,
@@ -101,7 +101,7 @@ def create_event(
         or None
     )
     return Event(
-        id=ID(str(RecordId(row_id=row_id, dataset_id=dataset_id))),
+        id=ID(str(EventId(row_id=row_id, dataset_id=dataset_id))),
         eventMetadata=event_metadata,
         dimensions=dimensions_with_values,
         prompt_and_response=prompt_and_response,

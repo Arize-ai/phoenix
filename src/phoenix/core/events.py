@@ -6,9 +6,9 @@ import pandas as pd
 
 from phoenix.core.dataset_role import DatasetRole
 from phoenix.core.event import Event
+from phoenix.core.event_id import EventId
 from phoenix.core.helpers import agg_min_max
 from phoenix.core.model_data import Model, ModelData
-from phoenix.core.record_id import RecordId
 from phoenix.core.singular_dimensional_role import TIMESTAMP
 from phoenix.core.time_range import TimeRange
 from phoenix.core.types import ColumnKey, RowId
@@ -52,7 +52,7 @@ class Events(ModelData):
         for i, event in self.iterrows():
             yield Event(
                 event,
-                event_id=RecordId(i, self._self_role),
+                event_id=EventId(i, self._self_role),
                 _model=self._self_model,
             )
 

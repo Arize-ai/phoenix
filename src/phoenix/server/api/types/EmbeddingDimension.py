@@ -15,7 +15,7 @@ import phoenix.core.dataset_role as dr
 import phoenix.core.embedding_dimension as ed
 from phoenix.core.dataset import Dataset
 from phoenix.core.dataset_role import PRIMARY, REFERENCE
-from phoenix.core.record_id import RecordId
+from phoenix.core.event_id import EventId
 from phoenix.core.singular_dimensional_role import (
     ACTUAL_LABEL,
     ACTUAL_SCORE,
@@ -226,7 +226,7 @@ class EmbeddingDimension(Node):
         ] = DEFAULT_CLUSTER_SELECTION_EPSILON,
     ) -> UMAPPoints:
         model = info.context.model
-        data: Dict[RecordId, npt.NDArray[np.float64]] = {}
+        data: Dict[EventId, npt.NDArray[np.float64]] = {}
         for dataset in model[Dataset]:
             dataset_id = dataset.role
             row_id_start, row_id_stop = 0, len(dataset)
@@ -250,7 +250,7 @@ class EmbeddingDimension(Node):
                 # of dunder method __len__.
                 if not hasattr(embedding_vector, "__len__"):
                     continue
-                event_id = RecordId(row_id, dataset_id)
+                event_id = EventId(row_id, dataset_id)
                 data[event_id] = embedding_vector
                 samples_collected += 1
 
