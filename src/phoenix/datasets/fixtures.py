@@ -11,7 +11,11 @@ from pandas import read_parquet
 from phoenix.config import DATASET_DIR
 from phoenix.core.model_schema import DatasetRole
 from phoenix.datasets.dataset import Dataset
-from phoenix.datasets.schema import EmbeddingColumnNames, Schema
+from phoenix.datasets.schema import (
+    EmbeddingColumnNames,
+    RelationshipColumnNames,
+    Schema,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -321,6 +325,11 @@ wikipedia_fixture = Fixture(
             vector_column_name="answer_embedding",
             raw_data_column_name="answer",
         ),
+        relationship_column_names={
+            "retrieval": RelationshipColumnNames(
+                ids_column_name="retrievals",
+            )
+        },
     ),
     reference_schema=Schema(
         prediction_id_column_name="id",
