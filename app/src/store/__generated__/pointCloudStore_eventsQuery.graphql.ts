@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c752f20798bf8d71d186dca8b82f77d9>>
+ * @generated SignedSource<<ca94edce5413eb85684fcc1bc68ea077>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -27,7 +27,9 @@ export type pointCloudStore_eventsQuery$data = {
         }>;
         readonly eventMetadata: {
           readonly actualLabel: string | null;
+          readonly actualScore: number | null;
           readonly predictionLabel: string | null;
+          readonly predictionScore: number | null;
         };
         readonly id: string;
         readonly promptAndResponse: {
@@ -48,7 +50,9 @@ export type pointCloudStore_eventsQuery$data = {
         }>;
         readonly eventMetadata: {
           readonly actualLabel: string | null;
+          readonly actualScore: number | null;
           readonly predictionLabel: string | null;
+          readonly predictionScore: number | null;
         };
         readonly id: string;
         readonly promptAndResponse: {
@@ -124,7 +128,21 @@ v5 = {
       "alias": null,
       "args": null,
       "kind": "ScalarField",
+      "name": "predictionScore",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
       "name": "actualLabel",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "actualScore",
       "storageKey": null
     }
   ],
@@ -299,16 +317,16 @@ return {
     "selections": (v7/*: any*/)
   },
   "params": {
-    "cacheID": "4001e8c17e0d700200f56c1701565a80",
+    "cacheID": "03ba803e54bb43ab5c55f352f0428bb6",
     "id": null,
     "metadata": {},
     "name": "pointCloudStore_eventsQuery",
     "operationKind": "query",
-    "text": "query pointCloudStore_eventsQuery(\n  $primaryEventIds: [ID!]!\n  $referenceEventIds: [ID!]!\n) {\n  model {\n    primaryDataset {\n      events(eventIds: $primaryEventIds) {\n        id\n        dimensions {\n          dimension {\n            name\n            type\n          }\n          value\n        }\n        eventMetadata {\n          predictionLabel\n          actualLabel\n        }\n        promptAndResponse {\n          prompt\n          response\n        }\n      }\n    }\n    referenceDataset {\n      events(eventIds: $referenceEventIds) {\n        id\n        dimensions {\n          dimension {\n            id\n            name\n            type\n          }\n          value\n        }\n        eventMetadata {\n          predictionLabel\n          actualLabel\n        }\n        promptAndResponse {\n          prompt\n          response\n        }\n      }\n    }\n  }\n}\n"
+    "text": "query pointCloudStore_eventsQuery(\n  $primaryEventIds: [ID!]!\n  $referenceEventIds: [ID!]!\n) {\n  model {\n    primaryDataset {\n      events(eventIds: $primaryEventIds) {\n        id\n        dimensions {\n          dimension {\n            name\n            type\n          }\n          value\n        }\n        eventMetadata {\n          predictionLabel\n          predictionScore\n          actualLabel\n          actualScore\n        }\n        promptAndResponse {\n          prompt\n          response\n        }\n      }\n    }\n    referenceDataset {\n      events(eventIds: $referenceEventIds) {\n        id\n        dimensions {\n          dimension {\n            id\n            name\n            type\n          }\n          value\n        }\n        eventMetadata {\n          predictionLabel\n          predictionScore\n          actualLabel\n          actualScore\n        }\n        promptAndResponse {\n          prompt\n          response\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "0fbd4c521362be2f4b22de5ac30bb311";
+(node as any).hash = "99cb985aa2e7342832a9c8ba0189e619";
 
 export default node;

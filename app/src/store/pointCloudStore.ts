@@ -38,6 +38,12 @@ import {
  */
 const NUM_NUMERIC_GROUPS = 10;
 
+/**
+ * The group that an unknown point belongs to
+ * E.x. if the point is missing a prediction label
+ */
+const UNKNOWN_GROUP = "unknown";
+
 // Color scales for dynamic coloring.
 const sequentialColorScale = interpolateCool;
 const discreteColorScaleCategories = schemeCategory10;
@@ -890,6 +896,23 @@ function getNumericGroupsFromInterval({
   return groups;
 }
 
+function getEventGroupForNumericValue({
+  numericGroupIntervals,
+  numericValue,
+}: {
+  numericGroupIntervals: NumericGroupInterval[];
+  numericValue: number;
+}): string {
+  let eventGroup = UNKNOWN_GROUP;
+  let groupIndex = numericGroupIntervals.findIndex(
+    (group) => numericValue >= group.min && numericValue < group.max
+  );
+  // If we fail to find the index, it means it belongs to the last group
+  groupIndex = groupIndex === -1 ? NUM_NUMERIC_GROUPS - 1 : groupIndex;
+  eventGroup = numericGroupIntervals[groupIndex].name;
+
+  return eventGroup;
+}
 /**
  * Calculates the group mapping for each point
  */
@@ -937,11 +960,15 @@ function getEventIdToGroup(
       const isColorByPredictionLabel =
         dimension?.type === "prediction" &&
         dimension?.dataType === "categorical";
+      const isColorByPredictionScore =
+        dimension?.type === "prediction" && dimension?.dataType === "numeric";
       const isColorByActualLabel =
         dimension?.type === "actual" && dimension?.dataType === "categorical";
+      const isColorByActualScore =
+        dimension?.type === "actual" && dimension?.dataType === "numeric";
 
       points.forEach((point) => {
-        let group = "unknown";
+        let group = UNKNOWN_GROUP;
         const pointData = pointsData[point.eventId];
 
         // Flag to determine if we have enough data to color by dimension
@@ -950,9 +977,35 @@ function getEventIdToGroup(
 
         if (haveSufficientDataToColorByDimension) {
           if (isColorByPredictionLabel) {
-            group = pointData.eventMetadata.predictionLabel ?? "unknown";
+            group = pointData.eventMetadata.predictionLabel ?? UNKNOWN_GROUP;
+          } else if (isColorByPredictionScore) {
+            if (numericGroupIntervals == null) {
+              throw new Error(
+                "Cannot color by prediction score without numeric group intervals"
+              );
+            }
+            const numericValue = pointData.eventMetadata.predictionScore;
+            if (typeof numericValue === "number") {
+              group = getEventGroupForNumericValue({
+                numericGroupIntervals,
+                numericValue,
+              });
+            }
+          } else if (isColorByActualScore) {
+            if (numericGroupIntervals == null) {
+              throw new Error(
+                "Cannot color by actual score without numeric group intervals"
+              );
+            }
+            const numericValue = pointData.eventMetadata.actualScore;
+            if (typeof numericValue === "number") {
+              group = getEventGroupForNumericValue({
+                numericGroupIntervals,
+                numericValue,
+              });
+            }
           } else if (isColorByActualLabel) {
-            group = pointData.eventMetadata.actualLabel ?? "unknown";
+            group = pointData.eventMetadata.actualLabel ?? UNKNOWN_GROUP;
           } else {
             // It is a feature or tag. Find the dimension value
             const dimensionWithValue = pointData.dimensions.find(
@@ -964,7 +1017,7 @@ function getEventIdToGroup(
               dimension.dataType === "categorical"
             ) {
               // The group is just the categorical value. If it is null, we use "unknown" for now
-              group = dimensionWithValue.value ?? "unknown";
+              group = dimensionWithValue.value ?? UNKNOWN_GROUP;
             } else if (
               dimensionWithValue != null &&
               dimension.dataType === "numeric" &&
@@ -975,17 +1028,10 @@ function getEventIdToGroup(
                   ? parseFloat(dimensionWithValue.value)
                   : null;
               if (typeof numericValue === "number") {
-                let groupIndex = numericGroupIntervals.findIndex(
-                  (group) =>
-                    numericValue >= group.min && numericValue < group.max
-                );
-                // If we fail to find the index, it means it belongs to the last group
-                groupIndex =
-                  groupIndex === -1 ? NUM_NUMERIC_GROUPS - 1 : groupIndex;
-                group = numericGroupIntervals[groupIndex].name;
-              } else {
-                // We cannot determine the group of the numeric value
-                group = "unknown";
+                group = getEventGroupForNumericValue({
+                  numericGroupIntervals,
+                  numericValue,
+                });
               }
             }
           }
@@ -1094,7 +1140,9 @@ async function fetchPointEvents(eventIds: string[]): Promise<PointDataMap> {
               }
               eventMetadata {
                 predictionLabel
+                predictionScore
                 actualLabel
+                actualScore
               }
               promptAndResponse {
                 prompt
@@ -1115,7 +1163,9 @@ async function fetchPointEvents(eventIds: string[]): Promise<PointDataMap> {
               }
               eventMetadata {
                 predictionLabel
+                predictionScore
                 actualLabel
+                actualScore
               }
               promptAndResponse {
                 prompt
