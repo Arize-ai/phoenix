@@ -15,3 +15,4 @@ class Context:
     response: Optional[Response]
     model: Model
     export_path: Path
+    corpus: Optional[Model] = None

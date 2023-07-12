@@ -7,10 +7,11 @@ import strawberry
 from strawberry import ID, UNSET
 from strawberry.types import Info
 
-from phoenix.core.model_schema import DatasetRole
+import phoenix.core.model_schema as ms
 from phoenix.server.api.context import Context
 from phoenix.server.api.input_types.ClusterInput import ClusterInput
-from phoenix.server.api.types.Event import parse_event_ids, unpack_event_id
+from phoenix.server.api.types.DatasetRole import AncillaryDatasetRole, DatasetRole
+from phoenix.server.api.types.Event import parse_event_ids_by_dataset_role, unpack_event_id
 from phoenix.server.api.types.ExportedFile import ExportedFile
 
 
@@ -31,14 +32,18 @@ class ExportEventsMutation:
     ) -> ExportedFile:
         if not isinstance(file_name, str):
             file_name = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-        row_ids = parse_event_ids(event_ids)
+        row_ids = parse_event_ids_by_dataset_role(event_ids)
+        exclude_corpus_row_ids = {}
+        for dataset_role in list(row_ids.keys()):
+            if isinstance(dataset_role, DatasetRole):
+                exclude_corpus_row_ids[dataset_role.value] = row_ids[dataset_role]
         path = info.context.export_path
         with open(path / (file_name + ".parquet"), "wb") as fd:
             loop = asyncio.get_running_loop()
             await loop.run_in_executor(
                 None,
                 info.context.model.export_rows_as_parquet_file,
-                row_ids,
+                exclude_corpus_row_ids,
                 fd,
             )
         return ExportedFile(file_name=file_name)
@@ -74,11 +79,13 @@ class ExportEventsMutation:
 
 def _unpack_clusters(
     clusters: List[ClusterInput],
-) -> Tuple[Dict[DatasetRole, List[int]], Dict[DatasetRole, Dict[int, str]]]:
-    row_numbers: Dict[DatasetRole, List[int]] = defaultdict(list)
-    cluster_ids: Dict[DatasetRole, Dict[int, str]] = defaultdict(dict)
+) -> Tuple[Dict[ms.DatasetRole, List[int]], Dict[ms.DatasetRole, Dict[int, str]]]:
+    row_numbers: Dict[ms.DatasetRole, List[int]] = defaultdict(list)
+    cluster_ids: Dict[ms.DatasetRole, Dict[int, str]] = defaultdict(dict)
     for i, cluster in enumerate(clusters):
         for row_number, dataset_role in map(unpack_event_id, cluster.event_ids):
-            row_numbers[dataset_role].append(row_number)
-            cluster_ids[dataset_role][row_number] = cluster.id or str(i)
+            if isinstance(dataset_role, AncillaryDatasetRole):
+                continue
+            row_numbers[dataset_role.value].append(row_number)
+            cluster_ids[dataset_role.value][row_number] = cluster.id or str(i)
     return row_numbers, cluster_ids

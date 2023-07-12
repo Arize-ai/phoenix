@@ -15,7 +15,7 @@ import { DatasetVisibilitySettings } from "./DatasetVisibilitySettings";
 import { PointGroupVisibilitySettings } from "./PointGroupVisibilitySettings";
 
 export function PointCloudDisplaySettings() {
-  const { referenceDataset } = useDatasets();
+  const { referenceDataset, corpusDataset } = useDatasets();
   const coloringStrategy = usePointCloudContext(
     (state) => state.coloringStrategy
   );
@@ -28,7 +28,8 @@ export function PointCloudDisplaySettings() {
   );
   const setDimension = usePointCloudContext((state) => state.setDimension);
 
-  const showDatasetVisibilitySettings = referenceDataset != null;
+  const showDatasetVisibilitySettings =
+    referenceDataset != null || corpusDataset != null;
 
   const isAwaitingDimensionSelection =
     coloringStrategy === ColoringStrategy.dimension && dimension == null;
@@ -72,7 +73,12 @@ export function PointCloudDisplaySettings() {
         </>
       </Form>
 
-      {showDatasetVisibilitySettings ? <DatasetVisibilitySettings /> : null}
+      {showDatasetVisibilitySettings ? (
+        <DatasetVisibilitySettings
+          hasReference={referenceDataset != null}
+          hasCorpus={corpusDataset != null}
+        />
+      ) : null}
       {showPointGroupVisibilitySettings ? (
         <PointGroupVisibilitySettings />
       ) : null}

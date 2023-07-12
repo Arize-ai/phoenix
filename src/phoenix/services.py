@@ -88,6 +88,7 @@ class AppService(Service):
     # Internal references to the name / directory of the dataset(s)
     __primary_dataset_name: str
     __reference_dataset_name: Optional[str]
+    __corpus_dataset_name: Optional[str]
 
     def __init__(
         self,
@@ -95,11 +96,13 @@ class AppService(Service):
         port: int,
         primary_dataset_name: str,
         reference_dataset_name: Optional[str],
+        corpus_dataset_name: Optional[str],
     ):
         self.export_path = export_path
         self.port = port
         self.__primary_dataset_name = primary_dataset_name
         self.__reference_dataset_name = reference_dataset_name
+        self.__corpus_dataset_name = corpus_dataset_name
         super().__init__()
 
     @property
@@ -117,5 +120,7 @@ class AppService(Service):
         ]
         if self.__reference_dataset_name is not None:
             command.extend(["--reference", str(self.__reference_dataset_name)])
+        if self.__corpus_dataset_name is not None:
+            command.extend(["--corpus", str(self.__corpus_dataset_name)])
         logger.info(f"command: {command}")
         return command

@@ -1,6 +1,6 @@
 from itertools import chain
 from operator import itemgetter
-from typing import Dict, Iterable, List, Optional, Sized, Tuple
+from typing import Dict, Iterable, List, Optional, Sized, Tuple, Union
 
 import pandas as pd
 from pandas.api.types import is_object_dtype
@@ -8,7 +8,8 @@ from typing_extensions import TypeAlias, TypeGuard
 
 from phoenix import Dataset, EmbeddingColumnNames
 from phoenix.core.model import _get_embedding_dimensions
-from phoenix.core.model_schema import Embedding, Model, Schema
+from phoenix.core.model_schema import Embedding, Model, PromptEmbedding, Schema
+from phoenix.datasets.schema import PromptEmbeddingColumnNames
 from phoenix.datasets.schema import Schema as DatasetSchema
 
 DatasetName: TypeAlias = str
@@ -122,7 +123,7 @@ def create_model_from_datasets(*datasets: Optional[Dataset]) -> Model:
                 *map(itemgetter(1), named_dataframes),
             )
         ),
-        prompt=next(map(_translate_embedding, prompts), None),
+        prompt=next(map(_translate_prompt_embedding, prompts), None),
         response=next(map(_translate_embedding, responses), None),
     )(
         *named_dataframes,
@@ -149,6 +150,24 @@ def _translate_embedding(
         raw_data=embedding.raw_data_column_name,
         link_to_data=embedding.link_to_data_column_name,
         display_name=display_name,
+    )
+
+
+def _translate_prompt_embedding(
+    embedding: Union[EmbeddingColumnNames, PromptEmbeddingColumnNames],
+    display_name: Optional[str] = None,
+) -> PromptEmbedding:
+    return PromptEmbedding(
+        vector=embedding.vector_column_name,
+        raw_data=embedding.raw_data_column_name,
+        link_to_data=embedding.link_to_data_column_name,
+        display_name=display_name,
+        context_retrieval_ids=embedding.context_retrieval_ids_column_name
+        if isinstance(embedding, PromptEmbeddingColumnNames)
+        else None,
+        context_retrieval_scores=embedding.context_retrieval_scores_column_name
+        if isinstance(embedding, PromptEmbeddingColumnNames)
+        else None,
     )
 
 

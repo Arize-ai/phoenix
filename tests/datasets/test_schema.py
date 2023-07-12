@@ -1,6 +1,6 @@
 from phoenix.datasets.schema import (
     EmbeddingColumnNames,
-    RelationshipColumnNames,
+    PromptEmbeddingColumnNames,
     Schema,
 )
 
@@ -50,15 +50,15 @@ def test_json_serialization_with_LLM():
 
 def test_json_serialization_with_relationships():
     s = Schema(
-        relationship_column_names={
-            "relationship_1": RelationshipColumnNames(ids_column_name="ids_1"),
-        }
+        prompt_column_names=PromptEmbeddingColumnNames(
+            vector_column_name="vec_1",
+            context_retrieval_ids_column_name="ids_1",
+        ),
     )
 
     # serialize and deserialize.
     p = s.to_json()
     schema_from_json = Schema.from_json(p)
 
-    assert schema_from_json.relationship_column_names is not None
-    assert schema_from_json.relationship_column_names["relationship_1"] is not None
-    assert schema_from_json.relationship_column_names["relationship_1"].ids_column_name == "ids_1"
+    assert schema_from_json.prompt_column_names is not None
+    assert schema_from_json.prompt_column_names.context_retrieval_ids_column_name == "ids_1"

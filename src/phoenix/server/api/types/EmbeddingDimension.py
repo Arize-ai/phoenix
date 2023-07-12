@@ -1,6 +1,7 @@
 from collections import defaultdict
 from datetime import timedelta
-from typing import Dict, Iterator, List, Optional, cast
+from itertools import chain, repeat
+from typing import Any, Dict, Iterable, Iterator, List, Optional, Tuple, Union, cast
 
 import numpy as np
 import numpy.typing as npt
@@ -19,9 +20,9 @@ from phoenix.core.model_schema import (
     PREDICTION_LABEL,
     PREDICTION_SCORE,
     PRIMARY,
+    PROMPT,
     REFERENCE,
     Dataset,
-    EventId,
 )
 from phoenix.metrics.timeseries import row_interval_from_sorted_time_index
 from phoenix.pointcloud.clustering import Hdbscan
@@ -30,14 +31,16 @@ from phoenix.pointcloud.projectors import Umap
 from phoenix.server.api.context import Context
 from phoenix.server.api.input_types.TimeRange import TimeRange
 from phoenix.server.api.types.Cluster import to_gql_clusters
-from phoenix.server.api.types.DatasetRole import DatasetRole
+from phoenix.server.api.types.DatasetRole import AncillaryDatasetRole, DatasetRole
 from phoenix.server.api.types.VectorDriftMetricEnum import VectorDriftMetric
 
 from ..input_types.Granularity import Granularity
 from .DataQualityMetric import DataQualityMetric
 from .EmbeddingMetadata import EmbeddingMetadata
+from .Event import create_event_id, unpack_event_id
 from .EventMetadata import EventMetadata
 from .node import GlobalID, Node
+from .Retrieval import Retrieval
 from .TimeSeries import (
     DataQualityTimeSeries,
     DriftTimeSeries,
@@ -59,6 +62,8 @@ DEFAULT_CLUSTER_SELECTION_EPSILON = 0
 
 DRIFT_EVAL_WINDOW_NUM_INTERVALS = 72
 EVAL_INTERVAL_LENGTH = timedelta(hours=1)
+
+CORPUS = "CORPUS"
 
 
 @strawberry.type
@@ -226,7 +231,8 @@ class EmbeddingDimension(Node):
         ] = DEFAULT_CLUSTER_SELECTION_EPSILON,
     ) -> UMAPPoints:
         model = info.context.model
-        data: Dict[EventId, npt.NDArray[np.float64]] = {}
+        data: Dict[ID, npt.NDArray[np.float64]] = {}
+        retrievals: List[Tuple[ID, Any, Any]] = []
         for dataset in model[Dataset]:
             dataset_id = dataset.role
             row_id_start, row_id_stop = 0, len(dataset)
@@ -250,9 +256,67 @@ class EmbeddingDimension(Node):
                 # of dunder method __len__.
                 if not hasattr(embedding_vector, "__len__"):
                     continue
-                event_id = EventId(row_id, dataset_id)
+                event_id = create_event_id(row_id, dataset_id)
                 data[event_id] = embedding_vector
                 samples_collected += 1
+                if isinstance(
+                    self.dimension,
+                    ms.PromptEmbeddingDimension,
+                ):
+                    retrievals.append(
+                        (
+                            event_id,
+                            self.dimension.context_retrieval_ids(dataset).iloc[row_id],
+                            self.dimension.context_retrieval_scores(dataset).iloc[row_id],
+                        )
+                    )
+
+        context_retrievals: List[Retrieval] = []
+        if isinstance(
+            self.dimension,
+            ms.PromptEmbeddingDimension,
+        ) and (corpus := info.context.corpus):
+            corpus_dataset = corpus[PRIMARY]
+            for row_id, document_embedding_vector in enumerate(corpus_dataset[PROMPT]):
+                if not hasattr(document_embedding_vector, "__len__"):
+                    continue
+                event_id = create_event_id(row_id, AncillaryDatasetRole.corpus)
+                data[event_id] = document_embedding_vector
+            corpus_primary_key = corpus_dataset.primary_key
+            for event_id, retrieval_ids, retrieval_scores in retrievals:
+                if not isinstance(retrieval_ids, Iterable):
+                    continue
+                for document_id, document_score in zip(
+                    retrieval_ids,
+                    chain(
+                        retrieval_scores
+                        if isinstance(
+                            retrieval_scores,
+                            Iterable,
+                        )
+                        else (),
+                        repeat(np.nan),
+                    ),
+                ):
+                    try:
+                        document_row_id = corpus_primary_key.get_loc(
+                            document_id,
+                        )
+                    except KeyError:
+                        continue
+                    document_embedding_vector = corpus_dataset[PROMPT].iloc[document_row_id]
+                    if not hasattr(document_embedding_vector, "__len__"):
+                        continue
+                    context_retrievals.append(
+                        Retrieval(
+                            query_id=event_id,
+                            document_id=create_event_id(
+                                document_row_id,
+                                AncillaryDatasetRole.corpus,
+                            ),
+                            relevance=document_score,
+                        )
+                    )
 
         # validate n_components to be 2 or 3
         n_components = DEFAULT_N_COMPONENTS if n_components is None else n_components
@@ -268,15 +332,30 @@ class EmbeddingDimension(Node):
             ),
         ).generate(data, n_components=n_components)
 
-        points: Dict[ms.DatasetRole, List[UMAPPoint]] = defaultdict(list)
+        points: Dict[Union[DatasetRole, AncillaryDatasetRole], List[UMAPPoint]] = defaultdict(list)
         for event_id, vector in vectors.items():
-            row_id = event_id.row_id
-            dataset_id = event_id.dataset_id
-            dataset = model[dataset_id]
-            points[dataset_id].append(
+            row_id, dataset_role = unpack_event_id(event_id)
+            if isinstance(dataset_role, DatasetRole):
+                dataset = model[dataset_role.value]
+                embedding_metadata = EmbeddingMetadata(
+                    prediction_id=dataset[PREDICTION_ID][row_id],
+                    link_to_data=dataset[self.dimension.link_to_data][row_id],
+                    raw_data=dataset[self.dimension.raw_data][row_id],
+                )
+            elif (corpus := info.context.corpus) is not None:
+                dataset = corpus[PRIMARY]
+                dimension = cast(ms.EmbeddingDimension, corpus[PROMPT])
+                embedding_metadata = EmbeddingMetadata(
+                    prediction_id=dataset[PREDICTION_ID][row_id],
+                    link_to_data=dataset[dimension.link_to_data][row_id],
+                    raw_data=dataset[dimension.raw_data][row_id],
+                )
+            else:
+                continue
+            points[dataset_role].append(
                 UMAPPoint(
-                    id=GlobalID(f"{type(self).__name__}:{str(dataset_id)}", row_id),
-                    event_id=ID(str(event_id)),
+                    id=GlobalID(f"{type(self).__name__}:{str(dataset_role)}", row_id),
+                    event_id=event_id,
                     coordinates=to_gql_coordinates(vector),
                     event_metadata=EventMetadata(
                         prediction_label=dataset[PREDICTION_LABEL][row_id],
@@ -284,20 +363,18 @@ class EmbeddingDimension(Node):
                         actual_label=dataset[ACTUAL_LABEL][row_id],
                         actual_score=dataset[ACTUAL_SCORE][row_id],
                     ),
-                    embedding_metadata=EmbeddingMetadata(
-                        prediction_id=dataset[PREDICTION_ID][row_id],
-                        link_to_data=dataset[self.dimension.link_to_data][row_id],
-                        raw_data=dataset[self.dimension.raw_data][row_id],
-                    ),
+                    embedding_metadata=embedding_metadata,
                 )
             )
 
         return UMAPPoints(
-            data=points[PRIMARY],
-            reference_data=points[REFERENCE],
+            data=points[DatasetRole.primary],
+            reference_data=points[DatasetRole.reference],
             clusters=to_gql_clusters(
                 clustered_events=clustered_events,
             ),
+            corpus_data=points[AncillaryDatasetRole.corpus],
+            context_retrievals=context_retrievals,
         )
 
 

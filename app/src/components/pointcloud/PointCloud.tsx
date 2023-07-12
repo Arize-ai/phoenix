@@ -53,11 +53,14 @@ const PointCloudInfo = function PointCloudInfo() {
     (state) => state.hdbscanParameters
   );
   const umapParameters = usePointCloudContext((state) => state.umapParameters);
-  const [numPrimary, numReference] = useMemo(() => {
-    const { primaryEventIds, referenceEventIds } = splitEventIdsByDataset(
-      points.map((point) => point.eventId)
-    );
-    return [primaryEventIds.length, referenceEventIds.length];
+  const [numPrimary, numReference, numCorpus] = useMemo(() => {
+    const { primaryEventIds, referenceEventIds, corpusEventIds } =
+      splitEventIdsByDataset(points.map((point) => point.eventId));
+    return [
+      primaryEventIds.length,
+      referenceEventIds.length,
+      corpusEventIds.length,
+    ];
   }, [points]);
 
   if (!selectedTimestamp) {
@@ -84,6 +87,12 @@ const PointCloudInfo = function PointCloudInfo() {
           <div>
             <dt>reference points</dt>
             <dd>{numReference}</dd>
+          </div>
+        ) : null}
+        {numCorpus > 0 ? (
+          <div>
+            <dt>corpus points</dt>
+            <dd>{numCorpus}</dd>
           </div>
         ) : null}
       </dl>
@@ -292,6 +301,12 @@ const Projection = React.memo(function Projection() {
     });
   }, [points]);
 
+  const corpusData = useMemo(() => {
+    return points.filter((point) => {
+      return point.eventId.includes("CORPUS");
+    });
+  }, [points]);
+
   // Filter the points by the group visibility
   const filteredPrimaryData = useMemo(() => {
     return primaryData.filter((point) => {
@@ -310,6 +325,13 @@ const Projection = React.memo(function Projection() {
     });
   }, [referenceData, eventIdToGroup, pointGroupVisibility]);
 
+  const filteredCorpusData = useMemo(() => {
+    return corpusData.filter((point) => {
+      const group = eventIdToGroup[point.eventId];
+      return pointGroupVisibility[group];
+    });
+  }, [corpusData, eventIdToGroup, pointGroupVisibility]);
+
   // Keep track of all the points in the view, minus the ones filtered out by visibility controls
   const allVisiblePoints = useMemo(() => {
     const visiblePrimaryPoints = datasetVisibility.primary
@@ -318,12 +340,21 @@ const Projection = React.memo(function Projection() {
     const visibleReferencePoints = datasetVisibility.reference
       ? filteredReferenceData
       : [];
+    const visibleCorpusPoints = datasetVisibility.corpus
+      ? filteredCorpusData
+      : [];
     const visiblePoints = [
       ...visiblePrimaryPoints,
       ...(visibleReferencePoints || []),
+      ...(visibleCorpusPoints || []),
     ];
     return visiblePoints;
-  }, [filteredPrimaryData, filteredReferenceData, datasetVisibility]);
+  }, [
+    filteredPrimaryData,
+    filteredReferenceData,
+    filteredCorpusData,
+    datasetVisibility,
+  ]);
 
   // Context cannot be passed through multiple reconcilers. Bridge the context
   const ContextBridge = useContextBridge(
@@ -364,6 +395,7 @@ const Projection = React.memo(function Projection() {
           <PointCloudPoints
             primaryData={filteredPrimaryData}
             referenceData={filteredReferenceData}
+            corpusData={filteredCorpusData}
             color={colorFn}
             radius={radius}
           />

@@ -16,6 +16,7 @@ import {
   DEFAULT_MIN_CLUSTER_SIZE,
   DEFAULT_MIN_DIST,
   DEFAULT_N_NEIGHBORS,
+  FALLBACK_COLOR,
   SelectionDisplay,
   SelectionGridSize,
   UNKNOWN_COLOR,
@@ -105,6 +106,7 @@ export enum ClusterColorMode {
 type DatasetVisibility = {
   primary: boolean;
   reference: boolean;
+  corpus: boolean;
 };
 export interface Point {
   readonly id: string;
@@ -471,10 +473,12 @@ export const DEFAULT_DRIFT_POINT_CLOUD_PROPS: Partial<PointCloudProps> = {
   pointGroupVisibility: {
     [DatasetGroup.primary]: true,
     [DatasetGroup.reference]: true,
+    [DatasetGroup.corpus]: true,
   },
   pointGroupColors: {
     [DatasetGroup.primary]: DEFAULT_COLOR_SCHEME[0],
     [DatasetGroup.reference]: DEFAULT_COLOR_SCHEME[1],
+    [DatasetGroup.corpus]: FALLBACK_COLOR,
   },
   metric: {
     type: "drift",
@@ -526,15 +530,17 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
     canvasTheme: "dark",
     clusterColorMode: ClusterColorMode.default,
     coloringStrategy: ColoringStrategy.dataset,
-    datasetVisibility: { primary: true, reference: true },
+    datasetVisibility: { primary: true, reference: true, corpus: true },
     pointGroupVisibility: {
       [DatasetGroup.primary]: true,
       [DatasetGroup.reference]: true,
+      [DatasetGroup.corpus]: true,
     },
     pointGroupColors: {
       // TODO move to a single source of truth
       [DatasetGroup.primary]: DEFAULT_COLOR_SCHEME[0],
       [DatasetGroup.reference]: DEFAULT_COLOR_SCHEME[1],
+      [DatasetGroup.corpus]: FALLBACK_COLOR,
     },
     eventIdToGroup: {},
     selectionDisplay: SelectionDisplay.gallery,
@@ -672,11 +678,13 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
             pointGroupVisibility: {
               [DatasetGroup.primary]: true,
               [DatasetGroup.reference]: true,
+              [DatasetGroup.corpus]: true,
             },
             pointGroupColors: {
               // TODO move these colors to a constants file
               [DatasetGroup.primary]: DEFAULT_COLOR_SCHEME[0],
               [DatasetGroup.reference]: DEFAULT_COLOR_SCHEME[1],
+              [DatasetGroup.corpus]: FALLBACK_COLOR,
             },
             dimension: null,
             dimensionMetadata: null,
@@ -715,7 +723,7 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
           assertUnreachable(strategy);
       }
     },
-    datasetVisibility: { primary: true, reference: true },
+    datasetVisibility: { primary: true, reference: true, corpus: true },
     setDatasetVisibility: (visibility) =>
       set({ datasetVisibility: visibility }),
     setPointGroupVisibility: (visibility) =>
@@ -925,13 +933,16 @@ function getEventIdToGroup(
   const eventIds = points.map((point) => point.eventId);
   switch (coloringStrategy) {
     case ColoringStrategy.dataset: {
-      const { primaryEventIds, referenceEventIds } =
+      const { primaryEventIds, referenceEventIds, corpusEventIds } =
         splitEventIdsByDataset(eventIds);
       primaryEventIds.forEach((eventId) => {
         eventIdToGroup[eventId] = DatasetGroup.primary;
       });
       referenceEventIds.forEach((eventId) => {
         eventIdToGroup[eventId] = DatasetGroup.reference;
+      });
+      corpusEventIds.forEach((eventId) => {
+        eventIdToGroup[eventId] = DatasetGroup.corpus;
       });
       break;
     }
@@ -1117,15 +1128,15 @@ type GetEventIdToGroupParams = {
 };
 
 async function fetchPointEvents(eventIds: string[]): Promise<PointDataMap> {
-  const { primaryEventIds, referenceEventIds } = splitEventIdsByDataset([
-    ...eventIds,
-  ]);
+  const { primaryEventIds, referenceEventIds, corpusEventIds } =
+    splitEventIdsByDataset([...eventIds]);
   const data = await fetchQuery<pointCloudStore_eventsQuery>(
     RelayEnvironment,
     graphql`
       query pointCloudStore_eventsQuery(
         $primaryEventIds: [ID!]!
         $referenceEventIds: [ID!]!
+        $corpusEventIds: [ID!]!
       ) {
         model {
           primaryDataset {
@@ -1173,18 +1184,42 @@ async function fetchPointEvents(eventIds: string[]): Promise<PointDataMap> {
               }
             }
           }
+          corpusDataset {
+            events(eventIds: $corpusEventIds) {
+              id
+              dimensions {
+                dimension {
+                  name
+                  type
+                }
+                value
+              }
+              eventMetadata {
+                predictionLabel
+                predictionScore
+                actualLabel
+                actualScore
+              }
+              promptAndResponse {
+                prompt
+                response
+              }
+            }
+          }
         }
       }
     `,
     {
       primaryEventIds: primaryEventIds,
       referenceEventIds: referenceEventIds,
+      corpusEventIds: corpusEventIds,
     }
   ).toPromise();
   // Construct a map of point id to the event data
   const primaryEvents = data?.model?.primaryDataset?.events ?? [];
   const referenceEvents = data?.model?.referenceDataset?.events ?? [];
-  const allEvents = [...primaryEvents, ...referenceEvents];
+  const corpusEvents = data?.model?.corpusDataset?.events ?? [];
+  const allEvents = [...primaryEvents, ...referenceEvents, ...corpusEvents];
   return allEvents.reduce((acc, event) => {
     acc[event.id] = event;
     return acc;
