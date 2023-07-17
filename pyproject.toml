@@ -25,11 +25,7 @@ dependencies = [
   "numpy",
   "pandas",
   "umap-learn",
-<<<<<<< HEAD
-  "hdbscan>=0.8.32, <1.0.0",
-=======
   "hdbscan@git+https://github.com/scikit-learn-contrib/hdbscan.git",
->>>>>>> 66d9e1c (fix: hdbscan runtime)
   "starlette",
   "uvicorn",
   "psutil",
