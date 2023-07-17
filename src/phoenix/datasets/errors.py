@@ -3,6 +3,7 @@ from typing import Any, Iterable, List, Union
 
 # This is a dummy change
 
+
 class ValidationError(Exception):
     def __repr__(self) -> str:
         return self.__class__.__name__
