@@ -261,7 +261,7 @@ class EmbeddingDimension(Node):
                 samples_collected += 1
                 if isinstance(
                     self.dimension,
-                    ms.PromptEmbeddingDimension,
+                    ms.RetrievalEmbeddingDimension,
                 ):
                     retrievals.append(
                         (
@@ -274,7 +274,7 @@ class EmbeddingDimension(Node):
         context_retrievals: List[Retrieval] = []
         if isinstance(
             self.dimension,
-            ms.PromptEmbeddingDimension,
+            ms.RetrievalEmbeddingDimension,
         ) and (corpus := info.context.corpus):
             corpus_dataset = corpus[PRIMARY]
             for row_id, document_embedding_vector in enumerate(corpus_dataset[PROMPT]):

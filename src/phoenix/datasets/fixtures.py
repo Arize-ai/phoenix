@@ -13,7 +13,7 @@ from phoenix.config import DATASET_DIR
 from phoenix.datasets.dataset import Dataset
 from phoenix.datasets.schema import (
     EmbeddingColumnNames,
-    PromptEmbeddingColumnNames,
+    RetrievalEmbeddingColumnNames,
     Schema,
 )
 
@@ -329,7 +329,7 @@ wikipedia_fixture = Fixture(
     """,  # noqa: E501
     primary_schema=Schema(
         prediction_id_column_name="id",
-        prompt_column_names=PromptEmbeddingColumnNames(
+        prompt_column_names=RetrievalEmbeddingColumnNames(
             vector_column_name="embedding",
             raw_data_column_name="question",
             context_retrieval_ids_column_name="retrievals",

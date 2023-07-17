@@ -32,7 +32,7 @@ class EmbeddingColumnNames(Dict[str, Any]):
 
 
 @dataclass(frozen=True)
-class PromptEmbeddingColumnNames(EmbeddingColumnNames):
+class RetrievalEmbeddingColumnNames(EmbeddingColumnNames):
     """
     *** Experimental ***
     A relationship is a column that maps a prediction to another record.
@@ -65,7 +65,7 @@ class PromptEmbeddingColumnNames(EmbeddingColumnNames):
     To declare this relationship in the schema, you would configure the schema as follows:
 
     >>> schema = Schema(
-    ...     prompt_column_names=PromptEmbeddingColumnNames(
+    ...     prompt_column_names=RetrievalEmbeddingColumnNames(
     ...         context_retrieval_ids_column_name="retrieved_document_ids",
     ...         context_retrieval_scores_column_name="document_relevance_scores",
     ...     )
@@ -86,7 +86,7 @@ class Schema(Dict[SchemaFieldName, SchemaFieldValue]):
     prediction_score_column_name: Optional[str] = None
     actual_label_column_name: Optional[str] = None
     actual_score_column_name: Optional[str] = None
-    prompt_column_names: Optional[Union[EmbeddingColumnNames, PromptEmbeddingColumnNames]] = None
+    prompt_column_names: Optional[Union[EmbeddingColumnNames, RetrievalEmbeddingColumnNames]] = None
     response_column_names: Optional[EmbeddingColumnNames] = None
     embedding_feature_column_names: Optional[EmbeddingFeatures] = None
     excluded_column_names: Optional[List[str]] = None
@@ -118,7 +118,7 @@ class Schema(Dict[SchemaFieldName, SchemaFieldValue]):
 
         # parse prompt_column_names
         if (prompt := json_data.get("prompt_column_names")) is not None:
-            json_data["prompt_column_names"] = PromptEmbeddingColumnNames(
+            json_data["prompt_column_names"] = RetrievalEmbeddingColumnNames(
                 vector_column_name=prompt.get("vector_column_name"),
                 raw_data_column_name=prompt.get("raw_data_column_name"),
                 context_retrieval_ids_column_name=prompt.get("context_retrieval_ids_column_name"),

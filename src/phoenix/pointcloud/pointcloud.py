@@ -1,8 +1,9 @@
 from dataclasses import dataclass
-from typing import Dict, Hashable, List, Mapping, Protocol, Set, Tuple, TypeVar
+from typing import Dict, List, Mapping, Protocol, Set, Tuple
 
 import numpy as np
 import numpy.typing as npt
+from strawberry import ID
 from typing_extensions import TypeAlias
 
 from phoenix.pointcloud.clustering import RawCluster
@@ -20,9 +21,6 @@ class DimensionalityReducer(Protocol):
 class ClustersFinder(Protocol):
     def find_clusters(self, mat: Matrix) -> List[RawCluster]:
         ...
-
-
-ID = TypeVar("ID", bound=Hashable)
 
 
 @dataclass(frozen=True)

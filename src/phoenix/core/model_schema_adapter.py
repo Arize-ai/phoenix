@@ -8,8 +8,8 @@ from typing_extensions import TypeAlias, TypeGuard
 
 from phoenix import Dataset, EmbeddingColumnNames
 from phoenix.core.model import _get_embedding_dimensions
-from phoenix.core.model_schema import Embedding, Model, PromptEmbedding, Schema
-from phoenix.datasets.schema import PromptEmbeddingColumnNames
+from phoenix.core.model_schema import Embedding, Model, RetrievalEmbedding, Schema
+from phoenix.datasets.schema import RetrievalEmbeddingColumnNames
 from phoenix.datasets.schema import Schema as DatasetSchema
 
 DatasetName: TypeAlias = str
@@ -154,19 +154,19 @@ def _translate_embedding(
 
 
 def _translate_prompt_embedding(
-    embedding: Union[EmbeddingColumnNames, PromptEmbeddingColumnNames],
+    embedding: Union[EmbeddingColumnNames, RetrievalEmbeddingColumnNames],
     display_name: Optional[str] = None,
-) -> PromptEmbedding:
-    return PromptEmbedding(
+) -> RetrievalEmbedding:
+    return RetrievalEmbedding(
         vector=embedding.vector_column_name,
         raw_data=embedding.raw_data_column_name,
         link_to_data=embedding.link_to_data_column_name,
         display_name=display_name,
         context_retrieval_ids=embedding.context_retrieval_ids_column_name
-        if isinstance(embedding, PromptEmbeddingColumnNames)
+        if isinstance(embedding, RetrievalEmbeddingColumnNames)
         else None,
         context_retrieval_scores=embedding.context_retrieval_scores_column_name
-        if isinstance(embedding, PromptEmbeddingColumnNames)
+        if isinstance(embedding, RetrievalEmbeddingColumnNames)
         else None,
     )
 

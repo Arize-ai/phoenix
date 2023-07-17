@@ -1,6 +1,6 @@
 from phoenix.datasets.schema import (
     EmbeddingColumnNames,
-    PromptEmbeddingColumnNames,
+    RetrievalEmbeddingColumnNames,
     Schema,
 )
 
@@ -50,7 +50,7 @@ def test_json_serialization_with_LLM():
 
 def test_json_serialization_with_relationships():
     s = Schema(
-        prompt_column_names=PromptEmbeddingColumnNames(
+        prompt_column_names=RetrievalEmbeddingColumnNames(
             vector_column_name="vec_1",
             context_retrieval_ids_column_name="ids_1",
         ),

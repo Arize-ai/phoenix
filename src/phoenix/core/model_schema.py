@@ -172,7 +172,7 @@ class Embedding(CompositeDimensionSpec):
 
 
 @dataclass(frozen=True)
-class PromptEmbedding(Embedding):
+class RetrievalEmbedding(Embedding):
     context_retrieval_ids: Optional[str] = None
     context_retrieval_scores: Optional[str] = None
 
@@ -473,14 +473,14 @@ class EmbeddingDimension(Dimension):
 
 
 @dataclass(frozen=True)
-class PromptEmbeddingDimension(EmbeddingDimension):
+class RetrievalEmbeddingDimension(EmbeddingDimension):
     context_retrieval_ids: Column = field(default_factory=Column)
     context_retrieval_scores: Column = field(default_factory=Column)
 
     @classmethod
     def from_prompt_embedding(
-        cls, emb: PromptEmbedding, **kwargs: Any
-    ) -> "PromptEmbeddingDimension":
+        cls, emb: RetrievalEmbedding, **kwargs: Any
+    ) -> "RetrievalEmbeddingDimension":
         # Use `from_embedding` instead of `__init__` because the latter is
         # needed by replace() and we don't want to clobber the generated
         # version.
@@ -1191,7 +1191,7 @@ class Schema(SchemaSpec):
     prediction_score: Optional[str] = None
     actual_label: Optional[str] = None
     actual_score: Optional[str] = None
-    prompt: Optional[PromptEmbedding] = None
+    prompt: Optional[RetrievalEmbedding] = None
     response: Optional[Embedding] = None
     features: Iterable[Union[str, CompositeDimensionSpec]] = field(default_factory=list)
     tags: Iterable[Union[str, CompositeDimensionSpec]] = field(default_factory=list)
@@ -1217,7 +1217,7 @@ class Schema(SchemaSpec):
         with dummy dimensions for ones omitted by user. The dummy dimensions
         have randomly generated names that can change for each iteration, but
         currently there's no need to iterate more than once."""
-        for spec, role, data_type in chain(
+        for spec, dimension_role, data_type in chain(
             (
                 (self.prediction_id, PREDICTION_ID, DISCRETE),
                 (self.timestamp, TIMESTAMP, CONTINUOUS),
@@ -1233,40 +1233,40 @@ class Schema(SchemaSpec):
         ):
             if not isinstance(spec, CompositeDimensionSpec):
                 spec = _coerce_str(spec)
-            assert isinstance(role, DimensionRole)  # for mypy
+            assert isinstance(dimension_role, DimensionRole)  # for mypy
             if isinstance(spec, str):
-                if role is PROMPT:
-                    yield PromptEmbeddingDimension(
+                if dimension_role is PROMPT:
+                    yield RetrievalEmbeddingDimension(
                         spec,
-                        role=role,
+                        role=dimension_role,
                         data_type=data_type,
                     )
-                elif role is RESPONSE:
+                elif dimension_role is RESPONSE:
                     yield EmbeddingDimension(
                         spec,
-                        role=role,
+                        role=dimension_role,
                         data_type=data_type,
                     )
                 else:
                     yield ScalarDimension(
                         spec,
-                        role=role,
+                        role=dimension_role,
                         data_type=data_type,
                     )
-            elif isinstance(spec, PromptEmbedding):
-                yield PromptEmbeddingDimension.from_prompt_embedding(
+            elif isinstance(spec, RetrievalEmbedding):
+                yield RetrievalEmbeddingDimension.from_prompt_embedding(
                     spec,
-                    role=role,
+                    role=dimension_role,
                     data_type=data_type,
                 )
             elif isinstance(spec, Embedding):
                 yield EmbeddingDimension.from_embedding(
                     spec,
-                    role=role,
+                    role=dimension_role,
                     data_type=data_type,
                 )
             else:
-                raise TypeError(f"{role} has unrecognized type: {type(spec)}")
+                raise TypeError(f"{dimension_role} has unrecognized type: {type(spec)}")
 
     def __call__(
         self,
