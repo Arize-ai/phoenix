@@ -25,7 +25,7 @@ dependencies = [
   "numpy",
   "pandas",
   "umap-learn",
-  "hdbscan",
+  "hdbscan<8.29",
   "starlette",
   "uvicorn",
   "psutil",
