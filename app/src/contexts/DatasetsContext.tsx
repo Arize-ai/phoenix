@@ -9,6 +9,7 @@ type DatasetDef = {
 type DatasetsContextType = {
   primaryDataset: DatasetDef;
   referenceDataset: DatasetDef | null;
+  corpusDataset: DatasetDef | null;
 };
 
 export const DatasetsContext = createContext<DatasetsContextType | null>(null);
@@ -24,6 +25,7 @@ export function useDatasets() {
 type DatasetsProviderProps = {
   primaryDataset: DatasetDef;
   referenceDataset: DatasetDef | null;
+  corpusDataset: DatasetDef | null;
   children: ReactNode;
 };
 
@@ -33,6 +35,7 @@ export function DatasetsProvider(props: DatasetsProviderProps) {
       value={{
         primaryDataset: props.primaryDataset,
         referenceDataset: props.referenceDataset,
+        corpusDataset: props.corpusDataset,
       }}
     >
       {props.children}

@@ -161,6 +161,33 @@ const EmbeddingUMAPQuery = graphql`
               actualScore
             }
           }
+          corpusData {
+            id
+            eventId
+            coordinates {
+              __typename
+              ... on Point3D {
+                x
+                y
+                z
+              }
+              ... on Point2D {
+                x
+                y
+              }
+            }
+            embeddingMetadata {
+              linkToData
+              rawData
+            }
+            eventMetadata {
+              predictionId
+              predictionLabel
+              actualLabel
+              predictionScore
+              actualScore
+            }
+          }
           clusters {
             id
             eventIds
@@ -176,6 +203,11 @@ const EmbeddingUMAPQuery = graphql`
               primaryValue
               referenceValue
             }
+          }
+          contextRetrievals {
+            queryId
+            documentId
+            relevance
           }
         }
       }
@@ -382,12 +414,18 @@ function PointCloudDisplay({
     () => data.embedding?.UMAPPoints?.referenceData ?? [],
     [data]
   );
+  const corpusSourceData = useMemo(
+    () => data.embedding?.UMAPPoints?.corpusData ?? [],
+    [data]
+  );
 
   // Construct a map of point ids to their data
   const allSourceData = useMemo(() => {
-    const allData = referenceSourceData
-      ? [...sourceData, ...referenceSourceData]
-      : sourceData;
+    const allData = [
+      ...sourceData,
+      ...referenceSourceData,
+      ...corpusSourceData,
+    ];
 
     return allData.map((d) => ({
       ...d,
@@ -396,7 +434,7 @@ function PointCloudDisplay({
         id: d.eventId,
       },
     }));
-  }, [referenceSourceData, sourceData]);
+  }, [referenceSourceData, sourceData, corpusSourceData]);
 
   // Keep the data in the view in-sync with the data in the context
   const setPointsAndClusters = usePointCloudContext(

@@ -171,6 +171,21 @@ class Embedding(CompositeDimensionSpec):
                 yield value
 
 
+@dataclass(frozen=True)
+class RetrievalEmbedding(Embedding):
+    context_retrieval_ids: Optional[str] = None
+    context_retrieval_scores: Optional[str] = None
+
+    def __iter__(self) -> Iterator[str]:
+        yield from super().__iter__()
+        for value in (
+            self.context_retrieval_ids,
+            self.context_retrieval_scores,
+        ):
+            if isinstance(value, str) and value:
+                yield value
+
+
 class DatasetRole(Enum):
     """A dataframe's role in a Model: primary or reference (as
     baseline for drift).
@@ -457,6 +472,39 @@ class EmbeddingDimension(Dimension):
             yield from self.link_to_data
 
 
+@dataclass(frozen=True)
+class RetrievalEmbeddingDimension(EmbeddingDimension):
+    context_retrieval_ids: Column = field(default_factory=Column)
+    context_retrieval_scores: Column = field(default_factory=Column)
+
+    @classmethod
+    def from_prompt_embedding(
+        cls, emb: RetrievalEmbedding, **kwargs: Any
+    ) -> "RetrievalEmbeddingDimension":
+        # Use `from_embedding` instead of `__init__` because the latter is
+        # needed by replace() and we don't want to clobber the generated
+        # version.
+        return cls(
+            _coerce_str(emb.vector),
+            link_to_data=Column(_coerce_str(emb.link_to_data)),
+            raw_data=Column(_coerce_str(emb.raw_data)),
+            display_name=_coerce_str(emb.display_name),
+            context_retrieval_ids=Column(_coerce_str(emb.context_retrieval_ids)),
+            context_retrieval_scores=Column(_coerce_str(emb.context_retrieval_scores)),
+            **kwargs,
+        )
+
+    def __iter__(self) -> Iterator[str]:
+        """This is to partake in the iteration of column names by a
+        larger data structure of which this object is a member.
+        """
+        yield from super().__iter__()
+        if not self.context_retrieval_ids.is_dummy:
+            yield from self.context_retrieval_ids
+        if not self.context_retrieval_scores.is_dummy:
+            yield from self.context_retrieval_scores
+
+
 Name: TypeAlias = str
 ColumnKey: TypeAlias = Union[Name, Column, SingularDimensionalRole]
 MultiDimensionKey: TypeAlias = Union[MultiDimensionalRole, Sequence[DimensionRole]]
@@ -672,6 +720,10 @@ class Dataset(Events):
     @property
     def role(self) -> DatasetRole:
         return self._self_role
+
+    @cached_property
+    def primary_key(self) -> pd.Index:
+        return pd.Index(self[PREDICTION_ID])
 
     @overload
     def __getitem__(self, key: ColumnKey) -> "pd.Series[Any]":
@@ -1139,7 +1191,7 @@ class Schema(SchemaSpec):
     prediction_score: Optional[str] = None
     actual_label: Optional[str] = None
     actual_score: Optional[str] = None
-    prompt: Optional[Embedding] = None
+    prompt: Optional[RetrievalEmbedding] = None
     response: Optional[Embedding] = None
     features: Iterable[Union[str, CompositeDimensionSpec]] = field(default_factory=list)
     tags: Iterable[Union[str, CompositeDimensionSpec]] = field(default_factory=list)
@@ -1165,7 +1217,7 @@ class Schema(SchemaSpec):
         with dummy dimensions for ones omitted by user. The dummy dimensions
         have randomly generated names that can change for each iteration, but
         currently there's no need to iterate more than once."""
-        for spec, role, data_type in chain(
+        for spec, dimension_role, data_type in chain(
             (
                 (self.prediction_id, PREDICTION_ID, DISCRETE),
                 (self.timestamp, TIMESTAMP, CONTINUOUS),
@@ -1181,28 +1233,40 @@ class Schema(SchemaSpec):
         ):
             if not isinstance(spec, CompositeDimensionSpec):
                 spec = _coerce_str(spec)
-            assert isinstance(role, DimensionRole)  # for mypy
+            assert isinstance(dimension_role, DimensionRole)  # for mypy
             if isinstance(spec, str):
-                if role in (PROMPT, RESPONSE):
+                if dimension_role is PROMPT:
+                    yield RetrievalEmbeddingDimension(
+                        spec,
+                        role=dimension_role,
+                        data_type=data_type,
+                    )
+                elif dimension_role is RESPONSE:
                     yield EmbeddingDimension(
                         spec,
-                        role=role,
+                        role=dimension_role,
                         data_type=data_type,
                     )
                 else:
                     yield ScalarDimension(
                         spec,
-                        role=role,
+                        role=dimension_role,
                         data_type=data_type,
                     )
+            elif isinstance(spec, RetrievalEmbedding):
+                yield RetrievalEmbeddingDimension.from_prompt_embedding(
+                    spec,
+                    role=dimension_role,
+                    data_type=data_type,
+                )
             elif isinstance(spec, Embedding):
                 yield EmbeddingDimension.from_embedding(
                     spec,
-                    role=role,
+                    role=dimension_role,
                     data_type=data_type,
                 )
             else:
-                raise TypeError(f"{role} has unrecognized type: {type(spec)}")
+                raise TypeError(f"{dimension_role} has unrecognized type: {type(spec)}")
 
     def __call__(
         self,

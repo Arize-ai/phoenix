@@ -1,14 +1,14 @@
 from collections import defaultdict
-from itertools import chain, starmap
-from typing import Dict, List, Optional, Set
+from itertools import chain
+from typing import Dict, List, Optional, Set, Union
 
 import numpy as np
+import numpy.typing as npt
 import strawberry
 from strawberry import ID, UNSET
 from strawberry.types import Info
 from typing_extensions import Annotated
 
-from phoenix.core.model_schema import PRIMARY, REFERENCE, EventId
 from phoenix.pointcloud.clustering import Hdbscan
 from phoenix.server.api.helpers import ensure_list
 from phoenix.server.api.input_types.ClusterInput import ClusterInput
@@ -16,6 +16,7 @@ from phoenix.server.api.types.Cluster import Cluster, to_gql_clusters
 
 from .context import Context
 from .input_types import Coordinates
+from .types.DatasetRole import AncillaryDatasetRole, DatasetRole
 from .types.Dimension import to_gql_dimension
 from .types.EmbeddingDimension import (
     DEFAULT_CLUSTER_SELECTION_EPSILON,
@@ -23,7 +24,7 @@ from .types.EmbeddingDimension import (
     DEFAULT_MIN_SAMPLES,
     to_gql_embedding_dimension,
 )
-from .types.Event import unpack_event_id
+from .types.Event import create_event_id, unpack_event_id
 from .types.ExportEventsMutation import ExportEventsMutation
 from .types.Model import Model
 from .types.node import GlobalID, Node, from_global_id
@@ -52,11 +53,9 @@ class Query:
         self,
         clusters: List[ClusterInput],
     ) -> List[Cluster]:
-        clustered_events: Dict[str, Set[EventId]] = defaultdict(set)
+        clustered_events: Dict[str, Set[ID]] = defaultdict(set)
         for i, cluster in enumerate(clusters):
-            clustered_events[cluster.id or str(i)].update(
-                starmap(EventId, map(unpack_event_id, cluster.event_ids))
-            )
+            clustered_events[cluster.id or str(i)].update(cluster.event_ids)
         return to_gql_clusters(
             clustered_events=clustered_events,
         )
@@ -137,24 +136,30 @@ class Query:
         if len(event_ids) == 0:
             return []
 
-        grouped_event_ids = defaultdict(list)
-        grouped_coordinates = defaultdict(list)
+        grouped_event_ids: Dict[
+            Union[DatasetRole, AncillaryDatasetRole],
+            List[ID],
+        ] = defaultdict(list)
+        grouped_coordinates: Dict[
+            Union[DatasetRole, AncillaryDatasetRole],
+            List[npt.NDArray[np.float64]],
+        ] = defaultdict(list)
 
         for event_id, coordinate in zip(event_ids, coordinates):
             row_id, dataset_role = unpack_event_id(event_id)
             grouped_coordinates[dataset_role].append(coordinate)
-            grouped_event_ids[dataset_role].append(
-                EventId(
-                    row_id=row_id,
-                    dataset_id=dataset_role,
-                )
-            )
+            grouped_event_ids[dataset_role].append(create_event_id(row_id, dataset_role))
 
-        stacked_event_ids = grouped_event_ids[PRIMARY] + grouped_event_ids[REFERENCE]
+        stacked_event_ids = (
+            grouped_event_ids[DatasetRole.primary]
+            + grouped_event_ids[DatasetRole.reference]
+            + grouped_event_ids[AncillaryDatasetRole.corpus]
+        )
         stacked_coordinates = np.stack(
             chain(
-                grouped_coordinates[PRIMARY],
-                grouped_coordinates[REFERENCE],
+                grouped_coordinates[DatasetRole.primary],
+                grouped_coordinates[DatasetRole.reference],
+                grouped_coordinates[AncillaryDatasetRole.corpus],
             )
         )  # type: ignore
 

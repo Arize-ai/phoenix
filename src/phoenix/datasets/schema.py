@@ -3,11 +3,8 @@ from dataclasses import asdict, dataclass, replace
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 EmbeddingFeatures = Dict[str, "EmbeddingColumnNames"]
-Relationships = Dict[str, "RelationshipColumnNames"]
 SchemaFieldName = str
-SchemaFieldValue = Union[
-    Optional[str], Optional[List[str]], Optional[EmbeddingFeatures], Optional[Relationships]
-]
+SchemaFieldValue = Union[Optional[str], Optional[List[str]], Optional[EmbeddingFeatures]]
 
 MULTI_COLUMN_SCHEMA_FIELD_NAMES: Tuple[str, ...] = ("feature_column_names", "tag_column_names")
 SINGLE_COLUMN_SCHEMA_FIELD_NAMES: Tuple[str, ...] = (
@@ -35,7 +32,7 @@ class EmbeddingColumnNames(Dict[str, Any]):
 
 
 @dataclass(frozen=True)
-class RelationshipColumnNames(Dict[str, Any]):
+class RetrievalEmbeddingColumnNames(EmbeddingColumnNames):
     """
     *** Experimental ***
     A relationship is a column that maps a prediction to another record.
@@ -49,18 +46,18 @@ class RelationshipColumnNames(Dict[str, Any]):
 
     A table view of the primary dataset could look like this:
 
-    | query |    document_ids       |
-    |-------|-----------------------|
-    | ...   | [doc_1, doc_5, doc_3] |
-    | ...   | [doc_1, doc_6, doc_2] |
-    | ...   | [doc_1, doc_6, doc_9] |
+    | query | retrieved_document_ids | document_relevance_scores |
+    |-------|------------------------|---------------------------|
+    | ...   | [doc_1, doc_5, doc_3]  | [0.4567, 0.3456, 0.2345]  |
+    | ...   | [doc_1, doc_6, doc_2]  | [0.7890, 0.6789, 0.5678]  |
+    | ...   | [doc_1, doc_6, doc_9]  | [0.9012, 0.8901, 0.0123]  |
 
 
     The corresponding vector store dataset would look like this:
 
     |    id    | embedding_vector | document_text |
     |----------|------------------|---------------|
-    | doc_1    | ...              |  lorem ipsum  |
+    | doc_1    | ...              | lorem ipsum   |
     | doc_2    | ...              | lorem ipsum   |
     | doc_3    | ...              | lorem ipsum   |
 
@@ -68,13 +65,15 @@ class RelationshipColumnNames(Dict[str, Any]):
     To declare this relationship in the schema, you would configure the schema as follows:
 
     >>> schema = Schema(
-    ...     relationship_column_names={
-    ...         "retrieval": RelationshipColumnNames(
-    ...             ids_column_name="document_ids",
-    ...         )
+    ...     prompt_column_names=RetrievalEmbeddingColumnNames(
+    ...         context_retrieval_ids_column_name="retrieved_document_ids",
+    ...         context_retrieval_scores_column_name="document_relevance_scores",
+    ...     )
+    ...)
     """
 
-    ids_column_name: str
+    context_retrieval_ids_column_name: Optional[str] = None
+    context_retrieval_scores_column_name: Optional[str] = None
 
 
 @dataclass(frozen=True)
@@ -87,10 +86,9 @@ class Schema(Dict[SchemaFieldName, SchemaFieldValue]):
     prediction_score_column_name: Optional[str] = None
     actual_label_column_name: Optional[str] = None
     actual_score_column_name: Optional[str] = None
-    prompt_column_names: Optional[EmbeddingColumnNames] = None
+    prompt_column_names: Optional[Union[EmbeddingColumnNames, RetrievalEmbeddingColumnNames]] = None
     response_column_names: Optional[EmbeddingColumnNames] = None
     embedding_feature_column_names: Optional[EmbeddingFeatures] = None
-    relationship_column_names: Optional[Relationships] = None
     excluded_column_names: Optional[List[str]] = None
 
     def replace(self, **changes: str) -> "Schema":
@@ -118,22 +116,16 @@ class Schema(Dict[SchemaFieldName, SchemaFieldValue]):
                 )
             json_data["embedding_feature_column_names"] = embedding_feature_column_names
 
-        # parse relationship_column_names
-        if json_data.get("relationship_column_names") is not None:
-            relationship_column_names = {}
-            for relationship_name, column_names in json_data["relationship_column_names"].items():
-                relationship_column_names[relationship_name] = RelationshipColumnNames(
-                    ids_column_name=column_names["ids_column_name"],
-                )
-            json_data["relationship_column_names"] = relationship_column_names
-
         # parse prompt_column_names
-        if json_data.get("prompt_column_names") is not None:
-            prompt_column_names = EmbeddingColumnNames(
-                vector_column_name=json_data["prompt_column_names"]["vector_column_name"],
-                raw_data_column_name=json_data["prompt_column_names"]["raw_data_column_name"],
+        if (prompt := json_data.get("prompt_column_names")) is not None:
+            json_data["prompt_column_names"] = RetrievalEmbeddingColumnNames(
+                vector_column_name=prompt.get("vector_column_name"),
+                raw_data_column_name=prompt.get("raw_data_column_name"),
+                context_retrieval_ids_column_name=prompt.get("context_retrieval_ids_column_name"),
+                context_retrieval_scores_column_name=prompt.get(
+                    "context_retrieval_scores_column_name"
+                ),
             )
-            json_data["prompt_column_names"] = prompt_column_names
 
         # parse response_column_names
         if json_data.get("response_column_names") is not None:

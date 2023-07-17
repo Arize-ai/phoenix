@@ -46,6 +46,7 @@ type PointCloudPointsProps = {
    * Optional second set of data to display in the point cloud
    */
   referenceData: Point[] | null;
+  corpusData: Point[] | null;
   /**
    * How the points should be colored
    */
@@ -60,6 +61,7 @@ type PointCloudPointsProps = {
 export function PointCloudPoints({
   primaryData,
   referenceData,
+  corpusData,
   color,
   radius,
 }: PointCloudPointsProps) {
@@ -92,6 +94,10 @@ export function PointCloudPoints({
     () => (coloringStrategy !== ColoringStrategy.dataset ? "cube" : "sphere"),
     [coloringStrategy]
   );
+  const corpusDatasetPointShape = useMemo(
+    () => (coloringStrategy !== ColoringStrategy.dataset ? "cube" : "sphere"),
+    [coloringStrategy]
+  );
 
   const colorDimFn = useMemo(() => {
     return canvasTheme === "dark"
@@ -121,6 +127,7 @@ export function PointCloudPoints({
   );
 
   const showReferencePoints = datasetVisibility.reference && referenceData;
+  const showCorpusPoints = datasetVisibility.corpus && corpusData;
 
   const onPointClicked = useCallback(
     (point: PointBaseProps) => {
@@ -168,6 +175,20 @@ export function PointCloudPoints({
           onPointHovered={onPointHovered}
           onPointerLeave={onPointerLeave}
           pointShape={referenceDatasetPointShape}
+          onPointClicked={onPointClicked}
+        />
+      ) : null}
+      {showCorpusPoints ? (
+        <Points
+          data={corpusData}
+          pointProps={{
+            color: colorByFn,
+            radius,
+            size: radius ? radius * CUBE_RADIUS_MULTIPLIER : undefined,
+          }}
+          onPointHovered={onPointHovered}
+          onPointerLeave={onPointerLeave}
+          pointShape={corpusDatasetPointShape}
           onPointClicked={onPointClicked}
         />
       ) : null}

@@ -85,23 +85,27 @@ export function PointSelectionPanelContent() {
     string | null
   >(null);
 
-  const { primaryEventIds, referenceEventIds } = useMemo(() => {
+  const { primaryEventIds, referenceEventIds, corpusEventIds } = useMemo(() => {
     const primaryEventIds: string[] = [];
     const referenceEventIds: string[] = [];
+    const corpusEventIds: string[] = [];
     selectedEventIds.forEach((id) => {
       if (id.includes("PRIMARY")) {
         primaryEventIds.push(id);
+      } else if (id.includes("CORPUS")) {
+        corpusEventIds.push(id);
       } else {
         referenceEventIds.push(id);
       }
     });
-    return { primaryEventIds, referenceEventIds };
+    return { primaryEventIds, referenceEventIds, corpusEventIds };
   }, [selectedEventIds]);
   const data = useLazyLoadQuery<PointSelectionPanelContentQuery>(
     graphql`
       query PointSelectionPanelContentQuery(
         $primaryEventIds: [ID!]!
         $referenceEventIds: [ID!]!
+        $corpusEventIds: [ID!]!
       ) {
         model {
           primaryDataset {
@@ -150,19 +154,44 @@ export function PointSelectionPanelContent() {
               }
             }
           }
+          corpusDataset {
+            events(eventIds: $corpusEventIds) {
+              id
+              dimensions {
+                dimension {
+                  name
+                  type
+                }
+                value
+              }
+              eventMetadata {
+                predictionId
+                predictionLabel
+                predictionScore
+                actualLabel
+                actualScore
+              }
+              promptAndResponse {
+                prompt
+                response
+              }
+            }
+          }
         }
       }
     `,
     {
       primaryEventIds: [...primaryEventIds],
       referenceEventIds: [...referenceEventIds],
+      corpusEventIds: [...corpusEventIds],
     }
   );
 
   const allSelectedEvents = useMemo(() => {
     const primaryEvents = data.model?.primaryDataset?.events ?? [];
     const referenceEvents = data.model?.referenceDataset?.events ?? [];
-    return [...primaryEvents, ...referenceEvents];
+    const corpusEvents = data.model?.corpusDataset?.events ?? [];
+    return [...primaryEvents, ...referenceEvents, ...corpusEvents];
   }, [data]);
 
   const onClose = () => {

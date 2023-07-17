@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<e7021354bc188f10f87c28a361bcb38f>>
+ * @generated SignedSource<<03e377e0998569b67cb79b18a4faa952>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -43,6 +43,40 @@ export type EmbeddingUMAPQuery$data = {
           readonly primaryValue: number | null;
           readonly referenceValue: number | null;
         };
+      }>;
+      readonly contextRetrievals: ReadonlyArray<{
+        readonly documentId: string;
+        readonly queryId: string;
+        readonly relevance: number | null;
+      }>;
+      readonly corpusData: ReadonlyArray<{
+        readonly coordinates: {
+          readonly __typename: "Point2D";
+          readonly x: number;
+          readonly y: number;
+        } | {
+          readonly __typename: "Point3D";
+          readonly x: number;
+          readonly y: number;
+          readonly z: number;
+        } | {
+          // This will never be '%other', but we need some
+          // value in case none of the concrete values match.
+          readonly __typename: "%other";
+        };
+        readonly embeddingMetadata: {
+          readonly linkToData: string | null;
+          readonly rawData: string | null;
+        };
+        readonly eventId: string;
+        readonly eventMetadata: {
+          readonly actualLabel: string | null;
+          readonly actualScore: number | null;
+          readonly predictionId: string | null;
+          readonly predictionLabel: string | null;
+          readonly predictionScore: number | null;
+        };
+        readonly id: string;
       }>;
       readonly data: ReadonlyArray<{
         readonly coordinates: {
@@ -410,6 +444,16 @@ v19 = {
         {
           "alias": null,
           "args": null,
+          "concreteType": "UMAPPoint",
+          "kind": "LinkedField",
+          "name": "corpusData",
+          "plural": true,
+          "selections": (v17/*: any*/),
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
           "concreteType": "Cluster",
           "kind": "LinkedField",
           "name": "clusters",
@@ -492,6 +536,38 @@ v19 = {
                   "storageKey": null
                 }
               ]
+            }
+          ],
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "concreteType": "Retrieval",
+          "kind": "LinkedField",
+          "name": "contextRetrievals",
+          "plural": true,
+          "selections": [
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "queryId",
+              "storageKey": null
+            },
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "documentId",
+              "storageKey": null
+            },
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "relevance",
+              "storageKey": null
             }
           ],
           "storageKey": null
@@ -579,16 +655,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "b0be6ea5299b12acbc9d3dab4f2e6889",
+    "cacheID": "e6211bb3d71d2178c1f18d6919bf0d59",
     "id": null,
     "metadata": {},
     "name": "EmbeddingUMAPQuery",
     "operationKind": "query",
-    "text": "query EmbeddingUMAPQuery(\n  $id: GlobalID!\n  $timeRange: TimeRange!\n  $minDist: Float!\n  $nNeighbors: Int!\n  $nSamples: Int!\n  $minClusterSize: Int!\n  $clusterMinSamples: Int!\n  $clusterSelectionEpsilon: Float!\n  $fetchDataQualityMetric: Boolean!\n  $dataQualityMetricColumnName: String\n  $fetchPerformanceMetric: Boolean!\n  $performanceMetric: PerformanceMetric!\n) {\n  embedding: node(id: $id) {\n    __typename\n    ... on EmbeddingDimension {\n      UMAPPoints(timeRange: $timeRange, minDist: $minDist, nNeighbors: $nNeighbors, nSamples: $nSamples, minClusterSize: $minClusterSize, clusterMinSamples: $clusterMinSamples, clusterSelectionEpsilon: $clusterSelectionEpsilon) {\n        data {\n          id\n          eventId\n          coordinates {\n            __typename\n            ... on Point3D {\n              x\n              y\n              z\n            }\n            ... on Point2D {\n              x\n              y\n            }\n          }\n          embeddingMetadata {\n            linkToData\n            rawData\n          }\n          eventMetadata {\n            predictionId\n            predictionLabel\n            actualLabel\n            predictionScore\n            actualScore\n          }\n        }\n        referenceData {\n          id\n          eventId\n          coordinates {\n            __typename\n            ... on Point3D {\n              x\n              y\n              z\n            }\n            ... on Point2D {\n              x\n              y\n            }\n          }\n          embeddingMetadata {\n            linkToData\n            rawData\n          }\n          eventMetadata {\n            predictionId\n            predictionLabel\n            actualLabel\n            predictionScore\n            actualScore\n          }\n        }\n        clusters {\n          id\n          eventIds\n          driftRatio\n          dataQualityMetric(metric: {columnName: $dataQualityMetricColumnName, metric: mean}) @include(if: $fetchDataQualityMetric) {\n            primaryValue\n            referenceValue\n          }\n          performanceMetric(metric: {metric: $performanceMetric}) @include(if: $fetchPerformanceMetric) {\n            primaryValue\n            referenceValue\n          }\n        }\n      }\n    }\n    __isNode: __typename\n    id\n  }\n}\n"
+    "text": "query EmbeddingUMAPQuery(\n  $id: GlobalID!\n  $timeRange: TimeRange!\n  $minDist: Float!\n  $nNeighbors: Int!\n  $nSamples: Int!\n  $minClusterSize: Int!\n  $clusterMinSamples: Int!\n  $clusterSelectionEpsilon: Float!\n  $fetchDataQualityMetric: Boolean!\n  $dataQualityMetricColumnName: String\n  $fetchPerformanceMetric: Boolean!\n  $performanceMetric: PerformanceMetric!\n) {\n  embedding: node(id: $id) {\n    __typename\n    ... on EmbeddingDimension {\n      UMAPPoints(timeRange: $timeRange, minDist: $minDist, nNeighbors: $nNeighbors, nSamples: $nSamples, minClusterSize: $minClusterSize, clusterMinSamples: $clusterMinSamples, clusterSelectionEpsilon: $clusterSelectionEpsilon) {\n        data {\n          id\n          eventId\n          coordinates {\n            __typename\n            ... on Point3D {\n              x\n              y\n              z\n            }\n            ... on Point2D {\n              x\n              y\n            }\n          }\n          embeddingMetadata {\n            linkToData\n            rawData\n          }\n          eventMetadata {\n            predictionId\n            predictionLabel\n            actualLabel\n            predictionScore\n            actualScore\n          }\n        }\n        referenceData {\n          id\n          eventId\n          coordinates {\n            __typename\n            ... on Point3D {\n              x\n              y\n              z\n            }\n            ... on Point2D {\n              x\n              y\n            }\n          }\n          embeddingMetadata {\n            linkToData\n            rawData\n          }\n          eventMetadata {\n            predictionId\n            predictionLabel\n            actualLabel\n            predictionScore\n            actualScore\n          }\n        }\n        corpusData {\n          id\n          eventId\n          coordinates {\n            __typename\n            ... on Point3D {\n              x\n              y\n              z\n            }\n            ... on Point2D {\n              x\n              y\n            }\n          }\n          embeddingMetadata {\n            linkToData\n            rawData\n          }\n          eventMetadata {\n            predictionId\n            predictionLabel\n            actualLabel\n            predictionScore\n            actualScore\n          }\n        }\n        clusters {\n          id\n          eventIds\n          driftRatio\n          dataQualityMetric(metric: {columnName: $dataQualityMetricColumnName, metric: mean}) @include(if: $fetchDataQualityMetric) {\n            primaryValue\n            referenceValue\n          }\n          performanceMetric(metric: {metric: $performanceMetric}) @include(if: $fetchPerformanceMetric) {\n            primaryValue\n            referenceValue\n          }\n        }\n        contextRetrievals {\n          queryId\n          documentId\n          relevance\n        }\n      }\n    }\n    __isNode: __typename\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "1a2da769c167e17cdb12ada5617e80bc";
+(node as any).hash = "316df421cda9a2cdb7cb984e16970b3f";
 
 export default node;

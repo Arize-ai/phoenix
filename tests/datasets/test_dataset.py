@@ -21,7 +21,7 @@ from phoenix.datasets.dataset import (
 from phoenix.datasets.errors import DatasetError
 from phoenix.datasets.schema import (
     EmbeddingColumnNames,
-    RelationshipColumnNames,
+    RetrievalEmbeddingColumnNames,
     Schema,
 )
 from pytest import LogCaptureFixture, raises
@@ -341,17 +341,17 @@ class TestParseDataFrameAndSchema:
             {
                 "prediction_id": [str(x) for x in range(self.num_records)],
                 "timestamp": [pd.Timestamp.now() for x in range(self.num_records)],
+                "embedding": [[1, 2, 3, 4, 5] for _ in range(self.num_records)],
                 "document_ids": [["doc_id_1", "doc_id_4"] for _ in range(self.num_records)],
             }
         )
         input_schema = Schema(
             prediction_id_column_name="prediction_id",
             timestamp_column_name="timestamp",
-            relationship_column_names={
-                "retrieval": RelationshipColumnNames(
-                    ids_column_name="document_ids",
-                ),
-            },
+            prompt_column_names=RetrievalEmbeddingColumnNames(
+                vector_column_name="embedding",
+                context_retrieval_ids_column_name="document_ids",
+            ),
         )
         self._parse_dataframe_and_schema_and_check_output(
             input_dataframe=input_dataframe,
