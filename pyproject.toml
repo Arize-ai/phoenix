@@ -21,11 +21,11 @@ classifiers = [
   "Programming Language :: Python :: 3.11",
 ]
 dependencies = [
-  "scikit-learn",
+  "cython>=3.0.0",
+  "scikit-learn<1.3.0",
   "numpy",
   "pandas",
   "umap-learn",
-  "cython>=3.0.0",
   "hdbscan",
   "starlette",
   "uvicorn",
