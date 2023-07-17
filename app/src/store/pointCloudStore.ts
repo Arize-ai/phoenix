@@ -16,6 +16,7 @@ import {
   DEFAULT_MIN_CLUSTER_SIZE,
   DEFAULT_MIN_DIST,
   DEFAULT_N_NEIGHBORS,
+  FALLBACK_COLOR,
   SelectionDisplay,
   SelectionGridSize,
   UNKNOWN_COLOR,
@@ -37,6 +38,12 @@ import {
  * THe number of numeric groups to use when coloring by a numeric dimension.
  */
 const NUM_NUMERIC_GROUPS = 10;
+
+/**
+ * The group that an unknown point belongs to
+ * E.x. if the point is missing a prediction label
+ */
+const UNKNOWN_GROUP = "unknown";
 
 // Color scales for dynamic coloring.
 const sequentialColorScale = interpolateCool;
@@ -101,6 +108,7 @@ export enum ClusterColorMode {
 type DatasetVisibility = {
   primary: boolean;
   reference: boolean;
+  corpus: boolean;
 };
 
 export interface Point {
@@ -475,10 +483,12 @@ export const DEFAULT_DRIFT_POINT_CLOUD_PROPS: Partial<PointCloudProps> = {
   pointGroupVisibility: {
     [DatasetGroup.primary]: true,
     [DatasetGroup.reference]: true,
+    [DatasetGroup.corpus]: true,
   },
   pointGroupColors: {
     [DatasetGroup.primary]: DEFAULT_COLOR_SCHEME[0],
     [DatasetGroup.reference]: DEFAULT_COLOR_SCHEME[1],
+    [DatasetGroup.corpus]: FALLBACK_COLOR,
   },
   metric: {
     type: "drift",
@@ -530,15 +540,17 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
     canvasTheme: "dark",
     clusterColorMode: ClusterColorMode.default,
     coloringStrategy: ColoringStrategy.dataset,
-    datasetVisibility: { primary: true, reference: true },
+    datasetVisibility: { primary: true, reference: true, corpus: true },
     pointGroupVisibility: {
       [DatasetGroup.primary]: true,
       [DatasetGroup.reference]: true,
+      [DatasetGroup.corpus]: true,
     },
     pointGroupColors: {
       // TODO move to a single source of truth
       [DatasetGroup.primary]: DEFAULT_COLOR_SCHEME[0],
       [DatasetGroup.reference]: DEFAULT_COLOR_SCHEME[1],
+      [DatasetGroup.corpus]: FALLBACK_COLOR,
     },
     eventIdToGroup: {},
     selectionDisplay: SelectionDisplay.gallery,
@@ -687,11 +699,13 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
             pointGroupVisibility: {
               [DatasetGroup.primary]: true,
               [DatasetGroup.reference]: true,
+              [DatasetGroup.corpus]: true,
             },
             pointGroupColors: {
               // TODO move these colors to a constants file
               [DatasetGroup.primary]: DEFAULT_COLOR_SCHEME[0],
               [DatasetGroup.reference]: DEFAULT_COLOR_SCHEME[1],
+              [DatasetGroup.corpus]: FALLBACK_COLOR,
             },
             dimension: null,
             dimensionMetadata: null,
@@ -730,7 +744,7 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
           assertUnreachable(strategy);
       }
     },
-    datasetVisibility: { primary: true, reference: true },
+    datasetVisibility: { primary: true, reference: true, corpus: true },
     setDatasetVisibility: (visibility) =>
       set({ datasetVisibility: visibility }),
     setPointGroupVisibility: (visibility) =>
@@ -911,6 +925,23 @@ function getNumericGroupsFromInterval({
   return groups;
 }
 
+function getEventGroupForNumericValue({
+  numericGroupIntervals,
+  numericValue,
+}: {
+  numericGroupIntervals: NumericGroupInterval[];
+  numericValue: number;
+}): string {
+  let eventGroup = UNKNOWN_GROUP;
+  let groupIndex = numericGroupIntervals.findIndex(
+    (group) => numericValue >= group.min && numericValue < group.max
+  );
+  // If we fail to find the index, it means it belongs to the last group
+  groupIndex = groupIndex === -1 ? NUM_NUMERIC_GROUPS - 1 : groupIndex;
+  eventGroup = numericGroupIntervals[groupIndex].name;
+
+  return eventGroup;
+}
 /**
  * Calculates the group mapping for each point
  */
@@ -923,13 +954,16 @@ function getEventIdToGroup(
   const eventIds = points.map((point) => point.eventId);
   switch (coloringStrategy) {
     case ColoringStrategy.dataset: {
-      const { primaryEventIds, referenceEventIds } =
+      const { primaryEventIds, referenceEventIds, corpusEventIds } =
         splitEventIdsByDataset(eventIds);
       primaryEventIds.forEach((eventId) => {
         eventIdToGroup[eventId] = DatasetGroup.primary;
       });
       referenceEventIds.forEach((eventId) => {
         eventIdToGroup[eventId] = DatasetGroup.reference;
+      });
+      corpusEventIds.forEach((eventId) => {
+        eventIdToGroup[eventId] = DatasetGroup.corpus;
       });
       break;
     }
@@ -958,11 +992,15 @@ function getEventIdToGroup(
       const isColorByPredictionLabel =
         dimension?.type === "prediction" &&
         dimension?.dataType === "categorical";
+      const isColorByPredictionScore =
+        dimension?.type === "prediction" && dimension?.dataType === "numeric";
       const isColorByActualLabel =
         dimension?.type === "actual" && dimension?.dataType === "categorical";
+      const isColorByActualScore =
+        dimension?.type === "actual" && dimension?.dataType === "numeric";
 
       points.forEach((point) => {
-        let group = "unknown";
+        let group = UNKNOWN_GROUP;
         const pointData = pointsData[point.eventId];
 
         // Flag to determine if we have enough data to color by dimension
@@ -971,9 +1009,35 @@ function getEventIdToGroup(
 
         if (haveSufficientDataToColorByDimension) {
           if (isColorByPredictionLabel) {
-            group = pointData.eventMetadata.predictionLabel ?? "unknown";
+            group = pointData.eventMetadata.predictionLabel ?? UNKNOWN_GROUP;
+          } else if (isColorByPredictionScore) {
+            if (numericGroupIntervals == null) {
+              throw new Error(
+                "Cannot color by prediction score without numeric group intervals"
+              );
+            }
+            const numericValue = pointData.eventMetadata.predictionScore;
+            if (typeof numericValue === "number") {
+              group = getEventGroupForNumericValue({
+                numericGroupIntervals,
+                numericValue,
+              });
+            }
+          } else if (isColorByActualScore) {
+            if (numericGroupIntervals == null) {
+              throw new Error(
+                "Cannot color by actual score without numeric group intervals"
+              );
+            }
+            const numericValue = pointData.eventMetadata.actualScore;
+            if (typeof numericValue === "number") {
+              group = getEventGroupForNumericValue({
+                numericGroupIntervals,
+                numericValue,
+              });
+            }
           } else if (isColorByActualLabel) {
-            group = pointData.eventMetadata.actualLabel ?? "unknown";
+            group = pointData.eventMetadata.actualLabel ?? UNKNOWN_GROUP;
           } else {
             // It is a feature or tag. Find the dimension value
             const dimensionWithValue = pointData.dimensions.find(
@@ -985,7 +1049,7 @@ function getEventIdToGroup(
               dimension.dataType === "categorical"
             ) {
               // The group is just the categorical value. If it is null, we use "unknown" for now
-              group = dimensionWithValue.value ?? "unknown";
+              group = dimensionWithValue.value ?? UNKNOWN_GROUP;
             } else if (
               dimensionWithValue != null &&
               dimension.dataType === "numeric" &&
@@ -996,17 +1060,10 @@ function getEventIdToGroup(
                   ? parseFloat(dimensionWithValue.value)
                   : null;
               if (typeof numericValue === "number") {
-                let groupIndex = numericGroupIntervals.findIndex(
-                  (group) =>
-                    numericValue >= group.min && numericValue < group.max
-                );
-                // If we fail to find the index, it means it belongs to the last group
-                groupIndex =
-                  groupIndex === -1 ? NUM_NUMERIC_GROUPS - 1 : groupIndex;
-                group = numericGroupIntervals[groupIndex].name;
-              } else {
-                // We cannot determine the group of the numeric value
-                group = "unknown";
+                group = getEventGroupForNumericValue({
+                  numericGroupIntervals,
+                  numericValue,
+                });
               }
             }
           }
@@ -1092,15 +1149,15 @@ type GetEventIdToGroupParams = {
 };
 
 async function fetchPointEvents(eventIds: string[]): Promise<PointDataMap> {
-  const { primaryEventIds, referenceEventIds } = splitEventIdsByDataset([
-    ...eventIds,
-  ]);
+  const { primaryEventIds, referenceEventIds, corpusEventIds } =
+    splitEventIdsByDataset([...eventIds]);
   const data = await fetchQuery<pointCloudStore_eventsQuery>(
     RelayEnvironment,
     graphql`
       query pointCloudStore_eventsQuery(
         $primaryEventIds: [ID!]!
         $referenceEventIds: [ID!]!
+        $corpusEventIds: [ID!]!
       ) {
         model {
           primaryDataset {
@@ -1115,7 +1172,9 @@ async function fetchPointEvents(eventIds: string[]): Promise<PointDataMap> {
               }
               eventMetadata {
                 predictionLabel
+                predictionScore
                 actualLabel
+                actualScore
               }
               promptAndResponse {
                 prompt
@@ -1136,7 +1195,31 @@ async function fetchPointEvents(eventIds: string[]): Promise<PointDataMap> {
               }
               eventMetadata {
                 predictionLabel
+                predictionScore
                 actualLabel
+                actualScore
+              }
+              promptAndResponse {
+                prompt
+                response
+              }
+            }
+          }
+          corpusDataset {
+            events(eventIds: $corpusEventIds) {
+              id
+              dimensions {
+                dimension {
+                  name
+                  type
+                }
+                value
+              }
+              eventMetadata {
+                predictionLabel
+                predictionScore
+                actualLabel
+                actualScore
               }
               promptAndResponse {
                 prompt
@@ -1150,12 +1233,14 @@ async function fetchPointEvents(eventIds: string[]): Promise<PointDataMap> {
     {
       primaryEventIds: primaryEventIds,
       referenceEventIds: referenceEventIds,
+      corpusEventIds: corpusEventIds,
     }
   ).toPromise();
   // Construct a map of point id to the event data
   const primaryEvents = data?.model?.primaryDataset?.events ?? [];
   const referenceEvents = data?.model?.referenceDataset?.events ?? [];
-  const allEvents = [...primaryEvents, ...referenceEvents];
+  const corpusEvents = data?.model?.corpusDataset?.events ?? [];
+  const allEvents = [...primaryEvents, ...referenceEvents, ...corpusEvents];
   return allEvents.reduce((acc, event) => {
     acc[event.id] = event;
     return acc;

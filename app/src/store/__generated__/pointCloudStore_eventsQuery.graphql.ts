@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c752f20798bf8d71d186dca8b82f77d9>>
+ * @generated SignedSource<<160902f7fcd87d2a9be1721be55f4866>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -11,11 +11,34 @@
 import { ConcreteRequest, Query } from 'relay-runtime';
 export type DimensionType = "actual" | "feature" | "prediction" | "tag";
 export type pointCloudStore_eventsQuery$variables = {
+  corpusEventIds: ReadonlyArray<string>;
   primaryEventIds: ReadonlyArray<string>;
   referenceEventIds: ReadonlyArray<string>;
 };
 export type pointCloudStore_eventsQuery$data = {
   readonly model: {
+    readonly corpusDataset: {
+      readonly events: ReadonlyArray<{
+        readonly dimensions: ReadonlyArray<{
+          readonly dimension: {
+            readonly name: string;
+            readonly type: DimensionType;
+          };
+          readonly value: string | null;
+        }>;
+        readonly eventMetadata: {
+          readonly actualLabel: string | null;
+          readonly actualScore: number | null;
+          readonly predictionLabel: string | null;
+          readonly predictionScore: number | null;
+        };
+        readonly id: string;
+        readonly promptAndResponse: {
+          readonly prompt: string | null;
+          readonly response: string | null;
+        } | null;
+      }>;
+    } | null;
     readonly primaryDataset: {
       readonly events: ReadonlyArray<{
         readonly dimensions: ReadonlyArray<{
@@ -27,7 +50,9 @@ export type pointCloudStore_eventsQuery$data = {
         }>;
         readonly eventMetadata: {
           readonly actualLabel: string | null;
+          readonly actualScore: number | null;
           readonly predictionLabel: string | null;
+          readonly predictionScore: number | null;
         };
         readonly id: string;
         readonly promptAndResponse: {
@@ -48,7 +73,9 @@ export type pointCloudStore_eventsQuery$data = {
         }>;
         readonly eventMetadata: {
           readonly actualLabel: string | null;
+          readonly actualScore: number | null;
           readonly predictionLabel: string | null;
+          readonly predictionScore: number | null;
         };
         readonly id: string;
         readonly promptAndResponse: {
@@ -65,47 +92,50 @@ export type pointCloudStore_eventsQuery = {
 };
 
 const node: ConcreteRequest = (function(){
-var v0 = [
-  {
-    "defaultValue": null,
-    "kind": "LocalArgument",
-    "name": "primaryEventIds"
-  },
-  {
-    "defaultValue": null,
-    "kind": "LocalArgument",
-    "name": "referenceEventIds"
-  }
-],
+var v0 = {
+  "defaultValue": null,
+  "kind": "LocalArgument",
+  "name": "corpusEventIds"
+},
 v1 = {
+  "defaultValue": null,
+  "kind": "LocalArgument",
+  "name": "primaryEventIds"
+},
+v2 = {
+  "defaultValue": null,
+  "kind": "LocalArgument",
+  "name": "referenceEventIds"
+},
+v3 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "id",
   "storageKey": null
 },
-v2 = {
+v4 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "name",
   "storageKey": null
 },
-v3 = {
+v5 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "type",
   "storageKey": null
 },
-v4 = {
+v6 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "value",
   "storageKey": null
 },
-v5 = {
+v7 = {
   "alias": null,
   "args": null,
   "concreteType": "EventMetadata",
@@ -124,13 +154,27 @@ v5 = {
       "alias": null,
       "args": null,
       "kind": "ScalarField",
+      "name": "predictionScore",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
       "name": "actualLabel",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "actualScore",
       "storageKey": null
     }
   ],
   "storageKey": null
 },
-v6 = {
+v8 = {
   "alias": null,
   "args": null,
   "concreteType": "PromptResponse",
@@ -155,7 +199,37 @@ v6 = {
   ],
   "storageKey": null
 },
-v7 = [
+v9 = [
+  (v3/*: any*/),
+  {
+    "alias": null,
+    "args": null,
+    "concreteType": "DimensionWithValue",
+    "kind": "LinkedField",
+    "name": "dimensions",
+    "plural": true,
+    "selections": [
+      {
+        "alias": null,
+        "args": null,
+        "concreteType": "Dimension",
+        "kind": "LinkedField",
+        "name": "dimension",
+        "plural": false,
+        "selections": [
+          (v4/*: any*/),
+          (v5/*: any*/)
+        ],
+        "storageKey": null
+      },
+      (v6/*: any*/)
+    ],
+    "storageKey": null
+  },
+  (v7/*: any*/),
+  (v8/*: any*/)
+],
+v10 = [
   {
     "alias": null,
     "args": null,
@@ -185,36 +259,7 @@ v7 = [
             "kind": "LinkedField",
             "name": "events",
             "plural": true,
-            "selections": [
-              (v1/*: any*/),
-              {
-                "alias": null,
-                "args": null,
-                "concreteType": "DimensionWithValue",
-                "kind": "LinkedField",
-                "name": "dimensions",
-                "plural": true,
-                "selections": [
-                  {
-                    "alias": null,
-                    "args": null,
-                    "concreteType": "Dimension",
-                    "kind": "LinkedField",
-                    "name": "dimension",
-                    "plural": false,
-                    "selections": [
-                      (v2/*: any*/),
-                      (v3/*: any*/)
-                    ],
-                    "storageKey": null
-                  },
-                  (v4/*: any*/)
-                ],
-                "storageKey": null
-              },
-              (v5/*: any*/),
-              (v6/*: any*/)
-            ],
+            "selections": (v9/*: any*/),
             "storageKey": null
           }
         ],
@@ -242,7 +287,7 @@ v7 = [
             "name": "events",
             "plural": true,
             "selections": [
-              (v1/*: any*/),
+              (v3/*: any*/),
               {
                 "alias": null,
                 "args": null,
@@ -259,19 +304,46 @@ v7 = [
                     "name": "dimension",
                     "plural": false,
                     "selections": [
-                      (v1/*: any*/),
-                      (v2/*: any*/),
-                      (v3/*: any*/)
+                      (v3/*: any*/),
+                      (v4/*: any*/),
+                      (v5/*: any*/)
                     ],
                     "storageKey": null
                   },
-                  (v4/*: any*/)
+                  (v6/*: any*/)
                 ],
                 "storageKey": null
               },
-              (v5/*: any*/),
-              (v6/*: any*/)
+              (v7/*: any*/),
+              (v8/*: any*/)
             ],
+            "storageKey": null
+          }
+        ],
+        "storageKey": null
+      },
+      {
+        "alias": null,
+        "args": null,
+        "concreteType": "Dataset",
+        "kind": "LinkedField",
+        "name": "corpusDataset",
+        "plural": false,
+        "selections": [
+          {
+            "alias": null,
+            "args": [
+              {
+                "kind": "Variable",
+                "name": "eventIds",
+                "variableName": "corpusEventIds"
+              }
+            ],
+            "concreteType": "Event",
+            "kind": "LinkedField",
+            "name": "events",
+            "plural": true,
+            "selections": (v9/*: any*/),
             "storageKey": null
           }
         ],
@@ -283,32 +355,40 @@ v7 = [
 ];
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": [
+      (v0/*: any*/),
+      (v1/*: any*/),
+      (v2/*: any*/)
+    ],
     "kind": "Fragment",
     "metadata": null,
     "name": "pointCloudStore_eventsQuery",
-    "selections": (v7/*: any*/),
+    "selections": (v10/*: any*/),
     "type": "Query",
     "abstractKey": null
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": [
+      (v1/*: any*/),
+      (v2/*: any*/),
+      (v0/*: any*/)
+    ],
     "kind": "Operation",
     "name": "pointCloudStore_eventsQuery",
-    "selections": (v7/*: any*/)
+    "selections": (v10/*: any*/)
   },
   "params": {
-    "cacheID": "4001e8c17e0d700200f56c1701565a80",
+    "cacheID": "6456c3281a98cf2ad06267e96bdb97c9",
     "id": null,
     "metadata": {},
     "name": "pointCloudStore_eventsQuery",
     "operationKind": "query",
-    "text": "query pointCloudStore_eventsQuery(\n  $primaryEventIds: [ID!]!\n  $referenceEventIds: [ID!]!\n) {\n  model {\n    primaryDataset {\n      events(eventIds: $primaryEventIds) {\n        id\n        dimensions {\n          dimension {\n            name\n            type\n          }\n          value\n        }\n        eventMetadata {\n          predictionLabel\n          actualLabel\n        }\n        promptAndResponse {\n          prompt\n          response\n        }\n      }\n    }\n    referenceDataset {\n      events(eventIds: $referenceEventIds) {\n        id\n        dimensions {\n          dimension {\n            id\n            name\n            type\n          }\n          value\n        }\n        eventMetadata {\n          predictionLabel\n          actualLabel\n        }\n        promptAndResponse {\n          prompt\n          response\n        }\n      }\n    }\n  }\n}\n"
+    "text": "query pointCloudStore_eventsQuery(\n  $primaryEventIds: [ID!]!\n  $referenceEventIds: [ID!]!\n  $corpusEventIds: [ID!]!\n) {\n  model {\n    primaryDataset {\n      events(eventIds: $primaryEventIds) {\n        id\n        dimensions {\n          dimension {\n            name\n            type\n          }\n          value\n        }\n        eventMetadata {\n          predictionLabel\n          predictionScore\n          actualLabel\n          actualScore\n        }\n        promptAndResponse {\n          prompt\n          response\n        }\n      }\n    }\n    referenceDataset {\n      events(eventIds: $referenceEventIds) {\n        id\n        dimensions {\n          dimension {\n            id\n            name\n            type\n          }\n          value\n        }\n        eventMetadata {\n          predictionLabel\n          predictionScore\n          actualLabel\n          actualScore\n        }\n        promptAndResponse {\n          prompt\n          response\n        }\n      }\n    }\n    corpusDataset {\n      events(eventIds: $corpusEventIds) {\n        id\n        dimensions {\n          dimension {\n            name\n            type\n          }\n          value\n        }\n        eventMetadata {\n          predictionLabel\n          predictionScore\n          actualLabel\n          actualScore\n        }\n        promptAndResponse {\n          prompt\n          response\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "0fbd4c521362be2f4b22de5ac30bb311";
+(node as any).hash = "e7e6779bff760f04d14a73062c9857cb";
 
 export default node;

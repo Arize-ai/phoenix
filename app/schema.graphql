@@ -310,6 +310,7 @@ type Model {
   dimensions(first: Int = 50, last: Int, after: String, before: String, include: DimensionFilter, exclude: DimensionFilter): DimensionConnection!
   primaryDataset: Dataset!
   referenceDataset: Dataset
+  corpusDataset: Dataset
   embeddingDimensions(first: Int = 50, last: Int, after: String, before: String): EmbeddingDimensionConnection!
 
   """Returns exported file names sorted by descending modification time."""
@@ -426,6 +427,12 @@ type Query {
   ): [Cluster!]!
 }
 
+type Retrieval {
+  queryId: ID!
+  documentId: ID!
+  relevance: Float
+}
+
 enum ScalarDriftMetric {
   psi
   klDivergence
@@ -473,6 +480,8 @@ type UMAPPoints {
   data: [UMAPPoint!]!
   referenceData: [UMAPPoint!]!
   clusters: [Cluster!]!
+  corpusData: [UMAPPoint!]!
+  contextRetrievals: [Retrieval!]!
 }
 
 enum VectorDriftMetric {

@@ -15,7 +15,7 @@ from ..input_types.Granularity import Granularity
 from ..input_types.PerformanceMetricInput import PerformanceMetricInput
 from ..input_types.TimeRange import TimeRange
 from .Dataset import Dataset
-from .DatasetRole import DatasetRole
+from .DatasetRole import AncillaryDatasetRole, DatasetRole
 from .Dimension import Dimension, to_gql_dimension
 from .EmbeddingDimension import EmbeddingDimension, to_gql_embedding_dimension
 from .ExportedFile import ExportedFile
@@ -69,6 +69,8 @@ class Model:
             start_time=start,
             end_time=stop,
             dataset=dataset,
+            dataset_role=DatasetRole.primary,
+            model=info.context.model,
         )
 
     @strawberry.field
@@ -80,6 +82,23 @@ class Model:
             start_time=start,
             end_time=stop,
             dataset=dataset,
+            dataset_role=DatasetRole.reference,
+            model=info.context.model,
+        )
+
+    @strawberry.field
+    def corpus_dataset(self, info: Info[Context, None]) -> Optional[Dataset]:
+        if info.context.corpus is None:
+            return None
+        if (dataset := info.context.corpus[PRIMARY]).empty:
+            return None
+        start, stop = dataset.time_range
+        return Dataset(
+            start_time=start,
+            end_time=stop,
+            dataset=dataset,
+            dataset_role=AncillaryDatasetRole.corpus,
+            model=info.context.corpus,
         )
 
     @strawberry.field
