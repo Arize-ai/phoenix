@@ -69,10 +69,15 @@ class Session(ABC):
             primary_dataset,
             reference_dataset,
         )
-        if corpus_dataset is not None:
-            self.corpus = create_model_from_datasets(
+
+        self.corpus = (
+            create_model_from_datasets(
                 corpus_dataset,
             )
+            if corpus_dataset is not None
+            else None
+        )
+
         self.port = port
         self.temp_dir = TemporaryDirectory()
         self.export_path = Path(self.temp_dir.name) / "exports"
@@ -182,7 +187,7 @@ class ThreadSession(Session):
         self.app = create_app(
             export_path=self.export_path,
             model=self.model,
-            corpus=self.corpus if hasattr(self, "corpus") else None,
+            corpus=self.corpus,
         )
         self.server = ThreadServer(
             app=self.app,
