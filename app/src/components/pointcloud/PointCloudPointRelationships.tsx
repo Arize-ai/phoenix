@@ -1,4 +1,4 @@
-import React, { useRef } from "react";
+import React, { useMemo, useRef } from "react";
 import { QuadraticBezierLine } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
 
@@ -27,29 +27,23 @@ export function PointCloudPointRelationships() {
       );
     }
   });
-  if (hoveredEventId == null) return null;
-  debugger;
-  const hoveredPoint = eventIdToDataMap.get(hoveredEventId);
 
-  if (hoveredPoint == null) return null;
+  const lines = useMemo<Line[]>(() => {
+    if (hoveredEventId == null) return [];
+    const hoveredPoint = eventIdToDataMap.get(hoveredEventId);
+    if (hoveredPoint == null) return [];
+    const hoveredPointRetrievals = hoveredPoint.retrievals ?? [];
+    if (hoveredPointRetrievals?.length === 0) return [];
+    const lines = hoveredPointRetrievals
+      .map((retrieval) => {
+        const retrievalPoint = eventIdToDataMap.get(retrieval.documentId);
+        if (retrievalPoint == null) return null;
+        return [hoveredPoint.position, retrievalPoint.position];
+      })
+      .filter((line): line is Line => line != null);
+    return lines;
+  }, [eventIdToDataMap, hoveredEventId]);
 
-  const hoveredPointRelationships = hoveredPoint.relationships;
-
-  if (hoveredPointRelationships == null) return null;
-  const lines: Line[] = Object.keys(hoveredPointRelationships).reduce(
-    (acc, relationshipName) => {
-      const relationshipDefinition =
-        hoveredPointRelationships[relationshipName];
-
-      relationshipDefinition.forEach((targetEventId) => {
-        const targetEvent = eventIdToDataMap.get(targetEventId);
-        if (targetEvent == null) return acc;
-        acc = [...acc, [hoveredPoint.position, targetEvent.position]];
-      });
-      return acc;
-    },
-    [] as Line[]
-  );
   return (
     <group ref={group}>
       {lines.map((line, i) => {

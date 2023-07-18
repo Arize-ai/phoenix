@@ -419,6 +419,10 @@ function PointCloudDisplay({
     [data]
   );
 
+  const contextRetrievals = useMemo(() => {
+    return data.embedding?.UMAPPoints?.contextRetrievals ?? [];
+  }, [data]);
+
   // Construct a map of point ids to their data
   const allSourceData = useMemo(() => {
     const allData = [
@@ -437,15 +441,23 @@ function PointCloudDisplay({
   }, [referenceSourceData, sourceData, corpusSourceData]);
 
   // Keep the data in the view in-sync with the data in the context
-  const setPointsAndClusters = usePointCloudContext(
-    (state) => state.setPointsAndClusters
-  );
+  const setInitialData = usePointCloudContext((state) => state.setInitialData);
   const setClusters = usePointCloudContext((state) => state.setClusters);
 
   useDeepCompareEffect(() => {
     const clusters = data.embedding?.UMAPPoints?.clusters || [];
-    setPointsAndClusters({ points: allSourceData, clusters });
-  }, [allSourceData, queryReference, setPointsAndClusters, setClusters]);
+    setInitialData({
+      points: allSourceData,
+      clusters,
+      retrievals: contextRetrievals,
+    });
+  }, [
+    allSourceData,
+    queryReference,
+    contextRetrievals,
+    setInitialData,
+    setClusters,
+  ]);
 
   return (
     <div

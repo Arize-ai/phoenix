@@ -135,14 +135,17 @@ export interface Point {
     linkToData: string | null;
     rawData: string | null;
   };
-  relationships?: PointRelationships;
+  retrievals?: Retrieval[];
 }
 
 /**
- * Relationship information for a specific point
- * maps a relationship name to the point event IDs
+ * Abstract definition of a retrieval from a Retrieval embedding
  */
-type PointRelationships = Record<string, Array<EventId>>;
+export interface Retrieval {
+  readonly documentId: string;
+  readonly queryId: string;
+  readonly relevance: number | null;
+}
 
 /**
  * Values of the cluster that are computed
@@ -365,11 +368,12 @@ export interface PointCloudProps {
 
 export interface PointCloudState extends PointCloudProps {
   /**
-   * Sets the points displayed within the point cloud
+   * Sets the data displayed within the point cloud
    */
-  setPointsAndClusters: (pointsAndClusters: {
+  setInitialData: (data: {
     points: readonly Point[];
     clusters: readonly ClusterInput[];
+    retrievals: readonly Retrieval[];
   }) => void;
   /**
    * Sets the clusters to be displayed within the point cloud
@@ -577,22 +581,27 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
   const pointCloudStore: StateCreator<PointCloudState> = (set, get) => ({
     ...defaultProps,
     ...initProps,
-    setPointsAndClusters: async ({ points, clusters }) => {
+    setInitialData: async ({ points, clusters, retrievals }) => {
       const pointCloud = get();
       const eventIdToDataMap = new Map<string, Point>();
-      const eventIds = points.map((p) => p.eventId);
-      function getRandomEventId() {
-        return eventIds[Math.floor(Math.random() * eventIds.length)];
-      }
+
+      // make a dictionary of eventIds to their retrievals
+      const eventIdToRetrievals: Record<string, Retrieval[]> =
+        retrievals.reduce((acc, retrieval) => {
+          const { queryId } = retrieval;
+          if (acc[queryId]) {
+            acc[queryId].push(retrieval);
+          } else {
+            acc[queryId] = [retrieval];
+          }
+          return acc;
+        }, {} as Record<string, Retrieval[]>);
+
       // Calculate a map of event ID to point data
       points.forEach((p) => {
-        // TODO(mikeldking): remove
-
         p = {
           ...p,
-          relationships: {
-            retrieval: [getRandomEventId(), getRandomEventId()],
-          },
+          retrievals: eventIdToRetrievals[p.eventId] ?? [],
         };
         eventIdToDataMap.set(p.eventId, p);
       });
