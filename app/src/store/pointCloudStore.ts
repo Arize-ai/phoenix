@@ -53,6 +53,8 @@ const discreteColorScale = (value: number) =>
 const numericColorScale = (idx: number) =>
   sequentialColorScale(idx / NUM_NUMERIC_GROUPS);
 
+type EventId = string;
+
 type DimensionMetadata = {
   /**
    * The min and max values of a numeric  dimension
@@ -108,18 +110,19 @@ type DatasetVisibility = {
   reference: boolean;
   corpus: boolean;
 };
+
 export interface Point {
   readonly id: string;
   /**
    * The id of event the point is associated to
    */
-  readonly eventId: string;
+  readonly eventId: EventId;
   readonly position: ThreeDimensionalPosition;
   /**
    * Metadata about the point - used for point-cloud selection
    */
   readonly metaData: {
-    readonly id: string;
+    readonly id: EventId;
   };
   readonly eventMetadata: {
     readonly predictionId: string | null;
@@ -132,6 +135,16 @@ export interface Point {
     linkToData: string | null;
     rawData: string | null;
   };
+  retrievals?: Retrieval[];
+}
+
+/**
+ * Abstract definition of a retrieval from a Retrieval embedding
+ */
+export interface Retrieval {
+  readonly documentId: string;
+  readonly queryId: string;
+  readonly relevance: number | null;
 }
 
 /**
@@ -355,11 +368,12 @@ export interface PointCloudProps {
 
 export interface PointCloudState extends PointCloudProps {
   /**
-   * Sets the points displayed within the point cloud
+   * Sets the data displayed within the point cloud
    */
-  setPointsAndClusters: (pointsAndClusters: {
+  setInitialData: (data: {
     points: readonly Point[];
     clusters: readonly ClusterInput[];
+    retrievals: readonly Retrieval[];
   }) => void;
   /**
    * Sets the clusters to be displayed within the point cloud
@@ -567,12 +581,28 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
   const pointCloudStore: StateCreator<PointCloudState> = (set, get) => ({
     ...defaultProps,
     ...initProps,
-    setPointsAndClusters: async ({ points, clusters }) => {
+    setInitialData: async ({ points, clusters, retrievals }) => {
       const pointCloud = get();
       const eventIdToDataMap = new Map<string, Point>();
 
+      // make a dictionary of eventIds to their retrievals
+      const eventIdToRetrievals: Record<string, Retrieval[]> =
+        retrievals.reduce((acc, retrieval) => {
+          const { queryId } = retrieval;
+          if (acc[queryId]) {
+            acc[queryId].push(retrieval);
+          } else {
+            acc[queryId] = [retrieval];
+          }
+          return acc;
+        }, {} as Record<string, Retrieval[]>);
+
       // Calculate a map of event ID to point data
       points.forEach((p) => {
+        p = {
+          ...p,
+          retrievals: eventIdToRetrievals[p.eventId] ?? [],
+        };
         eventIdToDataMap.set(p.eventId, p);
       });
 
