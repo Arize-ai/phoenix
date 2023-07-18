@@ -52,19 +52,19 @@ export function PointCloudPointRelationships() {
             <QuadraticBezierLine
               start={line[0]}
               end={line[1]}
-              color="white"
+              color={0xffffff}
               opacity={1}
               transparent
               dashed
               dashScale={50}
               gapSize={20}
-              lineWidth={lineWidth}
+              linewidth={lineWidth}
             />
             <QuadraticBezierLine
               start={line[0]}
               end={line[1]}
-              color="white"
-              lineWidth={lineWidth / 2}
+              color={0xffffff}
+              linewidth={lineWidth / 2}
               transparent
               opacity={0.8}
             />
