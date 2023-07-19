@@ -69,9 +69,15 @@ class Session(ABC):
             primary_dataset,
             reference_dataset,
         )
-        self.corpus = create_model_from_datasets(
-            corpus_dataset,
+
+        self.corpus = (
+            create_model_from_datasets(
+                corpus_dataset,
+            )
+            if corpus_dataset is not None
+            else None
         )
+
         self.port = port
         self.temp_dir = TemporaryDirectory()
         self.export_path = Path(self.temp_dir.name) / "exports"
