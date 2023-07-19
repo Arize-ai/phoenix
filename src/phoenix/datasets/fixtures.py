@@ -34,6 +34,7 @@ class Fixture:
     primary_file_name: str
     primary_schema: Schema
     reference_file_name: Optional[str] = None
+    # The schema for the reference dataset. If not provided, the primary schema will be used
     reference_schema: Optional[Schema] = None
     corpus_file_name: Optional[str] = None
     corpus_schema: Optional[Schema] = None
@@ -390,7 +391,9 @@ def get_datasets(
     if fixture.reference_file_name is not None:
         reference_dataset = Dataset(
             read_parquet(paths[DatasetRole.REFERENCE]),
-            fixture.reference_schema or fixture.primary_schema,
+            fixture.reference_schema
+            if fixture.reference_schema is not None
+            else fixture.primary_schema,
             "training",
         )
     corpus_dataset = None
