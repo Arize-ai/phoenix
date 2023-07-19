@@ -77,7 +77,7 @@ class RetrievalEmbeddingColumnNames(EmbeddingColumnNames):
 
 
 @dataclass(frozen=True)
-class Schema(Dict[SchemaFieldName, SchemaFieldValue]):
+class Schema:
     prediction_id_column_name: Optional[str] = None
     timestamp_column_name: Optional[str] = None
     feature_column_names: Optional[List[str]] = None
