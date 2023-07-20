@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<8179e58b5a1d7012d060e1d572ea21ee>>
+ * @generated SignedSource<<aa89ee3ddadf6638ddf335867f8e3426>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -30,6 +30,7 @@ export type pointCloudStore_eventsQuery$data = {
         readonly eventMetadata: {
           readonly actualLabel: string | null;
           readonly actualScore: number | null;
+          readonly predictionId: string | null;
           readonly predictionLabel: string | null;
           readonly predictionScore: number | null;
         };
@@ -49,9 +50,11 @@ export type pointCloudStore_eventsQuery$data = {
           };
           readonly value: string | null;
         }>;
+        readonly documentText: string | null;
         readonly eventMetadata: {
           readonly actualLabel: string | null;
           readonly actualScore: number | null;
+          readonly predictionId: string | null;
           readonly predictionLabel: string | null;
           readonly predictionScore: number | null;
         };
@@ -72,9 +75,11 @@ export type pointCloudStore_eventsQuery$data = {
           };
           readonly value: string | null;
         }>;
+        readonly documentText: string | null;
         readonly eventMetadata: {
           readonly actualLabel: string | null;
           readonly actualScore: number | null;
+          readonly predictionId: string | null;
           readonly predictionLabel: string | null;
           readonly predictionScore: number | null;
         };
@@ -139,36 +144,18 @@ v6 = {
 v7 = {
   "alias": null,
   "args": null,
-  "concreteType": "DimensionWithValue",
-  "kind": "LinkedField",
-  "name": "dimensions",
-  "plural": true,
-  "selections": [
-    {
-      "alias": null,
-      "args": null,
-      "concreteType": "Dimension",
-      "kind": "LinkedField",
-      "name": "dimension",
-      "plural": false,
-      "selections": [
-        (v4/*: any*/),
-        (v5/*: any*/)
-      ],
-      "storageKey": null
-    },
-    (v6/*: any*/)
-  ],
-  "storageKey": null
-},
-v8 = {
-  "alias": null,
-  "args": null,
   "concreteType": "EventMetadata",
   "kind": "LinkedField",
   "name": "eventMetadata",
   "plural": false,
   "selections": [
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "predictionId",
+      "storageKey": null
+    },
     {
       "alias": null,
       "args": null,
@@ -200,7 +187,7 @@ v8 = {
   ],
   "storageKey": null
 },
-v9 = {
+v8 = {
   "alias": null,
   "args": null,
   "concreteType": "PromptResponse",
@@ -225,7 +212,45 @@ v9 = {
   ],
   "storageKey": null
 },
+v9 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "documentText",
+  "storageKey": null
+},
 v10 = [
+  (v3/*: any*/),
+  {
+    "alias": null,
+    "args": null,
+    "concreteType": "DimensionWithValue",
+    "kind": "LinkedField",
+    "name": "dimensions",
+    "plural": true,
+    "selections": [
+      {
+        "alias": null,
+        "args": null,
+        "concreteType": "Dimension",
+        "kind": "LinkedField",
+        "name": "dimension",
+        "plural": false,
+        "selections": [
+          (v4/*: any*/),
+          (v5/*: any*/)
+        ],
+        "storageKey": null
+      },
+      (v6/*: any*/)
+    ],
+    "storageKey": null
+  },
+  (v7/*: any*/),
+  (v8/*: any*/),
+  (v9/*: any*/)
+],
+v11 = [
   {
     "alias": null,
     "args": null,
@@ -255,12 +280,7 @@ v10 = [
             "kind": "LinkedField",
             "name": "events",
             "plural": true,
-            "selections": [
-              (v3/*: any*/),
-              (v7/*: any*/),
-              (v8/*: any*/),
-              (v9/*: any*/)
-            ],
+            "selections": (v10/*: any*/),
             "storageKey": null
           }
         ],
@@ -315,6 +335,7 @@ v10 = [
                 ],
                 "storageKey": null
               },
+              (v7/*: any*/),
               (v8/*: any*/),
               (v9/*: any*/)
             ],
@@ -344,19 +365,7 @@ v10 = [
             "kind": "LinkedField",
             "name": "events",
             "plural": true,
-            "selections": [
-              (v3/*: any*/),
-              (v7/*: any*/),
-              (v8/*: any*/),
-              (v9/*: any*/),
-              {
-                "alias": null,
-                "args": null,
-                "kind": "ScalarField",
-                "name": "documentText",
-                "storageKey": null
-              }
-            ],
+            "selections": (v10/*: any*/),
             "storageKey": null
           }
         ],
@@ -376,7 +385,7 @@ return {
     "kind": "Fragment",
     "metadata": null,
     "name": "pointCloudStore_eventsQuery",
-    "selections": (v10/*: any*/),
+    "selections": (v11/*: any*/),
     "type": "Query",
     "abstractKey": null
   },
@@ -389,19 +398,19 @@ return {
     ],
     "kind": "Operation",
     "name": "pointCloudStore_eventsQuery",
-    "selections": (v10/*: any*/)
+    "selections": (v11/*: any*/)
   },
   "params": {
-    "cacheID": "39cbb7754746f581a2a9e81927095339",
+    "cacheID": "e26a15665d2dd03479941745a539410d",
     "id": null,
     "metadata": {},
     "name": "pointCloudStore_eventsQuery",
     "operationKind": "query",
-    "text": "query pointCloudStore_eventsQuery(\n  $primaryEventIds: [ID!]!\n  $referenceEventIds: [ID!]!\n  $corpusEventIds: [ID!]!\n) {\n  model {\n    primaryDataset {\n      events(eventIds: $primaryEventIds) {\n        id\n        dimensions {\n          dimension {\n            name\n            type\n          }\n          value\n        }\n        eventMetadata {\n          predictionLabel\n          predictionScore\n          actualLabel\n          actualScore\n        }\n        promptAndResponse {\n          prompt\n          response\n        }\n      }\n    }\n    referenceDataset {\n      events(eventIds: $referenceEventIds) {\n        id\n        dimensions {\n          dimension {\n            id\n            name\n            type\n          }\n          value\n        }\n        eventMetadata {\n          predictionLabel\n          predictionScore\n          actualLabel\n          actualScore\n        }\n        promptAndResponse {\n          prompt\n          response\n        }\n      }\n    }\n    corpusDataset {\n      events(eventIds: $corpusEventIds) {\n        id\n        dimensions {\n          dimension {\n            name\n            type\n          }\n          value\n        }\n        eventMetadata {\n          predictionLabel\n          predictionScore\n          actualLabel\n          actualScore\n        }\n        promptAndResponse {\n          prompt\n          response\n        }\n        documentText\n      }\n    }\n  }\n}\n"
+    "text": "query pointCloudStore_eventsQuery(\n  $primaryEventIds: [ID!]!\n  $referenceEventIds: [ID!]!\n  $corpusEventIds: [ID!]!\n) {\n  model {\n    primaryDataset {\n      events(eventIds: $primaryEventIds) {\n        id\n        dimensions {\n          dimension {\n            name\n            type\n          }\n          value\n        }\n        eventMetadata {\n          predictionId\n          predictionLabel\n          predictionScore\n          actualLabel\n          actualScore\n        }\n        promptAndResponse {\n          prompt\n          response\n        }\n        documentText\n      }\n    }\n    referenceDataset {\n      events(eventIds: $referenceEventIds) {\n        id\n        dimensions {\n          dimension {\n            id\n            name\n            type\n          }\n          value\n        }\n        eventMetadata {\n          predictionId\n          predictionLabel\n          predictionScore\n          actualLabel\n          actualScore\n        }\n        promptAndResponse {\n          prompt\n          response\n        }\n        documentText\n      }\n    }\n    corpusDataset {\n      events(eventIds: $corpusEventIds) {\n        id\n        dimensions {\n          dimension {\n            name\n            type\n          }\n          value\n        }\n        eventMetadata {\n          predictionId\n          predictionLabel\n          predictionScore\n          actualLabel\n          actualScore\n        }\n        promptAndResponse {\n          prompt\n          response\n        }\n        documentText\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "9b7c7837ce80c2c64f24c726b2881d33";
+(node as any).hash = "2ecca9b28388f179d9bd79010fae7bf2";
 
 export default node;

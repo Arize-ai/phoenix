@@ -2,12 +2,41 @@ import React, { PropsWithChildren, useMemo } from "react";
 import { Column, useTable } from "react-table";
 import { css } from "@emotion/react";
 
-import { Accordion, AccordionItem } from "@arizeai/components";
+import {
+  Accordion,
+  AccordionItem,
+  Flex,
+  Heading,
+  Label,
+  Text,
+  View,
+} from "@arizeai/components";
 
 import { Empty } from "@phoenix/components/Empty";
 import { tableCSS } from "@phoenix/components/table/styles";
+import { numberFormatter } from "@phoenix/utils/numberFormatUtils";
 
-import { ModelEvent } from "./types";
+import { ModelEvent, RetrievalDocument } from "./types";
+
+const detailsListCSS = css`
+  margin: var(--px-spacing-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--px-spacing-med);
+  & > div {
+    display: flex;
+    flex-direction: row;
+    dt {
+      font-weight: bold;
+      flex: none;
+      width: 120px;
+    }
+    dd {
+      flex: 1 1 auto;
+      margin-inline-start: 0;
+    }
+  }
+`;
 
 function TextPre(props: PropsWithChildren) {
   return (
@@ -20,7 +49,6 @@ function TextPre(props: PropsWithChildren) {
       <pre
         css={(theme) => css`
           padding: var(--px-spacing-lg);
-          background-color: ${theme.colors.gray900};
           color: ${theme.textColors.white90};
           white-space: normal;
           margin: 0;
@@ -37,6 +65,7 @@ function TextPre(props: PropsWithChildren) {
 export function EventDetails({ event }: { event: ModelEvent }) {
   const hasRetrievals =
     event.retrievedDocuments && event.retrievedDocuments.length > 0;
+  const isPredictionRecord = !event.id.includes("CORPUS");
   return (
     <section
       css={css`
@@ -46,77 +75,88 @@ export function EventDetails({ event }: { event: ModelEvent }) {
     >
       <EventPreview event={event} />
       <Accordion variant="compact">
-        <AccordionItem id="prediction" title="Prediction Details">
-          <dl
-            css={css`
-              margin: var(--px-spacing-lg);
-              display: flex;
-              flex-direction: column;
-              gap: var(--px-spacing-med);
-              & > div {
-                display: flex;
-                flex-direction: row;
-                dt {
-                  font-weight: bold;
-                  flex: none;
-                  width: 120px;
-                }
-                dd {
-                  flex: 1 1 auto;
-                  margin-inline-start: 0;
-                }
-              }
-            `}
-          >
+        {isPredictionRecord ? (
+          <AccordionItem id="prediction" title={"Prediction Details"}>
+            <dl css={detailsListCSS}>
+              {event.predictionId != null && (
+                <div>
+                  <dt>Prediction ID</dt>
+                  <dd
+                    css={css`
+                      display: flex;
+                      align-items: center;
+                    `}
+                  >
+                    {event.predictionId}
+                  </dd>
+                </div>
+              )}
+              {event.predictionLabel != null && (
+                <div>
+                  <dt>Prediction Label</dt>
+                  <dd>{event.predictionLabel}</dd>
+                </div>
+              )}
+              {event.predictionScore != null && (
+                <div>
+                  <dt>Prediction Score</dt>
+                  <dd>{event.predictionScore}</dd>
+                </div>
+              )}
+              {event.actualLabel != null && (
+                <div>
+                  <dt>Actual Label</dt>
+                  <dd>{event.actualLabel}</dd>
+                </div>
+              )}
+              {event.actualScore != null && (
+                <div>
+                  <dt>Actual Score</dt>
+                  <dd>{event.actualScore}</dd>
+                </div>
+              )}
+            </dl>
+          </AccordionItem>
+        ) : (
+          <AccordionItem id="document" title={"Document Details"}>
             {event.predictionId != null && (
               <div>
-                <dt>Prediction ID</dt>
+                <dt>Document ID</dt>
                 <dd
                   css={css`
                     display: flex;
                     align-items: center;
                   `}
                 >
+                  {/* TODO - find a way to make the ID more semantic like a record ID */}
                   {event.predictionId}
                 </dd>
               </div>
             )}
-            {event.predictionLabel != null && (
-              <div>
-                <dt>Prediction Label</dt>
-                <dd>{event.predictionLabel}</dd>
-              </div>
-            )}
-            {event.predictionScore != null && (
-              <div>
-                <dt>Prediction Score</dt>
-                <dd>{event.predictionScore}</dd>
-              </div>
-            )}
-            {event.actualLabel != null && (
-              <div>
-                <dt>Actual Label</dt>
-                <dd>{event.actualLabel}</dd>
-              </div>
-            )}
-            {event.actualScore != null && (
-              <div>
-                <dt>Actual Score</dt>
-                <dd>{event.actualScore}</dd>
-              </div>
-            )}
-          </dl>
-        </AccordionItem>
+          </AccordionItem>
+        )}
         <AccordionItem id="dimensions" title="Dimensions">
           <EmbeddingDimensionsTable dimensions={event.dimensions} />
         </AccordionItem>
         {hasRetrievals && (
-          <AccordionItem id="retrievals" title="Retrieved Documents">
-            <ul>
+          <AccordionItem
+            id="retrievals"
+            title="Retrieved Documents"
+            // TODO(mikeldking) - add enough contrast to make this work
+            // titleExtra={<Counter>{event.retrievedDocuments.length}</Counter>}
+          >
+            <ul
+              css={css`
+                padding: var(--px-spacing-med);
+                li + li {
+                  margin-top: var(--px-spacing-med);
+                }
+              `}
+            >
               {event.retrievedDocuments.map((document) => {
                 return (
                   <li key={document.id}>
-                    <TextPre>{document.text}</TextPre>
+                    <DocumentItem document={document} />
                   </li>
                 );
               })}
@@ -125,6 +165,37 @@ export function EventDetails({ event }: { event: ModelEvent }) {
         )}
       </Accordion>
     </section>
+  );
+}
+
+function DocumentItem({ document }: { document: RetrievalDocument }) {
+  return (
+    <View borderRadius="medium" backgroundColor="light">
+      <Flex direction="column">
+        <View width="100%" borderBottomWidth="thin" borderBottomColor="dark">
+          <Flex
+            direction="row"
+            justifyContent="space-between"
+            margin="size-100"
+            alignItems="center"
+          >
+            <Heading level={5}>Document {document.id}</Heading>
+            <Label color="blue">{`relevance ${numberFormatter(
+              document.relevance
+            )}`}</Label>
+          </Flex>
+        </View>
+        <pre
+          css={css`
+            padding: var(--px-spacing-lg);
+            white-space: normal;
+            margin: 0;
+          `}
+        >
+          {document.text}
+        </pre>
+      </Flex>
+    </View>
   );
 }
 
@@ -159,7 +230,7 @@ function EmbeddingDimensionsTable({
         accessor: "name",
       },
       {
-        Header: "Data Type",
+        Header: "Type",
         accessor: "type",
       },
       {

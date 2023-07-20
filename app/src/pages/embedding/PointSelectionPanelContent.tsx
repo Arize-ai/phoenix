@@ -67,8 +67,8 @@ function convertGqlEventToRetrievalDocument({
   relevance: number | null;
 }): RetrievalDocument {
   return {
-    id: event.id,
-    text: event.promptAndResponse?.prompt ?? "",
+    id: event.eventMetadata.predictionId || "unknown id",
+    text: event.documentText ?? "empty document",
     relevance: relevance,
   };
 }

@@ -192,6 +192,7 @@ export type ClusterSort = {
 
 export type EventData =
   pointCloudStore_eventsQuery$data["model"]["primaryDataset"]["events"][number];
+
 /**
  * A mapping from a point ID to its data
  */
@@ -1180,6 +1181,7 @@ async function fetchPointEvents(eventIds: string[]): Promise<PointDataMap> {
                 value
               }
               eventMetadata {
+                predictionId
                 predictionLabel
                 predictionScore
                 actualLabel
@@ -1189,6 +1191,8 @@ async function fetchPointEvents(eventIds: string[]): Promise<PointDataMap> {
                 prompt
                 response
               }
+              # TODO: delineate between corpus events and dataset events
+              documentText
             }
           }
           referenceDataset {
@@ -1203,6 +1207,7 @@ async function fetchPointEvents(eventIds: string[]): Promise<PointDataMap> {
                 value
               }
               eventMetadata {
+                predictionId
                 predictionLabel
                 predictionScore
                 actualLabel
@@ -1212,6 +1217,7 @@ async function fetchPointEvents(eventIds: string[]): Promise<PointDataMap> {
                 prompt
                 response
               }
+              documentText
             }
           }
           corpusDataset {
@@ -1225,6 +1231,7 @@ async function fetchPointEvents(eventIds: string[]): Promise<PointDataMap> {
                 value
               }
               eventMetadata {
+                predictionId
                 predictionLabel
                 predictionScore
                 actualLabel
