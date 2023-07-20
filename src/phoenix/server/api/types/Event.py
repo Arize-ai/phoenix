@@ -32,6 +32,10 @@ class Event:
         description="The prompt and response pair associated with the event",
         default=GqlValueMediator(),
     )
+    document_text: Optional[str] = strawberry.field(
+        description="The text of the document if the event is a retrieved document record",
+        default=GqlValueMediator(),
+    )
 
 
 def create_event_id(
@@ -72,6 +76,7 @@ def create_event(
     event_id: ID,
     event: ms.Event,
     dimensions: List[Dimension],
+    is_document_record: bool = False,
 ) -> Event:
     """
     Reads dimension values and event metadata from a dataframe row and returns
@@ -106,5 +111,6 @@ def create_event(
         id=event_id,
         eventMetadata=event_metadata,
         dimensions=dimensions_with_values,
-        prompt_and_response=prompt_and_response,
+        prompt_and_response=None if is_document_record else prompt_and_response,
+        document_text=(prompt or "") if is_document_record else None,
     )

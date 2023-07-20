@@ -1234,6 +1234,7 @@ async function fetchPointEvents(eventIds: string[]): Promise<PointDataMap> {
                 prompt
                 response
               }
+              documentText
             }
           }
         }

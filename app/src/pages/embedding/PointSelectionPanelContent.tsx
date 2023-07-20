@@ -175,6 +175,7 @@ export function PointSelectionPanelContent() {
                 prompt
                 response
               }
+              documentText
             }
           }
         }

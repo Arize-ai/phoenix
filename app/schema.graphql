@@ -252,6 +252,9 @@ type Event {
 
   """The prompt and response pair associated with the event"""
   promptAndResponse: PromptResponse
+
+  """The text of the document if the event is a retrieved document record"""
+  documentText: String
 }
 
 type EventMetadata {

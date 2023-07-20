@@ -54,6 +54,7 @@ class Dataset:
                 event_id=create_event_id(event.id.row_id, self.dataset_role),
                 event=event,
                 dimensions=requested_gql_dimensions,
+                is_document_record=self.dataset_role is AncillaryDatasetRole.corpus,
             )
             for event in events
         ]
