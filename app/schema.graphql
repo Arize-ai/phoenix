@@ -10,6 +10,9 @@ type Cluster {
   """Ratio of primary points over reference points"""
   driftRatio: Float
 
+  """Ratio of primary points over corpus points"""
+  primaryToCorpusRatio: Float
+
   """
   Data quality metric summarized by the respective datasets of the clustered events
   """

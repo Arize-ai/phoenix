@@ -9,7 +9,7 @@ from phoenix.core.model_schema import PRIMARY, REFERENCE
 from phoenix.server.api.context import Context
 from phoenix.server.api.input_types.DataQualityMetricInput import DataQualityMetricInput
 from phoenix.server.api.input_types.PerformanceMetricInput import PerformanceMetricInput
-from phoenix.server.api.types.DatasetRole import DatasetRole
+from phoenix.server.api.types.DatasetRole import AncillaryDatasetRole, DatasetRole
 from phoenix.server.api.types.DatasetValues import DatasetValues
 from phoenix.server.api.types.Event import unpack_event_id
 
@@ -53,6 +53,35 @@ class Cluster:
             None
             if not (denominator := (primary_count + reference_count))
             else (primary_count - reference_count) / denominator
+        )
+
+    @strawberry.field(
+        description="Ratio of primary points over corpus points",
+    )  # type: ignore
+    def primary_to_corpus_ratio(
+        self,
+        info: Info[Context, None],
+    ) -> Optional[float]:
+        """
+        Calculates a score representing the balance of points between the
+        primary and the corpus datasets, and will be on a scale between 1
+        (all primary) and -1 (all corpus), with 0 being an even balance
+        between the two datasets.
+
+        Returns
+        -------
+        drift_ratio : Optional[float]
+        """
+        corpus = info.context.corpus
+        if corpus is None or corpus[PRIMARY].empty:
+            return None
+        count_by_role = Counter(unpack_event_id(event_id)[1] for event_id in self.event_ids)
+        primary_count = count_by_role[DatasetRole.primary]
+        corpus_count = count_by_role[AncillaryDatasetRole.corpus]
+        return (
+            None
+            if not (denominator := (primary_count + corpus_count))
+            else (primary_count - corpus_count) / denominator
         )
 
     @strawberry.field(
