@@ -6,6 +6,7 @@ import { assertUnreachable } from "@phoenix/typeUtils";
 export enum Shape {
   square = "square",
   circle = "circle",
+  diamond = "diamond",
 }
 
 type ShapeIconProps = {
@@ -45,6 +46,20 @@ const CircleSVG = () => {
   );
 };
 
+const DiamondSVG = () => {
+  return (
+    <svg
+      width="12px"
+      height="12px"
+      viewBox="0 0 12 12"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path d="M6 0L12 6L6 12L0 6L6 0Z" fill="currentColor" />
+    </svg>
+  );
+};
+
 export function ShapeIcon(props: ShapeIconProps) {
   const { shape, color } = props;
   const shapeSVG = useMemo(() => {
@@ -53,6 +68,8 @@ export function ShapeIcon(props: ShapeIconProps) {
         return <SquareSVG />;
       case Shape.circle:
         return <CircleSVG />;
+      case Shape.diamond:
+        return <DiamondSVG />;
       default:
         assertUnreachable(shape);
     }

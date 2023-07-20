@@ -71,7 +71,9 @@ export function DatasetVisibilitySettings({
   const referenceShape =
     coloringStrategy === ColoringStrategy.dataset ? Shape.circle : Shape.square;
   const corpusShape =
-    coloringStrategy === ColoringStrategy.dataset ? Shape.circle : Shape.square;
+    coloringStrategy === ColoringStrategy.dataset
+      ? Shape.circle
+      : Shape.diamond;
 
   return (
     <form
