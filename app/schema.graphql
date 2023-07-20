@@ -10,6 +10,9 @@ type Cluster {
   """Ratio of primary points over reference points"""
   driftRatio: Float
 
+  """Ratio of primary points over corpus points"""
+  primaryToCorpusRatio: Float
+
   """
   Data quality metric summarized by the respective datasets of the clustered events
   """
@@ -252,6 +255,9 @@ type Event {
 
   """The prompt and response pair associated with the event"""
   promptAndResponse: PromptResponse
+
+  """The text of the document if the event is a retrieved document record"""
+  documentText: String
 }
 
 type EventMetadata {
