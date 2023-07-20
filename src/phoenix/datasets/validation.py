@@ -7,7 +7,7 @@ from pandas.api.types import is_datetime64_any_dtype as is_datetime
 from pandas.api.types import is_numeric_dtype, is_string_dtype
 
 from . import errors as err
-from .schema import Schema
+from .schema import EmbeddingColumnNames, Schema
 
 RESERVED_EMBEDDING_NAMES = ("prompt", "response")
 
@@ -80,7 +80,7 @@ def _check_valid_prompt_response_data(
         "response": schema.response_column_names,
     }
     for name, column_names in prompt_response_column_names.items():
-        if column_names is not None:
+        if isinstance(column_names, EmbeddingColumnNames):
             prompt_response_errors += _validate_embedding_vector(
                 dataframe, name, column_names.vector_column_name
             )
@@ -214,7 +214,7 @@ def _check_missing_columns(dataframe: DataFrame, schema: Schema) -> List[err.Val
                 missing_columns.append(emb_col_names.link_to_data_column_name)
 
     for column_names in (schema.prompt_column_names, schema.response_column_names):
-        if column_names is not None:
+        if isinstance(column_names, EmbeddingColumnNames):
             if column_names.vector_column_name not in existing_columns:
                 missing_columns.append(column_names.vector_column_name)
             if (

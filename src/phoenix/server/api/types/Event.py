@@ -91,10 +91,16 @@ def create_event(
         )
         for dim in dimensions
     ]
-    prompt = event[cast(ms.EmbeddingDimension, cast(ms.Model, event._self_model)[PROMPT]).raw_data]
-    response = event[
-        cast(ms.EmbeddingDimension, cast(ms.Model, event._self_model)[RESPONSE]).raw_data
-    ]
+    model = cast(ms.Model, event._self_model)
+    prompt = event[cast(ms.EmbeddingDimension, model[PROMPT]).raw_data]
+    response = (
+        event[RESPONSE]
+        if not isinstance(
+            response_dimension := model[RESPONSE],
+            ms.EmbeddingDimension,
+        )
+        else event[response_dimension.raw_data]
+    )
     prompt_and_response = (
         PromptResponse(
             prompt=prompt,

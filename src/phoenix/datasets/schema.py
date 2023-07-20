@@ -1,6 +1,6 @@
 import json
 from dataclasses import asdict, dataclass, replace
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Mapping, Optional, Tuple, Union
 
 EmbeddingFeatures = Dict[str, "EmbeddingColumnNames"]
 SchemaFieldName = str
@@ -87,7 +87,7 @@ class Schema:
     actual_label_column_name: Optional[str] = None
     actual_score_column_name: Optional[str] = None
     prompt_column_names: Optional[Union[EmbeddingColumnNames, RetrievalEmbeddingColumnNames]] = None
-    response_column_names: Optional[EmbeddingColumnNames] = None
+    response_column_names: Optional[Union[str, EmbeddingColumnNames]] = None
     embedding_feature_column_names: Optional[EmbeddingFeatures] = None
     excluded_column_names: Optional[List[str]] = None
 
@@ -128,7 +128,7 @@ class Schema:
             )
 
         # parse response_column_names
-        if json_data.get("response_column_names") is not None:
+        if isinstance(json_data.get("response_column_names"), Mapping):
             response_column_names = EmbeddingColumnNames(
                 vector_column_name=json_data["response_column_names"]["vector_column_name"],
                 raw_data_column_name=json_data["response_column_names"]["raw_data_column_name"],
