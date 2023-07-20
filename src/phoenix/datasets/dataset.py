@@ -186,7 +186,7 @@ def _parse_dataframe_and_schema(dataframe: DataFrame, schema: Schema) -> Tuple[D
 
     for llm_schema_field_name in LLM_SCHEMA_FIELD_NAMES:
         embedding_column_name_mapping = getattr(schema, llm_schema_field_name)
-        if embedding_column_name_mapping is not None:
+        if isinstance(embedding_column_name_mapping, EmbeddingColumnNames):
             _check_embedding_column_names_for_excluded_columns(
                 embedding_column_name_mapping,
                 column_name_to_include,
@@ -380,15 +380,15 @@ def _create_and_normalize_dataframe_and_schema(
         parsed_dataframe["prediction_id"] = _add_prediction_id(len(parsed_dataframe))
     elif is_numeric_dtype(parsed_dataframe.dtypes[pred_id_col_name]):
         parsed_dataframe[pred_id_col_name] = parsed_dataframe[pred_id_col_name].astype(str)
-    for embeddings in (
+    for embedding in (
         [parsed_schema.prompt_column_names, parsed_schema.response_column_names]
         + list(parsed_schema.embedding_feature_column_names.values())
         if parsed_schema.embedding_feature_column_names is not None
         else []
     ):
-        if embeddings is None:
+        if not isinstance(embedding, EmbeddingColumnNames):
             continue
-        vector_column_name = embeddings.vector_column_name
+        vector_column_name = embedding.vector_column_name
         if vector_column_name not in parsed_dataframe.columns:
             continue
         parsed_dataframe.loc[:, vector_column_name] = _coerce_vectors_as_arrays_if_necessary(

@@ -35,7 +35,7 @@ def create_model_from_datasets(*datasets: Optional[Dataset]) -> Model:
     tags: List[ColumnName] = []
     embeddings: Dict[DisplayName, EmbeddingColumnNames] = {}
     prompts: List[EmbeddingColumnNames] = []
-    responses: List[EmbeddingColumnNames] = []
+    responses: List[Union[str, EmbeddingColumnNames]] = []
 
     for dataset in filter(_is_dataset, datasets):
         df = dataset.dataframe
@@ -124,7 +124,7 @@ def create_model_from_datasets(*datasets: Optional[Dataset]) -> Model:
             )
         ),
         prompt=next(map(_translate_prompt_embedding, prompts), None),
-        response=next(map(_translate_embedding, responses), None),
+        response=next(map(_translate_response_embedding, responses), None),
     )(
         *named_dataframes,
         timestamps_already_normalized=True,
@@ -151,6 +151,15 @@ def _translate_embedding(
         link_to_data=embedding.link_to_data_column_name,
         display_name=display_name,
     )
+
+
+def _translate_response_embedding(
+    embedding: Union[str, EmbeddingColumnNames],
+    display_name: Optional[str] = None,
+) -> Union[str, Embedding]:
+    if isinstance(embedding, EmbeddingColumnNames):
+        return _translate_embedding(embedding, display_name)
+    return embedding
 
 
 def _translate_prompt_embedding(

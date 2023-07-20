@@ -336,10 +336,7 @@ wikipedia_fixture = Fixture(
             context_retrieval_ids_column_name="retrievals",
             context_retrieval_scores_column_name="scores",
         ),
-        response_column_names=EmbeddingColumnNames(
-            vector_column_name="answer_embedding",
-            raw_data_column_name="answer",
-        ),
+        response_column_names="answer",
     ),
     corpus_schema=Schema(
         prediction_id_column_name="id",
