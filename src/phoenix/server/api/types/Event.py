@@ -1,3 +1,4 @@
+import math
 from collections import defaultdict
 from typing import Dict, List, Optional, Tuple, Union, cast
 
@@ -30,6 +31,10 @@ class Event:
     dimensions: List[DimensionWithValue]
     prompt_and_response: Optional[PromptResponse] = strawberry.field(
         description="The prompt and response pair associated with the event",
+        default=GqlValueMediator(),
+    )
+    document_text: Optional[str] = strawberry.field(
+        description="The text of the document if the event is a retrieved document record",
         default=GqlValueMediator(),
     )
 
@@ -72,6 +77,7 @@ def create_event(
     event_id: ID,
     event: ms.Event,
     dimensions: List[Dimension],
+    is_document_record: bool = False,
 ) -> Event:
     """
     Reads dimension values and event metadata from a dataframe row and returns
@@ -102,9 +108,17 @@ def create_event(
         )
         or None
     )
+    if is_document_record:
+        document_text = prompt
+        if document_text is None or isinstance(document_text, float) and math.isnan(document_text):
+            document_text = ""
+        prompt_and_response = None
+    else:
+        document_text = None
     return Event(
         id=event_id,
         eventMetadata=event_metadata,
         dimensions=dimensions_with_values,
         prompt_and_response=prompt_and_response,
+        document_text=document_text,
     )
