@@ -95,7 +95,8 @@ export function PointCloudPoints({
     [coloringStrategy]
   );
   const corpusDatasetPointShape = useMemo(
-    () => (coloringStrategy !== ColoringStrategy.dataset ? "cube" : "sphere"),
+    () =>
+      coloringStrategy !== ColoringStrategy.dataset ? "octahedron" : "sphere",
     [coloringStrategy]
   );
 
