@@ -112,7 +112,15 @@ export function EventDetails({ event }: { event: ModelEvent }) {
         </AccordionItem>
         {hasRetrievals && (
           <AccordionItem id="retrievals" title="Retrieved Documents">
-            {JSON.stringify(event.retrievedDocuments)}
+            <ul>
+              {event.retrievedDocuments.map((document) => {
+                return (
+                  <li key={document.id}>
+                    <TextPre>{document.text}</TextPre>
+                  </li>
+                );
+              })}
+            </ul>
           </AccordionItem>
         )}
       </Accordion>

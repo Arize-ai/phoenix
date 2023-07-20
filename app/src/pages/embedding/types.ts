@@ -38,7 +38,7 @@ export interface ModelEvent {
   retrievedDocuments: RetrievalDocument[];
 }
 
-export interface RetrievalDocument {
+export type RetrievalDocument = {
   id: string;
   /**
    * The content of the retrieved corpus document
@@ -48,7 +48,7 @@ export interface RetrievalDocument {
    * How relevant the document was during retrieval
    */
   relevance: number | null;
-}
+};
 
 export type EventsList =
   PointSelectionPanelContentQuery$data["model"]["primaryDataset"]["events"];
