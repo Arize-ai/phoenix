@@ -1,3 +1,4 @@
+import math
 from collections import defaultdict
 from typing import Dict, List, Optional, Tuple, Union, cast
 
@@ -107,10 +108,17 @@ def create_event(
         )
         or None
     )
+    if is_document_record:
+        document_text = prompt
+        if document_text is None or isinstance(document_text, float) and math.isnan(document_text):
+            document_text = ""
+        prompt_and_response = None
+    else:
+        document_text = None
     return Event(
         id=event_id,
         eventMetadata=event_metadata,
         dimensions=dimensions_with_values,
-        prompt_and_response=None if is_document_record else prompt_and_response,
-        document_text=(prompt or "") if is_document_record else None,
+        prompt_and_response=prompt_and_response,
+        document_text=document_text,
     )
