@@ -190,7 +190,7 @@ export type ClusterSort = {
   column: keyof Cluster;
 };
 
-type EventData =
+export type EventData =
   pointCloudStore_eventsQuery$data["model"]["primaryDataset"]["events"][number];
 /**
  * A mapping from a point ID to its data

@@ -32,6 +32,22 @@ export interface ModelEvent {
    * the LLM response
    */
   response: string | null;
+  /**
+   * Retrievals from a corpus (e.x. a vector store)
+   */
+  retrievedDocuments: RetrievalDocument[];
+}
+
+export interface RetrievalDocument {
+  id: string;
+  /**
+   * The content of the retrieved corpus document
+   */
+  text: string;
+  /**
+   * How relevant the document was during retrieval
+   */
+  relevance: number | null;
 }
 
 export type EventsList =

@@ -35,6 +35,8 @@ function TextPre(props: PropsWithChildren) {
  * Displays the details of an event in a slide over panel
  */
 export function EventDetails({ event }: { event: ModelEvent }) {
+  const hasRetrievals =
+    event.retrievedDocuments && event.retrievedDocuments.length > 0;
   return (
     <section
       css={css`
@@ -108,6 +110,11 @@ export function EventDetails({ event }: { event: ModelEvent }) {
         <AccordionItem id="dimensions" title="Dimensions">
           <EmbeddingDimensionsTable dimensions={event.dimensions} />
         </AccordionItem>
+        {hasRetrievals && (
+          <AccordionItem id="retrievals" title="Retrieved Documents">
+            {JSON.stringify(event.retrievedDocuments)}
+          </AccordionItem>
+        )}
       </Accordion>
     </section>
   );
