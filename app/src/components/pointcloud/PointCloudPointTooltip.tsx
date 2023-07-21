@@ -16,12 +16,13 @@ const TOOLTIP_SIZE = 200;
  * The offset from the mouse position to the tooltip
  */
 const TOOLTIP_OFFSET = 10;
+
 /**
  * Re-used position vector
  */
 const vec = new THREE.Vector3();
 export const PointCloudPointTooltip = () => {
-  const { primaryDataset, referenceDataset } = useDatasets();
+  const { getDatasetNameByRole } = useDatasets();
   const hoveredEventId = usePointCloudContext((state) => state.hoveredEventId);
   const eventIdToDataMap = usePointCloudContext(
     (state) => state.eventIdToDataMap
@@ -42,10 +43,7 @@ export const PointCloudPointTooltip = () => {
   const group = eventIdToGroup[hoveredEventId];
   const color = pointGroupColors[eventIdToGroup[hoveredEventId]];
   const datasetRole = getDatasetRoleFromEventId(hoveredEventId);
-  const datasetName =
-    datasetRole === "primary"
-      ? primaryDataset.name
-      : referenceDataset?.name ?? "reference";
+  const datasetName = getDatasetNameByRole(datasetRole);
   return (
     <Html
       position={baseEvent.position}

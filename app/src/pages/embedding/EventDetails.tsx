@@ -5,10 +5,12 @@ import { css } from "@emotion/react";
 import {
   Accordion,
   AccordionItem,
+  Counter,
   Flex,
   Heading,
+  Icon,
+  Icons,
   Label,
-  Text,
   View,
 } from "@arizeai/components";
 
@@ -29,7 +31,7 @@ const detailsListCSS = css`
     dt {
       font-weight: bold;
       flex: none;
-      width: 120px;
+      width: 130px;
     }
     dd {
       flex: 1 1 auto;
@@ -119,20 +121,22 @@ export function EventDetails({ event }: { event: ModelEvent }) {
           </AccordionItem>
         ) : (
           <AccordionItem id="document" title={"Document Details"}>
-            {event.predictionId != null && (
-              <div>
-                <dt>Document ID</dt>
-                <dd
-                  css={css`
-                    display: flex;
-                    align-items: center;
-                  `}
-                >
-                  {/* TODO - find a way to make the ID more semantic like a record ID */}
-                  {event.predictionId}
-                </dd>
-              </div>
-            )}
+            <dl css={detailsListCSS}>
+              {event.predictionId != null && (
+                <div>
+                  <dt>Document ID</dt>
+                  <dd
+                    css={css`
+                      display: flex;
+                      align-items: center;
+                    `}
+                  >
+                    {/* TODO - find a way to make the ID more semantic like a record ID */}
+                    {event.predictionId}
+                  </dd>
+                </div>
+              )}
+            </dl>
           </AccordionItem>
         )}
         <AccordionItem id="dimensions" title="Dimensions">
@@ -142,8 +146,11 @@ export function EventDetails({ event }: { event: ModelEvent }) {
           <AccordionItem
             id="retrievals"
             title="Retrieved Documents"
-            // TODO(mikeldking) - add enough contrast to make this work
-            // titleExtra={<Counter>{event.retrievedDocuments.length}</Counter>}
+            titleExtra={
+              <Counter variant="light">
+                {event.retrievedDocuments.length}
+              </Counter>
+            }
           >
             <ul
               css={css`
@@ -179,10 +186,15 @@ function DocumentItem({ document }: { document: RetrievalDocument }) {
             margin="size-100"
             alignItems="center"
           >
-            <Heading level={5}>Document {document.id}</Heading>
-            <Label color="blue">{`relevance ${numberFormatter(
-              document.relevance
-            )}`}</Label>
+            <Flex direction="row" gap="size-50" alignItems="center">
+              <Icon svg={<Icons.FileOutline />} />
+              <Heading level={4}>document {document.id}</Heading>
+            </Flex>
+            {typeof document.relevance === "number" && (
+              <Label color="blue">{`relevance ${numberFormatter(
+                document.relevance
+              )}`}</Label>
+            )}
           </Flex>
         </View>
         <pre
