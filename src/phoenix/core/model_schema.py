@@ -969,7 +969,7 @@ class Model:
             dim
             for dim in self._dimensions.values()
             if not dim.is_dummy
-            and dim.role not in (PREDICTION_ID, TIMESTAMP)
+            and dim.role not in (PREDICTION_ID, TIMESTAMP, RESPONSE)
             and isinstance(dim, ScalarDimension)
         )
 
@@ -1192,7 +1192,7 @@ class Schema(SchemaSpec):
     actual_label: Optional[str] = None
     actual_score: Optional[str] = None
     prompt: Optional[RetrievalEmbedding] = None
-    response: Optional[Embedding] = None
+    response: Optional[Union[str, Embedding]] = None
     features: Iterable[Union[str, CompositeDimensionSpec]] = field(default_factory=list)
     tags: Iterable[Union[str, CompositeDimensionSpec]] = field(default_factory=list)
 
@@ -1237,12 +1237,6 @@ class Schema(SchemaSpec):
             if isinstance(spec, str):
                 if dimension_role is PROMPT:
                     yield RetrievalEmbeddingDimension(
-                        spec,
-                        role=dimension_role,
-                        data_type=data_type,
-                    )
-                elif dimension_role is RESPONSE:
-                    yield EmbeddingDimension(
                         spec,
                         role=dimension_role,
                         data_type=data_type,
