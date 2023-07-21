@@ -18,13 +18,14 @@ import { SelectionDisplayRadioGroup } from "@phoenix/components/pointcloud";
 import { SelectionGridSizeRadioGroup } from "@phoenix/components/pointcloud/SelectionGridSizeRadioGroup";
 import { SelectionDisplay } from "@phoenix/constants/pointCloudConstants";
 import { usePointCloudContext } from "@phoenix/contexts";
+import { EventData } from "@phoenix/store";
 
 import { PointSelectionPanelContentQuery } from "./__generated__/PointSelectionPanelContentQuery.graphql";
 import { EventDetails } from "./EventDetails";
 import { ExportSelectionButton } from "./ExportSelectionButton";
 import { PointSelectionGrid } from "./PointSelectionGrid";
 import { PointSelectionTable } from "./PointSelectionTable";
-import { ModelEvent } from "./types";
+import { ModelEvent, RetrievalDocument } from "./types";
 
 const pointSelectionPanelCSS = css`
   width: 100%;
@@ -57,6 +58,20 @@ const pointSelectionPanelCSS = css`
     }
   }
 `;
+
+function convertGqlEventToRetrievalDocument({
+  event,
+  relevance,
+}: {
+  event: EventData;
+  relevance: number | null;
+}): RetrievalDocument {
+  return {
+    id: event.eventMetadata.predictionId || "unknown id",
+    text: event.documentText ?? "empty document",
+    relevance: relevance,
+  };
+}
 
 export function PointSelectionPanelContent() {
   const selectedEventIds = usePointCloudContext(
@@ -203,10 +218,26 @@ export function PointSelectionPanelContent() {
   const eventIdToDataMap = usePointCloudContext(
     (state) => state.eventIdToDataMap
   );
+  const pointData = usePointCloudContext((state) => state.pointData);
 
   const allData: ModelEvent[] = useMemo(() => {
     return allSelectedEvents.map((event) => {
-      const pointData = eventIdToDataMap.get(event.id);
+      const point = eventIdToDataMap.get(event.id);
+      const documents: RetrievalDocument[] = [];
+      if (pointData != null && point?.retrievals != null) {
+        point.retrievals.forEach(({ documentId, relevance }) => {
+          const documentEvent = pointData[documentId];
+          if (documentEvent != null) {
+            documents.push(
+              convertGqlEventToRetrievalDocument({
+                event: documentEvent,
+                relevance,
+              })
+            );
+          }
+        });
+      }
+
       return {
         id: event.id,
         predictionId: event.eventMetadata?.predictionId ?? null,
@@ -214,14 +245,15 @@ export function PointSelectionPanelContent() {
         actualScore: event.eventMetadata?.actualScore ?? null,
         predictionLabel: event.eventMetadata?.predictionLabel ?? null,
         predictionScore: event.eventMetadata?.predictionScore ?? null,
-        rawData: pointData?.embeddingMetadata.rawData ?? null,
-        linkToData: pointData?.embeddingMetadata.linkToData ?? null,
+        rawData: point?.embeddingMetadata.rawData ?? null,
+        linkToData: point?.embeddingMetadata.linkToData ?? null,
         dimensions: event.dimensions,
         prompt: event.promptAndResponse?.prompt ?? null,
         response: event.promptAndResponse?.response ?? null,
+        retrievedDocuments: documents,
       };
     });
-  }, [allSelectedEvents, eventIdToDataMap]);
+  }, [allSelectedEvents, eventIdToDataMap, pointData]);
 
   const eventDetails: ModelEvent | null = useMemo(() => {
     if (selectedDetailPointId) {

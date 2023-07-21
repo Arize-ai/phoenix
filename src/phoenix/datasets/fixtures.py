@@ -398,7 +398,7 @@ def get_datasets(
         corpus_dataset = Dataset(
             read_parquet(paths[DatasetRole.CORPUS]),
             fixture.corpus_schema,
-            "corpus",
+            "knowledge_base",
         )
     return primary_dataset, reference_dataset, corpus_dataset
 
