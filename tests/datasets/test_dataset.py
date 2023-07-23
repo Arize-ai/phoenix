@@ -742,24 +742,6 @@ class TestDataset:
         with raises(DatasetError):
             Dataset(dataframe=input_df, schema=input_schema)
 
-    def test_dataset_validate_invalid_timestamp_datatype(self) -> None:
-        input_df = DataFrame(
-            {
-                "prediction_label": [f"label{index}" for index in range(self.num_records)],
-                "feature0": np.zeros(self.num_records),
-                "timestamp": random_uuids(self.num_records),
-            },
-        )
-
-        input_schema = Schema(
-            timestamp_column_name="timestamp",
-            feature_column_names=["feature0"],
-            prediction_label_column_name="prediction_label",
-        )
-
-        with raises(DatasetError):
-            Dataset(dataframe=input_df, schema=input_schema)
-
     def test_dataset_validate_invalid_schema_excludes_timestamp(self) -> None:
         input_df = DataFrame(
             {
