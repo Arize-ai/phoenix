@@ -127,12 +127,13 @@ def get_drift_timeseries_data(
     metric: Union[ScalarDriftMetric, VectorDriftMetric],
     time_range: TimeRange,
     granularity: Granularity,
+    reference_data: pd.DataFrame,
 ) -> List[TimeSeriesDataPoint]:
     metric_instance = metric.value()
     metric_instance = replace(
         metric_instance,
         operand=Column(dimension.name),
-        reference_data=(pd.DataFrame({dimension.name: dimension[REFERENCE]})),
+        reference_data=reference_data,
     )
     if isinstance(metric, ScalarDriftMetric) and dimension.data_type is CONTINUOUS:
         metric_instance = replace(
