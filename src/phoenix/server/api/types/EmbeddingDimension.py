@@ -100,6 +100,44 @@ class EmbeddingDimension(Node):
             metric,
             time_range,
             granularity,
+            pd.DataFrame(
+                {self.dimension.name: self.dimension[REFERENCE]},
+                copy=False,
+            ),
+        )
+        return data[0].value if len(data) else None
+
+    @strawberry.field(
+        description=(
+            "Computes a retrieval metric between corpus data and the primary data belonging to"
+            " the input time range (inclusive of the time range start and exclusive of the time"
+            " range end). Returns None if no reference dataset exists, if no primary data exists in"
+            " the input time range, or if the input time range is invalid."
+        )
+    )  # type: ignore  # https://github.com/strawberry-graphql/strawberry/issues/1929
+    def retrieval_metric(
+        self,
+        info: Info[Context, None],
+        metric: VectorDriftMetric,
+        time_range: Optional[TimeRange] = UNSET,
+    ) -> Optional[float]:
+        if (corpus := info.context.corpus) is None:
+            return None
+        model = info.context.model
+        dataset = model[PRIMARY]
+        time_range, granularity = ensure_timeseries_parameters(
+            dataset,
+            time_range,
+        )
+        data = get_drift_timeseries_data(
+            self.dimension,
+            metric,
+            time_range,
+            granularity,
+            pd.DataFrame(
+                {self.dimension.name: self.dimension(corpus[PRIMARY])},
+                copy=False,
+            ),
         )
         return data[0].value if len(data) else None
 
@@ -174,6 +212,49 @@ class EmbeddingDimension(Node):
                 metric,
                 time_range,
                 granularity,
+                pd.DataFrame(
+                    {self.dimension.name: self.dimension[REFERENCE]},
+                    copy=False,
+                ),
+            )
+        )
+
+    @strawberry.field(
+        description=(
+            "Computes a drift time-series between the primary and reference datasets. The output"
+            " drift time-series contains one data point for each whole hour in the input time range"
+            " (inclusive of the time range start and exclusive of the time range end). Each data"
+            " point contains the drift metric value between all reference data and the primary data"
+            " within the evaluation window ending at the corresponding time. Returns None if no"
+            " reference dataset exists or if the input time range is invalid.           "
+        )
+    )  # type: ignore  # https://github.com/strawberry-graphql/strawberry/issues/1929
+    def retrieval_metric_time_series(
+        self,
+        info: Info[Context, None],
+        metric: VectorDriftMetric,
+        time_range: TimeRange,
+        granularity: Granularity,
+    ) -> DriftTimeSeries:
+        if (corpus := info.context.corpus) is None:
+            return DriftTimeSeries(data=[])
+        model = info.context.model
+        dataset = model[PRIMARY]
+        time_range, granularity = ensure_timeseries_parameters(
+            dataset,
+            time_range,
+            granularity,
+        )
+        return DriftTimeSeries(
+            data=get_drift_timeseries_data(
+                self.dimension,
+                metric,
+                time_range,
+                granularity,
+                pd.DataFrame(
+                    {self.dimension.name: self.dimension(corpus[PRIMARY])},
+                    copy=False,
+                ),
             )
         )
 

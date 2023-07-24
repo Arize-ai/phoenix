@@ -79,6 +79,10 @@ class Dimension(Node):
             metric,
             time_range,
             granularity,
+            pd.DataFrame(
+                {self.dimension.name: self.dimension[REFERENCE]},
+                copy=False,
+            ),
         )
         return data[0].value if len(data) else None
 
@@ -190,6 +194,10 @@ class Dimension(Node):
                 metric,
                 time_range,
                 granularity,
+                pd.DataFrame(
+                    {self.dimension.name: self.dimension[REFERENCE]},
+                    copy=False,
+                ),
             )
         )
 
