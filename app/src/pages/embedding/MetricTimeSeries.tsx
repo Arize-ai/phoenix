@@ -171,6 +171,7 @@ export function MetricTimeSeries({
 
   // Modality of the metric as boolean values
   const fetchDrift = metric.type === "drift";
+  const fetchQueryDistance = metric.type === "retrieval";
   const fetchDataQuality = metric.type === "dataQuality";
   const fetchPerformance = metric.type === "performance";
 
@@ -185,6 +186,7 @@ export function MetricTimeSeries({
         $metricGranularity: Granularity!
         $countGranularity: Granularity!
         $fetchDrift: Boolean!
+        $fetchQueryDistance: Boolean!
         $fetchDataQuality: Boolean!
         $dimensionId: GlobalID!
         $fetchPerformance: Boolean!
@@ -198,6 +200,16 @@ export function MetricTimeSeries({
               timeRange: $timeRange
               granularity: $metricGranularity
             ) @include(if: $fetchDrift) {
+              data {
+                timestamp
+                value
+              }
+            }
+            retrievalMetricTimeSeries(
+              metric: euclideanDistance
+              timeRange: $timeRange
+              granularity: $metricGranularity
+            ) @include(if: $fetchQueryDistance) {
               data {
                 timestamp
                 value
@@ -253,6 +265,7 @@ export function MetricTimeSeries({
       metricGranularity: calculateGranularityWithRollingAverage(timeRange),
       countGranularity: granularity,
       fetchDrift,
+      fetchQueryDistance,
       fetchDataQuality,
       fetchPerformance,
       dimensionId:
@@ -423,6 +436,15 @@ function getChartPrimaryData({
     data.embedding.euclideanDistanceTimeSeries.data.length > 0
   ) {
     return data.embedding.euclideanDistanceTimeSeries.data.map((d) => ({
+      metricName: getMetricShortNameByMetricKey(metric.metric),
+      ...d,
+    }));
+  }
+  if (
+    data.embedding.retrievalMetricTimeSeries?.data != null &&
+    data.embedding.retrievalMetricTimeSeries.data.length > 0
+  ) {
+    return data.embedding.retrievalMetricTimeSeries.data.map((d) => ({
       metricName: getMetricShortNameByMetricKey(metric.metric),
       ...d,
     }));

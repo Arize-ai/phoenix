@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<1b1ccf33dc9e2b22f35c95c900d2d95f>>
+ * @generated SignedSource<<5d6bff22c80e8f3c35047a0a9d9448e8>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -25,6 +25,7 @@ export type MetricTimeSeriesQuery$variables = {
   fetchDataQuality: boolean;
   fetchDrift: boolean;
   fetchPerformance: boolean;
+  fetchQueryDistance: boolean;
   metricGranularity: Granularity;
   performanceMetric: PerformanceMetric;
   timeRange: TimeRange;
@@ -47,6 +48,12 @@ export type MetricTimeSeriesQuery$data = {
       }>;
     };
     readonly id: string;
+    readonly retrievalMetricTimeSeries?: {
+      readonly data: ReadonlyArray<{
+        readonly timestamp: string;
+        readonly value: number | null;
+      }>;
+    };
     readonly trafficTimeSeries?: {
       readonly data: ReadonlyArray<{
         readonly timestamp: string;
@@ -102,43 +109,57 @@ v5 = {
 v6 = {
   "defaultValue": null,
   "kind": "LocalArgument",
-  "name": "metricGranularity"
+  "name": "fetchQueryDistance"
 },
 v7 = {
   "defaultValue": null,
   "kind": "LocalArgument",
-  "name": "performanceMetric"
+  "name": "metricGranularity"
 },
 v8 = {
   "defaultValue": null,
   "kind": "LocalArgument",
+  "name": "performanceMetric"
+},
+v9 = {
+  "defaultValue": null,
+  "kind": "LocalArgument",
   "name": "timeRange"
 },
-v9 = [
+v10 = [
   {
     "kind": "Variable",
     "name": "id",
     "variableName": "embeddingDimensionId"
   }
 ],
-v10 = {
+v11 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "id",
   "storageKey": null
 },
-v11 = {
+v12 = {
   "kind": "Variable",
   "name": "granularity",
   "variableName": "metricGranularity"
 },
-v12 = {
+v13 = {
   "kind": "Variable",
   "name": "timeRange",
   "variableName": "timeRange"
 },
-v13 = [
+v14 = [
+  (v12/*: any*/),
+  {
+    "kind": "Literal",
+    "name": "metric",
+    "value": "euclideanDistance"
+  },
+  (v13/*: any*/)
+],
+v15 = [
   {
     "alias": null,
     "args": null,
@@ -165,7 +186,7 @@ v13 = [
     "storageKey": null
   }
 ],
-v14 = {
+v16 = {
   "kind": "InlineFragment",
   "selections": [
     {
@@ -175,20 +196,29 @@ v14 = {
       "selections": [
         {
           "alias": "euclideanDistanceTimeSeries",
-          "args": [
-            (v11/*: any*/),
-            {
-              "kind": "Literal",
-              "name": "metric",
-              "value": "euclideanDistance"
-            },
-            (v12/*: any*/)
-          ],
+          "args": (v14/*: any*/),
           "concreteType": "DriftTimeSeries",
           "kind": "LinkedField",
           "name": "driftTimeSeries",
           "plural": false,
-          "selections": (v13/*: any*/),
+          "selections": (v15/*: any*/),
+          "storageKey": null
+        }
+      ]
+    },
+    {
+      "condition": "fetchQueryDistance",
+      "kind": "Condition",
+      "passingValue": true,
+      "selections": [
+        {
+          "alias": null,
+          "args": (v14/*: any*/),
+          "concreteType": "DriftTimeSeries",
+          "kind": "LinkedField",
+          "name": "retrievalMetricTimeSeries",
+          "plural": false,
+          "selections": (v15/*: any*/),
           "storageKey": null
         }
       ]
@@ -206,27 +236,27 @@ v14 = {
           "name": "metric",
           "value": "count"
         },
-        (v12/*: any*/)
+        (v13/*: any*/)
       ],
       "concreteType": "DataQualityTimeSeries",
       "kind": "LinkedField",
       "name": "dataQualityTimeSeries",
       "plural": false,
-      "selections": (v13/*: any*/),
+      "selections": (v15/*: any*/),
       "storageKey": null
     }
   ],
   "type": "EmbeddingDimension",
   "abstractKey": null
 },
-v15 = [
+v17 = [
   {
     "kind": "Variable",
     "name": "id",
     "variableName": "dimensionId"
   }
 ],
-v16 = {
+v18 = {
   "kind": "InlineFragment",
   "selections": [
     {
@@ -239,26 +269,26 @@ v16 = {
     {
       "alias": null,
       "args": [
-        (v11/*: any*/),
+        (v12/*: any*/),
         {
           "kind": "Literal",
           "name": "metric",
           "value": "mean"
         },
-        (v12/*: any*/)
+        (v13/*: any*/)
       ],
       "concreteType": "DataQualityTimeSeries",
       "kind": "LinkedField",
       "name": "dataQualityTimeSeries",
       "plural": false,
-      "selections": (v13/*: any*/),
+      "selections": (v15/*: any*/),
       "storageKey": null
     }
   ],
   "type": "Dimension",
   "abstractKey": null
 },
-v17 = {
+v19 = {
   "alias": null,
   "args": null,
   "concreteType": "Model",
@@ -274,7 +304,7 @@ v17 = {
         {
           "alias": null,
           "args": [
-            (v11/*: any*/),
+            (v12/*: any*/),
             {
               "fields": [
                 {
@@ -286,13 +316,13 @@ v17 = {
               "kind": "ObjectValue",
               "name": "metric"
             },
-            (v12/*: any*/)
+            (v13/*: any*/)
           ],
           "concreteType": "PerformanceTimeSeries",
           "kind": "LinkedField",
           "name": "performanceTimeSeries",
           "plural": false,
-          "selections": (v13/*: any*/),
+          "selections": (v15/*: any*/),
           "storageKey": null
         }
       ]
@@ -300,7 +330,7 @@ v17 = {
   ],
   "storageKey": null
 },
-v18 = {
+v20 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -318,7 +348,8 @@ return {
       (v5/*: any*/),
       (v6/*: any*/),
       (v7/*: any*/),
-      (v8/*: any*/)
+      (v8/*: any*/),
+      (v9/*: any*/)
     ],
     "kind": "Fragment",
     "metadata": null,
@@ -326,14 +357,14 @@ return {
     "selections": [
       {
         "alias": "embedding",
-        "args": (v9/*: any*/),
+        "args": (v10/*: any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
-          (v10/*: any*/),
-          (v14/*: any*/)
+          (v11/*: any*/),
+          (v16/*: any*/)
         ],
         "storageKey": null
       },
@@ -344,19 +375,19 @@ return {
         "selections": [
           {
             "alias": "dimension",
-            "args": (v15/*: any*/),
+            "args": (v17/*: any*/),
             "concreteType": null,
             "kind": "LinkedField",
             "name": "node",
             "plural": false,
             "selections": [
-              (v16/*: any*/)
+              (v18/*: any*/)
             ],
             "storageKey": null
           }
         ]
       },
-      (v17/*: any*/)
+      (v19/*: any*/)
     ],
     "type": "Query",
     "abstractKey": null
@@ -365,29 +396,30 @@ return {
   "operation": {
     "argumentDefinitions": [
       (v2/*: any*/),
-      (v8/*: any*/),
-      (v6/*: any*/),
+      (v9/*: any*/),
+      (v7/*: any*/),
       (v0/*: any*/),
       (v4/*: any*/),
+      (v6/*: any*/),
       (v3/*: any*/),
       (v1/*: any*/),
       (v5/*: any*/),
-      (v7/*: any*/)
+      (v8/*: any*/)
     ],
     "kind": "Operation",
     "name": "MetricTimeSeriesQuery",
     "selections": [
       {
         "alias": "embedding",
-        "args": (v9/*: any*/),
+        "args": (v10/*: any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
-          (v18/*: any*/),
-          (v10/*: any*/),
-          (v14/*: any*/)
+          (v20/*: any*/),
+          (v11/*: any*/),
+          (v16/*: any*/)
         ],
         "storageKey": null
       },
@@ -398,38 +430,38 @@ return {
         "selections": [
           {
             "alias": "dimension",
-            "args": (v15/*: any*/),
+            "args": (v17/*: any*/),
             "concreteType": null,
             "kind": "LinkedField",
             "name": "node",
             "plural": false,
             "selections": [
+              (v20/*: any*/),
               (v18/*: any*/),
-              (v16/*: any*/),
               {
                 "kind": "TypeDiscriminator",
                 "abstractKey": "__isNode"
               },
-              (v10/*: any*/)
+              (v11/*: any*/)
             ],
             "storageKey": null
           }
         ]
       },
-      (v17/*: any*/)
+      (v19/*: any*/)
     ]
   },
   "params": {
-    "cacheID": "34b07f128696d62716cd31a8aba83bed",
+    "cacheID": "a68a8204bf7fdd13e6915b338d4b5497",
     "id": null,
     "metadata": {},
     "name": "MetricTimeSeriesQuery",
     "operationKind": "query",
-    "text": "query MetricTimeSeriesQuery(\n  $embeddingDimensionId: GlobalID!\n  $timeRange: TimeRange!\n  $metricGranularity: Granularity!\n  $countGranularity: Granularity!\n  $fetchDrift: Boolean!\n  $fetchDataQuality: Boolean!\n  $dimensionId: GlobalID!\n  $fetchPerformance: Boolean!\n  $performanceMetric: PerformanceMetric!\n) {\n  embedding: node(id: $embeddingDimensionId) {\n    __typename\n    id\n    ... on EmbeddingDimension {\n      euclideanDistanceTimeSeries: driftTimeSeries(metric: euclideanDistance, timeRange: $timeRange, granularity: $metricGranularity) @include(if: $fetchDrift) {\n        data {\n          timestamp\n          value\n        }\n      }\n      trafficTimeSeries: dataQualityTimeSeries(metric: count, timeRange: $timeRange, granularity: $countGranularity) {\n        data {\n          timestamp\n          value\n        }\n      }\n    }\n  }\n  dimension: node(id: $dimensionId) @include(if: $fetchDataQuality) {\n    __typename\n    ... on Dimension {\n      name\n      dataQualityTimeSeries(metric: mean, timeRange: $timeRange, granularity: $metricGranularity) {\n        data {\n          timestamp\n          value\n        }\n      }\n    }\n    __isNode: __typename\n    id\n  }\n  model {\n    performanceTimeSeries(metric: {metric: $performanceMetric}, timeRange: $timeRange, granularity: $metricGranularity) @include(if: $fetchPerformance) {\n      data {\n        timestamp\n        value\n      }\n    }\n  }\n}\n"
+    "text": "query MetricTimeSeriesQuery(\n  $embeddingDimensionId: GlobalID!\n  $timeRange: TimeRange!\n  $metricGranularity: Granularity!\n  $countGranularity: Granularity!\n  $fetchDrift: Boolean!\n  $fetchQueryDistance: Boolean!\n  $fetchDataQuality: Boolean!\n  $dimensionId: GlobalID!\n  $fetchPerformance: Boolean!\n  $performanceMetric: PerformanceMetric!\n) {\n  embedding: node(id: $embeddingDimensionId) {\n    __typename\n    id\n    ... on EmbeddingDimension {\n      euclideanDistanceTimeSeries: driftTimeSeries(metric: euclideanDistance, timeRange: $timeRange, granularity: $metricGranularity) @include(if: $fetchDrift) {\n        data {\n          timestamp\n          value\n        }\n      }\n      retrievalMetricTimeSeries(metric: euclideanDistance, timeRange: $timeRange, granularity: $metricGranularity) @include(if: $fetchQueryDistance) {\n        data {\n          timestamp\n          value\n        }\n      }\n      trafficTimeSeries: dataQualityTimeSeries(metric: count, timeRange: $timeRange, granularity: $countGranularity) {\n        data {\n          timestamp\n          value\n        }\n      }\n    }\n  }\n  dimension: node(id: $dimensionId) @include(if: $fetchDataQuality) {\n    __typename\n    ... on Dimension {\n      name\n      dataQualityTimeSeries(metric: mean, timeRange: $timeRange, granularity: $metricGranularity) {\n        data {\n          timestamp\n          value\n        }\n      }\n    }\n    __isNode: __typename\n    id\n  }\n  model {\n    performanceTimeSeries(metric: {metric: $performanceMetric}, timeRange: $timeRange, granularity: $metricGranularity) @include(if: $fetchPerformance) {\n      data {\n        timestamp\n        value\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "bf84d02d3dac44b48de5e73334a65548";
+(node as any).hash = "f31abad2141a5a1c461ef2a598ffa4f3";
 
 export default node;
