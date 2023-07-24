@@ -340,7 +340,7 @@ function DocumentPreview(props: Pick<EventItemProps, "size" | "documentText">) {
         margin-block-start: 0;
         margin-block-end: 0;
         position: relative;
-        --text-preview-background-color: var(--ac-background-color-light);
+        --text-preview-background-color: var(--px-background-color-800);
         background-color: var(--text-preview-background-color);
 
         &[data-size="small"] {

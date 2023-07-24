@@ -734,8 +734,7 @@ function getClusterMetricName(metric: MetricDefinition): string {
       switch (metricEnum) {
         case "euclideanDistance":
           return "Cluster Drift";
-        case "queryDistance":
-          return "% Query";
+
         default:
           assertUnreachable(metricEnum);
       }
@@ -743,6 +742,15 @@ function getClusterMetricName(metric: MetricDefinition): string {
     }
     case "performance":
       return getMetricShortNameByMetricKey(metricEnum);
+    case "retrieval": {
+      switch (metricEnum) {
+        case "queryDistance":
+          return "% Query";
+        default:
+          assertUnreachable(metricEnum);
+      }
+      break;
+    }
     default:
       assertUnreachable(metricType);
   }

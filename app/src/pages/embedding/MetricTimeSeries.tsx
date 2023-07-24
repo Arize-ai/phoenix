@@ -118,6 +118,8 @@ function getChartTitle(metric: MetricDefinition) {
       return "Model Performance";
     case "dataQuality":
       return "Data Quality";
+    case "retrieval":
+      return "Query Distance";
     default:
       assertUnreachable(metric);
   }
@@ -137,6 +139,8 @@ function getMetricShortName(metric: MetricDefinition | null): string {
       case "dataQuality":
         // TODO make this more generic and don't assume avg
         return `${metric.dimension.name} avg`;
+      case "retrieval":
+        return getMetricShortNameByMetricKey(metric.metric);
       default:
         assertUnreachable(metricType);
     }
@@ -151,6 +155,8 @@ function getMetricDescription(metric: MetricDefinition) {
       return getMetricDescriptionByMetricKey(metric.metric);
     case "dataQuality":
       return null;
+    case "retrieval":
+      return getMetricDescriptionByMetricKey(metric.metric);
     default:
       assertUnreachable(metric);
   }

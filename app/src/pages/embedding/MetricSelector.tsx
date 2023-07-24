@@ -16,6 +16,7 @@ import {
   DriftMetricDefinition,
   MetricDefinition,
   PerformanceMetricDefinition,
+  RetrievalMetricDefinition,
 } from "@phoenix/store";
 import { assertUnreachable } from "@phoenix/typeUtils";
 
@@ -46,6 +47,8 @@ function getMetricKey(metric: MetricDefinition) {
   const { type, metric: metricName } = metric;
   switch (type) {
     case "drift":
+      return `${type}${METRIC_KEY_SEPARATOR}${metricName}`;
+    case "retrieval":
       return `${type}${METRIC_KEY_SEPARATOR}${metricName}`;
     case "performance":
       return `${type}${METRIC_KEY_SEPARATOR}${metricName}`;
@@ -79,6 +82,11 @@ function parseMetricKey({
   switch (type) {
     case "drift":
       return { type, metric: metricName as DriftMetricDefinition["metric"] };
+    case "retrieval":
+      return {
+        type,
+        metric: metricName as RetrievalMetricDefinition["metric"],
+      };
     case "performance":
       return {
         type,
@@ -185,11 +193,10 @@ export function MetricSelector({
         (null as unknown as CollectionElement<unknown>)
       )}
       {hasCorpusDataset ? (
-        // Intentionally not naming the section drift to avoid confusion
         <Section title="Retrieval">
           <Item
             key={getMetricKey({
-              type: "drift",
+              type: "retrieval",
               metric: "queryDistance",
             })}
           >

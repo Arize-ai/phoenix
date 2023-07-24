@@ -224,9 +224,13 @@ type HDBSCANParameters = {
   clusterSelectionEpsilon: number;
 };
 
+export type RetrievalMetricDefinition = {
+  type: "retrieval";
+  metric: "queryDistance";
+};
 export type DriftMetricDefinition = {
   type: "drift";
-  metric: "euclideanDistance" | "queryDistance";
+  metric: "euclideanDistance";
 };
 
 export type PerformanceMetricDefinition = {
@@ -246,7 +250,8 @@ export type DataQualityMetricDefinition = {
 export type MetricDefinition =
   | DriftMetricDefinition
   | PerformanceMetricDefinition
-  | DataQualityMetricDefinition;
+  | DataQualityMetricDefinition
+  | RetrievalMetricDefinition;
 
 /**
  * The properties of the point cloud store.
@@ -520,7 +525,7 @@ export const DEFAULT_RETRIEVAL_TROUBLESHOOTING_POINT_CLOUD_PROPS: Partial<PointC
       [DatasetGroup.corpus]: FALLBACK_COLOR,
     },
     metric: {
-      type: "drift",
+      type: "retrieval",
       metric: "queryDistance",
     },
     // Since we are showing clusters by percent query, sort from highest query density to lowest
