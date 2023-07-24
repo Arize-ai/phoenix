@@ -139,8 +139,9 @@ export function MetricSelector({
     `,
     model
   );
-  const { referenceDataset } = useDatasets();
+  const { referenceDataset, corpusDataset } = useDatasets();
   const hasReferenceDataset = !!referenceDataset;
+  const hasCorpusDataset = !!corpusDataset;
   const metric = usePointCloudContext((state) => state.metric);
   const loading = usePointCloudContext((state) => state.loading);
   const setMetric = usePointCloudContext((state) => state.setMetric);
@@ -169,6 +170,35 @@ export function MetricSelector({
       placeholder="Select a metric..."
       isDisabled={loading}
     >
+      {hasReferenceDataset ? (
+        <Section title="Drift">
+          <Item
+            key={getMetricKey({
+              type: "drift",
+              metric: "euclideanDistance",
+            })}
+          >
+            Euclidean Distance
+          </Item>
+        </Section>
+      ) : (
+        (null as unknown as CollectionElement<unknown>)
+      )}
+      {hasCorpusDataset ? (
+        // Intentionally not naming the section drift to avoid confusion
+        <Section title="Retrieval">
+          <Item
+            key={getMetricKey({
+              type: "drift",
+              metric: "queryDistance",
+            })}
+          >
+            Query Distance
+          </Item>
+        </Section>
+      ) : (
+        (null as unknown as CollectionElement<unknown>)
+      )}
       {hasReferenceDataset ? (
         <Section title="Drift">
           <Item

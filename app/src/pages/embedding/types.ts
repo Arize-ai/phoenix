@@ -33,6 +33,11 @@ export interface ModelEvent {
    */
   response: string | null;
   /**
+   * document text if the event is a document
+   * TODO: decouple this from the event
+   */
+  documentText: string | null;
+  /**
    * Retrievals from a corpus (e.x. a vector store)
    */
   retrievedDocuments: RetrievalDocument[];

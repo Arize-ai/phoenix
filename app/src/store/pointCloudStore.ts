@@ -161,6 +161,11 @@ interface ClusterComputedFields {
 
 interface ClusterBase {
   readonly driftRatio: number | null;
+  /**
+   * The ratio of the primary dataset to the corpus
+   * Used for troubleshooting retrieval of data from a corpus dataset
+   */
+  readonly primaryToCorpusRatio: number | null;
   readonly eventIds: readonly string[];
   readonly id: string;
   /** data quality metric from graphql */
@@ -221,7 +226,7 @@ type HDBSCANParameters = {
 
 export type DriftMetricDefinition = {
   type: "drift";
-  metric: "euclideanDistance";
+  metric: "euclideanDistance" | "queryDistance";
 };
 
 export type PerformanceMetricDefinition = {
@@ -488,7 +493,6 @@ export const DEFAULT_DRIFT_POINT_CLOUD_PROPS: Partial<PointCloudProps> = {
   pointGroupVisibility: {
     [DatasetGroup.primary]: true,
     [DatasetGroup.reference]: true,
-    [DatasetGroup.corpus]: true,
   },
   pointGroupColors: {
     [DatasetGroup.primary]: DEFAULT_COLOR_SCHEME[0],
@@ -500,6 +504,28 @@ export const DEFAULT_DRIFT_POINT_CLOUD_PROPS: Partial<PointCloudProps> = {
     metric: "euclideanDistance",
   },
 };
+
+/**
+ * The default point cloud properties in the case that there are two datasets.
+ */
+export const DEFAULT_RETRIEVAL_TROUBLESHOOTING_POINT_CLOUD_PROPS: Partial<PointCloudProps> =
+  {
+    coloringStrategy: ColoringStrategy.dataset,
+    pointGroupVisibility: {
+      [DatasetGroup.primary]: true,
+      [DatasetGroup.corpus]: true,
+    },
+    pointGroupColors: {
+      [DatasetGroup.primary]: DEFAULT_COLOR_SCHEME[0],
+      [DatasetGroup.corpus]: FALLBACK_COLOR,
+    },
+    metric: {
+      type: "drift",
+      metric: "queryDistance",
+    },
+    // Since we are showing clusters by percent query, sort from highest query density to lowest
+    clusterSort: { dir: "desc", column: "primaryMetricValue" },
+  };
 
 /**
  * The default point cloud properties in the case that there is only one dataset.
@@ -1297,6 +1323,7 @@ async function fetchClusters({
           id
           eventIds
           driftRatio
+          primaryToCorpusRatio
           dataQualityMetric(
             metric: { metric: mean, columnName: $dataQualityMetricColumnName }
           ) @include(if: $fetchDataQualityMetric) {
@@ -1360,6 +1387,7 @@ async function fetchClusterMetrics({
           id
           eventIds
           driftRatio
+          primaryToCorpusRatio
           dataQualityMetric(
             metric: { metric: mean, columnName: $dataQualityMetricColumnName }
           ) @include(if: $fetchDataQualityMetric) {
@@ -1429,6 +1457,10 @@ function normalizeCluster(cluster: ClusterInput): Cluster {
   } else if (cluster.performanceMetric) {
     primaryMetricValue = cluster.performanceMetric.primaryValue;
     referenceMetricValue = cluster.performanceMetric.referenceValue;
+  } else if (cluster.primaryToCorpusRatio != null) {
+    // TODO(mikeldking): make the metric declarative via a parameter
+    // convert the -1 to 1 value to a 0 to 100 value
+    primaryMetricValue = cluster.primaryToCorpusRatio + (1 / 2) * 100;
   }
   return {
     ...cluster,

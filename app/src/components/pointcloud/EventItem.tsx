@@ -11,7 +11,12 @@ type EventItemSize = "small" | "medium" | "large";
 /**
  * The type of preview to display for the event item. For a large display, the top two previews are shown
  */
-type EventPreviewType = "raw" | "prompt_response" | "image" | "event_metadata";
+type EventPreviewType =
+  | "raw"
+  | "prompt_response"
+  | "image"
+  | "event_metadata"
+  | "document";
 type EventItemProps = {
   /**
    * The event's raw textual data (e.g. NLP text)
@@ -53,14 +58,21 @@ type EventItemProps = {
    * The size of the event item
    */
   size: EventItemSize;
+  /**
+   * In the case the event captures a document (e.g. a corpus record)
+   */
+  documentText: string | null;
 };
 
 /**
  * Get the primary preview type for the event item. This is the preview that is shown first
  */
 function getPrimaryPreviewType(props: EventItemProps): EventPreviewType {
-  const { rawData, linkToData, promptAndResponse } = props;
+  const { rawData, linkToData, promptAndResponse, documentText } = props;
 
+  if (documentText != null) {
+    return "document";
+  }
   if (promptAndResponse != null) {
     return "prompt_response";
   }
@@ -81,14 +93,20 @@ function getSecondaryPreviewType(
   props: EventItemProps
 ): EventPreviewType | null {
   const { rawData } = props;
-  if (primaryPreviewType === "prompt_response") {
-    return null;
-  } else if (primaryPreviewType === "image" && rawData != null) {
-    return "raw";
-  } else if (primaryPreviewType !== "event_metadata") {
-    return "event_metadata";
+  switch (primaryPreviewType) {
+    case "document":
+      return null;
+    case "prompt_response":
+      return null;
+    case "image":
+      return rawData != null ? "raw" : null;
+    case "raw":
+      return "event_metadata";
+    case "event_metadata":
+      return null;
+    default:
+      assertUnreachable(primaryPreviewType);
   }
-  return null;
 }
 
 /**
@@ -186,6 +204,10 @@ function EventPreview(
   const { previewType } = props;
   let preview: ReactNode | null = null;
   switch (previewType) {
+    case "document": {
+      preview = <DocumentPreview {...props} />;
+      break;
+    }
     case "prompt_response": {
       preview = <PromptResponsePreview {...props} />;
       break;
@@ -302,6 +324,47 @@ function PromptResponsePreview(
         {props.promptAndResponse?.response}
       </section>
     </div>
+  );
+}
+
+/**
+ * Shows textual preview of the event's document
+ */
+function DocumentPreview(props: Pick<EventItemProps, "size" | "documentText">) {
+  return (
+    <p
+      data-size={props.size}
+      css={css`
+        flex: 1 1 auto;
+        padding: var(--px-spacing-med);
+        margin-block-start: 0;
+        margin-block-end: 0;
+        position: relative;
+        --text-preview-background-color: var(--ac-background-color-light);
+        background-color: var(--text-preview-background-color);
+
+        &[data-size="small"] {
+          padding: var(--px-spacing-sm);
+          font-size: var(--ac-global-color-gray-600);
+          box-sizing: border-box;
+        }
+        &:before {
+          content: "";
+          width: 100%;
+          height: 100%;
+          position: absolute;
+          left: 0;
+          top: 0;
+          background: linear-gradient(
+            transparent 90%,
+            var(--text-preview-background-color) 98%,
+            var(--text-preview-background-color) 100%
+          );
+        }
+      `}
+    >
+      {props.documentText}
+    </p>
   );
 }
 

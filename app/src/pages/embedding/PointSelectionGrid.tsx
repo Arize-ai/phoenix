@@ -89,6 +89,7 @@ export function PointSelectionGrid(props: PointSelectionGridProps) {
                 predictionLabel={predictionLabel}
                 actualLabel={actualLabel}
                 promptAndResponse={event.promptAndResponse}
+                documentText={event.documentText}
               />
             </li>
           );
