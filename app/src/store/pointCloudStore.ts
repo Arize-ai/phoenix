@@ -1465,7 +1465,7 @@ function normalizeCluster(cluster: ClusterInput): Cluster {
   } else if (cluster.primaryToCorpusRatio != null) {
     // TODO(mikeldking): make the metric declarative via a parameter
     // convert the -1 to 1 value to a 0 to 100 value
-    primaryMetricValue = cluster.primaryToCorpusRatio + (1 / 2) * 100;
+    primaryMetricValue = ((cluster.primaryToCorpusRatio + 1) / 2) * 100;
   }
   return {
     ...cluster,
