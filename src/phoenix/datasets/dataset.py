@@ -1,7 +1,8 @@
 import logging
+import re
 import uuid
 from copy import deepcopy
-from dataclasses import fields, replace
+from dataclasses import dataclass, fields, replace
 from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
 import numpy as np
@@ -25,6 +26,7 @@ from .schema import (
     SINGLE_COLUMN_SCHEMA_FIELD_NAMES,
     EmbeddingColumnNames,
     EmbeddingFeatures,
+    RetrievalEmbeddingColumnNames,
     Schema,
     SchemaFieldName,
     SchemaFieldValue,
@@ -120,6 +122,15 @@ class Dataset:
             schema_json = schema_file.read()
         schema = Schema.from_json(schema_json)
         return cls(df, schema, name)
+
+    @classmethod
+    def from_open_inference(cls, dataframe: DataFrame) -> "Dataset":
+        open_inference_cols = [_to_open_inference(col) for col in dataframe.columns]
+        retrieval_embedding_cols = [col for col in open_inference_cols if col.name == "prompt"]
+        schema_cols = [col for col in open_inference_cols if col.name != "prompt"]
+        retrieval_embedding_column_names = _to_retrieval_column_names(retrieval_embedding_cols)
+        schema = _to_schema(schema_cols, retrieval_embedding_column_names)
+        return cls(dataframe, schema)
 
     def to_disc(self) -> None:
         """writes the data and schema to disc"""
@@ -528,3 +539,64 @@ def _get_schema_from_unknown_schema_param(schemaLike: SchemaLike) -> Schema:
 
 def _add_prediction_id(num_rows: int) -> List[str]:
     return [str(uuid.uuid4()) for _ in range(num_rows)]
+
+
+@dataclass
+class _OpenInferenceColumnName:
+    full_name: str
+    category: str
+    data_type: str
+    specifier: Optional[str] = None
+    name: Optional[str] = None
+
+
+def _to_open_inference(column_name: str) -> _OpenInferenceColumnName:
+    pattern = (
+        r"^:(?P<category>\w+)\.(?P<data_type>\[\w+\]|\w+)(\.(?P<specifier>\w+))?:(?P<name>.*)?$"
+    )
+    match = re.match(pattern, column_name)
+    if match:
+        return _OpenInferenceColumnName(full_name=column_name, **match.groupdict())
+    raise ValueError(f"Invalid format for column name: {column_name}")
+
+
+def _to_retrieval_column_names(
+    columns: List[_OpenInferenceColumnName],
+) -> RetrievalEmbeddingColumnNames:
+    specifier_to_field_name = {
+        "embedding": "vector_column_name",
+        "retrieved_document_ids": "context_retrieval_ids_column_name",
+        "retrieved_document_scores": "context_retrieval_scores_column_name",
+    }
+    field_name_to_value = {
+        specifier_to_field_name[specifier]: col.full_name
+        for col in columns
+        if (specifier := col.specifier) is not None
+    }
+    return RetrievalEmbeddingColumnNames(**field_name_to_value)
+
+
+def _to_schema(
+    columns: List[_OpenInferenceColumnName],
+    retrieval_embedding_column_names: RetrievalEmbeddingColumnNames,
+) -> Schema:
+    prediction_id_column_name = None
+    timestamp_column_name = None
+    response_column_name = None
+    tag_column_names = []
+    for column in columns:
+        if column.category == "id":
+            prediction_id_column_name = column.full_name
+        elif column.category == "timestamp":
+            timestamp_column_name = column.full_name
+        elif column.name == "response":
+            response_column_name = column.full_name
+        else:
+            tag_column_names.append(column.full_name)
+    return Schema(
+        prediction_id_column_name=prediction_id_column_name,
+        timestamp_column_name=timestamp_column_name,
+        response_column_names=response_column_name,
+        tag_column_names=tag_column_names if tag_column_names else None,
+        prompt_column_names=retrieval_embedding_column_names,
+    )
