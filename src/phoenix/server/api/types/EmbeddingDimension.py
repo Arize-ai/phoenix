@@ -221,12 +221,12 @@ class EmbeddingDimension(Node):
 
     @strawberry.field(
         description=(
-            "Computes a drift time-series between the primary and reference datasets. The output"
-            " drift time-series contains one data point for each whole hour in the input time range"
+            "Computes a retrieval metric between the primary and corpus datasets. The output"
+            " time-series contains one data point for each whole hour in the input time range"
             " (inclusive of the time range start and exclusive of the time range end). Each data"
-            " point contains the drift metric value between all reference data and the primary data"
+            " point contains the metric value between all corpus data and the primary data"
             " within the evaluation window ending at the corresponding time. Returns None if no"
-            " reference dataset exists or if the input time range is invalid.           "
+            " corpus dataset exists or if the input time range is invalid.           "
         )
     )  # type: ignore  # https://github.com/strawberry-graphql/strawberry/issues/1929
     def retrieval_metric_time_series(
