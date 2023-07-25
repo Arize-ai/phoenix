@@ -3,6 +3,7 @@ import re
 import uuid
 from copy import deepcopy
 from dataclasses import dataclass, fields, replace
+from itertools import groupby
 from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
 import numpy as np
@@ -125,12 +126,139 @@ class Dataset:
 
     @classmethod
     def from_open_inference(cls, dataframe: DataFrame) -> "Dataset":
-        open_inference_cols = [_to_open_inference(col) for col in dataframe.columns]
-        retrieval_embedding_cols = [col for col in open_inference_cols if col.name == "prompt"]
-        schema_cols = [col for col in open_inference_cols if col.name != "prompt"]
-        retrieval_embedding_column_names = _to_retrieval_column_names(retrieval_embedding_cols)
-        schema = _to_schema(schema_cols, retrieval_embedding_column_names)
-        return cls(dataframe, schema)
+        schema = Schema()
+        column_renaming: Dict[str, str] = {}
+        for group_name, group in groupby(
+            sorted(
+                map(_to_open_inference, dataframe.columns),
+                key=lambda column: column.name,
+            ),
+            key=lambda column: column.name,
+        ):
+            open_inference_columns = list(group)
+            if group_name == "":
+                column_names_by_category = {
+                    column.category: column.full_name for column in open_inference_columns
+                }
+                schema = replace(
+                    schema,
+                    prediction_id_column_name=column_names_by_category.get("id"),
+                    timestamp_column_name=column_names_by_category.get("timestamp"),
+                )
+                continue
+            column_names_by_specifier = {
+                column.specifier: column.full_name for column in open_inference_columns
+            }
+            if group_name == "response":
+                response_vector_column_name = column_names_by_specifier.get("embedding")
+                if response_vector_column_name is not None:
+                    column_renaming[response_vector_column_name] = "response"
+                    schema = replace(
+                        schema,
+                        response_column_names=EmbeddingColumnNames(
+                            vector_column_name=column_renaming[response_vector_column_name],
+                            raw_data_column_name=column_names_by_specifier.get(""),
+                        ),
+                    )
+                else:
+                    response_text_column_name = column_names_by_specifier.get("")
+                    if response_text_column_name is None:
+                        raise ValueError(
+                            "invalid OpenInference format: missing text column for response"
+                        )
+                    column_renaming[response_text_column_name] = "response"
+                    schema = replace(
+                        schema,
+                        response_column_names=column_renaming[response_text_column_name],
+                    )
+            elif group_name == "prompt":
+                prompt_vector_column_name = column_names_by_specifier.get("embedding")
+                if prompt_vector_column_name is None:
+                    raise ValueError(
+                        "invalid OpenInference format: missing embedding vector column for prompt"
+                    )
+                column_renaming[prompt_vector_column_name] = "prompt"
+                schema = replace(
+                    schema,
+                    prompt_column_names=RetrievalEmbeddingColumnNames(
+                        vector_column_name=column_renaming[prompt_vector_column_name],
+                        raw_data_column_name=column_names_by_specifier.get(""),
+                        context_retrieval_ids_column_name=column_names_by_specifier.get(
+                            "retrieved_document_ids"
+                        ),
+                        context_retrieval_scores_column_name=column_names_by_specifier.get(
+                            "retrieved_document_scores"
+                        ),
+                    ),
+                )
+            elif "embedding" in column_names_by_specifier:
+                vector_column_name = column_names_by_specifier["embedding"]
+                column_renaming[vector_column_name] = group_name
+                embedding_feature_column_names = schema.embedding_feature_column_names or {}
+                embedding_feature_column_names.update(
+                    {
+                        group_name: EmbeddingColumnNames(
+                            vector_column_name=column_renaming[vector_column_name],
+                            raw_data_column_name=column_names_by_specifier.get("raw_data"),
+                            link_to_data_column_name=column_names_by_specifier.get("link_to_data"),
+                        )
+                    }
+                )
+                schema = replace(
+                    schema,
+                    embedding_feature_column_names=embedding_feature_column_names,
+                )
+            elif len(open_inference_columns) == 1:
+                open_inference_column = open_inference_columns[0]
+                raw_column_name = open_inference_column.full_name
+                column_renaming[raw_column_name] = open_inference_column.name
+                if open_inference_column.category == "feature":
+                    schema = replace(
+                        schema,
+                        feature_column_names=(
+                            (schema.feature_column_names or []) + [column_renaming[raw_column_name]]
+                        ),
+                    )
+                elif open_inference_column.category == "tag":
+                    schema = replace(
+                        schema,
+                        tag_column_names=(
+                            (schema.tag_column_names or []) + [column_renaming[raw_column_name]]
+                        ),
+                    )
+                elif open_inference_column.category == "prediction":
+                    if open_inference_column.specifier == "score":
+                        schema = replace(
+                            schema,
+                            prediction_score_column_name=column_renaming[raw_column_name],
+                        )
+                    if open_inference_column.specifier == "label":
+                        schema = replace(
+                            schema,
+                            prediction_label_column_name=column_renaming[raw_column_name],
+                        )
+                elif open_inference_column.category == "actual":
+                    if open_inference_column.specifier == "score":
+                        schema = replace(
+                            schema,
+                            actual_score_column_name=column_renaming[raw_column_name],
+                        )
+                    if open_inference_column.specifier == "label":
+                        schema = replace(
+                            schema,
+                            actual_label_column_name=column_renaming[raw_column_name],
+                        )
+            else:
+                raise ValueError(f"invalid OpenInference format: duplicated name `{group_name}`")
+
+        return cls(
+            dataframe.rename(
+                column_renaming,
+                axis=1,
+                copy=False,
+            ),
+            schema,
+        )
 
     def to_disc(self) -> None:
         """writes the data and schema to disc"""
@@ -541,13 +669,18 @@ def _add_prediction_id(num_rows: int) -> List[str]:
     return [str(uuid.uuid4()) for _ in range(num_rows)]
 
 
-@dataclass
+@dataclass(frozen=True)
 class _OpenInferenceColumnName:
     full_name: str
     category: str
     data_type: str
-    specifier: Optional[str] = None
-    name: Optional[str] = None
+    specifier: str = ""
+    name: str = ""
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "category", self.category.lower())
+        object.__setattr__(self, "data_type", self.data_type.lower())
+        object.__setattr__(self, "specifier", self.specifier.lower())
 
 
 def _to_open_inference(column_name: str) -> _OpenInferenceColumnName:
@@ -556,47 +689,8 @@ def _to_open_inference(column_name: str) -> _OpenInferenceColumnName:
     )
     match = re.match(pattern, column_name)
     if match:
-        return _OpenInferenceColumnName(full_name=column_name, **match.groupdict())
+        return _OpenInferenceColumnName(
+            full_name=column_name,
+            **match.groupdict(default=""),
+        )
     raise ValueError(f"Invalid format for column name: {column_name}")
-
-
-def _to_retrieval_column_names(
-    columns: List[_OpenInferenceColumnName],
-) -> RetrievalEmbeddingColumnNames:
-    specifier_to_field_name = {
-        "embedding": "vector_column_name",
-        "retrieved_document_ids": "context_retrieval_ids_column_name",
-        "retrieved_document_scores": "context_retrieval_scores_column_name",
-    }
-    field_name_to_value = {
-        specifier_to_field_name[specifier]: col.full_name
-        for col in columns
-        if (specifier := col.specifier) is not None
-    }
-    return RetrievalEmbeddingColumnNames(**field_name_to_value)
-
-
-def _to_schema(
-    columns: List[_OpenInferenceColumnName],
-    retrieval_embedding_column_names: RetrievalEmbeddingColumnNames,
-) -> Schema:
-    prediction_id_column_name = None
-    timestamp_column_name = None
-    response_column_name = None
-    tag_column_names = []
-    for column in columns:
-        if column.category == "id":
-            prediction_id_column_name = column.full_name
-        elif column.category == "timestamp":
-            timestamp_column_name = column.full_name
-        elif column.name == "response":
-            response_column_name = column.full_name
-        else:
-            tag_column_names.append(column.full_name)
-    return Schema(
-        prediction_id_column_name=prediction_id_column_name,
-        timestamp_column_name=timestamp_column_name,
-        response_column_names=response_column_name,
-        tag_column_names=tag_column_names if tag_column_names else None,
-        prompt_column_names=retrieval_embedding_column_names,
-    )
