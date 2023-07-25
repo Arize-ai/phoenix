@@ -688,7 +688,7 @@ def _add_prediction_id(num_rows: int) -> List[str]:
     return [str(uuid.uuid4()) for _ in range(num_rows)]
 
 
-class OpenInferenceCategory(str, Enum):
+class OpenInferenceCategory(Enum):
     id = "id"
     timestamp = "timestamp"
     feature = "feature"
