@@ -10,10 +10,10 @@
 
 ## 🎓 Tutorials
 
+* [Generative LLMs](tutorials/generative-llms.md)
 * [Computer Vision](tutorials/computer-vision.md)
 * [NLP](tutorials/nlp.md)
 * [Tabular Data](tutorials/tabular-data.md)
-* [Generative LLMs](tutorials/generative-llms.md)
 * [Notebooks](tutorials/notebooks.md)
 
 ## 🔢 How-To
