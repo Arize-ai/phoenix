@@ -1,8 +1,8 @@
 ---
 description: >-
-  Start answering questions such as: Are there queries that don’t have context
-  embeddings? Should you add more context for these queries to get better
-  answers? Or can you change your embeddings?
+  Helps answer questions such as: Are there queries that don’t have sufficient
+  context? Should you add more context for these queries to get better answers?
+  Or can you change your embeddings?
 ---
 
 # Troubleshooting LLM Search and Retrieval with Vector Stores
@@ -19,11 +19,15 @@ Evaluating and Improving Search and Retrieval Applications (LangChain, Pinecone)
 Evaluating and Improving Search and Retrieval Applications (LlamaIndex)
 {% endembed %}
 
-Here's an example of what retrieval looks like for a chatbot application. A user asked a specific question, an embedding was generated for the query, all relevant context in the knowledge base was pulled in, and then added into the prompt to the LLM.
+Here's an example of what retrieval looks like for a chatbot application. A user asked a specific question, an embedding was generated for the query, all relevant documents in the knowledge base (a vector store such as chroma) was pulled in, and then added into the prompt to the LLM.
+
+{% hint style="info" %}
+From here on out we will refer to the data in the knowledge base / vector store as the **corpus.** The content of the corpus will be referred to as documents.
+{% endhint %}
 
 <figure><img src="../.gitbook/assets/image (3).png" alt=""><figcaption></figcaption></figure>
 
-If there isn't enough context to pull in, then the prompt doesn't have enough context to answer the question.&#x20;
+If there isn't enough documents to pull in, then the prompt doesn't have enough context to answer the question.&#x20;
 
 Here's an example of "bad retrieval". There wasn't enough information about video data quality in the knowledge base to answer the user's question and the chatbot hallucinated.
 
@@ -31,26 +35,27 @@ Here's an example of "bad retrieval". There wasn't enough information about vide
 
 ### How to Troubleshoot Retrieval in Phoenix
 
-#### Step 1: Identify if there is decent overlap between queries and context&#x20;
+#### Step 1: Identify if there is decent overlap between queries and corpus&#x20;
 
-If users are asking questions that have decent overlap with context, then this dictates the knowledge base has enough context to answer user questions. However if there isn't overlap, there are either:
+If users are asking questions that have decent overlap with the corpus, then this typically indicates that the knowledge base has enough context to answer user questions. However if there isn't overlap, there are either:
 
-1. Users asking questions that aren't in the knowledge store (bigger issue)
-2. There are documents in the knowledge store not getting hit with queries
+1. Users asking questions that aren't represented in the corpus\
 
-To do this, compare the distance between query and context embeddings using Euclidean Distance.
+2. There are documents in the corpus not relevant to the queries users are asking
 
-<figure><img src="../.gitbook/assets/image (5).png" alt=""><figcaption><p>Measure Euclidean Distance between query and context embeddings</p></figcaption></figure>
+To do this, compare the distance between query and corpus embeddings using the Query Distance (the euclidean distance of the centroid of the queries to the centroid of the corpus).&#x20;
+
+<figure><img src="../.gitbook/assets/image (5).png" alt=""><figcaption><p>Measure Query Distance between query and corpus embeddings</p></figcaption></figure>
 
 #### Step 2: Identify where there is a mismatch
 
-Phoenix will automatically cluster similar topics closer together. By looking at the separate clusters you can see which clusters are made up more of query embeddings, and less context embeddings. This results in a mismatch.&#x20;
+Phoenix will automatically cluster similar topics closer together. By looking at the separate clusters you can see which clusters are made up more of query embeddings, and less corpus embeddings. This results in a mismatch.&#x20;
 
-<figure><img src="../.gitbook/assets/image (8).png" alt=""><figcaption><p>Identify patterns where there are more queries with less context </p></figcaption></figure>
+<figure><img src="../.gitbook/assets/image (8).png" alt=""><figcaption><p>Identify patterns where there are more queries with less documents via % query </p></figcaption></figure>
 
 #### Optional Step 2.5: Ask chatGPT to help you understand the make up of the cluster
 
-All you need to do is click the download a cluster button in Phoenix. The export works by exporting the cluster back to the notebook in a dataframe. Once you've downloaded the cluster, you can ask chatGPT tohelp with summarizing the data points, such as: "The following is JSON points for a cluster of datapoints. Can you summarize the cluster of data, what do the points have in common?"
+All you need to do is click the download a cluster button in Phoenix. The export works by exporting the cluster back to the notebook in a dataframe (see [session](../api/session.md#methods)). Once you've downloaded the cluster, you can ask chatGPT to help with summarizing the data points, such as: "The following is JSON points for a cluster of datapoints. Can you summarize the cluster of data, what do the points have in common?"
 
 Check out our colab for a step by step tutorial.&#x20;
 
@@ -58,8 +63,8 @@ Check out our colab for a step by step tutorial.&#x20;
 Find Clusters, Export, and Explore with GPT
 {% endembed %}
 
-#### Step 3: Add more specific context to the vector store
+#### Step 3: Add more specific documents to the vector store
 
-In the example above, there wasn't enough context on video quality to be able to correctly answer the user questions. Adding more context can help improve the performance of the chatbot, and prevent it from hallucinating when providing a response to a similar question.&#x20;
+In the example above, there wasn't enough documents on video quality to be able to correctly answer the user questions. Adding more documents can help improve the performance of the chatbot, and prevent it from hallucinating when providing a response to a similar question.&#x20;
 
 <figure><img src="../.gitbook/assets/image (2).png" alt="" width="301"><figcaption><p>Add more "video quality" documentation to your vector store, so there is more context for your chatbot. </p></figcaption></figure>
