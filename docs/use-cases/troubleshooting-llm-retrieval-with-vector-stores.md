@@ -25,13 +25,13 @@ Here's an example of what retrieval looks like for a chatbot application. A user
 From here on out we will refer to the data in the knowledge base / vector store as the **corpus.** The content of the corpus will be referred to as documents.
 {% endhint %}
 
-<figure><img src="../.gitbook/assets/image (3).png" alt=""><figcaption></figcaption></figure>
+<figure><img src="https://storage.cloud.google.com/arize-assets/phoenix/assets/images/RAG_llm_architecture.png" alt=""><figcaption></figcaption></figure>
 
 If there isn't enough documents to pull in, then the prompt doesn't have enough context to answer the question.&#x20;
 
 Here's an example of "bad retrieval". There wasn't enough information about video data quality in the knowledge base to answer the user's question and the chatbot hallucinated.
 
-<figure><img src="../.gitbook/assets/image (7).png" alt=""><figcaption></figcaption></figure>
+<figure><img src="https://storage.cloud.google.com/arize-assets/phoenix/assets/images/RAG_llm_app_overview.png" alt=""><figcaption></figcaption></figure>
 
 ### How to Troubleshoot Retrieval in Phoenix
 
