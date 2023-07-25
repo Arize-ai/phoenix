@@ -35,7 +35,9 @@ const METRIC_KEY_SEPARATOR = ":";
 function isMetricType(
   maybeType: unknown
 ): maybeType is MetricDefinition["type"] {
-  return ["drift", "performance", "dataQuality"].includes(maybeType as string);
+  return ["drift", "performance", "dataQuality", "retrieval"].includes(
+    maybeType as string
+  );
 }
 /**
  * A function that flattens the metrics into a single key
