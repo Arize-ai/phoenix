@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import List, Optional, Union
 
 from phoenix.datasets.dataset import Dataset
 from phoenix.datasets.schema import EmbeddingColumnNames, EmbeddingFeatures
@@ -23,9 +23,9 @@ def _get_embedding_dimensions(
     if primary_prompt_column_names is not None:
         embedding_features.update({"prompt": primary_prompt_column_names})
     primary_response_column_names: Optional[
-        EmbeddingColumnNames
+        Union[str, EmbeddingColumnNames]
     ] = primary_dataset.schema.response_column_names
-    if primary_response_column_names is not None:
+    if isinstance(primary_response_column_names, EmbeddingColumnNames):
         embedding_features.update({"response": primary_response_column_names})
 
     if reference_dataset is not None:
@@ -40,9 +40,9 @@ def _get_embedding_dimensions(
         if reference_prompt_column_names is not None:
             embedding_features.update({"prompt": reference_prompt_column_names})
         reference_response_column_names: Optional[
-            EmbeddingColumnNames
+            Union[str, EmbeddingColumnNames]
         ] = reference_dataset.schema.response_column_names
-        if reference_response_column_names is not None:
+        if isinstance(reference_response_column_names, EmbeddingColumnNames):
             embedding_features.update({"response": reference_response_column_names})
 
     for embedding_feature, embedding_column_names in embedding_features.items():

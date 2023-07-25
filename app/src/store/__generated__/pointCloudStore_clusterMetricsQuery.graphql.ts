@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<158f240473ff0a8e7a67fbf6fe9d6dec>>
+ * @generated SignedSource<<24b9c24519f1a66f81e0652fdcc2b20a>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -34,6 +34,7 @@ export type pointCloudStore_clusterMetricsQuery$data = {
       readonly primaryValue: number | null;
       readonly referenceValue: number | null;
     };
+    readonly primaryToCorpusRatio: number | null;
   }>;
 };
 export type pointCloudStore_clusterMetricsQuery = {
@@ -117,6 +118,13 @@ v6 = [
         "args": null,
         "kind": "ScalarField",
         "name": "driftRatio",
+        "storageKey": null
+      },
+      {
+        "alias": null,
+        "args": null,
+        "kind": "ScalarField",
+        "name": "primaryToCorpusRatio",
         "storageKey": null
       },
       {
@@ -216,16 +224,16 @@ return {
     "selections": (v6/*: any*/)
   },
   "params": {
-    "cacheID": "e8ef2d6ff8ff0b147a19312264f16ef3",
+    "cacheID": "86666967012812887ac0a0149d2d2535",
     "id": null,
     "metadata": {},
     "name": "pointCloudStore_clusterMetricsQuery",
     "operationKind": "query",
-    "text": "query pointCloudStore_clusterMetricsQuery(\n  $clusters: [ClusterInput!]!\n  $fetchDataQualityMetric: Boolean!\n  $dataQualityMetricColumnName: String\n  $fetchPerformanceMetric: Boolean!\n  $performanceMetric: PerformanceMetric!\n) {\n  clusters(clusters: $clusters) {\n    id\n    eventIds\n    driftRatio\n    dataQualityMetric(metric: {metric: mean, columnName: $dataQualityMetricColumnName}) @include(if: $fetchDataQualityMetric) {\n      primaryValue\n      referenceValue\n    }\n    performanceMetric(metric: {metric: $performanceMetric}) @include(if: $fetchPerformanceMetric) {\n      primaryValue\n      referenceValue\n    }\n  }\n}\n"
+    "text": "query pointCloudStore_clusterMetricsQuery(\n  $clusters: [ClusterInput!]!\n  $fetchDataQualityMetric: Boolean!\n  $dataQualityMetricColumnName: String\n  $fetchPerformanceMetric: Boolean!\n  $performanceMetric: PerformanceMetric!\n) {\n  clusters(clusters: $clusters) {\n    id\n    eventIds\n    driftRatio\n    primaryToCorpusRatio\n    dataQualityMetric(metric: {metric: mean, columnName: $dataQualityMetricColumnName}) @include(if: $fetchDataQualityMetric) {\n      primaryValue\n      referenceValue\n    }\n    performanceMetric(metric: {metric: $performanceMetric}) @include(if: $fetchPerformanceMetric) {\n      primaryValue\n      referenceValue\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "fe9bbb56950c7ecfa063c043df7667cd";
+(node as any).hash = "dbfc8c02ba1ec4f2ba0317b371854d9b";
 
 export default node;

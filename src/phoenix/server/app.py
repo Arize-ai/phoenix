@@ -64,8 +64,10 @@ class GraphQLWithContext(GraphQL):  # type: ignore
         model: Model,
         export_path: Path,
         graphiql: bool = False,
+        corpus: Optional[Model] = None,
     ) -> None:
         self.model = model
+        self.corpus = corpus
         self.export_path = export_path
         super().__init__(schema, graphiql=graphiql)
 
@@ -78,6 +80,7 @@ class GraphQLWithContext(GraphQL):  # type: ignore
             request=request,
             response=response,
             model=self.model,
+            corpus=self.corpus,
             export_path=self.export_path,
         )
 
@@ -100,11 +103,13 @@ class Download(HTTPEndpoint):
 def create_app(
     export_path: Path,
     model: Model,
+    corpus: Optional[Model] = None,
     debug: bool = False,
 ) -> Starlette:
     graphql = GraphQLWithContext(
         schema=schema,
         model=model,
+        corpus=corpus,
         export_path=export_path,
         graphiql=True,
     )

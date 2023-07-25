@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a9adbc8a74881bcbd5cb692e4546aa49>>
+ * @generated SignedSource<<6638f580958646171362e51b4267c701>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -12,6 +12,11 @@ import { ConcreteRequest, Query } from 'relay-runtime';
 export type AppRootQuery$variables = {};
 export type AppRootQuery$data = {
   readonly model: {
+    readonly corpusDataset: {
+      readonly endTime: string;
+      readonly name: string;
+      readonly startTime: string;
+    } | null;
     readonly primaryDataset: {
       readonly endTime: string;
       readonly name: string;
@@ -81,6 +86,16 @@ v1 = [
         "plural": false,
         "selections": (v0/*: any*/),
         "storageKey": null
+      },
+      {
+        "alias": null,
+        "args": null,
+        "concreteType": "Dataset",
+        "kind": "LinkedField",
+        "name": "corpusDataset",
+        "plural": false,
+        "selections": (v0/*: any*/),
+        "storageKey": null
       }
     ],
     "storageKey": null
@@ -104,16 +119,16 @@ return {
     "selections": (v1/*: any*/)
   },
   "params": {
-    "cacheID": "a3f5a96fccf9435cfc5979e306389f78",
+    "cacheID": "f38f98209ceb4222ae918e254d66848e",
     "id": null,
     "metadata": {},
     "name": "AppRootQuery",
     "operationKind": "query",
-    "text": "query AppRootQuery {\n  model {\n    primaryDataset {\n      name\n      startTime\n      endTime\n    }\n    referenceDataset {\n      name\n      startTime\n      endTime\n    }\n  }\n}\n"
+    "text": "query AppRootQuery {\n  model {\n    primaryDataset {\n      name\n      startTime\n      endTime\n    }\n    referenceDataset {\n      name\n      startTime\n      endTime\n    }\n    corpusDataset {\n      name\n      startTime\n      endTime\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "d9826e558e9f04c1e5a8975085bbd64e";
+(node as any).hash = "2e76b5097b7331cff60606dbee99c6c3";
 
 export default node;

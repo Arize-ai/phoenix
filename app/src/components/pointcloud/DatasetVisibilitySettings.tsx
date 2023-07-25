@@ -15,7 +15,13 @@ import { VisibilityCheckboxField } from "./VisibilityCheckboxField";
 /**
  * Small checkbox form that controls the visibility of each dataset.
  */
-export function DatasetVisibilitySettings() {
+export function DatasetVisibilitySettings({
+  hasReference,
+  hasCorpus,
+}: {
+  hasReference: boolean;
+  hasCorpus: boolean;
+}) {
   const datasetVisibility = usePointCloudContext(
     (state) => state.datasetVisibility
   );
@@ -60,9 +66,14 @@ export function DatasetVisibilitySettings() {
         assertUnreachable(coloringStrategy);
     }
   }, [coloringStrategy]);
+  const corpusColor = FALLBACK_COLOR;
 
   const referenceShape =
     coloringStrategy === ColoringStrategy.dataset ? Shape.circle : Shape.square;
+  const corpusShape =
+    coloringStrategy === ColoringStrategy.dataset
+      ? Shape.circle
+      : Shape.diamond;
 
   return (
     <form
@@ -78,13 +89,24 @@ export function DatasetVisibilitySettings() {
         color={primaryColor}
         onChange={handleDatasetVisibilityChange}
       />
-      <VisibilityCheckboxField
-        checked={datasetVisibility.reference}
-        name="reference"
-        onChange={handleDatasetVisibilityChange}
-        color={referenceColor}
-        iconShape={referenceShape}
-      />
+      {hasReference ? (
+        <VisibilityCheckboxField
+          checked={datasetVisibility.reference}
+          name="reference"
+          onChange={handleDatasetVisibilityChange}
+          color={referenceColor}
+          iconShape={referenceShape}
+        />
+      ) : null}
+      {hasCorpus ? (
+        <VisibilityCheckboxField
+          checked={datasetVisibility.corpus}
+          name="corpus"
+          onChange={handleDatasetVisibilityChange}
+          color={corpusColor}
+          iconShape={corpusShape}
+        />
+      ) : null}
     </form>
   );
 }

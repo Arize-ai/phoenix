@@ -1,6 +1,7 @@
 import json
 import logging
 from dataclasses import dataclass, replace
+from enum import Enum, auto
 from pathlib import Path
 from typing import Iterator, NamedTuple, Optional, Tuple
 from urllib import request
@@ -9,11 +10,20 @@ from urllib.parse import quote, urljoin
 from pandas import read_parquet
 
 from phoenix.config import DATASET_DIR
-from phoenix.core.model_schema import DatasetRole
 from phoenix.datasets.dataset import Dataset
-from phoenix.datasets.schema import EmbeddingColumnNames, Schema
+from phoenix.datasets.schema import (
+    EmbeddingColumnNames,
+    RetrievalEmbeddingColumnNames,
+    Schema,
+)
 
 logger = logging.getLogger(__name__)
+
+
+class DatasetRole(Enum):
+    PRIMARY = auto()
+    REFERENCE = auto()
+    CORPUS = auto()
 
 
 @dataclass(frozen=True)
@@ -22,16 +32,23 @@ class Fixture:
     description: str
     prefix: str
     primary_file_name: str
-    reference_file_name: Optional[str]
     primary_schema: Schema
-    reference_schema: Schema
+    reference_file_name: Optional[str] = None
+    # The schema for the reference dataset. If not provided, the primary schema will be used
+    reference_schema: Optional[Schema] = None
+    corpus_file_name: Optional[str] = None
+    corpus_schema: Optional[Schema] = None
 
     def paths(self) -> Iterator[Tuple[DatasetRole, Path]]:
         return (
             (role, Path(self.prefix) / name)
             for role, name in zip(
                 DatasetRole,
-                (self.primary_file_name, self.reference_file_name),
+                (
+                    self.primary_file_name,
+                    self.reference_file_name,
+                    self.corpus_file_name,
+                ),
             )
             if name
         )
@@ -287,6 +304,54 @@ llm_summarization_fixture = Fixture(
     reference_file_name="llm_summarization_baseline.parquet",
 )
 
+wikipedia_fixture = Fixture(
+    name="wiki",
+    description="""
+    Semantic search dataset including queries, answers, retrievals and corpus
+    documents. Queries are sampled from Google’s Natural Questions dataset
+    https://ai.google.com/research/NaturalQuestions, and documents (paragraphs)
+    are sampled from http://sbert.net/datasets/simplewiki-2020-11-01.jsonl.gz,
+    based on the Simple English Wikipedia. Embeddings for both questions and
+    documents are generated from the bi-encoder 'multi-qa-MiniLM-L6-cos-v1',
+    which produces normalized vectors that are 384-dimensional. Given a query
+    and its embedding, a small subset of documents are first retrieved based on
+    cosine similarity search on the document embeddings, then relevance scores
+    are computed on the retrieved documents using the cross-encoder
+    'cross-encoder/ms-marco-MiniLM-L-12-v2'. Answers (to the queries) are
+    generated from 'deepset/tinyroberta-squad2' using the most relevant
+    documents as the context input.
+
+    References:
+    - https://www.sbert.net/examples/applications/semantic-search/README.html
+    - https://github.com/UKPLab/sentence-transformers/tree/master/examples/applications/retrieve_rerank
+    - https://www.sbert.net/docs/pretrained_models.html
+    - https://www.sbert.net/docs/pretrained_cross-encoders.html
+    - https://ai.google.com/research/NaturalQuestions
+    """,  # noqa: E501
+    primary_schema=Schema(
+        prediction_id_column_name="id",
+        prompt_column_names=RetrievalEmbeddingColumnNames(
+            vector_column_name="embedding",
+            raw_data_column_name="question",
+            context_retrieval_ids_column_name="retrievals",
+            context_retrieval_scores_column_name="scores",
+        ),
+        response_column_names="answer",
+    ),
+    corpus_schema=Schema(
+        id_column_name="id",
+        document_column_names=EmbeddingColumnNames(
+            vector_column_name="embedding",
+            raw_data_column_name="text",
+        ),
+    ),
+    prefix="unstructured/search/wiki",
+    primary_file_name="queries.parquet",
+    # The reference file is intended purely for troubleshooting bad data. Un-comment for testing.
+    # reference_file_name="queries2.parquet",
+    corpus_file_name="corpus.parquet",
+)
+
 FIXTURES: Tuple[Fixture, ...] = (
     sentiment_classification_language_drift_fixture,
     image_classification_fixture,
@@ -297,6 +362,7 @@ FIXTURES: Tuple[Fixture, ...] = (
     wide_data_fixture,
     deep_data_fixture,
     llm_summarization_fixture,
+    wikipedia_fixture,
 )
 NAME_TO_FIXTURE = {fixture.name: fixture for fixture in FIXTURES}
 
@@ -304,7 +370,7 @@ NAME_TO_FIXTURE = {fixture.name: fixture for fixture in FIXTURES}
 def get_datasets(
     fixture_name: str,
     no_internet: bool = False,
-) -> Tuple[Dataset, Optional[Dataset]]:
+) -> Tuple[Dataset, Optional[Dataset], Optional[Dataset]]:
     """
     Downloads primary and reference datasets for a fixture if they are not found
     locally.
@@ -323,10 +389,19 @@ def get_datasets(
     if fixture.reference_file_name is not None:
         reference_dataset = Dataset(
             read_parquet(paths[DatasetRole.REFERENCE]),
-            fixture.reference_schema,
+            fixture.reference_schema
+            if fixture.reference_schema is not None
+            else fixture.primary_schema,
             "training",
         )
-    return primary_dataset, reference_dataset
+    corpus_dataset = None
+    if fixture.corpus_file_name is not None:
+        corpus_dataset = Dataset(
+            read_parquet(paths[DatasetRole.CORPUS]),
+            fixture.corpus_schema,
+            "knowledge_base",
+        )
+    return primary_dataset, reference_dataset, corpus_dataset
 
 
 def _get_fixture_by_name(fixture_name: str) -> Fixture:
@@ -347,7 +422,8 @@ class ExampleDatasets:
     """
 
     primary: Dataset
-    reference: Optional[Dataset]
+    reference: Optional[Dataset] = None
+    corpus: Optional[Dataset] = None
 
 
 def load_example(use_case: str) -> ExampleDatasets:
@@ -374,11 +450,15 @@ def load_example(use_case: str) -> ExampleDatasets:
 
     """
     fixture = _get_fixture_by_name(use_case)
-    primary_dataset, reference_dataset = get_datasets(use_case)
+    primary_dataset, reference_dataset, corpus_dataset = get_datasets(use_case)
     print(f"📥 Loaded {use_case} example datasets.")
     print("ℹ️ About this use-case:")
     print(fixture.description)
-    return ExampleDatasets(primary=primary_dataset, reference=reference_dataset)
+    return ExampleDatasets(
+        primary=primary_dataset,
+        reference=reference_dataset,
+        corpus=corpus_dataset,
+    )
 
 
 class Metadata(NamedTuple):

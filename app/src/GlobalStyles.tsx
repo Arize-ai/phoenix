@@ -59,6 +59,8 @@ export function GlobalStyles() {
           --px-primary-color--transparent: rgb(158, 252, 253, 0.2);
           --px-reference-color: #baa1f9;
           --px-reference-color--transparent: #baa1f982;
+          --px-corpus-color: #92969c;
+          --px-corpus-color--transparent: #92969c63;
 
           --px-background-color-800: ${theme.colors.gray800};
           --px-background-color-500: ${theme.colors.gray500};

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<9c8d664d75ca36dc2ed7e5c5d85cbfdb>>
+ * @generated SignedSource<<ddf3621710b2a1ab8bb4dad30852c82d>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -11,11 +11,36 @@
 import { ConcreteRequest, Query } from 'relay-runtime';
 export type DimensionType = "actual" | "feature" | "prediction" | "tag";
 export type PointSelectionPanelContentQuery$variables = {
+  corpusEventIds: ReadonlyArray<string>;
   primaryEventIds: ReadonlyArray<string>;
   referenceEventIds: ReadonlyArray<string>;
 };
 export type PointSelectionPanelContentQuery$data = {
   readonly model: {
+    readonly corpusDataset: {
+      readonly events: ReadonlyArray<{
+        readonly dimensions: ReadonlyArray<{
+          readonly dimension: {
+            readonly name: string;
+            readonly type: DimensionType;
+          };
+          readonly value: string | null;
+        }>;
+        readonly documentText: string | null;
+        readonly eventMetadata: {
+          readonly actualLabel: string | null;
+          readonly actualScore: number | null;
+          readonly predictionId: string | null;
+          readonly predictionLabel: string | null;
+          readonly predictionScore: number | null;
+        };
+        readonly id: string;
+        readonly promptAndResponse: {
+          readonly prompt: string | null;
+          readonly response: string | null;
+        } | null;
+      }>;
+    } | null;
     readonly primaryDataset: {
       readonly events: ReadonlyArray<{
         readonly dimensions: ReadonlyArray<{
@@ -25,6 +50,7 @@ export type PointSelectionPanelContentQuery$data = {
           };
           readonly value: string | null;
         }>;
+        readonly documentText: string | null;
         readonly eventMetadata: {
           readonly actualLabel: string | null;
           readonly actualScore: number | null;
@@ -48,6 +74,7 @@ export type PointSelectionPanelContentQuery$data = {
           };
           readonly value: string | null;
         }>;
+        readonly documentText: string | null;
         readonly eventMetadata: {
           readonly actualLabel: string | null;
           readonly actualScore: number | null;
@@ -70,19 +97,22 @@ export type PointSelectionPanelContentQuery = {
 };
 
 const node: ConcreteRequest = (function(){
-var v0 = [
-  {
-    "defaultValue": null,
-    "kind": "LocalArgument",
-    "name": "primaryEventIds"
-  },
-  {
-    "defaultValue": null,
-    "kind": "LocalArgument",
-    "name": "referenceEventIds"
-  }
-],
-v1 = [
+var v0 = {
+  "defaultValue": null,
+  "kind": "LocalArgument",
+  "name": "corpusEventIds"
+},
+v1 = {
+  "defaultValue": null,
+  "kind": "LocalArgument",
+  "name": "primaryEventIds"
+},
+v2 = {
+  "defaultValue": null,
+  "kind": "LocalArgument",
+  "name": "referenceEventIds"
+},
+v3 = [
   {
     "alias": null,
     "args": null,
@@ -203,9 +233,16 @@ v1 = [
       }
     ],
     "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "documentText",
+    "storageKey": null
   }
 ],
-v2 = [
+v4 = [
   {
     "alias": null,
     "args": null,
@@ -235,7 +272,7 @@ v2 = [
             "kind": "LinkedField",
             "name": "events",
             "plural": true,
-            "selections": (v1/*: any*/),
+            "selections": (v3/*: any*/),
             "storageKey": null
           }
         ],
@@ -262,7 +299,34 @@ v2 = [
             "kind": "LinkedField",
             "name": "events",
             "plural": true,
-            "selections": (v1/*: any*/),
+            "selections": (v3/*: any*/),
+            "storageKey": null
+          }
+        ],
+        "storageKey": null
+      },
+      {
+        "alias": null,
+        "args": null,
+        "concreteType": "Dataset",
+        "kind": "LinkedField",
+        "name": "corpusDataset",
+        "plural": false,
+        "selections": [
+          {
+            "alias": null,
+            "args": [
+              {
+                "kind": "Variable",
+                "name": "eventIds",
+                "variableName": "corpusEventIds"
+              }
+            ],
+            "concreteType": "Event",
+            "kind": "LinkedField",
+            "name": "events",
+            "plural": true,
+            "selections": (v3/*: any*/),
             "storageKey": null
           }
         ],
@@ -274,32 +338,40 @@ v2 = [
 ];
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": [
+      (v0/*: any*/),
+      (v1/*: any*/),
+      (v2/*: any*/)
+    ],
     "kind": "Fragment",
     "metadata": null,
     "name": "PointSelectionPanelContentQuery",
-    "selections": (v2/*: any*/),
+    "selections": (v4/*: any*/),
     "type": "Query",
     "abstractKey": null
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": [
+      (v1/*: any*/),
+      (v2/*: any*/),
+      (v0/*: any*/)
+    ],
     "kind": "Operation",
     "name": "PointSelectionPanelContentQuery",
-    "selections": (v2/*: any*/)
+    "selections": (v4/*: any*/)
   },
   "params": {
-    "cacheID": "978d94d642f55fa204935518551a1961",
+    "cacheID": "a1ce797d7fc303bb85730466d1a14bdd",
     "id": null,
     "metadata": {},
     "name": "PointSelectionPanelContentQuery",
     "operationKind": "query",
-    "text": "query PointSelectionPanelContentQuery(\n  $primaryEventIds: [ID!]!\n  $referenceEventIds: [ID!]!\n) {\n  model {\n    primaryDataset {\n      events(eventIds: $primaryEventIds) {\n        id\n        dimensions {\n          dimension {\n            name\n            type\n          }\n          value\n        }\n        eventMetadata {\n          predictionId\n          predictionLabel\n          predictionScore\n          actualLabel\n          actualScore\n        }\n        promptAndResponse {\n          prompt\n          response\n        }\n      }\n    }\n    referenceDataset {\n      events(eventIds: $referenceEventIds) {\n        id\n        dimensions {\n          dimension {\n            name\n            type\n          }\n          value\n        }\n        eventMetadata {\n          predictionId\n          predictionLabel\n          predictionScore\n          actualLabel\n          actualScore\n        }\n        promptAndResponse {\n          prompt\n          response\n        }\n      }\n    }\n  }\n}\n"
+    "text": "query PointSelectionPanelContentQuery(\n  $primaryEventIds: [ID!]!\n  $referenceEventIds: [ID!]!\n  $corpusEventIds: [ID!]!\n) {\n  model {\n    primaryDataset {\n      events(eventIds: $primaryEventIds) {\n        id\n        dimensions {\n          dimension {\n            name\n            type\n          }\n          value\n        }\n        eventMetadata {\n          predictionId\n          predictionLabel\n          predictionScore\n          actualLabel\n          actualScore\n        }\n        promptAndResponse {\n          prompt\n          response\n        }\n        documentText\n      }\n    }\n    referenceDataset {\n      events(eventIds: $referenceEventIds) {\n        id\n        dimensions {\n          dimension {\n            name\n            type\n          }\n          value\n        }\n        eventMetadata {\n          predictionId\n          predictionLabel\n          predictionScore\n          actualLabel\n          actualScore\n        }\n        promptAndResponse {\n          prompt\n          response\n        }\n        documentText\n      }\n    }\n    corpusDataset {\n      events(eventIds: $corpusEventIds) {\n        id\n        dimensions {\n          dimension {\n            name\n            type\n          }\n          value\n        }\n        eventMetadata {\n          predictionId\n          predictionLabel\n          predictionScore\n          actualLabel\n          actualScore\n        }\n        promptAndResponse {\n          prompt\n          response\n        }\n        documentText\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "9e8d487a72dd9fcf972bd5a692606b58";
+(node as any).hash = "6238f84e3d942c6c9af51ea7180b7608";
 
 export default node;

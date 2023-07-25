@@ -59,14 +59,25 @@ class Session(ABC):
         self,
         primary_dataset: Dataset,
         reference_dataset: Optional[Dataset] = None,
+        corpus_dataset: Optional[Dataset] = None,
         port: int = PORT,
     ):
         self.primary_dataset = primary_dataset
         self.reference_dataset = reference_dataset
+        self.corpus_dataset = corpus_dataset
         self.model = create_model_from_datasets(
             primary_dataset,
             reference_dataset,
         )
+
+        self.corpus = (
+            create_model_from_datasets(
+                corpus_dataset,
+            )
+            if corpus_dataset is not None
+            else None
+        )
+
         self.port = port
         self.temp_dir = TemporaryDirectory()
         self.export_path = Path(self.temp_dir.name) / "exports"
@@ -122,16 +133,20 @@ class ProcessSession(Session):
         self,
         primary_dataset: Dataset,
         reference_dataset: Optional[Dataset] = None,
+        corpus_dataset: Optional[Dataset] = None,
         port: Optional[int] = None,
     ) -> None:
         super().__init__(
             primary_dataset=primary_dataset,
             reference_dataset=reference_dataset,
+            corpus_dataset=corpus_dataset,
             port=port or PORT,
         )
         primary_dataset.to_disc()
         if isinstance(reference_dataset, Dataset):
             reference_dataset.to_disc()
+        if isinstance(corpus_dataset, Dataset):
+            corpus_dataset.to_disc()
         # Initialize an app service that keeps the server running
         self.app_service = AppService(
             self.export_path,
@@ -139,6 +154,9 @@ class ProcessSession(Session):
             self.primary_dataset.name,
             reference_dataset_name=(
                 self.reference_dataset.name if self.reference_dataset is not None else None
+            ),
+            corpus_dataset_name=(
+                self.corpus_dataset.name if self.corpus_dataset is not None else None
             ),
         )
 
@@ -156,17 +174,20 @@ class ThreadSession(Session):
         self,
         primary_dataset: Dataset,
         reference_dataset: Optional[Dataset] = None,
+        corpus_dataset: Optional[Dataset] = None,
         port: Optional[int] = None,
     ):
         super().__init__(
             primary_dataset=primary_dataset,
             reference_dataset=reference_dataset,
+            corpus_dataset=corpus_dataset,
             port=port or pick_unused_port(),
         )
         # Initialize an app service that keeps the server running
         self.app = create_app(
             export_path=self.export_path,
             model=self.model,
+            corpus=self.corpus,
         )
         self.server = ThreadServer(
             app=self.app,
@@ -187,6 +208,7 @@ class ThreadSession(Session):
 def launch_app(
     primary: Dataset,
     reference: Optional[Dataset] = None,
+    corpus: Optional[Dataset] = None,
     port: Optional[int] = None,
     run_in_thread: Optional[bool] = True,
 ) -> Optional[Session]:
@@ -200,6 +222,8 @@ def launch_app(
     reference : Dataset, optional
         The reference dataset to compare against.
         If not provided, drift analysis will not be available.
+    corpus : Dataset, optional
+        The dataset containing corpus for LLM context retrieval.
     port: int, optional
         The port on which the server listens.
     run_in_thread: bool, optional, default=True
@@ -226,7 +250,7 @@ def launch_app(
                 "it down and starting a new instance..."
             )
             _session.end()
-        _session = ThreadSession(primary, reference, port=port)
+        _session = ThreadSession(primary, reference, corpus, port=port)
         # TODO: catch exceptions from thread
         if not _session.active:
             logger.error(

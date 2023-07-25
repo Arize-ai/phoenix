@@ -32,7 +32,28 @@ export interface ModelEvent {
    * the LLM response
    */
   response: string | null;
+  /**
+   * document text if the event is a document
+   * TODO: decouple this from the event
+   */
+  documentText: string | null;
+  /**
+   * Retrievals from a corpus (e.x. a vector store)
+   */
+  retrievedDocuments: RetrievalDocument[];
 }
+
+export type RetrievalDocument = {
+  id: string;
+  /**
+   * The content of the retrieved corpus document
+   */
+  text: string;
+  /**
+   * How relevant the document was during retrieval
+   */
+  relevance: number | null;
+};
 
 export type EventsList =
   PointSelectionPanelContentQuery$data["model"]["primaryDataset"]["events"];

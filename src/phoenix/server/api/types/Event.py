@@ -1,5 +1,6 @@
+import math
 from collections import defaultdict
-from typing import Dict, List, Optional, Tuple, cast
+from typing import Dict, List, Optional, Tuple, Union, cast
 
 import strawberry
 from strawberry import ID
@@ -13,11 +14,10 @@ from phoenix.core.model_schema import (
     PREDICTION_SCORE,
     PROMPT,
     RESPONSE,
-    DatasetRole,
-    EventId,
 )
 
 from ..interceptor import GqlValueMediator
+from .DatasetRole import STR_TO_DATASET_ROLE, AncillaryDatasetRole, DatasetRole
 from .Dimension import Dimension
 from .DimensionWithValue import DimensionWithValue
 from .EventMetadata import EventMetadata
@@ -33,22 +33,40 @@ class Event:
         description="The prompt and response pair associated with the event",
         default=GqlValueMediator(),
     )
+    document_text: Optional[str] = strawberry.field(
+        description="The text of the document if the event is a retrieved document record",
+        default=GqlValueMediator(),
+    )
+
+
+def create_event_id(
+    row_id: int,
+    dataset_role: Union[DatasetRole, AncillaryDatasetRole, ms.DatasetRole],
+) -> ID:
+    dataset_role_str = (
+        dataset_role.value
+        if isinstance(dataset_role, (DatasetRole, AncillaryDatasetRole))
+        else dataset_role
+    )
+    return ID(f"{row_id}:{dataset_role_str}")
 
 
 def unpack_event_id(
     event_id: ID,
-) -> Tuple[int, ms.DatasetRole]:
+) -> Tuple[int, Union[DatasetRole, AncillaryDatasetRole]]:
     row_id_str, dataset_role_str = str(event_id).split(":")
     row_id = int(row_id_str)
-    dataset_role = ms.DatasetRole[dataset_role_str.split(".")[-1]]
+    dataset_role = STR_TO_DATASET_ROLE[dataset_role_str]
     return row_id, dataset_role
 
 
-def parse_event_ids(event_ids: List[ID]) -> Dict[DatasetRole, List[int]]:
+def parse_event_ids_by_dataset_role(
+    event_ids: List[ID],
+) -> Dict[Union[DatasetRole, AncillaryDatasetRole], List[int]]:
     """
     Parses event IDs and returns the corresponding row indexes.
     """
-    row_indexes: Dict[DatasetRole, List[int]] = defaultdict(list)
+    row_indexes: Dict[Union[DatasetRole, AncillaryDatasetRole], List[int]] = defaultdict(list)
     for event_id in event_ids:
         row_id, dataset_role = unpack_event_id(event_id)
         row_indexes[dataset_role].append(row_id)
@@ -56,8 +74,10 @@ def parse_event_ids(event_ids: List[ID]) -> Dict[DatasetRole, List[int]]:
 
 
 def create_event(
+    event_id: ID,
     event: ms.Event,
     dimensions: List[Dimension],
+    is_document_record: bool = False,
 ) -> Event:
     """
     Reads dimension values and event metadata from a dataframe row and returns
@@ -77,12 +97,16 @@ def create_event(
         )
         for dim in dimensions
     ]
-    row_id = event.id.row_id
-    dataset_id = event.id.dataset_id
-    prompt = event[cast(ms.EmbeddingDimension, cast(ms.Model, event._self_model)[PROMPT]).raw_data]
-    response = event[
-        cast(ms.EmbeddingDimension, cast(ms.Model, event._self_model)[RESPONSE]).raw_data
-    ]
+    model = cast(ms.Model, event._self_model)
+    prompt = event[cast(ms.EmbeddingDimension, model[PROMPT]).raw_data]
+    response = (
+        event[RESPONSE]
+        if not isinstance(
+            response_dimension := model[RESPONSE],
+            ms.EmbeddingDimension,
+        )
+        else event[response_dimension.raw_data]
+    )
     prompt_and_response = (
         PromptResponse(
             prompt=prompt,
@@ -90,9 +114,17 @@ def create_event(
         )
         or None
     )
+    if is_document_record:
+        document_text = prompt
+        if document_text is None or isinstance(document_text, float) and math.isnan(document_text):
+            document_text = ""
+        prompt_and_response = None
+    else:
+        document_text = None
     return Event(
-        id=ID(str(EventId(row_id=row_id, dataset_id=dataset_id))),
+        id=event_id,
         eventMetadata=event_metadata,
         dimensions=dimensions_with_values,
         prompt_and_response=prompt_and_response,
+        document_text=document_text,
     )

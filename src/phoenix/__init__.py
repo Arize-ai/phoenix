@@ -1,9 +1,9 @@
 from .datasets.dataset import Dataset
 from .datasets.fixtures import ExampleDatasets, load_example
-from .datasets.schema import EmbeddingColumnNames, Schema
+from .datasets.schema import EmbeddingColumnNames, RetrievalEmbeddingColumnNames, Schema
 from .session.session import Session, active_session, close_app, launch_app
 
-__version__ = "0.0.24"
+__version__ = "0.0.29rc6"
 
 # module level doc-string
 __doc__ = """
@@ -24,6 +24,7 @@ Here are just a few of the things that phoenix does well:
 __all__ = [
     "Dataset",
     "EmbeddingColumnNames",
+    "RetrievalEmbeddingColumnNames",
     "Schema",
     "load_example",
     "ExampleDatasets",

@@ -38,7 +38,11 @@ export function PointSelectionTable({
     columns: Column<TableDataItem>[];
     tableData: TableDataItem[];
   }>(() => {
-    const tableData: TableDataItem[] = [...data];
+    // Corpus points cannot be shown under the  table as they don't contain data that is uniform nor data that is under analysis
+    // TODO(mikeldking): show corpus points under a separate tab
+    const tableData: TableDataItem[] = data.filter((point) => {
+      return point.id.includes("CORPUS") === false;
+    });
     let hasLinkToData = false,
       hasRawData = false,
       hasPromptAndResponse = false,
