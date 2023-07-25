@@ -130,7 +130,7 @@ class Dataset:
         column_renaming: Dict[str, str] = {}
         for group_name, group in groupby(
             sorted(
-                map(_to_open_inference, dataframe.columns),
+                map(_parse_open_inference_column_name, dataframe.columns),
                 key=lambda column: column.name,
             ),
             key=lambda column: column.name,
@@ -683,7 +683,7 @@ class _OpenInferenceColumnName:
         object.__setattr__(self, "specifier", self.specifier.lower())
 
 
-def _to_open_inference(column_name: str) -> _OpenInferenceColumnName:
+def _parse_open_inference_column_name(column_name: str) -> _OpenInferenceColumnName:
     pattern = (
         r"^:(?P<category>\w+)\.(?P<data_type>\[\w+\]|\w+)(\.(?P<specifier>\w+))?:(?P<name>.*)?$"
     )
