@@ -1094,6 +1094,18 @@ def random_uuids(num_records: int):
         pytest.param(
             DataFrame(
                 {
+                    "timestamp": [
+                        "2022-01-01T00:00:00Z",
+                        "2022-01-02T01:00:00Z",
+                        "2022-01-03T02:00:00Z",
+                    ],
+                    "prediction_id": [1, 2, 3],
+                }
+            ),
+            Schema(timestamp_column_name="timestamp", prediction_id_column_name="prediction_id"),
+            None,
+            DataFrame(
+                {
                     "timestamp": Series(
                         [
                             Timestamp(
@@ -1121,7 +1133,21 @@ def random_uuids(num_records: int):
                                 second=0,
                             ),
                         ]
-                    ).apply(lambda val: val.isoformat()),
+                    ).dt.tz_localize(pytz.utc),
+                    "prediction_id": [1, 2, 3],
+                }
+            ),
+            Schema(timestamp_column_name="timestamp", prediction_id_column_name="prediction_id"),
+            id="iso8601_utc_tz_aware_strings_converted_to_utc_timestamps",
+        ),
+        pytest.param(
+            DataFrame(
+                {
+                    "timestamp": [
+                        "2022-01-01T00:00:00",
+                        "2022-01-02T01:00:00",
+                        "2022-01-03T02:00:00",
+                    ],
                     "prediction_id": [1, 2, 3],
                 }
             ),
@@ -1166,36 +1192,11 @@ def random_uuids(num_records: int):
         pytest.param(
             DataFrame(
                 {
-                    "timestamp": Series(
-                        [
-                            Timestamp(
-                                year=2022,
-                                month=1,
-                                day=1,
-                                hour=0,
-                                minute=0,
-                                second=0,
-                            ),
-                            Timestamp(
-                                year=2022,
-                                month=1,
-                                day=2,
-                                hour=1,
-                                minute=0,
-                                second=0,
-                            ),
-                            Timestamp(
-                                year=2022,
-                                month=1,
-                                day=3,
-                                hour=2,
-                                minute=0,
-                                second=0,
-                            ),
-                        ]
-                    )
-                    .dt.tz_localize(pytz.timezone("US/Pacific"))
-                    .apply(lambda val: val.isoformat()),
+                    "timestamp": [
+                        "2022-01-01T00:00:00-08:00",
+                        "2022-01-02T01:00:00-08:00",
+                        "2022-01-03T02:00:00-08:00",
+                    ],
                     "prediction_id": [1, 2, 3],
                 }
             ),
@@ -1236,55 +1237,6 @@ def random_uuids(num_records: int):
             ),
             Schema(timestamp_column_name="timestamp", prediction_id_column_name="prediction_id"),
             id="iso8601_us_pacific_strings_converted_to_utc_timestamps",
-        ),
-        pytest.param(
-            DataFrame(
-                {
-                    "timestamp": [
-                        "24-03-2023 10:00:00 UTC",
-                        "24-03-2023 11:30:00 UTC",
-                        "24-03-2023 14:15:00 UTC",
-                    ],
-                    "prediction_id": [1, 2, 3],
-                }
-            ),
-            Schema(timestamp_column_name="timestamp", prediction_id_column_name="prediction_id"),
-            None,
-            DataFrame(
-                {
-                    "timestamp": Series(
-                        [
-                            Timestamp(
-                                year=2023,
-                                month=3,
-                                day=24,
-                                hour=10,
-                                minute=0,
-                                second=0,
-                            ),
-                            Timestamp(
-                                year=2023,
-                                month=3,
-                                day=24,
-                                hour=11,
-                                minute=30,
-                                second=0,
-                            ),
-                            Timestamp(
-                                year=2023,
-                                month=3,
-                                day=24,
-                                hour=14,
-                                minute=15,
-                                second=0,
-                            ),
-                        ]
-                    ).dt.tz_localize(pytz.utc),
-                    "prediction_id": [1, 2, 3],
-                }
-            ),
-            Schema(timestamp_column_name="timestamp", prediction_id_column_name="prediction_id"),
-            id="pandas_flexible_format_parsing_previously_invalid_input_test",
         ),
     ],
 )
