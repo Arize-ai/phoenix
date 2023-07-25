@@ -339,8 +339,8 @@ wikipedia_fixture = Fixture(
         response_column_names="answer",
     ),
     corpus_schema=Schema(
-        prediction_id_column_name="id",
-        prompt_column_names=EmbeddingColumnNames(
+        id_column_name="id",
+        document_column_names=EmbeddingColumnNames(
             vector_column_name="embedding",
             raw_data_column_name="text",
         ),
