@@ -3,7 +3,6 @@ from typing import List
 
 import numpy as np
 from pandas import DataFrame, Series
-from pandas.api.types import is_datetime64_any_dtype as is_datetime
 from pandas.api.types import is_numeric_dtype, is_string_dtype
 
 from . import errors as err
@@ -159,15 +158,6 @@ def _validate_embedding_vector(
 
 def _check_column_types(dataframe: DataFrame, schema: Schema) -> List[err.ValidationError]:
     wrong_type_cols: List[str] = []
-    if schema.timestamp_column_name is not None:
-        if not (
-            is_numeric_dtype(dataframe.dtypes[schema.timestamp_column_name])
-            or is_datetime(dataframe.dtypes[schema.timestamp_column_name])
-        ):
-            wrong_type_cols.append(
-                f"{schema.timestamp_column_name} should be of timestamp or numeric type"
-            )
-
     if schema.prediction_id_column_name is not None:
         if not (
             is_numeric_dtype(dataframe.dtypes[schema.prediction_id_column_name])
