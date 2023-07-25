@@ -1,5 +1,9 @@
 # Open Inference
 
+{% hint style="info" %}
+For a in-depth specificaiton of the OpenInference specification, please consult the spec [https://github.com/Arize-ai/open-inference-spec](https://github.com/Arize-ai/open-inference-spec)
+{% endhint %}
+
 ## Overview
 
 The open inference data format is designed to provide an open interoperable data format for model inference files. Our goal is for modern ML systems, such as model servers and ML Observability platforms, to interface with each other using a common data format.\

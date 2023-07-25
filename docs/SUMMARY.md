@@ -27,7 +27,7 @@
 
 * [Bring Production Data to Notebook for EDA or Retraining](use-cases/bring-production-data-to-notebook-for-eda-or-retraining.md)
 * [Insights to Fine Tune or Prompt Engineer LLMs](use-cases/insights-to-fine-tune-or-prompt-engineer-llms.md)
-* [Troubleshooting LLM Retrieval with Vector Stores](use-cases/troubleshooting-llm-retrieval-with-vector-stores.md)
+* [Troubleshooting LLM Search and Retrieval with Vector Stores](use-cases/troubleshooting-llm-retrieval-with-vector-stores.md)
 
 ## ⌨ API
 
