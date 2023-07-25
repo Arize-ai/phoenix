@@ -304,6 +304,7 @@ function EventPreview({ event }: { event: ModelEvent }) {
     event.prompt || event.response
       ? { prompt: event.prompt, response: event.response }
       : null;
+  const documentText = event.documentText;
   let content = null;
   if (imageUrl) {
     content = (
@@ -317,6 +318,14 @@ function EventPreview({ event }: { event: ModelEvent }) {
           background-color: black;
         `}
       />
+    );
+  } else if (documentText) {
+    content = (
+      <Accordion variant="compact">
+        <AccordionItem id="document" title="Document">
+          <TextPre>{documentText}</TextPre>
+        </AccordionItem>
+      </Accordion>
     );
   } else if (promptAndResponse) {
     content = (

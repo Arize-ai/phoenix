@@ -347,7 +347,8 @@ wikipedia_fixture = Fixture(
     ),
     prefix="unstructured/search/wiki",
     primary_file_name="queries.parquet",
-    reference_file_name="queries2.parquet",
+    # The reference file is intended purely for troubleshooting bad data. Un-comment for testing.
+    # reference_file_name="queries2.parquet",
     corpus_file_name="corpus.parquet",
 )
 

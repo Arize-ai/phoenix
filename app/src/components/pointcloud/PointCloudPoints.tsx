@@ -46,6 +46,9 @@ type PointCloudPointsProps = {
    * Optional second set of data to display in the point cloud
    */
   referenceData: Point[] | null;
+  /**
+   * Optional set of data for the corpus (typically a knowledge base in a vector store)
+   */
   corpusData: Point[] | null;
   /**
    * How the points should be colored

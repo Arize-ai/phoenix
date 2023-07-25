@@ -144,6 +144,7 @@ export function PointSelectionPanelContent() {
                 prompt
                 response
               }
+              documentText
             }
           }
           referenceDataset {
@@ -167,6 +168,7 @@ export function PointSelectionPanelContent() {
                 prompt
                 response
               }
+              documentText
             }
           }
           corpusDataset {
@@ -251,6 +253,7 @@ export function PointSelectionPanelContent() {
         prompt: event.promptAndResponse?.prompt ?? null,
         response: event.promptAndResponse?.response ?? null,
         retrievedDocuments: documents,
+        documentText: event.documentText ?? null,
       };
     });
   }, [allSelectedEvents, eventIdToDataMap, pointData]);

@@ -16,6 +16,7 @@ import {
   DriftMetricDefinition,
   MetricDefinition,
   PerformanceMetricDefinition,
+  RetrievalMetricDefinition,
 } from "@phoenix/store";
 import { assertUnreachable } from "@phoenix/typeUtils";
 
@@ -34,7 +35,9 @@ const METRIC_KEY_SEPARATOR = ":";
 function isMetricType(
   maybeType: unknown
 ): maybeType is MetricDefinition["type"] {
-  return ["drift", "performance", "dataQuality"].includes(maybeType as string);
+  return ["drift", "performance", "dataQuality", "retrieval"].includes(
+    maybeType as string
+  );
 }
 /**
  * A function that flattens the metrics into a single key
@@ -46,6 +49,8 @@ function getMetricKey(metric: MetricDefinition) {
   const { type, metric: metricName } = metric;
   switch (type) {
     case "drift":
+      return `${type}${METRIC_KEY_SEPARATOR}${metricName}`;
+    case "retrieval":
       return `${type}${METRIC_KEY_SEPARATOR}${metricName}`;
     case "performance":
       return `${type}${METRIC_KEY_SEPARATOR}${metricName}`;
@@ -79,6 +84,11 @@ function parseMetricKey({
   switch (type) {
     case "drift":
       return { type, metric: metricName as DriftMetricDefinition["metric"] };
+    case "retrieval":
+      return {
+        type,
+        metric: metricName as RetrievalMetricDefinition["metric"],
+      };
     case "performance":
       return {
         type,
@@ -139,8 +149,9 @@ export function MetricSelector({
     `,
     model
   );
-  const { referenceDataset } = useDatasets();
+  const { referenceDataset, corpusDataset } = useDatasets();
   const hasReferenceDataset = !!referenceDataset;
+  const hasCorpusDataset = !!corpusDataset;
   const metric = usePointCloudContext((state) => state.metric);
   const loading = usePointCloudContext((state) => state.loading);
   const setMetric = usePointCloudContext((state) => state.setMetric);
@@ -169,6 +180,34 @@ export function MetricSelector({
       placeholder="Select a metric..."
       isDisabled={loading}
     >
+      {hasReferenceDataset ? (
+        <Section title="Drift">
+          <Item
+            key={getMetricKey({
+              type: "drift",
+              metric: "euclideanDistance",
+            })}
+          >
+            Euclidean Distance
+          </Item>
+        </Section>
+      ) : (
+        (null as unknown as CollectionElement<unknown>)
+      )}
+      {hasCorpusDataset ? (
+        <Section title="Retrieval">
+          <Item
+            key={getMetricKey({
+              type: "retrieval",
+              metric: "queryDistance",
+            })}
+          >
+            Query Distance
+          </Item>
+        </Section>
+      ) : (
+        (null as unknown as CollectionElement<unknown>)
+      )}
       {hasReferenceDataset ? (
         <Section title="Drift">
           <Item

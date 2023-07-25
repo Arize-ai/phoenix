@@ -60,8 +60,10 @@ import { useEmbeddingDimensionId } from "@phoenix/hooks";
 import {
   ClusterColorMode,
   DEFAULT_DRIFT_POINT_CLOUD_PROPS,
+  DEFAULT_RETRIEVAL_TROUBLESHOOTING_POINT_CLOUD_PROPS,
   DEFAULT_SINGLE_DATASET_POINT_CLOUD_PROPS,
   MetricDefinition,
+  PointCloudProps,
 } from "@phoenix/store";
 import { assertUnreachable } from "@phoenix/typeUtils";
 import { getMetricShortNameByMetricKey } from "@phoenix/utils/metricFormatUtils";
@@ -192,6 +194,7 @@ const EmbeddingUMAPQuery = graphql`
             id
             eventIds
             driftRatio
+            primaryToCorpusRatio
             dataQualityMetric(
               metric: { columnName: $dataQualityMetricColumnName, metric: mean }
             ) @include(if: $fetchDataQualityMetric) {
@@ -216,14 +219,19 @@ const EmbeddingUMAPQuery = graphql`
 `;
 
 export function Embedding() {
-  const { referenceDataset } = useDatasets();
+  const { referenceDataset, corpusDataset } = useDatasets();
   const { timeRange } = useTimeRange();
   // Initialize the store based on whether or not there is a reference dataset
-  const defaultPointCloudProps = useMemo(() => {
-    return referenceDataset != null
-      ? DEFAULT_DRIFT_POINT_CLOUD_PROPS
-      : DEFAULT_SINGLE_DATASET_POINT_CLOUD_PROPS;
-  }, [referenceDataset]);
+  const defaultPointCloudProps = useMemo<Partial<PointCloudProps>>(() => {
+    if (corpusDataset != null) {
+      // If there is a corpus dataset, then initialize the page with the retrieval troubleshooting settings
+      // TODO - this does make a bit of a leap of assumptions but is a short term solution in order to get the page working as intended
+      return DEFAULT_RETRIEVAL_TROUBLESHOOTING_POINT_CLOUD_PROPS;
+    } else if (referenceDataset != null) {
+      return DEFAULT_DRIFT_POINT_CLOUD_PROPS;
+    }
+    return DEFAULT_SINGLE_DATASET_POINT_CLOUD_PROPS;
+  }, [corpusDataset, referenceDataset]);
   return (
     <TimeSliceContextProvider initialTimestamp={timeRange.end}>
       <PointCloudProvider {...defaultPointCloudProps}>
@@ -680,6 +688,7 @@ const ClustersPanelContents = React.memo(function ClustersPanelContents() {
                       numPoints={cluster.eventIds.length}
                       isSelected={selectedClusterId === cluster.id}
                       driftRatio={cluster.driftRatio}
+                      primaryToCorpusRatio={cluster.primaryToCorpusRatio}
                       primaryMetricValue={cluster.primaryMetricValue}
                       referenceMetricValue={cluster.referenceMetricValue}
                       metricName={getClusterMetricName(metric)}
@@ -716,15 +725,32 @@ const ClustersPanelContents = React.memo(function ClustersPanelContents() {
   );
 });
 
-function getClusterMetricName(metric: MetricDefinition) {
+function getClusterMetricName(metric: MetricDefinition): string {
   const { type: metricType, metric: metricEnum } = metric;
   switch (metricType) {
     case "dataQuality":
       return `${metric.dimension.name} avg`;
-    case "drift":
-      return "cluster drift";
+    case "drift": {
+      switch (metricEnum) {
+        case "euclideanDistance":
+          return "Cluster Drift";
+
+        default:
+          assertUnreachable(metricEnum);
+      }
+      break;
+    }
     case "performance":
       return getMetricShortNameByMetricKey(metricEnum);
+    case "retrieval": {
+      switch (metricEnum) {
+        case "queryDistance":
+          return "% Query";
+        default:
+          assertUnreachable(metricEnum);
+      }
+      break;
+    }
     default:
       assertUnreachable(metricType);
   }

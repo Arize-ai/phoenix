@@ -84,6 +84,7 @@ export const PointCloudPointTooltip = () => {
           predictionLabel={baseEvent.eventMetadata.predictionLabel}
           actualLabel={baseEvent.eventMetadata.actualLabel}
           promptAndResponse={eventDetails.promptAndResponse}
+          documentText={eventDetails.documentText}
           datasetName={datasetName}
           group={group}
           color={color}
