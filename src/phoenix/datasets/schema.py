@@ -79,6 +79,7 @@ class RetrievalEmbeddingColumnNames(EmbeddingColumnNames):
 @dataclass(frozen=True)
 class Schema:
     prediction_id_column_name: Optional[str] = None
+    id_column_name: Optional[str] = None  # Syntax sugar for prediction_id_column_name
     timestamp_column_name: Optional[str] = None
     feature_column_names: Optional[List[str]] = None
     tag_column_names: Optional[List[str]] = None
@@ -88,8 +89,21 @@ class Schema:
     actual_score_column_name: Optional[str] = None
     prompt_column_names: Optional[Union[EmbeddingColumnNames, RetrievalEmbeddingColumnNames]] = None
     response_column_names: Optional[Union[str, EmbeddingColumnNames]] = None
+    # document_column_names is used explicitly when the schema is used to capture a corpus
+    document_column_names: Optional[EmbeddingColumnNames] = None
     embedding_feature_column_names: Optional[EmbeddingFeatures] = None
     excluded_column_names: Optional[List[str]] = None
+
+    def __post_init__(self) -> None:
+        # re-map document_column_names to be in the prompt_column_names position
+        # This is a shortcut to leverage the same schema for model and corpus datasets
+        if self.document_column_names is not None:
+            object.__setattr__(self, "prompt_column_names", self.document_column_names)
+            object.__setattr__(self, "document_column_names", None)
+
+        if self.id_column_name is not None:
+            object.__setattr__(self, "prediction_id_column_name", self.id_column_name)
+            object.__setattr__(self, "id_column_name", None)
 
     def replace(self, **changes: str) -> "Schema":
         return replace(self, **changes)
