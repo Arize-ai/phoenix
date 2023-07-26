@@ -8,13 +8,11 @@
 * [Generating Embeddings](concepts/generating-embeddings.md)
 * [LLM Observability](concepts/llm-observability.md)
 
-## 🎓 Tutorials
+## 🔮 Use Cases
 
-* [Generative LLMs](tutorials/generative-llms.md)
-* [Computer Vision](tutorials/computer-vision.md)
-* [NLP](tutorials/nlp.md)
-* [Tabular Data](tutorials/tabular-data.md)
-* [Notebooks](tutorials/notebooks.md)
+* [Troubleshooting LLM Search and Retrieval with Vector Stores](use-cases/troubleshooting-llm-retrieval-with-vector-stores.md)
+* [Insights to Fine Tune or Prompt Engineer LLMs](use-cases/insights-to-fine-tune-or-prompt-engineer-llms.md)
+* [Bring Production Data to Notebook for EDA or Retraining](use-cases/bring-production-data-to-notebook-for-eda-or-retraining.md)
 
 ## 🔢 How-To
 
@@ -24,11 +22,13 @@
 * [Manage the App](how-to/manage-the-app.md)
 * [Use Example Datasets](how-to/use-example-datasets.md)
 
-## 🔮 Use Cases
+## 🎓 Tutorials
 
-* [Troubleshooting LLM Search and Retrieval with Vector Stores](use-cases/troubleshooting-llm-retrieval-with-vector-stores.md)
-* [Bring Production Data to Notebook for EDA or Retraining](use-cases/bring-production-data-to-notebook-for-eda-or-retraining.md)
-* [Insights to Fine Tune or Prompt Engineer LLMs](use-cases/insights-to-fine-tune-or-prompt-engineer-llms.md)
+* [Generative LLMs](tutorials/generative-llms.md)
+* [Computer Vision](tutorials/computer-vision.md)
+* [NLP](tutorials/nlp.md)
+* [Tabular Data](tutorials/tabular-data.md)
+* [Notebooks](tutorials/notebooks.md)
 
 ## ⌨ API
 
