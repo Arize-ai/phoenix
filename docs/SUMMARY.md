@@ -37,6 +37,10 @@
 * [Dataset and Schema](api/dataset-and-schema.md)
 * [Session](api/session.md)
 
+## 🔌 INTEGRATIONS
+
+* [LlamaIndex](integrations/llamaindex.md)
+
 ## 📚 Reference
 
 * [Embeddings](concepts/embeddings.md)
