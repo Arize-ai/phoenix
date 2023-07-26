@@ -24,12 +24,15 @@ If you additionally have a dataframe `ref_df` and a matching `ref_schema`, you c
 ref_ds = px.Dataset(ref_df, ref_schema, "reference")
 ```
 
+See [Corpus Data](define-your-schema/corpus-data.md) if you have corpus data for an Information Retrieval use case.
+
 ## Launch the App
 
-Use `phoenix.launch_app` to start a session in the background. You can launch Phoenix with either a single dataset or with primary and reference datasets.
+Use `phoenix.launch_app` to start a session in the background. You can launch Phoenix either with a single dataset, with primary and reference datasets, or with primary and [corpus](define-your-schema/corpus-data.md) datasets.
 
 <table data-card-size="large" data-view="cards"><thead><tr><th align="center"></th><th></th></tr></thead><tbody><tr><td align="center"><strong>Single Dataset</strong></td><td><pre class="language-python"><code class="lang-python">session = px.launch_app(ds)
-</code></pre></td></tr><tr><td align="center"><strong>Primary and Reference Datasets</strong></td><td><pre class="language-python"><code class="lang-python">session = px.launch_app(prim_ds, ref_ds)
+</code></pre></td></tr><tr><td align="center"><strong>Primary and Reference Datasets</strong></td><td><pre class="language-python" data-overflow="wrap"><code class="lang-python">session = px.launch_app(prim_ds, ref_ds)
+</code></pre></td></tr><tr><td align="center"><strong>Primary and</strong> <a href="define-your-schema/corpus-data.md"><strong>Corpus</strong></a> <strong>Datasets</strong></td><td><pre class="language-python" data-overflow="wrap"><code class="lang-python">session = px.launch_app(prim_ds, corpus=corpus_ds)
 </code></pre></td></tr></tbody></table>
 
 ## Open the UI
