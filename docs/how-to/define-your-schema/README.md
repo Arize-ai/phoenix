@@ -7,8 +7,8 @@ description: How to create Phoenix datasets and schemas for common data formats
 This guide shows you how to define a Phoenix dataset using your own data.
 
 {% hint style="info" %}
-* For a conceptual overview of the Phoenix API, including a high-level introduction to the notion of datasets and schemas, see [Phoenix Basics](../concepts/phoenix-basics.md#schemas).
-* For a comprehensive description of `phoenix.Dataset` and `phoenix.Schema`, see the [API reference](../api/dataset-and-schema.md).
+* For a conceptual overview of the Phoenix API, including a high-level introduction to the notion of datasets and schemas, see [Phoenix Basics](../../concepts/phoenix-basics.md#schemas).
+* For a comprehensive description of `phoenix.Dataset` and `phoenix.Schema`, see the [API reference](../../api/dataset-and-schema.md).
 {% endhint %}
 
 Once you have a pandas dataframe `df` containing your data and a `schema` object describing the format of your dataframe, you can define your Phoenix dataset either by running
@@ -144,8 +144,8 @@ schema = px.Schema(
 Embedding features consist of vector data in addition to any unstructured data in the form of text or images that the vectors represent. Unlike normal features, a single embedding feature may span multiple columns of your dataframe. Use `px.EmbeddingColumnNames` to associate multiple dataframe columns with the same embedding feature.
 
 {% hint style="info" %}
-* For a conceptual overview of embeddings, see [Embeddings](../concepts/embeddings.md).
-* For a comprehensive description of `px.EmbeddingColumnNames`, see the [API reference](../api/dataset-and-schema.md#phoenix.embeddingcolumnnames).
+* For a conceptual overview of embeddings, see [Embeddings](../../concepts/embeddings.md).
+* For a comprehensive description of `px.EmbeddingColumnNames`, see the [API reference](../../api/dataset-and-schema.md#phoenix.embeddingcolumnnames).
 {% endhint %}
 
 {% hint style="info" %}
@@ -186,7 +186,7 @@ schema = px.Schema(
 ```
 
 {% hint style="info" %}
-The features in this example are [implicitly inferred](define-your-schema.md#implicit-features) to be the columns of the dataframe that do not appear in the schema.
+The features in this example are [implicitly inferred](./#implicit-features) to be the columns of the dataframe that do not appear in the schema.
 {% endhint %}
 
 {% hint style="warning" %}
