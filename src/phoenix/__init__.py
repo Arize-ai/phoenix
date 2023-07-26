@@ -3,7 +3,7 @@ from .datasets.fixtures import ExampleDatasets, load_example
 from .datasets.schema import EmbeddingColumnNames, RetrievalEmbeddingColumnNames, Schema
 from .session.session import Session, active_session, close_app, launch_app
 
-__version__ = "0.0.29rc8"
+__version__ = "0.0.30"
 
 # module level doc-string
 __doc__ = """
