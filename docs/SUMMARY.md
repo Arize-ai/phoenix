@@ -18,6 +18,7 @@
 
 * [Install and Import Phoenix](how-to/install-and-import-phoenix.md)
 * [Import Your Data](how-to/define-your-schema/README.md)
+  * [Retrieval (RAG)](how-to/define-your-schema/retrieval-rag.md)
   * [Corpus Data](how-to/define-your-schema/corpus-data.md)
 * [Manage the App](how-to/manage-the-app.md)
 * [Use Example Datasets](how-to/use-example-datasets.md)
