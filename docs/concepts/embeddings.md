@@ -36,7 +36,7 @@ Embedding vectors are generally extracted from the **activation values** of one 
 3. Generative Adversarial Networks (GANs)
 4. Pre-trained Embeddings
 
-Given the wide accessibility to pre-trained transformer [models](http://localhost:5000/s/-MAlgpMyBRcl2qFZRQ67/embeddings/7.-troubleshoot-embedding-data/let-arize-generate-your-embeddings/supported-models), we will focus on generating embeddings using them. These models are models such as BERT or GPT-x, models that are trained on a large datasets and that are fine-tuning them on a specific task.
+Given the wide accessibility to pre-trained transformer [models](http://127.0.0.1:5000/s/-MAlgpMyBRcl2qFZRQ67/embeddings/7.-troubleshoot-embedding-data/let-arize-generate-your-embeddings/supported-models), we will focus on generating embeddings using them. These models are models such as BERT or GPT-x, models that are trained on a large datasets and that are fine-tuning them on a specific task.
 
 \
 Once you have chosen a model to generate embeddings, the question is: _how?_ Here are few use-case based examples. In each example you will notice that the embeddings are generated such that the resulting vector represents your input according to your use case.
