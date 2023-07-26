@@ -7,7 +7,7 @@ description: >-
 
 # Troubleshooting LLM Search and Retrieval with Vector Stores
 
-Vector Stores enable teams to connect their own data to LLMs. A common application is chatbots looking across a company's knowledge base/context to answer specific questions.&#x20;
+Possibly the most common use-case for creating a LLM application is to connect an LLM to proprietary data such as enterprise documents or video transcriptions. Vector Stores enable teams to connect their own data to LLMs. A common application is chatbots looking across a company's knowledge base/context to answer specific questions.&#x20;
 
 Try this out on your own with our colabs:
 
@@ -25,13 +25,13 @@ Here's an example of what retrieval looks like for a chatbot application. A user
 From here on out we will refer to the data in the knowledge base / vector store as the **corpus.** The content of the corpus will be referred to as documents.
 {% endhint %}
 
-<figure><img src="https://storage.cloud.google.com/arize-assets/phoenix/assets/images/RAG_llm_architecture.png" alt=""><figcaption></figcaption></figure>
+<figure><img src="https://storage.googleapis.com/arize-assets/phoenix/assets/images/RAG_llm_architecture.png" alt=""><figcaption><p>LLM Application that uses a vector store to store proprietary data such as internal documents</p></figcaption></figure>
 
 If there isn't enough documents to pull in, then the prompt doesn't have enough context to answer the question.&#x20;
 
 Here's an example of "bad retrieval". There wasn't enough information about video data quality in the knowledge base to answer the user's question and the chatbot hallucinated.
 
-<figure><img src="https://storage.cloud.google.com/arize-assets/phoenix/assets/images/RAG_llm_app_overview.png" alt=""><figcaption></figcaption></figure>
+<figure><img src="https://storage.googleapis.com/arize-assets/phoenix/assets/images/RAG_bad_retrieval.png" alt=""><figcaption><p>Bad retrieval often times happens when the vector store is missing relavant information or the wrong documents are pulled</p></figcaption></figure>
 
 ### How to Troubleshoot Retrieval in Phoenix
 
