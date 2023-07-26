@@ -4,7 +4,7 @@ description: How to import data for the Retrieval-Augmented Generation (RAG) use
 
 # Retrieval (RAG)
 
-In Retrieval-Augmented Generation (RAG), the retrieval step returns from the knowledge base (or [corpus](corpus-data.md)) a list of documents relevant to the user query, then the generation step adds the retrieved documents to the prompt context to improve response accuracy of the Large Language Model (LLM). The IDs of the retrieval documents along with the relevance scores, if present, can be imported into Phoenix as follows.
+In Retrieval-Augmented Generation (RAG), the retrieval step returns from a (proprietary) knowledge base (a.k.a. [corpus](corpus-data.md)) a list of documents relevant to the user query, then the generation step adds the retrieved documents to the prompt context to improve response accuracy of the Large Language Model (LLM). The IDs of the retrieval documents along with the relevance scores, if present, can be imported into Phoenix as follows.
 
 ## Dataframe
 
