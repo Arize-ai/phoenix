@@ -7,7 +7,11 @@ description: >-
 
 # Troubleshooting LLM Search and Retrieval with Vector Stores
 
-Possibly the most common use-case for creating a LLM application is to connect an LLM to proprietary data such as enterprise documents or video transcriptions. Vector Stores enable teams to connect their own data to LLMs. A common application is chatbots looking across a company's knowledge base/context to answer specific questions.&#x20;
+Possibly the most common use-case for creating a LLM application is to connect an LLM to proprietary data such as enterprise documents or video transcriptions. Applications such as these often times are built on top of LLM frameworks such as [Langchain](https://github.com/langchain-ai/langchain) or [llama\_index](https://github.com/jerryjliu/llama\_index), which have first-class support for vector store retrievers. Vector Stores enable teams to connect their own data to LLMs. A common application is chatbots looking across a company's knowledge base/context to answer specific questions.&#x20;
+
+{% hint style="info" %}
+Retrieval-Augmented Generation or RAG is not limited to vector stores but it is quite common. To learn more about vector stores, consult some of the most popular ones such as [Pinecone](https://www.pinecone.io/), [Qdrant](https://qdrant.tech/), and [Chroma](https://www.trychroma.com/).
+{% endhint %}
 
 Try this out on your own with our colabs:
 
