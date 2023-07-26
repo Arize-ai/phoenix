@@ -1,5 +1,5 @@
 ---
-description: How to connect to OpenInference complaint data via a llama_index callback
+description: How to connect to OpenInference compliant data via a llama_index callback
 ---
 
 # LlamaIndex
