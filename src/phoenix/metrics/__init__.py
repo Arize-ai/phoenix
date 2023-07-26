@@ -1,4 +1,5 @@
 import logging
+import warnings
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Any, Iterable, List, Mapping, Optional, Union
@@ -68,7 +69,9 @@ class Metric(ABC):
             ),
         ]
         try:
-            return self.calc(df)
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", category=RuntimeWarning)
+                return self.calc(df)
         except (TypeError, ValueError, NotImplementedError) as exc:
             logger.warning(exc, exc_info=True)
             return self.initial_value

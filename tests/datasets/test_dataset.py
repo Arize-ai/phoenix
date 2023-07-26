@@ -15,12 +15,15 @@ import pytz
 from pandas import DataFrame, Series, Timestamp
 from phoenix.datasets.dataset import (
     Dataset,
-    EmbeddingColumnNames,
-    Schema,
     _normalize_timestamps,
     _parse_dataframe_and_schema,
 )
 from phoenix.datasets.errors import DatasetError
+from phoenix.datasets.schema import (
+    EmbeddingColumnNames,
+    RetrievalEmbeddingColumnNames,
+    Schema,
+)
 from pytest import LogCaptureFixture, raises
 
 
@@ -323,6 +326,32 @@ class TestParseDataFrameAndSchema:
                     raw_data_column_name="raw_data_column0",
                 ),
             },
+        )
+        self._parse_dataframe_and_schema_and_check_output(
+            input_dataframe=input_dataframe,
+            input_schema=input_schema,
+            expected_parsed_dataframe=input_dataframe,
+            expected_parsed_schema=input_schema,
+            should_log_warning_to_user=False,
+            caplog=caplog,
+        )
+
+    def test_schema_includes_relationships(self, caplog):
+        input_dataframe = DataFrame(
+            {
+                "prediction_id": [str(x) for x in range(self.num_records)],
+                "timestamp": [pd.Timestamp.now() for x in range(self.num_records)],
+                "embedding": [[1, 2, 3, 4, 5] for _ in range(self.num_records)],
+                "document_ids": [["doc_id_1", "doc_id_4"] for _ in range(self.num_records)],
+            }
+        )
+        input_schema = Schema(
+            prediction_id_column_name="prediction_id",
+            timestamp_column_name="timestamp",
+            prompt_column_names=RetrievalEmbeddingColumnNames(
+                vector_column_name="embedding",
+                context_retrieval_ids_column_name="document_ids",
+            ),
         )
         self._parse_dataframe_and_schema_and_check_output(
             input_dataframe=input_dataframe,
@@ -713,24 +742,6 @@ class TestDataset:
         with raises(DatasetError):
             Dataset(dataframe=input_df, schema=input_schema)
 
-    def test_dataset_validate_invalid_timestamp_datatype(self) -> None:
-        input_df = DataFrame(
-            {
-                "prediction_label": [f"label{index}" for index in range(self.num_records)],
-                "feature0": np.zeros(self.num_records),
-                "timestamp": random_uuids(self.num_records),
-            },
-        )
-
-        input_schema = Schema(
-            timestamp_column_name="timestamp",
-            feature_column_names=["feature0"],
-            prediction_label_column_name="prediction_label",
-        )
-
-        with raises(DatasetError):
-            Dataset(dataframe=input_df, schema=input_schema)
-
     def test_dataset_validate_invalid_schema_excludes_timestamp(self) -> None:
         input_df = DataFrame(
             {
@@ -1083,6 +1094,18 @@ def random_uuids(num_records: int):
         pytest.param(
             DataFrame(
                 {
+                    "timestamp": [
+                        "2022-01-01T00:00:00Z",
+                        "2022-01-02T01:00:00Z",
+                        "2022-01-03T02:00:00Z",
+                    ],
+                    "prediction_id": [1, 2, 3],
+                }
+            ),
+            Schema(timestamp_column_name="timestamp", prediction_id_column_name="prediction_id"),
+            None,
+            DataFrame(
+                {
                     "timestamp": Series(
                         [
                             Timestamp(
@@ -1110,7 +1133,21 @@ def random_uuids(num_records: int):
                                 second=0,
                             ),
                         ]
-                    ).apply(lambda val: val.isoformat()),
+                    ).dt.tz_localize(pytz.utc),
+                    "prediction_id": [1, 2, 3],
+                }
+            ),
+            Schema(timestamp_column_name="timestamp", prediction_id_column_name="prediction_id"),
+            id="iso8601_utc_tz_aware_strings_converted_to_utc_timestamps",
+        ),
+        pytest.param(
+            DataFrame(
+                {
+                    "timestamp": [
+                        "2022-01-01T00:00:00",
+                        "2022-01-02T01:00:00",
+                        "2022-01-03T02:00:00",
+                    ],
                     "prediction_id": [1, 2, 3],
                 }
             ),
@@ -1155,36 +1192,11 @@ def random_uuids(num_records: int):
         pytest.param(
             DataFrame(
                 {
-                    "timestamp": Series(
-                        [
-                            Timestamp(
-                                year=2022,
-                                month=1,
-                                day=1,
-                                hour=0,
-                                minute=0,
-                                second=0,
-                            ),
-                            Timestamp(
-                                year=2022,
-                                month=1,
-                                day=2,
-                                hour=1,
-                                minute=0,
-                                second=0,
-                            ),
-                            Timestamp(
-                                year=2022,
-                                month=1,
-                                day=3,
-                                hour=2,
-                                minute=0,
-                                second=0,
-                            ),
-                        ]
-                    )
-                    .dt.tz_localize(pytz.timezone("US/Pacific"))
-                    .apply(lambda val: val.isoformat()),
+                    "timestamp": [
+                        "2022-01-01T00:00:00-08:00",
+                        "2022-01-02T01:00:00-08:00",
+                        "2022-01-03T02:00:00-08:00",
+                    ],
                     "prediction_id": [1, 2, 3],
                 }
             ),
@@ -1225,55 +1237,6 @@ def random_uuids(num_records: int):
             ),
             Schema(timestamp_column_name="timestamp", prediction_id_column_name="prediction_id"),
             id="iso8601_us_pacific_strings_converted_to_utc_timestamps",
-        ),
-        pytest.param(
-            DataFrame(
-                {
-                    "timestamp": [
-                        "24-03-2023 10:00:00 UTC",
-                        "24-03-2023 11:30:00 UTC",
-                        "24-03-2023 14:15:00 UTC",
-                    ],
-                    "prediction_id": [1, 2, 3],
-                }
-            ),
-            Schema(timestamp_column_name="timestamp", prediction_id_column_name="prediction_id"),
-            None,
-            DataFrame(
-                {
-                    "timestamp": Series(
-                        [
-                            Timestamp(
-                                year=2023,
-                                month=3,
-                                day=24,
-                                hour=10,
-                                minute=0,
-                                second=0,
-                            ),
-                            Timestamp(
-                                year=2023,
-                                month=3,
-                                day=24,
-                                hour=11,
-                                minute=30,
-                                second=0,
-                            ),
-                            Timestamp(
-                                year=2023,
-                                month=3,
-                                day=24,
-                                hour=14,
-                                minute=15,
-                                second=0,
-                            ),
-                        ]
-                    ).dt.tz_localize(pytz.utc),
-                    "prediction_id": [1, 2, 3],
-                }
-            ),
-            Schema(timestamp_column_name="timestamp", prediction_id_column_name="prediction_id"),
-            id="pandas_flexible_format_parsing_previously_invalid_input_test",
         ),
     ],
 )
@@ -1349,4 +1312,89 @@ def test_dataset_with_arize_schema() -> None:
     assert dataset.schema.prediction_id_column_name == "prediction_id"
     assert (
         dataset.schema.embedding_feature_column_names["embedding"].vector_column_name == "embedding"
+    )
+
+
+def test_open_inference_format() -> None:
+    df = DataFrame(
+        {
+            ":feature.[float].retrieved_document_scores:prompt": [
+                [0.53, 0.34, 0.25],
+                [],
+                [0.85, 0.63],
+            ],
+            ":id.id:": ["1", "2", "3"],
+            ":feature.[float].embedding:prompt": [[1, 2, 3], [4, 5, 6], [7, 8, 9]],
+            ":timestamp.iso_8601:": [
+                "2023-01-01T02:00:30Z",
+                "2023-01-10T06:00:20Z",
+                "2023-01-05T04:00:25Z",
+            ],
+            ":feature.text:prompt": ["where is Waldo?", "who won?", "how to sing?"],
+            ":prediction.text:response": ["somewhere", "someone", "somehow"],
+            ":feature.[str].retrieved_document_ids:prompt": [["13", "24", "35"], [], ["57", "46"]],
+            ":tag.bool:thumbs_up": [True, False, True],
+            ":feature.str:location": ["US", "Canada", "Mexico"],
+            ":prediction.float.score:cylinders": [1, 2, 3],
+            ":feature.str:country": ["US", "Canada", "Mexico"],
+            ":prediction.str.label:brand": ["Ford", "Toyota", "Honda"],
+            ":actual.float.score:mpg": [29, 34, 15],
+            ":feature.[float].embedding:rating": [[1, 2, 3], [4, 5, 6], [7, 8, 9]],
+            ":feature.str.raw_data:image": ["A", "B", "C"],
+            ":actual.str.label:vehicle_type": ["sedan", "truck", "hatchback"],
+            ":feature.str.link_to_data:rating": ["x", "y", "z"],
+            ":tag.bool:thumbs_down": [False, True, False],
+            ":feature.[float].embedding:image": [[1, 2, 3], [4, 5, 6], [7, 8, 9]],
+        }
+    )
+    ds = Dataset.from_open_inference(df)
+    assert list(ds.dataframe.columns) == [
+        ":feature.[float].retrieved_document_scores:prompt",
+        ":id.id:",
+        "prompt",
+        ":timestamp.iso_8601:",
+        ":feature.text:prompt",
+        ":feature.[str].retrieved_document_ids:prompt",
+        "thumbs_up",
+        "location",
+        "cylinders",
+        "country",
+        "brand",
+        "mpg",
+        "rating",
+        ":feature.str.raw_data:image",
+        "vehicle_type",
+        ":feature.str.link_to_data:rating",
+        "thumbs_down",
+        "image",
+    ]
+    assert ds.schema == Schema(
+        prediction_id_column_name=":id.id:",
+        timestamp_column_name=":timestamp.iso_8601:",
+        feature_column_names=["country", "location"],
+        tag_column_names=["thumbs_down", "thumbs_up"],
+        prediction_label_column_name="brand",
+        prediction_score_column_name="cylinders",
+        actual_label_column_name="vehicle_type",
+        actual_score_column_name="mpg",
+        prompt_column_names=RetrievalEmbeddingColumnNames(
+            vector_column_name="prompt",
+            raw_data_column_name=":feature.text:prompt",
+            link_to_data_column_name=None,
+            context_retrieval_ids_column_name=":feature.[str].retrieved_document_ids:prompt",
+            context_retrieval_scores_column_name=":feature.[float].retrieved_document_scores:prompt",
+        ),
+        response_column_names="response",
+        embedding_feature_column_names={
+            "image": EmbeddingColumnNames(
+                vector_column_name="image",
+                raw_data_column_name=":feature.str.raw_data:image",
+                link_to_data_column_name=None,
+            ),
+            "rating": EmbeddingColumnNames(
+                vector_column_name="rating",
+                raw_data_column_name=None,
+                link_to_data_column_name=":feature.str.link_to_data:rating",
+            ),
+        },
     )

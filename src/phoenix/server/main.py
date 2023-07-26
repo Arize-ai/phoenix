@@ -54,6 +54,7 @@ if __name__ == "__main__":
     datasets_parser = subparsers.add_parser("datasets")
     datasets_parser.add_argument("--primary", type=str, required=True)
     datasets_parser.add_argument("--reference", type=str, required=False)
+    datasets_parser.add_argument("--corpus", type=str, required=False)
     fixture_parser = subparsers.add_parser("fixture")
     fixture_parser.add_argument("fixture", type=str, choices=[fixture.name for fixture in FIXTURES])
     fixture_parser.add_argument("--primary-only", type=bool)
@@ -62,16 +63,20 @@ if __name__ == "__main__":
     if args.command == "datasets":
         primary_dataset_name = args.primary
         reference_dataset_name = args.reference
+        corpus_dataset_name = args.corpus
         primary_dataset = Dataset.from_name(primary_dataset_name)
         reference_dataset = (
             Dataset.from_name(reference_dataset_name)
             if reference_dataset_name is not None
             else None
         )
+        corpus_dataset = (
+            None if corpus_dataset_name is None else Dataset.from_name(corpus_dataset_name)
+        )
     else:
         fixture_name = args.fixture
         primary_only = args.primary_only
-        primary_dataset, reference_dataset = get_datasets(
+        primary_dataset, reference_dataset, corpus_dataset = get_datasets(
             fixture_name,
             args.no_internet,
         )
@@ -86,6 +91,7 @@ if __name__ == "__main__":
     app = create_app(
         export_path=export_path,
         model=model,
+        corpus=None if corpus_dataset is None else create_model_from_datasets(corpus_dataset),
         debug=args.debug,
     )
 

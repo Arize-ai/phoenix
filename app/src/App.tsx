@@ -35,6 +35,11 @@ const RootQuery = graphql`
         startTime
         endTime
       }
+      corpusDataset {
+        name
+        startTime
+        endTime
+      }
     }
   }
 `;
@@ -45,7 +50,7 @@ type AppProps = {
 
 function App(props: AppProps) {
   const {
-    model: { primaryDataset, referenceDataset },
+    model: { primaryDataset, referenceDataset, corpusDataset },
   } = usePreloadedQuery(RootQuery, props.preloadedQuery);
 
   return (
@@ -53,6 +58,7 @@ function App(props: AppProps) {
       <DatasetsProvider
         primaryDataset={primaryDataset}
         referenceDataset={referenceDataset ?? null}
+        corpusDataset={corpusDataset ?? null}
       >
         <TimeRangeProvider
           timeRangeBounds={{

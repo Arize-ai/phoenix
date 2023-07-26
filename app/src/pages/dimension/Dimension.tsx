@@ -61,6 +61,7 @@ export function Dimension() {
       }
     `,
     {
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       dimensionId: dimensionId!,
       timeRange: {
         start: timeRange.start.toISOString(),

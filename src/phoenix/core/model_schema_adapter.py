@@ -1,6 +1,6 @@
 from itertools import chain
 from operator import itemgetter
-from typing import Dict, Iterable, List, Optional, Sized, Tuple
+from typing import Dict, Iterable, List, Optional, Sized, Tuple, Union
 
 import pandas as pd
 from pandas.api.types import is_object_dtype
@@ -8,7 +8,8 @@ from typing_extensions import TypeAlias, TypeGuard
 
 from phoenix import Dataset, EmbeddingColumnNames
 from phoenix.core.model import _get_embedding_dimensions
-from phoenix.core.model_schema import Embedding, Model, Schema
+from phoenix.core.model_schema import Embedding, Model, RetrievalEmbedding, Schema
+from phoenix.datasets.schema import RetrievalEmbeddingColumnNames
 from phoenix.datasets.schema import Schema as DatasetSchema
 
 DatasetName: TypeAlias = str
@@ -34,7 +35,7 @@ def create_model_from_datasets(*datasets: Optional[Dataset]) -> Model:
     tags: List[ColumnName] = []
     embeddings: Dict[DisplayName, EmbeddingColumnNames] = {}
     prompts: List[EmbeddingColumnNames] = []
-    responses: List[EmbeddingColumnNames] = []
+    responses: List[Union[str, EmbeddingColumnNames]] = []
 
     for dataset in filter(_is_dataset, datasets):
         df = dataset.dataframe
@@ -122,8 +123,8 @@ def create_model_from_datasets(*datasets: Optional[Dataset]) -> Model:
                 *map(itemgetter(1), named_dataframes),
             )
         ),
-        prompt=next(map(_translate_embedding, prompts), None),
-        response=next(map(_translate_embedding, responses), None),
+        prompt=next(map(_translate_prompt_embedding, prompts), None),
+        response=next(map(_translate_response_embedding, responses), None),
     )(
         *named_dataframes,
         timestamps_already_normalized=True,
@@ -149,6 +150,33 @@ def _translate_embedding(
         raw_data=embedding.raw_data_column_name,
         link_to_data=embedding.link_to_data_column_name,
         display_name=display_name,
+    )
+
+
+def _translate_response_embedding(
+    embedding: Union[str, EmbeddingColumnNames],
+    display_name: Optional[str] = None,
+) -> Union[str, Embedding]:
+    if isinstance(embedding, EmbeddingColumnNames):
+        return _translate_embedding(embedding, display_name)
+    return embedding
+
+
+def _translate_prompt_embedding(
+    embedding: Union[EmbeddingColumnNames, RetrievalEmbeddingColumnNames],
+    display_name: Optional[str] = None,
+) -> RetrievalEmbedding:
+    return RetrievalEmbedding(
+        vector=embedding.vector_column_name,
+        raw_data=embedding.raw_data_column_name,
+        link_to_data=embedding.link_to_data_column_name,
+        display_name=display_name,
+        context_retrieval_ids=embedding.context_retrieval_ids_column_name
+        if isinstance(embedding, RetrievalEmbeddingColumnNames)
+        else None,
+        context_retrieval_scores=embedding.context_retrieval_scores_column_name
+        if isinstance(embedding, RetrievalEmbeddingColumnNames)
+        else None,
     )
 
 

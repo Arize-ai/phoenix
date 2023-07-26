@@ -60,8 +60,10 @@ import { useEmbeddingDimensionId } from "@phoenix/hooks";
 import {
   ClusterColorMode,
   DEFAULT_DRIFT_POINT_CLOUD_PROPS,
+  DEFAULT_RETRIEVAL_TROUBLESHOOTING_POINT_CLOUD_PROPS,
   DEFAULT_SINGLE_DATASET_POINT_CLOUD_PROPS,
   MetricDefinition,
+  PointCloudProps,
 } from "@phoenix/store";
 import { assertUnreachable } from "@phoenix/typeUtils";
 import { getMetricShortNameByMetricKey } from "@phoenix/utils/metricFormatUtils";
@@ -72,6 +74,7 @@ import {
   EmbeddingUMAPQuery$data,
 } from "./__generated__/EmbeddingUMAPQuery.graphql";
 import { ClusterSortPicker } from "./ClusterSortPicker";
+import { EmbeddingActionMenu } from "./EmbeddingActionMenu";
 import { MetricSelector } from "./MetricSelector";
 import { MetricTimeSeries } from "./MetricTimeSeries";
 import { PointSelectionPanelContent } from "./PointSelectionPanelContent";
@@ -160,10 +163,38 @@ const EmbeddingUMAPQuery = graphql`
               actualScore
             }
           }
+          corpusData {
+            id
+            eventId
+            coordinates {
+              __typename
+              ... on Point3D {
+                x
+                y
+                z
+              }
+              ... on Point2D {
+                x
+                y
+              }
+            }
+            embeddingMetadata {
+              linkToData
+              rawData
+            }
+            eventMetadata {
+              predictionId
+              predictionLabel
+              actualLabel
+              predictionScore
+              actualScore
+            }
+          }
           clusters {
             id
             eventIds
             driftRatio
+            primaryToCorpusRatio
             dataQualityMetric(
               metric: { columnName: $dataQualityMetricColumnName, metric: mean }
             ) @include(if: $fetchDataQualityMetric) {
@@ -176,6 +207,11 @@ const EmbeddingUMAPQuery = graphql`
               referenceValue
             }
           }
+          contextRetrievals {
+            queryId
+            documentId
+            relevance
+          }
         }
       }
     }
@@ -183,14 +219,19 @@ const EmbeddingUMAPQuery = graphql`
 `;
 
 export function Embedding() {
-  const { referenceDataset } = useDatasets();
+  const { referenceDataset, corpusDataset } = useDatasets();
   const { timeRange } = useTimeRange();
   // Initialize the store based on whether or not there is a reference dataset
-  const defaultPointCloudProps = useMemo(() => {
-    return referenceDataset != null
-      ? DEFAULT_DRIFT_POINT_CLOUD_PROPS
-      : DEFAULT_SINGLE_DATASET_POINT_CLOUD_PROPS;
-  }, [referenceDataset]);
+  const defaultPointCloudProps = useMemo<Partial<PointCloudProps>>(() => {
+    if (corpusDataset != null) {
+      // If there is a corpus dataset, then initialize the page with the retrieval troubleshooting settings
+      // TODO - this does make a bit of a leap of assumptions but is a short term solution in order to get the page working as intended
+      return DEFAULT_RETRIEVAL_TROUBLESHOOTING_POINT_CLOUD_PROPS;
+    } else if (referenceDataset != null) {
+      return DEFAULT_DRIFT_POINT_CLOUD_PROPS;
+    }
+    return DEFAULT_SINGLE_DATASET_POINT_CLOUD_PROPS;
+  }, [corpusDataset, referenceDataset]);
   return (
     <TimeSliceContextProvider initialTimestamp={timeRange.end}>
       <PointCloudProvider {...defaultPointCloudProps}>
@@ -287,15 +328,23 @@ function EmbeddingMain() {
       <PointCloudNotifications />
       <Toolbar
         extra={
-          <Switch
-            onChange={(isSelected) => {
-              setShowChart(isSelected);
-            }}
-            defaultSelected={true}
-            labelPlacement="start"
+          <Flex
+            direction="row"
+            justifyContent="center"
+            alignItems="center"
+            gap="size-100"
           >
-            Show Timeseries
-          </Switch>
+            <Switch
+              onChange={(isSelected) => {
+                setShowChart(isSelected);
+              }}
+              defaultSelected={true}
+              labelPlacement="start"
+            >
+              Show Timeseries
+            </Switch>
+            <EmbeddingActionMenu />
+          </Flex>
         }
       >
         <PrimaryDatasetTimeRange />
@@ -373,12 +422,22 @@ function PointCloudDisplay({
     () => data.embedding?.UMAPPoints?.referenceData ?? [],
     [data]
   );
+  const corpusSourceData = useMemo(
+    () => data.embedding?.UMAPPoints?.corpusData ?? [],
+    [data]
+  );
+
+  const contextRetrievals = useMemo(() => {
+    return data.embedding?.UMAPPoints?.contextRetrievals ?? [];
+  }, [data]);
 
   // Construct a map of point ids to their data
   const allSourceData = useMemo(() => {
-    const allData = referenceSourceData
-      ? [...sourceData, ...referenceSourceData]
-      : sourceData;
+    const allData = [
+      ...sourceData,
+      ...referenceSourceData,
+      ...corpusSourceData,
+    ];
 
     return allData.map((d) => ({
       ...d,
@@ -387,18 +446,26 @@ function PointCloudDisplay({
         id: d.eventId,
       },
     }));
-  }, [referenceSourceData, sourceData]);
+  }, [referenceSourceData, sourceData, corpusSourceData]);
 
   // Keep the data in the view in-sync with the data in the context
-  const setPointsAndClusters = usePointCloudContext(
-    (state) => state.setPointsAndClusters
-  );
+  const setInitialData = usePointCloudContext((state) => state.setInitialData);
   const setClusters = usePointCloudContext((state) => state.setClusters);
 
   useDeepCompareEffect(() => {
     const clusters = data.embedding?.UMAPPoints?.clusters || [];
-    setPointsAndClusters({ points: allSourceData, clusters });
-  }, [allSourceData, queryReference, setPointsAndClusters, setClusters]);
+    setInitialData({
+      points: allSourceData,
+      clusters,
+      retrievals: contextRetrievals,
+    });
+  }, [
+    allSourceData,
+    queryReference,
+    contextRetrievals,
+    setInitialData,
+    setClusters,
+  ]);
 
   return (
     <div
@@ -621,6 +688,7 @@ const ClustersPanelContents = React.memo(function ClustersPanelContents() {
                       numPoints={cluster.eventIds.length}
                       isSelected={selectedClusterId === cluster.id}
                       driftRatio={cluster.driftRatio}
+                      primaryToCorpusRatio={cluster.primaryToCorpusRatio}
                       primaryMetricValue={cluster.primaryMetricValue}
                       referenceMetricValue={cluster.referenceMetricValue}
                       metricName={getClusterMetricName(metric)}
@@ -657,15 +725,32 @@ const ClustersPanelContents = React.memo(function ClustersPanelContents() {
   );
 });
 
-function getClusterMetricName(metric: MetricDefinition) {
+function getClusterMetricName(metric: MetricDefinition): string {
   const { type: metricType, metric: metricEnum } = metric;
   switch (metricType) {
     case "dataQuality":
       return `${metric.dimension.name} avg`;
-    case "drift":
-      return "cluster drift";
+    case "drift": {
+      switch (metricEnum) {
+        case "euclideanDistance":
+          return "Cluster Drift";
+
+        default:
+          assertUnreachable(metricEnum);
+      }
+      break;
+    }
     case "performance":
       return getMetricShortNameByMetricKey(metricEnum);
+    case "retrieval": {
+      switch (metricEnum) {
+        case "queryDistance":
+          return "% Query";
+        default:
+          assertUnreachable(metricEnum);
+      }
+      break;
+    }
     default:
       assertUnreachable(metricType);
   }

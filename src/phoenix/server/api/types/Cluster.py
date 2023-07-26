@@ -5,11 +5,13 @@ import strawberry
 from strawberry import ID
 from strawberry.types import Info
 
-from phoenix.core.model_schema import PRIMARY, REFERENCE, DatasetRole, EventId
+from phoenix.core.model_schema import PRIMARY, REFERENCE
 from phoenix.server.api.context import Context
 from phoenix.server.api.input_types.DataQualityMetricInput import DataQualityMetricInput
 from phoenix.server.api.input_types.PerformanceMetricInput import PerformanceMetricInput
+from phoenix.server.api.types.DatasetRole import AncillaryDatasetRole, DatasetRole
 from phoenix.server.api.types.DatasetValues import DatasetValues
+from phoenix.server.api.types.Event import unpack_event_id
 
 
 @strawberry.type
@@ -20,13 +22,9 @@ class Cluster:
         description="The ID of the cluster",
     )
 
-    events: strawberry.Private[Set[EventId]]
-
-    @strawberry.field(
+    event_ids: List[ID] = strawberry.field(
         description="The event IDs of the points in the cluster",
-    )  # type: ignore
-    def event_ids(self) -> List[ID]:
-        return [ID(str(event)) for event in self.events]
+    )
 
     @strawberry.field(
         description="Ratio of primary points over reference points",
@@ -48,10 +46,42 @@ class Cluster:
         model = info.context.model
         if model[REFERENCE].empty:
             return None
+        count_by_role = Counter(unpack_event_id(event_id)[1] for event_id in self.event_ids)
+        primary_count = count_by_role[DatasetRole.primary]
+        reference_count = count_by_role[DatasetRole.reference]
         return (
             None
-            if not (cnt := Counter(e.dataset_id for e in self.events))
-            else (cnt[PRIMARY] - cnt[REFERENCE]) / (cnt[PRIMARY] + cnt[REFERENCE])
+            if not (denominator := (primary_count + reference_count))
+            else (primary_count - reference_count) / denominator
+        )
+
+    @strawberry.field(
+        description="Ratio of primary points over corpus points",
+    )  # type: ignore
+    def primary_to_corpus_ratio(
+        self,
+        info: Info[Context, None],
+    ) -> Optional[float]:
+        """
+        Calculates a score representing the balance of points between the
+        primary and the corpus datasets, and will be on a scale between 1
+        (all primary) and -1 (all corpus), with 0 being an even balance
+        between the two datasets.
+
+        Returns
+        -------
+        drift_ratio : Optional[float]
+        """
+        corpus = info.context.corpus
+        if corpus is None or corpus[PRIMARY].empty:
+            return None
+        count_by_role = Counter(unpack_event_id(event_id)[1] for event_id in self.event_ids)
+        primary_count = count_by_role[DatasetRole.primary]
+        corpus_count = count_by_role[AncillaryDatasetRole.corpus]
+        return (
+            None
+            if not (denominator := (primary_count + corpus_count))
+            else (primary_count - corpus_count) / denominator
         )
 
     @strawberry.field(
@@ -65,16 +95,18 @@ class Cluster:
     ) -> DatasetValues:
         model = info.context.model
         row_ids: Dict[DatasetRole, List[int]] = defaultdict(list)
-        for event in self.events:
-            row_ids[event.dataset_id].append(event.row_id)
+        for row_id, dataset_role in map(unpack_event_id, self.event_ids):
+            if not isinstance(dataset_role, DatasetRole):
+                continue
+            row_ids[dataset_role].append(row_id)
         return DatasetValues(
             primary_value=metric.metric_instance(
                 model[PRIMARY],
-                subset_rows=row_ids[PRIMARY],
+                subset_rows=row_ids[DatasetRole.primary],
             ),
             reference_value=metric.metric_instance(
                 model[REFERENCE],
-                subset_rows=row_ids[REFERENCE],
+                subset_rows=row_ids[DatasetRole.reference],
             ),
         )
 
@@ -89,23 +121,25 @@ class Cluster:
     ) -> DatasetValues:
         model = info.context.model
         row_ids: Dict[DatasetRole, List[int]] = defaultdict(list)
-        for event in self.events:
-            row_ids[event.dataset_id].append(event.row_id)
+        for row_id, dataset_role in map(unpack_event_id, self.event_ids):
+            if not isinstance(dataset_role, DatasetRole):
+                continue
+            row_ids[dataset_role].append(row_id)
         metric_instance = metric.metric_instance(model)
         return DatasetValues(
             primary_value=metric_instance(
                 model[PRIMARY],
-                subset_rows=row_ids[PRIMARY],
+                subset_rows=row_ids[DatasetRole.primary],
             ),
             reference_value=metric_instance(
                 model[REFERENCE],
-                subset_rows=row_ids[REFERENCE],
+                subset_rows=row_ids[DatasetRole.reference],
             ),
         )
 
 
 def to_gql_clusters(
-    clustered_events: Mapping[str, Set[EventId]],
+    clustered_events: Mapping[str, Set[ID]],
 ) -> List[Cluster]:
     """
     Converts a dictionary of event IDs to cluster IDs to a list of clusters
@@ -113,14 +147,14 @@ def to_gql_clusters(
 
     Parameters
     ----------
-    cluster_membership: Mapping[str, Set[EventId]]
+    clustered_events: Mapping[str, Set[ID]]
         A mapping of cluster ID to its set of event IDs
     """
 
     return [
         Cluster(
             id=ID(cluster_id),
-            events=events,
+            event_ids=list(event_ids),
         )
-        for cluster_id, events in clustered_events.items()
+        for cluster_id, event_ids in clustered_events.items()
     ]

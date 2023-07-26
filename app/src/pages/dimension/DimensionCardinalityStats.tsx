@@ -38,11 +38,7 @@ export function DimensionCardinalityStats(props: {
       </Text>
       <Text textSize="xlarge">{intFormatter(data.cardinality)}</Text>
       {data.referenceCardinality != null && (
-        <Text
-          textSize="medium"
-          color="designationPurple"
-          title="the reference cardinality"
-        >
+        <Text textSize="medium" color="designationPurple">
           {intFormatter(data.referenceCardinality)}
         </Text>
       )}

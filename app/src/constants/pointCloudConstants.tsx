@@ -58,6 +58,7 @@ export enum SelectionGridSize {
 export enum DatasetGroup {
   primary = "primary",
   reference = "reference",
+  corpus = "corpus",
 }
 
 export enum CorrectnessGroup {

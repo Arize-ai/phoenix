@@ -10,6 +10,7 @@ from phoenix.server.api.types.Cluster import Cluster
 from .EmbeddingMetadata import EmbeddingMetadata
 from .EventMetadata import EventMetadata
 from .node import GlobalID
+from .Retrieval import Retrieval
 
 
 @strawberry.type
@@ -59,3 +60,5 @@ class UMAPPoints:
     data: List[UMAPPoint]
     reference_data: List[UMAPPoint]
     clusters: List[Cluster]
+    corpus_data: List[UMAPPoint] = strawberry.field(default_factory=list)
+    context_retrievals: List[Retrieval] = strawberry.field(default_factory=list)
