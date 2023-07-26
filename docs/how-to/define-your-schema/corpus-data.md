@@ -16,8 +16,8 @@ Below is an example dataframe containing wikipedia articles along with its embed
 
 Below is an appropriate schema for the dataframe above. It specifies the `id` column and that  `embedding` belongs to `text`. Other columns, if exist, will be detected automatically, and need not be specified by the schema.
 
-```
-schema = px.Schema(
+```python
+corpus_schema = px.Schema(
     id_column_name="id",
     document_column_names=EmbeddingColumnNames(
         vector_column_name="embedding",
@@ -36,8 +36,8 @@ corpus_dataset = px.Dataset(corpus_dataframe, corpus_schema)
 
 ## Application
 
-The application launcher has a `corpus=` parameter.
+The [application](../manage-the-app.md#launch-the-app) launcher has a `corpus=` parameter.
 
-```
+```python
 session = px.launch_app(production_dataset, corpus=corpus_dataset)
 ```
