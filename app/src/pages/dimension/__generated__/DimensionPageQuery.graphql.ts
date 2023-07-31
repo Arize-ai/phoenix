@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<ab683213cc122d03b5533d576e6a56c6>>
+ * @generated SignedSource<<629874fab12c4ab50d151e5c03f57ec4>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -14,20 +14,20 @@ export type TimeRange = {
   end: string;
   start: string;
 };
-export type DimensionQuery$variables = {
+export type DimensionPageQuery$variables = {
   dimensionId: string;
   hasReference: boolean;
   timeRange: TimeRange;
 };
-export type DimensionQuery$data = {
+export type DimensionPageQuery$data = {
   readonly dimension: {
     readonly id?: string;
     readonly " $fragmentSpreads": FragmentRefs<"DimensionCardinalityStats_dimension" | "DimensionCountStats_dimension" | "DimensionDriftStats_dimension" | "DimensionPercentEmptyStats_dimension" | "DimensionQuantilesStats_dimension" | "DimensionSegmentsBarChart_dimension">;
   };
 };
-export type DimensionQuery = {
-  response: DimensionQuery$data;
-  variables: DimensionQuery$variables;
+export type DimensionPageQuery = {
+  response: DimensionPageQuery$data;
+  variables: DimensionPageQuery$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -116,7 +116,7 @@ return {
     ],
     "kind": "Fragment",
     "metadata": null,
-    "name": "DimensionQuery",
+    "name": "DimensionPageQuery",
     "selections": [
       {
         "alias": "dimension",
@@ -179,7 +179,7 @@ return {
       (v1/*: any*/)
     ],
     "kind": "Operation",
-    "name": "DimensionQuery",
+    "name": "DimensionPageQuery",
     "selections": [
       {
         "alias": "dimension",
@@ -459,16 +459,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "40d5d2e77203169a9484786fb30a531a",
+    "cacheID": "9c8cfb791dbd8ff321722f2864db30e9",
     "id": null,
     "metadata": {},
-    "name": "DimensionQuery",
+    "name": "DimensionPageQuery",
     "operationKind": "query",
-    "text": "query DimensionQuery(\n  $dimensionId: GlobalID!\n  $timeRange: TimeRange!\n  $hasReference: Boolean!\n) {\n  dimension: node(id: $dimensionId) {\n    __typename\n    ... on Dimension {\n      id\n      ...DimensionSegmentsBarChart_dimension_3E0ZE6\n      ...DimensionCountStats_dimension_3E0ZE6\n      ...DimensionDriftStats_dimension_3E0ZE6\n      ...DimensionCardinalityStats_dimension_1JBzL3\n      ...DimensionPercentEmptyStats_dimension_1JBzL3\n      ...DimensionQuantilesStats_dimension_3E0ZE6\n    }\n    __isNode: __typename\n    id\n  }\n}\n\nfragment DimensionCardinalityStats_dimension_1JBzL3 on Dimension {\n  id\n  cardinality: dataQualityMetric(metric: cardinality, timeRange: $timeRange)\n  referenceCardinality: dataQualityMetric(metric: cardinality, datasetRole: reference) @include(if: $hasReference)\n}\n\nfragment DimensionCountStats_dimension_3E0ZE6 on Dimension {\n  id\n  count: dataQualityMetric(metric: count, timeRange: $timeRange)\n}\n\nfragment DimensionDriftStats_dimension_3E0ZE6 on Dimension {\n  id\n  psi: driftMetric(metric: psi, timeRange: $timeRange)\n}\n\nfragment DimensionPercentEmptyStats_dimension_1JBzL3 on Dimension {\n  id\n  percentEmpty: dataQualityMetric(metric: percentEmpty, timeRange: $timeRange)\n  referencePercentEmpty: dataQualityMetric(metric: percentEmpty, datasetRole: reference) @include(if: $hasReference)\n}\n\nfragment DimensionQuantilesStats_dimension_3E0ZE6 on Dimension {\n  p99: dataQualityMetric(metric: p99, timeRange: $timeRange)\n  p75: dataQualityMetric(metric: p75, timeRange: $timeRange)\n  p50: dataQualityMetric(metric: p50, timeRange: $timeRange)\n  p25: dataQualityMetric(metric: p25, timeRange: $timeRange)\n  p1: dataQualityMetric(metric: p01, timeRange: $timeRange)\n}\n\nfragment DimensionSegmentsBarChart_dimension_3E0ZE6 on Dimension {\n  id\n  segmentsComparison(primaryTimeRange: $timeRange) {\n    segments {\n      bin {\n        __typename\n        ... on NominalBin {\n          __typename\n          name\n        }\n        ... on IntervalBin {\n          __typename\n          range {\n            start\n            end\n          }\n        }\n        ... on MissingValueBin {\n          __typename\n        }\n      }\n      counts {\n        primaryValue\n      }\n    }\n    totalCounts {\n      primaryValue\n    }\n  }\n}\n"
+    "text": "query DimensionPageQuery(\n  $dimensionId: GlobalID!\n  $timeRange: TimeRange!\n  $hasReference: Boolean!\n) {\n  dimension: node(id: $dimensionId) {\n    __typename\n    ... on Dimension {\n      id\n      ...DimensionSegmentsBarChart_dimension_3E0ZE6\n      ...DimensionCountStats_dimension_3E0ZE6\n      ...DimensionDriftStats_dimension_3E0ZE6\n      ...DimensionCardinalityStats_dimension_1JBzL3\n      ...DimensionPercentEmptyStats_dimension_1JBzL3\n      ...DimensionQuantilesStats_dimension_3E0ZE6\n    }\n    __isNode: __typename\n    id\n  }\n}\n\nfragment DimensionCardinalityStats_dimension_1JBzL3 on Dimension {\n  id\n  cardinality: dataQualityMetric(metric: cardinality, timeRange: $timeRange)\n  referenceCardinality: dataQualityMetric(metric: cardinality, datasetRole: reference) @include(if: $hasReference)\n}\n\nfragment DimensionCountStats_dimension_3E0ZE6 on Dimension {\n  id\n  count: dataQualityMetric(metric: count, timeRange: $timeRange)\n}\n\nfragment DimensionDriftStats_dimension_3E0ZE6 on Dimension {\n  id\n  psi: driftMetric(metric: psi, timeRange: $timeRange)\n}\n\nfragment DimensionPercentEmptyStats_dimension_1JBzL3 on Dimension {\n  id\n  percentEmpty: dataQualityMetric(metric: percentEmpty, timeRange: $timeRange)\n  referencePercentEmpty: dataQualityMetric(metric: percentEmpty, datasetRole: reference) @include(if: $hasReference)\n}\n\nfragment DimensionQuantilesStats_dimension_3E0ZE6 on Dimension {\n  p99: dataQualityMetric(metric: p99, timeRange: $timeRange)\n  p75: dataQualityMetric(metric: p75, timeRange: $timeRange)\n  p50: dataQualityMetric(metric: p50, timeRange: $timeRange)\n  p25: dataQualityMetric(metric: p25, timeRange: $timeRange)\n  p1: dataQualityMetric(metric: p01, timeRange: $timeRange)\n}\n\nfragment DimensionSegmentsBarChart_dimension_3E0ZE6 on Dimension {\n  id\n  segmentsComparison(primaryTimeRange: $timeRange) {\n    segments {\n      bin {\n        __typename\n        ... on NominalBin {\n          __typename\n          name\n        }\n        ... on IntervalBin {\n          __typename\n          range {\n            start\n            end\n          }\n        }\n        ... on MissingValueBin {\n          __typename\n        }\n      }\n      counts {\n        primaryValue\n      }\n    }\n    totalCounts {\n      primaryValue\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "bc542618324720802447d15913a2b288";
+(node as any).hash = "d194bfd656408e8ba7cb427ddc80fc85";
 
 export default node;

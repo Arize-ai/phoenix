@@ -22,16 +22,16 @@ import {
 } from "@phoenix/components/model";
 import { useDatasets, useTimeRange } from "@phoenix/contexts";
 
-import { HomeQuery } from "./__generated__/HomeQuery.graphql";
+import { ModelPageQuery } from "./__generated__/ModelPageQuery.graphql";
 
-type HomePageProps = Readonly<object>;
+type ModelPageProps = Readonly<object>;
 
-export function Home(_props: HomePageProps) {
+export function ModelPage(_props: ModelPageProps) {
   const { referenceDataset } = useDatasets();
   const { timeRange } = useTimeRange();
-  const data = useLazyLoadQuery<HomeQuery>(
+  const data = useLazyLoadQuery<ModelPageQuery>(
     graphql`
-      query HomeQuery($startTime: DateTime!, $endTime: DateTime!) {
+      query ModelPageQuery($startTime: DateTime!, $endTime: DateTime!) {
         ...ModelSchemaTable_dimensions
           @arguments(startTime: $startTime, endTime: $endTime)
         ...ModelEmbeddingsTable_embeddingDimensions
