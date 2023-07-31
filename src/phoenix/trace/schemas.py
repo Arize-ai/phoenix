@@ -28,7 +28,7 @@ class SpanKind(Enum):
 
 SpanID = UUID
 AttributePrimitiveValue = Union[str, bool, float, int]
-AttributeValue = Union[AttributePrimitiveValue, list[AttributePrimitiveValue]]
+AttributeValue = Union[AttributePrimitiveValue, List[AttributePrimitiveValue]]
 
 
 @dataclass(frozen=True)

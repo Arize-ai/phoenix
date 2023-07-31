@@ -22,7 +22,7 @@ class AttributeGroup:
     """
 
     id: str
-    attributes: dict[str, AttributeDescription]
+    attributes: Dict[str, AttributeDescription]
 
 
 class DeploymentAttributes(AttributeGroup):
