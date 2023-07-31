@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 from uuid import UUID
 
 
@@ -121,7 +121,7 @@ class Span:
     OpenTelemetry Inspiration:
     https://opentelemetry.io/docs/concepts/signals/traces/#span-events
     """
-    events: list[SpanEvent]
+    events: List[SpanEvent]
 
     """
     An extension of the OpenTelemetry Span interface to include the
