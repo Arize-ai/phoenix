@@ -32,8 +32,8 @@ import { CanvasMode } from "@phoenix/store";
 import { splitEventIdsByDataset } from "@phoenix/utils/pointCloudUtils";
 import { fullTimeFormatter } from "@phoenix/utils/timeFormatUtils";
 
+import { CanvasDisplaySettingsDropdown } from "./CanvasDisplaySettingsDropdown";
 import { CanvasModeRadioGroup } from "./CanvasModeRadioGroup";
-import { CanvasThemeToggle } from "./CanvasThemeToggle";
 import { PointCloudClusters } from "./PointCloudClusters";
 import { PointCloudPointHoverHalo } from "./PointCloudPointHoverHalo";
 import { PointCloudPointRelationships } from "./PointCloudPointRelationships";
@@ -170,7 +170,8 @@ function CanvasTools() {
       `}
     >
       <CanvasModeRadioGroup mode={canvasMode} onChange={setCanvasMode} />
-      <CanvasThemeToggle />
+      <CanvasDisplaySettingsDropdown />
+      <CanvasInfo />
     </div>
   );
 }
@@ -180,29 +181,17 @@ function CanvasTools() {
  */
 function CanvasInfo() {
   return (
-    <div
-      css={css`
-        position: absolute;
-        right: var(--px-spacing-med);
-        top: var(--px-spacing-med);
-        display: flex;
-        flex-direction: row;
-        align-items: center;
-        gap: var(--px-spacing-med);
-      `}
-    >
-      <TooltipTrigger placement="left top" delay={0}>
-        <Button
-          variant="default"
-          size="compact"
-          icon={<Icon svg={<InfoOutline />} />}
-          aria-label="Information bout the point-cloud display"
-        />
-        <ActionTooltip title={"Point Cloud Summary"}>
-          <PointCloudInfo />
-        </ActionTooltip>
-      </TooltipTrigger>
-    </div>
+    <TooltipTrigger placement="bottom left" delay={0}>
+      <Button
+        variant="default"
+        size="compact"
+        icon={<Icon svg={<InfoOutline />} />}
+        aria-label="Information bout the point-cloud display"
+      />
+      <ActionTooltip title={"Point Cloud Summary"}>
+        <PointCloudInfo />
+      </ActionTooltip>
+    </TooltipTrigger>
   );
 }
 
@@ -236,7 +225,6 @@ export function PointCloud() {
     <CanvasWrap>
       <CanvasTools key="canvas-tools" />
       <Projection key="projection" />
-      <CanvasInfo key="canvas-info" />
     </CanvasWrap>
   );
 }

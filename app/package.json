@@ -6,8 +6,8 @@
   "license": "None",
   "private": true,
   "dependencies": {
-    "@arizeai/components": "^0.13.1-0",
-    "@arizeai/point-cloud": "^3.0.2",
+    "@arizeai/components": "^0.13.1-2",
+    "@arizeai/point-cloud": "^3.0.3-0",
     "@react-three/drei": "9.5.7",
     "@react-three/fiber": "8.0.12",
     "d3-format": "^3.1.0",
