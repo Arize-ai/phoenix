@@ -51,6 +51,9 @@ dev = [
   "pre-commit",
   "arize[AutoEmbeddings, LLM_Evaluation]",
 ]
+experimental = [
+  "openai",
+]
 
 [project.urls]
 Documentation = "https://docs.arize.com/phoenix/"
