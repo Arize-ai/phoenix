@@ -145,6 +145,10 @@ For each [embedding](phoenix-basics.md#embeddings) described in the dataset(s) [
 
 The picture below shows a time series graph of the drift between two groups of vectors –- the primary (typically production) vectors and reference / baseline vectors. Phoenix uses euclidean distance as the primary measure of embedding drift and helps us identify times where your dataset is diverging from a given reference baseline.&#x20;
 
+{% hint style="info" %}
+Note that when you are troubleshooting search and retrieval using a [corpus](../how-to/define-your-schema/corpus-data.md) dataset, the euclidean distance of your queries to your knowledge base vectors is presented as **query distance**&#x20;
+{% endhint %}
+
 <figure><img src="https://storage.googleapis.com/arize-assets/phoenix/assets/images/euclidean_distance_timeseries_graph.png" alt="Euclidean distance over time graph"><figcaption><p>Euclidean distance over time</p></figcaption></figure>
 
 Moments of high euclidean distance is an indication that the primary dataset is starting to drift from the reference dataset. As the primary dataset moves further away from the reference (both in angle and in magnitude), the euclidean distance increases as well. For this reason times of high euclidean distance are a good starting point for trying to identify new anomalies and areas of drift.
