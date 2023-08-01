@@ -1,2 +1,2 @@
-export * from "./Dimension";
+export * from "./DimensionPage";
 export * from "./dimensionLoader";

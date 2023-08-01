@@ -1,8 +1,8 @@
-import { EmbeddingUMAPQuery$data } from "./__generated__/EmbeddingUMAPQuery.graphql";
+import { EmbeddingPageUMAPQuery$data } from "./__generated__/EmbeddingPageUMAPQuery.graphql";
 import { PointSelectionPanelContentQuery$data } from "./__generated__/PointSelectionPanelContentQuery.graphql";
 
 export type UMAPPointsEntry = NonNullable<
-  EmbeddingUMAPQuery$data["embedding"]["UMAPPoints"]
+  EmbeddingPageUMAPQuery$data["embedding"]["UMAPPoints"]
 >["data"][number];
 
 /**

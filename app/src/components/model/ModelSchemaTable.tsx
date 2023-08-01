@@ -88,7 +88,7 @@ export function ModelSchemaTable(props: ModelSchemaTableProps) {
         accessor: "name",
         Cell: (props: CellProps<(typeof tableData)[number]>) => {
           return (
-            <Link to={`/dimensions/${props.row.original.id}`}>
+            <Link to={`dimensions/${props.row.original.id}`}>
               {props.value}
             </Link>
           );

@@ -1,2 +1,2 @@
-export * from "./Embedding";
+export * from "./EmbeddingPage";
 export * from "./embeddingLoader";
