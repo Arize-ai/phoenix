@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<7823b4d24614075846f36a3974064f5e>>
+ * @generated SignedSource<<4a8bd4197880c4cc52531fc9bde7c3a5>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,15 +10,15 @@
 
 import { ConcreteRequest, Query } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
-export type EmbeddingModelQuery$variables = {};
-export type EmbeddingModelQuery$data = {
+export type EmbeddingPageModelQuery$variables = {};
+export type EmbeddingPageModelQuery$data = {
   readonly model: {
     readonly " $fragmentSpreads": FragmentRefs<"MetricSelector_dimensions">;
   };
 };
-export type EmbeddingModelQuery = {
-  response: EmbeddingModelQuery$data;
-  variables: EmbeddingModelQuery$variables;
+export type EmbeddingPageModelQuery = {
+  response: EmbeddingPageModelQuery$data;
+  variables: EmbeddingPageModelQuery$variables;
 };
 
 const node: ConcreteRequest = {
@@ -26,7 +26,7 @@ const node: ConcreteRequest = {
     "argumentDefinitions": [],
     "kind": "Fragment",
     "metadata": null,
-    "name": "EmbeddingModelQuery",
+    "name": "EmbeddingPageModelQuery",
     "selections": [
       {
         "alias": null,
@@ -52,7 +52,7 @@ const node: ConcreteRequest = {
   "operation": {
     "argumentDefinitions": [],
     "kind": "Operation",
-    "name": "EmbeddingModelQuery",
+    "name": "EmbeddingPageModelQuery",
     "selections": [
       {
         "alias": null,
@@ -132,15 +132,15 @@ const node: ConcreteRequest = {
     ]
   },
   "params": {
-    "cacheID": "05023ec3c1147ff161733abb93ec920c",
+    "cacheID": "4ccf476dd862525b059197daccd0d4d9",
     "id": null,
     "metadata": {},
-    "name": "EmbeddingModelQuery",
+    "name": "EmbeddingPageModelQuery",
     "operationKind": "query",
-    "text": "query EmbeddingModelQuery {\n  model {\n    ...MetricSelector_dimensions\n  }\n}\n\nfragment MetricSelector_dimensions on Model {\n  numericDimensions: dimensions(include: {dataTypes: [numeric]}) {\n    edges {\n      node {\n        id\n        name\n        type\n      }\n    }\n  }\n}\n"
+    "text": "query EmbeddingPageModelQuery {\n  model {\n    ...MetricSelector_dimensions\n  }\n}\n\nfragment MetricSelector_dimensions on Model {\n  numericDimensions: dimensions(include: {dataTypes: [numeric]}) {\n    edges {\n      node {\n        id\n        name\n        type\n      }\n    }\n  }\n}\n"
   }
 };
 
-(node as any).hash = "3134ffb4584e7b36c503ed5b6bf5e817";
+(node as any).hash = "374499f7f8ce6919e4a0a4ecbe380c52";
 
 export default node;

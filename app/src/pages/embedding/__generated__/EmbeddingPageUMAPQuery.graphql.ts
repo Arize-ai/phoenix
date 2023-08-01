@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<82b459c7fbab9cd9838c7f1125866dac>>
+ * @generated SignedSource<<1eb5a6b7613dcd11f94a7c41457061e3>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -14,7 +14,7 @@ export type TimeRange = {
   end: string;
   start: string;
 };
-export type EmbeddingUMAPQuery$variables = {
+export type EmbeddingPageUMAPQuery$variables = {
   clusterMinSamples: number;
   clusterSelectionEpsilon: number;
   dataQualityMetricColumnName?: string | null;
@@ -28,7 +28,7 @@ export type EmbeddingUMAPQuery$variables = {
   performanceMetric: PerformanceMetric;
   timeRange: TimeRange;
 };
-export type EmbeddingUMAPQuery$data = {
+export type EmbeddingPageUMAPQuery$data = {
   readonly embedding: {
     readonly UMAPPoints?: {
       readonly clusters: ReadonlyArray<{
@@ -140,9 +140,9 @@ export type EmbeddingUMAPQuery$data = {
     };
   };
 };
-export type EmbeddingUMAPQuery = {
-  response: EmbeddingUMAPQuery$data;
-  variables: EmbeddingUMAPQuery$variables;
+export type EmbeddingPageUMAPQuery = {
+  response: EmbeddingPageUMAPQuery$data;
+  variables: EmbeddingPageUMAPQuery$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -605,7 +605,7 @@ return {
     ],
     "kind": "Fragment",
     "metadata": null,
-    "name": "EmbeddingUMAPQuery",
+    "name": "EmbeddingPageUMAPQuery",
     "selections": [
       {
         "alias": "embedding",
@@ -640,7 +640,7 @@ return {
       (v10/*: any*/)
     ],
     "kind": "Operation",
-    "name": "EmbeddingUMAPQuery",
+    "name": "EmbeddingPageUMAPQuery",
     "selections": [
       {
         "alias": "embedding",
@@ -663,16 +663,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "88dc5478ae248f2e863fd779a080f725",
+    "cacheID": "d30210c52f86b9d9a7ac958f866aa93e",
     "id": null,
     "metadata": {},
-    "name": "EmbeddingUMAPQuery",
+    "name": "EmbeddingPageUMAPQuery",
     "operationKind": "query",
-    "text": "query EmbeddingUMAPQuery(\n  $id: GlobalID!\n  $timeRange: TimeRange!\n  $minDist: Float!\n  $nNeighbors: Int!\n  $nSamples: Int!\n  $minClusterSize: Int!\n  $clusterMinSamples: Int!\n  $clusterSelectionEpsilon: Float!\n  $fetchDataQualityMetric: Boolean!\n  $dataQualityMetricColumnName: String\n  $fetchPerformanceMetric: Boolean!\n  $performanceMetric: PerformanceMetric!\n) {\n  embedding: node(id: $id) {\n    __typename\n    ... on EmbeddingDimension {\n      UMAPPoints(timeRange: $timeRange, minDist: $minDist, nNeighbors: $nNeighbors, nSamples: $nSamples, minClusterSize: $minClusterSize, clusterMinSamples: $clusterMinSamples, clusterSelectionEpsilon: $clusterSelectionEpsilon) {\n        data {\n          id\n          eventId\n          coordinates {\n            __typename\n            ... on Point3D {\n              x\n              y\n              z\n            }\n            ... on Point2D {\n              x\n              y\n            }\n          }\n          embeddingMetadata {\n            linkToData\n            rawData\n          }\n          eventMetadata {\n            predictionId\n            predictionLabel\n            actualLabel\n            predictionScore\n            actualScore\n          }\n        }\n        referenceData {\n          id\n          eventId\n          coordinates {\n            __typename\n            ... on Point3D {\n              x\n              y\n              z\n            }\n            ... on Point2D {\n              x\n              y\n            }\n          }\n          embeddingMetadata {\n            linkToData\n            rawData\n          }\n          eventMetadata {\n            predictionId\n            predictionLabel\n            actualLabel\n            predictionScore\n            actualScore\n          }\n        }\n        corpusData {\n          id\n          eventId\n          coordinates {\n            __typename\n            ... on Point3D {\n              x\n              y\n              z\n            }\n            ... on Point2D {\n              x\n              y\n            }\n          }\n          embeddingMetadata {\n            linkToData\n            rawData\n          }\n          eventMetadata {\n            predictionId\n            predictionLabel\n            actualLabel\n            predictionScore\n            actualScore\n          }\n        }\n        clusters {\n          id\n          eventIds\n          driftRatio\n          primaryToCorpusRatio\n          dataQualityMetric(metric: {columnName: $dataQualityMetricColumnName, metric: mean}) @include(if: $fetchDataQualityMetric) {\n            primaryValue\n            referenceValue\n          }\n          performanceMetric(metric: {metric: $performanceMetric}) @include(if: $fetchPerformanceMetric) {\n            primaryValue\n            referenceValue\n          }\n        }\n        contextRetrievals {\n          queryId\n          documentId\n          relevance\n        }\n      }\n    }\n    __isNode: __typename\n    id\n  }\n}\n"
+    "text": "query EmbeddingPageUMAPQuery(\n  $id: GlobalID!\n  $timeRange: TimeRange!\n  $minDist: Float!\n  $nNeighbors: Int!\n  $nSamples: Int!\n  $minClusterSize: Int!\n  $clusterMinSamples: Int!\n  $clusterSelectionEpsilon: Float!\n  $fetchDataQualityMetric: Boolean!\n  $dataQualityMetricColumnName: String\n  $fetchPerformanceMetric: Boolean!\n  $performanceMetric: PerformanceMetric!\n) {\n  embedding: node(id: $id) {\n    __typename\n    ... on EmbeddingDimension {\n      UMAPPoints(timeRange: $timeRange, minDist: $minDist, nNeighbors: $nNeighbors, nSamples: $nSamples, minClusterSize: $minClusterSize, clusterMinSamples: $clusterMinSamples, clusterSelectionEpsilon: $clusterSelectionEpsilon) {\n        data {\n          id\n          eventId\n          coordinates {\n            __typename\n            ... on Point3D {\n              x\n              y\n              z\n            }\n            ... on Point2D {\n              x\n              y\n            }\n          }\n          embeddingMetadata {\n            linkToData\n            rawData\n          }\n          eventMetadata {\n            predictionId\n            predictionLabel\n            actualLabel\n            predictionScore\n            actualScore\n          }\n        }\n        referenceData {\n          id\n          eventId\n          coordinates {\n            __typename\n            ... on Point3D {\n              x\n              y\n              z\n            }\n            ... on Point2D {\n              x\n              y\n            }\n          }\n          embeddingMetadata {\n            linkToData\n            rawData\n          }\n          eventMetadata {\n            predictionId\n            predictionLabel\n            actualLabel\n            predictionScore\n            actualScore\n          }\n        }\n        corpusData {\n          id\n          eventId\n          coordinates {\n            __typename\n            ... on Point3D {\n              x\n              y\n              z\n            }\n            ... on Point2D {\n              x\n              y\n            }\n          }\n          embeddingMetadata {\n            linkToData\n            rawData\n          }\n          eventMetadata {\n            predictionId\n            predictionLabel\n            actualLabel\n            predictionScore\n            actualScore\n          }\n        }\n        clusters {\n          id\n          eventIds\n          driftRatio\n          primaryToCorpusRatio\n          dataQualityMetric(metric: {columnName: $dataQualityMetricColumnName, metric: mean}) @include(if: $fetchDataQualityMetric) {\n            primaryValue\n            referenceValue\n          }\n          performanceMetric(metric: {metric: $performanceMetric}) @include(if: $fetchPerformanceMetric) {\n            primaryValue\n            referenceValue\n          }\n        }\n        contextRetrievals {\n          queryId\n          documentId\n          relevance\n        }\n      }\n    }\n    __isNode: __typename\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "2e2ccd0cea43753749c8f4329b708d12";
+(node as any).hash = "f1ee7ce02317f1c3fe96b77af405095f";
 
 export default node;
