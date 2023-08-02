@@ -158,7 +158,6 @@ export function PointCloudPoints({
     debouncedSetHoveredEventId(null);
   }, [debouncedSetHoveredEventId]);
 
-  console.log(pointSizeScale);
   return (
     <>
       {datasetVisibility.primary ? (
