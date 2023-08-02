@@ -29,6 +29,7 @@ class SpanKind(Enum):
 SpanID = UUID
 AttributePrimitiveValue = Union[str, bool, float, int]
 AttributeValue = Union[AttributePrimitiveValue, List[AttributePrimitiveValue]]
+SpanAttributes = Dict[str, AttributeValue]
 
 
 @dataclass(frozen=True)
@@ -111,7 +112,7 @@ class Span:
     Inspiration from OpenTelemetry
     https://opentelemetry.io/docs/concepts/semantic-conventions/
     """
-    attributes: Dict[str, AttributeValue]
+    attributes: SpanAttributes
 
     """
     A Span Event can be thought of as a structured log message (or annotation)
