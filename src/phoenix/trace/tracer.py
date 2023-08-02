@@ -31,14 +31,21 @@ class Tracer:
         on_append: Optional[Callable[[List[Span]], None]] = None,
     ):
         """
-        Create a new Tracer. A Tracer's main purpose is to create spans.
-        Serialization should be handled by a separate component.
+        <<<<<<< HEAD
+                Create a new Tracer. A Tracer's main purpose is to create spans.
+                Serialization should be handled by a separate component.
 
-        Args:
-            on_append:
-                A callback function that will be called when a span is
-                created and appended to the buffer. This is useful for
-                serializing data to a file or sending it to a remote server.
+                Args:
+                    on_append:
+        =======
+                Create a new Tracer.
+
+                Args:
+                    callback:
+        >>>>>>> 718abc0 (add missing files)
+                        A callback function that will be called when a span is
+                        created and appended to the buffer. This is useful for
+                        serializing data to a file or sending it to a remote server.
         """
         self.span_buffer = []
         self.on_append = on_append
