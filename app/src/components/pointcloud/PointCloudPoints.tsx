@@ -87,6 +87,7 @@ export function PointCloudPoints({
   const setHoveredEventId = usePointCloudContext(
     (state) => state.setHoveredEventId
   );
+  const pointSizeScale = usePointCloudContext((state) => state.pointSizeScale);
 
   const debouncedSetHoveredEventId = useMemo(() => {
     return debounce(setHoveredEventId, DEBOUNCE_WAIT);
@@ -162,7 +163,7 @@ export function PointCloudPoints({
       {datasetVisibility.primary ? (
         <Points
           data={primaryData}
-          pointProps={{ color: colorByFn, radius }}
+          pointProps={{ color: colorByFn, radius, scale: pointSizeScale }}
           onPointClicked={onPointClicked}
           onPointHovered={onPointHovered}
           onPointerLeave={onPointerLeave}
@@ -175,6 +176,7 @@ export function PointCloudPoints({
             color: colorByFn,
             radius,
             size: radius ? radius * CUBE_RADIUS_MULTIPLIER : undefined,
+            scale: pointSizeScale,
           }}
           onPointHovered={onPointHovered}
           onPointerLeave={onPointerLeave}
@@ -189,6 +191,7 @@ export function PointCloudPoints({
             color: colorByFn,
             radius,
             size: radius ? radius * CUBE_RADIUS_MULTIPLIER : undefined,
+            scale: pointSizeScale,
           }}
           onPointHovered={onPointHovered}
           onPointerLeave={onPointerLeave}

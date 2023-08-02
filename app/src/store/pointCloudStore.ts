@@ -312,6 +312,11 @@ export interface PointCloudProps {
    */
   canvasTheme: CanvasTheme;
   /**
+   * The point size scale
+   * @default 1
+   */
+  pointSizeScale: number;
+  /**
    * the cluster color mode
    * @default "default"
    */
@@ -419,6 +424,11 @@ export interface PointCloudState extends PointCloudProps {
    * Set canvas theme to light or dark
    */
   setCanvasTheme: (theme: CanvasTheme) => void;
+  /**
+   * Set the point size scale
+   * @param {number} scale
+   */
+  setPointSizeScale: (scale: number) => void;
   /**
    * set the cluster color mode
    */
@@ -574,6 +584,7 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
     selectedClusterId: null,
     canvasMode: CanvasMode.move,
     canvasTheme: "dark",
+    pointSizeScale: 1,
     clusterColorMode: ClusterColorMode.default,
     coloringStrategy: ColoringStrategy.dataset,
     datasetVisibility: { primary: true, reference: true, corpus: true },
@@ -703,6 +714,7 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
     setSelectedClusterId: (id) =>
       set({ selectedClusterId: id, highlightedClusterId: null }),
     setCanvasTheme: (theme) => set({ canvasTheme: theme }),
+    setPointSizeScale: (scale) => set({ pointSizeScale: scale }),
     setCanvasMode: (mode) => set({ canvasMode: mode }),
     setClusterColorMode: (mode) => set({ clusterColorMode: mode }),
     setColoringStrategy: (strategy) => {
