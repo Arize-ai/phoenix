@@ -94,6 +94,8 @@ dependencies = [
   "pytest-cov",
   "pytest-lazy-fixture",
   "arize",
+  "openai",
+  "tenacity",
 ]
 
 [tool.hatch.envs.type]
@@ -102,6 +104,7 @@ dependencies = [
   "pandas-stubs",
   "pytest",
   "types-psutil",
+  "tenacity",
 ]
 
 [tool.hatch.envs.style]
@@ -245,6 +248,7 @@ module = [
   "arize.*",
   "portpicker",
   "wrapt",
+  "openai",
 ]
 ignore_missing_imports = true
 
