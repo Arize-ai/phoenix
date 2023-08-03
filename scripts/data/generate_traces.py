@@ -80,7 +80,7 @@ def generate_trace(num_spans: int) -> List[Span]:
 
 
 def generate_traces(
-    num_traces: int, min_trace_length: Optional[int], max_trace_length: Optional[int]
+    num_traces: int, min_trace_length: Optional[int] = None, max_trace_length: Optional[int] = None
 ) -> List[Span]:
     """
     Generate a flat list of Spans from i traces, where each trace contains a
