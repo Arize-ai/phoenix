@@ -53,6 +53,7 @@ dev = [
 ]
 experimental = [
   "openai",
+  "tenacity",
 ]
 
 [project.urls]
