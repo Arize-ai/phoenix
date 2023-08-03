@@ -103,6 +103,11 @@ def generate_traces(
         for _ in range(num_traces)
     ]
     return list(itertools.chain.from_iterable(traces))
+    return [
+        span
+        for _ in range(num_traces)
+        for span in (generate_trace(random.randint(min_trace_length, max_trace_length)))
+    ]
 
 
 def main() -> None:
