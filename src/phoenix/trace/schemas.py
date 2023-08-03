@@ -11,6 +11,7 @@ class SpanStatusCode(Enum):
     ERROR = "ERROR"
 
 
+@dataclass(frozen=True)
 class SpanKind(Enum):
     """
     SpanKind is loosely inspired by OpenTelemetry's SpanKind
@@ -40,6 +41,7 @@ class SpanContext:
     span_id: SpanID
 
 
+@dataclass(frozen=True)
 class SpanConversationAttributes:
     conversation_id: UUID
 
