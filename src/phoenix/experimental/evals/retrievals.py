@@ -2,7 +2,7 @@
 Helper functions for evaluating the retrieval step of retrieval-augmented generation.
 """
 
-from typing import List, Optional, Tuple
+from typing import List, Optional
 
 import openai
 from tenacity import (
@@ -24,46 +24,6 @@ _QUERY_CONTEXT_PROMPT_TEMPLATE = """# Query: {query}
 # Reference: {reference}
 
 # Answer ("relevant" or "irrelevant"): """
-
-
-RelevanceClassificationsColumn = List[List[Optional[float]]]
-PrecisionsAtKColumn = List[List[Optional[bool]]]
-
-
-def compute_precisions_at_k_and_relevance_classifications(
-    query_texts: List[str],
-    list_of_retrieved_document_texts: List[List[str]],
-    model_name: str = "gpt-4",
-) -> Tuple[RelevanceClassificationsColumn, PrecisionsAtKColumn]:
-    """Computes precision@k and relevance classifications for a list of queries and corresponding
-    retrieved documents.
-
-    Args:
-        query_texts (List[str]): A list of query texts.
-
-        list_of_retrieved_document_texts (List[List[str]]): A list of lists of retrieved documents.
-            The list must have the same length as query_texts. Each sub-list may have a different
-            length.
-
-    Returns:
-        Tuple[RelevanceClassificationsColumn, PrecisionsAtKColumn]: The relevance classifications
-            and precision@k values, returned as a pair of lists of lists. The shape of each output
-            list matches the shape of the list_of_retrieved_document_texts input, in the sense that
-            the length of the lists and sub-lists are the same.
-    """
-    if len(query_texts) != len(list_of_retrieved_document_texts):
-        raise ValueError()
-    list_of_precisions_at_k_lists: List[List[Optional[float]]] = []
-    list_of_relevance_classifications_lists: List[List[Optional[bool]]] = []
-    for query_text, retrieved_document_texts in zip(query_texts, list_of_retrieved_document_texts):
-        relevance_classifications = [
-            classify_relevance(query_text, document, model_name=model_name)
-            for document in retrieved_document_texts
-        ]
-        precisions_at_k = compute_precisions_at_k(relevance_classifications)
-        list_of_relevance_classifications_lists.append(relevance_classifications)
-        list_of_precisions_at_k_lists.append(precisions_at_k)
-    return list_of_precisions_at_k_lists, list_of_relevance_classifications_lists
 
 
 def compute_precisions_at_k(
