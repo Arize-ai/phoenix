@@ -50,7 +50,7 @@ class Tracer:
         start_time: datetime,
         end_time: datetime,
         status_code: SpanStatusCode,
-        status_message: str,
+        status_message: Optional[str] = "",
         parent_id: Optional[SpanID] = None,
         trace_id: Optional[UUID] = None,
         attributes: Optional[SpanAttributes] = None,

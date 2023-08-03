@@ -1,4 +1,5 @@
 import json
+from dataclasses import asdict
 from datetime import datetime
 from enum import Enum
 from typing import Any, List
@@ -22,7 +23,7 @@ class SpanJSONEncoder(json.JSONEncoder):
         elif isinstance(obj, Enum):
             return obj.value
         elif isinstance(obj, SpanContext):
-            return obj.__dict__
+            return asdict(obj)
         elif isinstance(obj, SpanEvent):
             return {
                 "name": obj.name,
