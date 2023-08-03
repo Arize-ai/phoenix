@@ -80,7 +80,7 @@ class Tracer:
             start_time=start_time,
             end_time=end_time,
             status_code=status_code,
-            status_message=status_message,
+            status_message=status_message if status_message is not None else "",
             attributes=attributes,
             events=events,
             conversation=conversation,
