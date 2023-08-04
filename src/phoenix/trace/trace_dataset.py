@@ -4,7 +4,6 @@ from pandas import DataFrame
 # A set of columns that is required
 REQUIRED_COLUMNS = [
     "name",
-    "message",
     "span_kind",
     "parent_id",
     "start_time",

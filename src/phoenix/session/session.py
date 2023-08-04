@@ -10,6 +10,7 @@ from portpicker import pick_unused_port
 
 from phoenix.config import PORT, get_exported_files
 from phoenix.core.model_schema_adapter import create_model_from_datasets
+from phoenix.core.traces import Traces
 from phoenix.datasets.dataset import Dataset
 from phoenix.server.app import create_app
 from phoenix.server.thread_server import ThreadServer
@@ -53,6 +54,9 @@ class ExportedData(_BaseList):
 class Session(ABC):
     """Session that maintains a 1-1 shared state with the Phoenix App."""
 
+    trace_dataset: Optional[TraceDataset]
+    traces: Optional[Traces]
+
     def __dir__(self) -> List[str]:
         return ["exports", "view", "url"]
 
@@ -80,6 +84,8 @@ class Session(ABC):
             if corpus_dataset is not None
             else None
         )
+
+        self.traces = Traces(trace_dataset.dataframe) if trace_dataset is not None else None
 
         self.port = port
         self.temp_dir = TemporaryDirectory()
@@ -211,7 +217,7 @@ class ThreadSession(Session):
 
 
 def launch_app(
-    primary: Dataset,
+    primary: Optional[Dataset] = None,
     reference: Optional[Dataset] = None,
     corpus: Optional[Dataset] = None,
     trace: Optional[TraceDataset] = None,
@@ -250,6 +256,10 @@ def launch_app(
     >>> session = px.launch_app(dataset)
     """
     global _session
+
+    # Stopgap solution to allow the app to run without a primary dataset
+    if primary is None:
+        primary = Dataset(pd.DataFrame())
 
     if run_in_thread:
         if _session is not None and _session.active:
