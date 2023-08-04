@@ -14,6 +14,7 @@ from phoenix.datasets.dataset import Dataset
 from phoenix.server.app import create_app
 from phoenix.server.thread_server import ThreadServer
 from phoenix.services import AppService
+from phoenix.trace.trace_dataset import TraceDataset
 
 try:
     from IPython.display import IFrame  # type: ignore
@@ -60,11 +61,13 @@ class Session(ABC):
         primary_dataset: Dataset,
         reference_dataset: Optional[Dataset] = None,
         corpus_dataset: Optional[Dataset] = None,
+        trace_dataset: Optional[TraceDataset] = None,
         port: int = PORT,
     ):
         self.primary_dataset = primary_dataset
         self.reference_dataset = reference_dataset
         self.corpus_dataset = corpus_dataset
+        self.trace_dataset = trace_dataset
         self.model = create_model_from_datasets(
             primary_dataset,
             reference_dataset,
@@ -175,12 +178,14 @@ class ThreadSession(Session):
         primary_dataset: Dataset,
         reference_dataset: Optional[Dataset] = None,
         corpus_dataset: Optional[Dataset] = None,
+        trace_dataset: Optional[TraceDataset] = None,
         port: Optional[int] = None,
     ):
         super().__init__(
             primary_dataset=primary_dataset,
             reference_dataset=reference_dataset,
             corpus_dataset=corpus_dataset,
+            trace_dataset=trace_dataset,
             port=port or pick_unused_port(),
         )
         # Initialize an app service that keeps the server running
@@ -209,6 +214,7 @@ def launch_app(
     primary: Dataset,
     reference: Optional[Dataset] = None,
     corpus: Optional[Dataset] = None,
+    trace: Optional[TraceDataset] = None,
     port: Optional[int] = None,
     run_in_thread: Optional[bool] = True,
 ) -> Optional[Session]:
@@ -224,6 +230,8 @@ def launch_app(
         If not provided, drift analysis will not be available.
     corpus : Dataset, optional
         The dataset containing corpus for LLM context retrieval.
+    trace: TraceDataset, optional
+        **Experimental** The trace dataset containing the trace data.
     port: int, optional
         The port on which the server listens.
     run_in_thread: bool, optional, default=True
