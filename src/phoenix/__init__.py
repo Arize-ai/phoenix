@@ -4,7 +4,7 @@ from .datasets.schema import EmbeddingColumnNames, RetrievalEmbeddingColumnNames
 from .session.session import Session, active_session, close_app, launch_app
 from .trace.fixtures import load_example_traces
 
-__version__ = "0.0.30"
+__version__ = "0.0.31"
 
 # module level doc-string
 __doc__ = """
