@@ -11,8 +11,7 @@ from portpicker import pick_unused_port
 from phoenix.config import PORT, get_exported_files
 from phoenix.core.model_schema_adapter import create_model_from_datasets
 from phoenix.core.traces import Traces
-from phoenix.datasets.dataset import Dataset
-from phoenix.datasets.schema import Schema
+from phoenix.datasets.dataset import EMPTY_DATASET, Dataset
 from phoenix.server.app import create_app
 from phoenix.server.thread_server import ThreadServer
 from phoenix.services import AppService
@@ -262,7 +261,7 @@ def launch_app(
     if primary is None:
         # Dummy dataset
         # TODO: pass through the lack of a primary dataset to the app
-        primary = Dataset(pd.DataFrame(), schema=Schema())
+        primary = EMPTY_DATASET
 
     if run_in_thread:
         if _session is not None and _session.active:

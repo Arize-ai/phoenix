@@ -15,16 +15,16 @@ class SpanKind(Enum):
     NB: this is actively under construction
     """
 
-    chain = CoreSpanKind.CHAIN
-    tool = CoreSpanKind.TOOL
-    llm = CoreSpanKind.LLM
-    retriever = CoreSpanKind.RETRIEVER
-    embedding = CoreSpanKind.EMBEDDING
+    chain = CoreSpanKind.CHAIN.value
+    tool = CoreSpanKind.TOOL.value
+    llm = CoreSpanKind.LLM.value
+    retriever = CoreSpanKind.RETRIEVER.value
+    embedding = CoreSpanKind.EMBEDDING.value
     unknown = "UNKNOWN"
 
 
 @strawberry.type
 class Span:
-    message: str
+    name: str
     parent_id: Optional[ID]
     span_kind: SpanKind
