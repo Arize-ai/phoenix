@@ -467,14 +467,20 @@ type Segments {
 }
 
 type Span {
-  message: String!
+  name: String!
   parentId: ID
   spanKind: SpanKind!
+  context: SpanContext!
 }
 
 type SpanConnection {
   pageInfo: PageInfo!
   edges: [SpanEdge!]!
+}
+
+type SpanContext {
+  traceId: ID!
+  spanId: ID!
 }
 
 type SpanEdge {
@@ -484,6 +490,10 @@ type SpanEdge {
 
 enum SpanKind {
   chain
+  tool
+  llm
+  retriever
+  embedding
   unknown
 }
 

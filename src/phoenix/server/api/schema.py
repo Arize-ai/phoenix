@@ -28,13 +28,8 @@ from .types.Event import create_event_id, unpack_event_id
 from .types.ExportEventsMutation import ExportEventsMutation
 from .types.Model import Model
 from .types.node import GlobalID, Node, from_global_id
-from .types.pagination import (
-    Connection,
-    ConnectionArgs,
-    Cursor,
-    connection_from_list,
-)
-from .types.Span import Span
+from .types.pagination import Connection, ConnectionArgs, Cursor, connection_from_list
+from .types.Span import Span, SpanContext
 
 
 @strawberry.type
@@ -211,11 +206,15 @@ class Query:
                 name=row["name"],
                 parent_id=row["parent_id"],
                 span_kind=row["span_kind"],
+                context=SpanContext(
+                    trace_id=row["context.trace_id"],
+                    span_id=row["context.span_id"],
+                ),
             )
             for _, row in info.context.traces._dataframe.iterrows()
         ]
 
-        # TODO: use connection_from_list_slice
+        # TODO: use connection_from_list_slice and paginate
         return connection_from_list(
             data=spans,
             args=ConnectionArgs(

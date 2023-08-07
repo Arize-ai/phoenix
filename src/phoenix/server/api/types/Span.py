@@ -24,7 +24,14 @@ class SpanKind(Enum):
 
 
 @strawberry.type
+class SpanContext:
+    trace_id: ID
+    span_id: ID
+
+
+@strawberry.type
 class Span:
     name: str
     parent_id: Optional[ID]
     span_kind: SpanKind
+    context: SpanContext
