@@ -98,7 +98,7 @@ if __name__ == "__main__":
     gcs = GCSFileSystem(
         project="public-assets-275721",
         # access="read_write",
-        # token="google_default",
+        token="google_default",
         # token=os.environ["GOOGLE_APPLICATION_CREDENTIALS"],
     )
     docs_url = "https://docs.arize.com/arize/"
