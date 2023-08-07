@@ -28,6 +28,13 @@ from .types.Event import create_event_id, unpack_event_id
 from .types.ExportEventsMutation import ExportEventsMutation
 from .types.Model import Model
 from .types.node import GlobalID, Node, from_global_id
+from .types.pagination import (
+    Connection,
+    ConnectionArgs,
+    Cursor,
+    connection_from_list_slice,
+)
+from .types.Span import Span
 
 
 @strawberry.type
@@ -176,6 +183,27 @@ class Query:
 
         return to_gql_clusters(
             clustered_events=clustered_events,
+        )
+
+    @strawberry.field
+    def spans(
+        self,
+        info: Info[Context, None],
+        first: Optional[int] = 50,
+        last: Optional[int] = UNSET,
+        after: Optional[Cursor] = UNSET,
+        before: Optional[Cursor] = UNSET,
+    ) -> Connection[Span]:
+        return connection_from_list_slice(
+            list_slice=[],
+            args=ConnectionArgs(
+                first=first,
+                after=after if isinstance(after, Cursor) else None,
+                last=last,
+                before=before if isinstance(before, Cursor) else None,
+            ),
+            slice_start=0,
+            list_length=0,
         )
 
 

@@ -441,6 +441,7 @@ type Query {
     """HDBSCAN cluster selection epsilon"""
     clusterSelectionEpsilon: Float! = 0
   ): [Cluster!]!
+  spans(first: Int = 50, last: Int, after: String, before: String): SpanConnection!
 }
 
 type Retrieval {
@@ -463,6 +464,27 @@ type Segment {
 type Segments {
   segments: [Segment!]!
   totalCounts: DatasetValues!
+}
+
+type Span {
+  message: String!
+  parentId: ID
+  spanKind: SpanKind!
+}
+
+type SpanConnection {
+  pageInfo: PageInfo!
+  edges: [SpanEdge!]!
+}
+
+type SpanEdge {
+  node: Span!
+  cursor: String!
+}
+
+enum SpanKind {
+  chain
+  unknown
 }
 
 input TimeRange {

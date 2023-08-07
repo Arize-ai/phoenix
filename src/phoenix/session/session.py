@@ -12,6 +12,7 @@ from phoenix.config import PORT, get_exported_files
 from phoenix.core.model_schema_adapter import create_model_from_datasets
 from phoenix.core.traces import Traces
 from phoenix.datasets.dataset import Dataset
+from phoenix.datasets.schema import Schema
 from phoenix.server.app import create_app
 from phoenix.server.thread_server import ThreadServer
 from phoenix.services import AppService
@@ -259,7 +260,9 @@ def launch_app(
 
     # Stopgap solution to allow the app to run without a primary dataset
     if primary is None:
-        primary = Dataset(pd.DataFrame())
+        # Dummy dataset
+        # TODO: pass through the lack of a primary dataset to the app
+        primary = Dataset(pd.DataFrame(), schema=Schema())
 
     if run_in_thread:
         if _session is not None and _session.active:
