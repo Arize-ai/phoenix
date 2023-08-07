@@ -43,7 +43,7 @@ def _get_pid_file() -> str:
 if __name__ == "__main__":
     primary_dataset_name: str
     reference_dataset_name: Optional[str]
-    trace_dataset_name: Optional[str]
+    trace_dataset_name: Optional[str] = None
 
     primary_dataset: Dataset = EMPTY_DATASET
     reference_dataset: Optional[Dataset] = None
