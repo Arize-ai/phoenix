@@ -721,6 +721,10 @@ class Dataset(Events):
     def role(self) -> DatasetRole:
         return self._self_role
 
+    @property
+    def is_empty(self) -> bool:
+        return len(self) == 0
+
     @cached_property
     def primary_key(self) -> pd.Index:
         return pd.Index(self[PREDICTION_ID])
@@ -912,6 +916,11 @@ class Model:
             self._datasets[dataset_role] = self._new_dataset(
                 df, name=dataset.name, role=dataset_role
             )
+
+    @cached_property
+    def is_empty(self) -> bool:
+        """Returns True if the model has no data."""
+        return all(not dataset.is_empty for dataset in self._datasets.values())
 
     def export_rows_as_parquet_file(
         self,
