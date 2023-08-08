@@ -4,11 +4,11 @@ Builds a LlamaIndex knowledge base over the Arize documentation and persists to 
 
 import argparse
 import logging
+import shutil
 import sys
 from functools import partial
 from typing import List
 
-from gcsfs import GCSFileSystem
 from langchain.docstore.document import Document as LangChainDocument
 from langchain.document_loaders import GitbookLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
@@ -29,7 +29,7 @@ def load_gitbook_docs(docs_url: str) -> List[LangChainDocument]:
     """
     loader = GitbookLoader(
         docs_url,
-        # load_all_paths=True,
+        load_all_paths=True,
     )
     return loader.load()
 
@@ -90,17 +90,9 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, stream=sys.stdout)
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--gcs-path", type=str, required=True, help="GCS path to persist index.")
+    parser.add_argument("--index-path", type=str, required=True, help="Path to persist index.")
     args = parser.parse_args()
 
-    # print(f"GOOGLE_APPLICATION_CREDENTIALS: {os.environ['GOOGLE_APPLICATION_CREDENTIALS']}")
-
-    gcs = GCSFileSystem(
-        project="public-assets-275721",
-        # access="read_write",
-        token="google_default",
-        # token=os.environ["GOOGLE_APPLICATION_CREDENTIALS"],
-    )
     docs_url = "https://docs.arize.com/arize/"
     embedding_model_name = "text-embedding-ada-002"
     langchain_documents = load_gitbook_docs(docs_url)
@@ -118,4 +110,6 @@ if __name__ == "__main__":
         chunked_llama_index_documents,
         service_context=ServiceContext.from_defaults(embed_model=embedding_model),
     )
-    index.storage_context.persist(args.gcs_path, fs=gcs)
+
+    shutil.rmtree(args.index_path, ignore_errors=True)
+    index.storage_context.persist(args.index_path)

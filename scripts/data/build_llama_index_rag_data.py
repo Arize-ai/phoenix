@@ -2,18 +2,20 @@
 Creates RAG dataset for LlamaIndex and uploads to cloud storage.
 """
 
+import argparse
 import logging
 import sys
 from typing import List, Optional
 
+import llama_index
 import numpy as np
+import pandas as pd
 from gcsfs import GCSFileSystem
 from langchain.chat_models import ChatOpenAI
 from llama_index import ServiceContext, StorageContext, load_index_from_storage
 from llama_index.callbacks import CallbackManager, OpenInferenceCallbackHandler
 from llama_index.callbacks.open_inference_callback import as_dataframe
 from llama_index.embeddings.openai import OpenAIEmbedding
-from llama_index.graph_stores.simple import SimpleGraphStore
 from llama_index.llms import LangChainLLM
 from phoenix.experimental.evals.retrievals import (
     classify_relevance,
@@ -39,9 +41,7 @@ def create_user_feedback(
         raise ValueError()
     first_document_relevances_array = np.array(first_document_relevances)
     second_document_relevances_array = np.array(second_document_relevances)
-    failed_retrieval_mask = (first_document_relevances_array is False) & (
-        second_document_relevances_array is False
-    )
+    failed_retrieval_mask = ~first_document_relevances_array & ~second_document_relevances_array
     num_failed_retrievals = failed_retrieval_mask.sum()
     num_thumbs_down = int(0.75 * num_failed_retrievals)
     failed_retrieval_indexes = np.where(failed_retrieval_mask)[0]
@@ -64,12 +64,35 @@ def create_user_feedback(
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, stream=sys.stdout)
 
-    file_system = GCSFileSystem(project="public-assets-275721")
-    index_path = "arize-assets/phoenix/datasets/unstructured/llm/llama-index/arize-docs/index/"
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--index-path", type=str, required=True, help="Path to persisted index.")
+    parser.add_argument(
+        "--use-gcs",
+        action="store_true",
+        help="If this flag is set, the index will be loaded from GCS.",
+    )
+    parser.add_argument(
+        "--query-path", type=str, required=True, help="Path to CSV file containing queries."
+    )
+    parser.add_argument(
+        "--output-path", type=str, required=True, help="Path to output Parquet file."
+    )
+    args = parser.parse_args()
+
+    llama_index.prompts.default_prompts.DEFAULT_TEXT_QA_PROMPT_TMPL = (
+        "Context information is below.\n"
+        "---------------------\n"
+        "{context_str}\n"
+        "---------------------\n"
+        "Given the context information, "
+        "answer the question and be as helpful as possible: {query_str}\n"
+    )
+
+    queries = pd.read_csv(args.query_path)["Question"].tolist()
+    file_system = GCSFileSystem(project="public-assets-275721") if args.use_gcs else None
     storage_context = StorageContext.from_defaults(
         fs=file_system,
-        persist_dir=index_path,
-        graph_store=SimpleGraphStore(),  # prevents unauthorized request to GCS
+        persist_dir=args.index_path,
     )
     callback_handler = OpenInferenceCallbackHandler()
     chat_model = ChatOpenAI(model_name="gpt-3.5-turbo")  # type: ignore
@@ -84,14 +107,8 @@ if __name__ == "__main__":
     )
     query_engine = index.as_query_engine()
 
-    for query in tqdm(
-        [
-            "How do I get an Arize API key?",
-            "Can I create monitors with an API?",
-            "How do I need to format timestamps?",
-            "What is the price of the Arize platform",
-        ]
-    ):
+    logging.info("Running queries")
+    for query in tqdm(queries):
         query_engine.query(query)
 
     query_dataframe = as_dataframe(callback_handler.flush_query_data_buffer())
@@ -111,10 +128,12 @@ if __name__ == "__main__":
         ]
         for document_index in [0, 1]
     ]
+
+    logging.info("Computing LLM-assisted ranking metrics")
     first_document_relevances, second_document_relevances = [
         [
             classify_relevance(query_text, document_text, model_name="gpt-4")
-            for query_text, document_text in zip(query_texts, first_document_texts)
+            for query_text, document_text in tqdm(zip(query_texts, first_document_texts))
         ]
         for document_texts in [first_document_texts, second_document_texts]
     ]
@@ -154,10 +173,4 @@ if __name__ == "__main__":
             ":tag.float:user_feedback": user_feedback,
         }
     )
-
-    gcs = GCSFileSystem(project="public-assets-275721")
-    with gcs.open(
-        "arize-assets/phoenix/datasets/unstructured/llm/llama-index/arize-docs/index/query_data_complete4.parquet",
-        "w",
-    ) as file:
-        query_dataframe.to_parquet(file, index=False)
+    query_dataframe.to_parquet(args.output_path)
