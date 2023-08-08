@@ -27,7 +27,7 @@ from phoenix.datasets.schema import (
 from pytest import LogCaptureFixture, raises
 
 
-class TestParseDataFrameAndSchema:
+class TestParseDataframeAndSchema:
     """
     Tests for `_parse_dataframe_and_schema`
     """
