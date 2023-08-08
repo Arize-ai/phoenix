@@ -920,7 +920,7 @@ class Model:
     @cached_property
     def is_empty(self) -> bool:
         """Returns True if the model has no data."""
-        return all(not dataset.is_empty for dataset in self._datasets.values())
+        return not any(map(len, self._datasets.values()))
 
     def export_rows_as_parquet_file(
         self,
