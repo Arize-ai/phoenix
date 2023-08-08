@@ -10,9 +10,11 @@ import uvicorn
 
 import phoenix.config as config
 from phoenix.core.model_schema_adapter import create_model_from_datasets
-from phoenix.datasets.dataset import Dataset
+from phoenix.core.traces import Traces
+from phoenix.datasets.dataset import EMPTY_DATASET, Dataset
 from phoenix.datasets.fixtures import FIXTURES, get_datasets
 from phoenix.server.app import create_app
+from phoenix.trace.fixtures import TRACES_FIXTURES, load_example_traces
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +43,12 @@ def _get_pid_file() -> str:
 if __name__ == "__main__":
     primary_dataset_name: str
     reference_dataset_name: Optional[str]
+    trace_dataset_name: Optional[str] = None
+
+    primary_dataset: Dataset = EMPTY_DATASET
+    reference_dataset: Optional[Dataset] = None
+    corpus_dataset: Optional[Dataset] = None
+
     # automatically remove the pid file when the process is being gracefully terminated
     atexit.register(_remove_pid_file)
     _write_pid_file()
@@ -58,6 +66,10 @@ if __name__ == "__main__":
     fixture_parser = subparsers.add_parser("fixture")
     fixture_parser.add_argument("fixture", type=str, choices=[fixture.name for fixture in FIXTURES])
     fixture_parser.add_argument("--primary-only", type=bool)
+    trace_fixture_parser = subparsers.add_parser("trace-fixture")
+    trace_fixture_parser.add_argument(
+        "fixture", type=str, choices=[fixture.name for fixture in TRACES_FIXTURES]
+    )
     args = parser.parse_args()
     export_path = Path(args.export_path) if args.export_path else config.EXPORT_DIR
     if args.command == "datasets":
@@ -73,7 +85,7 @@ if __name__ == "__main__":
         corpus_dataset = (
             None if corpus_dataset_name is None else Dataset.from_name(corpus_dataset_name)
         )
-    else:
+    elif args.command == "fixture":
         fixture_name = args.fixture
         primary_only = args.primary_only
         primary_dataset, reference_dataset, corpus_dataset = get_datasets(
@@ -83,14 +95,21 @@ if __name__ == "__main__":
         if primary_only:
             reference_dataset_name = None
             reference_dataset = None
+    elif args.command == "trace-fixture":
+        trace_dataset_name = args.fixture
 
     model = create_model_from_datasets(
         primary_dataset,
         reference_dataset,
     )
+    traces: Optional[Traces] = None
+    if trace_dataset_name is not None:
+        traces_ds = load_example_traces(trace_dataset_name)
+        traces = Traces(traces_ds.dataframe)
     app = create_app(
         export_path=export_path,
         model=model,
+        traces=traces,
         corpus=None if corpus_dataset is None else create_model_from_datasets(corpus_dataset),
         debug=args.debug,
     )
