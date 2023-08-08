@@ -87,8 +87,8 @@ class OpenInferenceCallbackHandler(BaseCallbackHandler):
     ) -> None:
         _add_to_tracer(
             event_id_to_event_data=self._event_id_to_event_data,
-            child_to_parent_trace_id=dict(
-                _generate_child_to_parent_trace_id_pairs(trace_map or {})
+            child_to_parent_event_id=dict(
+                _generate_child_to_parent_event_id_pairs(trace_map or {})
             ),
             tracer=self._tracer,
         )
@@ -97,7 +97,7 @@ class OpenInferenceCallbackHandler(BaseCallbackHandler):
 
 def _add_to_tracer(
     event_id_to_event_data: Dict[str, CBEventData],
-    child_to_parent_trace_id: Dict[str, str],
+    child_to_parent_event_id: Dict[str, str],
     tracer: Tracer,
 ) -> None:
     """Adds event data to the tracer, where it is converted to a span and stored in a buffer.
@@ -105,12 +105,12 @@ def _add_to_tracer(
     Args:
         event_id_to_event_data (Dict[str, CBEventData]): A map of event IDs to event data.
 
-        child_to_parent_trace_id (Dict[str, str]): A map of child trace IDs to parent trace IDs.
+        child_to_parent_event_id (Dict[str, str]): A map of child event IDs to parent event IDs.
 
         tracer (Tracer): The tracer that stores spans.
     """
     for event_id, event_data in event_id_to_event_data.items():
-        parent_event_id = child_to_parent_trace_id.get(event_id)
+        parent_event_id = child_to_parent_event_id.get(event_id)
         start_event = event_data.get("start_event")
         end_event = event_data.get("end_event")
         name = event_data.get("name", "")
@@ -135,25 +135,25 @@ def _add_to_tracer(
         )
 
 
-def _generate_child_to_parent_trace_id_pairs(
+def _generate_child_to_parent_event_id_pairs(
     trace_map: Dict[str, List[str]]
 ) -> Generator[Tuple[str, str], None, None]:
-    """Yields tuples of child trace IDs and parent trace IDs.
+    """Yields tuples of child event IDs and parent event IDs.
 
     Args:
-        trace_map (Dict[str, List[str]]): A mapping of each parent trace ID to a list of its
-        children trace IDs.
+        trace_map (Dict[str, List[str]]): A mapping of each parent event ID to a list of its
+        children event IDs.
 
     Yields:
-        Generator[Tuple[str, str], None, None]: A generator yielding (child trace ID, parent trace
+        Generator[Tuple[str, str], None, None]: A generator yielding (child event ID, parent event
         ID) pairs.
     """
-    parent_trace_id: Optional[str]
-    for parent_trace_id, children_trace_ids in trace_map.items():
-        if parent_trace_id == "root":
+    parent_event_id: Optional[str]
+    for parent_event_id, children_event_ids in trace_map.items():
+        if parent_event_id == "root":
             continue
-        for child_trace_id in children_trace_ids:
-            yield child_trace_id, parent_trace_id
+        for child_event_id in children_event_ids:
+            yield child_event_id, parent_event_id
 
 
 def _get_span_kind(event_type: CBEventType) -> SpanKind:
