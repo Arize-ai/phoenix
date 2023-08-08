@@ -328,10 +328,7 @@ class Column:
             except KeyError:
                 # It's important to glue the index to the default series,
                 # so it would look like the series came from the dataframe.
-                return self._default(len(data)).set_axis(
-                    data.index,
-                    copy=False,
-                )
+                return self._default(len(data)).set_axis(data.index)
         if isinstance(data, pd.Series):
             try:
                 return data.at[self.name]
@@ -721,6 +718,10 @@ class Dataset(Events):
     def role(self) -> DatasetRole:
         return self._self_role
 
+    @property
+    def is_empty(self) -> bool:
+        return len(self) == 0
+
     @cached_property
     def primary_key(self) -> pd.Index:
         return pd.Index(self[PREDICTION_ID])
@@ -736,10 +737,7 @@ class Dataset(Events):
     def __getitem__(self, key: Any) -> Any:
         if isinstance(key, list):
             return Events(
-                self.iloc[key].set_axis(
-                    key,
-                    copy=False,
-                ),
+                self.iloc[key].set_axis(key),
                 role=self._self_role,
                 _model=self._self_model,
             )
@@ -912,6 +910,11 @@ class Model:
             self._datasets[dataset_role] = self._new_dataset(
                 df, name=dataset.name, role=dataset_role
             )
+
+    @cached_property
+    def is_empty(self) -> bool:
+        """Returns True if the model has no data."""
+        return not any(map(len, self._datasets.values()))
 
     def export_rows_as_parquet_file(
         self,
@@ -1390,7 +1393,6 @@ def _coerce_str_column_names(
         df.set_axis(
             df.columns.astype(str),
             axis=1,
-            copy=False,
         )
         for df in dataframes
     )
