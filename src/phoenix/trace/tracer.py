@@ -68,7 +68,7 @@ class Tracer:
         if trace_id is None:
             trace_id = uuid4()
 
-        # If not span_id is provided, generate a new one
+        # If no span_id is provided, generate a new one
         if span_id is None:
             span_id = uuid4()
 
