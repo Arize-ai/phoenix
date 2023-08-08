@@ -1,3 +1,5 @@
+from uuid import UUID
+
 import numpy as np
 from langchain.chains import RetrievalQA
 from langchain.embeddings.fake import FakeEmbeddings
@@ -22,7 +24,10 @@ def test_tracer_llm() -> None:
     ).run(question, callbacks=[tracer])
 
     spans = {span.name: span for span in tracer.spans}
-    assert 1 == len(set(span.context.trace_id for span in spans.values()))
+
+    trace_ids = set(span.context.trace_id for span in spans.values())
+    assert len(trace_ids) == 1
+    assert UUID(str(next(iter(trace_ids))))
 
     assert spans["RetrievalQA"].parent_id is None
     assert spans["Retriever"].parent_id is spans["RetrievalQA"].context.span_id
