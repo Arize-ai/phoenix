@@ -43,7 +43,6 @@ def create_model_from_datasets(*datasets: Optional[Dataset]) -> Model:
         df = df.set_axis(
             map(str, df.columns),
             axis=1,
-            copy=False,
         )
         named_dataframes.append((dataset.name, df))
         dataset_schema = dataset.schema if dataset.schema is not None else DatasetSchema()

@@ -52,6 +52,7 @@ dev = [
   "arize[AutoEmbeddings, LLM_Evaluation]",
 ]
 experimental = [
+  "langchain>=0.0.257",
   "openai",
   "tenacity",
 ]
@@ -94,6 +95,7 @@ dependencies = [
   "pytest-cov",
   "pytest-lazy-fixture",
   "arize",
+  "langchain>=0.0.257",
   "openai",
   "tenacity",
 ]
@@ -249,6 +251,7 @@ module = [
   "portpicker",
   "wrapt",
   "openai",
+  "langchain.*",
 ]
 ignore_missing_imports = true
 
