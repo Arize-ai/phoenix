@@ -1,3 +1,4 @@
+export * from "./home";
 export * from "./model";
 export * from "./embedding";
 export * from "./dimension";

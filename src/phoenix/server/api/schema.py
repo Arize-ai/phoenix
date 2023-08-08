@@ -26,6 +26,7 @@ from .types.EmbeddingDimension import (
 )
 from .types.Event import create_event_id, unpack_event_id
 from .types.ExportEventsMutation import ExportEventsMutation
+from .types.Functionality import Functionality
 from .types.Model import Model
 from .types.node import GlobalID, Node, from_global_id
 from .types.pagination import Connection, ConnectionArgs, Cursor, connection_from_list
@@ -34,6 +35,15 @@ from .types.Span import Span, SpanContext
 
 @strawberry.type
 class Query:
+    @strawberry.field
+    def functionality(self, info: Info[Context, None]) -> "Functionality":
+        has_model_inferences = not info.context.model.is_empty
+        has_traces = info.context.traces is not None
+        return Functionality(
+            model_inferences=has_model_inferences,
+            tracing=has_traces,
+        )
+
     @strawberry.field
     def model(self) -> Model:
         return Model()
