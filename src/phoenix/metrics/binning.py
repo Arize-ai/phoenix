@@ -154,7 +154,6 @@ class IntervalBinning(BinningMethod):
         return summary.set_axis(
             categories,
             axis=0,
-            copy=False,
         )
 
 
