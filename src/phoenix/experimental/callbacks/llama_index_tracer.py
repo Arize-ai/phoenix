@@ -16,8 +16,8 @@ from uuid import UUID, uuid4
 from llama_index.callbacks.base_handler import BaseCallbackHandler
 from llama_index.callbacks.schema import CBEvent, CBEventType
 
-from .schemas import Span, SpanKind, SpanStatusCode
-from .tracer import Tracer
+from phoenix.trace.schemas import Span, SpanKind, SpanStatusCode
+from phoenix.trace.tracer import Tracer
 
 
 @dataclass
