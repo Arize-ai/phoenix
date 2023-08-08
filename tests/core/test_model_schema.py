@@ -194,10 +194,7 @@ def test_singular_dimensional_role_one_df(
         if column_spec in df.columns:
             assert_series_equal(
                 model[role][PRIMARY],
-                series.set_axis(
-                    model[PRIMARY].index,
-                    copy=False,
-                ),
+                series.set_axis(model[PRIMARY].index),
                 check_names=False,
             )
 
