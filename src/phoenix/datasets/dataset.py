@@ -70,6 +70,7 @@ class Dataset:
     _data_file_name: str = "data.parquet"
     _schema_file_name: str = "schema.json"
     _is_persisted: bool = False
+    _is_empty: bool = False
 
     def __init__(
         self,
@@ -98,6 +99,7 @@ class Dataset:
         self.__name: str = (
             name if name is not None else f"{GENERATED_DATASET_NAME_PREFIX}{str(uuid.uuid4())}"
         )
+        self._is_empty = self.dataframe.empty
         logger.info(f"""Dataset: {self.__name} initialized""")
 
     def __repr__(self) -> str:
@@ -731,3 +733,7 @@ def _parse_open_inference_column_name(column_name: str) -> _OpenInferenceColumnN
             name=extract.get("name", ""),
         )
     raise ValueError(f"Invalid format for column name: {column_name}")
+
+
+# A dataset with no data. Useful for stubs
+EMPTY_DATASET = Dataset(pd.DataFrame(), schema=Schema())
