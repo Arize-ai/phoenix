@@ -7,6 +7,7 @@ from starlette.responses import Response
 from starlette.websockets import WebSocket
 
 from phoenix.core.model_schema import Model
+from phoenix.core.traces import Traces
 
 
 @dataclass
@@ -16,3 +17,4 @@ class Context:
     model: Model
     export_path: Path
     corpus: Optional[Model] = None
+    traces: Optional[Traces] = None

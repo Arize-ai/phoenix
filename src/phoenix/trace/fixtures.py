@@ -4,6 +4,7 @@ from urllib import request
 
 import pandas as pd
 
+from phoenix.trace.trace_dataset import TraceDataset
 from phoenix.trace.utils import json_lines_to_df
 
 
@@ -54,11 +55,11 @@ def _download_traces_fixture(
         return json_lines_to_df(f.readlines())
 
 
-def load_example_traces(use_case: str) -> pd.DataFrame:
+def load_example_traces(use_case: str) -> TraceDataset:
     """
     Loads a trace dataframe by name.
 
     NB: this functionality is under active construction.
     """
     fixture = _get_trace_fixture_by_name(use_case)
-    return _download_traces_fixture(fixture)
+    return TraceDataset(_download_traces_fixture(fixture))
