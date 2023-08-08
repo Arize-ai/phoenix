@@ -30,8 +30,8 @@ class TraceDataset:
 
     def __init__(self, dataframe: DataFrame):
         # Validate the the dataframe has required fields
-        columns = dataframe.columns.values
-        missing_columns = [column for column in REQUIRED_COLUMNS if column not in columns]
-        if missing_columns:
-            raise ValueError(f"The dataframe is missing some required columns: {missing_columns}")
+        if missing_columns := set(REQUIRED_COLUMNS) - set(dataframe.columns):
+            raise ValueError(
+                f"The dataframe is missing some required columns: {', '.join(missing_columns)}"
+            )
         self.dataframe = dataframe

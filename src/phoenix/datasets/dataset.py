@@ -99,7 +99,7 @@ class Dataset:
         self.__name: str = (
             name if name is not None else f"{GENERATED_DATASET_NAME_PREFIX}{str(uuid.uuid4())}"
         )
-        self._is_empty = len(self.dataframe) == 0
+        self._is_empty = self.dataframe.empty
         logger.info(f"""Dataset: {self.__name} initialized""")
 
     def __repr__(self) -> str:
