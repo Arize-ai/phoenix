@@ -189,32 +189,24 @@ class Query:
         after: Optional[Cursor] = UNSET,
         before: Optional[Cursor] = UNSET,
     ) -> Connection[Span]:
-        if info.context.traces is None:
-            return connection_from_list(
-                data=[],
-                args=ConnectionArgs(
-                    first=first,
-                    after=after if isinstance(after, Cursor) else None,
-                    last=last,
-                    before=before if isinstance(before, Cursor) else None,
-                ),
-            )
-
         # Convert dataframe rows to Span objects
-        spans = [
-            Span(
-                name=row["name"],
-                parent_id=row["parent_id"],
-                span_kind=row["span_kind"],
-                context=SpanContext(
-                    trace_id=row["context.trace_id"],
-                    span_id=row["context.span_id"],
-                ),
-            )
-            for _, row in info.context.traces._dataframe.iterrows()
-        ]
+        spans = (
+            []
+            if info.context.traces is None
+            else [
+                Span(
+                    name=row["name"],
+                    parent_id=row["parent_id"],
+                    span_kind=row["span_kind"],
+                    context=SpanContext(
+                        trace_id=row["context.trace_id"],
+                        span_id=row["context.span_id"],
+                    ),
+                )
+                for _, row in info.context.traces._dataframe.iterrows()
+            ]
+        )
 
-        # TODO: use connection_from_list_slice and paginate
         return connection_from_list(
             data=spans,
             args=ConnectionArgs(
