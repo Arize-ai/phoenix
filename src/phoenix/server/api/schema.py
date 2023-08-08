@@ -37,7 +37,7 @@ from .types.Span import Span, SpanContext
 class Query:
     @strawberry.field
     def functionality(self, info: Info[Context, None]) -> "Functionality":
-        has_model_inferences = info.context.model.is_empty is not False
+        has_model_inferences = not info.context.model.is_empty
         has_traces = info.context.traces is not None
         return Functionality(
             model_inferences=has_model_inferences,
