@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<7a4d450cc07b874013d8c67c2532feb8>>
+ * @generated SignedSource<<e8e9945ccf345c5819075b9e887e1513>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -21,6 +21,7 @@ export type SpansTable_spans$data = {
         };
         readonly name: string;
         readonly spanKind: SpanKind;
+        readonly startTime: string;
       };
     }>;
   };
@@ -46,6 +47,14 @@ return {
       "defaultValue": null,
       "kind": "LocalArgument",
       "name": "cursor"
+    },
+    {
+      "defaultValue": {
+        "col": "startTime",
+        "dir": "desc"
+      },
+      "kind": "LocalArgument",
+      "name": "sort"
     }
   ],
   "kind": "Fragment",
@@ -75,7 +84,13 @@ return {
   "selections": [
     {
       "alias": "spans",
-      "args": null,
+      "args": [
+        {
+          "kind": "Variable",
+          "name": "sort",
+          "variableName": "sort"
+        }
+      ],
       "concreteType": "SpanConnection",
       "kind": "LinkedField",
       "name": "__SpansTable_spans_connection",
@@ -109,6 +124,13 @@ return {
                   "args": null,
                   "kind": "ScalarField",
                   "name": "name",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "startTime",
                   "storageKey": null
                 },
                 {
@@ -201,6 +223,6 @@ return {
 };
 })();
 
-(node as any).hash = "0d55717965759fe0048939bb211159db";
+(node as any).hash = "484eed39cb35d63c53782219b07d0fcc";
 
 export default node;

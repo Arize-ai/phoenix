@@ -1,13 +1,14 @@
 from enum import Enum
 
 import strawberry
+from pandas import DataFrame
 
 from phoenix.server.api.types.SortDir import SortDir
 
 
 @strawberry.enum
 class SpanColumn(Enum):
-    startTime = "startTime"
+    startTime = "start_time"
 
 
 @strawberry.input
@@ -18,3 +19,12 @@ class SpanSort:
 
     col: SpanColumn
     dir: SortDir
+
+    def apply(self, spans: DataFrame) -> DataFrame:
+        """
+        Sorts the spans by the given column and direction
+        """
+        return spans.sort_values(
+            by=self.col.value,
+            ascending=self.dir.value == SortDir.asc.value,
+        )

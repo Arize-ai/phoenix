@@ -16,13 +16,15 @@ export function SpansTable(props: SpansTableProps) {
       @argumentDefinitions(
         count: { type: "Int", defaultValue: 50 }
         cursor: { type: "String", defaultValue: null }
+        sort: { type: "SpanSort", defaultValue: { col: startTime, dir: desc } }
       ) {
-        spans(first: $count, after: $cursor)
+        spans(first: $count, after: $cursor, sort: $sort)
           @connection(key: "SpansTable_spans") {
           edges {
             span: node {
               spanKind
               name
+              startTime
               context {
                 spanId
                 traceId
@@ -65,6 +67,7 @@ export function SpansTable(props: SpansTableProps) {
       Header: "name",
       accessor: "name",
     },
+    { Header: "start time", accessor: "startTime" },
   ];
   return <Table columns={columns} data={tableData} />;
 }

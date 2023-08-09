@@ -1,6 +1,6 @@
 from collections import defaultdict
 from itertools import chain
-from typing import Dict, List, Optional, Set, Union
+from typing import Dict, List, Optional, Set, Union, cast
 
 import numpy as np
 import numpy.typing as npt
@@ -16,7 +16,7 @@ from phoenix.server.api.input_types.Coordinates import (
     InputCoordinate2D,
     InputCoordinate3D,
 )
-from phoenix.server.api.input_types.SpanSort import SpanSort
+from phoenix.server.api.input_types.SpanSort import SpanColumn, SpanSort
 from phoenix.server.api.types.Cluster import Cluster, to_gql_clusters
 
 from .context import Context
@@ -34,6 +34,7 @@ from .types.Functionality import Functionality
 from .types.Model import Model
 from .types.node import GlobalID, Node, from_global_id
 from .types.pagination import Connection, ConnectionArgs, Cursor, connection_from_list
+from .types.SortDir import SortDir
 from .types.Span import Span, to_gql_span
 
 
@@ -204,11 +205,20 @@ class Query:
         before: Optional[Cursor] = UNSET,
         sort: Optional[SpanSort] = UNSET,
     ) -> Connection[Span]:
+        # The default sort order is by start time
+        sort = cast(
+            SpanSort,
+            sort
+            if sort not in (UNSET, None)
+            else SpanSort(col=SpanColumn.startTime, dir=SortDir.asc),
+        )
         # Convert dataframe rows to Span objects
         spans = (
             []
             if info.context.traces is None
-            else [to_gql_span(row) for _, row in info.context.traces._dataframe.iterrows()]
+            else [
+                to_gql_span(row) for _, row in sort.apply(info.context.traces._dataframe).iterrows()
+            ]
         )
 
         return connection_from_list(
