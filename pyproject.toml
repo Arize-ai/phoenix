@@ -253,7 +253,6 @@ module = [
   "arize.*",
   "portpicker",
   "wrapt",
-  "openai",
   "langchain.*",
 ]
 ignore_missing_imports = true

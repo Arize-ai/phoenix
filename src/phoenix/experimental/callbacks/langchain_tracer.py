@@ -13,7 +13,7 @@ def _langchain_run_type_to_span_kind(run_type: str) -> SpanKind:
     return SpanKind(run_type.upper())
 
 
-class OpenInferenceTracer(Tracer, BaseTracer):  # type: ignore
+class OpenInferenceTracer(Tracer, BaseTracer):
     def _convert_run_to_spans(
         self,
         run: Run,
