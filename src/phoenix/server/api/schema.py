@@ -30,7 +30,7 @@ from .types.Functionality import Functionality
 from .types.Model import Model
 from .types.node import GlobalID, Node, from_global_id
 from .types.pagination import Connection, ConnectionArgs, Cursor, connection_from_list
-from .types.Span import Span, SpanContext
+from .types.Span import Span, to_gql_span
 
 
 @strawberry.type
@@ -203,18 +203,7 @@ class Query:
         spans = (
             []
             if info.context.traces is None
-            else [
-                Span(
-                    name=row["name"],
-                    parent_id=row["parent_id"],
-                    span_kind=row["span_kind"],
-                    context=SpanContext(
-                        trace_id=row["context.trace_id"],
-                        span_id=row["context.span_id"],
-                    ),
-                )
-                for _, row in info.context.traces._dataframe.iterrows()
-            ]
+            else [to_gql_span(row) for _, row in info.context.traces._dataframe.iterrows()]
         )
 
         return connection_from_list(
