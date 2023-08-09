@@ -119,6 +119,7 @@ def _add_to_tracer(
         tracer (Tracer): The tracer that stores spans.
     """
 
+    trace_id = uuid4()
     parent_child_id_stack: List[Tuple[Optional[SpanID], CBEventID]] = [
         (None, root_event_id) for root_event_id in trace_map["root"]
     ]
@@ -133,6 +134,7 @@ def _add_to_tracer(
         span = tracer.create_span(
             name=name,
             span_kind=span_kind,
+            trace_id=trace_id,
             start_time=datetime.strptime(start_event.time, TIMESTAMP_FORMAT),
             end_time=datetime.strptime(end_event.time, TIMESTAMP_FORMAT),
             status_code=SpanStatusCode.OK,
