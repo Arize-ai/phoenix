@@ -10,11 +10,12 @@ https://github.com/Arize-ai/open-inference-spec
 
 import logging
 from collections import defaultdict
+from datetime import datetime
 from typing import Any, Callable, Dict, List, Optional, Tuple, TypedDict
 from uuid import uuid4
 
 from llama_index.callbacks.base_handler import BaseCallbackHandler
-from llama_index.callbacks.schema import CBEvent, CBEventType
+from llama_index.callbacks.schema import TIMESTAMP_FORMAT, CBEvent, CBEventType
 
 from phoenix.trace.schemas import Span, SpanID, SpanKind, SpanStatusCode
 from phoenix.trace.tracer import Tracer
@@ -132,8 +133,8 @@ def _add_to_tracer(
         span = tracer.create_span(
             name=name,
             span_kind=span_kind,
-            start_time=start_event.time,
-            end_time=end_event.time,
+            start_time=datetime.strptime(start_event.time, TIMESTAMP_FORMAT),
+            end_time=datetime.strptime(end_event.time, TIMESTAMP_FORMAT),
             status_code=SpanStatusCode.OK,
             status_message="",
             parent_id=parent_span_id,
