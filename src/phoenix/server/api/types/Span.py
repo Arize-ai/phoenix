@@ -44,6 +44,9 @@ class Span:
 
 
 def to_gql_span(row: Series[Any]) -> Span:
+    """
+    Converts a dataframe row to a graphQL span
+    """
     return Span(
         name=row["name"],
         parent_id=row["parent_id"],

@@ -15,7 +15,7 @@ from phoenix.server.api.input_types.ClusterInput import ClusterInput
 from phoenix.server.api.types.Cluster import Cluster, to_gql_clusters
 
 from .context import Context
-from .input_types import Coordinates
+from .input_types import Coordinates, SpanSort
 from .types.DatasetRole import AncillaryDatasetRole, DatasetRole
 from .types.Dimension import to_gql_dimension
 from .types.EmbeddingDimension import (
@@ -198,6 +198,7 @@ class Query:
         last: Optional[int] = UNSET,
         after: Optional[Cursor] = UNSET,
         before: Optional[Cursor] = UNSET,
+        sort: Optional[SpanSort] = UNSET,
     ) -> Connection[Span]:
         # Convert dataframe rows to Span objects
         spans = (
