@@ -20,6 +20,10 @@ from phoenix.server.api.input_types.SpanSort import SpanColumn, SpanSort
 from phoenix.server.api.types.Cluster import Cluster, to_gql_clusters
 
 from .context import Context
+<<<<<<< HEAD
+=======
+from .input_types import Coordinates, SpanSort
+>>>>>>> 4d4b555 (add span sort direction)
 from .types.DatasetRole import AncillaryDatasetRole, DatasetRole
 from .types.Dimension import to_gql_dimension
 from .types.EmbeddingDimension import (
