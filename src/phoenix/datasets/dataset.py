@@ -3,6 +3,7 @@ import re
 import uuid
 from copy import deepcopy
 from dataclasses import dataclass, fields, replace
+from datetime import datetime
 from enum import Enum
 from itertools import groupby
 from typing import Any, Dict, List, Optional, Set, Tuple, Union
@@ -596,8 +597,8 @@ def _normalize_timestamps(
     """
     Ensures that the dataframe has a timestamp column and the schema has a timestamp field. If the
     input dataframe contains a Unix or datetime timestamp or ISO8601 timestamp strings column, it
-    is converted to UTC timestamps. If the input dataframe and schema do not contain timestamps,
-    the default timestamp is used.
+    is converted to local timezone-aware timestamp. If the input dataframe and schema do not contain
+    timestamps, the default timestamp is used.
     """
     timestamp_column: Series[Timestamp]
     if (timestamp_column_name := schema.timestamp_column_name) is None:
@@ -613,9 +614,14 @@ def _normalize_timestamps(
     elif is_datetime64tz_dtype(timestamp_column_dtype):
         timestamp_column = dataframe[timestamp_column_name].dt.tz_convert(pytz.utc)
     elif is_datetime64_any_dtype(timestamp_column_dtype):
-        timestamp_column = dataframe[timestamp_column_name].dt.tz_localize(pytz.utc)
+        timestamp_column = dataframe[timestamp_column_name].dt.tz_localize(
+            datetime.now().astimezone().tzinfo
+        )
     elif is_object_dtype(timestamp_column_dtype):
-        timestamp_column = to_datetime(dataframe[timestamp_column_name], utc=True)
+        if (timestamp_column := to_datetime(dataframe[timestamp_column_name])).dt.tz is None:
+            timestamp_column = timestamp_column.dt.tz_localize(datetime.now().astimezone().tzinfo)
+        else:
+            timestamp_column = timestamp_column.dt.tz_convert(pytz.utc)
     else:
         raise ValueError(
             "When provided, input timestamp column must have numeric or datetime dtype, "

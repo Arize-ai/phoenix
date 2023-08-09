@@ -5,6 +5,7 @@ import logging
 import math
 import uuid
 from dataclasses import replace
+from datetime import datetime
 from typing import Optional
 
 import numpy as np
@@ -866,12 +867,12 @@ def random_uuids(num_records: int):
                                 second=0,
                             ),
                         ]
-                    ).dt.tz_localize(pytz.utc),
+                    ).dt.tz_localize(datetime.now().astimezone().tzinfo),
                     "prediction_id": [1, 2, 3],
                 }
             ),
             Schema(timestamp_column_name="timestamp", prediction_id_column_name="prediction_id"),
-            id="tz_naive_timestamps_converted_to_utc",
+            id="tz_naive_timestamps_converted_to_local_time_zone",
         ),
         pytest.param(
             DataFrame(
@@ -1182,12 +1183,12 @@ def random_uuids(num_records: int):
                                 second=0,
                             ),
                         ]
-                    ).dt.tz_localize(pytz.utc),
+                    ).dt.tz_localize(datetime.now().astimezone().tzinfo),
                     "prediction_id": [1, 2, 3],
                 }
             ),
             Schema(timestamp_column_name="timestamp", prediction_id_column_name="prediction_id"),
-            id="iso8601_tz_naive_strings_converted_to_utc_timestamps",
+            id="iso8601_tz_naive_strings_converted_to_local_timestamps",
         ),
         pytest.param(
             DataFrame(
