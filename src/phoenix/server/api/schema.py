@@ -12,10 +12,14 @@ from typing_extensions import Annotated
 from phoenix.pointcloud.clustering import Hdbscan
 from phoenix.server.api.helpers import ensure_list
 from phoenix.server.api.input_types.ClusterInput import ClusterInput
+from phoenix.server.api.input_types.Coordinates import (
+    InputCoordinate2D,
+    InputCoordinate3D,
+)
+from phoenix.server.api.input_types.SpanSort import SpanSort
 from phoenix.server.api.types.Cluster import Cluster, to_gql_clusters
 
 from .context import Context
-from .input_types import Coordinates, SpanSort
 from .types.DatasetRole import AncillaryDatasetRole, DatasetRole
 from .types.Dimension import to_gql_dimension
 from .types.EmbeddingDimension import (
@@ -83,13 +87,13 @@ class Query:
             ),
         ],
         coordinates_2d: Annotated[
-            Optional[List[Coordinates.InputCoordinate2D]],
+            Optional[List[InputCoordinate2D]],
             strawberry.argument(
                 description="Point coordinates. Must be either 2D or 3D.",
             ),
         ] = UNSET,
         coordinates_3d: Annotated[
-            Optional[List[Coordinates.InputCoordinate3D]],
+            Optional[List[InputCoordinate3D]],
             strawberry.argument(
                 description="Point coordinates. Must be either 2D or 3D.",
             ),
