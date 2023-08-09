@@ -99,7 +99,7 @@ class OpenInferenceCallbackHandler(BaseCallbackHandler):
                 tracer=self._tracer,
             )
         except Exception:
-            logger.exception("Trace processing failed")
+            logger.exception("OpenInferenceCallbackHandler trace processing failed")
         self._event_id_to_event_data = defaultdict(lambda: CBEventData())
 
 
