@@ -56,7 +56,6 @@ class Tracer:
         status_message: Optional[str] = "",
         parent_id: Optional[SpanID] = None,
         trace_id: Optional[UUID] = None,
-        span_id: Optional[SpanID] = None,
         attributes: Optional[SpanAttributes] = None,
         events: Optional[List[SpanEvent]] = None,
         conversation: Optional[SpanConversationAttributes] = None,
@@ -68,10 +67,6 @@ class Tracer:
         if trace_id is None:
             trace_id = uuid4()
 
-        # If no span_id is provided, generate a new one
-        if span_id is None:
-            span_id = uuid4()
-
         # If no attributes are provided, create an empty dict
         if attributes is None:
             attributes = {}
@@ -82,7 +77,7 @@ class Tracer:
 
         span = Span(
             name=name,
-            context=SpanContext(trace_id=trace_id, span_id=span_id),
+            context=SpanContext(trace_id=trace_id, span_id=uuid4()),
             span_kind=span_kind,
             parent_id=parent_id,
             start_time=start_time,

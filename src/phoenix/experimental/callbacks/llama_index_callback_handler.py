@@ -8,25 +8,26 @@ For more information on the specification, see
 https://github.com/Arize-ai/open-inference-spec
 """
 
+import logging
 from collections import defaultdict
-from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, Generator, List, Optional, Tuple, TypedDict
-from uuid import UUID, uuid4
+from typing import Any, Callable, Dict, List, Optional, Tuple, TypedDict
+from uuid import uuid4
 
 from llama_index.callbacks.base_handler import BaseCallbackHandler
 from llama_index.callbacks.schema import CBEvent, CBEventType
 
-from phoenix.trace.schemas import Span, SpanKind, SpanStatusCode
+from phoenix.trace.schemas import Span, SpanID, SpanKind, SpanStatusCode
 from phoenix.trace.tracer import Tracer
 
+logger = logging.getLogger(__name__)
 
-@dataclass
-class TraceData:
-    id: UUID = field(default_factory=uuid4)
+
+CBEventID = str
 
 
 class CBEventData(TypedDict, total=False):
     name: str
+    event_type: CBEventType
     start_event: CBEvent
     end_event: CBEvent
 
@@ -44,17 +45,20 @@ class OpenInferenceCallbackHandler(BaseCallbackHandler):
     def __init__(self, callback: Optional[Callable[[List[Span]], None]] = None) -> None:
         super().__init__(event_starts_to_ignore=[], event_ends_to_ignore=[])
         self._tracer = Tracer(on_append=callback)
-        self._event_id_to_event_data: Dict[str, CBEventData] = defaultdict(lambda: CBEventData())
+        self._event_id_to_event_data: Dict[CBEventID, CBEventData] = defaultdict(
+            lambda: CBEventData()
+        )
 
     def on_event_start(
         self,
         event_type: CBEventType,
         payload: Optional[Dict[str, Any]] = None,
-        event_id: str = "",
+        event_id: CBEventID = "",
         **kwargs: Any,
-    ) -> str:
+    ) -> CBEventID:
         event_id = event_id or str(uuid4())
         self._event_id_to_event_data[event_id]["name"] = event_type.value
+        self._event_id_to_event_data[event_id]["event_type"] = event_type
         self._event_id_to_event_data[event_id]["start_event"] = CBEvent(
             event_type=event_type,
             payload=payload,
@@ -66,11 +70,11 @@ class OpenInferenceCallbackHandler(BaseCallbackHandler):
         self,
         event_type: CBEventType,
         payload: Optional[Dict[str, Any]] = None,
-        event_id: str = "",
+        event_id: CBEventID = "",
         **kwargs: Any,
     ) -> None:
-        event_id = event_id or str(uuid4())
         self._event_id_to_event_data[event_id].setdefault("name", event_type.value)
+        self._event_id_to_event_data[event_id].setdefault("event_type", event_type)
         self._event_id_to_event_data[event_id]["end_event"] = CBEvent(
             event_type=event_type,
             payload=payload,
@@ -78,82 +82,68 @@ class OpenInferenceCallbackHandler(BaseCallbackHandler):
         )
 
     def start_trace(self, trace_id: Optional[str] = None) -> None:
-        ...
+        self._event_id_to_event_data = defaultdict(lambda: CBEventData())
 
     def end_trace(
         self,
         trace_id: Optional[str] = None,
-        trace_map: Optional[Dict[str, List[str]]] = None,
+        trace_map: Optional[Dict[CBEventID, List[CBEventID]]] = None,
     ) -> None:
-        _add_to_tracer(
-            event_id_to_event_data=self._event_id_to_event_data,
-            child_to_parent_event_id=dict(
-                _generate_child_to_parent_event_id_pairs(trace_map or {})
-            ),
-            tracer=self._tracer,
-        )
+        if not trace_map:
+            return  # TODO: investigate when empty or None trace_map is passed
+        try:
+            _add_to_tracer(
+                event_id_to_event_data=self._event_id_to_event_data,
+                trace_map=trace_map,
+                tracer=self._tracer,
+            )
+        except Exception:
+            logger.exception("Trace processing failed")
         self._event_id_to_event_data = defaultdict(lambda: CBEventData())
 
 
 def _add_to_tracer(
-    event_id_to_event_data: Dict[str, CBEventData],
-    child_to_parent_event_id: Dict[str, str],
+    event_id_to_event_data: Dict[CBEventID, CBEventData],
+    trace_map: Dict[CBEventID, List[CBEventID]],
     tracer: Tracer,
 ) -> None:
     """Adds event data to the tracer, where it is converted to a span and stored in a buffer.
 
     Args:
-        event_id_to_event_data (Dict[str, CBEventData]): A map of event IDs to event data.
+        event_id_to_event_data (Dict[CBEventID, CBEventData]): A map of event IDs to event data.
 
-        child_to_parent_event_id (Dict[str, str]): A map of child event IDs to parent event IDs.
+        trace_map (Dict[CBEventID, List[CBEventID]]): A map of parent event IDs to child event IDs.
+        The root event IDs are stored under the key "root".
 
         tracer (Tracer): The tracer that stores spans.
     """
-    for event_id, event_data in event_id_to_event_data.items():
-        parent_event_id = child_to_parent_event_id.get(event_id)
-        start_event = event_data.get("start_event")
-        end_event = event_data.get("end_event")
-        name = event_data.get("name", "")
-        if start_event:
-            span_kind = _get_span_kind(start_event.event_type)
-        elif end_event:
-            span_kind = _get_span_kind(end_event.event_type)
-        else:
-            span_kind = SpanKind.CHAIN
-        tracer.create_span(
+
+    parent_child_id_stack: List[Tuple[Optional[SpanID], CBEventID]] = [
+        (None, root_event_id) for root_event_id in trace_map["root"]
+    ]
+    while parent_child_id_stack:
+        parent_span_id, event_id = parent_child_id_stack.pop()
+        event_data = event_id_to_event_data[event_id]
+        start_event = event_data["start_event"]
+        end_event = event_data["end_event"]
+        name = event_data["name"]
+        event_type = event_data["event_type"]
+        span_kind = _get_span_kind(event_type)
+        span = tracer.create_span(
             name=name,
             span_kind=span_kind,
-            start_time=start_event.time if start_event else None,
-            end_time=end_event.time if end_event else None,
+            start_time=start_event.time,
+            end_time=end_event.time,
             status_code=SpanStatusCode.OK,
             status_message="",
-            parent_id=UUID(parent_event_id) if parent_event_id is not None else parent_event_id,
-            span_id=UUID(event_id),
+            parent_id=parent_span_id,
             attributes=None,
             events=None,
             conversation=None,
         )
-
-
-def _generate_child_to_parent_event_id_pairs(
-    trace_map: Dict[str, List[str]]
-) -> Generator[Tuple[str, str], None, None]:
-    """Yields tuples of child event IDs and parent event IDs.
-
-    Args:
-        trace_map (Dict[str, List[str]]): A mapping of each parent event ID to a list of its
-        children event IDs.
-
-    Yields:
-        Generator[Tuple[str, str], None, None]: A generator yielding (child event ID, parent event
-        ID) pairs.
-    """
-    parent_event_id: Optional[str]
-    for parent_event_id, children_event_ids in trace_map.items():
-        if parent_event_id == "root":
-            continue
-        for child_event_id in children_event_ids:
-            yield child_event_id, parent_event_id
+        new_parent_span_id = span.context.span_id
+        for new_child_event_id in trace_map.get(event_id, []):
+            parent_child_id_stack.append((new_parent_span_id, new_child_event_id))
 
 
 def _get_span_kind(event_type: CBEventType) -> SpanKind:
@@ -165,8 +155,8 @@ def _get_span_kind(event_type: CBEventType) -> SpanKind:
     Returns:
         SpanKind: The corresponding span kind.
     """
-    if event_type is CBEventType.EMBEDDING:
-        return SpanKind.EMBEDDING
-    elif event_type is CBEventType.LLM:
-        return SpanKind.LLM
-    return SpanKind.CHAIN
+    return {
+        CBEventType.EMBEDDING: SpanKind.EMBEDDING,
+        CBEventType.LLM: SpanKind.LLM,
+        CBEventType.RETRIEVE: SpanKind.RETRIEVER,
+    }.get(event_type, SpanKind.CHAIN)
