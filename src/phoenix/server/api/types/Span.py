@@ -43,7 +43,7 @@ class Span:
     context: SpanContext
 
 
-def to_gql_span(row: "Series[Any]") -> Span:
+def to_gql_span(row: Series[Any]) -> Span:
     """
     Converts a dataframe row to a graphQL span
     """
