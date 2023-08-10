@@ -9,6 +9,8 @@ from phoenix.server.api.types.SortDir import SortDir
 @strawberry.enum
 class SpanColumn(Enum):
     startTime = "start_time"
+    endTime = "end_time"
+    latencyMs = "latency_ms"
 
 
 @strawberry.input
