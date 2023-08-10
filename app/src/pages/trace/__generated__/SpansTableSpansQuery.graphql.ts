@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<447b1bec4a935c113a4ec33b092a711a>>
+ * @generated SignedSource<<f95e73888d61e2c5478cf52b4903a321>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -11,7 +11,7 @@
 import { ConcreteRequest, Query } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type SortDir = "asc" | "desc";
-export type SpanColumn = "duration" | "endTime" | "startTime";
+export type SpanColumn = "endTime" | "latencyMs" | "startTime";
 export type SpanSort = {
   col: SpanColumn;
   dir: SortDir;

@@ -495,7 +495,7 @@ type Span {
 enum SpanColumn {
   startTime
   endTime
-  duration
+  latencyMs
 }
 
 type SpanConnection {
