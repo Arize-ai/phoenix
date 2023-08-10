@@ -1,6 +1,6 @@
 from collections import defaultdict
 from itertools import chain
-from typing import Dict, List, Optional, Set, Union, cast
+from typing import Dict, List, Optional, Set, Union
 
 import numpy as np
 import numpy.typing as npt
@@ -206,12 +206,7 @@ class Query:
         sort: Optional[SpanSort] = UNSET,
     ) -> Connection[Span]:
         # The default sort order is by start time
-        sort = cast(
-            SpanSort,
-            sort
-            if sort not in (UNSET, None)
-            else SpanSort(col=SpanColumn.startTime, dir=SortDir.asc),
-        )
+        sort = sort or SpanSort(col=SpanColumn.startTime, dir=SortDir.asc)
         # Convert dataframe rows to Span objects
         spans = (
             []
