@@ -34,7 +34,6 @@ def normalize_dataframe(dataframe: DataFrame) -> "DataFrame":
         dataframe["end_time"] - dataframe["start_time"]
     ).astype("timedelta64[ms]")
 
-    print(dataframe.head())
     return dataframe
 
 
