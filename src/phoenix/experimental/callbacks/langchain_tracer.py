@@ -29,7 +29,7 @@ def _serialize_json(obj: Any) -> str:
 
 
 def _convert_io(obj: Optional[Dict[str, Any]]) -> Iterator[Any]:
-    if obj is None:
+    if not obj:
         return
     if not isinstance(obj, dict):
         raise ValueError(f"obj should be dict, but obj={obj}")
