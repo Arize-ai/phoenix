@@ -28,13 +28,15 @@ def _serialize_json(obj: Any) -> str:
     return str(obj)
 
 
-def _convert_io(io: Optional[Dict[str, Any]]) -> Iterator[Any]:
-    if io is None:
+def _convert_io(obj: Optional[Dict[str, Any]]) -> Iterator[Any]:
+    if obj is None:
         return
-    if len(io) == 1 and isinstance(value := next(iter(io.values())), str):
+    if not isinstance(obj, dict):
+        raise ValueError(f"obj should be dict, but obj={obj}")
+    if len(obj) == 1 and isinstance(value := next(iter(obj.values())), str):
         yield value
     else:
-        yield json.dumps(io, default=_serialize_json)
+        yield json.dumps(obj, default=_serialize_json)
         yield MimeType.JSON
 
 

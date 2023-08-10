@@ -22,7 +22,7 @@ def json_to_attributes(obj: Optional[Dict[str, Any]]) -> Dict[str, Any]:
     if obj is None:
         return {}
     if not isinstance(obj, dict):
-        raise ValueError(f"attributes should be dict: attributes={obj}")
+        raise ValueError(f"attributes should be dict, but attributes={obj}")
     if mime_type := obj.get(INPUT_MIME_TYPE):
         obj[INPUT_MIME_TYPE] = MimeType(mime_type)
     if mime_type := obj.get(OUTPUT_MIME_TYPE):
@@ -52,7 +52,7 @@ def json_to_span(data: Dict[str, Any]) -> Any:
     }:
         context = data["context"]
         if not isinstance(context, dict):
-            raise ValueError(f"context should be dict: context={context}")
+            raise ValueError(f"context should be dict, but context={context}")
         data["context"] = SpanContext(
             trace_id=UUID(context["trace_id"]),
             span_id=UUID(context["span_id"]),
