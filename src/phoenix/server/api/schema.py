@@ -1,6 +1,6 @@
 from collections import defaultdict
 from itertools import chain
-from typing import Dict, List, Optional, Set, Union, cast
+from typing import Dict, List, Optional, Set, Union
 
 import numpy as np
 import numpy.typing as npt
