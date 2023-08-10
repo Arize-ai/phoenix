@@ -4,7 +4,7 @@ Helper functions for evaluating the retrieval step of retrieval-augmented genera
 
 from typing import List, Optional
 
-import openai
+from openai import ChatCompletion
 from tenacity import (
     retry,
     stop_after_attempt,
@@ -79,7 +79,7 @@ def classify_relevance(query: str, document: str, model_name: str) -> Optional[b
         query=query,
         reference=document,
     )
-    response = openai.ChatCompletion.create(
+    response = ChatCompletion.create(  # type: ignore
         messages=[
             {"role": "system", "content": _EVALUATION_SYSTEM_MESSAGE},
             {"role": "user", "content": prompt},
