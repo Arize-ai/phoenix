@@ -10,8 +10,10 @@ import React, {
 import {
   addDays,
   addSeconds,
+  endOfDay,
   endOfHour,
   roundToNearestMinutes,
+  startOfDay,
   startOfHour,
   subDays,
 } from "date-fns";
@@ -65,52 +67,82 @@ function useTimeRangeMemo(timePreset: TimePreset, timeRangeBounds: TimeRange) {
   const timeRange = useMemo(() => {
     // The timeRangeBounds come from the start / end of the primary dataset
     // Because our time windows are right open (don't include the right time), we need to expand it by a small amount
-    const endTimeBounds = roundToNearestMinutes(
-      endOfHour(addSeconds(timeRangeBounds.end, 1)),
-      { roundingMethod: "floor" }
-    );
-    const startTimeBounds = startOfHour(timeRangeBounds.start);
+    // endOfHourTime is used for hour level time ranges, and endOfDay is used for day level time ranges
+    const paddedEndTimeBounds = addSeconds(timeRangeBounds.end, 1);
+
     switch (timePreset) {
-      case TimePreset.last_day:
+      case TimePreset.last_day: {
+        const endTimeBounds = roundToNearestMinutes(
+          endOfHour(paddedEndTimeBounds),
+          { roundingMethod: "floor" }
+        );
         return {
           start: subDays(endTimeBounds, 1),
           end: endTimeBounds,
         };
-      case TimePreset.last_week:
+      }
+      case TimePreset.last_week: {
+        const endTimeBounds = roundToNearestMinutes(
+          endOfDay(paddedEndTimeBounds),
+          { roundingMethod: "floor" }
+        );
         return {
           start: subDays(endTimeBounds, 7),
           end: endTimeBounds,
         };
-      case TimePreset.last_month:
+      }
+      case TimePreset.last_month: {
+        const endTimeBounds = roundToNearestMinutes(
+          endOfDay(paddedEndTimeBounds),
+          { roundingMethod: "floor" }
+        );
         return {
           start: subDays(endTimeBounds, 30),
           end: endTimeBounds,
         };
-      case TimePreset.last_3_months:
+      }
+      case TimePreset.last_3_months: {
+        const endTimeBounds = roundToNearestMinutes(
+          endOfDay(paddedEndTimeBounds),
+          { roundingMethod: "floor" }
+        );
         return {
           start: subDays(endTimeBounds, 90),
           end: endTimeBounds,
         };
-      case TimePreset.first_day:
+      }
+      case TimePreset.first_day: {
+        const startTimeBounds = startOfHour(timeRangeBounds.start);
         return {
           start: startTimeBounds,
           end: addDays(startTimeBounds, 1),
         };
-      case TimePreset.first_week:
+      }
+      case TimePreset.first_week: {
+        const startTimeBounds = startOfDay(timeRangeBounds.start);
         return {
           start: startTimeBounds,
           end: addDays(startTimeBounds, 7),
         };
-      case TimePreset.first_month:
+      }
+      case TimePreset.first_month: {
+        const startTimeBounds = startOfDay(timeRangeBounds.start);
         return {
           start: startTimeBounds,
           end: addDays(startTimeBounds, 30),
         };
-      case TimePreset.all:
+      }
+      case TimePreset.all: {
+        const endTimeBounds = roundToNearestMinutes(
+          endOfDay(paddedEndTimeBounds),
+          { roundingMethod: "floor" }
+        );
+        const startTimeBounds = startOfDay(timeRangeBounds.start);
         return {
           start: startTimeBounds,
           end: endTimeBounds,
         };
+      }
       default:
         assertUnreachable(timePreset);
     }
