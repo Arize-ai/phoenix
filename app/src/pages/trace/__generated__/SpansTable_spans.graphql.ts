@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<e8e9945ccf345c5819075b9e887e1513>>
+ * @generated SignedSource<<5ee74702d22dccb4c44f0934d9b90a8d>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -19,6 +19,7 @@ export type SpansTable_spans$data = {
           readonly spanId: string;
           readonly traceId: string;
         };
+        readonly latencyMs: number;
         readonly name: string;
         readonly spanKind: SpanKind;
         readonly startTime: string;
@@ -136,6 +137,13 @@ return {
                 {
                   "alias": null,
                   "args": null,
+                  "kind": "ScalarField",
+                  "name": "latencyMs",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
                   "concreteType": "SpanContext",
                   "kind": "LinkedField",
                   "name": "context",
@@ -223,6 +231,6 @@ return {
 };
 })();
 
-(node as any).hash = "484eed39cb35d63c53782219b07d0fcc";
+(node as any).hash = "9154f410bd23a7223923aa2c19c850b1";
 
 export default node;

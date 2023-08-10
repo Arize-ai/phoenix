@@ -484,6 +484,7 @@ type Span {
   name: String!
   startTime: DateTime!
   endTime: DateTime!
+  latencyMs: Int!
 
   """the parent span ID. If null, it is a root span"""
   parentId: ID
@@ -493,6 +494,8 @@ type Span {
 
 enum SpanColumn {
   startTime
+  endTime
+  latencyMs
 }
 
 type SpanConnection {

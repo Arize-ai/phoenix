@@ -205,8 +205,8 @@ class Query:
         before: Optional[Cursor] = UNSET,
         sort: Optional[SpanSort] = UNSET,
     ) -> Connection[Span]:
-        # The default sort order is by start time
         sort = sort or SpanSort(col=SpanColumn.startTime, dir=SortDir.asc)
+
         # Convert dataframe rows to Span objects
         spans = (
             []

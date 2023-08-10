@@ -1,6 +1,7 @@
 import React, { useMemo } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
 import { Column } from "react-table";
+import { formatDuration, intervalToDuration } from "date-fns";
 
 import { Table } from "@phoenix/components/table";
 
@@ -25,6 +26,7 @@ export function SpansTable(props: SpansTableProps) {
               spanKind
               name
               startTime
+              latencyMs
               context {
                 spanId
                 traceId
@@ -68,6 +70,12 @@ export function SpansTable(props: SpansTableProps) {
       accessor: "name",
     },
     { Header: "start time", accessor: "startTime" },
+    {
+      Header: "latency",
+      accessor: "latencyMs",
+      Cell: ({ value }) =>
+        formatDuration(intervalToDuration({ start: 0, end: value })),
+    },
   ];
   return <Table columns={columns} data={tableData} />;
 }
