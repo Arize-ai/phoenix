@@ -49,7 +49,7 @@ class OpenInferenceTracer(Tracer, BaseTracer):
             "inputs": (INPUT_VALUE, INPUT_MIME_TYPE),
             "outputs": (OUTPUT_VALUE, OUTPUT_MIME_TYPE),
         }.items():
-            attributes.update(zip(io_attributes, _convert_io(run[io_key])))
+            attributes.update(zip(io_attributes, _convert_io(run.get(io_key))))
         span = self.create_span(
             name=run["name"],
             span_kind=_langchain_run_type_to_span_kind(run["run_type"]),
