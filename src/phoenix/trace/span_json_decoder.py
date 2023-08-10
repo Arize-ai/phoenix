@@ -21,7 +21,8 @@ from phoenix.trace.semantic_conventions import (
 def json_to_attributes(obj: Optional[Dict[str, Any]]) -> Dict[str, Any]:
     if obj is None:
         return {}
-    assert isinstance(obj, dict)
+    if not isinstance(obj, dict):
+        raise ValueError(f"attributes should be dict: attributes={obj}")
     if mime_type := obj.get(INPUT_MIME_TYPE):
         obj[INPUT_MIME_TYPE] = MimeType(mime_type)
     if mime_type := obj.get(OUTPUT_MIME_TYPE):
@@ -50,7 +51,8 @@ def json_to_span(data: Dict[str, Any]) -> Any:
         "conversation",
     }:
         context = data["context"]
-        assert isinstance(context, dict)
+        if not isinstance(context, dict):
+            raise ValueError(f"context should be dict: context={context}")
         data["context"] = SpanContext(
             trace_id=UUID(context["trace_id"]),
             span_id=UUID(context["span_id"]),
