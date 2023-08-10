@@ -15,6 +15,16 @@ REQUIRED_COLUMNS = [
 ]
 
 
+def normalize_dataframe(dataframe: DataFrame) -> "DataFrame":
+    """Makes the dataframe have appropriate data types"""
+
+    # Convert the start and end times to datetime
+    dataframe["start_time"] = pd.to_datetime(dataframe["start_time"])
+    dataframe["end_time"] = pd.to_datetime(dataframe["end_time"])
+
+    return dataframe
+
+
 class TraceDataset:
     """
     A TraceDataset is a wrapper around a dataframe which is a flattened representation
@@ -34,4 +44,4 @@ class TraceDataset:
             raise ValueError(
                 f"The dataframe is missing some required columns: {', '.join(missing_columns)}"
             )
-        self.dataframe = dataframe
+        self.dataframe = normalize_dataframe(dataframe)

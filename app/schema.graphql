@@ -450,7 +450,7 @@ type Query {
     """HDBSCAN cluster selection epsilon"""
     clusterSelectionEpsilon: Float! = 0
   ): [Cluster!]!
-  spans(first: Int = 50, last: Int, after: String, before: String): SpanConnection!
+  spans(first: Int = 50, last: Int, after: String, before: String, sort: SpanSort): SpanConnection!
 }
 
 type Retrieval {
@@ -475,11 +475,24 @@ type Segments {
   totalCounts: DatasetValues!
 }
 
+enum SortDir {
+  asc
+  desc
+}
+
 type Span {
   name: String!
+  startTime: DateTime!
+  endTime: DateTime!
+
+  """the parent span ID. If null, it is a root span"""
   parentId: ID
   spanKind: SpanKind!
   context: SpanContext!
+}
+
+enum SpanColumn {
+  startTime
 }
 
 type SpanConnection {
@@ -504,6 +517,11 @@ enum SpanKind {
   retriever
   embedding
   unknown
+}
+
+input SpanSort {
+  col: SpanColumn!
+  dir: SortDir!
 }
 
 input TimeRange {
