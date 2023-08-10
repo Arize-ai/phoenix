@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<7a4d450cc07b874013d8c67c2532feb8>>
+ * @generated SignedSource<<5ee74702d22dccb4c44f0934d9b90a8d>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -19,8 +19,10 @@ export type SpansTable_spans$data = {
           readonly spanId: string;
           readonly traceId: string;
         };
+        readonly latencyMs: number;
         readonly name: string;
         readonly spanKind: SpanKind;
+        readonly startTime: string;
       };
     }>;
   };
@@ -46,6 +48,14 @@ return {
       "defaultValue": null,
       "kind": "LocalArgument",
       "name": "cursor"
+    },
+    {
+      "defaultValue": {
+        "col": "startTime",
+        "dir": "desc"
+      },
+      "kind": "LocalArgument",
+      "name": "sort"
     }
   ],
   "kind": "Fragment",
@@ -75,7 +85,13 @@ return {
   "selections": [
     {
       "alias": "spans",
-      "args": null,
+      "args": [
+        {
+          "kind": "Variable",
+          "name": "sort",
+          "variableName": "sort"
+        }
+      ],
       "concreteType": "SpanConnection",
       "kind": "LinkedField",
       "name": "__SpansTable_spans_connection",
@@ -109,6 +125,20 @@ return {
                   "args": null,
                   "kind": "ScalarField",
                   "name": "name",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "startTime",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "latencyMs",
                   "storageKey": null
                 },
                 {
@@ -201,6 +231,6 @@ return {
 };
 })();
 
-(node as any).hash = "0d55717965759fe0048939bb211159db";
+(node as any).hash = "9154f410bd23a7223923aa2c19c850b1";
 
 export default node;
