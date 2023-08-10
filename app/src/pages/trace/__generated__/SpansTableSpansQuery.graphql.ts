@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<5914e63cab1cb78a15e301e7c4921eeb>>
+ * @generated SignedSource<<f95e73888d61e2c5478cf52b4903a321>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,9 +10,16 @@
 
 import { ConcreteRequest, Query } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
+export type SortDir = "asc" | "desc";
+export type SpanColumn = "endTime" | "latencyMs" | "startTime";
+export type SpanSort = {
+  col: SpanColumn;
+  dir: SortDir;
+};
 export type SpansTableSpansQuery$variables = {
   count?: number | null;
   cursor?: string | null;
+  sort?: SpanSort | null;
 };
 export type SpansTableSpansQuery$data = {
   readonly " $fragmentSpreads": FragmentRefs<"SpansTable_spans">;
@@ -33,9 +40,22 @@ var v0 = [
     "defaultValue": null,
     "kind": "LocalArgument",
     "name": "cursor"
+  },
+  {
+    "defaultValue": {
+      "col": "startTime",
+      "dir": "desc"
+    },
+    "kind": "LocalArgument",
+    "name": "sort"
   }
 ],
-v1 = [
+v1 = {
+  "kind": "Variable",
+  "name": "sort",
+  "variableName": "sort"
+},
+v2 = [
   {
     "kind": "Variable",
     "name": "after",
@@ -45,7 +65,8 @@ v1 = [
     "kind": "Variable",
     "name": "first",
     "variableName": "count"
-  }
+  },
+  (v1/*: any*/)
 ];
 return {
   "fragment": {
@@ -65,7 +86,8 @@ return {
             "kind": "Variable",
             "name": "cursor",
             "variableName": "cursor"
-          }
+          },
+          (v1/*: any*/)
         ],
         "kind": "FragmentSpread",
         "name": "SpansTable_spans"
@@ -82,7 +104,7 @@ return {
     "selections": [
       {
         "alias": null,
-        "args": (v1/*: any*/),
+        "args": (v2/*: any*/),
         "concreteType": "SpanConnection",
         "kind": "LinkedField",
         "name": "spans",
@@ -116,6 +138,20 @@ return {
                     "args": null,
                     "kind": "ScalarField",
                     "name": "name",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "startTime",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "latencyMs",
                     "storageKey": null
                   },
                   {
@@ -204,8 +240,10 @@ return {
       },
       {
         "alias": null,
-        "args": (v1/*: any*/),
-        "filters": null,
+        "args": (v2/*: any*/),
+        "filters": [
+          "sort"
+        ],
         "handle": "connection",
         "key": "SpansTable_spans",
         "kind": "LinkedHandle",
@@ -214,16 +252,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "d0340243cada8c9990357fcaf120d78e",
+    "cacheID": "bc727f4c9952c75091eb723d8b42420e",
     "id": null,
     "metadata": {},
     "name": "SpansTableSpansQuery",
     "operationKind": "query",
-    "text": "query SpansTableSpansQuery(\n  $count: Int = 50\n  $cursor: String = null\n) {\n  ...SpansTable_spans_1G22uz\n}\n\nfragment SpansTable_spans_1G22uz on Query {\n  spans(first: $count, after: $cursor) {\n    edges {\n      span: node {\n        spanKind\n        name\n        context {\n          spanId\n          traceId\n        }\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query SpansTableSpansQuery(\n  $count: Int = 50\n  $cursor: String = null\n  $sort: SpanSort = {col: startTime, dir: desc}\n) {\n  ...SpansTable_spans_1RfMLO\n}\n\nfragment SpansTable_spans_1RfMLO on Query {\n  spans(first: $count, after: $cursor, sort: $sort) {\n    edges {\n      span: node {\n        spanKind\n        name\n        startTime\n        latencyMs\n        context {\n          spanId\n          traceId\n        }\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "0d55717965759fe0048939bb211159db";
+(node as any).hash = "9154f410bd23a7223923aa2c19c850b1";
 
 export default node;

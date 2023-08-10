@@ -12,10 +12,14 @@ from typing_extensions import Annotated
 from phoenix.pointcloud.clustering import Hdbscan
 from phoenix.server.api.helpers import ensure_list
 from phoenix.server.api.input_types.ClusterInput import ClusterInput
+from phoenix.server.api.input_types.Coordinates import (
+    InputCoordinate2D,
+    InputCoordinate3D,
+)
+from phoenix.server.api.input_types.SpanSort import SpanColumn, SpanSort
 from phoenix.server.api.types.Cluster import Cluster, to_gql_clusters
 
 from .context import Context
-from .input_types import Coordinates
 from .types.DatasetRole import AncillaryDatasetRole, DatasetRole
 from .types.Dimension import to_gql_dimension
 from .types.EmbeddingDimension import (
@@ -30,7 +34,8 @@ from .types.Functionality import Functionality
 from .types.Model import Model
 from .types.node import GlobalID, Node, from_global_id
 from .types.pagination import Connection, ConnectionArgs, Cursor, connection_from_list
-from .types.Span import Span, SpanContext
+from .types.SortDir import SortDir
+from .types.Span import Span, to_gql_span
 
 
 @strawberry.type
@@ -83,13 +88,13 @@ class Query:
             ),
         ],
         coordinates_2d: Annotated[
-            Optional[List[Coordinates.InputCoordinate2D]],
+            Optional[List[InputCoordinate2D]],
             strawberry.argument(
                 description="Point coordinates. Must be either 2D or 3D.",
             ),
         ] = UNSET,
         coordinates_3d: Annotated[
-            Optional[List[Coordinates.InputCoordinate3D]],
+            Optional[List[InputCoordinate3D]],
             strawberry.argument(
                 description="Point coordinates. Must be either 2D or 3D.",
             ),
@@ -198,22 +203,16 @@ class Query:
         last: Optional[int] = UNSET,
         after: Optional[Cursor] = UNSET,
         before: Optional[Cursor] = UNSET,
+        sort: Optional[SpanSort] = UNSET,
     ) -> Connection[Span]:
+        sort = sort or SpanSort(col=SpanColumn.startTime, dir=SortDir.asc)
+
         # Convert dataframe rows to Span objects
         spans = (
             []
             if info.context.traces is None
             else [
-                Span(
-                    name=row["name"],
-                    parent_id=row["parent_id"],
-                    span_kind=row["span_kind"],
-                    context=SpanContext(
-                        trace_id=row["context.trace_id"],
-                        span_id=row["context.span_id"],
-                    ),
-                )
-                for _, row in info.context.traces._dataframe.iterrows()
+                to_gql_span(row) for _, row in sort.apply(info.context.traces._dataframe).iterrows()
             ]
         )
 

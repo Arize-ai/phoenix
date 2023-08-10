@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f1d2128d2865aca4470e22b4afd82882>>
+ * @generated SignedSource<<2511da8201ed409d41b0d567fa9a9293>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -25,6 +25,14 @@ var v0 = [
     "kind": "Literal",
     "name": "first",
     "value": 50
+  },
+  {
+    "kind": "Literal",
+    "name": "sort",
+    "value": {
+      "col": "startTime",
+      "dir": "desc"
+    }
   }
 ];
 return {
@@ -85,6 +93,20 @@ return {
                     "args": null,
                     "kind": "ScalarField",
                     "name": "name",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "startTime",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "latencyMs",
                     "storageKey": null
                   },
                   {
@@ -169,12 +191,14 @@ return {
             "storageKey": null
           }
         ],
-        "storageKey": "spans(first:50)"
+        "storageKey": "spans(first:50,sort:{\"col\":\"startTime\",\"dir\":\"desc\"})"
       },
       {
         "alias": null,
         "args": (v0/*: any*/),
-        "filters": null,
+        "filters": [
+          "sort"
+        ],
         "handle": "connection",
         "key": "SpansTable_spans",
         "kind": "LinkedHandle",
@@ -183,12 +207,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "7012f608596f909ae204ddadff15eded",
+    "cacheID": "9bfc1516311e5921efdd4c9af42722a8",
     "id": null,
     "metadata": {},
     "name": "TracePageQuery",
     "operationKind": "query",
-    "text": "query TracePageQuery {\n  ...SpansTable_spans\n}\n\nfragment SpansTable_spans on Query {\n  spans(first: 50) {\n    edges {\n      span: node {\n        spanKind\n        name\n        context {\n          spanId\n          traceId\n        }\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query TracePageQuery {\n  ...SpansTable_spans\n}\n\nfragment SpansTable_spans on Query {\n  spans(first: 50, sort: {col: startTime, dir: desc}) {\n    edges {\n      span: node {\n        spanKind\n        name\n        startTime\n        latencyMs\n        context {\n          spanId\n          traceId\n        }\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();
