@@ -1,6 +1,7 @@
 import json
 from datetime import datetime
-from typing import Any, Dict
+from typing import Any, Dict, Optional
+from uuid import UUID
 
 from phoenix.trace.schemas import (
     Span,
@@ -10,6 +11,22 @@ from phoenix.trace.schemas import (
     SpanKind,
     SpanStatusCode,
 )
+from phoenix.trace.semantic_conventions import (
+    INPUT_MIME_TYPE,
+    OUTPUT_MIME_TYPE,
+    MimeType,
+)
+
+
+def json_to_attributes(obj: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    if obj is None:
+        return {}
+    assert isinstance(obj, dict)
+    if mime_type := obj.get(INPUT_MIME_TYPE):
+        obj[INPUT_MIME_TYPE] = MimeType(mime_type)
+    if mime_type := obj.get(OUTPUT_MIME_TYPE):
+        obj[OUTPUT_MIME_TYPE] = MimeType(mime_type)
+    return obj
 
 
 def json_to_span(data: Dict[str, Any]) -> Any:
@@ -32,7 +49,16 @@ def json_to_span(data: Dict[str, Any]) -> Any:
         "events",
         "conversation",
     }:
-        data["context"] = SpanContext(**data["context"])
+        context = data["context"]
+        assert isinstance(context, dict)
+        data["context"] = SpanContext(
+            trace_id=UUID(context["trace_id"]),
+            span_id=UUID(context["span_id"]),
+        )
+        parent_id = data.get("parent_id")
+        data["parent_id"] = UUID(parent_id) if parent_id else None
+        attributes = data.get("attributes")
+        data["attributes"] = json_to_attributes(attributes)
         data["start_time"] = datetime.fromisoformat(data["start_time"])
         data["end_time"] = datetime.fromisoformat(data["end_time"])
         data["span_kind"] = SpanKind(data["span_kind"])

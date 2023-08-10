@@ -1,3 +1,4 @@
+from json import loads
 from uuid import UUID
 
 import numpy as np
@@ -7,6 +8,15 @@ from langchain.llms.fake import FakeListLLM
 from langchain.retrievers import KNNRetriever
 from phoenix.experimental.callbacks.langchain_tracer import OpenInferenceTracer
 from phoenix.trace.schemas import SpanKind, SpanStatusCode
+from phoenix.trace.semantic_conventions import (
+    INPUT_MIME_TYPE,
+    INPUT_VALUE,
+    OUTPUT_MIME_TYPE,
+    OUTPUT_VALUE,
+    MimeType,
+)
+from phoenix.trace.span_json_decoder import json_string_to_span
+from phoenix.trace.span_json_encoder import span_to_json
 
 
 def test_tracer_llm() -> None:
@@ -46,3 +56,36 @@ def test_tracer_llm() -> None:
     assert spans["StuffDocumentsChain"].status_code is SpanStatusCode.OK
     assert spans["LLMChain"].status_code is SpanStatusCode.OK
     assert spans["FakeListLLM"].status_code is SpanStatusCode.OK
+
+    attributes = spans["RetrievalQA"].attributes
+    assert attributes.get(INPUT_MIME_TYPE, MimeType.TEXT) is MimeType.TEXT
+    assert attributes.get(OUTPUT_MIME_TYPE, MimeType.TEXT) is MimeType.TEXT
+    assert attributes.get(INPUT_VALUE) is question
+    assert attributes.get(OUTPUT_VALUE) is answer
+
+    attributes = spans["Retriever"].attributes
+    assert attributes.get(INPUT_MIME_TYPE, MimeType.TEXT) is MimeType.TEXT
+    assert attributes.get(OUTPUT_MIME_TYPE) is MimeType.JSON
+    assert attributes.get(INPUT_VALUE) is question
+    assert loads(attributes.get(OUTPUT_VALUE))
+
+    attributes = spans["StuffDocumentsChain"].attributes
+    assert attributes.get(INPUT_MIME_TYPE) is MimeType.JSON
+    assert attributes.get(OUTPUT_MIME_TYPE, MimeType.TEXT) is MimeType.TEXT
+    assert loads(attributes.get(INPUT_VALUE))
+    assert attributes.get(OUTPUT_VALUE) is answer
+
+    attributes = spans["LLMChain"].attributes
+    assert attributes.get(INPUT_MIME_TYPE) is MimeType.JSON
+    assert attributes.get(OUTPUT_MIME_TYPE, MimeType.TEXT) is MimeType.TEXT
+    assert loads(attributes.get(INPUT_VALUE))
+    assert attributes.get(OUTPUT_VALUE) is answer
+
+    attributes = spans["FakeListLLM"].attributes
+    assert attributes.get(INPUT_MIME_TYPE) is MimeType.JSON
+    assert attributes.get(OUTPUT_MIME_TYPE) is MimeType.JSON
+    assert loads(attributes.get(INPUT_VALUE))
+    assert loads(attributes.get(OUTPUT_VALUE))
+
+    for span in spans.values():
+        assert json_string_to_span(span_to_json(span)) == span
