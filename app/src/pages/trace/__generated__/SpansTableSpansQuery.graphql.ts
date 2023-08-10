@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<4b66d06c2cac214e69472e467dc6dfcb>>
+ * @generated SignedSource<<447b1bec4a935c113a4ec33b092a711a>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -11,7 +11,7 @@
 import { ConcreteRequest, Query } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type SortDir = "asc" | "desc";
-export type SpanColumn = "startTime";
+export type SpanColumn = "duration" | "endTime" | "startTime";
 export type SpanSort = {
   col: SpanColumn;
   dir: SortDir;
@@ -150,6 +150,13 @@ return {
                   {
                     "alias": null,
                     "args": null,
+                    "kind": "ScalarField",
+                    "name": "latencyMs",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
                     "concreteType": "SpanContext",
                     "kind": "LinkedField",
                     "name": "context",
@@ -245,16 +252,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "190e2cb2688d78630c8b3d7242941dac",
+    "cacheID": "bc727f4c9952c75091eb723d8b42420e",
     "id": null,
     "metadata": {},
     "name": "SpansTableSpansQuery",
     "operationKind": "query",
-    "text": "query SpansTableSpansQuery(\n  $count: Int = 50\n  $cursor: String = null\n  $sort: SpanSort = {col: startTime, dir: desc}\n) {\n  ...SpansTable_spans_1RfMLO\n}\n\nfragment SpansTable_spans_1RfMLO on Query {\n  spans(first: $count, after: $cursor, sort: $sort) {\n    edges {\n      span: node {\n        spanKind\n        name\n        startTime\n        context {\n          spanId\n          traceId\n        }\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query SpansTableSpansQuery(\n  $count: Int = 50\n  $cursor: String = null\n  $sort: SpanSort = {col: startTime, dir: desc}\n) {\n  ...SpansTable_spans_1RfMLO\n}\n\nfragment SpansTable_spans_1RfMLO on Query {\n  spans(first: $count, after: $cursor, sort: $sort) {\n    edges {\n      span: node {\n        spanKind\n        name\n        startTime\n        latencyMs\n        context {\n          spanId\n          traceId\n        }\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "484eed39cb35d63c53782219b07d0fcc";
+(node as any).hash = "9154f410bd23a7223923aa2c19c850b1";
 
 export default node;
