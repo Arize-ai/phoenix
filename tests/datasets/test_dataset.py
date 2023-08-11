@@ -765,7 +765,7 @@ class TestDataset:
 
         with raises_dataset_error(
             err.InvalidSchemaError,
-            "The schema is invalid: timestamp cannot be excluded"
+            "The schema is invalid: timestamp cannot be excluded "
             "because it is already being used as the timestamp column.",
         ):
             Dataset(dataframe=input_df, schema=input_schema)
@@ -791,6 +791,28 @@ class TestDataset:
             err.InvalidSchemaError,
             "The schema is invalid: prediction_id cannot be excluded because it is "
             "already being used as the prediction id column.",
+        ):
+            Dataset(dataframe=input_df, schema=input_schema)
+
+    def test_dataset_validate_invalid_schema_missing_column(self) -> None:
+        input_df = DataFrame(
+            {
+                "prediction_label": [f"label{index}" for index in range(self.num_records)],
+                "feature0": np.zeros(self.num_records),
+                "timestamp": random_uuids(self.num_records),
+            },
+        )
+
+        input_schema = Schema(
+            prediction_id_column_name="prediction_id",
+            feature_column_names=["feature0"],
+            prediction_label_column_name="prediction_label",
+        )
+
+        with raises_dataset_error(
+            err.MissingColumns,
+            "The following columns are declared in the Schema "
+            "but are not found in the dataframe: prediction_id.",
         ):
             Dataset(dataframe=input_df, schema=input_schema)
 
