@@ -1,7 +1,12 @@
+import json
 from enum import Enum
+from typing import List
 
 import pandas as pd
 from pandas import DataFrame
+
+from .schemas import Span
+from .span_json_encoder import span_to_json
 
 # A set of columns that is required
 REQUIRED_COLUMNS = [
@@ -57,3 +62,15 @@ class TraceDataset:
                 f"The dataframe is missing some required columns: {', '.join(missing_columns)}"
             )
         self.dataframe = normalize_dataframe(dataframe)
+
+    @classmethod
+    def from_spans(cls, spans: List[Span]) -> "TraceDataset":
+        """Creates a TraceDataset from a list of spans.
+
+        Args:
+            spans (List[Span]): A list of spans.
+
+        Returns:
+            TraceDataset: A TraceDataset containing the spans.
+        """
+        return cls(pd.json_normalize(map(json.loads, map(span_to_json, spans))))  # type: ignore
