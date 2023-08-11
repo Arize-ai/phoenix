@@ -143,12 +143,14 @@ class ProcessSession(Session):
         primary_dataset: Dataset,
         reference_dataset: Optional[Dataset] = None,
         corpus_dataset: Optional[Dataset] = None,
+        trace_dataset: Optional[TraceDataset] = None,
         port: Optional[int] = None,
     ) -> None:
         super().__init__(
             primary_dataset=primary_dataset,
             reference_dataset=reference_dataset,
             corpus_dataset=corpus_dataset,
+            trace_dataset=trace_dataset,
             port=port or PORT,
         )
         primary_dataset.to_disc()
@@ -194,11 +196,13 @@ class ThreadSession(Session):
             trace_dataset=trace_dataset,
             port=port or pick_unused_port(),
         )
+        print(self.traces)
         # Initialize an app service that keeps the server running
         self.app = create_app(
             export_path=self.export_path,
             model=self.model,
             corpus=self.corpus,
+            traces=self.traces,
         )
         self.server = ThreadServer(
             app=self.app,
@@ -270,7 +274,7 @@ def launch_app(
                 "it down and starting a new instance..."
             )
             _session.end()
-        _session = ThreadSession(primary, reference, corpus, port=port)
+        _session = ThreadSession(primary, reference, corpus, trace, port=port)
         # TODO: catch exceptions from thread
         if not _session.active:
             logger.error(
@@ -279,7 +283,7 @@ def launch_app(
             )
             return None
     else:
-        _session = ProcessSession(primary, reference, port=port)
+        _session = ProcessSession(primary, reference, corpus, trace, port=port)
 
     print(f"🌍 To view the Phoenix app in your browser, visit {_session.url}")
     print("📺 To view the Phoenix app in a notebook, run `px.active_session().view()`")

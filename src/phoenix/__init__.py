@@ -3,6 +3,7 @@ from .datasets.fixtures import ExampleDatasets, load_example
 from .datasets.schema import EmbeddingColumnNames, RetrievalEmbeddingColumnNames, Schema
 from .session.session import Session, active_session, close_app, launch_app
 from .trace.fixtures import load_example_traces
+from .trace.trace_dataset import TraceDataset
 
 __version__ = "0.0.32"
 
@@ -34,4 +35,5 @@ __all__ = [
     "launch_app",
     "Session",
     "load_example_traces",
+    "TraceDataset",
 ]
