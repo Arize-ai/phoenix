@@ -58,7 +58,10 @@ class DatasetError(Exception):
     """An error raised when the dataset is invalid or incomplete"""
 
     def __init__(self, errors: Union[ValidationError, List[ValidationError]]):
-        self.errors = errors
+        self.errors: List[ValidationError] = errors if isinstance(errors, list) else [errors]
+
+    def __str__(self):
+        return "\n".join(map(str, self.errors))
 
 
 class InvalidColumnType(ValidationError):
