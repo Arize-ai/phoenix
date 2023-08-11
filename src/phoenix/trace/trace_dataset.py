@@ -1,7 +1,12 @@
+import json
 from enum import Enum
+from typing import Any, Dict, List
 
 import pandas as pd
 from pandas import DataFrame
+
+from .schemas import Span
+from .span_json_encoder import span_to_json
 
 # A set of columns that is required
 REQUIRED_COLUMNS = [
@@ -57,3 +62,35 @@ class TraceDataset:
                 f"The dataframe is missing some required columns: {', '.join(missing_columns)}"
             )
         self.dataframe = normalize_dataframe(dataframe)
+
+    @classmethod
+    def from_spans(cls, spans: List[Span]) -> "TraceDataset":
+        """Creates a TraceDataset from a list of spans.
+
+        Args:
+            spans (List[Span]): A list of spans.
+
+        Returns:
+            TraceDataset: A TraceDataset containing the spans.
+        """
+        return cls(DataFrame([_span_to_flattened_data(span) for span in spans]))
+
+
+def _span_to_flattened_data(span: Span) -> Dict[str, Any]:
+    """Converts a span to a flattened dictionary of span data.
+
+    Args:
+        span (Span): The span to convert.
+
+    Returns:
+        Dict[str, Any]: A flattened dictionary of span data.
+    """
+    span_data = json.loads(span_to_json(span))
+    flattened_span_data = {}
+    for key, value in span_data.items():
+        if key in ["context", "attributes", "conversation"] and value is not None:
+            for nested_key, nested_value in value.items():
+                flattened_span_data[f"{key}.{nested_key}"] = nested_value
+        else:
+            flattened_span_data[key] = value
+    return flattened_span_data
