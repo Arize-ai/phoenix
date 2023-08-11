@@ -6,12 +6,13 @@ import argparse
 import logging
 import shutil
 import sys
+from functools import partial
 from typing import List
 
 from langchain.docstore.document import Document as LangChainDocument
 from langchain.document_loaders import GitbookLoader
 from langchain.embeddings import OpenAIEmbeddings
-from langchain.text_splitter import MarkdownTextSplitter
+from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.vectorstores import Chroma
 from tiktoken import Encoding, encoding_for_model
 
@@ -75,13 +76,12 @@ def chunk_docs(
         List[LangChainDocument]: The chunked documents.
     """
 
-    # text_splitter = RecursiveCharacterTextSplitter(
-    #     chunk_size=chunk_size,
-    #     chunk_overlap=chunk_overlap,
-    #     length_function=partial(tiktoken_len, tokenizer=tokenizer),
-    #     separators=["\n\n", "\n", " ", ""],
-    # )
-    text_splitter = MarkdownTextSplitter()
+    text_splitter = RecursiveCharacterTextSplitter(
+        chunk_size=chunk_size,
+        chunk_overlap=chunk_overlap,
+        length_function=partial(tiktoken_len, tokenizer=tokenizer),
+        separators=["\n\n", "\n", " ", ""],
+    )
     return text_splitter.split_documents(documents)
 
 
