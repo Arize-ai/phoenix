@@ -21,3 +21,6 @@ sdist
 
 # Testing
 coverage.xml
+
+# Un-supported files
+pnpm-lock.yaml
