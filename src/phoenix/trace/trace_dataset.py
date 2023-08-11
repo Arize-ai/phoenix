@@ -1,6 +1,6 @@
 import json
 from enum import Enum
-from typing import Any, Dict, List
+from typing import List
 
 import pandas as pd
 from pandas import DataFrame
@@ -73,24 +73,4 @@ class TraceDataset:
         Returns:
             TraceDataset: A TraceDataset containing the spans.
         """
-        return cls(DataFrame([_span_to_flattened_data(span) for span in spans]))
-
-
-def _span_to_flattened_data(span: Span) -> Dict[str, Any]:
-    """Converts a span to a flattened dictionary of span data.
-
-    Args:
-        span (Span): The span to convert.
-
-    Returns:
-        Dict[str, Any]: A flattened dictionary of span data.
-    """
-    span_data = json.loads(span_to_json(span))
-    flattened_span_data = {}
-    for key, value in span_data.items():
-        if key in ["context", "attributes", "conversation"] and value is not None:
-            for nested_key, nested_value in value.items():
-                flattened_span_data[f"{key}.{nested_key}"] = nested_value
-        else:
-            flattened_span_data[key] = value
-    return flattened_span_data
+        return cls(pd.json_normalize(map(json.loads, map(span_to_json, spans))))  # type: ignore
