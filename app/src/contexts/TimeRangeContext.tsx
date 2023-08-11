@@ -65,15 +65,10 @@ type TimeRangeProviderProps = {
 
 function useTimeRangeMemo(timePreset: TimePreset, timeRangeBounds: TimeRange) {
   const timeRange = useMemo(() => {
-    // The timeRangeBounds come from the start / end of the primary dataset
-    // Because our time windows are right open (don't include the right time), we need to expand it by a small amount
-    // endOfHour is used for hour level time ranges, and endOfDay is used for day level time ranges
-    const paddedEndTimeBounds = addSeconds(timeRangeBounds.end, 1);
-
     switch (timePreset) {
       case TimePreset.last_day: {
         const endTimeBounds = roundToNearestMinutes(
-          endOfHour(paddedEndTimeBounds),
+          endOfHour(timeRangeBounds.end),
           { roundingMethod: "floor" }
         );
         return {
@@ -83,7 +78,7 @@ function useTimeRangeMemo(timePreset: TimePreset, timeRangeBounds: TimeRange) {
       }
       case TimePreset.last_week: {
         const endTimeBounds = roundToNearestMinutes(
-          endOfDay(paddedEndTimeBounds),
+          endOfDay(timeRangeBounds.end),
           { roundingMethod: "floor" }
         );
         return {
@@ -93,7 +88,7 @@ function useTimeRangeMemo(timePreset: TimePreset, timeRangeBounds: TimeRange) {
       }
       case TimePreset.last_month: {
         const endTimeBounds = roundToNearestMinutes(
-          endOfDay(paddedEndTimeBounds),
+          endOfDay(timeRangeBounds.end),
           { roundingMethod: "floor" }
         );
         return {
@@ -103,7 +98,7 @@ function useTimeRangeMemo(timePreset: TimePreset, timeRangeBounds: TimeRange) {
       }
       case TimePreset.last_3_months: {
         const endTimeBounds = roundToNearestMinutes(
-          endOfDay(paddedEndTimeBounds),
+          endOfDay(timeRangeBounds.end),
           { roundingMethod: "floor" }
         );
         return {
@@ -134,7 +129,7 @@ function useTimeRangeMemo(timePreset: TimePreset, timeRangeBounds: TimeRange) {
       }
       case TimePreset.all: {
         const endTimeBounds = roundToNearestMinutes(
-          endOfDay(paddedEndTimeBounds),
+          endOfDay(timeRangeBounds.end),
           { roundingMethod: "floor" }
         );
         const startTimeBounds = startOfDay(timeRangeBounds.start);
