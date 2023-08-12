@@ -60,7 +60,7 @@ class DatasetError(Exception):
     def __init__(self, errors: Union[ValidationError, List[ValidationError]]):
         self.errors: List[ValidationError] = errors if isinstance(errors, list) else [errors]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return "\n".join(map(str, self.errors))
 
 
