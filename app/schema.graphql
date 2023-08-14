@@ -450,7 +450,7 @@ type Query {
     """HDBSCAN cluster selection epsilon"""
     clusterSelectionEpsilon: Float! = 0
   ): [Cluster!]!
-  spans(first: Int = 50, last: Int, after: String, before: String, sort: SpanSort): SpanConnection!
+  spans(traceIds: [ID!], first: Int = 50, last: Int, after: String, before: String, sort: SpanSort): SpanConnection!
 }
 
 type Retrieval {
@@ -490,6 +490,9 @@ type Span {
   parentId: ID
   spanKind: SpanKind!
   context: SpanContext!
+
+  """Span attributes as a JSON string"""
+  attributes: String!
 }
 
 enum SpanColumn {
