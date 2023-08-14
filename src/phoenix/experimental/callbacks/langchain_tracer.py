@@ -7,6 +7,7 @@ from langchain.callbacks.tracers.schemas import Run
 
 from phoenix.trace.schemas import Span, SpanKind, SpanStatusCode
 from phoenix.trace.semantic_conventions import (
+    EXCEPTION_MESSAGE,
     INPUT_MIME_TYPE,
     INPUT_VALUE,
     LLM_PROMPT_TEMPLATE,
@@ -81,6 +82,11 @@ class OpenInferenceTracer(Tracer, BaseTracer):
         }.items():
             attributes.update(zip(io_attributes, _convert_io(run.get(io_key))))
         attributes.update(_prompt_template(run["serialized"]))
+        if (error := run["error"]) is None:
+            status_code = SpanStatusCode.OK
+        else:
+            status_code = SpanStatusCode.ERROR
+            attributes[EXCEPTION_MESSAGE] = error
         span = self.create_span(
             name=run["name"],
             span_kind=_langchain_run_type_to_span_kind(run["run_type"]),
@@ -88,9 +94,7 @@ class OpenInferenceTracer(Tracer, BaseTracer):
             trace_id=None if parent is None else parent.context.trace_id,
             start_time=run["start_time"],
             end_time=run["end_time"],
-            # TODO: understand the error scenarios in LangChain
-            # and add unit tests for them
-            status_code=SpanStatusCode.OK,
+            status_code=status_code,
             attributes=attributes,
         )
         for child_run in run["child_runs"]:
