@@ -1,7 +1,8 @@
 from datetime import datetime
 from enum import Enum
-from typing import Any, Optional
+from typing import Any, Optional, cast
 
+import pandas as pd
 import strawberry
 from pandas import Series
 from strawberry import ID
@@ -43,12 +44,29 @@ class Span:
     span_kind: SpanKind
     context: SpanContext
 
+    _row: strawberry.Private["pd.Series[Any]"]
+
+    @strawberry.field(
+        description="Span attributes as a JSON string",
+    )  # type: ignore
+    def attributes(self) -> str:
+        prefix = "attributes."
+        is_attribute = self._row.index.str.startswith(prefix)
+        keys = self._row.index[is_attribute]
+        return cast(
+            str,
+            self._row.loc[is_attribute]
+            .rename({key: key[len(prefix) :] for key in keys})
+            .to_json(date_format="iso"),
+        )
+
 
 def to_gql_span(row: "Series[Any]") -> Span:
     """
     Converts a dataframe row to a graphQL span
     """
     return Span(
+        _row=row,
         name=row["name"],
         parent_id=row["parent_id"],
         span_kind=row["span_kind"],
