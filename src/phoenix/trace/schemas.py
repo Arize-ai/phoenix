@@ -24,8 +24,6 @@ class SpanKind(Enum):
     LLM = "LLM"
     RETRIEVER = "RETRIEVER"
     EMBEDDING = "EMBEDDING"
-    PROMPT = "PROMPT"
-    PARSER = "PARSER"
     UNKNOWN = "UNKNOWN"
 
 
