@@ -10,6 +10,7 @@ from phoenix.trace.schemas import Span, SpanKind, SpanStatusCode
 from phoenix.trace.semantic_conventions import (
     INPUT_MIME_TYPE,
     INPUT_VALUE,
+    LLM_INVOCATION_PARAMETERS,
     LLM_PROMPT_TEMPLATE,
     LLM_PROMPT_TEMPLATE_VARIABLES,
     LLM_PROMPT_TEMPLATE_VERSION,
@@ -72,6 +73,11 @@ def _prompt_template(serialized: Dict[str, Any]) -> Iterator[Tuple[str, Any]]:
             continue
 
 
+def _invocation_params(extra: Dict[str, Any]) -> Iterator[Tuple[str, Any]]:
+    if "invocation_params" in extra:
+        yield LLM_INVOCATION_PARAMETERS, extra["invocation_params"]
+
+
 class OpenInferenceTracer(Tracer, BaseTracer):
     def _convert_run_to_spans(
         self,
@@ -85,6 +91,7 @@ class OpenInferenceTracer(Tracer, BaseTracer):
         }.items():
             attributes.update(zip(io_attributes, _convert_io(run.get(io_key))))
         attributes.update(_prompt_template(run["serialized"]))
+        # attributes.update(_invocation_params(run["extra"]))
         span = self.create_span(
             name=run["name"],
             span_kind=_langchain_run_type_to_span_kind(run["run_type"]),
