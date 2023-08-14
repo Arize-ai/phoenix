@@ -55,7 +55,7 @@ class Span:
         keys = self._row.index[is_attribute]
         return cast(
             str,
-            self._row.loc[is_attribute]  # type: ignore
+            self._row.loc[is_attribute]
             .rename({key: key[len(prefix) :] for key in keys})
             .to_json(date_format="iso"),
         )
