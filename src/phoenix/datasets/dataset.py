@@ -87,8 +87,6 @@ class Dataset:
             schema=schema,
         )
         if errors:
-            for e in errors:
-                logger.error(e)
             raise err.DatasetError(errors)
         dataframe, schema = _parse_dataframe_and_schema(dataframe, schema)
         dataframe, schema = _normalize_timestamps(

@@ -4,6 +4,7 @@ Test dataset
 import logging
 import math
 import uuid
+from contextlib import contextmanager
 from dataclasses import replace
 from datetime import datetime
 from typing import Optional
@@ -740,7 +741,10 @@ class TestDataset:
             prediction_label_column_name="prediction_label",
         )
 
-        with raises(DatasetError):
+        with raises_dataset_error(
+            err.InvalidColumnType,
+            "Invalid column types: ['prediction_id should be a string or numeric type']",
+        ):
             Dataset(dataframe=input_df, schema=input_schema)
 
     def test_dataset_validate_invalid_schema_excludes_timestamp(self) -> None:
@@ -759,7 +763,11 @@ class TestDataset:
             excluded_column_names=["timestamp"],
         )
 
-        with raises(DatasetError):
+        with raises_dataset_error(
+            err.InvalidSchemaError,
+            "The schema is invalid: timestamp cannot be excluded "
+            "because it is already being used as the timestamp column.",
+        ):
             Dataset(dataframe=input_df, schema=input_schema)
 
     def test_dataset_validate_invalid_schema_excludes_prediction_id(self) -> None:
@@ -779,14 +787,47 @@ class TestDataset:
             excluded_column_names=["prediction_id"],
         )
 
-        with pytest.raises(Exception) as exc_info:
+        with raises_dataset_error(
+            err.InvalidSchemaError,
+            "The schema is invalid: prediction_id cannot be excluded because it is "
+            "already being used as the prediction id column.",
+        ):
             Dataset(dataframe=input_df, schema=input_schema)
-        assert isinstance(exc_info.value, DatasetError)
-        assert isinstance(exc_info.value.errors[0], err.InvalidSchemaError)
+
+    def test_dataset_validate_invalid_schema_missing_column(self) -> None:
+        input_df = DataFrame(
+            {
+                "prediction_label": [f"label{index}" for index in range(self.num_records)],
+                "feature0": np.zeros(self.num_records),
+                "timestamp": random_uuids(self.num_records),
+            },
+        )
+
+        input_schema = Schema(
+            prediction_id_column_name="prediction_id",
+            feature_column_names=["feature0"],
+            prediction_label_column_name="prediction_label",
+        )
+
+        with raises_dataset_error(
+            err.MissingColumns,
+            "The following columns are declared in the Schema "
+            "but are not found in the dataframe: prediction_id.",
+        ):
+            Dataset(dataframe=input_df, schema=input_schema)
 
     @property
     def num_records(self):
         return self._NUM_RECORDS
+
+
+@contextmanager
+def raises_dataset_error(validation_error_type, message):
+    with raises(DatasetError) as exc_info:
+        yield
+    assert [type(error) for error in exc_info.value.errors] == [validation_error_type]
+    [error] = exc_info.value.errors
+    assert str(error) == str(exc_info.value) == message
 
 
 def random_uuids(num_records: int):
