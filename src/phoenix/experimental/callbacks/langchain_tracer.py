@@ -19,7 +19,10 @@ from phoenix.trace.tracer import Tracer
 def _langchain_run_type_to_span_kind(run_type: str) -> SpanKind:
     # TODO: LangChain is moving away from enums and to arbitrary strings
     # for the run_type variable, so we may need to do the same
-    return SpanKind(run_type.upper())
+    try:
+        return SpanKind(run_type.upper())
+    except ValueError:
+        return SpanKind.UNKNOWN
 
 
 def _serialize_json(obj: Any) -> str:
