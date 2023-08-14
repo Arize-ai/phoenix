@@ -38,7 +38,7 @@ StopIndex: TypeAlias = int
 
 
 def row_interval_from_sorted_time_index(
-    time_index: pd.Index,
+    time_index: pd.DatetimeIndex,
     time_start: datetime,
     time_stop: datetime,
 ) -> Tuple[StartIndex, StopIndex]:
@@ -170,7 +170,7 @@ def _results(
         sampling_interval=sampling_interval,
     ):
         row_start, row_stop = row_interval_from_sorted_time_index(
-            time_index=dataframe.index,
+            time_index=cast(pd.DatetimeIndex, dataframe.index),
             time_start=time_start,  # inclusive
             time_stop=time_stop,  # exclusive
         )
