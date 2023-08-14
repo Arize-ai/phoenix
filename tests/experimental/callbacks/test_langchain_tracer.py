@@ -3,6 +3,7 @@ from uuid import UUID
 
 import numpy as np
 from langchain.chains import RetrievalQA
+from langchain.chains.retrieval_qa.prompt import PROMPT as RETRIEVAL_QA_PROMPT
 from langchain.embeddings.fake import FakeEmbeddings
 from langchain.llms.fake import FakeListLLM
 from langchain.retrievers import KNNRetriever
@@ -11,6 +12,9 @@ from phoenix.trace.schemas import SpanKind, SpanStatusCode
 from phoenix.trace.semantic_conventions import (
     INPUT_MIME_TYPE,
     INPUT_VALUE,
+    LLM_PROMPT_TEMPLATE,
+    LLM_PROMPT_TEMPLATE_VARIABLES,
+    LLM_PROMPT_TEMPLATE_VERSION,
     OUTPUT_MIME_TYPE,
     OUTPUT_VALUE,
     MimeType,
@@ -80,6 +84,9 @@ def test_tracer_llm() -> None:
     assert attributes.get(OUTPUT_MIME_TYPE, MimeType.TEXT) is MimeType.TEXT
     assert loads(attributes.get(INPUT_VALUE))
     assert attributes.get(OUTPUT_VALUE) is answer
+    assert attributes.get(LLM_PROMPT_TEMPLATE) == RETRIEVAL_QA_PROMPT.template
+    assert attributes.get(LLM_PROMPT_TEMPLATE_VARIABLES) == RETRIEVAL_QA_PROMPT.input_variables
+    assert attributes.get(LLM_PROMPT_TEMPLATE_VERSION) == "unknown"
 
     attributes = spans["FakeListLLM"].attributes
     assert attributes.get(INPUT_MIME_TYPE) is MimeType.JSON
