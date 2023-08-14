@@ -33,8 +33,8 @@ class CBEventData(TypedDict, total=False):
     end_event: CBEvent
 
 
-class OpenInferenceCallbackHandler(BaseCallbackHandler):
-    """Callback handler for storing generation data in OpenInference format.
+class OpenInferenceTraceCallbackHandler(BaseCallbackHandler):
+    """Callback handler for storing LLM application trace data in OpenInference format.
     OpenInference is an open standard for capturing and storing AI model
     inferences. It enables production LLMapp servers to seamlessly integrate
     with LLM observability solutions such as Arize and Phoenix.
