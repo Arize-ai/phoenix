@@ -490,6 +490,9 @@ type Span {
   parentId: ID
   spanKind: SpanKind!
   context: SpanContext!
+
+  """Span attributes as a JSON string"""
+  attributes: String!
 }
 
 enum SpanColumn {
