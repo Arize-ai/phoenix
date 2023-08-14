@@ -8,11 +8,11 @@ import { Table } from "@phoenix/components/table/Table";
 
 import { ModelEmbeddingsTable_embeddingDimensions$key } from "./__generated__/ModelEmbeddingsTable_embeddingDimensions.graphql";
 
-type ModelEmbeddingsTable = {
+type ModelEmbeddingsTableProps = {
   model: ModelEmbeddingsTable_embeddingDimensions$key;
 };
 
-export function ModelEmbeddingsTable(props: ModelEmbeddingsTable) {
+export function ModelEmbeddingsTable(props: ModelEmbeddingsTableProps) {
   const { data } = usePaginationFragment(
     graphql`
       fragment ModelEmbeddingsTable_embeddingDimensions on Query
@@ -61,7 +61,7 @@ export function ModelEmbeddingsTable(props: ModelEmbeddingsTable) {
         Header: "name",
         accessor: "name",
         Cell: ({ row, value }: CellProps<TableRow, string>) => (
-          <Link to={`/embeddings/${row.original.id}`}>{value}</Link>
+          <Link to={`embeddings/${row.original.id}`}>{value}</Link>
         ),
       },
       {

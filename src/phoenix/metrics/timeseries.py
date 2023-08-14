@@ -191,7 +191,6 @@ def _results(
                     timezone.utc,
                 ),
                 axis=0,
-                copy=False,
             )
 
         yield res.loc[result_slice, :]

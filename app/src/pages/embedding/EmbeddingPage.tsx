@@ -68,11 +68,11 @@ import {
 import { assertUnreachable } from "@phoenix/typeUtils";
 import { getMetricShortNameByMetricKey } from "@phoenix/utils/metricFormatUtils";
 
-import { EmbeddingModelQuery } from "./__generated__/EmbeddingModelQuery.graphql";
+import { EmbeddingPageModelQuery } from "./__generated__/EmbeddingPageModelQuery.graphql";
 import {
-  EmbeddingUMAPQuery as UMAPQueryType,
-  EmbeddingUMAPQuery$data,
-} from "./__generated__/EmbeddingUMAPQuery.graphql";
+  EmbeddingPageUMAPQuery as UMAPQueryType,
+  EmbeddingPageUMAPQuery$data,
+} from "./__generated__/EmbeddingPageUMAPQuery.graphql";
 import { ClusterSortPicker } from "./ClusterSortPicker";
 import { EmbeddingActionMenu } from "./EmbeddingActionMenu";
 import { MetricSelector } from "./MetricSelector";
@@ -80,11 +80,11 @@ import { MetricTimeSeries } from "./MetricTimeSeries";
 import { PointSelectionPanelContent } from "./PointSelectionPanelContent";
 
 type UMAPPointsEntry = NonNullable<
-  EmbeddingUMAPQuery$data["embedding"]["UMAPPoints"]
+  EmbeddingPageUMAPQuery$data["embedding"]["UMAPPoints"]
 >["data"][number];
 
-const EmbeddingUMAPQuery = graphql`
-  query EmbeddingUMAPQuery(
+const EmbeddingPageUMAPQuery = graphql`
+  query EmbeddingPageUMAPQuery(
     $id: GlobalID!
     $timeRange: TimeRange!
     $minDist: Float!
@@ -218,7 +218,7 @@ const EmbeddingUMAPQuery = graphql`
   }
 `;
 
-export function Embedding() {
+export function EmbeddingPage() {
   const { referenceDataset, corpusDataset } = useDatasets();
   const { timeRange } = useTimeRange();
   // Initialize the store based on whether or not there is a reference dataset
@@ -253,7 +253,7 @@ function EmbeddingMain() {
   const setLoading = usePointCloudContext((state) => state.setLoading);
   const [showChart, setShowChart] = useState<boolean>(true);
   const [queryReference, loadQuery, disposeQuery] =
-    useQueryLoader<UMAPQueryType>(EmbeddingUMAPQuery);
+    useQueryLoader<UMAPQueryType>(EmbeddingPageUMAPQuery);
   const { selectedTimestamp } = useTimeSlice();
   const endTime = useMemo(
     () => selectedTimestamp ?? new Date(primaryDataset.endTime),
@@ -267,9 +267,9 @@ function EmbeddingMain() {
   }, [endTime]);
 
   // Additional data needed for the page
-  const modelData = useLazyLoadQuery<EmbeddingModelQuery>(
+  const modelData = useLazyLoadQuery<EmbeddingPageModelQuery>(
     graphql`
-      query EmbeddingModelQuery {
+      query EmbeddingPageModelQuery {
         model {
           ...MetricSelector_dimensions
         }
@@ -410,7 +410,7 @@ function PointCloudDisplay({
   queryReference: PreloadedQuery<UMAPQueryType>;
 }) {
   const data = usePreloadedQuery<UMAPQueryType>(
-    EmbeddingUMAPQuery,
+    EmbeddingPageUMAPQuery,
     queryReference
   );
 

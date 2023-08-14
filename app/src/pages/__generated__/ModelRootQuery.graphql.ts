@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<6638f580958646171362e51b4267c701>>
+ * @generated SignedSource<<083ba2eb212036ac9357be1a0300ed8d>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,8 +9,8 @@
 // @ts-nocheck
 
 import { ConcreteRequest, Query } from 'relay-runtime';
-export type AppRootQuery$variables = {};
-export type AppRootQuery$data = {
+export type ModelRootQuery$variables = {};
+export type ModelRootQuery$data = {
   readonly model: {
     readonly corpusDataset: {
       readonly endTime: string;
@@ -29,9 +29,9 @@ export type AppRootQuery$data = {
     } | null;
   };
 };
-export type AppRootQuery = {
-  response: AppRootQuery$data;
-  variables: AppRootQuery$variables;
+export type ModelRootQuery = {
+  response: ModelRootQuery$data;
+  variables: ModelRootQuery$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -106,7 +106,7 @@ return {
     "argumentDefinitions": [],
     "kind": "Fragment",
     "metadata": null,
-    "name": "AppRootQuery",
+    "name": "ModelRootQuery",
     "selections": (v1/*: any*/),
     "type": "Query",
     "abstractKey": null
@@ -115,20 +115,20 @@ return {
   "operation": {
     "argumentDefinitions": [],
     "kind": "Operation",
-    "name": "AppRootQuery",
+    "name": "ModelRootQuery",
     "selections": (v1/*: any*/)
   },
   "params": {
-    "cacheID": "f38f98209ceb4222ae918e254d66848e",
+    "cacheID": "8b79fd7c38d3485b9945813c6fd68baa",
     "id": null,
     "metadata": {},
-    "name": "AppRootQuery",
+    "name": "ModelRootQuery",
     "operationKind": "query",
-    "text": "query AppRootQuery {\n  model {\n    primaryDataset {\n      name\n      startTime\n      endTime\n    }\n    referenceDataset {\n      name\n      startTime\n      endTime\n    }\n    corpusDataset {\n      name\n      startTime\n      endTime\n    }\n  }\n}\n"
+    "text": "query ModelRootQuery {\n  model {\n    primaryDataset {\n      name\n      startTime\n      endTime\n    }\n    referenceDataset {\n      name\n      startTime\n      endTime\n    }\n    corpusDataset {\n      name\n      startTime\n      endTime\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "2e76b5097b7331cff60606dbee99c6c3";
+(node as any).hash = "3f5bceab9f77e4f079fb0083b04d39ed";
 
 export default node;

@@ -51,6 +51,12 @@ dev = [
   "pre-commit",
   "arize[AutoEmbeddings, LLM_Evaluation]",
 ]
+experimental = [
+  "langchain>=0.0.257",
+  "llama-index",
+  "openai",
+  "tenacity",
+]
 
 [project.urls]
 Documentation = "https://docs.arize.com/phoenix/"
@@ -90,14 +96,20 @@ dependencies = [
   "pytest-cov",
   "pytest-lazy-fixture",
   "arize",
+  "langchain>=0.0.257",
+  "llama-index",
+  "openai",
+  "tenacity",
 ]
 
 [tool.hatch.envs.type]
 dependencies = [
   "mypy==1.3.0",
+  "llama-index",
   "pandas-stubs",
   "pytest",
   "types-psutil",
+  "tenacity",
 ]
 
 [tool.hatch.envs.style]
@@ -241,6 +253,7 @@ module = [
   "arize.*",
   "portpicker",
   "wrapt",
+  "langchain.*",
 ]
 ignore_missing_imports = true
 

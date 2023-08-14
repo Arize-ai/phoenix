@@ -14,6 +14,7 @@ export function PointCloudPointHoverHalo({
   pointRadius: number;
 }) {
   const hoveredEventId = usePointCloudContext((state) => state.hoveredEventId);
+  const pointSizeScale = usePointCloudContext((state) => state.pointSizeScale);
   const eventIdToDataMap = usePointCloudContext(
     (state) => state.eventIdToDataMap
   );
@@ -32,6 +33,7 @@ export function PointCloudPointHoverHalo({
     <Sphere
       position={event.position}
       args={[pointRadius * POINT_RADIUS_MULTIPLIER]}
+      scale={[pointSizeScale, pointSizeScale, pointSizeScale]}
     >
       {/* eslint-disable-next-line react/no-unknown-property */}
       <meshMatcapMaterial color={color} opacity={0.5} transparent />

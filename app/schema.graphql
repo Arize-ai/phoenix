@@ -283,6 +283,14 @@ type ExportedFile {
   fileName: String!
 }
 
+type Functionality {
+  """Model inferences are available for analysis"""
+  modelInferences: Boolean!
+
+  """Generative tracing records are available for analysis"""
+  tracing: Boolean!
+}
+
 """
 The `ID` scalar type represents a unique identifier, often used to refetch an object or as key for a cache. The ID type appears in a JSON response as a String; however, it is not intended to be human-readable. When expected as an input type, any string (such as `"4"`) or integer (such as `4`) input value will be accepted as an ID.
 """
@@ -419,6 +427,7 @@ type PromptResponse {
 }
 
 type Query {
+  functionality: Functionality!
   model: Model!
   node(id: GlobalID!): Node!
   clusters(clusters: [ClusterInput!]!): [Cluster!]!
@@ -441,6 +450,7 @@ type Query {
     """HDBSCAN cluster selection epsilon"""
     clusterSelectionEpsilon: Float! = 0
   ): [Cluster!]!
+  spans(first: Int = 50, last: Int, after: String, before: String, sort: SpanSort): SpanConnection!
 }
 
 type Retrieval {
@@ -463,6 +473,58 @@ type Segment {
 type Segments {
   segments: [Segment!]!
   totalCounts: DatasetValues!
+}
+
+enum SortDir {
+  asc
+  desc
+}
+
+type Span {
+  name: String!
+  startTime: DateTime!
+  endTime: DateTime!
+  latencyMs: Int!
+
+  """the parent span ID. If null, it is a root span"""
+  parentId: ID
+  spanKind: SpanKind!
+  context: SpanContext!
+}
+
+enum SpanColumn {
+  startTime
+  endTime
+  latencyMs
+}
+
+type SpanConnection {
+  pageInfo: PageInfo!
+  edges: [SpanEdge!]!
+}
+
+type SpanContext {
+  traceId: ID!
+  spanId: ID!
+}
+
+type SpanEdge {
+  node: Span!
+  cursor: String!
+}
+
+enum SpanKind {
+  chain
+  tool
+  llm
+  retriever
+  embedding
+  unknown
+}
+
+input SpanSort {
+  col: SpanColumn!
+  dir: SortDir!
 }
 
 input TimeRange {

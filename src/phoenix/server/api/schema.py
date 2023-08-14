@@ -12,10 +12,14 @@ from typing_extensions import Annotated
 from phoenix.pointcloud.clustering import Hdbscan
 from phoenix.server.api.helpers import ensure_list
 from phoenix.server.api.input_types.ClusterInput import ClusterInput
+from phoenix.server.api.input_types.Coordinates import (
+    InputCoordinate2D,
+    InputCoordinate3D,
+)
+from phoenix.server.api.input_types.SpanSort import SpanColumn, SpanSort
 from phoenix.server.api.types.Cluster import Cluster, to_gql_clusters
 
 from .context import Context
-from .input_types import Coordinates
 from .types.DatasetRole import AncillaryDatasetRole, DatasetRole
 from .types.Dimension import to_gql_dimension
 from .types.EmbeddingDimension import (
@@ -26,12 +30,25 @@ from .types.EmbeddingDimension import (
 )
 from .types.Event import create_event_id, unpack_event_id
 from .types.ExportEventsMutation import ExportEventsMutation
+from .types.Functionality import Functionality
 from .types.Model import Model
 from .types.node import GlobalID, Node, from_global_id
+from .types.pagination import Connection, ConnectionArgs, Cursor, connection_from_list
+from .types.SortDir import SortDir
+from .types.Span import Span, to_gql_span
 
 
 @strawberry.type
 class Query:
+    @strawberry.field
+    def functionality(self, info: Info[Context, None]) -> "Functionality":
+        has_model_inferences = not info.context.model.is_empty
+        has_traces = info.context.traces is not None
+        return Functionality(
+            model_inferences=has_model_inferences,
+            tracing=has_traces,
+        )
+
     @strawberry.field
     def model(self) -> Model:
         return Model()
@@ -71,13 +88,13 @@ class Query:
             ),
         ],
         coordinates_2d: Annotated[
-            Optional[List[Coordinates.InputCoordinate2D]],
+            Optional[List[InputCoordinate2D]],
             strawberry.argument(
                 description="Point coordinates. Must be either 2D or 3D.",
             ),
         ] = UNSET,
         coordinates_3d: Annotated[
-            Optional[List[Coordinates.InputCoordinate3D]],
+            Optional[List[InputCoordinate3D]],
             strawberry.argument(
                 description="Point coordinates. Must be either 2D or 3D.",
             ),
@@ -176,6 +193,37 @@ class Query:
 
         return to_gql_clusters(
             clustered_events=clustered_events,
+        )
+
+    @strawberry.field
+    def spans(
+        self,
+        info: Info[Context, None],
+        first: Optional[int] = 50,
+        last: Optional[int] = UNSET,
+        after: Optional[Cursor] = UNSET,
+        before: Optional[Cursor] = UNSET,
+        sort: Optional[SpanSort] = UNSET,
+    ) -> Connection[Span]:
+        sort = sort or SpanSort(col=SpanColumn.startTime, dir=SortDir.asc)
+
+        # Convert dataframe rows to Span objects
+        spans = (
+            []
+            if info.context.traces is None
+            else [
+                to_gql_span(row) for _, row in sort.apply(info.context.traces._dataframe).iterrows()
+            ]
+        )
+
+        return connection_from_list(
+            data=spans,
+            args=ConnectionArgs(
+                first=first,
+                after=after if isinstance(after, Cursor) else None,
+                last=last,
+                before=before if isinstance(before, Cursor) else None,
+            ),
         )
 
 

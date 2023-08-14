@@ -275,7 +275,6 @@ def test_segmented_summary_with_interval_binning(
             ordered=True,
         ),
         axis=0,
-        copy=False,
     )
     _compare_summaries(metrics, actual, desired)
 
@@ -369,7 +368,6 @@ def test_segmented_summary_with_categorical_binning(
             ordered=False,
         ),
         axis=0,
-        copy=False,
     )
     _compare_summaries(metrics, actual, desired)
 

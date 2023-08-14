@@ -10,7 +10,7 @@ import { useDatasets, useTimeRange } from "@phoenix/contexts";
 import { TimeSliceContextProvider } from "@phoenix/contexts/TimeSliceContext";
 
 import { dimensionLoaderQuery$data } from "./__generated__/dimensionLoaderQuery.graphql";
-import { DimensionQuery } from "./__generated__/DimensionQuery.graphql";
+import { DimensionPageQuery } from "./__generated__/DimensionPageQuery.graphql";
 import { DimensionCardinalityStats } from "./DimensionCardinalityStats";
 import { DimensionCardinalityTimeSeries } from "./DimensionCardinalityTimeSeries";
 import { DimensionCountStats } from "./DimensionCountStats";
@@ -24,7 +24,7 @@ import { DimensionQuantilesStats } from "./DimensionQuantilesStats";
 import { DimensionQuantilesTimeSeries } from "./DimensionQuantilesTimeSeries";
 import { DimensionSegmentsBarChart } from "./DimensionSegmentsBarChart";
 
-export function Dimension() {
+export function DimensionPage() {
   const { dimensionId } = useParams();
   const { timeRange } = useTimeRange();
   const loaderData = useLoaderData() as dimensionLoaderQuery$data;
@@ -36,9 +36,9 @@ export function Dimension() {
   const showQuantiles = loaderData.dimension.dataType === "numeric";
   const navigate = useNavigate();
 
-  const data = useLazyLoadQuery<DimensionQuery>(
+  const data = useLazyLoadQuery<DimensionPageQuery>(
     graphql`
-      query DimensionQuery(
+      query DimensionPageQuery(
         $dimensionId: GlobalID!
         $timeRange: TimeRange!
         $hasReference: Boolean!
