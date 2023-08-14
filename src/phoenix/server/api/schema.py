@@ -199,22 +199,22 @@ class Query:
     def spans(
         self,
         info: Info[Context, None],
+        trace_ids: Optional[List[ID]] = UNSET,
         first: Optional[int] = 50,
         last: Optional[int] = UNSET,
         after: Optional[Cursor] = UNSET,
         before: Optional[Cursor] = UNSET,
         sort: Optional[SpanSort] = UNSET,
     ) -> Connection[Span]:
-        sort = sort or SpanSort(col=SpanColumn.startTime, dir=SortDir.asc)
-
-        # Convert dataframe rows to Span objects
-        spans = (
-            []
-            if info.context.traces is None
-            else [
-                to_gql_span(row) for _, row in sort.apply(info.context.traces._dataframe).iterrows()
-            ]
-        )
+        if info.context.traces is None:
+            spans = []
+        else:
+            df = info.context.traces._dataframe
+            if trace_ids:
+                df = df[df["context.trace_id"].isin(trace_ids)]
+            sort = sort or SpanSort(col=SpanColumn.startTime, dir=SortDir.asc)
+            # Convert dataframe rows to Span objects
+            spans = sort.apply(df).apply(to_gql_span, axis=1).to_list()  # type: ignore
 
         return connection_from_list(
             data=spans,
