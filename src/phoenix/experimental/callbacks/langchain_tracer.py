@@ -90,7 +90,14 @@ class OpenInferenceTracer(Tracer, BaseTracer):
             status_code = SpanStatusCode.OK
         else:
             status_code = SpanStatusCode.ERROR
-            error_event = next(filter(lambda event: event["name"] == "error", run["events"]))
+            # Since there is only one error message, keep just the
+            # first error event.
+            error_event = next(
+                filter(
+                    lambda event: event["name"] == "error",
+                    run["events"],
+                )
+            )
             events.append(
                 SpanException(
                     message=error,
