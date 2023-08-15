@@ -53,5 +53,5 @@ If type is JSON, the value is a string representing a JSON object.
 
 
 class MimeType(Enum):
-    TEXT = "text"
-    JSON = "json"
+    TEXT = "text/plain"
+    JSON = "application/json"

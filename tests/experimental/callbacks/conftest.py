@@ -6,7 +6,6 @@ from llama_index.indices.service_context import ServiceContext
 from llama_index.llm_predictor.base import LLMPredictor
 from llama_index.llms.mock import LLMMetadata, MockLLM
 from llama_index.prompts.base import Prompt
-from llama_index.text_splitter import SentenceSplitter, TokenTextSplitter
 
 
 def patch_token_splitter_newline(
@@ -32,18 +31,6 @@ def patch_llmpredictor_apredict(self: Any, prompt: Prompt, **prompt_args: Any):
     LlamaIndex's mock_predict.py
     """
     return "LLM apredict"
-
-
-@pytest.fixture
-def patch_token_text_splitter(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(SentenceSplitter, "split_text", patch_token_splitter_newline)
-    # TODO(mikeldking): not sure why this doesn't exist.
-    monkeypatch.setattr(SentenceSplitter, "split_text_metadata_aware", patch_token_splitter_newline)
-    monkeypatch.setattr(TokenTextSplitter, "split_text", patch_token_splitter_newline)
-    # TODO: same as above
-    # monkeypatch.setattr(
-    #     TokenTextSplitter, "split_text_metadata_aware", patch_token_splitter_newline
-    # )
 
 
 @pytest.fixture
@@ -107,6 +94,8 @@ class MockEmbedding(BaseEmbedding):
 
 @pytest.fixture()
 def mock_service_context(
-    patch_token_text_splitter: Any, patch_llm_predictor: Any
+    patch_llm_predictor: Any,
 ) -> ServiceContext:
-    return ServiceContext.from_defaults(embed_model=MockEmbedding())
+    return ServiceContext.from_defaults(
+        # embed_model=MockEmbedding(),
+    )

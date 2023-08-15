@@ -100,6 +100,7 @@ dependencies = [
   "llama-index>=0.8.1",
   "openai",
   "tenacity",
+  "nltk==3.8.1", 
 ]
 
 [tool.hatch.envs.type]

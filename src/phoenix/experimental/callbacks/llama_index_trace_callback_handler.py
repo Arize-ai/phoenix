@@ -15,9 +15,21 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, TypedDict
 from uuid import uuid4
 
 from llama_index.callbacks.base_handler import BaseCallbackHandler
-from llama_index.callbacks.schema import TIMESTAMP_FORMAT, CBEvent, CBEventType
+from llama_index.callbacks.schema import (
+    TIMESTAMP_FORMAT,
+    CBEvent,
+    CBEventType,
+    EventPayload,
+)
 
 from phoenix.trace.schemas import Span, SpanID, SpanKind, SpanStatusCode
+from phoenix.trace.semantic_conventions import (
+    INPUT_MIME_TYPE,
+    INPUT_VALUE,
+    OUTPUT_MIME_TYPE,
+    OUTPUT_VALUE,
+    MimeType,
+)
 from phoenix.trace.tracer import Tracer
 
 logger = logging.getLogger(__name__)
@@ -31,6 +43,35 @@ class CBEventData(TypedDict, total=False):
     event_type: CBEventType
     start_event: CBEvent
     end_event: CBEvent
+    attributes: Dict[str, Any]
+
+
+def payload_to_semantic_attributes(payload: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Converts a LLMapp payload to a dictionary of semantic conventions compliant attributes.
+    """
+    attributes = {}
+
+    if EventPayload.QUERY_STR in payload:
+        attributes[INPUT_VALUE] = payload[EventPayload.QUERY_STR]
+        attributes[INPUT_MIME_TYPE] = MimeType.TEXT
+    if EventPayload.CHUNKS in payload:
+        ...
+    if EventPayload.NODES in payload:
+        ...
+    if EventPayload.PROMPT in payload:
+        ...
+    if EventPayload.MESSAGES in payload:
+        ...
+    if EventPayload.COMPLETION in payload:
+        ...
+    if EventPayload.RESPONSE in payload:
+        response = payload[EventPayload.RESPONSE]
+        attributes[OUTPUT_VALUE] = response.response
+        attributes[OUTPUT_MIME_TYPE] = MimeType.TEXT
+    if EventPayload.TEMPLATE in payload:
+        ...
+    return attributes
 
 
 class OpenInferenceTraceCallbackHandler(BaseCallbackHandler):
@@ -58,13 +99,21 @@ class OpenInferenceTraceCallbackHandler(BaseCallbackHandler):
         **kwargs: Any,
     ) -> CBEventID:
         event_id = event_id or str(uuid4())
-        self._event_id_to_event_data[event_id]["name"] = event_type.value
-        self._event_id_to_event_data[event_id]["event_type"] = event_type
-        self._event_id_to_event_data[event_id]["start_event"] = CBEvent(
+        event_data = self._event_id_to_event_data[event_id]
+        event_data["name"] = event_type.value
+        event_data["event_type"] = event_type
+        event_data["start_event"] = CBEvent(
             event_type=event_type,
             payload=payload,
             id_=event_id,
         )
+        event_data["attributes"] = {}
+        # Parse the payload to extract the parameters
+        if payload is not None:
+            attributes = payload_to_semantic_attributes(payload)
+            for attribute, value in attributes.items():
+                event_data["attributes"][attribute] = value
+
         return event_id
 
     def on_event_end(
@@ -74,13 +123,20 @@ class OpenInferenceTraceCallbackHandler(BaseCallbackHandler):
         event_id: CBEventID = "",
         **kwargs: Any,
     ) -> None:
-        self._event_id_to_event_data[event_id].setdefault("name", event_type.value)
-        self._event_id_to_event_data[event_id].setdefault("event_type", event_type)
-        self._event_id_to_event_data[event_id]["end_event"] = CBEvent(
+        event_data = self._event_id_to_event_data[event_id]
+        event_data.setdefault("name", event_type.value)
+        event_data.setdefault("event_type", event_type)
+        event_data["end_event"] = CBEvent(
             event_type=event_type,
             payload=payload,
             id_=event_id,
         )
+
+        # Parse the payload to extract the parameters
+        if payload is not None:
+            attributes = payload_to_semantic_attributes(payload)
+            for attribute, value in attributes.items():
+                event_data["attributes"][attribute] = value
 
     def start_trace(self, trace_id: Optional[str] = None) -> None:
         self._event_id_to_event_data = defaultdict(lambda: CBEventData())
@@ -140,7 +196,7 @@ def _add_to_tracer(
             status_code=SpanStatusCode.OK,
             status_message="",
             parent_id=parent_span_id,
-            attributes=None,
+            attributes=event_data["attributes"],
             events=None,
             conversation=None,
         )
