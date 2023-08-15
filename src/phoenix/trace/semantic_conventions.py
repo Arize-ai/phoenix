@@ -55,3 +55,8 @@ If type is JSON, the value is a string representing a JSON object.
 class MimeType(Enum):
     TEXT = "text/plain"
     JSON = "application/json"
+
+
+LLM_PROMPT_TEMPLATE = "llm.prompt_template.template"
+LLM_PROMPT_TEMPLATE_VARIABLES = "llm.prompt_template.variables"
+LLM_PROMPT_TEMPLATE_VERSION = "llm.prompt_template.version"

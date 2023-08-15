@@ -196,7 +196,6 @@ class ThreadSession(Session):
             trace_dataset=trace_dataset,
             port=port or pick_unused_port(),
         )
-        print(self.traces)
         # Initialize an app service that keeps the server running
         self.app = create_app(
             export_path=self.export_path,

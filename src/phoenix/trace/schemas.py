@@ -11,7 +11,6 @@ class SpanStatusCode(Enum):
     ERROR = "ERROR"
 
 
-@dataclass(frozen=True)
 class SpanKind(Enum):
     """
     SpanKind is loosely inspired by OpenTelemetry's SpanKind
@@ -25,6 +24,7 @@ class SpanKind(Enum):
     LLM = "LLM"
     RETRIEVER = "RETRIEVER"
     EMBEDDING = "EMBEDDING"
+    UNKNOWN = "UNKNOWN"
 
 
 SpanID = UUID

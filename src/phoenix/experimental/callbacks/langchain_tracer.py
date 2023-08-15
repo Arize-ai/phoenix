@@ -1,6 +1,6 @@
 import json
 from datetime import datetime
-from typing import Any, Dict, Iterator, Optional
+from typing import Any, Dict, Iterator, Optional, Tuple
 
 from langchain.callbacks.tracers.base import BaseTracer
 from langchain.callbacks.tracers.schemas import Run
@@ -9,6 +9,9 @@ from phoenix.trace.schemas import Span, SpanKind, SpanStatusCode
 from phoenix.trace.semantic_conventions import (
     INPUT_MIME_TYPE,
     INPUT_VALUE,
+    LLM_PROMPT_TEMPLATE,
+    LLM_PROMPT_TEMPLATE_VARIABLES,
+    LLM_PROMPT_TEMPLATE_VERSION,
     OUTPUT_MIME_TYPE,
     OUTPUT_VALUE,
     MimeType,
@@ -19,7 +22,10 @@ from phoenix.trace.tracer import Tracer
 def _langchain_run_type_to_span_kind(run_type: str) -> SpanKind:
     # TODO: LangChain is moving away from enums and to arbitrary strings
     # for the run_type variable, so we may need to do the same
-    return SpanKind(run_type.upper())
+    try:
+        return SpanKind(run_type.upper())
+    except ValueError:
+        return SpanKind.UNKNOWN
 
 
 def _serialize_json(obj: Any) -> str:
@@ -40,6 +46,28 @@ def _convert_io(obj: Optional[Dict[str, Any]]) -> Iterator[Any]:
         yield MimeType.JSON
 
 
+def _prompt_template(serialized: Dict[str, Any]) -> Iterator[Tuple[str, Any]]:
+    """
+    A best-effort attempt to locate the PromptTemplate object among the
+    keyword arguments of a serialized object, e.g. an LLMChain object.
+    """
+    for obj in filter(
+        # The `id` field of the object is a list indicating the path to the
+        # object's class in the LangChain package, e.g. `PromptTemplate` in
+        # the `langchain.prompts.prompt` module is represented as
+        # ["langchain", "prompts", "prompt", "PromptTemplate"]
+        lambda x: x["id"][-1].endswith("PromptTemplate"),
+        serialized.get("kwargs", {}).values(),
+    ):
+        kwargs = obj.get("kwargs", {})
+        if not (template := kwargs.get("template", "")):
+            continue
+        yield LLM_PROMPT_TEMPLATE, template
+        yield LLM_PROMPT_TEMPLATE_VARIABLES, kwargs.get("input_variables", [])
+        yield LLM_PROMPT_TEMPLATE_VERSION, "unknown"
+        break
+
+
 class OpenInferenceTracer(Tracer, BaseTracer):
     def _convert_run_to_spans(
         self,
@@ -52,6 +80,7 @@ class OpenInferenceTracer(Tracer, BaseTracer):
             "outputs": (OUTPUT_VALUE, OUTPUT_MIME_TYPE),
         }.items():
             attributes.update(zip(io_attributes, _convert_io(run.get(io_key))))
+        attributes.update(_prompt_template(run["serialized"]))
         span = self.create_span(
             name=run["name"],
             span_kind=_langchain_run_type_to_span_kind(run["run_type"]),
