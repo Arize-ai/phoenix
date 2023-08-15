@@ -72,7 +72,7 @@ def to_gql_span(row: "Series[Any]") -> Span:
         span_kind=row["span_kind"],
         start_time=row["start_time"],
         end_time=row["end_time"],
-        latency_ms=int(row["latency_ms"].total_seconds() * 1000),
+        latency_ms=int(row["latency_ms"]),
         context=SpanContext(
             trace_id=row["context.trace_id"],
             span_id=row["context.span_id"],
