@@ -64,7 +64,7 @@ def patch_llm_predictor(monkeypatch: pytest.MonkeyPatch) -> None:
 
 class MockEmbedding(BaseEmbedding):
     async def _aget_query_embedding(self, query: str) -> List[float]:
-        if query == "What are the seven wonders of the world?":
+        if query == "Query?":
             return [0, 0, 1, 0, 0]
 
         else:
@@ -72,21 +72,21 @@ class MockEmbedding(BaseEmbedding):
 
     async def _aget_text_embedding(self, text: str) -> List[float]:
         # assume dimensions are 5
-        if text == "The Great Pyramid of Giza":
+        if text == "Text":
             return [1, 0, 0, 0, 0]
         else:
             raise ValueError("Invalid text for `mock_get_text_embedding`.")
 
     def _get_query_embedding(self, query: str) -> List[float]:
         """Mock get query embedding."""
-        if query == "Foo?":
+        if query == "Query?":
             return [0, 0, 1, 0, 0]
             raise ValueError("Invalid query for `_get_query_embedding`.")
 
     def _get_text_embedding(self, text: str) -> List[float]:
         """Mock get text embedding."""
         # assume dimensions are 5
-        if text == "Hello world.":
+        if text == "Text":
             return [1, 0, 0, 0, 0]
         else:
             raise ValueError("Invalid text for `mock_get_text_embedding`.")
@@ -97,5 +97,5 @@ def mock_service_context(
     patch_llm_predictor: Any,
 ) -> ServiceContext:
     return ServiceContext.from_defaults(
-        # embed_model=MockEmbedding(),
+        embed_model=MockEmbedding(),
     )
