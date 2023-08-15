@@ -208,20 +208,6 @@ export function MetricSelector({
       ) : (
         (null as unknown as CollectionElement<unknown>)
       )}
-      {hasReferenceDataset ? (
-        <Section title="Drift">
-          <Item
-            key={getMetricKey({
-              type: "drift",
-              metric: "euclideanDistance",
-            })}
-          >
-            Euclidean Distance
-          </Item>
-        </Section>
-      ) : (
-        (null as unknown as CollectionElement<unknown>)
-      )}
       <Section title="Performance">
         <Item
           key={getMetricKey({
