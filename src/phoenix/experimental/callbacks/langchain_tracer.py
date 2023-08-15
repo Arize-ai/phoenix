@@ -86,11 +86,14 @@ class OpenInferenceTracer(Tracer, BaseTracer):
             status_code = SpanStatusCode.OK
         else:
             status_code = SpanStatusCode.ERROR
-            error_event = next(filter(lambda event: event["name"] == "error", run["events"]))
-            events.append(
+            events.extend(
                 SpanException(
                     message=error,
                     timestamp=error_event["time"],
+                )
+                for error_event in filter(
+                    lambda event: event["name"] == "error",
+                    run["events"],
                 )
             )
         span = self.create_span(
