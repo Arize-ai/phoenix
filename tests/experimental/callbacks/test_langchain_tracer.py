@@ -8,7 +8,7 @@ from langchain.embeddings.fake import FakeEmbeddings
 from langchain.llms.fake import FakeListLLM
 from langchain.retrievers import KNNRetriever
 from phoenix.experimental.callbacks.langchain_tracer import OpenInferenceTracer
-from phoenix.trace.schemas import SpanKind, SpanStatusCode
+from phoenix.trace.schemas import SpanException, SpanKind, SpanStatusCode
 from phoenix.trace.semantic_conventions import (
     INPUT_MIME_TYPE,
     INPUT_VALUE,
@@ -93,6 +93,76 @@ def test_tracer_llm() -> None:
     assert attributes.get(OUTPUT_MIME_TYPE) is MimeType.JSON
     assert loads(attributes.get(INPUT_VALUE))
     assert loads(attributes.get(OUTPUT_VALUE))
+
+    for span in spans.values():
+        assert json_string_to_span(span_to_json(span)) == span
+
+
+def test_tracer_llm_with_exception() -> None:
+    question = "What are the colors in a rainbow?"
+    retriever = KNNRetriever(
+        index=np.ones((1, 7)),
+        texts=["rainbow colors"],
+        embeddings=FakeEmbeddings(size=7),
+    )
+    tracer = OpenInferenceTracer()
+    chain = RetrievalQA.from_chain_type(
+        llm=FakeListLLM(responses=[]),
+        retriever=retriever,
+    )
+    try:
+        chain.run(question, callbacks=[tracer])
+    except Exception:
+        pass
+
+    spans = {span.name: span for span in tracer.span_buffer}
+
+    assert spans["Retriever"].status_code is SpanStatusCode.OK
+
+    for name in (
+        "RetrievalQA",
+        "StuffDocumentsChain",
+        "LLMChain",
+        "FakeListLLM",
+    ):
+        assert spans[name].status_code is SpanStatusCode.ERROR
+        events = {event.name: event for event in spans[name].events}
+        exception = events.get("exception")
+        assert isinstance(exception, SpanException)
+        assert exception.message.startswith("IndexError")
+
+    for span in spans.values():
+        assert json_string_to_span(span_to_json(span)) == span
+
+
+def test_tracer_retriever_with_exception() -> None:
+    question = "What are the colors in a rainbow?"
+    answer = "ROYGBIV"
+    retriever = KNNRetriever(
+        index=np.ones((1, 7)),
+        texts=[],
+        embeddings=FakeEmbeddings(size=7),
+    )
+    tracer = OpenInferenceTracer()
+    chain = RetrievalQA.from_chain_type(
+        llm=FakeListLLM(responses=[answer]),
+        retriever=retriever,
+    )
+    try:
+        chain.run(question, callbacks=[tracer])
+    except Exception:
+        pass
+
+    spans = {span.name: span for span in tracer.span_buffer}
+
+    for name in (
+        "RetrievalQA",
+        "Retriever",
+    ):
+        events = {event.name: event for event in spans[name].events}
+        exception = events.get("exception")
+        assert isinstance(exception, SpanException)
+        assert exception.message.startswith("IndexError")
 
     for span in spans.values():
         assert json_string_to_span(span_to_json(span)) == span
