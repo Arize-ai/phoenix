@@ -1,4 +1,5 @@
 import json
+import logging
 from datetime import datetime
 from typing import Any, Dict, Iterator, Optional, Tuple
 
@@ -17,6 +18,8 @@ from phoenix.trace.semantic_conventions import (
     MimeType,
 )
 from phoenix.trace.tracer import Tracer
+
+logger = logging.getLogger(__name__)
 
 
 def _langchain_run_type_to_span_kind(run_type: str) -> SpanKind:
@@ -51,21 +54,22 @@ def _prompt_template(serialized: Dict[str, Any]) -> Iterator[Tuple[str, Any]]:
     A best-effort attempt to locate the PromptTemplate object among the
     keyword arguments of a serialized object, e.g. an LLMChain object.
     """
-    for obj in filter(
+    for obj in serialized.get("kwargs", {}).values():
         # The `id` field of the object is a list indicating the path to the
         # object's class in the LangChain package, e.g. `PromptTemplate` in
         # the `langchain.prompts.prompt` module is represented as
         # ["langchain", "prompts", "prompt", "PromptTemplate"]
-        lambda x: x["id"][-1].endswith("PromptTemplate"),
-        serialized.get("kwargs", {}).values(),
-    ):
-        kwargs = obj.get("kwargs", {})
-        if not (template := kwargs.get("template", "")):
+        try:
+            if obj["id"][-1].endswith("PromptTemplate"):
+                kwargs = obj.get("kwargs", {})
+                if not (template := kwargs.get("template", "")):
+                    continue
+                yield LLM_PROMPT_TEMPLATE, template
+                yield LLM_PROMPT_TEMPLATE_VARIABLES, kwargs.get("input_variables", [])
+                yield LLM_PROMPT_TEMPLATE_VERSION, "unknown"
+                break
+        except TypeError:
             continue
-        yield LLM_PROMPT_TEMPLATE, template
-        yield LLM_PROMPT_TEMPLATE_VARIABLES, kwargs.get("input_variables", [])
-        yield LLM_PROMPT_TEMPLATE_VERSION, "unknown"
-        break
 
 
 class OpenInferenceTracer(Tracer, BaseTracer):
@@ -99,4 +103,7 @@ class OpenInferenceTracer(Tracer, BaseTracer):
     def _persist_run(self, run: Run) -> None:
         # Note that this relies on `.dict()` from pydantic for the
         # serialization of objects like `langchain.schema.Document`.
-        self._convert_run_to_spans(run.dict())
+        try:
+            self._convert_run_to_spans(run.dict())
+        except Exception:
+            logger.exception("Failed to convert run to spans")
