@@ -97,7 +97,7 @@ dependencies = [
   "pytest-lazy-fixture",
   "arize",
   "langchain>=0.0.257",
-  "llama-index>=0.8.1",
+  "llama-index==0.8.1",
   "openai",
   "tenacity",
   "nltk==3.8.1", 

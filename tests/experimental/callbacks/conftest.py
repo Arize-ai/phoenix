@@ -5,19 +5,16 @@ from llama_index.embeddings.base import BaseEmbedding
 from llama_index.indices.service_context import ServiceContext
 from llama_index.llm_predictor.base import LLMPredictor
 from llama_index.llms.mock import LLMMetadata, MockLLM
-from llama_index.prompts.base import Prompt
 
 
-def patch_token_splitter_newline(
-    self: Any, text: str, metadata_str: Optional[str] = None
-) -> List[str]:
+def patch_token_splitter_newline(text: str, metadata_str: Optional[str] = None) -> List[str]:
     """Mock token splitter by newline."""
     if text == "":
         return []
     return text.split("\n")
 
 
-def patch_llmpredictor_predict(self: Any, prompt: Prompt, **prompt_args: Any):
+def patch_llmpredictor_predict(*prompt_args: Any, **prompt_kwargs: Any):
     """
     Simple patches of the LLM predictor.
     If a more robust patch is needed, see LlamaIndex's mock_predict.py
@@ -25,7 +22,7 @@ def patch_llmpredictor_predict(self: Any, prompt: Prompt, **prompt_args: Any):
     return "LLM predict"
 
 
-def patch_llmpredictor_apredict(self: Any, prompt: Prompt, **prompt_args: Any):
+def patch_llmpredictor_apredict(*prompt_args: Any, **prompt_kwargs: Any):
     """
     Simple patches of the LLM predictor. If a more robust patch is needed, see
     LlamaIndex's mock_predict.py
@@ -53,7 +50,7 @@ def patch_llm_predictor(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         LLMPredictor,
         "__init__",
-        lambda x: None,
+        lambda *args, **kwargs: None,
     )
     monkeypatch.setattr(
         LLMPredictor,

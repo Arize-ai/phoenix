@@ -37,8 +37,7 @@ def normalize_dataframe(dataframe: DataFrame) -> "DataFrame":
     # Computed columns
     dataframe[ComputedColumns.latency_ms.value] = (
         dataframe["end_time"] - dataframe["start_time"]
-    ).astype("timedelta64[ms]")
-
+    ).dt.total_seconds() * 1000
     return dataframe
 
 
