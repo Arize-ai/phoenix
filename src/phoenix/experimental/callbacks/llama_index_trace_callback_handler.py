@@ -67,7 +67,7 @@ def payload_to_semantic_attributes(payload: Dict[str, Any]) -> Dict[str, Any]:
         ...
     if EventPayload.RESPONSE in payload:
         response = payload[EventPayload.RESPONSE]
-        attributes[OUTPUT_VALUE] = response.response
+        attributes[OUTPUT_VALUE] = str(response)
         attributes[OUTPUT_MIME_TYPE] = MimeType.TEXT
     if EventPayload.TEMPLATE in payload:
         ...
