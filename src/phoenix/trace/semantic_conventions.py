@@ -38,8 +38,6 @@ class DeploymentAttributes(AttributeGroup):
     }
 
 
-EXCEPTION_MESSAGE = "exception.message"
-
 OUTPUT_VALUE = "output.value"
 OUTPUT_MIME_TYPE = "output.mime_type"
 """

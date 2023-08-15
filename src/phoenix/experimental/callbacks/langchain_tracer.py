@@ -1,13 +1,12 @@
 import json
 from datetime import datetime
-from typing import Any, Dict, Iterator, Optional, Tuple
+from typing import Any, Dict, Iterator, List, Optional, Tuple
 
 from langchain.callbacks.tracers.base import BaseTracer
 from langchain.callbacks.tracers.schemas import Run
 
-from phoenix.trace.schemas import Span, SpanKind, SpanStatusCode
+from phoenix.trace.schemas import Span, SpanEvent, SpanException, SpanKind, SpanStatusCode
 from phoenix.trace.semantic_conventions import (
-    EXCEPTION_MESSAGE,
     INPUT_MIME_TYPE,
     INPUT_VALUE,
     LLM_PROMPT_TEMPLATE,
@@ -82,11 +81,18 @@ class OpenInferenceTracer(Tracer, BaseTracer):
         }.items():
             attributes.update(zip(io_attributes, _convert_io(run.get(io_key))))
         attributes.update(_prompt_template(run["serialized"]))
+        events: List[SpanEvent] = []
         if (error := run["error"]) is None:
             status_code = SpanStatusCode.OK
         else:
             status_code = SpanStatusCode.ERROR
-            attributes[EXCEPTION_MESSAGE] = error
+            error_event = next(filter(lambda event: event["name"] == "error", run["events"]))
+            events.append(
+                SpanException(
+                    message=error,
+                    timestamp=error_event["time"],
+                )
+            )
         span = self.create_span(
             name=run["name"],
             span_kind=_langchain_run_type_to_span_kind(run["run_type"]),
@@ -96,6 +102,7 @@ class OpenInferenceTracer(Tracer, BaseTracer):
             end_time=run["end_time"],
             status_code=status_code,
             attributes=attributes,
+            events=events,
         )
         for child_run in run["child_runs"]:
             self._convert_run_to_spans(child_run, span)
