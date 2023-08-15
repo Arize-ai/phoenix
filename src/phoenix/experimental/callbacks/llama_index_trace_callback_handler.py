@@ -110,9 +110,7 @@ class OpenInferenceTraceCallbackHandler(BaseCallbackHandler):
         event_data["attributes"] = {}
         # Parse the payload to extract the parameters
         if payload is not None:
-            attributes = payload_to_semantic_attributes(payload)
-            for attribute, value in attributes.items():
-                event_data["attributes"][attribute] = value
+            event_data["attributes"].update(payload_to_semantic_attributes(payload))
 
         return event_id
 
