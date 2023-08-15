@@ -9,6 +9,7 @@ export const tableCSS = (theme: Theme) => css`
     tr {
       th {
         padding: ${theme.spacing.margin4}px ${theme.spacing.margin16}px;
+        position: relative;
         text-align: left;
         .sort-icon {
           margin-left: ${theme.spacing.margin4}px;
@@ -16,7 +17,10 @@ export const tableCSS = (theme: Theme) => css`
           vertical-align: middle;
           display: inline-block;
         }
-        .resizer {
+        &:hover .resizer {
+          background: ${theme.colors.gray300};
+        }
+        div.resizer {
           display: inline-block;
 
           width: 2px;
@@ -24,15 +28,13 @@ export const tableCSS = (theme: Theme) => css`
           position: absolute;
           right: 0;
           top: 0;
-          transform: translateX(50%);
+          cursor: grab;
           z-index: 1;
           touch-action: none;
-          &.isResizing {
+          &.isResizing,
+          &:hover {
             background: var(--px-light-blue-color);
           }
-        }
-        &:hover .resizer {
-          background: ${theme.colors.gray300};
         }
       }
     }

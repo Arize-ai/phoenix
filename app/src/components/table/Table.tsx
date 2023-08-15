@@ -1,5 +1,12 @@
 import React from "react";
-import { Column, usePagination, useTable } from "react-table";
+import {
+  ColumnDef,
+  flexRender,
+  getCoreRowModel,
+  getPaginationRowModel,
+  getSortedRowModel,
+  useReactTable,
+} from "@tanstack/react-table";
 import { css, Theme } from "@emotion/react";
 
 import { Button, Icon, Icons } from "@arizeai/components";
@@ -15,7 +22,7 @@ const paginationCSS = (theme: Theme) => css`
 `;
 
 type TableProps<DataRow extends object> = {
-  columns: Column<DataRow>[];
+  columns: ColumnDef<DataRow>[];
   data: DataRow[];
 };
 
@@ -23,38 +30,25 @@ export function Table<DataRow extends object>({
   columns,
   data,
 }: TableProps<DataRow>) {
-  const {
-    getTableProps,
-    getTableBodyProps,
-    headerGroups,
-    prepareRow,
-    page,
-    // Instead of using 'rows', we'll use page,
-    // which has only the rows for the active page
-    canPreviousPage,
-    canNextPage,
-    nextPage,
-    previousPage,
-  } = useTable<DataRow>(
-    {
-      columns,
-      data,
-      initialState: { pageIndex: 0, pageSize: 15 },
-    },
-    usePagination
-  );
+  const table = useReactTable<DataRow>({
+    columns,
+    data,
+    getCoreRowModel: getCoreRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+  });
 
-  const hasContent = page.length > 0;
+  const rows = table.getRowModel().rows;
+  const hasContent = rows.length > 0;
   const body = hasContent ? (
-    <tbody {...getTableBodyProps()}>
-      {page.map((row, idx) => {
-        prepareRow(row);
+    <tbody>
+      {rows.map((row) => {
         return (
-          <tr {...row.getRowProps()} key={idx}>
-            {row.cells.map((cell, idx) => {
+          <tr key={row.id}>
+            {row.getVisibleCells().map((cell) => {
               return (
-                <td {...cell.getCellProps()} key={idx}>
-                  {cell.render("Cell")}
+                <td key={cell.id}>
+                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
                 </td>
               );
             })}
@@ -68,13 +62,20 @@ export function Table<DataRow extends object>({
 
   return (
     <>
-      <table {...getTableProps()} css={tableCSS}>
+      <table css={tableCSS}>
         <thead>
-          {headerGroups.map((headerGroup, idx) => (
-            <tr {...headerGroup.getHeaderGroupProps()} key={idx}>
-              {headerGroup.headers.map((column, idx) => (
-                <th {...column.getHeaderProps()} key={idx}>
-                  {column.render("Header")}
+          {table.getHeaderGroups().map((headerGroup) => (
+            <tr key={headerGroup.id}>
+              {headerGroup.headers.map((header) => (
+                <th colSpan={header.colSpan} key={header.id}>
+                  {header.isPlaceholder ? null : (
+                    <div>
+                      {flexRender(
+                        header.column.columnDef.header,
+                        header.getContext()
+                      )}
+                    </div>
+                  )}
                 </th>
               ))}
             </tr>
@@ -90,8 +91,8 @@ export function Table<DataRow extends object>({
         <Button
           variant="default"
           size="compact"
-          onClick={() => previousPage()}
-          disabled={!canPreviousPage}
+          onClick={table.previousPage}
+          disabled={!table.getCanPreviousPage()}
           aria-label="Previous Page"
           icon={<Icon svg={<Icons.ArrowIosBackOutline />} />}
         />
@@ -99,8 +100,8 @@ export function Table<DataRow extends object>({
         <Button
           variant="default"
           size="compact"
-          onClick={() => nextPage()}
-          disabled={!canNextPage}
+          onClick={table.nextPage}
+          disabled={!table.getCanNextPage()}
           aria-label="Next Page"
           icon={<Icon svg={<Icons.ArrowIosForwardOutline />} />}
         />

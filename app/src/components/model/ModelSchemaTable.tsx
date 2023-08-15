@@ -1,6 +1,7 @@
+/* eslint-disable react/prop-types */
 import React, { useMemo } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
-import { CellProps, Column } from "react-table";
+import { ColumnDef } from "@tanstack/react-table";
 
 import {
   FloatCell,
@@ -81,56 +82,57 @@ export function ModelSchemaTable(props: ModelSchemaTableProps) {
   );
 
   // Declare the columns
-  const columns = React.useMemo(() => {
-    const cols: Column<(typeof tableData)[number]>[] = [
+  type TableDataType = (typeof tableData)[number];
+  const columns = React.useMemo<ColumnDef<TableDataType>[]>(() => {
+    const cols: ColumnDef<TableDataType>[] = [
       {
-        Header: "name",
-        accessor: "name",
-        Cell: (props: CellProps<(typeof tableData)[number]>) => {
+        header: "name",
+        accessorKey: "name",
+        cell: (props) => {
           return (
             <Link to={`dimensions/${props.row.original.id}`}>
-              {props.value}
+              {props.renderValue() as string}
             </Link>
           );
         },
       },
       {
-        Header: "type",
-        accessor: "type",
+        header: "type",
+        accessorKey: "type",
       },
       {
-        Header: "data type",
-        accessor: "dataType",
+        header: "data type",
+        accessorKey: "dataType",
       },
       {
-        Header: "cardinality",
-        accessor: "cardinality",
-        Cell: IntCell,
+        header: "cardinality",
+        accessorKey: "cardinality",
+        cell: IntCell,
       },
       {
-        Header: "% empty",
-        accessor: "percentEmpty",
-        Cell: PercentCell,
+        header: "% empty",
+        accessorKey: "percentEmpty",
+        cell: PercentCell,
       },
       {
-        Header: "min",
-        accessor: "min",
-        Cell: FloatCell,
+        header: "min",
+        accessorKey: "min",
+        cell: FloatCell,
       },
       {
-        Header: "mean",
-        accessor: "mean",
-        Cell: FloatCell,
+        header: "mean",
+        accessorKey: "mean",
+        cell: FloatCell,
       },
       {
-        Header: "max",
-        accessor: "max",
-        Cell: FloatCell,
+        header: "max",
+        accessorKey: "max",
+        cell: FloatCell,
       },
       {
-        Header: "PSI",
-        accessor: "psi",
-        Cell: FloatCell,
+        header: "PSI",
+        accessorKey: "psi",
+        cell: FloatCell,
       },
     ];
     return cols;

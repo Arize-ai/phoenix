@@ -1,6 +1,6 @@
 import React, { useMemo } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
-import { Column } from "react-table";
+import { ColumnDef } from "@tanstack/react-table";
 import { formatDuration, intervalToDuration } from "date-fns";
 
 import { Table } from "@phoenix/components/table";
@@ -52,29 +52,31 @@ export function SpansTable(props: SpansTableProps) {
     [data]
   );
   type TableRow = (typeof tableData)[number];
-  const columns: Column<TableRow>[] = [
+  const columns: ColumnDef<TableRow>[] = [
     {
-      Header: "trace_id",
-      accessor: "trace_id",
+      header: "trace_id",
+      accessorKey: "trace_id",
     },
     {
-      Header: "span_id",
-      accessor: "span_id",
+      header: "span_id",
+      accessorKey: "span_id",
     },
     {
-      Header: "kind",
-      accessor: "spanKind",
+      header: "kind",
+      accessorKey: "spanKind",
     },
     {
-      Header: "name",
-      accessor: "name",
+      header: "name",
+      accessorKey: "name",
     },
-    { Header: "start time", accessor: "startTime" },
+    { header: "start time", accessorKey: "startTime" },
     {
-      Header: "latency",
-      accessor: "latencyMs",
-      Cell: ({ value }) =>
-        formatDuration(intervalToDuration({ start: 0, end: value })),
+      header: "latency",
+      accessorKey: "latencyMs",
+      cell: ({ getValue }) =>
+        formatDuration(
+          intervalToDuration({ start: 0, end: getValue() as number })
+        ),
     },
   ];
   return <Table columns={columns} data={tableData} />;
