@@ -6,7 +6,7 @@ from llama_index.schema import TextNode
 from phoenix.experimental.callbacks.llama_index_trace_callback_handler import (
     OpenInferenceTraceCallbackHandler,
 )
-from phoenix.trace.semantic_conventions import INPUT_VALUE
+from phoenix.trace.semantic_conventions import INPUT_VALUE, OUTPUT_VALUE
 
 nodes = [
     TextNode(text="The Great Pyramid of Giza is one of the seven wonders", id="0"),
@@ -34,3 +34,4 @@ def test_callback_llm(mock_service_context: ServiceContext) -> None:
     assert len(spans) >= 1
     # Make sure that the input/output is captured
     assert spans[0].attributes[INPUT_VALUE] == question
+    assert spans[0].attributes[OUTPUT_VALUE] == response.response
