@@ -10,15 +10,15 @@ from phoenix.trace.schemas import Span, SpanEvent, SpanException, SpanKind, Span
 from phoenix.trace.semantic_conventions import (
     INPUT_MIME_TYPE,
     INPUT_VALUE,
-    LLM_COMPLETION_TOKENS,
     LLM_FUNCTION_CALL,
     LLM_INVOCATION_PARAMETERS,
     LLM_MODEL_NAME,
     LLM_PROMPT_TEMPLATE,
     LLM_PROMPT_TEMPLATE_VARIABLES,
     LLM_PROMPT_TEMPLATE_VERSION,
-    LLM_PROMPT_TOKENS,
-    LLM_TOTAL_TOKENS,
+    LLM_TOKEN_COUNT_COMPLETION,
+    LLM_TOKEN_COUNT_PROMPT,
+    LLM_TOKEN_COUNT_TOTAL,
     OUTPUT_MIME_TYPE,
     OUTPUT_VALUE,
     MimeType,
@@ -97,9 +97,9 @@ def _model_name(extra: Dict[str, Any]) -> Iterator[Tuple[str, str]]:
 
 def _token_usage(outputs: Dict[str, Any]) -> Iterator[Tuple[str, int]]:
     for attribute_name, key in [
-        (LLM_PROMPT_TOKENS, "prompt_tokens"),
-        (LLM_COMPLETION_TOKENS, "completion_tokens"),
-        (LLM_TOTAL_TOKENS, "total_tokens"),
+        (LLM_TOKEN_COUNT_PROMPT, "prompt_tokens"),
+        (LLM_TOKEN_COUNT_COMPLETION, "completion_tokens"),
+        (LLM_TOKEN_COUNT_TOTAL, "total_tokens"),
     ]:
         try:
             yield attribute_name, outputs["llm_output"]["token_usage"][key]
