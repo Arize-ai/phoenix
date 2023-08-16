@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<af230bf9aeaf689403851337aeedf165>>
+ * @generated SignedSource<<0ed7b6d22c857a7fd6f889996d3f445d>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -17,6 +17,7 @@ export type TracePageQuery$data = {
   readonly spans: {
     readonly edges: ReadonlyArray<{
       readonly span: {
+        readonly attributes: string;
         readonly context: {
           readonly spanId: string;
         };
@@ -131,6 +132,13 @@ v1 = [
                 "kind": "ScalarField",
                 "name": "latencyMs",
                 "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "attributes",
+                "storageKey": null
               }
             ],
             "storageKey": null
@@ -160,16 +168,16 @@ return {
     "selections": (v1/*: any*/)
   },
   "params": {
-    "cacheID": "ce552fd95c010d0b53a5facabd2f6d93",
+    "cacheID": "37abbc5f9e3a1e42eeef3b79c5cb0bb4",
     "id": null,
     "metadata": {},
     "name": "TracePageQuery",
     "operationKind": "query",
-    "text": "query TracePageQuery(\n  $traceId: ID!\n) {\n  spans(traceIds: [$traceId], sort: {col: startTime, dir: desc}) {\n    edges {\n      span: node {\n        context {\n          spanId\n        }\n        name\n        spanKind\n        parentId\n        latencyMs\n      }\n    }\n  }\n}\n"
+    "text": "query TracePageQuery(\n  $traceId: ID!\n) {\n  spans(traceIds: [$traceId], sort: {col: startTime, dir: desc}) {\n    edges {\n      span: node {\n        context {\n          spanId\n        }\n        name\n        spanKind\n        parentId\n        latencyMs\n        attributes\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "4704e6754a95c3bafda8082364b4a4e8";
+(node as any).hash = "ccc80b5af4ef19eab0f485919cfdf87f";
 
 export default node;

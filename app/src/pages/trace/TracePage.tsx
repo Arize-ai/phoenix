@@ -2,10 +2,10 @@ import React from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { useNavigate, useParams } from "react-router";
+import { useSearchParams } from "react-router-dom";
 import { css } from "@emotion/react";
 
 import {
-  ActionButton,
   Dialog,
   DialogContainer,
   TabPane,
@@ -23,6 +23,7 @@ import { TracePageQuery } from "./__generated__/TracePageQuery.graphql";
  */
 export function TracePage() {
   const { traceId } = useParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
 
   const data = useLazyLoadQuery<TracePageQuery>(
@@ -38,6 +39,7 @@ export function TracePage() {
               spanKind
               parentId
               latencyMs
+              attributes
             }
           }
         }
@@ -46,6 +48,11 @@ export function TracePage() {
     { traceId: traceId as string }
   );
   const spansList = data.spans.edges.map((edge) => edge.span);
+  const selectedSpanId =
+    searchParams.get("selectedSpanId") ?? spansList[0].context.spanId;
+  const selectedSpan = spansList.find(
+    (span) => span.context.spanId === selectedSpanId
+  );
   return (
     <DialogContainer
       type="slideOver"
@@ -81,11 +88,24 @@ export function TracePage() {
                           }
                         `}
                       >
-                        <button className="button--reset">
+                        <button
+                          className="button--reset"
+                          onClick={() => {
+                            setSearchParams({
+                              selectedSpanId: span.context.spanId,
+                            });
+                          }}
+                        >
                           <View
                             borderRadius="medium"
                             backgroundColor="light"
                             padding="size-100"
+                            borderWidth="thin"
+                            borderColor={
+                              selectedSpanId === span.context.spanId
+                                ? "light"
+                                : "default"
+                            }
                           >
                             <SpanItem {...span} />
                           </View>
@@ -100,7 +120,26 @@ export function TracePage() {
               </Tabs>
             </Panel>
             <PanelResizeHandle css={resizeHandleCSS} />
-            <Panel></Panel>
+            <Panel>
+              {/* @ts-expect-error for now just using tab as a title */}
+              <Tabs>
+                <TabPane name={"Attributes"} title="Attributes">
+                  <View
+                    margin="size-100"
+                    backgroundColor="light"
+                    borderRadius="medium"
+                  >
+                    <pre>
+                      {JSON.stringify(
+                        JSON.parse(selectedSpan?.attributes || "{}"),
+                        null,
+                        2
+                      )}
+                    </pre>
+                  </View>
+                </TabPane>
+              </Tabs>
+            </Panel>
           </PanelGroup>
         </main>
       </Dialog>
