@@ -555,8 +555,8 @@ type TimeSeriesDataPoint {
 
 type TokenCount {
   total: Int!
-  prompt: Int!
-  completion: Int!
+  prompt: Int
+  completion: Int
 }
 
 type UMAPPoint {
