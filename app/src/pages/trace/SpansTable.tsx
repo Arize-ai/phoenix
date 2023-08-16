@@ -188,9 +188,9 @@ export function SpansTable(props: SpansTableProps) {
                           className="sort-icon"
                           svg={
                             header.column.getIsSorted() === "asc" ? (
-                              <Icons.ArrowDownFilled />
-                            ) : (
                               <Icons.ArrowUpFilled />
+                            ) : (
+                              <Icons.ArrowDownFilled />
                             )
                           }
                         />
