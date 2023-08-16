@@ -115,12 +115,15 @@ def to_gql_span(row: "Series[Any]") -> Span:
 
 
 def _extract_attributes(row: "Series[Any]") -> "Series[Any]":
+    row = row.dropna()
     prefix = "attributes."
     is_attribute = row.index.str.startswith(prefix)
     keys = row.index[is_attribute]
     return cast(
         "Series[Any]",
-        row.loc[is_attribute].rename({key: key[len(prefix) :] for key in keys}),
+        row.loc[is_attribute].rename(
+            {key: key[len(prefix) :] for key in keys},
+        ),
     )
 
 
