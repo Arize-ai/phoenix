@@ -6,11 +6,16 @@ export const tableCSS = (theme: Theme) => css`
   border-collapse: collapse;
   thead {
     background-color: ${theme.colors.gray600};
+    position: sticky;
+    top: 0;
     tr {
       th {
         padding: ${theme.spacing.margin4}px ${theme.spacing.margin16}px;
         position: relative;
         text-align: left;
+        .cursor-pointer {
+          cursor: pointer;
+        }
         .sort-icon {
           margin-left: ${theme.spacing.margin4}px;
           font-size: ${theme.typography.sizes.small.fontSize}px;
@@ -52,4 +57,13 @@ export const tableCSS = (theme: Theme) => css`
       }
     }
   }
+`;
+
+export const paginationCSS = (theme: Theme) => css`
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  padding: ${theme.spacing.margin8}px;
+  gap: ${theme.spacing.margin4}px;
+  border-top: 1px solid ${theme.colors.gray500};
 `;

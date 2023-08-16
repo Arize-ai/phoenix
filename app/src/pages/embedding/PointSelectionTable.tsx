@@ -196,13 +196,13 @@ export function PointSelectionTable({
       <thead>
         {table.getHeaderGroups().map((headerGroup) => (
           <tr key={headerGroup.id}>
-            {headerGroup.headers.map((header, idx) => (
-              <th key={idx}>
+            {headerGroup.headers.map((header) => (
+              <th key={header.id}>
                 {header.isPlaceholder ? null : (
                   <div
                     {...{
                       className: header.column.getCanSort()
-                        ? "cursor-pointer select-none"
+                        ? "cursor-pointer"
                         : "",
                       onClick: header.column.getToggleSortingHandler(),
                     }}

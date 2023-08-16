@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<5ee74702d22dccb4c44f0934d9b90a8d>>
+ * @generated SignedSource<<9f13a9e3ffae5bdf7fa1e857e7353b7d>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -40,14 +40,14 @@ var v0 = [
 return {
   "argumentDefinitions": [
     {
-      "defaultValue": 50,
-      "kind": "LocalArgument",
-      "name": "count"
-    },
-    {
       "defaultValue": null,
       "kind": "LocalArgument",
-      "name": "cursor"
+      "name": "after"
+    },
+    {
+      "defaultValue": 100,
+      "kind": "LocalArgument",
+      "name": "first"
     },
     {
       "defaultValue": {
@@ -62,8 +62,8 @@ return {
   "metadata": {
     "connection": [
       {
-        "count": "count",
-        "cursor": "cursor",
+        "count": "first",
+        "cursor": "after",
         "direction": "forward",
         "path": (v0/*: any*/)
       }
@@ -71,8 +71,8 @@ return {
     "refetch": {
       "connection": {
         "forward": {
-          "count": "count",
-          "cursor": "cursor"
+          "count": "first",
+          "cursor": "after"
         },
         "backward": null,
         "path": (v0/*: any*/)
@@ -231,6 +231,6 @@ return {
 };
 })();
 
-(node as any).hash = "9154f410bd23a7223923aa2c19c850b1";
+(node as any).hash = "af0d0055aee5cd80e25c538005fb9a4f";
 
 export default node;
