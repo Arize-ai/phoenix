@@ -11,6 +11,7 @@
     "@react-three/drei": "9.5.7",
     "@react-three/fiber": "8.0.12",
     "@tanstack/react-table": "^8.9.3",
+    "@uiw/react-codemirror": "^4.21.9",
     "d3-format": "^3.1.0",
     "d3-scale-chromatic": "^3.0.0",
     "d3-time-format": "^4.1.0",

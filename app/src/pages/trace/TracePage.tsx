@@ -3,6 +3,7 @@ import { graphql, useLazyLoadQuery } from "react-relay";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { useNavigate, useParams } from "react-router";
 import { useSearchParams } from "react-router-dom";
+import CodeMirror from "@uiw/react-codemirror";
 import { css } from "@emotion/react";
 
 import {
@@ -91,9 +92,12 @@ export function TracePage() {
                         <button
                           className="button--reset"
                           onClick={() => {
-                            setSearchParams({
-                              selectedSpanId: span.context.spanId,
-                            });
+                            setSearchParams(
+                              {
+                                selectedSpanId: span.context.spanId,
+                              },
+                              { replace: true }
+                            );
                           }}
                         >
                           <View
@@ -124,18 +128,16 @@ export function TracePage() {
               {/* @ts-expect-error for now just using tab as a title */}
               <Tabs>
                 <TabPane name={"Attributes"} title="Attributes">
-                  <View
-                    margin="size-100"
-                    backgroundColor="light"
-                    borderRadius="medium"
-                  >
-                    <pre>
-                      {JSON.stringify(
-                        JSON.parse(selectedSpan?.attributes || "{}"),
+                  <View margin="size-100" borderRadius="medium">
+                    <CodeMirror
+                      value={JSON.stringify(
+                        JSON.parse(selectedSpan?.attributes ?? "{}"),
                         null,
                         2
                       )}
-                    </pre>
+                      theme="dark"
+                      lang="json"
+                    />
                   </View>
                 </TabPane>
               </Tabs>
