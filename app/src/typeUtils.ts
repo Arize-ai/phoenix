@@ -14,3 +14,10 @@ export function assertUnreachable(_: never): never {
 export function isNumberOrNull(value: unknown): value is number | null {
   return typeof value === "number" || value === null;
 }
+
+/**
+ * A type guard for checking if a value is a string or null
+ */
+export function isStringOrNull(value: unknown): value is string | null {
+  return typeof value === "string" || value === null;
+}

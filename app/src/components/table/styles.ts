@@ -53,3 +53,12 @@ export const tableCSS = (theme: Theme) => css`
     }
   }
 `;
+
+export const paginationCSS = (theme: Theme) => css`
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  padding: ${theme.spacing.margin8}px;
+  gap: ${theme.spacing.margin4}px;
+  border-top: 1px solid ${theme.colors.gray500};
+`;

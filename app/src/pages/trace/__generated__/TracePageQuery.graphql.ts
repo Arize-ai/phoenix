@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<2511da8201ed409d41b0d567fa9a9293>>
+ * @generated SignedSource<<41d9c1cbce1a3264f410a93d6c445a44>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -24,7 +24,7 @@ var v0 = [
   {
     "kind": "Literal",
     "name": "first",
-    "value": 50
+    "value": 25
   },
   {
     "kind": "Literal",
@@ -186,12 +186,26 @@ return {
                 "kind": "ScalarField",
                 "name": "hasNextPage",
                 "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "hasPreviousPage",
+                "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "startCursor",
+                "storageKey": null
               }
             ],
             "storageKey": null
           }
         ],
-        "storageKey": "spans(first:50,sort:{\"col\":\"startTime\",\"dir\":\"desc\"})"
+        "storageKey": "spans(first:25,sort:{\"col\":\"startTime\",\"dir\":\"desc\"})"
       },
       {
         "alias": null,
@@ -207,12 +221,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "9bfc1516311e5921efdd4c9af42722a8",
+    "cacheID": "7cf7ae1c0aa0a63eaa7499d23500614d",
     "id": null,
     "metadata": {},
     "name": "TracePageQuery",
     "operationKind": "query",
-    "text": "query TracePageQuery {\n  ...SpansTable_spans\n}\n\nfragment SpansTable_spans on Query {\n  spans(first: 50, sort: {col: startTime, dir: desc}) {\n    edges {\n      span: node {\n        spanKind\n        name\n        startTime\n        latencyMs\n        context {\n          spanId\n          traceId\n        }\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query TracePageQuery {\n  ...SpansTable_spans\n}\n\nfragment SpansTable_spans on Query {\n  spans(first: 25, sort: {col: startTime, dir: desc}) {\n    edges {\n      span: node {\n        spanKind\n        name\n        startTime\n        latencyMs\n        context {\n          spanId\n          traceId\n        }\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n      hasPreviousPage\n      startCursor\n    }\n  }\n}\n"
   }
 };
 })();

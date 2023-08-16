@@ -1,4 +1,4 @@
-import React from "react";
+import React, { Suspense } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 
 import { Alert, Card, View } from "@arizeai/components";
@@ -22,7 +22,9 @@ export function TracePage() {
       </Alert>
       <View padding="size-100">
         <Card bodyStyle={{ padding: 0 }} variant="compact" title="Spans">
-          <SpansTable query={data} />
+          <Suspense>
+            <SpansTable query={data} />
+          </Suspense>
         </Card>
       </View>
     </main>

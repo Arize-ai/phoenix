@@ -7,19 +7,11 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { css, Theme } from "@emotion/react";
 
 import { Button, Icon, Icons } from "@arizeai/components";
 
-import { tableCSS } from "./styles";
-
-const paginationCSS = (theme: Theme) => css`
-  display: flex;
-  justify-content: flex-end;
-  padding: ${theme.spacing.margin8}px;
-  gap: ${theme.spacing.margin4}px;
-  border-top: 1px solid ${theme.colors.gray500};
-`;
+import { paginationCSS, tableCSS } from "./styles";
+import { TableEmpty } from "./TableEmpty";
 
 type TableProps<DataRow extends object> = {
   columns: ColumnDef<DataRow>[];
@@ -107,23 +99,5 @@ export function Table<DataRow extends object>({
         />
       </div>
     </>
-  );
-}
-
-function TableEmpty() {
-  return (
-    <tbody className="is-empty">
-      <tr>
-        <td
-          colSpan={100}
-          css={(theme) => css`
-            text-align: center;
-            padding: ${theme.spacing.margin24}px ${theme.spacing.margin24}px !important;
-          `}
-        >
-          No data
-        </td>
-      </tr>
-    </tbody>
   );
 }

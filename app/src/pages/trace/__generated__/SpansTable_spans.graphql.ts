@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<5ee74702d22dccb4c44f0934d9b90a8d>>
+ * @generated SignedSource<<b4e9ce5c8f1701fe6c66e347d6793d4d>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -40,14 +40,24 @@ var v0 = [
 return {
   "argumentDefinitions": [
     {
-      "defaultValue": 50,
+      "defaultValue": null,
       "kind": "LocalArgument",
-      "name": "count"
+      "name": "after"
     },
     {
       "defaultValue": null,
       "kind": "LocalArgument",
-      "name": "cursor"
+      "name": "before"
+    },
+    {
+      "defaultValue": 25,
+      "kind": "LocalArgument",
+      "name": "first"
+    },
+    {
+      "defaultValue": null,
+      "kind": "LocalArgument",
+      "name": "last"
     },
     {
       "defaultValue": {
@@ -62,19 +72,22 @@ return {
   "metadata": {
     "connection": [
       {
-        "count": "count",
-        "cursor": "cursor",
-        "direction": "forward",
+        "count": null,
+        "cursor": null,
+        "direction": "bidirectional",
         "path": (v0/*: any*/)
       }
     ],
     "refetch": {
       "connection": {
         "forward": {
-          "count": "count",
-          "cursor": "cursor"
+          "count": "first",
+          "cursor": "after"
         },
-        "backward": null,
+        "backward": {
+          "count": "last",
+          "cursor": "before"
+        },
         "path": (v0/*: any*/)
       },
       "fragmentPathInResult": [],
@@ -218,6 +231,20 @@ return {
               "kind": "ScalarField",
               "name": "hasNextPage",
               "storageKey": null
+            },
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "hasPreviousPage",
+              "storageKey": null
+            },
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "startCursor",
+              "storageKey": null
             }
           ],
           "storageKey": null
@@ -231,6 +258,6 @@ return {
 };
 })();
 
-(node as any).hash = "9154f410bd23a7223923aa2c19c850b1";
+(node as any).hash = "0444c84105c791317b4a05f37e3db595";
 
 export default node;

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f95e73888d61e2c5478cf52b4903a321>>
+ * @generated SignedSource<<99fdaa9015fed6858cf719540ae90c46>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -17,8 +17,10 @@ export type SpanSort = {
   dir: SortDir;
 };
 export type SpansTableSpansQuery$variables = {
-  count?: number | null;
-  cursor?: string | null;
+  after?: string | null;
+  before?: string | null;
+  first?: number | null;
+  last?: number | null;
   sort?: SpanSort | null;
 };
 export type SpansTableSpansQuery$data = {
@@ -32,14 +34,24 @@ export type SpansTableSpansQuery = {
 const node: ConcreteRequest = (function(){
 var v0 = [
   {
-    "defaultValue": 50,
+    "defaultValue": null,
     "kind": "LocalArgument",
-    "name": "count"
+    "name": "after"
   },
   {
     "defaultValue": null,
     "kind": "LocalArgument",
-    "name": "cursor"
+    "name": "before"
+  },
+  {
+    "defaultValue": 25,
+    "kind": "LocalArgument",
+    "name": "first"
+  },
+  {
+    "defaultValue": null,
+    "kind": "LocalArgument",
+    "name": "last"
   },
   {
     "defaultValue": {
@@ -50,23 +62,32 @@ var v0 = [
     "name": "sort"
   }
 ],
-v1 = {
-  "kind": "Variable",
-  "name": "sort",
-  "variableName": "sort"
-},
-v2 = [
+v1 = [
   {
     "kind": "Variable",
     "name": "after",
-    "variableName": "cursor"
+    "variableName": "after"
+  },
+  {
+    "kind": "Variable",
+    "name": "before",
+    "variableName": "before"
   },
   {
     "kind": "Variable",
     "name": "first",
-    "variableName": "count"
+    "variableName": "first"
   },
-  (v1/*: any*/)
+  {
+    "kind": "Variable",
+    "name": "last",
+    "variableName": "last"
+  },
+  {
+    "kind": "Variable",
+    "name": "sort",
+    "variableName": "sort"
+  }
 ];
 return {
   "fragment": {
@@ -76,19 +97,7 @@ return {
     "name": "SpansTableSpansQuery",
     "selections": [
       {
-        "args": [
-          {
-            "kind": "Variable",
-            "name": "count",
-            "variableName": "count"
-          },
-          {
-            "kind": "Variable",
-            "name": "cursor",
-            "variableName": "cursor"
-          },
-          (v1/*: any*/)
-        ],
+        "args": (v1/*: any*/),
         "kind": "FragmentSpread",
         "name": "SpansTable_spans"
       }
@@ -104,7 +113,7 @@ return {
     "selections": [
       {
         "alias": null,
-        "args": (v2/*: any*/),
+        "args": (v1/*: any*/),
         "concreteType": "SpanConnection",
         "kind": "LinkedField",
         "name": "spans",
@@ -231,6 +240,20 @@ return {
                 "kind": "ScalarField",
                 "name": "hasNextPage",
                 "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "hasPreviousPage",
+                "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "startCursor",
+                "storageKey": null
               }
             ],
             "storageKey": null
@@ -240,7 +263,7 @@ return {
       },
       {
         "alias": null,
-        "args": (v2/*: any*/),
+        "args": (v1/*: any*/),
         "filters": [
           "sort"
         ],
@@ -252,16 +275,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "bc727f4c9952c75091eb723d8b42420e",
+    "cacheID": "bc8ff22137a868071a1ea8d488728316",
     "id": null,
     "metadata": {},
     "name": "SpansTableSpansQuery",
     "operationKind": "query",
-    "text": "query SpansTableSpansQuery(\n  $count: Int = 50\n  $cursor: String = null\n  $sort: SpanSort = {col: startTime, dir: desc}\n) {\n  ...SpansTable_spans_1RfMLO\n}\n\nfragment SpansTable_spans_1RfMLO on Query {\n  spans(first: $count, after: $cursor, sort: $sort) {\n    edges {\n      span: node {\n        spanKind\n        name\n        startTime\n        latencyMs\n        context {\n          spanId\n          traceId\n        }\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query SpansTableSpansQuery(\n  $after: String = null\n  $before: String\n  $first: Int = 25\n  $last: Int\n  $sort: SpanSort = {col: startTime, dir: desc}\n) {\n  ...SpansTable_spans_2TjZs4\n}\n\nfragment SpansTable_spans_2TjZs4 on Query {\n  spans(first: $first, after: $after, last: $last, before: $before, sort: $sort) {\n    edges {\n      span: node {\n        spanKind\n        name\n        startTime\n        latencyMs\n        context {\n          spanId\n          traceId\n        }\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n      hasPreviousPage\n      startCursor\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "9154f410bd23a7223923aa2c19c850b1";
+(node as any).hash = "0444c84105c791317b4a05f37e3db595";
 
 export default node;
