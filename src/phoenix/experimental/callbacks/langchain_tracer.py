@@ -124,11 +124,6 @@ def _function_calls(
         ...
 
 
-def _messages(inputs: Dict[str, Any]) -> Iterator[Tuple[str, Tuple[Role, Message]]]:
-    # TODO: implement
-    ...
-
-
 class OpenInferenceTracer(Tracer, BaseTracer):
     def _convert_run_to_spans(
         self,
@@ -146,7 +141,6 @@ class OpenInferenceTracer(Tracer, BaseTracer):
         attributes.update(_model_name(run["extra"]))
         attributes.update(_token_usage(run["outputs"]))
         attributes.update(_function_calls(run["serialized"], run["outputs"]))
-        attributes.update(_messages(run["inputs"]))
         span = self.create_span(
             name=run["name"],
             span_kind=_langchain_run_type_to_span_kind(run["run_type"]),
