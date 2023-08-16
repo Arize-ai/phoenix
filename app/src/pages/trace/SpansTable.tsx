@@ -127,7 +127,7 @@ export function SpansTable(props: SpansTableProps) {
       after: null,
       first: PAGE_SIZE,
     });
-  }, [sorting]);
+  }, [sorting, refetch]);
   const fetchMoreOnBottomReached = React.useCallback(
     (containerRefElement?: HTMLDivElement | null) => {
       if (containerRefElement) {
