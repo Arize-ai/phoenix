@@ -450,7 +450,7 @@ type Query {
     """HDBSCAN cluster selection epsilon"""
     clusterSelectionEpsilon: Float! = 0
   ): [Cluster!]!
-  spans(traceIds: [ID!], first: Int = 50, last: Int, after: String, before: String, sort: SpanSort): SpanConnection!
+  spans(traceIds: [ID!], nested: Boolean, first: Int = 50, last: Int, after: String, before: String, sort: SpanSort): SpanConnection!
 }
 
 type Retrieval {
@@ -493,6 +493,14 @@ type Span {
 
   """Span attributes as a JSON string"""
   attributes: String!
+
+  """All descendent spans in a flatten list"""
+  descendentSpansFlattenList: [Span!]!
+
+  """
+  JSON string of the adjacency list representing the family tree with the current span as the root
+  """
+  descendentTreeAdjacencyList: String!
 }
 
 enum SpanColumn {

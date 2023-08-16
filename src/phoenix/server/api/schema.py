@@ -1,9 +1,10 @@
 from collections import defaultdict
 from itertools import chain
-from typing import Dict, List, Optional, Set, Union
+from typing import Dict, List, Optional, Set, Union, cast
 
 import numpy as np
 import numpy.typing as npt
+import pandas as pd
 import strawberry
 from strawberry import ID, UNSET
 from strawberry.types import Info
@@ -200,6 +201,7 @@ class Query:
         self,
         info: Info[Context, None],
         trace_ids: Optional[List[ID]] = UNSET,
+        nested: Optional[bool] = UNSET,
         first: Optional[int] = 50,
         last: Optional[int] = UNSET,
         after: Optional[Cursor] = UNSET,
@@ -209,9 +211,11 @@ class Query:
         if info.context.traces is None:
             spans = []
         else:
-            df = info.context.traces._dataframe
+            df = cast(pd.DataFrame, info.context.traces)
             if trace_ids:
                 df = df[df["context.trace_id"].isin(trace_ids)]
+            if nested:
+                df = df[df["parent_id"].isna()]
             sort = sort or SpanSort(col=SpanColumn.startTime, dir=SortDir.asc)
             # Convert dataframe rows to Span objects
             spans = sort.apply(df).apply(to_gql_span, axis=1).to_list()  # type: ignore

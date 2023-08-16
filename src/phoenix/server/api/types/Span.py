@@ -1,12 +1,16 @@
+import json
 from datetime import datetime
 from enum import Enum
-from typing import Any, Optional, cast
+from typing import Any, List, Optional, cast
 
 import pandas as pd
 import strawberry
 from pandas import Series
 from strawberry import ID
+from strawberry.types import Info
 
+from phoenix.server.api.context import Context
+from phoenix.trace.schemas import SpanID
 from phoenix.trace.schemas import SpanKind as CoreSpanKind
 
 
@@ -59,6 +63,37 @@ class Span:
             .rename({key: key[len(prefix) :] for key in keys})
             .to_json(date_format="iso"),
         )
+
+    @strawberry.field(
+        description="All descendent spans in a flatten list",
+    )  # type: ignore
+    def descendent_spans_flatten_list(
+        self,
+        info: Info[Context, None],
+    ) -> List["Span"]:
+        ans: List["Span"] = []
+        span_id = cast(SpanID, self.context.span_id)
+        if (traces := info.context.traces) is None:
+            return ans
+        adjacency_list = traces.get_adjacency_list(span_id)
+        span_ids = adjacency_list[span_id]
+        for child_span_id in span_ids:
+            ans.append(to_gql_span(traces.loc[child_span_id]))
+            span_ids.extend(adjacency_list[child_span_id])
+        return ans
+
+    @strawberry.field(
+        description="JSON string of the adjacency list representing"
+        " the family tree with the current span as the root",
+    )  # type: ignore
+    def descendent_tree_adjacency_list(
+        self,
+        info: Info[Context, None],
+    ) -> str:
+        span_id = cast(SpanID, self.context.span_id)
+        if (traces := info.context.traces) is None:
+            return json.dumps({span_id: []})
+        return json.dumps(traces.get_adjacency_list(span_id))
 
 
 def to_gql_span(row: "Series[Any]") -> Span:
