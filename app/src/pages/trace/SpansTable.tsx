@@ -12,6 +12,7 @@ import { css } from "@emotion/react";
 
 import { Icon, Icons } from "@arizeai/components";
 
+import { IntCell } from "@phoenix/components/table/IntCell";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { SpanKindLabel } from "@phoenix/components/trace/SpanKindLabel";
@@ -63,6 +64,9 @@ export function SpansTable(props: SpansTableProps) {
                   spanId
                   traceId
                 }
+                tokenCount {
+                  total
+                }
               }
             }
           }
@@ -78,6 +82,7 @@ export function SpansTable(props: SpansTableProps) {
         ...span,
         trace_id: span.context.traceId,
         span_id: span.context.spanId,
+        tokenCountTotal: span.tokenCount?.total ?? null,
       };
     });
 
@@ -111,6 +116,11 @@ export function SpansTable(props: SpansTableProps) {
         const seconds = (getValue() as number) / 1000;
         return <span css={floatRightCSS}>{formatFloat(seconds)}s</span>;
       },
+    },
+    {
+      header: "token count (total)",
+      accessorKey: "tokenCountTotal",
+      cell: IntCell,
     },
   ];
 

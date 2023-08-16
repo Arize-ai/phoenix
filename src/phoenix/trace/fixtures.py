@@ -1,6 +1,5 @@
 from dataclasses import dataclass
 from typing import List, Optional
-from urllib import request
 
 import pandas as pd
 
@@ -50,8 +49,7 @@ def _download_traces_fixture(
     """
     Downloads the traces fixture from the phoenix bucket.
     """
-    url = f"{host}{bucket}/{prefix}{fixture.file_name}"
-    with request.urlopen(url) as f:
+    with open("/Users/rogeryang/random.jsonl", "r") as f:
         return json_lines_to_df(f.readlines())
 
 

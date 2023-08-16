@@ -1,13 +1,19 @@
+import math
 from datetime import datetime
 from enum import Enum
 from typing import Any, Optional, cast
 
-import pandas as pd
 import strawberry
 from pandas import Series
 from strawberry import ID
 
+from phoenix.server.api.interceptor import GqlValueMediator
 from phoenix.trace.schemas import SpanKind as CoreSpanKind
+from phoenix.trace.semantic_conventions import (
+    LLM_TOKEN_COUNT_COMPLETION,
+    LLM_TOKEN_COUNT_PROMPT,
+    LLM_TOKEN_COUNT_TOTAL,
+)
 
 
 @strawberry.enum
@@ -33,6 +39,13 @@ class SpanContext:
 
 
 @strawberry.type
+class TokenCount:
+    total: int
+    prompt: Optional[int] = strawberry.field(default=GqlValueMediator())
+    completion: Optional[int] = strawberry.field(default=GqlValueMediator())
+
+
+@strawberry.type
 class Span:
     name: str
     start_time: datetime
@@ -44,20 +57,37 @@ class Span:
     span_kind: SpanKind
     context: SpanContext
 
-    _row: strawberry.Private["pd.Series[Any]"]
+    _attributes: strawberry.Private["Series[Any]"]
 
     @strawberry.field(
-        description="Span attributes as a JSON string",
+        description="Span attributes (excluding token count) as a JSON string",
     )  # type: ignore
     def attributes(self) -> str:
-        prefix = "attributes."
-        is_attribute = self._row.index.str.startswith(prefix)
-        keys = self._row.index[is_attribute]
         return cast(
             str,
-            self._row.loc[is_attribute]
-            .rename({key: key[len(prefix) :] for key in keys})
-            .to_json(date_format="iso"),
+            self._attributes.drop(
+                (
+                    LLM_TOKEN_COUNT_TOTAL,
+                    LLM_TOKEN_COUNT_PROMPT,
+                    LLM_TOKEN_COUNT_COMPLETION,
+                ),
+                errors="ignore",
+            ).to_json(date_format="iso"),
+        )
+
+    @strawberry.field(
+        description="Token count (total, prompt and completion)",
+    )  # type: ignore
+    def token_count(self) -> Optional[TokenCount]:
+        total = self._attributes.get(LLM_TOKEN_COUNT_TOTAL, 0)
+        if not total or math.isnan(total):
+            return None
+        prompt = self._attributes.get(LLM_TOKEN_COUNT_PROMPT, 0)
+        completion = self._attributes.get(LLM_TOKEN_COUNT_COMPLETION, 0)
+        return TokenCount(
+            total=total,
+            prompt=prompt,
+            completion=completion,
         )
 
 
@@ -66,7 +96,7 @@ def to_gql_span(row: "Series[Any]") -> Span:
     Converts a dataframe row to a graphQL span
     """
     return Span(
-        _row=row,
+        _attributes=_extract_attributes(row),
         name=row["name"],
         parent_id=row["parent_id"],
         span_kind=row["span_kind"],
@@ -77,4 +107,12 @@ def to_gql_span(row: "Series[Any]") -> Span:
             trace_id=row["context.trace_id"],
             span_id=row["context.span_id"],
         ),
+    )
+
+
+def _extract_attributes(row: "Series[Any]") -> "Series[Any]":
+    prefix = "attributes."
+    is_attribute = row.index.str.startswith(prefix)
+    return row.loc[is_attribute].rename(
+        {key: key[len(prefix) :] for key in row.index[is_attribute]}
     )

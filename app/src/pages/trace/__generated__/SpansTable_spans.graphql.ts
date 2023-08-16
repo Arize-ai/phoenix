@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<9f13a9e3ffae5bdf7fa1e857e7353b7d>>
+ * @generated SignedSource<<cdede00d6f7bee3828d31d4ffbda5750>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -23,6 +23,9 @@ export type SpansTable_spans$data = {
         readonly name: string;
         readonly spanKind: SpanKind;
         readonly startTime: string;
+        readonly tokenCount: {
+          readonly total: number;
+        } | null;
       };
     }>;
   };
@@ -165,6 +168,24 @@ return {
                     }
                   ],
                   "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "concreteType": "TokenCount",
+                  "kind": "LinkedField",
+                  "name": "tokenCount",
+                  "plural": false,
+                  "selections": [
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "total",
+                      "storageKey": null
+                    }
+                  ],
+                  "storageKey": null
                 }
               ],
               "storageKey": null
@@ -231,6 +252,6 @@ return {
 };
 })();
 
-(node as any).hash = "af0d0055aee5cd80e25c538005fb9a4f";
+(node as any).hash = "8ed2ad557c9e6082060a340973bedb1d";
 
 export default node;

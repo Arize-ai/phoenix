@@ -491,14 +491,20 @@ type Span {
   spanKind: SpanKind!
   context: SpanContext!
 
-  """Span attributes as a JSON string"""
+  """Span attributes (excluding token count) as a JSON string"""
   attributes: String!
+
+  """Token count (total, prompt and completion)"""
+  tokenCount: TokenCount
 }
 
 enum SpanColumn {
   startTime
   endTime
   latencyMs
+  tokenCountTotal
+  tokenCountPrompt
+  tokenCountCompletion
 }
 
 type SpanConnection {
@@ -545,6 +551,12 @@ interface TimeSeries {
 type TimeSeriesDataPoint {
   timestamp: DateTime!
   value: Float
+}
+
+type TokenCount {
+  total: Int!
+  prompt: Int!
+  completion: Int!
 }
 
 type UMAPPoint {
