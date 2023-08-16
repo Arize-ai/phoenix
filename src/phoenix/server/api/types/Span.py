@@ -63,27 +63,31 @@ class Span:
         description="Span attributes (excluding token count) as a JSON string",
     )  # type: ignore
     def attributes(self) -> str:
-        return cast(
-            str,
-            self._attributes.drop(
-                (
-                    LLM_TOKEN_COUNT_TOTAL,
-                    LLM_TOKEN_COUNT_PROMPT,
-                    LLM_TOKEN_COUNT_COMPLETION,
-                ),
-                errors="ignore",
-            ).to_json(date_format="iso"),
-        )
+        return self._attributes.drop(
+            (
+                LLM_TOKEN_COUNT_TOTAL,
+                LLM_TOKEN_COUNT_PROMPT,
+                LLM_TOKEN_COUNT_COMPLETION,
+            ),
+            errors="ignore",
+        ).to_json(date_format="iso")
 
     @strawberry.field(
         description="Token count (total, prompt and completion)",
     )  # type: ignore
     def token_count(self) -> Optional[TokenCount]:
-        total = self._attributes.get(LLM_TOKEN_COUNT_TOTAL, 0)
-        if not total or math.isnan(total):
+        if not (
+            total := _as_int_or_none(
+                self._attributes.get(LLM_TOKEN_COUNT_TOTAL),
+            )
+        ):
             return None
-        prompt = self._attributes.get(LLM_TOKEN_COUNT_PROMPT, 0)
-        completion = self._attributes.get(LLM_TOKEN_COUNT_COMPLETION, 0)
+        prompt = _as_int_or_none(
+            self._attributes.get(LLM_TOKEN_COUNT_PROMPT),
+        )
+        completion = _as_int_or_none(
+            self._attributes.get(LLM_TOKEN_COUNT_COMPLETION),
+        )
         return TokenCount(
             total=total,
             prompt=prompt,
@@ -113,6 +117,17 @@ def to_gql_span(row: "Series[Any]") -> Span:
 def _extract_attributes(row: "Series[Any]") -> "Series[Any]":
     prefix = "attributes."
     is_attribute = row.index.str.startswith(prefix)
-    return row.loc[is_attribute].rename(
-        {key: key[len(prefix) :] for key in row.index[is_attribute]}
+    keys = row.index[is_attribute]
+    return cast(
+        "Series[Any]",
+        row.loc[is_attribute].rename({key: key[len(prefix) :] for key in keys}),
     )
+
+
+def _as_int_or_none(v: Any) -> Optional[int]:
+    if v is None or isinstance(v, float) and not math.isfinite(v):
+        return None
+    try:
+        return int(v)
+    except ValueError:
+        return None
