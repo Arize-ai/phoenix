@@ -12,6 +12,7 @@ import { css } from "@emotion/react";
 
 import { Icon, Icons } from "@arizeai/components";
 
+import { Link } from "@phoenix/components/Link";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { SpanKindLabel } from "@phoenix/components/trace/SpanKindLabel";
@@ -102,6 +103,13 @@ export function SpansTable(props: SpansTableProps) {
       header: "name",
       accessorKey: "name",
       enableSorting: false,
+      cell: ({ getValue, row }) => {
+        return (
+          <Link to={`/tracing/traces/${row.original.context.traceId}`}>
+            {getValue() as string}
+          </Link>
+        );
+      },
     },
     {
       header: "latency",

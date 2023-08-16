@@ -1,65 +1,150 @@
-import React, { Suspense } from "react";
+import React from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
+import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
+import { useNavigate, useParams } from "react-router";
+import { useSearchParams } from "react-router-dom";
+import CodeMirror from "@uiw/react-codemirror";
 import { css } from "@emotion/react";
 
-import { Alert, TabPane, Tabs, View } from "@arizeai/components";
+import {
+  Dialog,
+  DialogContainer,
+  TabPane,
+  Tabs,
+  View,
+} from "@arizeai/components";
+
+import { resizeHandleCSS } from "@phoenix/components/resize";
+import { SpanItem } from "@phoenix/components/trace/SpanItem";
 
 import { TracePageQuery } from "./__generated__/TracePageQuery.graphql";
-import { SpansTable } from "./SpansTable";
 
+/**
+ * A page that shows the details of a trace (e.g. a collection of spans)
+ */
 export function TracePage() {
+  const { traceId } = useParams();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
+
   const data = useLazyLoadQuery<TracePageQuery>(
     graphql`
-      query TracePageQuery {
-        ...SpansTable_spans
-      }
-    `,
-    {}
-  );
-  return (
-    <main
-      css={css`
-        flex: 1 1 auto;
-        display: flex;
-        flex-direction: column;
-        overflow: hidden;
-
-        .ac-alert {
-          flex: none;
-        }
-        .ac-tabs {
-          flex: 1 1 auto;
-          overflow: hidden;
-          display: flex;
-          flex-direction: column;
-          .ac-tabs__pane-container {
-            flex: 1 1 auto;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-            div[role="tabpanel"] {
-              flex: 1 1 auto;
-              display: flex;
-              flex-direction: column;
-              overflow: hidden;
+      query TracePageQuery($traceId: ID!) {
+        spans(traceIds: [$traceId], sort: { col: startTime, dir: desc }) {
+          edges {
+            span: node {
+              context {
+                spanId
+              }
+              name
+              spanKind
+              parentId
+              latencyMs
+              attributes
             }
           }
         }
-      `}
+      }
+    `,
+    { traceId: traceId as string }
+  );
+  const spansList = data.spans.edges.map((edge) => edge.span);
+  const selectedSpanId =
+    searchParams.get("selectedSpanId") ?? spansList[0].context.spanId;
+  const selectedSpan = spansList.find(
+    (span) => span.context.spanId === selectedSpanId
+  );
+  return (
+    <DialogContainer
+      type="slideOver"
+      isDismissable
+      onDismiss={() => navigate(-1)}
     >
-      <Alert variant="warning" banner>
-        Tracing is under construction
-      </Alert>
-      <Tabs>
-        <TabPane name="Spans" title="Spans">
-          <Suspense>
-            <SpansTable query={data} />
-          </Suspense>
-        </TabPane>
-        <TabPane name="Traces" title="Traces" hidden>
-          <View height="100%"></View>
-        </TabPane>
-      </Tabs>
-    </main>
+      <Dialog size="L" title="Trace Details">
+        <main
+          css={css`
+            height: 100%;
+          `}
+        >
+          <PanelGroup direction="vertical">
+            <Panel defaultSize={40}>
+              <Tabs>
+                <TabPane name="Tree" title="Tree">
+                  <ul
+                    css={(theme) => css`
+                      margin: ${theme.spacing.margin16}px;
+                      display: flex;
+                      flex-direction: column;
+                      gap: ${theme.spacing.padding8}px;
+                    `}
+                  >
+                    {spansList.map((span) => (
+                      <li
+                        key={span.context.spanId}
+                        css={css`
+                          display: flex;
+                          width: 100%;
+                          button {
+                            flex: 1 1 auto;
+                          }
+                        `}
+                      >
+                        <button
+                          className="button--reset"
+                          onClick={() => {
+                            setSearchParams(
+                              {
+                                selectedSpanId: span.context.spanId,
+                              },
+                              { replace: true }
+                            );
+                          }}
+                        >
+                          <View
+                            borderRadius="medium"
+                            backgroundColor="light"
+                            padding="size-100"
+                            borderWidth="thin"
+                            borderColor={
+                              selectedSpanId === span.context.spanId
+                                ? "light"
+                                : "default"
+                            }
+                          >
+                            <SpanItem {...span} />
+                          </View>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </TabPane>
+                <TabPane name="Flame Graph" hidden>
+                  Flame Graph
+                </TabPane>
+              </Tabs>
+            </Panel>
+            <PanelResizeHandle css={resizeHandleCSS} />
+            <Panel>
+              {/* @ts-expect-error for now just using tab as a title */}
+              <Tabs>
+                <TabPane name={"Attributes"} title="Attributes">
+                  <View margin="size-100" borderRadius="medium">
+                    <CodeMirror
+                      value={JSON.stringify(
+                        JSON.parse(selectedSpan?.attributes ?? "{}"),
+                        null,
+                        2
+                      )}
+                      theme="dark"
+                      lang="json"
+                    />
+                  </View>
+                </TabPane>
+              </Tabs>
+            </Panel>
+          </PanelGroup>
+        </main>
+      </Dialog>
+    </DialogContainer>
   );
 }
