@@ -1,6 +1,6 @@
 import React, { useMemo } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
-import { CellProps, Column } from "react-table";
+import { ColumnDef } from "@tanstack/react-table";
 
 import { Link } from "@phoenix/components";
 import { FloatCell } from "@phoenix/components/table";
@@ -56,18 +56,20 @@ export function ModelEmbeddingsTable(props: ModelEmbeddingsTableProps) {
   // Declare the columns
   type TableRow = (typeof tableData)[number];
   const columns = React.useMemo(() => {
-    const cols: Column<TableRow>[] = [
+    const cols: ColumnDef<TableRow>[] = [
       {
-        Header: "name",
-        accessor: "name",
-        Cell: ({ row, value }: CellProps<TableRow, string>) => (
-          <Link to={`embeddings/${row.original.id}`}>{value}</Link>
+        header: "name",
+        accessorKey: "name",
+        cell: ({ row, renderValue }) => (
+          <Link to={`embeddings/${row.original.id}`}>
+            {renderValue() as string}
+          </Link>
         ),
       },
       {
-        Header: "euclidean distance",
-        accessor: "euclideanDistance",
-        Cell: FloatCell,
+        header: "euclidean distance",
+        accessorKey: "euclideanDistance",
+        cell: FloatCell,
       },
     ];
     return cols;
