@@ -27,7 +27,7 @@ export async function homeLoader(_args: LoaderFunctionArgs) {
   if (data?.functionality.modelInferences) {
     return redirect("/model");
   } else if (data?.functionality.tracing) {
-    return redirect("/trace");
+    return redirect("/tracing");
   } else {
     throw new Error("No functionality available");
   }

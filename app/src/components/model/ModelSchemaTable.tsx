@@ -3,14 +3,13 @@ import React, { useMemo } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
 import { ColumnDef } from "@tanstack/react-table";
 
+import { Link } from "@phoenix/components/Link";
 import {
   FloatCell,
   IntCell,
   PercentCell,
   Table,
 } from "@phoenix/components/table";
-
-import { Link } from "../Link";
 
 import { ModelSchemaTable_dimensions$key } from "./__generated__/ModelSchemaTable_dimensions.graphql";
 
