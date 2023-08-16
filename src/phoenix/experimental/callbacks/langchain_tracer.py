@@ -82,11 +82,13 @@ def _prompt_template(serialized: Dict[str, Any]) -> Iterator[Tuple[str, Any]]:
 
 
 def _invocation_parameters(extra: Dict[str, Any]) -> Iterator[Tuple[str, Any]]:
+    """Yields invocation parameters if present."""
     for key, value in extra.get("invocation_params", {}).items():
         yield ".".join([LLM_INVOCATION_PARAMETERS, key]), value
 
 
 def _model_name(extra: Dict[str, Any]) -> Iterator[Tuple[str, str]]:
+    """Yields model name if present."""
     for key in ["model_name", "model"]:
         try:
             yield LLM_MODEL_NAME, extra["invocation_params"][key]
@@ -95,7 +97,8 @@ def _model_name(extra: Dict[str, Any]) -> Iterator[Tuple[str, str]]:
             continue
 
 
-def _token_usage(outputs: Dict[str, Any]) -> Iterator[Tuple[str, int]]:
+def _token_counts(outputs: Dict[str, Any]) -> Iterator[Tuple[str, int]]:
+    """Yields token count information if present."""
     for attribute_name, key in [
         (LLM_TOKEN_COUNT_PROMPT, "prompt_tokens"),
         (LLM_TOKEN_COUNT_COMPLETION, "completion_tokens"),
@@ -107,9 +110,8 @@ def _token_usage(outputs: Dict[str, Any]) -> Iterator[Tuple[str, int]]:
             continue
 
 
-def _function_calls(
-    serialized: Dict[str, Any], outputs: Dict[str, Any]
-) -> Iterator[Tuple[str, int]]:
+def _function_calls(outputs: Dict[str, Any]) -> Iterator[Tuple[str, int]]:
+    """Yields function call information if present."""
     try:
         function_name = outputs["generations"][0][0]["message"]["kwargs"]["additional_kwargs"][
             "function_call"
@@ -139,8 +141,8 @@ class OpenInferenceTracer(Tracer, BaseTracer):
         attributes.update(_prompt_template(run["serialized"]))
         attributes.update(_invocation_parameters(run["extra"]))
         attributes.update(_model_name(run["extra"]))
-        attributes.update(_token_usage(run["outputs"]))
-        attributes.update(_function_calls(run["serialized"], run["outputs"]))
+        attributes.update(_token_counts(run["outputs"]))
+        attributes.update(_function_calls(run["outputs"]))
         events: List[SpanEvent] = []
         if (error := run["error"]) is None:
             status_code = SpanStatusCode.OK
