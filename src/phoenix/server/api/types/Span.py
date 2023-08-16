@@ -64,11 +64,11 @@ class Span:
     )  # type: ignore
     def attributes(self) -> str:
         return self._attributes.drop(
-            (
+            [
                 LLM_TOKEN_COUNT_TOTAL,
                 LLM_TOKEN_COUNT_PROMPT,
                 LLM_TOKEN_COUNT_COMPLETION,
-            ),
+            ],
             errors="ignore",
         ).to_json(date_format="iso")
 
