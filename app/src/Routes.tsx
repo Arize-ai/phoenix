@@ -3,7 +3,7 @@ import { createRoutesFromElements, Route, RouterProvider } from "react-router";
 import { createBrowserRouter } from "react-router-dom";
 
 import { embeddingLoaderQuery$data } from "./pages/embedding/__generated__/embeddingLoaderQuery.graphql";
-import { TracePage } from "./pages/trace";
+import { TracingHomePage } from "./pages/tracing";
 import {
   dimensionLoader,
   DimensionPage,
@@ -14,6 +14,7 @@ import {
   Layout,
   ModelPage,
   ModelRoot,
+  TracePage,
 } from "./pages";
 
 const router = createBrowserRouter(
@@ -51,10 +52,14 @@ const router = createBrowserRouter(
         </Route>
       </Route>
       <Route
-        path="/trace"
+        path="/tracing"
         handle={{ crumb: () => "trace" }}
-        element={<TracePage />}
-      ></Route>
+        element={<TracingHomePage />}
+      >
+        <Route path="traces">
+          <Route path=":traceId" element={<TracePage />} />
+        </Route>
+      </Route>
     </Route>
   )
 );

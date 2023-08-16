@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f2f9981de4b999af1793d0c685be2c1c>>
+ * @generated SignedSource<<af230bf9aeaf689403851337aeedf165>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,10 +9,24 @@
 // @ts-nocheck
 
 import { ConcreteRequest, Query } from 'relay-runtime';
-import { FragmentRefs } from "relay-runtime";
-export type TracePageQuery$variables = {};
+export type SpanKind = "chain" | "embedding" | "llm" | "retriever" | "tool" | "unknown";
+export type TracePageQuery$variables = {
+  traceId: string;
+};
 export type TracePageQuery$data = {
-  readonly " $fragmentSpreads": FragmentRefs<"SpansTable_spans">;
+  readonly spans: {
+    readonly edges: ReadonlyArray<{
+      readonly span: {
+        readonly context: {
+          readonly spanId: string;
+        };
+        readonly latencyMs: number;
+        readonly name: string;
+        readonly parentId: string | null;
+        readonly spanKind: SpanKind;
+      };
+    }>;
+  };
 };
 export type TracePageQuery = {
   response: TracePageQuery$data;
@@ -22,201 +36,140 @@ export type TracePageQuery = {
 const node: ConcreteRequest = (function(){
 var v0 = [
   {
-    "kind": "Literal",
-    "name": "first",
-    "value": 100
-  },
-  {
-    "kind": "Literal",
-    "name": "sort",
-    "value": {
-      "col": "startTime",
-      "dir": "desc"
-    }
+    "defaultValue": null,
+    "kind": "LocalArgument",
+    "name": "traceId"
   }
-];
-return {
-  "fragment": {
-    "argumentDefinitions": [],
-    "kind": "Fragment",
-    "metadata": null,
-    "name": "TracePageQuery",
-    "selections": [
+],
+v1 = [
+  {
+    "alias": null,
+    "args": [
       {
-        "args": null,
-        "kind": "FragmentSpread",
-        "name": "SpansTable_spans"
+        "kind": "Literal",
+        "name": "sort",
+        "value": {
+          "col": "startTime",
+          "dir": "desc"
+        }
+      },
+      {
+        "items": [
+          {
+            "kind": "Variable",
+            "name": "traceIds.0",
+            "variableName": "traceId"
+          }
+        ],
+        "kind": "ListValue",
+        "name": "traceIds"
       }
     ],
-    "type": "Query",
-    "abstractKey": null
-  },
-  "kind": "Request",
-  "operation": {
-    "argumentDefinitions": [],
-    "kind": "Operation",
-    "name": "TracePageQuery",
+    "concreteType": "SpanConnection",
+    "kind": "LinkedField",
+    "name": "spans",
+    "plural": false,
     "selections": [
       {
         "alias": null,
-        "args": (v0/*: any*/),
-        "concreteType": "SpanConnection",
+        "args": null,
+        "concreteType": "SpanEdge",
         "kind": "LinkedField",
-        "name": "spans",
-        "plural": false,
+        "name": "edges",
+        "plural": true,
         "selections": [
           {
-            "alias": null,
+            "alias": "span",
             "args": null,
-            "concreteType": "SpanEdge",
+            "concreteType": "Span",
             "kind": "LinkedField",
-            "name": "edges",
-            "plural": true,
-            "selections": [
-              {
-                "alias": "span",
-                "args": null,
-                "concreteType": "Span",
-                "kind": "LinkedField",
-                "name": "node",
-                "plural": false,
-                "selections": [
-                  {
-                    "alias": null,
-                    "args": null,
-                    "kind": "ScalarField",
-                    "name": "spanKind",
-                    "storageKey": null
-                  },
-                  {
-                    "alias": null,
-                    "args": null,
-                    "kind": "ScalarField",
-                    "name": "name",
-                    "storageKey": null
-                  },
-                  {
-                    "alias": null,
-                    "args": null,
-                    "kind": "ScalarField",
-                    "name": "startTime",
-                    "storageKey": null
-                  },
-                  {
-                    "alias": null,
-                    "args": null,
-                    "kind": "ScalarField",
-                    "name": "latencyMs",
-                    "storageKey": null
-                  },
-                  {
-                    "alias": null,
-                    "args": null,
-                    "concreteType": "SpanContext",
-                    "kind": "LinkedField",
-                    "name": "context",
-                    "plural": false,
-                    "selections": [
-                      {
-                        "alias": null,
-                        "args": null,
-                        "kind": "ScalarField",
-                        "name": "spanId",
-                        "storageKey": null
-                      },
-                      {
-                        "alias": null,
-                        "args": null,
-                        "kind": "ScalarField",
-                        "name": "traceId",
-                        "storageKey": null
-                      }
-                    ],
-                    "storageKey": null
-                  }
-                ],
-                "storageKey": null
-              },
-              {
-                "alias": null,
-                "args": null,
-                "kind": "ScalarField",
-                "name": "cursor",
-                "storageKey": null
-              },
-              {
-                "alias": null,
-                "args": null,
-                "concreteType": "Span",
-                "kind": "LinkedField",
-                "name": "node",
-                "plural": false,
-                "selections": [
-                  {
-                    "alias": null,
-                    "args": null,
-                    "kind": "ScalarField",
-                    "name": "__typename",
-                    "storageKey": null
-                  }
-                ],
-                "storageKey": null
-              }
-            ],
-            "storageKey": null
-          },
-          {
-            "alias": null,
-            "args": null,
-            "concreteType": "PageInfo",
-            "kind": "LinkedField",
-            "name": "pageInfo",
+            "name": "node",
             "plural": false,
             "selections": [
               {
                 "alias": null,
                 "args": null,
-                "kind": "ScalarField",
-                "name": "endCursor",
+                "concreteType": "SpanContext",
+                "kind": "LinkedField",
+                "name": "context",
+                "plural": false,
+                "selections": [
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "spanId",
+                    "storageKey": null
+                  }
+                ],
                 "storageKey": null
               },
               {
                 "alias": null,
                 "args": null,
                 "kind": "ScalarField",
-                "name": "hasNextPage",
+                "name": "name",
+                "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "spanKind",
+                "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "parentId",
+                "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "latencyMs",
                 "storageKey": null
               }
             ],
             "storageKey": null
           }
         ],
-        "storageKey": "spans(first:100,sort:{\"col\":\"startTime\",\"dir\":\"desc\"})"
-      },
-      {
-        "alias": null,
-        "args": (v0/*: any*/),
-        "filters": [
-          "sort"
-        ],
-        "handle": "connection",
-        "key": "SpansTable_spans",
-        "kind": "LinkedHandle",
-        "name": "spans"
+        "storageKey": null
       }
-    ]
+    ],
+    "storageKey": null
+  }
+];
+return {
+  "fragment": {
+    "argumentDefinitions": (v0/*: any*/),
+    "kind": "Fragment",
+    "metadata": null,
+    "name": "TracePageQuery",
+    "selections": (v1/*: any*/),
+    "type": "Query",
+    "abstractKey": null
+  },
+  "kind": "Request",
+  "operation": {
+    "argumentDefinitions": (v0/*: any*/),
+    "kind": "Operation",
+    "name": "TracePageQuery",
+    "selections": (v1/*: any*/)
   },
   "params": {
-    "cacheID": "7cc3adbfebd27e1d6d8e3a466da36666",
+    "cacheID": "ce552fd95c010d0b53a5facabd2f6d93",
     "id": null,
     "metadata": {},
     "name": "TracePageQuery",
     "operationKind": "query",
-    "text": "query TracePageQuery {\n  ...SpansTable_spans\n}\n\nfragment SpansTable_spans on Query {\n  spans(first: 100, sort: {col: startTime, dir: desc}) {\n    edges {\n      span: node {\n        spanKind\n        name\n        startTime\n        latencyMs\n        context {\n          spanId\n          traceId\n        }\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query TracePageQuery(\n  $traceId: ID!\n) {\n  spans(traceIds: [$traceId], sort: {col: startTime, dir: desc}) {\n    edges {\n      span: node {\n        context {\n          spanId\n        }\n        name\n        spanKind\n        parentId\n        latencyMs\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "7baad1389923cbcc22475a69d3b44e64";
+(node as any).hash = "4704e6754a95c3bafda8082364b4a4e8";
 
 export default node;

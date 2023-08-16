@@ -80,7 +80,7 @@ export function DimensionPage() {
       <DialogContainer
         type="slideOver"
         isDismissable
-        onDismiss={() => navigate("/")}
+        onDismiss={() => navigate(-1)}
       >
         <Dialog size="L" title={loaderData.dimension.name}>
           <main

@@ -27,6 +27,12 @@ export function GlobalStyles() {
           margin-block-start: 0;
         }
 
+        /* A reset style for buttons */
+        .button--reset {
+          background: none;
+          border: none;
+          padding: 0;
+        }
         /* this css class is added to html via modernizr @see modernizr.js */
         .no-hiddenscroll {
           /* Works on Firefox */
