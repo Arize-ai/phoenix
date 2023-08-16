@@ -1,74 +1,75 @@
-import React, { startTransition, useCallback, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
 import {
   ColumnDef,
   flexRender,
   getCoreRowModel,
-  getPaginationRowModel,
   getSortedRowModel,
+  SortingState,
   useReactTable,
 } from "@tanstack/react-table";
-import { formatDuration, intervalToDuration } from "date-fns";
+import { css } from "@emotion/react";
 
-import {
-  Button,
-  Flex,
-  Icon,
-  Icons,
-  ProgressCircle,
-  Text,
-} from "@arizeai/components";
+import { Icon, Icons } from "@arizeai/components";
 
-import { paginationCSS, tableCSS } from "@phoenix/components/table/styles";
+import { tableCSS } from "@phoenix/components/table/styles";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { SpanKindLabel } from "@phoenix/components/trace/SpanKindLabel";
+import { formatFloat } from "@phoenix/utils/numberFormatUtils";
 
 import { SpansTable_spans$key } from "./__generated__/SpansTable_spans.graphql";
-import { SpansTableSpansQuery } from "./__generated__/SpansTableSpansQuery.graphql";
+import {
+  SpanSort,
+  SpansTableSpansQuery,
+} from "./__generated__/SpansTableSpansQuery.graphql";
 type SpansTableProps = {
   query: SpansTable_spans$key;
 };
 
-const PAGE_SIZE = 25;
+const floatRightCSS = css`
+  float: right;
+`;
+const PAGE_SIZE = 100;
+const DEFAULT_SORT: SpanSort = {
+  col: "startTime",
+  dir: "desc",
+};
 export function SpansTable(props: SpansTableProps) {
-  const { data, loadNext, hasNext, isLoadingNext } = usePaginationFragment<
-    SpansTableSpansQuery,
-    SpansTable_spans$key
-  >(
-    graphql`
-      fragment SpansTable_spans on Query
-      @refetchable(queryName: "SpansTableSpansQuery")
-      @argumentDefinitions(
-        after: { type: "String", defaultValue: null }
-        first: { type: "Int", defaultValue: 25 }
-        last: { type: "Int" }
-        before: { type: "String" }
-        sort: { type: "SpanSort", defaultValue: { col: startTime, dir: desc } }
-      ) {
-        spans(
-          first: $first
-          after: $after
-          last: $last
-          before: $before
-          sort: $sort
-        ) @connection(key: "SpansTable_spans") {
-          edges {
-            span: node {
-              spanKind
-              name
-              startTime
-              latencyMs
-              context {
-                spanId
-                traceId
+  //we need a reference to the scrolling element for logic down below
+  const tableContainerRef = React.useRef<HTMLDivElement>(null);
+  const [sorting, setSorting] = useState<SortingState>([]);
+  const { data, loadNext, hasNext, isLoadingNext, refetch } =
+    usePaginationFragment<SpansTableSpansQuery, SpansTable_spans$key>(
+      graphql`
+        fragment SpansTable_spans on Query
+        @refetchable(queryName: "SpansTableSpansQuery")
+        @argumentDefinitions(
+          after: { type: "String", defaultValue: null }
+          first: { type: "Int", defaultValue: 100 }
+          sort: {
+            type: "SpanSort"
+            defaultValue: { col: startTime, dir: desc }
+          }
+        ) {
+          spans(first: $first, after: $after, sort: $sort)
+            @connection(key: "SpansTable_spans") {
+            edges {
+              span: node {
+                spanKind
+                name
+                startTime
+                latencyMs
+                context {
+                  spanId
+                  traceId
+                }
               }
             }
           }
         }
-      }
-    `,
-    props.query
-  );
+      `,
+      props.query
+    );
 
   const tableData = useMemo(() => {
     const tableData = data.spans.edges.map(({ span }) => {
@@ -85,8 +86,14 @@ export function SpansTable(props: SpansTableProps) {
   type TableRow = (typeof tableData)[number];
   const columns: ColumnDef<TableRow>[] = [
     {
+      header: "start time",
+      accessorKey: "startTime",
+      cell: TimestampCell,
+    },
+    {
       header: "kind",
       accessorKey: "spanKind",
+      enableSorting: false,
       cell: ({ getValue }) => {
         return <SpanKindLabel spanKind={getValue() as string} />;
       },
@@ -94,53 +101,69 @@ export function SpansTable(props: SpansTableProps) {
     {
       header: "name",
       accessorKey: "name",
-    },
-    {
-      header: "start time",
-      accessorKey: "startTime",
-      cell: TimestampCell,
+      enableSorting: false,
     },
     {
       header: "latency",
       accessorKey: "latencyMs",
-      cell: ({ getValue }) =>
-        formatDuration(
-          intervalToDuration({ start: 0, end: getValue() as number })
-        ),
+
+      cell: ({ getValue }) => {
+        const seconds = (getValue() as number) / 1000;
+        return <span css={floatRightCSS}>{formatFloat(seconds)}s</span>;
+      },
     },
   ];
 
-  const [pageIndex, _setPageIndex] = useState<number>(0);
-
-  const setPageIndex = useCallback(
-    (index: number) => {
-      startTransition(() => {
-        if (index > pageIndex) {
-          loadNext(PAGE_SIZE, { onComplete: () => _setPageIndex(index) });
-        } else {
-          _setPageIndex(index);
+  useEffect(() => {
+    //if the sorting changes, we need to reset the pagination
+    const sort = sorting[0];
+    refetch({
+      sort: sort
+        ? {
+            col: sort.id as SpanSort["col"],
+            dir: sort.desc ? "desc" : "asc",
+          }
+        : DEFAULT_SORT,
+      after: null,
+      first: PAGE_SIZE,
+    });
+  }, [sorting]);
+  const fetchMoreOnBottomReached = React.useCallback(
+    (containerRefElement?: HTMLDivElement | null) => {
+      if (containerRefElement) {
+        const { scrollHeight, scrollTop, clientHeight } = containerRefElement;
+        //once the user has scrolled within 300px of the bottom of the table, fetch more data if there is any
+        if (
+          scrollHeight - scrollTop - clientHeight < 300 &&
+          !isLoadingNext &&
+          hasNext
+        ) {
+          loadNext(PAGE_SIZE);
         }
-      });
+      }
     },
-    [loadNext, pageIndex]
+    [hasNext, isLoadingNext, loadNext]
   );
   const table = useReactTable<TableRow>({
     columns,
     data: tableData,
     state: {
-      pagination: {
-        pageIndex,
-        pageSize: PAGE_SIZE,
-      },
+      sorting,
     },
-    pageCount: hasNext ? pageIndex + 2 : pageIndex + 1,
+    onSortingChange: setSorting,
     getCoreRowModel: getCoreRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),
   });
   const rows = table.getRowModel().rows;
   return (
-    <>
+    <div
+      css={css`
+        flex: 1 1 auto;
+        overflow: auto;
+      `}
+      onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
+      ref={tableContainerRef}
+    >
       <table css={tableCSS}>
         <thead>
           {table.getHeaderGroups().map((headerGroup) => (
@@ -148,11 +171,30 @@ export function SpansTable(props: SpansTableProps) {
               {headerGroup.headers.map((header) => (
                 <th colSpan={header.colSpan} key={header.id}>
                   {header.isPlaceholder ? null : (
-                    <div>
+                    <div
+                      {...{
+                        className: header.column.getCanSort()
+                          ? "cursor-pointer"
+                          : "",
+                        onClick: header.column.getToggleSortingHandler(),
+                      }}
+                    >
                       {flexRender(
                         header.column.columnDef.header,
                         header.getContext()
                       )}
+                      {header.column.getIsSorted() ? (
+                        <Icon
+                          className="sort-icon"
+                          svg={
+                            header.column.getIsSorted() === "asc" ? (
+                              <Icons.ArrowDownFilled />
+                            ) : (
+                              <Icons.ArrowUpFilled />
+                            )
+                          }
+                        />
+                      ) : null}
                     </div>
                   )}
                 </th>
@@ -179,32 +221,6 @@ export function SpansTable(props: SpansTableProps) {
           })}
         </tbody>
       </table>
-      <div css={paginationCSS}>
-        {isLoadingNext ? (
-          <Flex gap={"size-100"}>
-            <ProgressCircle isIndeterminate size="S" />
-            <Text textSize="small" color="white70">
-              Loading...
-            </Text>
-          </Flex>
-        ) : null}
-        <Button
-          variant="default"
-          size="compact"
-          onClick={() => setPageIndex(pageIndex - 1)}
-          disabled={pageIndex === 0}
-          aria-label="Previous Page"
-          icon={<Icon svg={<Icons.ArrowIosBackOutline />} />}
-        />
-
-        <Button
-          variant="default"
-          size="compact"
-          onClick={() => setPageIndex(pageIndex + 1)}
-          aria-label="Next Page"
-          icon={<Icon svg={<Icons.ArrowIosForwardOutline />} />}
-        />
-      </div>
-    </>
+    </div>
   );
 }

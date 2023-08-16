@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<b4e9ce5c8f1701fe6c66e347d6793d4d>>
+ * @generated SignedSource<<9f13a9e3ffae5bdf7fa1e857e7353b7d>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -45,19 +45,9 @@ return {
       "name": "after"
     },
     {
-      "defaultValue": null,
-      "kind": "LocalArgument",
-      "name": "before"
-    },
-    {
-      "defaultValue": 25,
+      "defaultValue": 100,
       "kind": "LocalArgument",
       "name": "first"
-    },
-    {
-      "defaultValue": null,
-      "kind": "LocalArgument",
-      "name": "last"
     },
     {
       "defaultValue": {
@@ -72,9 +62,9 @@ return {
   "metadata": {
     "connection": [
       {
-        "count": null,
-        "cursor": null,
-        "direction": "bidirectional",
+        "count": "first",
+        "cursor": "after",
+        "direction": "forward",
         "path": (v0/*: any*/)
       }
     ],
@@ -84,10 +74,7 @@ return {
           "count": "first",
           "cursor": "after"
         },
-        "backward": {
-          "count": "last",
-          "cursor": "before"
-        },
+        "backward": null,
         "path": (v0/*: any*/)
       },
       "fragmentPathInResult": [],
@@ -231,20 +218,6 @@ return {
               "kind": "ScalarField",
               "name": "hasNextPage",
               "storageKey": null
-            },
-            {
-              "alias": null,
-              "args": null,
-              "kind": "ScalarField",
-              "name": "hasPreviousPage",
-              "storageKey": null
-            },
-            {
-              "alias": null,
-              "args": null,
-              "kind": "ScalarField",
-              "name": "startCursor",
-              "storageKey": null
             }
           ],
           "storageKey": null
@@ -258,6 +231,6 @@ return {
 };
 })();
 
-(node as any).hash = "0444c84105c791317b4a05f37e3db595";
+(node as any).hash = "af0d0055aee5cd80e25c538005fb9a4f";
 
 export default node;
