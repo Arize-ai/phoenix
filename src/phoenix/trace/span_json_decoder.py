@@ -8,6 +8,7 @@ from phoenix.trace.schemas import (
     SpanContext,
     SpanConversationAttributes,
     SpanEvent,
+    SpanException,
     SpanKind,
     SpanStatusCode,
 )
@@ -65,7 +66,19 @@ def json_to_span(data: Dict[str, Any]) -> Any:
         data["end_time"] = datetime.fromisoformat(data["end_time"])
         data["span_kind"] = SpanKind(data["span_kind"])
         data["status_code"] = SpanStatusCode(data["status_code"])
-        data["events"] = [SpanEvent(**event) for event in data["events"]]  # Build SpanEvent objects
+        data["events"] = [
+            SpanException(
+                message=event["message"],
+                timestamp=datetime.fromisoformat(event["timestamp"]),
+            )
+            if event["name"] == "exception"
+            else SpanEvent(
+                name=event["name"],
+                message=event["message"],
+                timestamp=datetime.fromisoformat(event["timestamp"]),
+            )
+            for event in data["events"]
+        ]
         data["conversation"] = (
             SpanConversationAttributes(**data["conversation"])
             if data["conversation"] is not None
