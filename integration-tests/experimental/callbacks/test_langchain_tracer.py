@@ -41,9 +41,9 @@ def test_tracer_records_common_llm_attributes_for_llm_chain(
     attributes = span.attributes
     assert attributes["llm.invocation_parameters.temperature"] == temperature
     assert attributes["llm.model_name"] == model_name
-    assert isinstance(attributes["llm.prompt_tokens"], int)
-    assert isinstance(attributes["llm.completion_tokens"], int)
-    assert isinstance(attributes["llm.total_tokens"], int)
+    assert isinstance(attributes["llm.token_count.prompt"], int)
+    assert isinstance(attributes["llm.token_count.completion"], int)
+    assert isinstance(attributes["llm.token_count.total"], int)
 
 
 class TestTracerFunctionCallAttributes:
