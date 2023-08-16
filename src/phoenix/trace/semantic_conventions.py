@@ -57,12 +57,11 @@ class MimeType(Enum):
     JSON = "json"
 
 
-LLM_VENDOR = "llm.vendor"
 LLM_MODEL_NAME = "llm.model_name"
 LLM_INVOCATION_PARAMETERS = "llm.invocation_parameters"
-LLM_PROMPT_TOKENS = "llm.prompt_tokens"
-LLM_COMPLETION_TOKENS = "llm.completion_tokens"
-LLM_TOTAL_TOKENS = "llm.total_tokens"
+LLM_TOKEN_COUNT_PROMPT = "llm.token_count.prompt"
+LLM_TOKEN_COUNT_COMPLETION = "llm.token_count.completion"
+LLM_TOKEN_COUNT_TOTAL = "llm.token_count.total"
 LLM_PROMPT_TEMPLATE = "llm.prompt_template.template"
 LLM_PROMPT_TEMPLATE_VARIABLES = "llm.prompt_template.variables"
 LLM_PROMPT_TEMPLATE_VERSION = "llm.prompt_template.version"
