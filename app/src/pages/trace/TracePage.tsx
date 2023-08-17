@@ -15,7 +15,7 @@ import {
 } from "@arizeai/components";
 
 import { resizeHandleCSS } from "@phoenix/components/resize";
-import { SpanItem } from "@phoenix/components/trace/SpanItem";
+import { TraceTree } from "@phoenix/components/trace/TraceTree";
 
 import { TracePageQuery } from "./__generated__/TracePageQuery.graphql";
 
@@ -30,7 +30,7 @@ export function TracePage() {
   const data = useLazyLoadQuery<TracePageQuery>(
     graphql`
       query TracePageQuery($traceId: ID!) {
-        spans(traceIds: [$traceId], sort: { col: startTime, dir: desc }) {
+        spans(traceIds: [$traceId], sort: { col: startTime, dir: asc }) {
           edges {
             span: node {
               context {
@@ -38,6 +38,7 @@ export function TracePage() {
               }
               name
               spanKind
+              startTime
               parentId
               latencyMs
               attributes
@@ -49,8 +50,8 @@ export function TracePage() {
     { traceId: traceId as string }
   );
   const spansList = data.spans.edges.map((edge) => edge.span);
-  const selectedSpanId =
-    searchParams.get("selectedSpanId") ?? spansList[0].context.spanId;
+  const urlSelectedSpanId = searchParams.get("selectedSpanId");
+  const selectedSpanId = urlSelectedSpanId ?? spansList[0].context.spanId;
   const selectedSpan = spansList.find(
     (span) => span.context.spanId === selectedSpanId
   );
@@ -70,53 +71,18 @@ export function TracePage() {
             <Panel defaultSize={40}>
               <Tabs>
                 <TabPane name="Tree" title="Tree">
-                  <ul
-                    css={(theme) => css`
-                      margin: ${theme.spacing.margin16}px;
-                      display: flex;
-                      flex-direction: column;
-                      gap: ${theme.spacing.padding8}px;
-                    `}
-                  >
-                    {spansList.map((span) => (
-                      <li
-                        key={span.context.spanId}
-                        css={css`
-                          display: flex;
-                          width: 100%;
-                          button {
-                            flex: 1 1 auto;
-                          }
-                        `}
-                      >
-                        <button
-                          className="button--reset"
-                          onClick={() => {
-                            setSearchParams(
-                              {
-                                selectedSpanId: span.context.spanId,
-                              },
-                              { replace: true }
-                            );
-                          }}
-                        >
-                          <View
-                            borderRadius="medium"
-                            backgroundColor="light"
-                            padding="size-100"
-                            borderWidth="thin"
-                            borderColor={
-                              selectedSpanId === span.context.spanId
-                                ? "light"
-                                : "default"
-                            }
-                          >
-                            <SpanItem {...span} />
-                          </View>
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
+                  <TraceTree
+                    spans={spansList}
+                    selectedSpanId={selectedSpanId}
+                    onSpanClick={(spanId) => {
+                      setSearchParams(
+                        {
+                          selectedSpanId: spanId,
+                        },
+                        { replace: true }
+                      );
+                    }}
+                  />
                 </TabPane>
                 <TabPane name="Flame Graph" hidden>
                   Flame Graph
