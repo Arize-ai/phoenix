@@ -15,6 +15,11 @@ from phoenix.trace.schemas import (
     SpanKind,
     SpanStatusCode,
 )
+from phoenix.trace.semantic_conventions import (
+    LLM_TOKEN_COUNT_COMPLETION,
+    LLM_TOKEN_COUNT_PROMPT,
+    LLM_TOKEN_COUNT_TOTAL,
+)
 from phoenix.trace.span_json_encoder import spans_to_jsonl
 
 
@@ -52,6 +57,17 @@ def generate_trace(num_spans: int) -> List[Span]:
         attributes: Dict[str, AttributeValue] = {
             f"attr_{j}": f"value_{j}" for j in range(random.randint(1, 5))
         }
+        if random.random() < 0.1:
+            token_count_total = random.randint(100, 10_000)
+            token_count_prompt = int(token_count_total * random.random())
+            token_count_completion = token_count_total - token_count_prompt
+            attributes.update(
+                {
+                    LLM_TOKEN_COUNT_TOTAL: token_count_total,
+                    LLM_TOKEN_COUNT_PROMPT: token_count_prompt,
+                    LLM_TOKEN_COUNT_COMPLETION: token_count_completion,
+                }
+            )
         events = [
             SpanEvent(
                 name=f"event_{j}",

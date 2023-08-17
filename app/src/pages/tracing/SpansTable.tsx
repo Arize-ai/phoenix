@@ -13,6 +13,7 @@ import { css } from "@emotion/react";
 import { Icon, Icons } from "@arizeai/components";
 
 import { Link } from "@phoenix/components/Link";
+import { IntCell } from "@phoenix/components/table/IntCell";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { SpanKindLabel } from "@phoenix/components/trace/SpanKindLabel";
@@ -60,6 +61,7 @@ export function SpansTable(props: SpansTableProps) {
                 name
                 startTime
                 latencyMs
+                tokenCountTotal
                 context {
                   spanId
                   traceId
@@ -119,6 +121,11 @@ export function SpansTable(props: SpansTableProps) {
         const seconds = (getValue() as number) / 1000;
         return <span css={floatRightCSS}>{formatFloat(seconds)}s</span>;
       },
+    },
+    {
+      header: "total tokens",
+      accessorKey: "tokenCountTotal",
+      cell: IntCell,
     },
   ];
 

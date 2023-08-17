@@ -493,6 +493,9 @@ type Span {
 
   """Span attributes as a JSON string"""
   attributes: String!
+  tokenCountTotal: Int
+  tokenCountPrompt: Int
+  tokenCountCompletion: Int
 
   """All descendent spans in a flatten list"""
   descendentSpansFlattenList: [Span!]!
@@ -507,6 +510,9 @@ enum SpanColumn {
   startTime
   endTime
   latencyMs
+  tokenCountTotal
+  tokenCountPrompt
+  tokenCountCompletion
 }
 
 type SpanConnection {

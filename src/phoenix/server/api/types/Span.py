@@ -1,17 +1,22 @@
 import json
+import math
 from datetime import datetime
 from enum import Enum
 from typing import Any, List, Optional, cast
 
-import pandas as pd
 import strawberry
 from pandas import Series
 from strawberry import ID
 from strawberry.types import Info
 
 from phoenix.server.api.context import Context
-from phoenix.trace.schemas import SpanID
+from phoenix.trace.schemas import ATTRIBUTE_PREFIX, SpanID
 from phoenix.trace.schemas import SpanKind as CoreSpanKind
+from phoenix.trace.semantic_conventions import (
+    LLM_TOKEN_COUNT_COMPLETION,
+    LLM_TOKEN_COUNT_PROMPT,
+    LLM_TOKEN_COUNT_TOTAL,
+)
 
 
 @strawberry.enum
@@ -47,22 +52,12 @@ class Span:
     )
     span_kind: SpanKind
     context: SpanContext
-
-    _row: strawberry.Private["pd.Series[Any]"]
-
-    @strawberry.field(
+    attributes: str = strawberry.field(
         description="Span attributes as a JSON string",
-    )  # type: ignore
-    def attributes(self) -> str:
-        prefix = "attributes."
-        is_attribute = self._row.index.str.startswith(prefix)
-        keys = self._row.index[is_attribute]
-        return cast(
-            str,
-            self._row.loc[is_attribute]
-            .rename({key: key[len(prefix) :] for key in keys})
-            .to_json(date_format="iso"),
-        )
+    )
+    tokenCountTotal: Optional[int]
+    tokenCountPrompt: Optional[int]
+    tokenCountCompletion: Optional[int]
 
     @strawberry.field(
         description="All descendent spans in a flatten list",
@@ -100,8 +95,8 @@ def to_gql_span(row: "Series[Any]") -> Span:
     """
     Converts a dataframe row to a graphQL span
     """
+    attributes = _extract_attributes(row)
     return Span(
-        _row=row,
         name=row["name"],
         parent_id=row["parent_id"],
         span_kind=row["span_kind"],
@@ -112,4 +107,35 @@ def to_gql_span(row: "Series[Any]") -> Span:
             trace_id=row["context.trace_id"],
             span_id=row["context.span_id"],
         ),
+        attributes=attributes.to_json(date_format="iso"),
+        tokenCountTotal=_as_int_or_none(
+            attributes.get(LLM_TOKEN_COUNT_TOTAL),
+        ),
+        tokenCountPrompt=_as_int_or_none(
+            attributes.get(LLM_TOKEN_COUNT_PROMPT),
+        ),
+        tokenCountCompletion=_as_int_or_none(
+            attributes.get(LLM_TOKEN_COUNT_COMPLETION),
+        ),
     )
+
+
+def _extract_attributes(row: "Series[Any]") -> "Series[Any]":
+    row = row.dropna()
+    is_attribute = row.index.str.startswith(ATTRIBUTE_PREFIX)
+    keys = row.index[is_attribute]
+    return cast(
+        "Series[Any]",
+        row.loc[is_attribute].rename(
+            {key: key[len(ATTRIBUTE_PREFIX) :] for key in keys},
+        ),
+    )
+
+
+def _as_int_or_none(v: Any) -> Optional[int]:
+    if v is None or isinstance(v, float) and not math.isfinite(v):
+        return None
+    try:
+        return int(v)
+    except ValueError:
+        return None

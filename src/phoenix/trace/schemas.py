@@ -131,3 +131,6 @@ class Span:
     conversation_id
     """
     conversation: Optional[SpanConversationAttributes]
+
+
+ATTRIBUTE_PREFIX = "attributes."
