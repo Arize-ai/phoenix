@@ -28,6 +28,6 @@ def _build_adjacency_lists(
     df: DataFrame,
 ) -> DefaultDict[SpanID, List[SpanID]]:
     adjacency_lists = defaultdict(list)
-    for span_id, parent_id in df.loc[:, "parent_id"].items():
+    for span_id, parent_id in df.loc[:, "parent_id"].dropna().items():
         adjacency_lists[parent_id].append(span_id)
     return cast(DefaultDict[SpanID, List[SpanID]], adjacency_lists)
