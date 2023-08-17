@@ -15,13 +15,13 @@ class TracesFixture:
     file_name: str
 
 
-random_fixture = TracesFixture(
-    name="random",
-    description="Randomly generated traces",
-    file_name="random.jsonl",
+llama_index_rag_fixture = TracesFixture(
+    name="llama_index_rag",
+    description="Traces from running the llama_index on a RAG use case.",
+    file_name="llama_index_rag.jsonl",
 )
 
-TRACES_FIXTURES: List[TracesFixture] = [random_fixture]
+TRACES_FIXTURES: List[TracesFixture] = [llama_index_rag_fixture]
 
 NAME_TO_TRACES_FIXTURE = {fixture.name: fixture for fixture in TRACES_FIXTURES}
 
