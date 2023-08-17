@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<9f13a9e3ffae5bdf7fa1e857e7353b7d>>
+ * @generated SignedSource<<e8da7bbd63ea4c2c465754b9f1b4e97a>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -23,6 +23,7 @@ export type SpansTable_spans$data = {
         readonly name: string;
         readonly spanKind: SpanKind;
         readonly startTime: string;
+        readonly tokenCountTotal: number | null;
       };
     }>;
   };
@@ -144,6 +145,13 @@ return {
                 {
                   "alias": null,
                   "args": null,
+                  "kind": "ScalarField",
+                  "name": "tokenCountTotal",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
                   "concreteType": "SpanContext",
                   "kind": "LinkedField",
                   "name": "context",
@@ -231,6 +239,6 @@ return {
 };
 })();
 
-(node as any).hash = "af0d0055aee5cd80e25c538005fb9a4f";
+(node as any).hash = "632806588c95efe39722851a5dd1d618";
 
 export default node;
