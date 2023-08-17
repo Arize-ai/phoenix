@@ -131,10 +131,3 @@ class OpenInferenceTracer(Tracer, BaseTracer):
             self._convert_run_to_spans(run.dict())
         except Exception:
             logger.exception("Failed to convert run to spans")
-
-    def get_spans(self) -> List[Span]:
-        """
-        Returns the spans stored in the tracer. This is useful if you are running
-        LangChain in a notebook environment and you want to inspect the spans.
-        """
-        return self.span_buffer
