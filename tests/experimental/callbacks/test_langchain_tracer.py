@@ -153,7 +153,7 @@ def test_tracer_retriever_with_exception() -> None:
     except Exception:
         pass
 
-    spans = {span.name: span for span in tracer.span_buffer}
+    spans = {span.name: span for span in tracer.get_spans()}
 
     for name in (
         "RetrievalQA",

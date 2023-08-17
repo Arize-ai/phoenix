@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any, Callable, List, Optional
+from typing import Any, Callable, Iterator, List, Optional
 from uuid import UUID, uuid4
 
 from .schemas import (
@@ -94,3 +94,10 @@ class Tracer:
         if self.on_append is not None:
             self.on_append(self.span_buffer)
         return span
+
+    def get_spans(self) -> Iterator[Span]:
+        """
+        Returns the spans stored in the tracer. This is useful if you are running
+        in a notebook environment and you want to inspect the spans.
+        """
+        yield from self.span_buffer
