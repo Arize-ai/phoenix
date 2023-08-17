@@ -58,12 +58,43 @@ class MimeType(Enum):
 
 
 LLM_FUNCTION_CALL = "llm.function_call"
+"""
+For models and APIs that support function calling. Records attributes such as the function name and
+arguments to the called function.
+"""
 LLM_INVOCATION_PARAMETERS = "llm.invocation_parameters"
+"""
+Invocation parameters passed to the LLM or API, such as the model name, temperature, etc.
+"""
 LLM_MESSAGES = "llm.messages"
+"""
+Messages (system, user, role) provided to a chat API.
+"""
 LLM_MODEL_NAME = "llm.model_name"
+"""
+The name of the model being used.
+"""
 LLM_PROMPT_TEMPLATE = "llm.prompt_template.template"
+"""
+The prompt template as a Python f-string.
+"""
 LLM_PROMPT_TEMPLATE_VARIABLES = "llm.prompt_template.variables"
+"""
+A list of input variables to the prompt template.
+"""
 LLM_PROMPT_TEMPLATE_VERSION = "llm.prompt_template.version"
+"""
+The version of the prompt template being used.
+"""
 LLM_TOKEN_COUNT_PROMPT = "llm.token_count.prompt"
+"""
+Number of tokens in the prompt.
+"""
 LLM_TOKEN_COUNT_COMPLETION = "llm.token_count.completion"
+"""
+Number of tokens in the completion.
+"""
 LLM_TOKEN_COUNT_TOTAL = "llm.token_count.total"
+"""
+Total number of tokens, including both prompt and completion.
+"""
