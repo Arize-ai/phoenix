@@ -490,12 +490,12 @@ type Span {
   parentId: ID
   spanKind: SpanKind!
   context: SpanContext!
-  tokenCountTotal: Int
-  tokenCountPrompt: Int
-  tokenCountCompletion: Int
 
   """Span attributes as a JSON string"""
   attributes: String!
+  tokenCountTotal: Int
+  tokenCountPrompt: Int
+  tokenCountCompletion: Int
 }
 
 enum SpanColumn {

@@ -49,18 +49,12 @@ class Span:
     )
     span_kind: SpanKind
     context: SpanContext
-
+    attributes: str = strawberry.field(
+        description="Span attributes as a JSON string",
+    )
     tokenCountTotal: Optional[int]
     tokenCountPrompt: Optional[int]
     tokenCountCompletion: Optional[int]
-
-    _attributes: strawberry.Private["Series[Any]"]
-
-    @strawberry.field(
-        description="Span attributes as a JSON string",
-    )  # type: ignore
-    def attributes(self) -> str:
-        return self._attributes.to_json(date_format="iso")
 
 
 def to_gql_span(row: "Series[Any]") -> Span:
@@ -69,7 +63,6 @@ def to_gql_span(row: "Series[Any]") -> Span:
     """
     attributes = _extract_attributes(row)
     return Span(
-        _attributes=attributes,
         name=row["name"],
         parent_id=row["parent_id"],
         span_kind=row["span_kind"],
@@ -80,6 +73,7 @@ def to_gql_span(row: "Series[Any]") -> Span:
             trace_id=row["context.trace_id"],
             span_id=row["context.span_id"],
         ),
+        attributes=attributes.to_json(date_format="iso"),
         tokenCountTotal=_as_int_or_none(
             attributes.get(LLM_TOKEN_COUNT_TOTAL),
         ),
