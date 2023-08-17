@@ -1,6 +1,8 @@
 import json
 import logging
+from copy import deepcopy
 from datetime import datetime
+from json import JSONDecodeError
 from typing import Any, Dict, Iterator, List, Optional, Tuple
 
 from langchain.callbacks.tracers.base import BaseTracer
@@ -109,10 +111,12 @@ def _token_counts(outputs: Dict[str, Any]) -> Iterator[Tuple[str, int]]:
 def _function_calls(outputs: Dict[str, Any]) -> Iterator[Tuple[str, str]]:
     """Yields function call information if present."""
     try:
-        yield LLM_FUNCTION_CALL, json.dumps(
+        function_call_data = deepcopy(
             outputs["generations"][0][0]["message"]["kwargs"]["additional_kwargs"]["function_call"]
         )
-    except (KeyError, IndexError, TypeError):
+        function_call_data["arguments"] = json.loads(function_call_data["arguments"])
+        yield LLM_FUNCTION_CALL, json.dumps(function_call_data)
+    except (KeyError, IndexError, JSONDecodeError, TypeError):
         pass
 
 

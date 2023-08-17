@@ -92,7 +92,7 @@ class TestTracerFunctionCallAttributes:
         span = next(span for span in tracer.span_buffer if span.name == "ChatOpenAI")
         function_call_attributes = json.loads(span.attributes["llm.function_call"])
         assert function_call_attributes["name"] == "get_current_weather"
-        assert json.loads(function_call_attributes["arguments"])["city"] == "London"
+        assert function_call_attributes["arguments"]["city"] == "London"
 
     def test_tracer_records_function_call_attributes_when_openai_function_agent_uses_tool(
         self, agent: AgentExecutor, tracer: OpenInferenceTracer
@@ -102,10 +102,11 @@ class TestTracerFunctionCallAttributes:
         span = next(span for span in tracer.span_buffer if span.name == "ChatOpenAI")
         attributes = span.attributes
         function_call_attributes = json.loads(attributes["llm.function_call"])
+        function_call_arguments = function_call_attributes["arguments"]
 
         assert "5" in response or "five" in response.lower()
-        assert "count_letter" in function_call_attributes["arguments"]
-        assert "hello" in function_call_attributes["arguments"]
+        assert "count_letter" in json.dumps(function_call_arguments)
+        assert "hello" in json.dumps(function_call_arguments)
 
     def test_tracer_omits_function_call_attributes_when_openai_function_agent_skips_tool(
         self, agent: AgentExecutor, tracer: OpenInferenceTracer
