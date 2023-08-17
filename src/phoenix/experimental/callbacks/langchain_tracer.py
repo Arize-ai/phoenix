@@ -8,7 +8,13 @@ from typing import Any, Dict, Iterator, List, Optional, Tuple
 from langchain.callbacks.tracers.base import BaseTracer
 from langchain.callbacks.tracers.schemas import Run
 
-from phoenix.trace.schemas import Span, SpanEvent, SpanException, SpanKind, SpanStatusCode
+from phoenix.trace.schemas import (
+    Span,
+    SpanEvent,
+    SpanException,
+    SpanKind,
+    SpanStatusCode,
+)
 from phoenix.trace.semantic_conventions import (
     INPUT_MIME_TYPE,
     INPUT_VALUE,
