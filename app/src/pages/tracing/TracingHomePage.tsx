@@ -61,7 +61,9 @@ export function TracingHomePage() {
           <View height="100%"></View>
         </TabPane>
       </Tabs>
-      <Outlet />
+      <Suspense>
+        <Outlet />
+      </Suspense>
     </main>
   );
 }

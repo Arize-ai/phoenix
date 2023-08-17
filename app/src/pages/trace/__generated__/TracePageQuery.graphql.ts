@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<0ed7b6d22c857a7fd6f889996d3f445d>>
+ * @generated SignedSource<<e6e9272e7fe380c1eae6454311136ee9>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -25,6 +25,7 @@ export type TracePageQuery$data = {
         readonly name: string;
         readonly parentId: string | null;
         readonly spanKind: SpanKind;
+        readonly startTime: string;
       };
     }>;
   };
@@ -51,7 +52,7 @@ v1 = [
         "name": "sort",
         "value": {
           "col": "startTime",
-          "dir": "desc"
+          "dir": "asc"
         }
       },
       {
@@ -123,6 +124,13 @@ v1 = [
                 "alias": null,
                 "args": null,
                 "kind": "ScalarField",
+                "name": "startTime",
+                "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
                 "name": "parentId",
                 "storageKey": null
               },
@@ -168,16 +176,16 @@ return {
     "selections": (v1/*: any*/)
   },
   "params": {
-    "cacheID": "37abbc5f9e3a1e42eeef3b79c5cb0bb4",
+    "cacheID": "62a7ce7d319480405a0522d8fce96b4f",
     "id": null,
     "metadata": {},
     "name": "TracePageQuery",
     "operationKind": "query",
-    "text": "query TracePageQuery(\n  $traceId: ID!\n) {\n  spans(traceIds: [$traceId], sort: {col: startTime, dir: desc}) {\n    edges {\n      span: node {\n        context {\n          spanId\n        }\n        name\n        spanKind\n        parentId\n        latencyMs\n        attributes\n      }\n    }\n  }\n}\n"
+    "text": "query TracePageQuery(\n  $traceId: ID!\n) {\n  spans(traceIds: [$traceId], sort: {col: startTime, dir: asc}) {\n    edges {\n      span: node {\n        context {\n          spanId\n        }\n        name\n        spanKind\n        startTime\n        parentId\n        latencyMs\n        attributes\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "ccc80b5af4ef19eab0f485919cfdf87f";
+(node as any).hash = "f195c47905dcfa844a4332dd49680e04";
 
 export default node;
