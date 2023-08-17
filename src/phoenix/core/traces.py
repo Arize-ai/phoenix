@@ -16,10 +16,10 @@ class Traces:
     def __init__(self, dataframe: DataFrame):
         dataframe = dataframe.set_index("context.span_id", drop=False)
         self._dataframe = dataframe
-        self._self_adjacency_list = _build_adjacency_lists(dataframe)
+        self._adjacency_lists = _build_adjacency_lists(dataframe)
 
     def get_descendant_span_ids(self, span_id: SpanID) -> Iterable[SpanID]:
-        for span_id in self._self_adjacency_list[span_id]:
+        for span_id in self._adjacency_lists[span_id]:
             yield span_id
             yield from self.get_descendant_span_ids(span_id)
 
