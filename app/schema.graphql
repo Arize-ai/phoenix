@@ -497,8 +497,8 @@ type Span {
   tokenCountPrompt: Int
   tokenCountCompletion: Int
 
-  """All descendent spans (children, grandchildren, etc.)"""
-  descendents: [Span!]!
+  """All descendant spans (children, grandchildren, etc.)"""
+  descendants: [Span!]!
 }
 
 enum SpanColumn {
