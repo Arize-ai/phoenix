@@ -61,12 +61,10 @@ export function SpansTable(props: SpansTableProps) {
                 name
                 startTime
                 latencyMs
+                tokenCountTotal
                 context {
                   spanId
                   traceId
-                }
-                tokenCount {
-                  total
                 }
               }
             }
@@ -83,7 +81,6 @@ export function SpansTable(props: SpansTableProps) {
         ...span,
         trace_id: span.context.traceId,
         span_id: span.context.spanId,
-        tokenCountTotal: span.tokenCount?.total ?? null,
       };
     });
 
@@ -126,7 +123,7 @@ export function SpansTable(props: SpansTableProps) {
       },
     },
     {
-      header: "token count (total)",
+      header: "total tokens",
       accessorKey: "tokenCountTotal",
       cell: IntCell,
     },

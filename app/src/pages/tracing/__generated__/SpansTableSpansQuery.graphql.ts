@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a85df2cb3f13fa33e9e022b47f0e8fde>>
+ * @generated SignedSource<<6dbea1f8476a1f59adfba22804223c42>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -144,6 +144,13 @@ return {
                   {
                     "alias": null,
                     "args": null,
+                    "kind": "ScalarField",
+                    "name": "tokenCountTotal",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
                     "concreteType": "SpanContext",
                     "kind": "LinkedField",
                     "name": "context",
@@ -161,24 +168,6 @@ return {
                         "args": null,
                         "kind": "ScalarField",
                         "name": "traceId",
-                        "storageKey": null
-                      }
-                    ],
-                    "storageKey": null
-                  },
-                  {
-                    "alias": null,
-                    "args": null,
-                    "concreteType": "TokenCount",
-                    "kind": "LinkedField",
-                    "name": "tokenCount",
-                    "plural": false,
-                    "selections": [
-                      {
-                        "alias": null,
-                        "args": null,
-                        "kind": "ScalarField",
-                        "name": "total",
                         "storageKey": null
                       }
                     ],
@@ -257,16 +246,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "7941641ff29bcf82ccb6c7267128a650",
+    "cacheID": "2cf3b9a810636e2fb51b0ce2cadd0d05",
     "id": null,
     "metadata": {},
     "name": "SpansTableSpansQuery",
     "operationKind": "query",
-    "text": "query SpansTableSpansQuery(\n  $after: String = null\n  $first: Int = 100\n  $sort: SpanSort = {col: startTime, dir: desc}\n) {\n  ...SpansTable_spans_dWkdd\n}\n\nfragment SpansTable_spans_dWkdd on Query {\n  spans(first: $first, after: $after, sort: $sort) {\n    edges {\n      span: node {\n        spanKind\n        name\n        startTime\n        latencyMs\n        context {\n          spanId\n          traceId\n        }\n        tokenCount {\n          total\n        }\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query SpansTableSpansQuery(\n  $after: String = null\n  $first: Int = 100\n  $sort: SpanSort = {col: startTime, dir: desc}\n) {\n  ...SpansTable_spans_dWkdd\n}\n\nfragment SpansTable_spans_dWkdd on Query {\n  spans(first: $first, after: $after, sort: $sort) {\n    edges {\n      span: node {\n        spanKind\n        name\n        startTime\n        latencyMs\n        tokenCountTotal\n        context {\n          spanId\n          traceId\n        }\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "8ed2ad557c9e6082060a340973bedb1d";
+(node as any).hash = "632806588c95efe39722851a5dd1d618";
 
 export default node;

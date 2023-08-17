@@ -8,6 +8,7 @@ from pandas import Series
 from strawberry import ID
 
 from phoenix.server.api.interceptor import GqlValueMediator
+from phoenix.trace.schemas import ATTRIBUTE_PREFIX
 from phoenix.trace.schemas import SpanKind as CoreSpanKind
 from phoenix.trace.semantic_conventions import (
     LLM_TOKEN_COUNT_COMPLETION,
@@ -57,50 +58,26 @@ class Span:
     span_kind: SpanKind
     context: SpanContext
 
+    tokenCountTotal: Optional[int]
+    tokenCountPrompt: Optional[int]
+    tokenCountCompletion: Optional[int]
+
     _attributes: strawberry.Private["Series[Any]"]
 
     @strawberry.field(
         description="Span attributes (excluding token count) as a JSON string",
     )  # type: ignore
     def attributes(self) -> str:
-        return self._attributes.drop(
-            [
-                LLM_TOKEN_COUNT_TOTAL,
-                LLM_TOKEN_COUNT_PROMPT,
-                LLM_TOKEN_COUNT_COMPLETION,
-            ],
-            errors="ignore",
-        ).to_json(date_format="iso")
-
-    @strawberry.field(
-        description="Token count (total, prompt and completion)",
-    )  # type: ignore
-    def token_count(self) -> Optional[TokenCount]:
-        if not (
-            total := _as_int_or_none(
-                self._attributes.get(LLM_TOKEN_COUNT_TOTAL),
-            )
-        ):
-            return None
-        prompt = _as_int_or_none(
-            self._attributes.get(LLM_TOKEN_COUNT_PROMPT),
-        )
-        completion = _as_int_or_none(
-            self._attributes.get(LLM_TOKEN_COUNT_COMPLETION),
-        )
-        return TokenCount(
-            total=total,
-            prompt=prompt,
-            completion=completion,
-        )
+        return self._attributes.to_json(date_format="iso")
 
 
 def to_gql_span(row: "Series[Any]") -> Span:
     """
     Converts a dataframe row to a graphQL span
     """
+    attributes = _extract_attributes(row)
     return Span(
-        _attributes=_extract_attributes(row),
+        _attributes=attributes,
         name=row["name"],
         parent_id=row["parent_id"],
         span_kind=row["span_kind"],
@@ -111,18 +88,26 @@ def to_gql_span(row: "Series[Any]") -> Span:
             trace_id=row["context.trace_id"],
             span_id=row["context.span_id"],
         ),
+        tokenCountTotal=_as_int_or_none(
+            attributes.get(LLM_TOKEN_COUNT_TOTAL),
+        ),
+        tokenCountPrompt=_as_int_or_none(
+            attributes.get(LLM_TOKEN_COUNT_PROMPT),
+        ),
+        tokenCountCompletion=_as_int_or_none(
+            attributes.get(LLM_TOKEN_COUNT_COMPLETION),
+        ),
     )
 
 
 def _extract_attributes(row: "Series[Any]") -> "Series[Any]":
     row = row.dropna()
-    prefix = "attributes."
-    is_attribute = row.index.str.startswith(prefix)
+    is_attribute = row.index.str.startswith(ATTRIBUTE_PREFIX)
     keys = row.index[is_attribute]
     return cast(
         "Series[Any]",
         row.loc[is_attribute].rename(
-            {key: key[len(prefix) :] for key in keys},
+            {key: key[len(ATTRIBUTE_PREFIX) :] for key in keys},
         ),
     )
 
