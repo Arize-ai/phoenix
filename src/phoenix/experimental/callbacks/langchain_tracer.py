@@ -25,9 +25,6 @@ from phoenix.trace.semantic_conventions import (
 )
 from phoenix.trace.tracer import Tracer
 
-Role = str
-Message = str
-
 logger = logging.getLogger(__name__)
 
 
@@ -81,10 +78,9 @@ def _prompt_template(serialized: Dict[str, Any]) -> Iterator[Tuple[str, Any]]:
             continue
 
 
-def _invocation_parameters(extra: Dict[str, Any]) -> Iterator[Tuple[str, Any]]:
+def _invocation_parameters(extra: Dict[str, Any]) -> Iterator[Tuple[str, str]]:
     """Yields invocation parameters if present."""
-    for key, value in extra.get("invocation_params", {}).items():
-        yield ".".join([LLM_INVOCATION_PARAMETERS, key]), value
+    yield LLM_INVOCATION_PARAMETERS, json.dumps(extra.get("invocation_params", {}))
 
 
 def _model_name(extra: Dict[str, Any]) -> Iterator[Tuple[str, str]]:
@@ -110,20 +106,14 @@ def _token_counts(outputs: Dict[str, Any]) -> Iterator[Tuple[str, int]]:
             continue
 
 
-def _function_calls(outputs: Dict[str, Any]) -> Iterator[Tuple[str, int]]:
+def _function_calls(outputs: Dict[str, Any]) -> Iterator[Tuple[str, str]]:
     """Yields function call information if present."""
     try:
-        function_name = outputs["generations"][0][0]["message"]["kwargs"]["additional_kwargs"][
-            "function_call"
-        ]["name"]
-        arguments = json.loads(
-            outputs["generations"][0][0]["message"]["kwargs"]["additional_kwargs"]["function_call"][
-                "arguments"
-            ]
+        yield LLM_FUNCTION_CALL, json.dumps(
+            outputs["generations"][0][0]["message"]["kwargs"]["additional_kwargs"]["function_call"]
         )
-        yield ".".join([LLM_FUNCTION_CALL, function_name]), arguments
     except (KeyError, IndexError, TypeError):
-        ...
+        pass
 
 
 class OpenInferenceTracer(Tracer, BaseTracer):

@@ -1,3 +1,4 @@
+import json
 from typing import Type
 
 import pytest
@@ -36,11 +37,13 @@ def test_tracer_records_common_llm_attributes_for_llm_chain(
     chain = LLMChain(prompt=prompt_template, llm=llm)
     response = chain.run({"color": "blue"}, callbacks=[tracer])
 
-    assert "orange" in response.lower()
     span = next(span for span in tracer.span_buffer if span.span_kind == SpanKind.LLM)
     attributes = span.attributes
-    assert attributes["llm.invocation_parameters.temperature"] == temperature
+    invocation_parameters = json.loads(attributes["llm.invocation_parameters"])
+
+    assert "orange" in response.lower()
     assert attributes["llm.model_name"] == model_name
+    assert invocation_parameters["temperature"] == temperature
     assert isinstance(attributes["llm.token_count.prompt"], int)
     assert isinstance(attributes["llm.token_count.completion"], int)
     assert isinstance(attributes["llm.token_count.total"], int)
@@ -87,27 +90,33 @@ class TestTracerFunctionCallAttributes:
         chain.run("the capital city of England", callbacks=[tracer])
 
         span = next(span for span in tracer.span_buffer if span.name == "ChatOpenAI")
-        assert span.attributes["llm.function_call.get_current_weather"] == {"city": "London"}
+        function_call_attributes = json.loads(span.attributes["llm.function_call"])
+        assert function_call_attributes["name"] == "get_current_weather"
+        assert json.loads(function_call_attributes["arguments"])["city"] == "London"
 
     def test_tracer_records_function_call_attributes_when_openai_function_agent_uses_tool(
         self, agent: AgentExecutor, tracer: OpenInferenceTracer
     ) -> None:
         response = agent.run('How many characters are in the word "hello"?', callbacks=[tracer])
 
-        assert "5" in response or "five" in response.lower()
         span = next(span for span in tracer.span_buffer if span.name == "ChatOpenAI")
         attributes = span.attributes
-        assert "llm.function_call.tool_selection" in attributes
+        function_call_attributes = json.loads(attributes["llm.function_call"])
+
+        assert "5" in response or "five" in response.lower()
+        assert "count_letter" in function_call_attributes["arguments"]
+        assert "hello" in function_call_attributes["arguments"]
 
     def test_tracer_omits_function_call_attributes_when_openai_function_agent_skips_tool(
         self, agent: AgentExecutor, tracer: OpenInferenceTracer
     ) -> None:
         response = agent.run("Who won the World Cup in 2018?", callbacks=[tracer])
 
-        assert "France" in response or "French" in response
         span = next(span for span in tracer.span_buffer if span.name == "ChatOpenAI")
         attributes = span.attributes
-        assert "llm.function_call.tool_selection" not in attributes
+
+        assert "France" in response or "French" in response
+        assert "llm.function_call" not in attributes
 
     @pytest.fixture
     def agent(self) -> AgentExecutor:
