@@ -494,7 +494,7 @@ type Span {
   tokenCountPrompt: Int
   tokenCountCompletion: Int
 
-  """Span attributes (excluding token count) as a JSON string"""
+  """Span attributes as a JSON string"""
   attributes: String!
 }
 

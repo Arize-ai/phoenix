@@ -65,7 +65,7 @@ class Span:
     _attributes: strawberry.Private["Series[Any]"]
 
     @strawberry.field(
-        description="Span attributes (excluding token count) as a JSON string",
+        description="Span attributes as a JSON string",
     )  # type: ignore
     def attributes(self) -> str:
         return self._attributes.to_json(date_format="iso")
