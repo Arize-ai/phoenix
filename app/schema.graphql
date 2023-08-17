@@ -497,7 +497,7 @@ type Span {
   tokenCountPrompt: Int
   tokenCountCompletion: Int
 
-  """All descendent spans"""
+  """All descendent spans (children, grandchildren, etc.)"""
   descendents: [Span!]!
 }
 

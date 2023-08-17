@@ -59,7 +59,7 @@ class Span:
     tokenCountCompletion: Optional[int]
 
     @strawberry.field(
-        description="All descendent spans",
+        description="All descendent spans (children, grandchildren, etc.)",
     )  # type: ignore
     def descendents(
         self,
