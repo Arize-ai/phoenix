@@ -201,7 +201,7 @@ class Query:
         self,
         info: Info[Context, None],
         trace_ids: Optional[List[ID]] = UNSET,
-        nested: Optional[bool] = UNSET,
+        root_span_only: Optional[bool] = UNSET,
         first: Optional[int] = 50,
         last: Optional[int] = UNSET,
         after: Optional[Cursor] = UNSET,
@@ -214,7 +214,7 @@ class Query:
             df = cast(pd.DataFrame, info.context.traces)
             if trace_ids:
                 df = df[df["context.trace_id"].isin(trace_ids)]
-            if nested:
+            if root_span_only:
                 df = df[df["parent_id"].isna()]
             sort = sort or SpanSort(col=SpanColumn.startTime, dir=SortDir.asc)
             # Convert dataframe rows to Span objects
