@@ -63,12 +63,12 @@ def _convert_io(obj: Optional[Dict[str, Any]]) -> Iterator[Any]:
         yield MimeType.JSON
 
 
-def _prompt_template(serialized: Dict[str, Any]) -> Iterator[Tuple[str, Any]]:
+def _prompt_template(run_serialized: Dict[str, Any]) -> Iterator[Tuple[str, Any]]:
     """
     A best-effort attempt to locate the PromptTemplate object among the
     keyword arguments of a serialized object, e.g. an LLMChain object.
     """
-    for obj in serialized.get("kwargs", {}).values():
+    for obj in run_serialized.get("kwargs", {}).values():
         # The `id` field of the object is a list indicating the path to the
         # object's class in the LangChain package, e.g. `PromptTemplate` in
         # the `langchain.prompts.prompt` module is represented as
@@ -86,22 +86,22 @@ def _prompt_template(serialized: Dict[str, Any]) -> Iterator[Tuple[str, Any]]:
             continue
 
 
-def _invocation_parameters(extra: Dict[str, Any]) -> Iterator[Tuple[str, str]]:
+def _invocation_parameters(run_extra: Dict[str, Any]) -> Iterator[Tuple[str, str]]:
     """Yields invocation parameters if present."""
-    yield LLM_INVOCATION_PARAMETERS, json.dumps(extra.get("invocation_params", {}))
+    yield LLM_INVOCATION_PARAMETERS, json.dumps(run_extra.get("invocation_params", {}))
 
 
-def _model_name(extra: Dict[str, Any]) -> Iterator[Tuple[str, str]]:
+def _model_name(run_extra: Dict[str, Any]) -> Iterator[Tuple[str, str]]:
     """Yields model name if present."""
     for key in ["model_name", "model"]:
         try:
-            yield LLM_MODEL_NAME, extra["invocation_params"][key]
+            yield LLM_MODEL_NAME, run_extra["invocation_params"][key]
             break
         except (KeyError, TypeError):
             continue
 
 
-def _token_counts(outputs: Dict[str, Any]) -> Iterator[Tuple[str, int]]:
+def _token_counts(run_outputs: Dict[str, Any]) -> Iterator[Tuple[str, int]]:
     """Yields token count information if present."""
     for attribute_name, key in [
         (LLM_TOKEN_COUNT_PROMPT, "prompt_tokens"),
@@ -109,16 +109,18 @@ def _token_counts(outputs: Dict[str, Any]) -> Iterator[Tuple[str, int]]:
         (LLM_TOKEN_COUNT_TOTAL, "total_tokens"),
     ]:
         try:
-            yield attribute_name, outputs["llm_output"]["token_usage"][key]
+            yield attribute_name, run_outputs["llm_output"]["token_usage"][key]
         except (KeyError, TypeError):
             continue
 
 
-def _function_calls(outputs: Dict[str, Any]) -> Iterator[Tuple[str, str]]:
+def _function_calls(run_outputs: Dict[str, Any]) -> Iterator[Tuple[str, str]]:
     """Yields function call information if present."""
     try:
         function_call_data = deepcopy(
-            outputs["generations"][0][0]["message"]["kwargs"]["additional_kwargs"]["function_call"]
+            run_outputs["generations"][0][0]["message"]["kwargs"]["additional_kwargs"][
+                "function_call"
+            ]
         )
         function_call_data["arguments"] = json.loads(function_call_data["arguments"])
         yield LLM_FUNCTION_CALL, json.dumps(function_call_data)
