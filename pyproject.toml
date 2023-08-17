@@ -234,7 +234,7 @@ ignore-nested-classes = false
 ignore-setters = false
 
 [tool.mypy]
-plugins = ["strawberry.ext.mypy_plugin"]
+plugins = ["strawberry.ext.mypy_plugin", "pydantic.mypy"]
 disallow_untyped_calls = true
 disallow_untyped_defs = true
 disallow_incomplete_defs  = true
