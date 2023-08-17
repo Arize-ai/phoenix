@@ -26,6 +26,7 @@ from phoenix.trace.schemas import Span, SpanID, SpanKind, SpanStatusCode
 from phoenix.trace.semantic_conventions import (
     INPUT_MIME_TYPE,
     INPUT_VALUE,
+    LLM_MESSAGES,
     OUTPUT_MIME_TYPE,
     OUTPUT_VALUE,
     MimeType,
@@ -62,7 +63,10 @@ def payload_to_semantic_attributes(payload: Dict[str, Any]) -> Dict[str, Any]:
     if EventPayload.PROMPT in payload:
         ...
     if EventPayload.MESSAGES in payload:
-        ...
+        attributes[LLM_MESSAGES] = [
+            (message_data.role.value, message_data.content)
+            for message_data in payload[EventPayload.MESSAGES]
+        ]
     if EventPayload.COMPLETION in payload:
         ...
     if EventPayload.RESPONSE in payload:
