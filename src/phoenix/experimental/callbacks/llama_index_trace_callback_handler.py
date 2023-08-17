@@ -11,7 +11,7 @@ https://github.com/Arize-ai/open-inference-spec
 import logging
 from collections import defaultdict
 from datetime import datetime
-from typing import Any, Callable, Dict, List, Optional, Tuple, TypedDict
+from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple, TypedDict
 from uuid import uuid4
 
 from llama_index.callbacks.base_handler import BaseCallbackHandler
@@ -153,6 +153,13 @@ class OpenInferenceTraceCallbackHandler(BaseCallbackHandler):
         except Exception:
             logger.exception("OpenInferenceCallbackHandler trace processing failed")
         self._event_id_to_event_data = defaultdict(lambda: CBEventData())
+
+    def get_spans(self) -> Iterator[Span]:
+        """
+        Returns the spans stored in the tracer. This is useful if you are running
+        LlamaIndex in a notebook environment and you want to inspect the spans.
+        """
+        return self._tracer.get_spans()
 
 
 def _add_to_tracer(
