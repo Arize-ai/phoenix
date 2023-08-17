@@ -100,8 +100,9 @@ dependencies = [
   "llama-index==0.8.1",
   "openai",
   "tenacity",
-  "nltk==3.8.1", 
+  "nltk==3.8.1",
   "sentence-transformers==2.2.2",
+  "pydantic<2",  # for @root_validator in llama-index
 ]
 
 [tool.hatch.envs.type]
@@ -233,7 +234,7 @@ ignore-nested-classes = false
 ignore-setters = false
 
 [tool.mypy]
-plugins = ["strawberry.ext.mypy_plugin"]
+plugins = ["strawberry.ext.mypy_plugin", "pydantic.mypy"]
 disallow_untyped_calls = true
 disallow_untyped_defs = true
 disallow_incomplete_defs  = true
