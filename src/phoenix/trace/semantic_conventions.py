@@ -59,6 +59,7 @@ class MimeType(Enum):
 
 LLM_FUNCTION_CALL = "llm.function_call"
 LLM_INVOCATION_PARAMETERS = "llm.invocation_parameters"
+LLM_MESSAGES = "llm.messages"
 LLM_MODEL_NAME = "llm.model_name"
 LLM_PROMPT_TEMPLATE = "llm.prompt_template.template"
 LLM_PROMPT_TEMPLATE_VARIABLES = "llm.prompt_template.variables"
