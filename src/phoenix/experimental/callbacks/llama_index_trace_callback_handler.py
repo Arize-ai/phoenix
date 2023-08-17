@@ -154,6 +154,13 @@ class OpenInferenceTraceCallbackHandler(BaseCallbackHandler):
             logger.exception("OpenInferenceCallbackHandler trace processing failed")
         self._event_id_to_event_data = defaultdict(lambda: CBEventData())
 
+    def get_spans(self) -> List[Span]:
+        """
+        Returns the spans stored in the tracer. This is useful if you are running
+        LlamaIndex in a notebook environment and you want to inspect the spans.
+        """
+        return self._tracer.span_buffer
+
 
 def _add_to_tracer(
     event_id_to_event_data: Dict[CBEventID, CBEventData],

@@ -30,7 +30,7 @@ def test_callback_llm(mock_service_context: ServiceContext) -> None:
     response = query_engine.query(question)
     # Just check that the callback handler is called using the patched LLM
     assert response.response == "LLM predict"
-    spans = callback_handler._tracer.span_buffer
+    spans = callback_handler.get_spans()
     assert len(spans) >= 1
     # Make sure that the input/output is captured
     assert spans[0].attributes[INPUT_VALUE] == question
