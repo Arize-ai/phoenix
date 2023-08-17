@@ -1,4 +1,3 @@
-import json
 import math
 from datetime import datetime
 from enum import Enum
@@ -60,35 +59,20 @@ class Span:
     tokenCountCompletion: Optional[int]
 
     @strawberry.field(
-        description="All descendent spans in a flatten list",
+        description="All descendent spans",
     )  # type: ignore
-    def descendent_spans_flatten_list(
+    def descendents(
         self,
         info: Info[Context, None],
     ) -> List["Span"]:
-        ans: List["Span"] = []
-        span_id = cast(SpanID, self.context.span_id)
         if (traces := info.context.traces) is None:
-            return ans
-        adjacency_list = traces.get_adjacency_list(span_id)
-        span_ids = adjacency_list[span_id]
-        for child_span_id in span_ids:
-            ans.append(to_gql_span(traces.loc[child_span_id]))
-            span_ids.extend(adjacency_list[child_span_id])
-        return ans
-
-    @strawberry.field(
-        description="JSON string of the adjacency list representing"
-        " the family tree with the current span as the root",
-    )  # type: ignore
-    def descendent_tree_adjacency_list(
-        self,
-        info: Info[Context, None],
-    ) -> str:
-        span_id = cast(SpanID, self.context.span_id)
-        if (traces := info.context.traces) is None:
-            return json.dumps({span_id: []})
-        return json.dumps(traces.get_adjacency_list(span_id))
+            return []
+        return [
+            to_gql_span(traces._dataframe.loc[span_id])  # type: ignore
+            for span_id in traces.get_descendant_span_ids(
+                cast(SpanID, self.context.span_id),
+            )
+        ]
 
 
 def to_gql_span(row: "Series[Any]") -> Span:

@@ -1,10 +1,9 @@
 from collections import defaultdict
 from itertools import chain
-from typing import Dict, List, Optional, Set, Union, cast
+from typing import Dict, List, Optional, Set, Union
 
 import numpy as np
 import numpy.typing as npt
-import pandas as pd
 import strawberry
 from strawberry import ID, UNSET
 from strawberry.types import Info
@@ -206,15 +205,15 @@ class Query:
         after: Optional[Cursor] = UNSET,
         before: Optional[Cursor] = UNSET,
         sort: Optional[SpanSort] = UNSET,
-        root_span_only: Optional[bool] = False,
+        root_spans_only: Optional[bool] = False,
     ) -> Connection[Span]:
         if info.context.traces is None:
             spans = []
         else:
-            df = cast(pd.DataFrame, info.context.traces)
+            df = info.context.traces._dataframe
             if trace_ids:
                 df = df[df["context.trace_id"].isin(trace_ids)]
-            if root_span_only:
+            if root_spans_only:
                 df = df[df["parent_id"].isna()]
             sort = (
                 SpanSort(col=SpanColumn.startTime, dir=SortDir.asc)
