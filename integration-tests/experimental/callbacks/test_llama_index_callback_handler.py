@@ -56,6 +56,7 @@ def test_callback_handler_records_llm_message_attributes_for_query_engine(
     response = query_engine.query(query)
 
     assert "seconds" in response.response.lower()
+
     tracer = query_engine.callback_manager.handlers[0]._tracer
     span = next(span for span in tracer.span_buffer if span.span_kind == SpanKind.LLM)
     messages = span.attributes["llm.messages"]
@@ -68,6 +69,7 @@ def test_callback_handler_records_llm_message_attributes_for_query_engine(
     assert query in message_text
 
 
+# TODO: implement test after bug with OpenAIAgent callback is fixed
 def test_agent(agent: OpenAIAgent) -> None:
     response = agent.chat(
         "Can you explain what that means?",
