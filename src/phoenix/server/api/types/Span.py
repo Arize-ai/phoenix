@@ -1,13 +1,15 @@
 import math
 from datetime import datetime
 from enum import Enum
-from typing import Any, Optional, cast
+from typing import Any, List, Optional, cast
 
 import strawberry
 from pandas import Series
 from strawberry import ID
+from strawberry.types import Info
 
-from phoenix.trace.schemas import ATTRIBUTE_PREFIX
+from phoenix.server.api.context import Context
+from phoenix.trace.schemas import ATTRIBUTE_PREFIX, SpanID
 from phoenix.trace.schemas import SpanKind as CoreSpanKind
 from phoenix.trace.semantic_conventions import (
     LLM_TOKEN_COUNT_COMPLETION,
@@ -55,6 +57,22 @@ class Span:
     tokenCountTotal: Optional[int]
     tokenCountPrompt: Optional[int]
     tokenCountCompletion: Optional[int]
+
+    @strawberry.field(
+        description="All descendant spans (children, grandchildren, etc.)",
+    )  # type: ignore
+    def descendants(
+        self,
+        info: Info[Context, None],
+    ) -> List["Span"]:
+        if (traces := info.context.traces) is None:
+            return []
+        return [
+            to_gql_span(traces._dataframe.loc[span_id])  # type: ignore
+            for span_id in traces.get_descendant_span_ids(
+                cast(SpanID, self.context.span_id),
+            )
+        ]
 
 
 def to_gql_span(row: "Series[Any]") -> Span:
