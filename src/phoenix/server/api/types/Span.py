@@ -7,7 +7,6 @@ import strawberry
 from pandas import Series
 from strawberry import ID
 
-from phoenix.server.api.interceptor import GqlValueMediator
 from phoenix.trace.schemas import ATTRIBUTE_PREFIX
 from phoenix.trace.schemas import SpanKind as CoreSpanKind
 from phoenix.trace.semantic_conventions import (
@@ -37,13 +36,6 @@ class SpanKind(Enum):
 class SpanContext:
     trace_id: ID
     span_id: ID
-
-
-@strawberry.type
-class TokenCount:
-    total: int
-    prompt: Optional[int] = strawberry.field(default=GqlValueMediator())
-    completion: Optional[int] = strawberry.field(default=GqlValueMediator())
 
 
 @strawberry.type
