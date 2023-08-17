@@ -205,6 +205,7 @@ class Query:
         after: Optional[Cursor] = UNSET,
         before: Optional[Cursor] = UNSET,
         sort: Optional[SpanSort] = UNSET,
+        root_spans_only: Optional[bool] = False,
     ) -> Connection[Span]:
         if info.context.traces is None:
             spans = []
@@ -212,6 +213,8 @@ class Query:
             df = info.context.traces._dataframe
             if trace_ids:
                 df = df[df["context.trace_id"].isin(trace_ids)]
+            if root_spans_only:
+                df = df[df["parent_id"].isna()]
             sort = (
                 SpanSort(col=SpanColumn.startTime, dir=SortDir.asc)
                 if not sort or sort.col.value not in df.columns
