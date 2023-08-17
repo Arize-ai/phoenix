@@ -212,7 +212,11 @@ class Query:
             df = info.context.traces._dataframe
             if trace_ids:
                 df = df[df["context.trace_id"].isin(trace_ids)]
-            sort = sort or SpanSort(col=SpanColumn.startTime, dir=SortDir.asc)
+            sort = (
+                SpanSort(col=SpanColumn.startTime, dir=SortDir.asc)
+                if not sort or sort.col.value not in df.columns
+                else sort
+            )
             # Convert dataframe rows to Span objects
             spans = sort.apply(df).apply(to_gql_span, axis=1).to_list()  # type: ignore
 

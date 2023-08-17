@@ -493,12 +493,18 @@ type Span {
 
   """Span attributes as a JSON string"""
   attributes: String!
+  tokenCountTotal: Int
+  tokenCountPrompt: Int
+  tokenCountCompletion: Int
 }
 
 enum SpanColumn {
   startTime
   endTime
   latencyMs
+  tokenCountTotal
+  tokenCountPrompt
+  tokenCountCompletion
 }
 
 type SpanConnection {
