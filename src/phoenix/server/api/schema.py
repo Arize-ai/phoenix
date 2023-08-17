@@ -201,12 +201,12 @@ class Query:
         self,
         info: Info[Context, None],
         trace_ids: Optional[List[ID]] = UNSET,
-        root_span_only: Optional[bool] = UNSET,
         first: Optional[int] = 50,
         last: Optional[int] = UNSET,
         after: Optional[Cursor] = UNSET,
         before: Optional[Cursor] = UNSET,
         sort: Optional[SpanSort] = UNSET,
+        root_span_only: Optional[bool] = False,
     ) -> Connection[Span]:
         if info.context.traces is None:
             spans = []
