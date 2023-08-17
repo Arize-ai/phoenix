@@ -1,6 +1,8 @@
 import json
 import logging
+from copy import deepcopy
 from datetime import datetime
+from json import JSONDecodeError
 from typing import Any, Dict, Iterator, List, Optional, Tuple
 
 from langchain.callbacks.tracers.base import BaseTracer
@@ -16,9 +18,15 @@ from phoenix.trace.schemas import (
 from phoenix.trace.semantic_conventions import (
     INPUT_MIME_TYPE,
     INPUT_VALUE,
+    LLM_FUNCTION_CALL,
+    LLM_INVOCATION_PARAMETERS,
+    LLM_MODEL_NAME,
     LLM_PROMPT_TEMPLATE,
     LLM_PROMPT_TEMPLATE_VARIABLES,
     LLM_PROMPT_TEMPLATE_VERSION,
+    LLM_TOKEN_COUNT_COMPLETION,
+    LLM_TOKEN_COUNT_PROMPT,
+    LLM_TOKEN_COUNT_TOTAL,
     OUTPUT_MIME_TYPE,
     OUTPUT_VALUE,
     MimeType,
@@ -74,8 +82,48 @@ def _prompt_template(serialized: Dict[str, Any]) -> Iterator[Tuple[str, Any]]:
                 yield LLM_PROMPT_TEMPLATE_VARIABLES, kwargs.get("input_variables", [])
                 yield LLM_PROMPT_TEMPLATE_VERSION, "unknown"
                 break
-        except TypeError:
+        except (AttributeError, KeyError, TypeError):
             continue
+
+
+def _invocation_parameters(extra: Dict[str, Any]) -> Iterator[Tuple[str, str]]:
+    """Yields invocation parameters if present."""
+    yield LLM_INVOCATION_PARAMETERS, json.dumps(extra.get("invocation_params", {}))
+
+
+def _model_name(extra: Dict[str, Any]) -> Iterator[Tuple[str, str]]:
+    """Yields model name if present."""
+    for key in ["model_name", "model"]:
+        try:
+            yield LLM_MODEL_NAME, extra["invocation_params"][key]
+            break
+        except (KeyError, TypeError):
+            continue
+
+
+def _token_counts(outputs: Dict[str, Any]) -> Iterator[Tuple[str, int]]:
+    """Yields token count information if present."""
+    for attribute_name, key in [
+        (LLM_TOKEN_COUNT_PROMPT, "prompt_tokens"),
+        (LLM_TOKEN_COUNT_COMPLETION, "completion_tokens"),
+        (LLM_TOKEN_COUNT_TOTAL, "total_tokens"),
+    ]:
+        try:
+            yield attribute_name, outputs["llm_output"]["token_usage"][key]
+        except (KeyError, TypeError):
+            continue
+
+
+def _function_calls(outputs: Dict[str, Any]) -> Iterator[Tuple[str, str]]:
+    """Yields function call information if present."""
+    try:
+        function_call_data = deepcopy(
+            outputs["generations"][0][0]["message"]["kwargs"]["additional_kwargs"]["function_call"]
+        )
+        function_call_data["arguments"] = json.loads(function_call_data["arguments"])
+        yield LLM_FUNCTION_CALL, json.dumps(function_call_data)
+    except (KeyError, IndexError, JSONDecodeError, TypeError):
+        pass
 
 
 class OpenInferenceTracer(Tracer, BaseTracer):
@@ -91,6 +139,10 @@ class OpenInferenceTracer(Tracer, BaseTracer):
         }.items():
             attributes.update(zip(io_attributes, _convert_io(run.get(io_key))))
         attributes.update(_prompt_template(run["serialized"]))
+        attributes.update(_invocation_parameters(run["extra"]))
+        attributes.update(_model_name(run["extra"]))
+        attributes.update(_token_counts(run["outputs"]))
+        attributes.update(_function_calls(run["outputs"]))
         events: List[SpanEvent] = []
         if (error := run["error"]) is None:
             status_code = SpanStatusCode.OK
