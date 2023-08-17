@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<d39a2b0935f507ca5dc546200d28a2c9>>
+ * @generated SignedSource<<85f33cbc7b86856e61d9c6bc2173b59b>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -33,6 +33,22 @@ var v0 = [
       "col": "startTime",
       "dir": "desc"
     }
+  }
+],
+v1 = [
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "value",
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "mimeType",
+    "storageKey": null
   }
 ];
 return {
@@ -140,6 +156,26 @@ return {
                       }
                     ],
                     "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "concreteType": "SpanIOValue",
+                    "kind": "LinkedField",
+                    "name": "input",
+                    "plural": false,
+                    "selections": (v1/*: any*/),
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "concreteType": "SpanIOValue",
+                    "kind": "LinkedField",
+                    "name": "output",
+                    "plural": false,
+                    "selections": (v1/*: any*/),
+                    "storageKey": null
                   }
                 ],
                 "storageKey": null
@@ -214,12 +250,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "45c5c76115e14af4c28ef9537e2838af",
+    "cacheID": "6faf1ad02734cc81220e025277335f11",
     "id": null,
     "metadata": {},
     "name": "TracingHomePageQuery",
     "operationKind": "query",
-    "text": "query TracingHomePageQuery {\n  ...SpansTable_spans\n}\n\nfragment SpansTable_spans on Query {\n  spans(first: 100, sort: {col: startTime, dir: desc}) {\n    edges {\n      span: node {\n        spanKind\n        name\n        startTime\n        latencyMs\n        tokenCountTotal\n        context {\n          spanId\n          traceId\n        }\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query TracingHomePageQuery {\n  ...SpansTable_spans\n}\n\nfragment SpansTable_spans on Query {\n  spans(first: 100, sort: {col: startTime, dir: desc}) {\n    edges {\n      span: node {\n        spanKind\n        name\n        startTime\n        latencyMs\n        tokenCountTotal\n        context {\n          spanId\n          traceId\n        }\n        input {\n          value\n          mimeType\n        }\n        output {\n          value\n          mimeType\n        }\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();

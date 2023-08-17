@@ -496,6 +496,8 @@ type Span {
   tokenCountTotal: Int
   tokenCountPrompt: Int
   tokenCountCompletion: Int
+  input: SpanIOValue!
+  output: SpanIOValue!
 
   """All descendant spans (children, grandchildren, etc.)"""
   descendants: [Span!]!
@@ -523,6 +525,11 @@ type SpanContext {
 type SpanEdge {
   node: Span!
   cursor: String!
+}
+
+type SpanIOValue {
+  mimeType: String!
+  value: String
 }
 
 enum SpanKind {

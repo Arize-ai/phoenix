@@ -6,15 +6,21 @@ from typing import Any, List, Optional, cast
 import strawberry
 from pandas import Series
 from strawberry import ID
+from strawberry.scalars import Base64
 from strawberry.types import Info
 
 from phoenix.server.api.context import Context
 from phoenix.trace.schemas import ATTRIBUTE_PREFIX, SpanID
 from phoenix.trace.schemas import SpanKind as CoreSpanKind
 from phoenix.trace.semantic_conventions import (
+    INPUT_MIME_TYPE,
+    INPUT_VALUE,
     LLM_TOKEN_COUNT_COMPLETION,
     LLM_TOKEN_COUNT_PROMPT,
     LLM_TOKEN_COUNT_TOTAL,
+    OUTPUT_MIME_TYPE,
+    OUTPUT_VALUE,
+    MimeType,
 )
 
 
@@ -41,6 +47,12 @@ class SpanContext:
 
 
 @strawberry.type
+class SpanIOValue:
+    mime_type: str
+    value: Optional[str]
+
+
+@strawberry.type
 class Span:
     name: str
     start_time: datetime
@@ -54,9 +66,11 @@ class Span:
     attributes: str = strawberry.field(
         description="Span attributes as a JSON string",
     )
-    tokenCountTotal: Optional[int]
-    tokenCountPrompt: Optional[int]
-    tokenCountCompletion: Optional[int]
+    token_count_total: Optional[int]
+    token_count_prompt: Optional[int]
+    token_count_completion: Optional[int]
+    input: SpanIOValue
+    output: SpanIOValue
 
     @strawberry.field(
         description="All descendant spans (children, grandchildren, etc.)",
@@ -92,14 +106,40 @@ def to_gql_span(row: "Series[Any]") -> Span:
             span_id=row["context.span_id"],
         ),
         attributes=attributes.to_json(date_format="iso"),
-        tokenCountTotal=_as_int_or_none(
+        token_count_total=_as_int_or_none(
             attributes.get(LLM_TOKEN_COUNT_TOTAL),
         ),
-        tokenCountPrompt=_as_int_or_none(
+        token_count_prompt=_as_int_or_none(
             attributes.get(LLM_TOKEN_COUNT_PROMPT),
         ),
-        tokenCountCompletion=_as_int_or_none(
+        token_count_completion=_as_int_or_none(
             attributes.get(LLM_TOKEN_COUNT_COMPLETION),
+        ),
+        input=(
+            SpanIOValue(
+                mime_type=str(
+                    attributes.get(
+                        INPUT_MIME_TYPE,
+                        MimeType.TEXT.value,
+                    )
+                ),
+                value=_as_str_or_none(
+                    attributes.get(INPUT_VALUE),
+                ),
+            )
+        ),
+        output=(
+            SpanIOValue(
+                mime_type=str(
+                    attributes.get(
+                        OUTPUT_MIME_TYPE,
+                        MimeType.TEXT.value,
+                    )
+                ),
+                value=_as_str_or_none(
+                    attributes.get(OUTPUT_VALUE),
+                ),
+            )
         ),
     )
 
@@ -114,6 +154,12 @@ def _extract_attributes(row: "Series[Any]") -> "Series[Any]":
             {key: key[len(ATTRIBUTE_PREFIX) :] for key in keys},
         ),
     )
+
+
+def _as_str_or_none(v: Any) -> Optional[Base64]:
+    if v is None or isinstance(v, float) and not math.isfinite(v):
+        return None
+    return str(v)
 
 
 def _as_int_or_none(v: Any) -> Optional[int]:
