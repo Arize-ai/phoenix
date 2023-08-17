@@ -102,7 +102,7 @@ dependencies = [
   "tenacity",
   "nltk==3.8.1",
   "sentence-transformers==2.2.2",
-  "pydantic<2",  # for langchain root_validator
+  "pydantic<2",  # for @root_validator in llama-index
 ]
 
 [tool.hatch.envs.type]
