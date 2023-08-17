@@ -100,8 +100,9 @@ dependencies = [
   "llama-index==0.8.1",
   "openai",
   "tenacity",
-  "nltk==3.8.1", 
+  "nltk==3.8.1",
   "sentence-transformers==2.2.2",
+  "pydantic<2",  # for langchain root_validator
 ]
 
 [tool.hatch.envs.type]
