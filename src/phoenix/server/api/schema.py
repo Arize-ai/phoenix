@@ -214,7 +214,7 @@ class Query:
                 df = df[df["context.trace_id"].isin(trace_ids)]
             sort = (
                 SpanSort(col=SpanColumn.startTime, dir=SortDir.asc)
-                if not sort or sort.col not in df.columns
+                if not sort or sort.col.value not in df.columns
                 else sort
             )
             # Convert dataframe rows to Span objects

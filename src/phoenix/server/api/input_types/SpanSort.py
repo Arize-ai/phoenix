@@ -4,6 +4,7 @@ import strawberry
 from pandas import DataFrame
 
 from phoenix.server.api.types.SortDir import SortDir
+from phoenix.trace.schemas import ATTRIBUTE_PREFIX
 from phoenix.trace.semantic_conventions import (
     LLM_TOKEN_COUNT_COMPLETION,
     LLM_TOKEN_COUNT_PROMPT,
@@ -16,9 +17,9 @@ class SpanColumn(Enum):
     startTime = "start_time"
     endTime = "end_time"
     latencyMs = "latency_ms"
-    tokenCountTotal = "attributes." + LLM_TOKEN_COUNT_TOTAL
-    tokenCountPrompt = "attributes." + LLM_TOKEN_COUNT_PROMPT
-    tokenCountCompletion = "attributes." + LLM_TOKEN_COUNT_COMPLETION
+    tokenCountTotal = ATTRIBUTE_PREFIX + LLM_TOKEN_COUNT_TOTAL
+    tokenCountPrompt = ATTRIBUTE_PREFIX + LLM_TOKEN_COUNT_PROMPT
+    tokenCountCompletion = ATTRIBUTE_PREFIX + LLM_TOKEN_COUNT_COMPLETION
 
 
 @strawberry.input
