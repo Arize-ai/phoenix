@@ -20,8 +20,16 @@ llama_index_rag_fixture = TracesFixture(
     description="Traces from running the llama_index on a RAG use case.",
     file_name="llama_index_rag.jsonl",
 )
+random_fixture = TracesFixture(
+    name="random",
+    description="Randomly generated traces",
+    file_name="random.jsonl",
+)
 
-TRACES_FIXTURES: List[TracesFixture] = [llama_index_rag_fixture]
+TRACES_FIXTURES: List[TracesFixture] = [
+    llama_index_rag_fixture,
+    random_fixture,
+]
 
 NAME_TO_TRACES_FIXTURE = {fixture.name: fixture for fixture in TRACES_FIXTURES}
 
