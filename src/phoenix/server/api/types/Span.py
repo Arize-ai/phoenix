@@ -8,7 +8,7 @@ from typing import Any, DefaultDict, List, Mapping, Optional, cast
 import strawberry
 from pandas import Series
 from strawberry import ID
-from strawberry.scalars import JSON, Base64
+from strawberry.scalars import JSON
 from strawberry.types import Info
 
 import phoenix.trace.semantic_conventions as sc
@@ -160,7 +160,7 @@ def _extract_attributes(row: "Series[Any]") -> "Series[Any]":
     )
 
 
-def _as_str_or_none(v: Any) -> Optional[Base64]:
+def _as_str_or_none(v: Any) -> Optional[str]:
     if v is None or isinstance(v, float) and not math.isfinite(v):
         return None
     return str(v)
