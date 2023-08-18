@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<d4e1d708b46bd539066d13f156913208>>
+ * @generated SignedSource<<30e9f936bcd49060657bd66ef289786e>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,6 +9,7 @@
 // @ts-nocheck
 
 import { ReaderFragment, RefetchableFragment } from 'relay-runtime';
+export type MimeType = "json" | "text";
 export type SpanKind = "chain" | "embedding" | "llm" | "retriever" | "tool" | "unknown";
 import { FragmentRefs } from "relay-runtime";
 export type SpansTable_spans$data = {
@@ -20,13 +21,13 @@ export type SpansTable_spans$data = {
           readonly traceId: string;
         };
         readonly input: {
-          readonly mimeType: string;
+          readonly mimeType: MimeType;
           readonly value: string | null;
         };
         readonly latencyMs: number;
         readonly name: string;
         readonly output: {
-          readonly mimeType: string;
+          readonly mimeType: MimeType;
           readonly value: string | null;
         };
         readonly spanKind: SpanKind;

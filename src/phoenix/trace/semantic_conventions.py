@@ -6,7 +6,7 @@ https://opentelemetry.io/docs/specs/otel/trace/semantic_conventions/span-general
 """
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 
 @dataclass(frozen=True)
@@ -55,6 +55,10 @@ If type is JSON, the value is a string representing a JSON object.
 class MimeType(Enum):
     TEXT = "text/plain"
     JSON = "application/json"
+
+    @classmethod
+    def _missing_(cls, v: Any) -> Optional["MimeType"]:
+        return None if v else cls.TEXT
 
 
 LLM_FUNCTION_CALL = "llm.function_call"

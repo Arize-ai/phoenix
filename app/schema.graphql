@@ -326,6 +326,11 @@ type IntervalBin {
   range: NumericRange!
 }
 
+enum MimeType {
+  text
+  json
+}
+
 type MissingValueBin {
   name: String
 }
@@ -528,7 +533,7 @@ type SpanEdge {
 }
 
 type SpanIOValue {
-  mimeType: String!
+  mimeType: MimeType!
   value: String
 }
 
