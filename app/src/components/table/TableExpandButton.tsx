@@ -21,7 +21,7 @@ export function TableExpandButton(props: TableExpandButtonProps) {
       css={css`
         color: var(--ac-global-text-color-white-900);
         .ac-icon-wrap {
-          font-size: 1rem;
+          font-size: 1.2rem;
         }
 
         &:hover {
@@ -30,7 +30,13 @@ export function TableExpandButton(props: TableExpandButtonProps) {
       `}
     >
       <Icon
-        svg={props.isExpanded ? <Icons.ArrowDown /> : <Icons.ArrowRight />}
+        svg={
+          props.isExpanded ? (
+            <Icons.ChevronDownOutline />
+          ) : (
+            <Icons.ChevronRightOutline />
+          )
+        }
       />
     </button>
   );
