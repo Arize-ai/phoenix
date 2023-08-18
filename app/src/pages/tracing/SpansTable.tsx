@@ -84,26 +84,12 @@ export function SpansTable(props: SpansTableProps) {
     );
 
   const tableData = useMemo(() => {
-    const tableData = data.spans.edges.map(({ span }) => {
-      // Normalize the data
-      return {
-        ...span,
-        trace_id: span.context.traceId,
-        span_id: span.context.spanId,
-        inputValue: span.input.value,
-        outputValue: span.output.value,
-      };
-    });
+    const tableData = data.spans.edges.map(({ span }) => span);
 
     return tableData;
   }, [data]);
   type TableRow = (typeof tableData)[number];
   const columns: ColumnDef<TableRow>[] = [
-    {
-      header: "start time",
-      accessorKey: "startTime",
-      cell: TimestampCell,
-    },
     {
       header: "kind",
       accessorKey: "spanKind",
@@ -126,6 +112,23 @@ export function SpansTable(props: SpansTableProps) {
       },
     },
     {
+      header: "input",
+      accessorKey: "input.value",
+      cell: TextCell,
+      enableSorting: false,
+    },
+    {
+      header: "output",
+      accessorKey: "output.value",
+      cell: TextCell,
+      enableSorting: false,
+    },
+    {
+      header: "start time",
+      accessorKey: "startTime",
+      cell: TimestampCell,
+    },
+    {
       header: "latency",
       accessorKey: "latencyMs",
 
@@ -138,18 +141,6 @@ export function SpansTable(props: SpansTableProps) {
       header: "total tokens",
       accessorKey: "tokenCountTotal",
       cell: IntCell,
-    },
-    {
-      header: "input",
-      accessorKey: "inputValue",
-      cell: TextCell,
-      enableSorting: false,
-    },
-    {
-      header: "output",
-      accessorKey: "outputValue",
-      cell: TextCell,
-      enableSorting: false,
     },
   ];
 

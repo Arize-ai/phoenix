@@ -16,6 +16,7 @@ import { css } from "@emotion/react";
 import { Flex, Icon, Icons } from "@arizeai/components";
 
 import { Link } from "@phoenix/components/Link";
+import { TextCell } from "@phoenix/components/table";
 import { IntCell } from "@phoenix/components/table/IntCell";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { TableExpandButton } from "@phoenix/components/table/TableExpandButton";
@@ -100,6 +101,12 @@ export function TracesTable(props: TracesTableProps) {
                 latencyMs
                 tokenCountTotal
                 parentId
+                input {
+                  value
+                }
+                output {
+                  value
+                }
                 context {
                   spanId
                   traceId
@@ -111,6 +118,12 @@ export function TracesTable(props: TracesTableProps) {
                   latencyMs
                   parentId
                   tokenCountTotal
+                  input {
+                    value
+                  }
+                  output {
+                    value
+                  }
                   context {
                     spanId
                     traceId
@@ -189,6 +202,16 @@ export function TracesTable(props: TracesTableProps) {
           </Link>
         );
       },
+    },
+    {
+      header: "input",
+      accessorKey: "input.value",
+      cell: TextCell,
+    },
+    {
+      header: "output",
+      accessorKey: "output.value",
+      cell: TextCell,
     },
     {
       header: "start time",
