@@ -1,12 +1,13 @@
+import json
 import math
+from collections import defaultdict
 from datetime import datetime
 from enum import Enum
-from typing import Any, List, Optional, cast
+from typing import Any, DefaultDict, List, Mapping, Optional, cast
 
 import strawberry
 from pandas import Series
 from strawberry import ID
-from strawberry.scalars import Base64
 from strawberry.types import Info
 
 import phoenix.trace.semantic_conventions as sc
@@ -94,7 +95,7 @@ def to_gql_span(row: "Series[Any]") -> Span:
     """
     Converts a dataframe row to a graphQL span
     """
-    attributes = _extract_attributes(row)
+    attributes = _extract_attributes(row).to_dict()
     return Span(
         name=row["name"],
         parent_id=row["parent_id"],
@@ -106,7 +107,10 @@ def to_gql_span(row: "Series[Any]") -> Span:
             trace_id=row["context.trace_id"],
             span_id=row["context.span_id"],
         ),
-        attributes=attributes.to_json(date_format="iso"),
+        attributes=json.dumps(
+            _nested_attributes(attributes),
+            default=_json_encode,
+        ),
         token_count_total=_as_int_or_none(
             attributes.get(LLM_TOKEN_COUNT_TOTAL),
         ),
@@ -155,7 +159,7 @@ def _extract_attributes(row: "Series[Any]") -> "Series[Any]":
     )
 
 
-def _as_str_or_none(v: Any) -> Optional[Base64]:
+def _as_str_or_none(v: Any) -> Optional[str]:
     if v is None or isinstance(v, float) and not math.isfinite(v):
         return None
     return str(v)
@@ -168,3 +172,26 @@ def _as_int_or_none(v: Any) -> Optional[int]:
         return int(v)
     except ValueError:
         return None
+
+
+def _json_encode(v: Any) -> str:
+    if isinstance(v, datetime):
+        return v.isoformat()
+    return str(v)
+
+
+def _trie() -> DefaultDict[str, Any]:
+    return defaultdict(_trie)
+
+
+def _nested_attributes(
+    attributes: Mapping[str, Any],
+) -> DefaultDict[str, Any]:
+    nested_attributes = _trie()
+    for attribute_name, attribute_value in attributes.items():
+        trie = nested_attributes
+        keys = attribute_name.split(".")
+        for key in keys[:-1]:
+            trie = trie[key]
+        trie[keys[-1]] = attribute_value
+    return nested_attributes
