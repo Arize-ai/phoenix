@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<e8da7bbd63ea4c2c465754b9f1b4e97a>>
+ * @generated SignedSource<<30e9f936bcd49060657bd66ef289786e>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,6 +9,7 @@
 // @ts-nocheck
 
 import { ReaderFragment, RefetchableFragment } from 'relay-runtime';
+export type MimeType = "json" | "text";
 export type SpanKind = "chain" | "embedding" | "llm" | "retriever" | "tool" | "unknown";
 import { FragmentRefs } from "relay-runtime";
 export type SpansTable_spans$data = {
@@ -19,8 +20,16 @@ export type SpansTable_spans$data = {
           readonly spanId: string;
           readonly traceId: string;
         };
+        readonly input: {
+          readonly mimeType: MimeType;
+          readonly value: string | null;
+        };
         readonly latencyMs: number;
         readonly name: string;
+        readonly output: {
+          readonly mimeType: MimeType;
+          readonly value: string | null;
+        };
         readonly spanKind: SpanKind;
         readonly startTime: string;
         readonly tokenCountTotal: number | null;
@@ -37,6 +46,22 @@ export type SpansTable_spans$key = {
 const node: ReaderFragment = (function(){
 var v0 = [
   "spans"
+],
+v1 = [
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "value",
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "mimeType",
+    "storageKey": null
+  }
 ];
 return {
   "argumentDefinitions": [
@@ -173,6 +198,26 @@ return {
                     }
                   ],
                   "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "concreteType": "SpanIOValue",
+                  "kind": "LinkedField",
+                  "name": "input",
+                  "plural": false,
+                  "selections": (v1/*: any*/),
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "concreteType": "SpanIOValue",
+                  "kind": "LinkedField",
+                  "name": "output",
+                  "plural": false,
+                  "selections": (v1/*: any*/),
+                  "storageKey": null
                 }
               ],
               "storageKey": null
@@ -239,6 +284,6 @@ return {
 };
 })();
 
-(node as any).hash = "632806588c95efe39722851a5dd1d618";
+(node as any).hash = "1b3b20f23167d213be4b1bc77c20a266";
 
 export default node;

@@ -15,6 +15,7 @@ import { Icon, Icons } from "@arizeai/components";
 import { Link } from "@phoenix/components/Link";
 import { IntCell } from "@phoenix/components/table/IntCell";
 import { tableCSS } from "@phoenix/components/table/styles";
+import { TextCell } from "@phoenix/components/table/TextCell";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { SpanKindLabel } from "@phoenix/components/trace/SpanKindLabel";
 import { formatFloat } from "@phoenix/utils/numberFormatUtils";
@@ -66,6 +67,14 @@ export function SpansTable(props: SpansTableProps) {
                   spanId
                   traceId
                 }
+                input {
+                  value
+                  mimeType
+                }
+                output {
+                  value
+                  mimeType
+                }
               }
             }
           }
@@ -81,6 +90,8 @@ export function SpansTable(props: SpansTableProps) {
         ...span,
         trace_id: span.context.traceId,
         span_id: span.context.spanId,
+        inputValue: span.input.value,
+        outputValue: span.output.value,
       };
     });
 
@@ -127,6 +138,18 @@ export function SpansTable(props: SpansTableProps) {
       header: "total tokens",
       accessorKey: "tokenCountTotal",
       cell: IntCell,
+    },
+    {
+      header: "input",
+      accessorKey: "inputValue",
+      cell: TextCell,
+      enableSorting: false,
+    },
+    {
+      header: "output",
+      accessorKey: "outputValue",
+      cell: TextCell,
+      enableSorting: false,
     },
   ];
 
