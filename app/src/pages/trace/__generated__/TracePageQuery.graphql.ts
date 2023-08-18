@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<39547851f6841cb3ffcc649bffcd7224>>
+ * @generated SignedSource<<e6e9272e7fe380c1eae6454311136ee9>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -17,7 +17,7 @@ export type TracePageQuery$data = {
   readonly spans: {
     readonly edges: ReadonlyArray<{
       readonly span: {
-        readonly attributes: any;
+        readonly attributes: string;
         readonly context: {
           readonly spanId: string;
         };

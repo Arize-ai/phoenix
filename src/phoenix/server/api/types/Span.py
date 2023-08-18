@@ -8,7 +8,6 @@ from typing import Any, DefaultDict, List, Mapping, Optional, cast
 import strawberry
 from pandas import Series
 from strawberry import ID
-from strawberry.scalars import JSON
 from strawberry.types import Info
 
 import phoenix.trace.semantic_conventions as sc
@@ -66,7 +65,7 @@ class Span:
     )
     span_kind: SpanKind
     context: SpanContext
-    attributes: JSON = strawberry.field(
+    attributes: str = strawberry.field(
         description="Span attributes as a JSON string",
     )
     token_count_total: Optional[int]
