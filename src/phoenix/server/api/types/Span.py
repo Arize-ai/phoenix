@@ -184,7 +184,9 @@ def _trie() -> DefaultDict[str, Any]:
     return defaultdict(_trie)
 
 
-def _nested_attributes(attributes: Mapping[str, Any]) -> DefaultDict[str, Any]:
+def _nested_attributes(
+    attributes: Mapping[str, Any],
+) -> DefaultDict[str, Any]:
     nested_attributes = _trie()
     for attribute_name, attribute_value in attributes.items():
         trie = nested_attributes
