@@ -146,11 +146,12 @@ export function TracesTable(props: TracesTableProps) {
               onClick={table.getToggleAllRowsExpandedHandler()}
               aria-label="Expand all rows"
             />
-            start time
+            kind
           </Flex>
         );
       },
-      accessorKey: "startTime",
+      enableSorting: false,
+      accessorKey: "spanKind",
       cell: (props) => {
         return (
           <div
@@ -170,18 +171,10 @@ export function TracesTable(props: TracesTableProps) {
                   aria-label="Expand row"
                 />
               ) : null}
-              <TimestampCell {...props} />
+              <SpanKindLabel spanKind={props.getValue() as string} />
             </Flex>
           </div>
         );
-      },
-    },
-    {
-      header: "kind",
-      accessorKey: "spanKind",
-      enableSorting: false,
-      cell: ({ getValue }) => {
-        return <SpanKindLabel spanKind={getValue() as string} />;
       },
     },
     {
@@ -196,6 +189,11 @@ export function TracesTable(props: TracesTableProps) {
           </Link>
         );
       },
+    },
+    {
+      header: "start time",
+      accessorKey: "startTime",
+      cell: TimestampCell,
     },
     {
       header: "latency",

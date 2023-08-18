@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<63175d1a075a5e5a44fa10941826257a>>
+ * @generated SignedSource<<7f0e4b1a7b953bb05b2dee82e3e0f013>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -97,14 +97,30 @@ v8 = {
   ],
   "storageKey": null
 },
-v9 = {
+v9 = [
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "value",
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "mimeType",
+    "storageKey": null
+  }
+],
+v10 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "cursor",
   "storageKey": null
 },
-v10 = {
+v11 = {
   "alias": null,
   "args": null,
   "concreteType": "Span",
@@ -122,7 +138,7 @@ v10 = {
   ],
   "storageKey": null
 },
-v11 = {
+v12 = {
   "alias": null,
   "args": null,
   "concreteType": "PageInfo",
@@ -147,7 +163,7 @@ v11 = {
   ],
   "storageKey": null
 },
-v12 = [
+v13 = [
   (v0/*: any*/),
   {
     "kind": "Literal",
@@ -156,7 +172,7 @@ v12 = [
   },
   (v1/*: any*/)
 ],
-v13 = {
+v14 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -219,16 +235,36 @@ return {
                   (v5/*: any*/),
                   (v6/*: any*/),
                   (v7/*: any*/),
-                  (v8/*: any*/)
+                  (v8/*: any*/),
+                  {
+                    "alias": null,
+                    "args": null,
+                    "concreteType": "SpanIOValue",
+                    "kind": "LinkedField",
+                    "name": "input",
+                    "plural": false,
+                    "selections": (v9/*: any*/),
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "concreteType": "SpanIOValue",
+                    "kind": "LinkedField",
+                    "name": "output",
+                    "plural": false,
+                    "selections": (v9/*: any*/),
+                    "storageKey": null
+                  }
                 ],
                 "storageKey": null
               },
-              (v9/*: any*/),
-              (v10/*: any*/)
+              (v10/*: any*/),
+              (v11/*: any*/)
             ],
             "storageKey": null
           },
-          (v11/*: any*/)
+          (v12/*: any*/)
         ],
         "storageKey": "spans(first:100,sort:{\"col\":\"startTime\",\"dir\":\"desc\"})"
       },
@@ -245,7 +281,7 @@ return {
       },
       {
         "alias": "rootSpans",
-        "args": (v12/*: any*/),
+        "args": (v13/*: any*/),
         "concreteType": "SpanConnection",
         "kind": "LinkedField",
         "name": "spans",
@@ -272,7 +308,7 @@ return {
                   (v5/*: any*/),
                   (v6/*: any*/),
                   (v7/*: any*/),
-                  (v13/*: any*/),
+                  (v14/*: any*/),
                   (v8/*: any*/),
                   {
                     "alias": null,
@@ -286,7 +322,7 @@ return {
                       (v4/*: any*/),
                       (v5/*: any*/),
                       (v6/*: any*/),
-                      (v13/*: any*/),
+                      (v14/*: any*/),
                       (v7/*: any*/),
                       (v8/*: any*/)
                     ],
@@ -295,18 +331,18 @@ return {
                 ],
                 "storageKey": null
               },
-              (v9/*: any*/),
-              (v10/*: any*/)
+              (v10/*: any*/),
+              (v11/*: any*/)
             ],
             "storageKey": null
           },
-          (v11/*: any*/)
+          (v12/*: any*/)
         ],
         "storageKey": "spans(first:100,rootSpansOnly:true,sort:{\"col\":\"startTime\",\"dir\":\"desc\"})"
       },
       {
         "alias": "rootSpans",
-        "args": (v12/*: any*/),
+        "args": (v13/*: any*/),
         "filters": [
           "sort",
           "rootSpansOnly"
@@ -319,12 +355,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "b03ed830889637a1aa120af5b496805b",
+    "cacheID": "d227d6b67adcf9ef122c581a64dec34c",
     "id": null,
     "metadata": {},
     "name": "TracingHomePageQuery",
     "operationKind": "query",
-    "text": "query TracingHomePageQuery {\n  ...SpansTable_spans\n  ...TracesTable_spans\n}\n\nfragment SpansTable_spans on Query {\n  spans(first: 100, sort: {col: startTime, dir: desc}) {\n    edges {\n      span: node {\n        spanKind\n        name\n        startTime\n        latencyMs\n        tokenCountTotal\n        context {\n          spanId\n          traceId\n        }\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n\nfragment TracesTable_spans on Query {\n  rootSpans: spans(first: 100, sort: {col: startTime, dir: desc}, rootSpansOnly: true) {\n    edges {\n      rootSpan: node {\n        spanKind\n        name\n        startTime\n        latencyMs\n        tokenCountTotal\n        parentId\n        context {\n          spanId\n          traceId\n        }\n        descendants {\n          spanKind\n          name\n          startTime\n          latencyMs\n          parentId\n          tokenCountTotal\n          context {\n            spanId\n            traceId\n          }\n        }\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query TracingHomePageQuery {\n  ...SpansTable_spans\n  ...TracesTable_spans\n}\n\nfragment SpansTable_spans on Query {\n  spans(first: 100, sort: {col: startTime, dir: desc}) {\n    edges {\n      span: node {\n        spanKind\n        name\n        startTime\n        latencyMs\n        tokenCountTotal\n        context {\n          spanId\n          traceId\n        }\n        input {\n          value\n          mimeType\n        }\n        output {\n          value\n          mimeType\n        }\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n\nfragment TracesTable_spans on Query {\n  rootSpans: spans(first: 100, sort: {col: startTime, dir: desc}, rootSpansOnly: true) {\n    edges {\n      rootSpan: node {\n        spanKind\n        name\n        startTime\n        latencyMs\n        tokenCountTotal\n        parentId\n        context {\n          spanId\n          traceId\n        }\n        descendants {\n          spanKind\n          name\n          startTime\n          latencyMs\n          parentId\n          tokenCountTotal\n          context {\n            spanId\n            traceId\n          }\n        }\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();
