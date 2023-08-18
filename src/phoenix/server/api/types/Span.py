@@ -15,7 +15,7 @@ from phoenix.server.api.context import Context
 from phoenix.server.api.types.MimeType import MimeType
 from phoenix.trace.schemas import ATTRIBUTE_PREFIX, SpanID
 from phoenix.trace.schemas import SpanKind as CoreSpanKind
-from phoenix.trace.schemas import SpanStatus as CoreSpanStatus
+from phoenix.trace.schemas import SpanStatusCode as CoreSpanStatusCode
 from phoenix.trace.semantic_conventions import (
     INPUT_MIME_TYPE,
     INPUT_VALUE,
@@ -56,15 +56,16 @@ class SpanIOValue:
 
 
 @strawberry.enum
-class SpanStatus(Enum):
-    success = CoreSpanStatus.SUCCESS.value
-    failure = CoreSpanStatus.FAILURE.value
+class SpanStatusCode(Enum):
+    OK = CoreSpanStatusCode.OK.value
+    ERROR = CoreSpanStatusCode.ERROR.value
+    UNSET = CoreSpanStatusCode.UNSET.value
 
 
 @strawberry.type
 class Span:
     name: str
-    status: SpanStatus
+    status_code: SpanStatusCode
     start_time: datetime
     end_time: datetime
     latency_ms: int
@@ -106,6 +107,7 @@ def to_gql_span(row: "Series[Any]") -> Span:
     attributes = _extract_attributes(row).to_dict()
     return Span(
         name=row["name"],
+        status_code=SpanStatusCode(row["status_code"]),
         parent_id=row["parent_id"],
         span_kind=row["span_kind"],
         start_time=row["start_time"],

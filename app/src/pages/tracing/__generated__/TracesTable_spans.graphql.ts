@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<74656368257666e265998ece3d345fc5>>
+ * @generated SignedSource<<b7ec51c220a9476278161ccf9afeb818>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,6 +10,7 @@
 
 import { ReaderFragment, RefetchableFragment } from 'relay-runtime';
 export type SpanKind = "chain" | "embedding" | "llm" | "retriever" | "tool" | "unknown";
+export type SpanStatusCode = "ERROR" | "OK" | "UNSET";
 import { FragmentRefs } from "relay-runtime";
 export type TracesTable_spans$data = {
   readonly rootSpans: {
@@ -35,6 +36,7 @@ export type TracesTable_spans$data = {
           readonly parentId: string | null;
           readonly spanKind: SpanKind;
           readonly startTime: string;
+          readonly statusCode: SpanStatusCode;
           readonly tokenCountTotal: number | null;
         }>;
         readonly input: {
@@ -48,6 +50,7 @@ export type TracesTable_spans$data = {
         readonly parentId: string | null;
         readonly spanKind: SpanKind;
         readonly startTime: string;
+        readonly statusCode: SpanStatusCode;
         readonly tokenCountTotal: number | null;
       };
     }>;
@@ -81,31 +84,38 @@ v3 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "startTime",
+  "name": "statusCode",
   "storageKey": null
 },
 v4 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "latencyMs",
+  "name": "startTime",
   "storageKey": null
 },
 v5 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "tokenCountTotal",
+  "name": "latencyMs",
   "storageKey": null
 },
 v6 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
+  "name": "tokenCountTotal",
+  "storageKey": null
+},
+v7 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
   "name": "parentId",
   "storageKey": null
 },
-v7 = [
+v8 = [
   {
     "alias": null,
     "args": null,
@@ -114,27 +124,27 @@ v7 = [
     "storageKey": null
   }
 ],
-v8 = {
+v9 = {
   "alias": null,
   "args": null,
   "concreteType": "SpanIOValue",
   "kind": "LinkedField",
   "name": "input",
   "plural": false,
-  "selections": (v7/*: any*/),
+  "selections": (v8/*: any*/),
   "storageKey": null
 },
-v9 = {
+v10 = {
   "alias": null,
   "args": null,
   "concreteType": "SpanIOValue",
   "kind": "LinkedField",
   "name": "output",
   "plural": false,
-  "selections": (v7/*: any*/),
+  "selections": (v8/*: any*/),
   "storageKey": null
 },
-v10 = {
+v11 = {
   "alias": null,
   "args": null,
   "concreteType": "SpanContext",
@@ -246,9 +256,10 @@ return {
                 (v4/*: any*/),
                 (v5/*: any*/),
                 (v6/*: any*/),
-                (v8/*: any*/),
+                (v7/*: any*/),
                 (v9/*: any*/),
                 (v10/*: any*/),
+                (v11/*: any*/),
                 {
                   "alias": null,
                   "args": null,
@@ -261,11 +272,12 @@ return {
                     (v2/*: any*/),
                     (v3/*: any*/),
                     (v4/*: any*/),
-                    (v6/*: any*/),
                     (v5/*: any*/),
-                    (v8/*: any*/),
+                    (v7/*: any*/),
+                    (v6/*: any*/),
                     (v9/*: any*/),
-                    (v10/*: any*/)
+                    (v10/*: any*/),
+                    (v11/*: any*/)
                   ],
                   "storageKey": null
                 }
@@ -334,6 +346,6 @@ return {
 };
 })();
 
-(node as any).hash = "48862d9f91acd9be4a45dddc4dff9be3";
+(node as any).hash = "e0b5d2f6e5e1cde4acc5a790e2bb9a76";
 
 export default node;

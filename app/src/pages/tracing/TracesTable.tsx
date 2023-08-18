@@ -22,11 +22,15 @@ import { tableCSS } from "@phoenix/components/table/styles";
 import { TableExpandButton } from "@phoenix/components/table/TableExpandButton";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { SpanKindLabel } from "@phoenix/components/trace/SpanKindLabel";
+import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon";
 import { ISpanItem } from "@phoenix/components/trace/types";
 import { createSpanTree, SpanTreeNode } from "@phoenix/components/trace/utils";
 import { formatFloat } from "@phoenix/utils/numberFormatUtils";
 
-import { TracesTable_spans$key } from "./__generated__/TracesTable_spans.graphql";
+import {
+  SpanStatusCode,
+  TracesTable_spans$key,
+} from "./__generated__/TracesTable_spans.graphql";
 import {
   SpanSort,
   TracesTableQuery,
@@ -97,6 +101,7 @@ export function TracesTable(props: TracesTableProps) {
               rootSpan: node {
                 spanKind
                 name
+                statusCode
                 startTime
                 latencyMs
                 tokenCountTotal
@@ -114,6 +119,7 @@ export function TracesTable(props: TracesTableProps) {
                 descendants {
                   spanKind
                   name
+                  statusCode
                   startTime
                   latencyMs
                   parentId
@@ -231,6 +237,13 @@ export function TracesTable(props: TracesTableProps) {
       header: "total tokens",
       accessorKey: "tokenCountTotal",
       cell: IntCell,
+    },
+    {
+      header: "status",
+      accessorKey: "statusCode",
+      cell: ({ getValue }) => {
+        return <SpanStatusCodeIcon statusCode={getValue() as SpanStatusCode} />;
+      },
     },
   ];
 
