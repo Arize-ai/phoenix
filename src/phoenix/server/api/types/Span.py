@@ -1,20 +1,28 @@
+import json
 import math
+from collections import defaultdict
 from datetime import datetime
 from enum import Enum
-from typing import Any, List, Optional, cast
+from typing import Any, DefaultDict, List, Mapping, Optional, cast
 
 import strawberry
 from pandas import Series
 from strawberry import ID
 from strawberry.types import Info
 
+import phoenix.trace.semantic_conventions as sc
 from phoenix.server.api.context import Context
+from phoenix.server.api.types.MimeType import MimeType
 from phoenix.trace.schemas import ATTRIBUTE_PREFIX, SpanID
 from phoenix.trace.schemas import SpanKind as CoreSpanKind
 from phoenix.trace.semantic_conventions import (
+    INPUT_MIME_TYPE,
+    INPUT_VALUE,
     LLM_TOKEN_COUNT_COMPLETION,
     LLM_TOKEN_COUNT_PROMPT,
     LLM_TOKEN_COUNT_TOTAL,
+    OUTPUT_MIME_TYPE,
+    OUTPUT_VALUE,
 )
 
 
@@ -41,6 +49,12 @@ class SpanContext:
 
 
 @strawberry.type
+class SpanIOValue:
+    mime_type: MimeType
+    value: Optional[str]
+
+
+@strawberry.type
 class Span:
     name: str
     start_time: datetime
@@ -54,9 +68,11 @@ class Span:
     attributes: str = strawberry.field(
         description="Span attributes as a JSON string",
     )
-    tokenCountTotal: Optional[int]
-    tokenCountPrompt: Optional[int]
-    tokenCountCompletion: Optional[int]
+    token_count_total: Optional[int]
+    token_count_prompt: Optional[int]
+    token_count_completion: Optional[int]
+    input: SpanIOValue
+    output: SpanIOValue
 
     @strawberry.field(
         description="All descendant spans (children, grandchildren, etc.)",
@@ -79,7 +95,7 @@ def to_gql_span(row: "Series[Any]") -> Span:
     """
     Converts a dataframe row to a graphQL span
     """
-    attributes = _extract_attributes(row)
+    attributes = _extract_attributes(row).to_dict()
     return Span(
         name=row["name"],
         parent_id=row["parent_id"],
@@ -91,15 +107,42 @@ def to_gql_span(row: "Series[Any]") -> Span:
             trace_id=row["context.trace_id"],
             span_id=row["context.span_id"],
         ),
-        attributes=attributes.to_json(date_format="iso"),
-        tokenCountTotal=_as_int_or_none(
+        attributes=json.dumps(
+            _nested_attributes(attributes),
+            default=_json_encode,
+        ),
+        token_count_total=_as_int_or_none(
             attributes.get(LLM_TOKEN_COUNT_TOTAL),
         ),
-        tokenCountPrompt=_as_int_or_none(
+        token_count_prompt=_as_int_or_none(
             attributes.get(LLM_TOKEN_COUNT_PROMPT),
         ),
-        tokenCountCompletion=_as_int_or_none(
+        token_count_completion=_as_int_or_none(
             attributes.get(LLM_TOKEN_COUNT_COMPLETION),
+        ),
+        input=(
+            SpanIOValue(
+                mime_type=MimeType(
+                    sc.MimeType(
+                        attributes.get(INPUT_MIME_TYPE),
+                    ),
+                ),
+                value=_as_str_or_none(
+                    attributes.get(INPUT_VALUE),
+                ),
+            )
+        ),
+        output=(
+            SpanIOValue(
+                mime_type=MimeType(
+                    sc.MimeType(
+                        attributes.get(OUTPUT_MIME_TYPE),
+                    ),
+                ),
+                value=_as_str_or_none(
+                    attributes.get(OUTPUT_VALUE),
+                ),
+            )
         ),
     )
 
@@ -116,6 +159,12 @@ def _extract_attributes(row: "Series[Any]") -> "Series[Any]":
     )
 
 
+def _as_str_or_none(v: Any) -> Optional[str]:
+    if v is None or isinstance(v, float) and not math.isfinite(v):
+        return None
+    return str(v)
+
+
 def _as_int_or_none(v: Any) -> Optional[int]:
     if v is None or isinstance(v, float) and not math.isfinite(v):
         return None
@@ -123,3 +172,26 @@ def _as_int_or_none(v: Any) -> Optional[int]:
         return int(v)
     except ValueError:
         return None
+
+
+def _json_encode(v: Any) -> str:
+    if isinstance(v, datetime):
+        return v.isoformat()
+    return str(v)
+
+
+def _trie() -> DefaultDict[str, Any]:
+    return defaultdict(_trie)
+
+
+def _nested_attributes(
+    attributes: Mapping[str, Any],
+) -> DefaultDict[str, Any]:
+    nested_attributes = _trie()
+    for attribute_name, attribute_value in attributes.items():
+        trie = nested_attributes
+        keys = attribute_name.split(".")
+        for key in keys[:-1]:
+            trie = trie[key]
+        trie[keys[-1]] = attribute_value
+    return nested_attributes

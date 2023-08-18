@@ -3,16 +3,18 @@ import { graphql, useLazyLoadQuery } from "react-relay";
 import { Outlet } from "react-router";
 import { css } from "@emotion/react";
 
-import { Alert, TabPane, Tabs, View } from "@arizeai/components";
+import { Alert, TabPane, Tabs } from "@arizeai/components";
 
 import { TracingHomePageQuery } from "./__generated__/TracingHomePageQuery.graphql";
 import { SpansTable } from "./SpansTable";
+import { TracesTable } from "./TracesTable";
 
 export function TracingHomePage() {
   const data = useLazyLoadQuery<TracingHomePageQuery>(
     graphql`
       query TracingHomePageQuery {
         ...SpansTable_spans
+        ...TracesTable_spans
       }
     `,
     {}
@@ -52,16 +54,32 @@ export function TracingHomePage() {
         Tracing is under construction
       </Alert>
       <Tabs>
-        <TabPane name="Spans" title="Spans">
-          <Suspense>
-            <SpansTable query={data} />
-          </Suspense>
+        <TabPane name="Traces" title="Traces">
+          {({ isSelected }) => {
+            return (
+              isSelected && (
+                <Suspense>
+                  <TracesTable query={data} />
+                </Suspense>
+              )
+            );
+          }}
         </TabPane>
-        <TabPane name="Traces" title="Traces" hidden>
-          <View height="100%"></View>
+        <TabPane name="Spans" title="Spans">
+          {({ isSelected }) => {
+            return (
+              isSelected && (
+                <Suspense>
+                  <SpansTable query={data} />
+                </Suspense>
+              )
+            );
+          }}
         </TabPane>
       </Tabs>
-      <Outlet />
+      <Suspense>
+        <Outlet />
+      </Suspense>
     </main>
   );
 }

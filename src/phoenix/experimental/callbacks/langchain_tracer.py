@@ -1,5 +1,6 @@
 import json
 import logging
+from copy import deepcopy
 from datetime import datetime
 from typing import Any, Dict, Iterator, List, Optional, Tuple
 
@@ -16,9 +17,15 @@ from phoenix.trace.schemas import (
 from phoenix.trace.semantic_conventions import (
     INPUT_MIME_TYPE,
     INPUT_VALUE,
+    LLM_FUNCTION_CALL,
+    LLM_INVOCATION_PARAMETERS,
+    LLM_MODEL_NAME,
     LLM_PROMPT_TEMPLATE,
     LLM_PROMPT_TEMPLATE_VARIABLES,
     LLM_PROMPT_TEMPLATE_VERSION,
+    LLM_TOKEN_COUNT_COMPLETION,
+    LLM_TOKEN_COUNT_PROMPT,
+    LLM_TOKEN_COUNT_TOTAL,
     OUTPUT_MIME_TYPE,
     OUTPUT_VALUE,
     MimeType,
@@ -55,27 +62,70 @@ def _convert_io(obj: Optional[Dict[str, Any]]) -> Iterator[Any]:
         yield MimeType.JSON
 
 
-def _prompt_template(serialized: Dict[str, Any]) -> Iterator[Tuple[str, Any]]:
+def _prompt_template(run_serialized: Dict[str, Any]) -> Iterator[Tuple[str, Any]]:
     """
     A best-effort attempt to locate the PromptTemplate object among the
     keyword arguments of a serialized object, e.g. an LLMChain object.
     """
-    for obj in serialized.get("kwargs", {}).values():
+    for obj in run_serialized.get("kwargs", {}).values():
+        if not isinstance(obj, dict) or "id" not in obj:
+            continue
         # The `id` field of the object is a list indicating the path to the
         # object's class in the LangChain package, e.g. `PromptTemplate` in
         # the `langchain.prompts.prompt` module is represented as
         # ["langchain", "prompts", "prompt", "PromptTemplate"]
-        try:
-            if obj["id"][-1].endswith("PromptTemplate"):
-                kwargs = obj.get("kwargs", {})
-                if not (template := kwargs.get("template", "")):
-                    continue
-                yield LLM_PROMPT_TEMPLATE, template
-                yield LLM_PROMPT_TEMPLATE_VARIABLES, kwargs.get("input_variables", [])
-                yield LLM_PROMPT_TEMPLATE_VERSION, "unknown"
-                break
-        except TypeError:
-            continue
+        if obj["id"][-1].endswith("PromptTemplate"):
+            kwargs = obj.get("kwargs", {})
+            if not (template := kwargs.get("template", "")):
+                continue
+            yield LLM_PROMPT_TEMPLATE, template
+            yield LLM_PROMPT_TEMPLATE_VARIABLES, kwargs.get("input_variables", [])
+            yield LLM_PROMPT_TEMPLATE_VERSION, "unknown"
+            break
+
+
+def _invocation_parameters(run_extra: Dict[str, Any]) -> Iterator[Tuple[str, str]]:
+    """Yields invocation parameters if present."""
+    yield LLM_INVOCATION_PARAMETERS, json.dumps(run_extra.get("invocation_params", {}))
+
+
+def _model_name(run_extra: Dict[str, Any]) -> Iterator[Tuple[str, str]]:
+    """Yields model name if present."""
+    if not (invocation_params := run_extra.get("invocation_params")):
+        return
+    for key in ["model_name", "model"]:
+        if name := invocation_params.get(key):
+            yield LLM_MODEL_NAME, name
+            return
+
+
+def _token_counts(run_outputs: Dict[str, Any]) -> Iterator[Tuple[str, int]]:
+    """Yields token count information if present."""
+    try:
+        token_usage = run_outputs["llm_output"]["token_usage"]
+    except Exception:
+        return
+    for attribute_name, key in [
+        (LLM_TOKEN_COUNT_PROMPT, "prompt_tokens"),
+        (LLM_TOKEN_COUNT_COMPLETION, "completion_tokens"),
+        (LLM_TOKEN_COUNT_TOTAL, "total_tokens"),
+    ]:
+        if (token_count := token_usage.get(key)) is not None:
+            yield attribute_name, token_count
+
+
+def _function_calls(run_outputs: Dict[str, Any]) -> Iterator[Tuple[str, str]]:
+    """Yields function call information if present."""
+    try:
+        function_call_data = deepcopy(
+            run_outputs["generations"][0][0]["message"]["kwargs"]["additional_kwargs"][
+                "function_call"
+            ]
+        )
+        function_call_data["arguments"] = json.loads(function_call_data["arguments"])
+        yield LLM_FUNCTION_CALL, json.dumps(function_call_data)
+    except Exception:
+        pass
 
 
 class OpenInferenceTracer(Tracer, BaseTracer):
@@ -91,6 +141,10 @@ class OpenInferenceTracer(Tracer, BaseTracer):
         }.items():
             attributes.update(zip(io_attributes, _convert_io(run.get(io_key))))
         attributes.update(_prompt_template(run["serialized"]))
+        attributes.update(_invocation_parameters(run["extra"]))
+        attributes.update(_model_name(run["extra"]))
+        attributes.update(_token_counts(run["outputs"]))
+        attributes.update(_function_calls(run["outputs"]))
         events: List[SpanEvent] = []
         if (error := run["error"]) is None:
             status_code = SpanStatusCode.OK
