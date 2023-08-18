@@ -1,32 +1,38 @@
+/* eslint-disable react/prop-types */
 import React, { useEffect, useMemo, useState } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
 import {
   ColumnDef,
+  ExpandedState,
   flexRender,
   getCoreRowModel,
+  getExpandedRowModel,
   getSortedRowModel,
   SortingState,
   useReactTable,
 } from "@tanstack/react-table";
 import { css } from "@emotion/react";
 
-import { Icon, Icons } from "@arizeai/components";
+import { Flex, Icon, Icons } from "@arizeai/components";
 
 import { Link } from "@phoenix/components/Link";
+import { TextCell } from "@phoenix/components/table";
 import { IntCell } from "@phoenix/components/table/IntCell";
 import { tableCSS } from "@phoenix/components/table/styles";
-import { TextCell } from "@phoenix/components/table/TextCell";
+import { TableExpandButton } from "@phoenix/components/table/TableExpandButton";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { SpanKindLabel } from "@phoenix/components/trace/SpanKindLabel";
+import { ISpanItem } from "@phoenix/components/trace/types";
+import { createSpanTree, SpanTreeNode } from "@phoenix/components/trace/utils";
 import { formatFloat } from "@phoenix/utils/numberFormatUtils";
 
-import { SpansTable_spans$key } from "./__generated__/SpansTable_spans.graphql";
+import { TracesTable_spans$key } from "./__generated__/TracesTable_spans.graphql";
 import {
   SpanSort,
-  SpansTableSpansQuery,
-} from "./__generated__/SpansTableSpansQuery.graphql";
-type SpansTableProps = {
-  query: SpansTable_spans$key;
+  TracesTableQuery,
+} from "./__generated__/TracesTableQuery.graphql";
+type TracesTableProps = {
+  query: TracesTable_spans$key;
 };
 
 const floatRightCSS = css`
@@ -37,15 +43,42 @@ const DEFAULT_SORT: SpanSort = {
   col: "startTime",
   dir: "desc",
 };
-export function SpansTable(props: SpansTableProps) {
+
+/**
+ * A nested table row is a span with a children that recursively
+ * contains more nested table rows.
+ */
+type NestedSpanTableRow<TSpan extends ISpanItem> = TSpan & {
+  children: NestedSpanTableRow<TSpan>[];
+};
+
+/**
+ * Recursively create a nested table rows to display the span tree
+ * as a table.
+ */
+function spanTreeToNestedSpanTableRows<TSpan extends ISpanItem>(
+  children: SpanTreeNode<TSpan>[]
+): NestedSpanTableRow<TSpan>[] {
+  const normalizedSpanTreeChildren: NestedSpanTableRow<TSpan>[] = [];
+  for (const child of children) {
+    const normalizedChild = {
+      ...child.span,
+      children: spanTreeToNestedSpanTableRows(child.children),
+    };
+    normalizedSpanTreeChildren.push(normalizedChild);
+  }
+  return normalizedSpanTreeChildren;
+}
+
+export function TracesTable(props: TracesTableProps) {
   //we need a reference to the scrolling element for logic down below
   const tableContainerRef = React.useRef<HTMLDivElement>(null);
   const [sorting, setSorting] = useState<SortingState>([]);
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
-    usePaginationFragment<SpansTableSpansQuery, SpansTable_spans$key>(
+    usePaginationFragment<TracesTableQuery, TracesTable_spans$key>(
       graphql`
-        fragment SpansTable_spans on Query
-        @refetchable(queryName: "SpansTableSpansQuery")
+        fragment TracesTable_spans on Query
+        @refetchable(queryName: "TracesTableQuery")
         @argumentDefinitions(
           after: { type: "String", defaultValue: null }
           first: { type: "Int", defaultValue: 100 }
@@ -54,26 +87,47 @@ export function SpansTable(props: SpansTableProps) {
             defaultValue: { col: startTime, dir: desc }
           }
         ) {
-          spans(first: $first, after: $after, sort: $sort)
-            @connection(key: "SpansTable_spans") {
+          rootSpans: spans(
+            first: $first
+            after: $after
+            sort: $sort
+            rootSpansOnly: true
+          ) @connection(key: "TracesTable_rootSpans") {
             edges {
-              span: node {
+              rootSpan: node {
                 spanKind
                 name
                 startTime
                 latencyMs
                 tokenCountTotal
+                parentId
+                input {
+                  value
+                }
+                output {
+                  value
+                }
                 context {
                   spanId
                   traceId
                 }
-                input {
-                  value
-                  mimeType
-                }
-                output {
-                  value
-                  mimeType
+                descendants {
+                  spanKind
+                  name
+                  startTime
+                  latencyMs
+                  parentId
+                  tokenCountTotal
+                  input {
+                    value
+                  }
+                  output {
+                    value
+                  }
+                  context {
+                    spanId
+                    traceId
+                  }
                 }
               }
             }
@@ -84,18 +138,56 @@ export function SpansTable(props: SpansTableProps) {
     );
 
   const tableData = useMemo(() => {
-    const tableData = data.spans.edges.map(({ span }) => span);
+    const tableData = data.rootSpans.edges.map(({ rootSpan }) => {
+      // Construct the set of spans over which you want to construct the tree
+      const spanTree = createSpanTree([rootSpan, ...rootSpan.descendants]);
+      // Unwrap the root span from the span tree and return it
+      const [root] = spanTreeToNestedSpanTableRows(spanTree);
+      return root;
+    });
 
     return tableData;
   }, [data]);
   type TableRow = (typeof tableData)[number];
   const columns: ColumnDef<TableRow>[] = [
     {
-      header: "kind",
-      accessorKey: "spanKind",
+      header: () => {
+        return (
+          <Flex gap="size-50">
+            <TableExpandButton
+              isExpanded={table.getIsAllRowsExpanded()}
+              onClick={table.getToggleAllRowsExpandedHandler()}
+              aria-label="Expand all rows"
+            />
+            kind
+          </Flex>
+        );
+      },
       enableSorting: false,
-      cell: ({ getValue }) => {
-        return <SpanKindLabel spanKind={getValue() as string} />;
+      accessorKey: "spanKind",
+      cell: (props) => {
+        return (
+          <div
+            css={css`
+              // Since rows are flattened by default,
+              // we can use the row.depth property
+              // and paddingLeft to visually indicate the depth
+              // of the row
+              padding-left: ${props.row.depth * 2}rem;
+            `}
+          >
+            <Flex gap="size-50">
+              {props.row.getCanExpand() ? (
+                <TableExpandButton
+                  isExpanded={props.row.getIsExpanded()}
+                  onClick={props.row.getToggleExpandedHandler()}
+                  aria-label="Expand row"
+                />
+              ) : null}
+              <SpanKindLabel spanKind={props.getValue() as string} />
+            </Flex>
+          </div>
+        );
       },
     },
     {
@@ -115,13 +207,11 @@ export function SpansTable(props: SpansTableProps) {
       header: "input",
       accessorKey: "input.value",
       cell: TextCell,
-      enableSorting: false,
     },
     {
       header: "output",
       accessorKey: "output.value",
       cell: TextCell,
-      enableSorting: false,
     },
     {
       header: "start time",
@@ -174,15 +264,20 @@ export function SpansTable(props: SpansTableProps) {
     },
     [hasNext, isLoadingNext, loadNext]
   );
+  const [expanded, setExpanded] = useState<ExpandedState>({});
   const table = useReactTable<TableRow>({
     columns,
     data: tableData,
+    onExpandedChange: setExpanded,
+    getSubRows: (row) => row.children,
     state: {
       sorting,
+      expanded,
     },
     onSortingChange: setSorting,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
+    getExpandedRowModel: getExpandedRowModel(),
   });
   const rows = table.getRowModel().rows;
   return (

@@ -4,71 +4,11 @@ import { css } from "@emotion/react";
 import { Flex } from "@arizeai/components";
 
 import { SpanItem } from "./SpanItem";
-
-interface SpanItem {
-  name: string;
-  spanKind: string;
-  latencyMs: number;
-  startTime: string;
-  parentId: string | null;
-  context: {
-    spanId: string;
-  };
-}
-
-/**
- * An item in the tree of spans
- */
-type SpanTreeNode = {
-  span: SpanItem;
-  children: SpanTreeNode[];
-};
-/**
- * A tree of spans starting at the root span
- */
-type SpanTree = SpanTreeNode[];
-
-/**
- * Create a span tree from a list of spans
- * @param spans
- */
-function createSpanTree(spans: SpanItem[]): SpanTree {
-  // A map of spanId to span tree node
-  const spanMap = spans.reduce((acc, span) => {
-    acc.set(span.context.spanId, {
-      span,
-      children: [],
-    });
-    return acc;
-  }, new Map<string, SpanTreeNode>());
-  const rootSpans: SpanTreeNode[] = [];
-  for (const span of spans) {
-    const spanTreeItem = spanMap.get(span.context.spanId);
-    if (span.parentId === null) {
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      rootSpans.push(spanTreeItem!);
-    } else {
-      const parentSpanNode = spanMap.get(span.parentId);
-      if (parentSpanNode) {
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        parentSpanNode.children.push(spanTreeItem!);
-      }
-    }
-  }
-  // We must sort the children of each span by their start time
-  // So that the children are in the correct order
-  for (const spanNode of spanMap.values()) {
-    spanNode.children.sort(
-      (a, b) =>
-        new Date(a.span.startTime).valueOf() -
-        new Date(b.span.startTime).valueOf()
-    );
-  }
-  return rootSpans;
-}
+import { ISpanItem } from "./types";
+import { createSpanTree, SpanTreeNode } from "./utils";
 
 type TraceTreeProps = {
-  spans: SpanItem[];
+  spans: ISpanItem[];
   onSpanClick?: (spanId: string) => void;
   selectedSpanId: string;
 };
@@ -97,8 +37,8 @@ export function TraceTree(props: TraceTreeProps) {
   );
 }
 
-function SpanTreeItem(props: {
-  node: SpanTreeNode;
+function SpanTreeItem<TSpan extends ISpanItem>(props: {
+  node: SpanTreeNode<TSpan>;
   selectedSpanId: string;
   onSpanClick?: (spanId: string) => void;
 }) {
@@ -171,7 +111,10 @@ function SpanNodeWrap(props: PropsWithChildren<{ isSelected: boolean }>) {
       css={css`
         border-radius: var(--ac-global-dimension-static-size-150);
         background-color: var(--ac-global-color-gray-500);
-        padding: var(--ac-global-dimension-static-size-100);
+        padding: var(--ac-global-dimension-static-size-100)
+          var(--ac-global-dimension-static-size-200)
+          var(--ac-global-dimension-static-size-100)
+          var(--ac-global-dimension-static-size-100);
         border-width: var(--ac-global-dimension-static-size-10);
         border-style: solid;
         border-color: var(--ac-global-color-gray-500);
