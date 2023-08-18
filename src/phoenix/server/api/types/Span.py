@@ -15,6 +15,7 @@ from phoenix.server.api.context import Context
 from phoenix.server.api.types.MimeType import MimeType
 from phoenix.trace.schemas import ATTRIBUTE_PREFIX, SpanID
 from phoenix.trace.schemas import SpanKind as CoreSpanKind
+from phoenix.trace.schemas import SpanStatus as CoreSpanStatus
 from phoenix.trace.semantic_conventions import (
     INPUT_MIME_TYPE,
     INPUT_VALUE,
@@ -54,9 +55,16 @@ class SpanIOValue:
     value: Optional[str]
 
 
+@strawberry.enum
+class SpanStatus(Enum):
+    success = CoreSpanStatus.SUCCESS.value
+    failure = CoreSpanStatus.FAILURE.value
+
+
 @strawberry.type
 class Span:
     name: str
+    status: SpanStatus
     start_time: datetime
     end_time: datetime
     latency_ms: int
@@ -194,4 +202,5 @@ def _nested_attributes(
         for key in keys[:-1]:
             trie = trie[key]
         trie[keys[-1]] = attribute_value
+    return nested_attributes
     return nested_attributes
