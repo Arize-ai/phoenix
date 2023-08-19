@@ -1,5 +1,5 @@
 """
-Creates RAG dataset for LlamaIndex and uploads to cloud storage.
+Creates RAG dataset for tutorial notebooks and persists to disk.
 """
 
 import argparse
@@ -11,12 +11,11 @@ import llama_index
 import numpy as np
 import pandas as pd
 from gcsfs import GCSFileSystem
-from langchain.chat_models import ChatOpenAI
 from llama_index import ServiceContext, StorageContext, load_index_from_storage
 from llama_index.callbacks import CallbackManager, OpenInferenceCallbackHandler
 from llama_index.callbacks.open_inference_callback import as_dataframe
 from llama_index.embeddings.openai import OpenAIEmbedding
-from llama_index.llms import LangChainLLM
+from llama_index.llms import OpenAI
 from phoenix.experimental.evals.retrievals import (
     classify_relevance,
     compute_precisions_at_k,
@@ -62,7 +61,7 @@ def create_user_feedback(
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO, stream=sys.stdout)
+    logging.basicConfig(level=logging.DEBUG, stream=sys.stdout)
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--index-path", type=str, required=True, help="Path to persisted index.")
@@ -86,7 +85,7 @@ if __name__ == "__main__":
         "---------------------\n"
         "Given the context information, "
         "answer the question and be as helpful as possible: {query_str}\n"
-    )
+    )  # This prompt has been tweaked to make the system less conservative for demo purposes.
 
     queries = pd.read_csv(args.query_path)["Question"].tolist()
     file_system = GCSFileSystem(project="public-assets-275721") if args.use_gcs else None
@@ -95,9 +94,8 @@ if __name__ == "__main__":
         persist_dir=args.index_path,
     )
     callback_handler = OpenInferenceCallbackHandler()
-    chat_model = ChatOpenAI(model_name="gpt-3.5-turbo")  # type: ignore
     service_context = ServiceContext.from_defaults(
-        llm=LangChainLLM(chat_model),
+        llm=OpenAI(model="text-davinci-003"),
         embed_model=OpenAIEmbedding(model="text-embedding-ada-002"),
         callback_manager=CallbackManager(handlers=[callback_handler]),
     )

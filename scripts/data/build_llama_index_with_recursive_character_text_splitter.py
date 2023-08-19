@@ -1,16 +1,18 @@
 """
-Builds a LlamaIndex knowledge base over the Arize documentation and persists to cloud storage.
+Builds a LlamaIndex knowledge base over the Arize documentation and persists to disk. This script
+uses LangChain's RecursiveCharacterTextSplitter to chunk the documents.
 """
 
 import argparse
 import logging
 import shutil
 import sys
+from functools import partial
 from typing import List
 
 from langchain.docstore.document import Document as LangChainDocument
 from langchain.document_loaders import GitbookLoader
-from langchain.text_splitter import MarkdownTextSplitter
+from langchain.text_splitter import RecursiveCharacterTextSplitter
 from llama_index import Document as LlamaIndexDocument
 from llama_index import ServiceContext, VectorStoreIndex
 from llama_index.embeddings import OpenAIEmbedding
@@ -76,13 +78,12 @@ def chunk_docs(
         List[LangChainDocument]: The chunked documents.
     """
 
-    # text_splitter = RecursiveCharacterTextSplitter(
-    #     chunk_size=chunk_size,
-    #     chunk_overlap=chunk_overlap,
-    #     length_function=partial(tiktoken_len, tokenizer=tokenizer),
-    #     separators=["\n\n", "\n", " ", ""],
-    # )
-    text_splitter = MarkdownTextSplitter()
+    text_splitter = RecursiveCharacterTextSplitter(
+        chunk_size=chunk_size,
+        chunk_overlap=chunk_overlap,
+        length_function=partial(tiktoken_len, tokenizer=tokenizer),
+        separators=["\n\n", "\n", " ", ""],
+    )
     return text_splitter.split_documents(documents)
 
 
@@ -99,8 +100,7 @@ if __name__ == "__main__":
     chunked_langchain_documents = chunk_docs(
         langchain_documents,
         tokenizer=encoding_for_model(embedding_model_name),
-        chunk_size=200,
-    )  # set a small chunk size for demo purposes
+    )
     chunked_llama_index_documents = [
         LlamaIndexDocument.from_langchain_format(document)
         for document in chunked_langchain_documents
