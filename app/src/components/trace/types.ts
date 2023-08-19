@@ -11,3 +11,5 @@ export interface ISpanItem {
     spanId: string;
   };
 }
+
+export type SpanStatusCodeType = "OK" | "ERROR" | "UNSET";
