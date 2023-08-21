@@ -2,18 +2,22 @@ import json
 import logging
 from copy import deepcopy
 from datetime import datetime
-from typing import Any, Dict, Iterator, List, Optional, Tuple
+from typing import Any, Dict, Iterator, Optional, Tuple
 
+import langchain
 from langchain.callbacks.tracers.base import BaseTracer
 from langchain.callbacks.tracers.schemas import Run
+from opentelemetry.context import Context
+from opentelemetry.sdk.resources import Resource
+from opentelemetry.sdk.trace import ReadableSpan, TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
+from opentelemetry.semconv.resource import ResourceAttributes
+from opentelemetry.semconv.trace import SpanAttributes
+from opentelemetry.trace import StatusCode, Tracer, set_span_in_context
 
-from phoenix.trace.schemas import (
-    Span,
-    SpanEvent,
-    SpanException,
-    SpanKind,
-    SpanStatusCode,
-)
+import phoenix
+from phoenix.trace.schemas import SpanKind
 from phoenix.trace.semantic_conventions import (
     INPUT_MIME_TYPE,
     INPUT_VALUE,
@@ -30,18 +34,17 @@ from phoenix.trace.semantic_conventions import (
     OUTPUT_VALUE,
     MimeType,
 )
-from phoenix.trace.tracer import Tracer
 
 logger = logging.getLogger(__name__)
 
 
-def _langchain_run_type_to_span_kind(run_type: str) -> SpanKind:
+def _langchain_run_type_to_span_kind(run_type: str) -> str:
     # TODO: LangChain is moving away from enums and to arbitrary strings
     # for the run_type variable, so we may need to do the same
     try:
-        return SpanKind(run_type.upper())
+        return SpanKind(run_type.upper()).value
     except ValueError:
-        return SpanKind.UNKNOWN
+        return SpanKind.UNKNOWN.value
 
 
 def _serialize_json(obj: Any) -> str:
@@ -59,7 +62,7 @@ def _convert_io(obj: Optional[Dict[str, Any]]) -> Iterator[Any]:
         yield value
     else:
         yield json.dumps(obj, default=_serialize_json)
-        yield MimeType.JSON
+        yield MimeType.JSON.value
 
 
 def _prompt_template(run_serialized: Dict[str, Any]) -> Iterator[Tuple[str, Any]]:
@@ -128,13 +131,41 @@ def _function_calls(run_outputs: Dict[str, Any]) -> Iterator[Tuple[str, str]]:
         pass
 
 
-class OpenInferenceTracer(Tracer, BaseTracer):
+class OpenInferenceTracer(BaseTracer):
+    def __init__(self) -> None:
+        super().__init__()
+        span_exporter = InMemorySpanExporter()
+        self._span_exporter = span_exporter
+        self._span_processor = BatchSpanProcessor(span_exporter)
+        self._cached_tracers: Dict[str, Tracer] = {}
+
+    def get_spans(self) -> Iterator[ReadableSpan]:
+        self._span_processor.force_flush()
+        yield from self._span_exporter.get_finished_spans()
+
+    def _get_tracer(self, service_name: str) -> Tracer:
+        if service_name in self._cached_tracers:
+            return self._cached_tracers[service_name]
+        resource = Resource.create(
+            {
+                ResourceAttributes.SERVICE_NAME: service_name,
+                ResourceAttributes.SERVICE_VERSION: langchain.__version__,
+            }
+        )
+        tracer_provider = TracerProvider(resource=resource)
+        tracer_provider.add_span_processor(self._span_processor)
+        tracer = tracer_provider.get_tracer(__name__, phoenix.__version__)
+        self._cached_tracers[service_name] = tracer
+        return tracer
+
     def _convert_run_to_spans(
         self,
         run: Dict[str, Any],
-        parent: Optional[Span] = None,
+        context: Optional[Context] = None,
     ) -> None:
-        attributes: Dict[str, Any] = {}
+        attributes: Dict[str, Any] = {
+            "span.kind": _langchain_run_type_to_span_kind(run["run_type"]),
+        }
         for io_key, io_attributes in {
             "inputs": (INPUT_VALUE, INPUT_MIME_TYPE),
             "outputs": (OUTPUT_VALUE, OUTPUT_MIME_TYPE),
@@ -145,11 +176,20 @@ class OpenInferenceTracer(Tracer, BaseTracer):
         attributes.update(_model_name(run["extra"]))
         attributes.update(_token_counts(run["outputs"]))
         attributes.update(_function_calls(run["outputs"]))
-        events: List[SpanEvent] = []
+        service_name = ".".join(run["serialized"]["id"])
+        tracer = self._get_tracer(service_name)
+        span = tracer.start_span(
+            name=run["name"],
+            context=context,
+            attributes=attributes,
+            start_time=run["start_time"].timestamp(),
+            record_exception=False,
+            set_status_on_exception=False,
+        )
         if (error := run["error"]) is None:
-            status_code = SpanStatusCode.OK
+            span.set_status(StatusCode.OK)
         else:
-            status_code = SpanStatusCode.ERROR
+            span.set_status(StatusCode.ERROR)
             # Since there is only one error message, keep just the
             # first error event.
             error_event = next(
@@ -158,30 +198,24 @@ class OpenInferenceTracer(Tracer, BaseTracer):
                     run["events"],
                 )
             )
-            events.append(
-                SpanException(
-                    message=error,
-                    timestamp=error_event["time"],
-                )
+            span.add_event(
+                name="exception",
+                timestamp=error_event["time"].timestamp(),
+                attributes={
+                    SpanAttributes.EXCEPTION_MESSAGE: error,
+                },
             )
-        span = self.create_span(
-            name=run["name"],
-            span_kind=_langchain_run_type_to_span_kind(run["run_type"]),
-            parent_id=None if parent is None else parent.context.span_id,
-            trace_id=None if parent is None else parent.context.trace_id,
-            start_time=run["start_time"],
-            end_time=run["end_time"],
-            status_code=status_code,
-            attributes=attributes,
-            events=events,
-        )
         for child_run in run["child_runs"]:
-            self._convert_run_to_spans(child_run, span)
+            self._convert_run_to_spans(
+                child_run,
+                set_span_in_context(span),
+            )
+        span.end(run["end_time"].timestamp())
 
     def _persist_run(self, run: Run) -> None:
         # Note that this relies on `.dict()` from pydantic for the
         # serialization of objects like `langchain.schema.Document`.
         try:
-            self._convert_run_to_spans(run.dict())
-        except Exception:
-            logger.exception("Failed to convert run to spans")
+            self._convert_run_to_spans(run.dict(), Context({}))
+        except Exception as e:
+            logger.exception(f"Failed to convert run to spans: {e}")

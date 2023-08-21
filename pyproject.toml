@@ -35,6 +35,7 @@ dependencies = [
   "scipy",
   "portpicker",
   "wrapt",
+  "opentelemetry-sdk",
 ]
 dynamic = ["version"]
 
