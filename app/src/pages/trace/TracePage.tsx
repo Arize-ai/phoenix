@@ -42,6 +42,11 @@ export function TracePage() {
               parentId
               latencyMs
               attributes
+              events {
+                name
+                message
+                timestamp
+              }
             }
           }
         }
@@ -91,7 +96,6 @@ export function TracePage() {
             </Panel>
             <PanelResizeHandle css={resizeHandleCSS} />
             <Panel>
-              {/* @ts-expect-error for now just using tab as a title */}
               <Tabs>
                 <TabPane name={"Attributes"} title="Attributes">
                   <View margin="size-100" borderRadius="medium">
@@ -101,6 +105,15 @@ export function TracePage() {
                         null,
                         2
                       )}
+                      theme="dark"
+                      lang="json"
+                    />
+                  </View>
+                </TabPane>
+                <TabPane name={"Events"} title="Events">
+                  <View margin="size-100" borderRadius="medium">
+                    <CodeMirror
+                      value={JSON.stringify(selectedSpan?.events, null, 2)}
                       theme="dark"
                       lang="json"
                     />

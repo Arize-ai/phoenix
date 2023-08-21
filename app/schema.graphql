@@ -504,6 +504,7 @@ type Span {
   tokenCountCompletion: Int
   input: SpanIOValue!
   output: SpanIOValue!
+  events: [SpanEvent!]!
 
   """All descendant spans (children, grandchildren, etc.)"""
   descendants: [Span!]!
@@ -531,6 +532,12 @@ type SpanContext {
 type SpanEdge {
   node: Span!
   cursor: String!
+}
+
+type SpanEvent {
+  name: String!
+  message: String!
+  timestamp: DateTime!
 }
 
 type SpanIOValue {
