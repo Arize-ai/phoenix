@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<30e9f936bcd49060657bd66ef289786e>>
+ * @generated SignedSource<<153efabbd137d63e9e0562f5cbaa8699>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -11,6 +11,7 @@
 import { ReaderFragment, RefetchableFragment } from 'relay-runtime';
 export type MimeType = "json" | "text";
 export type SpanKind = "chain" | "embedding" | "llm" | "retriever" | "tool" | "unknown";
+export type SpanStatusCode = "ERROR" | "OK" | "UNSET";
 import { FragmentRefs } from "relay-runtime";
 export type SpansTable_spans$data = {
   readonly spans: {
@@ -32,6 +33,7 @@ export type SpansTable_spans$data = {
         };
         readonly spanKind: SpanKind;
         readonly startTime: string;
+        readonly statusCode: SpanStatusCode;
         readonly tokenCountTotal: number | null;
       };
     }>;
@@ -151,6 +153,13 @@ return {
                   "args": null,
                   "kind": "ScalarField",
                   "name": "name",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "statusCode",
                   "storageKey": null
                 },
                 {
@@ -284,6 +293,6 @@ return {
 };
 })();
 
-(node as any).hash = "1b3b20f23167d213be4b1bc77c20a266";
+(node as any).hash = "ee30b90718e2edc972db1762407faa51";
 
 export default node;

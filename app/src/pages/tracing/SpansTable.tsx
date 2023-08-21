@@ -18,9 +18,13 @@ import { tableCSS } from "@phoenix/components/table/styles";
 import { TextCell } from "@phoenix/components/table/TextCell";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { SpanKindLabel } from "@phoenix/components/trace/SpanKindLabel";
+import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon";
 import { formatFloat } from "@phoenix/utils/numberFormatUtils";
 
-import { SpansTable_spans$key } from "./__generated__/SpansTable_spans.graphql";
+import {
+  SpansTable_spans$key,
+  SpanStatusCode,
+} from "./__generated__/SpansTable_spans.graphql";
 import {
   SpanSort,
   SpansTableSpansQuery,
@@ -60,6 +64,7 @@ export function SpansTable(props: SpansTableProps) {
               span: node {
                 spanKind
                 name
+                statusCode
                 startTime
                 latencyMs
                 tokenCountTotal
@@ -141,6 +146,13 @@ export function SpansTable(props: SpansTableProps) {
       header: "total tokens",
       accessorKey: "tokenCountTotal",
       cell: IntCell,
+    },
+    {
+      header: "status",
+      accessorKey: "statusCode",
+      cell: ({ getValue }) => {
+        return <SpanStatusCodeIcon statusCode={getValue() as SpanStatusCode} />;
+      },
     },
   ];
 

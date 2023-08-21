@@ -487,6 +487,7 @@ enum SortDir {
 
 type Span {
   name: String!
+  statusCode: SpanStatusCode!
   startTime: DateTime!
   endTime: DateTime!
   latencyMs: Int!
@@ -549,6 +550,12 @@ enum SpanKind {
 input SpanSort {
   col: SpanColumn!
   dir: SortDir!
+}
+
+enum SpanStatusCode {
+  OK
+  ERROR
+  UNSET
 }
 
 input TimeRange {
