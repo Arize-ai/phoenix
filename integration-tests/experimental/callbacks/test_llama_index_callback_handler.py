@@ -13,6 +13,8 @@ from phoenix.experimental.callbacks.llama_index_trace_callback_handler import (
 )
 from phoenix.trace.schemas import SpanKind
 
+TEXT_EMBEDDING_ADA_002_EMBEDDING_DIM = 1536
+
 
 @pytest.fixture(scope="session")
 def index() -> VectorStoreIndex:
@@ -49,7 +51,7 @@ def query_engine(index: VectorStoreIndex) -> RetrieverQueryEngine:
     return index.as_query_engine()
 
 
-def test_callback_handler_records_llm_message_attributes_for_query_engine(
+def test_callback_handler_records_llm_and_embedding_attributes_for_query_engine(
     query_engine: RetrieverQueryEngine,
 ) -> None:
     query = "How should timestamps be formatted?"
@@ -67,6 +69,13 @@ def test_callback_handler_records_llm_message_attributes_for_query_engine(
     role, message_text = messages[1]
     assert role == "user"
     assert query in message_text
+
+    span = next(span for span in tracer.span_buffer if span.span_kind == SpanKind.EMBEDDING)
+    embedding_texts = span.attributes["embedding.text"]
+    embedding_vectors = span.attributes["embedding.vector"]
+    assert len(embedding_texts) == len(embedding_vectors) == 1
+    assert embedding_texts[0] == query
+    assert len(embedding_vectors[0]) == TEXT_EMBEDDING_ADA_002_EMBEDDING_DIM
 
 
 # TODO: implement test after bug with OpenAIAgent callback is fixed

@@ -61,6 +61,19 @@ class MimeType(Enum):
         return None if v else cls.TEXT
 
 
+EMBEDDINGS_VECTOR = "embedding.vector"
+"""
+The embedding vector.
+"""
+EMBEDDINGS_TEXT = "embedding.text"
+"""
+In the case of textual data, the text represented by the embedding vector.
+"""
+EMBEDDINGS_MODEL_NAME = "embedding.model_name"
+"""
+The name of the embedding model.
+"""
+
 LLM_FUNCTION_CALL = "llm.function_call"
 """
 For models and APIs that support function calling. Records attributes such as the function name and
