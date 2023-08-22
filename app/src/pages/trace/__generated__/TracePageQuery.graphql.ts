@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c8aa60bf0b9f8cb50b664d9bb1704e63>>
+ * @generated SignedSource<<028603c5f1257f96559e551e00c1e70f>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,6 +10,7 @@
 
 import { ConcreteRequest, Query } from 'relay-runtime';
 export type SpanKind = "chain" | "embedding" | "llm" | "retriever" | "tool" | "unknown";
+export type SpanStatusCode = "ERROR" | "OK" | "UNSET";
 export type TracePageQuery$variables = {
   traceId: string;
 };
@@ -31,6 +32,7 @@ export type TracePageQuery$data = {
         readonly parentId: string | null;
         readonly spanKind: SpanKind;
         readonly startTime: string;
+        readonly statusCode: SpanStatusCode;
       };
     }>;
   };
@@ -130,6 +132,13 @@ v2 = [
                 "alias": null,
                 "args": null,
                 "kind": "ScalarField",
+                "name": "statusCode",
+                "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
                 "name": "startTime",
                 "storageKey": null
               },
@@ -208,16 +217,16 @@ return {
     "selections": (v2/*: any*/)
   },
   "params": {
-    "cacheID": "b7bc069f84c78ec2e933be371a0029a7",
+    "cacheID": "0f9d9a78c21256de3ec0a38fecdb8076",
     "id": null,
     "metadata": {},
     "name": "TracePageQuery",
     "operationKind": "query",
-    "text": "query TracePageQuery(\n  $traceId: ID!\n) {\n  spans(traceIds: [$traceId], sort: {col: startTime, dir: asc}) {\n    edges {\n      span: node {\n        context {\n          spanId\n        }\n        name\n        spanKind\n        startTime\n        parentId\n        latencyMs\n        attributes\n        events {\n          name\n          message\n          timestamp\n        }\n      }\n    }\n  }\n}\n"
+    "text": "query TracePageQuery(\n  $traceId: ID!\n) {\n  spans(traceIds: [$traceId], sort: {col: startTime, dir: asc}) {\n    edges {\n      span: node {\n        context {\n          spanId\n        }\n        name\n        spanKind\n        statusCode\n        startTime\n        parentId\n        latencyMs\n        attributes\n        events {\n          name\n          message\n          timestamp\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "f741800ced106eaed5545e95c34bd50d";
+(node as any).hash = "7c6a2016b63d964e723a198eeb4f2767";
 
 export default node;

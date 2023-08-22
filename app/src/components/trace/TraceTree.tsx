@@ -4,7 +4,7 @@ import { css } from "@emotion/react";
 import { Flex } from "@arizeai/components";
 
 import { SpanItem } from "./SpanItem";
-import { ISpanItem } from "./types";
+import { ISpanItem, SpanStatusCodeType } from "./types";
 import { createSpanTree, SpanTreeNode } from "./utils";
 
 type TraceTreeProps = {
@@ -62,7 +62,7 @@ function SpanTreeItem<TSpan extends ISpanItem>(props: {
             justifyContent="start"
             alignItems="center"
           >
-            <SpanNodeIcon />
+            <SpanNodeIcon {...node.span} />
             <SpanItem {...node.span} />
           </Flex>
         </SpanNodeWrap>
@@ -80,7 +80,7 @@ function SpanTreeItem<TSpan extends ISpanItem>(props: {
           {childNodes.map((leafNode, index) => {
             // The last child does not need an edge connector, a line to connect the nodes
             // after to the parent node
-            const needsEdgeConnector = index !== childNodes.length - 1;
+            const nexSibling = childNodes[index + 1];
             return (
               <div
                 key={leafNode.span.context.spanId}
@@ -88,8 +88,10 @@ function SpanTreeItem<TSpan extends ISpanItem>(props: {
                   position: relative;
                 `}
               >
-                {needsEdgeConnector ? <SpanTreeEdgeConnector /> : null}
-                <SpanTreeEdge />
+                {nexSibling ? (
+                  <SpanTreeEdgeConnector {...nexSibling.span} />
+                ) : null}
+                <SpanTreeEdge {...leafNode.span} />
                 <SpanTreeItem
                   node={leafNode}
                   onSpanClick={onSpanClick}
@@ -135,14 +137,21 @@ function SpanNodeWrap(props: PropsWithChildren<{ isSelected: boolean }>) {
 /**
  * The line that connects the parent node to the child node edge
  */
-function SpanTreeEdgeConnector() {
+function SpanTreeEdgeConnector({
+  statusCode,
+}: {
+  statusCode: SpanStatusCodeType;
+}) {
   return (
     <div
       aria-hidden="true"
       data-testid="span-tree-edge-connector"
       css={(theme) => css`
         position: absolute;
-        border-left: 1px solid ${theme.colors.arizeLightBlue};
+        border-left: 1px solid
+          ${statusCode === "ERROR"
+            ? theme.colors.statusDanger
+            : theme.colors.arizeLightBlue};
         top: 0;
         left: -22px;
         width: 34px;
@@ -152,31 +161,40 @@ function SpanTreeEdgeConnector() {
   );
 }
 
-function SpanTreeEdge() {
+function SpanTreeEdge({ statusCode }: { statusCode: SpanStatusCodeType }) {
   return (
     <div
       aria-hidden="true"
-      css={(theme) => css`
-        position: absolute;
-        border-left: 1px solid ${theme.colors.arizeLightBlue};
-        border-bottom: 1px solid ${theme.colors.arizeLightBlue};
-        border-radius: 0 0 0 var(--ac-global-dimension-static-size-150);
-        top: -32px;
-        left: -22px;
-        width: 34px;
-        height: 61px;
-      `}
+      css={(theme) => {
+        const color =
+          statusCode === "ERROR"
+            ? theme.colors.statusDanger
+            : theme.colors.arizeLightBlue;
+        return css`
+          position: absolute;
+          border-left: 1px solid ${color};
+          border-bottom: 1px solid ${color};
+          border-radius: 0 0 0 var(--ac-global-dimension-static-size-150);
+          top: -32px;
+          left: -22px;
+          width: 34px;
+          height: 61px;
+        `;
+      }}
     ></div>
   );
 }
 /**
  * The icon for a span node in the tree
  */
-function SpanNodeIcon() {
+function SpanNodeIcon({ statusCode }: { statusCode: SpanStatusCodeType }) {
   return (
     <div
       css={(theme) => css`
-        border: 1px solid ${theme.colors.arizeLightBlue};
+        border: 1px solid
+          ${statusCode === "ERROR"
+            ? theme.colors.statusDanger
+            : theme.colors.arizeLightBlue};
         width: 10px;
         height: 10px;
         margin: 0 ${theme.spacing.margin4}px;

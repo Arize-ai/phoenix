@@ -30,6 +30,11 @@ import {
 } from "./__generated__/TracePageQuery.graphql";
 
 type Span = TracePageQuery$data["spans"]["edges"][number]["span"];
+
+const spanHasException = (span: Span) => {
+  return span.events.some((event) => event.name === "exception");
+};
+
 /**
  * A page that shows the details of a trace (e.g. a collection of spans)
  */
@@ -49,6 +54,7 @@ export function TracePage() {
               }
               name
               spanKind
+              statusCode
               startTime
               parentId
               latencyMs
@@ -119,10 +125,9 @@ export function TracePage() {
 }
 
 function SelectedSpanDetails({ selectedSpan }: { selectedSpan: Span }) {
-  const numExceptions = useMemo<number>(() => {
-    return selectedSpan.events.filter((event) => event.name === "exception")
-      .length;
-  }, [selectedSpan.events]);
+  const hasExceptions = useMemo<boolean>(() => {
+    return spanHasException(selectedSpan);
+  }, [selectedSpan]);
   return (
     <Tabs>
       <TabPane name={"Attributes"} title="Attributes">
@@ -142,7 +147,7 @@ function SelectedSpanDetails({ selectedSpan }: { selectedSpan: Span }) {
         name={"Events"}
         title="Events"
         extra={
-          <Counter variant={numExceptions > 0 ? "danger" : "default"}>
+          <Counter variant={hasExceptions ? "danger" : "default"}>
             {selectedSpan.events.length}
           </Counter>
         }
