@@ -63,6 +63,24 @@ class SpanStatusCode(Enum):
 
 
 @strawberry.type
+class SpanEvent:
+    name: str
+    message: str
+    timestamp: datetime
+
+    @staticmethod
+    def from_mapping(
+        mapping: Mapping[str, Any],
+    ) -> "SpanEvent":
+        """Converts a mapping to a SpanEvent. Used when parsing the record from the dataframe."""
+        return SpanEvent(
+            name=mapping["name"],
+            message=mapping["message"],
+            timestamp=datetime.fromisoformat(mapping["timestamp"]),
+        )
+
+
+@strawberry.type
 class Span:
     name: str
     status_code: SpanStatusCode
@@ -82,6 +100,7 @@ class Span:
     token_count_completion: Optional[int]
     input: SpanIOValue
     output: SpanIOValue
+    events: List[SpanEvent]
 
     @strawberry.field(
         description="All descendant spans (children, grandchildren, etc.)",
@@ -105,6 +124,7 @@ def to_gql_span(row: "Series[Any]") -> Span:
     Converts a dataframe row to a graphQL span
     """
     attributes = _extract_attributes(row).to_dict()
+    events: List[SpanEvent] = list(map(SpanEvent.from_mapping, row["events"]))
     return Span(
         name=row["name"],
         status_code=SpanStatusCode(row["status_code"]),
@@ -154,6 +174,7 @@ def to_gql_span(row: "Series[Any]") -> Span:
                 ),
             )
         ),
+        events=events,
     )
 
 
@@ -166,6 +187,14 @@ def _extract_attributes(row: "Series[Any]") -> "Series[Any]":
         row.loc[is_attribute].rename(
             {key: key[len(ATTRIBUTE_PREFIX) :] for key in keys},
         ),
+    )
+
+
+def to_gql_span_event(event: Mapping[str, Any]) -> SpanEvent:
+    return SpanEvent(
+        name=event["name"],
+        message=event["message"],
+        timestamp=datetime.fromisoformat(event["timestamp"]),
     )
 
 
@@ -204,5 +233,4 @@ def _nested_attributes(
         for key in keys[:-1]:
             trie = trie[key]
         trie[keys[-1]] = attribute_value
-    return nested_attributes
     return nested_attributes

@@ -1,10 +1,12 @@
+import { ISpanItem } from "../types";
 import { createSpanTree } from "../utils";
 
 describe("createSpanTree", () => {
-  const traceSpans = [
+  const traceSpans: ISpanItem[] = [
     {
       spanKind: "chain",
       name: "query",
+      statusCode: "OK",
       startTime: "2023-08-16T22:27:15.327378",
       latencyMs: 2275,
       parentId: null,
@@ -16,6 +18,7 @@ describe("createSpanTree", () => {
     {
       spanKind: "chain",
       name: "synthesize",
+      statusCode: "OK",
       startTime: "2023-08-16T22:27:15.679981",
       latencyMs: 1923,
       parentId: "86d5abea-ca78-4e59-a3f7-02548bb4e19a",
@@ -27,6 +30,7 @@ describe("createSpanTree", () => {
     {
       spanKind: "llm",
       name: "llm",
+      statusCode: "OK",
       startTime: "2023-08-16T22:27:15.681497",
       latencyMs: 1921,
       parentId: "6cd91cc2-c29d-45c9-b98b-dd37cffa1d7a",
@@ -39,6 +43,7 @@ describe("createSpanTree", () => {
     {
       spanKind: "retriever",
       name: "retrieve",
+      statusCode: "OK",
       startTime: "2023-08-16T22:27:15.327415",
       latencyMs: 352,
       parentId: "86d5abea-ca78-4e59-a3f7-02548bb4e19a",
@@ -51,6 +56,7 @@ describe("createSpanTree", () => {
     {
       spanKind: "embedding",
       name: "embedding",
+      statusCode: "OK",
       startTime: "2023-08-16T22:27:15.327439",
       latencyMs: 118,
       parentId: "de0d1e57-70d4-4b2b-a100-30b706902da3",
@@ -79,6 +85,7 @@ describe("createSpanTree", () => {
                     "parentId": "de0d1e57-70d4-4b2b-a100-30b706902da3",
                     "spanKind": "embedding",
                     "startTime": "2023-08-16T22:27:15.327439",
+                    "statusCode": "OK",
                   },
                 },
               ],
@@ -92,6 +99,7 @@ describe("createSpanTree", () => {
                 "parentId": "86d5abea-ca78-4e59-a3f7-02548bb4e19a",
                 "spanKind": "retriever",
                 "startTime": "2023-08-16T22:27:15.327415",
+                "statusCode": "OK",
                 "tokenCountTotal": null,
               },
             },
@@ -109,6 +117,7 @@ describe("createSpanTree", () => {
                     "parentId": "6cd91cc2-c29d-45c9-b98b-dd37cffa1d7a",
                     "spanKind": "llm",
                     "startTime": "2023-08-16T22:27:15.681497",
+                    "statusCode": "OK",
                     "tokenCountTotal": null,
                   },
                 },
@@ -123,6 +132,7 @@ describe("createSpanTree", () => {
                 "parentId": "86d5abea-ca78-4e59-a3f7-02548bb4e19a",
                 "spanKind": "chain",
                 "startTime": "2023-08-16T22:27:15.679981",
+                "statusCode": "OK",
               },
             },
           ],
@@ -136,6 +146,7 @@ describe("createSpanTree", () => {
             "parentId": null,
             "spanKind": "chain",
             "startTime": "2023-08-16T22:27:15.327378",
+            "statusCode": "OK",
           },
         },
       ]
