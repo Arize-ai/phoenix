@@ -61,15 +61,15 @@ class MimeType(Enum):
         return None if v else cls.TEXT
 
 
-EMBEDDINGS_VECTOR = "embedding.vector"
+EMBEDDING_EMBEDDINGS_VECTOR = "embedding.embeddings.vector"
 """
-The embedding vector.
+The embedding vectors.
 """
-EMBEDDINGS_TEXT = "embedding.text"
+EMBEDDING_EMBEDDINGS_TEXT = "embedding.embeddings.text"
 """
-In the case of textual data, the text represented by the embedding vector.
+In the case of textual data, the pieces of text represented by the embedding vectors.
 """
-EMBEDDINGS_MODEL_NAME = "embedding.model_name"
+EMBEDDING_MODEL_NAME = "embedding.model_name"
 """
 The name of the embedding model.
 """
