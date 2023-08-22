@@ -61,7 +61,7 @@ class SpanEvent(Dict[str, Any]):
 
     name: str
     timestamp: datetime
-    attributes: Dict[str, Any]
+    attributes: SpanAttributes
 
 
 class SpanException(SpanEvent):
