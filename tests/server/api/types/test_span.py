@@ -31,6 +31,10 @@ def test_nested_attributes() -> None:
             "mime_type": ...,
             "value": ...,
         },
+        "tool": {
+            "description": ...,
+            "name": ...,
+        },
     }
 
 

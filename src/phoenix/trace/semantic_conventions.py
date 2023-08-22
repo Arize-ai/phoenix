@@ -102,3 +102,12 @@ LLM_TOKEN_COUNT_TOTAL = "llm.token_count.total"
 """
 Total number of tokens, including both prompt and completion.
 """
+
+TOOL_NAME = "tool.name"
+"""
+Name of the tool being used.
+"""
+TOOL_DESCRIPTION = "tool.description"
+"""
+Description of the tool's purpose, typically used to select the tool.
+"""
