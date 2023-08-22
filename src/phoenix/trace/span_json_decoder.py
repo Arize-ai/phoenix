@@ -13,6 +13,7 @@ from phoenix.trace.schemas import (
     SpanStatusCode,
 )
 from phoenix.trace.semantic_conventions import (
+    EXCEPTION_MESSAGE,
     INPUT_MIME_TYPE,
     OUTPUT_MIME_TYPE,
     MimeType,
@@ -68,13 +69,13 @@ def json_to_span(data: Dict[str, Any]) -> Any:
         data["status_code"] = SpanStatusCode(data["status_code"])
         data["events"] = [
             SpanException(
-                message=event["message"],
+                message=event["attributes"][EXCEPTION_MESSAGE],
                 timestamp=datetime.fromisoformat(event["timestamp"]),
             )
             if event["name"] == "exception"
             else SpanEvent(
                 name=event["name"],
-                message=event["message"],
+                attributes=event["attributes"],
                 timestamp=datetime.fromisoformat(event["timestamp"]),
             )
             for event in data["events"]

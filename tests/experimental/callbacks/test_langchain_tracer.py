@@ -10,6 +10,7 @@ from langchain.retrievers import KNNRetriever
 from phoenix.experimental.callbacks.langchain_tracer import OpenInferenceTracer
 from phoenix.trace.schemas import SpanException, SpanKind, SpanStatusCode
 from phoenix.trace.semantic_conventions import (
+    EXCEPTION_MESSAGE,
     INPUT_MIME_TYPE,
     INPUT_VALUE,
     LLM_PROMPT_TEMPLATE,
@@ -129,7 +130,7 @@ def test_tracer_llm_with_exception() -> None:
         events = {event.name: event for event in spans[name].events}
         exception = events.get("exception")
         assert isinstance(exception, SpanException)
-        assert exception.message.startswith("IndexError")
+        assert exception.attributes[EXCEPTION_MESSAGE].startswith("IndexError")
 
     for span in spans.values():
         assert json_string_to_span(span_to_json(span)) == span
@@ -162,7 +163,7 @@ def test_tracer_retriever_with_exception() -> None:
         events = {event.name: event for event in spans[name].events}
         exception = events.get("exception")
         assert isinstance(exception, SpanException)
-        assert exception.message.startswith("IndexError")
+        assert exception.attributes[EXCEPTION_MESSAGE].startswith("IndexError")
 
     for span in spans.values():
         assert json_string_to_span(span_to_json(span)) == span

@@ -71,7 +71,7 @@ def generate_trace(num_spans: int) -> List[Span]:
         events = [
             SpanEvent(
                 name=f"event_{j}",
-                message=f"message_{j}",
+                attributes={"message": f"message_{j}"},
                 timestamp=start_time + timedelta(seconds=j),
             )
             for j in range(random.randint(1, 5))

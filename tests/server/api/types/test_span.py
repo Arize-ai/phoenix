@@ -6,6 +6,9 @@ def test_nested_attributes() -> None:
     assert _nested_attributes(
         {getattr(sem_conv, v): ... for v in dir(sem_conv) if v.isupper()},
     ) == {
+        "exception": {
+            "message": ...,
+        },
         "input": {
             "mime_type": ...,
             "value": ...,
