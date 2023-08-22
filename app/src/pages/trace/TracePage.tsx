@@ -7,6 +7,7 @@ import CodeMirror from "@uiw/react-codemirror";
 import { css } from "@emotion/react";
 
 import {
+  Card,
   Counter,
   Dialog,
   DialogContainer,
@@ -25,6 +26,7 @@ import { resizeHandleCSS } from "@phoenix/components/resize";
 import { TraceTree } from "@phoenix/components/trace/TraceTree";
 
 import {
+  MimeType,
   TracePageQuery,
   TracePageQuery$data,
 } from "./__generated__/TracePageQuery.graphql";
@@ -58,6 +60,14 @@ export function TracePage() {
               startTime
               parentId
               latencyMs
+              input {
+                value
+                mimeType
+              }
+              output {
+                value
+                mimeType
+              }
               attributes
               events {
                 name
@@ -130,6 +140,9 @@ function SelectedSpanDetails({ selectedSpan }: { selectedSpan: Span }) {
   }, [selectedSpan]);
   return (
     <Tabs>
+      <TabPane name={"Info"} title="Info">
+        <SpanInfo span={selectedSpan} />
+      </TabPane>
       <TabPane name={"Attributes"} title="Attributes">
         <View margin="size-100" borderRadius="medium">
           <CodeMirror
@@ -157,6 +170,42 @@ function SelectedSpanDetails({ selectedSpan }: { selectedSpan: Span }) {
         </View>
       </TabPane>
     </Tabs>
+  );
+}
+
+function SpanInfo({ span }: { span: Span }) {
+  const { input, output } = span;
+  return (
+    <View padding="size-100">
+      <Flex direction="column">
+        {input && input.value != null ? (
+          <CodeBlock title="Input" {...input} />
+        ) : null}
+        {output && output.value != null ? (
+          <CodeBlock title="Output" {...output} />
+        ) : null}
+      </Flex>
+    </View>
+  );
+}
+
+function CodeBlock({
+  title,
+  value,
+}: {
+  title: string;
+  value: string;
+  mimeType: MimeType;
+}) {
+  return (
+    <Card
+      collapsible
+      variant="compact"
+      title={title}
+      bodyStyle={{ padding: 0 }}
+    >
+      <CodeMirror value={value} theme="dark" lang="json" />
+    </Card>
   );
 }
 

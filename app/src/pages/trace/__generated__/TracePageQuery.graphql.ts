@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<028603c5f1257f96559e551e00c1e70f>>
+ * @generated SignedSource<<e58f7ad587242028515b34939b503659>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,6 +9,7 @@
 // @ts-nocheck
 
 import { ConcreteRequest, Query } from 'relay-runtime';
+export type MimeType = "json" | "text";
 export type SpanKind = "chain" | "embedding" | "llm" | "retriever" | "tool" | "unknown";
 export type SpanStatusCode = "ERROR" | "OK" | "UNSET";
 export type TracePageQuery$variables = {
@@ -27,8 +28,16 @@ export type TracePageQuery$data = {
           readonly name: string;
           readonly timestamp: string;
         }>;
+        readonly input: {
+          readonly mimeType: MimeType;
+          readonly value: string | null;
+        };
         readonly latencyMs: number;
         readonly name: string;
+        readonly output: {
+          readonly mimeType: MimeType;
+          readonly value: string | null;
+        };
         readonly parentId: string | null;
         readonly spanKind: SpanKind;
         readonly startTime: string;
@@ -58,6 +67,22 @@ v1 = {
   "storageKey": null
 },
 v2 = [
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "value",
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "mimeType",
+    "storageKey": null
+  }
+],
+v3 = [
   {
     "alias": null,
     "args": [
@@ -159,6 +184,26 @@ v2 = [
               {
                 "alias": null,
                 "args": null,
+                "concreteType": "SpanIOValue",
+                "kind": "LinkedField",
+                "name": "input",
+                "plural": false,
+                "selections": (v2/*: any*/),
+                "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": null,
+                "concreteType": "SpanIOValue",
+                "kind": "LinkedField",
+                "name": "output",
+                "plural": false,
+                "selections": (v2/*: any*/),
+                "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": null,
                 "kind": "ScalarField",
                 "name": "attributes",
                 "storageKey": null
@@ -205,7 +250,7 @@ return {
     "kind": "Fragment",
     "metadata": null,
     "name": "TracePageQuery",
-    "selections": (v2/*: any*/),
+    "selections": (v3/*: any*/),
     "type": "Query",
     "abstractKey": null
   },
@@ -214,19 +259,19 @@ return {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
     "name": "TracePageQuery",
-    "selections": (v2/*: any*/)
+    "selections": (v3/*: any*/)
   },
   "params": {
-    "cacheID": "0f9d9a78c21256de3ec0a38fecdb8076",
+    "cacheID": "c2af36a5858b92c2d5e25794fc8062c2",
     "id": null,
     "metadata": {},
     "name": "TracePageQuery",
     "operationKind": "query",
-    "text": "query TracePageQuery(\n  $traceId: ID!\n) {\n  spans(traceIds: [$traceId], sort: {col: startTime, dir: asc}) {\n    edges {\n      span: node {\n        context {\n          spanId\n        }\n        name\n        spanKind\n        statusCode\n        startTime\n        parentId\n        latencyMs\n        attributes\n        events {\n          name\n          message\n          timestamp\n        }\n      }\n    }\n  }\n}\n"
+    "text": "query TracePageQuery(\n  $traceId: ID!\n) {\n  spans(traceIds: [$traceId], sort: {col: startTime, dir: asc}) {\n    edges {\n      span: node {\n        context {\n          spanId\n        }\n        name\n        spanKind\n        statusCode\n        startTime\n        parentId\n        latencyMs\n        input {\n          value\n          mimeType\n        }\n        output {\n          value\n          mimeType\n        }\n        attributes\n        events {\n          name\n          message\n          timestamp\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "7c6a2016b63d964e723a198eeb4f2767";
+(node as any).hash = "714402df3fc9eaf49a3c20eb9d5e9988";
 
 export default node;
