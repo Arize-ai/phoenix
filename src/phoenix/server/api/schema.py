@@ -26,12 +26,24 @@ from .types.EmbeddingDimension import (
 )
 from .types.Event import create_event_id, unpack_event_id
 from .types.ExportEventsMutation import ExportEventsMutation
+from .types.Functionality import Functionality
 from .types.Model import Model
 from .types.node import GlobalID, Node, from_global_id
+from .types.pagination import Connection, ConnectionArgs, Cursor, connection_from_list
+from .types.Span import Span, SpanContext
 
 
 @strawberry.type
 class Query:
+    @strawberry.field
+    def functionality(self, info: Info[Context, None]) -> "Functionality":
+        has_model_inferences = not info.context.model.is_empty
+        has_traces = info.context.traces is not None
+        return Functionality(
+            model_inferences=has_model_inferences,
+            tracing=has_traces,
+        )
+
     @strawberry.field
     def model(self) -> Model:
         return Model()
@@ -176,6 +188,43 @@ class Query:
 
         return to_gql_clusters(
             clustered_events=clustered_events,
+        )
+
+    @strawberry.field
+    def spans(
+        self,
+        info: Info[Context, None],
+        first: Optional[int] = 50,
+        last: Optional[int] = UNSET,
+        after: Optional[Cursor] = UNSET,
+        before: Optional[Cursor] = UNSET,
+    ) -> Connection[Span]:
+        # Convert dataframe rows to Span objects
+        spans = (
+            []
+            if info.context.traces is None
+            else [
+                Span(
+                    name=row["name"],
+                    parent_id=row["parent_id"],
+                    span_kind=row["span_kind"],
+                    context=SpanContext(
+                        trace_id=row["context.trace_id"],
+                        span_id=row["context.span_id"],
+                    ),
+                )
+                for _, row in info.context.traces._dataframe.iterrows()
+            ]
+        )
+
+        return connection_from_list(
+            data=spans,
+            args=ConnectionArgs(
+                first=first,
+                after=after if isinstance(after, Cursor) else None,
+                last=last,
+                before=before if isinstance(before, Cursor) else None,
+            ),
         )
 
 
