@@ -28,6 +28,8 @@ from phoenix.trace.semantic_conventions import (
     LLM_TOKEN_COUNT_TOTAL,
     OUTPUT_MIME_TYPE,
     OUTPUT_VALUE,
+    TOOL_DESCRIPTION,
+    TOOL_NAME,
     MimeType,
 )
 from phoenix.trace.tracer import Tracer
@@ -128,6 +130,14 @@ def _function_calls(run_outputs: Dict[str, Any]) -> Iterator[Tuple[str, str]]:
         pass
 
 
+def _tools(run_serialized: Dict[str, Any]) -> Iterator[Tuple[str, str]]:
+    try:
+        yield TOOL_NAME, run_serialized["name"]
+        yield TOOL_DESCRIPTION, run_serialized["description"]
+    except KeyError:
+        pass
+
+
 class OpenInferenceTracer(Tracer, BaseTracer):
     def _convert_run_to_spans(
         self,
@@ -145,6 +155,7 @@ class OpenInferenceTracer(Tracer, BaseTracer):
         attributes.update(_model_name(run["extra"]))
         attributes.update(_token_counts(run["outputs"]))
         attributes.update(_function_calls(run["outputs"]))
+        attributes.update(_tools(run["serialized"]))
         events: List[SpanEvent] = []
         if (error := run["error"]) is None:
             status_code = SpanStatusCode.OK
