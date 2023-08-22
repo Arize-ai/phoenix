@@ -130,7 +130,7 @@ def _function_calls(run_outputs: Dict[str, Any]) -> Iterator[Tuple[str, str]]:
         pass
 
 
-def _tools(run: Run) -> Iterator[Tuple[str, str]]:
+def _tools(run: Dict[str, Any]) -> Iterator[Tuple[str, str]]:
     """Yields tool attributes if present."""
     if run["run_type"] != "tool":
         return
