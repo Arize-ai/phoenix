@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<b7ec51c220a9476278161ccf9afeb818>>
+ * @generated SignedSource<<533089643ce2730bd212c7f1073a0242>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -26,13 +26,13 @@ export type TracesTable_spans$data = {
             readonly traceId: string;
           };
           readonly input: {
-            readonly value: string | null;
-          };
+            readonly value: string;
+          } | null;
           readonly latencyMs: number;
           readonly name: string;
           readonly output: {
-            readonly value: string | null;
-          };
+            readonly value: string;
+          } | null;
           readonly parentId: string | null;
           readonly spanKind: SpanKind;
           readonly startTime: string;
@@ -40,13 +40,13 @@ export type TracesTable_spans$data = {
           readonly tokenCountTotal: number | null;
         }>;
         readonly input: {
-          readonly value: string | null;
-        };
+          readonly value: string;
+        } | null;
         readonly latencyMs: number;
         readonly name: string;
         readonly output: {
-          readonly value: string | null;
-        };
+          readonly value: string;
+        } | null;
         readonly parentId: string | null;
         readonly spanKind: SpanKind;
         readonly startTime: string;
