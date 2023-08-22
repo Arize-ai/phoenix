@@ -86,8 +86,11 @@ def _prompt_template(run_serialized: Dict[str, Any]) -> Iterator[Tuple[str, Any]
             break
 
 
-def _invocation_parameters(run_extra: Dict[str, Any]) -> Iterator[Tuple[str, str]]:
+def _invocation_parameters(run: Dict[str, Any]) -> Iterator[Tuple[str, str]]:
     """Yields invocation parameters if present."""
+    if run["run_type"] != "llm":
+        return
+    run_extra = run["extra"]
     yield LLM_INVOCATION_PARAMETERS, json.dumps(run_extra.get("invocation_params", {}))
 
 
@@ -154,7 +157,7 @@ class OpenInferenceTracer(Tracer, BaseTracer):
         }.items():
             attributes.update(zip(io_attributes, _convert_io(run.get(io_key))))
         attributes.update(_prompt_template(run["serialized"]))
-        attributes.update(_invocation_parameters(run["extra"]))
+        attributes.update(_invocation_parameters(run))
         attributes.update(_model_name(run["extra"]))
         attributes.update(_token_counts(run["outputs"]))
         attributes.update(_function_calls(run["outputs"]))
