@@ -1,5 +1,10 @@
 import React, { PropsWithChildren, useMemo } from "react";
-import { Column, useTable } from "react-table";
+import {
+  ColumnDef,
+  flexRender,
+  getCoreRowModel,
+  useReactTable,
+} from "@tanstack/react-table";
 import { css } from "@emotion/react";
 
 import {
@@ -235,52 +240,63 @@ function EmbeddingDimensionsTable({
     });
   }, [dimensions]);
 
-  const columns: Column<DimensionRow>[] = useMemo(
+  const columns: ColumnDef<DimensionRow>[] = useMemo(
     () => [
       {
-        Header: "Name",
-        accessor: "name",
+        header: () => "Name",
+        accessorKey: "name",
       },
       {
-        Header: "Type",
-        accessor: "type",
+        header: () => "Type",
+        accessorKey: "type",
       },
       {
-        Header: "Value",
-        accessor: "value",
+        header: () => "Value",
+        accessorKey: "value",
       },
     ],
     []
   );
 
-  const { getTableProps, getTableBodyProps, headerGroups, prepareRow, rows } =
-    useTable<DimensionRow>({
-      columns,
-      data,
-    });
+  const table = useReactTable<DimensionRow>({
+    columns,
+    data,
+    getCoreRowModel: getCoreRowModel(),
+  });
   return (
-    <table {...getTableProps()} css={tableCSS}>
+    <table css={tableCSS}>
       <thead>
-        {headerGroups.map((headerGroup, idx) => (
-          <tr {...headerGroup.getHeaderGroupProps()} key={idx}>
-            {headerGroup.headers.map((column, idx) => (
-              <th {...column.getHeaderProps()} key={idx}>
-                {column.render("Header")}
-              </th>
-            ))}
+        {table.getHeaderGroups().map((headerGroup) => (
+          <tr key={headerGroup.id}>
+            {headerGroup.headers.map((header) => {
+              return (
+                <th key={header.id} colSpan={header.colSpan}>
+                  {header.isPlaceholder ? null : (
+                    <div>
+                      {flexRender(
+                        header.column.columnDef.header,
+                        header.getContext()
+                      )}
+                    </div>
+                  )}
+                </th>
+              );
+            })}
           </tr>
         ))}
       </thead>
-      {rows.length ? (
-        <tbody {...getTableBodyProps()}>
-          {rows.map((row, idx) => {
-            prepareRow(row);
+      {table.getCoreRowModel().rows.length ? (
+        <tbody>
+          {table.getRowModel().rows.map((row) => {
             return (
-              <tr {...row.getRowProps()} key={idx}>
-                {row.cells.map((cell, idx) => {
+              <tr key={row.id}>
+                {row.getVisibleCells().map((cell) => {
                   return (
-                    <td {...cell.getCellProps()} key={idx}>
-                      {cell.render("Cell")}
+                    <td key={cell.id}>
+                      {flexRender(
+                        cell.column.columnDef.cell,
+                        cell.getContext()
+                      )}
                     </td>
                   );
                 })}

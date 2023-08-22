@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Callable, List, Optional
+from typing import Any, Callable, Iterator, List, Optional
 from uuid import UUID, uuid4
 
 from .schemas import (
@@ -29,6 +29,8 @@ class Tracer:
     def __init__(
         self,
         on_append: Optional[Callable[[List[Span]], None]] = None,
+        *args: Any,
+        **kwargs: Any,
     ):
         """
         Create a new Tracer. A Tracer's main purpose is to create spans.
@@ -42,6 +44,7 @@ class Tracer:
         """
         self.span_buffer = []
         self.on_append = on_append
+        super().__init__(*args, **kwargs)
 
     def create_span(
         self,
@@ -91,3 +94,10 @@ class Tracer:
         if self.on_append is not None:
             self.on_append(self.span_buffer)
         return span
+
+    def get_spans(self) -> Iterator[Span]:
+        """
+        Returns the spans stored in the tracer. This is useful if you are running
+        in a notebook environment and you want to inspect the spans.
+        """
+        yield from self.span_buffer

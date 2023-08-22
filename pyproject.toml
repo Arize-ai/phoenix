@@ -52,6 +52,8 @@ dev = [
   "arize[AutoEmbeddings, LLM_Evaluation]",
 ]
 experimental = [
+  "langchain>=0.0.257",
+  "llama-index>=0.8.4",
   "openai",
   "tenacity",
 ]
@@ -94,13 +96,19 @@ dependencies = [
   "pytest-cov",
   "pytest-lazy-fixture",
   "arize",
+  "langchain>=0.0.257",
+  "llama-index>=0.8.4",
   "openai",
   "tenacity",
+  "nltk==3.8.1",
+  "sentence-transformers==2.2.2",
+  "pydantic<2",  # for @root_validator in llama-index
 ]
 
 [tool.hatch.envs.type]
 dependencies = [
   "mypy==1.3.0",
+  "llama-index>=0.8.4",
   "pandas-stubs",
   "pytest",
   "types-psutil",
@@ -226,7 +234,7 @@ ignore-nested-classes = false
 ignore-setters = false
 
 [tool.mypy]
-plugins = ["strawberry.ext.mypy_plugin"]
+plugins = ["strawberry.ext.mypy_plugin", "pydantic.mypy"]
 disallow_untyped_calls = true
 disallow_untyped_defs = true
 disallow_incomplete_defs  = true
@@ -248,7 +256,7 @@ module = [
   "arize.*",
   "portpicker",
   "wrapt",
-  "openai",
+  "langchain.*",
 ]
 ignore_missing_imports = true
 

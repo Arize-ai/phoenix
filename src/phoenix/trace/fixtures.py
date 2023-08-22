@@ -4,6 +4,7 @@ from urllib import request
 
 import pandas as pd
 
+from phoenix.trace.trace_dataset import TraceDataset
 from phoenix.trace.utils import json_lines_to_df
 
 
@@ -14,13 +15,21 @@ class TracesFixture:
     file_name: str
 
 
+llama_index_rag_fixture = TracesFixture(
+    name="llama_index_rag",
+    description="Traces from running the llama_index on a RAG use case.",
+    file_name="llama_index_rag.jsonl",
+)
 random_fixture = TracesFixture(
     name="random",
     description="Randomly generated traces",
     file_name="random.jsonl",
 )
 
-TRACES_FIXTURES: List[TracesFixture] = [random_fixture]
+TRACES_FIXTURES: List[TracesFixture] = [
+    llama_index_rag_fixture,
+    random_fixture,
+]
 
 NAME_TO_TRACES_FIXTURE = {fixture.name: fixture for fixture in TRACES_FIXTURES}
 
@@ -54,11 +63,11 @@ def _download_traces_fixture(
         return json_lines_to_df(f.readlines())
 
 
-def load_example_traces(use_case: str) -> pd.DataFrame:
+def load_example_traces(use_case: str) -> TraceDataset:
     """
     Loads a trace dataframe by name.
 
     NB: this functionality is under active construction.
     """
     fixture = _get_trace_fixture_by_name(use_case)
-    return _download_traces_fixture(fixture)
+    return TraceDataset(_download_traces_fixture(fixture))

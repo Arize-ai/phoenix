@@ -10,10 +10,12 @@ from portpicker import pick_unused_port
 
 from phoenix.config import PORT, get_exported_files
 from phoenix.core.model_schema_adapter import create_model_from_datasets
-from phoenix.datasets.dataset import Dataset
+from phoenix.core.traces import Traces
+from phoenix.datasets.dataset import EMPTY_DATASET, Dataset
 from phoenix.server.app import create_app
 from phoenix.server.thread_server import ThreadServer
 from phoenix.services import AppService
+from phoenix.trace.trace_dataset import TraceDataset
 
 try:
     from IPython.display import IFrame  # type: ignore
@@ -52,6 +54,9 @@ class ExportedData(_BaseList):
 class Session(ABC):
     """Session that maintains a 1-1 shared state with the Phoenix App."""
 
+    trace_dataset: Optional[TraceDataset]
+    traces: Optional[Traces]
+
     def __dir__(self) -> List[str]:
         return ["exports", "view", "url"]
 
@@ -60,11 +65,13 @@ class Session(ABC):
         primary_dataset: Dataset,
         reference_dataset: Optional[Dataset] = None,
         corpus_dataset: Optional[Dataset] = None,
+        trace_dataset: Optional[TraceDataset] = None,
         port: int = PORT,
     ):
         self.primary_dataset = primary_dataset
         self.reference_dataset = reference_dataset
         self.corpus_dataset = corpus_dataset
+        self.trace_dataset = trace_dataset
         self.model = create_model_from_datasets(
             primary_dataset,
             reference_dataset,
@@ -77,6 +84,8 @@ class Session(ABC):
             if corpus_dataset is not None
             else None
         )
+
+        self.traces = Traces(trace_dataset.dataframe) if trace_dataset is not None else None
 
         self.port = port
         self.temp_dir = TemporaryDirectory()
@@ -134,12 +143,14 @@ class ProcessSession(Session):
         primary_dataset: Dataset,
         reference_dataset: Optional[Dataset] = None,
         corpus_dataset: Optional[Dataset] = None,
+        trace_dataset: Optional[TraceDataset] = None,
         port: Optional[int] = None,
     ) -> None:
         super().__init__(
             primary_dataset=primary_dataset,
             reference_dataset=reference_dataset,
             corpus_dataset=corpus_dataset,
+            trace_dataset=trace_dataset,
             port=port or PORT,
         )
         primary_dataset.to_disc()
@@ -175,12 +186,14 @@ class ThreadSession(Session):
         primary_dataset: Dataset,
         reference_dataset: Optional[Dataset] = None,
         corpus_dataset: Optional[Dataset] = None,
+        trace_dataset: Optional[TraceDataset] = None,
         port: Optional[int] = None,
     ):
         super().__init__(
             primary_dataset=primary_dataset,
             reference_dataset=reference_dataset,
             corpus_dataset=corpus_dataset,
+            trace_dataset=trace_dataset,
             port=port or pick_unused_port(),
         )
         # Initialize an app service that keeps the server running
@@ -188,6 +201,7 @@ class ThreadSession(Session):
             export_path=self.export_path,
             model=self.model,
             corpus=self.corpus,
+            traces=self.traces,
         )
         self.server = ThreadServer(
             app=self.app,
@@ -206,9 +220,10 @@ class ThreadSession(Session):
 
 
 def launch_app(
-    primary: Dataset,
+    primary: Optional[Dataset] = None,
     reference: Optional[Dataset] = None,
     corpus: Optional[Dataset] = None,
+    trace: Optional[TraceDataset] = None,
     port: Optional[int] = None,
     run_in_thread: Optional[bool] = True,
 ) -> Optional[Session]:
@@ -224,6 +239,8 @@ def launch_app(
         If not provided, drift analysis will not be available.
     corpus : Dataset, optional
         The dataset containing corpus for LLM context retrieval.
+    trace: TraceDataset, optional
+        **Experimental** The trace dataset containing the trace data.
     port: int, optional
         The port on which the server listens.
     run_in_thread: bool, optional, default=True
@@ -243,6 +260,12 @@ def launch_app(
     """
     global _session
 
+    # Stopgap solution to allow the app to run without a primary dataset
+    if primary is None:
+        # Dummy dataset
+        # TODO: pass through the lack of a primary dataset to the app
+        primary = EMPTY_DATASET
+
     if run_in_thread:
         if _session is not None and _session.active:
             logger.warning(
@@ -250,7 +273,7 @@ def launch_app(
                 "it down and starting a new instance..."
             )
             _session.end()
-        _session = ThreadSession(primary, reference, corpus, port=port)
+        _session = ThreadSession(primary, reference, corpus, trace, port=port)
         # TODO: catch exceptions from thread
         if not _session.active:
             logger.error(
@@ -259,7 +282,7 @@ def launch_app(
             )
             return None
     else:
-        _session = ProcessSession(primary, reference, port=port)
+        _session = ProcessSession(primary, reference, corpus, trace, port=port)
 
     print(f"🌍 To view the Phoenix app in your browser, visit {_session.url}")
     print("📺 To view the Phoenix app in a notebook, run `px.active_session().view()`")

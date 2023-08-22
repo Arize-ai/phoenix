@@ -1,12 +1,12 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import {
-  CellProps,
-  Column,
-  useFlexLayout,
-  useResizeColumns,
-  useSortBy,
-  useTable,
-} from "react-table";
+  ColumnDef,
+  flexRender,
+  getCoreRowModel,
+  getSortedRowModel,
+  SortingState,
+  useReactTable,
+} from "@tanstack/react-table";
 
 import { Flex, Icon, Icons } from "@arizeai/components";
 
@@ -34,8 +34,9 @@ export function PointSelectionTable({
 }) {
   const { primaryDataset, referenceDataset } = useDatasets();
   const metric = usePointCloudContext((state) => state.metric);
+  const [sorting, setSorting] = useState<SortingState>([]);
   const { columns, tableData } = useMemo<{
-    columns: Column<TableDataItem>[];
+    columns: ColumnDef<TableDataItem>[];
     tableData: TableDataItem[];
   }>(() => {
     // Corpus points cannot be shown under the  table as they don't contain data that is uniform nor data that is under analysis
@@ -69,17 +70,17 @@ export function PointSelectionTable({
     // Show the data quality metric
 
     // Columns that are only visible if certain data is available
-    const dataDrivenColumns: Column<TableDataItem>[] = [];
+    const dataDrivenColumns: ColumnDef<TableDataItem>[] = [];
     if (referenceDataset) {
       // Only need to show the dataset if there are two
       dataDrivenColumns.push({
-        Header: "Dataset",
-        accessor: "id",
-        width: 50,
-        Cell: ({ value }: CellProps<TableDataItem>) => {
+        header: "Dataset",
+        accessorKey: "id",
+        size: 50,
+        cell: ({ getValue }) => {
           return (
             <EventDatasetCell
-              id={value}
+              id={getValue() as string}
               primaryDatasetName={primaryDataset.name}
               referenceDatasetName={referenceDataset?.name ?? "reference"}
             />
@@ -89,9 +90,10 @@ export function PointSelectionTable({
     }
     if (hasLinkToData) {
       dataDrivenColumns.push({
-        Header: "Link",
-        accessor: "linkToData",
-        Cell: ({ value }: CellProps<TableDataItem>) => {
+        header: "Link",
+        accessorKey: "linkToData",
+        cell: ({ getValue }) => {
+          const value = getValue();
           if (typeof value === "string") {
             const fileName = value.split("/").pop();
             return <ExternalLink href={value}>{fileName}</ExternalLink>;
@@ -102,49 +104,47 @@ export function PointSelectionTable({
     }
     if (hasPromptAndResponse) {
       dataDrivenColumns.push({
-        Header: "Prompt",
-        accessor: "prompt",
-        width: 200,
-        Cell: TextCell,
+        header: "Prompt",
+        accessorKey: "prompt",
+        cell: TextCell,
+        size: 200,
       });
       dataDrivenColumns.push({
-        Header: "Response",
-        accessor: "response",
-        width: 200,
-        Cell: TextCell,
+        header: "Response",
+        accessorKey: "response",
+        cell: TextCell,
+        size: 200,
       });
     } else if (hasRawData) {
       dataDrivenColumns.push({
-        Header: "Raw Data",
-        accessor: "rawData",
-        width: 200,
+        header: "Raw Data",
+        accessorKey: "rawData",
       });
     }
     if (hasPredictionLabels) {
       dataDrivenColumns.push({
-        Header: "Prediction Label",
-        accessor: "predictionLabel",
-        width: 50,
+        header: "Prediction Label",
+        accessorKey: "predictionLabel",
+        size: 50,
       });
     }
     if (hasActualLabels) {
       dataDrivenColumns.push({
-        Header: "Actual Label",
-        accessor: "actualLabel",
-        width: 50,
+        header: "Actual Label",
+        accessorKey: "actualLabel",
+        size: 50,
       });
     }
 
     // If a dimension data quality metric is selected, show it
-    const analysisColumns: Column<TableDataItem>[] = [];
+    const analysisColumns: ColumnDef<TableDataItem>[] = [];
     if (metric && metric.type === "dataQuality") {
       const dimensionName = metric.dimension.name;
       analysisColumns.push({
-        Header: metric.dimension.name,
-        accessor: "metric",
-        width: 50,
-        Cell: FloatCell,
-        sortType: "basic",
+        header: metric.dimension.name,
+        accessorKey: "metric",
+        cell: FloatCell,
+        sortingFn: "basic",
       });
 
       // Add the metric name to the table value
@@ -156,14 +156,14 @@ export function PointSelectionTable({
       });
     }
 
-    const columns: Column<TableDataItem>[] = [
+    const columns: ColumnDef<TableDataItem>[] = [
       ...dataDrivenColumns,
       ...analysisColumns,
       {
-        Header: "",
+        header: "",
         id: "view-details",
-        width: 50,
-        Cell: ({ row }: CellProps<TableDataItem>) => {
+        size: 50,
+        cell: ({ row }) => {
           return (
             <LinkButton
               aria-label="view point details"
@@ -180,69 +180,87 @@ export function PointSelectionTable({
     return { columns, tableData };
   }, [data, onPointSelected, primaryDataset, referenceDataset, metric]);
 
-  const { getTableProps, getTableBodyProps, headerGroups, prepareRow, rows } =
-    useTable<TableDataItem>(
-      {
-        columns,
-        data: tableData,
-      },
-      useFlexLayout,
-      useResizeColumns,
-      useSortBy
-    );
+  const table = useReactTable<TableDataItem>({
+    columns,
+    data: tableData,
+    state: {
+      sorting,
+    },
+    getCoreRowModel: getCoreRowModel(),
+    onSortingChange: setSorting,
+    getSortedRowModel: getSortedRowModel(),
+  });
 
   return (
-    <table {...getTableProps()} css={tableCSS}>
+    <table css={tableCSS}>
       <thead>
-        {headerGroups.map((headerGroup, idx) => (
-          <tr {...headerGroup.getHeaderGroupProps()} key={idx}>
-            {headerGroup.headers.map((column, idx) => (
-              <th {...column.getHeaderProps()} key={idx}>
-                <span {...column.getSortByToggleProps()}>
-                  {column.render("Header")}
-                  {column.isSorted ? (
-                    <Icon
-                      className="sort-icon"
-                      svg={
-                        column.isSortedDesc ? (
-                          <Icons.ArrowDownFilled />
-                        ) : (
-                          <Icons.ArrowUpFilled />
-                        )
-                      }
-                    />
-                  ) : null}
-                </span>
-
-                {/* Use column.getResizerProps to hook up the events correctly */}
-                {column.canResize && (
+        {table.getHeaderGroups().map((headerGroup) => (
+          <tr key={headerGroup.id}>
+            {headerGroup.headers.map((header) => (
+              <th key={header.id}>
+                {header.isPlaceholder ? null : (
                   <div
-                    {...column.getResizerProps()}
-                    className={`resizer ${
-                      column.isResizing ? "isResizing" : ""
-                    }`}
-                  />
+                    {...{
+                      className: header.column.getCanSort()
+                        ? "cursor-pointer"
+                        : "",
+                      onClick: header.column.getToggleSortingHandler(),
+                    }}
+                  >
+                    {flexRender(
+                      header.column.columnDef.header,
+                      header.getContext()
+                    )}
+                    {header.column.getIsSorted() ? (
+                      <Icon
+                        className="sort-icon"
+                        svg={
+                          header.column.getIsSorted() === "asc" ? (
+                            <Icons.ArrowDownFilled />
+                          ) : (
+                            <Icons.ArrowUpFilled />
+                          )
+                        }
+                      />
+                    ) : null}
+                  </div>
                 )}
+                <div
+                  {...{
+                    onMouseDown: header.getResizeHandler(),
+                    onTouchStart: header.getResizeHandler(),
+                    className: `resizer ${
+                      header.column.getIsResizing() ? "isResizing" : ""
+                    }`,
+                    style: {
+                      transform: header.column.getIsResizing()
+                        ? `translateX(${
+                            table.getState().columnSizingInfo.deltaOffset
+                          }px)`
+                        : "",
+                    },
+                  }}
+                />
               </th>
             ))}
           </tr>
         ))}
       </thead>
-      <tbody {...getTableBodyProps()}>
-        {rows.map((row, idx) => {
-          prepareRow(row);
-          return (
-            <tr {...row.getRowProps()} key={idx}>
-              {row.cells.map((cell, idx) => {
-                return (
-                  <td {...cell.getCellProps()} key={idx}>
-                    {cell.render("Cell")}
-                  </td>
-                );
-              })}
-            </tr>
-          );
-        })}
+      <tbody>
+        {table.getRowModel().rows.map((row) => (
+          <tr key={row.id}>
+            {row.getVisibleCells().map((cell) => (
+              <td
+                key={cell.id}
+                style={{
+                  width: cell.column.getSize(),
+                }}
+              >
+                {flexRender(cell.column.columnDef.cell, cell.getContext())}
+              </td>
+            ))}
+          </tr>
+        ))}
       </tbody>
     </table>
   );

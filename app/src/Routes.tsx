@@ -1,23 +1,26 @@
 import React from "react";
 import { createRoutesFromElements, Route, RouterProvider } from "react-router";
-import { createBrowserRouter, redirect } from "react-router-dom";
+import { createBrowserRouter } from "react-router-dom";
 
 import { embeddingLoaderQuery$data } from "./pages/embedding/__generated__/embeddingLoaderQuery.graphql";
+import { TracingHomePage } from "./pages/tracing";
 import {
   dimensionLoader,
   DimensionPage,
   embeddingLoader,
   EmbeddingPage,
   ErrorElement,
+  homeLoader,
   Layout,
   ModelPage,
   ModelRoot,
+  TracePage,
 } from "./pages";
 
 const router = createBrowserRouter(
   createRoutesFromElements(
     <Route path="/" element={<Layout />} errorElement={<ErrorElement />}>
-      <Route index loader={() => redirect("/model")} />
+      <Route index loader={homeLoader} />
       <Route
         path="/model"
         handle={{ crumb: () => "model" }}
@@ -46,6 +49,15 @@ const router = createBrowserRouter(
               crumb: (data: embeddingLoaderQuery$data) => data.embedding.name,
             }}
           />
+        </Route>
+      </Route>
+      <Route
+        path="/tracing"
+        handle={{ crumb: () => "trace" }}
+        element={<TracingHomePage />}
+      >
+        <Route path="traces">
+          <Route path=":traceId" element={<TracePage />} />
         </Route>
       </Route>
     </Route>
