@@ -113,7 +113,7 @@ def to_gql_span(row: "Series[Any]") -> Span:
     Converts a dataframe row to a graphQL span
     """
     attributes = _extract_attributes(row).to_dict()
-    events: List[SpanEvent] = to_gql_span_events(row["events"])
+    events: List[SpanEvent] = to_gql_span_events(row["events"] or "[]")
     return Span(
         name=row["name"],
         status_code=SpanStatusCode(row["status_code"]),
@@ -180,7 +180,9 @@ def _extract_attributes(row: "Series[Any]") -> "Series[Any]":
 
 
 def to_gql_span_events(row: "Series[Any]") -> List[SpanEvent]:
-    """"""
+    """
+    Converts a dataframe row to a list of graphQL span events
+    """
     return [
         SpanEvent(
             name=event["name"],
