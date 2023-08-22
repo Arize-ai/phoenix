@@ -1,6 +1,6 @@
 import pandas as pd
 import phoenix.trace.semantic_conventions as sem_conv
-from phoenix.server.api.types.Span import _nested_attributes, to_gql_span_events
+from phoenix.server.api.types.Span import SpanEvent, _nested_attributes
 
 
 def test_nested_attributes() -> None:
@@ -38,9 +38,31 @@ def test_events() -> None:
     data = pd.DataFrame(
         {
             "events": [
-                '[{"name": "event_0","message": "message_0","timestamp": "2023-08-16T12:48:25.604239"},{"name": "event_1","message": "message_1","timestamp": "2023-08-16T12:48:26.604239"},{"name": "event_2","message": "message_2","timestamp": "2023-08-16T12:48:27.604239"},{"name": "event_3","message": "message_3","timestamp": "2023-08-16T12:48:28.604239"}]'  # noqa: E501
+                [
+                    {
+                        "name": "event_0",
+                        "message": "message_0",
+                        "timestamp": "2023-08-16T12:48:25.604239",
+                    },
+                    {
+                        "name": "event_1",
+                        "message": "message_1",
+                        "timestamp": "2023-08-16T12:48:26.604239",
+                    },
+                    {
+                        "name": "event_2",
+                        "message": "message_2",
+                        "timestamp": "2023-08-16T12:48:27.604239",
+                    },
+                    {
+                        "name": "event_3",
+                        "message": "message_3",
+                        "timestamp": "2023-08-16T12:48:28.604239",
+                    },
+                ]  # noqa: E501
             ]
         }
     )
-    events = to_gql_span_events(data.iloc[0]["events"])
+    events = list(map(SpanEvent.from_mapping, data.iloc[0]["events"]))
     assert len(events) == 4
+    assert events[0].name == "event_0"

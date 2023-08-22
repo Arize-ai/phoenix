@@ -68,6 +68,17 @@ class SpanEvent:
     message: str
     timestamp: datetime
 
+    @staticmethod
+    def from_mapping(
+        mapping: Mapping[str, Any],
+    ) -> "SpanEvent":
+        """Converts a mapping to a SpanEvent. Used when parsing the record from the dataframe."""
+        return SpanEvent(
+            name=mapping["name"],
+            message=mapping["message"],
+            timestamp=datetime.fromisoformat(mapping["timestamp"]),
+        )
+
 
 @strawberry.type
 class Span:
@@ -113,7 +124,7 @@ def to_gql_span(row: "Series[Any]") -> Span:
     Converts a dataframe row to a graphQL span
     """
     attributes = _extract_attributes(row).to_dict()
-    events: List[SpanEvent] = to_gql_span_events(row["events"] or "[]")
+    events: List[SpanEvent] = list(map(SpanEvent.from_mapping, row["events"]))
     return Span(
         name=row["name"],
         status_code=SpanStatusCode(row["status_code"]),
@@ -179,18 +190,12 @@ def _extract_attributes(row: "Series[Any]") -> "Series[Any]":
     )
 
 
-def to_gql_span_events(row: "Series[Any]") -> List[SpanEvent]:
-    """
-    Converts a dataframe row to a list of graphQL span events
-    """
-    return [
-        SpanEvent(
-            name=event["name"],
-            message=event["message"],
-            timestamp=datetime.fromisoformat(event["timestamp"]),
-        )
-        for event in json.loads(row)
-    ]
+def to_gql_span_event(event: Mapping[str, Any]) -> SpanEvent:
+    return SpanEvent(
+        name=event["name"],
+        message=event["message"],
+        timestamp=datetime.fromisoformat(event["timestamp"]),
+    )
 
 
 def _as_str_or_none(v: Any) -> Optional[str]:
