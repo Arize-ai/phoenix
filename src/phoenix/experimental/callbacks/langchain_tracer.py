@@ -130,12 +130,15 @@ def _function_calls(run_outputs: Dict[str, Any]) -> Iterator[Tuple[str, str]]:
         pass
 
 
-def _tools(run_serialized: Dict[str, Any]) -> Iterator[Tuple[str, str]]:
-    try:
+def _tools(run: Run) -> Iterator[Tuple[str, str]]:
+    """Yields tool attributes if present."""
+    if run["run_type"] != "tool":
+        return
+    run_serialized = run["serialized"]
+    if "name" in run_serialized:
         yield TOOL_NAME, run_serialized["name"]
+    if "description" in run_serialized:
         yield TOOL_DESCRIPTION, run_serialized["description"]
-    except KeyError:
-        pass
 
 
 class OpenInferenceTracer(Tracer, BaseTracer):
@@ -155,7 +158,7 @@ class OpenInferenceTracer(Tracer, BaseTracer):
         attributes.update(_model_name(run["extra"]))
         attributes.update(_token_counts(run["outputs"]))
         attributes.update(_function_calls(run["outputs"]))
-        attributes.update(_tools(run["serialized"]))
+        attributes.update(_tools(run))
         events: List[SpanEvent] = []
         if (error := run["error"]) is None:
             status_code = SpanStatusCode.OK
