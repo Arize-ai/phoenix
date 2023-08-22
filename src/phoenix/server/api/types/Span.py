@@ -52,7 +52,7 @@ class SpanContext:
 @strawberry.type
 class SpanIOValue:
     mime_type: MimeType
-    value: Optional[str]
+    value: str
 
 
 @strawberry.enum
@@ -60,6 +60,24 @@ class SpanStatusCode(Enum):
     OK = CoreSpanStatusCode.OK.value
     ERROR = CoreSpanStatusCode.ERROR.value
     UNSET = CoreSpanStatusCode.UNSET.value
+
+
+@strawberry.type
+class SpanEvent:
+    name: str
+    message: str
+    timestamp: datetime
+
+    @staticmethod
+    def from_mapping(
+        mapping: Mapping[str, Any],
+    ) -> "SpanEvent":
+        """Converts a mapping to a SpanEvent. Used when parsing the record from the dataframe."""
+        return SpanEvent(
+            name=mapping["name"],
+            message=mapping["message"],
+            timestamp=datetime.fromisoformat(mapping["timestamp"]),
+        )
 
 
 @strawberry.type
@@ -80,8 +98,9 @@ class Span:
     token_count_total: Optional[int]
     token_count_prompt: Optional[int]
     token_count_completion: Optional[int]
-    input: SpanIOValue
-    output: SpanIOValue
+    input: Optional[SpanIOValue]
+    output: Optional[SpanIOValue]
+    events: List[SpanEvent]
 
     @strawberry.field(
         description="All descendant spans (children, grandchildren, etc.)",
@@ -105,6 +124,9 @@ def to_gql_span(row: "Series[Any]") -> Span:
     Converts a dataframe row to a graphQL span
     """
     attributes = _extract_attributes(row).to_dict()
+    events: List[SpanEvent] = list(map(SpanEvent.from_mapping, row["events"]))
+    input_value = attributes.get(INPUT_VALUE)
+    output_value = attributes.get(OUTPUT_VALUE)
     return Span(
         name=row["name"],
         status_code=SpanStatusCode(row["status_code"]),
@@ -130,6 +152,7 @@ def to_gql_span(row: "Series[Any]") -> Span:
         token_count_completion=_as_int_or_none(
             attributes.get(LLM_TOKEN_COUNT_COMPLETION),
         ),
+        events=events,
         input=(
             SpanIOValue(
                 mime_type=MimeType(
@@ -137,10 +160,10 @@ def to_gql_span(row: "Series[Any]") -> Span:
                         attributes.get(INPUT_MIME_TYPE),
                     ),
                 ),
-                value=_as_str_or_none(
-                    attributes.get(INPUT_VALUE),
-                ),
+                value=input_value,
             )
+            if input_value is not None
+            else None
         ),
         output=(
             SpanIOValue(
@@ -149,10 +172,10 @@ def to_gql_span(row: "Series[Any]") -> Span:
                         attributes.get(OUTPUT_MIME_TYPE),
                     ),
                 ),
-                value=_as_str_or_none(
-                    attributes.get(OUTPUT_VALUE),
-                ),
+                value=output_value,
             )
+            if output_value is not None
+            else None
         ),
     )
 
@@ -166,6 +189,14 @@ def _extract_attributes(row: "Series[Any]") -> "Series[Any]":
         row.loc[is_attribute].rename(
             {key: key[len(ATTRIBUTE_PREFIX) :] for key in keys},
         ),
+    )
+
+
+def to_gql_span_event(event: Mapping[str, Any]) -> SpanEvent:
+    return SpanEvent(
+        name=event["name"],
+        message=event["message"],
+        timestamp=datetime.fromisoformat(event["timestamp"]),
     )
 
 
@@ -204,5 +235,4 @@ def _nested_attributes(
         for key in keys[:-1]:
             trie = trie[key]
         trie[keys[-1]] = attribute_value
-    return nested_attributes
     return nested_attributes
