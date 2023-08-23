@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<e204694ed5aab9a967538dfc47b276ac>>
+ * @generated SignedSource<<d53ccc570be74fde16b335ee7e427382>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -11,7 +11,7 @@
 import { ConcreteRequest, Query } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type SortDir = "asc" | "desc";
-export type SpanColumn = "endTime" | "latencyMs" | "startTime" | "tokenCountCompletion" | "tokenCountPrompt" | "tokenCountTotal";
+export type SpanColumn = "cumulativeTokenCountCompletion" | "cumulativeTokenCountPrompt" | "cumulativeTokenCountTotal" | "endTime" | "latencyMs" | "startTime" | "tokenCountCompletion" | "tokenCountPrompt" | "tokenCountTotal";
 export type SpanSort = {
   col: SpanColumn;
   dir: SortDir;
