@@ -82,7 +82,7 @@ def test_callback_handler_records_llm_and_embedding_attributes_for_query_engine(
     assert len(embedding_vectors[0]) == TEXT_EMBEDDING_ADA_002_EMBEDDING_DIM
 
 
-# TODO: implement test after bug with OpenAIAgent callback is fixed
+@pytest.mark.skip(reason="LlamaIndex bug fix in progress")
 def test_agent(agent: OpenAIAgent) -> None:
     response = agent.chat(
         "Can you explain what that means?",
