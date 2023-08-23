@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<4d84046fefca93df3bbbcc1bf6775843>>
+ * @generated SignedSource<<24d46ff49f177b1b2a4ec384979e2a5a>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -52,7 +52,6 @@ export type TracesTable_spans$data = {
         readonly spanKind: SpanKind;
         readonly startTime: string;
         readonly statusCode: SpanStatusCode;
-        readonly tokenCountTotal: number | null;
       };
     }>;
   };
@@ -253,13 +252,6 @@ return {
                   "alias": null,
                   "args": null,
                   "kind": "ScalarField",
-                  "name": "tokenCountTotal",
-                  "storageKey": null
-                },
-                {
-                  "alias": null,
-                  "args": null,
-                  "kind": "ScalarField",
                   "name": "cumulativeTokenCountTotal",
                   "storageKey": null
                 },
@@ -359,6 +351,6 @@ return {
 };
 })();
 
-(node as any).hash = "de2fd676b0236d10513964725afee2ae";
+(node as any).hash = "39c857c68cf8fa7a81302715ee9092b9";
 
 export default node;

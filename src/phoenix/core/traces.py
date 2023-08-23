@@ -44,7 +44,7 @@ class Traces:
                 df[cumulative_column] = _cumulative(
                     df[column],
                     parent_span_ids,
-                )
+                ).replace(0, np.nan)
             except KeyError:
                 pass
         self._dataframe = df
@@ -62,20 +62,47 @@ class Traces:
 
 
 def _cumulative(
-    values: "pd.Series[Any]",
-    parents: "pd.Series[Any]",
+    span_values: "pd.Series[Any]",
+    span_parent_ids: "pd.Series[Any]",
 ) -> "pd.Series[Any]":
+    """
+    For each span, return the cumulative (i.e. summed) value from itself and
+    all of its descendants (i.e. children, grandchildren, etc.).
+
+    Example
+    -------
+    >>> span_ids = list("ABCDEF")
+    >>> span_values = pd.Series([1,1,None,1,1,None], index=span_ids)
+    >>> span_parent_ids = pd.Series([None,"A","A","C","C",None], index=span_ids)
+    >>> _cumulative(span_values, span_parent_ids)
+    A    4.0
+    B    1.0
+    C    2.0
+    D    1.0
+    E    1.0
+    F    0.0
+    dtype: float64
+
+    Parameters
+    ----------
+    span_values: pd.Series, indexed by span_id
+        each span's numeric value to be accumulated
+    span_parent_ids: pd.Series, indexed by span_id, same shape as `values`
+        each span's parent span_id (may be null on some rows)
+
+    Returns
+    -------
+    accumulated_values: pd.Series, indexed by span_id, same shape as `values`
+        each span's cumulative value (from itself and all of its descendants)
+    """
     cumulative_values = pd.Series(
-        np.full(len(values), np.nan),
-        index=values.index,
+        np.zeros_like(span_values),
+        index=span_values.index,
     )
-    for span_id, value in values.items():
-        if not isinstance(value, float) or not math.isfinite(value):
+    for span_id, value in span_values.items():
+        if not value or isinstance(value, float) and math.isnan(value):
             continue
         while span_id:
-            cumulative_value = cumulative_values.loc[span_id]  # type: ignore
-            if not isinstance(cumulative_value, float) or math.isnan(cumulative_value):
-                cumulative_value = 0
-            cumulative_values.loc[span_id] = cumulative_value + value  # type: ignore
-            span_id = parents.loc[span_id]  # type: ignore
+            cumulative_values.loc[span_id] += value  # type: ignore
+            span_id = span_parent_ids.loc[span_id]  # type: ignore
     return cumulative_values

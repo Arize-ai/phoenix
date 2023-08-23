@@ -104,7 +104,6 @@ export function TracesTable(props: TracesTableProps) {
                 statusCode
                 startTime
                 latencyMs
-                tokenCountTotal
                 cumulativeTokenCountTotal
                 parentId
                 input {
@@ -124,7 +123,7 @@ export function TracesTable(props: TracesTableProps) {
                   startTime
                   latencyMs
                   parentId
-                  cumulativeTokenCountTotal: tokenCountTotal # hack
+                  cumulativeTokenCountTotal: tokenCountTotal # this switcheroo is to allow descendant Rows to unfurl in the same Table while displaying a different value under the same Column
                   input {
                     value
                   }
