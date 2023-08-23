@@ -10,6 +10,7 @@ from strawberry import ID, UNSET
 from strawberry.types import Info
 from typing_extensions import Annotated
 
+from phoenix.datetime_utils import floor_to_minute
 from phoenix.pointcloud.clustering import Hdbscan
 from phoenix.server.api.helpers import ensure_list
 from phoenix.server.api.input_types.ClusterInput import ClusterInput
@@ -20,8 +21,8 @@ from phoenix.server.api.input_types.Coordinates import (
 from phoenix.server.api.input_types.SpanSort import SpanColumn, SpanSort
 from phoenix.server.api.types.Cluster import Cluster, to_gql_clusters
 
-from ...helpers import floor_to_minute
 from .context import Context
+from .types.DatasetInfo import DatasetInfo
 from .types.DatasetRole import AncillaryDatasetRole, DatasetRole
 from .types.Dimension import to_gql_dimension
 from .types.EmbeddingDimension import (
@@ -235,60 +236,31 @@ class Query:
             ),
         )
 
-    @strawberry.field(
-        description="Number of traces",
-    )  # type: ignore
-    def traces_count(
+    @strawberry.field
+    def trace_dataset_info(
         self,
         info: Info[Context, None],
-    ) -> int:
-        if info.context.traces is None:
-            return 0
-        df = info.context.traces._dataframe
-        return df.loc[:, "parent_id"].isna().sum()
-
-    @strawberry.field(
-        description="The start bookend of the trace data",
-    )  # type: ignore
-    def traces_start_time(
-        self,
-        info: Info[Context, None],
-    ) -> Optional[datetime]:
+    ) -> Optional[DatasetInfo]:
         if info.context.traces is None:
             return None
         df = info.context.traces._dataframe
-        start_time = cast(
-            datetime,
-            df.loc[
-                df.loc[:, "parent_id"].isna(),
-                "start_time",
-            ].min(),
-        )
-        return floor_to_minute(start_time)
-
-    @strawberry.field(
-        description="The end bookend of the trace data",
-    )  # type: ignore
-    def traces_end_time(
-        self,
-        info: Info[Context, None],
-    ) -> Optional[datetime]:
-        if info.context.traces is None:
-            return None
-        df = info.context.traces._dataframe
-        end_time = cast(
-            datetime,
-            df.loc[
-                df.loc[:, "parent_id"].isna(),
-                "start_time",
-            ].max(),
-        )
+        min_max = df.loc[
+            df.loc[:, "parent_id"].isna(),
+            "start_time",
+        ].agg(["min", "max"])
+        start_time = cast(datetime, min_max.min())
+        end_time = cast(datetime, min_max.max())
         # Add one minute to end_time, because time intervals are right
         # open and one minute is the smallest interval allowed.
-        stop_time = end_time + timedelta(
-            minutes=1,
+        stop_time = end_time + timedelta(minutes=1)
+        # Round down to the nearest minute.
+        start = floor_to_minute(start_time)
+        stop = floor_to_minute(stop_time)
+        return DatasetInfo(
+            start_time=start,
+            end_time=stop,
+            record_count=len(df),
         )
-        return floor_to_minute(stop_time)
 
 
 @strawberry.type

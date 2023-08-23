@@ -65,6 +65,17 @@ type Dataset {
   events(eventIds: [ID!]!, dimensions: [DimensionInput!]): [Event!]!
 }
 
+type DatasetInfo {
+  """The start bookend of the data"""
+  startTime: DateTime!
+
+  """The end bookend of the data"""
+  endTime: DateTime!
+
+  """The record count of the data"""
+  recordCount: Int!
+}
+
 enum DatasetRole {
   primary
   reference
@@ -396,6 +407,7 @@ type PageInfo {
   hasPreviousPage: Boolean!
   startCursor: String
   endCursor: String
+  totalCount: Int!
 }
 
 enum PerformanceMetric {
@@ -456,15 +468,7 @@ type Query {
     clusterSelectionEpsilon: Float! = 0
   ): [Cluster!]!
   spans(traceIds: [ID!], first: Int = 50, last: Int, after: String, before: String, sort: SpanSort, rootSpansOnly: Boolean = false): SpanConnection!
-
-  """Number of traces"""
-  tracesCount: Int!
-
-  """The start bookend of the trace data"""
-  tracesStartTime: DateTime
-
-  """The end bookend of the trace data"""
-  tracesEndTime: DateTime
+  traceDatasetInfo: DatasetInfo
 }
 
 type Retrieval {

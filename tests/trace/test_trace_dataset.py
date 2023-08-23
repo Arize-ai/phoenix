@@ -4,7 +4,7 @@ from uuid import UUID
 import pandas as pd
 import pytest
 from pandas.testing import assert_frame_equal
-from phoenix.helpers import normalize_timestamps
+from phoenix.datetime_utils import normalize_timestamps
 from phoenix.trace.schemas import (
     Span,
     SpanContext,

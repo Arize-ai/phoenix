@@ -16,8 +16,8 @@ from pandas.api.types import (
 from typing_extensions import TypeAlias
 
 from phoenix.config import DATASET_DIR, GENERATED_DATASET_NAME_PREFIX
+from phoenix.datetime_utils import normalize_timestamps
 
-from ..helpers import normalize_timestamps
 from . import errors as err
 from .schema import (
     LLM_SCHEMA_FIELD_NAMES,

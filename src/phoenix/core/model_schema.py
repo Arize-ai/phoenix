@@ -49,7 +49,7 @@ from typing_extensions import TypeAlias, TypeGuard
 from wrapt import ObjectProxy
 
 from phoenix.config import GENERATED_DATASET_NAME_PREFIX
-from phoenix.helpers import floor_to_minute
+from phoenix.datetime_utils import floor_to_minute
 
 
 class DimensionRole(IntEnum):

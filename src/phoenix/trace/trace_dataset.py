@@ -5,7 +5,8 @@ from typing import List
 import pandas as pd
 from pandas import DataFrame
 
-from ..helpers import normalize_timestamps
+from phoenix.datetime_utils import normalize_timestamps
+
 from .schemas import Span
 from .span_json_encoder import span_to_json
 
