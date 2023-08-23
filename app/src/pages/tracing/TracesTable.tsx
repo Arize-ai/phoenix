@@ -104,7 +104,8 @@ export function TracesTable(props: TracesTableProps) {
                 statusCode
                 startTime
                 latencyMs
-                tokenCountTotal: cumulativeTokenCountTotal
+                tokenCountTotal
+                cumulativeTokenCountTotal
                 parentId
                 input {
                   value
@@ -123,7 +124,7 @@ export function TracesTable(props: TracesTableProps) {
                   startTime
                   latencyMs
                   parentId
-                  tokenCountTotal
+                  cumulativeTokenCountTotal: tokenCountTotal # hack
                   input {
                     value
                   }
@@ -235,7 +236,7 @@ export function TracesTable(props: TracesTableProps) {
     },
     {
       header: "total tokens",
-      accessorKey: "tokenCountTotal",
+      accessorKey: "cumulativeTokenCountTotal",
       cell: IntCell,
     },
     {

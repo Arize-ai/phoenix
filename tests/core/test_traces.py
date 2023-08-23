@@ -1,7 +1,8 @@
+from datetime import datetime
 from uuid import uuid4
 
 import pandas as pd
-from phoenix.core.traces import Traces
+from phoenix.core.traces import END_TIME, PARENT_ID, SPAN_ID, START_TIME, Traces
 
 
 def test_get_descendant_span_ids() -> None:
@@ -9,8 +10,10 @@ def test_get_descendant_span_ids() -> None:
     traces = Traces(
         pd.DataFrame(
             {
-                "context.span_id": ids,
-                "parent_id": [None, None, ids[1], ids[1], ids[2], ids[4]],
+                START_TIME: datetime.now(),
+                END_TIME: datetime.now(),
+                SPAN_ID: ids,
+                PARENT_ID: [None, None, ids[1], ids[1], ids[2], ids[4]],
             }
         ).sample(frac=1)
     )
