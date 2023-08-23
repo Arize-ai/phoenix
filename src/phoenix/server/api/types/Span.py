@@ -11,6 +11,20 @@ from strawberry import ID
 from strawberry.types import Info
 
 import phoenix.trace.semantic_conventions as sc
+from phoenix.core.traces import (
+    CUMULATIVE_LLM_TOKEN_COUNT_COMPLETION,
+    CUMULATIVE_LLM_TOKEN_COUNT_PROMPT,
+    CUMULATIVE_LLM_TOKEN_COUNT_TOTAL,
+    END_TIME,
+    LATENCY_MS,
+    NAME,
+    PARENT_ID,
+    SPAN_ID,
+    SPAN_KIND,
+    START_TIME,
+    STATUS_CODE,
+    TRACE_ID,
+)
 from phoenix.server.api.context import Context
 from phoenix.server.api.types.MimeType import MimeType
 from phoenix.trace.schemas import ATTRIBUTE_PREFIX, SpanID
@@ -101,6 +115,18 @@ class Span:
     input: Optional[SpanIOValue]
     output: Optional[SpanIOValue]
     events: List[SpanEvent]
+    cumulative_token_count_total: Optional[int] = strawberry.field(
+        description="Cumulative (prompt plus completion) token count from "
+        "self and all descendant spans (children, grandchildren, etc.)",
+    )
+    cumulative_token_count_prompt: Optional[int] = strawberry.field(
+        description="Cumulative (prompt) token count from self and all "
+        "descendant spans (children, grandchildren, etc.)",
+    )
+    cumulative_token_count_completion: Optional[int] = strawberry.field(
+        description="Cumulative (completion) token count from self and all "
+        "descendant spans (children, grandchildren, etc.)",
+    )
 
     @strawberry.field(
         description="All descendant spans (children, grandchildren, etc.)",
@@ -128,16 +154,16 @@ def to_gql_span(row: "Series[Any]") -> Span:
     input_value = attributes.get(INPUT_VALUE)
     output_value = attributes.get(OUTPUT_VALUE)
     return Span(
-        name=row["name"],
-        status_code=SpanStatusCode(row["status_code"]),
-        parent_id=row["parent_id"],
-        span_kind=row["span_kind"],
-        start_time=row["start_time"],
-        end_time=row["end_time"],
-        latency_ms=int(row["latency_ms"]),
+        name=row[NAME],
+        status_code=SpanStatusCode(row[STATUS_CODE]),
+        parent_id=row[PARENT_ID],
+        span_kind=row[SPAN_KIND],
+        start_time=row[START_TIME],
+        end_time=row[END_TIME],
+        latency_ms=int(row[LATENCY_MS]),
         context=SpanContext(
-            trace_id=row["context.trace_id"],
-            span_id=row["context.span_id"],
+            trace_id=row[TRACE_ID],
+            span_id=row[SPAN_ID],
         ),
         attributes=json.dumps(
             _nested_attributes(attributes),
@@ -151,6 +177,15 @@ def to_gql_span(row: "Series[Any]") -> Span:
         ),
         token_count_completion=_as_int_or_none(
             attributes.get(LLM_TOKEN_COUNT_COMPLETION),
+        ),
+        cumulative_token_count_total=_as_int_or_none(
+            row.get(CUMULATIVE_LLM_TOKEN_COUNT_TOTAL),
+        ),
+        cumulative_token_count_prompt=_as_int_or_none(
+            row.get(CUMULATIVE_LLM_TOKEN_COUNT_PROMPT),
+        ),
+        cumulative_token_count_completion=_as_int_or_none(
+            row.get(CUMULATIVE_LLM_TOKEN_COUNT_COMPLETION),
         ),
         events=events,
         input=(
