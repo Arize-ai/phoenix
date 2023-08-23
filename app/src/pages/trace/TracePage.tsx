@@ -1,17 +1,20 @@
-import React, { useMemo } from "react";
+import React, { PropsWithChildren, useMemo } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { useNavigate, useParams } from "react-router";
 import { useSearchParams } from "react-router-dom";
+import { json } from "@codemirror/lang-json";
+import { EditorView } from "@codemirror/view";
+import { nord } from "@uiw/codemirror-theme-nord";
 import CodeMirror from "@uiw/react-codemirror";
 import { css } from "@emotion/react";
 
 import {
-  Card,
   Counter,
   Dialog,
   DialogContainer,
   Flex,
+  Heading,
   Icon,
   Icons,
   List,
@@ -23,7 +26,9 @@ import {
 } from "@arizeai/components";
 
 import { resizeHandleCSS } from "@phoenix/components/resize";
+import { SpanItem } from "@phoenix/components/trace/SpanItem";
 import { TraceTree } from "@phoenix/components/trace/TraceTree";
+import { assertUnreachable } from "@phoenix/typeUtils";
 
 import {
   MimeType,
@@ -99,38 +104,61 @@ export function TracePage() {
             height: 100%;
           `}
         >
-          <PanelGroup direction="vertical">
+          <PanelGroup direction="vertical" autoSaveId="trace-panel-group">
             <Panel defaultSize={40}>
-              <Tabs>
-                <TabPane name="Tree" title="Tree">
-                  <TraceTree
-                    spans={spansList}
-                    selectedSpanId={selectedSpanId}
-                    onSpanClick={(spanId) => {
-                      setSearchParams(
-                        {
-                          selectedSpanId: spanId,
-                        },
-                        { replace: true }
-                      );
-                    }}
-                  />
-                </TabPane>
-                <TabPane name="Flame Graph" hidden>
-                  Flame Graph
-                </TabPane>
-              </Tabs>
+              <ScrollingTabsWrapper>
+                <Tabs>
+                  <TabPane name="Tree" title="Tree">
+                    <TraceTree
+                      spans={spansList}
+                      selectedSpanId={selectedSpanId}
+                      onSpanClick={(spanId) => {
+                        setSearchParams(
+                          {
+                            selectedSpanId: spanId,
+                          },
+                          { replace: true }
+                        );
+                      }}
+                    />
+                  </TabPane>
+                  <TabPane name="Flame Graph" hidden>
+                    Flame Graph
+                  </TabPane>
+                </Tabs>
+              </ScrollingTabsWrapper>
             </Panel>
             <PanelResizeHandle css={resizeHandleCSS} />
             <Panel>
-              {selectedSpan ? (
-                <SelectedSpanDetails selectedSpan={selectedSpan} />
-              ) : null}
+              <ScrollingTabsWrapper>
+                {selectedSpan ? (
+                  <SelectedSpanDetails selectedSpan={selectedSpan} />
+                ) : null}
+              </ScrollingTabsWrapper>
             </Panel>
           </PanelGroup>
         </main>
       </Dialog>
     </DialogContainer>
+  );
+}
+
+function ScrollingTabsWrapper({ children }: PropsWithChildren) {
+  return (
+    <div
+      css={css`
+        height: 100%;
+        .ac-tabs {
+          height: 100%;
+          .ac-tabs__pane-container {
+            height: 100%;
+            overflow-y: auto;
+          }
+        }
+      `}
+    >
+      {children}
+    </div>
   );
 }
 
@@ -144,16 +172,10 @@ function SelectedSpanDetails({ selectedSpan }: { selectedSpan: Span }) {
         <SpanInfo span={selectedSpan} />
       </TabPane>
       <TabPane name={"Attributes"} title="Attributes">
-        <View margin="size-100" borderRadius="medium">
-          <CodeMirror
-            value={JSON.stringify(
-              JSON.parse(selectedSpan.attributes ?? "{}"),
-              null,
-              2
-            )}
-            theme="dark"
-            lang="json"
-          />
+        <View padding="size-200">
+          <BlockView title="All Attributes">
+            <CodeBlock value={selectedSpan.attributes} mimeType="json" />
+          </BlockView>
         </View>
       </TabPane>
       <TabPane
@@ -173,40 +195,101 @@ function SelectedSpanDetails({ selectedSpan }: { selectedSpan: Span }) {
   );
 }
 
-function SpanInfo({ span }: { span: Span }) {
-  const { input, output } = span;
+/**
+ * A simple container to show a block of text or code
+ */
+function BlockView({ children, title }: PropsWithChildren<{ title: string }>) {
   return (
-    <View padding="size-100">
-      <Flex direction="column">
-        {input && input.value != null ? (
-          <CodeBlock title="Input" {...input} />
-        ) : null}
-        {output && output.value != null ? (
-          <CodeBlock title="Output" {...output} />
-        ) : null}
-      </Flex>
+    <View borderColor="dark" borderRadius="medium" borderWidth="thin">
+      <View
+        paddingStart="size-150"
+        paddingEnd="size-150"
+        paddingTop="size-50"
+        paddingBottom="size-50"
+        borderBottomColor="dark"
+        borderBottomWidth="thin"
+      >
+        <Heading level={4}>{title}</Heading>
+      </View>
+      {children}
     </View>
   );
 }
 
-function CodeBlock({
-  title,
-  value,
-}: {
-  title: string;
-  value: string;
-  mimeType: MimeType;
-}) {
+function SpanInfo({ span }: { span: Span }) {
+  const { input, output } = span;
   return (
-    <Card
-      collapsible
-      variant="compact"
-      title={title}
-      bodyStyle={{ padding: 0 }}
-    >
-      <CodeMirror value={value} theme="dark" lang="json" />
-    </Card>
+    <Flex direction="column">
+      <View
+        paddingTop="size-50"
+        paddingBottom="size-50"
+        paddingStart="size-250"
+        paddingEnd="size-250"
+        borderBottomColor="dark"
+        borderBottomWidth="thin"
+        backgroundColor="dark"
+      >
+        <SpanItem {...span} />
+      </View>
+      <View padding="size-200">
+        <Flex direction="column" gap="size-200">
+          {input && input.value != null ? (
+            <BlockView title="Input">
+              <CodeBlock {...input} />
+            </BlockView>
+          ) : null}
+          {output && output.value != null ? (
+            <BlockView title="Output">
+              <CodeBlock {...output} />
+            </BlockView>
+          ) : null}
+        </Flex>
+      </View>
+    </Flex>
   );
+}
+
+function CodeBlock({ value, mimeType }: { value: string; mimeType: MimeType }) {
+  let content;
+  switch (mimeType) {
+    case "json":
+      content = (
+        <CodeMirror
+          value={JSON.stringify(JSON.parse(value), null, 2)}
+          basicSetup={{
+            lineNumbers: true,
+            foldGutter: true,
+            bracketMatching: true,
+            syntaxHighlighting: true,
+            highlightActiveLine: false,
+          }}
+          extensions={[json(), EditorView.lineWrapping]}
+          editable={false}
+          theme={nord}
+        />
+      );
+      break;
+    case "text":
+      content = (
+        <CodeMirror
+          value={value}
+          theme={nord}
+          editable={false}
+          basicSetup={{
+            lineNumbers: false,
+            highlightActiveLine: false,
+            highlightActiveLineGutter: false,
+            syntaxHighlighting: true,
+          }}
+          extensions={[EditorView.lineWrapping]}
+        />
+      );
+      break;
+    default:
+      assertUnreachable(mimeType);
+  }
+
+  return content;
 }
 
 function SpanEventsList({ events }: { events: Span["events"] }) {
