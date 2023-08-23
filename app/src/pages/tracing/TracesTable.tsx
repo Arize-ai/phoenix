@@ -104,7 +104,7 @@ export function TracesTable(props: TracesTableProps) {
                 statusCode
                 startTime
                 latencyMs
-                tokenCountTotal
+                tokenCountTotal: cumulativeTokenCountTotal
                 parentId
                 input {
                   value

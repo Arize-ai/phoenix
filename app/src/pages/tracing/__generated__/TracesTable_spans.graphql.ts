@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<533089643ce2730bd212c7f1073a0242>>
+ * @generated SignedSource<<ce45ce4230aa49e95063d2acf5ab18a8>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -105,17 +105,10 @@ v6 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "tokenCountTotal",
-  "storageKey": null
-},
-v7 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
   "name": "parentId",
   "storageKey": null
 },
-v8 = [
+v7 = [
   {
     "alias": null,
     "args": null,
@@ -124,27 +117,27 @@ v8 = [
     "storageKey": null
   }
 ],
-v9 = {
+v8 = {
   "alias": null,
   "args": null,
   "concreteType": "SpanIOValue",
   "kind": "LinkedField",
   "name": "input",
   "plural": false,
-  "selections": (v8/*: any*/),
+  "selections": (v7/*: any*/),
   "storageKey": null
 },
-v10 = {
+v9 = {
   "alias": null,
   "args": null,
   "concreteType": "SpanIOValue",
   "kind": "LinkedField",
   "name": "output",
   "plural": false,
-  "selections": (v8/*: any*/),
+  "selections": (v7/*: any*/),
   "storageKey": null
 },
-v11 = {
+v10 = {
   "alias": null,
   "args": null,
   "concreteType": "SpanContext",
@@ -255,11 +248,17 @@ return {
                 (v3/*: any*/),
                 (v4/*: any*/),
                 (v5/*: any*/),
+                {
+                  "alias": "tokenCountTotal",
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "cumulativeTokenCountTotal",
+                  "storageKey": null
+                },
                 (v6/*: any*/),
-                (v7/*: any*/),
+                (v8/*: any*/),
                 (v9/*: any*/),
                 (v10/*: any*/),
-                (v11/*: any*/),
                 {
                   "alias": null,
                   "args": null,
@@ -273,11 +272,17 @@ return {
                     (v3/*: any*/),
                     (v4/*: any*/),
                     (v5/*: any*/),
-                    (v7/*: any*/),
                     (v6/*: any*/),
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "tokenCountTotal",
+                      "storageKey": null
+                    },
+                    (v8/*: any*/),
                     (v9/*: any*/),
-                    (v10/*: any*/),
-                    (v11/*: any*/)
+                    (v10/*: any*/)
                   ],
                   "storageKey": null
                 }
@@ -346,6 +351,6 @@ return {
 };
 })();
 
-(node as any).hash = "e0b5d2f6e5e1cde4acc5a790e2bb9a76";
+(node as any).hash = "6bc0cdddafa70b00a207cf4321ded880";
 
 export default node;

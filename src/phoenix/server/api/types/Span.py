@@ -103,6 +103,31 @@ class Span:
     events: List[SpanEvent]
 
     @strawberry.field(
+        description="Cumulative token count from self and all "
+        "descendant spans (children, grandchildren, etc.)",
+    )  # type: ignore
+    def cumulative_token_count_total(
+        self,
+        info: Info[Context, None],
+    ) -> Optional[int]:
+        if (traces := info.context.traces) is None:
+            return None
+        total = self.token_count_total or 0
+        try:
+            total += cast(
+                int,
+                traces._dataframe.loc[
+                    traces.get_descendant_span_ids(
+                        cast(SpanID, self.context.span_id),
+                    ),  # type: ignore
+                    ATTRIBUTE_PREFIX + LLM_TOKEN_COUNT_TOTAL,
+                ].sum(),
+            )
+        except KeyError:
+            pass
+        return total if total else None
+
+    @strawberry.field(
         description="All descendant spans (children, grandchildren, etc.)",
     )  # type: ignore
     def descendants(

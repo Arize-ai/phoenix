@@ -506,6 +506,11 @@ type Span {
   output: SpanIOValue
   events: [SpanEvent!]!
 
+  """
+  Cumulative token count from self and all descendant spans (children, grandchildren, etc.)
+  """
+  cumulativeTokenCountTotal: Int
+
   """All descendant spans (children, grandchildren, etc.)"""
   descendants: [Span!]!
 }
