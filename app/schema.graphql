@@ -60,6 +60,9 @@ type Dataset {
   """The end bookend of the data"""
   endTime: DateTime!
 
+  """The record count of the data"""
+  recordCount: Int!
+
   """Returns a human friendly name for the dataset."""
   name: String!
   events(eventIds: [ID!]!, dimensions: [DimensionInput!]): [Event!]!
