@@ -5,6 +5,7 @@ from typing import List
 import pandas as pd
 from pandas import DataFrame
 
+from ..helpers import normalize_timestamps
 from .schemas import Span
 from .span_json_encoder import span_to_json
 
@@ -31,8 +32,12 @@ def normalize_dataframe(dataframe: DataFrame) -> "DataFrame":
     """Makes the dataframe have appropriate data types"""
 
     # Convert the start and end times to datetime
-    dataframe["start_time"] = pd.to_datetime(dataframe["start_time"])
-    dataframe["end_time"] = pd.to_datetime(dataframe["end_time"])
+    dataframe["start_time"] = normalize_timestamps(
+        pd.to_datetime(dataframe["start_time"]),
+    )
+    dataframe["end_time"] = normalize_timestamps(
+        pd.to_datetime(dataframe["end_time"]),
+    )
 
     # Computed columns
     dataframe[ComputedColumns.latency_ms.value] = (

@@ -1,6 +1,7 @@
 from collections import defaultdict
+from datetime import datetime, timedelta
 from itertools import chain
-from typing import Dict, List, Optional, Set, Union
+from typing import Dict, List, Optional, Set, Union, cast
 
 import numpy as np
 import numpy.typing as npt
@@ -19,6 +20,7 @@ from phoenix.server.api.input_types.Coordinates import (
 from phoenix.server.api.input_types.SpanSort import SpanColumn, SpanSort
 from phoenix.server.api.types.Cluster import Cluster, to_gql_clusters
 
+from ...helpers import floor_to_minute
 from .context import Context
 from .types.DatasetRole import AncillaryDatasetRole, DatasetRole
 from .types.Dimension import to_gql_dimension
@@ -232,6 +234,61 @@ class Query:
                 before=before if isinstance(before, Cursor) else None,
             ),
         )
+
+    @strawberry.field(
+        description="Number of traces",
+    )  # type: ignore
+    def traces_count(
+        self,
+        info: Info[Context, None],
+    ) -> int:
+        if info.context.traces is None:
+            return 0
+        df = info.context.traces._dataframe
+        return df.loc[:, "parent_id"].isna().sum()
+
+    @strawberry.field(
+        description="The start bookend of the trace data",
+    )  # type: ignore
+    def traces_start_time(
+        self,
+        info: Info[Context, None],
+    ) -> Optional[datetime]:
+        if info.context.traces is None:
+            return None
+        df = info.context.traces._dataframe
+        start_time = cast(
+            datetime,
+            df.loc[
+                df.loc[:, "parent_id"].isna(),
+                "start_time",
+            ].min(),
+        )
+        return floor_to_minute(start_time)
+
+    @strawberry.field(
+        description="The end bookend of the trace data",
+    )  # type: ignore
+    def traces_end_time(
+        self,
+        info: Info[Context, None],
+    ) -> Optional[datetime]:
+        if info.context.traces is None:
+            return None
+        df = info.context.traces._dataframe
+        end_time = cast(
+            datetime,
+            df.loc[
+                df.loc[:, "parent_id"].isna(),
+                "start_time",
+            ].max(),
+        )
+        # Add one minute to end_time, because time intervals are right
+        # open and one minute is the smallest interval allowed.
+        stop_time = end_time + timedelta(
+            minutes=1,
+        )
+        return floor_to_minute(stop_time)
 
 
 @strawberry.type

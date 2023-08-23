@@ -456,6 +456,15 @@ type Query {
     clusterSelectionEpsilon: Float! = 0
   ): [Cluster!]!
   spans(traceIds: [ID!], first: Int = 50, last: Int, after: String, before: String, sort: SpanSort, rootSpansOnly: Boolean = false): SpanConnection!
+
+  """Number of traces"""
+  tracesCount: Int!
+
+  """The start bookend of the trace data"""
+  tracesStartTime: DateTime
+
+  """The end bookend of the trace data"""
+  tracesEndTime: DateTime
 }
 
 type Retrieval {

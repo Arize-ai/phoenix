@@ -4,6 +4,7 @@ from uuid import UUID
 import pandas as pd
 import pytest
 from pandas.testing import assert_frame_equal
+from phoenix.helpers import normalize_timestamps
 from phoenix.trace.schemas import (
     Span,
     SpanContext,
@@ -135,5 +136,9 @@ def test_dataset_construction_from_spans():
             },
         ]
     )
+    for column_name in ("start_time", "end_time"):
+        expected_dataframe[column_name] = normalize_timestamps(
+            expected_dataframe[column_name],
+        )
     dataset = TraceDataset.from_spans(spans)
     assert_frame_equal(expected_dataframe, dataset.dataframe[expected_dataframe.columns])
