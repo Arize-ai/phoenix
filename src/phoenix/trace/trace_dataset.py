@@ -32,12 +32,8 @@ def normalize_dataframe(dataframe: DataFrame) -> "DataFrame":
     """Makes the dataframe have appropriate data types"""
 
     # Convert the start and end times to datetime
-    dataframe["start_time"] = normalize_timestamps(
-        pd.to_datetime(dataframe["start_time"]),
-    )
-    dataframe["end_time"] = normalize_timestamps(
-        pd.to_datetime(dataframe["end_time"]),
-    )
+    dataframe["start_time"] = normalize_timestamps(dataframe["start_time"])
+    dataframe["end_time"] = normalize_timestamps(dataframe["end_time"])
 
     # Computed columns
     dataframe[ComputedColumns.latency_ms.value] = (
