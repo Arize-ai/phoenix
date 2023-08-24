@@ -1,6 +1,7 @@
 from collections import defaultdict
+from datetime import datetime, timedelta
 from itertools import chain
-from typing import Dict, List, Optional, Set, Union
+from typing import Dict, List, Optional, Set, Union, cast
 
 import numpy as np
 import numpy.typing as npt
@@ -9,6 +10,7 @@ from strawberry import ID, UNSET
 from strawberry.types import Info
 from typing_extensions import Annotated
 
+from phoenix.datetime_utils import floor_to_minute
 from phoenix.pointcloud.clustering import Hdbscan
 from phoenix.server.api.helpers import ensure_list
 from phoenix.server.api.input_types.ClusterInput import ClusterInput
@@ -19,7 +21,9 @@ from phoenix.server.api.input_types.Coordinates import (
 from phoenix.server.api.input_types.SpanSort import SpanColumn, SpanSort
 from phoenix.server.api.types.Cluster import Cluster, to_gql_clusters
 
+from ...core.traces import PARENT_ID, START_TIME, TRACE_ID
 from .context import Context
+from .types.DatasetInfo import DatasetInfo
 from .types.DatasetRole import AncillaryDatasetRole, DatasetRole
 from .types.Dimension import to_gql_dimension
 from .types.EmbeddingDimension import (
@@ -212,9 +216,9 @@ class Query:
         else:
             df = info.context.traces._dataframe
             if trace_ids:
-                df = df[df["context.trace_id"].isin(trace_ids)]
+                df = df.loc[df.loc[:, TRACE_ID].isin(trace_ids)]
             if root_spans_only:
-                df = df[df["parent_id"].isna()]
+                df = df.loc[df.loc[:, PARENT_ID].isna()]
             sort = (
                 SpanSort(col=SpanColumn.startTime, dir=SortDir.asc)
                 if not sort or sort.col.value not in df.columns
@@ -231,6 +235,32 @@ class Query:
                 last=last,
                 before=before if isinstance(before, Cursor) else None,
             ),
+        )
+
+    @strawberry.field
+    def trace_dataset_info(
+        self,
+        info: Info[Context, None],
+    ) -> Optional[DatasetInfo]:
+        if info.context.traces is None:
+            return None
+        df = info.context.traces._dataframe
+        min_max_start_time = df.loc[
+            df.loc[:, PARENT_ID].isna(),
+            START_TIME,
+        ].agg(["min", "max"])
+        start_time = cast(datetime, min_max_start_time.min())
+        end_time = cast(datetime, min_max_start_time.max())
+        # Add one minute to end_time, because time intervals are right
+        # open and one minute is the smallest interval allowed.
+        stop_time = end_time + timedelta(minutes=1)
+        # Round down to the nearest minute.
+        start = floor_to_minute(start_time)
+        stop = floor_to_minute(stop_time)
+        return DatasetInfo(
+            start_time=start,
+            end_time=stop,
+            record_count=len(df),
         )
 
 
