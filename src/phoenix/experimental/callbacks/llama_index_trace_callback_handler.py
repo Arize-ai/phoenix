@@ -7,7 +7,7 @@ observability solutions such as Arize and Phoenix.
 For more information on the specification, see
 https://github.com/Arize-ai/open-inference-spec
 """
-
+import json
 import logging
 from collections import defaultdict
 from datetime import datetime
@@ -24,11 +24,16 @@ from llama_index.callbacks.schema import (
 
 from phoenix.trace.schemas import Span, SpanID, SpanKind, SpanStatusCode
 from phoenix.trace.semantic_conventions import (
+    DOCUMENT_CONTENT,
+    DOCUMENT_ID,
+    DOCUMENT_METADATA,
+    DOCUMENT_SCORE,
     INPUT_MIME_TYPE,
     INPUT_VALUE,
     LLM_MESSAGES,
     OUTPUT_MIME_TYPE,
     OUTPUT_VALUE,
+    RETRIEVAL_DOCUMENTS,
     MimeType,
 )
 from phoenix.trace.tracer import Tracer
@@ -59,7 +64,15 @@ def payload_to_semantic_attributes(payload: Dict[str, Any]) -> Dict[str, Any]:
     if EventPayload.CHUNKS in payload:
         ...
     if EventPayload.NODES in payload:
-        ...
+        attributes[RETRIEVAL_DOCUMENTS] = [
+            {
+                DOCUMENT_ID: node_with_score.node.node_id,
+                DOCUMENT_SCORE: node_with_score.score,
+                DOCUMENT_CONTENT: node_with_score.node.text,
+                DOCUMENT_METADATA: json.dumps(node_with_score.node.metadata),
+            }
+            for node_with_score in payload[EventPayload.NODES]
+        ]
     if EventPayload.PROMPT in payload:
         ...
     if EventPayload.MESSAGES in payload:
