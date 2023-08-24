@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<963ba03446d874d05643c8610e6a2d7c>>
+ * @generated SignedSource<<537be2b40d29f0252ea67aa4ab77fca4>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -12,7 +12,7 @@ import { ConcreteRequest, Query } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type TracingHomePageQuery$variables = {};
 export type TracingHomePageQuery$data = {
-  readonly " $fragmentSpreads": FragmentRefs<"SpansTable_spans" | "TracesTable_spans">;
+  readonly " $fragmentSpreads": FragmentRefs<"SpansTable_spans" | "TracesTable_spans" | "TracingHomePageHeader_stats">;
 };
 export type TracingHomePageQuery = {
   response: TracingHomePageQuery$data;
@@ -164,45 +164,66 @@ v13 = {
   ],
   "storageKey": null
 },
-v14 = [
+v14 = {
+  "kind": "Literal",
+  "name": "rootSpansOnly",
+  "value": true
+},
+v15 = [
   (v0/*: any*/),
-  {
-    "kind": "Literal",
-    "name": "rootSpansOnly",
-    "value": true
-  },
+  (v14/*: any*/),
   (v1/*: any*/)
 ],
-v15 = {
+v16 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "parentId",
   "storageKey": null
 },
-v16 = [
+v17 = [
   (v9/*: any*/)
 ],
-v17 = {
+v18 = {
   "alias": null,
   "args": null,
   "concreteType": "SpanIOValue",
   "kind": "LinkedField",
   "name": "input",
   "plural": false,
-  "selections": (v16/*: any*/),
+  "selections": (v17/*: any*/),
   "storageKey": null
 },
-v18 = {
+v19 = {
   "alias": null,
   "args": null,
   "concreteType": "SpanIOValue",
   "kind": "LinkedField",
   "name": "output",
   "plural": false,
-  "selections": (v16/*: any*/),
+  "selections": (v17/*: any*/),
   "storageKey": null
-};
+},
+v20 = [
+  {
+    "alias": null,
+    "args": null,
+    "concreteType": "PageInfo",
+    "kind": "LinkedField",
+    "name": "pageInfo",
+    "plural": false,
+    "selections": [
+      {
+        "alias": null,
+        "args": null,
+        "kind": "ScalarField",
+        "name": "totalCount",
+        "storageKey": null
+      }
+    ],
+    "storageKey": null
+  }
+];
 return {
   "fragment": {
     "argumentDefinitions": [],
@@ -219,6 +240,11 @@ return {
         "args": null,
         "kind": "FragmentSpread",
         "name": "TracesTable_spans"
+      },
+      {
+        "args": null,
+        "kind": "FragmentSpread",
+        "name": "TracingHomePageHeader_stats"
       }
     ],
     "type": "Query",
@@ -312,7 +338,7 @@ return {
       },
       {
         "alias": "rootSpans",
-        "args": (v14/*: any*/),
+        "args": (v15/*: any*/),
         "concreteType": "SpanConnection",
         "kind": "LinkedField",
         "name": "spans",
@@ -346,9 +372,9 @@ return {
                     "name": "cumulativeTokenCountTotal",
                     "storageKey": null
                   },
-                  (v15/*: any*/),
-                  (v17/*: any*/),
+                  (v16/*: any*/),
                   (v18/*: any*/),
+                  (v19/*: any*/),
                   (v8/*: any*/),
                   {
                     "alias": null,
@@ -363,7 +389,7 @@ return {
                       (v5/*: any*/),
                       (v6/*: any*/),
                       (v7/*: any*/),
-                      (v15/*: any*/),
+                      (v16/*: any*/),
                       {
                         "alias": "cumulativeTokenCountTotal",
                         "args": null,
@@ -371,8 +397,8 @@ return {
                         "name": "tokenCountTotal",
                         "storageKey": null
                       },
-                      (v17/*: any*/),
                       (v18/*: any*/),
+                      (v19/*: any*/),
                       (v8/*: any*/)
                     ],
                     "storageKey": null
@@ -391,7 +417,7 @@ return {
       },
       {
         "alias": "rootSpans",
-        "args": (v14/*: any*/),
+        "args": (v15/*: any*/),
         "filters": [
           "sort",
           "rootSpansOnly"
@@ -400,20 +426,61 @@ return {
         "key": "TracesTable_rootSpans",
         "kind": "LinkedHandle",
         "name": "spans"
+      },
+      {
+        "alias": "totalSpans",
+        "args": null,
+        "concreteType": "SpanConnection",
+        "kind": "LinkedField",
+        "name": "spans",
+        "plural": false,
+        "selections": (v20/*: any*/),
+        "storageKey": null
+      },
+      {
+        "alias": "totalTraces",
+        "args": [
+          (v14/*: any*/)
+        ],
+        "concreteType": "SpanConnection",
+        "kind": "LinkedField",
+        "name": "spans",
+        "plural": false,
+        "selections": (v20/*: any*/),
+        "storageKey": "spans(rootSpansOnly:true)"
+      },
+      {
+        "alias": null,
+        "args": null,
+        "concreteType": "DatasetInfo",
+        "kind": "LinkedField",
+        "name": "traceDatasetInfo",
+        "plural": false,
+        "selections": [
+          (v6/*: any*/),
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "endTime",
+            "storageKey": null
+          }
+        ],
+        "storageKey": null
       }
     ]
   },
   "params": {
-    "cacheID": "13c4078e917d362a4d15929d93b8d0bc",
+    "cacheID": "56c75ed90d65f5439bfb99dcb5284ece",
     "id": null,
     "metadata": {},
     "name": "TracingHomePageQuery",
     "operationKind": "query",
-    "text": "query TracingHomePageQuery {\n  ...SpansTable_spans\n  ...TracesTable_spans\n}\n\nfragment SpansTable_spans on Query {\n  spans(first: 100, sort: {col: startTime, dir: desc}) {\n    edges {\n      span: node {\n        spanKind\n        name\n        statusCode\n        startTime\n        latencyMs\n        tokenCountTotal\n        context {\n          spanId\n          traceId\n        }\n        input {\n          value\n          mimeType\n        }\n        output {\n          value\n          mimeType\n        }\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n\nfragment TracesTable_spans on Query {\n  rootSpans: spans(first: 100, sort: {col: startTime, dir: desc}, rootSpansOnly: true) {\n    edges {\n      rootSpan: node {\n        spanKind\n        name\n        statusCode\n        startTime\n        latencyMs\n        cumulativeTokenCountTotal\n        parentId\n        input {\n          value\n        }\n        output {\n          value\n        }\n        context {\n          spanId\n          traceId\n        }\n        descendants {\n          spanKind\n          name\n          statusCode\n          startTime\n          latencyMs\n          parentId\n          cumulativeTokenCountTotal: tokenCountTotal\n          input {\n            value\n          }\n          output {\n            value\n          }\n          context {\n            spanId\n            traceId\n          }\n        }\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query TracingHomePageQuery {\n  ...SpansTable_spans\n  ...TracesTable_spans\n  ...TracingHomePageHeader_stats\n}\n\nfragment SpansTable_spans on Query {\n  spans(first: 100, sort: {col: startTime, dir: desc}) {\n    edges {\n      span: node {\n        spanKind\n        name\n        statusCode\n        startTime\n        latencyMs\n        tokenCountTotal\n        context {\n          spanId\n          traceId\n        }\n        input {\n          value\n          mimeType\n        }\n        output {\n          value\n          mimeType\n        }\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n\nfragment TracesTable_spans on Query {\n  rootSpans: spans(first: 100, sort: {col: startTime, dir: desc}, rootSpansOnly: true) {\n    edges {\n      rootSpan: node {\n        spanKind\n        name\n        statusCode\n        startTime\n        latencyMs\n        cumulativeTokenCountTotal\n        parentId\n        input {\n          value\n        }\n        output {\n          value\n        }\n        context {\n          spanId\n          traceId\n        }\n        descendants {\n          spanKind\n          name\n          statusCode\n          startTime\n          latencyMs\n          parentId\n          cumulativeTokenCountTotal: tokenCountTotal\n          input {\n            value\n          }\n          output {\n            value\n          }\n          context {\n            spanId\n            traceId\n          }\n        }\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n\nfragment TracingHomePageHeader_stats on Query {\n  totalSpans: spans {\n    pageInfo {\n      totalCount\n    }\n  }\n  totalTraces: spans(rootSpansOnly: true) {\n    pageInfo {\n      totalCount\n    }\n  }\n  traceDatasetInfo {\n    startTime\n    endTime\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "4d6da4ed899267d0f5c46beb2b7c00fa";
+(node as any).hash = "e92c3c876a2373bf2749d61961eb2f15";
 
 export default node;
