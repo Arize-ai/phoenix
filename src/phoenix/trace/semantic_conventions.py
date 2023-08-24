@@ -63,7 +63,7 @@ class MimeType(Enum):
 
 EMBEDDING_EMBEDDINGS = "embedding.embeddings"
 """
-The embedding vectors.
+A list of objects containing embedding data, including the vector and represented piece of text.
 """
 EMBEDDING_MODEL_NAME = "embedding.model_name"
 """
