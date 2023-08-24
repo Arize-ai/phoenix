@@ -11,6 +11,7 @@ from phoenix.experimental.callbacks.langchain_tracer import OpenInferenceTracer
 from phoenix.trace.schemas import SpanException, SpanKind, SpanStatusCode
 from phoenix.trace.semantic_conventions import (
     DOCUMENT_CONTENT,
+    DOCUMENT_METADATA,
     INPUT_MIME_TYPE,
     INPUT_VALUE,
     LLM_PROMPT_TEMPLATE,
@@ -78,6 +79,7 @@ def test_tracer_llm() -> None:
     assert attributes.get(RETRIEVAL_DOCUMENTS) == [
         {
             DOCUMENT_CONTENT: document,
+            DOCUMENT_METADATA: "{}",
         }
     ]
 
@@ -143,6 +145,7 @@ def test_tracer_llm_with_exception() -> None:
     assert spans["Retriever"].attributes[RETRIEVAL_DOCUMENTS] == [
         {
             DOCUMENT_CONTENT: document,
+            DOCUMENT_METADATA: "{}",
         },
     ]
 

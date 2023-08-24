@@ -8,9 +8,10 @@ def test_nested_attributes() -> None:
         {getattr(sem_conv, v): ... for v in dir(sem_conv) if v.isupper()},
     ) == {
         "document": {
-            "id": ...,
-            "score": ...,
             "content": ...,
+            "id": ...,
+            "metadata": ...,
+            "score": ...,
         },
         "input": {
             "mime_type": ...,

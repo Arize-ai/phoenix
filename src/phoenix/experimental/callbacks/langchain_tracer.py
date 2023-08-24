@@ -16,6 +16,7 @@ from phoenix.trace.schemas import (
 )
 from phoenix.trace.semantic_conventions import (
     DOCUMENT_CONTENT,
+    DOCUMENT_METADATA,
     INPUT_MIME_TYPE,
     INPUT_VALUE,
     LLM_FUNCTION_CALL,
@@ -154,6 +155,7 @@ def _retrieval_documents(
     yield RETRIEVAL_DOCUMENTS, [
         {
             DOCUMENT_CONTENT: document.get("page_content"),
+            DOCUMENT_METADATA: json.dumps(document.get("metadata") or {}),
         }
         for document in (run.get("outputs") or {}).get("documents") or []
     ]
