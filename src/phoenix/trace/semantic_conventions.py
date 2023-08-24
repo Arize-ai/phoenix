@@ -111,3 +111,8 @@ TOOL_DESCRIPTION = "tool.description"
 """
 Description of the tool's purpose, typically used to select the tool.
 """
+
+RETRIEVAL_DOCUMENTS = "retrieval.documents"
+DOCUMENT_ID = "document.id"
+DOCUMENT_SCORE = "document.score"
+DOCUMENT_CONTENT = "document.content"

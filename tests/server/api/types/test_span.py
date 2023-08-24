@@ -7,6 +7,11 @@ def test_nested_attributes() -> None:
     assert _nested_attributes(
         {getattr(sem_conv, v): ... for v in dir(sem_conv) if v.isupper()},
     ) == {
+        "document": {
+            "id": ...,
+            "score": ...,
+            "content": ...,
+        },
         "input": {
             "mime_type": ...,
             "value": ...,
@@ -30,6 +35,9 @@ def test_nested_attributes() -> None:
         "output": {
             "mime_type": ...,
             "value": ...,
+        },
+        "retrieval": {
+            "documents": ...,
         },
         "tool": {
             "description": ...,
