@@ -506,6 +506,21 @@ type Span {
   output: SpanIOValue
   events: [SpanEvent!]!
 
+  """
+  Cumulative (prompt plus completion) token count from self and all descendant spans (children, grandchildren, etc.)
+  """
+  cumulativeTokenCountTotal: Int
+
+  """
+  Cumulative (prompt) token count from self and all descendant spans (children, grandchildren, etc.)
+  """
+  cumulativeTokenCountPrompt: Int
+
+  """
+  Cumulative (completion) token count from self and all descendant spans (children, grandchildren, etc.)
+  """
+  cumulativeTokenCountCompletion: Int
+
   """All descendant spans (children, grandchildren, etc.)"""
   descendants: [Span!]!
 }
@@ -517,6 +532,9 @@ enum SpanColumn {
   tokenCountTotal
   tokenCountPrompt
   tokenCountCompletion
+  cumulativeTokenCountTotal
+  cumulativeTokenCountPrompt
+  cumulativeTokenCountCompletion
 }
 
 type SpanConnection {
