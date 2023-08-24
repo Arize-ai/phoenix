@@ -53,7 +53,7 @@ const router = createBrowserRouter(
       </Route>
       <Route
         path="/tracing"
-        handle={{ crumb: () => "trace" }}
+        handle={{ crumb: () => "tracing" }}
         element={<TracingHomePage />}
       >
         <Route path="traces">

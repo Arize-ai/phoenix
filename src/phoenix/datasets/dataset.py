@@ -3,24 +3,20 @@ import re
 import uuid
 from copy import deepcopy
 from dataclasses import dataclass, fields, replace
-from datetime import datetime
 from enum import Enum
 from itertools import groupby
 from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
 import numpy as np
 import pandas as pd
-import pytz
-from pandas import DataFrame, Series, Timestamp, read_parquet, to_datetime
+from pandas import DataFrame, Series, Timestamp, read_parquet
 from pandas.api.types import (
-    is_datetime64_any_dtype,
-    is_datetime64tz_dtype,
     is_numeric_dtype,
-    is_object_dtype,
 )
 from typing_extensions import TypeAlias
 
 from phoenix.config import DATASET_DIR, GENERATED_DATASET_NAME_PREFIX
+from phoenix.datetime_utils import normalize_timestamps
 
 from . import errors as err
 from .schema import (
@@ -608,24 +604,9 @@ def _normalize_timestamps(
             if len(dataframe)
             else Series([default_timestamp]).iloc[:0].set_axis(dataframe.index, axis=0)
         )
-    elif is_numeric_dtype(timestamp_column_dtype := dataframe[timestamp_column_name].dtype):
-        timestamp_column = to_datetime(dataframe[timestamp_column_name], unit="s", utc=True)
-    elif is_datetime64tz_dtype(timestamp_column_dtype):
-        timestamp_column = dataframe[timestamp_column_name].dt.tz_convert(pytz.utc)
-    elif is_datetime64_any_dtype(timestamp_column_dtype):
-        timestamp_column = (
-            dataframe[timestamp_column_name]
-            .dt.tz_localize(datetime.now().astimezone().tzinfo)
-            .dt.tz_convert(pytz.utc)
-        )
-    elif is_object_dtype(timestamp_column_dtype):
-        if (timestamp_column := to_datetime(dataframe[timestamp_column_name])).dt.tz is None:
-            timestamp_column = timestamp_column.dt.tz_localize(datetime.now().astimezone().tzinfo)
-        timestamp_column = timestamp_column.dt.tz_convert(pytz.utc)
     else:
-        raise ValueError(
-            "When provided, input timestamp column must have numeric or datetime dtype, "
-            f"but found {timestamp_column_dtype} instead."
+        timestamp_column = normalize_timestamps(
+            dataframe[timestamp_column_name],
         )
     dataframe[timestamp_column_name] = timestamp_column
     return dataframe, schema
