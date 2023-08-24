@@ -13,8 +13,7 @@ from phoenix.experimental.callbacks.llama_index_trace_callback_handler import (
 )
 from phoenix.trace.schemas import SpanKind
 from phoenix.trace.semantic_conventions import (
-    EMBEDDING_EMBEDDINGS_TEXT,
-    EMBEDDING_EMBEDDINGS_VECTOR,
+    EMBEDDING_EMBEDDINGS,
 )
 
 TEXT_EMBEDDING_ADA_002_EMBEDDING_DIM = 1536
@@ -75,11 +74,12 @@ def test_callback_handler_records_llm_and_embedding_attributes_for_query_engine(
     assert query in message_text
 
     span = next(span for span in tracer.span_buffer if span.span_kind == SpanKind.EMBEDDING)
-    embedding_texts = span.attributes[EMBEDDING_EMBEDDINGS_TEXT]
-    embedding_vectors = span.attributes[EMBEDDING_EMBEDDINGS_VECTOR]
-    assert len(embedding_texts) == len(embedding_vectors) == 1
-    assert embedding_texts[0] == query
-    assert len(embedding_vectors[0]) == TEXT_EMBEDDING_ADA_002_EMBEDDING_DIM
+    embedding_data = span.attributes[EMBEDDING_EMBEDDINGS]
+    assert len(embedding_data) == 1
+    embedding_text = embedding_data[0]["text"]
+    embedding_vector = embedding_data[0]["vector"]
+    assert embedding_text == query
+    assert len(embedding_vector) == TEXT_EMBEDDING_ADA_002_EMBEDDING_DIM
 
 
 @pytest.mark.skip(reason="LlamaIndex bug fix in progress")

@@ -24,8 +24,7 @@ from llama_index.callbacks.schema import (
 
 from phoenix.trace.schemas import Span, SpanID, SpanKind, SpanStatusCode
 from phoenix.trace.semantic_conventions import (
-    EMBEDDING_EMBEDDINGS_TEXT,
-    EMBEDDING_EMBEDDINGS_VECTOR,
+    EMBEDDING_EMBEDDINGS,
     INPUT_MIME_TYPE,
     INPUT_VALUE,
     LLM_MESSAGES,
@@ -56,8 +55,10 @@ def payload_to_semantic_attributes(payload: Dict[str, Any]) -> Dict[str, Any]:
     attributes = {}
 
     if EventPayload.CHUNKS in payload and EventPayload.EMBEDDINGS in payload:
-        attributes[EMBEDDING_EMBEDDINGS_TEXT] = payload[EventPayload.CHUNKS]
-        attributes[EMBEDDING_EMBEDDINGS_VECTOR] = payload[EventPayload.EMBEDDINGS]
+        attributes[EMBEDDING_EMBEDDINGS] = [
+            {"text": text, "vector": vector}
+            for text, vector in zip(payload[EventPayload.CHUNKS], payload[EventPayload.EMBEDDINGS])
+        ]
     if EventPayload.QUERY_STR in payload:
         attributes[INPUT_VALUE] = payload[EventPayload.QUERY_STR]
         attributes[INPUT_MIME_TYPE] = MimeType.TEXT
