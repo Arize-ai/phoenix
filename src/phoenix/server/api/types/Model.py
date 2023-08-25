@@ -63,6 +63,7 @@ class Model:
         return Dataset(
             start_time=start,
             end_time=stop,
+            record_count=len(dataset),
             dataset=dataset,
             dataset_role=DatasetRole.primary,
             model=info.context.model,
@@ -76,6 +77,7 @@ class Model:
         return Dataset(
             start_time=start,
             end_time=stop,
+            record_count=len(dataset),
             dataset=dataset,
             dataset_role=DatasetRole.reference,
             model=info.context.model,
@@ -91,6 +93,7 @@ class Model:
         return Dataset(
             start_time=start,
             end_time=stop,
+            record_count=len(dataset),
             dataset=dataset,
             dataset_role=AncillaryDatasetRole.corpus,
             model=info.context.corpus,

@@ -3,23 +3,31 @@ from enum import Enum
 import strawberry
 from pandas import DataFrame
 
-from phoenix.server.api.types.SortDir import SortDir
-from phoenix.trace.schemas import ATTRIBUTE_PREFIX
-from phoenix.trace.semantic_conventions import (
+from phoenix.core.traces import (
+    CUMULATIVE_LLM_TOKEN_COUNT_COMPLETION,
+    CUMULATIVE_LLM_TOKEN_COUNT_PROMPT,
+    CUMULATIVE_LLM_TOKEN_COUNT_TOTAL,
+    END_TIME,
+    LATENCY_MS,
     LLM_TOKEN_COUNT_COMPLETION,
     LLM_TOKEN_COUNT_PROMPT,
     LLM_TOKEN_COUNT_TOTAL,
+    START_TIME,
 )
+from phoenix.server.api.types.SortDir import SortDir
 
 
 @strawberry.enum
 class SpanColumn(Enum):
-    startTime = "start_time"
-    endTime = "end_time"
-    latencyMs = "latency_ms"
-    tokenCountTotal = ATTRIBUTE_PREFIX + LLM_TOKEN_COUNT_TOTAL
-    tokenCountPrompt = ATTRIBUTE_PREFIX + LLM_TOKEN_COUNT_PROMPT
-    tokenCountCompletion = ATTRIBUTE_PREFIX + LLM_TOKEN_COUNT_COMPLETION
+    startTime = START_TIME
+    endTime = END_TIME
+    latencyMs = LATENCY_MS
+    tokenCountTotal = LLM_TOKEN_COUNT_TOTAL
+    tokenCountPrompt = LLM_TOKEN_COUNT_PROMPT
+    tokenCountCompletion = LLM_TOKEN_COUNT_COMPLETION
+    cumulativeTokenCountTotal = CUMULATIVE_LLM_TOKEN_COUNT_TOTAL
+    cumulativeTokenCountPrompt = CUMULATIVE_LLM_TOKEN_COUNT_PROMPT
+    cumulativeTokenCountCompletion = CUMULATIVE_LLM_TOKEN_COUNT_COMPLETION
 
 
 @strawberry.input
