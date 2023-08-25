@@ -212,11 +212,13 @@ export function TracesTable(props: TracesTableProps) {
     {
       header: "input",
       accessorKey: "input.value",
+      enableSorting: false,
       cell: TextCell,
     },
     {
       header: "output",
       accessorKey: "output.value",
+      enableSorting: false,
       cell: TextCell,
     },
     {
@@ -241,6 +243,7 @@ export function TracesTable(props: TracesTableProps) {
     {
       header: "status",
       accessorKey: "statusCode",
+      enableSorting: false,
       cell: ({ getValue }) => {
         return <SpanStatusCodeIcon statusCode={getValue() as SpanStatusCode} />;
       },
