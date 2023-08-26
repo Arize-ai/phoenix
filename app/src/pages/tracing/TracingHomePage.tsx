@@ -38,7 +38,7 @@ export function TracingHomePage() {
             display: flex;
             flex-direction: column;
             overflow: hidden;
-            div[role="tabpanel"] {
+            div[role="tabpanel"]:not([hidden]) {
               flex: 1 1 auto;
               display: flex;
               flex-direction: column;
