@@ -67,9 +67,7 @@ def _download_traces_fixture(
     """
     url = f"{host}{bucket}/{prefix}{fixture.file_name}"
     with request.urlopen(url) as f:
-        df = json_lines_to_df(f.readlines()).head(2)
-        print("HEAD")
-        return df
+        return json_lines_to_df(f.readlines())
 
 
 def load_example_traces(use_case: str) -> TraceDataset:
