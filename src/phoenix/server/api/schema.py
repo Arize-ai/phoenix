@@ -226,16 +226,16 @@ class Query:
             )
             # Convert dataframe rows to Span objects
             spans = (
-               []
-               if df.empty
-               # When df is empty, sometimes `.apply` returns DataFrame when
-               # it should return Series. It's unclear why that happens.
-               else sort.apply(df)  # type: ignore
-               .apply(
-                   to_gql_span,
-                   axis=1,
-               )
-               .to_list()
+                []
+                if df.empty
+                # When df is empty, sometimes `.apply` returns DataFrame when
+                # it should return Series. It's unclear why that happens.
+                else sort.apply(df)  # type: ignore
+                .apply(
+                    to_gql_span,
+                    axis=1,
+                )
+                .to_list()
             )
 
         return connection_from_list(
