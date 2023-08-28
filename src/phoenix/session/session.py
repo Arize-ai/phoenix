@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 from collections import UserList
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import TYPE_CHECKING, Iterable, List, Optional, Set, Union
+from typing import TYPE_CHECKING, Dict, Iterable, List, Optional, Set, Union
 
 import pandas as pd
 from portpicker import pick_unused_port
@@ -67,7 +67,7 @@ class Session(ABC):
         reference_dataset: Optional[Dataset] = None,
         corpus_dataset: Optional[Dataset] = None,
         trace_dataset: Optional[TraceDataset] = None,
-        default_umap_parameters: Optional[dict[str, int]] = None,
+        default_umap_parameters: Optional[Dict[str, int]] = None,
         port: int = PORT,
     ):
         self.primary_dataset = primary_dataset
@@ -151,7 +151,7 @@ class ProcessSession(Session):
         reference_dataset: Optional[Dataset] = None,
         corpus_dataset: Optional[Dataset] = None,
         trace_dataset: Optional[TraceDataset] = None,
-        default_umap_parameters: Optional[dict[str, int]] = None,
+        default_umap_parameters: Optional[Dict[str, int]] = None,
         port: Optional[int] = None,
     ) -> None:
         super().__init__(
@@ -197,7 +197,7 @@ class ThreadSession(Session):
         reference_dataset: Optional[Dataset] = None,
         corpus_dataset: Optional[Dataset] = None,
         trace_dataset: Optional[TraceDataset] = None,
-        default_umap_parameters: Optional[dict[str, int]] = None,
+        default_umap_parameters: Optional[Dict[str, int]] = None,
         port: Optional[int] = None,
     ):
         super().__init__(
@@ -237,7 +237,7 @@ def launch_app(
     reference: Optional[Dataset] = None,
     corpus: Optional[Dataset] = None,
     trace: Optional[TraceDataset] = None,
-    default_umap_parameters: Optional[dict[str, Union[int, float]]] = None,
+    default_umap_parameters: Optional[Dict[str, Union[int, float]]] = None,
     port: Optional[int] = None,
     run_in_thread: Optional[bool] = True,
 ) -> Optional[Session]:
@@ -259,7 +259,7 @@ def launch_app(
         The port on which the server listens.
     run_in_thread: bool, optional, default=True
         Whether the server should run in a Thread or Process.
-    default_umap_parameters: dict[str, Union[int, float]], optional, default=None
+    default_umap_parameters: Dict[str, Union[int, float]], optional, default=None
         User specified default UMAP parameters eg: {nNeighbors: 10, nSamples: 5, minDist: 0.5}
 
     Returns
