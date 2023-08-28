@@ -104,7 +104,7 @@ export function TracesTable(props: TracesTableProps) {
                 statusCode
                 startTime
                 latencyMs
-                tokenCountTotal
+                cumulativeTokenCountTotal
                 parentId
                 input {
                   value
@@ -123,7 +123,7 @@ export function TracesTable(props: TracesTableProps) {
                   startTime
                   latencyMs
                   parentId
-                  tokenCountTotal
+                  cumulativeTokenCountTotal: tokenCountTotal # this switcheroo is to allow descendant Rows to unfurl in the same Table while displaying a different value under the same Column
                   input {
                     value
                   }
@@ -212,11 +212,13 @@ export function TracesTable(props: TracesTableProps) {
     {
       header: "input",
       accessorKey: "input.value",
+      enableSorting: false,
       cell: TextCell,
     },
     {
       header: "output",
       accessorKey: "output.value",
+      enableSorting: false,
       cell: TextCell,
     },
     {
@@ -235,12 +237,13 @@ export function TracesTable(props: TracesTableProps) {
     },
     {
       header: "total tokens",
-      accessorKey: "tokenCountTotal",
+      accessorKey: "cumulativeTokenCountTotal",
       cell: IntCell,
     },
     {
       header: "status",
       accessorKey: "statusCode",
+      enableSorting: false,
       cell: ({ getValue }) => {
         return <SpanStatusCodeIcon statusCode={getValue() as SpanStatusCode} />;
       },

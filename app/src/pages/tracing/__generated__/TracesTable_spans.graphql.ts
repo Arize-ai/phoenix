@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<b7ec51c220a9476278161ccf9afeb818>>
+ * @generated SignedSource<<24d46ff49f177b1b2a4ec384979e2a5a>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -20,38 +20,38 @@ export type TracesTable_spans$data = {
           readonly spanId: string;
           readonly traceId: string;
         };
+        readonly cumulativeTokenCountTotal: number | null;
         readonly descendants: ReadonlyArray<{
           readonly context: {
             readonly spanId: string;
             readonly traceId: string;
           };
+          readonly cumulativeTokenCountTotal: number | null;
           readonly input: {
-            readonly value: string | null;
-          };
+            readonly value: string;
+          } | null;
           readonly latencyMs: number;
           readonly name: string;
           readonly output: {
-            readonly value: string | null;
-          };
+            readonly value: string;
+          } | null;
           readonly parentId: string | null;
           readonly spanKind: SpanKind;
           readonly startTime: string;
           readonly statusCode: SpanStatusCode;
-          readonly tokenCountTotal: number | null;
         }>;
         readonly input: {
-          readonly value: string | null;
-        };
+          readonly value: string;
+        } | null;
         readonly latencyMs: number;
         readonly name: string;
         readonly output: {
-          readonly value: string | null;
-        };
+          readonly value: string;
+        } | null;
         readonly parentId: string | null;
         readonly spanKind: SpanKind;
         readonly startTime: string;
         readonly statusCode: SpanStatusCode;
-        readonly tokenCountTotal: number | null;
       };
     }>;
   };
@@ -105,17 +105,10 @@ v6 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "tokenCountTotal",
-  "storageKey": null
-},
-v7 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
   "name": "parentId",
   "storageKey": null
 },
-v8 = [
+v7 = [
   {
     "alias": null,
     "args": null,
@@ -124,27 +117,27 @@ v8 = [
     "storageKey": null
   }
 ],
-v9 = {
+v8 = {
   "alias": null,
   "args": null,
   "concreteType": "SpanIOValue",
   "kind": "LinkedField",
   "name": "input",
   "plural": false,
-  "selections": (v8/*: any*/),
+  "selections": (v7/*: any*/),
   "storageKey": null
 },
-v10 = {
+v9 = {
   "alias": null,
   "args": null,
   "concreteType": "SpanIOValue",
   "kind": "LinkedField",
   "name": "output",
   "plural": false,
-  "selections": (v8/*: any*/),
+  "selections": (v7/*: any*/),
   "storageKey": null
 },
-v11 = {
+v10 = {
   "alias": null,
   "args": null,
   "concreteType": "SpanContext",
@@ -255,11 +248,17 @@ return {
                 (v3/*: any*/),
                 (v4/*: any*/),
                 (v5/*: any*/),
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "cumulativeTokenCountTotal",
+                  "storageKey": null
+                },
                 (v6/*: any*/),
-                (v7/*: any*/),
+                (v8/*: any*/),
                 (v9/*: any*/),
                 (v10/*: any*/),
-                (v11/*: any*/),
                 {
                   "alias": null,
                   "args": null,
@@ -273,11 +272,17 @@ return {
                     (v3/*: any*/),
                     (v4/*: any*/),
                     (v5/*: any*/),
-                    (v7/*: any*/),
                     (v6/*: any*/),
+                    {
+                      "alias": "cumulativeTokenCountTotal",
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "tokenCountTotal",
+                      "storageKey": null
+                    },
+                    (v8/*: any*/),
                     (v9/*: any*/),
-                    (v10/*: any*/),
-                    (v11/*: any*/)
+                    (v10/*: any*/)
                   ],
                   "storageKey": null
                 }
@@ -346,6 +351,6 @@ return {
 };
 })();
 
-(node as any).hash = "e0b5d2f6e5e1cde4acc5a790e2bb9a76";
+(node as any).hash = "39c857c68cf8fa7a81302715ee9092b9";
 
 export default node;

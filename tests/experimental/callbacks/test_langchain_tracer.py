@@ -10,6 +10,8 @@ from langchain.retrievers import KNNRetriever
 from phoenix.experimental.callbacks.langchain_tracer import OpenInferenceTracer
 from phoenix.trace.schemas import SpanException, SpanKind, SpanStatusCode
 from phoenix.trace.semantic_conventions import (
+    DOCUMENT_CONTENT,
+    DOCUMENT_METADATA,
     EXCEPTION_MESSAGE,
     INPUT_MIME_TYPE,
     INPUT_VALUE,
@@ -18,6 +20,7 @@ from phoenix.trace.semantic_conventions import (
     LLM_PROMPT_TEMPLATE_VERSION,
     OUTPUT_MIME_TYPE,
     OUTPUT_VALUE,
+    RETRIEVAL_DOCUMENTS,
     MimeType,
 )
 from phoenix.trace.span_json_decoder import json_string_to_span
@@ -27,9 +30,10 @@ from phoenix.trace.span_json_encoder import span_to_json
 def test_tracer_llm() -> None:
     question = "What are the colors in a rainbow?"
     answer = "ROYGBIV"
+    document = "rainbow colors"
     retriever = KNNRetriever(
         index=np.ones((1, 7)),
-        texts=["rainbow colors"],
+        texts=[document],
         embeddings=FakeEmbeddings(size=7),
     )
     tracer = OpenInferenceTracer()
@@ -73,6 +77,12 @@ def test_tracer_llm() -> None:
     assert attributes.get(OUTPUT_MIME_TYPE) is MimeType.JSON
     assert attributes.get(INPUT_VALUE) is question
     assert loads(attributes.get(OUTPUT_VALUE))
+    assert attributes.get(RETRIEVAL_DOCUMENTS) == [
+        {
+            DOCUMENT_CONTENT: document,
+            DOCUMENT_METADATA: "{}",
+        }
+    ]
 
     attributes = spans["StuffDocumentsChain"].attributes
     assert attributes.get(INPUT_MIME_TYPE) is MimeType.JSON
@@ -101,9 +111,10 @@ def test_tracer_llm() -> None:
 
 def test_tracer_llm_with_exception() -> None:
     question = "What are the colors in a rainbow?"
+    document = "rainbow colors"
     retriever = KNNRetriever(
         index=np.ones((1, 7)),
-        texts=["rainbow colors"],
+        texts=[document],
         embeddings=FakeEmbeddings(size=7),
     )
     tracer = OpenInferenceTracer()
@@ -131,6 +142,13 @@ def test_tracer_llm_with_exception() -> None:
         exception = events.get("exception")
         assert isinstance(exception, SpanException)
         assert exception.attributes[EXCEPTION_MESSAGE].startswith("IndexError")
+
+    assert spans["Retriever"].attributes[RETRIEVAL_DOCUMENTS] == [
+        {
+            DOCUMENT_CONTENT: document,
+            DOCUMENT_METADATA: "{}",
+        },
+    ]
 
     for span in spans.values():
         assert json_string_to_span(span_to_json(span)) == span
@@ -164,6 +182,8 @@ def test_tracer_retriever_with_exception() -> None:
         exception = events.get("exception")
         assert isinstance(exception, SpanException)
         assert exception.attributes[EXCEPTION_MESSAGE].startswith("IndexError")
+
+    assert spans["Retriever"].attributes[RETRIEVAL_DOCUMENTS] == []
 
     for span in spans.values():
         assert json_string_to_span(span_to_json(span)) == span

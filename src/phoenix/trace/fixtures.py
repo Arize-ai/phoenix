@@ -20,6 +20,12 @@ llama_index_rag_fixture = TracesFixture(
     description="Traces from running the llama_index on a RAG use case.",
     file_name="llama_index_rag.jsonl",
 )
+langchain_rag_fixture = TracesFixture(
+    name="langchain_rag",
+    description="LangChain RAG data",
+    file_name="langchain_rag.jsonl",
+)
+
 random_fixture = TracesFixture(
     name="random",
     description="Randomly generated traces",
@@ -28,6 +34,7 @@ random_fixture = TracesFixture(
 
 TRACES_FIXTURES: List[TracesFixture] = [
     llama_index_rag_fixture,
+    langchain_rag_fixture,
     random_fixture,
 ]
 

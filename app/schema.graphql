@@ -60,9 +60,23 @@ type Dataset {
   """The end bookend of the data"""
   endTime: DateTime!
 
+  """The record count of the data"""
+  recordCount: Int!
+
   """Returns a human friendly name for the dataset."""
   name: String!
   events(eventIds: [ID!]!, dimensions: [DimensionInput!]): [Event!]!
+}
+
+type DatasetInfo {
+  """The start bookend of the data"""
+  startTime: DateTime!
+
+  """The end bookend of the data"""
+  endTime: DateTime!
+
+  """The record count of the data"""
+  recordCount: Int!
 }
 
 enum DatasetRole {
@@ -396,6 +410,7 @@ type PageInfo {
   hasPreviousPage: Boolean!
   startCursor: String
   endCursor: String
+  totalCount: Int!
 }
 
 enum PerformanceMetric {
@@ -456,6 +471,7 @@ type Query {
     clusterSelectionEpsilon: Float! = 0
   ): [Cluster!]!
   spans(traceIds: [ID!], first: Int = 50, last: Int, after: String, before: String, sort: SpanSort, rootSpansOnly: Boolean = false): SpanConnection!
+  traceDatasetInfo: DatasetInfo
 }
 
 type Retrieval {
@@ -502,8 +518,24 @@ type Span {
   tokenCountTotal: Int
   tokenCountPrompt: Int
   tokenCountCompletion: Int
-  input: SpanIOValue!
-  output: SpanIOValue!
+  input: SpanIOValue
+  output: SpanIOValue
+  events: [SpanEvent!]!
+
+  """
+  Cumulative (prompt plus completion) token count from self and all descendant spans (children, grandchildren, etc.)
+  """
+  cumulativeTokenCountTotal: Int
+
+  """
+  Cumulative (prompt) token count from self and all descendant spans (children, grandchildren, etc.)
+  """
+  cumulativeTokenCountPrompt: Int
+
+  """
+  Cumulative (completion) token count from self and all descendant spans (children, grandchildren, etc.)
+  """
+  cumulativeTokenCountCompletion: Int
 
   """All descendant spans (children, grandchildren, etc.)"""
   descendants: [Span!]!
@@ -516,6 +548,9 @@ enum SpanColumn {
   tokenCountTotal
   tokenCountPrompt
   tokenCountCompletion
+  cumulativeTokenCountTotal
+  cumulativeTokenCountPrompt
+  cumulativeTokenCountCompletion
 }
 
 type SpanConnection {
@@ -533,9 +568,15 @@ type SpanEdge {
   cursor: String!
 }
 
+type SpanEvent {
+  name: String!
+  message: String!
+  timestamp: DateTime!
+}
+
 type SpanIOValue {
   mimeType: MimeType!
-  value: String
+  value: String!
 }
 
 enum SpanKind {

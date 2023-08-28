@@ -15,6 +15,8 @@ from phoenix.trace.schemas import (
     SpanStatusCode,
 )
 from phoenix.trace.semantic_conventions import (
+    DOCUMENT_CONTENT,
+    DOCUMENT_METADATA,
     INPUT_MIME_TYPE,
     INPUT_VALUE,
     LLM_FUNCTION_CALL,
@@ -28,6 +30,9 @@ from phoenix.trace.semantic_conventions import (
     LLM_TOKEN_COUNT_TOTAL,
     OUTPUT_MIME_TYPE,
     OUTPUT_VALUE,
+    RETRIEVAL_DOCUMENTS,
+    TOOL_DESCRIPTION,
+    TOOL_NAME,
     MimeType,
 )
 from phoenix.trace.tracer import Tracer
@@ -84,8 +89,11 @@ def _prompt_template(run_serialized: Dict[str, Any]) -> Iterator[Tuple[str, Any]
             break
 
 
-def _invocation_parameters(run_extra: Dict[str, Any]) -> Iterator[Tuple[str, str]]:
+def _invocation_parameters(run: Dict[str, Any]) -> Iterator[Tuple[str, str]]:
     """Yields invocation parameters if present."""
+    if run["run_type"] != "llm":
+        return
+    run_extra = run["extra"]
     yield LLM_INVOCATION_PARAMETERS, json.dumps(run_extra.get("invocation_params", {}))
 
 
@@ -128,6 +136,31 @@ def _function_calls(run_outputs: Dict[str, Any]) -> Iterator[Tuple[str, str]]:
         pass
 
 
+def _tools(run: Dict[str, Any]) -> Iterator[Tuple[str, str]]:
+    """Yields tool attributes if present."""
+    if run["run_type"] != "tool":
+        return
+    run_serialized = run["serialized"]
+    if "name" in run_serialized:
+        yield TOOL_NAME, run_serialized["name"]
+    if "description" in run_serialized:
+        yield TOOL_DESCRIPTION, run_serialized["description"]
+
+
+def _retrieval_documents(
+    run: Dict[str, Any],
+) -> Iterator[Tuple[str, List[Any]]]:
+    if run["run_type"] != "retriever":
+        return
+    yield RETRIEVAL_DOCUMENTS, [
+        {
+            DOCUMENT_CONTENT: document.get("page_content"),
+            DOCUMENT_METADATA: json.dumps(document.get("metadata") or {}),
+        }
+        for document in (run.get("outputs") or {}).get("documents") or []
+    ]
+
+
 class OpenInferenceTracer(Tracer, BaseTracer):
     def _convert_run_to_spans(
         self,
@@ -141,10 +174,12 @@ class OpenInferenceTracer(Tracer, BaseTracer):
         }.items():
             attributes.update(zip(io_attributes, _convert_io(run.get(io_key))))
         attributes.update(_prompt_template(run["serialized"]))
-        attributes.update(_invocation_parameters(run["extra"]))
+        attributes.update(_invocation_parameters(run))
         attributes.update(_model_name(run["extra"]))
         attributes.update(_token_counts(run["outputs"]))
         attributes.update(_function_calls(run["outputs"]))
+        attributes.update(_tools(run))
+        attributes.update(_retrieval_documents(run))
         events: List[SpanEvent] = []
         if (error := run["error"]) is None:
             status_code = SpanStatusCode.OK

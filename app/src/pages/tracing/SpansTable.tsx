@@ -150,6 +150,7 @@ export function SpansTable(props: SpansTableProps) {
     {
       header: "status",
       accessorKey: "statusCode",
+      enableSorting: false,
       cell: ({ getValue }) => {
         return <SpanStatusCodeIcon statusCode={getValue() as SpanStatusCode} />;
       },

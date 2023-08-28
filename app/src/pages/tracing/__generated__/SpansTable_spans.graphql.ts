@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<153efabbd137d63e9e0562f5cbaa8699>>
+ * @generated SignedSource<<1be23033bf88ab61ca88b79f028338af>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -23,14 +23,14 @@ export type SpansTable_spans$data = {
         };
         readonly input: {
           readonly mimeType: MimeType;
-          readonly value: string | null;
-        };
+          readonly value: string;
+        } | null;
         readonly latencyMs: number;
         readonly name: string;
         readonly output: {
           readonly mimeType: MimeType;
-          readonly value: string | null;
-        };
+          readonly value: string;
+        } | null;
         readonly spanKind: SpanKind;
         readonly startTime: string;
         readonly statusCode: SpanStatusCode;

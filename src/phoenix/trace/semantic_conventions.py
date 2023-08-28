@@ -105,3 +105,21 @@ LLM_TOKEN_COUNT_TOTAL = "llm.token_count.total"
 """
 Total number of tokens, including both prompt and completion.
 """
+
+TOOL_NAME = "tool.name"
+"""
+Name of the tool being used.
+"""
+TOOL_DESCRIPTION = "tool.description"
+"""
+Description of the tool's purpose, typically used to select the tool.
+"""
+
+RETRIEVAL_DOCUMENTS = "retrieval.documents"
+DOCUMENT_ID = "document.id"
+DOCUMENT_SCORE = "document.score"
+DOCUMENT_CONTENT = "document.content"
+DOCUMENT_METADATA = "document.metadata"
+"""
+Document metadata as a string representing a JSON object
+"""

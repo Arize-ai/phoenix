@@ -1,9 +1,10 @@
 import json
-from enum import Enum
 from typing import List
 
 import pandas as pd
 from pandas import DataFrame
+
+from phoenix.datetime_utils import normalize_timestamps
 
 from .schemas import Span
 from .span_json_encoder import span_to_json
@@ -22,22 +23,12 @@ REQUIRED_COLUMNS = [
 ]
 
 
-class ComputedColumns(Enum):
-    "The latency of the span in milliseconds"
-    latency_ms = "latency_ms"
-
-
 def normalize_dataframe(dataframe: DataFrame) -> "DataFrame":
     """Makes the dataframe have appropriate data types"""
 
     # Convert the start and end times to datetime
-    dataframe["start_time"] = pd.to_datetime(dataframe["start_time"])
-    dataframe["end_time"] = pd.to_datetime(dataframe["end_time"])
-
-    # Computed columns
-    dataframe[ComputedColumns.latency_ms.value] = (
-        dataframe["end_time"] - dataframe["start_time"]
-    ).dt.total_seconds() * 1000
+    dataframe["start_time"] = normalize_timestamps(dataframe["start_time"])
+    dataframe["end_time"] = normalize_timestamps(dataframe["end_time"])
     return dataframe
 
 
