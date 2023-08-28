@@ -12,6 +12,7 @@ from phoenix.trace.schemas import (
     SpanContext,
     SpanConversationAttributes,
     SpanEvent,
+    SpanException,
     SpanKind,
     SpanStatusCode,
 )
@@ -53,7 +54,7 @@ def generate_trace(num_spans: int) -> List[Span]:
         span_id = uuid4()
         span_kind = random.choice(list(SpanKind))
         status_code = random.choice(list(SpanStatusCode))
-        status_message = "OK" if status_code == SpanStatusCode.OK else "Error occurred"
+        status_message = "OK" if status_code == SpanStatusCode.OK else ""
         attributes: Dict[str, AttributeValue] = {
             f"attr_{j}": f"value_{j}" for j in range(random.randint(1, 5))
         }
@@ -76,7 +77,15 @@ def generate_trace(num_spans: int) -> List[Span]:
             )
             for j in range(random.randint(1, 5))
         ]
-
+        if random.random() < 0.1:
+            status_code = SpanStatusCode.ERROR
+            status_message = "Error occurred"
+            events.append(
+                SpanException(
+                    message="KeyboardInterrupt()",
+                    timestamp=end_time,
+                )
+            )
         span = Span(
             name=f"span_{span_id}",
             context=SpanContext(trace_id=trace_id, span_id=span_id),
