@@ -228,7 +228,7 @@ class Query:
             spans = (
                 []
                 if df.empty
-                # When df is empty, sometimes `pandas.DataFrame.apply` returns
+                # When df is empty, `pandas.DataFrame.apply` sometimes returns
                 # DataFrame when it should return Series. It's unclear why that
                 # happens.
                 else sort.apply(df)  # type: ignore
