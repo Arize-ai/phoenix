@@ -123,6 +123,11 @@ dependencies = [
   "ruff~=0.0.286",
 ]
 
+[tool.hatch.envs.gql]
+dependencies = [
+  "strawberry-graphql[cli]==0.205.0",
+]
+
 [tool.hatch.envs.notebooks]
 detached = true
 dependencies = [
