@@ -228,8 +228,9 @@ class Query:
             spans = (
                 []
                 if df.empty
-                # When df is empty, sometimes `.apply` returns DataFrame when
-                # it should return Series. It's unclear why that happens.
+                # When df is empty, sometimes `pandas.DataFrame.apply` returns
+                # DataFrame when it should return Series. It's unclear why that
+                # happens.
                 else sort.apply(df)  # type: ignore
                 .apply(
                     to_gql_span,
