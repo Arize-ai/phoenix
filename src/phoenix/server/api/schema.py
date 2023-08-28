@@ -225,7 +225,19 @@ class Query:
                 else sort
             )
             # Convert dataframe rows to Span objects
-            spans = sort.apply(df).apply(to_gql_span, axis=1).to_list()  # type: ignore
+            spans = (
+                []
+                if df.empty
+                # When df is empty, `pandas.DataFrame.apply` sometimes returns
+                # DataFrame when it should return Series. It's unclear why that
+                # happens.
+                else sort.apply(df)  # type: ignore
+                .apply(
+                    to_gql_span,
+                    axis=1,
+                )
+                .to_list()
+            )
 
         return connection_from_list(
             data=spans,

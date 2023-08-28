@@ -99,8 +99,8 @@ class Span:
     name: str
     status_code: SpanStatusCode
     start_time: datetime
-    end_time: datetime
-    latency_ms: int
+    end_time: Optional[datetime]
+    latency_ms: Optional[int]
     parent_id: Optional[ID] = strawberry.field(
         description="the parent span ID. If null, it is a root span"
     )
@@ -165,7 +165,7 @@ def to_gql_span(row: "Series[Any]") -> Span:
         span_kind=row[SPAN_KIND],
         start_time=row[START_TIME],
         end_time=row[END_TIME],
-        latency_ms=int(row[LATENCY_MS]),
+        latency_ms=_as_int_or_none(row[LATENCY_MS]),
         context=SpanContext(
             trace_id=row[TRACE_ID],
             span_id=row[SPAN_ID],

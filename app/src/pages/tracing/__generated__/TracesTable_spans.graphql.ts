@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<24d46ff49f177b1b2a4ec384979e2a5a>>
+ * @generated SignedSource<<79ddc30979f5525d56b6927ca459234c>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -30,7 +30,7 @@ export type TracesTable_spans$data = {
           readonly input: {
             readonly value: string;
           } | null;
-          readonly latencyMs: number;
+          readonly latencyMs: number | null;
           readonly name: string;
           readonly output: {
             readonly value: string;
@@ -43,7 +43,7 @@ export type TracesTable_spans$data = {
         readonly input: {
           readonly value: string;
         } | null;
-        readonly latencyMs: number;
+        readonly latencyMs: number | null;
         readonly name: string;
         readonly output: {
           readonly value: string;
