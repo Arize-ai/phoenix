@@ -31,7 +31,7 @@ class TimeSeriesDataPoint:
     """The value of the data point"""
     value: Optional[float] = strawberry.field(default=GqlValueMediator())
 
-    def __lt__(self, other: "TimeSeriesDataPoint") -> bool:
+    def __lt__(self, other: "TimeSeriesDataPoint") -> bool:  # type: ignore
         return self.timestamp < other.timestamp
 
 
