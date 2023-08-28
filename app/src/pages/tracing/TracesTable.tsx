@@ -231,7 +231,11 @@ export function TracesTable(props: TracesTableProps) {
       accessorKey: "latencyMs",
 
       cell: ({ getValue }) => {
-        const seconds = (getValue() as number) / 1000;
+        const value = getValue();
+        if (value === null) {
+          return null;
+        }
+        const seconds = (value as number) / 1000;
         return <span css={floatRightCSS}>{formatFloat(seconds)}s</span>;
       },
     },

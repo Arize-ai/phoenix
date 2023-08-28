@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<6ace82fb0fc638bdd2c148863b810a4f>>
+ * @generated SignedSource<<a302501dd4bb5c7eed509c7106d64deb>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -32,7 +32,7 @@ export type TracePageQuery$data = {
           readonly mimeType: MimeType;
           readonly value: string;
         } | null;
-        readonly latencyMs: number;
+        readonly latencyMs: number | null;
         readonly name: string;
         readonly output: {
           readonly mimeType: MimeType;
