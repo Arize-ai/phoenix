@@ -7,14 +7,14 @@ def test_nested_attributes() -> None:
     assert _nested_attributes(
         {getattr(sem_conv, v): ... for v in dir(sem_conv) if v.isupper()},
     ) == {
-        "exception": {
-            "message": ...,
-        },
         "document": {
             "content": ...,
             "id": ...,
             "metadata": ...,
             "score": ...,
+        },
+        "exception": {
+            "message": ...,
         },
         "input": {
             "mime_type": ...,
@@ -57,22 +57,22 @@ def test_events() -> None:
                 [
                     {
                         "name": "event_0",
-                        "message": "message_0",
+                        "attributes": {"exception.message": "message_0"},
                         "timestamp": "2023-08-16T12:48:25.604239",
                     },
                     {
                         "name": "event_1",
-                        "message": "message_1",
+                        "attributes": {"exception.message": "message_1"},
                         "timestamp": "2023-08-16T12:48:26.604239",
                     },
                     {
                         "name": "event_2",
-                        "message": "message_2",
+                        "attributes": {"exception.message": "message_2"},
                         "timestamp": "2023-08-16T12:48:27.604239",
                     },
                     {
                         "name": "event_3",
-                        "message": "message_3",
+                        "attributes": {"exception.message": "message_3"},
                         "timestamp": "2023-08-16T12:48:28.604239",
                     },
                 ]  # noqa: E501
@@ -82,3 +82,5 @@ def test_events() -> None:
     events = list(map(SpanEvent.from_mapping, data.iloc[0]["events"]))
     assert len(events) == 4
     assert events[0].name == "event_0"
+    for i, event in enumerate(events):
+        event.message = f"message_{i}"
