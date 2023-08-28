@@ -528,7 +528,7 @@ def _create_and_normalize_dataframe_and_schema(
         if column_name_to_include.get(str(column_name), False):
             included_column_names.append(str(column_name))
     parsed_dataframe = dataframe[included_column_names].copy()
-    parsed_schema = replace(schema, excluded_column_names=None, **schema_patch)
+    parsed_schema = replace(schema, excluded_column_names=None, **schema_patch)  # type: ignore
     pred_id_col_name = parsed_schema.prediction_id_column_name
     if pred_id_col_name is None:
         parsed_schema = replace(parsed_schema, prediction_id_column_name="prediction_id")
