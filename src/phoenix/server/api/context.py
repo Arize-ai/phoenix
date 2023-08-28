@@ -8,6 +8,7 @@ from starlette.websockets import WebSocket
 
 from phoenix.core.model_schema import Model
 from phoenix.core.traces import Traces
+from phoenix.core.umap_parameters import UMAPParameters
 
 
 @dataclass
@@ -18,3 +19,4 @@ class Context:
     export_path: Path
     corpus: Optional[Model] = None
     traces: Optional[Traces] = None
+    config: Optional[UMAPParameters] = None

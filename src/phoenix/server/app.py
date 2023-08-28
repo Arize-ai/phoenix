@@ -20,6 +20,7 @@ from strawberry.schema import BaseSchema
 from phoenix.config import SERVER_DIR
 from phoenix.core.model_schema import Model
 from phoenix.core.traces import Traces
+from phoenix.core.umap_parameters import UMAPParameters
 
 from .api.context import Context
 from .api.schema import schema
@@ -67,10 +68,12 @@ class GraphQLWithContext(GraphQL):  # type: ignore
         graphiql: bool = False,
         corpus: Optional[Model] = None,
         traces: Optional[Traces] = None,
+        config: Optional[UMAPParameters] = None,
     ) -> None:
         self.model = model
         self.corpus = corpus
         self.traces = traces
+        self.config = config
         self.export_path = export_path
         super().__init__(schema, graphiql=graphiql)
 
@@ -85,6 +88,7 @@ class GraphQLWithContext(GraphQL):  # type: ignore
             model=self.model,
             corpus=self.corpus,
             traces=self.traces,
+            config=self.config,
             export_path=self.export_path,
         )
 
@@ -109,6 +113,7 @@ def create_app(
     model: Model,
     corpus: Optional[Model] = None,
     traces: Optional[Traces] = None,
+    config: Optional[UMAPParameters] = None,
     debug: bool = False,
 ) -> Starlette:
     graphql = GraphQLWithContext(
@@ -116,6 +121,7 @@ def create_app(
         model=model,
         corpus=corpus,
         traces=traces,
+        config=config,
         export_path=export_path,
         graphiql=True,
     )

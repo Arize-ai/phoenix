@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 from collections import UserList
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import TYPE_CHECKING, Iterable, List, Optional, Set
+from typing import TYPE_CHECKING, Iterable, List, Optional, Set, Union
 
 import pandas as pd
 from portpicker import pick_unused_port
@@ -11,6 +11,7 @@ from portpicker import pick_unused_port
 from phoenix.config import PORT, get_exported_files
 from phoenix.core.model_schema_adapter import create_model_from_datasets
 from phoenix.core.traces import Traces
+from phoenix.core.umap_parameters import UMAPParameters
 from phoenix.datasets.dataset import EMPTY_DATASET, Dataset
 from phoenix.server.app import create_app
 from phoenix.server.thread_server import ThreadServer
@@ -66,12 +67,18 @@ class Session(ABC):
         reference_dataset: Optional[Dataset] = None,
         corpus_dataset: Optional[Dataset] = None,
         trace_dataset: Optional[TraceDataset] = None,
+        default_umap_parameters: Optional[dict[str, int]] = None,
         port: int = PORT,
     ):
         self.primary_dataset = primary_dataset
         self.reference_dataset = reference_dataset
         self.corpus_dataset = corpus_dataset
         self.trace_dataset = trace_dataset
+        self.config = (
+            UMAPParameters(default_umap_parameters)
+            if default_umap_parameters is not None
+            else None,
+        )
         self.model = create_model_from_datasets(
             primary_dataset,
             reference_dataset,
@@ -144,6 +151,7 @@ class ProcessSession(Session):
         reference_dataset: Optional[Dataset] = None,
         corpus_dataset: Optional[Dataset] = None,
         trace_dataset: Optional[TraceDataset] = None,
+        default_umap_parameters: Optional[dict[str, int]] = None,
         port: Optional[int] = None,
     ) -> None:
         super().__init__(
@@ -151,6 +159,7 @@ class ProcessSession(Session):
             reference_dataset=reference_dataset,
             corpus_dataset=corpus_dataset,
             trace_dataset=trace_dataset,
+            default_umap_parameters=default_umap_parameters,
             port=port or PORT,
         )
         primary_dataset.to_disc()
@@ -169,6 +178,7 @@ class ProcessSession(Session):
             corpus_dataset_name=(
                 self.corpus_dataset.name if self.corpus_dataset is not None else None
             ),
+            # TO-DO default_umap_params for ProcessSession
         )
 
     @property
@@ -187,6 +197,7 @@ class ThreadSession(Session):
         reference_dataset: Optional[Dataset] = None,
         corpus_dataset: Optional[Dataset] = None,
         trace_dataset: Optional[TraceDataset] = None,
+        default_umap_parameters: Optional[dict[str, int]] = None,
         port: Optional[int] = None,
     ):
         super().__init__(
@@ -194,6 +205,7 @@ class ThreadSession(Session):
             reference_dataset=reference_dataset,
             corpus_dataset=corpus_dataset,
             trace_dataset=trace_dataset,
+            default_umap_parameters=default_umap_parameters,
             port=port or pick_unused_port(),
         )
         # Initialize an app service that keeps the server running
@@ -202,6 +214,7 @@ class ThreadSession(Session):
             model=self.model,
             corpus=self.corpus,
             traces=self.traces,
+            config=self.config,
         )
         self.server = ThreadServer(
             app=self.app,
@@ -224,6 +237,7 @@ def launch_app(
     reference: Optional[Dataset] = None,
     corpus: Optional[Dataset] = None,
     trace: Optional[TraceDataset] = None,
+    default_umap_parameters: Optional[dict[str, Union[int, float]]] = None,
     port: Optional[int] = None,
     run_in_thread: Optional[bool] = True,
 ) -> Optional[Session]:
@@ -245,6 +259,8 @@ def launch_app(
         The port on which the server listens.
     run_in_thread: bool, optional, default=True
         Whether the server should run in a Thread or Process.
+    default_umap_parameters: dict[str, Union[int, float]], optional, default=None
+        User specified default UMAP parameters eg: {nNeighbors: 10, nSamples: 5, minDist: 0.5}
 
     Returns
     -------
@@ -273,7 +289,9 @@ def launch_app(
                 "it down and starting a new instance..."
             )
             _session.end()
-        _session = ThreadSession(primary, reference, corpus, trace, port=port)
+        _session = ThreadSession(
+            primary, reference, corpus, trace, default_umap_parameters, port=port
+        )
         # TODO: catch exceptions from thread
         if not _session.active:
             logger.error(
@@ -282,7 +300,9 @@ def launch_app(
             )
             return None
     else:
-        _session = ProcessSession(primary, reference, corpus, trace, port=port)
+        _session = ProcessSession(
+            primary, reference, corpus, trace, default_umap_parameters, port=port
+        )
 
     print(f"🌍 To view the Phoenix app in your browser, visit {_session.url}")
     print("📺 To view the Phoenix app in a notebook, run `px.active_session().view()`")
