@@ -69,6 +69,14 @@ EMBEDDING_MODEL_NAME = "embedding.model_name"
 """
 The name of the embedding model.
 """
+EMBEDDING_TEXT = "embedding.text"
+"""
+The text represented by the embedding.
+"""
+EMBEDDING_VECTOR = "embedding.vector"
+"""
+The embedding vector.
+"""
 
 LLM_FUNCTION_CALL = "llm.function_call"
 """

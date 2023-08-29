@@ -19,6 +19,8 @@ def test_nested_attributes() -> None:
         },
         "embedding": {
             "embeddings": ...,
+            "vector": ...,
+            "text": ...,
             "model_name": ...,
         },
         "llm": {
