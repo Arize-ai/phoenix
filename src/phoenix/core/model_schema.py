@@ -724,8 +724,8 @@ class Dataset(Events):
         return len(self) == 0
 
     @cached_property
-    def primary_key(self) -> "pd.Index[str]":
-        return cast("pd.Index[str]", pd.Index(self[PREDICTION_ID]))
+    def primary_key(self) -> pd.Index:
+        return pd.Index(self[PREDICTION_ID])
 
     @overload
     def __getitem__(self, key: ColumnKey) -> "pd.Series[Any]":
@@ -760,7 +760,7 @@ class Model:
     _datasets: Dict[DatasetRole, Dataset]
     _dimensions: Dict[Name, Dimension]
     _dim_names_by_role: Dict[DimensionRole, List[Name]]
-    _original_columns_by_role: Dict[DatasetRole, "pd.Index[str]"]
+    _original_columns_by_role: Dict[DatasetRole, pd.Index]
     _default_timestamps_factory: _ConstantValueSeriesFactory
     _nan_series_factory: _ConstantValueSeriesFactory
     _dimension_categories_from_all_datasets: _Cache[Name, Tuple[str, ...]]
