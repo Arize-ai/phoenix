@@ -59,7 +59,7 @@ def payload_to_semantic_attributes(payload: Dict[str, Any]) -> Dict[str, Any]:
     """
     Converts a LLMapp payload to a dictionary of semantic conventions compliant attributes.
     """
-    attributes = {}
+    attributes: Dict[str, Any] = {}
 
     if EventPayload.CHUNKS in payload and EventPayload.EMBEDDINGS in payload:
         attributes[EMBEDDING_EMBEDDINGS] = [
