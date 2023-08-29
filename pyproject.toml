@@ -43,7 +43,7 @@ dev = [
   "black[jupyter]",
   "hatch",
   "jupyter",
-  "pandas-stubs",
+  "pandas-stubs<=2.0.2.230605",  # version 2.0.3.230814 is causing a dependency conflict.
   "pytest",
   "pytest-cov",
   "pytest-lazy-fixture",
@@ -109,7 +109,7 @@ dependencies = [
 dependencies = [
   "mypy==1.5.1",
   "llama-index>=0.8.4",
-  "pandas-stubs",
+  "pandas-stubs<=2.0.2.230605",  # version 2.0.3.230814 is causing a dependency conflict.
   "pytest",
   "types-psutil",
   "tenacity",
