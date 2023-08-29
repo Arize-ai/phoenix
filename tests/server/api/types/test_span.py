@@ -17,6 +17,12 @@ def test_nested_attributes() -> None:
             "mime_type": ...,
             "value": ...,
         },
+        "embedding": {
+            "embeddings": ...,
+            "vector": ...,
+            "text": ...,
+            "model_name": ...,
+        },
         "llm": {
             "function_call": ...,
             "invocation_parameters": ...,
