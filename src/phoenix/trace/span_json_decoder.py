@@ -64,18 +64,20 @@ def json_to_span(data: Dict[str, Any]) -> Any:
         attributes = data.get("attributes")
         data["attributes"] = json_to_attributes(attributes)
         data["start_time"] = datetime.fromisoformat(data["start_time"])
-        data["end_time"] = datetime.fromisoformat(data["end_time"])
+        data["end_time"] = (
+            datetime.fromisoformat(end_time) if (end_time := data.get("end_time")) else None
+        )
         data["span_kind"] = SpanKind(data["span_kind"])
         data["status_code"] = SpanStatusCode(data["status_code"])
         data["events"] = [
             SpanException(
-                message=event["attributes"][EXCEPTION_MESSAGE],
+                message=(event.get("attributes") or {}).get(EXCEPTION_MESSAGE) or "",
                 timestamp=datetime.fromisoformat(event["timestamp"]),
             )
             if event["name"] == "exception"
             else SpanEvent(
                 name=event["name"],
-                attributes=event["attributes"],
+                attributes=event.get("attributes") or {},
                 timestamp=datetime.fromisoformat(event["timestamp"]),
             )
             for event in data["events"]
