@@ -73,7 +73,7 @@ def test_dataset_construction_from_spans():
             events=[
                 SpanEvent(
                     name="event-0",
-                    message="event-message-0",
+                    attributes={"message": "event-message-0"},
                     timestamp=datetime(year=2000, month=1, day=1, hour=0, minute=3),
                 ),
             ],
@@ -111,7 +111,7 @@ def test_dataset_construction_from_spans():
                 "events": [
                     {
                         "name": "event-0",
-                        "message": "event-message-0",
+                        "attributes": {"message": "event-message-0"},
                         "timestamp": datetime(
                             year=2000, month=1, day=1, hour=0, minute=3
                         ).isoformat(),

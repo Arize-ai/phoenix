@@ -12,6 +12,7 @@ from phoenix.trace.schemas import SpanException, SpanKind, SpanStatusCode
 from phoenix.trace.semantic_conventions import (
     DOCUMENT_CONTENT,
     DOCUMENT_METADATA,
+    EXCEPTION_MESSAGE,
     INPUT_MIME_TYPE,
     INPUT_VALUE,
     LLM_PROMPT_TEMPLATE,
@@ -140,7 +141,7 @@ def test_tracer_llm_with_exception() -> None:
         events = {event.name: event for event in spans[name].events}
         exception = events.get("exception")
         assert isinstance(exception, SpanException)
-        assert exception.message.startswith("IndexError")
+        assert exception.attributes[EXCEPTION_MESSAGE].startswith("IndexError")
 
     assert spans["Retriever"].attributes[RETRIEVAL_DOCUMENTS] == [
         {
@@ -180,7 +181,7 @@ def test_tracer_retriever_with_exception() -> None:
         events = {event.name: event for event in spans[name].events}
         exception = events.get("exception")
         assert isinstance(exception, SpanException)
-        assert exception.message.startswith("IndexError")
+        assert exception.attributes[EXCEPTION_MESSAGE].startswith("IndexError")
 
     assert spans["Retriever"].attributes[RETRIEVAL_DOCUMENTS] == []
 

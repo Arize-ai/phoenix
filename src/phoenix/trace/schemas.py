@@ -4,6 +4,8 @@ from enum import Enum
 from typing import Any, Dict, List, Optional, Union
 from uuid import UUID
 
+from phoenix.trace.semantic_conventions import EXCEPTION_MESSAGE
+
 
 class SpanStatusCode(Enum):
     UNSET = "UNSET"
@@ -58,8 +60,8 @@ class SpanEvent(Dict[str, Any]):
     """
 
     name: str
-    message: str
     timestamp: datetime
+    attributes: SpanAttributes
 
 
 class SpanException(SpanEvent):
@@ -74,7 +76,13 @@ class SpanException(SpanEvent):
     """
 
     def __init__(self, timestamp: datetime, message: str):
-        super().__init__(name="exception", message=message, timestamp=timestamp)
+        super().__init__(
+            name="exception",
+            timestamp=timestamp,
+            attributes={
+                EXCEPTION_MESSAGE: message,
+            },
+        )
 
 
 @dataclass(frozen=True)
