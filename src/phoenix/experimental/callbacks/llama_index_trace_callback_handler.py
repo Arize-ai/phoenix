@@ -39,7 +39,7 @@ from phoenix.trace.semantic_conventions import (
     RETRIEVAL_DOCUMENTS,
     MimeType,
 )
-from phoenix.trace.tracer import Tracer
+from phoenix.trace.tracer import Exporter, HttpExporter, Tracer
 
 logger = logging.getLogger(__name__)
 
@@ -107,9 +107,13 @@ class OpenInferenceTraceCallbackHandler(BaseCallbackHandler):
     https://github.com/Arize-ai/open-inference-spec
     """
 
-    def __init__(self, callback: Optional[Callable[[List[Span]], None]] = None) -> None:
+    def __init__(
+        self,
+        callback: Optional[Callable[[List[Span]], None]] = None,
+        exporter: Optional[Exporter[Span]] = HttpExporter(),
+    ) -> None:
         super().__init__(event_starts_to_ignore=[], event_ends_to_ignore=[])
-        self._tracer = Tracer(on_append=callback)
+        self._tracer = Tracer(on_append=callback, exporter=exporter)
         self._event_id_to_event_data: Dict[CBEventID, CBEventData] = defaultdict(
             lambda: CBEventData()
         )

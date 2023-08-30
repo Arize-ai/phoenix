@@ -85,7 +85,10 @@ class Session(ABC):
             else None
         )
 
-        self.traces = Traces(trace_dataset.dataframe) if trace_dataset is not None else None
+        self.traces = Traces()
+        if trace_dataset:
+            for span in trace_dataset.to_spans():
+                self.traces.put(span)
 
         self.port = port
         self.temp_dir = TemporaryDirectory()
@@ -169,6 +172,9 @@ class ProcessSession(Session):
             corpus_dataset_name=(
                 self.corpus_dataset.name if self.corpus_dataset is not None else None
             ),
+            trace_dataset_name=(
+                self.trace_dataset.name if self.trace_dataset is not None else None
+            ),
         )
 
     @property
@@ -224,7 +230,7 @@ def launch_app(
     reference: Optional[Dataset] = None,
     corpus: Optional[Dataset] = None,
     trace: Optional[TraceDataset] = None,
-    port: Optional[int] = None,
+    port: Optional[int] = PORT,
     run_in_thread: Optional[bool] = True,
 ) -> Optional[Session]:
     """
