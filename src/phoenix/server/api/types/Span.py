@@ -84,7 +84,6 @@ class SpanEvent:
     def from_event(
         event: s.SpanEvent,
     ) -> "SpanEvent":
-        """Converts a mapping to a SpanEvent. Used when parsing the record from the dataframe."""
         return SpanEvent(
             name=event.name,
             message=cast(str, event.attributes.get(EXCEPTION_MESSAGE) or ""),

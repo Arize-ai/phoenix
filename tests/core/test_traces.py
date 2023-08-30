@@ -18,23 +18,3 @@ def test_get_descendant_span_ids() -> None:
     assert set(_get_descendant_span_ids(ids[3], child_span_ids)) == set()
     assert set(_get_descendant_span_ids(ids[4], child_span_ids)) == set(ids[5:])
     assert set(_get_descendant_span_ids(ids[5], child_span_ids)) == set()
-
-
-# def test_acumulate() -> None:
-#     span_ids = list("ABCDEF")
-#     span_values = pd.Series(
-#         [1, 1, None, 1, 1, None],
-#         index=span_ids,
-#     )
-#     span_parent_ids = pd.Series(
-#         [None, "A", "A", "C", "C", None],
-#         index=span_ids,
-#     )
-#     assert_series_equal(
-#         _cumulative(span_values, span_parent_ids),
-#         pd.Series(
-#             [4, 1, 2, 1, 1, 0],
-#             dtype=span_values.dtype,
-#             index=span_values.index,
-#         ),
-#     )
