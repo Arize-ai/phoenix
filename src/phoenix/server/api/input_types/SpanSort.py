@@ -1,6 +1,8 @@
 from enum import Enum
-from typing import Any, Iterable, List, SupportsFloat, Union
+from operator import itemgetter
+from typing import Iterable, Iterator
 
+import pandas as pd
 import strawberry
 
 from phoenix.core.traces import (
@@ -31,20 +33,6 @@ class SpanColumn(Enum):
     cumulativeTokenCountCompletion = CUMULATIVE_LLM_TOKEN_COUNT_COMPLETION
 
 
-class _MissingValue:
-    def __lt__(
-        self,
-        other: Union[str, SupportsFloat],
-    ) -> bool:
-        return False
-
-    def __repr__(self) -> str:
-        return "None"
-
-
-_MISSING_VALUE = _MissingValue()
-
-
 @strawberry.input
 class SpanSort:
     """
@@ -57,18 +45,11 @@ class SpanSort:
     def __call__(
         self,
         spans: Iterable[ReadableSpan],
-    ) -> List[ReadableSpan]:
+    ) -> Iterator[ReadableSpan]:
         """
         Sorts the spans by the given column and direction
         """
-
-        def key(span: ReadableSpan) -> Any:
-            if value := span[self.col.value] is None:
-                return _MISSING_VALUE
-            return value
-
-        return sorted(
-            spans,
-            key=key,
-            reverse=self.dir.value == SortDir.desc.value,
+        yield from pd.Series(spans).sort_values(
+            key=lambda s: s.apply(itemgetter(self.col.value)),
+            ascending=self.dir.value == SortDir.asc.value,
         )

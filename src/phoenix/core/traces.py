@@ -20,7 +20,7 @@ from typing_extensions import TypeAlias
 from wrapt import ObjectProxy
 
 import phoenix.trace.semantic_conventions as sc
-from phoenix.trace.schemas import ATTRIBUTE_PREFIX, CONTEXT_PREFIX, Span, SpanID
+from phoenix.trace.schemas import ATTRIBUTE_PREFIX, CONTEXT_PREFIX, Span, SpanID, TraceID
 
 NAME = "name"
 STATUS_CODE = "status_code"
@@ -88,6 +88,7 @@ class Traces:
         self._lock = Lock()
         self._spans: Dict[SpanID, ReadableSpan] = {}
         self._parent_span_ids: Dict[SpanID, ParentSpanID] = {}
+        self._traces: Dict[TraceID, List[SpanID]] = defaultdict(list)
         self._child_span_ids: DefaultDict[SpanID, List[ChildSpanID]] = defaultdict(list)
         self._orphan_spans: DefaultDict[ParentSpanID, List[Span]] = defaultdict(list)
         self._start_time_sorted_span_ids: SortedKeyList[SpanID] = SortedKeyList(
@@ -105,6 +106,18 @@ class Traces:
 
     def put(self, span: Optional[Span] = None) -> None:
         self._queue.put(span)
+
+    def get_trace(
+        self,
+        trace_id: TraceID,
+    ) -> List[ReadableSpan]:
+        with self._lock:
+            return list(
+                map(
+                    self._spans.__getitem__,
+                    self._traces[trace_id],
+                )
+            )
 
     def get_spans(
         self,
@@ -143,15 +156,18 @@ class Traces:
                 )
             )
 
-    def latency_rank_percent(self, latency_ms: float) -> float:
-        sorted_root_span_ids = self._latency_sorted_root_span_ids
+    def latency_rank_percent(
+        self,
+        latency_ms: float,
+    ) -> float:
+        root_span_ids = self._latency_sorted_root_span_ids
         with self._lock:
             return cast(
                 int,
-                sorted_root_span_ids.bisect_key_left(
+                root_span_ids.bisect_key_left(
                     latency_ms,
                 ),
-            ) / len(sorted_root_span_ids)
+            ) / len(root_span_ids)
 
     def get_descendant_span_ids(self, span_id: SpanID) -> List[SpanID]:
         with self._lock:
@@ -164,6 +180,7 @@ class Traces:
 
     @property
     def span_count(self) -> int:
+        """Total number of spans (excluding orphan spans if any)"""
         with self._lock:
             return len(self._spans)
 
@@ -178,6 +195,7 @@ class Traces:
             return self._max_start_time
 
     def __len__(self) -> int:
+        """Total number of traces"""
         with self._lock:
             return len(self._start_time_sorted_root_span_ids)
 
@@ -196,9 +214,11 @@ class Traces:
         span_id = span.context.span_id
         existing_span = self._spans.get(span_id)
         if existing_span and existing_span.end_time:
+            # Reject updates if span has ended
             return
         if parent_id := span.parent_id:
             if parent_id not in self._spans:
+                # Span can't be processed before its parent
                 self._orphan_spans[parent_id].append(span)
                 return
             self._child_span_ids[parent_id].append(span_id)
@@ -223,6 +243,7 @@ class Traces:
                 if self._max_start_time is None
                 else max(self._max_start_time, span.start_time)
             )
+        # Update cumulative values for span's ancestors
         for attribute_name, cumulative_attribute_name in (
             (LLM_TOKEN_COUNT_TOTAL, CUMULATIVE_LLM_TOKEN_COUNT_TOTAL),
             (LLM_TOKEN_COUNT_PROMPT, CUMULATIVE_LLM_TOKEN_COUNT_PROMPT),
@@ -236,30 +257,26 @@ class Traces:
                 (existing_span[cumulative_attribute_name] or 0) if existing_span else 0
             )
             new_span[cumulative_attribute_name] = difference + existing_cumulative_value
-            _accumulate(
-                cumulative_attribute_name,
+            self._add_value_to_span_ancestors(
                 difference,
                 span_id,
-                self._spans,
-                self._parent_span_ids,
+                cumulative_attribute_name,
             )
+        # Process previously orphan spans if any
         for orphan_span in self._orphan_spans[span_id]:
             self._process_span(orphan_span)
 
-
-def _accumulate(
-    cumulative_attribute_name: str,
-    value: float,
-    span_id: SpanID,
-    spans: Mapping[SpanID, ReadableSpan],
-    parent_span_ids: Mapping[SpanID, ParentSpanID],
-) -> None:
-    """Add value to all of span's ancestors"""
-    while parent_span_id := parent_span_ids.get(span_id):
-        parent_span = spans[parent_span_id]
-        cumulative_value = parent_span[cumulative_attribute_name] or 0
-        parent_span[cumulative_attribute_name] = cumulative_value + value
-        span_id = parent_span_id
+    def _add_value_to_span_ancestors(
+        self,
+        value: float,
+        span_id: SpanID,
+        cumulative_attribute_name: str,
+    ) -> None:
+        while parent_span_id := self._parent_span_ids.get(span_id):
+            parent_span = self._spans[parent_span_id]
+            cumulative_value = parent_span[cumulative_attribute_name] or 0
+            parent_span[cumulative_attribute_name] = cumulative_value + value
+            span_id = parent_span_id
 
 
 def _get_descendant_span_ids(

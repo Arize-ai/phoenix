@@ -1,7 +1,7 @@
 from collections import defaultdict
 from datetime import datetime
 from itertools import chain
-from typing import Dict, List, Optional, Set, Union, cast
+from typing import Dict, Iterable, List, Optional, Set, Union, cast
 
 import numpy as np
 import numpy.typing as npt
@@ -18,9 +18,11 @@ from phoenix.server.api.input_types.Coordinates import (
     InputCoordinate2D,
     InputCoordinate3D,
 )
-from phoenix.server.api.input_types.SpanSort import SpanColumn, SpanSort
+from phoenix.server.api.input_types.SpanSort import SpanSort
 from phoenix.server.api.types.Cluster import Cluster, to_gql_clusters
 
+from ...core.traces import ReadableSpan
+from ...trace.schemas import TraceID
 from .context import Context
 from .types.DatasetInfo import DatasetInfo
 from .types.DatasetRole import AncillaryDatasetRole, DatasetRole
@@ -37,7 +39,6 @@ from .types.Functionality import Functionality
 from .types.Model import Model
 from .types.node import GlobalID, Node, from_global_id
 from .types.pagination import Connection, ConnectionArgs, Cursor, connection_from_list
-from .types.SortDir import SortDir
 from .types.Span import Span, to_gql_span
 
 
@@ -210,27 +211,24 @@ class Query:
         sort: Optional[SpanSort] = UNSET,
         root_spans_only: Optional[bool] = False,
     ) -> Connection[Span]:
-        if (traces := info.context.traces) is None:
-            spans = []
-        else:
-            filtered_spans = filter(
-                (lambda span: str(span.context.trace_id) in trace_ids) if trace_ids else None,
-                traces.get_spans(
+        spans: Iterable[ReadableSpan] = ()
+        if (traces := info.context.traces) is not None:
+            spans = (
+                chain.from_iterable(
+                    map(
+                        traces.get_trace,
+                        cast(Iterable[TraceID], trace_ids),
+                    )
+                )
+                if trace_ids
+                else traces.get_spans(
                     root_spans_only=root_spans_only,
-                ),
-            )
-            sort = (
-                sort
-                if sort
-                else SpanSort(
-                    col=SpanColumn.startTime,
-                    dir=SortDir.asc,
                 )
             )
-            spans = list(map(to_gql_span, sort(filtered_spans)))
-
+            if sort:
+                spans = sort(spans)
         return connection_from_list(
-            data=spans,
+            data=list(map(to_gql_span, spans)),
             args=ConnectionArgs(
                 first=first,
                 after=after if isinstance(after, Cursor) else None,

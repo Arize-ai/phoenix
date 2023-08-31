@@ -37,6 +37,7 @@ class SpanKind(Enum):
         return None if v else cls.UNKNOWN
 
 
+TraceID = UUID
 SpanID = UUID
 AttributePrimitiveValue = Union[str, bool, float, int]
 AttributeValue = Union[AttributePrimitiveValue, List[AttributePrimitiveValue]]
@@ -47,7 +48,7 @@ SpanAttributes = Dict[str, AttributeValue]
 class SpanContext:
     """Context propagation for a span"""
 
-    trace_id: UUID
+    trace_id: TraceID
     span_id: SpanID
 
 
