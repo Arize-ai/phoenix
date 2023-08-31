@@ -44,6 +44,8 @@ dev = [
   "black[jupyter]",
   "hatch",
   "jupyter",
+  "nbqa",
+  "ruff",
   "pandas-stubs<=2.0.2.230605",  # version 2.0.3.230814 is causing a dependency conflict.
   "pytest",
   "pytest-cov",
