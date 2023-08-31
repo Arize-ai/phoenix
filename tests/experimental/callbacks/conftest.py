@@ -88,6 +88,10 @@ class MockEmbedding(BaseEmbedding):
         else:
             raise ValueError("Invalid text for `mock_get_text_embedding`.")
 
+    @classmethod
+    def class_name(cls) -> str:
+        return "MockEmbedding"
+
 
 @pytest.fixture()
 def mock_service_context(

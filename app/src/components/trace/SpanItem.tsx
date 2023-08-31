@@ -12,7 +12,7 @@ import { SpanStatusCodeIcon } from "./SpanStatusCodeIcon";
 interface SpanItemProps {
   name: string;
   spanKind: string;
-  latencyMs: number;
+  latencyMs: number | null;
   statusCode: SpanStatusCode;
 }
 export function SpanItem(props: SpanItemProps) {
@@ -36,9 +36,11 @@ export function SpanItem(props: SpanItemProps) {
             <Text>{name}</Text>
           </div>
         </View>
-        <Text color="white70" textSize="small">
-          {formatFloat(latencyMs / 1000)}s
-        </Text>
+        {latencyMs === null ? null : (
+          <Text color="white70" textSize="small">
+            {formatFloat(latencyMs / 1000)}s
+          </Text>
+        )}
         {statusCode === "ERROR" ? (
           <SpanStatusCodeIcon statusCode="ERROR" />
         ) : null}

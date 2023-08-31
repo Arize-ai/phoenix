@@ -38,6 +38,9 @@ class DeploymentAttributes(AttributeGroup):
     }
 
 
+EXCEPTION_MESSAGE = "exception.message"
+
+
 OUTPUT_VALUE = "output.value"
 OUTPUT_MIME_TYPE = "output.mime_type"
 """
@@ -60,6 +63,23 @@ class MimeType(Enum):
     def _missing_(cls, v: Any) -> Optional["MimeType"]:
         return None if v else cls.TEXT
 
+
+EMBEDDING_EMBEDDINGS = "embedding.embeddings"
+"""
+A list of objects containing embedding data, including the vector and represented piece of text.
+"""
+EMBEDDING_MODEL_NAME = "embedding.model_name"
+"""
+The name of the embedding model.
+"""
+EMBEDDING_TEXT = "embedding.text"
+"""
+The text represented by the embedding.
+"""
+EMBEDDING_VECTOR = "embedding.vector"
+"""
+The embedding vector.
+"""
 
 LLM_FUNCTION_CALL = "llm.function_call"
 """

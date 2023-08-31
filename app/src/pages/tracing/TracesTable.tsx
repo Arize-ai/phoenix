@@ -212,11 +212,13 @@ export function TracesTable(props: TracesTableProps) {
     {
       header: "input",
       accessorKey: "input.value",
+      enableSorting: false,
       cell: TextCell,
     },
     {
       header: "output",
       accessorKey: "output.value",
+      enableSorting: false,
       cell: TextCell,
     },
     {
@@ -229,7 +231,11 @@ export function TracesTable(props: TracesTableProps) {
       accessorKey: "latencyMs",
 
       cell: ({ getValue }) => {
-        const seconds = (getValue() as number) / 1000;
+        const value = getValue();
+        if (value === null) {
+          return null;
+        }
+        const seconds = (value as number) / 1000;
         return <span css={floatRightCSS}>{formatFloat(seconds)}s</span>;
       },
     },
@@ -241,6 +247,7 @@ export function TracesTable(props: TracesTableProps) {
     {
       header: "status",
       accessorKey: "statusCode",
+      enableSorting: false,
       cell: ({ getValue }) => {
         return <SpanStatusCodeIcon statusCode={getValue() as SpanStatusCode} />;
       },
