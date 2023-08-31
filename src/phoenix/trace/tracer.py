@@ -1,3 +1,4 @@
+import logging
 import pickle
 import weakref
 from datetime import datetime
@@ -20,6 +21,9 @@ from .schemas import (
     SpanStatusCode,
 )
 
+logger = logging.getLogger(__name__)
+logger.addHandler(logging.NullHandler())
+
 T = TypeVar("T", contravariant=True)
 
 
@@ -35,7 +39,7 @@ class NoOpExporter:
 
 class HttpExporter:
     def __init__(self, port: int = PORT) -> None:
-        self._port = port
+        self._url = f"http://localhost:{port}/v1/spans"
         self._session = Session()
         weakref.finalize(self, self._session.close)
         self._session.headers.update({"content-type": "application/octet-stream"})
@@ -56,11 +60,11 @@ class HttpExporter:
     def _send(self, span: Span) -> None:
         try:
             self._session.post(
-                f"http://localhost:{self._port}/v1/spans",
+                self._url,
                 data=pickle.dumps(span),
-            )
-        except ConnectionRefusedError:
-            pass
+            ).raise_for_status()
+        except Exception as e:
+            logger.exception(e)
 
 
 class Tracer:
