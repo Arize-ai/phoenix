@@ -15,6 +15,8 @@ from phoenix.trace.schemas import (
     SpanStatusCode,
 )
 from phoenix.trace.semantic_conventions import (
+    DOCUMENT_CONTENT,
+    DOCUMENT_METADATA,
     INPUT_MIME_TYPE,
     INPUT_VALUE,
     LLM_FUNCTION_CALL,
@@ -28,6 +30,7 @@ from phoenix.trace.semantic_conventions import (
     LLM_TOKEN_COUNT_TOTAL,
     OUTPUT_MIME_TYPE,
     OUTPUT_VALUE,
+    RETRIEVAL_DOCUMENTS,
     TOOL_DESCRIPTION,
     TOOL_NAME,
     MimeType,
@@ -144,6 +147,20 @@ def _tools(run: Dict[str, Any]) -> Iterator[Tuple[str, str]]:
         yield TOOL_DESCRIPTION, run_serialized["description"]
 
 
+def _retrieval_documents(
+    run: Dict[str, Any],
+) -> Iterator[Tuple[str, List[Any]]]:
+    if run["run_type"] != "retriever":
+        return
+    yield RETRIEVAL_DOCUMENTS, [
+        {
+            DOCUMENT_CONTENT: document.get("page_content"),
+            DOCUMENT_METADATA: json.dumps(document.get("metadata") or {}),
+        }
+        for document in (run.get("outputs") or {}).get("documents") or []
+    ]
+
+
 class OpenInferenceTracer(Tracer, BaseTracer):
     def _convert_run_to_spans(
         self,
@@ -162,6 +179,7 @@ class OpenInferenceTracer(Tracer, BaseTracer):
         attributes.update(_token_counts(run["outputs"]))
         attributes.update(_function_calls(run["outputs"]))
         attributes.update(_tools(run))
+        attributes.update(_retrieval_documents(run))
         events: List[SpanEvent] = []
         if (error := run["error"]) is None:
             status_code = SpanStatusCode.OK
