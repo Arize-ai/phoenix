@@ -70,11 +70,11 @@ class OpenAiModel(BaseEvalModel):
 
     def _generate(self, prompt: str, instruction: Optional[str]) -> str:
         invoke_params = self.invocation_params
-        message = {"role": "user", "content": prompt}
+        messages = [{"role": "user", "content": prompt}]
         if instruction:
-            message = {"role": "system", "content": instruction, **message}
+            messages.append({"role": "system", "content": instruction})
         response = self._generate_with_retry(
-            messages=[message],
+            messages=messages,
             **invoke_params,
         )
         # TODO: This is a bit rudimentary, should improve
