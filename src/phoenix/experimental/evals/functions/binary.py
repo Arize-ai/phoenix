@@ -29,7 +29,7 @@ async def llm_eval_binary(
         )
     if isinstance(template, str):
         try:
-            eval_template = PromptTemplate(template_str=template)
+            eval_template = PromptTemplate(text=template)
         except Exception as e:
             raise RuntimeError(f"Error while initializing the PromptTemplate: {e}")
     else:
@@ -43,9 +43,7 @@ async def llm_eval_binary(
     try:
         prompts = df.apply(
             lambda row: eval_template.format(
-                variable_values={
-                    var_name: row[var_name] for var_name in eval_template.template_variables
-                }
+                variable_values={var_name: row[var_name] for var_name in eval_template.variables}
             ),
             axis=1,
         )
