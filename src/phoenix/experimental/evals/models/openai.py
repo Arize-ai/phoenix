@@ -1,3 +1,4 @@
+import os
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, Optional, Tuple, Union
 
@@ -18,13 +19,14 @@ OPENAI_RETRY_ERRORS = [
     openai.error.RateLimitError,  # type: ignore
     openai.error.ServiceUnavailableError,  # type: ignore
 ]
+OPENAI_API_KEY_ENVVAR_NAME = "OPENAI_API_KEY"
 
 
 @dataclass
 class OpenAiModel(BaseEvalModel):
-    openai_api_key: Optional[str] = None
-    openai_api_base: Optional[str] = None
-    openai_organization: Optional[str] = None
+    openai_api_key: Optional[str] = field(repr=False, default=None)
+    openai_api_base: Optional[str] = field(repr=False, default=None)
+    openai_organization: Optional[str] = field(repr=False, default=None)
     model_name: str = "text-davinci-003"
     """Model name to use."""
     temperature: float = 0.7
@@ -54,6 +56,17 @@ class OpenAiModel(BaseEvalModel):
     """Minimum number of seconds to wait when retrying."""
     retry_max_seconds: int = 60
     """Maximum number of seconds to wait when retrying."""
+
+    def __post_init__(self) -> None:
+        if self.openai_api_key is None:
+            api_key = os.getenv(OPENAI_API_KEY_ENVVAR_NAME)
+            if api_key is None:
+                # TODO: Create custom AuthenticationError
+                raise RuntimeError(
+                    "OpenAI's API key not provided. Pass it as an argument to 'openai_api_key' "
+                    "or set it in your environment: 'export OPENAI_API_KEY=sk-****'"
+                )
+            self.openai_api_key = api_key
 
     def _generate(self, prompt: str) -> str:
         invoke_params = self.invocation_params
