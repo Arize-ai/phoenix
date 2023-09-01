@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 TQDM_BAR_FORMAT = (
     "Eta:{eta} |{bar}| {percentage:3.1f}% "
     "({n_fmt}/{total_fmt}) "
-    "[{elapsed}<{remaining}, {rate_fmt}{postfix}]",
+    "[{elapsed}<{remaining}, {rate_fmt}{postfix}]"
 )
 
 
