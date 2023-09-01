@@ -13,11 +13,11 @@ except ImportError:
     )
 
 OPENAI_RETRY_ERRORS = [
-    openai.error.Timeout,  # type: ignore
-    openai.error.APIError,  # type: ignore
-    openai.error.APIConnectionError,  # type: ignore
-    openai.error.RateLimitError,  # type: ignore
-    openai.error.ServiceUnavailableError,  # type: ignore
+    openai.error.Timeout,
+    openai.error.APIError,
+    openai.error.APIConnectionError,
+    openai.error.RateLimitError,
+    openai.error.ServiceUnavailableError,
 ]
 OPENAI_API_KEY_ENVVAR_NAME = "OPENAI_API_KEY"
 
@@ -92,7 +92,7 @@ class OpenAiModel(BaseEvalModel):
 
         @retry_decorator
         def _completion_with_retry(**kwargs: Any) -> Any:
-            return openai.ChatCompletion.create(**kwargs)
+            return openai.ChatCompletion.create(**kwargs)  # type:ignore
 
         return _completion_with_retry(**kwargs)
 

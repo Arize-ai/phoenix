@@ -107,7 +107,7 @@ class BaseEvalModel(ABC):
                 f"but found {type(prompts)}."
             )
         try:
-            result = await tqdm_asyncio.gather(
+            result: List[str] = await tqdm_asyncio.gather(
                 *[self._agenerate(prompt=prompt, instruction=instruction) for prompt in prompts],
                 bar_format=TQDM_BAR_FORMAT,
                 ncols=100,
@@ -121,6 +121,4 @@ class BaseEvalModel(ABC):
         raise NotImplementedError
 
     async def _agenerate(self, prompt: str, instruction: Optional[str]) -> str:
-        return await to_thread(
-            self._generate, prompt=prompt, instruction=instruction
-        )  # type:ignore
+        return str(await to_thread(self._generate, prompt=prompt, instruction=instruction))

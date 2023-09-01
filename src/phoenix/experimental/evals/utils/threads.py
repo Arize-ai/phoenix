@@ -6,11 +6,12 @@ since this helper function 'to_thread' is not available in python<3.9
 import contextvars
 import functools
 from asyncio import events
+from typing import Any
 
 __all__ = ("to_thread",)
 
 
-async def to_thread(func, /, *args, **kwargs):
+async def to_thread(func, /, *args, **kwargs) -> Any:  # type:ignore
     """Asynchronously run function *func* in a separate thread.
 
     Any *args and **kwargs supplied for this function are directly passed
