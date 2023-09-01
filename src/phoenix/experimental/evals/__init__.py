@@ -1,7 +1,7 @@
 from .functions import llm_eval_binary
 from .models import OpenAiModel
 from .templates import RAG_RELEVANCY_PROMPT_TEMPLATE_STR, PromptTemplate
-from .utils import download_benchmark_dataset
+from .utils.downloads import download_benchmark_dataset
 
 __all__ = [
     "download_benchmark_dataset",

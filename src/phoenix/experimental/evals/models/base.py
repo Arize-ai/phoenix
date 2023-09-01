@@ -1,7 +1,7 @@
 import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Any, Callable, List, Type, Union
+from typing import Any, Callable, List, Type
 
 from tenacity import (
     RetryCallState,
@@ -13,14 +13,17 @@ from tenacity import (
     wait_random_exponential,
 )
 from tqdm.asyncio import tqdm_asyncio
-from typing_extensions import TypeAlias
 
 from ..utils.threads import to_thread
 from ..utils.types import is_list_of
 
-ParameterValue: TypeAlias = Union[bool, int, float, str]
-
 logger = logging.getLogger(__name__)
+
+TQDM_BAR_FORMAT = (
+    "Eta:{eta} |{bar}| {percentage:3.1f}% "
+    "({n_fmt}/{total_fmt}) "
+    "[{elapsed}<{remaining}, {rate_fmt}{postfix}]",
+)
 
 
 def create_base_retry_decorator(
@@ -96,7 +99,7 @@ class BaseEvalModel(ABC):
         try:
             result = await tqdm_asyncio.gather(
                 *[self._agenerate(prompt) for prompt in prompts],
-                bar_format="Eta:{eta} |{bar}| {percentage:3.1f}% ({n_fmt}/{total_fmt}) [{elapsed}<{remaining}, {rate_fmt}{postfix}]",
+                bar_format=TQDM_BAR_FORMAT,
                 ncols=100,
             )
         except (KeyboardInterrupt, Exception) as e:
