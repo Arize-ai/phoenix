@@ -1,4 +1,4 @@
-from typing import List, Union
+from typing import List, Optional, Union
 
 import pandas as pd
 
@@ -10,7 +10,7 @@ async def llm_eval_binary(
     df: pd.DataFrame,
     template: Union[PromptTemplate, str],
     model: BaseEvalModel,
-    # system_instruction=INSTRUCTION, ???
+    system_instruction: Optional[str] = None,
     # output_parser=ResultParser( # KIKO TO MAKE THIS A CALLABLE
     #     opts=...
     #     trim_whitespaces=True,
@@ -52,5 +52,5 @@ async def llm_eval_binary(
             f"Error while constructing the prompts from the template and dataframe variables: {e}"
         )
 
-    responses = await model.agenerate(prompts.to_list())
+    responses = await model.agenerate(prompts.to_list(), system_instruction)
     return responses
