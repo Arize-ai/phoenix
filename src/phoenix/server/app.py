@@ -1,6 +1,7 @@
 import logging
+import pickle
 from pathlib import Path
-from typing import Optional, Union
+from typing import Optional, Protocol, TypeVar, Union
 
 from starlette.applications import Starlette
 from starlette.datastructures import QueryParams
@@ -17,10 +18,11 @@ from starlette.websockets import WebSocket
 from strawberry.asgi import GraphQL
 from strawberry.schema import BaseSchema
 
-from phoenix.config import SERVER_DIR
-from phoenix.core.model_schema import Model
-from phoenix.core.traces import Traces
-
+from ..config import SERVER_DIR
+from ..core.model_schema import Model
+from ..core.traces import Traces
+from ..trace.schemas import Span
+from ..trace.span_json_decoder import json_to_span
 from .api.context import Context
 from .api.schema import schema
 
@@ -104,6 +106,32 @@ class Download(HTTPEndpoint):
         )
 
 
+T = TypeVar("T", contravariant=True)
+
+
+class SupportsPut(Protocol[T]):
+    def put(self, obj: T) -> None:
+        ...
+
+
+class SpanHandler(HTTPEndpoint):
+    queue: SupportsPut[Span]
+
+    async def post(self, request: Request) -> Response:
+        try:
+            content_type = request.headers.get("content-type")
+            span = (
+                pickle.loads(await request.body())
+                if content_type == "application/octet-stream"
+                else json_to_span(await request.json())
+            )
+            assert isinstance(span, Span)
+        except Exception:
+            return Response(status_code=422)
+        self.queue.put(span)
+        return Response()
+
+
 def create_app(
     export_path: Path,
     model: Model,
@@ -124,7 +152,21 @@ def create_app(
             Middleware(HeadersMiddleware),
         ],
         debug=debug,
-        routes=[
+        routes=(
+            []
+            if traces is None
+            else [
+                Route(
+                    "/v1/spans",
+                    type(
+                        "SpanEndpoint",
+                        (SpanHandler,),
+                        {"queue": traces},
+                    ),
+                ),
+            ]
+        )
+        + [
             Route(
                 "/exports",
                 type(
