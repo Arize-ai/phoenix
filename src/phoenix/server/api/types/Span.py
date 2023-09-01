@@ -89,7 +89,7 @@ class SpanEvent:
         """Converts a mapping to a SpanEvent. Used when parsing the record from the dataframe."""
         return SpanEvent(
             name=mapping["name"],
-            message=mapping["message"],
+            message=(mapping.get("attributes") or {}).get(sc.EXCEPTION_MESSAGE) or "",
             timestamp=datetime.fromisoformat(mapping["timestamp"]),
         )
 
@@ -150,7 +150,12 @@ def to_gql_span(row: "Series[Any]") -> Span:
     Converts a dataframe row to a graphQL span
     """
     attributes = _extract_attributes(row).to_dict()
-    events: List[SpanEvent] = list(map(SpanEvent.from_mapping, row["events"]))
+    events: List[SpanEvent] = list(
+        map(
+            SpanEvent.from_mapping,
+            row["events"],
+        )
+    )
     input_value = attributes.get(INPUT_VALUE)
     output_value = attributes.get(OUTPUT_VALUE)
     return Span(
