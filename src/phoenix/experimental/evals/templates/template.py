@@ -10,20 +10,18 @@ DEFAULT_END_DELIM = "}"
 
 @dataclass
 class PromptTemplate:
-    template_str: str
-    template_variables: List[str]
+    text: str
+    variables: List[str]
 
-    def __init__(
-        self, template_str: str, delimiters: List[str] = [DEFAULT_START_DELIM, DEFAULT_END_DELIM]
-    ):
-        self.template_str = template_str
+    def __init__(self, text: str, delimiters: List[str] = [DEFAULT_START_DELIM, DEFAULT_END_DELIM]):
+        self.text = text
         self._start_delim, self._end_delim = self._get_delimiters(delimiters)
         self._validate()
-        self.template_variables = self._parse_variables()
+        self.variables = self._parse_variables()
 
     def format(self, variable_values: Dict[str, Union[bool, int, float, str]]) -> str:
-        prompt = self.template_str
-        for variable_name in self.template_variables:
+        prompt = self.text
+        for variable_name in self.variables:
             prompt = prompt.replace(
                 self._start_delim + variable_name + self._end_delim,
                 str(variable_values[variable_name]),
@@ -42,11 +40,11 @@ class PromptTemplate:
 
     def _validate(self) -> None:
         # Validate that for every open delimiter, we have the corresponding closing one
-        start_count = self.template_str.count(self._start_delim)
-        end_count = self.template_str.count(self._end_delim)
+        start_count = self.text.count(self._start_delim)
+        end_count = self.text.count(self._end_delim)
         if start_count != end_count:
             raise ValueError(
-                f"template_str poorly formatted. Found {start_count} instances of delimiter "
+                f"text poorly formatted. Found {start_count} instances of delimiter "
                 f"{self._start_delim} and {end_count} instances of {self._end_delim}. "
                 "They must be equal to be correctly paired."
             )
@@ -55,32 +53,30 @@ class PromptTemplate:
         variables = []
         formatter = Formatter()
 
-        template_str = self.template_str
+        text = self.text
 
         # Example of this could be a template like: My name is ::name::
         if self._start_delim == self._end_delim:
             delim_length = len(self._start_delim)
-            delim_count = template_str.count(self._start_delim)
+            delim_count = text.count(self._start_delim)
             while delim_count > 0:
-                left_index = template_str.find(self._start_delim)
-                right_index = template_str[left_index + delim_length :].find(self._start_delim)
-                template_str = (
-                    template_str[0:left_index]
+                left_index = text.find(self._start_delim)
+                right_index = text[left_index + delim_length :].find(self._start_delim)
+                text = (
+                    text[0:left_index]
                     + DEFAULT_START_DELIM
-                    + template_str[
-                        left_index + delim_length : left_index + delim_length + right_index
-                    ]
+                    + text[left_index + delim_length : left_index + delim_length + right_index]
                     + DEFAULT_END_DELIM
-                    + template_str[left_index + 2 * delim_length + right_index :]
+                    + text[left_index + 2 * delim_length + right_index :]
                 )
-                delim_count = template_str.count(self._start_delim)
+                delim_count = text.count(self._start_delim)
         else:
             if self._start_delim != "{":
-                template_str = template_str.replace(self._start_delim, DEFAULT_START_DELIM)
+                text = text.replace(self._start_delim, DEFAULT_START_DELIM)
             if self._end_delim != "{":
-                template_str = template_str.replace(self._end_delim, DEFAULT_END_DELIM)
+                text = text.replace(self._end_delim, DEFAULT_END_DELIM)
 
-        for _, variable_name, _, _ in formatter.parse(template_str):
+        for _, variable_name, _, _ in formatter.parse(text):
             if variable_name:
                 variables.append(variable_name)
 
