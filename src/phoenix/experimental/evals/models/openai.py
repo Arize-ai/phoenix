@@ -1,6 +1,6 @@
 import os
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, Optional, Tuple, Union
+from typing import Any, Dict, Optional, Tuple, Union
 
 from .base import BaseEvalModel, create_base_retry_decorator
 
@@ -68,12 +68,13 @@ class OpenAiModel(BaseEvalModel):
                 )
             self.openai_api_key = api_key
 
-    def _generate(self, prompt: str) -> str:
+    def _generate(self, prompt: str, instruction: Optional[str]) -> str:
         invoke_params = self.invocation_params
+        message = {"role": "user", "content": prompt}
+        if instruction:
+            message = {"role": "system", "content": instruction, **message}
         response = self._generate_with_retry(
-            messages=[
-                {"role": "user", "content": prompt},
-            ],
+            messages=[message],
             **invoke_params,
         )
         # TODO: This is a bit rudimentary, should improve
