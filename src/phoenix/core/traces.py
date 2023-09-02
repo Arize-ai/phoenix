@@ -192,11 +192,6 @@ class Traces:
         with self._lock:
             return self._max_start_time
 
-    def __len__(self) -> int:
-        """Total number of traces"""
-        with self._lock:
-            return len(self._start_time_sorted_root_span_ids)
-
     def __getitem__(self, key: SpanID) -> Optional[ReadableSpan]:
         with self._lock:
             return self._spans.get(key)
