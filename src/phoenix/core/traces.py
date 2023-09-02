@@ -144,17 +144,15 @@ class Traces:
             else self._start_time_sorted_span_ids
         )
         with self._lock:
-            return list(
-                map(
-                    self._spans.__getitem__,
-                    sorted_span_ids.irange_key(
-                        start_time.timestamp(),
-                        stop_time.timestamp(),
-                        inclusive=(True, False),
-                        reverse=True,  # most recent spans first
-                    ),
+            return [
+                self._spans[span_id]
+                for span_id in sorted_span_ids.irange_key(
+                    start_time.timestamp(),
+                    stop_time.timestamp(),
+                    inclusive=(True, False),
+                    reverse=True,  # most recent spans first
                 )
-            )
+            ]
 
     def latency_rank_percent(
         self,
