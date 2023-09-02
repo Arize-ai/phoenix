@@ -22,6 +22,7 @@ from llama_index.callbacks.schema import (
     EventPayload,
 )
 
+from phoenix.trace.exporter import HttpExporter
 from phoenix.trace.schemas import Span, SpanID, SpanKind, SpanStatusCode
 from phoenix.trace.semantic_conventions import (
     DOCUMENT_CONTENT,
@@ -39,7 +40,7 @@ from phoenix.trace.semantic_conventions import (
     RETRIEVAL_DOCUMENTS,
     MimeType,
 )
-from phoenix.trace.tracer import Exporter, HttpExporter, Tracer
+from phoenix.trace.tracer import SpanExporter, Tracer
 
 logger = logging.getLogger(__name__)
 
@@ -110,7 +111,7 @@ class OpenInferenceTraceCallbackHandler(BaseCallbackHandler):
     def __init__(
         self,
         callback: Optional[Callable[[List[Span]], None]] = None,
-        exporter: Optional[Exporter[Span]] = HttpExporter(),
+        exporter: Optional[SpanExporter] = HttpExporter(),
     ) -> None:
         super().__init__(event_starts_to_ignore=[], event_ends_to_ignore=[])
         self._tracer = Tracer(on_append=callback, exporter=exporter)

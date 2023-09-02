@@ -214,11 +214,11 @@ class Traces:
         span_id = span.context.span_id
         existing_span = self._spans.get(span_id)
         if existing_span and existing_span.end_time:
-            # Reject updates if span has ended
+            # Reject updates if span has ended.
             return
         if parent_id := span.parent_id:
             if parent_id not in self._spans:
-                # Span can't be processed before its parent
+                # Span can't be processed before its parent.
                 self._orphan_spans[parent_id].append(span)
                 return
             self._child_span_ids[parent_id].append(span_id)
@@ -230,6 +230,7 @@ class Traces:
         if not parent_id and span.end_time:
             self._latency_sorted_root_span_ids.add(span_id)
         if not existing_span:
+            self._traces[span.context.trace_id].append(span_id)
             if not parent_id:
                 self._start_time_sorted_root_span_ids.add(span_id)
             self._start_time_sorted_span_ids.add(span_id)
@@ -243,7 +244,7 @@ class Traces:
                 if self._max_start_time is None
                 else max(self._max_start_time, span.start_time)
             )
-        # Update cumulative values for span's ancestors
+        # Update cumulative values for span's ancestors.
         for attribute_name, cumulative_attribute_name in (
             (LLM_TOKEN_COUNT_TOTAL, CUMULATIVE_LLM_TOKEN_COUNT_TOTAL),
             (LLM_TOKEN_COUNT_PROMPT, CUMULATIVE_LLM_TOKEN_COUNT_PROMPT),
@@ -262,7 +263,7 @@ class Traces:
                 span_id,
                 cumulative_attribute_name,
             )
-        # Process previously orphan spans if any
+        # Process previously orphaned spans, if any.
         for orphan_span in self._orphan_spans[span_id]:
             self._process_span(orphan_span)
 

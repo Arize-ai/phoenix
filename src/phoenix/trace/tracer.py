@@ -1,15 +1,8 @@
 import logging
-import pickle
-import weakref
 from datetime import datetime
-from queue import SimpleQueue
-from threading import Thread
-from typing import Any, Callable, Iterator, List, Optional, Protocol, TypeVar
+from typing import Any, Callable, Iterator, List, Optional, Protocol
 from uuid import UUID, uuid4
 
-from requests import Session
-
-from ..config import PORT
 from .schemas import (
     Span,
     SpanAttributes,
@@ -24,47 +17,10 @@ from .schemas import (
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
 
-T = TypeVar("T", contravariant=True)
 
-
-class Exporter(Protocol[T]):
-    def export(self, obj: T) -> None:
-        ...
-
-
-class NoOpExporter:
+class SpanExporter(Protocol):
     def export(self, span: Span) -> None:
         ...
-
-
-class HttpExporter:
-    def __init__(self, port: int = PORT) -> None:
-        self._url = f"http://localhost:{port}/v1/spans"
-        self._session = Session()
-        weakref.finalize(self, self._session.close)
-        self._session.headers.update({"content-type": "application/octet-stream"})
-        self._queue: "SimpleQueue[Optional[Span]]" = SimpleQueue()
-        # Putting `None` as the sentinel value for queue termination.
-        weakref.finalize(self, self._queue.put, None)
-        Thread(target=self._consume_spans, daemon=True).start()
-
-    def export(self, span: Span) -> None:
-        self._queue.put(span)
-
-    def _consume_spans(self) -> None:
-        while True:
-            if not (span := self._queue.get()):
-                return
-            self._send(span)
-
-    def _send(self, span: Span) -> None:
-        try:
-            self._session.post(
-                self._url,
-                data=pickle.dumps(span),
-            ).raise_for_status()
-        except Exception as e:
-            logger.exception(e)
 
 
 class Tracer:
@@ -81,7 +37,7 @@ class Tracer:
 
     def __init__(
         self,
-        exporter: Optional[Exporter[Span]] = HttpExporter(),
+        exporter: Optional[SpanExporter] = None,
         on_append: Optional[Callable[[List[Span]], None]] = None,
         *args: Any,
         **kwargs: Any,
@@ -98,7 +54,7 @@ class Tracer:
         """
         self.span_buffer = []
         self.on_append = on_append
-        self._exporter: Exporter[Span] = exporter or NoOpExporter()
+        self._exporter: Optional[SpanExporter] = exporter
         super().__init__(*args, **kwargs)
 
     def create_span(
@@ -144,7 +100,8 @@ class Tracer:
             conversation=conversation,
         )
 
-        self._exporter.export(span)
+        if self._exporter:
+            self._exporter.export(span)
         self.span_buffer.append(span)
 
         if self.on_append is not None:

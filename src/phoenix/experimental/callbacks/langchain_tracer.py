@@ -7,6 +7,7 @@ from typing import Any, Dict, Iterator, List, Optional, Tuple
 from langchain.callbacks.tracers.base import BaseTracer
 from langchain.callbacks.tracers.schemas import Run
 
+from phoenix.trace.exporter import HttpExporter
 from phoenix.trace.schemas import (
     Span,
     SpanEvent,
@@ -162,6 +163,10 @@ def _retrieval_documents(
 
 
 class OpenInferenceTracer(Tracer, BaseTracer):
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self._exporter = self._exporter or HttpExporter()
+
     def _convert_run_to_spans(
         self,
         run: Dict[str, Any],

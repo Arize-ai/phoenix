@@ -1,0 +1,44 @@
+import logging
+import pickle
+import weakref
+from queue import SimpleQueue
+from threading import Thread
+from typing import Optional
+
+from requests import Session
+
+from phoenix.config import PORT
+from phoenix.trace.schemas import Span
+
+logger = logging.getLogger(__name__)
+logger.addHandler(logging.NullHandler())
+
+
+class HttpExporter:
+    def __init__(self, port: int = PORT) -> None:
+        self._url = f"http://localhost:{port}/v1/spans"
+        self._session = Session()
+        weakref.finalize(self, self._session.close)
+        self._session.headers.update({"content-type": "application/octet-stream"})
+        self._queue: "SimpleQueue[Optional[Span]]" = SimpleQueue()
+        # Putting `None` as the sentinel value for queue termination.
+        weakref.finalize(self, self._queue.put, None)
+        Thread(target=self._consume_spans, daemon=True).start()
+
+    def export(self, span: Span) -> None:
+        self._queue.put(span)
+
+    def _consume_spans(self) -> None:
+        while True:
+            if not (span := self._queue.get()):
+                return
+            self._send(span)
+
+    def _send(self, span: Span) -> None:
+        try:
+            self._session.post(
+                self._url,
+                data=pickle.dumps(span),
+            ).raise_for_status()
+        except Exception as e:
+            logger.exception(e)

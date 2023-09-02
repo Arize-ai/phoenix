@@ -2,6 +2,7 @@ from collections import defaultdict
 from datetime import datetime
 from itertools import chain
 from typing import Dict, Iterable, List, Optional, Set, Union, cast
+from uuid import UUID
 
 import numpy as np
 import numpy.typing as npt
@@ -22,8 +23,8 @@ from phoenix.server.api.input_types.SpanSort import SpanSort
 from phoenix.server.api.types.Cluster import Cluster, to_gql_clusters
 
 from ...core.traces import ReadableSpan
-from ...trace.schemas import TraceID
 from .context import Context
+from .input_types.TimeRange import TimeRange
 from .types.DatasetInfo import DatasetInfo
 from .types.DatasetRole import AncillaryDatasetRole, DatasetRole
 from .types.Dimension import to_gql_dimension
@@ -203,6 +204,7 @@ class Query:
     def spans(
         self,
         info: Info[Context, None],
+        time_range: Optional[TimeRange] = UNSET,
         trace_ids: Optional[List[ID]] = UNSET,
         first: Optional[int] = 50,
         last: Optional[int] = UNSET,
@@ -215,13 +217,12 @@ class Query:
         if (traces := info.context.traces) is not None:
             spans = (
                 chain.from_iterable(
-                    map(
-                        traces.get_trace,
-                        cast(Iterable[TraceID], trace_ids),
-                    )
+                    map(traces.get_trace, map(UUID, trace_ids)),
                 )
                 if trace_ids
                 else traces.get_spans(
+                    start_time=time_range.start if time_range else None,
+                    stop_time=time_range.end if time_range else None,
                     root_spans_only=root_spans_only,
                 )
             )

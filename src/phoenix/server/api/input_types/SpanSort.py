@@ -49,7 +49,7 @@ class SpanSort:
         """
         Sorts the spans by the given column and direction
         """
-        yield from pd.Series(spans).sort_values(
+        yield from pd.Series(spans, dtype=object).sort_values(
             key=lambda s: s.apply(itemgetter(self.col.value)),
             ascending=self.dir.value == SortDir.asc.value,
         )
