@@ -21,9 +21,11 @@ else:
 
 DESCRIPTOR: google.protobuf.descriptor.FileDescriptor
 
+@typing_extensions.final
 class Span(google.protobuf.message.Message):
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
+    @typing_extensions.final
     class Context(google.protobuf.message.Message):
         DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
@@ -39,6 +41,7 @@ class Span(google.protobuf.message.Message):
         ) -> None: ...
         def ClearField(self, field_name: typing_extensions.Literal["span_id", b"span_id", "trace_id", b"trace_id"]) -> None: ...
 
+    @typing_extensions.final
     class Status(google.protobuf.message.Message):
         DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
@@ -46,7 +49,7 @@ class Span(google.protobuf.message.Message):
             ValueType = typing.NewType("ValueType", builtins.int)
             V: typing_extensions.TypeAlias = ValueType
 
-        class _CodeEnumTypeWrapper(google.protobuf.internal.enum_type_wrapper._EnumTypeWrapper[Span.Status._Code.ValueType], builtins.type):  # noqa: F821
+        class _CodeEnumTypeWrapper(google.protobuf.internal.enum_type_wrapper._EnumTypeWrapper[Span.Status._Code.ValueType], builtins.type):
             DESCRIPTOR: google.protobuf.descriptor.EnumDescriptor
             UNSET: Span.Status._Code.ValueType  # 0
             OK: Span.Status._Code.ValueType  # 1
@@ -71,6 +74,7 @@ class Span(google.protobuf.message.Message):
         def HasField(self, field_name: typing_extensions.Literal["message", b"message"]) -> builtins.bool: ...
         def ClearField(self, field_name: typing_extensions.Literal["code", b"code", "message", b"message"]) -> None: ...
 
+    @typing_extensions.final
     class Event(google.protobuf.message.Message):
         DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
@@ -92,6 +96,7 @@ class Span(google.protobuf.message.Message):
         def HasField(self, field_name: typing_extensions.Literal["attributes", b"attributes", "timestamp", b"timestamp"]) -> builtins.bool: ...
         def ClearField(self, field_name: typing_extensions.Literal["attributes", b"attributes", "name", b"name", "timestamp", b"timestamp"]) -> None: ...
 
+    @typing_extensions.final
     class Exception(google.protobuf.message.Message):
         DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
@@ -126,6 +131,7 @@ class Span(google.protobuf.message.Message):
         def HasField(self, field_name: typing_extensions.Literal["attributes", b"attributes", "escaped", b"escaped", "message", b"message", "stacktrace", b"stacktrace", "timestamp", b"timestamp", "type", b"type"]) -> builtins.bool: ...
         def ClearField(self, field_name: typing_extensions.Literal["attributes", b"attributes", "escaped", b"escaped", "message", b"message", "stacktrace", b"stacktrace", "timestamp", b"timestamp", "type", b"type"]) -> None: ...
 
+    @typing_extensions.final
     class IOValue(google.protobuf.message.Message):
         DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
@@ -215,9 +221,11 @@ class Span(google.protobuf.message.Message):
 
 global___Span = Span
 
+@typing_extensions.final
 class Retrieval(google.protobuf.message.Message):
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
+    @typing_extensions.final
     class Document(google.protobuf.message.Message):
         DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
@@ -264,9 +272,11 @@ class Retrieval(google.protobuf.message.Message):
 
 global___Retrieval = Retrieval
 
+@typing_extensions.final
 class Embedding(google.protobuf.message.Message):
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
+    @typing_extensions.final
     class Embedding(google.protobuf.message.Message):
         DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
@@ -306,6 +316,7 @@ class Embedding(google.protobuf.message.Message):
 
 global___Embedding = Embedding
 
+@typing_extensions.final
 class LLM(google.protobuf.message.Message):
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
@@ -322,6 +333,7 @@ class LLM(google.protobuf.message.Message):
 
 global___LLM = LLM
 
+@typing_extensions.final
 class Tool(google.protobuf.message.Message):
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
 

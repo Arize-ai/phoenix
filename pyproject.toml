@@ -231,8 +231,9 @@ dependencies = [
 build = 'strawberry export-schema phoenix.server.api.schema:schema > app/schema.graphql'
 
 [tool.hatch.envs.proto]
+detached = true
 dependencies = [
-  "grpcio-tools==1.57.0",
+  "grpcio-tools==1.54.3",
   "mypy-protobuf==3.5.0"
 ]
 
