@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from phoenix.trace.exporter import NoOpSpanExporter
+from phoenix.trace.exporter import NoOpExporter
 from phoenix.trace.schemas import Span, SpanException, SpanStatusCode
 from phoenix.trace.semantic_conventions import DeploymentAttributes
 from phoenix.trace.span_json_decoder import json_string_to_span
@@ -9,7 +9,7 @@ from phoenix.trace.tracer import Tracer
 
 
 def test_span_construction():
-    tracer = Tracer(exporter=NoOpSpanExporter())
+    tracer = Tracer(exporter=NoOpExporter())
     span = tracer.create_span(
         name="test",
         start_time=datetime.now(),
@@ -25,7 +25,7 @@ def test_span_construction():
 
 
 def test_span_buffer_accumulation():
-    tracer = Tracer(exporter=NoOpSpanExporter())
+    tracer = Tracer(exporter=NoOpExporter())
     tracer.create_span(
         name="test_1",
         start_time=datetime.now(),

@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
 
 
-class NoOpSpanExporter:
+class NoOpExporter:
     def export(self, span: Span) -> None:
         pass
 
