@@ -21,7 +21,7 @@ from phoenix.trace.semantic_conventions import (
 )
 
 
-def get_attribute_value(span: Span, key: str) -> Any:
+def _get_attribute_value(span: Span, key: str) -> Any:
     return span.attributes.get(key)
 
 
@@ -30,31 +30,31 @@ class SpanColumn(Enum):
     startTime = attrgetter("start_time")
     endTime = attrgetter("end_time")
     latencyMs = partial(
-        get_attribute_value,
+        _get_attribute_value,
         key=LATENCY_MS,
     )
     tokenCountTotal = partial(
-        get_attribute_value,
+        _get_attribute_value,
         key=LLM_TOKEN_COUNT_TOTAL,
     )
     tokenCountPrompt = partial(
-        get_attribute_value,
+        _get_attribute_value,
         key=LLM_TOKEN_COUNT_PROMPT,
     )
     tokenCountCompletion = partial(
-        get_attribute_value,
+        _get_attribute_value,
         key=LLM_TOKEN_COUNT_COMPLETION,
     )
     cumulativeTokenCountTotal = partial(
-        get_attribute_value,
+        _get_attribute_value,
         key=CUMULATIVE_LLM_TOKEN_COUNT_TOTAL,
     )
     cumulativeTokenCountPrompt = partial(
-        get_attribute_value,
+        _get_attribute_value,
         key=CUMULATIVE_LLM_TOKEN_COUNT_PROMPT,
     )
     cumulativeTokenCountCompletion = partial(
-        get_attribute_value,
+        _get_attribute_value,
         key=CUMULATIVE_LLM_TOKEN_COUNT_COMPLETION,
     )
 
