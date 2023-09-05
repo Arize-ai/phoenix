@@ -37,10 +37,7 @@ class Span(google.protobuf.message.Message):
             trace_id: builtins.bytes = ...,
             span_id: builtins.bytes = ...,
         ) -> None: ...
-        def ClearField(
-            self,
-            field_name: typing_extensions.Literal["span_id", b"span_id", "trace_id", b"trace_id"],
-        ) -> None: ...
+        def ClearField(self, field_name: typing_extensions.Literal["span_id", b"span_id", "trace_id", b"trace_id"]) -> None: ...
 
     class Status(google.protobuf.message.Message):
         DESCRIPTOR: google.protobuf.descriptor.Descriptor
@@ -49,12 +46,7 @@ class Span(google.protobuf.message.Message):
             ValueType = typing.NewType("ValueType", builtins.int)
             V: typing_extensions.TypeAlias = ValueType
 
-        class _CodeEnumTypeWrapper(
-            google.protobuf.internal.enum_type_wrapper._EnumTypeWrapper[
-                Span.Status._Code.ValueType
-            ],
-            builtins.type,
-        ):  # noqa: F821
+        class _CodeEnumTypeWrapper(google.protobuf.internal.enum_type_wrapper._EnumTypeWrapper[Span.Status._Code.ValueType], builtins.type):  # noqa: F821
             DESCRIPTOR: google.protobuf.descriptor.EnumDescriptor
             UNSET: Span.Status._Code.ValueType  # 0
             OK: Span.Status._Code.ValueType  # 1
@@ -76,12 +68,8 @@ class Span(google.protobuf.message.Message):
             code: global___Span.Status.Code.ValueType = ...,
             message: google.protobuf.wrappers_pb2.StringValue | None = ...,
         ) -> None: ...
-        def HasField(
-            self, field_name: typing_extensions.Literal["message", b"message"]
-        ) -> builtins.bool: ...
-        def ClearField(
-            self, field_name: typing_extensions.Literal["code", b"code", "message", b"message"]
-        ) -> None: ...
+        def HasField(self, field_name: typing_extensions.Literal["message", b"message"]) -> builtins.bool: ...
+        def ClearField(self, field_name: typing_extensions.Literal["code", b"code", "message", b"message"]) -> None: ...
 
     class Event(google.protobuf.message.Message):
         DESCRIPTOR: google.protobuf.descriptor.Descriptor
@@ -101,18 +89,8 @@ class Span(google.protobuf.message.Message):
             name: builtins.str = ...,
             timestamp: google.protobuf.timestamp_pb2.Timestamp | None = ...,
         ) -> None: ...
-        def HasField(
-            self,
-            field_name: typing_extensions.Literal[
-                "attributes", b"attributes", "timestamp", b"timestamp"
-            ],
-        ) -> builtins.bool: ...
-        def ClearField(
-            self,
-            field_name: typing_extensions.Literal[
-                "attributes", b"attributes", "name", b"name", "timestamp", b"timestamp"
-            ],
-        ) -> None: ...
+        def HasField(self, field_name: typing_extensions.Literal["attributes", b"attributes", "timestamp", b"timestamp"]) -> builtins.bool: ...
+        def ClearField(self, field_name: typing_extensions.Literal["attributes", b"attributes", "name", b"name", "timestamp", b"timestamp"]) -> None: ...
 
     class Exception(google.protobuf.message.Message):
         DESCRIPTOR: google.protobuf.descriptor.Descriptor
@@ -145,40 +123,8 @@ class Span(google.protobuf.message.Message):
             stacktrace: google.protobuf.wrappers_pb2.StringValue | None = ...,
             timestamp: google.protobuf.timestamp_pb2.Timestamp | None = ...,
         ) -> None: ...
-        def HasField(
-            self,
-            field_name: typing_extensions.Literal[
-                "attributes",
-                b"attributes",
-                "escaped",
-                b"escaped",
-                "message",
-                b"message",
-                "stacktrace",
-                b"stacktrace",
-                "timestamp",
-                b"timestamp",
-                "type",
-                b"type",
-            ],
-        ) -> builtins.bool: ...
-        def ClearField(
-            self,
-            field_name: typing_extensions.Literal[
-                "attributes",
-                b"attributes",
-                "escaped",
-                b"escaped",
-                "message",
-                b"message",
-                "stacktrace",
-                b"stacktrace",
-                "timestamp",
-                b"timestamp",
-                "type",
-                b"type",
-            ],
-        ) -> None: ...
+        def HasField(self, field_name: typing_extensions.Literal["attributes", b"attributes", "escaped", b"escaped", "message", b"message", "stacktrace", b"stacktrace", "timestamp", b"timestamp", "type", b"type"]) -> builtins.bool: ...
+        def ClearField(self, field_name: typing_extensions.Literal["attributes", b"attributes", "escaped", b"escaped", "message", b"message", "stacktrace", b"stacktrace", "timestamp", b"timestamp", "type", b"type"]) -> None: ...
 
     class IOValue(google.protobuf.message.Message):
         DESCRIPTOR: google.protobuf.descriptor.Descriptor
@@ -194,27 +140,14 @@ class Span(google.protobuf.message.Message):
             string_value: builtins.str = ...,
             json_value: google.protobuf.struct_pb2.Struct | None = ...,
         ) -> None: ...
-        def HasField(
-            self,
-            field_name: typing_extensions.Literal[
-                "json_value", b"json_value", "kind", b"kind", "string_value", b"string_value"
-            ],
-        ) -> builtins.bool: ...
-        def ClearField(
-            self,
-            field_name: typing_extensions.Literal[
-                "json_value", b"json_value", "kind", b"kind", "string_value", b"string_value"
-            ],
-        ) -> None: ...
-        def WhichOneof(
-            self, oneof_group: typing_extensions.Literal["kind", b"kind"]
-        ) -> typing_extensions.Literal["string_value", "json_value"] | None: ...
+        def HasField(self, field_name: typing_extensions.Literal["json_value", b"json_value", "kind", b"kind", "string_value", b"string_value"]) -> builtins.bool: ...
+        def ClearField(self, field_name: typing_extensions.Literal["json_value", b"json_value", "kind", b"kind", "string_value", b"string_value"]) -> None: ...
+        def WhichOneof(self, oneof_group: typing_extensions.Literal["kind", b"kind"]) -> typing_extensions.Literal["string_value", "json_value"] | None: ...
 
     ATTRIBUTES_FIELD_NUMBER: builtins.int
     CONTEXT_FIELD_NUMBER: builtins.int
     PARENT_SPAN_ID_FIELD_NUMBER: builtins.int
     NAME_FIELD_NUMBER: builtins.int
-    KIND_FIELD_NUMBER: builtins.int
     START_TIME_FIELD_NUMBER: builtins.int
     END_TIME_FIELD_NUMBER: builtins.int
     STATUS_FIELD_NUMBER: builtins.int
@@ -222,6 +155,7 @@ class Span(google.protobuf.message.Message):
     EXCEPTIONS_FIELD_NUMBER: builtins.int
     INPUT_FIELD_NUMBER: builtins.int
     OUTPUT_FIELD_NUMBER: builtins.int
+    KIND_FIELD_NUMBER: builtins.int
     RETRIEVAL_FIELD_NUMBER: builtins.int
     EMBEDDING_FIELD_NUMBER: builtins.int
     LLM_FIELD_NUMBER: builtins.int
@@ -233,7 +167,6 @@ class Span(google.protobuf.message.Message):
     @property
     def parent_span_id(self) -> google.protobuf.wrappers_pb2.BytesValue: ...
     name: builtins.str
-    kind: builtins.str
     @property
     def start_time(self) -> google.protobuf.timestamp_pb2.Timestamp: ...
     @property
@@ -241,21 +174,14 @@ class Span(google.protobuf.message.Message):
     @property
     def status(self) -> global___Span.Status: ...
     @property
-    def events(
-        self,
-    ) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[
-        global___Span.Event
-    ]: ...
+    def events(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[global___Span.Event]: ...
     @property
-    def exceptions(
-        self,
-    ) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[
-        global___Span.Exception
-    ]: ...
+    def exceptions(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[global___Span.Exception]: ...
     @property
     def input(self) -> global___Span.IOValue: ...
     @property
     def output(self) -> global___Span.IOValue: ...
+    kind: builtins.str
     @property
     def retrieval(self) -> global___Retrieval: ...
     @property
@@ -271,7 +197,6 @@ class Span(google.protobuf.message.Message):
         context: global___Span.Context | None = ...,
         parent_span_id: google.protobuf.wrappers_pb2.BytesValue | None = ...,
         name: builtins.str = ...,
-        kind: builtins.str = ...,
         start_time: google.protobuf.timestamp_pb2.Timestamp | None = ...,
         end_time: google.protobuf.timestamp_pb2.Timestamp | None = ...,
         status: global___Span.Status | None = ...,
@@ -279,77 +204,14 @@ class Span(google.protobuf.message.Message):
         exceptions: collections.abc.Iterable[global___Span.Exception] | None = ...,
         input: global___Span.IOValue | None = ...,
         output: global___Span.IOValue | None = ...,
+        kind: builtins.str = ...,
         retrieval: global___Retrieval | None = ...,
         embedding: global___Embedding | None = ...,
         llm: global___LLM | None = ...,
         tool: global___Tool | None = ...,
     ) -> None: ...
-    def HasField(
-        self,
-        field_name: typing_extensions.Literal[
-            "attributes",
-            b"attributes",
-            "context",
-            b"context",
-            "embedding",
-            b"embedding",
-            "end_time",
-            b"end_time",
-            "input",
-            b"input",
-            "llm",
-            b"llm",
-            "output",
-            b"output",
-            "parent_span_id",
-            b"parent_span_id",
-            "retrieval",
-            b"retrieval",
-            "start_time",
-            b"start_time",
-            "status",
-            b"status",
-            "tool",
-            b"tool",
-        ],
-    ) -> builtins.bool: ...
-    def ClearField(
-        self,
-        field_name: typing_extensions.Literal[
-            "attributes",
-            b"attributes",
-            "context",
-            b"context",
-            "embedding",
-            b"embedding",
-            "end_time",
-            b"end_time",
-            "events",
-            b"events",
-            "exceptions",
-            b"exceptions",
-            "input",
-            b"input",
-            "kind",
-            b"kind",
-            "llm",
-            b"llm",
-            "name",
-            b"name",
-            "output",
-            b"output",
-            "parent_span_id",
-            b"parent_span_id",
-            "retrieval",
-            b"retrieval",
-            "start_time",
-            b"start_time",
-            "status",
-            b"status",
-            "tool",
-            b"tool",
-        ],
-    ) -> None: ...
+    def HasField(self, field_name: typing_extensions.Literal["attributes", b"attributes", "context", b"context", "embedding", b"embedding", "end_time", b"end_time", "input", b"input", "llm", b"llm", "output", b"output", "parent_span_id", b"parent_span_id", "retrieval", b"retrieval", "start_time", b"start_time", "status", b"status", "tool", b"tool"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing_extensions.Literal["attributes", b"attributes", "context", b"context", "embedding", b"embedding", "end_time", b"end_time", "events", b"events", "exceptions", b"exceptions", "input", b"input", "kind", b"kind", "llm", b"llm", "name", b"name", "output", b"output", "parent_span_id", b"parent_span_id", "retrieval", b"retrieval", "start_time", b"start_time", "status", b"status", "tool", b"tool"]) -> None: ...
 
 global___Span = Span
 
@@ -387,56 +249,18 @@ class Retrieval(google.protobuf.message.Message):
             metadata: google.protobuf.struct_pb2.Struct | None = ...,
             hash: google.protobuf.wrappers_pb2.BytesValue | None = ...,
         ) -> None: ...
-        def HasField(
-            self,
-            field_name: typing_extensions.Literal[
-                "attributes",
-                b"attributes",
-                "content",
-                b"content",
-                "hash",
-                b"hash",
-                "id",
-                b"id",
-                "metadata",
-                b"metadata",
-                "score",
-                b"score",
-            ],
-        ) -> builtins.bool: ...
-        def ClearField(
-            self,
-            field_name: typing_extensions.Literal[
-                "attributes",
-                b"attributes",
-                "content",
-                b"content",
-                "hash",
-                b"hash",
-                "id",
-                b"id",
-                "metadata",
-                b"metadata",
-                "score",
-                b"score",
-            ],
-        ) -> None: ...
+        def HasField(self, field_name: typing_extensions.Literal["attributes", b"attributes", "content", b"content", "hash", b"hash", "id", b"id", "metadata", b"metadata", "score", b"score"]) -> builtins.bool: ...
+        def ClearField(self, field_name: typing_extensions.Literal["attributes", b"attributes", "content", b"content", "hash", b"hash", "id", b"id", "metadata", b"metadata", "score", b"score"]) -> None: ...
 
     DOCUMENTS_FIELD_NUMBER: builtins.int
     @property
-    def documents(
-        self,
-    ) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[
-        global___Retrieval.Document
-    ]: ...
+    def documents(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[global___Retrieval.Document]: ...
     def __init__(
         self,
         *,
         documents: collections.abc.Iterable[global___Retrieval.Document] | None = ...,
     ) -> None: ...
-    def ClearField(
-        self, field_name: typing_extensions.Literal["documents", b"documents"]
-    ) -> None: ...
+    def ClearField(self, field_name: typing_extensions.Literal["documents", b"documents"]) -> None: ...
 
 global___Retrieval = Retrieval
 
@@ -452,9 +276,7 @@ class Embedding(google.protobuf.message.Message):
         @property
         def attributes(self) -> google.protobuf.struct_pb2.Struct: ...
         @property
-        def vector(
-            self,
-        ) -> google.protobuf.internal.containers.RepeatedScalarFieldContainer[builtins.float]: ...
+        def vector(self) -> google.protobuf.internal.containers.RepeatedScalarFieldContainer[builtins.float]: ...
         @property
         def text(self) -> google.protobuf.wrappers_pb2.StringValue: ...
         def __init__(
@@ -464,25 +286,13 @@ class Embedding(google.protobuf.message.Message):
             vector: collections.abc.Iterable[builtins.float] | None = ...,
             text: google.protobuf.wrappers_pb2.StringValue | None = ...,
         ) -> None: ...
-        def HasField(
-            self,
-            field_name: typing_extensions.Literal["attributes", b"attributes", "text", b"text"],
-        ) -> builtins.bool: ...
-        def ClearField(
-            self,
-            field_name: typing_extensions.Literal[
-                "attributes", b"attributes", "text", b"text", "vector", b"vector"
-            ],
-        ) -> None: ...
+        def HasField(self, field_name: typing_extensions.Literal["attributes", b"attributes", "text", b"text"]) -> builtins.bool: ...
+        def ClearField(self, field_name: typing_extensions.Literal["attributes", b"attributes", "text", b"text", "vector", b"vector"]) -> None: ...
 
     EMBEDDINGS_FIELD_NUMBER: builtins.int
     MODEL_NAME_FIELD_NUMBER: builtins.int
     @property
-    def embeddings(
-        self,
-    ) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[
-        global___Embedding.Embedding
-    ]: ...
+    def embeddings(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[global___Embedding.Embedding]: ...
     @property
     def model_name(self) -> google.protobuf.wrappers_pb2.StringValue: ...
     def __init__(
@@ -491,15 +301,8 @@ class Embedding(google.protobuf.message.Message):
         embeddings: collections.abc.Iterable[global___Embedding.Embedding] | None = ...,
         model_name: google.protobuf.wrappers_pb2.StringValue | None = ...,
     ) -> None: ...
-    def HasField(
-        self, field_name: typing_extensions.Literal["model_name", b"model_name"]
-    ) -> builtins.bool: ...
-    def ClearField(
-        self,
-        field_name: typing_extensions.Literal[
-            "embeddings", b"embeddings", "model_name", b"model_name"
-        ],
-    ) -> None: ...
+    def HasField(self, field_name: typing_extensions.Literal["model_name", b"model_name"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing_extensions.Literal["embeddings", b"embeddings", "model_name", b"model_name"]) -> None: ...
 
 global___Embedding = Embedding
 
@@ -514,12 +317,8 @@ class LLM(google.protobuf.message.Message):
         *,
         attributes: google.protobuf.struct_pb2.Struct | None = ...,
     ) -> None: ...
-    def HasField(
-        self, field_name: typing_extensions.Literal["attributes", b"attributes"]
-    ) -> builtins.bool: ...
-    def ClearField(
-        self, field_name: typing_extensions.Literal["attributes", b"attributes"]
-    ) -> None: ...
+    def HasField(self, field_name: typing_extensions.Literal["attributes", b"attributes"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing_extensions.Literal["attributes", b"attributes"]) -> None: ...
 
 global___LLM = LLM
 
@@ -534,11 +333,7 @@ class Tool(google.protobuf.message.Message):
         *,
         attributes: google.protobuf.struct_pb2.Struct | None = ...,
     ) -> None: ...
-    def HasField(
-        self, field_name: typing_extensions.Literal["attributes", b"attributes"]
-    ) -> builtins.bool: ...
-    def ClearField(
-        self, field_name: typing_extensions.Literal["attributes", b"attributes"]
-    ) -> None: ...
+    def HasField(self, field_name: typing_extensions.Literal["attributes", b"attributes"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing_extensions.Literal["attributes", b"attributes"]) -> None: ...
 
 global___Tool = Tool
