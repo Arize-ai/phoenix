@@ -115,6 +115,7 @@ dependencies = [
   "pytest",
   "types-psutil",
   "tenacity",
+  "types-tqdm"
 ]
 
 [tool.hatch.envs.style]
