@@ -17,8 +17,13 @@ class SpanStatusCode(Enum):
     OK = "OK"
     ERROR = "ERROR"
 
+    def __str__(self) -> str:
+        return self.value
+
     @classmethod
     def _missing_(cls, v: Any) -> Optional["SpanStatusCode"]:
+        if v and isinstance(v, str) and not v.isupper():
+            return cls(v.upper())
         return None if v else cls.UNSET
 
 
@@ -37,8 +42,13 @@ class SpanKind(Enum):
     EMBEDDING = "EMBEDDING"
     UNKNOWN = "UNKNOWN"
 
+    def __str__(self) -> str:
+        return self.value
+
     @classmethod
     def _missing_(cls, v: Any) -> Optional["SpanKind"]:
+        if v and isinstance(v, str) and not v.isupper():
+            return cls(v.upper())
         return None if v else cls.UNKNOWN
 
 

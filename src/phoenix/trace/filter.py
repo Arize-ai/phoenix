@@ -97,6 +97,7 @@ def _ast_replacement(expression: str) -> ast.expr:
 def _allowed_fields() -> Iterator[Tuple[str, ast.expr]]:
     for k, v in {
         "name": _ast_replacement("span.name"),
+        "status_code": _ast_replacement("span.status_code"),
         "span_kind": _ast_replacement("span.span_kind"),
         "parent_id": _ast_replacement("span.parent_id"),
     }.items():
@@ -135,13 +136,13 @@ class _Translator(ast.NodeTransformer):
         source_segment: str = cast(str, ast.get_source_segment(self._source, node))
         if replacement := _ALLOWED_FIELDS.get(source_segment):
             return replacement
-        raise SyntaxError(f"unrecognized expression: {source_segment}")  # TODO: add details
+        raise SyntaxError(f"invalid expression: {source_segment}")  # TODO: add details
 
     def visit_Name(self, node: ast.Name) -> Any:
         source_segment: str = cast(str, ast.get_source_segment(self._source, node))
         if replacement := _ALLOWED_FIELDS.get(source_segment):
             return replacement
-        raise SyntaxError(f"unrecognized expression: {source_segment}")  # TODO: add details
+        raise SyntaxError(f"invalid expression: {source_segment}")  # TODO: add details
 
     def visit_Constant(self, node: ast.Constant) -> Any:
         return _LOAD_MISSING if node.value is None else node
@@ -185,7 +186,7 @@ def _validate_expression(
     # In Python 3.8, we have to use `ast.get_source_segment(source, node)`.
     # In Python 3.9, we can use `ast.unparse(node)` instead.
     if not isinstance(expression, ast.Expression):
-        raise SyntaxError(f"unrecognized expression: {source}")  # TODO: add details
+        raise SyntaxError(f"invalid expression: {source}")  # TODO: add details
     for i, node in enumerate(ast.walk(expression.body)):
         if i == 0:
             if isinstance(node, (ast.BoolOp, ast.Compare)):
@@ -193,7 +194,7 @@ def _validate_expression(
         elif isinstance(node, _ALLOWED_NODE_TYPE):
             continue
         source_segment: str = cast(str, ast.get_source_segment(source, node))
-        raise SyntaxError(f"unrecognized expression: {source_segment}")  # TODO: add details
+        raise SyntaxError(f"invalid expression: {source_segment}")  # TODO: add details
 
 
 def _flatten_attributes(attribute: ast.Attribute) -> Iterator[str]:

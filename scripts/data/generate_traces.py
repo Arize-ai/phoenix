@@ -54,8 +54,8 @@ def generate_trace(num_spans: int) -> List[Span]:
         )
         end_time = start_time + timedelta(seconds=random.randint(1, 600))
         span_id = uuid4()
-        span_kind = random.choice(list(SpanKind))
-        status_code = random.choice(list(SpanStatusCode))
+        span_kind = random.choice(list(SpanKind) + [None])
+        status_code = random.choice(list(SpanStatusCode) + [None])
         status_message = "OK" if status_code == SpanStatusCode.OK else ""
         attributes: Dict[str, AttributeValue] = {
             f"attr_{j}": f"value_{j}" for j in range(random.randint(1, 5))

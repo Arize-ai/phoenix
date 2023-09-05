@@ -208,9 +208,26 @@ def test_pb_span_encode_decode():
             ],
         },
     }
+
+    # JSON serialization should work unless there is
+    # NaN in un-typed fields of arbitrary structs
     new_span = pb.Span()
     Parse(MessageToJson(pb_span), new_span)
     assert pb_span == new_span
+    del new_span
+
+    # Default values should not break.
+    empty_pb_span = pb.Span(
+        context=pb.Span.Context(
+            span_id=uuid4().bytes,
+            trace_id=uuid4().bytes,
+        )
+    )
+    assert decode(empty_pb_span) == decode(encode(decode(empty_pb_span)))
+    # Note that the default values themselves may not be round-trip-able,
+    # i.e. the assert below may or may not work.
+    # assert empty_pb_span == encode(decode(empty_pb_span))
+    del empty_pb_span
 
 
 def test_pb_span_update() -> None:

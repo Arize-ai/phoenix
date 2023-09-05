@@ -220,7 +220,7 @@ class Query:
             try:
                 predicate = Filter(filter_condition) if filter_condition else None
             except SyntaxError as e:
-                raise Exception("Syntax error in filter condition") from e  # TODO: add details
+                raise Exception(f"invalid filter condition: {e.msg}") from e  # TODO: add details
             spans = (
                 chain.from_iterable(
                     map(traces.get_trace, map(UUID, trace_ids)),
