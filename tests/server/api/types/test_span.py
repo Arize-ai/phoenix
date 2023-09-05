@@ -13,7 +13,10 @@ def test_nested_attributes() -> None:
             "score": ...,
         },
         "exception": {
+            "escaped": ...,
             "message": ...,
+            "stacktrace": ...,
+            "type": ...,
         },
         "input": {
             "mime_type": ...,

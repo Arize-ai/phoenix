@@ -1,5 +1,5 @@
+import gzip
 import logging
-import pickle
 import weakref
 from queue import SimpleQueue
 from threading import Thread
@@ -9,6 +9,7 @@ from requests import Session
 
 from phoenix.config import PORT
 from phoenix.trace.schemas import Span
+from phoenix.trace.v1 import encode
 
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
@@ -19,7 +20,12 @@ class HttpExporter:
         self._url = f"http://localhost:{port}/v1/spans"
         self._session = Session()
         weakref.finalize(self, self._session.close)
-        self._session.headers.update({"content-type": "application/octet-stream"})
+        self._session.headers.update(
+            {
+                "content-type": "application/x-protobuf",
+                "content-encoding": "gzip",
+            }
+        )
         self._queue: "SimpleQueue[Optional[Span]]" = SimpleQueue()
         # Putting `None` as the sentinel value for queue termination.
         weakref.finalize(self, self._queue.put, None)
@@ -35,10 +41,10 @@ class HttpExporter:
             self._send(span)
 
     def _send(self, span: Span) -> None:
+        pb_span = encode(span)
+        serialized = pb_span.SerializeToString()
+        data = gzip.compress(serialized)
         try:
-            self._session.post(
-                self._url,
-                data=pickle.dumps(span),
-            ).raise_for_status()
+            self._session.post(self._url, data=data)
         except Exception as e:
             logger.exception(e)

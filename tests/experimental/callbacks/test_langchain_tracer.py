@@ -80,7 +80,7 @@ def test_tracer_llm() -> None:
     assert attributes.get(RETRIEVAL_DOCUMENTS) == [
         {
             DOCUMENT_CONTENT: document,
-            DOCUMENT_METADATA: "{}",
+            DOCUMENT_METADATA: {},
         }
     ]
 
@@ -146,7 +146,7 @@ def test_tracer_llm_with_exception() -> None:
     assert spans["Retriever"].attributes[RETRIEVAL_DOCUMENTS] == [
         {
             DOCUMENT_CONTENT: document,
-            DOCUMENT_METADATA: "{}",
+            DOCUMENT_METADATA: {},
         },
     ]
 

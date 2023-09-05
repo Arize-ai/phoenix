@@ -1,5 +1,5 @@
+import gzip
 import logging
-import pickle
 from pathlib import Path
 from typing import Optional, Protocol, TypeVar, Union
 
@@ -18,11 +18,14 @@ from starlette.websockets import WebSocket
 from strawberry.asgi import GraphQL
 from strawberry.schema import BaseSchema
 
+import phoenix.trace.v1.trace_pb2 as pb
+
 from ..config import SERVER_DIR
 from ..core.model_schema import Model
 from ..core.traces import Traces
 from ..trace.schemas import Span
 from ..trace.span_json_decoder import json_to_span
+from ..trace.v1 import encode
 from .api.context import Context
 from .api.schema import schema
 
@@ -115,20 +118,25 @@ class SupportsPut(Protocol[T]):
 
 
 class SpanHandler(HTTPEndpoint):
-    queue: SupportsPut[Span]
+    queue: SupportsPut[pb.Span]
 
     async def post(self, request: Request) -> Response:
         try:
             content_type = request.headers.get("content-type")
-            span = (
-                pickle.loads(await request.body())
-                if content_type == "application/octet-stream"
-                else json_to_span(await request.json())
-            )
-            assert isinstance(span, Span)
+            if content_type == "application/x-protobuf":
+                body = await request.body()
+                content_encoding = request.headers.get("content-encoding")
+                if content_encoding == "gzip":
+                    body = gzip.decompress(body)
+                pb_span = pb.Span()
+                pb_span.ParseFromString(body)
+            else:
+                span = json_to_span(await request.json())
+                assert isinstance(span, Span)
+                pb_span = encode(span)
         except Exception:
             return Response(status_code=422)
-        self.queue.put(span)
+        self.queue.put(pb_span)
         return Response()
 
 

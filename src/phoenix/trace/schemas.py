@@ -4,7 +4,12 @@ from enum import Enum
 from typing import Any, Dict, List, Optional, Union
 from uuid import UUID
 
-from phoenix.trace.semantic_conventions import EXCEPTION_MESSAGE
+from phoenix.trace.semantic_conventions import (
+    EXCEPTION_ESCAPED,
+    EXCEPTION_MESSAGE,
+    EXCEPTION_STACKTRACE,
+    EXCEPTION_TYPE,
+)
 
 
 class SpanStatusCode(Enum):
@@ -85,12 +90,26 @@ class SpanException(SpanEvent):
     https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/trace/semantic_conventions/exceptions.md
     """
 
-    def __init__(self, timestamp: datetime, message: str):
+    def __init__(
+        self,
+        timestamp: datetime,
+        message: str,
+        exception_type: Optional[str] = None,
+        exception_escaped: Optional[bool] = None,
+        exception_stacktrace: Optional[str] = None,
+    ):
         super().__init__(
             name="exception",
             timestamp=timestamp,
             attributes={
-                EXCEPTION_MESSAGE: message,
+                k: v
+                for k, v in {
+                    EXCEPTION_TYPE: exception_type,
+                    EXCEPTION_MESSAGE: message,
+                    EXCEPTION_ESCAPED: exception_escaped,
+                    EXCEPTION_STACKTRACE: exception_stacktrace,
+                }.items()
+                if v is not None
             },
         )
 

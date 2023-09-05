@@ -11,6 +11,7 @@ from strawberry import ID, UNSET
 from strawberry.types import Info
 from typing_extensions import Annotated
 
+import phoenix.trace.schemas as s
 from phoenix.datetime_utils import time_range
 from phoenix.pointcloud.clustering import Hdbscan
 from phoenix.server.api.helpers import ensure_list
@@ -22,7 +23,7 @@ from phoenix.server.api.input_types.Coordinates import (
 from phoenix.server.api.input_types.SpanSort import SpanSort
 from phoenix.server.api.types.Cluster import Cluster, to_gql_clusters
 
-from ...core.traces import ReadableSpan
+from ...trace.filter import Filter
 from .context import Context
 from .input_types.TimeRange import TimeRange
 from .types.DatasetInfo import DatasetInfo
@@ -212,9 +213,14 @@ class Query:
         before: Optional[Cursor] = UNSET,
         sort: Optional[SpanSort] = UNSET,
         root_spans_only: Optional[bool] = False,
+        filter_condition: Optional[str] = None,
     ) -> Connection[Span]:
-        spans: Iterable[ReadableSpan] = ()
+        spans: Iterable[s.Span] = ()
         if (traces := info.context.traces) is not None:
+            try:
+                predicate = Filter(filter_condition) if filter_condition else None
+            except SyntaxError as e:
+                raise Exception("Syntax error in filter condition") from e  # TODO: add details
             spans = (
                 chain.from_iterable(
                     map(traces.get_trace, map(UUID, trace_ids)),
@@ -226,6 +232,8 @@ class Query:
                     root_spans_only=root_spans_only,
                 )
             )
+            if predicate:
+                spans = filter(predicate, spans)
             if sort:
                 spans = sort(spans)
         return connection_from_list(

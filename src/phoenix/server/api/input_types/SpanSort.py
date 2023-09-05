@@ -1,6 +1,7 @@
 from enum import Enum
-from operator import itemgetter
-from typing import Iterable, Iterator
+from functools import partial
+from operator import attrgetter
+from typing import Any, Iterable, Iterator
 
 import pandas as pd
 import strawberry
@@ -9,28 +10,53 @@ from phoenix.core.traces import (
     CUMULATIVE_LLM_TOKEN_COUNT_COMPLETION,
     CUMULATIVE_LLM_TOKEN_COUNT_PROMPT,
     CUMULATIVE_LLM_TOKEN_COUNT_TOTAL,
-    END_TIME,
     LATENCY_MS,
+)
+from phoenix.server.api.types.SortDir import SortDir
+from phoenix.trace.schemas import Span
+from phoenix.trace.semantic_conventions import (
     LLM_TOKEN_COUNT_COMPLETION,
     LLM_TOKEN_COUNT_PROMPT,
     LLM_TOKEN_COUNT_TOTAL,
-    START_TIME,
-    ReadableSpan,
 )
-from phoenix.server.api.types.SortDir import SortDir
+
+
+def get_attribute_value(span: Span, key: str) -> Any:
+    return span.attributes.get(key)
 
 
 @strawberry.enum
 class SpanColumn(Enum):
-    startTime = START_TIME
-    endTime = END_TIME
-    latencyMs = LATENCY_MS
-    tokenCountTotal = LLM_TOKEN_COUNT_TOTAL
-    tokenCountPrompt = LLM_TOKEN_COUNT_PROMPT
-    tokenCountCompletion = LLM_TOKEN_COUNT_COMPLETION
-    cumulativeTokenCountTotal = CUMULATIVE_LLM_TOKEN_COUNT_TOTAL
-    cumulativeTokenCountPrompt = CUMULATIVE_LLM_TOKEN_COUNT_PROMPT
-    cumulativeTokenCountCompletion = CUMULATIVE_LLM_TOKEN_COUNT_COMPLETION
+    startTime = attrgetter("start_time")
+    endTime = attrgetter("end_time")
+    latencyMs = partial(
+        get_attribute_value,
+        key=LATENCY_MS,
+    )
+    tokenCountTotal = partial(
+        get_attribute_value,
+        key=LLM_TOKEN_COUNT_TOTAL,
+    )
+    tokenCountPrompt = partial(
+        get_attribute_value,
+        key=LLM_TOKEN_COUNT_PROMPT,
+    )
+    tokenCountCompletion = partial(
+        get_attribute_value,
+        key=LLM_TOKEN_COUNT_COMPLETION,
+    )
+    cumulativeTokenCountTotal = partial(
+        get_attribute_value,
+        key=CUMULATIVE_LLM_TOKEN_COUNT_TOTAL,
+    )
+    cumulativeTokenCountPrompt = partial(
+        get_attribute_value,
+        key=CUMULATIVE_LLM_TOKEN_COUNT_PROMPT,
+    )
+    cumulativeTokenCountCompletion = partial(
+        get_attribute_value,
+        key=CUMULATIVE_LLM_TOKEN_COUNT_COMPLETION,
+    )
 
 
 @strawberry.input
@@ -44,12 +70,12 @@ class SpanSort:
 
     def __call__(
         self,
-        spans: Iterable[ReadableSpan],
-    ) -> Iterator[ReadableSpan]:
+        spans: Iterable[Span],
+    ) -> Iterator[Span]:
         """
         Sorts the spans by the given column and direction
         """
         yield from pd.Series(spans, dtype=object).sort_values(
-            key=lambda s: s.apply(itemgetter(self.col.value)),
+            key=lambda s: s.apply(self.col.value),
             ascending=self.dir.value == SortDir.asc.value,
         )

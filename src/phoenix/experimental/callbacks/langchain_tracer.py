@@ -156,7 +156,7 @@ def _retrieval_documents(
     yield RETRIEVAL_DOCUMENTS, [
         {
             DOCUMENT_CONTENT: document.get("page_content"),
-            DOCUMENT_METADATA: json.dumps(document.get("metadata") or {}),
+            DOCUMENT_METADATA: document.get("metadata") or {},
         }
         for document in (run.get("outputs") or {}).get("documents") or []
     ]

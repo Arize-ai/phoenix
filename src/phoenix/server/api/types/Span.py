@@ -14,7 +14,6 @@ from phoenix.core.traces import (
     CUMULATIVE_LLM_TOKEN_COUNT_PROMPT,
     CUMULATIVE_LLM_TOKEN_COUNT_TOTAL,
     LATENCY_MS,
-    ReadableSpan,
 )
 from phoenix.server.api.context import Context
 from phoenix.server.api.types.MimeType import MimeType
@@ -135,39 +134,57 @@ class Span:
         if (traces := info.context.traces) is None:
             return []
         return [
-            to_gql_span(cast(ReadableSpan, traces[span_id]))
+            to_gql_span(cast(s.Span, traces[span_id]))
             for span_id in traces.get_descendant_span_ids(
                 cast(SpanID, self.context.span_id),
             )
         ]
 
 
-def to_gql_span(span: ReadableSpan) -> "Span":
+def to_gql_span(span: s.Span) -> "Span":
     events: List[SpanEvent] = list(map(SpanEvent.from_event, span.events))
-    input_value = span.attributes.get(INPUT_VALUE)
-    output_value = span.attributes.get(OUTPUT_VALUE)
+    input_value = cast(Optional[str], span.attributes.get(INPUT_VALUE))
+    output_value = cast(Optional[str], span.attributes.get(OUTPUT_VALUE))
     return Span(
         name=span.name,
         status_code=SpanStatusCode(span.status_code),
-        parent_id=span.parent_id,
+        parent_id=cast(Optional[ID], span.parent_id),
         span_kind=SpanKind(span.span_kind),
         start_time=span.start_time,
         end_time=span.end_time,
-        latency_ms=span[LATENCY_MS],
+        latency_ms=cast(Optional[float], span.attributes.get(LATENCY_MS)),
         context=SpanContext(
-            trace_id=span.context.trace_id,
-            span_id=span.context.span_id,
+            trace_id=cast(ID, span.context.trace_id),
+            span_id=cast(ID, span.context.span_id),
         ),
         attributes=json.dumps(
             _nested_attributes(span.attributes),
             default=_json_encode,
         ),
-        token_count_total=span.attributes.get(LLM_TOKEN_COUNT_TOTAL),
-        token_count_prompt=span.attributes.get(LLM_TOKEN_COUNT_PROMPT),
-        token_count_completion=span.attributes.get(LLM_TOKEN_COUNT_COMPLETION),
-        cumulative_token_count_total=span[CUMULATIVE_LLM_TOKEN_COUNT_TOTAL],
-        cumulative_token_count_prompt=span[CUMULATIVE_LLM_TOKEN_COUNT_PROMPT],
-        cumulative_token_count_completion=span[CUMULATIVE_LLM_TOKEN_COUNT_COMPLETION],
+        token_count_total=cast(
+            Optional[int],
+            span.attributes.get(LLM_TOKEN_COUNT_TOTAL),
+        ),
+        token_count_prompt=cast(
+            Optional[int],
+            span.attributes.get(LLM_TOKEN_COUNT_PROMPT),
+        ),
+        token_count_completion=cast(
+            Optional[int],
+            span.attributes.get(LLM_TOKEN_COUNT_COMPLETION),
+        ),
+        cumulative_token_count_total=cast(
+            Optional[int],
+            span.attributes.get(CUMULATIVE_LLM_TOKEN_COUNT_TOTAL),
+        ),
+        cumulative_token_count_prompt=cast(
+            Optional[int],
+            span.attributes.get(CUMULATIVE_LLM_TOKEN_COUNT_PROMPT),
+        ),
+        cumulative_token_count_completion=cast(
+            Optional[int],
+            span.attributes.get(CUMULATIVE_LLM_TOKEN_COUNT_COMPLETION),
+        ),
         events=events,
         input=(
             SpanIOValue(

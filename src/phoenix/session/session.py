@@ -1,6 +1,8 @@
+import json
 import logging
 from abc import ABC, abstractmethod
 from collections import UserList
+from datetime import datetime
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING, Iterable, List, Optional, Set
@@ -15,6 +17,9 @@ from phoenix.datasets.dataset import EMPTY_DATASET, Dataset
 from phoenix.server.app import create_app
 from phoenix.server.thread_server import ThreadServer
 from phoenix.services import AppService
+from phoenix.trace.filter import Filter
+from phoenix.trace.schemas import Span
+from phoenix.trace.span_json_encoder import span_to_json
 from phoenix.trace.trace_dataset import TraceDataset
 
 try:
@@ -135,6 +140,30 @@ class Session(ABC):
     def url(self) -> str:
         """Returns the url for the phoenix app"""
         return _get_url(self.port, self.is_colab)
+
+    def get_spans(
+        self,
+        filter_condition: Optional[str] = None,
+        *,
+        start_time: Optional[datetime] = None,
+        stop_time: Optional[datetime] = None,
+        root_spans_only: Optional[bool] = None,
+    ) -> Optional[pd.DataFrame]:
+        if (traces := self.traces) is None:
+            return None
+        predicate = Filter(filter_condition) if filter_condition else None
+        spans: List[Span] = traces.get_spans(
+            start_time=start_time,
+            stop_time=stop_time,
+            root_spans_only=root_spans_only,
+        )
+        if predicate:
+            spans = list(filter(predicate, spans))
+        if not spans:
+            return None
+        return pd.json_normalize(
+            map(json.loads, map(span_to_json, spans)),  # type: ignore
+        ).set_index("context.span_id", drop=False)
 
 
 _session: Optional[Session] = None
