@@ -47,9 +47,14 @@ async def llm_eval_binary(
             ),
             axis=1,
         )
+    except KeyError as e:
+        raise RuntimeError(
+            f"Error while constructing the prompts from the template and dataframe. "
+            f"The template variable {e} is not found as a column in the dataframe."
+        )
     except Exception as e:
         raise RuntimeError(
-            f"Error while constructing the prompts from the template and dataframe variables: {e}"
+            f"Error while constructing the prompts from the template and dataframe variables: {e}."
         )
 
     responses = await model.agenerate(prompts.to_list(), system_instruction)

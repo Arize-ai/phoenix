@@ -1,9 +1,7 @@
 from enum import Enum
-from operator import itemgetter
-from typing import Iterable, Iterator
 
-import pandas as pd
 import strawberry
+from pandas import DataFrame
 
 from phoenix.core.traces import (
     CUMULATIVE_LLM_TOKEN_COUNT_COMPLETION,
@@ -15,7 +13,6 @@ from phoenix.core.traces import (
     LLM_TOKEN_COUNT_PROMPT,
     LLM_TOKEN_COUNT_TOTAL,
     START_TIME,
-    ReadableSpan,
 )
 from phoenix.server.api.types.SortDir import SortDir
 
@@ -42,14 +39,11 @@ class SpanSort:
     col: SpanColumn
     dir: SortDir
 
-    def __call__(
-        self,
-        spans: Iterable[ReadableSpan],
-    ) -> Iterator[ReadableSpan]:
+    def apply(self, spans: DataFrame) -> DataFrame:
         """
         Sorts the spans by the given column and direction
         """
-        yield from pd.Series(spans).sort_values(
-            key=lambda s: s.apply(itemgetter(self.col.value)),
+        return spans.sort_values(
+            by=self.col.value,
             ascending=self.dir.value == SortDir.asc.value,
         )

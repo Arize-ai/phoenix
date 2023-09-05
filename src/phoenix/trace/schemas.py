@@ -12,10 +12,6 @@ class SpanStatusCode(Enum):
     OK = "OK"
     ERROR = "ERROR"
 
-    @classmethod
-    def _missing_(cls, v: Any) -> Optional["SpanStatusCode"]:
-        return None if v else cls.UNSET
-
 
 class SpanKind(Enum):
     """
@@ -32,12 +28,7 @@ class SpanKind(Enum):
     EMBEDDING = "EMBEDDING"
     UNKNOWN = "UNKNOWN"
 
-    @classmethod
-    def _missing_(cls, v: Any) -> Optional["SpanKind"]:
-        return None if v else cls.UNKNOWN
 
-
-TraceID = UUID
 SpanID = UUID
 AttributePrimitiveValue = Union[str, bool, float, int]
 AttributeValue = Union[AttributePrimitiveValue, List[AttributePrimitiveValue]]
@@ -48,7 +39,7 @@ SpanAttributes = Dict[str, AttributeValue]
 class SpanContext:
     """Context propagation for a span"""
 
-    trace_id: TraceID
+    trace_id: UUID
     span_id: SpanID
 
 
@@ -73,7 +64,6 @@ class SpanEvent(Dict[str, Any]):
     attributes: SpanAttributes
 
 
-@dataclass(frozen=True)
 class SpanException(SpanEvent):
     """
     A Span Exception is a special type of Span Event that denotes an error
@@ -113,7 +103,7 @@ class Span:
     "If the parent_id is None, this is the root span"
     parent_id: Optional[SpanID]
     start_time: datetime
-    end_time: Optional[datetime]
+    end_time: datetime
     status_code: SpanStatusCode
     status_message: str
     """
@@ -152,4 +142,3 @@ class Span:
 
 
 ATTRIBUTE_PREFIX = "attributes."
-CONTEXT_PREFIX = "context."

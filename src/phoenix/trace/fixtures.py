@@ -1,6 +1,8 @@
 from dataclasses import dataclass
-from typing import List, Optional, cast
+from typing import List, Optional
 from urllib import request
+
+import pandas as pd
 
 from phoenix.trace.trace_dataset import TraceDataset
 from phoenix.trace.utils import json_lines_to_df
@@ -59,13 +61,13 @@ def _download_traces_fixture(
     host: Optional[str] = "https://storage.googleapis.com/",
     bucket: Optional[str] = "arize-assets",
     prefix: Optional[str] = "phoenix/traces/",
-) -> List[str]:
+) -> pd.DataFrame:
     """
     Downloads the traces fixture from the phoenix bucket.
     """
     url = f"{host}{bucket}/{prefix}{fixture.file_name}"
     with request.urlopen(url) as f:
-        return cast(List[str], f.readlines())
+        return json_lines_to_df(f.readlines())
 
 
 def load_example_traces(use_case: str) -> TraceDataset:
@@ -75,4 +77,4 @@ def load_example_traces(use_case: str) -> TraceDataset:
     NB: this functionality is under active construction.
     """
     fixture = _get_trace_fixture_by_name(use_case)
-    return TraceDataset(json_lines_to_df(_download_traces_fixture(fixture)))
+    return TraceDataset(_download_traces_fixture(fixture))

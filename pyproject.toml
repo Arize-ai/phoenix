@@ -118,6 +118,7 @@ dependencies = [
   "types-psutil",
   "tenacity",
   "types-requests",
+  "types-tqdm"
 ]
 
 [tool.hatch.envs.style]
