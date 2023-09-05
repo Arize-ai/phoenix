@@ -97,7 +97,7 @@ def _ast_replacement(expression: str) -> ast.expr:
 def _allowed_fields() -> Iterator[Tuple[str, ast.expr]]:
     for k, v in {
         "name": _ast_replacement("span.name"),
-        "kind": _ast_replacement("span.kind"),
+        "span_kind": _ast_replacement("span.span_kind"),
         "parent_id": _ast_replacement("span.parent_id"),
     }.items():
         yield k, v
