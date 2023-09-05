@@ -25,6 +25,7 @@ import phoenix.trace.semantic_conventions as sc
 import phoenix.trace.v1.trace_pb2 as pb
 from phoenix.trace.schemas import (
     ATTRIBUTE_PREFIX,
+    COMPUTED_PREFIX,
     CONTEXT_PREFIX,
     Span,
     SpanAttributes,
@@ -44,7 +45,6 @@ END_TIME = "end_time"
 LLM_TOKEN_COUNT_TOTAL = ATTRIBUTE_PREFIX + sc.LLM_TOKEN_COUNT_TOTAL
 LLM_TOKEN_COUNT_PROMPT = ATTRIBUTE_PREFIX + sc.LLM_TOKEN_COUNT_PROMPT
 LLM_TOKEN_COUNT_COMPLETION = ATTRIBUTE_PREFIX + sc.LLM_TOKEN_COUNT_COMPLETION
-COMPUTED_PREFIX = "__computed__."
 LATENCY_MS = COMPUTED_PREFIX + "latency_ms"
 "The latency (or duration) of the span in milliseconds"
 CUMULATIVE_LLM_TOKEN_COUNT_TOTAL = COMPUTED_PREFIX + "cumulative_token_count_total"
@@ -135,17 +135,8 @@ class Traces:
     ) -> List[Span]:
         if not self._spans:
             return []
-        start_time = start_time or cast(
-            datetime,
-            self._min_start_time,
-        )
-        stop_time = stop_time or (
-            cast(
-                datetime,
-                self._max_start_time,
-            )
-            + timedelta(minutes=1)
-        )
+        start_time = start_time or cast(datetime, self._min_start_time)
+        stop_time = stop_time or (cast(datetime, self._max_start_time) + timedelta(minutes=1))
         sorted_span_ids = (
             self._start_time_sorted_root_span_ids
             if root_spans_only
@@ -162,18 +153,16 @@ class Traces:
                 )
             ]
 
-    def latency_rank_percent(
-        self,
-        latency_ms: float,
-    ) -> float:
+    def latency_rank_percent(self, latency_ms: float) -> Optional[float]:
+        """Returns a value between 0 and 100 representing the rank of the
+        latency value as percent of the total count of root spans. E.g.,
+        for a latency value at the 75th percentile, the result is 75."""
         root_span_ids = self._latency_sorted_root_span_ids
         with self._lock:
-            return cast(
-                int,
-                root_span_ids.bisect_key_left(
-                    latency_ms,
-                ),
-            ) / len(root_span_ids)
+            if not (n := len(root_span_ids)):
+                return None
+            rank = cast(int, root_span_ids.bisect_key_left(latency_ms))
+            return 100 * (rank / n)
 
     def get_descendant_span_ids(
         self,

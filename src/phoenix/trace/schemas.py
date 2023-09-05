@@ -172,3 +172,4 @@ class Span:
 
 ATTRIBUTE_PREFIX = "attributes."
 CONTEXT_PREFIX = "context."
+COMPUTED_PREFIX = "__computed__."
