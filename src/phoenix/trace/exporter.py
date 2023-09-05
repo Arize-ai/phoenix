@@ -15,6 +15,11 @@ logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
 
 
+class NoOpSpanExporter:
+    def export(self, span: Span) -> None:
+        pass
+
+
 class HttpExporter:
     def __init__(self, port: int = PORT) -> None:
         self._url = f"http://localhost:{port}/v1/spans"
