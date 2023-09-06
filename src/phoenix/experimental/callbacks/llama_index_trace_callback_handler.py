@@ -83,7 +83,7 @@ def payload_to_semantic_attributes(payload: Dict[str, Any]) -> Dict[str, Any]:
         ...
     if EventPayload.MESSAGES in payload:
         attributes[LLM_MESSAGES] = [
-            (message_data.role.value, message_data.content)
+            [message_data.role.value, message_data.content]
             for message_data in payload[EventPayload.MESSAGES]
         ]
     if EventPayload.COMPLETION in payload:
