@@ -3,25 +3,18 @@ from typing import List, Optional, Union
 import pandas as pd
 
 from ..models import BaseEvalModel
+from ..models.openai import OpenAiModel
 from ..templates import PromptTemplate
+from ..templates.prebuilt_templates import RAG_RELEVANCY_PROMPT_TEMPLATE_STR
 
 
 def llm_eval_binary(
     df: pd.DataFrame,
     template: Union[PromptTemplate, str],
     model: BaseEvalModel,
+    rails: List[str],
     system_instruction: Optional[str] = None,
-    # output_parser=ResultParser( # KIKO TO MAKE THIS A CALLABLE
-    #     opts=...
-    #     trim_whitespaces=True,
-    #     to_lowercase=True,
-    #     output_rails={
-    #         "irrelevant": "1",
-    #         "relevant": "0"
-    #     },
-    #     default = "NaN"
-    # )
-) -> List[str]:
+) -> List[Optional[str]]:
     if not (isinstance(template, PromptTemplate) or isinstance(template, str)):
         raise TypeError(
             "Invalid type for argument `template`. Expected a string or PromptTemplate "
@@ -58,4 +51,75 @@ def llm_eval_binary(
         )
 
     responses = model.generate(prompts.to_list(), system_instruction)
-    return responses
+    rail_classes = set(rails)
+    return [
+        (rail_class if (rail_class := resp.strip()) in rail_classes else None) for resp in responses
+    ]
+
+
+def run_relevance_eval(
+    dataframe: pd.DataFrame,
+    query_column_name: str = "attributes.input.value",
+    retrieved_documents_column_name: str = "attributes.retrieval.documents",
+    template: str = RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
+    model: OpenAiModel = OpenAiModel(),
+) -> List[List[Optional[bool]]]:
+    """Given a pandas dataframe containing queries and retrieved documents,
+       classifies the relevance of each retrieved document to the corresponding
+       query using an LLM.
+
+    Args:
+        dataframe (pd.DataFrame): A pandas dataframe containing queries and
+        retrieved documents.
+
+        query_column_name (str, optional): The name of the column containing the
+        queries.
+
+        retrieved_documents_column_name (str, optional): The name of the column
+        containing the retrieved document data. Each entry in this column should be
+        a list of dictionaries containing metadata about the retrieved documents.
+
+    Returns:
+        List[List[str]]: A list of relevant and not relevant classifications.
+        The "shape" of the list should mirror the "shape" of the retrieved
+        documents column, in the sense that it has the same length as the input
+        dataframe and each sub-list has the same length as the corresponding
+        list in the retrieved documents column. The values in the sub-lists are
+        either booleans or None in the case where the LLM output could not be
+        parsed.
+    """
+
+    llm_relevance_column_name = "llm_relevance"
+    retrieved_document_text_column_name = "retrieved_document_text"
+    dataframe = dataframe[[query_column_name, retrieved_documents_column_name]].copy()
+    dataframe[retrieved_documents_column_name] = dataframe[retrieved_documents_column_name].map(
+        list
+    )
+    exploded_df = dataframe.explode(retrieved_documents_column_name, ignore_index=False)
+    exploded_df[retrieved_document_text_column_name] = [
+        document_data["document.content"]
+        for document_data in exploded_df[retrieved_documents_column_name]
+    ]
+    exploded_df = exploded_df.rename(
+        columns={
+            query_column_name: "query",
+            retrieved_document_text_column_name: "reference",
+        }
+    )
+    exploded_df[llm_relevance_column_name] = [
+        {"relevant": True, "irrelevant": False}.get(relevance_class)
+        if relevance_class is not None
+        else None
+        for relevance_class in llm_eval_binary(
+            exploded_df,
+            template=RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
+            model=OpenAiModel(),
+            rails=["relevant", "irrelevant"],
+        )
+    ]
+    imploded_df = exploded_df.groupby(exploded_df.index, axis="index").agg(
+        {
+            llm_relevance_column_name: list,
+        }
+    )
+    return imploded_df[llm_relevance_column_name].to_list()
