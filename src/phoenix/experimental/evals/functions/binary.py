@@ -6,7 +6,7 @@ from ..models import BaseEvalModel
 from ..templates import PromptTemplate
 
 
-async def llm_eval_binary(
+def llm_eval_binary(
     df: pd.DataFrame,
     template: Union[PromptTemplate, str],
     model: BaseEvalModel,
@@ -57,5 +57,5 @@ async def llm_eval_binary(
             f"Error while constructing the prompts from the template and dataframe variables: {e}."
         )
 
-    responses = await model.agenerate(prompts.to_list(), system_instruction)
+    responses = model.generate(prompts.to_list(), system_instruction)
     return responses
