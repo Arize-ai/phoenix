@@ -28,6 +28,7 @@ import {
 import { resizeHandleCSS } from "@phoenix/components/resize";
 import { SpanItem } from "@phoenix/components/trace/SpanItem";
 import { TraceTree } from "@phoenix/components/trace/TraceTree";
+import { SemanticAttributePrefixes } from "@phoenix/open_inference/tracing/semantic_conventions";
 import { assertUnreachable } from "@phoenix/typeUtils";
 
 import {
@@ -217,7 +218,15 @@ function BlockView({ children, title }: PropsWithChildren<{ title: string }>) {
 }
 
 function SpanInfo({ span }: { span: Span }) {
-  const { input, output } = span;
+  const { input, output, attributes } = span;
+  const attributesJSON = useMemo<object>(() => {
+    return JSON.parse(attributes);
+  }, [attributes]);
+
+  const llmAttributes = useMemo<object>(() => {
+    return attributesJSON[SemanticAttributePrefixes.LLM];
+  }, [attributesJSON]);
+
   return (
     <Flex direction="column">
       <View
