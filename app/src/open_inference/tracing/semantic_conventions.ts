@@ -3,6 +3,11 @@ export const SemanticAttributePrefixes = {
   retrieval: "retrieval",
 } as const;
 
+export const LLMAttributePostfixes = {
+  messages: "messages",
+  invocation_parameters: "invocation_parameters",
+} as const;
+
 function createAttribute(
   prefix: keyof typeof SemanticAttributePrefixes,
   name: string
@@ -15,5 +20,5 @@ function createAttribute(
  */
 export const LLM_MESSAGES = createAttribute(
   SemanticAttributePrefixes.llm,
-  "messages"
+  LLMAttributePostfixes.messages
 );

@@ -28,7 +28,10 @@ import {
 import { resizeHandleCSS } from "@phoenix/components/resize";
 import { SpanItem } from "@phoenix/components/trace/SpanItem";
 import { TraceTree } from "@phoenix/components/trace/TraceTree";
-import { SemanticAttributePrefixes } from "@phoenix/open_inference/tracing/semantic_conventions";
+import {
+  LLMAttributePostfixes,
+  SemanticAttributePrefixes,
+} from "@phoenix/open_inference/tracing/semantic_conventions";
 import { assertUnreachable } from "@phoenix/typeUtils";
 
 import {
@@ -38,6 +41,7 @@ import {
 } from "./__generated__/TracePageQuery.graphql";
 
 type Span = TracePageQuery$data["spans"]["edges"][number]["span"];
+type AttributeObject = Record<string, unknown>;
 
 const spanHasException = (span: Span) => {
   return span.events.some((event) => event.name === "exception");
@@ -252,25 +256,49 @@ function SpanInfo({ span }: { span: Span }) {
   );
 }
 
-function LLMSpanInfo(props: {
-  span: Span;
-  spanAttributes: { [key: string]: unknown };
-}) {
-  const {
-    spanAttributes,
-    span: { input, output },
-  } = props;
-  const llmAttributes = useMemo(() => {
-    return spanAttributes[SemanticAttributePrefixes.llm];
+function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
+  const { spanAttributes, span } = props;
+  const { input, output } = span;
+  const llmAttributes = useMemo<AttributeObject | null>(() => {
+    const llmAttrs = spanAttributes[SemanticAttributePrefixes.llm];
+    if (typeof llmAttrs === "object") {
+      return llmAttrs as AttributeObject;
+    }
+    return null;
   }, [spanAttributes]);
+
+  const messages = useMemo(() => {
+    if (llmAttributes == null) {
+      return null;
+    }
+    return llmAttributes[LLMAttributePostfixes.messages] as string;
+  }, [llmAttributes]);
+
+  const invocation_parameters = useMemo(() => {
+    if (llmAttributes == null) {
+      return null;
+    }
+    return llmAttributes[LLMAttributePostfixes.invocation_parameters];
+  }, [llmAttributes]);
 
   return (
     <Flex direction="column" gap="size-200">
-      {llmAttributes ? (
-        <BlockView title="LLM Attributes">
+      {invocation_parameters ? (
+        <BlockView title="Invocation Parameters">
           <CodeBlock
-            value={JSON.stringify(llmAttributes, null, 2)}
+            value={JSON.stringify(
+              JSON.parse(invocation_parameters as string),
+              null,
+              2
+            )}
             mimeType="json"
+          />
+        </BlockView>
+      ) : null}
+      {messages != null ? (
+        <BlockView title="Messages">
+          <CodeBlock
+            {...{ mimeType: "json", value: JSON.stringify(messages) }}
           />
         </BlockView>
       ) : null}
