@@ -2,7 +2,7 @@ import weakref
 from collections import defaultdict
 from datetime import datetime, timezone
 from queue import SimpleQueue
-from threading import Thread
+from threading import RLock, Thread
 from typing import (
     Any,
     DefaultDict,
@@ -97,6 +97,7 @@ class Traces:
         weakref.finalize(self, self._queue.put, None)
         for span in spans or ():
             self.put(span)
+        self._lock = RLock()
         self._spans: Dict[SpanID, ReadableSpan] = {}
         self._parent_span_ids: Dict[SpanID, ParentSpanID] = {}
         self._traces: Dict[TraceID, List[SpanID]] = defaultdict(list)
@@ -119,7 +120,7 @@ class Traces:
         self._queue.put(encode(span) if isinstance(span, Span) else span)
 
     def get_trace(self, trace_id: TraceID) -> Iterator[Span]:
-        return (self._spans[span_id].span for span_id in self._traces[trace_id])
+        return (self[span_id] for span_id in self._traces[trace_id])
 
     def get_spans(
         self,
@@ -146,7 +147,8 @@ class Traces:
             inclusive=(True, False),
             reverse=True,  # most recent spans first
         ):
-            yield self._spans[span_id].span
+            if span := self[span_id]:
+                yield span
 
     def latency_rank_percent(self, latency_ms: float) -> Optional[float]:
         """Returns a value between 0 and 100 approximating the rank of the
@@ -173,8 +175,9 @@ class Traces:
         return time_range(self._min_start_time, self._max_start_time)
 
     def __getitem__(self, span_id: SpanID) -> Optional[Span]:
-        if span := self._spans.get(span_id):
-            return span.span
+        with self._lock:
+            if span := self._spans.get(span_id):
+                return span.span
         return None
 
     def _start_consumer(self) -> None:
@@ -184,7 +187,8 @@ class Traces:
         while True:
             if not (span := self._queue.get()):
                 return
-            self._process_span(span)
+            with self._lock:
+                self._process_span(span)
 
     def _process_span(self, span: pb.Span) -> None:
         span_id = UUID(bytes=span.context.span_id)
