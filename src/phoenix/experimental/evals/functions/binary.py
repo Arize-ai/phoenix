@@ -91,13 +91,14 @@ def run_relevance_eval(
 
     llm_relevance_column_name = "llm_relevance"
     retrieved_document_text_column_name = "retrieved_document_text"
-    dataframe = dataframe[[query_column_name, retrieved_documents_column_name]].copy()
-    dataframe[retrieved_documents_column_name] = dataframe[retrieved_documents_column_name].map(
+    retrievals_df = dataframe[[query_column_name, retrieved_documents_column_name]].copy()
+    non_null_df = retrievals_df.dropna(how="any")
+    non_null_df[retrieved_documents_column_name] = non_null_df[retrieved_documents_column_name].map(
         list
     )
-    exploded_df = dataframe.explode(retrieved_documents_column_name, ignore_index=False)
+    exploded_df = non_null_df.explode(retrieved_documents_column_name, ignore_index=False)
     exploded_df[retrieved_document_text_column_name] = [
-        document_data["document.content"]
+        document_data["document.content"] if document_data is not None else None
         for document_data in exploded_df[retrieved_documents_column_name]
     ]
     exploded_df = exploded_df.rename(
@@ -112,7 +113,7 @@ def run_relevance_eval(
         else None
         for relevance_class in llm_eval_binary(
             exploded_df,
-            template=RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
+            template=PromptTemplate(RAG_RELEVANCY_PROMPT_TEMPLATE_STR),
             model=model or OpenAiModel(),
             rails=["relevant", "irrelevant"],
         )
@@ -122,4 +123,8 @@ def run_relevance_eval(
             llm_relevance_column_name: list,
         }
     )
-    return imploded_df[llm_relevance_column_name].to_list()
+    retrievals_df[llm_relevance_column_name] = None
+    retrievals_df.loc[imploded_df.index, [llm_relevance_column_name]] = imploded_df[
+        llm_relevance_column_name
+    ]
+    return retrievals_df[llm_relevance_column_name].tolist()
