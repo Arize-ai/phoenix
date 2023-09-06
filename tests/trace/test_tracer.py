@@ -72,6 +72,6 @@ def test_span_buffer_accumulation():
     assert parsed_span_2.name == "test_2"
     assert parsed_span_2.status_code == SpanStatusCode.ERROR
     assert parsed_span_2.events[0].name == "exception"
-    assert parsed_span_2.events[0].message == ""
+    assert parsed_span_2.events[0].attributes == {"exception.message": ""}
     assert parsed_span_2.events[0].timestamp is not None
     assert parsed_span_2.attributes[DeploymentAttributes.attributes["environment"].id] == "dev"

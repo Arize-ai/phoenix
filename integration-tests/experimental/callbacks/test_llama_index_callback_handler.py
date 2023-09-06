@@ -6,12 +6,19 @@ from llama_index.callbacks import CallbackManager
 from llama_index.embeddings.openai import OpenAIEmbedding
 from llama_index.graph_stores.simple import SimpleGraphStore
 from llama_index.indices.vector_store import VectorStoreIndex
-from llama_index.llms import ChatMessage, MessageRole, OpenAI
+from llama_index.llms import OpenAI
 from llama_index.query_engine import RetrieverQueryEngine
 from phoenix.experimental.callbacks.llama_index_trace_callback_handler import (
     OpenInferenceTraceCallbackHandler,
 )
 from phoenix.trace.schemas import SpanKind
+from phoenix.trace.semantic_conventions import (
+    EMBEDDING_EMBEDDINGS,
+    EMBEDDING_TEXT,
+    EMBEDDING_VECTOR,
+)
+
+TEXT_EMBEDDING_ADA_002_EMBEDDING_DIM = 1536
 
 
 @pytest.fixture(scope="session")
@@ -49,7 +56,7 @@ def query_engine(index: VectorStoreIndex) -> RetrieverQueryEngine:
     return index.as_query_engine()
 
 
-def test_callback_handler_records_llm_message_attributes_for_query_engine(
+def test_callback_handler_records_llm_and_embedding_attributes_for_query_engine(
     query_engine: RetrieverQueryEngine,
 ) -> None:
     query = "How should timestamps be formatted?"
@@ -68,20 +75,10 @@ def test_callback_handler_records_llm_message_attributes_for_query_engine(
     assert role == "user"
     assert query in message_text
 
-
-@pytest.mark.skip(reason="LlamaIndex bug fix in progress")
-def test_agent(agent: OpenAIAgent) -> None:
-    response = agent.chat(
-        "Can you explain what that means?",
-        chat_history=[
-            ChatMessage(role=MessageRole.USER, content="What is Arize?"),
-            ChatMessage(
-                role=MessageRole.ASSISTANT, content="Arize is a ML observability platform."
-            ),
-        ],
-    )
-
-    tracer = agent.callback_manager.handlers[0]._tracer
-
-    next(span for span in tracer.span_buffer if span.span_kind == SpanKind.LLM)
-    assert response == "Arize is a ML observability platform."
+    span = next(span for span in tracer.span_buffer if span.span_kind == SpanKind.EMBEDDING)
+    embedding_data = span.attributes[EMBEDDING_EMBEDDINGS]
+    assert len(embedding_data) == 1
+    embedding_text = embedding_data[0][EMBEDDING_TEXT]
+    embedding_vector = embedding_data[0][EMBEDDING_VECTOR]
+    assert embedding_text == query
+    assert len(embedding_vector) == TEXT_EMBEDDING_ADA_002_EMBEDDING_DIM

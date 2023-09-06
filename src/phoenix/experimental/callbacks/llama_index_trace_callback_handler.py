@@ -28,6 +28,9 @@ from phoenix.trace.semantic_conventions import (
     DOCUMENT_ID,
     DOCUMENT_METADATA,
     DOCUMENT_SCORE,
+    EMBEDDING_EMBEDDINGS,
+    EMBEDDING_TEXT,
+    EMBEDDING_VECTOR,
     INPUT_MIME_TYPE,
     INPUT_VALUE,
     LLM_MESSAGES,
@@ -56,13 +59,16 @@ def payload_to_semantic_attributes(payload: Dict[str, Any]) -> Dict[str, Any]:
     """
     Converts a LLMapp payload to a dictionary of semantic conventions compliant attributes.
     """
-    attributes = {}
+    attributes: Dict[str, Any] = {}
 
+    if EventPayload.CHUNKS in payload and EventPayload.EMBEDDINGS in payload:
+        attributes[EMBEDDING_EMBEDDINGS] = [
+            {EMBEDDING_TEXT: text, EMBEDDING_VECTOR: vector}
+            for text, vector in zip(payload[EventPayload.CHUNKS], payload[EventPayload.EMBEDDINGS])
+        ]
     if EventPayload.QUERY_STR in payload:
         attributes[INPUT_VALUE] = payload[EventPayload.QUERY_STR]
         attributes[INPUT_MIME_TYPE] = MimeType.TEXT
-    if EventPayload.CHUNKS in payload:
-        ...
     if EventPayload.NODES in payload:
         attributes[RETRIEVAL_DOCUMENTS] = [
             {
@@ -77,7 +83,7 @@ def payload_to_semantic_attributes(payload: Dict[str, Any]) -> Dict[str, Any]:
         ...
     if EventPayload.MESSAGES in payload:
         attributes[LLM_MESSAGES] = [
-            (message_data.role.value, message_data.content)
+            [message_data.role.value, message_data.content]
             for message_data in payload[EventPayload.MESSAGES]
         ]
     if EventPayload.COMPLETION in payload:

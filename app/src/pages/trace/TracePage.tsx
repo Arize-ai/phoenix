@@ -1,4 +1,4 @@
-import React, { PropsWithChildren, useMemo } from "react";
+import React, { PropsWithChildren, ReactNode, useMemo } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { useNavigate, useParams } from "react-router";
@@ -218,7 +218,7 @@ function BlockView({ children, title }: PropsWithChildren<{ title: string }>) {
 }
 
 function SpanInfo({ span }: { span: Span }) {
-  const { input, output, attributes } = span;
+  const { spanKind, input, output, attributes } = span;
   const attributesJSON = useMemo<object>(() => {
     return JSON.parse(attributes);
   }, [attributes]);
@@ -226,7 +226,17 @@ function SpanInfo({ span }: { span: Span }) {
   const llmAttributes = useMemo<object>(() => {
     return attributesJSON[SemanticAttributePrefixes.LLM];
   }, [attributesJSON]);
-
+    
+  let content: ReactNode;
+  switch (spanKind) {
+    case "llm": {
+      debugger;
+      content = <LLMSpanInfo span={span} />;
+      break;
+    }
+    default:
+      content = <SpanIO span={span} />;
+  }
   return (
     <Flex direction="column">
       <View
@@ -240,20 +250,44 @@ function SpanInfo({ span }: { span: Span }) {
       >
         <SpanItem {...span} />
       </View>
-      <View padding="size-200">
-        <Flex direction="column" gap="size-200">
-          {input && input.value != null ? (
-            <BlockView title="Input">
-              <CodeBlock {...input} />
-            </BlockView>
-          ) : null}
-          {output && output.value != null ? (
-            <BlockView title="Output">
-              <CodeBlock {...output} />
-            </BlockView>
-          ) : null}
-        </Flex>
-      </View>
+      <View padding="size-200">{content}</View>
+    </Flex>
+  );
+}
+
+function LLMSpanInfo({ span }: { span: Span }) {
+  const { input, output, attributes } = span;
+  // const llmAttributes = attributes["llm"];
+  return (
+    <Flex direction="column" gap="size-200">
+      {input && input.value != null ? (
+        <BlockView title="Input">
+          <CodeBlock {...input} />
+        </BlockView>
+      ) : null}
+      {output && output.value != null ? (
+        <BlockView title="Output">
+          <CodeBlock {...output} />
+        </BlockView>
+      ) : null}
+    </Flex>
+  );
+}
+
+function SpanIO({ span }: { span: Span }) {
+  const { input, output } = span;
+  return (
+    <Flex direction="column" gap="size-200">
+      {input && input.value != null ? (
+        <BlockView title="Input">
+          <CodeBlock {...input} />
+        </BlockView>
+      ) : null}
+      {output && output.value != null ? (
+        <BlockView title="Output">
+          <CodeBlock {...output} />
+        </BlockView>
+      ) : null}
     </Flex>
   );
 }
