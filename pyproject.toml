@@ -36,6 +36,7 @@ dependencies = [
   "portpicker",
   "wrapt",
   "sortedcontainers",
+  "protobuf>=3.20, <5.0",
 ]
 dynamic = ["version"]
 
@@ -107,6 +108,7 @@ dependencies = [
   "sentence-transformers==2.2.2",
   "pydantic<2",  # for @root_validator in llama-index
   "requests",
+  "protobuf==3.20",  # version minimum (for tests)
 ]
 
 [tool.hatch.envs.type]
@@ -117,8 +119,9 @@ dependencies = [
   "pytest",
   "types-psutil",
   "tenacity",
+  "types-tqdm",
   "types-requests",
-  "types-tqdm"
+  "types-protobuf",
 ]
 
 [tool.hatch.envs.style]
@@ -213,6 +216,7 @@ pypi = [
 
 [tool.black]
 line-length = 100
+exclude = '_pb2\.pyi?$'
 
 [tool.hatch.envs.docs.scripts]
 check = [
@@ -226,6 +230,16 @@ dependencies = [
 
 [tool.hatch.envs.gql.scripts]
 build = 'strawberry export-schema phoenix.server.api.schema:schema > app/schema.graphql'
+
+[tool.hatch.envs.proto]
+detached = true
+dependencies = [
+  "grpcio-tools==1.54.3",
+  "mypy-protobuf==3.5.0"
+]
+
+[tool.hatch.envs.proto.scripts]
+recompile = "python -m grpc_tools.protoc -I src/phoenix/proto --python_out=src/phoenix --mypy_out=src/phoenix src/phoenix/proto/trace/v1/trace.proto"
 
 [tool.interrogate]
 fail-under = 0
@@ -272,7 +286,7 @@ module = [
 ignore_missing_imports = true
 
 [tool.ruff]
-exclude = [".git", "__pycache__", "docs/source/conf.py"]
+exclude = [".git", "__pycache__", "docs/source/conf.py", "*_pb2.py*"]
 ignore-init-module-imports = true
 line-length = 100
 select = ["E", "F", "W", "I"]

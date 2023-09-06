@@ -470,7 +470,7 @@ type Query {
     """HDBSCAN cluster selection epsilon"""
     clusterSelectionEpsilon: Float! = 0
   ): [Cluster!]!
-  spans(traceIds: [ID!], first: Int = 50, last: Int, after: String, before: String, sort: SpanSort, rootSpansOnly: Boolean = false): SpanConnection!
+  spans(timeRange: TimeRange, traceIds: [ID!], first: Int = 50, last: Int, after: String, before: String, sort: SpanSort, rootSpansOnly: Boolean = false, filterCondition: String = null): SpanConnection!
   traceDatasetInfo: DatasetInfo
 }
 
