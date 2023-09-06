@@ -218,20 +218,17 @@ function BlockView({ children, title }: PropsWithChildren<{ title: string }>) {
 }
 
 function SpanInfo({ span }: { span: Span }) {
-  const { spanKind, input, output, attributes } = span;
-  const attributesJSON = useMemo<object>(() => {
+  const { spanKind, attributes } = span;
+
+  // Parse the attributes once
+  const attributesObject = useMemo<{ [key: string]: unknown }>(() => {
     return JSON.parse(attributes);
   }, [attributes]);
 
-  const llmAttributes = useMemo<object>(() => {
-    return attributesJSON[SemanticAttributePrefixes.LLM];
-  }, [attributesJSON]);
-    
   let content: ReactNode;
   switch (spanKind) {
     case "llm": {
-      debugger;
-      content = <LLMSpanInfo span={span} />;
+      content = <LLMSpanInfo span={span} spanAttributes={attributesObject} />;
       break;
     }
     default:
@@ -255,12 +252,29 @@ function SpanInfo({ span }: { span: Span }) {
   );
 }
 
-function LLMSpanInfo({ span }: { span: Span }) {
-  const { input, output, attributes } = span;
-  // const llmAttributes = attributes["llm"];
+function LLMSpanInfo(props: {
+  span: Span;
+  spanAttributes: { [key: string]: unknown };
+}) {
+  const {
+    spanAttributes,
+    span: { input, output },
+  } = props;
+  const llmAttributes = useMemo(() => {
+    return spanAttributes[SemanticAttributePrefixes.llm];
+  }, [spanAttributes]);
+
   return (
     <Flex direction="column" gap="size-200">
-      {input && input.value != null ? (
+      {llmAttributes ? (
+        <BlockView title="LLM Attributes">
+          <CodeBlock
+            value={JSON.stringify(llmAttributes, null, 2)}
+            mimeType="json"
+          />
+        </BlockView>
+      ) : null}
+      {input && input?.value != null ? (
         <BlockView title="Input">
           <CodeBlock {...input} />
         </BlockView>
