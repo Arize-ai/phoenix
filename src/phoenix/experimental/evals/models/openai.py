@@ -27,9 +27,9 @@ class OpenAiModel(BaseEvalModel):
     openai_api_key: Optional[str] = field(repr=False, default=None)
     openai_api_base: Optional[str] = field(repr=False, default=None)
     openai_organization: Optional[str] = field(repr=False, default=None)
-    model_name: str = "text-davinci-003"
+    model_name: str = "gpt-4"
     """Model name to use."""
-    temperature: float = 0.7
+    temperature: float = 0.0
     """What sampling temperature to use."""
     max_tokens: int = 256
     """The maximum number of tokens to generate in the completion.
@@ -72,13 +72,13 @@ class OpenAiModel(BaseEvalModel):
         invoke_params = self.invocation_params
         messages = [{"role": "user", "content": prompt}]
         if instruction:
-            messages.append({"role": "system", "content": instruction})
+            messages.insert(0, {"role": "system", "content": instruction})
         response = self._generate_with_retry(
             messages=messages,
             **invoke_params,
         )
         # TODO: This is a bit rudimentary, should improve
-        resp_text = str(response["choices"][0]["message"]["content"]).strip()
+        resp_text = str(response["choices"][0]["message"]["content"])
         return resp_text
 
     def _generate_with_retry(self, **kwargs: Any) -> Any:
