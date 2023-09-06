@@ -120,7 +120,9 @@ class Traces:
         self._queue.put(encode(span) if isinstance(span, Span) else span)
 
     def get_trace(self, trace_id: TraceID) -> Iterator[Span]:
-        return (self[span_id] for span_id in self._traces[trace_id])
+        for span_id in self._traces[trace_id]:
+            if span := self[span_id]:
+                yield span
 
     def get_spans(
         self,
