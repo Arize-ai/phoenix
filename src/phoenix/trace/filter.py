@@ -94,7 +94,7 @@ def _ast_replacement(expression: str) -> ast.expr:
     )
 
 
-def _allowed_fields() -> Iterator[Tuple[str, ast.expr]]:
+def _allowed_replacements() -> Iterator[Tuple[str, ast.expr]]:
     for k, v in {
         "name": _ast_replacement("span.name"),
         "status_code": _ast_replacement("span.status_code"),
@@ -123,7 +123,7 @@ def _allowed_fields() -> Iterator[Tuple[str, ast.expr]]:
         yield "span.attributes." + k, v
 
 
-_ALLOWED_FIELDS: Mapping[str, ast.expr] = dict(_allowed_fields())
+_ALLOWED_FIELDS: Mapping[str, ast.expr] = dict(_allowed_replacements())
 
 
 class _Translator(ast.NodeTransformer):
@@ -195,11 +195,3 @@ def _validate_expression(
             continue
         source_segment: str = cast(str, ast.get_source_segment(source, node))
         raise SyntaxError(f"invalid expression: {source_segment}")  # TODO: add details
-
-
-def _flatten_attributes(attribute: ast.Attribute) -> Iterator[str]:
-    if isinstance(attribute.value, ast.Name):
-        yield attribute.value.id
-    elif isinstance(attribute.value, ast.Attribute):
-        yield from _flatten_attributes(attribute.value)
-    yield attribute.attr

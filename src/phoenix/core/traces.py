@@ -154,15 +154,15 @@ class Traces:
             ]
 
     def latency_rank_percent(self, latency_ms: float) -> Optional[float]:
-        """Returns a value between 0 and 100 representing the rank of the
-        latency value as percent of the total count of root spans. E.g.,
-        for a latency value at the 75th percentile, the result is 75."""
+        """Returns a value between 0 and 100 approximating the rank of the
+        latency value as percent of the total count of root spans. E.g., for
+        a latency value at the 75th percentile, the result is roughly 75."""
         root_span_ids = self._latency_sorted_root_span_ids
         with self._lock:
             if not (n := len(root_span_ids)):
                 return None
             rank = cast(int, root_span_ids.bisect_key_left(latency_ms))
-            return 100 * (rank / n)
+            return rank / n * 100
 
     def get_descendant_span_ids(
         self,
