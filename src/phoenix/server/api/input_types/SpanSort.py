@@ -68,10 +68,7 @@ class SpanSort:
     col: SpanColumn
     dir: SortDir
 
-    def __call__(
-        self,
-        spans: Iterable[Span],
-    ) -> Iterator[Span]:
+    def __call__(self, spans: Iterable[Span]) -> Iterator[Span]:
         """
         Sorts the spans by the given column and direction
         """

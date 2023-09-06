@@ -54,32 +54,33 @@ def _ast_replacement(expression: str) -> ast.expr:
 
 
 def _allowed_replacements() -> Iterator[Tuple[str, ast.expr]]:
-    for k, v in {
+    for source_segment, ast_replacement in {
         "name": _ast_replacement("span.name"),
         "status_code": _ast_replacement("span.status_code"),
         "span_kind": _ast_replacement("span.span_kind"),
         "parent_id": _ast_replacement("span.parent_id"),
     }.items():
-        yield k, v
-        yield "span." + k, v
-    for k, v in {
+        yield source_segment, ast_replacement
+        yield "span." + source_segment, ast_replacement
+    for source_segment, ast_replacement in {
         "span_id": _ast_replacement("span.context.span_id"),
         "trace_id": _ast_replacement("span.context.trace_id"),
     }.items():
-        yield k, v
-        yield "context." + k, v
-        yield "span.context." + k, v
-    for k, v in {
+        yield source_segment, ast_replacement
+        yield "context." + source_segment, ast_replacement
+        yield "span.context." + source_segment, ast_replacement
+    for source_segment, ast_replacement in {
         field_name: _ast_replacement(f"span.attributes.get('{field_name}')")
         for field_name in (
-            getattr(semantic_conventions, v)
-            for v in dir(semantic_conventions)
-            if v.isupper() and v.startswith(("RETRIEVAL", "EMBEDDING", "LLM", "TOOL"))
+            getattr(semantic_conventions, variable_name)
+            for variable_name in dir(semantic_conventions)
+            if variable_name.isupper()
+            and variable_name.startswith(("RETRIEVAL", "EMBEDDING", "LLM", "TOOL"))
         )
     }.items():
-        yield k, v
-        yield "attributes." + k, v
-        yield "span.attributes." + k, v
+        yield source_segment, ast_replacement
+        yield "attributes." + source_segment, ast_replacement
+        yield "span.attributes." + source_segment, ast_replacement
 
 
 class _Translator(ast.NodeTransformer):
