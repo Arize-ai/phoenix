@@ -18,7 +18,6 @@ from phoenix.server.app import create_app
 from phoenix.server.thread_server import ThreadServer
 from phoenix.services import AppService
 from phoenix.trace.filter import Filter
-from phoenix.trace.schemas import Span
 from phoenix.trace.span_json_encoder import span_to_json
 from phoenix.trace.trace_dataset import TraceDataset
 
@@ -152,18 +151,16 @@ class Session(ABC):
         if (traces := self.traces) is None:
             return None
         predicate = Filter(filter_condition) if filter_condition else None
-        spans: List[Span] = traces.get_spans(
+        spans = traces.get_spans(
             start_time=start_time,
             stop_time=stop_time,
             root_spans_only=root_spans_only,
         )
         if predicate:
-            spans = list(filter(predicate, spans))
-        if not spans:
+            spans = filter(predicate, spans)
+        if not (data := list(map(json.loads, map(span_to_json, spans)))):
             return None
-        return pd.json_normalize(
-            map(json.loads, map(span_to_json, spans)),  # type: ignore
-        ).set_index("context.span_id", drop=False)
+        return pd.json_normalize(data).set_index("context.span_id", drop=False)
 
 
 _session: Optional[Session] = None

@@ -1,20 +1,26 @@
 from uuid import uuid4
 
 from phoenix.core.traces import (
-    _get_descendant_span_ids,
+    Traces,
 )
 
 
+class MockTraces(Traces):
+    def _start_consumer(self) -> None:
+        pass
+
+
 def test_get_descendant_span_ids() -> None:
-    ids = [uuid4() for _ in range(6)]
-    child_span_ids = {
-        ids[1]: [ids[2], ids[3]],
-        ids[2]: [ids[4]],
-        ids[4]: [ids[5]],
+    span_ids = [uuid4() for _ in range(6)]
+    mock = MockTraces()
+    mock._child_span_ids = {
+        span_ids[1]: [span_ids[2], span_ids[3]],
+        span_ids[2]: [span_ids[4]],
+        span_ids[4]: [span_ids[5]],
     }
-    assert set(_get_descendant_span_ids(ids[0], child_span_ids)) == set()
-    assert set(_get_descendant_span_ids(ids[1], child_span_ids)) == set(ids[2:])
-    assert set(_get_descendant_span_ids(ids[2], child_span_ids)) == set(ids[4:])
-    assert set(_get_descendant_span_ids(ids[3], child_span_ids)) == set()
-    assert set(_get_descendant_span_ids(ids[4], child_span_ids)) == set(ids[5:])
-    assert set(_get_descendant_span_ids(ids[5], child_span_ids)) == set()
+    assert set(mock.get_descendant_span_ids(span_ids[0])) == set()
+    assert set(mock.get_descendant_span_ids(span_ids[1])) == set(span_ids[2:])
+    assert set(mock.get_descendant_span_ids(span_ids[2])) == set(span_ids[4:])
+    assert set(mock.get_descendant_span_ids(span_ids[3])) == set()
+    assert set(mock.get_descendant_span_ids(span_ids[4])) == set(span_ids[5:])
+    assert set(mock.get_descendant_span_ids(span_ids[5])) == set()

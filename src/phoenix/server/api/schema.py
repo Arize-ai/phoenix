@@ -1,7 +1,7 @@
 from collections import defaultdict
 from datetime import datetime
 from itertools import chain
-from typing import Dict, Iterable, List, Optional, Set, Union, cast
+from typing import Dict, Iterable, List, Optional, Set, Tuple, Union, cast
 from uuid import UUID
 
 import numpy as np
@@ -12,7 +12,6 @@ from strawberry.types import Info
 from typing_extensions import Annotated
 
 import phoenix.trace.schemas as s
-from phoenix.datetime_utils import time_range
 from phoenix.pointcloud.clustering import Hdbscan
 from phoenix.server.api.helpers import ensure_list
 from phoenix.server.api.input_types.ClusterInput import ClusterInput
@@ -255,9 +254,9 @@ class Query:
             return None
         if not (span_count := traces.span_count):
             return None
-        start_time, stop_time = time_range(
-            cast(datetime, traces.min_start_time),
-            cast(datetime, traces.max_start_time),
+        start_time, stop_time = cast(
+            Tuple[datetime, datetime],
+            traces.time_range,
         )
         return DatasetInfo(
             start_time=start_time,

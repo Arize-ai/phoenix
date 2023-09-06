@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta, timezone
-from typing import Any, Tuple, cast
+from typing import Any, Optional, Tuple, cast
 
 import pandas as pd
 import pytz
@@ -73,12 +73,13 @@ MINUTE_DATETIME_FORMAT = "%Y-%m-%dT%H:%M:00%z"
 
 
 def time_range(
-    min_time: datetime,
-    max_time: datetime,
-) -> Tuple[datetime, datetime]:
+    min_time: Optional[datetime],
+    max_time: Optional[datetime],
+) -> Tuple[Optional[datetime], Optional[datetime]]:
     # Add one minute to max_time, because time intervals are right
     # open and one minute is the smallest interval allowed. Also,
     # round down to the nearest minute.
-    return floor_to_minute(min_time), floor_to_minute(
-        max_time + timedelta(minutes=1),
+    return (
+        floor_to_minute(min_time) if min_time else None,
+        floor_to_minute(max_time + timedelta(minutes=1)) if max_time else None,
     )
