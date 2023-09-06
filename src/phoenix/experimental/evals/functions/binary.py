@@ -62,7 +62,7 @@ def run_relevance_eval(
     query_column_name: str = "attributes.input.value",
     retrieved_documents_column_name: str = "attributes.retrieval.documents",
     template: str = RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
-    model: OpenAiModel = OpenAiModel(),
+    model: Optional[BaseEvalModel] = None,
 ) -> List[List[Optional[bool]]]:
     """Given a pandas dataframe containing queries and retrieved documents,
        classifies the relevance of each retrieved document to the corresponding
@@ -89,6 +89,7 @@ def run_relevance_eval(
         parsed.
     """
 
+    model = model or OpenAiModel()
     llm_relevance_column_name = "llm_relevance"
     retrieved_document_text_column_name = "retrieved_document_text"
     dataframe = dataframe[[query_column_name, retrieved_documents_column_name]].copy()
