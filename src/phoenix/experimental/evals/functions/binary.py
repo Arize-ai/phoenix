@@ -89,7 +89,6 @@ def run_relevance_eval(
         parsed.
     """
 
-    model = model or OpenAiModel()
     llm_relevance_column_name = "llm_relevance"
     retrieved_document_text_column_name = "retrieved_document_text"
     dataframe = dataframe[[query_column_name, retrieved_documents_column_name]].copy()
@@ -114,7 +113,7 @@ def run_relevance_eval(
         for relevance_class in llm_eval_binary(
             exploded_df,
             template=RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
-            model=OpenAiModel(),
+            model=model or OpenAiModel(),
             rails=["relevant", "irrelevant"],
         )
     ]
