@@ -235,7 +235,7 @@ build = 'strawberry export-schema phoenix.server.api.schema:schema > app/schema.
 detached = true
 dependencies = [
   "grpcio-tools==1.54.3",
-  "mypy-protobuf==3.5.0"
+  "mypy-protobuf==3.5.0",
 ]
 
 [tool.hatch.envs.proto.scripts]
