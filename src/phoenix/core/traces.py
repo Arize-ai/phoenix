@@ -143,7 +143,7 @@ class Traces:
             return
         min_start_time, max_stop_time = cast(
             Tuple[datetime, datetime],
-            self.time_range,
+            self.right_open_time_range,
         )
         start_time = start_time or min_start_time
         stop_time = stop_time or max_stop_time
@@ -184,7 +184,7 @@ class Traces:
         return len(self._spans)
 
     @property
-    def time_range(self) -> Tuple[Optional[datetime], Optional[datetime]]:
+    def right_open_time_range(self) -> Tuple[Optional[datetime], Optional[datetime]]:
         return right_open_time_range(self._min_start_time, self._max_start_time)
 
     def __getitem__(self, span_id: SpanID) -> Optional[Span]:

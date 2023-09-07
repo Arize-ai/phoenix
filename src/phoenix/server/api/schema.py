@@ -251,7 +251,7 @@ class Query:
             return None
         start_time, stop_time = cast(
             Tuple[datetime, datetime],
-            traces.time_range,
+            traces.right_open_time_range,
         )
         return DatasetInfo(
             start_time=start_time,
