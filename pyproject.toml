@@ -109,6 +109,7 @@ dependencies = [
   "pydantic<2",  # for @root_validator in llama-index
   "requests",
   "protobuf==3.20",  # version minimum (for tests)
+  "responses",
 ]
 
 [tool.hatch.envs.type]
