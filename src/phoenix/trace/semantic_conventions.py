@@ -95,7 +95,15 @@ Invocation parameters passed to the LLM or API, such as the model name, temperat
 """
 LLM_MESSAGES = "llm.messages"
 """
-Messages (system, user, role) provided to a chat API.
+Messages provided to a chat API.
+"""
+MESSAGE_ROLE = "message.role"
+"""
+The role of the message, such as "user" or "system".
+"""
+MESSAGE_CONTENT = "message.content"
+"""
+The content of the message to the llm
 """
 LLM_MODEL_NAME = "llm.model_name"
 """
