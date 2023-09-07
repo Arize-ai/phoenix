@@ -9,7 +9,7 @@ from ..templates.prebuilt_templates import RAG_RELEVANCY_PROMPT_TEMPLATE_STR
 
 
 def llm_eval_binary(
-    df: pd.DataFrame,
+    dataframe: pd.DataFrame,
     template: Union[PromptTemplate, str],
     model: BaseEvalModel,
     rails: List[str],
@@ -59,7 +59,7 @@ def llm_eval_binary(
     # answers so that, if there is an error, we keep the answers obtained up to that point.
     # These are out of scope for M0, but good to keep in mind and consider for the future.
     try:
-        prompts = df.apply(
+        prompts = dataframe.apply(
             lambda row: eval_template.format(
                 variable_values={var_name: row[var_name] for var_name in eval_template.variables}
             ),
