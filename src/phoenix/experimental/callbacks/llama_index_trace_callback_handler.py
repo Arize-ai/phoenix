@@ -47,6 +47,7 @@ logger = logging.getLogger(__name__)
 
 
 CBEventID = str
+_LOCAL_TZINFO = datetime.now().astimezone().tzinfo
 
 
 class CBEventData(TypedDict, total=False):
@@ -214,7 +215,11 @@ def _add_to_tracer(
         parent_span_id, event_id = parent_child_id_stack.pop()
         event_data = event_id_to_event_data[event_id]
         start_event = event_data["start_event"]
+        start_time_tz_naive = datetime.strptime(start_event.time, TIMESTAMP_FORMAT)
+        start_time_tz_aware = start_time_tz_naive.replace(tzinfo=_LOCAL_TZINFO)
         end_event = event_data["end_event"]
+        end_time_tz_naive = datetime.strptime(end_event.time, TIMESTAMP_FORMAT)
+        end_time_tz_aware = end_time_tz_naive.replace(tzinfo=_LOCAL_TZINFO)
         name = event_data["name"]
         event_type = event_data["event_type"]
         span_kind = _get_span_kind(event_type)
@@ -222,8 +227,8 @@ def _add_to_tracer(
             name=name,
             span_kind=span_kind,
             trace_id=trace_id,
-            start_time=datetime.strptime(start_event.time, TIMESTAMP_FORMAT),
-            end_time=datetime.strptime(end_event.time, TIMESTAMP_FORMAT),
+            start_time=start_time_tz_aware,
+            end_time=end_time_tz_aware,
             status_code=SpanStatusCode.OK,
             status_message="",
             parent_id=parent_span_id,
