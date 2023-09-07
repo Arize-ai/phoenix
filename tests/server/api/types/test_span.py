@@ -13,6 +13,10 @@ def test_nested_attributes() -> None:
             "metadata": ...,
             "score": ...,
         },
+        "message": {
+            "content": ...,
+            "role": ...,
+        },
         "exception": {
             "message": ...,
         },

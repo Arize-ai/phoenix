@@ -34,6 +34,8 @@ from phoenix.trace.semantic_conventions import (
     INPUT_MIME_TYPE,
     INPUT_VALUE,
     LLM_MESSAGES,
+    MESSAGE_CONTENT,
+    MESSAGE_ROLE,
     OUTPUT_MIME_TYPE,
     OUTPUT_VALUE,
     RETRIEVAL_DOCUMENTS,
@@ -83,7 +85,10 @@ def payload_to_semantic_attributes(payload: Dict[str, Any]) -> Dict[str, Any]:
         ...
     if EventPayload.MESSAGES in payload:
         attributes[LLM_MESSAGES] = [
-            [message_data.role.value, message_data.content]
+            {
+                MESSAGE_ROLE: message_data.role.value,
+                MESSAGE_CONTENT: message_data.content,
+            }
             for message_data in payload[EventPayload.MESSAGES]
         ]
     if EventPayload.COMPLETION in payload:
