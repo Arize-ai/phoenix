@@ -1,17 +1,18 @@
 import weakref
 from collections import defaultdict
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from queue import SimpleQueue
-from threading import Lock, Thread
+from threading import RLock, Thread
 from typing import (
     Any,
     DefaultDict,
     Dict,
     Iterable,
+    Iterator,
     List,
-    Mapping,
     Optional,
     SupportsFloat,
+    Tuple,
     Union,
     cast,
 )
@@ -21,8 +22,9 @@ from sortedcontainers import SortedKeyList
 from typing_extensions import TypeAlias
 from wrapt import ObjectProxy
 
-import phoenix.trace.semantic_conventions as sc
 import phoenix.trace.v1.trace_pb2 as pb
+from phoenix.datetime_utils import right_open_time_range
+from phoenix.trace import semantic_conventions
 from phoenix.trace.schemas import (
     ATTRIBUTE_PREFIX,
     COMPUTED_PREFIX,
@@ -42,17 +44,24 @@ SPAN_ID = CONTEXT_PREFIX + "span_id"
 PARENT_ID = "parent_id"
 START_TIME = "start_time"
 END_TIME = "end_time"
-LLM_TOKEN_COUNT_TOTAL = ATTRIBUTE_PREFIX + sc.LLM_TOKEN_COUNT_TOTAL
-LLM_TOKEN_COUNT_PROMPT = ATTRIBUTE_PREFIX + sc.LLM_TOKEN_COUNT_PROMPT
-LLM_TOKEN_COUNT_COMPLETION = ATTRIBUTE_PREFIX + sc.LLM_TOKEN_COUNT_COMPLETION
-LATENCY_MS = COMPUTED_PREFIX + "latency_ms"
-"The latency (or duration) of the span in milliseconds"
+LLM_TOKEN_COUNT_TOTAL = ATTRIBUTE_PREFIX + semantic_conventions.LLM_TOKEN_COUNT_TOTAL
+LLM_TOKEN_COUNT_PROMPT = ATTRIBUTE_PREFIX + semantic_conventions.LLM_TOKEN_COUNT_PROMPT
+LLM_TOKEN_COUNT_COMPLETION = ATTRIBUTE_PREFIX + semantic_conventions.LLM_TOKEN_COUNT_COMPLETION
+LATENCY_MS = COMPUTED_PREFIX + "latency_ms"  # The latency (or duration) of the span in milliseconds
 CUMULATIVE_LLM_TOKEN_COUNT_TOTAL = COMPUTED_PREFIX + "cumulative_token_count_total"
 CUMULATIVE_LLM_TOKEN_COUNT_PROMPT = COMPUTED_PREFIX + "cumulative_token_count_prompt"
 CUMULATIVE_LLM_TOKEN_COUNT_COMPLETION = COMPUTED_PREFIX + "cumulative_token_count_completion"
 
 
 class ReadableSpan(ObjectProxy):  # type: ignore
+    """
+    A wrapped a protobuf Span, with access methods and ability to decode to
+    a python span. It's meant to be interface layer separating use from
+    implementation. It can also provide computed values that are not intrinsic
+    to the span, e.g. the latency rank percent which can change as more spans
+    are ingested, and would need to be re-computed on the fly.
+    """
+
     __wrapped__: pb.Span
 
     def __init__(self, span: pb.Span) -> None:
@@ -63,6 +72,8 @@ class ReadableSpan(ObjectProxy):  # type: ignore
     def span(self) -> Span:
         span = decode(self.__wrapped__)
         span.attributes.update(cast(SpanAttributes, self._self_computed_values))
+        # TODO: compute latency rank percent (which can change depending on how
+        # many spans already ingested).
         return span
 
     def __getitem__(self, key: str) -> Any:
@@ -89,16 +100,13 @@ ChildSpanID: TypeAlias = SpanID
 
 
 class Traces:
-    def __init__(
-        self,
-        spans: Optional[Iterable[Span]] = None,
-    ) -> None:
+    def __init__(self, spans: Optional[Iterable[Span]] = None) -> None:
         self._queue: "SimpleQueue[Optional[pb.Span]]" = SimpleQueue()
         # Putting `None` as the sentinel value for queue termination.
         weakref.finalize(self, self._queue.put, None)
         for span in spans or ():
             self.put(span)
-        self._lock = Lock()
+        self._lock = RLock()
         self._spans: Dict[SpanID, ReadableSpan] = {}
         self._parent_span_ids: Dict[SpanID, ParentSpanID] = {}
         self._traces: Dict[TraceID, List[SpanID]] = defaultdict(list)
@@ -115,88 +123,78 @@ class Traces:
         )
         self._min_start_time: Optional[datetime] = None
         self._max_start_time: Optional[datetime] = None
-        Thread(target=self._consume_spans, daemon=True).start()
+        self._start_consumer()
 
     def put(self, span: Optional[Union[Span, pb.Span]] = None) -> None:
         self._queue.put(encode(span) if isinstance(span, Span) else span)
 
-    def get_trace(
-        self,
-        trace_id: TraceID,
-    ) -> List[Span]:
-        with self._lock:
-            return [self._spans[span_id].span for span_id in self._traces[trace_id]]
+    def get_trace(self, trace_id: TraceID) -> Iterator[Span]:
+        for span_id in self._traces[trace_id]:
+            if span := self[span_id]:
+                yield span
 
     def get_spans(
         self,
         start_time: Optional[datetime] = None,
         stop_time: Optional[datetime] = None,
         root_spans_only: Optional[bool] = False,
-    ) -> List[Span]:
+    ) -> Iterator[Span]:
         if not self._spans:
-            return []
-        start_time = start_time or cast(datetime, self._min_start_time)
-        stop_time = stop_time or (cast(datetime, self._max_start_time) + timedelta(minutes=1))
+            return
+        min_start_time, max_stop_time = cast(
+            Tuple[datetime, datetime],
+            self.right_open_time_range,
+        )
+        start_time = start_time or min_start_time
+        stop_time = stop_time or max_stop_time
         sorted_span_ids = (
             self._start_time_sorted_root_span_ids
             if root_spans_only
             else self._start_time_sorted_span_ids
         )
-        with self._lock:
-            return [
-                self._spans[span_id].span
-                for span_id in sorted_span_ids.irange_key(
-                    start_time.astimezone(timezone.utc),
-                    stop_time.astimezone(timezone.utc),
-                    inclusive=(True, False),
-                    reverse=True,  # most recent spans first
-                )
-            ]
+        for span_id in sorted_span_ids.irange_key(
+            start_time.astimezone(timezone.utc),
+            stop_time.astimezone(timezone.utc),
+            inclusive=(True, False),
+            reverse=True,  # most recent spans first
+        ):
+            if span := self[span_id]:
+                yield span
 
     def latency_rank_percent(self, latency_ms: float) -> Optional[float]:
-        """Returns a value between 0 and 100 representing the rank of the
-        latency value as percent of the total count of root spans. E.g.,
-        for a latency value at the 75th percentile, the result is 75."""
+        """
+        Returns a value between 0 and 100 approximating the rank of the
+        latency value as percent of the total count of root spans. E.g., for
+        a latency value at the 75th percentile, the result is roughly 75.
+        """
         root_span_ids = self._latency_sorted_root_span_ids
-        with self._lock:
-            if not (n := len(root_span_ids)):
-                return None
-            rank = cast(int, root_span_ids.bisect_key_left(latency_ms))
-            return 100 * (rank / n)
+        if not (n := len(root_span_ids)):
+            return None
+        rank = cast(int, root_span_ids.bisect_key_left(latency_ms))
+        return rank / n * 100
 
-    def get_descendant_span_ids(
-        self,
-        span_id: SpanID,
-    ) -> List[SpanID]:
-        with self._lock:
-            return list(
-                _get_descendant_span_ids(
-                    span_id,
-                    self._child_span_ids,
-                )
-            )
+    def get_descendant_span_ids(self, span_id: SpanID) -> Iterator[SpanID]:
+        for child_span_id in self._child_span_ids.get(span_id) or ():
+            yield child_span_id
+            yield from self.get_descendant_span_ids(child_span_id)
 
     @property
     def span_count(self) -> int:
         """Total number of spans (excluding orphan spans if any)"""
-        with self._lock:
-            return len(self._spans)
+        return len(self._spans)
 
     @property
-    def min_start_time(self) -> Optional[datetime]:
-        with self._lock:
-            return self._min_start_time
-
-    @property
-    def max_start_time(self) -> Optional[datetime]:
-        with self._lock:
-            return self._max_start_time
+    def right_open_time_range(self) -> Tuple[Optional[datetime], Optional[datetime]]:
+        return right_open_time_range(self._min_start_time, self._max_start_time)
 
     def __getitem__(self, span_id: SpanID) -> Optional[Span]:
         with self._lock:
             if span := self._spans.get(span_id):
                 return span.span
         return None
+
+    def _start_consumer(self) -> None:
+        Thread(target=self._consume_spans, daemon=True).start()
 
     def _consume_spans(self) -> None:
         while True:
@@ -259,9 +257,9 @@ class Traces:
             )
             new_span[cumulative_attribute_name] = difference + existing_cumulative_value
             self._add_value_to_span_ancestors(
-                difference,
                 span_id,
                 cumulative_attribute_name,
+                difference,
             )
         # Process previously orphaned spans, if any.
         for orphan_span in self._orphan_spans[span_id]:
@@ -269,21 +267,12 @@ class Traces:
 
     def _add_value_to_span_ancestors(
         self,
-        value: float,
         span_id: SpanID,
-        cumulative_attribute_name: str,
+        attribute_name: str,
+        value: float,
     ) -> None:
         while parent_span_id := self._parent_span_ids.get(span_id):
             parent_span = self._spans[parent_span_id]
-            cumulative_value = parent_span[cumulative_attribute_name] or 0
-            parent_span[cumulative_attribute_name] = cumulative_value + value
+            cumulative_value = parent_span[attribute_name] or 0
+            parent_span[attribute_name] = cumulative_value + value
             span_id = parent_span_id
-
-
-def _get_descendant_span_ids(
-    span_id: SpanID,
-    child_span_ids: Mapping[SpanID, List[ChildSpanID]],
-) -> Iterable[SpanID]:
-    for child_span_id in child_span_ids.get(span_id) or []:
-        yield child_span_id
-        yield from _get_descendant_span_ids(child_span_id, child_span_ids)

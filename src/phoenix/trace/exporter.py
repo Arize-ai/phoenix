@@ -34,10 +34,13 @@ class HttpExporter:
         self._queue: "SimpleQueue[Optional[Span]]" = SimpleQueue()
         # Putting `None` as the sentinel value for queue termination.
         weakref.finalize(self, self._queue.put, None)
-        Thread(target=self._consume_spans, daemon=True).start()
+        self._start_consumer()
 
     def export(self, span: Span) -> None:
         self._queue.put(span)
+
+    def _start_consumer(self) -> None:
+        Thread(target=self._consume_spans, daemon=True).start()
 
     def _consume_spans(self) -> None:
         while True:

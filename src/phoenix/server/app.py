@@ -1,7 +1,6 @@
-import gzip
 import logging
 from pathlib import Path
-from typing import Optional, Protocol, TypeVar, Union
+from typing import Optional, Union
 
 from starlette.applications import Starlette
 from starlette.datastructures import QueryParams
@@ -18,16 +17,12 @@ from starlette.websockets import WebSocket
 from strawberry.asgi import GraphQL
 from strawberry.schema import BaseSchema
 
-import phoenix.trace.v1.trace_pb2 as pb
-
-from ..config import SERVER_DIR
-from ..core.model_schema import Model
-from ..core.traces import Traces
-from ..trace.schemas import Span
-from ..trace.span_json_decoder import json_to_span
-from ..trace.v1 import encode
-from .api.context import Context
-from .api.schema import schema
+from phoenix.config import SERVER_DIR
+from phoenix.core.model_schema import Model
+from phoenix.core.traces import Traces
+from phoenix.server.api.context import Context
+from phoenix.server.api.schema import schema
+from phoenix.server.span_handler import SpanHandler
 
 logger = logging.getLogger(__name__)
 
@@ -107,37 +102,6 @@ class Download(HTTPEndpoint):
             filename=file.name,
             media_type="application/x-octet-stream",
         )
-
-
-T = TypeVar("T", contravariant=True)
-
-
-class SupportsPut(Protocol[T]):
-    def put(self, obj: T) -> None:
-        ...
-
-
-class SpanHandler(HTTPEndpoint):
-    queue: SupportsPut[pb.Span]
-
-    async def post(self, request: Request) -> Response:
-        try:
-            content_type = request.headers.get("content-type")
-            if content_type == "application/x-protobuf":
-                body = await request.body()
-                content_encoding = request.headers.get("content-encoding")
-                if content_encoding == "gzip":
-                    body = gzip.decompress(body)
-                pb_span = pb.Span()
-                pb_span.ParseFromString(body)
-            else:
-                span = json_to_span(await request.json())
-                assert isinstance(span, Span)
-                pb_span = encode(span)
-        except Exception:
-            return Response(status_code=422)
-        self.queue.put(pb_span)
-        return Response()
 
 
 def create_app(

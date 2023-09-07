@@ -8,7 +8,7 @@ import strawberry
 from strawberry import ID
 from strawberry.types import Info
 
-import phoenix.trace.schemas as s
+import phoenix.trace.schemas as trace_schema
 from phoenix.core.traces import (
     CUMULATIVE_LLM_TOKEN_COUNT_COMPLETION,
     CUMULATIVE_LLM_TOKEN_COUNT_PROMPT,
@@ -38,12 +38,12 @@ class SpanKind(Enum):
     NB: this is actively under construction
     """
 
-    chain = s.SpanKind.CHAIN
-    tool = s.SpanKind.TOOL
-    llm = s.SpanKind.LLM
-    retriever = s.SpanKind.RETRIEVER
-    embedding = s.SpanKind.EMBEDDING
-    unknown = s.SpanKind.UNKNOWN
+    chain = trace_schema.SpanKind.CHAIN
+    tool = trace_schema.SpanKind.TOOL
+    llm = trace_schema.SpanKind.LLM
+    retriever = trace_schema.SpanKind.RETRIEVER
+    embedding = trace_schema.SpanKind.EMBEDDING
+    unknown = trace_schema.SpanKind.UNKNOWN
 
     @classmethod
     def _missing_(cls, v: Any) -> Optional["SpanKind"]:
@@ -64,9 +64,9 @@ class SpanIOValue:
 
 @strawberry.enum
 class SpanStatusCode(Enum):
-    OK = s.SpanStatusCode.OK
-    ERROR = s.SpanStatusCode.ERROR
-    UNSET = s.SpanStatusCode.UNSET
+    OK = trace_schema.SpanStatusCode.OK
+    ERROR = trace_schema.SpanStatusCode.ERROR
+    UNSET = trace_schema.SpanStatusCode.UNSET
 
     @classmethod
     def _missing_(cls, v: Any) -> Optional["SpanStatusCode"]:
@@ -81,7 +81,7 @@ class SpanEvent:
 
     @staticmethod
     def from_event(
-        event: s.SpanEvent,
+        event: trace_schema.SpanEvent,
     ) -> "SpanEvent":
         return SpanEvent(
             name=event.name,
@@ -134,14 +134,14 @@ class Span:
         if (traces := info.context.traces) is None:
             return []
         return [
-            to_gql_span(cast(s.Span, traces[span_id]))
+            to_gql_span(cast(trace_schema.Span, traces[span_id]))
             for span_id in traces.get_descendant_span_ids(
                 cast(SpanID, self.context.span_id),
             )
         ]
 
 
-def to_gql_span(span: s.Span) -> "Span":
+def to_gql_span(span: trace_schema.Span) -> "Span":
     events: List[SpanEvent] = list(map(SpanEvent.from_event, span.events))
     input_value = cast(Optional[str], span.attributes.get(INPUT_VALUE))
     output_value = cast(Optional[str], span.attributes.get(OUTPUT_VALUE))

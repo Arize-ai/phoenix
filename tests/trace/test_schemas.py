@@ -160,7 +160,7 @@ def test_pb_span_encode_decode():
             for event in span.events
         ],
     )
-    assert MessageToDict(pb_span) == {
+    desired_dict = {
         "context": {"traceId": trace_id_base64, "spanId": span_id_base64},
         "parentSpanId": parent_span_id_base64,
         "name": "test",
@@ -208,6 +208,10 @@ def test_pb_span_encode_decode():
             ],
         },
     }
+    desired_pb_span = pb.Span()
+    ParseDict(desired_dict, desired_pb_span)
+    assert pb_span == desired_pb_span
+    del desired_dict, desired_pb_span
 
     # JSON serialization should work unless there is
     # NaN in un-typed fields of arbitrary structs

@@ -1,7 +1,7 @@
 from collections import defaultdict
 from datetime import datetime
 from itertools import chain
-from typing import Dict, Iterable, List, Optional, Set, Union, cast
+from typing import Dict, List, Optional, Set, Tuple, Union, cast
 from uuid import UUID
 
 import numpy as np
@@ -11,8 +11,6 @@ from strawberry import ID, UNSET
 from strawberry.types import Info
 from typing_extensions import Annotated
 
-import phoenix.trace.schemas as s
-from phoenix.datetime_utils import time_range
 from phoenix.pointcloud.clustering import Hdbscan
 from phoenix.server.api.helpers import ensure_list
 from phoenix.server.api.input_types.ClusterInput import ClusterInput
@@ -23,7 +21,7 @@ from phoenix.server.api.input_types.Coordinates import (
 from phoenix.server.api.input_types.SpanSort import SpanSort
 from phoenix.server.api.types.Cluster import Cluster, to_gql_clusters
 
-from ...trace.filter import Filter
+from ...trace.filter import SpanFilter
 from .context import Context
 from .input_types.TimeRange import TimeRange
 from .types.DatasetInfo import DatasetInfo
@@ -215,36 +213,32 @@ class Query:
         root_spans_only: Optional[bool] = False,
         filter_condition: Optional[str] = None,
     ) -> Connection[Span]:
-        spans: Iterable[s.Span] = ()
-        if (traces := info.context.traces) is not None:
-            try:
-                predicate = Filter(filter_condition) if filter_condition else None
-            except SyntaxError as e:
-                raise Exception(f"invalid filter condition: {e.msg}") from e  # TODO: add details
-            spans = (
-                chain.from_iterable(
-                    map(traces.get_trace, map(UUID, trace_ids)),
-                )
-                if trace_ids
-                else traces.get_spans(
-                    start_time=time_range.start if time_range else None,
-                    stop_time=time_range.end if time_range else None,
-                    root_spans_only=root_spans_only,
-                )
-            )
-            if predicate:
-                spans = filter(predicate, spans)
-            if sort:
-                spans = sort(spans)
-        return connection_from_list(
-            data=list(map(to_gql_span, spans)),
-            args=ConnectionArgs(
-                first=first,
-                after=after if isinstance(after, Cursor) else None,
-                last=last,
-                before=before if isinstance(before, Cursor) else None,
-            ),
+        args = ConnectionArgs(
+            first=first,
+            after=after if isinstance(after, Cursor) else None,
+            last=last,
+            before=before if isinstance(before, Cursor) else None,
         )
+        if (traces := info.context.traces) is None:
+            return connection_from_list(data=[], args=args)
+        try:
+            predicate = SpanFilter(filter_condition) if filter_condition else None
+        except SyntaxError as e:
+            raise Exception(f"invalid filter condition: {e.msg}") from e  # TODO: add details
+        if not trace_ids:
+            spans = traces.get_spans(
+                start_time=time_range.start if time_range else None,
+                stop_time=time_range.end if time_range else None,
+                root_spans_only=root_spans_only,
+            )
+        else:
+            spans = chain.from_iterable(map(traces.get_trace, map(UUID, trace_ids)))
+        if predicate:
+            spans = filter(predicate, spans)
+        if sort:
+            spans = sort(spans)
+        data = list(map(to_gql_span, spans))
+        return connection_from_list(data=data, args=args)
 
     @strawberry.field
     def trace_dataset_info(
@@ -255,9 +249,9 @@ class Query:
             return None
         if not (span_count := traces.span_count):
             return None
-        start_time, stop_time = time_range(
-            cast(datetime, traces.min_start_time),
-            cast(datetime, traces.max_start_time),
+        start_time, stop_time = cast(
+            Tuple[datetime, datetime],
+            traces.right_open_time_range,
         )
         return DatasetInfo(
             start_time=start_time,
