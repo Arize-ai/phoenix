@@ -9,12 +9,37 @@ from ..templates.prebuilt_templates import RAG_RELEVANCY_PROMPT_TEMPLATE_STR
 
 
 def llm_eval_binary(
-    df: pd.DataFrame,
+    dataframe: pd.DataFrame,
     template: Union[PromptTemplate, str],
     model: BaseEvalModel,
     rails: List[str],
     system_instruction: Optional[str] = None,
 ) -> List[Optional[str]]:
+    """Runs binary classifications using an LLM.
+
+    Args:
+        df (pandas.DataFrame): A pandas dataframe in which each row represents a record to be
+        classified. All template variable names must appear as column names in the dataframe (extra
+        columns unrelated to the template are permitted).
+
+        template (Union[PromptTemplate, str]): The prompt template as either an instance of
+        PromptTemplate or a Python string. If the latter, the variable names should be surrounded by
+        curly braces so that a call to `.format` can be made to substitute variable values.
+
+        model (BaseEvalModel): An LLM model class.
+
+        rails (List[str]): A list of strings representing the possible output classes of the model's
+        predictions.
+
+        system_instruction (Optional[str], optional): An optional system message.
+
+    Returns:
+        List[Optional[str]]: A list of strings representing the predicted class for each record in
+        the dataframe. The list should have the same length as the input dataframe and its values
+        should be the entries in the `rails` argument or None if the model's prediction could not be
+        parsed.
+    """
+
     if not (isinstance(template, PromptTemplate) or isinstance(template, str)):
         raise TypeError(
             "Invalid type for argument `template`. Expected a string or PromptTemplate "
@@ -34,7 +59,7 @@ def llm_eval_binary(
     # answers so that, if there is an error, we keep the answers obtained up to that point.
     # These are out of scope for M0, but good to keep in mind and consider for the future.
     try:
-        prompts = df.apply(
+        prompts = dataframe.apply(
             lambda row: eval_template.format(
                 variable_values={var_name: row[var_name] for var_name in eval_template.variables}
             ),
@@ -113,15 +138,14 @@ def run_relevance_eval(
             retrieved_document_text_column_name: "reference",
         }
     )
+    class_name_to_bool = {"relevant": True, "irrelevant": False}
     exploded_df[llm_relevance_column_name] = [
-        {"relevant": True, "irrelevant": False}.get(relevance_class)
-        if relevance_class is not None
-        else None
+        class_name_to_bool.get(relevance_class) if relevance_class is not None else None
         for relevance_class in llm_eval_binary(
             exploded_df,
             template=PromptTemplate(RAG_RELEVANCY_PROMPT_TEMPLATE_STR),
             model=model or OpenAiModel(),
-            rails=["relevant", "irrelevant"],
+            rails=list(class_name_to_bool.keys()),
         )
     ]
     collapsed_df = exploded_df.groupby(exploded_df.index, axis="index").agg(
