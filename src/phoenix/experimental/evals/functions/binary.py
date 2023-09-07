@@ -138,15 +138,14 @@ def run_relevance_eval(
             retrieved_document_text_column_name: "reference",
         }
     )
+    class_name_to_bool = {"relevant": True, "irrelevant": False}
     exploded_df[llm_relevance_column_name] = [
-        {"relevant": True, "irrelevant": False}.get(relevance_class)
-        if relevance_class is not None
-        else None
+        class_name_to_bool.get(relevance_class) if relevance_class is not None else None
         for relevance_class in llm_eval_binary(
             exploded_df,
             template=PromptTemplate(RAG_RELEVANCY_PROMPT_TEMPLATE_STR),
             model=model or OpenAiModel(),
-            rails=["relevant", "irrelevant"],
+            rails=list(class_name_to_bool.keys()),
         )
     ]
     collapsed_df = exploded_df.groupby(exploded_df.index, axis="index").agg(
