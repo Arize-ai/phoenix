@@ -17,7 +17,7 @@ from phoenix.datasets.dataset import EMPTY_DATASET, Dataset
 from phoenix.server.app import create_app
 from phoenix.server.thread_server import ThreadServer
 from phoenix.services import AppService
-from phoenix.trace.filter import Filter
+from phoenix.trace.filter import SpanFilter
 from phoenix.trace.span_json_encoder import span_to_json
 from phoenix.trace.trace_dataset import TraceDataset
 
@@ -140,7 +140,7 @@ class Session(ABC):
         """Returns the url for the phoenix app"""
         return _get_url(self.port, self.is_colab)
 
-    def get_spans(
+    def get_span_dataframe(
         self,
         filter_condition: Optional[str] = None,
         *,
@@ -150,7 +150,7 @@ class Session(ABC):
     ) -> Optional[pd.DataFrame]:
         if (traces := self.traces) is None:
             return None
-        predicate = Filter(filter_condition) if filter_condition else None
+        predicate = SpanFilter(filter_condition) if filter_condition else None
         spans = traces.get_spans(
             start_time=start_time,
             stop_time=stop_time,
@@ -256,8 +256,8 @@ def launch_app(
     reference: Optional[Dataset] = None,
     corpus: Optional[Dataset] = None,
     trace: Optional[TraceDataset] = None,
-    port: Optional[int] = PORT,
-    run_in_thread: Optional[bool] = True,
+    port: int = PORT,
+    run_in_thread: bool = True,
 ) -> Optional[Session]:
     """
     Launches the phoenix application and returns a session to interact with.

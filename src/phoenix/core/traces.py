@@ -22,9 +22,9 @@ from sortedcontainers import SortedKeyList
 from typing_extensions import TypeAlias
 from wrapt import ObjectProxy
 
-import phoenix.trace.semantic_conventions as sc
 import phoenix.trace.v1.trace_pb2 as pb
-from phoenix.datetime_utils import time_range
+from phoenix.datetime_utils import right_open_time_range
+from phoenix.trace import semantic_conventions
 from phoenix.trace.schemas import (
     ATTRIBUTE_PREFIX,
     COMPUTED_PREFIX,
@@ -44,17 +44,24 @@ SPAN_ID = CONTEXT_PREFIX + "span_id"
 PARENT_ID = "parent_id"
 START_TIME = "start_time"
 END_TIME = "end_time"
-LLM_TOKEN_COUNT_TOTAL = ATTRIBUTE_PREFIX + sc.LLM_TOKEN_COUNT_TOTAL
-LLM_TOKEN_COUNT_PROMPT = ATTRIBUTE_PREFIX + sc.LLM_TOKEN_COUNT_PROMPT
-LLM_TOKEN_COUNT_COMPLETION = ATTRIBUTE_PREFIX + sc.LLM_TOKEN_COUNT_COMPLETION
-LATENCY_MS = COMPUTED_PREFIX + "latency_ms"
-"The latency (or duration) of the span in milliseconds"
+LLM_TOKEN_COUNT_TOTAL = ATTRIBUTE_PREFIX + semantic_conventions.LLM_TOKEN_COUNT_TOTAL
+LLM_TOKEN_COUNT_PROMPT = ATTRIBUTE_PREFIX + semantic_conventions.LLM_TOKEN_COUNT_PROMPT
+LLM_TOKEN_COUNT_COMPLETION = ATTRIBUTE_PREFIX + semantic_conventions.LLM_TOKEN_COUNT_COMPLETION
+LATENCY_MS = COMPUTED_PREFIX + "latency_ms"  # The latency (or duration) of the span in milliseconds
 CUMULATIVE_LLM_TOKEN_COUNT_TOTAL = COMPUTED_PREFIX + "cumulative_token_count_total"
 CUMULATIVE_LLM_TOKEN_COUNT_PROMPT = COMPUTED_PREFIX + "cumulative_token_count_prompt"
 CUMULATIVE_LLM_TOKEN_COUNT_COMPLETION = COMPUTED_PREFIX + "cumulative_token_count_completion"
 
 
 class ReadableSpan(ObjectProxy):  # type: ignore
+    """
+    A wrapped a protobuf Span, with access methods and ability to decode to
+    a python span. It's meant to be interface layer separating use from
+    implementation. It can also provide computed values that are not intrinsic
+    to the span, e.g. the latency rank percent which can change as more spans
+    are ingested, and would need to be re-computed on the fly.
+    """
+
     __wrapped__: pb.Span
 
     def __init__(self, span: pb.Span) -> None:
@@ -65,6 +72,8 @@ class ReadableSpan(ObjectProxy):  # type: ignore
     def span(self) -> Span:
         span = decode(self.__wrapped__)
         span.attributes.update(cast(SpanAttributes, self._self_computed_values))
+        # TODO: compute latency rank percent (which can change depending on how
+        # many spans already ingested).
         return span
 
     def __getitem__(self, key: str) -> Any:
@@ -153,9 +162,11 @@ class Traces:
                 yield span
 
     def latency_rank_percent(self, latency_ms: float) -> Optional[float]:
-        """Returns a value between 0 and 100 approximating the rank of the
+        """
+        Returns a value between 0 and 100 approximating the rank of the
         latency value as percent of the total count of root spans. E.g., for
-        a latency value at the 75th percentile, the result is roughly 75."""
+        a latency value at the 75th percentile, the result is roughly 75.
+        """
         root_span_ids = self._latency_sorted_root_span_ids
         if not (n := len(root_span_ids)):
             return None
@@ -174,7 +185,7 @@ class Traces:
 
     @property
     def time_range(self) -> Tuple[Optional[datetime], Optional[datetime]]:
-        return time_range(self._min_start_time, self._max_start_time)
+        return right_open_time_range(self._min_start_time, self._max_start_time)
 
     def __getitem__(self, span_id: SpanID) -> Optional[Span]:
         with self._lock:
@@ -246,9 +257,9 @@ class Traces:
             )
             new_span[cumulative_attribute_name] = difference + existing_cumulative_value
             self._add_value_to_span_ancestors(
-                difference,
                 span_id,
                 cumulative_attribute_name,
+                difference,
             )
         # Process previously orphaned spans, if any.
         for orphan_span in self._orphan_spans[span_id]:
@@ -256,12 +267,12 @@ class Traces:
 
     def _add_value_to_span_ancestors(
         self,
-        value: float,
         span_id: SpanID,
-        cumulative_attribute_name: str,
+        attribute_name: str,
+        value: float,
     ) -> None:
         while parent_span_id := self._parent_span_ids.get(span_id):
             parent_span = self._spans[parent_span_id]
-            cumulative_value = parent_span[cumulative_attribute_name] or 0
-            parent_span[cumulative_attribute_name] = cumulative_value + value
+            cumulative_value = parent_span[attribute_name] or 0
+            parent_span[attribute_name] = cumulative_value + value
             span_id = parent_span_id

@@ -5,7 +5,7 @@ from phoenix.trace import semantic_conventions
 from phoenix.trace.schemas import Span
 
 
-class Filter:
+class SpanFilter:
     def __init__(self, condition: str) -> None:
         self._root = ast.parse(condition, mode="eval")
         _validate_expression(self._root, condition)
@@ -21,7 +21,8 @@ def _replace_none_with_missing(
     value: ast.expr,
     as_str: bool = False,
 ) -> ast.IfExp:
-    """E.g. `value` becomes
+    """
+    E.g. `value` becomes
     `_MISSING if (_MAYBE := value) is None else _MAYBE`
     """
     _store_MAYBE = ast.Name(id="_MAYBE", ctx=ast.Store())
@@ -136,7 +137,7 @@ def _validate_expression(expression: ast.Expression, source: str) -> None:
             ),
         ):
             continue
-        source_segment: str = cast(str, ast.get_source_segment(source, node))
+        source_segment = cast(str, ast.get_source_segment(source, node))
         raise SyntaxError(f"invalid expression: {source_segment}")  # TODO: add details
 
 
