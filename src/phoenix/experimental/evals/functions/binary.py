@@ -97,7 +97,7 @@ def run_relevance_eval(
         lambda x: x is not None and len(x) > 0
     )
     filtered_mask = non_null_query_mask & non_empty_retrievals_mask
-    filtered_df = dataframe[filtered_mask][[query_column_name]]
+    filtered_df = dataframe[filtered_mask][[query_column_name]].copy()
     filtered_df[retrieved_documents_column_name] = dataframe[filtered_mask][
         retrieved_documents_column_name
     ].map(list)
