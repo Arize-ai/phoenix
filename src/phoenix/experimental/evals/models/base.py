@@ -12,6 +12,7 @@ from tenacity import (
     stop_after_attempt,
     wait_random_exponential,
 )
+from tqdm import tqdm
 from tqdm.asyncio import tqdm_asyncio
 
 from ..utils.threads import to_thread
@@ -95,7 +96,9 @@ class BaseEvalModel(ABC):
                 f"but found {type(prompts)}."
             )
         try:
-            results = [self._generate(prompt=prompt, instruction=instruction) for prompt in prompts]
+            results = [
+                self._generate(prompt=prompt, instruction=instruction) for prompt in tqdm(prompts)
+            ]
         except (KeyboardInterrupt, Exception) as e:
             raise e
         return results
