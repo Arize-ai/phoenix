@@ -1,5 +1,6 @@
+import logging
 from datetime import datetime
-from typing import Any, Callable, Iterator, List, Optional
+from typing import Any, Callable, Iterator, List, Optional, Protocol
 from uuid import UUID, uuid4
 
 from .schemas import (
@@ -12,6 +13,14 @@ from .schemas import (
     SpanKind,
     SpanStatusCode,
 )
+
+logger = logging.getLogger(__name__)
+logger.addHandler(logging.NullHandler())
+
+
+class SpanExporter(Protocol):
+    def export(self, span: Span) -> None:
+        ...
 
 
 class Tracer:
@@ -28,6 +37,7 @@ class Tracer:
 
     def __init__(
         self,
+        exporter: Optional[SpanExporter] = None,
         on_append: Optional[Callable[[List[Span]], None]] = None,
         *args: Any,
         **kwargs: Any,
@@ -44,6 +54,7 @@ class Tracer:
         """
         self.span_buffer = []
         self.on_append = on_append
+        self._exporter: Optional[SpanExporter] = exporter
         super().__init__(*args, **kwargs)
 
     def create_span(
@@ -51,8 +62,8 @@ class Tracer:
         name: str,
         span_kind: SpanKind,
         start_time: datetime,
-        end_time: datetime,
-        status_code: SpanStatusCode,
+        end_time: Optional[datetime] = None,
+        status_code: SpanStatusCode = SpanStatusCode.UNSET,
         status_message: Optional[str] = "",
         parent_id: Optional[SpanID] = None,
         trace_id: Optional[UUID] = None,
@@ -89,6 +100,8 @@ class Tracer:
             conversation=conversation,
         )
 
+        if self._exporter:
+            self._exporter.export(span)
         self.span_buffer.append(span)
 
         if self.on_append is not None:

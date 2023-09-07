@@ -7,7 +7,6 @@ observability solutions such as Arize and Phoenix.
 For more information on the specification, see
 https://github.com/Arize-ai/open-inference-spec
 """
-import json
 import logging
 from collections import defaultdict
 from datetime import datetime
@@ -22,6 +21,7 @@ from llama_index.callbacks.schema import (
     EventPayload,
 )
 
+from phoenix.trace.exporter import HttpExporter
 from phoenix.trace.schemas import Span, SpanID, SpanKind, SpanStatusCode
 from phoenix.trace.semantic_conventions import (
     DOCUMENT_CONTENT,
@@ -41,7 +41,7 @@ from phoenix.trace.semantic_conventions import (
     RETRIEVAL_DOCUMENTS,
     MimeType,
 )
-from phoenix.trace.tracer import Tracer
+from phoenix.trace.tracer import SpanExporter, Tracer
 
 logger = logging.getLogger(__name__)
 
@@ -78,7 +78,7 @@ def payload_to_semantic_attributes(payload: Dict[str, Any]) -> Dict[str, Any]:
                 DOCUMENT_ID: node_with_score.node.node_id,
                 DOCUMENT_SCORE: node_with_score.score,
                 DOCUMENT_CONTENT: node_with_score.node.text,
-                DOCUMENT_METADATA: json.dumps(node_with_score.node.metadata),
+                DOCUMENT_METADATA: node_with_score.node.metadata,
             }
             for node_with_score in payload[EventPayload.NODES]
         ]
@@ -113,9 +113,13 @@ class OpenInferenceTraceCallbackHandler(BaseCallbackHandler):
     https://github.com/Arize-ai/open-inference-spec
     """
 
-    def __init__(self, callback: Optional[Callable[[List[Span]], None]] = None) -> None:
+    def __init__(
+        self,
+        callback: Optional[Callable[[List[Span]], None]] = None,
+        exporter: Optional[SpanExporter] = HttpExporter(),
+    ) -> None:
         super().__init__(event_starts_to_ignore=[], event_ends_to_ignore=[])
-        self._tracer = Tracer(on_append=callback)
+        self._tracer = Tracer(on_append=callback, exporter=exporter)
         self._event_id_to_event_data: Dict[CBEventID, CBEventData] = defaultdict(
             lambda: CBEventData()
         )

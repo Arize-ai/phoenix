@@ -1,36 +1,25 @@
 import json
-import math
 from collections import defaultdict
 from datetime import datetime
 from enum import Enum
 from typing import Any, DefaultDict, List, Mapping, Optional, cast
 
 import strawberry
-from pandas import Series
 from strawberry import ID
 from strawberry.types import Info
 
-import phoenix.trace.semantic_conventions as sc
+import phoenix.trace.schemas as trace_schema
 from phoenix.core.traces import (
     CUMULATIVE_LLM_TOKEN_COUNT_COMPLETION,
     CUMULATIVE_LLM_TOKEN_COUNT_PROMPT,
     CUMULATIVE_LLM_TOKEN_COUNT_TOTAL,
-    END_TIME,
     LATENCY_MS,
-    NAME,
-    PARENT_ID,
-    SPAN_ID,
-    SPAN_KIND,
-    START_TIME,
-    STATUS_CODE,
-    TRACE_ID,
 )
 from phoenix.server.api.context import Context
 from phoenix.server.api.types.MimeType import MimeType
-from phoenix.trace.schemas import ATTRIBUTE_PREFIX, SpanID
-from phoenix.trace.schemas import SpanKind as CoreSpanKind
-from phoenix.trace.schemas import SpanStatusCode as CoreSpanStatusCode
+from phoenix.trace.schemas import SpanID
 from phoenix.trace.semantic_conventions import (
+    EXCEPTION_MESSAGE,
     INPUT_MIME_TYPE,
     INPUT_VALUE,
     LLM_TOKEN_COUNT_COMPLETION,
@@ -49,12 +38,16 @@ class SpanKind(Enum):
     NB: this is actively under construction
     """
 
-    chain = CoreSpanKind.CHAIN.value
-    tool = CoreSpanKind.TOOL.value
-    llm = CoreSpanKind.LLM.value
-    retriever = CoreSpanKind.RETRIEVER.value
-    embedding = CoreSpanKind.EMBEDDING.value
-    unknown = "UNKNOWN"
+    chain = trace_schema.SpanKind.CHAIN
+    tool = trace_schema.SpanKind.TOOL
+    llm = trace_schema.SpanKind.LLM
+    retriever = trace_schema.SpanKind.RETRIEVER
+    embedding = trace_schema.SpanKind.EMBEDDING
+    unknown = trace_schema.SpanKind.UNKNOWN
+
+    @classmethod
+    def _missing_(cls, v: Any) -> Optional["SpanKind"]:
+        return None if v else cls.unknown
 
 
 @strawberry.type
@@ -71,9 +64,13 @@ class SpanIOValue:
 
 @strawberry.enum
 class SpanStatusCode(Enum):
-    OK = CoreSpanStatusCode.OK.value
-    ERROR = CoreSpanStatusCode.ERROR.value
-    UNSET = CoreSpanStatusCode.UNSET.value
+    OK = trace_schema.SpanStatusCode.OK
+    ERROR = trace_schema.SpanStatusCode.ERROR
+    UNSET = trace_schema.SpanStatusCode.UNSET
+
+    @classmethod
+    def _missing_(cls, v: Any) -> Optional["SpanStatusCode"]:
+        return None if v else cls.UNSET
 
 
 @strawberry.type
@@ -83,14 +80,13 @@ class SpanEvent:
     timestamp: datetime
 
     @staticmethod
-    def from_mapping(
-        mapping: Mapping[str, Any],
+    def from_event(
+        event: trace_schema.SpanEvent,
     ) -> "SpanEvent":
-        """Converts a mapping to a SpanEvent. Used when parsing the record from the dataframe."""
         return SpanEvent(
-            name=mapping["name"],
-            message=(mapping.get("attributes") or {}).get(sc.EXCEPTION_MESSAGE) or "",
-            timestamp=datetime.fromisoformat(mapping["timestamp"]),
+            name=event.name,
+            message=cast(str, event.attributes.get(EXCEPTION_MESSAGE) or ""),
+            timestamp=event.timestamp,
         )
 
 
@@ -100,7 +96,7 @@ class Span:
     status_code: SpanStatusCode
     start_time: datetime
     end_time: Optional[datetime]
-    latency_ms: Optional[int]
+    latency_ms: Optional[float]
     parent_id: Optional[ID] = strawberry.field(
         description="the parent span ID. If null, it is a root span"
     )
@@ -138,68 +134,61 @@ class Span:
         if (traces := info.context.traces) is None:
             return []
         return [
-            to_gql_span(traces._dataframe.loc[span_id])  # type: ignore
+            to_gql_span(cast(trace_schema.Span, traces[span_id]))
             for span_id in traces.get_descendant_span_ids(
                 cast(SpanID, self.context.span_id),
             )
         ]
 
 
-def to_gql_span(row: "Series[Any]") -> Span:
-    """
-    Converts a dataframe row to a graphQL span
-    """
-    attributes = _extract_attributes(row).to_dict()
-    events: List[SpanEvent] = list(
-        map(
-            SpanEvent.from_mapping,
-            row["events"],
-        )
-    )
-    input_value = attributes.get(INPUT_VALUE)
-    output_value = attributes.get(OUTPUT_VALUE)
+def to_gql_span(span: trace_schema.Span) -> "Span":
+    events: List[SpanEvent] = list(map(SpanEvent.from_event, span.events))
+    input_value = cast(Optional[str], span.attributes.get(INPUT_VALUE))
+    output_value = cast(Optional[str], span.attributes.get(OUTPUT_VALUE))
     return Span(
-        name=row[NAME],
-        status_code=SpanStatusCode(row[STATUS_CODE]),
-        parent_id=row[PARENT_ID],
-        span_kind=row[SPAN_KIND],
-        start_time=row[START_TIME],
-        end_time=row[END_TIME],
-        latency_ms=_as_int_or_none(row[LATENCY_MS]),
+        name=span.name,
+        status_code=SpanStatusCode(span.status_code),
+        parent_id=cast(Optional[ID], span.parent_id),
+        span_kind=SpanKind(span.span_kind),
+        start_time=span.start_time,
+        end_time=span.end_time,
+        latency_ms=cast(Optional[float], span.attributes.get(LATENCY_MS)),
         context=SpanContext(
-            trace_id=row[TRACE_ID],
-            span_id=row[SPAN_ID],
+            trace_id=cast(ID, span.context.trace_id),
+            span_id=cast(ID, span.context.span_id),
         ),
         attributes=json.dumps(
-            _nested_attributes(attributes),
+            _nested_attributes(span.attributes),
             default=_json_encode,
         ),
-        token_count_total=_as_int_or_none(
-            attributes.get(LLM_TOKEN_COUNT_TOTAL),
+        token_count_total=cast(
+            Optional[int],
+            span.attributes.get(LLM_TOKEN_COUNT_TOTAL),
         ),
-        token_count_prompt=_as_int_or_none(
-            attributes.get(LLM_TOKEN_COUNT_PROMPT),
+        token_count_prompt=cast(
+            Optional[int],
+            span.attributes.get(LLM_TOKEN_COUNT_PROMPT),
         ),
-        token_count_completion=_as_int_or_none(
-            attributes.get(LLM_TOKEN_COUNT_COMPLETION),
+        token_count_completion=cast(
+            Optional[int],
+            span.attributes.get(LLM_TOKEN_COUNT_COMPLETION),
         ),
-        cumulative_token_count_total=_as_int_or_none(
-            row.get(CUMULATIVE_LLM_TOKEN_COUNT_TOTAL),
+        cumulative_token_count_total=cast(
+            Optional[int],
+            span.attributes.get(CUMULATIVE_LLM_TOKEN_COUNT_TOTAL),
         ),
-        cumulative_token_count_prompt=_as_int_or_none(
-            row.get(CUMULATIVE_LLM_TOKEN_COUNT_PROMPT),
+        cumulative_token_count_prompt=cast(
+            Optional[int],
+            span.attributes.get(CUMULATIVE_LLM_TOKEN_COUNT_PROMPT),
         ),
-        cumulative_token_count_completion=_as_int_or_none(
-            row.get(CUMULATIVE_LLM_TOKEN_COUNT_COMPLETION),
+        cumulative_token_count_completion=cast(
+            Optional[int],
+            span.attributes.get(CUMULATIVE_LLM_TOKEN_COUNT_COMPLETION),
         ),
         events=events,
         input=(
             SpanIOValue(
-                mime_type=MimeType(
-                    sc.MimeType(
-                        attributes.get(INPUT_MIME_TYPE),
-                    ),
-                ),
+                mime_type=MimeType(span.attributes.get(INPUT_MIME_TYPE)),
                 value=input_value,
             )
             if input_value is not None
@@ -207,52 +196,13 @@ def to_gql_span(row: "Series[Any]") -> Span:
         ),
         output=(
             SpanIOValue(
-                mime_type=MimeType(
-                    sc.MimeType(
-                        attributes.get(OUTPUT_MIME_TYPE),
-                    ),
-                ),
+                mime_type=MimeType(span.attributes.get(OUTPUT_MIME_TYPE)),
                 value=output_value,
             )
             if output_value is not None
             else None
         ),
     )
-
-
-def _extract_attributes(row: "Series[Any]") -> "Series[Any]":
-    row = row.dropna()
-    is_attribute = row.index.str.startswith(ATTRIBUTE_PREFIX)
-    keys = row.index[is_attribute]
-    return cast(
-        "Series[Any]",
-        row.loc[is_attribute].rename(
-            {key: key[len(ATTRIBUTE_PREFIX) :] for key in keys},
-        ),
-    )
-
-
-def to_gql_span_event(event: Mapping[str, Any]) -> SpanEvent:
-    return SpanEvent(
-        name=event["name"],
-        message=event["message"],
-        timestamp=datetime.fromisoformat(event["timestamp"]),
-    )
-
-
-def _as_str_or_none(v: Any) -> Optional[str]:
-    if v is None or isinstance(v, float) and not math.isfinite(v):
-        return None
-    return str(v)
-
-
-def _as_int_or_none(v: Any) -> Optional[int]:
-    if v is None or isinstance(v, float) and not math.isfinite(v):
-        return None
-    try:
-        return int(v)
-    except ValueError:
-        return None
 
 
 def _json_encode(v: Any) -> str:

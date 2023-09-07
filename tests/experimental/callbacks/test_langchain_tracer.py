@@ -8,6 +8,7 @@ from langchain.embeddings.fake import FakeEmbeddings
 from langchain.llms.fake import FakeListLLM
 from langchain.retrievers import KNNRetriever
 from phoenix.experimental.callbacks.langchain_tracer import OpenInferenceTracer
+from phoenix.trace.exporter import NoOpExporter
 from phoenix.trace.schemas import SpanException, SpanKind, SpanStatusCode
 from phoenix.trace.semantic_conventions import (
     DOCUMENT_CONTENT,
@@ -36,7 +37,7 @@ def test_tracer_llm() -> None:
         texts=[document],
         embeddings=FakeEmbeddings(size=7),
     )
-    tracer = OpenInferenceTracer()
+    tracer = OpenInferenceTracer(exporter=NoOpExporter())
     RetrievalQA.from_chain_type(
         llm=FakeListLLM(responses=[answer]),
         retriever=retriever,
@@ -80,7 +81,7 @@ def test_tracer_llm() -> None:
     assert attributes.get(RETRIEVAL_DOCUMENTS) == [
         {
             DOCUMENT_CONTENT: document,
-            DOCUMENT_METADATA: "{}",
+            DOCUMENT_METADATA: {},
         }
     ]
 
@@ -117,7 +118,7 @@ def test_tracer_llm_with_exception() -> None:
         texts=[document],
         embeddings=FakeEmbeddings(size=7),
     )
-    tracer = OpenInferenceTracer()
+    tracer = OpenInferenceTracer(exporter=NoOpExporter())
     chain = RetrievalQA.from_chain_type(
         llm=FakeListLLM(responses=[]),
         retriever=retriever,
@@ -146,7 +147,7 @@ def test_tracer_llm_with_exception() -> None:
     assert spans["Retriever"].attributes[RETRIEVAL_DOCUMENTS] == [
         {
             DOCUMENT_CONTENT: document,
-            DOCUMENT_METADATA: "{}",
+            DOCUMENT_METADATA: {},
         },
     ]
 
@@ -162,7 +163,7 @@ def test_tracer_retriever_with_exception() -> None:
         texts=[],
         embeddings=FakeEmbeddings(size=7),
     )
-    tracer = OpenInferenceTracer()
+    tracer = OpenInferenceTracer(exporter=NoOpExporter())
     chain = RetrievalQA.from_chain_type(
         llm=FakeListLLM(responses=[answer]),
         retriever=retriever,

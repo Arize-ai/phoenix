@@ -38,7 +38,10 @@ class DeploymentAttributes(AttributeGroup):
     }
 
 
+EXCEPTION_TYPE = "exception.type"
 EXCEPTION_MESSAGE = "exception.message"
+EXCEPTION_ESCAPED = "exception.escaped"
+EXCEPTION_STACKTRACE = "exception.stacktrace"
 
 
 OUTPUT_VALUE = "output.value"
