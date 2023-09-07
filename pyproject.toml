@@ -105,6 +105,7 @@ dependencies = [
   "nltk==3.8.1",
   "sentence-transformers==2.2.2",
   "pydantic<2",  # for @root_validator in llama-index
+  "responses",
 ]
 
 [tool.hatch.envs.type]
