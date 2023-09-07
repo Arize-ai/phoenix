@@ -15,6 +15,31 @@ def llm_eval_binary(
     rails: List[str],
     system_instruction: Optional[str] = None,
 ) -> List[Optional[str]]:
+    """Runs binary classifications using an LLM.
+
+    Args:
+        df (pandas.DataFrame): A pandas dataframe in which each row represents a record to be
+        classified. All template variable names must appear as column names in the dataframe (extra
+        columns unrelated to the template are permitted).
+
+        template (Union[PromptTemplate, str]): The prompt template as either an instance of
+        PromptTemplate or a Python string. If the latter, the variable names should be surrounded by
+        curly braces so that a call to `.format` can be made to substitute variable values.
+
+        model (BaseEvalModel): An LLM model class.
+
+        rails (List[str]): A list of strings representing the possible output classes of the model's
+        predictions.
+
+        system_instruction (Optional[str], optional): An optional system message.
+
+    Returns:
+        List[Optional[str]]: A list of strings representing the predicted class for each record in
+        the dataframe. The list should have the same length as the input dataframe and its values
+        should be the entries in the `rails` argument or None if the model's prediction could not be
+        parsed.
+    """
+
     if not (isinstance(template, PromptTemplate) or isinstance(template, str)):
         raise TypeError(
             "Invalid type for argument `template`. Expected a string or PromptTemplate "
