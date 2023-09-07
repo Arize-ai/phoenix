@@ -1,6 +1,10 @@
 import pytest
 from gcsfs import GCSFileSystem
-from llama_index import ServiceContext, StorageContext, load_index_from_storage
+from llama_index import (
+    ServiceContext,
+    StorageContext,
+    load_index_from_storage,
+)
 from llama_index.agent import OpenAIAgent
 from llama_index.callbacks import CallbackManager
 from llama_index.embeddings.openai import OpenAIEmbedding
@@ -14,8 +18,16 @@ from phoenix.experimental.callbacks.llama_index_trace_callback_handler import (
 from phoenix.trace.schemas import SpanKind
 from phoenix.trace.semantic_conventions import (
     EMBEDDING_EMBEDDINGS,
+    EMBEDDING_MODEL_NAME,
     EMBEDDING_TEXT,
     EMBEDDING_VECTOR,
+    LLM_MESSAGES,
+    LLM_MODEL_NAME,
+    LLM_TOKEN_COUNT_COMPLETION,
+    LLM_TOKEN_COUNT_PROMPT,
+    LLM_TOKEN_COUNT_TOTAL,
+    MESSAGE_CONTENT,
+    MESSAGE_ROLE,
 )
 
 TEXT_EMBEDDING_ADA_002_EMBEDDING_DIM = 1536
@@ -65,17 +77,20 @@ def test_callback_handler_records_llm_and_embedding_attributes_for_query_engine(
     assert "seconds" in response.response.lower()
 
     tracer = query_engine.callback_manager.handlers[0]._tracer
-    span = next(span for span in tracer.span_buffer if span.span_kind == SpanKind.LLM)
-    messages = span.attributes["llm.messages"]
+    spans = list(tracer.get_spans())
+    span = next(span for span in spans if span.span_kind == SpanKind.LLM)
+    assert span.attributes.get(LLM_MODEL_NAME) == "gpt-3.5-turbo"
+    assert span.attributes.get(LLM_TOKEN_COUNT_PROMPT, 0) > 0
+    assert span.attributes.get(LLM_TOKEN_COUNT_COMPLETION, 0) > 0
+    assert span.attributes.get(LLM_TOKEN_COUNT_TOTAL, 0) > 0
+    messages = span.attributes[LLM_MESSAGES]
 
-    role, _ = messages[0]
-    assert role == "system"
+    assert messages[0][MESSAGE_ROLE] == "system"
+    assert messages[1][MESSAGE_ROLE] == "user"
+    assert query in messages[1][MESSAGE_CONTENT]
 
-    role, message_text = messages[1]
-    assert role == "user"
-    assert query in message_text
-
-    span = next(span for span in tracer.span_buffer if span.span_kind == SpanKind.EMBEDDING)
+    span = next(span for span in spans if span.span_kind == SpanKind.EMBEDDING)
+    assert span.attributes.get(EMBEDDING_MODEL_NAME) == "text-embedding-ada-002"
     embedding_data = span.attributes[EMBEDDING_EMBEDDINGS]
     assert len(embedding_data) == 1
     embedding_text = embedding_data[0][EMBEDDING_TEXT]

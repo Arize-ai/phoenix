@@ -10,7 +10,7 @@ https://github.com/Arize-ai/open-inference-spec
 import logging
 from collections import defaultdict
 from datetime import datetime
-from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple, TypedDict
+from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple, TypedDict, cast
 from uuid import uuid4
 
 from llama_index.callbacks.base_handler import BaseCallbackHandler
@@ -20,6 +20,8 @@ from llama_index.callbacks.schema import (
     CBEventType,
     EventPayload,
 )
+from llama_index.tools import ToolMetadata
+from openai.openai_object import OpenAIObject
 
 from phoenix.trace.exporter import HttpExporter
 from phoenix.trace.schemas import Span, SpanID, SpanKind, SpanStatusCode
@@ -29,22 +31,29 @@ from phoenix.trace.semantic_conventions import (
     DOCUMENT_METADATA,
     DOCUMENT_SCORE,
     EMBEDDING_EMBEDDINGS,
+    EMBEDDING_MODEL_NAME,
     EMBEDDING_TEXT,
     EMBEDDING_VECTOR,
     INPUT_MIME_TYPE,
     INPUT_VALUE,
     LLM_MESSAGES,
+    LLM_MODEL_NAME,
+    LLM_TOKEN_COUNT_COMPLETION,
+    LLM_TOKEN_COUNT_PROMPT,
+    LLM_TOKEN_COUNT_TOTAL,
     MESSAGE_CONTENT,
     MESSAGE_ROLE,
     OUTPUT_MIME_TYPE,
     OUTPUT_VALUE,
     RETRIEVAL_DOCUMENTS,
+    TOOL_DESCRIPTION,
+    TOOL_NAME,
     MimeType,
 )
 from phoenix.trace.tracer import SpanExporter, Tracer
 
 logger = logging.getLogger(__name__)
-
+logger.addHandler(logging.NullHandler())
 
 CBEventID = str
 _LOCAL_TZINFO = datetime.now().astimezone().tzinfo
@@ -58,12 +67,17 @@ class CBEventData(TypedDict, total=False):
     attributes: Dict[str, Any]
 
 
-def payload_to_semantic_attributes(payload: Dict[str, Any]) -> Dict[str, Any]:
+def payload_to_semantic_attributes(
+    event_type: CBEventType,
+    payload: Dict[str, Any],
+) -> Dict[str, Any]:
     """
     Converts a LLMapp payload to a dictionary of semantic conventions compliant attributes.
     """
     attributes: Dict[str, Any] = {}
-
+    if event_type in (CBEventType.NODE_PARSING, CBEventType.CHUNKING):
+        # TODO(maybe): handle these events
+        return attributes
     if EventPayload.CHUNKS in payload and EventPayload.EMBEDDINGS in payload:
         attributes[EMBEDDING_EMBEDDINGS] = [
             {EMBEDDING_TEXT: text, EMBEDDING_VECTOR: vector}
@@ -98,8 +112,32 @@ def payload_to_semantic_attributes(payload: Dict[str, Any]) -> Dict[str, Any]:
         response = payload[EventPayload.RESPONSE]
         attributes[OUTPUT_VALUE] = str(response)
         attributes[OUTPUT_MIME_TYPE] = MimeType.TEXT
+        if raw := getattr(response, "raw", None):
+            if isinstance(raw, OpenAIObject):
+                usage = raw.usage
+                attributes[LLM_TOKEN_COUNT_PROMPT] = usage.prompt_tokens
+                attributes[LLM_TOKEN_COUNT_COMPLETION] = usage.completion_tokens
+                attributes[LLM_TOKEN_COUNT_TOTAL] = usage.total_tokens
     if EventPayload.TEMPLATE in payload:
         ...
+    if event_type is CBEventType.RERANKING:
+        ...  # TODO
+        # if EventPayload.TOP_K in payload:
+        #     attributes[RERANKING_TOP_K] = payload[EventPayload.TOP_K]
+        # if EventPayload.MODEL_NAME in payload:
+        #     attributes[RERANKING_MODEL_NAME] = payload[EventPayload.MODEL_NAME]
+    if EventPayload.TOOL in payload:
+        tool_metadata = cast(ToolMetadata, payload.get(EventPayload.TOOL))
+        attributes[TOOL_NAME] = tool_metadata.name
+        attributes[TOOL_DESCRIPTION] = tool_metadata.description
+    if EventPayload.SERIALIZED in payload:
+        serialized = payload[EventPayload.SERIALIZED]
+        if event_type is CBEventType.EMBEDDING:
+            if model_name := serialized.get("model_name"):
+                attributes[EMBEDDING_MODEL_NAME] = model_name
+        if event_type is CBEventType.LLM:
+            if model_name := serialized.get("model"):
+                attributes[LLM_MODEL_NAME] = model_name
     return attributes
 
 
@@ -143,7 +181,9 @@ class OpenInferenceTraceCallbackHandler(BaseCallbackHandler):
         event_data["attributes"] = {}
         # Parse the payload to extract the parameters
         if payload is not None:
-            event_data["attributes"].update(payload_to_semantic_attributes(payload))
+            event_data["attributes"].update(
+                payload_to_semantic_attributes(event_type, payload),
+            )
 
         return event_id
 
@@ -165,7 +205,9 @@ class OpenInferenceTraceCallbackHandler(BaseCallbackHandler):
 
         # Parse the payload to extract the parameters
         if payload is not None:
-            event_data["attributes"].update(payload_to_semantic_attributes(payload))
+            event_data["attributes"].update(
+                payload_to_semantic_attributes(event_type, payload),
+            )
 
     def start_trace(self, trace_id: Optional[str] = None) -> None:
         self._event_id_to_event_data = defaultdict(lambda: CBEventData())
