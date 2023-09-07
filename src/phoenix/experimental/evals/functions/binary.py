@@ -91,12 +91,18 @@ def run_relevance_eval(
 
     llm_relevance_column_name = "llm_relevance"
     retrieved_document_text_column_name = "retrieved_document_text"
-    retrievals_df = dataframe[[query_column_name, retrieved_documents_column_name]].copy()
-    non_null_df = retrievals_df.dropna(how="any")
-    non_null_df[retrieved_documents_column_name] = non_null_df[retrieved_documents_column_name].map(
-        list
+
+    non_null_query_mask = dataframe[query_column_name].notnull()
+    non_empty_retrievals_mask = dataframe[retrieved_documents_column_name].apply(
+        lambda x: x is not None and len(x) > 0
     )
-    exploded_df = non_null_df.explode(retrieved_documents_column_name, ignore_index=False)
+    filtered_mask = non_null_query_mask & non_empty_retrievals_mask
+    filtered_df = dataframe[filtered_mask][[query_column_name]]
+    filtered_df[retrieved_documents_column_name] = dataframe[filtered_mask][
+        retrieved_documents_column_name
+    ].map(list)
+
+    exploded_df = filtered_df.explode(retrieved_documents_column_name, ignore_index=False)
     exploded_df[retrieved_document_text_column_name] = [
         document_data["document.content"] if document_data is not None else None
         for document_data in exploded_df[retrieved_documents_column_name]
@@ -118,13 +124,14 @@ def run_relevance_eval(
             rails=["relevant", "irrelevant"],
         )
     ]
-    imploded_df = exploded_df.groupby(exploded_df.index, axis="index").agg(
+    collapsed_df = exploded_df.groupby(exploded_df.index, axis="index").agg(
         {
             llm_relevance_column_name: list,
         }
     )
-    retrievals_df[llm_relevance_column_name] = None
-    retrievals_df.loc[imploded_df.index, [llm_relevance_column_name]] = imploded_df[
+    output_df = pd.DataFrame(index=dataframe.index)
+    output_df[llm_relevance_column_name] = None
+    output_df.loc[collapsed_df.index, llm_relevance_column_name] = collapsed_df[
         llm_relevance_column_name
     ]
-    return retrievals_df[llm_relevance_column_name].tolist()
+    return output_df[llm_relevance_column_name].tolist()
