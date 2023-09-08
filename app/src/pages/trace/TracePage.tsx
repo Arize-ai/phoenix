@@ -30,8 +30,11 @@ import { SpanItem } from "@phoenix/components/trace/SpanItem";
 import { TraceTree } from "@phoenix/components/trace/TraceTree";
 import {
   LLMAttributePostfixes,
+  MESSAGE_CONTENT,
+  MESSAGE_ROLE,
   SemanticAttributePrefixes,
-} from "@phoenix/open_inference/tracing/semantic_conventions";
+} from "@phoenix/openInference/tracing/semanticConventions";
+import { AttributeMessage } from "@phoenix/openInference/tracing/types";
 import { assertUnreachable } from "@phoenix/typeUtils";
 
 import {
@@ -41,6 +44,9 @@ import {
 } from "./__generated__/TracePageQuery.graphql";
 
 type Span = TracePageQuery$data["spans"]["edges"][number]["span"];
+/**
+ * A span attribute object that is a map of string to an unknown value
+ */
 type AttributeObject = Record<string, unknown>;
 
 const spanHasException = (span: Span) => {
@@ -203,19 +209,21 @@ function SelectedSpanDetails({ selectedSpan }: { selectedSpan: Span }) {
 /**
  * A simple container to show a block of text or code
  */
-function BlockView({ children, title }: PropsWithChildren<{ title: string }>) {
+function BlockView({ children, title }: PropsWithChildren<{ title?: string }>) {
   return (
     <View borderColor="dark" borderRadius="medium" borderWidth="thin">
-      <View
-        paddingStart="size-150"
-        paddingEnd="size-150"
-        paddingTop="size-50"
-        paddingBottom="size-50"
-        borderBottomColor="dark"
-        borderBottomWidth="thin"
-      >
-        <Heading level={4}>{title}</Heading>
-      </View>
+      {title ? (
+        <View
+          paddingStart="size-150"
+          paddingEnd="size-150"
+          paddingTop="size-50"
+          paddingBottom="size-50"
+          borderBottomColor="dark"
+          borderBottomWidth="thin"
+        >
+          <Heading level={4}>{title}</Heading>
+        </View>
+      ) : null}
       {children}
     </View>
   );
@@ -267,52 +275,90 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
     return null;
   }, [spanAttributes]);
 
-  const messages = useMemo(() => {
+  const messages = useMemo<AttributeMessage[]>(() => {
     if (llmAttributes == null) {
-      return null;
+      return [];
     }
-    return llmAttributes[LLMAttributePostfixes.messages] as string;
+    return (llmAttributes[LLMAttributePostfixes.messages] ||
+      []) as AttributeMessage[];
   }, [llmAttributes]);
 
-  const invocation_parameters = useMemo(() => {
+  const invocation_parameters = useMemo<string>(() => {
     if (llmAttributes == null) {
-      return null;
+      return "{}";
     }
-    return llmAttributes[LLMAttributePostfixes.invocation_parameters];
+    return (llmAttributes[LLMAttributePostfixes.invocation_parameters] ||
+      "{}") as string;
   }, [llmAttributes]);
 
+  const hasInput = input != null && input.value != null;
+  const hasMessages = messages.length > 0;
+  const hasInvocationParams = Object.keys(invocation_parameters).length > 0;
   return (
     <Flex direction="column" gap="size-200">
-      {invocation_parameters ? (
-        <BlockView title="Invocation Parameters">
-          <CodeBlock
-            value={JSON.stringify(
-              JSON.parse(invocation_parameters as string),
-              null,
-              2
-            )}
-            mimeType="json"
-          />
-        </BlockView>
-      ) : null}
-      {messages != null ? (
-        <BlockView title="Messages">
-          <CodeBlock
-            {...{ mimeType: "json", value: JSON.stringify(messages) }}
-          />
-        </BlockView>
-      ) : null}
-      {input && input?.value != null ? (
-        <BlockView title="Input">
-          <CodeBlock {...input} />
-        </BlockView>
-      ) : null}
+      <BlockView>
+        <Tabs>
+          {hasInput ? (
+            <TabPane name="Input" title="Input" hidden={!hasInput}>
+              <CodeBlock {...input} />
+            </TabPane>
+          ) : null}
+          <TabPane name="Messages" title="Messages" hidden={!hasMessages}>
+            <LLMMessagesList messages={messages} />
+          </TabPane>
+          <TabPane
+            name="Invocation Params"
+            title="Invocation Params"
+            hidden={!hasInvocationParams}
+          >
+            <CodeBlock
+              {...{
+                mimeType: "json",
+                value: invocation_parameters,
+              }}
+            />
+          </TabPane>
+        </Tabs>
+      </BlockView>
       {output && output.value != null ? (
         <BlockView title="Output">
           <CodeBlock {...output} />
         </BlockView>
       ) : null}
     </Flex>
+  );
+}
+
+function LLMMessagesList({ messages }: { messages: AttributeMessage[] }) {
+  return (
+    <ul>
+      {messages.map((message, idx) => {
+        return (
+          <li key={idx}>
+            <View
+              margin="size-100"
+              padding="size-100"
+              backgroundColor="light"
+              borderRadius="medium"
+            >
+              <Flex direction="column" alignItems="start" gap="size-100">
+                <Text color="white70" fontStyle="italic">
+                  {message[MESSAGE_ROLE]}
+                </Text>
+                <pre
+                  css={css`
+                    text-wrap: wrap;
+                    margin: 0;
+                  `}
+                >
+                  {message[MESSAGE_CONTENT]}
+                </pre>
+              </Flex>
+            </View>
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 
