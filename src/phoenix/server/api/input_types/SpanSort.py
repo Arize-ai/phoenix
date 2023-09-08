@@ -57,5 +57,4 @@ def _get_column(span: Span, span_column: SpanColumn) -> Any:
         return span.start_time
     if span_column is SpanColumn.endTime:
         return span.end_time
-    else:
-        span.attributes.get(span_column.value)
+    return span.attributes.get(span_column.value)
