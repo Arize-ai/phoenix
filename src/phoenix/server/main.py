@@ -14,7 +14,12 @@ from phoenix.core.traces import Traces
 from phoenix.datasets.dataset import EMPTY_DATASET, Dataset
 from phoenix.datasets.fixtures import FIXTURES, get_datasets
 from phoenix.server.app import create_app
-from phoenix.trace.fixtures import TRACES_FIXTURES, load_example_traces
+from phoenix.trace.fixtures import (
+    TRACES_FIXTURES,
+    _download_traces_fixture,
+    _get_trace_fixture_by_name,
+)
+from phoenix.trace.span_json_decoder import json_string_to_span
 
 logger = logging.getLogger(__name__)
 
@@ -63,6 +68,7 @@ if __name__ == "__main__":
     datasets_parser.add_argument("--primary", type=str, required=True)
     datasets_parser.add_argument("--reference", type=str, required=False)
     datasets_parser.add_argument("--corpus", type=str, required=False)
+    datasets_parser.add_argument("--trace", type=str, required=False)
     fixture_parser = subparsers.add_parser("fixture")
     fixture_parser.add_argument("fixture", type=str, choices=[fixture.name for fixture in FIXTURES])
     fixture_parser.add_argument("--primary-only", type=bool)
@@ -102,10 +108,17 @@ if __name__ == "__main__":
         primary_dataset,
         reference_dataset,
     )
-    traces: Optional[Traces] = None
+    traces = Traces()
     if trace_dataset_name is not None:
-        traces_ds = load_example_traces(trace_dataset_name)
-        traces = Traces(traces_ds.dataframe)
+        for span in map(
+            json_string_to_span,
+            _download_traces_fixture(
+                _get_trace_fixture_by_name(
+                    trace_dataset_name,
+                ),
+            ),
+        ):
+            traces.put(span)
     app = create_app(
         export_path=export_path,
         model=model,

@@ -1,6 +1,8 @@
+import json
 import logging
 from abc import ABC, abstractmethod
 from collections import UserList
+from datetime import datetime
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING, Iterable, List, Optional, Set
@@ -15,6 +17,8 @@ from phoenix.datasets.dataset import EMPTY_DATASET, Dataset
 from phoenix.server.app import create_app
 from phoenix.server.thread_server import ThreadServer
 from phoenix.services import AppService
+from phoenix.trace.filter import SpanFilter
+from phoenix.trace.span_json_encoder import span_to_json
 from phoenix.trace.trace_dataset import TraceDataset
 
 try:
@@ -85,7 +89,10 @@ class Session(ABC):
             else None
         )
 
-        self.traces = Traces(trace_dataset.dataframe) if trace_dataset is not None else None
+        self.traces = Traces()
+        if trace_dataset:
+            for span in trace_dataset.to_spans():
+                self.traces.put(span)
 
         self.port = port
         self.temp_dir = TemporaryDirectory()
@@ -133,6 +140,28 @@ class Session(ABC):
         """Returns the url for the phoenix app"""
         return _get_url(self.port, self.is_colab)
 
+    def get_span_dataframe(
+        self,
+        filter_condition: Optional[str] = None,
+        *,
+        start_time: Optional[datetime] = None,
+        stop_time: Optional[datetime] = None,
+        root_spans_only: Optional[bool] = None,
+    ) -> Optional[pd.DataFrame]:
+        if (traces := self.traces) is None:
+            return None
+        predicate = SpanFilter(filter_condition) if filter_condition else None
+        spans = traces.get_spans(
+            start_time=start_time,
+            stop_time=stop_time,
+            root_spans_only=root_spans_only,
+        )
+        if predicate:
+            spans = filter(predicate, spans)
+        if not (data := list(map(json.loads, map(span_to_json, spans)))):
+            return None
+        return pd.json_normalize(data).set_index("context.span_id", drop=False)
+
 
 _session: Optional[Session] = None
 
@@ -168,6 +197,9 @@ class ProcessSession(Session):
             ),
             corpus_dataset_name=(
                 self.corpus_dataset.name if self.corpus_dataset is not None else None
+            ),
+            trace_dataset_name=(
+                self.trace_dataset.name if self.trace_dataset is not None else None
             ),
         )
 
@@ -224,8 +256,8 @@ def launch_app(
     reference: Optional[Dataset] = None,
     corpus: Optional[Dataset] = None,
     trace: Optional[TraceDataset] = None,
-    port: Optional[int] = None,
-    run_in_thread: Optional[bool] = True,
+    port: int = PORT,
+    run_in_thread: bool = True,
 ) -> Optional[Session]:
     """
     Launches the phoenix application and returns a session to interact with.

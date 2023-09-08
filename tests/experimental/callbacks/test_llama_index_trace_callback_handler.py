@@ -6,6 +6,7 @@ from llama_index.schema import TextNode
 from phoenix.experimental.callbacks.llama_index_trace_callback_handler import (
     OpenInferenceTraceCallbackHandler,
 )
+from phoenix.trace.exporter import NoOpExporter
 from phoenix.trace.semantic_conventions import INPUT_VALUE, OUTPUT_VALUE
 
 nodes = [
@@ -16,7 +17,7 @@ nodes = [
 
 def test_callback_llm(mock_service_context: ServiceContext) -> None:
     question = "What are the seven wonders of the world?"
-    callback_handler = OpenInferenceTraceCallbackHandler()
+    callback_handler = OpenInferenceTraceCallbackHandler(exporter=NoOpExporter())
     index = ListIndex(nodes)
     retriever = index.as_retriever(retriever_mode="default")
     response_synthesizer = get_response_synthesizer()
