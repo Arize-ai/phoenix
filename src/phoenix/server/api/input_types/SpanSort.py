@@ -1,5 +1,6 @@
 from enum import Enum
-from typing import Iterable, Iterator
+from functools import partial
+from typing import Any, Iterable, Iterator
 
 import pandas as pd
 import strawberry
@@ -46,6 +47,15 @@ class SpanSort:
         Sorts the spans by the given column and direction
         """
         yield from pd.Series(spans, dtype=object).sort_values(
-            key=lambda series: series.apply(lambda span: span.attributes.get(self.col.value)),
+            key=lambda series: series.apply(partial(_get_column, span_column=self.col)),
             ascending=self.dir.value == SortDir.asc.value,
         )
+
+
+def _get_column(span: Span, span_column: SpanColumn) -> Any:
+    if span_column == SpanColumn.startTime:
+        return span.start_time
+    if span_column == SpanColumn.endTime:
+        return span.end_time
+    else:
+        span.attributes.get(span_column.value)
