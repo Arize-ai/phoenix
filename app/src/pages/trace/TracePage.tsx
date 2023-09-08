@@ -283,7 +283,7 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
       []) as AttributeMessage[];
   }, [llmAttributes]);
 
-  const invocation_parameters = useMemo<string>(() => {
+  const invocation_parameters_str = useMemo<string>(() => {
     if (llmAttributes == null) {
       return "{}";
     }
@@ -293,7 +293,8 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
 
   const hasInput = input != null && input.value != null;
   const hasMessages = messages.length > 0;
-  const hasInvocationParams = Object.keys(invocation_parameters).length > 0;
+  const hasInvocationParams =
+    Object.keys(JSON.parse(invocation_parameters_str)).length > 0;
   return (
     <Flex direction="column" gap="size-200">
       <BlockView>
@@ -314,7 +315,7 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
             <CodeBlock
               {...{
                 mimeType: "json",
-                value: invocation_parameters,
+                value: invocation_parameters_str,
               }}
             />
           </TabPane>
