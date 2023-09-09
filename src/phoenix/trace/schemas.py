@@ -4,11 +4,27 @@ from enum import Enum
 from typing import Any, Dict, List, Optional, Union
 from uuid import UUID
 
+from phoenix.trace.semantic_conventions import (
+    EXCEPTION_ESCAPED,
+    EXCEPTION_MESSAGE,
+    EXCEPTION_STACKTRACE,
+    EXCEPTION_TYPE,
+)
+
 
 class SpanStatusCode(Enum):
     UNSET = "UNSET"
     OK = "OK"
     ERROR = "ERROR"
+
+    def __str__(self) -> str:
+        return self.value
+
+    @classmethod
+    def _missing_(cls, v: Any) -> Optional["SpanStatusCode"]:
+        if v and isinstance(v, str) and not v.isupper():
+            return cls(v.upper())
+        return None if v else cls.UNSET
 
 
 class SpanKind(Enum):
@@ -26,7 +42,17 @@ class SpanKind(Enum):
     EMBEDDING = "EMBEDDING"
     UNKNOWN = "UNKNOWN"
 
+    def __str__(self) -> str:
+        return self.value
 
+    @classmethod
+    def _missing_(cls, v: Any) -> Optional["SpanKind"]:
+        if v and isinstance(v, str) and not v.isupper():
+            return cls(v.upper())
+        return None if v else cls.UNKNOWN
+
+
+TraceID = UUID
 SpanID = UUID
 AttributePrimitiveValue = Union[str, bool, float, int]
 AttributeValue = Union[AttributePrimitiveValue, List[AttributePrimitiveValue]]
@@ -37,7 +63,7 @@ SpanAttributes = Dict[str, AttributeValue]
 class SpanContext:
     """Context propagation for a span"""
 
-    trace_id: UUID
+    trace_id: TraceID
     span_id: SpanID
 
 
@@ -58,10 +84,11 @@ class SpanEvent(Dict[str, Any]):
     """
 
     name: str
-    message: str
     timestamp: datetime
+    attributes: SpanAttributes
 
 
+@dataclass(frozen=True)
 class SpanException(SpanEvent):
     """
     A Span Exception is a special type of Span Event that denotes an error
@@ -73,8 +100,28 @@ class SpanException(SpanEvent):
     https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/trace/semantic_conventions/exceptions.md
     """
 
-    def __init__(self, timestamp: datetime, message: str):
-        super().__init__(name="exception", message=message, timestamp=timestamp)
+    def __init__(
+        self,
+        timestamp: datetime,
+        message: str,
+        exception_type: Optional[str] = None,
+        exception_escaped: Optional[bool] = None,
+        exception_stacktrace: Optional[str] = None,
+    ):
+        super().__init__(
+            name="exception",
+            timestamp=timestamp,
+            attributes={
+                k: v
+                for k, v in {
+                    EXCEPTION_TYPE: exception_type,
+                    EXCEPTION_MESSAGE: message,
+                    EXCEPTION_ESCAPED: exception_escaped,
+                    EXCEPTION_STACKTRACE: exception_stacktrace,
+                }.items()
+                if v is not None
+            },
+        )
 
 
 @dataclass(frozen=True)
@@ -95,7 +142,7 @@ class Span:
     "If the parent_id is None, this is the root span"
     parent_id: Optional[SpanID]
     start_time: datetime
-    end_time: datetime
+    end_time: Optional[datetime]
     status_code: SpanStatusCode
     status_message: str
     """
@@ -134,3 +181,5 @@ class Span:
 
 
 ATTRIBUTE_PREFIX = "attributes."
+CONTEXT_PREFIX = "context."
+COMPUTED_PREFIX = "__computed__."

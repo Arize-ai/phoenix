@@ -21,9 +21,10 @@ from phoenix.config import SERVER_DIR
 from phoenix.core.model_schema import Model
 from phoenix.core.traces import Traces
 from phoenix.core.umap_parameters import UMAPParameters
+from phoenix.server.api.context import Context
+from phoenix.server.api.schema import schema
+from phoenix.server.span_handler import SpanHandler
 
-from .api.context import Context
-from .api.schema import schema
 
 logger = logging.getLogger(__name__)
 
@@ -130,7 +131,21 @@ def create_app(
             Middleware(HeadersMiddleware),
         ],
         debug=debug,
-        routes=[
+        routes=(
+            []
+            if traces is None
+            else [
+                Route(
+                    "/v1/spans",
+                    type(
+                        "SpanEndpoint",
+                        (SpanHandler,),
+                        {"queue": traces},
+                    ),
+                ),
+            ]
+        )
+        + [
             Route(
                 "/exports",
                 type(

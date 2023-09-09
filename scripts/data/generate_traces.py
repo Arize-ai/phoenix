@@ -12,13 +12,16 @@ from phoenix.trace.schemas import (
     SpanContext,
     SpanConversationAttributes,
     SpanEvent,
+    SpanException,
     SpanKind,
     SpanStatusCode,
 )
 from phoenix.trace.semantic_conventions import (
+    INPUT_VALUE,
     LLM_TOKEN_COUNT_COMPLETION,
     LLM_TOKEN_COUNT_PROMPT,
     LLM_TOKEN_COUNT_TOTAL,
+    OUTPUT_VALUE,
 )
 from phoenix.trace.span_json_encoder import spans_to_jsonl
 
@@ -51,13 +54,13 @@ def generate_trace(num_spans: int) -> List[Span]:
         )
         end_time = start_time + timedelta(seconds=random.randint(1, 600))
         span_id = uuid4()
-        span_kind = random.choice(list(SpanKind))
-        status_code = random.choice(list(SpanStatusCode))
-        status_message = "OK" if status_code == SpanStatusCode.OK else "Error occurred"
+        span_kind = random.choice(list(SpanKind) + [None])
+        status_code = random.choice(list(SpanStatusCode) + [None])
+        status_message = "OK" if status_code == SpanStatusCode.OK else ""
         attributes: Dict[str, AttributeValue] = {
             f"attr_{j}": f"value_{j}" for j in range(random.randint(1, 5))
         }
-        if random.random() < 0.1:
+        if random.random() < 0.2:
             token_count_total = random.randint(100, 10_000)
             token_count_prompt = int(token_count_total * random.random())
             token_count_completion = token_count_total - token_count_prompt
@@ -71,12 +74,20 @@ def generate_trace(num_spans: int) -> List[Span]:
         events = [
             SpanEvent(
                 name=f"event_{j}",
-                message=f"message_{j}",
+                attributes={"message": f"message_{j}"},
                 timestamp=start_time + timedelta(seconds=j),
             )
             for j in range(random.randint(1, 5))
         ]
-
+        if random.random() < 0.1:
+            status_code = SpanStatusCode.ERROR
+            status_message = "Error occurred"
+            events.append(
+                SpanException(
+                    message=_gibberish(),
+                    timestamp=end_time,
+                )
+            )
         span = Span(
             name=f"span_{span_id}",
             context=SpanContext(trace_id=trace_id, span_id=span_id),
@@ -92,7 +103,19 @@ def generate_trace(num_spans: int) -> List[Span]:
         )
         spans.append(span)
 
+    for span in spans:
+        if random.random() < 0.2:
+            object.__setattr__(span, "end_time", None)
+        if random.random() < 0.5:
+            span.attributes[INPUT_VALUE] = _gibberish()
+        if random.random() < 0.5:
+            span.attributes[OUTPUT_VALUE] = _gibberish()
+
     return spans
+
+
+def _gibberish() -> str:
+    return "".join(chr(random.randint(0, 1000)) for _ in range(random.randint(10, 1000)))
 
 
 def generate_traces(

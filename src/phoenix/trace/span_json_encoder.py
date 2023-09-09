@@ -10,7 +10,6 @@ from .schemas import (
     SpanContext,
     SpanConversationAttributes,
     SpanEvent,
-    SpanException,
 )
 
 
@@ -27,14 +26,7 @@ class SpanJSONEncoder(json.JSONEncoder):
         elif isinstance(obj, SpanEvent):
             return {
                 "name": obj.name,
-                "message": obj.message,
-                "timestamp": obj.timestamp.isoformat(),
-            }
-        elif isinstance(obj, SpanException):
-            # TODO: add stacktrace etc.
-            return {
-                "name": obj.name,
-                "message": obj.message,
+                "attributes": obj.attributes,
                 "timestamp": obj.timestamp.isoformat(),
             }
         elif isinstance(obj, Span):

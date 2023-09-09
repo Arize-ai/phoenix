@@ -1,7 +1,8 @@
 from collections import defaultdict
-from datetime import datetime, timedelta
+from datetime import datetime
 from itertools import chain
-from typing import Dict, List, Optional, Set, Union, cast
+from typing import Dict, List, Optional, Set, Tuple, Union, cast
+from uuid import UUID
 
 import numpy as np
 import numpy.typing as npt
@@ -10,7 +11,6 @@ from strawberry import ID, UNSET
 from strawberry.types import Info
 from typing_extensions import Annotated
 
-from phoenix.datetime_utils import floor_to_minute
 from phoenix.pointcloud.clustering import Hdbscan
 from phoenix.server.api.helpers import ensure_list
 from phoenix.server.api.input_types.ClusterInput import ClusterInput
@@ -18,11 +18,12 @@ from phoenix.server.api.input_types.Coordinates import (
     InputCoordinate2D,
     InputCoordinate3D,
 )
-from phoenix.server.api.input_types.SpanSort import SpanColumn, SpanSort
+from phoenix.server.api.input_types.SpanSort import SpanSort
 from phoenix.server.api.types.Cluster import Cluster, to_gql_clusters
 
-from ...core.traces import PARENT_ID, START_TIME, TRACE_ID
+from ...trace.filter import SpanFilter
 from .context import Context
+from .input_types.TimeRange import TimeRange
 from .types.DatasetInfo import DatasetInfo
 from .types.DatasetRole import AncillaryDatasetRole, DatasetRole
 from .types.Dimension import to_gql_dimension
@@ -38,7 +39,6 @@ from .types.Functionality import Functionality
 from .types.Model import Model
 from .types.node import GlobalID, Node, from_global_id
 from .types.pagination import Connection, ConnectionArgs, Cursor, connection_from_list
-from .types.SortDir import SortDir
 from .types.Span import Span, to_gql_span
 
 
@@ -203,6 +203,7 @@ class Query:
     def spans(
         self,
         info: Info[Context, None],
+        time_range: Optional[TimeRange] = UNSET,
         trace_ids: Optional[List[ID]] = UNSET,
         first: Optional[int] = 50,
         last: Optional[int] = UNSET,
@@ -210,57 +211,52 @@ class Query:
         before: Optional[Cursor] = UNSET,
         sort: Optional[SpanSort] = UNSET,
         root_spans_only: Optional[bool] = False,
+        filter_condition: Optional[str] = None,
     ) -> Connection[Span]:
-        if info.context.traces is None:
-            spans = []
-        else:
-            df = info.context.traces._dataframe
-            if trace_ids:
-                df = df.loc[df.loc[:, TRACE_ID].isin(trace_ids)]
-            if root_spans_only:
-                df = df.loc[df.loc[:, PARENT_ID].isna()]
-            sort = (
-                SpanSort(col=SpanColumn.startTime, dir=SortDir.asc)
-                if not sort or sort.col.value not in df.columns
-                else sort
-            )
-            # Convert dataframe rows to Span objects
-            spans = sort.apply(df).apply(to_gql_span, axis=1).to_list()  # type: ignore
-
-        return connection_from_list(
-            data=spans,
-            args=ConnectionArgs(
-                first=first,
-                after=after if isinstance(after, Cursor) else None,
-                last=last,
-                before=before if isinstance(before, Cursor) else None,
-            ),
+        args = ConnectionArgs(
+            first=first,
+            after=after if isinstance(after, Cursor) else None,
+            last=last,
+            before=before if isinstance(before, Cursor) else None,
         )
+        if (traces := info.context.traces) is None:
+            return connection_from_list(data=[], args=args)
+        try:
+            predicate = SpanFilter(filter_condition) if filter_condition else None
+        except SyntaxError as e:
+            raise Exception(f"invalid filter condition: {e.msg}") from e  # TODO: add details
+        if not trace_ids:
+            spans = traces.get_spans(
+                start_time=time_range.start if time_range else None,
+                stop_time=time_range.end if time_range else None,
+                root_spans_only=root_spans_only,
+            )
+        else:
+            spans = chain.from_iterable(map(traces.get_trace, map(UUID, trace_ids)))
+        if predicate:
+            spans = filter(predicate, spans)
+        if sort:
+            spans = sort(spans)
+        data = list(map(to_gql_span, spans))
+        return connection_from_list(data=data, args=args)
 
     @strawberry.field
     def trace_dataset_info(
         self,
         info: Info[Context, None],
     ) -> Optional[DatasetInfo]:
-        if info.context.traces is None:
+        if (traces := info.context.traces) is None:
             return None
-        df = info.context.traces._dataframe
-        min_max_start_time = df.loc[
-            df.loc[:, PARENT_ID].isna(),
-            START_TIME,
-        ].agg(["min", "max"])
-        start_time = cast(datetime, min_max_start_time.min())
-        end_time = cast(datetime, min_max_start_time.max())
-        # Add one minute to end_time, because time intervals are right
-        # open and one minute is the smallest interval allowed.
-        stop_time = end_time + timedelta(minutes=1)
-        # Round down to the nearest minute.
-        start = floor_to_minute(start_time)
-        stop = floor_to_minute(stop_time)
+        if not (span_count := traces.span_count):
+            return None
+        start_time, stop_time = cast(
+            Tuple[datetime, datetime],
+            traces.right_open_time_range,
+        )
         return DatasetInfo(
-            start_time=start,
-            end_time=stop,
-            record_count=len(df),
+            start_time=start_time,
+            end_time=stop_time,
+            record_count=span_count,
         )
 
 

@@ -5,7 +5,7 @@ export interface ISpanItem {
   name: string;
   spanKind: string;
   statusCode: SpanStatusCodeType;
-  latencyMs: number;
+  latencyMs: number | null;
   startTime: string;
   parentId: string | null;
   context: ISpanContext;

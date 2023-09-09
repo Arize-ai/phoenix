@@ -1,8 +1,6 @@
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import List, Optional, cast
 from urllib import request
-
-import pandas as pd
 
 from phoenix.trace.trace_dataset import TraceDataset
 from phoenix.trace.utils import json_lines_to_df
@@ -18,10 +16,11 @@ class TracesFixture:
 llama_index_rag_fixture = TracesFixture(
     name="llama_index_rag",
     description="Traces from running the llama_index on a RAG use case.",
-    file_name="llama_index_rag.jsonl",
+    file_name="llama_index_rag_v4.jsonl",
 )
-langchain_rag_fixture = TracesFixture(
-    name="langchain_rag",
+
+langchain_rag_stuff_document_chain_fixture = TracesFixture(
+    name="langchain_rag_stuff_document_chain",
     description="LangChain RAG data",
     file_name="langchain_rag.jsonl",
 )
@@ -34,7 +33,7 @@ random_fixture = TracesFixture(
 
 TRACES_FIXTURES: List[TracesFixture] = [
     llama_index_rag_fixture,
-    langchain_rag_fixture,
+    langchain_rag_stuff_document_chain_fixture,
     random_fixture,
 ]
 
@@ -61,13 +60,13 @@ def _download_traces_fixture(
     host: Optional[str] = "https://storage.googleapis.com/",
     bucket: Optional[str] = "arize-assets",
     prefix: Optional[str] = "phoenix/traces/",
-) -> pd.DataFrame:
+) -> List[str]:
     """
     Downloads the traces fixture from the phoenix bucket.
     """
     url = f"{host}{bucket}/{prefix}{fixture.file_name}"
     with request.urlopen(url) as f:
-        return json_lines_to_df(f.readlines())
+        return cast(List[str], f.readlines())
 
 
 def load_example_traces(use_case: str) -> TraceDataset:
@@ -77,4 +76,4 @@ def load_example_traces(use_case: str) -> TraceDataset:
     NB: this functionality is under active construction.
     """
     fixture = _get_trace_fixture_by_name(use_case)
-    return TraceDataset(_download_traces_fixture(fixture))
+    return TraceDataset(json_lines_to_df(_download_traces_fixture(fixture)))

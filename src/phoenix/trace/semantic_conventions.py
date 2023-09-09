@@ -38,6 +38,12 @@ class DeploymentAttributes(AttributeGroup):
     }
 
 
+EXCEPTION_TYPE = "exception.type"
+EXCEPTION_MESSAGE = "exception.message"
+EXCEPTION_ESCAPED = "exception.escaped"
+EXCEPTION_STACKTRACE = "exception.stacktrace"
+
+
 OUTPUT_VALUE = "output.value"
 OUTPUT_MIME_TYPE = "output.mime_type"
 """
@@ -61,6 +67,23 @@ class MimeType(Enum):
         return None if v else cls.TEXT
 
 
+EMBEDDING_EMBEDDINGS = "embedding.embeddings"
+"""
+A list of objects containing embedding data, including the vector and represented piece of text.
+"""
+EMBEDDING_MODEL_NAME = "embedding.model_name"
+"""
+The name of the embedding model.
+"""
+EMBEDDING_TEXT = "embedding.text"
+"""
+The text represented by the embedding.
+"""
+EMBEDDING_VECTOR = "embedding.vector"
+"""
+The embedding vector.
+"""
+
 LLM_FUNCTION_CALL = "llm.function_call"
 """
 For models and APIs that support function calling. Records attributes such as the function name and
@@ -72,7 +95,15 @@ Invocation parameters passed to the LLM or API, such as the model name, temperat
 """
 LLM_MESSAGES = "llm.messages"
 """
-Messages (system, user, role) provided to a chat API.
+Messages provided to a chat API.
+"""
+MESSAGE_ROLE = "message.role"
+"""
+The role of the message, such as "user" or "system".
+"""
+MESSAGE_CONTENT = "message.content"
+"""
+The content of the message to the llm
 """
 LLM_MODEL_NAME = "llm.model_name"
 """
