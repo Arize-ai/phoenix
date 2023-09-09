@@ -13,10 +13,12 @@ class ThreadServer(Server):
     def __init__(
         self,
         app: Starlette,
+        host: str,
         port: int,
     ) -> None:
         config = Config(
             app=app,
+            host=host,
             port=port,
             # TODO: save logs to file
             log_level=logging.ERROR,
