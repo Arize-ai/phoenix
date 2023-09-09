@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING, Iterable, List, Optional, Set
 import pandas as pd
 from portpicker import pick_unused_port
 
-from phoenix.config import PORT, get_exported_files
+from phoenix.config import HOST, PORT, get_exported_files
 from phoenix.core.model_schema_adapter import create_model_from_datasets
 from phoenix.core.traces import Traces
 from phoenix.datasets.dataset import EMPTY_DATASET, Dataset
@@ -70,6 +70,7 @@ class Session(ABC):
         reference_dataset: Optional[Dataset] = None,
         corpus_dataset: Optional[Dataset] = None,
         trace_dataset: Optional[TraceDataset] = None,
+        host: str = HOST,
         port: int = PORT,
     ):
         self.primary_dataset = primary_dataset
@@ -94,6 +95,7 @@ class Session(ABC):
             for span in trace_dataset.to_spans():
                 self.traces.put(span)
 
+        self.host = host
         self.port = port
         self.temp_dir = TemporaryDirectory()
         self.export_path = Path(self.temp_dir.name) / "exports"
@@ -138,7 +140,7 @@ class Session(ABC):
     @property
     def url(self) -> str:
         """Returns the url for the phoenix app"""
-        return _get_url(self.port, self.is_colab)
+        return _get_url(self.host, self.port, self.is_colab)
 
     def get_span_dataframe(
         self,
@@ -173,13 +175,15 @@ class ProcessSession(Session):
         reference_dataset: Optional[Dataset] = None,
         corpus_dataset: Optional[Dataset] = None,
         trace_dataset: Optional[TraceDataset] = None,
-        port: Optional[int] = None,
+        host: str = HOST,
+        port: int = PORT,
     ) -> None:
         super().__init__(
             primary_dataset=primary_dataset,
             reference_dataset=reference_dataset,
             corpus_dataset=corpus_dataset,
             trace_dataset=trace_dataset,
+            host=host,
             port=port or PORT,
         )
         primary_dataset.to_disc()
@@ -190,6 +194,7 @@ class ProcessSession(Session):
         # Initialize an app service that keeps the server running
         self.app_service = AppService(
             self.export_path,
+            self.host,
             self.port,
             self.primary_dataset.name,
             reference_dataset_name=(
@@ -219,13 +224,15 @@ class ThreadSession(Session):
         reference_dataset: Optional[Dataset] = None,
         corpus_dataset: Optional[Dataset] = None,
         trace_dataset: Optional[TraceDataset] = None,
-        port: Optional[int] = None,
+        host: str = HOST,
+        port: int = PORT,
     ):
         super().__init__(
             primary_dataset=primary_dataset,
             reference_dataset=reference_dataset,
             corpus_dataset=corpus_dataset,
             trace_dataset=trace_dataset,
+            host=host,
             port=port or pick_unused_port(),
         )
         # Initialize an app service that keeps the server running
@@ -237,6 +244,7 @@ class ThreadSession(Session):
         )
         self.server = ThreadServer(
             app=self.app,
+            host=self.host,
             port=self.port,
         ).run_in_thread()
         # start the server
@@ -256,6 +264,7 @@ def launch_app(
     reference: Optional[Dataset] = None,
     corpus: Optional[Dataset] = None,
     trace: Optional[TraceDataset] = None,
+    host: str = HOST,
     port: int = PORT,
     run_in_thread: bool = True,
 ) -> Optional[Session]:
@@ -273,7 +282,9 @@ def launch_app(
         The dataset containing corpus for LLM context retrieval.
     trace: TraceDataset, optional
         **Experimental** The trace dataset containing the trace data.
-    port: int, optional
+    host: str
+        The host on which the server runs.
+    port: int
         The port on which the server listens.
     run_in_thread: bool, optional, default=True
         Whether the server should run in a Thread or Process.
@@ -305,7 +316,7 @@ def launch_app(
                 "it down and starting a new instance..."
             )
             _session.end()
-        _session = ThreadSession(primary, reference, corpus, trace, port=port)
+        _session = ThreadSession(primary, reference, corpus, trace, host=host, port=port)
         # TODO: catch exceptions from thread
         if not _session.active:
             logger.error(
@@ -314,7 +325,7 @@ def launch_app(
             )
             return None
     else:
-        _session = ProcessSession(primary, reference, corpus, trace, port=port)
+        _session = ProcessSession(primary, reference, corpus, trace, host=host, port=port)
 
     print(f"🌍 To view the Phoenix app in your browser, visit {_session.url}")
     print("📺 To view the Phoenix app in a notebook, run `px.active_session().view()`")
@@ -343,14 +354,14 @@ def close_app() -> None:
     logger.info("Session closed")
 
 
-def _get_url(port: int, is_colab: bool) -> str:
+def _get_url(host: str, port: int, is_colab: bool) -> str:
     """Determines the IFrame URL based on whether this is in a Colab or in a local notebook"""
     if is_colab:
         from google.colab.output import eval_js  # type: ignore
 
         return str(eval_js(f"google.colab.kernel.proxyPort({port}, {{'cache': true}})"))
 
-    return f"http://localhost:{port}/"
+    return f"http://{host}:{port}/"
 
 
 def _is_colab() -> bool:
