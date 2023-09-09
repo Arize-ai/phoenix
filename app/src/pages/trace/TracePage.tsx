@@ -1,4 +1,4 @@
-import React, { PropsWithChildren, useMemo } from "react";
+import React, { PropsWithChildren, ReactNode, useMemo } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { useNavigate, useParams } from "react-router";
@@ -28,6 +28,13 @@ import {
 import { resizeHandleCSS } from "@phoenix/components/resize";
 import { SpanItem } from "@phoenix/components/trace/SpanItem";
 import { TraceTree } from "@phoenix/components/trace/TraceTree";
+import {
+  LLMAttributePostfixes,
+  MESSAGE_CONTENT,
+  MESSAGE_ROLE,
+  SemanticAttributePrefixes,
+} from "@phoenix/openInference/tracing/semanticConventions";
+import { AttributeMessage } from "@phoenix/openInference/tracing/types";
 import { assertUnreachable } from "@phoenix/typeUtils";
 
 import {
@@ -37,6 +44,10 @@ import {
 } from "./__generated__/TracePageQuery.graphql";
 
 type Span = TracePageQuery$data["spans"]["edges"][number]["span"];
+/**
+ * A span attribute object that is a map of string to an unknown value
+ */
+type AttributeObject = Record<string, unknown>;
 
 const spanHasException = (span: Span) => {
   return span.events.some((event) => event.name === "exception");
@@ -198,26 +209,43 @@ function SelectedSpanDetails({ selectedSpan }: { selectedSpan: Span }) {
 /**
  * A simple container to show a block of text or code
  */
-function BlockView({ children, title }: PropsWithChildren<{ title: string }>) {
+function BlockView({ children, title }: PropsWithChildren<{ title?: string }>) {
   return (
     <View borderColor="dark" borderRadius="medium" borderWidth="thin">
-      <View
-        paddingStart="size-150"
-        paddingEnd="size-150"
-        paddingTop="size-50"
-        paddingBottom="size-50"
-        borderBottomColor="dark"
-        borderBottomWidth="thin"
-      >
-        <Heading level={4}>{title}</Heading>
-      </View>
+      {title ? (
+        <View
+          paddingStart="size-150"
+          paddingEnd="size-150"
+          paddingTop="size-50"
+          paddingBottom="size-50"
+          borderBottomColor="dark"
+          borderBottomWidth="thin"
+        >
+          <Heading level={4}>{title}</Heading>
+        </View>
+      ) : null}
       {children}
     </View>
   );
 }
 
 function SpanInfo({ span }: { span: Span }) {
-  const { input, output } = span;
+  const { spanKind, attributes } = span;
+
+  // Parse the attributes once
+  const attributesObject = useMemo<{ [key: string]: unknown }>(() => {
+    return JSON.parse(attributes);
+  }, [attributes]);
+
+  let content: ReactNode;
+  switch (spanKind) {
+    case "llm": {
+      content = <LLMSpanInfo span={span} spanAttributes={attributesObject} />;
+      break;
+    }
+    default:
+      content = <SpanIO span={span} />;
+  }
   return (
     <Flex direction="column">
       <View
@@ -231,20 +259,124 @@ function SpanInfo({ span }: { span: Span }) {
       >
         <SpanItem {...span} />
       </View>
-      <View padding="size-200">
-        <Flex direction="column" gap="size-200">
-          {input && input.value != null ? (
-            <BlockView title="Input">
+      <View padding="size-200">{content}</View>
+    </Flex>
+  );
+}
+
+function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
+  const { spanAttributes, span } = props;
+  const { input, output } = span;
+  const llmAttributes = useMemo<AttributeObject | null>(() => {
+    const llmAttrs = spanAttributes[SemanticAttributePrefixes.llm];
+    if (typeof llmAttrs === "object") {
+      return llmAttrs as AttributeObject;
+    }
+    return null;
+  }, [spanAttributes]);
+
+  const messages = useMemo<AttributeMessage[]>(() => {
+    if (llmAttributes == null) {
+      return [];
+    }
+    return (llmAttributes[LLMAttributePostfixes.messages] ||
+      []) as AttributeMessage[];
+  }, [llmAttributes]);
+
+  const invocation_parameters_str = useMemo<string>(() => {
+    if (llmAttributes == null) {
+      return "{}";
+    }
+    return (llmAttributes[LLMAttributePostfixes.invocation_parameters] ||
+      "{}") as string;
+  }, [llmAttributes]);
+
+  const hasInput = input != null && input.value != null;
+  const hasMessages = messages.length > 0;
+  const hasInvocationParams =
+    Object.keys(JSON.parse(invocation_parameters_str)).length > 0;
+  return (
+    <Flex direction="column" gap="size-200">
+      <BlockView>
+        <Tabs>
+          {hasInput ? (
+            <TabPane name="Input" title="Input" hidden={!hasInput}>
               <CodeBlock {...input} />
-            </BlockView>
+            </TabPane>
           ) : null}
-          {output && output.value != null ? (
-            <BlockView title="Output">
-              <CodeBlock {...output} />
-            </BlockView>
-          ) : null}
-        </Flex>
-      </View>
+          <TabPane name="Messages" title="Messages" hidden={!hasMessages}>
+            <LLMMessagesList messages={messages} />
+          </TabPane>
+          <TabPane
+            name="Invocation Params"
+            title="Invocation Params"
+            hidden={!hasInvocationParams}
+          >
+            <CodeBlock
+              {...{
+                mimeType: "json",
+                value: invocation_parameters_str,
+              }}
+            />
+          </TabPane>
+        </Tabs>
+      </BlockView>
+      {output && output.value != null ? (
+        <BlockView title="Output">
+          <CodeBlock {...output} />
+        </BlockView>
+      ) : null}
+    </Flex>
+  );
+}
+
+function LLMMessagesList({ messages }: { messages: AttributeMessage[] }) {
+  return (
+    <ul>
+      {messages.map((message, idx) => {
+        return (
+          <li key={idx}>
+            <View
+              margin="size-100"
+              padding="size-100"
+              backgroundColor="light"
+              borderRadius="medium"
+            >
+              <Flex direction="column" alignItems="start" gap="size-100">
+                <Text color="white70" fontStyle="italic">
+                  {message[MESSAGE_ROLE]}
+                </Text>
+                <pre
+                  css={css`
+                    text-wrap: wrap;
+                    margin: 0;
+                  `}
+                >
+                  {message[MESSAGE_CONTENT]}
+                </pre>
+              </Flex>
+            </View>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+function SpanIO({ span }: { span: Span }) {
+  const { input, output } = span;
+  return (
+    <Flex direction="column" gap="size-200">
+      {input && input.value != null ? (
+        <BlockView title="Input">
+          <CodeBlock {...input} />
+        </BlockView>
+      ) : null}
+      {output && output.value != null ? (
+        <BlockView title="Output">
+          <CodeBlock {...output} />
+        </BlockView>
+      ) : null}
     </Flex>
   );
 }
