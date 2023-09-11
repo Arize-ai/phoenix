@@ -260,12 +260,16 @@ def test_pb_span_update() -> None:
     pb_span.attributes["x"] = float("nan")
     assert pb_span.HasField("attributes")
     assert math.isnan(pb_span.attributes["x"])
-    assert MessageToDict(pb_span) == {"attributes": {"x": "NaN"}}
+    # The following is tested to succeed in protobuf==4.24.3
+    serialized = pb_span.SerializeToString()
     new_span = pb.Span()
-    ParseDict(MessageToDict(pb_span), new_span)
-    assert isinstance(new_span.attributes["x"], str)
-    assert MessageToDict(pb_span) == MessageToDict(new_span)
-    del pb_span
+    new_span.ParseFromString(serialized)
+    assert math.isnan(new_span.attributes["x"])
+    # Serialization of NaN to Dict or JSON is refused in later protobuf versions.
+    # See: https://github.com/protocolbuffers/protobuf/issues/11259
+    # The following is tested to fail in protobuf==4.24.3
+    # assert MessageToDict(pb_span) == {"attributes": {"x": "NaN"}}
+    del pb_span, new_span, serialized
 
     # status
     pb_span = pb.Span()
