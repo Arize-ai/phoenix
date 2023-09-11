@@ -30,7 +30,7 @@ def _write_pid_file(server: Server) -> None:
     time_limit = time() + 5  # 5 seconds
     while time() < time_limit and not server.should_exit and not server.started:
         sleep(1e-3)
-    if time() > time_limit:
+    if time() > time_limit and not server.started:
         server.should_exit = True
     _get_pid_file().touch()
 
