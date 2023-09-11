@@ -115,3 +115,13 @@ class TraceDataset:
         directory = DATASET_DIR / name
         df = read_parquet(directory / cls._data_file_name)
         return cls(df, name)
+
+    def to_disc(self) -> None:
+        """writes the data to disc"""
+        directory = DATASET_DIR / self.name
+        directory.mkdir(parents=True, exist_ok=True)
+        self.dataframe.to_parquet(
+            directory / self._data_file_name,
+            allow_truncated_timestamps=True,
+            coerce_timestamps="ms",
+        )

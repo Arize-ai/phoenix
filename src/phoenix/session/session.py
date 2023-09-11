@@ -27,6 +27,7 @@ except:  # noqa
     pass
 
 logger = logging.getLogger(__name__)
+logger.addHandler(logging.NullHandler())
 
 # type workaround
 # https://github.com/python/mypy/issues/5264#issuecomment-399407428
@@ -191,6 +192,8 @@ class ProcessSession(Session):
             reference_dataset.to_disc()
         if isinstance(corpus_dataset, Dataset):
             corpus_dataset.to_disc()
+        if isinstance(trace_dataset, TraceDataset):
+            trace_dataset.to_disc()
         # Initialize an app service that keeps the server running
         self.app_service = AppService(
             self.export_path,
@@ -309,23 +312,26 @@ def launch_app(
         # TODO: pass through the lack of a primary dataset to the app
         primary = EMPTY_DATASET
 
+    if _session is not None and _session.active:
+        logger.warning(
+            "Existing running Phoenix instance detected! Shutting "
+            "it down and starting a new instance..."
+        )
+        _session.end()
+
     if run_in_thread:
-        if _session is not None and _session.active:
-            logger.warning(
-                "Existing running Phoenix instance detected! Shutting "
-                "it down and starting a new instance..."
-            )
-            _session.end()
         _session = ThreadSession(primary, reference, corpus, trace, host=host, port=port)
         # TODO: catch exceptions from thread
-        if not _session.active:
-            logger.error(
-                "💥 Phoenix failed to start. Please try again or file an issue "
-                "with us at https://github.com/Arize-ai/phoenix"
-            )
-            return None
     else:
         _session = ProcessSession(primary, reference, corpus, trace, host=host, port=port)
+
+    if not _session.active:
+        logger.error(
+            f"💥 Phoenix failed to start. Please try again (making sure that "
+            f"port {port} is not occupied by another process) or file an issue "
+            f"with us at https://github.com/Arize-ai/phoenix"
+        )
+        return None
 
     print(f"🌍 To view the Phoenix app in your browser, visit {_session.url}")
     print("📺 To view the Phoenix app in a notebook, run `px.active_session().view()`")
