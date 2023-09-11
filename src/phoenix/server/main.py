@@ -26,9 +26,12 @@ logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
 
 
-def _write_pid_file(server: Server) -> None:
-    """Write PID file after server is started."""
-    time_limit = time() + 5  # 5 seconds
+def _write_pid_file_when_ready(
+    server: Server,
+    wait_up_to_seconds: float = 5,
+) -> None:
+    """Write PID file after server is started (or when time is up)."""
+    time_limit = time() + wait_up_to_seconds
     while time() < time_limit and not server.should_exit and not server.started:
         sleep(1e-3)
     if time() > time_limit and not server.started:
@@ -126,5 +129,5 @@ if __name__ == "__main__":
         debug=args.debug,
     )
     server = Server(config=Config(app, host=args.host, port=args.port))
-    Thread(target=_write_pid_file, args=(server,), daemon=True).start()
+    Thread(target=_write_pid_file_when_ready, args=(server,), daemon=True).start()
     server.run()
