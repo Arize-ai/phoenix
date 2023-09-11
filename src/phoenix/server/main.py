@@ -27,6 +27,7 @@ logger.addHandler(logging.NullHandler())
 
 
 def _write_pid_file(server: Server) -> None:
+    """Write PID file after server is started."""
     time_limit = time() + 5  # 5 seconds
     while time() < time_limit and not server.should_exit and not server.started:
         sleep(1e-3)
