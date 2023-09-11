@@ -268,7 +268,7 @@ def test_pb_span_update() -> None:
     # Serialization of NaN to Dict or JSON is refused in later protobuf versions.
     # See: https://github.com/protocolbuffers/protobuf/issues/11259
     # The following is tested to fail in protobuf==4.24.3
-    # assert MessageToDict(pb_span) == {"attributes": {"x": "NaN"}}
+    # MessageToDict(pb_span)
     del pb_span, new_span, serialized
 
     # status
