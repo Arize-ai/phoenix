@@ -44,7 +44,7 @@ class ThreadServer(Server):
                 and not self.started
             ):
                 sleep(1e-3)
-            if time() > time_limit and not self.started:
+            if time() >= time_limit and not self.started:
                 self.should_exit = True
                 raise RuntimeError("server took too long to start")
             yield thread
