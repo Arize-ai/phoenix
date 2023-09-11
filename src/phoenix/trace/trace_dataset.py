@@ -93,19 +93,22 @@ class TraceDataset:
                 )
                 .to_dict()
             )
+            end_time: Optional[datetime] = cast(datetime, row.get("end_time"))
+            if end_time is pd.NaT:
+                end_time = None
             yield json_to_span(
                 {
                     "name": row["name"],
                     "context": context,
                     "span_kind": row["span_kind"],
-                    "parent_id": row["parent_id"],
+                    "parent_id": row.get("parent_id"),
                     "start_time": cast(datetime, row["start_time"]).isoformat(),
-                    "end_time": None if not (end_time := row["end_time"]) else end_time.isoformat(),
+                    "end_time": end_time.isoformat() if end_time else None,
                     "status_code": row["status_code"],
-                    "status_message": row["status_message"],
+                    "status_message": row.get("status_message") or "",
                     "attributes": attributes,
-                    "events": row["events"],
-                    "conversation": row["conversation"],
+                    "events": row.get("events") or [],
+                    "conversation": row.get("conversation"),
                 }
             )
 
