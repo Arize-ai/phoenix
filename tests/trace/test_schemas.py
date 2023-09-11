@@ -260,7 +260,7 @@ def test_pb_span_update() -> None:
     pb_span.attributes["x"] = float("nan")
     assert pb_span.HasField("attributes")
     assert math.isnan(pb_span.attributes["x"])
-    # The following is tested to succeed in protobuf==4.24.3
+    # The following is tested to succeed in protobuf>=3.20,<=4.24.3
     serialized = pb_span.SerializeToString()
     new_span = pb.Span()
     new_span.ParseFromString(serialized)
