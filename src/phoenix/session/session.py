@@ -27,7 +27,6 @@ except:  # noqa
     pass
 
 logger = logging.getLogger(__name__)
-logger.addHandler(logging.NullHandler())
 
 # type workaround
 # https://github.com/python/mypy/issues/5264#issuecomment-399407428

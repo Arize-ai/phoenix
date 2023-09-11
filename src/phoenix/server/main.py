@@ -23,7 +23,6 @@ from phoenix.trace.fixtures import (
 from phoenix.trace.span_json_decoder import json_string_to_span
 
 logger = logging.getLogger(__name__)
-logger.addHandler(logging.NullHandler())
 
 
 def _write_pid_file_when_ready(

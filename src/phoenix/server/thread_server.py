@@ -6,9 +6,6 @@ from typing import Generator
 from starlette.applications import Starlette
 from uvicorn import Config, Server
 
-logger = logging.getLogger(__name__)
-logger.addHandler(logging.NullHandler())
-
 
 class ThreadServer(Server):
     """Server that runs in a (non-daemon) thread"""
