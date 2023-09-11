@@ -1,6 +1,6 @@
 import tempfile
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
 
 def _get_temp_path() -> Path:
@@ -16,6 +16,13 @@ def get_pids_path() -> Path:
     path = _get_temp_path() / "pids"
     path.mkdir(parents=True, exist_ok=True)
     return path
+
+
+def get_running_pid() -> Optional[int]:
+    for file in get_pids_path().iterdir():
+        if file.name.isnumeric():
+            return int(file.name)
+    return None
 
 
 for path in (

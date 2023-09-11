@@ -1,12 +1,13 @@
 import atexit
-import errno
 import logging
 import os
 from argparse import ArgumentParser
 from pathlib import Path
+from threading import Thread
+from time import sleep, time
 from typing import Optional
 
-import uvicorn
+from uvicorn import Config, Server
 
 import phoenix.config as config
 from phoenix.core.model_schema_adapter import create_model_from_datasets
@@ -24,25 +25,25 @@ from phoenix.trace.span_json_decoder import json_string_to_span
 logger = logging.getLogger(__name__)
 
 
-def _write_pid_file() -> None:
-    with open(_get_pid_file(), "w"):
-        pass
+def _write_pid_file_when_ready(
+    server: Server,
+    wait_up_to_seconds: float = 5,
+) -> None:
+    """Write PID file after server is started (or when time is up)."""
+    time_limit = time() + wait_up_to_seconds
+    while time() < time_limit and not server.should_exit and not server.started:
+        sleep(1e-3)
+    if time() >= time_limit and not server.started:
+        server.should_exit = True
+    _get_pid_file().touch()
 
 
 def _remove_pid_file() -> None:
-    try:
-        os.unlink(_get_pid_file())
-    except OSError as e:
-        if e.errno == errno.ENOENT:
-            # If the pid file doesn't exist, ignore and continue on since
-            # we are already in the desired end state; This should not happen
-            pass
-        else:
-            raise
+    _get_pid_file().unlink(missing_ok=True)
 
 
-def _get_pid_file() -> str:
-    return os.path.join(config.get_pids_path(), "%d" % os.getpid())
+def _get_pid_file() -> Path:
+    return config.get_pids_path() / str(os.getpid())
 
 
 if __name__ == "__main__":
@@ -56,7 +57,6 @@ if __name__ == "__main__":
 
     # automatically remove the pid file when the process is being gracefully terminated
     atexit.register(_remove_pid_file)
-    _write_pid_file()
 
     parser = ArgumentParser()
     parser.add_argument("--export_path")
@@ -127,5 +127,6 @@ if __name__ == "__main__":
         corpus=None if corpus_dataset is None else create_model_from_datasets(corpus_dataset),
         debug=args.debug,
     )
-
-    uvicorn.run(app, host=args.host, port=args.port)
+    server = Server(config=Config(app, host=args.host, port=args.port))
+    Thread(target=_write_pid_file_when_ready, args=(server,), daemon=True).start()
+    server.run()

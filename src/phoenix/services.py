@@ -4,11 +4,12 @@ import signal
 import subprocess
 import sys
 from pathlib import Path
-from typing import List, Optional
+from time import sleep, time
+from typing import Callable, List, Optional
 
 import psutil
 
-import phoenix.config as config
+from phoenix.config import SERVER_DIR, get_pids_path, get_running_pid
 
 logger = logging.getLogger(__name__)
 
@@ -22,6 +23,12 @@ class Service:
 
     def __init__(self) -> None:
         self.child = self.start()
+        self._wait_until(
+            lambda: get_running_pid() is not None,
+            # Not sure why, but the process can take a very long time
+            # to get going, e.g. 15+ seconds in Colab.
+            up_to_seconds=60,
+        )
 
     @property
     def command(self) -> List[str]:
@@ -30,7 +37,7 @@ class Service:
     def start(self) -> psutil.Popen:
         """Starts the service."""
 
-        if len(os.listdir(config.get_pids_path())) > 0:
+        if get_running_pid():
             # Currently, only one instance of Phoenix can be running at any given time.
             # Support for multiple concurrently running instances may be supported in the future.
             logger.warning(
@@ -48,21 +55,18 @@ class Service:
             text=True,
             env={**os.environ},
         )
-        # TODO: convert to async with timeout because this can block forever
-        # if there's nothing to read. This is also brittle because it relies
-        # on a specific line of print output by a third party module (uvicorn).
-        for line in iter(process.stdout.readline, b""):
-            if "Uvicorn running on" in str(line):
-                break
         return process
 
     @property
     def active(self) -> bool:
-        return self.child.is_running()
+        # Not sure why, but the process can remain in a zombie state
+        # indefinitely, e.g. in Colab.
+        return self.child.is_running() and self.child.status() != psutil.STATUS_ZOMBIE
 
     def stop(self) -> None:
         """Stops the service."""
         self.child.terminate()
+        self._wait_until(lambda: get_running_pid() is None)
 
     @staticmethod
     def stop_any() -> None:
@@ -70,20 +74,30 @@ class Service:
         within the current session or if it is being run in a separate process on the
         same host machine. In either case, the instance will be forcibly stopped.
         """
-        pids_path = config.get_pids_path()
-        for filename in os.listdir(pids_path):
+        for file in get_pids_path().iterdir():
+            if not file.name.isnumeric():
+                continue
             try:
-                os.kill(int(filename), signal.SIGKILL)
+                os.kill(int(file.name), signal.SIGKILL)
             except ProcessLookupError:
                 pass
-            filename_path = os.path.join(pids_path, filename)
-            os.unlink(filename_path)
+            file.unlink(missing_ok=True)
+
+    def _wait_until(
+        self,
+        predicate: Callable[[], bool],
+        up_to_seconds: float = 5,
+        sleep_seconds: float = 1e-3,
+    ) -> None:
+        time_limit = time() + up_to_seconds
+        while not predicate() and time() < time_limit and self.active:
+            sleep(sleep_seconds)
 
 
 class AppService(Service):
     """Service that controls the phoenix application."""
 
-    working_dir = config.SERVER_DIR
+    working_dir = SERVER_DIR
 
     # Internal references to the name / directory of the dataset(s)
     __primary_dataset_name: str
