@@ -27,7 +27,7 @@ dependencies = [
   "umap-learn",
   "hdbscan>=0.8.33, <1.0.0",
   "starlette",
-  "uvloop; platform_system != "Windows"",
+  "uvloop; platform_system != 'Windows'",
   "uvicorn",
   "psutil",
   "strawberry-graphql==0.205.0",
