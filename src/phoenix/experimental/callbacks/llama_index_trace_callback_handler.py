@@ -300,4 +300,5 @@ def _get_span_kind(event_type: CBEventType) -> SpanKind:
         CBEventType.EMBEDDING: SpanKind.EMBEDDING,
         CBEventType.LLM: SpanKind.LLM,
         CBEventType.RETRIEVE: SpanKind.RETRIEVER,
+        CBEventType.FUNCTION_CALL: SpanKind.TOOL,
     }.get(event_type, SpanKind.CHAIN)
