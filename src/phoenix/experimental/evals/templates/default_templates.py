@@ -31,8 +31,8 @@ indicates that the answer to the question is correct relative to the reference t
 contain made up information. Please read the query and reference text carefully before determining
 your response.
 
-    # Reference text: {passage_text}
     # Query: {query}
-    # Answer: {answer}
+    # Reference text: {reference}
+    # Answer: {response}
     Is the answer above factual or hallucinated based on the query and reference text?
 """
