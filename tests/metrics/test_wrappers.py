@@ -30,7 +30,7 @@ def add_na(na_pct: float, series: "pd.Series[Any]") -> "pd.Series[Any]":
     series = series.sample(frac=1, random_state=rng)
     n_miss = int(len(series) * na_pct)
     series[: n_miss // 3] = None
-    series[n_miss // 3 : 2 * n_miss // 3] = pd.NA
+    series[n_miss // 3 : 2 * n_miss // 3] = float("nan")
     series[2 * n_miss // 3 : n_miss] = np.nan
     return series.sample(frac=1, ignore_index=True, random_state=rng)
 
