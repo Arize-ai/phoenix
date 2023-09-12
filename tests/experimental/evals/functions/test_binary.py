@@ -1,11 +1,67 @@
 import numpy as np
 import pandas as pd
 import responses
-from phoenix.experimental.evals import run_relevance_eval
+from phoenix.experimental.evals import (
+    RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
+    OpenAiModel,
+    llm_eval_binary,
+    run_relevance_eval,
+)
 
 
 @responses.activate
-def test_run_relevance_eval_when_valid_dataframe_should_return_relevant_classification(monkeypatch):
+def test_llm_eval_binary(monkeypatch):
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-0123456789")
+    dataframe = pd.DataFrame(
+        [
+            {
+                "query": "What is Python?",
+                "reference": "Python is a programming language.",
+            },
+            {
+                "query": "What is Python?",
+                "reference": "Ruby is a programming language.",
+            },
+            {
+                "query": "What is C++?",
+                "reference": "C++ is a programming language.",
+            },
+            {
+                "query": "What is C++?",
+                "reference": "irrelevant",
+            },
+        ]
+    )
+    for message_content in [
+        "relevant",
+        "irrelevant",
+        "\nrelevant ",
+        "unparsable",
+    ]:
+        responses.post(
+            "https://api.openai.com/v1/chat/completions",
+            json={
+                "choices": [
+                    {
+                        "message": {
+                            "content": message_content,
+                        },
+                    }
+                ],
+            },
+            status=200,
+        )
+    relevance_classifications = llm_eval_binary(
+        dataframe=dataframe,
+        template=RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
+        model=OpenAiModel(),
+        rails=["relevant", "irrelevant"],
+    )
+    assert relevance_classifications == ["relevant", "irrelevant", "relevant", None]
+
+
+@responses.activate
+def test_run_relevance_eval(monkeypatch):
     monkeypatch.setenv("OPENAI_API_KEY", "sk-0123456789")
     dataframe = pd.DataFrame(
         [
