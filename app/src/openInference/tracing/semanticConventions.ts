@@ -13,6 +13,7 @@ export const LLMAttributePostfixes = {
 export const MessageAttributePostfixes = {
   role: "role",
   content: "content",
+  name: "name",
 } as const;
 
 /**
@@ -29,6 +30,14 @@ export const LLM_MESSAGES =
  */
 export const MESSAGE_ROLE =
   `${SemanticAttributePrefixes.message}.${MessageAttributePostfixes.role}` as const;
+
+/**
+ * The name of the message. This is only used for role 'function' where the name
+ * of the function is captured in the name field and the parameters are captured in the
+ * content.
+ */
+export const MESSAGE_NAME =
+  `${SemanticAttributePrefixes.message}.${MessageAttributePostfixes.name}` as const;
 
 /**
  * The content of the message sent to the LLM

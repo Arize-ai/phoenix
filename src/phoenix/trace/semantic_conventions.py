@@ -101,6 +101,11 @@ MESSAGE_ROLE = "message.role"
 """
 The role of the message, such as "user" or "system".
 """
+MESSAGE_NAME = "message.name"
+"""
+The name given to the message. This is populated for role 'function' as a mechanism to identify
+the function that was called.
+"""
 MESSAGE_CONTENT = "message.content"
 """
 The content of the message to the llm

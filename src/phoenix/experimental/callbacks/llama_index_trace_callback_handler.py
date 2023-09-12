@@ -42,6 +42,7 @@ from phoenix.trace.semantic_conventions import (
     LLM_TOKEN_COUNT_PROMPT,
     LLM_TOKEN_COUNT_TOTAL,
     MESSAGE_CONTENT,
+    MESSAGE_NAME,
     MESSAGE_ROLE,
     OUTPUT_MIME_TYPE,
     OUTPUT_VALUE,
@@ -100,10 +101,7 @@ def payload_to_semantic_attributes(
         ...
     if EventPayload.MESSAGES in payload:
         attributes[LLM_MESSAGES] = [
-            {
-                MESSAGE_ROLE: message_data.role.value,
-                MESSAGE_CONTENT: message_data.content,
-            }
+            _message_payload_to_attributes(message_data)
             for message_data in payload[EventPayload.MESSAGES]
         ]
     if EventPayload.COMPLETION in payload:
@@ -302,3 +300,14 @@ def _get_span_kind(event_type: CBEventType) -> SpanKind:
         CBEventType.RETRIEVE: SpanKind.RETRIEVER,
         CBEventType.FUNCTION_CALL: SpanKind.TOOL,
     }.get(event_type, SpanKind.CHAIN)
+
+
+def _message_payload_to_attributes(message_data: Any) -> Dict[str, str]:
+    if message_data.role.value == "function":
+        print("function in callback")
+        print(message_data)
+    return {
+        MESSAGE_ROLE: message_data.role.value,
+        MESSAGE_NAME: message_data.name if "name" in message_data else None,
+        MESSAGE_CONTENT: message_data.content,
+    }

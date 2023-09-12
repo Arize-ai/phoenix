@@ -31,6 +31,7 @@ import { TraceTree } from "@phoenix/components/trace/TraceTree";
 import {
   LLMAttributePostfixes,
   MESSAGE_CONTENT,
+  MESSAGE_NAME,
   MESSAGE_ROLE,
   SemanticAttributePrefixes,
 } from "@phoenix/openInference/tracing/semanticConventions";
@@ -345,6 +346,7 @@ function LLMMessagesList({ messages }: { messages: AttributeMessage[] }) {
               <Flex direction="column" alignItems="start" gap="size-100">
                 <Text color="white70" fontStyle="italic">
                   {message[MESSAGE_ROLE]}
+                  {message[MESSAGE_NAME] ? `: ${message[MESSAGE_NAME]}` : ""}
                 </Text>
                 <pre
                   css={css`
