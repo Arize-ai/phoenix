@@ -97,6 +97,7 @@ artifacts = ["src/phoenix/server/static"]
 
 [tool.hatch.envs.default]
 dependencies = [
+  "pandas==1.4.0",
   "pytest",
   "pytest-cov",
   "pytest-lazy-fixture",
