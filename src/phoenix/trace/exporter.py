@@ -3,6 +3,7 @@ import logging
 import weakref
 from queue import SimpleQueue
 from threading import Thread
+from types import MethodType
 from typing import Optional
 
 from requests import Session
@@ -40,7 +41,13 @@ class HttpExporter:
         self._queue.put(span)
 
     def _start_consumer(self) -> None:
-        Thread(target=self._consume_spans, daemon=True).start()
+        Thread(
+            target=MethodType(
+                self.__class__._consume_spans,
+                weakref.proxy(self),
+            ),
+            daemon=True,
+        ).start()
 
     def _consume_spans(self) -> None:
         while True:
