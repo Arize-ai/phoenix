@@ -1,6 +1,8 @@
 """
-Callback handler for emitting trace data in OpenInference format.
-OpenInference is an open standard for capturing and storing AI model inferences.
+Callback handler for emitting trace data in OpenInference tracing format.
+OpenInference tracing is an open standard for capturing and storing
+LLM Application execution logs.
+
 It enables production LLMapp servers to seamlessly integrate with LLM
 observability solutions such as Arize and Phoenix.
 
@@ -20,6 +22,7 @@ from llama_index.callbacks.schema import (
     CBEventType,
     EventPayload,
 )
+from llama_index.llms.base import ChatMessage
 from llama_index.tools import ToolMetadata
 from openai.openai_object import OpenAIObject
 
@@ -42,6 +45,8 @@ from phoenix.trace.semantic_conventions import (
     LLM_TOKEN_COUNT_PROMPT,
     LLM_TOKEN_COUNT_TOTAL,
     MESSAGE_CONTENT,
+    MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON,
+    MESSAGE_FUNCTION_CALL_NAME,
     MESSAGE_NAME,
     MESSAGE_ROLE,
     OUTPUT_MIME_TYPE,
@@ -302,12 +307,17 @@ def _get_span_kind(event_type: CBEventType) -> SpanKind:
     }.get(event_type, SpanKind.CHAIN)
 
 
-def _message_payload_to_attributes(message_data: Any) -> Dict[str, str]:
-    if message_data.role.value == "function":
-        print("function in callback")
-        print(message_data)
-    return {
-        MESSAGE_ROLE: message_data.role.value,
-        MESSAGE_NAME: message_data.name if "name" in message_data else None,
-        MESSAGE_CONTENT: message_data.content,
+def _message_payload_to_attributes(message: ChatMessage) -> Dict[str, Optional[str]]:
+    message_attributes = {
+        MESSAGE_ROLE: message.role.value,
+        MESSAGE_CONTENT: message.content,
     }
+    # Parse the kwargs to extract the function name and parameters for function calling
+    # NB: these additional kwargs exist both for 'agent' and 'function' roles
+    if "name" in message.additional_kwargs:
+        message_attributes[MESSAGE_NAME] = message.additional_kwargs["name"]
+    if "function_call" in message.additional_kwargs:
+        function_call = message.additional_kwargs["function_call"]
+        message_attributes[MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON] = function_call.arguments
+        message_attributes[MESSAGE_FUNCTION_CALL_NAME] = function_call.name
+    return message_attributes

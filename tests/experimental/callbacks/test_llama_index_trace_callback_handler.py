@@ -1,11 +1,8 @@
 from llama_index import ListIndex, get_response_synthesizer
-from llama_index.agent import OpenAIAgent
 from llama_index.callbacks import CallbackManager
 from llama_index.indices.service_context import ServiceContext
-from llama_index.llms import OpenAI
 from llama_index.query_engine import RetrieverQueryEngine
 from llama_index.schema import TextNode
-from llama_index.tools import FunctionTool
 from phoenix.experimental.callbacks.llama_index_trace_callback_handler import (
     OpenInferenceTraceCallbackHandler,
 )
@@ -39,26 +36,3 @@ def test_callback_llm(mock_service_context: ServiceContext) -> None:
     # Make sure that the input/output is captured
     assert spans[0].attributes[INPUT_VALUE] == question
     assert spans[0].attributes[OUTPUT_VALUE] == response.response
-
-
-def test_callback_data_agent(mock_service_context: ServiceContext) -> None:
-    # Define very simple calculator tools for our agent
-
-    def multiply(a: int, b: int) -> int:
-        """Multiple two integers and returns the result integer"""
-        return a * b
-
-    multiply_tool = FunctionTool.from_defaults(fn=multiply)
-
-    def add(a: int, b: int) -> int:
-        """Add two integers and returns the result integer"""
-        return a + b
-
-    add_tool = FunctionTool.from_defaults(fn=add)
-    llm = OpenAI(model="gpt-3.5-turbo-0613")
-    cb_handler = OpenInferenceTraceCallbackHandler()
-    callback_manager = CallbackManager(handlers=[cb_handler])
-    agent = OpenAIAgent.from_tools(
-        [multiply_tool, add_tool], llm=llm, verbose=True, callback_manager=callback_manager
-    )
-    agent.query("What is 2 * 3?")

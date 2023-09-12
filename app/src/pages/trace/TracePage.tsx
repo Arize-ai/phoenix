@@ -31,6 +31,8 @@ import { TraceTree } from "@phoenix/components/trace/TraceTree";
 import {
   LLMAttributePostfixes,
   MESSAGE_CONTENT,
+  MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON,
+  MESSAGE_FUNCTION_CALL_NAME,
   MESSAGE_NAME,
   MESSAGE_ROLE,
   SemanticAttributePrefixes,
@@ -335,6 +337,10 @@ function LLMMessagesList({ messages }: { messages: AttributeMessage[] }) {
   return (
     <ul>
       {messages.map((message, idx) => {
+        const messageContent = message[MESSAGE_CONTENT];
+        const hasFunctionCall =
+          message[MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON] &&
+          message[MESSAGE_FUNCTION_CALL_NAME];
         return (
           <li key={idx}>
             <View
@@ -348,14 +354,34 @@ function LLMMessagesList({ messages }: { messages: AttributeMessage[] }) {
                   {message[MESSAGE_ROLE]}
                   {message[MESSAGE_NAME] ? `: ${message[MESSAGE_NAME]}` : ""}
                 </Text>
-                <pre
-                  css={css`
-                    text-wrap: wrap;
-                    margin: 0;
-                  `}
-                >
-                  {message[MESSAGE_CONTENT]}
-                </pre>
+                {messageContent ? (
+                  <pre
+                    css={css`
+                      text-wrap: wrap;
+                      margin: 0;
+                    `}
+                  >
+                    {message[MESSAGE_CONTENT]}
+                  </pre>
+                ) : null}
+                {hasFunctionCall ? (
+                  <pre
+                    css={css`
+                      text-wrap: wrap;
+                      margin: 0;
+                    `}
+                  >
+                    {message[MESSAGE_FUNCTION_CALL_NAME] as string}(
+                    {JSON.stringify(
+                      JSON.parse(
+                        message[MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON] as string
+                      ),
+                      null,
+                      2
+                    )}
+                    )
+                  </pre>
+                ) : null}
               </Flex>
             </View>
           </li>
