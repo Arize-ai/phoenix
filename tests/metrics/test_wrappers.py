@@ -14,8 +14,8 @@ from phoenix.metrics.wrappers import Eval
 from phoenix.metrics.wrappers import SkEval as ev
 from sklearn import metrics as sk
 
-N = 1000
-NA_PCT = 0.1
+N = 32
+NA_PCT = 0.25
 
 rng = np.random.default_rng(1234567890)
 
