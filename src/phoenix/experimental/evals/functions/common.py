@@ -3,7 +3,7 @@ import pandas as pd
 from ..templates import PromptTemplate
 
 
-def map_template(dataframe: pd.DataFrame, template: PromptTemplate) -> pd.Series[str]:
+def map_template(dataframe: pd.DataFrame, template: PromptTemplate) -> "pd.Series[str]":
     """
     Maps over a dataframe to construct a list of prompts from a template and a dataframe.
     """
