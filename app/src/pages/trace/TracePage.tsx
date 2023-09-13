@@ -115,7 +115,8 @@ export function TracePage() {
       <Dialog size="XL" title="Trace Details">
         <main
           css={css`
-            height: 100%;
+            flex: 1 1 auto;
+            overflow: hidden;
           `}
         >
           <PanelGroup direction="horizontal" autoSaveId="trace-panel-group">
@@ -160,6 +161,7 @@ export function TracePage() {
 function ScrollingTabsWrapper({ children }: PropsWithChildren) {
   return (
     <div
+      data-testid="scrolling-tabs-wrapper"
       css={css`
         height: 100%;
         .ac-tabs {
