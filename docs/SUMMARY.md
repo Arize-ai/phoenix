@@ -5,6 +5,9 @@
 ## 💡 Concepts
 
 * [Phoenix Basics](concepts/phoenix-basics.md)
+* [LangChain & LamaIndex Traces](concepts/langchain-and-lamaindex-traces.md)
+* [LLM Evals](concepts/llm-evals.md)
+* [Retrieval Evaluation](concepts/retrieval-evaluation.md)
 * [Generating Embeddings](concepts/generating-embeddings.md)
 * [LLM Observability](concepts/llm-observability.md)
 
