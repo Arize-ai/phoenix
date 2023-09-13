@@ -1,6 +1,6 @@
 # Arize Phoenix App
 
-The Phoenix application is a web application built to enable rapid troubleshooting and EDA of model inferences and LLM applications. It is hosted by the phoenix server and also consumes the GraphQL API served by the python runtime as well.
+The Phoenix application is a web application built to enable rapid troubleshooting and EDA of model inferences and LLM applications. It is hosted by the Phoenix server and consumes the GraphQL API served by the Python runtime.
 
 ## Installation
 
