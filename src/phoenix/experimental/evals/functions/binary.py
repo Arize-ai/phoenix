@@ -4,8 +4,10 @@ import pandas as pd
 
 from ..models import BaseEvalModel
 from ..models.openai import OpenAiModel
-from ..templates import PromptTemplate
-from ..templates.prebuilt_templates import RAG_RELEVANCY_PROMPT_TEMPLATE_STR
+from ..templates import (
+    RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
+    PromptTemplate,
+)
 
 
 def llm_eval_binary(
