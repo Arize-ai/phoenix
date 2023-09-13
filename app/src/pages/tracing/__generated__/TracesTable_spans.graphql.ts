@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<79ddc30979f5525d56b6927ca459234c>>
+ * @generated SignedSource<<3a0b03eb05403c643ba53ccaefb355b7>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,7 +9,7 @@
 // @ts-nocheck
 
 import { ReaderFragment, RefetchableFragment } from 'relay-runtime';
-export type SpanKind = "chain" | "embedding" | "llm" | "retriever" | "tool" | "unknown";
+export type SpanKind = "agent" | "chain" | "embedding" | "llm" | "retriever" | "tool" | "unknown";
 export type SpanStatusCode = "ERROR" | "OK" | "UNSET";
 import { FragmentRefs } from "relay-runtime";
 export type TracesTable_spans$data = {
