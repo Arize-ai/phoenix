@@ -112,14 +112,15 @@ export function TracePage() {
       isDismissable
       onDismiss={() => navigate(-1)}
     >
-      <Dialog size="L" title="Trace Details">
+      <Dialog size="XL" title="Trace Details">
         <main
           css={css`
-            height: 100%;
+            flex: 1 1 auto;
+            overflow: hidden;
           `}
         >
-          <PanelGroup direction="vertical" autoSaveId="trace-panel-group">
-            <Panel defaultSize={40}>
+          <PanelGroup direction="horizontal" autoSaveId="trace-panel-group">
+            <Panel defaultSize={30} minSize={10} maxSize={40}>
               <ScrollingTabsWrapper>
                 <Tabs>
                   <TabPane name="Tree" title="Tree">
@@ -160,6 +161,7 @@ export function TracePage() {
 function ScrollingTabsWrapper({ children }: PropsWithChildren) {
   return (
     <div
+      data-testid="scrolling-tabs-wrapper"
       css={css`
         height: 100%;
         .ac-tabs {

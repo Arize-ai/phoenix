@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f6ef90d326ff85a7087fa20cbbe9b202>>
+ * @generated SignedSource<<95ebe3bdf3441147c3fb7cccdc9d69d5>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,7 +10,7 @@
 
 import { ReaderFragment, RefetchableFragment } from 'relay-runtime';
 export type MimeType = "json" | "text";
-export type SpanKind = "chain" | "embedding" | "llm" | "retriever" | "tool" | "unknown";
+export type SpanKind = "agent" | "chain" | "embedding" | "llm" | "retriever" | "tool" | "unknown";
 export type SpanStatusCode = "ERROR" | "OK" | "UNSET";
 import { FragmentRefs } from "relay-runtime";
 export type SpansTable_spans$data = {

@@ -18,6 +18,9 @@ export function SpanKindLabel(props: { spanKind: string }) {
         break;
       case "embedding":
         color = "purple";
+        break;
+      case "agent":
+        color = "green";
     }
     return color;
   }, [spanKind]);
