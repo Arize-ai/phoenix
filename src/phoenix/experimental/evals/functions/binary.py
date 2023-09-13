@@ -46,11 +46,6 @@ def llm_eval_binary(
 
     eval_template = normalize_template(template)
 
-    # I was considering to construct the prompts and generate answers concurrently. However,
-    # if there's errors in the prompt construction it could interrupt the process and we
-    # would've used API credits for nothing. We could solve this problem by streaming the
-    # answers so that, if there is an error, we keep the answers obtained up to that point.
-    # These are out of scope for M0, but good to keep in mind and consider for the future.
     prompts = map_template(dataframe, eval_template)
 
     responses = model.generate(prompts.to_list(), system_instruction)
