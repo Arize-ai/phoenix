@@ -204,6 +204,12 @@ The above example shows a use of the custom created template on the df dataframe
 
 
 
+```python
+#Phoenix Evals support using either stirngs or objects as templates
+MY_CUSTOM_TEMPLATE = " ..."
+MY_CUSTOM_TEMPLATE = PromptTemplate("This is a test {prompt}")
+```
+
 ## Models Supported
 
 We currently support OpenAI with Palm 2 and Llama coming very very soon.&#x20;
