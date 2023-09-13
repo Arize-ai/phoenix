@@ -81,3 +81,27 @@ class PromptTemplate:
                 variables.append(variable_name)
 
         return variables
+
+
+def normalize_template(template: Union[PromptTemplate, str]) -> PromptTemplate:
+    """
+    Normalizes a template to a PromptTemplate object.
+    Args:
+        template (Union[PromptTemplate, str]): The template to be normalized.
+    Returns:
+        PromptTemplate: The normalized template.
+    """
+    normalized_template = template
+    if not (isinstance(template, PromptTemplate) or isinstance(template, str)):
+        raise TypeError(
+            "Invalid type for argument `template`. Expected a string or PromptTemplate "
+            f"but found {type(template)}."
+        )
+    if isinstance(template, str):
+        try:
+            normalized_template = PromptTemplate(text=template)
+        except Exception as e:
+            raise RuntimeError(f"Error while initializing the PromptTemplate: {e}")
+    else:
+        normalized_template = template
+    return normalized_template
