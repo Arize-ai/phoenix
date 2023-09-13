@@ -3,6 +3,7 @@ from collections import defaultdict
 from datetime import datetime, timezone
 from queue import SimpleQueue
 from threading import RLock, Thread
+from types import MethodType
 from typing import (
     Any,
     DefaultDict,
@@ -194,7 +195,13 @@ class Traces:
         return None
 
     def _start_consumer(self) -> None:
-        Thread(target=self._consume_spans, daemon=True).start()
+        Thread(
+            target=MethodType(
+                self.__class__._consume_spans,
+                weakref.proxy(self),
+            ),
+            daemon=True,
+        ).start()
 
     def _consume_spans(self) -> None:
         while True:
