@@ -3,7 +3,7 @@ from .models import OpenAiModel
 from .retrievals import compute_precisions_at_k
 from .templates import (
     HALLUCINATION_PROMPT_TEMPLATE,
-    RAG_RELEVANCY_PROMPT_TEMPLATE,
+    RELEVANCY_PROMPT_TEMPLATE,
     PromptTemplate,
 )
 from .utils.downloads import download_benchmark_dataset
@@ -15,6 +15,6 @@ __all__ = [
     "OpenAiModel",
     "PromptTemplate",
     "HALLUCINATION_PROMPT_TEMPLATE",
-    "RAG_RELEVANCY_PROMPT_TEMPLATE",
+    "RELEVANCY_PROMPT_TEMPLATE",
     "run_relevance_eval",
 ]

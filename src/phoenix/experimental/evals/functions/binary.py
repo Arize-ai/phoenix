@@ -5,7 +5,7 @@ import pandas as pd
 from ..models import BaseEvalModel
 from ..models.openai import OpenAiModel
 from ..templates import (
-    RAG_RELEVANCY_PROMPT_TEMPLATE,
+    RELEVANCY_PROMPT_TEMPLATE,
     PromptTemplate,
 )
 
@@ -38,13 +38,6 @@ def llm_eval_binary(
         parsed.
     """
 
-    if not isinstance(template, PromptTemplate):
-        raise TypeError(
-            "Invalid type for argument `template`. Expected a PromptTemplate "
-            f"but found {type(template)}."
-        )
-    eval_template = template
-
     # I was considering to construct the prompts and generate answers concurrently. However,
     # if there's errors in the prompt construction it could interrupt the process and we
     # would've used API credits for nothing. We could solve this problem by streaming the
@@ -52,8 +45,8 @@ def llm_eval_binary(
     # These are out of scope for M0, but good to keep in mind and consider for the future.
     try:
         prompts = dataframe.apply(
-            lambda row: eval_template.format(
-                variable_values={var_name: row[var_name] for var_name in eval_template.variables}
+            lambda row: template.format(
+                variable_values={var_name: row[var_name] for var_name in template.variables}
             ),
             axis=1,
         )
@@ -68,7 +61,7 @@ def llm_eval_binary(
         )
 
     responses = model.generate(prompts.to_list(), system_instruction)
-    rail_classes = set(eval_template.rails)
+    rail_classes = set(template.rails)
     return [
         (rail_class if (rail_class := resp.strip()) in rail_classes else None) for resp in responses
     ]
@@ -78,7 +71,7 @@ def run_relevance_eval(
     dataframe: pd.DataFrame,
     query_column_name: str = "attributes.input.value",
     retrieved_documents_column_name: str = "attributes.retrieval.documents",
-    template: PromptTemplate = RAG_RELEVANCY_PROMPT_TEMPLATE,
+    template: PromptTemplate = RELEVANCY_PROMPT_TEMPLATE,
     model: Optional[BaseEvalModel] = None,
 ) -> List[List[Optional[bool]]]:
     """Given a pandas dataframe containing queries and retrieved documents,

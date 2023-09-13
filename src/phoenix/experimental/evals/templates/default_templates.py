@@ -1,6 +1,6 @@
 from .template import PromptTemplate
 
-RAG_RELEVANCY_PROMPT_TEMPLATE = PromptTemplate(
+RELEVANCY_PROMPT_TEMPLATE = PromptTemplate(
     text="""
 You are comparing a reference text to a question and trying to determine if the reference text
 contains information relevant to answering the question. Here is the data:
