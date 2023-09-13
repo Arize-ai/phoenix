@@ -585,6 +585,7 @@ enum SpanKind {
   llm
   retriever
   embedding
+  agent
   unknown
 }
 
