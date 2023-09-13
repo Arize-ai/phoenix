@@ -27,7 +27,7 @@ The app is written in `typescript` and leverages [esbuild](https://esbuild.githu
 
 1. Building the `javascript` and `css` assets using `esbuild`
 2. Building the compiled graphql queries using the `relay-compiler`
-3. Building the static assets - e.g. scaffolding the server static serving directory
+3. Building the static assets, e.g. scaffolding the server static serving directory
 
 The web build ensures that the UI as well as the data-fetching layer is fully type safe with regards to the GraphQL schema. The type safety of the application is statically validated via the typescript CI pipeline.
 
