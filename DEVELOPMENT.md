@@ -147,6 +147,18 @@ pip install jupyter
 
 and run the notebooks in the `examples` directory.
 
+## Installing a `git` Branch on Colab
+
+The code below installs the `main` branch in [Colab](https://colab.research.google.com/notebooks/empty.ipynb) and takes roughly 3 minutes to run. 
+
+```jupyterpython
+# 
+!npm install -g -s n
+!n latest
+!npm install -g -s npm@latest
+%pip install -qqq git+https://github.com/Arize-ai/phoenix.git@main
+```
+
 ## Setting Up Your Windows Test Environment
 
 It is occasionally necessary to manually test a `phoenix` build or to run `phoenix` from source on Windows. The following instructions enable macOS developers who do not have a PC to quickly set up a Windows Python environment in a cloud or local virtual machine.
