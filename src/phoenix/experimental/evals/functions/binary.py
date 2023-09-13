@@ -14,7 +14,7 @@ def llm_eval_binary(
     dataframe: pd.DataFrame,
     template: Union[PromptTemplate, str],
     model: BaseEvalModel,
-    rails: List[str],
+    rails: Optional[List[str]] = None,
     system_instruction: Optional[str] = None,
 ) -> List[Optional[str]]:
     """Runs binary classifications using an LLM.
@@ -30,8 +30,9 @@ def llm_eval_binary(
 
         model (BaseEvalModel): An LLM model class.
 
-        rails (List[str]): A list of strings representing the possible output classes of the model's
-        predictions.
+        rails (List[str], optional): A list of strings representing the possible output classes
+        of the model's predictions. This is ignored if `template=` is already `PromptTemplate`
+        instead of `str`.
 
         system_instruction (Optional[str], optional): An optional system message.
 
@@ -49,7 +50,7 @@ def llm_eval_binary(
         )
     if isinstance(template, str):
         try:
-            eval_template = PromptTemplate(text=template)
+            eval_template = PromptTemplate(text=template, rails=rails)
         except Exception as e:
             raise RuntimeError(f"Error while initializing the PromptTemplate: {e}")
     else:
@@ -78,7 +79,7 @@ def llm_eval_binary(
         )
 
     responses = model.generate(prompts.to_list(), system_instruction)
-    rail_classes = set(rails)
+    rail_classes = set(eval_template.rails)
     return [
         (rail_class if (rail_class := resp.strip()) in rail_classes else None) for resp in responses
     ]
