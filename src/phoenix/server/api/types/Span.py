@@ -43,6 +43,7 @@ class SpanKind(Enum):
     llm = trace_schema.SpanKind.LLM
     retriever = trace_schema.SpanKind.RETRIEVER
     embedding = trace_schema.SpanKind.EMBEDDING
+    agent = trace_schema.SpanKind.AGENT
     unknown = trace_schema.SpanKind.UNKNOWN
 
     @classmethod
