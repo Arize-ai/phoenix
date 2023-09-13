@@ -6,7 +6,7 @@ But what if I don't have embeddings handy? Well, that is not a problem. The mode
 
 ### What are Auto-Embeddings?
 
-Generating embeddings is likely another problem to solve, on top of ensuring your model is performing properly. With our Python [SDK](http://127.0.0.1:5000/s/-MAlgpMyBRcl2qFZRQ67/api-reference/arize.pandas/autoembeddings#the-embeddinggenerator-class), you can offload that task to the SDK and we will generate the embeddings for you. We use large, pre-trained [models](http://127.0.0.1:5000/s/-MAlgpMyBRcl2qFZRQ67/embeddings/7.-troubleshoot-embedding-data/let-arize-generate-your-embeddings#supported-models) that will capture information from your inputs and encode it into embedding vectors.
+Generating embeddings is likely another problem to solve, on top of ensuring your model is performing properly. With our Python [SDK](http://127.0.0.1:5000/s/-MAlgpMyBRcl2qFZRQ67/api-reference/python-sdk/arize.pandas/autoembeddings#the-embeddinggenerator-class), you can offload that task to the SDK and we will generate the embeddings for you. We use large, pre-trained [models](http://127.0.0.1:5000/s/-MAlgpMyBRcl2qFZRQ67/embeddings/7.-troubleshoot-embedding-data/let-arize-generate-your-embeddings#supported-models) that will capture information from your inputs and encode it into embedding vectors.
 
 We support generating embeddings for you for the following types of data:
 
