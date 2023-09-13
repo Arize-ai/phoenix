@@ -152,9 +152,15 @@ The the span types from LLM Frameworks determine the attributes and functionalit
 
 <figure><img src="../.gitbook/assets/Screenshot 2023-09-09 at 9.15.30 AM (2).png" alt=""><figcaption></figcaption></figure>
 
-#### _**Chains:**_
+#### _**Chain:**_
 
 Overall chain object for chaining together LLM Spans, can include sub chains. This will typically be the top span call that starts the LLM Framework.
+
+
+
+**Agent:**
+
+A object that encompasses calls to LLMs and Tools. An agent describes a reasoning block that acts on tools using the guidance of an LLM.
 
 #### **LLM:**
 
