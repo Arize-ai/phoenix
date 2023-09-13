@@ -22,7 +22,6 @@ repos:
           - id: format-notebooks
             name: format-notebooks
             files: \.ipynb$
-            exclude: \.*internal.*$
             stages: [commit]
             language: system
             entry: nbqa ruff --fix

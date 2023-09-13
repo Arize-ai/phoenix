@@ -307,17 +307,23 @@ def _get_span_kind(event_type: CBEventType) -> SpanKind:
     }.get(event_type, SpanKind.CHAIN)
 
 
-def _message_payload_to_attributes(message: ChatMessage) -> Dict[str, Optional[str]]:
-    message_attributes = {
-        MESSAGE_ROLE: message.role.value,
-        MESSAGE_CONTENT: message.content,
+def _message_payload_to_attributes(message: Any) -> Dict[str, Optional[str]]:
+    if isinstance(message, ChatMessage):
+        message_attributes = {
+            MESSAGE_ROLE: message.role.value,
+            MESSAGE_CONTENT: message.content,
+        }
+        # Parse the kwargs to extract the function name and parameters for function calling
+        # NB: these additional kwargs exist both for 'agent' and 'function' roles
+        if "name" in message.additional_kwargs:
+            message_attributes[MESSAGE_NAME] = message.additional_kwargs["name"]
+        if "function_call" in message.additional_kwargs:
+            function_call = message.additional_kwargs["function_call"]
+            message_attributes[MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON] = function_call.arguments
+            message_attributes[MESSAGE_FUNCTION_CALL_NAME] = function_call.name
+        return message_attributes
+
+    return {
+        MESSAGE_ROLE: "user",  # assume user if not ChatMessage
+        MESSAGE_CONTENT: str(message),
     }
-    # Parse the kwargs to extract the function name and parameters for function calling
-    # NB: these additional kwargs exist both for 'agent' and 'function' roles
-    if "name" in message.additional_kwargs:
-        message_attributes[MESSAGE_NAME] = message.additional_kwargs["name"]
-    if "function_call" in message.additional_kwargs:
-        function_call = message.additional_kwargs["function_call"]
-        message_attributes[MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON] = function_call.arguments
-        message_attributes[MESSAGE_FUNCTION_CALL_NAME] = function_call.name
-    return message_attributes
