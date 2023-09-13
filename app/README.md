@@ -33,7 +33,7 @@ The web build ensures that the UI as well as the data-fetching layer is fully ty
 
 ## Test
 
-The Phoenix app is statically analyzed for type safety via `typescript`, statically analyzed for best practices via [eslint](https://eslint.org/), and the formatting is enforced bia the `prettier` code formatter. In addition to static type checking, the app also leverages [jest](https://jestjs.io/) as a unit testing framework. The following `npm` commands correspond to the above safeguards.
+The Phoenix app is statically analyzed for type safety via `typescript`, statically analyzed for best practices via [eslint](https://eslint.org/), and the formatting is enforced via the `prettier` code formatter. In addition to static type checking, the app also leverages [jest](https://jestjs.io/) as a unit testing framework. The following `npm` commands correspond to the above safeguards.
 
 ```shell
 npm run typecheck
