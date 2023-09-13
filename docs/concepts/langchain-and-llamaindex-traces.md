@@ -2,7 +2,7 @@
 description: Coming Soon!
 ---
 
-# LangChain & LamaIndex Traces
+# LangChain & LlamaIndex Traces
 
 ## What is Trace Observability?
 
@@ -45,7 +45,7 @@ chain.run(input_documents=documents, question=query, callbacks=[tracer])
 
 ### **LlamaIndex**
 
-Enabling LamaIndex is a couple lines of code where LamaIndex is instantiated.&#x20;
+Enabling LlamaIndex is a couple lines of code where LlamaIndex is instantiated.&#x20;
 
 ```python
 import phoenix as px
@@ -96,7 +96,7 @@ There are two ways to launch phoenix tracing on spans:
 
 ### Streaming Spans
 
-In many cases teams may want to stream spans from an active instantiation of LangChain/Llama into a live running Phoenix session. This can occur in a Notebook based environment or production.&#x20;
+In many cases teams may want to stream spans from an active instantiation of LangChain/LlamaIndex into a live running Phoenix session. This can occur in a Notebook based environment or production.&#x20;
 
 ```python
 import phoenix as px
