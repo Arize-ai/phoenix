@@ -1,13 +1,8 @@
-import logging
-import re
 from dataclasses import dataclass
 from string import Formatter
-from typing import Dict, List, Optional, Sequence, Tuple, Union, cast
+from typing import Dict, List, Sequence, Tuple, Union
 
 from ..utils.types import is_list_of
-
-logger = logging.getLogger(__name__)
-logger.addHandler(logging.NullHandler())
 
 DEFAULT_START_DELIM = "{"
 DEFAULT_END_DELIM = "}"
@@ -21,14 +16,14 @@ class PromptTemplate:
     def __init__(
         self,
         text: str,
+        rails: Sequence[str],
         delimiters: List[str] = [DEFAULT_START_DELIM, DEFAULT_END_DELIM],
-        rails: Optional[Sequence[str]] = None,
     ):
         self.text = text
         self._start_delim, self._end_delim = self._get_delimiters(delimiters)
         self._validate()
         self.variables = self._parse_variables()
-        self.rails = rails or _deduce_binary_rails(text)
+        self.rails = rails
 
     def format(self, variable_values: Dict[str, Union[bool, int, float, str]]) -> str:
         prompt = self.text
@@ -92,20 +87,3 @@ class PromptTemplate:
                 variables.append(variable_name)
 
         return variables
-
-
-def _deduce_binary_rails(text: str) -> Tuple[str, str]:
-    match = re.search(_rails_pattern, text)
-    if match is not None:
-        rails = cast(Tuple[str, str], match.groups())
-        logger.info(f"deducing binary rails from text: {', '.join(rails)}")
-        return rails
-    raise ValueError(
-        "binary rails cannot be deduced from text. rails must be specified at initialization"
-    )
-
-
-_rails_pattern = re.compile(
-    r"""response +(?:should|must|shall|has +to|needs +to) +be\b.*?[`"'](\w+)[`"'] +or +[`"'](\w+)[`"']""",  # noqa: E501
-    re.IGNORECASE,
-)

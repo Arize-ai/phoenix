@@ -1,20 +1,19 @@
-from typing import List, Optional, Union
+from typing import List, Optional
 
 import pandas as pd
 
 from ..models import BaseEvalModel
 from ..models.openai import OpenAiModel
 from ..templates import (
-    RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
+    RAG_RELEVANCY_PROMPT_TEMPLATE,
     PromptTemplate,
 )
 
 
 def llm_eval_binary(
     dataframe: pd.DataFrame,
-    template: Union[PromptTemplate, str],
+    template: PromptTemplate,
     model: BaseEvalModel,
-    rails: Optional[List[str]] = None,
     system_instruction: Optional[str] = None,
 ) -> List[Optional[str]]:
     """Runs binary classifications using an LLM.
@@ -30,10 +29,6 @@ def llm_eval_binary(
 
         model (BaseEvalModel): An LLM model class.
 
-        rails (List[str], optional): A list of strings representing the possible output classes
-        of the model's predictions. This is ignored if `template=` is already `PromptTemplate`
-        instead of `str`.
-
         system_instruction (Optional[str], optional): An optional system message.
 
     Returns:
@@ -43,18 +38,12 @@ def llm_eval_binary(
         parsed.
     """
 
-    if not (isinstance(template, PromptTemplate) or isinstance(template, str)):
+    if not isinstance(template, PromptTemplate):
         raise TypeError(
-            "Invalid type for argument `template`. Expected a string or PromptTemplate "
+            "Invalid type for argument `template`. Expected a PromptTemplate "
             f"but found {type(template)}."
         )
-    if isinstance(template, str):
-        try:
-            eval_template = PromptTemplate(text=template, rails=rails)
-        except Exception as e:
-            raise RuntimeError(f"Error while initializing the PromptTemplate: {e}")
-    else:
-        eval_template = template
+    eval_template = template
 
     # I was considering to construct the prompts and generate answers concurrently. However,
     # if there's errors in the prompt construction it could interrupt the process and we
@@ -89,7 +78,7 @@ def run_relevance_eval(
     dataframe: pd.DataFrame,
     query_column_name: str = "attributes.input.value",
     retrieved_documents_column_name: str = "attributes.retrieval.documents",
-    template: str = RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
+    template: PromptTemplate = RAG_RELEVANCY_PROMPT_TEMPLATE,
     model: Optional[BaseEvalModel] = None,
 ) -> List[List[Optional[bool]]]:
     """Given a pandas dataframe containing queries and retrieved documents,
@@ -146,9 +135,8 @@ def run_relevance_eval(
         class_name_to_bool.get(relevance_class) if relevance_class is not None else None
         for relevance_class in llm_eval_binary(
             exploded_df,
-            template=PromptTemplate(RAG_RELEVANCY_PROMPT_TEMPLATE_STR),
+            template=template,
             model=model or OpenAiModel(),
-            rails=list(class_name_to_bool.keys()),
         )
     ]
     collapsed_df = exploded_df.groupby(exploded_df.index, axis="index").agg(

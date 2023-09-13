@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import responses
 from phoenix.experimental.evals import (
-    RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
+    RAG_RELEVANCY_PROMPT_TEMPLATE,
     OpenAiModel,
     llm_eval_binary,
     run_relevance_eval,
@@ -53,9 +53,8 @@ def test_llm_eval_binary(monkeypatch):
         )
     relevance_classifications = llm_eval_binary(
         dataframe=dataframe,
-        template=RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
+        template=RAG_RELEVANCY_PROMPT_TEMPLATE,
         model=OpenAiModel(),
-        rails=["relevant", "irrelevant"],
     )
     assert relevance_classifications == ["relevant", "irrelevant", "relevant", None]
 

@@ -1,4 +1,7 @@
-RAG_RELEVANCY_PROMPT_TEMPLATE_STR = """
+from .template import PromptTemplate
+
+RAG_RELEVANCY_PROMPT_TEMPLATE = PromptTemplate(
+    text="""
 You are comparing a reference text to a question and trying to determine if the reference text
 contains information relevant to answering the question. Here is the data:
     [BEGIN DATA]
@@ -15,9 +18,12 @@ Your response must be single word, either "relevant" or "irrelevant",
 and should not contain any text or characters aside from that word.
 "irrelevant" means that the reference text does not contain an answer to the Question.
 "relevant" means the reference text contains an answer to the Question.
-"""
+""",
+    rails=("relevant", "irrelevant"),
+)
 
-HALLUCINATION_PROMPT_TEMPLATE_STR = """
+HALLUCINATION_PROMPT_TEMPLATE = PromptTemplate(
+    text="""
 In this task, you will be presented with a query, a reference text and an answer. The answer is
 generated to the question based on the reference text. The answer may contain false information, you
 must use the reference text to determine if the answer to the question contains false information,
@@ -35,4 +41,6 @@ your response.
     # Reference text: {reference}
     # Answer: {response}
     Is the answer above factual or hallucinated based on the query and reference text?
-"""
+""",
+    rails=("factual", "hallucinated"),
+)
