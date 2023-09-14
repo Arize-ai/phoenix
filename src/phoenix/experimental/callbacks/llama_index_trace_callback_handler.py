@@ -39,6 +39,7 @@ from phoenix.trace.semantic_conventions import (
     EMBEDDING_VECTOR,
     INPUT_MIME_TYPE,
     INPUT_VALUE,
+    LLM_INVOCATION_PARAMETERS,
     LLM_MESSAGES,
     LLM_MODEL_NAME,
     LLM_TOKEN_COUNT_COMPLETION,
@@ -143,6 +144,12 @@ def payload_to_semantic_attributes(
         if event_type is CBEventType.LLM:
             if model_name := serialized.get("model"):
                 attributes[LLM_MODEL_NAME] = model_name
+                attributes[LLM_INVOCATION_PARAMETERS] = {
+                    "model": model_name,
+                    "temperature": serialized["temperature"],
+                    "max_tokens": serialized["max_tokens"],
+                    **serialized["additional_kwargs"],
+                }
     return attributes
 
 
