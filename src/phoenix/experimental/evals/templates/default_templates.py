@@ -38,7 +38,8 @@ your response.
 """
 
 Q_AND_A_PROMPT_TEMPLATE_STR = """
-You are given a question, an answer and reference text. You must determine whether the given answer correctly answers the question based on the reference text. Here is the data:
+You are given a question, an answer and reference text. You must determine whether the
+given answer correctly answers the question based on the reference text. Here is the data:
     [BEGIN DATA]
     ************
     [Question]: {question}
@@ -50,25 +51,31 @@ You are given a question, an answer and reference text. You must determine wheth
 Your response must be a single word, either "correct" or "incorrect",
 and should not contain any text or characters aside from that word.
 "correct" means that the question is correctly and fully answered by the answer.
-"incorrect" means that the question is not correctly or only partially answered by the answer.
+"incorrect" means that the question is not correctly or only partially answered by the 
+answer.
 """
 # The prompt output map is used to map 1) to provide rails to the llm in order to constrain
-# the llm's outputs to the expected values. 2) golden dataset ground truth boolean values to the llm output
+# the llm's outputs to the expected values. 2) golden dataset ground truth boolean values
+# to the llm output
 Q_AND_A_PROMPT_OUTPUT_MAP = {True: "correct", False: "incorrect"}
 
 SUMMARIZATION_PROMPT_TEMPLATE_STR = """
-    You are comparing the summary text and it's original document and trying to determine if the summary is good. Here is the data:
+    You are comparing the summary text and it's original document and trying to determine 
+    if the summary is good. Here is the data:
     [BEGIN DATA]
     ************
     [Summary]: {summary}
     ************
     [Original Document]: {document}
     [END DATA]
-    Compare the Summary above to the Original Document and determine if the Summary is comprehensive, concise, coherent, and independent relative to the Original Document.
-    Your response must be a string, either Good or Bad, and should not contain any text or characters aside from that.
-    Bad means that the Summary is not comprehensive, concise, coherent, and independent relative to the Original Document.
-    Good means the Summary is comprehensive, concise, coherent, and independent relative to the Original Document.
+    Compare the Summary above to the Original Document and determine if the Summary is 
+    comprehensive, concise, coherent, and independent relative to the Original Document.
+    Your response must be a string, either Good or Bad, and should not contain any text 
+    or characters aside from that. Bad means that the Summary is not comprehensive, concise,
+    coherent, and independent relative to the Original Document. Good means the Summary 
+    is comprehensive, concise, coherent, and independent relative to the Original Document.
 """
 # The prompt output map is used to map 1) to provide rails to the llm in order to constrain
-# the llm's outputs to the expected values. 2) golden dataset ground truth boolean values to the llm output
+# the llm's outputs to the expected values. 2) golden dataset ground truth boolean values
+# to the llm output
 SUMMARIZATION_PROMPT_OUTPUT_MAP = {True: "Good", False: "Bad"}
