@@ -1,4 +1,4 @@
-from .functions import llm_eval_binary, run_relevance_eval
+from .functions import llm_eval_binary, llm_generate, run_relevance_eval
 from .models import OpenAiModel
 from .retrievals import compute_precisions_at_k
 from .templates import (
@@ -12,6 +12,7 @@ __all__ = [
     "compute_precisions_at_k",
     "download_benchmark_dataset",
     "llm_eval_binary",
+    "llm_generate",
     "OpenAiModel",
     "PromptTemplate",
     "HALLUCINATION_PROMPT_TEMPLATE_STR",

@@ -9,13 +9,18 @@ coverY: 0
 
 # ML Observability in a Notebook
 
+Phoenix is an Open Source ML Observability library carefully designed for the Notebook. The toolset is designed to ingest [inference](concepts/open-inference.md) data for [LLMs](concepts/llm-observability.md), CV, NLP and tabular datasets. It allows Data Scientists and AI Engineers to quickly visualize their inference data, monitor performance, track down issues & insights, and easily export to improve.&#x20;
+
+
+
+{% embed url="https://drive.google.com/file/d/1x99_TXIWifzQp_Aj_wdSyZ9IuIStwWVv/view?usp=drive_link" %}
+
+\
 Running Phoenix for the first time? Check out the tutorials to explore the capabilities of Phoenix for various tasks and use cases.
 
-<table data-card-size="large" data-view="cards"><thead><tr><th align="center"></th><th data-hidden data-card-target data-type="content-ref"></th></tr></thead><tbody><tr><td align="center"><strong>Computer Vision</strong></td><td><a href="tutorials/computer-vision.md">computer-vision.md</a></td></tr><tr><td align="center"><strong>NLP</strong></td><td><a href="tutorials/nlp.md">nlp.md</a></td></tr><tr><td align="center"><strong>Tabular Data</strong></td><td><a href="tutorials/tabular-data.md">tabular-data.md</a></td></tr><tr><td align="center"><strong>Generative LLMs</strong></td><td><a href="tutorials/generative-llms.md">generative-llms.md</a></td></tr></tbody></table>
+<table data-card-size="large" data-view="cards"><thead><tr><th align="center"></th><th data-hidden data-card-target data-type="content-ref"></th></tr></thead><tbody><tr><td align="center"><strong>Computer Vision</strong></td><td><a href="tutorials/computer-vision.md">computer-vision.md</a></td></tr><tr><td align="center"><strong>Generative LLM Apps</strong></td><td><a href="tutorials/generative-llms.md">generative-llms.md</a></td></tr><tr><td align="center"><strong>NLP</strong></td><td><a href="tutorials/nlp.md">nlp.md</a></td></tr><tr><td align="center"><strong>Tabular Data</strong></td><td><a href="tutorials/tabular-data.md">tabular-data.md</a></td></tr></tbody></table>
 
-## What is Phoenix?
 
-Phoenix is an Open Source ML Observability library designed for the Notebook. The toolset is designed to ingest model inference data for [LLMs](concepts/llm-observability.md), CV, NLP and tabular datasets. It allows Data Scientists to quickly visualize their model data, monitor performance, track down issues & insights, and easily export to improve.&#x20;
 
 <figure><img src=".gitbook/assets/Docs graphics-02.jpg" alt=""><figcaption></figcaption></figure>
 
@@ -29,7 +34,7 @@ Phoenix is an Open Source ML Observability library designed for the Notebook. Th
 * One paradigm that has emerged is the use of embeddings and latent structure to analyze model decisions and find clusters of problems.&#x20;
 * Fixing the problem typically consists of augmenting/editing upstream data, changing a prompt template or exporting data for use in training and/or fine tuning.&#x20;
 
-#### Proposed Solution
+#### The Solution
 
 This is where Phoenix comes in. ML Observability helps you visualize, troubleshoot, and monitor complex model data.
 
