@@ -26,6 +26,9 @@ from phoenix.trace.semantic_conventions import (
     LLM_TOKEN_COUNT_TOTAL,
     MESSAGE_CONTENT,
     MESSAGE_ROLE,
+    TOOL_DESCRIPTION,
+    TOOL_NAME,
+    TOOL_PARAMETERS,
 )
 
 TEXT_EMBEDDING_ADA_002_EMBEDDING_DIM = 1536
@@ -127,3 +130,18 @@ def test_callback_data_agent() -> None:
     assert len(llm_spans) == 2
     # one function call
     assert len(tool_spans) == 1
+    tool_span = tool_spans[0]
+    assert tool_span.attributes[TOOL_NAME] == "multiply"
+    assert (
+        tool_span.attributes[TOOL_DESCRIPTION]
+        == "multiply(a: int, b: int) -> int\nMultiple two integers and returns the result integer"
+    )
+    assert tool_span.attributes[TOOL_PARAMETERS] == {
+        "properties": {
+            "a": {"title": "A", "type": "integer"},
+            "b": {"title": "B", "type": "integer"},
+        },
+        "required": ["a", "b"],
+        "title": "multiply",
+        "type": "object",
+    }

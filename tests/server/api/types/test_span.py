@@ -61,5 +61,6 @@ def test_nested_attributes() -> None:
         "tool": {
             "description": ...,
             "name": ...,
+            "parameters": ...,
         },
     }

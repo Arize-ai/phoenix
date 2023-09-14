@@ -158,6 +158,10 @@ TOOL_DESCRIPTION = "tool.description"
 """
 Description of the tool's purpose, typically used to select the tool.
 """
+TOOL_PARAMETERS = "tool.parameters"
+"""
+Parameters of the tool, e.g. see https://platform.openai.com/docs/guides/gpt/function-calling
+"""
 
 RETRIEVAL_DOCUMENTS = "retrieval.documents"
 DOCUMENT_ID = "document.id"
