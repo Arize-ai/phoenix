@@ -148,9 +148,9 @@ def _snap_to_rail(string: str, rails: Set[str]) -> Optional[str]:
 
     processed_string = string.strip()
     if processed_string not in rails:
-        logger.info(
+        logger.warning(
             f"LLM output cannot be snapped to rails {list(rails)}, returning None. "
-            'Output: "{input_string}"'
+            f'Output: "{string}"'
         )
         return None
     return processed_string
