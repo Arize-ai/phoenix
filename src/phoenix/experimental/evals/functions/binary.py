@@ -1,4 +1,5 @@
-from typing import List, Optional, Union
+import logging
+from typing import List, Optional, Set, Union
 
 import pandas as pd
 
@@ -10,6 +11,8 @@ from ..templates import (
     normalize_template,
 )
 from .common import map_template
+
+logger = logging.getLogger(__name__)
 
 
 def llm_eval_binary(
@@ -45,14 +48,10 @@ def llm_eval_binary(
     """
 
     eval_template = normalize_template(template)
-
     prompts = map_template(dataframe, eval_template)
-
     responses = model.generate(prompts.to_list(), system_instruction)
-    rail_classes = set(rails)
-    return [
-        (rail_class if (rail_class := resp.strip()) in rail_classes else None) for resp in responses
-    ]
+    rails_set = set(rails)
+    return [_snap_to_rail(response, rails_set) for response in responses]
 
 
 def run_relevance_eval(
@@ -132,3 +131,26 @@ def run_relevance_eval(
         llm_relevance_column_name
     ]
     return output_df[llm_relevance_column_name].tolist()
+
+
+def _snap_to_rail(string: str, rails: Set[str]) -> Optional[str]:
+    """Snaps a string to the nearest rail, or returns None if the string cannot be snapped to a
+    rail.
+
+    Args:
+        string (str): An input to be snapped to a rail.
+
+        rails (Set[str]): The target set of strings to snap to.
+
+    Returns:
+        str: A string from the rails argument or None if the input string could not be snapped.
+    """
+
+    processed_string = string.strip()
+    if processed_string not in rails:
+        logger.info(
+            f"LLM output cannot be snapped to rails {list(rails)}, returning None. "
+            'Output: "{input_string}"'
+        )
+        return None
+    return processed_string
