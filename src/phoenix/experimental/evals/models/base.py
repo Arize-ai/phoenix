@@ -96,12 +96,15 @@ class BaseEvalModel(ABC):
                 f"but found {type(prompts)}."
             )
         try:
-            results = [
-                self._generate(prompt=prompt, instruction=instruction) for prompt in tqdm(prompts)
-            ]
+            outputs = []
+            for prompt in tqdm(prompts):
+                output = self._generate(prompt=prompt, instruction=instruction)
+                logger.info(f"Prompt: {prompt}\nInstruction: {instruction}\nOutput: {output}")
+                outputs.append(output)
+
         except (KeyboardInterrupt, Exception) as e:
             raise e
-        return results
+        return outputs
 
     async def agenerate(self, prompts: List[str], instruction: Optional[str] = None) -> List[str]:
         if not is_list_of(prompts, str):

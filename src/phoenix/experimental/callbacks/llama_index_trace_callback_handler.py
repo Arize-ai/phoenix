@@ -9,6 +9,7 @@ observability solutions such as Arize and Phoenix.
 For more information on the specification, see
 https://github.com/Arize-ai/open-inference-spec
 """
+import json
 import logging
 from collections import defaultdict
 from datetime import datetime
@@ -39,6 +40,7 @@ from phoenix.trace.semantic_conventions import (
     EMBEDDING_VECTOR,
     INPUT_MIME_TYPE,
     INPUT_VALUE,
+    LLM_INVOCATION_PARAMETERS,
     LLM_MESSAGES,
     LLM_MODEL_NAME,
     LLM_TOKEN_COUNT_COMPLETION,
@@ -106,10 +108,16 @@ def payload_to_semantic_attributes(
     if EventPayload.PROMPT in payload:
         ...
     if EventPayload.MESSAGES in payload:
-        attributes[LLM_MESSAGES] = [
-            _message_payload_to_attributes(message_data)
-            for message_data in payload[EventPayload.MESSAGES]
-        ]
+        messages = payload[EventPayload.MESSAGES]
+        # Messages is only relevant to the LLM invocation
+        if event_type is CBEventType.LLM:
+            attributes[LLM_MESSAGES] = [
+                _message_payload_to_attributes(message_data) for message_data in messages
+            ]
+        elif event_type is CBEventType.AGENT_STEP and len(messages):
+            # the agent step contains a message that is actually the input
+            # akin to the query_str
+            attributes[INPUT_VALUE] = _message_payload_to_str(messages[0])
     if EventPayload.COMPLETION in payload:
         ...
     if EventPayload.RESPONSE in payload:
@@ -143,6 +151,14 @@ def payload_to_semantic_attributes(
         if event_type is CBEventType.LLM:
             if model_name := serialized.get("model"):
                 attributes[LLM_MODEL_NAME] = model_name
+                attributes[LLM_INVOCATION_PARAMETERS] = json.dumps(
+                    {
+                        "model": model_name,
+                        "temperature": serialized["temperature"],
+                        "max_tokens": serialized["max_tokens"],
+                        **serialized["additional_kwargs"],
+                    }
+                )
     return attributes
 
 
@@ -330,3 +346,11 @@ def _message_payload_to_attributes(message: Any) -> Dict[str, Optional[str]]:
         MESSAGE_ROLE: "user",  # assume user if not ChatMessage
         MESSAGE_CONTENT: str(message),
     }
+
+
+def _message_payload_to_str(message: Any) -> Optional[str]:
+    """Converts a message payload to a string, if possible"""
+    if isinstance(message, ChatMessage):
+        return message.content
+
+    return str(message)
