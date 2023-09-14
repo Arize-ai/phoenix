@@ -146,6 +146,8 @@ def _tools(run: Dict[str, Any]) -> Iterator[Tuple[str, str]]:
         yield TOOL_NAME, run_serialized["name"]
     if "description" in run_serialized:
         yield TOOL_DESCRIPTION, run_serialized["description"]
+    # TODO: tool parameters (not available)
+    # See https://github.com/langchain-ai/langchain/blob/596f294b01447774986501d8937def4310e0e0b4/libs/langchain/langchain/tools/base.py#L320
 
 
 def _retrieval_documents(

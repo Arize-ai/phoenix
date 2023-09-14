@@ -54,6 +54,7 @@ from phoenix.trace.semantic_conventions import (
     RETRIEVAL_DOCUMENTS,
     TOOL_DESCRIPTION,
     TOOL_NAME,
+    TOOL_PARAMETERS,
     MimeType,
 )
 from phoenix.trace.tracer import SpanExporter, Tracer
@@ -133,6 +134,7 @@ def payload_to_semantic_attributes(
         tool_metadata = cast(ToolMetadata, payload.get(EventPayload.TOOL))
         attributes[TOOL_NAME] = tool_metadata.name
         attributes[TOOL_DESCRIPTION] = tool_metadata.description
+        attributes[TOOL_PARAMETERS] = tool_metadata.to_openai_function()["parameters"]
     if EventPayload.SERIALIZED in payload:
         serialized = payload[EventPayload.SERIALIZED]
         if event_type is CBEventType.EMBEDDING:
