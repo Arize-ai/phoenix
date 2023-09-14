@@ -148,7 +148,7 @@ The above example shows how you can export spans out of the current running sess
 
 ## Span Types
 
-The the span types from LLM Frameworks determine the attributes and functionality supported.
+The span types from LLM Frameworks determine the attributes and functionality supported.
 
 <figure><img src="../.gitbook/assets/Screenshot 2023-09-09 at 9.15.30 AM (2).png" alt=""><figcaption></figcaption></figure>
 
