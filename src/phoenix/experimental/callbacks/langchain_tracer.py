@@ -146,7 +146,7 @@ def _tools(run: Dict[str, Any]) -> Iterator[Tuple[str, str]]:
         yield TOOL_NAME, run_serialized["name"]
     if "description" in run_serialized:
         yield TOOL_DESCRIPTION, run_serialized["description"]
-    # TODO: tool parameters (not available)
+    # TODO: tool parameters https://github.com/Arize-ai/phoenix/issues/1330
 
 
 def _retrieval_documents(
