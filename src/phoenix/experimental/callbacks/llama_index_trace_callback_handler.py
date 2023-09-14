@@ -106,10 +106,16 @@ def payload_to_semantic_attributes(
     if EventPayload.PROMPT in payload:
         ...
     if EventPayload.MESSAGES in payload:
-        attributes[LLM_MESSAGES] = [
-            _message_payload_to_attributes(message_data)
-            for message_data in payload[EventPayload.MESSAGES]
-        ]
+        messages = payload[EventPayload.MESSAGES]
+        # Messages is only relevant to the LLM invocation
+        if event_type is CBEventType.LLM:
+            attributes[LLM_MESSAGES] = [
+                _message_payload_to_attributes(message_data) for message_data in messages
+            ]
+        elif event_type is CBEventType.AGENT_STEP and len(messages):
+            # the agent step contains a message that is actually the input
+            # akin to the query_str
+            attributes[INPUT_VALUE] = _message_payload_to_str(messages[0])
     if EventPayload.COMPLETION in payload:
         ...
     if EventPayload.RESPONSE in payload:
@@ -330,3 +336,11 @@ def _message_payload_to_attributes(message: Any) -> Dict[str, Optional[str]]:
         MESSAGE_ROLE: "user",  # assume user if not ChatMessage
         MESSAGE_CONTENT: str(message),
     }
+
+
+def _message_payload_to_str(message: Any) -> Optional[str]:
+    """Converts a message payload to a string, if possible"""
+    if isinstance(message, ChatMessage):
+        return message.content
+
+    return str(message)
