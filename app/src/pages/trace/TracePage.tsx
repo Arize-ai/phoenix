@@ -17,6 +17,7 @@ import {
   Heading,
   Icon,
   Icons,
+  Label,
   List,
   ListItem,
   TabPane,
@@ -29,16 +30,24 @@ import { resizeHandleCSS } from "@phoenix/components/resize";
 import { SpanItem } from "@phoenix/components/trace/SpanItem";
 import { TraceTree } from "@phoenix/components/trace/TraceTree";
 import {
+  DOCUMENT_CONTENT,
+  DOCUMENT_ID,
+  DOCUMENT_SCORE,
   LLMAttributePostfixes,
   MESSAGE_CONTENT,
   MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON,
   MESSAGE_FUNCTION_CALL_NAME,
   MESSAGE_NAME,
   MESSAGE_ROLE,
+  RetrievalAttributePostfixes,
   SemanticAttributePrefixes,
 } from "@phoenix/openInference/tracing/semanticConventions";
-import { AttributeMessage } from "@phoenix/openInference/tracing/types";
+import {
+  AttributeDocument,
+  AttributeMessage,
+} from "@phoenix/openInference/tracing/types";
 import { assertUnreachable } from "@phoenix/typeUtils";
+import { numberFormatter } from "@phoenix/utils/numberFormatUtils";
 
 import {
   MimeType,
@@ -248,6 +257,12 @@ function SpanInfo({ span }: { span: Span }) {
       content = <LLMSpanInfo span={span} spanAttributes={attributesObject} />;
       break;
     }
+    case "retriever": {
+      content = (
+        <RetrieverSpanInfo span={span} spanAttributes={attributesObject} />
+      );
+      break;
+    }
     default:
       content = <SpanIO span={span} />;
   }
@@ -332,6 +347,96 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
         </BlockView>
       ) : null}
     </Flex>
+  );
+}
+
+function RetrieverSpanInfo(props: {
+  span: Span;
+  spanAttributes: AttributeObject;
+}) {
+  const { spanAttributes, span } = props;
+  const { input } = span;
+  const retrieverAttributes = useMemo<AttributeObject | null>(() => {
+    const retrieverAttrs = spanAttributes[SemanticAttributePrefixes.retrieval];
+    if (typeof retrieverAttrs === "object") {
+      return retrieverAttrs as AttributeObject;
+    }
+    return null;
+  }, [spanAttributes]);
+  const documents = useMemo<AttributeDocument[]>(() => {
+    if (retrieverAttributes == null) {
+      return [];
+    }
+    return (retrieverAttributes[RetrievalAttributePostfixes.documents] ||
+      []) as AttributeDocument[];
+  }, [retrieverAttributes]);
+
+  const hasInput = input != null && input.value != null;
+  const hasDocuments = documents.length > 0;
+  return (
+    <Flex direction="column" gap="size-200">
+      <BlockView title="Input">
+        {hasInput ? <CodeBlock {...input} /> : null}
+      </BlockView>
+      {hasDocuments ? (
+        <BlockView title="Documents">
+          {
+            <ul
+              css={css`
+                padding: var(--ac-global-dimension-static-size-100);
+                display: flex;
+                flex-direction: column;
+                gap: var(--ac-global-dimension-static-size-100);
+              `}
+            >
+              {documents.map((document, idx) => {
+                return (
+                  <li key={idx}>
+                    <DocumentItem document={document} />
+                  </li>
+                );
+              })}
+            </ul>
+          }
+        </BlockView>
+      ) : null}
+    </Flex>
+  );
+}
+
+function DocumentItem({ document }: { document: AttributeDocument }) {
+  return (
+    <View borderRadius="medium" backgroundColor="light">
+      <Flex direction="column">
+        <View width="100%" borderBottomWidth="thin" borderBottomColor="dark">
+          <Flex
+            direction="row"
+            justifyContent="space-between"
+            margin="size-100"
+            alignItems="center"
+          >
+            <Flex direction="row" gap="size-50" alignItems="center">
+              <Icon svg={<Icons.FileOutline />} />
+              <Heading level={4}>document {document[DOCUMENT_ID]}</Heading>
+            </Flex>
+            {typeof document[DOCUMENT_SCORE] === "number" && (
+              <Label color="blue">{`score ${numberFormatter(
+                document[DOCUMENT_SCORE]
+              )}`}</Label>
+            )}
+          </Flex>
+        </View>
+        <pre
+          css={css`
+            padding: var(--px-spacing-lg);
+            white-space: normal;
+            margin: 0;
+          `}
+        >
+          {document[DOCUMENT_CONTENT]}
+        </pre>
+      </Flex>
+    </View>
   );
 }
 
