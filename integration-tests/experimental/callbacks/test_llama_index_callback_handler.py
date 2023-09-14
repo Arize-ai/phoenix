@@ -1,3 +1,5 @@
+import json
+
 import pytest
 from gcsfs import GCSFileSystem
 from llama_index import ServiceContext, StorageContext, load_index_from_storage
@@ -117,11 +119,10 @@ def test_callback_data_agent() -> None:
     add_tool = FunctionTool.from_defaults(fn=add)
     llm = OpenAI(
         model="gpt-3.5-turbo-0613",
-        max_tokens=1234,
-        temperature=0.11,
+        temperature=0.1,
         additional_kwargs={
-            "presence_penalty": 0.22,
-            "frequency_penalty": 0.33,
+            "presence_penalty": 0.002,
+            "frequency_penalty": 0.003,
         },
     )
     cb_handler = OpenInferenceTraceCallbackHandler(exporter=NoOpExporter())
@@ -138,12 +139,12 @@ def test_callback_data_agent() -> None:
     #  and one to complete the calculation
     assert len(llm_spans) == 2
     llm_span = llm_spans[0]
-    assert llm_span.attributes[LLM_INVOCATION_PARAMETERS] == {
-        "frequency_penalty": 0.33,
-        "max_tokens": 1234,
+    assert json.loads(llm_span.attributes[LLM_INVOCATION_PARAMETERS]) == {
+        "frequency_penalty": 0.003,
+        "max_tokens": None,
         "model": "gpt-3.5-turbo-0613",
-        "presence_penalty": 0.22,
-        "temperature": 0.11,
+        "presence_penalty": 0.002,
+        "temperature": 0.1,
     }
     # one function call
     assert len(tool_spans) == 1

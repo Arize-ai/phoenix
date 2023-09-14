@@ -9,6 +9,7 @@ observability solutions such as Arize and Phoenix.
 For more information on the specification, see
 https://github.com/Arize-ai/open-inference-spec
 """
+import json
 import logging
 from collections import defaultdict
 from datetime import datetime
@@ -144,12 +145,14 @@ def payload_to_semantic_attributes(
         if event_type is CBEventType.LLM:
             if model_name := serialized.get("model"):
                 attributes[LLM_MODEL_NAME] = model_name
-                attributes[LLM_INVOCATION_PARAMETERS] = {
-                    "model": model_name,
-                    "temperature": serialized["temperature"],
-                    "max_tokens": serialized["max_tokens"],
-                    **serialized["additional_kwargs"],
-                }
+                attributes[LLM_INVOCATION_PARAMETERS] = json.dumps(
+                    {
+                        "model": model_name,
+                        "temperature": serialized["temperature"],
+                        "max_tokens": serialized["max_tokens"],
+                        **serialized["additional_kwargs"],
+                    }
+                )
     return attributes
 
 
