@@ -52,6 +52,8 @@ and should not contain any text or characters aside from that word.
 "correct" means that the question is correctly and fully answered by the answer.
 "incorrect" means that the question is not correctly or only partially answered by the answer.
 """
+# The prompt output map is used to map 1) to provide rails to the llm in order to constrain
+# the llm's outputs to the expected values. 2) golden dataset ground truth boolean values to the llm output
 Q_AND_A_PROMPT_OUTPUT_MAP = {True: "correct", False: "incorrect"}
 
 SUMMARIZATION_PROMPT_TEMPLATE_STR = """
@@ -67,4 +69,6 @@ SUMMARIZATION_PROMPT_TEMPLATE_STR = """
     Bad means that the Summary is not comprehensive, concise, coherent, and independent relative to the Original Document.
     Good means the Summary is comprehensive, concise, coherent, and independent relative to the Original Document.
 """
+# The prompt output map is used to map 1) to provide rails to the llm in order to constrain
+# the llm's outputs to the expected values. 2) golden dataset ground truth boolean values to the llm output
 SUMMARIZATION_PROMPT_OUTPUT_MAP = {True: "Good", False: "Bad"}
