@@ -1,3 +1,4 @@
+RAG_RELEVANCY_PROMPT_RAILS = ["relevant", "irrelevant"]
 RAG_RELEVANCY_PROMPT_TEMPLATE_STR = """
 You are comparing a reference text to a question and trying to determine if the reference text
 contains information relevant to answering the question. Here is the data:
@@ -17,6 +18,7 @@ and should not contain any text or characters aside from that word.
 "relevant" means the reference text contains an answer to the Question.
 """
 
+HALLUCINATION_PROMPT_RAILS = ["factual", "hallucinated"]
 HALLUCINATION_PROMPT_TEMPLATE_STR = """
 In this task, you will be presented with a query, a reference text and an answer. The answer is
 generated to the question based on the reference text. The answer may contain false information, you
