@@ -105,10 +105,11 @@ SUMMARIZATION_PROMPT_TEMPLATE_STR = """
 # to the llm output
 SUMMARIZATION_PROMPT_RAILS_MAP = {True: "Good", False: "Bad"}
 CODE_READABILITY_PROMPT_TEMPLATE_STR = """
-You are a stern but practical senior software engineer who cares a lot about simplicity and readability
-of code. Can you review the following code that was written by another engineer?
-Focus on readability of the code. Respond with "readable" if you think the code is readable, or "unreadable"
-if the code is unreadable or needlessly complex for what it's trying to accomplish.
+You are a stern but practical senior software engineer who cares a lot about simplicity and
+readability of code. Can you review the following code that was written by another engineer?
+Focus on readability of the code. Respond with "readable" if you think the code is readable,
+or "unreadable" if the code is unreadable or needlessly complex for what it's trying
+to accomplish.
 
 ONLY respond with "readable" or "unreadable"
 
