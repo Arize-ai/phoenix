@@ -2,6 +2,8 @@ from .functions import llm_eval_binary, llm_generate, run_relevance_eval
 from .models import OpenAiModel
 from .retrievals import compute_precisions_at_k
 from .templates import (
+    CODE_READABILITY_PROMPT_RAILS_MAP,
+    CODE_READABILITY_PROMPT_TEMPLATE_STR,
     HALLUCINATION_PROMPT_RAILS_MAP,
     HALLUCINATION_PROMPT_TEMPLATE_STR,
     RAG_RELEVANCY_PROMPT_RAILS_MAP,
@@ -19,6 +21,8 @@ __all__ = [
     "llm_generate",
     "OpenAiModel",
     "PromptTemplate",
+    "CODE_READABILITY_PROMPT_RAILS_MAP",
+    "CODE_READABILITY_PROMPT_TEMPLATE_STR",
     "HALLUCINATION_PROMPT_RAILS_MAP",
     "HALLUCINATION_PROMPT_TEMPLATE_STR",
     "RAG_RELEVANCY_PROMPT_RAILS_MAP",

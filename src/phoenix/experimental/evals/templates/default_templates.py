@@ -81,7 +81,8 @@ answer.
 # The prompt output map is used to map 1) to provide rails to the llm in order to constrain
 # the llm's outputs to the expected values. 2) golden dataset ground truth boolean values
 # to the llm output
-QA_PROMPT_OUTPUT_RAILS_MAP = {True: "correct", False: "incorrect"}
+QA_PROMPT_RAILS_MAP = {True: "correct", False: "incorrect"}
+
 
 SUMMARIZATION_PROMPT_TEMPLATE_STR = """
     You are comparing the summary text and it's original document and trying to determine
@@ -103,3 +104,23 @@ SUMMARIZATION_PROMPT_TEMPLATE_STR = """
 # the llm's outputs to the expected values. 2) golden dataset ground truth boolean values
 # to the llm output
 SUMMARIZATION_PROMPT_RAILS_MAP = {True: "Good", False: "Bad"}
+CODE_READABILITY_PROMPT_TEMPLATE_STR = """
+You are a stern but practical senior software engineer who cares a lot about simplicity and
+readability of code. Can you review the following code that was written by another engineer?
+Focus on readability of the code. Respond with "readable" if you think the code is readable,
+or "unreadable" if the code is unreadable or needlessly complex for what it's trying
+to accomplish.
+
+ONLY respond with "readable" or "unreadable"
+
+Task Assignment:
+```
+{query}
+```
+
+Implementation to Evaluate:
+```
+{code}
+```
+"""
+CODE_READABILITY_PROMPT_RAILS_MAP = {True: "readable", False: "unreadable"}
