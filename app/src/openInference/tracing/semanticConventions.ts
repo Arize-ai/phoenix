@@ -4,6 +4,7 @@ export const SemanticAttributePrefixes = {
   messages: "messages",
   message: "message",
   document: "document",
+  embedding: "embedding",
 } as const;
 
 export const LLMAttributePostfixes = {
@@ -13,6 +14,12 @@ export const LLMAttributePostfixes = {
 
 export const RetrievalAttributePostfixes = {
   documents: "documents",
+} as const;
+
+export const EmbeddingAttributePostfixes = {
+  embeddings: "embeddings",
+  text: "text",
+  model_name: "model_name",
 } as const;
 
 export const MessageAttributePostfixes = {
@@ -81,3 +88,15 @@ export const DOCUMENT_SCORE =
 
 export const DOCUMENT_METADATA =
   `${SemanticAttributePrefixes.document}.${DocumentAttributePostfixes.metadata}` as const;
+
+/**
+ * The text that was embedded to create the vector
+ */
+export const EMBEDDING_TEXT =
+  `${SemanticAttributePrefixes.embedding}.${EmbeddingAttributePostfixes.text}` as const;
+
+/**
+ * The name of the model that was used to create the vector
+ */
+export const EMBEDDING_MODEL_NAME =
+  `${SemanticAttributePrefixes.embedding}.${EmbeddingAttributePostfixes.model_name}` as const;
