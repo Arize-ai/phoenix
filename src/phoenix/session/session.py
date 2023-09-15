@@ -284,10 +284,10 @@ def launch_app(
     trace: TraceDataset, optional
         **Experimental** The trace dataset containing the trace data.
     host: str, optional
-        The host on which the server runs. It can be set using environment
+        The host on which the server runs. It can also be set using environment
         variable `PHOENIX_HOST`, otherwise it defaults to `127.0.0.1`.
     port: int, optional
-        The port on which the server listens. It can be set using environment
+        The port on which the server listens. It can also be set using environment
         variable `PHOENIX_PORT`, otherwise it defaults to 6060.
     run_in_thread: bool, optional, default=True
         Whether the server should run in a Thread or Process.
