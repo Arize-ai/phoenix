@@ -1,4 +1,4 @@
-RAG_RELEVANCY_PROMPT_RAILS_MAP_MAP = {True: "relevant", False: "irrelevant"}
+RAG_RELEVANCY_PROMPT_RAILS_MAP = {True: "relevant", False: "irrelevant"}
 RAG_RELEVANCY_PROMPT_TEMPLATE_STR = """
 You are comparing a reference text to a question and trying to determine if the reference text
 contains information relevant to answering the question. Here is the data:
