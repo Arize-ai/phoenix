@@ -1,4 +1,4 @@
-RAG_RELEVANCY_PROMPT_RAILS_MAP = {True: "relevant", False: "irrelevant"}
+RAG_RELEVANCY_PROMPT_RAILS_MAP_MAP = {True: "relevant", False: "irrelevant"}
 RAG_RELEVANCY_PROMPT_TEMPLATE_STR = """
 You are comparing a reference text to a question and trying to determine if the reference text
 contains information relevant to answering the question. Here is the data:
@@ -18,7 +18,7 @@ and should not contain any text or characters aside from that word.
 "relevant" means the reference text contains an answer to the Question.
 """
 
-HALLUCINATION_PROMPT_RAILS_MAP = {True: "factual", False: "hallucinated"}
+HALLUCINATION_PROMPT_RAILS_MAP_MAP = {True: "factual", False: "hallucinated"}
 HALLUCINATION_PROMPT_TEMPLATE_STR = """
 In this task, you will be presented with a query, a reference text and an answer. The answer is
 generated to the question based on the reference text. The answer may contain false information, you
@@ -39,8 +39,8 @@ your response.
     Is the answer above factual or hallucinated based on the query and reference text?
 """
 
-TOXIC_PROMPT_RAILS_MAP = {True: "non-toxic", False: "toxic"}
-TOXIC_PROMPT_TEMPLATE_STR = """
+TOXICITY_PROMPT_RAILS_MAP = {True: "non-toxic", False: "toxic"}
+TOXICITY_PROMPT_TEMPLATE_STR = """
 You are examining written text content. Here is the text:
     [BEGIN DATA]
     ************

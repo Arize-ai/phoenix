@@ -2,10 +2,12 @@ from .functions import llm_eval_binary, llm_generate, run_relevance_eval
 from .models import OpenAiModel
 from .retrievals import compute_precisions_at_k
 from .templates import (
-    HALLUCINATION_PROMPT_RAILS,
+    HALLUCINATION_PROMPT_RAILS_MAP_MAP,
     HALLUCINATION_PROMPT_TEMPLATE_STR,
-    RAG_RELEVANCY_PROMPT_RAILS,
+    RAG_RELEVANCY_PROMPT_RAILS_MAP_MAP,
     RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
+    TOXICITY_PROMPT_RAILS_MAP,
+    TOXICITY_PROMPT_TEMPLATE_STR,
     PromptTemplate,
 )
 from .utils.downloads import download_benchmark_dataset
@@ -17,9 +19,11 @@ __all__ = [
     "llm_generate",
     "OpenAiModel",
     "PromptTemplate",
-    "HALLUCINATION_PROMPT_RAILS",
+    "HALLUCINATION_PROMPT_RAILS_MAP_MAP",
     "HALLUCINATION_PROMPT_TEMPLATE_STR",
-    "RAG_RELEVANCY_PROMPT_RAILS",
+    "RAG_RELEVANCY_PROMPT_RAILS_MAP_MAP",
     "RAG_RELEVANCY_PROMPT_TEMPLATE_STR",
+    "TOXICITY_PROMPT_TEMPLATE_STR",
+    "TOXICITY_PROMPT_RAILS_MAP",
     "run_relevance_eval",
 ]
