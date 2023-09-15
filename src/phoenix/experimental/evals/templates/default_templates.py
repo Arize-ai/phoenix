@@ -39,7 +39,7 @@ your response.
     Is the answer above factual or hallucinated based on the query and reference text?
 """
 
-Q_AND_A_PROMPT_TEMPLATE_STR = """
+QA_PROMPT_TEMPLATE_STR = """
 You are given a question, an answer and reference text. You must determine whether the
 given answer correctly answers the question based on the reference text. Here is the data:
     [BEGIN DATA]
@@ -59,7 +59,7 @@ answer.
 # The prompt output map is used to map 1) to provide rails to the llm in order to constrain
 # the llm's outputs to the expected values. 2) golden dataset ground truth boolean values
 # to the llm output
-Q_AND_A_PROMPT_OUTPUT_MAP = {True: "correct", False: "incorrect"}
+QA_PROMPT_OUTPUT_RAILS_MAP = {True: "correct", False: "incorrect"}
 
 SUMMARIZATION_PROMPT_TEMPLATE_STR = """
     You are comparing the summary text and it's original document and trying to determine
