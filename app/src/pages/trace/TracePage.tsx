@@ -88,6 +88,9 @@ export function TracePage() {
               startTime
               parentId
               latencyMs
+              tokenCountTotal
+              tokenCountPrompt
+              tokenCountCompletion
               input {
                 value
                 mimeType
@@ -132,7 +135,7 @@ export function TracePage() {
             <Panel defaultSize={30} minSize={10} maxSize={40}>
               <ScrollingTabsWrapper>
                 <Tabs>
-                  <TabPane name="Tree" title="Tree">
+                  <TabPane name="Tree">
                     <TraceTree
                       spans={spansList}
                       selectedSpanId={selectedSpanId}
@@ -193,7 +196,7 @@ function SelectedSpanDetails({ selectedSpan }: { selectedSpan: Span }) {
   }, [selectedSpan]);
   return (
     <Tabs>
-      <TabPane name={"Info"} title="Info">
+      <TabPane name={"Info"}>
         <SpanInfo span={selectedSpan} />
       </TabPane>
       <TabPane name={"Attributes"} title="Attributes">
@@ -205,7 +208,6 @@ function SelectedSpanDetails({ selectedSpan }: { selectedSpan: Span }) {
       </TabPane>
       <TabPane
         name={"Events"}
-        title="Events"
         extra={
           <Counter variant={hasExceptions ? "danger" : "default"}>
             {selectedSpan.events.length}
@@ -320,18 +322,14 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
       <BlockView>
         <Tabs>
           {hasInput ? (
-            <TabPane name="Input" title="Input" hidden={!hasInput}>
+            <TabPane name="Input" hidden={!hasInput}>
               <CodeBlock {...input} />
             </TabPane>
           ) : null}
-          <TabPane name="Messages" title="Messages" hidden={!hasMessages}>
+          <TabPane name="Messages" hidden={!hasMessages}>
             <LLMMessagesList messages={messages} />
           </TabPane>
-          <TabPane
-            name="Invocation Params"
-            title="Invocation Params"
-            hidden={!hasInvocationParams}
-          >
+          <TabPane name="Invocation Params" hidden={!hasInvocationParams}>
             <CodeBlock
               {...{
                 mimeType: "json",
