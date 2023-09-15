@@ -33,6 +33,8 @@ import {
   DOCUMENT_CONTENT,
   DOCUMENT_ID,
   DOCUMENT_SCORE,
+  EMBEDDING_TEXT,
+  EmbeddingAttributePostfixes,
   LLMAttributePostfixes,
   MESSAGE_CONTENT,
   MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON,
@@ -44,6 +46,7 @@ import {
 } from "@phoenix/openInference/tracing/semanticConventions";
 import {
   AttributeDocument,
+  AttributeEmbedding,
   AttributeMessage,
 } from "@phoenix/openInference/tracing/types";
 import { assertUnreachable } from "@phoenix/typeUtils";
@@ -265,6 +268,10 @@ function SpanInfo({ span }: { span: Span }) {
       );
       break;
     }
+    case "embedding": {
+      content = <EmbeddingInfo span={span} spanAttributes={attributesObject} />;
+      break;
+    }
     default:
       content = <SpanIO span={span} />;
   }
@@ -391,6 +398,65 @@ function RetrieverSpanInfo(props: {
                 return (
                   <li key={idx}>
                     <DocumentItem document={document} />
+                  </li>
+                );
+              })}
+            </ul>
+          }
+        </BlockView>
+      ) : null}
+    </Flex>
+  );
+}
+
+function EmbeddingInfo(props: { span: Span; spanAttributes: AttributeObject }) {
+  const { spanAttributes } = props;
+  const embeddingAttributes = useMemo<AttributeObject | null>(() => {
+    const embeddingAttrs = spanAttributes[SemanticAttributePrefixes.embedding];
+    if (typeof embeddingAttrs === "object") {
+      return embeddingAttrs as AttributeObject;
+    }
+    return null;
+  }, [spanAttributes]);
+  const embeddings = useMemo<AttributeEmbedding[]>(() => {
+    if (embeddingAttributes == null) {
+      return [];
+    }
+    return (embeddingAttributes[EmbeddingAttributePostfixes.embeddings] ||
+      []) as AttributeDocument[];
+  }, [embeddingAttributes]);
+
+  const hasEmbeddings = embeddings.length > 0;
+  const modelName =
+    embeddingAttributes?.[EmbeddingAttributePostfixes.model_name];
+  return (
+    <Flex direction="column" gap="size-200">
+      {hasEmbeddings ? (
+        <BlockView
+          title={
+            "Embeddings" +
+            (typeof modelName === "string" ? `: ${modelName}` : "")
+          }
+        >
+          {
+            <ul
+              css={css`
+                padding: var(--ac-global-dimension-static-size-100);
+                display: flex;
+                flex-direction: column;
+                gap: var(--ac-global-dimension-static-size-100);
+              `}
+            >
+              {embeddings.map((embedding, idx) => {
+                return (
+                  <li key={idx}>
+                    <View
+                      padding="size-50"
+                      backgroundColor="light"
+                      borderRadius="medium"
+                    >
+                      <pre>{embedding[EMBEDDING_TEXT]}</pre>
+                    </View>
                   </li>
                 );
               })}
