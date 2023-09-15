@@ -40,15 +40,13 @@ def json_to_attributes(obj: Optional[Dict[str, Any]]) -> Dict[str, Any]:
     if mime_type := obj.get(OUTPUT_MIME_TYPE):
         obj[OUTPUT_MIME_TYPE] = MimeType(mime_type)
     if documents := obj.get(RETRIEVAL_DOCUMENTS):
-        obj[RETRIEVAL_DOCUMENTS] = map(json_to_document, documents)
+        obj[RETRIEVAL_DOCUMENTS] = [json_to_document(document) for document in documents]
     return obj
 
 
 def json_to_span(data: Dict[str, Any]) -> Any:
     """
     A hook for json.loads to convert a dict to a Span object.
-
-    NB: this function is mainly used for testing purposes. Consider swapping this out for pydantic.
     """
     # Check if the dict can be interpreted as a Span
     if set(data.keys()) == {
