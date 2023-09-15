@@ -123,3 +123,4 @@ Implementation to Evaluate:
 {code}
 ```
 """
+CODE_READABILITY_PROMPT_OUTPUT_MAP = {True: "readable", False: "unreadable"}
