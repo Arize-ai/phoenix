@@ -84,19 +84,6 @@ EMBEDDING_VECTOR = "embedding.vector"
 The embedding vector.
 """
 
-LLM_FUNCTION_CALL = "llm.function_call"
-"""
-For models and APIs that support function calling. Records attributes such as the function name and
-arguments to the called function.
-"""
-LLM_INVOCATION_PARAMETERS = "llm.invocation_parameters"
-"""
-Invocation parameters passed to the LLM or API, such as the model name, temperature, etc.
-"""
-LLM_MESSAGES = "llm.messages"
-"""
-Messages provided to a chat API.
-"""
 MESSAGE_ROLE = "message.role"
 """
 The role of the message, such as "user", "agent", "function".
@@ -121,9 +108,26 @@ MESSAGE_CONTENT = "message.content"
 """
 The content of the message to the llm
 """
+LLM_FUNCTION_CALL = "llm.function_call"
+"""
+For models and APIs that support function calling. Records attributes such as the function name and
+arguments to the called function.
+"""
+LLM_INVOCATION_PARAMETERS = "llm.invocation_parameters"
+"""
+Invocation parameters passed to the LLM or API, such as the model name, temperature, etc.
+"""
+LLM_MESSAGES = "llm.messages"
+"""
+Messages provided to a chat API.
+"""
 LLM_MODEL_NAME = "llm.model_name"
 """
 The name of the model being used.
+"""
+LLM_PROMPT = "llm.prompt"
+"""
+Messages provided to a completions API.
 """
 LLM_PROMPT_TEMPLATE = "llm.prompt_template.template"
 """
