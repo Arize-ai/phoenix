@@ -102,4 +102,4 @@ SUMMARIZATION_PROMPT_TEMPLATE_STR = """
 # The prompt output map is used to map 1) to provide rails to the llm in order to constrain
 # the llm's outputs to the expected values. 2) golden dataset ground truth boolean values
 # to the llm output
-SUMMARIZATION_PROMPT_OUTPUT_MAP = {True: "Good", False: "Bad"}
+SUMMARIZATION_PROMPT_RAILS_MAP = {True: "Good", False: "Bad"}
