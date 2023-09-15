@@ -1,3 +1,5 @@
+import json
+
 import pytest
 from gcsfs import GCSFileSystem
 from llama_index import ServiceContext, StorageContext, load_index_from_storage
@@ -19,6 +21,7 @@ from phoenix.trace.semantic_conventions import (
     EMBEDDING_MODEL_NAME,
     EMBEDDING_TEXT,
     EMBEDDING_VECTOR,
+    LLM_INVOCATION_PARAMETERS,
     LLM_MESSAGES,
     LLM_MODEL_NAME,
     LLM_TOKEN_COUNT_COMPLETION,
@@ -114,7 +117,14 @@ def test_callback_data_agent() -> None:
         return a + b
 
     add_tool = FunctionTool.from_defaults(fn=add)
-    llm = OpenAI(model="gpt-3.5-turbo-0613")
+    llm = OpenAI(
+        model="gpt-3.5-turbo-0613",
+        temperature=0.1,
+        additional_kwargs={
+            "presence_penalty": 0.002,
+            "frequency_penalty": 0.003,
+        },
+    )
     cb_handler = OpenInferenceTraceCallbackHandler(exporter=NoOpExporter())
     callback_manager = CallbackManager(handlers=[cb_handler])
     agent = OpenAIAgent.from_tools(
@@ -128,6 +138,14 @@ def test_callback_data_agent() -> None:
     # There should be two LLM spans, one to figure out the parameters
     #  and one to complete the calculation
     assert len(llm_spans) == 2
+    llm_span = llm_spans[0]
+    assert json.loads(llm_span.attributes[LLM_INVOCATION_PARAMETERS]) == {
+        "frequency_penalty": 0.003,
+        "max_tokens": None,
+        "model": "gpt-3.5-turbo-0613",
+        "presence_penalty": 0.002,
+        "temperature": 0.1,
+    }
     # one function call
     assert len(tool_spans) == 1
     tool_span = tool_spans[0]

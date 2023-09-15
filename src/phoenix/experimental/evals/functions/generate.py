@@ -8,6 +8,8 @@ from ..models.openai import OpenAiModel
 from ..templates import PromptTemplate, normalize_template
 from .common import map_template
 
+logger = logging.getLogger(__name__)
+
 
 def llm_generate(
     dataframe: pd.DataFrame,
@@ -40,8 +42,8 @@ def llm_generate(
     """
     model = model or OpenAiModel()
     template = normalize_template(template)
-    logging.info(f"Template: \n{template.text}\n")
-    logging.info(f"Template variables: {template.variables}")
+    logger.info(f"Template: \n{template.text}\n")
+    logger.info(f"Template variables: {template.variables}")
     prompts = map_template(dataframe, template)
 
     responses = model.generate(prompts.to_list(), system_instruction)

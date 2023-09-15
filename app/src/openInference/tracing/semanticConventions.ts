@@ -3,11 +3,16 @@ export const SemanticAttributePrefixes = {
   retrieval: "retrieval",
   messages: "messages",
   message: "message",
+  document: "document",
 } as const;
 
 export const LLMAttributePostfixes = {
   messages: "messages",
   invocation_parameters: "invocation_parameters",
+} as const;
+
+export const RetrievalAttributePostfixes = {
+  documents: "documents",
 } as const;
 
 export const MessageAttributePostfixes = {
@@ -16,6 +21,13 @@ export const MessageAttributePostfixes = {
   name: "name",
   function_call_name: "function_call_name",
   function_call_arguments_json: "function_call_arguments_json",
+} as const;
+
+export const DocumentAttributePostfixes = {
+  id: "id",
+  content: "content",
+  score: "score",
+  metadata: "metadata",
 } as const;
 
 /**
@@ -57,3 +69,15 @@ export const MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON =
  */
 export const MESSAGE_CONTENT =
   `${SemanticAttributePrefixes.message}.${MessageAttributePostfixes.content}` as const;
+
+export const DOCUMENT_ID =
+  `${SemanticAttributePrefixes.document}.${DocumentAttributePostfixes.id}` as const;
+
+export const DOCUMENT_CONTENT =
+  `${SemanticAttributePrefixes.document}.${DocumentAttributePostfixes.content}` as const;
+
+export const DOCUMENT_SCORE =
+  `${SemanticAttributePrefixes.document}.${DocumentAttributePostfixes.score}` as const;
+
+export const DOCUMENT_METADATA =
+  `${SemanticAttributePrefixes.document}.${DocumentAttributePostfixes.metadata}` as const;

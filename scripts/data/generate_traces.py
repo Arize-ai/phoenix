@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
 
 import itertools
+import json
 import random
-from datetime import datetime, timedelta
+from datetime import timedelta
 from typing import Dict, List, Optional
 from uuid import uuid4
 
+import numpy as np
+from faker import Faker
 from phoenix.trace.schemas import (
     AttributeValue,
     Span,
@@ -17,13 +20,28 @@ from phoenix.trace.schemas import (
     SpanStatusCode,
 )
 from phoenix.trace.semantic_conventions import (
+    DOCUMENT_CONTENT,
+    DOCUMENT_ID,
+    DOCUMENT_METADATA,
+    DOCUMENT_SCORE,
+    EMBEDDING_EMBEDDINGS,
+    EMBEDDING_MODEL_NAME,
+    EMBEDDING_TEXT,
+    EMBEDDING_VECTOR,
     INPUT_VALUE,
+    LLM_INVOCATION_PARAMETERS,
     LLM_TOKEN_COUNT_COMPLETION,
     LLM_TOKEN_COUNT_PROMPT,
     LLM_TOKEN_COUNT_TOTAL,
     OUTPUT_VALUE,
+    RETRIEVAL_DOCUMENTS,
+    TOOL_DESCRIPTION,
+    TOOL_NAME,
+    TOOL_PARAMETERS,
 )
 from phoenix.trace.span_json_encoder import spans_to_jsonl
+
+fake = Faker()
 
 
 def generate_trace(num_spans: int) -> List[Span]:
@@ -49,28 +67,65 @@ def generate_trace(num_spans: int) -> List[Span]:
     spans: List[Span] = []
     for i in range(num_spans):
         parent_id = spans[-1].context.span_id if spans else None
-        start_time = (spans[-1].end_time if spans else datetime.now()) + timedelta(
+        start_time = (spans[-1].end_time if spans else fake.date_time_this_year()) + timedelta(
             seconds=random.randint(1, 10)
         )
         end_time = start_time + timedelta(seconds=random.randint(1, 600))
         span_id = uuid4()
         span_kind = random.choice(list(SpanKind) + [None])
-        status_code = random.choice(list(SpanStatusCode) + [None])
-        status_message = "OK" if status_code == SpanStatusCode.OK else ""
-        attributes: Dict[str, AttributeValue] = {
-            f"attr_{j}": f"value_{j}" for j in range(random.randint(1, 5))
-        }
-        if random.random() < 0.2:
-            token_count_total = random.randint(100, 10_000)
-            token_count_prompt = int(token_count_total * random.random())
-            token_count_completion = token_count_total - token_count_prompt
-            attributes.update(
-                {
-                    LLM_TOKEN_COUNT_TOTAL: token_count_total,
-                    LLM_TOKEN_COUNT_PROMPT: token_count_prompt,
-                    LLM_TOKEN_COUNT_COMPLETION: token_count_completion,
-                }
-            )
+        attributes: Dict[str, AttributeValue] = {}
+        if random.random() < 0.7:
+            attributes.update(fake.pydict(allowed_types=(float, int, str)))
+        if span_kind is SpanKind.LLM:
+            if random.random() < 0.7:
+                attributes[LLM_INVOCATION_PARAMETERS] = json.dumps(
+                    fake.pydict(allowed_types=(float, int, str))
+                )
+            if random.random() < 0.7:
+                token_count_total = random.randint(100, 10_000)
+                token_count_prompt = int(token_count_total * random.random())
+                token_count_completion = token_count_total - token_count_prompt
+                attributes.update(
+                    {
+                        LLM_TOKEN_COUNT_TOTAL: token_count_total,
+                        LLM_TOKEN_COUNT_PROMPT: token_count_prompt,
+                        LLM_TOKEN_COUNT_COMPLETION: token_count_completion,
+                    }
+                )
+        if span_kind is SpanKind.RETRIEVER:
+            documents = []
+            for _ in range(random.randint(0, 10)):
+                document = {DOCUMENT_ID: fake.pystr()}
+                if random.random() < 0.7:
+                    document[DOCUMENT_CONTENT] = fake.paragraph(nb_sentences=20)
+                if random.random() < 0.7:
+                    document[DOCUMENT_SCORE] = fake.pyfloat()
+                if random.random() < 0.7:
+                    document[DOCUMENT_METADATA] = fake.pydict(allowed_types=(float, int, str))
+                documents.append(document)
+            if documents:
+                attributes[RETRIEVAL_DOCUMENTS] = documents
+
+        if span_kind is SpanKind.EMBEDDING:
+            embeddings = []
+            for _ in range(random.randint(0, 10)):
+                embedding = {}
+                if random.random() < 0.7:
+                    embedding[EMBEDDING_MODEL_NAME] = fake.sentence()
+                if random.random() < 0.7:
+                    embedding[EMBEDDING_TEXT] = fake.paragraph()
+                if random.random() < 0.7:
+                    embedding[EMBEDDING_VECTOR] = list(np.random.random(2000))
+                embeddings.append(embedding)
+            if embeddings:
+                attributes[EMBEDDING_EMBEDDINGS] = embeddings
+        if span_kind is SpanKind.TOOL:
+            if random.random() < 0.7:
+                attributes[TOOL_NAME] = "-".join(fake.words())
+            if random.random() < 0.7:
+                attributes[TOOL_DESCRIPTION] = fake.paragraph()
+            if random.random() < 0.7:
+                attributes[TOOL_PARAMETERS] = fake.pydict(allowed_types=(float, int, str))
         events = [
             SpanEvent(
                 name=f"event_{j}",
@@ -79,15 +134,18 @@ def generate_trace(num_spans: int) -> List[Span]:
             )
             for j in range(random.randint(1, 5))
         ]
-        if random.random() < 0.1:
+        if random.random() < 0.2:
             status_code = SpanStatusCode.ERROR
             status_message = "Error occurred"
             events.append(
                 SpanException(
-                    message=_gibberish(),
+                    message=fake.sentence(),
                     timestamp=end_time,
                 )
             )
+        else:
+            status_code = random.choice([SpanStatusCode.UNSET, SpanStatusCode.OK, None])
+            status_message = "OK" if status_code == SpanStatusCode.OK else ""
         span = Span(
             name=f"span_{span_id}",
             context=SpanContext(trace_id=trace_id, span_id=span_id),
@@ -107,15 +165,11 @@ def generate_trace(num_spans: int) -> List[Span]:
         if random.random() < 0.2:
             object.__setattr__(span, "end_time", None)
         if random.random() < 0.5:
-            span.attributes[INPUT_VALUE] = _gibberish()
+            span.attributes[INPUT_VALUE] = fake.sentence()
         if random.random() < 0.5:
-            span.attributes[OUTPUT_VALUE] = _gibberish()
+            span.attributes[OUTPUT_VALUE] = fake.sentence()
 
     return spans
-
-
-def _gibberish() -> str:
-    return "".join(chr(random.randint(0, 1000)) for _ in range(random.randint(10, 1000)))
 
 
 def generate_traces(
@@ -151,7 +205,7 @@ def generate_traces(
 
 def main() -> None:
     # generate traces
-    spans = generate_traces(num_traces=1000, min_trace_length=3, max_trace_length=5)
+    spans = generate_traces(num_traces=50, min_trace_length=3, max_trace_length=5)
 
     # serialize each span to ndjson
     jsonl_str = spans_to_jsonl(spans)
