@@ -13,7 +13,6 @@ import { css } from "@emotion/react";
 import { Icon, Icons } from "@arizeai/components";
 
 import { Link } from "@phoenix/components/Link";
-import { IntCell } from "@phoenix/components/table/IntCell";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { TextCell } from "@phoenix/components/table/TextCell";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
@@ -29,6 +28,7 @@ import {
   SpanSort,
   SpansTableSpansQuery,
 } from "./__generated__/SpansTableSpansQuery.graphql";
+import { TokenCount } from "./TokenCount";
 type SpansTableProps = {
   query: SpansTable_spans$key;
 };
@@ -68,6 +68,8 @@ export function SpansTable(props: SpansTableProps) {
                 startTime
                 latencyMs
                 tokenCountTotal
+                tokenCountPrompt
+                tokenCountCompletion
                 context {
                   spanId
                   traceId
@@ -149,7 +151,19 @@ export function SpansTable(props: SpansTableProps) {
     {
       header: "total tokens",
       accessorKey: "tokenCountTotal",
-      cell: IntCell,
+      cell: ({ row, getValue }) => {
+        const value = getValue();
+        if (value === null) {
+          return "--";
+        }
+        return (
+          <TokenCount
+            tokenCountTotal={value as number}
+            tokenCountPrompt={row.original.tokenCountPrompt || 0}
+            tokenCountCompletion={row.original.tokenCountCompletion || 0}
+          />
+        );
+      },
     },
     {
       header: "status",

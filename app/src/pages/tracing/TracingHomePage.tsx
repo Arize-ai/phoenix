@@ -50,7 +50,7 @@ export function TracingHomePage() {
     >
       <TracingHomePageHeader query={data} />
       <Tabs>
-        <TabPane name="Traces" title="Traces">
+        <TabPane name="Traces">
           {({ isSelected }) => {
             return (
               isSelected && (

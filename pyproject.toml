@@ -33,7 +33,6 @@ dependencies = [
   "pyarrow",
   "typing_extensions",
   "scipy",
-  "portpicker",
   "wrapt",
   "sortedcontainers",
   "protobuf>=3.20, <5.0",
@@ -47,7 +46,7 @@ dev = [
   "hatch",
   "jupyter",
   "nbqa",
-  "ruff",
+  "ruff==0.0.289",
   "pandas-stubs<=2.0.2.230605",  # version 2.0.3.230814 is causing a dependency conflict.
   "pytest",
   "pytest-cov",
@@ -130,7 +129,7 @@ detached = true
 dependencies = [
   "black~=23.3.0",
   "black[jupyter]~=23.3.0",
-  "ruff~=0.0.286",
+  "ruff~=0.0.289",
 ]
 
 [tool.hatch.envs.notebooks]
@@ -279,7 +278,6 @@ module = [
   "scipy.*",
   "sklearn.*",
   "arize.*",
-  "portpicker",
   "wrapt",
   "sortedcontainers",
   "langchain.*",

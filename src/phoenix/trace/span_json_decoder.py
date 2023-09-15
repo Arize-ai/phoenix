@@ -13,11 +13,21 @@ from phoenix.trace.schemas import (
     SpanStatusCode,
 )
 from phoenix.trace.semantic_conventions import (
+    DOCUMENT_METADATA,
     EXCEPTION_MESSAGE,
     INPUT_MIME_TYPE,
     OUTPUT_MIME_TYPE,
+    RETRIEVAL_DOCUMENTS,
     MimeType,
 )
+
+
+def json_to_document(obj: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    if obj is None:
+        return {}
+    if document_metadata := obj.get(DOCUMENT_METADATA):
+        obj[DOCUMENT_METADATA] = json.loads(document_metadata)
+    return obj
 
 
 def json_to_attributes(obj: Optional[Dict[str, Any]]) -> Dict[str, Any]:
@@ -29,14 +39,14 @@ def json_to_attributes(obj: Optional[Dict[str, Any]]) -> Dict[str, Any]:
         obj[INPUT_MIME_TYPE] = MimeType(mime_type)
     if mime_type := obj.get(OUTPUT_MIME_TYPE):
         obj[OUTPUT_MIME_TYPE] = MimeType(mime_type)
+    if documents := obj.get(RETRIEVAL_DOCUMENTS):
+        obj[RETRIEVAL_DOCUMENTS] = [json_to_document(document) for document in documents]
     return obj
 
 
 def json_to_span(data: Dict[str, Any]) -> Any:
     """
     A hook for json.loads to convert a dict to a Span object.
-
-    NB: this function is mainly used for testing purposes. Consider swapping this out for pydantic.
     """
     # Check if the dict can be interpreted as a Span
     if set(data.keys()) == {

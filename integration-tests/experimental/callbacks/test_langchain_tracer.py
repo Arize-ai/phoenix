@@ -6,7 +6,12 @@ from typing import Type
 
 import pytest
 from langchain import GoogleSearchAPIWrapper, LLMChain, PromptTemplate
-from langchain.agents import AgentExecutor, AgentType, create_sql_agent, initialize_agent
+from langchain.agents import (
+    AgentExecutor,
+    AgentType,
+    create_sql_agent,
+    initialize_agent,
+)
 from langchain.agents.agent_toolkits import SQLDatabaseToolkit
 from langchain.chains.openai_functions import create_openai_fn_chain
 from langchain.chat_models import ChatOpenAI
