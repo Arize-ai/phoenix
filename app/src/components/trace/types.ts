@@ -10,6 +10,9 @@ export interface ISpanItem {
   parentId: string | null;
   context: ISpanContext;
   [otherKeys: string]: unknown;
+  tokenCountTotal?: number | null;
+  tokenCountPrompt?: number | null;
+  tokenCountCompletion?: number | null;
 }
 
 interface ISpanContext {

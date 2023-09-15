@@ -17,7 +17,6 @@ import { Flex, Icon, Icons } from "@arizeai/components";
 
 import { Link } from "@phoenix/components/Link";
 import { TextCell } from "@phoenix/components/table";
-import { IntCell } from "@phoenix/components/table/IntCell";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { TableExpandButton } from "@phoenix/components/table/TableExpandButton";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
@@ -35,6 +34,7 @@ import {
   SpanSort,
   TracesTableQuery,
 } from "./__generated__/TracesTableQuery.graphql";
+import { TokenCount } from "./TokenCount";
 type TracesTableProps = {
   query: TracesTable_spans$key;
 };
@@ -105,6 +105,8 @@ export function TracesTable(props: TracesTableProps) {
                 startTime
                 latencyMs
                 cumulativeTokenCountTotal
+                cumulativeTokenCountPrompt
+                cumulativeTokenCountCompletion
                 parentId
                 input {
                   value
@@ -124,6 +126,8 @@ export function TracesTable(props: TracesTableProps) {
                   latencyMs
                   parentId
                   cumulativeTokenCountTotal: tokenCountTotal # this switcheroo is to allow descendant Rows to unfurl in the same Table while displaying a different value under the same Column
+                  cumulativeTokenCountPrompt: tokenCountPrompt
+                  cumulativeTokenCountCompletion: tokenCountCompletion
                   input {
                     value
                   }
@@ -242,7 +246,21 @@ export function TracesTable(props: TracesTableProps) {
     {
       header: "total tokens",
       accessorKey: "cumulativeTokenCountTotal",
-      cell: IntCell,
+      cell: ({ row, getValue }) => {
+        const value = getValue();
+        if (value === null) {
+          return "--";
+        }
+        return (
+          <TokenCount
+            tokenCountTotal={value as number}
+            tokenCountPrompt={row.original.cumulativeTokenCountPrompt || 0}
+            tokenCountCompletion={
+              row.original.cumulativeTokenCountCompletion || 0
+            }
+          />
+        );
+      },
     },
     {
       header: "status",
