@@ -15,7 +15,7 @@ This package attempts to make the use of the evaluation LLM easy to implement.&#
   * Open AI “model” Evals only focus on evaluating the model, a different use case
 * Evaluations harness should be usable in benchmarking, development, production or LangChain/LlamaIndex call back system
 * Evals should run as fast as possible on batches of data
-* LLM Evals should not require you to use chain abstractions - you shouldn't have to use LangChain to get Evals for pipelines that don't use LanngChain
+* LLM Evals should not require you to use chain abstractions - you shouldn't have to use LangChain to get Evals for pipelines that don't use LangChain
 
 ### _The solution provided by the Phoenix Evals:_
 
@@ -118,11 +118,11 @@ precision, recall, f1, support = precision_recall_fscore_support(y_true, y_pred)
 
 The above approach allows us to compare models easily in an understandable format:
 
-<table><thead><tr><th>Hallucination Eval</th><th width="85">GPT-4</th><th width="99">GPT-3.5</th><th width="185">Plam 2 (soon)</th><th>Llama 7B (soon)</th></tr></thead><tbody><tr><td>Precision</td><td>0.94</td><td>0.94</td><td></td><td></td></tr><tr><td>Recall</td><td>0.75</td><td>0.71</td><td></td><td></td></tr><tr><td>F1</td><td>0.83</td><td>0.81</td><td></td><td></td></tr></tbody></table>
+<table><thead><tr><th>Hallucination Eval</th><th width="85">GPT-4</th><th width="99">GPT-3.5</th><th width="185">PaLM 2 (soon)</th><th>Llama 7B (soon)</th></tr></thead><tbody><tr><td>Precision</td><td>0.94</td><td>0.94</td><td></td><td></td></tr><tr><td>Recall</td><td>0.75</td><td>0.71</td><td></td><td></td></tr><tr><td>F1</td><td>0.83</td><td>0.81</td><td></td><td></td></tr></tbody></table>
 
 ### Designed for Throughput
 
-The library was designed to maximize the volume and throughput you can run for Evals. Running a dataframe generates asynchonous calls and maximizing the throughput and usage of your API key. We found the library 10x faster in throughput than current call by call based approaches integrated into the LLM App Framework Evals.
+The library was designed to maximize the volume and throughput you can run for Evals. Running a dataframe generates asynchronous calls and maximizing the throughput and usage of your API key. We found the library 10x faster in throughput than current call by call based approaches integrated into the LLM App Framework Evals.
 
 * Batch Evals: Run across a dataframe
 * One-by-one: Real-time Eval event by event
@@ -212,7 +212,7 @@ MY_CUSTOM_TEMPLATE = PromptTemplate("This is a test {prompt}")
 
 ## Models Supported
 
-We currently support OpenAI with Palm 2 and Llama coming very very soon.&#x20;
+We currently support OpenAI with PaLM 2 and Llama coming very very soon.&#x20;
 
 The model are instantiated and usable in the LLM Eval function. The models are also directly callable with strings.&#x20;
 
