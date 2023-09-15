@@ -1,6 +1,5 @@
 import json
 import logging
-import os
 from abc import ABC, abstractmethod
 from collections import UserList
 from datetime import datetime
@@ -9,9 +8,8 @@ from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING, Iterable, List, Optional, Set
 
 import pandas as pd
-from portpicker import pick_unused_port
 
-from phoenix.config import HOST, PORT, get_exported_files
+from phoenix.config import get_env_host, get_env_port, get_exported_files
 from phoenix.core.model_schema_adapter import create_model_from_datasets
 from phoenix.core.traces import Traces
 from phoenix.datasets.dataset import EMPTY_DATASET, Dataset
@@ -71,8 +69,8 @@ class Session(ABC):
         reference_dataset: Optional[Dataset] = None,
         corpus_dataset: Optional[Dataset] = None,
         trace_dataset: Optional[TraceDataset] = None,
-        host: str = HOST,
-        port: int = PORT,
+        host: Optional[str] = None,
+        port: Optional[int] = None,
     ):
         self.primary_dataset = primary_dataset
         self.reference_dataset = reference_dataset
@@ -96,8 +94,8 @@ class Session(ABC):
             for span in trace_dataset.to_spans():
                 self.traces.put(span)
 
-        self.host = host
-        self.port = port
+        self.host = host or get_env_host()
+        self.port = port or get_env_port()
         self.temp_dir = TemporaryDirectory()
         self.export_path = Path(self.temp_dir.name) / "exports"
         self.export_path.mkdir(parents=True, exist_ok=True)
@@ -176,8 +174,8 @@ class ProcessSession(Session):
         reference_dataset: Optional[Dataset] = None,
         corpus_dataset: Optional[Dataset] = None,
         trace_dataset: Optional[TraceDataset] = None,
-        host: str = HOST,
-        port: int = PORT,
+        host: Optional[str] = None,
+        port: Optional[int] = None,
     ) -> None:
         super().__init__(
             primary_dataset=primary_dataset,
@@ -185,7 +183,7 @@ class ProcessSession(Session):
             corpus_dataset=corpus_dataset,
             trace_dataset=trace_dataset,
             host=host,
-            port=port or PORT,
+            port=port,
         )
         primary_dataset.to_disc()
         if isinstance(reference_dataset, Dataset):
@@ -227,8 +225,8 @@ class ThreadSession(Session):
         reference_dataset: Optional[Dataset] = None,
         corpus_dataset: Optional[Dataset] = None,
         trace_dataset: Optional[TraceDataset] = None,
-        host: str = HOST,
-        port: int = PORT,
+        host: Optional[str] = None,
+        port: Optional[int] = None,
     ):
         super().__init__(
             primary_dataset=primary_dataset,
@@ -236,7 +234,7 @@ class ThreadSession(Session):
             corpus_dataset=corpus_dataset,
             trace_dataset=trace_dataset,
             host=host,
-            port=port or pick_unused_port(),
+            port=port,
         )
         # Initialize an app service that keeps the server running
         self.app = create_app(
@@ -267,7 +265,7 @@ def launch_app(
     reference: Optional[Dataset] = None,
     corpus: Optional[Dataset] = None,
     trace: Optional[TraceDataset] = None,
-    host: str = HOST,
+    host: Optional[str] = None,
     port: Optional[int] = None,
     run_in_thread: bool = True,
 ) -> Optional[Session]:
@@ -286,9 +284,11 @@ def launch_app(
     trace: TraceDataset, optional
         **Experimental** The trace dataset containing the trace data.
     host: str
-        The host on which the server runs.
+        The host on which the server runs. It can be set using environment
+        variable `PHOENIX_HOST`, otherwise it defaults to `127.0.0.1`.
     port: int
-        The port on which the server listens.
+        The port on which the server listens. It can be set using environment
+        variable `PHOENIX_PORT`, otherwise it defaults to 6060.
     run_in_thread: bool, optional, default=True
         Whether the server should run in a Thread or Process.
 
@@ -305,12 +305,6 @@ def launch_app(
     >>> session = px.launch_app(dataset)
     """
     global _session
-
-    port = port or (
-        int(px_port)
-        if isinstance(px_port := os.getenv("PHOENIX_PORT"), str) and px_port.isnumeric()
-        else PORT
-    )
 
     # Stopgap solution to allow the app to run without a primary dataset
     if primary is None:
