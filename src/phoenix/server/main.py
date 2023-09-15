@@ -9,7 +9,7 @@ from typing import Optional
 
 from uvicorn import Config, Server
 
-import phoenix.config as config
+from phoenix.config import EXPORT_DIR, get_env_host, get_env_port, get_pids_path
 from phoenix.core.model_schema_adapter import create_model_from_datasets
 from phoenix.core.traces import Traces
 from phoenix.datasets.dataset import EMPTY_DATASET, Dataset
@@ -43,7 +43,7 @@ def _remove_pid_file() -> None:
 
 
 def _get_pid_file() -> Path:
-    return config.get_pids_path() / str(os.getpid())
+    return get_pids_path() / str(os.getpid())
 
 
 if __name__ == "__main__":
@@ -60,8 +60,8 @@ if __name__ == "__main__":
 
     parser = ArgumentParser()
     parser.add_argument("--export_path")
-    parser.add_argument("--host", type=str, default=config.HOST)
-    parser.add_argument("--port", type=int, default=config.PORT)
+    parser.add_argument("--host", type=str, required=False)
+    parser.add_argument("--port", type=int, required=False)
     parser.add_argument("--no-internet", action="store_true")
     parser.add_argument("--debug", action="store_false")  # TODO: Disable before public launch
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -78,7 +78,7 @@ if __name__ == "__main__":
         "fixture", type=str, choices=[fixture.name for fixture in TRACES_FIXTURES]
     )
     args = parser.parse_args()
-    export_path = Path(args.export_path) if args.export_path else config.EXPORT_DIR
+    export_path = Path(args.export_path) if args.export_path else EXPORT_DIR
     if args.command == "datasets":
         primary_dataset_name = args.primary
         reference_dataset_name = args.reference
@@ -127,6 +127,8 @@ if __name__ == "__main__":
         corpus=None if corpus_dataset is None else create_model_from_datasets(corpus_dataset),
         debug=args.debug,
     )
-    server = Server(config=Config(app, host=args.host, port=args.port))
+    host = args.host or get_env_host()
+    port = args.port or get_env_port()
+    server = Server(config=Config(app, host=host, port=port))
     Thread(target=_write_pid_file_when_ready, args=(server,), daemon=True).start()
     server.run()
