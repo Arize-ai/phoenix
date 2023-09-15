@@ -1,5 +1,6 @@
 import json
 import logging
+import os
 from abc import ABC, abstractmethod
 from collections import UserList
 from datetime import datetime
@@ -267,7 +268,7 @@ def launch_app(
     corpus: Optional[Dataset] = None,
     trace: Optional[TraceDataset] = None,
     host: str = HOST,
-    port: int = PORT,
+    port: Optional[int] = None,
     run_in_thread: bool = True,
 ) -> Optional[Session]:
     """
@@ -304,6 +305,12 @@ def launch_app(
     >>> session = px.launch_app(dataset)
     """
     global _session
+
+    port = port or (
+        int(px_port)
+        if isinstance(px_port := os.getenv("PHOENIX_PORT"), str) and px_port.isnumeric()
+        else PORT
+    )
 
     # Stopgap solution to allow the app to run without a primary dataset
     if primary is None:
