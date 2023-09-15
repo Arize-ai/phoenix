@@ -24,7 +24,7 @@ from phoenix.trace.semantic_conventions import (
     LLM_INVOCATION_PARAMETERS,
     LLM_MESSAGES,
     LLM_MODEL_NAME,
-    LLM_PROMPT,
+    LLM_PROMPTS,
     LLM_TOKEN_COUNT_COMPLETION,
     LLM_TOKEN_COUNT_PROMPT,
     LLM_TOKEN_COUNT_TOTAL,
@@ -107,8 +107,9 @@ def test_callback_handler_records_llm_and_embedding_attributes_for_query_engine(
         assert messages[1][MESSAGE_ROLE] == "user"
         assert query in messages[1][MESSAGE_CONTENT]
     else:
-        prompt = span.attributes[LLM_PROMPT]
-        assert query in prompt
+        prompts = span.attributes[LLM_PROMPTS]
+        assert len(prompts) == 1
+        assert query in prompts[0]
 
     span = next(span for span in spans if span.span_kind == SpanKind.EMBEDDING)
     assert span.attributes.get(EMBEDDING_MODEL_NAME) == "text-embedding-ada-002"

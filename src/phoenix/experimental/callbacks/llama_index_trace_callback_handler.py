@@ -43,7 +43,7 @@ from phoenix.trace.semantic_conventions import (
     LLM_INVOCATION_PARAMETERS,
     LLM_MESSAGES,
     LLM_MODEL_NAME,
-    LLM_PROMPT,
+    LLM_PROMPTS,
     LLM_TOKEN_COUNT_COMPLETION,
     LLM_TOKEN_COUNT_PROMPT,
     LLM_TOKEN_COUNT_TOTAL,
@@ -107,7 +107,7 @@ def payload_to_semantic_attributes(
             for node_with_score in payload[EventPayload.NODES]
         ]
     if EventPayload.PROMPT in payload:
-        attributes[LLM_PROMPT] = payload[EventPayload.PROMPT]
+        attributes[LLM_PROMPTS] = [payload[EventPayload.PROMPT]]
     if EventPayload.MESSAGES in payload:
         messages = payload[EventPayload.MESSAGES]
         # Messages is only relevant to the LLM invocation
