@@ -1,3 +1,4 @@
+import os
 import tempfile
 from pathlib import Path
 from typing import List, Optional
@@ -58,3 +59,15 @@ def get_exported_files(directory: Path) -> List[Path]:
         List of paths of the exported files.
     """
     return list(directory.glob("*.parquet"))
+
+
+def get_env_port() -> int:
+    return (
+        int(port)
+        if isinstance(port := os.getenv("PHOENIX_PORT"), str) and port.isnumeric()
+        else PORT
+    )
+
+
+def get_env_host() -> str:
+    return os.getenv("PHOENIX_HOST") or HOST
