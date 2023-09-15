@@ -22,13 +22,31 @@ def test_span_json_decoder_document_retrieval():
                     {
                         "document.id": "883e74ee-691a-46e0-acd7-f58bd565dad4",
                         "document.score": 0.8024018669959406,
-                        "document.content": "\nRanking models are used by search engines to display query results ranked in the order of the highest relevance. These predictions seek to maximize user actions that are then used to evaluate model performance.&#x20;\n\nThe complexity within a ranking model makes failures challenging to pinpoint as a model\u2019s dimensions expand per recommendation. Notable challenges within ranking models include upstream data quality issues, poor-performing segments, the cold start problem, and more. &#x20;\n\n\n\n",
+                        "document.content": """\nRanking models are used by
+                                            search engines to display query
+                                            results ranked in the order of the
+                                            highest relevance. These predictions
+                                            seek to maximize user actions that
+                                            are then used to evaluate model
+                                            performance.&#x20;\n\nThe complexity
+                                            within a ranking model makes
+                                            failures challenging to pinpoint as
+                                            a model\u2019s dimensions expand per
+                                            recommendation. Notable challenges
+                                            within ranking models include
+                                            upstream data quality issues,
+                                            poor-performing segments, the cold
+                                            start problem, and more.
+                                            &#x20;\n\n\n\n""",
                         "document.metadata": "{}",
                     },
                     {
                         "document.id": "d169f0ce-b5ea-4e88-9653-f8bb2fb1d105",
                         "document.score": 0.7964861566463088,
-                        "document.content": "\n**Use the 'arize-demo-hotel-ranking' model, available in all free accounts, to follow along.**&#x20;\n\n",
+                        "document.content": """\n**Use the
+                                            'arize-demo-hotel-ranking' model,
+                                            available in all free accounts, to
+                                            follow along.**&#x20;\n\n""",
                         "document.metadata": "{}",
                     },
                 ],
