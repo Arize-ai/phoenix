@@ -1,11 +1,18 @@
-from typing import List, Optional, Union
+import logging
+from typing import List, Optional, Set, Union
 
 import pandas as pd
 
 from ..models import BaseEvalModel
 from ..models.openai import OpenAiModel
-from ..templates import PromptTemplate
-from ..templates.prebuilt_templates import RAG_RELEVANCY_PROMPT_TEMPLATE_STR
+from ..templates import (
+    RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
+    PromptTemplate,
+    normalize_template,
+)
+from .common import map_template
+
+logger = logging.getLogger(__name__)
 
 
 def llm_eval_binary(
@@ -18,12 +25,12 @@ def llm_eval_binary(
     """Runs binary classifications using an LLM.
 
     Args:
-        df (pandas.DataFrame): A pandas dataframe in which each row represents a record to be
+        dataframe (pandas.DataFrame): A pandas dataframe in which each row represents a record to be
         classified. All template variable names must appear as column names in the dataframe (extra
         columns unrelated to the template are permitted).
 
         template (Union[PromptTemplate, str]): The prompt template as either an instance of
-        PromptTemplate or a Python string. If the latter, the variable names should be surrounded by
+        PromptTemplate or a string. If the latter, the variable names should be surrounded by
         curly braces so that a call to `.format` can be made to substitute variable values.
 
         model (BaseEvalModel): An LLM model class.
@@ -40,46 +47,11 @@ def llm_eval_binary(
         parsed.
     """
 
-    if not (isinstance(template, PromptTemplate) or isinstance(template, str)):
-        raise TypeError(
-            "Invalid type for argument `template`. Expected a string or PromptTemplate "
-            f"but found {type(template)}."
-        )
-    if isinstance(template, str):
-        try:
-            eval_template = PromptTemplate(text=template)
-        except Exception as e:
-            raise RuntimeError(f"Error while initializing the PromptTemplate: {e}")
-    else:
-        eval_template = template
-
-    # I was considering to construct the prompts and generate answers concurrently. However,
-    # if there's errors in the prompt construction it could interrupt the process and we
-    # would've used API credits for nothing. We could solve this problem by streaming the
-    # answers so that, if there is an error, we keep the answers obtained up to that point.
-    # These are out of scope for M0, but good to keep in mind and consider for the future.
-    try:
-        prompts = dataframe.apply(
-            lambda row: eval_template.format(
-                variable_values={var_name: row[var_name] for var_name in eval_template.variables}
-            ),
-            axis=1,
-        )
-    except KeyError as e:
-        raise RuntimeError(
-            f"Error while constructing the prompts from the template and dataframe. "
-            f"The template variable {e} is not found as a column in the dataframe."
-        )
-    except Exception as e:
-        raise RuntimeError(
-            f"Error while constructing the prompts from the template and dataframe variables: {e}."
-        )
-
+    eval_template = normalize_template(template)
+    prompts = map_template(dataframe, eval_template)
     responses = model.generate(prompts.to_list(), system_instruction)
-    rail_classes = set(rails)
-    return [
-        (rail_class if (rail_class := resp.strip()) in rail_classes else None) for resp in responses
-    ]
+    rails_set = set(rails)
+    return [_snap_to_rail(response, rails_set) for response in responses]
 
 
 def run_relevance_eval(
@@ -159,3 +131,26 @@ def run_relevance_eval(
         llm_relevance_column_name
     ]
     return output_df[llm_relevance_column_name].tolist()
+
+
+def _snap_to_rail(string: str, rails: Set[str]) -> Optional[str]:
+    """Snaps a string to the nearest rail, or returns None if the string cannot be snapped to a
+    rail.
+
+    Args:
+        string (str): An input to be snapped to a rail.
+
+        rails (Set[str]): The target set of strings to snap to.
+
+    Returns:
+        str: A string from the rails argument or None if the input string could not be snapped.
+    """
+
+    processed_string = string.strip()
+    if processed_string not in rails:
+        logger.warning(
+            f"LLM output cannot be snapped to rails {list(rails)}, returning None. "
+            f'Output: "{string}"'
+        )
+        return None
+    return processed_string

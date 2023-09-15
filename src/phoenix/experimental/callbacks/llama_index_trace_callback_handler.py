@@ -1,12 +1,15 @@
 """
-Callback handler for emitting trace data in OpenInference format.
-OpenInference is an open standard for capturing and storing AI model inferences.
+Callback handler for emitting trace data in OpenInference tracing format.
+OpenInference tracing is an open standard for capturing and storing
+LLM Application execution logs.
+
 It enables production LLMapp servers to seamlessly integrate with LLM
 observability solutions such as Arize and Phoenix.
 
 For more information on the specification, see
 https://github.com/Arize-ai/open-inference-spec
 """
+import json
 import logging
 from collections import defaultdict
 from datetime import datetime
@@ -20,6 +23,7 @@ from llama_index.callbacks.schema import (
     CBEventType,
     EventPayload,
 )
+from llama_index.llms.base import ChatMessage
 from llama_index.tools import ToolMetadata
 from openai.openai_object import OpenAIObject
 
@@ -36,18 +40,23 @@ from phoenix.trace.semantic_conventions import (
     EMBEDDING_VECTOR,
     INPUT_MIME_TYPE,
     INPUT_VALUE,
+    LLM_INVOCATION_PARAMETERS,
     LLM_MESSAGES,
     LLM_MODEL_NAME,
     LLM_TOKEN_COUNT_COMPLETION,
     LLM_TOKEN_COUNT_PROMPT,
     LLM_TOKEN_COUNT_TOTAL,
     MESSAGE_CONTENT,
+    MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON,
+    MESSAGE_FUNCTION_CALL_NAME,
+    MESSAGE_NAME,
     MESSAGE_ROLE,
     OUTPUT_MIME_TYPE,
     OUTPUT_VALUE,
     RETRIEVAL_DOCUMENTS,
     TOOL_DESCRIPTION,
     TOOL_NAME,
+    TOOL_PARAMETERS,
     MimeType,
 )
 from phoenix.trace.tracer import SpanExporter, Tracer
@@ -99,13 +108,16 @@ def payload_to_semantic_attributes(
     if EventPayload.PROMPT in payload:
         ...
     if EventPayload.MESSAGES in payload:
-        attributes[LLM_MESSAGES] = [
-            {
-                MESSAGE_ROLE: message_data.role.value,
-                MESSAGE_CONTENT: message_data.content,
-            }
-            for message_data in payload[EventPayload.MESSAGES]
-        ]
+        messages = payload[EventPayload.MESSAGES]
+        # Messages is only relevant to the LLM invocation
+        if event_type is CBEventType.LLM:
+            attributes[LLM_MESSAGES] = [
+                _message_payload_to_attributes(message_data) for message_data in messages
+            ]
+        elif event_type is CBEventType.AGENT_STEP and len(messages):
+            # the agent step contains a message that is actually the input
+            # akin to the query_str
+            attributes[INPUT_VALUE] = _message_payload_to_str(messages[0])
     if EventPayload.COMPLETION in payload:
         ...
     if EventPayload.RESPONSE in payload:
@@ -130,6 +142,7 @@ def payload_to_semantic_attributes(
         tool_metadata = cast(ToolMetadata, payload.get(EventPayload.TOOL))
         attributes[TOOL_NAME] = tool_metadata.name
         attributes[TOOL_DESCRIPTION] = tool_metadata.description
+        attributes[TOOL_PARAMETERS] = tool_metadata.to_openai_function()["parameters"]
     if EventPayload.SERIALIZED in payload:
         serialized = payload[EventPayload.SERIALIZED]
         if event_type is CBEventType.EMBEDDING:
@@ -138,6 +151,14 @@ def payload_to_semantic_attributes(
         if event_type is CBEventType.LLM:
             if model_name := serialized.get("model"):
                 attributes[LLM_MODEL_NAME] = model_name
+                attributes[LLM_INVOCATION_PARAMETERS] = json.dumps(
+                    {
+                        "model": model_name,
+                        "temperature": serialized["temperature"],
+                        "max_tokens": serialized["max_tokens"],
+                        **serialized["additional_kwargs"],
+                    }
+                )
     return attributes
 
 
@@ -300,4 +321,36 @@ def _get_span_kind(event_type: CBEventType) -> SpanKind:
         CBEventType.EMBEDDING: SpanKind.EMBEDDING,
         CBEventType.LLM: SpanKind.LLM,
         CBEventType.RETRIEVE: SpanKind.RETRIEVER,
+        CBEventType.FUNCTION_CALL: SpanKind.TOOL,
+        CBEventType.AGENT_STEP: SpanKind.AGENT,
     }.get(event_type, SpanKind.CHAIN)
+
+
+def _message_payload_to_attributes(message: Any) -> Dict[str, Optional[str]]:
+    if isinstance(message, ChatMessage):
+        message_attributes = {
+            MESSAGE_ROLE: message.role.value,
+            MESSAGE_CONTENT: message.content,
+        }
+        # Parse the kwargs to extract the function name and parameters for function calling
+        # NB: these additional kwargs exist both for 'agent' and 'function' roles
+        if "name" in message.additional_kwargs:
+            message_attributes[MESSAGE_NAME] = message.additional_kwargs["name"]
+        if "function_call" in message.additional_kwargs:
+            function_call = message.additional_kwargs["function_call"]
+            message_attributes[MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON] = function_call.arguments
+            message_attributes[MESSAGE_FUNCTION_CALL_NAME] = function_call.name
+        return message_attributes
+
+    return {
+        MESSAGE_ROLE: "user",  # assume user if not ChatMessage
+        MESSAGE_CONTENT: str(message),
+    }
+
+
+def _message_payload_to_str(message: Any) -> Optional[str]:
+    """Converts a message payload to a string, if possible"""
+    if isinstance(message, ChatMessage):
+        return message.content
+
+    return str(message)

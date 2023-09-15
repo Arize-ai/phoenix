@@ -1,6 +1,7 @@
+import os
 import tempfile
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
 
 def _get_temp_path() -> Path:
@@ -16,6 +17,13 @@ def get_pids_path() -> Path:
     path = _get_temp_path() / "pids"
     path.mkdir(parents=True, exist_ok=True)
     return path
+
+
+def get_running_pid() -> Optional[int]:
+    for file in get_pids_path().iterdir():
+        if file.name.isnumeric():
+            return int(file.name)
+    return None
 
 
 for path in (
@@ -51,3 +59,15 @@ def get_exported_files(directory: Path) -> List[Path]:
         List of paths of the exported files.
     """
     return list(directory.glob("*.parquet"))
+
+
+def get_env_port() -> int:
+    return (
+        int(port)
+        if isinstance(port := os.getenv("PHOENIX_PORT"), str) and port.isnumeric()
+        else PORT
+    )
+
+
+def get_env_host() -> str:
+    return os.getenv("PHOENIX_HOST") or HOST

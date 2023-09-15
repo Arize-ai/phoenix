@@ -99,7 +99,23 @@ Messages provided to a chat API.
 """
 MESSAGE_ROLE = "message.role"
 """
-The role of the message, such as "user" or "system".
+The role of the message, such as "user", "agent", "function".
+"""
+MESSAGE_NAME = "message.name"
+"""
+The name of the message, often used to identify the function
+that was used to generate the message.
+"""
+MESSAGE_FUNCTION_CALL_NAME = "message.function_call_name"
+"""
+The function name that is a part of the message list.
+This is populated for role 'function' or 'agent' as a mechanism to identify
+the function that was called during the execution of a tool
+"""
+MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON = "message.function_call_arguments_json"
+"""
+The JSON string representing the arguments passed to the function
+during a function call
 """
 MESSAGE_CONTENT = "message.content"
 """
@@ -141,6 +157,10 @@ Name of the tool being used.
 TOOL_DESCRIPTION = "tool.description"
 """
 Description of the tool's purpose, typically used to select the tool.
+"""
+TOOL_PARAMETERS = "tool.parameters"
+"""
+Parameters of the tool, e.g. see https://platform.openai.com/docs/guides/gpt/function-calling
 """
 
 RETRIEVAL_DOCUMENTS = "retrieval.documents"

@@ -40,6 +40,7 @@ class SpanKind(Enum):
     LLM = "LLM"
     RETRIEVER = "RETRIEVER"
     EMBEDDING = "EMBEDDING"
+    AGENT = "AGENT"
     UNKNOWN = "UNKNOWN"
 
     def __str__(self) -> str:

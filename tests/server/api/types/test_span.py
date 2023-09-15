@@ -13,8 +13,11 @@ def test_nested_attributes() -> None:
             "score": ...,
         },
         "message": {
-            "content": ...,
             "role": ...,
+            "name": ...,
+            "content": ...,
+            "function_call_name": ...,
+            "function_call_arguments_json": ...,
         },
         "exception": {
             "escaped": ...,
@@ -58,5 +61,6 @@ def test_nested_attributes() -> None:
         "tool": {
             "description": ...,
             "name": ...,
+            "parameters": ...,
         },
     }

@@ -23,7 +23,7 @@ classifiers = [
 dependencies = [
   "scikit-learn<1.3.0",
   "numpy",
-  "pandas>=1.5.0",
+  "pandas",
   "umap-learn",
   "hdbscan>=0.8.33, <1.0.0",
   "starlette",
@@ -33,7 +33,6 @@ dependencies = [
   "pyarrow",
   "typing_extensions",
   "scipy",
-  "portpicker",
   "wrapt",
   "sortedcontainers",
   "protobuf>=3.20, <5.0",
@@ -58,7 +57,7 @@ dev = [
 ]
 experimental = [
   "langchain>=0.0.257",
-  "llama-index>=0.8.4",
+  "llama-index>=0.8.25",
   "openai",
   "tenacity",
 ]
@@ -97,12 +96,13 @@ artifacts = ["src/phoenix/server/static"]
 
 [tool.hatch.envs.default]
 dependencies = [
+  "pandas==1.4.0",
   "pytest",
   "pytest-cov",
   "pytest-lazy-fixture",
   "arize",
   "langchain>=0.0.257",
-  "llama-index>=0.8.4",
+  "llama-index>=0.8.25",
   "openai",
   "tenacity",
   "nltk==3.8.1",
@@ -116,12 +116,9 @@ dependencies = [
 [tool.hatch.envs.type]
 dependencies = [
   "mypy==1.5.1",
-  "llama-index>=0.8.4",
+  "llama-index>=0.8.25",
   "pandas-stubs<=2.0.2.230605",  # version 2.0.3.230814 is causing a dependency conflict.
-  "pytest",
   "types-psutil",
-  "types-tqdm",
-  "tenacity",
   "types-tqdm",
   "types-requests",
   "types-protobuf",
@@ -281,7 +278,6 @@ module = [
   "scipy.*",
   "sklearn.*",
   "arize.*",
-  "portpicker",
   "wrapt",
   "sortedcontainers",
   "langchain.*",

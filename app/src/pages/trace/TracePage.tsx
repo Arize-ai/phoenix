@@ -17,6 +17,7 @@ import {
   Heading,
   Icon,
   Icons,
+  Label,
   List,
   ListItem,
   TabPane,
@@ -29,13 +30,24 @@ import { resizeHandleCSS } from "@phoenix/components/resize";
 import { SpanItem } from "@phoenix/components/trace/SpanItem";
 import { TraceTree } from "@phoenix/components/trace/TraceTree";
 import {
+  DOCUMENT_CONTENT,
+  DOCUMENT_ID,
+  DOCUMENT_SCORE,
   LLMAttributePostfixes,
   MESSAGE_CONTENT,
+  MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON,
+  MESSAGE_FUNCTION_CALL_NAME,
+  MESSAGE_NAME,
   MESSAGE_ROLE,
+  RetrievalAttributePostfixes,
   SemanticAttributePrefixes,
 } from "@phoenix/openInference/tracing/semanticConventions";
-import { AttributeMessage } from "@phoenix/openInference/tracing/types";
+import {
+  AttributeDocument,
+  AttributeMessage,
+} from "@phoenix/openInference/tracing/types";
 import { assertUnreachable } from "@phoenix/typeUtils";
+import { numberFormatter } from "@phoenix/utils/numberFormatUtils";
 
 import {
   MimeType,
@@ -109,14 +121,15 @@ export function TracePage() {
       isDismissable
       onDismiss={() => navigate(-1)}
     >
-      <Dialog size="L" title="Trace Details">
+      <Dialog size="XL" title="Trace Details">
         <main
           css={css`
-            height: 100%;
+            flex: 1 1 auto;
+            overflow: hidden;
           `}
         >
-          <PanelGroup direction="vertical" autoSaveId="trace-panel-group">
-            <Panel defaultSize={40}>
+          <PanelGroup direction="horizontal" autoSaveId="trace-panel-group">
+            <Panel defaultSize={30} minSize={10} maxSize={40}>
               <ScrollingTabsWrapper>
                 <Tabs>
                   <TabPane name="Tree" title="Tree">
@@ -157,6 +170,7 @@ export function TracePage() {
 function ScrollingTabsWrapper({ children }: PropsWithChildren) {
   return (
     <div
+      data-testid="scrolling-tabs-wrapper"
       css={css`
         height: 100%;
         .ac-tabs {
@@ -241,6 +255,12 @@ function SpanInfo({ span }: { span: Span }) {
   switch (spanKind) {
     case "llm": {
       content = <LLMSpanInfo span={span} spanAttributes={attributesObject} />;
+      break;
+    }
+    case "retriever": {
+      content = (
+        <RetrieverSpanInfo span={span} spanAttributes={attributesObject} />
+      );
       break;
     }
     default:
@@ -330,10 +350,104 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
   );
 }
 
+function RetrieverSpanInfo(props: {
+  span: Span;
+  spanAttributes: AttributeObject;
+}) {
+  const { spanAttributes, span } = props;
+  const { input } = span;
+  const retrieverAttributes = useMemo<AttributeObject | null>(() => {
+    const retrieverAttrs = spanAttributes[SemanticAttributePrefixes.retrieval];
+    if (typeof retrieverAttrs === "object") {
+      return retrieverAttrs as AttributeObject;
+    }
+    return null;
+  }, [spanAttributes]);
+  const documents = useMemo<AttributeDocument[]>(() => {
+    if (retrieverAttributes == null) {
+      return [];
+    }
+    return (retrieverAttributes[RetrievalAttributePostfixes.documents] ||
+      []) as AttributeDocument[];
+  }, [retrieverAttributes]);
+
+  const hasInput = input != null && input.value != null;
+  const hasDocuments = documents.length > 0;
+  return (
+    <Flex direction="column" gap="size-200">
+      <BlockView title="Input">
+        {hasInput ? <CodeBlock {...input} /> : null}
+      </BlockView>
+      {hasDocuments ? (
+        <BlockView title="Documents">
+          {
+            <ul
+              css={css`
+                padding: var(--ac-global-dimension-static-size-100);
+                display: flex;
+                flex-direction: column;
+                gap: var(--ac-global-dimension-static-size-100);
+              `}
+            >
+              {documents.map((document, idx) => {
+                return (
+                  <li key={idx}>
+                    <DocumentItem document={document} />
+                  </li>
+                );
+              })}
+            </ul>
+          }
+        </BlockView>
+      ) : null}
+    </Flex>
+  );
+}
+
+function DocumentItem({ document }: { document: AttributeDocument }) {
+  return (
+    <View borderRadius="medium" backgroundColor="light">
+      <Flex direction="column">
+        <View width="100%" borderBottomWidth="thin" borderBottomColor="dark">
+          <Flex
+            direction="row"
+            justifyContent="space-between"
+            margin="size-100"
+            alignItems="center"
+          >
+            <Flex direction="row" gap="size-50" alignItems="center">
+              <Icon svg={<Icons.FileOutline />} />
+              <Heading level={4}>document {document[DOCUMENT_ID]}</Heading>
+            </Flex>
+            {typeof document[DOCUMENT_SCORE] === "number" && (
+              <Label color="blue">{`score ${numberFormatter(
+                document[DOCUMENT_SCORE]
+              )}`}</Label>
+            )}
+          </Flex>
+        </View>
+        <pre
+          css={css`
+            padding: var(--px-spacing-lg);
+            white-space: normal;
+            margin: 0;
+          `}
+        >
+          {document[DOCUMENT_CONTENT]}
+        </pre>
+      </Flex>
+    </View>
+  );
+}
+
 function LLMMessagesList({ messages }: { messages: AttributeMessage[] }) {
   return (
     <ul>
       {messages.map((message, idx) => {
+        const messageContent = message[MESSAGE_CONTENT];
+        const hasFunctionCall =
+          message[MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON] &&
+          message[MESSAGE_FUNCTION_CALL_NAME];
         return (
           <li key={idx}>
             <View
@@ -345,15 +459,36 @@ function LLMMessagesList({ messages }: { messages: AttributeMessage[] }) {
               <Flex direction="column" alignItems="start" gap="size-100">
                 <Text color="white70" fontStyle="italic">
                   {message[MESSAGE_ROLE]}
+                  {message[MESSAGE_NAME] ? `: ${message[MESSAGE_NAME]}` : ""}
                 </Text>
-                <pre
-                  css={css`
-                    text-wrap: wrap;
-                    margin: 0;
-                  `}
-                >
-                  {message[MESSAGE_CONTENT]}
-                </pre>
+                {messageContent ? (
+                  <pre
+                    css={css`
+                      text-wrap: wrap;
+                      margin: 0;
+                    `}
+                  >
+                    {message[MESSAGE_CONTENT]}
+                  </pre>
+                ) : null}
+                {hasFunctionCall ? (
+                  <pre
+                    css={css`
+                      text-wrap: wrap;
+                      margin: 0;
+                    `}
+                  >
+                    {message[MESSAGE_FUNCTION_CALL_NAME] as string}(
+                    {JSON.stringify(
+                      JSON.parse(
+                        message[MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON] as string
+                      ),
+                      null,
+                      2
+                    )}
+                    )
+                  </pre>
+                ) : null}
               </Flex>
             </View>
           </li>

@@ -8,9 +8,8 @@ from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING, Dict, Iterable, List, Optional, Set, Union
 
 import pandas as pd
-from portpicker import pick_unused_port
 
-from phoenix.config import HOST, PORT, get_exported_files
+from phoenix.config import get_env_host, get_env_port, get_exported_files
 from phoenix.core.model_schema_adapter import create_model_from_datasets
 from phoenix.core.traces import Traces
 from phoenix.core.umap_parameters import UMAPParameters
@@ -72,8 +71,8 @@ class Session(ABC):
         corpus_dataset: Optional[Dataset] = None,
         trace_dataset: Optional[TraceDataset] = None,
         default_umap_parameters: Optional[Dict[str, int]] = None,
-        host: str = HOST,
-        port: int = PORT,
+        host: Optional[str] = None,
+        port: Optional[int] = None,
     ):
         self.primary_dataset = primary_dataset
         self.reference_dataset = reference_dataset
@@ -102,8 +101,8 @@ class Session(ABC):
             for span in trace_dataset.to_spans():
                 self.traces.put(span)
 
-        self.host = host
-        self.port = port
+        self.host = host or get_env_host()
+        self.port = port or get_env_port()
         self.temp_dir = TemporaryDirectory()
         self.export_path = Path(self.temp_dir.name) / "exports"
         self.export_path.mkdir(parents=True, exist_ok=True)
@@ -183,8 +182,8 @@ class ProcessSession(Session):
         corpus_dataset: Optional[Dataset] = None,
         trace_dataset: Optional[TraceDataset] = None,
         default_umap_parameters: Optional[Dict[str, int]] = None,
-        host: str = HOST,
-        port: int = PORT,
+        host: Optional[str] = None,
+        port: Optional[int] = None,
     ) -> None:
         super().__init__(
             primary_dataset=primary_dataset,
@@ -193,13 +192,15 @@ class ProcessSession(Session):
             trace_dataset=trace_dataset,
             default_umap_parameters=default_umap_parameters,
             host=host,
-            port=port or PORT,
+            port=port,
         )
         primary_dataset.to_disc()
         if isinstance(reference_dataset, Dataset):
             reference_dataset.to_disc()
         if isinstance(corpus_dataset, Dataset):
             corpus_dataset.to_disc()
+        if isinstance(trace_dataset, TraceDataset):
+            trace_dataset.to_disc()
         # Initialize an app service that keeps the server running
         self.app_service = AppService(
             self.export_path,
@@ -235,8 +236,8 @@ class ThreadSession(Session):
         corpus_dataset: Optional[Dataset] = None,
         trace_dataset: Optional[TraceDataset] = None,
         default_umap_parameters: Optional[Dict[str, int]] = None,
-        host: str = HOST,
-        port: int = PORT,
+        host: Optional[str] = None,
+        port: Optional[int] = None,
     ):
         super().__init__(
             primary_dataset=primary_dataset,
@@ -245,7 +246,7 @@ class ThreadSession(Session):
             trace_dataset=trace_dataset,
             default_umap_parameters=default_umap_parameters,
             host=host,
-            port=port or pick_unused_port(),
+            port=port,
         )
         # Initialize an app service that keeps the server running
         self.app = create_app(
@@ -278,8 +279,8 @@ def launch_app(
     corpus: Optional[Dataset] = None,
     trace: Optional[TraceDataset] = None,
     default_umap_parameters: Optional[Dict[str, Union[int, float]]] = None,
-    host: str = HOST,
-    port: int = PORT,
+    host: Optional[str] = None,
+    port: Optional[int] = None,
     run_in_thread: bool = True,
 ) -> Optional[Session]:
     """
@@ -296,10 +297,12 @@ def launch_app(
         The dataset containing corpus for LLM context retrieval.
     trace: TraceDataset, optional
         **Experimental** The trace dataset containing the trace data.
-    host: str
-        The host on which the server runs.
-    port: int
-        The port on which the server listens.
+    host: str, optional
+        The host on which the server runs. It can also be set using environment
+        variable `PHOENIX_HOST`, otherwise it defaults to `127.0.0.1`.
+    port: int, optional
+        The port on which the server listens. It can also be set using environment
+        variable `PHOENIX_PORT`, otherwise it defaults to 6060.
     run_in_thread: bool, optional, default=True
         Whether the server should run in a Thread or Process.
     default_umap_parameters: Dict[str, Union[int, float]], optional, default=None
@@ -325,27 +328,30 @@ def launch_app(
         # TODO: pass through the lack of a primary dataset to the app
         primary = EMPTY_DATASET
 
+    if _session is not None and _session.active:
+        logger.warning(
+            "Existing running Phoenix instance detected! Shutting "
+            "it down and starting a new instance..."
+        )
+        _session.end()
+
     if run_in_thread:
-        if _session is not None and _session.active:
-            logger.warning(
-                "Existing running Phoenix instance detected! Shutting "
-                "it down and starting a new instance..."
-            )
-            _session.end()
         _session = ThreadSession(
-          primary, reference, corpus, trace, default_umap_parameters, host=host, port=port
+            primary, reference, corpus, trace, default_umap_parameters, host=host, port=port
         )
         # TODO: catch exceptions from thread
-        if not _session.active:
-            logger.error(
-                "💥 Phoenix failed to start. Please try again or file an issue "
-                "with us at https://github.com/Arize-ai/phoenix"
-            )
-            return None
     else:
         _session = ProcessSession(
           primary, reference, corpus, trace, default_umap_parameters, host=host, port=port
         )
+
+    if not _session.active:
+        logger.error(
+            f"💥 Phoenix failed to start. Please try again (making sure that "
+            f"port {port} is not occupied by another process) or file an issue "
+            f"with us at https://github.com/Arize-ai/phoenix"
+        )
+        return None
 
     print(f"🌍 To view the Phoenix app in your browser, visit {_session.url}")
     print("📺 To view the Phoenix app in a notebook, run `px.active_session().view()`")
