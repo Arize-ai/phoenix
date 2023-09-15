@@ -24,6 +24,7 @@ from phoenix.trace.semantic_conventions import (
     LLM_INVOCATION_PARAMETERS,
     LLM_MESSAGES,
     LLM_MODEL_NAME,
+    LLM_PROMPT,
     LLM_TOKEN_COUNT_COMPLETION,
     LLM_TOKEN_COUNT_PROMPT,
     LLM_TOKEN_COUNT_TOTAL,
@@ -37,18 +38,27 @@ from phoenix.trace.semantic_conventions import (
 TEXT_EMBEDDING_ADA_002_EMBEDDING_DIM = 1536
 
 
+@pytest.fixture
+def model_name(request):
+    return request.param
+
+
 @pytest.fixture(scope="session")
-def index() -> VectorStoreIndex:
+def storage_context() -> StorageContext:
     file_system = GCSFileSystem(project="public-assets-275721")
     index_path = "arize-assets/phoenix/datasets/unstructured/llm/llama-index/arize-docs/index/"
-    storage_context = StorageContext.from_defaults(
+    return StorageContext.from_defaults(
         fs=file_system,
         persist_dir=index_path,
         graph_store=SimpleGraphStore(),  # prevents unauthorized request to GCS
     )
+
+
+@pytest.fixture
+def index(model_name: str, storage_context: StorageContext) -> VectorStoreIndex:
     callback_handler = OpenInferenceTraceCallbackHandler(exporter=NoOpExporter())
     service_context = ServiceContext.from_defaults(
-        llm=OpenAI(model="gpt-3.5-turbo", temperature=0),
+        llm=OpenAI(model=model_name, temperature=0),
         embed_model=OpenAIEmbedding(model="text-embedding-ada-002"),
         callback_manager=CallbackManager(handlers=[callback_handler]),
     )
@@ -72,7 +82,9 @@ def query_engine(index: VectorStoreIndex) -> RetrieverQueryEngine:
     return index.as_query_engine()
 
 
+@pytest.mark.parametrize("model_name", ["text-davinci-003", "gpt-3.5-turbo"], indirect=True)
 def test_callback_handler_records_llm_and_embedding_attributes_for_query_engine(
+    model_name: str,
     query_engine: RetrieverQueryEngine,
 ) -> None:
     query = "How should timestamps be formatted?"
@@ -83,15 +95,20 @@ def test_callback_handler_records_llm_and_embedding_attributes_for_query_engine(
     tracer = query_engine.callback_manager.handlers[0]._tracer
     spans = list(tracer.get_spans())
     span = next(span for span in spans if span.span_kind == SpanKind.LLM)
-    assert span.attributes.get(LLM_MODEL_NAME) == "gpt-3.5-turbo"
+    assert span.attributes.get(LLM_MODEL_NAME) == model_name
     assert span.attributes.get(LLM_TOKEN_COUNT_PROMPT, 0) > 0
     assert span.attributes.get(LLM_TOKEN_COUNT_COMPLETION, 0) > 0
     assert span.attributes.get(LLM_TOKEN_COUNT_TOTAL, 0) > 0
-    messages = span.attributes[LLM_MESSAGES]
 
-    assert messages[0][MESSAGE_ROLE] == "system"
-    assert messages[1][MESSAGE_ROLE] == "user"
-    assert query in messages[1][MESSAGE_CONTENT]
+    is_chat_model = model_name.startswith("gpt")
+    if is_chat_model:
+        messages = span.attributes[LLM_MESSAGES]
+        assert messages[0][MESSAGE_ROLE] == "system"
+        assert messages[1][MESSAGE_ROLE] == "user"
+        assert query in messages[1][MESSAGE_CONTENT]
+    else:
+        prompt = span.attributes[LLM_PROMPT]
+        assert query in prompt
 
     span = next(span for span in spans if span.span_kind == SpanKind.EMBEDDING)
     assert span.attributes.get(EMBEDDING_MODEL_NAME) == "text-embedding-ada-002"

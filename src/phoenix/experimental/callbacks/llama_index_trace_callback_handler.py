@@ -23,7 +23,7 @@ from llama_index.callbacks.schema import (
     CBEventType,
     EventPayload,
 )
-from llama_index.llms.base import ChatMessage
+from llama_index.llms.base import ChatMessage, ChatResponse
 from llama_index.tools import ToolMetadata
 from openai.openai_object import OpenAIObject
 
@@ -43,6 +43,7 @@ from phoenix.trace.semantic_conventions import (
     LLM_INVOCATION_PARAMETERS,
     LLM_MESSAGES,
     LLM_MODEL_NAME,
+    LLM_PROMPT,
     LLM_TOKEN_COUNT_COMPLETION,
     LLM_TOKEN_COUNT_PROMPT,
     LLM_TOKEN_COUNT_TOTAL,
@@ -106,7 +107,7 @@ def payload_to_semantic_attributes(
             for node_with_score in payload[EventPayload.NODES]
         ]
     if EventPayload.PROMPT in payload:
-        ...
+        attributes[LLM_PROMPT] = payload[EventPayload.PROMPT]
     if EventPayload.MESSAGES in payload:
         messages = payload[EventPayload.MESSAGES]
         # Messages is only relevant to the LLM invocation
@@ -118,11 +119,8 @@ def payload_to_semantic_attributes(
             # the agent step contains a message that is actually the input
             # akin to the query_str
             attributes[INPUT_VALUE] = _message_payload_to_str(messages[0])
-    if EventPayload.COMPLETION in payload:
-        ...
-    if EventPayload.RESPONSE in payload:
-        response = payload[EventPayload.RESPONSE]
-        attributes[OUTPUT_VALUE] = str(response)
+    if response := (payload.get(EventPayload.RESPONSE) or payload.get(EventPayload.COMPLETION)):
+        attributes[OUTPUT_VALUE] = _get_response_content(response)
         attributes[OUTPUT_MIME_TYPE] = MimeType.TEXT
         if raw := getattr(response, "raw", None):
             if isinstance(raw, OpenAIObject):
@@ -354,3 +352,13 @@ def _message_payload_to_str(message: Any) -> Optional[str]:
         return message.content
 
     return str(message)
+
+
+def _get_response_content(response: Any) -> str:
+    """
+    Gets content from response objects. This is needed since the string representation of some
+    response objects includes extra information in addition to the content itself.
+    """
+    if isinstance(response, ChatResponse):
+        return response.message.content or ""
+    return str(response)
