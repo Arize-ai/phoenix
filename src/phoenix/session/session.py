@@ -12,7 +12,7 @@ import pandas as pd
 from phoenix.config import get_env_host, get_env_port, get_exported_files
 from phoenix.core.model_schema_adapter import create_model_from_datasets
 from phoenix.core.traces import Traces
-from phoenix.core.umap_parameters import UMAPParameters
+from phoenix.pointcloud.umap_parameters import get_umap_parameters
 from phoenix.datasets.dataset import EMPTY_DATASET, Dataset
 from phoenix.server.app import create_app
 from phoenix.server.thread_server import ThreadServer
@@ -78,11 +78,7 @@ class Session(ABC):
         self.reference_dataset = reference_dataset
         self.corpus_dataset = corpus_dataset
         self.trace_dataset = trace_dataset
-        self.config = (
-            UMAPParameters(default_umap_parameters)
-            if default_umap_parameters is not None
-            else None,
-        )
+        self.umap_parameters = get_umap_parameters(default_umap_parameters)
         self.model = create_model_from_datasets(
             primary_dataset,
             reference_dataset,
@@ -254,7 +250,7 @@ class ThreadSession(Session):
             model=self.model,
             corpus=self.corpus,
             traces=self.traces,
-            config=self.config,
+            umap_parameters=self.umap_parameters,
         )
         self.server = ThreadServer(
             app=self.app,
@@ -342,7 +338,7 @@ def launch_app(
         # TODO: catch exceptions from thread
     else:
         _session = ProcessSession(
-          primary, reference, corpus, trace, default_umap_parameters, host=host, port=port
+            primary, reference, corpus, trace, default_umap_parameters, host=host, port=port
         )
 
     if not _session.active:

@@ -20,7 +20,7 @@ from strawberry.schema import BaseSchema
 from phoenix.config import SERVER_DIR
 from phoenix.core.model_schema import Model
 from phoenix.core.traces import Traces
-from phoenix.core.umap_parameters import UMAPParameters
+from phoenix.pointcloud.umap_parameters import UMAPParameters
 from phoenix.server.api.context import Context
 from phoenix.server.api.schema import schema
 from phoenix.server.span_handler import SpanHandler
@@ -66,15 +66,15 @@ class GraphQLWithContext(GraphQL):  # type: ignore
         schema: BaseSchema,
         model: Model,
         export_path: Path,
+        umap_parameters: UMAPParameters,
         graphiql: bool = False,
         corpus: Optional[Model] = None,
         traces: Optional[Traces] = None,
-        config: Optional[UMAPParameters] = None,
     ) -> None:
         self.model = model
         self.corpus = corpus
         self.traces = traces
-        self.config = config
+        self.umap_parameters = umap_parameters
         self.export_path = export_path
         super().__init__(schema, graphiql=graphiql)
 
@@ -89,7 +89,7 @@ class GraphQLWithContext(GraphQL):  # type: ignore
             model=self.model,
             corpus=self.corpus,
             traces=self.traces,
-            config=self.config,
+            umap_parameters=self.umap_parameters,
             export_path=self.export_path,
         )
 
@@ -112,9 +112,9 @@ class Download(HTTPEndpoint):
 def create_app(
     export_path: Path,
     model: Model,
+    umap_parameters: UMAPParameters,
     corpus: Optional[Model] = None,
     traces: Optional[Traces] = None,
-    config: Optional[UMAPParameters] = None,
     debug: bool = False,
 ) -> Starlette:
     graphql = GraphQLWithContext(
@@ -122,7 +122,7 @@ def create_app(
         model=model,
         corpus=corpus,
         traces=traces,
-        config=config,
+        umap_parameters=umap_parameters,
         export_path=export_path,
         graphiql=True,
     )
