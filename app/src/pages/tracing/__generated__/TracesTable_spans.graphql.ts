@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<3a0b03eb05403c643ba53ccaefb355b7>>
+ * @generated SignedSource<<3b52a3d3a3cd9d7ca78911e3d59725fe>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -20,12 +20,16 @@ export type TracesTable_spans$data = {
           readonly spanId: string;
           readonly traceId: string;
         };
+        readonly cumulativeTokenCountCompletion: number | null;
+        readonly cumulativeTokenCountPrompt: number | null;
         readonly cumulativeTokenCountTotal: number | null;
         readonly descendants: ReadonlyArray<{
           readonly context: {
             readonly spanId: string;
             readonly traceId: string;
           };
+          readonly cumulativeTokenCountCompletion: number | null;
+          readonly cumulativeTokenCountPrompt: number | null;
           readonly cumulativeTokenCountTotal: number | null;
           readonly input: {
             readonly value: string;
@@ -255,6 +259,20 @@ return {
                   "name": "cumulativeTokenCountTotal",
                   "storageKey": null
                 },
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "cumulativeTokenCountPrompt",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "cumulativeTokenCountCompletion",
+                  "storageKey": null
+                },
                 (v6/*: any*/),
                 (v8/*: any*/),
                 (v9/*: any*/),
@@ -278,6 +296,20 @@ return {
                       "args": null,
                       "kind": "ScalarField",
                       "name": "tokenCountTotal",
+                      "storageKey": null
+                    },
+                    {
+                      "alias": "cumulativeTokenCountPrompt",
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "tokenCountPrompt",
+                      "storageKey": null
+                    },
+                    {
+                      "alias": "cumulativeTokenCountCompletion",
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "tokenCountCompletion",
                       "storageKey": null
                     },
                     (v8/*: any*/),
@@ -351,6 +383,6 @@ return {
 };
 })();
 
-(node as any).hash = "39c857c68cf8fa7a81302715ee9092b9";
+(node as any).hash = "0921c61cd7142454d7d05e273a49912e";
 
 export default node;

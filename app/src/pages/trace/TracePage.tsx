@@ -79,6 +79,9 @@ export function TracePage() {
               startTime
               parentId
               latencyMs
+              tokenCountTotal
+              tokenCountPrompt
+              tokenCountCompletion
               input {
                 value
                 mimeType
@@ -123,7 +126,7 @@ export function TracePage() {
             <Panel defaultSize={30} minSize={10} maxSize={40}>
               <ScrollingTabsWrapper>
                 <Tabs>
-                  <TabPane name="Tree" title="Tree">
+                  <TabPane name="Tree">
                     <TraceTree
                       spans={spansList}
                       selectedSpanId={selectedSpanId}
