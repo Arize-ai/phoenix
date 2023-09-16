@@ -4,7 +4,7 @@ from typing import List, Optional, Union
 import pandas as pd
 
 from ..models import BaseEvalModel
-from ..models.openai import OpenAiModel
+from ..models.openai import OpenAIModel
 from ..templates import PromptTemplate, normalize_template
 from .common import map_template
 
@@ -40,7 +40,7 @@ def llm_generate(
         model for each record
 
     """
-    model = model or OpenAiModel()
+    model = model or OpenAIModel()
     template = normalize_template(template)
     logger.info(f"Template: \n{template.text}\n")
     logger.info(f"Template variables: {template.variables}")
