@@ -3,47 +3,62 @@ import { createRoutesFromElements, Route, RouterProvider } from "react-router";
 import { createBrowserRouter } from "react-router-dom";
 
 import { embeddingLoaderQuery$data } from "./pages/embedding/__generated__/embeddingLoaderQuery.graphql";
+import { TracingHomePage } from "./pages/tracing";
 import {
-  Dimension,
   dimensionLoader,
-  Embedding,
+  DimensionPage,
   embeddingLoader,
+  EmbeddingPage,
   ErrorElement,
-  Home,
+  homeLoader,
   Layout,
+  ModelPage,
+  ModelRoot,
+  TracePage,
 } from "./pages";
 
 const router = createBrowserRouter(
   createRoutesFromElements(
-    <Route
-      path="/"
-      element={<Layout />}
-      handle={{ crumb: () => "Home" }}
-      errorElement={<ErrorElement />}
-    >
-      <Route index element={<Home />} />
-      <Route element={<Home />}>
-        <Route path="/dimensions">
+    <Route path="/" element={<Layout />} errorElement={<ErrorElement />}>
+      <Route index loader={homeLoader} />
+      <Route
+        path="/model"
+        handle={{ crumb: () => "model" }}
+        element={<ModelRoot />}
+      >
+        <Route index element={<ModelPage />} />
+        <Route element={<ModelPage />}>
+          <Route path="dimensions">
+            <Route
+              path=":dimensionId"
+              element={<DimensionPage />}
+              loader={dimensionLoader}
+            />
+          </Route>
+        </Route>
+        <Route path="embeddings">
           <Route
-            path="/dimensions/:dimensionId"
-            element={<Dimension />}
-            loader={dimensionLoader}
+            path=":embeddingDimensionId"
+            element={<EmbeddingPage />}
+            loader={embeddingLoader}
+            handle={{
+              // `crumb` is your own abstraction, we decided
+              // to make this one a function so we can pass
+              // the data from the loader to it so that our
+              // breadcrumb is made up of dynamic content
+              crumb: (data: embeddingLoaderQuery$data) => data.embedding.name,
+            }}
           />
         </Route>
       </Route>
-      <Route path="/embeddings">
-        <Route
-          path="/embeddings/:embeddingDimensionId"
-          element={<Embedding />}
-          loader={embeddingLoader}
-          handle={{
-            // `crumb` is your own abstraction, we decided
-            // to make this one a function so we can pass
-            // the data from the loader to it so that our
-            // breadcrumb is made up of dynamic content
-            crumb: (data: embeddingLoaderQuery$data) => data.embedding.name,
-          }}
-        />
+      <Route
+        path="/tracing"
+        handle={{ crumb: () => "tracing" }}
+        element={<TracingHomePage />}
+      >
+        <Route path="traces">
+          <Route path=":traceId" element={<TracePage />} />
+        </Route>
       </Route>
     </Route>
   )

@@ -49,6 +49,7 @@ from typing_extensions import TypeAlias, TypeGuard
 from wrapt import ObjectProxy
 
 from phoenix.config import GENERATED_DATASET_NAME_PREFIX
+from phoenix.datetime_utils import floor_to_minute
 
 
 class DimensionRole(IntEnum):
@@ -328,10 +329,7 @@ class Column:
             except KeyError:
                 # It's important to glue the index to the default series,
                 # so it would look like the series came from the dataframe.
-                return self._default(len(data)).set_axis(
-                    data.index,
-                    copy=False,
-                )
+                return self._default(len(data)).set_axis(data.index)
         if isinstance(data, pd.Series):
             try:
                 return data.at[self.name]
@@ -657,8 +655,8 @@ class Events(ModelData):
         # open and one minute is the smallest interval allowed.
         stop_time = end_time + timedelta(minutes=1)
         # Round down to the nearest minute.
-        start = _floor_to_minute(start_time)
-        stop = _floor_to_minute(stop_time)
+        start = floor_to_minute(start_time)
+        stop = floor_to_minute(stop_time)
         return TimeRange(start, stop)
 
     def __iter__(self) -> Iterator[Event]:
@@ -721,6 +719,10 @@ class Dataset(Events):
     def role(self) -> DatasetRole:
         return self._self_role
 
+    @property
+    def is_empty(self) -> bool:
+        return len(self) == 0
+
     @cached_property
     def primary_key(self) -> pd.Index:
         return pd.Index(self[PREDICTION_ID])
@@ -736,10 +738,7 @@ class Dataset(Events):
     def __getitem__(self, key: Any) -> Any:
         if isinstance(key, list):
             return Events(
-                self.iloc[key].set_axis(
-                    key,
-                    copy=False,
-                ),
+                self.iloc[key].set_axis(key),
                 role=self._self_role,
                 _model=self._self_model,
             )
@@ -912,6 +911,11 @@ class Model:
             self._datasets[dataset_role] = self._new_dataset(
                 df, name=dataset.name, role=dataset_role
             )
+
+    @cached_property
+    def is_empty(self) -> bool:
+        """Returns True if the model has no data."""
+        return not any(map(len, self._datasets.values()))
 
     def export_rows_as_parquet_file(
         self,
@@ -1390,7 +1394,6 @@ def _coerce_str_column_names(
         df.set_axis(
             df.columns.astype(str),
             axis=1,
-            copy=False,
         )
         for df in dataframes
     )
@@ -1430,32 +1433,6 @@ _id_pat = re.compile(r"\bid\b", re.IGNORECASE)
 def _title_case_no_underscore(name: str) -> str:
     """E.g. `PREDICTION_ID` turns into `Prediction ID`"""
     return _id_pat.sub("ID", name.replace("_", " ").title())
-
-
-MINUTE_DATETIME_FORMAT = "%Y-%m-%dT%H:%M:00%z"
-
-
-def _floor_to_minute(dt: datetime) -> datetime:
-    """Floor datetime to the minute by taking a round-trip through string
-    format because there isn't always an available function to strip the
-    nanoseconds if present."""
-    try:
-        dt_as_string = dt.astimezone(
-            timezone.utc,
-        ).strftime(
-            MINUTE_DATETIME_FORMAT,
-        )
-    except ValueError:
-        # NOTE: as of Python 3.8.16, pandas 1.5.3:
-        # >>> isinstance(pd.NaT, datetime.datetime)
-        # True
-        return cast(datetime, pd.NaT)
-    return datetime.strptime(
-        dt_as_string,
-        MINUTE_DATETIME_FORMAT,
-    ).astimezone(
-        timezone.utc,
-    )
 
 
 def _jsonify(obj: Any) -> Any:

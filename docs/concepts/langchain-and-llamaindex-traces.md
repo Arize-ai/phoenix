@@ -100,7 +100,7 @@ In many cases teams may want to stream spans from an active instantiation of Lan
 
 ```python
 import phoenix as px
-px.launch_app() 
+px.launch_app()
 ```
 
 The above instantiation is used for streaming. One-click options _coming soon_ for directing spans to specific locations.&#x20;
@@ -138,25 +138,23 @@ In development, you may want to go from a collection of span data in Phoenix tha
 
 from phoenix.experimental.evals import run_relevance_eval
 #In a python environment that is running the active session
-trace_df = px.active_session().get_span_dataframe('span_kind == "RETRIEVER"')
+trace_df = px.active_session().get_spans_dataframe('span_kind == "RETRIEVER"')
 #You can export back to a notebook for running Evals
 trace_df["llm_assisted_relevance"] = run_relevance_eval(trace_df)
 
 ```
 
-The above example shows how you can export spans out of the current running session, in this case only the span\_kind reriever.&#x20;
+The above example shows how you can export spans out of the current running session, in this case only the span_kind reriever.&#x20;
 
 ## Span Types
 
-The span types from LLM Frameworks determine the attributes and functionality supported.
+The the span types from LLM Frameworks determine the attributes and functionality supported.
 
 <figure><img src="../.gitbook/assets/Screenshot 2023-09-09 at 9.15.30 AM (2).png" alt=""><figcaption></figcaption></figure>
 
 #### _**Chain:**_
 
 Overall chain object for chaining together LLM Spans, can include sub chains. This will typically be the top span call that starts the LLM Framework.
-
-
 
 **Agent:**
 
@@ -182,7 +180,6 @@ Calls to external tools from an LLM&#x20;
 
 Phoenix can be used to troubleshoot traces by pinpointing the timing problems, evaluation performance and points of breakage of specific chains. \
 
-
 <figure><img src="../.gitbook/assets/Screenshot 2023-09-02 at 3.15.31 PM.png" alt=""><figcaption><p>Trace problems in Spans</p></figcaption></figure>
 
 The above trace shows a retrieval run by LlamaIndex and the Chain/Retriever/Embedding/LLM spans that comprise that trace. The timing can be debugged be sorting the spans or going to a particular LLM span. &#x20;
@@ -190,7 +187,6 @@ The above trace shows a retrieval run by LlamaIndex and the Chain/Retriever/Embe
 <figure><img src="../.gitbook/assets/Screenshot 2023-09-09 at 9.55.08 AM.png" alt=""><figcaption><p>Stream Traces</p></figcaption></figure>
 
 The above shows a set of traces in Phoenix streamed in from a running session.\
-
 
 <figure><img src="../.gitbook/assets/Screenshot 2023-09-09 at 9.55.24 AM.png" alt=""><figcaption><p>Decomposition of Spans</p></figcaption></figure>
 

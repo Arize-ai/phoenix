@@ -40,11 +40,6 @@ class Model:
         include: Optional[DimensionFilter] = UNSET,
         exclude: Optional[DimensionFilter] = UNSET,
     ) -> Connection[Dimension]:
-        """
-        A non-trivial implementation should efficiently fetch only
-        the necessary books after the offset.
-        For simplicity, here we build the list and then slice it accordingly
-        """
         model = info.context.model
         return connection_from_list(
             [
@@ -68,6 +63,7 @@ class Model:
         return Dataset(
             start_time=start,
             end_time=stop,
+            record_count=len(dataset),
             dataset=dataset,
             dataset_role=DatasetRole.primary,
             model=info.context.model,
@@ -81,6 +77,7 @@ class Model:
         return Dataset(
             start_time=start,
             end_time=stop,
+            record_count=len(dataset),
             dataset=dataset,
             dataset_role=DatasetRole.reference,
             model=info.context.model,
@@ -96,6 +93,7 @@ class Model:
         return Dataset(
             start_time=start,
             end_time=stop,
+            record_count=len(dataset),
             dataset=dataset,
             dataset_role=AncillaryDatasetRole.corpus,
             model=info.context.corpus,

@@ -1,6 +1,8 @@
 from collections import defaultdict
+from datetime import datetime
 from itertools import chain
-from typing import Dict, List, Optional, Set, Union
+from typing import Dict, List, Optional, Set, Tuple, Union, cast
+from uuid import UUID
 
 import numpy as np
 import numpy.typing as npt
@@ -12,10 +14,17 @@ from typing_extensions import Annotated
 from phoenix.pointcloud.clustering import Hdbscan
 from phoenix.server.api.helpers import ensure_list
 from phoenix.server.api.input_types.ClusterInput import ClusterInput
+from phoenix.server.api.input_types.Coordinates import (
+    InputCoordinate2D,
+    InputCoordinate3D,
+)
+from phoenix.server.api.input_types.SpanSort import SpanSort
 from phoenix.server.api.types.Cluster import Cluster, to_gql_clusters
 
+from ...trace.filter import SpanFilter
 from .context import Context
-from .input_types import Coordinates
+from .input_types.TimeRange import TimeRange
+from .types.DatasetInfo import DatasetInfo
 from .types.DatasetRole import AncillaryDatasetRole, DatasetRole
 from .types.Dimension import to_gql_dimension
 from .types.EmbeddingDimension import (
@@ -26,12 +35,24 @@ from .types.EmbeddingDimension import (
 )
 from .types.Event import create_event_id, unpack_event_id
 from .types.ExportEventsMutation import ExportEventsMutation
+from .types.Functionality import Functionality
 from .types.Model import Model
 from .types.node import GlobalID, Node, from_global_id
+from .types.pagination import Connection, ConnectionArgs, Cursor, connection_from_list
+from .types.Span import Span, to_gql_span
 
 
 @strawberry.type
 class Query:
+    @strawberry.field
+    def functionality(self, info: Info[Context, None]) -> "Functionality":
+        has_model_inferences = not info.context.model.is_empty
+        has_traces = info.context.traces is not None
+        return Functionality(
+            model_inferences=has_model_inferences,
+            tracing=has_traces,
+        )
+
     @strawberry.field
     def model(self) -> Model:
         return Model()
@@ -71,13 +92,13 @@ class Query:
             ),
         ],
         coordinates_2d: Annotated[
-            Optional[List[Coordinates.InputCoordinate2D]],
+            Optional[List[InputCoordinate2D]],
             strawberry.argument(
                 description="Point coordinates. Must be either 2D or 3D.",
             ),
         ] = UNSET,
         coordinates_3d: Annotated[
-            Optional[List[Coordinates.InputCoordinate3D]],
+            Optional[List[InputCoordinate3D]],
             strawberry.argument(
                 description="Point coordinates. Must be either 2D or 3D.",
             ),
@@ -176,6 +197,66 @@ class Query:
 
         return to_gql_clusters(
             clustered_events=clustered_events,
+        )
+
+    @strawberry.field
+    def spans(
+        self,
+        info: Info[Context, None],
+        time_range: Optional[TimeRange] = UNSET,
+        trace_ids: Optional[List[ID]] = UNSET,
+        first: Optional[int] = 50,
+        last: Optional[int] = UNSET,
+        after: Optional[Cursor] = UNSET,
+        before: Optional[Cursor] = UNSET,
+        sort: Optional[SpanSort] = UNSET,
+        root_spans_only: Optional[bool] = False,
+        filter_condition: Optional[str] = None,
+    ) -> Connection[Span]:
+        args = ConnectionArgs(
+            first=first,
+            after=after if isinstance(after, Cursor) else None,
+            last=last,
+            before=before if isinstance(before, Cursor) else None,
+        )
+        if (traces := info.context.traces) is None:
+            return connection_from_list(data=[], args=args)
+        try:
+            predicate = SpanFilter(filter_condition) if filter_condition else None
+        except SyntaxError as e:
+            raise Exception(f"invalid filter condition: {e.msg}") from e  # TODO: add details
+        if not trace_ids:
+            spans = traces.get_spans(
+                start_time=time_range.start if time_range else None,
+                stop_time=time_range.end if time_range else None,
+                root_spans_only=root_spans_only,
+            )
+        else:
+            spans = chain.from_iterable(map(traces.get_trace, map(UUID, trace_ids)))
+        if predicate:
+            spans = filter(predicate, spans)
+        if sort:
+            spans = sort(spans)
+        data = list(map(to_gql_span, spans))
+        return connection_from_list(data=data, args=args)
+
+    @strawberry.field
+    def trace_dataset_info(
+        self,
+        info: Info[Context, None],
+    ) -> Optional[DatasetInfo]:
+        if (traces := info.context.traces) is None:
+            return None
+        if not (span_count := traces.span_count):
+            return None
+        start_time, stop_time = cast(
+            Tuple[datetime, datetime],
+            traces.right_open_time_range,
+        )
+        return DatasetInfo(
+            start_time=start_time,
+            end_time=stop_time,
+            record_count=span_count,
         )
 
 

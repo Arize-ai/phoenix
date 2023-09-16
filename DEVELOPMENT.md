@@ -147,6 +147,17 @@ pip install jupyter
 
 and run the notebooks in the `examples` directory.
 
+## Installing a `git` Branch on Colab
+
+The code below installs the `main` branch in [Colab](https://colab.research.google.com/notebooks/empty.ipynb) and takes roughly 3 minutes to run. 
+
+```jupyterpython
+!npm install -g -s n
+!n latest
+!npm install -g -s npm@latest
+%pip install -qqq git+https://github.com/Arize-ai/phoenix.git@main
+```
+
 ## Setting Up Your Windows Test Environment
 
 It is occasionally necessary to manually test a `phoenix` build or to run `phoenix` from source on Windows. The following instructions enable macOS developers who do not have a PC to quickly set up a Windows Python environment in a cloud or local virtual machine.
@@ -250,10 +261,11 @@ To publish a new release, follow the steps below.
 1. Make sure your branch is up-to-date with `main`
 2. Update the version number in `src/phoenix/__init__.py`
 3. By default, the web app is not re-built. Run `npm run build` in the app directory to re-build the web app.
-4. clear the `dist` folder just to be safe.
-5. Build the package with `hatch build`
-6. Publish the package with `hatch publish -u __token__`. Note you must publish using a pypi token. The token should be stored securely in your `.pypirc` file (see [docs](https://packaging.python.org/en/latest/specifications/pypirc/))
-7. Commit the changes using the version number as the message (e.x. `0.0.1`) and get it into to `main`
-8. Using the [GitHub CLI](https://cli.github.com/), create a draft release with `gh release create <version> --generate-notes --draft`
-9. Edit the release notes as needed and publish the release. This will trigger a slack notification to the `#phoenix-releases` channel.
-10. A conda-forge PR will be automatically created. If the PR is not created, you can create it manually by following the instructions [here](https://conda-forge.org/docs/maintainer/updating_pkgs.html#forking-and-pull-requests).
+4. Remove the `dist` folder with `rm -rf dist`.
+5. Change directory to `app` and run `rm -rf node_modules && npm install && npm run build`.
+6. From the root directory of the repo, build the package with `hatch build`.
+7. Publish the package with `hatch publish -u __token__`. Note you must publish using a pypi token. The token should be stored securely in your `.pypirc` file (see [docs](https://packaging.python.org/en/latest/specifications/pypirc/))
+8. Commit the changes using the version number as the message (e.x. `0.0.1`) and get it into to `main`
+9. Using the [GitHub CLI](https://cli.github.com/), create a draft release with `gh release create <version> --generate-notes --draft`
+10. Edit the release notes as needed and publish the release. This will trigger a slack notification to the `#phoenix-releases` channel.
+11. A conda-forge PR will be automatically created. If the PR is not created, you can create it manually by following the instructions [here](https://conda-forge.org/docs/maintainer/updating_pkgs.html#forking-and-pull-requests).

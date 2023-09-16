@@ -7,7 +7,14 @@ import pandas as pd
 import strawberry
 from strawberry import UNSET
 
-from phoenix.core.model_schema import CONTINUOUS, PRIMARY, REFERENCE, Column, Dataset, Dimension
+from phoenix.core.model_schema import (
+    CONTINUOUS,
+    PRIMARY,
+    REFERENCE,
+    Column,
+    Dataset,
+    Dimension,
+)
 from phoenix.metrics import Metric, binning
 from phoenix.metrics.mixins import UnaryOperator
 from phoenix.metrics.timeseries import timeseries
@@ -31,7 +38,7 @@ class TimeSeriesDataPoint:
     """The value of the data point"""
     value: Optional[float] = strawberry.field(default=GqlValueMediator())
 
-    def __lt__(self, other: "TimeSeriesDataPoint") -> bool:
+    def __lt__(self, other: "TimeSeriesDataPoint") -> bool:  # type: ignore
         return self.timestamp < other.timestamp
 
 

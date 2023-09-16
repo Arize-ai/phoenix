@@ -1,19 +1,24 @@
+import json
 import logging
 from abc import ABC, abstractmethod
 from collections import UserList
+from datetime import datetime
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING, Iterable, List, Optional, Set
 
 import pandas as pd
-from portpicker import pick_unused_port
 
-from phoenix.config import PORT, get_exported_files
+from phoenix.config import get_env_host, get_env_port, get_exported_files
 from phoenix.core.model_schema_adapter import create_model_from_datasets
-from phoenix.datasets.dataset import Dataset
+from phoenix.core.traces import Traces
+from phoenix.datasets.dataset import EMPTY_DATASET, Dataset
 from phoenix.server.app import create_app
 from phoenix.server.thread_server import ThreadServer
 from phoenix.services import AppService
+from phoenix.trace.filter import SpanFilter
+from phoenix.trace.span_json_encoder import span_to_json
+from phoenix.trace.trace_dataset import TraceDataset
 
 try:
     from IPython.display import IFrame  # type: ignore
@@ -52,6 +57,9 @@ class ExportedData(_BaseList):
 class Session(ABC):
     """Session that maintains a 1-1 shared state with the Phoenix App."""
 
+    trace_dataset: Optional[TraceDataset]
+    traces: Optional[Traces]
+
     def __dir__(self) -> List[str]:
         return ["exports", "view", "url"]
 
@@ -60,11 +68,14 @@ class Session(ABC):
         primary_dataset: Dataset,
         reference_dataset: Optional[Dataset] = None,
         corpus_dataset: Optional[Dataset] = None,
-        port: int = PORT,
+        trace_dataset: Optional[TraceDataset] = None,
+        host: Optional[str] = None,
+        port: Optional[int] = None,
     ):
         self.primary_dataset = primary_dataset
         self.reference_dataset = reference_dataset
         self.corpus_dataset = corpus_dataset
+        self.trace_dataset = trace_dataset
         self.model = create_model_from_datasets(
             primary_dataset,
             reference_dataset,
@@ -78,7 +89,13 @@ class Session(ABC):
             else None
         )
 
-        self.port = port
+        self.traces = Traces()
+        if trace_dataset:
+            for span in trace_dataset.to_spans():
+                self.traces.put(span)
+
+        self.host = host or get_env_host()
+        self.port = port or get_env_port()
         self.temp_dir = TemporaryDirectory()
         self.export_path = Path(self.temp_dir.name) / "exports"
         self.export_path.mkdir(parents=True, exist_ok=True)
@@ -122,7 +139,29 @@ class Session(ABC):
     @property
     def url(self) -> str:
         """Returns the url for the phoenix app"""
-        return _get_url(self.port, self.is_colab)
+        return _get_url(self.host, self.port, self.is_colab)
+
+    def get_spans_dataframe(
+        self,
+        filter_condition: Optional[str] = None,
+        *,
+        start_time: Optional[datetime] = None,
+        stop_time: Optional[datetime] = None,
+        root_spans_only: Optional[bool] = None,
+    ) -> Optional[pd.DataFrame]:
+        if (traces := self.traces) is None:
+            return None
+        predicate = SpanFilter(filter_condition) if filter_condition else None
+        spans = traces.get_spans(
+            start_time=start_time,
+            stop_time=stop_time,
+            root_spans_only=root_spans_only,
+        )
+        if predicate:
+            spans = filter(predicate, spans)
+        if not (data := list(map(json.loads, map(span_to_json, spans)))):
+            return None
+        return pd.json_normalize(data).set_index("context.span_id", drop=False)
 
 
 _session: Optional[Session] = None
@@ -134,22 +173,29 @@ class ProcessSession(Session):
         primary_dataset: Dataset,
         reference_dataset: Optional[Dataset] = None,
         corpus_dataset: Optional[Dataset] = None,
+        trace_dataset: Optional[TraceDataset] = None,
+        host: Optional[str] = None,
         port: Optional[int] = None,
     ) -> None:
         super().__init__(
             primary_dataset=primary_dataset,
             reference_dataset=reference_dataset,
             corpus_dataset=corpus_dataset,
-            port=port or PORT,
+            trace_dataset=trace_dataset,
+            host=host,
+            port=port,
         )
         primary_dataset.to_disc()
         if isinstance(reference_dataset, Dataset):
             reference_dataset.to_disc()
         if isinstance(corpus_dataset, Dataset):
             corpus_dataset.to_disc()
+        if isinstance(trace_dataset, TraceDataset):
+            trace_dataset.to_disc()
         # Initialize an app service that keeps the server running
         self.app_service = AppService(
             self.export_path,
+            self.host,
             self.port,
             self.primary_dataset.name,
             reference_dataset_name=(
@@ -157,6 +203,9 @@ class ProcessSession(Session):
             ),
             corpus_dataset_name=(
                 self.corpus_dataset.name if self.corpus_dataset is not None else None
+            ),
+            trace_dataset_name=(
+                self.trace_dataset.name if self.trace_dataset is not None else None
             ),
         )
 
@@ -175,22 +224,28 @@ class ThreadSession(Session):
         primary_dataset: Dataset,
         reference_dataset: Optional[Dataset] = None,
         corpus_dataset: Optional[Dataset] = None,
+        trace_dataset: Optional[TraceDataset] = None,
+        host: Optional[str] = None,
         port: Optional[int] = None,
     ):
         super().__init__(
             primary_dataset=primary_dataset,
             reference_dataset=reference_dataset,
             corpus_dataset=corpus_dataset,
-            port=port or pick_unused_port(),
+            trace_dataset=trace_dataset,
+            host=host,
+            port=port,
         )
         # Initialize an app service that keeps the server running
         self.app = create_app(
             export_path=self.export_path,
             model=self.model,
             corpus=self.corpus,
+            traces=self.traces,
         )
         self.server = ThreadServer(
             app=self.app,
+            host=self.host,
             port=self.port,
         ).run_in_thread()
         # start the server
@@ -206,11 +261,13 @@ class ThreadSession(Session):
 
 
 def launch_app(
-    primary: Dataset,
+    primary: Optional[Dataset] = None,
     reference: Optional[Dataset] = None,
     corpus: Optional[Dataset] = None,
+    trace: Optional[TraceDataset] = None,
+    host: Optional[str] = None,
     port: Optional[int] = None,
-    run_in_thread: Optional[bool] = True,
+    run_in_thread: bool = True,
 ) -> Optional[Session]:
     """
     Launches the phoenix application and returns a session to interact with.
@@ -224,8 +281,14 @@ def launch_app(
         If not provided, drift analysis will not be available.
     corpus : Dataset, optional
         The dataset containing corpus for LLM context retrieval.
+    trace: TraceDataset, optional
+        **Experimental** The trace dataset containing the trace data.
+    host: str, optional
+        The host on which the server runs. It can also be set using environment
+        variable `PHOENIX_HOST`, otherwise it defaults to `127.0.0.1`.
     port: int, optional
-        The port on which the server listens.
+        The port on which the server listens. It can also be set using environment
+        variable `PHOENIX_PORT`, otherwise it defaults to 6060.
     run_in_thread: bool, optional, default=True
         Whether the server should run in a Thread or Process.
 
@@ -243,23 +306,32 @@ def launch_app(
     """
     global _session
 
+    # Stopgap solution to allow the app to run without a primary dataset
+    if primary is None:
+        # Dummy dataset
+        # TODO: pass through the lack of a primary dataset to the app
+        primary = EMPTY_DATASET
+
+    if _session is not None and _session.active:
+        logger.warning(
+            "Existing running Phoenix instance detected! Shutting "
+            "it down and starting a new instance..."
+        )
+        _session.end()
+
     if run_in_thread:
-        if _session is not None and _session.active:
-            logger.warning(
-                "Existing running Phoenix instance detected! Shutting "
-                "it down and starting a new instance..."
-            )
-            _session.end()
-        _session = ThreadSession(primary, reference, corpus, port=port)
+        _session = ThreadSession(primary, reference, corpus, trace, host=host, port=port)
         # TODO: catch exceptions from thread
-        if not _session.active:
-            logger.error(
-                "💥 Phoenix failed to start. Please try again or file an issue "
-                "with us at https://github.com/Arize-ai/phoenix"
-            )
-            return None
     else:
-        _session = ProcessSession(primary, reference, port=port)
+        _session = ProcessSession(primary, reference, corpus, trace, host=host, port=port)
+
+    if not _session.active:
+        logger.error(
+            f"💥 Phoenix failed to start. Please try again (making sure that "
+            f"port {port} is not occupied by another process) or file an issue "
+            f"with us at https://github.com/Arize-ai/phoenix"
+        )
+        return None
 
     print(f"🌍 To view the Phoenix app in your browser, visit {_session.url}")
     print("📺 To view the Phoenix app in a notebook, run `px.active_session().view()`")
@@ -288,14 +360,14 @@ def close_app() -> None:
     logger.info("Session closed")
 
 
-def _get_url(port: int, is_colab: bool) -> str:
+def _get_url(host: str, port: int, is_colab: bool) -> str:
     """Determines the IFrame URL based on whether this is in a Colab or in a local notebook"""
     if is_colab:
         from google.colab.output import eval_js  # type: ignore
 
         return str(eval_js(f"google.colab.kernel.proxyPort({port}, {{'cache': true}})"))
 
-    return f"http://localhost:{port}/"
+    return f"http://{host}:{port}/"
 
 
 def _is_colab() -> bool:

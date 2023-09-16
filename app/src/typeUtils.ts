@@ -7,3 +7,17 @@
 export function assertUnreachable(_: never): never {
   throw new Error("Unreachable");
 }
+
+/**
+ * A type guard for checking if a value is a number or null
+ */
+export function isNumberOrNull(value: unknown): value is number | null {
+  return typeof value === "number" || value === null;
+}
+
+/**
+ * A type guard for checking if a value is a string or null
+ */
+export function isStringOrNull(value: unknown): value is string | null {
+  return typeof value === "string" || value === null;
+}

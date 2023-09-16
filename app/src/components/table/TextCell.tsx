@@ -1,4 +1,5 @@
 import React from "react";
+import { CellContext } from "@tanstack/react-table";
 
 const MAX_LENGTH = 100;
 
@@ -17,7 +18,11 @@ function formatText(text: string) {
  * A table cell that is designed to show text. It will truncate the text if it
  * is too long.
  */
-export function TextCell({ value }: { value: string | null }) {
-  const str = value != null ? formatText(value) : "--";
-  return <span title={value != null ? value : ""}>{str}</span>;
+export function TextCell<TData extends object, TValue>({
+  getValue,
+}: CellContext<TData, TValue>) {
+  const value = getValue();
+  const str =
+    value != null && typeof value === "string" ? formatText(value) : "--";
+  return <span title={String(value)}>{str}</span>;
 }

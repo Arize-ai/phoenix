@@ -105,7 +105,7 @@ class Schema:
             object.__setattr__(self, "prediction_id_column_name", self.id_column_name)
             object.__setattr__(self, "id_column_name", None)
 
-    def replace(self, **changes: str) -> "Schema":
+    def replace(self, **changes: Any) -> "Schema":
         return replace(self, **changes)
 
     def asdict(self) -> Dict[str, str]:

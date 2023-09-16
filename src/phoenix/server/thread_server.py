@@ -13,10 +13,12 @@ class ThreadServer(Server):
     def __init__(
         self,
         app: Starlette,
+        host: str,
         port: int,
     ) -> None:
         config = Config(
             app=app,
+            host=host,
             port=port,
             # TODO: save logs to file
             log_level=logging.ERROR,
@@ -32,9 +34,15 @@ class ThreadServer(Server):
         thread.start()
         time_limit = time() + 5  # 5 seconds
         try:
-            while not self.started and thread.is_alive() and time() < time_limit:
+            while (
+                time() < time_limit
+                and thread.is_alive()
+                and not self.should_exit
+                and not self.started
+            ):
                 sleep(1e-3)
-            if time() > time_limit:
+            if time() >= time_limit and not self.started:
+                self.should_exit = True
                 raise RuntimeError("server took too long to start")
             yield thread
         finally:

@@ -19,9 +19,10 @@ from strawberry.schema import BaseSchema
 
 from phoenix.config import SERVER_DIR
 from phoenix.core.model_schema import Model
-
-from .api.context import Context
-from .api.schema import schema
+from phoenix.core.traces import Traces
+from phoenix.server.api.context import Context
+from phoenix.server.api.schema import schema
+from phoenix.server.span_handler import SpanHandler
 
 logger = logging.getLogger(__name__)
 
@@ -65,9 +66,11 @@ class GraphQLWithContext(GraphQL):  # type: ignore
         export_path: Path,
         graphiql: bool = False,
         corpus: Optional[Model] = None,
+        traces: Optional[Traces] = None,
     ) -> None:
         self.model = model
         self.corpus = corpus
+        self.traces = traces
         self.export_path = export_path
         super().__init__(schema, graphiql=graphiql)
 
@@ -81,6 +84,7 @@ class GraphQLWithContext(GraphQL):  # type: ignore
             response=response,
             model=self.model,
             corpus=self.corpus,
+            traces=self.traces,
             export_path=self.export_path,
         )
 
@@ -104,12 +108,14 @@ def create_app(
     export_path: Path,
     model: Model,
     corpus: Optional[Model] = None,
+    traces: Optional[Traces] = None,
     debug: bool = False,
 ) -> Starlette:
     graphql = GraphQLWithContext(
         schema=schema,
         model=model,
         corpus=corpus,
+        traces=traces,
         export_path=export_path,
         graphiql=True,
     )
@@ -118,7 +124,21 @@ def create_app(
             Middleware(HeadersMiddleware),
         ],
         debug=debug,
-        routes=[
+        routes=(
+            []
+            if traces is None
+            else [
+                Route(
+                    "/v1/spans",
+                    type(
+                        "SpanEndpoint",
+                        (SpanHandler,),
+                        {"queue": traces},
+                    ),
+                ),
+            ]
+        )
+        + [
             Route(
                 "/exports",
                 type(

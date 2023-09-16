@@ -4,7 +4,9 @@ Test dataset
 import logging
 import math
 import uuid
+from contextlib import contextmanager
 from dataclasses import replace
+from datetime import datetime
 from typing import Optional
 
 import numpy as np
@@ -739,7 +741,10 @@ class TestDataset:
             prediction_label_column_name="prediction_label",
         )
 
-        with raises(DatasetError):
+        with raises_dataset_error(
+            err.InvalidColumnType,
+            "Invalid column types: ['prediction_id should be a string or numeric type']",
+        ):
             Dataset(dataframe=input_df, schema=input_schema)
 
     def test_dataset_validate_invalid_schema_excludes_timestamp(self) -> None:
@@ -758,7 +763,11 @@ class TestDataset:
             excluded_column_names=["timestamp"],
         )
 
-        with raises(DatasetError):
+        with raises_dataset_error(
+            err.InvalidSchemaError,
+            "The schema is invalid: timestamp cannot be excluded "
+            "because it is already being used as the timestamp column.",
+        ):
             Dataset(dataframe=input_df, schema=input_schema)
 
     def test_dataset_validate_invalid_schema_excludes_prediction_id(self) -> None:
@@ -778,14 +787,47 @@ class TestDataset:
             excluded_column_names=["prediction_id"],
         )
 
-        with pytest.raises(Exception) as exc_info:
+        with raises_dataset_error(
+            err.InvalidSchemaError,
+            "The schema is invalid: prediction_id cannot be excluded because it is "
+            "already being used as the prediction id column.",
+        ):
             Dataset(dataframe=input_df, schema=input_schema)
-        assert isinstance(exc_info.value, DatasetError)
-        assert isinstance(exc_info.value.errors[0], err.InvalidSchemaError)
+
+    def test_dataset_validate_invalid_schema_missing_column(self) -> None:
+        input_df = DataFrame(
+            {
+                "prediction_label": [f"label{index}" for index in range(self.num_records)],
+                "feature0": np.zeros(self.num_records),
+                "timestamp": random_uuids(self.num_records),
+            },
+        )
+
+        input_schema = Schema(
+            prediction_id_column_name="prediction_id",
+            feature_column_names=["feature0"],
+            prediction_label_column_name="prediction_label",
+        )
+
+        with raises_dataset_error(
+            err.MissingColumns,
+            "The following columns are declared in the Schema "
+            "but are not found in the dataframe: prediction_id.",
+        ):
+            Dataset(dataframe=input_df, schema=input_schema)
 
     @property
     def num_records(self):
         return self._NUM_RECORDS
+
+
+@contextmanager
+def raises_dataset_error(validation_error_type, message):
+    with raises(DatasetError) as exc_info:
+        yield
+    assert [type(error) for error in exc_info.value.errors] == [validation_error_type]
+    [error] = exc_info.value.errors
+    assert str(error) == str(exc_info.value) == message
 
 
 def random_uuids(num_records: int):
@@ -866,12 +908,14 @@ def random_uuids(num_records: int):
                                 second=0,
                             ),
                         ]
-                    ).dt.tz_localize(pytz.utc),
+                    )
+                    .dt.tz_localize(datetime.now().astimezone().tzinfo)
+                    .dt.tz_convert(pytz.utc),
                     "prediction_id": [1, 2, 3],
                 }
             ),
             Schema(timestamp_column_name="timestamp", prediction_id_column_name="prediction_id"),
-            id="tz_naive_timestamps_converted_to_utc",
+            id="tz_naive_timestamps_localized_to_local_time_zone_converted_to_utc",
         ),
         pytest.param(
             DataFrame(
@@ -1182,12 +1226,14 @@ def random_uuids(num_records: int):
                                 second=0,
                             ),
                         ]
-                    ).dt.tz_localize(pytz.utc),
+                    )
+                    .dt.tz_localize(datetime.now().astimezone().tzinfo)
+                    .dt.tz_convert(pytz.utc),
                     "prediction_id": [1, 2, 3],
                 }
             ),
             Schema(timestamp_column_name="timestamp", prediction_id_column_name="prediction_id"),
-            id="iso8601_tz_naive_strings_converted_to_utc_timestamps",
+            id="iso8601_tz_naive_strings_localized_to_localTZ_converted_to_utc_timestamps",
         ),
         pytest.param(
             DataFrame(
@@ -1312,4 +1358,89 @@ def test_dataset_with_arize_schema() -> None:
     assert dataset.schema.prediction_id_column_name == "prediction_id"
     assert (
         dataset.schema.embedding_feature_column_names["embedding"].vector_column_name == "embedding"
+    )
+
+
+def test_open_inference_format() -> None:
+    df = DataFrame(
+        {
+            ":feature.[float].retrieved_document_scores:prompt": [
+                [0.53, 0.34, 0.25],
+                [],
+                [0.85, 0.63],
+            ],
+            ":id.id:": ["1", "2", "3"],
+            ":feature.[float].embedding:prompt": [[1, 2, 3], [4, 5, 6], [7, 8, 9]],
+            ":timestamp.iso_8601:": [
+                "2023-01-01T02:00:30Z",
+                "2023-01-10T06:00:20Z",
+                "2023-01-05T04:00:25Z",
+            ],
+            ":feature.text:prompt": ["where is Waldo?", "who won?", "how to sing?"],
+            ":prediction.text:response": ["somewhere", "someone", "somehow"],
+            ":feature.[str].retrieved_document_ids:prompt": [["13", "24", "35"], [], ["57", "46"]],
+            ":tag.bool:thumbs_up": [True, False, True],
+            ":feature.str:location": ["US", "Canada", "Mexico"],
+            ":prediction.float.score:cylinders": [1, 2, 3],
+            ":feature.str:country": ["US", "Canada", "Mexico"],
+            ":prediction.str.label:brand": ["Ford", "Toyota", "Honda"],
+            ":actual.float.score:mpg": [29, 34, 15],
+            ":feature.[float].embedding:rating": [[1, 2, 3], [4, 5, 6], [7, 8, 9]],
+            ":feature.str.raw_data:image": ["A", "B", "C"],
+            ":actual.str.label:vehicle_type": ["sedan", "truck", "hatchback"],
+            ":feature.str.link_to_data:rating": ["x", "y", "z"],
+            ":tag.bool:thumbs_down": [False, True, False],
+            ":feature.[float].embedding:image": [[1, 2, 3], [4, 5, 6], [7, 8, 9]],
+        }
+    )
+    ds = Dataset.from_open_inference(df)
+    assert list(ds.dataframe.columns) == [
+        ":feature.[float].retrieved_document_scores:prompt",
+        ":id.id:",
+        "prompt",
+        ":timestamp.iso_8601:",
+        ":feature.text:prompt",
+        ":feature.[str].retrieved_document_ids:prompt",
+        "thumbs_up",
+        "location",
+        "cylinders",
+        "country",
+        "brand",
+        "mpg",
+        "rating",
+        ":feature.str.raw_data:image",
+        "vehicle_type",
+        ":feature.str.link_to_data:rating",
+        "thumbs_down",
+        "image",
+    ]
+    assert ds.schema == Schema(
+        prediction_id_column_name=":id.id:",
+        timestamp_column_name=":timestamp.iso_8601:",
+        feature_column_names=["country", "location"],
+        tag_column_names=["thumbs_down", "thumbs_up"],
+        prediction_label_column_name="brand",
+        prediction_score_column_name="cylinders",
+        actual_label_column_name="vehicle_type",
+        actual_score_column_name="mpg",
+        prompt_column_names=RetrievalEmbeddingColumnNames(
+            vector_column_name="prompt",
+            raw_data_column_name=":feature.text:prompt",
+            link_to_data_column_name=None,
+            context_retrieval_ids_column_name=":feature.[str].retrieved_document_ids:prompt",
+            context_retrieval_scores_column_name=":feature.[float].retrieved_document_scores:prompt",
+        ),
+        response_column_names="response",
+        embedding_feature_column_names={
+            "image": EmbeddingColumnNames(
+                vector_column_name="image",
+                raw_data_column_name=":feature.str.raw_data:image",
+                link_to_data_column_name=None,
+            ),
+            "rating": EmbeddingColumnNames(
+                vector_column_name="rating",
+                raw_data_column_name=None,
+                link_to_data_column_name=":feature.str.link_to_data:rating",
+            ),
+        },
     )

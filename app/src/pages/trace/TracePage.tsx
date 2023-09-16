@@ -1,0 +1,676 @@
+import React, { PropsWithChildren, ReactNode, useMemo } from "react";
+import { graphql, useLazyLoadQuery } from "react-relay";
+import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
+import { useNavigate, useParams } from "react-router";
+import { useSearchParams } from "react-router-dom";
+import { json } from "@codemirror/lang-json";
+import { EditorView } from "@codemirror/view";
+import { nord } from "@uiw/codemirror-theme-nord";
+import CodeMirror from "@uiw/react-codemirror";
+import { css } from "@emotion/react";
+
+import {
+  Counter,
+  Dialog,
+  DialogContainer,
+  Flex,
+  Heading,
+  Icon,
+  Icons,
+  Label,
+  List,
+  ListItem,
+  TabPane,
+  Tabs,
+  Text,
+  View,
+} from "@arizeai/components";
+
+import { resizeHandleCSS } from "@phoenix/components/resize";
+import { SpanItem } from "@phoenix/components/trace/SpanItem";
+import { TraceTree } from "@phoenix/components/trace/TraceTree";
+import {
+  DOCUMENT_CONTENT,
+  DOCUMENT_ID,
+  DOCUMENT_SCORE,
+  EMBEDDING_TEXT,
+  EmbeddingAttributePostfixes,
+  LLMAttributePostfixes,
+  MESSAGE_CONTENT,
+  MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON,
+  MESSAGE_FUNCTION_CALL_NAME,
+  MESSAGE_NAME,
+  MESSAGE_ROLE,
+  RetrievalAttributePostfixes,
+  SemanticAttributePrefixes,
+} from "@phoenix/openInference/tracing/semanticConventions";
+import {
+  AttributeDocument,
+  AttributeEmbedding,
+  AttributeMessage,
+} from "@phoenix/openInference/tracing/types";
+import { assertUnreachable } from "@phoenix/typeUtils";
+import { numberFormatter } from "@phoenix/utils/numberFormatUtils";
+
+import {
+  MimeType,
+  TracePageQuery,
+  TracePageQuery$data,
+} from "./__generated__/TracePageQuery.graphql";
+
+type Span = TracePageQuery$data["spans"]["edges"][number]["span"];
+/**
+ * A span attribute object that is a map of string to an unknown value
+ */
+type AttributeObject = Record<string, unknown>;
+
+const spanHasException = (span: Span) => {
+  return span.events.some((event) => event.name === "exception");
+};
+
+/**
+ * A page that shows the details of a trace (e.g. a collection of spans)
+ */
+export function TracePage() {
+  const { traceId } = useParams();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
+
+  const data = useLazyLoadQuery<TracePageQuery>(
+    graphql`
+      query TracePageQuery($traceId: ID!) {
+        spans(traceIds: [$traceId], sort: { col: startTime, dir: asc }) {
+          edges {
+            span: node {
+              context {
+                spanId
+              }
+              name
+              spanKind
+              statusCode
+              startTime
+              parentId
+              latencyMs
+              tokenCountTotal
+              tokenCountPrompt
+              tokenCountCompletion
+              input {
+                value
+                mimeType
+              }
+              output {
+                value
+                mimeType
+              }
+              attributes
+              events {
+                name
+                message
+                timestamp
+              }
+            }
+          }
+        }
+      }
+    `,
+    { traceId: traceId as string }
+  );
+  const spansList = data.spans.edges.map((edge) => edge.span);
+  const urlSelectedSpanId = searchParams.get("selectedSpanId");
+  const selectedSpanId = urlSelectedSpanId ?? spansList[0].context.spanId;
+  const selectedSpan = spansList.find(
+    (span) => span.context.spanId === selectedSpanId
+  );
+  return (
+    <DialogContainer
+      type="slideOver"
+      isDismissable
+      onDismiss={() => navigate(-1)}
+    >
+      <Dialog size="XL" title="Trace Details">
+        <main
+          css={css`
+            flex: 1 1 auto;
+            overflow: hidden;
+          `}
+        >
+          <PanelGroup direction="horizontal" autoSaveId="trace-panel-group">
+            <Panel defaultSize={30} minSize={10} maxSize={40}>
+              <ScrollingTabsWrapper>
+                <Tabs>
+                  <TabPane name="Tree">
+                    <TraceTree
+                      spans={spansList}
+                      selectedSpanId={selectedSpanId}
+                      onSpanClick={(spanId) => {
+                        setSearchParams(
+                          {
+                            selectedSpanId: spanId,
+                          },
+                          { replace: true }
+                        );
+                      }}
+                    />
+                  </TabPane>
+                  <TabPane name="Flame Graph" hidden>
+                    Flame Graph
+                  </TabPane>
+                </Tabs>
+              </ScrollingTabsWrapper>
+            </Panel>
+            <PanelResizeHandle css={resizeHandleCSS} />
+            <Panel>
+              <ScrollingTabsWrapper>
+                {selectedSpan ? (
+                  <SelectedSpanDetails selectedSpan={selectedSpan} />
+                ) : null}
+              </ScrollingTabsWrapper>
+            </Panel>
+          </PanelGroup>
+        </main>
+      </Dialog>
+    </DialogContainer>
+  );
+}
+
+function ScrollingTabsWrapper({ children }: PropsWithChildren) {
+  return (
+    <div
+      data-testid="scrolling-tabs-wrapper"
+      css={css`
+        height: 100%;
+        .ac-tabs {
+          height: 100%;
+          .ac-tabs__pane-container {
+            height: 100%;
+            overflow-y: auto;
+          }
+        }
+      `}
+    >
+      {children}
+    </div>
+  );
+}
+
+function SelectedSpanDetails({ selectedSpan }: { selectedSpan: Span }) {
+  const hasExceptions = useMemo<boolean>(() => {
+    return spanHasException(selectedSpan);
+  }, [selectedSpan]);
+  return (
+    <Tabs>
+      <TabPane name={"Info"}>
+        <SpanInfo span={selectedSpan} />
+      </TabPane>
+      <TabPane name={"Attributes"} title="Attributes">
+        <View padding="size-200">
+          <BlockView title="All Attributes">
+            <CodeBlock value={selectedSpan.attributes} mimeType="json" />
+          </BlockView>
+        </View>
+      </TabPane>
+      <TabPane
+        name={"Events"}
+        extra={
+          <Counter variant={hasExceptions ? "danger" : "default"}>
+            {selectedSpan.events.length}
+          </Counter>
+        }
+      >
+        <View margin="size-100" borderRadius="medium">
+          <SpanEventsList events={selectedSpan.events} />
+        </View>
+      </TabPane>
+    </Tabs>
+  );
+}
+
+/**
+ * A simple container to show a block of text or code
+ */
+function BlockView({ children, title }: PropsWithChildren<{ title?: string }>) {
+  return (
+    <View borderColor="dark" borderRadius="medium" borderWidth="thin">
+      {title ? (
+        <View
+          paddingStart="size-150"
+          paddingEnd="size-150"
+          paddingTop="size-50"
+          paddingBottom="size-50"
+          borderBottomColor="dark"
+          borderBottomWidth="thin"
+        >
+          <Heading level={4}>{title}</Heading>
+        </View>
+      ) : null}
+      {children}
+    </View>
+  );
+}
+
+function SpanInfo({ span }: { span: Span }) {
+  const { spanKind, attributes } = span;
+
+  // Parse the attributes once
+  const attributesObject = useMemo<{ [key: string]: unknown }>(() => {
+    return JSON.parse(attributes);
+  }, [attributes]);
+
+  let content: ReactNode;
+  switch (spanKind) {
+    case "llm": {
+      content = <LLMSpanInfo span={span} spanAttributes={attributesObject} />;
+      break;
+    }
+    case "retriever": {
+      content = (
+        <RetrieverSpanInfo span={span} spanAttributes={attributesObject} />
+      );
+      break;
+    }
+    case "embedding": {
+      content = <EmbeddingInfo span={span} spanAttributes={attributesObject} />;
+      break;
+    }
+    default:
+      content = <SpanIO span={span} />;
+  }
+  return (
+    <Flex direction="column">
+      <View
+        paddingTop="size-50"
+        paddingBottom="size-50"
+        paddingStart="size-250"
+        paddingEnd="size-250"
+        borderBottomColor="dark"
+        borderBottomWidth="thin"
+        backgroundColor="dark"
+      >
+        <SpanItem {...span} />
+      </View>
+      <View padding="size-200">{content}</View>
+    </Flex>
+  );
+}
+
+function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
+  const { spanAttributes, span } = props;
+  const { input, output } = span;
+  const llmAttributes = useMemo<AttributeObject | null>(() => {
+    const llmAttrs = spanAttributes[SemanticAttributePrefixes.llm];
+    if (typeof llmAttrs === "object") {
+      return llmAttrs as AttributeObject;
+    }
+    return null;
+  }, [spanAttributes]);
+
+  const messages = useMemo<AttributeMessage[]>(() => {
+    if (llmAttributes == null) {
+      return [];
+    }
+    return (llmAttributes[LLMAttributePostfixes.messages] ||
+      []) as AttributeMessage[];
+  }, [llmAttributes]);
+
+  const invocation_parameters_str = useMemo<string>(() => {
+    if (llmAttributes == null) {
+      return "{}";
+    }
+    return (llmAttributes[LLMAttributePostfixes.invocation_parameters] ||
+      "{}") as string;
+  }, [llmAttributes]);
+
+  const hasInput = input != null && input.value != null;
+  const hasMessages = messages.length > 0;
+  const hasInvocationParams =
+    Object.keys(JSON.parse(invocation_parameters_str)).length > 0;
+  return (
+    <Flex direction="column" gap="size-200">
+      <BlockView>
+        <Tabs>
+          {hasInput ? (
+            <TabPane name="Input" hidden={!hasInput}>
+              <CodeBlock {...input} />
+            </TabPane>
+          ) : null}
+          <TabPane name="Messages" hidden={!hasMessages}>
+            <LLMMessagesList messages={messages} />
+          </TabPane>
+          <TabPane name="Invocation Params" hidden={!hasInvocationParams}>
+            <CodeBlock
+              {...{
+                mimeType: "json",
+                value: invocation_parameters_str,
+              }}
+            />
+          </TabPane>
+        </Tabs>
+      </BlockView>
+      {output && output.value != null ? (
+        <BlockView title="Output">
+          <CodeBlock {...output} />
+        </BlockView>
+      ) : null}
+    </Flex>
+  );
+}
+
+function RetrieverSpanInfo(props: {
+  span: Span;
+  spanAttributes: AttributeObject;
+}) {
+  const { spanAttributes, span } = props;
+  const { input } = span;
+  const retrieverAttributes = useMemo<AttributeObject | null>(() => {
+    const retrieverAttrs = spanAttributes[SemanticAttributePrefixes.retrieval];
+    if (typeof retrieverAttrs === "object") {
+      return retrieverAttrs as AttributeObject;
+    }
+    return null;
+  }, [spanAttributes]);
+  const documents = useMemo<AttributeDocument[]>(() => {
+    if (retrieverAttributes == null) {
+      return [];
+    }
+    return (retrieverAttributes[RetrievalAttributePostfixes.documents] ||
+      []) as AttributeDocument[];
+  }, [retrieverAttributes]);
+
+  const hasInput = input != null && input.value != null;
+  const hasDocuments = documents.length > 0;
+  return (
+    <Flex direction="column" gap="size-200">
+      <BlockView title="Input">
+        {hasInput ? <CodeBlock {...input} /> : null}
+      </BlockView>
+      {hasDocuments ? (
+        <BlockView title="Documents">
+          {
+            <ul
+              css={css`
+                padding: var(--ac-global-dimension-static-size-100);
+                display: flex;
+                flex-direction: column;
+                gap: var(--ac-global-dimension-static-size-100);
+              `}
+            >
+              {documents.map((document, idx) => {
+                return (
+                  <li key={idx}>
+                    <DocumentItem document={document} />
+                  </li>
+                );
+              })}
+            </ul>
+          }
+        </BlockView>
+      ) : null}
+    </Flex>
+  );
+}
+
+function EmbeddingInfo(props: { span: Span; spanAttributes: AttributeObject }) {
+  const { spanAttributes } = props;
+  const embeddingAttributes = useMemo<AttributeObject | null>(() => {
+    const embeddingAttrs = spanAttributes[SemanticAttributePrefixes.embedding];
+    if (typeof embeddingAttrs === "object") {
+      return embeddingAttrs as AttributeObject;
+    }
+    return null;
+  }, [spanAttributes]);
+  const embeddings = useMemo<AttributeEmbedding[]>(() => {
+    if (embeddingAttributes == null) {
+      return [];
+    }
+    return (embeddingAttributes[EmbeddingAttributePostfixes.embeddings] ||
+      []) as AttributeDocument[];
+  }, [embeddingAttributes]);
+
+  const hasEmbeddings = embeddings.length > 0;
+  const modelName =
+    embeddingAttributes?.[EmbeddingAttributePostfixes.model_name];
+  return (
+    <Flex direction="column" gap="size-200">
+      {hasEmbeddings ? (
+        <BlockView
+          title={
+            "Embeddings" +
+            (typeof modelName === "string" ? `: ${modelName}` : "")
+          }
+        >
+          {
+            <ul
+              css={css`
+                padding: var(--ac-global-dimension-static-size-100);
+                display: flex;
+                flex-direction: column;
+                gap: var(--ac-global-dimension-static-size-100);
+              `}
+            >
+              {embeddings.map((embedding, idx) => {
+                return (
+                  <li key={idx}>
+                    <View
+                      padding="size-50"
+                      backgroundColor="light"
+                      borderRadius="medium"
+                    >
+                      <pre>{embedding[EMBEDDING_TEXT]}</pre>
+                    </View>
+                  </li>
+                );
+              })}
+            </ul>
+          }
+        </BlockView>
+      ) : null}
+    </Flex>
+  );
+}
+
+function DocumentItem({ document }: { document: AttributeDocument }) {
+  return (
+    <View borderRadius="medium" backgroundColor="light">
+      <Flex direction="column">
+        <View width="100%" borderBottomWidth="thin" borderBottomColor="dark">
+          <Flex
+            direction="row"
+            justifyContent="space-between"
+            margin="size-100"
+            alignItems="center"
+          >
+            <Flex direction="row" gap="size-50" alignItems="center">
+              <Icon svg={<Icons.FileOutline />} />
+              <Heading level={4}>document {document[DOCUMENT_ID]}</Heading>
+            </Flex>
+            {typeof document[DOCUMENT_SCORE] === "number" && (
+              <Label color="blue">{`score ${numberFormatter(
+                document[DOCUMENT_SCORE]
+              )}`}</Label>
+            )}
+          </Flex>
+        </View>
+        <pre
+          css={css`
+            padding: var(--px-spacing-lg);
+            white-space: normal;
+            margin: 0;
+          `}
+        >
+          {document[DOCUMENT_CONTENT]}
+        </pre>
+      </Flex>
+    </View>
+  );
+}
+
+function LLMMessagesList({ messages }: { messages: AttributeMessage[] }) {
+  return (
+    <ul>
+      {messages.map((message, idx) => {
+        const messageContent = message[MESSAGE_CONTENT];
+        const hasFunctionCall =
+          message[MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON] &&
+          message[MESSAGE_FUNCTION_CALL_NAME];
+        return (
+          <li key={idx}>
+            <View
+              margin="size-100"
+              padding="size-100"
+              backgroundColor="light"
+              borderRadius="medium"
+            >
+              <Flex direction="column" alignItems="start" gap="size-100">
+                <Text color="white70" fontStyle="italic">
+                  {message[MESSAGE_ROLE]}
+                  {message[MESSAGE_NAME] ? `: ${message[MESSAGE_NAME]}` : ""}
+                </Text>
+                {messageContent ? (
+                  <pre
+                    css={css`
+                      text-wrap: wrap;
+                      margin: 0;
+                    `}
+                  >
+                    {message[MESSAGE_CONTENT]}
+                  </pre>
+                ) : null}
+                {hasFunctionCall ? (
+                  <pre
+                    css={css`
+                      text-wrap: wrap;
+                      margin: 0;
+                    `}
+                  >
+                    {message[MESSAGE_FUNCTION_CALL_NAME] as string}(
+                    {JSON.stringify(
+                      JSON.parse(
+                        message[MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON] as string
+                      ),
+                      null,
+                      2
+                    )}
+                    )
+                  </pre>
+                ) : null}
+              </Flex>
+            </View>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+function SpanIO({ span }: { span: Span }) {
+  const { input, output } = span;
+  return (
+    <Flex direction="column" gap="size-200">
+      {input && input.value != null ? (
+        <BlockView title="Input">
+          <CodeBlock {...input} />
+        </BlockView>
+      ) : null}
+      {output && output.value != null ? (
+        <BlockView title="Output">
+          <CodeBlock {...output} />
+        </BlockView>
+      ) : null}
+    </Flex>
+  );
+}
+
+function CodeBlock({ value, mimeType }: { value: string; mimeType: MimeType }) {
+  let content;
+  switch (mimeType) {
+    case "json":
+      content = (
+        <CodeMirror
+          value={JSON.stringify(JSON.parse(value), null, 2)}
+          basicSetup={{
+            lineNumbers: true,
+            foldGutter: true,
+            bracketMatching: true,
+            syntaxHighlighting: true,
+            highlightActiveLine: false,
+          }}
+          extensions={[json(), EditorView.lineWrapping]}
+          editable={false}
+          theme={nord}
+        />
+      );
+      break;
+    case "text":
+      content = (
+        <CodeMirror
+          value={value}
+          theme={nord}
+          editable={false}
+          basicSetup={{
+            lineNumbers: false,
+            highlightActiveLine: false,
+            highlightActiveLineGutter: false,
+            syntaxHighlighting: true,
+          }}
+          extensions={[EditorView.lineWrapping]}
+        />
+      );
+      break;
+    default:
+      assertUnreachable(mimeType);
+  }
+
+  return content;
+}
+
+function SpanEventsList({ events }: { events: Span["events"] }) {
+  return (
+    <List>
+      {events.map((event, idx) => {
+        const isException = event.name === "exception";
+
+        return (
+          <ListItem key={idx}>
+            <Flex direction="row" alignItems="center" gap="size-100">
+              <View>
+                <div
+                  data-event-type={isException ? "exception" : "info"}
+                  css={(theme) => css`
+                    &[data-event-type="exception"] {
+                      --px-event-icon-color: ${theme.colors.statusDanger};
+                    }
+                    &[data-event-type="info"] {
+                      --px-event-icon-color: ${theme.colors.statusInfo};
+                    }
+                    .ac-icon-wrap {
+                      color: var(--px-event-icon-color);
+                    }
+                  `}
+                >
+                  <Icon
+                    svg={
+                      isException ? (
+                        <Icons.AlertTriangleOutline />
+                      ) : (
+                        <Icons.InfoOutline />
+                      )
+                    }
+                  />
+                </div>
+              </View>
+              <Flex direction="column" gap="size-25" flex="1 1 auto">
+                <Text weight="heavy">{event.name}</Text>
+                <Text color="white70">{event.message}</Text>
+              </Flex>
+              <View>
+                <Text color="white70">
+                  {new Date(event.timestamp).toLocaleString()}
+                </Text>
+              </View>
+            </Flex>
+          </ListItem>
+        );
+      })}
+    </List>
+  );
+}

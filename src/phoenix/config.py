@@ -1,6 +1,7 @@
+import os
 import tempfile
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
 
 def _get_temp_path() -> Path:
@@ -18,6 +19,13 @@ def get_pids_path() -> Path:
     return path
 
 
+def get_running_pid() -> Optional[int]:
+    for file in get_pids_path().iterdir():
+        if file.name.isnumeric():
+            return int(file.name)
+    return None
+
+
 for path in (
     ROOT_DIR := Path.home().resolve() / ".phoenix",
     EXPORT_DIR := ROOT_DIR / "exports",
@@ -28,6 +36,8 @@ for path in (
 PHOENIX_DIR = Path(__file__).resolve().parent
 # Server config
 SERVER_DIR = PHOENIX_DIR / "server"
+# The host the server will run on after launch_app is called
+HOST = "127.0.0.1"
 # The port the server will run on after launch_app is called
 PORT = 6060
 # The prefix of datasets that are auto-assigned a name
@@ -49,3 +59,15 @@ def get_exported_files(directory: Path) -> List[Path]:
         List of paths of the exported files.
     """
     return list(directory.glob("*.parquet"))
+
+
+def get_env_port() -> int:
+    return (
+        int(port)
+        if isinstance(port := os.getenv("PHOENIX_PORT"), str) and port.isnumeric()
+        else PORT
+    )
+
+
+def get_env_host() -> str:
+    return os.getenv("PHOENIX_HOST") or HOST

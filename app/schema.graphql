@@ -60,9 +60,23 @@ type Dataset {
   """The end bookend of the data"""
   endTime: DateTime!
 
+  """The record count of the data"""
+  recordCount: Int!
+
   """Returns a human friendly name for the dataset."""
   name: String!
   events(eventIds: [ID!]!, dimensions: [DimensionInput!]): [Event!]!
+}
+
+type DatasetInfo {
+  """The start bookend of the data"""
+  startTime: DateTime!
+
+  """The end bookend of the data"""
+  endTime: DateTime!
+
+  """The record count of the data"""
+  recordCount: Int!
 }
 
 enum DatasetRole {
@@ -283,6 +297,14 @@ type ExportedFile {
   fileName: String!
 }
 
+type Functionality {
+  """Model inferences are available for analysis"""
+  modelInferences: Boolean!
+
+  """Generative tracing records are available for analysis"""
+  tracing: Boolean!
+}
+
 """
 The `ID` scalar type represents a unique identifier, often used to refetch an object or as key for a cache. The ID type appears in a JSON response as a String; however, it is not intended to be human-readable. When expected as an input type, any string (such as `"4"`) or integer (such as `4`) input value will be accepted as an ID.
 """
@@ -316,6 +338,11 @@ input InputCoordinate3D {
 
 type IntervalBin {
   range: NumericRange!
+}
+
+enum MimeType {
+  text
+  json
 }
 
 type MissingValueBin {
@@ -383,6 +410,7 @@ type PageInfo {
   hasPreviousPage: Boolean!
   startCursor: String
   endCursor: String
+  totalCount: Int!
 }
 
 enum PerformanceMetric {
@@ -419,6 +447,7 @@ type PromptResponse {
 }
 
 type Query {
+  functionality: Functionality!
   model: Model!
   node(id: GlobalID!): Node!
   clusters(clusters: [ClusterInput!]!): [Cluster!]!
@@ -441,6 +470,8 @@ type Query {
     """HDBSCAN cluster selection epsilon"""
     clusterSelectionEpsilon: Float! = 0
   ): [Cluster!]!
+  spans(timeRange: TimeRange, traceIds: [ID!], first: Int = 50, last: Int, after: String, before: String, sort: SpanSort, rootSpansOnly: Boolean = false, filterCondition: String = null): SpanConnection!
+  traceDatasetInfo: DatasetInfo
 }
 
 type Retrieval {
@@ -463,6 +494,110 @@ type Segment {
 type Segments {
   segments: [Segment!]!
   totalCounts: DatasetValues!
+}
+
+enum SortDir {
+  asc
+  desc
+}
+
+type Span {
+  name: String!
+  statusCode: SpanStatusCode!
+  startTime: DateTime!
+  endTime: DateTime
+  latencyMs: Float
+
+  """the parent span ID. If null, it is a root span"""
+  parentId: ID
+  spanKind: SpanKind!
+  context: SpanContext!
+
+  """Span attributes as a JSON string"""
+  attributes: String!
+  tokenCountTotal: Int
+  tokenCountPrompt: Int
+  tokenCountCompletion: Int
+  input: SpanIOValue
+  output: SpanIOValue
+  events: [SpanEvent!]!
+
+  """
+  Cumulative (prompt plus completion) token count from self and all descendant spans (children, grandchildren, etc.)
+  """
+  cumulativeTokenCountTotal: Int
+
+  """
+  Cumulative (prompt) token count from self and all descendant spans (children, grandchildren, etc.)
+  """
+  cumulativeTokenCountPrompt: Int
+
+  """
+  Cumulative (completion) token count from self and all descendant spans (children, grandchildren, etc.)
+  """
+  cumulativeTokenCountCompletion: Int
+
+  """All descendant spans (children, grandchildren, etc.)"""
+  descendants: [Span!]!
+}
+
+enum SpanColumn {
+  startTime
+  endTime
+  latencyMs
+  tokenCountTotal
+  tokenCountPrompt
+  tokenCountCompletion
+  cumulativeTokenCountTotal
+  cumulativeTokenCountPrompt
+  cumulativeTokenCountCompletion
+}
+
+type SpanConnection {
+  pageInfo: PageInfo!
+  edges: [SpanEdge!]!
+}
+
+type SpanContext {
+  traceId: ID!
+  spanId: ID!
+}
+
+type SpanEdge {
+  node: Span!
+  cursor: String!
+}
+
+type SpanEvent {
+  name: String!
+  message: String!
+  timestamp: DateTime!
+}
+
+type SpanIOValue {
+  mimeType: MimeType!
+  value: String!
+}
+
+enum SpanKind {
+  chain
+  tool
+  llm
+  retriever
+  embedding
+  agent
+  unknown
+}
+
+input SpanSort {
+  col: SpanColumn!
+  dir: SortDir!
+}
+
+enum SpanStatusCode {
+  OK
+  ERROR
+  UNSET
 }
 
 input TimeRange {

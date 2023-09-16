@@ -29,27 +29,37 @@ dependencies = [
   "starlette",
   "uvicorn",
   "psutil",
-  "strawberry-graphql==0.178.0",
+  "strawberry-graphql==0.205.0",
   "pyarrow",
   "typing_extensions",
   "scipy",
-  "portpicker",
   "wrapt",
+  "sortedcontainers",
+  "protobuf>=3.20, <5.0",
 ]
 dynamic = ["version"]
 
 [project.optional-dependencies]
 dev = [
   "black[jupyter]",
+  "gcsfs",
   "hatch",
   "jupyter",
-  "pandas-stubs",
+  "nbqa",
+  "ruff==0.0.289",
+  "pandas-stubs<=2.0.2.230605",  # version 2.0.3.230814 is causing a dependency conflict.
   "pytest",
   "pytest-cov",
   "pytest-lazy-fixture",
-  "strawberry-graphql[debug-server]==0.178.0",
+  "strawberry-graphql[debug-server]==0.205.0",
   "pre-commit",
   "arize[AutoEmbeddings, LLM_Evaluation]",
+]
+experimental = [
+  "langchain>=0.0.257",
+  "llama-index>=0.8.25",
+  "openai",
+  "tenacity",
 ]
 
 [project.urls]
@@ -86,26 +96,40 @@ artifacts = ["src/phoenix/server/static"]
 
 [tool.hatch.envs.default]
 dependencies = [
+  "pandas==1.4.0",
   "pytest",
   "pytest-cov",
   "pytest-lazy-fixture",
   "arize",
+  "langchain>=0.0.257",
+  "llama-index>=0.8.25",
+  "openai",
+  "tenacity",
+  "nltk==3.8.1",
+  "sentence-transformers==2.2.2",
+  "pydantic<2",  # for @root_validator in llama-index
+  "requests",
+  "protobuf==3.20",  # version minimum (for tests)
+  "responses",
 ]
 
 [tool.hatch.envs.type]
 dependencies = [
-  "mypy==1.3.0",
-  "pandas-stubs",
-  "pytest",
+  "mypy==1.5.1",
+  "llama-index>=0.8.25",
+  "pandas-stubs<=2.0.2.230605",  # version 2.0.3.230814 is causing a dependency conflict.
   "types-psutil",
+  "types-tqdm",
+  "types-requests",
+  "types-protobuf",
 ]
 
 [tool.hatch.envs.style]
 detached = true
 dependencies = [
-  "black~=23.1.0",
-  "black[jupyter]~=23.1.0",
-  "ruff~=0.0.254",
+  "black~=23.3.0",
+  "black[jupyter]~=23.3.0",
+  "ruff~=0.0.289",
 ]
 
 [tool.hatch.envs.notebooks]
@@ -192,6 +216,7 @@ pypi = [
 
 [tool.black]
 line-length = 100
+exclude = '_pb2\.pyi?$'
 
 [tool.hatch.envs.docs.scripts]
 check = [
@@ -199,9 +224,22 @@ check = [
 ]
 
 [tool.hatch.envs.gql]
+dependencies = [
+  "strawberry-graphql[cli]==0.205.0",
+]
 
 [tool.hatch.envs.gql.scripts]
 build = 'strawberry export-schema phoenix.server.api.schema:schema > app/schema.graphql'
+
+[tool.hatch.envs.proto]
+detached = true
+dependencies = [
+  "grpcio-tools==1.54.3",
+  "mypy-protobuf==3.5.0",
+]
+
+[tool.hatch.envs.proto.scripts]
+recompile = "python -m grpc_tools.protoc -I src/phoenix/proto --python_out=src/phoenix --mypy_out=src/phoenix src/phoenix/proto/trace/v1/trace.proto"
 
 [tool.interrogate]
 fail-under = 0
@@ -219,13 +257,14 @@ ignore-nested-classes = false
 ignore-setters = false
 
 [tool.mypy]
-plugins = ["strawberry.ext.mypy_plugin"]
+plugins = ["strawberry.ext.mypy_plugin", "pydantic.mypy"]
 disallow_untyped_calls = true
 disallow_untyped_defs = true
 disallow_incomplete_defs  = true
 strict = true
 exclude = [
   "dist/",
+  "scripts/data/",
   "sdist/",
   "tests/",
   "tutorials/",
@@ -239,13 +278,14 @@ module = [
   "scipy.*",
   "sklearn.*",
   "arize.*",
-  "portpicker",
   "wrapt",
+  "sortedcontainers",
+  "langchain.*",
 ]
 ignore_missing_imports = true
 
 [tool.ruff]
-exclude = [".git", "__pycache__", "docs/source/conf.py"]
+exclude = [".git", "__pycache__", "docs/source/conf.py", "*_pb2.py*"]
 ignore-init-module-imports = true
 line-length = 100
 select = ["E", "F", "W", "I"]
