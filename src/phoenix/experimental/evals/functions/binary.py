@@ -4,7 +4,7 @@ from typing import List, Optional, Set, Union
 import pandas as pd
 
 from ..models import BaseEvalModel
-from ..models.openai import OpenAiModel
+from ..models.openai import OpenAIModel
 from ..templates import (
     RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
     PromptTemplate,
@@ -116,7 +116,7 @@ def run_relevance_eval(
         for relevance_class in llm_eval_binary(
             exploded_df,
             template=PromptTemplate(RAG_RELEVANCY_PROMPT_TEMPLATE_STR),
-            model=model or OpenAiModel(),
+            model=model or OpenAIModel(),
             rails=list(class_name_to_bool.keys()),
         )
     ]

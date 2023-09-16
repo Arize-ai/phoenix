@@ -1,4 +1,4 @@
 from .base import BaseEvalModel
-from .openai import OpenAiModel
+from .openai import OpenAIModel
 
-__all__ = ["BaseEvalModel", "OpenAiModel"]
+__all__ = ["BaseEvalModel", "OpenAIModel"]
