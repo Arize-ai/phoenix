@@ -42,7 +42,7 @@ your response.
 """
 
 
-TOXICITY_PROMPT_RAILS_MAP = OrderedDict({True: "non-toxic", False: "toxic"})
+TOXICITY_PROMPT_RAILS_MAP = OrderedDict({True: "toxic", False: "non-toxic"})
 TOXICITY_PROMPT_TEMPLATE_STR = """
 You are examining written text content. Here is the text:
     [BEGIN DATA]
