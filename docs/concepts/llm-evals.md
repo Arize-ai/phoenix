@@ -10,20 +10,20 @@ This package attempts to make the use of the evaluation LLM easy to implement.&#
 
 ### _The problem with Evaluations:_&#x20;
 
--   Evaluation libraries are hard to trust and benchmarking lacks rigor&#x20;
--   Production LLM Evals need to benchmark the combo of a model AND "_a prompt template"_
-    -   Open AI “model” Evals only focus on evaluating the model, a different use case
--   Evaluations harness should be usable in benchmarking, development, production or LangChain/LlamaIndex call back system
--   Evals should run as fast as possible on batches of data
--   LLM Evals should not require you to use chain abstractions - you shouldn't have to use LangChain to get Evals for pipelines that don't use LanngChain
+* Evaluation libraries are hard to trust and benchmarking lacks rigor&#x20;
+* Production LLM Evals need to benchmark the combo of a model AND "_a prompt template"_
+  * Open AI “model” Evals only focus on evaluating the model, a different use case
+* Evaluations harness should be usable in benchmarking, development, production or LangChain/LlamaIndex call back system
+* Evals should run as fast as possible on batches of data
+* LLM Evals should not require you to use chain abstractions - you shouldn't have to use LangChain to get Evals for pipelines that don't use LangChain
 
 ### _The solution provided by the Phoenix Evals:_
 
--   Includes pre-tested templates and convenience functions for a set of common Eval “tasks”
--   We apply data science rigor to the testing of model and template combinations
--   Designed to run as fast as possible on batches of Eval data
--   Includes benchmark datasets and tests to reproduce achieved results for the Eval task
--   Evaluation support for benchmarking task, python pipelines and LangChain/LlamaIndex callbacks
+* Includes pre-tested templates and convenience functions for a set of common Eval “tasks”
+* We apply data science rigor to the testing of model and template combinations
+* Designed to run as fast as possible on batches of Eval data
+* Includes benchmark datasets and tests to reproduce achieved results for the Eval task
+* Evaluation support for benchmarking task, python pipelines and LangChain/LlamaIndex callbacks
 
 Evals are supported on a span level for LangChain and LlamaIndex
 
@@ -137,33 +137,35 @@ Each of these is tested against golden datasets that are available as part of th
 
 ### &#x20;RAG Retrieval Performance:
 
--   RAG individual retrieval&#x20;
--   RAG group retrieval&#x20;
+
+* RAG individual retrieval&#x20;
+* RAG group retrieval&#x20;
 
 ### Hallucinations:
 
--   Hallucinations on answers to private data
--   Hallucinations on answer to public data
+* Hallucinations on answers to private data
+* Hallucinations on answer to public data
 
 ### Summarization:
 
--   Summarization performance
+* Summarization performance
 
 ### Question and Answering:
 
--   Private data Q\&A Eval
+* Private data Q\&A Eval
 
 ### User Frustration (coming soon)_<mark style="color:green;">:</mark>_&#x20;
 
--   User frustration deteection&#x20;
+* User frustration deteection&#x20;
 
 ### Toxicity:
 
--   Is the AI response racist, biased or toxic
+* Is the AI response racist, biased or toxic
 
 ### Coding Performance:
 
--   Code writing correctness
+* Code writing correctness
+
 
 ## Customize Your Own Eval Templates&#x20;
 
@@ -182,6 +184,7 @@ MY_CUSTOM_TEMPLATE = '''
     ************
     [Response]: {response}
     [END DATA]
+
 
     Please forcus on the tone of the response.
     Your answer must be single word, either "positive" or "negative"
