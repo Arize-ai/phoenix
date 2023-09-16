@@ -20,7 +20,7 @@ and should not contain any text or characters aside from that word.
 "relevant" means the reference text contains an answer to the Question.
 """
 
-HALLUCINATION_PROMPT_RAILS_MAP = OrderedDict({True: "factual", False: "hallucinated"})
+HALLUCINATION_PROMPT_RAILS_MAP = OrderedDict({True: "hallucinated", False: "factual"})
 HALLUCINATION_PROMPT_TEMPLATE_STR = """
 In this task, you will be presented with a query, a reference text and an answer. The answer is
 generated to the question based on the reference text. The answer may contain false information, you
