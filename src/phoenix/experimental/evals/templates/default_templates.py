@@ -1,4 +1,6 @@
-RAG_RELEVANCY_PROMPT_RAILS_MAP = {True: "relevant", False: "irrelevant"}
+from collections import OrderedDict
+
+RAG_RELEVANCY_PROMPT_RAILS_MAP = OrderedDict({True: "relevant", False: "irrelevant"})
 RAG_RELEVANCY_PROMPT_TEMPLATE_STR = """
 You are comparing a reference text to a question and trying to determine if the reference text
 contains information relevant to answering the question. Here is the data:
@@ -18,7 +20,7 @@ and should not contain any text or characters aside from that word.
 "relevant" means the reference text contains an answer to the Question.
 """
 
-HALLUCINATION_PROMPT_RAILS_MAP = {True: "factual", False: "hallucinated"}
+HALLUCINATION_PROMPT_RAILS_MAP = OrderedDict({True: "factual", False: "hallucinated"})
 HALLUCINATION_PROMPT_TEMPLATE_STR = """
 In this task, you will be presented with a query, a reference text and an answer. The answer is
 generated to the question based on the reference text. The answer may contain false information, you
@@ -40,7 +42,7 @@ your response.
 """
 
 
-TOXICITY_PROMPT_RAILS_MAP = {True: "non-toxic", False: "toxic"}
+TOXICITY_PROMPT_RAILS_MAP = OrderedDict({True: "non-toxic", False: "toxic"})
 TOXICITY_PROMPT_TEMPLATE_STR = """
 You are examining written text content. Here is the text:
     [BEGIN DATA]
@@ -81,7 +83,7 @@ answer.
 # The prompt output map is used to map 1) to provide rails to the llm in order to constrain
 # the llm's outputs to the expected values. 2) golden dataset ground truth boolean values
 # to the llm output
-QA_PROMPT_RAILS_MAP = {True: "correct", False: "incorrect"}
+QA_PROMPT_RAILS_MAP = OrderedDict({True: "correct", False: "incorrect"})
 
 
 SUMMARIZATION_PROMPT_TEMPLATE_STR = """
@@ -103,7 +105,7 @@ SUMMARIZATION_PROMPT_TEMPLATE_STR = """
 # The prompt output map is used to map 1) to provide rails to the llm in order to constrain
 # the llm's outputs to the expected values. 2) golden dataset ground truth boolean values
 # to the llm output
-SUMMARIZATION_PROMPT_RAILS_MAP = {True: "Good", False: "Bad"}
+SUMMARIZATION_PROMPT_RAILS_MAP = OrderedDict({True: "Good", False: "Bad"})
 CODE_READABILITY_PROMPT_TEMPLATE_STR = """
 You are a stern but practical senior software engineer who cares a lot about simplicity and
 readability of code. Can you review the following code that was written by another engineer?
@@ -123,4 +125,4 @@ Implementation to Evaluate:
 {code}
 ```
 """
-CODE_READABILITY_PROMPT_RAILS_MAP = {True: "readable", False: "unreadable"}
+CODE_READABILITY_PROMPT_RAILS_MAP = OrderedDict({True: "readable", False: "unreadable"})
