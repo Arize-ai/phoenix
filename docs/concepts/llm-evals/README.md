@@ -2,15 +2,15 @@
 
 ## What are LLM Evals?
 
-Evaluations of LLM outputs are best tackled by using a separate evaluation LLM. The Phoenix LLM Evals library is designed for simple, fast and accurate LLM based evaluations.&#x20;
+Evaluations of LLM outputs are best tackled by using a separate evaluation LLM. The Phoenix LLM Evals library is designed for simple, fast and accurate LLM based evaluations.
 
-This package attempts to make the use of the evaluation LLM easy to implement.&#x20;
+This package attempts to make the use of the evaluation LLM easy to implement.
 
-<figure><img src="../.gitbook/assets/Screenshot 2023-09-04 at 9.46.39 PM.png" alt=""><figcaption><p>LLM Evals</p></figcaption></figure>
+<figure><img src="../../.gitbook/assets/Screenshot 2023-09-04 at 9.46.39 PM.png" alt=""><figcaption><p>LLM Evals</p></figcaption></figure>
 
-### _The problem with Evaluations:_&#x20;
+### _The problem with Evaluations:_
 
-* Evaluation libraries are hard to trust and benchmarking lacks rigor&#x20;
+* Evaluation libraries are hard to trust and benchmarking lacks rigor
 * Production LLM Evals need to benchmark the combo of a model AND "_a prompt template"_
   * Open AI “model” Evals only focus on evaluating the model, a different use case
 * Evaluations harness should be usable in benchmarking, development, production or LangChain/LlamaIndex call back system
@@ -25,17 +25,27 @@ This package attempts to make the use of the evaluation LLM easy to implement.&#
 * Includes benchmark datasets and tests to reproduce achieved results for the Eval task
 * Evaluation support for benchmarking task, python pipelines and LangChain/LlamaIndex callbacks
 
+## Pre-Tested Evals
+
+The following are simple functions on top of the LLM Evals building blocks that are pre-tested with benchmark datasets.
+
+<figure><img src="../../.gitbook/assets/Screenshot 2023-09-12 at 9.43.28 PM.png" alt=""><figcaption></figcaption></figure>
+
+Each of these is tested against golden datasets that are available as part of the LLM eval library as part of the benchmarking datasets.
+
+## Evals Overview
+
 Evals are supported on a span level for LangChain and LlamaIndex
 
-<figure><img src="../.gitbook/assets/Screenshot 2023-09-10 at 8.19.49 AM.png" alt=""><figcaption><p>Running on Spans/Callbacks</p></figcaption></figure>
+<figure><img src="../../.gitbook/assets/Screenshot 2023-09-10 at 8.19.49 AM.png" alt=""><figcaption><p>Running on Spans/Callbacks</p></figcaption></figure>
 
 This below picture shows an Eval running on a span from LangChain or LlamaIndex.
 
-<figure><img src="../.gitbook/assets/Screenshot 2023-09-10 at 8.20.05 AM.png" alt=""><figcaption></figcaption></figure>
+<figure><img src="../../.gitbook/assets/Screenshot 2023-09-10 at 8.20.05 AM.png" alt=""><figcaption></figcaption></figure>
 
 Evals are also supported in Python pipelines for normal LLM deployments not using LlamaIndex or LangChain.
 
-<figure><img src="../.gitbook/assets/Screenshot 2023-09-12 at 9.42.45 PM.png" alt=""><figcaption><p>How Evals Work</p></figcaption></figure>
+<figure><img src="../../.gitbook/assets/Screenshot 2023-09-12 at 9.42.45 PM.png" alt=""><figcaption><p>How Evals Work</p></figcaption></figure>
 
 The above picture shows the running of the Evals library in a normal LLM environment unreleated to LangChain or LlamaIndex.
 
@@ -44,7 +54,7 @@ This library is split into high level functions to easily run rigorously pre-tes
 Options for using Evals:
 
 1. Pre-Tested Eval Templates
-2. Customize Your Own Templates&#x20;
+2. Customize Your Own Templates
 
 ## Running Evals
 
@@ -95,10 +105,10 @@ The example above shows how to run a pretested
 
 ### Binary Performance Evaluation
 
-We've tested a lot of different performance evaluation options. We've found approaches similar to <> are problematic in getting repeatable and understandable metrics for troubleshooting. Namely the variance in the LLM Eval generation when extracting a score (number) can distributed in non-intuitive manner. We found LLMs provide a testable and repeatable performance evaluation approach when asked to make a hard binary or categorical decision.&#x20;
+We've tested a lot of different performance evaluation options. We've found approaches similar to <> are problematic in getting repeatable and understandable metrics for troubleshooting. Namely the variance in the LLM Eval generation when extracting a score (number) can distributed in non-intuitive manner. We found LLMs provide a testable and repeatable performance evaluation approach when asked to make a hard binary or categorical decision.
 
 {% hint style="info" %}
-LLM Evals where the Eval output is a numeric score or rating needs more research and investigation. We have not found them comparable in performance to binary and categorical Evals.&#x20;
+LLM Evals where the Eval output is a numeric score or rating needs more research and investigation. We have not found them comparable in performance to binary and categorical Evals.
 {% endhint %}
 
 LLM Evals included currently in the library make a speific binary decision "hallucination" or "factual" for example. These binary decisions generate traditional Precision/Recall/F1/MRR metrics that can be applied to the decisions giving a very intuitive understanding of performance and provide comparable metrics across models.
@@ -124,22 +134,13 @@ The above approach allows us to compare models easily in an understandable forma
 
 The library was designed to maximize the volume and throughput you can run for Evals. Running a dataframe generates asynchonous calls and maximizing the throughput and usage of your API key. We found the library 10x faster in throughput than current call by call based approaches integrated into the LLM App Framework Evals.
 
--   Batch Evals: Run across a dataframe
--   One-by-one: Real-time Eval event by event
+* Batch Evals: Run across a dataframe
+* One-by-one: Real-time Eval event by event
 
-## Pre-Tested Evals
+### RAG Retrieval Performance:
 
-The following are simple functions on top of the LLM Evals building blocks that are pre-tested with benchmark datasets.
-
-<figure><img src="../.gitbook/assets/Screenshot 2023-09-12 at 9.43.28 PM.png" alt=""><figcaption></figcaption></figure>
-
-Each of these is tested against golden datasets that are available as part of the LLM eval library as part of the benchmarking datasets.&#x20;
-
-### &#x20;RAG Retrieval Performance:
-
-
-* RAG individual retrieval&#x20;
-* RAG group retrieval&#x20;
+* RAG individual retrieval
+* RAG group retrieval
 
 ### Hallucinations:
 
@@ -154,9 +155,9 @@ Each of these is tested against golden datasets that are available as part of th
 
 * Private data Q\&A Eval
 
-### User Frustration (coming soon)_<mark style="color:green;">:</mark>_&#x20;
+### User Frustration (coming soon)_<mark style="color:green;">:</mark>_
 
-* User frustration deteection&#x20;
+* User frustration deteection
 
 ### Toxicity:
 
@@ -166,14 +167,13 @@ Each of these is tested against golden datasets that are available as part of th
 
 * Code writing correctness
 
-
-## Customize Your Own Eval Templates&#x20;
+## Customize Your Own Eval Templates
 
 The LLM Evals library is designed to support the building of any custom Eval templates.
 
-<figure><img src="../.gitbook/assets/Screenshot 2023-09-04 at 10.06.26 PM.png" alt=""><figcaption><p>Custom Eval Templates</p></figcaption></figure>
+<figure><img src="../../.gitbook/assets/Screenshot 2023-09-04 at 10.06.26 PM.png" alt=""><figcaption><p>Custom Eval Templates</p></figcaption></figure>
 
-In order to create a new template all that is needed is the setting of the input string to the Eval function.&#x20;
+In order to create a new template all that is needed is the setting of the input string to the Eval function.
 
 ```python
 MY_CUSTOM_TEMPLATE = '''
@@ -191,7 +191,7 @@ MY_CUSTOM_TEMPLATE = '''
     '''
 ```
 
-The above template shows an example creation of an easy to use string template. The Phoenix Eval templates support both strings and objects.&#x20;
+The above template shows an example creation of an easy to use string template. The Phoenix Eval templates support both strings and objects.
 
 ```python
 
@@ -203,7 +203,7 @@ positive_eval = llm_eval_binary_jason(
 )
 ```
 
-The above example shows a use of the custom created template on the df dataframe.&#x20;
+The above example shows a use of the custom created template on the df dataframe.
 
 ```python
 #Phoenix Evals support using either stirngs or objects as templates
@@ -213,9 +213,9 @@ MY_CUSTOM_TEMPLATE = PromptTemplate("This is a test {prompt}")
 
 ## Models Supported
 
-We currently support OpenAI with Palm 2 and Llama coming very very soon.&#x20;
+We currently support OpenAI with Palm 2 and Llama coming very very soon.
 
-The model are instantiated and usable in the LLM Eval function. The models are also directly callable with strings.&#x20;
+The model are instantiated and usable in the LLM Eval function. The models are also directly callable with strings.
 
 ```python
 model = OpenAIModel(model_name="gpt-4",temperature=0.6)
@@ -224,11 +224,11 @@ model("What is the largest costal city in France?")
 
 ## Run Across Environments
 
-The Evals are designed to run on Dataframes, in Python pipelines or in LangChain & LlamaIndex callbacks.&#x20;
+The Evals are designed to run on Dataframes, in Python pipelines or in LangChain & LlamaIndex callbacks.
 
-<figure><img src="../.gitbook/assets/Screenshot 2023-09-06 at 3.22.15 PM.png" alt=""><figcaption><p>Same Eval Harness Different Environment</p></figcaption></figure>
+<figure><img src="../../.gitbook/assets/Screenshot 2023-09-06 at 3.22.15 PM.png" alt=""><figcaption><p>Same Eval Harness Different Environment</p></figcaption></figure>
 
-The above diagram shows examples of different environments the Eval harness is desinged to run. The benchmarking environment is designed to enable the testing of the Eval model & Eval template performance against a designed set of datasets.&#x20;
+The above diagram shows examples of different environments the Eval harness is desinged to run. The benchmarking environment is designed to enable the testing of the Eval model & Eval template performance against a designed set of datasets.
 
 ### Benchmarking
 

@@ -11,8 +11,6 @@ coverY: 0
 
 Phoenix is an Open Source ML Observability library carefully designed for the Notebook. The toolset is designed to ingest [inference](concepts/open-inference.md) data for [LLMs](concepts/llm-observability.md), CV, NLP and tabular datasets. It allows Data Scientists and AI Engineers to quickly visualize their inference data, monitor performance, track down issues & insights, and easily export to improve.&#x20;
 
-
-
 {% embed url="https://drive.google.com/file/d/1x99_TXIWifzQp_Aj_wdSyZ9IuIStwWVv/view?usp=drive_link" %}
 
 \
@@ -50,9 +48,9 @@ This is where Phoenix comes in. ML Observability helps you visualize, troublesho
 
 * **Discover How Embeddings Represent Your Data:** Map structured features onto embeddings for deeper insights into how embeddings represent your data.&#x20;
 * **Evaluate LLM Tasks:** Troubleshoot tasks such as summarization or question/answering to find problem clusters with misleading or false answers.&#x20;
-* **Find Clusters of Issues to Export for Model Improvement:** Find [clusters](concepts/phoenix-basics.md#embedding-details) of problems using performance metrics or drift. Export clusters for fine-tuning workflows.&#x20;
+* **Find Clusters of Issues to Export for Model Improvement:** Find [clusters](concepts/phoenix-basics/phoenix-basics.md#embedding-details) of problems using performance metrics or drift. Export clusters for fine-tuning workflows.&#x20;
 * **Detect Anomalies:** Using LLM embeddings&#x20;
-* **Surface Model Drift and Multivariate Drift:** Use embedding [drift](concepts/phoenix-basics.md#embedding-drift-over-time) to surface data drift for generative AI, LLMs, computer vision (CV) and tabular models.
+* **Surface Model Drift and Multivariate Drift:** Use embedding [drift](concepts/phoenix-basics/phoenix-basics.md#embedding-drift-over-time) to surface data drift for generative AI, LLMs, computer vision (CV) and tabular models.
 * **Easily Compare A/B Datasets:** Uncover high-impact clusters of data points missing from model training data when comparing training and production datasets.&#x20;
 
 ### Phoenix Supported Model Types

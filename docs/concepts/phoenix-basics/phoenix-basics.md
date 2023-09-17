@@ -2,13 +2,13 @@
 description: Learn the foundational concepts of the Phoenix API and Application
 ---
 
-# Phoenix Basics
+# DataFrames - Image/NLP/LLM
 
 This section introduces _datasets_ and _schemas,_ the starting concepts needed to use Phoenix.
 
 {% hint style="info" %}
-* For comprehensive descriptions of `phoenix.Dataset` and `phoenix.Schema`, see the [API reference](../api/dataset-and-schema.md).
-* For tips on creating your own Phoenix datasets and schemas, see the [how-to guide](../how-to/define-your-schema/).
+* For comprehensive descriptions of `phoenix.Dataset` and `phoenix.Schema`, see the [API reference](../../api/dataset-and-schema.md).
+* For tips on creating your own Phoenix datasets and schemas, see the [how-to guide](../../how-to/define-your-schema/).
 {% endhint %}
 
 ## Datasets
@@ -16,7 +16,7 @@ This section introduces _datasets_ and _schemas,_ the starting concepts needed t
 A _Phoenix dataset_ is an instance of `phoenix.Dataset` that contains three pieces of information:
 
 * The data itself (a pandas dataframe)
-* A [schema](../api/dataset-and-schema.md#phoenix.schema) (a `phoenix.Schema` instance) that describes the [columns](../how-to/define-your-schema/) of your dataframe
+* A [schema](../../api/dataset-and-schema.md#phoenix.schema) (a `phoenix.Schema` instance) that describes the [columns](../../how-to/define-your-schema/) of your dataframe
 * A dataset name that appears in the UI
 
 For example, if you have a dataframe `prod_df` that is described by a schema `prod_schema`, you can define a dataset `prod_ds` with
@@ -33,7 +33,7 @@ If you launch Phoenix with this dataset, you will see a dataset named "productio
 
 With a single dataset, Phoenix provides insights into model performance and data quality. With two datasets, Phoenix compares your datasets and gives insights into drift in addition to model performance and data quality.
 
-<table data-card-size="large" data-view="cards"><thead><tr><th align="center"></th><th></th></tr></thead><tbody><tr><td align="center"><strong>Use a Single Dataset When:</strong></td><td><ul><li>You have only a single cohort of data, e.g., only training data.</li><li>You care about model performance and data quality, but not drift.</li></ul></td></tr><tr><td align="center"><strong>Use Two Datasets When:</strong></td><td><ul><li>You want to compare cohorts of data, e.g., training vs. production.</li><li>You care about drift in addition to model performance and data quality.</li><li>You have corpus data for information retrieval. See <a href="../how-to/define-your-schema/corpus-data.md">Corpus Data</a>.</li></ul></td></tr></tbody></table>
+<table data-card-size="large" data-view="cards"><thead><tr><th align="center"></th><th></th></tr></thead><tbody><tr><td align="center"><strong>Use a Single Dataset When:</strong></td><td><ul><li>You have only a single cohort of data, e.g., only training data.</li><li>You care about model performance and data quality, but not drift.</li></ul></td></tr><tr><td align="center"><strong>Use Two Datasets When:</strong></td><td><ul><li>You want to compare cohorts of data, e.g., training vs. production.</li><li>You care about drift in addition to model performance and data quality.</li><li>You have corpus data for information retrieval. See <a href="../../how-to/define-your-schema/corpus-data.md">Corpus Data</a>.</li></ul></td></tr></tbody></table>
 
 ### Which dataset is which?
 
@@ -45,11 +45,11 @@ Very often, your primary dataset will contain production data and your reference
 
 ### Corpus Dataset (Information Retrieval)
 
-The only difference for the [corpus](../how-to/define-your-schema/corpus-data.md) dataset is that it needs a separate schema because it have a different set of columns compared to the model data. See the [schema](phoenix-basics.md#corpus-dataset-information-retrieval) section for more details.
+The only difference for the [corpus](../../how-to/define-your-schema/corpus-data.md) dataset is that it needs a separate schema because it have a different set of columns compared to the model data. See the [schema](phoenix-basics.md#corpus-dataset-information-retrieval) section for more details.
 
 ## Schemas
 
-A _Phoenix schema_ is an instance of `phoenix.Schema` that maps the [columns](../how-to/define-your-schema/) of your dataframe to fields that Phoenix expects and understands. Use your schema to tell Phoenix what the data in your dataframe means.
+A _Phoenix schema_ is an instance of `phoenix.Schema` that maps the [columns](../../how-to/define-your-schema/) of your dataframe to fields that Phoenix expects and understands. Use your schema to tell Phoenix what the data in your dataframe means.
 
 For example, if you have a dataframe containing Fisher's Iris data that looks like this:
 
@@ -89,7 +89,7 @@ Each dataset needs a schema. If your primary and reference datasets have the sam
 Sometimes, you'll encounter scenarios where the formats of your primary and reference datasets differ. For example, you'll need two schemas if:
 
 * Your production data has timestamps indicating the time at which an inference was made, but your training data does not.
-* Your training data has [ground truth](../how-to/define-your-schema/#predictions-and-actuals) (what we call _actuals_ in Phoenix nomenclature), but your production data does not.
+* Your training data has [ground truth](../../how-to/define-your-schema/#predictions-and-actuals) (what we call _actuals_ in Phoenix nomenclature), but your production data does not.
 * A new version of your model has a differing set of features from a previous version.
 
 In cases like these, you'll need to define two schemas, one for each dataset. For example, if you have dataframes `train_df` and `prod_df` that are described by schemas `train_schema` and `prod_schema`, respectively, then you can define datasets `train_ds` and `prod_ds` with
@@ -100,7 +100,7 @@ In cases like these, you'll need to define two schemas, one for each dataset. Fo
 
 #### Schema for Corpus Dataset (Information Retrieval)
 
-A [corpus](../how-to/define-your-schema/corpus-data.md) dataset, containing documents for information retrieval, typically has a different set of columns than those found in the model data from either production or training, and requires a separate schema. Below is an example schema for a corpus dataset with three columns: the `id`, `text`, and `embedding` for each document in the corpus.
+A [corpus](../../how-to/define-your-schema/corpus-data.md) dataset, containing documents for information retrieval, typically has a different set of columns than those found in the model data from either production or training, and requires a separate schema. Below is an example schema for a corpus dataset with three columns: the `id`, `text`, and `embedding` for each document in the corpus.
 
 {% code fullWidth="false" %}
 ```python
@@ -137,7 +137,7 @@ The phoenix homepage is still work in progress. More features coming soon!
 
 ### Embedding Details
 
-For each [embedding](phoenix-basics.md#embeddings) described in the dataset(s) [schema](../api/dataset-and-schema.md), Phoenix serves a embeddings troubleshooting view to help you identify areas of drift and performance degradation. Let's start with embedding drift.
+For each [embedding](phoenix-basics.md#embeddings) described in the dataset(s) [schema](../../api/dataset-and-schema.md), Phoenix serves a embeddings troubleshooting view to help you identify areas of drift and performance degradation. Let's start with embedding drift.
 
 <figure><img src="https://storage.googleapis.com/arize-assets/phoenix/assets/images/ner_color_by_correctness.png" alt=""><figcaption></figcaption></figure>
 
@@ -146,7 +146,7 @@ For each [embedding](phoenix-basics.md#embeddings) described in the dataset(s) [
 The picture below shows a time series graph of the drift between two groups of vectors –- the primary (typically production) vectors and reference / baseline vectors. Phoenix uses euclidean distance as the primary measure of embedding drift and helps us identify times where your dataset is diverging from a given reference baseline.&#x20;
 
 {% hint style="info" %}
-Note that when you are troubleshooting search and retrieval using a [corpus](../how-to/define-your-schema/corpus-data.md) dataset, the euclidean distance of your queries to your knowledge base vectors is presented as **query distance**&#x20;
+Note that when you are troubleshooting search and retrieval using a [corpus](../../how-to/define-your-schema/corpus-data.md) dataset, the euclidean distance of your queries to your knowledge base vectors is presented as **query distance**&#x20;
 {% endhint %}
 
 <figure><img src="https://storage.googleapis.com/arize-assets/phoenix/assets/images/euclidean_distance_timeseries_graph.png" alt="Euclidean distance over time graph"><figcaption><p>Euclidean distance over time</p></figcaption></figure>
@@ -178,7 +178,7 @@ When two datasets are used to initialize phoenix, the clusters are automatically
 
 ### UMAP Point-Cloud
 
-Phoenix projects the embeddings you provided into lower dimensional space (3 dimensions) using a dimension reduction algorithm called [UMAP](https://github.com/lmcinnes/umap) (stands for Uniform Manifold Approximation and Projection).  This lets us understand how your [embeddings have encoded semantic meaning](embeddings.md) in a visually understandable way.\
+Phoenix projects the embeddings you provided into lower dimensional space (3 dimensions) using a dimension reduction algorithm called [UMAP](https://github.com/lmcinnes/umap) (stands for Uniform Manifold Approximation and Projection).  This lets us understand how your [embeddings have encoded semantic meaning](../embeddings.md) in a visually understandable way.\
 \
 In addition to the point-cloud, another dimension we have at our disposal is color (and in some cases shape). Out of the box phoenix let's you assign colors to the UMAP point-cloud by dimension (features, tags, predictions, actuals), performance (correctness which distinguishes true positives and true negatives from the incorrect predictions), and dataset (to highlight areas of drift). This helps you explore your point-cloud from different perspectives depending on what you are looking for.\
 
