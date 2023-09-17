@@ -1,6 +1,6 @@
 # Contribute as a Developer
 
-We love developers leaning and contributing.
+We love having the community contribute!&#x20;
 
 \
 Developers guide is below:

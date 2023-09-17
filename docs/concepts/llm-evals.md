@@ -6,7 +6,7 @@ Evaluations of LLM outputs are best tackled by using a separate evaluation LLM. 
 
 This package attempts to make the use of the evaluation LLM easy to implement.
 
-<figure><img src="../../.gitbook/assets/Screenshot 2023-09-04 at 9.46.39 PM.png" alt=""><figcaption><p>LLM Evals</p></figcaption></figure>
+<figure><img src="../.gitbook/assets/Screenshot 2023-09-04 at 9.46.39 PM.png" alt=""><figcaption><p>LLM Evals</p></figcaption></figure>
 
 ### _The problem with Evaluations:_
 
@@ -29,7 +29,7 @@ This package attempts to make the use of the evaluation LLM easy to implement.
 
 The following are simple functions on top of the LLM Evals building blocks that are pre-tested with benchmark datasets.
 
-<figure><img src="../../.gitbook/assets/Screenshot 2023-09-12 at 9.43.28 PM.png" alt=""><figcaption></figcaption></figure>
+<figure><img src="../.gitbook/assets/Screenshot 2023-09-12 at 9.43.28 PM.png" alt=""><figcaption></figcaption></figure>
 
 Each of these is tested against golden datasets that are available as part of the LLM eval library as part of the benchmarking datasets.
 
@@ -37,15 +37,15 @@ Each of these is tested against golden datasets that are available as part of th
 
 Evals are supported on a span level for LangChain and LlamaIndex
 
-<figure><img src="../../.gitbook/assets/Screenshot 2023-09-10 at 8.19.49 AM.png" alt=""><figcaption><p>Running on Spans/Callbacks</p></figcaption></figure>
+<figure><img src="../.gitbook/assets/Screenshot 2023-09-10 at 8.19.49 AM.png" alt=""><figcaption><p>Running on Spans/Callbacks</p></figcaption></figure>
 
 This below picture shows an Eval running on a span from LangChain or LlamaIndex.
 
-<figure><img src="../../.gitbook/assets/Screenshot 2023-09-10 at 8.20.05 AM.png" alt=""><figcaption></figcaption></figure>
+<figure><img src="../.gitbook/assets/Screenshot 2023-09-10 at 8.20.05 AM.png" alt=""><figcaption></figcaption></figure>
 
 Evals are also supported in Python pipelines for normal LLM deployments not using LlamaIndex or LangChain.
 
-<figure><img src="../../.gitbook/assets/Screenshot 2023-09-12 at 9.42.45 PM.png" alt=""><figcaption><p>How Evals Work</p></figcaption></figure>
+<figure><img src="../.gitbook/assets/Screenshot 2023-09-12 at 9.42.45 PM.png" alt=""><figcaption><p>How Evals Work</p></figcaption></figure>
 
 The above picture shows the running of the Evals library in a normal LLM environment unreleated to LangChain or LlamaIndex.
 
@@ -171,7 +171,7 @@ The library was designed to maximize the volume and throughput you can run for E
 
 The LLM Evals library is designed to support the building of any custom Eval templates.
 
-<figure><img src="../../.gitbook/assets/Screenshot 2023-09-04 at 10.06.26 PM.png" alt=""><figcaption><p>Custom Eval Templates</p></figcaption></figure>
+<figure><img src="../.gitbook/assets/Screenshot 2023-09-04 at 10.06.26 PM.png" alt=""><figcaption><p>Custom Eval Templates</p></figcaption></figure>
 
 In order to create a new template all that is needed is the setting of the input string to the Eval function.
 
@@ -226,7 +226,7 @@ model("What is the largest costal city in France?")
 
 The Evals are designed to run on Dataframes, in Python pipelines or in LangChain & LlamaIndex callbacks.
 
-<figure><img src="../../.gitbook/assets/Screenshot 2023-09-06 at 3.22.15 PM.png" alt=""><figcaption><p>Same Eval Harness Different Environment</p></figcaption></figure>
+<figure><img src="../.gitbook/assets/Screenshot 2023-09-06 at 3.22.15 PM.png" alt=""><figcaption><p>Same Eval Harness Different Environment</p></figcaption></figure>
 
 The above diagram shows examples of different environments the Eval harness is desinged to run. The benchmarking environment is designed to enable the testing of the Eval model & Eval template performance against a designed set of datasets.
 

@@ -5,7 +5,7 @@
 Phoenix has two main data ingestion entry points based on the use case:
 
 1. [LLM Spans and Traces:](traces-and-spans-langchain-and-llamaindex.md) Phoenix is used on top of trace data generated LamaIndex and LangChain. The general use case is to troubleshoot LLM applications built on LangChain and LlamaIndex.&#x20;
-2. [DataFrames - Image/NLP/LLM:](phoenix-basics.md) Phoenix is used to troubleshoot models whose datasets can be expressed as DataFrames in Python.&#x20;
+2. [DataFrames - Image/NLP/LLM:](../phoenix-basics.md) Phoenix is used to troubleshoot models whose datasets can be expressed as DataFrames in Python.&#x20;
 
 ### When to use LLM Traces and Spans:
 
@@ -26,7 +26,7 @@ Phoenix has two main data ingestion entry points based on the use case:
 * Structured tabular data - embedding analysis of tabular data
 * Search and Retrieval (RAG) - without LangChain or LlamaIndex
 
-{% content-ref url="phoenix-basics.md" %}
-[phoenix-basics.md](phoenix-basics.md)
+{% content-ref url="../phoenix-basics.md" %}
+[phoenix-basics.md](../phoenix-basics.md)
 {% endcontent-ref %}
 

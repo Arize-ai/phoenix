@@ -5,10 +5,10 @@
 ## 💡 Concepts
 
 * [Phoenix Basics](concepts/phoenix-basics/README.md)
-  * [DataFrames - Image/NLP/LLM](concepts/phoenix-basics/phoenix-basics.md)
+  * [DataFrames - Image/NLP/LLM](concepts/phoenix-basics.md)
   * [Traces & Spans - Langchain & LlamaIndex](concepts/phoenix-basics/traces-and-spans-langchain-and-llamaindex.md)
 * [LangChain & LlamaIndex Traces](concepts/langchain-and-llamaindex-traces.md)
-* [LLM Evals](concepts/llm-evals/README.md)
+* [LLM Evals](concepts/llm-evals.md)
   * [Retrieval (RAG) Relevance](concepts/llm-evals/retrieval-rag-relevance.md)
   * [Hallucinations](concepts/llm-evals/hallucinations.md)
   * [Q\&A on Retrieved Data](concepts/llm-evals/q-and-a-on-retrieved-data.md)

@@ -12,7 +12,7 @@ In this tutorial, you will:
 
 * Download curated datasets of [embeddings](../concepts/embeddings.md) and predictions
 * Define a [schema](../api/dataset-and-schema.md#phoenix.schema) to describe the format of your data
-* [Launch](../api/session.md#phoenix.launch\_app) Phoenix to visually [explore](../concepts/phoenix-basics/phoenix-basics.md#embedding-details) your embeddings
+* [Launch](../api/session.md#phoenix.launch\_app) Phoenix to visually [explore](../concepts/phoenix-basics.md#embedding-details) your embeddings
 * Investigate problematic clusters
 * Export problematic production data for labeling and fine-tuning
 

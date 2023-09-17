@@ -20,7 +20,7 @@ In order to use Phoenix:
 2. (Optional) Leverage [SDK](http://127.0.0.1:5000/s/-MAlgpMyBRcl2qFZRQ67/api-reference/python-sdk/arize.pandas/autoembeddings#the-embeddinggenerator-class) embeddings and LLM eval generators
 3. Start Phoenix
    1. Single dataframe
-   2. (Optional) Two dataframes: primary and [reference](../concepts/phoenix-basics/phoenix-basics.md#which-dataset-is-which)
+   2. (Optional) Two dataframes: primary and [reference](../concepts/phoenix-basics.md#which-dataset-is-which)
 4. Investigate problems
 5. (Optional) Export data
 
