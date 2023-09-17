@@ -147,10 +147,61 @@ def _snap_to_rail(string: str, rails: Set[str]) -> Optional[str]:
     """
 
     processed_string = string.strip()
-    if processed_string not in rails:
+    rails_list = list(rails)
+    rail = _detect_substring(processed_string, rails_list[0], rails_list[1])
+    if not rail:
         logger.warning(
-            f"LLM output cannot be snapped to rails {list(rails)}, returning None. "
+            f"LLM output cannot be snapped to rails {list(rails)}, returning NOT_PARSABLE. "
             f'Output: "{string}"'
         )
-        return None
-    return processed_string
+        return "NOT_PARSABLE"
+    return rail
+
+def _detect_substring(Z, A, B):
+    """Detects if 
+
+    Args:
+        A (str): Rail value A
+
+        B (str): Rail value B
+
+        Z (str): Value returned by model
+
+    Returns:
+        str: A string from the rails argument or None if the input string could not be snapped.
+        This handles the case where A is part of B.
+        # Testing the function with the provided examples
+
+        A = "regular", B = "irregular", Z = "irregular"
+        print(detect_substring(Z, A, B))  # Output: "irregular"
+
+        A = "regular", B = "irregular", Z = "regular"
+        print(detect_substring(Z, A, B))  # Output: "regular"
+
+        A = "regular", B = "irregular", Z = "regular,:....blah"
+        print(detect_substring(Z, A, B))  # Output: "regular"
+
+        A = "regular", B = "irregular", Z = "regular..irregular"
+        print(detect_substring(Z, A, B))  # Output: None
+    """
+    a_pos, b_pos = Z.find(A), Z.find(B)
+    
+    # If both A and B are in Z
+    if a_pos != -1 and b_pos != -1:
+        # If either A is a prefix of B or B is a prefix of A in Z
+        if a_pos < b_pos < a_pos + len(A) or b_pos < a_pos < b_pos + len(B):
+            return max(A, B, key=len) # Return the longer of A or B
+        else:
+            return None # If A and B are distinct / both in Z, return None
+    # If only A is in Z
+    elif a_pos != -1:
+        return A
+    # If only B is in Z
+    elif b_pos != -1:
+        return B
+    return None
+
+
+
+
+
