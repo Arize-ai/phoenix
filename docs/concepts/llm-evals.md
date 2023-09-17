@@ -139,33 +139,32 @@ The library was designed to maximize the volume and throughput you can run for E
 
 ### RAG Retrieval Performance:
 
-* RAG individual retrieval
-* RAG group retrieval
+* [RAG individual retrieval](llm-evals/retrieval-rag-relevance.md)
 
 ### Hallucinations:
 
-* Hallucinations on answers to private data
-* Hallucinations on answer to public data
+* [Hallucinations on answers to private data](llm-evals/hallucinations.md)
+* [Hallucinations on answer to public data](llm-evals/hallucinations.md)
 
 ### Summarization:
 
-* Summarization performance
+* [Summarization performance](llm-evals/summarization-eval.md)
 
 ### Question and Answering:
 
-* Private data Q\&A Eval
-
-### User Frustration (coming soon)_<mark style="color:green;">:</mark>_
-
-* User frustration deteection
+* [Private data Q\&A Eval](llm-evals/q-and-a-on-retrieved-data.md)
 
 ### Toxicity:
 
-* Is the AI response racist, biased or toxic
+* [Is the AI response racist, biased or toxic](llm-evals/toxicity.md)
 
 ### Coding Performance:
 
-* Code writing correctness
+* [Code writing correctness and readability](llm-evals/code-generation-eval.md)
+
+### User Frustration (coming soon)_<mark style="color:green;">:</mark>_
+
+* User frustration detection
 
 ## Customize Your Own Eval Templates
 
