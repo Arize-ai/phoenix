@@ -2,6 +2,11 @@ import pandas as pd
 
 from ..templates import PromptTemplate
 
+# Rather than returning None, we return this string to indicate that the LLM output could not be
+# parsed.
+# This is useful for debugging as well as to just treat the output as a non-parsable category
+NOT_PARSABLE = "NOT_PARSABLE"
+
 
 def map_template(dataframe: pd.DataFrame, template: PromptTemplate) -> "pd.Series[str]":
     """
