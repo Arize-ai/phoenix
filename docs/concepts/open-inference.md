@@ -1,12 +1,26 @@
+---
+description: >-
+  OpenInference is an open standard that encompasses model inference and LLM
+  application tracing.
+---
+
 # Open Inference
 
 {% hint style="info" %}
-For a in-depth specificaiton of the OpenInference specification, please consult the spec [https://github.com/Arize-ai/open-inference-spec](https://github.com/Arize-ai/open-inference-spec)
+For a in-depth specification of the OpenInference specification, please consult the spec [https://github.com/Arize-ai/open-inference-spec](https://github.com/Arize-ai/open-inference-spec)
 {% endhint %}
 
-## Overview
+OpenInference is a specification that encompass two data models:
 
-The open inference data format is designed to provide an open interoperable data format for model inference files. Our goal is for modern ML systems, such as model servers and ML Observability platforms, to interface with each other using a common data format.\
+* [Inferences](https://github.com/Arize-ai/open-inference-spec/blob/main/inference/README.md)
+* [Traces](https://github.com/Arize-ai/open-inference-spec/blob/main/trace/README.md)
+
+Inferences are designed to capture inference logs from a variety of model types and use-cases where as traces are designed to capture the execution of an application that results in invocations of an LLM.\
+
+
+## Inferences
+
+The OpenInference data format is designed to provide an open interoperable data format for model inference files. Our goal is for modern ML systems, such as model servers and ML Observability platforms, to interface with each other using a common data format.\
 
 
 The goal of this is to define a specification for production inference logs that can be used on top of many file formats including Parquet, Avro, CSV and JSON. It will also support future formats such as Lance.

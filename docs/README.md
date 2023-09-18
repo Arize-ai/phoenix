@@ -11,8 +11,6 @@ coverY: 0
 
 Phoenix is an Open Source ML Observability library carefully designed for the Notebook. The toolset is designed to ingest [inference](concepts/open-inference.md) data for [LLMs](concepts/llm-observability.md), CV, NLP and tabular datasets. It allows Data Scientists and AI Engineers to quickly visualize their inference data, monitor performance, track down issues & insights, and easily export to improve.&#x20;
 
-
-
 {% embed url="https://drive.google.com/file/d/1x99_TXIWifzQp_Aj_wdSyZ9IuIStwWVv/view?usp=drive_link" %}
 
 \
