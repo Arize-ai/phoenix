@@ -128,7 +128,7 @@ precision, recall, f1, support = precision_recall_fscore_support(y_true, y_pred)
 
 The above approach allows us to compare models easily in an understandable format:
 
-<table><thead><tr><th>Hallucination Eval</th><th width="85">GPT-4</th><th width="99">GPT-3.5</th><th width="185">Plam 2 (soon)</th><th>Llama 7B (soon)</th></tr></thead><tbody><tr><td>Precision</td><td>0.94</td><td>0.94</td><td></td><td></td></tr><tr><td>Recall</td><td>0.75</td><td>0.71</td><td></td><td></td></tr><tr><td>F1</td><td>0.83</td><td>0.81</td><td></td><td></td></tr></tbody></table>
+<table><thead><tr><th>Hallucination Eval</th><th width="85">GPT-4</th><th width="99">GPT-3.5</th><th width="185">Palm 2 (soon)</th><th>Llama 7B (soon)</th></tr></thead><tbody><tr><td>Precision</td><td>0.94</td><td>0.94</td><td></td><td></td></tr><tr><td>Recall</td><td>0.75</td><td>0.71</td><td></td><td></td></tr><tr><td>F1</td><td>0.83</td><td>0.81</td><td></td><td></td></tr></tbody></table>
 
 ### Designed for Throughput
 
