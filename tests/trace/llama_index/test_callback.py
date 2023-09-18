@@ -3,10 +3,8 @@ from llama_index.callbacks import CallbackManager
 from llama_index.indices.service_context import ServiceContext
 from llama_index.query_engine import RetrieverQueryEngine
 from llama_index.schema import Document, TextNode
-from phoenix.experimental.callbacks.llama_index_trace_callback_handler import (
-    OpenInferenceTraceCallbackHandler,
-)
 from phoenix.trace.exporter import NoOpExporter
+from phoenix.trace.llama_index import OpenInferenceTraceCallbackHandler
 from phoenix.trace.semantic_conventions import (
     DOCUMENT_METADATA,
     INPUT_VALUE,

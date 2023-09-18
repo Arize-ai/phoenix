@@ -7,8 +7,8 @@ from langchain.chains.retrieval_qa.prompt import PROMPT as RETRIEVAL_QA_PROMPT
 from langchain.embeddings.fake import FakeEmbeddings
 from langchain.llms.fake import FakeListLLM
 from langchain.retrievers import KNNRetriever
-from phoenix.experimental.callbacks.langchain_tracer import OpenInferenceTracer
 from phoenix.trace.exporter import NoOpExporter
+from phoenix.trace.langchain import OpenInferenceTracer
 from phoenix.trace.schemas import SpanException, SpanKind, SpanStatusCode
 from phoenix.trace.semantic_conventions import (
     DOCUMENT_CONTENT,
