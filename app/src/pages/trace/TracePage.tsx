@@ -43,6 +43,7 @@ import {
   MESSAGE_ROLE,
   RetrievalAttributePostfixes,
   SemanticAttributePrefixes,
+  ToolAttributePostfixes,
 } from "@phoenix/openInference/tracing/semanticConventions";
 import {
   AttributeDocument,
@@ -269,7 +270,13 @@ function SpanInfo({ span }: { span: Span }) {
       break;
     }
     case "embedding": {
-      content = <EmbeddingInfo span={span} spanAttributes={attributesObject} />;
+      content = (
+        <EmbeddingSpanInfo span={span} spanAttributes={attributesObject} />
+      );
+      break;
+    }
+    case "tool": {
+      content = <ToolSpanInfo span={span} spanAttributes={attributesObject} />;
       break;
     }
     default:
@@ -409,7 +416,10 @@ function RetrieverSpanInfo(props: {
   );
 }
 
-function EmbeddingInfo(props: { span: Span; spanAttributes: AttributeObject }) {
+function EmbeddingSpanInfo(props: {
+  span: Span;
+  spanAttributes: AttributeObject;
+}) {
   const { spanAttributes } = props;
   const embeddingAttributes = useMemo<AttributeObject | null>(() => {
     const embeddingAttrs = spanAttributes[SemanticAttributePrefixes.embedding];
@@ -464,6 +474,79 @@ function EmbeddingInfo(props: { span: Span; spanAttributes: AttributeObject }) {
           }
         </BlockView>
       ) : null}
+    </Flex>
+  );
+}
+
+function ToolSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
+  const { spanAttributes } = props;
+  const toolAttributes = useMemo<AttributeObject>(() => {
+    const toolAttrs = spanAttributes[SemanticAttributePrefixes.tool];
+    if (typeof toolAttrs === "object") {
+      return toolAttrs as AttributeObject;
+    }
+    return {};
+  }, [spanAttributes]);
+
+  const hasToolAttributes = Object.keys(toolAttributes).length > 0;
+  if (!hasToolAttributes) {
+    return null;
+  }
+  const toolName = toolAttributes[ToolAttributePostfixes.name];
+  const toolDescription = toolAttributes[ToolAttributePostfixes.description];
+  const toolParameters = toolAttributes[ToolAttributePostfixes.parameters];
+  return (
+    <Flex direction="column" gap="size-200">
+      <BlockView
+        title={"Tool" + (typeof toolName === "string" ? `: ${toolName}` : "")}
+      >
+        <Flex direction="column">
+          {toolDescription != null ? (
+            <View
+              paddingStart="size-200"
+              paddingEnd="size-200"
+              paddingTop="size-100"
+              paddingBottom="size-100"
+              borderBottomColor="dark"
+              borderBottomWidth="thin"
+              backgroundColor="light"
+            >
+              <Flex direction="column" alignItems="start" gap="size-50">
+                <Text color="white70" fontStyle="italic">
+                  Description
+                </Text>
+                <Text>{toolDescription as string}</Text>
+              </Flex>
+            </View>
+          ) : null}
+          {toolParameters != null ? (
+            <div
+              css={css`
+                background-color: rgb(46, 52, 64);
+              `}
+            >
+              <View
+                paddingStart="size-200"
+                paddingEnd="size-200"
+                paddingTop="size-100"
+                paddingBottom="size-100"
+                borderBottomColor="dark"
+                borderBottomWidth="thin"
+              >
+                <Flex direction="column" alignItems="start" width="100%">
+                  <Text color="white70" fontStyle="italic">
+                    Parameters
+                  </Text>
+                  <CodeBlock
+                    value={JSON.stringify(toolParameters) as string}
+                    mimeType="json"
+                  />
+                </Flex>
+              </View>
+            </div>
+          ) : null}
+        </Flex>
+      </BlockView>
     </Flex>
   );
 }
