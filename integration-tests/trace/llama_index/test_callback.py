@@ -11,10 +11,8 @@ from llama_index.indices.vector_store import VectorStoreIndex
 from llama_index.llms import OpenAI
 from llama_index.query_engine import RetrieverQueryEngine
 from llama_index.tools import FunctionTool
-from phoenix.experimental.callbacks.llama_index_trace_callback_handler import (
-    OpenInferenceTraceCallbackHandler,
-)
 from phoenix.trace.exporter import NoOpExporter
+from phoenix.trace.llama_index import OpenInferenceTraceCallbackHandler
 from phoenix.trace.schemas import SpanKind
 from phoenix.trace.semantic_conventions import (
     EMBEDDING_EMBEDDINGS,

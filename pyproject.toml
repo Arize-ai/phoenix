@@ -56,10 +56,16 @@ dev = [
   "arize[AutoEmbeddings, LLM_Evaluation]",
 ]
 experimental = [
-  "langchain>=0.0.257",
-  "llama-index>=0.8.25",
   "openai",
   "tenacity",
+]
+
+llama_index = [
+  "llama-index>=0.8.25",
+]
+
+langchain = [
+  "langchain>=0.0.257",
 ]
 
 [project.urls]

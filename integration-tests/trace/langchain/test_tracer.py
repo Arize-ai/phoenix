@@ -6,14 +6,19 @@ from typing import Type
 
 import pytest
 from langchain import GoogleSearchAPIWrapper, LLMChain, PromptTemplate
-from langchain.agents import AgentExecutor, AgentType, create_sql_agent, initialize_agent
+from langchain.agents import (
+    AgentExecutor,
+    AgentType,
+    create_sql_agent,
+    initialize_agent,
+)
 from langchain.agents.agent_toolkits import SQLDatabaseToolkit
 from langchain.chains.openai_functions import create_openai_fn_chain
 from langchain.chat_models import ChatOpenAI
 from langchain.llms import BaseLLM, OpenAI
 from langchain.sql_database import SQLDatabase
 from langchain.tools import GoogleSearchRun, PythonREPLTool, tool
-from phoenix.experimental.callbacks.langchain_tracer import OpenInferenceTracer
+from phoenix.trace.langchain import OpenInferenceTracer
 from phoenix.trace.schemas import SpanKind
 from phoenix.trace.semantic_conventions import (
     LLM_FUNCTION_CALL,
