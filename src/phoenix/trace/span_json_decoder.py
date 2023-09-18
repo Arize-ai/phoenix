@@ -13,21 +13,11 @@ from phoenix.trace.schemas import (
     SpanStatusCode,
 )
 from phoenix.trace.semantic_conventions import (
-    DOCUMENT_METADATA,
     EXCEPTION_MESSAGE,
     INPUT_MIME_TYPE,
     OUTPUT_MIME_TYPE,
-    RETRIEVAL_DOCUMENTS,
     MimeType,
 )
-
-
-def json_to_document(obj: Optional[Dict[str, Any]]) -> Dict[str, Any]:
-    if obj is None:
-        return {}
-    if document_metadata := obj.get(DOCUMENT_METADATA):
-        obj[DOCUMENT_METADATA] = json.loads(document_metadata)
-    return obj
 
 
 def json_to_attributes(obj: Optional[Dict[str, Any]]) -> Dict[str, Any]:
@@ -39,8 +29,6 @@ def json_to_attributes(obj: Optional[Dict[str, Any]]) -> Dict[str, Any]:
         obj[INPUT_MIME_TYPE] = MimeType(mime_type)
     if mime_type := obj.get(OUTPUT_MIME_TYPE):
         obj[OUTPUT_MIME_TYPE] = MimeType(mime_type)
-    if documents := obj.get(RETRIEVAL_DOCUMENTS):
-        obj[RETRIEVAL_DOCUMENTS] = [json_to_document(document) for document in documents]
     return obj
 
 

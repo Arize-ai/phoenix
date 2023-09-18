@@ -2,11 +2,7 @@ import numpy as np
 import pandas as pd
 from pandas import DataFrame
 from phoenix.datasets import errors as err
-from phoenix.datasets.dataset import (
-    EmbeddingColumnNames,
-    Schema,
-    validate_dataset_inputs,
-)
+from phoenix.datasets.dataset import EmbeddingColumnNames, Schema, validate_dataset_inputs
 
 _NUM_RECORDS = 5
 _EMBEDDING_DIMENSION = 7
