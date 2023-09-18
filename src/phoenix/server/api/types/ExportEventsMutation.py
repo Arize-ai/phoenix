@@ -11,10 +11,7 @@ import phoenix.core.model_schema as ms
 from phoenix.server.api.context import Context
 from phoenix.server.api.input_types.ClusterInput import ClusterInput
 from phoenix.server.api.types.DatasetRole import AncillaryDatasetRole, DatasetRole
-from phoenix.server.api.types.Event import (
-    parse_event_ids_by_dataset_role,
-    unpack_event_id,
-)
+from phoenix.server.api.types.Event import parse_event_ids_by_dataset_role, unpack_event_id
 from phoenix.server.api.types.ExportedFile import ExportedFile
 
 

@@ -5,11 +5,13 @@ export const SemanticAttributePrefixes = {
   message: "message",
   document: "document",
   embedding: "embedding",
+  tool: "tool",
 } as const;
 
 export const LLMAttributePostfixes = {
   messages: "messages",
   invocation_parameters: "invocation_parameters",
+  prompts: "prompts",
 } as const;
 
 export const RetrievalAttributePostfixes = {
@@ -20,6 +22,12 @@ export const EmbeddingAttributePostfixes = {
   embeddings: "embeddings",
   text: "text",
   model_name: "model_name",
+} as const;
+
+export const ToolAttributePostfixes = {
+  name: "name",
+  description: "description",
+  parameters: "parameters",
 } as const;
 
 export const MessageAttributePostfixes = {

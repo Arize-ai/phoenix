@@ -38,7 +38,7 @@ def test_span_json_decoder_document_retrieval():
                                             poor-performing segments, the cold
                                             start problem, and more.
                                             &#x20;\n\n\n\n""",
-                        "document.metadata": "{}",
+                        "document.metadata": {"category": "ranking"},
                     },
                     {
                         "document.id": "d169f0ce-b5ea-4e88-9653-f8bb2fb1d105",
@@ -47,7 +47,7 @@ def test_span_json_decoder_document_retrieval():
                                             'arize-demo-hotel-ranking' model,
                                             available in all free accounts, to
                                             follow along.**&#x20;\n\n""",
-                        "document.metadata": "{}",
+                        "document.metadata": {},
                     },
                 ],
             },

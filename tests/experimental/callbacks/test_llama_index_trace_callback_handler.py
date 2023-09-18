@@ -2,15 +2,26 @@ from llama_index import ListIndex, get_response_synthesizer
 from llama_index.callbacks import CallbackManager
 from llama_index.indices.service_context import ServiceContext
 from llama_index.query_engine import RetrieverQueryEngine
-from llama_index.schema import TextNode
+from llama_index.schema import Document, TextNode
 from phoenix.experimental.callbacks.llama_index_trace_callback_handler import (
     OpenInferenceTraceCallbackHandler,
 )
 from phoenix.trace.exporter import NoOpExporter
-from phoenix.trace.semantic_conventions import INPUT_VALUE, OUTPUT_VALUE
+from phoenix.trace.semantic_conventions import (
+    DOCUMENT_METADATA,
+    INPUT_VALUE,
+    OUTPUT_VALUE,
+    RETRIEVAL_DOCUMENTS,
+)
+from phoenix.trace.span_json_decoder import json_string_to_span
+from phoenix.trace.span_json_encoder import span_to_json
 
 nodes = [
-    TextNode(text="The Great Pyramid of Giza is one of the seven wonders", id="0"),
+    Document(
+        text="The Great Pyramid of Giza is one of the seven wonders",
+        id="0",
+        metadata={"filename": "egypt.txt", "category": "pyramid"},
+    ),
     TextNode(text="The Hanging Gardens of Babylon is one of the seven wonders", id="1"),
 ]
 
@@ -36,3 +47,5 @@ def test_callback_llm(mock_service_context: ServiceContext) -> None:
     # Make sure that the input/output is captured
     assert spans[0].attributes[INPUT_VALUE] == question
     assert spans[0].attributes[OUTPUT_VALUE] == response.response
+    assert spans[1].attributes[RETRIEVAL_DOCUMENTS][0][DOCUMENT_METADATA] == nodes[0].metadata
+    assert list(map(json_string_to_span, map(span_to_json, spans))) == spans
