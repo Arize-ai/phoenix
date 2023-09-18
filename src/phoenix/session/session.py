@@ -141,7 +141,7 @@ class Session(ABC):
         """Returns the url for the phoenix app"""
         return _get_url(self.host, self.port, self.is_colab)
 
-    def get_span_dataframe(
+    def get_spans_dataframe(
         self,
         filter_condition: Optional[str] = None,
         *,

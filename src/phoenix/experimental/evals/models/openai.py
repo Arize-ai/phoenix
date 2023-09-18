@@ -23,7 +23,7 @@ OPENAI_API_KEY_ENVVAR_NAME = "OPENAI_API_KEY"
 
 
 @dataclass
-class OpenAiModel(BaseEvalModel):
+class OpenAIModel(BaseEvalModel):
     openai_api_key: Optional[str] = field(repr=False, default=None)
     openai_api_base: Optional[str] = field(repr=False, default=None)
     openai_organization: Optional[str] = field(repr=False, default=None)

@@ -15,7 +15,7 @@ This package attempts to make the use of the evaluation LLM easy to implement.&#
   * Open AI “model” Evals only focus on evaluating the model, a different use case
 * Evaluations harness should be usable in benchmarking, development, production or LangChain/LlamaIndex call back system
 * Evals should run as fast as possible on batches of data
-* LLM Evals should not require you to use chain abstractions - you shouldn't have to use LangChain to get Evals for pipelines that don't use LanngChain
+* LLM Evals should not require you to use chain abstractions - you shouldn't have to use LangChain to get Evals for pipelines that don't use LangChain
 
 ### _The solution provided by the Phoenix Evals:_
 
@@ -60,7 +60,7 @@ eval_test_data['reference'] = contexts
 #Copy the same query to every row
 eval_test_data['query'] = query
 #Evals model
-model_to_use = evals.OpenAiModel(model_name="gpt-4")
+model_to_use = evals.OpenAIModel(model_name="gpt-4")
 ##### RUN RAG Retrieval Performance EVALS #####
 eval_result = llm_eval_binary(eval_test_data, evals.RAG_RELEVANCY_PROMPT_TEMPLATE_STR, model_to_use)
 ```
@@ -70,7 +70,7 @@ The results are designed for easy analysis is Scikit learn or our convience func
 ```python
 from phoenix.experimental.evals import (
     RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
-    OpenAiModel,
+    OpenAIModel,
     download_benchmark_dataset,
     llm_eval_binary,
 )
@@ -82,7 +82,7 @@ df = download_benchmark_dataset(
 )
 
 df["eval_relevance"] = llm_eval_binary(df, evals.RAG_RELEVANCY_PROMPT_TEMPLATE_STR, model_to_use)
-#Golden dataset has True/False map to -> "irrelevant" / "relevant" 
+#Golden dataset has True/False map to -> "irrelevant" / "relevant"
 #we can then scikit compare to output of template - same format
 y_true = df["relevant"].map({True: "relevant", False: "irrelevant"})
 y_pred = df["eval_relevance"]
@@ -105,7 +105,7 @@ LLM Evals included currently in the library make a speific binary decision "hall
 
 ```python
 df["eval_relevance"] = llm_eval_binary(df, evals.RAG_RELEVANCY_PROMPT_TEMPLATE_STR, model_to_use)
-#Golden dataset has True/False map to -> "irrelevant" / "relevant" 
+#Golden dataset has True/False map to -> "irrelevant" / "relevant"
 #we can then scikit compare to output of template - same format
 y_true = df["relevant"].map({True: "relevant", False: "irrelevant"})
 y_pred = df["eval_relevance"]
@@ -124,8 +124,8 @@ The above approach allows us to compare models easily in an understandable forma
 
 The library was designed to maximize the volume and throughput you can run for Evals. Running a dataframe generates asynchonous calls and maximizing the throughput and usage of your API key. We found the library 10x faster in throughput than current call by call based approaches integrated into the LLM App Framework Evals.
 
-* Batch Evals: Run across a dataframe
-* One-by-one: Real-time Eval event by event
+-   Batch Evals: Run across a dataframe
+-   One-by-one: Real-time Eval event by event
 
 ## Pre-Tested Evals
 
@@ -136,6 +136,7 @@ The following are simple functions on top of the LLM Evals building blocks that 
 Each of these is tested against golden datasets that are available as part of the LLM eval library as part of the benchmarking datasets.&#x20;
 
 ### &#x20;RAG Retrieval Performance:
+
 
 * RAG individual retrieval&#x20;
 * RAG group retrieval&#x20;
@@ -165,6 +166,7 @@ Each of these is tested against golden datasets that are available as part of th
 
 * Code writing correctness
 
+
 ## Customize Your Own Eval Templates&#x20;
 
 The LLM Evals library is designed to support the building of any custom Eval templates.
@@ -175,14 +177,15 @@ In order to create a new template all that is needed is the setting of the input
 
 ```python
 MY_CUSTOM_TEMPLATE = '''
-    You are evaluating the positivity or negativity of the responses to questions. 
+    You are evaluating the positivity or negativity of the responses to questions.
     [BEGIN DATA]
     ************
     [Question]: {question}
     ************
     [Response]: {response}
     [END DATA]
-    
+
+
     Please forcus on the tone of the response.
     Your answer must be single word, either "positive" or "negative"
     '''
@@ -192,7 +195,7 @@ The above template shows an example creation of an easy to use string template. 
 
 ```python
 
-model = OpenAiModel(model_name="gpt-4",temperature=0.6)
+model = OpenAIModel(model_name="gpt-4",temperature=0.6)
 positive_eval = llm_eval_binary_jason(
     dataframe=df,
     template= MY_CUSTOM_TEMPLATE,
@@ -201,8 +204,6 @@ positive_eval = llm_eval_binary_jason(
 ```
 
 The above example shows a use of the custom created template on the df dataframe.&#x20;
-
-
 
 ```python
 #Phoenix Evals support using either stirngs or objects as templates
@@ -217,7 +218,7 @@ We currently support OpenAI with Palm 2 and Llama coming very very soon.&#x20;
 The model are instantiated and usable in the LLM Eval function. The models are also directly callable with strings.&#x20;
 
 ```python
-model = OpenAiModel(model_name="gpt-4",temperature=0.6)
+model = OpenAIModel(model_name="gpt-4",temperature=0.6)
 model("What is the largest costal city in France?")
 ```
 
