@@ -43,4 +43,4 @@ def test_callback_llm(mock_service_context: ServiceContext) -> None:
     assert spans[0].attributes[INPUT_VALUE] == question
     assert spans[0].attributes[OUTPUT_VALUE] == response.response
 
-    assert list(map(json_string_to_span, map(span_to_json, spans)))
+    assert list(map(json_string_to_span, map(span_to_json, spans))) == spans
