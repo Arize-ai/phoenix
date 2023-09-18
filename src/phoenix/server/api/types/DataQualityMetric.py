@@ -3,16 +3,7 @@ from functools import partial
 
 import strawberry
 
-from phoenix.metrics.metrics import (
-    Cardinality,
-    Count,
-    Max,
-    Mean,
-    Min,
-    PercentEmpty,
-    Quantile,
-    Sum,
-)
+from phoenix.metrics.metrics import Cardinality, Count, Max, Mean, Min, PercentEmpty, Quantile, Sum
 
 
 @strawberry.enum

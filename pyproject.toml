@@ -46,7 +46,7 @@ dev = [
   "hatch",
   "jupyter",
   "nbqa",
-  "ruff==0.0.289",
+  "ruff",
   "pandas-stubs<=2.0.2.230605",  # version 2.0.3.230814 is causing a dependency conflict.
   "pytest",
   "pytest-cov",
@@ -129,7 +129,7 @@ detached = true
 dependencies = [
   "black~=23.3.0",
   "black[jupyter]~=23.3.0",
-  "ruff~=0.0.289",
+  "ruff~=0.0.286",
 ]
 
 [tool.hatch.envs.notebooks]
