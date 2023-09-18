@@ -21,3 +21,13 @@ export function isNumberOrNull(value: unknown): value is number | null {
 export function isStringOrNull(value: unknown): value is string | null {
   return typeof value === "string" || value === null;
 }
+
+/**
+ * A type guard for checking if a value is a string array
+ */
+export function isStringArray(value: unknown): value is string[] {
+  if (!Array.isArray(value)) {
+    return false;
+  }
+  return value.every((item) => typeof item === "string");
+}

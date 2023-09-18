@@ -11,6 +11,7 @@ export const SemanticAttributePrefixes = {
 export const LLMAttributePostfixes = {
   messages: "messages",
   invocation_parameters: "invocation_parameters",
+  prompts: "prompts",
 } as const;
 
 export const RetrievalAttributePostfixes = {
