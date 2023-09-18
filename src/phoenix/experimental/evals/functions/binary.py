@@ -134,7 +134,8 @@ def run_relevance_eval(
 
 
 def _snap_to_rail(string: str, rails: Set[str]) -> Optional[str]:
-    """Snaps a string to the nearest rail, or returns None if the string cannot be snapped to a
+    """
+    Snaps a string to the nearest rail, or returns None if the string cannot be snapped to a
     rail.
 
     Args:
