@@ -33,3 +33,22 @@ summarization_classifications = llm_eval_binary(
 ```
 
 The above shows how to use the summarization Eval template.
+
+
+
+| Eval Summary | GPT-4 | GPT-3.5 | Palm 2 (soon) | Llama 7b (soon) |
+| ------------ | ----- | ------- | ------------- | --------------- |
+| Precision    | 0.79  | 1       |               |                 |
+| Recall       | 0.88  | 0.1     |               |                 |
+| F1           | 0.83  | .18     |               |                 |
+
+## GPT-4 Results
+
+
+
+<figure><img src="../../.gitbook/assets/Screenshot 2023-09-18 at 12.04.55 PM.png" alt=""><figcaption></figcaption></figure>
+
+## GPT-3.5 Results
+
+<figure><img src="../../.gitbook/assets/Screenshot 2023-09-18 at 12.05.02 PM (2).png" alt=""><figcaption></figcaption></figure>
+
