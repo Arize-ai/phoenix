@@ -129,7 +129,7 @@ detached = true
 dependencies = [
   "black~=23.3.0",
   "black[jupyter]~=23.3.0",
-  "ruff~=0.0.286",
+  "ruff~=0.0.290",
 ]
 
 [tool.hatch.envs.notebooks]
