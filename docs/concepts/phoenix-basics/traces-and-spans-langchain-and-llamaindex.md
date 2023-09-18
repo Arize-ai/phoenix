@@ -8,12 +8,12 @@ An instantiation of LangChain and LlamaIndex can be directed to store traces in 
 
 This store can be:
 
-* In Memory of Notebook: Local and ephemeral useful for quick debugging.
-* Local File (coming very soon): Persistent and good for offline local development. &#x20;
-* Cloud (coming very soon): Persistent and cloud friendly. Store in your cloud buckets.
+-   In Memory of Notebook: Local and ephemeral useful for quick debugging.
+-   Local File (coming very soon): Persistent and good for offline local development. &#x20;
+-   Cloud (coming very soon): Persistent and cloud friendly. Store in your cloud buckets.
 
 ```python
-from phoenix.experimental.callbacks.langchain_tracer import OpenInferenceTracer
+from phoenix.trace.langchain import OpenInferenceTracer
 import phoenix as px
 
 px.launch_app()
@@ -43,7 +43,7 @@ The open inference format also support data sets and files that are in the OpenI
 
 ```python
 
-from phoenix.experimental.callbacks.langchain_tracer import OpenInferenceTracer
+from phoenix.trace.langchain import OpenInferenceTracer
 
 tracer = OpenInferenceTracer()
 ds = TraceDataset.from_spans(tracer.span_buffer)
