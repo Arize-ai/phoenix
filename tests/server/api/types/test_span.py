@@ -40,7 +40,7 @@ def test_nested_attributes() -> None:
             "invocation_parameters": ...,
             "messages": ...,
             "model_name": ...,
-            "prompt": ...,
+            "prompts": ...,
             "prompt_template": {
                 "template": ...,
                 "variables": ...,

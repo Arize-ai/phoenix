@@ -26,6 +26,7 @@ from phoenix.trace.semantic_conventions import (
     LLM_PROMPT_TEMPLATE,
     LLM_PROMPT_TEMPLATE_VARIABLES,
     LLM_PROMPT_TEMPLATE_VERSION,
+    LLM_PROMPTS,
     LLM_TOKEN_COUNT_COMPLETION,
     LLM_TOKEN_COUNT_PROMPT,
     LLM_TOKEN_COUNT_TOTAL,
@@ -66,6 +67,12 @@ def _convert_io(obj: Optional[Dict[str, Any]]) -> Iterator[Any]:
     else:
         yield json.dumps(obj, default=_serialize_json)
         yield MimeType.JSON
+
+
+def _prompts(run_inputs: Dict[str, Any]) -> Iterator[Tuple[str, List[str]]]:
+    """Yields prompts if present."""
+    if "prompts" in run_inputs:
+        yield LLM_PROMPTS, run_inputs["prompts"]
 
 
 def _prompt_template(run_serialized: Dict[str, Any]) -> Iterator[Tuple[str, Any]]:
@@ -179,6 +186,7 @@ class OpenInferenceTracer(Tracer, BaseTracer):
             "outputs": (OUTPUT_VALUE, OUTPUT_MIME_TYPE),
         }.items():
             attributes.update(zip(io_attributes, _convert_io(run.get(io_key))))
+        attributes.update(_prompts(run["inputs"]))
         attributes.update(_prompt_template(run["serialized"]))
         attributes.update(_invocation_parameters(run))
         attributes.update(_model_name(run["extra"]))

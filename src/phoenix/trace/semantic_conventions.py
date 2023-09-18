@@ -125,9 +125,9 @@ LLM_MODEL_NAME = "llm.model_name"
 """
 The name of the model being used.
 """
-LLM_PROMPT = "llm.prompt"
+LLM_PROMPTS = "llm.prompts"
 """
-Messages provided to a completions API.
+Prompts provided to a completions API.
 """
 LLM_PROMPT_TEMPLATE = "llm.prompt_template.template"
 """
