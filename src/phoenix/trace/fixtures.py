@@ -22,7 +22,7 @@ llama_index_rag_fixture = TracesFixture(
 llama_index_rag_fixture_with_davinci = TracesFixture(
     name="llama_index_rag_with_davinci",
     description="Traces from running llama_index on a RAG use case with the completions API.",
-    file_name="llama_index_rag_with_davinci.jsonl",
+    file_name="llama_index_rag_with_davinci_v0.jsonl",
 )
 
 langchain_rag_stuff_document_chain_fixture = TracesFixture(
@@ -72,6 +72,7 @@ def _download_traces_fixture(
     Downloads the traces fixture from the phoenix bucket.
     """
     url = f"{host}{bucket}/{prefix}{fixture.file_name}"
+    print(url)
     with request.urlopen(url) as f:
         return cast(List[str], f.readlines())
 
