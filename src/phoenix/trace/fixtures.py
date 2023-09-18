@@ -19,6 +19,12 @@ llama_index_rag_fixture = TracesFixture(
     file_name="llama_index_rag_v5.jsonl",
 )
 
+llama_index_rag_fixture_with_davinci = TracesFixture(
+    name="llama_index_rag_with_davinci",
+    description="Traces from running llama_index on a RAG use case with the completions API.",
+    file_name="llama_index_rag_with_davinci.jsonl",
+)
+
 langchain_rag_stuff_document_chain_fixture = TracesFixture(
     name="langchain_rag_stuff_document_chain",
     description="LangChain RAG data",
@@ -33,6 +39,7 @@ random_fixture = TracesFixture(
 
 TRACES_FIXTURES: List[TracesFixture] = [
     llama_index_rag_fixture,
+    llama_index_rag_fixture_with_davinci,
     langchain_rag_stuff_document_chain_fixture,
     random_fixture,
 ]

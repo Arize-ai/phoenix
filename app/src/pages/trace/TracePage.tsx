@@ -49,7 +49,7 @@ import {
   AttributeEmbedding,
   AttributeMessage,
 } from "@phoenix/openInference/tracing/types";
-import { assertUnreachable } from "@phoenix/typeUtils";
+import { assertUnreachable, isStringArray } from "@phoenix/typeUtils";
 import { numberFormatter } from "@phoenix/utils/numberFormatUtils";
 
 import {
@@ -312,6 +312,17 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
       []) as AttributeMessage[];
   }, [llmAttributes]);
 
+  const prompts = useMemo<string[]>(() => {
+    if (llmAttributes == null) {
+      return [];
+    }
+    const maybePrompts = llmAttributes[LLMAttributePostfixes.prompts];
+    if (!isStringArray(maybePrompts)) {
+      return [];
+    }
+    return maybePrompts;
+  }, [llmAttributes]);
+
   const invocation_parameters_str = useMemo<string>(() => {
     if (llmAttributes == null) {
       return "{}";
@@ -322,6 +333,7 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
 
   const hasInput = input != null && input.value != null;
   const hasMessages = messages.length > 0;
+  const hasPrompts = prompts.length > 0;
   const hasInvocationParams =
     Object.keys(JSON.parse(invocation_parameters_str)).length > 0;
   return (
@@ -335,6 +347,9 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
           ) : null}
           <TabPane name="Messages" hidden={!hasMessages}>
             <LLMMessagesList messages={messages} />
+          </TabPane>
+          <TabPane name="Prompts" hidden={!hasPrompts}>
+            <LLMPromptsList prompts={prompts} />
           </TabPane>
           <TabPane name="Invocation Params" hidden={!hasInvocationParams}>
             <CodeBlock
@@ -554,6 +569,41 @@ function LLMMessagesList({ messages }: { messages: AttributeMessage[] }) {
                   </pre>
                 ) : null}
               </Flex>
+            </View>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+function LLMPromptsList({ prompts }: { prompts: string[] }) {
+  return (
+    <ul
+      data-testid="llm-prompts-list"
+      css={css`
+        padding: var(--ac-global-dimension-size-100);
+        display: flex;
+        flex-direction: column;
+        gap: var(--ac-global-dimension-size-100);
+      `}
+    >
+      {prompts.map((prompt, idx) => {
+        return (
+          <li key={idx}>
+            <View
+              backgroundColor="light"
+              borderRadius="medium"
+              padding="size-100"
+            >
+              <pre
+                css={css`
+                  text-wrap: wrap;
+                  margin: 0;
+                `}
+              >
+                {prompt}
+              </pre>
             </View>
           </li>
         );
