@@ -192,9 +192,10 @@ def _extract_rail(string: str, positive_rail: str, negative_rail: str) -> Option
 
     positive_pos, negative_pos = string.find(positive_rail), string.find(negative_rail)
 
-    # If both A and B are in Z
+    # If both positive and negative rails are in the string
     if positive_pos != -1 and negative_pos != -1:
-        # If either A is a prefix of B or B is a prefix of A in Z
+        # If either one is a substring of the other, return the longer one
+        # e.x. "regular" and "irregular"
         if positive_pos < negative_pos < positive_pos + len(
             positive_rail
         ) or negative_pos < positive_pos < negative_pos + len(negative_rail):
@@ -203,10 +204,10 @@ def _extract_rail(string: str, positive_rail: str, negative_rail: str) -> Option
         else:
             # If both rails values are in the string, we cannot determine which to return
             return None
-    # If only A is in Z
+    # If only positive is in string
     elif positive_pos != -1:
         return positive_rail
-    # If only B is in Z
+    # If only negative is in the string
     elif negative_pos != -1:
         return negative_rail
     return None
