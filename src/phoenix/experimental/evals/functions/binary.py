@@ -10,7 +10,7 @@ from ..templates import (
     PromptTemplate,
     normalize_template,
 )
-from .common import map_template
+from .common import NOT_PARSABLE, map_template
 
 logger = logging.getLogger(__name__)
 
@@ -148,60 +148,64 @@ def _snap_to_rail(string: str, rails: Set[str]) -> Optional[str]:
 
     processed_string = string.strip()
     rails_list = list(rails)
-    rail = _detect_substring(processed_string, rails_list[0], rails_list[1])
+    rail = _extract_rail(processed_string, rails_list[0], rails_list[1])
     if not rail:
         logger.warning(
-            f"LLM output cannot be snapped to rails {list(rails)}, returning NOT_PARSABLE. "
+            f"LLM output cannot be snapped to rails {list(rails)}, returning {NOT_PARSABLE}. "
             f'Output: "{string}"'
         )
-        return "NOT_PARSABLE"
+        return NOT_PARSABLE
     return rail
 
-def _detect_substring(Z, A, B):
-    """Detects if 
+
+def _extract_rail(string: str, positive_rail: str, negative_rail: str) -> Optional[str]:
+    """
+    Extracts the right rails text from the llm output. If the rails have overlapping characters,
+    (e.x. "regular" and "irregular"), it also ensures that the correct rail is returned.
 
     Args:
-        A (str): Rail value A
+        string (str): An input to be snapped to a rail.
 
-        B (str): Rail value B
+        positive_rail (str): The positive rail (e.x. toxic)
 
-        Z (str): Value returned by model
+        negative_rail (str): The negative rail. (e.x. non-toxic)
 
     Returns:
-        str: A string from the rails argument or None if the input string could not be snapped.
-        This handles the case where A is part of B.
-        # Testing the function with the provided examples
+        str: A string from the rails or None if the input string could not be extracted.
 
-        A = "regular", B = "irregular", Z = "irregular"
-        print(detect_substring(Z, A, B))  # Output: "irregular"
+    Examples:
+        given: positive_rail = "irregular", negative_rail = "regular"
 
-        A = "regular", B = "irregular", Z = "regular"
-        print(detect_substring(Z, A, B))  # Output: "regular"
+        string = "irregular"
+        Output: "irregular"
 
-        A = "regular", B = "irregular", Z = "regular,:....blah"
-        print(detect_substring(Z, A, B))  # Output: "regular"
+        string = "regular"
+        Output: "regular"
 
-        A = "regular", B = "irregular", Z = "regular..irregular"
-        print(detect_substring(Z, A, B))  # Output: None
+        string = "regular,:....random"
+        Output: "regular"
+
+        string = "regular..irregular" - contains both rails
+        Output: None
     """
-    a_pos, b_pos = Z.find(A), Z.find(B)
-    
+
+    positive_pos, negative_pos = string.find(positive_rail), string.find(negative_rail)
+
     # If both A and B are in Z
-    if a_pos != -1 and b_pos != -1:
+    if positive_pos != -1 and negative_pos != -1:
         # If either A is a prefix of B or B is a prefix of A in Z
-        if a_pos < b_pos < a_pos + len(A) or b_pos < a_pos < b_pos + len(B):
-            return max(A, B, key=len) # Return the longer of A or B
+        if positive_pos < negative_pos < positive_pos + len(
+            positive_rail
+        ) or negative_pos < positive_pos < negative_pos + len(negative_rail):
+            # Return the longer of the rails since it means the LLM returned the longer one
+            return max(positive_rail, negative_rail, key=len)
         else:
-            return None # If A and B are distinct / both in Z, return None
+            # If both rails values are in the string, we cannot determine which to return
+            return None
     # If only A is in Z
-    elif a_pos != -1:
-        return A
+    elif positive_pos != -1:
+        return positive_rail
     # If only B is in Z
-    elif b_pos != -1:
-        return B
+    elif negative_pos != -1:
+        return negative_rail
     return None
-
-
-
-
-
