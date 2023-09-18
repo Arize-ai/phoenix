@@ -35,8 +35,6 @@ def json_to_attributes(obj: Optional[Dict[str, Any]]) -> Dict[str, Any]:
 def json_to_span(data: Dict[str, Any]) -> Any:
     """
     A hook for json.loads to convert a dict to a Span object.
-
-    NB: this function is mainly used for testing purposes. Consider swapping this out for pydantic.
     """
     # Check if the dict can be interpreted as a Span
     if set(data.keys()) == {
