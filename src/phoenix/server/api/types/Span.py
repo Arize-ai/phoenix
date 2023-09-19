@@ -235,12 +235,12 @@ def _hide_embedding_vectors(
     attributes: Mapping[str, Any],
 ) -> Dict[str, Any]:
     _attributes = dict(attributes)
-    if not (embeddings := _attributes.get(EMBEDDING_EMBEDDINGS) or ()):
+    if not (embeddings := _attributes.get(EMBEDDING_EMBEDDINGS)):
         return _attributes
     _embeddings = []
     for embedding in embeddings:
         _embedding = dict(embedding)
-        if vector := _embedding.get(EMBEDDING_VECTOR) or ():
+        if vector := _embedding.get(EMBEDDING_VECTOR):
             _embedding[EMBEDDING_VECTOR] = f"<{len(vector)} dimensional vector>"
         _embeddings.append(_embedding)
     _attributes[EMBEDDING_EMBEDDINGS] = _embeddings
