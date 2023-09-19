@@ -119,8 +119,7 @@ def payload_to_semantic_attributes(
             # akin to the query_str
             attributes[INPUT_VALUE] = _message_payload_to_str(messages[0])
     if response := (payload.get(EventPayload.RESPONSE) or payload.get(EventPayload.COMPLETION)):
-        attributes[OUTPUT_VALUE] = _get_response_content(response)
-        attributes[OUTPUT_MIME_TYPE] = MimeType.TEXT
+        attributes.update(_get_response_output(response))
         if (raw := getattr(response, "raw", None)) and (usage := getattr(raw, "usage", None)):
             if prompt_tokens := getattr(usage, "prompt_tokens", None):
                 attributes[LLM_TOKEN_COUNT_PROMPT] = prompt_tokens
@@ -354,11 +353,21 @@ def _message_payload_to_str(message: Any) -> Optional[str]:
     return str(message)
 
 
-def _get_response_content(response: Any) -> str:
+def _get_response_output(response: Any) -> Iterator[Tuple[str, Any]]:
     """
-    Gets content from response objects. This is needed since the string representation of some
-    response objects includes extra information in addition to the content itself.
+    Gets output from response objects. This is needed since the string representation of some
+    response objects includes extra information in addition to the content itself. In the
+    case of an agent's ChatResponse the output may be a `function_call` object specifying
+    the name of the function to call and the arguments to call it with.
     """
     if isinstance(response, ChatResponse):
-        return response.message.content or ""
-    return str(response)
+        message = response.message
+        if content := message.content:
+            yield OUTPUT_VALUE, content
+            yield OUTPUT_MIME_TYPE, MimeType.TEXT
+        else:
+            yield OUTPUT_VALUE, json.dumps(message.additional_kwargs)
+            yield OUTPUT_MIME_TYPE, MimeType.JSON
+    else:
+        yield OUTPUT_VALUE, str(response)
+        yield OUTPUT_MIME_TYPE, MimeType.TEXT

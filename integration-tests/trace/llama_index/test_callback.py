@@ -28,9 +28,12 @@ from phoenix.trace.semantic_conventions import (
     LLM_TOKEN_COUNT_TOTAL,
     MESSAGE_CONTENT,
     MESSAGE_ROLE,
+    OUTPUT_MIME_TYPE,
+    OUTPUT_VALUE,
     TOOL_DESCRIPTION,
     TOOL_NAME,
     TOOL_PARAMETERS,
+    MimeType,
 )
 
 TEXT_EMBEDDING_ADA_002_EMBEDDING_DIM = 1536
@@ -154,13 +157,20 @@ def test_callback_data_agent() -> None:
     # There should be two LLM spans, one to figure out the parameters
     #  and one to complete the calculation
     assert len(llm_spans) == 2
-    llm_span = llm_spans[0]
-    assert json.loads(llm_span.attributes[LLM_INVOCATION_PARAMETERS]) == {
-        "frequency_penalty": 0.003,
-        "max_tokens": None,
-        "model": "gpt-3.5-turbo-0613",
-        "presence_penalty": 0.002,
-        "temperature": 0.1,
+    for llm_span in llm_spans:
+        assert json.loads(llm_span.attributes[LLM_INVOCATION_PARAMETERS]) == {
+            "frequency_penalty": 0.003,
+            "max_tokens": None,
+            "model": "gpt-3.5-turbo-0613",
+            "presence_penalty": 0.002,
+            "temperature": 0.1,
+        }
+    assert llm_spans[1].attributes[OUTPUT_MIME_TYPE] is MimeType.JSON
+    assert json.loads(llm_spans[1].attributes[OUTPUT_VALUE]) == {
+        "function_call": {
+            "name": "multiply",
+            "arguments": '{\n  "a": 2,\n  "b": 3\n}',
+        }
     }
     # one function call
     assert len(tool_spans) == 1
