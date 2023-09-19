@@ -74,7 +74,7 @@ class LlamaIndexModelAdapter:
 
 # Prompt template.
 class ClassificationPromptTemplate:
-    def __init__(self, template: str, classes: List[str]) -> None:
+    def __init__(self, template: str, rails: List[str]) -> None:
         raise NotImplementedError()
 
     def format(self, *args, **kwargs) -> str:
