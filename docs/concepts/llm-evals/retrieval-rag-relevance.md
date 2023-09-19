@@ -1,5 +1,7 @@
 # Retrieval (RAG) Relevance
 
+{% embed url="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/evals/evaluate_relevance_classifications.ipynb" %}
+
 This Eval evaluates whether a retrieved chunk contains an answer to the query. Its extremely useful for evaluating retrieval systems.
 
 ```python

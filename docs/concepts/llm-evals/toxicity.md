@@ -1,5 +1,7 @@
 # Toxicity
 
+{% embed url="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/evals/evaluate_toxicity_classifications.ipynb" %}
+
 The following shows results of the toxicity Eval on a toxic dataset test.&#x20;
 
 The template variables are:
