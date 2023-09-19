@@ -12,6 +12,14 @@ except ImportError:
         "Please install them with `pip install openai`."
     )
 
+try:
+    import litellm
+except ImportError:
+    raise ImportError(
+        "Could not import necessary dependencies: litellm. "
+        "Please install them with `pip install litellm`."
+    )
+
 OPENAI_RETRY_ERRORS = [
     openai.error.Timeout,
     openai.error.APIError,
@@ -92,7 +100,7 @@ class OpenAIModel(BaseEvalModel):
 
         @retry_decorator
         def _completion_with_retry(**kwargs: Any) -> Any:
-            return openai.ChatCompletion.create(**kwargs)  # type:ignore
+            return litellm.completion(**kwargs)  # type:ignore
 
         return _completion_with_retry(**kwargs)
 

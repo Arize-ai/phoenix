@@ -57,6 +57,7 @@ dev = [
 ]
 experimental = [
   "openai",
+  "litellm",
   "tenacity",
 ]
 
