@@ -42,6 +42,8 @@ from phoenix.trace.semantic_conventions import (
     LLM_INVOCATION_PARAMETERS,
     LLM_MESSAGES,
     LLM_MODEL_NAME,
+    LLM_PROMPT_TEMPLATE,
+    LLM_PROMPT_TEMPLATE_VARIABLES,
     LLM_PROMPTS,
     LLM_TOKEN_COUNT_COMPLETION,
     LLM_TOKEN_COUNT_PROMPT,
@@ -87,6 +89,14 @@ def payload_to_semantic_attributes(
     if event_type in (CBEventType.NODE_PARSING, CBEventType.CHUNKING):
         # TODO(maybe): handle these events
         return attributes
+    if event_type == CBEventType.TEMPLATING:
+        if template := payload.get(EventPayload.TEMPLATE):
+            attributes[LLM_PROMPT_TEMPLATE] = template
+        if template_vars := payload.get(EventPayload.TEMPLATE_VARS):
+            attributes[LLM_PROMPT_TEMPLATE_VARIABLES] = template_vars
+        # TODO(maybe): other keys in the same payload
+        # EventPayload.SYSTEM_PROMPT
+        # EventPayload.QUERY_WRAPPER_PROMPT
     if EventPayload.CHUNKS in payload and EventPayload.EMBEDDINGS in payload:
         attributes[EMBEDDING_EMBEDDINGS] = [
             {EMBEDDING_TEXT: text, EMBEDDING_VECTOR: vector}
