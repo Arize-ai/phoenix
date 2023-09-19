@@ -59,12 +59,9 @@ experimental = [
   "openai",
   "tenacity",
 ]
-
 llama_index = [
-  "openai",
   "llama-index>=0.8.25",
 ]
-
 langchain = [
   "langchain>=0.0.257",
 ]
