@@ -25,7 +25,6 @@ from llama_index.callbacks.schema import (
 )
 from llama_index.llms.base import ChatMessage, ChatResponse
 from llama_index.tools import ToolMetadata
-from openai.openai_object import OpenAIObject
 
 from phoenix.trace.exporter import HttpExporter
 from phoenix.trace.schemas import Span, SpanID, SpanKind, SpanStatusCode
@@ -122,12 +121,13 @@ def payload_to_semantic_attributes(
     if response := (payload.get(EventPayload.RESPONSE) or payload.get(EventPayload.COMPLETION)):
         attributes[OUTPUT_VALUE] = _get_response_content(response)
         attributes[OUTPUT_MIME_TYPE] = MimeType.TEXT
-        if raw := getattr(response, "raw", None):
-            if isinstance(raw, OpenAIObject):
-                usage = raw.usage
-                attributes[LLM_TOKEN_COUNT_PROMPT] = usage.prompt_tokens
-                attributes[LLM_TOKEN_COUNT_COMPLETION] = usage.completion_tokens
-                attributes[LLM_TOKEN_COUNT_TOTAL] = usage.total_tokens
+        if (raw := getattr(response, "raw", None)) and (usage := getattr(raw, "usage", None)):
+            if prompt_tokens := getattr(usage, "prompt_tokens", None):
+                attributes[LLM_TOKEN_COUNT_PROMPT] = prompt_tokens
+            if completion_tokens := getattr(usage, "completion_tokens", None):
+                attributes[LLM_TOKEN_COUNT_COMPLETION] = completion_tokens
+            if total_tokens := getattr(usage, "total_tokens", None):
+                attributes[LLM_TOKEN_COUNT_TOTAL] = total_tokens
     if EventPayload.TEMPLATE in payload:
         ...
     if event_type is CBEventType.RERANKING:
