@@ -60,10 +60,10 @@ experimental = [
   "tenacity",
 ]
 llama_index = [
-  "llama-index>=0.8.25",
+  "llama-index>=0.8.29",
 ]
 langchain = [
-  "langchain>=0.0.257",
+  "langchain>=0.0.293",
 ]
 
 [project.urls]
