@@ -1,5 +1,7 @@
 # Q\&A on Retrieved Data
 
+{% embed url="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/evals/evaluate_QA_classifications.ipynb" %}
+
 This Eval evaluates whether a question was correctly answered by the system based on the retrieved data. In contrast to retrieval Evals that are checks on chunks of data returned, this check is a system level check of a correct Q\&A.
 
 * **question**: This is the question the Q\&A system is running against

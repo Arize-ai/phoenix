@@ -1,5 +1,7 @@
 # Code Generation Eval
 
+{% embed url="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/evals/evaluate_code_readability_classifications.ipynb" %}
+
 This Eval checks the readability of the code from a code generation process.
 
 * **query** : The query is the coding question being asked

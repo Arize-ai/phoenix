@@ -1,5 +1,7 @@
 # Summarization Eval
 
+{% embed url="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/evals/evaluate_summarization_classifications.ipynb" %}
+
 This Eval helps evaluate the summarization results of a summarization task.
 
 Eval template variables:
