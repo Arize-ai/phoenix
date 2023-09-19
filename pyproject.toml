@@ -60,10 +60,10 @@ experimental = [
   "tenacity",
 ]
 llama_index = [
-  "llama-index>=0.8.25",
+  "llama-index>=0.8.29",
 ]
 langchain = [
-  "langchain>=0.0.257",
+  "langchain>=0.0.293",
 ]
 
 [project.urls]
@@ -105,8 +105,8 @@ dependencies = [
   "pytest-cov",
   "pytest-lazy-fixture",
   "arize",
-  "langchain>=0.0.257",
-  "llama-index>=0.8.25",
+  "langchain>=0.0.293",
+  "llama-index>=0.8.29",
   "openai",
   "tenacity",
   "nltk==3.8.1",
@@ -120,7 +120,7 @@ dependencies = [
 [tool.hatch.envs.type]
 dependencies = [
   "mypy==1.5.1",
-  "llama-index>=0.8.25",
+  "llama-index>=0.8.29",
   "pandas-stubs<=2.0.2.230605",  # version 2.0.3.230814 is causing a dependency conflict.
   "types-psutil",
   "types-tqdm",
