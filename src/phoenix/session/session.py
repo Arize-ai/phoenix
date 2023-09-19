@@ -319,6 +319,9 @@ def launch_app(
         )
         _session.end()
 
+    host = host or get_env_host()
+    port = port or get_env_port()
+
     if run_in_thread:
         _session = ThreadSession(primary, reference, corpus, trace, host=host, port=port)
         # TODO: catch exceptions from thread
