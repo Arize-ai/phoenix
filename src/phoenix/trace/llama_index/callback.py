@@ -94,7 +94,7 @@ def payload_to_semantic_attributes(
             attributes[LLM_PROMPT_TEMPLATE] = template
         if template_vars := payload.get(EventPayload.TEMPLATE_VARS):
             attributes[LLM_PROMPT_TEMPLATE_VARIABLES] = template_vars
-        # TODO(maybe)
+        # TODO(maybe): other keys in the same payload
         # EventPayload.SYSTEM_PROMPT
         # EventPayload.QUERY_WRAPPER_PROMPT
     if EventPayload.CHUNKS in payload and EventPayload.EMBEDDINGS in payload:
