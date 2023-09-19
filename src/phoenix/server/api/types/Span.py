@@ -2,7 +2,7 @@ import json
 from collections import defaultdict
 from datetime import datetime
 from enum import Enum
-from typing import Any, DefaultDict, List, Mapping, Optional, cast
+from typing import Any, DefaultDict, Dict, List, Mapping, Optional, cast
 
 import strawberry
 from strawberry import ID
@@ -19,6 +19,8 @@ from phoenix.server.api.context import Context
 from phoenix.server.api.types.MimeType import MimeType
 from phoenix.trace.schemas import SpanID
 from phoenix.trace.semantic_conventions import (
+    EMBEDDING_EMBEDDINGS,
+    EMBEDDING_VECTOR,
     EXCEPTION_MESSAGE,
     INPUT_MIME_TYPE,
     INPUT_VALUE,
@@ -159,7 +161,7 @@ def to_gql_span(span: trace_schema.Span) -> "Span":
             span_id=cast(ID, span.context.span_id),
         ),
         attributes=json.dumps(
-            _nested_attributes(span.attributes),
+            _nested_attributes(_hide_embedding_vectors(span.attributes)),
             default=_json_encode,
         ),
         token_count_total=cast(
@@ -227,3 +229,19 @@ def _nested_attributes(
             trie = trie[key]
         trie[keys[-1]] = attribute_value
     return nested_attributes
+
+
+def _hide_embedding_vectors(
+    attributes: Mapping[str, Any],
+) -> Dict[str, Any]:
+    _attributes = dict(attributes)
+    if not (embeddings := _attributes.get(EMBEDDING_EMBEDDINGS) or ()):
+        return _attributes
+    _embeddings = []
+    for embedding in embeddings:
+        _embedding = dict(embedding)
+        if vector := _embedding.get(EMBEDDING_VECTOR) or ():
+            _embedding[EMBEDDING_VECTOR] = f"<{len(vector)} dimensional vector>"
+        _embeddings.append(_embedding)
+    _attributes[EMBEDDING_EMBEDDINGS] = _embeddings
+    return _attributes
