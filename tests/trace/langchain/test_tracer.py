@@ -1,12 +1,25 @@
 from json import loads
+from typing import List
 from uuid import UUID
 
 import numpy as np
+import pytest
+import responses
 from langchain.chains import RetrievalQA
 from langchain.chains.retrieval_qa.prompt import PROMPT as RETRIEVAL_QA_PROMPT
+from langchain.chat_models import ChatOpenAI
 from langchain.embeddings.fake import FakeEmbeddings
+from langchain.llms import OpenAI
 from langchain.llms.fake import FakeListLLM
 from langchain.retrievers import KNNRetriever
+from langchain.schema.messages import (
+    AIMessage,
+    BaseMessage,
+    ChatMessage,
+    FunctionMessage,
+    HumanMessage,
+    SystemMessage,
+)
 from phoenix.trace.exporter import NoOpExporter
 from phoenix.trace.langchain import OpenInferenceTracer
 from phoenix.trace.schemas import SpanException, SpanKind, SpanStatusCode
@@ -16,9 +29,14 @@ from phoenix.trace.semantic_conventions import (
     EXCEPTION_MESSAGE,
     INPUT_MIME_TYPE,
     INPUT_VALUE,
+    LLM_MESSAGES,
+    LLM_MODEL_NAME,
     LLM_PROMPT_TEMPLATE,
     LLM_PROMPT_TEMPLATE_VARIABLES,
     LLM_PROMPT_TEMPLATE_VERSION,
+    LLM_PROMPTS,
+    MESSAGE_CONTENT,
+    MESSAGE_ROLE,
     OUTPUT_MIME_TYPE,
     OUTPUT_VALUE,
     RETRIEVAL_DOCUMENTS,
@@ -105,9 +123,131 @@ def test_tracer_llm() -> None:
     assert attributes.get(OUTPUT_MIME_TYPE) is MimeType.JSON
     assert loads(attributes.get(INPUT_VALUE))
     assert loads(attributes.get(OUTPUT_VALUE))
+    assert isinstance((prompts := attributes.get(LLM_PROMPTS)), list)
+    assert len(prompts) == 1
+    assert question in prompts[0]
 
     for span in spans.values():
         assert json_string_to_span(span_to_json(span)) == span
+
+
+@responses.activate
+@pytest.mark.parametrize(
+    "messages",
+    [
+        pytest.param(
+            [
+                ChatMessage(role="system", content="system-message-content"),
+                ChatMessage(role="user", content="user-message-content"),
+                ChatMessage(role="assistant", content="assistant-message-content"),
+                ChatMessage(role="function", content="function-message-content"),
+            ],
+            id="chat-messages",
+        ),
+        pytest.param(
+            [
+                SystemMessage(content="system-message-content"),
+                HumanMessage(content="user-message-content"),
+                AIMessage(content="assistant-message-content"),
+                FunctionMessage(name="function-name", content="function-message-content"),
+            ],
+            id="non-chat-messages",
+        ),
+    ],
+)
+def test_tracer_llm_message_attributes_with_chat_completions_api(
+    messages: List[BaseMessage], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-0123456789")
+    tracer = OpenInferenceTracer()
+    model_name = "gpt-4"
+    llm = ChatOpenAI(model_name=model_name)
+    expected_response = "response-text"
+    responses.post(
+        "https://api.openai.com/v1/chat/completions",
+        json={
+            "id": "chatcmpl-123",
+            "object": "chat.completion",
+            "created": 1677652288,
+            "model": model_name,
+            "choices": [
+                {
+                    "index": 0,
+                    "message": {"role": "assistant", "content": expected_response},
+                    "finish_reason": "stop",
+                }
+            ],
+            "usage": {"prompt_tokens": 1, "completion_tokens": 2, "total_tokens": 3},
+        },
+        status=200,
+    )
+    response = llm(messages, callbacks=[tracer])
+
+    spans = list(tracer.get_spans())
+    assert len(spans) == 1
+    span = spans[0]
+    attributes = span.attributes
+
+    assert response.content == expected_response
+    assert attributes[LLM_MODEL_NAME] == model_name
+    assert attributes[LLM_MESSAGES] == [
+        {MESSAGE_ROLE: "system", MESSAGE_CONTENT: "system-message-content"},
+        {MESSAGE_ROLE: "user", MESSAGE_CONTENT: "user-message-content"},
+        {MESSAGE_ROLE: "assistant", MESSAGE_CONTENT: "assistant-message-content"},
+        {MESSAGE_ROLE: "function", MESSAGE_CONTENT: "function-message-content"},
+    ]
+    assert LLM_PROMPTS not in attributes
+
+
+@responses.activate
+def test_tracer_llm_prompt_attributes_with_completions_api(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-0123456789")
+    tracer = OpenInferenceTracer()
+    model_name = "text-davinci-003"
+    llm = OpenAI(model_name=model_name, n=3)
+    expected_response_texts = [
+        "prompt-0-response-0",
+        "prompt-0-response-1",
+        "prompt-0-response-2",
+        "prompt-1-response-0",
+        "prompt-1-response-1",
+        "prompt-1-response-2",
+    ]
+    responses.post(
+        "https://api.openai.com/v1/completions",
+        json={
+            "id": "cmpl-uqkvlQyYK7bGYrRHQ0eXlWi7",
+            "object": "text_completion",
+            "created": 1589478378,
+            "model": model_name,
+            "choices": [
+                {
+                    "text": response_text,
+                    "index": index,
+                    "logprobs": None,
+                    "finish_reason": "stop",
+                }
+                for index, response_text in enumerate(expected_response_texts)
+            ],
+            "usage": {"prompt_tokens": 1, "completion_tokens": 2, "total_tokens": 3},
+        },
+        status=200,
+    )
+    input_prompts = ["prompt-0", "prompt-1"]
+    result = llm.generate(input_prompts, callbacks=[tracer])
+    spans = list(tracer.get_spans())
+
+    for prompt_index, generations in enumerate(result.generations):
+        for response_index, generation in enumerate(generations):
+            assert generation.text == f"prompt-{prompt_index}-response-{response_index}"
+
+    assert len(spans) == 2
+    for span_index, span in enumerate(tracer.get_spans()):
+        assert span.span_kind == SpanKind.LLM
+        attributes = span.attributes
+        assert attributes[LLM_MODEL_NAME] == model_name
+        assert attributes[LLM_PROMPTS] == [input_prompts[span_index]]
+        assert LLM_MESSAGES not in attributes
 
 
 def test_tracer_llm_with_exception() -> None:

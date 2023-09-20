@@ -2,10 +2,20 @@ import json
 import logging
 from copy import deepcopy
 from datetime import datetime
-from typing import Any, Dict, Iterator, List, Optional, Tuple
+from typing import (
+    Any,
+    Dict,
+    Iterator,
+    List,
+    Optional,
+    Tuple,
+)
+from uuid import UUID
 
 from langchain.callbacks.tracers.base import BaseTracer
 from langchain.callbacks.tracers.schemas import Run
+from langchain.load.dump import dumpd
+from langchain.schema.messages import BaseMessage
 
 from phoenix.trace.exporter import HttpExporter
 from phoenix.trace.schemas import (
@@ -22,6 +32,7 @@ from phoenix.trace.semantic_conventions import (
     INPUT_VALUE,
     LLM_FUNCTION_CALL,
     LLM_INVOCATION_PARAMETERS,
+    LLM_MESSAGES,
     LLM_MODEL_NAME,
     LLM_PROMPT_TEMPLATE,
     LLM_PROMPT_TEMPLATE_VARIABLES,
@@ -30,6 +41,8 @@ from phoenix.trace.semantic_conventions import (
     LLM_TOKEN_COUNT_COMPLETION,
     LLM_TOKEN_COUNT_PROMPT,
     LLM_TOKEN_COUNT_TOTAL,
+    MESSAGE_CONTENT,
+    MESSAGE_ROLE,
     OUTPUT_MIME_TYPE,
     OUTPUT_VALUE,
     RETRIEVAL_DOCUMENTS,
@@ -40,6 +53,9 @@ from phoenix.trace.semantic_conventions import (
 from phoenix.trace.tracer import Tracer
 
 logger = logging.getLogger(__name__)
+
+
+Message = Dict[str, Any]
 
 
 def _langchain_run_type_to_span_kind(run_type: str) -> SpanKind:
@@ -73,6 +89,36 @@ def _prompts(run_inputs: Dict[str, Any]) -> Iterator[Tuple[str, List[str]]]:
     """Yields prompts if present."""
     if "prompts" in run_inputs:
         yield LLM_PROMPTS, run_inputs["prompts"]
+
+
+def _messages(run_inputs: Dict[str, Any]) -> Iterator[Tuple[str, List[Message]]]:
+    """Yields chat messages if present."""
+    if "messages" in run_inputs:
+        yield LLM_MESSAGES, [
+            _parse_message_data(message_data) for message_data in run_inputs["messages"][0]
+        ]
+
+
+def _parse_message_data(message_data: Dict[str, Any]) -> Message:
+    """Parses message data to grab message role, content, etc."""
+    message_class_name = message_data["id"][-1]
+    if message_class_name == "HumanMessage":
+        role = "user"
+    elif message_class_name == "AIMessage":
+        role = "assistant"
+    elif message_class_name == "SystemMessage":
+        role = "system"
+    elif message_class_name == "FunctionMessage":
+        role = "function"
+    elif message_class_name == "ChatMessage":
+        role = message_data["kwargs"]["role"]
+    else:
+        raise ValueError(f"Cannot parse message of type: {message_class_name}")
+    parsed_message_data = {
+        MESSAGE_ROLE: role,
+        MESSAGE_CONTENT: message_data["kwargs"]["content"],
+    }
+    return parsed_message_data
 
 
 def _prompt_template(run_serialized: Dict[str, Any]) -> Iterator[Tuple[str, Any]]:
@@ -187,6 +233,7 @@ class OpenInferenceTracer(Tracer, BaseTracer):
         }.items():
             attributes.update(zip(io_attributes, _convert_io(run.get(io_key))))
         attributes.update(_prompts(run["inputs"]))
+        attributes.update(_messages(run["inputs"]))
         attributes.update(_prompt_template(run["serialized"]))
         attributes.update(_invocation_parameters(run))
         attributes.update(_model_name(run["extra"]))
@@ -234,3 +281,43 @@ class OpenInferenceTracer(Tracer, BaseTracer):
             self._convert_run_to_spans(run.dict())
         except Exception:
             logger.exception("Failed to convert run to spans")
+
+    def on_chat_model_start(
+        self,
+        serialized: Dict[str, Any],
+        messages: List[List[BaseMessage]],
+        *,
+        run_id: UUID,
+        tags: Optional[List[str]] = None,
+        parent_run_id: Optional[UUID] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+        **kwargs: Any,
+    ) -> None:
+        """
+        Adds chat messages to the run inputs.
+
+        LangChain's BaseTracer class does not implement hooks for chat models and hence does not
+        record data such as the list of messages that were passed to the chat model.
+
+        For reference, see https://github.com/langchain-ai/langchain/pull/4499.
+        """
+
+        parent_run_id_ = str(parent_run_id) if parent_run_id else None
+        execution_order = self._get_execution_order(parent_run_id_)
+        start_time = datetime.utcnow()
+        if metadata:
+            kwargs.update({"metadata": metadata})
+        run = Run(
+            id=run_id,
+            parent_run_id=parent_run_id,
+            serialized=serialized,
+            inputs={"messages": [[dumpd(message) for message in batch] for batch in messages]},
+            extra=kwargs,
+            events=[{"name": "start", "time": start_time}],
+            start_time=start_time,
+            execution_order=execution_order,
+            child_execution_order=execution_order,
+            run_type="llm",
+            tags=tags,
+        )
+        self._start_trace(run)
