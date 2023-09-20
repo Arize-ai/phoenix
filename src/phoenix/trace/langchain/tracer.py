@@ -55,6 +55,9 @@ from phoenix.trace.tracer import Tracer
 logger = logging.getLogger(__name__)
 
 
+Message = Dict[str, Any]
+
+
 def _langchain_run_type_to_span_kind(run_type: str) -> SpanKind:
     # TODO: LangChain is moving away from enums and to arbitrary strings
     # for the run_type variable, so we may need to do the same
@@ -88,16 +91,34 @@ def _prompts(run_inputs: Dict[str, Any]) -> Iterator[Tuple[str, List[str]]]:
         yield LLM_PROMPTS, run_inputs["prompts"]
 
 
-def _messages(run_inputs: Dict[str, Any]) -> Iterator[Tuple[str, List[Dict[str, Any]]]]:
+def _messages(run_inputs: Dict[str, Any]) -> Iterator[Tuple[str, List[Message]]]:
     """Yields chat messages if present."""
     if "messages" in run_inputs:
         yield LLM_MESSAGES, [
-            {
-                MESSAGE_ROLE: message_data["kwargs"]["role"],
-                MESSAGE_CONTENT: message_data["kwargs"]["content"],
-            }
-            for message_data in run_inputs["messages"][0]
+            _parse_message_data(message_data) for message_data in run_inputs["messages"][0]
         ]
+
+
+def _parse_message_data(message_data: Dict[str, Any]) -> Message:
+    """Parses message data to grab message role, content, etc."""
+    message_class_name = message_data["id"][-1]
+    if message_class_name == "HumanMessage":
+        role = "user"
+    elif message_class_name == "AIMessage":
+        role = "assistant"
+    elif message_class_name == "SystemMessage":
+        role = "system"
+    elif message_class_name == "FunctionMessage":
+        role = "function"
+    elif message_class_name == "ChatMessage":
+        role = message_data["kwargs"]["role"]
+    else:
+        raise ValueError(f"Cannot parse message of type: {message_class_name}")
+    parsed_message_data = {
+        MESSAGE_ROLE: role,
+        MESSAGE_CONTENT: message_data["kwargs"]["content"],
+    }
+    return parsed_message_data
 
 
 def _prompt_template(run_serialized: Dict[str, Any]) -> Iterator[Tuple[str, Any]]:

@@ -2,6 +2,7 @@ from json import loads
 from uuid import UUID
 
 import numpy as np
+import pytest
 import responses
 from langchain.chains import RetrievalQA
 from langchain.chains.retrieval_qa.prompt import PROMPT as RETRIEVAL_QA_PROMPT
@@ -10,7 +11,13 @@ from langchain.embeddings.fake import FakeEmbeddings
 from langchain.llms import OpenAI
 from langchain.llms.fake import FakeListLLM
 from langchain.retrievers import KNNRetriever
-from langchain.schema.messages import ChatMessage
+from langchain.schema.messages import (
+    AIMessage,
+    ChatMessage,
+    FunctionMessage,
+    HumanMessage,
+    SystemMessage,
+)
 from phoenix.trace.exporter import NoOpExporter
 from phoenix.trace.langchain import OpenInferenceTracer
 from phoenix.trace.schemas import SpanException, SpanKind, SpanStatusCode
@@ -123,7 +130,30 @@ def test_tracer_llm() -> None:
 
 
 @responses.activate
-def test_tracer_llm_message_attributes_with_chat_completions_api() -> None:
+@pytest.mark.parametrize(
+    "messages",
+    [
+        pytest.param(
+            [
+                ChatMessage(role="system", content="system-message-content"),
+                ChatMessage(role="user", content="user-message-content"),
+                ChatMessage(role="assistant", content="assistant-message-content"),
+                ChatMessage(role="function", content="function-message-content"),
+            ],
+            id="chat-messages",
+        ),
+        pytest.param(
+            [
+                SystemMessage(content="system-message-content"),
+                HumanMessage(content="user-message-content"),
+                AIMessage(content="assistant-message-content"),
+                FunctionMessage(name="function-name", content="function-message-content"),
+            ],
+            id="non-chat-messages",
+        ),
+    ],
+)
+def test_tracer_llm_message_attributes_with_chat_completions_api(messages) -> None:
     tracer = OpenInferenceTracer()
     model_name = "gpt-4"
     llm = ChatOpenAI(model_name=model_name)
@@ -146,12 +176,6 @@ def test_tracer_llm_message_attributes_with_chat_completions_api() -> None:
         },
         status=200,
     )
-    messages = [
-        ChatMessage(role="system", content="system-message-content"),
-        ChatMessage(role="user", content="user-message-content"),
-        ChatMessage(role="assistant", content="assistant-message-content"),
-        ChatMessage(role="function", content="function-message-content"),
-    ]
     response = llm(messages, callbacks=[tracer])
 
     spans = list(tracer.get_spans())
