@@ -26,6 +26,8 @@ from phoenix.trace.semantic_conventions import (
     LLM_PROMPT_TEMPLATE_VARIABLES,
     LLM_PROMPT_TEMPLATE_VERSION,
     LLM_PROMPTS,
+    MESSAGE_CONTENT,
+    MESSAGE_ROLE,
     OUTPUT_MIME_TYPE,
     OUTPUT_VALUE,
     RETRIEVAL_DOCUMENTS,
@@ -144,13 +146,13 @@ def test_tracer_llm_message_attributes_with_chat_completions_api() -> None:
         },
         status=200,
     )
-    expected_messages = [
-        {"role": "system", "content": "system-message-content"},
-        {"role": "user", "content": "user-message-content"},
-        {"role": "assistant", "content": "assistant-message-content"},
-        {"role": "function", "content": "function-message-content"},
+    messages = [
+        ChatMessage(role="system", content="system-message-content"),
+        ChatMessage(role="user", content="user-message-content"),
+        ChatMessage(role="assistant", content="assistant-message-content"),
+        ChatMessage(role="function", content="function-message-content"),
     ]
-    response = llm([ChatMessage(**message) for message in expected_messages], callbacks=[tracer])
+    response = llm(messages, callbacks=[tracer])
 
     spans = list(tracer.get_spans())
     assert len(spans) == 1
@@ -159,7 +161,12 @@ def test_tracer_llm_message_attributes_with_chat_completions_api() -> None:
 
     assert response.content == expected_response
     assert attributes[LLM_MODEL_NAME] == model_name
-    assert attributes[LLM_MESSAGES] == expected_messages
+    assert attributes[LLM_MESSAGES] == [
+        {MESSAGE_ROLE: "system", MESSAGE_CONTENT: "system-message-content"},
+        {MESSAGE_ROLE: "user", MESSAGE_CONTENT: "user-message-content"},
+        {MESSAGE_ROLE: "assistant", MESSAGE_CONTENT: "assistant-message-content"},
+        {MESSAGE_ROLE: "function", MESSAGE_CONTENT: "function-message-content"},
+    ]
     assert LLM_PROMPTS not in attributes
 
 
