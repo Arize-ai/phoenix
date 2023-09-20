@@ -2,10 +2,21 @@ import json
 import logging
 from copy import deepcopy
 from datetime import datetime
-from typing import Any, Dict, Iterator, List, Optional, Tuple
+from typing import (
+    Any,
+    Dict,
+    Iterator,
+    List,
+    Optional,
+    Tuple,
+    TypedDict,
+)
+from uuid import UUID
 
 from langchain.callbacks.tracers.base import BaseTracer
 from langchain.callbacks.tracers.schemas import Run
+from langchain.load.dump import dumpd
+from langchain.schema.messages import BaseMessage
 
 from phoenix.trace.exporter import HttpExporter
 from phoenix.trace.schemas import (
@@ -22,6 +33,7 @@ from phoenix.trace.semantic_conventions import (
     INPUT_VALUE,
     LLM_FUNCTION_CALL,
     LLM_INVOCATION_PARAMETERS,
+    LLM_MESSAGES,
     LLM_MODEL_NAME,
     LLM_PROMPT_TEMPLATE,
     LLM_PROMPT_TEMPLATE_VARIABLES,
@@ -40,6 +52,11 @@ from phoenix.trace.semantic_conventions import (
 from phoenix.trace.tracer import Tracer
 
 logger = logging.getLogger(__name__)
+
+
+class Message(TypedDict):
+    role: str
+    content: str
 
 
 def _langchain_run_type_to_span_kind(run_type: str) -> SpanKind:
@@ -73,6 +90,15 @@ def _prompts(run_inputs: Dict[str, Any]) -> Iterator[Tuple[str, List[str]]]:
     """Yields prompts if present."""
     if "prompts" in run_inputs:
         yield LLM_PROMPTS, run_inputs["prompts"]
+
+
+def _messages(run_inputs: Dict[str, Any]) -> Iterator[Tuple[str, List[Message]]]:
+    """A best-effort attempt to parse messages from the formatted prompts."""
+    if "messages" in run_inputs:
+        yield LLM_MESSAGES, [
+            {"role": message_data["kwargs"]["role"], "content": message_data["kwargs"]["content"]}
+            for message_data in run_inputs["messages"][0]
+        ]
 
 
 def _prompt_template(run_serialized: Dict[str, Any]) -> Iterator[Tuple[str, Any]]:
@@ -170,7 +196,50 @@ def _retrieval_documents(
     ]
 
 
-class OpenInferenceTracer(Tracer, BaseTracer):
+class BaseTracerWithChatModelSupport(BaseTracer):
+    """
+    BaseTracer class with support for chat models.
+
+    LangChain's BaseTracer class does not implement hooks for chat models and hence does not record
+    data such as the list of messages that were passed to the chat model. This class implements
+    those hooks.
+
+    For reference, see https://github.com/langchain-ai/langchain/pull/4499.
+    """
+
+    def on_chat_model_start(
+        self,
+        serialized: Dict[str, Any],
+        messages: List[List[BaseMessage]],
+        *,
+        run_id: UUID,
+        tags: Optional[List[str]] = None,
+        parent_run_id: Optional[UUID] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+        **kwargs: Any,
+    ) -> None:
+        parent_run_id_ = str(parent_run_id) if parent_run_id else None
+        execution_order = self._get_execution_order(parent_run_id_)
+        start_time = datetime.utcnow()
+        if metadata:
+            kwargs.update({"metadata": metadata})
+        run = Run(
+            id=run_id,
+            parent_run_id=parent_run_id,
+            serialized=serialized,
+            inputs={"messages": [[dumpd(message) for message in batch] for batch in messages]},
+            extra=kwargs,
+            events=[{"name": "start", "time": start_time}],
+            start_time=start_time,
+            execution_order=execution_order,
+            child_execution_order=execution_order,
+            run_type="llm",
+            tags=tags,
+        )
+        self._start_trace(run)
+
+
+class OpenInferenceTracer(Tracer, BaseTracerWithChatModelSupport):
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self._exporter = self._exporter or HttpExporter()
@@ -187,6 +256,7 @@ class OpenInferenceTracer(Tracer, BaseTracer):
         }.items():
             attributes.update(zip(io_attributes, _convert_io(run.get(io_key))))
         attributes.update(_prompts(run["inputs"]))
+        attributes.update(_messages(run["inputs"]))
         attributes.update(_prompt_template(run["serialized"]))
         attributes.update(_invocation_parameters(run))
         attributes.update(_model_name(run["extra"]))
