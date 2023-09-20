@@ -1,4 +1,4 @@
-from .functions import llm_eval_binary, llm_generate, run_relevance_eval
+from .functions import NOT_PARSABLE, llm_eval_binary, llm_generate, run_relevance_eval
 from .models import OpenAIModel
 from .retrievals import compute_precisions_at_k
 from .templates import (
@@ -29,5 +29,6 @@ __all__ = [
     "RAG_RELEVANCY_PROMPT_TEMPLATE_STR",
     "TOXICITY_PROMPT_TEMPLATE_STR",
     "TOXICITY_PROMPT_RAILS_MAP",
+    "NOT_PARSABLE",
     "run_relevance_eval",
 ]

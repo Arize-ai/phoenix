@@ -28,7 +28,7 @@ Enabling Phoenix for LangChain is a couple lines of code where LangChain is inst
 from langchain.llms import OpenAI
 from langchain.document_loaders import PyPDFLoader
 from langchain.chains.question_answering import load_qa_chain
-from phoenix.experimental.callbacks.langchain_tracer import OpenInferenceTracer
+from phoenix.trace.langchain import OpenInferenceTracer
 
 loader = PyPDFLoader("./example.pdf")
 documents = loader.load()
@@ -49,7 +49,7 @@ Enabling LlamaIndex is a couple lines of code where LlamaIndex is instantiated.&
 
 ```python
 import phoenix as px
-from phoenix.experimental.callbacks.llama_index_trace_callback_handler import (
+from phoenix.trace.llama_index import (
     OpenInferenceTraceCallbackHandler,
 )
 
@@ -111,7 +111,7 @@ Phoenix can also be opened on OpenInference span files. These are useful for sav
 
 ```python
 from langchain.chains import RetrievalQA
-from phoenix.experimental.callbacks.langchain_tracer import OpenInferenceTracer
+from phoenix.trace.langchain import OpenInferenceTracer
 
 chain = RetrievalQA.from_chain_type(
     llm=llm,

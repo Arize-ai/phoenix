@@ -43,13 +43,14 @@ import {
   MESSAGE_ROLE,
   RetrievalAttributePostfixes,
   SemanticAttributePrefixes,
+  ToolAttributePostfixes,
 } from "@phoenix/openInference/tracing/semanticConventions";
 import {
   AttributeDocument,
   AttributeEmbedding,
   AttributeMessage,
 } from "@phoenix/openInference/tracing/types";
-import { assertUnreachable } from "@phoenix/typeUtils";
+import { assertUnreachable, isStringArray } from "@phoenix/typeUtils";
 import { numberFormatter } from "@phoenix/utils/numberFormatUtils";
 
 import {
@@ -269,7 +270,13 @@ function SpanInfo({ span }: { span: Span }) {
       break;
     }
     case "embedding": {
-      content = <EmbeddingInfo span={span} spanAttributes={attributesObject} />;
+      content = (
+        <EmbeddingSpanInfo span={span} spanAttributes={attributesObject} />
+      );
+      break;
+    }
+    case "tool": {
+      content = <ToolSpanInfo span={span} spanAttributes={attributesObject} />;
       break;
     }
     default:
@@ -312,6 +319,17 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
       []) as AttributeMessage[];
   }, [llmAttributes]);
 
+  const prompts = useMemo<string[]>(() => {
+    if (llmAttributes == null) {
+      return [];
+    }
+    const maybePrompts = llmAttributes[LLMAttributePostfixes.prompts];
+    if (!isStringArray(maybePrompts)) {
+      return [];
+    }
+    return maybePrompts;
+  }, [llmAttributes]);
+
   const invocation_parameters_str = useMemo<string>(() => {
     if (llmAttributes == null) {
       return "{}";
@@ -322,6 +340,7 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
 
   const hasInput = input != null && input.value != null;
   const hasMessages = messages.length > 0;
+  const hasPrompts = prompts.length > 0;
   const hasInvocationParams =
     Object.keys(JSON.parse(invocation_parameters_str)).length > 0;
   return (
@@ -335,6 +354,9 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
           ) : null}
           <TabPane name="Messages" hidden={!hasMessages}>
             <LLMMessagesList messages={messages} />
+          </TabPane>
+          <TabPane name="Prompts" hidden={!hasPrompts}>
+            <LLMPromptsList prompts={prompts} />
           </TabPane>
           <TabPane name="Invocation Params" hidden={!hasInvocationParams}>
             <CodeBlock
@@ -409,7 +431,10 @@ function RetrieverSpanInfo(props: {
   );
 }
 
-function EmbeddingInfo(props: { span: Span; spanAttributes: AttributeObject }) {
+function EmbeddingSpanInfo(props: {
+  span: Span;
+  spanAttributes: AttributeObject;
+}) {
   const { spanAttributes } = props;
   const embeddingAttributes = useMemo<AttributeObject | null>(() => {
     const embeddingAttrs = spanAttributes[SemanticAttributePrefixes.embedding];
@@ -464,6 +489,79 @@ function EmbeddingInfo(props: { span: Span; spanAttributes: AttributeObject }) {
           }
         </BlockView>
       ) : null}
+    </Flex>
+  );
+}
+
+function ToolSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
+  const { spanAttributes } = props;
+  const toolAttributes = useMemo<AttributeObject>(() => {
+    const toolAttrs = spanAttributes[SemanticAttributePrefixes.tool];
+    if (typeof toolAttrs === "object") {
+      return toolAttrs as AttributeObject;
+    }
+    return {};
+  }, [spanAttributes]);
+
+  const hasToolAttributes = Object.keys(toolAttributes).length > 0;
+  if (!hasToolAttributes) {
+    return null;
+  }
+  const toolName = toolAttributes[ToolAttributePostfixes.name];
+  const toolDescription = toolAttributes[ToolAttributePostfixes.description];
+  const toolParameters = toolAttributes[ToolAttributePostfixes.parameters];
+  return (
+    <Flex direction="column" gap="size-200">
+      <BlockView
+        title={"Tool" + (typeof toolName === "string" ? `: ${toolName}` : "")}
+      >
+        <Flex direction="column">
+          {toolDescription != null ? (
+            <View
+              paddingStart="size-200"
+              paddingEnd="size-200"
+              paddingTop="size-100"
+              paddingBottom="size-100"
+              borderBottomColor="dark"
+              borderBottomWidth="thin"
+              backgroundColor="light"
+            >
+              <Flex direction="column" alignItems="start" gap="size-50">
+                <Text color="white70" fontStyle="italic">
+                  Description
+                </Text>
+                <Text>{toolDescription as string}</Text>
+              </Flex>
+            </View>
+          ) : null}
+          {toolParameters != null ? (
+            <div
+              css={css`
+                background-color: rgb(46, 52, 64);
+              `}
+            >
+              <View
+                paddingStart="size-200"
+                paddingEnd="size-200"
+                paddingTop="size-100"
+                paddingBottom="size-100"
+                borderBottomColor="dark"
+                borderBottomWidth="thin"
+              >
+                <Flex direction="column" alignItems="start" width="100%">
+                  <Text color="white70" fontStyle="italic">
+                    Parameters
+                  </Text>
+                  <CodeBlock
+                    value={JSON.stringify(toolParameters) as string}
+                    mimeType="json"
+                  />
+                </Flex>
+              </View>
+            </div>
+          ) : null}
+        </Flex>
+      </BlockView>
     </Flex>
   );
 }
@@ -554,6 +652,41 @@ function LLMMessagesList({ messages }: { messages: AttributeMessage[] }) {
                   </pre>
                 ) : null}
               </Flex>
+            </View>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+function LLMPromptsList({ prompts }: { prompts: string[] }) {
+  return (
+    <ul
+      data-testid="llm-prompts-list"
+      css={css`
+        padding: var(--ac-global-dimension-size-100);
+        display: flex;
+        flex-direction: column;
+        gap: var(--ac-global-dimension-size-100);
+      `}
+    >
+      {prompts.map((prompt, idx) => {
+        return (
+          <li key={idx}>
+            <View
+              backgroundColor="light"
+              borderRadius="medium"
+              padding="size-100"
+            >
+              <pre
+                css={css`
+                  text-wrap: wrap;
+                  margin: 0;
+                `}
+              >
+                {prompt}
+              </pre>
             </View>
           </li>
         );

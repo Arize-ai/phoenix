@@ -1,12 +1,23 @@
 ---
-description: How to connect to OpenInference compliant data via a llama_index callback
+description: How to connect to OpenInference compliant data via a llama_index callbacks
 ---
 
 # LlamaIndex
 
 [LlamaIndex](https://github.com/jerryjliu/llama\_index) (GPT Index) is a data framework for your LLM application. It's a powerful framework by which you can build an application that leverages RAG (retrieval-augmented generation) to super-charge an LLM with your own data. RAG is an extremely powerful LLM application model because it  lets you harness the power of LLMs such as OpenAI's GPT but tuned to your data and use-case.&#x20;
 
-However when building out a retrieval system, a lot can go wrong that can be detrimental to the user-experience of your question and answer system. To provide visibility into how your LLM app is performing, we built the [OpenInferenceCallback](https://github.com/jerryjliu/llama\_index/blob/57d8253c12fcda0061d3167d56dbc425981e131f/docs/examples/callbacks/OpenInferenceCallback.ipynb). The OpenInferenceCallback captures the internals of the LLM App in buffers that conforms to the [OpenInference](../concepts/open-inference.md) format. As your LlamaIndex application, the callback captures the timing, embeddings, documents, and other critical internals and serializes the data to buffers that can be easily materialized as dataframes or as files such as Parquet. Since Phoenix can ingest OpenInference data natively, making it a seamless integration to analyze your LLM powered chatbot. To understand callbacks in details, consult the [LlamaIndex docs.](https://gpt-index.readthedocs.io/en/latest/core\_modules/supporting\_modules/callbacks/root.html)
+However when building out a retrieval system, a lot can go wrong that can be detrimental to the user-experience of your question and answer system. Phoenix provides two different ways to gain insights into your LLM application: OpenInference inference records and OpenInference tracing.\
+\
+
+
+## Inferences
+
+{% hint style="info" %}
+Inferences capture each invocation of the LLM application as a single record and is useful for troubleshooting the app's RAG performance using Phoenix's embedding visualization. To view the traces or telemetry information of your application, skip forward to traces.
+{% endhint %}
+
+\
+To provide visibility into how your LLM app is performing, we built the [OpenInferenceCallback](https://github.com/jerryjliu/llama\_index/blob/57d8253c12fcda0061d3167d56dbc425981e131f/docs/examples/callbacks/OpenInferenceCallback.ipynb). The OpenInferenceCallback captures the internals of the LLM App in buffers that conforms to the [OpenInference](../concepts/open-inference.md) format. As your LlamaIndex application, the callback captures the timing, embeddings, documents, and other critical internals and serializes the data to buffers that can be easily materialized as dataframes or as files such as Parquet. Since Phoenix can ingest OpenInference data natively, making it a seamless integration to analyze your LLM powered chatbot. To understand callbacks in details, consult the [LlamaIndex docs.](https://gpt-index.readthedocs.io/en/latest/core\_modules/supporting\_modules/callbacks/root.html)
 
 ### Adding the OpenInferenceCallback
 
@@ -76,3 +87,9 @@ For a fully working example, checkout our colab notebook.
 {% embed url="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/llama_index_search_and_retrieval_tutorial.ipynb" %}
 Troubleshooting an LLM application using the OpenInferenceCallback
 {% endembed %}
+
+### Traces
+
+{% hint style="info" %}
+OpenInference Tracing is coming very soon!&#x20;
+{% endhint %}
