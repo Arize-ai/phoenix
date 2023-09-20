@@ -185,7 +185,7 @@ MY_CUSTOM_TEMPLATE = '''
     [END DATA]
 
 
-    Please forcus on the tone of the response.
+    Please focus on the tone of the response.
     Your answer must be single word, either "positive" or "negative"
     '''
 ```
