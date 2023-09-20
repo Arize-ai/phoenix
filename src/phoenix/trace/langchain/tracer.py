@@ -9,7 +9,6 @@ from typing import (
     List,
     Optional,
     Tuple,
-    TypedDict,
 )
 from uuid import UUID
 
@@ -42,6 +41,8 @@ from phoenix.trace.semantic_conventions import (
     LLM_TOKEN_COUNT_COMPLETION,
     LLM_TOKEN_COUNT_PROMPT,
     LLM_TOKEN_COUNT_TOTAL,
+    MESSAGE_CONTENT,
+    MESSAGE_ROLE,
     OUTPUT_MIME_TYPE,
     OUTPUT_VALUE,
     RETRIEVAL_DOCUMENTS,
@@ -52,11 +53,6 @@ from phoenix.trace.semantic_conventions import (
 from phoenix.trace.tracer import Tracer
 
 logger = logging.getLogger(__name__)
-
-
-class Message(TypedDict):
-    role: str
-    content: str
 
 
 def _langchain_run_type_to_span_kind(run_type: str) -> SpanKind:
@@ -92,11 +88,14 @@ def _prompts(run_inputs: Dict[str, Any]) -> Iterator[Tuple[str, List[str]]]:
         yield LLM_PROMPTS, run_inputs["prompts"]
 
 
-def _messages(run_inputs: Dict[str, Any]) -> Iterator[Tuple[str, List[Message]]]:
-    """A best-effort attempt to parse messages from the formatted prompts."""
+def _messages(run_inputs: Dict[str, Any]) -> Iterator[Tuple[str, List[Dict[str, Any]]]]:
+    """Yields chat messages if present."""
     if "messages" in run_inputs:
         yield LLM_MESSAGES, [
-            {"role": message_data["kwargs"]["role"], "content": message_data["kwargs"]["content"]}
+            {
+                MESSAGE_ROLE: message_data["kwargs"]["role"],
+                MESSAGE_CONTENT: message_data["kwargs"]["content"],
+            }
             for message_data in run_inputs["messages"][0]
         ]
 
