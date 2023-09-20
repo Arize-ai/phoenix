@@ -195,50 +195,7 @@ def _retrieval_documents(
     ]
 
 
-class BaseTracerWithChatModelSupport(BaseTracer):
-    """
-    BaseTracer class with support for chat models.
-
-    LangChain's BaseTracer class does not implement hooks for chat models and hence does not record
-    data such as the list of messages that were passed to the chat model. This class implements
-    those hooks.
-
-    For reference, see https://github.com/langchain-ai/langchain/pull/4499.
-    """
-
-    def on_chat_model_start(
-        self,
-        serialized: Dict[str, Any],
-        messages: List[List[BaseMessage]],
-        *,
-        run_id: UUID,
-        tags: Optional[List[str]] = None,
-        parent_run_id: Optional[UUID] = None,
-        metadata: Optional[Dict[str, Any]] = None,
-        **kwargs: Any,
-    ) -> None:
-        parent_run_id_ = str(parent_run_id) if parent_run_id else None
-        execution_order = self._get_execution_order(parent_run_id_)
-        start_time = datetime.utcnow()
-        if metadata:
-            kwargs.update({"metadata": metadata})
-        run = Run(
-            id=run_id,
-            parent_run_id=parent_run_id,
-            serialized=serialized,
-            inputs={"messages": [[dumpd(message) for message in batch] for batch in messages]},
-            extra=kwargs,
-            events=[{"name": "start", "time": start_time}],
-            start_time=start_time,
-            execution_order=execution_order,
-            child_execution_order=execution_order,
-            run_type="llm",
-            tags=tags,
-        )
-        self._start_trace(run)
-
-
-class OpenInferenceTracer(Tracer, BaseTracerWithChatModelSupport):
+class OpenInferenceTracer(Tracer, BaseTracer):
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self._exporter = self._exporter or HttpExporter()
@@ -303,3 +260,43 @@ class OpenInferenceTracer(Tracer, BaseTracerWithChatModelSupport):
             self._convert_run_to_spans(run.dict())
         except Exception:
             logger.exception("Failed to convert run to spans")
+
+    def on_chat_model_start(
+        self,
+        serialized: Dict[str, Any],
+        messages: List[List[BaseMessage]],
+        *,
+        run_id: UUID,
+        tags: Optional[List[str]] = None,
+        parent_run_id: Optional[UUID] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+        **kwargs: Any,
+    ) -> None:
+        """
+        Adds chat messages to the run inputs.
+
+        LangChain's BaseTracer class does not implement hooks for chat models and hence does not
+        record data such as the list of messages that were passed to the chat model.
+
+        For reference, see https://github.com/langchain-ai/langchain/pull/4499.
+        """
+
+        parent_run_id_ = str(parent_run_id) if parent_run_id else None
+        execution_order = self._get_execution_order(parent_run_id_)
+        start_time = datetime.utcnow()
+        if metadata:
+            kwargs.update({"metadata": metadata})
+        run = Run(
+            id=run_id,
+            parent_run_id=parent_run_id,
+            serialized=serialized,
+            inputs={"messages": [[dumpd(message) for message in batch] for batch in messages]},
+            extra=kwargs,
+            events=[{"name": "start", "time": start_time}],
+            start_time=start_time,
+            execution_order=execution_order,
+            child_execution_order=execution_order,
+            run_type="llm",
+            tags=tags,
+        )
+        self._start_trace(run)
