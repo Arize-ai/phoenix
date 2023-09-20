@@ -31,7 +31,7 @@ dependencies = [
   "psutil",
   "strawberry-graphql==0.208.2",
   "pyarrow",
-  "typing_extensions",
+  "typing-extensions",
   "scipy",
   "wrapt",
   "sortedcontainers",
