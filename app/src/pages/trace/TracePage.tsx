@@ -10,6 +10,8 @@ import CodeMirror from "@uiw/react-codemirror";
 import { css } from "@emotion/react";
 
 import {
+  Card,
+  CardProps,
   Counter,
   Dialog,
   DialogContainer,
@@ -20,6 +22,7 @@ import {
   Label,
   List,
   ListItem,
+  TabbedCard,
   TabPane,
   Tabs,
   Text,
@@ -69,6 +72,18 @@ const spanHasException = (span: Span) => {
   return span.events.some((event) => event.name === "exception");
 };
 
+/**
+ * Card props to apply across all cards
+ */
+const defaultCardProps: Partial<CardProps> = {
+  backgroundColor: "light",
+  borderColor: "light",
+  bodyStyle: {
+    padding: 0,
+  },
+  variant: "compact",
+  collapsible: true,
+};
 /**
  * A page that shows the details of a trace (e.g. a collection of spans)
  */
@@ -205,9 +220,9 @@ function SelectedSpanDetails({ selectedSpan }: { selectedSpan: Span }) {
       </TabPane>
       <TabPane name={"Attributes"} title="Attributes">
         <View padding="size-200">
-          <BlockView title="All Attributes">
+          <Card title="All Attributes" {...defaultCardProps}>
             <CodeBlock value={selectedSpan.attributes} mimeType="json" />
-          </BlockView>
+          </Card>
         </View>
       </TabPane>
       <TabPane
@@ -223,29 +238,6 @@ function SelectedSpanDetails({ selectedSpan }: { selectedSpan: Span }) {
         </View>
       </TabPane>
     </Tabs>
-  );
-}
-
-/**
- * A simple container to show a block of text or code
- */
-function BlockView({ children, title }: PropsWithChildren<{ title?: string }>) {
-  return (
-    <View borderColor="dark" borderRadius="medium" borderWidth="thin">
-      {title ? (
-        <View
-          paddingStart="size-150"
-          paddingEnd="size-150"
-          paddingTop="size-50"
-          paddingBottom="size-50"
-          borderBottomColor="dark"
-          borderBottomWidth="thin"
-        >
-          <Heading level={4}>{title}</Heading>
-        </View>
-      ) : null}
-      {children}
-    </View>
   );
 }
 
@@ -345,7 +337,7 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
     Object.keys(JSON.parse(invocation_parameters_str)).length > 0;
   return (
     <Flex direction="column" gap="size-200">
-      <BlockView>
+      <TabbedCard {...defaultCardProps}>
         <Tabs>
           {hasInput ? (
             <TabPane name="Input" hidden={!hasInput}>
@@ -367,11 +359,11 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
             />
           </TabPane>
         </Tabs>
-      </BlockView>
+      </TabbedCard>
       {output && output.value != null ? (
-        <BlockView title="Output">
+        <Card title="Output" {...defaultCardProps}>
           <CodeBlock {...output} />
-        </BlockView>
+        </Card>
       ) : null}
     </Flex>
   );
@@ -402,11 +394,11 @@ function RetrieverSpanInfo(props: {
   const hasDocuments = documents.length > 0;
   return (
     <Flex direction="column" gap="size-200">
-      <BlockView title="Input">
+      <Card title="Input" {...defaultCardProps}>
         {hasInput ? <CodeBlock {...input} /> : null}
-      </BlockView>
+      </Card>
       {hasDocuments ? (
-        <BlockView title="Documents">
+        <Card title="Documents" {...defaultCardProps}>
           {
             <ul
               css={css`
@@ -425,7 +417,7 @@ function RetrieverSpanInfo(props: {
               })}
             </ul>
           }
-        </BlockView>
+        </Card>
       ) : null}
     </Flex>
   );
@@ -457,11 +449,12 @@ function EmbeddingSpanInfo(props: {
   return (
     <Flex direction="column" gap="size-200">
       {hasEmbeddings ? (
-        <BlockView
+        <Card
           title={
             "Embeddings" +
             (typeof modelName === "string" ? `: ${modelName}` : "")
           }
+          {...defaultCardProps}
         >
           {
             <ul
@@ -487,7 +480,7 @@ function EmbeddingSpanInfo(props: {
               })}
             </ul>
           }
-        </BlockView>
+        </Card>
       ) : null}
     </Flex>
   );
@@ -512,8 +505,9 @@ function ToolSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
   const toolParameters = toolAttributes[ToolAttributePostfixes.parameters];
   return (
     <Flex direction="column" gap="size-200">
-      <BlockView
+      <Card
         title={"Tool" + (typeof toolName === "string" ? `: ${toolName}` : "")}
+        {...defaultCardProps}
       >
         <Flex direction="column">
           {toolDescription != null ? (
@@ -535,33 +529,27 @@ function ToolSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
             </View>
           ) : null}
           {toolParameters != null ? (
-            <div
-              css={css`
-                background-color: rgb(46, 52, 64);
-              `}
+            <View
+              paddingStart="size-200"
+              paddingEnd="size-200"
+              paddingTop="size-100"
+              paddingBottom="size-100"
+              borderBottomColor="dark"
+              borderBottomWidth="thin"
             >
-              <View
-                paddingStart="size-200"
-                paddingEnd="size-200"
-                paddingTop="size-100"
-                paddingBottom="size-100"
-                borderBottomColor="dark"
-                borderBottomWidth="thin"
-              >
-                <Flex direction="column" alignItems="start" width="100%">
-                  <Text color="white70" fontStyle="italic">
-                    Parameters
-                  </Text>
-                  <CodeBlock
-                    value={JSON.stringify(toolParameters) as string}
-                    mimeType="json"
-                  />
-                </Flex>
-              </View>
-            </div>
+              <Flex direction="column" alignItems="start" width="100%">
+                <Text color="white70" fontStyle="italic">
+                  Parameters
+                </Text>
+                <CodeBlock
+                  value={JSON.stringify(toolParameters) as string}
+                  mimeType="json"
+                />
+              </Flex>
+            </View>
           ) : null}
         </Flex>
-      </BlockView>
+      </Card>
     </Flex>
   );
 }
@@ -615,7 +603,9 @@ function LLMMessagesList({ messages }: { messages: AttributeMessage[] }) {
             <View
               margin="size-100"
               padding="size-100"
-              backgroundColor="light"
+              backgroundColor="gray-600"
+              borderColor="gray-400"
+              borderWidth="thin"
               borderRadius="medium"
             >
               <Flex direction="column" alignItems="start" gap="size-100">
@@ -675,7 +665,9 @@ function LLMPromptsList({ prompts }: { prompts: string[] }) {
         return (
           <li key={idx}>
             <View
-              backgroundColor="light"
+              backgroundColor="gray-600"
+              borderColor="gray-400"
+              borderWidth="thin"
               borderRadius="medium"
               padding="size-100"
             >
@@ -700,19 +692,28 @@ function SpanIO({ span }: { span: Span }) {
   return (
     <Flex direction="column" gap="size-200">
       {input && input.value != null ? (
-        <BlockView title="Input">
+        <Card title="Input" {...defaultCardProps}>
           <CodeBlock {...input} />
-        </BlockView>
+        </Card>
       ) : null}
       {output && output.value != null ? (
-        <BlockView title="Output">
+        <Card title="Output" {...defaultCardProps}>
           <CodeBlock {...output} />
-        </BlockView>
+        </Card>
       ) : null}
     </Flex>
   );
 }
 
+const codeMirrorCSS = css`
+  .cm-content {
+    padding: var(--ac-global-dimension-static-size-200) 0;
+  }
+  .cm-editor,
+  .cm-gutters {
+    background-color: transparent;
+  }
+`;
 function CodeBlock({ value, mimeType }: { value: string; mimeType: MimeType }) {
   let content;
   switch (mimeType) {
@@ -730,6 +731,7 @@ function CodeBlock({ value, mimeType }: { value: string; mimeType: MimeType }) {
           extensions={[json(), EditorView.lineWrapping]}
           editable={false}
           theme={nord}
+          css={codeMirrorCSS}
         />
       );
       break;
@@ -746,6 +748,7 @@ function CodeBlock({ value, mimeType }: { value: string; mimeType: MimeType }) {
             syntaxHighlighting: true,
           }}
           extensions={[EditorView.lineWrapping]}
+          css={codeMirrorCSS}
         />
       );
       break;
