@@ -70,7 +70,12 @@ class TraceDataset:
         Returns:
             TraceDataset: A TraceDataset containing the spans.
         """
-        return cls(pd.json_normalize(map(json.loads, map(span_to_json, spans))))  # type: ignore
+        return cls(
+            pd.json_normalize(
+                (json.loads(span_to_json(span)) for span in spans),  # type: ignore
+                max_level=1,
+            )
+        )
 
     def to_spans(self) -> Iterator[Span]:
         for _, row in self.dataframe.iterrows():
