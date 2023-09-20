@@ -1,4 +1,5 @@
 from json import loads
+from typing import List
 from uuid import UUID
 
 import numpy as np
@@ -13,6 +14,7 @@ from langchain.llms.fake import FakeListLLM
 from langchain.retrievers import KNNRetriever
 from langchain.schema.messages import (
     AIMessage,
+    BaseMessage,
     ChatMessage,
     FunctionMessage,
     HumanMessage,
@@ -153,7 +155,10 @@ def test_tracer_llm() -> None:
         ),
     ],
 )
-def test_tracer_llm_message_attributes_with_chat_completions_api(messages) -> None:
+def test_tracer_llm_message_attributes_with_chat_completions_api(
+    messages: List[BaseMessage], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-0123456789")
     tracer = OpenInferenceTracer()
     model_name = "gpt-4"
     llm = ChatOpenAI(model_name=model_name)
@@ -195,7 +200,8 @@ def test_tracer_llm_message_attributes_with_chat_completions_api(messages) -> No
 
 
 @responses.activate
-def test_tracer_llm_prompt_attributes_with_completions_api() -> None:
+def test_tracer_llm_prompt_attributes_with_completions_api(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-0123456789")
     tracer = OpenInferenceTracer()
     model_name = "text-davinci-003"
     llm = OpenAI(model_name=model_name, n=3)
