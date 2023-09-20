@@ -1,0 +1,65 @@
+{
+  "$schema": "https://aka.ms/codetour-schema",
+  "title": "app",
+  "steps": [
+    {
+      "title": "Introduction",
+      "description": "Welcome to the code tour for the app, the react powered frontend of phoenix! In this tour you will learn about how the application architected, built, and hosted."
+    },
+    {
+      "file": "app/src/App.tsx",
+      "description": "The application is built using `react` - a javascript view library. While `react` can be used to build server-rendered websites, react is only used on the frontend. Because of this, phoenix is a SPA - a single page application that uses data served by an API server. Here we can see the outline of the application:\n\n- uses `react-router` routes to display different pages\n- uses `react-relay` to fetch data from the GraphQL server\n- uses `@arizeai/components` for components and styles",
+      "line": 14
+    },
+    {
+      "file": "app/src/Routes.tsx",
+      "description": "The frontend application has various pages - a model home page, a tracing home page and so on. Each one of these pages is a `react` component that gets mounted in the UI based on a route that matches the nested routing structure seen below.",
+      "line": 20
+    },
+    {
+      "file": "app/src/pages/tracing/TracingHomePage.tsx",
+      "description": "Each page in the application is comprised of three parts:\n\n- the view of the page - a.k.a. the html\n- the styles of the component - the css\n- the data required to view the page - the AJAX calls\n\nIn phoenix, all three of these aspects are co-located.\n\n- the view is managed via components\n- the styles are added css-in-js via `emotion`\n- the data is fetched via `relay` queries",
+      "line": 13
+    },
+    {
+      "file": "app/esbuild.config.mjs",
+      "description": "The javascript and in the `app/src` direcory is all transpiled and minified via a build tool callded `esbuild`. `esbuild` ensures that the bundles produced are small, obfiscated, and ready to be served by the backend server.",
+      "line": 14
+    },
+    {
+      "file": "app/package.json",
+      "description": "The fontend build is invokable via `npm` scripts. This means that a single command such as `npm run build` will:\n\n- build the static assets for the pages (images, icons)\n- build the optemized `relay` queries for data loading\n- build the javascript bundle by converting the typescript files to a minified entrypoint",
+      "line": 71
+    },
+    {
+      "file": "app/src/components/trace/__tests__/utils.test.ts",
+      "description": "The fontend also utilizes `jest` to run unit tests to make sure certain code paths are properly tested. All tests can be run via the `npm` command `npm run test` which runs all the tests that fall under `__tests__` directories with the postfix `.test.ts`.",
+      "line": 4
+    },
+    {
+      "file": "app/package.json",
+      "description": "When developing the app, the UI build will be run in watch mode meaning that the javascript and css will automatically re-compile as you code. The `relay` build can be run in the background as well, though the simplest approach is to install the vs code plugin that automates the recompilation for you. ",
+      "line": 77
+    },
+    {
+      "file": "app/package.json",
+      "description": "When developing the UI, you will most likely want to build against a fixture of data. the `dev:server:*` scripts all mount different use-cases that can be used to develop against.",
+      "line": 88
+    },
+    {
+      "file": "app/package.json",
+      "description": "While the app is built using typescript which does provide a certain level of guerentees, `eslint` is also used to ensure that best practices are being followed.",
+      "line": 90
+    },
+    {
+      "file": "app/package.json",
+      "description": "The app is also auto-formatted via `prettier` to ensure that all files are well-formatted and conform to a single style.",
+      "line": 91
+    },
+    {
+      "file": ".github/workflows/typescript-CI.yml",
+      "description": "All the steps outlined in this tour are enfoced via GitHub actions. All steps must pass for PRs to be deemed safe and ready for `main`",
+      "line": 18
+    }
+  ]
+}

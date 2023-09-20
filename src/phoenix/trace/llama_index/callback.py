@@ -25,7 +25,6 @@ from llama_index.callbacks.schema import (
 )
 from llama_index.llms.base import ChatMessage, ChatResponse
 from llama_index.tools import ToolMetadata
-from openai.openai_object import OpenAIObject
 
 from phoenix.trace.exporter import HttpExporter
 from phoenix.trace.schemas import Span, SpanID, SpanKind, SpanStatusCode
@@ -43,6 +42,8 @@ from phoenix.trace.semantic_conventions import (
     LLM_INVOCATION_PARAMETERS,
     LLM_MESSAGES,
     LLM_MODEL_NAME,
+    LLM_PROMPT_TEMPLATE,
+    LLM_PROMPT_TEMPLATE_VARIABLES,
     LLM_PROMPTS,
     LLM_TOKEN_COUNT_COMPLETION,
     LLM_TOKEN_COUNT_PROMPT,
@@ -88,6 +89,14 @@ def payload_to_semantic_attributes(
     if event_type in (CBEventType.NODE_PARSING, CBEventType.CHUNKING):
         # TODO(maybe): handle these events
         return attributes
+    if event_type == CBEventType.TEMPLATING:
+        if template := payload.get(EventPayload.TEMPLATE):
+            attributes[LLM_PROMPT_TEMPLATE] = template
+        if template_vars := payload.get(EventPayload.TEMPLATE_VARS):
+            attributes[LLM_PROMPT_TEMPLATE_VARIABLES] = template_vars
+        # TODO(maybe): other keys in the same payload
+        # EventPayload.SYSTEM_PROMPT
+        # EventPayload.QUERY_WRAPPER_PROMPT
     if EventPayload.CHUNKS in payload and EventPayload.EMBEDDINGS in payload:
         attributes[EMBEDDING_EMBEDDINGS] = [
             {EMBEDDING_TEXT: text, EMBEDDING_VECTOR: vector}
@@ -120,14 +129,14 @@ def payload_to_semantic_attributes(
             # akin to the query_str
             attributes[INPUT_VALUE] = _message_payload_to_str(messages[0])
     if response := (payload.get(EventPayload.RESPONSE) or payload.get(EventPayload.COMPLETION)):
-        attributes[OUTPUT_VALUE] = _get_response_content(response)
-        attributes[OUTPUT_MIME_TYPE] = MimeType.TEXT
-        if raw := getattr(response, "raw", None):
-            if isinstance(raw, OpenAIObject):
-                usage = raw.usage
-                attributes[LLM_TOKEN_COUNT_PROMPT] = usage.prompt_tokens
-                attributes[LLM_TOKEN_COUNT_COMPLETION] = usage.completion_tokens
-                attributes[LLM_TOKEN_COUNT_TOTAL] = usage.total_tokens
+        attributes.update(_get_response_output(response))
+        if (raw := getattr(response, "raw", None)) and (usage := getattr(raw, "usage", None)):
+            if prompt_tokens := getattr(usage, "prompt_tokens", None):
+                attributes[LLM_TOKEN_COUNT_PROMPT] = prompt_tokens
+            if completion_tokens := getattr(usage, "completion_tokens", None):
+                attributes[LLM_TOKEN_COUNT_COMPLETION] = completion_tokens
+            if total_tokens := getattr(usage, "total_tokens", None):
+                attributes[LLM_TOKEN_COUNT_TOTAL] = total_tokens
     if EventPayload.TEMPLATE in payload:
         ...
     if event_type is CBEventType.RERANKING:
@@ -354,11 +363,21 @@ def _message_payload_to_str(message: Any) -> Optional[str]:
     return str(message)
 
 
-def _get_response_content(response: Any) -> str:
+def _get_response_output(response: Any) -> Iterator[Tuple[str, Any]]:
     """
-    Gets content from response objects. This is needed since the string representation of some
-    response objects includes extra information in addition to the content itself.
+    Gets output from response objects. This is needed since the string representation of some
+    response objects includes extra information in addition to the content itself. In the
+    case of an agent's ChatResponse the output may be a `function_call` object specifying
+    the name of the function to call and the arguments to call it with.
     """
     if isinstance(response, ChatResponse):
-        return response.message.content or ""
-    return str(response)
+        message = response.message
+        if content := message.content:
+            yield OUTPUT_VALUE, content
+            yield OUTPUT_MIME_TYPE, MimeType.TEXT
+        else:
+            yield OUTPUT_VALUE, json.dumps(message.additional_kwargs)
+            yield OUTPUT_MIME_TYPE, MimeType.JSON
+    else:
+        yield OUTPUT_VALUE, str(response)
+        yield OUTPUT_MIME_TYPE, MimeType.TEXT
