@@ -119,7 +119,7 @@ function SpanNodeWrap(props: PropsWithChildren<{ isSelected: boolean }>) {
           var(--ac-global-dimension-static-size-100);
         border-width: var(--ac-global-dimension-static-size-10);
         border-style: solid;
-        border-color: var(--ac-global-color-gray-500);
+        border-color: var(--ac-global-color-gray-300);
         &:hover {
           border-color: var(--ac-global-color-gray-200);
           background-color: var(--ac-global-color-gray-400);

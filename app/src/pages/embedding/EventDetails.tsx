@@ -81,7 +81,7 @@ export function EventDetails({ event }: { event: ModelEvent }) {
       `}
     >
       <EventPreview event={event} />
-      <Accordion variant="compact">
+      <Accordion>
         {isPredictionRecord ? (
           <AccordionItem id="prediction" title={"Prediction Details"}>
             <dl css={detailsListCSS}>
@@ -337,7 +337,7 @@ function EventPreview({ event }: { event: ModelEvent }) {
     );
   } else if (documentText) {
     content = (
-      <Accordion variant="compact">
+      <Accordion>
         <AccordionItem id="document" title="Document">
           <TextPre>{documentText}</TextPre>
         </AccordionItem>
@@ -345,7 +345,7 @@ function EventPreview({ event }: { event: ModelEvent }) {
     );
   } else if (promptAndResponse) {
     content = (
-      <Accordion variant="compact">
+      <Accordion>
         <AccordionItem id="prompt" title="Prompt">
           <TextPre>{promptAndResponse.prompt}</TextPre>
         </AccordionItem>
