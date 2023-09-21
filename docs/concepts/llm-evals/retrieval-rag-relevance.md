@@ -34,11 +34,7 @@ The above runs the RAG relevancy LLM template against the dataframe df.
 
 
 
-| RAG Eval  | GPT-4 | GPT-3.5 | Palm 2 (soon) | Llama 7b (soon) |
-| --------- | ----- | ------- | ------------- | --------------- |
-| Precision | 0.70  | 0.70    |               |                 |
-| Recall    | 0.88  | 0.88    |               |                 |
-| F1        | 0.78  | 0.78    |               |                 |
+<table><thead><tr><th>RAG Eval</th><th>GPT-4</th><th>GPT-3.5</th><th width="262">GGPT-3.5-turbo-instruct</th><th>Llama 7b (soon)</th></tr></thead><tbody><tr><td>Precision</td><td>0.70</td><td>0.70</td><td>0.42</td><td></td></tr><tr><td>Recall</td><td>0.88</td><td>0.88</td><td>1</td><td></td></tr><tr><td>F1</td><td>0.78</td><td>0.78</td><td>0.59</td><td></td></tr></tbody></table>
 
 ### GPT-4 Result
 
