@@ -27,6 +27,7 @@ import {
   Tabs,
   Text,
   View,
+  ViewStyleProps,
 } from "@arizeai/components";
 
 import { resizeHandleCSS } from "@phoenix/components/resize";
@@ -590,59 +591,87 @@ function DocumentItem({ document }: { document: AttributeDocument }) {
   );
 }
 
+function LLMMessage({ message }: { message: AttributeMessage }) {
+  const messageContent = message[MESSAGE_CONTENT];
+  const hasFunctionCall =
+    message[MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON] &&
+    message[MESSAGE_FUNCTION_CALL_NAME];
+  const role = message[MESSAGE_ROLE];
+  const messageStyles = useMemo<ViewStyleProps>(() => {
+    if (role === "assistant") {
+      return {
+        backgroundColor: "blue-100",
+        borderColor: "blue-700",
+      };
+    } else if (role === "system") {
+      return {
+        backgroundColor: "green-100",
+        borderColor: "green-700",
+      };
+    } else if (role === "function") {
+      return {
+        backgroundColor: "purple-100",
+        borderColor: "purple-700",
+      };
+    }
+    return {
+      backgroundColor: "gray-600",
+      borderColor: "gray-400",
+    };
+  }, [role]);
+
+  return (
+    <View
+      padding="size-200"
+      borderWidth="thin"
+      borderRadius="medium"
+      {...messageStyles}
+    >
+      <Flex direction="column" alignItems="start" gap="size-50">
+        <Text color="white70" fontStyle="italic">
+          {role}
+          {message[MESSAGE_NAME] ? `: ${message[MESSAGE_NAME]}` : ""}
+        </Text>
+        {messageContent ? (
+          <pre
+            css={css`
+              text-wrap: wrap;
+              margin: var(--ac-global-dimension-static-size-100) 0;
+            `}
+          >
+            {message[MESSAGE_CONTENT]}
+          </pre>
+        ) : null}
+        {hasFunctionCall ? (
+          <pre
+            css={css`
+              text-wrap: wrap;
+              color: red;
+              margin: var(--ac-global-dimension-static-size-100) 0;
+            `}
+          >
+            {message[MESSAGE_FUNCTION_CALL_NAME] as string}(
+            {JSON.stringify(
+              JSON.parse(
+                message[MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON] as string
+              ),
+              null,
+              2
+            )}
+            )
+          </pre>
+        ) : null}
+      </Flex>
+    </View>
+  );
+}
 function LLMMessagesList({ messages }: { messages: AttributeMessage[] }) {
   return (
     <ul>
       {messages.map((message, idx) => {
-        const messageContent = message[MESSAGE_CONTENT];
-        const hasFunctionCall =
-          message[MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON] &&
-          message[MESSAGE_FUNCTION_CALL_NAME];
         return (
           <li key={idx}>
-            <View
-              margin="size-100"
-              padding="size-100"
-              backgroundColor="gray-600"
-              borderColor="gray-400"
-              borderWidth="thin"
-              borderRadius="medium"
-            >
-              <Flex direction="column" alignItems="start" gap="size-100">
-                <Text color="white70" fontStyle="italic">
-                  {message[MESSAGE_ROLE]}
-                  {message[MESSAGE_NAME] ? `: ${message[MESSAGE_NAME]}` : ""}
-                </Text>
-                {messageContent ? (
-                  <pre
-                    css={css`
-                      text-wrap: wrap;
-                      margin: 0;
-                    `}
-                  >
-                    {message[MESSAGE_CONTENT]}
-                  </pre>
-                ) : null}
-                {hasFunctionCall ? (
-                  <pre
-                    css={css`
-                      text-wrap: wrap;
-                      margin: 0;
-                    `}
-                  >
-                    {message[MESSAGE_FUNCTION_CALL_NAME] as string}(
-                    {JSON.stringify(
-                      JSON.parse(
-                        message[MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON] as string
-                      ),
-                      null,
-                      2
-                    )}
-                    )
-                  </pre>
-                ) : null}
-              </Flex>
-            </View>
+            <LLMMessage message={message} />
           </li>
         );
       })}
