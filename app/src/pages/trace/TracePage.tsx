@@ -190,6 +190,7 @@ function ScrollingTabsWrapper({ children }: PropsWithChildren) {
         height: 100%;
         .ac-tabs {
           height: 100%;
+          overflow: hidden;
           .ac-tabs__pane-container {
             height: 100%;
             overflow-y: auto;
@@ -207,12 +208,13 @@ function SelectedSpanDetails({ selectedSpan }: { selectedSpan: Span }) {
     return spanHasException(selectedSpan);
   }, [selectedSpan]);
   return (
-    <Flex direction="column">
+    <Flex direction="column" flex="1 1 auto" height="100%">
       <View
         paddingTop="size-75"
         paddingBottom="size-75"
         paddingStart="size-150"
         paddingEnd="size-200"
+        flex="none"
       >
         <SpanItem {...selectedSpan} />
       </View>
