@@ -6,7 +6,7 @@
   "license": "None",
   "private": true,
   "dependencies": {
-    "@arizeai/components": "^0.15.2",
+    "@arizeai/components": "^0.15.4",
     "@arizeai/point-cloud": "^3.0.4",
     "@codemirror/lang-json": "^6.0.1",
     "@codemirror/view": "^6.16.0",
@@ -85,7 +85,7 @@
     "dev:server:credit_card_fraud:single": "python3 -m phoenix.server.main fixture credit_card_fraud --primary-only true",
     "dev:server:llm": "python3 -m phoenix.server.main fixture llm_summarization",
     "dev:server:wiki": "python3 -m phoenix.server.main fixture wiki",
-    "dev:server:traces": "python3 -m phoenix.server.main trace-fixture llama_index_calculator_agent",
+    "dev:server:traces": "python3 -m phoenix.server.main trace-fixture llama_index_rag",
     "typecheck": "tsc --noEmit",
     "lint": "eslint ./src",
     "prettier": "prettier --write './src/**/*'",
