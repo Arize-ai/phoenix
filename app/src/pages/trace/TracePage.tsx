@@ -349,7 +349,12 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
         </Tabs>
       </TabbedCard>
       {output && output.value != null ? (
-        <Card title="Output" {...defaultCardProps}>
+        <Card
+          title="Output"
+          {...defaultCardProps}
+          backgroundColor="green-100"
+          borderColor="green-700"
+        >
           <CodeBlock {...output} />
         </Card>
       ) : null}
@@ -458,8 +463,8 @@ function EmbeddingSpanInfo(props: {
                   <li key={idx}>
                     <View
                       padding="size-200"
-                      backgroundColor="indigo-100"
-                      borderColor="indigo-700"
+                      backgroundColor="purple-100"
+                      borderColor="purple-700"
                       borderWidth="thin"
                       borderRadius="medium"
                     >
@@ -557,15 +562,15 @@ function DocumentItem({ document }: { document: AttributeDocument }) {
   return (
     <View
       borderRadius="medium"
-      backgroundColor="blue-100"
-      borderColor="blue-700"
+      backgroundColor="seafoam-100"
+      borderColor="seafoam-700"
       borderWidth="thin"
     >
       <Flex direction="column">
         <View
           width="100%"
           borderBottomWidth="thin"
-          borderBottomColor="blue-700"
+          borderBottomColor="seafoam-700"
         >
           <Flex
             direction="row"
@@ -578,7 +583,7 @@ function DocumentItem({ document }: { document: AttributeDocument }) {
               <Heading level={4}>document {document[DOCUMENT_ID]}</Heading>
             </Flex>
             {typeof document[DOCUMENT_SCORE] === "number" && (
-              <Label color="blue">{`score ${numberFormatter(
+              <Label color="seafoam-1000">{`score ${numberFormatter(
                 document[DOCUMENT_SCORE]
               )}`}</Label>
             )}
@@ -617,13 +622,13 @@ function LLMMessage({ message }: { message: AttributeMessage }) {
       };
     } else if (role === "system") {
       return {
-        backgroundColor: "yellow-100",
-        borderColor: "yellow-700",
+        backgroundColor: "indigo-100",
+        borderColor: "indigo-700",
       };
     } else if (role === "function") {
       return {
-        backgroundColor: "purple-100",
-        borderColor: "purple-700",
+        backgroundColor: "yellow-100",
+        borderColor: "yellow-700",
       };
     }
     return {
@@ -634,10 +639,9 @@ function LLMMessage({ message }: { message: AttributeMessage }) {
 
   return (
     <View
-      padding="size-200"
-      margin="size-200"
       borderWidth="thin"
       borderRadius="medium"
+      padding="size-200"
       {...messageStyles}
     >
       <Flex direction="column" alignItems="start">
@@ -679,7 +683,14 @@ function LLMMessage({ message }: { message: AttributeMessage }) {
 }
 function LLMMessagesList({ messages }: { messages: AttributeMessage[] }) {
   return (
-    <ul>
+    <ul
+      css={css`
+        display: flex;
+        flex-direction: column;
+        gap: var(--ac-global-dimension-static-size-100);
+        padding: var(--ac-global-dimension-static-size-200);
+      `}
+    >
       {messages.map((message, idx) => {
         return (
           <li key={idx}>
@@ -739,7 +750,12 @@ function SpanIO({ span }: { span: Span }) {
         </Card>
       ) : null}
       {output && output.value != null ? (
-        <Card title="Output" {...defaultCardProps}>
+        <Card
+          title="Output"
+          {...defaultCardProps}
+          backgroundColor="green-100"
+          borderColor="green-700"
+        >
           <CodeBlock {...output} />
         </Card>
       ) : null}

@@ -8,19 +8,23 @@ export function SpanKindLabel(props: { spanKind: string }) {
     let color: LabelProps["color"] = "gray";
     switch (spanKind) {
       case "llm":
-        color = "orange";
+        color = "orange-1000";
         break;
       case "chain":
         color = "blue";
         break;
       case "retriever":
-        color = "blue-1000";
+        color = "seafoam-1000";
         break;
       case "embedding":
         color = "indigo-1000";
         break;
       case "agent":
-        color = "yellow-1000";
+        color = "gray";
+        break;
+      case "tool":
+        color = "yellow-1200";
+        break;
     }
     return color;
   }, [spanKind]);
