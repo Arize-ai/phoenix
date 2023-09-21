@@ -193,7 +193,7 @@ const ChainSVG = () => (
 
 export function SpanKindIcon({ spanKind }: { spanKind: string }) {
   let icon = <></>;
-  let color = "gray-100";
+  let color = "--ac-global-text-color-900";
   switch (spanKind) {
     case "llm":
       color = "--ac-global-color-orange-1000";
@@ -212,7 +212,7 @@ export function SpanKindIcon({ spanKind }: { spanKind: string }) {
       icon = <EmbeddingSVG />;
       break;
     case "agent":
-      color = "--ac-global-color-gray-100";
+      color = "--ac-global-text-color-900";
       icon = <AgentSVG />;
       break;
     case "tool":

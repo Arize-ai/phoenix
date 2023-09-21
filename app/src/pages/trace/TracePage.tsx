@@ -12,6 +12,8 @@ import { css } from "@emotion/react";
 import {
   Card,
   CardProps,
+  Content,
+  ContextualHelp,
   Counter,
   Dialog,
   DialogContainer,
@@ -31,6 +33,7 @@ import {
   ViewStyleProps,
 } from "@arizeai/components";
 
+import { ExternalLink } from "@phoenix/components";
 import { resizeHandleCSS } from "@phoenix/components/resize";
 import { SpanItem } from "@phoenix/components/trace/SpanItem";
 import { TraceTree } from "@phoenix/components/trace/TraceTree";
@@ -203,6 +206,30 @@ function ScrollingTabsWrapper({ children }: PropsWithChildren) {
   );
 }
 
+const attributesContextualHelp = (
+  <Flex alignItems="center" justifyContent="center">
+    <View marginStart="size-100">
+      <ContextualHelp>
+        <Heading weight="heavy" level={4}>
+          Span Attributes
+        </Heading>
+        <Content>
+          <Text>
+            All attributes associated with the span. Attributes are key-value
+            pairs that represent metadata associated with a span. For a detailed
+            description of the attributes, consult the semantic conventions of
+            the OpenInference tracing specification.
+          </Text>
+        </Content>
+        <footer>
+          <ExternalLink href="https://arize-ai.github.io/open-inference-spec/trace/spec/semantic_conventions.html">
+            Semantic Conventions
+          </ExternalLink>
+        </footer>
+      </ContextualHelp>
+    </View>
+  </Flex>
+);
 function SelectedSpanDetails({ selectedSpan }: { selectedSpan: Span }) {
   const hasExceptions = useMemo<boolean>(() => {
     return spanHasException(selectedSpan);
@@ -224,7 +251,11 @@ function SelectedSpanDetails({ selectedSpan }: { selectedSpan: Span }) {
         </TabPane>
         <TabPane name={"Attributes"} title="Attributes">
           <View padding="size-200">
-            <Card title="All Attributes" {...defaultCardProps}>
+            <Card
+              title="All Attributes"
+              {...defaultCardProps}
+              titleExtra={attributesContextualHelp}
+            >
               <CodeBlock value={selectedSpan.attributes} mimeType="json" />
             </Card>
           </View>
@@ -741,7 +772,7 @@ function LLMPromptsList({ prompts }: { prompts: string[] }) {
 
 function SpanIO({ span }: { span: Span }) {
   const { input, output } = span;
-  const isEmpty = input == null && output == null;
+  const isMissingIO = input == null && output == null;
   return (
     <Flex direction="column" gap="size-200">
       {input && input.value != null ? (
@@ -759,7 +790,15 @@ function SpanIO({ span }: { span: Span }) {
           <CodeBlock {...output} />
         </Card>
       ) : null}
-      {isEmpty ? <EmptyIndicator text="No input or output" /> : null}
+      {isMissingIO ? (
+        <Card
+          title="All Attributes"
+          titleExtra={attributesContextualHelp}
+          {...defaultCardProps}
+        >
+          <CodeBlock value={span.attributes} mimeType="json" />
+        </Card>
+      ) : null}
     </Flex>
   );
 }

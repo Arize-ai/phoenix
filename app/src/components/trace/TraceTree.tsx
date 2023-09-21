@@ -72,7 +72,7 @@ function SpanTreeItem<TSpan extends ISpanItem>(props: {
         <ul
           css={(theme) => css`
             margin: var(--ac-global-dimension-static-size-100) 0 0
-              var(--ac-global-dimension-static-size-500);
+              var(--ac-global-dimension-static-size-600);
             display: flex;
             flex-direction: column;
             gap: ${theme.spacing.padding8}px;
@@ -117,7 +117,7 @@ function SpanNodeWrap(props: PropsWithChildren<{ isSelected: boolean }>) {
         padding: var(--ac-global-dimension-static-size-100)
           var(--ac-global-dimension-static-size-200)
           var(--ac-global-dimension-static-size-100)
-          var(--ac-global-dimension-static-size-100);
+          var(--ac-global-dimension-static-size-200);
         border-width: var(--ac-global-dimension-static-size-10);
         border-style: solid;
         border-color: var(--ac-global-color-gray-400);
@@ -155,7 +155,7 @@ function SpanTreeEdgeConnector({
             : "rgb(204, 204, 204)"};
         top: 0;
         left: -22px;
-        width: 34px;
+        width: 42px;
         bottom: 0;
       `}
     ></div>
@@ -178,7 +178,7 @@ function SpanTreeEdge({ statusCode }: { statusCode: SpanStatusCodeType }) {
           border-radius: 0 0 0 var(--ac-global-dimension-static-size-150);
           top: -27px;
           left: -22px;
-          width: 30px;
+          width: 38px;
           height: 56px;
         `;
       }}
