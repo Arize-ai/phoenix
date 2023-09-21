@@ -12,6 +12,8 @@ import { css } from "@emotion/react";
 import {
   Card,
   CardProps,
+  Content,
+  ContextualHelp,
   Counter,
   Dialog,
   DialogContainer,
@@ -31,6 +33,7 @@ import {
   ViewStyleProps,
 } from "@arizeai/components";
 
+import { ExternalLink } from "@phoenix/components";
 import { resizeHandleCSS } from "@phoenix/components/resize";
 import { SpanItem } from "@phoenix/components/trace/SpanItem";
 import { TraceTree } from "@phoenix/components/trace/TraceTree";
@@ -203,6 +206,30 @@ function ScrollingTabsWrapper({ children }: PropsWithChildren) {
   );
 }
 
+const attributesContextualHelp = (
+  <Flex alignItems="center" justifyContent="center">
+    <View marginStart="size-100">
+      <ContextualHelp>
+        <Heading weight="heavy" level={4}>
+          Span Attributes
+        </Heading>
+        <Content>
+          <Text>
+            All attributes associated with the span. Attributes are key-value
+            pairs that represent metadata associated with a span. For a detailed
+            description of the attributes, consult the semantic conventions of
+            the OpenInference tracing specification.
+          </Text>
+        </Content>
+        <footer>
+          <ExternalLink href="https://arize-ai.github.io/open-inference-spec/trace/spec/semantic_conventions.html">
+            Semantic Conventions
+          </ExternalLink>
+        </footer>
+      </ContextualHelp>
+    </View>
+  </Flex>
+);
 function SelectedSpanDetails({ selectedSpan }: { selectedSpan: Span }) {
   const hasExceptions = useMemo<boolean>(() => {
     return spanHasException(selectedSpan);
@@ -224,7 +251,11 @@ function SelectedSpanDetails({ selectedSpan }: { selectedSpan: Span }) {
         </TabPane>
         <TabPane name={"Attributes"} title="Attributes">
           <View padding="size-200">
-            <Card title="All Attributes" {...defaultCardProps}>
+            <Card
+              title="All Attributes"
+              {...defaultCardProps}
+              titleExtra={attributesContextualHelp}
+            >
               <CodeBlock value={selectedSpan.attributes} mimeType="json" />
             </Card>
           </View>
@@ -349,7 +380,12 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
         </Tabs>
       </TabbedCard>
       {output && output.value != null ? (
-        <Card title="Output" {...defaultCardProps}>
+        <Card
+          title="Output"
+          {...defaultCardProps}
+          backgroundColor="green-100"
+          borderColor="green-700"
+        >
           <CodeBlock {...output} />
         </Card>
       ) : null}
@@ -458,8 +494,8 @@ function EmbeddingSpanInfo(props: {
                   <li key={idx}>
                     <View
                       padding="size-200"
-                      backgroundColor="indigo-100"
-                      borderColor="indigo-700"
+                      backgroundColor="purple-100"
+                      borderColor="purple-700"
                       borderWidth="thin"
                       borderRadius="medium"
                     >
@@ -557,15 +593,15 @@ function DocumentItem({ document }: { document: AttributeDocument }) {
   return (
     <View
       borderRadius="medium"
-      backgroundColor="blue-100"
-      borderColor="blue-700"
+      backgroundColor="seafoam-100"
+      borderColor="seafoam-700"
       borderWidth="thin"
     >
       <Flex direction="column">
         <View
           width="100%"
           borderBottomWidth="thin"
-          borderBottomColor="blue-700"
+          borderBottomColor="seafoam-700"
         >
           <Flex
             direction="row"
@@ -578,7 +614,7 @@ function DocumentItem({ document }: { document: AttributeDocument }) {
               <Heading level={4}>document {document[DOCUMENT_ID]}</Heading>
             </Flex>
             {typeof document[DOCUMENT_SCORE] === "number" && (
-              <Label color="blue">{`score ${numberFormatter(
+              <Label color="seafoam-1000">{`score ${numberFormatter(
                 document[DOCUMENT_SCORE]
               )}`}</Label>
             )}
@@ -617,13 +653,13 @@ function LLMMessage({ message }: { message: AttributeMessage }) {
       };
     } else if (role === "system") {
       return {
-        backgroundColor: "yellow-100",
-        borderColor: "yellow-700",
+        backgroundColor: "indigo-100",
+        borderColor: "indigo-700",
       };
     } else if (role === "function") {
       return {
-        backgroundColor: "purple-100",
-        borderColor: "purple-700",
+        backgroundColor: "yellow-100",
+        borderColor: "yellow-700",
       };
     }
     return {
@@ -634,10 +670,9 @@ function LLMMessage({ message }: { message: AttributeMessage }) {
 
   return (
     <View
-      padding="size-200"
-      margin="size-200"
       borderWidth="thin"
       borderRadius="medium"
+      padding="size-200"
       {...messageStyles}
     >
       <Flex direction="column" alignItems="start">
@@ -679,7 +714,14 @@ function LLMMessage({ message }: { message: AttributeMessage }) {
 }
 function LLMMessagesList({ messages }: { messages: AttributeMessage[] }) {
   return (
-    <ul>
+    <ul
+      css={css`
+        display: flex;
+        flex-direction: column;
+        gap: var(--ac-global-dimension-static-size-100);
+        padding: var(--ac-global-dimension-static-size-200);
+      `}
+    >
       {messages.map((message, idx) => {
         return (
           <li key={idx}>
@@ -730,7 +772,7 @@ function LLMPromptsList({ prompts }: { prompts: string[] }) {
 
 function SpanIO({ span }: { span: Span }) {
   const { input, output } = span;
-  const isEmpty = input == null && output == null;
+  const isMissingIO = input == null && output == null;
   return (
     <Flex direction="column" gap="size-200">
       {input && input.value != null ? (
@@ -739,11 +781,24 @@ function SpanIO({ span }: { span: Span }) {
         </Card>
       ) : null}
       {output && output.value != null ? (
-        <Card title="Output" {...defaultCardProps}>
+        <Card
+          title="Output"
+          {...defaultCardProps}
+          backgroundColor="green-100"
+          borderColor="green-700"
+        >
           <CodeBlock {...output} />
         </Card>
       ) : null}
-      {isEmpty ? <EmptyIndicator text="No input or output" /> : null}
+      {isMissingIO ? (
+        <Card
+          title="All Attributes"
+          titleExtra={attributesContextualHelp}
+          {...defaultCardProps}
+        >
+          <CodeBlock value={span.attributes} mimeType="json" />
+        </Card>
+      ) : null}
     </Flex>
   );
 }
