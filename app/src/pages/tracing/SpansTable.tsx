@@ -16,9 +16,9 @@ import { Link } from "@phoenix/components/Link";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { TextCell } from "@phoenix/components/table/TextCell";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
+import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SpanKindLabel } from "@phoenix/components/trace/SpanKindLabel";
 import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon";
-import { formatFloat } from "@phoenix/utils/numberFormatUtils";
 
 import {
   SpansTable_spans$key,
@@ -33,9 +33,6 @@ type SpansTableProps = {
   query: SpansTable_spans$key;
 };
 
-const floatRightCSS = css`
-  float: right;
-`;
 const PAGE_SIZE = 100;
 const DEFAULT_SORT: SpanSort = {
   col: "startTime",
@@ -141,11 +138,10 @@ export function SpansTable(props: SpansTableProps) {
 
       cell: ({ getValue }) => {
         const value = getValue();
-        if (value === null) {
+        if (value === null || typeof value !== "number") {
           return null;
         }
-        const seconds = (value as number) / 1000;
-        return <span css={floatRightCSS}>{formatFloat(seconds)}s</span>;
+        return <LatencyText latencyMs={value} />;
       },
     },
     {
