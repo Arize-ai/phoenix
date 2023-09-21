@@ -1,8 +1,6 @@
 # Hallucinations
 
 {% embed url="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/evals/evaluate_hallucination_classifications.ipynb" %}
-Example Notebook
-{% endembed %}
 
 This LLM Eval detects if the output of a model is a hallucination based on contextual data. This Eval is designed specifically designed for hallucinations relative to private or retrieved data, is an answer to a a question an hallucination based on a set of contextual data.
 
