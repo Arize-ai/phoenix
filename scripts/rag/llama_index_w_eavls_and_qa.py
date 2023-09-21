@@ -161,7 +161,7 @@ def get_transformation_query_engine(index, name, k, lama_index_model):
 #Main run experiment function
 def run_experiments(
     documents, queries, chunk_sizes, query_transformations, k_values, 
-    web_title, save_dir,  lama_index_model, eval_model, all_data = {}
+    web_title, save_dir,  lama_index_model, eval_model, qa_templ, all_data = {} 
 ):
     
     for chunk_size in chunk_sizes:
@@ -277,21 +277,16 @@ def run_experiments(
     return all_data
 
 #Running the main Phoenix Evals both Q&A and Retrieval
-def df_evals(df, eval_model, formatted_evals_column = "retrieval_evals"):
+def df_evals(df, eval_model, formatted_evals_column = "retrieval_evals",qa_templ=templates.QA_PROMPT_TEMPLATE_STR):
         model = OpenAIModel(model_name=eval_model, temperature=0.0)
         # Then use the function in a single call
         df['context'] = df['retrieved_context_list'].apply(lambda x: retrieval_concat_and_truncate(x, 
                                                                                                    encoding_name=model.model_name))
         df = df.rename(columns={"query": "question", "response":"sampled_answer"})
         #Q&A Eval: Did the LLM get the answer right? Checking the LLM
-        templ = templates.QA_PROMPT_TEMPLATE_STR + ''' \n\n
-        If the answer says the context does not provide information, but the answer
-        exists in the context: please answer incorrect
-        Error to the side of saying incorrect, if you are unsure of an answer.
-        '''
         Q_and_A_classifications = llm_eval_binary(
             dataframe=df,
-            template=templ,
+            template=qa_templ,
             model=model,
             rails=["correct", "incorrect"],
         )
@@ -425,8 +420,9 @@ def main():
     #lama_index_model = "gpt-3.5-turbo"
 
     eval_model = "gpt-4"
-
-    #Uncomment when testing
+    #QA template (using default)
+    qa_templ = templates.QA_PROMPT_TEMPLATE_STR 
+    #Uncomment below when testing to limit questions to 3
     #questions = questions[0:3]
     all_data = run_experiments(
         documents,
@@ -437,7 +433,8 @@ def main():
         web_title,
         save_dir,
         lama_index_model,
-        eval_model
+        eval_model,
+        qa_templ
     )
 
 

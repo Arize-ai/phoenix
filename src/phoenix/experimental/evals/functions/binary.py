@@ -2,11 +2,13 @@ import logging
 from typing import List, Optional, Set, Union
 
 import pandas as pd
+import tiktoken
 
 from ..models import BaseEvalModel
 from ..models.openai import OpenAIModel
 from ..templates import (
     RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
+    RAG_RELEVANCY_PROMPT_RAILS_MAP,
     PromptTemplate,
     normalize_template,
 )
@@ -58,8 +60,10 @@ def run_relevance_eval(
     dataframe: pd.DataFrame,
     query_column_name: str = "attributes.input.value",
     retrieved_documents_column_name: str = "attributes.retrieval.documents",
+    model: Optional[BaseEvalModel] = None, 
+    trace_data: bool = True,
     template: str = RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
-    model: Optional[BaseEvalModel] = None,
+    output_map: dict = None,
 ) -> List[List[Optional[bool]]]:
     """Given a pandas dataframe containing queries and retrieved documents,
        classifies the relevance of each retrieved document to the corresponding
@@ -76,6 +80,13 @@ def run_relevance_eval(
         containing the retrieved document data. Each entry in this column should be
         a list of dictionaries containing metadata about the retrieved documents.
 
+        trace_data (bool) : True if context data is tracing format OpenInference
+        False it is a dataframe with [["chunk", "chunk", "chunk"], ["chunk", ...]
+        List[List[str]] in retrieved_documents_column_name
+
+        rails_map: The mapping to use to return the values. Using a dict here
+        but it can take the OrderedDict of RAILS_MAP from library
+
     Returns:
         List[List[str]]: A list of relevant and not relevant classifications.
         The "shape" of the list should mirror the "shape" of the retrieved
@@ -85,7 +96,11 @@ def run_relevance_eval(
         either booleans or None in the case where the LLM output could not be
         parsed.
     """
-
+    if not output_map:
+        output_map = {
+                RAG_RELEVANCY_PROMPT_RAILS_MAP[0]:True, #"relevant":True
+                RAG_RELEVANCY_PROMPT_RAILS_MAP[1]:False #"irrelevant":False
+        } 
     llm_relevance_column_name = "llm_relevance"
     retrieved_document_text_column_name = "retrieved_document_text"
 
@@ -100,24 +115,30 @@ def run_relevance_eval(
     ].map(list)
 
     exploded_df = filtered_df.explode(retrieved_documents_column_name, ignore_index=False)
-    exploded_df[retrieved_document_text_column_name] = [
-        document_data["document.content"] if document_data is not None else None
-        for document_data in exploded_df[retrieved_documents_column_name]
-    ]
+    if trace_data:
+        exploded_df[retrieved_document_text_column_name] = [
+            document_data["document.content"] if document_data is not None else None
+            for document_data in exploded_df[retrieved_documents_column_name]
+        ]
+    else:
+        exploded_df[retrieved_document_text_column_name] = [
+            document_data if document_data is not None else None
+            for document_data in exploded_df[retrieved_documents_column_name]
+        ]
     exploded_df = exploded_df.rename(
         columns={
             query_column_name: "query",
             retrieved_document_text_column_name: "reference",
         }
     )
-    class_name_to_bool = {"relevant": True, "irrelevant": False}
+
     exploded_df[llm_relevance_column_name] = [
-        class_name_to_bool.get(relevance_class) if relevance_class is not None else None
+        output_map.get(relevance_class) if relevance_class is not None else None
         for relevance_class in llm_eval_binary(
             exploded_df,
             template=PromptTemplate(RAG_RELEVANCY_PROMPT_TEMPLATE_STR),
             model=model or OpenAIModel(),
-            rails=list(class_name_to_bool.keys()),
+            rails=list(RAG_RELEVANCY_PROMPT_RAILS_MAP.values()),
         )
     ]
     collapsed_df = exploded_df.groupby(exploded_df.index, axis="index").agg(
@@ -132,7 +153,6 @@ def run_relevance_eval(
     ]
     return output_df[llm_relevance_column_name].tolist()
 
-
 def _snap_to_rail(string: str, rails: Set[str]) -> Optional[str]:
     """
     Snaps a string to the nearest rail, or returns None if the string cannot be snapped to a
@@ -146,7 +166,7 @@ def _snap_to_rail(string: str, rails: Set[str]) -> Optional[str]:
     Returns:
         str: A string from the rails argument or None if the input string could not be snapped.
     """
-
+    
     processed_string = string.strip()
     rails_list = list(rails)
     rail = _extract_rail(processed_string, rails_list[0], rails_list[1])
@@ -188,17 +208,26 @@ def _extract_rail(string: str, positive_rail: str, negative_rail: str) -> Option
 
         string = "regular..irregular" - contains both rails
         Output: None
-    """
 
-    positive_pos, negative_pos = string.find(positive_rail), string.find(negative_rail)
+        string = "Irregular"
+        Output: "irregular"
+
+    """
+  
+    # Convert the inputs to lowercase for case-insensitive matching
+    string_lower = string.lower()
+    positive_rail_lower = positive_rail.lower()
+    negative_rail_lower = negative_rail.lower()
+
+    positive_pos, negative_pos = string_lower.find(positive_rail_lower), string_lower.find(negative_rail_lower)
 
     # If both positive and negative rails are in the string
     if positive_pos != -1 and negative_pos != -1:
         # If either one is a substring of the other, return the longer one
         # e.x. "regular" and "irregular"
         if positive_pos < negative_pos < positive_pos + len(
-            positive_rail
-        ) or negative_pos < positive_pos < negative_pos + len(negative_rail):
+            positive_rail_lower
+        ) or negative_pos < positive_pos < negative_pos + len(negative_rail_lower):
             # Return the longer of the rails since it means the LLM returned the longer one
             return max(positive_rail, negative_rail, key=len)
         else:
@@ -211,3 +240,54 @@ def _extract_rail(string: str, positive_rail: str, negative_rail: str) -> Option
     elif negative_pos != -1:
         return negative_rail
     return None
+
+
+def retrieval_concat_and_truncate(values, encoding_name="gpt-4", max_tokens=7100):
+    """This is designed to be used on a row of a Pandas Dataframe column.
+       value = ["chunk", "chunk", chunk"]
+       It concats the chunks in a list to a str, the column can be used for Q&A Eval.
+       df['retrieved_context'].apply(lambda x: retrieval_concat_and_truncate(x))
+       It makes sure the string can fit in a model / token <min> string size,
+       drops the tokens that don't fit.
+    Args:
+        values (list of str): a list: value = ["chunk", "chunk", chunk"]
+
+    Returns:
+        str: "Reference:
+              chunk
+                .... 
+              Reference:
+              chunk"
+            As a single string
+    
+    """
+    concatenated_value = concatenate_values(values)
+    truncated_value = truncate_to_max_tokens(concatenated_value, max_tokens=max_tokens, encoding_name=encoding_name)
+    return truncated_value
+
+def concatenate_values(values):
+    # Check if value is a list
+    if not isinstance(values, list):
+        raise TypeError(f"Expected a list, but got {type(values)}.")
+    # Check if all elements in the list can be converted to string
+    for item in values:
+        if not isinstance(item, (str, int, float)):
+            raise TypeError(f"Unexpected data type {type(item)} in the list. Expected str, int, or float.")
+    return ' Reference: \n'.join(map(str, values))
+
+def num_tokens_from_string(string: str, encoding_name: str) -> int:
+    """Returns the number of tokens in a text string."""
+    encoding = tiktoken.encoding_for_model(encoding_name)
+    num_tokens = len(encoding.encode(string))
+    return num_tokens
+
+def truncate_to_max_tokens(text: str, max_tokens=7100, encoding_name="gpt-4"):
+    token_count = num_tokens_from_string(text, encoding_name)
+    if token_count <= max_tokens:
+        return text
+    # If it's over max_tokens, we truncate the text incrementally
+    while token_count > max_tokens:
+        text = text[:-1]
+        token_count = num_tokens_from_string(text, encoding_name)
+    return text
+
