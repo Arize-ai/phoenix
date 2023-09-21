@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<1d3659b086f3114cb60951da90da65ff>>
+ * @generated SignedSource<<e988fbe563b1b8f2e87e06776af0c553>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -42,6 +42,9 @@ export type TracePageQuery$data = {
         readonly spanKind: SpanKind;
         readonly startTime: string;
         readonly statusCode: SpanStatusCode;
+        readonly tokenCountCompletion: number | null;
+        readonly tokenCountPrompt: number | null;
+        readonly tokenCountTotal: number | null;
       };
     }>;
   };
@@ -184,6 +187,27 @@ v3 = [
               {
                 "alias": null,
                 "args": null,
+                "kind": "ScalarField",
+                "name": "tokenCountTotal",
+                "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "tokenCountPrompt",
+                "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "tokenCountCompletion",
+                "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": null,
                 "concreteType": "SpanIOValue",
                 "kind": "LinkedField",
                 "name": "input",
@@ -262,16 +286,16 @@ return {
     "selections": (v3/*: any*/)
   },
   "params": {
-    "cacheID": "c2af36a5858b92c2d5e25794fc8062c2",
+    "cacheID": "e6c543c1105c95b566f86185f4014feb",
     "id": null,
     "metadata": {},
     "name": "TracePageQuery",
     "operationKind": "query",
-    "text": "query TracePageQuery(\n  $traceId: ID!\n) {\n  spans(traceIds: [$traceId], sort: {col: startTime, dir: asc}) {\n    edges {\n      span: node {\n        context {\n          spanId\n        }\n        name\n        spanKind\n        statusCode\n        startTime\n        parentId\n        latencyMs\n        input {\n          value\n          mimeType\n        }\n        output {\n          value\n          mimeType\n        }\n        attributes\n        events {\n          name\n          message\n          timestamp\n        }\n      }\n    }\n  }\n}\n"
+    "text": "query TracePageQuery(\n  $traceId: ID!\n) {\n  spans(traceIds: [$traceId], sort: {col: startTime, dir: asc}) {\n    edges {\n      span: node {\n        context {\n          spanId\n        }\n        name\n        spanKind\n        statusCode\n        startTime\n        parentId\n        latencyMs\n        tokenCountTotal\n        tokenCountPrompt\n        tokenCountCompletion\n        input {\n          value\n          mimeType\n        }\n        output {\n          value\n          mimeType\n        }\n        attributes\n        events {\n          name\n          message\n          timestamp\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "714402df3fc9eaf49a3c20eb9d5e9988";
+(node as any).hash = "c3537150aa4cffcd1c2a762d03b2f29e";
 
 export default node;

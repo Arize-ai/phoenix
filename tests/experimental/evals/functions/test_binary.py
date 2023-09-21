@@ -2,11 +2,13 @@ import numpy as np
 import pandas as pd
 import responses
 from phoenix.experimental.evals import (
+    NOT_PARSABLE,
     RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
-    OpenAiModel,
+    OpenAIModel,
     llm_eval_binary,
     run_relevance_eval,
 )
+from phoenix.experimental.evals.functions.binary import _snap_to_rail
 
 
 @responses.activate
@@ -54,10 +56,10 @@ def test_llm_eval_binary(monkeypatch):
     relevance_classifications = llm_eval_binary(
         dataframe=dataframe,
         template=RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
-        model=OpenAiModel(),
+        model=OpenAIModel(),
         rails=["relevant", "irrelevant"],
     )
-    assert relevance_classifications == ["relevant", "irrelevant", "relevant", None]
+    assert relevance_classifications == ["relevant", "irrelevant", "relevant", NOT_PARSABLE]
 
 
 @responses.activate
@@ -148,3 +150,12 @@ def test_run_relevance_eval(monkeypatch):
         None,
         None,
     ]
+
+
+def test_overlapping_rails():
+    assert _snap_to_rail("irrelevant", ["relevant", "irrelevant"]) == "irrelevant"
+    assert _snap_to_rail("relevant", ["relevant", "irrelevant"]) == "relevant"
+    assert _snap_to_rail("irrelevant...", ["irrelevant", "relevant"]) == "irrelevant"
+    assert _snap_to_rail("...irrelevant", ["irrelevant", "relevant"]) == "irrelevant"
+    # Both rails are present, cannot parse
+    assert _snap_to_rail("relevant...irrelevant", ["irrelevant", "relevant"]) is NOT_PARSABLE

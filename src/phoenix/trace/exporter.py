@@ -8,7 +8,7 @@ from typing import Optional
 
 from requests import Session
 
-from phoenix.config import PORT
+from phoenix.config import get_env_host, get_env_port
 from phoenix.trace.schemas import Span
 from phoenix.trace.v1 import encode
 
@@ -22,8 +22,14 @@ class NoOpExporter:
 
 
 class HttpExporter:
-    def __init__(self, port: int = PORT) -> None:
-        self._url = f"http://localhost:{port}/v1/spans"
+    def __init__(
+        self,
+        host: Optional[str] = None,
+        port: Optional[int] = None,
+    ) -> None:
+        self._host = host or get_env_host()
+        self._port = port or get_env_port()
+        self._url = f"http://{self._host}:{self._port}/v1/spans"
         self._session = Session()
         weakref.finalize(self, self._session.close)
         self._session.headers.update(

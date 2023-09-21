@@ -1,6 +1,6 @@
 import pandas as pd
 import responses
-from phoenix.experimental.evals import OpenAiModel, llm_generate
+from phoenix.experimental.evals import OpenAIModel, llm_generate
 
 
 @responses.activate
@@ -51,7 +51,7 @@ def test_llm_generate(monkeypatch):
     generated = llm_generate(
         dataframe=dataframe,
         template=template,
-        model=OpenAiModel(),
+        model=OpenAIModel(),
     )
     assert generated == [
         "it's a dialect of french",

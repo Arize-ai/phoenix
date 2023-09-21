@@ -14,13 +14,13 @@ export function SpanKindLabel(props: { spanKind: string }) {
         color = "blue";
         break;
       case "retriever":
-        color = "white";
+        color = "blue-1000";
         break;
       case "embedding":
-        color = "purple";
+        color = "indigo-1000";
         break;
       case "agent":
-        color = "green";
+        color = "yellow-1000";
     }
     return color;
   }, [spanKind]);

@@ -16,13 +16,31 @@ class TracesFixture:
 llama_index_rag_fixture = TracesFixture(
     name="llama_index_rag",
     description="Traces from running the llama_index on a RAG use case.",
-    file_name="llama_index_rag_v4.jsonl",
+    file_name="llama_index_rag_v6.jsonl",
+)
+
+llama_index_calculator_agent = TracesFixture(
+    name="llama_index_calculator_agent",
+    description="Traces from running the llama_index with calculator tools.",
+    file_name="llama_index_calculator_agent_v2.jsonl",
+)
+
+llama_index_rag_fixture_with_davinci = TracesFixture(
+    name="llama_index_rag_with_davinci",
+    description="Traces from running llama_index on a RAG use case with the completions API.",
+    file_name="llama_index_rag_with_davinci_v0.jsonl",
 )
 
 langchain_rag_stuff_document_chain_fixture = TracesFixture(
     name="langchain_rag_stuff_document_chain",
     description="LangChain RAG data",
     file_name="langchain_rag.jsonl",
+)
+
+langchain_titanic_csv_agent_evaluator_fixture = TracesFixture(
+    name="lc_titanic",
+    description="LangChain titanic.csv Agent Evaluator",
+    file_name="lc_titanic.jsonl",
 )
 
 random_fixture = TracesFixture(
@@ -33,8 +51,11 @@ random_fixture = TracesFixture(
 
 TRACES_FIXTURES: List[TracesFixture] = [
     llama_index_rag_fixture,
+    llama_index_rag_fixture_with_davinci,
     langchain_rag_stuff_document_chain_fixture,
+    langchain_titanic_csv_agent_evaluator_fixture,
     random_fixture,
+    llama_index_calculator_agent,
 ]
 
 NAME_TO_TRACES_FIXTURE = {fixture.name: fixture for fixture in TRACES_FIXTURES}

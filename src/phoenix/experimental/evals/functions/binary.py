@@ -1,15 +1,18 @@
-from typing import List, Optional, Union
+import logging
+from typing import List, Optional, Set, Union
 
 import pandas as pd
 
 from ..models import BaseEvalModel
-from ..models.openai import OpenAiModel
+from ..models.openai import OpenAIModel
 from ..templates import (
     RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
     PromptTemplate,
     normalize_template,
 )
-from .common import map_template
+from .common import NOT_PARSABLE, map_template
+
+logger = logging.getLogger(__name__)
 
 
 def llm_eval_binary(
@@ -45,14 +48,10 @@ def llm_eval_binary(
     """
 
     eval_template = normalize_template(template)
-
     prompts = map_template(dataframe, eval_template)
-
     responses = model.generate(prompts.to_list(), system_instruction)
-    rail_classes = set(rails)
-    return [
-        (rail_class if (rail_class := resp.strip()) in rail_classes else None) for resp in responses
-    ]
+    rails_set = set(rails)
+    return [_snap_to_rail(response, rails_set) for response in responses]
 
 
 def run_relevance_eval(
@@ -117,7 +116,7 @@ def run_relevance_eval(
         for relevance_class in llm_eval_binary(
             exploded_df,
             template=PromptTemplate(RAG_RELEVANCY_PROMPT_TEMPLATE_STR),
-            model=model or OpenAiModel(),
+            model=model or OpenAIModel(),
             rails=list(class_name_to_bool.keys()),
         )
     ]
@@ -132,3 +131,83 @@ def run_relevance_eval(
         llm_relevance_column_name
     ]
     return output_df[llm_relevance_column_name].tolist()
+
+
+def _snap_to_rail(string: str, rails: Set[str]) -> Optional[str]:
+    """
+    Snaps a string to the nearest rail, or returns None if the string cannot be snapped to a
+    rail.
+
+    Args:
+        string (str): An input to be snapped to a rail.
+
+        rails (Set[str]): The target set of strings to snap to.
+
+    Returns:
+        str: A string from the rails argument or None if the input string could not be snapped.
+    """
+
+    processed_string = string.strip()
+    rails_list = list(rails)
+    rail = _extract_rail(processed_string, rails_list[0], rails_list[1])
+    if not rail:
+        logger.warning(
+            f"LLM output cannot be snapped to rails {list(rails)}, returning {NOT_PARSABLE}. "
+            f'Output: "{string}"'
+        )
+        return NOT_PARSABLE
+    return rail
+
+
+def _extract_rail(string: str, positive_rail: str, negative_rail: str) -> Optional[str]:
+    """
+    Extracts the right rails text from the llm output. If the rails have overlapping characters,
+    (e.x. "regular" and "irregular"), it also ensures that the correct rail is returned.
+
+    Args:
+        string (str): An input to be snapped to a rail.
+
+        positive_rail (str): The positive rail (e.x. toxic)
+
+        negative_rail (str): The negative rail. (e.x. non-toxic)
+
+    Returns:
+        str: A string from the rails or None if the input string could not be extracted.
+
+    Examples:
+        given: positive_rail = "irregular", negative_rail = "regular"
+
+        string = "irregular"
+        Output: "irregular"
+
+        string = "regular"
+        Output: "regular"
+
+        string = "regular,:....random"
+        Output: "regular"
+
+        string = "regular..irregular" - contains both rails
+        Output: None
+    """
+
+    positive_pos, negative_pos = string.find(positive_rail), string.find(negative_rail)
+
+    # If both positive and negative rails are in the string
+    if positive_pos != -1 and negative_pos != -1:
+        # If either one is a substring of the other, return the longer one
+        # e.x. "regular" and "irregular"
+        if positive_pos < negative_pos < positive_pos + len(
+            positive_rail
+        ) or negative_pos < positive_pos < negative_pos + len(negative_rail):
+            # Return the longer of the rails since it means the LLM returned the longer one
+            return max(positive_rail, negative_rail, key=len)
+        else:
+            # If both rails values are in the string, we cannot determine which to return
+            return None
+    # If only positive is in string
+    elif positive_pos != -1:
+        return positive_rail
+    # If only negative is in the string
+    elif negative_pos != -1:
+        return negative_rail
+    return None
