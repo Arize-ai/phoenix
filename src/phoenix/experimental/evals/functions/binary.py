@@ -136,7 +136,7 @@ def run_relevance_eval(
         output_map.get(relevance_class) if relevance_class is not None else None
         for relevance_class in llm_eval_binary(
             exploded_df,
-            template=PromptTemplate(RAG_RELEVANCY_PROMPT_TEMPLATE_STR),
+            template=template,
             model=model or OpenAIModel(),
             rails=list(RAG_RELEVANCY_PROMPT_RAILS_MAP.values()),
         )
