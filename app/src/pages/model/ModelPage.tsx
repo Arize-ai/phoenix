@@ -69,7 +69,7 @@ export function ModelPage(_props: ModelPageProps) {
         >
           <Tabs>
             <TabPane name="All" key="all">
-              <Accordion variant="compact">
+              <Accordion>
                 <AccordionItem title="Embeddings" id="embeddings">
                   <ModelEmbeddingsTable model={data} />
                 </AccordionItem>
