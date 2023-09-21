@@ -260,9 +260,14 @@ class OpenInferenceTracer(Tracer, BaseTracer):
                     timestamp=error_event["time"],
                 )
             )
+        span_kind = (
+            SpanKind.AGENT
+            if "agent" in run["name"].lower()
+            else _langchain_run_type_to_span_kind(run["run_type"])
+        )
         span = self.create_span(
             name=run["name"],
-            span_kind=_langchain_run_type_to_span_kind(run["run_type"]),
+            span_kind=span_kind,
             parent_id=None if parent is None else parent.context.span_id,
             trace_id=None if parent is None else parent.context.trace_id,
             start_time=run["start_time"],
