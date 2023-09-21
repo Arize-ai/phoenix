@@ -7,8 +7,8 @@ import tiktoken
 from ..models import BaseEvalModel
 from ..models.openai import OpenAIModel
 from ..templates import (
-    RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
     RAG_RELEVANCY_PROMPT_RAILS_MAP,
+    RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
     PromptTemplate,
     normalize_template,
 )
@@ -60,7 +60,7 @@ def run_relevance_eval(
     dataframe: pd.DataFrame,
     query_column_name: str = "attributes.input.value",
     retrieved_documents_column_name: str = "attributes.retrieval.documents",
-    model: Optional[BaseEvalModel] = None, 
+    model: Optional[BaseEvalModel] = None,
     trace_data: bool = True,
     template: str = RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
     output_map: dict = None,
@@ -98,9 +98,9 @@ def run_relevance_eval(
     """
     if not output_map:
         output_map = {
-                RAG_RELEVANCY_PROMPT_RAILS_MAP[0]:True, #"relevant":True
-                RAG_RELEVANCY_PROMPT_RAILS_MAP[1]:False #"irrelevant":False
-        } 
+            RAG_RELEVANCY_PROMPT_RAILS_MAP[0]: True,  # "relevant":True
+            RAG_RELEVANCY_PROMPT_RAILS_MAP[1]: False,  # "irrelevant":False
+        }
     llm_relevance_column_name = "llm_relevance"
     retrieved_document_text_column_name = "retrieved_document_text"
 
@@ -153,6 +153,7 @@ def run_relevance_eval(
     ]
     return output_df[llm_relevance_column_name].tolist()
 
+
 def _snap_to_rail(string: str, rails: Set[str]) -> Optional[str]:
     """
     Snaps a string to the nearest rail, or returns None if the string cannot be snapped to a
@@ -166,7 +167,7 @@ def _snap_to_rail(string: str, rails: Set[str]) -> Optional[str]:
     Returns:
         str: A string from the rails argument or None if the input string could not be snapped.
     """
-    
+
     processed_string = string.strip()
     rails_list = list(rails)
     rail = _extract_rail(processed_string, rails_list[0], rails_list[1])
@@ -213,13 +214,15 @@ def _extract_rail(string: str, positive_rail: str, negative_rail: str) -> Option
         Output: "irregular"
 
     """
-  
+
     # Convert the inputs to lowercase for case-insensitive matching
     string_lower = string.lower()
     positive_rail_lower = positive_rail.lower()
     negative_rail_lower = negative_rail.lower()
 
-    positive_pos, negative_pos = string_lower.find(positive_rail_lower), string_lower.find(negative_rail_lower)
+    positive_pos, negative_pos = string_lower.find(positive_rail_lower), string_lower.find(
+        negative_rail_lower
+    )
 
     # If both positive and negative rails are in the string
     if positive_pos != -1 and negative_pos != -1:
@@ -255,15 +258,18 @@ def retrieval_concat_and_truncate(values, encoding_name="gpt-4", max_tokens=7100
     Returns:
         str: "Reference:
               chunk
-                .... 
+                ....
               Reference:
               chunk"
             As a single string
-    
+
     """
     concatenated_value = concatenate_values(values)
-    truncated_value = truncate_to_max_tokens(concatenated_value, max_tokens=max_tokens, encoding_name=encoding_name)
+    truncated_value = truncate_to_max_tokens(
+        concatenated_value, max_tokens=max_tokens, encoding_name=encoding_name
+    )
     return truncated_value
+
 
 def concatenate_values(values):
     # Check if value is a list
@@ -272,14 +278,18 @@ def concatenate_values(values):
     # Check if all elements in the list can be converted to string
     for item in values:
         if not isinstance(item, (str, int, float)):
-            raise TypeError(f"Unexpected data type {type(item)} in the list. Expected str, int, or float.")
-    return ' Reference: \n'.join(map(str, values))
+            raise TypeError(
+                f"Unexpected data type {type(item)} in the list. Expected str, int, or float."
+            )
+    return " Reference: \n".join(map(str, values))
+
 
 def num_tokens_from_string(string: str, encoding_name: str) -> int:
     """Returns the number of tokens in a text string."""
     encoding = tiktoken.encoding_for_model(encoding_name)
     num_tokens = len(encoding.encode(string))
     return num_tokens
+
 
 def truncate_to_max_tokens(text: str, max_tokens=7100, encoding_name="gpt-4"):
     token_count = num_tokens_from_string(text, encoding_name)
@@ -290,4 +300,3 @@ def truncate_to_max_tokens(text: str, max_tokens=7100, encoding_name="gpt-4"):
         text = text[:-1]
         token_count = num_tokens_from_string(text, encoding_name)
     return text
-
