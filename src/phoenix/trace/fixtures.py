@@ -22,7 +22,7 @@ llama_index_rag_fixture = TracesFixture(
 llama_index_calculator_agent = TracesFixture(
     name="llama_index_calculator_agent",
     description="Traces from running the llama_index with calculator tools.",
-    file_name="llama_index_calculator_agent.jsonl",
+    file_name="llama_index_calculator_agent_v2.jsonl",
 )
 
 llama_index_rag_fixture_with_davinci = TracesFixture(
