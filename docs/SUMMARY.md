@@ -51,6 +51,7 @@
 ## 🔌 INTEGRATIONS
 
 * [LlamaIndex](integrations/llamaindex.md)
+* [LangChain](integrations/langchain.md)
 
 ## 📚 Reference
 
