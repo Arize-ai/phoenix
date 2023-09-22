@@ -59,6 +59,18 @@ export const tableCSS = (theme: Theme) => css`
   }
 `;
 
+export const selectableTableCSS = (theme: Theme) =>
+  css(
+    tableCSS(theme),
+    css`
+      tbody:not(.is-empty) {
+        tr {
+          cursor: pointer;
+        }
+      }
+    `
+  );
+
 export const paginationCSS = (theme: Theme) => css`
   display: flex;
   justify-content: flex-end;

@@ -177,12 +177,10 @@ class Query:
             + grouped_event_ids[AncillaryDatasetRole.corpus]
         )
         stacked_coordinates = np.stack(
-            chain(
-                grouped_coordinates[DatasetRole.primary],
-                grouped_coordinates[DatasetRole.reference],
-                grouped_coordinates[AncillaryDatasetRole.corpus],
-            )
-        )  # type: ignore
+            grouped_coordinates[DatasetRole.primary]
+            + grouped_coordinates[DatasetRole.reference]
+            + grouped_coordinates[AncillaryDatasetRole.corpus]
+        )
 
         clusters = Hdbscan(
             min_cluster_size=min_cluster_size,

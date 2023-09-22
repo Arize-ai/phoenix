@@ -22,7 +22,7 @@ llama_index_rag_fixture = TracesFixture(
 llama_index_calculator_agent = TracesFixture(
     name="llama_index_calculator_agent",
     description="Traces from running the llama_index with calculator tools.",
-    file_name="llama_index_calculator_agent.jsonl",
+    file_name="llama_index_calculator_agent_v2.jsonl",
 )
 
 llama_index_rag_fixture_with_davinci = TracesFixture(
@@ -37,6 +37,12 @@ langchain_rag_stuff_document_chain_fixture = TracesFixture(
     file_name="langchain_rag.jsonl",
 )
 
+langchain_titanic_csv_agent_evaluator_fixture = TracesFixture(
+    name="lc_titanic",
+    description="LangChain titanic.csv Agent Evaluator",
+    file_name="lc_titanic.jsonl",
+)
+
 random_fixture = TracesFixture(
     name="random",
     description="Randomly generated traces",
@@ -47,6 +53,7 @@ TRACES_FIXTURES: List[TracesFixture] = [
     llama_index_rag_fixture,
     llama_index_rag_fixture_with_davinci,
     langchain_rag_stuff_document_chain_fixture,
+    langchain_titanic_csv_agent_evaluator_fixture,
     random_fixture,
     llama_index_calculator_agent,
 ]
@@ -79,7 +86,6 @@ def _download_traces_fixture(
     Downloads the traces fixture from the phoenix bucket.
     """
     url = f"{host}{bucket}/{prefix}{fixture.file_name}"
-    print(url)
     with request.urlopen(url) as f:
         return cast(List[str], f.readlines())
 
