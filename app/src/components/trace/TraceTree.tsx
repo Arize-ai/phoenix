@@ -51,6 +51,7 @@ function SpanTreeItem<TSpan extends ISpanItem>(props: {
         className="button--reset"
         css={css`
           min-width: var(--ac-global-dimension-static-size-5000);
+          cursor: pointer;
         `}
         onClick={() => {
           onSpanClick && onSpanClick(node.span.context.spanId);

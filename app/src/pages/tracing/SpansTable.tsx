@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
+import { useNavigate } from "react-router";
 import {
   ColumnDef,
   flexRender,
@@ -13,7 +14,7 @@ import { css } from "@emotion/react";
 import { Icon, Icons } from "@arizeai/components";
 
 import { Link } from "@phoenix/components/Link";
-import { tableCSS } from "@phoenix/components/table/styles";
+import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TextCell } from "@phoenix/components/table/TextCell";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
@@ -42,6 +43,7 @@ export function SpansTable(props: SpansTableProps) {
   //we need a reference to the scrolling element for logic down below
   const tableContainerRef = React.useRef<HTMLDivElement>(null);
   const [sorting, setSorting] = useState<SortingState>([]);
+  const navigate = useNavigate();
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
     usePaginationFragment<SpansTableSpansQuery, SpansTable_spans$key>(
       graphql`
@@ -221,7 +223,7 @@ export function SpansTable(props: SpansTableProps) {
       onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
       ref={tableContainerRef}
     >
-      <table css={tableCSS}>
+      <table css={selectableTableCSS}>
         <thead>
           {table.getHeaderGroups().map((headerGroup) => (
             <tr key={headerGroup.id}>
@@ -262,7 +264,14 @@ export function SpansTable(props: SpansTableProps) {
         <tbody>
           {rows.map((row) => {
             return (
-              <tr key={row.id}>
+              <tr
+                key={row.id}
+                onClick={() =>
+                  navigate(
+                    `traces/${row.original.context.traceId}?selectedSpanId=${row.original.context.spanId}`
+                  )
+                }
+              >
                 {row.getVisibleCells().map((cell) => {
                   return (
                     <td key={cell.id}>
