@@ -6,6 +6,7 @@
   - [Installing Pre-Commit Hooks](#installing-pre-commit-hooks)
   - [Building the `phoenix` Package](#building-the-phoenix-package)
   - [Installing a `phoenix` Build](#installing-a-phoenix-build)
+  - [Installing a `git` Branch on Colab](#installing-a-git-branch-on-colab)
   - [Setting Up Your Windows Test Environment](#setting-up-your-windows-test-environment)
     - [Selecting a Virtualization Option](#selecting-a-virtualization-option)
     - [Installing Python and `phoenix`](#installing-python-and-phoenix)
@@ -53,10 +54,24 @@ Make sure you have npm (node package manager) available on your terminal as well
 Install `phoenix` in development mode (using the `-e` flag) and with development dependencies (using the `[dev]` extra) by running
 
 ```bash
-pip install -e ".[dev]"
+pip install -e ".[dev,experimental]"
 ```
 
-from the repository root.
+from the repository root. You may also wish to install LlamaIndex or LangChain, in which case, you can add `llama_index` or `langchain` to the above command (e.g., `pip install -e ".[dev,experimental,llama_index]"`).
+
+Alternatively, you can install LlamaIndex from source. To do so,
+
+- Fork and clone LlamaIndex using one of the following two methods:
+  1. Clone [Arize's fork of LlamaIndex](https://github.com/Arize-ai/langchain) if you are an Arize employee.
+  2. Fork and clone [LlamaIndex's upstream repository](https://github.com/jerryjliu/llama_index) if you are an external contributor.
+- Run `pip install -e .` from the repository root.
+
+To install LangChain from source,
+
+- Clone LangChain using one of the following two methods:
+  1. If you are an Arize employee, clone [Arize's fork of LangChain](https://github.com/Arize-ai/langchain).
+  2. Clone upstream repository](https://github.com/Arize-ai/langchain).
+- Run `pip install -e .` from `libs/langchain`.
 
 ## Running Scripts with `hatch`
 
