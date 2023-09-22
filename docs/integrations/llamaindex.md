@@ -4,11 +4,10 @@ description: How to connect to OpenInference compliant data via a llama_index ca
 
 # LlamaIndex
 
-[LlamaIndex](https://github.com/jerryjliu/llama\_index) (GPT Index) is a data framework for your LLM application. It's a powerful framework by which you can build an application that leverages RAG (retrieval-augmented generation) to super-charge an LLM with your own data. RAG is an extremely powerful LLM application model because it  lets you harness the power of LLMs such as OpenAI's GPT but tuned to your data and use-case.&#x20;
+[LlamaIndex](https://github.com/jerryjliu/llama_index) (GPT Index) is a data framework for your LLM application. It's a powerful framework by which you can build an application that leverages RAG (retrieval-augmented generation) to super-charge an LLM with your own data. RAG is an extremely powerful LLM application model because it lets you harness the power of LLMs such as OpenAI's GPT but tuned to your data and use-case.&#x20;
 
 However when building out a retrieval system, a lot can go wrong that can be detrimental to the user-experience of your question and answer system. Phoenix provides two different ways to gain insights into your LLM application: OpenInference inference records and OpenInference tracing.\
 \
-
 
 ## Inferences
 
@@ -17,12 +16,11 @@ Inferences capture each invocation of the LLM application as a single record and
 {% endhint %}
 
 \
-To provide visibility into how your LLM app is performing, we built the [OpenInferenceCallback](https://github.com/jerryjliu/llama\_index/blob/57d8253c12fcda0061d3167d56dbc425981e131f/docs/examples/callbacks/OpenInferenceCallback.ipynb). The OpenInferenceCallback captures the internals of the LLM App in buffers that conforms to the [OpenInference](../concepts/open-inference.md) format. As your LlamaIndex application, the callback captures the timing, embeddings, documents, and other critical internals and serializes the data to buffers that can be easily materialized as dataframes or as files such as Parquet. Since Phoenix can ingest OpenInference data natively, making it a seamless integration to analyze your LLM powered chatbot. To understand callbacks in details, consult the [LlamaIndex docs.](https://gpt-index.readthedocs.io/en/latest/core\_modules/supporting\_modules/callbacks/root.html)
+To provide visibility into how your LLM app is performing, we built the [OpenInferenceCallback](https://github.com/jerryjliu/llama_index/blob/57d8253c12fcda0061d3167d56dbc425981e131f/docs/examples/callbacks/OpenInferenceCallback.ipynb). The OpenInferenceCallback captures the internals of the LLM App in buffers that conforms to the [OpenInference](../concepts/open-inference.md) format. As your LlamaIndex application, the callback captures the timing, embeddings, documents, and other critical internals and serializes the data to buffers that can be easily materialized as dataframes or as files such as Parquet. Since Phoenix can ingest OpenInference data natively, making it a seamless integration to analyze your LLM powered chatbot. To understand callbacks in details, consult the [LlamaIndex docs.](https://gpt-index.readthedocs.io/en/latest/core_modules/supporting_modules/callbacks/root.html)
 
 ### Adding the OpenInferenceCallback
 
 With a few lines of code, you can mount the OpenInferenceCallback to your application\
-
 
 ```python
 from llama_index.callbacks import CallbackManager, OpenInferenceCallbackHandler
@@ -78,7 +76,7 @@ Note that Parquet is just an example file format, you can use any file format of
 {% endhint %}
 
 \
-For the full guidance on how to materialize your data in files, consult the [LlamaIndex notebook](https://github.com/jerryjliu/llama\_index/blob/main/docs/examples/callbacks/OpenInferenceCallback.ipynb).
+For the full guidance on how to materialize your data in files, consult the [LlamaIndex notebook](https://github.com/jerryjliu/llama_index/blob/main/docs/examples/callbacks/OpenInferenceCallback.ipynb).
 
 #### Working Example
 
@@ -90,6 +88,74 @@ Troubleshooting an LLM application using the OpenInferenceCallback
 
 ### Traces
 
-{% hint style="info" %}
-OpenInference Tracing is coming very soon!&#x20;
-{% endhint %}
+## Traces
+
+Traces provide telemetry data about the execution of your LLM application. They are a great way to understand the internals of your LlamaIndex application and to troubleshoot problems related to things like retrieval and tool execution.
+
+To extract traces from your LlamaIndex application, you will have to add Phoenix's `OpenInferenceTraceCallback` to your LlamaIndex application. A callback (in this case a OpenInference `Tracer`) is a class that automatically accumulates traces (sometimes referred to as `spans`) as your application executes. The OpenInference `Tracer`` is a tracer that is specifically designed to work with Phoenix and by default exports the traces to a locally running phoenix server.
+
+To view traces in Phoenix, you will first have to start a Phoenix server. You can do this by running the following:
+
+```python
+import phoenix as px
+session = px.launch_app()
+```
+
+Once you have started a Phoenix server, you can start your LlamaIndex application with the `OpenInferenceTraceCallback` as a callback. To do this, you will have to add the callback to the initialization of your LlamaIndex application:
+
+```python
+from phoenix.trace.llama_index import (
+    OpenInferenceTraceCallbackHandler,
+)
+
+# Initialize the callback handler
+callback_handler = OpenInferenceTraceCallbackHandler()
+
+# LlamaIndex application initialization may vary
+# depending on your application
+service_context = ServiceContext.from_defaults(
+    llm_predictor=LLMPredictor(llm=ChatOpenAI(model_name="gpt-3.5-turbo", temperature=0)),
+    embed_model=OpenAIEmbedding(model="text-embedding-ada-002"),
+    callback_manager=CallbackManager(handlers=[callback_handler]),
+)
+index = load_index_from_storage(
+    storage_context,
+    service_context=service_context,
+)
+query_engine = index.as_query_engine()
+
+```
+
+By adding the callback to the callback manager of LlamaIndex, we've created a one-way data connection between your LLM application and Phoenix. This is because by default the `OpenInferenceTraceCallback` uses an `HTTPExporter` to send traces to your locally running Phoenix server! In this scenario the Phoenix server is serving as a `Collector` of the spans that are exported from your LlamaIndex application.
+
+To view the traces in Phoenix, simply open the UI in your browser.
+
+```python
+px.active_session().view()
+```
+
+### Saving Traces
+
+If you would like to save your traces to a file for later use, you can directly extract the traces from the callback
+
+To directly extract the traces from the callback, dump the traces from the tracer into a file (we recommend `jsonl` for readability).
+
+```python
+from phoenix.trace.span_json_encoder import spans_to_jsonl
+with open("trace.jsonl", "w") as f:
+    f.write(spans_to_jsonl(callback.get_spans()))
+```
+
+Now you can save this file for later inspection. To launch the app with the file generated above, simply pass the contents in the file above via a `TraceDataset`
+
+```python
+from phoenix.trace.utils import json_lines_to_df
+
+json_lines = []
+with open("trace.jsonl", "r") as f:
+        json_lines = cast(List[str], f.readlines())
+trace_ds = TraceDataset(json_lines_to_df(json_lines))
+px.launch_app(trace=trace_ds)
+```
+
+In this way, you can use files as a means to store and communicate interesting traces that you may want to use to share with a team or to use later down the line to fine-tune an LLM or model.
