@@ -59,7 +59,7 @@ def test_callback_llm(mock_service_context: ServiceContext) -> None:
     assert list(map(json_string_to_span, map(span_to_json, spans))) == spans
 
 
-def test_callback_llm_rate_limit_error_records_span_exceptions(
+def test_callback_llm_rate_limit_error_has_exception_event_and_attributes(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setenv("OPENAI_API_KEY", "sk-0123456789")
