@@ -63,7 +63,7 @@ def test_callback_llm_rate_limit_error_has_exception_event_and_attributes(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setenv("OPENAI_API_KEY", "sk-0123456789")
-    llm = OpenAI(model="gpt-3.5-turbo", max_retries=2)
+    llm = OpenAI(model="gpt-3.5-turbo", max_retries=1)
     query = "What are the seven wonders of the world?"
     callback_handler = OpenInferenceTraceCallbackHandler(exporter=NoOpExporter())
     index = ListIndex(nodes)
