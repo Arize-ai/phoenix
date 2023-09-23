@@ -4,7 +4,7 @@ description: >-
   application tracing.
 ---
 
-# Open Inference
+# OpenInference
 
 {% hint style="info" %}
 For a in-depth specification of the OpenInference specification, please consult the spec [https://github.com/Arize-ai/open-inference-spec](https://github.com/Arize-ai/open-inference-spec)
@@ -12,11 +12,7 @@ For a in-depth specification of the OpenInference specification, please consult 
 
 OpenInference is a specification that encompass two data models:
 
-* [Inferences](https://github.com/Arize-ai/open-inference-spec/blob/main/inference/README.md)
-* [Traces](https://github.com/Arize-ai/open-inference-spec/blob/main/trace/README.md)
-
-Inferences are designed to capture inference logs from a variety of model types and use-cases where as traces are designed to capture the execution of an application that results in invocations of an LLM.\
-
+<table data-card-size="large" data-view="cards"><thead><tr><th></th><th></th><th></th><th data-hidden data-card-target data-type="content-ref"></th></tr></thead><tbody><tr><td>I<strong>nferences</strong></td><td>designed to capture inference logs from a variety of model types and use-cases </td><td></td><td><a href="open-inference.md#inferences">#inferences</a></td></tr><tr><td><strong>Tracing</strong></td><td>capture the execution of an application that results in invocations of an LLM.<br></td><td></td><td><a href="open-inference.md#traces">#traces</a></td></tr></tbody></table>
 
 ## Inferences
 
@@ -162,9 +158,27 @@ The example above shows an exploded representation of the hierarchical data. \<t
 
 <figure><img src="../.gitbook/assets/image (1) (2).png" alt=""><figcaption></figcaption></figure>
 
-More examples to come soon.
+## Traces
 
-####
+OpenInference Tracing provides a detailed and holistic view of the operations happening within an LLM application. It offers a way to understand the "path" or journey a request takes from start to finish, helping in debugging, performance optimization, and ensuring the smooth flow of operations. Tracing takes advantage two key components to instrument your code.
 
+1. **Tracer:** Responsible for creating spans that contain information about various operations.
+2. **Trace Exporters:** These are responsible for sending the generated traces to consumers which can be a standard output for debugging, or an OpenInference Collector such as Phoenix.
 
+\
+OpenInference spans are built on-top of a unit of work called a `span`. A `span` keeps track of how long the execution of a given LLM application step takes and also can store important information about the step in the form of `attributes` .  At a high level, a span has:
+
+1. **Span Context:** Contains the trace ID (representing the trace the span belongs to) and the span's ID.
+2. **Attributes:** Key-value pairs containing metadata to annotate a span. They provide insights about the operation being tracked. Semantic attributes offer standard naming conventions for common metadata.
+3. **Span Events:** Structured log messages on a span, denoting a significant point in time during the span's duration.
+4. **Span Status:** Attached to a span to denote its outcome as Unset, Ok, or Error.
+5. **Span Kind:** Provides a hint on how to assemble the trace. Types include:
+   * **Chain:** Represents the starting point or link between different LLM application steps.
+   * **Retriever:** Represents a data retrieval step.
+   * **LLM:** Represents a call to an LLM.
+   * **Embedding:** Represents a call to an LLM for embedding.
+   * **Tool:** Represents a call to an external tool.
+   * **Agent:** Encompasses calls to LLMs and Tools, describing a reasoning block.
+
+OpenInference Tracing offers a comprehensive view of the inner workings of an LLM application. By breaking down the process into spans and categorizing each span, it offers a clear picture of the operations and their interrelations, making troubleshooting and optimization easier and more effective. For the full details of OpenInference tracing, please consult the [specification](https://arize-ai.github.io/open-inference-spec/trace/)
 
