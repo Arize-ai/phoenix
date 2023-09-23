@@ -1,12 +1,14 @@
 ---
 description: >-
-    Extract OpenInference inferences and traces to visualize and troubleshoot your
-    LLM Application in Phoenix
+  Extract OpenInference inferences and traces to visualize and troubleshoot your
+  LLM Application in Phoenix
 ---
 
 # LangChain
 
 Phoenix has first-class support for [LangChain](https://langchain.com/) applications. This means that you can easily extract inferences and traces from your LangChain application and visualize them in Phoenix.
+
+<table data-view="cards"><thead><tr><th></th><th></th><th></th><th data-hidden data-card-target data-type="content-ref"></th></tr></thead><tbody><tr><td></td><td><strong>Analyze using Tracing</strong></td><td>Trace through the execution of your application</td><td><a href="langchain.md#inferences">#inferences</a></td></tr><tr><td></td><td><strong>Analyze using Inferences</strong></td><td>Perform drift and retrieval analysis via inference dataframes</td><td><a href="langchain.md#inferences">#inferences</a></td></tr></tbody></table>
 
 ## Traces
 
@@ -78,7 +80,9 @@ For a fully working example of tracing with LangChain, checkout our colab notebo
 Troubleshooting an LLM application using the OpenInferenceTracer
 {% endembed %}
 
-### Inferences
+## Inferences
+
+
 
 Phoenix supports visualizing LLM application inference data from a LangChain application. In particular you can use Phoenix's embeddings projection and clustering to troubleshoot retrieval-augmented generation. For a tutorial on how to extract embeddings and inferences from LangChain, check out the following notebook.
 
