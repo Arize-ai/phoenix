@@ -32,7 +32,7 @@ Phoenix currently requires pandas dataframes which can be downloaded from either
 
 The Phoenix library heavily uses [embeddings](../concepts/embeddings.md) as a method for data visualization and debugging. In order to use Phoenix with embeddings they can either be generated using an SDK call or they can be supplied by the user of the library. Phoenix supports [generating](../concepts/generating-embeddings.md) embeddings for LLMs, Image, NLP, and tabular datasets.
 
-#### Start Phoenix:
+#### Start Phoenix with DataFrames:
 
 Phoenix is typically started in a notebook from which a local Phoenix server is kicked off. Two approaches can be taken to the overall use of Phoenix:
 
