@@ -8,7 +8,7 @@ description: >-
 
 Phoenix has first-class support for [LangChain](https://langchain.com/) applications. This means that you can easily extract inferences and traces from your LangChain application and visualize them in Phoenix.
 
-<table data-card-size="large" data-view="cards"><thead><tr><th></th><th></th><th></th><th data-hidden data-card-target data-type="content-ref"></th></tr></thead><tbody><tr><td></td><td><strong>Analyze using Tracing</strong></td><td>Trace through the execution of your application</td><td><a href="langchain.md#inferences">#inferences</a></td></tr><tr><td></td><td><strong>Analyze using Inferences</strong></td><td>Perform drift and retrieval analysis via inference DataFrames</td><td><a href="langchain.md#inferences">#inferences</a></td></tr></tbody></table>
+<table data-card-size="large" data-view="cards"><thead><tr><th></th><th></th><th></th><th data-hidden data-card-target data-type="content-ref"></th></tr></thead><tbody><tr><td></td><td><strong>Analyze using Tracing</strong></td><td>Trace through the execution of your application hierarchically</td><td><a href="langchain.md#traces">#traces</a></td></tr><tr><td></td><td><strong>Analyze using Inferences</strong></td><td>Perform drift and retrieval analysis via inference DataFrames</td><td><a href="langchain.md#inferences">#inferences</a></td></tr></tbody></table>
 
 ## Traces
 
@@ -46,7 +46,7 @@ To view the traces in Phoenix, simply open the UI in your browser.
 px.active_session().view()
 ```
 
-### Saving Traces
+#### Saving Traces
 
 If you would like to save your traces to a file for later use, you can directly extract the traces from the `tracer`
 
