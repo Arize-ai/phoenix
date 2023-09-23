@@ -37,6 +37,8 @@ Phoenix provides MLOps and LLMOps insights at lightning speed with zero-config o
 -   [Installation](#installation)
 -   [Features](#features)
     -   [LLM App Tracing](#llm-app-tracing)
+        -   [Tracing with LlamaIndex](#tracing-with-llamaindex)
+        -   [Tracing with LangChain](#tracing-with-langchain)
     -   [Embedding Analysis](#embedding-analysis)
         -   [UMAP-based Exploratory Data Analysis](#umap-based-exploratory-data-analysis)
         -   [Cluster-driven Drift and Performance Analysis](#cluster-driven-drift-and-performance-analysis)
@@ -60,7 +62,121 @@ pip install arize-phoenix[experimental]
 
 ### LLM App Tracing
 
-[![Open in Colab](https://img.shields.io/static/v1?message=Open%20in%20Colab&logo=googlecolab&labelColor=grey&color=blue&logoColor=orange&label=%20)](https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/tracing/llama_index_tracing_example) [![Open in GitHub](https://img.shields.io/static/v1?message=Open%20in%20GitHub&logo=github&labelColor=grey&color=blue&logoColor=white&label=%20)](https://github.com/Arize-ai/phoenix/blob/main/tutorials/tracing/llama_index_tracing_example)
+With the advent of powerful LLMs, it is now possible to build LLM Applications that can perform complex tasks like summarization, translation, question and answering, and more. However, these applications are often difficult to debug and troubleshoot. Phoenix provides a tracing framework that allows you to trace through the execution of your LLM Application hierarchically. This allows you to understand the internals of your LLM Application and to troubleshoot problems related to things like retrieval and tool execution.
+
+Traces provide telemetry data about the execution of your LLM application. They are a great way to understand the internals of your LLM application and to troubleshoot problems related to things like retrieval and tool execution. Phoenix uses the OpenInference tracing standard to trace, export, and collect critical information about your LLM Application in the form of spans. For more details on the OpenInference tracing standard, see the [OpenInference Specification](https://github.com/Arize-ai/open-inference-spec)
+
+![LLM App Tracing UI](https://storage.googleapis.com/arize-assets/phoenix/assets/images/trace_details_view.png)
+
+#### Tracing with LlamaIndex
+
+[![Open in Colab](https://img.shields.io/static/v1?message=Open%20in%20Colab&logo=googlecolab&labelColor=grey&color=blue&logoColor=orange&label=%20)](https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/tracing/llama_index_tracing_tutorial) [![Open in GitHub](https://img.shields.io/static/v1?message=Open%20in%20GitHub&logo=github&labelColor=grey&color=blue&logoColor=white&label=%20)](https://github.com/Arize-ai/phoenix/blob/main/tutorials/tracing/llama_index_tracing_tutorial)
+
+To extract traces from your LlamaIndex application, you will have to add Phoenix's `OpenInferenceTraceCallback` to your LlamaIndex application. A callback (in this case an OpenInference `Tracer`) is a class that automatically accumulates `spans` that trac your application as it executes. The OpenInference `Tracer` is a tracer that is specifically designed to work with Phoenix and by default exports the traces to a locally running phoenix server.
+
+```shell
+# Install phoenix as well as llama_index and your LLM of choice
+pip install arize-phoenix llama-index openai
+
+```
+
+Launch Phoenix in a notebook and view the traces of your LlamaIndex application in the Phoenix UI.
+
+```python
+import phoenix as px
+
+# To view traces in Phoenix, you will first have to start a Phoenix server. You can do this by running the following:
+session = px.launch_app()
+
+
+# Once you have started a Phoenix server, you can start your LlamaIndex application with the `OpenInferenceTraceCallback` as a callback. To do this, you will have to add the callback to the initialization of your LlamaIndex application:
+
+from phoenix.trace.llama_index import (
+    OpenInferenceTraceCallbackHandler,
+)
+
+# Initialize the callback handler
+callback_handler = OpenInferenceTraceCallbackHandler()
+
+# LlamaIndex application initialization may vary
+# depending on your application
+service_context = ServiceContext.from_defaults(
+    llm_predictor=LLMPredictor(llm=ChatOpenAI(model_name="gpt-3.5-turbo", temperature=0)),
+    embed_model=OpenAIEmbedding(model="text-embedding-ada-002"),
+    callback_manager=CallbackManager(handlers=[callback_handler]),
+)
+index = load_index_from_storage(
+    storage_context,
+    service_context=service_context,
+)
+query_engine = index.as_query_engine()
+
+# Query your LlamaIndex application
+query_engine.query("What is the meaning of life?")
+query_engine.query("Why did the cow jump over the moon?")
+
+# View the traces in the Phoenix UI
+px.active_session().url
+```
+
+#### Tracing with LangChain
+
+[![Open in Colab](https://img.shields.io/static/v1?message=Open%20in%20Colab&logo=googlecolab&labelColor=grey&color=blue&logoColor=orange&label=%20)](https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/tracing/langchain_tracing_tutorial) [![Open in GitHub](https://img.shields.io/static/v1?message=Open%20in%20GitHub&logo=github&labelColor=grey&color=blue&logoColor=white&label=%20)](https://github.com/Arize-ai/phoenix/blob/main/tutorials/tracing/langchain_tracing_tutorial)
+
+To extract traces from your LangChain application, you will have to add Phoenix's OpenInference Tracer to your LangChain application. A tracer is a class that automatically accumulates traces as your application executes. The OpenInference Tracer is a tracer that is specifically designed to work with Phoenix and by default exports the traces to a locally running phoenix server.
+
+```shell
+# Install phoenix as well as langchain and your LLM of choice
+pip install arize-phoenix langchain openai
+
+```
+
+Launch Phoenix in a notebook and view the traces of your LangChain application in the Phoenix UI.
+
+```python
+import phoenix as px
+session = px.launch_app()
+
+# Once you have started a Phoenix server, you can start your LangChain application with the OpenInference Tracer as a callback. To do this, you will have to add the tracer to the initialization of your LangChain application:
+
+from phoenix.trace.langchain import OpenInferenceTracer
+
+# If no exporter is specified, the tracer will export to the locally running Phoenix server
+tracer = OpenInferenceTracer()
+
+# Initialize your LangChain application
+from langchain.chains import RetrievalQA
+from langchain.chat_models import ChatOpenAI
+from langchain.embeddings import OpenAIEmbeddings
+from langchain.retrievers import KNNRetriever
+
+embeddings = OpenAIEmbeddings(model="text-embedding-ada-002")
+documents_df = pd.read_parquet(
+    "http://storage.googleapis.com/arize-assets/phoenix/datasets/unstructured/llm/context-retrieval/langchain-pinecone/database.parquet"
+)
+knn_retriever = KNNRetriever(
+    index=np.stack(df["text_vector"]),
+    texts=documents_df["text"].tolist(),
+    embeddings=OpenAIEmbeddings(),
+)
+chain_type = "stuff"  # stuff, refine, map_reduce, and map_rerank
+chat_model_name = "gpt-3.5-turbo"
+llm = ChatOpenAI(model_name=chat_model_name)
+chain = RetrievalQA.from_chain_type(
+    llm=llm,
+    chain_type=chain_type,
+    retriever=knn_retriever,
+)
+
+# Instrument the execution of the runs with the tracer. By default the tracer uses an HTTPExporter
+query = "What is euclidean distance?"
+response = chain.run(query, callbacks=[tracer])
+
+# By adding the tracer to the callbacks of LangChain, we've created a one-way data connection between your LLM application and Phoenix.
+
+# To view the traces in Phoenix, simply open the UI in your browser.
+session.url
+```
 
 ### Embedding Analysis
 
@@ -153,7 +269,3 @@ Copyright 2023 Arize AI, Inc. All Rights Reserved.
 Portions of this code are patent protected by one or more U.S. Patents. See [IP_NOTICE](https://github.com/Arize-ai/phoenix/blob/main/IP_NOTICE).
 
 This software is licensed under the terms of the Elastic License 2.0 (ELv2). See [LICENSE](https://github.com/Arize-ai/phoenix/blob/main/LICENSE).
-
-```
-
-```
