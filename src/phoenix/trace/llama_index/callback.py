@@ -325,7 +325,7 @@ def _process_exceptions(
             error = start_event.payload[EventPayload.EXCEPTION]
             span_exception = SpanException(
                 message=str(error),
-                timestamp=_convert_timestamp_to_tz_aware_datetime(start_event.time),
+                timestamp=_timestamp_to_tz_aware_datetime(start_event.time),
                 exception_type=type(error).__name__,
                 exception_stacktrace=_get_stacktrace(error),
             )
@@ -369,7 +369,7 @@ def _add_spans_to_tracer(
         parent_span_id, event_id = parent_child_id_stack.pop()
         event_data = event_id_to_event_data[event_id]
         start_event = event_data["start_event"]
-        start_time = _convert_timestamp_to_tz_aware_datetime(start_event.time)
+        start_time = _timestamp_to_tz_aware_datetime(start_event.time)
         end_time = _get_end_time(event_data)
         span_events = event_data.get("span_events") or None
         has_exception = span_events is not None
@@ -471,26 +471,27 @@ def _get_end_time(event_data: CBEventData) -> Optional[datetime]:
     """
     span_events = event_data.get("span_events", [])
     if end_event := event_data.get("end_event"):
-        tz_naive_end_time = _convert_timestamp_to_timezone_naive_datetime(end_event.time)
+        tz_naive_end_time = _timestamp_to_tz_naive_datetime(end_event.time)
     elif span_events:
         last_span_event = span_events[-1]
         tz_naive_end_time = last_span_event.timestamp
     else:
         return None
-    return _convert_tz_naive_to_tz_aware_datetime(tz_naive_end_time)
+    return _tz_naive_to_tz_aware_datetime(tz_naive_end_time)
 
 
-def _convert_timestamp_to_tz_aware_datetime(timestamp: str) -> datetime:
-    return _convert_tz_naive_to_tz_aware_datetime(
-        _convert_timestamp_to_timezone_naive_datetime(timestamp)
-    )
+def _timestamp_to_tz_aware_datetime(timestamp: str) -> datetime:
+    """Converts a timestamp string to a timezone-aware datetime."""
+    return _tz_naive_to_tz_aware_datetime(_timestamp_to_tz_naive_datetime(timestamp))
 
 
-def _convert_timestamp_to_timezone_naive_datetime(timestamp: str) -> datetime:
+def _timestamp_to_tz_naive_datetime(timestamp: str) -> datetime:
+    """Converts a timestamp string to a timezone-naive datetime."""
     return datetime.strptime(timestamp, TIMESTAMP_FORMAT)
 
 
-def _convert_tz_naive_to_tz_aware_datetime(timestamp: datetime) -> datetime:
+def _tz_naive_to_tz_aware_datetime(timestamp: datetime) -> datetime:
+    """Converts a timezone-naive datetime to a timezone-aware datetime."""
     return timestamp.replace(tzinfo=_LOCAL_TZINFO)
 
 
