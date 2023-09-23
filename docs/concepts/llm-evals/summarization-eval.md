@@ -38,11 +38,11 @@ The above shows how to use the summarization Eval template.
 
 
 
-| Eval Summary | GPT-4 | GPT-3.5 | Palm 2 (soon) | Llama 7b (soon) |
-| ------------ | ----- | ------- | ------------- | --------------- |
-| Precision    | 0.79  | 1       |               |                 |
-| Recall       | 0.88  | 0.1     |               |                 |
-| F1           | 0.83  | .18     |               |                 |
+| Eval Summary | GPT-4 | GPT-3.5 | GPT-3.5 Instruct | Palm 2 (soon) | Llama 7b (soon) |
+| ------------ | ----- | ------- | ---------------- | ------------- | --------------- |
+| Precision    | 0.79  | 1       | 1                |               |                 |
+| Recall       | 0.88  | 0.1     | 0.16             |               |                 |
+| F1           | 0.83  | 0.18    | 0.280            |               |                 |
 
 ## GPT-4 Results
 
