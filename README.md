@@ -24,46 +24,69 @@
     </a>
 </p>
 
-Phoenix provides MLOps insights at lightning speed with zero-config observability for model drift, performance, and data quality. Phoenix is notebook-first python library that leverages embeddings to uncover problematic cohorts of your LLM, CV, NLP and tabular models.
+Phoenix provides MLOps and LLMOps insights at lightning speed with zero-config observability. Phoenix provides a notebook-first experience for monitoring your models and LLM Applications by providing:
 
-<!-- EXCLUDE -->
+-   **LLM App Tracing** - Trace through the execution of your LLM Application to understand the internals of your LLM Application and to troubleshoot problems related to things like retrieval and tool execution.
+-   **LLM Evals** - Leverage the power of large language models to evaluate your generative model or application's relevance, toxicity, and more.
+-   **Embedding Analysis** - Explore embedding point-clouds and identify clusters of high drift and performance degradation.
+-   **RAG Introspection** - Visualize your generative application's search and retrieval process to solve improve your retrieval augmented generation.
+-   **Structured Data Analysis** - Statistically analyze your structured data by performing A/B analysis, temporal drift analysis, and more.
 
 ![a rotating UMAP point cloud of a computer vision model](https://github.com/Arize-ai/phoenix-assets/blob/main/gifs/image_classification_10mb.gif?raw=true)
 
-<!-- /EXCLUDE -->
+-   [Installation](#installation)
+-   [Features](#features)
+    -   [LLM App Tracing](#llm-app-tracing)
+    -   [Embedding Analysis](#embedding-analysis)
+        -   [UMAP-based Exploratory Data Analysis](#umap-based-exploratory-data-analysis)
+        -   [Cluster-driven Drift and Performance Analysis](#cluster-driven-drift-and-performance-analysis)
+        -   [Exportable Clusters](#exportable-clusters)
+-   [Community](#community)
+-   [Thanks](#thanks)
+-   [Copyright, Patent, and License](#copyright-patent-and-license)
 
 ## Installation
 
+Install Phoenix via `pip` or or `conda` as well as any of its subpackages.
+
 ```shell
 pip install arize-phoenix
+
+# For LLM Evals
+pip install arize-phoenix[experimental]
 ```
 
-## Quickstart
+## Features
+
+### LLM App Tracing
+
+[![Open in Colab](https://img.shields.io/static/v1?message=Open%20in%20Colab&logo=googlecolab&labelColor=grey&color=blue&logoColor=orange&label=%20)](https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/tracing/llama_index_tracing_example) [![Open in GitHub](https://img.shields.io/static/v1?message=Open%20in%20GitHub&logo=github&labelColor=grey&color=blue&logoColor=white&label=%20)](https://github.com/Arize-ai/phoenix/blob/main/tutorials/tracing/llama_index_tracing_example)
+
+### Embedding Analysis
 
 [![Open in Colab](https://img.shields.io/static/v1?message=Open%20in%20Colab&logo=googlecolab&labelColor=grey&color=blue&logoColor=orange&label=%20)](https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/image_classification_tutorial.ipynb) [![Open in GitHub](https://img.shields.io/static/v1?message=Open%20in%20GitHub&logo=github&labelColor=grey&color=blue&logoColor=white&label=%20)](https://github.com/Arize-ai/phoenix/blob/main/tutorials/image_classification_tutorial.ipynb)
 
-Import libraries.
+Explore UMAP point-clouds at times of high drift and performance degredation and identify clusters of problematic data.
+
+![Euclidean distance drift analysis](https://storage.googleapis.com/arize-assets/phoenix/assets/images/ner_color_by_correctness.png)
+
+Embedding analysis is critical for understanding the behavior of you NLP, CV, and LLM Apps that use embeddings. Phoenix provides an A/B testing framework to help you understand how your embeddings are changing over time and how they are changing between different versions of your model (`prod` vs `train`, `champion` vs `challenger`).
 
 ```python
+# Import libraries.
 from dataclasses import replace
 import pandas as pd
 import phoenix as px
-```
 
-Download curated datasets and load them into pandas DataFrames.
-
-```python
+# Download curated datasets and load them into pandas DataFrames.
 train_df = pd.read_parquet(
     "https://storage.googleapis.com/arize-assets/phoenix/datasets/unstructured/cv/human-actions/human_actions_training.parquet"
 )
 prod_df = pd.read_parquet(
     "https://storage.googleapis.com/arize-assets/phoenix/datasets/unstructured/cv/human-actions/human_actions_production.parquet"
 )
-```
 
-Define schemas that tell Phoenix which columns of your DataFrames correspond to features, predictions, actuals (i.e., ground truth), embeddings, etc.
-
-```python
+# Define schemas that tell Phoenix which columns of your DataFrames correspond to features, predictions, actuals (i.e., ground truth), embeddings, etc.
 train_schema = px.Schema(
     prediction_id_column_name="prediction_id",
     timestamp_column_name="prediction_ts",
@@ -77,66 +100,33 @@ train_schema = px.Schema(
     },
 )
 prod_schema = replace(train_schema, actual_label_column_name=None)
-```
 
-Define your production and training datasets.
-
-```python
+# Define your production and training datasets.
 prod_ds = px.Dataset(prod_df, prod_schema)
 train_ds = px.Dataset(train_df, train_schema)
-```
 
-Launch the app.
-
-```python
+# Launch Phoenix.
 session = px.launch_app(prod_ds, train_ds)
-```
 
-You can open Phoenix by copying and pasting the output of `session.url` into a new browser tab.
-
-```python
+# View the Phoenix UI in the browser
 session.url
 ```
 
-Alternatively, you can open the Phoenix UI in your notebook with
-
-```python
-session.view()
-```
-
-When you're done, don't forget to close the app.
-
-```python
-px.close_app()
-```
-
-## Features
-
-### Embedding Drift Analysis
-
-Explore UMAP point-clouds at times of high euclidean distance and identify clusters of drift.
-
-![Euclidean distance drift analysis](https://storage.googleapis.com/arize-assets/phoenix/assets/images/ner_color_by_correctness.png)
-
-### UMAP-based Exploratory Data Analysis
+#### UMAP-based Exploratory Data Analysis
 
 Color your UMAP point-clouds by your model's dimensions, drift, and performance to identify problematic cohorts.
 
 ![UMAP-based EDA](https://storage.googleapis.com/arize-assets/phoenix/assets/images/cv_eda_selection.png)
 
-### Cluster-driven Drift and Performance Analysis
+#### Cluster-driven Drift and Performance Analysis
 
 Break-apart your data into clusters of high drift or bad performance using HDBSCAN
 
 ![HDBSCAN clusters sorted by drift](https://storage.googleapis.com/arize-assets/phoenix/assets/images/HDBSCAN_drift_analysis.png)
 
-### Exportable Clusters
+#### Exportable Clusters
 
 Export your clusters to `parquet` files or dataframes for further analysis and fine-tuning.
-
-## Documentation
-
-For in-depth examples and explanations, read the [docs](https://docs.arize.com/phoenix).
 
 ## Community
 
@@ -163,3 +153,7 @@ Copyright 2023 Arize AI, Inc. All Rights Reserved.
 Portions of this code are patent protected by one or more U.S. Patents. See [IP_NOTICE](https://github.com/Arize-ai/phoenix/blob/main/IP_NOTICE).
 
 This software is licensed under the terms of the Elastic License 2.0 (ELv2). See [LICENSE](https://github.com/Arize-ai/phoenix/blob/main/LICENSE).
+
+```
+
+```
