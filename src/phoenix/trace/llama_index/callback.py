@@ -11,10 +11,21 @@ https://github.com/Arize-ai/open-inference-spec
 """
 import json
 import logging
-from collections import defaultdict
+from collections import defaultdict, deque
+from copy import deepcopy
 from datetime import datetime
 from traceback import format_exception
-from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple, TypedDict, cast
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Iterator,
+    List,
+    Optional,
+    Tuple,
+    TypedDict,
+    cast,
+)
 from uuid import uuid4
 
 from llama_index.callbacks.base_handler import BaseCallbackHandler
@@ -85,6 +96,10 @@ class CBEventData(TypedDict, total=False):
     end_event: CBEvent
     span_events: List[SpanEvent]
     attributes: Dict[str, Any]
+
+
+TraceMap = Dict[CBEventID, List[CBEventID]]
+EventMap = Dict[CBEventID, CBEventData]
 
 
 def payload_to_semantic_attributes(
@@ -198,7 +213,6 @@ class OpenInferenceTraceCallbackHandler(BaseCallbackHandler):
         self._event_id_to_event_data: Dict[CBEventID, CBEventData] = defaultdict(
             lambda: CBEventData()
         )
-        self._previous_non_exception_event_id: Optional[CBEventID] = None
 
     def on_event_start(
         self,
@@ -208,27 +222,6 @@ class OpenInferenceTraceCallbackHandler(BaseCallbackHandler):
         **kwargs: Any,
     ) -> CBEventID:
         event_id = event_id or str(uuid4())
-        if (
-            event_type is CBEventType.EXCEPTION
-            and payload
-            and (error := payload.get(EventPayload.EXCEPTION))
-        ):
-            # An exception callback event does not in and of itself correspond to an OpenInference
-            # span, but should be associated with the span in which the exception occurred. Since
-            # the callback system does not explicitly say which callback event caused the exception,
-            # we assume that the exception occurred in the previous non-exception event.
-            if self._previous_non_exception_event_id is not None:
-                event_data = self._event_id_to_event_data[self._previous_non_exception_event_id]
-                if "exceptions" not in event_data:
-                    event_data["span_events"] = []
-                event_data["span_events"].append(
-                    _get_span_exception(
-                        error=error,
-                        timestamp=datetime.now(),
-                    )
-                )
-            return event_id
-
         event_data = self._event_id_to_event_data[event_id]
         event_data["name"] = event_type.value
         event_data["event_type"] = event_type
@@ -243,7 +236,7 @@ class OpenInferenceTraceCallbackHandler(BaseCallbackHandler):
             event_data["attributes"].update(
                 payload_to_semantic_attributes(event_type, payload),
             )
-        self._previous_non_exception_event_id = event_id
+
         return event_id
 
     def on_event_end(
@@ -279,8 +272,13 @@ class OpenInferenceTraceCallbackHandler(BaseCallbackHandler):
         if not trace_map:
             return  # TODO: investigate when empty or None trace_map is passed
         try:
-            _add_to_tracer(
-                event_id_to_event_data=self._event_id_to_event_data,
+            event_id_to_event_data = self._event_id_to_event_data
+            event_id_to_event_data, trace_map = _process_exceptions(
+                event_id_to_event_data=event_id_to_event_data,
+                trace_map=trace_map,
+            )
+            _add_spans_to_tracer(
+                event_id_to_event_data=event_id_to_event_data,
                 trace_map=trace_map,
                 tracer=self._tracer,
             )
@@ -296,9 +294,58 @@ class OpenInferenceTraceCallbackHandler(BaseCallbackHandler):
         return self._tracer.get_spans()
 
 
-def _add_to_tracer(
-    event_id_to_event_data: Dict[CBEventID, CBEventData],
-    trace_map: Dict[CBEventID, List[CBEventID]],
+def _process_exceptions(
+    event_id_to_event_data: EventMap, trace_map: TraceMap
+) -> Tuple[EventMap, TraceMap]:
+    """
+    Processes and removes exception events from the trace map. Returns copies of the inputs in which
+    the exception data has been added to the appropriate event payload and the exception events have
+    been removed.
+
+    As context, exception events are siblings and not children of the event that caused the
+    exception. There is a bug within LlamaIndex causing duplicate exception events to be emitted for
+    a single exception. This function uses a right-to-left BFS to collect exception events and then
+    associate the first exception in a sequence with the event that caused it.
+    """
+    parent_event_id = "root"
+    ids_queue = deque(
+        [(parent_event_id, event_id) for event_id in reversed(trace_map[parent_event_id])]
+    )
+    span_exception = None
+    processed_event_id_to_event_data: EventMap = {}
+    processed_trace_map: TraceMap = {}
+    while len(ids_queue) > 0:
+        parent_event_id, event_id = ids_queue.popleft()
+        event_data = deepcopy(event_id_to_event_data[event_id])
+        start_event = event_data["start_event"]
+        start_event_type = start_event.event_type
+        if start_event_type is CBEventType.EXCEPTION:
+            error = start_event.payload[EventPayload.EXCEPTION]
+            span_exception = SpanException(
+                message=str(error),
+                timestamp=_convert_timestamp_to_tz_aware_datetime(start_event.time),
+                exception_type=type(error).__name__,
+                exception_stacktrace=_get_stacktrace(error),
+            )
+            continue
+        if span_exception is not None:
+            if "span_events" not in event_data:
+                event_data["span_events"] = []
+            event_data["span_events"].append(span_exception)
+        span_exception = None
+        processed_event_id_to_event_data[event_id] = event_data
+        if parent_event_id not in processed_trace_map:
+            processed_trace_map[parent_event_id] = []
+        processed_trace_map[parent_event_id].insert(0, event_id)
+        for child_event_id in reversed(trace_map[event_id]):
+            ids_queue.append((event_id, child_event_id))
+
+    return processed_event_id_to_event_data, processed_trace_map
+
+
+def _add_spans_to_tracer(
+    event_id_to_event_data: EventMap,
+    trace_map: TraceMap,
     tracer: Tracer,
 ) -> None:
     """Adds event data to the tracer, where it is converted to a span and stored in a buffer.
@@ -318,14 +365,12 @@ def _add_to_tracer(
     ]
     while parent_child_id_stack:
         parent_span_id, event_id = parent_child_id_stack.pop()
-        if (event_data := event_id_to_event_data.get(event_id)) is None:
-            continue
+        event_data = event_id_to_event_data[event_id]
         start_event = event_data["start_event"]
-        start_time_tz_naive = datetime.strptime(start_event.time, TIMESTAMP_FORMAT)
-        start_time_tz_aware = start_time_tz_naive.replace(tzinfo=_LOCAL_TZINFO)
-        end_time_tz_aware = _get_end_time(event_data)
-        span_events = event_data.get("span_events", [])
-        has_exception = any(map(lambda event: isinstance(event, SpanException), span_events))
+        start_time = _convert_timestamp_to_tz_aware_datetime(start_event.time)
+        end_time = _get_end_time(event_data)
+        span_events = event_data.get("span_events") or None
+        has_exception = span_events is not None
         name = event_data["name"]
         event_type = event_data["event_type"]
         span_kind = _get_span_kind(event_type)
@@ -333,13 +378,13 @@ def _add_to_tracer(
             name=name,
             span_kind=span_kind,
             trace_id=trace_id,
-            start_time=start_time_tz_aware,
-            end_time=end_time_tz_aware,
+            start_time=start_time,
+            end_time=end_time,
             status_code=SpanStatusCode.ERROR if has_exception else SpanStatusCode.OK,
             status_message="",
             parent_id=parent_span_id,
             attributes=event_data["attributes"],
-            events=event_data.get("span_events"),
+            events=span_events,
             conversation=None,
         )
         new_parent_span_id = span.context.span_id
@@ -424,30 +469,27 @@ def _get_end_time(event_data: CBEventData) -> Optional[datetime]:
     """
     span_events = event_data.get("span_events", [])
     if end_event := event_data.get("end_event"):
-        end_time_tz_naive = datetime.strptime(end_event.time, TIMESTAMP_FORMAT)
+        tz_naive_end_time = _convert_timestamp_to_timezone_naive_datetime(end_event.time)
     elif span_events:
         last_span_event = span_events[-1]
-        end_time_tz_naive = last_span_event.timestamp
+        tz_naive_end_time = last_span_event.timestamp
     else:
         return None
-    end_time_tz_aware = end_time_tz_naive.replace(tzinfo=_LOCAL_TZINFO)
-    return end_time_tz_aware
+    return _convert_tz_naive_to_tz_aware_datetime(tz_naive_end_time)
 
 
-def _get_span_exception(
-    error: BaseException,
-    timestamp: datetime,
-) -> SpanException:
-    """
-    Converts an error to a SpanException.
-    """
-
-    return SpanException(
-        message=str(error),
-        timestamp=timestamp,
-        exception_type=type(error).__name__,
-        exception_stacktrace=_get_stacktrace(error),
+def _convert_timestamp_to_tz_aware_datetime(timestamp: str) -> datetime:
+    return _convert_tz_naive_to_tz_aware_datetime(
+        _convert_timestamp_to_timezone_naive_datetime(timestamp)
     )
+
+
+def _convert_timestamp_to_timezone_naive_datetime(timestamp: str) -> datetime:
+    return datetime.strptime(timestamp, TIMESTAMP_FORMAT)
+
+
+def _convert_tz_naive_to_tz_aware_datetime(timestamp: datetime) -> datetime:
+    return timestamp.replace(tzinfo=_LOCAL_TZINFO)
 
 
 def _get_stacktrace(exception: BaseException) -> str:

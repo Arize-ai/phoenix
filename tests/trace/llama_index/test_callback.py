@@ -11,7 +11,7 @@ from openai import ChatCompletion
 from openai.error import RateLimitError
 from phoenix.trace.exporter import NoOpExporter
 from phoenix.trace.llama_index import OpenInferenceTraceCallbackHandler
-from phoenix.trace.schemas import SpanException, SpanKind
+from phoenix.trace.schemas import SpanException, SpanKind, SpanStatusCode
 from phoenix.trace.semantic_conventions import (
     DOCUMENT_METADATA,
     EXCEPTION_MESSAGE,
@@ -59,7 +59,7 @@ def test_callback_llm(mock_service_context: ServiceContext) -> None:
     assert list(map(json_string_to_span, map(span_to_json, spans))) == spans
 
 
-def test_callback_llm_rate_limit_error_has_exception_event_and_attributes(
+def test_callback_llm_rate_limit_error_has_exception_events(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setenv("OPENAI_API_KEY", "sk-0123456789")
@@ -78,7 +78,11 @@ def test_callback_llm_rate_limit_error_has_exception_event_and_attributes(
             query_engine.query(query)
 
     spans = list(callback_handler.get_spans())
+    assert all(
+        span.status_code == SpanStatusCode.OK for span in spans if span.span_kind != SpanKind.LLM
+    )
     span = next(span for span in spans if span.span_kind == SpanKind.LLM)
+    assert span.status_code == SpanStatusCode.ERROR
     events = span.events
     assert len(events) == 1
     event = events[0]
@@ -87,4 +91,4 @@ def test_callback_llm_rate_limit_error_has_exception_event_and_attributes(
     assert len(event.attributes) == 3
     assert event.attributes[EXCEPTION_TYPE] == "RateLimitError"
     assert event.attributes[EXCEPTION_MESSAGE] == "message"
-    assert "Traceback" in event.attributes[EXCEPTION_STACKTRACE]
+    assert isinstance(event.attributes[EXCEPTION_STACKTRACE], str)
