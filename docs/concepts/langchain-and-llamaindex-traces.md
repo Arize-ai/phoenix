@@ -1,10 +1,10 @@
 ---
-description: Coming Soon!
+description: Tracing the execution of LLM powered applications
 ---
 
-# LangChain & LlamaIndex Traces
+# LLM App Tracing
 
-## What is Trace Observability?
+## What is LLM Tracing?
 
 The rise of LangChain and LlamaIndex for LLM app development has enabled developers to move quickly in building applications powered by LLMs. The abstractions created by these frameworks can accelerate development, but also make it hard to debug the LLM app.
 
@@ -22,7 +22,7 @@ In order to enable tracing you only need a couple lines of code to your installa
 
 ### LangChain
 
-Enabling Phoenix for LangChain is a couple lines of code where LangChain is instantiated.&#x20;
+Enabling Phoenix for LangChain is a couple lines of code where LangChain is instantiated.
 
 ```python
 from langchain.llms import OpenAI
@@ -45,7 +45,7 @@ chain.run(input_documents=documents, question=query, callbacks=[tracer])
 
 ### **LlamaIndex**
 
-Enabling LlamaIndex is a couple lines of code where LlamaIndex is instantiated.&#x20;
+Enabling LlamaIndex is a couple lines of code where LlamaIndex is instantiated.
 
 ```python
 import phoenix as px
@@ -68,7 +68,7 @@ query_engine = index.as_query_engine()
 
 ## Troubleshooting with Phoenix
 
-Once you enable tracing for LangChain or LlamaIndex with Phoenix, the Phoenix platform will be available locally for troubleshooting.&#x20;
+Once you enable tracing for LangChain or LlamaIndex with Phoenix, the Phoenix platform will be available locally for troubleshooting.
 
 ```python
 import phoenix as px
@@ -83,7 +83,7 @@ The launch Phoenix outputs a link to open in the browser:
 >> 📖 For more information on how to use Phoenix, check out https://docs.arize.com/phoenix
 ```
 
-Phoenix local interface visualization below:&#x20;
+Phoenix local interface visualization below:
 
 <figure><img src="../.gitbook/assets/Screenshot 2023-09-02 at 12.53.45 PM (1).png" alt=""><figcaption><p>Phoenix Traces</p></figcaption></figure>
 
@@ -91,19 +91,19 @@ The above shows the traces for a set of span(runs) including Chain, LLM and Retr
 
 There are two ways to launch phoenix tracing on spans:
 
-1. Streaming - Stream a live active LangChain or LlamaIndex session into phoenix continuously&#x20;
+1. Streaming - Stream a live active LangChain or LlamaIndex session into phoenix continuously
 2. Span File - Open an OpenInference spans file into Phoenix and extract an OpenInference span file from Phoenix
 
 ### Streaming Spans
 
-In many cases teams may want to stream spans from an active instantiation of LangChain/LlamaIndex into a live running Phoenix session. This can occur in a Notebook based environment or production.&#x20;
+In many cases teams may want to stream spans from an active instantiation of LangChain/LlamaIndex into a live running Phoenix session. This can occur in a Notebook based environment or production.
 
 ```python
 import phoenix as px
 px.launch_app()
 ```
 
-The above instantiation is used for streaming. One-click options _coming soon_ for directing spans to specific locations.&#x20;
+The above instantiation is used for streaming. One-click options _coming soon_ for directing spans to specific locations.
 
 ### Phoenix with OpenInference Span Files
 
@@ -128,11 +128,11 @@ px.launch_app(trace=ds)
 
 ```
 
-The example above instantiates the Phoenix tracer directly and then exports the span data into a dataframe. Phoenix is then loaded on that OpenInference span dataframe.&#x20;
+The example above instantiates the Phoenix tracer directly and then exports the span data into a dataframe. Phoenix is then loaded on that OpenInference span dataframe.
 
 ### Exporting Spans to Notebook
 
-In development, you may want to go from a collection of span data in Phoenix that has been streaming into the application, back to a Notebook to run Evals or analysis.&#x20;
+In development, you may want to go from a collection of span data in Phoenix that has been streaming into the application, back to a Notebook to run Evals or analysis.
 
 ```python
 
@@ -144,7 +144,7 @@ trace_df["llm_assisted_relevance"] = run_relevance_eval(trace_df)
 
 ```
 
-The above example shows how you can export spans out of the current running session, in this case only the span_kind reriever.&#x20;
+The above example shows how you can export spans out of the current running session, in this case only the span\_kind reriever.
 
 ## Span Types
 
@@ -162,31 +162,31 @@ A object that encompasses calls to LLMs and Tools. An agent describes a reasonin
 
 #### **LLM:**
 
-Used to describe an LLM call and parameters.&#x20;
+Used to describe an LLM call and parameters.
 
 #### **Retriever:**
 
-Used for VectorDB retriever LLM calls. It contains the retreived contexts and queries used in the retriever search.&#x20;
+Used for VectorDB retriever LLM calls. It contains the retreived contexts and queries used in the retriever search.
 
 #### **Embedding:**
 
-LLM Embedding calls where there are text to embedding generation steps. Includes the text and embedding generated.&#x20;
+LLM Embedding calls where there are text to embedding generation steps. Includes the text and embedding generated.
 
 #### **Tool:**
 
-Calls to external tools from an LLM&#x20;
+Calls to external tools from an LLM
 
 ### Phoenix Traces
 
-Phoenix can be used to troubleshoot traces by pinpointing the timing problems, evaluation performance and points of breakage of specific chains. \
+Phoenix can be used to troubleshoot traces by pinpointing the timing problems, evaluation performance and points of breakage of specific chains. \\
 
 <figure><img src="../.gitbook/assets/Screenshot 2023-09-02 at 3.15.31 PM.png" alt=""><figcaption><p>Trace problems in Spans</p></figcaption></figure>
 
-The above trace shows a retrieval run by LlamaIndex and the Chain/Retriever/Embedding/LLM spans that comprise that trace. The timing can be debugged be sorting the spans or going to a particular LLM span. &#x20;
+The above trace shows a retrieval run by LlamaIndex and the Chain/Retriever/Embedding/LLM spans that comprise that trace. The timing can be debugged be sorting the spans or going to a particular LLM span.
 
 <figure><img src="../.gitbook/assets/Screenshot 2023-09-09 at 9.55.08 AM.png" alt=""><figcaption><p>Stream Traces</p></figcaption></figure>
 
-The above shows a set of traces in Phoenix streamed in from a running session.\
+The above shows a set of traces in Phoenix streamed in from a running session.\\
 
 <figure><img src="../.gitbook/assets/Screenshot 2023-09-09 at 9.55.24 AM.png" alt=""><figcaption><p>Decomposition of Spans</p></figcaption></figure>
 
