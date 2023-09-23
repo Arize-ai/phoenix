@@ -4,7 +4,7 @@ description: Tracing the execution of LLM powered applications
 
 # LLM App Tracing
 
-## What is LLM Tracing?
+## What is LLM App Tracing and Observability?
 
 The rise of LangChain and LlamaIndex for LLM app development has enabled developers to move quickly in building applications powered by LLMs. The abstractions created by these frameworks can accelerate development, but also make it hard to debug the LLM app.
 
@@ -43,6 +43,10 @@ chain.run(input_documents=documents, question=query, callbacks=[tracer])
 
 ```
 
+{% hint style="info" %}
+for a full tutorial on LangChain, see the[ integration guide](langchain-and-llamaindex-traces.md#langchain)
+{% endhint %}
+
 ### **LlamaIndex**
 
 Enabling LlamaIndex is a couple lines of code where LlamaIndex is instantiated.
@@ -53,9 +57,9 @@ from phoenix.trace.llama_index import (
     OpenInferenceTraceCallbackHandler,
 )
 
-### Phoenix Open Inference Tracer ###
+### Phoenix OpenInference Callback ###
 callback_handler = OpenInferenceTraceCallbackHandler()
-### Phoenix tracer used in callback ###
+### Phoenix tracer used in the callback ###
 service_context = ServiceContext.from_defaults(
     llm_predictor=LLMPredictor(llm=ChatOpenAI(model_name="gpt-3.5-turbo", temperature=0)),
     embed_model=OpenAIEmbedding(model="text-embedding-ada-002"),
@@ -66,6 +70,10 @@ index = load_index_from_storage(storage_context, service_context=service_context
 query_engine = index.as_query_engine()
 ```
 
+{% hint style="info" %}
+For a full tutorial on LlamaIndex, see the [integration guide](langchain-and-llamaindex-traces.md#llamaindex)
+{% endhint %}
+
 ## Troubleshooting with Phoenix
 
 Once you enable tracing for LangChain or LlamaIndex with Phoenix, the Phoenix platform will be available locally for troubleshooting.
@@ -75,15 +83,13 @@ import phoenix as px
 px.launch_app()
 ```
 
-The launch Phoenix outputs a link to open in the browser:
+The launch Phoenix outputs a link to open the application in the browser:
 
 ```
 >> 🌍 To view the Phoenix app in your browser, visit https://jzmp4hjexd3-496ff2e9c6d22116-6060-colab.googleusercontent.com/
 >> 📺 To view the Phoenix app in a notebook, run `px.active_session().view()`
 >> 📖 For more information on how to use Phoenix, check out https://docs.arize.com/phoenix
 ```
-
-Phoenix local interface visualization below:
 
 <figure><img src="../.gitbook/assets/Screenshot 2023-09-02 at 12.53.45 PM (1).png" alt=""><figcaption><p>Phoenix Traces</p></figcaption></figure>
 
@@ -146,11 +152,11 @@ trace_df["llm_assisted_relevance"] = run_relevance_eval(trace_df)
 
 The above example shows how you can export spans out of the current running session, in this case only the span\_kind reriever.
 
-## Span Types
+## SpanKind
 
-The the span types from LLM Frameworks determine the attributes and functionality supported.
+The the spanKind type of span from LLM Frameworks determine the attributes and functionality supported.
 
-<figure><img src="../.gitbook/assets/Screenshot 2023-09-09 at 9.15.30 AM (2).png" alt=""><figcaption></figcaption></figure>
+<figure><img src="https://storage.googleapis.com/arize-assets/phoenix/assets/images/Supported%20LLM%20Span%20types.png" alt=""><figcaption><p>The SpanKinds supported by OpenInference Tracing</p></figcaption></figure>
 
 #### _**Chain:**_
 
@@ -178,16 +184,23 @@ Calls to external tools from an LLM
 
 ### Phoenix Traces
 
-Phoenix can be used to troubleshoot traces by pinpointing the timing problems, evaluation performance and points of breakage of specific chains. \\
+Phoenix can be used to troubleshoot traces of execution. With traces you can:
 
-<figure><img src="../.gitbook/assets/Screenshot 2023-09-02 at 3.15.31 PM.png" alt=""><figcaption><p>Trace problems in Spans</p></figcaption></figure>
+* Identify performance bottlenecks
+* Introspect the internals of the different application steps&#x20;
+* Evaluate the performance performance of retrieval and generation
+* &#x20;Identify critical events and exceptions
 
-The above trace shows a retrieval run by LlamaIndex and the Chain/Retriever/Embedding/LLM spans that comprise that trace. The timing can be debugged be sorting the spans or going to a particular LLM span.
+<figure><img src="https://storage.googleapis.com/arize-assets/phoenix/assets/images/trace_details_view.png" alt=""><figcaption><p>Introspect the execution of a request trace via spans</p></figcaption></figure>
 
-<figure><img src="../.gitbook/assets/Screenshot 2023-09-09 at 9.55.08 AM.png" alt=""><figcaption><p>Stream Traces</p></figcaption></figure>
+The above trace shows a retrieval run by LlamaIndex and the Chain/Retriever/Embedding/LLM spans that comprise that trace. The timing can be debugged be sorting the spans or going to a particular LLM span.\
 
-The above shows a set of traces in Phoenix streamed in from a running session.\\
 
-<figure><img src="../.gitbook/assets/Screenshot 2023-09-09 at 9.55.24 AM.png" alt=""><figcaption><p>Decomposition of Spans</p></figcaption></figure>
+<figure><img src="https://storage.googleapis.com/arize-assets/phoenix/assets/images/trace_listing.png" alt=""><figcaption><p>Traces captured by the streamed output of the tracing callback</p></figcaption></figure>
 
-A set of spans can be decomposed underneath a specific run of a chain. This can be used to track down evaluation or performance problems at specific chain positions.
+The above shows a set of traces in Phoenix streamed in from a running session.\
+
+
+<figure><img src="https://storage.googleapis.com/arize-assets/phoenix/assets/images/trace_span_steps.png" alt=""><figcaption></figcaption></figure>
+
+A set of spans can be decomposed underneath a specific run of a chain. This can be used to track down evaluation or performance problems during a particular step.
