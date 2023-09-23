@@ -320,6 +320,8 @@ def _process_exceptions(
         start_event = event_data["start_event"]
         start_event_type = start_event.event_type
         if start_event_type is CBEventType.EXCEPTION:
+            if not start_event.payload:
+                continue
             error = start_event.payload[EventPayload.EXCEPTION]
             span_exception = SpanException(
                 message=str(error),
