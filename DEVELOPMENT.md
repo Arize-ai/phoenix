@@ -23,7 +23,7 @@ First, ensure that your virtual environment manager is installed. You can instal
 Create a new virtual environment with a Phoenix-compatible Python version. For example,
 
 ```bash
-conda create --name phoenix python=3.10
+conda create --name phoenix python=3.8
 ```
 
 Install web build dependancies
