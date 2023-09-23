@@ -20,9 +20,9 @@
 
 ## 🔮 Use Cases
 
-* [Troubleshooting LLM Search and Retrieval with Vector Stores](use-cases/troubleshooting-llm-retrieval-with-vector-stores.md)
-* [Insights to Fine Tune or Prompt Engineer LLMs](use-cases/insights-to-fine-tune-or-prompt-engineer-llms.md)
-* [Bring Production Data to Notebook for EDA or Retraining](use-cases/bring-production-data-to-notebook-for-eda-or-retraining.md)
+* [LLM Search and Retrieval with Vector Stores](use-cases/troubleshooting-llm-retrieval-with-vector-stores.md)
+* [Fine Tune or Prompt Engineer LLMs](use-cases/insights-to-fine-tune-or-prompt-engineer-llms.md)
+* [Production Data EDA and Retraining](use-cases/bring-production-data-to-notebook-for-eda-or-retraining.md)
 
 ## 🔢 How-To
 
