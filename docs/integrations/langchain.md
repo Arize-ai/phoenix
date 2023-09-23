@@ -70,7 +70,15 @@ px.launch_app(trace=trace_ds)
 
 In this way, you can use files as a means to store and communicate interesting traces that you may want to use to share with a team or to use later down the line to fine-tune an LLM or model.
 
-## Inferences
+#### Working Example with Traces
+
+For a fully working example of tracing with LangChain, checkout our colab notebook.
+
+{% embed url="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/tracing/langchain_tracing_tutorial.ipynb" %}
+Troubleshooting an LLM application using the OpenInferenceTracer
+{% endembed %}
+
+### Inferences
 
 Phoenix supports visualizing LLM application inference data from a LangChain application. In particular you can use Phoenix's embeddings projection and clustering to troubleshoot retrieval-augmented generation. For a tutorial on how to extract embeddings and inferences from LangChain, check out the following notebook.
 

@@ -78,7 +78,7 @@ Note that Parquet is just an example file format, you can use any file format of
 \
 For the full guidance on how to materialize your data in files, consult the [LlamaIndex notebook](https://github.com/jerryjliu/llama_index/blob/main/docs/examples/callbacks/OpenInferenceCallback.ipynb).
 
-#### Working Example
+#### Working Example with Inferences
 
 For a fully working example, checkout our colab notebook.
 
@@ -87,8 +87,6 @@ Troubleshooting an LLM application using the OpenInferenceCallback
 {% endembed %}
 
 ### Traces
-
-## Traces
 
 Traces provide telemetry data about the execution of your LLM application. They are a great way to understand the internals of your LlamaIndex application and to troubleshoot problems related to things like retrieval and tool execution.
 
@@ -159,3 +157,11 @@ px.launch_app(trace=trace_ds)
 ```
 
 In this way, you can use files as a means to store and communicate interesting traces that you may want to use to share with a team or to use later down the line to fine-tune an LLM or model.
+
+#### Working Example with Traces
+
+For a fully working example of tracing with LlamaIndex, checkout our colab notebook.
+
+{% embed url="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/tracing/llama_index_tracing_tutorial.ipynb" %}
+Troubleshooting an LLM application using the OpenInferenceTraceCallback
+{% endembed %}
