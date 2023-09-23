@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
+import { useNavigate } from "react-router";
 import {
   ColumnDef,
   flexRender,
@@ -13,12 +14,12 @@ import { css } from "@emotion/react";
 import { Icon, Icons } from "@arizeai/components";
 
 import { Link } from "@phoenix/components/Link";
-import { tableCSS } from "@phoenix/components/table/styles";
+import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TextCell } from "@phoenix/components/table/TextCell";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
+import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SpanKindLabel } from "@phoenix/components/trace/SpanKindLabel";
 import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon";
-import { formatFloat } from "@phoenix/utils/numberFormatUtils";
 
 import {
   SpansTable_spans$key,
@@ -33,9 +34,6 @@ type SpansTableProps = {
   query: SpansTable_spans$key;
 };
 
-const floatRightCSS = css`
-  float: right;
-`;
 const PAGE_SIZE = 100;
 const DEFAULT_SORT: SpanSort = {
   col: "startTime",
@@ -45,6 +43,7 @@ export function SpansTable(props: SpansTableProps) {
   //we need a reference to the scrolling element for logic down below
   const tableContainerRef = React.useRef<HTMLDivElement>(null);
   const [sorting, setSorting] = useState<SortingState>([]);
+  const navigate = useNavigate();
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
     usePaginationFragment<SpansTableSpansQuery, SpansTable_spans$key>(
       graphql`
@@ -141,11 +140,10 @@ export function SpansTable(props: SpansTableProps) {
 
       cell: ({ getValue }) => {
         const value = getValue();
-        if (value === null) {
+        if (value === null || typeof value !== "number") {
           return null;
         }
-        const seconds = (value as number) / 1000;
-        return <span css={floatRightCSS}>{formatFloat(seconds)}s</span>;
+        return <LatencyText latencyMs={value} />;
       },
     },
     {
@@ -225,7 +223,7 @@ export function SpansTable(props: SpansTableProps) {
       onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
       ref={tableContainerRef}
     >
-      <table css={tableCSS}>
+      <table css={selectableTableCSS}>
         <thead>
           {table.getHeaderGroups().map((headerGroup) => (
             <tr key={headerGroup.id}>
@@ -266,7 +264,14 @@ export function SpansTable(props: SpansTableProps) {
         <tbody>
           {rows.map((row) => {
             return (
-              <tr key={row.id}>
+              <tr
+                key={row.id}
+                onClick={() =>
+                  navigate(
+                    `traces/${row.original.context.traceId}?selectedSpanId=${row.original.context.spanId}`
+                  )
+                }
+              >
                 {row.getVisibleCells().map((cell) => {
                   return (
                     <td key={cell.id}>

@@ -1,12 +1,12 @@
 import React from "react";
 import { css } from "@emotion/react";
 
-import { Flex, Icon, Icons, Text, View } from "@arizeai/components";
+import { Flex, Text, View } from "@arizeai/components";
 
 import { SpanStatusCode } from "@phoenix/pages/tracing/__generated__/SpansTable_spans.graphql";
 import { TokenCount } from "@phoenix/pages/tracing/TokenCount";
-import { formatFloat } from "@phoenix/utils/numberFormatUtils";
 
+import { LatencyText } from "./LatencyText";
 import { SpanKindLabel } from "./SpanKindLabel";
 import { SpanStatusCodeIcon } from "./SpanStatusCodeIcon";
 
@@ -55,23 +55,7 @@ export function SpanItem(props: SpanItemProps) {
             tokenCountCompletion={tokenCountCompletion ?? 0}
           />
         ) : null}
-        {latencyMs === null ? null : (
-          <Flex
-            direction="row"
-            alignItems="center"
-            justifyContent="center"
-            gap="size-25"
-          >
-            <Icon
-              svg={<Icons.ClockOutline />}
-              css={css`
-                color: rgba(255, 255, 255, 0.7);
-                font-size: 14px;
-              `}
-            />
-            <Text color="white70">{formatFloat(latencyMs / 1000)}s</Text>
-          </Flex>
-        )}
+        {latencyMs === null ? null : <LatencyText latencyMs={latencyMs} />}
         {statusCode === "ERROR" ? (
           <SpanStatusCodeIcon statusCode="ERROR" />
         ) : null}
