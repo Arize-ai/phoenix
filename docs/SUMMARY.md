@@ -1,13 +1,13 @@
 # Table of contents
 
-* [ML Observability in a Notebook](README.md)
+* [ML / LLM Observability in a Notebook](README.md)
 
 ## 💡 Concepts
 
 * [Phoenix Basics](concepts/phoenix-basics/README.md)
   * [DataFrames - Image/NLP/LLM](concepts/phoenix-basics.md)
   * [LLM Traces - LangChain & LlamaIndex](concepts/phoenix-basics/traces-and-spans-langchain-and-llamaindex.md)
-* [LLM App Tracing](concepts/langchain-and-llamaindex-traces.md)
+* [LLM Traces](concepts/langchain-and-llamaindex-traces.md)
 * [LLM Evals](concepts/llm-evals.md)
   * [Retrieval (RAG) Relevance](concepts/llm-evals/retrieval-rag-relevance.md)
   * [Hallucinations](concepts/llm-evals/hallucinations.md)
