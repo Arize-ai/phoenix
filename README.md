@@ -195,6 +195,50 @@ Phoenix's approach to LLM evals is notable for the following reasons:
 -   Designed to run as fast as possible on batches of data
 -   Includes benchmark datasets and tests for each eval function
 
+Here is an example of running the RAG relevance eval on a dataset of Wikipedia questions and answers:
+
+```shell
+# Install phoenix as well as the experimental subpackage
+pip install -qq arize-phoenix[experimental] ipython matplotlib openai pycm scikit-learn
+```
+
+```python
+from phoenix.experimental.evals import (
+    RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
+    RAG_RELEVANCY_PROMPT_RAILS_MAP,
+    OpenAIModel,
+    download_benchmark_dataset,
+    llm_eval_binary,
+)
+from sklearn.metrics import precision_recall_fscore_support, confusion_matrix, ConfusionMatrixDisplay
+
+# Download the benchmark golden dataset
+df = download_benchmark_dataset(
+    task="binary-relevance-classification", dataset_name="wiki_qa-train"
+)
+# Sample and re-name the columns to match the template
+df = df.sample(100)
+df = df.rename(
+    columns={
+        "query_text": "query",
+        "document_text": "reference",
+    },
+)
+model = OpenAIModel(
+    model_name="gpt-4",
+    temperature=0.0,
+)
+rails =list(RAG_RELEVANCY_PROMPT_RAILS_MAP.values())
+df["eval_relevance"] = llm_eval_binary(df, RAG_RELEVANCY_PROMPT_TEMPLATE_STR, model, rails)
+#Golden dataset has True/False map to -> "irrelevant" / "relevant"
+#we can then scikit compare to output of template - same format
+y_true = df["relevant"].map({True: "relevant", False: "irrelevant"})
+y_pred = df["eval_relevance"]
+
+# Compute Per-Class Precision, Recall, F1 Score, Support
+precision, recall, f1, support = precision_recall_fscore_support(y_true, y_pred)
+```
+
 To learn more about LLM Evals, see the [LLM Evals documentation](https://docs.arize.com/phoenix/concepts/llm-evals/).
 
 ## Embedding Analysis
