@@ -4,7 +4,7 @@ description: Quickly explore Phoenix with concrete examples
 
 # Use Example Datasets
 
-Phoenix ships with a collection of example datasets so you can quickly try out the app on concrete use-cases. This guide shows you how to download, inspect, and launch the app with example datasets.
+Phoenix ships with a collection of examples so you can quickly try out the app on concrete use-cases. This guide shows you how to download, inspect, and launch the app with example datasets.
 
 ## View Available Datasets
 
@@ -95,3 +95,17 @@ px.launch_app(datasets.primary, datasets.reference)
 ```
 
 Follow the instructions in the cell output to open the Phoenix UI in your notebook or in a separate browser tab.
+
+
+
+## View Available Traces
+
+Phoenix supports [LLM application Traces](../concepts/langchain-and-llamaindex-traces.md) and has examples that you can take a look at as well.\
+
+
+```python
+px.load_example_traces?
+
+# Load up the LlamaIndex RAG example
+px.launch_appp(trace=px.load_example_traces("llama_index_rag"))
+```
