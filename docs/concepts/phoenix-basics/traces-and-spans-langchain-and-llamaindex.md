@@ -1,19 +1,19 @@
-# Traces & Spans - Langchain & LlamaIndex
+# LLM Traces - LangChain & LlamaIndex
 
-## LangChain and LlamaIndex Streaming&#x20;
+## LangChain and LlamaIndex Streaming
 
-The easiest method of using Phoenix with LangChain and LlamaIndex is using streaming.&#x20;
+The easiest method of using Phoenix with LangChain and LlamaIndex is by streaming.
 
-An instantiation of LangChain and LlamaIndex can be directed to store traces in an OpenInference store.&#x20;
+An instantiation of LangChain and LlamaIndex can be directed to store traces in an OpenInference store.
 
 This store can be:
 
 * In Memory of Notebook: Local and ephemeral useful for quick debugging.
-* Local File (coming very soon): Persistent and good for offline local development. &#x20;
+* Local File (coming very soon): Persistent and good for offline local development.
 * Cloud (coming very soon): Persistent and cloud friendly. Store in your cloud buckets.
 
 ```python
-from phoenix.experimental.callbacks.langchain_tracer import OpenInferenceTracer
+from phoenix.trace.langchain import OpenInferenceTracer
 import phoenix as px
 
 px.launch_app()
@@ -37,24 +37,29 @@ chain.run(query, callbacks=[tracer])
 
 In the example above a chain is instantiated and the streaming data automatically is collected in the previous running Phoenix view.
 
-## LangChain and LlamaIndex Tracing DataSets
+## LangChain and LlamaIndex Trace Datasets
 
-The open inference format also support data sets and files that are in the OpenInference tracing format. This allows data from a LangChain and LlamaIndex running instance to be saved and reopened.
+Phoenix also support datasets that contain OpenInference trace data. This allows data from a LangChain and LlamaIndex running instance to be saved and reopened at any time.
 
 ```python
 
-from phoenix.experimental.callbacks.langchain_tracer import OpenInferenceTracer
+from phoenix.trace.langchain import OpenInferenceTracer
 
 tracer = OpenInferenceTracer()
-ds = TraceDataset.from_spans(tracer.span_buffer)
+
+# Run the application with the tracer
+chain.run(query, callbacks=[tracer])
+
+# When you are ready to analyze the data, you can launch the app with it
+ds = TraceDataset.from_spans(tracer.get_spans())
 px.launch_app(trace=ds)
 
-#LangChain RetrievalQA chain example
-chain.run(query, callbacks=[tracer])
+# Print the dataframe
+ds.dataframe.head()
 
 ```
 
-The above shows how to get a handle to the tracer data in a dataframe.
+The above shows how to get a handle to the tracer data in a DataFrame.
 
 ## Traces and Spans Data Export from LangChain/LlamaIndex
 
@@ -72,9 +77,9 @@ run_relevance_eval(trace_df)
 
 The above shows how to export only retriever spans into a dataframe from LangChain runs.
 
-## Traces and Spans Phoenix Application&#x20;
+## Phoenix Tracing App
 
-Phoenix can be used to troubleshoot traces by pinpointing the timing problems, evaluation performance and points of breakage of specific chains.&#x20;
+Phoenix can be used to troubleshoot traces by pinpointing the timing problems, evaluation performance and points of breakage of specific chains.
 
 <figure><img src="../../.gitbook/assets/Screenshot 2023-09-16 at 6.29.46 PM.png" alt=""><figcaption><p>Trace Troubleshooting</p></figcaption></figure>
 
@@ -82,7 +87,7 @@ The above shows trace level troubleshooting of a LangChain/LlamaIndex query on d
 
 <figure><img src="../../.gitbook/assets/Screenshot 2023-09-16 at 6.29.29 PM.png" alt=""><figcaption><p>Retriever Spans</p></figcaption></figure>
 
-Retriever spans help visualize the chunks returned and the relevancy/performance of that retrieval.&#x20;
+Retriever spans help visualize the chunks returned and the relevancy/performance of that retrieval.
 
 <figure><img src="../../.gitbook/assets/Screenshot 2023-09-16 at 6.50.53 PM.png" alt=""><figcaption><p>LLM Span</p></figcaption></figure>
 
@@ -94,4 +99,4 @@ LLM Invocation parameters are tracked.
 
 <figure><img src="../../.gitbook/assets/Screenshot 2023-09-16 at 6.30.11 PM.png" alt=""><figcaption><p>LLM Span Visualization</p></figcaption></figure>
 
-Phoenix also keeps track of span information for debugging Evals, token usage and latency. &#x20;
+Phoenix also keeps track of span information for debugging Evals, token usage and latency.

@@ -1,5 +1,7 @@
 # Q\&A on Retrieved Data
 
+{% embed url="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/evals/evaluate_QA_classifications.ipynb" %}
+
 This Eval evaluates whether a question was correctly answered by the system based on the retrieved data. In contrast to retrieval Evals that are checks on chunks of data returned, this check is a system level check of a correct Q\&A.
 
 * **question**: This is the question the Q\&A system is running against
@@ -34,11 +36,11 @@ Q_and_A_classifications = llm_eval_binary(
 
 The above Eval uses the QA template for Q\&A analysis on retrieved data.&#x20;
 
-| Q\&A Eval | GPT-4 | GPT-3.5 | Palm 2 (soon) | Llama (soon) |
-| --------- | ----- | ------- | ------------- | ------------ |
-| Precision | 1     | 0.99    |               |              |
-| Recall    | 0.92  | 0.83    |               |              |
-| Precision | 0.96  | 0.90    |               |              |
+| Q\&A Eval | GPT-4 | GPT-3.5 | GPT-3.5-turbo-instruct | Llama (soon) |
+| --------- | ----- | ------- | ---------------------- | ------------ |
+| Precision | 1     | 0.99    | 0.42                   |              |
+| Recall    | 0.92  | 0.83    | 1                      |              |
+| Precision | 0.96  | 0.90    | 0.59                   |              |
 
 ## GPT-4 Results
 

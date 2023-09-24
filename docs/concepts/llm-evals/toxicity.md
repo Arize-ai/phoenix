@@ -1,5 +1,7 @@
 # Toxicity
 
+{% embed url="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/evals/evaluate_toxicity_classifications.ipynb" %}
+
 The following shows results of the toxicity Eval on a toxic dataset test.&#x20;
 
 The template variables are:
@@ -36,11 +38,11 @@ The above is the use of the RAG relevancy template.&#x20;
 
 
 
-| Toxicity Eval | GPT-4 | GPT-3.5 | Palm 2 (soon) | Llama 7b (soon) |
-| ------------- | ----- | ------- | ------------- | --------------- |
-| Precision     | 0.91  | 0.93    |               |                 |
-| Recall        | 0.91  | 0.83    |               |                 |
-| F1            | 0.91  | 0.87    |               |                 |
+| Toxicity Eval | GPT-4 | GPT-3.5 | GPT-3.5-Instruct | Palm 2 (soon) | Llama 7b (soon) |
+| ------------- | ----- | ------- | ---------------- | ------------- | --------------- |
+| Precision     | 0.91  | 0.93    | 0.95             |               |                 |
+| Recall        | 0.91  | 0.83    | 0.79             |               |                 |
+| F1            | 0.91  | 0.87    | 0.87             |               |                 |
 
 ## GPT-4 Results
 
