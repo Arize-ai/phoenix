@@ -16,6 +16,18 @@
   </head>
   <body>
     <div id="root"></div>
+    <script>(function() {
+        Object.defineProperty(window, "Config", {
+            // Place any server-side injected config here
+            // E.g. default UMAP parameters etc. that needs to be
+            // injected into the client before React runs
+            value: Object.freeze({
+                hasCorpus: Boolean("{{has_corpus}}"),
+            }),
+            writable: false
+        });
+     
+    })()</script>
     <script type="module" src="/index.js"></script>
   </body>
 </html>

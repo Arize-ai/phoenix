@@ -1,6 +1,7 @@
 import logging
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional, Union
+from typing import List, Optional, Tuple, Union
 
 from starlette.applications import Starlette
 from starlette.datastructures import QueryParams
@@ -11,13 +12,14 @@ from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoin
 from starlette.requests import Request
 from starlette.responses import FileResponse, Response
 from starlette.routing import Mount, Route, WebSocketRoute
-from starlette.staticfiles import StaticFiles
+from starlette.staticfiles import PathLike, StaticFiles
+from starlette.templating import Jinja2Templates
 from starlette.types import Scope
 from starlette.websockets import WebSocket
 from strawberry.asgi import GraphQL
 from strawberry.schema import BaseSchema
 
-from phoenix.config import SERVER_DIR
+from phoenix.config import SERVER_DIR, get_env_host, get_env_port
 from phoenix.core.model_schema import Model
 from phoenix.core.traces import Traces
 from phoenix.server.api.context import Context
@@ -26,22 +28,60 @@ from phoenix.server.span_handler import SpanHandler
 
 logger = logging.getLogger(__name__)
 
+templates = Jinja2Templates(directory=SERVER_DIR / "templates")
+
+
+@dataclass(frozen=True)
+class Config:
+    host: str
+    port: int
+    has_corpus: bool
+
 
 class Static(StaticFiles):
     "Static file serving with a fallback to index.html"
 
+    _config: Config
+
+    def __init__(
+        self,
+        *,
+        directory: Optional[PathLike] = None,
+        packages: Optional[List[Union[str, Tuple[str, str]]]] = None,
+        html: bool = False,
+        check_dir: bool = True,
+        follow_symlink: bool = False,
+        config: Config,
+    ):
+        self._config = config
+        super().__init__(
+            directory=directory,
+            packages=packages,
+            html=html,
+            check_dir=check_dir,
+            follow_symlink=follow_symlink,
+        )
+
     async def get_response(self, path: str, scope: Scope) -> Response:
         response = None
+        config = self._config
         try:
             response = await super().get_response(path, scope)
         except HTTPException as e:
             if e.status_code != 404:
                 raise e
             # Fallback to to the index.html
-            full_path, stat_result = self.lookup_path("index.html")
-            if stat_result is None:
-                raise RuntimeError("Failed to find index.html")
-            response = self.file_response(full_path, stat_result, scope)
+            # TODO(mikeldking): support index.html to change the
+            #  host and port of the js and css bundles if host is not localhost
+            response = templates.TemplateResponse(
+                "index.html",
+                context={
+                    "host": config.host,
+                    "port": config.port,
+                    "has_corpus": config.has_corpus,
+                    "request": Request(scope),
+                },
+            )
         except Exception as e:
             raise e
         return response
@@ -156,7 +196,11 @@ def create_app(
                 "/",
                 app=Static(
                     directory=SERVER_DIR / "static",
-                    html=True,
+                    config=Config(
+                        host=get_env_host(),
+                        port=get_env_port(),
+                        has_corpus=corpus is not None,
+                    ),
                 ),
                 name="static",
             ),
