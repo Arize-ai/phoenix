@@ -140,6 +140,9 @@ Launch Phoenix in a notebook and view the traces of your LangChain application i
 
 ```python
 import phoenix as px
+import pandas as pd
+
+# Launch phoenix
 session = px.launch_app()
 
 # Once you have started a Phoenix server, you can start your LangChain application with the OpenInference Tracer as a callback. To do this, you will have to add the tracer to the initialization of your LangChain application:
