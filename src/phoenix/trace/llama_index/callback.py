@@ -210,9 +210,7 @@ class OpenInferenceTraceCallbackHandler(BaseCallbackHandler):
     ) -> None:
         super().__init__(event_starts_to_ignore=[], event_ends_to_ignore=[])
         self._tracer = Tracer(on_append=callback, exporter=exporter)
-        self._event_id_to_event_data: Dict[CBEventID, CBEventData] = defaultdict(
-            lambda: CBEventData()
-        )
+        self._event_id_to_event_data: EventMap = defaultdict(lambda: CBEventData())
 
     def on_event_start(
         self,
@@ -267,7 +265,7 @@ class OpenInferenceTraceCallbackHandler(BaseCallbackHandler):
     def end_trace(
         self,
         trace_id: Optional[str] = None,
-        trace_map: Optional[Dict[CBEventID, List[CBEventID]]] = None,
+        trace_map: Optional[TraceMap] = None,
     ) -> None:
         if not trace_map:
             return  # TODO: investigate when empty or None trace_map is passed
@@ -353,9 +351,9 @@ def _add_spans_to_tracer(
     """Adds event data to the tracer, where it is converted to a span and stored in a buffer.
 
     Args:
-        event_id_to_event_data (Dict[CBEventID, CBEventData]): A map of event IDs to event data.
+        event_id_to_event_data (EventMap): A map of event IDs to event data.
 
-        trace_map (Dict[CBEventID, List[CBEventID]]): A map of parent event IDs to child event IDs.
+        trace_map (TraceMap): A map of parent event IDs to child event IDs.
         The root event IDs are stored under the key "root".
 
         tracer (Tracer): The tracer that stores spans.
