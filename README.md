@@ -57,8 +57,11 @@ Install Phoenix via `pip` or or `conda` as well as any of its subpackages.
 
 ```shell
 pip install arize-phoenix
+```
 
-# For LLM Evals
+Some functionality such as LLM evals are under the `experimental` subpackage.
+
+```shell
 pip install arize-phoenix[experimental]
 ```
 
