@@ -329,7 +329,7 @@ To help you better understand your RAG application, Phoenix allows you to upload
 
 Phoenix provides a suite of tools for analyzing structured data. These tools allow you to perform A/B analysis, temporal drift analysis, and more.
 
-![Structured Data Analysis](https://github.com/Arize-ai/phoenix-assets/blob/main/gifs/cc_fraud_drift.gif?raw=true)
+![Structured Data Analysis](https://github.com/Arize-ai/phoenix-assets/blob/main/gifs/cc_fraud_drift_10mb.gif?raw=true)
 
 ```python
 import pandas as pd
