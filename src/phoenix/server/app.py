@@ -72,7 +72,7 @@ class Static(StaticFiles):
                 raise e
             # Fallback to to the index.html
             # TODO(mikeldking): support index.html to change the
-            #  host and port of the js and css bundles if host is not localhost
+            # host and port of the js and css bundles if host is not localhost
             response = templates.TemplateResponse(
                 "index.html",
                 context={
