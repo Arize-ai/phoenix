@@ -13,7 +13,7 @@ import json
 import logging
 from collections import defaultdict
 from datetime import datetime
-from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple, TypedDict, cast
+from typing import Any, Callable, Dict, Iterable, Iterator, List, Optional, Tuple, TypedDict, cast
 from uuid import uuid4
 
 from llama_index.callbacks.base_handler import BaseCallbackHandler
@@ -383,19 +383,24 @@ def _get_response_output(response: Any) -> Iterator[Tuple[str, Any]]:
 
 def _get_message(message: object) -> Iterator[Tuple[str, Any]]:
     if role := getattr(message, "role", None):
+        assert isinstance(role, str), f"content must be str, found {type(role)}"
         yield MESSAGE_ROLE, role
     if content := getattr(message, "content", None):
+        assert isinstance(content, str), f"content must be str, found {type(content)}"
         yield MESSAGE_CONTENT, content
     if function_call := getattr(message, "function_call", None):
         if name := getattr(function_call, "name", None):
+            assert isinstance(name, str), f"name must be str, found {type(name)}"
             yield MESSAGE_FUNCTION_CALL_NAME, name
         if arguments := getattr(function_call, "arguments", None):
+            assert isinstance(arguments, str), f"arguments must be str, found {type(arguments)}"
             yield MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON, arguments
 
 
 def _get_output_messages(raw: object) -> Iterator[Tuple[str, Any]]:
     if not (choices := getattr(raw, "choices", None)):
         return
+    assert isinstance(choices, Iterable), f"expected Iterable, found {type(choices)}"
     messages = [
         dict(_get_message(message))
         for choice in choices
