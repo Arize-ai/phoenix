@@ -54,15 +54,11 @@ dev = [
   "strawberry-graphql[debug-server]==0.208.2",
   "pre-commit",
   "arize[AutoEmbeddings, LLM_Evaluation]",
+  "llama-index>=0.8.29",
+  "langchain>=0.0.293",
 ]
 experimental = [
   "tenacity",
-]
-llama_index = [
-  "llama-index>=0.8.29",
-]
-langchain = [
-  "langchain>=0.0.293",
 ]
 
 [project.urls]
