@@ -131,10 +131,10 @@ def payload_to_semantic_attributes(
             attributes[INPUT_VALUE] = _message_payload_to_str(messages[0])
     if response := (payload.get(EventPayload.RESPONSE) or payload.get(EventPayload.COMPLETION)):
         attributes.update(_get_response_output(response))
-        if raw := getattr(response, "raw", None):
+        if (raw := getattr(response, "raw", None)) is not None:
             attributes.update(_get_output_messages(raw))
-        if usage := getattr(raw, "usage", None):
-            attributes.update(_get_token_counts(usage))
+            if (usage := getattr(raw, "usage", None)) is not None:
+                attributes.update(_get_token_counts(usage))
     if EventPayload.TEMPLATE in payload:
         ...
     if event_type is CBEventType.RERANKING:
@@ -388,7 +388,7 @@ def _get_message(message: object) -> Iterator[Tuple[str, Any]]:
     if content := getattr(message, "content", None):
         assert isinstance(content, str), f"content must be str, found {type(content)}"
         yield MESSAGE_CONTENT, content
-    if function_call := getattr(message, "function_call", None):
+    if (function_call := getattr(message, "function_call", None)) is not None:
         if name := getattr(function_call, "name", None):
             assert isinstance(name, str), f"name must be str, found {type(name)}"
             yield MESSAGE_FUNCTION_CALL_NAME, name
@@ -404,7 +404,7 @@ def _get_output_messages(raw: object) -> Iterator[Tuple[str, Any]]:
     messages = [
         dict(_get_message(message))
         for choice in choices
-        if (message := getattr(choice, "message", None))
+        if (message := getattr(choice, "message", None)) is not None
     ]
     yield LLM_OUTPUT_MESSAGES, messages
 
