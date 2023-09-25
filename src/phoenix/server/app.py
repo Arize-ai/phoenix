@@ -1,7 +1,6 @@
 import logging
-from dataclasses import dataclass
 from pathlib import Path
-from typing import List, Optional, Tuple, Union
+from typing import Any, NamedTuple, Optional, Union
 
 from starlette.applications import Starlette
 from starlette.datastructures import QueryParams
@@ -12,14 +11,14 @@ from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoin
 from starlette.requests import Request
 from starlette.responses import FileResponse, Response
 from starlette.routing import Mount, Route, WebSocketRoute
-from starlette.staticfiles import PathLike, StaticFiles
+from starlette.staticfiles import StaticFiles
 from starlette.templating import Jinja2Templates
 from starlette.types import Scope
 from starlette.websockets import WebSocket
 from strawberry.asgi import GraphQL
 from strawberry.schema import BaseSchema
 
-from phoenix.config import SERVER_DIR, get_env_host, get_env_port
+from phoenix.config import SERVER_DIR
 from phoenix.core.model_schema import Model
 from phoenix.core.traces import Traces
 from phoenix.server.api.context import Context
@@ -32,8 +31,6 @@ templates = Jinja2Templates(directory=SERVER_DIR / "templates")
 
 
 class Config(NamedTuple):
-    host: str
-    port: int
     has_corpus: bool
 
 
@@ -60,8 +57,6 @@ class Static(StaticFiles):
             response = templates.TemplateResponse(
                 "index.html",
                 context={
-                    "host": config.host,
-                    "port": config.port,
                     "has_corpus": config.has_corpus,
                     "request": Request(scope),
                 },
@@ -181,8 +176,6 @@ def create_app(
                 app=Static(
                     directory=SERVER_DIR / "static",
                     config=Config(
-                        host=get_env_host(),
-                        port=get_env_port(),
                         has_corpus=corpus is not None,
                     ),
                 ),
