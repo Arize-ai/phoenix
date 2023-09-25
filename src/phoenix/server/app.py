@@ -43,24 +43,9 @@ class Static(StaticFiles):
 
     _config: Config
 
-    def __init__(
-        self,
-        *,
-        directory: Optional[PathLike] = None,
-        packages: Optional[List[Union[str, Tuple[str, str]]]] = None,
-        html: bool = False,
-        check_dir: bool = True,
-        follow_symlink: bool = False,
-        config: Config,
-    ):
+    def __init__(self, *, config: Config, **kwargs: Any):
         self._config = config
-        super().__init__(
-            directory=directory,
-            packages=packages,
-            html=html,
-            check_dir=check_dir,
-            follow_symlink=follow_symlink,
-        )
+        super().__init__(**kwargs)
 
     async def get_response(self, path: str, scope: Scope) -> Response:
         response = None
