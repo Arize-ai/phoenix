@@ -89,8 +89,8 @@ class CBEventData(TypedDict, total=False):
     attributes: Dict[str, Any]
 
 
-TraceMap = Dict[CBEventID, List[CBEventID]]
-EventMap = Dict[CBEventID, CBEventData]
+ChildEventIds = Dict[CBEventID, List[CBEventID]]
+EventData = Dict[CBEventID, CBEventData]
 
 
 def payload_to_semantic_attributes(
@@ -201,7 +201,7 @@ class OpenInferenceTraceCallbackHandler(BaseCallbackHandler):
     ) -> None:
         super().__init__(event_starts_to_ignore=[], event_ends_to_ignore=[])
         self._tracer = Tracer(on_append=callback, exporter=exporter)
-        self._event_id_to_event_data: EventMap = defaultdict(lambda: CBEventData())
+        self._event_id_to_event_data: EventData = defaultdict(lambda: CBEventData())
 
     def on_event_start(
         self,
@@ -256,7 +256,7 @@ class OpenInferenceTraceCallbackHandler(BaseCallbackHandler):
     def end_trace(
         self,
         trace_id: Optional[str] = None,
-        trace_map: Optional[TraceMap] = None,
+        trace_map: Optional[ChildEventIds] = None,
     ) -> None:
         if not trace_map:
             return  # TODO: investigate when empty or None trace_map is passed
@@ -280,8 +280,8 @@ class OpenInferenceTraceCallbackHandler(BaseCallbackHandler):
 
 
 def _add_spans_to_tracer(
-    event_id_to_event_data: EventMap,
-    trace_map: TraceMap,
+    event_id_to_event_data: EventData,
+    trace_map: ChildEventIds,
     tracer: Tracer,
 ) -> None:
     """Adds event data to the tracer, where it is converted to a span and stored in a buffer.
@@ -299,31 +299,30 @@ def _add_spans_to_tracer(
     parent_child_id_stack: List[Tuple[Optional[SpanID], CBEventID]] = [
         (None, root_event_id) for root_event_id in trace_map["root"]
     ]
-    span_events: List[SpanEvent] = []
+    span_exceptions: List[SpanEvent] = []
     while parent_child_id_stack:
         parent_span_id, event_id = parent_child_id_stack.pop()
         event_data = event_id_to_event_data[event_id]
-        start_event = event_data["start_event"]
         event_type = event_data["event_type"]
+        start_event = event_data["start_event"]
+        start_time = _timestamp_to_tz_aware_datetime(start_event.time)
         if event_type is CBEventType.EXCEPTION:
             if (
                 not start_event.payload
                 or (error := start_event.payload.get(EventPayload.EXCEPTION)) is None
             ):
                 continue
-            span_events.append(
+            span_exceptions.append(
                 SpanException(
                     message=str(error),
-                    timestamp=_timestamp_to_tz_aware_datetime(start_event.time),
+                    timestamp=start_time,
                     exception_type=type(error).__name__,
                     exception_stacktrace=_get_stacktrace(error),
                 )
             )
             continue
 
-        start_time = _timestamp_to_tz_aware_datetime(start_event.time)
-        end_time = _get_end_time(event_data, span_events)
-        has_exception = len(span_events) > 0
+        end_time = _get_end_time(event_data, span_exceptions)
         name = event_data["name"]
         span_kind = _get_span_kind(event_type)
         span = tracer.create_span(
@@ -332,14 +331,14 @@ def _add_spans_to_tracer(
             trace_id=trace_id,
             start_time=start_time,
             end_time=end_time,
-            status_code=SpanStatusCode.ERROR if has_exception else SpanStatusCode.OK,
+            status_code=SpanStatusCode.ERROR if span_exceptions else SpanStatusCode.OK,
             status_message="",
             parent_id=parent_span_id,
             attributes=event_data["attributes"],
-            events=list(reversed(span_events)) or None,
+            events=sorted(span_exceptions, key=lambda event: event.timestamp) or None,
             conversation=None,
         )
-        span_events = []
+        span_exceptions = []
         new_parent_span_id = span.context.span_id
         for new_child_event_id in trace_map.get(event_id, []):
             parent_child_id_stack.append((new_parent_span_id, new_child_event_id))
@@ -423,7 +422,7 @@ def _get_end_time(event_data: CBEventData, span_events: List[SpanEvent]) -> Opti
     if end_event := event_data.get("end_event"):
         tz_naive_end_time = _timestamp_to_tz_naive_datetime(end_event.time)
     elif span_events:
-        last_span_event = span_events[-1]
+        last_span_event = sorted(span_events, key=lambda event: event.timestamp)[-1]
         tz_naive_end_time = last_span_event.timestamp
     else:
         return None
@@ -450,4 +449,4 @@ def _get_stacktrace(exception: BaseException) -> str:
     exception_type = type(exception)
     exception_traceback = exception.__traceback__
     stack_trace_lines = format_exception(exception_type, exception, exception_traceback)
-    return "".join(stack_trace_lines)
+    return "\n".join(stack_trace_lines)
