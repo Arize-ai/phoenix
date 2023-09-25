@@ -29,8 +29,9 @@ from phoenix.trace.semantic_conventions import (
     EXCEPTION_MESSAGE,
     INPUT_MIME_TYPE,
     INPUT_VALUE,
-    LLM_MESSAGES,
+    LLM_INPUT_MESSAGES,
     LLM_MODEL_NAME,
+    LLM_OUTPUT_MESSAGES,
     LLM_PROMPT_TEMPLATE,
     LLM_PROMPT_TEMPLATE_VARIABLES,
     LLM_PROMPT_TEMPLATE_VERSION,
@@ -159,7 +160,7 @@ def test_tracer_llm_message_attributes_with_chat_completions_api(
     messages: List[BaseMessage], monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setenv("OPENAI_API_KEY", "sk-0123456789")
-    tracer = OpenInferenceTracer()
+    tracer = OpenInferenceTracer(exporter=NoOpExporter())
     model_name = "gpt-4"
     llm = ChatOpenAI(model_name=model_name)
     expected_response = "response-text"
@@ -190,11 +191,14 @@ def test_tracer_llm_message_attributes_with_chat_completions_api(
 
     assert response.content == expected_response
     assert attributes[LLM_MODEL_NAME] == model_name
-    assert attributes[LLM_MESSAGES] == [
+    assert attributes[LLM_INPUT_MESSAGES] == [
         {MESSAGE_ROLE: "system", MESSAGE_CONTENT: "system-message-content"},
         {MESSAGE_ROLE: "user", MESSAGE_CONTENT: "user-message-content"},
         {MESSAGE_ROLE: "assistant", MESSAGE_CONTENT: "assistant-message-content"},
         {MESSAGE_ROLE: "function", MESSAGE_CONTENT: "function-message-content"},
+    ]
+    assert attributes[LLM_OUTPUT_MESSAGES] == [
+        {"message.content": "response-text", "message.role": "assistant"}
     ]
     assert LLM_PROMPTS not in attributes
 
@@ -202,7 +206,7 @@ def test_tracer_llm_message_attributes_with_chat_completions_api(
 @responses.activate
 def test_tracer_llm_prompt_attributes_with_completions_api(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("OPENAI_API_KEY", "sk-0123456789")
-    tracer = OpenInferenceTracer()
+    tracer = OpenInferenceTracer(exporter=NoOpExporter())
     model_name = "text-davinci-003"
     llm = OpenAI(model_name=model_name, n=3)
     expected_response_texts = [
@@ -247,7 +251,8 @@ def test_tracer_llm_prompt_attributes_with_completions_api(monkeypatch: pytest.M
         attributes = span.attributes
         assert attributes[LLM_MODEL_NAME] == model_name
         assert attributes[LLM_PROMPTS] == [input_prompts[span_index]]
-        assert LLM_MESSAGES not in attributes
+        assert LLM_INPUT_MESSAGES not in attributes
+        assert LLM_OUTPUT_MESSAGES not in attributes
 
 
 def test_tracer_llm_with_exception() -> None:
