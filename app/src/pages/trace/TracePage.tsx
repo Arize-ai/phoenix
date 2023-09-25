@@ -368,14 +368,16 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
     <Flex direction="column" gap="size-200">
       <TabbedCard {...defaultCardProps}>
         <Tabs>
+          {hasInputMessages ? (
+            <TabPane name="Input Messages" hidden={!hasInputMessages}>
+              <LLMMessagesList messages={input_messages} />
+            </TabPane>
+          ) : null}
           {hasInput ? (
             <TabPane name="Input" hidden={!hasInput}>
               <CodeBlock {...input} />
             </TabPane>
           ) : null}
-          <TabPane name="Messages" hidden={!hasInputMessages}>
-            <LLMMessagesList messages={input_messages} />
-          </TabPane>
           <TabPane name="Prompts" hidden={!hasPrompts}>
             <LLMPromptsList prompts={prompts} />
           </TabPane>
@@ -392,14 +394,16 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
       {hasOutput || hasOutputMessages ? (
         <TabbedCard {...defaultCardProps}>
           <Tabs>
+            {hasOutputMessages ? (
+              <TabPane name="Output Messages" hidden={!hasOutputMessages}>
+                <LLMMessagesList messages={output_messages} />
+              </TabPane>
+            ) : null}
             {hasOutput ? (
               <TabPane name="Output" hidden={!hasOutput}>
                 <CodeBlock {...output} />
               </TabPane>
             ) : null}
-            <TabPane name="Messages" hidden={!hasOutputMessages}>
-              <LLMMessagesList messages={output_messages} />
-            </TabPane>
           </Tabs>
         </TabbedCard>
       ) : null}
