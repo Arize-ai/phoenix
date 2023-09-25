@@ -16,9 +16,15 @@
 
 ## Setting Up Your macOS Development Environment
 
-We recommend using a virtual environment to isolate your Python dependencies. This guide will use `conda` installed via Miniconda, but you can use a different virtual environment management tool if you want.
+We recommend using a virtual environment to isolate your Python dependencies. This guide will use `conda`, but you can use a different virtual environment management tool if you want.
 
-First, ensure that your virtual environment manager is installed. You can install `conda` via Miniconda by following these [instructions](https://docs.conda.io/projects/miniconda/en/latest/#quick-command-line-install) for the appropriate operating system.
+First, ensure that your virtual environment manager is installed. For macOS users, we recommend installing `conda` via `brew` with
+
+```
+brew install --cask mambaforge
+```
+
+For non-mac users, you can follow the instruction [here](https://github.com/conda-forge/miniforge#miniforge) to install `conda` for your particular operating system.
 
 Create a new virtual environment with a Phoenix-compatible Python version. For example,
 
