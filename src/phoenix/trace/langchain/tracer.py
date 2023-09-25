@@ -98,7 +98,7 @@ def _prompts(run_inputs: Dict[str, Any]) -> Iterator[Tuple[str, List[str]]]:
 
 def _input_messages(run_inputs: Mapping[str, Any]) -> Iterator[Tuple[str, List[Message]]]:
     """Yields chat messages if present."""
-    if not isinstance(run_inputs, Mapping):
+    if not hasattr(run_inputs, "get"):
         return
     # There may be more than one set of messages. We'll use just the first set.
     if not (multiple_messages := run_inputs.get("messages")):
@@ -120,7 +120,7 @@ def _input_messages(run_inputs: Mapping[str, Any]) -> Iterator[Tuple[str, List[M
 
 def _output_messages(run_outputs: Mapping[str, Any]) -> Iterator[Tuple[str, List[Message]]]:
     """Yields chat messages if present."""
-    if not isinstance(run_outputs, Mapping):
+    if not hasattr(run_outputs, "get"):
         return
     # There may be more than one set of generations. We'll use just the first set.
     if not (multiple_generations := run_outputs.get("generations")):
@@ -161,6 +161,7 @@ def _parse_message_data(message_data: Mapping[str, Any]) -> Message:
         raise ValueError(f"Cannot parse message of type: {message_class_name}")
     parsed_message_data = {MESSAGE_ROLE: role}
     if kwargs := message_data.get("kwargs"):
+        assert hasattr(kwargs, "get"), f"expected Mapping, found {type(kwargs)}"
         if content := kwargs.get("content"):
             assert isinstance(content, str), f"content must be str, found {type(content)}"
             parsed_message_data[MESSAGE_CONTENT] = content
