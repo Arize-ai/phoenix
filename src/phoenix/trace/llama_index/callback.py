@@ -336,7 +336,7 @@ def _add_spans_to_tracer(
             status_message="",
             parent_id=parent_span_id,
             attributes=event_data["attributes"],
-            events=span_events or None,
+            events=list(reversed(span_events)) or None,
             conversation=None,
         )
         span_events = []
