@@ -38,10 +38,9 @@ pip install -e ".[dev,experimental]"
 
 from the repository root.
 
-If you are working on our LLM orchestration framework integrations, you may also wish to install LlamaIndex or LangChain, in which case, you can add `llama_index` or `langchain` to the above command (e.g., `pip install -e ".[dev,experimental,llama_index]"`). Alternatively, you can install these packages from source.
+If you are working on our LLM orchestration framework integrations, you may also wish to install LlamaIndex or LangChain from source. To install LlamaIndex from source,
 
-To install LlamaIndex from source,
-
+- Uninstall any pre-existing version of LlamaIndex with `pip uninstall llama-index`.
 - Fork and clone LlamaIndex using one of the following two methods:
   - If you are an Arize employee, clone [Arize's fork of LlamaIndex](https://github.com/Arize-ai/llama_index).
   - If you are an external contributor, fork and clone [LlamaIndex's upstream repository](https://github.com/jerryjliu/llama_index).
@@ -49,6 +48,7 @@ To install LlamaIndex from source,
 
 To install LangChain from source,
 
+- Uninstall any pre-existing version of LangChain with `pip uninstall langchain`.
 - Fork and clone LangChain using one of the following two methods:
   - If you are an Arize employee, clone [Arize's fork of LangChain](https://github.com/Arize-ai/langchain).
   - If you are an external contributor, fork and clone [LangChain's upstream repository](https://github.com/langchain-ai/langchain).
