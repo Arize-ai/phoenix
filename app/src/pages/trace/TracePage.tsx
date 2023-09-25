@@ -322,11 +322,19 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
     return null;
   }, [spanAttributes]);
 
-  const messages = useMemo<AttributeMessage[]>(() => {
+  const input_messages = useMemo<AttributeMessage[]>(() => {
     if (llmAttributes == null) {
       return [];
     }
-    return (llmAttributes[LLMAttributePostfixes.messages] ||
+    return (llmAttributes[LLMAttributePostfixes.input_messages] ||
+      []) as AttributeMessage[];
+  }, [llmAttributes]);
+
+  const output_messages = useMemo<AttributeMessage[]>(() => {
+    if (llmAttributes == null) {
+      return [];
+    }
+    return (llmAttributes[LLMAttributePostfixes.output_messages] ||
       []) as AttributeMessage[];
   }, [llmAttributes]);
 
@@ -350,7 +358,9 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
   }, [llmAttributes]);
 
   const hasInput = input != null && input.value != null;
-  const hasMessages = messages.length > 0;
+  const hasInputMessages = input_messages.length > 0;
+  const hasOutput = output != null && output.value != null;
+  const hasOutputMessages = output_messages.length > 0;
   const hasPrompts = prompts.length > 0;
   const hasInvocationParams =
     Object.keys(JSON.parse(invocation_parameters_str)).length > 0;
@@ -363,8 +373,8 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
               <CodeBlock {...input} />
             </TabPane>
           ) : null}
-          <TabPane name="Messages" hidden={!hasMessages}>
-            <LLMMessagesList messages={messages} />
+          <TabPane name="Messages" hidden={!hasInputMessages}>
+            <LLMMessagesList messages={input_messages} />
           </TabPane>
           <TabPane name="Prompts" hidden={!hasPrompts}>
             <LLMPromptsList prompts={prompts} />
@@ -379,15 +389,19 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
           </TabPane>
         </Tabs>
       </TabbedCard>
-      {output && output.value != null ? (
-        <Card
-          title="Output"
-          {...defaultCardProps}
-          backgroundColor="green-100"
-          borderColor="green-700"
-        >
-          <CodeBlock {...output} />
-        </Card>
+      {hasOutput || hasOutputMessages ? (
+        <TabbedCard {...defaultCardProps}>
+          <Tabs>
+            {hasOutput ? (
+              <TabPane name="Output" hidden={!hasOutput}>
+                <CodeBlock {...output} />
+              </TabPane>
+            ) : null}
+            <TabPane name="Messages" hidden={!hasOutputMessages}>
+              <LLMMessagesList messages={output_messages} />
+            </TabPane>
+          </Tabs>
+        </TabbedCard>
       ) : null}
     </Flex>
   );
