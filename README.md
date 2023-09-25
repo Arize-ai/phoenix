@@ -73,7 +73,7 @@ With the advent of powerful LLMs, it is now possible to build LLM Applications t
 
 ### Tracing with LlamaIndex
 
-[![Open in Colab](https://img.shields.io/static/v1?message=Open%20in%20Colab&logo=googlecolab&labelColor=grey&color=blue&logoColor=orange&label=%20)](https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/tracing/llama_index_tracing_tutorial) [![Open in GitHub](https://img.shields.io/static/v1?message=Open%20in%20GitHub&logo=github&labelColor=grey&color=blue&logoColor=white&label=%20)](https://github.com/Arize-ai/phoenix/blob/main/tutorials/tracing/llama_index_tracing_tutorial)
+[![Open in Colab](https://img.shields.io/static/v1?message=Open%20in%20Colab&logo=googlecolab&labelColor=grey&color=blue&logoColor=orange&label=%20)](https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/tracing/llama_index_tracing_tutorial.ipynb) [![Open in GitHub](https://img.shields.io/static/v1?message=Open%20in%20GitHub&logo=github&labelColor=grey&color=blue&logoColor=white&label=%20)](https://github.com/Arize-ai/phoenix/blob/main/tutorials/tracing/llama_index_tracing_tutorial.ipynb)
 
 ![LLM App Tracing UI](https://storage.googleapis.com/arize-assets/phoenix/assets/images/trace_details_view.png)
 
@@ -325,11 +325,11 @@ To help you better understand your RAG application, Phoenix allows you to upload
 
 ## Structured Data Analysis
 
-[![Open in Colab](https://img.shields.io/static/v1?message=Open%20in%20Colab&logo=googlecolab&labelColor=grey&color=blue&logoColor=orange&label=%20)](https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/cc_fraud_tutorial.ipynb) [![Open in GitHub](https://img.shields.io/static/v1?message=Open%20in%20GitHub&logo=github&labelColor=grey&color=blue&logoColor=white&label=%20)](https://github.com/Arize-ai/phoenix/blob/main/tutorials/cc_fraud_tutorial.ipynb)
+[![Open in Colab](https://img.shields.io/static/v1?message=Open%20in%20Colab&logo=googlecolab&labelColor=grey&color=blue&logoColor=orange&label=%20)](https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/credit_card_fraud_tutorial.ipynb) [![Open in GitHub](https://img.shields.io/static/v1?message=Open%20in%20GitHub&logo=github&labelColor=grey&color=blue&logoColor=white&label=%20)](https://github.com/Arize-ai/phoenix/blob/main/tutorials/credit_card_fraud_tutorial.ipynb)
 
 Phoenix provides a suite of tools for analyzing structured data. These tools allow you to perform A/B analysis, temporal drift analysis, and more.
 
-![Structured Data Analysis](https://github.com/Arize-ai/phoenix-assets/blob/main/gifs/cc_fraud_drift.gif?raw=true)
+![Structured Data Analysis](https://github.com/Arize-ai/phoenix-assets/blob/main/gifs/cc_fraud_drift_10mb.gif?raw=true)
 
 ```python
 import pandas as pd
