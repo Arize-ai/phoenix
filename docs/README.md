@@ -1,17 +1,15 @@
 ---
 description: >-
-  Phoenix provides ML insights at lightning speed with zero-config observability
-  for model drift, performance, and data quality.
+  Phoenix provides ML and LLM insights at lightning speed with zero-config
+  observability for model drift, performance, and data quality.
 cover: >-
   https://images.unsplash.com/photo-1610296669228-602fa827fc1f?crop=entropy&cs=tinysrgb&fm=jpg&ixid=MnwxOTcwMjR8MHwxfHNlYXJjaHw1fHxzcGFjZXxlbnwwfHx8fDE2NzkwOTMzODc&ixlib=rb-4.0.3&q=80
 coverY: 0
 ---
 
-# ML Observability in a Notebook
+# ML / LLM Observability in a Notebook
 
-Phoenix is an Open Source ML Observability library carefully designed for the Notebook. The toolset is designed to ingest [inference](concepts/open-inference.md) data for [LLMs](concepts/llm-observability.md), CV, NLP and tabular datasets. It allows Data Scientists and AI Engineers to quickly visualize their inference data, monitor performance, track down issues & insights, and easily export to improve.&#x20;
-
-{% embed url="https://drive.google.com/file/d/1x99_TXIWifzQp_Aj_wdSyZ9IuIStwWVv/view?usp=drive_link" %}
+Phoenix is an Open Source Observability library carefully designed for the Notebook. The toolset is designed to ingest [inference](concepts/open-inference.md) data for [LLMs](concepts/llm-observability.md), CV, NLP and tabular datasets as well as [LLM App traces](concepts/langchain-and-llamaindex-traces.md). It allows Data Scientists and AI Engineers to quickly visualize their data, monitor performance, track down issues & insights, and easily export to improve.&#x20;
 
 \
 Running Phoenix for the first time? Check out the tutorials to explore the capabilities of Phoenix for various tasks and use cases.

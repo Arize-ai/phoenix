@@ -13,11 +13,6 @@ export function TracingHomePageHeader(props: {
   const data = useFragment<TracingHomePageHeader_stats$key>(
     graphql`
       fragment TracingHomePageHeader_stats on Query {
-        totalSpans: spans {
-          pageInfo {
-            totalCount
-          }
-        }
         totalTraces: spans(rootSpansOnly: true) {
           pageInfo {
             totalCount
@@ -26,6 +21,7 @@ export function TracingHomePageHeader(props: {
         traceDatasetInfo {
           startTime
           endTime
+          tokenCountTotal
         }
       }
     `,
@@ -33,6 +29,7 @@ export function TracingHomePageHeader(props: {
   );
   const startTime = data?.traceDatasetInfo?.startTime;
   const endTime = data?.traceDatasetInfo?.endTime;
+  const tokenCountTotal = data?.traceDatasetInfo?.tokenCountTotal;
   return (
     <View
       paddingStart="size-200"
@@ -52,11 +49,9 @@ export function TracingHomePageHeader(props: {
         </Flex>
         <Flex direction="column">
           <Text elementType="h3" textSize="medium" color="white70">
-            Total Spans
+            Total Tokens
           </Text>
-          <Text textSize="xlarge">
-            {intFormatter(data?.totalSpans.pageInfo.totalCount)}
-          </Text>
+          <Text textSize="xlarge">{intFormatter(tokenCountTotal)}</Text>
         </Flex>
         <Flex direction="column">
           <Text elementType="h3" textSize="medium" color="white70">
