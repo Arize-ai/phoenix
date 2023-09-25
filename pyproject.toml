@@ -56,7 +56,6 @@ dev = [
   "arize[AutoEmbeddings, LLM_Evaluation]",
 ]
 experimental = [
-  "openai",
   "tenacity",
 ]
 llama_index = [

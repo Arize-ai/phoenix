@@ -12,7 +12,7 @@ except ImportError:
     MINIMUM_VERTEX_AI_VERSION = "1.33.0"
     raise ImportError(
         "Could not import necessary dependencies to use VertexAI. "
-        "Please install them with `pip install google-cloud-aiplatform>={MINIMUM_VERTEXAI_VERSION}`."
+        f"Please install them with `pip install google-cloud-aiplatform>={MINIMUM_VERTEX_AI_VERSION}`."
     )
 
 GOOGLE_API_RETRY_ERRORS = [
@@ -26,7 +26,10 @@ GOOGLE_API_RETRY_ERRORS = [
 @dataclass
 class VertexAIModel(BaseEvalModel):
     project: Optional[str] = None
+    "project (str): The default project to use when making API calls."
     location: Optional[str] = None
+    "location (str): The default location to use when making API calls. If not "
+    "set defaults to us-central-1."
     credentials: Optional[Credentials] = None
     model_name: str = "text-bison"
     tuned_model_name: Optional[str] = None
@@ -72,7 +75,7 @@ class VertexAIModel(BaseEvalModel):
     def _init_vertex_ai(self) -> None:
         vertexai.init(**self._init_params)
 
-    def _generate(self, prompt: str) -> str:
+    def _generate(self, prompt: str, **kwargs: Dict[str, Any]) -> str:
         invoke_params = self.invocation_params
         response = self._generate_with_retry(
             prompt=prompt,
