@@ -31,8 +31,7 @@ logger = logging.getLogger(__name__)
 templates = Jinja2Templates(directory=SERVER_DIR / "templates")
 
 
-@dataclass(frozen=True)
-class Config:
+class Config(NamedTuple):
     host: str
     port: int
     has_corpus: bool
