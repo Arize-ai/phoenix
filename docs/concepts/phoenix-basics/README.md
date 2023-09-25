@@ -1,8 +1,12 @@
+---
+description: How to get started with with phoenix
+---
+
 # Phoenix Basics
 
 ## Overview
 
-Phoenix has two main data ingestion entry points based on the use case:
+Phoenix has two main data ingestion methods:
 
 1. [LLM Spans and Traces:](traces-and-spans-langchain-and-llamaindex.md) Phoenix is used on top of trace data generated LamaIndex and LangChain. The general use case is to troubleshoot LLM applications built on LangChain and LlamaIndex.&#x20;
 2. [DataFrames - Image/NLP/LLM:](../phoenix-basics.md) Phoenix is used to troubleshoot models whose datasets can be expressed as DataFrames in Python.&#x20;

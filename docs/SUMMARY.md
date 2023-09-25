@@ -1,13 +1,13 @@
 # Table of contents
 
-* [ML Observability in a Notebook](README.md)
+* [ML / LLM Observability in a Notebook](README.md)
 
 ## 💡 Concepts
 
 * [Phoenix Basics](concepts/phoenix-basics/README.md)
   * [DataFrames - Image/NLP/LLM](concepts/phoenix-basics.md)
-  * [Traces & Spans - Langchain & LlamaIndex](concepts/phoenix-basics/traces-and-spans-langchain-and-llamaindex.md)
-* [LangChain & LlamaIndex Traces](concepts/langchain-and-llamaindex-traces.md)
+  * [LLM Traces - LangChain & LlamaIndex](concepts/phoenix-basics/traces-and-spans-langchain-and-llamaindex.md)
+* [LLM Traces](concepts/langchain-and-llamaindex-traces.md)
 * [LLM Evals](concepts/llm-evals.md)
   * [Retrieval (RAG) Relevance](concepts/llm-evals/retrieval-rag-relevance.md)
   * [Hallucinations](concepts/llm-evals/hallucinations.md)
@@ -20,9 +20,9 @@
 
 ## 🔮 Use Cases
 
-* [Troubleshooting LLM Search and Retrieval with Vector Stores](use-cases/troubleshooting-llm-retrieval-with-vector-stores.md)
-* [Insights to Fine Tune or Prompt Engineer LLMs](use-cases/insights-to-fine-tune-or-prompt-engineer-llms.md)
-* [Bring Production Data to Notebook for EDA or Retraining](use-cases/bring-production-data-to-notebook-for-eda-or-retraining.md)
+* [LLM Search and Retrieval with Vector Stores](use-cases/troubleshooting-llm-retrieval-with-vector-stores.md)
+* [Fine Tune or Prompt Engineer LLMs](use-cases/insights-to-fine-tune-or-prompt-engineer-llms.md)
+* [Production Data EDA and Retraining](use-cases/bring-production-data-to-notebook-for-eda-or-retraining.md)
 
 ## 🔢 How-To
 
@@ -47,16 +47,18 @@
 
 * [Dataset and Schema](api/dataset-and-schema.md)
 * [Session](api/session.md)
+* [Evals](api/evals.md)
 
 ## 🔌 INTEGRATIONS
 
 * [LlamaIndex](integrations/llamaindex.md)
+* [LangChain](integrations/langchain.md)
 
 ## 📚 Reference
 
 * [Embeddings](concepts/embeddings.md)
 * [Architecture](reference/architecture.md)
-* [Open Inference](concepts/open-inference.md)
+* [OpenInference](concepts/open-inference.md)
 * [Frequently Asked Questions](reference/frequently-asked-questions.md)
 * [Contribute as a Developer](reference/contribute-as-a-developer.md)
 
