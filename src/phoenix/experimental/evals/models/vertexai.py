@@ -4,9 +4,9 @@ from typing import Any, Dict, Optional
 from .base import BaseEvalModel, create_base_retry_decorator
 
 try:
-    import google.api_core.exceptions as google_exceptions
-    import vertexai
-    from google.auth.credentials import Credentials
+    import google.api_core.exceptions as google_exceptions  # type:ignore
+    import vertexai  # type:ignore
+    from google.auth.credentials import Credentials  # type:ignore
 
 except ImportError:
     MINIMUM_VERTEX_AI_VERSION = "1.33.0"
@@ -57,9 +57,9 @@ class VertexAIModel(BaseEvalModel):
         self._init_vertex_ai()
         self._instantiate_model()
 
-    def _instantiate_model(self):
+    def _instantiate_model(self) -> None:
         if self.is_codey_model:
-            from vertexai.preview.language_models import CodeGenerationModel
+            from vertexai.preview.language_models import CodeGenerationModel  # type:ignore
 
             model = CodeGenerationModel
         else:
@@ -81,7 +81,7 @@ class VertexAIModel(BaseEvalModel):
             prompt=prompt,
             **invoke_params,
         )
-        return response.text
+        return str(response.text)
 
     def _generate_with_retry(self, **kwargs: Any) -> Any:
         """Use tenacity to retry the completion call."""
@@ -94,7 +94,7 @@ class VertexAIModel(BaseEvalModel):
 
         @retry_decorator
         def _completion_with_retry(**kwargs: Any) -> Any:
-            return self._model.predict(**kwargs)  # type:ignore
+            return self._model.predict(**kwargs)
 
         return _completion_with_retry(**kwargs)
 
