@@ -68,11 +68,11 @@ class OpenAIModel(BaseEvalModel):
                 )
             self.openai_api_key = api_key
 
-    def _generate(self, prompt: str, instruction: Optional[str]) -> str:
+    def _generate(self, prompt: str, **kwargs: Dict[str, Any]) -> str:
         invoke_params = self.invocation_params
         messages = [{"role": "user", "content": prompt}]
-        if instruction:
-            messages.insert(0, {"role": "system", "content": instruction})
+        if kwargs.get("instruction"):
+            messages.insert(0, {"role": "system", "content": str(kwargs.get("instruction"))})
         response = self._generate_with_retry(
             messages=messages,
             **invoke_params,

@@ -1,7 +1,7 @@
 import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Any, Callable, List, Optional, Type
+from typing import Any, Callable, Dict, List, Optional, Type
 
 from tenacity import (
     RetryCallState,
@@ -123,7 +123,7 @@ class BaseEvalModel(ABC):
         return result
 
     @abstractmethod
-    def _generate(self, prompt: str, instruction: Optional[str]) -> str:
+    def _generate(self, prompt: str, **kwargs: Dict[str, Any]) -> str:
         raise NotImplementedError
 
     async def _agenerate(self, prompt: str, instruction: Optional[str]) -> str:

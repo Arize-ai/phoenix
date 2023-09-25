@@ -83,7 +83,7 @@ class PromptTemplate:
         return variables
 
 
-def normalize_template(template: Union[PromptTemplate, str]) -> "PromptTemplate":
+def normalize_template(template: Union[PromptTemplate, str]) -> PromptTemplate:
     """
     Normalizes a template to a PromptTemplate object.
     Args:
