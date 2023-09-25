@@ -11,8 +11,8 @@ try:
 except ImportError:
     MINIMUM_VERTEX_AI_VERSION = "1.33.0"
     raise ImportError(
-        "Could not import necessary dependencies to use VertexAI. "
-        f"Please install them with `pip install google-cloud-aiplatform>={MINIMUM_VERTEX_AI_VERSION}`."
+        "Could not import necessary dependencies to use VertexAI. Please install them with"
+        f"`pip install google-cloud-aiplatform>={MINIMUM_VERTEX_AI_VERSION}`."
     )
 
 GOOGLE_API_RETRY_ERRORS = [

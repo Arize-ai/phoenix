@@ -4,7 +4,6 @@ from typing import List, Optional, Set, Union
 import pandas as pd
 
 from ..models import BaseEvalModel
-from ..models.openai import OpenAIModel
 from ..templates import RAG_RELEVANCY_PROMPT_TEMPLATE_STR, PromptTemplate, normalize_template
 from .common import NOT_PARSABLE, map_template
 
