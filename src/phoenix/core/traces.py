@@ -185,6 +185,13 @@ class Traces:
         return len(self._spans)
 
     @property
+    def token_count_total(self) -> int:
+        count = 0
+        for span in self._spans.values():
+            count += span[LLM_TOKEN_COUNT_COMPLETION] or 0
+        return count
+
+    @property
     def right_open_time_range(self) -> Tuple[Optional[datetime], Optional[datetime]]:
         return right_open_time_range(self._min_start_time, self._max_start_time)
 
