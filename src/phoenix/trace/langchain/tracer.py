@@ -112,7 +112,7 @@ def _input_messages(run_inputs: Mapping[str, Any]) -> Iterator[Tuple[str, List[M
     assert isinstance(first_messages, Iterable), f"expected Iterable, found {type(first_messages)}"
     parsed_messages = []
     for message_data in first_messages:
-        assert isinstance(message_data, Mapping), f"expected Mapping, found {type(message_data)}"
+        assert hasattr(message_data, "get"), f"expected Mapping, found {type(message_data)}"
         parsed_messages.append(_parse_message_data(message_data))
     if parsed_messages:
         yield LLM_INPUT_MESSAGES, parsed_messages
@@ -136,10 +136,9 @@ def _output_messages(run_outputs: Mapping[str, Any]) -> Iterator[Tuple[str, List
     ), f"expected Iterable, found {type(first_generations)}"
     parsed_messages = []
     for generation in first_generations:
+        assert hasattr(generation, "get"), f"expected Mapping, found {type(generation)}"
         if message_data := generation.get("message"):
-            assert isinstance(
-                message_data, Mapping
-            ), f"expected Mapping, found {type(message_data)}"
+            assert hasattr(message_data, "get"), f"expected Mapping, found {type(message_data)}"
             parsed_messages.append(_parse_message_data(message_data))
     if parsed_messages:
         yield LLM_OUTPUT_MESSAGES, parsed_messages
@@ -165,15 +164,22 @@ def _parse_message_data(message_data: Mapping[str, Any]) -> Message:
         if content := kwargs.get("content"):
             assert isinstance(content, str), f"content must be str, found {type(content)}"
             parsed_message_data[MESSAGE_CONTENT] = content
-        if (additional_kwargs := kwargs.get("additional_kwargs")) and (
-            function_call := additional_kwargs.get("function_call")
-        ):
-            if name := function_call.get("name"):
-                assert isinstance(name, str), f"name must be str, found {type(name)}"
-                parsed_message_data[MESSAGE_FUNCTION_CALL_NAME] = name
-            if arguments := function_call.get("arguments"):
-                assert isinstance(arguments, str), f"arguments must be str, found {type(arguments)}"
-                parsed_message_data[MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON] = arguments
+        if additional_kwargs := kwargs.get("additional_kwargs"):
+            assert hasattr(
+                additional_kwargs, "get"
+            ), f"expected Mapping, found {type(additional_kwargs)}"
+            if function_call := additional_kwargs.get("function_call"):
+                assert hasattr(
+                    function_call, "get"
+                ), f"expected Mapping, found {type(function_call)}"
+                if name := function_call.get("name"):
+                    assert isinstance(name, str), f"name must be str, found {type(name)}"
+                    parsed_message_data[MESSAGE_FUNCTION_CALL_NAME] = name
+                if arguments := function_call.get("arguments"):
+                    assert isinstance(
+                        arguments, str
+                    ), f"arguments must be str, found {type(arguments)}"
+                    parsed_message_data[MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON] = arguments
     return parsed_message_data
 
 
