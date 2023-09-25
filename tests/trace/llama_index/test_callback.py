@@ -84,13 +84,10 @@ def test_callback_llm_rate_limit_error_has_exception_event(
     span = next(span for span in spans if span.span_kind == SpanKind.LLM)
     assert span.status_code == SpanStatusCode.ERROR
     events = span.events
-    assert (
-        len(events) == 3
-    )  # due to a bug in llamaindex's callback system, the exception event is logged multiple times
-    for event in events:
-        assert isinstance(event, SpanException)
-        assert isinstance(event.timestamp, datetime)
-        assert len(event.attributes) == 3
-        assert event.attributes[EXCEPTION_TYPE] == "RateLimitError"
-        assert event.attributes[EXCEPTION_MESSAGE] == "message"
-        assert isinstance(event.attributes[EXCEPTION_STACKTRACE], str)
+    event = events[0]
+    assert isinstance(event, SpanException)
+    assert isinstance(event.timestamp, datetime)
+    assert len(event.attributes) == 3
+    assert event.attributes[EXCEPTION_TYPE] == "RateLimitError"
+    assert event.attributes[EXCEPTION_MESSAGE] == "message"
+    assert isinstance(event.attributes[EXCEPTION_STACKTRACE], str)
