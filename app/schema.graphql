@@ -68,17 +68,6 @@ type Dataset {
   events(eventIds: [ID!]!, dimensions: [DimensionInput!]): [Event!]!
 }
 
-type DatasetInfo {
-  """The start bookend of the data"""
-  startTime: DateTime!
-
-  """The end bookend of the data"""
-  endTime: DateTime!
-
-  """The record count of the data"""
-  recordCount: Int!
-}
-
 enum DatasetRole {
   primary
   reference
@@ -471,7 +460,7 @@ type Query {
     clusterSelectionEpsilon: Float! = 0
   ): [Cluster!]!
   spans(timeRange: TimeRange, traceIds: [ID!], first: Int = 50, last: Int, after: String, before: String, sort: SpanSort, rootSpansOnly: Boolean = false, filterCondition: String = null): SpanConnection!
-  traceDatasetInfo: DatasetInfo
+  traceDatasetInfo: TraceDatasetInfo
 }
 
 type Retrieval {
@@ -615,6 +604,20 @@ interface TimeSeries {
 type TimeSeriesDataPoint {
   timestamp: DateTime!
   value: Float
+}
+
+type TraceDatasetInfo {
+  """The start bookend of the data"""
+  startTime: DateTime!
+
+  """The end bookend of the data"""
+  endTime: DateTime!
+
+  """The record count of the data"""
+  recordCount: Int!
+
+  """Count of total (prompt + completion) tokens in the trace data"""
+  tokenCountTotal: Int!
 }
 
 type UMAPPoint {
