@@ -39,9 +39,10 @@ from phoenix.trace.semantic_conventions import (
     EMBEDDING_VECTOR,
     INPUT_MIME_TYPE,
     INPUT_VALUE,
+    LLM_INPUT_MESSAGES,
     LLM_INVOCATION_PARAMETERS,
-    LLM_MESSAGES,
     LLM_MODEL_NAME,
+    LLM_OUTPUT_MESSAGES,
     LLM_PROMPT_TEMPLATE,
     LLM_PROMPT_TEMPLATE_VARIABLES,
     LLM_PROMPTS,
@@ -121,7 +122,7 @@ def payload_to_semantic_attributes(
         messages = payload[EventPayload.MESSAGES]
         # Messages is only relevant to the LLM invocation
         if event_type is CBEventType.LLM:
-            attributes[LLM_MESSAGES] = [
+            attributes[LLM_INPUT_MESSAGES] = [
                 _message_payload_to_attributes(message_data) for message_data in messages
             ]
         elif event_type is CBEventType.AGENT_STEP and len(messages):
@@ -130,13 +131,10 @@ def payload_to_semantic_attributes(
             attributes[INPUT_VALUE] = _message_payload_to_str(messages[0])
     if response := (payload.get(EventPayload.RESPONSE) or payload.get(EventPayload.COMPLETION)):
         attributes.update(_get_response_output(response))
-        if (raw := getattr(response, "raw", None)) and (usage := getattr(raw, "usage", None)):
-            if prompt_tokens := getattr(usage, "prompt_tokens", None):
-                attributes[LLM_TOKEN_COUNT_PROMPT] = prompt_tokens
-            if completion_tokens := getattr(usage, "completion_tokens", None):
-                attributes[LLM_TOKEN_COUNT_COMPLETION] = completion_tokens
-            if total_tokens := getattr(usage, "total_tokens", None):
-                attributes[LLM_TOKEN_COUNT_TOTAL] = total_tokens
+        if raw := getattr(response, "raw", None):
+            attributes.update(_get_output_messages(raw))
+        if usage := getattr(raw, "usage", None):
+            attributes.update(_get_token_counts(usage))
     if EventPayload.TEMPLATE in payload:
         ...
     if event_type is CBEventType.RERANKING:
@@ -381,3 +379,35 @@ def _get_response_output(response: Any) -> Iterator[Tuple[str, Any]]:
     else:
         yield OUTPUT_VALUE, str(response)
         yield OUTPUT_MIME_TYPE, MimeType.TEXT
+
+
+def _get_message(message: object) -> Iterator[Tuple[str, Any]]:
+    if role := getattr(message, "role", None):
+        yield MESSAGE_ROLE, role
+    if content := getattr(message, "content", None):
+        yield MESSAGE_CONTENT, content
+    if function_call := getattr(message, "function_call", None):
+        if name := getattr(function_call, "name", None):
+            yield MESSAGE_FUNCTION_CALL_NAME, name
+        if arguments := getattr(function_call, "arguments", None):
+            yield MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON, arguments
+
+
+def _get_output_messages(raw: object) -> Iterator[Tuple[str, Any]]:
+    if not (choices := getattr(raw, "choices", None)):
+        return
+    messages = [
+        dict(_get_message(message))
+        for choice in choices
+        if (message := getattr(choice, "message", None))
+    ]
+    yield LLM_OUTPUT_MESSAGES, messages
+
+
+def _get_token_counts(usage: object) -> Iterator[Tuple[str, Any]]:
+    if (prompt_tokens := getattr(usage, "prompt_tokens", None)) is not None:
+        yield LLM_TOKEN_COUNT_PROMPT, prompt_tokens
+    if (completion_tokens := getattr(usage, "completion_tokens", None)) is not None:
+        yield LLM_TOKEN_COUNT_COMPLETION, completion_tokens
+    if (total_tokens := getattr(usage, "total_tokens", None)) is not None:
+        yield LLM_TOKEN_COUNT_TOTAL, total_tokens
