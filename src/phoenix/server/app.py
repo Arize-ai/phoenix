@@ -30,22 +30,21 @@ logger = logging.getLogger(__name__)
 templates = Jinja2Templates(directory=SERVER_DIR / "templates")
 
 
-class Config(NamedTuple):
+class AppConfig(NamedTuple):
     has_corpus: bool
 
 
 class Static(StaticFiles):
     "Static file serving with a fallback to index.html"
 
-    _config: Config
+    _app_config: AppConfig
 
-    def __init__(self, *, config: Config, **kwargs: Any):
-        self._config = config
+    def __init__(self, *, app_config: AppConfig, **kwargs: Any):
+        self._app_config = app_config
         super().__init__(**kwargs)
 
     async def get_response(self, path: str, scope: Scope) -> Response:
         response = None
-        config = self._config
         try:
             response = await super().get_response(path, scope)
         except HTTPException as e:
@@ -57,7 +56,7 @@ class Static(StaticFiles):
             response = templates.TemplateResponse(
                 "index.html",
                 context={
-                    "has_corpus": config.has_corpus,
+                    "has_corpus": self._app_config.has_corpus,
                     "request": Request(scope),
                 },
             )
@@ -175,7 +174,7 @@ def create_app(
                 "/",
                 app=Static(
                     directory=SERVER_DIR / "static",
-                    config=Config(
+                    app_config=AppConfig(
                         has_corpus=corpus is not None,
                     ),
                 ),
