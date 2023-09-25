@@ -117,9 +117,13 @@ LLM_INVOCATION_PARAMETERS = "llm.invocation_parameters"
 """
 Invocation parameters passed to the LLM or API, such as the model name, temperature, etc.
 """
-LLM_MESSAGES = "llm.messages"
+LLM_INPUT_MESSAGES = "llm.input_messages"
 """
 Messages provided to a chat API.
+"""
+LLM_OUTPUT_MESSAGES = "llm.output_messages"
+"""
+Messages received from a chat API.
 """
 LLM_MODEL_NAME = "llm.model_name"
 """
