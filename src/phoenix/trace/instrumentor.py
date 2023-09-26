@@ -2,7 +2,6 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
 
-@dataclass(frozen=True)
 class Instrumentor(ABC):
     """
     An abstract class for instrumentors for LLM frameworks
