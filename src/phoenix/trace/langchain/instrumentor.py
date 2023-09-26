@@ -1,13 +1,9 @@
 from typing import Any, Optional
 
-from phoenix.trace.instrumentor import Instrumentor
-
 from .tracer import OpenInferenceTracer
 
-MINIMUM_LANGCHAIN_VERSION = "0.13.0"
 
-
-class LangChainInstrumentor(Instrumentor):
+class LangChainInstrumentor:
     """
     Instruments the OpenInferenceTracer for LangChain automatically by patching the
     BaseCallbackManager in LangChain.
@@ -22,6 +18,9 @@ class LangChainInstrumentor(Instrumentor):
 
             source_init = BaseCallbackManager.__init__
 
+            # Keep track of the source init so we can tell if the patching occurred
+            self._source_callback_manager_init = source_init
+
             tracer = self._tracer
 
             # Patch the init method of the BaseCallbackManager to add the tracer
@@ -32,9 +31,9 @@ class LangChainInstrumentor(Instrumentor):
 
             BaseCallbackManager.__init__ = patched_init  # type: ignore
         except ImportError:
-            self._raise_import_error(
-                package_display_name="LangChain",
-                package_name="langchain",
+            # Raise a cleaner error if LangChain is not installed
+            raise ImportError(
+                "LangChain is not installed. Please install LangChain first to use the instrumentor"
             )
 
     from langchain.callbacks.base import BaseCallbackManager
