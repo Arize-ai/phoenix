@@ -6,7 +6,7 @@ description: >-
 
 # Notebooks
 
-## LLM Application Tracing
+## LLM Traces
 
 Trace through the execution of your LLM application to understand its internal structure and to troubleshoot issues with retrieval, tool execution, LLM calls, and more.
 
@@ -32,7 +32,7 @@ Leverage the power of large language models to evaluate your generative model or
 | Evaluating Summarization                    | <ul><li>summarization</li></ul>      | [![Open in Colab](https://img.shields.io/static/v1?message=Open%20in%20Colab\&logo=googlecolab\&labelColor=grey\&color=blue\&logoColor=orange\&label=%20)](https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/evals/evaluate\_summarization\_classifications.ipynb) [![Open in GitHub](https://img.shields.io/static/v1?message=Open%20in%20GitHub\&logo=github\&labelColor=grey\&color=blue\&logoColor=white\&label=%20)](https://github.com/Arize-ai/phoenix/blob/main/tutorials/evals/evaluate\_summarization\_classifications.ipynb)         |
 | Evaluating Code Readability                 | <ul><li>code readability</li></ul>   | [![Open in Colab](https://img.shields.io/static/v1?message=Open%20in%20Colab\&logo=googlecolab\&labelColor=grey\&color=blue\&logoColor=orange\&label=%20)](https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/evals/evaluate\_code\_readability\_classifications.ipynb) [![Open in GitHub](https://img.shields.io/static/v1?message=Open%20in%20GitHub\&logo=github\&labelColor=grey\&color=blue\&logoColor=white\&label=%20)](https://github.com/Arize-ai/phoenix/blob/main/tutorials/evals/evaluate\_code\_readability\_classifications.ipynb) |
 
-## Troubleshooting Retrieval-Augmented Generation
+## Retrieval-Augmented Generation Analysis
 
 Visualize your generative application's retrieval process to surface failed retrievals and to find topics not addressed by your knowledge base.
 
