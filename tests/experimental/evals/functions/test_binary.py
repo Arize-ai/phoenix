@@ -139,7 +139,7 @@ def test_run_relevance_eval(monkeypatch):
             },
             status=200,
         )
-    relevance_classifications = run_relevance_eval(dataframe)
+    relevance_classifications = run_relevance_eval(dataframe, model=OpenAIModel())
     assert relevance_classifications == [
         [True, False],
         [True, False],
