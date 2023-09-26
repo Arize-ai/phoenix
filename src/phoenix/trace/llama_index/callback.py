@@ -315,8 +315,6 @@ def _add_spans_to_tracer(
             )
             continue
 
-        attributes = event_data["attributes"]
-
         if event_type is CBEventType.TEMPLATING:
             # Template events are sibling events that precede LLM events and contain template
             # attributes. They do not constitute spans in and of themselves and should be skipped.
