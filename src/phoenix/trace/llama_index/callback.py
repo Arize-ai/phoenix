@@ -283,13 +283,14 @@ def _add_spans_to_tracer(
     trace_map: ChildEventIds,
     tracer: Tracer,
 ) -> None:
-    """Adds event data to the tracer, where it is converted to a span and stored in a buffer.
+    """
+    Adds event data to the tracer, where it is converted to a span and stored in a buffer.
 
     Args:
-        event_id_to_event_data (EventMap): A map of event IDs to event data.
+        event_id_to_event_data (EventData): A map of event IDs to event data.
 
-        trace_map (TraceMap): A map of parent event IDs to child event IDs.
-        The root event IDs are stored under the key "root".
+        trace_map (ChildEventIds): A map of parent event IDs to child event IDs. The root event IDs
+        are stored under the key "root".
 
         tracer (Tracer): The tracer that stores spans.
     """
