@@ -18,16 +18,23 @@ from langchain.chat_models import ChatOpenAI
 from langchain.llms import BaseLLM, OpenAI
 from langchain.sql_database import SQLDatabase
 from langchain.tools import GoogleSearchRun, PythonREPLTool, tool
+from phoenix.trace.exporter import NoOpExporter
 from phoenix.trace.langchain import OpenInferenceTracer
 from phoenix.trace.schemas import SpanKind
 from phoenix.trace.semantic_conventions import (
     LLM_FUNCTION_CALL,
+    LLM_INPUT_MESSAGES,
     LLM_INVOCATION_PARAMETERS,
     LLM_MODEL_NAME,
+    LLM_OUTPUT_MESSAGES,
     LLM_PROMPTS,
     LLM_TOKEN_COUNT_COMPLETION,
     LLM_TOKEN_COUNT_PROMPT,
     LLM_TOKEN_COUNT_TOTAL,
+    MESSAGE_CONTENT,
+    MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON,
+    MESSAGE_FUNCTION_CALL_NAME,
+    MESSAGE_ROLE,
     TOOL_DESCRIPTION,
     TOOL_NAME,
 )
@@ -39,7 +46,7 @@ DB_FILE_PATH = Path("chinook.db")
 @pytest.fixture
 def tracer() -> OpenInferenceTracer:
     """An OpenInference tracer"""
-    return OpenInferenceTracer()
+    return OpenInferenceTracer(exporter=NoOpExporter())
 
 
 @pytest.fixture(scope="session")
@@ -126,15 +133,32 @@ class TestTracerFunctionCallAttributes:
             },
         ]
         prompt_template = PromptTemplate.from_template("What is the current weather in {location}?")
-        llm = ChatOpenAI(model_name="gpt-4-0613")
+        llm = ChatOpenAI(model_name="gpt-4-0613", n=2, temperature=0.0)
         chain = create_openai_fn_chain(functions=functions, llm=llm, prompt=prompt_template)
-        tracer = OpenInferenceTracer()
         chain.run("the capital city of England", callbacks=[tracer])
-
-        span = next(span for span in tracer.span_buffer if span.name == "ChatOpenAI")
+        spans = {span.name: span for span in tracer.get_spans()}
+        span = spans["ChatOpenAI"]
         function_call_attributes = json.loads(span.attributes[LLM_FUNCTION_CALL])
         assert function_call_attributes["name"] == "get_current_weather"
         assert function_call_attributes["arguments"]["city"] == "London"
+        assert span.attributes.get(LLM_INPUT_MESSAGES) == [
+            {
+                MESSAGE_CONTENT: "What is the current weather in the capital city of England?",
+                MESSAGE_ROLE: "user",
+            }
+        ]
+        assert span.attributes.get(LLM_OUTPUT_MESSAGES) == [
+            {
+                MESSAGE_ROLE: "assistant",
+                MESSAGE_FUNCTION_CALL_NAME: "get_current_weather",
+                MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON: '{\n  "city": "London"\n}',
+            },
+            {
+                MESSAGE_ROLE: "assistant",
+                MESSAGE_FUNCTION_CALL_NAME: "get_current_weather",
+                MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON: '{\n  "city": "London"\n}',
+            },
+        ]
 
     def test_tracer_records_function_call_attributes_when_openai_function_agent_uses_tool(
         self, agent: AgentExecutor, tracer: OpenInferenceTracer

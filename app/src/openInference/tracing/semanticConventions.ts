@@ -9,7 +9,8 @@ export const SemanticAttributePrefixes = {
 } as const;
 
 export const LLMAttributePostfixes = {
-  messages: "messages",
+  input_messages: "input_messages",
+  output_messages: "output_messages",
   invocation_parameters: "invocation_parameters",
   prompts: "prompts",
 } as const;
@@ -50,8 +51,16 @@ export const DocumentAttributePostfixes = {
  * Typically seen in openAI chat completions
  * @see https://beta.openai.com/docs/api-reference/completions/create
  */
-export const LLM_MESSAGES =
-  `${SemanticAttributePrefixes.llm}.${LLMAttributePostfixes.messages}` as const;
+export const LLM_INPUT_MESSAGES =
+  `${SemanticAttributePrefixes.llm}.${LLMAttributePostfixes.input_messages}` as const;
+
+/**
+ * The messages received from the LLM for completions
+ * Typically seen in openAI chat completions
+ * @see https://platform.openai.com/docs/api-reference/chat/object#choices-message
+ */
+export const LLM_OUTPUT_MESSAGES =
+  `${SemanticAttributePrefixes.llm}.${LLMAttributePostfixes.output_messages}` as const;
 
 /**
  * The role that the LLM assumes the message is from
