@@ -188,7 +188,7 @@ class Traces:
     def token_count_total(self) -> int:
         count = 0
         for span in self._spans.values():
-            count += span[LLM_TOKEN_COUNT_COMPLETION] or 0
+            count += span[LLM_TOKEN_COUNT_TOTAL] or 0
         return count
 
     @property
