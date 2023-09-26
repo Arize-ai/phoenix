@@ -37,6 +37,7 @@ dependencies = [
   "wrapt",
   "sortedcontainers",
   "protobuf>=3.20, <5.0",
+  "jinja2",
 ]
 dynamic = ["version"]
 
