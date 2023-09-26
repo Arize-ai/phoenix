@@ -449,4 +449,4 @@ def _get_stacktrace(exception: BaseException) -> str:
     exception_type = type(exception)
     exception_traceback = exception.__traceback__
     stack_trace_lines = format_exception(exception_type, exception, exception_traceback)
-    return "\n".join(stack_trace_lines)
+    return "".join(stack_trace_lines)
