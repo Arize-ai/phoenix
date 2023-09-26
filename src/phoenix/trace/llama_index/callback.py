@@ -307,6 +307,9 @@ def _add_spans_to_tracer(
         start_event = event_data["start_event"]
         start_time = _timestamp_to_tz_aware_datetime(start_event.time)
         if event_type is CBEventType.EXCEPTION:
+            # LlamaIndex has exception callback events that are sibling events of the events in
+            # which the exception occurred. We collect all the exception events and add them to the
+            # relevant span.
             if (
                 not start_event.payload
                 or (error := start_event.payload.get(EventPayload.EXCEPTION)) is None
