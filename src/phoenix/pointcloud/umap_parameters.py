@@ -14,9 +14,10 @@ MAX_MIN_DIST = 0.99
 
 def get_umap_parameters(default_umap_parameters):
     return UMAPParameters(
-        min_dist=default_umap_parameters.get("minDist", DEFAULT_MIN_DIST),
-        n_neighbors=default_umap_parameters.get("nNeighbors", DEFAULT_N_NEIGHBORS),
-        n_samples=default_umap_parameters.get("nSamples", DEFAULT_N_SAMPLES),
+        min_dist=default_umap_parameters.get("min_dist", DEFAULT_MIN_DIST),
+        n_neighbors=default_umap_parameters.get("n_neighbors", DEFAULT_N_NEIGHBORS),
+        n_samples=default_umap_parameters.get("n_samples", DEFAULT_N_SAMPLES),
+
     )
 
 
