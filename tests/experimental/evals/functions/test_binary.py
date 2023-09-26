@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 import responses
+
 from phoenix.experimental.evals import (
     NOT_PARSABLE,
     RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
@@ -139,7 +140,7 @@ def test_run_relevance_eval(monkeypatch):
             },
             status=200,
         )
-    relevance_classifications = run_relevance_eval(dataframe)
+    relevance_classifications = run_relevance_eval(dataframe, model=OpenAIModel())
     assert relevance_classifications == [
         [True, False],
         [True, False],
