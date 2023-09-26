@@ -23,7 +23,31 @@ import phoenix as px
 session = px.launch_app()
 ```
 
-Once you have started a Phoenix server, you can start your LangChain application with the OpenInference Tracer as a callback. To do this, you will have to add the tracer to the initialization of your LangChain application:
+Once you have started a Phoenix server, you can start your LangChain application with the OpenInference Tracer as a callback. There are two ways of adding the \`tracer\` to your LangChain application - by instrumenting all your chains in one go (recommended) or by adding the tracer to as a callback to just the parts that you care about (not recommended).
+
+{% tabs %}
+{% tab title="Instrument Langchain" %}
+We recommend that you instrument your entire LangChain application to maximize visibility. To do this, we will use the `LangChainInstrumentor` to add the `OpenInferenceTracer` to every chain in your application.\
+
+
+```python
+from phoenix.trace.langchain import OpenInferenceTracer, LangChainInstrumentor
+
+# If no exporter is specified, the tracer will export to the locally running Phoenix server
+tracer = OpenInferenceTracer()
+# If no tracer is specified, a tracer is constructed for you
+LangChainInstrumentor(tracer).instrument()
+
+# Initialize your LangChain application
+
+# Note that we do not have to pass in the tracer as a callback here
+# since the above instrumented LangChain in it's entirety.
+response = chain.run(query)
+```
+{% endtab %}
+
+{% tab title="Use callbacks" %}
+If you only want traces from parts of your application, you can pass in the tracer to the parts that you care about.
 
 ```python
 from phoenix.trace.langchain import OpenInferenceTracer
@@ -35,8 +59,9 @@ tracer = OpenInferenceTracer()
 
 # Instrument the execution of the runs with the tracer. By default the tracer uses an HTTPExporter
 response = chain.run(query, callbacks=[tracer])
-
 ```
+{% endtab %}
+{% endtabs %}
 
 By adding the tracer to the callbacks of LangChain, we've created a one-way data connection between your LLM application and Phoenix. This is because by default the `OpenInferenceTracer` uses an `HTTPExporter` to send traces to your locally running Phoenix server! In this scenario the Phoenix server is serving as a `Collector` of the spans that are exported from your LangChain application.
 
