@@ -52,6 +52,16 @@ def run_relevance_eval(
 
 Given a pandas dataframe containing queries and retrieved documents, classifies the relevance of each retrieved document to the corresponding query using an LLM.
 
+### Parameters
+
+* dataframe (pd.DataFrame): A pandas dataframe containing queries and retrieved documents.
+* query\_column\_name (str, optional): The name of the column containing the queries.
+* retrieved\_documents\_column\_name (str, optional): The name of the column containing the retrieved document data. Each entry in this column should be a list of dictionaries containing metadata about the retrieved documents.
+
+### Returns
+
+* evaluations (List\[List\[str])]: A list of relevant and not relevant classifications. The "shape" of the list should mirror the "shape" of the retrieved documents column, in the sense that it has the same length as the input dataframe and each sub-list has the same length as the corresponding list in the retrieved documents column. The values in the sub-lists are either booleans or None in the case where the LLM output could not be parsed.
+
 **\[**[**source**](https://github.com/Arize-ai/phoenix/blob/main/src/phoenix/experimental/evals/functions/binary.py)**]**
 
 ## phoenix.experimental.evals.llm\_generate
@@ -64,5 +74,18 @@ def llm_generate(
     system_instruction: Optional[str] = None,
 ) -> List[str]
 ```
+
+Generates a text using a template using an LLM. This function is useful if you want to generate synthetic data, such as irrelevant responses
+
+### Parameters
+
+* **dataframe (pandas.DataFrame)**: A pandas dataframe in which each row represents a record to be used as in input to the template. All template variable names must appear as column names in the dataframe (extra columns unrelated to the template are permitted).
+* **template (Union\[PromptTemplate, str])**: The prompt template as either an instance of PromptTemplate or a string. If the latter, the variable names should be surrounded by curly braces so that a call to `format` can be made to substitute variable values.
+* **model (BaseEvalModel)**: An LLM model class.
+* **system\_instruction (Optional\[str], optional):** An optional system message.
+
+### Returns
+
+* **generations (List\[Optional\[str]])**: A list of strings representing the output of the model for each record
 
 **\[**[**source**](https://github.com/Arize-ai/phoenix/blob/main/src/phoenix/experimental/evals/functions/generate.py)**]**
