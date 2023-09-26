@@ -50,10 +50,10 @@ class OpenAIModel(BaseEvalModel):
     def _init_environment(self) -> None:
         try:
             import openai
-            from openai import error as oa_err
+            from openai import error as openai_error
 
             self._openai = openai
-            self._oa_err = oa_err
+            self._openai_error = openai_error
         except ImportError:
             self._raise_import_error(
                 package_display_name="OpenAI",
@@ -88,11 +88,11 @@ class OpenAIModel(BaseEvalModel):
     def _generate_with_retry(self, **kwargs: Any) -> Any:
         """Use tenacity to retry the completion call."""
         openai_retry_errors = [
-            self._oa_err.Timeout,
-            self._oa_err.APIError,
-            self._oa_err.APIConnectionError,
-            self._oa_err.RateLimitError,
-            self._oa_err.ServiceUnavailableError,
+            self._openai_error.Timeout,
+            self._openai_error.APIError,
+            self._openai_error.APIConnectionError,
+            self._openai_error.RateLimitError,
+            self._openai_error.ServiceUnavailableError,
         ]
         retry_decorator = create_base_retry_decorator(
             error_types=openai_retry_errors,
