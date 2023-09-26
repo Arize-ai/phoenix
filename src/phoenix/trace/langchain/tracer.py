@@ -2,10 +2,22 @@ import json
 import logging
 from copy import deepcopy
 from datetime import datetime
-from typing import Any, Dict, Iterator, List, Optional, Tuple
+from typing import (
+    Any,
+    Dict,
+    Iterable,
+    Iterator,
+    List,
+    Mapping,
+    Optional,
+    Tuple,
+)
+from uuid import UUID
 
 from langchain.callbacks.tracers.base import BaseTracer
 from langchain.callbacks.tracers.schemas import Run
+from langchain.load.dump import dumpd
+from langchain.schema.messages import BaseMessage
 
 from phoenix.trace.exporter import HttpExporter
 from phoenix.trace.schemas import (
@@ -21,14 +33,21 @@ from phoenix.trace.semantic_conventions import (
     INPUT_MIME_TYPE,
     INPUT_VALUE,
     LLM_FUNCTION_CALL,
+    LLM_INPUT_MESSAGES,
     LLM_INVOCATION_PARAMETERS,
     LLM_MODEL_NAME,
+    LLM_OUTPUT_MESSAGES,
     LLM_PROMPT_TEMPLATE,
     LLM_PROMPT_TEMPLATE_VARIABLES,
     LLM_PROMPT_TEMPLATE_VERSION,
+    LLM_PROMPTS,
     LLM_TOKEN_COUNT_COMPLETION,
     LLM_TOKEN_COUNT_PROMPT,
     LLM_TOKEN_COUNT_TOTAL,
+    MESSAGE_CONTENT,
+    MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON,
+    MESSAGE_FUNCTION_CALL_NAME,
+    MESSAGE_ROLE,
     OUTPUT_MIME_TYPE,
     OUTPUT_VALUE,
     RETRIEVAL_DOCUMENTS,
@@ -39,6 +58,9 @@ from phoenix.trace.semantic_conventions import (
 from phoenix.trace.tracer import Tracer
 
 logger = logging.getLogger(__name__)
+
+
+Message = Dict[str, Any]
 
 
 def _langchain_run_type_to_span_kind(run_type: str) -> SpanKind:
@@ -66,6 +88,100 @@ def _convert_io(obj: Optional[Dict[str, Any]]) -> Iterator[Any]:
     else:
         yield json.dumps(obj, default=_serialize_json)
         yield MimeType.JSON
+
+
+def _prompts(run_inputs: Dict[str, Any]) -> Iterator[Tuple[str, List[str]]]:
+    """Yields prompts if present."""
+    if "prompts" in run_inputs:
+        yield LLM_PROMPTS, run_inputs["prompts"]
+
+
+def _input_messages(run_inputs: Mapping[str, Any]) -> Iterator[Tuple[str, List[Message]]]:
+    """Yields chat messages if present."""
+    if not hasattr(run_inputs, "get"):
+        return
+    # There may be more than one set of messages. We'll use just the first set.
+    if not (multiple_messages := run_inputs.get("messages")):
+        return
+    assert isinstance(
+        multiple_messages, Iterable
+    ), f"expected Iterable, found {type(multiple_messages)}"
+    # This will only get the first set of messages.
+    if not (first_messages := next(iter(multiple_messages), None)):
+        return
+    assert isinstance(first_messages, Iterable), f"expected Iterable, found {type(first_messages)}"
+    parsed_messages = []
+    for message_data in first_messages:
+        assert hasattr(message_data, "get"), f"expected Mapping, found {type(message_data)}"
+        parsed_messages.append(_parse_message_data(message_data))
+    if parsed_messages:
+        yield LLM_INPUT_MESSAGES, parsed_messages
+
+
+def _output_messages(run_outputs: Mapping[str, Any]) -> Iterator[Tuple[str, List[Message]]]:
+    """Yields chat messages if present."""
+    if not hasattr(run_outputs, "get"):
+        return
+    # There may be more than one set of generations. We'll use just the first set.
+    if not (multiple_generations := run_outputs.get("generations")):
+        return
+    assert isinstance(
+        multiple_generations, Iterable
+    ), f"expected Iterable, found {type(multiple_generations)}"
+    # This will only get the first set of generations.
+    if not (first_generations := next(iter(multiple_generations), None)):
+        return
+    assert isinstance(
+        first_generations, Iterable
+    ), f"expected Iterable, found {type(first_generations)}"
+    parsed_messages = []
+    for generation in first_generations:
+        assert hasattr(generation, "get"), f"expected Mapping, found {type(generation)}"
+        if message_data := generation.get("message"):
+            assert hasattr(message_data, "get"), f"expected Mapping, found {type(message_data)}"
+            parsed_messages.append(_parse_message_data(message_data))
+    if parsed_messages:
+        yield LLM_OUTPUT_MESSAGES, parsed_messages
+
+
+def _parse_message_data(message_data: Mapping[str, Any]) -> Message:
+    """Parses message data to grab message role, content, etc."""
+    message_class_name = message_data["id"][-1]
+    if message_class_name == "HumanMessage":
+        role = "user"
+    elif message_class_name == "AIMessage":
+        role = "assistant"
+    elif message_class_name == "SystemMessage":
+        role = "system"
+    elif message_class_name == "FunctionMessage":
+        role = "function"
+    elif message_class_name == "ChatMessage":
+        role = message_data["kwargs"]["role"]
+    else:
+        raise ValueError(f"Cannot parse message of type: {message_class_name}")
+    parsed_message_data = {MESSAGE_ROLE: role}
+    if kwargs := message_data.get("kwargs"):
+        assert hasattr(kwargs, "get"), f"expected Mapping, found {type(kwargs)}"
+        if content := kwargs.get("content"):
+            assert isinstance(content, str), f"content must be str, found {type(content)}"
+            parsed_message_data[MESSAGE_CONTENT] = content
+        if additional_kwargs := kwargs.get("additional_kwargs"):
+            assert hasattr(
+                additional_kwargs, "get"
+            ), f"expected Mapping, found {type(additional_kwargs)}"
+            if function_call := additional_kwargs.get("function_call"):
+                assert hasattr(
+                    function_call, "get"
+                ), f"expected Mapping, found {type(function_call)}"
+                if name := function_call.get("name"):
+                    assert isinstance(name, str), f"name must be str, found {type(name)}"
+                    parsed_message_data[MESSAGE_FUNCTION_CALL_NAME] = name
+                if arguments := function_call.get("arguments"):
+                    assert isinstance(
+                        arguments, str
+                    ), f"arguments must be str, found {type(arguments)}"
+                    parsed_message_data[MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON] = arguments
+    return parsed_message_data
 
 
 def _prompt_template(run_serialized: Dict[str, Any]) -> Iterator[Tuple[str, Any]]:
@@ -179,6 +295,9 @@ class OpenInferenceTracer(Tracer, BaseTracer):
             "outputs": (OUTPUT_VALUE, OUTPUT_MIME_TYPE),
         }.items():
             attributes.update(zip(io_attributes, _convert_io(run.get(io_key))))
+        attributes.update(_prompts(run["inputs"]))
+        attributes.update(_input_messages(run["inputs"]))
+        attributes.update(_output_messages(run["outputs"]))
         attributes.update(_prompt_template(run["serialized"]))
         attributes.update(_invocation_parameters(run))
         attributes.update(_model_name(run["extra"]))
@@ -205,9 +324,14 @@ class OpenInferenceTracer(Tracer, BaseTracer):
                     timestamp=error_event["time"],
                 )
             )
+        span_kind = (
+            SpanKind.AGENT
+            if "agent" in run["name"].lower()
+            else _langchain_run_type_to_span_kind(run["run_type"])
+        )
         span = self.create_span(
             name=run["name"],
-            span_kind=_langchain_run_type_to_span_kind(run["run_type"]),
+            span_kind=span_kind,
             parent_id=None if parent is None else parent.context.span_id,
             trace_id=None if parent is None else parent.context.trace_id,
             start_time=run["start_time"],
@@ -226,3 +350,43 @@ class OpenInferenceTracer(Tracer, BaseTracer):
             self._convert_run_to_spans(run.dict())
         except Exception:
             logger.exception("Failed to convert run to spans")
+
+    def on_chat_model_start(
+        self,
+        serialized: Dict[str, Any],
+        messages: List[List[BaseMessage]],
+        *,
+        run_id: UUID,
+        tags: Optional[List[str]] = None,
+        parent_run_id: Optional[UUID] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+        **kwargs: Any,
+    ) -> None:
+        """
+        Adds chat messages to the run inputs.
+
+        LangChain's BaseTracer class does not implement hooks for chat models and hence does not
+        record data such as the list of messages that were passed to the chat model.
+
+        For reference, see https://github.com/langchain-ai/langchain/pull/4499.
+        """
+
+        parent_run_id_ = str(parent_run_id) if parent_run_id else None
+        execution_order = self._get_execution_order(parent_run_id_)
+        start_time = datetime.utcnow()
+        if metadata:
+            kwargs.update({"metadata": metadata})
+        run = Run(
+            id=run_id,
+            parent_run_id=parent_run_id,
+            serialized=serialized,
+            inputs={"messages": [[dumpd(message) for message in batch] for batch in messages]},
+            extra=kwargs,
+            events=[{"name": "start", "time": start_time}],
+            start_time=start_time,
+            execution_order=execution_order,
+            child_execution_order=execution_order,
+            run_type="llm",
+            tags=tags,
+        )
+        self._start_trace(run)

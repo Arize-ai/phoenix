@@ -144,7 +144,7 @@ class Session(ABC):
         """Returns the url for the phoenix app"""
         return _get_url(self.host, self.port, self.is_colab)
 
-    def get_span_dataframe(
+    def get_spans_dataframe(
         self,
         filter_condition: Optional[str] = None,
         *,
@@ -162,9 +162,9 @@ class Session(ABC):
         )
         if predicate:
             spans = filter(predicate, spans)
-        if not (data := list(map(json.loads, map(span_to_json, spans)))):
+        if not (data := [json.loads(span_to_json(span)) for span in spans]):
             return None
-        return pd.json_normalize(data).set_index("context.span_id", drop=False)
+        return pd.json_normalize(data, max_level=1).set_index("context.span_id", drop=False)
 
 
 _session: Optional[Session] = None
@@ -330,6 +330,9 @@ def launch_app(
             "it down and starting a new instance..."
         )
         _session.end()
+
+    host = host or get_env_host()
+    port = port or get_env_port()
 
     if run_in_thread:
         _session = ThreadSession(

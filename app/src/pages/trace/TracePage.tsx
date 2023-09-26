@@ -10,9 +10,14 @@ import CodeMirror from "@uiw/react-codemirror";
 import { css } from "@emotion/react";
 
 import {
+  Card,
+  CardProps,
+  Content,
+  ContextualHelp,
   Counter,
   Dialog,
   DialogContainer,
+  EmptyGraphic,
   Flex,
   Heading,
   Icon,
@@ -20,12 +25,15 @@ import {
   Label,
   List,
   ListItem,
+  TabbedCard,
   TabPane,
   Tabs,
   Text,
   View,
+  ViewStyleProps,
 } from "@arizeai/components";
 
+import { ExternalLink } from "@phoenix/components";
 import { resizeHandleCSS } from "@phoenix/components/resize";
 import { SpanItem } from "@phoenix/components/trace/SpanItem";
 import { TraceTree } from "@phoenix/components/trace/TraceTree";
@@ -33,6 +41,8 @@ import {
   DOCUMENT_CONTENT,
   DOCUMENT_ID,
   DOCUMENT_SCORE,
+  EMBEDDING_TEXT,
+  EmbeddingAttributePostfixes,
   LLMAttributePostfixes,
   MESSAGE_CONTENT,
   MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON,
@@ -41,12 +51,14 @@ import {
   MESSAGE_ROLE,
   RetrievalAttributePostfixes,
   SemanticAttributePrefixes,
+  ToolAttributePostfixes,
 } from "@phoenix/openInference/tracing/semanticConventions";
 import {
   AttributeDocument,
+  AttributeEmbedding,
   AttributeMessage,
 } from "@phoenix/openInference/tracing/types";
-import { assertUnreachable } from "@phoenix/typeUtils";
+import { assertUnreachable, isStringArray } from "@phoenix/typeUtils";
 import { numberFormatter } from "@phoenix/utils/numberFormatUtils";
 
 import {
@@ -65,6 +77,18 @@ const spanHasException = (span: Span) => {
   return span.events.some((event) => event.name === "exception");
 };
 
+/**
+ * Card props to apply across all cards
+ */
+const defaultCardProps: Partial<CardProps> = {
+  backgroundColor: "light",
+  borderColor: "light",
+  bodyStyle: {
+    padding: 0,
+  },
+  variant: "compact",
+  collapsible: true,
+};
 /**
  * A page that shows the details of a trace (e.g. a collection of spans)
  */
@@ -88,6 +112,9 @@ export function TracePage() {
               startTime
               parentId
               latencyMs
+              tokenCountTotal
+              tokenCountPrompt
+              tokenCountCompletion
               input {
                 value
                 mimeType
@@ -130,27 +157,18 @@ export function TracePage() {
         >
           <PanelGroup direction="horizontal" autoSaveId="trace-panel-group">
             <Panel defaultSize={30} minSize={10} maxSize={40}>
-              <ScrollingTabsWrapper>
-                <Tabs>
-                  <TabPane name="Tree" title="Tree">
-                    <TraceTree
-                      spans={spansList}
-                      selectedSpanId={selectedSpanId}
-                      onSpanClick={(spanId) => {
-                        setSearchParams(
-                          {
-                            selectedSpanId: spanId,
-                          },
-                          { replace: true }
-                        );
-                      }}
-                    />
-                  </TabPane>
-                  <TabPane name="Flame Graph" hidden>
-                    Flame Graph
-                  </TabPane>
-                </Tabs>
-              </ScrollingTabsWrapper>
+              <TraceTree
+                spans={spansList}
+                selectedSpanId={selectedSpanId}
+                onSpanClick={(spanId) => {
+                  setSearchParams(
+                    {
+                      selectedSpanId: spanId,
+                    },
+                    { replace: true }
+                  );
+                }}
+              />
             </Panel>
             <PanelResizeHandle css={resizeHandleCSS} />
             <Panel>
@@ -175,6 +193,7 @@ function ScrollingTabsWrapper({ children }: PropsWithChildren) {
         height: 100%;
         .ac-tabs {
           height: 100%;
+          overflow: hidden;
           .ac-tabs__pane-container {
             height: 100%;
             overflow-y: auto;
@@ -187,59 +206,72 @@ function ScrollingTabsWrapper({ children }: PropsWithChildren) {
   );
 }
 
+const attributesContextualHelp = (
+  <Flex alignItems="center" justifyContent="center">
+    <View marginStart="size-100">
+      <ContextualHelp>
+        <Heading weight="heavy" level={4}>
+          Span Attributes
+        </Heading>
+        <Content>
+          <Text>
+            All attributes associated with the span. Attributes are key-value
+            pairs that represent metadata associated with a span. For a detailed
+            description of the attributes, consult the semantic conventions of
+            the OpenInference tracing specification.
+          </Text>
+        </Content>
+        <footer>
+          <ExternalLink href="https://arize-ai.github.io/open-inference-spec/trace/spec/semantic_conventions.html">
+            Semantic Conventions
+          </ExternalLink>
+        </footer>
+      </ContextualHelp>
+    </View>
+  </Flex>
+);
 function SelectedSpanDetails({ selectedSpan }: { selectedSpan: Span }) {
   const hasExceptions = useMemo<boolean>(() => {
     return spanHasException(selectedSpan);
   }, [selectedSpan]);
   return (
-    <Tabs>
-      <TabPane name={"Info"} title="Info">
-        <SpanInfo span={selectedSpan} />
-      </TabPane>
-      <TabPane name={"Attributes"} title="Attributes">
-        <View padding="size-200">
-          <BlockView title="All Attributes">
-            <CodeBlock value={selectedSpan.attributes} mimeType="json" />
-          </BlockView>
-        </View>
-      </TabPane>
-      <TabPane
-        name={"Events"}
-        title="Events"
-        extra={
-          <Counter variant={hasExceptions ? "danger" : "default"}>
-            {selectedSpan.events.length}
-          </Counter>
-        }
+    <Flex direction="column" flex="1 1 auto" height="100%">
+      <View
+        paddingTop="size-75"
+        paddingBottom="size-75"
+        paddingStart="size-150"
+        paddingEnd="size-200"
+        flex="none"
       >
-        <View margin="size-100" borderRadius="medium">
-          <SpanEventsList events={selectedSpan.events} />
-        </View>
-      </TabPane>
-    </Tabs>
-  );
-}
-
-/**
- * A simple container to show a block of text or code
- */
-function BlockView({ children, title }: PropsWithChildren<{ title?: string }>) {
-  return (
-    <View borderColor="dark" borderRadius="medium" borderWidth="thin">
-      {title ? (
-        <View
-          paddingStart="size-150"
-          paddingEnd="size-150"
-          paddingTop="size-50"
-          paddingBottom="size-50"
-          borderBottomColor="dark"
-          borderBottomWidth="thin"
+        <SpanItem {...selectedSpan} />
+      </View>
+      <Tabs>
+        <TabPane name={"Info"}>
+          <SpanInfo span={selectedSpan} />
+        </TabPane>
+        <TabPane name={"Attributes"} title="Attributes">
+          <View padding="size-200">
+            <Card
+              title="All Attributes"
+              {...defaultCardProps}
+              titleExtra={attributesContextualHelp}
+            >
+              <CodeBlock value={selectedSpan.attributes} mimeType="json" />
+            </Card>
+          </View>
+        </TabPane>
+        <TabPane
+          name={"Events"}
+          extra={
+            <Counter variant={hasExceptions ? "danger" : "default"}>
+              {selectedSpan.events.length}
+            </Counter>
+          }
         >
-          <Heading level={4}>{title}</Heading>
-        </View>
-      ) : null}
-      {children}
-    </View>
+          <SpanEventsList events={selectedSpan.events} />
+        </TabPane>
+      </Tabs>
+    </Flex>
   );
 }
 
@@ -263,25 +295,20 @@ function SpanInfo({ span }: { span: Span }) {
       );
       break;
     }
+    case "embedding": {
+      content = (
+        <EmbeddingSpanInfo span={span} spanAttributes={attributesObject} />
+      );
+      break;
+    }
+    case "tool": {
+      content = <ToolSpanInfo span={span} spanAttributes={attributesObject} />;
+      break;
+    }
     default:
       content = <SpanIO span={span} />;
   }
-  return (
-    <Flex direction="column">
-      <View
-        paddingTop="size-50"
-        paddingBottom="size-50"
-        paddingStart="size-250"
-        paddingEnd="size-250"
-        borderBottomColor="dark"
-        borderBottomWidth="thin"
-        backgroundColor="dark"
-      >
-        <SpanItem {...span} />
-      </View>
-      <View padding="size-200">{content}</View>
-    </Flex>
-  );
+  return <View padding="size-200">{content}</View>;
 }
 
 function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
@@ -295,12 +322,31 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
     return null;
   }, [spanAttributes]);
 
-  const messages = useMemo<AttributeMessage[]>(() => {
+  const input_messages = useMemo<AttributeMessage[]>(() => {
     if (llmAttributes == null) {
       return [];
     }
-    return (llmAttributes[LLMAttributePostfixes.messages] ||
+    return (llmAttributes[LLMAttributePostfixes.input_messages] ||
       []) as AttributeMessage[];
+  }, [llmAttributes]);
+
+  const output_messages = useMemo<AttributeMessage[]>(() => {
+    if (llmAttributes == null) {
+      return [];
+    }
+    return (llmAttributes[LLMAttributePostfixes.output_messages] ||
+      []) as AttributeMessage[];
+  }, [llmAttributes]);
+
+  const prompts = useMemo<string[]>(() => {
+    if (llmAttributes == null) {
+      return [];
+    }
+    const maybePrompts = llmAttributes[LLMAttributePostfixes.prompts];
+    if (!isStringArray(maybePrompts)) {
+      return [];
+    }
+    return maybePrompts;
   }, [llmAttributes]);
 
   const invocation_parameters_str = useMemo<string>(() => {
@@ -312,26 +358,30 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
   }, [llmAttributes]);
 
   const hasInput = input != null && input.value != null;
-  const hasMessages = messages.length > 0;
+  const hasInputMessages = input_messages.length > 0;
+  const hasOutput = output != null && output.value != null;
+  const hasOutputMessages = output_messages.length > 0;
+  const hasPrompts = prompts.length > 0;
   const hasInvocationParams =
     Object.keys(JSON.parse(invocation_parameters_str)).length > 0;
   return (
     <Flex direction="column" gap="size-200">
-      <BlockView>
+      <TabbedCard {...defaultCardProps}>
         <Tabs>
+          {hasInputMessages ? (
+            <TabPane name="Input Messages" hidden={!hasInputMessages}>
+              <LLMMessagesList messages={input_messages} />
+            </TabPane>
+          ) : null}
           {hasInput ? (
-            <TabPane name="Input" title="Input" hidden={!hasInput}>
+            <TabPane name="Input" hidden={!hasInput}>
               <CodeBlock {...input} />
             </TabPane>
           ) : null}
-          <TabPane name="Messages" title="Messages" hidden={!hasMessages}>
-            <LLMMessagesList messages={messages} />
+          <TabPane name="Prompts" hidden={!hasPrompts}>
+            <LLMPromptsList prompts={prompts} />
           </TabPane>
-          <TabPane
-            name="Invocation Params"
-            title="Invocation Params"
-            hidden={!hasInvocationParams}
-          >
+          <TabPane name="Invocation Params" hidden={!hasInvocationParams}>
             <CodeBlock
               {...{
                 mimeType: "json",
@@ -340,11 +390,22 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
             />
           </TabPane>
         </Tabs>
-      </BlockView>
-      {output && output.value != null ? (
-        <BlockView title="Output">
-          <CodeBlock {...output} />
-        </BlockView>
+      </TabbedCard>
+      {hasOutput || hasOutputMessages ? (
+        <TabbedCard {...defaultCardProps}>
+          <Tabs>
+            {hasOutputMessages ? (
+              <TabPane name="Output Messages" hidden={!hasOutputMessages}>
+                <LLMMessagesList messages={output_messages} />
+              </TabPane>
+            ) : null}
+            {hasOutput ? (
+              <TabPane name="Output" hidden={!hasOutput}>
+                <CodeBlock {...output} />
+              </TabPane>
+            ) : null}
+          </Tabs>
+        </TabbedCard>
       ) : null}
     </Flex>
   );
@@ -375,18 +436,18 @@ function RetrieverSpanInfo(props: {
   const hasDocuments = documents.length > 0;
   return (
     <Flex direction="column" gap="size-200">
-      <BlockView title="Input">
+      <Card title="Input" {...defaultCardProps}>
         {hasInput ? <CodeBlock {...input} /> : null}
-      </BlockView>
+      </Card>
       {hasDocuments ? (
-        <BlockView title="Documents">
+        <Card title="Documents" {...defaultCardProps}>
           {
             <ul
               css={css`
-                padding: var(--ac-global-dimension-static-size-100);
+                padding: var(--ac-global-dimension-static-size-200);
                 display: flex;
                 flex-direction: column;
-                gap: var(--ac-global-dimension-static-size-100);
+                gap: var(--ac-global-dimension-static-size-200);
               `}
             >
               {documents.map((document, idx) => {
@@ -398,21 +459,172 @@ function RetrieverSpanInfo(props: {
               })}
             </ul>
           }
-        </BlockView>
+        </Card>
       ) : null}
+    </Flex>
+  );
+}
+
+function EmbeddingSpanInfo(props: {
+  span: Span;
+  spanAttributes: AttributeObject;
+}) {
+  const { spanAttributes } = props;
+  const embeddingAttributes = useMemo<AttributeObject | null>(() => {
+    const embeddingAttrs = spanAttributes[SemanticAttributePrefixes.embedding];
+    if (typeof embeddingAttrs === "object") {
+      return embeddingAttrs as AttributeObject;
+    }
+    return null;
+  }, [spanAttributes]);
+  const embeddings = useMemo<AttributeEmbedding[]>(() => {
+    if (embeddingAttributes == null) {
+      return [];
+    }
+    return (embeddingAttributes[EmbeddingAttributePostfixes.embeddings] ||
+      []) as AttributeDocument[];
+  }, [embeddingAttributes]);
+
+  const hasEmbeddings = embeddings.length > 0;
+  const modelName =
+    embeddingAttributes?.[EmbeddingAttributePostfixes.model_name];
+  return (
+    <Flex direction="column" gap="size-200">
+      {hasEmbeddings ? (
+        <Card
+          title={
+            "Embeddings" +
+            (typeof modelName === "string" ? `: ${modelName}` : "")
+          }
+          {...defaultCardProps}
+        >
+          {
+            <ul
+              css={css`
+                padding: var(--ac-global-dimension-static-size-200);
+                display: flex;
+                flex-direction: column;
+                gap: var(--ac-global-dimension-static-size-200);
+              `}
+            >
+              {embeddings.map((embedding, idx) => {
+                return (
+                  <li key={idx}>
+                    <View
+                      padding="size-200"
+                      backgroundColor="purple-100"
+                      borderColor="purple-700"
+                      borderWidth="thin"
+                      borderRadius="medium"
+                    >
+                      <Text color="white70" fontStyle="italic">
+                        embedded text
+                      </Text>
+                      <pre
+                        css={css`
+                          margin: var(--ac-global-dimension-static-size-100) 0;
+                        `}
+                      >
+                        {embedding[EMBEDDING_TEXT]}
+                      </pre>
+                    </View>
+                  </li>
+                );
+              })}
+            </ul>
+          }
+        </Card>
+      ) : null}
+    </Flex>
+  );
+}
+
+function ToolSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
+  const { spanAttributes } = props;
+  const toolAttributes = useMemo<AttributeObject>(() => {
+    const toolAttrs = spanAttributes[SemanticAttributePrefixes.tool];
+    if (typeof toolAttrs === "object") {
+      return toolAttrs as AttributeObject;
+    }
+    return {};
+  }, [spanAttributes]);
+
+  const hasToolAttributes = Object.keys(toolAttributes).length > 0;
+  if (!hasToolAttributes) {
+    return null;
+  }
+  const toolName = toolAttributes[ToolAttributePostfixes.name];
+  const toolDescription = toolAttributes[ToolAttributePostfixes.description];
+  const toolParameters = toolAttributes[ToolAttributePostfixes.parameters];
+  return (
+    <Flex direction="column" gap="size-200">
+      <Card
+        title={"Tool" + (typeof toolName === "string" ? `: ${toolName}` : "")}
+        {...defaultCardProps}
+      >
+        <Flex direction="column">
+          {toolDescription != null ? (
+            <View
+              paddingStart="size-200"
+              paddingEnd="size-200"
+              paddingTop="size-100"
+              paddingBottom="size-100"
+              borderBottomColor="dark"
+              borderBottomWidth="thin"
+              backgroundColor="light"
+            >
+              <Flex direction="column" alignItems="start" gap="size-50">
+                <Text color="white70" fontStyle="italic">
+                  Description
+                </Text>
+                <Text>{toolDescription as string}</Text>
+              </Flex>
+            </View>
+          ) : null}
+          {toolParameters != null ? (
+            <View
+              paddingStart="size-200"
+              paddingEnd="size-200"
+              paddingTop="size-100"
+              paddingBottom="size-100"
+              borderBottomColor="dark"
+              borderBottomWidth="thin"
+            >
+              <Flex direction="column" alignItems="start" width="100%">
+                <Text color="white70" fontStyle="italic">
+                  Parameters
+                </Text>
+                <CodeBlock
+                  value={JSON.stringify(toolParameters) as string}
+                  mimeType="json"
+                />
+              </Flex>
+            </View>
+          ) : null}
+        </Flex>
+      </Card>
     </Flex>
   );
 }
 
 function DocumentItem({ document }: { document: AttributeDocument }) {
   return (
-    <View borderRadius="medium" backgroundColor="light">
+    <View
+      borderRadius="medium"
+      backgroundColor="seafoam-100"
+      borderColor="seafoam-700"
+      borderWidth="thin"
+    >
       <Flex direction="column">
-        <View width="100%" borderBottomWidth="thin" borderBottomColor="dark">
+        <View
+          width="100%"
+          borderBottomWidth="thin"
+          borderBottomColor="seafoam-700"
+        >
           <Flex
             direction="row"
             justifyContent="space-between"
-            margin="size-100"
+            margin="size-200"
             alignItems="center"
           >
             <Flex direction="row" gap="size-50" alignItems="center">
@@ -420,7 +632,7 @@ function DocumentItem({ document }: { document: AttributeDocument }) {
               <Heading level={4}>document {document[DOCUMENT_ID]}</Heading>
             </Flex>
             {typeof document[DOCUMENT_SCORE] === "number" && (
-              <Label color="blue">{`score ${numberFormatter(
+              <Label color="seafoam-1000">{`score ${numberFormatter(
                 document[DOCUMENT_SCORE]
               )}`}</Label>
             )}
@@ -428,7 +640,7 @@ function DocumentItem({ document }: { document: AttributeDocument }) {
         </View>
         <pre
           css={css`
-            padding: var(--px-spacing-lg);
+            padding: var(--ac-global-dimension-static-size-200);
             white-space: normal;
             margin: 0;
           `}
@@ -440,56 +652,134 @@ function DocumentItem({ document }: { document: AttributeDocument }) {
   );
 }
 
+function LLMMessage({ message }: { message: AttributeMessage }) {
+  const messageContent = message[MESSAGE_CONTENT];
+  const hasFunctionCall =
+    message[MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON] &&
+    message[MESSAGE_FUNCTION_CALL_NAME];
+  const role = message[MESSAGE_ROLE];
+  const messageStyles = useMemo<ViewStyleProps>(() => {
+    if (role === "user") {
+      return {
+        backgroundColor: "gray-600",
+        borderColor: "gray-100",
+      };
+    } else if (role === "assistant") {
+      return {
+        backgroundColor: "blue-100",
+        borderColor: "blue-700",
+      };
+    } else if (role === "system") {
+      return {
+        backgroundColor: "indigo-100",
+        borderColor: "indigo-700",
+      };
+    } else if (role === "function") {
+      return {
+        backgroundColor: "yellow-100",
+        borderColor: "yellow-700",
+      };
+    }
+    return {
+      backgroundColor: "gray-600",
+      borderColor: "gray-400",
+    };
+  }, [role]);
+
+  return (
+    <View
+      borderWidth="thin"
+      borderRadius="medium"
+      padding="size-200"
+      {...messageStyles}
+    >
+      <Flex direction="column" alignItems="start">
+        <Text color="white70" fontStyle="italic">
+          {role}
+          {message[MESSAGE_NAME] ? `: ${message[MESSAGE_NAME]}` : ""}
+        </Text>
+        {messageContent ? (
+          <pre
+            css={css`
+              text-wrap: wrap;
+              margin: var(--ac-global-dimension-static-size-100) 0;
+            `}
+          >
+            {message[MESSAGE_CONTENT]}
+          </pre>
+        ) : null}
+        {hasFunctionCall ? (
+          <pre
+            css={css`
+              text-wrap: wrap;
+              margin: var(--ac-global-dimension-static-size-100) 0;
+            `}
+          >
+            {message[MESSAGE_FUNCTION_CALL_NAME] as string}(
+            {JSON.stringify(
+              JSON.parse(
+                message[MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON] as string
+              ),
+              null,
+              2
+            )}
+            )
+          </pre>
+        ) : null}
+      </Flex>
+    </View>
+  );
+}
 function LLMMessagesList({ messages }: { messages: AttributeMessage[] }) {
   return (
-    <ul>
+    <ul
+      css={css`
+        display: flex;
+        flex-direction: column;
+        gap: var(--ac-global-dimension-static-size-100);
+        padding: var(--ac-global-dimension-static-size-200);
+      `}
+    >
       {messages.map((message, idx) => {
-        const messageContent = message[MESSAGE_CONTENT];
-        const hasFunctionCall =
-          message[MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON] &&
-          message[MESSAGE_FUNCTION_CALL_NAME];
+        return (
+          <li key={idx}>
+            <LLMMessage message={message} />
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+function LLMPromptsList({ prompts }: { prompts: string[] }) {
+  return (
+    <ul
+      data-testid="llm-prompts-list"
+      css={css`
+        padding: var(--ac-global-dimension-size-200);
+        display: flex;
+        flex-direction: column;
+        gap: var(--ac-global-dimension-size-100);
+      `}
+    >
+      {prompts.map((prompt, idx) => {
         return (
           <li key={idx}>
             <View
-              margin="size-100"
-              padding="size-100"
-              backgroundColor="light"
+              backgroundColor="gray-600"
+              borderColor="gray-400"
+              borderWidth="thin"
               borderRadius="medium"
+              padding="size-100"
             >
-              <Flex direction="column" alignItems="start" gap="size-100">
-                <Text color="white70" fontStyle="italic">
-                  {message[MESSAGE_ROLE]}
-                  {message[MESSAGE_NAME] ? `: ${message[MESSAGE_NAME]}` : ""}
-                </Text>
-                {messageContent ? (
-                  <pre
-                    css={css`
-                      text-wrap: wrap;
-                      margin: 0;
-                    `}
-                  >
-                    {message[MESSAGE_CONTENT]}
-                  </pre>
-                ) : null}
-                {hasFunctionCall ? (
-                  <pre
-                    css={css`
-                      text-wrap: wrap;
-                      margin: 0;
-                    `}
-                  >
-                    {message[MESSAGE_FUNCTION_CALL_NAME] as string}(
-                    {JSON.stringify(
-                      JSON.parse(
-                        message[MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON] as string
-                      ),
-                      null,
-                      2
-                    )}
-                    )
-                  </pre>
-                ) : null}
-              </Flex>
+              <pre
+                css={css`
+                  text-wrap: wrap;
+                  margin: 0;
+                `}
+              >
+                {prompt}
+              </pre>
             </View>
           </li>
         );
@@ -500,22 +790,46 @@ function LLMMessagesList({ messages }: { messages: AttributeMessage[] }) {
 
 function SpanIO({ span }: { span: Span }) {
   const { input, output } = span;
+  const isMissingIO = input == null && output == null;
   return (
     <Flex direction="column" gap="size-200">
       {input && input.value != null ? (
-        <BlockView title="Input">
+        <Card title="Input" {...defaultCardProps}>
           <CodeBlock {...input} />
-        </BlockView>
+        </Card>
       ) : null}
       {output && output.value != null ? (
-        <BlockView title="Output">
+        <Card
+          title="Output"
+          {...defaultCardProps}
+          backgroundColor="green-100"
+          borderColor="green-700"
+        >
           <CodeBlock {...output} />
-        </BlockView>
+        </Card>
+      ) : null}
+      {isMissingIO ? (
+        <Card
+          title="All Attributes"
+          titleExtra={attributesContextualHelp}
+          {...defaultCardProps}
+        >
+          <CodeBlock value={span.attributes} mimeType="json" />
+        </Card>
       ) : null}
     </Flex>
   );
 }
 
+const codeMirrorCSS = css`
+  .cm-content {
+    padding: var(--ac-global-dimension-static-size-200) 0;
+  }
+  .cm-editor,
+  .cm-gutters {
+    background-color: transparent;
+  }
+`;
 function CodeBlock({ value, mimeType }: { value: string; mimeType: MimeType }) {
   let content;
   switch (mimeType) {
@@ -533,6 +847,7 @@ function CodeBlock({ value, mimeType }: { value: string; mimeType: MimeType }) {
           extensions={[json(), EditorView.lineWrapping]}
           editable={false}
           theme={nord}
+          css={codeMirrorCSS}
         />
       );
       break;
@@ -549,6 +864,7 @@ function CodeBlock({ value, mimeType }: { value: string; mimeType: MimeType }) {
             syntaxHighlighting: true,
           }}
           extensions={[EditorView.lineWrapping]}
+          css={codeMirrorCSS}
         />
       );
       break;
@@ -559,7 +875,25 @@ function CodeBlock({ value, mimeType }: { value: string; mimeType: MimeType }) {
   return content;
 }
 
+function EmptyIndicator({ text }: { text: string }) {
+  return (
+    <Flex
+      direction="column"
+      alignItems="center"
+      flex="1 1 auto"
+      height="size-2400"
+      justifyContent="center"
+      gap="size-100"
+    >
+      <EmptyGraphic graphicKey="documents" />
+      <Text>{text}</Text>
+    </Flex>
+  );
+}
 function SpanEventsList({ events }: { events: Span["events"] }) {
+  if (events.length === 0) {
+    return <EmptyIndicator text="No events" />;
+  }
   return (
     <List>
       {events.map((event, idx) => {

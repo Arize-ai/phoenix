@@ -38,8 +38,10 @@ def test_nested_attributes() -> None:
         "llm": {
             "function_call": ...,
             "invocation_parameters": ...,
-            "messages": ...,
+            "input_messages": ...,
+            "output_messages": ...,
             "model_name": ...,
+            "prompts": ...,
             "prompt_template": {
                 "template": ...,
                 "variables": ...,

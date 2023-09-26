@@ -4,15 +4,31 @@ export const SemanticAttributePrefixes = {
   messages: "messages",
   message: "message",
   document: "document",
+  embedding: "embedding",
+  tool: "tool",
 } as const;
 
 export const LLMAttributePostfixes = {
-  messages: "messages",
+  input_messages: "input_messages",
+  output_messages: "output_messages",
   invocation_parameters: "invocation_parameters",
+  prompts: "prompts",
 } as const;
 
 export const RetrievalAttributePostfixes = {
   documents: "documents",
+} as const;
+
+export const EmbeddingAttributePostfixes = {
+  embeddings: "embeddings",
+  text: "text",
+  model_name: "model_name",
+} as const;
+
+export const ToolAttributePostfixes = {
+  name: "name",
+  description: "description",
+  parameters: "parameters",
 } as const;
 
 export const MessageAttributePostfixes = {
@@ -35,8 +51,16 @@ export const DocumentAttributePostfixes = {
  * Typically seen in openAI chat completions
  * @see https://beta.openai.com/docs/api-reference/completions/create
  */
-export const LLM_MESSAGES =
-  `${SemanticAttributePrefixes.llm}.${LLMAttributePostfixes.messages}` as const;
+export const LLM_INPUT_MESSAGES =
+  `${SemanticAttributePrefixes.llm}.${LLMAttributePostfixes.input_messages}` as const;
+
+/**
+ * The messages received from the LLM for completions
+ * Typically seen in openAI chat completions
+ * @see https://platform.openai.com/docs/api-reference/chat/object#choices-message
+ */
+export const LLM_OUTPUT_MESSAGES =
+  `${SemanticAttributePrefixes.llm}.${LLMAttributePostfixes.output_messages}` as const;
 
 /**
  * The role that the LLM assumes the message is from
@@ -81,3 +105,15 @@ export const DOCUMENT_SCORE =
 
 export const DOCUMENT_METADATA =
   `${SemanticAttributePrefixes.document}.${DocumentAttributePostfixes.metadata}` as const;
+
+/**
+ * The text that was embedded to create the vector
+ */
+export const EMBEDDING_TEXT =
+  `${SemanticAttributePrefixes.embedding}.${EmbeddingAttributePostfixes.text}` as const;
+
+/**
+ * The name of the model that was used to create the vector
+ */
+export const EMBEDDING_MODEL_NAME =
+  `${SemanticAttributePrefixes.embedding}.${EmbeddingAttributePostfixes.model_name}` as const;

@@ -6,16 +6,38 @@ from typing import Type
 
 import pytest
 from langchain import GoogleSearchAPIWrapper, LLMChain, PromptTemplate
-from langchain.agents import AgentExecutor, AgentType, create_sql_agent, initialize_agent
+from langchain.agents import (
+    AgentExecutor,
+    AgentType,
+    create_sql_agent,
+    initialize_agent,
+)
 from langchain.agents.agent_toolkits import SQLDatabaseToolkit
 from langchain.chains.openai_functions import create_openai_fn_chain
 from langchain.chat_models import ChatOpenAI
 from langchain.llms import BaseLLM, OpenAI
 from langchain.sql_database import SQLDatabase
 from langchain.tools import GoogleSearchRun, PythonREPLTool, tool
-from phoenix.experimental.callbacks.langchain_tracer import OpenInferenceTracer
+from phoenix.trace.exporter import NoOpExporter
+from phoenix.trace.langchain import OpenInferenceTracer
 from phoenix.trace.schemas import SpanKind
-from phoenix.trace.semantic_conventions import TOOL_DESCRIPTION, TOOL_NAME
+from phoenix.trace.semantic_conventions import (
+    LLM_FUNCTION_CALL,
+    LLM_INPUT_MESSAGES,
+    LLM_INVOCATION_PARAMETERS,
+    LLM_MODEL_NAME,
+    LLM_OUTPUT_MESSAGES,
+    LLM_PROMPTS,
+    LLM_TOKEN_COUNT_COMPLETION,
+    LLM_TOKEN_COUNT_PROMPT,
+    LLM_TOKEN_COUNT_TOTAL,
+    MESSAGE_CONTENT,
+    MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON,
+    MESSAGE_FUNCTION_CALL_NAME,
+    MESSAGE_ROLE,
+    TOOL_DESCRIPTION,
+    TOOL_NAME,
+)
 from pydantic import BaseModel, Field
 
 DB_FILE_PATH = Path("chinook.db")
@@ -24,7 +46,7 @@ DB_FILE_PATH = Path("chinook.db")
 @pytest.fixture
 def tracer() -> OpenInferenceTracer:
     """An OpenInference tracer"""
-    return OpenInferenceTracer()
+    return OpenInferenceTracer(exporter=NoOpExporter())
 
 
 @pytest.fixture(scope="session")
@@ -44,7 +66,7 @@ def chinook_database_file() -> Path:
 @pytest.mark.parametrize(
     "llm_class,model_name",
     [
-        pytest.param(OpenAI, "gpt-3.5-turbo", id="openai-llm"),
+        pytest.param(OpenAI, "text-davinci-003", id="openai-llm"),
         pytest.param(ChatOpenAI, "gpt-3.5-turbo", id="openai-chat-model"),
     ],
 )
@@ -54,20 +76,26 @@ def test_tracer_records_common_llm_attributes_for_llm_chain(
     temperature = 0.75
     llm = llm_class()
     llm = llm_class(model_name=model_name, temperature=temperature)
-    prompt_template = PromptTemplate.from_template("What is the complementary color of {color}?")
+    prompt_template_string = "What is the complementary color of {color}?"
+    color = "blue"
+    prompt_template = PromptTemplate.from_template(prompt_template_string)
     chain = LLMChain(prompt=prompt_template, llm=llm)
-    response = chain.run({"color": "blue"}, callbacks=[tracer])
+    response = chain.run({"color": color}, callbacks=[tracer])
 
     span = next(span for span in tracer.span_buffer if span.span_kind == SpanKind.LLM)
     attributes = span.attributes
-    invocation_parameters = json.loads(attributes["llm.invocation_parameters"])
+    prompts = attributes[LLM_PROMPTS]
+    invocation_parameters = json.loads(attributes[LLM_INVOCATION_PARAMETERS])
+    formatted_query = prompt_template.format(color=color)
 
     assert "orange" in response.lower()
-    assert attributes["llm.model_name"] == model_name
+    assert attributes[LLM_MODEL_NAME] == model_name
+    assert len(prompts) == 1
+    assert formatted_query in prompts[0]
     assert invocation_parameters["temperature"] == temperature
-    assert isinstance(attributes["llm.token_count.prompt"], int)
-    assert isinstance(attributes["llm.token_count.completion"], int)
-    assert isinstance(attributes["llm.token_count.total"], int)
+    assert isinstance(attributes[LLM_TOKEN_COUNT_PROMPT], int)
+    assert isinstance(attributes[LLM_TOKEN_COUNT_COMPLETION], int)
+    assert isinstance(attributes[LLM_TOKEN_COUNT_TOTAL], int)
 
 
 class TestTracerFunctionCallAttributes:
@@ -105,15 +133,32 @@ class TestTracerFunctionCallAttributes:
             },
         ]
         prompt_template = PromptTemplate.from_template("What is the current weather in {location}?")
-        llm = ChatOpenAI(model_name="gpt-4-0613")
+        llm = ChatOpenAI(model_name="gpt-4-0613", n=2, temperature=0.0)
         chain = create_openai_fn_chain(functions=functions, llm=llm, prompt=prompt_template)
-        tracer = OpenInferenceTracer()
         chain.run("the capital city of England", callbacks=[tracer])
-
-        span = next(span for span in tracer.span_buffer if span.name == "ChatOpenAI")
-        function_call_attributes = json.loads(span.attributes["llm.function_call"])
+        spans = {span.name: span for span in tracer.get_spans()}
+        span = spans["ChatOpenAI"]
+        function_call_attributes = json.loads(span.attributes[LLM_FUNCTION_CALL])
         assert function_call_attributes["name"] == "get_current_weather"
         assert function_call_attributes["arguments"]["city"] == "London"
+        assert span.attributes.get(LLM_INPUT_MESSAGES) == [
+            {
+                MESSAGE_CONTENT: "What is the current weather in the capital city of England?",
+                MESSAGE_ROLE: "user",
+            }
+        ]
+        assert span.attributes.get(LLM_OUTPUT_MESSAGES) == [
+            {
+                MESSAGE_ROLE: "assistant",
+                MESSAGE_FUNCTION_CALL_NAME: "get_current_weather",
+                MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON: '{\n  "city": "London"\n}',
+            },
+            {
+                MESSAGE_ROLE: "assistant",
+                MESSAGE_FUNCTION_CALL_NAME: "get_current_weather",
+                MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON: '{\n  "city": "London"\n}',
+            },
+        ]
 
     def test_tracer_records_function_call_attributes_when_openai_function_agent_uses_tool(
         self, agent: AgentExecutor, tracer: OpenInferenceTracer
@@ -122,7 +167,7 @@ class TestTracerFunctionCallAttributes:
 
         span = next(span for span in tracer.span_buffer if span.name == "ChatOpenAI")
         attributes = span.attributes
-        function_call_attributes = json.loads(attributes["llm.function_call"])
+        function_call_attributes = json.loads(attributes[LLM_FUNCTION_CALL])
         function_call_arguments = function_call_attributes["arguments"]
 
         assert "5" in response or "five" in response.lower()
@@ -146,7 +191,7 @@ class TestTracerFunctionCallAttributes:
         attributes = span.attributes
 
         assert "France" in response or "French" in response
-        assert "llm.function_call" not in attributes
+        assert LLM_FUNCTION_CALL not in attributes
         assert not any(span.span_kind == SpanKind.TOOL for span in tracer.span_buffer)
 
     @pytest.fixture

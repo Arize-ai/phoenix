@@ -1,6 +1,6 @@
 import logging
 from pathlib import Path
-from typing import Optional, Union
+from typing import Any, NamedTuple, Optional, Union
 
 from starlette.applications import Starlette
 from starlette.datastructures import QueryParams
@@ -12,6 +12,7 @@ from starlette.requests import Request
 from starlette.responses import FileResponse, Response
 from starlette.routing import Mount, Route, WebSocketRoute
 from starlette.staticfiles import StaticFiles
+from starlette.templating import Jinja2Templates
 from starlette.types import Scope
 from starlette.websockets import WebSocket
 from strawberry.asgi import GraphQL
@@ -28,9 +29,21 @@ from phoenix.server.span_handler import SpanHandler
 
 logger = logging.getLogger(__name__)
 
+templates = Jinja2Templates(directory=SERVER_DIR / "templates")
+
+
+class AppConfig(NamedTuple):
+    has_corpus: bool
+
 
 class Static(StaticFiles):
     "Static file serving with a fallback to index.html"
+
+    _app_config: AppConfig
+
+    def __init__(self, *, app_config: AppConfig, **kwargs: Any):
+        self._app_config = app_config
+        super().__init__(**kwargs)
 
     async def get_response(self, path: str, scope: Scope) -> Response:
         response = None
@@ -40,10 +53,15 @@ class Static(StaticFiles):
             if e.status_code != 404:
                 raise e
             # Fallback to to the index.html
-            full_path, stat_result = self.lookup_path("index.html")
-            if stat_result is None:
-                raise RuntimeError("Failed to find index.html")
-            response = self.file_response(full_path, stat_result, scope)
+            # TODO(mikeldking): support index.html to change the
+            # host and port of the js and css bundles if host is not localhost
+            response = templates.TemplateResponse(
+                "index.html",
+                context={
+                    "has_corpus": self._app_config.has_corpus,
+                    "request": Request(scope),
+                },
+            )
         except Exception as e:
             raise e
         return response
@@ -163,7 +181,9 @@ def create_app(
                 "/",
                 app=Static(
                     directory=SERVER_DIR / "static",
-                    html=True,
+                    app_config=AppConfig(
+                        has_corpus=corpus is not None,
+                    ),
                 ),
                 name="static",
             ),

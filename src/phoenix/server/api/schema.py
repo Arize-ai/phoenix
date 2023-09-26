@@ -24,7 +24,7 @@ from phoenix.server.api.types.Cluster import Cluster, to_gql_clusters
 from ...trace.filter import SpanFilter
 from .context import Context
 from .input_types.TimeRange import TimeRange
-from .types.DatasetInfo import DatasetInfo
+from .types.DatasetInfo import TraceDatasetInfo
 from .types.DatasetRole import AncillaryDatasetRole, DatasetRole
 from .types.Dimension import to_gql_dimension
 from .types.EmbeddingDimension import (
@@ -177,12 +177,10 @@ class Query:
             + grouped_event_ids[AncillaryDatasetRole.corpus]
         )
         stacked_coordinates = np.stack(
-            chain(
-                grouped_coordinates[DatasetRole.primary],
-                grouped_coordinates[DatasetRole.reference],
-                grouped_coordinates[AncillaryDatasetRole.corpus],
-            )
-        )  # type: ignore
+            grouped_coordinates[DatasetRole.primary]
+            + grouped_coordinates[DatasetRole.reference]
+            + grouped_coordinates[AncillaryDatasetRole.corpus]
+        )
 
         clusters = Hdbscan(
             min_cluster_size=min_cluster_size,
@@ -244,7 +242,7 @@ class Query:
     def trace_dataset_info(
         self,
         info: Info[Context, None],
-    ) -> Optional[DatasetInfo]:
+    ) -> Optional[TraceDatasetInfo]:
         if (traces := info.context.traces) is None:
             return None
         if not (span_count := traces.span_count):
@@ -253,10 +251,11 @@ class Query:
             Tuple[datetime, datetime],
             traces.right_open_time_range,
         )
-        return DatasetInfo(
+        return TraceDatasetInfo(
             start_time=start_time,
             end_time=stop_time,
             record_count=span_count,
+            token_count_total=traces.token_count_total,
         )
 
 

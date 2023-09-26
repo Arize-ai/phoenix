@@ -2,7 +2,7 @@
 description: Learn the foundational concepts of the Phoenix API and Application
 ---
 
-# Phoenix Basics
+# DataFrames - Image/NLP/LLM
 
 This section introduces _datasets_ and _schemas,_ the starting concepts needed to use Phoenix.
 

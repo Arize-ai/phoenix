@@ -1,6 +1,7 @@
 /* eslint-disable react/prop-types */
 import React, { useEffect, useMemo, useState } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
+import { useNavigate } from "react-router";
 import {
   ColumnDef,
   ExpandedState,
@@ -17,15 +18,14 @@ import { Flex, Icon, Icons } from "@arizeai/components";
 
 import { Link } from "@phoenix/components/Link";
 import { TextCell } from "@phoenix/components/table";
-import { IntCell } from "@phoenix/components/table/IntCell";
-import { tableCSS } from "@phoenix/components/table/styles";
+import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TableExpandButton } from "@phoenix/components/table/TableExpandButton";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
+import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SpanKindLabel } from "@phoenix/components/trace/SpanKindLabel";
 import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon";
 import { ISpanItem } from "@phoenix/components/trace/types";
 import { createSpanTree, SpanTreeNode } from "@phoenix/components/trace/utils";
-import { formatFloat } from "@phoenix/utils/numberFormatUtils";
 
 import {
   SpanStatusCode,
@@ -35,13 +35,11 @@ import {
   SpanSort,
   TracesTableQuery,
 } from "./__generated__/TracesTableQuery.graphql";
+import { TokenCount } from "./TokenCount";
 type TracesTableProps = {
   query: TracesTable_spans$key;
 };
 
-const floatRightCSS = css`
-  float: right;
-`;
 const PAGE_SIZE = 100;
 const DEFAULT_SORT: SpanSort = {
   col: "startTime",
@@ -78,6 +76,7 @@ export function TracesTable(props: TracesTableProps) {
   //we need a reference to the scrolling element for logic down below
   const tableContainerRef = React.useRef<HTMLDivElement>(null);
   const [sorting, setSorting] = useState<SortingState>([]);
+  const navigate = useNavigate();
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
     usePaginationFragment<TracesTableQuery, TracesTable_spans$key>(
       graphql`
@@ -105,6 +104,8 @@ export function TracesTable(props: TracesTableProps) {
                 startTime
                 latencyMs
                 cumulativeTokenCountTotal
+                cumulativeTokenCountPrompt
+                cumulativeTokenCountCompletion
                 parentId
                 input {
                   value
@@ -124,6 +125,8 @@ export function TracesTable(props: TracesTableProps) {
                   latencyMs
                   parentId
                   cumulativeTokenCountTotal: tokenCountTotal # this switcheroo is to allow descendant Rows to unfurl in the same Table while displaying a different value under the same Column
+                  cumulativeTokenCountPrompt: tokenCountPrompt
+                  cumulativeTokenCountCompletion: tokenCountCompletion
                   input {
                     value
                   }
@@ -232,17 +235,31 @@ export function TracesTable(props: TracesTableProps) {
 
       cell: ({ getValue }) => {
         const value = getValue();
-        if (value === null) {
+        if (value === null || typeof value !== "number") {
           return null;
         }
-        const seconds = (value as number) / 1000;
-        return <span css={floatRightCSS}>{formatFloat(seconds)}s</span>;
+
+        return <LatencyText latencyMs={value} />;
       },
     },
     {
       header: "total tokens",
       accessorKey: "cumulativeTokenCountTotal",
-      cell: IntCell,
+      cell: ({ row, getValue }) => {
+        const value = getValue();
+        if (value === null) {
+          return "--";
+        }
+        return (
+          <TokenCount
+            tokenCountTotal={value as number}
+            tokenCountPrompt={row.original.cumulativeTokenCountPrompt || 0}
+            tokenCountCompletion={
+              row.original.cumulativeTokenCountCompletion || 0
+            }
+          />
+        );
+      },
     },
     {
       header: "status",
@@ -309,7 +326,7 @@ export function TracesTable(props: TracesTableProps) {
       onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
       ref={tableContainerRef}
     >
-      <table css={tableCSS}>
+      <table css={selectableTableCSS}>
         <thead>
           {table.getHeaderGroups().map((headerGroup) => (
             <tr key={headerGroup.id}>
@@ -350,7 +367,12 @@ export function TracesTable(props: TracesTableProps) {
         <tbody>
           {rows.map((row) => {
             return (
-              <tr key={row.id}>
+              <tr
+                key={row.id}
+                onClick={() =>
+                  navigate(`traces/${row.original.context.traceId}`)
+                }
+              >
                 {row.getVisibleCells().map((cell) => {
                   return (
                     <td key={cell.id}>
