@@ -13,7 +13,19 @@ import json
 import logging
 from collections import defaultdict
 from datetime import datetime
-from typing import Any, Callable, Dict, Iterable, Iterator, List, Optional, Tuple, TypedDict, cast
+from traceback import format_exception
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Iterable,
+    Iterator,
+    List,
+    Optional,
+    Tuple,
+    TypedDict,
+    cast,
+)
 from uuid import uuid4
 
 from llama_index.callbacks.base_handler import BaseCallbackHandler
@@ -27,7 +39,7 @@ from llama_index.llms.base import ChatMessage, ChatResponse
 from llama_index.tools import ToolMetadata
 
 from phoenix.trace.exporter import HttpExporter
-from phoenix.trace.schemas import Span, SpanID, SpanKind, SpanStatusCode
+from phoenix.trace.schemas import Span, SpanEvent, SpanException, SpanID, SpanKind, SpanStatusCode
 from phoenix.trace.semantic_conventions import (
     DOCUMENT_CONTENT,
     DOCUMENT_ID,
@@ -77,6 +89,10 @@ class CBEventData(TypedDict, total=False):
     start_event: CBEvent
     end_event: CBEvent
     attributes: Dict[str, Any]
+
+
+ChildEventIds = Dict[CBEventID, List[CBEventID]]
+EventData = Dict[CBEventID, CBEventData]
 
 
 def payload_to_semantic_attributes(
@@ -184,9 +200,7 @@ class OpenInferenceTraceCallbackHandler(BaseCallbackHandler):
     ) -> None:
         super().__init__(event_starts_to_ignore=[], event_ends_to_ignore=[])
         self._tracer = Tracer(on_append=callback, exporter=exporter)
-        self._event_id_to_event_data: Dict[CBEventID, CBEventData] = defaultdict(
-            lambda: CBEventData()
-        )
+        self._event_id_to_event_data: EventData = defaultdict(lambda: CBEventData())
 
     def on_event_start(
         self,
@@ -241,13 +255,14 @@ class OpenInferenceTraceCallbackHandler(BaseCallbackHandler):
     def end_trace(
         self,
         trace_id: Optional[str] = None,
-        trace_map: Optional[Dict[CBEventID, List[CBEventID]]] = None,
+        trace_map: Optional[ChildEventIds] = None,
     ) -> None:
         if not trace_map:
             return  # TODO: investigate when empty or None trace_map is passed
         try:
-            _add_to_tracer(
-                event_id_to_event_data=self._event_id_to_event_data,
+            event_id_to_event_data = self._event_id_to_event_data
+            _add_spans_to_tracer(
+                event_id_to_event_data=event_id_to_event_data,
                 trace_map=trace_map,
                 tracer=self._tracer,
             )
@@ -263,18 +278,19 @@ class OpenInferenceTraceCallbackHandler(BaseCallbackHandler):
         return self._tracer.get_spans()
 
 
-def _add_to_tracer(
-    event_id_to_event_data: Dict[CBEventID, CBEventData],
-    trace_map: Dict[CBEventID, List[CBEventID]],
+def _add_spans_to_tracer(
+    event_id_to_event_data: EventData,
+    trace_map: ChildEventIds,
     tracer: Tracer,
 ) -> None:
-    """Adds event data to the tracer, where it is converted to a span and stored in a buffer.
+    """
+    Adds event data to the tracer, where it is converted to a span and stored in a buffer.
 
     Args:
-        event_id_to_event_data (Dict[CBEventID, CBEventData]): A map of event IDs to event data.
+        event_id_to_event_data (EventData): A map of event IDs to event data.
 
-        trace_map (Dict[CBEventID, List[CBEventID]]): A map of parent event IDs to child event IDs.
-        The root event IDs are stored under the key "root".
+        trace_map (ChildEventIds): A map of parent event IDs to child event IDs. The root event IDs
+        are stored under the key "root".
 
         tracer (Tracer): The tracer that stores spans.
     """
@@ -283,31 +299,49 @@ def _add_to_tracer(
     parent_child_id_stack: List[Tuple[Optional[SpanID], CBEventID]] = [
         (None, root_event_id) for root_event_id in trace_map["root"]
     ]
+    span_exceptions: List[SpanEvent] = []
     while parent_child_id_stack:
         parent_span_id, event_id = parent_child_id_stack.pop()
         event_data = event_id_to_event_data[event_id]
-        start_event = event_data["start_event"]
-        start_time_tz_naive = datetime.strptime(start_event.time, TIMESTAMP_FORMAT)
-        start_time_tz_aware = start_time_tz_naive.replace(tzinfo=_LOCAL_TZINFO)
-        end_event = event_data["end_event"]
-        end_time_tz_naive = datetime.strptime(end_event.time, TIMESTAMP_FORMAT)
-        end_time_tz_aware = end_time_tz_naive.replace(tzinfo=_LOCAL_TZINFO)
-        name = event_data["name"]
         event_type = event_data["event_type"]
+        start_event = event_data["start_event"]
+        start_time = _timestamp_to_tz_aware_datetime(start_event.time)
+        if event_type is CBEventType.EXCEPTION:
+            # LlamaIndex has exception callback events that are sibling events of the events in
+            # which the exception occurred. We collect all the exception events and add them to the
+            # relevant span.
+            if (
+                not start_event.payload
+                or (error := start_event.payload.get(EventPayload.EXCEPTION)) is None
+            ):
+                continue
+            span_exceptions.append(
+                SpanException(
+                    message=str(error),
+                    timestamp=start_time,
+                    exception_type=type(error).__name__,
+                    exception_stacktrace=_get_stacktrace(error),
+                )
+            )
+            continue
+
+        end_time = _get_end_time(event_data, span_exceptions)
+        name = event_data["name"]
         span_kind = _get_span_kind(event_type)
         span = tracer.create_span(
             name=name,
             span_kind=span_kind,
             trace_id=trace_id,
-            start_time=start_time_tz_aware,
-            end_time=end_time_tz_aware,
-            status_code=SpanStatusCode.OK,
+            start_time=start_time,
+            end_time=end_time,
+            status_code=SpanStatusCode.ERROR if span_exceptions else SpanStatusCode.OK,
             status_message="",
             parent_id=parent_span_id,
             attributes=event_data["attributes"],
-            events=None,
+            events=sorted(span_exceptions, key=lambda event: event.timestamp) or None,
             conversation=None,
         )
+        span_exceptions = []
         new_parent_span_id = span.context.span_id
         for new_child_event_id in trace_map.get(event_id, []):
             parent_child_id_stack.append((new_parent_span_id, new_child_event_id))
@@ -379,6 +413,46 @@ def _get_response_output(response: Any) -> Iterator[Tuple[str, Any]]:
     else:
         yield OUTPUT_VALUE, str(response)
         yield OUTPUT_MIME_TYPE, MimeType.TEXT
+
+
+def _get_end_time(event_data: CBEventData, span_events: List[SpanEvent]) -> Optional[datetime]:
+    """
+    A best-effort attempt to get the end time of an event.
+
+    LlamaIndex's callback system does not guarantee that the on_event_end hook is always called, for
+    example, when an error occurs mid-event.
+    """
+    if end_event := event_data.get("end_event"):
+        tz_naive_end_time = _timestamp_to_tz_naive_datetime(end_event.time)
+    elif span_events:
+        last_span_event = sorted(span_events, key=lambda event: event.timestamp)[-1]
+        tz_naive_end_time = last_span_event.timestamp
+    else:
+        return None
+    return _tz_naive_to_tz_aware_datetime(tz_naive_end_time)
+
+
+def _timestamp_to_tz_aware_datetime(timestamp: str) -> datetime:
+    """Converts a timestamp string to a timezone-aware datetime."""
+    return _tz_naive_to_tz_aware_datetime(_timestamp_to_tz_naive_datetime(timestamp))
+
+
+def _timestamp_to_tz_naive_datetime(timestamp: str) -> datetime:
+    """Converts a timestamp string to a timezone-naive datetime."""
+    return datetime.strptime(timestamp, TIMESTAMP_FORMAT)
+
+
+def _tz_naive_to_tz_aware_datetime(timestamp: datetime) -> datetime:
+    """Converts a timezone-naive datetime to a timezone-aware datetime."""
+    return timestamp.replace(tzinfo=_LOCAL_TZINFO)
+
+
+def _get_stacktrace(exception: BaseException) -> str:
+    """Gets stacktrace from exception."""
+    exception_type = type(exception)
+    exception_traceback = exception.__traceback__
+    stack_trace_lines = format_exception(exception_type, exception, exception_traceback)
+    return "".join(stack_trace_lines)
 
 
 def _get_message(message: object) -> Iterator[Tuple[str, Any]]:
