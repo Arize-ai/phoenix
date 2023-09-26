@@ -35,7 +35,3 @@ class LangChainInstrumentor:
             self.add_handler(tracer, True)
 
         BaseCallbackManager.__init__ = patched_init  # type: ignore
-
-    from langchain.callbacks.base import BaseCallbackManager
-
-    old_init = BaseCallbackManager.__init__
