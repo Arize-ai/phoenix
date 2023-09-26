@@ -36,20 +36,20 @@ Phoenix provides MLOps and LLMOps insights at lightning speed with zero-config o
 
 **Table of Contents**
 
--   [Installation](#installation)
--   [LLM App Tracing](#llm-app-tracing)
-    -   [Tracing with LlamaIndex](#tracing-with-llamaindex)
-    -   [Tracing with LangChain](#tracing-with-langchain)
--   [LLM Evals](#llm-evals)
--   [Embedding Analysis](#embedding-analysis)
-    -   [UMAP-based Exploratory Data Analysis](#umap-based-exploratory-data-analysis)
-    -   [Cluster-driven Drift and Performance Analysis](#cluster-driven-drift-and-performance-analysis)
-    -   [Exportable Clusters](#exportable-clusters)
--   [RAG Introspection](#rag-introspection)
--   [Structured Data Analysis](#structured-data-analysis)
--   [Community](#community)
--   [Thanks](#thanks)
--   [Copyright, Patent, and License](#copyright-patent-and-license)
+- [Installation](#installation)
+- [LLM App Tracing](#llm-app-tracing)
+  - [Tracing with LlamaIndex](#tracing-with-llamaindex)
+  - [Tracing with LangChain](#tracing-with-langchain)
+- [LLM Evals](#llm-evals)
+- [Embedding Analysis](#embedding-analysis)
+  - [UMAP-based Exploratory Data Analysis](#umap-based-exploratory-data-analysis)
+  - [Cluster-driven Drift and Performance Analysis](#cluster-driven-drift-and-performance-analysis)
+  - [Exportable Clusters](#exportable-clusters)
+- [Retrieval-Augmented Generation Analysis](#retrieval-augmented-generation-analysis)
+- [Structured Data Analysis](#structured-data-analysis)
+- [Community](#community)
+- [Thanks](#thanks)
+- [Copyright, Patent, and License](#copyright-patent-and-license)
 
 ## Installation
 
@@ -313,13 +313,13 @@ Break-apart your data into clusters of high drift or bad performance using HDBSC
 
 Export your clusters to `parquet` files or dataframes for further analysis and fine-tuning.
 
-## RAG Introspection
+## Retrieval-Augmented Generation Analysis
 
 [![Open in Colab](https://img.shields.io/static/v1?message=Open%20in%20Colab&logo=googlecolab&labelColor=grey&color=blue&logoColor=orange&label=%20)](https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/llama_index_search_and_retrieval_tutorial.ipynb) [![Open in GitHub](https://img.shields.io/static/v1?message=Open%20in%20GitHub&logo=github&labelColor=grey&color=blue&logoColor=white&label=%20)](https://github.com/Arize-ai/phoenix/blob/main/tutorials/llama_index_search_and_retrieval_tutorial.ipynb)
 
-![RAG Introspection](https://github.com/Arize-ai/phoenix-assets/blob/main/gifs/corpus_search_and_retrieval.gif?raw=true)
+![RAG Analysis](https://github.com/Arize-ai/phoenix-assets/blob/main/gifs/corpus_search_and_retrieval.gif?raw=true)
 
-Search and retrieval is a critical component of many LLM Applications as it allows you to extend the LLM's capabilities to encompass knowledge about private data. This process is known as RAG (retrieval augmented generation) and often times a vector store is leveraged to store chunks of documents encoded as embeddings so that they can be retrieved at inference time.
+Search and retrieval is a critical component of many LLM Applications as it allows you to extend the LLM's capabilities to encompass knowledge about private data. This process is known as RAG (retrieval-augmented generation) and often times a vector store is leveraged to store chunks of documents encoded as embeddings so that they can be retrieved at inference time.
 
 To help you better understand your RAG application, Phoenix allows you to upload a corpus of your knowledge base along with your LLM application's inferences to help you troubleshoot hard to find bugs with retrieval.
 
