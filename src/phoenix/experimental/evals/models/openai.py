@@ -103,7 +103,7 @@ class OpenAIModel(BaseEvalModel):
 
         @retry_decorator
         def _completion_with_retry(**kwargs: Any) -> Any:
-            return self._openai.ChatCompletion.create(**kwargs)  # type:ignore
+            return self._openai.ChatCompletion.create(**kwargs)
 
         return _completion_with_retry(**kwargs)
 

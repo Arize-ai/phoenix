@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Any, Dict, Optional
 from .base import BaseEvalModel, create_base_retry_decorator
 
 if TYPE_CHECKING:
-    from google.auth.credentials import Credentials
+    from google.auth.credentials import Credentials  # type:ignore
 
 
 MINIMUM_VERTEX_AI_VERSION = "1.33.0"
@@ -48,7 +48,7 @@ class VertexAIModel(BaseEvalModel):
     def _init_environment(self) -> None:
         try:
             import google.api_core.exceptions as google_exceptions  # type:ignore
-            import vertexai
+            import vertexai  # type:ignore
 
             self._vertexai = vertexai
             self._google_exceptions = google_exceptions
@@ -102,7 +102,7 @@ class VertexAIModel(BaseEvalModel):
 
         @retry_decorator
         def _completion_with_retry(**kwargs: Any) -> Any:
-            return self._model.predict(**kwargs)  # type: ignore
+            return self._model.predict(**kwargs)
 
         return _completion_with_retry(**kwargs)
 
