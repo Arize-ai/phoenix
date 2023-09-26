@@ -2,7 +2,7 @@
 description: Tracing the execution of LLM powered applications
 ---
 
-# LLM App Tracing
+# LLM Traces
 
 ## What is LLM App Tracing and Observability?
 
@@ -28,7 +28,11 @@ Enabling Phoenix for LangChain is a couple lines of code where LangChain is inst
 from langchain.llms import OpenAI
 from langchain.document_loaders import PyPDFLoader
 from langchain.chains.question_answering import load_qa_chain
-from phoenix.trace.langchain import OpenInferenceTracer
+from phoenix.trace.langchain import OpenInferenceTracer, LangChainInstrumentor
+
+### Instrument LangChain ###
+tracer = OpenInferenceTracer()
+LangChainInstrumentor(tracer).instrument()
 
 loader = PyPDFLoader("./example.pdf")
 documents = loader.load()
@@ -36,10 +40,8 @@ documents = loader.load()
 chain = load_qa_chain(llm=OpenAI(), chain_type="map_reduce")
 query = "what is the total number of AI publications?"
 
-### Phoenix Open Inference Tracer ###
-tracer = OpenInferenceTracer()
 ### Phoenix tracer used in callback ###
-chain.run(input_documents=documents, question=query, callbacks=[tracer])
+chain.run(input_documents=documents, question=query)
 
 ```
 
