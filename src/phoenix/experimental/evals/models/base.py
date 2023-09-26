@@ -128,3 +128,13 @@ class BaseEvalModel(ABC):
 
     async def _agenerate(self, prompt: str, instruction: Optional[str]) -> str:
         return str(await to_thread(self._generate, prompt=prompt, instruction=instruction))
+
+    @staticmethod
+    def _raise_import_error(
+        package_display_name: str, package_name: str, package_min_version: str
+    ) -> None:
+        raise ImportError(
+            f"Could not import necessary dependencies to use {package_display_name}. "
+            "Please install them with"
+            f"`pip install {package_name}>={package_min_version}`."
+        )
