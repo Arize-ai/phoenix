@@ -294,19 +294,21 @@ def _add_spans_to_tracer(
         parent_span_id, event_id = parent_child_id_stack.pop()
         event_data = event_id_to_event_data[event_id]
         event_type = event_data["event_type"]
-
-        if event_type is CBEventType.TEMPLATING:
-            # Template events are sibling events that precede LLM events and contain template
-            # attributes. They do not constitute spans in and of themselves and should be skipped.
-            continue
         attributes = event_data["attributes"]
         if event_type is CBEventType.LLM and parent_child_id_stack:
-            preceding_event_id = parent_child_id_stack[-1][-1]
+            preceding_parent_span_id, preceding_event_id = parent_child_id_stack[-1]
             preceding_event_data = event_id_to_event_data[preceding_event_id]
-            if preceding_event_data["event_type"] is CBEventType.TEMPLATING and (
-                payload := preceding_event_data["start_event"].payload
+            preceding_span_shares_parent_id = preceding_parent_span_id == parent_span_id
+            if (
+                preceding_event_data["event_type"] is CBEventType.TEMPLATING
+                and preceding_span_shares_parent_id
+                and (payload := preceding_event_data["start_event"].payload)
             ):
-                # Add template attributes to the LLM span to which they belong.
+                # Templating events are sibling events that precede LLM events and contain template
+                # attributes. They do not constitute spans in and of themselves. Their attributes
+                # should be added to the corresponding LLM span and the templating event itself
+                # should be discarded.
+                parent_child_id_stack.pop()
                 attributes.update(_template_attributes(payload))
 
         start_event = event_data["start_event"]
