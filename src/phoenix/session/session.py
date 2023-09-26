@@ -302,7 +302,7 @@ def launch_app(
     run_in_thread: bool, optional, default=True
         Whether the server should run in a Thread or Process.
     default_umap_parameters: Dict[str, Union[int, float]], optional, default=None
-        User specified default UMAP parameters eg: {nNeighbors: 10, nSamples: 5, minDist: 0.5}
+        User specified default UMAP parameters eg: {n_neighbors: 10, n_samples: 5, min_dist: 0.5}
 
     Returns
     -------
