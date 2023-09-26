@@ -36,20 +36,20 @@ Phoenix provides MLOps and LLMOps insights at lightning speed with zero-config o
 
 **Table of Contents**
 
-- [Installation](#installation)
-- [LLM App Tracing](#llm-app-tracing)
-  - [Tracing with LlamaIndex](#tracing-with-llamaindex)
-  - [Tracing with LangChain](#tracing-with-langchain)
-- [LLM Evals](#llm-evals)
-- [Embedding Analysis](#embedding-analysis)
-  - [UMAP-based Exploratory Data Analysis](#umap-based-exploratory-data-analysis)
-  - [Cluster-driven Drift and Performance Analysis](#cluster-driven-drift-and-performance-analysis)
-  - [Exportable Clusters](#exportable-clusters)
-- [Retrieval-Augmented Generation Analysis](#retrieval-augmented-generation-analysis)
-- [Structured Data Analysis](#structured-data-analysis)
-- [Community](#community)
-- [Thanks](#thanks)
-- [Copyright, Patent, and License](#copyright-patent-and-license)
+-   [Installation](#installation)
+-   [LLM App Tracing](#llm-app-tracing)
+    -   [Tracing with LlamaIndex](#tracing-with-llamaindex)
+    -   [Tracing with LangChain](#tracing-with-langchain)
+-   [LLM Evals](#llm-evals)
+-   [Embedding Analysis](#embedding-analysis)
+    -   [UMAP-based Exploratory Data Analysis](#umap-based-exploratory-data-analysis)
+    -   [Cluster-driven Drift and Performance Analysis](#cluster-driven-drift-and-performance-analysis)
+    -   [Exportable Clusters](#exportable-clusters)
+-   [Retrieval-Augmented Generation Analysis](#retrieval-augmented-generation-analysis)
+-   [Structured Data Analysis](#structured-data-analysis)
+-   [Community](#community)
+-   [Thanks](#thanks)
+-   [Copyright, Patent, and License](#copyright-patent-and-license)
 
 ## Installation
 
@@ -145,12 +145,13 @@ import pandas as pd
 # Launch phoenix
 session = px.launch_app()
 
-# Once you have started a Phoenix server, you can start your LangChain application with the OpenInference Tracer as a callback. To do this, you will have to add the tracer to the initialization of your LangChain application:
+# Once you have started a Phoenix server, you can start your LangChain application with the OpenInferenceTracer as a callback. To do this, you will have to instrument your LangChain application with the tracer:
 
-from phoenix.trace.langchain import OpenInferenceTracer
+from phoenix.trace.langchain import OpenInferenceTracer, LangChainInstrumentor
 
 # If no exporter is specified, the tracer will export to the locally running Phoenix server
 tracer = OpenInferenceTracer()
+LangChainInstrumentor(tracer).instrument()
 
 # Initialize your LangChain application
 from langchain.chains import RetrievalQA
