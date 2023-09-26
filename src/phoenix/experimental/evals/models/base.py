@@ -1,7 +1,7 @@
 import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Any, Callable, List, Optional, Type
+from typing import Any, Callable, Dict, List, Optional, Type
 
 from tenacity import (
     RetryCallState,
@@ -97,8 +97,8 @@ class BaseEvalModel(ABC):
             )
         try:
             outputs = []
-            for prompt in tqdm(prompts):
-                output = self._generate(prompt=prompt, instruction=instruction)
+            for prompt in tqdm(prompts, bar_format=TQDM_BAR_FORMAT, ncols=100):
+                output = self._generate(prompt=prompt, instruction=instruction)  # type:ignore
                 logger.info(f"Prompt: {prompt}\nInstruction: {instruction}\nOutput: {output}")
                 outputs.append(output)
 
@@ -123,8 +123,18 @@ class BaseEvalModel(ABC):
         return result
 
     @abstractmethod
-    def _generate(self, prompt: str, instruction: Optional[str]) -> str:
+    def _generate(self, prompt: str, **kwargs: Dict[str, Any]) -> str:
         raise NotImplementedError
 
     async def _agenerate(self, prompt: str, instruction: Optional[str]) -> str:
         return str(await to_thread(self._generate, prompt=prompt, instruction=instruction))
+
+    @staticmethod
+    def _raise_import_error(
+        package_display_name: str, package_name: str, package_min_version: str
+    ) -> None:
+        raise ImportError(
+            f"Could not import necessary dependencies to use {package_display_name}. "
+            "Please install them with"
+            f"`pip install {package_name}>={package_min_version}`."
+        )
