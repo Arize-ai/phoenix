@@ -59,7 +59,6 @@ dev = [
   "langchain>=0.0.293",
 ]
 experimental = [
-  "openai",
   "tenacity",
 ]
 
@@ -85,8 +84,8 @@ only-packages = true
 [tool.hatch.build.hooks.jupyter-builder]
 dependencies = ["hatch-jupyter-builder"]
 build-function = "hatch_jupyter_builder.npm_builder"
-ensured-targets = ["src/phoenix/server/static/index.js", "src/phoenix/server/static/index.html"]
-skip-if-exists = ["src/phoenix/server/static/index.js", "src/phoenix/server/static/index.html"]
+ensured-targets = ["src/phoenix/server/static/index.js"]
+skip-if-exists = ["src/phoenix/server/static/index.js"]
 
 [tool.hatch.build.hooks.jupyter-builder.build-kwargs]
 path = "app"
@@ -196,7 +195,7 @@ fix = [
 
 [tool.hatch.envs.notebooks.scripts]
 clean = [
-  "jupyter nbconvert --ClearOutputPreprocessor.enabled=True --ClearMetadataPreprocessor.enabled=True --inplace **/*.ipynb",
+  "jupyter nbconvert --ClearOutputPreprocessor.enabled=True --ClearMetadataPreprocessor.enabled=True --inplace **/*.ipynb **/**/*.ipynb",
 ]
 
 [tool.hatch.envs.publish]
