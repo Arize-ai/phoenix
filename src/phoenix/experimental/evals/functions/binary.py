@@ -183,7 +183,15 @@ def _extract_rail(string: str, positive_rail: str, negative_rail: str) -> Option
 
         string = "regular..irregular" - contains both rails
         Output: None
+
+        string = "Irregular"
+        Output: "irregular"
     """
+
+    # Convert the inputs to lowercase for case-insensitive matching
+    string = string.lower()
+    positive_rail = positive_rail.lower()
+    negative_rail = negative_rail.lower()
 
     positive_pos, negative_pos = string.find(positive_rail), string.find(negative_rail)
 
