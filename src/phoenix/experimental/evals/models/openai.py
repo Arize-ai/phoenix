@@ -4,22 +4,8 @@ from typing import Any, Dict, Optional, Tuple, Union
 
 from .base import BaseEvalModel, create_base_retry_decorator
 
-try:
-    import openai
-except ImportError:
-    raise ImportError(
-        "Could not import necessary dependencies: openai. "
-        "Please install them with `pip install openai`."
-    )
-
-OPENAI_RETRY_ERRORS = [
-    openai.error.Timeout,
-    openai.error.APIError,
-    openai.error.APIConnectionError,
-    openai.error.RateLimitError,
-    openai.error.ServiceUnavailableError,
-]
 OPENAI_API_KEY_ENVVAR_NAME = "OPENAI_API_KEY"
+MINIMUM_OPENAI_VERSION = "0.26.4"
 
 
 @dataclass
@@ -58,6 +44,24 @@ class OpenAIModel(BaseEvalModel):
     """Maximum number of seconds to wait when retrying."""
 
     def __post_init__(self) -> None:
+        self._init_environment()
+        self._init_open_ai()
+
+    def _init_environment(self) -> None:
+        try:
+            import openai
+            from openai import error as openai_error
+
+            self._openai = openai
+            self._openai_error = openai_error
+        except ImportError:
+            self._raise_import_error(
+                package_display_name="OpenAI",
+                package_name="openai",
+                package_min_version=MINIMUM_OPENAI_VERSION,
+            )
+
+    def _init_open_ai(self) -> None:
         if self.openai_api_key is None:
             api_key = os.getenv(OPENAI_API_KEY_ENVVAR_NAME)
             if api_key is None:
@@ -68,11 +72,11 @@ class OpenAIModel(BaseEvalModel):
                 )
             self.openai_api_key = api_key
 
-    def _generate(self, prompt: str, instruction: Optional[str]) -> str:
+    def _generate(self, prompt: str, **kwargs: Dict[str, Any]) -> str:
         invoke_params = self.invocation_params
         messages = [{"role": "user", "content": prompt}]
-        if instruction:
-            messages.insert(0, {"role": "system", "content": instruction})
+        if kwargs.get("instruction"):
+            messages.insert(0, {"role": "system", "content": str(kwargs.get("instruction"))})
         response = self._generate_with_retry(
             messages=messages,
             **invoke_params,
@@ -83,8 +87,15 @@ class OpenAIModel(BaseEvalModel):
 
     def _generate_with_retry(self, **kwargs: Any) -> Any:
         """Use tenacity to retry the completion call."""
+        openai_retry_errors = [
+            self._openai_error.Timeout,
+            self._openai_error.APIError,
+            self._openai_error.APIConnectionError,
+            self._openai_error.RateLimitError,
+            self._openai_error.ServiceUnavailableError,
+        ]
         retry_decorator = create_base_retry_decorator(
-            error_types=OPENAI_RETRY_ERRORS,
+            error_types=openai_retry_errors,
             min_seconds=self.retry_min_seconds,
             max_seconds=self.retry_max_seconds,
             max_retries=self.max_retries,
@@ -92,7 +103,7 @@ class OpenAIModel(BaseEvalModel):
 
         @retry_decorator
         def _completion_with_retry(**kwargs: Any) -> Any:
-            return openai.ChatCompletion.create(**kwargs)  # type:ignore
+            return self._openai.ChatCompletion.create(**kwargs)
 
         return _completion_with_retry(**kwargs)
 
