@@ -40,6 +40,7 @@ import { TraceTree } from "@phoenix/components/trace/TraceTree";
 import {
   DOCUMENT_CONTENT,
   DOCUMENT_ID,
+  DOCUMENT_METADATA,
   DOCUMENT_SCORE,
   EMBEDDING_TEXT,
   EmbeddingAttributePostfixes,
@@ -230,6 +231,7 @@ const attributesContextualHelp = (
     </View>
   </Flex>
 );
+
 function SelectedSpanDetails({ selectedSpan }: { selectedSpan: Span }) {
   const hasExceptions = useMemo<boolean>(() => {
     return spanHasException(selectedSpan);
@@ -322,7 +324,7 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
     return null;
   }, [spanAttributes]);
 
-  const input_messages = useMemo<AttributeMessage[]>(() => {
+  const inputMessages = useMemo<AttributeMessage[]>(() => {
     if (llmAttributes == null) {
       return [];
     }
@@ -330,7 +332,7 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
       []) as AttributeMessage[];
   }, [llmAttributes]);
 
-  const output_messages = useMemo<AttributeMessage[]>(() => {
+  const outputMessages = useMemo<AttributeMessage[]>(() => {
     if (llmAttributes == null) {
       return [];
     }
@@ -358,9 +360,9 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
   }, [llmAttributes]);
 
   const hasInput = input != null && input.value != null;
-  const hasInputMessages = input_messages.length > 0;
+  const hasInputMessages = inputMessages.length > 0;
   const hasOutput = output != null && output.value != null;
-  const hasOutputMessages = output_messages.length > 0;
+  const hasOutputMessages = outputMessages.length > 0;
   const hasPrompts = prompts.length > 0;
   const hasInvocationParams =
     Object.keys(JSON.parse(invocation_parameters_str)).length > 0;
@@ -370,7 +372,7 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
         <Tabs>
           {hasInputMessages ? (
             <TabPane name="Input Messages" hidden={!hasInputMessages}>
-              <LLMMessagesList messages={input_messages} />
+              <LLMMessagesList messages={inputMessages} />
             </TabPane>
           ) : null}
           {hasInput ? (
@@ -396,7 +398,7 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
           <Tabs>
             {hasOutputMessages ? (
               <TabPane name="Output Messages" hidden={!hasOutputMessages}>
-                <LLMMessagesList messages={output_messages} />
+                <LLMMessagesList messages={outputMessages} />
               </TabPane>
             ) : null}
             {hasOutput ? (
@@ -608,6 +610,7 @@ function ToolSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
 }
 
 function DocumentItem({ document }: { document: AttributeDocument }) {
+  const metadata = document[DOCUMENT_METADATA];
   return (
     <View
       borderRadius="medium"
@@ -647,6 +650,13 @@ function DocumentItem({ document }: { document: AttributeDocument }) {
         >
           {document[DOCUMENT_CONTENT]}
         </pre>
+        {metadata && (
+          <>
+            <View borderColor="seafoam-700" borderTopWidth="thin">
+              <CodeBlock value={JSON.stringify(metadata)} mimeType="json" />
+            </View>
+          </>
+        )}
       </Flex>
     </View>
   );
@@ -823,7 +833,7 @@ function SpanIO({ span }: { span: Span }) {
 
 const codeMirrorCSS = css`
   .cm-content {
-    padding: var(--ac-global-dimension-static-size-200) 0;
+    padding: var(--ac-global-dimension-static-size-100) 0;
   }
   .cm-editor,
   .cm-gutters {
@@ -843,6 +853,7 @@ function CodeBlock({ value, mimeType }: { value: string; mimeType: MimeType }) {
             bracketMatching: true,
             syntaxHighlighting: true,
             highlightActiveLine: false,
+            highlightActiveLineGutter: false,
           }}
           extensions={[json(), EditorView.lineWrapping]}
           editable={false}
