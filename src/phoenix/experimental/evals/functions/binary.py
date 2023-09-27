@@ -81,6 +81,8 @@ def run_relevance_eval(
     rails: List[str] = list(RAG_RELEVANCY_PROMPT_RAILS_MAP.values()),
     query_column_name: str = OPENINFERENCE_QUERY_COLUMN_NAME,
     document_column_name: str = OPENINFERENCE_DOCUMENT_COLUMN_NAME,
+    query_template_variable: str = "query",
+    document_template_variable: str = "reference",
 ) -> List[List[str]]:
     """
     Given a pandas dataframe containing queries and retrieved documents,
@@ -100,6 +102,10 @@ def run_relevance_eval(
         query_column_name (str, optional): The name of the column containing the queries.
 
         document_column_name (str, optional): The name of the column containing the retrieved.
+
+        query_template_variable (str, optional): The name of the query template variable.
+
+        reference_template_variable (str, optional): The name of the document template variable.
 
     Returns:
         List[List[str]]: A list of relevant and not relevant classifications. The "shape" of the
@@ -131,8 +137,8 @@ def run_relevance_eval(
     predictions = llm_eval_binary(
         dataframe=pd.DataFrame(
             {
-                "query": [query for query, _ in query_document_pairs],
-                "reference": [document for _, document in query_document_pairs],
+                query_template_variable: [query for query, _ in query_document_pairs],
+                document_template_variable: [document for _, document in query_document_pairs],
             }
         ),
         model=model,
