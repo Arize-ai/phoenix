@@ -1,13 +1,25 @@
 import logging
-from typing import List, Optional, Set, Union
+from typing import Dict, List, Optional, Set, Union
 
 import pandas as pd
 
+from phoenix.trace.semantic_conventions import INPUT_VALUE, RETRIEVAL_DOCUMENTS
+
 from ..models import BaseEvalModel
-from ..templates import RAG_RELEVANCY_PROMPT_TEMPLATE_STR, PromptTemplate, normalize_template
+from ..templates import (
+    RAG_RELEVANCY_PROMPT_RAILS_MAP,
+    RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
+    PromptTemplate,
+    normalize_template,
+)
 from .common import NOT_PARSABLE, map_template
 
 logger = logging.getLogger(__name__)
+
+
+OPENINFERENCE_QUERY_COLUMN_NAME = "attributes." + INPUT_VALUE
+OPENINFERENCE_DOCUMENT_COLUMN_NAME = "attributes." + RETRIEVAL_DOCUMENTS
+DocumentObject = Dict[str, str]
 
 
 def llm_eval_binary(
@@ -16,7 +28,7 @@ def llm_eval_binary(
     template: Union[PromptTemplate, str],
     rails: List[str],
     system_instruction: Optional[str] = None,
-) -> List[Optional[str]]:
+) -> List[str]:
     """Runs binary classifications using an LLM.
 
     Args:
@@ -36,9 +48,9 @@ def llm_eval_binary(
         system_instruction (Optional[str], optional): An optional system message.
 
     Returns:
-        List[Optional[str]]: A list of strings representing the predicted class for each record in
-        the dataframe. The list should have the same length as the input dataframe and its values
-        should be the entries in the `rails` argument or None if the model's prediction could not be
+        List[str]: A list of strings representing the predicted class for each record in the
+        dataframe. The list should have the same length as the input dataframe and its values should
+        be the entries in the `rails` argument or None if the model's prediction could not be
         parsed.
     """
 
@@ -49,86 +61,106 @@ def llm_eval_binary(
     return [_snap_to_rail(response, rails_set) for response in responses]
 
 
+"""
+
+Args:
+    dataframe (pd.DataFrame):
+
+    rails_map: The mapping to use to return the values. Using a dict here
+    but it can take the OrderedDict of RAILS_MAP from library
+
+Returns:
+    List[List[str]]:
+"""
+
+
 def run_relevance_eval(
     dataframe: pd.DataFrame,
     model: BaseEvalModel,
     template: Union[PromptTemplate, str] = RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
-    query_column_name: str = "attributes.input.value",
-    retrieved_documents_column_name: str = "attributes.retrieval.documents",
-) -> List[List[Optional[bool]]]:
-    """Given a pandas dataframe containing queries and retrieved documents,
-       classifies the relevance of each retrieved document to the corresponding
-       query using an LLM.
+    rails: List[str] = list(RAG_RELEVANCY_PROMPT_RAILS_MAP.values()),
+    query_column_name: str = OPENINFERENCE_QUERY_COLUMN_NAME,
+    document_column_name: str = OPENINFERENCE_DOCUMENT_COLUMN_NAME,
+) -> List[List[str]]:
+    """
+    Given a pandas dataframe containing queries and retrieved documents,
+    classifies the relevance of each retrieved document to the corresponding
+    query using an LLM.
 
     Args:
-        dataframe (pd.DataFrame): A pandas dataframe containing queries and
-        retrieved documents.
+        dataframe (pd.DataFrame): A pandas dataframe containing queries and retrieved documents.
 
-        query_column_name (str, optional): The name of the column containing the
-        queries.
+        model (BaseEvalModel): The model used for evaluation.
 
-        retrieved_documents_column_name (str, optional): The name of the column
-        containing the retrieved document data. Each entry in this column should be
-        a list of dictionaries containing metadata about the retrieved documents.
+        template (Union[PromptTemplate, str], optional): The template used for evaluation.
+
+        rails (List[str], optional): A list of strings representing the possible output classes of
+        the model's predictions.
+
+        query_column_name (str, optional): The name of the column containing the queries.
+
+        document_column_name (str, optional): The name of the column containing the retrieved.
 
     Returns:
-        List[List[str]]: A list of relevant and not relevant classifications.
-        The "shape" of the list should mirror the "shape" of the retrieved
-        documents column, in the sense that it has the same length as the input
-        dataframe and each sub-list has the same length as the corresponding
-        list in the retrieved documents column. The values in the sub-lists are
-        either booleans or None in the case where the LLM output could not be
-        parsed.
+        List[List[str]]: A list of relevant and not relevant classifications. The "shape" of the
+        list should mirror the "shape" of the retrieved documents column, in the sense that it has
+        the same length as the input dataframe and each sub-list has the same length as the
+        corresponding list in the retrieved documents column. The values in the sub-lists are either
+        entries from the rails argument or "NOT_PARSABLE" in the case where the LLM output could not
+        be parsed.
     """
-
-    llm_relevance_column_name = "llm_relevance"
-    retrieved_document_text_column_name = "retrieved_document_text"
-
-    non_null_query_mask = dataframe[query_column_name].notnull()
-    non_empty_retrievals_mask = dataframe[retrieved_documents_column_name].apply(
-        lambda x: x is not None and len(x) > 0
-    )
-    filtered_mask = non_null_query_mask & non_empty_retrievals_mask
-    filtered_df = dataframe[filtered_mask][[query_column_name]].copy()
-    filtered_df[retrieved_documents_column_name] = dataframe[filtered_mask][
-        retrieved_documents_column_name
-    ].map(list)
-
-    exploded_df = filtered_df.explode(retrieved_documents_column_name, ignore_index=False)
-    exploded_df[retrieved_document_text_column_name] = [
-        document_data["document.content"] if document_data is not None else None
-        for document_data in exploded_df[retrieved_documents_column_name]
-    ]
-    exploded_df = exploded_df.rename(
-        columns={
-            query_column_name: "query",
-            retrieved_document_text_column_name: "reference",
-        }
-    )
-    class_name_to_bool = {"relevant": True, "irrelevant": False}
-    exploded_df[llm_relevance_column_name] = [
-        class_name_to_bool.get(relevance_class) if relevance_class is not None else None
-        for relevance_class in llm_eval_binary(
-            exploded_df,
-            template=template,
-            model=model,
-            rails=list(class_name_to_bool.keys()),
+    queries = dataframe[query_column_name].tolist()
+    document_lists = (
+        dataframe[document_column_name]
+        .map(
+            lambda documents: None
+            if documents is None
+            else _get_contents(documents, key="document.content")
         )
-    ]
-    collapsed_df = exploded_df.groupby(exploded_df.index, axis="index").agg(
-        {
-            llm_relevance_column_name: list,
-        }
+        .tolist()
     )
-    output_df = pd.DataFrame(index=dataframe.index)
-    output_df[llm_relevance_column_name] = None
-    output_df.loc[collapsed_df.index, llm_relevance_column_name] = collapsed_df[
-        llm_relevance_column_name
-    ]
-    return output_df[llm_relevance_column_name].tolist()
+    query_indexes = []
+    query_document_pairs = []
+    outputs: List[List[str]] = [[] for _ in range(len(dataframe))]
+    for query_index, (query, documents) in enumerate(zip(queries, document_lists)):
+        if query is None or documents is None:
+            continue
+        for document in documents:
+            query_indexes.append(query_index)
+            query_document_pairs.append((query, document))
+    predictions = llm_eval_binary(
+        dataframe=pd.DataFrame(
+            {
+                "query": [query for query, _ in query_document_pairs],
+                "reference": [document for _, document in query_document_pairs],
+            }
+        ),
+        model=model,
+        template=template,
+        rails=rails,
+    )
+    for query_index, prediction in zip(query_indexes, predictions):
+        outputs[query_index].append(prediction)
+    return outputs
 
 
-def _snap_to_rail(string: str, rails: Set[str]) -> Optional[str]:
+def _get_contents(documents: List[Union[str, DocumentObject]], key: str) -> List[Optional[str]]:
+    """Gets the contents from documents.
+
+    Args:
+        documents (Iterable[Union[str, Dict[str, str]]]): The input documents.
+
+        key (str): A key to access the document contents in case the document in question is a
+        dictionary.
+
+    Returns:
+        List[Optional[str]]: The list of document contents as strings or None if the input document
+        could not be parsed.
+    """
+    return [doc if isinstance(doc, str) else doc.get(key) for doc in documents]
+
+
+def _snap_to_rail(string: str, rails: Set[str]) -> str:
     """
     Snaps a string to the nearest rail, or returns None if the string cannot be snapped to a
     rail.
