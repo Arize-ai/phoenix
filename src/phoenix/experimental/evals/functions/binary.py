@@ -4,12 +4,7 @@ from typing import List, Optional, Set, Union
 import pandas as pd
 
 from ..models import BaseEvalModel
-from ..models.openai import OpenAIModel
-from ..templates import (
-    RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
-    PromptTemplate,
-    normalize_template,
-)
+from ..templates import RAG_RELEVANCY_PROMPT_TEMPLATE_STR, PromptTemplate, normalize_template
 from .common import NOT_PARSABLE, map_template
 
 logger = logging.getLogger(__name__)
@@ -17,8 +12,8 @@ logger = logging.getLogger(__name__)
 
 def llm_eval_binary(
     dataframe: pd.DataFrame,
-    template: Union[PromptTemplate, str],
     model: BaseEvalModel,
+    template: Union[PromptTemplate, str],
     rails: List[str],
     system_instruction: Optional[str] = None,
 ) -> List[Optional[str]]:
@@ -49,17 +44,17 @@ def llm_eval_binary(
 
     eval_template = normalize_template(template)
     prompts = map_template(dataframe, eval_template)
-    responses = model.generate(prompts.to_list(), system_instruction)
+    responses = model.generate(prompts.to_list(), instruction=system_instruction)
     rails_set = set(rails)
     return [_snap_to_rail(response, rails_set) for response in responses]
 
 
 def run_relevance_eval(
     dataframe: pd.DataFrame,
+    model: BaseEvalModel,
+    template: Union[PromptTemplate, str] = RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
     query_column_name: str = "attributes.input.value",
     retrieved_documents_column_name: str = "attributes.retrieval.documents",
-    template: str = RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
-    model: Optional[BaseEvalModel] = None,
 ) -> List[List[Optional[bool]]]:
     """Given a pandas dataframe containing queries and retrieved documents,
        classifies the relevance of each retrieved document to the corresponding
@@ -115,8 +110,8 @@ def run_relevance_eval(
         class_name_to_bool.get(relevance_class) if relevance_class is not None else None
         for relevance_class in llm_eval_binary(
             exploded_df,
-            template=PromptTemplate(RAG_RELEVANCY_PROMPT_TEMPLATE_STR),
-            model=model or OpenAIModel(),
+            template=template,
+            model=model,
             rails=list(class_name_to_bool.keys()),
         )
     ]
@@ -188,7 +183,15 @@ def _extract_rail(string: str, positive_rail: str, negative_rail: str) -> Option
 
         string = "regular..irregular" - contains both rails
         Output: None
+
+        string = "Irregular"
+        Output: "irregular"
     """
+
+    # Convert the inputs to lowercase for case-insensitive matching
+    string = string.lower()
+    positive_rail = positive_rail.lower()
+    negative_rail = negative_rail.lower()
 
     positive_pos, negative_pos = string.find(positive_rail), string.find(negative_rail)
 

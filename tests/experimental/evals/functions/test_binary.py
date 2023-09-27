@@ -139,7 +139,7 @@ def test_run_relevance_eval(monkeypatch):
             },
             status=200,
         )
-    relevance_classifications = run_relevance_eval(dataframe)
+    relevance_classifications = run_relevance_eval(dataframe, model=OpenAIModel())
     assert relevance_classifications == [
         [True, False],
         [True, False],
@@ -159,3 +159,4 @@ def test_overlapping_rails():
     assert _snap_to_rail("...irrelevant", ["irrelevant", "relevant"]) == "irrelevant"
     # Both rails are present, cannot parse
     assert _snap_to_rail("relevant...irrelevant", ["irrelevant", "relevant"]) is NOT_PARSABLE
+    assert _snap_to_rail("Irrelevant", ["relevant", "irrelevant"]) == "irrelevant"

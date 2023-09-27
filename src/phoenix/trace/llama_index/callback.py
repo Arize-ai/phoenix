@@ -106,14 +106,6 @@ def payload_to_semantic_attributes(
     if event_type in (CBEventType.NODE_PARSING, CBEventType.CHUNKING):
         # TODO(maybe): handle these events
         return attributes
-    if event_type == CBEventType.TEMPLATING:
-        if template := payload.get(EventPayload.TEMPLATE):
-            attributes[LLM_PROMPT_TEMPLATE] = template
-        if template_vars := payload.get(EventPayload.TEMPLATE_VARS):
-            attributes[LLM_PROMPT_TEMPLATE_VARIABLES] = template_vars
-        # TODO(maybe): other keys in the same payload
-        # EventPayload.SYSTEM_PROMPT
-        # EventPayload.QUERY_WRAPPER_PROMPT
     if EventPayload.CHUNKS in payload and EventPayload.EMBEDDINGS in payload:
         attributes[EMBEDDING_EMBEDDINGS] = [
             {EMBEDDING_TEXT: text, EMBEDDING_VECTOR: vector}
@@ -151,8 +143,6 @@ def payload_to_semantic_attributes(
             attributes.update(_get_output_messages(raw))
             if (usage := getattr(raw, "usage", None)) is not None:
                 attributes.update(_get_token_counts(usage))
-    if EventPayload.TEMPLATE in payload:
-        ...
     if event_type is CBEventType.RERANKING:
         ...  # TODO
         # if EventPayload.TOP_K in payload:
@@ -304,6 +294,20 @@ def _add_spans_to_tracer(
         parent_span_id, event_id = parent_child_id_stack.pop()
         event_data = event_id_to_event_data[event_id]
         event_type = event_data["event_type"]
+        attributes = event_data["attributes"]
+        if event_type is CBEventType.LLM:
+            while parent_child_id_stack:
+                preceding_event_parent_span_id, preceding_event_id = parent_child_id_stack[-1]
+                if preceding_event_parent_span_id != parent_span_id:
+                    break
+                preceding_event_data = event_id_to_event_data[preceding_event_id]
+                if preceding_event_data["event_type"] is not CBEventType.TEMPLATING:
+                    break
+                parent_child_id_stack.pop()
+                if payload := preceding_event_data["start_event"].payload:
+                    # Add template attributes to the LLM span to which they belong.
+                    attributes.update(_template_attributes(payload))
+
         start_event = event_data["start_event"]
         start_time = _timestamp_to_tz_aware_datetime(start_event.time)
         if event_type is CBEventType.EXCEPTION:
@@ -337,7 +341,7 @@ def _add_spans_to_tracer(
             status_code=SpanStatusCode.ERROR if span_exceptions else SpanStatusCode.OK,
             status_message="",
             parent_id=parent_span_id,
-            attributes=event_data["attributes"],
+            attributes=attributes,
             events=sorted(span_exceptions, key=lambda event: event.timestamp) or None,
             conversation=None,
         )
@@ -490,3 +494,14 @@ def _get_token_counts(usage: object) -> Iterator[Tuple[str, Any]]:
         yield LLM_TOKEN_COUNT_COMPLETION, completion_tokens
     if (total_tokens := getattr(usage, "total_tokens", None)) is not None:
         yield LLM_TOKEN_COUNT_TOTAL, total_tokens
+
+
+def _template_attributes(payload: Dict[str, Any]) -> Iterator[Tuple[str, Any]]:
+    """Yields template attributes if present"""
+    if template := payload.get(EventPayload.TEMPLATE):
+        yield LLM_PROMPT_TEMPLATE, template
+    if template_vars := payload.get(EventPayload.TEMPLATE_VARS):
+        yield LLM_PROMPT_TEMPLATE_VARIABLES, template_vars
+        # TODO(maybe): other keys in the same payload
+        # EventPayload.SYSTEM_PROMPT
+        # EventPayload.QUERY_WRAPPER_PROMPT
