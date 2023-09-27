@@ -4,6 +4,7 @@
 
 ## 💡 Concepts
 
+* [What is LLM Observability?](concepts/llm-observability.md)
 * [Phoenix Basics](concepts/phoenix-basics/README.md)
   * [DataFrames - Image/NLP/LLM](concepts/phoenix-basics.md)
   * [LLM Traces - LangChain & LlamaIndex](concepts/phoenix-basics/traces-and-spans-langchain-and-llamaindex.md)
@@ -16,7 +17,6 @@
   * [Code Generation Eval](concepts/llm-evals/code-generation-eval.md)
   * [Summarization Eval](concepts/llm-evals/summarization-eval.md)
 * [Generating Embeddings](concepts/generating-embeddings.md)
-* [LLM Observability](concepts/llm-observability.md)
 
 ## 🔮 Use Cases
 
