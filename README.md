@@ -31,7 +31,7 @@ Phoenix provides MLOps and LLMOps insights at lightning speed with zero-config o
 -   **LLM App Tracing** - Trace through the execution of your LLM Application to understand the internals of your LLM Application and to troubleshoot problems related to things like retrieval and tool execution.
 -   **LLM Evals** - Leverage the power of large language models to evaluate your generative model or application's relevance, toxicity, and more.
 -   **Embedding Analysis** - Explore embedding point-clouds and identify clusters of high drift and performance degradation.
--   **RAG Introspection** - Visualize your generative application's search and retrieval process to solve improve your retrieval augmented generation.
+-   **RAG Analysis** - Visualize your generative application's search and retrieval process to solve improve your retrieval-augmented generation.
 -   **Structured Data Analysis** - Statistically analyze your structured data by performing A/B analysis, temporal drift analysis, and more.
 
 **Table of Contents**
