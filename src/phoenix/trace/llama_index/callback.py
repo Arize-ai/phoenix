@@ -16,7 +16,6 @@ from datetime import datetime
 from traceback import format_exception
 from typing import (
     Any,
-    Callable,
     Dict,
     Iterable,
     Iterator,
@@ -26,7 +25,7 @@ from typing import (
     TypedDict,
     cast,
 )
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from llama_index.callbacks.base_handler import BaseCallbackHandler
 from llama_index.callbacks.schema import (
@@ -38,8 +37,15 @@ from llama_index.callbacks.schema import (
 from llama_index.llms.base import ChatMessage, ChatResponse
 from llama_index.tools import ToolMetadata
 
-from phoenix.trace.exporter import HttpExporter
-from phoenix.trace.schemas import Span, SpanEvent, SpanException, SpanID, SpanKind, SpanStatusCode
+from phoenix.trace.schemas import (
+    Span,
+    SpanContext,
+    SpanEvent,
+    SpanException,
+    SpanID,
+    SpanKind,
+    SpanStatusCode,
+)
 from phoenix.trace.semantic_conventions import (
     DOCUMENT_CONTENT,
     DOCUMENT_ID,
@@ -74,7 +80,7 @@ from phoenix.trace.semantic_conventions import (
     TOOL_PARAMETERS,
     MimeType,
 )
-from phoenix.trace.tracer import SpanExporter, Tracer
+from phoenix.trace.tracer import SpanExporter
 
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
@@ -173,6 +179,12 @@ def payload_to_semantic_attributes(
     return attributes
 
 
+_EMBARGOED_EVENT_TYPES = (
+    CBEventType.TEMPLATING,
+    CBEventType.EXCEPTION,
+)
+
+
 class OpenInferenceTraceCallbackHandler(BaseCallbackHandler):
     """Callback handler for storing LLM application trace data in OpenInference format.
     OpenInference is an open standard for capturing and storing AI model
@@ -185,11 +197,11 @@ class OpenInferenceTraceCallbackHandler(BaseCallbackHandler):
 
     def __init__(
         self,
-        callback: Optional[Callable[[List[Span]], None]] = None,
-        exporter: Optional[SpanExporter] = HttpExporter(),
+        exporter: Optional[SpanExporter] = None,
     ) -> None:
         super().__init__(event_starts_to_ignore=[], event_ends_to_ignore=[])
-        self._tracer = Tracer(on_append=callback, exporter=exporter)
+        self._spans_buffer: Dict[SpanID, Span] = {}
+        self._exporter = exporter
         self._event_id_to_event_data: EventData = defaultdict(lambda: CBEventData())
 
     def on_event_start(
@@ -199,7 +211,8 @@ class OpenInferenceTraceCallbackHandler(BaseCallbackHandler):
         event_id: CBEventID = "",
         **kwargs: Any,
     ) -> CBEventID:
-        event_id = event_id or str(uuid4())
+        # We have to rely on the fact that `event_id` from llama-index is a UUID.
+        span_id = UUID(event_id)
         event_data = self._event_id_to_event_data[event_id]
         event_data["name"] = event_type.value
         event_data["event_type"] = event_type
@@ -215,6 +228,26 @@ class OpenInferenceTraceCallbackHandler(BaseCallbackHandler):
                 payload_to_semantic_attributes(event_type, payload),
             )
 
+        if event_type in _EMBARGOED_EVENT_TYPES:
+            return event_id
+
+        start_time = _timestamp_to_tz_aware_datetime(event_data["start_event"].time)
+        self._spans_buffer[span_id] = span = Span(
+            name=event_type.value,
+            span_kind=_get_span_kind(event_type),
+            context=SpanContext(trace_id=uuid4(), span_id=span_id),
+            start_time=start_time,
+            end_time=None,
+            status_code=SpanStatusCode.UNSET,
+            status_message="",
+            parent_id=None,
+            attributes=event_data["attributes"],
+            events=[],
+            conversation=None,
+        )
+        if self._exporter:
+            self._exporter.export(span)
+
         return event_id
 
     def on_event_end(
@@ -224,6 +257,8 @@ class OpenInferenceTraceCallbackHandler(BaseCallbackHandler):
         event_id: CBEventID = "",
         **kwargs: Any,
     ) -> None:
+        # We have to rely on the fact that `event_id` from llama-index is a UUID.
+        span_id = UUID(event_id)
         event_data = self._event_id_to_event_data[event_id]
         event_data.setdefault("name", event_type.value)
         event_data.setdefault("event_type", event_type)
@@ -238,6 +273,27 @@ class OpenInferenceTraceCallbackHandler(BaseCallbackHandler):
             event_data["attributes"].update(
                 payload_to_semantic_attributes(event_type, payload),
             )
+
+        if event_type in _EMBARGOED_EVENT_TYPES:
+            return
+
+        start_time = _timestamp_to_tz_aware_datetime(event_data["start_event"].time)
+        end_time = _timestamp_to_tz_aware_datetime(event_data["end_event"].time)
+        self._spans_buffer[span_id] = span = Span(
+            name=event_type.value,
+            span_kind=_get_span_kind(event_type),
+            context=SpanContext(trace_id=uuid4(), span_id=span_id),
+            start_time=start_time,
+            end_time=end_time,
+            status_code=SpanStatusCode.UNSET,
+            status_message="",
+            parent_id=None,
+            attributes=event_data["attributes"],
+            events=[],
+            conversation=None,
+        )
+        if self._exporter:
+            self._exporter.export(span)
 
     def start_trace(self, trace_id: Optional[str] = None) -> None:
         self._event_id_to_event_data = defaultdict(lambda: CBEventData())
@@ -254,7 +310,8 @@ class OpenInferenceTraceCallbackHandler(BaseCallbackHandler):
             _add_spans_to_tracer(
                 event_id_to_event_data=event_id_to_event_data,
                 trace_map=trace_map,
-                tracer=self._tracer,
+                spans_buffer=self._spans_buffer,
+                exporter=self._exporter,
             )
         except Exception:
             logger.exception("OpenInferenceCallbackHandler trace processing failed")
@@ -265,13 +322,14 @@ class OpenInferenceTraceCallbackHandler(BaseCallbackHandler):
         Returns the spans stored in the tracer. This is useful if you are running
         LlamaIndex in a notebook environment and you want to inspect the spans.
         """
-        return self._tracer.get_spans()
+        yield from self._spans_buffer.values()
 
 
 def _add_spans_to_tracer(
     event_id_to_event_data: EventData,
     trace_map: ChildEventIds,
-    tracer: Tracer,
+    spans_buffer: Dict[SpanID, Span],
+    exporter: Optional[SpanExporter],
 ) -> None:
     """
     Adds event data to the tracer, where it is converted to a span and stored in a buffer.
@@ -282,7 +340,9 @@ def _add_spans_to_tracer(
         trace_map (ChildEventIds): A map of parent event IDs to child event IDs. The root event IDs
         are stored under the key "root".
 
-        tracer (Tracer): The tracer that stores spans.
+        spans_buffer (Dict[SpanID, Span]): The buffer that stores the spans.
+
+        exporter (Optional[SpanExporter]): The exporter that exports spans.
     """
 
     trace_id = uuid4()
@@ -292,6 +352,8 @@ def _add_spans_to_tracer(
     span_exceptions: List[SpanEvent] = []
     while parent_child_id_stack:
         parent_span_id, event_id = parent_child_id_stack.pop()
+        # We have to rely on the fact that `event_id` from llama-index is a UUID.
+        span_id = UUID(event_id)
         event_data = event_id_to_event_data[event_id]
         event_type = event_data["event_type"]
         attributes = event_data["attributes"]
@@ -332,19 +394,22 @@ def _add_spans_to_tracer(
         end_time = _get_end_time(event_data, span_exceptions)
         name = event_data["name"]
         span_kind = _get_span_kind(event_type)
-        span = tracer.create_span(
+        spans_buffer[span_id] = span = Span(
             name=name,
             span_kind=span_kind,
-            trace_id=trace_id,
+            # We have to rely on the fact that `event_id` from llama-index is a UUID.
+            context=SpanContext(trace_id=trace_id, span_id=span_id),
             start_time=start_time,
             end_time=end_time,
             status_code=SpanStatusCode.ERROR if span_exceptions else SpanStatusCode.OK,
             status_message="",
             parent_id=parent_span_id,
             attributes=attributes,
-            events=sorted(span_exceptions, key=lambda event: event.timestamp) or None,
+            events=sorted(span_exceptions, key=lambda event: event.timestamp),
             conversation=None,
         )
+        if exporter:
+            exporter.export(span)
         span_exceptions = []
         new_parent_span_id = span.context.span_id
         for new_child_event_id in trace_map.get(event_id, []):

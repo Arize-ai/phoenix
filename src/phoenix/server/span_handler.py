@@ -1,5 +1,5 @@
 import gzip
-from typing import Protocol
+from typing import Optional, Protocol, SupportsFloat
 
 from starlette.endpoints import HTTPEndpoint
 from starlette.requests import Request
@@ -12,7 +12,11 @@ from phoenix.trace.v1 import trace_pb2 as pb
 
 
 class SupportsPutSpan(Protocol):
-    def put(self, span: pb.Span) -> None:
+    def put(
+        self,
+        span: pb.Span,
+        version: Optional[SupportsFloat] = None,
+    ) -> None:
         ...
 
 
@@ -35,5 +39,14 @@ class SpanHandler(HTTPEndpoint):
                 pb_span = encode(span)
         except Exception:
             return Response(status_code=422)
-        self.queue.put(pb_span)
+        version_number: Optional[float] = None
+        if version := request.headers.get("span_version"):
+            try:
+                version_number = float(version)
+            except ValueError:
+                pass
+        try:
+            self.queue.put(pb_span, version_number)
+        except ValueError as e:
+            return Response(str(e), status_code=422)
         return Response()

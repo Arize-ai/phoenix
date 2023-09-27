@@ -9,6 +9,7 @@ from llama_index.embeddings.openai import OpenAIEmbedding
 from llama_index.graph_stores.simple import SimpleGraphStore
 from llama_index.indices.vector_store import VectorStoreIndex
 from llama_index.llms import OpenAI
+from llama_index.llms.base import ChatMessage, MessageRole
 from llama_index.query_engine import RetrieverQueryEngine
 from llama_index.tools import FunctionTool
 from phoenix.trace.exporter import NoOpExporter
@@ -96,7 +97,7 @@ def test_callback_handler_records_llm_and_embedding_attributes_for_query_engine(
 
     assert "seconds" in response.response.lower()
 
-    tracer = query_engine.callback_manager.handlers[0]._tracer
+    tracer = query_engine.callback_manager.handlers[0]
     spans = list(tracer.get_spans())
     span = next(span for span in spans if span.span_kind == SpanKind.LLM)
     assert span.attributes.get(LLM_MODEL_NAME) == model_name
@@ -241,3 +242,17 @@ def test_callback_data_agent() -> None:
         "title": "multiply",
         "type": "object",
     }
+
+
+def test_standalone_llm() -> None:
+    cb_handler = OpenInferenceTraceCallbackHandler(exporter=NoOpExporter())
+    callback_manager = CallbackManager(handlers=[cb_handler])
+    llm = OpenAI(model="gpt-3.5-turbo", callback_manager=callback_manager)
+    llm.chat([ChatMessage(role=MessageRole.USER, content="Who won the World Cup in 2018?")])
+    spans = list(cb_handler.get_spans())
+    assert len(spans) == 1
+    for _ in range(2):
+        llm.chat([ChatMessage(role=MessageRole.USER, content="Who won the World Cup in 2018?")])
+    spans = list(cb_handler.get_spans())
+    assert len(spans) == 3
+    assert len(set(span.context.trace_id for span in spans)) == 3

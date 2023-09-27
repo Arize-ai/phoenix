@@ -1,5 +1,6 @@
 import gzip
 import logging
+import time
 import weakref
 from queue import SimpleQueue
 from threading import Thread
@@ -65,6 +66,7 @@ class HttpExporter:
         pb_span = encode(span)
         serialized = pb_span.SerializeToString()
         data = gzip.compress(serialized)
+        self._session.headers["span_version"] = str(time.time())
         try:
             self._session.post(self._url, data=data)
         except Exception as e:

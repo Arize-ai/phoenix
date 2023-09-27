@@ -11,7 +11,9 @@ from typing import (
     Iterable,
     Iterator,
     List,
+    NamedTuple,
     Optional,
+    Set,
     SupportsFloat,
     Tuple,
     Union,
@@ -100,9 +102,15 @@ ParentSpanID: TypeAlias = SpanID
 ChildSpanID: TypeAlias = SpanID
 
 
+class VersionedSpan(NamedTuple):
+    span: pb.Span
+    version: Optional[SupportsFloat]
+
+
 class Traces:
     def __init__(self, spans: Optional[Iterable[Span]] = None) -> None:
-        self._queue: "SimpleQueue[Optional[pb.Span]]" = SimpleQueue()
+        self._max_span_versions: Dict[SpanID, float] = {}
+        self._queue: "SimpleQueue[Optional[VersionedSpan]]" = SimpleQueue()
         # Putting `None` as the sentinel value for queue termination.
         weakref.finalize(self, self._queue.put, None)
         for span in spans or ():
@@ -110,9 +118,9 @@ class Traces:
         self._lock = RLock()
         self._spans: Dict[SpanID, ReadableSpan] = {}
         self._parent_span_ids: Dict[SpanID, ParentSpanID] = {}
-        self._traces: Dict[TraceID, List[SpanID]] = defaultdict(list)
-        self._child_span_ids: DefaultDict[SpanID, List[ChildSpanID]] = defaultdict(list)
-        self._orphan_spans: DefaultDict[ParentSpanID, List[pb.Span]] = defaultdict(list)
+        self._traces: Dict[TraceID, Set[SpanID]] = defaultdict(set)
+        self._child_span_ids: DefaultDict[SpanID, Set[ChildSpanID]] = defaultdict(set)
+        self._orphan_spans: DefaultDict[ParentSpanID, List[VersionedSpan]] = defaultdict(list)
         self._start_time_sorted_span_ids: SortedKeyList[SpanID] = SortedKeyList(
             key=lambda span_id: self._spans[span_id].start_time.ToDatetime(timezone.utc),
         )
@@ -126,8 +134,23 @@ class Traces:
         self._max_start_time: Optional[datetime] = None
         self._start_consumer()
 
-    def put(self, span: Optional[Union[Span, pb.Span]] = None) -> None:
-        self._queue.put(encode(span) if isinstance(span, Span) else span)
+    def put(
+        self,
+        span: Optional[Union[Span, pb.Span]] = None,
+        version: Optional[SupportsFloat] = None,
+    ) -> None:
+        if span is None:
+            self._queue.put(None)
+            return
+        span = encode(span) if isinstance(span, Span) else span
+        span_id = UUID(bytes=span.context.span_id)
+        if (max_version := self._max_span_versions.get(span_id)) is not None:
+            if version is not None and float(version) < max_version:
+                return
+        _validate_new_span(span, self._spans.get(span_id))
+        with self._lock:
+            self._max_span_versions[span_id] = float("-inf") if version is None else float(version)
+        self._queue.put(VersionedSpan(span, version))
 
     def get_trace(self, trace_id: TraceID) -> Iterator[Span]:
         for span_id in self._traces[trace_id]:
@@ -217,20 +240,36 @@ class Traces:
             with self._lock:
                 self._process_span(span)
 
-    def _process_span(self, span: pb.Span) -> None:
+    def _process_span(self, versioned_span: VersionedSpan) -> None:
+        span, version = versioned_span.span, versioned_span.version
         span_id = UUID(bytes=span.context.span_id)
-        existing_span = self._spans.get(span_id)
-        if existing_span and existing_span.end_time:
-            # Reject updates if span has ended.
-            return
+        trace_id = UUID(bytes=span.context.trace_id)
+        if existing_span := self._spans.get(span_id):
+            if version is not None and float(version) < self._max_span_versions[span_id]:
+                # The span could have been previously sequestered for
+                # being orphaned, hence the need for a version check.
+                return
+            existing_trace_id = UUID(bytes=existing_span.context.trace_id)
+            if trace_id != existing_trace_id:
+                (trace := self._traces[existing_trace_id]).remove(span_id)
+                if not trace:
+                    del self._traces[existing_trace_id]
+            if existing_span.HasField("parent_span_id"):
+                existing_parent_span_id = existing_span.parent_span_id.value
+                self._child_span_ids[existing_parent_span_id].remove(span_id)
+            else:
+                self._start_time_sorted_root_span_ids.remove(span_id)
+                if existing_span.HasField("end_time"):
+                    self._latency_sorted_root_span_ids.remove(span_id)
+            del self._spans[span_id]
         is_root_span = not span.HasField("parent_span_id")
         if not is_root_span:
             parent_span_id = UUID(bytes=span.parent_span_id.value)
             if parent_span_id not in self._spans:
                 # Span can't be processed before its parent.
-                self._orphan_spans[parent_span_id].append(span)
+                self._orphan_spans[parent_span_id].append(versioned_span)
                 return
-            self._child_span_ids[parent_span_id].append(span_id)
+            self._child_span_ids[parent_span_id].add(span_id)
             self._parent_span_ids[span_id] = parent_span_id
         new_span = ReadableSpan(span)
         start_time = span.start_time.ToDatetime(timezone.utc)
@@ -240,11 +279,10 @@ class Traces:
         self._spans[span_id] = new_span
         if is_root_span and end_time:
             self._latency_sorted_root_span_ids.add(span_id)
+        self._traces[trace_id].add(span_id)
+        if is_root_span:
+            self._start_time_sorted_root_span_ids.add(span_id)
         if not existing_span:
-            trace_id = UUID(bytes=span.context.trace_id)
-            self._traces[trace_id].append(span_id)
-            if is_root_span:
-                self._start_time_sorted_root_span_ids.add(span_id)
             self._start_time_sorted_span_ids.add(span_id)
             self._min_start_time = (
                 start_time
@@ -290,3 +328,21 @@ class Traces:
             cumulative_value = parent_span[attribute_name] or 0
             parent_span[attribute_name] = cumulative_value + value
             span_id = parent_span_id
+
+
+def _validate_new_span(
+    new_span: pb.Span,
+    existing_span: Optional[pb.Span] = None,
+) -> None:
+    if not new_span.HasField("start_time"):
+        raise ValueError("start_time is missing")
+    if existing_span is None:
+        return
+    if (
+        existing_span.HasField("start_time")
+        and new_span.HasField("start_time")
+        and existing_span.start_time != new_span.start_time
+    ):
+        raise ValueError(
+            f"invalid start_time, expected={existing_span.start_time}, found={new_span.start_time}"
+        )
