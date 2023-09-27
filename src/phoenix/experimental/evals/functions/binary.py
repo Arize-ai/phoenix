@@ -19,7 +19,6 @@ logger = logging.getLogger(__name__)
 
 OPENINFERENCE_QUERY_COLUMN_NAME = "attributes." + INPUT_VALUE
 OPENINFERENCE_DOCUMENT_COLUMN_NAME = "attributes." + RETRIEVAL_DOCUMENTS
-DocumentObject = Dict[str, str]
 
 
 def llm_eval_binary(
@@ -150,7 +149,7 @@ def run_relevance_eval(
     return outputs
 
 
-def _get_contents(documents: List[Union[str, DocumentObject]], key: str) -> List[Optional[str]]:
+def _get_contents(documents: List[Union[str, Dict[str, str]]], key: str) -> List[Optional[str]]:
     """Gets the contents from documents.
 
     Args:
