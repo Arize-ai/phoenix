@@ -12,10 +12,7 @@ import {
   DEFAULT_CLUSTER_MIN_SAMPLES,
   DEFAULT_CLUSTER_SELECTION_EPSILON,
   DEFAULT_COLOR_SCHEME,
-  DEFAULT_DATASET_SAMPLE_SIZE,
   DEFAULT_MIN_CLUSTER_SIZE,
-  DEFAULT_MIN_DIST,
-  DEFAULT_N_NEIGHBORS,
   FALLBACK_COLOR,
   SelectionDisplay,
   SelectionGridSize,
@@ -69,17 +66,14 @@ type DimensionMetadata = {
 export type UMAPParameters = {
   /**
    * Minimum distance between points in the eUMAP projection
-   * @default 0
    */
   minDist: number;
   /**
    * The number of neighbors to require for the UMAP projection
-   * @default 30
    */
   nNeighbors: number;
   /**
    * The number of samples to use for the UMAP projection. The sample number is per dataset.
-   * @default 500
    */
   nSamples: number;
 };
@@ -605,9 +599,9 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
     dimension: null,
     dimensionMetadata: null,
     umapParameters: {
-      minDist: DEFAULT_MIN_DIST,
-      nNeighbors: DEFAULT_N_NEIGHBORS,
-      nSamples: DEFAULT_DATASET_SAMPLE_SIZE,
+      minDist: window.Config.minDist,
+      nNeighbors: window.Config.nNeighbors,
+      nSamples: window.Config.nSamples,
     },
     hdbscanParameters: {
       minClusterSize: DEFAULT_MIN_CLUSTER_SIZE,

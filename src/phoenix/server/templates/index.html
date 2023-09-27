@@ -23,6 +23,9 @@
             // injected into the client before React runs
             value: Object.freeze({
                 hasCorpus: Boolean("{{has_corpus}}"),
+                minDist: parseFloat("{{min_dist}}"),
+                nNeighbors: parseInt("{{n_neighbors}}"),
+                nSamples: parseInt("{{n_samples}}"),
             }),
             writable: false
         });

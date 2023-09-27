@@ -26,7 +26,6 @@ from phoenix.server.api.context import Context
 from phoenix.server.api.schema import schema
 from phoenix.server.span_handler import SpanHandler
 
-
 logger = logging.getLogger(__name__)
 
 templates = Jinja2Templates(directory=SERVER_DIR / "templates")
@@ -34,6 +33,9 @@ templates = Jinja2Templates(directory=SERVER_DIR / "templates")
 
 class AppConfig(NamedTuple):
     has_corpus: bool
+    min_dist: float
+    n_neighbors: int
+    n_samples: int
 
 
 class Static(StaticFiles):
@@ -59,6 +61,9 @@ class Static(StaticFiles):
                 "index.html",
                 context={
                     "has_corpus": self._app_config.has_corpus,
+                    "min_dist": self._app_config.min_dist,
+                    "n_neighbors": self._app_config.n_neighbors,
+                    "n_samples": self._app_config.n_samples,
                     "request": Request(scope),
                 },
             )
@@ -84,7 +89,6 @@ class GraphQLWithContext(GraphQL):  # type: ignore
         schema: BaseSchema,
         model: Model,
         export_path: Path,
-        umap_parameters: UMAPParameters,
         graphiql: bool = False,
         corpus: Optional[Model] = None,
         traces: Optional[Traces] = None,
@@ -92,7 +96,6 @@ class GraphQLWithContext(GraphQL):  # type: ignore
         self.model = model
         self.corpus = corpus
         self.traces = traces
-        self.umap_parameters = umap_parameters
         self.export_path = export_path
         super().__init__(schema, graphiql=graphiql)
 
@@ -107,7 +110,6 @@ class GraphQLWithContext(GraphQL):  # type: ignore
             model=self.model,
             corpus=self.corpus,
             traces=self.traces,
-            umap_parameters=self.umap_parameters,
             export_path=self.export_path,
         )
 
@@ -140,7 +142,6 @@ def create_app(
         model=model,
         corpus=corpus,
         traces=traces,
-        umap_parameters=umap_parameters,
         export_path=export_path,
         graphiql=True,
     )
@@ -183,6 +184,9 @@ def create_app(
                     directory=SERVER_DIR / "static",
                     app_config=AppConfig(
                         has_corpus=corpus is not None,
+                        min_dist=umap_parameters.min_dist,
+                        n_neighbors=umap_parameters.n_neighbors,
+                        n_samples=umap_parameters.n_samples,
                     ),
                 ),
                 name="static",

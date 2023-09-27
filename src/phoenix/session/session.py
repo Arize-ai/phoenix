@@ -12,8 +12,8 @@ import pandas as pd
 from phoenix.config import get_env_host, get_env_port, get_exported_files
 from phoenix.core.model_schema_adapter import create_model_from_datasets
 from phoenix.core.traces import Traces
-from phoenix.pointcloud.umap_parameters import get_umap_parameters
 from phoenix.datasets.dataset import EMPTY_DATASET, Dataset
+from phoenix.pointcloud.umap_parameters import get_umap_parameters
 from phoenix.server.app import create_app
 from phoenix.server.thread_server import ThreadServer
 from phoenix.services import AppService
@@ -70,7 +70,7 @@ class Session(ABC):
         reference_dataset: Optional[Dataset] = None,
         corpus_dataset: Optional[Dataset] = None,
         trace_dataset: Optional[TraceDataset] = None,
-        default_umap_parameters: Optional[Dict[str, int]] = None,
+        default_umap_parameters: Optional[Dict[str, Union[int, float]]] = None,
         host: Optional[str] = None,
         port: Optional[int] = None,
     ):
@@ -274,7 +274,7 @@ def launch_app(
     reference: Optional[Dataset] = None,
     corpus: Optional[Dataset] = None,
     trace: Optional[TraceDataset] = None,
-    default_umap_parameters: Optional[Dict[str, Union[int, float]]] = None,
+    default_umap_parameters: Optional[Dict[str, Union[int, float]]] = {},
     host: Optional[str] = None,
     port: Optional[int] = None,
     run_in_thread: bool = True,
@@ -302,7 +302,8 @@ def launch_app(
     run_in_thread: bool, optional, default=True
         Whether the server should run in a Thread or Process.
     default_umap_parameters: Dict[str, Union[int, float]], optional, default=None
-        User specified default UMAP parameters eg: {n_neighbors: 10, n_samples: 5, min_dist: 0.5}
+        User specified default UMAP parameters
+        eg: {"n_neighbors": 10, "n_samples": 5, "min_dist": 0.5}
 
     Returns
     -------
