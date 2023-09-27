@@ -30,13 +30,13 @@ Don't know which one to choose? Phoenix has two main data ingestion methods:
 * [**Troubleshoot Agentic Workflows:**](concepts/langchain-and-llamaindex-traces.md) Get visibility into where your complex or agentic workflow broke, or find performance bottlenecks, across different span types with LLM Tracing.
 * [**Optimize Retrieval Systems:**](use-cases/troubleshooting-llm-retrieval-with-vector-stores.md) Identify missing context in your knowledge base, and when irrelevant context is retrieved by visualizing query embeddings alongside knowledge base embeddings with RAG Analysis.
 * [**Compare Model Versions:**](https://docs.arize.com/phoenix/concepts/phoenix-basics/phoenix-basics#how-many-datasets-do-i-need) Compare and evaluate performance across model versions prior to deploying to production.
-* [**Exploratory Data Analysis:**](use-cases/bring-production-data-to-notebook-for-eda-or-retraining.md) Connect teams and workflows, with continued analysis of production data from Arize in a notebook environment for fine tuning workflows.
+* [**Exploratory Data Analysis:**](integrations/bring-production-data-to-notebook-for-eda-or-retraining.md) Connect teams and workflows, with continued analysis of production data from Arize in a notebook environment for fine tuning workflows.
 * [**Find Clusters of Issues to Export for Model Improvement:**](how-to/export-your-data.md) Find clusters of problems using performance metrics or drift. Export clusters for retraining workflows.
 * [**Surface Model Drift and Multivariate Drift:**](https://docs.arize.com/phoenix/concepts/phoenix-basics/phoenix-basics#embedding-drift-over-time) Use the Embeddings Analyzer to surface data drift for computer vision, NLP, and tabular models.&#x20;
 
 ## Resources
 
-### [Tutorials](tutorials/notebooks.md)
+### [Tutorials](notebooks.md)
 
 Check out a comprehensive list of example notebooks for LLM Traces, Evals, RAG Analysis, and more. &#x20;
 

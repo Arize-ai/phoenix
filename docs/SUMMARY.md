@@ -1,6 +1,7 @@
 # Table of contents
 
 * [Phoenix: AI Observability & Evaluation](README.md)
+* [Example Notebooks](notebooks.md)
 
 ## 🔑 Quickstart
 
@@ -23,9 +24,7 @@
 
 ## 🔮 Use Cases
 
-* [LLM Search and Retrieval with Vector Stores](use-cases/troubleshooting-llm-retrieval-with-vector-stores.md)
-* [Fine Tune or Prompt Engineer LLMs](use-cases/insights-to-fine-tune-or-prompt-engineer-llms.md)
-* [Production Data EDA and Retraining](use-cases/bring-production-data-to-notebook-for-eda-or-retraining.md)
+* [QA with Retrieval (Using Vector Stores)](use-cases/troubleshooting-llm-retrieval-with-vector-stores.md)
 
 ## 🔢 How-To
 
@@ -39,14 +38,6 @@
 * [Use Example Datasets](how-to/use-example-datasets.md)
 * [Contribute to Phoenix](how-to/contribute-to-phoenix.md)
 
-## 🎓 Tutorials
-
-* [Generative LLMs](tutorials/generative-llms.md)
-* [Computer Vision](tutorials/computer-vision.md)
-* [NLP](tutorials/nlp.md)
-* [Tabular Data](tutorials/tabular-data.md)
-* [Notebooks](tutorials/notebooks.md)
-
 ## ⌨ API
 
 * [Dataset and Schema](api/dataset-and-schema.md)
@@ -57,6 +48,7 @@
 
 * [LlamaIndex](integrations/llamaindex.md)
 * [LangChain](integrations/langchain.md)
+* [Arize](integrations/bring-production-data-to-notebook-for-eda-or-retraining.md)
 
 ## 📚 Reference
 
