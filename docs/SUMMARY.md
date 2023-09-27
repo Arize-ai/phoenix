@@ -1,13 +1,15 @@
 # Table of contents
 
-* [ML / LLM Observability in a Notebook](README.md)
+* [Phoenix: AI Observability & Evaluation](README.md)
+
+## 🔑 Quickstart
+
+* [LLM Traces - LangChain & LlamaIndex](quickstart/traces-and-spans-langchain-and-llamaindex.md)
+* [Inferences - Image/NLP/LLM](quickstart/phoenix-basics.md)
 
 ## 💡 Concepts
 
 * [What is LLM Observability?](concepts/llm-observability.md)
-* [Phoenix Basics](concepts/phoenix-basics/README.md)
-  * [DataFrames - Image/NLP/LLM](concepts/phoenix-basics.md)
-  * [LLM Traces - LangChain & LlamaIndex](concepts/phoenix-basics/traces-and-spans-langchain-and-llamaindex.md)
 * [LLM Traces](concepts/langchain-and-llamaindex-traces.md)
 * [LLM Evals](concepts/llm-evals.md)
   * [Retrieval (RAG) Relevance](concepts/llm-evals/retrieval-rag-relevance.md)
@@ -17,6 +19,7 @@
   * [Code Generation Eval](concepts/llm-evals/code-generation-eval.md)
   * [Summarization Eval](concepts/llm-evals/summarization-eval.md)
 * [Generating Embeddings](concepts/generating-embeddings.md)
+* [Embeddings Analysis](concepts/embeddings-analysis.md)
 
 ## 🔮 Use Cases
 

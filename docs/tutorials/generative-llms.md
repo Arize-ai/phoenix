@@ -13,7 +13,7 @@ In this tutorial, you will:
 * Download curated [LLM](../concepts/llm-observability.md) data for this walkthrough
 * Compute [embeddings](../concepts/llm-observability.md#embeddings-for-cluster-analysis) for each prompt (article) and response (summary)
 * Calculate ROUGE-L scores to [evaluate](../concepts/llm-observability.md#evaluation-metrics) the quality of your LLM-generated summaries against human-written reference summaries
-* Use Phoenix to [find](../concepts/phoenix-basics.md#application) articles that your LLM is struggling to summarize
+* Use Phoenix to [find](../quickstart/phoenix-basics.md#application) articles that your LLM is struggling to summarize
 
 Open the tutorial in Colab or GitHub to get started!
 

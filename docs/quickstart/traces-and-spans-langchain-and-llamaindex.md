@@ -81,22 +81,22 @@ The above shows how to export only retriever spans into a dataframe from LangCha
 
 Phoenix can be used to troubleshoot traces by pinpointing the timing problems, evaluation performance and points of breakage of specific chains.
 
-<figure><img src="../../.gitbook/assets/Screenshot 2023-09-16 at 6.29.46 PM.png" alt=""><figcaption><p>Trace Troubleshooting</p></figcaption></figure>
+<figure><img src="../.gitbook/assets/Screenshot 2023-09-16 at 6.29.46 PM.png" alt=""><figcaption><p>Trace Troubleshooting</p></figcaption></figure>
 
 The above shows trace level troubleshooting of a LangChain/LlamaIndex query on documents.
 
-<figure><img src="../../.gitbook/assets/Screenshot 2023-09-16 at 6.29.29 PM.png" alt=""><figcaption><p>Retriever Spans</p></figcaption></figure>
+<figure><img src="../.gitbook/assets/Screenshot 2023-09-16 at 6.29.29 PM.png" alt=""><figcaption><p>Retriever Spans</p></figcaption></figure>
 
 Retriever spans help visualize the chunks returned and the relevancy/performance of that retrieval.
 
-<figure><img src="../../.gitbook/assets/Screenshot 2023-09-16 at 6.50.53 PM.png" alt=""><figcaption><p>LLM Span</p></figcaption></figure>
+<figure><img src="../.gitbook/assets/Screenshot 2023-09-16 at 6.50.53 PM.png" alt=""><figcaption><p>LLM Span</p></figcaption></figure>
 
 The LLM Spans capture information and attributes of the LLM calls from LangChain and LlamaIndex.
 
-<figure><img src="../../.gitbook/assets/Screenshot 2023-09-16 at 6.51.00 PM.png" alt=""><figcaption><p>LLM Parameters</p></figcaption></figure>
+<figure><img src="../.gitbook/assets/Screenshot 2023-09-16 at 6.51.00 PM.png" alt=""><figcaption><p>LLM Parameters</p></figcaption></figure>
 
 LLM Invocation parameters are tracked.
 
-<figure><img src="../../.gitbook/assets/Screenshot 2023-09-16 at 6.30.11 PM.png" alt=""><figcaption><p>LLM Span Visualization</p></figcaption></figure>
+<figure><img src="../.gitbook/assets/Screenshot 2023-09-16 at 6.30.11 PM.png" alt=""><figcaption><p>LLM Span Visualization</p></figcaption></figure>
 
 Phoenix also keeps track of span information for debugging Evals, token usage and latency.
