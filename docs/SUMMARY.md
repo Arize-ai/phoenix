@@ -31,6 +31,7 @@
   * [Prompt and Response (LLM)](how-to/define-your-schema/prompt-and-response-llm.md)
   * [Retrieval (RAG)](how-to/define-your-schema/retrieval-rag.md)
   * [Corpus Data](how-to/define-your-schema/corpus-data.md)
+* [Export Your Data](how-to/export-your-data.md)
 * [Manage the App](how-to/manage-the-app.md)
 * [Use Example Datasets](how-to/use-example-datasets.md)
 * [Contribute to Phoenix](how-to/contribute-to-phoenix.md)
