@@ -74,15 +74,26 @@ def run_relevance_eval(
     each retrieved document to the corresponding query using an LLM.
 
     Args:
-        dataframe (pd.DataFrame): A pandas dataframe containing queries and retrieved documents. The
-        queries should be contained in a column of strings. The retrieved documents should be
-        contained in a column for which each entry is a lists of strings, and each list may contain
-        an arbitrary number of document texts retrieved for the corresponding query. Alternatively,
-        the entries in the retrieved document column may be lists of OpenInference document objects,
-        which are dictionaries that store the document text under the key "document.content". This
-        latter format is intended for running evaluations on exported OpenInference trace
+        dataframe (pd.DataFrame): A pandas dataframe containing queries and retrieved documents. If
+        both query_column_name and reference_column_name are present in the input dataframe, those
+        columns are used as inputs and should appear in the following format:
+
+        - The entries of the query column must be strings.
+        - The entries of the documents column must be lists of strings. Each list may contain an
+          arbitrary number of document texts retrieved for the corresponding query.
+
+        If the input dataframe is lacking either query_column_name or reference_column_name but has
+        query and retrieved document columns in OpenInference trace format named
+        "attributes.input.value" and "attributes.retrieval.documents", respectively, then those
+        columns are used as inputs and should appear in the following format:
+
+        - The entries of the query column must be strings.
+        - The entries of the document column must be lists of OpenInference document objects, each
+          object being a dictionary that stores the document text under the key "document.content".
+
+        This latter format is intended for running evaluations on exported OpenInference trace
         dataframes. For more information on the OpenInference tracing specification, see
-        https://github.com/Arize-ai/open-inference-spec/
+        https://github.com/Arize-ai/open-inference-spec/.
 
         model (BaseEvalModel): The model used for evaluation.
 
@@ -91,9 +102,11 @@ def run_relevance_eval(
         rails (List[str], optional): A list of strings representing the possible output classes of
         the model's predictions.
 
-        query_template_variable (str, optional): The name of the query template variable.
+        query_column_name (str, optional): The name of the query column in the dataframe, which
+        should also be a template variable.
 
-        reference_template_variable (str, optional): The name of the document template variable.
+        reference_column_name (str, optional): The name of the document column in the dataframe,
+        which should also be a template variable.
 
         system_instruction (Optional[str], optional): An optional system message.
 
@@ -156,7 +169,8 @@ def run_relevance_eval(
 
 def _get_contents_from_openinference_documents(documents: Iterable[Any]) -> List[Optional[str]]:
     """
-    Get OpenInference documents.
+    Get document contents from an iterable of OpenInference document objects, which are dictionaries
+    containing the document text under the "document.content" key.
     """
     return [doc.get(DOCUMENT_CONTENT) if isinstance(doc, dict) else None for doc in documents]
 
