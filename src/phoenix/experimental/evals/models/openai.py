@@ -103,7 +103,8 @@ class OpenAIModel(BaseEvalModel):
             self._openai_api_model_name = self.model_name
         elif "gpt-3.5-turbo" in self.model_name:
             logger.warning(
-                "gpt-3.5-turbo may update over time. Returning num tokens assuming gpt-3.5-turbo-0613."
+                "gpt-3.5-turbo may update over time. Returning num tokens assuming "
+                "gpt-3.5-turbo-0613."
             )
             self._openai_api_model_name = "gpt-3.5-turbo-0613"
         elif "gpt-4" in self.model_name:
@@ -181,8 +182,8 @@ class OpenAIModel(BaseEvalModel):
 
         if context_size is None:
             raise ValueError(
-                f"Can't determine maximum context size. An unknown model name was used: {model_name}. "
-                "Please provide a valid OpenAI model name. "
+                "Can't determine maximum context size. An unknown model name was "
+                f"used: {model_name}. Please provide a valid OpenAI model name. "
                 "Known models are: " + ", ".join(MODEL_TOKEN_LIMIT_MAPPING.keys())
             )
 
@@ -230,8 +231,7 @@ class OpenAIModel(BaseEvalModel):
     def get_token_count_from_messages(self, messages: List[Dict[str, str]]) -> int:
         """Return the number of tokens used by a list of messages.
 
-        Official documentation: https://github.com/openai/
-        openai-cookbook/blob/main/examples/How_to_format_inputs_to_ChatGPT_models.ipynb
+        Official documentation: https://github.com/openai/openai-cookbook/blob/main/examples/How_to_format_inputs_to_ChatGPT_models.ipynb
         """
         model_name = self.openai_api_model_name
         if model_name == "gpt-3.5-turbo-0301":
