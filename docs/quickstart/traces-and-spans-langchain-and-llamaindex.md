@@ -175,12 +175,13 @@ Phoenix can be used to understand and troubleshoot your by surfacing:
 
 * **Application latency** - highlighting slow invocations of LLMs, Retrievers, etc.
 * **Token Usage** - Displays the breakdown of token usage with LLMs to surface up your most expensive LLM calls
+* **Runtime Exceptions** - Critical runtime execetions such as rate-limitting are captured as exception events.
 * **Retrieved Documents** - view all the documents retrieved during a retriever call and the score and order in which they were returned
 * **Embeddings** - view the embedding text used for retrieval and the underlying embedding model
 * **LLM Parameters** - view the parameters used when calling out to an LLM to debug things like temperature and the system prompts
 * **Prompt Templates** - Figure out what prompt template is used during the prompting step and what variables were used.
 * **Tool Descriptions -** view the description and function signature of the tools your LLM has been given access to
-* **LLM Function Calls** - if using OpenAI or other models with function calls, you can view the function selection and function messages in the input messages to the LLM.\
+* **LLM Function Calls** - if using OpenAI or other a model with function calls, you can view the function selection and function messages in the input messages to the LLM.\
 
 
 [LLM Traces](../concepts/langchain-and-llamaindex-traces.md) are a powerful way to troubleshoot and understand your application and can be leveraged to [evaluate](../concepts/llm-evals.md) the quality of your application. For a full list of notebooks that illustrate this in full-color, please check out the [notebooks section](../notebooks.md).
