@@ -11,19 +11,6 @@ def truncate_text_by_model(model: BaseEvalModel, text: str, token_buffer: int = 
     return text
 
 
-def concatenate_texts(texts: List[str], join_character: str = " ") -> str:
-    # Check if value is a list
-    if not isinstance(texts, list):
-        raise TypeError(f"Expected a list, but got {type(texts)}.")
-    # Check if all elements in the list can be converted to string
-    for text in texts:
-        if not isinstance(text, (str, int, float)):
-            raise TypeError(
-                f"Unexpected data type {type(text)} in the list. Expected str, int, or float."
-            )
-    return join_character.join(map(str, texts))
-
-
 def concatenate_and_truncate_chunks(
     chunks: List[str], model: BaseEvalModel, token_buffer: int
 ) -> str:
@@ -45,6 +32,4 @@ def concatenate_and_truncate_chunks(
             As a single string
 
     """
-    return truncate_text_by_model(
-        model=model, text=concatenate_texts(chunks), token_buffer=token_buffer
-    )
+    return truncate_text_by_model(model=model, text=" ".join(chunks), token_buffer=token_buffer)
