@@ -12,7 +12,7 @@ def truncate_text_by_model(model: BaseEvalModel, text: str, token_buffer: int = 
     return text
 
 
-def concatenate_texts(texts: List[str], join_character: str = " "):
+def concatenate_texts(texts: List[str], join_character: str = " ") -> str:
     # Check if value is a list
     if not isinstance(texts, list):
         raise TypeError(f"Expected a list, but got {type(texts)}.")
@@ -25,7 +25,9 @@ def concatenate_texts(texts: List[str], join_character: str = " "):
     return join_character.join(map(str, texts))
 
 
-def concatenate_and_truncate_chunks(chunks: List[str], model: BaseEvalModel, token_buffer: int):
+def concatenate_and_truncate_chunks(
+    chunks: List[str], model: BaseEvalModel, token_buffer: int
+) -> str:
     """This is designed to be used on a row of a Pandas Dataframe column.
        value = ["chunk", "chunk", chunk"]
        It concatenates the chunks in a list to a str, the column can be used for Q&A Eval.
