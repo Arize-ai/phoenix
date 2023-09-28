@@ -84,13 +84,6 @@ def test_run_relevance_eval(monkeypatch):
                 ),
             },
             {
-                "attributes.input.value": "What is Python?",
-                "attributes.retrieval.documents": [
-                    "Python is a programming language.",
-                    "Ruby is a programming language.",
-                ],
-            },
-            {
                 "attributes.input.value": "What is Ruby?",
                 "attributes.retrieval.documents": [
                     {"document.content": "Ruby is a programming language."},
@@ -129,8 +122,6 @@ def test_run_relevance_eval(monkeypatch):
         "irrelevant",
         "relevant",
         "irrelevant",
-        "relevant",
-        "irrelevant",
         "\nrelevant ",
         "unparsable",
         "relevant",
@@ -150,7 +141,6 @@ def test_run_relevance_eval(monkeypatch):
         )
     relevance_classifications = run_relevance_eval(dataframe, model=OpenAIModel())
     assert relevance_classifications == [
-        ["relevant", "irrelevant"],
         ["relevant", "irrelevant"],
         ["relevant", "irrelevant"],
         ["relevant"],

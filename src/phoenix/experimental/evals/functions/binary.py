@@ -1,9 +1,9 @@
 import logging
-from typing import Dict, List, Optional, Set, Union
+from typing import Any, List, Optional, Set, Union, cast
 
 import pandas as pd
 
-from phoenix.trace.semantic_conventions import INPUT_VALUE, RETRIEVAL_DOCUMENTS
+from phoenix.trace.semantic_conventions import DOCUMENT_CONTENT, INPUT_VALUE, RETRIEVAL_DOCUMENTS
 
 from ..models import BaseEvalModel
 from ..templates import (
@@ -60,28 +60,14 @@ def llm_eval_binary(
     return [_snap_to_rail(response, rails_set) for response in responses]
 
 
-"""
-
-Args:
-    dataframe (pd.DataFrame):
-
-    rails_map: The mapping to use to return the values. Using a dict here
-    but it can take the OrderedDict of RAILS_MAP from library
-
-Returns:
-    List[List[str]]:
-"""
-
-
 def run_relevance_eval(
     dataframe: pd.DataFrame,
     model: BaseEvalModel,
     template: Union[PromptTemplate, str] = RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
     rails: List[str] = list(RAG_RELEVANCY_PROMPT_RAILS_MAP.values()),
-    query_column_name: str = OPENINFERENCE_QUERY_COLUMN_NAME,
-    document_column_name: str = OPENINFERENCE_DOCUMENT_COLUMN_NAME,
-    query_template_variable: str = "query",
-    document_template_variable: str = "reference",
+    system_instruction: Optional[str] = None,
+    query_column_name: str = "query",
+    document_column_name: str = "reference",
 ) -> List[List[str]]:
     """
     Given a pandas dataframe containing queries and retrieved documents,
@@ -98,13 +84,11 @@ def run_relevance_eval(
         rails (List[str], optional): A list of strings representing the possible output classes of
         the model's predictions.
 
-        query_column_name (str, optional): The name of the column containing the queries.
-
-        document_column_name (str, optional): The name of the column containing the retrieved.
-
         query_template_variable (str, optional): The name of the query template variable.
 
         reference_template_variable (str, optional): The name of the document template variable.
+
+        system_instruction (Optional[str], optional): An optional system message.
 
     Returns:
         List[List[str]]: A list of relevant and not relevant classifications. The "shape" of the
@@ -114,55 +98,60 @@ def run_relevance_eval(
         entries from the rails argument or "NOT_PARSABLE" in the case where the LLM output could not
         be parsed.
     """
-    queries = dataframe[query_column_name].tolist()
-    document_lists = (
-        dataframe[document_column_name]
-        .map(
-            lambda documents: None
-            if documents is None
-            else _get_contents(documents, key="document.content")
+
+    query_column = dataframe.get(query_column_name)
+    document_column = dataframe.get(document_column_name)
+    if query_column is None or document_column is None:
+        openinference_query_column = dataframe.get(OPENINFERENCE_QUERY_COLUMN_NAME)
+        openinference_document_column = dataframe.get(OPENINFERENCE_DOCUMENT_COLUMN_NAME)
+        if openinference_query_column is None or openinference_document_column is None:
+            raise ValueError(
+                f'Dataframe columns must include either "{query_column_name}" and '
+                f'"{document_column_name}", or "{OPENINFERENCE_QUERY_COLUMN_NAME}" and '
+                f'"{OPENINFERENCE_DOCUMENT_COLUMN_NAME}".'
+            )
+        query_column = openinference_query_column
+        document_column = openinference_document_column.map(
+            lambda docs: _get_contents_from_openinference_documents(docs)
+            if docs is not None
+            else None
         )
-        .tolist()
-    )
-    query_indexes = []
-    query_document_pairs = []
-    outputs: List[List[str]] = [[] for _ in range(len(dataframe))]
-    for query_index, (query, documents) in enumerate(zip(queries, document_lists)):
+
+    queries = cast("pd.Series[str]", query_column).tolist()
+    document_lists = cast("pd.Series[str]", document_column).tolist()
+    indexes = []
+    expanded_queries = []
+    expanded_documents = []
+    for index, (query, documents) in enumerate(zip(queries, document_lists)):
         if query is None or documents is None:
             continue
         for document in documents:
-            query_indexes.append(query_index)
-            query_document_pairs.append((query, document))
+            indexes.append(index)
+            expanded_queries.append(query)
+            expanded_documents.append(document)
     predictions = llm_eval_binary(
         dataframe=pd.DataFrame(
             {
-                query_template_variable: [query for query, _ in query_document_pairs],
-                document_template_variable: [document for _, document in query_document_pairs],
+                query_column_name: expanded_queries,
+                document_column_name: expanded_documents,
             }
         ),
         model=model,
         template=template,
         rails=rails,
+        system_instruction=system_instruction,
     )
-    for query_index, prediction in zip(query_indexes, predictions):
-        outputs[query_index].append(prediction)
+    outputs: List[List[str]] = [[] for _ in range(len(dataframe))]
+    for index, prediction in zip(indexes, predictions):
+        outputs[index].append(prediction)
     return outputs
 
 
-def _get_contents(documents: List[Union[str, Dict[str, str]]], key: str) -> List[Optional[str]]:
-    """Gets the contents from documents.
-
-    Args:
-        documents (Iterable[Union[str, Dict[str, str]]]): The input documents.
-
-        key (str): A key to access the document contents in case the document in question is a
-        dictionary.
-
-    Returns:
-        List[Optional[str]]: The list of document contents as strings or None if the input document
-        could not be parsed.
+def _get_contents_from_openinference_documents(documents: Any) -> List[Optional[str]]:
     """
-    return [doc if isinstance(doc, str) else doc.get(key) for doc in documents]
+    Get OpenInference documents.
+    """
+    return [doc.get(DOCUMENT_CONTENT) if isinstance(doc, dict) else None for doc in documents]
 
 
 def _snap_to_rail(string: str, rails: Set[str]) -> str:
