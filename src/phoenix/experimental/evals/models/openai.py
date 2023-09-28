@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 from .base import BaseEvalModel, create_base_retry_decorator
 
 if TYPE_CHECKING:
-    import tiktoken
+    from tiktoken import Encoding
 
 OPENAI_API_KEY_ENVVAR_NAME = "OPENAI_API_KEY"
 MINIMUM_OPENAI_VERSION = "0.26.4"
@@ -179,7 +179,7 @@ class OpenAIModel(BaseEvalModel):
 
     @property
     def max_context_size(self) -> int:
-        model_name = self.model_name
+        model_name = self.openai_api_model_name
         # handling finetuned models
         if "ft-" in model_name:
             model_name = self.model_name.split(":")[0]
@@ -231,7 +231,7 @@ class OpenAIModel(BaseEvalModel):
         return self._openai_api_model_name
 
     @property
-    def tiktoken_encoding(self) -> tiktoken.Encoding:
+    def tiktoken_encoding(self) -> "Encoding":
         return self._tiktoken_encoding
 
     def get_token_count_from_messages(self, messages: List[Dict[str, str]]) -> int:
