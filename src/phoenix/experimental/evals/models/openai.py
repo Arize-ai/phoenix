@@ -10,7 +10,7 @@ if TYPE_CHECKING:
 
 OPENAI_API_KEY_ENVVAR_NAME = "OPENAI_API_KEY"
 MINIMUM_OPENAI_VERSION = "0.26.4"
-TOKEN_BUFFER_FOR_RESPONSE = 10
+TOKEN_BUFFER_FOR_RESPONSE = 20
 MODEL_TOKEN_LIMIT_MAPPING = {
     "gpt-3.5-turbo-0301": 4096,
     "gpt-3.5-turbo-0613": 4096,  # Current gpt-3.5-turbo default
@@ -138,7 +138,13 @@ class OpenAIModel(BaseEvalModel):
 
         token_count = self.get_token_count_from_messages(messages)
         if token_count > self.max_context_size - TOKEN_BUFFER_FOR_RESPONSE:
-            prompt = prompt[: self.max_context_size - TOKEN_BUFFER_FOR_RESPONSE]
+            encoding = self.tiktoken_encoding
+            prompt = (
+                encoding.decode(
+                    encoding.encode(prompt)[: self.max_context_size - TOKEN_BUFFER_FOR_RESPONSE]
+                )
+                + "..."
+            )
             messages = self._build_messages(prompt, kwargs.get("instruction"))  # type:ignore
 
         response = self._generate_with_retry(
@@ -232,7 +238,7 @@ class OpenAIModel(BaseEvalModel):
         """Return the number of tokens used by a list of messages.
 
         Official documentation: https://github.com/openai/openai-cookbook/blob/main/examples/How_to_format_inputs_to_ChatGPT_models.ipynb
-        """
+        """  # noqa
         model_name = self.openai_api_model_name
         if model_name == "gpt-3.5-turbo-0301":
             tokens_per_message = 4  # every message follows <|start|>{role/name}\n{content}<|end|>\n
