@@ -29,7 +29,7 @@ def concatenate_and_truncate_chunks(
     """_summary_"""
     """Given a list of `chunks` of text, this function will return the concatenated chunks
     truncated to a token limit given by the `model` and `token_buffer`. See the function
-    `truncate_text_by_model` for information on the truncation process. 
+    `truncate_text_by_model` for information on the truncation process.
 
     Args:
         chunks (List[str]): A list of pieces of text.
