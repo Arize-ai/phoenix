@@ -147,10 +147,6 @@ class BaseEvalModel(ABC):
         raise ImportError(msg)
 
     @abstractmethod
-    def get_token_count_from_text(self, text: str) -> int:
-        raise NotImplementedError
-
-    @abstractmethod
     def get_tokens_from_text(self, text: str) -> List[int]:
         raise NotImplementedError
 
