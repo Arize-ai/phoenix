@@ -9,6 +9,7 @@ export const SemanticAttributePrefixes = {
 } as const;
 
 export const LLMAttributePostfixes = {
+  model_name: "model_name",
   input_messages: "input_messages",
   output_messages: "output_messages",
   invocation_parameters: "invocation_parameters",
