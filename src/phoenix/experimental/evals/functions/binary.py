@@ -1,5 +1,5 @@
 import logging
-from typing import Any, List, Optional, Set, Union, cast
+from typing import Any, Iterable, List, Optional, Set, Union, cast
 
 import pandas as pd
 
@@ -154,7 +154,7 @@ def run_relevance_eval(
     return outputs
 
 
-def _get_contents_from_openinference_documents(documents: Any) -> List[Optional[str]]:
+def _get_contents_from_openinference_documents(documents: Iterable[Any]) -> List[Optional[str]]:
     """
     Get OpenInference documents.
     """
