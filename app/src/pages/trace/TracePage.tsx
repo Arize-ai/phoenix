@@ -46,6 +46,7 @@ import {
   EMBEDDING_TEXT,
   EmbeddingAttributePostfixes,
   LLMAttributePostfixes,
+  LLMPromptTemplateAttributePostfixes,
   MESSAGE_CONTENT,
   MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON,
   MESSAGE_FUNCTION_CALL_NAME,
@@ -59,7 +60,7 @@ import {
   AttributeDocument,
   AttributeEmbedding,
   AttributeMessage,
-  isAttributePromptTemplate,
+  AttributePromptTemplate,
 } from "@phoenix/openInference/tracing/types";
 import { assertUnreachable, isStringArray } from "@phoenix/typeUtils";
 import { numberFormatter } from "@phoenix/utils/numberFormatUtils";
@@ -75,6 +76,30 @@ type Span = TracePageQuery$data["spans"]["edges"][number]["span"];
  * A span attribute object that is a map of string to an unknown value
  */
 type AttributeObject = Record<string, unknown>;
+
+function isAttributeObject(value: unknown): value is AttributeObject {
+  if (
+    value != null &&
+    typeof value === "object" &&
+    !Object.keys(value).find((key) => typeof key != "string")
+  ) {
+    return true;
+  }
+  return false;
+}
+
+export function isAttributePromptTemplate(
+  value: unknown
+): value is AttributePromptTemplate {
+  if (
+    isAttributeObject(value) &&
+    typeof value[LLMPromptTemplateAttributePostfixes.template] === "string" &&
+    typeof value[LLMPromptTemplateAttributePostfixes.variables] === "object"
+  ) {
+    return true;
+  }
+  return false;
+}
 
 const spanHasException = (span: Span) => {
   return span.events.some((event) => event.name === "exception");
@@ -364,17 +389,17 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
     return maybePrompts;
   }, [llmAttributes]);
 
-  const promptTemplate = useMemo<string | null>(() => {
+  const promptTemplateObject = useMemo<AttributePromptTemplate | null>(() => {
     if (llmAttributes == null) {
       return null;
     }
-    let promptTemplate: string | null = null;
-    const maybePromptTemplate = llmAttributes[LLMAttributePostfixes.prompt_template];
+
+    const maybePromptTemplate =
+      llmAttributes[LLMAttributePostfixes.prompt_template];
     if (!isAttributePromptTemplate(maybePromptTemplate)) {
-      promptTemplate = [];
+      return null;
     }
     return maybePromptTemplate;
-    return promptTemplate;
   }, [llmAttributes]);
 
   const invocation_parameters_str = useMemo<string>(() => {
@@ -405,6 +430,7 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
   const hasPrompts = prompts.length > 0;
   const hasInvocationParams =
     Object.keys(JSON.parse(invocation_parameters_str)).length > 0;
+  const hasPromptTemplateObject = promptTemplateObject != null;
 
   return (
     <Flex direction="column" gap="size-200">
@@ -419,6 +445,44 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
           {hasInput ? (
             <TabPane name="Input" hidden={!hasInput}>
               <CodeBlock {...input} />
+            </TabPane>
+          ) : null}
+          {hasPromptTemplateObject ? (
+            <TabPane name="Prompt Template" hidden={!hasPromptTemplateObject}>
+              <View padding="size-200">
+                <Flex direction="column" gap="size-100">
+                  <View
+                    borderRadius="medium"
+                    borderColor="light"
+                    backgroundColor="light"
+                    borderWidth="thin"
+                    padding="size-200"
+                  >
+                    <Text color="text-700" fontStyle="italic">
+                      prompt template
+                    </Text>
+                    <CodeBlock
+                      value={promptTemplateObject.template}
+                      mimeType="text"
+                    />
+                  </View>
+                  <View
+                    borderRadius="medium"
+                    borderColor="light"
+                    backgroundColor="light"
+                    borderWidth="thin"
+                    padding="size-200"
+                  >
+                    <Text color="text-700" fontStyle="italic">
+                      template variables
+                    </Text>
+                    <CodeBlock
+                      value={JSON.stringify(promptTemplateObject.variables)}
+                      mimeType="json"
+                    />
+                  </View>
+                </Flex>
+              </View>
             </TabPane>
           ) : null}
           <TabPane name="Prompts" hidden={!hasPrompts}>
