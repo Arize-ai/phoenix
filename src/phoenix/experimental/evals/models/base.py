@@ -56,8 +56,6 @@ def create_base_retry_decorator(
 
 @dataclass
 class BaseEvalModel(ABC):
-    model_name: str
-
     def __call__(self, prompt: str, instruction: Optional[str] = None) -> str:
         """Run the LLM on the given prompt."""
         if not isinstance(prompt, str):
@@ -131,10 +129,14 @@ class BaseEvalModel(ABC):
 
     @staticmethod
     def _raise_import_error(
-        package_display_name: str, package_name: str, package_min_version: str
+        package_display_name: str, package_name: str, package_min_version: str = ""
     ) -> None:
-        raise ImportError(
+        msg = (
             f"Could not import necessary dependencies to use {package_display_name}. "
             "Please install them with"
-            f"`pip install {package_name}>={package_min_version}`."
         )
+        if package_min_version:
+            msg += f"`pip install {package_name}>={package_min_version}`."
+        else:
+            msg += f"`pip install {package_name}`."
+        raise ImportError(msg)
