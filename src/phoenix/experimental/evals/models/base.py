@@ -1,7 +1,10 @@
 import logging
-from abc import ABC, abstractmethod
+from abc import ABC, abstractmethod, abstractproperty
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, List, Optional, Type
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Type
+
+if TYPE_CHECKING:
+    from tiktoken import Encoding
 
 from tenacity import (
     RetryCallState,
@@ -140,3 +143,23 @@ class BaseEvalModel(ABC):
         else:
             msg += f"`pip install {package_name}`."
         raise ImportError(msg)
+
+    @abstractmethod
+    def get_token_count_from_text(self, text: str) -> int:
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_tokens_from_text(self, text: str) -> List[int]:
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_text_from_tokens(self, tokens: List[int]) -> str:
+        raise NotImplementedError
+
+    @abstractproperty
+    def max_context_size(self) -> int:
+        raise NotImplementedError
+
+    @abstractproperty
+    def encoder(self) -> "Encoding":
+        raise NotImplementedError

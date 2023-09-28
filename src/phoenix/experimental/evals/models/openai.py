@@ -10,7 +10,6 @@ if TYPE_CHECKING:
 
 OPENAI_API_KEY_ENVVAR_NAME = "OPENAI_API_KEY"
 MINIMUM_OPENAI_VERSION = "0.26.4"
-TOKEN_BUFFER_FOR_RESPONSE = 20
 MODEL_TOKEN_LIMIT_MAPPING = {
     "gpt-3.5-turbo-0301": 4096,
     "gpt-3.5-turbo-0613": 4096,  # Current gpt-3.5-turbo default
@@ -136,17 +135,6 @@ class OpenAIModel(BaseEvalModel):
         invoke_params = self.invocation_params
         messages = self._build_messages(prompt, kwargs.get("instruction"))  # type:ignore
 
-        token_count = self.get_token_count_from_messages(messages)
-        if token_count > self.max_context_size - TOKEN_BUFFER_FOR_RESPONSE:
-            encoding = self.tiktoken_encoding
-            prompt = (
-                encoding.decode(
-                    encoding.encode(prompt)[: self.max_context_size - TOKEN_BUFFER_FOR_RESPONSE]
-                )
-                + "..."
-            )
-            messages = self._build_messages(prompt, kwargs.get("instruction"))  # type:ignore
-
         response = self._generate_with_retry(
             messages=messages,
             **invoke_params,
@@ -231,7 +219,7 @@ class OpenAIModel(BaseEvalModel):
         return self._openai_api_model_name
 
     @property
-    def tiktoken_encoding(self) -> "Encoding":
+    def encoder(self) -> "Encoding":
         return self._tiktoken_encoding
 
     def get_token_count_from_messages(self, messages: List[Dict[str, str]]) -> int:
@@ -247,15 +235,31 @@ class OpenAIModel(BaseEvalModel):
             tokens_per_message = 3
             tokens_per_name = 1
 
-        encoding = self.tiktoken_encoding
-
         token_count = 0
         for message in messages:
             token_count += tokens_per_message
-            for key, value in message.items():
-                token_count += len(encoding.encode(value))
+            for key, text in message.items():
+                token_count += self.get_token_count_from_text(text)
                 if key == "name":
                     token_count += tokens_per_name
         # every reply is primed with <|start|>assistant<|message|>
         token_count += 3
         return token_count
+
+    def get_token_count_from_text(self, text: str) -> int:
+        return len(self.encoder.encode(text))
+
+    def get_tokens_from_text(self, text: str) -> List[int]:
+        return self.encoder.encode(text)
+
+    def get_text_from_tokens(self, tokens: List[int]) -> str:
+        return self.encoder.decode(tokens)
+
+
+def truncate_function(model: BaseEvalModel, text: str, token_buffer: int = 20) -> str:
+    max_token_count = model.max_context_size - token_buffer
+    if model.get_token_count_from_text(text) > max_token_count:
+        return (
+            model.get_text_from_tokens(model.get_tokens_from_text(text)[:max_token_count]) + "..."
+        )
+    return text
