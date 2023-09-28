@@ -70,12 +70,19 @@ def run_relevance_eval(
     document_column_name: str = "reference",
 ) -> List[List[str]]:
     """
-    Given a pandas dataframe containing queries and retrieved documents,
-    classifies the relevance of each retrieved document to the corresponding
-    query using an LLM.
+    Given a pandas dataframe containing queries and retrieved documents, classifies the relevance of
+    each retrieved document to the corresponding query using an LLM.
 
     Args:
-        dataframe (pd.DataFrame): A pandas dataframe containing queries and retrieved documents.
+        dataframe (pd.DataFrame): A pandas dataframe containing queries and retrieved documents. The
+        queries should be contained in a column of strings. The retrieved documents should be
+        contained in a column for which each entry is a lists of strings, and each list may contain
+        an arbitrary number of document texts retrieved for the corresponding query. Alternatively,
+        the entries in the retrieved document column may be lists of OpenInference document objects,
+        which are dictionaries that store the document text under the key "document.content". This
+        latter format is intended for running evaluations on exported OpenInference trace
+        dataframes. For more information on the OpenInference tracing specification, see
+        https://github.com/Arize-ai/open-inference-spec/
 
         model (BaseEvalModel): The model used for evaluation.
 
