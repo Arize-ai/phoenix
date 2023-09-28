@@ -3,8 +3,7 @@ from typing import List, Optional, Union
 
 import pandas as pd
 
-from ..models import BaseEvalModel
-from ..models.openai import OpenAIModel
+from ..models import BaseEvalModel, OpenAIModel
 from ..templates import PromptTemplate, normalize_template
 from .common import map_template
 
@@ -14,7 +13,7 @@ logger = logging.getLogger(__name__)
 def llm_generate(
     dataframe: pd.DataFrame,
     template: Union[PromptTemplate, str],
-    model: Optional[BaseEvalModel] = None,
+    model: BaseEvalModel = OpenAIModel(),
     system_instruction: Optional[str] = None,
 ) -> List[str]:
     """
@@ -40,7 +39,6 @@ def llm_generate(
         model for each record
 
     """
-    model = model or OpenAIModel()
     template = normalize_template(template)
     logger.info(f"Template: \n{template.text}\n")
     logger.info(f"Template variables: {template.variables}")
