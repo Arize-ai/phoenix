@@ -36,8 +36,8 @@ jobs:
                   pip install hatch
             - name: Proto codegen
               run: |
-                hatch run proto:recompile
-                git diff --exit-code
+                  hatch run proto:recompile
+                  git diff --exit-code
             - name: Check format
               run: |
                   hatch run style:check
@@ -56,7 +56,7 @@ jobs:
     test:
         name: Test Python
         runs-on: ${{ matrix.os }}
-        needs: [lint]
+        # needs: [lint]
         strategy:
             matrix:
                 os: [macos-latest, windows-latest, ubuntu-latest]
