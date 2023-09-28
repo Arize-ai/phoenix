@@ -36,6 +36,7 @@ import {
 import { ExternalLink } from "@phoenix/components";
 import { resizeHandleCSS } from "@phoenix/components/resize";
 import { SpanItem } from "@phoenix/components/trace/SpanItem";
+import { SpanKindIcon } from "@phoenix/components/trace/SpanKindIcon";
 import { TraceTree } from "@phoenix/components/trace/TraceTree";
 import {
   DOCUMENT_CONTENT,
@@ -324,6 +325,17 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
     return null;
   }, [spanAttributes]);
 
+  const modelName = useMemo<string | null>(() => {
+    if (llmAttributes == null) {
+      return null;
+    }
+    const maybeModelName = llmAttributes[LLMAttributePostfixes.model_name];
+    if (typeof maybeModelName === "string") {
+      return maybeModelName;
+    }
+    return null;
+  }, [llmAttributes]);
+
   const inputMessages = useMemo<AttributeMessage[]>(() => {
     if (llmAttributes == null) {
       return [];
@@ -359,6 +371,19 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
       "{}") as string;
   }, [llmAttributes]);
 
+  const modelNameTitleEl = useMemo<ReactNode>(() => {
+    if (modelName == null) {
+      return null;
+    }
+    return (
+      <Flex direction="row" gap="size-100" alignItems="center">
+        <SpanKindIcon spanKind="llm" />
+        <Text textSize="large" weight="heavy">
+          {modelName}
+        </Text>
+      </Flex>
+    );
+  }, [modelName]);
   const hasInput = input != null && input.value != null;
   const hasInputMessages = inputMessages.length > 0;
   const hasOutput = output != null && output.value != null;
@@ -366,9 +391,11 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
   const hasPrompts = prompts.length > 0;
   const hasInvocationParams =
     Object.keys(JSON.parse(invocation_parameters_str)).length > 0;
+
   return (
     <Flex direction="column" gap="size-200">
-      <TabbedCard {...defaultCardProps}>
+      {/* @ts-expect-error force putting the title in as a string */}
+      <TabbedCard {...defaultCardProps} title={modelNameTitleEl}>
         <Tabs>
           {hasInputMessages ? (
             <TabPane name="Input Messages" hidden={!hasInputMessages}>
