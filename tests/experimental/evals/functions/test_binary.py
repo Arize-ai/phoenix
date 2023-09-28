@@ -10,11 +10,12 @@ from phoenix.experimental.evals import (
     run_relevance_eval,
 )
 from phoenix.experimental.evals.functions.binary import _snap_to_rail
+from phoenix.experimental.evals.models.openai import OPENAI_API_KEY_ENVVAR_NAME
 
 
 @responses.activate
-def test_llm_eval_binary(monkeypatch):
-    monkeypatch.setenv("OPENAI_API_KEY", "sk-0123456789")
+def test_llm_eval_binary(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
     dataframe = pd.DataFrame(
         [
             {
@@ -54,10 +55,11 @@ def test_llm_eval_binary(monkeypatch):
             },
             status=200,
         )
+    model = OpenAIModel()
     relevance_classifications = llm_eval_binary(
         dataframe=dataframe,
         template=RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
-        model=OpenAIModel(),
+        model=model,
         rails=["relevant", "irrelevant"],
     )
     assert relevance_classifications == ["relevant", "irrelevant", "relevant", NOT_PARSABLE]
@@ -183,7 +185,7 @@ def test_run_relevance_eval(
     monkeypatch: pytest.MonkeyPatch,
     dataframe: pd.DataFrame,
 ):
-    monkeypatch.setenv("OPENAI_API_KEY", "sk-0123456789")
+    monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
     for message_content in [
         "relevant",
         "irrelevant",
@@ -206,7 +208,8 @@ def test_run_relevance_eval(
             },
             status=200,
         )
-    relevance_classifications = run_relevance_eval(dataframe, model=OpenAIModel())
+    model = OpenAIModel()
+    relevance_classifications = run_relevance_eval(dataframe, model=model)
     assert relevance_classifications == [
         ["relevant", "irrelevant"],
         ["relevant", "irrelevant"],
