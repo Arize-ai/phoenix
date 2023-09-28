@@ -55,6 +55,8 @@ def run_relevance_eval(
     template: Union[PromptTemplate, str] = RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
     query_column_name: str = "attributes.input.value",
     retrieved_documents_column_name: str = "attributes.retrieval.documents",
+    trace_data: bool = True,
+    rails_map: Optional[dict] = None,
 ) -> List[List[Optional[bool]]]:
     """Given a pandas dataframe containing queries and retrieved documents,
        classifies the relevance of each retrieved document to the corresponding
@@ -71,6 +73,12 @@ def run_relevance_eval(
         containing the retrieved document data. Each entry in this column should be
         a list of dictionaries containing metadata about the retrieved documents.
 
+        trace_data (bool) : True if context data is tracing format OpenInference
+        False it is a dataframe with [["chunk", "chunk", "chunk"], ["chunk", ...]
+        List[List[str]] in retrieved_documents_column_name
+
+        rails_map: The mapping to use to return the values. Using a dict here
+        but it can take the OrderedDict of RAILS_MAP from library
     Returns:
         List[List[str]]: A list of relevant and not relevant classifications.
         The "shape" of the list should mirror the "shape" of the retrieved
@@ -107,7 +115,7 @@ def run_relevance_eval(
     )
     class_name_to_bool = {"relevant": True, "irrelevant": False}
     exploded_df[llm_relevance_column_name] = [
-        class_name_to_bool.get(relevance_class) if relevance_class is not None else None
+        rails_map.get(relevance_class) if relevance_class is not None else None
         for relevance_class in llm_eval_binary(
             exploded_df,
             template=template,

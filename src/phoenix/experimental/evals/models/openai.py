@@ -254,12 +254,3 @@ class OpenAIModel(BaseEvalModel):
 
     def get_text_from_tokens(self, tokens: List[int]) -> str:
         return self.encoder.decode(tokens)
-
-
-def truncate_function(model: BaseEvalModel, text: str, token_buffer: int = 20) -> str:
-    max_token_count = model.max_context_size - token_buffer
-    if model.get_token_count_from_text(text) > max_token_count:
-        return (
-            model.get_text_from_tokens(model.get_tokens_from_text(text)[:max_token_count]) + "..."
-        )
-    return text
