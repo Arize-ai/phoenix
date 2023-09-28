@@ -14,6 +14,12 @@ export const LLMAttributePostfixes = {
   output_messages: "output_messages",
   invocation_parameters: "invocation_parameters",
   prompts: "prompts",
+  prompt_template: "prompt_template",
+} as const;
+
+export const LLMPromptTemplateAttributePostfixes = {
+  variables: "variables",
+  template: "template",
 } as const;
 
 export const RetrievalAttributePostfixes = {
