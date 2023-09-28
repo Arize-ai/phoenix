@@ -59,6 +59,7 @@ import {
   AttributeDocument,
   AttributeEmbedding,
   AttributeMessage,
+  isAttributePromptTemplate,
 } from "@phoenix/openInference/tracing/types";
 import { assertUnreachable, isStringArray } from "@phoenix/typeUtils";
 import { numberFormatter } from "@phoenix/utils/numberFormatUtils";
@@ -361,6 +362,19 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
       return [];
     }
     return maybePrompts;
+  }, [llmAttributes]);
+
+  const promptTemplate = useMemo<string | null>(() => {
+    if (llmAttributes == null) {
+      return null;
+    }
+    let promptTemplate: string | null = null;
+    const maybePromptTemplate = llmAttributes[LLMAttributePostfixes.prompt_template];
+    if (!isAttributePromptTemplate(maybePromptTemplate)) {
+      promptTemplate = [];
+    }
+    return maybePromptTemplate;
+    return promptTemplate;
   }, [llmAttributes]);
 
   const invocation_parameters_str = useMemo<string>(() => {

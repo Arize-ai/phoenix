@@ -7,6 +7,7 @@ import {
   MESSAGE_CONTENT,
   MESSAGE_NAME,
   MESSAGE_ROLE,
+  LLMPromptTemplateAttributePostfixes,
 } from "./semanticConventions";
 
 export type AttributeMessage = {
@@ -28,3 +29,16 @@ export type AttributeEmbedding = {
   [EMBEDDING_TEXT]?: string;
   [key: string]: unknown;
 };
+
+export type AttributePromptTemplate = {
+  [LLMPromptTemplateAttributePostfixes.template]: string;
+  [LLMPromptTemplateAttributePostfixes.variables]: Record<string, string>;
+  [key: string]: unknown;
+};
+
+export function isAttributePromptTemplate(value: unknown): value is AttributePromptTemplate {
+  if (typeof value === "object") {  // TODO: Fix type guard.
+    return true;
+  }
+  return false;
+}
