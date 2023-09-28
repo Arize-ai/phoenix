@@ -20,6 +20,28 @@ px.active_session().get_spans_dataframe('span_kind == "RETRIEVER"')
 
 Notice that the `get_spans_dataframe` method supports a python expression as an optional `str` param so you can filter down the data to specific parts of your traces. For full details, consult the API docs for [session](../api/session.md).
 
+You can also directly get the spans from the tracer or callback:
+
+```python
+from phoenix.trace.langchain import OpenInferenceTracer
+
+tracer = OpenInferenceTracer()
+
+# Run the application with the tracer
+chain.run(query, callbacks=[tracer])
+
+# When you are ready to analyze the data, you can convert the traces
+ds = TraceDataset.from_spans(tracer.get_spans())
+
+# Print the dataframe
+ds.dataframe.head()
+
+# Re-initialize the app with the trace dataset
+px.launch_app(trace=ds)
+```
+
+Note that the above calls `get_spans` on a LangChain tracer but the same exact method exists on the `OpenInferenceCallback` for LlamaIndex as well.
+
 ## Exporting Embeddings
 
 Embeddings can be extremely useful for fine-tuning. There are two ways to export your embeddings from the phoenix UI.
