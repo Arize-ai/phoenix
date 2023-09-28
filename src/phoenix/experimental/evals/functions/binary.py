@@ -49,8 +49,8 @@ def llm_eval_binary(
     Returns:
         List[str]: A list of strings representing the predicted class for each record in the
         dataframe. The list should have the same length as the input dataframe and its values should
-        be the entries in the `rails` argument or None if the model's prediction could not be
-        parsed.
+        be the entries in the rails argument or "NOT_PARSABLE" if the model's prediction could not
+        be parsed.
     """
 
     eval_template = normalize_template(template)
