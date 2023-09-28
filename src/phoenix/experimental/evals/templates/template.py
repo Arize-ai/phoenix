@@ -95,11 +95,7 @@ def normalize_template(template: Union[PromptTemplate, str]) -> PromptTemplate:
         return template
 
     if isinstance(template, str):
-        try:
-            normalized_template = PromptTemplate(text=template)
-            return normalized_template
-        except Exception as e:
-            raise RuntimeError(f"Error while initializing the PromptTemplate: {e}")
+        return PromptTemplate(text=template)
 
     raise TypeError(
         "Invalid type for argument `template`. Expected a string or PromptTemplate "

@@ -82,9 +82,7 @@ class OpenAIModel(BaseEvalModel):
             self._tiktoken = tiktoken
         except ImportError:
             self._raise_import_error(
-                package_display_name="tiktoken",
                 package_name="tiktoken",
-                package_min_version=MINIMUM_OPENAI_VERSION,
             )
 
     def _init_open_ai(self) -> None:
@@ -239,15 +237,12 @@ class OpenAIModel(BaseEvalModel):
         for message in messages:
             token_count += tokens_per_message
             for key, text in message.items():
-                token_count += self.get_token_count_from_text(text)
+                token_count += len(self.get_tokens_from_text(text))
                 if key == "name":
                     token_count += tokens_per_name
         # every reply is primed with <|start|>assistant<|message|>
         token_count += 3
         return token_count
-
-    def get_token_count_from_text(self, text: str) -> int:
-        return len(self.encoder.encode(text))
 
     def get_tokens_from_text(self, text: str) -> List[int]:
         return self.encoder.encode(text)

@@ -132,8 +132,10 @@ class BaseEvalModel(ABC):
 
     @staticmethod
     def _raise_import_error(
-        package_display_name: str, package_name: str, package_min_version: str = ""
+        package_name: str, package_display_name: str = "", package_min_version: str = ""
     ) -> None:
+        if not package_display_name:
+            package_display_name = package_name
         msg = (
             f"Could not import necessary dependencies to use {package_display_name}. "
             "Please install them with"
