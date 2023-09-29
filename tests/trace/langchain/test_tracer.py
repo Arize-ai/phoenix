@@ -20,6 +20,7 @@ from langchain.schema.messages import (
     HumanMessage,
     SystemMessage,
 )
+from phoenix.experimental.evals.models.openai import OPENAI_API_KEY_ENVVAR_NAME
 from phoenix.trace.exporter import NoOpExporter
 from phoenix.trace.langchain import OpenInferenceTracer
 from phoenix.trace.schemas import SpanException, SpanKind, SpanStatusCode
@@ -159,7 +160,7 @@ def test_tracer_llm() -> None:
 def test_tracer_llm_message_attributes_with_chat_completions_api(
     messages: List[BaseMessage], monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setenv("OPENAI_API_KEY", "sk-0123456789")
+    monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
     tracer = OpenInferenceTracer(exporter=NoOpExporter())
     model_name = "gpt-4"
     llm = ChatOpenAI(model_name=model_name)
@@ -205,7 +206,7 @@ def test_tracer_llm_message_attributes_with_chat_completions_api(
 
 @responses.activate
 def test_tracer_llm_prompt_attributes_with_completions_api(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("OPENAI_API_KEY", "sk-0123456789")
+    monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
     tracer = OpenInferenceTracer(exporter=NoOpExporter())
     model_name = "text-davinci-003"
     llm = OpenAI(model_name=model_name, n=3)

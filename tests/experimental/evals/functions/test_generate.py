@@ -1,11 +1,15 @@
+from unittest.mock import patch
+
 import pandas as pd
+import pytest
 import responses
 from phoenix.experimental.evals import OpenAIModel, llm_generate
+from phoenix.experimental.evals.models.openai import OPENAI_API_KEY_ENVVAR_NAME
 
 
 @responses.activate
-def test_llm_generate(monkeypatch):
-    monkeypatch.setenv("OPENAI_API_KEY", "sk-0123456789")
+def test_llm_generate(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
     dataframe = pd.DataFrame(
         [
             {
@@ -48,11 +52,11 @@ def test_llm_generate(monkeypatch):
     template = (
         "Given {query} and a golden answer {reference}, generate an answer that is incorrect."
     )
-    generated = llm_generate(
-        dataframe=dataframe,
-        template=template,
-        model=OpenAIModel(),
-    )
+
+    with patch.object(OpenAIModel, "_init_tiktoken", return_value=None):
+        model = OpenAIModel()
+
+    generated = llm_generate(dataframe=dataframe, template=template, model=model)
     assert generated == [
         "it's a dialect of french",
         "it's a music notation",

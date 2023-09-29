@@ -284,7 +284,7 @@ def launch_app(
 
     Parameters
     ----------
-    primary : Dataset, required
+    primary : Dataset, optional
         The primary dataset to analyze
     reference : Dataset, optional
         The reference dataset to compare against.
