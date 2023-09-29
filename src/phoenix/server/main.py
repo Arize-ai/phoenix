@@ -14,6 +14,7 @@ from phoenix.core.model_schema_adapter import create_model_from_datasets
 from phoenix.core.traces import Traces
 from phoenix.datasets.dataset import EMPTY_DATASET, Dataset
 from phoenix.datasets.fixtures import FIXTURES, get_datasets
+from phoenix.pointcloud.umap_parameters import UMAPParameters
 from phoenix.server.app import create_app
 from phoenix.trace.fixtures import (
     TRACES_FIXTURES,
@@ -63,6 +64,7 @@ if __name__ == "__main__":
     parser.add_argument("--host", type=str, required=False)
     parser.add_argument("--port", type=int, required=False)
     parser.add_argument("--no-internet", action="store_true")
+    parser.add_argument("--umap_params", type=int, required=True)
     parser.add_argument("--debug", action="store_false")  # TODO: Disable before public launch
     subparsers = parser.add_subparsers(dest="command", required=True)
     datasets_parser = subparsers.add_parser("datasets")
@@ -120,9 +122,12 @@ if __name__ == "__main__":
             ),
         ):
             traces.put(span)
+    umap_params_list = args.umap_params.split(",")
+    umap_params = UMAPParameters(umap_params_list[0], umap_params_list[1], umap_params_list[2])
     app = create_app(
         export_path=export_path,
         model=model,
+        umap_params=umap_params,
         traces=traces,
         corpus=None if corpus_dataset is None else create_model_from_datasets(corpus_dataset),
         debug=args.debug,

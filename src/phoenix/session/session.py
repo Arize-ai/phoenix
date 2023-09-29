@@ -177,7 +177,7 @@ class ProcessSession(Session):
         reference_dataset: Optional[Dataset] = None,
         corpus_dataset: Optional[Dataset] = None,
         trace_dataset: Optional[TraceDataset] = None,
-        default_umap_parameters: Optional[Dict[str, int]] = None,
+        default_umap_parameters: Optional[Dict[str, Union[int, float]]] = None,
         host: Optional[str] = None,
         port: Optional[int] = None,
     ) -> None:
@@ -197,19 +197,24 @@ class ProcessSession(Session):
             corpus_dataset.to_disc()
         if isinstance(trace_dataset, TraceDataset):
             trace_dataset.to_disc()
+        umap_params_str = (
+            f"{self.umap_parameters.min_dist},"
+            f"{self.umap_parameters.n_neighbors},"
+            f"{self.umap_parameters.n_samples}"
+        )
         # Initialize an app service that keeps the server running
         self.app_service = AppService(
             self.export_path,
             self.host,
             self.port,
             self.primary_dataset.name,
+            umap_params_str,
             reference_dataset_name=(
                 self.reference_dataset.name if self.reference_dataset is not None else None
             ),
             corpus_dataset_name=(
                 self.corpus_dataset.name if self.corpus_dataset is not None else None
             ),
-            # TO-DO default_umap_params for ProcessSession
             trace_dataset_name=(
                 self.trace_dataset.name if self.trace_dataset is not None else None
             ),
@@ -231,7 +236,7 @@ class ThreadSession(Session):
         reference_dataset: Optional[Dataset] = None,
         corpus_dataset: Optional[Dataset] = None,
         trace_dataset: Optional[TraceDataset] = None,
-        default_umap_parameters: Optional[Dict[str, int]] = None,
+        default_umap_parameters: Optional[Dict[str, Union[int, float]]] = None,
         host: Optional[str] = None,
         port: Optional[int] = None,
     ):
@@ -250,7 +255,7 @@ class ThreadSession(Session):
             model=self.model,
             corpus=self.corpus,
             traces=self.traces,
-            umap_parameters=self.umap_parameters,
+            umap_params=self.umap_parameters,
         )
         self.server = ThreadServer(
             app=self.app,
@@ -274,7 +279,7 @@ def launch_app(
     reference: Optional[Dataset] = None,
     corpus: Optional[Dataset] = None,
     trace: Optional[TraceDataset] = None,
-    default_umap_parameters: Optional[Dict[str, Union[int, float]]] = {},
+    default_umap_parameters: Optional[Dict[str, Union[int, float]]] = None,
     host: Optional[str] = None,
     port: Optional[int] = None,
     run_in_thread: bool = True,

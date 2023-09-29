@@ -132,7 +132,7 @@ class Download(HTTPEndpoint):
 def create_app(
     export_path: Path,
     model: Model,
-    umap_parameters: UMAPParameters,
+    umap_params: UMAPParameters,
     corpus: Optional[Model] = None,
     traces: Optional[Traces] = None,
     debug: bool = False,
@@ -184,9 +184,9 @@ def create_app(
                     directory=SERVER_DIR / "static",
                     app_config=AppConfig(
                         has_corpus=corpus is not None,
-                        min_dist=umap_parameters.min_dist,
-                        n_neighbors=umap_parameters.n_neighbors,
-                        n_samples=umap_parameters.n_samples,
+                        min_dist=umap_params.min_dist,
+                        n_neighbors=umap_params.n_neighbors,
+                        n_samples=umap_params.n_samples,
                     ),
                 ),
                 name="static",
