@@ -176,7 +176,7 @@ class Traces:
         rank = cast(int, root_span_ids.bisect_key_left(latency_ms))
         return rank / n * 100
 
-    def root_span_latency_ms_quantiles(self, *probabilities: float) -> Iterable[Optional[float]]:
+    def root_span_latency_ms_quantiles(self, *probabilities: float) -> Iterator[Optional[float]]:
         """Root span latency quantiles in milliseconds"""
         return map(self._root_span_latency_ms_sketch.get_quantile_value, probabilities)
 
