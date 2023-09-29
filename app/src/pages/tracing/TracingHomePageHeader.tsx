@@ -58,27 +58,24 @@ export function TracingHomePageHeader(props: {
         </Flex>
         <Flex direction="column">
           <Text elementType="h3" textSize="medium" color="white70">
-            Latency P50
+            Latency P50 yo
           </Text>
-          <Text textSize="xlarge">
-            {latencyMsP50 != null ? (
-              <LatencyText latencyMs={latencyMsP50} />
-            ) : (
-              "--"
-            )}
-          </Text>
+          {latencyMsP50 != null ? (
+            <LatencyText latencyMs={latencyMsP50} textSize="xlarge" />
+          ) : (
+            <Text textSize="xlarge">--</Text>
+          )}
         </Flex>
         <Flex direction="column">
           <Text elementType="h3" textSize="medium" color="white70">
             Latency P99
           </Text>
-          <Text textSize="xlarge">
-            {latencyMsP99 != null ? (
-              <LatencyText latencyMs={latencyMsP99} />
-            ) : (
-              "--"
-            )}
-          </Text>
+
+          {latencyMsP99 != null ? (
+            <LatencyText latencyMs={latencyMsP99} textSize="xlarge" />
+          ) : (
+            <Text textSize="xlarge">--</Text>
+          )}
         </Flex>
       </Flex>
     </View>
