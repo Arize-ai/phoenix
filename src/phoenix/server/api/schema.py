@@ -251,11 +251,14 @@ class Query:
             Tuple[datetime, datetime],
             traces.right_open_time_range,
         )
+        latency_ms_p50, latency_ms_p99 = traces.root_span_latency_ms_quantiles(0.50, 0.99)
         return TraceDatasetInfo(
             start_time=start_time,
             end_time=stop_time,
             record_count=span_count,
             token_count_total=traces.token_count_total,
+            latency_ms_p50=latency_ms_p50,
+            latency_ms_p99=latency_ms_p99,
         )
 
 
