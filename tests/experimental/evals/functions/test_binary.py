@@ -4,7 +4,6 @@ import numpy as np
 import pandas as pd
 import pytest
 import responses
-
 from phoenix.experimental.evals import (
     NOT_PARSABLE,
     RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
@@ -212,7 +211,8 @@ def test_run_relevance_eval(
             },
             status=200,
         )
-    model = OpenAIModel()
+    with patch.object(OpenAIModel, "_init_tiktoken", return_value=None):
+        model = OpenAIModel()
     relevance_classifications = run_relevance_eval(dataframe, model=model)
     assert relevance_classifications == [
         ["relevant", "irrelevant"],

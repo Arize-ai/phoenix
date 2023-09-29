@@ -3,7 +3,6 @@ from unittest.mock import patch
 import pandas as pd
 import pytest
 import responses
-
 from phoenix.experimental.evals import OpenAIModel, llm_generate
 from phoenix.experimental.evals.models.openai import OPENAI_API_KEY_ENVVAR_NAME
 
