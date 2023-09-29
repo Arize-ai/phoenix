@@ -111,6 +111,7 @@ dependencies = [
   "requests",
   "protobuf==3.20",  # version minimum (for tests)
   "responses",
+  "tiktoken"
 ]
 
 [tool.hatch.envs.type]

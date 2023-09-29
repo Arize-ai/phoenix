@@ -10,6 +10,7 @@ from llama_index.query_engine import RetrieverQueryEngine
 from llama_index.schema import Document, TextNode
 from openai import ChatCompletion
 from openai.error import RateLimitError
+from phoenix.experimental.evals.models.openai import OPENAI_API_KEY_ENVVAR_NAME
 from phoenix.trace.exporter import NoOpExporter
 from phoenix.trace.llama_index import OpenInferenceTraceCallbackHandler
 from phoenix.trace.schemas import SpanException, SpanKind, SpanStatusCode
@@ -66,7 +67,7 @@ def test_callback_llm(mock_service_context: ServiceContext) -> None:
 def test_callback_llm_span_contains_template_attributes(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setenv("OPENAI_API_KEY", "sk-0123456789")
+    monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
     model_name = "gpt-3.5-turbo"
     llm = OpenAI(model=model_name, max_retries=1)
     query = "What are the seven wonders of the world?"
@@ -112,7 +113,7 @@ def test_callback_llm_span_contains_template_attributes(
 def test_callback_llm_rate_limit_error_has_exception_event(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setenv("OPENAI_API_KEY", "sk-0123456789")
+    monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
     llm = OpenAI(model="gpt-3.5-turbo", max_retries=1)
     query = "What are the seven wonders of the world?"
     callback_handler = OpenInferenceTraceCallbackHandler(exporter=NoOpExporter())
