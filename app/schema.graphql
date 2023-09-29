@@ -618,6 +618,12 @@ type TraceDatasetInfo {
 
   """Count of total (prompt + completion) tokens in the trace data"""
   tokenCountTotal: Int!
+
+  """Root span latency p50 quantile in milliseconds"""
+  latencyMsP50: Float
+
+  """Root span latency p99 quantile in milliseconds"""
+  latencyMsP99: Float
 }
 
 type UMAPPoint {
