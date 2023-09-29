@@ -19,6 +19,7 @@ from typing import (
 )
 from uuid import UUID
 
+from ddsketch import DDSketch
 from sortedcontainers import SortedKeyList
 from typing_extensions import TypeAlias
 from wrapt import ObjectProxy
@@ -122,6 +123,7 @@ class Traces:
         self._latency_sorted_root_span_ids: SortedKeyList[SpanID] = SortedKeyList(
             key=lambda span_id: self._spans[span_id][LATENCY_MS],
         )
+        self._root_span_latency_sketch = DDSketch()
         self._min_start_time: Optional[datetime] = None
         self._max_start_time: Optional[datetime] = None
         self._start_consumer()
@@ -173,6 +175,10 @@ class Traces:
             return None
         rank = cast(int, root_span_ids.bisect_key_left(latency_ms))
         return rank / n * 100
+
+    def root_span_latency_ms_quantiles(self, *probabilities: float) -> Iterable[Optional[float]]:
+        """Root span latency quantiles in milliseconds"""
+        return map(self._root_span_latency_sketch.get_quantile_value, probabilities)
 
     def get_descendant_span_ids(self, span_id: SpanID) -> Iterator[SpanID]:
         for child_span_id in self._child_span_ids.get(span_id) or ():
@@ -236,7 +242,9 @@ class Traces:
         start_time = span.start_time.ToDatetime(timezone.utc)
         end_time = span.end_time.ToDatetime(timezone.utc) if span.HasField("end_time") else None
         if end_time:
-            new_span[LATENCY_MS] = (end_time - start_time).total_seconds() * 1000
+            new_span[LATENCY_MS] = latency = (end_time - start_time).total_seconds() * 1000
+            if is_root_span:
+                self._root_span_latency_sketch.add(latency)
         self._spans[span_id] = new_span
         if is_root_span and end_time:
             self._latency_sorted_root_span_ids.add(span_id)

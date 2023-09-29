@@ -3,6 +3,7 @@ import { graphql, useFragment } from "react-relay";
 
 import { Flex, Text, View } from "@arizeai/components";
 
+import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { intFormatter } from "@phoenix/utils/numberFormatUtils";
 
 import { TracingHomePageHeader_stats$key } from "./__generated__/TracingHomePageHeader_stats.graphql";
@@ -22,13 +23,15 @@ export function TracingHomePageHeader(props: {
           startTime
           endTime
           tokenCountTotal
+          latencyMsP50
+          latencyMsP99
         }
       }
     `,
     props.query
   );
-  const startTime = data?.traceDatasetInfo?.startTime;
-  const endTime = data?.traceDatasetInfo?.endTime;
+  const latencyMsP50 = data?.traceDatasetInfo?.latencyMsP50;
+  const latencyMsP99 = data?.traceDatasetInfo?.latencyMsP99;
   const tokenCountTotal = data?.traceDatasetInfo?.tokenCountTotal;
   return (
     <View
@@ -55,34 +58,26 @@ export function TracingHomePageHeader(props: {
         </Flex>
         <Flex direction="column">
           <Text elementType="h3" textSize="medium" color="white70">
-            Start
+            Latency P50
           </Text>
           <Text textSize="xlarge">
-            {startTime != null
-              ? new Date(startTime).toLocaleString([], {
-                  year: "numeric",
-                  month: "numeric",
-                  day: "numeric",
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })
-              : "--"}
+            {latencyMsP50 != null ? (
+              <LatencyText latencyMs={latencyMsP50} />
+            ) : (
+              "--"
+            )}
           </Text>
         </Flex>
         <Flex direction="column">
           <Text elementType="h3" textSize="medium" color="white70">
-            End
+            Latency P99
           </Text>
           <Text textSize="xlarge">
-            {endTime != null
-              ? new Date(endTime).toLocaleString([], {
-                  year: "numeric",
-                  month: "numeric",
-                  day: "numeric",
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })
-              : "--"}
+            {latencyMsP99 != null ? (
+              <LatencyText latencyMs={latencyMsP99} />
+            ) : (
+              "--"
+            )}
           </Text>
         </Flex>
       </Flex>
