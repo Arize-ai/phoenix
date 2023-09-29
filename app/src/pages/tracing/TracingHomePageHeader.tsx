@@ -58,7 +58,7 @@ export function TracingHomePageHeader(props: {
         </Flex>
         <Flex direction="column">
           <Text elementType="h3" textSize="medium" color="white70">
-            Latency P50 yo
+            Latency P50
           </Text>
           {latencyMsP50 != null ? (
             <LatencyText latencyMs={latencyMsP50} textSize="xlarge" />
