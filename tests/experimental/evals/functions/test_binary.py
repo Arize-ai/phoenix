@@ -1,7 +1,10 @@
+from unittest.mock import patch
+
 import numpy as np
 import pandas as pd
 import pytest
 import responses
+
 from phoenix.experimental.evals import (
     NOT_PARSABLE,
     RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
@@ -55,7 +58,8 @@ def test_llm_eval_binary(monkeypatch: pytest.MonkeyPatch):
             },
             status=200,
         )
-    model = OpenAIModel()
+    with patch.object(OpenAIModel, "_init_tiktoken", return_value=None):
+        model = OpenAIModel()
     relevance_classifications = llm_eval_binary(
         dataframe=dataframe,
         template=RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
