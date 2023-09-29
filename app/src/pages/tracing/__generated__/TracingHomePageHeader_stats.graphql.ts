@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<5c571e072df3414b882c5bb58285344e>>
+ * @generated SignedSource<<08057209caeeee181fb7f353d0d43b81>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -18,6 +18,8 @@ export type TracingHomePageHeader_stats$data = {
   };
   readonly traceDatasetInfo: {
     readonly endTime: string;
+    readonly latencyMsP50: number | null;
+    readonly latencyMsP99: number | null;
     readonly startTime: string;
     readonly tokenCountTotal: number;
   } | null;
@@ -97,6 +99,20 @@ const node: ReaderFragment = {
           "kind": "ScalarField",
           "name": "tokenCountTotal",
           "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "latencyMsP50",
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "latencyMsP99",
+          "storageKey": null
         }
       ],
       "storageKey": null
@@ -106,6 +122,6 @@ const node: ReaderFragment = {
   "abstractKey": null
 };
 
-(node as any).hash = "bbaaf1f8d382d3cac6fe2e1f20b883e5";
+(node as any).hash = "3a78a98b4a7c56223d844d32bcf539ca";
 
 export default node;
