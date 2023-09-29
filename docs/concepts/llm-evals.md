@@ -111,7 +111,7 @@ We've tested a lot of different performance evaluation options. We've found appr
 LLM Evals where the Eval output is a numeric score or rating needs more research and investigation. We have not found them comparable in performance to binary and categorical Evals.
 {% endhint %}
 
-LLM Evals included currently in the library make a speific binary decision "hallucination" or "factual" for example. These binary decisions generate traditional Precision/Recall/F1/MRR metrics that can be applied to the decisions giving a very intuitive understanding of performance and provide comparable metrics across models.
+LLM Evals included currently in the library make a specific binary decision "hallucination" or "factual" for example. These binary decisions generate traditional Precision/Recall/F1/MRR metrics that can be applied to the decisions giving a very intuitive understanding of performance and provide comparable metrics across models.
 
 ```python
 df["eval_relevance"] = llm_eval_binary(df, evals.RAG_RELEVANCY_PROMPT_TEMPLATE_STR, model_to_use)

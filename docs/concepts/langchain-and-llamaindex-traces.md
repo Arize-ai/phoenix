@@ -8,11 +8,11 @@ description: Tracing the execution of LLM powered applications
 
 The rise of LangChain and LlamaIndex for LLM app development has enabled developers to move quickly in building applications powered by LLMs. The abstractions created by these frameworks can accelerate development, but also make it hard to debug the LLM app.
 
-<figure><img src="../.gitbook/assets/Screenshot 2023-09-09 at 9.16.25 AM.png" alt=""><figcaption><p>LLM App Frameworks</p></figcaption></figure>
+<figure><img src="../.gitbook/assets/image (23).png" alt=""><figcaption></figcaption></figure>
 
 LLM Trace observability attempts to make it easier to troubleshoot LangChain and LlamaIndex LLM frameworks.
 
-<figure><img src="../.gitbook/assets/Screenshot 2023-09-09 at 9.15.08 AM.png" alt=""><figcaption><p>LLM Spans</p></figcaption></figure>
+<figure><img src="../.gitbook/assets/image (22).png" alt=""><figcaption></figcaption></figure>
 
 The above gives an example of the spans that are part of a single session of a LlamaIndex or LangChain session. In order to capture the span data, tracing should be enabled.
 
