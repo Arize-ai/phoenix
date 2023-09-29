@@ -312,22 +312,14 @@ def df_evals(
     # Retreival Eval: Did I have the relevant data to even answer the question?
     # Checking retrieval system
 
-    # df[formatted_evals_column] = run_relevance_eval(
-    #     dataframe=df,
-    #     model=model,
-    #     template=RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
-    #     rails={"relevant": 1, "irrelevant": 0},
-    #     query_column_name="question",
-    #     document_column_name="retrieved_context_list",
-    # )
     df = df.rename(columns={"question": "query", "retrieved_context_list": "reference"})
     # query_column_name needs to also adjust the template to uncomment the
     # 2 fields in the function call below and delete the line above
     df[formatted_evals_column] = run_relevance_eval(
         dataframe=df,
         model=model,
-        template=RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
-        rails=list(RAG_RELEVANCY_PROMPT_RAILS_MAP.values()),
+        template=templates.RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
+        rails=list(templates.RAG_RELEVANCY_PROMPT_RAILS_MAP.values()),
         # query_column_name="question",
         # document_column_name="retrieved_context_list",
     )
@@ -411,7 +403,6 @@ def main():
     save_base = "./experiment_data/"
     if not os.path.exists(save_base):
         os.makedirs(save_base)
-    raw_docs_filepath = os.path.join(save_base, file_name)
     run_name = datetime.datetime.now().strftime("%Y%m%d_%H%M")
     save_dir = os.path.join(save_base, run_name)
     if not os.path.exists(save_dir):
@@ -423,9 +414,10 @@ def main():
         header=None,
     )[0].to_list()
 
+    raw_docs_filepath = os.path.join(save_base, file_name)
     # two options here, either get the documents from scratch or load one from disk
     if not os.path.exists(raw_docs_filepath):
-        logger.info(f"'{save_base}{file_name}' does not exists.")
+        logger.info(f"'{raw_docs_filepath}' does not exists.")
         urls = get_urls(base_url)  # you need to - pip install lxml
         logger.info(f"LOADED {len(urls)} URLS")
 
@@ -465,7 +457,7 @@ def main():
     # QA template (using default)
     qa_template = templates.QA_PROMPT_TEMPLATE_STR
     # Uncomment below when testing to limit number of questions
-    questions = questions[:3]
+    # questions = questions[:3]
     all_data = run_experiments(
         documents=documents,
         queries=questions,
