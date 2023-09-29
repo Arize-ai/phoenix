@@ -5,7 +5,7 @@ from .session.session import Session, active_session, close_app, launch_app
 from .trace.fixtures import load_example_traces
 from .trace.trace_dataset import TraceDataset
 
-__version__ = "0.0.41"
+__version__ = "0.0.42"
 
 # module level doc-string
 __doc__ = """
