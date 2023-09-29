@@ -1,10 +1,12 @@
+# type:ignore
 import os
+from typing import Dict
 
-import matplotlib.pyplot as plt
 import pandas as pd
+from matplotlib import pyplot as plt  # type:ignore
 
 
-def remove_all_zeros_rows(df):
+def remove_all_zeros_rows(df: pd.DataFrame) -> pd.DataFrame:
     filtered_df = df[
         (
             df[
@@ -21,7 +23,12 @@ def remove_all_zeros_rows(df):
     return filtered_df
 
 
-def plot_mrr_graphs(all_data, save_dir="./", show=True, remove_zero=True):
+def plot_mrr_graphs(
+    all_data: Dict[int, Dict[str, Dict[int, pd.DataFrame]]],
+    save_dir: str = "./",
+    show: bool = True,
+    remove_zero: bool = True,
+) -> None:
     # Determine the number of rows (distinct chunk sizes) and columns (methods) for the subplot grid
     chunk_sizes = list(all_data.keys())
     n_rows = len(chunk_sizes)
@@ -67,7 +74,12 @@ def plot_mrr_graphs(all_data, save_dir="./", show=True, remove_zero=True):
         plt.close(fig)
 
 
-def plot_ndcg_graphs(all_data, save_dir="./", show=True, remove_zero=True):
+def plot_ndcg_graphs(
+    all_data: Dict[int, Dict[str, Dict[int, pd.DataFrame]]],
+    save_dir: str = "./",
+    show: bool = True,
+    remove_zero: bool = True,
+) -> None:
     # Determine the number of rows (distinct chunk sizes) and columns (methods) for the subplot grid
     chunk_sizes = list(all_data.keys())
     n_rows = len(chunk_sizes)
@@ -117,14 +129,18 @@ def plot_ndcg_graphs(all_data, save_dir="./", show=True, remove_zero=True):
         plt.close(fig)
 
 
-def plot_latency_graphs(all_data, save_dir="./", show=True):
+def plot_latency_graphs(
+    all_data: Dict[int, Dict[str, Dict[int, pd.DataFrame]]],
+    save_dir: str = "./",
+    show: bool = True,
+) -> None:
     # Determine the number of rows (distinct chunk sizes) and columns (methods) for the subplot grid
     chunk_sizes = list(all_data.keys())
     n_rows = len(chunk_sizes)
     n_cols = max(len(method_data) for method_data in all_data.values())
 
     # Compute the global maximum median latency for setting consistent Y-axis
-    max_median_latency = 0
+    max_median_latency = 0.0
     for _, method_data in all_data.items():
         for _, k_data in method_data.items():
             for _, df in k_data.items():
@@ -172,7 +188,12 @@ def plot_latency_graphs(all_data, save_dir="./", show=True):
         plt.close(fig)
 
 
-def plot_mean_average_precision_graphs(all_data, save_dir="./", show=True, remove_zero=True):
+def plot_mean_average_precision_graphs(
+    all_data: Dict[int, Dict[str, Dict[int, pd.DataFrame]]],
+    save_dir: str = "./",
+    show: bool = True,
+    remove_zero: bool = True,
+) -> None:
     # Determine the number of rows (distinct chunk sizes) and columns (methods) for the subplot grid
     chunk_sizes = list(all_data.keys())
     n_rows = len(chunk_sizes)
@@ -222,7 +243,12 @@ def plot_mean_average_precision_graphs(all_data, save_dir="./", show=True, remov
         plt.close(fig)
 
 
-def plot_mean_precision_graphs(all_data, save_dir="./", show=True, remove_zero=True):
+def plot_mean_precision_graphs(
+    all_data: Dict[int, Dict[str, Dict[int, pd.DataFrame]]],
+    save_dir: str = "./",
+    show: bool = True,
+    remove_zero: bool = True,
+) -> None:
     # Determine the number of rows (distinct chunk sizes) and columns (methods) for the subplot grid
     chunk_sizes = list(all_data.keys())
     n_rows = len(chunk_sizes)
@@ -269,7 +295,12 @@ def plot_mean_precision_graphs(all_data, save_dir="./", show=True, remove_zero=T
         plt.close(fig)
 
 
-def plot_percentage_incorrect(all_data: dict, save_dir="./", show=True, remove_zero=True):
+def plot_percentage_incorrect(
+    all_data: Dict[int, Dict[str, Dict[int, pd.DataFrame]]],
+    save_dir: str = "./",
+    show: bool = True,
+    remove_zero: bool = True,
+) -> None:
     """
     Plot the percentage of 'incorrect' values for each chunk, method, and k.
 
