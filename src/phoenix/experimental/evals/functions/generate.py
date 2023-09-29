@@ -4,8 +4,7 @@ from typing import List, Optional, Union
 import pandas as pd
 
 from ..models import BaseEvalModel
-from ..templates import PromptTemplate, normalize_template
-from .common import map_template
+from ..templates import PromptTemplate, map_template, normalize_template
 
 logger = logging.getLogger(__name__)
 
