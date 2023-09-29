@@ -12,6 +12,7 @@ import cohere
 import numpy as np
 import openai
 import pandas as pd
+import phoenix.experimental.evals.templates.default_templates as templates
 import requests
 from bs4 import BeautifulSoup
 from llama_index import (
@@ -30,6 +31,10 @@ from llama_index.llms import OpenAI
 from llama_index.node_parser import SimpleNodeParser
 from llama_index.query_engine.multistep_query_engine import MultiStepQueryEngine
 from llama_index.query_engine.transform_query_engine import TransformQueryEngine
+from phoenix.experimental.evals import OpenAIModel, llm_eval_binary, run_relevance_eval
+from phoenix.experimental.evals.functions.common import NOT_PARSABLE
+from phoenix.experimental.evals.functions.processing import concatenate_and_truncate_chunks
+from phoenix.experimental.evals.models import BaseEvalModel
 from plotresults import (
     plot_latency_graphs,
     plot_mean_average_precision_graphs,
@@ -39,12 +44,6 @@ from plotresults import (
     plot_percentage_incorrect,
 )
 from sklearn.metrics import ndcg_score
-
-import phoenix.experimental.evals.templates.default_templates as templates
-from phoenix.experimental.evals import OpenAIModel, llm_eval_binary, run_relevance_eval
-from phoenix.experimental.evals.functions.common import NOT_PARSABLE
-from phoenix.experimental.evals.functions.processing import concatenate_and_truncate_chunks
-from phoenix.experimental.evals.models import BaseEvalModel
 
 LOGGING_LEVEL = 20  # INFO
 logging.basicConfig(level=LOGGING_LEVEL)
