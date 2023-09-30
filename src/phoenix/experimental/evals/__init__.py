@@ -1,4 +1,4 @@
-from .functions import NOT_PARSABLE, llm_eval_binary, llm_generate, run_relevance_eval
+from .functions import llm_eval_binary, llm_generate, run_relevance_eval
 from .models import OpenAIModel, VertexAIModel
 from .retrievals import compute_precisions_at_k
 from .templates import (
@@ -6,6 +6,7 @@ from .templates import (
     CODE_READABILITY_PROMPT_TEMPLATE_STR,
     HALLUCINATION_PROMPT_RAILS_MAP,
     HALLUCINATION_PROMPT_TEMPLATE_STR,
+    NOT_PARSABLE,
     RAG_RELEVANCY_PROMPT_RAILS_MAP,
     RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
     TOXICITY_PROMPT_RAILS_MAP,

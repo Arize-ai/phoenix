@@ -7,12 +7,13 @@ from phoenix.trace.semantic_conventions import DOCUMENT_CONTENT, INPUT_VALUE, RE
 
 from ..models import BaseEvalModel
 from ..templates import (
+    NOT_PARSABLE,
     RAG_RELEVANCY_PROMPT_RAILS_MAP,
     RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
     PromptTemplate,
+    map_template,
     normalize_template,
 )
-from .common import NOT_PARSABLE, map_template
 
 logger = logging.getLogger(__name__)
 
