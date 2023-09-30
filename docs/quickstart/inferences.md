@@ -45,7 +45,7 @@ Very often, your primary dataset will contain production data and your reference
 
 ### Corpus Dataset (Information Retrieval)
 
-The only difference for the [corpus](../how-to/define-your-schema/corpus-data.md) dataset is that it needs a separate schema because it have a different set of columns compared to the model data. See the [schema](phoenix-basics.md#corpus-dataset-information-retrieval) section for more details.
+The only difference for the [corpus](../how-to/define-your-schema/corpus-data.md) dataset is that it needs a separate schema because it have a different set of columns compared to the model data. See the [schema](inferences.md#corpus-dataset-information-retrieval) section for more details.
 
 ## Schemas
 
@@ -127,6 +127,6 @@ session = px.launch_app(prod_ds)
 session = px.launch_app(prod_ds, corpus=corpus_ds)
 ```
 
-The application provide you with a landing page that is populated with your model's `schema` (e.g. the features, tags, predictions, and actuals). This gives you a statistical overview of your data as well as links into the [embeddings details](phoenix-basics.md#embedding-details) views for analysis.&#x20;
+The application provide you with a landing page that is populated with your model's `schema` (e.g. the features, tags, predictions, and actuals). This gives you a statistical overview of your data as well as links into the [embeddings details](inferences.md#embedding-details) views for analysis.&#x20;
 
 <figure><img src="https://storage.googleapis.com/arize-assets/phoenix/assets/images/cc_fraud_home.png" alt="the phoenix home page with an overview of the model"><figcaption><p>The phoenix homepage</p></figcaption></figure>

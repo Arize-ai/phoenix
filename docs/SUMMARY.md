@@ -5,13 +5,13 @@
 
 ## 🔑 Quickstart
 
-* [LLM Traces - LangChain & LlamaIndex](quickstart/traces-and-spans-langchain-and-llamaindex.md)
-* [Inferences - Image/NLP/LLM](quickstart/phoenix-basics.md)
+* [LLM Traces - LangChain & LlamaIndex](quickstart/llm-traces.md)
+* [Inferences - Image/NLP/LLM](quickstart/inferences.md)
 
 ## 💡 Concepts
 
 * [What is LLM Observability?](concepts/llm-observability.md)
-* [LLM Traces](concepts/langchain-and-llamaindex-traces.md)
+* [LLM Traces](concepts/llm-traces.md)
 * [LLM Evals](concepts/llm-evals.md)
   * [Retrieval (RAG) Relevance](concepts/llm-evals/retrieval-rag-relevance.md)
   * [Hallucinations](concepts/llm-evals/hallucinations.md)

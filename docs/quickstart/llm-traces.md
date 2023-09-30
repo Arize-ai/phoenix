@@ -8,7 +8,7 @@ description: Inspect the inner-workings of your LLM Application using OpenInfere
 
 The easiest method of using Phoenix traces with LLM frameworks is to stream the execution of your application to a locally running Phoenix server. The traces collected during execution can then be stored for later use for things like validation, evaluation, and fine-tuning.
 
-The [traces](../concepts/langchain-and-llamaindex-traces.md) can be collected and stored in the following ways:
+The [traces](../concepts/llm-traces.md) can be collected and stored in the following ways:
 
 * **In Memory**: useful for debugging.
 * **Local File**: Persistent and good for offline local development. See [exports](../how-to/export-your-data.md)
@@ -184,5 +184,5 @@ Phoenix can be used to understand and troubleshoot your by surfacing:
 * **LLM Function Calls** - if using OpenAI or other a model with function calls, you can view the function selection and function messages in the input messages to the LLM.\
 
 
-[LLM Traces](../concepts/langchain-and-llamaindex-traces.md) are a powerful way to troubleshoot and understand your application and can be leveraged to [evaluate](../concepts/llm-evals.md) the quality of your application. For a full list of notebooks that illustrate this in full-color, please check out the [notebooks section](../notebooks.md).
+[LLM Traces](../concepts/llm-traces.md) are a powerful way to troubleshoot and understand your application and can be leveraged to [evaluate](../concepts/llm-evals.md) the quality of your application. For a full list of notebooks that illustrate this in full-color, please check out the [notebooks section](../notebooks.md).
 

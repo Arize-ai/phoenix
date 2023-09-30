@@ -136,18 +136,18 @@ class TraceDataset(
 )
 ```
 
-Wraps a dataframe that is a flattened representation of spans and traces. Note that it does not require a Schema. See [LLM Traces](../concepts/langchain-and-llamaindex-traces.md) on how to monitor your LLM application using traces. Because Phoenix can also receive traces from your LLM application directly in real time, `TraceDataset` is mostly used for loading trace data that has been previously saved to file.
+Wraps a dataframe that is a flattened representation of spans and traces. Note that it does not require a Schema. See [LLM Traces](../concepts/llm-traces.md) on how to monitor your LLM application using traces. Because Phoenix can also receive traces from your LLM application directly in real time, `TraceDataset` is mostly used for loading trace data that has been previously saved to file.
 
 **\[**[**source**](https://github.com/Arize-ai/phoenix/blob/main/src/phoenix/trace/trace\_dataset.py)**]**
 
 ### **Parameters**
 
-* **dataframe** (pandas.dataframe): a dataframe each row of which is a flattened representation of a span. See [LLM Traces](../concepts/langchain-and-llamaindex-traces.md) for more on traces and spans.
+* **dataframe** (pandas.dataframe): a dataframe each row of which is a flattened representation of a span. See [LLM Traces](../concepts/llm-traces.md) for more on traces and spans.
 * **name** (str): The name used to identify the dataset in the application. If not provided, a random name will be generated.
 
 ### Attributes
 
-* **dataframe** (pandas.dataframe): a dataframe each row of which is a flattened representation of a span. See [LLM Traces](../concepts/langchain-and-llamaindex-traces.md) for more on traces and spans.
+* **dataframe** (pandas.dataframe): a dataframe each row of which is a flattened representation of a span. See [LLM Traces](../concepts/llm-traces.md) for more on traces and spans.
 * **name** (Optional\[str]): The name used to identify the dataset in the application.
 
 ### Usage

@@ -39,7 +39,7 @@ For more complex or agentic workflows, it may not be obvious which call in a spa
 
 This pillar is largely about diving deep into the system to isolate the issue you are investigating.&#x20;
 
-Learn more about [Phoenix Traces and Spans](langchain-and-llamaindex-traces.md) support.&#x20;
+Learn more about [Phoenix Traces and Spans](llm-traces.md) support.&#x20;
 
 ### 3. Prompt Engineering
 
