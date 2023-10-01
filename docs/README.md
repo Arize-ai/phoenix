@@ -9,7 +9,7 @@ coverY: 0
 
 # Phoenix: AI Observability & Evaluation
 
-Phoenix is an Open Source Observability library designed pre-production experimentation, evaluation, and troubleshooting.&#x20;
+Phoenix is an Open Source Observability library designed for experimentation, evaluation, and troubleshooting.
 
 The toolset is designed to ingest [inference data](quickstart/inferences.md) for [LLMs](concepts/llm-observability.md), CV, NLP and tabular datasets as well as [LLM traces](quickstart/llm-traces.md). It allows AI Engineers and Data Scientists to quickly visualize their data, evaluate performance, track down issues & insights, and easily export to improve.&#x20;
 
