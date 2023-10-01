@@ -4,11 +4,11 @@ description: How to connect to OpenInference compliant data via a llama_index ca
 
 # LlamaIndex
 
-[LlamaIndex](https://github.com/jerryjliu/llama_index) (GPT Index) is a data framework for your LLM application. It's a powerful framework by which you can build an application that leverages RAG (retrieval-augmented generation) to super-charge an LLM with your own data. RAG is an extremely powerful LLM application model because it lets you harness the power of LLMs such as OpenAI's GPT but tuned to your data and use-case.
+[LlamaIndex](https://github.com/jerryjliu/llama\_index) (GPT Index) is a data framework for your LLM application. It's a powerful framework by which you can build an application that leverages RAG (retrieval-augmented generation) to super-charge an LLM with your own data. RAG is an extremely powerful LLM application model because it lets you harness the power of LLMs such as OpenAI's GPT but tuned to your data and use-case.
 
-However when building out a retrieval system, a lot can go wrong that can be detrimental to the user-experience of your question and answer system. Phoenix provides two different ways to gain insights into your LLM application: [OpenInference](../concepts/open-inference.md) inference records and [OpenInference](../concepts/open-inference.md) tracing.\
+However when building out a retrieval system, a lot can go wrong that can be detrimental to the user-experience of your question and answer system. Phoenix provides two different ways to gain insights into your LLM application: [OpenInference](../concepts/open-inference.md) inference records and [OpenInference](../concepts/open-inference.md) tracing.
 
-<table data-card-size="large" data-view="cards"><thead><tr><th></th><th></th><th></th><th data-hidden data-card-target data-type="content-ref"></th></tr></thead><tbody><tr><td><strong>Analyze using Traces</strong><br>Trace through the execution of your application hierarchically</td><td></td><td></td><td><a href="llamaindex.md#traces">#traces</a></td></tr><tr><td><strong>Analyze using Inferences</strong></td><td>Perform drift and retrieval analysis via inference DataFrames</td><td></td><td><a href="llamaindex.md#inferences">#inferences</a></td></tr></tbody></table>
+<table data-card-size="large" data-view="cards"><thead><tr><th></th><th></th><th></th><th data-hidden data-card-target data-type="content-ref"></th><th data-hidden data-card-cover data-type="files"></th></tr></thead><tbody><tr><td><p><strong>Analyze using Traces</strong></p><p>Trace through the execution of your application hierarchically</p></td><td></td><td></td><td><a href="llamaindex.md#traces">#traces</a></td><td><a href="../.gitbook/assets/Screenshot 2023-09-27 at 1.51.45 PM.png">Screenshot 2023-09-27 at 1.51.45 PM.png</a></td></tr><tr><td><strong>Analyze using Inferences</strong></td><td>Perform drift and retrieval analysis via inference DataFrames</td><td></td><td><a href="llamaindex.md#inferences">#inferences</a></td><td><a href="../.gitbook/assets/Screenshot 2023-09-27 at 1.53.06 PM.png">Screenshot 2023-09-27 at 1.53.06 PM.png</a></td></tr></tbody></table>
 
 ### Traces
 
@@ -31,7 +31,6 @@ LlamaIndex 0.8.36 and above supports One-Click!
 
 {% tabs %}
 {% tab title="Using a Callback" %}
-
 ```python
 from phoenix.trace.llama_index import (
     OpenInferenceTraceCallbackHandler,
@@ -54,11 +53,9 @@ index = load_index_from_storage(
 query_engine = index.as_query_engine()
 
 ```
-
 {% endtab %}
 
 {% tab title="One-Click" %}
-
 ```python
 # Phoenix can display in real time the traces automatically
 # collected from your LlamaIndex application.
@@ -74,7 +71,6 @@ llama_index.set_global_handler("arize_phoenix")
 # Run all of your LlamaIndex applications as usual and traces
 # will be collected and displayed in Phoenix.
 ```
-
 {% endtab %}
 {% endtabs %}
 
@@ -127,7 +123,7 @@ Inferences capture each invocation of the LLM application as a single record and
 {% endhint %}
 
 \
-To provide visibility into how your LLM app is performing, we built the [OpenInferenceCallback](https://github.com/jerryjliu/llama_index/blob/57d8253c12fcda0061d3167d56dbc425981e131f/docs/examples/callbacks/OpenInferenceCallback.ipynb). The OpenInferenceCallback captures the internals of the LLM App in buffers that conforms to the [OpenInference](../concepts/open-inference.md) format. As your LlamaIndex application, the callback captures the timing, embeddings, documents, and other critical internals and serializes the data to buffers that can be easily materialized as dataframes or as files such as Parquet. Since Phoenix can ingest OpenInference data natively, making it a seamless integration to analyze your LLM powered chatbot. To understand callbacks in details, consult the [LlamaIndex docs.](https://gpt-index.readthedocs.io/en/latest/core_modules/supporting_modules/callbacks/root.html)
+To provide visibility into how your LLM app is performing, we built the [OpenInferenceCallback](https://github.com/jerryjliu/llama\_index/blob/57d8253c12fcda0061d3167d56dbc425981e131f/docs/examples/callbacks/OpenInferenceCallback.ipynb). The OpenInferenceCallback captures the internals of the LLM App in buffers that conforms to the [OpenInference](../concepts/open-inference.md) format. As your LlamaIndex application, the callback captures the timing, embeddings, documents, and other critical internals and serializes the data to buffers that can be easily materialized as dataframes or as files such as Parquet. Since Phoenix can ingest OpenInference data natively, making it a seamless integration to analyze your LLM powered chatbot. To understand callbacks in details, consult the [LlamaIndex docs.](https://gpt-index.readthedocs.io/en/latest/core\_modules/supporting\_modules/callbacks/root.html)
 
 ### Adding the OpenInferenceCallback
 
@@ -186,7 +182,7 @@ class ParquetCallback:
 Note that Parquet is just an example file format, you can use any file format of your choosing such as Avro and NDJSON.
 {% endhint %}
 
-For the full guidance on how to materialize your data in files, consult the [LlamaIndex notebook](https://github.com/jerryjliu/llama_index/blob/main/docs/examples/callbacks/OpenInferenceCallback.ipynb).
+For the full guidance on how to materialize your data in files, consult the [LlamaIndex notebook](https://github.com/jerryjliu/llama\_index/blob/main/docs/examples/callbacks/OpenInferenceCallback.ipynb).
 
 #### Working Example with Inferences
 

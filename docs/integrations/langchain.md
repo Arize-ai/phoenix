@@ -8,7 +8,7 @@ description: >-
 
 Phoenix has first-class support for [LangChain](https://langchain.com/) applications. This means that you can easily extract inferences and traces from your LangChain application and visualize them in Phoenix.
 
-<table data-card-size="large" data-view="cards"><thead><tr><th></th><th></th><th></th><th data-hidden data-card-target data-type="content-ref"></th></tr></thead><tbody><tr><td><strong>Analyze using Tracing and Spans</strong></td><td>Trace through the execution of your application hierarchically</td><td></td><td><a href="langchain.md#traces">#traces</a></td></tr><tr><td><strong>Analyze using Inference DataFrames</strong></td><td>Perform drift and retrieval analysis via inference DataFrames</td><td></td><td><a href="langchain.md#inferences">#inferences</a></td></tr></tbody></table>
+<table data-card-size="large" data-view="cards"><thead><tr><th></th><th></th><th></th><th data-hidden data-card-cover data-type="files"></th><th data-hidden data-card-target data-type="content-ref"></th></tr></thead><tbody><tr><td><strong>Analyze using Tracing and Spans</strong></td><td>Trace through the execution of your application hierarchically</td><td></td><td><a href="../.gitbook/assets/Screenshot 2023-09-27 at 1.51.45 PM.png">Screenshot 2023-09-27 at 1.51.45 PM.png</a></td><td><a href="langchain.md#traces">#traces</a></td></tr><tr><td><strong>Analyze using Inference DataFrames</strong></td><td>Perform drift and retrieval analysis via inference DataFrames</td><td></td><td><a href="../.gitbook/assets/Screenshot 2023-09-27 at 1.53.06 PM.png">Screenshot 2023-09-27 at 1.53.06 PM.png</a></td><td><a href="langchain.md#inferences">#inferences</a></td></tr></tbody></table>
 
 ## Traces
 
