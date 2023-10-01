@@ -36,14 +36,17 @@ import {
 import { ExternalLink } from "@phoenix/components";
 import { resizeHandleCSS } from "@phoenix/components/resize";
 import { SpanItem } from "@phoenix/components/trace/SpanItem";
+import { SpanKindIcon } from "@phoenix/components/trace/SpanKindIcon";
 import { TraceTree } from "@phoenix/components/trace/TraceTree";
 import {
   DOCUMENT_CONTENT,
   DOCUMENT_ID,
+  DOCUMENT_METADATA,
   DOCUMENT_SCORE,
   EMBEDDING_TEXT,
   EmbeddingAttributePostfixes,
   LLMAttributePostfixes,
+  LLMPromptTemplateAttributePostfixes,
   MESSAGE_CONTENT,
   MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON,
   MESSAGE_FUNCTION_CALL_NAME,
@@ -57,6 +60,7 @@ import {
   AttributeDocument,
   AttributeEmbedding,
   AttributeMessage,
+  AttributePromptTemplate,
 } from "@phoenix/openInference/tracing/types";
 import { assertUnreachable, isStringArray } from "@phoenix/typeUtils";
 import { numberFormatter } from "@phoenix/utils/numberFormatUtils";
@@ -72,6 +76,30 @@ type Span = TracePageQuery$data["spans"]["edges"][number]["span"];
  * A span attribute object that is a map of string to an unknown value
  */
 type AttributeObject = Record<string, unknown>;
+
+function isAttributeObject(value: unknown): value is AttributeObject {
+  if (
+    value != null &&
+    typeof value === "object" &&
+    !Object.keys(value).find((key) => typeof key != "string")
+  ) {
+    return true;
+  }
+  return false;
+}
+
+export function isAttributePromptTemplate(
+  value: unknown
+): value is AttributePromptTemplate {
+  if (
+    isAttributeObject(value) &&
+    typeof value[LLMPromptTemplateAttributePostfixes.template] === "string" &&
+    typeof value[LLMPromptTemplateAttributePostfixes.variables] === "object"
+  ) {
+    return true;
+  }
+  return false;
+}
 
 const spanHasException = (span: Span) => {
   return span.events.some((event) => event.name === "exception");
@@ -230,6 +258,7 @@ const attributesContextualHelp = (
     </View>
   </Flex>
 );
+
 function SelectedSpanDetails({ selectedSpan }: { selectedSpan: Span }) {
   const hasExceptions = useMemo<boolean>(() => {
     return spanHasException(selectedSpan);
@@ -322,7 +351,18 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
     return null;
   }, [spanAttributes]);
 
-  const input_messages = useMemo<AttributeMessage[]>(() => {
+  const modelName = useMemo<string | null>(() => {
+    if (llmAttributes == null) {
+      return null;
+    }
+    const maybeModelName = llmAttributes[LLMAttributePostfixes.model_name];
+    if (typeof maybeModelName === "string") {
+      return maybeModelName;
+    }
+    return null;
+  }, [llmAttributes]);
+
+  const inputMessages = useMemo<AttributeMessage[]>(() => {
     if (llmAttributes == null) {
       return [];
     }
@@ -330,7 +370,7 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
       []) as AttributeMessage[];
   }, [llmAttributes]);
 
-  const output_messages = useMemo<AttributeMessage[]>(() => {
+  const outputMessages = useMemo<AttributeMessage[]>(() => {
     if (llmAttributes == null) {
       return [];
     }
@@ -349,6 +389,19 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
     return maybePrompts;
   }, [llmAttributes]);
 
+  const promptTemplateObject = useMemo<AttributePromptTemplate | null>(() => {
+    if (llmAttributes == null) {
+      return null;
+    }
+
+    const maybePromptTemplate =
+      llmAttributes[LLMAttributePostfixes.prompt_template];
+    if (!isAttributePromptTemplate(maybePromptTemplate)) {
+      return null;
+    }
+    return maybePromptTemplate;
+  }, [llmAttributes]);
+
   const invocation_parameters_str = useMemo<string>(() => {
     if (llmAttributes == null) {
       return "{}";
@@ -357,25 +410,79 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
       "{}") as string;
   }, [llmAttributes]);
 
+  const modelNameTitleEl = useMemo<ReactNode>(() => {
+    if (modelName == null) {
+      return null;
+    }
+    return (
+      <Flex direction="row" gap="size-100" alignItems="center">
+        <SpanKindIcon spanKind="llm" />
+        <Text textSize="large" weight="heavy">
+          {modelName}
+        </Text>
+      </Flex>
+    );
+  }, [modelName]);
   const hasInput = input != null && input.value != null;
-  const hasInputMessages = input_messages.length > 0;
+  const hasInputMessages = inputMessages.length > 0;
   const hasOutput = output != null && output.value != null;
-  const hasOutputMessages = output_messages.length > 0;
+  const hasOutputMessages = outputMessages.length > 0;
   const hasPrompts = prompts.length > 0;
   const hasInvocationParams =
     Object.keys(JSON.parse(invocation_parameters_str)).length > 0;
+  const hasPromptTemplateObject = promptTemplateObject != null;
+
   return (
     <Flex direction="column" gap="size-200">
-      <TabbedCard {...defaultCardProps}>
+      {/* @ts-expect-error force putting the title in as a string */}
+      <TabbedCard {...defaultCardProps} title={modelNameTitleEl}>
         <Tabs>
           {hasInputMessages ? (
             <TabPane name="Input Messages" hidden={!hasInputMessages}>
-              <LLMMessagesList messages={input_messages} />
+              <LLMMessagesList messages={inputMessages} />
             </TabPane>
           ) : null}
           {hasInput ? (
             <TabPane name="Input" hidden={!hasInput}>
               <CodeBlock {...input} />
+            </TabPane>
+          ) : null}
+          {hasPromptTemplateObject ? (
+            <TabPane name="Prompt Template" hidden={!hasPromptTemplateObject}>
+              <View padding="size-200">
+                <Flex direction="column" gap="size-100">
+                  <View
+                    borderRadius="medium"
+                    borderColor="light"
+                    backgroundColor="light"
+                    borderWidth="thin"
+                    padding="size-200"
+                  >
+                    <Text color="text-700" fontStyle="italic">
+                      prompt template
+                    </Text>
+                    <CodeBlock
+                      value={promptTemplateObject.template}
+                      mimeType="text"
+                    />
+                  </View>
+                  <View
+                    borderRadius="medium"
+                    borderColor="light"
+                    backgroundColor="light"
+                    borderWidth="thin"
+                    padding="size-200"
+                  >
+                    <Text color="text-700" fontStyle="italic">
+                      template variables
+                    </Text>
+                    <CodeBlock
+                      value={JSON.stringify(promptTemplateObject.variables)}
+                      mimeType="json"
+                    />
+                  </View>
+                </Flex>
+              </View>
             </TabPane>
           ) : null}
           <TabPane name="Prompts" hidden={!hasPrompts}>
@@ -396,7 +503,7 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
           <Tabs>
             {hasOutputMessages ? (
               <TabPane name="Output Messages" hidden={!hasOutputMessages}>
-                <LLMMessagesList messages={output_messages} />
+                <LLMMessagesList messages={outputMessages} />
               </TabPane>
             ) : null}
             {hasOutput ? (
@@ -608,6 +715,7 @@ function ToolSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
 }
 
 function DocumentItem({ document }: { document: AttributeDocument }) {
+  const metadata = document[DOCUMENT_METADATA];
   return (
     <View
       borderRadius="medium"
@@ -647,6 +755,13 @@ function DocumentItem({ document }: { document: AttributeDocument }) {
         >
           {document[DOCUMENT_CONTENT]}
         </pre>
+        {metadata && (
+          <>
+            <View borderColor="seafoam-700" borderTopWidth="thin">
+              <CodeBlock value={JSON.stringify(metadata)} mimeType="json" />
+            </View>
+          </>
+        )}
       </Flex>
     </View>
   );
@@ -823,7 +938,7 @@ function SpanIO({ span }: { span: Span }) {
 
 const codeMirrorCSS = css`
   .cm-content {
-    padding: var(--ac-global-dimension-static-size-200) 0;
+    padding: var(--ac-global-dimension-static-size-100) 0;
   }
   .cm-editor,
   .cm-gutters {
@@ -843,6 +958,7 @@ function CodeBlock({ value, mimeType }: { value: string; mimeType: MimeType }) {
             bracketMatching: true,
             syntaxHighlighting: true,
             highlightActiveLine: false,
+            highlightActiveLineGutter: false,
           }}
           extensions={[json(), EditorView.lineWrapping]}
           editable={false}

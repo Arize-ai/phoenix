@@ -4,6 +4,7 @@ import {
   DOCUMENT_METADATA,
   DOCUMENT_SCORE,
   EMBEDDING_TEXT,
+  LLMPromptTemplateAttributePostfixes,
   MESSAGE_CONTENT,
   MESSAGE_NAME,
   MESSAGE_ROLE,
@@ -26,5 +27,11 @@ export type AttributeDocument = {
 
 export type AttributeEmbedding = {
   [EMBEDDING_TEXT]?: string;
+  [key: string]: unknown;
+};
+
+export type AttributePromptTemplate = {
+  [LLMPromptTemplateAttributePostfixes.template]: string;
+  [LLMPromptTemplateAttributePostfixes.variables]: Record<string, string>;
   [key: string]: unknown;
 };

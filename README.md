@@ -28,28 +28,28 @@
 
 Phoenix provides MLOps and LLMOps insights at lightning speed with zero-config observability. Phoenix provides a notebook-first experience for monitoring your models and LLM Applications by providing:
 
--   **LLM App Tracing** - Trace through the execution of your LLM Application to understand the internals of your LLM Application and to troubleshoot problems related to things like retrieval and tool execution.
+-   **LLM Traces** - Trace through the execution of your LLM Application to understand the internals of your LLM Application and to troubleshoot problems related to things like retrieval and tool execution.
 -   **LLM Evals** - Leverage the power of large language models to evaluate your generative model or application's relevance, toxicity, and more.
 -   **Embedding Analysis** - Explore embedding point-clouds and identify clusters of high drift and performance degradation.
--   **RAG Introspection** - Visualize your generative application's search and retrieval process to solve improve your retrieval augmented generation.
+-   **RAG Analysis** - Visualize your generative application's search and retrieval process to solve improve your retrieval-augmented generation.
 -   **Structured Data Analysis** - Statistically analyze your structured data by performing A/B analysis, temporal drift analysis, and more.
 
 **Table of Contents**
 
-- [Installation](#installation)
-- [LLM App Tracing](#llm-app-tracing)
-  - [Tracing with LlamaIndex](#tracing-with-llamaindex)
-  - [Tracing with LangChain](#tracing-with-langchain)
-- [LLM Evals](#llm-evals)
-- [Embedding Analysis](#embedding-analysis)
-  - [UMAP-based Exploratory Data Analysis](#umap-based-exploratory-data-analysis)
-  - [Cluster-driven Drift and Performance Analysis](#cluster-driven-drift-and-performance-analysis)
-  - [Exportable Clusters](#exportable-clusters)
-- [Retrieval-Augmented Generation Analysis](#retrieval-augmented-generation-analysis)
-- [Structured Data Analysis](#structured-data-analysis)
-- [Community](#community)
-- [Thanks](#thanks)
-- [Copyright, Patent, and License](#copyright-patent-and-license)
+-   [Installation](#installation)
+-   [LLM Traces](#llm-traces)
+    -   [Tracing with LlamaIndex](#tracing-with-llamaindex)
+    -   [Tracing with LangChain](#tracing-with-langchain)
+-   [LLM Evals](#llm-evals)
+-   [Embedding Analysis](#embedding-analysis)
+    -   [UMAP-based Exploratory Data Analysis](#umap-based-exploratory-data-analysis)
+    -   [Cluster-driven Drift and Performance Analysis](#cluster-driven-drift-and-performance-analysis)
+    -   [Exportable Clusters](#exportable-clusters)
+-   [Retrieval-Augmented Generation Analysis](#retrieval-augmented-generation-analysis)
+-   [Structured Data Analysis](#structured-data-analysis)
+-   [Community](#community)
+-   [Thanks](#thanks)
+-   [Copyright, Patent, and License](#copyright-patent-and-license)
 
 ## Installation
 
@@ -65,7 +65,7 @@ Some functionality such as LLM evals are under the `experimental` subpackage.
 pip install arize-phoenix[experimental]
 ```
 
-## LLM App Tracing
+## LLM Traces
 
 ![LLM Application Tracing](https://github.com/Arize-ai/phoenix-assets/blob/main/gifs/langchain_rag_stuff_documents_chain_10mb.gif?raw=true)
 
@@ -75,7 +75,7 @@ With the advent of powerful LLMs, it is now possible to build LLM Applications t
 
 [![Open in Colab](https://img.shields.io/static/v1?message=Open%20in%20Colab&logo=googlecolab&labelColor=grey&color=blue&logoColor=orange&label=%20)](https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/tracing/llama_index_tracing_tutorial.ipynb) [![Open in GitHub](https://img.shields.io/static/v1?message=Open%20in%20GitHub&logo=github&labelColor=grey&color=blue&logoColor=white&label=%20)](https://github.com/Arize-ai/phoenix/blob/main/tutorials/tracing/llama_index_tracing_tutorial.ipynb)
 
-![LLM App Tracing UI](https://storage.googleapis.com/arize-assets/phoenix/assets/images/trace_details_view.png)
+![LLM Traces UI](https://storage.googleapis.com/arize-assets/phoenix/assets/images/trace_details_view.png)
 
 To extract traces from your LlamaIndex application, you will have to add Phoenix's `OpenInferenceTraceCallback` to your LlamaIndex application. A callback (in this case an OpenInference `Tracer`) is a class that automatically accumulates `spans` that trac your application as it executes. The OpenInference `Tracer` is a tracer that is specifically designed to work with Phoenix and by default exports the traces to a locally running phoenix server.
 
@@ -145,12 +145,13 @@ import pandas as pd
 # Launch phoenix
 session = px.launch_app()
 
-# Once you have started a Phoenix server, you can start your LangChain application with the OpenInference Tracer as a callback. To do this, you will have to add the tracer to the initialization of your LangChain application:
+# Once you have started a Phoenix server, you can start your LangChain application with the OpenInferenceTracer as a callback. To do this, you will have to instrument your LangChain application with the tracer:
 
-from phoenix.trace.langchain import OpenInferenceTracer
+from phoenix.trace.langchain import OpenInferenceTracer, LangChainInstrumentor
 
 # If no exporter is specified, the tracer will export to the locally running Phoenix server
 tracer = OpenInferenceTracer()
+LangChainInstrumentor(tracer).instrument()
 
 # Initialize your LangChain application
 from langchain.chains import RetrievalQA

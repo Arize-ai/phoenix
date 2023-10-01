@@ -1,11 +1,16 @@
 import React, { useMemo } from "react";
-import { css } from "@emotion/react";
 
-import { Flex, Icon, Icons, Text } from "@arizeai/components";
+import { Flex, Icon, Icons, Text, TextProps } from "@arizeai/components";
 
 import { formatFloat } from "@phoenix/utils/numberFormatUtils";
 
-export function LatencyText({ latencyMs }: { latencyMs: number }) {
+export function LatencyText({
+  latencyMs,
+  textSize = "medium",
+}: {
+  latencyMs: number;
+  textSize?: TextProps["textSize"];
+}) {
   const color = useMemo(() => {
     if (latencyMs < 3000) {
       return "green-1200";
@@ -31,14 +36,12 @@ export function LatencyText({ latencyMs }: { latencyMs: number }) {
       justifyContent="start"
       gap="size-25"
     >
-      <Icon
-        svg={<Icons.ClockOutline />}
-        css={css`
-          color: var(--ac-global-color-${color});
-          font-size: 14px;
-        `}
-      />
-      <Text color={color}>{latencyText}</Text>
+      <Text color={color} textSize={textSize}>
+        <Icon svg={<Icons.ClockOutline />} />
+      </Text>
+      <Text color={color} textSize={textSize}>
+        {latencyText}
+      </Text>
     </Flex>
   );
 }
