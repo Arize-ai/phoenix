@@ -175,7 +175,7 @@ Phoenix can be used to understand and troubleshoot your by surfacing:
 
 * **Application latency** - highlighting slow invocations of LLMs, Retrievers, etc.
 * **Token Usage** - Displays the breakdown of token usage with LLMs to surface up your most expensive LLM calls
-* **Runtime Exceptions** - Critical runtime execetions such as rate-limitting are captured as exception events.
+* **Runtime Exceptions** - Critical runtime execeptions such as rate-limiting are captured as exception events.
 * **Retrieved Documents** - view all the documents retrieved during a retriever call and the score and order in which they were returned
 * **Embeddings** - view the embedding text used for retrieval and the underlying embedding model
 * **LLM Parameters** - view the parameters used when calling out to an LLM to debug things like temperature and the system prompts
