@@ -10,7 +10,69 @@ description: >-
 Evals are still under `experimental` and must be installed via `pip install arize-phoenix[experimental]`
 {% endhint %}
 
-## phoenix.experimental.evals.llm\_binary
+## phoenix.experimental.evals.PromptTemplate
+
+```python
+class PromptTemplate(
+    text: str
+    delimiters: List[str]
+)
+```
+
+Class used to store and format prompt templates.&#x20;
+
+### Parameters
+
+* **text** (str): The raw prompt text used as a template.&#x20;
+* **delimiters** (List\[str]): List of characters used to locate the variables within the prompt template `text`. Defaults to `["{", "}"]`.
+
+### Attributes
+
+* **text** (str): The raw prompt text used as a template.&#x20;
+* **variables** (List\[str]): The names of the variables that, once their values are substituted into the template, create the prompt text. These variable names are automatically detected from the template `text` using the `delimiters` passed when initializing the class (see Usage section below).&#x20;
+
+### Usage
+
+Define a `PromptTemplate` by passing a `text` string and the `delimiters` to use to locate the `variables`. The default delimiters are `{` and `}`.
+
+```python
+from phoenix.experimental.evals import PromptTemplate
+
+template_text = "My name is {name}. I am {age} years old and I am from {location}."
+prompt_template = PromptTemplate(text=template_text)
+```
+
+If the prompt template variables have been correctly located, you can access them as follows:
+
+```python
+print(prompt_template.variables)
+# Output: ['name', 'age', 'location']
+```
+
+The `PromptTemplate` class can also understand any combination of delimiters. Following the example above, but getting creative with our delimiters:
+
+```python
+template_text = "My name is :/name-!). I am :/age-!) years old and I am from :/location-!)."
+prompt_template = PromptTemplate(text=template_text, delimiters=[":/", "-!)"])
+print(prompt_template.variables)
+# Output: ['name', 'age', 'location']
+```
+
+Once you have a `PromptTemplate` class instantiated, you can make use of its `format` method to construct the prompt text resulting from substituting values into the `variables`. To do so, a dictionary mapping the variable names to the values is passed:
+
+```python
+value_dict = {
+    "name": "Peter",
+    "age": 20,
+    "location": "Queens"
+}
+print(prompt_template.format(value_dict))
+# Output: My name is Peter. I am 20 years old and I am from Queens
+```
+
+Note that once you initialize the `PromptTemplate` class, you don't need to worry about delimiters anymore, it will be handled for you.
+
+## phoenix.experimental.evals.llm\_eval\_binary
 
 ```python
 def llm_eval_binary(

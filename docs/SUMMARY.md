@@ -1,13 +1,17 @@
 # Table of contents
 
-* [ML / LLM Observability in a Notebook](README.md)
+* [Phoenix: AI Observability & Evaluation](README.md)
+* [Example Notebooks](notebooks.md)
+
+## 🔑 Quickstart
+
+* [LLM Traces - LangChain & LlamaIndex](quickstart/llm-traces.md)
+* [Inferences - Image/NLP/LLM](quickstart/inferences.md)
 
 ## 💡 Concepts
 
-* [Phoenix Basics](concepts/phoenix-basics/README.md)
-  * [DataFrames - Image/NLP/LLM](concepts/phoenix-basics.md)
-  * [LLM Traces - LangChain & LlamaIndex](concepts/phoenix-basics/traces-and-spans-langchain-and-llamaindex.md)
-* [LLM Traces](concepts/langchain-and-llamaindex-traces.md)
+* [What is LLM Observability?](concepts/llm-observability.md)
+* [LLM Traces](concepts/llm-traces.md)
 * [LLM Evals](concepts/llm-evals.md)
   * [Retrieval (RAG) Relevance](concepts/llm-evals/retrieval-rag-relevance.md)
   * [Hallucinations](concepts/llm-evals/hallucinations.md)
@@ -16,13 +20,11 @@
   * [Code Generation Eval](concepts/llm-evals/code-generation-eval.md)
   * [Summarization Eval](concepts/llm-evals/summarization-eval.md)
 * [Generating Embeddings](concepts/generating-embeddings.md)
-* [LLM Observability](concepts/llm-observability.md)
+* [Embeddings Analysis](concepts/embeddings-analysis.md)
 
 ## 🔮 Use Cases
 
-* [LLM Search and Retrieval with Vector Stores](use-cases/troubleshooting-llm-retrieval-with-vector-stores.md)
-* [Fine Tune or Prompt Engineer LLMs](use-cases/insights-to-fine-tune-or-prompt-engineer-llms.md)
-* [Production Data EDA and Retraining](use-cases/bring-production-data-to-notebook-for-eda-or-retraining.md)
+* [QA with Retrieval (Using Vector Stores)](use-cases/troubleshooting-llm-retrieval-with-vector-stores.md)
 
 ## 🔢 How-To
 
@@ -32,16 +34,9 @@
   * [Retrieval (RAG)](how-to/define-your-schema/retrieval-rag.md)
   * [Corpus Data](how-to/define-your-schema/corpus-data.md)
 * [Manage the App](how-to/manage-the-app.md)
+* [Export Your Data](how-to/export-your-data.md)
 * [Use Example Datasets](how-to/use-example-datasets.md)
 * [Contribute to Phoenix](how-to/contribute-to-phoenix.md)
-
-## 🎓 Tutorials
-
-* [Generative LLMs](tutorials/generative-llms.md)
-* [Computer Vision](tutorials/computer-vision.md)
-* [NLP](tutorials/nlp.md)
-* [Tabular Data](tutorials/tabular-data.md)
-* [Notebooks](tutorials/notebooks.md)
 
 ## ⌨ API
 
@@ -53,6 +48,7 @@
 
 * [LlamaIndex](integrations/llamaindex.md)
 * [LangChain](integrations/langchain.md)
+* [Arize](integrations/bring-production-data-to-notebook-for-eda-or-retraining.md)
 
 ## 📚 Reference
 

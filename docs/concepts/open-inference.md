@@ -148,7 +148,7 @@ The example above shows an exploded representation of the hierarchical data. \<t
 
 #### Regression
 
-<figure><img src="../.gitbook/assets/image.png" alt=""><figcaption></figcaption></figure>
+<figure><img src="../.gitbook/assets/image (3).png" alt=""><figcaption></figcaption></figure>
 
 #### Classification
 
@@ -156,7 +156,7 @@ The example above shows an exploded representation of the hierarchical data. \<t
 
 #### Ranking
 
-<figure><img src="../.gitbook/assets/image (1) (2).png" alt=""><figcaption></figcaption></figure>
+<figure><img src="../.gitbook/assets/image (1) (2) (1).png" alt=""><figcaption></figcaption></figure>
 
 ## Traces
 

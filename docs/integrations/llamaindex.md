@@ -101,8 +101,14 @@ import phoenix as px
 session = px.launch_app()
 ```
 
-Once you have started a Phoenix server, you can start your LlamaIndex application with the `OpenInferenceTraceCallback` as a callback. To do this, you will have to add the callback to the initialization of your LlamaIndex application:
+Once you have started a Phoenix server, you can start your LlamaIndex application with the `OpenInferenceTraceCallback` as a callback. To do this, you will have to add the callback to the initialization of your LlamaIndex application
 
+{% hint style="info" %}
+LlamaIndex 0.8.36 and above supports One-Click!
+{% endhint %}
+
+{% tabs %}
+{% tab title="Using a Callback" %}
 ```python
 from phoenix.trace.llama_index import (
     OpenInferenceTraceCallbackHandler,
@@ -125,6 +131,28 @@ index = load_index_from_storage(
 query_engine = index.as_query_engine()
 
 ```
+
+
+{% endtab %}
+
+{% tab title="One-Click" %}
+```python
+# Phoenix can display in real time the traces automatically 
+# collected from your LlamaIndex application.
+import phoenix as px
+# Look for a URL in the output to open the App in a browser.
+px.launch_app()
+# The App is initially empty, but as you proceed with the steps below,
+# traces will appear automatically as your LlamaIndex application runs.
+
+import llama_index
+llama_index.set_global_handler("arize_phoenix")
+
+# Run all of your LlamaIndex applications as usual and traces
+# will be collected and displayed in Phoenix.
+```
+{% endtab %}
+{% endtabs %}
 
 By adding the callback to the callback manager of LlamaIndex, we've created a one-way data connection between your LLM application and Phoenix. This is because by default the `OpenInferenceTraceCallback` uses an `HTTPExporter` to send traces to your locally running Phoenix server! In this scenario the Phoenix server is serving as a `Collector` of the spans that are exported from your LlamaIndex application.
 

@@ -4,7 +4,7 @@ description: >-
   team can perform further investigation or kickoff retraining workflows.
 ---
 
-# Bring Production Data to Notebook for EDA or Retraining
+# Arize
 
 Oftentimes, the team that notices an issue in their model, for example a prompt/response LLM model, may not be the same team that continues the investigations or kicks off retraining workflows.&#x20;
 
@@ -12,7 +12,7 @@ To help connect teams and workflows, Phoenix enables continued analysis of produ
 
 For example, a user may have noticed in [Arize](http://127.0.0.1:5000/o/-MB4weB2E-qpBe07nmSL/s/-MAlgpMyBRcl2qFZRQ67/) that this prompt template is not performing well.
 
-<figure><img src="../.gitbook/assets/image (1).png" alt=""><figcaption><p>Arize UI, investigating prompt template: "You are an agent created to accurately translate sentences into the desired language."</p></figcaption></figure>
+<figure><img src="../.gitbook/assets/image (1) (2).png" alt=""><figcaption><p>Arize UI, investigating prompt template: "You are an agent created to accurately translate sentences into the desired language."</p></figcaption></figure>
 
 With a few lines of Python code, users can export this data into Phoenix for further analysis. This allows team members, such as data scientists, who may not have access to production data today, an easy way to access relevant product data for further analysis in an environment they are familiar with.&#x20;
 
