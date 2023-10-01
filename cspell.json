@@ -1,0 +1,25 @@
+{
+    "version": "0.2",
+    "language": "en",
+    "words": [
+        "Colab",
+        "gitbook",
+        "Evals",
+        "dataframe",
+        "arize",
+        "HDBSCAN",
+        "Instrumentor",
+        "langchain",
+        "llamaindex",
+        "actuals",
+        "conda",
+        "numpy",
+        "rgba",
+        "UMAP",
+        "tracedataset",
+        "chatbot",
+        "quickstart",
+        "NDJSON"
+    ],
+    "flagWords": ["hte"]
+}
