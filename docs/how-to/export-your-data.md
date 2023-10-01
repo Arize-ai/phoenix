@@ -12,7 +12,7 @@ Phoenix is designed to be a pre-production tool that can be used to find interes
 
 ## Exporting Traces
 
-The easiest way to gather traces that have been collected by phoenix is to directly pull a dataframe of the traces from your Phoenix `session` object.
+The easiest way to gather traces that have been collected by Phoenix is to directly pull a dataframe of the traces from your Phoenix `session` object.
 
 ```python
 px.active_session().get_spans_dataframe('span_kind == "RETRIEVER"')
