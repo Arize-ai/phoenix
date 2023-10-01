@@ -9,7 +9,7 @@ description: >-
 ## Define Your Dataset(s)
 
 {% hint style="info" %}
-For a conceptual overview of datasets, including an explanation of when to use a single dataset vs. primary and reference datasets, see [Phoenix Basics](../concepts/phoenix-basics.md#datasets).
+For a conceptual overview of datasets, including an explanation of when to use a single dataset vs. primary and reference datasets, see [Phoenix Basics](../quickstart/inferences.md#datasets).
 {% endhint %}
 
 To define a dataset, you must load your data into a pandas dataframe and [create a matching schema](define-your-schema/). If you have a dataframe `prim_df` and a matching `prim_schema`, you can define a dataset named "primary" with

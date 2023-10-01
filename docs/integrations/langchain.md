@@ -8,7 +8,7 @@ description: >-
 
 Phoenix has first-class support for [LangChain](https://langchain.com/) applications. This means that you can easily extract inferences and traces from your LangChain application and visualize them in Phoenix.
 
-<table data-card-size="large" data-view="cards"><thead><tr><th></th><th></th><th></th><th data-hidden data-card-target data-type="content-ref"></th></tr></thead><tbody><tr><td><strong>Analyze using Tracing and Spans</strong></td><td>Trace through the execution of your application hierarchically</td><td></td><td><a href="langchain.md#traces">#traces</a></td></tr><tr><td><strong>Analyze using Inference DataFrames</strong></td><td>Perform drift and retrieval analysis via inference DataFrames</td><td></td><td><a href="langchain.md#inferences">#inferences</a></td></tr></tbody></table>
+<table data-card-size="large" data-view="cards"><thead><tr><th></th><th></th><th></th><th data-hidden data-card-cover data-type="files"></th><th data-hidden data-card-target data-type="content-ref"></th></tr></thead><tbody><tr><td><strong>Analyze using Tracing and Spans</strong></td><td>Trace through the execution of your application hierarchically</td><td></td><td><a href="../.gitbook/assets/Screenshot 2023-09-27 at 1.51.45 PM.png">Screenshot 2023-09-27 at 1.51.45 PM.png</a></td><td><a href="langchain.md#traces">#traces</a></td></tr><tr><td><strong>Analyze using Inference DataFrames</strong></td><td>Perform drift and retrieval analysis via inference DataFrames</td><td></td><td><a href="../.gitbook/assets/Screenshot 2023-09-27 at 1.53.06 PM.png">Screenshot 2023-09-27 at 1.53.06 PM.png</a></td><td><a href="langchain.md#inferences">#inferences</a></td></tr></tbody></table>
 
 ## Traces
 
@@ -23,7 +23,31 @@ import phoenix as px
 session = px.launch_app()
 ```
 
-Once you have started a Phoenix server, you can start your LangChain application with the OpenInference Tracer as a callback. To do this, you will have to add the tracer to the initialization of your LangChain application:
+Once you have started a Phoenix server, you can start your LangChain application with the OpenInference Tracer as a callback. There are two ways of adding the \`tracer\` to your LangChain application - by instrumenting all your chains in one go (recommended) or by adding the tracer to as a callback to just the parts that you care about (not recommended).
+
+{% tabs %}
+{% tab title="Instrument Langchain" %}
+We recommend that you instrument your entire LangChain application to maximize visibility. To do this, we will use the `LangChainInstrumentor` to add the `OpenInferenceTracer` to every chain in your application.\
+
+
+```python
+from phoenix.trace.langchain import OpenInferenceTracer, LangChainInstrumentor
+
+# If no exporter is specified, the tracer will export to the locally running Phoenix server
+tracer = OpenInferenceTracer()
+# If no tracer is specified, a tracer is constructed for you
+LangChainInstrumentor(tracer).instrument()
+
+# Initialize your LangChain application
+
+# Note that we do not have to pass in the tracer as a callback here
+# since the above instrumented LangChain in it's entirety.
+response = chain.run(query)
+```
+{% endtab %}
+
+{% tab title="Use callbacks" %}
+If you only want traces from parts of your application, you can pass in the tracer to the parts that you care about.
 
 ```python
 from phoenix.trace.langchain import OpenInferenceTracer
@@ -35,8 +59,9 @@ tracer = OpenInferenceTracer()
 
 # Instrument the execution of the runs with the tracer. By default the tracer uses an HTTPExporter
 response = chain.run(query, callbacks=[tracer])
-
 ```
+{% endtab %}
+{% endtabs %}
 
 By adding the tracer to the callbacks of LangChain, we've created a one-way data connection between your LLM application and Phoenix. This is because by default the `OpenInferenceTracer` uses an `HTTPExporter` to send traces to your locally running Phoenix server! In this scenario the Phoenix server is serving as a `Collector` of the spans that are exported from your LangChain application.
 
