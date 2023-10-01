@@ -10,9 +10,9 @@ The easiest method of using Phoenix traces with LLM frameworks is to stream the 
 
 The [traces](../concepts/llm-traces.md) can be collected and stored in the following ways:
 
-* **In Memory**: useful for debugging.
-* **Local File**: Persistent and good for offline local development. See [exports](../how-to/export-your-data.md)
-* **Cloud** (coming soon): Store your cloud buckets as as assets for later use
+-   **In Memory**: useful for debugging.
+-   **Local File**: Persistent and good for offline local development. See [exports](../how-to/export-your-data.md)
+-   **Cloud** (coming soon): Store your cloud buckets as as assets for later use
 
 To get started with traces, you will first want to start a local Phoenix app.
 
@@ -31,10 +31,11 @@ The above launches a Phoenix server that acts as a trace collector for any LLM a
 
 The `launch_app` command will spit out a URL for you to view the Phoenix UI. You can access this url again at any time via the [session](../api/session.md).\
 \
-Now that  phoenix is up and running, you can now run a [LlamaIndex](../integrations/llamaindex.md) or [LangChain](../integrations/langchain.md) application and debug your application as the traces stream in.
+Now that phoenix is up and running, you can now run a [LlamaIndex](../integrations/llamaindex.md) or [LangChain](../integrations/langchain.md) application and debug your application as the traces stream in.
 
 {% tabs %}
 {% tab title="LlamaIndex" %}
+
 <pre class="language-python"><code class="lang-python"><strong>from phoenix.trace.llama_index import (
 </strong>    OpenInferenceTraceCallbackHandler,
 )
@@ -63,6 +64,7 @@ See the [integrations guide](../integrations/llamaindex.md#traces) for details
 {% endtab %}
 
 {% tab title="LangChain" %}
+
 ```python
 from phoenix.trace.langchain import OpenInferenceTracer, LangChainInstrumentor
 
@@ -101,8 +103,6 @@ See the [integration guide](../integrations/langchain.md#traces) for details
 {% endtab %}
 {% endtabs %}
 
-
-
 Once you've executed a sufficient number of queries (or chats) to your application, you can view the details of the UI by refreshing the browser url
 
 <figure><img src="https://storage.googleapis.com/arize-assets/phoenix/assets/images/RAG_trace_details.png" alt=""><figcaption><p>A detailed view of a trace of a RAG application using LlamaIndex</p></figcaption></figure>
@@ -115,6 +115,7 @@ There are two ways to extract trace dataframes. The two ways for LangChain are d
 
 {% tabs %}
 {% tab title="From the App" %}
+
 <pre class="language-python"><code class="lang-python"><strong>session = px.active_session()
 </strong><strong>
 </strong><strong># You can export a dataframe from the session
@@ -124,9 +125,11 @@ There are two ways to extract trace dataframes. The two ways for LangChain are d
 </strong><strong># Re-launch the app using the data
 </strong>px.launch_app(trace=px.TraceDataset(df))
 </code></pre>
+
 {% endtab %}
 
 {% tab title="From the Tracer" %}
+
 <pre class="language-python"><code class="lang-python"><strong>from phoenix.trace.langchain import OpenInferenceTracer
 </strong>
 tracer = OpenInferenceTracer()
@@ -143,6 +146,7 @@ ds.dataframe.head()
 # Re-initialize the app with the trace dataset
 px.launch_app(trace=ds)
 </code></pre>
+
 {% endtab %}
 {% endtabs %}
 
@@ -173,16 +177,14 @@ For full details, check out the relevance example of the relevance [LLM Eval](..
 
 Phoenix can be used to understand and troubleshoot your by surfacing:
 
-* **Application latency** - highlighting slow invocations of LLMs, Retrievers, etc.
-* **Token Usage** - Displays the breakdown of token usage with LLMs to surface up your most expensive LLM calls
-* **Runtime Exceptions** - Critical runtime execeptions such as rate-limiting are captured as exception events.
-* **Retrieved Documents** - view all the documents retrieved during a retriever call and the score and order in which they were returned
-* **Embeddings** - view the embedding text used for retrieval and the underlying embedding model
-* **LLM Parameters** - view the parameters used when calling out to an LLM to debug things like temperature and the system prompts
-* **Prompt Templates** - Figure out what prompt template is used during the prompting step and what variables were used.
-* **Tool Descriptions -** view the description and function signature of the tools your LLM has been given access to
-* **LLM Function Calls** - if using OpenAI or other a model with function calls, you can view the function selection and function messages in the input messages to the LLM.\
-
+-   **Application latency** - highlighting slow invocations of LLMs, Retrievers, etc.
+-   **Token Usage** - Displays the breakdown of token usage with LLMs to surface up your most expensive LLM calls
+-   **Runtime Exceptions** - Critical runtime exceptions such as rate-limiting are captured as exception events.
+-   **Retrieved Documents** - view all the documents retrieved during a retriever call and the score and order in which they were returned
+-   **Embeddings** - view the embedding text used for retrieval and the underlying embedding model
+-   **LLM Parameters** - view the parameters used when calling out to an LLM to debug things like temperature and the system prompts
+-   **Prompt Templates** - Figure out what prompt template is used during the prompting step and what variables were used.
+-   **Tool Descriptions -** view the description and function signature of the tools your LLM has been given access to
+-   **LLM Function Calls** - if using OpenAI or other a model with function calls, you can view the function selection and function messages in the input messages to the LLM.\
 
 [LLM Traces](../concepts/llm-traces.md) are a powerful way to troubleshoot and understand your application and can be leveraged to [evaluate](../concepts/llm-evals.md) the quality of your application. For a full list of notebooks that illustrate this in full-color, please check out the [notebooks section](../notebooks.md).
-
