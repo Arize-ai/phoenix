@@ -44,7 +44,7 @@ export function DimensionQuantilesStats(props: {
               align-items: flex-end;
             `}
           >
-            <Text elementType="h3" textSize="xsmall" color="white70">
+            <Text elementType="h3" textSize="xsmall" color="text-700">
               {statName}
             </Text>
             <Text textSize="medium" data-raw={stat}>

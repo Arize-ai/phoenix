@@ -624,7 +624,7 @@ function EmbeddingSpanInfo(props: {
                       borderWidth="thin"
                       borderRadius="medium"
                     >
-                      <Text color="white70" fontStyle="italic">
+                      <Text color="text-700" fontStyle="italic">
                         embedded text
                       </Text>
                       <pre
@@ -681,7 +681,7 @@ function ToolSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
               backgroundColor="light"
             >
               <Flex direction="column" alignItems="start" gap="size-50">
-                <Text color="white70" fontStyle="italic">
+                <Text color="text-700" fontStyle="italic">
                   Description
                 </Text>
                 <Text>{toolDescription as string}</Text>
@@ -698,7 +698,7 @@ function ToolSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
               borderBottomWidth="thin"
             >
               <Flex direction="column" alignItems="start" width="100%">
-                <Text color="white70" fontStyle="italic">
+                <Text color="text-700" fontStyle="italic">
                   Parameters
                 </Text>
                 <CodeBlock
@@ -809,7 +809,7 @@ function LLMMessage({ message }: { message: AttributeMessage }) {
       {...messageStyles}
     >
       <Flex direction="column" alignItems="start">
-        <Text color="white70" fontStyle="italic">
+        <Text color="text-700" fontStyle="italic">
           {role}
           {message[MESSAGE_NAME] ? `: ${message[MESSAGE_NAME]}` : ""}
         </Text>
@@ -1046,10 +1046,10 @@ function SpanEventsList({ events }: { events: Span["events"] }) {
               </View>
               <Flex direction="column" gap="size-25" flex="1 1 auto">
                 <Text weight="heavy">{event.name}</Text>
-                <Text color="white70">{event.message}</Text>
+                <Text color="text-700">{event.message}</Text>
               </Flex>
               <View>
-                <Text color="white70">
+                <Text color="text-700">
                   {new Date(event.timestamp).toLocaleString()}
                 </Text>
               </View>
