@@ -138,7 +138,7 @@ class BaseEvalModel(ABC):
             package_display_name = package_name
         msg = (
             f"Could not import necessary dependencies to use {package_display_name}. "
-            "Please install them with"
+            "Please install them with "
         )
         if package_min_version:
             msg += f"`pip install {package_name}>={package_min_version}`."
@@ -148,16 +148,16 @@ class BaseEvalModel(ABC):
 
     @abstractmethod
     def get_tokens_from_text(self, text: str) -> List[int]:
-        raise NotImplementedError
+        ...
 
     @abstractmethod
     def get_text_from_tokens(self, tokens: List[int]) -> str:
-        raise NotImplementedError
+        ...
 
     @abstractproperty
     def max_context_size(self) -> int:
-        raise NotImplementedError
+        ...
 
     @abstractproperty
     def encoder(self) -> "Encoding":
-        raise NotImplementedError
+        ...
