@@ -6,6 +6,7 @@ from threading import Thread
 from types import MethodType
 from typing import Optional
 
+import requests
 from requests import Session
 
 from phoenix.config import get_env_host, get_env_port
@@ -26,10 +27,29 @@ class HttpExporter:
         self,
         host: Optional[str] = None,
         port: Optional[int] = None,
+        raise_if_phoenix_is_not_running: bool = True,
     ) -> None:
+        """
+        Span Exporter using HTTP.
+
+        Parameters
+        ----------
+        host: str, optional
+            The host of the Phoenix server. It can also be set using environment
+            variable `PHOENIX_HOST`, otherwise it defaults to `127.0.0.1`.
+        port: int, optional
+            The port of the Phoenix server. It can also be set using environment
+            variable `PHOENIX_PORT`, otherwise it defaults to 6060.
+        raise_if_phoenix_is_not_running: bool, default True
+            At initialization of the exporter, raise Exception if server
+            is not running at the host and port.
+        """
         self._host = host or get_env_host()
         self._port = port or get_env_port()
-        self._url = f"http://{self._host}:{self._port}/v1/spans"
+        self._base_url = f"http://{self._host}:{self._port}"
+        if raise_if_phoenix_is_not_running:
+            self._raise_if_phoenix_is_not_running()
+        self._url = f"{self._base_url}/v1/spans"
         self._session = Session()
         weakref.finalize(self, self._session.close)
         self._session.headers.update(
@@ -69,3 +89,12 @@ class HttpExporter:
             self._session.post(self._url, data=data)
         except Exception as e:
             logger.exception(e)
+
+    def _raise_if_phoenix_is_not_running(self) -> None:
+        try:
+            requests.get(f"{self._base_url}/arize_phoenix_version").raise_for_status()
+        except Exception:
+            raise Exception(
+                f"Arize Phoenix is not running on {self._base_url}. Launch Phoenix "
+                f"with `import phoenix as px; px.launch_app()`"
+            )
