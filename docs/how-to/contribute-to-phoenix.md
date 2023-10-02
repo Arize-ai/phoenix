@@ -1,6 +1,6 @@
 # Contribute to Phoenix
 
-If you want to contribute to the cutting edge of LLM and ML Observability, you've come to the right place!&#x20;
+If you want to contribute to the cutting edge of LLM and ML Observability, you've come to the right place!
 
 To get started, please check out the following:
 
@@ -14,14 +14,10 @@ We encourage you to start with an issue labeled with the tag [good first issue](
 
 ### Submit Your Code <a href="#submit-your-code" id="submit-your-code"></a>
 
-To submit your code, [fork the Dagster repository](https://help.github.com/en/articles/fork-a-repo), create a [new branch](https://help.github.com/en/desktop/contributing-to-projects/creating-a-branch-for-your-work) on your fork, and open [a Pull Request (PR)](https://help.github.com/en/articles/creating-a-pull-request-from-a-fork) once your work is ready for review.
+To submit your code, [fork the Phoenix repository](https://help.github.com/en/articles/fork-a-repo), create a [new branch](https://help.github.com/en/desktop/contributing-to-projects/creating-a-branch-for-your-work) on your fork, and open [a Pull Request (PR)](https://help.github.com/en/articles/creating-a-pull-request-from-a-fork) once your work is ready for review.
 
 In the PR template, please describe the change, including the motivation/context, test coverage, and any other relevant information. Please note if the PR is a breaking change or if it is related to an open GitHub issue.
 
-A Core reviewer will review your PR in around one business day and provide feedback on any changes it requires to be approved. Once approved and all the tests  pass, the reviewer will click the Squash and merge button in Github 🥳.
+A Core reviewer will review your PR in around one business day and provide feedback on any changes it requires to be approved. Once approved and all the tests pass, the reviewer will click the Squash and merge button in Github 🥳.
 
 Your PR is now merged into Phoenix! We’ll shout out your contribution in the release notes.
-
-\
-
-
