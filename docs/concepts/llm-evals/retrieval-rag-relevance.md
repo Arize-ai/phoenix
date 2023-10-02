@@ -20,7 +20,7 @@ model = OpenAIModel(
 
 #The rails is used to hold the output to specific values based on the template
 #It will remove text such as ",,," or "..."
-#Will ensure the binary value expected from the template is returned 
+#Will ensure the binary value expected from the template is returned
 rails = list(RAG_RELEVANCY_PROMPT_RAILS_MAP.values())
 relevance_classifications = llm_eval_binary(
     dataframe=df,
@@ -32,9 +32,7 @@ relevance_classifications = llm_eval_binary(
 
 The above runs the RAG relevancy LLM template against the dataframe df.
 
-
-
-<table><thead><tr><th>RAG Eval</th><th>GPT-4</th><th>GPT-3.5</th><th width="262">GGPT-3.5-turbo-instruct</th><th>Llama 7b (soon)</th></tr></thead><tbody><tr><td>Precision</td><td>0.70</td><td>0.70</td><td>0.42</td><td></td></tr><tr><td>Recall</td><td>0.88</td><td>0.88</td><td>1</td><td></td></tr><tr><td>F1</td><td>0.78</td><td>0.78</td><td>0.59</td><td></td></tr></tbody></table>
+<table><thead><tr><th>RAG Eval</th><th>GPT-4</th><th>GPT-3.5</th><th width="262">GPT-3.5-turbo-instruct</th><th>Llama 7b (soon)</th></tr></thead><tbody><tr><td>Precision</td><td>0.70</td><td>0.70</td><td>0.42</td><td></td></tr><tr><td>Recall</td><td>0.88</td><td>0.88</td><td>1</td><td></td></tr><tr><td>F1</td><td>0.78</td><td>0.78</td><td>0.59</td><td></td></tr></tbody></table>
 
 ### GPT-4 Result
 
