@@ -4,12 +4,14 @@ from inspect import signature
 from types import ModuleType
 from typing import TYPE_CHECKING, Any, Callable, Optional
 
-from phoenix.trace.schemas import SpanAttributes, SpanKind, SpanStatusCode
+from phoenix.trace.schemas import (SpanAttributes, SpanException, SpanKind,
+                                   SpanStatusCode)
 from phoenix.trace.semantic_conventions import (LLM_INPUT_MESSAGES,
                                                 LLM_INVOCATION_PARAMETERS,
                                                 LLM_MODEL_NAME,
                                                 LLM_OUTPUT_MESSAGES,
                                                 MESSAGE_CONTENT, MESSAGE_ROLE)
+from phoenix.trace.utils import get_stacktrace
 
 from ..tracer import Tracer
 
@@ -42,24 +44,36 @@ def _wrap_openai_api_requestor(
             {INPUT_MESSAGE_KEYMAP[k]: v for k, v in message.items()} for message in raw_messages
         ]
 
+        events = []
+        current_status_code = SpanStatusCode.UNSET
         start_time = datetime.datetime.now()
         attributes = {
             LLM_INPUT_MESSAGES: inputs,
         }
         try:
             output_vals = request_fn(*args, **kwargs)
+            current_status_code = SpanStatusCode.OK
         except Exception as e:
-            exc = e  # maybe pre-allocate exc so we don't populate things that depend on it
+            error = e
+            events.append(
+                SpanException(
+                    message=str(error),
+                    timestamp=start_time,
+                    exception_type=type(error).__name__,
+                    exception_stacktrace=get_stacktrace(error),
+                )
+            )
+            current_status_code = SpanStatusCode.ERROR
         finally:
             tracer.create_span(
                 name="OpenAI ChatCompletion Request",
                 span_kind=SpanKind.LLM,
                 start_time=start_time,
                 end_time=datetime.datetime.now(),
-                status_code=SpanStatusCode.UNSET,
+                status_code=current_status_code,
                 status_message="",
                 attributes=attributes,
-                events=None,
+                events=events,
             )
         return output_vals  # return something sensible if output_vals is not defined
 
