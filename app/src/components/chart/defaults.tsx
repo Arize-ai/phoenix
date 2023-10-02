@@ -9,7 +9,7 @@ import { theme } from "@arizeai/components";
 export const defaultTimeXAxisProps: XAxisProps = {
   dataKey: "timestamp",
   stroke: theme.colors.gray200,
-  style: { fill: theme.textColors.text - 700 },
+  style: { fill: "var(--ac-global-text-color-700)" },
   scale: "time",
   type: "number",
   domain: ["auto", "auto"],

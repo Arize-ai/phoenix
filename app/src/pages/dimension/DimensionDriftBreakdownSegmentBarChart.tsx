@@ -231,7 +231,7 @@ export function DimensionDriftBreakdownSegmentBarChart(props: {
             </defs>
             <XAxis
               dataKey="name"
-              style={{ fill: theme.textColors.text - 700 }}
+              style={{ fill: "var(--ac-global-text-color-700)" }}
             />
             <YAxis
               stroke={theme.colors.gray200}
@@ -241,10 +241,10 @@ export function DimensionDriftBreakdownSegmentBarChart(props: {
                 position: "insideLeft",
                 style: {
                   textAnchor: "middle",
-                  fill: theme.textColors.text - 900,
+                  fill: "var(--ac-global-text-color-900)",
                 },
               }}
-              style={{ fill: theme.textColors.text - 700 }}
+              style={{ fill: "var(--ac-global-text-color-700)" }}
             />
             <CartesianGrid
               strokeDasharray="4 4"

@@ -56,7 +56,7 @@ function TextPre(props: PropsWithChildren) {
       <pre
         css={(theme) => css`
           padding: var(--px-spacing-lg);
-          color: ${theme.textColors.text - 900};
+          color: var(--ac-global-text-color-900);
           white-space: normal;
           margin: 0;
         `}
