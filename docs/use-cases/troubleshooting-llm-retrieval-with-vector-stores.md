@@ -1,8 +1,8 @@
 ---
 description: >-
-  Helps answer questions such as: Are there queries that don’t have sufficient
-  context? Should you add more context for these queries to get better answers?
-  Or can you change your embeddings?
+    Helps answer questions such as: Are there queries that don’t have sufficient
+    context? Should you add more context for these queries to get better answers?
+    Or can you change your embeddings?
 ---
 
 # QA with Retrieval (Using Vector Stores)
@@ -14,8 +14,6 @@ description: >-
 {% hint style="info" %}
 **Q\&A with Retrieval at a Glance**&#x20;
 
-
-
 **LLM Input:** User Query + retrieved document
 
 **LLM Output:** Response based on query + document
@@ -24,9 +22,9 @@ description: >-
 
 1. Did the LLM answer the question correctly (correctness)
 2. For each retrieved document, is the document relevant to answer the user query?
-{% endhint %}
+   {% endhint %}
 
-Possibly the most common use-case for creating a LLM application is to connect an LLM to proprietary data such as enterprise documents or video transcriptions. Applications such as these often times are built on top of LLM frameworks such as [Langchain](https://github.com/langchain-ai/langchain) or [llama\_index](https://github.com/jerryjliu/llama\_index), which have first-class support for vector store retrievers. Vector Stores enable teams to connect their own data to LLMs. A common application is chatbots looking across a company's knowledge base/context to answer specific questions.&#x20;
+Possibly the most common use-case for creating a LLM application is to connect an LLM to proprietary data such as enterprise documents or video transcriptions. Applications such as these often times are built on top of LLM frameworks such as [Langchain](https://github.com/langchain-ai/langchain) or [llama_index](https://github.com/run-llama/llama_index), which have first-class support for vector store retrievers. Vector Stores enable teams to connect their own data to LLMs. A common application is chatbots looking across a company's knowledge base/context to answer specific questions.&#x20;
 
 <figure><img src="../.gitbook/assets/image.png" alt=""><figcaption></figcaption></figure>
 
@@ -81,7 +79,7 @@ By setting the "primary" dataset as the user queries, and the "corpus" dataset a
 ### Troubleshooting Tip:
 
 {% hint style="success" %}
-Found a problematic cluster you want to dig into, but don't want to manually sift through all of the prompts and responses? **Ask chatGPT to help you understand the make up of the cluster.** [**Try out the colab here**](https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/find\_cluster\_export\_and\_explore\_with\_gpt.ipynb#scrollTo=Ss2n6JJyLQBm)
+Found a problematic cluster you want to dig into, but don't want to manually sift through all of the prompts and responses? **Ask chatGPT to help you understand the make up of the cluster.** [**Try out the colab here**](https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/find_cluster_export_and_explore_with_gpt.ipynb#scrollTo=Ss2n6JJyLQBm)
 {% endhint %}
 
 ## How to Log to Phoenix (as Inferences)
