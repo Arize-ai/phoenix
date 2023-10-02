@@ -29,11 +29,11 @@ If you launch Phoenix with this dataset, you will see a dataset named "productio
 
 ### How many datasets do I need?
 
-> You can run Phoenix with either one or two datasets.
+> You can launch Phoenix with zero, one, or two datasets.
 
-With a single dataset, Phoenix provides insights into model performance and data quality. With two datasets, Phoenix compares your datasets and gives insights into drift in addition to model performance and data quality.
+With no datasets, Phoenix runs in the background and collects trace data emitted by your instrumented LLM application. With a single dataset, Phoenix provides insights into model performance and data quality. With two datasets, Phoenix compares your datasets and gives insights into drift in addition to model performance and data quality, or helps you debug your retrieval-augmented generation applications.
 
-<table data-card-size="large" data-view="cards"><thead><tr><th align="center"></th><th></th></tr></thead><tbody><tr><td align="center"><strong>Use a Single Dataset When:</strong></td><td><ul><li>You have only a single cohort of data, e.g., only training data.</li><li>You care about model performance and data quality, but not drift.</li></ul></td></tr><tr><td align="center"><strong>Use Two Datasets When:</strong></td><td><ul><li>You want to compare cohorts of data, e.g., training vs. production.</li><li>You care about drift in addition to model performance and data quality.</li><li>You have corpus data for information retrieval. See <a href="../how-to/define-your-schema/corpus-data.md">Corpus Data</a>.</li></ul></td></tr></tbody></table>
+<table data-view="cards"><thead><tr><th align="center"></th><th></th></tr></thead><tbody><tr><td align="center"><strong>Use Zero Datasets When:</strong></td><td><ul><li>You want to run Phoenix in the background to collect trace data from your instrumented LLM application.</li></ul></td></tr><tr><td align="center"><strong>Use a Single Dataset When:</strong></td><td><ul><li>You have only a single cohort of data, e.g., only training data.</li><li>You care about model performance and data quality, but not drift.</li></ul></td></tr><tr><td align="center"><strong>Use Two Datasets When:</strong></td><td><ul><li>You want to compare cohorts of data, e.g., training vs. production.</li><li>You care about drift in addition to model performance and data quality.</li><li>You have corpus data for information retrieval. See <a href="../how-to/define-your-schema/corpus-data.md">Corpus Data</a>.</li></ul></td></tr></tbody></table>
 
 ### Which dataset is which?
 
