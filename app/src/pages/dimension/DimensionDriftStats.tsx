@@ -52,7 +52,7 @@ export function DimensionDriftStats(props: {
   return (
     <>
       <Flex direction="row" alignItems="center" gap="size-25">
-        <Text elementType="h3" textSize="small" color="white70">
+        <Text elementType="h3" textSize="small" color="text-700">
           PSI
         </Text>
         {contextualHelp}
