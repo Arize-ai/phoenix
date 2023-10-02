@@ -18,7 +18,7 @@ const navCSS = (theme: Theme) => css`
 `;
 
 const brandCSS = (theme: Theme) => css`
-  color: ${theme.textColors.white90};
+  color: ${theme.textColors.text - 900};
   font-size: ${theme.typography.sizes.large.fontSize}px;
   text-decoration: none;
   svg {
@@ -58,7 +58,7 @@ function IconLink(props: PropsWithChildren<{ href: string }>) {
           transition: fill 0.2s ease-in-out;
         }
         &:hover svg {
-          fill: ${theme.textColors.white90};
+          fill: ${theme.textColors.text - 900};
         }
       `}
       aria-label="GitHub"

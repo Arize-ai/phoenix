@@ -43,7 +43,7 @@ export function TracingHomePageHeader(props: {
     >
       <Flex direction="row" gap="size-400" alignItems="center">
         <Flex direction="column">
-          <Text elementType="h3" textSize="medium" color="white70">
+          <Text elementType="h3" textSize="medium" color="text-700">
             Total Traces
           </Text>
           <Text textSize="xlarge">
@@ -51,13 +51,13 @@ export function TracingHomePageHeader(props: {
           </Text>
         </Flex>
         <Flex direction="column">
-          <Text elementType="h3" textSize="medium" color="white70">
+          <Text elementType="h3" textSize="medium" color="text-700">
             Total Tokens
           </Text>
           <Text textSize="xlarge">{intFormatter(tokenCountTotal)}</Text>
         </Flex>
         <Flex direction="column">
-          <Text elementType="h3" textSize="medium" color="white70">
+          <Text elementType="h3" textSize="medium" color="text-700">
             Latency P50
           </Text>
           {latencyMsP50 != null ? (
@@ -67,7 +67,7 @@ export function TracingHomePageHeader(props: {
           )}
         </Flex>
         <Flex direction="column">
-          <Text elementType="h3" textSize="medium" color="white70">
+          <Text elementType="h3" textSize="medium" color="text-700">
             Latency P99
           </Text>
 

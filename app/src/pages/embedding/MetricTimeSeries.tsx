@@ -365,7 +365,7 @@ export function MetricTimeSeries({
             <XAxis
               {...defaultTimeXAxisProps}
               tickFormatter={(x) => timeTickFormatter(new Date(x))}
-              style={{ fill: theme.textColors.white70 }}
+              style={{ fill: theme.textColors.text - 700 }}
             />
             <YAxis
               stroke={theme.colors.gray200}
@@ -373,9 +373,12 @@ export function MetricTimeSeries({
                 value: metricShortName,
                 angle: -90,
                 position: "insideLeft",
-                style: { textAnchor: "middle", fill: theme.textColors.white90 },
+                style: {
+                  textAnchor: "middle",
+                  fill: theme.textColors.text - 900,
+                },
               }}
-              style={{ fill: theme.textColors.white70 }}
+              style={{ fill: theme.textColors.text - 700 }}
             />
             <YAxis
               yAxisId="right"
@@ -384,9 +387,12 @@ export function MetricTimeSeries({
                 value: "Count",
                 angle: 90,
                 position: "insideRight",
-                style: { textAnchor: "middle", fill: theme.textColors.white90 },
+                style: {
+                  textAnchor: "middle",
+                  fill: theme.textColors.text - 900,
+                },
               }}
-              style={{ fill: theme.textColors.white70 }}
+              style={{ fill: theme.textColors.text - 700 }}
             />
             <CartesianGrid
               strokeDasharray="4 4"

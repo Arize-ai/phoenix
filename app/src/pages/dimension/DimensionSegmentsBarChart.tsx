@@ -136,16 +136,16 @@ export function DimensionSegmentsBarChart(props: {
             <stop offset="95%" stopColor={barColor} stopOpacity={0.5} />
           </linearGradient>
         </defs>
-        <XAxis dataKey="name" style={{ fill: theme.textColors.white70 }} />
+        <XAxis dataKey="name" style={{ fill: theme.textColors.text - 700 }} />
         <YAxis
           stroke={theme.colors.gray200}
           label={{
             value: "% Volume",
             angle: -90,
             position: "insideLeft",
-            style: { textAnchor: "middle", fill: theme.textColors.white90 },
+            style: { textAnchor: "middle", fill: theme.textColors.text - 900 },
           }}
-          style={{ fill: theme.textColors.white70 }}
+          style={{ fill: theme.textColors.text - 700 }}
         />
         <CartesianGrid
           strokeDasharray="4 4"

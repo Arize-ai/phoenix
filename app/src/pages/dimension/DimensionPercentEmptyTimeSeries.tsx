@@ -135,9 +135,9 @@ export function DimensionPercentEmptyTimeSeries({
             value: "% Empty",
             angle: -90,
             position: "insideLeft",
-            style: { textAnchor: "middle", fill: theme.textColors.white90 },
+            style: { textAnchor: "middle", fill: theme.textColors.text - 900 },
           }}
-          style={{ fill: theme.textColors.white70 }}
+          style={{ fill: theme.textColors.text - 700 }}
         />
         <CartesianGrid
           strokeDasharray="4 4"
