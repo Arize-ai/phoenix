@@ -43,13 +43,7 @@ class HttpExporter:
         self._host = host or get_env_host()
         self._port = port or get_env_port()
         self._base_url = f"http://{self._host}:{self._port}"
-        try:
-            requests.get(f"{self._base_url}/arize_phoenix_version").raise_for_status()
-        except Exception:
-            logger.warning(
-                f"Arize Phoenix is not running on {self._base_url}. Launch Phoenix "
-                f"with `import phoenix as px; px.launch_app()`"
-            )
+        self._warn_if_phoenix_is_not_running()
         self._url = f"{self._base_url}/v1/spans"
         self._session = Session()
         weakref.finalize(self, self._session.close)
@@ -90,3 +84,12 @@ class HttpExporter:
             self._session.post(self._url, data=data)
         except Exception as e:
             logger.exception(e)
+
+    def _warn_if_phoenix_is_not_running(self) -> None:
+        try:
+            requests.get(f"{self._base_url}/arize_phoenix_version").raise_for_status()
+        except Exception:
+            logger.warning(
+                f"Arize Phoenix is not running on {self._base_url}. Launch Phoenix "
+                f"with `import phoenix as px; px.launch_app()`"
+            )
