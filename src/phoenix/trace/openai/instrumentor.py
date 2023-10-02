@@ -1,6 +1,15 @@
+import datetime
 import importlib
+from inspect import signature
 from types import ModuleType
 from typing import TYPE_CHECKING, Any, Callable, Optional
+
+from phoenix.trace.schemas import SpanAttributes, SpanKind, SpanStatusCode
+from phoenix.trace.semantic_conventions import (LLM_INPUT_MESSAGES,
+                                                LLM_INVOCATION_PARAMETERS,
+                                                LLM_MODEL_NAME,
+                                                LLM_OUTPUT_MESSAGES,
+                                                MESSAGE_CONTENT, MESSAGE_ROLE)
 
 from ..tracer import Tracer
 
@@ -14,17 +23,45 @@ class OpenAIInstrumentor:
         self._openai = _import_package("openai")
 
     def instrument(self) -> None:
-        self._openai.ChatCompletion.create = _wrap_chat_completion_create(
-            self._openai.ChatCompletion.create, self._tracer
+        self._openai.api_requestor.APIRequestor.request = _wrap_openai_api_requestor(
+            self._openai.api_requestor.APIRequestor.request, self._tracer
         )
 
 
-def _wrap_chat_completion_create(
-    create: Callable[..., "OpenAIObject"], tracer: Tracer
+def _wrap_openai_api_requestor(
+    request_fn: Callable[..., "OpenAIObject"], tracer: Tracer
 ) -> Callable[..., "OpenAIObject"]:
+    INPUT_MESSAGE_KEYMAP = {"content": MESSAGE_CONTENT, "role": MESSAGE_ROLE}
+
     def wrapped(*args: Any, **kwargs: Any) -> "OpenAIObject":
-        print("hello world")
-        return create(*args, **kwargs)
+        call_signature = signature(request_fn)
+        bound_args = call_signature.bind(*args, **kwargs)
+        raw_params = bound_args.arguments.get("params", dict())
+        raw_messages = raw_params["messages"]
+        inputs = [
+            {INPUT_MESSAGE_KEYMAP[k]: v for k, v in message.items()} for message in raw_messages
+        ]
+
+        start_time = datetime.datetime.now()
+        attributes = {
+            LLM_INPUT_MESSAGES: inputs,
+        }
+        try:
+            output_vals = request_fn(*args, **kwargs)
+        except Exception as e:
+            exc = e  # maybe pre-allocate exc so we don't populate things that depend on it
+        finally:
+            tracer.create_span(
+                name="OpenAI ChatCompletion Request",
+                span_kind=SpanKind.LLM,
+                start_time=start_time,
+                end_time=datetime.datetime.now(),
+                status_code=SpanStatusCode.UNSET,
+                status_message="",
+                attributes=attributes,
+                events=None,
+            )
+        return output_vals  # return something sensible if output_vals is not defined
 
     return wrapped
 
