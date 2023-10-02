@@ -1,6 +1,6 @@
 ---
 description: >-
-  Evals are LLM powered functions that you can use to evaluate the output of
+  Evals are LLM-powered functions that you can use to evaluate the output of
   your LLM or generative application
 ---
 
@@ -11,6 +11,10 @@ Evals are still under `experimental` and must be installed via `pip install ariz
 {% endhint %}
 
 ## phoenix.experimental.evals.PromptTemplate
+
+{% hint style="info" %}
+Need to install parsing dependency `lxml`
+{% endhint %}
 
 ```python
 class PromptTemplate(
