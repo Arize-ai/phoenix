@@ -81,8 +81,8 @@ Note that once you initialize the `PromptTemplate` class, you don't need to worr
 ```python
 def llm_eval_binary(
     dataframe: pd.DataFrame,
-    template: Union[PromptTemplate, str],
     model: BaseEvalModel,
+    template: Union[PromptTemplate, str],
     rails: List[str],
     system_instruction: Optional[str] = None,
 ) -> List[Optional[str]]
