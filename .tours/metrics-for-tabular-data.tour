@@ -8,7 +8,7 @@
     },
     {
       "file": "src/phoenix/server/api/types/Dimension.py",
-      "description": "This is return value to the frontend when a drift timeseries is requested.",
+      "description": "This is the return value to the frontend when a drift timeseries is requested.",
       "line": 192
     },
     {
