@@ -22,6 +22,9 @@ from phoenix.trace.semantic_conventions import (
     LLM_TOKEN_COUNT_PROMPT,
     LLM_TOKEN_COUNT_TOTAL,
     MESSAGE_CONTENT,
+    MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON,
+    MESSAGE_FUNCTION_CALL_NAME,
+    MESSAGE_NAME,
     MESSAGE_ROLE,
 )
 from phoenix.trace.utils import get_stacktrace
@@ -97,15 +100,30 @@ def _wrap_openai_api_requestor(
     return wrapped
 
 
+# def _input(parameters: Dict[str, Any]) -> Iterator[Tuple[str, List[AttributePrimitiveValue]]]:
+#     """Yield input messages if present"""
+#     if messages := parameters.get("messages"):
+#         yield INPUT_VALUE, [_get_openinference_message(message) for message in messages]
+
+
 def _input_messages(
     parameters: Dict[str, Any]
 ) -> Iterator[Tuple[str, List[AttributePrimitiveValue]]]:
     """Yields inputs messages if present"""
     if messages := parameters.get("messages"):
-        yield LLM_INPUT_MESSAGES, [
-            {MESSAGE_CONTENT: message["content"], MESSAGE_ROLE: message["role"]}
-            for message in messages
+        yield LLM_INPUT_MESSAGES, [_get_openinference_message(message) for message in messages]
+
+
+def _get_openinference_message(message: Dict[str, Any]) -> Dict[str, Any]:
+    openinference_message = {MESSAGE_CONTENT: message["content"], MESSAGE_ROLE: message["role"]}
+    if function_call_data := message.get("function_call"):
+        openinference_message[MESSAGE_FUNCTION_CALL_NAME] = function_call_data["name"]
+        openinference_message[MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON] = function_call_data[
+            "arguments"
         ]
+    if name := message.get("name"):
+        openinference_message[MESSAGE_NAME] = name
+    return openinference_message
 
 
 def _invocation_parameters(
