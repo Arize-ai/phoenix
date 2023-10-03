@@ -1,4 +1,4 @@
-import React, { Suspense } from "react";
+import React, { startTransition, Suspense, useState } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { Outlet } from "react-router";
 import { css } from "@emotion/react";
@@ -10,7 +10,18 @@ import { SpansTable } from "./SpansTable";
 import { TracesTable } from "./TracesTable";
 import { TracingHomePageHeader } from "./TracingHomePageHeader";
 
+const useRefetch = (): [number, () => void] => {
+  const [fetchKey, setFetchKey] = useState<number>(0);
+  const refetch = () => {
+    startTransition(() => {
+      setFetchKey((key) => key + 1);
+    });
+  };
+  return [fetchKey, refetch];
+};
+
 export function TracingHomePage() {
+  const [fetchKey, refetch] = useRefetch();
   const data = useLazyLoadQuery<TracingHomePageQuery>(
     graphql`
       query TracingHomePageQuery {
@@ -19,7 +30,11 @@ export function TracingHomePage() {
         ...TracingHomePageHeader_stats
       }
     `,
-    {}
+    {},
+    {
+      fetchKey,
+      fetchPolicy: "store-and-network",
+    }
   );
   return (
     <main
@@ -48,7 +63,7 @@ export function TracingHomePage() {
         }
       `}
     >
-      <TracingHomePageHeader query={data} />
+      <TracingHomePageHeader query={data} onRefresh={refetch} />
       <Tabs>
         <TabPane name="Traces">
           {({ isSelected }) => {

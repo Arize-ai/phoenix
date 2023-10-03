@@ -6,7 +6,7 @@
   "license": "None",
   "private": true,
   "dependencies": {
-    "@arizeai/components": "^0.17.0",
+    "@arizeai/components": "^0.17.1",
     "@arizeai/point-cloud": "^3.0.4",
     "@codemirror/lang-json": "^6.0.1",
     "@codemirror/view": "^6.16.0",
@@ -74,7 +74,7 @@
     "build:relay": "relay-compiler",
     "watch": "./esbuild.config.mjs dev",
     "test": "jest --config ./jest.config.js",
-    "dev": "npm run dev:server:image & npm run build:static && npm run watch",
+    "dev": "npm run dev:server:traces:llama_index_rag & npm run build:static && npm run watch",
     "dev:server:mnist": "python3 -m phoenix.server.main fixture fashion_mnist",
     "dev:server:mnist:single": "python3 -m phoenix.server.main fixture fashion_mnist --primary-only true",
     "dev:server:sentiment": "python3 -m phoenix.server.main fixture sentiment_classification_language_drift",
