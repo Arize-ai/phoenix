@@ -81,6 +81,16 @@ class OpenAIInstrumentor:
 def _wrap_openai_api_requestor(
     request_fn: Callable[..., Any], tracer: Tracer
 ) -> Callable[..., Any]:
+    """Wraps the OpenAI APIRequestor.request method to create spans for each API call.
+
+    Args:
+        request_fn (Callable[..., Any]): The request method on openai.api_requestor.APIRequestor.
+        tracer (Tracer): The tracer to use to create spans.
+
+    Returns:
+        Callable[..., Any]: The wrapped request method.
+    """
+
     def wrapped(*args: Any, **kwargs: Any) -> Any:
         call_signature = signature(request_fn)
         bound_arguments = call_signature.bind(*args, **kwargs)
