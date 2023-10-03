@@ -55,7 +55,8 @@ class SpanKind(Enum):
 
 TraceID = UUID
 SpanID = UUID
-AttributePrimitiveValue = Union[str, bool, float, int]
+Message = Dict[str, str]
+AttributePrimitiveValue = Union[str, bool, float, int, Message]
 AttributeValue = Union[AttributePrimitiveValue, List[AttributePrimitiveValue]]
 SpanAttributes = Dict[str, AttributeValue]
 

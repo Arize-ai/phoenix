@@ -13,31 +13,50 @@ import json
 import logging
 from collections import defaultdict
 from datetime import datetime
-from traceback import format_exception
-from typing import (Any, Callable, Dict, Iterable, Iterator, List, Optional,
-                    Tuple, TypedDict, cast)
+from typing import Any, Callable, Dict, Iterable, Iterator, List, Optional, Tuple, TypedDict, cast
 from uuid import uuid4
 
 from llama_index.callbacks.base_handler import BaseCallbackHandler
-from llama_index.callbacks.schema import (TIMESTAMP_FORMAT, CBEvent,
-                                          CBEventType, EventPayload)
+from llama_index.callbacks.schema import TIMESTAMP_FORMAT, CBEvent, CBEventType, EventPayload
 from llama_index.llms.base import ChatMessage, ChatResponse
 from llama_index.tools import ToolMetadata
 
 from phoenix.trace.exporter import HttpExporter
-from phoenix.trace.schemas import (Span, SpanEvent, SpanException, SpanID,
-                                   SpanKind, SpanStatusCode)
+from phoenix.trace.schemas import Span, SpanEvent, SpanException, SpanID, SpanKind, SpanStatusCode
 from phoenix.trace.semantic_conventions import (
-    DOCUMENT_CONTENT, DOCUMENT_ID, DOCUMENT_METADATA, DOCUMENT_SCORE,
-    EMBEDDING_EMBEDDINGS, EMBEDDING_MODEL_NAME, EMBEDDING_TEXT,
-    EMBEDDING_VECTOR, INPUT_MIME_TYPE, INPUT_VALUE, LLM_INPUT_MESSAGES,
-    LLM_INVOCATION_PARAMETERS, LLM_MODEL_NAME, LLM_OUTPUT_MESSAGES,
-    LLM_PROMPT_TEMPLATE, LLM_PROMPT_TEMPLATE_VARIABLES, LLM_PROMPTS,
-    LLM_TOKEN_COUNT_COMPLETION, LLM_TOKEN_COUNT_PROMPT, LLM_TOKEN_COUNT_TOTAL,
-    MESSAGE_CONTENT, MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON,
-    MESSAGE_FUNCTION_CALL_NAME, MESSAGE_NAME, MESSAGE_ROLE, OUTPUT_MIME_TYPE,
-    OUTPUT_VALUE, RETRIEVAL_DOCUMENTS, TOOL_DESCRIPTION, TOOL_NAME,
-    TOOL_PARAMETERS, MimeType)
+    DOCUMENT_CONTENT,
+    DOCUMENT_ID,
+    DOCUMENT_METADATA,
+    DOCUMENT_SCORE,
+    EMBEDDING_EMBEDDINGS,
+    EMBEDDING_MODEL_NAME,
+    EMBEDDING_TEXT,
+    EMBEDDING_VECTOR,
+    INPUT_MIME_TYPE,
+    INPUT_VALUE,
+    LLM_INPUT_MESSAGES,
+    LLM_INVOCATION_PARAMETERS,
+    LLM_MODEL_NAME,
+    LLM_OUTPUT_MESSAGES,
+    LLM_PROMPT_TEMPLATE,
+    LLM_PROMPT_TEMPLATE_VARIABLES,
+    LLM_PROMPTS,
+    LLM_TOKEN_COUNT_COMPLETION,
+    LLM_TOKEN_COUNT_PROMPT,
+    LLM_TOKEN_COUNT_TOTAL,
+    MESSAGE_CONTENT,
+    MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON,
+    MESSAGE_FUNCTION_CALL_NAME,
+    MESSAGE_NAME,
+    MESSAGE_ROLE,
+    OUTPUT_MIME_TYPE,
+    OUTPUT_VALUE,
+    RETRIEVAL_DOCUMENTS,
+    TOOL_DESCRIPTION,
+    TOOL_NAME,
+    TOOL_PARAMETERS,
+    MimeType,
+)
 from phoenix.trace.tracer import SpanExporter, Tracer
 from phoenix.trace.utils import get_stacktrace
 

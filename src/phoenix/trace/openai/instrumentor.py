@@ -2,21 +2,25 @@ import datetime
 import importlib
 from inspect import signature
 from types import ModuleType
-from typing import TYPE_CHECKING, Any, Callable, Optional
+from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple
 
-from phoenix.trace.schemas import (SpanAttributes, SpanException, SpanKind,
-                                   SpanStatusCode)
-from phoenix.trace.semantic_conventions import (LLM_INPUT_MESSAGES,
-                                                LLM_INVOCATION_PARAMETERS,
-                                                LLM_MODEL_NAME,
-                                                LLM_OUTPUT_MESSAGES,
-                                                MESSAGE_CONTENT, MESSAGE_ROLE)
+from phoenix.trace.schemas import (
+    AttributePrimitiveValue,
+    SpanAttributes,
+    SpanEvent,
+    SpanException,
+    SpanKind,
+    SpanStatusCode,
+)
+from phoenix.trace.semantic_conventions import (
+    LLM_INPUT_MESSAGES,
+    LLM_INVOCATION_PARAMETERS,
+    MESSAGE_CONTENT,
+    MESSAGE_ROLE,
+)
 from phoenix.trace.utils import get_stacktrace
 
 from ..tracer import Tracer
-
-if TYPE_CHECKING:
-    from openai.openai_object import OpenAIObject
 
 
 class OpenAIInstrumentor:
@@ -31,30 +35,24 @@ class OpenAIInstrumentor:
 
 
 def _wrap_openai_api_requestor(
-    request_fn: Callable[..., "OpenAIObject"], tracer: Tracer
-) -> Callable[..., "OpenAIObject"]:
-    INPUT_MESSAGE_KEYMAP = {"content": MESSAGE_CONTENT, "role": MESSAGE_ROLE}
-
-    def wrapped(*args: Any, **kwargs: Any) -> "OpenAIObject":
+    request_fn: Callable[..., Any], tracer: Tracer
+) -> Callable[..., Any]:
+    def wrapped(*args: Any, **kwargs: Any) -> Any:
         call_signature = signature(request_fn)
-        bound_args = call_signature.bind(*args, **kwargs)
-        raw_params = bound_args.arguments.get("params", dict())
-        raw_messages = raw_params["messages"]
-        inputs = [
-            {INPUT_MESSAGE_KEYMAP[k]: v for k, v in message.items()} for message in raw_messages
-        ]
-
-        events = []
+        bound_arguments = call_signature.bind(*args, **kwargs)
+        parameters = bound_arguments.arguments.get("params", {})
         current_status_code = SpanStatusCode.UNSET
         start_time = datetime.datetime.now()
-        attributes = {
-            LLM_INPUT_MESSAGES: inputs,
-        }
+        events: List[SpanEvent] = []
+        attributes: SpanAttributes = {}
+        attributes.update(_input_messages(parameters))
+        attributes.update(_invocation_parameters(parameters))
         try:
-            output_vals = request_fn(*args, **kwargs)
+            response = request_fn(*args, **kwargs)
             current_status_code = SpanStatusCode.OK
-        except Exception as e:
-            error = e
+            return response
+        except Exception as error:
+            current_status_code = SpanStatusCode.ERROR
             events.append(
                 SpanException(
                     message=str(error),
@@ -63,10 +61,10 @@ def _wrap_openai_api_requestor(
                     exception_stacktrace=get_stacktrace(error),
                 )
             )
-            current_status_code = SpanStatusCode.ERROR
+            raise
         finally:
             tracer.create_span(
-                name="OpenAI ChatCompletion Request",
+                name="openai.ChatCompletion.create",
                 span_kind=SpanKind.LLM,
                 start_time=start_time,
                 end_time=datetime.datetime.now(),
@@ -75,9 +73,26 @@ def _wrap_openai_api_requestor(
                 attributes=attributes,
                 events=events,
             )
-        return output_vals  # return something sensible if output_vals is not defined
 
     return wrapped
+
+
+def _input_messages(
+    parameters: Dict[str, Any]
+) -> Iterator[Tuple[str, List[AttributePrimitiveValue]]]:
+    """Yields inputs messages if present"""
+    if messages := parameters.get("messages"):
+        yield LLM_INPUT_MESSAGES, [
+            {MESSAGE_CONTENT: message["content"], MESSAGE_ROLE: message["role"]}
+            for message in messages
+        ]
+
+
+def _invocation_parameters(
+    parameters: Dict[str, Any],
+) -> Iterator[Tuple[str, AttributePrimitiveValue]]:
+    """Yields invocation parameters if present"""
+    yield LLM_INVOCATION_PARAMETERS, parameters
 
 
 def _import_package(package_name: str, pypi_name: Optional[str] = None) -> ModuleType:
