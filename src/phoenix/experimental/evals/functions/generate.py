@@ -14,6 +14,7 @@ def llm_generate(
     template: Union[PromptTemplate, str],
     model: BaseEvalModel,
     system_instruction: Optional[str] = None,
+    verbose: bool = False,
 ) -> List[str]:
     """
     Generates a text using a template using an LLM. This function is useful
@@ -38,6 +39,7 @@ def llm_generate(
         model for each record
 
     """
+    model._verbose = verbose
     template = normalize_template(template)
     logger.info(f"Template: \n{template.text}\n")
     logger.info(f"Template variables: {template.variables}")

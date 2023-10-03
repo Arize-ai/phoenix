@@ -59,6 +59,8 @@ def create_base_retry_decorator(
 
 @dataclass
 class BaseEvalModel(ABC):
+    _verbose: bool = False
+
     def __call__(self, prompt: str, instruction: Optional[str] = None) -> str:
         """Run the LLM on the given prompt."""
         if not isinstance(prompt, str):

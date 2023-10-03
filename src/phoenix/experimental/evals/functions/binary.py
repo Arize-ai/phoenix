@@ -28,6 +28,7 @@ def llm_eval_binary(
     template: Union[PromptTemplate, str],
     rails: List[str],
     system_instruction: Optional[str] = None,
+    verbose: bool = False,
 ) -> List[str]:
     """Runs binary classifications using an LLM.
 
@@ -54,6 +55,7 @@ def llm_eval_binary(
         be parsed.
     """
 
+    model._verbose = verbose
     eval_template = normalize_template(template)
     prompts = map_template(dataframe, eval_template)
     responses = model.generate(prompts.to_list(), instruction=system_instruction)
@@ -69,6 +71,7 @@ def run_relevance_eval(
     system_instruction: Optional[str] = None,
     query_column_name: str = "query",
     document_column_name: str = "reference",
+    verbose: bool = False,
 ) -> List[List[str]]:
     """
     Given a pandas dataframe containing queries and retrieved documents, classifies the relevance of
@@ -120,6 +123,7 @@ def run_relevance_eval(
         be parsed.
     """
 
+    model._verbose = verbose
     query_column = dataframe.get(query_column_name)
     document_column = dataframe.get(document_column_name)
     if query_column is None or document_column is None:
