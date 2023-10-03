@@ -5,7 +5,7 @@ from inspect import signature
 from typing import TYPE_CHECKING, Any, Callable, Dict, Iterator, List, Optional, Tuple
 
 from phoenix.trace.schemas import (
-    AttributePrimitiveValue,
+    Message,
     SpanAttributes,
     SpanEvent,
     SpanException,
@@ -129,15 +129,13 @@ def _outputs(response: "OpenAIResponse") -> Iterator[Tuple[str, str]]:
     yield OUTPUT_MIME_TYPE, MimeType.JSON.value
 
 
-def _input_messages(
-    parameters: Dict[str, Any]
-) -> Iterator[Tuple[str, List[AttributePrimitiveValue]]]:
+def _input_messages(parameters: Dict[str, Any]) -> Iterator[Tuple[str, List[Message]]]:
     """Yields inputs messages if present"""
     if messages := parameters.get("messages"):
         yield LLM_INPUT_MESSAGES, [_get_openinference_message(message) for message in messages]
 
 
-def _get_openinference_message(message: Dict[str, Any]) -> Dict[str, Any]:
+def _get_openinference_message(message: Dict[str, Any]) -> Message:
     """Converts message data to OpenInference format"""
     openinference_message = {MESSAGE_CONTENT: message["content"], MESSAGE_ROLE: message["role"]}
     if function_call_data := message.get("function_call"):
@@ -158,26 +156,21 @@ def _invocation_parameters(
 
 
 def _function_calls(
-    response: Any,
+    response: "OpenAIResponse",
 ) -> Iterator[Tuple[str, str]]:
     """Yields function call data if present"""
-    openai = import_package("openai")
-    if isinstance(response, openai.openai_response.OpenAIResponse) and (
-        choices := response.data.get("choices")
+    choices = response.data["choices"]
+    choice = choices[0]
+    if choice.get("finish_reason") == "function_call" and (
+        function_call_data := choice["message"].get("function_call")
     ):
-        choice = choices[0]
-        if choice.get("finish_reason") == "function_call" and (
-            function_call_data := choice["message"].get("function_call")
-        ):
-            yield LLM_FUNCTION_CALL, json.dumps(function_call_data)
+        yield LLM_FUNCTION_CALL, json.dumps(function_call_data)
 
 
-def _token_counts(response: Any) -> Iterator[Tuple[str, int]]:
+def _token_counts(response: "OpenAIResponse") -> Iterator[Tuple[str, int]]:
     """Yields token counts if present"""
-    openai = import_package("openai")
-    if isinstance(response, openai.openai_response.OpenAIResponse) and (
-        token_usage := response.data.get("usage")
-    ):
+    import_package("openai")
+    if token_usage := response.data.get("usage"):
         yield LLM_TOKEN_COUNT_PROMPT, token_usage["prompt_tokens"]
         yield LLM_TOKEN_COUNT_COMPLETION, token_usage["completion_tokens"]
         yield LLM_TOKEN_COUNT_TOTAL, token_usage["total_tokens"]
