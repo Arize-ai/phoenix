@@ -193,7 +193,6 @@ def _function_calls(
 
 def _token_counts(response: "OpenAIResponse") -> Iterator[Tuple[str, int]]:
     """Yields token counts if present"""
-    import_package("openai")
     if token_usage := response.data.get("usage"):
         yield LLM_TOKEN_COUNT_PROMPT, token_usage["prompt_tokens"]
         yield LLM_TOKEN_COUNT_COMPLETION, token_usage["completion_tokens"]
