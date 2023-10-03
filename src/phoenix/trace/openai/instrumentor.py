@@ -2,7 +2,18 @@ import datetime
 import json
 from enum import Enum
 from inspect import signature
-from typing import TYPE_CHECKING, Any, Callable, Dict, Iterator, List, Optional, Tuple
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Dict,
+    Iterator,
+    List,
+    Mapping,
+    Optional,
+    Tuple,
+    cast,
+)
 
 from phoenix.trace.schemas import (
     Message,
@@ -140,7 +151,7 @@ def _wrap_openai_api_requestor(
     return wrapped
 
 
-def _inputs(parameters: Dict[str, Any]) -> Iterator[Tuple[str, str]]:
+def _inputs(parameters: Mapping[str, Any]) -> Iterator[Tuple[str, str]]:
     """Yield input messages as a JSON string in addition to input mime type"""
     if messages := parameters.get("messages"):
         yield INPUT_VALUE, json.dumps([_get_openinference_message(message) for message in messages])
@@ -153,13 +164,13 @@ def _outputs(response: "OpenAIResponse") -> Iterator[Tuple[str, str]]:
     yield OUTPUT_MIME_TYPE, MimeType.JSON.value
 
 
-def _input_messages(parameters: Dict[str, Any]) -> Iterator[Tuple[str, List[Message]]]:
+def _input_messages(parameters: Mapping[str, Any]) -> Iterator[Tuple[str, List[Message]]]:
     """Yields inputs messages if present"""
     if messages := parameters.get("messages"):
         yield LLM_INPUT_MESSAGES, [_get_openinference_message(message) for message in messages]
 
 
-def _get_openinference_message(message: Dict[str, Any]) -> Message:
+def _get_openinference_message(message: Mapping[str, Any]) -> Message:
     """Converts message data to OpenInference format"""
     openinference_message = {MESSAGE_CONTENT: message["content"], MESSAGE_ROLE: message["role"]}
     if function_call_data := message.get("function_call"):
@@ -173,10 +184,10 @@ def _get_openinference_message(message: Dict[str, Any]) -> Message:
 
 
 def _invocation_parameters(
-    parameters: Dict[str, Any],
+    parameters: Mapping[str, Any],
 ) -> Iterator[Tuple[str, Dict[str, Any]]]:
     """Yields invocation parameters"""
-    yield LLM_INVOCATION_PARAMETERS, parameters
+    yield LLM_INVOCATION_PARAMETERS, cast(Dict[str, Any], parameters)
 
 
 def _function_calls(
