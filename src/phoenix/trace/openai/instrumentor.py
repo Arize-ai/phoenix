@@ -31,7 +31,7 @@ from ..tracer import Tracer
 
 
 class RequestType(Enum):
-    CHAT_COMPLETIONS = "chat_completion"
+    CHAT_COMPLETION = "chat_completion"
     COMPLETION = "completion"
     EMBEDDING = "embedding"
 
@@ -59,7 +59,7 @@ def _wrap_openai_api_requestor(
         bound_arguments = call_signature.bind(*args, **kwargs)
         parameters = bound_arguments.arguments["params"]
         url = bound_arguments.arguments["url"]
-        if _get_request_type(url) is RequestType.CHAT_COMPLETIONS:
+        if _get_request_type(url) is RequestType.CHAT_COMPLETION:
             current_status_code = SpanStatusCode.UNSET
             start_time = datetime.datetime.now()
             events: List[SpanEvent] = []
@@ -162,7 +162,7 @@ def _token_counts(response: Any) -> Iterator[Tuple[str, int]]:
 
 def _get_request_type(url: str) -> Optional[RequestType]:
     if "chat/completions" in url:
-        return RequestType.CHAT_COMPLETIONS
+        return RequestType.CHAT_COMPLETION
     if "completions" in url:
         return RequestType.COMPLETION
     if "embeddings" in url:
