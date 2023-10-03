@@ -2,45 +2,17 @@ import datetime
 import json
 from enum import Enum
 from inspect import signature
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Callable,
-    Dict,
-    Iterator,
-    List,
-    Mapping,
-    Optional,
-    Tuple,
-    cast,
-)
+from typing import (TYPE_CHECKING, Any, Callable, Dict, Iterable, Iterator,
+                    List, Mapping, Optional, Tuple)
 
-from phoenix.trace.schemas import (
-    Message,
-    SpanAttributes,
-    SpanEvent,
-    SpanException,
-    SpanKind,
-    SpanStatusCode,
-)
+from phoenix.trace.schemas import (Message, SpanAttributes, SpanEvent,
+                                   SpanException, SpanKind, SpanStatusCode)
 from phoenix.trace.semantic_conventions import (
-    INPUT_MIME_TYPE,
-    INPUT_VALUE,
-    LLM_FUNCTION_CALL,
-    LLM_INPUT_MESSAGES,
-    LLM_INVOCATION_PARAMETERS,
-    LLM_TOKEN_COUNT_COMPLETION,
-    LLM_TOKEN_COUNT_PROMPT,
-    LLM_TOKEN_COUNT_TOTAL,
-    MESSAGE_CONTENT,
-    MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON,
-    MESSAGE_FUNCTION_CALL_NAME,
-    MESSAGE_NAME,
-    MESSAGE_ROLE,
-    OUTPUT_MIME_TYPE,
-    OUTPUT_VALUE,
-    MimeType,
-)
+    INPUT_MIME_TYPE, INPUT_VALUE, LLM_FUNCTION_CALL, LLM_INPUT_MESSAGES,
+    LLM_INVOCATION_PARAMETERS, LLM_TOKEN_COUNT_COMPLETION,
+    LLM_TOKEN_COUNT_PROMPT, LLM_TOKEN_COUNT_TOTAL, MESSAGE_CONTENT,
+    MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON, MESSAGE_FUNCTION_CALL_NAME,
+    MESSAGE_NAME, MESSAGE_ROLE, OUTPUT_MIME_TYPE, OUTPUT_VALUE, MimeType)
 from phoenix.trace.utils import get_stacktrace, import_package
 
 from ..tracer import Tracer
@@ -111,20 +83,33 @@ def _wrap_openai_api_requestor(
             current_status_code = SpanStatusCode.UNSET
             start_time = datetime.datetime.now()
             events: List[SpanEvent] = []
-            attributes: SpanAttributes = {}
-            attributes.update(_inputs(parameters))
-            attributes.update(_input_messages(parameters))
-            attributes.update(_invocation_parameters(parameters))
+            attributes: SpanAttributes = dict()
+
+            pre_run_attributes = [
+                INPUT_VALUE,
+                INPUT_MIME_TYPE,
+                LLM_INPUT_MESSAGES,
+                LLM_INVOCATION_PARAMETERS,
+            ]
+            for a in pre_run_attributes:
+                attributes[a] = OPENINFERENCE_TRANSORMER_MAPPING[a](parameters)
+
             try:
                 outputs = request_fn(*args, **kwargs)
                 response = outputs[0]
+
+                # ---
                 attributes.update(_outputs(response))
                 attributes.update(_token_counts(response))
                 attributes.update(_function_calls(response))
+                # ---
+
                 current_status_code = SpanStatusCode.OK
                 return outputs
             except Exception as error:
                 current_status_code = SpanStatusCode.ERROR
+
+                # ---
                 events.append(
                     SpanException(
                         message=str(error),
@@ -133,6 +118,8 @@ def _wrap_openai_api_requestor(
                         exception_stacktrace=get_stacktrace(error),
                     )
                 )
+                # ---
+
                 raise
             finally:
                 tracer.create_span(
@@ -151,43 +138,42 @@ def _wrap_openai_api_requestor(
     return wrapped
 
 
-def _inputs(parameters: Mapping[str, Any]) -> Iterator[Tuple[str, str]]:
-    """Yield input messages as a JSON string in addition to input mime type"""
-    if messages := parameters.get("messages"):
-        yield INPUT_VALUE, json.dumps([_get_openinference_message(message) for message in messages])
-        yield INPUT_MIME_TYPE, MimeType.JSON.value
+def _input_value(parameters: Mapping[str, Any]) -> str:
+    return json.dumps(parameters.get("messages"))
+
+
+def _input_mime_type(parameters: Mapping[str, Any]) -> str:
+    return MimeType.JSON.value
+
+
+def _llm_input_messages(parameters: Mapping[str, Any]) -> Iterable[Message]:
+    if not (messages := parameters.get("messages")):
+        return
+
+    llm_input_messages = []
+    for message in messages:
+        openinference_message = {MESSAGE_CONTENT: message["content"], MESSAGE_ROLE: message["role"]}
+        if function_call_data := message.get("function_call"):
+            openinference_message[MESSAGE_FUNCTION_CALL_NAME] = function_call_data["name"]
+            openinference_message[MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON] = function_call_data[
+                "arguments"
+            ]
+        if name := message.get("name"):
+            openinference_message[MESSAGE_NAME] = name
+        llm_input_messages.append(openinference_message)
+    return llm_input_messages
+
+
+def _llm_invocation_parameters(
+    parameters: Mapping[str, Any],
+) -> str:
+    return json.dumps(parameters)
 
 
 def _outputs(response: "OpenAIResponse") -> Iterator[Tuple[str, str]]:
     """Yield output messages as a JSON string in addition to output mime type"""
     yield OUTPUT_VALUE, json.dumps(response.data["choices"])
     yield OUTPUT_MIME_TYPE, MimeType.JSON.value
-
-
-def _input_messages(parameters: Mapping[str, Any]) -> Iterator[Tuple[str, List[Message]]]:
-    """Yields inputs messages if present"""
-    if messages := parameters.get("messages"):
-        yield LLM_INPUT_MESSAGES, [_get_openinference_message(message) for message in messages]
-
-
-def _get_openinference_message(message: Mapping[str, Any]) -> Message:
-    """Converts message data to OpenInference format"""
-    openinference_message = {MESSAGE_CONTENT: message["content"], MESSAGE_ROLE: message["role"]}
-    if function_call_data := message.get("function_call"):
-        openinference_message[MESSAGE_FUNCTION_CALL_NAME] = function_call_data["name"]
-        openinference_message[MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON] = function_call_data[
-            "arguments"
-        ]
-    if name := message.get("name"):
-        openinference_message[MESSAGE_NAME] = name
-    return openinference_message
-
-
-def _invocation_parameters(
-    parameters: Mapping[str, Any],
-) -> Iterator[Tuple[str, Dict[str, Any]]]:
-    """Yields invocation parameters"""
-    yield LLM_INVOCATION_PARAMETERS, cast(Dict[str, Any], parameters)
 
 
 def _function_calls(
@@ -219,3 +205,11 @@ def _get_request_type(url: str) -> Optional[RequestType]:
     if "embeddings" in url:
         return RequestType.EMBEDDING
     return None
+
+
+OPENINFERENCE_TRANSORMER_MAPPING: Dict[str, Callable] = {
+    INPUT_VALUE: _input_value,
+    INPUT_MIME_TYPE: _input_mime_type,
+    LLM_INPUT_MESSAGES: _llm_input_messages,
+    LLM_INVOCATION_PARAMETERS: _llm_invocation_parameters,
+}
