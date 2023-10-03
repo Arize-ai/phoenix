@@ -1,0 +1,130 @@
+{
+  "$schema": "https://aka.ms/codetour-schema",
+  "title": "Metrics for Tabular Data",
+  "steps": [
+    {
+      "title": "Introduction",
+      "description": "In this code tour we'll trace the steps to calculate the PSI drift timeseries. Other tabular metrics can be more or less complicated, but follow a similar pattern."
+    },
+    {
+      "file": "src/phoenix/server/api/types/Dimension.py",
+      "description": "This is the return value to the frontend when a drift timeseries is requested.",
+      "line": 192
+    },
+    {
+      "file": "src/phoenix/server/api/types/Dimension.py",
+      "description": "ScalarDriftMetric enum is how the metric is specified by the graphQL request.",
+      "line": 178
+    },
+    {
+      "file": "src/phoenix/server/api/types/Dimension.py",
+      "description": "Note that `dimension` is attached to the `self`, when the GraphQL `dimension` object is initialized.",
+      "line": 193
+    },
+    {
+      "file": "src/phoenix/server/api/types/Dimension.py",
+      "description": "Because drift requires a reference value (i.e. the value it's drifting from), it's specified here. The `dimension` can retrieve its reference value through its `model` object.",
+      "line": 198
+    },
+    {
+      "file": "src/phoenix/server/api/types/Dimension.py",
+      "description": "Note that if the reference data doesn't exist, we return early with an empty result.",
+      "line": 184
+    },
+    {
+      "file": "src/phoenix/server/api/types/TimeSeries.py",
+      "description": "Note that the metric also allows vector drift metric, because the pattern of calculation is the same.",
+      "line": 127
+    },
+    {
+      "file": "src/phoenix/server/api/types/TimeSeries.py",
+      "description": "We make a copy of the metric by updating some components for the calculation.",
+      "line": 133
+    },
+    {
+      "file": "src/phoenix/server/api/types/TimeSeries.py",
+      "description": "The operand of the metric is a `Column`. A `Column` is an extractor function (initialized with the dimension's name) that when given a `pandas.DataFrame`, returns a `pandas.Series`. \n\nIt's set up this way because the column with the name we want may not exist in the `DataFrame`, so the extractor function will return a `Series` of `NaN`s if that happens.",
+      "line": 135
+    },
+    {
+      "file": "src/phoenix/server/api/types/TimeSeries.py",
+      "description": "Drift `Metric` is initialized with the reference data.",
+      "line": 136
+    },
+    {
+      "file": "src/phoenix/server/api/types/TimeSeries.py",
+      "description": "For drift metric on continuous data, we also need binning. `QuantileBinning` is the default.",
+      "line": 142
+    },
+    {
+      "file": "src/phoenix/server/api/types/TimeSeries.py",
+      "description": "When everything as assembled, `pandas.DataFrame.pipe` will carry out the calculation on the `DataFrame`.",
+      "line": 149
+    },
+    {
+      "file": "src/phoenix/server/api/types/TimeSeries.py",
+      "description": "`pandas.DataFrame.pipe` will pipe results between calculations that return `DataFrames` as results.",
+      "line": 71
+    },
+    {
+      "file": "src/phoenix/server/api/types/TimeSeries.py",
+      "description": "timeseries function here will handle how the data is chopped up.",
+      "line": 72
+    },
+    {
+      "file": "src/phoenix/server/api/types/TimeSeries.py",
+      "description": "`sampling_interval` specifies how often a data point is produced. It can be daily, hourly, etc. The smallest interval is a minute.",
+      "line": 79
+    },
+    {
+      "file": "src/phoenix/server/api/types/TimeSeries.py",
+      "description": "`evaluation_window` specifies how much data each timeseries data point contains. It can be one day's or one hour's worth of data. The smallest interval is one minute.\n\nThe timestamp of each timeseries data point is the timestamp at the end of the `evaluation_window`.\n\nEach `evaluation_window` is a right-open interval, i.e. the end time instant is excluded. ",
+      "line": 76
+    },
+    {
+      "file": "src/phoenix/server/api/types/TimeSeries.py",
+      "description": "Once the data is chopped up, each portion is passed as `pandas.DataFrame` to the metric function. The `PSI` metric function accepts a `DataFrame` an returns a `float`.",
+      "line": 82
+    },
+    {
+      "file": "src/phoenix/metrics/metrics.py",
+      "description": "This is the formula for the PSI calculation inside the `Metric`. In general, a `Metric` is a wrapper for functions from third-party libraries. In this case the third-party function is `entropy` from the `scipy` library.",
+      "line": 207
+    },
+    {
+      "file": "src/phoenix/metrics/metrics.py",
+      "description": "We use cooperative multiple-inheritance for `Metric`.",
+      "line": 177
+    },
+    {
+      "file": "src/phoenix/metrics/mixins.py",
+      "description": "Here you can see some of the `mixins` for the `PSI` metric.",
+      "line": 181
+    },
+    {
+      "file": "src/phoenix/metrics/mixins.py",
+      "description": "The `calc` is the main method of the `Metric`. It accepts a `DataFrame` and returns a `float`. ",
+      "line": 209
+    },
+    {
+      "file": "src/phoenix/metrics/mixins.py",
+      "description": "Data is extracted from the dataframe. The `operand` function contains the name of the column it's looking for. If the column is not found in the `DataFrame`, `operand` returns a `Series` of `NaN`.",
+      "line": 210
+    },
+    {
+      "file": "src/phoenix/metrics/__init__.py",
+      "description": "Here's the `abstractmethod` of `calc`.",
+      "line": 36
+    },
+    {
+      "file": "src/phoenix/metrics/__init__.py",
+      "description": "`Metric` can in fact return `Any`, but most of the time it's just `float`.",
+      "line": 48
+    },
+    {
+      "file": "src/phoenix/metrics/metrics.py",
+      "description": "Here's our simplest `metric`: `Count`.",
+      "line": 29
+    }
+  ]
+}

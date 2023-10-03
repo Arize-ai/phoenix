@@ -262,10 +262,13 @@ export function DimensionQuantilesTimeSeries({
             value: "Value",
             angle: -90,
             position: "insideLeft",
-            style: { textAnchor: "middle", fill: theme.textColors.white90 },
+            style: {
+              textAnchor: "middle",
+              fill: "var(--ac-global-text-color-900)",
+            },
           }}
           tickFormatter={(x) => yTickFormatter(x)}
-          style={{ fill: theme.textColors.white70 }}
+          style={{ fill: "var(--ac-global-text-color-700)" }}
         />
         <CartesianGrid
           strokeDasharray="4 4"

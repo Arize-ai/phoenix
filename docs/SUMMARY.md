@@ -42,7 +42,8 @@
 
 * [Dataset and Schema](api/dataset-and-schema.md)
 * [Session](api/session.md)
-* [Evals](api/evals.md)
+* [Evals](api/evals/README.md)
+  * [Evaluation Models](api/evals/evaluation-models.md)
 
 ## 🔌 INTEGRATIONS
 
@@ -56,7 +57,6 @@
 * [Architecture](reference/architecture.md)
 * [OpenInference](concepts/open-inference.md)
 * [Frequently Asked Questions](reference/frequently-asked-questions.md)
-* [Contribute as a Developer](reference/contribute-as-a-developer.md)
 
 ***
 

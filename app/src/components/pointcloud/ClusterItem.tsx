@@ -136,7 +136,7 @@ export function ClusterItem(props: ClusterItemProps) {
           <Flex direction="column" alignItems="start">
             <Heading level={3}>{`Cluster ${clusterId}`}</Heading>
             <Text
-              color="white70"
+              color="text-700"
               textSize="small"
             >{`${props.numPoints} points`}</Text>
           </Flex>
@@ -149,10 +149,10 @@ export function ClusterItem(props: ClusterItemProps) {
             align-items: end;
           `}
         >
-          <Text color="white70" textSize="small">
+          <Text color="text-700" textSize="small">
             {metricName}
           </Text>
-          <Text color="white90" textSize="medium">
+          <Text color="text-900" textSize="medium">
             {numberFormatter(primaryMetricValue)}
           </Text>
           {!hideReference ? (
