@@ -44,6 +44,9 @@ class RequestType(Enum):
     EMBEDDING = "embedding"
 
 
+INSTRUMENTED_ATTRIBUTE_NAME = "is_instrumented_with_openinference_tracer"
+
+
 class OpenAIInstrumentor:
     def __init__(self, tracer: Optional[Tracer] = None) -> None:
         """Instruments your OpenAI client to automatically create spans for each API call.
@@ -59,9 +62,20 @@ class OpenAIInstrumentor:
         Instruments your OpenAI client.
         """
         openai = import_package("openai")
-        openai.api_requestor.APIRequestor.request = _wrap_openai_api_requestor(
-            openai.api_requestor.APIRequestor.request, self._tracer
+        is_instrumented = getattr(
+            openai.api_requestor.APIRequestor.request,
+            INSTRUMENTED_ATTRIBUTE_NAME,
+            False,
         )
+        if not is_instrumented:
+            openai.api_requestor.APIRequestor.request = _wrap_openai_api_requestor(
+                openai.api_requestor.APIRequestor.request, self._tracer
+            )
+            setattr(
+                openai.api_requestor.APIRequestor.request,
+                INSTRUMENTED_ATTRIBUTE_NAME,
+                True,
+            )
 
 
 def _wrap_openai_api_requestor(

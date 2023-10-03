@@ -1,10 +1,10 @@
 import json
-from unittest.mock import patch
+from importlib import reload
 
 import openai
 import pytest
-from openai.api_requestor import APIRequestor
-from openai.error import RateLimitError
+import responses
+from openai.error import AuthenticationError
 from phoenix.trace.openai.instrumentor import OpenAIInstrumentor
 from phoenix.trace.schemas import SpanException, SpanKind, SpanStatusCode
 from phoenix.trace.semantic_conventions import (
@@ -31,14 +31,51 @@ from phoenix.trace.semantic_conventions import (
 from phoenix.trace.tracer import Tracer
 
 
-def test_openai_instrumentor_includes_message_info_on_success() -> None:
+@pytest.fixture
+def reload_openai_api_requestor() -> None:
+    """Reloads openai.api_requestor to reset the instrumented class method."""
+    reload(openai.api_requestor)
+
+
+@pytest.fixture
+def openai_api_key(monkeypatch) -> None:
+    api_key = "sk-0123456789"
+    openai.api_key = api_key
+    monkeypatch.setenv("OPENAI_API_KEY", api_key)
+    return api_key
+
+
+@responses.activate
+def test_openai_instrumentor_includes_message_info_on_success(
+    reload_openai_api_requestor, openai_api_key
+) -> None:
     tracer = Tracer()
     OpenAIInstrumentor(tracer).instrument()
     model = "gpt-4"
     messages = [{"role": "user", "content": "Who won the World Cup in 2018?"}]
     temperature = 0.23
-    response = openai.ChatCompletion.create(model=model, messages=messages, temperature=temperature)
-    print(response)
+    responses.post(
+        url="https://api.openai.com/v1/chat/completions",
+        json={
+            "id": "chatcmpl-85eo7phshROhvmDvNeMVatGolg9JV",
+            "object": "chat.completion",
+            "created": 1696359195,
+            "model": "gpt-4-0613",
+            "choices": [
+                {
+                    "index": 0,
+                    "message": {
+                        "role": "assistant",
+                        "content": "France won the World Cup in 2018.",
+                    },
+                    "finish_reason": "stop",
+                }
+            ],
+            "usage": {"prompt_tokens": 17, "completion_tokens": 10, "total_tokens": 27},
+        },
+        status=200,
+    )
+    openai.ChatCompletion.create(model=model, messages=messages, temperature=temperature)
 
     spans = list(tracer.get_spans())
     assert len(spans) == 1
@@ -69,7 +106,10 @@ def test_openai_instrumentor_includes_message_info_on_success() -> None:
     assert span.events == []
 
 
-def test_openai_instrumentor_includes_function_call_attributes() -> None:
+@responses.activate
+def test_openai_instrumentor_includes_function_call_attributes(
+    reload_openai_api_requestor, openai_api_key
+) -> None:
     tracer = Tracer()
     OpenAIInstrumentor(tracer).instrument()
     messages = [
@@ -94,6 +134,31 @@ def test_openai_instrumentor_includes_function_call_attributes() -> None:
     ]
     model = "gpt-4"
     temperature = 0.23
+    responses.post(
+        url="https://api.openai.com/v1/chat/completions",
+        json={
+            "id": "chatcmpl-85eqK3CCNTHQcTN0ZoWqL5B0OO5ip",
+            "object": "chat.completion",
+            "created": 1696359332,
+            "model": "gpt-4-0613",
+            "choices": [
+                {
+                    "index": 0,
+                    "message": {
+                        "role": "assistant",
+                        "content": None,
+                        "function_call": {
+                            "name": "get_current_weather",
+                            "arguments": '{\n  "location": "Boston, MA"\n}',
+                        },
+                    },
+                    "finish_reason": "function_call",
+                }
+            ],
+            "usage": {"prompt_tokens": 84, "completion_tokens": 18, "total_tokens": 102},
+        },
+        status=200,
+    )
     response = openai.ChatCompletion.create(
         model=model, messages=messages, temperature=temperature, functions=functions
     )
@@ -127,7 +192,10 @@ def test_openai_instrumentor_includes_function_call_attributes() -> None:
     assert span.events == []
 
 
-def test_openai_instrumentor_includes_function_call_message_attributes() -> None:
+@responses.activate
+def test_openai_instrumentor_includes_function_call_message_attributes(
+    reload_openai_api_requestor, openai_api_key
+) -> None:
     tracer = Tracer()
     OpenAIInstrumentor(tracer).instrument()
     messages = [
@@ -165,6 +233,31 @@ def test_openai_instrumentor_includes_function_call_message_attributes() -> None
     ]
     model = "gpt-4"
     temperature = 0.23
+    responses.post(
+        url="https://api.openai.com/v1/chat/completions",
+        json={
+            "id": "chatcmpl-85euCH0n5RuhAWEmogmak8cDwyQcb",
+            "object": "chat.completion",
+            "created": 1696359572,
+            "model": "gpt-4-0613",
+            "choices": [
+                {
+                    "index": 0,
+                    "message": {
+                        "role": "assistant",
+                        "content": (
+                            "The current weather in Boston is sunny "
+                            "with a temperature of 22 degrees Celsius."
+                        ),
+                    },
+                    "finish_reason": "stop",
+                }
+            ],
+            "usage": {"prompt_tokens": 126, "completion_tokens": 17, "total_tokens": 143},
+        },
+        status=200,
+    )
+
     response = openai.ChatCompletion.create(
         model=model, messages=messages, temperature=temperature, functions=functions
     )
@@ -203,16 +296,30 @@ def test_openai_instrumentor_includes_function_call_message_attributes() -> None
     assert span.events == []
 
 
-def test_openai_instrumentor_exception() -> None:
-    with patch.object(APIRequestor, "request_raw") as mocked_api_requestor_request_fn:
-        model = "gpt-4"
-        messages = [{"role": "user", "content": "Who won the World Cup in 2018?"}]
-        temperature = 0.23
-        tracer = Tracer()
-        OpenAIInstrumentor(tracer).instrument()
-        mocked_api_requestor_request_fn.side_effect = RateLimitError("error-message")
-        with pytest.raises(RateLimitError):
-            openai.ChatCompletion.create(model=model, messages=messages, temperature=temperature)
+@responses.activate
+def test_openai_instrumentor_records_authentication_error(
+    reload_openai_api_requestor, openai_api_key
+) -> None:
+    tracer = Tracer()
+    OpenAIInstrumentor(tracer).instrument()
+    responses.post(
+        "https://api.openai.com/v1/chat/completions",
+        json={
+            "error": {
+                "message": "error-message",
+                "type": "invalid_request_error",
+                "param": None,
+                "code": "invalid_api_key",
+            }
+        },
+        status=401,
+    )
+    model = "gpt-4"
+    messages = [{"role": "user", "content": "Who won the World Cup in 2018?"}]
+    temperature = 0.23
+
+    with pytest.raises(AuthenticationError):
+        openai.ChatCompletion.create(model=model, messages=messages, temperature=temperature)
 
     spans = list(tracer.get_spans())
     assert len(spans) == 1
@@ -223,6 +330,48 @@ def test_openai_instrumentor_exception() -> None:
     event = events[0]
     assert isinstance(event, SpanException)
     attributes = event.attributes
-    assert attributes[EXCEPTION_TYPE] == "RateLimitError"
+    assert attributes[EXCEPTION_TYPE] == "AuthenticationError"
     assert attributes[EXCEPTION_MESSAGE] == "error-message"
     assert "Traceback" in attributes[EXCEPTION_STACKTRACE]
+
+
+@responses.activate
+def test_openai_instrumentor_instrument_method_is_idempotent(
+    reload_openai_api_requestor, openai_api_key
+) -> None:
+    tracer = Tracer()
+    OpenAIInstrumentor(tracer).instrument()
+    OpenAIInstrumentor(tracer).instrument()
+    model = "gpt-4"
+    messages = [{"role": "user", "content": "Who won the World Cup in 2018?"}]
+    temperature = 0.23
+    responses.post(
+        url="https://api.openai.com/v1/chat/completions",
+        json={
+            "id": "chatcmpl-85evOVGg6afU8iqiUsRtYQ5lYnGwn",
+            "object": "chat.completion",
+            "created": 1696359646,
+            "model": "gpt-4-0613",
+            "choices": [
+                {
+                    "index": 0,
+                    "message": {
+                        "role": "assistant",
+                        "content": "France won the World Cup in 2018.",
+                    },
+                    "finish_reason": "stop",
+                }
+            ],
+            "usage": {"prompt_tokens": 17, "completion_tokens": 10, "total_tokens": 27},
+        },
+        status=200,
+    )
+    response = openai.ChatCompletion.create(model=model, messages=messages, temperature=temperature)
+    print(response)
+
+    spans = list(tracer.get_spans())
+    assert len(spans) == 1
+    span = spans[0]
+
+    assert span.span_kind is SpanKind.LLM
+    assert span.status_code == SpanStatusCode.OK
