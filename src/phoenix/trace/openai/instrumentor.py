@@ -62,11 +62,11 @@ def _wrap_openai_api_requestor(
             attributes: SpanAttributes = {}
             attributes.update(_input_messages(parameters))
             attributes.update(_invocation_parameters(parameters))
-            attributes.update(_function_calls(parameters))
             try:
                 outputs = request_fn(*args, **kwargs)
                 response = outputs[0]
                 attributes.update(_token_counts(response))
+                attributes.update(_function_calls(response))
                 current_status_code = SpanStatusCode.OK
                 return outputs
             except Exception as error:
@@ -116,11 +116,18 @@ def _invocation_parameters(
 
 
 def _function_calls(
-    parameters: Dict[str, Any],
+    response: Any,
 ) -> Iterator[Tuple[str, str]]:
     """Yields function call data if present"""
-    if function_call_data := parameters.get("function_call"):
-        yield LLM_FUNCTION_CALL, json.dumps(function_call_data)
+    openai = import_package("openai")
+    if isinstance(response, openai.openai_response.OpenAIResponse) and (
+        choices := response.data.get("choices")
+    ):
+        choice = choices[0]
+        if choice.get("finish_reason") == "function_call" and (
+            function_call_data := choice["message"].get("function_call")
+        ):
+            yield LLM_FUNCTION_CALL, json.dumps(function_call_data)
 
 
 def _token_counts(response: Any) -> Iterator[Tuple[str, int]]:

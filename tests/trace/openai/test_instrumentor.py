@@ -1,3 +1,4 @@
+import json
 from unittest.mock import patch
 
 import openai
@@ -10,6 +11,7 @@ from phoenix.trace.semantic_conventions import (
     EXCEPTION_MESSAGE,
     EXCEPTION_STACKTRACE,
     EXCEPTION_TYPE,
+    LLM_FUNCTION_CALL,
     LLM_INPUT_MESSAGES,
     LLM_INVOCATION_PARAMETERS,
     LLM_TOKEN_COUNT_COMPLETION,
@@ -92,7 +94,14 @@ def test_openai_instrumentor_includes_function_call_attributes() -> None:
         "model": model,
         "messages": messages,
         "temperature": temperature,
+        "functions": functions,
     }
+    assert isinstance(attributes[LLM_FUNCTION_CALL], str)
+    function_call_attributes = json.loads(attributes[LLM_FUNCTION_CALL])
+    assert set(function_call_attributes.keys()) == {"name", "arguments"}
+    assert function_call_attributes["name"] == "get_current_weather"
+    function_call_arguments = json.loads(function_call_attributes["arguments"])
+    assert function_call_arguments == {"location": "Boston"}
     assert span.events == []
 
 
