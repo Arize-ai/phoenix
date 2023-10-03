@@ -33,9 +33,9 @@ from llama_index.node_parser import SimpleNodeParser
 from llama_index.query_engine.multistep_query_engine import MultiStepQueryEngine
 from llama_index.query_engine.transform_query_engine import TransformQueryEngine
 from phoenix.experimental.evals import OpenAIModel, llm_eval_binary, run_relevance_eval
-from phoenix.experimental.evals.functions.common import NOT_PARSABLE
 from phoenix.experimental.evals.functions.processing import concatenate_and_truncate_chunks
 from phoenix.experimental.evals.models import BaseEvalModel
+from phoenix.experimental.evals.templates import NOT_PARSABLE
 from plotresults import (
     plot_latency_graphs,
     plot_mean_average_precision_graphs,

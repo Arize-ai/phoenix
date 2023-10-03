@@ -33,7 +33,7 @@ export function DimensionCardinalityStats(props: {
 
   return (
     <>
-      <Text elementType="h3" textSize="small" color="white70">
+      <Text elementType="h3" textSize="small" color="text-700">
         Cardinality
       </Text>
       <Text textSize="xlarge">{intFormatter(data.cardinality)}</Text>

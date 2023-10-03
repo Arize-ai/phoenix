@@ -1,7 +1,7 @@
 ---
 description: >-
-  OpenInference is an open standard that encompasses model inference and LLM
-  application tracing.
+    OpenInference is an open standard that encompasses model inference and LLM
+    application tracing.
 ---
 
 # OpenInference
@@ -12,12 +12,11 @@ For a in-depth specification of the OpenInference specification, please consult 
 
 OpenInference is a specification that encompass two data models:
 
-<table data-card-size="large" data-view="cards"><thead><tr><th></th><th></th><th></th><th data-hidden data-card-target data-type="content-ref"></th></tr></thead><tbody><tr><td>I<strong>nferences</strong></td><td>designed to capture inference logs from a variety of model types and use-cases </td><td></td><td><a href="open-inference.md#inferences">#inferences</a></td></tr><tr><td><strong>Tracing</strong></td><td>capture the execution of an application that results in invocations of an LLM.<br></td><td></td><td><a href="open-inference.md#traces">#traces</a></td></tr></tbody></table>
+<table data-card-size="large" data-view="cards"><thead><tr><th></th><th></th><th></th><th data-hidden data-card-target data-type="content-ref"></th></tr></thead><tbody><tr><td><strong>Inferences</strong></td><td>designed to capture inference logs from a variety of model types and use-cases </td><td></td><td><a href="open-inference.md#inferences">#inferences</a></td></tr><tr><td><strong>Tracing</strong></td><td>capture the execution of an application that results in invocations of an LLM.<br></td><td></td><td><a href="open-inference.md#traces">#traces</a></td></tr></tbody></table>
 
 ## Inferences
 
 The OpenInference data format is designed to provide an open interoperable data format for model inference files. Our goal is for modern ML systems, such as model servers and ML Observability platforms, to interface with each other using a common data format.\
-
 
 The goal of this is to define a specification for production inference logs that can be used on top of many file formats including Parquet, Avro, CSV and JSON. It will also support future formats such as Lance.
 
@@ -29,29 +28,25 @@ An inference store is a common approach to store model inferences, normally stor
 
 **NLP**
 
-* Text Generative - Prompt and Response
-* Text Classification
-*   NER Span Categorization
-
-
+-   Text Generative - Prompt and Response
+-   Text Classification
+-   NER Span Categorization
 
 **Tabular:**
 
-* Regression
-* Classification&#x20;
-* Classification + Score
-* Multi-Classification
-* Ranking&#x20;
-* Multi-Output/Label
-* Time Series Forecasting
+-   Regression
+-   Classification&#x20;
+-   Classification + Score
+-   Multi-Classification
+-   Ranking&#x20;
+-   Multi-Output/Label
+-   Time Series Forecasting
 
 **CV**
 
-* Classification
-* Bounding Box
-*   Segmentation
-
-
+-   Classification
+-   Bounding Box
+-   Segmentation
 
 ### Inferences Overview&#x20;
 
@@ -61,34 +56,31 @@ In this section we will review a flat (non nested structure) prediction event, t
 
 <figure><img src="../.gitbook/assets/OpenInferenceGraphics_Graph01.png" alt=""><figcaption><p>Prediction Inference Event Data</p></figcaption></figure>
 
-
-
 <figure><img src="../.gitbook/assets/OpenInferenceGraphics_Graph02.png" alt=""><figcaption><p>LLM Inference Data</p></figcaption></figure>
 
 A prediction event can represent a prompt response pair for LLMs where the conversation ID maintains the thread of conversation.&#x20;
 
 \
 
-
 <figure><img src="../.gitbook/assets/OpenInferenceGraphics_Graph03.png" alt=""><figcaption><p>Core Model Inference Data</p></figcaption></figure>
 
 The core components of an inference event are the:
 
-* Model input (features/prompt)
-* Model output (prediction/response)
-* Ground truth (actuals or latent actuals)
-* Model ID
-* Model Version
-* Environment&#x20;
-* Conversation ID
+-   Model input (features/prompt)
+-   Model output (prediction/response)
+-   Ground truth (actuals or latent actuals)
+-   Model ID
+-   Model Version
+-   Environment&#x20;
+-   Conversation ID
 
 Additional data that may be contained include:
 
-* Metadata&#x20;
-* SHAP values&#x20;
-* Embeddings&#x20;
-* Raw links to data&#x20;
-* Bounding boxes
+-   Metadata&#x20;
+-   SHAP values&#x20;
+-   Embeddings&#x20;
+-   Raw links to data&#x20;
+-   Bounding boxes
 
 The fundamental storage unit in an inference store is an inference event. These events are stored in groups that are logically separated by model ID, model version and environment.
 
@@ -125,10 +117,10 @@ In addition to ground truth, latent metadata is also required to be linked to a 
 
 Examples of Metadata (Tags):
 
-* Loan default amount&#x20;
-* Loan status&#x20;
-* Revenue from conversion or click
-* Server region&#x20;
+-   Loan default amount&#x20;
+-   Loan status&#x20;
+-   Revenue from conversion or click
+-   Server region&#x20;
 
 ### Nested Predictions (Flattening Hierarchy)
 
@@ -166,19 +158,18 @@ OpenInference Tracing provides a detailed and holistic view of the operations ha
 2. **Trace Exporters:** These are responsible for sending the generated traces to consumers which can be a standard output for debugging, or an OpenInference Collector such as Phoenix.
 
 \
-OpenInference spans are built on-top of a unit of work called a `span`. A `span` keeps track of how long the execution of a given LLM application step takes and also can store important information about the step in the form of `attributes` .  At a high level, a span has:
+OpenInference spans are built on-top of a unit of work called a `span`. A `span` keeps track of how long the execution of a given LLM application step takes and also can store important information about the step in the form of `attributes` . At a high level, a span has:
 
 1. **Span Context:** Contains the trace ID (representing the trace the span belongs to) and the span's ID.
 2. **Attributes:** Key-value pairs containing metadata to annotate a span. They provide insights about the operation being tracked. Semantic attributes offer standard naming conventions for common metadata.
 3. **Span Events:** Structured log messages on a span, denoting a significant point in time during the span's duration.
 4. **Span Status:** Attached to a span to denote its outcome as Unset, Ok, or Error.
 5. **Span Kind:** Provides a hint on how to assemble the trace. Types include:
-   * **Chain:** Represents the starting point or link between different LLM application steps.
-   * **Retriever:** Represents a data retrieval step.
-   * **LLM:** Represents a call to an LLM.
-   * **Embedding:** Represents a call to an LLM for embedding.
-   * **Tool:** Represents a call to an external tool.
-   * **Agent:** Encompasses calls to LLMs and Tools, describing a reasoning block.
+    - **Chain:** Represents the starting point or link between different LLM application steps.
+    - **Retriever:** Represents a data retrieval step.
+    - **LLM:** Represents a call to an LLM.
+    - **Embedding:** Represents a call to an LLM for embedding.
+    - **Tool:** Represents a call to an external tool.
+    - **Agent:** Encompasses calls to LLMs and Tools, describing a reasoning block.
 
 OpenInference Tracing offers a comprehensive view of the inner workings of an LLM application. By breaking down the process into spans and categorizing each span, it offers a clear picture of the operations and their interrelations, making troubleshooting and optimization easier and more effective. For the full details of OpenInference tracing, please consult the [specification](https://arize-ai.github.io/open-inference-spec/trace/)
-

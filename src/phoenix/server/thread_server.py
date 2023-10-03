@@ -30,7 +30,7 @@ class ThreadServer(Server):
 
     def run_in_thread(self) -> Generator[Thread, None, None]:
         """A coroutine to keep the server running in a thread."""
-        thread = Thread(target=self.run)
+        thread = Thread(target=self.run, daemon=True)
         thread.start()
         time_limit = time() + 5  # 5 seconds
         try:

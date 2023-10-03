@@ -200,9 +200,12 @@ export function DimensionDriftTimeSeries({
             value: "PSI",
             angle: -90,
             position: "insideLeft",
-            style: { textAnchor: "middle", fill: theme.textColors.white90 },
+            style: {
+              textAnchor: "middle",
+              fill: "var(--ac-global-text-color-900)",
+            },
           }}
-          style={{ fill: theme.textColors.white70 }}
+          style={{ fill: "var(--ac-global-text-color-700)" }}
         />
         <YAxis
           yAxisId="right"

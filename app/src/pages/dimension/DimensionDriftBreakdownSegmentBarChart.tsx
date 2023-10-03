@@ -179,7 +179,7 @@ export function DimensionDriftBreakdownSegmentBarChart(props: {
         <Text
           elementType="h3"
           textSize="medium"
-          color="white70"
+          color="text-700"
         >{`Distribution comparison at ${fullTimeFormatter(
           new Date(timeRange.end)
         )}`}</Text>
@@ -229,16 +229,22 @@ export function DimensionDriftBreakdownSegmentBarChart(props: {
                 />
               </linearGradient>
             </defs>
-            <XAxis dataKey="name" style={{ fill: theme.textColors.white70 }} />
+            <XAxis
+              dataKey="name"
+              style={{ fill: "var(--ac-global-text-color-700)" }}
+            />
             <YAxis
               stroke={theme.colors.gray200}
               label={{
                 value: "Percent",
                 angle: -90,
                 position: "insideLeft",
-                style: { textAnchor: "middle", fill: theme.textColors.white90 },
+                style: {
+                  textAnchor: "middle",
+                  fill: "var(--ac-global-text-color-900)",
+                },
               }}
-              style={{ fill: theme.textColors.white70 }}
+              style={{ fill: "var(--ac-global-text-color-700)" }}
             />
             <CartesianGrid
               strokeDasharray="4 4"
