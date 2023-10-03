@@ -11,6 +11,8 @@ from phoenix.trace.semantic_conventions import (
     EXCEPTION_MESSAGE,
     EXCEPTION_STACKTRACE,
     EXCEPTION_TYPE,
+    INPUT_MIME_TYPE,
+    INPUT_VALUE,
     LLM_FUNCTION_CALL,
     LLM_INPUT_MESSAGES,
     LLM_INVOCATION_PARAMETERS,
@@ -22,6 +24,9 @@ from phoenix.trace.semantic_conventions import (
     MESSAGE_FUNCTION_CALL_NAME,
     MESSAGE_NAME,
     MESSAGE_ROLE,
+    OUTPUT_MIME_TYPE,
+    OUTPUT_VALUE,
+    MimeType,
 )
 from phoenix.trace.tracer import Tracer
 
@@ -42,9 +47,17 @@ def test_openai_instrumentor_includes_message_info_on_success() -> None:
 
     assert span.span_kind is SpanKind.LLM
     assert span.status_code == SpanStatusCode.OK
-    assert attributes[LLM_INPUT_MESSAGES] == [
-        {MESSAGE_ROLE: "user", MESSAGE_CONTENT: "Who won the World Cup in 2018?"}
-    ]
+    assert (
+        attributes[LLM_INPUT_MESSAGES]
+        == json.loads(attributes[INPUT_VALUE])
+        == [{MESSAGE_ROLE: "user", MESSAGE_CONTENT: "Who won the World Cup in 2018?"}]
+    )
+    assert attributes[INPUT_MIME_TYPE] == MimeType.JSON.value
+    choices = json.loads(attributes[OUTPUT_VALUE])
+    assert len(choices) == 1
+    response_content = choices[0]["message"]["content"]
+    assert "france" in response_content.lower() or "french" in response_content.lower()
+    assert attributes[OUTPUT_MIME_TYPE] == MimeType.JSON.value
     assert attributes[LLM_INVOCATION_PARAMETERS] == {
         "model": model,
         "messages": messages,

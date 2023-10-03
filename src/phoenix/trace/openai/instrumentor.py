@@ -2,7 +2,7 @@ import datetime
 import json
 from enum import Enum
 from inspect import signature
-from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Callable, Dict, Iterator, List, Optional, Tuple
 
 from phoenix.trace.schemas import (
     AttributePrimitiveValue,
@@ -13,6 +13,8 @@ from phoenix.trace.schemas import (
     SpanStatusCode,
 )
 from phoenix.trace.semantic_conventions import (
+    INPUT_MIME_TYPE,
+    INPUT_VALUE,
     LLM_FUNCTION_CALL,
     LLM_INPUT_MESSAGES,
     LLM_INVOCATION_PARAMETERS,
@@ -24,10 +26,16 @@ from phoenix.trace.semantic_conventions import (
     MESSAGE_FUNCTION_CALL_NAME,
     MESSAGE_NAME,
     MESSAGE_ROLE,
+    OUTPUT_MIME_TYPE,
+    OUTPUT_VALUE,
+    MimeType,
 )
 from phoenix.trace.utils import get_stacktrace, import_package
 
 from ..tracer import Tracer
+
+if TYPE_CHECKING:
+    from openai.openai_response import OpenAIResponse
 
 
 class RequestType(Enum):
@@ -38,11 +46,17 @@ class RequestType(Enum):
 
 class OpenAIInstrumentor:
     def __init__(self, tracer: Optional[Tracer] = None) -> None:
+        """Instruments your OpenAI client to automatically create spans for each API call.
+
+        Args:
+            tracer (Optional[Tracer], optional): A tracer to record and handle spans. If not
+            provided, the default tracer will be used.
+        """
         self._tracer = tracer or Tracer()
 
     def instrument(self) -> None:
         """
-        Instruments your OpenAI client to automatically create spans for each API call.
+        Instruments your OpenAI client.
         """
         openai = import_package("openai")
         openai.api_requestor.APIRequestor.request = _wrap_openai_api_requestor(
@@ -64,11 +78,13 @@ def _wrap_openai_api_requestor(
             start_time = datetime.datetime.now()
             events: List[SpanEvent] = []
             attributes: SpanAttributes = {}
+            attributes.update(_inputs(parameters))
             attributes.update(_input_messages(parameters))
             attributes.update(_invocation_parameters(parameters))
             try:
                 outputs = request_fn(*args, **kwargs)
                 response = outputs[0]
+                attributes.update(_outputs(response))
                 attributes.update(_token_counts(response))
                 attributes.update(_function_calls(response))
                 current_status_code = SpanStatusCode.OK
@@ -101,10 +117,17 @@ def _wrap_openai_api_requestor(
     return wrapped
 
 
-# def _input(parameters: Dict[str, Any]) -> Iterator[Tuple[str, List[AttributePrimitiveValue]]]:
-#     """Yield input messages if present"""
-#     if messages := parameters.get("messages"):
-#         yield INPUT_VALUE, [_get_openinference_message(message) for message in messages]
+def _inputs(parameters: Dict[str, Any]) -> Iterator[Tuple[str, str]]:
+    """Yield input messages as a JSON string in addition to input mime type"""
+    if messages := parameters.get("messages"):
+        yield INPUT_VALUE, json.dumps([_get_openinference_message(message) for message in messages])
+        yield INPUT_MIME_TYPE, MimeType.JSON.value
+
+
+def _outputs(response: "OpenAIResponse") -> Iterator[Tuple[str, str]]:
+    """Yield output messages as a JSON string in addition to output mime type"""
+    yield OUTPUT_VALUE, json.dumps(response.data["choices"])
+    yield OUTPUT_MIME_TYPE, MimeType.JSON.value
 
 
 def _input_messages(
@@ -116,6 +139,7 @@ def _input_messages(
 
 
 def _get_openinference_message(message: Dict[str, Any]) -> Dict[str, Any]:
+    """Converts message data to OpenInference format"""
     openinference_message = {MESSAGE_CONTENT: message["content"], MESSAGE_ROLE: message["role"]}
     if function_call_data := message.get("function_call"):
         openinference_message[MESSAGE_FUNCTION_CALL_NAME] = function_call_data["name"]
@@ -130,7 +154,7 @@ def _get_openinference_message(message: Dict[str, Any]) -> Dict[str, Any]:
 def _invocation_parameters(
     parameters: Dict[str, Any],
 ) -> Iterator[Tuple[str, Dict[str, Any]]]:
-    """Yields invocation parameters if present"""
+    """Yields invocation parameters"""
     yield LLM_INVOCATION_PARAMETERS, parameters
 
 
@@ -161,6 +185,7 @@ def _token_counts(response: Any) -> Iterator[Tuple[str, int]]:
 
 
 def _get_request_type(url: str) -> Optional[RequestType]:
+    """Get OpenAI request type from URL, or returns None if the request type cannot be recognized"""
     if "chat/completions" in url:
         return RequestType.CHAT_COMPLETION
     if "completions" in url:
