@@ -336,6 +336,44 @@ def test_openai_instrumentor_records_authentication_error(
 
 
 @responses.activate
+def test_openai_instrumentor_does_not_interfere_with_completions_api(
+    reload_openai_api_requestor, openai_api_key
+) -> None:
+    tracer = Tracer()
+    OpenAIInstrumentor(tracer).instrument()
+    model = "gpt-3.5-turbo-instruct"
+    prompt = "Who won the World Cup in 2018?"
+    responses.post(
+        url="https://api.openai.com/v1/completions",
+        json={
+            "id": "cmpl-85hqvKwCud3s3DWc80I0OeNmkfjSM",
+            "object": "text_completion",
+            "created": 1696370901,
+            "model": "gpt-3.5-turbo-instruct",
+            "choices": [
+                {
+                    "text": "\n\nFrance won the 2018 World Cup.",
+                    "index": 0,
+                    "logprobs": None,
+                    "finish_reason": "stop",
+                }
+            ],
+            "usage": {"prompt_tokens": 10, "completion_tokens": 10, "total_tokens": 20},
+        },
+        status=200,
+    )
+    response = openai.Completion.create(
+        model=model,
+        prompt=prompt,
+    )
+    response_text = response.choices[0]["text"]
+    assert "france" in response_text.lower() or "french" in response_text.lower()
+
+    spans = list(tracer.get_spans())
+    assert spans == []
+
+
+@responses.activate
 def test_openai_instrumentor_instrument_method_is_idempotent(
     reload_openai_api_requestor, openai_api_key
 ) -> None:
