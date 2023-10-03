@@ -23,7 +23,14 @@ def json_lines_to_df(lines: List[str]) -> pd.DataFrame:
 
 
 def get_stacktrace(exception: BaseException) -> str:
-    """Gets stacktrace from exception."""
+    """Extracts the stacktrace from an exception.
+
+    Args:
+        exception (BaseException): The exception to extract the stacktrace from.
+
+    Returns:
+        str: The stacktrace.
+    """
     exception_type = type(exception)
     exception_traceback = exception.__traceback__
     stack_trace_lines = format_exception(exception_type, exception, exception_traceback)
