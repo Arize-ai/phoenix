@@ -30,6 +30,12 @@ TQDM_BAR_FORMAT = (
 )
 
 
+def truncate_with_ellipsis(s, max_length):
+    """Truncate the string `s` to a maximum length of `max_length`
+    and append an ellipsis (...) if truncated."""
+    return s if len(s) <= max_length else s[:max_length-3] + '...'
+
+
 def create_base_retry_decorator(
     error_types: List[Type[BaseException]],
     min_seconds: int,
@@ -101,6 +107,7 @@ class BaseEvalModel(ABC):
         try:
             outputs = []
             for prompt in tqdm(prompts, bar_format=TQDM_BAR_FORMAT, ncols=100):
+                print(f"Generating output for prompt {repr(truncate_with_ellipsis(prompt, 80))}")
                 output = self._generate(prompt=prompt, instruction=instruction)  # type:ignore
                 logger.info(f"Prompt: {prompt}\nInstruction: {instruction}\nOutput: {output}")
                 outputs.append(output)

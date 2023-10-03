@@ -132,6 +132,7 @@ class OpenAIModel(BaseEvalModel):
     def _generate(self, prompt: str, **kwargs: Dict[str, Any]) -> str:
         invoke_params = self.invocation_params
         messages = self._build_messages(prompt, kwargs.get("instruction"))  # type:ignore
+        print("Generating response with `{self.model_name}`: {invoke_params}")
 
         response = self._generate_with_retry(
             messages=messages,
