@@ -67,7 +67,6 @@ class OpenAIInstrumentor:
 def _wrap_openai_api_requestor(
     request_fn: Callable[..., Any], tracer: Tracer
 ) -> Callable[..., Any]:
-    # @wrapt.decorator
     def wrapped(*args: Any, **kwargs: Any) -> Any:
         call_signature = signature(request_fn)
         bound_arguments = call_signature.bind(*args, **kwargs)
