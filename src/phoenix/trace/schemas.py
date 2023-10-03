@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Sequence, Union
 from uuid import UUID
 
 from phoenix.trace.semantic_conventions import (
@@ -57,7 +57,7 @@ TraceID = UUID
 SpanID = UUID
 Message = Dict[str, str]
 AttributePrimitiveValue = Union[str, bool, float, int, Message]
-AttributeValue = Union[AttributePrimitiveValue, List[AttributePrimitiveValue]]
+AttributeValue = Union[AttributePrimitiveValue, Sequence[AttributePrimitiveValue]]
 SpanAttributes = Dict[str, AttributeValue]
 
 

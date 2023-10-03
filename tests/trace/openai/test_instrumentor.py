@@ -12,6 +12,9 @@ from phoenix.trace.semantic_conventions import (
     EXCEPTION_TYPE,
     LLM_INPUT_MESSAGES,
     LLM_INVOCATION_PARAMETERS,
+    LLM_TOKEN_COUNT_COMPLETION,
+    LLM_TOKEN_COUNT_PROMPT,
+    LLM_TOKEN_COUNT_TOTAL,
     MESSAGE_CONTENT,
     MESSAGE_ROLE,
 )
@@ -36,6 +39,54 @@ def test_openai_instrumentor_includes_message_info_on_success() -> None:
     assert span.status_code == SpanStatusCode.OK
     assert attributes[LLM_INPUT_MESSAGES] == [
         {MESSAGE_ROLE: "user", MESSAGE_CONTENT: "Who won the World Cup in 2018?"}
+    ]
+    assert attributes[LLM_INVOCATION_PARAMETERS] == {
+        "model": model,
+        "messages": messages,
+        "temperature": temperature,
+    }
+    assert isinstance(attributes[LLM_TOKEN_COUNT_COMPLETION], int)
+    assert isinstance(attributes[LLM_TOKEN_COUNT_PROMPT], int)
+    assert isinstance(attributes[LLM_TOKEN_COUNT_TOTAL], int)
+    assert span.events == []
+
+
+def test_openai_instrumentor_includes_function_call_attributes() -> None:
+    tracer = Tracer()
+    OpenAIInstrumentor(tracer).instrument()
+    messages = [{"role": "user", "content": "What is the weather like in Boston?"}]
+    functions = [
+        {
+            "name": "get_current_weather",
+            "description": "Get the current weather in a given location",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "location": {
+                        "type": "string",
+                        "description": "The city and state, e.g. San Francisco, CA",
+                    },
+                    "unit": {"type": "string", "enum": ["celsius", "fahrenheit"]},
+                },
+                "required": ["location"],
+            },
+        }
+    ]
+    model = "gpt-4"
+    temperature = 0.23
+    openai.ChatCompletion.create(
+        model=model, messages=messages, temperature=temperature, functions=functions
+    )
+
+    spans = list(tracer.get_spans())
+    assert len(spans) == 1
+    span = spans[0]
+    attributes = span.attributes
+
+    assert span.span_kind is SpanKind.LLM
+    assert span.status_code == SpanStatusCode.OK
+    assert attributes[LLM_INPUT_MESSAGES] == [
+        {MESSAGE_ROLE: "user", MESSAGE_CONTENT: "What is the weather like in Boston?"}
     ]
     assert attributes[LLM_INVOCATION_PARAMETERS] == {
         "model": model,
