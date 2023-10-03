@@ -1,9 +1,7 @@
 import datetime
-import importlib
 import json
 from enum import Enum
 from inspect import signature
-from types import ModuleType
 from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple
 
 from phoenix.trace.schemas import (
@@ -27,7 +25,7 @@ from phoenix.trace.semantic_conventions import (
     MESSAGE_NAME,
     MESSAGE_ROLE,
 )
-from phoenix.trace.utils import get_stacktrace
+from phoenix.trace.utils import get_stacktrace, import_package
 
 from ..tracer import Tracer
 
@@ -43,6 +41,9 @@ class OpenAIInstrumentor:
         self._tracer = tracer or Tracer()
 
     def instrument(self) -> None:
+        """
+        Instruments your OpenAI client to automatically create spans for each API call.
+        """
         openai = import_package("openai")
         openai.api_requestor.APIRequestor.request = _wrap_openai_api_requestor(
             openai.api_requestor.APIRequestor.request, self._tracer
@@ -157,28 +158,6 @@ def _token_counts(response: Any) -> Iterator[Tuple[str, int]]:
         yield LLM_TOKEN_COUNT_PROMPT, token_usage["prompt_tokens"]
         yield LLM_TOKEN_COUNT_COMPLETION, token_usage["completion_tokens"]
         yield LLM_TOKEN_COUNT_TOTAL, token_usage["total_tokens"]
-
-
-def import_package(package_name: str, pypi_name: Optional[str] = None) -> ModuleType:
-    """
-    Dynamically imports a package.
-
-    Args:
-        package_name (str): Name of the package to import.
-
-        pypi_name (Optional[str], optional): Name of the package on PyPI, if different from the
-        package name.
-
-    Returns:
-        ModuleType: The imported package.
-    """
-    try:
-        return importlib.import_module(package_name)
-    except ImportError:
-        raise ImportError(
-            f"The {package_name} package is not installed. "
-            f"Install with `pip install {pypi_name or package_name}`."
-        )
 
 
 def _get_request_type(url: str) -> Optional[RequestType]:
