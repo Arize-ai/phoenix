@@ -174,8 +174,8 @@ def _input_value(parameters: Parameters) -> Union[str, NotSet]:
     return json.dumps(messages) if (messages := parameters.get("messages")) else NotSet()
 
 
-def _input_mime_type(parameters: Parameters) -> str:
-    return MimeType.JSON.value
+def _input_mime_type(parameters: Parameters) -> MimeType:
+    return MimeType.JSON
 
 
 def _llm_input_messages(parameters: Parameters) -> Union[Sequence[Message], NotSet]:
@@ -206,8 +206,8 @@ def _output_value(response: "OpenAIResponse") -> str:
     return json.dumps(response.data["choices"])
 
 
-def _output_mime_type(response: "OpenAIResponse") -> str:
-    return MimeType.JSON.value
+def _output_mime_type(response: "OpenAIResponse") -> MimeType:
+    return MimeType.JSON
 
 
 def _llm_token_count_prompt(response: "OpenAIResponse") -> Union[int, NotSet]:
