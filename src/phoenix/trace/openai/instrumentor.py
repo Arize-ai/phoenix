@@ -114,11 +114,12 @@ def _wrap_openai_api_requestor(
         call_signature = signature(request_fn)
         bound_arguments = call_signature.bind(*args, **kwargs)
         parameters = bound_arguments.arguments["params"]
+        is_streaming = parameters.get("stream", False)
         url = bound_arguments.arguments["url"]
         current_status_code = SpanStatusCode.UNSET
         events: List[SpanEvent] = []
         attributes: SpanAttributes = dict()
-        if _get_request_type(url) is RequestType.CHAT_COMPLETION:
+        if not is_streaming and _get_request_type(url) is RequestType.CHAT_COMPLETION:
             for (
                 attribute_name,
                 get_parameter_attribute_fn,
