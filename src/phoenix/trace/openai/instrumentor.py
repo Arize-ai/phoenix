@@ -128,16 +128,9 @@ def _wrap_openai_api_requestor(
                 attributes.update(
                     _as_span_attributes(attribute_name, get_parameter_attribute_fn(parameters))
                 )
+            outputs = None
             try:
                 outputs = request_fn(*args, **kwargs)
-                response = outputs[0]
-                for (
-                    attribute_name,
-                    get_response_attribute_fn,
-                ) in _RESPONSE_ATTRIBUTE_FUNCTIONS.items():
-                    attributes.update(
-                        _as_span_attributes(attribute_name, get_response_attribute_fn(response))
-                    )
                 current_status_code = SpanStatusCode.OK
                 return outputs
             except Exception as error:
@@ -152,6 +145,15 @@ def _wrap_openai_api_requestor(
                 )
                 raise
             finally:
+                if outputs:
+                    response = outputs[0]
+                    for (
+                        attribute_name,
+                        get_response_attribute_fn,
+                    ) in _RESPONSE_ATTRIBUTE_FUNCTIONS.items():
+                        attributes.update(
+                            _as_span_attributes(attribute_name, get_response_attribute_fn(response))
+                        )
                 tracer.create_span(
                     name="openai.ChatCompletion.create",
                     span_kind=SpanKind.LLM,
