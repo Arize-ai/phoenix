@@ -42,7 +42,9 @@ export function StreamToggle(props: {
   const loadedTraceCountRef = useRef<number>(
     traceCountData.traceCount.pageInfo.totalCount
   );
-  const refetchCountsIfLive = useCallback(() => {
+
+  // Refetch the count of traces if the streaming toggle is on
+  const refetchCountsIfStreaming = useCallback(() => {
     if (isStreaming) {
       startTransition(() => {
         refetchCounts({}, { fetchPolicy: "store-and-network" });
@@ -60,7 +62,7 @@ export function StreamToggle(props: {
     }
   }, [onRefresh, totalTraceCount]);
 
-  useInterval(refetchCountsIfLive, REFRESH_INTERVAL_MS);
+  useInterval(refetchCountsIfStreaming, REFRESH_INTERVAL_MS);
   return (
     <Switch
       labelPlacement="start"
