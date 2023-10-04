@@ -7,8 +7,8 @@ from phoenix.utilities.logging import printif
 from phoenix.trace.semantic_conventions import DOCUMENT_CONTENT, INPUT_VALUE, RETRIEVAL_DOCUMENTS
 from phoenix.utilities.logging import printif
 
-from ..models import BaseEvalModel
-from ..templates import (
+from phoenix.experimental.evals.models import BaseEvalModel
+from phoenix.experimental.evals.templates import (
     NOT_PARSABLE,
     RAG_RELEVANCY_PROMPT_RAILS_MAP,
     RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
