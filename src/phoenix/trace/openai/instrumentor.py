@@ -126,7 +126,7 @@ def _wrap_openai_api_requestor(
                 get_parameter_attribute_fn,
             ) in _PARAMETER_ATTRIBUTE_FUNCTIONS.items():
                 attributes.update(
-                    _as_span_attributes(attribute_name, get_parameter_attribute_fn(parameters))
+                    _to_span_attributes(attribute_name, get_parameter_attribute_fn(parameters))
                 )
             outputs = None
             try:
@@ -152,7 +152,7 @@ def _wrap_openai_api_requestor(
                         get_response_attribute_fn,
                     ) in _RESPONSE_ATTRIBUTE_FUNCTIONS.items():
                         attributes.update(
-                            _as_span_attributes(attribute_name, get_response_attribute_fn(response))
+                            _to_span_attributes(attribute_name, get_response_attribute_fn(response))
                         )
                 tracer.create_span(
                     name="openai.ChatCompletion.create",
@@ -251,7 +251,7 @@ def _get_request_type(url: str) -> Optional[RequestType]:
     return None
 
 
-def _as_span_attributes(
+def _to_span_attributes(
     attribute_name: str, value: Union[AttributeValue, NotSet]
 ) -> SpanAttributes:
     if isinstance(value, NotSet):
