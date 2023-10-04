@@ -10,13 +10,10 @@ from typing import (
     List,
     Mapping,
     Optional,
-    Sequence,
     cast,
 )
 
 from phoenix.trace.schemas import (
-    AttributeValue,
-    Message,
     SpanAttributes,
     SpanEvent,
     SpanException,
@@ -50,6 +47,7 @@ if TYPE_CHECKING:
 
 
 Parameters = Mapping[str, Any]
+Message = Dict[str, str]
 
 INSTRUMENTED_ATTRIBUTE_NAME = "is_instrumented_with_openinference_tracer"
 
@@ -167,11 +165,11 @@ def _input_value(parameters: Parameters) -> Optional[str]:
     return json.dumps(messages) if (messages := parameters.get("messages")) else None
 
 
-def _input_mime_type(parameters: Parameters) -> str:
-    return MimeType.JSON.value
+def _input_mime_type(parameters: Parameters) -> MimeType:
+    return MimeType.JSON
 
 
-def _llm_input_messages(parameters: Parameters) -> Optional[Sequence[Message]]:
+def _llm_input_messages(parameters: Parameters) -> Optional[List[Message]]:
     if not (messages := parameters.get("messages")):
         return None
 
@@ -199,8 +197,8 @@ def _output_value(response: "OpenAIResponse") -> str:
     return json.dumps(response.data["choices"])
 
 
-def _output_mime_type(response: "OpenAIResponse") -> str:
-    return MimeType.JSON.value
+def _output_mime_type(response: "OpenAIResponse") -> MimeType:
+    return MimeType.JSON
 
 
 def _llm_token_count_prompt(response: "OpenAIResponse") -> Optional[int]:
@@ -244,13 +242,13 @@ def _get_request_type(url: str) -> Optional[RequestType]:
     return None
 
 
-_PARAMETER_ATTRIBUTE_FUNCTIONS: Dict[str, Callable[[Parameters], Optional[AttributeValue]]] = {
+_PARAMETER_ATTRIBUTE_FUNCTIONS: Dict[str, Callable[[Parameters], Any]] = {
     INPUT_VALUE: _input_value,
     INPUT_MIME_TYPE: _input_mime_type,
     LLM_INPUT_MESSAGES: _llm_input_messages,
     LLM_INVOCATION_PARAMETERS: _llm_invocation_parameters,
 }
-_RESPONSE_ATTRIBUTE_FUNCTIONS: Dict[str, Callable[["OpenAIResponse"], Optional[AttributeValue]]] = {
+_RESPONSE_ATTRIBUTE_FUNCTIONS: Dict[str, Callable[["OpenAIResponse"], Any]] = {
     OUTPUT_VALUE: _output_value,
     OUTPUT_MIME_TYPE: _output_mime_type,
     LLM_TOKEN_COUNT_PROMPT: _llm_token_count_prompt,
