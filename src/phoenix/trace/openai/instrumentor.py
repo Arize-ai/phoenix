@@ -140,7 +140,7 @@ def _wrap_openai_api_requestor(
                 events.append(
                     SpanException(
                         message=str(error),
-                        timestamp=start_time,
+                        timestamp=end_time,
                         exception_type=type(error).__name__,
                         exception_stacktrace=get_stacktrace(error),
                     )
