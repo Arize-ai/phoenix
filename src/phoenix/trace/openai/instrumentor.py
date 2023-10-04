@@ -3,7 +3,7 @@ import json
 from enum import Enum
 from inspect import signature
 from typing import (TYPE_CHECKING, Any, Callable, Dict, Iterable, Iterator,
-                    List, Mapping, Optional, Tuple)
+                    List, Mapping, Optional, Tuple, Union)
 
 from phoenix.trace.schemas import (Message, SpanAttributes, SpanEvent,
                                    SpanException, SpanKind, SpanStatusCode)
@@ -28,6 +28,16 @@ class RequestType(Enum):
 
 
 INSTRUMENTED_ATTRIBUTE_NAME = "is_instrumented_with_openinference_tracer"
+
+
+class NotSet:
+    pass
+
+
+def tracer_val(k, v):
+    if isinstance(v, NotSet):
+        return dict()
+    return {k: v}
 
 
 class OpenAIInstrumentor:
@@ -85,24 +95,18 @@ def _wrap_openai_api_requestor(
             events: List[SpanEvent] = []
             attributes: SpanAttributes = dict()
 
-            pre_run_attributes = [
-                INPUT_VALUE,
-                INPUT_MIME_TYPE,
-                LLM_INPUT_MESSAGES,
-                LLM_INVOCATION_PARAMETERS,
-            ]
-            for a in pre_run_attributes:
-                attributes[a] = OPENINFERENCE_TRANSORMER_MAPPING[a](parameters)
+            for attribute_name, openinference_converter in OPENINFERENCE_INPUT_MAPPING.items():
+                attributes.update(tracer_val(attribute_name, openinference_converter(parameters)))
 
             try:
                 outputs = request_fn(*args, **kwargs)
                 response = outputs[0]
 
-                # ---
-                attributes.update(_outputs(response))
-                attributes.update(_token_counts(response))
-                attributes.update(_function_calls(response))
-                # ---
+                for (
+                    attribute_name,
+                    openinference_converter,
+                ) in OPENINFERENCE_RESPONSE_MAPPING.items():
+                    attributes.update(tracer_val(attribute_name, openinference_converter(response)))
 
                 current_status_code = SpanStatusCode.OK
                 return outputs
@@ -138,17 +142,17 @@ def _wrap_openai_api_requestor(
     return wrapped
 
 
-def _input_value(parameters: Mapping[str, Any]) -> str:
-    return json.dumps(parameters.get("messages"))
+def _input_value(parameters: Mapping[str, Any]) -> Union[str, NotSet]:
+    return json.dumps(messages) if (messages := parameters.get("messages")) else NotSet()
 
 
 def _input_mime_type(parameters: Mapping[str, Any]) -> str:
     return MimeType.JSON.value
 
 
-def _llm_input_messages(parameters: Mapping[str, Any]) -> Iterable[Message]:
+def _llm_input_messages(parameters: Mapping[str, Any]) -> Union[Iterable[Message], NotSet]:
     if not (messages := parameters.get("messages")):
-        return
+        return NotSet()
 
     llm_input_messages = []
     for message in messages:
@@ -170,30 +174,43 @@ def _llm_invocation_parameters(
     return json.dumps(parameters)
 
 
-def _outputs(response: "OpenAIResponse") -> Iterator[Tuple[str, str]]:
-    """Yield output messages as a JSON string in addition to output mime type"""
-    yield OUTPUT_VALUE, json.dumps(response.data["choices"])
-    yield OUTPUT_MIME_TYPE, MimeType.JSON.value
+def _output_value(response: "OpenAIResponse") -> str:
+    return json.dumps(response.data["choices"])
+
+
+def _output_mime_type(response: "OpenAIResponse") -> str:  # type: ignore
+    return MimeType.JSON.value
+
+
+def _llm_token_count_prompt(response: "OpenAIResponse") -> Union[int, NotSet]:
+    if token_usage := response.data.get("usage"):
+        return token_usage["prompt_tokens"]
+    return NotSet()
+
+
+def _llm_token_count_completion(response: "OpenAIResponse") -> Union[int, NotSet]:
+    if token_usage := response.data.get("usage"):
+        return token_usage["completion_tokens"]
+    return NotSet()
+
+
+def _llm_token_count_total(response: "OpenAIResponse") -> Union[int, NotSet]:
+    if token_usage := response.data.get("usage"):
+        return token_usage["total_tokens"]
+    return NotSet()
 
 
 def _function_calls(
     response: "OpenAIResponse",
-) -> Iterator[Tuple[str, str]]:
+) -> Union[str, NotSet]:
     """Yields function call data if present"""
     choices = response.data["choices"]
     choice = choices[0]
     if choice.get("finish_reason") == "function_call" and (
         function_call_data := choice["message"].get("function_call")
     ):
-        yield LLM_FUNCTION_CALL, json.dumps(function_call_data)
-
-
-def _token_counts(response: "OpenAIResponse") -> Iterator[Tuple[str, int]]:
-    """Yields token counts if present"""
-    if token_usage := response.data.get("usage"):
-        yield LLM_TOKEN_COUNT_PROMPT, token_usage["prompt_tokens"]
-        yield LLM_TOKEN_COUNT_COMPLETION, token_usage["completion_tokens"]
-        yield LLM_TOKEN_COUNT_TOTAL, token_usage["total_tokens"]
+        return json.dumps(function_call_data)
+    return NotSet()
 
 
 def _get_request_type(url: str) -> Optional[RequestType]:
@@ -207,9 +224,19 @@ def _get_request_type(url: str) -> Optional[RequestType]:
     return None
 
 
-OPENINFERENCE_TRANSORMER_MAPPING: Dict[str, Callable] = {
+OPENINFERENCE_INPUT_MAPPING: Dict[str, Callable] = {
     INPUT_VALUE: _input_value,
     INPUT_MIME_TYPE: _input_mime_type,
     LLM_INPUT_MESSAGES: _llm_input_messages,
     LLM_INVOCATION_PARAMETERS: _llm_invocation_parameters,
+}
+
+
+OPENINFERENCE_RESPONSE_MAPPING: Dict[str, Callable] = {
+    OUTPUT_VALUE: _output_value,
+    OUTPUT_MIME_TYPE: _output_mime_type,
+    LLM_TOKEN_COUNT_PROMPT: _llm_token_count_prompt,
+    LLM_TOKEN_COUNT_COMPLETION: _llm_token_count_completion,
+    LLM_TOKEN_COUNT_TOTAL: _llm_token_count_total,
+    LLM_FUNCTION_CALL: _function_calls,
 }
