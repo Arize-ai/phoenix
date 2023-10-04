@@ -61,7 +61,7 @@ def llm_eval_binary(
     responses = model.generate(prompts.to_list(), instruction=system_instruction)
     rails_set = set(rails)
     if verbose:
-        print("Snapping responses to rails: {rails_set}")
+        print(f"Snapping responses {responses} to rails: {rails_set}")
     return [_snap_to_rail(response, rails_set) for response in responses]
 
 

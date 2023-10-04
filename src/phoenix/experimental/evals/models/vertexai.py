@@ -77,10 +77,11 @@ class VertexAIModel(BaseEvalModel):
         else:
             self._model = model.from_pretrained(self.model_name)
 
+    def _verbose_generation_info(self):
+        return f"Generating response with VertexAI: {self.invocation_params}"
+
     def _generate(self, prompt: str, **kwargs: Dict[str, Any]) -> str:
         invoke_params = self.invocation_params
-        if self._verbose:
-            print("Generating response with `{self.tuned_model_name if self.tuned_model_name else self.model_name}`: {invoke_params}")
         response = self._generate_with_retry(
             prompt=prompt,
             **invoke_params,

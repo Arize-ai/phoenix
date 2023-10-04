@@ -104,6 +104,8 @@ class BaseEvalModel(ABC):
         return response[0]
 
     def generate(self, prompts: List[str], instruction: Optional[str] = None) -> List[str]:
+        if self._verbose:
+            print(self._verbose_generation_info())
         if not is_list_of(prompts, str):
             raise TypeError(
                 "Invalid type for argument `prompts`. Expected a list of strings "
@@ -112,8 +114,6 @@ class BaseEvalModel(ABC):
         try:
             outputs = []
             for prompt in tqdm(prompts, bar_format=TQDM_BAR_FORMAT, ncols=100):
-                if self._verbose:
-                    print(f"Generating output for prompt {repr(truncate_with_ellipsis(prompt, 80))}")
                 output = self._generate(prompt=prompt, instruction=instruction)  # type:ignore
                 logger.info(f"Prompt: {prompt}\nInstruction: {instruction}\nOutput: {output}")
                 outputs.append(output)
@@ -137,6 +137,10 @@ class BaseEvalModel(ABC):
         except (KeyboardInterrupt, Exception) as e:
             raise e
         return result
+
+    def _verbose_generation_info(self) -> str:
+        # if defined, returns additional model-specific information to display `generate` is run with `verbose=True`
+        pass
 
     @abstractmethod
     def _generate(self, prompt: str, **kwargs: Dict[str, Any]) -> str:

@@ -129,11 +129,12 @@ class OpenAIModel(BaseEvalModel):
             messages.insert(0, {"role": "system", "content": str(system_instruction)})
         return messages
 
+    def _verbose_generation_info(self):
+        return f"Generating responses with OpenAI: {self.public_invocation_params}"
+
     def _generate(self, prompt: str, **kwargs: Dict[str, Any]) -> str:
         invoke_params = self.invocation_params
         messages = self._build_messages(prompt, kwargs.get("instruction"))  # type:ignore
-        if self._verbose:
-            print("Generating response with `{self.model_name}`: {invoke_params}")
 
         response = self._generate_with_retry(
             messages=messages,
@@ -185,12 +186,18 @@ class OpenAIModel(BaseEvalModel):
         return context_size
 
     @property
-    def invocation_params(self) -> Dict[str, Any]:
+    def public_invocation_params(self) -> Dict[str, Any]:
         return {
             "model": self.model_name,
             **self._default_params,
-            **self._credentials,
             **self.model_kwargs,
+        }
+
+    @property
+    def invocation_params(self) -> Dict[str, Any]:
+        return {
+            **self.public_invocation_params,
+            **self._credentials,
         }
 
     @property
