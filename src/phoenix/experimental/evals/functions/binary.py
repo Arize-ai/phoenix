@@ -61,8 +61,8 @@ def llm_eval_binary(
     responses = model.generate(prompts.to_list(), instruction=system_instruction)
     rails_set = set(rails)
     if verbose:
-        print(f"Snapping responses {responses} to rails: {rails_set}")
-    return [_snap_to_rail(response, rails_set) for response in responses]
+        print(f"Snapping {len(responses)} responses to rails: {rails_set}")
+    return [_snap_to_rail(response, rails_set, verbose=verbose) for response in responses]
 
 
 def run_relevance_eval(
@@ -182,7 +182,7 @@ def _get_contents_from_openinference_documents(documents: Iterable[Any]) -> List
     return [doc.get(DOCUMENT_CONTENT) if isinstance(doc, dict) else None for doc in documents]
 
 
-def _snap_to_rail(string: str, rails: Set[str]) -> str:
+def _snap_to_rail(string: str, rails: Set[str], verbose: bool = False) -> str:
     """
     Snaps a string to the nearest rail, or returns None if the string cannot be snapped to a
     rail.
@@ -200,11 +200,16 @@ def _snap_to_rail(string: str, rails: Set[str]) -> str:
     rails_list = list(rails)
     rail = _extract_rail(processed_string, rails_list[0], rails_list[1])
     if not rail:
+        if verbose:
+            print(f"- Cannot snap {repr(string)} to rails: {rails}")
         logger.warning(
             f"LLM output cannot be snapped to rails {list(rails)}, returning {NOT_PARSABLE}. "
             f'Output: "{string}"'
         )
         return NOT_PARSABLE
+    else:
+        if verbose:
+            print(f"- Snapped {repr(string)} to rail: {rail}")
     return rail
 
 

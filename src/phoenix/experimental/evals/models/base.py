@@ -105,7 +105,9 @@ class BaseEvalModel(ABC):
 
     def generate(self, prompts: List[str], instruction: Optional[str] = None) -> List[str]:
         if self._verbose:
-            print(self._verbose_generation_info())
+            print(f"Generating responses for {len(prompts)} prompts...")
+            if extra_info := self._verbose_generation_info():
+                print(extra_info)
         if not is_list_of(prompts, str):
             raise TypeError(
                 "Invalid type for argument `prompts`. Expected a list of strings "

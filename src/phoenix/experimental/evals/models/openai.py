@@ -130,7 +130,7 @@ class OpenAIModel(BaseEvalModel):
         return messages
 
     def _verbose_generation_info(self):
-        return f"Generating responses with OpenAI: {self.public_invocation_params}"
+        return f"OpenAI invocation parameters: {self.public_invocation_params}"
 
     def _generate(self, prompt: str, **kwargs: Dict[str, Any]) -> str:
         invoke_params = self.invocation_params
