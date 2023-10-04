@@ -112,8 +112,6 @@ def _wrap_openai_api_requestor(
                 return outputs
             except Exception as error:
                 current_status_code = SpanStatusCode.ERROR
-
-                # ---
                 events.append(
                     SpanException(
                         message=str(error),
@@ -122,8 +120,6 @@ def _wrap_openai_api_requestor(
                         exception_stacktrace=get_stacktrace(error),
                     )
                 )
-                # ---
-
                 raise
             finally:
                 tracer.create_span(
@@ -146,7 +142,7 @@ def _input_value(parameters: Mapping[str, Any]) -> Union[str, NotSet]:
     return json.dumps(messages) if (messages := parameters.get("messages")) else NotSet()
 
 
-def _input_mime_type(parameters: Mapping[str, Any]) -> str:
+def _input_mime_type(parameters: Mapping[str, Any]) -> str:  # type: ignore
     return MimeType.JSON.value
 
 
@@ -200,7 +196,7 @@ def _llm_token_count_total(response: "OpenAIResponse") -> Union[int, NotSet]:
     return NotSet()
 
 
-def _function_calls(
+def _llm_function_call(
     response: "OpenAIResponse",
 ) -> Union[str, NotSet]:
     """Yields function call data if present"""
@@ -238,5 +234,5 @@ OPENINFERENCE_RESPONSE_MAPPING: Dict[str, Callable] = {
     LLM_TOKEN_COUNT_PROMPT: _llm_token_count_prompt,
     LLM_TOKEN_COUNT_COMPLETION: _llm_token_count_completion,
     LLM_TOKEN_COUNT_TOTAL: _llm_token_count_total,
-    LLM_FUNCTION_CALL: _function_calls,
+    LLM_FUNCTION_CALL: _llm_function_call,
 }
