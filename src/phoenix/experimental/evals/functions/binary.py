@@ -3,7 +3,9 @@ from typing import Any, Iterable, List, Optional, Set, Union, cast
 
 import pandas as pd
 
+from phoenix.utilities.logging import printif
 from phoenix.trace.semantic_conventions import DOCUMENT_CONTENT, INPUT_VALUE, RETRIEVAL_DOCUMENTS
+from phoenix.utilities.logging import printif
 
 from ..models import BaseEvalModel
 from ..templates import (
@@ -60,8 +62,7 @@ def llm_eval_binary(
     prompts = map_template(dataframe, eval_template)
     responses = model.generate(prompts.to_list(), instruction=system_instruction)
     rails_set = set(rails)
-    if verbose:
-        print(f"Snapping {len(responses)} responses to rails: {rails_set}")
+    printif(verbose, f"Snapping {len(responses)} responses to rails: {rails_set}")
     return [_snap_to_rail(response, rails_set, verbose=verbose) for response in responses]
 
 
@@ -200,16 +201,14 @@ def _snap_to_rail(string: str, rails: Set[str], verbose: bool = False) -> str:
     rails_list = list(rails)
     rail = _extract_rail(processed_string, rails_list[0], rails_list[1])
     if not rail:
-        if verbose:
-            print(f"- Cannot snap {repr(string)} to rails: {rails}")
+        printif(verbose, f"- Cannot snap {repr(string)} to rails: {rails}")
         logger.warning(
             f"LLM output cannot be snapped to rails {list(rails)}, returning {NOT_PARSABLE}. "
             f'Output: "{string}"'
         )
         return NOT_PARSABLE
     else:
-        if verbose:
-            print(f"- Snapped {repr(string)} to rail: {rail}")
+        printif(verbose, f"- Snapped {repr(string)} to rail: {rail}")
     return rail
 
 

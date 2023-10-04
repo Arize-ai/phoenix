@@ -17,8 +17,9 @@ from tenacity import (
 from tqdm import tqdm
 from tqdm.asyncio import tqdm_asyncio
 
-from ..utils.threads import to_thread
-from ..utils.types import is_list_of
+from phoenix.experimental.evals.utils.threads import to_thread
+from phoenix.experimental.evals.utils.types import is_list_of
+from phoenix.utilities.logging import printif
 
 logger = logging.getLogger(__name__)
 
@@ -46,11 +47,10 @@ class BaseEvalModel(ABC):
 
         def log_retry(retry_state: RetryCallState) -> None:
             exc = retry_state.outcome.exception()
-            if self._verbose:
-                if exc:
-                    print(f"Failed attempt {retry_state.attempt_number}: raised {repr(exc)}")
-                else:
-                    print(f"Failed attempt {retry_state.attempt_number}")
+            if exc:
+                printif(self._verbose, f"Failed attempt {retry_state.attempt_number}: raised {repr(exc)}")
+            else:
+                printif(self._verbose, f"Failed attempt {retry_state.attempt_number}")
             return None
 
         retry_instance: retry_base = retry_if_exception_type(error_types[0])
@@ -96,10 +96,9 @@ class BaseEvalModel(ABC):
         return response[0]
 
     def generate(self, prompts: List[str], instruction: Optional[str] = None) -> List[str]:
-        if self._verbose:
-            print(f"Generating responses for {len(prompts)} prompts...")
-            if extra_info := self._verbose_generation_info():
-                print(extra_info)
+        printif(self._verbose, f"Generating responses for {len(prompts)} prompts...")
+        if extra_info := self._verbose_generation_info():
+            printif(self._verbose, extra_info)
         if not is_list_of(prompts, str):
             raise TypeError(
                 "Invalid type for argument `prompts`. Expected a list of strings "
