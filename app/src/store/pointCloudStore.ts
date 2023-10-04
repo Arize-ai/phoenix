@@ -12,7 +12,10 @@ import {
   DEFAULT_CLUSTER_MIN_SAMPLES,
   DEFAULT_CLUSTER_SELECTION_EPSILON,
   DEFAULT_COLOR_SCHEME,
+  DEFAULT_DATASET_SAMPLE_SIZE,
   DEFAULT_MIN_CLUSTER_SIZE,
+  DEFAULT_MIN_DIST,
+  DEFAULT_N_NEIGHBORS,
   FALLBACK_COLOR,
   SelectionDisplay,
   SelectionGridSize,
@@ -599,9 +602,9 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
     dimension: null,
     dimensionMetadata: null,
     umapParameters: {
-      minDist: window.Config.minDist,
-      nNeighbors: window.Config.nNeighbors,
-      nSamples: window.Config.nSamples,
+      minDist: DEFAULT_MIN_DIST,
+      nNeighbors: DEFAULT_N_NEIGHBORS,
+      nSamples: DEFAULT_DATASET_SAMPLE_SIZE,
     },
     hdbscanParameters: {
       minClusterSize: DEFAULT_MIN_CLUSTER_SIZE,

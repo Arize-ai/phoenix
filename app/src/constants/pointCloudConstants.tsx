@@ -2,14 +2,17 @@
  * UMAP configuration parameters
  * @src: https://umap-learn.readthedocs.io/en/latest/parameters.html
  */
+export const DEFAULT_N_COMPONENTS = 3;
+export const DEFAULT_N_NEIGHBORS = 30;
 export const MIN_N_NEIGHBORS = 5;
 export const MAX_N_NEIGHBORS = 100;
+export const DEFAULT_MIN_DIST = 0.0;
 export const MIN_MIN_DIST = 0.0;
 export const MAX_MIN_DIST = 0.99;
 /**
- * The default sample size is passed as Config from server for a single dataset for UMAP, if a
- * primary and reference dataset are requested, the entire cloud will be twice this number
+ * The default sample size for a single dataset for UMAP, if a primary and reference dataset are requested, the entire cloud will be twice this number
  */
+export const DEFAULT_DATASET_SAMPLE_SIZE = 500;
 export const MIN_DATASET_SAMPLE_SIZE = 300;
 export const MAX_DATASET_SAMPLE_SIZE = 100000;
 
