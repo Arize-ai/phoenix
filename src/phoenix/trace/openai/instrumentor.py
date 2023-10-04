@@ -2,17 +2,44 @@ import datetime
 import json
 from enum import Enum
 from inspect import signature
-from typing import (TYPE_CHECKING, Any, Callable, Dict, Iterable, Iterator,
-                    List, Mapping, Optional, Tuple, Union)
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Dict,
+    Iterable,
+    List,
+    Mapping,
+    Optional,
+    Union,
+)
 
-from phoenix.trace.schemas import (Message, SpanAttributes, SpanEvent,
-                                   SpanException, SpanKind, SpanStatusCode)
+from phoenix.trace.schemas import (
+    Message,
+    SpanAttributes,
+    SpanEvent,
+    SpanException,
+    SpanKind,
+    SpanStatusCode,
+)
 from phoenix.trace.semantic_conventions import (
-    INPUT_MIME_TYPE, INPUT_VALUE, LLM_FUNCTION_CALL, LLM_INPUT_MESSAGES,
-    LLM_INVOCATION_PARAMETERS, LLM_TOKEN_COUNT_COMPLETION,
-    LLM_TOKEN_COUNT_PROMPT, LLM_TOKEN_COUNT_TOTAL, MESSAGE_CONTENT,
-    MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON, MESSAGE_FUNCTION_CALL_NAME,
-    MESSAGE_NAME, MESSAGE_ROLE, OUTPUT_MIME_TYPE, OUTPUT_VALUE, MimeType)
+    INPUT_MIME_TYPE,
+    INPUT_VALUE,
+    LLM_FUNCTION_CALL,
+    LLM_INPUT_MESSAGES,
+    LLM_INVOCATION_PARAMETERS,
+    LLM_TOKEN_COUNT_COMPLETION,
+    LLM_TOKEN_COUNT_PROMPT,
+    LLM_TOKEN_COUNT_TOTAL,
+    MESSAGE_CONTENT,
+    MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON,
+    MESSAGE_FUNCTION_CALL_NAME,
+    MESSAGE_NAME,
+    MESSAGE_ROLE,
+    OUTPUT_MIME_TYPE,
+    OUTPUT_VALUE,
+    MimeType,
+)
 from phoenix.trace.utils import get_stacktrace, import_package
 
 from ..tracer import Tracer
@@ -55,10 +82,9 @@ class OpenAIInstrumentor:
         Instruments your OpenAI client.
         """
         openai = import_package("openai")
-        is_instrumented = getattr(
+        is_instrumented = hasattr(
             openai.api_requestor.APIRequestor.request,
             INSTRUMENTED_ATTRIBUTE_NAME,
-            False,
         )
         if not is_instrumented:
             openai.api_requestor.APIRequestor.request = _wrap_openai_api_requestor(
