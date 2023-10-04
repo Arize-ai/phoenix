@@ -11,7 +11,6 @@ from typing import (
     Mapping,
     Optional,
     Sequence,
-    Union,
     cast,
 )
 
@@ -53,12 +52,6 @@ if TYPE_CHECKING:
 Parameters = Mapping[str, Any]
 
 INSTRUMENTED_ATTRIBUTE_NAME = "is_instrumented_with_openinference_tracer"
-
-
-class NotSet:
-    """Indicates that no value is to be set for a given attribute."""
-
-    pass
 
 
 class RequestType(Enum):
@@ -124,9 +117,8 @@ def _wrap_openai_api_requestor(
                 attribute_name,
                 get_parameter_attribute_fn,
             ) in _PARAMETER_ATTRIBUTE_FUNCTIONS.items():
-                attributes.update(
-                    _to_span_attributes(attribute_name, get_parameter_attribute_fn(parameters))
-                )
+                if attribute_value := get_parameter_attribute_fn(parameters):
+                    attributes[attribute_name] = attribute_value
             outputs = None
             try:
                 start_time = datetime.now()
@@ -153,9 +145,8 @@ def _wrap_openai_api_requestor(
                         attribute_name,
                         get_response_attribute_fn,
                     ) in _RESPONSE_ATTRIBUTE_FUNCTIONS.items():
-                        attributes.update(
-                            _to_span_attributes(attribute_name, get_response_attribute_fn(response))
-                        )
+                        if attribute_value := get_response_attribute_fn(response):
+                            attributes[attribute_name] = attribute_value
                 tracer.create_span(
                     name="openai.ChatCompletion.create",
                     span_kind=SpanKind.LLM,
@@ -172,17 +163,17 @@ def _wrap_openai_api_requestor(
     return wrapped
 
 
-def _input_value(parameters: Parameters) -> Union[str, NotSet]:
-    return json.dumps(messages) if (messages := parameters.get("messages")) else NotSet()
+def _input_value(parameters: Parameters) -> Optional[str]:
+    return json.dumps(messages) if (messages := parameters.get("messages")) else None
 
 
 def _input_mime_type(parameters: Parameters) -> str:
     return MimeType.JSON.value
 
 
-def _llm_input_messages(parameters: Parameters) -> Union[Sequence[Message], NotSet]:
+def _llm_input_messages(parameters: Parameters) -> Optional[Sequence[Message]]:
     if not (messages := parameters.get("messages")):
-        return NotSet()
+        return None
 
     llm_input_messages = []
     for message in messages:
@@ -212,34 +203,34 @@ def _output_mime_type(response: "OpenAIResponse") -> str:
     return MimeType.JSON.value
 
 
-def _llm_token_count_prompt(response: "OpenAIResponse") -> Union[int, NotSet]:
+def _llm_token_count_prompt(response: "OpenAIResponse") -> Optional[int]:
     if token_usage := response.data.get("usage"):
         return cast(int, token_usage["prompt_tokens"])
-    return NotSet()
+    return None
 
 
-def _llm_token_count_completion(response: "OpenAIResponse") -> Union[int, NotSet]:
+def _llm_token_count_completion(response: "OpenAIResponse") -> Optional[int]:
     if token_usage := response.data.get("usage"):
         return cast(int, token_usage["completion_tokens"])
-    return NotSet()
+    return None
 
 
-def _llm_token_count_total(response: "OpenAIResponse") -> Union[int, NotSet]:
+def _llm_token_count_total(response: "OpenAIResponse") -> Optional[int]:
     if token_usage := response.data.get("usage"):
         return cast(int, token_usage["total_tokens"])
-    return NotSet()
+    return None
 
 
 def _llm_function_call(
     response: "OpenAIResponse",
-) -> Union[str, NotSet]:
+) -> Optional[str]:
     choices = response.data["choices"]
     choice = choices[0]
     if choice.get("finish_reason") == "function_call" and (
         function_call_data := choice["message"].get("function_call")
     ):
         return json.dumps(function_call_data)
-    return NotSet()
+    return None
 
 
 def _get_request_type(url: str) -> Optional[RequestType]:
@@ -253,23 +244,13 @@ def _get_request_type(url: str) -> Optional[RequestType]:
     return None
 
 
-def _to_span_attributes(
-    attribute_name: str, value: Union[AttributeValue, NotSet]
-) -> SpanAttributes:
-    if isinstance(value, NotSet):
-        return dict()
-    return {attribute_name: value}
-
-
-_PARAMETER_ATTRIBUTE_FUNCTIONS: Dict[str, Callable[[Parameters], Union[NotSet, AttributeValue]]] = {
+_PARAMETER_ATTRIBUTE_FUNCTIONS: Dict[str, Callable[[Parameters], Optional[AttributeValue]]] = {
     INPUT_VALUE: _input_value,
     INPUT_MIME_TYPE: _input_mime_type,
     LLM_INPUT_MESSAGES: _llm_input_messages,
     LLM_INVOCATION_PARAMETERS: _llm_invocation_parameters,
 }
-_RESPONSE_ATTRIBUTE_FUNCTIONS: Dict[
-    str, Callable[["OpenAIResponse"], Union[NotSet, AttributeValue]]
-] = {
+_RESPONSE_ATTRIBUTE_FUNCTIONS: Dict[str, Callable[["OpenAIResponse"], Optional[AttributeValue]]] = {
     OUTPUT_VALUE: _output_value,
     OUTPUT_MIME_TYPE: _output_mime_type,
     LLM_TOKEN_COUNT_PROMPT: _llm_token_count_prompt,
