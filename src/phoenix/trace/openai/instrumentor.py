@@ -1,5 +1,5 @@
-import datetime
 import json
+from datetime import datetime
 from enum import Enum
 from inspect import signature
 from typing import (
@@ -115,12 +115,10 @@ def _wrap_openai_api_requestor(
         bound_arguments = call_signature.bind(*args, **kwargs)
         parameters = bound_arguments.arguments["params"]
         url = bound_arguments.arguments["url"]
+        current_status_code = SpanStatusCode.UNSET
+        events: List[SpanEvent] = []
+        attributes: SpanAttributes = dict()
         if _get_request_type(url) is RequestType.CHAT_COMPLETION:
-            current_status_code = SpanStatusCode.UNSET
-            start_time = datetime.datetime.now()
-            events: List[SpanEvent] = []
-            attributes: SpanAttributes = dict()
-
             for (
                 attribute_name,
                 get_parameter_attribute_fn,
@@ -130,10 +128,13 @@ def _wrap_openai_api_requestor(
                 )
             outputs = None
             try:
+                start_time = datetime.now()
                 outputs = request_fn(*args, **kwargs)
+                end_time = datetime.now()
                 current_status_code = SpanStatusCode.OK
                 return outputs
             except Exception as error:
+                end_time = datetime.now()
                 current_status_code = SpanStatusCode.ERROR
                 events.append(
                     SpanException(
@@ -158,7 +159,7 @@ def _wrap_openai_api_requestor(
                     name="openai.ChatCompletion.create",
                     span_kind=SpanKind.LLM,
                     start_time=start_time,
-                    end_time=datetime.datetime.now(),
+                    end_time=end_time,
                     status_code=current_status_code,
                     status_message="",
                     attributes=attributes,
