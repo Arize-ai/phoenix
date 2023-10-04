@@ -15,6 +15,7 @@ import { Icon, Icons } from "@arizeai/components";
 
 import { Link } from "@phoenix/components/Link";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
+import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { TextCell } from "@phoenix/components/table/TextCell";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
@@ -214,6 +215,7 @@ export function SpansTable(props: SpansTableProps) {
     getSortedRowModel: getSortedRowModel(),
   });
   const rows = table.getRowModel().rows;
+  const isEmpty = rows.length === 0;
   return (
     <div
       css={css`
@@ -261,31 +263,35 @@ export function SpansTable(props: SpansTableProps) {
             </tr>
           ))}
         </thead>
-        <tbody>
-          {rows.map((row) => {
-            return (
-              <tr
-                key={row.id}
-                onClick={() =>
-                  navigate(
-                    `traces/${row.original.context.traceId}?selectedSpanId=${row.original.context.spanId}`
-                  )
-                }
-              >
-                {row.getVisibleCells().map((cell) => {
-                  return (
-                    <td key={cell.id}>
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext()
-                      )}
-                    </td>
-                  );
-                })}
-              </tr>
-            );
-          })}
-        </tbody>
+        {isEmpty ? (
+          <TableEmpty />
+        ) : (
+          <tbody>
+            {rows.map((row) => {
+              return (
+                <tr
+                  key={row.id}
+                  onClick={() =>
+                    navigate(
+                      `traces/${row.original.context.traceId}?selectedSpanId=${row.original.context.spanId}`
+                    )
+                  }
+                >
+                  {row.getVisibleCells().map((cell) => {
+                    return (
+                      <td key={cell.id}>
+                        {flexRender(
+                          cell.column.columnDef.cell,
+                          cell.getContext()
+                        )}
+                      </td>
+                    );
+                  })}
+                </tr>
+              );
+            })}
+          </tbody>
+        )}
       </table>
     </div>
   );
