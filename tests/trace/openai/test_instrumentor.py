@@ -104,13 +104,13 @@ def test_openai_instrumentor_includes_llm_attributes_on_chat_completion_success(
     assert json.loads(attributes[INPUT_VALUE]) == [
         {"role": "user", "content": "Who won the World Cup in 2018?"}
     ]
-    assert attributes[INPUT_MIME_TYPE] == MimeType.JSON.value
+    assert attributes[INPUT_MIME_TYPE] == MimeType.JSON
 
     choices = json.loads(attributes[OUTPUT_VALUE])
     assert len(choices) == 1
     response_content = choices[0]["message"]["content"]
     assert "france" in response_content.lower() or "french" in response_content.lower()
-    assert attributes[OUTPUT_MIME_TYPE] == MimeType.JSON.value
+    assert attributes[OUTPUT_MIME_TYPE] == MimeType.JSON
 
 
 @responses.activate
