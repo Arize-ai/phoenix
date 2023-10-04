@@ -64,8 +64,70 @@ def test_llm_eval_binary(monkeypatch: pytest.MonkeyPatch):
         template=RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
         model=model,
         rails=["relevant", "irrelevant"],
+        verbose=True,
     )
     assert relevance_classifications == ["relevant", "irrelevant", "relevant", NOT_PARSABLE]
+
+
+@responses.activate
+def test_llm_eval_binary_prints_to_stdout_with_verbose_flag(monkeypatch: pytest.MonkeyPatch, capfd):
+    monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
+    dataframe = pd.DataFrame(
+        [
+            {
+                "query": "What is Python?",
+                "reference": "Python is a programming language.",
+            },
+            {
+                "query": "What is Python?",
+                "reference": "Ruby is a programming language.",
+            },
+            {
+                "query": "What is C++?",
+                "reference": "C++ is a programming language.",
+            },
+            {
+                "query": "What is C++?",
+                "reference": "irrelevant",
+            },
+        ]
+    )
+    for message_content in [
+        "relevant",
+        "irrelevant",
+        "\nrelevant ",
+        "unparsable",
+    ]:
+        responses.post(
+            "https://api.openai.com/v1/chat/completions",
+            json={
+                "choices": [
+                    {
+                        "message": {
+                            "content": message_content,
+                        },
+                    }
+                ],
+            },
+            status=200,
+        )
+    with patch.object(OpenAIModel, "_init_tiktoken", return_value=None):
+        model = OpenAIModel()
+    relevance_classifications = llm_eval_binary(
+        dataframe=dataframe,
+        template=RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
+        model=model,
+        rails=["relevant", "irrelevant"],
+        verbose=True,
+    )
+    out, err = capfd.readouterr()
+    assert "Snapped 'relevant' to rail: relevant" in out, "Snapping events should be printed"
+    assert "Snapped 'irrelevant' to rail: irrelevant" in out, "Snapping events should be printed"
+    assert "Snapped '\\nrelevant ' to rail: relevant" in out, "Snapping events should be printed"
+    assert "Cannot snap 'unparsable' to rails: {'relevant', 'irrelevant'}" in out, "Snapping events should be printed"
+    assert "OpenAI invocation parameters" in out, "Model-specific information should be printed"
+    assert "'model': 'gpt-4', 'temperature': 0.0, 'max_tokens': 256" in out, "Model-specific information should be printed"
+    assert "sk-0123456789" not in out, "Credentials should not be printed out in cleartext"
 
 
 @responses.activate
