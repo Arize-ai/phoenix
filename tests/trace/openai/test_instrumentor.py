@@ -5,16 +5,29 @@ import openai
 import pytest
 import responses
 from openai.error import AuthenticationError
-
 from phoenix.trace.openai.instrumentor import OpenAIInstrumentor
 from phoenix.trace.schemas import SpanException, SpanKind, SpanStatusCode
 from phoenix.trace.semantic_conventions import (
-    EXCEPTION_MESSAGE, EXCEPTION_STACKTRACE, EXCEPTION_TYPE, INPUT_MIME_TYPE,
-    INPUT_VALUE, LLM_FUNCTION_CALL, LLM_INPUT_MESSAGES,
-    LLM_INVOCATION_PARAMETERS, LLM_TOKEN_COUNT_COMPLETION,
-    LLM_TOKEN_COUNT_PROMPT, LLM_TOKEN_COUNT_TOTAL, MESSAGE_CONTENT,
-    MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON, MESSAGE_FUNCTION_CALL_NAME,
-    MESSAGE_NAME, MESSAGE_ROLE, OUTPUT_MIME_TYPE, OUTPUT_VALUE, MimeType)
+    EXCEPTION_MESSAGE,
+    EXCEPTION_STACKTRACE,
+    EXCEPTION_TYPE,
+    INPUT_MIME_TYPE,
+    INPUT_VALUE,
+    LLM_FUNCTION_CALL,
+    LLM_INPUT_MESSAGES,
+    LLM_INVOCATION_PARAMETERS,
+    LLM_TOKEN_COUNT_COMPLETION,
+    LLM_TOKEN_COUNT_PROMPT,
+    LLM_TOKEN_COUNT_TOTAL,
+    MESSAGE_CONTENT,
+    MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON,
+    MESSAGE_FUNCTION_CALL_NAME,
+    MESSAGE_NAME,
+    MESSAGE_ROLE,
+    OUTPUT_MIME_TYPE,
+    OUTPUT_VALUE,
+    MimeType,
+)
 from phoenix.trace.tracer import Tracer
 
 
@@ -366,8 +379,8 @@ def test_openai_instrumentor_instrument_method_is_idempotent(
     reload_openai_api_requestor, openai_api_key
 ) -> None:
     tracer = Tracer()
-    OpenAIInstrumentor(tracer).instrument()
-    OpenAIInstrumentor(tracer).instrument()
+    OpenAIInstrumentor(tracer).instrument()  # first call
+    OpenAIInstrumentor(tracer).instrument()  # second call
     model = "gpt-4"
     messages = [{"role": "user", "content": "Who won the World Cup in 2018?"}]
     temperature = 0.23
