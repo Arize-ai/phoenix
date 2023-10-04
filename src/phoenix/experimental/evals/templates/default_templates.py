@@ -97,15 +97,15 @@ SUMMARIZATION_PROMPT_TEMPLATE_STR = """
     [END DATA]
     Compare the Summary above to the Original Document and determine if the Summary is
     comprehensive, concise, coherent, and independent relative to the Original Document.
-    Your response must be a string, either Good or Bad, and should not contain any text
-    or characters aside from that. Bad means that the Summary is not comprehensive, concise,
-    coherent, and independent relative to the Original Document. Good means the Summary
+    Your response must be a string, either good or bad, and should not contain any text
+    or characters aside from that. The string bad means that the Summary is not comprehensive, concise,
+    coherent, and independent relative to the Original Document. The string good means the Summary
     is comprehensive, concise, coherent, and independent relative to the Original Document.
 """
 # The prompt output map is used to map 1) to provide rails to the llm in order to constrain
 # the llm's outputs to the expected values. 2) golden dataset ground truth boolean values
 # to the llm output
-SUMMARIZATION_PROMPT_RAILS_MAP = OrderedDict({True: "Good", False: "Bad"})
+SUMMARIZATION_PROMPT_RAILS_MAP = OrderedDict({True: "good", False: "bad"})
 CODE_READABILITY_PROMPT_TEMPLATE_STR = """
 You are a stern but practical senior software engineer who cares a lot about simplicity and
 readability of code. Can you review the following code that was written by another engineer?
