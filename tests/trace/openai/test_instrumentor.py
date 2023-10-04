@@ -46,7 +46,7 @@ def openai_api_key(monkeypatch) -> None:
 
 
 @responses.activate
-def test_openai_instrumentor_includes_message_info_on_success(
+def test_openai_instrumentor_includes_llm_attributes_on_chat_completion_success(
     reload_openai_api_requestor, openai_api_key
 ) -> None:
     tracer = Tracer()
@@ -54,6 +54,7 @@ def test_openai_instrumentor_includes_message_info_on_success(
     model = "gpt-4"
     messages = [{"role": "user", "content": "Who won the World Cup in 2018?"}]
     temperature = 0.23
+    expected_response_text = "France won the World Cup in 2018."
     responses.post(
         url="https://api.openai.com/v1/chat/completions",
         json={
@@ -66,7 +67,7 @@ def test_openai_instrumentor_includes_message_info_on_success(
                     "index": 0,
                     "message": {
                         "role": "assistant",
-                        "content": "France won the World Cup in 2018.",
+                        "content": expected_response_text,
                     },
                     "finish_reason": "stop",
                 }
@@ -75,7 +76,10 @@ def test_openai_instrumentor_includes_message_info_on_success(
         },
         status=200,
     )
-    openai.ChatCompletion.create(model=model, messages=messages, temperature=temperature)
+    response = openai.ChatCompletion.create(model=model, messages=messages, temperature=temperature)
+    response_text = response.choices[0]["message"]["content"]
+
+    assert response_text == expected_response_text
 
     spans = list(tracer.get_spans())
     assert len(spans) == 1
@@ -84,18 +88,10 @@ def test_openai_instrumentor_includes_message_info_on_success(
 
     assert span.span_kind is SpanKind.LLM
     assert span.status_code == SpanStatusCode.OK
+    assert span.events == []
     assert attributes[LLM_INPUT_MESSAGES] == [
         {MESSAGE_ROLE: "user", MESSAGE_CONTENT: "Who won the World Cup in 2018?"}
     ]
-    assert json.loads(attributes[INPUT_VALUE]) == [
-        {"role": "user", "content": "Who won the World Cup in 2018?"}
-    ]
-    assert attributes[INPUT_MIME_TYPE] == MimeType.JSON.value
-    choices = json.loads(attributes[OUTPUT_VALUE])
-    assert len(choices) == 1
-    response_content = choices[0]["message"]["content"]
-    assert "france" in response_content.lower() or "french" in response_content.lower()
-    assert attributes[OUTPUT_MIME_TYPE] == MimeType.JSON.value
     assert json.loads(attributes[LLM_INVOCATION_PARAMETERS]) == {
         "model": model,
         "messages": messages,
@@ -104,7 +100,17 @@ def test_openai_instrumentor_includes_message_info_on_success(
     assert isinstance(attributes[LLM_TOKEN_COUNT_COMPLETION], int)
     assert isinstance(attributes[LLM_TOKEN_COUNT_PROMPT], int)
     assert isinstance(attributes[LLM_TOKEN_COUNT_TOTAL], int)
-    assert span.events == []
+
+    assert json.loads(attributes[INPUT_VALUE]) == [
+        {"role": "user", "content": "Who won the World Cup in 2018?"}
+    ]
+    assert attributes[INPUT_MIME_TYPE] == MimeType.JSON.value
+
+    choices = json.loads(attributes[OUTPUT_VALUE])
+    assert len(choices) == 1
+    response_content = choices[0]["message"]["content"]
+    assert "france" in response_content.lower() or "french" in response_content.lower()
+    assert attributes[OUTPUT_MIME_TYPE] == MimeType.JSON.value
 
 
 @responses.activate
@@ -134,7 +140,6 @@ def test_openai_instrumentor_includes_function_call_attributes(
         }
     ]
     model = "gpt-4"
-    temperature = 0.23
     responses.post(
         url="https://api.openai.com/v1/chat/completions",
         json={
@@ -160,9 +165,7 @@ def test_openai_instrumentor_includes_function_call_attributes(
         },
         status=200,
     )
-    response = openai.ChatCompletion.create(
-        model=model, messages=messages, temperature=temperature, functions=functions
-    )
+    response = openai.ChatCompletion.create(model=model, messages=messages, functions=functions)
 
     function_call_data = response.choices[0]["message"]["function_call"]
     assert set(function_call_data.keys()) == {"name", "arguments"}
@@ -182,7 +185,6 @@ def test_openai_instrumentor_includes_function_call_attributes(
     assert json.loads(attributes[LLM_INVOCATION_PARAMETERS]) == {
         "model": model,
         "messages": messages,
-        "temperature": temperature,
         "functions": functions,
     }
     function_call_attributes = json.loads(attributes[LLM_FUNCTION_CALL])
@@ -233,7 +235,6 @@ def test_openai_instrumentor_includes_function_call_message_attributes(
         }
     ]
     model = "gpt-4"
-    temperature = 0.23
     responses.post(
         url="https://api.openai.com/v1/chat/completions",
         json={
@@ -259,20 +260,17 @@ def test_openai_instrumentor_includes_function_call_message_attributes(
         status=200,
     )
 
-    response = openai.ChatCompletion.create(
-        model=model, messages=messages, temperature=temperature, functions=functions
-    )
-
+    response = openai.ChatCompletion.create(model=model, messages=messages, functions=functions)
     response_text = response.choices[0]["message"]["content"]
-    assert "22" in response_text and "Boston" in response_text
-
     spans = list(tracer.get_spans())
-    assert len(spans) == 1
     span = spans[0]
     attributes = span.attributes
 
+    assert "22" in response_text and "Boston" in response_text
+    assert len(spans) == 1
     assert span.span_kind is SpanKind.LLM
     assert span.status_code == SpanStatusCode.OK
+    assert span.events == []
     assert attributes[LLM_INPUT_MESSAGES] == [
         {MESSAGE_ROLE: "user", MESSAGE_CONTENT: "What is the weather like in Boston?"},
         {
@@ -290,11 +288,9 @@ def test_openai_instrumentor_includes_function_call_message_attributes(
     assert json.loads(attributes[LLM_INVOCATION_PARAMETERS]) == {
         "model": model,
         "messages": messages,
-        "temperature": temperature,
         "functions": functions,
     }
     assert LLM_FUNCTION_CALL not in attributes
-    assert span.events == []
 
 
 @responses.activate
@@ -317,15 +313,13 @@ def test_openai_instrumentor_records_authentication_error(
     )
     model = "gpt-4"
     messages = [{"role": "user", "content": "Who won the World Cup in 2018?"}]
-    temperature = 0.23
 
     with pytest.raises(AuthenticationError):
-        openai.ChatCompletion.create(model=model, messages=messages, temperature=temperature)
+        openai.ChatCompletion.create(model=model, messages=messages)
 
     spans = list(tracer.get_spans())
     assert len(spans) == 1
     span = spans[0]
-
     events = span.events
     assert len(events) == 1
     event = events[0]
@@ -368,9 +362,9 @@ def test_openai_instrumentor_does_not_interfere_with_completions_api(
         prompt=prompt,
     )
     response_text = response.choices[0]["text"]
-    assert "france" in response_text.lower() or "french" in response_text.lower()
-
     spans = list(tracer.get_spans())
+
+    assert "france" in response_text.lower() or "french" in response_text.lower()
     assert spans == []
 
 
@@ -383,7 +377,6 @@ def test_openai_instrumentor_instrument_method_is_idempotent(
     OpenAIInstrumentor(tracer).instrument()  # second call
     model = "gpt-4"
     messages = [{"role": "user", "content": "Who won the World Cup in 2018?"}]
-    temperature = 0.23
     responses.post(
         url="https://api.openai.com/v1/chat/completions",
         json={
@@ -405,12 +398,12 @@ def test_openai_instrumentor_instrument_method_is_idempotent(
         },
         status=200,
     )
-    response = openai.ChatCompletion.create(model=model, messages=messages, temperature=temperature)
-    print(response)
-
+    response = openai.ChatCompletion.create(model=model, messages=messages)
+    response_text = response.choices[0]["message"]["content"]
     spans = list(tracer.get_spans())
-    assert len(spans) == 1
     span = spans[0]
 
+    assert "france" in response_text.lower() or "french" in response_text.lower()
+    assert len(spans) == 1
     assert span.span_kind is SpanKind.LLM
     assert span.status_code == SpanStatusCode.OK
