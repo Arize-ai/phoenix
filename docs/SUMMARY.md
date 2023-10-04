@@ -42,7 +42,7 @@
 
 * [Dataset and Schema](api/dataset-and-schema.md)
 * [Session](api/session.md)
-* [Evals](api/evals/README.md)
+* [Evals & Supported Models](api/evals/README.md)
   * [Evaluation Models](api/evals/evaluation-models.md)
 
 ## 🔌 INTEGRATIONS
