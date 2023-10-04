@@ -147,8 +147,3 @@ if __name__ == "__main__":
     server = Server(config=Config(app, host=host, port=port))
     Thread(target=_write_pid_file_when_ready, args=(server,), daemon=True).start()
     server.run()
-    host = args.host or get_env_host()
-    port = args.port or get_env_port()
-    server = Server(config=Config(app, host=host, port=port))
-    Thread(target=_write_pid_file_when_ready, args=(server,), daemon=True).start()
-    server.run()
