@@ -41,14 +41,19 @@ def create_base_retry_decorator(
     min_seconds: int,
     max_seconds: int,
     max_retries: int,
+    verbose: bool = False,
 ) -> Callable[[Any], Any]:
     """Create a retry decorator for a given LLM and provided list of error types."""
 
     # TODO: Nice logging. The logging implemented is huge and overwhelming
-    _logging = before_sleep_log(logger, logging.WARNING)
 
-    def _before_sleep(retry_state: RetryCallState) -> None:
-        _logging(retry_state)
+    def log_retry(retry_state: RetryCallState) -> None:
+        exc = retry_state.outcome.exception()
+        if verbose:
+            if exc:
+                print(f"Failed attempt {retry_state.attempt_number}: raised {repr(exc)}")
+            else:
+                print(f"Failed attempt {retry_state.attempt_number}")
         return None
 
     retry_instance: retry_base = retry_if_exception_type(error_types[0])
@@ -59,7 +64,7 @@ def create_base_retry_decorator(
         stop=stop_after_attempt(max_retries),
         wait=wait_random_exponential(multiplier=1, min=min_seconds, max=max_seconds),
         retry=retry_instance,
-        # before_sleep=_before_sleep,
+        before_sleep=log_retry,
     )
 
 

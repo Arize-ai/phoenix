@@ -99,6 +99,7 @@ class VertexAIModel(BaseEvalModel):
             min_seconds=self.retry_min_seconds,
             max_seconds=self.retry_max_seconds,
             max_retries=self.max_retries,
+            verbose=self._verbose,
         )
 
         @retry_decorator
