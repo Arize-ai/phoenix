@@ -112,7 +112,8 @@ class BaseEvalModel(ABC):
         try:
             outputs = []
             for prompt in tqdm(prompts, bar_format=TQDM_BAR_FORMAT, ncols=100):
-                print(f"Generating output for prompt {repr(truncate_with_ellipsis(prompt, 80))}")
+                if self._verbose:
+                    print(f"Generating output for prompt {repr(truncate_with_ellipsis(prompt, 80))}")
                 output = self._generate(prompt=prompt, instruction=instruction)  # type:ignore
                 logger.info(f"Prompt: {prompt}\nInstruction: {instruction}\nOutput: {output}")
                 outputs.append(output)
