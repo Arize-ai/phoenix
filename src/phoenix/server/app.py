@@ -9,7 +9,7 @@ from starlette.exceptions import HTTPException
 from starlette.middleware import Middleware
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.requests import Request
-from starlette.responses import FileResponse, Response
+from starlette.responses import FileResponse, PlainTextResponse, Response
 from starlette.routing import Mount, Route, WebSocketRoute
 from starlette.staticfiles import StaticFiles
 from starlette.templating import Jinja2Templates
@@ -18,6 +18,7 @@ from starlette.websockets import WebSocket
 from strawberry.asgi import GraphQL
 from strawberry.schema import BaseSchema
 
+import phoenix
 from phoenix.config import SERVER_DIR
 from phoenix.core.model_schema import Model
 from phoenix.core.traces import Traces
@@ -129,6 +130,10 @@ class Download(HTTPEndpoint):
         )
 
 
+async def version(_: Request) -> PlainTextResponse:
+    return PlainTextResponse(f"{phoenix.__version__}")
+
+
 def create_app(
     export_path: Path,
     model: Model,
@@ -165,6 +170,7 @@ def create_app(
             ]
         )
         + [
+            Route("/arize_phoenix_version", version),
             Route(
                 "/exports",
                 type(

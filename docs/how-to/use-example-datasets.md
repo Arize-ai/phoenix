@@ -96,16 +96,13 @@ px.launch_app(datasets.primary, datasets.reference)
 
 Follow the instructions in the cell output to open the Phoenix UI in your notebook or in a separate browser tab.
 
-
-
 ## View Available Traces
 
-Phoenix supports [LLM application Traces](../concepts/langchain-and-llamaindex-traces.md) and has examples that you can take a look at as well.\
-
+Phoenix supports [LLM application Traces](../concepts/llm-traces.md) and has examples that you can take a look at as well.\
 
 ```python
 px.load_example_traces?
 
 # Load up the LlamaIndex RAG example
-px.launch_appp(trace=px.load_example_traces("llama_index_rag"))
+px.launch_app(trace=px.load_example_traces("llama_index_rag"))
 ```

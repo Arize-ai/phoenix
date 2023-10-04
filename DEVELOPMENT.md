@@ -1,18 +1,18 @@
 # Developer's Guide
 
-- [Developer's Guide](#developers-guide)
-  - [Setting Up Your macOS Development Environment](#setting-up-your-macos-development-environment)
-  - [Testing and Linting](#testing-and-linting)
-  - [Installing Pre-Commit Hooks](#installing-pre-commit-hooks)
-  - [Building the Package](#building-the-package)
-  - [Installing a Phoenix Build](#installing-a-phoenix-build)
-  - [Installing a `git` Branch on Colab](#installing-a-git-branch-on-colab)
-  - [Setting Up Your Windows Test Environment](#setting-up-your-windows-test-environment)
-    - [Selecting a Virtualization Option](#selecting-a-virtualization-option)
-    - [Installing Python and Phoenix](#installing-python-and-phoenix)
-    - [Configuring a Remote Interpreter](#configuring-a-remote-interpreter)
-    - [Troubleshooting](#troubleshooting)
-  - [Publishing a New Release](#publishing-a-new-release)
+-   [Developer's Guide](#developers-guide)
+    -   [Setting Up Your macOS Development Environment](#setting-up-your-macos-development-environment)
+    -   [Testing and Linting](#testing-and-linting)
+    -   [Installing Pre-Commit Hooks](#installing-pre-commit-hooks)
+    -   [Building the Package](#building-the-package)
+    -   [Installing a Phoenix Build](#installing-a-phoenix-build)
+    -   [Installing a `git` Branch on Colab](#installing-a-git-branch-on-colab)
+    -   [Setting Up Your Windows Test Environment](#setting-up-your-windows-test-environment)
+        -   [Selecting a Virtualization Option](#selecting-a-virtualization-option)
+        -   [Installing Python and Phoenix](#installing-python-and-phoenix)
+        -   [Configuring a Remote Interpreter](#configuring-a-remote-interpreter)
+        -   [Troubleshooting](#troubleshooting)
+    -   [Publishing a New Release](#publishing-a-new-release)
 
 ## Setting Up Your macOS Development Environment
 
@@ -46,19 +46,19 @@ from the repository root.
 
 If you are working on our LLM orchestration framework integrations, you may also wish to install LlamaIndex or LangChain from source. To install LlamaIndex from source,
 
-- Uninstall any pre-existing version of LlamaIndex with `pip uninstall llama-index`.
-- Fork and clone LlamaIndex using one of the following two methods:
-  - If you are an Arize employee, clone [Arize's fork of LlamaIndex](https://github.com/Arize-ai/llama_index).
-  - If you are an external contributor, fork and clone [LlamaIndex's upstream repository](https://github.com/jerryjliu/llama_index).
-- Run `pip install -e .` from the repository root.
+-   Uninstall any pre-existing version of LlamaIndex with `pip uninstall llama-index`.
+-   Fork and clone LlamaIndex using one of the following two methods:
+    -   If you are an Arize employee, clone [Arize's fork of LlamaIndex](https://github.com/Arize-ai/llama_index).
+    -   If you are an external contributor, fork and clone [LlamaIndex's upstream repository](https://github.com/run-llama/llama_index).
+-   Run `pip install -e .` from the repository root.
 
 To install LangChain from source,
 
-- Uninstall any pre-existing version of LangChain with `pip uninstall langchain`.
-- Fork and clone LangChain using one of the following two methods:
-  - If you are an Arize employee, clone [Arize's fork of LangChain](https://github.com/Arize-ai/langchain).
-  - If you are an external contributor, fork and clone [LangChain's upstream repository](https://github.com/langchain-ai/langchain).
-- Run `pip install -e .` from `libs/langchain`.
+-   Uninstall any pre-existing version of LangChain with `pip uninstall langchain`.
+-   Fork and clone LangChain using one of the following two methods:
+    -   If you are an Arize employee, clone [Arize's fork of LangChain](https://github.com/Arize-ai/langchain).
+    -   If you are an external contributor, fork and clone [LangChain's upstream repository](https://github.com/langchain-ai/langchain).
+-   Run `pip install -e .` from `libs/langchain`.
 
 ## Testing and Linting
 
@@ -151,7 +151,7 @@ and run the notebooks in the `tutorials` directory.
 
 ## Installing a `git` Branch on Colab
 
-The code below installs the `main` branch in [Colab](https://colab.research.google.com/notebooks/empty.ipynb) and takes roughly 3 minutes to run. 
+The code below installs the `main` branch in [Colab](https://colab.research.google.com/notebooks/empty.ipynb) and takes roughly 3 minutes to run.
 
 ```jupyterpython
 !npm install -g -s n

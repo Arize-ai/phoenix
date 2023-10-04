@@ -186,10 +186,10 @@ class OpenInferenceTraceCallbackHandler(BaseCallbackHandler):
     def __init__(
         self,
         callback: Optional[Callable[[List[Span]], None]] = None,
-        exporter: Optional[SpanExporter] = HttpExporter(),
+        exporter: Optional[SpanExporter] = None,
     ) -> None:
         super().__init__(event_starts_to_ignore=[], event_ends_to_ignore=[])
-        self._tracer = Tracer(on_append=callback, exporter=exporter)
+        self._tracer = Tracer(on_append=callback, exporter=exporter or HttpExporter())
         self._event_id_to_event_data: EventData = defaultdict(lambda: CBEventData())
 
     def on_event_start(
@@ -197,6 +197,7 @@ class OpenInferenceTraceCallbackHandler(BaseCallbackHandler):
         event_type: CBEventType,
         payload: Optional[Dict[str, Any]] = None,
         event_id: CBEventID = "",
+        parent_id: CBEventID = "",
         **kwargs: Any,
     ) -> CBEventID:
         event_id = event_id or str(uuid4())
