@@ -181,6 +181,7 @@ class OpenInferenceTraceCallbackHandler(BaseCallbackHandler):
         event_type: CBEventType,
         payload: Optional[Dict[str, Any]] = None,
         event_id: CBEventID = "",
+        parent_id: CBEventID = "",
         **kwargs: Any,
     ) -> CBEventID:
         event_id = event_id or str(uuid4())
