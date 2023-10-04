@@ -9,7 +9,6 @@ from phoenix.trace.semantic_conventions import (
     EXCEPTION_MESSAGE,
     EXCEPTION_STACKTRACE,
     EXCEPTION_TYPE,
-    MimeType,
 )
 
 
@@ -57,7 +56,7 @@ class SpanKind(Enum):
 TraceID = UUID
 SpanID = UUID
 Message = Mapping[str, str]
-AttributePrimitiveValue = Union[str, bool, float, int, Message, MimeType]
+AttributePrimitiveValue = Union[str, bool, float, int, Message]
 AttributeValue = Union[AttributePrimitiveValue, Sequence[AttributePrimitiveValue]]
 SpanAttributes = Dict[str, AttributeValue]
 
