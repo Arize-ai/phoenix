@@ -54,7 +54,7 @@ export function StreamToggle(props: {
   const totalTraceCount = traceCountData.traceCount.pageInfo.totalCount;
   useEffect(() => {
     if (loadedTraceCountRef.current !== totalTraceCount) {
-      // Update the loaded trace count so the eff
+      // Update the loaded trace count so the effect doesn't fire again
       loadedTraceCountRef.current = totalTraceCount;
       onRefresh();
     }
