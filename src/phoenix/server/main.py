@@ -14,7 +14,12 @@ from phoenix.core.model_schema_adapter import create_model_from_datasets
 from phoenix.core.traces import Traces
 from phoenix.datasets.dataset import EMPTY_DATASET, Dataset
 from phoenix.datasets.fixtures import FIXTURES, get_datasets
-from phoenix.pointcloud.umap_parameters import UMAPParameters
+from phoenix.pointcloud.umap_parameters import (
+    DEFAULT_MIN_DIST,
+    DEFAULT_N_NEIGHBORS,
+    DEFAULT_N_SAMPLES,
+    UMAPParameters,
+)
 from phoenix.server.app import create_app
 from phoenix.trace.fixtures import (
     TRACES_FIXTURES,
@@ -47,6 +52,8 @@ def _get_pid_file() -> Path:
     return get_pids_path() / str(os.getpid())
 
 
+DEFAULT_UMAP_PARAMS_STR = f"{DEFAULT_MIN_DIST},{DEFAULT_N_NEIGHBORS},{DEFAULT_N_SAMPLES}"
+
 if __name__ == "__main__":
     primary_dataset_name: str
     reference_dataset_name: Optional[str]
@@ -64,8 +71,8 @@ if __name__ == "__main__":
     parser.add_argument("--host", type=str, required=False)
     parser.add_argument("--port", type=int, required=False)
     parser.add_argument("--no-internet", action="store_true")
-    parser.add_argument("--umap_params", type=int, required=True)
-    parser.add_argument("--debug", action="store_false")  # TODO: Disable before public launch
+    parser.add_argument("--umap_params", type=str, required=False, default=DEFAULT_UMAP_PARAMS_STR)
+    parser.add_argument("--debug", action="store_false")
     subparsers = parser.add_subparsers(dest="command", required=True)
     datasets_parser = subparsers.add_parser("datasets")
     datasets_parser.add_argument("--primary", type=str, required=True)
@@ -123,7 +130,10 @@ if __name__ == "__main__":
         ):
             traces.put(span)
     umap_params_list = args.umap_params.split(",")
-    umap_params = UMAPParameters(umap_params_list[0], umap_params_list[1], umap_params_list[2])
+    umap_params = UMAPParameters(
+        float(umap_params_list[0]), int(umap_params_list[1]), int(umap_params_list[2])
+    )
+    logger.info(f"Server umap params: {umap_params}")
     app = create_app(
         export_path=export_path,
         model=model,
@@ -132,6 +142,11 @@ if __name__ == "__main__":
         corpus=None if corpus_dataset is None else create_model_from_datasets(corpus_dataset),
         debug=args.debug,
     )
+    host = args.host or get_env_host()
+    port = args.port or get_env_port()
+    server = Server(config=Config(app, host=host, port=port))
+    Thread(target=_write_pid_file_when_ready, args=(server,), daemon=True).start()
+    server.run()
     host = args.host or get_env_host()
     port = args.port or get_env_port()
     server = Server(config=Config(app, host=host, port=port))
