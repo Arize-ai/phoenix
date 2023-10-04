@@ -47,7 +47,7 @@ export function TracingHomePageHeader(props: {
       paddingBottom="size-50"
       flex="none"
     >
-      <Flex direction="row" justifyContent="space-between" alignItems="end">
+      <Flex direction="row" justifyContent="space-between" alignItems="center">
         <Flex direction="row" gap="size-400" alignItems="center">
           <Flex direction="column">
             <Text elementType="h3" textSize="medium" color="text-700">

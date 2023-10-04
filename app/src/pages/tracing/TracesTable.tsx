@@ -19,6 +19,7 @@ import { Flex, Icon, Icons } from "@arizeai/components";
 import { Link } from "@phoenix/components/Link";
 import { TextCell } from "@phoenix/components/table";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
+import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { TableExpandButton } from "@phoenix/components/table/TableExpandButton";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
@@ -317,6 +318,7 @@ export function TracesTable(props: TracesTableProps) {
     getExpandedRowModel: getExpandedRowModel(),
   });
   const rows = table.getRowModel().rows;
+  const isEmpty = rows.length === 0;
   return (
     <div
       css={css`
@@ -364,29 +366,33 @@ export function TracesTable(props: TracesTableProps) {
             </tr>
           ))}
         </thead>
-        <tbody>
-          {rows.map((row) => {
-            return (
-              <tr
-                key={row.id}
-                onClick={() =>
-                  navigate(`traces/${row.original.context.traceId}`)
-                }
-              >
-                {row.getVisibleCells().map((cell) => {
-                  return (
-                    <td key={cell.id}>
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext()
-                      )}
-                    </td>
-                  );
-                })}
-              </tr>
-            );
-          })}
-        </tbody>
+        {isEmpty ? (
+          <TableEmpty />
+        ) : (
+          <tbody>
+            {rows.map((row) => {
+              return (
+                <tr
+                  key={row.id}
+                  onClick={() =>
+                    navigate(`traces/${row.original.context.traceId}`)
+                  }
+                >
+                  {row.getVisibleCells().map((cell) => {
+                    return (
+                      <td key={cell.id}>
+                        {flexRender(
+                          cell.column.columnDef.cell,
+                          cell.getContext()
+                        )}
+                      </td>
+                    );
+                  })}
+                </tr>
+              );
+            })}
+          </tbody>
+        )}
       </table>
     </div>
   );

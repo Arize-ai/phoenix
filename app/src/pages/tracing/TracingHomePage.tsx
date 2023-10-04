@@ -6,8 +6,8 @@ import { css } from "@emotion/react";
 import { TabPane, Tabs } from "@arizeai/components";
 
 import { TracingHomePageQuery } from "./__generated__/TracingHomePageQuery.graphql";
-import { LiveStreamButton } from "./LiveStreamButton";
 import { SpansTable } from "./SpansTable";
+import { StreamToggle } from "./StreamToggle";
 import { TracesTable } from "./TracesTable";
 import { TracingHomePageHeader } from "./TracingHomePageHeader";
 
@@ -32,7 +32,7 @@ export function TracingHomePage() {
         ...SpansTable_spans
         ...TracesTable_spans
         ...TracingHomePageHeader_stats
-        ...LiveStreamButton_data
+        ...StreamToggle_data
       }
     `,
     {},
@@ -70,7 +70,7 @@ export function TracingHomePage() {
     >
       <TracingHomePageHeader
         query={data}
-        extra={<LiveStreamButton query={data} onRefresh={() => refetch()} />}
+        extra={<StreamToggle query={data} onRefresh={() => refetch()} />}
       />
       <Tabs>
         <TabPane name="Traces">
