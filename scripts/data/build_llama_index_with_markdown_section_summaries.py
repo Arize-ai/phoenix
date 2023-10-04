@@ -11,9 +11,11 @@ from llama_index import LLMPredictor, ServiceContext, VectorStoreIndex
 from llama_index.embeddings import OpenAIEmbedding
 from llama_index.llms import OpenAI
 from llama_index.node_parser import SimpleNodeParser
-from llama_index.node_parser.extractors import (MetadataExtractor,
-                                                QuestionsAnsweredExtractor,
-                                                SummaryExtractor)
+from llama_index.node_parser.extractors import (
+    MetadataExtractor,
+    QuestionsAnsweredExtractor,
+    SummaryExtractor,
+)
 from llama_index.schema import Document
 from llama_index.text_splitter import SentenceSplitter
 
