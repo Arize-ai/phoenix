@@ -1,24 +1,21 @@
-import React, { useCallback, useState } from "react";
+import React, { ReactNode } from "react";
 import { graphql, useFragment } from "react-relay";
 
-import { Button, Flex, Icon, Icons, Text, View } from "@arizeai/components";
+import { Flex, Text, View } from "@arizeai/components";
 
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
-import { useInterval } from "@phoenix/hooks/useInterval";
 import { intFormatter } from "@phoenix/utils/numberFormatUtils";
 
 import { TracingHomePageHeader_stats$key } from "./__generated__/TracingHomePageHeader_stats.graphql";
 
-const REFRESH_INTERVAL_MS = 10000;
 export function TracingHomePageHeader(props: {
   query: TracingHomePageHeader_stats$key;
   /**
-   * A callback to call to refetch the page data.
+   * the extra component displayed on the right side of the header
    */
-  onRefresh: () => void;
+  extra: ReactNode;
 }) {
-  const { onRefresh } = props;
-  const [isRefetchEnabled, setIsRefetchEnabled] = useState<boolean>(true);
+  const { extra } = props;
   const data = useFragment<TracingHomePageHeader_stats$key>(
     graphql`
       fragment TracingHomePageHeader_stats on Query {
@@ -38,13 +35,7 @@ export function TracingHomePageHeader(props: {
     `,
     props.query
   );
-  const refetchIfEnabled = useCallback(() => {
-    if (isRefetchEnabled) {
-      onRefresh();
-    }
-  }, [isRefetchEnabled, onRefresh]);
 
-  useInterval(refetchIfEnabled, REFRESH_INTERVAL_MS);
   const latencyMsP50 = data?.traceDatasetInfo?.latencyMsP50;
   const latencyMsP99 = data?.traceDatasetInfo?.latencyMsP99;
   const tokenCountTotal = data?.traceDatasetInfo?.tokenCountTotal;
@@ -56,7 +47,7 @@ export function TracingHomePageHeader(props: {
       paddingBottom="size-50"
       flex="none"
     >
-      <Flex direction="row" justifyContent="space-between" alignItems="center">
+      <Flex direction="row" justifyContent="space-between" alignItems="end">
         <Flex direction="row" gap="size-400" alignItems="center">
           <Flex direction="column">
             <Text elementType="h3" textSize="medium" color="text-700">
@@ -94,26 +85,7 @@ export function TracingHomePageHeader(props: {
             )}
           </Flex>
         </Flex>
-        <Button
-          variant="default"
-          icon={
-            <Icon
-              svg={
-                isRefetchEnabled ? (
-                  <Icons.LoadingOutline />
-                ) : (
-                  <Icons.PauseCircle />
-                )
-              }
-            />
-          }
-          onClick={() => {
-            setIsRefetchEnabled(!isRefetchEnabled);
-            onRefresh();
-          }}
-        >
-          {isRefetchEnabled ? "Streaming" : "Paused"}
-        </Button>
+        {extra}
       </Flex>
     </View>
   );

@@ -1,4 +1,4 @@
-import React, { startTransition, Suspense, useState } from "react";
+import React, { startTransition, Suspense, useCallback, useState } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { Outlet } from "react-router";
 import { css } from "@emotion/react";
@@ -6,17 +6,21 @@ import { css } from "@emotion/react";
 import { TabPane, Tabs } from "@arizeai/components";
 
 import { TracingHomePageQuery } from "./__generated__/TracingHomePageQuery.graphql";
+import { LiveStreamButton } from "./LiveStreamButton";
 import { SpansTable } from "./SpansTable";
 import { TracesTable } from "./TracesTable";
 import { TracingHomePageHeader } from "./TracingHomePageHeader";
 
+/**
+ * Sets the refetch key to trigger a refetch
+ */
 const useRefetch = (): [number, () => void] => {
   const [fetchKey, setFetchKey] = useState<number>(0);
-  const refetch = () => {
+  const refetch = useCallback(() => {
     startTransition(() => {
-      setFetchKey((key) => key + 1);
+      setFetchKey((prev) => prev + 1);
     });
-  };
+  }, [setFetchKey]);
   return [fetchKey, refetch];
 };
 
@@ -28,6 +32,7 @@ export function TracingHomePage() {
         ...SpansTable_spans
         ...TracesTable_spans
         ...TracingHomePageHeader_stats
+        ...LiveStreamButton_data
       }
     `,
     {},
@@ -63,7 +68,10 @@ export function TracingHomePage() {
         }
       `}
     >
-      <TracingHomePageHeader query={data} onRefresh={refetch} />
+      <TracingHomePageHeader
+        query={data}
+        extra={<LiveStreamButton query={data} onRefresh={() => refetch()} />}
+      />
       <Tabs>
         <TabPane name="Traces">
           {({ isSelected }) => {
