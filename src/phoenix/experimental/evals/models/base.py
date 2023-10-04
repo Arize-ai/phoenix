@@ -8,7 +8,6 @@ if TYPE_CHECKING:
 
 from tenacity import (
     RetryCallState,
-    before_sleep_log,
     retry,
     retry_base,
     retry_if_exception_type,
@@ -30,47 +29,40 @@ TQDM_BAR_FORMAT = (
 )
 
 
-def truncate_with_ellipsis(s, max_length):
-    """Truncate the string `s` to a maximum length of `max_length`
-    and append an ellipsis (...) if truncated."""
-    return s if len(s) <= max_length else s[:max_length-3] + '...'
-
-
-def create_base_retry_decorator(
-    error_types: List[Type[BaseException]],
-    min_seconds: int,
-    max_seconds: int,
-    max_retries: int,
-    verbose: bool = False,
-) -> Callable[[Any], Any]:
-    """Create a retry decorator for a given LLM and provided list of error types."""
-
-    # TODO: Nice logging. The logging implemented is huge and overwhelming
-
-    def log_retry(retry_state: RetryCallState) -> None:
-        exc = retry_state.outcome.exception()
-        if verbose:
-            if exc:
-                print(f"Failed attempt {retry_state.attempt_number}: raised {repr(exc)}")
-            else:
-                print(f"Failed attempt {retry_state.attempt_number}")
-        return None
-
-    retry_instance: retry_base = retry_if_exception_type(error_types[0])
-    for error in error_types[1:]:
-        retry_instance = retry_instance | retry_if_exception_type(error)
-    return retry(
-        reraise=True,
-        stop=stop_after_attempt(max_retries),
-        wait=wait_random_exponential(multiplier=1, min=min_seconds, max=max_seconds),
-        retry=retry_instance,
-        before_sleep=log_retry,
-    )
-
-
 @dataclass
 class BaseEvalModel(ABC):
     _verbose: bool = False
+
+    def retry(
+        self,
+        error_types: List[Type[BaseException]],
+        min_seconds: int,
+        max_seconds: int,
+        max_retries: int,
+    ) -> Callable[[Any], Any]:
+        """Create a retry decorator for a given LLM and provided list of error types."""
+
+        # TODO: Nice logging. The logging implemented is huge and overwhelming
+
+        def log_retry(retry_state: RetryCallState) -> None:
+            exc = retry_state.outcome.exception()
+            if self._verbose:
+                if exc:
+                    print(f"Failed attempt {retry_state.attempt_number}: raised {repr(exc)}")
+                else:
+                    print(f"Failed attempt {retry_state.attempt_number}")
+            return None
+
+        retry_instance: retry_base = retry_if_exception_type(error_types[0])
+        for error in error_types[1:]:
+            retry_instance = retry_instance | retry_if_exception_type(error)
+        return retry(
+            reraise=True,
+            stop=stop_after_attempt(max_retries),
+            wait=wait_random_exponential(multiplier=1, min=min_seconds, max=max_seconds),
+            retry=retry_instance,
+            before_sleep=log_retry,
+        )
 
     def __call__(self, prompt: str, instruction: Optional[str] = None) -> str:
         """Run the LLM on the given prompt."""

@@ -96,15 +96,13 @@ class VertexAIModel(BaseEvalModel):
             self._google_exceptions.Aborted,
             self._google_exceptions.DeadlineExceeded,
         ]
-        retry_decorator = create_base_retry_decorator(
+
+        @self.retry(
             error_types=google_api_retry_errors,
             min_seconds=self.retry_min_seconds,
             max_seconds=self.retry_max_seconds,
             max_retries=self.max_retries,
-            verbose=self._verbose,
         )
-
-        @retry_decorator
         def _completion_with_retry(**kwargs: Any) -> Any:
             return self._model.predict(**kwargs)
 

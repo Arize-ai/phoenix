@@ -153,15 +153,13 @@ class OpenAIModel(BaseEvalModel):
             self._openai_error.RateLimitError,
             self._openai_error.ServiceUnavailableError,
         ]
-        retry_decorator = create_base_retry_decorator(
+
+        @self.retry(
             error_types=openai_retry_errors,
             min_seconds=self.retry_min_seconds,
             max_seconds=self.retry_max_seconds,
             max_retries=self.max_retries,
-            verbose=self._verbose,
         )
-
-        @retry_decorator
         def _completion_with_retry(**kwargs: Any) -> Any:
             return self._openai.ChatCompletion.create(**kwargs)
 
