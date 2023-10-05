@@ -237,7 +237,6 @@ def test_llm_eval_binary_does_not_persist_verbose_flag(monkeypatch: pytest.Monke
             template=RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
             model=model,
             rails=["relevant", "irrelevant"],
-            verbose=False,
         )
 
     out, _ = capfd.readouterr()
