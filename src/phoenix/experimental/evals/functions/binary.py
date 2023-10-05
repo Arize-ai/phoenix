@@ -57,10 +57,10 @@ def llm_eval_binary(
         be parsed.
     """
 
-    with set_verbosity(model, verbose) as m:
+    with set_verbosity(model, verbose) as verbose_model:
         eval_template = normalize_template(template)
         prompts = map_template(dataframe, eval_template)
-        responses = m.generate(prompts.to_list(), instruction=system_instruction)
+        responses = verbose_model.generate(prompts.to_list(), instruction=system_instruction)
         rails_set = set(rails)
         printif(verbose, f"Snapping {len(responses)} responses to rails: {rails_set}")
         return [_snap_to_rail(response, rails_set, verbose=verbose) for response in responses]
@@ -128,7 +128,7 @@ def run_relevance_eval(
         be parsed.
     """
 
-    with set_verbosity(model, verbose) as m:
+    with set_verbosity(model, verbose) as verbose_model:
         query_column = dataframe.get(query_column_name)
         document_column = dataframe.get(document_column_name)
         if query_column is None or document_column is None:
@@ -166,7 +166,7 @@ def run_relevance_eval(
                     document_column_name: expanded_documents,
                 }
             ),
-            model=m,
+            model=verbose_model,
             template=template,
             rails=rails,
             system_instruction=system_instruction,

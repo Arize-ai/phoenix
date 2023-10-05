@@ -41,11 +41,11 @@ def llm_generate(
         model for each record
 
     """
-    with set_verbosity(model, verbose) as m:
+    with set_verbosity(model, verbose) as verbose_model:
         template = normalize_template(template)
         logger.info(f"Template: \n{template.text}\n")
         logger.info(f"Template variables: {template.variables}")
         prompts = map_template(dataframe, template)
 
-        responses = m.generate(prompts.to_list(), system_instruction)
+        responses = verbose_model.generate(prompts.to_list(), system_instruction)
         return responses
