@@ -223,14 +223,26 @@ export function EmbeddingPage() {
   const { timeRange } = useTimeRange();
   // Initialize the store based on whether or not there is a reference dataset
   const defaultPointCloudProps = useMemo<Partial<PointCloudProps>>(() => {
+    let defaultPointCloudProps: Partial<PointCloudProps> = {};
     if (corpusDataset != null) {
       // If there is a corpus dataset, then initialize the page with the retrieval troubleshooting settings
       // TODO - this does make a bit of a leap of assumptions but is a short term solution in order to get the page working as intended
-      return DEFAULT_RETRIEVAL_TROUBLESHOOTING_POINT_CLOUD_PROPS;
+      defaultPointCloudProps =
+        DEFAULT_RETRIEVAL_TROUBLESHOOTING_POINT_CLOUD_PROPS;
     } else if (referenceDataset != null) {
-      return DEFAULT_DRIFT_POINT_CLOUD_PROPS;
+      defaultPointCloudProps = DEFAULT_DRIFT_POINT_CLOUD_PROPS;
+    } else {
+      defaultPointCloudProps = DEFAULT_SINGLE_DATASET_POINT_CLOUD_PROPS;
     }
-    return DEFAULT_SINGLE_DATASET_POINT_CLOUD_PROPS;
+
+    // Apply the UMAP parameters from the server-sent config
+    defaultPointCloudProps = {
+      ...defaultPointCloudProps,
+      umapParameters: {
+        ...window.Config.UMAP,
+      },
+    };
+    return defaultPointCloudProps;
   }, [corpusDataset, referenceDataset]);
   return (
     <TimeSliceContextProvider initialTimestamp={timeRange.end}>
