@@ -107,9 +107,9 @@ class OpenAIModel(BaseEvalModel):
         self.openai_organization = self.openai_organization or self._openai.organization
         # use enum to validate api type
         self._openai_util.ApiType.from_str(self.openai_api_type)  # type: ignore
-        self.is_azure = self.openai_api_type.lower().startswith("azure")
+        self._is_azure = self.openai_api_type.lower().startswith("azure")
 
-        if self.is_azure:
+        if self._is_azure:
             if not self.engine:
                 raise ValueError(
                     "You must provide the deployment name in the 'engine' parameter "
@@ -204,7 +204,7 @@ class OpenAIModel(BaseEvalModel):
     @property
     def invocation_params(self) -> Dict[str, Any]:
         return {
-            **({"engine": self.engine} if self.is_azure else {"model": self.model_name}),
+            **({"engine": self.engine} if self._is_azure else {"model": self.model_name}),
             **self._default_params,
             **self._credentials,
             **self.model_kwargs,
