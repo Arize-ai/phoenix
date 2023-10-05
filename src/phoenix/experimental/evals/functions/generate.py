@@ -4,8 +4,7 @@ from typing import List, Optional, Union
 import pandas as pd
 
 from phoenix.experimental.evals.models import BaseEvalModel, set_verbosity
-from phoenix.experimental.evals.templates import (PromptTemplate, map_template,
-                                                  normalize_template)
+from phoenix.experimental.evals.templates import PromptTemplate, map_template, normalize_template
 
 logger = logging.getLogger(__name__)
 
