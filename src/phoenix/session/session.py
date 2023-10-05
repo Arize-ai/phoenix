@@ -311,7 +311,7 @@ def launch_app(
         variable `PHOENIX_HOST`, otherwise it defaults to `127.0.0.1`.
     port: int, optional
         The port on which the server listens. When using traces this should not be
-        used and should instead set the environment variable `PHOENIX_PORT`. 
+        used and should instead set the environment variable `PHOENIX_PORT`.
         Defaults to 6060.
     run_in_thread: bool, optional, default=True
         Whether the server should run in a Thread or Process.
