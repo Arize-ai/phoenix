@@ -3,7 +3,7 @@ from typing import List, Optional, Union
 
 import pandas as pd
 
-from ..models import BaseEvalModel
+from ..models import BaseEvalModel, set_verbosity
 from ..templates import PromptTemplate, map_template, normalize_template
 
 logger = logging.getLogger(__name__)
@@ -39,11 +39,11 @@ def llm_generate(
         model for each record
 
     """
-    model._verbose = verbose
-    template = normalize_template(template)
-    logger.info(f"Template: \n{template.text}\n")
-    logger.info(f"Template variables: {template.variables}")
-    prompts = map_template(dataframe, template)
+    with set_verbosity(model, verbose) as m:
+        template = normalize_template(template)
+        logger.info(f"Template: \n{template.text}\n")
+        logger.info(f"Template variables: {template.variables}")
+        prompts = map_template(dataframe, template)
 
-    responses = model.generate(prompts.to_list(), system_instruction)
-    return responses
+        responses = m.generate(prompts.to_list(), system_instruction)
+        return responses

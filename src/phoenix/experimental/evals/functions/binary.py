@@ -3,11 +3,7 @@ from typing import Any, Iterable, List, Optional, Set, Union, cast
 
 import pandas as pd
 
-from phoenix.utilities.logging import printif
-from phoenix.trace.semantic_conventions import DOCUMENT_CONTENT, INPUT_VALUE, RETRIEVAL_DOCUMENTS
-from phoenix.utilities.logging import printif
-
-from phoenix.experimental.evals.models import BaseEvalModel
+from phoenix.experimental.evals.models import BaseEvalModel, set_verbosity
 from phoenix.experimental.evals.templates import (
     NOT_PARSABLE,
     RAG_RELEVANCY_PROMPT_RAILS_MAP,
@@ -16,6 +12,8 @@ from phoenix.experimental.evals.templates import (
     map_template,
     normalize_template,
 )
+from phoenix.trace.semantic_conventions import DOCUMENT_CONTENT, INPUT_VALUE, RETRIEVAL_DOCUMENTS
+from phoenix.utilities.logging import printif
 
 logger = logging.getLogger(__name__)
 
@@ -57,13 +55,13 @@ def llm_eval_binary(
         be parsed.
     """
 
-    model._verbose = verbose
-    eval_template = normalize_template(template)
-    prompts = map_template(dataframe, eval_template)
-    responses = model.generate(prompts.to_list(), instruction=system_instruction)
-    rails_set = set(rails)
-    printif(verbose, f"Snapping {len(responses)} responses to rails: {rails_set}")
-    return [_snap_to_rail(response, rails_set, verbose=verbose) for response in responses]
+    with set_verbosity(model, verbose) as m:
+        eval_template = normalize_template(template)
+        prompts = map_template(dataframe, eval_template)
+        responses = m.generate(prompts.to_list(), instruction=system_instruction)
+        rails_set = set(rails)
+        printif(verbose, f"Snapping {len(responses)} responses to rails: {rails_set}")
+        return [_snap_to_rail(response, rails_set, verbose=verbose) for response in responses]
 
 
 def run_relevance_eval(
@@ -126,53 +124,54 @@ def run_relevance_eval(
         be parsed.
     """
 
-    model._verbose = verbose
-    query_column = dataframe.get(query_column_name)
-    document_column = dataframe.get(document_column_name)
-    if query_column is None or document_column is None:
-        openinference_query_column = dataframe.get(OPENINFERENCE_QUERY_COLUMN_NAME)
-        openinference_document_column = dataframe.get(OPENINFERENCE_DOCUMENT_COLUMN_NAME)
-        if openinference_query_column is None or openinference_document_column is None:
-            raise ValueError(
-                f'Dataframe columns must include either "{query_column_name}" and '
-                f'"{document_column_name}", or "{OPENINFERENCE_QUERY_COLUMN_NAME}" and '
-                f'"{OPENINFERENCE_DOCUMENT_COLUMN_NAME}".'
+    with set_verbosity(model, verbose) as m:
+        query_column = dataframe.get(query_column_name)
+        document_column = dataframe.get(document_column_name)
+        if query_column is None or document_column is None:
+            openinference_query_column = dataframe.get(OPENINFERENCE_QUERY_COLUMN_NAME)
+            openinference_document_column = dataframe.get(OPENINFERENCE_DOCUMENT_COLUMN_NAME)
+            if openinference_query_column is None or openinference_document_column is None:
+                raise ValueError(
+                    f'Dataframe columns must include either "{query_column_name}" and '
+                    f'"{document_column_name}", or "{OPENINFERENCE_QUERY_COLUMN_NAME}" and '
+                    f'"{OPENINFERENCE_DOCUMENT_COLUMN_NAME}".'
+                )
+            query_column = openinference_query_column
+            document_column = openinference_document_column.map(
+                lambda docs: _get_contents_from_openinference_documents(docs)
+                if docs is not None
+                else None
             )
-        query_column = openinference_query_column
-        document_column = openinference_document_column.map(
-            lambda docs: _get_contents_from_openinference_documents(docs)
-            if docs is not None
-            else None
-        )
 
-    queries = cast("pd.Series[str]", query_column).tolist()
-    document_lists = cast("pd.Series[str]", document_column).tolist()
-    indexes = []
-    expanded_queries = []
-    expanded_documents = []
-    for index, (query, documents) in enumerate(zip(queries, document_lists)):
-        if query is None or documents is None:
-            continue
-        for document in documents:
-            indexes.append(index)
-            expanded_queries.append(query)
-            expanded_documents.append(document)
-    predictions = llm_eval_binary(
-        dataframe=pd.DataFrame(
-            {
-                query_column_name: expanded_queries,
-                document_column_name: expanded_documents,
-            }
-        ),
-        model=model,
-        template=template,
-        rails=rails,
-        system_instruction=system_instruction,
-    )
-    outputs: List[List[str]] = [[] for _ in range(len(dataframe))]
-    for index, prediction in zip(indexes, predictions):
-        outputs[index].append(prediction)
-    return outputs
+        queries = cast("pd.Series[str]", query_column).tolist()
+        document_lists = cast("pd.Series[str]", document_column).tolist()
+        indexes = []
+        expanded_queries = []
+        expanded_documents = []
+        for index, (query, documents) in enumerate(zip(queries, document_lists)):
+            if query is None or documents is None:
+                continue
+            for document in documents:
+                indexes.append(index)
+                expanded_queries.append(query)
+                expanded_documents.append(document)
+        predictions = llm_eval_binary(
+            dataframe=pd.DataFrame(
+                {
+                    query_column_name: expanded_queries,
+                    document_column_name: expanded_documents,
+                }
+            ),
+            model=m,
+            template=template,
+            rails=rails,
+            system_instruction=system_instruction,
+            verbose=verbose,
+        )
+        outputs: List[List[str]] = [[] for _ in range(len(dataframe))]
+        for index, prediction in zip(indexes, predictions):
+            outputs[index].append(prediction)
+        return outputs
 
 
 def _get_contents_from_openinference_documents(documents: Iterable[Any]) -> List[Optional[str]]:

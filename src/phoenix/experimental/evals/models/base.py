@@ -1,7 +1,8 @@
 import logging
 from abc import ABC, abstractmethod, abstractproperty
+from contextlib import contextmanager
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Type
+from typing import TYPE_CHECKING, Any, Callable, Dict, Generator, List, Optional, Type
 
 if TYPE_CHECKING:
     from tiktoken import Encoding
@@ -30,6 +31,17 @@ TQDM_BAR_FORMAT = (
 )
 
 
+@contextmanager
+def set_verbosity(
+    model: "BaseEvalModel", verbose: bool = False
+) -> Generator["BaseEvalModel", None, None]:
+    try:
+        model._verbose = verbose
+        yield model
+    finally:
+        model._verbose = False
+
+
 @dataclass
 class BaseEvalModel(ABC):
     _verbose: bool = False
@@ -48,7 +60,10 @@ class BaseEvalModel(ABC):
         def log_retry(retry_state: RetryCallState) -> None:
             exc = retry_state.outcome.exception()
             if exc:
-                printif(self._verbose, f"Failed attempt {retry_state.attempt_number}: raised {repr(exc)}")
+                printif(
+                    self._verbose,
+                    f"Failed attempt {retry_state.attempt_number}: raised {repr(exc)}",
+                )
             else:
                 printif(self._verbose, f"Failed attempt {retry_state.attempt_number}")
             return None
