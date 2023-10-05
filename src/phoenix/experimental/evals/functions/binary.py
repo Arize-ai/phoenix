@@ -48,6 +48,8 @@ def llm_eval_binary(
 
         system_instruction (Optional[str], optional): An optional system message.
 
+        verbose (bool, optional): If `True`, prints detailed information to `stdout`. Default `False`.
+
     Returns:
         List[str]: A list of strings representing the predicted class for each record in the
         dataframe. The list should have the same length as the input dataframe and its values should
@@ -114,6 +116,8 @@ def run_relevance_eval(
         which should also be a template variable.
 
         system_instruction (Optional[str], optional): An optional system message.
+
+        verbose (bool, optional): If `True`, prints detailed information to `stdout`. Default `False`.
 
     Returns:
         List[List[str]]: A list of relevant and not relevant classifications. The "shape" of the

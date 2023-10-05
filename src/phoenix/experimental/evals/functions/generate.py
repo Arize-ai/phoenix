@@ -3,8 +3,9 @@ from typing import List, Optional, Union
 
 import pandas as pd
 
-from ..models import BaseEvalModel, set_verbosity
-from ..templates import PromptTemplate, map_template, normalize_template
+from phoenix.experimental.evals.models import BaseEvalModel, set_verbosity
+from phoenix.experimental.evals.templates import (PromptTemplate, map_template,
+                                                  normalize_template)
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +35,8 @@ def llm_generate(
 
         system_instruction (Optional[str], optional): An optional system
         message.
+
+        verbose (bool, optional): If `True`, prints detailed information to `stdout`. Default `False`.
     Returns:
         List[Optional[str]]: A list of strings representing the output of the
         model for each record
