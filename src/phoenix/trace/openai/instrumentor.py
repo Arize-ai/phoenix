@@ -186,7 +186,7 @@ def _output_value(response: "OpenAIResponse") -> str:
     return json.dumps(response.data)
 
 
-def _output_mime_type(response: "OpenAIResponse") -> MimeType:
+def _output_mime_type(_: Any) -> MimeType:
     return MimeType.JSON
 
 
