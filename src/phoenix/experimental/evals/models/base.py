@@ -147,7 +147,8 @@ class BaseEvalModel(ABC):
         return result
 
     def _verbose_generation_info(self) -> Optional[str]:
-        # if defined, returns additional model-specific information to display if `generate` is run with `verbose=True`
+        # if defined, returns additional model-specific information to display if `generate` is
+        # run with `verbose=True`
         return None
 
     @abstractmethod

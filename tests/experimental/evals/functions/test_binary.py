@@ -5,7 +5,6 @@ import numpy as np
 import pandas as pd
 import pytest
 import responses
-
 from phoenix.experimental.evals import (
     NOT_PARSABLE,
     RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
