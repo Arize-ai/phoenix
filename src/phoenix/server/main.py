@@ -64,6 +64,7 @@ def _load_spans(
             sleep(random())
         traces.put(span)
 
+
 DEFAULT_UMAP_PARAMS_STR = f"{DEFAULT_MIN_DIST},{DEFAULT_N_NEIGHBORS},{DEFAULT_N_SAMPLES}"
 
 if __name__ == "__main__":
