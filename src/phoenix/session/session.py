@@ -177,7 +177,7 @@ class ProcessSession(Session):
         reference_dataset: Optional[Dataset] = None,
         corpus_dataset: Optional[Dataset] = None,
         trace_dataset: Optional[TraceDataset] = None,
-        default_umap_parameters: Optional[Dict[str, Union[int, float]]] = None,
+        default_umap_parameters: Optional[Mapping[str, Any]] = None,
         host: Optional[str] = None,
         port: Optional[int] = None,
     ) -> None:
