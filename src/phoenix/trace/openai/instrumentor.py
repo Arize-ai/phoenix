@@ -116,7 +116,7 @@ def _wrap_openai_api_requestor(
                 attribute_name,
                 get_parameter_attribute_fn,
             ) in _PARAMETER_ATTRIBUTE_FUNCTIONS.items():
-                if attribute_value := get_parameter_attribute_fn(parameters):
+                if (attribute_value := get_parameter_attribute_fn(parameters)) is not None:
                     attributes[attribute_name] = attribute_value
             outputs = None
             try:
@@ -144,7 +144,7 @@ def _wrap_openai_api_requestor(
                         attribute_name,
                         get_response_attribute_fn,
                     ) in _RESPONSE_ATTRIBUTE_FUNCTIONS.items():
-                        if attribute_value := get_response_attribute_fn(response):
+                        if (attribute_value := get_response_attribute_fn(response)) is not None:
                             attributes[attribute_name] = attribute_value
                 tracer.create_span(
                     name="openai.ChatCompletion.create",
