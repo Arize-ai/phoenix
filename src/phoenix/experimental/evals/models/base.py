@@ -36,10 +36,11 @@ def set_verbosity(
     model: "BaseEvalModel", verbose: bool = False
 ) -> Generator["BaseEvalModel", None, None]:
     try:
+        _verbose = model._verbose
         model._verbose = verbose
         yield model
     finally:
-        model._verbose = False
+        model._verbose = _verbose
 
 
 @dataclass
