@@ -67,8 +67,8 @@ def run_relevance_eval(
     template: Union[PromptTemplate, str] = RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
     rails: List[str] = list(RAG_RELEVANCY_PROMPT_RAILS_MAP.values()),
     system_instruction: Optional[str] = None,
-    query_column_name: str = "query",
-    document_column_name: str = "reference",
+    query_variable_name: str = "query",
+    document_variable_name: str = "reference",
 ) -> List[List[str]]:
     """
     Given a pandas dataframe containing queries and retrieved documents, classifies the relevance of
@@ -103,11 +103,13 @@ def run_relevance_eval(
         rails (List[str], optional): A list of strings representing the possible output classes of
         the model's predictions.
 
-        query_column_name (str, optional): The name of the query column in the dataframe, which
-        should also be a template variable.
+        query_variable_name (str, optional): The name of the query variable in the evaluation prompt
+        template. This must also be a column in the dataframe, unless the dataframe is in
+        OpenInference trace format.
 
-        reference_column_name (str, optional): The name of the document column in the dataframe,
-        which should also be a template variable.
+        reference_variable_name (str, optional): The name of the reference variable in the
+        evaluation prompt template. This must also be a column in the dataframe, unless the
+        dataframe is in OpenInference trace format.
 
         system_instruction (Optional[str], optional): An optional system message.
 
@@ -120,15 +122,15 @@ def run_relevance_eval(
         be parsed.
     """
 
-    query_column = dataframe.get(query_column_name)
-    document_column = dataframe.get(document_column_name)
+    query_column = dataframe.get(query_variable_name)
+    document_column = dataframe.get(document_variable_name)
     if query_column is None or document_column is None:
         openinference_query_column = dataframe.get(OPENINFERENCE_QUERY_COLUMN_NAME)
         openinference_document_column = dataframe.get(OPENINFERENCE_DOCUMENT_COLUMN_NAME)
         if openinference_query_column is None or openinference_document_column is None:
             raise ValueError(
-                f'Dataframe columns must include either "{query_column_name}" and '
-                f'"{document_column_name}", or "{OPENINFERENCE_QUERY_COLUMN_NAME}" and '
+                f'Dataframe columns must include either "{query_variable_name}" and '
+                f'"{document_variable_name}", or "{OPENINFERENCE_QUERY_COLUMN_NAME}" and '
                 f'"{OPENINFERENCE_DOCUMENT_COLUMN_NAME}".'
             )
         query_column = openinference_query_column
@@ -153,8 +155,8 @@ def run_relevance_eval(
     predictions = llm_eval_binary(
         dataframe=pd.DataFrame(
             {
-                query_column_name: expanded_queries,
-                document_column_name: expanded_documents,
+                query_variable_name: expanded_queries,
+                document_variable_name: expanded_documents,
             }
         ),
         model=model,
