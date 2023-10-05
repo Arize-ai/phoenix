@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Dict, Optional, Union
+from typing import Any, Mapping, Optional
 
 DEFAULT_MIN_DIST = 0.0
 DEFAULT_N_NEIGHBORS = 30
@@ -42,9 +42,7 @@ class UMAPParameters:
             )
 
 
-def get_umap_parameters(
-    default_umap_parameters: Optional[Dict[str, Union[int, float]]]
-) -> UMAPParameters:
+def get_umap_parameters(default_umap_parameters: Optional[Mapping[str, Any]]) -> UMAPParameters:
     if not default_umap_parameters:
         return UMAPParameters()
     return UMAPParameters(

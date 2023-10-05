@@ -5,7 +5,15 @@ from collections import UserList
 from datetime import datetime
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import TYPE_CHECKING, Dict, Iterable, List, Optional, Set, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Iterable,
+    List,
+    Mapping,
+    Optional,
+    Set,
+)
 
 import pandas as pd
 
@@ -70,7 +78,7 @@ class Session(ABC):
         reference_dataset: Optional[Dataset] = None,
         corpus_dataset: Optional[Dataset] = None,
         trace_dataset: Optional[TraceDataset] = None,
-        default_umap_parameters: Optional[Dict[str, Union[int, float]]] = None,
+        default_umap_parameters: Optional[Mapping[str, Any]] = None,
         host: Optional[str] = None,
         port: Optional[int] = None,
     ):
