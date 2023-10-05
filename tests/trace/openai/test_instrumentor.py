@@ -16,6 +16,7 @@ from phoenix.trace.semantic_conventions import (
     LLM_FUNCTION_CALL,
     LLM_INPUT_MESSAGES,
     LLM_INVOCATION_PARAMETERS,
+    LLM_OUTPUT_MESSAGES,
     LLM_TOKEN_COUNT_COMPLETION,
     LLM_TOKEN_COUNT_PROMPT,
     LLM_TOKEN_COUNT_TOTAL,
@@ -92,21 +93,21 @@ def test_openai_instrumentor_includes_llm_attributes_on_chat_completion_success(
     assert attributes[LLM_INPUT_MESSAGES] == [
         {MESSAGE_ROLE: "user", MESSAGE_CONTENT: "Who won the World Cup in 2018?"}
     ]
-    assert json.loads(attributes[LLM_INVOCATION_PARAMETERS]) == {
-        "model": model,
-        "messages": messages,
-        "temperature": temperature,
-    }
+    assert (
+        json.loads(attributes[LLM_INVOCATION_PARAMETERS])
+        == json.loads(attributes[INPUT_VALUE])
+        == {
+            "model": model,
+            "messages": messages,
+            "temperature": temperature,
+        }
+    )
+    assert attributes[INPUT_MIME_TYPE] == MimeType.JSON
     assert isinstance(attributes[LLM_TOKEN_COUNT_COMPLETION], int)
     assert isinstance(attributes[LLM_TOKEN_COUNT_PROMPT], int)
     assert isinstance(attributes[LLM_TOKEN_COUNT_TOTAL], int)
 
-    assert json.loads(attributes[INPUT_VALUE]) == [
-        {"role": "user", "content": "Who won the World Cup in 2018?"}
-    ]
-    assert attributes[INPUT_MIME_TYPE] == MimeType.JSON
-
-    choices = json.loads(attributes[OUTPUT_VALUE])
+    choices = json.loads(attributes[OUTPUT_VALUE])["choices"]
     assert len(choices) == 1
     response_content = choices[0]["message"]["content"]
     assert "france" in response_content.lower() or "french" in response_content.lower()
@@ -182,11 +183,19 @@ def test_openai_instrumentor_includes_function_call_attributes(
     assert attributes[LLM_INPUT_MESSAGES] == [
         {MESSAGE_ROLE: "user", MESSAGE_CONTENT: "What is the weather like in Boston, MA?"},
     ]
+    assert attributes[LLM_OUTPUT_MESSAGES] == [
+        {
+            MESSAGE_ROLE: "assistant",
+            MESSAGE_FUNCTION_CALL_NAME: "get_current_weather",
+            MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON: '{\n  "location": "Boston, MA"\n}',
+        }
+    ]
     assert json.loads(attributes[LLM_INVOCATION_PARAMETERS]) == {
         "model": model,
         "messages": messages,
         "functions": functions,
     }
+
     function_call_attributes = json.loads(attributes[LLM_FUNCTION_CALL])
     assert set(function_call_attributes.keys()) == {"name", "arguments"}
     assert function_call_attributes["name"] == "get_current_weather"
@@ -275,7 +284,6 @@ def test_openai_instrumentor_includes_function_call_message_attributes(
         {MESSAGE_ROLE: "user", MESSAGE_CONTENT: "What is the weather like in Boston?"},
         {
             MESSAGE_ROLE: "assistant",
-            MESSAGE_CONTENT: None,
             MESSAGE_FUNCTION_CALL_NAME: "get_current_weather",
             MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON: '{"location": "Boston, MA"}',
         },
@@ -284,6 +292,9 @@ def test_openai_instrumentor_includes_function_call_message_attributes(
             MESSAGE_NAME: "get_current_weather",
             MESSAGE_CONTENT: '{"temperature": "22", "unit": "celsius", "description": "Sunny"}',
         },
+    ]
+    assert attributes[LLM_OUTPUT_MESSAGES] == [
+        {MESSAGE_ROLE: "assistant", MESSAGE_CONTENT: response_text}
     ]
     assert json.loads(attributes[LLM_INVOCATION_PARAMETERS]) == {
         "model": model,

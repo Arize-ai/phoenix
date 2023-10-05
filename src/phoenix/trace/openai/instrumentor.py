@@ -26,6 +26,7 @@ from phoenix.trace.semantic_conventions import (
     LLM_FUNCTION_CALL,
     LLM_INPUT_MESSAGES,
     LLM_INVOCATION_PARAMETERS,
+    LLM_OUTPUT_MESSAGES,
     LLM_TOKEN_COUNT_COMPLETION,
     LLM_TOKEN_COUNT_PROMPT,
     LLM_TOKEN_COUNT_TOTAL,
@@ -47,7 +48,7 @@ if TYPE_CHECKING:
 
 
 Parameters = Mapping[str, Any]
-Message = Dict[str, str]
+OpenInferenceMessage = Dict[str, str]
 
 INSTRUMENTED_ATTRIBUTE_NAME = "is_instrumented_with_openinference_tracer"
 
@@ -162,29 +163,18 @@ def _wrap_openai_api_requestor(
 
 
 def _input_value(parameters: Parameters) -> Optional[str]:
-    return json.dumps(messages) if (messages := parameters.get("messages")) else None
+    return json.dumps(parameters)
 
 
 def _input_mime_type(parameters: Parameters) -> MimeType:
     return MimeType.JSON
 
 
-def _llm_input_messages(parameters: Parameters) -> Optional[List[Message]]:
+def _llm_input_messages(parameters: Parameters) -> Optional[List[OpenInferenceMessage]]:
     if not (messages := parameters.get("messages")):
         return None
 
-    llm_input_messages = []
-    for message in messages:
-        openinference_message = {MESSAGE_CONTENT: message["content"], MESSAGE_ROLE: message["role"]}
-        if function_call_data := message.get("function_call"):
-            openinference_message[MESSAGE_FUNCTION_CALL_NAME] = function_call_data["name"]
-            openinference_message[MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON] = function_call_data[
-                "arguments"
-            ]
-        if name := message.get("name"):
-            openinference_message[MESSAGE_NAME] = name
-        llm_input_messages.append(openinference_message)
-    return llm_input_messages
+    return [_to_openinference_message(message, expects_name=True) for message in messages]
 
 
 def _llm_invocation_parameters(
@@ -194,11 +184,18 @@ def _llm_invocation_parameters(
 
 
 def _output_value(response: "OpenAIResponse") -> str:
-    return json.dumps(response.data["choices"])
+    return json.dumps(response.data)
 
 
 def _output_mime_type(response: "OpenAIResponse") -> MimeType:
     return MimeType.JSON
+
+
+def _llm_output_messages(response: "OpenAIResponse") -> Any:
+    return [
+        _to_openinference_message(choice["message"], expects_name=False)
+        for choice in response.data["choices"]
+    ]
 
 
 def _llm_token_count_prompt(response: "OpenAIResponse") -> Optional[int]:
@@ -242,6 +239,36 @@ def _get_request_type(url: str) -> Optional[RequestType]:
     return None
 
 
+def _to_openinference_message(
+    message: Dict[str, Any], *, expects_name: bool
+) -> OpenInferenceMessage:
+    """Converts an OpenAI input or output message to an OpenInference message.
+
+    Args:
+        message (Dict[str, Any]): The OpenAI message to be parsed.
+
+        expects_name (bool): Whether to parse the "name" key in the OpenAI message. This key is
+        sometimes included in "function"-role input messages to specify the function name, but is
+        not included in output messages.
+
+    Returns:
+        OpenInferenceMessage: A message in OpenInference format.
+    """
+    openinference_message = {}
+    if role := message.get("role"):
+        openinference_message[MESSAGE_ROLE] = role
+    if content := message.get("content"):
+        openinference_message[MESSAGE_CONTENT] = content
+    if function_call_data := message.get("function_call"):
+        if function_name := function_call_data.get("name"):
+            openinference_message[MESSAGE_FUNCTION_CALL_NAME] = function_name
+        if function_arguments := function_call_data.get("arguments"):
+            openinference_message[MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON] = function_arguments
+    if expects_name and (name := message.get("name")):
+        openinference_message[MESSAGE_NAME] = name
+    return openinference_message
+
+
 _PARAMETER_ATTRIBUTE_FUNCTIONS: Dict[str, Callable[[Parameters], Any]] = {
     INPUT_VALUE: _input_value,
     INPUT_MIME_TYPE: _input_mime_type,
@@ -251,6 +278,7 @@ _PARAMETER_ATTRIBUTE_FUNCTIONS: Dict[str, Callable[[Parameters], Any]] = {
 _RESPONSE_ATTRIBUTE_FUNCTIONS: Dict[str, Callable[["OpenAIResponse"], Any]] = {
     OUTPUT_VALUE: _output_value,
     OUTPUT_MIME_TYPE: _output_mime_type,
+    LLM_OUTPUT_MESSAGES: _llm_output_messages,
     LLM_TOKEN_COUNT_PROMPT: _llm_token_count_prompt,
     LLM_TOKEN_COUNT_COMPLETION: _llm_token_count_completion,
     LLM_TOKEN_COUNT_TOTAL: _llm_token_count_total,
