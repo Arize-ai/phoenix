@@ -25,9 +25,13 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class OpenAIModel(BaseEvalModel):
+    openai_api_type: Optional[str] = field(default=None)
+    openai_api_version: Optional[str] = field(default=None)
     openai_api_key: Optional[str] = field(repr=False, default=None)
     openai_api_base: Optional[str] = field(repr=False, default=None)
     openai_organization: Optional[str] = field(repr=False, default=None)
+    engine: str = ""
+    """Azure engine (the Deployment Name of your model)"""
     model_name: str = "gpt-4"
     """Model name to use."""
     temperature: float = 0.0
@@ -66,10 +70,12 @@ class OpenAIModel(BaseEvalModel):
     def _init_environment(self) -> None:
         try:
             import openai
+            import openai.util
             from openai import error as openai_error
 
             self._openai = openai
             self._openai_error = openai_error
+            self._openai_util = openai.util
         except ImportError:
             self._raise_import_error(
                 package_display_name="OpenAI",
@@ -95,8 +101,22 @@ class OpenAIModel(BaseEvalModel):
                     "or set it in your environment: 'export OPENAI_API_KEY=sk-****'"
                 )
             self.openai_api_key = api_key
+        self.openai_api_base = self.openai_api_base or self._openai.api_base
+        self.openai_api_type = self.openai_api_type or self._openai.api_type
+        self.openai_api_version = self.openai_api_version or self._openai.api_version
+        self.openai_organization = self.openai_organization or self._openai.organization
+        # use enum to validate api type
+        self._openai_util.ApiType.from_str(self.openai_api_type)  # type: ignore
+        self._is_azure = self.openai_api_type.lower().startswith("azure")
 
-        if self.model_name in MODEL_TOKEN_LIMIT_MAPPING.keys():
+        if self._is_azure:
+            if not self.engine:
+                raise ValueError(
+                    "You must provide the deployment name in the 'engine' parameter "
+                    "to access the Azure OpenAI service"
+                )
+            self._openai_api_model_name = self.engine
+        elif self.model_name in MODEL_TOKEN_LIMIT_MAPPING.keys():
             self._openai_api_model_name = self.model_name
         elif "gpt-3.5-turbo" in self.model_name:
             logger.warning(
@@ -184,7 +204,7 @@ class OpenAIModel(BaseEvalModel):
     @property
     def invocation_params(self) -> Dict[str, Any]:
         return {
-            "model": self.model_name,
+            **({"engine": self.engine} if self._is_azure else {"model": self.model_name}),
             **self._default_params,
             **self._credentials,
             **self.model_kwargs,
@@ -196,6 +216,8 @@ class OpenAIModel(BaseEvalModel):
         return {
             "api_key": self.openai_api_key,
             "api_base": self.openai_api_base,
+            "api_type": self.openai_api_type,
+            "api_version": self.openai_api_version,
             "organization": self.openai_organization,
         }
 
