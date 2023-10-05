@@ -162,18 +162,17 @@ def _wrap_openai_api_requestor(
     return wrapped
 
 
-def _input_value(parameters: Parameters) -> Optional[str]:
+def _input_value(parameters: Parameters) -> str:
     return json.dumps(parameters)
 
 
-def _input_mime_type(parameters: Parameters) -> MimeType:
+def _input_mime_type(_: Any) -> MimeType:
     return MimeType.JSON
 
 
 def _llm_input_messages(parameters: Parameters) -> Optional[List[OpenInferenceMessage]]:
     if not (messages := parameters.get("messages")):
         return None
-
     return [_to_openinference_message(message, expects_name=True) for message in messages]
 
 
@@ -191,7 +190,7 @@ def _output_mime_type(response: "OpenAIResponse") -> MimeType:
     return MimeType.JSON
 
 
-def _llm_output_messages(response: "OpenAIResponse") -> Any:
+def _llm_output_messages(response: "OpenAIResponse") -> List[OpenInferenceMessage]:
     return [
         _to_openinference_message(choice["message"], expects_name=False)
         for choice in response.data["choices"]
@@ -240,7 +239,7 @@ def _get_request_type(url: str) -> Optional[RequestType]:
 
 
 def _to_openinference_message(
-    message: Dict[str, Any], *, expects_name: bool
+    message: Mapping[str, Any], *, expects_name: bool
 ) -> OpenInferenceMessage:
     """Converts an OpenAI input or output message to an OpenInference message.
 
