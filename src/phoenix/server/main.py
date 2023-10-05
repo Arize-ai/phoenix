@@ -131,7 +131,9 @@ if __name__ == "__main__":
             traces.put(span)
     umap_params_list = args.umap_params.split(",")
     umap_params = UMAPParameters(
-        float(umap_params_list[0]), int(umap_params_list[1]), int(umap_params_list[2])
+        min_dist=float(umap_params_list[0]),
+        n_neighbors=int(umap_params_list[1]),
+        n_samples=int(umap_params_list[2]),
     )
     logger.info(f"Server umap params: {umap_params}")
     app = create_app(
