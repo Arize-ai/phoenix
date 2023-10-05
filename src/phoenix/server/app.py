@@ -22,6 +22,7 @@ import phoenix
 from phoenix.config import SERVER_DIR
 from phoenix.core.model_schema import Model
 from phoenix.core.traces import Traces
+from phoenix.pointcloud.umap_parameters import UMAPParameters
 from phoenix.server.api.context import Context
 from phoenix.server.api.schema import schema
 from phoenix.server.span_handler import SpanHandler
@@ -33,6 +34,9 @@ templates = Jinja2Templates(directory=SERVER_DIR / "templates")
 
 class AppConfig(NamedTuple):
     has_corpus: bool
+    min_dist: float
+    n_neighbors: int
+    n_samples: int
 
 
 class Static(StaticFiles):
@@ -58,6 +62,9 @@ class Static(StaticFiles):
                 "index.html",
                 context={
                     "has_corpus": self._app_config.has_corpus,
+                    "min_dist": self._app_config.min_dist,
+                    "n_neighbors": self._app_config.n_neighbors,
+                    "n_samples": self._app_config.n_samples,
                     "request": Request(scope),
                 },
             )
@@ -130,6 +137,7 @@ async def version(_: Request) -> PlainTextResponse:
 def create_app(
     export_path: Path,
     model: Model,
+    umap_params: UMAPParameters,
     corpus: Optional[Model] = None,
     traces: Optional[Traces] = None,
     debug: bool = False,
@@ -182,6 +190,9 @@ def create_app(
                     directory=SERVER_DIR / "static",
                     app_config=AppConfig(
                         has_corpus=corpus is not None,
+                        min_dist=umap_params.min_dist,
+                        n_neighbors=umap_params.n_neighbors,
+                        n_samples=umap_params.n_samples,
                     ),
                 ),
                 name="static",
