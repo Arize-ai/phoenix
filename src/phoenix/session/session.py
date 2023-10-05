@@ -279,7 +279,7 @@ def launch_app(
     reference: Optional[Dataset] = None,
     corpus: Optional[Dataset] = None,
     trace: Optional[TraceDataset] = None,
-    default_umap_parameters: Optional[Dict[str, Union[int, float]]] = None,
+    default_umap_parameters: Optional[Mapping[str, Any]] = None,
     host: Optional[str] = None,
     port: Optional[int] = None,
     run_in_thread: bool = True,
