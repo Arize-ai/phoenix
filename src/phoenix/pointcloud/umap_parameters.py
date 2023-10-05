@@ -38,7 +38,7 @@ class UMAPParameters:
             MIN_SAMPLES <= self.n_samples <= MAX_SAMPLES
         ):
             raise ValueError(
-                f"nSamples must be int type, and between  {MIN_SAMPLES} and {MAX_SAMPLES}"
+                f"nSamples must be int type, and between {MIN_SAMPLES} and {MAX_SAMPLES}"
             )
 
 
