@@ -71,8 +71,10 @@ eval_test_data['reference'] = contexts
 eval_test_data['query'] = query
 #Evals model
 model_to_use = evals.OpenAIModel(model_name="gpt-4")
+#Rails
+rails = ["relevant", "irrelevant"]
 ##### RUN RAG Retrieval Performance EVALS #####
-eval_result = llm_eval_binary(eval_test_data, evals.RAG_RELEVANCY_PROMPT_TEMPLATE_STR, model_to_use)
+eval_result = llm_eval_binary(eval_test_data, model_to_use, evals.RAG_RELEVANCY_PROMPT_TEMPLATE_STR, rails)
 ```
 
 The results are designed for easy analysis is Scikit learn or our convience functions built on top of Scikit learn.
