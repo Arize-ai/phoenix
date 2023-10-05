@@ -15,9 +15,9 @@ MAX_MIN_DIST = 0.99
 
 @dataclass
 class UMAPParameters:
-    min_dist: float
-    n_neighbors: int
-    n_samples: int
+    min_dist: float = DEFAULT_MIN_DIST
+    n_neighbors: int = DEFAULT_N_NEIGHBORS
+    n_samples: int = DEFAULT_N_SAMPLES
 
     def __post_init__(self) -> None:
         if not isinstance(self.min_dist, float) or not (
