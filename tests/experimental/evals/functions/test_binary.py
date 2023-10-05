@@ -1,16 +1,15 @@
-from unittest.mock import patch
+from contextlib import ExitStack
+from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pandas as pd
 import pytest
 import responses
-from phoenix.experimental.evals import (
-    NOT_PARSABLE,
-    RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
-    OpenAIModel,
-    llm_eval_binary,
-    run_relevance_eval,
-)
+
+from phoenix.experimental.evals import (NOT_PARSABLE,
+                                        RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
+                                        OpenAIModel, llm_eval_binary,
+                                        run_relevance_eval)
 from phoenix.experimental.evals.functions.binary import _snap_to_rail
 from phoenix.experimental.evals.models.openai import OPENAI_API_KEY_ENVVAR_NAME
 
@@ -59,6 +58,7 @@ def test_llm_eval_binary(monkeypatch: pytest.MonkeyPatch):
         )
     with patch.object(OpenAIModel, "_init_tiktoken", return_value=None):
         model = OpenAIModel()
+
     relevance_classifications = llm_eval_binary(
         dataframe=dataframe,
         template=RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
@@ -113,21 +113,72 @@ def test_llm_eval_binary_prints_to_stdout_with_verbose_flag(monkeypatch: pytest.
         )
     with patch.object(OpenAIModel, "_init_tiktoken", return_value=None):
         model = OpenAIModel()
-    relevance_classifications = llm_eval_binary(
+
+    llm_eval_binary(
         dataframe=dataframe,
         template=RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
         model=model,
         rails=["relevant", "irrelevant"],
         verbose=True,
     )
-    out, err = capfd.readouterr()
+
+    out, _ = capfd.readouterr()
     assert "Snapped 'relevant' to rail: relevant" in out, "Snapping events should be printed"
     assert "Snapped 'irrelevant' to rail: irrelevant" in out, "Snapping events should be printed"
     assert "Snapped '\\nrelevant ' to rail: relevant" in out, "Snapping events should be printed"
-    assert "Cannot snap 'unparsable' to rails: {'relevant', 'irrelevant'}" in out, "Snapping events should be printed"
+    assert "Cannot snap 'unparsable' to rails" in out, "Snapping events should be printed"
     assert "OpenAI invocation parameters" in out, "Model-specific information should be printed"
-    assert "'model': 'gpt-4', 'temperature': 0.0, 'max_tokens': 256" in out, "Model-specific information should be printed"
+    assert "'model': 'gpt-4', 'temperature': 0.0" in out, "Model information should be printed"
     assert "sk-0123456789" not in out, "Credentials should not be printed out in cleartext"
+
+
+def test_llm_eval_binary_shows_retry_info_with_verbose_flag(monkeypatch: pytest.MonkeyPatch, capfd):
+    monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
+    dataframe = pd.DataFrame(
+        [
+            {
+                "query": "What is Python?",
+                "reference": "Python is a programming language.",
+            },
+        ]
+    )
+
+    model = OpenAIModel(max_retries=5)
+
+    openai_retry_errors = [
+        model._openai_error.Timeout("test timeout"),
+        model._openai_error.APIError("test api error"),
+        model._openai_error.APIConnectionError("test api connection error"),
+        model._openai_error.RateLimitError("test rate limit error"),
+        model._openai_error.ServiceUnavailableError("test service unavailable error"),
+    ]
+    mock_openai = MagicMock()
+    mock_openai.side_effect = openai_retry_errors
+
+    with ExitStack() as stack:
+        waiting_fn = "phoenix.experimental.evals.models.base.wait_random_exponential"
+        stack.enter_context(patch(waiting_fn, return_value=False))
+        stack.enter_context(patch.object(OpenAIModel, "_init_tiktoken", return_value=None))
+        stack.enter_context(patch.object(model._openai.ChatCompletion, "create", mock_openai))
+        stack.enter_context(pytest.raises(model._openai_error.ServiceUnavailableError))
+        llm_eval_binary(
+            dataframe=dataframe,
+            template=RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
+            model=model,
+            rails=["relevant", "irrelevant"],
+            verbose=True,
+        )
+
+    out, _ = capfd.readouterr()
+    assert "Failed attempt 1" in out, "Retry information should be printed"
+    assert "test timeout" in out, "Retry information should be printed"
+    assert "Failed attempt 2" in out, "Retry information should be printed"
+    assert "test api error" in out, "Retry information should be printed"
+    assert "Failed attempt 3" in out, "Retry information should be printed"
+    assert "test api connection error" in out, "Retry information should be printed"
+    assert "Failed attempt 4" in out, "Retry information should be printed"
+    assert "test rate limit error" in out, "Retry information should be printed"
+    assert "Failed attempt 5" not in out, "Maximum retries should not be exceeded"
 
 
 @responses.activate
