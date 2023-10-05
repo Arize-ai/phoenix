@@ -43,7 +43,7 @@
 * [Dataset and Schema](api/dataset-and-schema.md)
 * [Session](api/session.md)
 * [Evals](api/evals.md)
-* [Models](api/models.md)
+* [Models](api/evaluation-models.md)
 
 ## 🔌 INTEGRATIONS
 

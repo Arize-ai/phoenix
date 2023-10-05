@@ -18,7 +18,10 @@ Need to install the extra dependencies `openai>=0.26.4` and `tiktoken`
 class OpenAIModel:
     openai_api_key: Optional[str] = None
     openai_api_base: Optional[str] = None
+    openai_api_type: Optional[str] = None
+    openai_api_version: Optional[str] = None
     openai_organization: Optional[str] = None
+    engine: str = ""
     model_name: str = "gpt-4"
     temperature: float = 0.0
     max_tokens: int = 256
@@ -42,7 +45,21 @@ model("Hello there, this is a tesst if you are working?")
 # Output: "Hello! I'm working perfectly. How can I assist you today?"
 ```
 
-Find more about the functionality available in our EvalModels in the [#usage](models.md#usage "mention") section.
+#### Azure OpenAI
+
+The code snippet below shows how to initialize `OpenAIModel` for Azure. Refer to the Azure [docs](https://microsoftlearning.github.io/mslearn-openai/Instructions/Labs/02-natural-language-azure-openai.html) on how to obtain these value from your Azure deployment.
+
+```python
+model = OpenAIModel(
+    openai_api_key=YOUR_AZURE_OPENAI_API_KEY,
+    openai_api_base="https://YOUR_RESOURCE_NAME.openai.azure.com",
+    openai_api_type="azure",
+    openai_api_version="2023-05-15",  # See Azure docs for more
+    engine="YOUR_MODEL_DEPLOYMENT_NAME",
+)
+```
+
+Find more about the functionality available in our EvalModels in the [#usage](evaluation-models.md#usage "mention") section.
 
 ### phoenix.experimental.evals.VertexAI
 
@@ -107,7 +124,7 @@ class BedrockModel:
 
 ## **Usage**
 
-In this section, we will showcase the methods and properties that our `EvalModels` have. First, instantiate your model from the[#supported-llm-providers](models.md#supported-llm-providers "mention"). Once you've instantiated your `model`, you can get responses from the LLM by simply calling the model and passing a text string.
+In this section, we will showcase the methods and properties that our `EvalModels` have. First, instantiate your model from the[#supported-llm-providers](evaluation-models.md#supported-llm-providers "mention"). Once you've instantiated your `model`, you can get responses from the LLM by simply calling the model and passing a text string.
 
 <pre class="language-python"><code class="lang-python"><strong># model = Instantiate your model here
 </strong>model("Hello there, how are you?")
