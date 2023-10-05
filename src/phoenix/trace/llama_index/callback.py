@@ -13,28 +13,11 @@ import json
 import logging
 from collections import defaultdict
 from datetime import datetime
-from traceback import format_exception
-from typing import (
-    Any,
-    Callable,
-    Dict,
-    Iterable,
-    Iterator,
-    List,
-    Optional,
-    Tuple,
-    TypedDict,
-    cast,
-)
+from typing import Any, Callable, Dict, Iterable, Iterator, List, Optional, Tuple, TypedDict, cast
 from uuid import uuid4
 
 from llama_index.callbacks.base_handler import BaseCallbackHandler
-from llama_index.callbacks.schema import (
-    TIMESTAMP_FORMAT,
-    CBEvent,
-    CBEventType,
-    EventPayload,
-)
+from llama_index.callbacks.schema import TIMESTAMP_FORMAT, CBEvent, CBEventType, EventPayload
 from llama_index.llms.base import ChatMessage, ChatResponse
 from llama_index.tools import ToolMetadata
 
@@ -75,6 +58,7 @@ from phoenix.trace.semantic_conventions import (
     MimeType,
 )
 from phoenix.trace.tracer import SpanExporter, Tracer
+from phoenix.trace.utils import get_stacktrace
 
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
@@ -325,7 +309,7 @@ def _add_spans_to_tracer(
                     message=str(error),
                     timestamp=start_time,
                     exception_type=type(error).__name__,
-                    exception_stacktrace=_get_stacktrace(error),
+                    exception_stacktrace=get_stacktrace(error),
                 )
             )
             continue
@@ -450,14 +434,6 @@ def _timestamp_to_tz_naive_datetime(timestamp: str) -> datetime:
 def _tz_naive_to_tz_aware_datetime(timestamp: datetime) -> datetime:
     """Converts a timezone-naive datetime to a timezone-aware datetime."""
     return timestamp.replace(tzinfo=_LOCAL_TZINFO)
-
-
-def _get_stacktrace(exception: BaseException) -> str:
-    """Gets stacktrace from exception."""
-    exception_type = type(exception)
-    exception_traceback = exception.__traceback__
-    stack_trace_lines = format_exception(exception_type, exception, exception_traceback)
-    return "".join(stack_trace_lines)
 
 
 def _get_message(message: object) -> Iterator[Tuple[str, Any]]:
