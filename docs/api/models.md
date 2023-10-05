@@ -2,7 +2,7 @@
 description: Evaluation model classes powering your LLM Evals
 ---
 
-# Evaluation Models
+# Models
 
 ## Supported LLM Providers
 
@@ -42,7 +42,7 @@ model("Hello there, this is a tesst if you are working?")
 # Output: "Hello! I'm working perfectly. How can I assist you today?"
 ```
 
-Find more about the functionality available in our EvalModels in the [#usage](evaluation-models.md#usage "mention") section.
+Find more about the functionality available in our EvalModels in the [#usage](models.md#usage "mention") section.
 
 ### phoenix.experimental.evals.VertexAI
 
@@ -75,11 +75,11 @@ model("Hello there, this is a tesst if you are working?")
 # Output: "Hello world, I am working!"
 ```
 
-Find more about the functionality available in our EvalModels in the [#usage](evaluation-models.md#usage "mention") section.
+Find more about the functionality available in our EvalModels in the [#usage](models.md#usage "mention") section.
 
 ## **Usage**
 
-In this section, we will showcase the methods and properties that our `EvalModels` have. First, instantiate your model from the[#supported-llm-providers](evaluation-models.md#supported-llm-providers "mention"). Once you've instantiated your `model`, you can get responses from the LLM by simply calling the model and passing a text string.
+In this section, we will showcase the methods and properties that our `EvalModels` have. First, instantiate your model from the[#supported-llm-providers](models.md#supported-llm-providers "mention"). Once you've instantiated your `model`, you can get responses from the LLM by simply calling the model and passing a text string.
 
 <pre class="language-python"><code class="lang-python"><strong># model = Instantiate your model here
 </strong>model("Hello there, how are you?")
