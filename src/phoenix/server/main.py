@@ -3,9 +3,10 @@ import logging
 import os
 from argparse import ArgumentParser
 from pathlib import Path
+from random import random
 from threading import Thread
 from time import sleep, time
-from typing import Optional
+from typing import Iterable, Optional
 
 from uvicorn import Config, Server
 
@@ -20,6 +21,7 @@ from phoenix.trace.fixtures import (
     _download_traces_fixture,
     _get_trace_fixture_by_name,
 )
+from phoenix.trace.schemas import Span
 from phoenix.trace.span_json_decoder import json_string_to_span
 
 logger = logging.getLogger(__name__)
@@ -46,10 +48,22 @@ def _get_pid_file() -> Path:
     return get_pids_path() / str(os.getpid())
 
 
+def _load_spans(
+    traces: Traces,
+    spans: Iterable[Span],
+    simulate_streaming: Optional[bool] = False,
+) -> None:
+    for span in spans:
+        if simulate_streaming:
+            sleep(random())
+        traces.put(span)
+
+
 if __name__ == "__main__":
     primary_dataset_name: str
     reference_dataset_name: Optional[str]
     trace_dataset_name: Optional[str] = None
+    simulate_streaming: Optional[bool] = None
 
     primary_dataset: Dataset = EMPTY_DATASET
     reference_dataset: Optional[Dataset] = None
@@ -77,6 +91,7 @@ if __name__ == "__main__":
     trace_fixture_parser.add_argument(
         "fixture", type=str, choices=[fixture.name for fixture in TRACES_FIXTURES]
     )
+    trace_fixture_parser.add_argument("--simulate-streaming", type=bool)
     args = parser.parse_args()
     export_path = Path(args.export_path) if args.export_path else EXPORT_DIR
     if args.command == "datasets":
@@ -104,6 +119,7 @@ if __name__ == "__main__":
             reference_dataset = None
     elif args.command == "trace-fixture":
         trace_dataset_name = args.fixture
+        simulate_streaming = args.simulate_streaming
 
     model = create_model_from_datasets(
         primary_dataset,
@@ -111,15 +127,19 @@ if __name__ == "__main__":
     )
     traces = Traces()
     if trace_dataset_name is not None:
-        for span in map(
+        fixture_spans = map(
             json_string_to_span,
             _download_traces_fixture(
                 _get_trace_fixture_by_name(
                     trace_dataset_name,
                 ),
             ),
-        ):
-            traces.put(span)
+        )
+        Thread(
+            target=_load_spans,
+            args=(traces, fixture_spans, simulate_streaming),
+            daemon=True,
+        ).start()
     app = create_app(
         export_path=export_path,
         model=model,
