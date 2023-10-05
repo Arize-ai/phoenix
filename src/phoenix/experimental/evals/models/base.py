@@ -55,10 +55,12 @@ class BaseEvalModel(ABC):
     ) -> Callable[[Any], Any]:
         """Create a retry decorator for a given LLM and provided list of error types."""
 
-        # TODO: Nice logging. The logging implemented is huge and overwhelming
-
         def log_retry(retry_state: RetryCallState) -> None:
-            exc = retry_state.outcome.exception()
+            if fut := retry_state.outcome:
+                exc = fut.exception()
+            else:
+                exc = None
+
             if exc:
                 printif(
                     self._verbose,
@@ -146,10 +148,10 @@ class BaseEvalModel(ABC):
             raise e
         return result
 
-    def _verbose_generation_info(self) -> Optional[str]:
+    def _verbose_generation_info(self) -> str:
         # if defined, returns additional model-specific information to display if `generate` is
         # run with `verbose=True`
-        return None
+        return ""
 
     @abstractmethod
     def _generate(self, prompt: str, **kwargs: Dict[str, Any]) -> str:
