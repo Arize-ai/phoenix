@@ -75,7 +75,35 @@ model("Hello there, this is a tesst if you are working?")
 # Output: "Hello world, I am working!"
 ```
 
-Find more about the functionality available in our EvalModels in the [#usage](models.md#usage "mention") section.
+### phoenix.experimental.evals.BedrockModel
+
+```python
+class BedrockModel:    
+    model_id: str = "anthropic.claude-v2"
+    """The model name to use."""
+    temperature: float = 0.0
+    """What sampling temperature to use."""
+    max_tokens: int = 256
+    """The maximum number of tokens to generate in the completion."""
+    top_p: float = 1
+    """Total probability mass of tokens to consider at each step."""
+    top_k: int = 256
+    """The cutoff where the model no longer selects the words"""
+    stop_sequences: List[str] = field(default_factory=list)
+    """If the model encounters a stop sequence, it stops generating further tokens. """
+    max_retries: int = 6
+    """Maximum number of retries to make when generating."""
+    retry_min_seconds: int = 10
+    """Minimum number of seconds to wait when retrying."""
+    retry_max_seconds: int = 60
+    """Maximum number of seconds to wait when retrying."""
+    client = None
+    """The bedrock session client. If unset, a new one is created with boto3."""
+    max_content_size: Optional[int] = None
+    """If you're using a fine-tuned model, set this to the maximum content size"""
+    extra_parameters: Dict[str, Any] = field(default_factory=dict)
+    """Any extra parameters to add to the request body (e.g., countPenalty for a21 models)"""
+```
 
 ## **Usage**
 
