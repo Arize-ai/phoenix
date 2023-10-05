@@ -15,6 +15,12 @@ from phoenix.core.model_schema_adapter import create_model_from_datasets
 from phoenix.core.traces import Traces
 from phoenix.datasets.dataset import EMPTY_DATASET, Dataset
 from phoenix.datasets.fixtures import FIXTURES, get_datasets
+from phoenix.pointcloud.umap_parameters import (
+    DEFAULT_MIN_DIST,
+    DEFAULT_N_NEIGHBORS,
+    DEFAULT_N_SAMPLES,
+    UMAPParameters,
+)
 from phoenix.server.app import create_app
 from phoenix.trace.fixtures import (
     TRACES_FIXTURES,
@@ -58,6 +64,7 @@ def _load_spans(
             sleep(random())
         traces.put(span)
 
+DEFAULT_UMAP_PARAMS_STR = f"{DEFAULT_MIN_DIST},{DEFAULT_N_NEIGHBORS},{DEFAULT_N_SAMPLES}"
 
 if __name__ == "__main__":
     primary_dataset_name: str
@@ -77,7 +84,8 @@ if __name__ == "__main__":
     parser.add_argument("--host", type=str, required=False)
     parser.add_argument("--port", type=int, required=False)
     parser.add_argument("--no-internet", action="store_true")
-    parser.add_argument("--debug", action="store_false")  # TODO: Disable before public launch
+    parser.add_argument("--umap_params", type=str, required=False, default=DEFAULT_UMAP_PARAMS_STR)
+    parser.add_argument("--debug", action="store_false")
     subparsers = parser.add_subparsers(dest="command", required=True)
     datasets_parser = subparsers.add_parser("datasets")
     datasets_parser.add_argument("--primary", type=str, required=True)
@@ -140,9 +148,17 @@ if __name__ == "__main__":
             args=(traces, fixture_spans, simulate_streaming),
             daemon=True,
         ).start()
+    umap_params_list = args.umap_params.split(",")
+    umap_params = UMAPParameters(
+        min_dist=float(umap_params_list[0]),
+        n_neighbors=int(umap_params_list[1]),
+        n_samples=int(umap_params_list[2]),
+    )
+    logger.info(f"Server umap params: {umap_params}")
     app = create_app(
         export_path=export_path,
         model=model,
+        umap_params=umap_params,
         traces=traces,
         corpus=None if corpus_dataset is None else create_model_from_datasets(corpus_dataset),
         debug=args.debug,

@@ -111,6 +111,7 @@ class AppService(Service):
         host: str,
         port: int,
         primary_dataset_name: str,
+        umap_params: str,
         reference_dataset_name: Optional[str],
         corpus_dataset_name: Optional[str],
         trace_dataset_name: Optional[str],
@@ -119,6 +120,7 @@ class AppService(Service):
         self.host = host
         self.port = port
         self.__primary_dataset_name = primary_dataset_name
+        self.__umap_params = umap_params
         self.__reference_dataset_name = reference_dataset_name
         self.__corpus_dataset_name = corpus_dataset_name
         self.__trace_dataset_name = trace_dataset_name
@@ -138,6 +140,8 @@ class AppService(Service):
             "datasets",
             "--primary",
             str(self.__primary_dataset_name),
+            "--umap_params",
+            self.__umap_params,
         ]
         if self.__reference_dataset_name is not None:
             command.extend(["--reference", str(self.__reference_dataset_name)])
