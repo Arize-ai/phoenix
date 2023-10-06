@@ -48,7 +48,8 @@ def llm_eval_binary(
 
         system_instruction (Optional[str], optional): An optional system message.
 
-        verbose (bool, optional): If True, prints detailed info to stdout. Default False.
+        verbose (bool, optional): If True, prints detailed info to stdout such as model invocation
+        parameters and details about retries and snapping to rails. Default False.
 
     Returns:
         List[str]: A list of strings representing the predicted class for each record in the
@@ -117,7 +118,8 @@ def run_relevance_eval(
 
         system_instruction (Optional[str], optional): An optional system message.
 
-        verbose (bool, optional): If True, prints detailed information to stdout. Default False.
+        verbose (bool, optional): If True, prints detailed information to stdout such as model
+        invocation parameters and retry info. Default False.
 
     Returns:
         List[List[str]]: A list of relevant and not relevant classifications. The "shape" of the
