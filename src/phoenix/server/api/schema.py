@@ -40,6 +40,7 @@ from .types.Model import Model
 from .types.node import GlobalID, Node, from_global_id
 from .types.pagination import Connection, ConnectionArgs, Cursor, connection_from_list
 from .types.Span import Span, to_gql_span
+from .types.ValidationResult import ValidationResult
 
 
 @strawberry.type
@@ -260,6 +261,19 @@ class Query:
             latency_ms_p50=latency_ms_p50,
             latency_ms_p99=latency_ms_p99,
         )
+
+    @strawberry.field
+    def validate_span_filter_condition(
+        self, info: Info[Context, None], condition: str
+    ) -> ValidationResult:
+        try:
+            SpanFilter(condition)
+            return ValidationResult(is_valid=True, error_message=None)
+        except SyntaxError as e:
+            return ValidationResult(
+                is_valid=False,
+                error_message=e.msg,
+            )
 
 
 @strawberry.type
