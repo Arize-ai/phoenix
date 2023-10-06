@@ -3,7 +3,7 @@ import os
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
-from .base import BaseEvalModel, create_base_retry_decorator
+from phoenix.experimental.evals.models.base import BaseEvalModel
 
 if TYPE_CHECKING:
     from tiktoken import Encoding
@@ -149,6 +149,9 @@ class OpenAIModel(BaseEvalModel):
             messages.insert(0, {"role": "system", "content": str(system_instruction)})
         return messages
 
+    def _verbose_generation_info(self) -> str:
+        return f"OpenAI invocation parameters: {self.public_invocation_params}"
+
     def _generate(self, prompt: str, **kwargs: Dict[str, Any]) -> str:
         invoke_params = self.invocation_params
         messages = self._build_messages(prompt, kwargs.get("instruction"))  # type:ignore
@@ -170,14 +173,13 @@ class OpenAIModel(BaseEvalModel):
             self._openai_error.RateLimitError,
             self._openai_error.ServiceUnavailableError,
         ]
-        retry_decorator = create_base_retry_decorator(
+
+        @self.retry(
             error_types=openai_retry_errors,
             min_seconds=self.retry_min_seconds,
             max_seconds=self.retry_max_seconds,
             max_retries=self.max_retries,
         )
-
-        @retry_decorator
         def _completion_with_retry(**kwargs: Any) -> Any:
             return self._openai.ChatCompletion.create(**kwargs)
 
@@ -202,12 +204,18 @@ class OpenAIModel(BaseEvalModel):
         return context_size
 
     @property
-    def invocation_params(self) -> Dict[str, Any]:
+    def public_invocation_params(self) -> Dict[str, Any]:
         return {
             **({"engine": self.engine} if self._is_azure else {"model": self.model_name}),
             **self._default_params,
-            **self._credentials,
             **self.model_kwargs,
+        }
+
+    @property
+    def invocation_params(self) -> Dict[str, Any]:
+        return {
+            **self.public_invocation_params,
+            **self._credentials,
         }
 
     @property

@@ -24,3 +24,6 @@ coverage.xml
 
 # Un-supported files
 pnpm-lock.yaml
+
+# devtools
+pyrightconfig.json

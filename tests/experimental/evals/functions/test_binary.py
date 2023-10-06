@@ -1,4 +1,5 @@
-from unittest.mock import patch
+from contextlib import ExitStack
+from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pandas as pd
@@ -59,13 +60,187 @@ def test_llm_eval_binary(monkeypatch: pytest.MonkeyPatch):
         )
     with patch.object(OpenAIModel, "_init_tiktoken", return_value=None):
         model = OpenAIModel()
+
     relevance_classifications = llm_eval_binary(
         dataframe=dataframe,
         template=RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
         model=model,
         rails=["relevant", "irrelevant"],
+        verbose=True,
     )
     assert relevance_classifications == ["relevant", "irrelevant", "relevant", NOT_PARSABLE]
+
+
+@responses.activate
+def test_llm_eval_binary_prints_to_stdout_with_verbose_flag(monkeypatch: pytest.MonkeyPatch, capfd):
+    monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
+    dataframe = pd.DataFrame(
+        [
+            {
+                "query": "What is Python?",
+                "reference": "Python is a programming language.",
+            },
+            {
+                "query": "What is Python?",
+                "reference": "Ruby is a programming language.",
+            },
+            {
+                "query": "What is C++?",
+                "reference": "C++ is a programming language.",
+            },
+            {
+                "query": "What is C++?",
+                "reference": "irrelevant",
+            },
+        ]
+    )
+    for message_content in [
+        "relevant",
+        "irrelevant",
+        "\nrelevant ",
+        "unparsable",
+    ]:
+        responses.post(
+            "https://api.openai.com/v1/chat/completions",
+            json={
+                "choices": [
+                    {
+                        "message": {
+                            "content": message_content,
+                        },
+                    }
+                ],
+            },
+            status=200,
+        )
+    with patch.object(OpenAIModel, "_init_tiktoken", return_value=None):
+        model = OpenAIModel()
+
+    llm_eval_binary(
+        dataframe=dataframe,
+        template=RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
+        model=model,
+        rails=["relevant", "irrelevant"],
+        verbose=True,
+    )
+
+    out, _ = capfd.readouterr()
+    assert "Snapped 'relevant' to rail: relevant" in out, "Snapping events should be printed"
+    assert "Snapped 'irrelevant' to rail: irrelevant" in out, "Snapping events should be printed"
+    assert "Snapped '\\nrelevant ' to rail: relevant" in out, "Snapping events should be printed"
+    assert "Cannot snap 'unparsable' to rails" in out, "Snapping events should be printed"
+    assert "OpenAI invocation parameters" in out, "Model-specific information should be printed"
+    assert "'model': 'gpt-4', 'temperature': 0.0" in out, "Model information should be printed"
+    assert "sk-0123456789" not in out, "Credentials should not be printed out in cleartext"
+
+
+def test_llm_eval_binary_shows_retry_info_with_verbose_flag(monkeypatch: pytest.MonkeyPatch, capfd):
+    monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
+    dataframe = pd.DataFrame(
+        [
+            {
+                "query": "What is Python?",
+                "reference": "Python is a programming language.",
+            },
+        ]
+    )
+
+    model = OpenAIModel(max_retries=5)
+
+    openai_retry_errors = [
+        model._openai_error.Timeout("test timeout"),
+        model._openai_error.APIError("test api error"),
+        model._openai_error.APIConnectionError("test api connection error"),
+        model._openai_error.RateLimitError("test rate limit error"),
+        model._openai_error.ServiceUnavailableError("test service unavailable error"),
+    ]
+    mock_openai = MagicMock()
+    mock_openai.side_effect = openai_retry_errors
+
+    with ExitStack() as stack:
+        waiting_fn = "phoenix.experimental.evals.models.base.wait_random_exponential"
+        stack.enter_context(patch(waiting_fn, return_value=False))
+        stack.enter_context(patch.object(OpenAIModel, "_init_tiktoken", return_value=None))
+        stack.enter_context(patch.object(model._openai.ChatCompletion, "create", mock_openai))
+        stack.enter_context(pytest.raises(model._openai_error.ServiceUnavailableError))
+        llm_eval_binary(
+            dataframe=dataframe,
+            template=RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
+            model=model,
+            rails=["relevant", "irrelevant"],
+            verbose=True,
+        )
+
+    out, _ = capfd.readouterr()
+    assert "Failed attempt 1" in out, "Retry information should be printed"
+    assert "test timeout" in out, "Retry information should be printed"
+    assert "Failed attempt 2" in out, "Retry information should be printed"
+    assert "test api error" in out, "Retry information should be printed"
+    assert "Failed attempt 3" in out, "Retry information should be printed"
+    assert "test api connection error" in out, "Retry information should be printed"
+    assert "Failed attempt 4" in out, "Retry information should be printed"
+    assert "test rate limit error" in out, "Retry information should be printed"
+    assert "Failed attempt 5" not in out, "Maximum retries should not be exceeded"
+
+
+def test_llm_eval_binary_does_not_persist_verbose_flag(monkeypatch: pytest.MonkeyPatch, capfd):
+    monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
+    dataframe = pd.DataFrame(
+        [
+            {
+                "query": "What is Python?",
+                "reference": "Python is a programming language.",
+            },
+        ]
+    )
+
+    model = OpenAIModel(max_retries=2)
+
+    openai_retry_errors = [
+        model._openai_error.Timeout("test timeout"),
+        model._openai_error.APIError("test api error"),
+    ]
+    mock_openai = MagicMock()
+    mock_openai.side_effect = openai_retry_errors
+
+    with ExitStack() as stack:
+        waiting_fn = "phoenix.experimental.evals.models.base.wait_random_exponential"
+        stack.enter_context(patch(waiting_fn, return_value=False))
+        stack.enter_context(patch.object(OpenAIModel, "_init_tiktoken", return_value=None))
+        stack.enter_context(patch.object(model._openai.ChatCompletion, "create", mock_openai))
+        stack.enter_context(pytest.raises(model._openai_error.APIError))
+        llm_eval_binary(
+            dataframe=dataframe,
+            template=RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
+            model=model,
+            rails=["relevant", "irrelevant"],
+            verbose=True,
+        )
+
+    out, _ = capfd.readouterr()
+    assert "Failed attempt 1" in out, "Retry information should be printed"
+    assert "test timeout" in out, "Retry information should be printed"
+    assert "Failed attempt 2" not in out, "Retry information should be printed"
+
+    mock_openai.reset_mock()
+    mock_openai.side_effect = openai_retry_errors
+
+    with ExitStack() as stack:
+        waiting_fn = "phoenix.experimental.evals.models.base.wait_random_exponential"
+        stack.enter_context(patch(waiting_fn, return_value=False))
+        stack.enter_context(patch.object(OpenAIModel, "_init_tiktoken", return_value=None))
+        stack.enter_context(patch.object(model._openai.ChatCompletion, "create", mock_openai))
+        stack.enter_context(pytest.raises(model._openai_error.APIError))
+        llm_eval_binary(
+            dataframe=dataframe,
+            template=RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
+            model=model,
+            rails=["relevant", "irrelevant"],
+        )
+
+    out, _ = capfd.readouterr()
+    assert "Failed attempt 1" not in out, "The `verbose` flag should not be persisted"
+    assert "test timeout" not in out, "The `verbose` flag should not be persisted"
 
 
 @responses.activate

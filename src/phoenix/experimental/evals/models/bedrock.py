@@ -3,7 +3,7 @@ import logging
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
-from .base import BaseEvalModel, create_base_retry_decorator
+from phoenix.experimental.evals.models.base import BaseEvalModel
 
 if TYPE_CHECKING:
     from tiktoken import Encoding
@@ -122,14 +122,13 @@ class BedrockModel(BaseEvalModel):
         retry_errors = [
             self.client.exceptions.ThrottlingException  # type:ignore
         ]
-        retry_decorator = create_base_retry_decorator(
+
+        @self.retry(
             error_types=retry_errors,
             min_seconds=self.retry_min_seconds,
             max_seconds=self.retry_max_seconds,
             max_retries=self.max_retries,
         )
-
-        @retry_decorator
         def _completion_with_retry(**kwargs: Any) -> Any:
             return self.client.invoke_model(**kwargs)  # type:ignore
 
