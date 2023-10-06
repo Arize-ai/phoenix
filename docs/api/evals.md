@@ -12,10 +12,6 @@ Evals are still under `experimental` and must be installed via `pip install ariz
 
 ## phoenix.experimental.evals.PromptTemplate
 
-{% hint style="info" %}
-Need to install parsing dependency `lxml`
-{% endhint %}
-
 ```python
 class PromptTemplate(
     text: str
