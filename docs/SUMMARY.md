@@ -49,6 +49,7 @@
 
 * [LlamaIndex](integrations/llamaindex.md)
 * [LangChain](integrations/langchain.md)
+* [OpenAI](integrations/openai.md)
 * [Arize](integrations/bring-production-data-to-notebook-for-eda-or-retraining.md)
 
 ## 📚 Reference
