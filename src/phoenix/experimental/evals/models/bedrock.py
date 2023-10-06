@@ -3,6 +3,8 @@ import logging
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
+from phoenix.experimental.evals.models.base import BaseEvalModel
+
 if TYPE_CHECKING:
     from tiktoken import Encoding
 
