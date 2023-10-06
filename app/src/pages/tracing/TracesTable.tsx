@@ -14,7 +14,7 @@ import {
 } from "@tanstack/react-table";
 import { css } from "@emotion/react";
 
-import { Flex, Icon, Icons, TextField, View } from "@arizeai/components";
+import { Flex, Icon, Icons, View } from "@arizeai/components";
 
 import { Link } from "@phoenix/components/Link";
 import { TextCell } from "@phoenix/components/table";
@@ -36,6 +36,7 @@ import {
   SpanSort,
   TracesTableQuery,
 } from "./__generated__/TracesTableQuery.graphql";
+import { SpanFilterConditionField } from "./SpanFilterConditionField";
 import { TokenCount } from "./TokenCount";
 type TracesTableProps = {
   query: TracesTable_spans$key;
@@ -77,7 +78,7 @@ export function TracesTable(props: TracesTableProps) {
   //we need a reference to the scrolling element for logic down below
   const tableContainerRef = React.useRef<HTMLDivElement>(null);
   const [sorting, setSorting] = useState<SortingState>([]);
-  const [filterCondition, setFilterCondition] = useState<string>("");
+  const [filterCondition, _setFilterCondition] = useState<string>("");
   const deferredFilterCondition = useDeferredValue(filterCondition);
   const navigate = useNavigate();
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
@@ -327,11 +328,7 @@ export function TracesTable(props: TracesTableProps) {
   return (
     <div>
       <View padding="size-100" backgroundColor="light">
-        <TextField
-          value={filterCondition}
-          onChange={setFilterCondition}
-          addonBefore={<Icon svg={<Icons.SearchOutline />} />}
-        />
+        <SpanFilterConditionField />
       </View>
       <div
         css={css`
