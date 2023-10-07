@@ -46,6 +46,7 @@ class SpanKind(Enum):
     retriever = trace_schema.SpanKind.RETRIEVER
     embedding = trace_schema.SpanKind.EMBEDDING
     agent = trace_schema.SpanKind.AGENT
+    reranking = trace_schema.SpanKind.RERANKING
     unknown = trace_schema.SpanKind.UNKNOWN
 
     @classmethod

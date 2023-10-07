@@ -52,6 +52,7 @@ import {
   MESSAGE_FUNCTION_CALL_NAME,
   MESSAGE_NAME,
   MESSAGE_ROLE,
+  RerankingAttributePostfixes,
   RetrievalAttributePostfixes,
   SemanticAttributePrefixes,
   ToolAttributePostfixes,
@@ -324,6 +325,12 @@ function SpanInfo({ span }: { span: Span }) {
       );
       break;
     }
+    case "reranking": {
+      content = (
+        <RerankingSpanInfo span={span} spanAttributes={attributesObject} />
+      );
+      break;
+    }
     case "embedding": {
       content = (
         <EmbeddingSpanInfo span={span} spanAttributes={attributesObject} />
@@ -568,6 +575,98 @@ function RetrieverSpanInfo(props: {
           }
         </Card>
       ) : null}
+    </Flex>
+  );
+}
+
+function RerankingSpanInfo(props: {
+  span: Span;
+  spanAttributes: AttributeObject;
+}) {
+  const { spanAttributes } = props;
+  const rerankingAttributes = useMemo<AttributeObject | null>(() => {
+    const rerankingAttrs = spanAttributes[SemanticAttributePrefixes.reranking];
+    if (typeof rerankingAttrs === "object") {
+      return rerankingAttrs as AttributeObject;
+    }
+    return null;
+  }, [spanAttributes]);
+  const query = useMemo<string>(() => {
+    if (rerankingAttributes == null) {
+      return "";
+    }
+    return (rerankingAttributes[RerankingAttributePostfixes.query] ||
+      "") as string;
+  }, [rerankingAttributes]);
+  const input_documents = useMemo<AttributeDocument[]>(() => {
+    if (rerankingAttributes == null) {
+      return [];
+    }
+    return (rerankingAttributes[RerankingAttributePostfixes.input_documents] ||
+      []) as AttributeDocument[];
+  }, [rerankingAttributes]);
+  const output_documents = useMemo<AttributeDocument[]>(() => {
+    if (rerankingAttributes == null) {
+      return [];
+    }
+    return (rerankingAttributes[RerankingAttributePostfixes.output_documents] ||
+      []) as AttributeDocument[];
+  }, [rerankingAttributes]);
+
+  const numInputDocuments = input_documents.length;
+  const numOutputDocuments = output_documents.length;
+  return (
+    <Flex direction="column" gap="size-200">
+      <Card title="Query" {...defaultCardProps}>
+        <CodeBlock value={query} mimeType="text" />
+      </Card>
+      <Card
+        title={`Input Documents (${numInputDocuments})`}
+        {...defaultCardProps}
+        defaultOpen={false}
+      >
+        {
+          <ul
+            css={css`
+              padding: var(--ac-global-dimension-static-size-200);
+              display: flex;
+              flex-direction: column;
+              gap: var(--ac-global-dimension-static-size-200);
+            `}
+          >
+            {input_documents.map((document, idx) => {
+              return (
+                <li key={idx}>
+                  <DocumentItem document={document} />
+                </li>
+              );
+            })}
+          </ul>
+        }
+      </Card>
+      <Card
+        title={`Re-ranked Documents (${numOutputDocuments})`}
+        {...defaultCardProps}
+      >
+        {
+          <ul
+            css={css`
+              padding: var(--ac-global-dimension-static-size-200);
+              display: flex;
+              flex-direction: column;
+              gap: var(--ac-global-dimension-static-size-200);
+            `}
+          >
+            {output_documents.map((document, idx) => {
+              return (
+                <li key={idx}>
+                  <DocumentItem document={document} />
+                </li>
+              );
+            })}
+          </ul>
+        }
+      </Card>
     </Flex>
   );
 }

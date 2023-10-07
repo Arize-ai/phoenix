@@ -2,16 +2,21 @@ import json
 
 import pytest
 from gcsfs import GCSFileSystem
-from llama_index import ServiceContext, StorageContext, load_index_from_storage
+from llama_index import (
+    ServiceContext,
+    StorageContext,
+    load_index_from_storage,
+)
 from llama_index.agent import OpenAIAgent
 from llama_index.callbacks import CallbackManager
 from llama_index.embeddings.openai import OpenAIEmbedding
 from llama_index.graph_stores.simple import SimpleGraphStore
+from llama_index.indices.postprocessor.cohere_rerank import CohereRerank
 from llama_index.indices.vector_store import VectorStoreIndex
 from llama_index.llms import OpenAI
 from llama_index.query_engine import RetrieverQueryEngine
 from llama_index.tools import FunctionTool
-from phoenix.trace.exporter import NoOpExporter
+from phoenix.trace.exporter import HttpExporter, NoOpExporter
 from phoenix.trace.llama_index import OpenInferenceTraceCallbackHandler
 from phoenix.trace.schemas import SpanKind
 from phoenix.trace.semantic_conventions import (
@@ -33,6 +38,10 @@ from phoenix.trace.semantic_conventions import (
     MESSAGE_ROLE,
     OUTPUT_MIME_TYPE,
     OUTPUT_VALUE,
+    RERANKING_INPUT_DOCUMENTS,
+    RERANKING_MODEL_NAME,
+    RERANKING_OUTPUT_DOCUMENTS,
+    RERANKING_TOP_K,
     TOOL_DESCRIPTION,
     TOOL_NAME,
     TOOL_PARAMETERS,
@@ -241,3 +250,30 @@ def test_callback_data_agent() -> None:
         "title": "multiply",
         "type": "object",
     }
+
+
+@pytest.mark.parametrize("model_name", ["text-davinci-003"], indirect=True)
+def test_cohere_rerank(index: VectorStoreIndex) -> None:
+    callback_handler = OpenInferenceTraceCallbackHandler(exporter=HttpExporter())
+    service_context = ServiceContext.from_defaults(
+        callback_manager=CallbackManager(handlers=[callback_handler])
+    )
+    cohere_rerank = CohereRerank(top_n=2)
+    query_engine = index.as_query_engine(
+        similarity_top_k=5,
+        node_postprocessors=[cohere_rerank],
+        service_context=service_context,
+    )
+    query_engine.query("How should timestamps be formatted?")
+
+    spans = {span.name: span for span in callback_handler.get_spans()}
+    assert "reranking" in spans
+    reranking_span = spans["reranking"]
+    assert reranking_span.span_kind == SpanKind.RERANKING
+    assert (
+        len(reranking_span.attributes[RERANKING_INPUT_DOCUMENTS])
+        == query_engine.retriever.similarity_top_k
+    )
+    assert len(reranking_span.attributes[RERANKING_OUTPUT_DOCUMENTS]) == cohere_rerank.top_n
+    assert reranking_span.attributes[RERANKING_TOP_K] == cohere_rerank.top_n
+    assert reranking_span.attributes[RERANKING_MODEL_NAME] == cohere_rerank.model
