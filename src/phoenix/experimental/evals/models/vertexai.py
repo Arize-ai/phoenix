@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
-from .base import BaseEvalModel, create_base_retry_decorator
+from phoenix.experimental.evals.models.base import BaseEvalModel
 
 if TYPE_CHECKING:
     from google.auth.credentials import Credentials  # type:ignore
@@ -77,6 +77,9 @@ class VertexAIModel(BaseEvalModel):
         else:
             self._model = model.from_pretrained(self.model_name)
 
+    def _verbose_generation_info(self) -> str:
+        return f"VertexAI invocation parameters: {self.invocation_params}"
+
     def _generate(self, prompt: str, **kwargs: Dict[str, Any]) -> str:
         invoke_params = self.invocation_params
         response = self._generate_with_retry(
@@ -93,14 +96,13 @@ class VertexAIModel(BaseEvalModel):
             self._google_exceptions.Aborted,
             self._google_exceptions.DeadlineExceeded,
         ]
-        retry_decorator = create_base_retry_decorator(
+
+        @self.retry(
             error_types=google_api_retry_errors,
             min_seconds=self.retry_min_seconds,
             max_seconds=self.retry_max_seconds,
             max_retries=self.max_retries,
         )
-
-        @retry_decorator
         def _completion_with_retry(**kwargs: Any) -> Any:
             return self._model.predict(**kwargs)
 

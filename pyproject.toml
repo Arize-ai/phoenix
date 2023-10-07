@@ -292,3 +292,6 @@ ignore-init-module-imports = true
 line-length = 100
 select = ["E", "F", "W", "I"]
 target-version = "py38"
+
+[tool.ruff.isort]
+force-single-line = false
