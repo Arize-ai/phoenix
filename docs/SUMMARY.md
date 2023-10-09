@@ -20,6 +20,7 @@
   * [Toxicity](concepts/llm-evals/toxicity.md)
   * [Code Generation Eval](concepts/llm-evals/code-generation-eval.md)
   * [Summarization Eval](concepts/llm-evals/summarization-eval.md)
+* [Benchmarking Retrieval (RAG)](concepts/benchmarking-retrieval-rag.md)
 * [Generating Embeddings](concepts/generating-embeddings.md)
 * [Embeddings Analysis](concepts/embeddings-analysis.md)
 
