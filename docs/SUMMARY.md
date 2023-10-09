@@ -13,6 +13,7 @@
 * [What is LLM Observability?](concepts/llm-observability.md)
 * [LLM Traces](concepts/llm-traces.md)
 * [LLM Evals](concepts/llm-evals.md)
+  * [Models for LLM Evals](concepts/llm-evals/models-for-llm-evals.md)
   * [Retrieval (RAG) Relevance](concepts/llm-evals/retrieval-rag-relevance.md)
   * [Hallucinations](concepts/llm-evals/hallucinations.md)
   * [Q\&A on Retrieved Data](concepts/llm-evals/q-and-a-on-retrieved-data.md)
