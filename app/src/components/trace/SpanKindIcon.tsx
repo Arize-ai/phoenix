@@ -164,6 +164,27 @@ const RetrieverSVG = () => (
   </svg>
 );
 
+const RerankerSVG = () => (
+  <svg
+    width="20"
+    height="20"
+    viewBox="0 0 20 20"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <rect
+      x="0.5"
+      y="0.5"
+      width="19"
+      height="19"
+      rx="3.5"
+      stroke="currentColor"
+    />
+    <path d="M4.5359 10L8 4L11.4641 10H4.5359Z" stroke="currentColor" />
+    <path d="M8.5359 10L12 16L15.4641 10H8.5359Z" stroke="currentColor" />
+  </svg>
+);
+
 const ChainSVG = () => (
   <svg
     width="20"
@@ -194,6 +215,7 @@ const ChainSVG = () => (
 export function SpanKindIcon({ spanKind }: { spanKind: string }) {
   let icon = <></>;
   let color = "--ac-global-text-color-900";
+  console.log(spanKind);
   switch (spanKind) {
     case "llm":
       color = "--ac-global-color-orange-1000";
@@ -218,6 +240,10 @@ export function SpanKindIcon({ spanKind }: { spanKind: string }) {
     case "tool":
       color = "--ac-global-color-yellow-1200";
       icon = <ToolSVG />;
+      break;
+    case "reranking":
+      color = "--ac-global-color-celery-1000";
+      icon = <RerankerSVG />;
       break;
   }
 
