@@ -2,9 +2,12 @@ import React, { useState } from "react";
 import { python } from "@codemirror/lang-python";
 import { nord } from "@uiw/codemirror-theme-nord";
 import CodeMirror from "@uiw/react-codemirror";
+import { fetchQuery, graphql } from "relay-runtime";
 import { css } from "@emotion/react";
 
-import { AddonBefore, Flex, Icon, Icons, View } from "@arizeai/components";
+import { AddonBefore, Flex, Icon, Icons } from "@arizeai/components";
+
+import environment from "@phoenix/RelayEnvironment";
 
 const codeMirrorCSS = css`
   .cm-content {
@@ -15,16 +18,39 @@ const codeMirrorCSS = css`
     background-color: transparent;
   }
 `;
+
+const fieldCSS = css`
+  border-width: var(--ac-global-border-size-thin);
+  border-style: solid;
+  border-color: var(--ac-global-input-field-border-color);
+  border-radius: var(--ac-global-rounding-small);
+  background-color: var(--ac-global-input-field-background-color);
+  transition: all 0.2s ease-in-out;
+  overflow: hidden;
+  &:hover,
+  &[data-is-focused="true"] {
+    border-color: var(--ac-global-input-field-border-color-active);
+    background-color: var(--ac-global-input-field-background-color-active);
+  }
+`;
+
+async function isConditionValid(condition: string) {
+  const isValid = fetchQuery(
+    environment,
+    graphql`
+      query SpanFilterConditionFieldValidationQuery($condition: String!) {
+        
+      }
+    `,
+    { condition }
+  ).toPromise();
+}
 const extensions = [python()];
 export function SpanFilterConditionField() {
   const [isFocused, setIsFocused] = useState<boolean>(false);
   const [filterCondition, setFilterCondition] = useState<string>("");
   return (
-    <View
-      borderRadius="small"
-      borderColor={isFocused ? "light" : "blue-100"}
-      borderWidth="thick"
-    >
+    <div data-is-focused={isFocused} css={fieldCSS}>
       <Flex direction="row">
         <AddonBefore>
           <Icon svg={<Icons.Search />} />
@@ -49,6 +75,6 @@ export function SpanFilterConditionField() {
           extensions={extensions}
         />
       </Flex>
-    </View>
+    </div>
   );
 }

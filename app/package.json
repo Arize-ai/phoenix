@@ -6,7 +6,7 @@
   "license": "None",
   "private": true,
   "dependencies": {
-    "@arizeai/components": "^0.17.3",
+    "@arizeai/components": "^0.17.4",
     "@arizeai/point-cloud": "^3.0.4",
     "@codemirror/lang-json": "^6.0.1",
     "@codemirror/lang-python": "^6.1.3",
