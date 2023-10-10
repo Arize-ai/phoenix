@@ -250,7 +250,7 @@ class LLMClassifierWithExplanation:
     def __init__(
         self,
         model: BaseModel,
-        classification_config: LLMClassificationConfig,  # This classification config object is the same as before, but the prompts need to contain explicit instructions about providing explanations and how to format the explanation and classifier
+        classification_config: LLMClassificationConfig,  # This classification config object is the same as before, but the prompts need to contain explicit instructions about providing explanations and how to format the classification and explanation together in the output.
     ) -> None:
         raise NotImplementedError()
 
@@ -275,7 +275,7 @@ class OpenAIFineTuningJob:
     def __init__(
         self,
         classification_config: LLMClassificationConfig,
-        base_model_name: str,
+        model_name: str,
         *,
         num_epochs: Optional[int] = None,
     ) -> None:
