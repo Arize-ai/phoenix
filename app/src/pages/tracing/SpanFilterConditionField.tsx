@@ -1,21 +1,42 @@
-import React, { useState } from "react";
+import React, {
+  startTransition,
+  useDeferredValue,
+  useEffect,
+  useState,
+} from "react";
+import { autocompletion, CompletionContext } from "@codemirror/autocomplete";
 import { python } from "@codemirror/lang-python";
 import { nord } from "@uiw/codemirror-theme-nord";
 import CodeMirror from "@uiw/react-codemirror";
 import { fetchQuery, graphql } from "relay-runtime";
 import { css } from "@emotion/react";
 
-import { AddonBefore, Flex, Icon, Icons } from "@arizeai/components";
+import {
+  AddonBefore,
+  Flex,
+  HelpTooltip,
+  Icon,
+  Icons,
+  Text,
+  TooltipTrigger,
+  TriggerWrap,
+} from "@arizeai/components";
 
 import environment from "@phoenix/RelayEnvironment";
 
+import { SpanFilterConditionFieldValidationQuery } from "./__generated__/SpanFilterConditionFieldValidationQuery.graphql";
+
 const codeMirrorCSS = css`
+  flex: 1 1 auto;
   .cm-content {
     padding: var(--ac-global-dimension-static-size-100) 0;
   }
   .cm-editor,
   .cm-gutters {
     background-color: transparent;
+  }
+  .cm-focused {
+    outline: none;
   }
 `;
 
@@ -29,28 +50,113 @@ const fieldCSS = css`
   overflow: hidden;
   &:hover,
   &[data-is-focused="true"] {
+    background-color: white;
     border-color: var(--ac-global-input-field-border-color-active);
     background-color: var(--ac-global-input-field-background-color-active);
   }
+  &[data-is-invalid="true"] {
+    border-color: var(--ac-global-color-danger);
+  }
 `;
 
-async function isConditionValid(condition: string) {
-  const isValid = fetchQuery(
-    environment,
-    graphql`
-      query SpanFilterConditionFieldValidationQuery($condition: String!) {
-        
-      }
-    `,
-    { condition }
-  ).toPromise();
+function filterConditionCompletions(context: CompletionContext) {
+  const word = context.matchBefore(/\w*/);
+  if (!word) return null;
+
+  if (word.from == word.to && !context.explicit) return null;
+  return {
+    from: word.from,
+    options: [
+      {
+        label: "span_kind",
+        type: "variable",
+        info: "The span variant: CHAIN, LLM, RETRIEVER, TOOL, etc.",
+      },
+      {
+        label: "llm",
+        type: "text",
+        apply: "span_kind == 'LLM'",
+        detail: "macro",
+      },
+      {
+        label: "retriever",
+        type: "text",
+        apply: "span_kind == 'RETRIEVER'",
+        detail: "macro",
+      },
+    ],
+  };
 }
-const extensions = [python()];
-export function SpanFilterConditionField() {
+
+/**
+ * Async server-side validation of the filter condition expression
+ */
+async function isConditionValid(condition: string) {
+  if (!condition) {
+    return {
+      isValid: true,
+      errorMessage: null,
+    };
+  }
+  const validationResult =
+    await fetchQuery<SpanFilterConditionFieldValidationQuery>(
+      environment,
+      graphql`
+        query SpanFilterConditionFieldValidationQuery($condition: String!) {
+          validateSpanFilterCondition(condition: $condition) {
+            isValid
+            errorMessage
+          }
+        }
+      `,
+      { condition }
+    ).toPromise();
+  // Satisfy the type checker
+  if (!validationResult) {
+    throw new Error("Filter condition validation is null");
+  }
+  return validationResult.validateSpanFilterCondition;
+}
+
+const extensions = [
+  python(),
+  autocompletion({ override: [filterConditionCompletions] }),
+];
+
+type SpanFilterConditionFieldProps = {
+  /**
+   * Callback when the condition is valid
+   */
+  onValidCondition: (condition: string) => void;
+  placeholder?: string;
+};
+export function SpanFilterConditionField(props: SpanFilterConditionFieldProps) {
+  const {
+    onValidCondition,
+    placeholder = "filter condition (e.x. span_kind == 'LLM')",
+  } = props;
   const [isFocused, setIsFocused] = useState<boolean>(false);
+  const [errorMessage, setErrorMessage] = useState<string>("");
   const [filterCondition, setFilterCondition] = useState<string>("");
+  const deferredFilterCondition = useDeferredValue(filterCondition);
+
+  useEffect(() => {
+    isConditionValid(deferredFilterCondition).then((result) => {
+      if (!result.isValid && result.errorMessage) {
+        setErrorMessage(result.errorMessage);
+      } else {
+        setErrorMessage("");
+        startTransition(() => {
+          onValidCondition(deferredFilterCondition);
+        });
+      }
+    });
+  }, [onValidCondition, deferredFilterCondition]);
+
+  const hasError = errorMessage !== "";
+  const hasCondition = filterCondition !== "";
   return (
-    <div data-is-focused={isFocused} css={fieldCSS}>
+    <div data-is-focused={isFocused} data-is-invalid={hasError} css={fieldCSS}>
       <Flex direction="row">
         <AddonBefore>
           <Icon svg={<Icons.Search />} />
@@ -64,6 +170,7 @@ export function SpanFilterConditionField() {
             syntaxHighlighting: true,
             highlightActiveLine: false,
             highlightActiveLineGutter: false,
+            autocompletion: {},
           }}
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
@@ -72,9 +179,33 @@ export function SpanFilterConditionField() {
           height="36px"
           width="100%"
           theme={nord}
+          placeholder={placeholder}
           extensions={extensions}
         />
+        <button
+          css={css`
+            margin-right: var(--ac-global-dimension-static-size-100);
+            color: var(--ac-global-text-color-700);
+            visibility: ${hasCondition ? "visible" : "hidden"};
+          `}
+          onClick={() => setFilterCondition("")}
+          className="button--reset"
+        >
+          <Icon svg={<Icons.CloseCircleOutline />} />
+        </button>
       </Flex>
+      <TooltipTrigger isOpen={hasError && isFocused} placement="bottom">
+        <TriggerWrap>
+          <div />
+        </TriggerWrap>
+        <HelpTooltip>
+          {errorMessage != "" ? (
+            <Text color="danger">{errorMessage}</Text>
+          ) : (
+            <Text color="success">Valid Expression</Text>
+          )}
+        </HelpTooltip>
+      </TooltipTrigger>
     </div>
   );
 }

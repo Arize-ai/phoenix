@@ -1,5 +1,5 @@
 /* eslint-disable react/prop-types */
-import React, { useDeferredValue, useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
 import { useNavigate } from "react-router";
 import {
@@ -78,8 +78,7 @@ export function TracesTable(props: TracesTableProps) {
   //we need a reference to the scrolling element for logic down below
   const tableContainerRef = React.useRef<HTMLDivElement>(null);
   const [sorting, setSorting] = useState<SortingState>([]);
-  const [filterCondition, _setFilterCondition] = useState<string>("");
-  const deferredFilterCondition = useDeferredValue(filterCondition);
+  const [filterCondition, setFilterCondition] = useState<string>("");
   const navigate = useNavigate();
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
     usePaginationFragment<TracesTableQuery, TracesTable_spans$key>(
@@ -289,9 +288,9 @@ export function TracesTable(props: TracesTableProps) {
         : DEFAULT_SORT,
       after: null,
       first: PAGE_SIZE,
-      filterCondition: deferredFilterCondition,
+      filterCondition: filterCondition,
     });
-  }, [sorting, refetch, deferredFilterCondition]);
+  }, [sorting, refetch, filterCondition]);
   const fetchMoreOnBottomReached = React.useCallback(
     (containerRefElement?: HTMLDivElement | null) => {
       if (containerRefElement) {
@@ -328,7 +327,7 @@ export function TracesTable(props: TracesTableProps) {
   return (
     <div>
       <View padding="size-100" backgroundColor="light">
-        <SpanFilterConditionField />
+        <SpanFilterConditionField onValidCondition={setFilterCondition} />
       </View>
       <div
         css={css`
