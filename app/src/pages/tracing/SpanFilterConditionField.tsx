@@ -6,6 +6,7 @@ import React, {
 } from "react";
 import { autocompletion, CompletionContext } from "@codemirror/autocomplete";
 import { python } from "@codemirror/lang-python";
+import { EditorView, keymap } from "@codemirror/view";
 import { nord } from "@uiw/codemirror-theme-nord";
 import CodeMirror from "@uiw/react-codemirror";
 import { fetchQuery, graphql } from "relay-runtime";
@@ -31,12 +32,14 @@ const codeMirrorCSS = css`
   .cm-content {
     padding: var(--ac-global-dimension-static-size-100) 0;
   }
-  .cm-editor,
-  .cm-gutters {
+  .cm-editor {
     background-color: transparent;
   }
   .cm-focused {
     outline: none;
+  }
+  .cm-selectionLayer .cm-selectionBackground {
+    background: var(--ac-global-color-cyan-400) !important;
   }
 `;
 
@@ -50,7 +53,6 @@ const fieldCSS = css`
   overflow: hidden;
   &:hover,
   &[data-is-focused="true"] {
-    background-color: white;
     border-color: var(--ac-global-input-field-border-color-active);
     background-color: var(--ac-global-input-field-background-color-active);
   }
@@ -73,17 +75,30 @@ function filterConditionCompletions(context: CompletionContext) {
         info: "The span variant: CHAIN, LLM, RETRIEVER, TOOL, etc.",
       },
       {
-        label: "llm",
+        label: "llm spans",
         type: "text",
         apply: "span_kind == 'LLM'",
         detail: "macro",
       },
       {
-        label: "retriever",
+        label: "retriever spans",
         type: "text",
         apply: "span_kind == 'RETRIEVER'",
         detail: "macro",
       },
+      // TODO: need to fix the validation logic
+      // {
+      //   label: "search input",
+      //   type: "text",
+      //   apply: "`attributes.input.value`.str.contains('')",
+      //   detail: "macro",
+      // },
+      // {
+      //   label: "search output",
+      //   type: "text",
+      //   apply: "`attributes.output.value`.str.contains('')",
+      //   detail: "macro",
+      // },
     ],
   };
 }
@@ -119,6 +134,15 @@ async function isConditionValid(condition: string) {
 }
 
 const extensions = [
+  keymap.of([
+    {
+      key: "Enter",
+      run: (_editorView: EditorView) => {
+        // Ignore newlines
+        return true;
+      },
+    },
+  ]),
   python(),
   autocompletion({ override: [filterConditionCompletions] }),
 ];
@@ -170,12 +194,12 @@ export function SpanFilterConditionField(props: SpanFilterConditionFieldProps) {
             syntaxHighlighting: true,
             highlightActiveLine: false,
             highlightActiveLineGutter: false,
-            autocompletion: {},
+            defaultKeymap: false,
           }}
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
           value={filterCondition}
-          onChange={(value) => setFilterCondition(value)}
+          onChange={setFilterCondition}
           height="36px"
           width="100%"
           theme={nord}
