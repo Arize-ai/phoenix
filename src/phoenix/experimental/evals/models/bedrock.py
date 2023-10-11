@@ -119,9 +119,7 @@ class BedrockModel(BaseEvalModel):
 
     def _generate_with_retry(self, **kwargs: Any) -> Any:
         """Use tenacity to retry the completion call."""
-        retry_errors = [
-            self.client.exceptions.ThrottlingException  # type:ignore
-        ]
+        retry_errors = [self.client.exceptions.ThrottlingException]
 
         @self.retry(
             error_types=retry_errors,
@@ -130,7 +128,7 @@ class BedrockModel(BaseEvalModel):
             max_retries=self.max_retries,
         )
         def _completion_with_retry(**kwargs: Any) -> Any:
-            return self.client.invoke_model(**kwargs)  # type:ignore
+            return self.client.invoke_model(**kwargs)
 
         return _completion_with_retry(**kwargs)
 
