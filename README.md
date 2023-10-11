@@ -206,7 +206,7 @@ Here is an example of running the RAG relevance eval on a dataset of Wikipedia q
 
 ```shell
 # Install phoenix as well as the experimental subpackage
-pip install -qq arize-phoenix[experimental] ipython matplotlib openai pycm scikit-learn
+pip install arize-phoenix[experimental] ipython matplotlib openai pycm scikit-learn
 ```
 
 ```python
