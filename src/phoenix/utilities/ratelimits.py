@@ -69,21 +69,20 @@ class LimitStore:
     def __new__(cls) -> "LimitStore":
         if not cls._singleton:
             cls._singleton = super().__new__(cls)
+            cls._singleton._store = defaultdict(dict)
         return cls._singleton
 
-    def __init__(self) -> None:
-        self._store: Dict[str, Dict[str, LeakyBucket]] = dict()
+    _store: Dict[str, Dict[str, LeakyBucket]]
 
     def set_rate_limit(self, key: str, limit_type: str, per_minute_rate_limit: Numeric) -> None:
-        if limits := self._store.get(key):
+        if limits := self._store[key]:
             if limit := limits.get(limit_type):
                 limit.verify_limit(per_minute_rate_limit)
-            else:
-                limits[limit_type] = LeakyBucket(
-                    per_minute_rate_limit,
-                    0,
-                    per_minute_rate_limit,
-                )
+        limits[limit_type] = LeakyBucket(
+            per_minute_rate_limit,
+            0,
+            per_minute_rate_limit,
+        )
 
     def wait_for_rate_limits(self, key: str, rate_limit_costs: Dict[str, Numeric]) -> None:
         rate_limits = self._store[key]
