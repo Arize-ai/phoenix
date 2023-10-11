@@ -12,6 +12,7 @@ from typing import (
     Union,
 )
 
+import pandas as pd
 from langchain.chat_models.base import BaseChatModel as LangChainBaseChatModel
 from langchain.llms.base import BaseLLM as LangChainBaseLLM
 from litellm.llms.base import BaseLLM as LiteLLMBaseLLM
@@ -19,8 +20,6 @@ from llama_index.llms.base import BaseModel as LlamaIndexBaseModel
 
 JobID: TypeAlias = str
 Record: TypeAlias = Mapping[str, Any]
-Evaluation: TypeAlias = Union[str, int, float]
-Evaluations: TypeAlias = List[Evaluation]
 
 
 class Message(TypedDict):
@@ -28,13 +27,20 @@ class Message(TypedDict):
     content: str
 
 
-# LLM and chat model interfaces. The `generate` method for both are meant to encapsulate a single request.
+@dataclass
+class Classification:
+    name: str
+    content: Union[str, int, bool]
+    explanation: Optional[str] = None
 
 
 @dataclass
-class Classification:
-    content: str
-    explanation: Optional[str] = None
+class Score:
+    name: str
+    content: Union[int, float]
+
+
+Evaluation: TypeAlias = Union[Classification, Score]
 
 
 # LLM interface.
@@ -229,8 +235,14 @@ DefaultAnthropicClaude2RequestConfig = ...
 
 
 # LLM classifiers.
-class BaseLLMClassifier(Protocol):
+class BaseClassifier(Protocol):
     def predict(self, record: Record) -> Classification:
+        ...
+
+    def predict_batch(self, records: List[Record]) -> List[Classification]:
+        ...
+
+    def predict_dataframe(self, dataframe: pd.DataFrame) -> List[Classification]:
         ...
 
 
@@ -239,10 +251,17 @@ class LLMClassifier:
         self,
         model: BaseModel,
         classification_config: LLMClassificationConfig,
+        request_config: Optional[RequestConfig] = None,  # If None, use the default settings.
     ) -> None:
         raise NotImplementedError()
 
     def predict(self, record: Record) -> Classification:
+        raise NotImplementedError()
+
+    def predict_batch(self, records: List[Record]) -> List[Classification]:
+        raise NotImplementedError()
+
+    def predict_dataframe(self, dataframe: pd.DataFrame) -> List[Classification]:
         raise NotImplementedError()
 
 
@@ -251,10 +270,17 @@ class LLMClassifierWithExplanation:
         self,
         model: BaseModel,
         classification_config: LLMClassificationConfig,  # This classification config object is the same as before, but the prompts need to contain explicit instructions about providing explanations and how to format the classification and explanation together in the output.
+        request_config: Optional[RequestConfig] = None,  # If None, use the default settings.
     ) -> None:
         raise NotImplementedError()
 
     def predict(self, record: Record) -> Classification:
+        raise NotImplementedError()
+
+    def predict_batch(self, records: List[Record]) -> List[Classification]:
+        raise NotImplementedError()
+
+    def predict_dataframe(self, dataframe: pd.DataFrame) -> List[Classification]:
         raise NotImplementedError()
 
 
@@ -263,11 +289,44 @@ class FunctionsClassifier:
         self,
         model: OpenAIChatModel,  # function calling is a feature of only the OpenAI API
         classification_config: LLMFunctionsClassificationConfig,
+        request_config: Optional[RequestConfig] = None,  # If None, use the default settings.
     ) -> None:
         raise NotImplementedError()
 
     def predict(self, record: Record, *, provide_explanation: bool = False) -> Classification:
         raise NotImplementedError()
+
+    def predict_batch(self, records: List[Record]) -> List[Classification]:
+        raise NotImplementedError()
+
+    def predict_dataframe(self, dataframe: pd.DataFrame) -> List[Classification]:
+        raise NotImplementedError()
+
+
+# evaluator
+class BaseScorer(Protocol):
+    def predict(self, record: Record) -> Score:
+        ...
+
+    def predict_batch(self, records: List[Record]) -> List[Score]:
+        ...
+
+    def predict_dataframe(self, dataframe: pd.DataFrame) -> List[Score]:
+        ...
+
+
+class MRRScorer:
+    def predict(self, record: Record) -> Score:
+        raise NotImplementedError()
+
+    def predict_batch(self, records: List[Record]) -> List[Classification]:
+        raise NotImplementedError()
+
+    def predict_dataframe(self, dataframe: pd.DataFrame) -> List[Classification]:
+        raise NotImplementedError()
+
+
+BaseEvaluator: TypeAlias = Union[BaseClassifier, BaseScorer]
 
 
 # Support for fine-tuning.
@@ -301,49 +360,18 @@ class OpenAIFineTuningJob:
         raise NotImplementedError()
 
 
-# Evaluators
-class Evaluator(Protocol):
-    def evaluate(self, records: List[Record]) -> List[Evaluation]:
-        ...
-
-    @property
-    def name(self) -> str:
-        ...
-
-
-class ClassificationEvaluator:
-    def __init__(self, classifier: LLMClassifier, name: str) -> None:
-        raise NotImplementedError()
-
-    def evaluate(self, records: List[Record]) -> List[Evaluation]:
-        """Delegates to the classifier."""
-        raise NotImplementedError()
-
-    @property
-    def name(self) -> str:
-        raise NotImplementedError()
-
-
-# not sure how to handle something like precision@k that requires an
-# classification evaluator before computing the score
-
-
-# evals
-class Evals:
+class Runner:
     def __init__(
-        self, evaluators: List[Evaluator], job_config: Optional[RequestConfig] = None
-    ) -> None:
-        raise NotImplementedError()
-
-    @classmethod
-    def from_names(
         self,
-        eval_names: List[str],
-        *,
-        model: Optional[BaseModel] = None,
-        job_config: Optional[RequestConfig] = None,
-    ) -> "Evals":
+        model: BaseModel,
+        classification_configs: List[LLMClassificationConfig],
+        request_config: RequestConfig,
+    ) -> None:
+        # This is simplified for now to assume only LLM classification evals and a single model.
         raise NotImplementedError()
 
-    def run(self, records: List[Record]) -> List[Evaluations]:
+    def execute(self, record: Record) -> List[Evaluation]:
+        raise NotImplementedError()
+
+    def execute_batch(self, records: List[Record]) -> List[List[Evaluation]]:
         raise NotImplementedError()
