@@ -1,4 +1,3 @@
-import asyncio
 import sys
 import time
 from collections import defaultdict
@@ -16,6 +15,10 @@ P = ParamSpec("P")
 T = TypeVar("T")
 
 
+class UnavailableTokensError(Exception):
+    pass
+
+
 class LeakyBucket:
     """
     A simple in-memory rate-limiter implemented using the leaky bucket algorithm.
@@ -30,7 +33,7 @@ class LeakyBucket:
     def _per_second_rate(self, per_minute_rate: Numeric) -> float:
         return round(per_minute_rate / 60, 3)
 
-    def verify_limit(self, per_minute_rate: Numeric) -> None:
+    def update_limit(self, per_minute_rate: Numeric) -> None:
         new_rate = self._per_second_rate(per_minute_rate)
         if self.rate != new_rate:
             self.rate = new_rate
@@ -41,21 +44,25 @@ class LeakyBucket:
         time_since_last_checked = time.time() - self.last_checked
         return min(self.max_tokens, self.rate * time_since_last_checked + self.tokens)
 
-    def wait_for_available_tokens(self, token_cost: Numeric) -> None:
-        seconds_until_ready = (token_cost - self.available_tokens()) / self.rate
-        if seconds_until_ready > 0:
-            time.sleep(seconds_until_ready)
-
     def spend_tokens(self, token_cost: Numeric) -> Numeric:
+        if token_cost > self.available_tokens():
+            raise UnavailableTokensError
         now = time.time()
-        self.tokens -= (self.last_checked - now) * self.rate + token_cost
+        current_tokens = min(self.max_tokens, self.tokens + (now - self.last_checked) * self.rate)
+        self.tokens = current_tokens - token_cost
         self.last_checked = now
         return self.last_checked
 
-    async def async_wait_for_available_tokens(self, token_cost: int) -> None:
-        seconds_until_ready = (token_cost - self.available_tokens()) / self.rate
-        if seconds_until_ready > 0:
-            await asyncio.sleep(seconds_until_ready)
+    def wait_for_then_spend_available_tokens(self, token_cost: Numeric) -> None:
+        MAX_WAIT_TIME = 5 * 60  # 5 minutes
+        start = time.time()
+        while (time.time() - start) < MAX_WAIT_TIME:
+            try:
+                self.spend_tokens(token_cost)
+                break
+            except UnavailableTokensError:
+                time.sleep(1 / self.rate)
+                continue
 
 
 class LimitStore:
@@ -71,15 +78,16 @@ class LimitStore:
     def __new__(cls) -> "LimitStore":
         if not cls._singleton:
             cls._singleton = super().__new__(cls)
-            cls._singleton._store = defaultdict(dict)
+            cls._singleton._rate_limits = defaultdict(dict)
         return cls._singleton
 
-    _store: Dict[str, Dict[str, LeakyBucket]]
+    _rate_limits: Dict[str, Dict[str, LeakyBucket]]
 
     def set_rate_limit(self, key: str, limit_type: str, per_minute_rate_limit: Numeric) -> None:
-        if limits := self._store[key]:
+        if limits := self._rate_limits[key]:
             if limit := limits.get(limit_type):
-                limit.verify_limit(per_minute_rate_limit)
+                limit.update_limit(per_minute_rate_limit)
+                return
         limits[limit_type] = LeakyBucket(
             per_minute_rate_limit,
             0,
@@ -87,16 +95,10 @@ class LimitStore:
         )
 
     def wait_for_rate_limits(self, key: str, rate_limit_costs: Dict[str, Numeric]) -> None:
-        rate_limits = self._store[key]
+        rate_limits = self._rate_limits[key]
         for limit_type, cost in rate_limit_costs.items():
             if limit := rate_limits.get(limit_type):
-                limit.wait_for_available_tokens(cost)
-
-    def update_rate_limits(self, key: str, rate_limit_costs: Dict[str, Numeric]) -> None:
-        rate_limits = self._store[key]
-        for limit_type, cost in rate_limit_costs.items():
-            if limit := rate_limits.get(limit_type):
-                limit.spend_tokens(cost)
+                limit.wait_for_then_spend_available_tokens(cost)
 
 
 class OpenAIRateLimiter:
@@ -119,19 +121,12 @@ class OpenAIRateLimiter:
         @contextmanager
         def rate_limit_decorator(fn: Callable[P, T]) -> Generator[Callable[P, T], None, None]:
             @wraps(fn)
-            def wrapper(*args: Any, **kwargs: Any) -> Generator[T, None, None]:
+            def wrapper(*args: Any, **kwargs: Any) -> Any:
                 self._store.wait_for_rate_limits(
                     self.key(model_name), {"requests": 1, "tokens": token_cost}
                 )
-                try:
-                    result: T
-                    result = fn(*args, **kwargs)
-                    yield result
-                finally:
-                    # always consume the rate limit, even if the call fails
-                    self._store.update_rate_limits(
-                        self.key(model_name), {"requests": 1, "tokens": token_cost}
-                    )
+                result: T = fn(*args, **kwargs)
+                yield result
 
             return wrapper  # type: ignore
 
