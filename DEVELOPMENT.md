@@ -157,7 +157,7 @@ The code below installs the `main` branch in [Colab](https://colab.research.goog
 !npm install -g -s n
 !n latest
 !npm install -g -s npm@latest
-%pip install -qqq git+https://github.com/Arize-ai/phoenix.git@main
+%pip install git+https://github.com/Arize-ai/phoenix.git@main
 ```
 
 ## Setting Up Your Windows Test Environment
