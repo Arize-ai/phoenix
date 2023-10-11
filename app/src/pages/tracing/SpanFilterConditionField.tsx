@@ -75,6 +75,26 @@ function filterConditionCompletions(context: CompletionContext) {
         info: "The span variant: CHAIN, LLM, RETRIEVER, TOOL, etc.",
       },
       {
+        label: "status_code",
+        type: "variable",
+        info: "The span status: OK, UNSET, or ERROR",
+      },
+      {
+        label: "input.value",
+        type: "variable",
+        info: "The input value of a span, typically a query",
+      },
+      {
+        label: "output.value",
+        type: "variable",
+        info: "The output value of a span, typically a response",
+      },
+      {
+        label: "name",
+        type: "variable",
+        info: "The name given to a span - e.x. OpenAI",
+      },
+      {
         label: "llm spans",
         type: "text",
         apply: "span_kind == 'LLM'",
@@ -86,19 +106,24 @@ function filterConditionCompletions(context: CompletionContext) {
         apply: "span_kind == 'RETRIEVER'",
         detail: "macro",
       },
-      // TODO: need to fix the validation logic
-      // {
-      //   label: "search input",
-      //   type: "text",
-      //   apply: "`attributes.input.value`.str.contains('')",
-      //   detail: "macro",
-      // },
-      // {
-      //   label: "search output",
-      //   type: "text",
-      //   apply: "`attributes.output.value`.str.contains('')",
-      //   detail: "macro",
-      // },
+      {
+        label: "search input",
+        type: "text",
+        apply: "'' in input.value",
+        detail: "macro",
+      },
+      {
+        label: "search output",
+        type: "text",
+        apply: "'' in output.value",
+        detail: "macro",
+      },
+      {
+        label: "status_code error",
+        type: "text",
+        apply: "status_code == 'ERROR'",
+        detail: "macro",
+      },
     ],
   };
 }
