@@ -132,6 +132,6 @@ class OpenAIRateLimiter:
                         self.key(model_name), {"requests": 1, "tokens": token_cost}
                     )
 
-            return wrapper
+            return wrapper  # type: ignore
 
         return rate_limit_decorator
