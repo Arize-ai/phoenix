@@ -12,7 +12,6 @@ from typing import (
     Union,
 )
 
-import pandas as pd
 from langchain.chat_models.base import BaseChatModel as LangChainBaseChatModel
 from langchain.llms.base import BaseLLM as LangChainBaseLLM
 from litellm.llms.base import BaseLLM as LiteLLMBaseLLM
@@ -20,6 +19,7 @@ from llama_index.llms.base import BaseModel as LlamaIndexBaseModel
 
 JobID: TypeAlias = str
 Record: TypeAlias = Mapping[str, Any]
+LLMClassificationConfigName = Literal["hallucination", "relevance"]  # others
 
 
 class Message(TypedDict):
@@ -166,17 +166,19 @@ class RAGVariableNames:
     reference_variable_name: str
 
 
-class RAGRelevanceClassificationConfig(RAGVariableNames, LLMClassificationConfig):
+class RelevanceClassificationConfig(RAGVariableNames, LLMClassificationConfig):
     ...
 
 
-DefaultRAGRelevanceClassificationConfig = RAGRelevanceClassificationConfig(
+DefaultRelevanceClassificationConfig = RelevanceClassificationConfig(
     template=PromptTemplate(template_string="Query: {query}\nReference: {reference}\nResponse: "),
     rails=("relevant", "irrelevant"),
     system_message='You are an assistant whose purpose is to classify a document as relevant or irrelevant to a query. You must respond with a single word, either "relevant" or "irrelevant".',
     query_variable_name="query",
     reference_variable_name="reference",
 )
+
+DefaultHallucinationClassificationConfig = ...
 
 
 @dataclass
@@ -191,7 +193,7 @@ class LLMFunctionsClassificationConfig(FunctionCallingPrompts, LLMClassification
     ...
 
 
-# Configuration for running batches of predictions
+# Request config
 @dataclass
 class RetryConfig:
     ...
@@ -239,29 +241,16 @@ class BaseClassifier(Protocol):
     def predict(self, record: Record) -> Classification:
         ...
 
-    def predict_batch(self, records: List[Record]) -> List[Classification]:
-        ...
-
-    def predict_dataframe(self, dataframe: pd.DataFrame) -> List[Classification]:
-        ...
-
 
 class LLMClassifier:
     def __init__(
         self,
         model: BaseModel,
         classification_config: LLMClassificationConfig,
-        request_config: Optional[RequestConfig] = None,  # If None, use the default settings.
     ) -> None:
         raise NotImplementedError()
 
     def predict(self, record: Record) -> Classification:
-        raise NotImplementedError()
-
-    def predict_batch(self, records: List[Record]) -> List[Classification]:
-        raise NotImplementedError()
-
-    def predict_dataframe(self, dataframe: pd.DataFrame) -> List[Classification]:
         raise NotImplementedError()
 
 
@@ -270,17 +259,10 @@ class LLMClassifierWithExplanation:
         self,
         model: BaseModel,
         classification_config: LLMClassificationConfig,  # This classification config object is the same as before, but the prompts need to contain explicit instructions about providing explanations and how to format the classification and explanation together in the output.
-        request_config: Optional[RequestConfig] = None,  # If None, use the default settings.
     ) -> None:
         raise NotImplementedError()
 
     def predict(self, record: Record) -> Classification:
-        raise NotImplementedError()
-
-    def predict_batch(self, records: List[Record]) -> List[Classification]:
-        raise NotImplementedError()
-
-    def predict_dataframe(self, dataframe: pd.DataFrame) -> List[Classification]:
         raise NotImplementedError()
 
 
@@ -289,44 +271,21 @@ class FunctionsClassifier:
         self,
         model: OpenAIChatModel,  # function calling is a feature of only the OpenAI API
         classification_config: LLMFunctionsClassificationConfig,
-        request_config: Optional[RequestConfig] = None,  # If None, use the default settings.
     ) -> None:
         raise NotImplementedError()
 
     def predict(self, record: Record, *, provide_explanation: bool = False) -> Classification:
         raise NotImplementedError()
 
-    def predict_batch(self, records: List[Record]) -> List[Classification]:
-        raise NotImplementedError()
 
-    def predict_dataframe(self, dataframe: pd.DataFrame) -> List[Classification]:
-        raise NotImplementedError()
-
-
-# evaluator
 class BaseScorer(Protocol):
     def predict(self, record: Record) -> Score:
-        ...
-
-    def predict_batch(self, records: List[Record]) -> List[Score]:
-        ...
-
-    def predict_dataframe(self, dataframe: pd.DataFrame) -> List[Score]:
         ...
 
 
 class MRRScorer:
     def predict(self, record: Record) -> Score:
         raise NotImplementedError()
-
-    def predict_batch(self, records: List[Record]) -> List[Classification]:
-        raise NotImplementedError()
-
-    def predict_dataframe(self, dataframe: pd.DataFrame) -> List[Classification]:
-        raise NotImplementedError()
-
-
-BaseEvaluator: TypeAlias = Union[BaseClassifier, BaseScorer]
 
 
 # Support for fine-tuning.
@@ -360,18 +319,27 @@ class OpenAIFineTuningJob:
         raise NotImplementedError()
 
 
-class Runner:
+# LLM eval config
+# we'll need something for non-LLM evals as well
+@dataclass
+class LLMEvalConfig:
+    classification_config: List[Union[LLMClassificationConfigName, LLMClassificationConfig]]
+    model: BaseModel
+    request_config: Optional[
+        RequestConfig
+    ] = None  # if none, we will look up the default request config for the model or use a fallback config
+
+
+# Evaluation runner
+class EvalRunner:
     def __init__(
         self,
-        model: BaseModel,
-        classification_configs: List[LLMClassificationConfig],
-        request_config: RequestConfig,
+        eval_configs: List[LLMEvalConfig],
     ) -> None:
-        # This is simplified for now to assume only LLM classification evals and a single model.
         raise NotImplementedError()
 
-    def execute(self, record: Record) -> List[Evaluation]:
+    def evaluate(self, record: Record) -> List[Evaluation]:
         raise NotImplementedError()
 
-    def execute_batch(self, records: List[Record]) -> List[List[Evaluation]]:
+    def evaluate_batch(self, records: List[Record]) -> List[List[Evaluation]]:
         raise NotImplementedError()
