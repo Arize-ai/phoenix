@@ -76,7 +76,6 @@ def _allowed_replacements() -> Iterator[Tuple[str, ast.expr]]:
             getattr(semantic_conventions, variable_name)
             for variable_name in dir(semantic_conventions)
             if variable_name.isupper()
-            and variable_name.startswith(("RETRIEVAL", "EMBEDDING", "LLM", "TOOL"))
         )
     }.items():
         yield source_segment, ast_replacement
