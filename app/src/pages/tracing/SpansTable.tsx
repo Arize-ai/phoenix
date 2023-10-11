@@ -11,7 +11,7 @@ import {
 } from "@tanstack/react-table";
 import { css } from "@emotion/react";
 
-import { Icon, Icons } from "@arizeai/components";
+import { Icon, Icons, View } from "@arizeai/components";
 
 import { Link } from "@phoenix/components/Link";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
@@ -30,6 +30,7 @@ import {
   SpanSort,
   SpansTableSpansQuery,
 } from "./__generated__/SpansTableSpansQuery.graphql";
+import { SpanFilterConditionField } from "./SpanFilterConditionField";
 import { TokenCount } from "./TokenCount";
 type SpansTableProps = {
   query: SpansTable_spans$key;
@@ -44,6 +45,7 @@ export function SpansTable(props: SpansTableProps) {
   //we need a reference to the scrolling element for logic down below
   const tableContainerRef = React.useRef<HTMLDivElement>(null);
   const [sorting, setSorting] = useState<SortingState>([]);
+  const [filterCondition, setFilterCondition] = useState<string>("");
   const navigate = useNavigate();
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
     usePaginationFragment<SpansTableSpansQuery, SpansTable_spans$key>(
@@ -57,9 +59,14 @@ export function SpansTable(props: SpansTableProps) {
             type: "SpanSort"
             defaultValue: { col: startTime, dir: desc }
           }
+          filterCondition: { type: "String", defaultValue: null }
         ) {
-          spans(first: $first, after: $after, sort: $sort)
-            @connection(key: "SpansTable_spans") {
+          spans(
+            first: $first
+            after: $after
+            sort: $sort
+            filterCondition: $filterCondition
+          ) @connection(key: "SpansTable_spans") {
             edges {
               span: node {
                 spanKind
@@ -186,8 +193,9 @@ export function SpansTable(props: SpansTableProps) {
         : DEFAULT_SORT,
       after: null,
       first: PAGE_SIZE,
+      filterCondition,
     });
-  }, [sorting, refetch]);
+  }, [sorting, refetch, filterCondition]);
   const fetchMoreOnBottomReached = React.useCallback(
     (containerRefElement?: HTMLDivElement | null) => {
       if (containerRefElement) {
@@ -217,82 +225,89 @@ export function SpansTable(props: SpansTableProps) {
   const rows = table.getRowModel().rows;
   const isEmpty = rows.length === 0;
   return (
-    <div
-      css={css`
-        flex: 1 1 auto;
-        overflow: auto;
-      `}
-      onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
-      ref={tableContainerRef}
-    >
-      <table css={selectableTableCSS}>
-        <thead>
-          {table.getHeaderGroups().map((headerGroup) => (
-            <tr key={headerGroup.id}>
-              {headerGroup.headers.map((header) => (
-                <th colSpan={header.colSpan} key={header.id}>
-                  {header.isPlaceholder ? null : (
-                    <div
-                      {...{
-                        className: header.column.getCanSort()
-                          ? "cursor-pointer"
-                          : "",
-                        onClick: header.column.getToggleSortingHandler(),
-                      }}
-                    >
-                      {flexRender(
-                        header.column.columnDef.header,
-                        header.getContext()
-                      )}
-                      {header.column.getIsSorted() ? (
-                        <Icon
-                          className="sort-icon"
-                          svg={
-                            header.column.getIsSorted() === "asc" ? (
-                              <Icons.ArrowUpFilled />
-                            ) : (
-                              <Icons.ArrowDownFilled />
-                            )
-                          }
-                        />
-                      ) : null}
-                    </div>
-                  )}
-                </th>
-              ))}
-            </tr>
-          ))}
-        </thead>
-        {isEmpty ? (
-          <TableEmpty />
-        ) : (
-          <tbody>
-            {rows.map((row) => {
-              return (
-                <tr
-                  key={row.id}
-                  onClick={() =>
-                    navigate(
-                      `traces/${row.original.context.traceId}?selectedSpanId=${row.original.context.spanId}`
-                    )
-                  }
-                >
-                  {row.getVisibleCells().map((cell) => {
-                    return (
-                      <td key={cell.id}>
+    <div>
+      <div>
+        <View padding="size-100" backgroundColor="light">
+          <SpanFilterConditionField onValidCondition={setFilterCondition} />
+        </View>
+      </div>
+      <div
+        css={css`
+          flex: 1 1 auto;
+          overflow: auto;
+        `}
+        onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
+        ref={tableContainerRef}
+      >
+        <table css={selectableTableCSS}>
+          <thead>
+            {table.getHeaderGroups().map((headerGroup) => (
+              <tr key={headerGroup.id}>
+                {headerGroup.headers.map((header) => (
+                  <th colSpan={header.colSpan} key={header.id}>
+                    {header.isPlaceholder ? null : (
+                      <div
+                        {...{
+                          className: header.column.getCanSort()
+                            ? "cursor-pointer"
+                            : "",
+                          onClick: header.column.getToggleSortingHandler(),
+                        }}
+                      >
                         {flexRender(
-                          cell.column.columnDef.cell,
-                          cell.getContext()
+                          header.column.columnDef.header,
+                          header.getContext()
                         )}
-                      </td>
-                    );
-                  })}
-                </tr>
-              );
-            })}
-          </tbody>
-        )}
-      </table>
+                        {header.column.getIsSorted() ? (
+                          <Icon
+                            className="sort-icon"
+                            svg={
+                              header.column.getIsSorted() === "asc" ? (
+                                <Icons.ArrowUpFilled />
+                              ) : (
+                                <Icons.ArrowDownFilled />
+                              )
+                            }
+                          />
+                        ) : null}
+                      </div>
+                    )}
+                  </th>
+                ))}
+              </tr>
+            ))}
+          </thead>
+          {isEmpty ? (
+            <TableEmpty />
+          ) : (
+            <tbody>
+              {rows.map((row) => {
+                return (
+                  <tr
+                    key={row.id}
+                    onClick={() =>
+                      navigate(
+                        `traces/${row.original.context.traceId}?selectedSpanId=${row.original.context.spanId}`
+                      )
+                    }
+                  >
+                    {row.getVisibleCells().map((cell) => {
+                      return (
+                        <td key={cell.id}>
+                          {flexRender(
+                            cell.column.columnDef.cell,
+                            cell.getContext()
+                          )}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                );
+              })}
+            </tbody>
+          )}
+        </table>
+      </div>
     </div>
   );
 }
