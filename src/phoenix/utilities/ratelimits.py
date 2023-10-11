@@ -1,6 +1,7 @@
 import asyncio
 import sys
 import time
+from collections import defaultdict
 from contextlib import contextmanager
 from functools import wraps
 from typing import Any, Callable, ContextManager, Dict, Generator, TypeVar, Union
@@ -46,8 +47,9 @@ class LeakyBucket:
             time.sleep(seconds_until_ready)
 
     def spend_tokens(self, token_cost: Numeric) -> Numeric:
-        self.tokens -= token_cost
-        self.last_checked = time.time()
+        now = time.time()
+        self.tokens -= (self.last_checked - now) * self.rate + token_cost
+        self.last_checked = now
         return self.last_checked
 
     async def async_wait_for_available_tokens(self, token_cost: int) -> None:
