@@ -41,7 +41,7 @@ class BedrockModel(BaseEvalModel):
     """Minimum number of seconds to wait when retrying."""
     retry_max_seconds: int = 60
     """Maximum number of seconds to wait when retrying."""
-    client = None
+    client: Any = None
     """The bedrock session client. If unset, a new one is created with boto3."""
     max_content_size: Optional[int] = None
     """If you're using a fine-tuned model, set this to the maximum content size"""
@@ -119,9 +119,7 @@ class BedrockModel(BaseEvalModel):
 
     def _generate_with_retry(self, **kwargs: Any) -> Any:
         """Use tenacity to retry the completion call."""
-        retry_errors = [
-            self.client.exceptions.ThrottlingException  # type:ignore
-        ]
+        retry_errors = [self.client.exceptions.ThrottlingException]
 
         @self.retry(
             error_types=retry_errors,
@@ -130,7 +128,7 @@ class BedrockModel(BaseEvalModel):
             max_retries=self.max_retries,
         )
         def _completion_with_retry(**kwargs: Any) -> Any:
-            return self.client.invoke_model(**kwargs)  # type:ignore
+            return self.client.invoke_model(**kwargs)
 
         return _completion_with_retry(**kwargs)
 
