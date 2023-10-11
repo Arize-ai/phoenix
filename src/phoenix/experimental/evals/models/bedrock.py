@@ -41,7 +41,7 @@ class BedrockModel(BaseEvalModel):
     """Minimum number of seconds to wait when retrying."""
     retry_max_seconds: int = 60
     """Maximum number of seconds to wait when retrying."""
-    client = None
+    client: Any = None
     """The bedrock session client. If unset, a new one is created with boto3."""
     max_content_size: Optional[int] = None
     """If you're using a fine-tuned model, set this to the maximum content size"""
