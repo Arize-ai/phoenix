@@ -621,7 +621,8 @@ function RerankingSpanInfo(props: {
         <CodeBlock value={query} mimeType="text" />
       </Card>
       <Card
-        title={`Input Documents (${numInputDocuments})`}
+        title={"Input Documents"}
+        titleExtra={<Counter variant="light">{numInputDocuments}</Counter>}
         {...defaultCardProps}
         defaultOpen={false}
       >
@@ -645,7 +646,8 @@ function RerankingSpanInfo(props: {
         }
       </Card>
       <Card
-        title={`Re-ranked Documents (${numOutputDocuments})`}
+        title={"Output Documents"}
+        titleExtra={<Counter variant="light">{numOutputDocuments}</Counter>}
         {...defaultCardProps}
       >
         {
