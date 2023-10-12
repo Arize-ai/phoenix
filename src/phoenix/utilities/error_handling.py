@@ -35,7 +35,14 @@ def graceful_fallback(
             try:
                 return func(*args, **kwargs)
             except exceptions as exc:
-                logging.error(f"Exception in {func.__name__}: {exc}")
+                msg = (
+                    f"Exception occurred in function '{func.__name__}':\n"
+                    f"  Args: {args}\n"
+                    f"  Kwargs: {kwargs}\n"
+                    f"  Exception Type: {type(exc).__name__}\n"
+                    f"  Exception Message: {str(exc)}"
+                )
+                logging.error(msg)
             return fallback_method(*args, **kwargs)
 
         return cast(F, wrapper)

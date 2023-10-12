@@ -168,15 +168,6 @@ class OpenInferenceTraceCallbackHandler(BaseCallbackHandler):
     https://github.com/Arize-ai/open-inference-spec
     """
 
-    def _null_fallback(self, *args: Any, **kwargs: Any) -> None:
-        """
-        A fallback handler that prints a notification that this callback handler is failing.
-        """
-
-        print(
-            "OpenInferenceCallbackHandler callback failed, more info is logged to the root logger"
-        )
-
     def __init__(
         self,
         callback: Optional[Callable[[List[Span]], None]] = None,
@@ -186,6 +177,13 @@ class OpenInferenceTraceCallbackHandler(BaseCallbackHandler):
         self._tracer = Tracer(on_append=callback, exporter=exporter or HttpExporter())
         self._event_id_to_event_data: EventData = defaultdict(lambda: CBEventData())
 
+    def _null_fallback(self, *args: Any, **kwargs: Any) -> None:
+        msg = (
+            "OpenInferenceCallbackHandler trace processing failed, more info is logged to the root"
+            "logger"
+        )
+        logger.exception(msg)
+
     def _on_event_fallback(
         self,
         event_type: CBEventType,
@@ -193,9 +191,11 @@ class OpenInferenceTraceCallbackHandler(BaseCallbackHandler):
         event_id: CBEventID = "",
         **kwargs: Any,
     ) -> CBEventID:
-        print(
-            "OpenInferenceCallbackHandler callback failed, more info is logged to the root logger"
+        msg = (
+            "OpenInferenceCallbackHandler trace processing failed, more info is logged to the root"
+            "logger"
         )
+        logger.exception(msg)
         return event_id or str(uuid4())
 
     @graceful_fallback(_on_event_fallback)
@@ -260,15 +260,11 @@ class OpenInferenceTraceCallbackHandler(BaseCallbackHandler):
     ) -> None:
         if not trace_map:
             return  # TODO: investigate when empty or None trace_map is passed
-        try:
-            event_id_to_event_data = self._event_id_to_event_data
-            _add_spans_to_tracer(
-                event_id_to_event_data=event_id_to_event_data,
-                trace_map=trace_map,
-                tracer=self._tracer,
-            )
-        except Exception:
-            logger.exception("OpenInferenceCallbackHandler trace processing failed")
+        _add_spans_to_tracer(
+            event_id_to_event_data=self._event_id_to_event_data,
+            trace_map=trace_map,
+            tracer=self._tracer,
+        )
         self._event_id_to_event_data = defaultdict(lambda: CBEventData())
 
     def get_spans(self) -> Iterator[Span]:
