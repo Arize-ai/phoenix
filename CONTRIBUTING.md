@@ -25,7 +25,7 @@ Before submitting a pull request, please make sure the following is done:
 -   Fork the repository and create your branch from `main`.
 -   Follow the [development guide](./DEVELOPMENT.md) to setup your local environment.
 -   If you've fixed a bug or added code that should be tested, add tests!
--   Ensure test suite pass. (`hatch run test` and `npm run test` for app changes)
+-   Ensure test suite pass. (`hatch run tests` and `npm run test` for app changes)
 -   Make sure your code is formatted with `hatch run style:fix` and `npm run prettier` for app changes.
 -   Make sure to your code lints with `npm run lint` for app changes.
 -   Run type checking with `hatch run type:check` and `npm run typecheck` for app changes.
