@@ -87,9 +87,9 @@ def _allowed_replacements() -> Iterator[Tuple[str, ast.expr]]:
 
     for computed_attribute in ComputedAttributes:
         field_name = computed_attribute.value
-        yield field_name[len(COMPUTED_PREFIX) :], _ast_replacement(
-            f"span.attributes.get('{field_name}')"
-        )
+        source_segment = field_name[len(COMPUTED_PREFIX) :]
+        ast_replacement = _ast_replacement(f"span.attributes.get('{field_name}')")
+        yield source_segment, ast_replacement
 
 
 class _Translator(ast.NodeTransformer):
