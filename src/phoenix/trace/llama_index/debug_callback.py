@@ -10,7 +10,7 @@ logger.addHandler(logging.NullHandler())
 CBEventID = str
 
 
-class LlamaIndexDebugHandler(BaseCallbackHandler):
+class DebugCallbackHandler(BaseCallbackHandler):
     def _print_event(self, payload: Dict[Any, Any]) -> None:
         for k, v in payload.items():
             print(f"**{k}: **\n{v}")

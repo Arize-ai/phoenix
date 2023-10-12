@@ -1,4 +1,4 @@
 from .callback import OpenInferenceTraceCallbackHandler
-from .debug_callback import LlamaIndexDebugHandler
+from .debug_callback import DebugCallbackHandler
 
-__all__ = ["OpenInferenceTraceCallbackHandler", "LlamaIndexDebugHandler"]
+__all__ = ["OpenInferenceTraceCallbackHandler", "DebugCallbackHandler"]

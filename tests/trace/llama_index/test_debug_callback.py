@@ -1,9 +1,9 @@
 from llama_index.callbacks.schema import CBEventType
-from phoenix.trace.llama_index import LlamaIndexDebugHandler
+from phoenix.trace.llama_index import DebugCallbackHandler
 
 
 def test_callback_llm(capfd) -> None:
-    callback_handler = LlamaIndexDebugHandler()
+    callback_handler = DebugCallbackHandler()
     event_type = CBEventType.LLM
     payload = {
         "arbitrary": "payload contents are printed",
