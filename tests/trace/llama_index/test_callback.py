@@ -1,10 +1,12 @@
 from datetime import datetime
 from unittest.mock import patch
+from uuid import uuid4
 
 import pytest
 import responses
 from llama_index import ListIndex, ServiceContext, get_response_synthesizer
 from llama_index.callbacks import CallbackManager
+from llama_index.callbacks.schema import CBEventType
 from llama_index.llms import OpenAI
 from llama_index.query_engine import RetrieverQueryEngine
 from llama_index.schema import Document, TextNode
@@ -38,7 +40,7 @@ nodes = [
 ]
 
 
-class CallbackException(Exception):
+class CallbackError(Exception):
     pass
 
 
@@ -149,7 +151,9 @@ def test_callback_llm_rate_limit_error_has_exception_event(
 
 
 @patch("phoenix.trace.llama_index.callback.payload_to_semantic_attributes")
-def test_callback_breaks_silently(mock_handler_fn, mock_service_context: ServiceContext) -> None:
+def test_on_event_start_handler_fails_gracefully(
+    mock_handler_internals, mock_service_context: ServiceContext, caplog
+) -> None:
     # callback handlers should *never* introduce errors in user code if they fail
     question = "What are the seven wonders of the world?"
     callback_handler = OpenInferenceTraceCallbackHandler(exporter=NoOpExporter())
@@ -163,5 +167,45 @@ def test_callback_breaks_silently(mock_handler_fn, mock_service_context: Service
         callback_manager=CallbackManager([callback_handler]),
     )
 
-    mock_handler_fn.side_effect = CallbackException("callback exception")
+    mock_handler_internals.side_effect = CallbackError("callback exception")
     query_engine.query(question)
+
+    assert caplog.records[0].levelname == "ERROR"
+    assert "on_event_start" in caplog.records[0].message
+    assert "CallbackError" in caplog.records[0].message
+    assert caplog.records[1].levelname == "ERROR"
+    assert "trace processing failed" in caplog.records[1].message
+
+
+def test_on_event_end_handler_fails_gracefully(
+    mock_service_context: ServiceContext, caplog
+) -> None:
+    event_type = CBEventType.QUERY
+    faulty_payload = {"faulty": "payload"}
+    event_id = str(uuid4())
+
+    callback_handler = OpenInferenceTraceCallbackHandler(exporter=NoOpExporter())
+    callback_handler.on_event_end(event_type, faulty_payload, event_id)
+
+    assert len(caplog.records) == 2, "Both the fallback fn and the decorator should emit logs"
+    assert caplog.records[0].levelname == "ERROR"
+    assert "on_event_end" in caplog.records[0].message
+    assert "KeyError" in caplog.records[0].message
+    assert caplog.records[1].levelname == "ERROR"
+    assert "trace processing failed" in caplog.records[1].message
+
+
+@patch("phoenix.trace.llama_index.callback._add_spans_to_tracer")
+def test_end_trace_handler_fails_gracefully(mock_handler_internals, caplog) -> None:
+    trace_id = str(uuid4())
+    trace_map = {str(uuid4()): [str(uuid4())]}
+    mock_handler_internals.side_effect = CallbackError("callback exception")
+    callback_handler = OpenInferenceTraceCallbackHandler(exporter=NoOpExporter())
+    callback_handler.end_trace(trace_id, trace_map=trace_map)
+
+    assert len(caplog.records) == 2, "Both the fallback fn and the decorator should emit logs"
+    assert caplog.records[0].levelname == "ERROR"
+    assert "end_trace" in caplog.records[0].message
+    assert "CallbackError" in caplog.records[0].message
+    assert caplog.records[1].levelname == "ERROR"
+    assert "trace processing failed" in caplog.records[1].message
