@@ -20,7 +20,7 @@ We use GitHub issues to track bugs. We keep a close eye on this and try to make 
 
 The core team is monitoring for pull requests. We will review your pull request and either merge it, request changes to it, or close it with an explanation.
 
-Before submitting a pull request, please make sure the following is done:
+Before submitting a pull request, please make sure the following is done. We expect code authors to test their pull requests well-enough that they work correctly by the time they get to code review. (Note that `npm` commands below are run under the `./app` directory.)
 
 -   Fork the repository and create your branch from `main`.
 -   Follow the [development guide](./DEVELOPMENT.md) to setup your local environment.
