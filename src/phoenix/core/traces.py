@@ -1,6 +1,7 @@
 import weakref
 from collections import defaultdict
 from datetime import datetime, timezone
+from enum import Enum
 from queue import SimpleQueue
 from threading import RLock, Thread
 from types import MethodType
@@ -49,10 +50,16 @@ END_TIME = "end_time"
 LLM_TOKEN_COUNT_TOTAL = ATTRIBUTE_PREFIX + semantic_conventions.LLM_TOKEN_COUNT_TOTAL
 LLM_TOKEN_COUNT_PROMPT = ATTRIBUTE_PREFIX + semantic_conventions.LLM_TOKEN_COUNT_PROMPT
 LLM_TOKEN_COUNT_COMPLETION = ATTRIBUTE_PREFIX + semantic_conventions.LLM_TOKEN_COUNT_COMPLETION
-LATENCY_MS = COMPUTED_PREFIX + "latency_ms"  # The latency (or duration) of the span in milliseconds
-CUMULATIVE_LLM_TOKEN_COUNT_TOTAL = COMPUTED_PREFIX + "cumulative_token_count.total"
-CUMULATIVE_LLM_TOKEN_COUNT_PROMPT = COMPUTED_PREFIX + "cumulative_token_count.prompt"
-CUMULATIVE_LLM_TOKEN_COUNT_COMPLETION = COMPUTED_PREFIX + "cumulative_token_count.completion"
+
+
+class ComputedAttributes(Enum):
+    # Enum value must be string prefixed by COMPUTED_PREFIX
+    LATENCY_MS = (
+        COMPUTED_PREFIX + "latency_ms"
+    )  # The latency (or duration) of the span in milliseconds
+    CUMULATIVE_LLM_TOKEN_COUNT_TOTAL = COMPUTED_PREFIX + "cumulative_token_count.total"
+    CUMULATIVE_LLM_TOKEN_COUNT_PROMPT = COMPUTED_PREFIX + "cumulative_token_count.prompt"
+    CUMULATIVE_LLM_TOKEN_COUNT_COMPLETION = COMPUTED_PREFIX + "cumulative_token_count.completion"
 
 
 class ReadableSpan(ObjectProxy):  # type: ignore
@@ -121,7 +128,7 @@ class Traces:
             key=lambda span_id: self._spans[span_id].start_time.ToDatetime(timezone.utc),
         )
         self._latency_sorted_root_span_ids: SortedKeyList[SpanID] = SortedKeyList(
-            key=lambda span_id: self._spans[span_id][LATENCY_MS],
+            key=lambda span_id: self._spans[span_id][ComputedAttributes.LATENCY_MS.value],
         )
         self._root_span_latency_ms_sketch = DDSketch()
         self._min_start_time: Optional[datetime] = None
@@ -242,7 +249,9 @@ class Traces:
         start_time = span.start_time.ToDatetime(timezone.utc)
         end_time = span.end_time.ToDatetime(timezone.utc) if span.HasField("end_time") else None
         if end_time:
-            new_span[LATENCY_MS] = latency = (end_time - start_time).total_seconds() * 1000
+            new_span[ComputedAttributes.LATENCY_MS.value] = latency = (
+                end_time - start_time
+            ).total_seconds() * 1000
             if is_root_span:
                 self._root_span_latency_ms_sketch.add(latency)
         self._spans[span_id] = new_span
@@ -266,9 +275,12 @@ class Traces:
             )
         # Update cumulative values for span's ancestors.
         for attribute_name, cumulative_attribute_name in (
-            (LLM_TOKEN_COUNT_TOTAL, CUMULATIVE_LLM_TOKEN_COUNT_TOTAL),
-            (LLM_TOKEN_COUNT_PROMPT, CUMULATIVE_LLM_TOKEN_COUNT_PROMPT),
-            (LLM_TOKEN_COUNT_COMPLETION, CUMULATIVE_LLM_TOKEN_COUNT_COMPLETION),
+            (LLM_TOKEN_COUNT_TOTAL, ComputedAttributes.CUMULATIVE_LLM_TOKEN_COUNT_TOTAL.value),
+            (LLM_TOKEN_COUNT_PROMPT, ComputedAttributes.CUMULATIVE_LLM_TOKEN_COUNT_PROMPT.value),
+            (
+                LLM_TOKEN_COUNT_COMPLETION,
+                ComputedAttributes.CUMULATIVE_LLM_TOKEN_COUNT_COMPLETION.value,
+            ),
         ):
             existing_value = (existing_span[attribute_name] or 0) if existing_span else 0
             new_value = new_span[attribute_name] or 0

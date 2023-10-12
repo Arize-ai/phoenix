@@ -6,15 +6,12 @@ import pandas as pd
 import strawberry
 
 from phoenix.core.traces import (
-    CUMULATIVE_LLM_TOKEN_COUNT_COMPLETION,
-    CUMULATIVE_LLM_TOKEN_COUNT_PROMPT,
-    CUMULATIVE_LLM_TOKEN_COUNT_TOTAL,
     END_TIME,
-    LATENCY_MS,
     LLM_TOKEN_COUNT_COMPLETION,
     LLM_TOKEN_COUNT_PROMPT,
     LLM_TOKEN_COUNT_TOTAL,
     START_TIME,
+    ComputedAttributes,
 )
 from phoenix.server.api.types.SortDir import SortDir
 from phoenix.trace.schemas import Span
@@ -24,13 +21,13 @@ from phoenix.trace.schemas import Span
 class SpanColumn(Enum):
     startTime = START_TIME
     endTime = END_TIME
-    latencyMs = LATENCY_MS
+    latencyMs = ComputedAttributes.LATENCY_MS.value
     tokenCountTotal = LLM_TOKEN_COUNT_TOTAL
     tokenCountPrompt = LLM_TOKEN_COUNT_PROMPT
     tokenCountCompletion = LLM_TOKEN_COUNT_COMPLETION
-    cumulativeTokenCountTotal = CUMULATIVE_LLM_TOKEN_COUNT_TOTAL
-    cumulativeTokenCountPrompt = CUMULATIVE_LLM_TOKEN_COUNT_PROMPT
-    cumulativeTokenCountCompletion = CUMULATIVE_LLM_TOKEN_COUNT_COMPLETION
+    cumulativeTokenCountTotal = ComputedAttributes.CUMULATIVE_LLM_TOKEN_COUNT_TOTAL.value
+    cumulativeTokenCountPrompt = ComputedAttributes.CUMULATIVE_LLM_TOKEN_COUNT_PROMPT.value
+    cumulativeTokenCountCompletion = ComputedAttributes.CUMULATIVE_LLM_TOKEN_COUNT_COMPLETION.value
 
 
 @strawberry.input
