@@ -148,7 +148,8 @@ def test_callback_llm_rate_limit_error_has_exception_event(
     assert isinstance(event.attributes[EXCEPTION_STACKTRACE], str)
 
 
-def test_callback_breaks_silently(mock_service_context: ServiceContext) -> None:
+@patch("phoenix.trace.llama_index.callback.payload_to_semantic_attributes")
+def test_callback_breaks_silently(mock_handler_fn, mock_service_context: ServiceContext) -> None:
     # callback handlers should *never* introduce errors in user code if they fail
     question = "What are the seven wonders of the world?"
     callback_handler = OpenInferenceTraceCallbackHandler(exporter=NoOpExporter())
@@ -162,6 +163,5 @@ def test_callback_breaks_silently(mock_service_context: ServiceContext) -> None:
         callback_manager=CallbackManager([callback_handler]),
     )
 
-    with patch.object(callback_handler, "on_event_start") as failing_handler:
-        failing_handler.side_effect = CallbackException("callback exception")
-        query_engine.query(question)
+    mock_handler_fn.side_effect = CallbackException("callback exception")
+    query_engine.query(question)
