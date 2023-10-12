@@ -1,6 +1,5 @@
 from llama_index.callbacks.schema import CBEventType
 from llama_index.schema import Document, TextNode
-
 from phoenix.trace.llama_index import LlamaIndexDebugHandler
 
 nodes = [
@@ -16,7 +15,7 @@ nodes = [
 def test_callback_llm(capfd) -> None:
     callback_handler = LlamaIndexDebugHandler()
     event_type = CBEventType.LLM
-    payload: Optional[Dict[str, Any]] = {
+    payload = {
         "arbitrary": "payload contents are printed",
         "regardless": "of whether or not they are explicitly defined by LlamaIndex",
     }
