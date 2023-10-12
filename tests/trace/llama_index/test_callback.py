@@ -38,6 +38,10 @@ nodes = [
 ]
 
 
+class CallbackException(Exception):
+    pass
+
+
 def test_callback_llm(mock_service_context: ServiceContext) -> None:
     question = "What are the seven wonders of the world?"
     callback_handler = OpenInferenceTraceCallbackHandler(exporter=NoOpExporter())
@@ -142,3 +146,22 @@ def test_callback_llm_rate_limit_error_has_exception_event(
     assert event.attributes[EXCEPTION_TYPE] == "RateLimitError"
     assert event.attributes[EXCEPTION_MESSAGE] == "message"
     assert isinstance(event.attributes[EXCEPTION_STACKTRACE], str)
+
+
+def test_callback_breaks_silently(mock_service_context: ServiceContext) -> None:
+    # callback handlers should *never* introduce errors in user code if they fail
+    question = "What are the seven wonders of the world?"
+    callback_handler = OpenInferenceTraceCallbackHandler(exporter=NoOpExporter())
+    index = ListIndex(nodes)
+    retriever = index.as_retriever(retriever_mode="default")
+    response_synthesizer = get_response_synthesizer()
+
+    query_engine = RetrieverQueryEngine(
+        retriever=retriever,
+        response_synthesizer=response_synthesizer,
+        callback_manager=CallbackManager([callback_handler]),
+    )
+
+    with patch.object(callback_handler, "on_event_start") as failing_handler:
+        failing_handler.side_effect = CallbackException("callback exception")
+        query_engine.query(question)
