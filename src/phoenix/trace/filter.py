@@ -63,13 +63,14 @@ def _allowed_replacements() -> Iterator[Tuple[str, ast.expr]]:
         "parent_id": _ast_replacement("span.parent_id"),
     }.items():
         yield source_segment, ast_replacement
-
+        yield "span." + source_segment, ast_replacement
     for source_segment, ast_replacement in {
         "span_id": _ast_replacement("span.context.span_id"),
         "trace_id": _ast_replacement("span.context.trace_id"),
     }.items():
         yield source_segment, ast_replacement
-
+        yield "context." + source_segment, ast_replacement
+        yield "span.context." + source_segment, ast_replacement
     for source_segment, ast_replacement in {
         field_name: _ast_replacement(f"span.attributes.get('{field_name}')")
         for field_name in (
@@ -79,7 +80,8 @@ def _allowed_replacements() -> Iterator[Tuple[str, ast.expr]]:
         )
     }.items():
         yield source_segment, ast_replacement
-
+        yield "attributes." + source_segment, ast_replacement
+        yield "span.attributes." + source_segment, ast_replacement
     for source_segment, ast_replacement in {
         field_name[len(COMPUTED_PREFIX) :]: _ast_replacement(f"span.attributes.get('{field_name}')")
         for field_name in (
