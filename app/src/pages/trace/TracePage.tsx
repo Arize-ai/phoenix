@@ -23,6 +23,7 @@ import {
   Icon,
   Icons,
   Label,
+  LabelProps,
   List,
   ListItem,
   TabbedCard,
@@ -30,6 +31,7 @@ import {
   Tabs,
   Text,
   View,
+  ViewProps,
   ViewStyleProps,
 } from "@arizeai/components";
 
@@ -52,6 +54,7 @@ import {
   MESSAGE_FUNCTION_CALL_NAME,
   MESSAGE_NAME,
   MESSAGE_ROLE,
+  RerankerAttributePostfixes,
   RetrievalAttributePostfixes,
   SemanticAttributePrefixes,
   ToolAttributePostfixes,
@@ -324,6 +327,12 @@ function SpanInfo({ span }: { span: Span }) {
       );
       break;
     }
+    case "reranker": {
+      content = (
+        <RerankerSpanInfo span={span} spanAttributes={attributesObject} />
+      );
+      break;
+    }
     case "embedding": {
       content = (
         <EmbeddingSpanInfo span={span} spanAttributes={attributesObject} />
@@ -560,7 +569,12 @@ function RetrieverSpanInfo(props: {
               {documents.map((document, idx) => {
                 return (
                   <li key={idx}>
-                    <DocumentItem document={document} />
+                    <DocumentItem
+                      document={document}
+                      borderColor={"seafoam-700"}
+                      backgroundColor={"seafoam-100"}
+                      labelColor="seafoam-1000"
+                    />
                   </li>
                 );
               })}
@@ -568,6 +582,110 @@ function RetrieverSpanInfo(props: {
           }
         </Card>
       ) : null}
+    </Flex>
+  );
+}
+
+function RerankerSpanInfo(props: {
+  span: Span;
+  spanAttributes: AttributeObject;
+}) {
+  const { spanAttributes } = props;
+  const rerankerAttributes = useMemo<AttributeObject | null>(() => {
+    const rerankerAttrs = spanAttributes[SemanticAttributePrefixes.reranker];
+    if (typeof rerankerAttrs === "object") {
+      return rerankerAttrs as AttributeObject;
+    }
+    return null;
+  }, [spanAttributes]);
+  const query = useMemo<string>(() => {
+    if (rerankerAttributes == null) {
+      return "";
+    }
+    return (rerankerAttributes[RerankerAttributePostfixes.query] ||
+      "") as string;
+  }, [rerankerAttributes]);
+  const input_documents = useMemo<AttributeDocument[]>(() => {
+    if (rerankerAttributes == null) {
+      return [];
+    }
+    return (rerankerAttributes[RerankerAttributePostfixes.input_documents] ||
+      []) as AttributeDocument[];
+  }, [rerankerAttributes]);
+  const output_documents = useMemo<AttributeDocument[]>(() => {
+    if (rerankerAttributes == null) {
+      return [];
+    }
+    return (rerankerAttributes[RerankerAttributePostfixes.output_documents] ||
+      []) as AttributeDocument[];
+  }, [rerankerAttributes]);
+
+  const numInputDocuments = input_documents.length;
+  const numOutputDocuments = output_documents.length;
+  return (
+    <Flex direction="column" gap="size-200">
+      <Card title="Query" {...defaultCardProps}>
+        <CodeBlock value={query} mimeType="text" />
+      </Card>
+      <Card
+        title={"Input Documents"}
+        titleExtra={<Counter variant="light">{numInputDocuments}</Counter>}
+        {...defaultCardProps}
+        defaultOpen={false}
+      >
+        {
+          <ul
+            css={css`
+              padding: var(--ac-global-dimension-static-size-200);
+              display: flex;
+              flex-direction: column;
+              gap: var(--ac-global-dimension-static-size-200);
+            `}
+          >
+            {input_documents.map((document, idx) => {
+              return (
+                <li key={idx}>
+                  <DocumentItem
+                    document={document}
+                    borderColor={"seafoam-700"}
+                    backgroundColor={"seafoam-100"}
+                    labelColor="seafoam-1000"
+                  />
+                </li>
+              );
+            })}
+          </ul>
+        }
+      </Card>
+      <Card
+        title={"Output Documents"}
+        titleExtra={<Counter variant="light">{numOutputDocuments}</Counter>}
+        {...defaultCardProps}
+      >
+        {
+          <ul
+            css={css`
+              padding: var(--ac-global-dimension-static-size-200);
+              display: flex;
+              flex-direction: column;
+              gap: var(--ac-global-dimension-static-size-200);
+            `}
+          >
+            {output_documents.map((document, idx) => {
+              return (
+                <li key={idx}>
+                  <DocumentItem
+                    document={document}
+                    borderColor={"celery-700"}
+                    backgroundColor={"celery-100"}
+                    labelColor="celery-1000"
+                  />
+                </li>
+              );
+            })}
+          </ul>
+        }
+      </Card>
     </Flex>
   );
 }
@@ -714,20 +832,30 @@ function ToolSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
   );
 }
 
-function DocumentItem({ document }: { document: AttributeDocument }) {
+function DocumentItem({
+  document,
+  backgroundColor,
+  borderColor,
+  labelColor,
+}: {
+  document: AttributeDocument;
+  backgroundColor: ViewProps["backgroundColor"];
+  borderColor: ViewProps["borderColor"];
+  labelColor: LabelProps["color"];
+}) {
   const metadata = document[DOCUMENT_METADATA];
   return (
     <View
       borderRadius="medium"
-      backgroundColor="seafoam-100"
-      borderColor="seafoam-700"
+      backgroundColor={backgroundColor}
+      borderColor={borderColor}
       borderWidth="thin"
     >
       <Flex direction="column">
         <View
           width="100%"
           borderBottomWidth="thin"
-          borderBottomColor="seafoam-700"
+          borderBottomColor={borderColor}
         >
           <Flex
             direction="row"
@@ -740,7 +868,7 @@ function DocumentItem({ document }: { document: AttributeDocument }) {
               <Heading level={4}>document {document[DOCUMENT_ID]}</Heading>
             </Flex>
             {typeof document[DOCUMENT_SCORE] === "number" && (
-              <Label color="seafoam-1000">{`score ${numberFormatter(
+              <Label color={labelColor}>{`score ${numberFormatter(
                 document[DOCUMENT_SCORE]
               )}`}</Label>
             )}
@@ -757,7 +885,7 @@ function DocumentItem({ document }: { document: AttributeDocument }) {
         </pre>
         {metadata && (
           <>
-            <View borderColor="seafoam-700" borderTopWidth="thin">
+            <View borderColor={borderColor} borderTopWidth="thin">
               <CodeBlock value={JSON.stringify(metadata)} mimeType="json" />
             </View>
           </>
