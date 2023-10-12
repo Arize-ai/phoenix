@@ -124,6 +124,38 @@ function filterConditionCompletions(context: CompletionContext) {
         apply: "status_code == 'ERROR'",
         detail: "macro",
       },
+      {
+        label: "latency_ms",
+        type: "variable",
+        info: "Latency in milliseconds",
+      },
+      {
+        label: "latency >= 10s",
+        type: "text",
+        apply: "latency_ms >= 10_000",
+        detail: "macro",
+      },
+      {
+        label: "Tokens >= 1,000",
+        type: "text",
+        apply: "llm.token_count.total >= 1_000",
+        detail: "macro",
+      },
+      {
+        label: "cumulative_token_count.prompt",
+        type: "variable",
+        info: "Sum of token count for prompt from self and all child spans",
+      },
+      {
+        label: "cumulative_token_count.completion",
+        type: "variable",
+        info: "Sum of token count for completion from self and all child spans",
+      },
+      {
+        label: "cumulative_token_count.total",
+        type: "variable",
+        info: "Sum of token count total (prompt + completion) from self and all child spans",
+      },
     ],
   };
 }
