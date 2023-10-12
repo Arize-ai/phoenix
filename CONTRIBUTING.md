@@ -30,7 +30,7 @@ Before submitting a pull request, please make sure the following is done. We exp
 -   Make sure to your code lints with `npm run lint` for app changes.
 -   Run type checking with `hatch run type:check` and `npm run typecheck` for app changes.
 
-### Pull Request Descriptions
+### Pull Request (PR) Descriptions
 
 A PR description is a public record of what change is being made and why it was made. It will become a permanent part of our version control history, and will possibly be read by many people other than your reviewers over the years. Follow the following guidelines when writing a PR description:
 
