@@ -1,7 +1,6 @@
-from llama_index import ListIndex, ServiceContext, get_response_synthesizer
-from llama_index.callbacks import CallbackManager
-from llama_index.query_engine import RetrieverQueryEngine
+from llama_index.callbacks.schema import CBEventType
 from llama_index.schema import Document, TextNode
+
 from phoenix.trace.llama_index import LlamaIndexDebugHandler
 
 nodes = [
@@ -14,20 +13,22 @@ nodes = [
 ]
 
 
-def test_callback_llm(mock_service_context: ServiceContext, capfd) -> None:
-    question = "What are the seven wonders of the world?"
+def test_callback_llm(capfd) -> None:
     callback_handler = LlamaIndexDebugHandler()
-    index = ListIndex(nodes)
-    retriever = index.as_retriever(retriever_mode="default")
-    response_synthesizer = get_response_synthesizer()
+    event_type = CBEventType.LLM
+    payload: Optional[Dict[str, Any]] = {
+        "arbitrary": "payload contents are printed",
+        "regardless": "of whether or not they are explicitly defined by LlamaIndex",
+    }
+    event_id = ""
 
-    query_engine = RetrieverQueryEngine(
-        retriever=retriever,
-        response_synthesizer=response_synthesizer,
-        callback_manager=CallbackManager([callback_handler]),
-    )
-
-    query_engine.query(question)
+    callback_handler.on_event_end(event_type, payload, event_id)
     stdout = capfd.readouterr().out
-    assert "EventPayload.NODES" in stdout, "debug handler prints everything in event payload"
-    assert "EventPayload.RESPONSE" in stdout, "debug handler prints everything in event payload"
+    assert "arbitrary" in stdout, "debug handler prints everything in event payload"
+    assert (
+        "payload contents are printed" in stdout
+    ), "debug handler prints everything in event payload"
+    assert "regardless" in stdout, "debug handler prints everything in event payload"
+    assert (
+        "of whether or not they are explicitly defined by LlamaIndex" in stdout
+    ), "debug handler prints everything in event payload"
