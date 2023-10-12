@@ -59,6 +59,7 @@ from phoenix.trace.semantic_conventions import (
 )
 from phoenix.trace.tracer import SpanExporter, Tracer
 from phoenix.trace.utils import get_stacktrace
+from phoenix.utilities.error_handling import graceful_fallback
 
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
@@ -167,7 +168,7 @@ class OpenInferenceTraceCallbackHandler(BaseCallbackHandler):
     https://github.com/Arize-ai/open-inference-spec
     """
 
-    def _fallback_handler(self, *args: Any, **kwargs: Any) -> None:
+    def _null_fallback(self, *args: Any, **kwargs: Any) -> None:
         """
         A fallback handler that prints a notification that this callback handler is failing.
         """
@@ -185,7 +186,19 @@ class OpenInferenceTraceCallbackHandler(BaseCallbackHandler):
         self._tracer = Tracer(on_append=callback, exporter=exporter or HttpExporter())
         self._event_id_to_event_data: EventData = defaultdict(lambda: CBEventData())
 
-    @graceful_fallback(_fallback_handler)
+    def _on_event_fallback(
+        self,
+        event_type: CBEventType,
+        payload: Optional[Dict[str, Any]] = None,
+        event_id: CBEventID = "",
+        **kwargs: Any,
+    ) -> CBEventID:
+        print(
+            "OpenInferenceCallbackHandler callback failed, more info is logged to the root logger"
+        )
+        return event_id or str(uuid4())
+
+    @graceful_fallback(_on_event_fallback)
     def on_event_start(
         self,
         event_type: CBEventType,
@@ -212,7 +225,7 @@ class OpenInferenceTraceCallbackHandler(BaseCallbackHandler):
 
         return event_id
 
-    @graceful_fallback(_fallback_handler)
+    @graceful_fallback(_null_fallback)
     def on_event_end(
         self,
         event_type: CBEventType,
@@ -235,11 +248,11 @@ class OpenInferenceTraceCallbackHandler(BaseCallbackHandler):
                 payload_to_semantic_attributes(event_type, payload),
             )
 
-    @graceful_fallback(_fallback_handler)
+    @graceful_fallback(_null_fallback)
     def start_trace(self, trace_id: Optional[str] = None) -> None:
         self._event_id_to_event_data = defaultdict(lambda: CBEventData())
 
-    @graceful_fallback(_fallback_handler)
+    @graceful_fallback(_null_fallback)
     def end_trace(
         self,
         trace_id: Optional[str] = None,
