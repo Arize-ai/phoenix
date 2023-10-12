@@ -145,7 +145,7 @@ function filterConditionCompletions(context: CompletionContext) {
         detail: "macro",
       },
       {
-        label: "latency >= 10s",
+        label: "Latency >= 10s",
         type: "text",
         apply: "latency_ms >= 10_000",
         detail: "macro",
