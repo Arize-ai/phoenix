@@ -3,7 +3,6 @@ from typing import Any, Callable, Iterable, Optional, Type
 
 from typing_extensions import TypeVar, cast
 
-G = TypeVar("G", bound=Callable[..., Any])
 F = TypeVar("F", bound=Callable[..., Any])
 
 
