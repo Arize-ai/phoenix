@@ -197,7 +197,7 @@ fix = [
 
 [tool.hatch.envs.notebooks.scripts]
 clean = [
-  "jupyter nbconvert --ClearOutputPreprocessor.enabled=True --ClearMetadataPreprocessor.enabled=True --inplace **/*.ipynb **/**/*.ipynb",
+  "jupyter nbconvert --ClearOutputPreprocessor.enabled=True --ClearMetadataPreprocessor.enabled=True --inplace **/*.ipynb **/internal/*.ipynb **/tracing/*.ipynb **/dolly-pythia-fine-tuned/*.ipynb",
 ]
 
 [tool.hatch.envs.publish]
