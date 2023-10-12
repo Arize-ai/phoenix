@@ -1,15 +1,5 @@
 from llama_index.callbacks.schema import CBEventType
-from llama_index.schema import Document, TextNode
 from phoenix.trace.llama_index import LlamaIndexDebugHandler
-
-nodes = [
-    Document(
-        text="The Great Pyramid of Giza is one of the seven wonders",
-        id="0",
-        metadata={"filename": "egypt.txt", "category": "pyramid"},
-    ),
-    TextNode(text="The Hanging Gardens of Babylon is one of the seven wonders", id="1"),
-]
 
 
 def test_callback_llm(capfd) -> None:
