@@ -66,7 +66,7 @@ A code review is a process where someone other than the author(s) of a piece of 
 
 -   Design: Is the code well-designed and appropriate for your system?
 -   Functionality: Does the code behave as the author likely intended? Is the way the code behaves good for its users?
--   Complexity: Could the code be made simpler? Would another developer be able to easily understand and use this code when they come across it in the future? Can multiple
+-   Complexity: Could the code be made simpler? Would another developer be able to easily understand and use this code when they come across it in the future? Beware of over-engineering. The code should solve problems that need to be solved _now_, and not problems that the code author speculates _might_ need to be solved in the future.
 -   Tests: Does the code have correct and well-designed automated tests?
 -   Naming: Did the developer choose clear names for variables, classes, methods, etc.?
 -   Comments: Are the comments clear and useful?
