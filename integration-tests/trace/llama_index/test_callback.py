@@ -16,7 +16,7 @@ from llama_index.indices.vector_store import VectorStoreIndex
 from llama_index.llms import OpenAI
 from llama_index.query_engine import RetrieverQueryEngine
 from llama_index.tools import FunctionTool
-from phoenix.trace.exporter import HttpExporter, NoOpExporter
+from phoenix.trace.exporter import NoOpExporter
 from phoenix.trace.llama_index import OpenInferenceTraceCallbackHandler
 from phoenix.trace.schemas import SpanKind
 from phoenix.trace.semantic_conventions import (
@@ -38,10 +38,10 @@ from phoenix.trace.semantic_conventions import (
     MESSAGE_ROLE,
     OUTPUT_MIME_TYPE,
     OUTPUT_VALUE,
-    RERANKING_INPUT_DOCUMENTS,
-    RERANKING_MODEL_NAME,
-    RERANKING_OUTPUT_DOCUMENTS,
-    RERANKING_TOP_K,
+    RERANKER_INPUT_DOCUMENTS,
+    RERANKER_MODEL_NAME,
+    RERANKER_OUTPUT_DOCUMENTS,
+    RERANKER_TOP_K,
     TOOL_DESCRIPTION,
     TOOL_NAME,
     TOOL_PARAMETERS,
@@ -254,7 +254,7 @@ def test_callback_data_agent() -> None:
 
 @pytest.mark.parametrize("model_name", ["text-davinci-003"], indirect=True)
 def test_cohere_rerank(index: VectorStoreIndex) -> None:
-    callback_handler = OpenInferenceTraceCallbackHandler(exporter=HttpExporter())
+    callback_handler = OpenInferenceTraceCallbackHandler(exporter=NoOpExporter())
     service_context = ServiceContext.from_defaults(
         callback_manager=CallbackManager(handlers=[callback_handler])
     )
@@ -268,12 +268,12 @@ def test_cohere_rerank(index: VectorStoreIndex) -> None:
 
     spans = {span.name: span for span in callback_handler.get_spans()}
     assert "reranking" in spans
-    reranking_span = spans["reranking"]
-    assert reranking_span.span_kind == SpanKind.RERANKING
+    reranker_span = spans["reranking"]
+    assert reranker_span.span_kind == SpanKind.RERANKER
     assert (
-        len(reranking_span.attributes[RERANKING_INPUT_DOCUMENTS])
+        len(reranker_span.attributes[RERANKER_INPUT_DOCUMENTS])
         == query_engine.retriever.similarity_top_k
     )
-    assert len(reranking_span.attributes[RERANKING_OUTPUT_DOCUMENTS]) == cohere_rerank.top_n
-    assert reranking_span.attributes[RERANKING_TOP_K] == cohere_rerank.top_n
-    assert reranking_span.attributes[RERANKING_MODEL_NAME] == cohere_rerank.model
+    assert len(reranker_span.attributes[RERANKER_OUTPUT_DOCUMENTS]) == cohere_rerank.top_n
+    assert reranker_span.attributes[RERANKER_TOP_K] == cohere_rerank.top_n
+    assert reranker_span.attributes[RERANKER_MODEL_NAME] == cohere_rerank.model
