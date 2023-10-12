@@ -167,6 +167,15 @@ class OpenInferenceTraceCallbackHandler(BaseCallbackHandler):
     https://github.com/Arize-ai/open-inference-spec
     """
 
+    def _fallback_handler(self, *args: Any, **kwargs: Any) -> None:
+        """
+        A fallback handler that prints a notification that this callback handler is failing.
+        """
+
+        print(
+            "OpenInferenceCallbackHandler callback failed, more info is logged to the root logger"
+        )
+
     def __init__(
         self,
         callback: Optional[Callable[[List[Span]], None]] = None,
@@ -176,6 +185,7 @@ class OpenInferenceTraceCallbackHandler(BaseCallbackHandler):
         self._tracer = Tracer(on_append=callback, exporter=exporter or HttpExporter())
         self._event_id_to_event_data: EventData = defaultdict(lambda: CBEventData())
 
+    @graceful_fallback(_fallback_handler)
     def on_event_start(
         self,
         event_type: CBEventType,
@@ -202,6 +212,7 @@ class OpenInferenceTraceCallbackHandler(BaseCallbackHandler):
 
         return event_id
 
+    @graceful_fallback(_fallback_handler)
     def on_event_end(
         self,
         event_type: CBEventType,
@@ -224,9 +235,11 @@ class OpenInferenceTraceCallbackHandler(BaseCallbackHandler):
                 payload_to_semantic_attributes(event_type, payload),
             )
 
+    @graceful_fallback(_fallback_handler)
     def start_trace(self, trace_id: Optional[str] = None) -> None:
         self._event_id_to_event_data = defaultdict(lambda: CBEventData())
 
+    @graceful_fallback(_fallback_handler)
     def end_trace(
         self,
         trace_id: Optional[str] = None,
