@@ -73,14 +73,13 @@ def _allowed_replacements() -> Iterator[Tuple[str, ast.expr]]:
         yield "context." + source_segment, ast_replacement
         yield "span.context." + source_segment, ast_replacement
 
-    for source_segment, ast_replacement in {
-        field_name: _ast_replacement(f"span.attributes.get('{field_name}')")
-        for field_name in (
-            getattr(semantic_conventions, variable_name)
-            for variable_name in dir(semantic_conventions)
-            if variable_name.isupper()
-        )
-    }.items():
+    for field_name in (
+        getattr(semantic_conventions, variable_name)
+        for variable_name in dir(semantic_conventions)
+        if variable_name.isupper()
+    ):
+        source_segment = field_name
+        ast_replacement = _ast_replacement(f"span.attributes.get('{field_name}')")
         yield source_segment, ast_replacement
         yield "attributes." + source_segment, ast_replacement
         yield "span.attributes." + source_segment, ast_replacement
