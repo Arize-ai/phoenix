@@ -11,7 +11,7 @@ CBEventID = str
 
 
 class LlamaIndexDebugHandler(BaseCallbackHandler):
-    def _print_event(self, payload: dict[Any, Any]) -> None:
+    def _print_event(self, payload: Dict[Any, Any]) -> None:
         for k, v in payload.items():
             print(f"**{k}: **\n{v}")
             print("*" * 50)
@@ -24,6 +24,7 @@ class LlamaIndexDebugHandler(BaseCallbackHandler):
         event_type: CBEventType,
         payload: Optional[Dict[str, Any]] = None,
         event_id: CBEventID = "",
+        parent_id: CBEventID = "",
         **kwargs: Any,
     ) -> CBEventID:
         return event_id
