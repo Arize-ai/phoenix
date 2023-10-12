@@ -23,6 +23,7 @@ import {
   Icon,
   Icons,
   Label,
+  LabelProps,
   List,
   ListItem,
   TabbedCard,
@@ -30,6 +31,7 @@ import {
   Tabs,
   Text,
   View,
+  ViewProps,
   ViewStyleProps,
 } from "@arizeai/components";
 
@@ -567,7 +569,12 @@ function RetrieverSpanInfo(props: {
               {documents.map((document, idx) => {
                 return (
                   <li key={idx}>
-                    <DocumentItem document={document} />
+                    <DocumentItem
+                      document={document}
+                      borderColor={"seafoam-700"}
+                      backgroundColor={"seafoam-100"}
+                      labelColor="seafoam-1000"
+                    />
                   </li>
                 );
               })}
@@ -638,7 +645,12 @@ function RerankerSpanInfo(props: {
             {input_documents.map((document, idx) => {
               return (
                 <li key={idx}>
-                  <DocumentItem document={document} />
+                  <DocumentItem
+                    document={document}
+                    borderColor={"seafoam-700"}
+                    backgroundColor={"seafoam-100"}
+                    labelColor="seafoam-1000"
+                  />
                 </li>
               );
             })}
@@ -662,7 +674,12 @@ function RerankerSpanInfo(props: {
             {output_documents.map((document, idx) => {
               return (
                 <li key={idx}>
-                  <DocumentItem document={document} />
+                  <DocumentItem
+                    document={document}
+                    borderColor={"celery-700"}
+                    backgroundColor={"celery-100"}
+                    labelColor="celery-1000"
+                  />
                 </li>
               );
             })}
@@ -815,20 +832,30 @@ function ToolSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
   );
 }
 
-function DocumentItem({ document }: { document: AttributeDocument }) {
+function DocumentItem({
+  document,
+  backgroundColor,
+  borderColor,
+  labelColor,
+}: {
+  document: AttributeDocument;
+  backgroundColor: ViewProps["backgroundColor"];
+  borderColor: ViewProps["borderColor"];
+  labelColor: LabelProps["color"];
+}) {
   const metadata = document[DOCUMENT_METADATA];
   return (
     <View
       borderRadius="medium"
-      backgroundColor="seafoam-100"
-      borderColor="seafoam-700"
+      backgroundColor={backgroundColor}
+      borderColor={borderColor}
       borderWidth="thin"
     >
       <Flex direction="column">
         <View
           width="100%"
           borderBottomWidth="thin"
-          borderBottomColor="seafoam-700"
+          borderBottomColor={borderColor}
         >
           <Flex
             direction="row"
@@ -841,7 +868,7 @@ function DocumentItem({ document }: { document: AttributeDocument }) {
               <Heading level={4}>document {document[DOCUMENT_ID]}</Heading>
             </Flex>
             {typeof document[DOCUMENT_SCORE] === "number" && (
-              <Label color="seafoam-1000">{`score ${numberFormatter(
+              <Label color={labelColor}>{`score ${numberFormatter(
                 document[DOCUMENT_SCORE]
               )}`}</Label>
             )}
@@ -858,7 +885,7 @@ function DocumentItem({ document }: { document: AttributeDocument }) {
         </pre>
         {metadata && (
           <>
-            <View borderColor="seafoam-700" borderTopWidth="thin">
+            <View borderColor={borderColor} borderTopWidth="thin">
               <CodeBlock value={JSON.stringify(metadata)} mimeType="json" />
             </View>
           </>
