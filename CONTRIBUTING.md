@@ -73,7 +73,7 @@ A code review is a process where someone other than the author(s) of a piece of 
 -   Style: Does the code follow our style guides? Note, in most cases, style nits should be avoided and be enforced entirely by automated tooling. However some stylistic decisions can be discussed if it impacts readability and complexity.
 -   Documentation: Did the developer also update relevant documentation?
 
-All of the above are grounds for a reviewer to request changes in a PR. Consensus should be reached to the best of the abilities of the author and reviewer. However, if consensus cannot be reached between the two parties, the review should be escalated to the technical lead.
+All of the above are grounds for a reviewer to request changes in a PR. Consensus should be reached to the best of the abilities of the author(s) and reviewer. However, if consensus cannot be reached between the two parties, the review should be escalated to the technical lead.
 
 ### Code Review Conduct
 
