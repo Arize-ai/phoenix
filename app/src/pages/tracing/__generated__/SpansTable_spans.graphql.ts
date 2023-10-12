@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<0aaa11685f33007cdfacc1cf5d733236>>
+ * @generated SignedSource<<47d3543839b9c1b50b129fdac08955f2>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -75,6 +75,11 @@ return {
       "name": "after"
     },
     {
+      "defaultValue": null,
+      "kind": "LocalArgument",
+      "name": "filterCondition"
+    },
+    {
       "defaultValue": 100,
       "kind": "LocalArgument",
       "name": "first"
@@ -116,6 +121,11 @@ return {
     {
       "alias": "spans",
       "args": [
+        {
+          "kind": "Variable",
+          "name": "filterCondition",
+          "variableName": "filterCondition"
+        },
         {
           "kind": "Variable",
           "name": "sort",
@@ -309,6 +319,6 @@ return {
 };
 })();
 
-(node as any).hash = "8c46c6a42873ed151cefa7191a87e578";
+(node as any).hash = "40de558e2a7fe5f6916378af1149cd5a";
 
 export default node;

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f093247ddfe014648359730eba3e2d84>>
+ * @generated SignedSource<<e5bd93b218dbad867dfbcffca19c7730>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -352,7 +352,8 @@ return {
         "alias": null,
         "args": (v2/*: any*/),
         "filters": [
-          "sort"
+          "sort",
+          "filterCondition"
         ],
         "handle": "connection",
         "key": "SpansTable_spans",
@@ -471,7 +472,8 @@ return {
         "args": (v16/*: any*/),
         "filters": [
           "sort",
-          "rootSpansOnly"
+          "rootSpansOnly",
+          "filterCondition"
         ],
         "handle": "connection",
         "key": "TracesTable_rootSpans",
