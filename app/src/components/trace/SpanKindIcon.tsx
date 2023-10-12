@@ -240,7 +240,7 @@ export function SpanKindIcon({ spanKind }: { spanKind: string }) {
       color = "--ac-global-color-yellow-1200";
       icon = <ToolSVG />;
       break;
-    case "reranking":
+    case "reranker":
       color = "--ac-global-color-celery-1000";
       icon = <RerankerSVG />;
       break;

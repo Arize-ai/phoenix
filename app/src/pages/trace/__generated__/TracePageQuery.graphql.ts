@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<adbfe96abd370e619b69114e8dc8d9ec>>
+ * @generated SignedSource<<7acfa71f3b33c5875f0bedcf46b6c440>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,7 +10,7 @@
 
 import { ConcreteRequest, Query } from 'relay-runtime';
 export type MimeType = "json" | "text";
-export type SpanKind = "agent" | "chain" | "embedding" | "llm" | "reranking" | "retriever" | "tool" | "unknown";
+export type SpanKind = "agent" | "chain" | "embedding" | "llm" | "reranker" | "retriever" | "tool" | "unknown";
 export type SpanStatusCode = "ERROR" | "OK" | "UNSET";
 export type TracePageQuery$variables = {
   traceId: string;

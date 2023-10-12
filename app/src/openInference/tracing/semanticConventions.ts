@@ -1,7 +1,7 @@
 export const SemanticAttributePrefixes = {
   llm: "llm",
   retrieval: "retrieval",
-  reranking: "reranking",
+  reranker: "reranker",
   messages: "messages",
   message: "message",
   document: "document",
@@ -27,7 +27,7 @@ export const RetrievalAttributePostfixes = {
   documents: "documents",
 } as const;
 
-export const RerankingAttributePostfixes = {
+export const RerankerAttributePostfixes = {
   input_documents: "input_documents",
   output_documents: "output_documents",
   query: "query",

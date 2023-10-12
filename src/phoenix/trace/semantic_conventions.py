@@ -180,23 +180,23 @@ DOCUMENT_METADATA = "document.metadata"
 Document metadata as a string representing a JSON object
 """
 
-RERANKING_INPUT_DOCUMENTS = "reranking.input_documents"
+RERANKER_INPUT_DOCUMENTS = "reranker.input_documents"
 """
 List of documents as input to the reranker
 """
-RERANKING_OUTPUT_DOCUMENTS = "reranking.output_documents"
+RERANKER_OUTPUT_DOCUMENTS = "reranker.output_documents"
 """
 List of documents as output from the reranker
 """
-RERANKING_QUERY = "reranking.query"
+RERANKER_QUERY = "reranker.query"
 """
 Query string for the reranker
 """
-RERANKING_MODEL_NAME = "reranking.model_name"
+RERANKER_MODEL_NAME = "reranker.model_name"
 """
 Model name of the reranker
 """
-RERANKING_TOP_K = "reranking.top_k"
+RERANKER_TOP_K = "reranker.top_k"
 """
 Top K parameter of the reranker
 """

@@ -52,7 +52,7 @@ import {
   MESSAGE_FUNCTION_CALL_NAME,
   MESSAGE_NAME,
   MESSAGE_ROLE,
-  RerankingAttributePostfixes,
+  RerankerAttributePostfixes,
   RetrievalAttributePostfixes,
   SemanticAttributePrefixes,
   ToolAttributePostfixes,
@@ -325,9 +325,9 @@ function SpanInfo({ span }: { span: Span }) {
       );
       break;
     }
-    case "reranking": {
+    case "reranker": {
       content = (
-        <RerankingSpanInfo span={span} spanAttributes={attributesObject} />
+        <RerankerSpanInfo span={span} spanAttributes={attributesObject} />
       );
       break;
     }
@@ -579,39 +579,39 @@ function RetrieverSpanInfo(props: {
   );
 }
 
-function RerankingSpanInfo(props: {
+function RerankerSpanInfo(props: {
   span: Span;
   spanAttributes: AttributeObject;
 }) {
   const { spanAttributes } = props;
-  const rerankingAttributes = useMemo<AttributeObject | null>(() => {
-    const rerankingAttrs = spanAttributes[SemanticAttributePrefixes.reranking];
-    if (typeof rerankingAttrs === "object") {
-      return rerankingAttrs as AttributeObject;
+  const rerankerAttributes = useMemo<AttributeObject | null>(() => {
+    const rerankerAttrs = spanAttributes[SemanticAttributePrefixes.reranker];
+    if (typeof rerankerAttrs === "object") {
+      return rerankerAttrs as AttributeObject;
     }
     return null;
   }, [spanAttributes]);
   const query = useMemo<string>(() => {
-    if (rerankingAttributes == null) {
+    if (rerankerAttributes == null) {
       return "";
     }
-    return (rerankingAttributes[RerankingAttributePostfixes.query] ||
+    return (rerankerAttributes[RerankerAttributePostfixes.query] ||
       "") as string;
-  }, [rerankingAttributes]);
+  }, [rerankerAttributes]);
   const input_documents = useMemo<AttributeDocument[]>(() => {
-    if (rerankingAttributes == null) {
+    if (rerankerAttributes == null) {
       return [];
     }
-    return (rerankingAttributes[RerankingAttributePostfixes.input_documents] ||
+    return (rerankerAttributes[RerankerAttributePostfixes.input_documents] ||
       []) as AttributeDocument[];
-  }, [rerankingAttributes]);
+  }, [rerankerAttributes]);
   const output_documents = useMemo<AttributeDocument[]>(() => {
-    if (rerankingAttributes == null) {
+    if (rerankerAttributes == null) {
       return [];
     }
-    return (rerankingAttributes[RerankingAttributePostfixes.output_documents] ||
+    return (rerankerAttributes[RerankerAttributePostfixes.output_documents] ||
       []) as AttributeDocument[];
-  }, [rerankingAttributes]);
+  }, [rerankerAttributes]);
 
   const numInputDocuments = input_documents.length;
   const numOutputDocuments = output_documents.length;
