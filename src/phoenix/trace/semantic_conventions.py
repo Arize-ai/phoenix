@@ -200,3 +200,27 @@ RERANKER_TOP_K = "reranker.top_k"
 """
 Top K parameter of the reranker
 """
+
+
+# Evaluation semantic conventions
+# a sub-category of semantic conventions that maps to the evaluation of the different types of spans
+# and traces. evaluation attributes differ from other attributes in that they rely on evaluators
+# that are run on the spans to generate the evaluation results.
+
+EVAL_DOCUMENT_RELEVANCY = "eval.document_relevancy"
+"""
+Attached to a document within a retriever or reranker span. An Int value of 1 or
+0 indicating whether the document is relevant to the input query.
+"""
+
+EVAL_DOCUMENTS_RELEVANCY_PERCENT = "eval.documents_relevancy_percent"
+"""
+Span level attribute denoting the percentage of relevant documents that were
+outputted by the span (typically a retriever or reranker).
+"""
+
+EVAL_DOCUMENTS_PRECISION = "eval.documents_precision"
+"""
+The precision of a retriever or reranker.
+This is the percentage of relevant documents over the total
+"""
