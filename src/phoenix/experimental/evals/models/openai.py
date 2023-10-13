@@ -20,7 +20,7 @@ MODEL_TOKEN_LIMIT_MAPPING = {
     "gpt-4-32k-0314": 32768,
     "gpt-4-32k-0613": 32768,
 }
-
+LEGACY_COMPLETION_API_MODELS = ("gpt-3.5-turbo-instruct",)
 logger = logging.getLogger(__name__)
 
 
@@ -93,6 +93,9 @@ class OpenAIModel(BaseEvalModel):
             )
 
     def _init_open_ai(self) -> None:
+        self._model_uses_legacy_completion_api = self.model_name.startswith(
+            LEGACY_COMPLETION_API_MODELS
+        )
         if self.openai_api_key is None:
             api_key = os.getenv(OPENAI_API_KEY_ENVVAR_NAME)
             if api_key is None:
@@ -161,7 +164,7 @@ class OpenAIModel(BaseEvalModel):
             messages=messages,
             **invoke_params,
         )
-        if self.model_name.startswith("gpt-3.5-turbo-instruct"):
+        if self._model_uses_legacy_completion_api:
             return str(response["choices"][0]["text"])
         # TODO: This is a bit rudimentary, should improve
         resp_text = str(response["choices"][0]["message"]["content"])
@@ -184,8 +187,7 @@ class OpenAIModel(BaseEvalModel):
             max_retries=self.max_retries,
         )
         def _completion_with_retry(**kwargs: Any) -> Any:
-            is_completion_model = self.model_name.startswith("gpt-3.5-turbo-instruct")
-            if is_completion_model:
+            if self._model_uses_legacy_completion_api:
                 if "prompt" not in kwargs:
                     kwargs["prompt"] = "\n\n".join(
                         message.get("content") or "" for message in kwargs.pop("messages", ())
