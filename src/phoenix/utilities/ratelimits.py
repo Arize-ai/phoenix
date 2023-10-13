@@ -23,14 +23,23 @@ class LeakyBucket:
     A simple in-memory rate-limiter implemented using the leaky bucket algorithm.
     """
 
-    def __init__(self, per_minute_rate: Numeric, starting_tokens: Numeric, max_tokens: Numeric):
+    def __init__(
+        self,
+        per_minute_rate: Numeric,
+        starting_tokens: Numeric,
+        max_tokens: Numeric,
+        rate_multiplier: Numeric = 1,
+    ):
+        self.rate_multiplier = rate_multiplier
         self.rate = self._per_second_rate(per_minute_rate)
         self.tokens = starting_tokens
         self.max_tokens = max_tokens
-        self.last_checked = time.time()
+        self.created = time.time()
+        self.last_checked = self.created
+        self.total_tokens = 0
 
     def _per_second_rate(self, per_minute_rate: Numeric) -> float:
-        return round(per_minute_rate / 60, 3)
+        return round(per_minute_rate / 60, 3) * self.rate_multiplier
 
     def update_limit(self, per_minute_rate: Numeric) -> None:
         new_rate = self._per_second_rate(per_minute_rate)
@@ -50,6 +59,7 @@ class LeakyBucket:
         current_tokens = min(self.max_tokens, self.tokens + (now - self.last_checked) * self.rate)
         self.tokens = current_tokens - token_cost
         self.last_checked = now
+        self.total_tokens += token_cost
         return self.last_checked
 
     def wait_for_then_spend_available_tokens(self, token_cost: Numeric) -> None:
@@ -62,6 +72,9 @@ class LeakyBucket:
             except UnavailableTokensError:
                 time.sleep(1 / self.rate)
                 continue
+
+    def effective_rate(self) -> Numeric:
+        return self.total_tokens / (time.time() - self.created)
 
 
 class LimitStore:
