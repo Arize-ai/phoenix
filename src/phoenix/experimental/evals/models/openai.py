@@ -123,13 +123,8 @@ class OpenAIModel(BaseEvalModel):
         elif self.model_name in MODEL_TOKEN_LIMIT_MAPPING.keys():
             self._openai_api_model_name = self.model_name
         elif "gpt-3.5-turbo" in self.model_name:
-            logger.warning(
-                "gpt-3.5-turbo may update over time. Returning num tokens assuming "
-                "gpt-3.5-turbo-0613."
-            )
             self._openai_api_model_name = "gpt-3.5-turbo-0613"
         elif "gpt-4" in self.model_name:
-            logger.warning("gpt-4 may update over time. Returning num tokens assuming gpt-4-0613.")
             self._openai_api_model_name = "gpt-4-0613"
         else:
             raise NotImplementedError(
