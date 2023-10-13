@@ -1,4 +1,5 @@
 import logging
+import traceback
 from typing import Any, Callable, Iterable, Optional, Type
 
 from typing_extensions import TypeVar, cast
@@ -36,10 +37,14 @@ def graceful_fallback(
             except exceptions as exc:
                 msg = (
                     f"Exception occurred in function '{func.__name__}':\n"
-                    f"  Args: {args}\n"
-                    f"  Kwargs: {kwargs}\n"
-                    f"  Exception Type: {type(exc).__name__}\n"
-                    f"  Exception Message: {str(exc)}"
+                    f"-Args: {args}\n"
+                    f"-Kwargs: {kwargs}\n"
+                    f"-Exception type: {type(exc).__name__}\n"
+                    f"-Exception message: {str(exc)}\n"
+                    f"{'*' * 50}\n"
+                    f"{traceback.format_exc()}\n"
+                    f"{'*' * 50}\n"
+                    f"Rerouting to fallback method '{fallback_method.__name__}'"
                 )
                 logging.error(msg)
             return fallback_method(*args, **kwargs)

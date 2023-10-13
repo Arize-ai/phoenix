@@ -27,6 +27,9 @@ def test_graceful_fallback_logs_errors(caplog):
     assert "failing_function" in caplog.records[0].message, "Failing function should be logged"
     assert "foo" in caplog.records[0].message, "Positional arguments should be logged"
     assert "'bar': 'baz'" in caplog.records[0].message, "Keyword arguments should be logged"
+    assert (
+        "Traceback (most recent call last):" in caplog.records[0].message
+    ), "Traceback should be logged"
 
 
 def test_graceful_fallback_only_suppresses_specified_errors():
