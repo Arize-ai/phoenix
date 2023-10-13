@@ -1,6 +1,7 @@
 export const SemanticAttributePrefixes = {
   llm: "llm",
   retrieval: "retrieval",
+  reranker: "reranker",
   messages: "messages",
   message: "message",
   document: "document",
@@ -24,6 +25,14 @@ export const LLMPromptTemplateAttributePostfixes = {
 
 export const RetrievalAttributePostfixes = {
   documents: "documents",
+} as const;
+
+export const RerankerAttributePostfixes = {
+  input_documents: "input_documents",
+  output_documents: "output_documents",
+  query: "query",
+  model_name: "model_name",
+  top_k: "top_k",
 } as const;
 
 export const EmbeddingAttributePostfixes = {

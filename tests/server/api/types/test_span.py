@@ -60,6 +60,13 @@ def test_nested_attributes() -> None:
         "retrieval": {
             "documents": ...,
         },
+        "reranker": {
+            "input_documents": ...,
+            "output_documents": ...,
+            "model_name": ...,
+            "top_k": ...,
+            "query": ...,
+        },
         "tool": {
             "description": ...,
             "name": ...,

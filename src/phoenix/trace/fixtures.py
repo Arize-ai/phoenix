@@ -16,7 +16,7 @@ class TracesFixture:
 llama_index_rag_fixture = TracesFixture(
     name="llama_index_rag",
     description="Traces from running the llama_index on a RAG use case.",
-    file_name="llama_index_rag_v7.jsonl",
+    file_name="llama_index_rag_with_rerank.jsonl",
 )
 
 llama_index_calculator_agent_fixture = TracesFixture(

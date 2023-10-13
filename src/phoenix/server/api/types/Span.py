@@ -9,12 +9,7 @@ from strawberry import ID
 from strawberry.types import Info
 
 import phoenix.trace.schemas as trace_schema
-from phoenix.core.traces import (
-    CUMULATIVE_LLM_TOKEN_COUNT_COMPLETION,
-    CUMULATIVE_LLM_TOKEN_COUNT_PROMPT,
-    CUMULATIVE_LLM_TOKEN_COUNT_TOTAL,
-    LATENCY_MS,
-)
+from phoenix.core.traces import ComputedAttributes
 from phoenix.server.api.context import Context
 from phoenix.server.api.types.MimeType import MimeType
 from phoenix.trace.schemas import SpanID
@@ -46,6 +41,7 @@ class SpanKind(Enum):
     retriever = trace_schema.SpanKind.RETRIEVER
     embedding = trace_schema.SpanKind.EMBEDDING
     agent = trace_schema.SpanKind.AGENT
+    reranker = trace_schema.SpanKind.RERANKER
     unknown = trace_schema.SpanKind.UNKNOWN
 
     @classmethod
@@ -155,7 +151,7 @@ def to_gql_span(span: trace_schema.Span) -> "Span":
         span_kind=SpanKind(span.span_kind),
         start_time=span.start_time,
         end_time=span.end_time,
-        latency_ms=cast(Optional[float], span.attributes.get(LATENCY_MS)),
+        latency_ms=cast(Optional[float], span.attributes.get(ComputedAttributes.LATENCY_MS.value)),
         context=SpanContext(
             trace_id=cast(ID, span.context.trace_id),
             span_id=cast(ID, span.context.span_id),
@@ -178,15 +174,15 @@ def to_gql_span(span: trace_schema.Span) -> "Span":
         ),
         cumulative_token_count_total=cast(
             Optional[int],
-            span.attributes.get(CUMULATIVE_LLM_TOKEN_COUNT_TOTAL),
+            span.attributes.get(ComputedAttributes.CUMULATIVE_LLM_TOKEN_COUNT_TOTAL.value),
         ),
         cumulative_token_count_prompt=cast(
             Optional[int],
-            span.attributes.get(CUMULATIVE_LLM_TOKEN_COUNT_PROMPT),
+            span.attributes.get(ComputedAttributes.CUMULATIVE_LLM_TOKEN_COUNT_PROMPT.value),
         ),
         cumulative_token_count_completion=cast(
             Optional[int],
-            span.attributes.get(CUMULATIVE_LLM_TOKEN_COUNT_COMPLETION),
+            span.attributes.get(ComputedAttributes.CUMULATIVE_LLM_TOKEN_COUNT_COMPLETION.value),
         ),
         events=events,
         input=(
