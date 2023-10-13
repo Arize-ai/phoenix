@@ -87,7 +87,7 @@ To authenticate with VertexAI, you must pass either your credentials or a projec
 ```python
 project = "my-project-id"
 location = "us-central1" # as an example
-model = VertexAI(project=project, location=location)
+model = VertexAIModel(project=project, location=location)
 model("Hello there, this is a tesst if you are working?")
 # Output: "Hello world, I am working!"
 ```
