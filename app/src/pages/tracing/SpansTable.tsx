@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { startTransition, useEffect, useMemo, useState } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
 import { useNavigate } from "react-router";
 import {
@@ -184,16 +184,18 @@ export function SpansTable(props: SpansTableProps) {
   useEffect(() => {
     //if the sorting changes, we need to reset the pagination
     const sort = sorting[0];
-    refetch({
-      sort: sort
-        ? {
-            col: sort.id as SpanSort["col"],
-            dir: sort.desc ? "desc" : "asc",
-          }
-        : DEFAULT_SORT,
-      after: null,
-      first: PAGE_SIZE,
-      filterCondition,
+    startTransition(() => {
+      refetch({
+        sort: sort
+          ? {
+              col: sort.id as SpanSort["col"],
+              dir: sort.desc ? "desc" : "asc",
+            }
+          : DEFAULT_SORT,
+        after: null,
+        first: PAGE_SIZE,
+        filterCondition,
+      });
     });
   }, [sorting, refetch, filterCondition]);
   const fetchMoreOnBottomReached = React.useCallback(
