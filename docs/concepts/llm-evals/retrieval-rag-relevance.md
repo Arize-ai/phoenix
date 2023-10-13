@@ -32,7 +32,7 @@ relevance_classifications = llm_eval_binary(
 
 The above runs the RAG relevancy LLM template against the dataframe df.
 
-<table><thead><tr><th>RAG Eval</th><th>GPT-4</th><th>GPT-3.5</th><th width="262">GPT-3.5-turbo-instruct</th><th>Llama 7b (soon)</th></tr></thead><tbody><tr><td>Precision</td><td>0.70</td><td>0.70</td><td>0.42</td><td></td></tr><tr><td>Recall</td><td>0.88</td><td>0.88</td><td>1</td><td></td></tr><tr><td>F1</td><td>0.78</td><td>0.78</td><td>0.59</td><td></td></tr></tbody></table>
+<table><thead><tr><th>RAG Eval</th><th>GPT-4</th><th>GPT-3.5</th><th width="262">GPT-3.5-turbo-instruct</th><th>Palm (Text Bison)</th></tr></thead><tbody><tr><td>Precision</td><td>0.70</td><td>0.70</td><td>0.42</td><td>0.53</td></tr><tr><td>Recall</td><td>0.88</td><td>0.88</td><td>1</td><td>1</td></tr><tr><td>F1</td><td>0.78</td><td>0.78</td><td>0.59</td><td>0.69</td></tr></tbody></table>
 
 ### GPT-4 Result
 

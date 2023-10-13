@@ -36,13 +36,15 @@ toxic_classifications = llm_eval_binary(
 
 The above is the use of the RAG relevancy template.&#x20;
 
+Note: Palm is not useful for Toxicity detection as it always returns "" string for toxic inputs
 
 
-| Toxicity Eval | GPT-4 | GPT-3.5 | GPT-3.5-Instruct | Palm 2 (soon) | Llama 7b (soon) |
-| ------------- | ----- | ------- | ---------------- | ------------- | --------------- |
-| Precision     | 0.91  | 0.93    | 0.95             |               |                 |
-| Recall        | 0.91  | 0.83    | 0.79             |               |                 |
-| F1            | 0.91  | 0.87    | 0.87             |               |                 |
+
+| Toxicity Eval | GPT-4 | GPT-3.5 | GPT-3.5-Instruct | Palm 2 (Text Bison) | Llama 7b (soon) |
+| ------------- | ----- | ------- | ---------------- | ------------------- | --------------- |
+| Precision     | 0.91  | 0.93    | 0.95             | Is not avail - ""   |                 |
+| Recall        | 0.91  | 0.83    | 0.79             | Is not avail - ""   |                 |
+| F1            | 0.91  | 0.87    | 0.87             | Is not avail - ""   |                 |
 
 ## GPT-4 Results
 

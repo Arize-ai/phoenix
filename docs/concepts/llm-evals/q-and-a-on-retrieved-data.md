@@ -36,11 +36,11 @@ Q_and_A_classifications = llm_eval_binary(
 
 The above Eval uses the QA template for Q\&A analysis on retrieved data.&#x20;
 
-| Q\&A Eval | GPT-4 | GPT-3.5 | GPT-3.5-turbo-instruct | Llama (soon) |
-| --------- | ----- | ------- | ---------------------- | ------------ |
-| Precision | 1     | 0.99    | 0.42                   |              |
-| Recall    | 0.92  | 0.83    | 1                      |              |
-| Precision | 0.96  | 0.90    | 0.59                   |              |
+| Q\&A Eval | GPT-4 | GPT-3.5 | GPT-3.5-turbo-instruct | Palm (Text Bison) |
+| --------- | ----- | ------- | ---------------------- | ----------------- |
+| Precision | 1     | 0.99    | 0.42                   | 1                 |
+| Recall    | 0.92  | 0.83    | 1                      | 0.94              |
+| Precision | 0.96  | 0.90    | 0.59                   | 0.97              |
 
 ## GPT-4 Results
 

@@ -35,11 +35,11 @@ readability_classifications = llm_eval_binary(
 
 The above shows how to use the code readability template.
 
-| Code Eval | GPT-4 | GPT-3.5 | GPT-3.5-Instruct | Palm 2 (soon) | Llama 7b (soon) |
-| --------- | ----- | ------- | ---------------- | ------------- | --------------- |
-| Precision | 0.93  | 0.76    | 0.67             |               |                 |
-| Recall    | 0.78  | 0.93    | 1                |               |                 |
-| F1        | 0.85  | 0.85    | 0.81             |               |                 |
+| Code Eval | GPT-4 | GPT-3.5 | GPT-3.5-Instruct | Palm 2 (Text Bison) | Llama 7b (soon) |
+| --------- | ----- | ------- | ---------------- | ------------------- | --------------- |
+| Precision | 0.93  | 0.76    | 0.67             | 0.77                |                 |
+| Recall    | 0.78  | 0.93    | 1                | 0.94                |                 |
+| F1        | 0.85  | 0.85    | 0.81             | 0.85                |                 |
 
 ## GPT-4 Results
 
