@@ -178,11 +178,7 @@ class OpenInferenceTraceCallbackHandler(BaseCallbackHandler):
         self._event_id_to_event_data: EventData = defaultdict(lambda: CBEventData())
 
     def _null_fallback(self, *args: Any, **kwargs: Any) -> None:
-        msg = (
-            "OpenInferenceCallbackHandler trace processing failed, more info is logged to the root"
-            "logger"
-        )
-        logger.exception(msg)
+        return
 
     def _on_event_fallback(
         self,
@@ -191,11 +187,6 @@ class OpenInferenceTraceCallbackHandler(BaseCallbackHandler):
         event_id: CBEventID = "",
         **kwargs: Any,
     ) -> CBEventID:
-        msg = (
-            "OpenInferenceCallbackHandler trace processing failed, more info is logged to the root"
-            "logger"
-        )
-        logger.exception(msg)
         return event_id or str(uuid4())
 
     @graceful_fallback(_on_event_fallback)
