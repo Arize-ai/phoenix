@@ -112,7 +112,8 @@ dependencies = [
   "requests",
   "protobuf==3.20",  # version minimum (for tests)
   "responses",
-  "tiktoken"
+  "tiktoken",
+  "typing-extensions<4.6.0",  # for Colab
 ]
 
 [tool.hatch.envs.type]
