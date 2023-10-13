@@ -51,6 +51,11 @@ from phoenix.trace.semantic_conventions import (
     MESSAGE_ROLE,
     OUTPUT_MIME_TYPE,
     OUTPUT_VALUE,
+    RERANKER_INPUT_DOCUMENTS,
+    RERANKER_MODEL_NAME,
+    RERANKER_OUTPUT_DOCUMENTS,
+    RERANKER_QUERY,
+    RERANKER_TOP_K,
     RETRIEVAL_DOCUMENTS,
     TOOL_DESCRIPTION,
     TOOL_NAME,
@@ -83,6 +88,7 @@ EventData = Dict[CBEventID, CBEventData]
 def payload_to_semantic_attributes(
     event_type: CBEventType,
     payload: Dict[str, Any],
+    is_event_end: bool = False,
 ) -> Dict[str, Any]:
     """
     Converts a LLMapp payload to a dictionary of semantic conventions compliant attributes.
@@ -96,10 +102,10 @@ def payload_to_semantic_attributes(
             {EMBEDDING_TEXT: text, EMBEDDING_VECTOR: vector}
             for text, vector in zip(payload[EventPayload.CHUNKS], payload[EventPayload.EMBEDDINGS])
         ]
-    if EventPayload.QUERY_STR in payload:
+    if event_type is not CBEventType.RERANKING and EventPayload.QUERY_STR in payload:
         attributes[INPUT_VALUE] = payload[EventPayload.QUERY_STR]
         attributes[INPUT_MIME_TYPE] = MimeType.TEXT
-    if EventPayload.NODES in payload:
+    if event_type is not CBEventType.RERANKING and EventPayload.NODES in payload:
         attributes[RETRIEVAL_DOCUMENTS] = [
             {
                 DOCUMENT_ID: node_with_score.node.node_id,
@@ -129,11 +135,22 @@ def payload_to_semantic_attributes(
             if (usage := getattr(raw, "usage", None)) is not None:
                 attributes.update(_get_token_counts(usage))
     if event_type is CBEventType.RERANKING:
-        ...  # TODO
-        # if EventPayload.TOP_K in payload:
-        #     attributes[RERANKING_TOP_K] = payload[EventPayload.TOP_K]
-        # if EventPayload.MODEL_NAME in payload:
-        #     attributes[RERANKING_MODEL_NAME] = payload[EventPayload.MODEL_NAME]
+        if EventPayload.TOP_K in payload:
+            attributes[RERANKER_TOP_K] = payload[EventPayload.TOP_K]
+        if EventPayload.MODEL_NAME in payload:
+            attributes[RERANKER_MODEL_NAME] = payload[EventPayload.MODEL_NAME]
+        if EventPayload.QUERY_STR in payload:
+            attributes[RERANKER_QUERY] = payload[EventPayload.QUERY_STR]
+        if nodes := payload.get(EventPayload.NODES):
+            attributes[RERANKER_OUTPUT_DOCUMENTS if is_event_end else RERANKER_INPUT_DOCUMENTS] = [
+                {
+                    DOCUMENT_ID: node_with_score.node.node_id,
+                    DOCUMENT_SCORE: node_with_score.score,
+                    DOCUMENT_CONTENT: node_with_score.node.text,
+                    DOCUMENT_METADATA: node_with_score.node.metadata,
+                }
+                for node_with_score in nodes
+            ]
     if EventPayload.TOOL in payload:
         tool_metadata = cast(ToolMetadata, payload.get(EventPayload.TOOL))
         attributes[TOOL_NAME] = tool_metadata.name
@@ -236,7 +253,7 @@ class OpenInferenceTraceCallbackHandler(BaseCallbackHandler):
         # Parse the payload to extract the parameters
         if payload is not None:
             event_data["attributes"].update(
-                payload_to_semantic_attributes(event_type, payload),
+                payload_to_semantic_attributes(event_type, payload, is_event_end=True),
             )
 
     @graceful_fallback(_null_fallback)
@@ -364,6 +381,7 @@ def _get_span_kind(event_type: CBEventType) -> SpanKind:
         CBEventType.RETRIEVE: SpanKind.RETRIEVER,
         CBEventType.FUNCTION_CALL: SpanKind.TOOL,
         CBEventType.AGENT_STEP: SpanKind.AGENT,
+        CBEventType.RERANKING: SpanKind.RERANKER,
     }.get(event_type, SpanKind.CHAIN)
 
 

@@ -1,8 +1,9 @@
 import ast
 from typing import Any, Iterator, Mapping, Tuple, cast
 
+from phoenix.core.traces import ComputedAttributes
 from phoenix.trace import semantic_conventions
-from phoenix.trace.schemas import Span
+from phoenix.trace.schemas import COMPUTED_PREFIX, Span
 
 
 class SpanFilter:
@@ -63,6 +64,7 @@ def _allowed_replacements() -> Iterator[Tuple[str, ast.expr]]:
     }.items():
         yield source_segment, ast_replacement
         yield "span." + source_segment, ast_replacement
+
     for source_segment, ast_replacement in {
         "span_id": _ast_replacement("span.context.span_id"),
         "trace_id": _ast_replacement("span.context.trace_id"),
@@ -70,17 +72,23 @@ def _allowed_replacements() -> Iterator[Tuple[str, ast.expr]]:
         yield source_segment, ast_replacement
         yield "context." + source_segment, ast_replacement
         yield "span.context." + source_segment, ast_replacement
-    for source_segment, ast_replacement in {
-        field_name: _ast_replacement(f"span.attributes.get('{field_name}')")
-        for field_name in (
-            getattr(semantic_conventions, variable_name)
-            for variable_name in dir(semantic_conventions)
-            if variable_name.isupper()
-        )
-    }.items():
+
+    for field_name in (
+        getattr(semantic_conventions, variable_name)
+        for variable_name in dir(semantic_conventions)
+        if variable_name.isupper()
+    ):
+        source_segment = field_name
+        ast_replacement = _ast_replacement(f"span.attributes.get('{field_name}')")
         yield source_segment, ast_replacement
         yield "attributes." + source_segment, ast_replacement
         yield "span.attributes." + source_segment, ast_replacement
+
+    for computed_attribute in ComputedAttributes:
+        field_name = computed_attribute.value
+        source_segment = field_name[len(COMPUTED_PREFIX) :]
+        ast_replacement = _ast_replacement(f"span.attributes.get('{field_name}')")
+        yield source_segment, ast_replacement
 
 
 class _Translator(ast.NodeTransformer):

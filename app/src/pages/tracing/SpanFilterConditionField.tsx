@@ -95,6 +95,26 @@ function filterConditionCompletions(context: CompletionContext) {
         info: "The name given to a span - e.x. OpenAI",
       },
       {
+        label: "latency_ms",
+        type: "variable",
+        info: "Latency (i.e. duration) in milliseconds",
+      },
+      {
+        label: "cumulative_token_count.prompt",
+        type: "variable",
+        info: "Sum of token count for prompt from self and all child spans",
+      },
+      {
+        label: "cumulative_token_count.completion",
+        type: "variable",
+        info: "Sum of token count for completion from self and all child spans",
+      },
+      {
+        label: "cumulative_token_count.total",
+        type: "variable",
+        info: "Sum of token count total (prompt + completion) from self and all child spans",
+      },
+      {
         label: "llm spans",
         type: "text",
         apply: "span_kind == 'LLM'",
@@ -122,6 +142,18 @@ function filterConditionCompletions(context: CompletionContext) {
         label: "status_code error",
         type: "text",
         apply: "status_code == 'ERROR'",
+        detail: "macro",
+      },
+      {
+        label: "Latency >= 10s",
+        type: "text",
+        apply: "latency_ms >= 10_000",
+        detail: "macro",
+      },
+      {
+        label: "Tokens >= 1,000",
+        type: "text",
+        apply: "llm.token_count.total >= 1_000",
         detail: "macro",
       },
     ],

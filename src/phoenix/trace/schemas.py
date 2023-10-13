@@ -41,6 +41,7 @@ class SpanKind(Enum):
     RETRIEVER = "RETRIEVER"
     EMBEDDING = "EMBEDDING"
     AGENT = "AGENT"
+    RERANKER = "RERANKER"
     UNKNOWN = "UNKNOWN"
 
     def __str__(self) -> str:
