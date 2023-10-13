@@ -1,9 +1,8 @@
 import sys
 import time
 from collections import defaultdict
-from contextlib import contextmanager
 from functools import wraps
-from typing import Any, Callable, ContextManager, Dict, Generator, TypeVar, Union
+from typing import Any, Callable, Dict, TypeVar, Union
 
 if sys.version_info < (3, 10):
     from typing_extensions import ParamSpec
@@ -117,9 +116,8 @@ class OpenAIRateLimiter:
 
     def limit(
         self, model_name: str, token_cost: Numeric
-    ) -> Callable[[Callable[P, T]], ContextManager[Callable[P, T]]]:
-        @contextmanager
-        def rate_limit_decorator(fn: Callable[P, T]) -> Generator[Callable[P, T], None, None]:
+    ) -> Callable[[Callable[P, T]], Callable[P, T]]:
+        def rate_limit_decorator(fn: Callable[P, T]) -> Callable[P, T]:
             @wraps(fn)
             def wrapper(*args: Any, **kwargs: Any) -> Any:
                 self._store.wait_for_rate_limits(
@@ -128,6 +126,6 @@ class OpenAIRateLimiter:
                 result: T = fn(*args, **kwargs)
                 yield result
 
-            return wrapper  # type: ignore
+            return wrapper
 
         return rate_limit_decorator
