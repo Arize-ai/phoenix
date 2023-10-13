@@ -185,9 +185,10 @@ class OpenAIModel(BaseEvalModel):
         )
         def _completion_with_retry(**kwargs: Any) -> Any:
             if self.model_name.startswith("gpt-3.5-turbo-instruct"):
-                kwargs["prompt"] = kwargs.get("prompt") or "\n\n".join(
-                    message.get("content") or "" for message in kwargs.pop("messages", ())
-                )
+                if "prompt" not in kwargs:
+                    kwargs["prompt"] = "\n\n".join(
+                        message.get("content") or "" for message in kwargs.pop("messages", ())
+                    )
                 return self._openai.Completion.create(**kwargs)
             return self._openai.ChatCompletion.create(**kwargs)
 
