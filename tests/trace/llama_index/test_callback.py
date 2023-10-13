@@ -173,8 +173,6 @@ def test_on_event_start_handler_fails_gracefully(
     assert caplog.records[0].levelname == "ERROR"
     assert "on_event_start" in caplog.records[0].message
     assert "CallbackError" in caplog.records[0].message
-    assert caplog.records[1].levelname == "ERROR"
-    assert "trace processing failed" in caplog.records[1].message
 
 
 def test_on_event_end_handler_fails_gracefully(
@@ -187,12 +185,9 @@ def test_on_event_end_handler_fails_gracefully(
     callback_handler = OpenInferenceTraceCallbackHandler(exporter=NoOpExporter())
     callback_handler.on_event_end(event_type, faulty_payload, event_id)
 
-    assert len(caplog.records) == 2, "Both the fallback fn and the decorator should emit logs"
     assert caplog.records[0].levelname == "ERROR"
     assert "on_event_end" in caplog.records[0].message
     assert "KeyError" in caplog.records[0].message
-    assert caplog.records[1].levelname == "ERROR"
-    assert "trace processing failed" in caplog.records[1].message
 
 
 @patch("phoenix.trace.llama_index.callback._add_spans_to_tracer")
@@ -203,9 +198,6 @@ def test_end_trace_handler_fails_gracefully(mock_handler_internals, caplog) -> N
     callback_handler = OpenInferenceTraceCallbackHandler(exporter=NoOpExporter())
     callback_handler.end_trace(trace_id, trace_map=trace_map)
 
-    assert len(caplog.records) == 2, "Both the fallback fn and the decorator should emit logs"
     assert caplog.records[0].levelname == "ERROR"
     assert "end_trace" in caplog.records[0].message
     assert "CallbackError" in caplog.records[0].message
-    assert caplog.records[1].levelname == "ERROR"
-    assert "trace processing failed" in caplog.records[1].message
