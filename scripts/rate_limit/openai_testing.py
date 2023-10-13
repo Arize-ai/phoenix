@@ -1,21 +1,22 @@
 import asyncio
 import os
-import sys
 import time
 
 import httpx
 import openai
+from phoenix.utilities.ratelimits import OpenAIRateLimiter
 
 START_TIME = time.time()
 COMPLETED_RESPONSES = 0
 
-API_URL = "https://api.openai.com/v1/chat/completions"
+API_URL = "https://api.openai.com/v1/chat/completions/"
 openai.api_key = os.environ["OPENAI_API_KEY"]
 HEADERS = {
+    "Content-Type": "application/json",
     "Authorization": f"Bearer {openai.api_key}",
 }
 
-MAX_CONCURRENT_REQUESTS = 10
+MAX_CONCURRENT_REQUESTS = 20
 # throttler = asyncio.Semaphore(MAX_CONCURRENT_REQUESTS)
 
 # Queue setup
@@ -25,42 +26,62 @@ request_queue = asyncio.Queue(maxsize=MAX_QUEUE_SIZE)
 
 rate_limited = asyncio.Event()
 
-# prompt = (
-#     "I'm making a a ChatCompletion request over and over and over and over again."
-#     "How long do you think it'll take for me to get rate limited?"
-# )
 prompt = "hello!"
-payload = {
+payload_template = {
     "model": "gpt-4",
     "messages": [{"role": "assistant", "content": prompt}],
     "temperature": 0.7,
 }
 
 
+rate_limiter = OpenAIRateLimiter(openai.api_key)
+rate_limiter.set_rate_limits("gpt-4", 190, 40000)
+
+
+def print_effective_rate():
+    key = rate_limiter.key("gpt-4")
+    effective_rpm = 60 * rate_limiter._store._rate_limits[key]["requests"].effective_rate()
+    print(f"Effective RPM: {effective_rpm} @ {time.time() - START_TIME} seconds")
+
+
+@OpenAIRateLimiter(openai.api_key).alimit("gpt-4", 0)
+async def openai_python_request(payload):
+    try:
+        async with asyncio.timeout(20):
+            completion = await openai.ChatCompletion.acreate(**payload)
+            print_effective_rate()
+            # print(completion.to_dict_recursive()["usage"])  # type: ignore
+            # sys.stdout.flush()
+            return completion
+    except asyncio.TimeoutError:
+        print("Maybe rate limited!")
+        rate_limited.set()
+
+
+@OpenAIRateLimiter(openai.api_key).limit("gpt-4", 0)
+async def openai_httpx_request(payload):
+    async with httpx.AsyncClient() as client:
+        response = await client.post(API_URL, headers=HEADERS, json=payload)
+        # print(response.json()["usage"])
+        # sys.stdout.flush()
+        return response
+
+
 async def producer():
     while not rate_limited.is_set():
-        await request_queue.put(payload)
+        await request_queue.put(payload_template)
         # print(f"Queue size: {request_queue.qsize()}")
-        await asyncio.sleep(0.5)
+        await asyncio.sleep(0.001)
 
 
 async def consumer():
     while not rate_limited.is_set():
-        next_payload = await request_queue.get()
-        async with httpx.AsyncClient() as client:
-            # async with throttler:
-            try:
-                async with asyncio.timeout(10):
-                    # completion = await openai.ChatCompletion.acreate(**next_payload)
-                    # print(completion.to_dict_recursive()["usage"])
-                    completion = await client.post(API_URL, headers=HEADERS, json=next_payload)
-                    print(completion.json()["choices"][0]["text"])
-                    sys.stdout.flush()
-                    request_queue.task_done()
-            except asyncio.TimeoutError:
-                print("Maybe rate limited!")
-                rate_limited.set()
-                return
+        payload = await request_queue.get()
+        await openai_python_request(payload)
+        # await openai_httpx_request(client, payload)
+        request_queue.task_done()
+        global COMPLETED_RESPONSES
+        COMPLETED_RESPONSES += 1
 
 
 async def main(timeout_duration):
@@ -77,6 +98,6 @@ async def main(timeout_duration):
 
 
 if __name__ == "__main__":
-    TIMEOUT_DURATION = 30
+    TIMEOUT_DURATION = 300
     asyncio.run(main(TIMEOUT_DURATION))
-    print(f"Effective Rate: {COMPLETED_RESPONSES / (time.time() - START_TIME)}")
+    print(f"Effective RPM: {60 * COMPLETED_RESPONSES / (time.time() - START_TIME)}")
