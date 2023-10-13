@@ -11,6 +11,7 @@ if TYPE_CHECKING:
 OPENAI_API_KEY_ENVVAR_NAME = "OPENAI_API_KEY"
 MINIMUM_OPENAI_VERSION = "0.26.4"
 MODEL_TOKEN_LIMIT_MAPPING = {
+    "gpt-3.5-turbo-instruct": 4096,
     "gpt-3.5-turbo-0301": 4096,
     "gpt-3.5-turbo-0613": 4096,  # Current gpt-3.5-turbo default
     "gpt-3.5-turbo-16k-0613": 16385,
@@ -160,6 +161,8 @@ class OpenAIModel(BaseEvalModel):
             messages=messages,
             **invoke_params,
         )
+        if self.model_name.startswith("gpt-3.5-turbo-instruct"):
+            return str(response["choices"][0]["text"])
         # TODO: This is a bit rudimentary, should improve
         resp_text = str(response["choices"][0]["message"]["content"])
         return resp_text
@@ -181,6 +184,11 @@ class OpenAIModel(BaseEvalModel):
             max_retries=self.max_retries,
         )
         def _completion_with_retry(**kwargs: Any) -> Any:
+            if self.model_name.startswith("gpt-3.5-turbo-instruct"):
+                kwargs["prompt"] = "\n\n".join(
+                    message.get("content") or "" for message in kwargs.pop("messages", ())
+                )
+                return self._openai.Completion.create(**kwargs)
             return self._openai.ChatCompletion.create(**kwargs)
 
         return _completion_with_retry(**kwargs)
