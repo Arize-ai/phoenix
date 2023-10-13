@@ -1,3 +1,4 @@
+import asyncio
 import sys
 import time
 from collections import defaultdict
@@ -73,6 +74,21 @@ class LeakyBucket:
                 time.sleep(1 / self.rate)
                 continue
 
+    async def async_wait_for_then_spend_available_tokens(self, token_cost: Numeric) -> None:
+        MAX_WAIT_TIME = 5 * 60
+        time.time()
+        try:
+            async with asyncio.timeout(MAX_WAIT_TIME):
+                while True:
+                    try:
+                        self.spend_tokens(token_cost)
+                        break
+                    except UnavailableTokensError:
+                        await asyncio.sleep(1 / self.rate)
+                        continue
+        except asyncio.TimeoutError:
+            pass
+
     def effective_rate(self) -> Numeric:
         return self.total_tokens / (time.time() - self.created)
 
@@ -112,6 +128,12 @@ class LimitStore:
             if limit := rate_limits.get(limit_type):
                 limit.wait_for_then_spend_available_tokens(cost)
 
+    async def async_wait_for_rate_limits(self, key: str, rate_limit_costs: Dict[str, Numeric]):
+        rate_limits = self._rate_limits[key]
+        for limit_type, cost in rate_limit_costs.items():
+            if limit := rate_limits.get(limit_type):
+                await limit.async_wait_for_then_spend_available_tokens(cost)
+
 
 class OpenAIRateLimiter:
     def __init__(self, api_key: str) -> None:
@@ -132,12 +154,28 @@ class OpenAIRateLimiter:
     ) -> Callable[[Callable[P, T]], Callable[P, T]]:
         def rate_limit_decorator(fn: Callable[P, T]) -> Callable[P, T]:
             @wraps(fn)
-            def wrapper(*args: Any, **kwargs: Any) -> Any:
+            def wrapper(*args: Any, **kwargs: Any) -> T:
                 self._store.wait_for_rate_limits(
                     self.key(model_name), {"requests": 1, "tokens": token_cost}
                 )
                 result: T = fn(*args, **kwargs)
-                yield result
+                return result
+
+            return wrapper
+
+        return rate_limit_decorator
+
+    def alimit(
+        self, model_name: str, token_cost: Numeric
+    ) -> Callable[[Callable[P, T]], Callable[P, T]]:
+        def rate_limit_decorator(fn: Callable[P, T]) -> Callable[P, T]:
+            @wraps(fn)
+            async def wrapper(*args: Any, **kwargs: Any) -> T:
+                await self._store.async_wait_for_rate_limits(
+                    self.key(model_name), {"requests": 1, "tokens": token_cost}
+                )
+                result: T = await fn(*args, **kwargs)
+                return result
 
             return wrapper
 
