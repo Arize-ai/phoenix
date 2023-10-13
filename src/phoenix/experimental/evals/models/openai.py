@@ -190,7 +190,7 @@ class OpenAIModel(BaseEvalModel):
             if self._model_uses_legacy_completion_api:
                 if "prompt" not in kwargs:
                     kwargs["prompt"] = "\n\n".join(
-                        message.get("content") or ""
+                        (message.get("content") or "")
                         for message in (kwargs.pop("messages", None) or ())
                     )
                 return self._openai.Completion.create(**kwargs)
