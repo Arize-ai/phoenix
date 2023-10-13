@@ -184,7 +184,8 @@ class OpenAIModel(BaseEvalModel):
             max_retries=self.max_retries,
         )
         def _completion_with_retry(**kwargs: Any) -> Any:
-            if self.model_name.startswith("gpt-3.5-turbo-instruct"):
+            is_completion_model = self.model_name.startswith("gpt-3.5-turbo-instruct")
+            if is_completion_model:
                 if "prompt" not in kwargs:
                     kwargs["prompt"] = "\n\n".join(
                         message.get("content") or "" for message in kwargs.pop("messages", ())
