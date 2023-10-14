@@ -1,3 +1,4 @@
+import argparse
 import asyncio
 import collections
 import os
@@ -10,7 +11,8 @@ from phoenix.utilities.ratelimits import OpenAIRateLimiter
 START_TIME = time.time()
 COMPLETED_RESPONSES = 0
 stop_event = asyncio.Event()
-recent_request_times = collections.deque()
+request_times = collections.deque()
+tokens_processed = collections.deque()
 
 API_URL = "https://api.openai.com/v1/chat/completions"
 openai.api_key = os.environ["OPENAI_API_KEY"]
@@ -35,18 +37,42 @@ payload_template = {
 
 
 rate_limiter = OpenAIRateLimiter(openai.api_key)
-rate_limiter.set_rate_limits("gpt-4", 400, 40000)
+
+
+def request_time(bucket_size):
+    global request_times
+    recent_request_times = (request_times.popleft() for _ in range(bucket_size))
+    return sum(recent_request_times) / bucket_size  # seconds
+
+
+def effective_rate():
+    key = rate_limiter.key("gpt-4")
+    return (
+        60 * rate_limiter._store._rate_limits[key]["requests"].effective_rate()
+    )  # requests per minute
+
+
+def effective_token_rate():
+    key = rate_limiter.key("gpt-4")
+    return (
+        60 * rate_limiter._store._rate_limits[key]["tokens"].effective_rate()
+    )  # tokens per minute
 
 
 def print_rate_info():
-    if len(recent_request_times) > 20:
-        recent_avg = sum(recent_request_times.popleft() for _ in range(20)) / 20
-        key = rate_limiter.key("gpt-4")
-        effective_rpm = 60 * rate_limiter._store._rate_limits[key]["requests"].effective_rate()
+    info_interval = 20
+    if len(request_times) > info_interval:
         elapsed_time = time.time() - START_TIME
-        print(
-            f"time: {elapsed_time:.2f} | effective_rpm: {effective_rpm:.2f} | response time: {recent_avg:.2f}"
+        avg_request_time = request_time(info_interval)
+        cumulative_request_rate = effective_rate()
+        cumulative_token_rate = effective_token_rate()
+        info_str = (
+            f"time: {elapsed_time:.2f} | "
+            f"avg request time: {avg_request_time:.2f} | "
+            f"request rate: {cumulative_request_rate:.2f} | "
+            f"token rate: {cumulative_token_rate:.2f} | "
         )
+        print(info_str)
 
 
 @rate_limiter.alimit("gpt-4", 0)
@@ -54,7 +80,7 @@ async def openai_python_request(payload):
     try:
         async with asyncio.timeout(20):
             completion = await openai.ChatCompletion.acreate(**payload)
-            print_effective_rate()
+            print_rate_info()
             return completion
     except asyncio.TimeoutError:
         print("Maybe rate limited!")
@@ -64,14 +90,13 @@ async def openai_python_request(payload):
 @rate_limiter.alimit("gpt-4", 0)
 async def openai_httpx_request(payload):
     async with httpx.AsyncClient() as client:
-        response = await client.post(API_URL, headers=HEADERS, json=payload)
-        if "usage" not in (res := response.json()):
-            print(res)
+        response = await client.post(API_URL, headers=HEADERS, json=payload, timeout=None)
         if response.status_code == 429:
             print("Rate limited!")
             stop_event.set()
         else:
-            recent_request_times.append(response.elapsed.total_seconds())
+            request_times.append(response.elapsed.total_seconds())
+            tokens_processed.append(response.json()["usage"]["total_tokens"])
             print_rate_info()
         return response
 
@@ -103,6 +128,13 @@ async def main(timeout_duration):
 
 
 if __name__ == "__main__":
-    TIMEOUT_DURATION = 30
+    parser = argparse.ArgumentParser()
+    parser.add_argument("duration", type=int, default=300)
+    parser.add_argument("-r", "--request-limit", type=int, default=200)
+    parser.add_argument("-t", "--token-limit", type=int, default=40000)
+    args = parser.parse_args()
+    rate_limiter.set_rate_limits("gpt-4", args.request_limit, args.token_limit)
+
+    TIMEOUT_DURATION = args.duration
     asyncio.run(main(TIMEOUT_DURATION))
     print(f"Effective RPM: {60 * COMPLETED_RESPONSES / (time.time() - START_TIME)}")

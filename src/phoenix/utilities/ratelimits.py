@@ -64,6 +64,7 @@ class LeakyBucket:
 
     def spend_tokens(self, token_cost: Numeric) -> None:
         self.tokens -= token_cost
+        self.total_tokens += token_cost
 
     def wait_for_then_spend_available_tokens(self, token_cost: Numeric) -> None:
         MAX_WAIT_TIME = 5 * 60  # 5 minutes
