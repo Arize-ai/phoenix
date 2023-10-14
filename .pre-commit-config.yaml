@@ -14,6 +14,7 @@ repos:
           - id: clean-notebooks
             name: clean-notebooks
             files: \.ipynb$
+            exclude: ^tutorials/evals/.*\.ipynb$
             stages: [commit]
             language: system
             entry: jupyter nbconvert --ClearOutputPreprocessor.enabled=True --ClearMetadataPreprocessor.enabled=True --inplace
