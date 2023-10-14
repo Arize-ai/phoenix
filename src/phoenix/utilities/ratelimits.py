@@ -53,7 +53,7 @@ class LeakyBucket:
         time_since_last_checked = time.time() - self.last_checked
         return min(self.max_tokens, self.rate * time_since_last_checked + self.tokens)
 
-    def spend_tokens(self, token_cost: Numeric) -> Numeric:
+    def spend_tokens_if_available(self, token_cost: Numeric) -> None:
         if token_cost > self.available_tokens():
             raise UnavailableTokensError
         now = time.time()
@@ -61,14 +61,16 @@ class LeakyBucket:
         self.tokens = current_tokens - token_cost
         self.last_checked = now
         self.total_tokens += token_cost
-        return self.last_checked
+
+    def spend_tokens(self, token_cost: Numeric) -> None:
+        self.tokens -= token_cost
 
     def wait_for_then_spend_available_tokens(self, token_cost: Numeric) -> None:
         MAX_WAIT_TIME = 5 * 60  # 5 minutes
         start = time.time()
         while (time.time() - start) < MAX_WAIT_TIME:
             try:
-                self.spend_tokens(token_cost)
+                self.spend_tokens_if_available(token_cost)
                 break
             except UnavailableTokensError:
                 time.sleep(1 / self.rate)
@@ -81,7 +83,7 @@ class LeakyBucket:
             async with asyncio.timeout(MAX_WAIT_TIME):
                 while True:
                     try:
-                        self.spend_tokens(token_cost)
+                        self.spend_tokens_if_available(token_cost)
                         break
                     except UnavailableTokensError:
                         await asyncio.sleep(1 / self.rate)
@@ -133,6 +135,12 @@ class LimitStore:
         for limit_type, cost in rate_limit_costs.items():
             if limit := rate_limits.get(limit_type):
                 await limit.async_wait_for_then_spend_available_tokens(cost)
+
+    def spend_rate_limits(self, key: str, rate_limit_costs: Dict[str, Numeric]) -> None:
+        rate_limits = self._rate_limits[key]
+        for limit_type, cost in rate_limit_costs.items():
+            if limit := rate_limits.get(limit_type):
+                limit.spend_tokens(cost)
 
 
 class OpenAIRateLimiter:
