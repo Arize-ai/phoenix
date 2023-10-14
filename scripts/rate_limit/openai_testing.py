@@ -1,4 +1,5 @@
 import asyncio
+import collections
 import os
 import time
 
@@ -8,6 +9,8 @@ from phoenix.utilities.ratelimits import OpenAIRateLimiter
 
 START_TIME = time.time()
 COMPLETED_RESPONSES = 0
+stop_event = asyncio.Event()
+recent_request_times = collections.deque()
 
 API_URL = "https://api.openai.com/v1/chat/completions"
 openai.api_key = os.environ["OPENAI_API_KEY"]
@@ -23,9 +26,6 @@ MAX_CONCURRENT_REQUESTS = 20
 MAX_QUEUE_SIZE = 40
 request_queue = asyncio.Queue(maxsize=MAX_QUEUE_SIZE)
 
-
-stop_event = asyncio.Event()
-
 prompt = "hello!"
 payload_template = {
     "model": "gpt-4",
@@ -38,10 +38,15 @@ rate_limiter = OpenAIRateLimiter(openai.api_key)
 rate_limiter.set_rate_limits("gpt-4", 400, 40000)
 
 
-def print_effective_rate():
-    key = rate_limiter.key("gpt-4")
-    effective_rpm = 60 * rate_limiter._store._rate_limits[key]["requests"].effective_rate()
-    print(f"Effective RPM: {effective_rpm} @ {time.time() - START_TIME} seconds")
+def print_rate_info():
+    if len(recent_request_times) > 20:
+        recent_avg = sum(recent_request_times.popleft() for _ in range(20)) / 20
+        key = rate_limiter.key("gpt-4")
+        effective_rpm = 60 * rate_limiter._store._rate_limits[key]["requests"].effective_rate()
+        elapsed_time = time.time() - START_TIME
+        print(
+            f"time: {elapsed_time:.2f} | effective_rpm: {effective_rpm:.2f} | response time: {recent_avg:.2f}"
+        )
 
 
 @rate_limiter.alimit("gpt-4", 0)
@@ -65,6 +70,9 @@ async def openai_httpx_request(payload):
         if response.status_code == 429:
             print("Rate limited!")
             stop_event.set()
+        else:
+            recent_request_times.append(response.elapsed.total_seconds())
+            print_rate_info()
         return response
 
 
@@ -95,6 +103,6 @@ async def main(timeout_duration):
 
 
 if __name__ == "__main__":
-    TIMEOUT_DURATION = 300
+    TIMEOUT_DURATION = 30
     asyncio.run(main(TIMEOUT_DURATION))
     print(f"Effective RPM: {60 * COMPLETED_RESPONSES / (time.time() - START_TIME)}")
