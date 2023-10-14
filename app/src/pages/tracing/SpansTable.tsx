@@ -1,4 +1,10 @@
-import React, { startTransition, useEffect, useMemo, useState } from "react";
+import React, {
+  startTransition,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { graphql, usePaginationFragment } from "react-relay";
 import { useNavigate } from "react-router";
 import {
@@ -42,8 +48,9 @@ const DEFAULT_SORT: SpanSort = {
   dir: "desc",
 };
 export function SpansTable(props: SpansTableProps) {
+  const isMountedRef = useRef<boolean>(false);
   //we need a reference to the scrolling element for logic down below
-  const tableContainerRef = React.useRef<HTMLDivElement>(null);
+  const tableContainerRef = useRef<HTMLDivElement>(null);
   const [sorting, setSorting] = useState<SortingState>([]);
   const [filterCondition, setFilterCondition] = useState<string>("");
   const navigate = useNavigate();
@@ -183,6 +190,10 @@ export function SpansTable(props: SpansTableProps) {
 
   useEffect(() => {
     //if the sorting changes, we need to reset the pagination
+    if (!isMountedRef.current) {
+      isMountedRef.current = true;
+      return;
+    }
     const sort = sorting[0];
     startTransition(() => {
       refetch({
