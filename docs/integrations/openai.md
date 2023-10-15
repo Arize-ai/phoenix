@@ -29,8 +29,10 @@ Once you have started a Phoenix server, you can instrument the `openai` Python l
 from phoenix.trace.tracer import Tracer
 from phoenix.trace.openai.instrumentor import OpenAIInstrumentor
 
-trace = Tracer()
+
+tracer = Tracer(exporter=HttpExporter())
 OpenAIInstrumentor(tracer).instrument()
+
 ```
 
 All subsequent calls to the `ChatCompletion` interface will now report informational spans to Phoenix. These traces and spans are viewable within the Phoenix UI.
