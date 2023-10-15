@@ -5,7 +5,7 @@
 
 ## 🔑 Quickstart
 
-* [LLM Traces - LangChain & LlamaIndex](quickstart/llm-traces.md)
+* [LLM Traces - OpenAI, LangChain & LlamaIndex](quickstart/llm-traces.md)
 * [Inferences - Image/NLP/LLM](quickstart/inferences.md)
 
 ## 💡 Concepts

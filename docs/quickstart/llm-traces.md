@@ -2,11 +2,11 @@
 description: Inspect the inner-workings of your LLM Application using OpenInference Traces
 ---
 
-# LLM Traces - LangChain & LlamaIndex
+# LLM Traces - OpenAI, LangChain & LlamaIndex
 
 ## Streaming Traces to Phoenix
 
-The easiest method of using Phoenix traces with LLM frameworks is to stream the execution of your application to a locally running Phoenix server. The traces collected during execution can then be stored for later use for things like validation, evaluation, and fine-tuning.
+The easiest method of using Phoenix traces with LLM frameworks (or direct OpenAI API) is to stream the execution of your application to a locally running Phoenix server. The traces collected during execution can then be stored for later use for things like validation, evaluation, and fine-tuning.
 
 The [traces](../concepts/llm-traces.md) can be collected and stored in the following ways:
 
@@ -31,7 +31,7 @@ The above launches a Phoenix server that acts as a trace collector for any LLM a
 
 The `launch_app` command will spit out a URL for you to view the Phoenix UI. You can access this url again at any time via the [session](../api/session.md).\
 \
-Now that phoenix is up and running, you can now run a [LlamaIndex](../integrations/llamaindex.md) or [LangChain](../integrations/langchain.md) application and debug your application as the traces stream in.
+Now that phoenix is up and running, you can now run a [LlamaIndex](../integrations/llamaindex.md) or [LangChain](../integrations/langchain.md) application OR just run the OpenAI API and debug your application as the traces stream in.
 
 {% tabs %}
 {% tab title="LlamaIndex" %}
@@ -108,6 +108,36 @@ response = chain.run("What is OpenInference tracing?")
 ```
 
 See the [integration guide](../integrations/langchain.md#traces) for details
+{% endtab %}
+
+{% tab title="OpenAI API" %}
+```python
+from phoenix.trace.tracer import Tracer
+from phoenix.trace.openai.instrumentor import OpenAIInstrumentor
+from phoenix.trace.exporter import HttpExporter
+from phoenix.trace.openai import OpenAIInstrumentor
+
+tracer = Tracer(exporter=HttpExporter())
+OpenAIInstrumentor(tracer).instrument()
+
+# Define a conversation with a user message
+conversation = [
+    {"role": "system", "content": "You are a helpful assistant."},
+    {"role": "user", "content": "Hello, can you help me with something?"}
+]
+
+# Generate a response from the assistant
+response = openai.ChatCompletion.create(
+    model="gpt-3.5-turbo",
+    messages=conversation,
+)
+
+# Extract and print the assistant's reply
+assistant_reply = response['choices'][0]['message']['content']
+
+#The traces will be available in the Phoenix App for the above messsages
+
+```
 {% endtab %}
 {% endtabs %}
 
