@@ -3,6 +3,7 @@ import { transparentize } from "polished";
 import { css } from "@emotion/react";
 
 import { assertUnreachable } from "@phoenix/typeUtils";
+import { isVideoUrl } from "@phoenix/utils/urlUtils";
 
 import { Shape, ShapeIcon } from "./ShapeIcon";
 
@@ -15,6 +16,7 @@ type EventPreviewType =
   | "raw"
   | "prompt_response"
   | "image"
+  | "video"
   | "event_metadata"
   | "document";
 type EventItemProps = {
@@ -77,7 +79,7 @@ function getPrimaryPreviewType(props: EventItemProps): EventPreviewType {
     return "prompt_response";
   }
   if (linkToData != null) {
-    return "image";
+    return isVideoUrl(linkToData) ? "video" : "image";
   } else if (rawData != null) {
     return "raw";
   } else {
@@ -99,6 +101,8 @@ function getSecondaryPreviewType(
     case "prompt_response":
       return null;
     case "image":
+      return rawData != null ? "raw" : null;
+    case "video":
       return rawData != null ? "raw" : null;
     case "raw":
       return "event_metadata";
@@ -216,6 +220,10 @@ function EventPreview(
       preview = <ImagePreview {...props} />;
       break;
     }
+    case "video": {
+      preview = <VideoPreview {...props} />;
+      break;
+    }
     case "raw": {
       preview = <RawTextPreview {...props} />;
       break;
@@ -236,6 +244,24 @@ function EventPreview(
 function ImagePreview(props: Pick<EventItemProps, "linkToData" | "color">) {
   return (
     <img
+      src={props.linkToData || "[error] unexpected missing url"}
+      css={css`
+        min-height: 0;
+        // Maintain aspect ratio while having normalized height
+        object-fit: contain;
+        transition: background-color 0.2s ease-in-out;
+        background-color: ${transparentize(0.85, props.color)};
+      `}
+    />
+  );
+}
+
+/**
+ * Shows a video preview of the event's data
+ */
+function VideoPreview(props: Pick<EventItemProps, "linkToData" | "color">) {
+  return (
+    <video
       src={props.linkToData || "[error] unexpected missing url"}
       css={css`
         min-height: 0;
