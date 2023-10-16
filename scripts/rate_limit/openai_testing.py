@@ -1,19 +1,24 @@
 import argparse
 import asyncio
-import collections
 import os
 import time
+from collections import defaultdict, deque
 
 import httpx
 import openai
 import tiktoken
 from phoenix.utilities.ratelimits import OpenAIRateLimiter
 
+# define trackers
 START_TIME = time.time()
 COMPLETED_RESPONSES = 0
+TOTAL_TOKENS = 0
+ERRORS = 0
 stop_event = asyncio.Event()
-request_times = collections.deque()
-tokens_processed = collections.deque()
+request_times = deque()
+tokens_processed = deque()
+log = defaultdict(list)
+error_log = defaultdict(list)
 
 API_URL = "https://api.openai.com/v1/chat/completions"
 openai.api_key = os.environ["OPENAI_API_KEY"]
@@ -45,17 +50,15 @@ def request_time(bucket_size):
 
 
 def effective_rate():
-    key = rate_limiter.key("gpt-4")
-    return (
-        60 * rate_limiter._store._rate_limits[key]["requests"].effective_rate()
-    )  # requests per minute
+    elapsed_time = time.time() - START_TIME
+    global COMPLETED_RESPONSES
+    return 60 * COMPLETED_RESPONSES / elapsed_time  # requests per minute
 
 
 def effective_token_rate():
-    key = rate_limiter.key("gpt-4")
-    return (
-        60 * rate_limiter._store._rate_limits[key]["tokens"].effective_rate()
-    )  # tokens per minute
+    elapsed_time = time.time() - START_TIME
+    global TOTAL_TOKENS
+    return 60 * TOTAL_TOKENS / elapsed_time  # requests per minute
 
 
 def print_rate_info():
@@ -71,7 +74,22 @@ def print_rate_info():
             f"request rate: {cumulative_request_rate:.2f} | "
             f"token rate: {cumulative_token_rate:.2f} | "
         )
+        global log
+        log["time"].append(elapsed_time)
+        log["avg_request"].append(avg_request_time)
+        log["request_rate"].append(cumulative_request_rate)
+        log["token_rate"].append(cumulative_token_rate)
         print(info_str)
+
+
+def print_error(response):
+    if response.status_code != 200:
+        elapsed_time = time.time() - START_TIME
+
+        global error_log
+        error_log["time"].append(elapsed_time)
+        error_log["error_code"].append(response.status_code)
+        error_log["error_payload"].append(response.json())
 
 
 def initial_token_cost(payload) -> int:
@@ -99,30 +117,28 @@ def initial_token_cost(payload) -> int:
 def response_token_cost(response):
     if response.status_code == 200:
         return response.json()["usage"]["completion_tokens"]
-
-
-@rate_limiter.alimit("gpt-4", initial_token_cost, response_token_cost)
-async def openai_python_request(payload):
-    try:
-        async with asyncio.timeout(20):
-            completion = await openai.ChatCompletion.acreate(**payload)
-            print_rate_info()
-            return completion
-    except asyncio.TimeoutError:
-        print("Maybe rate limited!")
-        stop_event.set()
+    else:
+        return 0
 
 
 @rate_limiter.alimit("gpt-4", initial_token_cost, response_token_cost)
 async def openai_request(payload):
     async with httpx.AsyncClient() as client:
         response = await client.post(API_URL, headers=HEADERS, json=payload, timeout=None)
-        if response.status_code == 429:
-            print("Rate limited!")
-            stop_event.set()
+        if response.status_code != 200:
+            global ERRORS
+            ERRORS += 1
+            print_error(response)
         else:
+            usage = response.json()["usage"]
+            global request_times
             request_times.append(response.elapsed.total_seconds())
-            tokens_processed.append(response.json()["usage"]["total_tokens"])
+            global tokens_processed
+            tokens_processed.append(usage["total_tokens"])
+            global COMPLETED_RESPONSES
+            COMPLETED_RESPONSES += 1
+            global TOTAL_TOKENS
+            TOTAL_TOKENS += usage["total_tokens"]
             print_rate_info()
         return response
 
@@ -135,12 +151,10 @@ async def producer():
 
 async def consumer():
     while not stop_event.is_set():
+        global request_queue
         payload = await request_queue.get()
-        # await openai_python_request(payload)
         await openai_request(payload)
         request_queue.task_done()
-        global COMPLETED_RESPONSES
-        COMPLETED_RESPONSES += 1
 
 
 async def main(timeout_duration):
@@ -163,4 +177,6 @@ if __name__ == "__main__":
 
     TIMEOUT_DURATION = args.duration
     asyncio.run(main(TIMEOUT_DURATION))
-    print(f"Effective RPM: {60 * COMPLETED_RESPONSES / (time.time() - START_TIME)}")
+    import pandas as pd
+
+    print(pd.DataFrame(log))
