@@ -37,7 +37,7 @@ class LeakyBucket:
         self.max_tokens = max_tokens
         self.created = time.time()
         self.last_checked = self.created
-        self.total_tokens = 0
+        self.total_tokens: Numeric = 0
 
     def _per_second_rate(self, per_minute_rate: Numeric) -> float:
         return round(per_minute_rate / 60, 3) * self.rate_multiplier
@@ -131,7 +131,9 @@ class LimitStore:
             if limit := rate_limits.get(limit_type):
                 limit.wait_for_then_spend_available_tokens(cost)
 
-    async def async_wait_for_rate_limits(self, key: str, rate_limit_costs: Dict[str, Numeric]):
+    async def async_wait_for_rate_limits(
+        self, key: str, rate_limit_costs: Dict[str, Numeric]
+    ) -> None:
         rate_limits = self._rate_limits[key]
         for limit_type, cost in rate_limit_costs.items():
             if limit := rate_limits.get(limit_type):
@@ -175,15 +177,20 @@ class OpenAIRateLimiter:
         return rate_limit_decorator
 
     def alimit(
-        self, model_name: str, token_cost: Numeric
+        self,
+        model_name: str,
+        input_cost_fn: Callable[..., Numeric],
+        response_cost_fn: Callable[..., Numeric],
     ) -> Callable[[Callable[P, T]], Callable[P, T]]:
         def rate_limit_decorator(fn: Callable[P, T]) -> Callable[P, T]:
             @wraps(fn)
             async def wrapper(*args: Any, **kwargs: Any) -> T:
+                key = self.key(model_name)
                 await self._store.async_wait_for_rate_limits(
-                    self.key(model_name), {"requests": 1, "tokens": token_cost}
+                    key, {"requests": 1, "tokens": input_cost_fn(*args, **kwargs)}
                 )
                 result: T = await fn(*args, **kwargs)
+                self._store.spend_rate_limits(key, {"tokens": response_cost_fn(result)})
                 return result
 
             return wrapper

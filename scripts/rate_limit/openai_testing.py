@@ -6,6 +6,7 @@ import time
 
 import httpx
 import openai
+import tiktoken
 from phoenix.utilities.ratelimits import OpenAIRateLimiter
 
 START_TIME = time.time()
@@ -22,9 +23,7 @@ HEADERS = {
 }
 
 MAX_CONCURRENT_REQUESTS = 20
-# throttler = asyncio.Semaphore(MAX_CONCURRENT_REQUESTS)
 
-# Queue setup
 MAX_QUEUE_SIZE = 40
 request_queue = asyncio.Queue(maxsize=MAX_QUEUE_SIZE)
 
@@ -75,7 +74,34 @@ def print_rate_info():
         print(info_str)
 
 
-@rate_limiter.alimit("gpt-4", 0)
+def initial_token_cost(payload) -> int:
+    """Return the number of tokens used by a list of messages.
+
+    Official documentation: https://github.com/openai/openai-cookbook/blob/main/examples/How_to_format_inputs_to_ChatGPT_models.ipynb
+    """  # noqa
+    encoder = tiktoken.get_encoding("cl100k_base")
+    messages = payload["messages"]
+    tokens_per_message = 3
+    tokens_per_name = 1
+
+    token_count = 0
+    for message in messages:
+        token_count += tokens_per_message
+        for key, text in message.items():
+            token_count += len(encoder.encode(text))
+            if key == "name":
+                token_count += tokens_per_name
+    # every reply is primed with <|start|>assistant<|message|>
+    token_count += 3
+    return token_count
+
+
+def response_token_cost(response):
+    if response.status_code == 200:
+        return response.json()["usage"]["completion_tokens"]
+
+
+@rate_limiter.alimit("gpt-4", initial_token_cost, response_token_cost)
 async def openai_python_request(payload):
     try:
         async with asyncio.timeout(20):
@@ -87,8 +113,8 @@ async def openai_python_request(payload):
         stop_event.set()
 
 
-@rate_limiter.alimit("gpt-4", 0)
-async def openai_httpx_request(payload):
+@rate_limiter.alimit("gpt-4", initial_token_cost, response_token_cost)
+async def openai_request(payload):
     async with httpx.AsyncClient() as client:
         response = await client.post(API_URL, headers=HEADERS, json=payload, timeout=None)
         if response.status_code == 429:
@@ -111,7 +137,7 @@ async def consumer():
     while not stop_event.is_set():
         payload = await request_queue.get()
         # await openai_python_request(payload)
-        await openai_httpx_request(payload)
+        await openai_request(payload)
         request_queue.task_done()
         global COMPLETED_RESPONSES
         COMPLETED_RESPONSES += 1
