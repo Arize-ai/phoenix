@@ -22,6 +22,7 @@ import {
 import { Empty } from "@phoenix/components/Empty";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { numberFormatter } from "@phoenix/utils/numberFormatUtils";
+import { isVideoUrl } from "@phoenix/utils/urlUtils";
 
 import { ModelEvent, RetrievalDocument } from "./types";
 
@@ -311,29 +312,58 @@ function EmbeddingDimensionsTable({
   );
 }
 
+function DataURLPreview({ dataUrl }: { dataUrl: string }) {
+  const isVideo = isVideoUrl(dataUrl);
+  if (isVideo) {
+    return (
+      <video
+        src={dataUrl}
+        controls
+        css={css`
+          width: 100%;
+          height: 500px;
+          background-color: black;
+        `}
+      />
+    );
+  }
+  return (
+    <img
+      src={dataUrl}
+      alt="event image"
+      width="100%"
+      height="200px"
+      css={css`
+        object-fit: contain;
+        background-color: black;
+      `}
+    />
+  );
+}
 /**
  * Renders a top-level preview of the event
  */
 function EventPreview({ event }: { event: ModelEvent }) {
-  const imageUrl = event.linkToData || undefined;
+  const dataUrl = event.linkToData || undefined;
+  const rawData = event.rawData;
   const promptAndResponse: PromptResponse | null =
     event.prompt || event.response
       ? { prompt: event.prompt, response: event.response }
       : null;
   const documentText = event.documentText;
   let content = null;
-  if (imageUrl) {
+  if (dataUrl) {
     content = (
-      <img
-        src={imageUrl}
-        alt="event image"
-        width="100%"
-        height="200px"
-        css={css`
-          object-fit: contain;
-          background-color: black;
-        `}
-      />
+      <Flex direction="column">
+        <DataURLPreview dataUrl={dataUrl} />
+        {rawData && (
+          <Accordion>
+            <AccordionItem id="raw" title="Raw Data">
+              <TextPre>{rawData}</TextPre>
+            </AccordionItem>
+          </Accordion>
+        )}
+      </Flex>
     );
   } else if (documentText) {
     content = (
