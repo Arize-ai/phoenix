@@ -108,7 +108,8 @@ def llm_eval_binary(
         "Use llm_classify instead, which has the same function signature "
         "and provides support for multi-class classification "
         "in addition to binary classification.",
-        DeprecationWarning,
+        category=DeprecationWarning,
+        stacklevel=2,
     )
     return llm_classify(
         dataframe=dataframe,
