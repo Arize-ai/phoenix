@@ -10,7 +10,7 @@ from phoenix.experimental.evals import (
     HALLUCINATION_PROMPT_TEMPLATE_STR,
     OpenAIModel,
     download_benchmark_dataset,
-    llm_eval_binary,
+    llm_classify,
 )
 
 model = OpenAIModel(
@@ -22,7 +22,7 @@ model = OpenAIModel(
 #It will remove text such as ",,," or "..."
 #Will ensure the binary value expected from the template is returned 
 rails = list(HALLUCINATION_PROMPT_RAILS_MAP.values())
-hallucination_classifications = llm_eval_binary(
+hallucination_classifications = llm_classify(
     dataframe=df, template=HALLUCINATION_PROMPT_TEMPLATE_STR, model=model, rails=rails
 )
 

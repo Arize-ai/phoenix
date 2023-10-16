@@ -9,15 +9,15 @@ from phoenix.experimental.evals import (
     NOT_PARSABLE,
     RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
     OpenAIModel,
-    llm_eval_binary,
+    llm_classify,
     run_relevance_eval,
 )
-from phoenix.experimental.evals.functions.binary import _snap_to_rail
+from phoenix.experimental.evals.functions.classify import _snap_to_rail
 from phoenix.experimental.evals.models.openai import OPENAI_API_KEY_ENVVAR_NAME
 
 
 @responses.activate
-def test_llm_eval_binary(monkeypatch: pytest.MonkeyPatch):
+def test_llm_classify(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
     dataframe = pd.DataFrame(
         [
@@ -61,7 +61,7 @@ def test_llm_eval_binary(monkeypatch: pytest.MonkeyPatch):
     with patch.object(OpenAIModel, "_init_tiktoken", return_value=None):
         model = OpenAIModel()
 
-    relevance_classifications = llm_eval_binary(
+    relevance_classifications = llm_classify(
         dataframe=dataframe,
         template=RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
         model=model,
@@ -72,7 +72,7 @@ def test_llm_eval_binary(monkeypatch: pytest.MonkeyPatch):
 
 
 @responses.activate
-def test_llm_eval_binary_prints_to_stdout_with_verbose_flag(monkeypatch: pytest.MonkeyPatch, capfd):
+def test_llm_classify_prints_to_stdout_with_verbose_flag(monkeypatch: pytest.MonkeyPatch, capfd):
     monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
     dataframe = pd.DataFrame(
         [
@@ -116,7 +116,7 @@ def test_llm_eval_binary_prints_to_stdout_with_verbose_flag(monkeypatch: pytest.
     with patch.object(OpenAIModel, "_init_tiktoken", return_value=None):
         model = OpenAIModel()
 
-    llm_eval_binary(
+    llm_classify(
         dataframe=dataframe,
         template=RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
         model=model,
@@ -134,7 +134,7 @@ def test_llm_eval_binary_prints_to_stdout_with_verbose_flag(monkeypatch: pytest.
     assert "sk-0123456789" not in out, "Credentials should not be printed out in cleartext"
 
 
-def test_llm_eval_binary_shows_retry_info_with_verbose_flag(monkeypatch: pytest.MonkeyPatch, capfd):
+def test_llm_classify_shows_retry_info_with_verbose_flag(monkeypatch: pytest.MonkeyPatch, capfd):
     monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
     dataframe = pd.DataFrame(
         [
@@ -163,7 +163,7 @@ def test_llm_eval_binary_shows_retry_info_with_verbose_flag(monkeypatch: pytest.
         stack.enter_context(patch.object(OpenAIModel, "_init_tiktoken", return_value=None))
         stack.enter_context(patch.object(model._openai.ChatCompletion, "create", mock_openai))
         stack.enter_context(pytest.raises(model._openai_error.ServiceUnavailableError))
-        llm_eval_binary(
+        llm_classify(
             dataframe=dataframe,
             template=RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
             model=model,
@@ -183,7 +183,7 @@ def test_llm_eval_binary_shows_retry_info_with_verbose_flag(monkeypatch: pytest.
     assert "Failed attempt 5" not in out, "Maximum retries should not be exceeded"
 
 
-def test_llm_eval_binary_does_not_persist_verbose_flag(monkeypatch: pytest.MonkeyPatch, capfd):
+def test_llm_classify_does_not_persist_verbose_flag(monkeypatch: pytest.MonkeyPatch, capfd):
     monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
     dataframe = pd.DataFrame(
         [
@@ -209,7 +209,7 @@ def test_llm_eval_binary_does_not_persist_verbose_flag(monkeypatch: pytest.Monke
         stack.enter_context(patch.object(OpenAIModel, "_init_tiktoken", return_value=None))
         stack.enter_context(patch.object(model._openai.ChatCompletion, "create", mock_openai))
         stack.enter_context(pytest.raises(model._openai_error.APIError))
-        llm_eval_binary(
+        llm_classify(
             dataframe=dataframe,
             template=RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
             model=model,
@@ -231,7 +231,7 @@ def test_llm_eval_binary_does_not_persist_verbose_flag(monkeypatch: pytest.Monke
         stack.enter_context(patch.object(OpenAIModel, "_init_tiktoken", return_value=None))
         stack.enter_context(patch.object(model._openai.ChatCompletion, "create", mock_openai))
         stack.enter_context(pytest.raises(model._openai_error.APIError))
-        llm_eval_binary(
+        llm_classify(
             dataframe=dataframe,
             template=RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
             model=model,
@@ -409,3 +409,10 @@ def test_overlapping_rails():
     # Both rails are present, cannot parse
     assert _snap_to_rail("relevant...irrelevant", ["irrelevant", "relevant"]) is NOT_PARSABLE
     assert _snap_to_rail("Irrelevant", ["relevant", "irrelevant"]) == "irrelevant"
+    # One rail appears twice
+    assert _snap_to_rail("relevant...relevant", ["irrelevant", "relevant"]) == "relevant"
+    assert _snap_to_rail("b b", ["a", "b", "c"]) == "b"
+    # More than two rails
+    assert _snap_to_rail("a", ["a", "b", "c"]) == "a"
+    assert _snap_to_rail(" abc", ["a", "ab", "abc"]) == "abc"
+    assert _snap_to_rail("abc", ["abc", "a", "ab"]) == "abc"

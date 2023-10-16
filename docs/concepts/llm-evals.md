@@ -72,7 +72,7 @@ eval_test_data['query'] = query
 #Evals model
 model_to_use = evals.OpenAIModel(model_name="gpt-4")
 ##### RUN RAG Retrieval Performance EVALS #####
-eval_result = llm_eval_binary(eval_test_data, evals.RAG_RELEVANCY_PROMPT_TEMPLATE_STR, model_to_use)
+eval_result = llm_classify(eval_test_data, evals.RAG_RELEVANCY_PROMPT_TEMPLATE_STR, model_to_use)
 ```
 
 The results are designed for easy analysis is Scikit learn or our convience functions built on top of Scikit learn.
@@ -82,7 +82,7 @@ from phoenix.experimental.evals import (
     RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
     OpenAIModel,
     download_benchmark_dataset,
-    llm_eval_binary,
+    llm_classify,
 )
 from sklearn.metrics import precision_recall_fscore_support, confusion_matrix, ConfusionMatrixDisplay
 
@@ -91,7 +91,7 @@ df = download_benchmark_dataset(
     task="binary-relevance-classification", dataset_name="wiki_qa-train"
 )
 
-df["eval_relevance"] = llm_eval_binary(df, evals.RAG_RELEVANCY_PROMPT_TEMPLATE_STR, model_to_use)
+df["eval_relevance"] = llm_classify(df, evals.RAG_RELEVANCY_PROMPT_TEMPLATE_STR, model_to_use)
 #Golden dataset has True/False map to -> "irrelevant" / "relevant"
 #we can then scikit compare to output of template - same format
 y_true = df["relevant"].map({True: "relevant", False: "irrelevant"})
@@ -114,7 +114,7 @@ LLM Evals where the Eval output is a numeric score or rating needs more research
 LLM Evals included currently in the library make a specific binary decision "hallucination" or "factual" for example. These binary decisions generate traditional Precision/Recall/F1/MRR metrics that can be applied to the decisions giving a very intuitive understanding of performance and provide comparable metrics across models.
 
 ```python
-df["eval_relevance"] = llm_eval_binary(df, evals.RAG_RELEVANCY_PROMPT_TEMPLATE_STR, model_to_use)
+df["eval_relevance"] = llm_classify(df, evals.RAG_RELEVANCY_PROMPT_TEMPLATE_STR, model_to_use)
 #Golden dataset has True/False map to -> "irrelevant" / "relevant"
 #we can then scikit compare to output of template - same format
 y_true = df["relevant"].map({True: "relevant", False: "irrelevant"})
@@ -195,7 +195,7 @@ The above template shows an example creation of an easy to use string template. 
 ```python
 
 model = OpenAIModel(model_name="gpt-4",temperature=0.6)
-positive_eval = llm_eval_binary_jason(
+positive_eval = llm_classify_jason(
     dataframe=df,
     template= MY_CUSTOM_TEMPLATE,
     model=model
