@@ -50,7 +50,7 @@ We are continually iterating our templates, view the most up-to-date template on
     RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
     OpenAIModel,
     download_benchmark_dataset,
-    llm_eval_binary,
+    llm_classify,
 )
 
 model = OpenAIModel(
@@ -62,7 +62,7 @@ model = OpenAIModel(
 #It will remove text such as ",,," or "..."
 #Will ensure the binary value expected from the template is returned
 rails = list(RAG_RELEVANCY_PROMPT_RAILS_MAP.values())
-relevance_classifications = llm_eval_binary(
+relevance_classifications = llm_classify(
     dataframe=df,
     template=RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
     model=model,

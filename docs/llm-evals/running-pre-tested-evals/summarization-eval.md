@@ -55,7 +55,7 @@ import phoenix.experimental.evals.templates.default_templates as templates
 from phoenix.experimental.evals import (
     OpenAIModel,
     download_benchmark_dataset,
-    llm_eval_binary,
+    llm_classify,
 )
 
 model = OpenAIModel(
@@ -67,7 +67,7 @@ model = OpenAIModel(
 #It will remove text such as ",,," or "..."
 #Will ensure the binary value expected from the template is returned 
 rails = list(templates.SUMMARIZATION_PROMPT_RAILS_MAP.values())
-summarization_classifications = llm_eval_binary(
+summarization_classifications = llm_classify(
     dataframe=df_sample,
     template=templates.SUMMARIZATION_PROMPT_TEMPLATE_STR,
     model=model,

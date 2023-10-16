@@ -76,7 +76,7 @@ The above template shows an example creation of an easy to use string template. 
 ```python
 
 model = OpenAIModel(model_name="gpt-4",temperature=0.6)
-positive_eval = llm_eval_binary_jason(
+positive_eval = llm_classify(
     dataframe=df,
     template= MY_CUSTOM_TEMPLATE,
     model=model
