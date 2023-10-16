@@ -27,6 +27,7 @@
 ## 🔮 Use Cases
 
 * [QA with Retrieval (Using Vector Stores)](use-cases/troubleshooting-llm-retrieval-with-vector-stores.md)
+* [Structured Extraction](use-cases/structured-extraction.md)
 
 ## 🔢 How-To
 
