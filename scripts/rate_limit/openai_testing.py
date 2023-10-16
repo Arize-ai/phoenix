@@ -172,6 +172,7 @@ if __name__ == "__main__":
     parser.add_argument("duration", type=int, default=300)
     parser.add_argument("-r", "--request-limit", type=int, default=200)
     parser.add_argument("-t", "--token-limit", type=int, default=40000)
+    parser.add_argument("-o", "--output", type=str, default=None)
     args = parser.parse_args()
     rate_limiter.set_rate_limits("gpt-4", args.request_limit, args.token_limit)
 
@@ -179,4 +180,6 @@ if __name__ == "__main__":
     asyncio.run(main(TIMEOUT_DURATION))
     import pandas as pd
 
-    print(pd.DataFrame(log))
+    if output := args.output:
+        pd.DataFrame(log).to_csv(output)
+        pd.DataFrame(error_log).to_csv(output + ".errors")
