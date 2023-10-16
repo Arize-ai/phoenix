@@ -267,7 +267,7 @@ def _snap_to_rail(raw_string: str, rails: List[str], verbose: bool = False) -> s
             found_rails.add(rail)
             snap_string = snap_string.replace(rail, "")
     if len(found_rails) != 1:
-        printif(verbose, f"- Cannot snap {repr(snap_string)} to rails")
+        printif(verbose, f"- Cannot snap {repr(raw_string)} to rails")
         return NOT_PARSABLE
     rail = list(found_rails)[0]
     printif(verbose, f"- Snapped {repr(raw_string)} to rail: {rail}")
