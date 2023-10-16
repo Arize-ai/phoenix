@@ -14,7 +14,7 @@ from phoenix.experimental.evals import (
     TOXICITY_PROMPT_TEMPLATE_STR,
     OpenAIModel,
     download_benchmark_dataset,
-    llm_classify,
+    llm_eval_binary,
 )
 
 model = OpenAIModel(
@@ -26,7 +26,7 @@ model = OpenAIModel(
 #It will remove text such as ",,," or "..."
 #Will ensure the binary value expected from the template is returned 
 rails = list(TOXICITY_PROMPT_RAILS_MAP.values())
-toxic_classifications = llm_classify(
+toxic_classifications = llm_eval_binary(
     dataframe=df_sample,
     template=TOXICITY_PROMPT_TEMPLATE_STR,
     model=model,

@@ -79,7 +79,7 @@ Note that once you initialize the `PromptTemplate` class, you don't need to worr
 ## phoenix.experimental.evals.llm\_eval\_binary
 
 ```python
-def llm_classify(
+def llm_eval_binary(
     dataframe: pd.DataFrame,
     model: BaseEvalModel,
     template: Union[PromptTemplate, str],
