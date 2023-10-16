@@ -3,7 +3,7 @@ import os
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
-from .base import BaseEvalModel, create_base_retry_decorator
+from phoenix.experimental.evals.models.base import BaseEvalModel
 
 if TYPE_CHECKING:
     from tiktoken import Encoding
@@ -11,6 +11,7 @@ if TYPE_CHECKING:
 OPENAI_API_KEY_ENVVAR_NAME = "OPENAI_API_KEY"
 MINIMUM_OPENAI_VERSION = "0.26.4"
 MODEL_TOKEN_LIMIT_MAPPING = {
+    "gpt-3.5-turbo-instruct": 4096,
     "gpt-3.5-turbo-0301": 4096,
     "gpt-3.5-turbo-0613": 4096,  # Current gpt-3.5-turbo default
     "gpt-3.5-turbo-16k-0613": 16385,
@@ -19,15 +20,19 @@ MODEL_TOKEN_LIMIT_MAPPING = {
     "gpt-4-32k-0314": 32768,
     "gpt-4-32k-0613": 32768,
 }
-
+LEGACY_COMPLETION_API_MODELS = ("gpt-3.5-turbo-instruct",)
 logger = logging.getLogger(__name__)
 
 
 @dataclass
 class OpenAIModel(BaseEvalModel):
+    openai_api_type: Optional[str] = field(default=None)
+    openai_api_version: Optional[str] = field(default=None)
     openai_api_key: Optional[str] = field(repr=False, default=None)
     openai_api_base: Optional[str] = field(repr=False, default=None)
     openai_organization: Optional[str] = field(repr=False, default=None)
+    engine: str = ""
+    """Azure engine (the Deployment Name of your model)"""
     model_name: str = "gpt-4"
     """Model name to use."""
     temperature: float = 0.0
@@ -51,7 +56,7 @@ class OpenAIModel(BaseEvalModel):
     """Batch size to use when passing multiple documents to generate."""
     request_timeout: Optional[Union[float, Tuple[float, float]]] = None
     """Timeout for requests to OpenAI completion API. Default is 600 seconds."""
-    max_retries: int = 6
+    max_retries: int = 20
     """Maximum number of retries to make when generating."""
     retry_min_seconds: int = 10
     """Minimum number of seconds to wait when retrying."""
@@ -66,10 +71,12 @@ class OpenAIModel(BaseEvalModel):
     def _init_environment(self) -> None:
         try:
             import openai
+            import openai.util
             from openai import error as openai_error
 
             self._openai = openai
             self._openai_error = openai_error
+            self._openai_util = openai.util
         except ImportError:
             self._raise_import_error(
                 package_display_name="OpenAI",
@@ -86,6 +93,9 @@ class OpenAIModel(BaseEvalModel):
             )
 
     def _init_open_ai(self) -> None:
+        self._model_uses_legacy_completion_api = self.model_name.startswith(
+            LEGACY_COMPLETION_API_MODELS
+        )
         if self.openai_api_key is None:
             api_key = os.getenv(OPENAI_API_KEY_ENVVAR_NAME)
             if api_key is None:
@@ -95,17 +105,26 @@ class OpenAIModel(BaseEvalModel):
                     "or set it in your environment: 'export OPENAI_API_KEY=sk-****'"
                 )
             self.openai_api_key = api_key
+        self.openai_api_base = self.openai_api_base or self._openai.api_base
+        self.openai_api_type = self.openai_api_type or self._openai.api_type
+        self.openai_api_version = self.openai_api_version or self._openai.api_version
+        self.openai_organization = self.openai_organization or self._openai.organization
+        # use enum to validate api type
+        self._openai_util.ApiType.from_str(self.openai_api_type)  # type: ignore
+        self._is_azure = self.openai_api_type.lower().startswith("azure")
 
-        if self.model_name in MODEL_TOKEN_LIMIT_MAPPING.keys():
+        if self._is_azure:
+            if not self.engine:
+                raise ValueError(
+                    "You must provide the deployment name in the 'engine' parameter "
+                    "to access the Azure OpenAI service"
+                )
+            self._openai_api_model_name = self.engine
+        elif self.model_name in MODEL_TOKEN_LIMIT_MAPPING.keys():
             self._openai_api_model_name = self.model_name
         elif "gpt-3.5-turbo" in self.model_name:
-            logger.warning(
-                "gpt-3.5-turbo may update over time. Returning num tokens assuming "
-                "gpt-3.5-turbo-0613."
-            )
             self._openai_api_model_name = "gpt-3.5-turbo-0613"
         elif "gpt-4" in self.model_name:
-            logger.warning("gpt-4 may update over time. Returning num tokens assuming gpt-4-0613.")
             self._openai_api_model_name = "gpt-4-0613"
         else:
             raise NotImplementedError(
@@ -129,6 +148,9 @@ class OpenAIModel(BaseEvalModel):
             messages.insert(0, {"role": "system", "content": str(system_instruction)})
         return messages
 
+    def _verbose_generation_info(self) -> str:
+        return f"OpenAI invocation parameters: {self.public_invocation_params}"
+
     def _generate(self, prompt: str, **kwargs: Dict[str, Any]) -> str:
         invoke_params = self.invocation_params
         messages = self._build_messages(prompt, kwargs.get("instruction"))  # type:ignore
@@ -137,6 +159,8 @@ class OpenAIModel(BaseEvalModel):
             messages=messages,
             **invoke_params,
         )
+        if self._model_uses_legacy_completion_api:
+            return str(response["choices"][0]["text"])
         # TODO: This is a bit rudimentary, should improve
         resp_text = str(response["choices"][0]["message"]["content"])
         return resp_text
@@ -150,15 +174,21 @@ class OpenAIModel(BaseEvalModel):
             self._openai_error.RateLimitError,
             self._openai_error.ServiceUnavailableError,
         ]
-        retry_decorator = create_base_retry_decorator(
+
+        @self.retry(
             error_types=openai_retry_errors,
             min_seconds=self.retry_min_seconds,
             max_seconds=self.retry_max_seconds,
             max_retries=self.max_retries,
         )
-
-        @retry_decorator
         def _completion_with_retry(**kwargs: Any) -> Any:
+            if self._model_uses_legacy_completion_api:
+                if "prompt" not in kwargs:
+                    kwargs["prompt"] = "\n\n".join(
+                        (message.get("content") or "")
+                        for message in (kwargs.pop("messages", None) or ())
+                    )
+                return self._openai.Completion.create(**kwargs)
             return self._openai.ChatCompletion.create(**kwargs)
 
         return _completion_with_retry(**kwargs)
@@ -182,12 +212,18 @@ class OpenAIModel(BaseEvalModel):
         return context_size
 
     @property
+    def public_invocation_params(self) -> Dict[str, Any]:
+        return {
+            **({"engine": self.engine} if self._is_azure else {"model": self.model_name}),
+            **self._default_params,
+            **self.model_kwargs,
+        }
+
+    @property
     def invocation_params(self) -> Dict[str, Any]:
         return {
-            "model": self.model_name,
-            **self._default_params,
+            **self.public_invocation_params,
             **self._credentials,
-            **self.model_kwargs,
         }
 
     @property
@@ -196,6 +232,8 @@ class OpenAIModel(BaseEvalModel):
         return {
             "api_key": self.openai_api_key,
             "api_base": self.openai_api_base,
+            "api_type": self.openai_api_type,
+            "api_version": self.openai_api_version,
             "organization": self.openai_organization,
         }
 

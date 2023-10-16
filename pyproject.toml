@@ -112,7 +112,8 @@ dependencies = [
   "requests",
   "protobuf==3.20",  # version minimum (for tests)
   "responses",
-  "tiktoken"
+  "tiktoken",
+  "typing-extensions<4.6.0",  # for Colab
 ]
 
 [tool.hatch.envs.type]
@@ -197,7 +198,7 @@ fix = [
 
 [tool.hatch.envs.notebooks.scripts]
 clean = [
-  "jupyter nbconvert --ClearOutputPreprocessor.enabled=True --ClearMetadataPreprocessor.enabled=True --inplace **/*.ipynb **/**/*.ipynb",
+  "jupyter nbconvert --ClearOutputPreprocessor.enabled=True --ClearMetadataPreprocessor.enabled=True --inplace **/*.ipynb **/internal/*.ipynb **/tracing/*.ipynb **/dolly-pythia-fine-tuned/*.ipynb",
 ]
 
 [tool.hatch.envs.publish]
@@ -292,3 +293,6 @@ ignore-init-module-imports = true
 line-length = 100
 select = ["E", "F", "W", "I"]
 target-version = "py38"
+
+[tool.ruff.isort]
+force-single-line = false

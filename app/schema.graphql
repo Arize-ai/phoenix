@@ -461,6 +461,7 @@ type Query {
   ): [Cluster!]!
   spans(timeRange: TimeRange, traceIds: [ID!], first: Int = 50, last: Int, after: String, before: String, sort: SpanSort, rootSpansOnly: Boolean = false, filterCondition: String = null): SpanConnection!
   traceDatasetInfo: TraceDatasetInfo
+  validateSpanFilterCondition(condition: String!): ValidationResult!
 }
 
 type Retrieval {
@@ -575,6 +576,7 @@ enum SpanKind {
   retriever
   embedding
   agent
+  reranker
   unknown
 }
 
@@ -642,6 +644,11 @@ type UMAPPoints {
   clusters: [Cluster!]!
   corpusData: [UMAPPoint!]!
   contextRetrievals: [Retrieval!]!
+}
+
+type ValidationResult {
+  isValid: Boolean!
+  errorMessage: String
 }
 
 enum VectorDriftMetric {

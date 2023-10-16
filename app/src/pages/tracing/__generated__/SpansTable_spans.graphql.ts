@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<eda0a0711f37ded776fdd9f0b57fc536>>
+ * @generated SignedSource<<c79db63dd1d769d7fd694e901cc7df63>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,7 +10,7 @@
 
 import { ReaderFragment, RefetchableFragment } from 'relay-runtime';
 export type MimeType = "json" | "text";
-export type SpanKind = "agent" | "chain" | "embedding" | "llm" | "retriever" | "tool" | "unknown";
+export type SpanKind = "agent" | "chain" | "embedding" | "llm" | "reranker" | "retriever" | "tool" | "unknown";
 export type SpanStatusCode = "ERROR" | "OK" | "UNSET";
 import { FragmentRefs } from "relay-runtime";
 export type SpansTable_spans$data = {
@@ -75,6 +75,11 @@ return {
       "name": "after"
     },
     {
+      "defaultValue": null,
+      "kind": "LocalArgument",
+      "name": "filterCondition"
+    },
+    {
       "defaultValue": 100,
       "kind": "LocalArgument",
       "name": "first"
@@ -116,6 +121,11 @@ return {
     {
       "alias": "spans",
       "args": [
+        {
+          "kind": "Variable",
+          "name": "filterCondition",
+          "variableName": "filterCondition"
+        },
         {
           "kind": "Variable",
           "name": "sort",
@@ -309,6 +319,6 @@ return {
 };
 })();
 
-(node as any).hash = "8c46c6a42873ed151cefa7191a87e578";
+(node as any).hash = "40de558e2a7fe5f6916378af1149cd5a";
 
 export default node;

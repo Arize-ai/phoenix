@@ -1,5 +1,11 @@
 /* eslint-disable react/prop-types */
-import React, { useEffect, useMemo, useState } from "react";
+import React, {
+  startTransition,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { graphql, usePaginationFragment } from "react-relay";
 import { useNavigate } from "react-router";
 import {
@@ -14,11 +20,12 @@ import {
 } from "@tanstack/react-table";
 import { css } from "@emotion/react";
 
-import { Flex, Icon, Icons } from "@arizeai/components";
+import { Flex, Icon, Icons, View } from "@arizeai/components";
 
 import { Link } from "@phoenix/components/Link";
 import { TextCell } from "@phoenix/components/table";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
+import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { TableExpandButton } from "@phoenix/components/table/TableExpandButton";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
@@ -35,6 +42,7 @@ import {
   SpanSort,
   TracesTableQuery,
 } from "./__generated__/TracesTableQuery.graphql";
+import { SpanFilterConditionField } from "./SpanFilterConditionField";
 import { TokenCount } from "./TokenCount";
 type TracesTableProps = {
   query: TracesTable_spans$key;
@@ -74,8 +82,11 @@ function spanTreeToNestedSpanTableRows<TSpan extends ISpanItem>(
 
 export function TracesTable(props: TracesTableProps) {
   //we need a reference to the scrolling element for logic down below
-  const tableContainerRef = React.useRef<HTMLDivElement>(null);
+  const isMountedRef = useRef<boolean>(false);
+  const tableContainerRef = useRef<HTMLDivElement>(null);
   const [sorting, setSorting] = useState<SortingState>([]);
+  const [filterCondition, setFilterCondition] = useState<string>("");
+
   const navigate = useNavigate();
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
     usePaginationFragment<TracesTableQuery, TracesTable_spans$key>(
@@ -89,12 +100,14 @@ export function TracesTable(props: TracesTableProps) {
             type: "SpanSort"
             defaultValue: { col: startTime, dir: desc }
           }
+          filterCondition: { type: "String", defaultValue: null }
         ) {
           rootSpans: spans(
             first: $first
             after: $after
             sort: $sort
             rootSpansOnly: true
+            filterCondition: $filterCondition
           ) @connection(key: "TracesTable_rootSpans") {
             edges {
               rootSpan: node {
@@ -273,18 +286,30 @@ export function TracesTable(props: TracesTableProps) {
 
   useEffect(() => {
     //if the sorting changes, we need to reset the pagination
+    if (!isMountedRef.current) {
+      isMountedRef.current = true;
+      return;
+    }
     const sort = sorting[0];
-    refetch({
-      sort: sort
-        ? {
-            col: sort.id as SpanSort["col"],
-            dir: sort.desc ? "desc" : "asc",
-          }
-        : DEFAULT_SORT,
-      after: null,
-      first: PAGE_SIZE,
+    startTransition(() => {
+      refetch(
+        {
+          sort: sort
+            ? {
+                col: sort.id as SpanSort["col"],
+                dir: sort.desc ? "desc" : "asc",
+              }
+            : DEFAULT_SORT,
+          after: null,
+          first: PAGE_SIZE,
+          filterCondition: filterCondition,
+        },
+        {
+          fetchPolicy: "network-only",
+        }
+      );
     });
-  }, [sorting, refetch]);
+  }, [sorting, refetch, filterCondition]);
   const fetchMoreOnBottomReached = React.useCallback(
     (containerRefElement?: HTMLDivElement | null) => {
       if (containerRefElement) {
@@ -317,77 +342,87 @@ export function TracesTable(props: TracesTableProps) {
     getExpandedRowModel: getExpandedRowModel(),
   });
   const rows = table.getRowModel().rows;
+  const isEmpty = rows.length === 0;
   return (
-    <div
-      css={css`
-        flex: 1 1 auto;
-        overflow: auto;
-      `}
-      onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
-      ref={tableContainerRef}
-    >
-      <table css={selectableTableCSS}>
-        <thead>
-          {table.getHeaderGroups().map((headerGroup) => (
-            <tr key={headerGroup.id}>
-              {headerGroup.headers.map((header) => (
-                <th colSpan={header.colSpan} key={header.id}>
-                  {header.isPlaceholder ? null : (
-                    <div
-                      {...{
-                        className: header.column.getCanSort()
-                          ? "cursor-pointer"
-                          : "",
-                        onClick: header.column.getToggleSortingHandler(),
-                      }}
-                    >
-                      {flexRender(
-                        header.column.columnDef.header,
-                        header.getContext()
-                      )}
-                      {header.column.getIsSorted() ? (
-                        <Icon
-                          className="sort-icon"
-                          svg={
-                            header.column.getIsSorted() === "asc" ? (
-                              <Icons.ArrowUpFilled />
-                            ) : (
-                              <Icons.ArrowDownFilled />
-                            )
-                          }
-                        />
-                      ) : null}
-                    </div>
-                  )}
-                </th>
-              ))}
-            </tr>
-          ))}
-        </thead>
-        <tbody>
-          {rows.map((row) => {
-            return (
-              <tr
-                key={row.id}
-                onClick={() =>
-                  navigate(`traces/${row.original.context.traceId}`)
-                }
-              >
-                {row.getVisibleCells().map((cell) => {
-                  return (
-                    <td key={cell.id}>
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext()
-                      )}
-                    </td>
-                  );
-                })}
+    <div>
+      <View padding="size-100" backgroundColor="light">
+        <SpanFilterConditionField onValidCondition={setFilterCondition} />
+      </View>
+      <div
+        css={css`
+          flex: 1 1 auto;
+          overflow: auto;
+        `}
+        onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
+        ref={tableContainerRef}
+      >
+        <table css={selectableTableCSS}>
+          <thead>
+            {table.getHeaderGroups().map((headerGroup) => (
+              <tr key={headerGroup.id}>
+                {headerGroup.headers.map((header) => (
+                  <th colSpan={header.colSpan} key={header.id}>
+                    {header.isPlaceholder ? null : (
+                      <div
+                        {...{
+                          className: header.column.getCanSort()
+                            ? "cursor-pointer"
+                            : "",
+                          onClick: header.column.getToggleSortingHandler(),
+                        }}
+                      >
+                        {flexRender(
+                          header.column.columnDef.header,
+                          header.getContext()
+                        )}
+                        {header.column.getIsSorted() ? (
+                          <Icon
+                            className="sort-icon"
+                            svg={
+                              header.column.getIsSorted() === "asc" ? (
+                                <Icons.ArrowUpFilled />
+                              ) : (
+                                <Icons.ArrowDownFilled />
+                              )
+                            }
+                          />
+                        ) : null}
+                      </div>
+                    )}
+                  </th>
+                ))}
               </tr>
-            );
-          })}
-        </tbody>
-      </table>
+            ))}
+          </thead>
+          {isEmpty ? (
+            <TableEmpty />
+          ) : (
+            <tbody>
+              {rows.map((row) => {
+                return (
+                  <tr
+                    key={row.id}
+                    onClick={() =>
+                      navigate(`traces/${row.original.context.traceId}`)
+                    }
+                  >
+                    {row.getVisibleCells().map((cell) => {
+                      return (
+                        <td key={cell.id}>
+                          {flexRender(
+                            cell.column.columnDef.cell,
+                            cell.getContext()
+                          )}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                );
+              })}
+            </tbody>
+          )}
+        </table>
+      </div>
     </div>
   );
 }

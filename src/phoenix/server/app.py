@@ -9,7 +9,7 @@ from starlette.exceptions import HTTPException
 from starlette.middleware import Middleware
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.requests import Request
-from starlette.responses import FileResponse, Response
+from starlette.responses import FileResponse, PlainTextResponse, Response
 from starlette.routing import Mount, Route, WebSocketRoute
 from starlette.staticfiles import StaticFiles
 from starlette.templating import Jinja2Templates
@@ -18,9 +18,11 @@ from starlette.websockets import WebSocket
 from strawberry.asgi import GraphQL
 from strawberry.schema import BaseSchema
 
+import phoenix
 from phoenix.config import SERVER_DIR
 from phoenix.core.model_schema import Model
 from phoenix.core.traces import Traces
+from phoenix.pointcloud.umap_parameters import UMAPParameters
 from phoenix.server.api.context import Context
 from phoenix.server.api.schema import schema
 from phoenix.server.span_handler import SpanHandler
@@ -32,6 +34,9 @@ templates = Jinja2Templates(directory=SERVER_DIR / "templates")
 
 class AppConfig(NamedTuple):
     has_corpus: bool
+    min_dist: float
+    n_neighbors: int
+    n_samples: int
 
 
 class Static(StaticFiles):
@@ -57,6 +62,9 @@ class Static(StaticFiles):
                 "index.html",
                 context={
                     "has_corpus": self._app_config.has_corpus,
+                    "min_dist": self._app_config.min_dist,
+                    "n_neighbors": self._app_config.n_neighbors,
+                    "n_samples": self._app_config.n_samples,
                     "request": Request(scope),
                 },
             )
@@ -122,9 +130,14 @@ class Download(HTTPEndpoint):
         )
 
 
+async def version(_: Request) -> PlainTextResponse:
+    return PlainTextResponse(f"{phoenix.__version__}")
+
+
 def create_app(
     export_path: Path,
     model: Model,
+    umap_params: UMAPParameters,
     corpus: Optional[Model] = None,
     traces: Optional[Traces] = None,
     debug: bool = False,
@@ -157,6 +170,7 @@ def create_app(
             ]
         )
         + [
+            Route("/arize_phoenix_version", version),
             Route(
                 "/exports",
                 type(
@@ -176,6 +190,9 @@ def create_app(
                     directory=SERVER_DIR / "static",
                     app_config=AppConfig(
                         has_corpus=corpus is not None,
+                        min_dist=umap_params.min_dist,
+                        n_neighbors=umap_params.n_neighbors,
+                        n_samples=umap_params.n_samples,
                     ),
                 ),
                 name="static",

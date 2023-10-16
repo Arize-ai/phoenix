@@ -14,6 +14,7 @@ repos:
           - id: clean-notebooks
             name: clean-notebooks
             files: \.ipynb$
+            exclude: ^tutorials/evals/.*\.ipynb$
             stages: [commit]
             language: system
             entry: jupyter nbconvert --ClearOutputPreprocessor.enabled=True --ClearMetadataPreprocessor.enabled=True --inplace
@@ -24,7 +25,7 @@ repos:
             files: \.ipynb$
             stages: [commit]
             language: system
-            entry: nbqa ruff --fix --ignore=E402
+            entry: nbqa ruff --fix --ignore=E402 --ignore=E501
     - repo: https://github.com/pre-commit/mirrors-prettier
       rev: "6f3cb139ef36133b6f903b97facc57b07cef57c9"
       hooks:

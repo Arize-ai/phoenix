@@ -126,7 +126,7 @@ px.active_session().url
 
 ### Tracing with LangChain
 
-[![Open in Colab](https://img.shields.io/static/v1?message=Open%20in%20Colab&logo=googlecolab&labelColor=grey&color=blue&logoColor=orange&label=%20)](https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/tracing/langchain_tracing_tutorial) [![Open in GitHub](https://img.shields.io/static/v1?message=Open%20in%20GitHub&logo=github&labelColor=grey&color=blue&logoColor=white&label=%20)](https://github.com/Arize-ai/phoenix/blob/main/tutorials/tracing/langchain_tracing_tutorial)
+[![Open in Colab](https://img.shields.io/static/v1?message=Open%20in%20Colab&logo=googlecolab&labelColor=grey&color=blue&logoColor=orange&label=%20)](https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/tracing/langchain_tracing_tutorial.ipynb) [![Open in GitHub](https://img.shields.io/static/v1?message=Open%20in%20GitHub&logo=github&labelColor=grey&color=blue&logoColor=white&label=%20)](https://github.com/Arize-ai/phoenix/blob/main/tutorials/tracing/langchain_tracing_tutorial.ipynb)
 
 To extract traces from your LangChain application, you will have to add Phoenix's OpenInference Tracer to your LangChain application. A tracer is a class that automatically accumulates traces as your application executes. The OpenInference Tracer is a tracer that is specifically designed to work with Phoenix and by default exports the traces to a locally running phoenix server.
 
@@ -141,6 +141,7 @@ Launch Phoenix in a notebook and view the traces of your LangChain application i
 ```python
 import phoenix as px
 import pandas as pd
+import numpy as np
 
 # Launch phoenix
 session = px.launch_app()
@@ -164,7 +165,7 @@ documents_df = pd.read_parquet(
     "http://storage.googleapis.com/arize-assets/phoenix/datasets/unstructured/llm/context-retrieval/langchain-pinecone/database.parquet"
 )
 knn_retriever = KNNRetriever(
-    index=np.stack(df["text_vector"]),
+    index=np.stack(documents_df["text_vector"]),
     texts=documents_df["text"].tolist(),
     embeddings=OpenAIEmbeddings(),
 )
@@ -206,7 +207,7 @@ Here is an example of running the RAG relevance eval on a dataset of Wikipedia q
 
 ```shell
 # Install phoenix as well as the experimental subpackage
-pip install -qq arize-phoenix[experimental] ipython matplotlib openai pycm scikit-learn
+pip install arize-phoenix[experimental] ipython matplotlib openai pycm scikit-learn
 ```
 
 ```python

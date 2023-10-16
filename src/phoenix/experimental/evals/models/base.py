@@ -1,14 +1,14 @@
 import logging
 from abc import ABC, abstractmethod, abstractproperty
+from contextlib import contextmanager
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Type
+from typing import TYPE_CHECKING, Any, Callable, Dict, Generator, List, Optional, Type
 
 if TYPE_CHECKING:
     from tiktoken import Encoding
 
 from tenacity import (
     RetryCallState,
-    before_sleep_log,
     retry,
     retry_base,
     retry_if_exception_type,
@@ -18,8 +18,9 @@ from tenacity import (
 from tqdm import tqdm
 from tqdm.asyncio import tqdm_asyncio
 
-from ..utils.threads import to_thread
-from ..utils.types import is_list_of
+from phoenix.experimental.evals.utils.threads import to_thread
+from phoenix.experimental.evals.utils.types import is_list_of
+from phoenix.utilities.logging import printif
 
 logger = logging.getLogger(__name__)
 
@@ -30,35 +31,57 @@ TQDM_BAR_FORMAT = (
 )
 
 
-def create_base_retry_decorator(
-    error_types: List[Type[BaseException]],
-    min_seconds: int,
-    max_seconds: int,
-    max_retries: int,
-) -> Callable[[Any], Any]:
-    """Create a retry decorator for a given LLM and provided list of error types."""
-
-    # TODO: Nice logging. The logging implemented is huge and overwhelming
-    _logging = before_sleep_log(logger, logging.WARNING)
-
-    def _before_sleep(retry_state: RetryCallState) -> None:
-        _logging(retry_state)
-        return None
-
-    retry_instance: retry_base = retry_if_exception_type(error_types[0])
-    for error in error_types[1:]:
-        retry_instance = retry_instance | retry_if_exception_type(error)
-    return retry(
-        reraise=True,
-        stop=stop_after_attempt(max_retries),
-        wait=wait_random_exponential(multiplier=1, min=min_seconds, max=max_seconds),
-        retry=retry_instance,
-        # before_sleep=_before_sleep,
-    )
+@contextmanager
+def set_verbosity(
+    model: "BaseEvalModel", verbose: bool = False
+) -> Generator["BaseEvalModel", None, None]:
+    try:
+        _verbose = model._verbose
+        model._verbose = verbose
+        yield model
+    finally:
+        model._verbose = _verbose
 
 
 @dataclass
 class BaseEvalModel(ABC):
+    _verbose: bool = False
+
+    def retry(
+        self,
+        error_types: List[Type[BaseException]],
+        min_seconds: int,
+        max_seconds: int,
+        max_retries: int,
+    ) -> Callable[[Any], Any]:
+        """Create a retry decorator for a given LLM and provided list of error types."""
+
+        def log_retry(retry_state: RetryCallState) -> None:
+            if fut := retry_state.outcome:
+                exc = fut.exception()
+            else:
+                exc = None
+
+            if exc:
+                printif(
+                    self._verbose,
+                    f"Failed attempt {retry_state.attempt_number}: raised {repr(exc)}",
+                )
+            else:
+                printif(self._verbose, f"Failed attempt {retry_state.attempt_number}")
+            return None
+
+        retry_instance: retry_base = retry_if_exception_type(error_types[0])
+        for error in error_types[1:]:
+            retry_instance = retry_instance | retry_if_exception_type(error)
+        return retry(
+            reraise=True,
+            stop=stop_after_attempt(max_retries),
+            wait=wait_random_exponential(multiplier=1, min=min_seconds, max=max_seconds),
+            retry=retry_instance,
+            before_sleep=log_retry,
+        )
+
     def __call__(self, prompt: str, instruction: Optional[str] = None) -> str:
         """Run the LLM on the given prompt."""
         if not isinstance(prompt, str):
@@ -91,6 +114,9 @@ class BaseEvalModel(ABC):
         return response[0]
 
     def generate(self, prompts: List[str], instruction: Optional[str] = None) -> List[str]:
+        printif(self._verbose, f"Generating responses for {len(prompts)} prompts...")
+        if extra_info := self._verbose_generation_info():
+            printif(self._verbose, extra_info)
         if not is_list_of(prompts, str):
             raise TypeError(
                 "Invalid type for argument `prompts`. Expected a list of strings "
@@ -122,6 +148,11 @@ class BaseEvalModel(ABC):
         except (KeyboardInterrupt, Exception) as e:
             raise e
         return result
+
+    def _verbose_generation_info(self) -> str:
+        # if defined, returns additional model-specific information to display if `generate` is
+        # run with `verbose=True`
+        return ""
 
     @abstractmethod
     def _generate(self, prompt: str, **kwargs: Dict[str, Any]) -> str:
