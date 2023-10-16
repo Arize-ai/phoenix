@@ -26,7 +26,7 @@ Don't know which one to choose? Phoenix has two main data ingestion methods:
 
 ### **Phoenix Functionality**&#x20;
 
-* [**Evaluate Performance of LLM Tasks with Evals Library:**](llm-evals/llm-evals.md) Use the Phoenix Evals library to easily evaluate tasks such as hallucination, summarization, and retrieval relevance, or create your own custom template.
+* [**Evaluate Performance of LLM Tasks with Evals Library:**](concepts/llm-evals.md) Use the Phoenix Evals library to easily evaluate tasks such as hallucination, summarization, and retrieval relevance, or create your own custom template.
 * [**Troubleshoot Agentic Workflows:**](concepts/llm-traces.md) Get visibility into where your complex or agentic workflow broke, or find performance bottlenecks, across different span types with LLM Tracing.
 * [**Optimize Retrieval Systems:**](use-cases/troubleshooting-llm-retrieval-with-vector-stores.md) Identify missing context in your knowledge base, and when irrelevant context is retrieved by visualizing query embeddings alongside knowledge base embeddings with RAG Analysis.
 * [**Compare Model Versions:**](https://docs.arize.com/phoenix/concepts/phoenix-basics/phoenix-basics#how-many-datasets-do-i-need) Compare and evaluate performance across model versions prior to deploying to production.

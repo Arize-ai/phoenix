@@ -35,7 +35,6 @@ All parameters are optional and `launch_app()` launches a Phoenix session with n
 * **host** (Optional\[str]): The host on which the server runs. It can also be set using environment variable `PHOENIX_HOST`, otherwise it defaults to `127.0.0.1`. Most users don't need to worry this parameter.
 * **port** (Optional\[int]): The port on which the server listens. It can also be set using environment variable `PHOENIX_PORT`, otherwise it defaults to `6060`. This parameter is useful if `6060` is already occupied by a separate application.
 * **run\_in\_thread** (bool): Whether the server should run in a Thread or Process. Defaults to True. This can be turned off if there is a problem starting a thread in a Jupyter Notebook.
-* **default\_umap\_parameters** (Optional Dict\[str, Union\[int, float]]): default UMAP parameters to use when launching the point-cloud eg: {"n\_neighbors": 10, "n\_samples": 5, "min\_dist": 0.5}
 
 ### Returns
 
