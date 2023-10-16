@@ -3,7 +3,7 @@ import sys
 import time
 from collections import defaultdict
 from functools import wraps
-from typing import Any, Callable, Dict, TypeVar, Union
+from typing import Any, Awaitable, Callable, Dict, TypeVar, Union, cast
 
 if sys.version_info < (3, 10):
     from typing_extensions import ParamSpec
@@ -13,6 +13,7 @@ else:
 Numeric = Union[int, float]
 P = ParamSpec("P")
 T = TypeVar("T")
+A = TypeVar("A", bound=Callable[..., Awaitable[Any]])
 
 
 class UnavailableTokensError(Exception):
@@ -181,8 +182,8 @@ class OpenAIRateLimiter:
         model_name: str,
         input_cost_fn: Callable[..., Numeric],
         response_cost_fn: Callable[..., Numeric],
-    ) -> Callable[[Callable[P, T]], Callable[P, T]]:
-        def rate_limit_decorator(fn: Callable[P, T]) -> Callable[P, T]:
+    ) -> Callable[[A], A]:
+        def rate_limit_decorator(fn: A) -> A:
             @wraps(fn)
             async def wrapper(*args: Any, **kwargs: Any) -> T:
                 key = self.key(model_name)
@@ -193,6 +194,6 @@ class OpenAIRateLimiter:
                 self._store.spend_rate_limits(key, {"tokens": response_cost_fn(result)})
                 return result
 
-            return wrapper
+            return cast(A, wrapper)
 
         return rate_limit_decorator
