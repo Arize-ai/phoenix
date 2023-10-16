@@ -1,4 +1,5 @@
 import logging
+import warnings
 from typing import Any, Iterable, List, Optional, Union, cast
 
 import pandas as pd
@@ -64,6 +65,59 @@ def llm_classify(
         responses = verbose_model.generate(prompts.to_list(), instruction=system_instruction)
         printif(verbose, f"Snapping {len(responses)} responses to rails: {rails}")
         return [_snap_to_rail(response, rails, verbose=verbose) for response in responses]
+
+
+def llm_eval_binary(
+    dataframe: pd.DataFrame,
+    model: BaseEvalModel,
+    template: Union[PromptTemplate, str],
+    rails: List[str],
+    system_instruction: Optional[str] = None,
+    verbose: bool = False,
+) -> List[str]:
+    """Performs a binary classification on the rows of the input dataframe using an LLM.
+
+    Args:
+        dataframe (pandas.DataFrame): A pandas dataframe in which each row represents a record to be
+        classified. All template variable names must appear as column names in the dataframe (extra
+        columns unrelated to the template are permitted).
+
+        template (Union[PromptTemplate, str]): The prompt template as either an instance of
+        PromptTemplate or a string. If the latter, the variable names should be surrounded by
+        curly braces so that a call to `.format` can be made to substitute variable values.
+
+        model (BaseEvalModel): An LLM model class.
+
+        rails (List[str]): A list of strings representing the possible output classes of the model's
+        predictions.
+
+        system_instruction (Optional[str], optional): An optional system message.
+
+        verbose (bool, optional): If True, prints detailed info to stdout such as model invocation
+        parameters and details about retries and snapping to rails. Default False.
+
+    Returns:
+        List[str]: A list of strings representing the predicted class for each record in the
+        dataframe. The list should have the same length as the input dataframe and its values should
+        be the entries in the rails argument or "NOT_PARSABLE" if the model's prediction could not
+        be parsed.
+    """
+
+    warnings.warn(
+        "This function will soon be deprecated. "
+        "Use llm_classify instead, which has the same function signature "
+        "and provides support for multi-class classification "
+        "in addition to binary classification.",
+        DeprecationWarning,
+    )
+    return llm_classify(
+        dataframe=dataframe,
+        model=model,
+        template=template,
+        rails=rails,
+        system_instruction=system_instruction,
+        verbose=verbose,
+    )
 
 
 def run_relevance_eval(
