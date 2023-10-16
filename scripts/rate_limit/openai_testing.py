@@ -3,6 +3,7 @@ import asyncio
 import os
 import time
 from collections import defaultdict, deque
+from json import JSONDecodeError
 
 import httpx
 import openai
@@ -89,7 +90,10 @@ def print_error(response):
         global error_log
         error_log["time"].append(elapsed_time)
         error_log["error_code"].append(response.status_code)
-        error_log["error_payload"].append(response.json())
+        try:
+            error_log["error_payload"].append(response.json())
+        except JSONDecodeError:
+            error_log["error_payload"].append("no json payload")
 
 
 def initial_token_cost(payload) -> int:
