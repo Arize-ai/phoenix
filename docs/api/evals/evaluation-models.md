@@ -2,7 +2,7 @@
 description: Evaluation model classes powering your LLM Evals
 ---
 
-# Models
+# Evaluation Models
 
 ## Supported LLM Providers
 
@@ -18,10 +18,7 @@ Need to install the extra dependencies `openai>=0.26.4` and `tiktoken`
 class OpenAIModel:
     openai_api_key: Optional[str] = None
     openai_api_base: Optional[str] = None
-    openai_api_type: Optional[str] = None
-    openai_api_version: Optional[str] = None
     openai_organization: Optional[str] = None
-    engine: str = ""
     model_name: str = "gpt-4"
     temperature: float = 0.0
     max_tokens: int = 256
@@ -43,20 +40,6 @@ To authenticate with OpenAI you will need, at a minimum, an API key. Our classes
 model = OpenAI()
 model("Hello there, this is a tesst if you are working?")
 # Output: "Hello! I'm working perfectly. How can I assist you today?"
-```
-
-#### Azure OpenAI
-
-The code snippet below shows how to initialize `OpenAIModel` for Azure. Refer to the Azure [docs](https://microsoftlearning.github.io/mslearn-openai/Instructions/Labs/02-natural-language-azure-openai.html) on how to obtain these value from your Azure deployment.
-
-```python
-model = OpenAIModel(
-    openai_api_key=YOUR_AZURE_OPENAI_API_KEY,
-    openai_api_base="https://YOUR_RESOURCE_NAME.openai.azure.com",
-    openai_api_type="azure",
-    openai_api_version="2023-05-15",  # See Azure docs for more
-    engine="YOUR_MODEL_DEPLOYMENT_NAME",
-)
 ```
 
 Find more about the functionality available in our EvalModels in the [#usage](evaluation-models.md#usage "mention") section.
@@ -87,40 +70,12 @@ To authenticate with VertexAI, you must pass either your credentials or a projec
 ```python
 project = "my-project-id"
 location = "us-central1" # as an example
-model = VertexAIModel(project=project, location=location)
+model = VertexAI(project=project, location=location)
 model("Hello there, this is a tesst if you are working?")
 # Output: "Hello world, I am working!"
 ```
 
-### phoenix.experimental.evals.BedrockModel
-
-```python
-class BedrockModel:    
-    model_id: str = "anthropic.claude-v2"
-    """The model name to use."""
-    temperature: float = 0.0
-    """What sampling temperature to use."""
-    max_tokens: int = 256
-    """The maximum number of tokens to generate in the completion."""
-    top_p: float = 1
-    """Total probability mass of tokens to consider at each step."""
-    top_k: int = 256
-    """The cutoff where the model no longer selects the words"""
-    stop_sequences: List[str] = field(default_factory=list)
-    """If the model encounters a stop sequence, it stops generating further tokens. """
-    max_retries: int = 6
-    """Maximum number of retries to make when generating."""
-    retry_min_seconds: int = 10
-    """Minimum number of seconds to wait when retrying."""
-    retry_max_seconds: int = 60
-    """Maximum number of seconds to wait when retrying."""
-    client = None
-    """The bedrock session client. If unset, a new one is created with boto3."""
-    max_content_size: Optional[int] = None
-    """If you're using a fine-tuned model, set this to the maximum content size"""
-    extra_parameters: Dict[str, Any] = field(default_factory=dict)
-    """Any extra parameters to add to the request body (e.g., countPenalty for a21 models)"""
-```
+Find more about the functionality available in our EvalModels in the [#usage](evaluation-models.md#usage "mention") section.
 
 ## **Usage**
 
