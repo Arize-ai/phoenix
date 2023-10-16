@@ -216,7 +216,7 @@ from phoenix.experimental.evals import (
     RAG_RELEVANCY_PROMPT_RAILS_MAP,
     OpenAIModel,
     download_benchmark_dataset,
-    llm_eval_binary,
+    llm_classify,
 )
 from sklearn.metrics import precision_recall_fscore_support, confusion_matrix, ConfusionMatrixDisplay
 
@@ -237,7 +237,7 @@ model = OpenAIModel(
     temperature=0.0,
 )
 rails =list(RAG_RELEVANCY_PROMPT_RAILS_MAP.values())
-df["eval_relevance"] = llm_eval_binary(df, model, RAG_RELEVANCY_PROMPT_TEMPLATE_STR, rails)
+df["eval_relevance"] = llm_classify(df, model, RAG_RELEVANCY_PROMPT_TEMPLATE_STR, rails)
 #Golden dataset has True/False map to -> "irrelevant" / "relevant"
 #we can then scikit compare to output of template - same format
 y_true = df["relevant"].map({True: "relevant", False: "irrelevant"})

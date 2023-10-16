@@ -1,5 +1,6 @@
 import logging
-from typing import Any, Iterable, List, Optional, Set, Union, cast
+import warnings
+from typing import Any, Iterable, List, Optional, Union, cast
 
 import pandas as pd
 
@@ -22,7 +23,7 @@ OPENINFERENCE_QUERY_COLUMN_NAME = "attributes." + INPUT_VALUE
 OPENINFERENCE_DOCUMENT_COLUMN_NAME = "attributes." + RETRIEVAL_DOCUMENTS
 
 
-def llm_eval_binary(
+def llm_classify(
     dataframe: pd.DataFrame,
     model: BaseEvalModel,
     template: Union[PromptTemplate, str],
@@ -30,7 +31,7 @@ def llm_eval_binary(
     system_instruction: Optional[str] = None,
     verbose: bool = False,
 ) -> List[str]:
-    """Runs binary classifications using an LLM.
+    """Classifies each input row of the dataframe using an LLM.
 
     Args:
         dataframe (pandas.DataFrame): A pandas dataframe in which each row represents a record to be
@@ -62,9 +63,62 @@ def llm_eval_binary(
         eval_template = normalize_template(template)
         prompts = map_template(dataframe, eval_template)
         responses = verbose_model.generate(prompts.to_list(), instruction=system_instruction)
-        rails_set = set(rails)
-        printif(verbose, f"Snapping {len(responses)} responses to rails: {rails_set}")
-        return [_snap_to_rail(response, rails_set, verbose=verbose) for response in responses]
+        printif(verbose, f"Snapping {len(responses)} responses to rails: {rails}")
+        return [_snap_to_rail(response, rails, verbose=verbose) for response in responses]
+
+
+def llm_eval_binary(
+    dataframe: pd.DataFrame,
+    model: BaseEvalModel,
+    template: Union[PromptTemplate, str],
+    rails: List[str],
+    system_instruction: Optional[str] = None,
+    verbose: bool = False,
+) -> List[str]:
+    """Performs a binary classification on the rows of the input dataframe using an LLM.
+
+    Args:
+        dataframe (pandas.DataFrame): A pandas dataframe in which each row represents a record to be
+        classified. All template variable names must appear as column names in the dataframe (extra
+        columns unrelated to the template are permitted).
+
+        template (Union[PromptTemplate, str]): The prompt template as either an instance of
+        PromptTemplate or a string. If the latter, the variable names should be surrounded by
+        curly braces so that a call to `.format` can be made to substitute variable values.
+
+        model (BaseEvalModel): An LLM model class.
+
+        rails (List[str]): A list of strings representing the possible output classes of the model's
+        predictions.
+
+        system_instruction (Optional[str], optional): An optional system message.
+
+        verbose (bool, optional): If True, prints detailed info to stdout such as model invocation
+        parameters and details about retries and snapping to rails. Default False.
+
+    Returns:
+        List[str]: A list of strings representing the predicted class for each record in the
+        dataframe. The list should have the same length as the input dataframe and its values should
+        be the entries in the rails argument or "NOT_PARSABLE" if the model's prediction could not
+        be parsed.
+    """
+
+    warnings.warn(
+        "This function will soon be deprecated. "
+        "Use llm_classify instead, which has the same function signature "
+        "and provides support for multi-class classification "
+        "in addition to binary classification.",
+        category=DeprecationWarning,
+        stacklevel=2,
+    )
+    return llm_classify(
+        dataframe=dataframe,
+        model=model,
+        template=template,
+        rails=rails,
+        system_instruction=system_instruction,
+        verbose=verbose,
+    )
 
 
 def run_relevance_eval(
@@ -161,7 +215,7 @@ def run_relevance_eval(
                 indexes.append(index)
                 expanded_queries.append(query)
                 expanded_documents.append(document)
-        predictions = llm_eval_binary(
+        predictions = llm_classify(
             dataframe=pd.DataFrame(
                 {
                     query_column_name: expanded_queries,
@@ -188,92 +242,33 @@ def _get_contents_from_openinference_documents(documents: Iterable[Any]) -> List
     return [doc.get(DOCUMENT_CONTENT) if isinstance(doc, dict) else None for doc in documents]
 
 
-def _snap_to_rail(string: str, rails: Set[str], verbose: bool = False) -> str:
+def _snap_to_rail(raw_string: str, rails: List[str], verbose: bool = False) -> str:
     """
-    Snaps a string to the nearest rail, or returns None if the string cannot be snapped to a
-    rail.
+    Snaps a string to the nearest rail, or returns None if the string cannot be
+    snapped to a rail.
 
     Args:
-        string (str): An input to be snapped to a rail.
+        raw_string (str): An input to be snapped to a rail.
 
-        rails (Set[str]): The target set of strings to snap to.
+        rails (List[str]): The target set of strings to snap to.
 
     Returns:
-        str: A string from the rails argument or None if the input string could not be snapped.
+        str: A string from the rails argument or "UNPARSABLE" if the input
+        string could not be snapped.
     """
 
-    processed_string = string.strip()
-    rails_list = list(rails)
-    rail = _extract_rail(processed_string, rails_list[0], rails_list[1])
-    if not rail:
-        printif(verbose, f"- Cannot snap {repr(string)} to rails: {rails}")
-        logger.warning(
-            f"LLM output cannot be snapped to rails {list(rails)}, returning {NOT_PARSABLE}. "
-            f'Output: "{string}"'
-        )
+    snap_string = raw_string.lower()
+    rails = list(set(rails))
+    rails = [rail.lower() for rail in rails]
+    rails.sort(key=len, reverse=True)
+    found_rails = set()
+    for rail in rails:
+        if rail in snap_string:
+            found_rails.add(rail)
+            snap_string = snap_string.replace(rail, "")
+    if len(found_rails) != 1:
+        printif(verbose, f"- Cannot snap {repr(raw_string)} to rails")
         return NOT_PARSABLE
-    else:
-        printif(verbose, f"- Snapped {repr(string)} to rail: {rail}")
+    rail = list(found_rails)[0]
+    printif(verbose, f"- Snapped {repr(raw_string)} to rail: {rail}")
     return rail
-
-
-def _extract_rail(string: str, positive_rail: str, negative_rail: str) -> Optional[str]:
-    """
-    Extracts the right rails text from the llm output. If the rails have overlapping characters,
-    (e.x. "regular" and "irregular"), it also ensures that the correct rail is returned.
-
-    Args:
-        string (str): An input to be snapped to a rail.
-
-        positive_rail (str): The positive rail (e.x. toxic)
-
-        negative_rail (str): The negative rail. (e.x. non-toxic)
-
-    Returns:
-        str: A string from the rails or None if the input string could not be extracted.
-
-    Examples:
-        given: positive_rail = "irregular", negative_rail = "regular"
-
-        string = "irregular"
-        Output: "irregular"
-
-        string = "regular"
-        Output: "regular"
-
-        string = "regular,:....random"
-        Output: "regular"
-
-        string = "regular..irregular" - contains both rails
-        Output: None
-
-        string = "Irregular"
-        Output: "irregular"
-    """
-
-    # Convert the inputs to lowercase for case-insensitive matching
-    string = string.lower()
-    positive_rail = positive_rail.lower()
-    negative_rail = negative_rail.lower()
-
-    positive_pos, negative_pos = string.find(positive_rail), string.find(negative_rail)
-
-    # If both positive and negative rails are in the string
-    if positive_pos != -1 and negative_pos != -1:
-        # If either one is a substring of the other, return the longer one
-        # e.x. "regular" and "irregular"
-        if positive_pos < negative_pos < positive_pos + len(
-            positive_rail
-        ) or negative_pos < positive_pos < negative_pos + len(negative_rail):
-            # Return the longer of the rails since it means the LLM returned the longer one
-            return max(positive_rail, negative_rail, key=len)
-        else:
-            # If both rails values are in the string, we cannot determine which to return
-            return None
-    # If only positive is in string
-    elif positive_pos != -1:
-        return positive_rail
-    # If only negative is in the string
-    elif negative_pos != -1:
-        return negative_rail
-    return None
