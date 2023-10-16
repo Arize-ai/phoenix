@@ -141,6 +141,7 @@ Launch Phoenix in a notebook and view the traces of your LangChain application i
 ```python
 import phoenix as px
 import pandas as pd
+import numpy as np
 
 # Launch phoenix
 session = px.launch_app()
@@ -164,7 +165,7 @@ documents_df = pd.read_parquet(
     "http://storage.googleapis.com/arize-assets/phoenix/datasets/unstructured/llm/context-retrieval/langchain-pinecone/database.parquet"
 )
 knn_retriever = KNNRetriever(
-    index=np.stack(df["text_vector"]),
+    index=np.stack(documents_df["text_vector"]),
     texts=documents_df["text"].tolist(),
     embeddings=OpenAIEmbeddings(),
 )
