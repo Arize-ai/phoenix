@@ -203,7 +203,7 @@ relevances = run_relevance_eval(trace_df)
 
 ```
 
-For full details, check out the relevance example of the relevance [LLM Eval](../concepts/llm-evals/retrieval-rag-relevance.md).
+For full details, check out the relevance example of the relevance [LLM Eval](../llm-evals/running-pre-tested-evals/retrieval-rag-relevance.md).
 
 ## Phoenix Tracing App
 
@@ -221,4 +221,4 @@ Phoenix can be used to understand and troubleshoot your by surfacing:
 * **Tool Descriptions -** view the description and function signature of the tools your LLM has been given access to
 * **LLM Function Calls** - if using OpenAI or other a model with function calls, you can view the function selection and function messages in the input messages to the LLM.\\
 
-[LLM Traces](../concepts/llm-traces.md) are a powerful way to troubleshoot and understand your application and can be leveraged to [evaluate](../concepts/llm-evals.md) the quality of your application. For a full list of notebooks that illustrate this in full-color, please check out the [notebooks section](../notebooks.md).
+[LLM Traces](../concepts/llm-traces.md) are a powerful way to troubleshoot and understand your application and can be leveraged to [evaluate](../llm-evals/llm-evals.md) the quality of your application. For a full list of notebooks that illustrate this in full-color, please check out the [notebooks section](../notebooks.md).

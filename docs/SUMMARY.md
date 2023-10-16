@@ -12,17 +12,21 @@
 
 * [What is LLM Observability?](concepts/llm-observability.md)
 * [LLM Traces](concepts/llm-traces.md)
-* [LLM Evals](concepts/llm-evals.md)
-  * [Models for LLM Evals](concepts/llm-evals/models-for-llm-evals.md)
-  * [Retrieval (RAG) Relevance](concepts/llm-evals/retrieval-rag-relevance.md)
-  * [Hallucinations](concepts/llm-evals/hallucinations.md)
-  * [Q\&A on Retrieved Data](concepts/llm-evals/q-and-a-on-retrieved-data.md)
-  * [Toxicity](concepts/llm-evals/toxicity.md)
-  * [Code Generation Eval](concepts/llm-evals/code-generation-eval.md)
-  * [Summarization Eval](concepts/llm-evals/summarization-eval.md)
-* [Benchmarking Retrieval (RAG)](concepts/benchmarking-retrieval-rag.md)
 * [Generating Embeddings](concepts/generating-embeddings.md)
 * [Embeddings Analysis](concepts/embeddings-analysis.md)
+
+## 🧠 LLM Evals
+
+* [Phoenix LLM Evals](llm-evals/llm-evals.md)
+* [Running Pre-Tested Evals](llm-evals/running-pre-tested-evals/README.md)
+  * [Retrieval (RAG) Relevance](llm-evals/running-pre-tested-evals/retrieval-rag-relevance.md)
+  * [Hallucinations](llm-evals/running-pre-tested-evals/hallucinations.md)
+  * [Q\&A on Retrieved Data](llm-evals/running-pre-tested-evals/q-and-a-on-retrieved-data.md)
+  * [Toxicity](llm-evals/running-pre-tested-evals/toxicity.md)
+  * [Code Generation Eval](llm-evals/running-pre-tested-evals/code-generation-eval.md)
+  * [Summarization Eval](llm-evals/running-pre-tested-evals/summarization-eval.md)
+* [Building Your Own Evals](llm-evals/building-your-own-evals.md)
+* [Benchmarking Retrieval (RAG)](llm-evals/benchmarking-retrieval-rag.md)
 
 ## 🔮 Use Cases
 
