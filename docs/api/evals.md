@@ -12,10 +12,6 @@ Evals are still under `experimental` and must be installed via `pip install ariz
 
 ## phoenix.experimental.evals.PromptTemplate
 
-{% hint style="info" %}
-Need to install parsing dependency `lxml`
-{% endhint %}
-
 ```python
 class PromptTemplate(
     text: str
@@ -102,33 +98,40 @@ Runs binary classifications using an LLM.
 
 * **evaluations: (List\[str])**: A list of strings representing the predicted class for each record in the dataframe. The list should have the same length as the input dataframe and its values should be the entries in the \`rails\` argument or None if the model's prediction could not be parsed.
 
-**\[**[**source**](https://github.com/Arize-ai/phoenix/blob/main/src/phoenix/experimental/evals/functions/binary.py)**]**
-
 ## phoenix.experimental.run\_relevance\_eval
 
 ```python
 def run_relevance_eval(
     dataframe: pd.DataFrame,
-    query_column_name: str = "attributes.input.value",
-    retrieved_documents_column_name: str = "attributes.retrieval.documents",
-    template: str = RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
-    model: Optional[BaseEvalModel] = None,
-) -> List[List[Optional[bool]]]:
+    model: BaseEvalModel,
+    template: Union[PromptTemplate, str] = RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
+    rails: List[str] = list(RAG_RELEVANCY_PROMPT_RAILS_MAP.values()),
+    system_instruction: Optional[str] = None,
+    query_column_name: str = "query",
+    document_column_name: str = "reference",
+) -> List[List[str]]:
 ```
 
 Given a pandas dataframe containing queries and retrieved documents, classifies the relevance of each retrieved document to the corresponding query using an LLM.
 
 ### Parameters
 
-* dataframe (pd.DataFrame): A pandas dataframe containing queries and retrieved documents.
-* query\_column\_name (str, optional): The name of the column containing the queries.
-* retrieved\_documents\_column\_name (str, optional): The name of the column containing the retrieved document data. Each entry in this column should be a list of dictionaries containing metadata about the retrieved documents.
+* **dataframe (pd.DataFrame):** A pandas dataframe containing queries and retrieved documents. If both query\_column\_name and reference\_column\_name are present in the input dataframe, those columns are used as inputs and should appear in the following format:
+  * The entries of the query column must be strings.
+  * The entries of the documents column must be lists of strings. Each list may contain an arbitrary number of document texts retrieved for the corresponding query.
+  * If the input dataframe is lacking either query\_column\_name or reference\_column\_name but has query and retrieved document columns in OpenInference trace format named "attributes.input.value" and "attributes.retrieval.documents", respectively, then those columns are used as inputs and should appear in the following format:
+    * The entries of the query column must be strings.
+    * The entries of the document column must be lists of OpenInference document objects, each object being a dictionary that stores the document text under the key "document.content".
+* **model (BaseEvalModel):** The model used for evaluation.
+* **template (Union\[PromptTemplate, str], optional):** The template used for evaluation.
+* **rails (List\[str], optional):** A list of strings representing the possible output classes of the model's predictions.
+* **query\_column\_name (str, optional):** The name of the query column in the dataframe, which should also be a template variable.
+* **reference\_column\_name (str, optional):** The name of the document column in the dataframe, which should also be a template variable.
+* **system\_instruction (Optional\[str], optional):** An optional system message.
 
 ### Returns
 
-* evaluations (List\[List\[str])]: A list of relevant and not relevant classifications. The "shape" of the list should mirror the "shape" of the retrieved documents column, in the sense that it has the same length as the input dataframe and each sub-list has the same length as the corresponding list in the retrieved documents column. The values in the sub-lists are either booleans or None in the case where the LLM output could not be parsed.
-
-**\[**[**source**](https://github.com/Arize-ai/phoenix/blob/main/src/phoenix/experimental/evals/functions/binary.py)**]**
+* **evaluations (List\[List\[str]]):** A list of relevant and not relevant classifications. The "shape" of the list should mirror the "shape" of the retrieved documents column, in the sense that it has the same length as the input dataframe and each sub-list has the same length as the corresponding list in the retrieved documents column. The values in the sub-lists are either entries from the rails argument or "NOT\_PARSABLE" in the case where the LLM output could not be parsed.
 
 ## phoenix.experimental.evals.llm\_generate
 
@@ -153,5 +156,3 @@ Generates a text using a template using an LLM. This function is useful if you w
 ### Returns
 
 * **generations (List\[Optional\[str]])**: A list of strings representing the output of the model for each record
-
-**\[**[**source**](https://github.com/Arize-ai/phoenix/blob/main/src/phoenix/experimental/evals/functions/generate.py)**]**
