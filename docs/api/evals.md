@@ -72,7 +72,7 @@ print(prompt_template.format(value_dict))
 
 Note that once you initialize the `PromptTemplate` class, you don't need to worry about delimiters anymore, it will be handled for you.
 
-## phoenix.experimental.evals.llm\_eval\_binary
+## phoenix.experimental.evals.llm\_classify
 
 ```python
 def llm_classify(
@@ -84,7 +84,7 @@ def llm_classify(
 ) -> List[Optional[str]]
 ```
 
-Runs binary classifications using an LLM.
+Classifies rows of a dataframe using an LLM.
 
 ### Parameters
 
