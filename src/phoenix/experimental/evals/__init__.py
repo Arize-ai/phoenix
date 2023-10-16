@@ -19,6 +19,7 @@ __all__ = [
     "compute_precisions_at_k",
     "download_benchmark_dataset",
     "llm_classify",
+    "llm_eval_binary",
     "llm_generate",
     "OpenAIModel",
     "VertexAIModel",
