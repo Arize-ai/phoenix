@@ -8,23 +8,19 @@ In your Jupyter or Colab environment, run the following command to install.
 
 {% tabs %}
 {% tab title="Using pip" %}
-
 ```sh
 pip install arize-phoenix
 ```
-
 {% endtab %}
 
 {% tab title="Using conda" %}
-
 ```sh
 conda install -c conda-forge arize-phoenix
 ```
-
 {% endtab %}
 {% endtabs %}
 
-Note that the above only installs dependencies that are necessary to run the application. Phoenix also has an experimental sub-module where you can find [LLM Evals](../concepts/llm-evals.md).
+Note that the above only installs dependencies that are necessary to run the application. Phoenix also has an experimental sub-module where you can find [LLM Evals](../llm-evals/llm-evals.md).
 
 ```sh
 pip install arize-phoenix[experimental]
