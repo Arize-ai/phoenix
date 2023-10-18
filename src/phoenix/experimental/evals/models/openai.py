@@ -3,7 +3,7 @@ import os
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
-from phoenix.experimental.evals.models.base import BaseEvalModel
+from phoenix.experimental.evals.models.base import BaseEvalModel, Response
 
 if TYPE_CHECKING:
     from tiktoken import Encoding
@@ -151,19 +151,33 @@ class OpenAIModel(BaseEvalModel):
     def _verbose_generation_info(self) -> str:
         return f"OpenAI invocation parameters: {self.public_invocation_params}"
 
-    def _generate(self, prompt: str, **kwargs: Dict[str, Any]) -> str:
-        invoke_params = self.invocation_params
+    def _generate(self, prompt: str, **kwargs: Dict[str, Any]) -> Response:
         messages = self._build_messages(prompt, kwargs.get("instruction"))  # type:ignore
-
+        generate_kwargs = self.invocation_params
+        if functions := kwargs.get("functions"):
+            generate_kwargs["functions"] = functions
+        if function_call := kwargs.get("function_call"):
+            generate_kwargs["function_call"] = function_call
         response = self._generate_with_retry(
             messages=messages,
-            **invoke_params,
+            # functions=functions,
+            # function_call=function_call,
+            **generate_kwargs,
         )
         if self._model_uses_legacy_completion_api:
-            return str(response["choices"][0]["text"])
-        # TODO: This is a bit rudimentary, should improve
-        resp_text = str(response["choices"][0]["message"]["content"])
-        return resp_text
+            return Response(str(response["choices"][0]["text"]))
+
+        choices = response["choices"]
+        choice = choices[0]
+        finish_reason = choice["finish_reason"]
+        message = choice["message"]
+        function_call = (
+            message["function_call"]["arguments"] if finish_reason == "function_call" else None
+        )
+        message_content = (
+            str(message_content) if (message_content := message["content"]) is not None else ""
+        )
+        return Response(text=message_content, function_call=function_call)
 
     def _generate_with_retry(self, **kwargs: Any) -> Any:
         """Use tenacity to retry the completion call."""

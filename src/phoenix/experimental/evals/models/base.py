@@ -44,6 +44,12 @@ def set_verbosity(
 
 
 @dataclass
+class Response:
+    text: str
+    function_call: Optional[str] = None
+
+
+@dataclass
 class BaseEvalModel(ABC):
     _verbose: bool = False
 
@@ -113,7 +119,9 @@ class BaseEvalModel(ABC):
         response = await self.agenerate(prompts=[prompt], instruction=instruction)
         return response[0]
 
-    def generate(self, prompts: List[str], instruction: Optional[str] = None) -> List[str]:
+    def generate(
+        self, prompts: List[str], instruction: Optional[str] = None, **kwargs: Dict[str, Any]
+    ) -> List[Response]:
         printif(self._verbose, f"Generating responses for {len(prompts)} prompts...")
         if extra_info := self._verbose_generation_info():
             printif(self._verbose, extra_info)
@@ -125,7 +133,9 @@ class BaseEvalModel(ABC):
         try:
             outputs = []
             for prompt in tqdm(prompts, bar_format=TQDM_BAR_FORMAT, ncols=100):
-                output = self._generate(prompt=prompt, instruction=instruction)  # type:ignore
+                output = self._generate(
+                    prompt=prompt, instruction=instruction, **kwargs
+                )  # type:ignore
                 logger.info(f"Prompt: {prompt}\nInstruction: {instruction}\nOutput: {output}")
                 outputs.append(output)
 
@@ -155,7 +165,7 @@ class BaseEvalModel(ABC):
         return ""
 
     @abstractmethod
-    def _generate(self, prompt: str, **kwargs: Dict[str, Any]) -> str:
+    def _generate(self, prompt: str, **kwargs: Dict[str, Any]) -> Response:
         raise NotImplementedError
 
     async def _agenerate(self, prompt: str, instruction: Optional[str]) -> str:
