@@ -25,6 +25,11 @@ logger = logging.getLogger(__name__)
 
 
 @dataclass
+class OpenAIResponse(Response):
+    function_call_arguments: Optional[str] = None
+
+
+@dataclass
 class OpenAIModel(BaseEvalModel):
     openai_api_type: Optional[str] = field(default=None)
     openai_api_version: Optional[str] = field(default=None)
@@ -151,7 +156,7 @@ class OpenAIModel(BaseEvalModel):
     def _verbose_generation_info(self) -> str:
         return f"OpenAI invocation parameters: {self.public_invocation_params}"
 
-    def _generate(self, prompt: str, **kwargs: Dict[str, Any]) -> Response:
+    def _generate(self, prompt: str, **kwargs: Dict[str, Any]) -> OpenAIResponse:
         messages = self._build_messages(prompt, kwargs.get("instruction"))  # type:ignore
         generate_kwargs = self.invocation_params
         if functions := kwargs.get("functions"):
@@ -165,7 +170,7 @@ class OpenAIModel(BaseEvalModel):
             **generate_kwargs,
         )
         if self._model_uses_legacy_completion_api:
-            return Response(str(response["choices"][0]["text"]))
+            return OpenAIResponse(text=str(response["choices"][0]["text"]))
 
         choices = response["choices"]
         choice = choices[0]
@@ -177,7 +182,7 @@ class OpenAIModel(BaseEvalModel):
         message_content = (
             str(message_content) if (message_content := message["content"]) is not None else ""
         )
-        return Response(text=message_content, function_call=function_call)
+        return OpenAIResponse(text=message_content, function_call_arguments=function_call)
 
     def _generate_with_retry(self, **kwargs: Any) -> Any:
         """Use tenacity to retry the completion call."""

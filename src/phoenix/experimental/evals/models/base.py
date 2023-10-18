@@ -46,7 +46,6 @@ def set_verbosity(
 @dataclass
 class Response:
     text: str
-    function_call: Optional[str] = None
 
 
 @dataclass
