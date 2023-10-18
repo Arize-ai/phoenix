@@ -224,3 +224,10 @@ EVAL_DOCUMENTS_PRECISION = "eval.documents_precision"
 The precision of a retriever or reranker.
 This is the percentage of relevant documents over the total
 """
+
+EVAL_DOCUMENTS_PRECISION_AT_K = "eval.documents_precision_at_k"
+"""
+An K dimensional array of precision values for each K in the range [1, K].
+This value would be computed on top of the document_relevancy attribute of each document.
+E.x. a relevancy of [0, 1, 1, 0, 1] would result in a precision_at_k of [0, 0.5, 0.66, 0.5, 0.6]
+"""
