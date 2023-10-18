@@ -1,18 +1,21 @@
 import pytest
 import responses
+from llama_index.llms import OpenAI
 from phoenix.experimental.evals import PromptTemplate
-from phoenix.experimental.evals.classifiers import FunctionCallingClassifier
+from phoenix.experimental.evals.classifiers import LLMFunctionCallingClassifier
 from phoenix.experimental.evals.models import OpenAIModel
 
 
 @responses.activate
-def test_function_calling_classifier(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_llm_function_calling_classifier_produces_expected_output_rail(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     model = OpenAIModel(model_name="gpt-4")
     template = PromptTemplate(
         text=("Query: {query}\nReference: {reference}"),
     )
     function_name = "record_relevance"
-    clf = FunctionCallingClassifier(
+    clf = LLMFunctionCallingClassifier(
         model=model,
         template=template,
         rails=["relevant", "irrelevant"],
@@ -64,13 +67,15 @@ def test_function_calling_classifier(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 @responses.activate
-def test_function_calling_classifier_with_explanation(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_llm_function_calling_classifier_produces_expected_output_rail_and_explanation(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     model = OpenAIModel(model_name="gpt-4")
     template = PromptTemplate(
         text=("Query: {query}\nReference: {reference}"),
     )
     function_name = "record_relevance"
-    clf = FunctionCallingClassifier(
+    clf = LLMFunctionCallingClassifier(
         model=model,
         template=template,
         rails=["relevant", "irrelevant"],
@@ -123,3 +128,32 @@ def test_function_calling_classifier_with_explanation(monkeypatch: pytest.Monkey
     )
     assert prediction.output_rail == "relevant"
     assert prediction.explanation == "example-explanation"
+
+
+@responses.activate
+def test_llm_function_calling_classifier_raises_value_error_for_non_openai_model() -> None:
+    model = OpenAI()
+    template = PromptTemplate(
+        text=("Query: {query}\nReference: {reference}"),
+    )
+    function_name = "record_relevance"
+    with pytest.raises(
+        ValueError, match="Model must be an instance of 'OpenAIModel', but has type 'OpenAI'."
+    ):
+        LLMFunctionCallingClassifier(
+            model=model,
+            template=template,
+            rails=["relevant", "irrelevant"],
+            function_name=function_name,
+            function_description=(
+                "A function that records the relevance of a retrieved "
+                "document to the corresponding query."
+            ),
+            argument_name="relevance",
+            argument_description="The relevance of the query to the reference.",
+            system_message=(
+                "You are an assistant whose purpose is to determine and record "
+                "the relevance of reference text to a query."
+            ),
+            provide_explanation=True,
+        )

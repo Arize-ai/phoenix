@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class OpenAIResponse(Response):
-    function_call_arguments: Optional[str] = None
+    function_call_arguments_json: Optional[str] = None
 
 
 @dataclass
@@ -182,7 +182,7 @@ class OpenAIModel(BaseEvalModel):
         message_content = (
             str(message_content) if (message_content := message["content"]) is not None else ""
         )
-        return OpenAIResponse(text=message_content, function_call_arguments=function_call)
+        return OpenAIResponse(text=message_content, function_call_arguments_json=function_call)
 
     def _generate_with_retry(self, **kwargs: Any) -> Any:
         """Use tenacity to retry the completion call."""

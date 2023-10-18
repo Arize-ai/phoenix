@@ -22,7 +22,7 @@ class LLMClassifier(ABC):
         ...
 
 
-class FunctionCallingClassifier(LLMClassifier):
+class LLMFunctionCallingClassifier(LLMClassifier):
     def __init__(
         self,
         model: OpenAIModel,
@@ -36,6 +36,12 @@ class FunctionCallingClassifier(LLMClassifier):
         fallback_rail: str = "UNPARSABLE",
         provide_explanation: bool = False,
     ) -> None:
+        if not isinstance(model, OpenAIModel):
+            raise ValueError(
+                f"Model must be an instance of {repr(OpenAIModel.__name__)}, "
+                f"but has type {repr(model.__class__.__name__)}."
+            )
+
         self._model = model
         self._template = template
         self._rails = rails
@@ -88,7 +94,7 @@ class FunctionCallingClassifier(LLMClassifier):
             response = responses[0]
             function_arguments = (
                 json.loads(arguments_json_string)
-                if (arguments_json_string := response.function_call)
+                if (arguments_json_string := response.function_call_arguments_json)
                 else {}
             )
             return LLMClassification(
