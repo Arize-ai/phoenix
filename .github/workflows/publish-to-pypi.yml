@@ -1,6 +1,6 @@
 name: Publish to PyPI
 
-on: push
+on: create
 
 jobs:
   build:
@@ -45,5 +45,5 @@ jobs:
         with:
           name: python-package-distributions
           path: dist/
-      - name: Publish distribution 📦 to PyPI
+      - name: Publish distribution to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
