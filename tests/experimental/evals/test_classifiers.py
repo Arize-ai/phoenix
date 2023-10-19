@@ -132,19 +132,16 @@ def test_llm_function_calling_classifier_produces_expected_output_rail_and_expla
 
 @responses.activate
 def test_llm_function_calling_classifier_raises_value_error_for_non_openai_model() -> None:
-    model = OpenAI()
-    template = PromptTemplate(
-        text=("Query: {query}\nReference: {reference}"),
-    )
-    function_name = "record_relevance"
     with pytest.raises(
         ValueError, match="Model must be an instance of 'OpenAIModel', but has type 'OpenAI'."
     ):
         LLMFunctionCallingClassifier(
-            model=model,
-            template=template,
+            model=OpenAI(),
+            template=PromptTemplate(
+                text=("Query: {query}\nReference: {reference}"),
+            ),
             rails=["relevant", "irrelevant"],
-            function_name=function_name,
+            function_name="record_relevance",
             function_description=(
                 "A function that records the relevance of a retrieved "
                 "document to the corresponding query."
