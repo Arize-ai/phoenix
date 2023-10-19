@@ -44,6 +44,7 @@ def test_llm_generate(monkeypatch: pytest.MonkeyPatch):
                         "message": {
                             "content": message_content,
                         },
+                        "finish_reason": "stop",
                     }
                 ],
             },
@@ -102,6 +103,7 @@ def test_llm_generate_prints_info_with_verbose_flag(monkeypatch: pytest.MonkeyPa
                         "message": {
                             "content": message_content,
                         },
+                        "finish_reason": "stop",
                     }
                 ],
             },

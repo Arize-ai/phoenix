@@ -53,6 +53,7 @@ def test_llm_classify(monkeypatch: pytest.MonkeyPatch):
                         "message": {
                             "content": message_content,
                         },
+                        "finish_reason": "stop",
                     }
                 ],
             },
@@ -108,6 +109,7 @@ def test_llm_classify_prints_to_stdout_with_verbose_flag(monkeypatch: pytest.Mon
                         "message": {
                             "content": message_content,
                         },
+                        "finish_reason": "stop",
                     }
                 ],
             },
@@ -381,6 +383,7 @@ def test_run_relevance_eval(
                         "message": {
                             "content": message_content,
                         },
+                        "finish_reason": "stop",
                     }
                 ],
             },
