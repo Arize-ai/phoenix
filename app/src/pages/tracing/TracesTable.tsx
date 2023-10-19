@@ -1,5 +1,11 @@
 /* eslint-disable react/prop-types */
-import React, { useEffect, useMemo, useState } from "react";
+import React, {
+  startTransition,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { graphql, usePaginationFragment } from "react-relay";
 import { useNavigate } from "react-router";
 import {
@@ -76,9 +82,11 @@ function spanTreeToNestedSpanTableRows<TSpan extends ISpanItem>(
 
 export function TracesTable(props: TracesTableProps) {
   //we need a reference to the scrolling element for logic down below
-  const tableContainerRef = React.useRef<HTMLDivElement>(null);
+  const isMountedRef = useRef<boolean>(false);
+  const tableContainerRef = useRef<HTMLDivElement>(null);
   const [sorting, setSorting] = useState<SortingState>([]);
   const [filterCondition, setFilterCondition] = useState<string>("");
+
   const navigate = useNavigate();
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
     usePaginationFragment<TracesTableQuery, TracesTable_spans$key>(
@@ -278,17 +286,28 @@ export function TracesTable(props: TracesTableProps) {
 
   useEffect(() => {
     //if the sorting changes, we need to reset the pagination
+    if (!isMountedRef.current) {
+      isMountedRef.current = true;
+      return;
+    }
     const sort = sorting[0];
-    refetch({
-      sort: sort
-        ? {
-            col: sort.id as SpanSort["col"],
-            dir: sort.desc ? "desc" : "asc",
-          }
-        : DEFAULT_SORT,
-      after: null,
-      first: PAGE_SIZE,
-      filterCondition: filterCondition,
+    startTransition(() => {
+      refetch(
+        {
+          sort: sort
+            ? {
+                col: sort.id as SpanSort["col"],
+                dir: sort.desc ? "desc" : "asc",
+              }
+            : DEFAULT_SORT,
+          after: null,
+          first: PAGE_SIZE,
+          filterCondition: filterCondition,
+        },
+        {
+          fetchPolicy: "network-only",
+        }
+      );
     });
   }, [sorting, refetch, filterCondition]);
   const fetchMoreOnBottomReached = React.useCallback(

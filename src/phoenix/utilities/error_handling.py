@@ -1,8 +1,6 @@
 import logging
 import traceback
-from typing import Any, Callable, Iterable, Optional, Type
-
-from typing_extensions import TypeVar, cast
+from typing import Any, Callable, Iterable, Optional, Type, TypeVar, cast
 
 F = TypeVar("F", bound=Callable[..., Any])
 

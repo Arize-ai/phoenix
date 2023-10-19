@@ -141,6 +141,7 @@ Launch Phoenix in a notebook and view the traces of your LangChain application i
 ```python
 import phoenix as px
 import pandas as pd
+import numpy as np
 
 # Launch phoenix
 session = px.launch_app()
@@ -164,7 +165,7 @@ documents_df = pd.read_parquet(
     "http://storage.googleapis.com/arize-assets/phoenix/datasets/unstructured/llm/context-retrieval/langchain-pinecone/database.parquet"
 )
 knn_retriever = KNNRetriever(
-    index=np.stack(df["text_vector"]),
+    index=np.stack(documents_df["text_vector"]),
     texts=documents_df["text"].tolist(),
     embeddings=OpenAIEmbeddings(),
 )
@@ -215,7 +216,7 @@ from phoenix.experimental.evals import (
     RAG_RELEVANCY_PROMPT_RAILS_MAP,
     OpenAIModel,
     download_benchmark_dataset,
-    llm_eval_binary,
+    llm_classify,
 )
 from sklearn.metrics import precision_recall_fscore_support, confusion_matrix, ConfusionMatrixDisplay
 
@@ -236,7 +237,7 @@ model = OpenAIModel(
     temperature=0.0,
 )
 rails =list(RAG_RELEVANCY_PROMPT_RAILS_MAP.values())
-df["eval_relevance"] = llm_eval_binary(df, model, RAG_RELEVANCY_PROMPT_TEMPLATE_STR, rails)
+df["eval_relevance"] = llm_classify(df, model, RAG_RELEVANCY_PROMPT_TEMPLATE_STR, rails)
 #Golden dataset has True/False map to -> "irrelevant" / "relevant"
 #we can then scikit compare to output of template - same format
 y_true = df["relevant"].map({True: "relevant", False: "irrelevant"})

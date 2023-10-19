@@ -32,7 +32,7 @@ from llama_index.llms import OpenAI
 from llama_index.node_parser import SimpleNodeParser
 from llama_index.query_engine.multistep_query_engine import MultiStepQueryEngine
 from llama_index.query_engine.transform_query_engine import TransformQueryEngine
-from phoenix.experimental.evals import OpenAIModel, llm_eval_binary, run_relevance_eval
+from phoenix.experimental.evals import OpenAIModel, llm_classify, run_relevance_eval
 from phoenix.experimental.evals.functions.processing import concatenate_and_truncate_chunks
 from phoenix.experimental.evals.models import BaseEvalModel
 from phoenix.experimental.evals.templates import NOT_PARSABLE
@@ -302,7 +302,7 @@ def df_evals(
 
     df = df.rename(columns={"query": "question", "response": "sampled_answer"})
     # Q&A Eval: Did the LLM get the answer right? Checking the LLM
-    Q_and_A_classifications = llm_eval_binary(
+    Q_and_A_classifications = llm_classify(
         dataframe=df,
         template=template,
         model=model,

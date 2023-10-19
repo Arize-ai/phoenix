@@ -82,16 +82,6 @@ artifacts = ["src/phoenix/server/static"]
 [tool.hatch.build]
 only-packages = true
 
-[tool.hatch.build.hooks.jupyter-builder]
-dependencies = ["hatch-jupyter-builder"]
-build-function = "hatch_jupyter_builder.npm_builder"
-ensured-targets = ["src/phoenix/server/static/index.js"]
-skip-if-exists = ["src/phoenix/server/static/index.js"]
-
-[tool.hatch.build.hooks.jupyter-builder.build-kwargs]
-path = "app"
-source_dir = "app"
-
 [tool.hatch.build.targets.sdist]
 artifacts = ["src/phoenix/server/static"]
 
@@ -112,7 +102,8 @@ dependencies = [
   "requests",
   "protobuf==3.20",  # version minimum (for tests)
   "responses",
-  "tiktoken"
+  "tiktoken",
+  "typing-extensions<4.6.0",  # for Colab
 ]
 
 [tool.hatch.envs.type]
@@ -197,7 +188,7 @@ fix = [
 
 [tool.hatch.envs.notebooks.scripts]
 clean = [
-  "jupyter nbconvert --ClearOutputPreprocessor.enabled=True --ClearMetadataPreprocessor.enabled=True --inplace **/*.ipynb **/**/*.ipynb",
+  "jupyter nbconvert --ClearOutputPreprocessor.enabled=True --ClearMetadataPreprocessor.enabled=True --inplace **/*.ipynb **/internal/*.ipynb **/tracing/*.ipynb **/dolly-pythia-fine-tuned/*.ipynb",
 ]
 
 [tool.hatch.envs.publish]
