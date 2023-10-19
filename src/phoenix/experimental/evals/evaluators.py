@@ -1,28 +1,25 @@
 import json
-from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Any, List, Mapping, Optional
+from typing import Any, List, Mapping, Optional, Protocol
 
 from .models.openai import OpenAIModel
 from .templates import PromptTemplate
 
-Rail = str
 Record = Mapping[str, Any]
 
 
 @dataclass
-class LLMClassification:
-    output_rail: Rail
+class Eval:
+    value: str
     explanation: Optional[str] = None
 
 
-class LLMClassifier(ABC):
-    @abstractmethod
-    def predict(self, record: Record) -> LLMClassification:
+class Evaluator(Protocol):
+    def evaluate(self, record: Record) -> Eval:
         ...
 
 
-class LLMFunctionCallingClassifier(LLMClassifier):
+class LLMFunctionCallingEvaluator:
     def __init__(
         self,
         model: OpenAIModel,
@@ -53,9 +50,7 @@ class LLMFunctionCallingClassifier(LLMClassifier):
         self._fallback_rail = fallback_rail
         self._provide_explanation = provide_explanation
 
-    def predict(
-        self, record: Record, provide_explanation: Optional[bool] = None
-    ) -> LLMClassification:
+    def evaluate(self, record: Record, provide_explanation: Optional[bool] = None) -> Eval:
         user_message_content = self._template.format(
             {variable_name: record[variable_name] for variable_name in self._template.variables}
         )
@@ -97,10 +92,10 @@ class LLMFunctionCallingClassifier(LLMClassifier):
                 if (arguments_json_string := response.function_call_arguments_json)
                 else {}
             )
-            return LLMClassification(
-                output_rail=function_arguments[self._argument_name],
+            return Eval(
+                value=function_arguments[self._argument_name],
                 explanation=function_arguments.get("explanation"),
             )
         except json.JSONDecodeError:
             pass
-        return LLMClassification(output_rail=self._fallback_rail)
+        return Eval(value=self._fallback_rail)

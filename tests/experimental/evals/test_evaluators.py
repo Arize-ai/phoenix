@@ -2,12 +2,12 @@ import pytest
 import responses
 from llama_index.llms import OpenAI
 from phoenix.experimental.evals import PromptTemplate
-from phoenix.experimental.evals.classifiers import LLMFunctionCallingClassifier
+from phoenix.experimental.evals.evaluators import LLMFunctionCallingEvaluator
 from phoenix.experimental.evals.models import OpenAIModel
 
 
 @responses.activate
-def test_llm_function_calling_classifier_produces_expected_output_rail(
+def test_llm_function_calling_evaluator_produces_expected_eval_value(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     model = OpenAIModel(model_name="gpt-4")
@@ -15,7 +15,7 @@ def test_llm_function_calling_classifier_produces_expected_output_rail(
         text=("Query: {query}\nReference: {reference}"),
     )
     function_name = "record_relevance"
-    clf = LLMFunctionCallingClassifier(
+    clf = LLMFunctionCallingEvaluator(
         model=model,
         template=template,
         rails=["relevant", "irrelevant"],
@@ -56,18 +56,18 @@ def test_llm_function_calling_classifier_produces_expected_output_rail(
         },
         status=200,
     )
-    prediction = clf.predict(
+    eval = clf.evaluate(
         record={
             "query": "What is Python?",
             "reference": "Python is a programming language created by Guido van Rossum in 1991.",
         }
     )
-    assert prediction.output_rail == "relevant"
-    assert prediction.explanation is None
+    assert eval.value == "relevant"
+    assert eval.explanation is None
 
 
 @responses.activate
-def test_llm_function_calling_classifier_produces_expected_output_rail_and_explanation(
+def test_llm_function_calling_evaluator_produces_expected_eval_value_and_explanation(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     model = OpenAIModel(model_name="gpt-4")
@@ -75,7 +75,7 @@ def test_llm_function_calling_classifier_produces_expected_output_rail_and_expla
         text=("Query: {query}\nReference: {reference}"),
     )
     function_name = "record_relevance"
-    clf = LLMFunctionCallingClassifier(
+    evaluator = LLMFunctionCallingEvaluator(
         model=model,
         template=template,
         rails=["relevant", "irrelevant"],
@@ -120,22 +120,22 @@ def test_llm_function_calling_classifier_produces_expected_output_rail_and_expla
         },
         status=200,
     )
-    prediction = clf.predict(
+    eval = evaluator.evaluate(
         record={
             "query": "What is Python?",
             "reference": "Python is a programming language created by Guido van Rossum in 1991.",
         }
     )
-    assert prediction.output_rail == "relevant"
-    assert prediction.explanation == "example-explanation"
+    assert eval.value == "relevant"
+    assert eval.explanation == "example-explanation"
 
 
 @responses.activate
-def test_llm_function_calling_classifier_raises_value_error_for_non_openai_model() -> None:
+def test_llm_function_calling_evaluator_raises_value_error_for_non_openai_model() -> None:
     with pytest.raises(
         ValueError, match="Model must be an instance of 'OpenAIModel', but has type 'OpenAI'."
     ):
-        LLMFunctionCallingClassifier(
+        LLMFunctionCallingEvaluator(
             model=OpenAI(),
             template=PromptTemplate(
                 text=("Query: {query}\nReference: {reference}"),
