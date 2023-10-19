@@ -1,0 +1,49 @@
+name: Publish to PyPI
+
+on: create
+
+jobs:
+  build:
+    name: Build distribution
+    if: startsWith(github.ref, 'refs/tags/')  # only publish to PyPI on tag pushes
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.x"
+      - name: Set up node
+        uses: actions/setup-node@v3
+      - name: Build frontend
+        run: cd app && rm -rf node_modules && npm install && npm run build
+      - name: Install hatch
+        run: |
+          python -m pip install --upgrade pip
+          pip install hatch
+      - name: Build a binary wheel and a source tarball
+        run: rm -rf dist && hatch build
+      - name: Store the distribution packages
+        uses: actions/upload-artifact@v3
+        with:
+          name: python-package-distributions
+          path: dist/
+
+  publish-to-pypi:
+    name: Publish to PyPI
+    needs:
+      - build
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/arize-phoenix
+    permissions:
+      id-token: write  # IMPORTANT: mandatory for trusted publishing
+    steps:
+      - name: Download all the dists
+        uses: actions/download-artifact@v3
+        with:
+          name: python-package-distributions
+          path: dist/
+      - name: Publish distribution to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
