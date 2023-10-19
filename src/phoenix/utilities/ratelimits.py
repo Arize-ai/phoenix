@@ -43,14 +43,14 @@ class LeakyBucket:
     def _per_second_rate(self, per_minute_rate: Numeric) -> float:
         return round(per_minute_rate / 60, 3) * self.rate_multiplier
 
-    def update_limit(self, per_minute_rate: Numeric) -> None:
+    def refresh_limit(self, per_minute_rate: Numeric) -> None:
         new_rate = self._per_second_rate(per_minute_rate)
         if self.rate != new_rate:
             self.rate = new_rate
             self.tokens = 0  # reset tokens as conservatively as possible
             self.last_checked = time.time()
 
-    def available_tokens(self) -> Numeric:
+    def available_tokens(self) -> float:
         time_since_last_checked = time.time() - self.last_checked
         return min(self.max_tokens, self.rate * time_since_last_checked + self.tokens)
 
@@ -118,13 +118,16 @@ class LimitStore:
     def set_rate_limit(self, key: str, limit_type: str, per_minute_rate_limit: Numeric) -> None:
         if limits := self._rate_limits[key]:
             if limit := limits.get(limit_type):
-                limit.update_limit(per_minute_rate_limit)
+                limit.refresh_limit(per_minute_rate_limit)
                 return
         limits[limit_type] = LeakyBucket(
             per_minute_rate_limit,
             0,
             per_minute_rate_limit,
         )
+
+    def get_rate_limits(self, key: str) -> Dict[str, LeakyBucket]:
+        return self._rate_limits[key]
 
     def wait_for_rate_limits(self, key: str, rate_limit_costs: Dict[str, Numeric]) -> None:
         rate_limits = self._rate_limits[key]
