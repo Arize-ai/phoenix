@@ -16,4 +16,4 @@ jobs:
       - uses: google-github-actions/release-please-action@v3
         with:
           release-type: python
-          package-name: phoenix
+          package-name: arize-phoenix
