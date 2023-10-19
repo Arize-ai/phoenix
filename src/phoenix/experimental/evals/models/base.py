@@ -44,8 +44,8 @@ def set_verbosity(
 
 
 @dataclass
-class Response:
-    text: str
+class LLMResponse:
+    content: str
 
 
 @dataclass
@@ -100,7 +100,7 @@ class BaseEvalModel(ABC):
                 "Invalid type for argument `instruction`. Expected a string but found "
                 f"{type(instruction)}."
             )
-        return self.generate(prompts=[prompt], instruction=instruction)[0].text
+        return self.generate(prompts=[prompt], instruction=instruction)[0].content
 
     async def async_call(self, prompt: str, instruction: Optional[str] = None) -> str:
         """Run the LLM on the given prompt."""
@@ -120,7 +120,7 @@ class BaseEvalModel(ABC):
 
     def generate(
         self, prompts: List[str], instruction: Optional[str] = None, **kwargs: Any
-    ) -> List[Response]:
+    ) -> List[LLMResponse]:
         printif(self._verbose, f"Generating responses for {len(prompts)} prompts...")
         if extra_info := self._verbose_generation_info():
             printif(self._verbose, extra_info)
@@ -162,7 +162,7 @@ class BaseEvalModel(ABC):
         return ""
 
     @abstractmethod
-    def _generate(self, prompt: str, **kwargs: Any) -> Response:
+    def _generate(self, prompt: str, **kwargs: Any) -> LLMResponse:
         raise NotImplementedError
 
     async def _agenerate(self, prompt: str, instruction: Optional[str]) -> str:

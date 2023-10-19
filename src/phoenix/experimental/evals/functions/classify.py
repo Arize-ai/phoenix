@@ -64,7 +64,7 @@ def llm_classify(
         prompts = map_template(dataframe, eval_template)
         responses = verbose_model.generate(prompts.to_list(), instruction=system_instruction)
         printif(verbose, f"Snapping {len(responses)} responses to rails: {rails}")
-        return [_snap_to_rail(response.text, rails, verbose=verbose) for response in responses]
+        return [_snap_to_rail(response.content, rails, verbose=verbose) for response in responses]
 
 
 def llm_eval_binary(

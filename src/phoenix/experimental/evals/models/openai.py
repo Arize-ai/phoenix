@@ -3,7 +3,7 @@ import os
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
-from phoenix.experimental.evals.models.base import BaseEvalModel, Response
+from phoenix.experimental.evals.models.base import BaseEvalModel, LLMResponse
 
 if TYPE_CHECKING:
     from tiktoken import Encoding
@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 
 
 @dataclass
-class OpenAIResponse(Response):
+class OpenAIResponse(LLMResponse):
     function_call_arguments_json: Optional[str] = None
 
 
@@ -170,7 +170,7 @@ class OpenAIModel(BaseEvalModel):
             **generate_kwargs,
         )
         if self._model_uses_legacy_completion_api:
-            return OpenAIResponse(text=str(response["choices"][0]["text"]))
+            return OpenAIResponse(content=str(response["choices"][0]["text"]))
 
         choices = response["choices"]
         choice = choices[0]
@@ -182,7 +182,7 @@ class OpenAIModel(BaseEvalModel):
         message_content = (
             str(message_content) if (message_content := message["content"]) is not None else ""
         )
-        return OpenAIResponse(text=message_content, function_call_arguments_json=function_call)
+        return OpenAIResponse(content=message_content, function_call_arguments_json=function_call)
 
     def _generate_with_retry(self, **kwargs: Any) -> Any:
         """Use tenacity to retry the completion call."""
