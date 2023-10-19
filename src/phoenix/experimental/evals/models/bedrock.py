@@ -3,7 +3,7 @@ import logging
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
-from phoenix.experimental.evals.models.base import BaseEvalModel
+from phoenix.experimental.evals.models.base import BaseEvalModel, Response
 
 if TYPE_CHECKING:
     from tiktoken import Encoding
@@ -106,7 +106,7 @@ class BedrockModel(BaseEvalModel):
     def get_text_from_tokens(self, tokens: List[int]) -> str:
         return self.encoder.decode(tokens)
 
-    def _generate(self, prompt: str, **kwargs: Dict[str, Any]) -> str:
+    def _generate(self, prompt: str, **kwargs: Dict[str, Any]) -> Response:
         body = json.dumps(self._create_request_body(prompt))
         accept = "application/json"
         contentType = "application/json"
@@ -115,7 +115,7 @@ class BedrockModel(BaseEvalModel):
             body=body, modelId=self.model_id, accept=accept, contentType=contentType
         )
 
-        return self._parse_output(response) or ""
+        return Response(text=self._parse_output(response) or "")
 
     def _generate_with_retry(self, **kwargs: Any) -> Any:
         """Use tenacity to retry the completion call."""

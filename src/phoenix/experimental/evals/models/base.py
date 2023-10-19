@@ -2,7 +2,7 @@ import logging
 from abc import ABC, abstractmethod, abstractproperty
 from contextlib import contextmanager
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Callable, Dict, Generator, List, Optional, Type
+from typing import TYPE_CHECKING, Any, Callable, Generator, List, Optional, Type
 
 if TYPE_CHECKING:
     from tiktoken import Encoding
@@ -100,7 +100,7 @@ class BaseEvalModel(ABC):
                 "Invalid type for argument `instruction`. Expected a string but found "
                 f"{type(instruction)}."
             )
-        return self.generate(prompts=[prompt], instruction=instruction)[0]
+        return self.generate(prompts=[prompt], instruction=instruction)[0].text
 
     async def async_call(self, prompt: str, instruction: Optional[str] = None) -> str:
         """Run the LLM on the given prompt."""
@@ -119,7 +119,7 @@ class BaseEvalModel(ABC):
         return response[0]
 
     def generate(
-        self, prompts: List[str], instruction: Optional[str] = None, **kwargs: Dict[str, Any]
+        self, prompts: List[str], instruction: Optional[str] = None, **kwargs: Any
     ) -> List[Response]:
         printif(self._verbose, f"Generating responses for {len(prompts)} prompts...")
         if extra_info := self._verbose_generation_info():
@@ -132,9 +132,7 @@ class BaseEvalModel(ABC):
         try:
             outputs = []
             for prompt in tqdm(prompts, bar_format=TQDM_BAR_FORMAT, ncols=100):
-                output = self._generate(
-                    prompt=prompt, instruction=instruction, **kwargs
-                )  # type:ignore
+                output = self._generate(prompt=prompt, instruction=instruction, **kwargs)
                 logger.info(f"Prompt: {prompt}\nInstruction: {instruction}\nOutput: {output}")
                 outputs.append(output)
 
@@ -164,7 +162,7 @@ class BaseEvalModel(ABC):
         return ""
 
     @abstractmethod
-    def _generate(self, prompt: str, **kwargs: Dict[str, Any]) -> Response:
+    def _generate(self, prompt: str, **kwargs: Any) -> Response:
         raise NotImplementedError
 
     async def _agenerate(self, prompt: str, instruction: Optional[str]) -> str:

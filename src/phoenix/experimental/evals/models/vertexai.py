@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
-from phoenix.experimental.evals.models.base import BaseEvalModel
+from phoenix.experimental.evals.models.base import BaseEvalModel, Response
 
 if TYPE_CHECKING:
     from google.auth.credentials import Credentials  # type:ignore
@@ -80,13 +80,13 @@ class VertexAIModel(BaseEvalModel):
     def _verbose_generation_info(self) -> str:
         return f"VertexAI invocation parameters: {self.invocation_params}"
 
-    def _generate(self, prompt: str, **kwargs: Dict[str, Any]) -> str:
+    def _generate(self, prompt: str, **kwargs: Dict[str, Any]) -> Response:
         invoke_params = self.invocation_params
         response = self._generate_with_retry(
             prompt=prompt,
             **invoke_params,
         )
-        return str(response.text)
+        return Response(text=str(response.text))
 
     def _generate_with_retry(self, **kwargs: Any) -> Any:
         """Use tenacity to retry the completion call."""

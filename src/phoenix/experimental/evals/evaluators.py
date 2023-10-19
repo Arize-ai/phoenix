@@ -1,8 +1,8 @@
 import json
 from dataclasses import dataclass
-from typing import Any, List, Mapping, Optional, Protocol
+from typing import Any, List, Mapping, Optional, Protocol, cast
 
-from .models.openai import OpenAIModel
+from .models.openai import OpenAIModel, OpenAIResponse
 from .templates import PromptTemplate
 
 Record = Mapping[str, Any]
@@ -51,10 +51,10 @@ class LLMFunctionCallingEvaluator:
         self._provide_explanation = provide_explanation
 
     def evaluate(self, record: Record, provide_explanation: Optional[bool] = None) -> Eval:
-        user_message_content = self._template.format(
+        user_message = self._template.format(
             {variable_name: record[variable_name] for variable_name in self._template.variables}
         )
-        argument_data = {
+        arguments_schema = {
             self._argument_name: {
                 "type": "string",
                 "description": self._argument_description,
@@ -62,31 +62,30 @@ class LLMFunctionCallingEvaluator:
             },
         }
         required_arguments = [self._argument_name]
-        if provide_explanation or self._provide_explanation:
-            argument_data["explanation"] = {
+        if provide_explanation or (provide_explanation is None and self._provide_explanation):
+            arguments_schema["explanation"] = {
                 "type": "string",
                 "description": "A brief explanation of the reasoning for your answer.",
             }
             required_arguments.append("explanation")
-        functions = [
-            {
-                "name": self._function_name,
-                "description": self._function_description,
-                "parameters": {
-                    "type": "object",
-                    "properties": argument_data,
-                    "required": required_arguments,
-                },
-            }
-        ]
         responses = self._model.generate(
-            [user_message_content],
+            [user_message],
             instruction=self._system_message,
-            functions=functions,
+            functions=[
+                {
+                    "name": self._function_name,
+                    "description": self._function_description,
+                    "parameters": {
+                        "type": "object",
+                        "properties": arguments_schema,
+                        "required": required_arguments,
+                    },
+                }
+            ],
             function_call={"name": self._function_name},
         )
+        response = cast(OpenAIResponse, responses[0])
         try:
-            response = responses[0]
             function_arguments = (
                 json.loads(arguments_json_string)
                 if (arguments_json_string := response.function_call_arguments_json)
