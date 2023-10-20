@@ -158,15 +158,13 @@ class OpenAIModel(BaseEvalModel):
 
     def _generate(self, prompt: str, **kwargs: Dict[str, Any]) -> OpenAIResponse:
         messages = self._build_messages(prompt, kwargs.get("instruction"))  # type:ignore
-        generate_kwargs = self.invocation_params
+        generate_kwargs = {**self.invocation_params}
         if functions := kwargs.get("functions"):
             generate_kwargs["functions"] = functions
-        if function_call := kwargs.get("function_call"):
-            generate_kwargs["function_call"] = function_call
+        if function_call_arguments_json := kwargs.get("function_call"):
+            generate_kwargs["function_call"] = function_call_arguments_json
         response = self._generate_with_retry(
             messages=messages,
-            # functions=functions,
-            # function_call=function_call,
             **generate_kwargs,
         )
         if self._model_uses_legacy_completion_api:
@@ -176,13 +174,15 @@ class OpenAIModel(BaseEvalModel):
         choice = choices[0]
         finish_reason = choice["finish_reason"]
         message = choice["message"]
-        function_call = (
+        function_call_arguments_json = (
             message["function_call"]["arguments"] if finish_reason == "function_call" else None
         )
         message_content = (
             str(message_content) if (message_content := message["content"]) is not None else ""
         )
-        return OpenAIResponse(content=message_content, function_call_arguments_json=function_call)
+        return OpenAIResponse(
+            content=message_content, function_call_arguments_json=function_call_arguments_json
+        )
 
     def _generate_with_retry(self, **kwargs: Any) -> Any:
         """Use tenacity to retry the completion call."""
