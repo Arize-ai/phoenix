@@ -2,7 +2,7 @@ import pytest
 import responses
 from llama_index.llms import OpenAI
 from phoenix.experimental.evals import PromptTemplate
-from phoenix.experimental.evals.evaluators import LLMFunctionCallingEvaluator
+from phoenix.experimental.evals.evaluators import LLMFunctionCallingClassifier
 from phoenix.experimental.evals.models import OpenAIModel
 
 
@@ -15,7 +15,7 @@ def test_llm_function_calling_evaluator_produces_expected_eval_value(
         text=("Query: {query}\nReference: {reference}"),
     )
     function_name = "record_relevance"
-    clf = LLMFunctionCallingEvaluator(
+    clf = LLMFunctionCallingClassifier(
         model=model,
         template=template,
         rails=["relevant", "irrelevant"],
@@ -75,7 +75,7 @@ def test_llm_function_calling_evaluator_produces_expected_eval_value_and_explana
         text=("Query: {query}\nReference: {reference}"),
     )
     function_name = "record_relevance"
-    evaluator = LLMFunctionCallingEvaluator(
+    evaluator = LLMFunctionCallingClassifier(
         model=model,
         template=template,
         rails=["relevant", "irrelevant"],
@@ -135,7 +135,7 @@ def test_llm_function_calling_evaluator_raises_value_error_for_non_openai_model(
     with pytest.raises(
         ValueError, match="Model must be an instance of 'OpenAIModel', but has type 'OpenAI'."
     ):
-        LLMFunctionCallingEvaluator(
+        LLMFunctionCallingClassifier(
             model=OpenAI(),
             template=PromptTemplate(
                 text=("Query: {query}\nReference: {reference}"),
