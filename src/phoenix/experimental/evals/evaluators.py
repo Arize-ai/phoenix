@@ -21,7 +21,8 @@ class Eval:
 
 class Evaluator(Protocol):
     """
-    An interface for evaluators, which are used to evaluate data points.
+    An interface for evaluators, which evaluate individual records, i.e., data
+    points.
     """
 
     def evaluate(self, record: Record) -> Eval:
