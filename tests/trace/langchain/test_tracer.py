@@ -1,5 +1,6 @@
 from json import loads
 from typing import List
+from unittest.mock import patch
 from uuid import UUID
 
 import numpy as np
@@ -334,3 +335,62 @@ def test_tracer_retriever_with_exception() -> None:
 
     for span in spans.values():
         assert json_string_to_span(span_to_json(span)) == span
+
+
+@responses.activate
+@pytest.mark.parametrize(
+    "messages",
+    [
+        pytest.param(
+            [
+                ChatMessage(role="system", content="system-message-content"),
+                ChatMessage(role="user", content="user-message-content"),
+                ChatMessage(role="assistant", content="assistant-message-content"),
+                ChatMessage(role="function", content="function-message-content"),
+            ],
+            id="chat-messages",
+        ),
+        pytest.param(
+            [
+                SystemMessage(content="system-message-content"),
+                HumanMessage(content="user-message-content"),
+                AIMessage(content="assistant-message-content"),
+                FunctionMessage(name="function-name", content="function-message-content"),
+            ],
+            id="non-chat-messages",
+        ),
+    ],
+)
+def test_tracing_llm_chat_completions_fails_gracefully(
+    messages: List[BaseMessage], monkeypatch: pytest.MonkeyPatch, caplog
+) -> None:
+    monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
+    tracer = OpenInferenceTracer(exporter=NoOpExporter())
+    with patch.object(OpenInferenceTracer, "_start_trace") as mock_tracer_internals:
+        mock_tracer_internals.side_effect = RuntimeError("This came from a test")
+        model_name = "gpt-4"
+        llm = ChatOpenAI(model_name=model_name)
+        expected_response = "response-text"
+        responses.post(
+            "https://api.openai.com/v1/chat/completions",
+            json={
+                "id": "chatcmpl-123",
+                "object": "chat.completion",
+                "created": 1677652288,
+                "model": model_name,
+                "choices": [
+                    {
+                        "index": 0,
+                        "message": {"role": "assistant", "content": expected_response},
+                        "finish_reason": "stop",
+                    }
+                ],
+                "usage": {"prompt_tokens": 1, "completion_tokens": 2, "total_tokens": 3},
+            },
+            status=200,
+        )
+        llm(messages, callbacks=[tracer])
+        fallback_log = caplog.records[0].message
+        assert "This came from a test" in fallback_log, "Error should be logged"
+        assert "Traceback" in fallback_log, "Traceback should be logged"
+        assert "Rerouting to fallback method" in fallback_log
