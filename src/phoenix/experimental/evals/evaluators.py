@@ -57,12 +57,13 @@ class LLMFunctionCallingEvaluator:
             should be classified.
 
             function_name (str): The name of the function to call in the
-            function calling API. An example includes.
+            function calling API. For example, if classifying relevance, a
+            reasonable function name would be "record_relevance".
 
-            function_description (str): The description of the purpose. For
-            example, if classifying relevance, a reasonable description would be
-            "A function to record the relevance or irrelevance of individual
-            query-context pairs".
+            function_description (str): The description of the purpose of the
+            function. For example, if classifying relevance, a reasonable
+            description would be "A function to record the relevance or
+            irrelevance of individual query-context pairs".
 
             argument_name (str): The name of the argument to pass to the
             function. For example, if classifying relevance, a reasonable
@@ -81,10 +82,10 @@ class LLMFunctionCallingEvaluator:
 
             provide_explanation (bool, optional): Whether or not to provide an
             explanation for the classification. If true, the explanation will be
-            returned as part of the Eval object. Note that explanations
-            potentially introduce latency and cost to each classification. This
-            argument is overridden by the argument of the same name in the
-            evaluate method.
+            returned as part of the Eval object.  This argument is overridden by
+            the argument of the same name in the evaluate method. (Note:
+            Explanations potentially introduce latency and cost to each
+            classification.)
         """
         if not isinstance(model, OpenAIModel):
             raise ValueError(
