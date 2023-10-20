@@ -45,7 +45,7 @@ class LLMFunctionCallingEvaluator:
     ) -> None:
         """
         An evaluator for classifying records using LLMs that support function
-        calling. Function calling is currently only supported by OpenAI models.
+        calling (currently limited to OpenAI models).
 
         Args:
             model (OpenAIModel): An OpenAI model that supports function calling.
