@@ -20,7 +20,7 @@ class UnavailableTokensError(Exception):
     pass
 
 
-class LeakyBucket:
+class TokenLimiter:
     """
     A simple in-memory rate-limiter implemented using the leaky bucket algorithm.
     """
@@ -109,20 +109,20 @@ class LimitStore:
             cls._singleton._rate_limits = defaultdict(dict)
         return cls._singleton
 
-    _rate_limits: Dict[str, Dict[str, LeakyBucket]]
+    _rate_limits: Dict[str, Dict[str, TokenLimiter]]
 
     def set_rate_limit(self, key: str, limit_type: str, per_minute_rate_limit: Numeric) -> None:
         if limits := self._rate_limits[key]:
             if limit := limits.get(limit_type):
                 limit.refresh_limit(per_minute_rate_limit)
                 return
-        limits[limit_type] = LeakyBucket(
+        limits[limit_type] = TokenLimiter(
             per_minute_rate_limit,
             0,
             per_minute_rate_limit,
         )
 
-    def get_rate_limits(self, key: str) -> Dict[str, LeakyBucket]:
+    def get_rate_limits(self, key: str) -> Dict[str, TokenLimiter]:
         return self._rate_limits[key]
 
     def wait_for_rate_limits(self, key: str, rate_limit_costs: Dict[str, Numeric]) -> None:

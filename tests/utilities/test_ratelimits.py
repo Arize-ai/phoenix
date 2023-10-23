@@ -6,7 +6,7 @@ from typing import Optional
 from unittest import mock
 
 import pytest
-from phoenix.utilities.ratelimits import LeakyBucket, LimitStore, UnavailableTokensError
+from phoenix.utilities.ratelimits import LimitStore, TokenLimiter, UnavailableTokensError
 
 
 @contextmanager
@@ -70,11 +70,11 @@ def async_warp_time(start: Optional[float]):
             yield
 
 
-def test_leaky_bucket_empties_over_time():
+def test_token_limiter_gains_tokens_over_time():
     start = time.time()
 
     with freeze_time(start):
-        bucket = LeakyBucket(per_minute_rate=60, starting_tokens=0, max_tokens=120)
+        bucket = TokenLimiter(per_minute_rate=60, starting_tokens=0, max_tokens=120)
 
     with freeze_time(start + 5):
         assert isclose(bucket.available_tokens(), 5)
@@ -83,11 +83,11 @@ def test_leaky_bucket_empties_over_time():
         assert isclose(bucket.available_tokens(), 10)
 
 
-def test_leaky_bucket_can_empty_out():
+def test_token_limiter_can_max_out_on_tokens():
     start = time.time()
 
     with freeze_time(start):
-        bucket = LeakyBucket(per_minute_rate=60, starting_tokens=0, max_tokens=120)
+        bucket = TokenLimiter(per_minute_rate=60, starting_tokens=0, max_tokens=120)
 
     with freeze_time(start + 60):
         assert bucket.available_tokens() == 60
@@ -99,11 +99,11 @@ def test_leaky_bucket_can_empty_out():
         assert bucket.available_tokens() == 120
 
 
-def leaky_bucket_adjusts_rate_with_multiplier():
+def token_limiter_adjusts_rate_with_multiplier():
     start = time.time()
 
     with freeze_time(start):
-        bucket = LeakyBucket(
+        bucket = TokenLimiter(
             per_minute_rate=60, starting_tokens=0, max_tokens=120, rate_multiplier=0.5
         )
         assert bucket.rate == 0.5 * 60 / 60
@@ -112,31 +112,31 @@ def leaky_bucket_adjusts_rate_with_multiplier():
         assert bucket.available_tokens() == 5
 
 
-def test_leaky_bucket_spends_tokens():
+def test_token_limiter_spends_tokens():
     start = time.time()
 
     with freeze_time(start):
-        bucket = LeakyBucket(per_minute_rate=60, starting_tokens=20, max_tokens=120)
+        bucket = TokenLimiter(per_minute_rate=60, starting_tokens=20, max_tokens=120)
         assert bucket.available_tokens() == 20
         bucket.spend_tokens_if_available(10)
         assert bucket.available_tokens() == 10
 
 
-def test_leaky_bucket_cannot_spend_unavailable_tokens():
+def test_token_limiter_cannot_spend_unavailable_tokens():
     start = time.time()
 
     with freeze_time(start):
-        bucket = LeakyBucket(per_minute_rate=60, starting_tokens=20, max_tokens=120)
+        bucket = TokenLimiter(per_minute_rate=60, starting_tokens=20, max_tokens=120)
         assert bucket.available_tokens() == 20
         with pytest.raises(UnavailableTokensError):
             bucket.spend_tokens_if_available(30)
 
 
-def test_leaky_bucket_can_be_forced_to_spend_tokens():
+def test_token_limiter_can_be_forced_to_spend_tokens():
     start = time.time()
 
     with freeze_time(start):
-        bucket = LeakyBucket(per_minute_rate=60, starting_tokens=20, max_tokens=120)
+        bucket = TokenLimiter(per_minute_rate=60, starting_tokens=20, max_tokens=120)
         assert bucket.available_tokens() == 20
         bucket.spend_tokens(30)
         assert bucket.available_tokens() == -10
@@ -145,7 +145,7 @@ def test_leaky_bucket_can_be_forced_to_spend_tokens():
 def test_leaky_bucket_conservatively_updates_rate():
     start = time.time()
 
-    bucket = LeakyBucket(per_minute_rate=60, starting_tokens=20, max_tokens=120)
+    bucket = TokenLimiter(per_minute_rate=60, starting_tokens=20, max_tokens=120)
     assert isclose(bucket.rate, 60 / 60)
     with freeze_time(start + 10):
         assert bucket.available_tokens() > 0
@@ -159,7 +159,7 @@ def test_leaky_bucket_can_block_until_tokens_are_available():
 
     with freeze_time(start):
         rate = 60
-        bucket = LeakyBucket(per_minute_rate=rate, starting_tokens=0, max_tokens=120)
+        bucket = TokenLimiter(per_minute_rate=rate, starting_tokens=0, max_tokens=120)
 
     with warp_time(start):
         assert bucket.tokens == 0
@@ -175,7 +175,7 @@ async def test_leaky_bucket_async_waits_until_tokens_are_available():
 
     with freeze_time(start):
         rate = 60
-        bucket = LeakyBucket(per_minute_rate=rate, starting_tokens=0, max_tokens=120)
+        bucket = TokenLimiter(per_minute_rate=rate, starting_tokens=0, max_tokens=120)
 
     with async_warp_time(start):
         assert bucket.tokens == 0
@@ -191,7 +191,7 @@ def test_leaky_bucket_can_accumulate_tokens_before_waiting():
 
     with freeze_time(start):
         rate = 60
-        bucket = LeakyBucket(per_minute_rate=rate, starting_tokens=0, max_tokens=120)
+        bucket = TokenLimiter(per_minute_rate=rate, starting_tokens=0, max_tokens=120)
 
     with warp_time(start + 10):
         assert bucket.tokens == 0
@@ -207,7 +207,7 @@ async def test_leaky_bucket_can_async_accumulate_tokens_before_waiting():
 
     with freeze_time(start):
         rate = 60
-        bucket = LeakyBucket(per_minute_rate=rate, starting_tokens=0, max_tokens=120)
+        bucket = TokenLimiter(per_minute_rate=rate, starting_tokens=0, max_tokens=120)
 
     with async_warp_time(start + 10):
         assert bucket.tokens == 0
