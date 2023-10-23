@@ -6,10 +6,10 @@ import { Icons } from "@arizeai/components";
 
 import { Logo } from "./Logo";
 
-const navCSS = (theme: Theme) => css`
-  padding: ${theme.spacing.padding8}px ${theme.spacing.padding16}px;
-  border-bottom: 1px solid ${theme.colors.gray500};
-  background-color: ${theme.colors.gray900};
+const navCSS = css`
+  padding: var(--px-spacing-med) var(--px-spacing-lg);
+  border-bottom: 1px solid var(--ac-global-color-grey-200);
+  background-color: var(--ac-global-color-grey-75);
   flex: none;
   display: flex;
   flex-direction: row;
@@ -54,7 +54,7 @@ function IconLink(props: PropsWithChildren<{ href: string }>) {
         height: 20px;
         display: block;
         svg {
-          fill: ${theme.textColors.white50};
+          fill: var(--ac-global-text-color-500);
           transition: fill 0.2s ease-in-out;
         }
         &:hover svg {

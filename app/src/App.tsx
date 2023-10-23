@@ -11,9 +11,12 @@ import { AppRoutes } from "./Routes";
 
 import "normalize.css";
 
+const componentsTheme =
+  localStorage.getItem("theme") == "light" ? "light" : "dark";
+
 export function App() {
   return (
-    <Provider>
+    <Provider theme={componentsTheme}>
       <ThemeProvider theme={theme}>
         <RelayEnvironmentProvider environment={RelayEnvironment}>
           <GlobalStyles />
