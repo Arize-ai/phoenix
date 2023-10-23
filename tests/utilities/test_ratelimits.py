@@ -1,3 +1,4 @@
+import asyncio
 import time
 from contextlib import contextmanager
 from math import isclose
@@ -38,6 +39,32 @@ def warp_time(start: Optional[float]):
 
     with mock.patch("time.time") as mock_time:
         with mock.patch("time.sleep") as mock_sleep:
+            mock_sleep.side_effect = instant_sleep
+            mock_time.side_effect = time_warp
+            yield
+
+
+@contextmanager
+def async_warp_time(start: Optional[float]):
+    sleeps = [0]
+    current_time = start
+    start = time.time() if start is None else start
+
+    def instant_sleep(time):
+        nonlocal sleeps
+        sleeps.append(time)
+
+    def time_warp():
+        try:
+            nonlocal current_time
+            nonlocal sleeps
+            current_time += sleeps.pop()
+            return current_time
+        except IndexError:
+            return current_time
+
+    with mock.patch("time.time") as mock_time:
+        with mock.patch("asyncio.sleep") as mock_sleep:
             mock_sleep.side_effect = instant_sleep
             mock_time.side_effect = time_warp
             yield
@@ -143,6 +170,22 @@ def test_leaky_bucket_can_block_until_tokens_are_available():
         assert sum(sleeps) >= time_cost
 
 
+async def test_leaky_bucket_async_waits_until_tokens_are_available():
+    start = time.time()
+
+    with freeze_time(start):
+        rate = 60
+        bucket = LeakyBucket(per_minute_rate=rate, starting_tokens=0, max_tokens=120)
+
+    with async_warp_time(start):
+        assert bucket.tokens == 0
+        token_cost = 10
+        await bucket.async_wait_for_then_spend_available_tokens(token_cost)
+        sleeps = [s.args[0] for s in asyncio.sleep.call_args_list]
+        time_cost = token_cost * rate / 60
+        assert sum(sleeps) >= time_cost
+
+
 def test_leaky_bucket_can_accumulate_tokens_before_waiting():
     start = time.time()
 
@@ -155,6 +198,22 @@ def test_leaky_bucket_can_accumulate_tokens_before_waiting():
         token_cost = 10
         bucket.wait_for_then_spend_available_tokens(token_cost)
         sleeps = [s.args[0] for s in time.sleep.call_args_list]
+        time_cost = token_cost * rate / 60
+        assert sum(sleeps) >= time_cost - 10
+
+
+async def test_leaky_bucket_can_async_accumulate_tokens_before_waiting():
+    start = time.time()
+
+    with freeze_time(start):
+        rate = 60
+        bucket = LeakyBucket(per_minute_rate=rate, starting_tokens=0, max_tokens=120)
+
+    with async_warp_time(start + 10):
+        assert bucket.tokens == 0
+        token_cost = 10
+        await bucket.async_wait_for_then_spend_available_tokens(token_cost)
+        sleeps = [s.args[0] for s in asyncio.sleep.call_args_list]
         time_cost = token_cost * rate / 60
         assert sum(sleeps) >= time_cost - 10
 
@@ -188,14 +247,18 @@ def test_limit_store_is_a_singleton():
     assert limits["test-limit"].rate == 60 / 60
 
 
-@pytest.mark.parametrize(["small_token_cost", "big_token_cost"], [(1, 10), (10, 1)])
-def test_limit_store_can_wait_for_all_grouped_rate_limits(small_token_cost, big_token_cost):
+def test_limit_store_can_wait_for_all_grouped_rate_limits():
     start = time.time()
     limit_store = LimitStore()
 
+    small_limit = 10
+    big_limit = 60
+    small_token_cost = 1
+    big_token_cost = 10
+    small_time_cost = small_limit / 60 * small_token_cost
+    big_time_cost = big_limit / 60 * big_token_cost
+
     with freeze_time(start):
-        small_limit = 10
-        big_limit = 60
         limit_store.set_rate_limit("special-limit-group", "small-limit", small_limit)
         limit_store.set_rate_limit("special-limit-group", "big-limit", big_limit)
 
@@ -204,9 +267,76 @@ def test_limit_store_can_wait_for_all_grouped_rate_limits(small_token_cost, big_
             "special-limit-group", {"small-limit": small_token_cost, "big-limit": big_token_cost}
         )
         sleeps = [s.args[0] for s in time.sleep.call_args_list]
-        small_time_cost = small_limit / 60 * small_token_cost
-        big_time_cost = big_limit / 60 * big_token_cost
-        assert sum(sleeps) >= max(small_time_cost, big_time_cost)
+        assert small_time_cost < big_time_cost < sum(sleeps)
+
+
+def test_limit_store_can_wait_for_all_grouped_rate_limits_small():
+    start = time.time()
+    limit_store = LimitStore()
+
+    small_limit = 10
+    big_limit = 60
+    small_token_cost = 10
+    big_token_cost = 1
+    small_time_cost = small_limit / 60 * small_token_cost
+    big_time_cost = big_limit / 60 * big_token_cost
+
+    with freeze_time(start):
+        limit_store.set_rate_limit("special-limit-group", "small-limit", small_limit)
+        limit_store.set_rate_limit("special-limit-group", "big-limit", big_limit)
+
+    with warp_time(start):
+        limit_store.wait_for_rate_limits(
+            "special-limit-group", {"small-limit": small_token_cost, "big-limit": big_token_cost}
+        )
+        sleeps = [s.args[0] for s in time.sleep.call_args_list]
+        assert big_time_cost < small_time_cost < sum(sleeps)
+
+
+async def test_limit_store_can_async_wait_for_all_grouped_rate_limits():
+    start = time.time()
+    limit_store = LimitStore()
+
+    small_limit = 10
+    big_limit = 60
+    small_token_cost = 1
+    big_token_cost = 10
+    small_time_cost = small_limit / 60 * small_token_cost
+    big_time_cost = big_limit / 60 * big_token_cost
+
+    with freeze_time(start):
+        limit_store.set_rate_limit("special-limit-group", "small-limit", small_limit)
+        limit_store.set_rate_limit("special-limit-group", "big-limit", big_limit)
+
+    with async_warp_time(start):
+        await limit_store.async_wait_for_rate_limits(
+            "special-limit-group", {"small-limit": small_token_cost, "big-limit": big_token_cost}
+        )
+        sleeps = [s.args[0] for s in asyncio.sleep.call_args_list]
+        assert small_time_cost < big_time_cost < sum(sleeps)
+
+
+async def test_limit_store_can_async_wait_for_all_grouped_rate_limits_small():
+    start = time.time()
+    limit_store = LimitStore()
+
+    small_limit = 10
+    big_limit = 60
+    small_token_cost = 10
+    big_token_cost = 1
+    small_time_cost = small_limit / 60 * small_token_cost
+    big_time_cost = big_limit / 60 * big_token_cost
+
+    with freeze_time(start):
+        limit_store.set_rate_limit("special-limit-group", "small-limit", small_limit)
+        limit_store.set_rate_limit("special-limit-group", "big-limit", big_limit)
+
+    with async_warp_time(start):
+        await limit_store.async_wait_for_rate_limits(
+            "special-limit-group", {"small-limit": small_token_cost, "big-limit": big_token_cost}
+        )
+        sleeps = [s.args[0] for s in asyncio.sleep.call_args_list]
+        assert big_time_cost < small_time_cost < sum(sleeps)
 
 
 def test_limit_store_can_force_spend_tokens():

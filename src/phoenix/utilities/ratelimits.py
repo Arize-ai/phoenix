@@ -80,18 +80,14 @@ class LeakyBucket:
 
     async def async_wait_for_then_spend_available_tokens(self, token_cost: Numeric) -> None:
         MAX_WAIT_TIME = 5 * 60
-        time.time()
-        try:
-            async with asyncio.timeout(MAX_WAIT_TIME):
-                while True:
-                    try:
-                        self.spend_tokens_if_available(token_cost)
-                        break
-                    except UnavailableTokensError:
-                        await asyncio.sleep(1 / self.rate)
-                        continue
-        except asyncio.TimeoutError:
-            pass
+        start = time.time()
+        while (time.time() - start) < MAX_WAIT_TIME:
+            try:
+                self.spend_tokens_if_available(token_cost)
+                break
+            except UnavailableTokensError:
+                await asyncio.sleep(1 / self.rate)
+                continue
 
     def effective_rate(self) -> Numeric:
         return self.total_tokens / (time.time() - self.created)
