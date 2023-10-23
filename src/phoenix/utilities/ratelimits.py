@@ -3,7 +3,7 @@ import sys
 import time
 from collections import defaultdict
 from functools import wraps
-from typing import Any, Awaitable, Callable, Dict, TypeVar, Union, cast
+from typing import Any, Awaitable, Callable, Dict, Optional, TypeVar, Union, cast
 
 if sys.version_info < (3, 10):
     from typing_extensions import ParamSpec
@@ -43,11 +43,12 @@ class TokenLimiter:
     def _per_second_rate(self, per_minute_rate: Numeric) -> float:
         return round(per_minute_rate / 60, 3) * self.rate_multiplier
 
-    def refresh_limit(self, per_minute_rate: Numeric) -> None:
+    def refresh_limit(self, per_minute_rate: Numeric, max_tokens: Numeric) -> None:
         new_rate = self._per_second_rate(per_minute_rate)
         if self.rate != new_rate:
             self.rate = new_rate
             self.tokens = 0  # reset tokens as conservatively as possible
+            self.max_tokens = max_tokens
             self.last_checked = time.time()
 
     def available_tokens(self) -> float:
@@ -111,15 +112,26 @@ class LimitStore:
 
     _rate_limits: Dict[str, Dict[str, TokenLimiter]]
 
-    def set_rate_limit(self, key: str, limit_type: str, per_minute_rate_limit: Numeric) -> None:
+    def set_rate_limit(
+        self,
+        key: str,
+        limit_type: str,
+        per_minute_rate_limit: Numeric,
+        enforcement_window_minutes: Optional[int] = None,
+    ) -> None:
+        # default to 1 minute enforcement window
+        enforcement_window_minutes = (
+            enforcement_window_minutes if enforcement_window_minutes is not None else 1
+        )
+        max_tokens = per_minute_rate_limit * enforcement_window_minutes
         if limits := self._rate_limits[key]:
             if limit := limits.get(limit_type):
-                limit.refresh_limit(per_minute_rate_limit)
+                limit.refresh_limit(per_minute_rate_limit, max_tokens)
                 return
         limits[limit_type] = TokenLimiter(
             per_minute_rate_limit,
             0,
-            per_minute_rate_limit,
+            max_tokens,
         )
 
     def get_rate_limits(self, key: str) -> Dict[str, TokenLimiter]:
