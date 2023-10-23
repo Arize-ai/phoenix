@@ -75,7 +75,7 @@ A trace is made of one or more spans. The first span represents the root span. E
 
 ## Span Kind
 
-When a span is created,  it is created as one of the following: Chain, Retriever, LLM, Embedding, Agent, or Tool.&#x20;
+When a span is created,  it is created as one of the following: Chain, Retriever, Reranker, LLM, Embedding, Agent, or Tool.&#x20;
 
 <figure><img src="https://storage.googleapis.com/arize-assets/phoenix/assets/images/Supported%20LLM%20Span%20types.png" alt=""><figcaption><p>The SpanKinds supported by OpenInference Tracing</p></figcaption></figure>
 
@@ -86,6 +86,10 @@ A Chain is a starting point or a link between different LLM application steps. F
 **RETRIEVER**
 
 A Retriever is a span that represents a data retrieval step. For example, a Retriever span could be used to represent a call to a vector store or a database.
+
+**RERANKER**
+
+A Reranker is a span that represents the reranking of a set of input documents. For example, a cross-encoder may be used to compute the input documents' relevance scores with respect to a user query, and the top K documents with the highest scores are then returned by the Reranker.
 
 **LLM**
 
