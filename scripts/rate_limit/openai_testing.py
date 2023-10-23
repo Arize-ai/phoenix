@@ -32,7 +32,7 @@ HEADERS = {
 MAX_CONCURRENT_REQUESTS = 20
 
 MAX_QUEUE_SIZE = 40
-request_queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue(maxsize=MAX_QUEUE_SIZE)
+request_queue: asyncio.Queue[Dict[str, Any]] = asyncio.Queue(maxsize=MAX_QUEUE_SIZE)
 
 prompt = "hello!"
 payload_template = {

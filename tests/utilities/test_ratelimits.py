@@ -142,7 +142,7 @@ def test_token_limiter_can_be_forced_to_spend_tokens():
         assert bucket.available_tokens() == -10
 
 
-def test_leaky_bucket_conservatively_updates_rate():
+def test_token_limiter_conservatively_updates_rate():
     start = time.time()
 
     bucket = TokenLimiter(per_minute_rate=60, starting_tokens=20, max_tokens=120)
@@ -154,7 +154,7 @@ def test_leaky_bucket_conservatively_updates_rate():
         assert bucket.available_tokens() == 0
 
 
-def test_leaky_bucket_can_block_until_tokens_are_available():
+def test_token_limiter_can_block_until_tokens_are_available():
     start = time.time()
 
     with freeze_time(start):
@@ -170,7 +170,7 @@ def test_leaky_bucket_can_block_until_tokens_are_available():
         assert sum(sleeps) >= time_cost
 
 
-async def test_leaky_bucket_async_waits_until_tokens_are_available():
+async def test_token_limiter_async_waits_until_tokens_are_available():
     start = time.time()
 
     with freeze_time(start):
@@ -186,7 +186,7 @@ async def test_leaky_bucket_async_waits_until_tokens_are_available():
         assert sum(sleeps) >= time_cost
 
 
-def test_leaky_bucket_can_accumulate_tokens_before_waiting():
+def test_token_limiter_can_accumulate_tokens_before_waiting():
     start = time.time()
 
     with freeze_time(start):
@@ -202,7 +202,7 @@ def test_leaky_bucket_can_accumulate_tokens_before_waiting():
         assert sum(sleeps) >= time_cost - 10
 
 
-async def test_leaky_bucket_can_async_accumulate_tokens_before_waiting():
+async def test_token_limiter_can_async_accumulate_tokens_before_waiting():
     start = time.time()
 
     with freeze_time(start):
