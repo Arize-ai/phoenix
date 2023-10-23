@@ -24,5 +24,5 @@ jobs:
           path-to-signatures: 'signatures/version1/cla.json'
           path-to-document: 'https://github.com/Arize-ai/phoenix/blob/main/CLA.md'
           branch: 'cla'
-          allowlist: gitbook-bot
+          allowlist: gitbook-bot, github-actions
 
