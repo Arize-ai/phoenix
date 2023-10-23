@@ -1,7 +1,9 @@
 # Evaluation conventions
-# a sub-category of conventions that maps to the evaluation of the different types of spans
+
+# a sub-category of semantic conventions that maps to the evaluation of the different types of spans
 # and traces. evaluation attributes differ from other attributes in that they rely on evaluators
 # that are run on the spans to generate the evaluation results.
+
 
 EVAL_DOCUMENT_RELEVANCY = "eval.document_relevancy"
 """
@@ -21,9 +23,10 @@ The precision of a retriever.
 This is the percentage of relevant documents over the total
 """
 
-EVAL_DOCUMENTS_PRECISION_AT_K = "eval.documents_precision_at_k"
+EVAL_DOCUMENTS_PRECISION_AT_K_TEMPLATE = "eval.documents_precision_at_{k}"
 """
-An K dimensional array of precision values for each K in the range [1, K].
-This value would be computed on top of the document_relevancy attribute of each document.
-E.x. a relevancy of [0, 1, 1, 0, 1] would result in a precision_at_k of [0, 0.5, 0.66, 0.5, 0.6]
+The prefix given to an evaluation metric that captures the precision of a
+retriever up to K. E.x. you would have eval.documents_precision_at_1,
+eval.documents_precision_at_2, up to the max number of documents This value
+would be computed on top of the document_relevancy attribute of each document.
 """
