@@ -18,10 +18,22 @@ class TokenRateLimiter:
     """
     A in-memory rate-limiter implemented using the leaky bucket algorithm.
 
-    A description of the technique is descripted here (https://en.wikipedia.org/wiki/Leaky_bucket).
-    Instead of a leaking bucket metaphor, this implementation uses a pile of tokens. These tokens
-    grow (instead of leak) at `rate` tokens per second up to some maximum. Tokens can be spent
-    to process requests.
+    A description of the technique can be found here (https://en.wikipedia.org/wiki/Leaky_bucket).
+    Instead of a leaking bucket metaphor, this implementation uses a pile of arbitrary tokens.
+    These tokens replenish (instead of leak) at `rate` tokens per second up to a maximum.
+    Tokens can be spent to process requests.
+
+    Args:
+    per_minute_rate (float): The rate at which tokens replenish.
+
+    starting_tokens (float): The number of tokens the rate limiter starts with.
+
+    max_tokens (float): The maximum number of tokens this rate limiter can hold. Tokens will not
+    replenish past this value.
+
+    rate_multiplier (float, Optional): A multiplier used to adjust the rate limit applied by this
+    object. For example, a rate_multiplier of 0.8 can be used to ensure that all actions
+    controlled by this rate limiter will never exceed 0.8 times the originally specified rate.
     """
 
     def __init__(

@@ -6,7 +6,11 @@ from typing import Optional
 from unittest import mock
 
 import pytest
-from phoenix.experimental.evals.models.rate_limiters import LimitStore, TokenRateLimiter, UnavailableTokensError
+from phoenix.experimental.evals.models.rate_limiters import (
+    LimitStore,
+    TokenRateLimiter,
+    UnavailableTokensError,
+)
 
 
 @contextmanager
