@@ -9,7 +9,7 @@ from typing import Any, Deque, Dict
 import httpx
 import openai
 import tiktoken
-from phoenix.utilities.ratelimits import OpenAIRateLimiter
+from phoenix.experimental.evals.models.rate_limiters import OpenAIRateLimiter
 
 # define trackers
 START_TIME = time.time()
