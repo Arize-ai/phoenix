@@ -38,24 +38,21 @@ class TokenRateLimiter:
 
     def __init__(
         self,
-        per_minute_rate: Numeric,
+        per_second_rate: Numeric,
         starting_tokens: Numeric,
         max_tokens: Numeric,
         rate_multiplier: Numeric = 1,
     ):
         self.rate_multiplier = rate_multiplier
-        self.rate = self._per_second_rate(per_minute_rate)
+        self.rate = per_second_rate * self.rate_multiplier
         self.tokens = starting_tokens
         self.max_tokens = max_tokens
         self.created = time.time()
         self.last_checked = self.created
         self.total_tokens: Numeric = 0
 
-    def _per_second_rate(self, per_minute_rate: Numeric) -> float:
-        return round(per_minute_rate / 60, 3) * self.rate_multiplier
-
-    def update_limit(self, per_minute_rate: Numeric, max_tokens: Numeric) -> None:
-        new_rate = self._per_second_rate(per_minute_rate)
+    def update_limit(self, per_second_rate: Numeric, max_tokens: Numeric) -> None:
+        new_rate = per_second_rate * self.rate_multiplier
         if self.rate != new_rate:
             self.rate = new_rate
             self.tokens = 0  # reset tokens as conservatively as possible
@@ -140,13 +137,14 @@ class LimitStore:
         enforcement_window_minutes = (
             enforcement_window_minutes if enforcement_window_minutes is not None else 1
         )
+        per_second_rate_limit = round(per_minute_rate_limit / 60, 3)
         max_tokens = per_minute_rate_limit * enforcement_window_minutes
         if limits := self._rate_limits[key]:
             if limit := limits.get(limit_type):
-                limit.update_limit(per_minute_rate_limit, max_tokens)
+                limit.update_limit(per_second_rate_limit, max_tokens)
                 return
         limits[limit_type] = TokenRateLimiter(
-            per_minute_rate_limit,
+            per_second_rate_limit,
             0,
             max_tokens,
         )
