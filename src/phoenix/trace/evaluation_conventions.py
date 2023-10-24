@@ -20,7 +20,7 @@ outputted by the span (typically a retriever).
 EVAL_DOCUMENTS_PRECISION = "eval.documents_precision"
 """
 The precision of a retriever.
-This is the percentage of relevant documents over the total
+This is the proportion (expressed as a value between 0 and 1) of relevant documents over the total
 """
 
 EVAL_DOCUMENTS_PRECISION_AT_K_TEMPLATE = "eval.documents_precision_at_{k}"
