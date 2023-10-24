@@ -79,10 +79,11 @@ class TokenRateLimiter:
         self.tokens -= token_cost
         self.total_tokens += token_cost
 
-    def wait_for_then_spend_available_tokens(self, token_cost: Numeric) -> None:
-        MAX_WAIT_TIME = 5 * 60  # 5 minutes
+    def wait_for_then_spend_available_tokens(
+        self, token_cost: Numeric, max_wait_time: Numeric = 300
+    ) -> None:
         start = time.time()
-        while (time.time() - start) < MAX_WAIT_TIME:
+        while (time.time() - start) < max_wait_time:
             try:
                 self.spend_tokens_if_available(token_cost)
                 break
@@ -90,10 +91,11 @@ class TokenRateLimiter:
                 time.sleep(1 / self.rate)
                 continue
 
-    async def async_wait_for_then_spend_available_tokens(self, token_cost: Numeric) -> None:
-        MAX_WAIT_TIME = 5 * 60
+    async def async_wait_for_then_spend_available_tokens(
+        self, token_cost: Numeric, max_wait_time: Numeric = 300
+    ) -> None:
         start = time.time()
-        while (time.time() - start) < MAX_WAIT_TIME:
+        while (time.time() - start) < max_wait_time:
             try:
                 self.spend_tokens_if_available(token_cost)
                 break
