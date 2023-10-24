@@ -7,14 +7,15 @@
 
 EVAL_DOCUMENT_RELEVANCIES = "eval.document_relevancies"
 """
-Attached to a document within a retriever span. An Int value of 1 or
-0 indicating whether the document is relevant to the input query.
+A list of relevancies for the documents of a retriever span. An Int value of 1 or
+0 indicates whether the document is relevant to the input query.
 """
 
-EVAL_DOCUMENTS_RELEVANCY_PERCENT = "eval.documents_relevancy_percent"
+EVAL_DOCUMENTS_RELEVANCY_RATIO = "eval.documents_relevancy_ratio"
 """
-Span level attribute denoting the percentage of relevant documents that were
-outputted by the span (typically a retriever).
+Span level attribute denoting the ratio of relevant documents that were
+outputted by the span (typically a retriever). E.g. if the document_relevancies
+is [1, 0, 1, 1, 0], then the documents_relevancy_ratio would be 0.6
 """
 
 EVAL_DOCUMENTS_PRECISION = "eval.documents_precision"
