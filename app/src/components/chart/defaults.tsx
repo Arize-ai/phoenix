@@ -8,7 +8,7 @@ import { theme } from "@arizeai/components";
  */
 export const defaultTimeXAxisProps: XAxisProps = {
   dataKey: "timestamp",
-  stroke: theme.colors.gray200,
+  stroke: "var(--ac-global-colo-grey-400)",
   style: { fill: "var(--ac-global-text-color-700)" },
   scale: "time",
   type: "number",
@@ -17,7 +17,7 @@ export const defaultTimeXAxisProps: XAxisProps = {
 };
 
 export const defaultSelectedTimestampReferenceLineProps: ReferenceLineProps = {
-  stroke: "white",
+  stroke: "var(--ac-global-color-grey-900)",
   label: {
     value: "▼",
     position: "top",

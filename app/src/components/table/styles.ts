@@ -38,7 +38,7 @@ export const tableCSS = (theme: Theme) => css`
           touch-action: none;
           &.isResizing,
           &:hover {
-            background: var(--px-light-blue-color);
+            background: var(--ac-global-color-primary);
           }
         }
       }

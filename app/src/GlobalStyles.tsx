@@ -38,7 +38,8 @@ export function GlobalStyles() {
           /* Works on Firefox */
           * {
             scrollbar-width: thin;
-            scrollbar-color: ${theme.colors.gray300} ${theme.colors.gray500};
+            scrollbar-color: var(--ac-global-color-grey-300)
+              var(--ac-global-color-grey-400);
           }
 
           /* Works on Chrome, Edge, and Safari */
@@ -47,19 +48,18 @@ export function GlobalStyles() {
           }
 
           *::-webkit-scrollbar-track {
-            background: ${theme.colors.gray700};
+            background: var(--ac-global-color-grey-100);
           }
 
           *::-webkit-scrollbar-thumb {
-            background-color: ${theme.colors.gray900};
+            background-color: var(--ac-global-color-grey-75);
             border-radius: 8px;
-            border: 1px solid ${theme.colors.gray300};
+            border: 1px solid var(--ac-global-color-grey-300);
           }
         }
 
         :root {
           --px-blue-color: ${theme.colors.arizeBlue};
-          --px-light-blue-color: ${theme.colors.arizeLightBlue};
 
           --px-primary-color: #9efcfd;
           --px-primary-color--transparent: rgb(158, 252, 253, 0.2);
@@ -68,14 +68,13 @@ export function GlobalStyles() {
           --px-corpus-color: #92969c;
           --px-corpus-color--transparent: #92969c63;
 
-          --px-background-color-800: ${theme.colors.gray800};
           --px-background-color-500: ${theme.colors.gray500};
 
           --px-flex-gap-sm: ${theme.spacing.margin4}px;
           --px-flex-gap-sm: ${theme.spacing.margin8}px;
 
           --px-border-color-500: ${theme.colors.gray500};
-          --px-border-color-300: ${theme.colors.gray300};
+          --px-border-color-300: var(--ac-global-color-grey-300);
 
           --px-section-background-color: ${theme.colors.gray500};
 

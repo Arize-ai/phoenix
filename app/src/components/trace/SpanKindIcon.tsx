@@ -221,7 +221,7 @@ export function SpanKindIcon({ spanKind }: { spanKind: string }) {
       icon = <LLMSVG />;
       break;
     case "chain":
-      color = "--px-light-blue-color";
+      color = "--ac-global-color-primary";
       icon = <ChainSVG />;
       break;
     case "retriever":

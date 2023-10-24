@@ -1,6 +1,6 @@
 import { css, Theme } from "@emotion/react";
 
-export const resizeHandleCSS = (theme: Theme) => css`
+export const resizeHandleCSS = css`
   transition: 250ms linear all;
   background-color: var(--ac-global-color-grey-200);
   display: flex;

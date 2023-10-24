@@ -366,12 +366,11 @@ function DocumentPreview(props: Pick<EventItemProps, "size" | "documentText">) {
         margin-block-start: 0;
         margin-block-end: 0;
         position: relative;
-        --text-preview-background-color: var(--px-background-color-800);
+        --text-preview-background-color: var(--ac-global-color-grey-100);
         background-color: var(--text-preview-background-color);
 
         &[data-size="small"] {
           padding: var(--px-spacing-sm);
-          font-size: var(--ac-global-color-gray-600);
           box-sizing: border-box;
         }
         &:before {

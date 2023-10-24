@@ -65,7 +65,7 @@ function TooltipContent({
             display: flex;
             flex-direction: row;
             align-items: center;
-            color: var(--px-light-blue-color);
+            color: var(--ac-global-color-primary);
             gap: var(--px-spacing-sm);
 
             margin-top: var(--px-spacing-sm);
