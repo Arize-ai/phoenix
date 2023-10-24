@@ -77,7 +77,7 @@ A trace is made of one or more spans. The first span represents the root span. E
 
 When a span is created,  it is created as one of the following: Chain, Retriever, Reranker, LLM, Embedding, Agent, or Tool.&#x20;
 
-<figure><img src="https://storage.googleapis.com/arize-assets/phoenix/assets/images/Supported%20LLM%20Span%20types.png" alt=""><figcaption><p>The SpanKinds supported by OpenInference Tracing</p></figcaption></figure>
+<figure><img src="https://storage.googleapis.com/arize-assets/phoenix/assets/images/span_kinds.png" alt=""><figcaption><p>The SpanKinds supported by OpenInference Tracing</p></figcaption></figure>
 
 **CHAIN**
 
