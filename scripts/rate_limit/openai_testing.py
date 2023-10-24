@@ -121,12 +121,12 @@ def initial_token_cost(payload: Dict[str, Any]) -> int:
 
 def response_token_cost(response: httpx.Response) -> int:
     if response.status_code == 200:
-        return int(response.json()["usage"]["completion_tokens"])
+        return int(response.json()["usage"]["total_tokens"])
     else:
         return 0
 
 
-@rate_limiter.alimit("gpt-4", initial_token_cost, response_token_cost)
+@rate_limiter.alimit("gpt-4", response_token_cost)
 async def openai_request(payload: Dict[str, Any]) -> httpx.Response:
     async with httpx.AsyncClient() as client:
         response = await client.post(API_URL, headers=HEADERS, json=payload, timeout=None)

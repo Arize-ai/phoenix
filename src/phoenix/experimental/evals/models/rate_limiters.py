@@ -2,7 +2,9 @@ import asyncio
 import time
 from collections import defaultdict
 from functools import wraps
-from typing import Any, Awaitable, Callable, Dict, Optional, ParamSpec, TypeVar, Union, cast
+from typing import Any, Awaitable, Callable, Dict, Optional, TypeVar, Union, cast
+
+from typing_extensions import ParamSpec
 
 Numeric = Union[int, float]
 ParameterSpec = ParamSpec("ParameterSpec")
