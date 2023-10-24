@@ -207,7 +207,6 @@ class OpenAIRateLimiter:
     def alimit(
         self,
         model_name: str,
-        input_cost_fn: Callable[..., Numeric],
         response_cost_fn: Callable[..., Numeric],
     ) -> Callable[[AsyncCallable], AsyncCallable]:
         def rate_limit_decorator(fn: AsyncCallable) -> AsyncCallable:
@@ -215,7 +214,11 @@ class OpenAIRateLimiter:
             async def wrapper(*args: Any, **kwargs: Any) -> GenericType:
                 key = self.key(model_name)
                 await self._store.async_wait_for_rate_limits(
-                    key, {"requests": 1, "tokens": input_cost_fn(*args, **kwargs)}
+                    key,
+                    {
+                        "requests": 1,
+                        "tokens": 0,
+                    },  # token costs are 0 up front, infer from the response instead
                 )
                 result: GenericType = await fn(*args, **kwargs)
                 self._store.spend_rate_limits(key, {"tokens": response_cost_fn(result)})
