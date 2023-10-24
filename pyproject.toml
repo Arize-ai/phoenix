@@ -116,6 +116,7 @@ dependencies = [
   "types-tqdm",
   "types-requests",
   "types-protobuf",
+  "httpx",
 ]
 
 [tool.hatch.envs.style]
