@@ -42,7 +42,7 @@ payload_template = {
 }
 
 
-rate_limiter = OpenAIRateLimiter(openai.api_key)
+rate_limiter = OpenAIRateLimiter()
 
 
 def request_time(bucket_size: int) -> float:

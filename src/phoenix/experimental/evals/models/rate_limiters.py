@@ -174,12 +174,11 @@ class LimitStore:
 
 
 class OpenAIRateLimiter:
-    def __init__(self, api_key: str) -> None:
+    def __init__(self) -> None:
         self._store = LimitStore()
-        self._api_key = api_key
 
     def key(self, model_name: str) -> str:
-        return f"openai:{self._api_key}:{model_name}"
+        return f"openai:{model_name}"
 
     def set_rate_limits(
         self, model_name: str, request_rate_limit: Numeric, token_rate_limit: Numeric
