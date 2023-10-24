@@ -5,7 +5,7 @@
 # that are run on the spans to generate the evaluation results.
 
 
-EVAL_DOCUMENT_RELEVANCY = "eval.document_relevancy"
+EVAL_DOCUMENT_RELEVANCIES = "eval.document_relevancies"
 """
 Attached to a document within a retriever span. An Int value of 1 or
 0 indicating whether the document is relevant to the input query.
