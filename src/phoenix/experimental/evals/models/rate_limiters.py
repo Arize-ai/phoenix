@@ -18,12 +18,11 @@ class UnavailableTokensError(Exception):
 
 class TokenRateLimiter:
     """
-    A in-memory rate-limiter implemented using the leaky bucket algorithm.
+    A in-memory rate-limiter implemented using the token bucket algorithm.
 
-    A description of the technique can be found here (https://en.wikipedia.org/wiki/Leaky_bucket).
-    Instead of a leaking bucket metaphor, this implementation uses a pile of arbitrary tokens.
-    These tokens replenish (instead of leak) at `rate` tokens per second up to a maximum.
-    Tokens can be spent to process requests.
+    A description of the technique can be found here: (https://en.wikipedia.org/wiki/Token_bucket).
+    A collection of arbitrary tokens replenish at `rate` tokens per second up to a maximum. These
+    tokens can be spent to process requests.
 
     Args:
     per_minute_rate (float): The rate at which tokens replenish.
