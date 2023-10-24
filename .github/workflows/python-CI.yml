@@ -18,7 +18,7 @@ concurrency:
 
 env:
     pip-version: 23.1.2
-    PYTORCH_MPS_HIGH_WATERMARK_RATIO: 0.7 # disable memory warnings
+    OPENAI_API_KEY: "sk-fake-openai-key" # fake openai key so that llama_index doesn't download huggingface embeddings
 
 jobs:
     lint:
