@@ -54,7 +54,7 @@ class TokenRateLimiter:
     def _per_second_rate(self, per_minute_rate: Numeric) -> float:
         return round(per_minute_rate / 60, 3) * self.rate_multiplier
 
-    def refresh_limit(self, per_minute_rate: Numeric, max_tokens: Numeric) -> None:
+    def update_limit(self, per_minute_rate: Numeric, max_tokens: Numeric) -> None:
         new_rate = self._per_second_rate(per_minute_rate)
         if self.rate != new_rate:
             self.rate = new_rate
@@ -141,7 +141,7 @@ class LimitStore:
         max_tokens = per_minute_rate_limit * enforcement_window_minutes
         if limits := self._rate_limits[key]:
             if limit := limits.get(limit_type):
-                limit.refresh_limit(per_minute_rate_limit, max_tokens)
+                limit.update_limit(per_minute_rate_limit, max_tokens)
                 return
         limits[limit_type] = TokenRateLimiter(
             per_minute_rate_limit,

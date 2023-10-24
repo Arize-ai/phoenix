@@ -153,7 +153,7 @@ def test_token_rate_limiter_conservatively_updates_rate():
     assert isclose(bucket.rate, 60 / 60)
     with freeze_time(start + 10):
         assert bucket.available_tokens() > 0
-        bucket.refresh_limit(120, max_tokens=240)
+        bucket.update_limit(120, max_tokens=240)
         assert isclose(bucket.rate, 120 / 60)
         assert bucket.available_tokens() == 0
         assert bucket.max_tokens == 240, "Updating the rate can update max_tokens"
