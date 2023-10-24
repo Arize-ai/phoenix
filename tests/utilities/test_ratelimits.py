@@ -6,7 +6,7 @@ from typing import Optional
 from unittest import mock
 
 import pytest
-from phoenix.utilities.ratelimits import LimitStore, TokenLimiter, UnavailableTokensError
+from phoenix.utilities.ratelimits import LimitStore, TokenRateLimiter, UnavailableTokensError
 
 
 @contextmanager
@@ -70,11 +70,11 @@ def async_warp_time(start: Optional[float]):
             yield
 
 
-def test_token_limiter_gains_tokens_over_time():
+def test_token_rate_limiter_gains_tokens_over_time():
     start = time.time()
 
     with freeze_time(start):
-        bucket = TokenLimiter(per_minute_rate=60, starting_tokens=0, max_tokens=120)
+        bucket = TokenRateLimiter(per_minute_rate=60, starting_tokens=0, max_tokens=120)
 
     with freeze_time(start + 5):
         assert isclose(bucket.available_tokens(), 5)
@@ -83,11 +83,11 @@ def test_token_limiter_gains_tokens_over_time():
         assert isclose(bucket.available_tokens(), 10)
 
 
-def test_token_limiter_can_max_out_on_tokens():
+def test_token_rate_limiter_can_max_out_on_tokens():
     start = time.time()
 
     with freeze_time(start):
-        bucket = TokenLimiter(per_minute_rate=60, starting_tokens=0, max_tokens=120)
+        bucket = TokenRateLimiter(per_minute_rate=60, starting_tokens=0, max_tokens=120)
 
     with freeze_time(start + 60):
         assert bucket.available_tokens() == 60
@@ -99,11 +99,11 @@ def test_token_limiter_can_max_out_on_tokens():
         assert bucket.available_tokens() == 120
 
 
-def token_limiter_adjusts_rate_with_multiplier():
+def test_token_rate_limiter_adjusts_rate_with_multiplier():
     start = time.time()
 
     with freeze_time(start):
-        bucket = TokenLimiter(
+        bucket = TokenRateLimiter(
             per_minute_rate=60, starting_tokens=0, max_tokens=120, rate_multiplier=0.5
         )
         assert bucket.rate == 0.5 * 60 / 60
@@ -112,40 +112,40 @@ def token_limiter_adjusts_rate_with_multiplier():
         assert bucket.available_tokens() == 5
 
 
-def test_token_limiter_spends_tokens():
+def test_token_rate_limiter_spends_tokens():
     start = time.time()
 
     with freeze_time(start):
-        bucket = TokenLimiter(per_minute_rate=60, starting_tokens=20, max_tokens=120)
+        bucket = TokenRateLimiter(per_minute_rate=60, starting_tokens=20, max_tokens=120)
         assert bucket.available_tokens() == 20
         bucket.spend_tokens_if_available(10)
         assert bucket.available_tokens() == 10
 
 
-def test_token_limiter_cannot_spend_unavailable_tokens():
+def test_token_rate_limiter_cannot_spend_unavailable_tokens():
     start = time.time()
 
     with freeze_time(start):
-        bucket = TokenLimiter(per_minute_rate=60, starting_tokens=20, max_tokens=120)
+        bucket = TokenRateLimiter(per_minute_rate=60, starting_tokens=20, max_tokens=120)
         assert bucket.available_tokens() == 20
         with pytest.raises(UnavailableTokensError):
             bucket.spend_tokens_if_available(30)
 
 
-def test_token_limiter_can_be_forced_to_spend_tokens():
+def test_token_rate_limiter_can_be_forced_to_spend_tokens():
     start = time.time()
 
     with freeze_time(start):
-        bucket = TokenLimiter(per_minute_rate=60, starting_tokens=20, max_tokens=120)
+        bucket = TokenRateLimiter(per_minute_rate=60, starting_tokens=20, max_tokens=120)
         assert bucket.available_tokens() == 20
         bucket.spend_tokens(30)
         assert bucket.available_tokens() == -10
 
 
-def test_token_limiter_conservatively_updates_rate():
+def test_token_rate_limiter_conservatively_updates_rate():
     start = time.time()
 
-    bucket = TokenLimiter(per_minute_rate=60, starting_tokens=20, max_tokens=120)
+    bucket = TokenRateLimiter(per_minute_rate=60, starting_tokens=20, max_tokens=120)
     assert isclose(bucket.rate, 60 / 60)
     with freeze_time(start + 10):
         assert bucket.available_tokens() > 0
@@ -155,12 +155,12 @@ def test_token_limiter_conservatively_updates_rate():
         assert bucket.max_tokens == 240, "Updating the rate can update max_tokens"
 
 
-def test_token_limiter_can_block_until_tokens_are_available():
+def test_token_rate_limiter_can_block_until_tokens_are_available():
     start = time.time()
 
     with freeze_time(start):
         rate = 60
-        bucket = TokenLimiter(per_minute_rate=rate, starting_tokens=0, max_tokens=120)
+        bucket = TokenRateLimiter(per_minute_rate=rate, starting_tokens=0, max_tokens=120)
 
     with warp_time(start):
         assert bucket.tokens == 0
@@ -171,12 +171,12 @@ def test_token_limiter_can_block_until_tokens_are_available():
         assert sum(sleeps) >= time_cost
 
 
-async def test_token_limiter_async_waits_until_tokens_are_available():
+async def test_token_rate_limiter_async_waits_until_tokens_are_available():
     start = time.time()
 
     with freeze_time(start):
         rate = 60
-        bucket = TokenLimiter(per_minute_rate=rate, starting_tokens=0, max_tokens=120)
+        bucket = TokenRateLimiter(per_minute_rate=rate, starting_tokens=0, max_tokens=120)
 
     with async_warp_time(start):
         assert bucket.tokens == 0
@@ -187,12 +187,12 @@ async def test_token_limiter_async_waits_until_tokens_are_available():
         assert sum(sleeps) >= time_cost
 
 
-def test_token_limiter_can_accumulate_tokens_before_waiting():
+def test_token_rate_limiter_can_accumulate_tokens_before_waiting():
     start = time.time()
 
     with freeze_time(start):
         rate = 60
-        bucket = TokenLimiter(per_minute_rate=rate, starting_tokens=0, max_tokens=120)
+        bucket = TokenRateLimiter(per_minute_rate=rate, starting_tokens=0, max_tokens=120)
 
     with warp_time(start + 10):
         assert bucket.tokens == 0
@@ -203,12 +203,12 @@ def test_token_limiter_can_accumulate_tokens_before_waiting():
         assert sum(sleeps) >= time_cost - 10
 
 
-async def test_token_limiter_can_async_accumulate_tokens_before_waiting():
+async def test_token_rate_limiter_can_async_accumulate_tokens_before_waiting():
     start = time.time()
 
     with freeze_time(start):
         rate = 60
-        bucket = TokenLimiter(per_minute_rate=rate, starting_tokens=0, max_tokens=120)
+        bucket = TokenRateLimiter(per_minute_rate=rate, starting_tokens=0, max_tokens=120)
 
     with async_warp_time(start + 10):
         assert bucket.tokens == 0

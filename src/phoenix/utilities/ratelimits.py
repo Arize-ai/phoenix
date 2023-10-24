@@ -1,28 +1,27 @@
 import asyncio
-import sys
 import time
 from collections import defaultdict
 from functools import wraps
-from typing import Any, Awaitable, Callable, Dict, Optional, TypeVar, Union, cast
-
-if sys.version_info < (3, 10):
-    from typing_extensions import ParamSpec
-else:
-    from typing import ParamSpec
+from typing import Any, Awaitable, Callable, Dict, Optional, ParamSpec, TypeVar, Union, cast
 
 Numeric = Union[int, float]
-P = ParamSpec("P")
-T = TypeVar("T")
-A = TypeVar("A", bound=Callable[..., Awaitable[Any]])
+ParameterSpec = ParamSpec("ParameterSpec")
+GenericType = TypeVar("GenericType")
+AsyncCallable = TypeVar("AsyncCallable", bound=Callable[..., Awaitable[Any]])
 
 
 class UnavailableTokensError(Exception):
     pass
 
 
-class TokenLimiter:
+class TokenRateLimiter:
     """
-    A simple in-memory rate-limiter implemented using the leaky bucket algorithm.
+    A in-memory rate-limiter implemented using the leaky bucket algorithm.
+
+    A description of the technique is descripted here (https://en.wikipedia.org/wiki/Leaky_bucket).
+    Instead of a leaking bucket metaphor, this implementation uses a pile of tokens. These tokens
+    grow (instead of leak) at `rate` tokens per second up to some maximum. Tokens can be spent
+    to process requests.
     """
 
     def __init__(
@@ -98,8 +97,12 @@ class LimitStore:
     """
     A singleton store for collections of rate limits grouped by service key.
 
-    LimitStore is a singleton because we want to share rate limits across all calls controlled by
-    phoenix's rate limiting mechanism.
+    LimitStore is a singleton because all calls to a single endpoint should share the same rate
+    limits. Rate limiter implementations can use a LimitStore instance to manage rate limits for
+    a specific endpoint indexed by a key. The LimitStore singleton will ensure that rate limits
+    are correctly shared across all calls to the same endpoint.
+
+    This implementation is not threadsafe, but is async-safe.
     """
 
     _singleton = None
@@ -110,7 +113,7 @@ class LimitStore:
             cls._singleton._rate_limits = defaultdict(dict)
         return cls._singleton
 
-    _rate_limits: Dict[str, Dict[str, TokenLimiter]]
+    _rate_limits: Dict[str, Dict[str, TokenRateLimiter]]
 
     def set_rate_limit(
         self,
@@ -128,13 +131,13 @@ class LimitStore:
             if limit := limits.get(limit_type):
                 limit.refresh_limit(per_minute_rate_limit, max_tokens)
                 return
-        limits[limit_type] = TokenLimiter(
+        limits[limit_type] = TokenRateLimiter(
             per_minute_rate_limit,
             0,
             max_tokens,
         )
 
-    def get_rate_limits(self, key: str) -> Dict[str, TokenLimiter]:
+    def get_rate_limits(self, key: str) -> Dict[str, TokenRateLimiter]:
         return self._rate_limits[key]
 
     def wait_for_rate_limits(self, key: str, rate_limit_costs: Dict[str, Numeric]) -> None:
@@ -174,14 +177,16 @@ class OpenAIRateLimiter:
 
     def limit(
         self, model_name: str, token_cost: Numeric
-    ) -> Callable[[Callable[P, T]], Callable[P, T]]:
-        def rate_limit_decorator(fn: Callable[P, T]) -> Callable[P, T]:
+    ) -> Callable[[Callable[ParameterSpec, GenericType]], Callable[ParameterSpec, GenericType]]:
+        def rate_limit_decorator(
+            fn: Callable[ParameterSpec, GenericType]
+        ) -> Callable[ParameterSpec, GenericType]:
             @wraps(fn)
-            def wrapper(*args: Any, **kwargs: Any) -> T:
+            def wrapper(*args: Any, **kwargs: Any) -> GenericType:
                 self._store.wait_for_rate_limits(
                     self.key(model_name), {"requests": 1, "tokens": token_cost}
                 )
-                result: T = fn(*args, **kwargs)
+                result: GenericType = fn(*args, **kwargs)
                 return result
 
             return wrapper
@@ -193,18 +198,18 @@ class OpenAIRateLimiter:
         model_name: str,
         input_cost_fn: Callable[..., Numeric],
         response_cost_fn: Callable[..., Numeric],
-    ) -> Callable[[A], A]:
-        def rate_limit_decorator(fn: A) -> A:
+    ) -> Callable[[AsyncCallable], AsyncCallable]:
+        def rate_limit_decorator(fn: AsyncCallable) -> AsyncCallable:
             @wraps(fn)
-            async def wrapper(*args: Any, **kwargs: Any) -> T:
+            async def wrapper(*args: Any, **kwargs: Any) -> GenericType:
                 key = self.key(model_name)
                 await self._store.async_wait_for_rate_limits(
                     key, {"requests": 1, "tokens": input_cost_fn(*args, **kwargs)}
                 )
-                result: T = await fn(*args, **kwargs)
+                result: GenericType = await fn(*args, **kwargs)
                 self._store.spend_rate_limits(key, {"tokens": response_cost_fn(result)})
                 return result
 
-            return cast(A, wrapper)
+            return cast(AsyncCallable, wrapper)
 
         return rate_limit_decorator
