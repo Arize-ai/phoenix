@@ -18,7 +18,7 @@ concurrency:
 
 env:
     pip-version: 23.1.2
-    PYTORCH_MPS_HIGH_WATERMARK_RATIO: 0.0 # disable memory warnings
+    PYTORCH_MPS_HIGH_WATERMARK_RATIO: 0.7 # disable memory warnings
 
 jobs:
     lint:
