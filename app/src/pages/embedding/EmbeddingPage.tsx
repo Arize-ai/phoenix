@@ -329,12 +329,11 @@ function EmbeddingMain() {
 
   return (
     <main
-      css={(theme) => css`
+      css={css`
         flex: 1 1 auto;
         display: flex;
         flex-direction: column;
         overflow: hidden;
-        background-color: ${theme.colors.gray900};
       `}
     >
       <PointCloudNotifications />

@@ -2,7 +2,7 @@ import { css, Theme } from "@emotion/react";
 
 export const resizeHandleCSS = (theme: Theme) => css`
   transition: 250ms linear all;
-  background-color: ${theme.colors.gray600};
+  background-color: var(--ac-global-color-grey-200);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -31,11 +31,11 @@ export const resizeHandleCSS = (theme: Theme) => css`
   }
 
   &:hover {
-    background-color: ${theme.colors.gray200};
+    background-color: var(--ac-global-color-grey-400);
     border-radius: 4px;
     &:before,
     &:after {
-      background-color: ${theme.colors.arizeLightBlue};
+      background-color: var(--ac-global-color-primary);
     }
   }
 
@@ -45,14 +45,14 @@ export const resizeHandleCSS = (theme: Theme) => css`
     color: var(--color-solid-resize-bar);
     flex: 0 0 1rem;
     border-radius: 6px;
-    background-color: ${theme.colors.gray100};
+    background-color: var(--ac-global-color-grey-300);
     flex: none;
   }
 `;
 
 export const compactResizeHandleCSS = (theme: Theme) => css`
   transition: 250ms linear all;
-  background-color: ${theme.colors.gray600};
+  background-color: var(--ac-global-color-grey-200);
   --px-resize-handle-size: 4px;
   outline: none;
   &[data-panel-group-direction="vertical"] {

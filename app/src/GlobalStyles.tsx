@@ -6,7 +6,7 @@ export function GlobalStyles() {
     <Global
       styles={(theme) => css`
         body {
-          background-color: var(--ac-global-color-gray-900);
+          background-color: var(--ac-global-color-grey-75);
           color: var(--ac-global-text-color-900);
           font-family: "Roboto";
           font-size: ${theme.typography.sizes.medium.fontSize}px;

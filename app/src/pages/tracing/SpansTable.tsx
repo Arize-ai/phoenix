@@ -240,7 +240,7 @@ export function SpansTable(props: SpansTableProps) {
   return (
     <div>
       <div>
-        <View padding="size-100" backgroundColor="light">
+        <View padding="size-100" backgroundColor="grey-200">
           <SpanFilterConditionField onValidCondition={setFilterCondition} />
         </View>
       </div>
