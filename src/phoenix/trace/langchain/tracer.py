@@ -265,6 +265,19 @@ def _retrieval_documents(
     ]
 
 
+def _null_fallback(
+    serialized: Dict[str, Any],
+    messages: List[List[BaseMessage]],
+    *,
+    run_id: UUID,
+    tags: Optional[List[str]] = None,
+    parent_run_id: Optional[UUID] = None,
+    metadata: Optional[Dict[str, Any]] = None,
+    **kwargs: Any,
+) -> None:
+    pass
+
+
 class OpenInferenceTracer(Tracer, BaseTracer):
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
@@ -336,19 +349,6 @@ class OpenInferenceTracer(Tracer, BaseTracer):
             self._convert_run_to_spans(run.dict())
         except Exception:
             logger.exception("Failed to convert run to spans")
-
-    def _null_fallback(
-        self,
-        serialized: Dict[str, Any],
-        messages: List[List[BaseMessage]],
-        *,
-        run_id: UUID,
-        tags: Optional[List[str]] = None,
-        parent_run_id: Optional[UUID] = None,
-        metadata: Optional[Dict[str, Any]] = None,
-        **kwargs: Any,
-    ) -> None:
-        pass
 
     @graceful_fallback(_null_fallback)
     def on_chat_model_start(
