@@ -265,7 +265,7 @@ def _retrieval_documents(
     ]
 
 
-def _null_fallback(
+def _chat_model_start_fallback(
     serialized: Dict[str, Any],
     messages: List[List[BaseMessage]],
     *,
@@ -275,6 +275,8 @@ def _null_fallback(
     metadata: Optional[Dict[str, Any]] = None,
     **kwargs: Any,
 ) -> None:
+    # Currently does nothing. If a functional fallback is implemented, new failures will not be
+    # caught
     pass
 
 
@@ -350,7 +352,7 @@ class OpenInferenceTracer(Tracer, BaseTracer):
         except Exception:
             logger.exception("Failed to convert run to spans")
 
-    @graceful_fallback(_null_fallback)
+    @graceful_fallback(_chat_model_start_fallback)
     def on_chat_model_start(
         self,
         serialized: Dict[str, Any],
