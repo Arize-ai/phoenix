@@ -27,6 +27,6 @@ EVAL_DOCUMENTS_PRECISION_AT_K_TEMPLATE = "eval.documents_precision_at_{k}"
 """
 The prefix given to an evaluation metric that captures the precision of a
 retriever up to K. E.x. you would have eval.documents_precision_at_1,
-eval.documents_precision_at_2, up to the max number of documents This value
+eval.documents_precision_at_2, etc. This value
 would be computed on top of the document_relevancy attribute of each document.
 """
