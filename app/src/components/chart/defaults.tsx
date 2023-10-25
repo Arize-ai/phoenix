@@ -31,6 +31,6 @@ export const defaultSelectedTimestampReferenceLineProps: ReferenceLineProps = {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const defaultBarChartTooltipProps: TooltipProps<any, any> = {
   cursor: {
-    fill: transparentize(0.3, theme.colors.gray200),
+    fill: "var(--ac-global-color-grey-300)",
   },
 };

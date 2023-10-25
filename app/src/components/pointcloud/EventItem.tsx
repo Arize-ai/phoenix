@@ -146,7 +146,7 @@ export function EventItem(props: EventItemProps) {
 
         border-width: 1px;
         border-color: ${color};
-        border-radius: 8px;
+        border-radius: var(--ac-global-rounding-medium);
         transition: border-color 0.2s ease-in-out;
         transition: transform 0.2s ease-in-out;
         &:hover {
@@ -285,7 +285,7 @@ function PromptResponsePreview(
       data-size={props.size}
       css={css`
         --prompt-response-preview-background-color: var(
-          --px-background-color-500
+          --ac-global-color-grey-200
         );
         background-color: var(--prompt-response-preview-background-color);
         &[data-size="small"] {
@@ -486,7 +486,7 @@ function EventItemFooter({
         justify-content: space-between;
         padding: var(--px-spacing-sm) var(--px-spacing-med) var(--px-spacing-sm)
           7px;
-        border-top: 1px solid var(--px-item-border-color);
+        border-top: 1px solid var(--ac-global-border-color-dark);
       `}
     >
       <div

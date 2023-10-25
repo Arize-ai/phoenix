@@ -11,8 +11,9 @@ import {
   DatasetGroup,
   DEFAULT_CLUSTER_MIN_SAMPLES,
   DEFAULT_CLUSTER_SELECTION_EPSILON,
-  DEFAULT_COLOR_SCHEME,
+  DEFAULT_DARK_COLOR_SCHEME,
   DEFAULT_DATASET_SAMPLE_SIZE,
+  DEFAULT_LIGHT_COLOR_SCHEME,
   DEFAULT_MIN_CLUSTER_SIZE,
   DEFAULT_MIN_DIST,
   DEFAULT_N_NEIGHBORS,
@@ -21,6 +22,7 @@ import {
   SelectionGridSize,
   UNKNOWN_COLOR,
 } from "@phoenix/constants/pointCloudConstants";
+import { getCurrentTheme } from "@phoenix/contexts";
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 import { Dimension } from "@phoenix/types";
 import { assertUnreachable } from "@phoenix/typeUtils";
@@ -304,11 +306,6 @@ export interface PointCloudProps {
    */
   canvasMode: CanvasMode;
   /**
-   * The color scheme to use for the point cloud.
-   * @default "dark"
-   */
-  canvasTheme: CanvasTheme;
-  /**
    * The point size scale
    * @default 1
    */
@@ -418,10 +415,6 @@ export interface PointCloudState extends PointCloudProps {
    */
   setCanvasMode: (mode: CanvasMode) => void;
   /**
-   * Set canvas theme to light or dark
-   */
-  setCanvasTheme: (theme: CanvasTheme) => void;
-  /**
    * Set the point size scale
    * @param {number} scale
    */
@@ -496,6 +489,11 @@ export interface PointCloudState extends PointCloudProps {
    */
   setMetric(metric: MetricDefinition): void;
 }
+
+const DEFAULT_COLOR_SCHEME =
+  getCurrentTheme() === "light"
+    ? DEFAULT_LIGHT_COLOR_SCHEME
+    : DEFAULT_DARK_COLOR_SCHEME;
 
 /**
  * The default point cloud properties in the case that there are two datasets.
@@ -580,7 +578,6 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
     highlightedClusterId: null,
     selectedClusterId: null,
     canvasMode: CanvasMode.move,
-    canvasTheme: "dark",
     pointSizeScale: 1,
     clusterColorMode: ClusterColorMode.default,
     coloringStrategy: ColoringStrategy.dataset,
@@ -710,7 +707,6 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
     setHighlightedClusterId: (id) => set({ highlightedClusterId: id }),
     setSelectedClusterId: (id) =>
       set({ selectedClusterId: id, highlightedClusterId: null }),
-    setCanvasTheme: (theme) => set({ canvasTheme: theme }),
     setPointSizeScale: (scale) => set({ pointSizeScale: scale }),
     setCanvasMode: (mode) => set({ canvasMode: mode }),
     setClusterColorMode: (mode) => set({ clusterColorMode: mode }),

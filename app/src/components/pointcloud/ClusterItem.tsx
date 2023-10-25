@@ -1,5 +1,4 @@
 import React, { useMemo } from "react";
-import { transparentize } from "polished";
 import { css } from "@emotion/react";
 
 import { Flex, Heading, Text } from "@arizeai/components";
@@ -97,19 +96,19 @@ export function ClusterItem(props: ClusterItemProps) {
   }, [driftRatio, primaryToCorpusRatio]);
   return (
     <div
-      css={(theme) => css`
-        border: 1px solid ${theme.colors.gray400};
-        border-radius: 4px;
+      css={css`
+        border: 1px solid var(--ac-global-border-color-light);
+        border-radius: var(--ac-global-rounding-medium);
         overflow: hidden;
         transition: background-color 0.2s ease-in-out;
         cursor: pointer;
         &:hover {
-          background-color: ${transparentize(0.9, theme.colors.arizeLightBlue)};
-          border-color: ${transparentize(0.5, theme.colors.arizeLightBlue)};
+          background-color: var(--ac-global-color-primary-500);
+          border-color: var(--ac-global-color-primary);
         }
         &.is-selected {
-          border-color: ${theme.colors.arizeLightBlue};
-          background-color: ${transparentize(0.8, theme.colors.arizeLightBlue)};
+          border-color: var(--ac-global-color-primary);
+          background-color: var(--ac-global-color-primary-500);
         }
       `}
       className={isSelected ? "is-selected" : ""}
@@ -119,8 +118,8 @@ export function ClusterItem(props: ClusterItemProps) {
       onMouseLeave={onMouseLeave}
     >
       <div
-        css={(theme) => css`
-          padding: ${theme.spacing.padding8}px;
+        css={css`
+          padding: var(--ac-global-dimension-static-size-100);
           display: flex;
           flex-direction: row;
           justify-content: space-between;

@@ -6,7 +6,7 @@ import { lighten, shade } from "polished";
 import { PointBaseProps, Points } from "@arizeai/point-cloud";
 
 import { ColoringStrategy } from "@phoenix/constants/pointCloudConstants";
-import { usePointCloudContext } from "@phoenix/contexts";
+import { usePointCloudContext, useTheme } from "@phoenix/contexts";
 import { Point } from "@phoenix/store";
 
 import { PointColor } from "./types";
@@ -74,7 +74,7 @@ export function PointCloudPoints({
   const coloringStrategy = usePointCloudContext(
     (state) => state.coloringStrategy
   );
-  const canvasTheme = usePointCloudContext((state) => state.canvasTheme);
+  const { theme } = useTheme();
   const setSelectedEventIds = usePointCloudContext(
     (state) => state.setSelectedEventIds
   );
@@ -105,10 +105,8 @@ export function PointCloudPoints({
   );
 
   const colorDimFn = useMemo(() => {
-    return canvasTheme === "dark"
-      ? shade(SHADE_AMOUNT)
-      : lighten(LIGHTEN_AMOUNT);
-  }, [canvasTheme]);
+    return theme === "dark" ? shade(SHADE_AMOUNT) : lighten(LIGHTEN_AMOUNT);
+  }, [theme]);
 
   /** Colors to represent a dimmed variant of the color for "un-selected" */
   const dimmedColor = useMemo<PointColor>(() => {

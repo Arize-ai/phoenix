@@ -1,12 +1,10 @@
 import React, { ChangeEvent, useCallback, useMemo } from "react";
 import { css } from "@emotion/react";
 
-import {
-  DEFAULT_COLOR_SCHEME,
-  FALLBACK_COLOR,
-} from "@phoenix/constants/pointCloudConstants";
+import { FALLBACK_COLOR } from "@phoenix/constants/pointCloudConstants";
 import { ColoringStrategy } from "@phoenix/constants/pointCloudConstants";
 import { usePointCloudContext } from "@phoenix/contexts";
+import { useDefaultColorScheme } from "@phoenix/pages/embedding/useDefaultColorScheme";
 import { assertUnreachable } from "@phoenix/typeUtils";
 
 import { Shape } from "./ShapeIcon";
@@ -42,6 +40,7 @@ export function DatasetVisibilitySettings({
     },
     [datasetVisibility, setDatasetVisibility]
   );
+  const DEFAULT_COLOR_SCHEME = useDefaultColorScheme();
 
   const primaryColor = useMemo(() => {
     switch (coloringStrategy) {
@@ -53,7 +52,7 @@ export function DatasetVisibilitySettings({
       default:
         assertUnreachable(coloringStrategy);
     }
-  }, [coloringStrategy]);
+  }, [coloringStrategy, DEFAULT_COLOR_SCHEME]);
 
   const referenceColor = useMemo(() => {
     switch (coloringStrategy) {
@@ -65,7 +64,7 @@ export function DatasetVisibilitySettings({
       default:
         assertUnreachable(coloringStrategy);
     }
-  }, [coloringStrategy]);
+  }, [coloringStrategy, DEFAULT_COLOR_SCHEME]);
   const corpusColor = FALLBACK_COLOR;
 
   const referenceShape =

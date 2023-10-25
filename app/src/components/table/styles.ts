@@ -5,7 +5,7 @@ export const tableCSS = (theme: Theme) => css`
   width: 100%;
   border-collapse: collapse;
   thead {
-    background-color: var(--ac-global-color-grey-200);
+    background-color: var(--ac-global-color-grey-300);
     position: sticky;
     top: 0;
     tr {
@@ -47,10 +47,10 @@ export const tableCSS = (theme: Theme) => css`
   tbody:not(.is-empty) {
     tr {
       &:nth-of-type(even) {
-        background-color: var(--ac-global-color-grey-200);
+        background-color: var(--ac-global-color-grey-75);
       }
       &:hover {
-        background-color: var(--ac-global-color-grey-300);
+        background-color: var(--ac-global-color-grey-200);
       }
       & > td {
         padding: ${theme.spacing.margin8}px ${theme.spacing.margin16}px;

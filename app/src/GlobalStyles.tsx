@@ -61,20 +61,8 @@ export function GlobalStyles() {
         :root {
           --px-blue-color: ${theme.colors.arizeBlue};
 
-          --px-primary-color: #9efcfd;
-          --px-primary-color--transparent: rgb(158, 252, 253, 0.2);
-          --px-reference-color: #baa1f9;
-          --px-reference-color--transparent: #baa1f982;
-          --px-corpus-color: #92969c;
-          --px-corpus-color--transparent: #92969c63;
-
-          --px-background-color-500: ${theme.colors.gray500};
-
           --px-flex-gap-sm: ${theme.spacing.margin4}px;
           --px-flex-gap-sm: ${theme.spacing.margin8}px;
-
-          --px-border-color-500: ${theme.colors.gray500};
-          --px-border-color-300: var(--ac-global-color-grey-300);
 
           --px-section-background-color: ${theme.colors.gray500};
 
@@ -93,6 +81,23 @@ export function GlobalStyles() {
           --px-font-size-lg: ${theme.typography.sizes.large.fontSize}px;
 
           --px-gradient-bar-height: 8px;
+        }
+
+        .ac-theme--dark {
+          --px-primary-color: #9efcfd;
+          --px-primary-color--transparent: rgb(158, 252, 253, 0.2);
+          --px-reference-color: #baa1f9;
+          --px-reference-color--transparent: #baa1f982;
+          --px-corpus-color: #92969c;
+          --px-corpus-color--transparent: #92969c63;
+        }
+        .ac-theme--light {
+          --px-primary-color: #00add0;
+          --px-primary-color--transparent: rgba(0, 173, 208, 0.2);
+          --px-reference-color: #4500d9;
+          --px-reference-color--transparent: rgba(69, 0, 217, 0.2);
+          --px-corpus-color: #92969c;
+          --px-corpus-color--transparent: #92969c63;
         }
       `}
     />

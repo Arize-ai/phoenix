@@ -1,10 +1,11 @@
 import React, { useMemo } from "react";
 import { interpolateSinebow } from "d3-scale-chromatic";
 
+import { ProviderTheme } from "@arizeai/components";
 import { Cluster, ThreeDimensionalPoint } from "@arizeai/point-cloud";
 
-import { usePointCloudContext } from "@phoenix/contexts";
-import { CanvasTheme, ClusterColorMode } from "@phoenix/store";
+import { usePointCloudContext, useTheme } from "@phoenix/contexts";
+import { ClusterColorMode } from "@phoenix/store";
 
 type PointCloudClustersProps = {
   /**
@@ -23,7 +24,7 @@ export function PointCloudClusters({ radius }: PointCloudClustersProps) {
     (state) => state.selectedClusterId
   );
   const clusters = usePointCloudContext((state) => state.clusters);
-  const canvasTheme = usePointCloudContext((state) => state.canvasTheme);
+  const { theme } = useTheme();
   const clusterColorMode = usePointCloudContext(
     (state) => state.clusterColorMode
   );
@@ -70,7 +71,7 @@ export function PointCloudClusters({ radius }: PointCloudClustersProps) {
             wireframe
             pointRadius={radius}
             color={clusterColor({
-              canvasTheme,
+              theme,
               clusterColorMode,
               index,
               clusterCount: clustersWithData.length,
@@ -87,13 +88,13 @@ export function PointCloudClusters({ radius }: PointCloudClustersProps) {
  * and cluster coloring mode
  */
 function clusterColor({
-  canvasTheme,
+  theme,
   clusterColorMode,
   index,
   clusterCount,
 }: {
   clusterColorMode: ClusterColorMode;
-  canvasTheme: CanvasTheme;
+  theme: ProviderTheme;
   /**
    * Where the cluster is in the list of clusters
    */
@@ -101,7 +102,7 @@ function clusterColor({
   clusterCount: number;
 }): string {
   if (clusterColorMode === ClusterColorMode.default) {
-    return canvasTheme === "dark" ? "#999999" : "#555555";
+    return theme === "dark" ? "#999999" : "#555555";
   }
   return interpolateSinebow(index / clusterCount);
 }

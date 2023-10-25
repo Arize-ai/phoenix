@@ -13,8 +13,12 @@ export type ThemeContextType = {
   setTheme: (theme: ProviderTheme) => void;
 };
 
-const localStorageTheme =
-  localStorage.getItem("theme") == "light" ? "light" : "dark";
+const LOCAL_STORAGE_THEME_KEY = "arize-phoenix-theme";
+export function getCurrentTheme(): ProviderTheme {
+  return localStorage.getItem(LOCAL_STORAGE_THEME_KEY) == "light"
+    ? "light"
+    : "dark";
+}
 
 export const ThemeContext = createContext<ThemeContextType | null>(null);
 
@@ -27,9 +31,9 @@ export function useTheme() {
 }
 
 export function ThemeProvider(props: PropsWithChildren) {
-  const [theme, _setTheme] = useState<ProviderTheme>(localStorageTheme);
+  const [theme, _setTheme] = useState<ProviderTheme>(getCurrentTheme());
   const setTheme = useCallback((theme: ProviderTheme) => {
-    localStorage.setItem("theme", theme);
+    localStorage.setItem(LOCAL_STORAGE_THEME_KEY, theme);
     _setTheme(theme);
   }, []);
 
