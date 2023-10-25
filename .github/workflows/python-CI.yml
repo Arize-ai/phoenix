@@ -18,6 +18,7 @@ concurrency:
 
 env:
     pip-version: 23.1.2
+    OPENAI_API_KEY: "sk-fake-openai-key" # fake openai key so that llama_index doesn't download huggingface embeddings
 
 jobs:
     lint:
