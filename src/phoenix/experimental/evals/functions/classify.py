@@ -23,8 +23,8 @@ logger = logging.getLogger(__name__)
 OPENINFERENCE_QUERY_COLUMN_NAME = "attributes." + INPUT_VALUE
 OPENINFERENCE_DOCUMENT_COLUMN_NAME = "attributes." + RETRIEVAL_DOCUMENTS
 
-# argument keys in the default openai function call
-# define here only to prevent typos
+# argument keys in the default openai function call,
+# defined here only to prevent typos
 _RESPONSE = "response"
 _EXPLANATION = "explanation"
 
