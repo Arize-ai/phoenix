@@ -86,36 +86,45 @@ class CBEventData:
     _end_event: Optional[CBEvent] = None
     attributes: Dict[str, Any] = field(default_factory=dict)
 
-    def __setattr__(self, key: str, value: Any) -> None:
-        fields = self.__dataclass_fields__.keys()
-        if f"_{key}" in fields:
-            super().__setattr__(f"_{key}", value)
-        else:
-            super().__setattr__(key, value)
-
     @property
     def name(self) -> str:
-        if self._name is None:
-            raise AttributeError("name is not set")
-        return self._name
+        if name := self._name:
+            return name
+        raise AttributeError("name is not set")
+
+    @name.setter
+    def name(self, value: str) -> None:
+        self._name = value
 
     @property
     def event_type(self) -> CBEventType:
-        if self._event_type is None:
-            raise AttributeError("event_type is not set")
-        return self._event_type
+        if event_type := self._event_type:
+            return event_type
+        raise AttributeError("event_type is not set")
+
+    @event_type.setter
+    def event_type(self, value: CBEventType) -> None:
+        self._event_type = value
 
     @property
     def start_event(self) -> CBEvent:
-        if self._start_event is None:
-            raise MissingEventStartError("No event start data found for this callback.")
-        return self._start_event
+        if start_event := self._start_event:
+            return start_event
+        raise MissingEventStartError("event_type is not set")
+
+    @start_event.setter
+    def start_event(self, value: CBEvent) -> None:
+        self._start_event = value
 
     @property
     def end_event(self) -> CBEvent:
-        if self._end_event is None:
-            raise AttributeError("end_event is not set")
-        return self._end_event
+        if end_event := self._end_event:
+            return end_event
+        raise AttributeError("end_event is not set")
+
+    @end_event.setter
+    def end_event(self, value: CBEvent) -> None:
+        self._end_event = value
 
     def set_if_unset(self, key: str, value: Any) -> None:
         if not getattr(self, key):
