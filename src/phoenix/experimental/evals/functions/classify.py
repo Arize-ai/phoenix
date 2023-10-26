@@ -83,7 +83,11 @@ def llm_classify_with_explanation(
         the same length as the input dataframe and its values should be the entries in the rails
         argument or "NOT_PARSABLE" if the model's prediction could not be parsed.
     """
-    use_openai_function_call = use_function_calling_if_available and isinstance(model, OpenAIModel)
+    use_openai_function_call = (
+        use_function_calling_if_available
+        and isinstance(model, OpenAIModel)
+        and model.supports_function_calling
+    )
 
     # TODO: support explanation without function calling
     if not use_openai_function_call:
@@ -172,7 +176,11 @@ def llm_classify(
         be the entries in the rails argument or "NOT_PARSABLE" if the model's prediction could not
         be parsed.
     """
-    use_openai_function_call = use_function_calling_if_available and isinstance(model, OpenAIModel)
+    use_openai_function_call = (
+        use_function_calling_if_available
+        and isinstance(model, OpenAIModel)
+        and model.supports_function_calling
+    )
 
     model_kwargs = {}
     if use_openai_function_call:

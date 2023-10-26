@@ -292,3 +292,7 @@ class OpenAIModel(BaseEvalModel):
 
     def get_text_from_tokens(self, tokens: List[int]) -> str:
         return self.encoder.decode(tokens)
+
+    @property
+    def supports_function_calling(self) -> bool:
+        return not self._model_uses_legacy_completion_api
