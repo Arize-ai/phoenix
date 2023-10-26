@@ -50,6 +50,7 @@ def llm_classify_with_explanation(
     rails: List[str],
     system_instruction: Optional[str] = None,
     verbose: bool = False,
+    use_function_calling_if_available: bool = True,
 ) -> List[ClassificationResult]:
     """Classifies each input row of the dataframe using an LLM, returning a named tuple
     in the form of `NamedTuple(label=..., explanation=...)` for each input row.
@@ -73,13 +74,16 @@ def llm_classify_with_explanation(
         verbose (bool, optional): If True, prints detailed info to stdout such as model invocation
         parameters and details about retries and snapping to rails. Default False.
 
+        use_function_calling_if_available (bool, default=True): If True, use function calling
+        (if available) as a means to constrain the LLM outputs.
+
     Returns:
         List[ClassificationResult]: A list of tuples representing the predicted class and the
         explanation for the prediction for each record in the dataframe. The list should have
         the same length as the input dataframe and its values should be the entries in the rails
         argument or "NOT_PARSABLE" if the model's prediction could not be parsed.
     """
-    use_openai_function_call = isinstance(model, OpenAIModel)
+    use_openai_function_call = use_function_calling_if_available and isinstance(model, OpenAIModel)
 
     # TODO: support explanation without function calling
     if not use_openai_function_call:
@@ -136,6 +140,7 @@ def llm_classify(
     rails: List[str],
     system_instruction: Optional[str] = None,
     verbose: bool = False,
+    use_function_calling_if_available: bool = True,
 ) -> List[str]:
     """Classifies each input row of the dataframe using an LLM.
 
@@ -158,13 +163,16 @@ def llm_classify(
         verbose (bool, optional): If True, prints detailed info to stdout such as model invocation
         parameters and details about retries and snapping to rails. Default False.
 
+        use_function_calling_if_available (bool, default=True): If True, use function calling
+        (if available) as a means to constrain the LLM outputs.
+
     Returns:
         List[str]: A list of strings representing the predicted class for each record in the
         dataframe. The list should have the same length as the input dataframe and its values should
         be the entries in the rails argument or "NOT_PARSABLE" if the model's prediction could not
         be parsed.
     """
-    use_openai_function_call = isinstance(model, OpenAIModel)
+    use_openai_function_call = use_function_calling_if_available and isinstance(model, OpenAIModel)
 
     model_kwargs = {}
     if use_openai_function_call:
@@ -192,7 +200,7 @@ def llm_classify(
         try:
             function_arguments = json.loads(response, strict=False)
             # take the first value if available
-            raw_string = next(function_arguments.values(), "")
+            raw_string = next(iter(function_arguments.values()), "")
         except json.JSONDecodeError:
             pass
         label = _snap_to_rail(raw_string, rails, verbose=verbose)
