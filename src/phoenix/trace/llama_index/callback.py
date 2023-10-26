@@ -127,7 +127,7 @@ class CBEventData:
         self._end_event = value
 
     def set_if_unset(self, key: str, value: Any) -> None:
-        if not getattr(self, key):
+        if not getattr(self, f"_{key}", False):
             setattr(self, key, value)
 
 
