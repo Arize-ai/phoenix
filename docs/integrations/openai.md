@@ -27,6 +27,7 @@ Once you have started a Phoenix server, you can instrument the `openai` Python l
 
 ```python
 from phoenix.trace.tracer import Tracer
+from phoenix.trace.exporter import HttpExporter
 from phoenix.trace.openai.instrumentor import OpenAIInstrumentor
 
 
@@ -44,6 +45,8 @@ px.active_session().url
 # View in the notebook directy
 px.active_session().view()
 ```
+
+####
 
 #### Saving Traces
 
