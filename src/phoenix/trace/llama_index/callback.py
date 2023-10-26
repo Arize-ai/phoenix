@@ -223,17 +223,16 @@ class OpenInferenceTraceCallbackHandler(BaseCallbackHandler):
     ) -> CBEventID:
         event_id = event_id or str(uuid4())
         event_data = self._event_id_to_event_data[event_id]
-        event_data["name"] = event_type.value
-        event_data["event_type"] = event_type
-        event_data["start_event"] = CBEvent(
+        event_data.name = event_type.value
+        event_data.event_type = event_type
+        event_data.start_event = CBEvent(
             event_type=event_type,
             payload=payload,
             id_=event_id,
         )
-        event_data["attributes"] = {}
         # Parse the payload to extract the parameters
         if payload is not None:
-            event_data["attributes"].update(
+            event_data.attributes.update(
                 payload_to_semantic_attributes(event_type, payload),
             )
 
@@ -248,9 +247,9 @@ class OpenInferenceTraceCallbackHandler(BaseCallbackHandler):
         **kwargs: Any,
     ) -> None:
         event_data = self._event_id_to_event_data[event_id]
-        event_data.setdefault("name", event_type.value)
-        event_data.setdefault("event_type", event_type)
-        event_data["end_event"] = CBEvent(
+        event_data.set_if_unset("name", event_type.value)
+        event_data.set_if_unset("event_type", event_type)
+        event_data.end_event = CBEvent(
             event_type=event_type,
             payload=payload,
             id_=event_id,
@@ -258,7 +257,7 @@ class OpenInferenceTraceCallbackHandler(BaseCallbackHandler):
 
         # Parse the payload to extract the parameters
         if payload is not None:
-            event_data["attributes"].update(
+            event_data.attributes.update(
                 payload_to_semantic_attributes(event_type, payload, is_event_end=True),
             )
 
@@ -314,44 +313,47 @@ def _add_spans_to_tracer(
     while parent_child_id_stack:
         parent_span_id, event_id = parent_child_id_stack.pop()
         event_data = event_id_to_event_data[event_id]
-        event_type = event_data["event_type"]
-        attributes = event_data["attributes"]
+        event_type = event_data.event_type
+        attributes = event_data.attributes
         if event_type is CBEventType.LLM:
             while parent_child_id_stack:
                 preceding_event_parent_span_id, preceding_event_id = parent_child_id_stack[-1]
                 if preceding_event_parent_span_id != parent_span_id:
                     break
                 preceding_event_data = event_id_to_event_data[preceding_event_id]
-                if preceding_event_data["event_type"] is not CBEventType.TEMPLATING:
+                if preceding_event_data.event_type is not CBEventType.TEMPLATING:
                     break
                 parent_child_id_stack.pop()
-                if payload := preceding_event_data["start_event"].payload:
-                    # Add template attributes to the LLM span to which they belong.
-                    attributes.update(_template_attributes(payload))
+                if preceding_event_start := preceding_event_data.start_event:
+                    if preceding_payload := preceding_event_start.payload:
+                        # Add template attributes to the LLM span to which they belong.
+                        attributes.update(_template_attributes(preceding_payload))
 
-        start_event = event_data["start_event"]
-        start_time = _timestamp_to_tz_aware_datetime(start_event.time)
-        if event_type is CBEventType.EXCEPTION:
-            # LlamaIndex has exception callback events that are sibling events of the events in
-            # which the exception occurred. We collect all the exception events and add them to the
-            # relevant span.
-            if (
-                not start_event.payload
-                or (error := start_event.payload.get(EventPayload.EXCEPTION)) is None
-            ):
-                continue
-            span_exceptions.append(
-                SpanException(
-                    message=str(error),
-                    timestamp=start_time,
-                    exception_type=type(error).__name__,
-                    exception_stacktrace=get_stacktrace(error),
+        start_time = None
+        if start_event := event_data.start_event:
+            start_time = _timestamp_to_tz_aware_datetime(start_event.time)
+            if event_type is CBEventType.EXCEPTION:
+                # LlamaIndex has exception callback events that are sibling events of the events in
+                # which the exception occurred. We collect all the exception events and add them to
+                # the relevant span.
+                if (
+                    not start_event.payload
+                    or (error := start_event.payload.get(EventPayload.EXCEPTION)) is None
+                ):
+                    continue
+                span_exceptions.append(
+                    SpanException(
+                        message=str(error),
+                        timestamp=start_time,
+                        exception_type=type(error).__name__,
+                        exception_stacktrace=get_stacktrace(error),
+                    )
                 )
-            )
-            continue
+                continue
 
         end_time = _get_end_time(event_data, span_exceptions)
-        name = event_data["name"]
+        start_time = start_time or end_time or datetime.now(timezone.utc)
+        name = event_name if (event_name := event_data.name) is not None else "unknown"
         span_kind = _get_span_kind(event_type)
         span = tracer.create_span(
             name=name,
@@ -372,7 +374,7 @@ def _add_spans_to_tracer(
             parent_child_id_stack.append((new_parent_span_id, new_child_event_id))
 
 
-def _get_span_kind(event_type: CBEventType) -> SpanKind:
+def _get_span_kind(event_type: Optional[CBEventType]) -> SpanKind:
     """Maps a CBEventType to a SpanKind.
 
     Args:
@@ -381,6 +383,8 @@ def _get_span_kind(event_type: CBEventType) -> SpanKind:
     Returns:
         SpanKind: The corresponding span kind.
     """
+    if event_type is None:
+        return SpanKind.UNKNOWN
     return {
         CBEventType.EMBEDDING: SpanKind.EMBEDDING,
         CBEventType.LLM: SpanKind.LLM,
@@ -448,7 +452,7 @@ def _get_end_time(event_data: CBEventData, span_events: List[SpanEvent]) -> Opti
     LlamaIndex's callback system does not guarantee that the on_event_end hook is always called, for
     example, when an error occurs mid-event.
     """
-    if end_event := event_data.get("end_event"):
+    if end_event := event_data.end_event:
         tz_naive_end_time = _timestamp_to_tz_naive_datetime(end_event.time)
     elif span_events:
         last_span_event = sorted(span_events, key=lambda event: event.timestamp)[-1]
