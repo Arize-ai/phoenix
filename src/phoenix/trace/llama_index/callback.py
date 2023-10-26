@@ -110,21 +110,11 @@ class CBEventData:
     def start_event(self) -> CBEvent:
         if start_event := self._start_event:
             return start_event
-        raise MissingEventStartError("event_type is not set")
+        raise MissingEventStartError("No start_event has been set")
 
     @start_event.setter
     def start_event(self, value: CBEvent) -> None:
         self._start_event = value
-
-    @property
-    def end_event(self) -> CBEvent:
-        if end_event := self._end_event:
-            return end_event
-        raise AttributeError("end_event is not set")
-
-    @end_event.setter
-    def end_event(self, value: CBEvent) -> None:
-        self._end_event = value
 
     def set_if_unset(self, key: str, value: Any) -> None:
         if not getattr(self, f"_{key}", False):
