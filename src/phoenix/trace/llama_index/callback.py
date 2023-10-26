@@ -13,7 +13,7 @@ import json
 import logging
 from collections import defaultdict
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Any, Callable, Dict, Iterable, Iterator, List, Optional, Tuple, cast
 from uuid import uuid4
 
@@ -74,13 +74,48 @@ CBEventID = str
 _LOCAL_TZINFO = datetime.now().astimezone().tzinfo
 
 
+class MissingEventStartError(Exception):
+    pass
+
+
 @dataclass
 class CBEventData:
-    name: Optional[str] = field(default=None)
-    event_type: Optional[CBEventType] = field(default=None)
-    start_event: Optional[CBEvent] = field(default=None)
-    end_event: Optional[CBEvent] = field(default=None)
+    _name: Optional[str] = None
+    _event_type: Optional[CBEventType] = None
+    _start_event: Optional[CBEvent] = None
+    _end_event: Optional[CBEvent] = None
     attributes: Dict[str, Any] = field(default_factory=dict)
+
+    def __setattr__(self, key: str, value: Any) -> None:
+        fields = self.__dataclass_fields__.keys()
+        if f"_{key}" in fields:
+            super().__setattr__(f"_{key}", value)
+        else:
+            super().__setattr__(key, value)
+
+    @property
+    def name(self) -> str:
+        if self._name is None:
+            raise AttributeError("name is not set")
+        return self._name
+
+    @property
+    def event_type(self) -> CBEventType:
+        if self._event_type is None:
+            raise AttributeError("event_type is not set")
+        return self._event_type
+
+    @property
+    def start_event(self) -> CBEvent:
+        if self._start_event is None:
+            raise MissingEventStartError("No event start data found for this callback.")
+        return self._start_event
+
+    @property
+    def end_event(self) -> CBEvent:
+        if self._end_event is None:
+            raise AttributeError("end_event is not set")
+        return self._end_event
 
     def set_if_unset(self, key: str, value: Any) -> None:
         if not getattr(self, key):
