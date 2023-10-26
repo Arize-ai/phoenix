@@ -1,10 +1,11 @@
+import json
 import logging
 import warnings
-from typing import Any, Iterable, List, Optional, Union, cast
+from typing import Any, Dict, Iterable, List, NamedTuple, Optional, Union, cast
 
 import pandas as pd
 
-from phoenix.experimental.evals.models import BaseEvalModel, set_verbosity
+from phoenix.experimental.evals.models import BaseEvalModel, OpenAIModel, set_verbosity
 from phoenix.experimental.evals.templates import (
     NOT_PARSABLE,
     RAG_RELEVANCY_PROMPT_RAILS_MAP,
@@ -21,6 +22,111 @@ logger = logging.getLogger(__name__)
 
 OPENINFERENCE_QUERY_COLUMN_NAME = "attributes." + INPUT_VALUE
 OPENINFERENCE_DOCUMENT_COLUMN_NAME = "attributes." + RETRIEVAL_DOCUMENTS
+
+# argument keys in the default openai function call
+# define here only to prevent typos
+_RESPONSE = "response"
+_EXPLANATION = "explanation"
+
+
+class ClassificationResult(NamedTuple):
+    """
+    A tuple of classification label and (optional) explanation.
+    """
+
+    # Note that `NamedTuple` is as subclass of `tuple`, to allow for a
+    # seamless conversion to pandas dataframe, as in e.g.,
+    # `df = pd.DataFrame([ClassificationResult("relevant", None)])`
+    # or
+    # `df[["label", "explanation"]] = [ClassificationResult('label', None)]`
+    label: str
+    explanation: Optional[str] = None
+
+
+def llm_classify_with_explanation(
+    dataframe: pd.DataFrame,
+    model: BaseEvalModel,
+    template: Union[PromptTemplate, str],
+    rails: List[str],
+    system_instruction: Optional[str] = None,
+    verbose: bool = False,
+) -> List[ClassificationResult]:
+    """Classifies each input row of the dataframe using an LLM, returning a named tuple
+    in the form of `NamedTuple(label=..., explanation=...)` for each input row.
+
+    Args:
+        dataframe (pandas.DataFrame): A pandas dataframe in which each row represents a record to be
+        classified. All template variable names must appear as column names in the dataframe (extra
+        columns unrelated to the template are permitted).
+
+        template (Union[PromptTemplate, str]): The prompt template as either an instance of
+        PromptTemplate or a string. If the latter, the variable names should be surrounded by
+        curly braces so that a call to `.format` can be made to substitute variable values.
+
+        model (BaseEvalModel): An LLM model class.
+
+        rails (List[str]): A list of strings representing the possible output classes of the model's
+        predictions.
+
+        system_instruction (Optional[str], optional): An optional system message.
+
+        verbose (bool, optional): If True, prints detailed info to stdout such as model invocation
+        parameters and details about retries and snapping to rails. Default False.
+
+    Returns:
+        List[ClassificationResult]: A list of tuples representing the predicted class and the
+        explanation for the prediction for each record in the dataframe. The list should have
+        the same length as the input dataframe and its values should be the entries in the rails
+        argument or "NOT_PARSABLE" if the model's prediction could not be parsed.
+    """
+    use_openai_function_call = isinstance(model, OpenAIModel)
+
+    # TODO: support explanation without function calling
+    if not use_openai_function_call:
+        raise ValueError(
+            "explanation is not currently available for models that don't "
+            "support OpenAI function calling"
+        )
+
+    model_kwargs = {}
+    if use_openai_function_call:
+        openai_function = _default_openai_function(rails, True)
+        model_kwargs.update(
+            {
+                "function_call": {"name": openai_function["name"]},
+                "functions": [openai_function],
+            }
+        )
+
+    eval_template = normalize_template(template)
+    prompts = map_template(dataframe, eval_template)
+    with set_verbosity(model, verbose) as verbose_model:
+        responses = verbose_model.generate(
+            prompts.to_list(), instruction=system_instruction, **model_kwargs
+        )
+    printif(verbose, f"Snapping {len(responses)} responses to rails: {rails}")
+    if not use_openai_function_call:
+        return [
+            ClassificationResult(
+                label=_snap_to_rail(response, rails, verbose=verbose),
+                explanation=None,  # TODO: support explanation without function calling
+            )
+            for response in responses
+        ]
+
+    results = []
+    for response in responses:
+        raw_string = response
+        explanation = None
+        try:
+            function_arguments = json.loads(response, strict=False)
+            raw_string = function_arguments.get(_RESPONSE) or ""
+            explanation = function_arguments.get(_EXPLANATION)
+        except json.JSONDecodeError:
+            pass
+        label = _snap_to_rail(raw_string, rails, verbose=verbose)
+        results.append(ClassificationResult(label=label, explanation=explanation))
+    return results
 
 
 def llm_classify(
@@ -58,13 +164,40 @@ def llm_classify(
         be the entries in the rails argument or "NOT_PARSABLE" if the model's prediction could not
         be parsed.
     """
+    use_openai_function_call = isinstance(model, OpenAIModel)
 
+    model_kwargs = {}
+    if use_openai_function_call:
+        openai_function = _default_openai_function(rails, False)
+        model_kwargs.update(
+            {
+                "function_call": {"name": openai_function["name"]},
+                "functions": [openai_function],
+            }
+        )
+
+    eval_template = normalize_template(template)
+    prompts = map_template(dataframe, eval_template)
     with set_verbosity(model, verbose) as verbose_model:
-        eval_template = normalize_template(template)
-        prompts = map_template(dataframe, eval_template)
-        responses = verbose_model.generate(prompts.to_list(), instruction=system_instruction)
-        printif(verbose, f"Snapping {len(responses)} responses to rails: {rails}")
-        return [_snap_to_rail(response.content, rails, verbose=verbose) for response in responses]
+        responses = verbose_model.generate(
+            prompts.to_list(), instruction=system_instruction, **model_kwargs
+        )
+    printif(verbose, f"Snapping {len(responses)} responses to rails: {rails}")
+    if not use_openai_function_call:
+        return [_snap_to_rail(response, rails, verbose=verbose) for response in responses]
+
+    results = []
+    for response in responses:
+        raw_string = response
+        try:
+            function_arguments = json.loads(response, strict=False)
+            # take the first value if available
+            raw_string = next(function_arguments.values(), "")
+        except json.JSONDecodeError:
+            pass
+        label = _snap_to_rail(raw_string, rails, verbose=verbose)
+        results.append(label)
+    return results
 
 
 def llm_eval_binary(
@@ -272,3 +405,32 @@ def _snap_to_rail(raw_string: str, rails: List[str], verbose: bool = False) -> s
     rail = list(found_rails)[0]
     printif(verbose, f"- Snapped {repr(raw_string)} to rail: {rail}")
     return rail
+
+
+def _default_openai_function(
+    rails: List[str],
+    with_explanation: bool = False,
+) -> Dict[str, Any]:
+    properties = {
+        _RESPONSE: {"type": "string", "description": "Your response.", "enum": rails},
+        **(
+            {
+                _EXPLANATION: {
+                    "type": "string",
+                    "description": "Explanation of the reasoning for your response.",
+                },
+            }
+            if with_explanation
+            else {}
+        ),
+    }
+    required = [_RESPONSE, *([_EXPLANATION] if with_explanation else [])]
+    return {
+        "name": "record_response",
+        "description": "A function to record your response.",
+        "parameters": {
+            "type": "object",
+            "properties": properties,
+            "required": required,
+        },
+    }

@@ -1,4 +1,10 @@
-from .functions import llm_classify, llm_eval_binary, llm_generate, run_relevance_eval
+from .functions import (
+    llm_classify,
+    llm_classify_with_explanation,
+    llm_eval_binary,
+    llm_generate,
+    run_relevance_eval,
+)
 from .models import OpenAIModel, VertexAIModel
 from .retrievals import compute_precisions_at_k
 from .templates import (
@@ -19,6 +25,7 @@ __all__ = [
     "compute_precisions_at_k",
     "download_benchmark_dataset",
     "llm_classify",
+    "llm_classify_with_explanation",
     "llm_eval_binary",
     "llm_generate",
     "OpenAIModel",

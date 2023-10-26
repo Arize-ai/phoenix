@@ -3,7 +3,7 @@ import os
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
-from phoenix.experimental.evals.models.base import BaseEvalModel, LLMResponse
+from phoenix.experimental.evals.models.base import BaseEvalModel
 
 if TYPE_CHECKING:
     from tiktoken import Encoding
@@ -22,11 +22,6 @@ MODEL_TOKEN_LIMIT_MAPPING = {
 }
 LEGACY_COMPLETION_API_MODELS = ("gpt-3.5-turbo-instruct",)
 logger = logging.getLogger(__name__)
-
-
-@dataclass
-class OpenAIResponse(LLMResponse):
-    function_call_arguments_json: Optional[str] = None
 
 
 @dataclass
@@ -156,33 +151,24 @@ class OpenAIModel(BaseEvalModel):
     def _verbose_generation_info(self) -> str:
         return f"OpenAI invocation parameters: {self.public_invocation_params}"
 
-    def _generate(self, prompt: str, **kwargs: Dict[str, Any]) -> OpenAIResponse:
-        messages = self._build_messages(prompt, kwargs.get("instruction"))  # type:ignore
-        generate_kwargs = {**self.invocation_params}
+    def _generate(self, prompt: str, **kwargs: Any) -> str:
+        invoke_params = self.invocation_params
+        messages = self._build_messages(prompt, kwargs.get("instruction"))
         if functions := kwargs.get("functions"):
-            generate_kwargs["functions"] = functions
-        if function_call_arguments_json := kwargs.get("function_call"):
-            generate_kwargs["function_call"] = function_call_arguments_json
+            invoke_params["functions"] = functions
+        if function_call := kwargs.get("function_call"):
+            invoke_params["function_call"] = function_call
         response = self._generate_with_retry(
             messages=messages,
-            **generate_kwargs,
+            **invoke_params,
         )
+        choice = response["choices"][0]
         if self._model_uses_legacy_completion_api:
-            return OpenAIResponse(content=str(response["choices"][0]["text"]))
-
-        choices = response["choices"]
-        choice = choices[0]
-        finish_reason = choice["finish_reason"]
+            return str(choice["text"])
         message = choice["message"]
-        function_call_arguments_json = (
-            message["function_call"]["arguments"] if finish_reason == "function_call" else None
-        )
-        message_content = (
-            str(message_content) if (message_content := message["content"]) is not None else ""
-        )
-        return OpenAIResponse(
-            content=message_content, function_call_arguments_json=function_call_arguments_json
-        )
+        if function_call := message.get("function_call"):
+            return str(function_call.get("arguments") or "")
+        return str(message["content"])
 
     def _generate_with_retry(self, **kwargs: Any) -> Any:
         """Use tenacity to retry the completion call."""

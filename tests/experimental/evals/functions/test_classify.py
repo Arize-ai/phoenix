@@ -10,10 +10,88 @@ from phoenix.experimental.evals import (
     RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
     OpenAIModel,
     llm_classify,
+    llm_classify_with_explanation,
     run_relevance_eval,
 )
 from phoenix.experimental.evals.functions.classify import _snap_to_rail
 from phoenix.experimental.evals.models.openai import OPENAI_API_KEY_ENVVAR_NAME
+
+
+@responses.activate
+def test_llm_classify_with_explanation(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
+    dataframe = pd.DataFrame(
+        [
+            {"query": "What is Python?", "reference": "Python is a programming language."},
+            {"query": "What is Python?", "reference": "Ruby is a programming language."},
+            {"query": "What is C++?", "reference": "C++ is a programming language."},
+            {"query": "What is C++?", "reference": "irrelevant"},
+        ]
+    )
+    with patch.object(OpenAIModel, "_init_tiktoken", return_value=None):
+        model = OpenAIModel()
+
+    # without function call in response
+    for message_content in ["relevant", "irrelevant", "\nrelevant ", "unparsable"]:
+        responses.post(
+            "https://api.openai.com/v1/chat/completions",
+            json={"choices": [{"message": {"content": message_content}}]},
+            status=200,
+        )
+    relevance_classifications = llm_classify_with_explanation(
+        dataframe=dataframe,
+        template=RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
+        model=model,
+        rails=["relevant", "irrelevant"],
+    )
+    labels = [result.label for result in relevance_classifications]
+    assert labels == ["relevant", "irrelevant", "relevant", NOT_PARSABLE]
+
+    # function call without explanation
+    for message_content in ["relevant", "irrelevant", "\nrelevant ", "unparsable"]:
+        message = {
+            "function_call": {
+                "arguments": f"{{\n  \042response\042: \042{message_content}\042\n}}",
+            }
+        }
+        responses.post(
+            "https://api.openai.com/v1/chat/completions",
+            json={"choices": [{"message": message}]},
+            status=200,
+        )
+    relevance_classifications = llm_classify_with_explanation(
+        dataframe=dataframe,
+        template=RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
+        model=model,
+        rails=["relevant", "irrelevant"],
+    )
+    labels = [result.label for result in relevance_classifications]
+    assert labels == ["relevant", "irrelevant", "relevant", NOT_PARSABLE]
+    explanations = [result.explanation for result in relevance_classifications]
+    assert explanations == [None, None, None, None]
+
+    # function call with explanation
+    for i, message_content in enumerate(["relevant", "irrelevant", "\nrelevant ", "unparsable"]):
+        message = {
+            "function_call": {
+                "arguments": f"{{\n  \042response\042: \042{message_content}\042, \042explanation\042: \042{i}\042\n}}"  # noqa E501
+            }
+        }
+        responses.post(
+            "https://api.openai.com/v1/chat/completions",
+            json={"choices": [{"message": message}]},
+            status=200,
+        )
+    relevance_classifications = llm_classify_with_explanation(
+        dataframe=dataframe,
+        template=RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
+        model=model,
+        rails=["relevant", "irrelevant"],
+    )
+    labels = [result.label for result in relevance_classifications]
+    assert labels == ["relevant", "irrelevant", "relevant", NOT_PARSABLE]
+    explanations = [result.explanation for result in relevance_classifications]
+    assert explanations == ["0", "1", "2", "3"]
 
 
 @responses.activate
@@ -53,7 +131,6 @@ def test_llm_classify(monkeypatch: pytest.MonkeyPatch):
                         "message": {
                             "content": message_content,
                         },
-                        "finish_reason": "stop",
                     }
                 ],
             },
@@ -68,6 +145,21 @@ def test_llm_classify(monkeypatch: pytest.MonkeyPatch):
         model=model,
         rails=["relevant", "irrelevant"],
         verbose=True,
+    )
+    assert relevance_classifications == ["relevant", "irrelevant", "relevant", NOT_PARSABLE]
+
+    for message_content in ["relevant", "irrelevant", "\nrelevant ", "unparsable"]:
+        message = {"function_call": {"arguments": f"{{\n  'response': {message_content}\n}}"}}
+        responses.post(
+            "https://api.openai.com/v1/chat/completions",
+            json={"choices": [{"message": message}]},
+            status=200,
+        )
+    relevance_classifications = llm_classify(
+        dataframe=dataframe,
+        template=RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
+        model=model,
+        rails=["relevant", "irrelevant"],
     )
     assert relevance_classifications == ["relevant", "irrelevant", "relevant", NOT_PARSABLE]
 
@@ -109,7 +201,6 @@ def test_llm_classify_prints_to_stdout_with_verbose_flag(monkeypatch: pytest.Mon
                         "message": {
                             "content": message_content,
                         },
-                        "finish_reason": "stop",
                     }
                 ],
             },
@@ -383,7 +474,6 @@ def test_run_relevance_eval(
                         "message": {
                             "content": message_content,
                         },
-                        "finish_reason": "stop",
                     }
                 ],
             },

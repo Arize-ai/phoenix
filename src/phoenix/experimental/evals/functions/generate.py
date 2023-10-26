@@ -50,4 +50,4 @@ def llm_generate(
         prompts = map_template(dataframe, template)
 
         responses = verbose_model.generate(prompts.to_list(), system_instruction)
-        return [response.content for response in responses]
+        return [response for response in responses]
