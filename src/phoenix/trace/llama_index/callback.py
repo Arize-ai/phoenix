@@ -83,7 +83,7 @@ class CBEventData:
     _name: Optional[str] = None
     _event_type: Optional[CBEventType] = None
     _start_event: Optional[CBEvent] = None
-    _end_event: Optional[CBEvent] = None
+    end_event: Optional[CBEvent] = None
     attributes: Dict[str, Any] = field(default_factory=dict)
 
     @property
@@ -272,7 +272,7 @@ class OpenInferenceTraceCallbackHandler(BaseCallbackHandler):
 
         return event_id
 
-    def _missing_event_start_fallback(
+    def _event_end_without_event_start_fallback(
         self,
         event_type: CBEventType,
         payload: Optional[Dict[str, Any]] = None,
@@ -302,7 +302,7 @@ class OpenInferenceTraceCallbackHandler(BaseCallbackHandler):
             )
 
     @graceful_fallback(_null_fallback)
-    @graceful_fallback(_missing_event_start_fallback, (MissingEventStartError,))
+    @graceful_fallback(_event_end_without_event_start_fallback, (MissingEventStartError,))
     def on_event_end(
         self,
         event_type: CBEventType,
@@ -311,19 +311,20 @@ class OpenInferenceTraceCallbackHandler(BaseCallbackHandler):
         **kwargs: Any,
     ) -> None:
         event_data = self._event_id_to_event_data[event_id]
-        event_data.set_if_unset("name", event_type.value)
-        event_data.set_if_unset("event_type", event_type)
-        event_data.end_event = CBEvent(
-            event_type=event_type,
-            payload=payload,
-            id_=event_id,
-        )
-
-        # Parse the payload to extract the parameters
-        if payload is not None:
-            event_data.attributes.update(
-                payload_to_semantic_attributes(event_type, payload, is_event_end=True),
+        if event_data.start_event:
+            event_data.set_if_unset("name", event_type.value)
+            event_data.set_if_unset("event_type", event_type)
+            event_data.end_event = CBEvent(
+                event_type=event_type,
+                payload=payload,
+                id_=event_id,
             )
+
+            # Parse the payload to extract the parameters
+            if payload is not None:
+                event_data.attributes.update(
+                    payload_to_semantic_attributes(event_type, payload, is_event_end=True),
+                )
 
     @graceful_fallback(_null_fallback)
     def start_trace(self, trace_id: Optional[str] = None) -> None:
