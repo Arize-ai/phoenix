@@ -12,8 +12,9 @@ https://github.com/Arize-ai/open-inference-spec
 import json
 import logging
 from collections import defaultdict
-from datetime import datetime
-from typing import Any, Callable, Dict, Iterable, Iterator, List, Optional, Tuple, TypedDict, cast
+from dataclasses import dataclass, field
+from datetime import datetime, timezone
+from typing import Any, Callable, Dict, Iterable, Iterator, List, Optional, Tuple, cast
 from uuid import uuid4
 
 from llama_index.callbacks.base_handler import BaseCallbackHandler
@@ -73,12 +74,17 @@ CBEventID = str
 _LOCAL_TZINFO = datetime.now().astimezone().tzinfo
 
 
-class CBEventData(TypedDict, total=False):
-    name: str
-    event_type: CBEventType
-    start_event: CBEvent
-    end_event: CBEvent
-    attributes: Dict[str, Any]
+@dataclass
+class CBEventData:
+    name: Optional[str] = field(default=None)
+    event_type: Optional[CBEventType] = field(default=None)
+    start_event: Optional[CBEvent] = field(default=None)
+    end_event: Optional[CBEvent] = field(default=None)
+    attributes: Dict[str, Any] = field(default_factory=dict)
+
+    def set_if_unset(self, key: str, value: Any) -> None:
+        if not getattr(self, key):
+            setattr(self, key, value)
 
 
 ChildEventIds = Dict[CBEventID, List[CBEventID]]
