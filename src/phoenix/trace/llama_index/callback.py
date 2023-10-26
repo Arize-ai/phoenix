@@ -282,7 +282,37 @@ class OpenInferenceTraceCallbackHandler(BaseCallbackHandler):
 
         return event_id
 
+    def _missing_event_start_fallback(
+        self,
+        event_type: CBEventType,
+        payload: Optional[Dict[str, Any]] = None,
+        event_id: CBEventID = "",
+        **kwargs: Any,
+    ) -> None:
+        event_data = self._event_id_to_event_data[event_id]
+
+        # If the start event is missing, we create a dummy start event
+        event_data.start_event = CBEvent(
+            event_type=event_type,
+            id_=event_id,
+        )
+
+        event_data.set_if_unset("name", event_type.value)
+        event_data.set_if_unset("event_type", event_type)
+        event_data.end_event = CBEvent(
+            event_type=event_type,
+            payload=payload,
+            id_=event_id,
+        )
+
+        # Parse the payload to extract the parameters
+        if payload is not None:
+            event_data.attributes.update(
+                payload_to_semantic_attributes(event_type, payload, is_event_end=True),
+            )
+
     @graceful_fallback(_null_fallback)
+    @graceful_fallback(_missing_event_start_fallback, (MissingEventStartError,))
     def on_event_end(
         self,
         event_type: CBEventType,
