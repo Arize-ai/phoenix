@@ -175,6 +175,29 @@ def test_on_event_start_handler_fails_gracefully(
     assert "CallbackError" in caplog.records[0].message
 
 
+def test_on_event_start_handler_is_not_called_before_end_handler(
+    mock_service_context: ServiceContext, caplog
+) -> None:
+    question = "What are the seven wonders of the world?"
+    callback_handler = OpenInferenceTraceCallbackHandler(exporter=NoOpExporter())
+    index = ListIndex(nodes)
+    retriever = index.as_retriever(retriever_mode="default")
+    response_synthesizer = get_response_synthesizer()
+
+    query_engine = RetrieverQueryEngine(
+        retriever=retriever,
+        response_synthesizer=response_synthesizer,
+        callback_manager=CallbackManager([callback_handler]),
+    )
+
+    with patch.object(callback_handler, "on_event_start"):
+        # mock the on_event_start method to be a no-op
+        query_engine.query(question)
+
+    records = caplog.records
+    assert len(records) == 0, "on_event_end does not break if on_event_start is not called"
+
+
 def test_on_event_end_handler_fails_gracefully(
     mock_service_context: ServiceContext, caplog
 ) -> None:
