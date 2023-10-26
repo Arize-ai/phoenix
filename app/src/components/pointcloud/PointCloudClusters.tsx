@@ -102,7 +102,7 @@ function clusterColor({
   clusterCount: number;
 }): string {
   if (clusterColorMode === ClusterColorMode.default) {
-    return theme === "dark" ? "#999999" : "#555555";
+    return theme === "dark" ? "#999999" : "#bbbbbb";
   }
   return interpolateSinebow(index / clusterCount);
 }

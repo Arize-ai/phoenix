@@ -1,4 +1,3 @@
-import { transparentize } from "polished";
 import { ReferenceLineProps, TooltipProps, XAxisProps } from "recharts";
 
 import { theme } from "@arizeai/components";

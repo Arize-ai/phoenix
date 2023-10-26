@@ -31,7 +31,7 @@ export const resizeHandleCSS = css`
   }
 
   &:hover {
-    background-color: var(--ac-global-color-grey-400);
+    background-color: var(--ac-global-color-grey-300);
     border-radius: 4px;
     &:before,
     &:after {

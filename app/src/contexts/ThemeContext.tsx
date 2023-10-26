@@ -13,11 +13,11 @@ export type ThemeContextType = {
   setTheme: (theme: ProviderTheme) => void;
 };
 
-const LOCAL_STORAGE_THEME_KEY = "arize-phoenix-theme";
+export const LOCAL_STORAGE_THEME_KEY = "arize-phoenix-theme";
+
 export function getCurrentTheme(): ProviderTheme {
-  return localStorage.getItem(LOCAL_STORAGE_THEME_KEY) == "light"
-    ? "light"
-    : "dark";
+  const themeFromLocalStorage = localStorage.getItem(LOCAL_STORAGE_THEME_KEY);
+  return themeFromLocalStorage === "light" ? "light" : "dark";
 }
 
 export const ThemeContext = createContext<ThemeContextType | null>(null);

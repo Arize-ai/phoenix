@@ -29,9 +29,9 @@ import {
   ChartTooltip,
   ChartTooltipDivider,
   ChartTooltipItem,
-  colors,
   defaultSelectedTimestampReferenceLineProps,
   defaultTimeXAxisProps,
+  useChartColors,
 } from "@phoenix/components/chart";
 import { useTimeTickFormatter } from "@phoenix/components/chart";
 import { usePointCloudContext } from "@phoenix/contexts";
@@ -55,14 +55,22 @@ const numberFormatter = new Intl.NumberFormat([], {
   maximumFractionDigits: 2,
 });
 
-const color = colors.blue400;
-const barColor = colors.gray500;
+const useColors = () => {
+  const colors = useChartColors();
+  const color = colors.blue400;
+  const barColor = colors.gray500;
+  return {
+    color,
+    barColor,
+  };
+};
 
 function TooltipContent({
   active,
   payload,
   label,
 }: TooltipProps<number, string>) {
+  const { color, barColor } = useColors();
   if (active && payload && payload.length) {
     const metricValue = payload[1]?.value ?? null;
     const count = payload[0]?.value ?? null;
@@ -312,6 +320,7 @@ export function MetricTimeSeries({
   const metricShortName = getMetricShortName(metric);
   const metricDescription = getMetricDescription(metric);
 
+  const { color, barColor } = useColors();
   return (
     <section
       css={css`

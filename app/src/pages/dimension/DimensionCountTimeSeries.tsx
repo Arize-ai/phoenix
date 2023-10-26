@@ -16,9 +16,9 @@ import { Text, theme } from "@arizeai/components";
 import {
   ChartTooltip,
   ChartTooltipItem,
-  colors,
   defaultBarChartTooltipProps,
   defaultTimeXAxisProps,
+  useChartColors,
   useTimeTickFormatter,
 } from "@phoenix/components/chart";
 import { useTimeRange } from "@phoenix/contexts/TimeRangeContext";
@@ -32,13 +32,19 @@ const numberFormatter = new Intl.NumberFormat([], {
   maximumFractionDigits: 2,
 });
 
-const barColor = colors.gray300;
+const useColors = () => {
+  const { gray300 } = useChartColors();
+  return {
+    barColor: gray300,
+  };
+};
 
 function TooltipContent({
   active,
   payload,
   label,
 }: TooltipProps<number, string>) {
+  const { barColor } = useColors();
   if (active && payload && payload.length) {
     const count = payload[0]?.value ?? null;
     const predictionCountString =
@@ -113,6 +119,7 @@ export function DimensionCountTimeSeries({
   const timeTickFormatter = useTimeTickFormatter({
     samplingIntervalMinutes: countGranularity.samplingIntervalMinutes,
   });
+  const { barColor } = useColors();
 
   return (
     <ResponsiveContainer width="100%" height="100%">

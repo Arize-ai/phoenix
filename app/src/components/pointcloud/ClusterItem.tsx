@@ -103,12 +103,12 @@ export function ClusterItem(props: ClusterItemProps) {
         transition: background-color 0.2s ease-in-out;
         cursor: pointer;
         &:hover {
-          background-color: var(--ac-global-color-primary-500);
+          background-color: var(--ac-global-color-primary-700);
           border-color: var(--ac-global-color-primary);
         }
         &.is-selected {
           border-color: var(--ac-global-color-primary);
-          background-color: var(--ac-global-color-primary-500);
+          background-color: var(--ac-global-color-primary-700);
         }
       `}
       className={isSelected ? "is-selected" : ""}

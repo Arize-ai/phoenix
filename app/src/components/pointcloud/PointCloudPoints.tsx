@@ -12,7 +12,7 @@ import { Point } from "@phoenix/store";
 import { PointColor } from "./types";
 
 const SHADE_AMOUNT = 0.5;
-const LIGHTEN_AMOUNT = 0.3;
+const LIGHTEN_AMOUNT = 0.5;
 
 /**
  * The amount of time to debounce the hover events

@@ -21,9 +21,9 @@ import {
   ChartTooltip,
   ChartTooltipDivider,
   ChartTooltipItem,
-  colors,
   defaultSelectedTimestampReferenceLineProps,
   defaultTimeXAxisProps,
+  useChartColors,
   useTimeTickFormatter,
 } from "@phoenix/components/chart";
 import { useTimeRange } from "@phoenix/contexts/TimeRangeContext";
@@ -38,14 +38,20 @@ import {
 import { DimensionDriftTimeSeriesQuery } from "./__generated__/DimensionDriftTimeSeriesQuery.graphql";
 import { timeSeriesChartMargins } from "./dimensionChartConstants";
 
-const color = colors.orange300;
-const barColor = "#93b3c841";
+const useColors = () => {
+  const { orange300, gray300 } = useChartColors();
+  return {
+    color: orange300,
+    barColor: gray300,
+  };
+};
 
 function TooltipContent({
   active,
   payload,
   label,
 }: TooltipProps<number, string>) {
+  const { color } = useColors();
   if (active && payload && payload.length) {
     const euclideanDistance = payload[1]?.value ?? null;
 
@@ -166,6 +172,7 @@ export function DimensionDriftTimeSeries({
     [setSelectedTimestamp]
   );
 
+  const { color, barColor } = useColors();
   return (
     <ResponsiveContainer width="100%" height="100%">
       <ComposedChart

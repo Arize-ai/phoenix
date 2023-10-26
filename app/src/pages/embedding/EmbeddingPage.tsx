@@ -59,9 +59,9 @@ import {
 import { useEmbeddingDimensionId } from "@phoenix/hooks";
 import {
   ClusterColorMode,
-  DEFAULT_DRIFT_POINT_CLOUD_PROPS,
-  DEFAULT_RETRIEVAL_TROUBLESHOOTING_POINT_CLOUD_PROPS,
-  DEFAULT_SINGLE_DATASET_POINT_CLOUD_PROPS,
+  getDefaultDriftPointCloudProps,
+  getDefaultRetrievalTroubleshootingPointCloudProps,
+  getDefaultSingleDatasetPointCloudProps,
   MetricDefinition,
   PointCloudProps,
 } from "@phoenix/store";
@@ -228,11 +228,11 @@ export function EmbeddingPage() {
       // If there is a corpus dataset, then initialize the page with the retrieval troubleshooting settings
       // TODO - this does make a bit of a leap of assumptions but is a short term solution in order to get the page working as intended
       defaultPointCloudProps =
-        DEFAULT_RETRIEVAL_TROUBLESHOOTING_POINT_CLOUD_PROPS;
+        getDefaultRetrievalTroubleshootingPointCloudProps();
     } else if (referenceDataset != null) {
-      defaultPointCloudProps = DEFAULT_DRIFT_POINT_CLOUD_PROPS;
+      defaultPointCloudProps = getDefaultDriftPointCloudProps();
     } else {
-      defaultPointCloudProps = DEFAULT_SINGLE_DATASET_POINT_CLOUD_PROPS;
+      defaultPointCloudProps = getDefaultSingleDatasetPointCloudProps();
     }
 
     // Apply the UMAP parameters from the server-sent config
