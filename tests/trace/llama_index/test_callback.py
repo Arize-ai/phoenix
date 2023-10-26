@@ -204,13 +204,22 @@ def test_on_event_end_handler_fails_gracefully(
     event_type = CBEventType.QUERY
     faulty_payload = {"faulty": "payload"}
     event_id = str(uuid4())
+    parent_id = str(uuid4())
 
     callback_handler = OpenInferenceTraceCallbackHandler(exporter=NoOpExporter())
     callback_handler.on_event_end(event_type, faulty_payload, event_id)
+    callback_handler.on_event_start(event_type, dict(), event_id, parent_id)  # start event first
+    with patch(
+        "phoenix.trace.llama_index.callback.payload_to_semantic_attributes"
+    ) as mock_internals:
+        mock_internals.side_effect = RuntimeError("on_event_end test error")
+        callback_handler.on_event_end(event_type, faulty_payload, event_id)
 
-    assert caplog.records[0].levelname == "ERROR"
-    assert "on_event_end" in caplog.records[0].message
-    assert "KeyError" in caplog.records[0].message
+    records = caplog.records
+    assert len(records) == 1
+    assert records[0].levelname == "ERROR"
+    assert "on_event_end" in records[0].message
+    assert "on_event_end test error" in records[0].message
 
 
 @patch("phoenix.trace.llama_index.callback._add_spans_to_tracer")
