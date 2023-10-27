@@ -298,6 +298,8 @@ class OpenAIModel(BaseEvalModel):
         if (
             self._is_azure
             and self.openai_api_version
+            # The first api version supporting function calling is 2023-07-01-preview.
+            # See https://github.com/Azure/azure-rest-api-specs/blob/58e92dd03733bc175e6a9540f4bc53703b57fcc9/specification/cognitiveservices/data-plane/AzureOpenAI/inference/preview/2023-07-01-preview/inference.json#L895 # noqa E501
             and self.openai_api_version[:10] < "2023-07-01"
         ):
             return False

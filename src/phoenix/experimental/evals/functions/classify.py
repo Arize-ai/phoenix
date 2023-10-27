@@ -34,8 +34,8 @@ class ClassificationResult(NamedTuple):
     A tuple of classification label and (optional) explanation.
     """
 
-    # Note that `NamedTuple` is as subclass of `tuple`, to allow for a
-    # seamless conversion to pandas dataframe, as in e.g.,
+    # Note that `NamedTuple` is a subclass of `tuple`, so it allows for a
+    # seamless conversion to a pandas dataframe, as in e.g.,
     # `df = pd.DataFrame([ClassificationResult("relevant", None)])`
     # or
     # `df[["label", "explanation"]] = [ClassificationResult('label', None)]`
@@ -75,7 +75,9 @@ def llm_classify_with_explanation(
         parameters and details about retries and snapping to rails. Default False.
 
         use_function_calling_if_available (bool, default=True): If True, use function calling
-        (if available) as a means to constrain the LLM outputs.
+        (if available) as a means to constrain the LLM outputs. With function calling, the LLM
+        is instructed to provide its response as a structured JSON object, which is easier
+        to parse.
 
     Returns:
         List[ClassificationResult]: A list of tuples representing the predicted class and the
@@ -168,7 +170,9 @@ def llm_classify(
         parameters and details about retries and snapping to rails. Default False.
 
         use_function_calling_if_available (bool, default=True): If True, use function calling
-        (if available) as a means to constrain the LLM outputs.
+        (if available) as a means to constrain the LLM outputs. With function calling, the LLM
+        is instructed to provide its response as a structured JSON object, which is easier
+        to parse.
 
     Returns:
         List[str]: A list of strings representing the predicted class for each record in the
