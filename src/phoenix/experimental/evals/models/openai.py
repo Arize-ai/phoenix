@@ -3,7 +3,10 @@ import os
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
+from openai.openai_object import OpenAIObject
+
 from phoenix.experimental.evals.models.base import BaseEvalModel
+from phoenix.experimental.evals.models.rate_limiters import OpenAIRateLimiter
 
 if TYPE_CHECKING:
     from tiktoken import Encoding
@@ -22,6 +25,13 @@ MODEL_TOKEN_LIMIT_MAPPING = {
 }
 LEGACY_COMPLETION_API_MODELS = ("gpt-3.5-turbo-instruct",)
 logger = logging.getLogger(__name__)
+
+
+Numeric = Union[int, float]
+
+
+def openai_token_cost(chat_completion: OpenAIObject) -> Numeric:
+    return chat_completion.usage.total_tokens
 
 
 @dataclass
@@ -56,7 +66,7 @@ class OpenAIModel(BaseEvalModel):
     """Batch size to use when passing multiple documents to generate."""
     request_timeout: Optional[Union[float, Tuple[float, float]]] = None
     """Timeout for requests to OpenAI completion API. Default is 600 seconds."""
-    max_retries: int = 20
+    max_retries: int = 6
     """Maximum number of retries to make when generating."""
     retry_min_seconds: int = 10
     """Minimum number of seconds to wait when retrying."""
@@ -67,6 +77,17 @@ class OpenAIModel(BaseEvalModel):
         self._init_environment()
         self._init_open_ai()
         self._init_tiktoken()
+        self._rate_limiter = None
+
+    @property
+    def rate_limiter(self) -> OpenAIRateLimiter:
+        if self._rate_limiter is None:
+            rate_limit_factory = OpenAIRateLimiter()
+            rate_limit_factory.set_rate_limits(
+                self.model_name, request_rate_limit=200, token_rate_limit=40000
+            )
+            self._rate_limiter = rate_limit_factory.alimit(self.model_name, openai_token_cost)
+        return self._rate_limiter
 
     def _init_environment(self) -> None:
         try:
@@ -174,6 +195,10 @@ class OpenAIModel(BaseEvalModel):
             self._openai_error.RateLimitError,
             self._openai_error.ServiceUnavailableError,
         ]
+
+        def metered_openai_completion(**kwargs: Any) -> Any:
+            response = self.rate_limiter(self._openai.Completion.create)(**kwargs)
+            return response
 
         @self.retry(
             error_types=openai_retry_errors,
