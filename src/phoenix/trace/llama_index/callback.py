@@ -13,16 +13,41 @@ import json
 import logging
 from collections import defaultdict
 from datetime import datetime
-from typing import Any, Callable, Dict, Iterable, Iterator, List, Optional, Tuple, TypedDict, cast
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Iterable,
+    Iterator,
+    List,
+    Mapping,
+    Optional,
+    Tuple,
+    TypedDict,
+    Union,
+    cast,
+)
 from uuid import uuid4
 
 from llama_index.callbacks.base_handler import BaseCallbackHandler
-from llama_index.callbacks.schema import TIMESTAMP_FORMAT, CBEvent, CBEventType, EventPayload
+from llama_index.callbacks.schema import (
+    TIMESTAMP_FORMAT,
+    CBEvent,
+    CBEventType,
+    EventPayload,
+)
 from llama_index.llms.base import ChatMessage, ChatResponse
 from llama_index.tools import ToolMetadata
 
 from phoenix.trace.exporter import HttpExporter
-from phoenix.trace.schemas import Span, SpanEvent, SpanException, SpanID, SpanKind, SpanStatusCode
+from phoenix.trace.schemas import (
+    Span,
+    SpanEvent,
+    SpanException,
+    SpanID,
+    SpanKind,
+    SpanStatusCode,
+)
 from phoenix.trace.semantic_conventions import (
     DOCUMENT_CONTENT,
     DOCUMENT_ID,
@@ -133,7 +158,13 @@ def payload_to_semantic_attributes(
         if (raw := getattr(response, "raw", None)) is not None:
             attributes.update(_get_output_messages(raw))
             if (usage := getattr(raw, "usage", None)) is not None:
+                # OpenAI token counts are available on raw.usage but can also be
+                # found in additional_kwargs. Thus the duplicate handling.
                 attributes.update(_get_token_counts(usage))
+        # Look for token counts in additional_kwargs of the completion payload
+        # This is needed for non-OpenAI models
+        if (additional_kwargs := getattr(response, "additional_kwargs", None)) is not None:
+            attributes.update(_get_token_counts(additional_kwargs))
     if event_type is CBEventType.RERANKING:
         if EventPayload.TOP_K in payload:
             attributes[RERANKER_TOP_K] = payload[EventPayload.TOP_K]
@@ -495,12 +526,40 @@ def _get_output_messages(raw: object) -> Iterator[Tuple[str, Any]]:
     yield LLM_OUTPUT_MESSAGES, messages
 
 
-def _get_token_counts(usage: object) -> Iterator[Tuple[str, Any]]:
+def _get_token_counts(usage: Union[object, Mapping[str, Any]]) -> Iterator[Tuple[str, Any]]:
+    """
+    Yields token count attributes from a object or mapping
+    """
+    # Call the appropriate function based on the type of usage
+    if isinstance(usage, Mapping):
+        yield from _get_token_counts_from_mapping(usage)
+    elif isinstance(usage, object):
+        yield from _get_token_counts_from_object(usage)
+
+
+def _get_token_counts_from_object(usage: object) -> Iterator[Tuple[str, Any]]:
+    """
+    Yields token count attributes from response.raw.usage
+    """
     if (prompt_tokens := getattr(usage, "prompt_tokens", None)) is not None:
         yield LLM_TOKEN_COUNT_PROMPT, prompt_tokens
     if (completion_tokens := getattr(usage, "completion_tokens", None)) is not None:
         yield LLM_TOKEN_COUNT_COMPLETION, completion_tokens
     if (total_tokens := getattr(usage, "total_tokens", None)) is not None:
+        yield LLM_TOKEN_COUNT_TOTAL, total_tokens
+
+
+def _get_token_counts_from_mapping(
+    usage_mapping: Mapping[str, Any],
+) -> Iterator[Tuple[str, Any]]:
+    """
+    Yields token count attributes from a mapping (e.x. completion kwargs payload)
+    """
+    if (prompt_tokens := usage_mapping.get("prompt_tokens")) is not None:
+        yield LLM_TOKEN_COUNT_PROMPT, prompt_tokens
+    if (completion_tokens := usage_mapping.get("completion_tokens")) is not None:
+        yield LLM_TOKEN_COUNT_COMPLETION, completion_tokens
+    if (total_tokens := usage_mapping.get("total_tokens")) is not None:
         yield LLM_TOKEN_COUNT_TOTAL, total_tokens
 
 
