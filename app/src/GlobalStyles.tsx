@@ -12,7 +12,8 @@ export function GlobalStyles() {
           font-size: ${theme.typography.sizes.medium.fontSize}px;
           margin: 0;
           #root,
-          #root > div[data-overlay-container="true"] {
+          #root > div[data-overlay-container="true"],
+          #root > div[data-overlay-container="true"] > .ac-theme {
             height: 100vh;
           }
         }

@@ -344,8 +344,15 @@ export function TracesTable(props: TracesTableProps) {
   const rows = table.getRowModel().rows;
   const isEmpty = rows.length === 0;
   return (
-    <div>
-      <View padding="size-100" backgroundColor="grey-200">
+    <div
+      css={css`
+        display: flex;
+        flex-direction: column;
+        flex: 1 1 auto;
+        overflow: hidden;
+      `}
+    >
+      <View padding="size-100" backgroundColor="grey-200" flex="none">
         <SpanFilterConditionField onValidCondition={setFilterCondition} />
       </View>
       <div
