@@ -80,31 +80,11 @@ class MissingEventStartError(Exception):
 
 @dataclass
 class CBEventData:
-    _name: Optional[str] = None
-    _event_type: Optional[CBEventType] = None
+    name: str = "unknown"
+    event_type: Optional[CBEventType] = None
     _start_event: Optional[CBEvent] = None
     end_event: Optional[CBEvent] = None
     attributes: Dict[str, Any] = field(default_factory=dict)
-
-    @property
-    def name(self) -> str:
-        if name := self._name:
-            return name
-        raise AttributeError("name is not set")
-
-    @name.setter
-    def name(self, value: str) -> None:
-        self._name = value
-
-    @property
-    def event_type(self) -> CBEventType:
-        if event_type := self._event_type:
-            return event_type
-        raise AttributeError("event_type is not set")
-
-    @event_type.setter
-    def event_type(self, value: CBEventType) -> None:
-        self._event_type = value
 
     @property
     def start_event(self) -> CBEvent:
@@ -115,10 +95,6 @@ class CBEventData:
     @start_event.setter
     def start_event(self, value: CBEvent) -> None:
         self._start_event = value
-
-    def set_if_unset(self, key: str, value: Any) -> None:
-        if not getattr(self, f"_{key}", False):
-            setattr(self, key, value)
 
 
 ChildEventIds = Dict[CBEventID, List[CBEventID]]
@@ -287,8 +263,8 @@ class OpenInferenceTraceCallbackHandler(BaseCallbackHandler):
             id_=event_id,
         )
 
-        event_data.set_if_unset("name", event_type.value)
-        event_data.set_if_unset("event_type", event_type)
+        event_data.name = event_type.value
+        event_data.event_type = event_type
         event_data.end_event = CBEvent(
             event_type=event_type,
             payload=payload,
@@ -312,8 +288,8 @@ class OpenInferenceTraceCallbackHandler(BaseCallbackHandler):
     ) -> None:
         event_data = self._event_id_to_event_data[event_id]
         if event_data.start_event:
-            event_data.set_if_unset("name", event_type.value)
-            event_data.set_if_unset("event_type", event_type)
+            event_data.name = event_type.value
+            event_data.event_type = event_type
             event_data.end_event = CBEvent(
                 event_type=event_type,
                 payload=payload,
@@ -436,7 +412,7 @@ def _add_spans_to_tracer(
             parent_child_id_stack.append((new_parent_span_id, new_child_event_id))
 
 
-def _get_span_kind(event_type: CBEventType) -> SpanKind:
+def _get_span_kind(event_type: Optional[CBEventType]) -> SpanKind:
     """Maps a CBEventType to a SpanKind.
 
     Args:
@@ -445,6 +421,8 @@ def _get_span_kind(event_type: CBEventType) -> SpanKind:
     Returns:
         SpanKind: The corresponding span kind.
     """
+    if event_type is None:
+        return SpanKind.UNKNOWN
     return {
         CBEventType.EMBEDDING: SpanKind.EMBEDDING,
         CBEventType.LLM: SpanKind.LLM,
