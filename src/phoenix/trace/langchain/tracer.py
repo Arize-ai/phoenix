@@ -362,6 +362,7 @@ class OpenInferenceTracer(Tracer, BaseTracer):
         tags: Optional[List[str]] = None,
         parent_run_id: Optional[UUID] = None,
         metadata: Optional[Dict[str, Any]] = None,
+        name: Optional[str] = None,
         **kwargs: Any,
     ) -> None:
         """
@@ -390,5 +391,6 @@ class OpenInferenceTracer(Tracer, BaseTracer):
             child_execution_order=execution_order,
             run_type="llm",
             tags=tags,
+            name=name or "",
         )
         self._start_trace(run)
