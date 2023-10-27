@@ -228,7 +228,7 @@ def test_custom_llm(mock_embed_model) -> None:
             },
         )
 
-    class Llama7B(CustomLLM):
+    class Llama2(CustomLLM):
         @property
         def metadata(self) -> LLMMetadata:
             """Get LLM metadata."""
@@ -253,7 +253,7 @@ def test_custom_llm(mock_embed_model) -> None:
         def stream_complete(self, prompt: str, **kwargs: Any) -> CompletionResponseGen:
             raise NotImplementedError()
 
-    llm = Llama7B()
+    llm = Llama2()
 
     question = "What are the seven wonders of the world?"
     callback_handler = OpenInferenceTraceCallbackHandler(exporter=NoOpExporter())
