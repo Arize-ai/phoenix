@@ -158,8 +158,8 @@ def payload_to_semantic_attributes(
         if (raw := getattr(response, "raw", None)) is not None:
             attributes.update(_get_output_messages(raw))
             if (usage := getattr(raw, "usage", None)) is not None:
-                # OpenAI token counts are available on raw.usage but more
-                # also available in additional_kwargs
+                # OpenAI token counts are available on raw.usage but can also be
+                # found in additional_kwargs. Thus the duplicate handling.
                 attributes.update(_get_token_counts(usage))
         # Look for token counts in additional_kwargs of the completion payload
         # This is needed for non-OpenAI models
