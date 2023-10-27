@@ -1,8 +1,9 @@
 import logging
 import os
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Mapping, Optional, Tuple, Union
 
+import requests
 from openai.openai_object import OpenAIObject
 
 from phoenix.experimental.evals.models.base import BaseEvalModel
@@ -32,6 +33,28 @@ Numeric = Union[int, float]
 
 def openai_token_cost(chat_completion: OpenAIObject) -> Numeric:
     return chat_completion.usage.total_tokens
+
+
+def openai_rate_limit_info(model_name: str, api_key: str) -> Mapping[str, int]:
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {api_key}",
+    }
+    data = {
+        "model": model_name,
+        "messages": [
+            {"role": "system", "content": "You are a helpful assistant."},
+            {"role": "user", "content": "Hello"},
+        ],
+    }
+    response = requests.post(
+        "https://api.openai.com/v1/chat/completions", headers=headers, json=data
+    )
+    limit_info = {
+        "request-limit": int(response.headers["x-ratelimit-limit-requests"]),
+        "token-limit": int(response.headers["x-ratelimit-limit-tokens"]),
+    }
+    return limit_info
 
 
 @dataclass
@@ -82,11 +105,13 @@ class OpenAIModel(BaseEvalModel):
     @property
     def rate_limiter(self) -> OpenAIRateLimiter:
         if self._rate_limiter is None:
-            rate_limit_factory = OpenAIRateLimiter()
-            rate_limit_factory.set_rate_limits(
-                self.model_name, request_rate_limit=200, token_rate_limit=40000
+            self._rate_limiter = OpenAIRateLimiter()
+            limit_info = openai_rate_limit_info(self.model_name, self.openai_api_key)
+            self._rate_limiter.set_rate_limits(
+                self.model_name,
+                request_rate_limit=limit_info["request-limit"],
+                token_rate_limit=limit_info["token-limit"],
             )
-            self._rate_limiter = rate_limit_factory.alimit(self.model_name, openai_token_cost)
         return self._rate_limiter
 
     def _init_environment(self) -> None:
@@ -197,7 +222,8 @@ class OpenAIModel(BaseEvalModel):
         ]
 
         def metered_openai_completion(**kwargs: Any) -> Any:
-            response = self.rate_limiter(self._openai.Completion.create)(**kwargs)
+            limit = self.rate_limiter.limit(self.model_name, openai_token_cost)
+            response = limit(self._openai.Completion.create)(**kwargs)
             return response
 
         @self.retry(
@@ -213,8 +239,8 @@ class OpenAIModel(BaseEvalModel):
                         (message.get("content") or "")
                         for message in (kwargs.pop("messages", None) or ())
                     )
-                return self._openai.Completion.create(**kwargs)
-            return self._openai.ChatCompletion.create(**kwargs)
+                return metered_openai_completion(**kwargs)
+            return metered_openai_completion(**kwargs)
 
         return _completion_with_retry(**kwargs)
 
