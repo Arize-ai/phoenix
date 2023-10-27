@@ -23,6 +23,7 @@ import {
   TriggerWrap,
 } from "@arizeai/components";
 
+import { useTheme } from "@phoenix/contexts";
 import environment from "@phoenix/RelayEnvironment";
 
 import { SpanFilterConditionFieldValidationQuery } from "./__generated__/SpanFilterConditionFieldValidationQuery.graphql";
@@ -220,6 +221,8 @@ export function SpanFilterConditionField(props: SpanFilterConditionFieldProps) {
   const [errorMessage, setErrorMessage] = useState<string>("");
   const [filterCondition, setFilterCondition] = useState<string>("");
   const deferredFilterCondition = useDeferredValue(filterCondition);
+  const { theme } = useTheme();
+  const codeMirrorTheme = theme === "dark" ? nord : undefined;
 
   useEffect(() => {
     isConditionValid(deferredFilterCondition).then((result) => {
@@ -259,7 +262,7 @@ export function SpanFilterConditionField(props: SpanFilterConditionFieldProps) {
           onChange={setFilterCondition}
           height="36px"
           width="100%"
-          theme={nord}
+          theme={codeMirrorTheme}
           placeholder={placeholder}
           extensions={extensions}
         />
