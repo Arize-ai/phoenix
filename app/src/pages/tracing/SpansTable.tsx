@@ -238,12 +238,18 @@ export function SpansTable(props: SpansTableProps) {
   const rows = table.getRowModel().rows;
   const isEmpty = rows.length === 0;
   return (
-    <div>
-      <div>
-        <View padding="size-100" backgroundColor="light">
-          <SpanFilterConditionField onValidCondition={setFilterCondition} />
-        </View>
-      </div>
+    <div
+      css={css`
+        display: flex;
+        flex-direction: column;
+        flex: 1 1 auto;
+        overflow: hidden;
+      `}
+    >
+      <View padding="size-100" backgroundColor="grey-200">
+        <SpanFilterConditionField onValidCondition={setFilterCondition} />
+      </View>
+
       <div
         css={css`
           flex: 1 1 auto;
