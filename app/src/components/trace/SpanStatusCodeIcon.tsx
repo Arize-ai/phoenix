@@ -12,7 +12,7 @@ export function SpanStatusCodeIcon<TCode extends SpanStatusCodeType>({
   statusCode: TCode;
 }) {
   let iconSVG = <Icons.MinusCircleOutline />;
-  let color: ColorValue = "grey-100";
+  let color: ColorValue = "grey-500";
   switch (statusCode) {
     case "OK":
       iconSVG = <Icons.CheckmarkCircleOutline />;
