@@ -1,7 +1,6 @@
 import React from "react";
-import { css, Theme } from "@emotion/react";
 
-import { Icon, Icons } from "@arizeai/components";
+import { ColorValue, Icon, Icons } from "@arizeai/components";
 
 import { assertUnreachable } from "@phoenix/typeUtils";
 
@@ -12,33 +11,22 @@ export function SpanStatusCodeIcon<TCode extends SpanStatusCodeType>({
 }: {
   statusCode: TCode;
 }) {
-  let icon = <Icons.MinusCircleOutline />;
-  let color: keyof Theme["colors"] = "gray100";
+  let iconSVG = <Icons.MinusCircleOutline />;
+  let color: ColorValue = "grey-100";
   switch (statusCode) {
     case "OK":
-      icon = <Icons.CheckmarkCircleOutline />;
-      color = "statusSuccess";
+      iconSVG = <Icons.CheckmarkCircleOutline />;
+      color = "success";
       break;
     case "ERROR":
-      icon = <Icons.AlertCircleOutline />;
-      color = "statusDanger";
+      iconSVG = <Icons.AlertCircleOutline />;
+      color = "danger";
       break;
     case "UNSET":
-      icon = <Icons.MinusCircleOutline />;
+      iconSVG = <Icons.MinusCircleOutline />;
       break;
     default:
       assertUnreachable(statusCode);
   }
-  return (
-    <div
-      css={(theme) => css`
-        .ac-icon-wrap {
-          color: ${theme.colors[color]};
-        }
-      `}
-      aria-label={statusCode}
-    >
-      <Icon svg={icon} />
-    </div>
-  );
+  return <Icon svg={iconSVG} color={color} aria-label={statusCode} />;
 }

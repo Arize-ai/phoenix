@@ -47,7 +47,7 @@ export const tableCSS = (theme: Theme) => css`
   tbody:not(.is-empty) {
     tr {
       &:nth-of-type(even) {
-        background-color: var(--ac-global-color-grey-75);
+        background-color: var(--ac-global-color-grey-100);
       }
       &:hover {
         background-color: var(--ac-global-color-grey-200);

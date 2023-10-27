@@ -11,7 +11,7 @@ export function SpanKindLabel(props: { spanKind: string }) {
         color = "orange-1000";
         break;
       case "chain":
-        color = "blue";
+        color = "blue-1000";
         break;
       case "retriever":
         color = "seafoam-1000";
@@ -23,7 +23,7 @@ export function SpanKindLabel(props: { spanKind: string }) {
         color = "indigo-1000";
         break;
       case "agent":
-        color = "gray";
+        color = "grey-900";
         break;
       case "tool":
         color = "yellow-1200";
