@@ -2,16 +2,7 @@ import json
 import logging
 from copy import deepcopy
 from datetime import datetime
-from typing import (
-    Any,
-    Dict,
-    Iterable,
-    Iterator,
-    List,
-    Mapping,
-    Optional,
-    Tuple,
-)
+from typing import Any, Dict, Iterable, Iterator, List, Mapping, Optional, Tuple
 from uuid import UUID
 
 from langchain.callbacks.tracers.base import BaseTracer
@@ -20,13 +11,7 @@ from langchain.load.dump import dumpd
 from langchain.schema.messages import BaseMessage
 
 from phoenix.trace.exporter import HttpExporter
-from phoenix.trace.schemas import (
-    Span,
-    SpanEvent,
-    SpanException,
-    SpanKind,
-    SpanStatusCode,
-)
+from phoenix.trace.schemas import Span, SpanEvent, SpanException, SpanKind, SpanStatusCode
 from phoenix.trace.semantic_conventions import (
     DOCUMENT_CONTENT,
     DOCUMENT_METADATA,
@@ -56,6 +41,7 @@ from phoenix.trace.semantic_conventions import (
     MimeType,
 )
 from phoenix.trace.tracer import Tracer
+from phoenix.utilities.error_handling import graceful_fallback
 
 logger = logging.getLogger(__name__)
 
@@ -279,6 +265,21 @@ def _retrieval_documents(
     ]
 
 
+def _chat_model_start_fallback(
+    serialized: Dict[str, Any],
+    messages: List[List[BaseMessage]],
+    *,
+    run_id: UUID,
+    tags: Optional[List[str]] = None,
+    parent_run_id: Optional[UUID] = None,
+    metadata: Optional[Dict[str, Any]] = None,
+    **kwargs: Any,
+) -> None:
+    # Currently does nothing. If a functional fallback is implemented, new failures will not be
+    # caught
+    pass
+
+
 class OpenInferenceTracer(Tracer, BaseTracer):
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
@@ -351,6 +352,7 @@ class OpenInferenceTracer(Tracer, BaseTracer):
         except Exception:
             logger.exception("Failed to convert run to spans")
 
+    @graceful_fallback(_chat_model_start_fallback)
     def on_chat_model_start(
         self,
         serialized: Dict[str, Any],
@@ -360,6 +362,7 @@ class OpenInferenceTracer(Tracer, BaseTracer):
         tags: Optional[List[str]] = None,
         parent_run_id: Optional[UUID] = None,
         metadata: Optional[Dict[str, Any]] = None,
+        name: Optional[str] = None,
         **kwargs: Any,
     ) -> None:
         """
@@ -388,5 +391,6 @@ class OpenInferenceTracer(Tracer, BaseTracer):
             child_execution_order=execution_order,
             run_type="llm",
             tags=tags,
+            name=name or "",
         )
         self._start_trace(run)
