@@ -247,7 +247,6 @@ def test_custom_llm(mock_embed_model) -> None:
                 "completion_tokens": output_tokens,
                 "total_tokens": input_tokens + output_tokens,
             }
-            print(additional_kwargs)
             return CompletionResponse(text=text, raw=response, additional_kwargs=additional_kwargs)
 
         @llm_completion_callback()
