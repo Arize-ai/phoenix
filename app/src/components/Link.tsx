@@ -6,8 +6,8 @@ export function Link(props: LinkProps) {
     // Stop propagation to prevent the click from being handled by the parent
     <div onClick={(e) => e.stopPropagation()}>
       <RouterLink
-        css={(theme) => css`
-          color: ${theme.colors.arizeLightBlue};
+        css={css`
+          color: var(--ac-global-color-primary);
           &:not(:hover) {
             text-decoration: none;
           }

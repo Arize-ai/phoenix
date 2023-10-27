@@ -17,9 +17,9 @@ import { theme } from "@arizeai/components";
 import {
   ChartTooltip,
   ChartTooltipItem,
-  colors,
   defaultBarChartTooltipProps,
   getBinName,
+  useChartColors,
 } from "@phoenix/components/chart";
 
 import { DimensionSegmentsBarChart_dimension$key } from "./__generated__/DimensionSegmentsBarChart_dimension.graphql";
@@ -30,21 +30,26 @@ type BarChartItem = {
   percent: number;
 };
 
-const barColor = colors.primary;
-
 const formatter = format(".2f");
 
+const useColors = () => {
+  const { primary } = useChartColors();
+  return {
+    color: primary,
+  };
+};
 function TooltipContent({
   active,
   payload,
   label,
 }: TooltipProps<BarChartItem["percent"], BarChartItem["name"]>) {
+  const { color } = useColors();
   if (active && payload && payload.length) {
     const value = payload[0]?.value;
     return (
       <ChartTooltip>
         <ChartTooltipItem
-          color={barColor}
+          color={color}
           shape="square"
           name={label}
           value={value != null ? `${formatter(value)}%` : "--"}
@@ -113,6 +118,7 @@ export function DimensionSegmentsBarChart(props: {
     });
   }, [data]);
 
+  const { color } = useColors();
   return (
     <ResponsiveContainer>
       <BarChart
@@ -132,8 +138,8 @@ export function DimensionSegmentsBarChart(props: {
             x2="0"
             y2="1"
           >
-            <stop offset="5%" stopColor={barColor} stopOpacity={1} />
-            <stop offset="95%" stopColor={barColor} stopOpacity={0.5} />
+            <stop offset="5%" stopColor={color} stopOpacity={1} />
+            <stop offset="95%" stopColor={color} stopOpacity={0.5} />
           </linearGradient>
         </defs>
         <XAxis

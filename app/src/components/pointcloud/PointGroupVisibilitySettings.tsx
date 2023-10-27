@@ -106,7 +106,7 @@ function PointGroupCheckbox() {
         flex-direction: row;
         gap: var(--px-flex-gap-sm);
         padding: var(--px-spacing-sm) var(--px-spacing-med);
-        background-color: var(--px-section-background-color);
+        background-color: var(--ac-global-background-color-light);
       `}
     >
       <input type="checkbox" checked={!allNotVisible} onChange={onChange} />

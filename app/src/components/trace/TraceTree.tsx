@@ -114,20 +114,20 @@ function SpanNodeWrap(props: PropsWithChildren<{ isSelected: boolean }>) {
       className={props.isSelected ? "is-selected" : ""}
       css={css`
         border-radius: var(--ac-global-dimension-static-size-150);
-        background-color: var(--ac-global-color-gray-700);
+        background-color: var(--ac-global-color-grey-200);
         padding: var(--ac-global-dimension-static-size-100)
           var(--ac-global-dimension-static-size-200)
           var(--ac-global-dimension-static-size-100)
           var(--ac-global-dimension-static-size-200);
         border-width: var(--ac-global-dimension-static-size-10);
         border-style: solid;
-        border-color: var(--ac-global-color-gray-400);
+        border-color: var(--ac-global-color-grey-300);
         &:hover {
-          border-color: var(--ac-global-color-gray-200);
-          background-color: var(--ac-global-color-gray-400);
+          border-color: var(--ac-global-color-grey-400);
+          background-color: var(--ac-global-color-grey-300);
         }
         &.is-selected {
-          border-color: var(--px-light-blue-color);
+          border-color: var(--ac-global-color-primary);
         }
       `}
     >

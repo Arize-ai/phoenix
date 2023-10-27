@@ -15,14 +15,14 @@ export function Toolbar(props: ToolbarProps) {
   return (
     <div
       role="toolbar"
-      css={(theme) => css`
+      css={css`
         padding: var(--px-spacing-sm) var(--px-spacing-lg);
         display: flex;
         flex-direction: row;
         justify-content: space-between;
         align-items: center;
         gap: var(--px-spacing-med);
-        border-bottom: 1px solid ${theme.colors.gray500};
+        border-bottom: 1px solid var(--ac-global-border-color-dark);
         flex: none;
         min-height: 29px;
         .toolbar__main {

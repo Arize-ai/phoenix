@@ -40,6 +40,7 @@ import { resizeHandleCSS } from "@phoenix/components/resize";
 import { SpanItem } from "@phoenix/components/trace/SpanItem";
 import { SpanKindIcon } from "@phoenix/components/trace/SpanKindIcon";
 import { TraceTree } from "@phoenix/components/trace/TraceTree";
+import { useTheme } from "@phoenix/contexts";
 import {
   DOCUMENT_CONTENT,
   DOCUMENT_ID,
@@ -295,7 +296,7 @@ function SelectedSpanDetails({ selectedSpan }: { selectedSpan: Span }) {
         <TabPane
           name={"Events"}
           extra={
-            <Counter variant={hasExceptions ? "danger" : "default"}>
+            <Counter variant={hasExceptions ? "danger" : "light"}>
               {selectedSpan.events.length}
             </Counter>
           }
@@ -1074,6 +1075,8 @@ const codeMirrorCSS = css`
   }
 `;
 function CodeBlock({ value, mimeType }: { value: string; mimeType: MimeType }) {
+  const { theme } = useTheme();
+  const codeMirrorTheme = theme === "light" ? undefined : nord;
   let content;
   switch (mimeType) {
     case "json":
@@ -1090,7 +1093,7 @@ function CodeBlock({ value, mimeType }: { value: string; mimeType: MimeType }) {
           }}
           extensions={[json(), EditorView.lineWrapping]}
           editable={false}
-          theme={nord}
+          theme={codeMirrorTheme}
           css={codeMirrorCSS}
         />
       );
@@ -1099,7 +1102,7 @@ function CodeBlock({ value, mimeType }: { value: string; mimeType: MimeType }) {
       content = (
         <CodeMirror
           value={value}
-          theme={nord}
+          theme={codeMirrorTheme}
           editable={false}
           basicSetup={{
             lineNumbers: false,

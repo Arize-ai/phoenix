@@ -214,14 +214,14 @@ const ChainSVG = () => (
 
 export function SpanKindIcon({ spanKind }: { spanKind: string }) {
   let icon = <></>;
-  let color = "--ac-global-text-color-900";
+  let color = "--ac-global-grey-900";
   switch (spanKind) {
     case "llm":
       color = "--ac-global-color-orange-1000";
       icon = <LLMSVG />;
       break;
     case "chain":
-      color = "--px-light-blue-color";
+      color = "--ac-global-color-blue-1000";
       icon = <ChainSVG />;
       break;
     case "retriever":
