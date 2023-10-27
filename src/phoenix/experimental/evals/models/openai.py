@@ -295,6 +295,12 @@ class OpenAIModel(BaseEvalModel):
 
     @property
     def supports_function_calling(self) -> bool:
-        if self._is_azure and self.openai_api_version[:10] < "2023-07-01":
+        if (
+            self._is_azure
+            and self.openai_api_version
+            and self.openai_api_version[:10] < "2023-07-01"
+        ):
             return False
-        return not self._model_uses_legacy_completion_api
+        if self._model_uses_legacy_completion_api:
+            return False
+        return True
