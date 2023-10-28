@@ -5,9 +5,12 @@ from typing import TYPE_CHECKING, Any, Dict, List, Mapping, Optional, Tuple, Uni
 
 import requests
 from openai.openai_object import OpenAIObject
+from tqdm import tqdm
 
 from phoenix.experimental.evals.models.base import BaseEvalModel
 from phoenix.experimental.evals.models.rate_limiters import OpenAIRateLimiter
+from phoenix.experimental.evals.utils.types import is_list_of
+from phoenix.utilities.logging import printif
 
 if TYPE_CHECKING:
     from tiktoken import Encoding
@@ -26,6 +29,11 @@ MODEL_TOKEN_LIMIT_MAPPING = {
 }
 LEGACY_COMPLETION_API_MODELS = ("gpt-3.5-turbo-instruct",)
 logger = logging.getLogger(__name__)
+TQDM_BAR_FORMAT = (
+    "Eta:{eta} |{bar}| {percentage:3.1f}% "
+    "({n_fmt}/{total_fmt}) "
+    "[{elapsed}<{remaining}, {rate_fmt}{postfix}]"
+)
 
 
 Numeric = Union[int, float]
@@ -43,16 +51,17 @@ def openai_rate_limit_info(model_name: str, api_key: str) -> Mapping[str, int]:
     data = {
         "model": model_name,
         "messages": [
-            {"role": "system", "content": "You are a helpful assistant."},
-            {"role": "user", "content": "Hello"},
+            {"role": "user", "content": "Test"},
         ],
     }
     response = requests.post(
         "https://api.openai.com/v1/chat/completions", headers=headers, json=data
     )
+    request_limit = response.headers.get("x-ratelimit-limit-requests", 0)
+    token_limit = response.headers.get("x-ratelimit-limit-tokens", 0)
     limit_info = {
-        "request-limit": int(response.headers["x-ratelimit-limit-requests"]),
-        "token-limit": int(response.headers["x-ratelimit-limit-tokens"]),
+        "request-limit": int(request_limit),
+        "token-limit": int(token_limit),
     }
     return limit_info
 
@@ -103,14 +112,15 @@ class OpenAIModel(BaseEvalModel):
         self._rate_limiter = None
 
     @property
-    def rate_limiter(self) -> OpenAIRateLimiter:
+    def rate_limiter(self, rate_limit_multiplier: float = 0.8) -> OpenAIRateLimiter:
         if self._rate_limiter is None:
             self._rate_limiter = OpenAIRateLimiter()
             limit_info = openai_rate_limit_info(self.model_name, self.openai_api_key)
             self._rate_limiter.set_rate_limits(
                 self.model_name,
-                request_rate_limit=limit_info["request-limit"],
-                token_rate_limit=limit_info["token-limit"],
+                # throttle our requests to some multiple of the absolute rate limit
+                request_rate_limit=limit_info["request-limit"] * rate_limit_multiplier,
+                token_rate_limit=limit_info["token-limit"] * rate_limit_multiplier,
             )
         return self._rate_limiter
 
@@ -197,6 +207,26 @@ class OpenAIModel(BaseEvalModel):
     def _verbose_generation_info(self) -> str:
         return f"OpenAI invocation parameters: {self.public_invocation_params}"
 
+    def generate(self, prompts: List[str], instruction: Optional[str] = None) -> List[str]:
+        printif(self._verbose, f"Generating responses for {len(prompts)} prompts...")
+        if extra_info := self._verbose_generation_info():
+            printif(self._verbose, extra_info)
+        if not is_list_of(prompts, str):
+            raise TypeError(
+                "Invalid type for argument `prompts`. Expected a list of strings "
+                f"but found {type(prompts)}."
+            )
+        try:
+            outputs = []
+            for prompt in tqdm(prompts, bar_format=TQDM_BAR_FORMAT, ncols=100):
+                output = self._generate(prompt=prompt, instruction=instruction)  # type:ignore
+                logger.info(f"Prompt: {prompt}\nInstruction: {instruction}\nOutput: {output}")
+                outputs.append(output)
+
+        except (KeyboardInterrupt, Exception) as e:
+            raise e
+        return outputs
+
     def _generate(self, prompt: str, **kwargs: Dict[str, Any]) -> str:
         invoke_params = self.invocation_params
         messages = self._build_messages(prompt, kwargs.get("instruction"))  # type:ignore
@@ -223,7 +253,7 @@ class OpenAIModel(BaseEvalModel):
 
         def metered_openai_completion(**kwargs: Any) -> Any:
             limit = self.rate_limiter.limit(self.model_name, openai_token_cost)
-            response = limit(self._openai.Completion.create)(**kwargs)
+            response = limit(self._openai.ChatCompletion.create)(**kwargs)
             return response
 
         @self.retry(

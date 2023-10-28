@@ -5,13 +5,11 @@ import numpy as np
 import pandas as pd
 import pytest
 import responses
-from phoenix.experimental.evals import (
-    NOT_PARSABLE,
-    RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
-    OpenAIModel,
-    llm_classify,
-    run_relevance_eval,
-)
+
+from phoenix.experimental.evals import (NOT_PARSABLE,
+                                        RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
+                                        OpenAIModel, llm_classify,
+                                        run_relevance_eval)
 from phoenix.experimental.evals.functions.classify import _snap_to_rail
 from phoenix.experimental.evals.models.openai import OPENAI_API_KEY_ENVVAR_NAME
 
@@ -39,6 +37,13 @@ def test_llm_classify(monkeypatch: pytest.MonkeyPatch):
             },
         ]
     )
+
+    # Mock OpenAI API request used for reading the rate limit
+    headers = {"x-ratelimit-limit-requests": "100_000", "x-ratelimit-limit-tokens": "100_000"}
+    responses.post(
+        "https://api.openai.com/v1/chat/completions", json={}, status=200, headers=headers
+    )
+
     for message_content in [
         "relevant",
         "irrelevant",
@@ -55,6 +60,9 @@ def test_llm_classify(monkeypatch: pytest.MonkeyPatch):
                         },
                     }
                 ],
+                "usage": {
+                    "total_tokens": 1,
+                },
             },
             status=200,
         )
