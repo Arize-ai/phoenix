@@ -6,11 +6,13 @@ import pandas as pd
 import pytest
 import responses
 from aioresponses import aioresponses
-
-from phoenix.experimental.evals import (NOT_PARSABLE,
-                                        RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
-                                        OpenAIModel, llm_classify,
-                                        run_relevance_eval)
+from phoenix.experimental.evals import (
+    NOT_PARSABLE,
+    RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
+    OpenAIModel,
+    llm_classify,
+    run_relevance_eval,
+)
 from phoenix.experimental.evals.functions.classify import _snap_to_rail
 from phoenix.experimental.evals.models.openai import OPENAI_API_KEY_ENVVAR_NAME
 

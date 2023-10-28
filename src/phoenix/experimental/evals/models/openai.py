@@ -36,17 +36,20 @@ TQDM_BAR_FORMAT = (
 )
 
 
-Numeric = Union[int, float]
-
-
-def openai_token_cost(chat_completion: OpenAIObject) -> Numeric:
+def openai_token_cost(chat_completion: OpenAIObject) -> int:
     try:
-        return chat_completion.usage.total_tokens
-    except AttributeError:
+        return int(chat_completion.usage.total_tokens)
+    except (AttributeError, ValueError):
         return 0
 
 
-def openai_rate_limit_info(model_name: str, api_key: str) -> Mapping[str, int]:
+def openai_rate_limit_info(model_name: str, api_key: Optional[str]) -> Mapping[str, int]:
+    if api_key is None:
+        # TODO: Create custom AuthenticationError
+        raise RuntimeError(
+            "OpenAI's API key not provided. Pass it as an argument to 'openai_api_key' "
+            "or set it in your environment: 'export OPENAI_API_KEY=sk-****'"
+        )
     headers = {
         "Content-Type": "application/json",
         "Authorization": f"Bearer {api_key}",
@@ -113,7 +116,7 @@ class OpenAIModel(BaseEvalModel):
         self._init_environment()
         self._init_open_ai()
         self._init_tiktoken()
-        self._rate_limiter = None
+        self._rate_limiter: Optional[OpenAIRateLimiter] = None
 
     @property
     def rate_limiter(self, rate_limit_multiplier: float = 0.8) -> OpenAIRateLimiter:
@@ -214,34 +217,39 @@ class OpenAIModel(BaseEvalModel):
     def generate(
         self, prompts: List[str], instruction: Optional[str] = None, num_consumers: int = 20
     ) -> List[str]:
-        return asyncio.run(self.generate_async(prompts, instruction, num_consumers=num_consumers))
+        return asyncio.run(self._generate_async(prompts, instruction, num_consumers=num_consumers))
 
     async def _producer(
         self,
         prompts: List[str],
         instruction: Optional[str],
-        queue: asyncio.Queue,
+        queue: asyncio.Queue[Tuple[int, str, Optional[str]]],
         num_consumers: int,
         sentinel: Any,
-    ):
+    ) -> None:
         for index, prompt in enumerate(prompts):
             await queue.put((index, prompt, instruction))
         # add a sentinel to the queue for each consumer
         for _ in range(num_consumers):
             await queue.put(sentinel)
 
-    async def _consumer(self, queue: asyncio.Queue, outputs: Dict[int, str], sentinel: Any):
+    async def _consumer(
+        self,
+        queue: asyncio.Queue[Tuple[int, str, Optional[str]]],
+        outputs: List[str],
+        sentinel: Any,
+    ) -> None:
         while True:
             if (item := await queue.get()) is sentinel:
                 break
 
             index, prompt, instruction = item
-            output = await self._generate(prompt=prompt, instruction=instruction)
+            output = await self._generate(prompt=prompt, instruction=instruction)  # type: ignore
             logger.info(f"Prompt: {prompt}\nInstruction: {instruction}\nOutput: {output}")
             outputs[index] = output
             queue.task_done()
 
-    async def generate_async(
+    async def _generate_async(
         self,
         prompts: List[str],
         instruction: Optional[str] = None,
@@ -255,22 +263,22 @@ class OpenAIModel(BaseEvalModel):
                 "Invalid type for argument `prompts`. Expected a list of strings "
                 f"but found {type(prompts)}."
             )
-        outputs = [None] * len(prompts)
-        queue = asyncio.Queue()
+        outputs = ["unset"] * len(prompts)
+        queue: asyncio.Queue[Tuple[int, str, Optional[str]]] = asyncio.Queue()
         SENTINEL = object()  # indicates when the queue is done
 
-        producer_coro = self._producer(prompts, instruction, queue, num_consumers, SENTINEL)
+        producer = self._producer(prompts, instruction, queue, num_consumers, SENTINEL)
         consumers = [
             asyncio.create_task(self._consumer(queue, outputs, SENTINEL))
             for _ in range(num_consumers)
         ]
 
-        await asyncio.gather(producer_coro, *consumers)
+        await asyncio.gather(producer, *consumers)
         return outputs
 
-    async def _generate(self, prompt: str, **kwargs: Dict[str, Any]) -> str:
+    async def _generate(self, prompt: str, **kwargs: Dict[str, Any]) -> str:  # type: ignore
         invoke_params = self.invocation_params
-        messages = self._build_messages(prompt, kwargs.get("instruction"))  # type:ignore
+        messages = self._build_messages(prompt, kwargs.get("instruction"))  # type: ignore
 
         response = await self._generate_with_retry(
             messages=messages,

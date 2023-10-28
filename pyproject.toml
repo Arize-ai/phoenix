@@ -102,6 +102,7 @@ dependencies = [
   "requests",
   "protobuf==3.20",  # version minimum (for tests)
   "responses",
+  "aioresponses",
   "tiktoken",
   "typing-extensions<4.6.0",  # for Colab
   "httpx",
