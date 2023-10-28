@@ -130,19 +130,23 @@ def test_llm_classify_prints_to_stdout_with_verbose_flag(
                             },
                         }
                     ],
+                    "usage": {
+                        "total_tokens": 1,
+                    },
                 },
                 status=200,
             )
-            with patch.object(OpenAIModel, "_init_tiktoken", return_value=None):
-                model = OpenAIModel()
 
-            llm_classify(
-                dataframe=dataframe,
-                template=RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
-                model=model,
-                rails=["relevant", "irrelevant"],
-                verbose=True,
-            )
+        with patch.object(OpenAIModel, "_init_tiktoken", return_value=None):
+            model = OpenAIModel()
+
+        llm_classify(
+            dataframe=dataframe,
+            template=RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
+            model=model,
+            rails=["relevant", "irrelevant"],
+            verbose=True,
+        )
 
     out, _ = capfd.readouterr()
     assert "Snapped 'relevant' to rail: relevant" in out, "Snapping events should be printed"
@@ -231,7 +235,7 @@ def test_llm_classify_does_not_persist_verbose_flag(
         waiting_fn = "phoenix.experimental.evals.models.base.wait_random_exponential"
         stack.enter_context(patch(waiting_fn, return_value=False))
         stack.enter_context(patch.object(OpenAIModel, "_init_tiktoken", return_value=None))
-        stack.enter_context(patch.object(model._openai.ChatCompletion, "create", mock_openai))
+        stack.enter_context(patch.object(model._openai.ChatCompletion, "acreate", mock_openai))
         stack.enter_context(pytest.raises(model._openai_error.APIError))
         llm_classify(
             dataframe=dataframe,
