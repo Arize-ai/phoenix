@@ -60,8 +60,9 @@ def openai_rate_limit_info(model_name: str, api_key: str) -> Mapping[str, int]:
     response = requests.post(
         "https://api.openai.com/v1/chat/completions", headers=headers, json=data
     )
-    request_limit = response.headers.get("x-ratelimit-limit-requests", 0)
-    token_limit = response.headers.get("x-ratelimit-limit-tokens", 0)
+    # default to tier 1 rate limits (https://platform.openai.com/docs/guides/rate-limits/overview)
+    request_limit = response.headers.get("x-ratelimit-limit-requests", 500)
+    token_limit = response.headers.get("x-ratelimit-limit-tokens", 10000)
     limit_info = {
         "request-limit": int(request_limit),
         "token-limit": int(token_limit),
