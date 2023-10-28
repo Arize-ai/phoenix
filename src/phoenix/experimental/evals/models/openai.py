@@ -215,13 +215,26 @@ class OpenAIModel(BaseEvalModel):
     ) -> List[str]:
         return asyncio.run(self.generate_async(prompts, instruction, num_consumers=num_consumers))
 
-    async def _producer(self, prompts: List[str], instruction: Optional[str], queue: asyncio.Queue):
+    async def _producer(
+        self,
+        prompts: List[str],
+        instruction: Optional[str],
+        queue: asyncio.Queue,
+        num_consumers: int,
+        sentinel: Any,
+    ):
         for prompt in prompts:
             await queue.put((prompt, instruction))
+        # add a sentinel to the queue for each consumer
+        for _ in range(num_consumers):
+            await queue.put(sentinel)
 
-    async def _consumer(self, queue: asyncio.Queue, outputs: List[str]):
+    async def _consumer(self, queue: asyncio.Queue, outputs: List[str], sentinel: Any):
         while True:
-            prompt, instruction = await queue.get()
+            if (item := await queue.get()) is sentinel:
+                break
+
+            prompt, instruction = item
             output = await self._generate(prompt=prompt, instruction=instruction)
             logger.info(f"Prompt: {prompt}\nInstruction: {instruction}\nOutput: {output}")
             outputs.append(output)
@@ -243,10 +256,12 @@ class OpenAIModel(BaseEvalModel):
             )
         outputs = []
         queue = asyncio.Queue()
+        SENTINEL = object()  # indicates when the queue is done
 
-        producer_coro = self._producer(prompts, instruction, queue)
+        producer_coro = self._producer(prompts, instruction, queue, num_consumers, SENTINEL)
         consumers = [
-            asyncio.create_task(self._consumer(queue, outputs)) for _ in range(num_consumers)
+            asyncio.create_task(self._consumer(queue, outputs, SENTINEL))
+            for _ in range(num_consumers)
         ]
 
         await asyncio.gather(producer_coro, *consumers)
