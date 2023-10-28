@@ -98,7 +98,7 @@ def llm_classify_with_explanation(
             "support OpenAI function calling"
         )
 
-    model_kwargs = {}
+    model_kwargs: Dict[str, Any] = {}
     if use_openai_function_call:
         openai_function = _default_openai_function(rails, True)
         model_kwargs["functions"] = [openai_function]
@@ -181,7 +181,7 @@ def llm_classify(
         and model.supports_function_calling
     )
 
-    model_kwargs = {}
+    model_kwargs: Dict[str, Any] = {}
     if use_openai_function_call:
         openai_function = _default_openai_function(rails, False)
         model_kwargs["functions"] = [openai_function]
