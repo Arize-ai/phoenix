@@ -101,12 +101,8 @@ def llm_classify_with_explanation(
     model_kwargs = {}
     if use_openai_function_call:
         openai_function = _default_openai_function(rails, True)
-        model_kwargs.update(
-            {
-                "function_call": {"name": openai_function["name"]},
-                "functions": [openai_function],
-            }
-        )
+        model_kwargs["functions"] = [openai_function]
+        model_kwargs["function_call"] = {"name": openai_function["name"]}
 
     eval_template = normalize_template(template)
     prompts = map_template(dataframe, eval_template)
@@ -126,14 +122,13 @@ def llm_classify_with_explanation(
 
     results = []
     for response in responses:
-        raw_string = response
-        explanation = None
         try:
             function_arguments = json.loads(response, strict=False)
             raw_string = function_arguments.get(_RESPONSE) or ""
             explanation = function_arguments.get(_EXPLANATION)
         except json.JSONDecodeError:
-            pass
+            raw_string = response
+            explanation = None
         label = _snap_to_rail(raw_string, rails, verbose=verbose)
         results.append(ClassificationResult(label=label, explanation=explanation))
     return results
@@ -189,12 +184,8 @@ def llm_classify(
     model_kwargs = {}
     if use_openai_function_call:
         openai_function = _default_openai_function(rails, False)
-        model_kwargs.update(
-            {
-                "function_call": {"name": openai_function["name"]},
-                "functions": [openai_function],
-            }
-        )
+        model_kwargs["functions"] = [openai_function]
+        model_kwargs["function_call"] = {"name": openai_function["name"]}
 
     eval_template = normalize_template(template)
     prompts = map_template(dataframe, eval_template)
@@ -208,13 +199,12 @@ def llm_classify(
 
     results = []
     for response in responses:
-        raw_string = response
         try:
             function_arguments = json.loads(response, strict=False)
             # take the first value if available
             raw_string = next(iter(function_arguments.values()), "")
         except json.JSONDecodeError:
-            pass
+            raw_string = response
         label = _snap_to_rail(raw_string, rails, verbose=verbose)
         results.append(label)
     return results
