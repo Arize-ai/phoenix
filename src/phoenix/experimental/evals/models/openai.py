@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import os
 from dataclasses import dataclass, field
@@ -5,7 +6,6 @@ from typing import TYPE_CHECKING, Any, Dict, List, Mapping, Optional, Tuple, Uni
 
 import requests
 from openai.openai_object import OpenAIObject
-from tqdm import tqdm
 
 from phoenix.experimental.evals.models.base import BaseEvalModel
 from phoenix.experimental.evals.models.rate_limiters import OpenAIRateLimiter
@@ -40,7 +40,10 @@ Numeric = Union[int, float]
 
 
 def openai_token_cost(chat_completion: OpenAIObject) -> Numeric:
-    return chat_completion.usage.total_tokens
+    try:
+        return chat_completion.usage.total_tokens
+    except AttributeError:
+        return 0
 
 
 def openai_rate_limit_info(model_name: str, api_key: str) -> Mapping[str, int]:
@@ -207,7 +210,29 @@ class OpenAIModel(BaseEvalModel):
     def _verbose_generation_info(self) -> str:
         return f"OpenAI invocation parameters: {self.public_invocation_params}"
 
-    def generate(self, prompts: List[str], instruction: Optional[str] = None) -> List[str]:
+    def generate(
+        self, prompts: List[str], instruction: Optional[str] = None, num_consumers: int = 20
+    ) -> List[str]:
+        return asyncio.run(self.generate_async(prompts, instruction, num_consumers=num_consumers))
+
+    async def _producer(self, prompts: List[str], instruction: Optional[str], queue: asyncio.Queue):
+        for prompt in prompts:
+            await queue.put((prompt, instruction))
+
+    async def _consumer(self, queue: asyncio.Queue, outputs: List[str]):
+        while True:
+            prompt, instruction = await queue.get()
+            output = await self._generate(prompt=prompt, instruction=instruction)
+            logger.info(f"Prompt: {prompt}\nInstruction: {instruction}\nOutput: {output}")
+            outputs.append(output)
+            queue.task_done()
+
+    async def generate_async(
+        self,
+        prompts: List[str],
+        instruction: Optional[str] = None,
+        num_consumers: int = 20,
+    ) -> List[str]:
         printif(self._verbose, f"Generating responses for {len(prompts)} prompts...")
         if extra_info := self._verbose_generation_info():
             printif(self._verbose, extra_info)
@@ -216,22 +241,22 @@ class OpenAIModel(BaseEvalModel):
                 "Invalid type for argument `prompts`. Expected a list of strings "
                 f"but found {type(prompts)}."
             )
-        try:
-            outputs = []
-            for prompt in tqdm(prompts, bar_format=TQDM_BAR_FORMAT, ncols=100):
-                output = self._generate(prompt=prompt, instruction=instruction)  # type:ignore
-                logger.info(f"Prompt: {prompt}\nInstruction: {instruction}\nOutput: {output}")
-                outputs.append(output)
+        outputs = []
+        queue = asyncio.Queue()
 
-        except (KeyboardInterrupt, Exception) as e:
-            raise e
+        producer_coro = self._producer(prompts, instruction, queue)
+        consumers = [
+            asyncio.create_task(self._consumer(queue, outputs)) for _ in range(num_consumers)
+        ]
+
+        await asyncio.gather(producer_coro, *consumers)
         return outputs
 
-    def _generate(self, prompt: str, **kwargs: Dict[str, Any]) -> str:
+    async def _generate(self, prompt: str, **kwargs: Dict[str, Any]) -> str:
         invoke_params = self.invocation_params
         messages = self._build_messages(prompt, kwargs.get("instruction"))  # type:ignore
 
-        response = self._generate_with_retry(
+        response = await self._generate_with_retry(
             messages=messages,
             **invoke_params,
         )
@@ -241,7 +266,7 @@ class OpenAIModel(BaseEvalModel):
         resp_text = str(response["choices"][0]["message"]["content"])
         return resp_text
 
-    def _generate_with_retry(self, **kwargs: Any) -> Any:
+    async def _generate_with_retry(self, **kwargs: Any) -> Any:
         """Use tenacity to retry the completion call."""
         openai_retry_errors = [
             self._openai_error.Timeout,
@@ -251,9 +276,9 @@ class OpenAIModel(BaseEvalModel):
             self._openai_error.ServiceUnavailableError,
         ]
 
-        def metered_openai_completion(**kwargs: Any) -> Any:
-            limit = self.rate_limiter.limit(self.model_name, openai_token_cost)
-            response = limit(self._openai.ChatCompletion.create)(**kwargs)
+        async def metered_openai_completion(**kwargs: Any) -> Any:
+            limit = self.rate_limiter.alimit(self.model_name, openai_token_cost)
+            response = await limit(self._openai.ChatCompletion.acreate)(**kwargs)
             return response
 
         @self.retry(
@@ -262,17 +287,17 @@ class OpenAIModel(BaseEvalModel):
             max_seconds=self.retry_max_seconds,
             max_retries=self.max_retries,
         )
-        def _completion_with_retry(**kwargs: Any) -> Any:
+        async def _completion_with_retry(**kwargs: Any) -> Any:
             if self._model_uses_legacy_completion_api:
                 if "prompt" not in kwargs:
                     kwargs["prompt"] = "\n\n".join(
                         (message.get("content") or "")
                         for message in (kwargs.pop("messages", None) or ())
                     )
-                return metered_openai_completion(**kwargs)
-            return metered_openai_completion(**kwargs)
+                return await metered_openai_completion(**kwargs)
+            return await metered_openai_completion(**kwargs)
 
-        return _completion_with_retry(**kwargs)
+        return await _completion_with_retry(**kwargs)
 
     @property
     def max_context_size(self) -> int:
