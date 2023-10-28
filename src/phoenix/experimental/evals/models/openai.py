@@ -224,21 +224,21 @@ class OpenAIModel(BaseEvalModel):
         num_consumers: int,
         sentinel: Any,
     ):
-        for prompt in prompts:
-            await queue.put((prompt, instruction))
+        for index, prompt in enumerate(prompts):
+            await queue.put((index, prompt, instruction))
         # add a sentinel to the queue for each consumer
         for _ in range(num_consumers):
             await queue.put(sentinel)
 
-    async def _consumer(self, queue: asyncio.Queue, outputs: List[str], sentinel: Any):
+    async def _consumer(self, queue: asyncio.Queue, outputs: Dict[int, str], sentinel: Any):
         while True:
             if (item := await queue.get()) is sentinel:
                 break
 
-            prompt, instruction = item
+            index, prompt, instruction = item
             output = await self._generate(prompt=prompt, instruction=instruction)
             logger.info(f"Prompt: {prompt}\nInstruction: {instruction}\nOutput: {output}")
-            outputs.append(output)
+            outputs[index] = output
             queue.task_done()
 
     async def generate_async(
@@ -255,7 +255,7 @@ class OpenAIModel(BaseEvalModel):
                 "Invalid type for argument `prompts`. Expected a list of strings "
                 f"but found {type(prompts)}."
             )
-        outputs = []
+        outputs = [None] * len(prompts)
         queue = asyncio.Queue()
         SENTINEL = object()  # indicates when the queue is done
 
