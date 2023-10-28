@@ -14,10 +14,10 @@ import { ExternalLink, LinkButton } from "@phoenix/components";
 import { Shape, ShapeIcon } from "@phoenix/components/pointcloud";
 import { FloatCell, TextCell } from "@phoenix/components/table";
 import { tableCSS } from "@phoenix/components/table/styles";
-import { DEFAULT_COLOR_SCHEME } from "@phoenix/constants/pointCloudConstants";
 import { useDatasets, usePointCloudContext } from "@phoenix/contexts";
 
 import { ModelEvent } from "./types";
+import { useDefaultColorScheme } from "./useDefaultColorScheme";
 
 interface TableDataItem extends ModelEvent {
   metric?: number | null;
@@ -276,6 +276,7 @@ function EventDatasetCell({
   referenceDatasetName: string;
 }) {
   const isPrimary = id.includes("PRIMARY");
+  const DEFAULT_COLOR_SCHEME = useDefaultColorScheme();
   return (
     <Flex direction="row" gap="size-100" alignItems="center">
       <ShapeIcon

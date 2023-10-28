@@ -57,7 +57,7 @@ dev = [
   "pre-commit",
   "arize[AutoEmbeddings, LLM_Evaluation]",
   "llama-index>=0.8.29",
-  "langchain>=0.0.293",
+  "langchain>=0.0.324",
 ]
 experimental = [
   "tenacity",
@@ -92,7 +92,7 @@ dependencies = [
   "pytest-cov",
   "pytest-lazy-fixture",
   "arize",
-  "langchain>=0.0.293",
+  "langchain>=0.0.324",
   "llama-index>=0.8.29",
   "openai",
   "tenacity",
