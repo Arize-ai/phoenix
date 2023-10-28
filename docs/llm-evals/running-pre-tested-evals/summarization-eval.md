@@ -48,6 +48,10 @@ We are continually iterating our templates, view the most up-to-date template on
 
 <figure><img src="../../.gitbook/assets/Screenshot 2023-09-18 at 12.05.02 PM (2).png" alt=""><figcaption></figcaption></figure>
 
+#### Claud V2 Results
+
+<figure><img src="../../.gitbook/assets/Screenshot 2023-10-28 at 9.58.08 AM.png" alt=""><figcaption></figcaption></figure>
+
 ## How To Run the Eval
 
 ```python
@@ -77,8 +81,8 @@ summarization_classifications = llm_classify(
 
 The above shows how to use the summarization Eval template.
 
-| Eval Summary | GPT-4 | GPT-3.5 | GPT-3.5 Instruct | Palm 2 (Text Bison) | Llama 7b (soon) |
-| ------------ | ----- | ------- | ---------------- | ------------------- | --------------- |
-| Precision    | 0.79  | 1       | 1                | 0.57                |                 |
-| Recall       | 0.88  | 0.1     | 0.16             | 0.7                 |                 |
-| F1           | 0.83  | 0.18    | 0.280            | 0.63                |                 |
+| Eval Summary | GPT-4 | GPT-3.5 | GPT-3.5 Instruct | Palm 2 (Text Bison) | Claud V2 | Llama 7b (soon) |
+| ------------ | ----- | ------- | ---------------- | ------------------- | -------- | --------------- |
+| Precision    | 0.79  | 1       | 1                | 0.57                | 0.75     |                 |
+| Recall       | 0.88  | 0.1     | 0.16             | 0.7                 | 0.61     |                 |
+| F1           | 0.83  | 0.18    | 0.280            | 0.63                | 0.67     |                 |

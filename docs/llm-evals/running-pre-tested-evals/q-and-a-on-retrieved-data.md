@@ -5,13 +5,13 @@
 This Eval evaluates whether a question was correctly answered by the system based on the retrieved data. In contrast to retrieval Evals that are checks on chunks of data returned, this check is a system level check of a correct Q\&A.
 
 * **question**: This is the question the Q\&A system is running against
-* **sampled\_answer**: This is the answer from the Q\&A system.&#x20;
+* **sampled\_answer**: This is the answer from the Q\&A system.
 * **context**: This is the context to be used to answer the question, and is what Q\&A Eval must use to check the correct answer
 
 ## Q\&A Eval Template
 
 {% embed url="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/evals/evaluate_QA_classifications.ipynb" %}
-Try it out!&#x20;
+Try it out!
 {% endembed %}
 
 ```
@@ -38,7 +38,7 @@ We are continually iterating our templates, view the most up-to-date template on
 
 ## Benchmark Results
 
-<table><thead><tr><th width="130">System</th><th width="156">Precision </th><th width="155">Recall</th><th width="151">F1-Score</th><th width="155">Support</th></tr></thead><tbody><tr><td>GPT 4</td><td>Relevant: <br>Irrelevant: </td><td>Relevant: <br>Irrelevant: </td><td>Relevant: <br>Irrelevant: </td><td>Relevant: <br>Irrelevant: </td></tr><tr><td>GPT 3.5</td><td>Relevant: <br>Irrelevant: </td><td>Relevant: <br>Irrelevant: </td><td>Relevant: <br>Irrelevant: </td><td>Relevant: <br>Irrelevant: </td></tr></tbody></table>
+<table><thead><tr><th width="130">System</th><th width="156">Precision</th><th width="155">Recall</th><th width="151">F1-Score</th><th width="155">Support</th></tr></thead><tbody><tr><td>GPT 4</td><td>Relevant:<br>Irrelevant:</td><td>Relevant:<br>Irrelevant:</td><td>Relevant:<br>Irrelevant:</td><td>Relevant:<br>Irrelevant:</td></tr><tr><td>GPT 3.5</td><td>Relevant:<br>Irrelevant:</td><td>Relevant:<br>Irrelevant:</td><td>Relevant:<br>Irrelevant:</td><td>Relevant:<br>Irrelevant:</td></tr></tbody></table>
 
 #### GPT-4 Results
 
@@ -47,6 +47,10 @@ We are continually iterating our templates, view the most up-to-date template on
 #### GPT-3.5 Results
 
 <figure><img src="../../.gitbook/assets/Screenshot 2023-09-16 at 5.38.50 PM.png" alt=""><figcaption></figcaption></figure>
+
+#### Claude V2 Results
+
+<figure><img src="../../.gitbook/assets/claude_v2_q_n_a.png" alt=""><figcaption></figcaption></figure>
 
 ## How To Run the Eval
 
@@ -75,10 +79,10 @@ Q_and_A_classifications = llm_classify(
 )
 ```
 
-The above Eval uses the QA template for Q\&A analysis on retrieved data.&#x20;
+The above Eval uses the QA template for Q\&A analysis on retrieved data.
 
-| Q\&A Eval | GPT-4 | GPT-3.5 | GPT-3.5-turbo-instruct | Palm (Text Bison) |
-| --------- | ----- | ------- | ---------------------- | ----------------- |
-| Precision | 1     | 0.99    | 0.42                   | 1                 |
-| Recall    | 0.92  | 0.83    | 1                      | 0.94              |
-| Precision | 0.96  | 0.90    | 0.59                   | 0.97              |
+| Q\&A Eval | GPT-4 | GPT-3.5 | GPT-3.5-turbo-instruct | Palm (Text Bison) | Claude V2 |
+| --------- | ----- | ------- | ---------------------- | ----------------- | --------- |
+| Precision | 1     | 0.99    | 0.42                   | 1                 | 1.0       |
+| Recall    | 0.92  | 0.83    | 1                      | 0.94              | 0.64      |
+| Precision | 0.96  | 0.90    | 0.59                   | 0.97              | 0.78      |

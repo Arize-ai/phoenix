@@ -122,6 +122,53 @@ class BedrockModel:
     """Any extra parameters to add to the request body (e.g., countPenalty for a21 models)"""
 ```
 
+To Authenticate, the following code is used to instantiate a session and the session is used with Phoenix Evals
+
+```python
+import boto3
+
+# Create a Boto3 session
+session = boto3.session.Session(
+    aws_access_key_id='ACCESS_KEY',
+    aws_secret_access_key='SECRET_KEY',
+    region_name='us-east-1'  # change to your preferred AWS region
+)
+```
+
+```python
+#If you need to assume a role
+# Creating an STS client
+sts_client = session.client('sts')
+
+# (optional - if needed) Assuming a role
+response = sts_client.assume_role(
+    RoleArn="arn:aws:iam::......",
+    RoleSessionName="AssumeRoleSession1",
+    #(optional) if MFA Required
+    SerialNumber='arn:aws:iam::...',
+    #Insert current token, needs to be run within x seconds of generation
+    TokenCode='PERIODIC_TOKEN'
+)
+
+# Your temporary credentials will be available in the response dictionary
+temporary_credentials = response['Credentials']
+
+# Creating a new Boto3 session with the temporary credentials
+assumed_role_session = boto3.Session(
+    aws_access_key_id=temporary_credentials['AccessKeyId'],
+    aws_secret_access_key=temporary_credentials['SecretAccessKey'],
+    aws_session_token=temporary_credentials['SessionToken'],
+    region_name='us-east-1'
+)
+```
+
+```python
+client_bedrock = assumed_role_session.client("bedrock-runtime")
+# Arize Model Object - Bedrock ClaudV2 by default
+model = BedrockModel(client=client_bedrock)
+
+```
+
 ## **Usage**
 
 In this section, we will showcase the methods and properties that our `EvalModels` have. First, instantiate your model from the[#supported-llm-providers](evaluation-models.md#supported-llm-providers "mention"). Once you've instantiated your `model`, you can get responses from the LLM by simply calling the model and passing a text string.

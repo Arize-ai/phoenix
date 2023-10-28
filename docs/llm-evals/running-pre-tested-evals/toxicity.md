@@ -1,6 +1,6 @@
 # Toxicity
 
-## When To Use Toxicity Eval Template&#x20;
+## When To Use Toxicity Eval Template
 
 The following shows the results of the toxicity Eval on a toxic dataset test to identify if the AI response is racist, biased, or toxic. The template variables are:
 
@@ -46,6 +46,10 @@ We are continually iterating our templates, view the most up-to-date template on
 
 <figure><img src="../../.gitbook/assets/Screenshot 2023-09-16 at 5.42.56 PM.png" alt=""><figcaption></figcaption></figure>
 
+#### Claude V2 Results
+
+<figure><img src="../../.gitbook/assets/calude_v2_toxic (1).png" alt=""><figcaption></figcaption></figure>
+
 ## How To Run the Eval
 
 ```python
@@ -74,12 +78,12 @@ toxic_classifications = llm_classify(
 )
 ```
 
-The above is the use of the RAG relevancy template.&#x20;
+The above is the use of the RAG relevancy template.
 
 Note: Palm is not useful for Toxicity detection as it always returns "" string for toxic inputs
 
-| Toxicity Eval | GPT-4 | GPT-3.5 | GPT-3.5-Instruct | Palm 2 (Text Bison) | Llama 7b (soon) |
-| ------------- | ----- | ------- | ---------------- | ------------------- | --------------- |
-| Precision     | 0.91  | 0.93    | 0.95             | Is not avail - ""   |                 |
-| Recall        | 0.91  | 0.83    | 0.79             | Is not avail - ""   |                 |
-| F1            | 0.91  | 0.87    | 0.87             | Is not avail - ""   |                 |
+| Toxicity Eval | GPT-4 | GPT-3.5 | GPT-3.5-Instruct | Palm 2 (Text Bison) | Claude V2 | Llama 7b (soon) |
+| ------------- | ----- | ------- | ---------------- | ------------------- | --------- | --------------- |
+| Precision     | 0.91  | 0.93    | 0.95             | Is not avail - ""   | 0.86      |                 |
+| Recall        | 0.91  | 0.83    | 0.79             | Is not avail - ""   | 0.40      |                 |
+| F1            | 0.91  | 0.87    | 0.87             | Is not avail - ""   | 0.54      |                 |
