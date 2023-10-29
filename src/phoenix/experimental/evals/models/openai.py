@@ -1,8 +1,11 @@
+from __future__ import annotations
+
 import asyncio
 import logging
 import os
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Dict, List, Mapping, Optional, Tuple, Union
+from typing import (TYPE_CHECKING, Any, Dict, List, Mapping, Optional, Tuple,
+                    Union)
 
 import requests
 from openai.openai_object import OpenAIObject
@@ -237,7 +240,7 @@ class OpenAIModel(BaseEvalModel):
         outputs = ["unset"] * len(prompts)
         queue: asyncio.Queue[Tuple[int, str, Optional[str]]] = asyncio.Queue()
         SENTINEL = object()  # indicates when the queue is done
-        progress_bar = async_tqdm(total=len(prompts))
+        progress_bar = async_tqdm(total=len(prompts), bar_format=TQDM_BAR_FORMAT)
 
         producer = self._producer(prompts, instruction, queue, num_consumers, SENTINEL)
         consumers = [
