@@ -81,8 +81,8 @@ summarization_classifications = llm_classify(
 
 The above shows how to use the summarization Eval template.
 
-| Eval Summary | GPT-4 | GPT-3.5 | GPT-3.5 Instruct | Palm 2 (Text Bison) | Claud V2 | Llama 7b (soon) |
-| ------------ | ----- | ------- | ---------------- | ------------------- | -------- | --------------- |
-| Precision    | 0.79  | 1       | 1                | 0.57                | 0.75     |                 |
-| Recall       | 0.88  | 0.1     | 0.16             | 0.7                 | 0.61     |                 |
-| F1           | 0.83  | 0.18    | 0.280            | 0.63                | 0.67     |                 |
+| Eval Summary | GPT-4                                  | GPT-3.5                              | GPT-3.5 Instruct                      | Palm 2 (Text Bison)                  | Claud V2                                | Llama 7b (soon) |
+| ------------ | -------------------------------------- | ------------------------------------ | ------------------------------------- | ------------------------------------ | --------------------------------------- | --------------- |
+| Precision    | <mark style="color:green;">0.79</mark> | <mark style="color:red;">1</mark>    | <mark style="color:red;">1</mark>     | <mark style="color:red;">0.57</mark> | <mark style="color:purple;">0.75</mark> |                 |
+| Recall       | <mark style="color:green;">0.88</mark> | <mark style="color:red;">0.1</mark>  | <mark style="color:red;">0.16</mark>  | <mark style="color:red;">0.7</mark>  | <mark style="color:purple;">0.61</mark> |                 |
+| F1           | <mark style="color:green;">0.83</mark> | <mark style="color:red;">0.18</mark> | <mark style="color:red;">0.280</mark> | <mark style="color:red;">0.63</mark> | <mark style="color:purple;">0.67</mark> |                 |

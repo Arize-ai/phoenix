@@ -38,8 +38,6 @@ We are continually iterating our templates, view the most up-to-date template on
 
 ## Benchmark Results
 
-<table><thead><tr><th width="130">System</th><th width="156">Precision</th><th width="155">Recall</th><th width="151">F1-Score</th><th width="155">Support</th></tr></thead><tbody><tr><td>GPT 4</td><td>Relevant:<br>Irrelevant:</td><td>Relevant:<br>Irrelevant:</td><td>Relevant:<br>Irrelevant:</td><td>Relevant:<br>Irrelevant:</td></tr><tr><td>GPT 3.5</td><td>Relevant:<br>Irrelevant:</td><td>Relevant:<br>Irrelevant:</td><td>Relevant:<br>Irrelevant:</td><td>Relevant:<br>Irrelevant:</td></tr></tbody></table>
-
 #### GPT-4 Results
 
 <figure><img src="../../.gitbook/assets/Screenshot 2023-09-16 at 5.25.14 PM.png" alt=""><figcaption></figcaption></figure>
@@ -81,8 +79,8 @@ Q_and_A_classifications = llm_classify(
 
 The above Eval uses the QA template for Q\&A analysis on retrieved data.
 
-| Q\&A Eval | GPT-4 | GPT-3.5 | GPT-3.5-turbo-instruct | Palm (Text Bison) | Claude V2 |
-| --------- | ----- | ------- | ---------------------- | ----------------- | --------- |
-| Precision | 1     | 0.99    | 0.42                   | 1                 | 1.0       |
-| Recall    | 0.92  | 0.83    | 1                      | 0.94              | 0.64      |
-| Precision | 0.96  | 0.90    | 0.59                   | 0.97              | 0.78      |
+| Q\&A Eval | GPT-4                                  | GPT-3.5                                | GPT-3.5-turbo-instruct               | Palm (Text Bison)                      | Claude V2                              |
+| --------- | -------------------------------------- | -------------------------------------- | ------------------------------------ | -------------------------------------- | -------------------------------------- |
+| Precision | <mark style="color:green;">1</mark>    | <mark style="color:green;">0.99</mark> | <mark style="color:red;">0.42</mark> | <mark style="color:green;">1</mark>    | <mark style="color:green;">1.0</mark>  |
+| Recall    | <mark style="color:green;">0.92</mark> | <mark style="color:green;">0.83</mark> | <mark style="color:red;">1</mark>    | <mark style="color:green;">0.94</mark> | <mark style="color:green;">0.64</mark> |
+| Precision | <mark style="color:green;">0.96</mark> | <mark style="color:green;">0.90</mark> | <mark style="color:red;">0.59</mark> | <mark style="color:green;">0.97</mark> | <mark style="color:green;">0.78</mark> |

@@ -82,8 +82,8 @@ The above is the use of the RAG relevancy template.
 
 Note: Palm is not useful for Toxicity detection as it always returns "" string for toxic inputs
 
-| Toxicity Eval | GPT-4 | GPT-3.5 | GPT-3.5-Instruct | Palm 2 (Text Bison) | Claude V2 | Llama 7b (soon) |
-| ------------- | ----- | ------- | ---------------- | ------------------- | --------- | --------------- |
-| Precision     | 0.91  | 0.93    | 0.95             | Is not avail - ""   | 0.86      |                 |
-| Recall        | 0.91  | 0.83    | 0.79             | Is not avail - ""   | 0.40      |                 |
-| F1            | 0.91  | 0.87    | 0.87             | Is not avail - ""   | 0.54      |                 |
+| Toxicity Eval | GPT-4                                  | GPT-3.5                                | GPT-3.5-Instruct                       | Palm 2 (Text Bison)                                         | Claude V2                            | Llama 7b (soon) |
+| ------------- | -------------------------------------- | -------------------------------------- | -------------------------------------- | ----------------------------------------------------------- | ------------------------------------ | --------------- |
+| Precision     | <mark style="color:green;">0.91</mark> | <mark style="color:green;">0.93</mark> | <mark style="color:green;">0.95</mark> | <mark style="color:red;">No response for toxic input</mark> | <mark style="color:red;">0.86</mark> |                 |
+| Recall        | <mark style="color:green;">0.91</mark> | <mark style="color:green;">0.83</mark> | <mark style="color:green;">0.79</mark> | <mark style="color:red;">No response for toxic input</mark> | <mark style="color:red;">0.40</mark> |                 |
+| F1            | <mark style="color:green;">0.91</mark> | <mark style="color:green;">0.87</mark> | <mark style="color:green;">0.87</mark> | <mark style="color:red;">No response for toxic input</mark> | <mark style="color:red;">0.54</mark> |                 |
