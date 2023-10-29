@@ -4,8 +4,7 @@ import asyncio
 import logging
 import os
 from dataclasses import dataclass, field
-from typing import (TYPE_CHECKING, Any, Dict, List, Mapping, Optional, Tuple,
-                    Union)
+from typing import TYPE_CHECKING, Any, Dict, List, Mapping, Optional, Tuple, Union
 
 import requests
 from openai.openai_object import OpenAIObject
