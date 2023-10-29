@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Any, Dict, List, Mapping, Optional, Tuple, Uni
 
 import requests
 from openai.openai_object import OpenAIObject
+from tqdm.asyncio import tqdm as async_tqdm
 
 from phoenix.experimental.evals.models.base import BaseEvalModel
 from phoenix.experimental.evals.models.rate_limiters import OpenAIRateLimiter
@@ -219,6 +220,34 @@ class OpenAIModel(BaseEvalModel):
     ) -> List[str]:
         return asyncio.run(self._generate_async(prompts, instruction, num_consumers=num_consumers))
 
+    async def _generate_async(
+        self,
+        prompts: List[str],
+        instruction: Optional[str] = None,
+        num_consumers: int = 20,
+    ) -> List[str]:
+        printif(self._verbose, f"Generating responses for {len(prompts)} prompts...")
+        if extra_info := self._verbose_generation_info():
+            printif(self._verbose, extra_info)
+        if not is_list_of(prompts, str):
+            raise TypeError(
+                "Invalid type for argument `prompts`. Expected a list of strings "
+                f"but found {type(prompts)}."
+            )
+        outputs = ["unset"] * len(prompts)
+        queue: asyncio.Queue[Tuple[int, str, Optional[str]]] = asyncio.Queue()
+        SENTINEL = object()  # indicates when the queue is done
+        progress_bar = async_tqdm(total=len(prompts))
+
+        producer = self._producer(prompts, instruction, queue, num_consumers, SENTINEL)
+        consumers = [
+            asyncio.create_task(self._consumer(queue, outputs, SENTINEL, progress_bar))
+            for _ in range(num_consumers)
+        ]
+
+        await asyncio.gather(producer, *consumers)
+        return outputs
+
     async def _producer(
         self,
         prompts: List[str],
@@ -238,6 +267,7 @@ class OpenAIModel(BaseEvalModel):
         queue: asyncio.Queue[Tuple[int, str, Optional[str]]],
         outputs: List[str],
         sentinel: Any,
+        progress_bar: async_tqdm[Any],
     ) -> None:
         while True:
             if (item := await queue.get()) is sentinel:
@@ -248,33 +278,7 @@ class OpenAIModel(BaseEvalModel):
             logger.info(f"Prompt: {prompt}\nInstruction: {instruction}\nOutput: {output}")
             outputs[index] = output
             queue.task_done()
-
-    async def _generate_async(
-        self,
-        prompts: List[str],
-        instruction: Optional[str] = None,
-        num_consumers: int = 20,
-    ) -> List[str]:
-        printif(self._verbose, f"Generating responses for {len(prompts)} prompts...")
-        if extra_info := self._verbose_generation_info():
-            printif(self._verbose, extra_info)
-        if not is_list_of(prompts, str):
-            raise TypeError(
-                "Invalid type for argument `prompts`. Expected a list of strings "
-                f"but found {type(prompts)}."
-            )
-        outputs = ["unset"] * len(prompts)
-        queue: asyncio.Queue[Tuple[int, str, Optional[str]]] = asyncio.Queue()
-        SENTINEL = object()  # indicates when the queue is done
-
-        producer = self._producer(prompts, instruction, queue, num_consumers, SENTINEL)
-        consumers = [
-            asyncio.create_task(self._consumer(queue, outputs, SENTINEL))
-            for _ in range(num_consumers)
-        ]
-
-        await asyncio.gather(producer, *consumers)
-        return outputs
+            progress_bar.update()
 
     async def _generate(self, prompt: str, **kwargs: Dict[str, Any]) -> str:  # type: ignore
         invoke_params = self.invocation_params
