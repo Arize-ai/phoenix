@@ -332,27 +332,28 @@ def _add_spans_to_tracer(
         start_time = None
         if start_event := event_data.start_event:
             start_time = _timestamp_to_tz_aware_datetime(start_event.time)
-            if event_type is CBEventType.EXCEPTION:
-                # LlamaIndex has exception callback events that are sibling events of the events in
-                # which the exception occurred. We collect all the exception events and add them to
-                # the relevant span.
-                if (
-                    not start_event.payload
-                    or (error := start_event.payload.get(EventPayload.EXCEPTION)) is None
-                ):
-                    continue
-                span_exceptions.append(
-                    SpanException(
-                        message=str(error),
-                        timestamp=start_time,
-                        exception_type=type(error).__name__,
-                        exception_stacktrace=get_stacktrace(error),
-                    )
-                )
-                continue
-
         end_time = _get_end_time(event_data, span_exceptions)
         start_time = start_time or end_time or datetime.now(timezone.utc)
+
+        if event_type is CBEventType.EXCEPTION:
+            # LlamaIndex has exception callback events that are sibling events of the events in
+            # which the exception occurred. We collect all the exception events and add them to
+            # the relevant span.
+            if (
+                not start_event.payload
+                or (error := start_event.payload.get(EventPayload.EXCEPTION)) is None
+            ):
+                continue
+            span_exceptions.append(
+                SpanException(
+                    message=str(error),
+                    timestamp=start_time,
+                    exception_type=type(error).__name__,
+                    exception_stacktrace=get_stacktrace(error),
+                )
+            )
+            continue
+
         name = event_name if (event_name := event_data.name) is not None else "unknown"
         span_kind = _get_span_kind(event_type)
         span = tracer.create_span(
