@@ -27,6 +27,7 @@ import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SpanKindLabel } from "@phoenix/components/trace/SpanKindLabel";
 import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon";
+import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 
 import {
   SpansTable_spans$key,
@@ -48,6 +49,7 @@ const DEFAULT_SORT: SpanSort = {
   dir: "desc",
 };
 export function SpansTable(props: SpansTableProps) {
+  const { fetchKey } = useStreamState();
   const isMountedRef = useRef<boolean>(false);
   //we need a reference to the scrolling element for logic down below
   const tableContainerRef = useRef<HTMLDivElement>(null);
@@ -208,7 +210,7 @@ export function SpansTable(props: SpansTableProps) {
         filterCondition,
       });
     });
-  }, [sorting, refetch, filterCondition]);
+  }, [sorting, refetch, filterCondition, fetchKey]);
   const fetchMoreOnBottomReached = React.useCallback(
     (containerRefElement?: HTMLDivElement | null) => {
       if (containerRefElement) {

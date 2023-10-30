@@ -33,6 +33,7 @@ import { SpanKindLabel } from "@phoenix/components/trace/SpanKindLabel";
 import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon";
 import { ISpanItem } from "@phoenix/components/trace/types";
 import { createSpanTree, SpanTreeNode } from "@phoenix/components/trace/utils";
+import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 
 import {
   SpanStatusCode,
@@ -88,6 +89,7 @@ export function TracesTable(props: TracesTableProps) {
   const [filterCondition, setFilterCondition] = useState<string>("");
 
   const navigate = useNavigate();
+  const { fetchKey } = useStreamState();
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
     usePaginationFragment<TracesTableQuery, TracesTable_spans$key>(
       graphql`
@@ -309,7 +311,7 @@ export function TracesTable(props: TracesTableProps) {
         }
       );
     });
-  }, [sorting, refetch, filterCondition]);
+  }, [sorting, refetch, filterCondition, fetchKey]);
   const fetchMoreOnBottomReached = React.useCallback(
     (containerRefElement?: HTMLDivElement | null) => {
       if (containerRefElement) {

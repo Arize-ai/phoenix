@@ -90,7 +90,7 @@
     "dev:server:traces:llama_index_rag": "python3 -m phoenix.server.main trace-fixture llama_index_rag --simulate-streaming true",
     "dev:server:traces:llama_index_calculator_agent": "python3 -m phoenix.server.main trace-fixture llama_index_calculator_agent",
     "dev:server:traces:langchain_qa_with_sources": "python3 -m phoenix.server.main trace-fixture langchain_qa_with_sources",
-    "dev:server:traces:random": "python3 -m phoenix.server.main trace-fixture random",
+    "dev:server:traces:random": "python3 -m phoenix.server.main trace-fixture random --simulate-streaming true",
     "typecheck": "tsc --noEmit",
     "lint": "eslint ./src",
     "prettier": "prettier --write './src/**/*'",
