@@ -100,8 +100,7 @@ def llm_classify(
     # TODO: support explanation without function calling
     if provide_explanation and not use_openai_function_call:
         raise ValueError(
-            "explanation is not currently available for models that don't "
-            "support OpenAI function calling"
+            "explanation is not currently available for models without OpenAI function calling"
         )
 
     model_kwargs: Dict[str, Any] = {}
