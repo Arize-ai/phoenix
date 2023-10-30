@@ -256,13 +256,16 @@ def _retrieval_documents(
 ) -> Iterator[Tuple[str, List[Any]]]:
     if run["run_type"] != "retriever":
         return
-    yield RETRIEVAL_DOCUMENTS, [
-        {
-            DOCUMENT_CONTENT: document.get("page_content"),
-            DOCUMENT_METADATA: document.get("metadata") or {},
-        }
-        for document in (run.get("outputs") or {}).get("documents") or []
-    ]
+    yield (
+        RETRIEVAL_DOCUMENTS,
+        [
+            {
+                DOCUMENT_CONTENT: document.get("page_content"),
+                DOCUMENT_METADATA: document.get("metadata") or {},
+            }
+            for document in (run.get("outputs") or {}).get("documents") or []
+        ],
+    )
 
 
 def _chat_model_start_fallback(
