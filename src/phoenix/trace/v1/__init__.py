@@ -390,10 +390,13 @@ def _encode_retrieval(
 def _decode_retrieval(
     pb_retrieval: pb.Retrieval,
 ) -> Iterator[Tuple[str, Any]]:
-    yield RETRIEVAL_DOCUMENTS, [
-        dict(_decode_retrieval_document(pb_retrieval_document))
-        for pb_retrieval_document in pb_retrieval.documents
-    ]
+    yield (
+        RETRIEVAL_DOCUMENTS,
+        [
+            dict(_decode_retrieval_document(pb_retrieval_document))
+            for pb_retrieval_document in pb_retrieval.documents
+        ],
+    )
 
 
 def _encode_retrieval_document(
@@ -455,10 +458,13 @@ def _decode_embedding(
 ) -> Iterator[Tuple[str, Any]]:
     if pb_embedding.HasField("model_name"):
         yield EMBEDDING_MODEL_NAME, pb_embedding.model_name.value
-    yield EMBEDDING_EMBEDDINGS, [
-        dict(_decode_embedding_embedding(pb_embedding_embedding))
-        for pb_embedding_embedding in pb_embedding.embeddings
-    ]
+    yield (
+        EMBEDDING_EMBEDDINGS,
+        [
+            dict(_decode_embedding_embedding(pb_embedding_embedding))
+            for pb_embedding_embedding in pb_embedding.embeddings
+        ],
+    )
 
 
 def _encode_embedding_embedding(
