@@ -43,6 +43,7 @@ import {
   SpanSort,
   TracesTableQuery,
 } from "./__generated__/TracesTableQuery.graphql";
+import { SpanColumnSelector } from "./SpanColumnSelector";
 import { SpanFilterConditionField } from "./SpanFilterConditionField";
 import { TokenCount } from "./TokenCount";
 type TracesTableProps = {
@@ -324,6 +325,7 @@ export function TracesTable(props: TracesTableProps) {
     [hasNext, isLoadingNext, loadNext]
   );
   const [expanded, setExpanded] = useState<ExpandedState>({});
+  const [columnVisibility, setColumnVisibility] = useState({});
   const table = useReactTable<TableRow>({
     columns,
     data: tableData,
@@ -332,6 +334,7 @@ export function TracesTable(props: TracesTableProps) {
     state: {
       sorting,
       expanded,
+      columnVisibility,
     },
     onSortingChange: setSorting,
     getCoreRowModel: getCoreRowModel(),
@@ -347,10 +350,16 @@ export function TracesTable(props: TracesTableProps) {
         flex-direction: column;
         flex: 1 1 auto;
         overflow: hidden;
+        .span-filter-condition-field {
+          flex: 1 1 auto;
+        }
       `}
     >
       <View padding="size-100" backgroundColor="grey-200" flex="none">
-        <SpanFilterConditionField onValidCondition={setFilterCondition} />
+        <Flex direction="row" gap="size-100" width="100%" alignItems="center">
+          <SpanFilterConditionField onValidCondition={setFilterCondition} />
+          <SpanColumnSelector />
+        </Flex>
       </View>
       <div
         css={css`
