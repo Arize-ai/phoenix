@@ -1,4 +1,4 @@
-import React, { ReactNode } from "react";
+import React, { ReactNode, useEffect } from "react";
 import { graphql, useRefetchableFragment } from "react-relay";
 
 import { Flex, Text, View } from "@arizeai/components";
@@ -44,7 +44,7 @@ export function TracingHomePageHeader(props: {
   );
 
   // Refetch the count of traces if the fetchKey changes
-  React.useEffect(() => {
+  useEffect(() => {
     refetch({}, { fetchPolicy: "store-and-network" });
   }, [fetchKey, refetch]);
 
