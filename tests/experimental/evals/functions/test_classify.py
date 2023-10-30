@@ -18,6 +18,7 @@ from phoenix.experimental.evals.models.openai import OPENAI_API_KEY_ENVVAR_NAME
 
 
 @pytest.fixture
+@responses.activate
 def mock_ratelimit_inspection():
     # Mock OpenAI API request used for reading the rate limit
     headers = {"x-ratelimit-limit-requests": "100_000", "x-ratelimit-limit-tokens": "100_000"}
