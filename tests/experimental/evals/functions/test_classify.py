@@ -1,11 +1,11 @@
 from contextlib import ExitStack
-from typing import List, cast
 from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pandas as pd
 import pytest
 import responses
+from pandas.testing import assert_frame_equal
 from phoenix.experimental.evals import (
     NOT_PARSABLE,
     RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
@@ -13,7 +13,7 @@ from phoenix.experimental.evals import (
     llm_classify,
     run_relevance_eval,
 )
-from phoenix.experimental.evals.functions.classify import ClassificationResult, _snap_to_rail
+from phoenix.experimental.evals.functions.classify import _snap_to_rail
 from phoenix.experimental.evals.models.openai import OPENAI_API_KEY_ENVVAR_NAME
 
 
@@ -26,8 +26,11 @@ def test_llm_classify(monkeypatch: pytest.MonkeyPatch):
             {"query": "What is Python?", "reference": "Ruby is a programming language."},
             {"query": "What is C++?", "reference": "C++ is a programming language."},
             {"query": "What is C++?", "reference": "irrelevant"},
-        ]
+        ],
     )
+    index = list(reversed(range(len(dataframe))))
+    dataframe = dataframe.set_axis(index, axis=0)
+
     with patch.object(OpenAIModel, "_init_tiktoken", return_value=None):
         model = OpenAIModel()
 
@@ -38,17 +41,20 @@ def test_llm_classify(monkeypatch: pytest.MonkeyPatch):
             json={"choices": [{"message": {"content": message_content}}]},
             status=200,
         )
-    labels = cast(
-        List[str],
-        llm_classify(
-            dataframe=dataframe,
-            template=RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
-            model=model,
-            rails=["relevant", "irrelevant"],
+    result = llm_classify(
+        dataframe=dataframe,
+        template=RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
+        model=model,
+        rails=["relevant", "irrelevant"],
+    )
+    assert_frame_equal(
+        result,
+        pd.DataFrame(
+            index=index,
+            data={"label": ["relevant", "irrelevant", "relevant", NOT_PARSABLE]},
         ),
     )
-    assert labels == ["relevant", "irrelevant", "relevant", NOT_PARSABLE]
-    del labels
+    del result
 
     # function call in response
     for message_content in ["relevant", "irrelevant", "\nrelevant ", "unparsable"]:
@@ -58,17 +64,20 @@ def test_llm_classify(monkeypatch: pytest.MonkeyPatch):
             json={"choices": [{"message": message}]},
             status=200,
         )
-    labels = cast(
-        List[str],
-        llm_classify(
-            dataframe=dataframe,
-            template=RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
-            model=model,
-            rails=["relevant", "irrelevant"],
+    result = llm_classify(
+        dataframe=dataframe,
+        template=RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
+        model=model,
+        rails=["relevant", "irrelevant"],
+    )
+    assert_frame_equal(
+        result,
+        pd.DataFrame(
+            index=index,
+            data={"label": ["relevant", "irrelevant", "relevant", NOT_PARSABLE]},
         ),
     )
-    assert labels == ["relevant", "irrelevant", "relevant", NOT_PARSABLE]
-    del labels
+    del result
 
     # function call without explanation
     for message_content in ["relevant", "irrelevant", "\nrelevant ", "unparsable"]:
@@ -82,21 +91,24 @@ def test_llm_classify(monkeypatch: pytest.MonkeyPatch):
             json={"choices": [{"message": message}]},
             status=200,
         )
-    relevance_classifications = cast(
-        List[ClassificationResult],
-        llm_classify(
-            dataframe=dataframe,
-            template=RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
-            model=model,
-            rails=["relevant", "irrelevant"],
-            provide_explanation=True,
+    result = llm_classify(
+        dataframe=dataframe,
+        template=RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
+        model=model,
+        rails=["relevant", "irrelevant"],
+        provide_explanation=True,
+    )
+    assert_frame_equal(
+        result,
+        pd.DataFrame(
+            index=index,
+            data={
+                "label": ["relevant", "irrelevant", "relevant", NOT_PARSABLE],
+                "explanation": [None, None, None, None],
+            },
         ),
     )
-    labels = [result.label for result in relevance_classifications]
-    assert labels == ["relevant", "irrelevant", "relevant", NOT_PARSABLE]
-    explanations = [result.explanation for result in relevance_classifications]
-    assert explanations == [None, None, None, None]
-    del labels, explanations
+    del result
 
     # function call with explanation
     for i, message_content in enumerate(["relevant", "irrelevant", "\nrelevant ", "unparsable"]):
@@ -110,21 +122,24 @@ def test_llm_classify(monkeypatch: pytest.MonkeyPatch):
             json={"choices": [{"message": message}]},
             status=200,
         )
-    relevance_classifications = cast(
-        List[ClassificationResult],
-        llm_classify(
-            dataframe=dataframe,
-            template=RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
-            model=model,
-            rails=["relevant", "irrelevant"],
-            provide_explanation=True,
+    result = llm_classify(
+        dataframe=dataframe,
+        template=RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
+        model=model,
+        rails=["relevant", "irrelevant"],
+        provide_explanation=True,
+    )
+    assert_frame_equal(
+        result,
+        pd.DataFrame(
+            index=index,
+            data={
+                "label": ["relevant", "irrelevant", "relevant", NOT_PARSABLE],
+                "explanation": ["0", "1", "2", "3"],
+            },
         ),
     )
-    labels = [result.label for result in relevance_classifications]
-    assert labels == ["relevant", "irrelevant", "relevant", NOT_PARSABLE]
-    explanations = [result.explanation for result in relevance_classifications]
-    assert explanations == ["0", "1", "2", "3"]
-    del labels, explanations
+    del result
 
 
 @responses.activate

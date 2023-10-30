@@ -1,7 +1,7 @@
 import json
 import logging
 import warnings
-from typing import Any, Dict, Iterable, List, NamedTuple, Optional, Union, cast
+from typing import Any, Dict, Iterable, List, Optional, Union, cast
 
 import pandas as pd
 
@@ -29,20 +29,6 @@ _RESPONSE = "response"
 _EXPLANATION = "explanation"
 
 
-class ClassificationResult(NamedTuple):
-    """
-    A tuple of classification label and (optional) explanation.
-    """
-
-    # Note that `NamedTuple` is a subclass of `tuple`, so it allows for a
-    # seamless conversion to a pandas dataframe, as in e.g.,
-    # `df = pd.DataFrame([ClassificationResult("relevant", None)])`
-    # or
-    # `df[["label", "explanation"]] = [ClassificationResult('label', None)]`
-    label: str
-    explanation: Optional[str] = None
-
-
 def llm_classify(
     dataframe: pd.DataFrame,
     model: BaseEvalModel,
@@ -52,7 +38,7 @@ def llm_classify(
     verbose: bool = False,
     use_function_calling_if_available: bool = True,
     provide_explanation: bool = False,
-) -> Union[List[str], List[ClassificationResult]]:
+) -> pd.DataFrame:
     """Classifies each input row of the dataframe using an LLM. If provide_explanation=True,
     returning a named tuple in the form of `NamedTuple(label=..., explanation=...)`
     for each input row.
@@ -85,11 +71,11 @@ def llm_classify(
         the classification result. Only available
 
     Returns:
-        List[str] or List[ClassificationResult]: A list of prediction classes, or a list of tuples
-        representing the predicted class and the explanation for the prediction for each record
-        in the dataframe. The list should have the same length as the input dataframe and its
-        values should be the entries in the rails argument or "NOT_PARSABLE" if the model's
-        prediction could not be parsed.
+        pandas.DataFrame: A dataframe where the `label` column contains the classification labels.
+        If provide_explanation=True, then an additional column called `explanation` is added to
+        contain the explanations for each prediction. The dataframe has the same length and index
+        as the input dataframe. The prediction label values are from the entries in the rails
+        argument or "NOT_PARSABLE" if the model's prediction could not be parsed.
     """
     use_openai_function_call = (
         use_function_calling_if_available
@@ -115,32 +101,33 @@ def llm_classify(
         responses = verbose_model.generate(
             prompts.to_list(), instruction=system_instruction, **model_kwargs
         )
-    printif(verbose, f"Snapping {len(responses)} responses to rails: {rails}")
-    if not use_openai_function_call:
-        return [
-            ClassificationResult(
-                label=_snap_to_rail(response, rails, verbose=verbose),
-                explanation=None,  # TODO: support explanation without function calling
-            )
-            for response in responses
-        ]
 
-    results: List[Any] = []
+    labels: List[str] = []
+    explanations: List[Optional[str]] = []
+
+    printif(verbose, f"Snapping {len(responses)} responses to rails: {rails}")
     for response in responses:
-        explanation = None
-        try:
-            function_arguments = json.loads(response, strict=False)
-            raw_string = function_arguments.get(_RESPONSE) or ""
-            if provide_explanation:
-                explanation = function_arguments.get(_EXPLANATION)
-        except json.JSONDecodeError:
+        if not use_openai_function_call:
             raw_string = response
-        label = _snap_to_rail(raw_string, rails, verbose=verbose)
-        if provide_explanation:
-            results.append(ClassificationResult(label=label, explanation=explanation))
+            if provide_explanation:
+                # TODO: support explanation without function calling
+                explanations.append(None)
         else:
-            results.append(label)
-    return results
+            try:
+                function_arguments = json.loads(response, strict=False)
+                raw_string = function_arguments.get(_RESPONSE)
+                if provide_explanation:
+                    explanations.append(function_arguments.get(_EXPLANATION))
+            except json.JSONDecodeError:
+                raw_string = response
+        labels.append(_snap_to_rail(raw_string, rails, verbose=verbose))
+
+    data: Dict[str, List[Any]] = {"label": labels}
+    if provide_explanation:
+        assert len(labels) == len(explanations)
+        data["explanation"] = explanations
+
+    return pd.DataFrame(data=data, index=dataframe.index)
 
 
 def llm_eval_binary(
@@ -187,8 +174,7 @@ def llm_eval_binary(
         category=DeprecationWarning,
         stacklevel=2,
     )
-    return cast(
-        List[str],
+    return (
         llm_classify(
             dataframe=dataframe,
             model=model,
@@ -196,7 +182,9 @@ def llm_eval_binary(
             rails=rails,
             system_instruction=system_instruction,
             verbose=verbose,
-        ),
+        )
+        .iloc[:, 0]
+        .tolist()
     )
 
 
@@ -294,22 +282,19 @@ def run_relevance_eval(
                 indexes.append(index)
                 expanded_queries.append(query)
                 expanded_documents.append(document)
-        predictions = cast(
-            List[str],
-            llm_classify(
-                dataframe=pd.DataFrame(
-                    {
-                        query_column_name: expanded_queries,
-                        document_column_name: expanded_documents,
-                    }
-                ),
-                model=verbose_model,
-                template=template,
-                rails=rails,
-                system_instruction=system_instruction,
-                verbose=verbose,
+        predictions = llm_classify(
+            dataframe=pd.DataFrame(
+                {
+                    query_column_name: expanded_queries,
+                    document_column_name: expanded_documents,
+                }
             ),
-        )
+            model=verbose_model,
+            template=template,
+            rails=rails,
+            system_instruction=system_instruction,
+            verbose=verbose,
+        ).iloc[:, 0]
         outputs: List[List[str]] = [[] for _ in range(len(dataframe))]
         for index, prediction in zip(indexes, predictions):
             outputs[index].append(prediction)
@@ -324,7 +309,7 @@ def _get_contents_from_openinference_documents(documents: Iterable[Any]) -> List
     return [doc.get(DOCUMENT_CONTENT) if isinstance(doc, dict) else None for doc in documents]
 
 
-def _snap_to_rail(raw_string: str, rails: List[str], verbose: bool = False) -> str:
+def _snap_to_rail(raw_string: Optional[str], rails: List[str], verbose: bool = False) -> str:
     """
     Snaps a string to the nearest rail, or returns None if the string cannot be
     snapped to a rail.
@@ -338,10 +323,10 @@ def _snap_to_rail(raw_string: str, rails: List[str], verbose: bool = False) -> s
         str: A string from the rails argument or "UNPARSABLE" if the input
         string could not be snapped.
     """
-
+    if not raw_string:
+        return NOT_PARSABLE
     snap_string = raw_string.lower()
-    rails = list(set(rails))
-    rails = [rail.lower() for rail in rails]
+    rails = list(set(rail.lower() for rail in rails))
     rails.sort(key=len, reverse=True)
     found_rails = set()
     for rail in rails:
