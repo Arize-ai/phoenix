@@ -196,19 +196,24 @@ export function SpansTable(props: SpansTableProps) {
       isMountedRef.current = true;
       return;
     }
+
     const sort = sorting[0];
+
     startTransition(() => {
-      refetch({
-        sort: sort
-          ? {
-              col: sort.id as SpanSort["col"],
-              dir: sort.desc ? "desc" : "asc",
-            }
-          : DEFAULT_SORT,
-        after: null,
-        first: PAGE_SIZE,
-        filterCondition,
-      });
+      refetch(
+        {
+          sort: sort
+            ? {
+                col: sort.id as SpanSort["col"],
+                dir: sort.desc ? "desc" : "asc",
+              }
+            : DEFAULT_SORT,
+          after: null,
+          first: PAGE_SIZE,
+          filterCondition,
+        },
+        { fetchPolicy: "store-and-network" }
+      );
     });
   }, [sorting, refetch, filterCondition, fetchKey]);
   const fetchMoreOnBottomReached = React.useCallback(
@@ -248,7 +253,7 @@ export function SpansTable(props: SpansTableProps) {
         overflow: hidden;
       `}
     >
-      <View padding="size-100" backgroundColor="grey-200">
+      <View padding="size-100" backgroundColor="grey-200" flex="none">
         <SpanFilterConditionField onValidCondition={setFilterCondition} />
       </View>
 

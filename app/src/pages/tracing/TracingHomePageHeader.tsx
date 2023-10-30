@@ -1,12 +1,14 @@
 import React, { ReactNode } from "react";
-import { graphql, useFragment } from "react-relay";
+import { graphql, useRefetchableFragment } from "react-relay";
 
 import { Flex, Text, View } from "@arizeai/components";
 
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
+import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { intFormatter } from "@phoenix/utils/numberFormatUtils";
 
 import { TracingHomePageHeader_stats$key } from "./__generated__/TracingHomePageHeader_stats.graphql";
+import { TracingHomePageHeaderQuery } from "./__generated__/TracingHomePageHeaderQuery.graphql";
 
 export function TracingHomePageHeader(props: {
   query: TracingHomePageHeader_stats$key;
@@ -16,9 +18,14 @@ export function TracingHomePageHeader(props: {
   extra: ReactNode;
 }) {
   const { extra } = props;
-  const data = useFragment<TracingHomePageHeader_stats$key>(
+  const { fetchKey } = useStreamState();
+  const [data, refetch] = useRefetchableFragment<
+    TracingHomePageHeaderQuery,
+    TracingHomePageHeader_stats$key
+  >(
     graphql`
-      fragment TracingHomePageHeader_stats on Query {
+      fragment TracingHomePageHeader_stats on Query
+      @refetchable(queryName: "TracingHomePageHeaderQuery") {
         totalTraces: spans(rootSpansOnly: true) {
           pageInfo {
             totalCount
@@ -35,6 +42,11 @@ export function TracingHomePageHeader(props: {
     `,
     props.query
   );
+
+  // Refetch the count of traces if the fetchKey changes
+  React.useEffect(() => {
+    refetch({}, { fetchPolicy: "store-and-network" });
+  }, [fetchKey, refetch]);
 
   const latencyMsP50 = data?.traceDatasetInfo?.latencyMsP50;
   const latencyMsP99 = data?.traceDatasetInfo?.latencyMsP99;
@@ -85,7 +97,7 @@ export function TracingHomePageHeader(props: {
             )}
           </Flex>
         </Flex>
-        {extra}
+        <>{extra}</>
       </Flex>
     </View>
   );

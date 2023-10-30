@@ -307,7 +307,7 @@ export function TracesTable(props: TracesTableProps) {
           filterCondition: filterCondition,
         },
         {
-          fetchPolicy: "network-only",
+          fetchPolicy: "store-and-network",
         }
       );
     });
