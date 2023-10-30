@@ -176,8 +176,10 @@ check = [
 [tool.hatch.envs.style.scripts]
 check = [
   "ruff .",
+  "ruff format --check --diff .",
 ]
 fix = [
+  "ruff --fix .",
   "ruff format .",
 ]
 
