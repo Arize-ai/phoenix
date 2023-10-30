@@ -159,6 +159,23 @@ def test_callback_llm_rate_limit_error_has_exception_event(
     assert isinstance(event.attributes[EXCEPTION_STACKTRACE], str)
 
 
+def test_callback_llm_rate_limit_error_has_exception_event_with_missing_start(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    callback_handler = OpenInferenceTraceCallbackHandler(exporter=NoOpExporter())
+    event_type = CBEventType.EXCEPTION
+    payload = {"some": "payload"}
+    event_id = str(uuid4())
+    trace_map = {"root": [event_id]}
+
+    # create an exception event without a corresponding start event
+    callback_handler.on_event_end(event_type, payload=payload, event_id=event_id)
+    with patch.object(callback_handler._tracer, "create_span") as mocked_span_creation:
+        callback_handler.end_trace(trace_map=trace_map)
+
+    assert mocked_span_creation.call_count == 0, "don't create spans on exception events"
+
+
 @patch("phoenix.trace.llama_index.callback.payload_to_semantic_attributes")
 def test_on_event_start_handler_fails_gracefully(
     mock_handler_internals, mock_service_context: ServiceContext, caplog
