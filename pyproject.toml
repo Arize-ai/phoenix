@@ -270,7 +270,7 @@ ignore_missing_imports = true
 
 [tool.ruff]
 exclude = [".git", "__pycache__", "docs/source/conf.py", "*_pb2.py*"]
-extend-include = ["*.ipynb"]
+# extend-include = ["*.ipynb"]
 ignore-init-module-imports = true
 line-length = 100
 select = ["E", "F", "W", "I"]
