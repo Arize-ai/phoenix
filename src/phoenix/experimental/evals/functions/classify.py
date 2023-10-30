@@ -67,15 +67,17 @@ def llm_classify(
         is instructed to provide its response as a structured JSON object, which is easier
         to parse.
 
-        provide_explanation (bool, default=False): If True, provides explanation for
-        the classification result. Only available
+        provide_explanation (bool, default=False): If True, provides an explanation for each
+        classification label. A column named `explanation` is added to the output dataframe.
+        Currently, this is only available for models with function calling.
 
     Returns:
-        pandas.DataFrame: A dataframe where the `label` column contains the classification labels.
-        If provide_explanation=True, then an additional column called `explanation` is added to
-        contain the explanations for each prediction. The dataframe has the same length and index
-        as the input dataframe. The prediction label values are from the entries in the rails
-        argument or "NOT_PARSABLE" if the model's prediction could not be parsed.
+        pandas.DataFrame: A dataframe where the `label` column (at column position 0) contains
+        the classification labels. If provide_explanation=True, then an additional column named
+        `explanation` is added to contain the explanation for each label. The dataframe has
+        the same length and index as the input dataframe. The classification label values are
+        from the entries in the rails argument or "NOT_PARSABLE" if the model's output could
+        not be parsed.
     """
     use_openai_function_call = (
         use_function_calling_if_available
