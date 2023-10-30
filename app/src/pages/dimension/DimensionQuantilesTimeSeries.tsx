@@ -20,8 +20,8 @@ import { Text, theme } from "@arizeai/components";
 import {
   ChartTooltip,
   ChartTooltipItem,
-  colors,
   defaultTimeXAxisProps,
+  useChartColors,
   useTimeTickFormatter,
 } from "@phoenix/components/chart";
 import { useTimeRange } from "@phoenix/contexts/TimeRangeContext";
@@ -61,15 +61,20 @@ function formatValue(value: number | null) {
   return typeof value === "number" ? numberFormatter.format(value) : "--";
 }
 
-const outerColor = colors.gray500;
-const innerColor = colors.gray300;
-const lineColor = colors.white;
-
+const useColors = () => {
+  const colors = useChartColors();
+  return {
+    outerColor: colors.gray500,
+    innerColor: colors.gray300,
+    lineColor: colors.default,
+  };
+};
 function TooltipContent({
   active,
   payload,
   label,
 }: TooltipProps<number | Array<number | string>, string>) {
+  const { outerColor, innerColor, lineColor } = useColors();
   if (active && payload && payload.length) {
     const data: ChartDataItem = payload[0].payload;
     return (
@@ -232,6 +237,8 @@ export function DimensionQuantilesTimeSeries({
       [e.dataKey]: !chartState[e.dataKey as Label],
     });
   };
+
+  const { outerColor, innerColor, lineColor } = useColors();
 
   return (
     <ResponsiveContainer width="100%" height="100%">

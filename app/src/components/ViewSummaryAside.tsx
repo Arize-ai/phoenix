@@ -10,7 +10,7 @@ export function ViewSummaryAside(props: PropsWithChildren) {
   return (
     <View
       width="size-1250"
-      backgroundColor="gray-700"
+      backgroundColor="light"
       borderStartWidth="thin"
       borderStartColor="dark"
       padding="size-200"
