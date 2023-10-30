@@ -43,7 +43,7 @@ class ClassificationResult(NamedTuple):
     explanation: Optional[str] = None
 
 
-def llm_classify_with_explanation(
+def llm_classify(
     dataframe: pd.DataFrame,
     model: BaseEvalModel,
     template: Union[PromptTemplate, str],
@@ -51,9 +51,11 @@ def llm_classify_with_explanation(
     system_instruction: Optional[str] = None,
     verbose: bool = False,
     use_function_calling_if_available: bool = True,
-) -> List[ClassificationResult]:
-    """Classifies each input row of the dataframe using an LLM, returning a named tuple
-    in the form of `NamedTuple(label=..., explanation=...)` for each input row.
+    provide_explanation: bool = False,
+) -> Union[List[str], List[ClassificationResult]]:
+    """Classifies each input row of the dataframe using an LLM. If provide_explanation=True,
+    returning a named tuple in the form of `NamedTuple(label=..., explanation=...)`
+    for each input row.
 
     Args:
         dataframe (pandas.DataFrame): A pandas dataframe in which each row represents a record to be
@@ -79,11 +81,15 @@ def llm_classify_with_explanation(
         is instructed to provide its response as a structured JSON object, which is easier
         to parse.
 
+        provide_explanation (bool, default=False): If True, provides explanation for
+        the classification result. Only available
+
     Returns:
-        List[ClassificationResult]: A list of tuples representing the predicted class and the
-        explanation for the prediction for each record in the dataframe. The list should have
-        the same length as the input dataframe and its values should be the entries in the rails
-        argument or "NOT_PARSABLE" if the model's prediction could not be parsed.
+        List[str] or List[ClassificationResult]: A list of prediction classes, or a list of tuples
+        representing the predicted class and the explanation for the prediction for each record
+        in the dataframe. The list should have the same length as the input dataframe and its
+        values should be the entries in the rails argument or "NOT_PARSABLE" if the model's
+        prediction could not be parsed.
     """
     use_openai_function_call = (
         use_function_calling_if_available
@@ -92,7 +98,7 @@ def llm_classify_with_explanation(
     )
 
     # TODO: support explanation without function calling
-    if not use_openai_function_call:
+    if provide_explanation and not use_openai_function_call:
         raise ValueError(
             "explanation is not currently available for models that don't "
             "support OpenAI function calling"
@@ -100,7 +106,7 @@ def llm_classify_with_explanation(
 
     model_kwargs: Dict[str, Any] = {}
     if use_openai_function_call:
-        openai_function = _default_openai_function(rails, True)
+        openai_function = _default_openai_function(rails, provide_explanation)
         model_kwargs["functions"] = [openai_function]
         model_kwargs["function_call"] = {"name": openai_function["name"]}
 
@@ -120,93 +126,21 @@ def llm_classify_with_explanation(
             for response in responses
         ]
 
-    results = []
+    results: List[Any] = []
     for response in responses:
+        explanation = None
         try:
             function_arguments = json.loads(response, strict=False)
             raw_string = function_arguments.get(_RESPONSE) or ""
-            explanation = function_arguments.get(_EXPLANATION)
-        except json.JSONDecodeError:
-            raw_string = response
-            explanation = None
-        label = _snap_to_rail(raw_string, rails, verbose=verbose)
-        results.append(ClassificationResult(label=label, explanation=explanation))
-    return results
-
-
-def llm_classify(
-    dataframe: pd.DataFrame,
-    model: BaseEvalModel,
-    template: Union[PromptTemplate, str],
-    rails: List[str],
-    system_instruction: Optional[str] = None,
-    verbose: bool = False,
-    use_function_calling_if_available: bool = True,
-) -> List[str]:
-    """Classifies each input row of the dataframe using an LLM.
-
-    Args:
-        dataframe (pandas.DataFrame): A pandas dataframe in which each row represents a record to be
-        classified. All template variable names must appear as column names in the dataframe (extra
-        columns unrelated to the template are permitted).
-
-        template (Union[PromptTemplate, str]): The prompt template as either an instance of
-        PromptTemplate or a string. If the latter, the variable names should be surrounded by
-        curly braces so that a call to `.format` can be made to substitute variable values.
-
-        model (BaseEvalModel): An LLM model class.
-
-        rails (List[str]): A list of strings representing the possible output classes of the model's
-        predictions.
-
-        system_instruction (Optional[str], optional): An optional system message.
-
-        verbose (bool, optional): If True, prints detailed info to stdout such as model invocation
-        parameters and details about retries and snapping to rails. Default False.
-
-        use_function_calling_if_available (bool, default=True): If True, use function calling
-        (if available) as a means to constrain the LLM outputs. With function calling, the LLM
-        is instructed to provide its response as a structured JSON object, which is easier
-        to parse.
-
-    Returns:
-        List[str]: A list of strings representing the predicted class for each record in the
-        dataframe. The list should have the same length as the input dataframe and its values should
-        be the entries in the rails argument or "NOT_PARSABLE" if the model's prediction could not
-        be parsed.
-    """
-    use_openai_function_call = (
-        use_function_calling_if_available
-        and isinstance(model, OpenAIModel)
-        and model.supports_function_calling
-    )
-
-    model_kwargs: Dict[str, Any] = {}
-    if use_openai_function_call:
-        openai_function = _default_openai_function(rails, False)
-        model_kwargs["functions"] = [openai_function]
-        model_kwargs["function_call"] = {"name": openai_function["name"]}
-
-    eval_template = normalize_template(template)
-    prompts = map_template(dataframe, eval_template)
-    with set_verbosity(model, verbose) as verbose_model:
-        responses = verbose_model.generate(
-            prompts.to_list(), instruction=system_instruction, **model_kwargs
-        )
-    printif(verbose, f"Snapping {len(responses)} responses to rails: {rails}")
-    if not use_openai_function_call:
-        return [_snap_to_rail(response, rails, verbose=verbose) for response in responses]
-
-    results = []
-    for response in responses:
-        try:
-            function_arguments = json.loads(response, strict=False)
-            # take the first value if available
-            raw_string = next(iter(function_arguments.values()), "")
+            if provide_explanation:
+                explanation = function_arguments.get(_EXPLANATION)
         except json.JSONDecodeError:
             raw_string = response
         label = _snap_to_rail(raw_string, rails, verbose=verbose)
-        results.append(label)
+        if provide_explanation:
+            results.append(ClassificationResult(label=label, explanation=explanation))
+        else:
+            results.append(label)
     return results
 
 
@@ -254,13 +188,16 @@ def llm_eval_binary(
         category=DeprecationWarning,
         stacklevel=2,
     )
-    return llm_classify(
-        dataframe=dataframe,
-        model=model,
-        template=template,
-        rails=rails,
-        system_instruction=system_instruction,
-        verbose=verbose,
+    return cast(
+        List[str],
+        llm_classify(
+            dataframe=dataframe,
+            model=model,
+            template=template,
+            rails=rails,
+            system_instruction=system_instruction,
+            verbose=verbose,
+        ),
     )
 
 
@@ -358,18 +295,21 @@ def run_relevance_eval(
                 indexes.append(index)
                 expanded_queries.append(query)
                 expanded_documents.append(document)
-        predictions = llm_classify(
-            dataframe=pd.DataFrame(
-                {
-                    query_column_name: expanded_queries,
-                    document_column_name: expanded_documents,
-                }
+        predictions = cast(
+            List[str],
+            llm_classify(
+                dataframe=pd.DataFrame(
+                    {
+                        query_column_name: expanded_queries,
+                        document_column_name: expanded_documents,
+                    }
+                ),
+                model=verbose_model,
+                template=template,
+                rails=rails,
+                system_instruction=system_instruction,
+                verbose=verbose,
             ),
-            model=verbose_model,
-            template=template,
-            rails=rails,
-            system_instruction=system_instruction,
-            verbose=verbose,
         )
         outputs: List[List[str]] = [[] for _ in range(len(dataframe))]
         for index, prediction in zip(indexes, predictions):
