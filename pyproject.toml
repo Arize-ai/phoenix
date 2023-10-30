@@ -179,8 +179,8 @@ check = [
   "ruff format --check --diff .",
 ]
 fix = [
-  "ruff --fix .",
   "ruff format .",
+  "ruff --fix .",
 ]
 
 [tool.hatch.envs.notebooks.scripts]
