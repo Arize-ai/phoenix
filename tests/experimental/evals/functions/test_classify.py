@@ -22,8 +22,14 @@ def test_llm_classify(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
     dataframe = pd.DataFrame(
         [
-            {"query": "What is Python?", "reference": "Python is a programming language."},
-            {"query": "What is Python?", "reference": "Ruby is a programming language."},
+            {
+                "query": "What is Python?",
+                "reference": "Python is a programming language.",
+            },
+            {
+                "query": "What is Python?",
+                "reference": "Ruby is a programming language.",
+            },
             {"query": "What is C++?", "reference": "C++ is a programming language."},
             {"query": "What is C++?", "reference": "irrelevant"},
         ],
@@ -47,6 +53,8 @@ def test_llm_classify(monkeypatch: pytest.MonkeyPatch):
         model=model,
         rails=["relevant", "irrelevant"],
     )
+    labels = ["relevant", "irrelevant", "relevant", NOT_PARSABLE]
+    assert result.iloc[:, 0].tolist() == labels
     assert_frame_equal(
         result,
         pd.DataFrame(
@@ -70,13 +78,9 @@ def test_llm_classify(monkeypatch: pytest.MonkeyPatch):
         model=model,
         rails=["relevant", "irrelevant"],
     )
-    assert_frame_equal(
-        result,
-        pd.DataFrame(
-            index=index,
-            data={"label": ["relevant", "irrelevant", "relevant", NOT_PARSABLE]},
-        ),
-    )
+    labels = ["relevant", "irrelevant", "relevant", NOT_PARSABLE]
+    assert result.iloc[:, 0].tolist() == labels
+    assert_frame_equal(result, pd.DataFrame(index=index, data={"label": labels}))
     del result
 
     # function call without explanation
@@ -98,15 +102,11 @@ def test_llm_classify(monkeypatch: pytest.MonkeyPatch):
         rails=["relevant", "irrelevant"],
         provide_explanation=True,
     )
+    labels = ["relevant", "irrelevant", "relevant", NOT_PARSABLE]
+    assert result.iloc[:, 0].tolist() == labels
     assert_frame_equal(
         result,
-        pd.DataFrame(
-            index=index,
-            data={
-                "label": ["relevant", "irrelevant", "relevant", NOT_PARSABLE],
-                "explanation": [None, None, None, None],
-            },
-        ),
+        pd.DataFrame(index=index, data={"label": labels, "explanation": [None, None, None, None]}),
     )
     del result
 
@@ -129,15 +129,11 @@ def test_llm_classify(monkeypatch: pytest.MonkeyPatch):
         rails=["relevant", "irrelevant"],
         provide_explanation=True,
     )
+    labels = ["relevant", "irrelevant", "relevant", NOT_PARSABLE]
+    assert result.iloc[:, 0].tolist() == labels
     assert_frame_equal(
         result,
-        pd.DataFrame(
-            index=index,
-            data={
-                "label": ["relevant", "irrelevant", "relevant", NOT_PARSABLE],
-                "explanation": ["0", "1", "2", "3"],
-            },
-        ),
+        pd.DataFrame(index=index, data={"label": labels, "explanation": ["0", "1", "2", "3"]}),
     )
     del result
 
