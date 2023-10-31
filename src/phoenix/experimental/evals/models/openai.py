@@ -151,19 +151,24 @@ class OpenAIModel(BaseEvalModel):
     def _verbose_generation_info(self) -> str:
         return f"OpenAI invocation parameters: {self.public_invocation_params}"
 
-    def _generate(self, prompt: str, **kwargs: Dict[str, Any]) -> str:
+    def _generate(self, prompt: str, **kwargs: Any) -> str:
         invoke_params = self.invocation_params
-        messages = self._build_messages(prompt, kwargs.get("instruction"))  # type:ignore
-
+        messages = self._build_messages(prompt, kwargs.get("instruction"))
+        if functions := kwargs.get("functions"):
+            invoke_params["functions"] = functions
+        if function_call := kwargs.get("function_call"):
+            invoke_params["function_call"] = function_call
         response = self._generate_with_retry(
             messages=messages,
             **invoke_params,
         )
+        choice = response["choices"][0]
         if self._model_uses_legacy_completion_api:
-            return str(response["choices"][0]["text"])
-        # TODO: This is a bit rudimentary, should improve
-        resp_text = str(response["choices"][0]["message"]["content"])
-        return resp_text
+            return str(choice["text"])
+        message = choice["message"]
+        if function_call := message.get("function_call"):
+            return str(function_call.get("arguments") or "")
+        return str(message["content"])
 
     def _generate_with_retry(self, **kwargs: Any) -> Any:
         """Use tenacity to retry the completion call."""
@@ -287,3 +292,17 @@ class OpenAIModel(BaseEvalModel):
 
     def get_text_from_tokens(self, tokens: List[int]) -> str:
         return self.encoder.decode(tokens)
+
+    @property
+    def supports_function_calling(self) -> bool:
+        if (
+            self._is_azure
+            and self.openai_api_version
+            # The first api version supporting function calling is 2023-07-01-preview.
+            # See https://github.com/Azure/azure-rest-api-specs/blob/58e92dd03733bc175e6a9540f4bc53703b57fcc9/specification/cognitiveservices/data-plane/AzureOpenAI/inference/preview/2023-07-01-preview/inference.json#L895 # noqa E501
+            and self.openai_api_version[:10] < "2023-07-01"
+        ):
+            return False
+        if self._model_uses_legacy_completion_api:
+            return False
+        return True
