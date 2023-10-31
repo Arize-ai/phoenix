@@ -41,7 +41,7 @@ We are continually iterating our templates, view the most up-to-date template on
 
 #### GPT-3.5 Results
 
-<figure><img src="../../.gitbook/assets/Screenshot 2023-09-16 at 5.20.06 PM.png" alt=""><figcaption></figcaption></figure>
+<figure><img src="../../.gitbook/assets/GPT-3.5 Relevance Evals.png" alt=""><figcaption></figcaption></figure>
 
 #### Claude V2 Results
 
@@ -76,5 +76,5 @@ relevance_classifications = llm_classify(
 
 The above runs the RAG relevancy LLM template against the dataframe df.
 
-<table><thead><tr><th>RAG Eval</th><th>GPT-4</th><th>GPT-3.5</th><th width="262">GPT-3.5-turbo-instruct</th><th>Palm (Text Bison)</th><th>Claude V2</th></tr></thead><tbody><tr><td>Precision</td><td><mark style="color:green;">0.70</mark></td><td><mark style="color:green;">0.70</mark></td><td><mark style="color:red;">0.42</mark></td><td>0.53</td><td><mark style="color:red;">0.79</mark></td></tr><tr><td>Recall</td><td><mark style="color:green;">0.88</mark></td><td><mark style="color:green;">0.88</mark></td><td><mark style="color:red;">1</mark></td><td>1</td><td><mark style="color:red;">0.22</mark></td></tr><tr><td>F1</td><td><mark style="color:green;">0.78</mark></td><td><mark style="color:green;">0.78</mark></td><td><mark style="color:red;">0.59</mark></td><td>0.69</td><td><mark style="color:red;">0.34</mark></td></tr></tbody></table>
+<table><thead><tr><th>RAG Eval</th><th>GPT-4</th><th>GPT-3.5</th><th>Palm (Text Bison)</th><th>Claude V2</th><th data-hidden>GPT-3.5-turbo-instruct</th></tr></thead><tbody><tr><td>Precision</td><td><mark style="color:green;">0.70</mark></td><td><mark style="color:red;">0.42</mark></td><td><mark style="color:red;">0.53</mark></td><td><mark style="color:red;">0.79</mark></td><td><mark style="color:red;">0.42</mark></td></tr><tr><td>Recall</td><td><mark style="color:green;">0.88</mark></td><td><mark style="color:red;">1.0</mark></td><td><mark style="color:red;">1</mark></td><td><mark style="color:red;">0.22</mark></td><td><mark style="color:red;">1</mark></td></tr><tr><td>F1</td><td><mark style="color:green;">0.78</mark></td><td><mark style="color:red;">0.59</mark></td><td><mark style="color:red;">0.69</mark></td><td><mark style="color:red;">0.34</mark></td><td><mark style="color:red;">0.59</mark></td></tr></tbody></table>
 
