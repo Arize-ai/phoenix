@@ -39,9 +39,9 @@ def llm_classify(
     use_function_calling_if_available: bool = True,
     provide_explanation: bool = False,
 ) -> pd.DataFrame:
-    """Classifies each input row of the dataframe using an LLM. If provide_explanation=True,
-    returning a named tuple in the form of `NamedTuple(label=..., explanation=...)`
-    for each input row.
+    """Classifies each input row of the dataframe using an LLM. Returns a pandas.DataFrame
+    where the first column is named `label` and contains the classification labels. An optional
+    column named `explanation` is added when `provide_explanation=True`.
 
     Args:
         dataframe (pandas.DataFrame): A pandas dataframe in which each row represents a record to be
