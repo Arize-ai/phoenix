@@ -12,7 +12,8 @@ type SpanColumnSelectorProps = {
    * This could be made more generic to support other tables
    * but for now working on the span tables to figure out the right interface
    */
-  columns: Column<any>[]; // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  columns: Column<any>[];
   /**
    * Map of the column id to the visibility state
    */
