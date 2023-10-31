@@ -33,6 +33,7 @@ import { SpanKindLabel } from "@phoenix/components/trace/SpanKindLabel";
 import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon";
 import { ISpanItem } from "@phoenix/components/trace/types";
 import { createSpanTree, SpanTreeNode } from "@phoenix/components/trace/utils";
+import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 
 import {
   SpanStatusCode,
@@ -82,12 +83,12 @@ function spanTreeToNestedSpanTableRows<TSpan extends ISpanItem>(
 
 export function TracesTable(props: TracesTableProps) {
   //we need a reference to the scrolling element for logic down below
-  const isMountedRef = useRef<boolean>(false);
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const [sorting, setSorting] = useState<SortingState>([]);
   const [filterCondition, setFilterCondition] = useState<string>("");
 
   const navigate = useNavigate();
+  const { fetchKey } = useStreamState();
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
     usePaginationFragment<TracesTableQuery, TracesTable_spans$key>(
       graphql`
@@ -286,10 +287,6 @@ export function TracesTable(props: TracesTableProps) {
 
   useEffect(() => {
     //if the sorting changes, we need to reset the pagination
-    if (!isMountedRef.current) {
-      isMountedRef.current = true;
-      return;
-    }
     const sort = sorting[0];
     startTransition(() => {
       refetch(
@@ -305,11 +302,11 @@ export function TracesTable(props: TracesTableProps) {
           filterCondition: filterCondition,
         },
         {
-          fetchPolicy: "network-only",
+          fetchPolicy: "store-and-network",
         }
       );
     });
-  }, [sorting, refetch, filterCondition]);
+  }, [sorting, refetch, filterCondition, fetchKey]);
   const fetchMoreOnBottomReached = React.useCallback(
     (containerRefElement?: HTMLDivElement | null) => {
       if (containerRefElement) {
