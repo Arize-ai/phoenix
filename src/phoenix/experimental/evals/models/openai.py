@@ -39,7 +39,7 @@ TQDM_BAR_FORMAT = (
 )
 
 
-def openai_token_cost(chat_completion: OpenAIObject) -> int:
+def openai_token_usage(chat_completion: OpenAIObject) -> int:
     try:
         return int(chat_completion.usage.total_tokens)
     except (AttributeError, ValueError):
@@ -237,7 +237,9 @@ class OpenAIModel(BaseEvalModel):
                 f"but found {type(prompts)}."
             )
         outputs = ["unset"] * len(prompts)
-        queue: asyncio.Queue[Tuple[int, str, Optional[str]]] = asyncio.Queue()
+        queue: asyncio.Queue[Tuple[int, str, Optional[str]]] = asyncio.Queue(
+            maxsize=2 * num_consumers
+        )
         SENTINEL = object()  # indicates when the queue is done
         progress_bar = async_tqdm(total=len(prompts), bar_format=TQDM_BAR_FORMAT)
 
@@ -279,7 +281,6 @@ class OpenAIModel(BaseEvalModel):
             output = await self._generate(prompt=prompt, instruction=instruction)  # type: ignore
             logger.info(f"Prompt: {prompt}\nInstruction: {instruction}\nOutput: {output}")
             outputs[index] = output
-            queue.task_done()
             progress_bar.update()
 
     async def _generate(self, prompt: str, **kwargs: Dict[str, Any]) -> str:  # type: ignore
@@ -307,7 +308,7 @@ class OpenAIModel(BaseEvalModel):
         ]
 
         async def metered_openai_completion(**kwargs: Any) -> Any:
-            limit = self.rate_limiter.alimit(self.model_name, openai_token_cost)
+            limit = self.rate_limiter.alimit(self.model_name, openai_token_usage)
             response = await limit(self._openai.ChatCompletion.acreate)(**kwargs)
             return response
 
