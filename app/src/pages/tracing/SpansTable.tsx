@@ -14,10 +14,11 @@ import {
   getSortedRowModel,
   SortingState,
   useReactTable,
+  VisibilityState,
 } from "@tanstack/react-table";
 import { css } from "@emotion/react";
 
-import { Icon, Icons, View } from "@arizeai/components";
+import { Flex, Icon, Icons, View } from "@arizeai/components";
 
 import { Link } from "@phoenix/components/Link";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
@@ -37,7 +38,9 @@ import {
   SpanSort,
   SpansTableSpansQuery,
 } from "./__generated__/SpansTableSpansQuery.graphql";
+import { SpanColumnSelector } from "./SpanColumnSelector";
 import { SpanFilterConditionField } from "./SpanFilterConditionField";
+import { spansTableCSS } from "./styles";
 import { TokenCount } from "./TokenCount";
 type SpansTableProps = {
   query: SpansTable_spans$key;
@@ -54,6 +57,7 @@ export function SpansTable(props: SpansTableProps) {
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const [sorting, setSorting] = useState<SortingState>([]);
   const [filterCondition, setFilterCondition] = useState<string>("");
+  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
   const navigate = useNavigate();
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
     usePaginationFragment<SpansTableSpansQuery, SpansTable_spans$key>(
@@ -238,17 +242,25 @@ export function SpansTable(props: SpansTableProps) {
   });
   const rows = table.getRowModel().rows;
   const isEmpty = rows.length === 0;
+  const computedColumns = table.getAllColumns();
   return (
-    <div
-      css={css`
-        display: flex;
-        flex-direction: column;
-        flex: 1 1 auto;
-        overflow: hidden;
-      `}
-    >
-      <View padding="size-100" backgroundColor="grey-200" flex="none">
-        <SpanFilterConditionField onValidCondition={setFilterCondition} />
+    <div css={spansTableCSS}>
+      <View
+        paddingTop="size-100"
+        paddingBottom="size-100"
+        paddingStart="size-200"
+        paddingEnd="size-200"
+        backgroundColor="grey-200"
+        flex="none"
+      >
+        <Flex direction="row" gap="size-100" width="100%" alignItems="center">
+          <SpanFilterConditionField onValidCondition={setFilterCondition} />
+          <SpanColumnSelector
+            columns={computedColumns}
+            columnVisibility={columnVisibility}
+            onColumnVisibilityChange={setColumnVisibility}
+          />
+        </Flex>
       </View>
 
       <div
