@@ -50,7 +50,6 @@ const DEFAULT_SORT: SpanSort = {
 };
 export function SpansTable(props: SpansTableProps) {
   const { fetchKey } = useStreamState();
-  const isMountedRef = useRef<boolean>(false);
   //we need a reference to the scrolling element for logic down below
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const [sorting, setSorting] = useState<SortingState>([]);
@@ -192,11 +191,6 @@ export function SpansTable(props: SpansTableProps) {
 
   useEffect(() => {
     //if the sorting changes, we need to reset the pagination
-    if (!isMountedRef.current) {
-      isMountedRef.current = true;
-      return;
-    }
-
     const sort = sorting[0];
 
     startTransition(() => {
