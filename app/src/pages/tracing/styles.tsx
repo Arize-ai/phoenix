@@ -8,4 +8,9 @@ export const spansTableCSS = css`
   .span-filter-condition-field {
     flex: 1 1 auto;
   }
+
+  // Style the column selector
+  .ac-dropdown-button {
+    min-width: var(--ac-global-dimension-static-size-300);
+  }
 `;
