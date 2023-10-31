@@ -17,6 +17,7 @@ import {
   getSortedRowModel,
   SortingState,
   useReactTable,
+  VisibilityState,
 } from "@tanstack/react-table";
 import { css } from "@emotion/react";
 
@@ -43,7 +44,9 @@ import {
   SpanSort,
   TracesTableQuery,
 } from "./__generated__/TracesTableQuery.graphql";
+import { SpanColumnSelector } from "./SpanColumnSelector";
 import { SpanFilterConditionField } from "./SpanFilterConditionField";
+import { spansTableCSS } from "./styles";
 import { TokenCount } from "./TokenCount";
 type TracesTableProps = {
   query: TracesTable_spans$key;
@@ -324,6 +327,7 @@ export function TracesTable(props: TracesTableProps) {
     [hasNext, isLoadingNext, loadNext]
   );
   const [expanded, setExpanded] = useState<ExpandedState>({});
+  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
   const table = useReactTable<TableRow>({
     columns,
     data: tableData,
@@ -332,6 +336,7 @@ export function TracesTable(props: TracesTableProps) {
     state: {
       sorting,
       expanded,
+      columnVisibility,
     },
     onSortingChange: setSorting,
     getCoreRowModel: getCoreRowModel(),
@@ -340,17 +345,26 @@ export function TracesTable(props: TracesTableProps) {
   });
   const rows = table.getRowModel().rows;
   const isEmpty = rows.length === 0;
+  const computedColumns = table.getAllColumns();
+
   return (
-    <div
-      css={css`
-        display: flex;
-        flex-direction: column;
-        flex: 1 1 auto;
-        overflow: hidden;
-      `}
-    >
-      <View padding="size-100" backgroundColor="grey-200" flex="none">
-        <SpanFilterConditionField onValidCondition={setFilterCondition} />
+    <div css={spansTableCSS}>
+      <View
+        paddingTop="size-100"
+        paddingBottom="size-100"
+        paddingStart="size-200"
+        paddingEnd="size-200"
+        backgroundColor="grey-200"
+        flex="none"
+      >
+        <Flex direction="row" gap="size-100" width="100%" alignItems="center">
+          <SpanFilterConditionField onValidCondition={setFilterCondition} />
+          <SpanColumnSelector
+            columns={computedColumns}
+            columnVisibility={columnVisibility}
+            onColumnVisibilityChange={setColumnVisibility}
+          />
+        </Flex>
       </View>
       <div
         css={css`
