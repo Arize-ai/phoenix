@@ -1,4 +1,5 @@
 from contextlib import ExitStack
+from itertools import product
 from unittest.mock import MagicMock, patch
 
 import numpy as np
@@ -54,35 +55,36 @@ def test_llm_classify(mock_ratelimit_inspection, monkeypatch: pytest.MonkeyPatch
             },
         ]
     )
+    keys = list(zip(dataframe["query"], dataframe["reference"]))
+    responses = ["relevant", "irrelevant", "\nrelevant ", "unparsable"]
+    response_mapping = {key: response for key, response in zip(keys, responses)}
 
     def response_callback(url, **kwargs):
-        keys = list(zip(dataframe["query"], dataframe["reference"]))
-        responses = ["relevant", "irrelevant", "\nrelevant ", "unparsable"]
-        response_mapping = {key: response for key, response in zip(keys, responses)}
         request_body = kwargs["data"].decode("utf-8")
 
         for key in response_mapping:
             query, reference = key
+            response = ""
             if query in request_body and reference in request_body:
                 response = response_mapping.pop(
                     key
                 )  # Remove the key-value pair to avoid reusing the same response
-                return CallbackResult(
-                    status=200,
-                    payload={
-                        "choices": [
-                            {
-                                "message": {
-                                    "content": response,
-                                },
-                            }
-                        ],
-                        "usage": {
-                            "total_tokens": 1,
+                break
+        return CallbackResult(
+            status=200,
+            payload={
+                "choices": [
+                    {
+                        "message": {
+                            "content": response,
                         },
-                    },
-                )
-        return CallbackResult(status=500)
+                    }
+                ],
+                "usage": {
+                    "total_tokens": 1,
+                },
+            },
+        )
 
     with aioresponses() as mocked_aiohttp:
         for _ in range(len(dataframe)):
@@ -128,29 +130,45 @@ def test_llm_classify_prints_to_stdout_with_verbose_flag(
             },
         ]
     )
-    with aioresponses() as mocked_aiohttp:
-        for message_content in [
-            "relevant",
-            "irrelevant",
-            "\nrelevant ",
-            "unparsable",
-        ]:
-            mocked_aiohttp.post(
-                "https://api.openai.com/v1/chat/completions",
-                payload={
-                    "choices": [
-                        {
-                            "message": {
-                                "content": message_content,
-                            },
-                        }
-                    ],
-                    "usage": {
-                        "total_tokens": 1,
-                    },
+
+    keys = list(zip(dataframe["query"], dataframe["reference"]))
+    responses = ["relevant", "irrelevant", "\nrelevant ", "unparsable"]
+    response_mapping = {key: response for key, response in zip(keys, responses)}
+
+    def response_callback(url, **kwargs):
+        request_body = kwargs["data"].decode("utf-8")
+
+        for key in response_mapping:
+            query, reference = key
+            response = ""
+            if query in request_body and reference in request_body:
+                response = response_mapping.pop(
+                    key
+                )  # Remove the key-value pair to avoid reusing the same response
+                break
+        return CallbackResult(
+            status=200,
+            payload={
+                "choices": [
+                    {
+                        "message": {
+                            "content": response,
+                        },
+                    }
+                ],
+                "usage": {
+                    "total_tokens": 1,
                 },
-                status=200,
-            )
+            },
+        )
+
+    with aioresponses() as mocked_aiohttp:
+        mocked_aiohttp.post(
+            "https://api.openai.com/v1/chat/completions",
+            status=200,
+            callback=response_callback,
+            repeat=True,
+        )
 
         with patch.object(OpenAIModel, "_init_tiktoken", return_value=None):
             model = OpenAIModel()
@@ -293,15 +311,15 @@ def test_run_relevance_eval_standard_dataframe(
     dataframe = pd.DataFrame(
         [
             {
-                "attributes.input.value": "What is Python?",
-                "attributes.retrieval.documents": [
+                "query": "What is Python?",
+                "reference": [
                     "Python is a programming language.",
                     "Ruby is a programming language.",
                 ],
             },
             {
-                "attributes.input.value": "What is Python?",
-                "attributes.retrieval.documents": np.array(
+                "query": "What is Python?",
+                "reference": np.array(
                     [
                         "Python is a programming language.",
                         "Ruby is a programming language.",
@@ -309,66 +327,96 @@ def test_run_relevance_eval_standard_dataframe(
                 ),
             },
             {
-                "attributes.input.value": "What is Ruby?",
-                "attributes.retrieval.documents": [
+                "query": "What is Ruby?",
+                "reference": [
                     "Ruby is a programming language.",
                 ],
             },
             {
-                "attributes.input.value": "What is C++?",
-                "attributes.retrieval.documents": [
+                "query": "What is C++?",
+                "reference": [
                     "Ruby is a programming language.",
                     "C++ is a programming language.",
                 ],
             },
             {
-                "attributes.input.value": "What is C#?",
-                "attributes.retrieval.documents": [],
+                "query": "What is C#?",
+                "reference": [],
             },
             {
-                "attributes.input.value": "What is Golang?",
-                "attributes.retrieval.documents": None,
+                "query": "What is Golang?",
+                "reference": None,
             },
             {
-                "attributes.input.value": None,
-                "attributes.retrieval.documents": [
+                "query": None,
+                "reference": [
                     "Python is a programming language.",
                     "Ruby is a programming language.",
                 ],
             },
             {
-                "attributes.input.value": None,
-                "attributes.retrieval.documents": None,
+                "query": None,
+                "reference": None,
             },
         ]
     )
 
+    queries = list(dataframe["query"])
+    references = list(dataframe["reference"])
+    keys = []
+    for query, refs in zip(queries, references):
+        refs = refs if refs is None else list(refs)
+        if query and refs:
+            keys.extend(product([query], refs))
+
+    responses = [
+        "relevant",
+        "irrelevant",
+        "relevant",
+        "irrelevant",
+        "\nrelevant ",
+        "unparsable",
+        "relevant",
+    ]
+
+    response_mapping = {key: response for key, response in zip(keys, responses)}
+
+    def response_callback(url, **kwargs):
+        request_body = kwargs["data"].decode("utf-8")
+        response = ""
+        for key in response_mapping:
+            query, reference = key
+            if query in request_body and reference in request_body:
+                response = response_mapping[key]
+                break
+        return CallbackResult(
+            status=200,
+            payload={
+                "choices": [
+                    {
+                        "message": {
+                            "content": response,
+                        },
+                    }
+                ],
+                "usage": {
+                    "total_tokens": 1,
+                },
+            },
+        )
+
     monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
     with aioresponses() as mocked_aiohttp:
-        for message_content in [
-            "relevant",
-            "irrelevant",
-            "relevant",
-            "irrelevant",
-            "\nrelevant ",
-            "unparsable",
-            "relevant",
-        ]:
-            mocked_aiohttp.post(
-                "https://api.openai.com/v1/chat/completions",
-                payload={
-                    "choices": [
-                        {
-                            "message": {
-                                "content": message_content,
-                            },
-                        }
-                    ],
-                },
-                status=200,
-            )
+        mocked_aiohttp.post(
+            "https://api.openai.com/v1/chat/completions",
+            status=200,
+            callback=response_callback,
+            repeat=True,
+        )
+
         with patch.object(OpenAIModel, "_init_tiktoken", return_value=None):
             model = OpenAIModel()
+
         relevance_classifications = run_relevance_eval(dataframe, model=model)
         assert relevance_classifications == [
             ["relevant", "irrelevant"],
@@ -438,6 +486,51 @@ def test_run_relevance_eval_openinference_dataframe(
             },
         ]
     )
+
+    queries = list(dataframe["attributes.input.value"])
+    references = list(dataframe["attributes.retrieval.documents"])
+    keys = []
+    for query, refs in zip(queries, references):
+        refs = refs if refs is None else list(refs)
+        if query and refs:
+            keys.extend(product([query], refs))
+    keys = [(query, ref["document.content"]) for query, ref in keys]
+
+    responses = [
+        "relevant",
+        "irrelevant",
+        "relevant",
+        "irrelevant",
+        "\nrelevant ",
+        "unparsable",
+        "relevant",
+    ]
+
+    response_mapping = {key: response for key, response in zip(keys, responses)}
+
+    def response_callback(url, **kwargs):
+        request_body = kwargs["data"].decode("utf-8")
+        response = ""
+        for key in response_mapping:
+            query, reference = key
+            if query in request_body and reference in request_body:
+                response = response_mapping[key]
+                break
+        return CallbackResult(
+            status=200,
+            payload={
+                "choices": [
+                    {
+                        "message": {
+                            "content": response,
+                        },
+                    }
+                ],
+                "usage": {
+                    "total_tokens": 1,
+                },
+            },
+        )
 
     monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
     with aioresponses() as mocked_aiohttp:
