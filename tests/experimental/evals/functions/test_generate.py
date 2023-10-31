@@ -3,7 +3,7 @@ from unittest.mock import patch
 import pandas as pd
 import pytest
 import responses
-from aioresponses import aioresponses
+from aioresponses import CallbackResult, aioresponses
 from phoenix.experimental.evals import OpenAIModel, llm_generate
 from phoenix.experimental.evals.models.openai import OPENAI_API_KEY_ENVVAR_NAME
 
@@ -45,26 +45,50 @@ def test_llm_generate(mock_ratelimit_inspection, monkeypatch: pytest.MonkeyPatch
             },
         ]
     )
-    with aioresponses() as mock_aiohttp:
-        for message_content in [
-            "it's a dialect of french",
-            "it's a music notation",
-            "It's a crazy language",
-            "it's a programming language",
-        ]:
-            mock_aiohttp.post(
-                "https://api.openai.com/v1/chat/completions",
-                payload={
-                    "choices": [
-                        {
-                            "message": {
-                                "content": message_content,
-                            },
-                        }
-                    ],
+
+    keys = list(zip(dataframe["query"], dataframe["reference"]))
+    responses = [
+        "it's a dialect of french",
+        "it's a music notation",
+        "It's a crazy language",
+        "it's a programming language",
+    ]
+    response_mapping = {key: response for key, response in zip(keys, responses)}
+
+    def response_callback(url, **kwargs):
+        request_body = kwargs["data"].decode("utf-8")
+
+        for key in response_mapping:
+            query, reference = key
+            response = ""
+            if query in request_body and reference in request_body:
+                response = response_mapping.pop(
+                    key
+                )  # Remove the key-value pair to avoid reusing the same response
+                break
+        return CallbackResult(
+            status=200,
+            payload={
+                "choices": [
+                    {
+                        "message": {
+                            "content": response,
+                        },
+                    }
+                ],
+                "usage": {
+                    "total_tokens": 1,
                 },
-                status=200,
-            )
+            },
+        )
+
+    with aioresponses() as mock_aiohttp:
+        mock_aiohttp.post(
+            "https://api.openai.com/v1/chat/completions",
+            status=200,
+            callback=response_callback,
+            repeat=True,
+        )
         template = (
             "Given {query} and a golden answer {reference}, generate an answer that is incorrect."
         )
@@ -106,26 +130,49 @@ def test_llm_generate_prints_info_with_verbose_flag(
         ]
     )
 
-    with aioresponses() as mock_aiohttp:
-        for message_content in [
-            "it's a dialect of french",
-            "it's a music notation",
-            "It's a crazy language",
-            "it's a programming language",
-        ]:
-            mock_aiohttp.post(
-                "https://api.openai.com/v1/chat/completions",
-                payload={
-                    "choices": [
-                        {
-                            "message": {
-                                "content": message_content,
-                            },
-                        }
-                    ],
+    keys = list(zip(dataframe["query"], dataframe["reference"]))
+    responses = [
+        "it's a dialect of french",
+        "it's a music notation",
+        "It's a crazy language",
+        "it's a programming language",
+    ]
+    response_mapping = {key: response for key, response in zip(keys, responses)}
+
+    def response_callback(url, **kwargs):
+        request_body = kwargs["data"].decode("utf-8")
+
+        for key in response_mapping:
+            query, reference = key
+            response = ""
+            if query in request_body and reference in request_body:
+                response = response_mapping.pop(
+                    key
+                )  # Remove the key-value pair to avoid reusing the same response
+                break
+        return CallbackResult(
+            status=200,
+            payload={
+                "choices": [
+                    {
+                        "message": {
+                            "content": response,
+                        },
+                    }
+                ],
+                "usage": {
+                    "total_tokens": 1,
                 },
-                status=200,
-            )
+            },
+        )
+
+    with aioresponses() as mock_aiohttp:
+        mock_aiohttp.post(
+            "https://api.openai.com/v1/chat/completions",
+            status=200,
+            callback=response_callback,
+            repeat=True,
+        )
         template = (
             "Given {query} and a golden answer {reference}, generate an answer that is incorrect."
         )
