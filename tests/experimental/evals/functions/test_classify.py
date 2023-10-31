@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 import pytest
 import responses
-from aioresponses import aioresponses
+from aioresponses import CallbackResult, aioresponses
 from phoenix.experimental.evals import (
     NOT_PARSABLE,
     RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
@@ -55,28 +55,40 @@ def test_llm_classify(mock_ratelimit_inspection, monkeypatch: pytest.MonkeyPatch
         ]
     )
 
+    def response_callback(url, **kwargs):
+        keys = list(zip(dataframe["query"], dataframe["reference"]))
+        responses = ["relevant", "irrelevant", "\nrelevant ", "unparsable"]
+        response_mapping = {key: response for key, response in zip(keys, responses)}
+        request_body = kwargs["data"].decode("utf-8")
+
+        for key in response_mapping:
+            query, reference = key
+            if query in request_body and reference in request_body:
+                response = response_mapping.pop(
+                    key
+                )  # Remove the key-value pair to avoid reusing the same response
+                return CallbackResult(
+                    status=200,
+                    payload={
+                        "choices": [
+                            {
+                                "message": {
+                                    "content": response,
+                                },
+                            }
+                        ],
+                        "usage": {
+                            "total_tokens": 1,
+                        },
+                    },
+                )
+        return CallbackResult(status=500)
+
     with aioresponses() as mocked_aiohttp:
-        for message_content in [
-            "relevant",
-            "irrelevant",
-            "\nrelevant ",
-            "unparsable",
-        ]:
+        for _ in range(len(dataframe)):
             mocked_aiohttp.post(
                 "https://api.openai.com/v1/chat/completions",
-                payload={
-                    "choices": [
-                        {
-                            "message": {
-                                "content": message_content,
-                            },
-                        }
-                    ],
-                    "usage": {
-                        "total_tokens": 1,
-                    },
-                },
-                status=200,
+                callback=response_callback,
             )
 
         with patch.object(OpenAIModel, "_init_tiktoken", return_value=None):
@@ -274,126 +286,159 @@ def test_llm_classify_does_not_persist_verbose_flag(
     assert "test timeout" not in out, "The `verbose` flag should not be persisted"
 
 
-@pytest.mark.parametrize(
-    "dataframe",
-    [
-        pytest.param(
-            pd.DataFrame(
-                [
-                    {
-                        "attributes.input.value": "What is Python?",
-                        "attributes.retrieval.documents": [
-                            "Python is a programming language.",
-                            "Ruby is a programming language.",
-                        ],
-                    },
-                    {
-                        "attributes.input.value": "What is Python?",
-                        "attributes.retrieval.documents": np.array(
-                            [
-                                "Python is a programming language.",
-                                "Ruby is a programming language.",
-                            ]
-                        ),
-                    },
-                    {
-                        "attributes.input.value": "What is Ruby?",
-                        "attributes.retrieval.documents": [
-                            "Ruby is a programming language.",
-                        ],
-                    },
-                    {
-                        "attributes.input.value": "What is C++?",
-                        "attributes.retrieval.documents": [
-                            "Ruby is a programming language.",
-                            "C++ is a programming language.",
-                        ],
-                    },
-                    {
-                        "attributes.input.value": "What is C#?",
-                        "attributes.retrieval.documents": [],
-                    },
-                    {
-                        "attributes.input.value": "What is Golang?",
-                        "attributes.retrieval.documents": None,
-                    },
-                    {
-                        "attributes.input.value": None,
-                        "attributes.retrieval.documents": [
-                            "Python is a programming language.",
-                            "Ruby is a programming language.",
-                        ],
-                    },
-                    {
-                        "attributes.input.value": None,
-                        "attributes.retrieval.documents": None,
-                    },
-                ]
-            ),
-            id="standard-dataframe",
-        ),
-        pytest.param(
-            pd.DataFrame(
-                [
-                    {
-                        "attributes.input.value": "What is Python?",
-                        "attributes.retrieval.documents": [
-                            {"document.content": "Python is a programming language."},
-                            {"document.content": "Ruby is a programming language."},
-                        ],
-                    },
-                    {
-                        "attributes.input.value": "What is Python?",
-                        "attributes.retrieval.documents": np.array(
-                            [
-                                {"document.content": "Python is a programming language."},
-                                {"document.content": "Ruby is a programming language."},
-                            ]
-                        ),
-                    },
-                    {
-                        "attributes.input.value": "What is Ruby?",
-                        "attributes.retrieval.documents": [
-                            {"document.content": "Ruby is a programming language."},
-                        ],
-                    },
-                    {
-                        "attributes.input.value": "What is C++?",
-                        "attributes.retrieval.documents": [
-                            {"document.content": "Ruby is a programming language."},
-                            {"document.content": "C++ is a programming language."},
-                        ],
-                    },
-                    {
-                        "attributes.input.value": "What is C#?",
-                        "attributes.retrieval.documents": [],
-                    },
-                    {
-                        "attributes.input.value": "What is Golang?",
-                        "attributes.retrieval.documents": None,
-                    },
-                    {
-                        "attributes.input.value": None,
-                        "attributes.retrieval.documents": [
-                            {"document.content": "Python is a programming language."},
-                            {"document.content": "Ruby is a programming language."},
-                        ],
-                    },
-                    {
-                        "attributes.input.value": None,
-                        "attributes.retrieval.documents": None,
-                    },
-                ]
-            ),
-            id="openinference-dataframe",
-        ),
-    ],
-)
-def test_run_relevance_eval(
+def test_run_relevance_eval_standard_dataframe(
     mock_ratelimit_inspection,
     monkeypatch: pytest.MonkeyPatch,
-    dataframe: pd.DataFrame,
 ):
+    dataframe = pd.DataFrame(
+        [
+            {
+                "attributes.input.value": "What is Python?",
+                "attributes.retrieval.documents": [
+                    "Python is a programming language.",
+                    "Ruby is a programming language.",
+                ],
+            },
+            {
+                "attributes.input.value": "What is Python?",
+                "attributes.retrieval.documents": np.array(
+                    [
+                        "Python is a programming language.",
+                        "Ruby is a programming language.",
+                    ]
+                ),
+            },
+            {
+                "attributes.input.value": "What is Ruby?",
+                "attributes.retrieval.documents": [
+                    "Ruby is a programming language.",
+                ],
+            },
+            {
+                "attributes.input.value": "What is C++?",
+                "attributes.retrieval.documents": [
+                    "Ruby is a programming language.",
+                    "C++ is a programming language.",
+                ],
+            },
+            {
+                "attributes.input.value": "What is C#?",
+                "attributes.retrieval.documents": [],
+            },
+            {
+                "attributes.input.value": "What is Golang?",
+                "attributes.retrieval.documents": None,
+            },
+            {
+                "attributes.input.value": None,
+                "attributes.retrieval.documents": [
+                    "Python is a programming language.",
+                    "Ruby is a programming language.",
+                ],
+            },
+            {
+                "attributes.input.value": None,
+                "attributes.retrieval.documents": None,
+            },
+        ]
+    )
+
+    monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
+    with aioresponses() as mocked_aiohttp:
+        for message_content in [
+            "relevant",
+            "irrelevant",
+            "relevant",
+            "irrelevant",
+            "\nrelevant ",
+            "unparsable",
+            "relevant",
+        ]:
+            mocked_aiohttp.post(
+                "https://api.openai.com/v1/chat/completions",
+                payload={
+                    "choices": [
+                        {
+                            "message": {
+                                "content": message_content,
+                            },
+                        }
+                    ],
+                },
+                status=200,
+            )
+        with patch.object(OpenAIModel, "_init_tiktoken", return_value=None):
+            model = OpenAIModel()
+        relevance_classifications = run_relevance_eval(dataframe, model=model)
+        assert relevance_classifications == [
+            ["relevant", "irrelevant"],
+            ["relevant", "irrelevant"],
+            ["relevant"],
+            [NOT_PARSABLE, "relevant"],
+            [],
+            [],
+            [],
+            [],
+        ]
+
+
+def test_run_relevance_eval_openinference_dataframe(
+    mock_ratelimit_inspection,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    dataframe = pd.DataFrame(
+        [
+            {
+                "attributes.input.value": "What is Python?",
+                "attributes.retrieval.documents": [
+                    {"document.content": "Python is a programming language."},
+                    {"document.content": "Ruby is a programming language."},
+                ],
+            },
+            {
+                "attributes.input.value": "What is Python?",
+                "attributes.retrieval.documents": np.array(
+                    [
+                        {"document.content": "Python is a programming language."},
+                        {"document.content": "Ruby is a programming language."},
+                    ]
+                ),
+            },
+            {
+                "attributes.input.value": "What is Ruby?",
+                "attributes.retrieval.documents": [
+                    {"document.content": "Ruby is a programming language."},
+                ],
+            },
+            {
+                "attributes.input.value": "What is C++?",
+                "attributes.retrieval.documents": [
+                    {"document.content": "Ruby is a programming language."},
+                    {"document.content": "C++ is a programming language."},
+                ],
+            },
+            {
+                "attributes.input.value": "What is C#?",
+                "attributes.retrieval.documents": [],
+            },
+            {
+                "attributes.input.value": "What is Golang?",
+                "attributes.retrieval.documents": None,
+            },
+            {
+                "attributes.input.value": None,
+                "attributes.retrieval.documents": [
+                    {"document.content": "Python is a programming language."},
+                    {"document.content": "Ruby is a programming language."},
+                ],
+            },
+            {
+                "attributes.input.value": None,
+                "attributes.retrieval.documents": None,
+            },
+        ]
+    )
+
     monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
     with aioresponses() as mocked_aiohttp:
         for message_content in [
