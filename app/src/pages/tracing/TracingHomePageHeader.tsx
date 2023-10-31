@@ -1,4 +1,4 @@
-import React, { ReactNode, useEffect } from "react";
+import React, { ReactNode, startTransition, useEffect } from "react";
 import { graphql, useRefetchableFragment } from "react-relay";
 
 import { Flex, Text, View } from "@arizeai/components";
@@ -45,7 +45,9 @@ export function TracingHomePageHeader(props: {
 
   // Refetch the count of traces if the fetchKey changes
   useEffect(() => {
-    refetch({}, { fetchPolicy: "store-and-network" });
+    startTransition(() => {
+      refetch({}, { fetchPolicy: "store-and-network" });
+    });
   }, [fetchKey, refetch]);
 
   const latencyMsP50 = data?.traceDatasetInfo?.latencyMsP50;
