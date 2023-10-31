@@ -1,14 +1,9 @@
-import React, {
-  startTransition,
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import React, { startTransition, useCallback, useEffect, useRef } from "react";
 import { graphql, useRefetchableFragment } from "react-relay";
 
 import { Switch } from "@arizeai/components";
 
+import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useInterval } from "@phoenix/hooks/useInterval";
 
 import { StreamToggle_data$key } from "./__generated__/StreamToggle_data.graphql";
@@ -18,12 +13,8 @@ import { StreamToggle_data$key } from "./__generated__/StreamToggle_data.graphql
  */
 const REFRESH_INTERVAL_MS = 2000;
 
-export function StreamToggle(props: {
-  query: StreamToggle_data$key;
-  onRefresh: () => void;
-}) {
-  const { onRefresh } = props;
-  const [isStreaming, setIsStreaming] = useState<boolean>(true);
+export function StreamToggle(props: { query: StreamToggle_data$key }) {
+  const { isStreaming, setIsStreaming, setFetchKey } = useStreamState();
 
   const [traceCountData, refetchCounts] = useRefetchableFragment(
     graphql`
@@ -58,9 +49,9 @@ export function StreamToggle(props: {
     if (loadedTraceCountRef.current !== totalTraceCount) {
       // Update the loaded trace count so the effect doesn't fire again
       loadedTraceCountRef.current = totalTraceCount;
-      onRefresh();
+      setFetchKey(`fetch-traces-${totalTraceCount}`);
     }
-  }, [onRefresh, totalTraceCount]);
+  }, [setFetchKey, totalTraceCount]);
 
   useInterval(refetchCountsIfStreaming, REFRESH_INTERVAL_MS);
   return (
@@ -69,8 +60,6 @@ export function StreamToggle(props: {
       defaultSelected
       onChange={() => {
         setIsStreaming(!isStreaming);
-        // Perform one last refresh before pausing / resuming
-        onRefresh();
       }}
     >
       Stream

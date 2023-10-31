@@ -30,8 +30,8 @@ export function ErrorElement() {
       <section
         css={css`
           width: 500px;
-          /* Add spacing on the bottom so it gets pushed up */
-          margin-bottom: 500px;
+          /* Add spacing on the bottom so it gets pushed down */
+          margin-top: 200px;
           display: flex;
           flex-direction: column;
         `}
