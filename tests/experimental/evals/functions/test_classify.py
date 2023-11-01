@@ -534,28 +534,13 @@ def test_run_relevance_eval_openinference_dataframe(
 
     monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
     with aioresponses() as mocked_aiohttp:
-        for message_content in [
-            "relevant",
-            "irrelevant",
-            "relevant",
-            "irrelevant",
-            "\nrelevant ",
-            "unparsable",
-            "relevant",
-        ]:
-            mocked_aiohttp.post(
-                "https://api.openai.com/v1/chat/completions",
-                payload={
-                    "choices": [
-                        {
-                            "message": {
-                                "content": message_content,
-                            },
-                        }
-                    ],
-                },
-                status=200,
-            )
+        mocked_aiohttp.post(
+            "https://api.openai.com/v1/chat/completions",
+            status=200,
+            callback=response_callback,
+            repeat=True,
+        )
+
         with patch.object(OpenAIModel, "_init_tiktoken", return_value=None):
             model = OpenAIModel()
         relevance_classifications = run_relevance_eval(dataframe, model=model)
