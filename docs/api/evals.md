@@ -19,17 +19,17 @@ class PromptTemplate(
 )
 ```
 
-Class used to store and format prompt templates.&#x20;
+Class used to store and format prompt templates.
 
 ### Parameters
 
-* **text** (str): The raw prompt text used as a template.&#x20;
+* **text** (str): The raw prompt text used as a template.
 * **delimiters** (List\[str]): List of characters used to locate the variables within the prompt template `text`. Defaults to `["{", "}"]`.
 
 ### Attributes
 
-* **text** (str): The raw prompt text used as a template.&#x20;
-* **variables** (List\[str]): The names of the variables that, once their values are substituted into the template, create the prompt text. These variable names are automatically detected from the template `text` using the `delimiters` passed when initializing the class (see Usage section below).&#x20;
+* **text** (str): The raw prompt text used as a template.
+* **variables** (List\[str]): The names of the variables that, once their values are substituted into the template, create the prompt text. These variable names are automatically detected from the template `text` using the `delimiters` passed when initializing the class (see Usage section below).
 
 ### Usage
 
@@ -81,22 +81,28 @@ def llm_classify(
     template: Union[PromptTemplate, str],
     rails: List[str],
     system_instruction: Optional[str] = None,
-) -> List[Optional[str]]
+    verbose: bool = False,
+    use_function_calling_if_available: bool = True,
+    provide_explanation: bool = False,
+) -> pd.DataFrame
 ```
 
-Classifies rows of a dataframe using an LLM.
+Classifies each input row of the `dataframe` using an LLM. Returns a `pandas.DataFrame` where the first column is named `label` and contains the classification labels. An optional column named `explanation` is added when `provide_explanation=True`.
 
 ### Parameters
 
-* **dataframe (pd.DataFrame)**: A pandas dataframe in which each row represents a record to be classified. All template variable names must appear as column names in the dataframe (extra columns unrelated to the template are permitted).
-* **template (PromptTemplate or st):** The prompt template as either an instance of PromptTemplate or a string. If the latter, the variable names should be surrounded by curly braces so that a call to `.format` can be made to substitute variable values.
+* **dataframe (pandas.DataFrame)**: A pandas dataframe in which each row represents a record to be classified. All template variable names must appear as column names in the dataframe (extra columns unrelated to the template are permitted).
+* **template (PromptTemplate or str):** The prompt template as either an instance of PromptTemplate or a string. If the latter, the variable names should be surrounded by curly braces so that a call to `.format` can be made to substitute variable values.
 * **model (BaseEvalModel):** An LLM model class instance
-* **rails** (**List\[str]**): A list of strings representing the possible output classes of the model's predictions.
-* **system\_instruction (Optional\[str])**: An optional system message for modals that support it
+* **rails (List\[str]):** A list of strings representing the possible output classes of the model's predictions.
+* **system\_instruction (Optional\[str]):** An optional system message for modals that support it
+* **verbose (bool, optional):** If `True`, prints detailed info to stdout such as model invocation parameters and details about retries and snapping to rails. Default `False`.
+* **use\_function\_calling\_if\_available (bool, default=True):** If `True`, use function calling (if available) as a means to constrain the LLM outputs. With function calling, the LLM is instructed to provide its response as a structured JSON object, which is easier to parse.
+* **provide\_explanation (bool, default=False):** If `True`, provides an explanation for each classification label. A column named `explanation` is added to the output dataframe.   Currently, this is only available for models with function calling.
 
 ### Returns
 
-* **evaluations: (List\[str])**: A list of strings representing the predicted class for each record in the dataframe. The list should have the same length as the input dataframe and its values should be the entries in the \`rails\` argument or None if the model's prediction could not be parsed.
+* **pandas.DataFrame:** A dataframe where the `label` column (at column position 0) contains the classification labels. If `provide_explanation=True`, then an additional column named `explanation` is added to contain the explanation for each label. The dataframe has the same length and index as the input dataframe. The classification label values are from the entries in the rails argument or "NOT\_PARSABLE" if the model's output could not be parsed.
 
 ## phoenix.experimental.run\_relevance\_eval
 
