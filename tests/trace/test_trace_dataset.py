@@ -142,3 +142,36 @@ def test_dataset_construction_from_spans():
         )
     dataset = TraceDataset.from_spans(spans)
     assert_frame_equal(expected_dataframe, dataset.dataframe[expected_dataframe.columns])
+
+
+def test_dataset_construction_with_evaluations():
+    num_records = 5
+    span_ids = [f"span_{index}" for index in range(num_records)]
+    traces_df = pd.DataFrame(
+        {
+            "name": [f"name_{index}" for index in range(num_records)],
+            "span_kind": ["LLM" for index in range(num_records)],
+            "parent_id": [None for index in range(num_records)],
+            "start_time": [datetime.now() for index in range(num_records)],
+            "end_time": [datetime.now() for index in range(num_records)],
+            "message": [f"message_{index}" for index in range(num_records)],
+            "status_code": ["OK" for index in range(num_records)],
+            "status_message": ["" for index in range(num_records)],
+            "context.trace_id": [f"trace_{index}" for index in range(num_records)],
+            "context.span_id": span_ids,
+        }
+    )
+    evals_df = pd.DataFrame(
+        {
+            "span_id": span_ids,
+            "eval.eval_metric_1": [index for index in range(num_records)],
+        }
+    )
+    ds = TraceDataset(traces_df, evaluations=evals_df)
+    df_with_evals = ds.to_spans_dataframe(include_evaluations=True)
+    # Validate that the length of the dataframe is the same
+    assert len(df_with_evals) == len(traces_df)
+    # Validate that the evaluation columns are present
+    assert "eval.eval_metric_1" in df_with_evals.columns
+    # Validate that the evaluation column contains the correct values
+    assert list(df_with_evals["eval.eval_metric_1"]) == list(evals_df["eval.eval_metric_1"])
