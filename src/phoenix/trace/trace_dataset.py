@@ -76,6 +76,7 @@ class TraceDataset:
         """
         Constructs a TraceDataset from a dataframe of spans. Optionally takes in evaluations
         for the spans in the dataset.
+
         Parameters
         __________
         dataframe: pandas.DataFrame
@@ -177,7 +178,15 @@ class TraceDataset:
         self.evaluations.extend(parsed_evaluations)
 
     def to_spans_dataframe(self, include_evaluations: bool = True) -> DataFrame:
-        """converts the dataset to a dataframe of spans"""
+        """
+        converts the dataset to a dataframe of spans. If evaluations are included,
+        the evaluations are merged into the dataframe.
+
+        Parameters
+        __________
+        include_evaluations: bool
+            if True, the evaluations are merged into the dataframe
+        """
         if include_evaluations is False:
             return self.dataframe
 
