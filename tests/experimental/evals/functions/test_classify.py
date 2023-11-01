@@ -318,7 +318,7 @@ def test_run_relevance_eval_standard_dataframe(
                 ],
             },
             {
-                "query": "What is Python?",
+                "query": "Can you explain Python to me?",
                 "reference": np.array(
                     [
                         "Python is a programming language.",
@@ -444,7 +444,7 @@ def test_run_relevance_eval_openinference_dataframe(
                 ],
             },
             {
-                "attributes.input.value": "What is Python?",
+                "attributes.input.value": "Can you explain Python to me?",
                 "attributes.retrieval.documents": np.array(
                     [
                         {"document.content": "Python is a programming language."},
