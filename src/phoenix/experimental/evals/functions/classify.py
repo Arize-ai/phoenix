@@ -195,6 +195,7 @@ def run_relevance_eval(
     model: BaseEvalModel,
     template: Union[PromptTemplate, str] = RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
     rails: List[str] = list(RAG_RELEVANCY_PROMPT_RAILS_MAP.values()),
+    explanation: Optional[bool] = False,
     system_instruction: Optional[str] = None,
     query_column_name: str = "query",
     document_column_name: str = "reference",

@@ -126,3 +126,15 @@ Implementation to Evaluate:
 ```
 """  # noqa: E501
 CODE_READABILITY_PROMPT_RAILS_MAP = OrderedDict({True: "readable", False: "unreadable"})
+
+
+EXPLANATION_PROMPT_TEMPLATE_STR = """
+The single word response should be followed by reasoning for your response in a separate
+section that begins with the string "[EXPLANATION]". Here is an example response:
+
+```
+{example_rail}
+
+[EXPLANATION] ...
+```
+"""
