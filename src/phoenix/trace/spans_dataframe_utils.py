@@ -11,9 +11,19 @@ class SpansDataframeFormats(Enum):
     """
 
     key_value = "key_value"
+    """
+    A dataframe of root spans that captures the input and output of each trace
+
+    Example:
+    +---------+----------------+----------------+
+    | span_id | input          | output         |
+    +---------+----------------+----------------+
+    | span_1  | why?           | because        |
+    +---------+----------------+----------------+
+    """
 
 
-def get_root_spans(spans_df: pd.DataFrame, copy: bool = True) -> pd.DataFrame:
+def get_root_spans(spans_df: pd.DataFrame) -> pd.DataFrame:
     """
     Returns a dataframe of root spans
 
@@ -21,23 +31,24 @@ def get_root_spans(spans_df: pd.DataFrame, copy: bool = True) -> pd.DataFrame:
     __________
     spans_df: pd.DataFrame
         the dataframe of spans
-    copy: bool
-        if True, a copy of the dataframe is returned. Otherwise, the original dataframe is returned
     """
-    df = spans_df if not copy else spans_df.copy()
+    df = spans_df.copy()
     return df[df["parent_id"].isna()]
 
 
 def to_format(spans_df: pd.DataFrame, format: SpansDataframeFormats) -> pd.DataFrame:
     """
-    Returns a dataframe in a specified format for easy data manipulation
+    Returns a dataframe in a specified format for easy data manipulation.
+    Inspired by OpenAI and other evaluation dataset formats.
+
+    NB: This function is a proof of concept and is not yet fully implemented
     """
     if format == SpansDataframeFormats.key_value:
-        return to_key_value_format(spans_df)
+        return _to_key_value_format(spans_df)
     raise ValueError("Invalid format %s" % format)
 
 
-def to_key_value_format(spans_df: pd.DataFrame, copy: bool = True) -> pd.DataFrame:
+def _to_key_value_format(spans_df: pd.DataFrame) -> pd.DataFrame:
     """
     Returns a dataframe of root spans that captures the input and output
     of each chat.
@@ -46,10 +57,8 @@ def to_key_value_format(spans_df: pd.DataFrame, copy: bool = True) -> pd.DataFra
     __________
     spans_df: pd.DataFrame
         the dataframe of spans
-    copy: bool
-        if True, a copy of the dataframe is returned. Otherwise, the original dataframe is modified
     """
-    root_spans = get_root_spans(spans_df, copy=copy)
+    root_spans = get_root_spans(spans_df)
     root_spans = root_spans[
         ["context.span_id", "attributes.input.value", "attributes.output.value"]
     ]
