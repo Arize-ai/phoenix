@@ -177,6 +177,20 @@ class TraceDataset:
         # Append the evaluations to the list of evaluations
         self.evaluations.extend(parsed_evaluations)
 
+    def get_evals_dataframe(self) -> DataFrame:
+        """
+        Takes all the evaluations run against the dataset and merges them into a single dataframe.
+        for analysis.
+        """
+        # First get all the span_ids from the dataset
+        span_ids = self.dataframe["context.span_id"].unique()
+        evals_df = pd.DataFrame({"span_id": span_ids})
+        for evaluation in self.evaluations:
+            evals_df = pd.merge(
+                evals_df, evaluation.dataframe, left_on="span_id", right_on="span_id", how="left"
+            )
+        return evals_df
+
     def to_spans_dataframe(self, include_evaluations: bool = True) -> DataFrame:
         """
         converts the dataset to a dataframe of spans. If evaluations are included,
@@ -192,11 +206,8 @@ class TraceDataset:
 
         # Construct a new dataframe with the evaluations
         df = self.dataframe.copy()
-        print(df.columns)
         for evaluation in self.evaluations:
             df = pd.merge(
                 df, evaluation.dataframe, left_on="context.span_id", right_on="span_id", how="left"
             )
-        # drop the span_id column
-        df = df.drop(columns=["span_id"])
         return df
