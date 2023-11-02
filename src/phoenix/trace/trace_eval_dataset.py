@@ -74,7 +74,7 @@ class TraceEvalDataset:
         return dataframe
 
 
-def binary_classifications_to_trace_evals_dataset(
+def binary_classifications_to_trace_eval_dataset(
     eval_name: str,
     classifications_df: pd.DataFrame,
     spans_df: pd.DataFrame,

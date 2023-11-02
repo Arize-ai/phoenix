@@ -3,11 +3,11 @@ from collections import OrderedDict
 import pandas as pd
 from phoenix.trace.trace_eval_dataset import (
     TraceEvalDataset,
-    binary_classifications_to_trace_evals_dataset,
+    binary_classifications_to_trace_eval_dataset,
 )
 
 
-def test_binary_classifications_to_trace_evals_dataset():
+def test_binary_classifications_to_trace_eval_dataset():
     # Create mock data
     eval_name = "toxicity"
     classifications_df = pd.DataFrame({"label": ["toxic", "non-toxic", "toxic", "non-toxic"]})
@@ -15,7 +15,7 @@ def test_binary_classifications_to_trace_evals_dataset():
     rails_map = OrderedDict({True: "toxic", False: "non-toxic"})
 
     # Run the function
-    result = binary_classifications_to_trace_evals_dataset(
+    result = binary_classifications_to_trace_eval_dataset(
         eval_name, classifications_df, spans_df, rails_map
     )
 
