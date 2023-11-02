@@ -1,7 +1,7 @@
 import json
 import uuid
 from datetime import datetime
-from typing import Iterator, List, Optional, Union, cast
+from typing import Iterator, List, Optional, cast
 
 import pandas as pd
 from pandas import DataFrame, read_parquet
@@ -12,7 +12,8 @@ from ..config import DATASET_DIR, GENERATED_DATASET_NAME_PREFIX
 from .schemas import ATTRIBUTE_PREFIX, CONTEXT_PREFIX, Span
 from .span_json_decoder import json_to_span
 from .span_json_encoder import span_to_json
-from .trace_evaluations import TraceEvaluations
+from .spans_dataframe_utils import to_span_ids
+from .trace_eval_dataset import TraceEvalDataset
 
 # A set of columns that is required
 REQUIRED_COLUMNS = [
@@ -28,12 +29,6 @@ REQUIRED_COLUMNS = [
 ]
 
 
-TraceEvaluationOrDataFrame = Union[TraceEvaluations, DataFrame]
-
-# Overload support for a single TraceEvaluation or DataFrame or a list of them
-TraceEvaluationsParam = Union[TraceEvaluationOrDataFrame, List[TraceEvaluationOrDataFrame]]
-
-
 def normalize_dataframe(dataframe: DataFrame) -> "DataFrame":
     """Makes the dataframe have appropriate data types"""
 
@@ -41,19 +36,6 @@ def normalize_dataframe(dataframe: DataFrame) -> "DataFrame":
     dataframe["start_time"] = normalize_timestamps(dataframe["start_time"])
     dataframe["end_time"] = normalize_timestamps(dataframe["end_time"])
     return dataframe
-
-
-def parse_evaluations_param(
-    evaluations: TraceEvaluationsParam,
-) -> Iterator[TraceEvaluations]:
-    """constructs a list of evaluations into a single iterator of evaluations"""
-    if isinstance(evaluations, TraceEvaluations):
-        yield evaluations
-    elif isinstance(evaluations, DataFrame):
-        yield TraceEvaluations(evaluations)
-    else:
-        for evaluation in evaluations:
-            yield from parse_evaluations_param(evaluation)
 
 
 class TraceDataset:
@@ -64,14 +46,14 @@ class TraceDataset:
 
     name: str
     dataframe: pd.DataFrame
-    evaluations: List[TraceEvaluations] = []
+    evaluations: List[TraceEvalDataset] = []
     _data_file_name: str = "data.parquet"
 
     def __init__(
         self,
         dataframe: DataFrame,
         name: Optional[str] = None,
-        evaluations: Optional[TraceEvaluationsParam] = None,
+        evaluations: Optional[List[TraceEvalDataset]] = None,
     ):
         """
         Constructs a TraceDataset from a dataframe of spans. Optionally takes in evaluations
@@ -91,11 +73,7 @@ class TraceDataset:
             )
         self.dataframe = normalize_dataframe(dataframe)
         self.name = name or f"{GENERATED_DATASET_NAME_PREFIX}{str(uuid.uuid4())}"
-        self.evaluations = []
-        if evaluations is not None:
-            parsed_evaluations = list(parse_evaluations_param(evaluations))
-            # Append the evaluations to the list of evaluations
-            self.evaluations.extend(parsed_evaluations)
+        self.evaluations = evaluations if evaluations is not None else []
 
     @classmethod
     def from_spans(cls, spans: List[Span]) -> "TraceDataset":
@@ -171,25 +149,27 @@ class TraceDataset:
             coerce_timestamps="ms",
         )
 
-    def add_evaluations(self, evaluations: TraceEvaluationsParam) -> None:
-        """adds evaluations to the dataset"""
-        parsed_evaluations = list(parse_evaluations_param(evaluations))
+    def append_evaluation(self, eval_dataset: TraceEvalDataset) -> None:
+        """adds an evaluation to the traces"""
         # Append the evaluations to the list of evaluations
-        self.evaluations.extend(parsed_evaluations)
+        self.evaluations.append(eval_dataset)
 
     def get_evals_dataframe(self) -> DataFrame:
         """
-        Takes all the evaluations run against the dataset and merges them into a single dataframe.
-        for analysis.
+        Creates a flat dataframe of all the evaluations for the dataset.
         """
-        # First get all the span_ids from the dataset
-        span_ids = self.dataframe["context.span_id"].unique()
-        evals_df = pd.DataFrame({"span_id": span_ids})
+        # Start with a a dataframe of all the span_ids
+        df = to_span_ids(self.dataframe)
+
+        # Flatten the evaluations into a single dataframe
         for evaluation in self.evaluations:
-            evals_df = pd.merge(
-                evals_df, evaluation.dataframe, left_on="span_id", right_on="span_id", how="left"
+            df = pd.merge(
+                df,
+                evaluation.get_eval_dataframe(prefix_columns_with_name=True),
+                on="span_id",
+                how="left",
             )
-        return evals_df
+        return df
 
     def to_spans_dataframe(self, include_evaluations: bool = True) -> DataFrame:
         """
@@ -206,8 +186,12 @@ class TraceDataset:
 
         # Construct a new dataframe with the evaluations
         df = self.dataframe.copy()
-        for evaluation in self.evaluations:
-            df = pd.merge(
-                df, evaluation.dataframe, left_on="context.span_id", right_on="span_id", how="left"
-            )
+        evals_df = self.get_evals_dataframe()
+        df = pd.merge(
+            df,
+            evals_df,
+            left_on="context.span_id",
+            right_on="span_id",
+            how="left",
+        )
         return df

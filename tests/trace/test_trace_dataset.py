@@ -14,6 +14,7 @@ from phoenix.trace.schemas import (
     SpanStatusCode,
 )
 from phoenix.trace.trace_dataset import TraceDataset
+from phoenix.trace.trace_eval_dataset import TraceEvalDataset
 
 
 def test_dataset_construction():
@@ -161,17 +162,22 @@ def test_dataset_construction_with_evaluations():
             "context.span_id": span_ids,
         }
     )
-    evals_df = pd.DataFrame(
-        {
-            "span_id": span_ids,
-            "eval.eval_metric_1": [index for index in range(num_records)],
-        }
+    eval_ds = TraceEvalDataset(
+        eval_name="fake_eval",
+        dataframe=pd.DataFrame(
+            {
+                "span_id": span_ids,
+                "value": [index for index in range(num_records)],
+            }
+        ),
     )
-    ds = TraceDataset(traces_df, evaluations=evals_df)
+    ds = TraceDataset(traces_df, evaluations=[eval_ds])
     df_with_evals = ds.to_spans_dataframe(include_evaluations=True)
     # Validate that the length of the dataframe is the same
     assert len(df_with_evals) == len(traces_df)
     # Validate that the evaluation columns are present
-    assert "eval.eval_metric_1" in df_with_evals.columns
+    assert "eval.fake_eval.value" in df_with_evals.columns
     # Validate that the evaluation column contains the correct values
-    assert list(df_with_evals["eval.eval_metric_1"]) == list(evals_df["eval.eval_metric_1"])
+    assert list(df_with_evals["eval.fake_eval.value"]) == list(eval_ds.dataframe["value"])
+    # Validate that the output contains a span_id column
+    assert "span_id" in df_with_evals.columns

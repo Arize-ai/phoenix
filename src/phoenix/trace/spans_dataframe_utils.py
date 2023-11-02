@@ -24,9 +24,8 @@ def get_root_spans(spans_df: pd.DataFrame, copy: bool = True) -> pd.DataFrame:
     copy: bool
         if True, a copy of the dataframe is returned. Otherwise, the original dataframe is returned
     """
-    if copy:
-        spans_df = spans_df.copy()
-    return spans_df[spans_df["parent_id"].isna()]
+    df = spans_df if not copy else spans_df.copy()
+    return df[df["parent_id"].isna()]
 
 
 def to_format(spans_df: pd.DataFrame, format: SpansDataframeFormats) -> pd.DataFrame:
@@ -64,28 +63,12 @@ def to_key_value_format(spans_df: pd.DataFrame, copy: bool = True) -> pd.DataFra
     return root_spans
 
 
-def join_spans_and_evaluations(
-    spans_df: pd.DataFrame, evaluations_df: pd.DataFrame
-) -> pd.DataFrame:
+def to_span_ids(spans_df: pd.DataFrame, copy: bool = True) -> pd.DataFrame:
     """
-    Returns a dataframe of spans joined with their corresponding evaluations
-
-    Parameters
-    __________
-    spans_df: pd.DataFrame
-        the dataframe of spans
-    evaluations_df: pd.DataFrame
-        the dataframe of evaluations
+    Returns a dataframe of just span_ids
     """
-    spans_df = spans_df.copy()
-    evaluations_df = evaluations_df.copy()
-
-    # Rename the columns to match and be joinable
-    if "context.span_id" in spans_df.columns:
-        spans_df = spans_df.rename(columns={"context.span_id": "span_id"})
-    spans_df = spans_df.set_index("span_id")
-    spans_with_evaluations_df = spans_df.join(evaluations_df)
-    # Drop all the columns that are not needed
-    columns_to_drop = [column for column in spans_df.columns if column != "span_id"]
-    spans_with_evaluations_df.drop(columns_to_drop, axis=1, inplace=True)
-    return spans_with_evaluations_df
+    ids_df = spans_df if not copy else spans_df.copy()
+    # Normalize the column name
+    if "context.span_id" in ids_df.columns:
+        ids_df = ids_df.rename(columns={"context.span_id": "span_id"})
+    return ids_df[["span_id"]]
