@@ -133,8 +133,9 @@ The single word response should be followed by reasoning for your response in a 
 section that begins with the string "[EXPLANATION]". Here is an example response:
 
 ```
-{example_rail}
+YOUR_RESPONSE
 
 [EXPLANATION] ...
 ```
 """
+

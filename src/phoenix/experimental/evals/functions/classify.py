@@ -1,5 +1,6 @@
 import json
 import logging
+import re
 import warnings
 from typing import Any, Dict, Iterable, List, Optional, Union, cast
 
@@ -7,6 +8,7 @@ import pandas as pd
 
 from phoenix.experimental.evals.models import BaseEvalModel, OpenAIModel, set_verbosity
 from phoenix.experimental.evals.templates import (
+    EXPLANATION_PROMPT_TEMPLATE_STR,
     NOT_PARSABLE,
     RAG_RELEVANCY_PROMPT_RAILS_MAP,
     RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
@@ -85,12 +87,6 @@ def llm_classify(
         and model.supports_function_calling
     )
 
-    # TODO: support explanation without function calling
-    if provide_explanation and not use_openai_function_call:
-        raise ValueError(
-            "explanation is not currently available for models without OpenAI function calling"
-        )
-
     model_kwargs: Dict[str, Any] = {}
     if use_openai_function_call:
         openai_function = _default_openai_function(rails, provide_explanation)
@@ -98,7 +94,12 @@ def llm_classify(
         model_kwargs["function_call"] = {"name": openai_function["name"]}
 
     eval_template = normalize_template(template)
+
+    if provide_explanation and not use_openai_function_call:
+        eval_template.append(EXPLANATION_PROMPT_TEMPLATE_STR)
+
     prompts = map_template(dataframe, eval_template)
+
     with set_verbosity(model, verbose) as verbose_model:
         responses = verbose_model.generate(
             prompts.to_list(), instruction=system_instruction, **model_kwargs
@@ -112,8 +113,8 @@ def llm_classify(
         if not use_openai_function_call:
             raw_string = response
             if provide_explanation:
-                # TODO: support explanation without function calling
-                explanations.append(None)
+                raw_string, explanation = _split_on_explanation(raw_string)
+                explanations.append(explanation)
         else:
             try:
                 function_arguments = json.loads(response, strict=False)
@@ -195,7 +196,6 @@ def run_relevance_eval(
     model: BaseEvalModel,
     template: Union[PromptTemplate, str] = RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
     rails: List[str] = list(RAG_RELEVANCY_PROMPT_RAILS_MAP.values()),
-    explanation: Optional[bool] = False,
     system_instruction: Optional[str] = None,
     query_column_name: str = "query",
     document_column_name: str = "reference",
@@ -342,6 +342,14 @@ def _snap_to_rail(raw_string: Optional[str], rails: List[str], verbose: bool = F
     rail = list(found_rails)[0]
     printif(verbose, f"- Snapped {repr(raw_string)} to rail: {rail}")
     return rail
+
+
+def _split_on_explanation(raw_string: str) -> List[str]:
+    explanation_delimiter = r"\W*explanation\W*"
+    parts = re.split(explanation_delimiter, raw_string, maxsplit=1, flags=re.IGNORECASE)
+    if len(parts) == 1:
+        return parts + ["UNPARSABLE EXPLANATION"]
+    return parts
 
 
 def _default_openai_function(
