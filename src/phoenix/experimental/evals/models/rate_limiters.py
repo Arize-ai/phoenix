@@ -182,7 +182,10 @@ class OpenAIRateLimiter:
         return f"openai:{model_name}"
 
     def set_rate_limits(
-        self, model_name: str, request_rate_limit: Optional[Numeric], token_rate_limit: Optional[Numeric]
+        self,
+        model_name: str,
+        request_rate_limit: Optional[Numeric],
+        token_rate_limit: Optional[Numeric],
     ) -> None:
         if request_rate_limit is not None:
             self._store.set_rate_limit(self.key(model_name), "requests", request_rate_limit)

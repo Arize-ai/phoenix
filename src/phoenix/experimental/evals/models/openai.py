@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 import asyncio
-import nest_asyncio
 import logging
 import os
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Dict, List, Mapping, Optional, Tuple, Union
 
+import nest_asyncio
 import requests
 from openai.openai_object import OpenAIObject
 from tqdm.asyncio import tqdm as async_tqdm
@@ -51,6 +51,7 @@ AZURE_OPENAI_TOKEN_RATE_LIMITS = {
     "davinci-002": 50000,
     "gpt-35-turbo-0613": 50000,
 }
+
 
 def openai_token_usage(chat_completion: OpenAIObject) -> int:
     try:
