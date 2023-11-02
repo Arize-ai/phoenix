@@ -38,6 +38,18 @@ TQDM_BAR_FORMAT = (
     "[{elapsed}<{remaining}, {rate_fmt}{postfix}]"
 )
 
+# rate limits conservatively pulled from https://learn.microsoft.com/en-us/azure/ai-services/openai/quotas-limits
+AZURE_OPENAI_TOKEN_RATE_LIMITS = {
+    "gpt-35-turbo": 240000,
+    "gpt-35-turbo-16k": 240000,
+    "gpt-35-turbo-instruct": 240000,
+    "gpt-4": 20000,
+    "gpt-4-32k": 60000,
+    "text-embedding-ada-002": 240000,
+    "babbage-002": 50000,
+    "davinci-002": 50000,
+    "gpt-35-turbo-0613": 50000,
+}
 
 def openai_token_usage(chat_completion: OpenAIObject) -> int:
     try:
@@ -46,32 +58,39 @@ def openai_token_usage(chat_completion: OpenAIObject) -> int:
         return 0
 
 
-def openai_rate_limit_info(model_name: str, api_key: Optional[str]) -> Mapping[str, int]:
-    if api_key is None:
-        # TODO: Create custom AuthenticationError
-        raise RuntimeError(
-            "OpenAI's API key not provided. Pass it as an argument to 'openai_api_key' "
-            "or set it in your environment: 'export OPENAI_API_KEY=sk-****'"
+def openai_rate_limit_info(
+    model_name: str, api_key: Optional[str], base_url: Optional[str] = None
+) -> Mapping[str, int]:
+    if "openai.azure" in base_url:
+        token_limit = AZURE_OPENAI_TOKEN_RATE_LIMITS.get(model_name, 120000)
+        request_limit = None
+    else:
+        if api_key is None:
+            # TODO: Create custom AuthenticationError
+            raise RuntimeError(
+                "OpenAI's API key not provided. Pass it as an argument to 'openai_api_key' "
+                "or set it in your environment: 'export OPENAI_API_KEY=sk-****'"
+            )
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {api_key}",
+        }
+        data = {
+            "model": model_name,
+            "messages": [
+                {"role": "user", "content": "Test"},
+            ],
+        }
+        response = requests.post(
+            "https://api.openai.com/v1/chat/completions", headers=headers, json=data
         )
-    headers = {
-        "Content-Type": "application/json",
-        "Authorization": f"Bearer {api_key}",
-    }
-    data = {
-        "model": model_name,
-        "messages": [
-            {"role": "user", "content": "Test"},
-        ],
-    }
-    response = requests.post(
-        "https://api.openai.com/v1/chat/completions", headers=headers, json=data
-    )
-    # default to tier 1 rate limits (https://platform.openai.com/docs/guides/rate-limits/overview)
-    request_limit = response.headers.get("x-ratelimit-limit-requests", 500)
-    token_limit = response.headers.get("x-ratelimit-limit-tokens", 10000)
+        # default to tier 1 rate limits (https://platform.openai.com/docs/guides/rate-limits/overview)
+        request_limit = int(response.headers.get("x-ratelimit-limit-requests", 500))
+        token_limit = int(response.headers.get("x-ratelimit-limit-tokens", 10000))
+
     limit_info = {
-        "request-limit": int(request_limit),
-        "token-limit": int(token_limit),
+        "request-limit": request_limit,
+        "token-limit": token_limit,
     }
     return limit_info
 
@@ -125,7 +144,9 @@ class OpenAIModel(BaseEvalModel):
     def rate_limiter(self, rate_limit_multiplier: float = 0.8) -> OpenAIRateLimiter:
         if self._rate_limiter is None:
             self._rate_limiter = OpenAIRateLimiter()
-            limit_info = openai_rate_limit_info(self.model_name, self.openai_api_key)
+            limit_info = openai_rate_limit_info(
+                self.model_name, self.openai_api_key, base_url=self.openai_api_base
+            )
             self._rate_limiter.set_rate_limits(
                 self.model_name,
                 # throttle our requests to some multiple of the absolute rate limit
@@ -240,12 +261,12 @@ class OpenAIModel(BaseEvalModel):
         queue: asyncio.Queue[Tuple[int, str, Optional[str]]] = asyncio.Queue(
             maxsize=2 * num_consumers
         )
-        SENTINEL = object()  # indicates when the queue is done
+        END_OF_QUEUE = object()  # sentinel indicating when the queue is done
         progress_bar = async_tqdm(total=len(prompts), bar_format=TQDM_BAR_FORMAT)
 
-        producer = self._producer(prompts, instruction, queue, num_consumers, SENTINEL)
+        producer = self._producer(prompts, instruction, queue, num_consumers, END_OF_QUEUE)
         consumers = [
-            asyncio.create_task(self._consumer(queue, outputs, SENTINEL, progress_bar))
+            asyncio.create_task(self._consumer(queue, outputs, END_OF_QUEUE, progress_bar))
             for _ in range(num_consumers)
         ]
 
@@ -258,23 +279,23 @@ class OpenAIModel(BaseEvalModel):
         instruction: Optional[str],
         queue: asyncio.Queue[Tuple[int, str, Optional[str]]],
         num_consumers: int,
-        sentinel: Any,
+        end_of_queue: Any,
     ) -> None:
         for index, prompt in enumerate(prompts):
             await queue.put((index, prompt, instruction))
-        # add a sentinel to the queue for each consumer
+        # add an end of queue sentinel for each consumer
         for _ in range(num_consumers):
-            await queue.put(sentinel)
+            await queue.put(end_of_queue)
 
     async def _consumer(
         self,
         queue: asyncio.Queue[Tuple[int, str, Optional[str]]],
         outputs: List[str],
-        sentinel: Any,
+        end_of_queue: Any,
         progress_bar: async_tqdm[Any],
     ) -> None:
         while True:
-            if (item := await queue.get()) is sentinel:
+            if (item := await queue.get()) is end_of_queue:
                 break
 
             index, prompt, instruction = item
