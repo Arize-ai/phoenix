@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import nest_asyncio
 import logging
 import os
 from dataclasses import dataclass, field
@@ -241,6 +242,11 @@ class OpenAIModel(BaseEvalModel):
     def generate(
         self, prompts: List[str], instruction: Optional[str] = None, num_consumers: int = 20
     ) -> List[str]:
+        try:
+            asyncio.get_running_loop()
+            nest_asyncio.apply()
+        except RuntimeError:
+            pass
         return asyncio.run(self._generate_async(prompts, instruction, num_consumers=num_consumers))
 
     async def _generate_async(

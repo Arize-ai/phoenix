@@ -38,6 +38,7 @@ dependencies = [
   "sortedcontainers",
   "protobuf>=3.20, <5.0",
   "ddsketch",
+  "nest-asyncio",
 ]
 dynamic = ["version"]
 
