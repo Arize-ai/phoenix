@@ -25,3 +25,6 @@ def test_binary_classifications_to_trace_eval_dataset():
     assert "other_column" not in result.dataframe.columns
     assert "value" in result.dataframe.columns
     assert result.dataframe["value"].tolist() == [1, 0, 1, 0]
+
+    # Check that the spans_df is unchanged
+    assert "other_column" in spans_df.columns

@@ -95,19 +95,17 @@ def binary_classifications_to_trace_eval_dataset(
         a map of the binary classifications to the labels. E.x. {True: "toxic", False: "non-toxic"}
     """
     evaluations_df = classifications_df.copy()
-    span_ids_df = to_span_ids(spans_df, copy=True)
-
-    # Remove all the spans_df columns that are not needed
-    columns_to_drop = [column for column in spans_df.columns if (column != "span_id")]
-    spans_df.drop(columns_to_drop, axis=1, inplace=True)
+    span_ids_df = to_span_ids(spans_df)
 
     # Convert the rails map to a map of labels to binary values
     classification_map = {label: binary for binary, label in rails_map.items()}
+
     # Use the evaluations to convert the binary classifications to a 1 or 0 value
     evaluations_df["value"] = evaluations_df["label"].apply(
         lambda classification: 1 if classification_map[classification] else 0
     )
 
-    # Join the spans dataframe to the evaluations dataframe
+    # Join the spans dataframe to the evaluations dataframe.
+    # NB we need to assume the span_id column is in the same order as the evaluations
     evaluations_df = pd.DataFrame.join(span_ids_df, evaluations_df)
     return TraceEvalDataset(eval_name, evaluations_df)

@@ -72,11 +72,11 @@ def _to_key_value_format(spans_df: pd.DataFrame) -> pd.DataFrame:
     return root_spans
 
 
-def to_span_ids(spans_df: pd.DataFrame, copy: bool = True) -> pd.DataFrame:
+def to_span_ids(spans_df: pd.DataFrame) -> pd.DataFrame:
     """
     Returns a dataframe of just span_ids
     """
-    ids_df = spans_df if not copy else spans_df.copy()
+    ids_df = spans_df.copy()
     # Normalize the column name
     if "context.span_id" in ids_df.columns:
         ids_df = ids_df.rename(columns={"context.span_id": "span_id"})

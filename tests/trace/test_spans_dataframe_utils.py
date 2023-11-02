@@ -7,7 +7,7 @@ def test_to_span_ids():
     spans_df = pd.DataFrame({"context.span_id": [1, 2, 3, 4], "other_column": ["a", "b", "c", "d"]})
 
     # Run the function
-    result = to_span_ids(spans_df, copy=True)
+    result = to_span_ids(spans_df)
 
     # Check the output
     assert "other_column" not in result.columns
