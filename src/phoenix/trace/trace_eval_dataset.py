@@ -1,4 +1,5 @@
 from collections import OrderedDict
+from typing import Union
 
 import pandas as pd
 
@@ -101,9 +102,12 @@ def binary_classifications_to_trace_eval_dataset(
     classification_map = {label: binary for binary, label in rails_map.items()}
 
     # Use the evaluations to convert the binary classifications to a 1 or 0 value
-    evaluations_df["value"] = evaluations_df["label"].apply(
-        lambda classification: 1 if classification_map[classification] else 0
-    )
+    def map_classification_to_value(classification: str) -> Union[int, None]:
+        if classification_map.get(classification) is None:
+            return None
+        return 1 if classification_map[classification] else 0
+
+    evaluations_df["value"] = evaluations_df["label"].apply(map_classification_to_value)
 
     # Join the spans dataframe to the evaluations dataframe.
     # NB we need to assume the span_id column is in the same order as the evaluations
