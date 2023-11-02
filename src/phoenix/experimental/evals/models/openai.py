@@ -307,9 +307,14 @@ class OpenAIModel(BaseEvalModel):
             self._openai_error.ServiceUnavailableError,
         ]
 
-        async def metered_openai_completion(**kwargs: Any) -> Any:
+        async def metered_openai_chat_completion(**kwargs: Any) -> Any:
             limit = self.rate_limiter.alimit(self.model_name, openai_token_usage)
             response = await limit(self._openai.ChatCompletion.acreate)(**kwargs)
+            return response
+
+        async def metered_openai_completion(**kwargs: Any) -> Any:
+            limit = self.rate_limiter.alimit(self.model_name, openai_token_usage)
+            response = await limit(self._openai.Completion.acreate)(**kwargs)
             return response
 
         @self.retry(
@@ -326,7 +331,7 @@ class OpenAIModel(BaseEvalModel):
                         for message in (kwargs.pop("messages", None) or ())
                     )
                 return await metered_openai_completion(**kwargs)
-            return await metered_openai_completion(**kwargs)
+            return await metered_openai_chat_completion(**kwargs)
 
         return await _completion_with_retry(**kwargs)
 
