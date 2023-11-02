@@ -4,7 +4,7 @@ import pandas as pd
 
 from .spans_dataframe_utils import to_span_ids
 
-REQUIRED_COLUMNS = ["span_id", "value"]
+REQUIRED_COLUMNS = ["span_id"]
 
 EVAL_NAME_COLUMN_PREFIX = "eval."
 
