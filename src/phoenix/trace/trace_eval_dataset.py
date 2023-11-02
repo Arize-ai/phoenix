@@ -78,7 +78,7 @@ def binary_classifications_to_trace_eval_dataset(
     eval_name: str,
     classifications_df: pd.DataFrame,
     spans_df: pd.DataFrame,
-    rails_map: OrderedDict[bool, str],
+    rails_map: "OrderedDict[bool, str]",
 ) -> TraceEvalDataset:
     """
     Takes a dataframe of binary classifications and converts it to a TraceEvalDataset
@@ -91,7 +91,7 @@ def binary_classifications_to_trace_eval_dataset(
         the dataframe of binary classifications, typically the output of llm evals
     spans_df: pd.DataFrame
         the dataframe of spans over which the classifications were made
-    rails_map: OrderedDict[str, bool]
+    rails_map: OrderedDict[bool, str]
         a map of the binary classifications to the labels. E.x. {True: "toxic", False: "non-toxic"}
     """
     evaluations_df = classifications_df.copy()
