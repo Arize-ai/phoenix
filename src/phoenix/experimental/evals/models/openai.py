@@ -63,9 +63,11 @@ def openai_token_usage(chat_completion: OpenAIObject) -> int:
 def openai_rate_limit_info(
     model_name: str, api_key: Optional[str], base_url: Optional[str] = None
 ) -> Mapping[str, int]:
-    if "openai.azure" in base_url:
+    if base_url is not None and "openai.azure" in base_url:
         token_limit = AZURE_OPENAI_TOKEN_RATE_LIMITS.get(model_name, 120000)
-        request_limit = None
+        limit_info = {
+            "token_rate_limit": token_limit,
+        }
     else:
         if api_key is None:
             # TODO: Create custom AuthenticationError
@@ -89,11 +91,10 @@ def openai_rate_limit_info(
         # default to tier 1 rate limits (https://platform.openai.com/docs/guides/rate-limits/overview)
         request_limit = int(response.headers.get("x-ratelimit-limit-requests", 500))
         token_limit = int(response.headers.get("x-ratelimit-limit-tokens", 10000))
-
-    limit_info = {
-        "request-limit": request_limit,
-        "token-limit": token_limit,
-    }
+        limit_info = {
+            "request_rate_limit": request_limit,
+            "token_rate_limit": token_limit,
+        }
     return limit_info
 
 
@@ -149,12 +150,12 @@ class OpenAIModel(BaseEvalModel):
             limit_info = openai_rate_limit_info(
                 self.model_name, self.openai_api_key, base_url=self.openai_api_base
             )
-            self._rate_limiter.set_rate_limits(
-                self.model_name,
-                # throttle our requests to some multiple of the absolute rate limit
-                request_rate_limit=limit_info["request-limit"] * rate_limit_multiplier,
-                token_rate_limit=limit_info["token-limit"] * rate_limit_multiplier,
-            )
+            # throttle our requests to some multiple of the absolute rate limit
+            limits = {
+                limit_type: limit * rate_limit_multiplier
+                for limit_type, limit in limit_info.items()
+            }
+            self._rate_limiter.set_rate_limits(self.model_name, **limits)
         return self._rate_limiter
 
     def _init_environment(self) -> None:
