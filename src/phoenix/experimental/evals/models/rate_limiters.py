@@ -182,23 +182,30 @@ class OpenAIRateLimiter:
         return f"openai:{model_name}"
 
     def set_rate_limits(
-        self, model_name: str, request_rate_limit: Numeric, token_rate_limit: Numeric
+        self,
+        model_name: str,
+        request_rate_limit: Optional[Numeric],
+        token_rate_limit: Optional[Numeric],
     ) -> None:
-        self._store.set_rate_limit(self.key(model_name), "requests", request_rate_limit)
-        self._store.set_rate_limit(self.key(model_name), "tokens", token_rate_limit)
+        if request_rate_limit is not None:
+            self._store.set_rate_limit(self.key(model_name), "requests", request_rate_limit)
+        if token_rate_limit is not None:
+            self._store.set_rate_limit(self.key(model_name), "tokens", token_rate_limit)
 
     def limit(
-        self, model_name: str, token_cost: Numeric
+        self,
+        model_name: str,
+        response_cost_fn: Callable[..., Numeric],
     ) -> Callable[[Callable[ParameterSpec, GenericType]], Callable[ParameterSpec, GenericType]]:
         def rate_limit_decorator(
             fn: Callable[ParameterSpec, GenericType]
         ) -> Callable[ParameterSpec, GenericType]:
             @wraps(fn)
             def wrapper(*args: Any, **kwargs: Any) -> GenericType:
-                self._store.wait_for_rate_limits(
-                    self.key(model_name), {"requests": 1, "tokens": token_cost}
-                )
+                key = self.key(model_name)
+                self._store.wait_for_rate_limits(key, {"requests": 1, "tokens": 0})
                 result: GenericType = fn(*args, **kwargs)
+                self._store.spend_rate_limits(key, {"tokens": response_cost_fn(result)})
                 return result
 
             return wrapper

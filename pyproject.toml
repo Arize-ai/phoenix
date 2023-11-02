@@ -38,6 +38,7 @@ dependencies = [
   "sortedcontainers",
   "protobuf>=3.20, <5.0",
   "ddsketch",
+  "nest-asyncio",
 ]
 dynamic = ["version"]
 
@@ -102,9 +103,11 @@ dependencies = [
   "requests",
   "protobuf==3.20",  # version minimum (for tests)
   "responses",
+  "aioresponses",
   "tiktoken",
   "typing-extensions<4.6.0",  # for Colab
   "httpx",
+  "nest-asyncio",
 ]
 
 [tool.hatch.envs.type]
@@ -276,6 +279,7 @@ module = [
   "wrapt",
   "sortedcontainers",
   "langchain.*",
+  "nest_asyncio",
 ]
 ignore_missing_imports = true
 
