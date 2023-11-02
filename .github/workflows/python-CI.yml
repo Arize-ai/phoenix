@@ -18,6 +18,7 @@ concurrency:
 
 env:
     pip-version: 23.1.2
+    OPENAI_API_KEY: "sk-fake-openai-key" # fake openai key so that llama_index doesn't download huggingface embeddings
 
 jobs:
     lint:
@@ -36,8 +37,8 @@ jobs:
                   pip install hatch
             - name: Proto codegen
               run: |
-                hatch run proto:recompile
-                git diff --exit-code
+                  hatch run proto:recompile
+                  git diff --exit-code
             - name: Check format
               run: |
                   hatch run style:check
@@ -56,7 +57,7 @@ jobs:
     test:
         name: Test Python
         runs-on: ${{ matrix.os }}
-        needs: [lint]
+        # needs: [lint]
         strategy:
             matrix:
                 os: [macos-latest, windows-latest, ubuntu-latest]

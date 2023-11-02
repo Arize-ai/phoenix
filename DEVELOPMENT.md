@@ -1,49 +1,35 @@
 # Developer's Guide
 
-- [Developer's Guide](#developers-guide)
-  - [Setting Up Your macOS Development Environment](#setting-up-your-macos-development-environment)
-  - [Running Scripts with `hatch`](#running-scripts-with-hatch)
-  - [Installing Pre-Commit Hooks](#installing-pre-commit-hooks)
-  - [Building the `phoenix` Package](#building-the-phoenix-package)
-  - [Installing a `phoenix` Build](#installing-a-phoenix-build)
-  - [Setting Up Your Windows Test Environment](#setting-up-your-windows-test-environment)
-    - [Selecting a Virtualization Option](#selecting-a-virtualization-option)
-    - [Installing Python and `phoenix`](#installing-python-and-phoenix)
-    - [Configuring a Remote Interpreter](#configuring-a-remote-interpreter)
-    - [Troubleshooting](#troubleshooting)
-  - [Publishing a New Release](#publishing-a-new-release)
+-   [Developer's Guide](#developers-guide)
+    -   [Setting Up Your macOS Development Environment](#setting-up-your-macos-development-environment)
+    -   [Testing and Linting](#testing-and-linting)
+    -   [Installing Pre-Commit Hooks](#installing-pre-commit-hooks)
+    -   [Building the Package](#building-the-package)
+    -   [Installing a Phoenix Build](#installing-a-phoenix-build)
+    -   [Installing a `git` Branch on Colab](#installing-a-git-branch-on-colab)
+    -   [Setting Up Your Windows Test Environment](#setting-up-your-windows-test-environment)
+        -   [Selecting a Virtualization Option](#selecting-a-virtualization-option)
+        -   [Installing Python and Phoenix](#installing-python-and-phoenix)
+        -   [Configuring a Remote Interpreter](#configuring-a-remote-interpreter)
+        -   [Troubleshooting](#troubleshooting)
+    -   [Publishing a New Release](#publishing-a-new-release)
 
 ## Setting Up Your macOS Development Environment
 
-This section shows you how to set up an isolated virtual environment using `pyenv` and `virtualenvwrapper`. If you are new to `pyenv`, you can install it via `brew` with
+We recommend using a virtual environment to isolate your Python dependencies. This guide will use `conda`, but you can use a different virtual environment management tool if you want.
 
-```bash
-brew install pyenv
+First, ensure that your virtual environment manager is installed. For macOS users, we recommend installing `conda` via `brew` with
+
+```
+brew install --cask mambaforge
 ```
 
-Next, install a `phoenix`-supported Python version, e.g., `3.10.8`, with
+For non-mac users, you can follow the instruction [here](https://github.com/conda-forge/miniforge#miniforge) to install `conda` for your particular operating system.
+
+Create a new virtual environment with a Phoenix-compatible Python version. For example,
 
 ```bash
-export PHOENIX_PYTHON_VERSION=<your-supported-python-version>
-pyenv install $PHOENIX_PYTHON_VERSION
-```
-
-Set the global `pyenv` version with
-
-```bash
-pyenv global $PHOENIX_PYTHON_VERSION
-```
-
-Install `virtualenvwrapper` with
-
-```bash
-pip install virtualenvwrapper
-```
-
-Create a new virtual environment with
-
-```bash
-mkvirtualenv phoenix-env
+conda create --name phoenix python=3.8
 ```
 
 Install web build dependancies
@@ -53,14 +39,30 @@ Make sure you have npm (node package manager) available on your terminal as well
 Install `phoenix` in development mode (using the `-e` flag) and with development dependencies (using the `[dev]` extra) by running
 
 ```bash
-pip install -e ".[dev]"
+pip install -e ".[dev,experimental]"
 ```
 
 from the repository root.
 
-## Running Scripts with `hatch`
+If you are working on our LLM orchestration framework integrations, you may also wish to install LlamaIndex or LangChain from source. To install LlamaIndex from source,
 
-`hatch` is the project management tool used to build `phoenix`. After installing and activating the `phoenix-env` virtual environment, view the project environments, dependencies and scripts defined in `pyproject.toml` with
+-   Uninstall any pre-existing version of LlamaIndex with `pip uninstall llama-index`.
+-   Fork and clone LlamaIndex using one of the following two methods:
+    -   If you are an Arize employee, clone [Arize's fork of LlamaIndex](https://github.com/Arize-ai/llama_index).
+    -   If you are an external contributor, fork and clone [LlamaIndex's upstream repository](https://github.com/run-llama/llama_index).
+-   Run `pip install -e .` from the repository root.
+
+To install LangChain from source,
+
+-   Uninstall any pre-existing version of LangChain with `pip uninstall langchain`.
+-   Fork and clone LangChain using one of the following two methods:
+    -   If you are an Arize employee, clone [Arize's fork of LangChain](https://github.com/Arize-ai/langchain).
+    -   If you are an external contributor, fork and clone [LangChain's upstream repository](https://github.com/langchain-ai/langchain).
+-   Run `pip install -e .` from `libs/langchain`.
+
+## Testing and Linting
+
+Phoenix uses `hatch` as the project management tool to lint and test source code and to build the package. After creating and activating your `phoenix` virtual environment, view your `hatch` environments, dependencies and, scripts defined in `pyproject.toml` with
 
 ```bash
 hatch env show
@@ -72,19 +74,19 @@ Scripts belonging to the various environments can be run with
 hatch run <env-name>:<script-name>
 ```
 
-For example, you can check types with
+To type-check your code, run
 
 ```bash
 hatch run type:check
 ```
 
-You can fix styles with
+To format your code, run
 
 ```bash
 hatch run style:fix
 ```
 
-You can run tests with coverage with
+To run tests with coverage, run
 
 ```bash
 hatch run test:coverage
@@ -105,9 +107,9 @@ pre-commit install
 
 Once installed, the pre-commit hooks configured in `.pre-commit-config.yaml` will automatically run prior to each `git commit`. Pre-commit hooks can be skipped by passing the `-n`/ `--no-verify` flag to the `git commit` command.
 
-## Building the `phoenix` Package
+## Building the Package
 
-To build `phoenix`, run
+To build Phoenix, run
 
 ```bash
 hatch build
@@ -115,17 +117,17 @@ hatch build
 
 If successful, a source distribution (a tarball) and a Python `wheel` will appear in the `dist` folder at the repo base directory.
 
-## Installing a `phoenix` Build
+## Installing a Phoenix Build
 
-We recommend using a separate virtual environment (e.g., `phoenix-test-env`) for installing and testing the builds created above.
+We recommend using a separate virtual environment (e.g., `phoenixtest`) for installing and testing the builds created above.
 
-To install `phoenix` from the source distribution (i.e., tarball), run
+To install Phoenix from the source distribution (i.e., tarball), run
 
 ```bash
 pip install /path/to/source/distribution/tarball.tar.gz
 ```
 
-To install `phoenix` from the Python `wheel`, you must first install `wheel` with
+To install Phoenix from the Python `wheel`, you must first install `wheel` with
 
 ```bash
 pip install wheel
@@ -145,22 +147,22 @@ To make sure everything works, install `jupyter` with
 pip install jupyter
 ```
 
-and run the notebooks in the `examples` directory.
+and run the notebooks in the `tutorials` directory.
 
 ## Installing a `git` Branch on Colab
 
-The code below installs the `main` branch in [Colab](https://colab.research.google.com/notebooks/empty.ipynb) and takes roughly 3 minutes to run. 
+The code below installs the `main` branch in [Colab](https://colab.research.google.com/notebooks/empty.ipynb) and takes roughly 3 minutes to run.
 
 ```jupyterpython
 !npm install -g -s n
 !n latest
 !npm install -g -s npm@latest
-%pip install -qqq git+https://github.com/Arize-ai/phoenix.git@main
+%pip install git+https://github.com/Arize-ai/phoenix.git@main
 ```
 
 ## Setting Up Your Windows Test Environment
 
-It is occasionally necessary to manually test a `phoenix` build or to run `phoenix` from source on Windows. The following instructions enable macOS developers who do not have a PC to quickly set up a Windows Python environment in a cloud or local virtual machine.
+It is occasionally necessary to manually test a Phoenix build or to run Phoenix from source on Windows. The following instructions enable macOS developers who do not have a PC to quickly set up a Windows Python environment in a cloud or local virtual machine.
 
 ### Selecting a Virtualization Option
 
@@ -179,7 +181,7 @@ Hence, if you are a macOS developer using an Apple Silicon machine and you wish 
 
 If you elect to use an Azure VM, we recommend that you select a non-headless OS (we use Windows Server 2019), configure an inbound port rule for RDP on port 3389 while creating the VM and screenshare with your VM using Microsoft Remote Desktop, which can be downloaded from the Apple App Store. This will enable you to [configure an SSH server](#configuring-a-remote-interpreter) on the VM for remote development.
 
-### Installing Python and `phoenix`
+### Installing Python and Phoenix
 
 The following instructions assume you have created a Windows virtual machine either locally or in the cloud. These instructions have been tested on Windows Server 2019 and assume you are using Powershell.
 
@@ -229,13 +231,13 @@ Install `virtualenvwrapper-win` with
 pip install virtualenvwrapper-win
 ```
 
-Create a virtual environment called `phoenix-env` with
+Create a virtual environment called `phoenix` with
 
 ```powershell
 mkvirtualenv phoenix-env
 ```
 
-Activate your virtual environment. You can now [install a `phoenix` build](#installing-a-phoenix-build). Alternatively, if you wish to run `phoenix` from source, clone the repo and install `phoenix` in development mode with
+Activate your virtual environment. You can now [install a Phoenix build](#installing-a-phoenix-build). Alternatively, if you wish to run Phoenix from source, clone the repo and install Phoenix in development mode with
 
 ```powershell
 pip install -e ".[dev]"

@@ -16,11 +16,11 @@ type ChartTooltipProps = PropsWithChildren<object>;
 export function ChartTooltip(props: ChartTooltipProps) {
   return (
     <div
-      css={(theme) => css`
-        background-color: ${theme.colors.gray500};
-        border: 1px solid transparent;
+      css={css`
+        background-color: var(--ac-global-color-grey-200);
+        border: 1px solid var(--ac-global-color-grey-300);
         padding: var(--px-spacing-med);
-        border-radius: ${theme.rounding.rounding4}px;
+        border-radius: var(--ac-global-rounding-medium);
         display: flex;
         flex-direction: column;
         gap: var(--px-spacing-sm);
@@ -77,9 +77,9 @@ export function ChartTooltipItem(props: ChartTooltipItemProps) {
 export function ChartTooltipDivider() {
   return (
     <div
-      css={(theme) => css`
+      css={css`
         height: 1px;
-        background-color: ${theme.colors.gray400};
+        background-color: var(--ac-global-color-grey-300);
         width: 100%;
       `}
     />

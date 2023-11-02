@@ -2,11 +2,16 @@ import json
 
 import pytest
 from gcsfs import GCSFileSystem
-from llama_index import ServiceContext, StorageContext, load_index_from_storage
+from llama_index import (
+    ServiceContext,
+    StorageContext,
+    load_index_from_storage,
+)
 from llama_index.agent import OpenAIAgent
 from llama_index.callbacks import CallbackManager
 from llama_index.embeddings.openai import OpenAIEmbedding
 from llama_index.graph_stores.simple import SimpleGraphStore
+from llama_index.indices.postprocessor.cohere_rerank import CohereRerank
 from llama_index.indices.vector_store import VectorStoreIndex
 from llama_index.llms import OpenAI
 from llama_index.query_engine import RetrieverQueryEngine
@@ -19,17 +24,24 @@ from phoenix.trace.semantic_conventions import (
     EMBEDDING_MODEL_NAME,
     EMBEDDING_TEXT,
     EMBEDDING_VECTOR,
+    LLM_INPUT_MESSAGES,
     LLM_INVOCATION_PARAMETERS,
-    LLM_MESSAGES,
     LLM_MODEL_NAME,
+    LLM_OUTPUT_MESSAGES,
     LLM_PROMPTS,
     LLM_TOKEN_COUNT_COMPLETION,
     LLM_TOKEN_COUNT_PROMPT,
     LLM_TOKEN_COUNT_TOTAL,
     MESSAGE_CONTENT,
+    MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON,
+    MESSAGE_FUNCTION_CALL_NAME,
     MESSAGE_ROLE,
     OUTPUT_MIME_TYPE,
     OUTPUT_VALUE,
+    RERANKER_INPUT_DOCUMENTS,
+    RERANKER_MODEL_NAME,
+    RERANKER_OUTPUT_DOCUMENTS,
+    RERANKER_TOP_K,
     TOOL_DESCRIPTION,
     TOOL_NAME,
     TOOL_PARAMETERS,
@@ -103,7 +115,7 @@ def test_callback_handler_records_llm_and_embedding_attributes_for_query_engine(
 
     is_chat_model = model_name.startswith("gpt")
     if is_chat_model:
-        messages = span.attributes[LLM_MESSAGES]
+        messages = span.attributes[LLM_INPUT_MESSAGES]
         assert messages[0][MESSAGE_ROLE] == "system"
         assert messages[1][MESSAGE_ROLE] == "user"
         assert query in messages[1][MESSAGE_CONTENT]
@@ -138,10 +150,11 @@ def test_callback_data_agent() -> None:
     add_tool = FunctionTool.from_defaults(fn=add)
     llm = OpenAI(
         model="gpt-3.5-turbo-0613",
-        temperature=0.1,
+        temperature=0,
         additional_kwargs={
             "presence_penalty": 0.002,
             "frequency_penalty": 0.003,
+            "n": 2,
         },
     )
     cb_handler = OpenInferenceTraceCallbackHandler(exporter=NoOpExporter())
@@ -151,7 +164,7 @@ def test_callback_data_agent() -> None:
     )
     agent.query("What is 2 * 3?")
 
-    spans = list(cb_handler.get_spans())
+    spans = sorted(cb_handler.get_spans(), key=lambda span: span.start_time)
     llm_spans = [span for span in spans if span.span_kind == SpanKind.LLM]
     tool_spans = [span for span in spans if span.span_kind == SpanKind.TOOL]
     # There should be two LLM spans, one to figure out the parameters
@@ -162,16 +175,64 @@ def test_callback_data_agent() -> None:
             "frequency_penalty": 0.003,
             "max_tokens": None,
             "model": "gpt-3.5-turbo-0613",
+            "n": 2,
             "presence_penalty": 0.002,
-            "temperature": 0.1,
+            "temperature": 0,
         }
-    assert llm_spans[1].attributes[OUTPUT_MIME_TYPE] is MimeType.JSON
-    assert json.loads(llm_spans[1].attributes[OUTPUT_VALUE]) == {
+    assert llm_spans[0].attributes[OUTPUT_MIME_TYPE] is MimeType.JSON
+    assert json.loads(llm_spans[0].attributes[OUTPUT_VALUE]) == {
         "function_call": {
             "name": "multiply",
             "arguments": '{\n  "a": 2,\n  "b": 3\n}',
         }
     }
+    assert llm_spans[0].attributes[LLM_INPUT_MESSAGES] == [
+        {
+            MESSAGE_CONTENT: "What is 2 * 3?",
+            MESSAGE_ROLE: "user",
+        }
+    ]
+    assert llm_spans[0].attributes[LLM_OUTPUT_MESSAGES] == [
+        {
+            MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON: '{\n  "a": 2,\n  "b": 3\n}',
+            MESSAGE_FUNCTION_CALL_NAME: "multiply",
+            MESSAGE_ROLE: "assistant",
+        },
+        {
+            MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON: '{\n  "a": 2,\n  "b": 3\n}',
+            MESSAGE_FUNCTION_CALL_NAME: "multiply",
+            MESSAGE_ROLE: "assistant",
+        },
+    ]
+    assert llm_spans[1].attributes[OUTPUT_MIME_TYPE] is MimeType.TEXT
+    assert llm_spans[1].attributes[OUTPUT_VALUE] == "2 multiplied by 3 equals 6."
+    assert llm_spans[1].attributes.get(LLM_INPUT_MESSAGES) == [
+        {
+            "message.role": "user",
+            "message.content": "What is 2 * 3?",
+        },
+        {
+            "message.role": "assistant",
+            "message.content": None,
+            "message.function_call_arguments_json": '{\n  "a": 2,\n  "b": 3\n}',
+            "message.function_call_name": "multiply",
+        },
+        {
+            "message.role": "function",
+            "message.content": "6",
+            "message.name": "multiply",
+        },
+    ]
+    assert llm_spans[1].attributes[LLM_OUTPUT_MESSAGES] == [
+        {
+            "message.content": "2 multiplied by 3 equals 6.",
+            "message.role": "assistant",
+        },
+        {
+            "message.content": "2 multiplied by 3 equals 6.",
+            "message.role": "assistant",
+        },
+    ]
     # one function call
     assert len(tool_spans) == 1
     tool_span = tool_spans[0]
@@ -189,3 +250,30 @@ def test_callback_data_agent() -> None:
         "title": "multiply",
         "type": "object",
     }
+
+
+@pytest.mark.parametrize("model_name", ["text-davinci-003"], indirect=True)
+def test_cohere_rerank(index: VectorStoreIndex) -> None:
+    callback_handler = OpenInferenceTraceCallbackHandler(exporter=NoOpExporter())
+    service_context = ServiceContext.from_defaults(
+        callback_manager=CallbackManager(handlers=[callback_handler])
+    )
+    cohere_rerank = CohereRerank(top_n=2)
+    query_engine = index.as_query_engine(
+        similarity_top_k=5,
+        node_postprocessors=[cohere_rerank],
+        service_context=service_context,
+    )
+    query_engine.query("How should timestamps be formatted?")
+
+    spans = {span.name: span for span in callback_handler.get_spans()}
+    assert "reranking" in spans
+    reranker_span = spans["reranking"]
+    assert reranker_span.span_kind == SpanKind.RERANKER
+    assert (
+        len(reranker_span.attributes[RERANKER_INPUT_DOCUMENTS])
+        == query_engine.retriever.similarity_top_k
+    )
+    assert len(reranker_span.attributes[RERANKER_OUTPUT_DOCUMENTS]) == cohere_rerank.top_n
+    assert reranker_span.attributes[RERANKER_TOP_K] == cohere_rerank.top_n
+    assert reranker_span.attributes[RERANKER_MODEL_NAME] == cohere_rerank.model

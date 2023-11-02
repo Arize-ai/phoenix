@@ -7,7 +7,7 @@ const linkButtonCSS = css`
   display: inline-flex;
   align-items: center;
   background: none;
-  color: var(--px-light-blue-color);
+  color: var(--ac-global-color-primary);
 
   background: none;
   border: none;

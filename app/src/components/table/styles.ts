@@ -5,7 +5,7 @@ export const tableCSS = (theme: Theme) => css`
   width: 100%;
   border-collapse: collapse;
   thead {
-    background-color: ${theme.colors.gray600};
+    background-color: var(--ac-global-color-grey-300);
     position: sticky;
     top: 0;
     tr {
@@ -23,7 +23,7 @@ export const tableCSS = (theme: Theme) => css`
           display: inline-block;
         }
         &:hover .resizer {
-          background: ${theme.colors.gray300};
+          background: var(--ac-global-color-grey-300);
         }
         div.resizer {
           display: inline-block;
@@ -38,7 +38,7 @@ export const tableCSS = (theme: Theme) => css`
           touch-action: none;
           &.isResizing,
           &:hover {
-            background: var(--px-light-blue-color);
+            background: var(--ac-global-color-primary);
           }
         }
       }
@@ -47,10 +47,10 @@ export const tableCSS = (theme: Theme) => css`
   tbody:not(.is-empty) {
     tr {
       &:nth-of-type(even) {
-        background-color: ${theme.colors.gray700};
+        background-color: var(--ac-global-color-grey-100);
       }
       &:hover {
-        background-color: ${theme.colors.gray600};
+        background-color: var(--ac-global-color-grey-200);
       }
       & > td {
         padding: ${theme.spacing.margin8}px ${theme.spacing.margin16}px;
@@ -59,11 +59,23 @@ export const tableCSS = (theme: Theme) => css`
   }
 `;
 
+export const selectableTableCSS = (theme: Theme) =>
+  css(
+    tableCSS(theme),
+    css`
+      tbody:not(.is-empty) {
+        tr {
+          cursor: pointer;
+        }
+      }
+    `
+  );
+
 export const paginationCSS = (theme: Theme) => css`
   display: flex;
   justify-content: flex-end;
   align-items: center;
   padding: ${theme.spacing.margin8}px;
   gap: ${theme.spacing.margin4}px;
-  border-top: 1px solid ${theme.colors.gray500};
+  border-top: 1px solid var(--ac-global-color-grey-300);
 `;

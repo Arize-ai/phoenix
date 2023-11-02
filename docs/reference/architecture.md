@@ -20,7 +20,7 @@ In order to use Phoenix:
 2. (Optional) Leverage [SDK](http://127.0.0.1:5000/s/-MAlgpMyBRcl2qFZRQ67/api-reference/python-sdk/arize.pandas/autoembeddings#the-embeddinggenerator-class) embeddings and LLM eval generators
 3. Start Phoenix
    1. Single dataframe
-   2. (Optional) Two dataframes: primary and [reference](../concepts/phoenix-basics.md#which-dataset-is-which)
+   2. (Optional) Two dataframes: primary and [reference](../quickstart/inferences.md#which-dataset-is-which)
 4. Investigate problems
 5. (Optional) Export data
 
@@ -32,7 +32,7 @@ Phoenix currently requires pandas dataframes which can be downloaded from either
 
 The Phoenix library heavily uses [embeddings](../concepts/embeddings.md) as a method for data visualization and debugging. In order to use Phoenix with embeddings they can either be generated using an SDK call or they can be supplied by the user of the library. Phoenix supports [generating](../concepts/generating-embeddings.md) embeddings for LLMs, Image, NLP, and tabular datasets.
 
-#### Start Phoenix:
+#### Start Phoenix with DataFrames:
 
 Phoenix is typically started in a notebook from which a local Phoenix server is kicked off. Two approaches can be taken to the overall use of Phoenix:
 

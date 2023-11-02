@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Phoenix</title>
+    <link rel="icon" href="/favicon.ico" type="image/x-icon"></link>
+    <meta charset="UTF-8" />
+    <meta name="description" content="Explore, Analyze, Curate" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#ffffff" />
+    <link rel="stylesheet" src="/index.css"></link>
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Roboto:wght@100;300;400;500;700;900&display=swap"
+    />
+    <script src="/modernizr.js"></script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script>(function() {
+        Object.defineProperty(window, "Config", {
+            // Place any server-side injected config here
+            // E.g. default UMAP parameters etc. that needs to be
+            // injected into the client before React runs
+            value: Object.freeze({
+                hasCorpus: Boolean("{{has_corpus}}"),
+                UMAP: {
+                  minDist: parseFloat("{{min_dist}}"),
+                  nNeighbors: parseInt("{{n_neighbors}}"),
+                  nSamples: parseInt("{{n_samples}}"),
+                }
+            }),
+            writable: false
+        });
+    })()</script>
+    <script type="module" src="/index.js"></script>
+  </body>
+</html>

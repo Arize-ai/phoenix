@@ -8,10 +8,13 @@ from .default_templates import (
     TOXICITY_PROMPT_RAILS_MAP,
     TOXICITY_PROMPT_TEMPLATE_STR,
 )
-from .template import PromptTemplate, normalize_template
+from .template import NOT_PARSABLE, PromptTemplate, map_template, normalize_template
 
 __all__ = [
     "PromptTemplate",
+    "normalize_template",
+    "map_template",
+    "NOT_PARSABLE",
     "RAG_RELEVANCY_PROMPT_RAILS_MAP",
     "RAG_RELEVANCY_PROMPT_TEMPLATE_STR",
     "HALLUCINATION_PROMPT_RAILS_MAP",
@@ -20,5 +23,4 @@ __all__ = [
     "CODE_READABILITY_PROMPT_TEMPLATE_STR",
     "TOXICITY_PROMPT_RAILS_MAP",
     "TOXICITY_PROMPT_TEMPLATE_STR",
-    "normalize_template",
 ]

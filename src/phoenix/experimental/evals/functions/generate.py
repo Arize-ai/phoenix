@@ -3,10 +3,8 @@ from typing import List, Optional, Union
 
 import pandas as pd
 
-from ..models import BaseEvalModel
-from ..models.openai import OpenAIModel
-from ..templates import PromptTemplate, normalize_template
-from .common import map_template
+from phoenix.experimental.evals.models import BaseEvalModel, set_verbosity
+from phoenix.experimental.evals.templates import PromptTemplate, map_template, normalize_template
 
 logger = logging.getLogger(__name__)
 
@@ -14,8 +12,9 @@ logger = logging.getLogger(__name__)
 def llm_generate(
     dataframe: pd.DataFrame,
     template: Union[PromptTemplate, str],
-    model: Optional[BaseEvalModel] = None,
+    model: BaseEvalModel,
     system_instruction: Optional[str] = None,
+    verbose: bool = False,
 ) -> List[str]:
     """
     Generates a text using a template using an LLM. This function is useful
@@ -35,16 +34,20 @@ def llm_generate(
 
         system_instruction (Optional[str], optional): An optional system
         message.
+
+        verbose (bool, optional): If True, prints detailed information to stdout such as model
+        invocation parameters and retry info. Default False.
+
     Returns:
         List[Optional[str]]: A list of strings representing the output of the
         model for each record
 
     """
-    model = model or OpenAIModel()
-    template = normalize_template(template)
-    logger.info(f"Template: \n{template.text}\n")
-    logger.info(f"Template variables: {template.variables}")
-    prompts = map_template(dataframe, template)
+    with set_verbosity(model, verbose) as verbose_model:
+        template = normalize_template(template)
+        logger.info(f"Template: \n{template.text}\n")
+        logger.info(f"Template variables: {template.variables}")
+        prompts = map_template(dataframe, template)
 
-    responses = model.generate(prompts.to_list(), system_instruction)
-    return responses
+        responses = verbose_model.generate(prompts.to_list(), system_instruction)
+        return responses

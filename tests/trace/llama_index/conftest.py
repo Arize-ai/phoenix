@@ -100,3 +100,8 @@ def mock_service_context(
     return ServiceContext.from_defaults(
         embed_model=MockEmbedding(),
     )
+
+
+@pytest.fixture()
+def mock_embed_model() -> BaseEmbedding:
+    return MockEmbedding()

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<2d35f0ffbeab5b8c18be04a911dfafcf>>
+ * @generated SignedSource<<84642d1ed540a6aeb64bda24707d0050>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,14 +8,9 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { Fragment, ReaderFragment } from 'relay-runtime';
+import { ReaderFragment, RefetchableFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type TracingHomePageHeader_stats$data = {
-  readonly totalSpans: {
-    readonly pageInfo: {
-      readonly totalCount: number;
-    };
-  };
   readonly totalTraces: {
     readonly pageInfo: {
       readonly totalCount: number;
@@ -23,7 +18,10 @@ export type TracingHomePageHeader_stats$data = {
   };
   readonly traceDatasetInfo: {
     readonly endTime: string;
+    readonly latencyMsP50: number | null;
+    readonly latencyMsP99: number | null;
     readonly startTime: string;
+    readonly tokenCountTotal: number;
   } | null;
   readonly " $fragmentType": "TracingHomePageHeader_stats";
 };
@@ -32,43 +30,18 @@ export type TracingHomePageHeader_stats$key = {
   readonly " $fragmentSpreads": FragmentRefs<"TracingHomePageHeader_stats">;
 };
 
-const node: ReaderFragment = (function(){
-var v0 = [
-  {
-    "alias": null,
-    "args": null,
-    "concreteType": "PageInfo",
-    "kind": "LinkedField",
-    "name": "pageInfo",
-    "plural": false,
-    "selections": [
-      {
-        "alias": null,
-        "args": null,
-        "kind": "ScalarField",
-        "name": "totalCount",
-        "storageKey": null
-      }
-    ],
-    "storageKey": null
-  }
-];
-return {
+const node: ReaderFragment = {
   "argumentDefinitions": [],
   "kind": "Fragment",
-  "metadata": null,
+  "metadata": {
+    "refetch": {
+      "connection": null,
+      "fragmentPathInResult": [],
+      "operation": require('./TracingHomePageHeaderQuery.graphql')
+    }
+  },
   "name": "TracingHomePageHeader_stats",
   "selections": [
-    {
-      "alias": "totalSpans",
-      "args": null,
-      "concreteType": "SpanConnection",
-      "kind": "LinkedField",
-      "name": "spans",
-      "plural": false,
-      "selections": (v0/*: any*/),
-      "storageKey": null
-    },
     {
       "alias": "totalTraces",
       "args": [
@@ -82,13 +55,32 @@ return {
       "kind": "LinkedField",
       "name": "spans",
       "plural": false,
-      "selections": (v0/*: any*/),
+      "selections": [
+        {
+          "alias": null,
+          "args": null,
+          "concreteType": "PageInfo",
+          "kind": "LinkedField",
+          "name": "pageInfo",
+          "plural": false,
+          "selections": [
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "totalCount",
+              "storageKey": null
+            }
+          ],
+          "storageKey": null
+        }
+      ],
       "storageKey": "spans(rootSpansOnly:true)"
     },
     {
       "alias": null,
       "args": null,
-      "concreteType": "DatasetInfo",
+      "concreteType": "TraceDatasetInfo",
       "kind": "LinkedField",
       "name": "traceDatasetInfo",
       "plural": false,
@@ -106,6 +98,27 @@ return {
           "kind": "ScalarField",
           "name": "endTime",
           "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "tokenCountTotal",
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "latencyMsP50",
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "latencyMsP99",
+          "storageKey": null
         }
       ],
       "storageKey": null
@@ -114,8 +127,7 @@ return {
   "type": "Query",
   "abstractKey": null
 };
-})();
 
-(node as any).hash = "ddb3ece9faf5d20222ae5999ee1e1fd3";
+(node as any).hash = "2f4140d22a5444b5a9fea58801814504";
 
 export default node;

@@ -1,5 +1,12 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, {
+  startTransition,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { graphql, usePaginationFragment } from "react-relay";
+import { useNavigate } from "react-router";
 import {
   ColumnDef,
   flexRender,
@@ -7,18 +14,21 @@ import {
   getSortedRowModel,
   SortingState,
   useReactTable,
+  VisibilityState,
 } from "@tanstack/react-table";
 import { css } from "@emotion/react";
 
-import { Icon, Icons } from "@arizeai/components";
+import { Flex, Icon, Icons, View } from "@arizeai/components";
 
 import { Link } from "@phoenix/components/Link";
-import { tableCSS } from "@phoenix/components/table/styles";
+import { selectableTableCSS } from "@phoenix/components/table/styles";
+import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { TextCell } from "@phoenix/components/table/TextCell";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
+import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SpanKindLabel } from "@phoenix/components/trace/SpanKindLabel";
 import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon";
-import { formatFloat } from "@phoenix/utils/numberFormatUtils";
+import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 
 import {
   SpansTable_spans$key,
@@ -28,23 +38,27 @@ import {
   SpanSort,
   SpansTableSpansQuery,
 } from "./__generated__/SpansTableSpansQuery.graphql";
+import { SpanColumnSelector } from "./SpanColumnSelector";
+import { SpanFilterConditionField } from "./SpanFilterConditionField";
+import { spansTableCSS } from "./styles";
 import { TokenCount } from "./TokenCount";
 type SpansTableProps = {
   query: SpansTable_spans$key;
 };
 
-const floatRightCSS = css`
-  float: right;
-`;
 const PAGE_SIZE = 100;
 const DEFAULT_SORT: SpanSort = {
   col: "startTime",
   dir: "desc",
 };
 export function SpansTable(props: SpansTableProps) {
+  const { fetchKey } = useStreamState();
   //we need a reference to the scrolling element for logic down below
-  const tableContainerRef = React.useRef<HTMLDivElement>(null);
+  const tableContainerRef = useRef<HTMLDivElement>(null);
   const [sorting, setSorting] = useState<SortingState>([]);
+  const [filterCondition, setFilterCondition] = useState<string>("");
+  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
+  const navigate = useNavigate();
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
     usePaginationFragment<SpansTableSpansQuery, SpansTable_spans$key>(
       graphql`
@@ -57,9 +71,14 @@ export function SpansTable(props: SpansTableProps) {
             type: "SpanSort"
             defaultValue: { col: startTime, dir: desc }
           }
+          filterCondition: { type: "String", defaultValue: null }
         ) {
-          spans(first: $first, after: $after, sort: $sort)
-            @connection(key: "SpansTable_spans") {
+          spans(
+            first: $first
+            after: $after
+            sort: $sort
+            filterCondition: $filterCondition
+          ) @connection(key: "SpansTable_spans") {
             edges {
               span: node {
                 spanKind
@@ -141,11 +160,10 @@ export function SpansTable(props: SpansTableProps) {
 
       cell: ({ getValue }) => {
         const value = getValue();
-        if (value === null) {
+        if (value === null || typeof value !== "number") {
           return null;
         }
-        const seconds = (value as number) / 1000;
-        return <span css={floatRightCSS}>{formatFloat(seconds)}s</span>;
+        return <LatencyText latencyMs={value} />;
       },
     },
     {
@@ -178,17 +196,24 @@ export function SpansTable(props: SpansTableProps) {
   useEffect(() => {
     //if the sorting changes, we need to reset the pagination
     const sort = sorting[0];
-    refetch({
-      sort: sort
-        ? {
-            col: sort.id as SpanSort["col"],
-            dir: sort.desc ? "desc" : "asc",
-          }
-        : DEFAULT_SORT,
-      after: null,
-      first: PAGE_SIZE,
+
+    startTransition(() => {
+      refetch(
+        {
+          sort: sort
+            ? {
+                col: sort.id as SpanSort["col"],
+                dir: sort.desc ? "desc" : "asc",
+              }
+            : DEFAULT_SORT,
+          after: null,
+          first: PAGE_SIZE,
+          filterCondition,
+        },
+        { fetchPolicy: "store-and-network" }
+      );
     });
-  }, [sorting, refetch]);
+  }, [sorting, refetch, filterCondition, fetchKey]);
   const fetchMoreOnBottomReached = React.useCallback(
     (containerRefElement?: HTMLDivElement | null) => {
       if (containerRefElement) {
@@ -216,72 +241,105 @@ export function SpansTable(props: SpansTableProps) {
     getSortedRowModel: getSortedRowModel(),
   });
   const rows = table.getRowModel().rows;
+  const isEmpty = rows.length === 0;
+  const computedColumns = table.getAllColumns();
   return (
-    <div
-      css={css`
-        flex: 1 1 auto;
-        overflow: auto;
-      `}
-      onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
-      ref={tableContainerRef}
-    >
-      <table css={tableCSS}>
-        <thead>
-          {table.getHeaderGroups().map((headerGroup) => (
-            <tr key={headerGroup.id}>
-              {headerGroup.headers.map((header) => (
-                <th colSpan={header.colSpan} key={header.id}>
-                  {header.isPlaceholder ? null : (
-                    <div
-                      {...{
-                        className: header.column.getCanSort()
-                          ? "cursor-pointer"
-                          : "",
-                        onClick: header.column.getToggleSortingHandler(),
-                      }}
-                    >
-                      {flexRender(
-                        header.column.columnDef.header,
-                        header.getContext()
-                      )}
-                      {header.column.getIsSorted() ? (
-                        <Icon
-                          className="sort-icon"
-                          svg={
-                            header.column.getIsSorted() === "asc" ? (
-                              <Icons.ArrowUpFilled />
-                            ) : (
-                              <Icons.ArrowDownFilled />
-                            )
-                          }
-                        />
-                      ) : null}
-                    </div>
-                  )}
-                </th>
-              ))}
-            </tr>
-          ))}
-        </thead>
-        <tbody>
-          {rows.map((row) => {
-            return (
-              <tr key={row.id}>
-                {row.getVisibleCells().map((cell) => {
-                  return (
-                    <td key={cell.id}>
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext()
-                      )}
-                    </td>
-                  );
-                })}
+    <div css={spansTableCSS}>
+      <View
+        paddingTop="size-100"
+        paddingBottom="size-100"
+        paddingStart="size-200"
+        paddingEnd="size-200"
+        backgroundColor="grey-200"
+        flex="none"
+      >
+        <Flex direction="row" gap="size-100" width="100%" alignItems="center">
+          <SpanFilterConditionField onValidCondition={setFilterCondition} />
+          <SpanColumnSelector
+            columns={computedColumns}
+            columnVisibility={columnVisibility}
+            onColumnVisibilityChange={setColumnVisibility}
+          />
+        </Flex>
+      </View>
+
+      <div
+        css={css`
+          flex: 1 1 auto;
+          overflow: auto;
+        `}
+        onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
+        ref={tableContainerRef}
+      >
+        <table css={selectableTableCSS}>
+          <thead>
+            {table.getHeaderGroups().map((headerGroup) => (
+              <tr key={headerGroup.id}>
+                {headerGroup.headers.map((header) => (
+                  <th colSpan={header.colSpan} key={header.id}>
+                    {header.isPlaceholder ? null : (
+                      <div
+                        {...{
+                          className: header.column.getCanSort()
+                            ? "cursor-pointer"
+                            : "",
+                          onClick: header.column.getToggleSortingHandler(),
+                        }}
+                      >
+                        {flexRender(
+                          header.column.columnDef.header,
+                          header.getContext()
+                        )}
+                        {header.column.getIsSorted() ? (
+                          <Icon
+                            className="sort-icon"
+                            svg={
+                              header.column.getIsSorted() === "asc" ? (
+                                <Icons.ArrowUpFilled />
+                              ) : (
+                                <Icons.ArrowDownFilled />
+                              )
+                            }
+                          />
+                        ) : null}
+                      </div>
+                    )}
+                  </th>
+                ))}
               </tr>
-            );
-          })}
-        </tbody>
-      </table>
+            ))}
+          </thead>
+          {isEmpty ? (
+            <TableEmpty />
+          ) : (
+            <tbody>
+              {rows.map((row) => {
+                return (
+                  <tr
+                    key={row.id}
+                    onClick={() =>
+                      navigate(
+                        `traces/${row.original.context.traceId}?selectedSpanId=${row.original.context.spanId}`
+                      )
+                    }
+                  >
+                    {row.getVisibleCells().map((cell) => {
+                      return (
+                        <td key={cell.id}>
+                          {flexRender(
+                            cell.column.columnDef.cell,
+                            cell.getContext()
+                          )}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                );
+              })}
+            </tbody>
+          )}
+        </table>
+      </div>
     </div>
   );
 }

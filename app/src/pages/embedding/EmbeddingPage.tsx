@@ -59,9 +59,9 @@ import {
 import { useEmbeddingDimensionId } from "@phoenix/hooks";
 import {
   ClusterColorMode,
-  DEFAULT_DRIFT_POINT_CLOUD_PROPS,
-  DEFAULT_RETRIEVAL_TROUBLESHOOTING_POINT_CLOUD_PROPS,
-  DEFAULT_SINGLE_DATASET_POINT_CLOUD_PROPS,
+  getDefaultDriftPointCloudProps,
+  getDefaultRetrievalTroubleshootingPointCloudProps,
+  getDefaultSingleDatasetPointCloudProps,
   MetricDefinition,
   PointCloudProps,
 } from "@phoenix/store";
@@ -223,14 +223,26 @@ export function EmbeddingPage() {
   const { timeRange } = useTimeRange();
   // Initialize the store based on whether or not there is a reference dataset
   const defaultPointCloudProps = useMemo<Partial<PointCloudProps>>(() => {
+    let defaultPointCloudProps: Partial<PointCloudProps> = {};
     if (corpusDataset != null) {
       // If there is a corpus dataset, then initialize the page with the retrieval troubleshooting settings
       // TODO - this does make a bit of a leap of assumptions but is a short term solution in order to get the page working as intended
-      return DEFAULT_RETRIEVAL_TROUBLESHOOTING_POINT_CLOUD_PROPS;
+      defaultPointCloudProps =
+        getDefaultRetrievalTroubleshootingPointCloudProps();
     } else if (referenceDataset != null) {
-      return DEFAULT_DRIFT_POINT_CLOUD_PROPS;
+      defaultPointCloudProps = getDefaultDriftPointCloudProps();
+    } else {
+      defaultPointCloudProps = getDefaultSingleDatasetPointCloudProps();
     }
-    return DEFAULT_SINGLE_DATASET_POINT_CLOUD_PROPS;
+
+    // Apply the UMAP parameters from the server-sent config
+    defaultPointCloudProps = {
+      ...defaultPointCloudProps,
+      umapParameters: {
+        ...window.Config.UMAP,
+      },
+    };
+    return defaultPointCloudProps;
   }, [corpusDataset, referenceDataset]);
   return (
     <TimeSliceContextProvider initialTimestamp={timeRange.end}>
@@ -317,12 +329,11 @@ function EmbeddingMain() {
 
   return (
     <main
-      css={(theme) => css`
+      css={css`
         flex: 1 1 auto;
         display: flex;
         flex-direction: column;
         overflow: hidden;
-        background-color: ${theme.colors.gray900};
       `}
     >
       <PointCloudNotifications />
@@ -606,8 +617,8 @@ function SelectionPanel() {
 function PointSelectionPanelContentWrap(props: { children: ReactNode }) {
   return (
     <div
-      css={(theme) => css`
-        background-color: ${theme.colors.gray900};
+      css={css`
+        background-color: var(--ac-global-color-grey-75);
         width: 100%;
         height: 100%;
       `}

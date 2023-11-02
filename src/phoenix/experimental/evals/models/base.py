@@ -1,11 +1,14 @@
 import logging
-from abc import ABC, abstractmethod
+from abc import ABC, abstractmethod, abstractproperty
+from contextlib import contextmanager
 from dataclasses import dataclass
-from typing import Any, Callable, List, Optional, Type
+from typing import TYPE_CHECKING, Any, Callable, Generator, List, Optional, Type
+
+if TYPE_CHECKING:
+    from tiktoken import Encoding
 
 from tenacity import (
     RetryCallState,
-    before_sleep_log,
     retry,
     retry_base,
     retry_if_exception_type,
@@ -15,8 +18,9 @@ from tenacity import (
 from tqdm import tqdm
 from tqdm.asyncio import tqdm_asyncio
 
-from ..utils.threads import to_thread
-from ..utils.types import is_list_of
+from phoenix.experimental.evals.utils.threads import to_thread
+from phoenix.experimental.evals.utils.types import is_list_of
+from phoenix.utilities.logging import printif
 
 logger = logging.getLogger(__name__)
 
@@ -27,36 +31,56 @@ TQDM_BAR_FORMAT = (
 )
 
 
-def create_base_retry_decorator(
-    error_types: List[Type[BaseException]],
-    min_seconds: int,
-    max_seconds: int,
-    max_retries: int,
-) -> Callable[[Any], Any]:
-    """Create a retry decorator for a given LLM and provided list of error types."""
-
-    # TODO: Nice logging. The logging implemented is huge and overwhelming
-    _logging = before_sleep_log(logger, logging.WARNING)
-
-    def _before_sleep(retry_state: RetryCallState) -> None:
-        _logging(retry_state)
-        return None
-
-    retry_instance: retry_base = retry_if_exception_type(error_types[0])
-    for error in error_types[1:]:
-        retry_instance = retry_instance | retry_if_exception_type(error)
-    return retry(
-        reraise=True,
-        stop=stop_after_attempt(max_retries),
-        wait=wait_random_exponential(multiplier=1, min=min_seconds, max=max_seconds),
-        retry=retry_instance,
-        # before_sleep=_before_sleep,
-    )
+@contextmanager
+def set_verbosity(
+    model: "BaseEvalModel", verbose: bool = False
+) -> Generator["BaseEvalModel", None, None]:
+    try:
+        _verbose = model._verbose
+        model._verbose = verbose
+        yield model
+    finally:
+        model._verbose = _verbose
 
 
 @dataclass
 class BaseEvalModel(ABC):
-    model_name: str
+    _verbose: bool = False
+
+    def retry(
+        self,
+        error_types: List[Type[BaseException]],
+        min_seconds: int,
+        max_seconds: int,
+        max_retries: int,
+    ) -> Callable[[Any], Any]:
+        """Create a retry decorator for a given LLM and provided list of error types."""
+
+        def log_retry(retry_state: RetryCallState) -> None:
+            if fut := retry_state.outcome:
+                exc = fut.exception()
+            else:
+                exc = None
+
+            if exc:
+                printif(
+                    self._verbose,
+                    f"Failed attempt {retry_state.attempt_number}: raised {repr(exc)}",
+                )
+            else:
+                printif(self._verbose, f"Failed attempt {retry_state.attempt_number}")
+            return None
+
+        retry_instance: retry_base = retry_if_exception_type(error_types[0])
+        for error in error_types[1:]:
+            retry_instance = retry_instance | retry_if_exception_type(error)
+        return retry(
+            reraise=True,
+            stop=stop_after_attempt(max_retries),
+            wait=wait_random_exponential(multiplier=1, min=min_seconds, max=max_seconds),
+            retry=retry_instance,
+            before_sleep=log_retry,
+        )
 
     def __call__(self, prompt: str, instruction: Optional[str] = None) -> str:
         """Run the LLM on the given prompt."""
@@ -89,7 +113,12 @@ class BaseEvalModel(ABC):
         response = await self.agenerate(prompts=[prompt], instruction=instruction)
         return response[0]
 
-    def generate(self, prompts: List[str], instruction: Optional[str] = None) -> List[str]:
+    def generate(
+        self, prompts: List[str], instruction: Optional[str] = None, **kwargs: Any
+    ) -> List[str]:
+        printif(self._verbose, f"Generating responses for {len(prompts)} prompts...")
+        if extra_info := self._verbose_generation_info():
+            printif(self._verbose, extra_info)
         if not is_list_of(prompts, str):
             raise TypeError(
                 "Invalid type for argument `prompts`. Expected a list of strings "
@@ -97,8 +126,8 @@ class BaseEvalModel(ABC):
             )
         try:
             outputs = []
-            for prompt in tqdm(prompts):
-                output = self._generate(prompt=prompt, instruction=instruction)
+            for prompt in tqdm(prompts, bar_format=TQDM_BAR_FORMAT, ncols=100):
+                output = self._generate(prompt=prompt, instruction=instruction, **kwargs)
                 logger.info(f"Prompt: {prompt}\nInstruction: {instruction}\nOutput: {output}")
                 outputs.append(output)
 
@@ -122,9 +151,46 @@ class BaseEvalModel(ABC):
             raise e
         return result
 
+    def _verbose_generation_info(self) -> str:
+        # if defined, returns additional model-specific information to display if `generate` is
+        # run with `verbose=True`
+        return ""
+
     @abstractmethod
-    def _generate(self, prompt: str, instruction: Optional[str]) -> str:
+    def _generate(self, prompt: str, **kwargs: Any) -> str:
         raise NotImplementedError
 
     async def _agenerate(self, prompt: str, instruction: Optional[str]) -> str:
         return str(await to_thread(self._generate, prompt=prompt, instruction=instruction))
+
+    @staticmethod
+    def _raise_import_error(
+        package_name: str, package_display_name: str = "", package_min_version: str = ""
+    ) -> None:
+        if not package_display_name:
+            package_display_name = package_name
+        msg = (
+            f"Could not import necessary dependencies to use {package_display_name}. "
+            "Please install them with "
+        )
+        if package_min_version:
+            msg += f"`pip install {package_name}>={package_min_version}`."
+        else:
+            msg += f"`pip install {package_name}`."
+        raise ImportError(msg)
+
+    @abstractmethod
+    def get_tokens_from_text(self, text: str) -> List[int]:
+        ...
+
+    @abstractmethod
+    def get_text_from_tokens(self, tokens: List[int]) -> str:
+        ...
+
+    @abstractproperty
+    def max_context_size(self) -> int:
+        ...
+
+    @abstractproperty
+    def encoder(self) -> "Encoding":
+        ...

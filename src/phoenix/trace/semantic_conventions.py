@@ -117,9 +117,13 @@ LLM_INVOCATION_PARAMETERS = "llm.invocation_parameters"
 """
 Invocation parameters passed to the LLM or API, such as the model name, temperature, etc.
 """
-LLM_MESSAGES = "llm.messages"
+LLM_INPUT_MESSAGES = "llm.input_messages"
 """
 Messages provided to a chat API.
+"""
+LLM_OUTPUT_MESSAGES = "llm.output_messages"
+"""
+Messages received from a chat API.
 """
 LLM_MODEL_NAME = "llm.model_name"
 """
@@ -174,4 +178,25 @@ DOCUMENT_CONTENT = "document.content"
 DOCUMENT_METADATA = "document.metadata"
 """
 Document metadata as a string representing a JSON object
+"""
+
+RERANKER_INPUT_DOCUMENTS = "reranker.input_documents"
+"""
+List of documents as input to the reranker
+"""
+RERANKER_OUTPUT_DOCUMENTS = "reranker.output_documents"
+"""
+List of documents as output from the reranker
+"""
+RERANKER_QUERY = "reranker.query"
+"""
+Query string for the reranker
+"""
+RERANKER_MODEL_NAME = "reranker.model_name"
+"""
+Model name of the reranker
+"""
+RERANKER_TOP_K = "reranker.top_k"
+"""
+Top K parameter of the reranker
 """

@@ -1,23 +1,31 @@
-import React from "react";
-import { graphql, useFragment } from "react-relay";
+import React, { ReactNode, startTransition, useEffect } from "react";
+import { graphql, useRefetchableFragment } from "react-relay";
 
 import { Flex, Text, View } from "@arizeai/components";
 
+import { LatencyText } from "@phoenix/components/trace/LatencyText";
+import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { intFormatter } from "@phoenix/utils/numberFormatUtils";
 
 import { TracingHomePageHeader_stats$key } from "./__generated__/TracingHomePageHeader_stats.graphql";
+import { TracingHomePageHeaderQuery } from "./__generated__/TracingHomePageHeaderQuery.graphql";
 
 export function TracingHomePageHeader(props: {
   query: TracingHomePageHeader_stats$key;
+  /**
+   * the extra component displayed on the right side of the header
+   */
+  extra: ReactNode;
 }) {
-  const data = useFragment<TracingHomePageHeader_stats$key>(
+  const { extra } = props;
+  const { fetchKey } = useStreamState();
+  const [data, refetch] = useRefetchableFragment<
+    TracingHomePageHeaderQuery,
+    TracingHomePageHeader_stats$key
+  >(
     graphql`
-      fragment TracingHomePageHeader_stats on Query {
-        totalSpans: spans {
-          pageInfo {
-            totalCount
-          }
-        }
+      fragment TracingHomePageHeader_stats on Query
+      @refetchable(queryName: "TracingHomePageHeaderQuery") {
         totalTraces: spans(rootSpansOnly: true) {
           pageInfo {
             totalCount
@@ -26,13 +34,25 @@ export function TracingHomePageHeader(props: {
         traceDatasetInfo {
           startTime
           endTime
+          tokenCountTotal
+          latencyMsP50
+          latencyMsP99
         }
       }
     `,
     props.query
   );
-  const startTime = data?.traceDatasetInfo?.startTime;
-  const endTime = data?.traceDatasetInfo?.endTime;
+
+  // Refetch the count of traces if the fetchKey changes
+  useEffect(() => {
+    startTransition(() => {
+      refetch({}, { fetchPolicy: "store-and-network" });
+    });
+  }, [fetchKey, refetch]);
+
+  const latencyMsP50 = data?.traceDatasetInfo?.latencyMsP50;
+  const latencyMsP99 = data?.traceDatasetInfo?.latencyMsP99;
+  const tokenCountTotal = data?.traceDatasetInfo?.tokenCountTotal;
   return (
     <View
       paddingStart="size-200"
@@ -41,55 +61,45 @@ export function TracingHomePageHeader(props: {
       paddingBottom="size-50"
       flex="none"
     >
-      <Flex direction="row" gap="size-400" alignItems="center">
-        <Flex direction="column">
-          <Text elementType="h3" textSize="medium" color="white70">
-            Total Traces
-          </Text>
-          <Text textSize="xlarge">
-            {intFormatter(data?.totalTraces.pageInfo.totalCount)}
-          </Text>
+      <Flex direction="row" justifyContent="space-between" alignItems="center">
+        <Flex direction="row" gap="size-400" alignItems="center">
+          <Flex direction="column">
+            <Text elementType="h3" textSize="medium" color="text-700">
+              Total Traces
+            </Text>
+            <Text textSize="xlarge">
+              {intFormatter(data?.totalTraces.pageInfo.totalCount)}
+            </Text>
+          </Flex>
+          <Flex direction="column">
+            <Text elementType="h3" textSize="medium" color="text-700">
+              Total Tokens
+            </Text>
+            <Text textSize="xlarge">{intFormatter(tokenCountTotal)}</Text>
+          </Flex>
+          <Flex direction="column">
+            <Text elementType="h3" textSize="medium" color="text-700">
+              Latency P50
+            </Text>
+            {latencyMsP50 != null ? (
+              <LatencyText latencyMs={latencyMsP50} textSize="xlarge" />
+            ) : (
+              <Text textSize="xlarge">--</Text>
+            )}
+          </Flex>
+          <Flex direction="column">
+            <Text elementType="h3" textSize="medium" color="text-700">
+              Latency P99
+            </Text>
+
+            {latencyMsP99 != null ? (
+              <LatencyText latencyMs={latencyMsP99} textSize="xlarge" />
+            ) : (
+              <Text textSize="xlarge">--</Text>
+            )}
+          </Flex>
         </Flex>
-        <Flex direction="column">
-          <Text elementType="h3" textSize="medium" color="white70">
-            Total Spans
-          </Text>
-          <Text textSize="xlarge">
-            {intFormatter(data?.totalSpans.pageInfo.totalCount)}
-          </Text>
-        </Flex>
-        <Flex direction="column">
-          <Text elementType="h3" textSize="medium" color="white70">
-            Start
-          </Text>
-          <Text textSize="xlarge">
-            {startTime != null
-              ? new Date(startTime).toLocaleString([], {
-                  year: "numeric",
-                  month: "numeric",
-                  day: "numeric",
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })
-              : "--"}
-          </Text>
-        </Flex>
-        <Flex direction="column">
-          <Text elementType="h3" textSize="medium" color="white70">
-            End
-          </Text>
-          <Text textSize="xlarge">
-            {endTime != null
-              ? new Date(endTime).toLocaleString([], {
-                  year: "numeric",
-                  month: "numeric",
-                  day: "numeric",
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })
-              : "--"}
-          </Text>
-        </Flex>
+        <>{extra}</>
       </Flex>
     </View>
   );

@@ -7,7 +7,7 @@ description: How to create Phoenix datasets and schemas for common data formats
 This guide shows you how to define a Phoenix dataset using your own data.
 
 {% hint style="info" %}
-* For a conceptual overview of the Phoenix API, including a high-level introduction to the notion of datasets and schemas, see [Phoenix Basics](../../concepts/phoenix-basics.md#schemas).
+* For a conceptual overview of the Phoenix API, including a high-level introduction to the notion of datasets and schemas, see [Phoenix Basics](../../quickstart/inferences.md#schemas).
 * For a comprehensive description of `phoenix.Dataset` and `phoenix.Schema`, see the [API reference](../../api/dataset-and-schema.md).
 {% endhint %}
 

@@ -5,7 +5,15 @@ from collections import UserList
 from datetime import datetime
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import TYPE_CHECKING, Iterable, List, Optional, Set
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Iterable,
+    List,
+    Mapping,
+    Optional,
+    Set,
+)
 
 import pandas as pd
 
@@ -13,6 +21,7 @@ from phoenix.config import get_env_host, get_env_port, get_exported_files
 from phoenix.core.model_schema_adapter import create_model_from_datasets
 from phoenix.core.traces import Traces
 from phoenix.datasets.dataset import EMPTY_DATASET, Dataset
+from phoenix.pointcloud.umap_parameters import get_umap_parameters
 from phoenix.server.app import create_app
 from phoenix.server.thread_server import ThreadServer
 from phoenix.services import AppService
@@ -69,6 +78,7 @@ class Session(ABC):
         reference_dataset: Optional[Dataset] = None,
         corpus_dataset: Optional[Dataset] = None,
         trace_dataset: Optional[TraceDataset] = None,
+        default_umap_parameters: Optional[Mapping[str, Any]] = None,
         host: Optional[str] = None,
         port: Optional[int] = None,
     ):
@@ -76,6 +86,7 @@ class Session(ABC):
         self.reference_dataset = reference_dataset
         self.corpus_dataset = corpus_dataset
         self.trace_dataset = trace_dataset
+        self.umap_parameters = get_umap_parameters(default_umap_parameters)
         self.model = create_model_from_datasets(
             primary_dataset,
             reference_dataset,
@@ -174,6 +185,7 @@ class ProcessSession(Session):
         reference_dataset: Optional[Dataset] = None,
         corpus_dataset: Optional[Dataset] = None,
         trace_dataset: Optional[TraceDataset] = None,
+        default_umap_parameters: Optional[Mapping[str, Any]] = None,
         host: Optional[str] = None,
         port: Optional[int] = None,
     ) -> None:
@@ -182,6 +194,7 @@ class ProcessSession(Session):
             reference_dataset=reference_dataset,
             corpus_dataset=corpus_dataset,
             trace_dataset=trace_dataset,
+            default_umap_parameters=default_umap_parameters,
             host=host,
             port=port,
         )
@@ -192,12 +205,18 @@ class ProcessSession(Session):
             corpus_dataset.to_disc()
         if isinstance(trace_dataset, TraceDataset):
             trace_dataset.to_disc()
+        umap_params_str = (
+            f"{self.umap_parameters.min_dist},"
+            f"{self.umap_parameters.n_neighbors},"
+            f"{self.umap_parameters.n_samples}"
+        )
         # Initialize an app service that keeps the server running
         self.app_service = AppService(
             self.export_path,
             self.host,
             self.port,
             self.primary_dataset.name,
+            umap_params_str,
             reference_dataset_name=(
                 self.reference_dataset.name if self.reference_dataset is not None else None
             ),
@@ -225,6 +244,7 @@ class ThreadSession(Session):
         reference_dataset: Optional[Dataset] = None,
         corpus_dataset: Optional[Dataset] = None,
         trace_dataset: Optional[TraceDataset] = None,
+        default_umap_parameters: Optional[Mapping[str, Any]] = None,
         host: Optional[str] = None,
         port: Optional[int] = None,
     ):
@@ -233,6 +253,7 @@ class ThreadSession(Session):
             reference_dataset=reference_dataset,
             corpus_dataset=corpus_dataset,
             trace_dataset=trace_dataset,
+            default_umap_parameters=default_umap_parameters,
             host=host,
             port=port,
         )
@@ -242,6 +263,7 @@ class ThreadSession(Session):
             model=self.model,
             corpus=self.corpus,
             traces=self.traces,
+            umap_params=self.umap_parameters,
         )
         self.server = ThreadServer(
             app=self.app,
@@ -265,6 +287,7 @@ def launch_app(
     reference: Optional[Dataset] = None,
     corpus: Optional[Dataset] = None,
     trace: Optional[TraceDataset] = None,
+    default_umap_parameters: Optional[Mapping[str, Any]] = None,
     host: Optional[str] = None,
     port: Optional[int] = None,
     run_in_thread: bool = True,
@@ -274,7 +297,7 @@ def launch_app(
 
     Parameters
     ----------
-    primary : Dataset, required
+    primary : Dataset, optional
         The primary dataset to analyze
     reference : Dataset, optional
         The reference dataset to compare against.
@@ -287,10 +310,14 @@ def launch_app(
         The host on which the server runs. It can also be set using environment
         variable `PHOENIX_HOST`, otherwise it defaults to `127.0.0.1`.
     port: int, optional
-        The port on which the server listens. It can also be set using environment
-        variable `PHOENIX_PORT`, otherwise it defaults to 6060.
+        The port on which the server listens. When using traces this should not be
+        used and should instead set the environment variable `PHOENIX_PORT`.
+        Defaults to 6060.
     run_in_thread: bool, optional, default=True
         Whether the server should run in a Thread or Process.
+    default_umap_parameters: Dict[str, Union[int, float]], optional, default=None
+        User specified default UMAP parameters
+        eg: {"n_neighbors": 10, "n_samples": 5, "min_dist": 0.5}
 
     Returns
     -------
@@ -323,10 +350,14 @@ def launch_app(
     port = port or get_env_port()
 
     if run_in_thread:
-        _session = ThreadSession(primary, reference, corpus, trace, host=host, port=port)
+        _session = ThreadSession(
+            primary, reference, corpus, trace, default_umap_parameters, host=host, port=port
+        )
         # TODO: catch exceptions from thread
     else:
-        _session = ProcessSession(primary, reference, corpus, trace, host=host, port=port)
+        _session = ProcessSession(
+            primary, reference, corpus, trace, default_umap_parameters, host=host, port=port
+        )
 
     if not _session.active:
         logger.error(

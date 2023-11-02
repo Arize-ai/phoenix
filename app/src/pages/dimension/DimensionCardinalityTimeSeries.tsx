@@ -17,8 +17,8 @@ import {
   ChartTooltip,
   ChartTooltipDivider,
   ChartTooltipItem,
-  colors,
   defaultTimeXAxisProps,
+  useChartColors,
   useTimeTickFormatter,
 } from "@phoenix/components/chart";
 import { useTimeRange } from "@phoenix/contexts/TimeRangeContext";
@@ -32,13 +32,19 @@ const numberFormatter = new Intl.NumberFormat([], {
   maximumFractionDigits: 2,
 });
 
-const color = colors.gray300;
+const useColors = () => {
+  const { gray300 } = useChartColors();
+  return {
+    color: gray300,
+  };
+};
 
 function TooltipContent({
   active,
   payload,
   label,
 }: TooltipProps<number, string>) {
+  const { color } = useColors();
   if (active && payload && payload.length) {
     const cardinality = payload[0]?.value ?? null;
     const cardinalityString =
@@ -104,6 +110,7 @@ export function DimensionCardinalityTimeSeries({
     }
   );
 
+  const { color } = useColors();
   const chartData =
     data.dimension.cardinalityTimeSeries?.data.map((d) => {
       return {
@@ -139,9 +146,12 @@ export function DimensionCardinalityTimeSeries({
             value: "Cardinality",
             angle: -90,
             position: "insideLeft",
-            style: { textAnchor: "middle", fill: theme.textColors.white90 },
+            style: {
+              textAnchor: "middle",
+              fill: "var(--ac-global-text-color-900)",
+            },
           }}
-          style={{ fill: theme.textColors.white70 }}
+          style={{ fill: "var(--ac-global-text-color-700)" }}
         />
         <CartesianGrid
           strokeDasharray="4 4"

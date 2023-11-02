@@ -7,8 +7,34 @@ import { TabPane, Tabs } from "@arizeai/components";
 
 import { TracingHomePageQuery } from "./__generated__/TracingHomePageQuery.graphql";
 import { SpansTable } from "./SpansTable";
+import { StreamToggle } from "./StreamToggle";
 import { TracesTable } from "./TracesTable";
 import { TracingHomePageHeader } from "./TracingHomePageHeader";
+
+const mainCSS = css`
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  .ac-tabs {
+    flex: 1 1 auto;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    .ac-tabs__pane-container {
+      flex: 1 1 auto;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      div[role="tabpanel"]:not([hidden]) {
+        flex: 1 1 auto;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+    }
+  }
+`;
 
 export function TracingHomePage() {
   const data = useLazyLoadQuery<TracingHomePageQuery>(
@@ -17,38 +43,20 @@ export function TracingHomePage() {
         ...SpansTable_spans
         ...TracesTable_spans
         ...TracingHomePageHeader_stats
+        ...StreamToggle_data
       }
     `,
-    {}
+    {},
+    {
+      fetchPolicy: "store-and-network",
+    }
   );
   return (
-    <main
-      css={css`
-        flex: 1 1 auto;
-        display: flex;
-        flex-direction: column;
-        overflow: hidden;
-        .ac-tabs {
-          flex: 1 1 auto;
-          overflow: hidden;
-          display: flex;
-          flex-direction: column;
-          .ac-tabs__pane-container {
-            flex: 1 1 auto;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-            div[role="tabpanel"]:not([hidden]) {
-              flex: 1 1 auto;
-              display: flex;
-              flex-direction: column;
-              overflow: hidden;
-            }
-          }
-        }
-      `}
-    >
-      <TracingHomePageHeader query={data} />
+    <main css={mainCSS}>
+      <TracingHomePageHeader
+        query={data}
+        extra={<StreamToggle query={data} />}
+      />
       <Tabs>
         <TabPane name="Traces">
           {({ isSelected }) => {

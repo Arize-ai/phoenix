@@ -24,7 +24,7 @@ from phoenix.server.api.types.Cluster import Cluster, to_gql_clusters
 from ...trace.filter import SpanFilter
 from .context import Context
 from .input_types.TimeRange import TimeRange
-from .types.DatasetInfo import DatasetInfo
+from .types.DatasetInfo import TraceDatasetInfo
 from .types.DatasetRole import AncillaryDatasetRole, DatasetRole
 from .types.Dimension import to_gql_dimension
 from .types.EmbeddingDimension import (
@@ -40,6 +40,7 @@ from .types.Model import Model
 from .types.node import GlobalID, Node, from_global_id
 from .types.pagination import Connection, ConnectionArgs, Cursor, connection_from_list
 from .types.Span import Span, to_gql_span
+from .types.ValidationResult import ValidationResult
 
 
 @strawberry.type
@@ -177,12 +178,10 @@ class Query:
             + grouped_event_ids[AncillaryDatasetRole.corpus]
         )
         stacked_coordinates = np.stack(
-            chain(
-                grouped_coordinates[DatasetRole.primary],
-                grouped_coordinates[DatasetRole.reference],
-                grouped_coordinates[AncillaryDatasetRole.corpus],
-            )
-        )  # type: ignore
+            grouped_coordinates[DatasetRole.primary]
+            + grouped_coordinates[DatasetRole.reference]
+            + grouped_coordinates[AncillaryDatasetRole.corpus]
+        )
 
         clusters = Hdbscan(
             min_cluster_size=min_cluster_size,
@@ -244,7 +243,7 @@ class Query:
     def trace_dataset_info(
         self,
         info: Info[Context, None],
-    ) -> Optional[DatasetInfo]:
+    ) -> Optional[TraceDatasetInfo]:
         if (traces := info.context.traces) is None:
             return None
         if not (span_count := traces.span_count):
@@ -253,11 +252,28 @@ class Query:
             Tuple[datetime, datetime],
             traces.right_open_time_range,
         )
-        return DatasetInfo(
+        latency_ms_p50, latency_ms_p99 = traces.root_span_latency_ms_quantiles(0.50, 0.99)
+        return TraceDatasetInfo(
             start_time=start_time,
             end_time=stop_time,
             record_count=span_count,
+            token_count_total=traces.token_count_total,
+            latency_ms_p50=latency_ms_p50,
+            latency_ms_p99=latency_ms_p99,
         )
+
+    @strawberry.field
+    def validate_span_filter_condition(
+        self, info: Info[Context, None], condition: str
+    ) -> ValidationResult:
+        try:
+            SpanFilter(condition)
+            return ValidationResult(is_valid=True, error_message=None)
+        except SyntaxError as e:
+            return ValidationResult(
+                is_valid=False,
+                error_message=e.msg,
+            )
 
 
 @strawberry.type
