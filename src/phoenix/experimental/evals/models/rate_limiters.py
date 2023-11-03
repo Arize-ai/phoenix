@@ -105,6 +105,81 @@ class TokenRateLimiter:
         return self.total_tokens / (time.time() - self.created)
 
 
+class AdaptiveTokenRateLimiter:
+    """
+    An adaptive rate-limiter that adjusts the rate based on the number of rate limit errors.
+
+    This rate limiter does not need to know the exact rate limit. Instead, it starts with a high
+    rate and reduces it whenever a rate limit error occurs. The rate is increased slowly over time
+    if no further errors occur.
+
+    Args:
+    initial_rate (float): The allowed request rate.
+    rate_reduction_factor (float): The factor by which the rate is reduced after an error.
+    rate_increase_factor (float): The factor by which the rate is increased over time.
+    """
+
+    def __init__(
+        self,
+        initial_rate: Numeric,
+        enforcement_window_minutes: Numeric,
+        rate_reduction_factor: Numeric = 0.5,
+        rate_increase_factor: Numeric = 1.01,
+    ):
+        self.rate = initial_rate
+        self.rate_reduction_factor = rate_reduction_factor
+        self.enforcement_window = enforcement_window_minutes * 60
+        self.rate_increase_factor = rate_increase_factor
+        self.last_rate_update = time.time()
+        self.last_checked = self.created
+
+    def on_rate_limit_error(self) -> None:
+        self.rate *= self.rate_reduction_factor
+        self.rate = max(self.rate, 1 / self.enforcement_window)
+        self.last_rate_update = time.time()
+
+    def available_requests(self) -> float:
+        time_since_last_checked = time.time() - self.last_checked
+        return min(self.max_tokens, self.rate * time_since_last_checked + self.tokens)
+
+    def make_request_if_ready(self) -> None:
+        if self.available_requests() <= 1:
+            raise UnavailableTokensError
+        now = time.time()
+        current_tokens = min(self.max_tokens, self.tokens + (now - self.last_checked) * self.rate)
+        self.tokens = current_tokens - 1
+        self.last_checked = now
+        self.total_tokens += 1
+
+    def wait_until_ready(
+        self, max_wait_time: Numeric = 300,
+    ) -> None:
+        start = time.time()
+        while (time.time() - start) < max_wait_time:
+            try:
+                self.make_request_if_ready()
+                time_since_last_error = time.time() - self.last_rate_update
+                self.rate *= self.rate_increase_factor ** time_since_last_error
+                break
+            except UnavailableTokensError:
+                time.sleep(1 / self.rate)
+                continue
+
+    async def async_wait_until_ready(
+        self, max_wait_time: Numeric = 300,
+    ) -> None:
+        start = time.time()
+        while (time.time() - start) < max_wait_time:
+            try:
+                self.make_request_if_ready()
+                time_since_last_error = time.time() - self.last_rate_update
+                self.rate *= self.rate_increase_factor ** time_since_last_error
+                break
+            except UnavailableTokensError:
+                await asyncio.sleep(1 / self.rate)
+                continue
+
+
 class LimitStore:
     """
     A singleton store for collections of rate limits grouped by service key.
@@ -174,7 +249,7 @@ class LimitStore:
                 limit.spend_tokens(cost)
 
 
-class OpenAIRateLimiter:
+class AdaptiveRateLimiter:
     def __init__(self) -> None:
         self._store = LimitStore()
 
