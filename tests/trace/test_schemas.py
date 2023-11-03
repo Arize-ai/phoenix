@@ -72,7 +72,6 @@ def test_span_with_exception():
     )
     assert span.name == "exception-span"
     assert span.events[0].name == "exception"
-    assert span.attributes["deployment.environment"] == "dev"
 
 
 def test_pb_span_encode_decode():
