@@ -378,13 +378,12 @@ def test_llm_classify_shows_retry_info_with_verbose_flag(
         ]
     )
 
-    model = OpenAIModel(max_retries=5)
+    model = OpenAIModel(max_retries=4)
 
     openai_retry_errors = [
         model._openai_error.Timeout("test timeout"),
         model._openai_error.APIError("test api error"),
         model._openai_error.APIConnectionError("test api connection error"),
-        model._openai_error.RateLimitError("test rate limit error"),
         model._openai_error.ServiceUnavailableError("test service unavailable error"),
     ]
     mock_openai = MagicMock()
@@ -411,9 +410,7 @@ def test_llm_classify_shows_retry_info_with_verbose_flag(
     assert "test api error" in out, "Retry information should be printed"
     assert "Failed attempt 3" in out, "Retry information should be printed"
     assert "test api connection error" in out, "Retry information should be printed"
-    assert "Failed attempt 4" in out, "Retry information should be printed"
-    assert "test rate limit error" in out, "Retry information should be printed"
-    assert "Failed attempt 5" not in out, "Maximum retries should not be exceeded"
+    assert "Failed attempt 4" not in out, "Maximum retries should not be exceeded"
 
 
 def test_llm_classify_does_not_persist_verbose_flag(

@@ -77,7 +77,7 @@ class TokenRateLimiter:
         self.tokens -= token_cost
         self.total_tokens += token_cost
 
-    def wait_for_then_spend_available_tokens(
+    def wait_until_ready(
         self, token_cost: Numeric, max_wait_time: Numeric = 300
     ) -> None:
         start = time.time()
@@ -89,7 +89,7 @@ class TokenRateLimiter:
                 time.sleep(1 / self.rate)
                 continue
 
-    async def async_wait_for_then_spend_available_tokens(
+    async def async_wait_until_ready(
         self, token_cost: Numeric, max_wait_time: Numeric = 300
     ) -> None:
         start = time.time()
@@ -126,12 +126,17 @@ class AdaptiveTokenRateLimiter:
         rate_reduction_factor: Numeric = 0.5,
         rate_increase_factor: Numeric = 1.01,
     ):
+        now = time.time()
         self.rate = initial_rate
         self.rate_reduction_factor = rate_reduction_factor
         self.enforcement_window = enforcement_window_minutes * 60
         self.rate_increase_factor = rate_increase_factor
-        self.last_rate_update = time.time()
-        self.last_checked = self.created
+        self.last_rate_update = now
+        self.last_checked = now
+        self.tokens = 0
+    
+    def max_tokens(self):
+        return self.rate * self.enforcement_window
 
     def on_rate_limit_error(self) -> None:
         self.rate *= self.rate_reduction_factor
@@ -139,17 +144,16 @@ class AdaptiveTokenRateLimiter:
         self.last_rate_update = time.time()
 
     def available_requests(self) -> float:
+        now = time.time()
         time_since_last_checked = time.time() - self.last_checked
-        return min(self.max_tokens, self.rate * time_since_last_checked + self.tokens)
+        self.tokens = min(self.max_tokens(), self.rate * time_since_last_checked + self.tokens)
+        self.last_checked = now
+        return self.tokens
 
     def make_request_if_ready(self) -> None:
         if self.available_requests() <= 1:
             raise UnavailableTokensError
-        now = time.time()
-        current_tokens = min(self.max_tokens, self.tokens + (now - self.last_checked) * self.rate)
-        self.tokens = current_tokens - 1
-        self.last_checked = now
-        self.total_tokens += 1
+        self.tokens -= 1
 
     def wait_until_ready(
         self, max_wait_time: Numeric = 300,
@@ -232,7 +236,7 @@ class LimitStore:
         rate_limits = self._rate_limits[key]
         for limit_type, cost in rate_limit_costs.items():
             if limit := rate_limits.get(limit_type):
-                limit.wait_for_then_spend_available_tokens(cost)
+                limit.wait_until_ready(cost)
 
     async def async_wait_for_rate_limits(
         self, key: str, rate_limit_costs: Dict[str, Numeric]
@@ -240,7 +244,7 @@ class LimitStore:
         rate_limits = self._rate_limits[key]
         for limit_type, cost in rate_limit_costs.items():
             if limit := rate_limits.get(limit_type):
-                await limit.async_wait_for_then_spend_available_tokens(cost)
+                await limit.async_wait_until_ready(cost)
 
     def spend_rate_limits(self, key: str, rate_limit_costs: Dict[str, Numeric]) -> None:
         rate_limits = self._rate_limits[key]
@@ -249,64 +253,47 @@ class LimitStore:
                 limit.spend_tokens(cost)
 
 
-class AdaptiveRateLimiter:
+class OpenAIRateLimiter:
     def __init__(self) -> None:
-        self._store = LimitStore()
+        from openai.error import RateLimitError
 
-    def key(self, model_name: str) -> str:
-        return f"openai:{model_name}"
-
-    def set_rate_limits(
-        self,
-        model_name: str,
-        request_rate_limit: Optional[Numeric],
-        token_rate_limit: Optional[Numeric],
-    ) -> None:
-        if request_rate_limit is not None:
-            self._store.set_rate_limit(self.key(model_name), "requests", request_rate_limit)
-        if token_rate_limit is not None:
-            self._store.set_rate_limit(self.key(model_name), "tokens", token_rate_limit)
+        self._rate_limit_error = RateLimitError
+        self._rate_limiter = AdaptiveTokenRateLimiter(1, 1)
 
     def limit(
         self,
-        model_name: str,
-        response_cost_fn: Callable[..., Numeric],
     ) -> Callable[[Callable[ParameterSpec, GenericType]], Callable[ParameterSpec, GenericType]]:
         def rate_limit_decorator(
             fn: Callable[ParameterSpec, GenericType]
         ) -> Callable[ParameterSpec, GenericType]:
             @wraps(fn)
             def wrapper(*args: Any, **kwargs: Any) -> GenericType:
-                key = self.key(model_name)
-                self._store.wait_for_rate_limits(key, {"requests": 1, "tokens": 0})
-                result: GenericType = fn(*args, **kwargs)
-                self._store.spend_rate_limits(key, {"tokens": response_cost_fn(result)})
-                return result
+                while True:
+                    try:
+                        self._rate_limiter.wait_until_ready()
+                        result: GenericType = fn(*args, **kwargs)
+                        return result
+                    except self._rate_limit_error:
+                        self._rate_limiter.on_rate_limit_error()
+                        continue
 
             return wrapper
-
         return rate_limit_decorator
 
     def alimit(
         self,
-        model_name: str,
-        response_cost_fn: Callable[..., Numeric],
     ) -> Callable[[AsyncCallable], AsyncCallable]:
         def rate_limit_decorator(fn: AsyncCallable) -> AsyncCallable:
             @wraps(fn)
             async def wrapper(*args: Any, **kwargs: Any) -> GenericType:
-                key = self.key(model_name)
-                await self._store.async_wait_for_rate_limits(
-                    key,
-                    {
-                        "requests": 1,
-                        "tokens": 0,
-                    },  # token costs are 0 up front, infer from the response instead
-                )
-                result: GenericType = await fn(*args, **kwargs)
-                self._store.spend_rate_limits(key, {"tokens": response_cost_fn(result)})
-                return result
+                while True:
+                    try:
+                        await self._rate_limiter.async_wait_until_ready()
+                        result: GenericType = await fn(*args, **kwargs)
+                        return result
+                    except self._rate_limit_error:
+                        self._rate_limiter.on_rate_limit_error()
+                        continue
 
             return cast(AsyncCallable, wrapper)
-
         return rate_limit_decorator

@@ -141,22 +141,7 @@ class OpenAIModel(BaseEvalModel):
         self._init_environment()
         self._init_open_ai()
         self._init_tiktoken()
-        self._rate_limiter: Optional[OpenAIRateLimiter] = None
-
-    @property
-    def rate_limiter(self, rate_limit_multiplier: float = 0.8) -> OpenAIRateLimiter:
-        if self._rate_limiter is None:
-            self._rate_limiter = OpenAIRateLimiter()
-            limit_info = openai_rate_limit_info(
-                self.model_name, self.openai_api_key, base_url=self.openai_api_base
-            )
-            # throttle our requests to some multiple of the absolute rate limit
-            limits = {
-                limit_type: limit * rate_limit_multiplier
-                for limit_type, limit in limit_info.items()
-            }
-            self._rate_limiter.set_rate_limits(self.model_name, **limits)
-        return self._rate_limiter
+        self._rate_limiter: OpenAIRateLimiter = OpenAIRateLimiter()
 
     def _init_environment(self) -> None:
         try:
@@ -346,17 +331,16 @@ class OpenAIModel(BaseEvalModel):
             self._openai_error.Timeout,
             self._openai_error.APIError,
             self._openai_error.APIConnectionError,
-            self._openai_error.RateLimitError,
             self._openai_error.ServiceUnavailableError,
         ]
 
         async def metered_openai_chat_completion(**kwargs: Any) -> Any:
-            limit = self.rate_limiter.alimit(self.model_name, openai_token_usage)
+            limit = self._rate_limiter.alimit()
             response = await limit(self._openai.ChatCompletion.acreate)(**kwargs)
             return response
 
         async def metered_openai_completion(**kwargs: Any) -> Any:
-            limit = self.rate_limiter.alimit(self.model_name, openai_token_usage)
+            limit = self._rate_limiter.alimit()
             response = await limit(self._openai.Completion.acreate)(**kwargs)
             return response
 
