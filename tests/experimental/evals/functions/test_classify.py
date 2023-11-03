@@ -34,9 +34,9 @@ def mock_ratelimit_inspection():
     return responses
 
 
-def test_llm_classify(mock_ratelimit_inspection, monkeypatch: pytest.MonkeyPatch):
-    monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
-    dataframe = pd.DataFrame(
+@pytest.fixture
+def classification_dataframe():
+    return pd.DataFrame(
         [
             {
                 "query": "What is Python?",
@@ -50,6 +50,13 @@ def test_llm_classify(mock_ratelimit_inspection, monkeypatch: pytest.MonkeyPatch
             {"query": "What is C++?", "reference": "irrelevant"},
         ],
     )
+
+
+def test_llm_classify(
+    classification_dataframe, mock_ratelimit_inspection, monkeypatch: pytest.MonkeyPatch
+):
+    monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
+    dataframe = classification_dataframe
     keys = list(zip(dataframe["query"], dataframe["reference"]))
     responses = ["relevant", "irrelevant", "\nrelevant ", "unparsable"]
     response_mapping = {key: response for key, response in zip(keys, responses)}
@@ -99,94 +106,178 @@ def test_llm_classify(mock_ratelimit_inspection, monkeypatch: pytest.MonkeyPatch
             verbose=True,
         )
 
-    index = list(reversed(range(len(dataframe))))
-    dataframe = dataframe.set_axis(index, axis=0)
-
     labels = ["relevant", "irrelevant", "relevant", NOT_PARSABLE]
-    breakpoint()
     assert result.iloc[:, 0].tolist() == labels
     assert_frame_equal(
         result,
         pd.DataFrame(
-            index=index,
             data={"label": ["relevant", "irrelevant", "relevant", NOT_PARSABLE]},
         ),
     )
-    del result
 
-    # function call in response
-    for message_content in ["relevant", "irrelevant", "\nrelevant ", "unparsable"]:
-        message = {"function_call": {"arguments": f"{{\n  'response': {message_content}\n}}"}}
-        responses.post(
-            "https://api.openai.com/v1/chat/completions",
-            json={"choices": [{"message": message}]},
-            status=200,
-        )
-    result = llm_classify(
-        dataframe=dataframe,
-        template=RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
-        model=model,
-        rails=["relevant", "irrelevant"],
-    )
-    labels = ["relevant", "irrelevant", "relevant", NOT_PARSABLE]
-    breakpoint()
-    assert result.iloc[:, 0].tolist() == labels
-    assert_frame_equal(result, pd.DataFrame(index=index, data={"label": labels}))
-    del result
 
-    # function call without explanation
-    for message_content in ["relevant", "irrelevant", "\nrelevant ", "unparsable"]:
-        message = {
-            "function_call": {
-                "arguments": f"{{\n  \042response\042: \042{message_content}\042\n}}",
-            }
-        }
-        responses.post(
-            "https://api.openai.com/v1/chat/completions",
-            json={"choices": [{"message": message}]},
-            status=200,
-        )
-    result = llm_classify(
-        dataframe=dataframe,
-        template=RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
-        model=model,
-        rails=["relevant", "irrelevant"],
-        provide_explanation=True,
-    )
-    labels = ["relevant", "irrelevant", "relevant", NOT_PARSABLE]
-    assert result.iloc[:, 0].tolist() == labels
-    assert_frame_equal(
-        result,
-        pd.DataFrame(index=index, data={"label": labels, "explanation": [None, None, None, None]}),
-    )
-    del result
+def test_llm_classify_with_function_calls_in_response(
+    classification_dataframe, mock_ratelimit_inspection, monkeypatch: pytest.MonkeyPatch
+):
+    monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
+    dataframe = classification_dataframe
+    keys = list(zip(dataframe["query"], dataframe["reference"]))
+    responses = ["relevant", "irrelevant", "\nrelevant ", "unparsable"]
+    response_mapping = {key: response for key, response in zip(keys, responses)}
 
-    # function call with explanation
-    for i, message_content in enumerate(["relevant", "irrelevant", "\nrelevant ", "unparsable"]):
-        message = {
-            "function_call": {
-                "arguments": f"{{\n  \042response\042: \042{message_content}\042, \042explanation\042: \042{i}\042\n}}"  # noqa E501
-            }
-        }
-        responses.post(
-            "https://api.openai.com/v1/chat/completions",
-            json={"choices": [{"message": message}]},
+    def response_callback(url, **kwargs):
+        request_body = kwargs["data"].decode("utf-8")
+
+        for key in response_mapping:
+            query, reference = key
+            response = ""
+            if query in request_body and reference in request_body:
+                response = response_mapping.pop(
+                    key
+                )  # Remove the key-value pair to avoid reusing the same response
+                break
+        message = {"function_call": {"arguments": f"{{\n  'response': {response}\n}}"}}
+        return CallbackResult(
             status=200,
+            payload={"choices": [{"message": message}]},
         )
-    result = llm_classify(
-        dataframe=dataframe,
-        template=RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
-        model=model,
-        rails=["relevant", "irrelevant"],
-        provide_explanation=True,
-    )
+
+    with aioresponses() as mocked_aiohttp:
+        for _ in range(len(dataframe)):
+            mocked_aiohttp.post(
+                "https://api.openai.com/v1/chat/completions",
+                callback=response_callback,
+            )
+
+        with patch.object(OpenAIModel, "_init_tiktoken", return_value=None):
+            model = OpenAIModel()
+
+        result = llm_classify(
+            dataframe=dataframe,
+            template=RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
+            model=model,
+            rails=["relevant", "irrelevant"],
+            verbose=True,
+        )
+
     labels = ["relevant", "irrelevant", "relevant", NOT_PARSABLE]
     assert result.iloc[:, 0].tolist() == labels
     assert_frame_equal(
         result,
-        pd.DataFrame(index=index, data={"label": labels, "explanation": ["0", "1", "2", "3"]}),
+        pd.DataFrame(
+            data={"label": ["relevant", "irrelevant", "relevant", NOT_PARSABLE]},
+        ),
     )
-    del result
+
+
+def test_llm_classify_function_call_without_explanation(
+    classification_dataframe, mock_ratelimit_inspection, monkeypatch: pytest.MonkeyPatch
+):
+    monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
+    dataframe = classification_dataframe
+    keys = list(zip(dataframe["query"], dataframe["reference"]))
+    responses = ["relevant", "irrelevant", "\nrelevant ", "unparsable"]
+    response_mapping = {key: response for key, response in zip(keys, responses)}
+
+    def response_callback(url, **kwargs):
+        request_body = kwargs["data"].decode("utf-8")
+
+        for key in response_mapping:
+            query, reference = key
+            response = ""
+            if query in request_body and reference in request_body:
+                response = response_mapping.pop(
+                    key
+                )  # Remove the key-value pair to avoid reusing the same response
+                break
+        message = {
+            "function_call": {
+                "arguments": f"{{\n  \042response\042: \042{response}\042\n}}",
+            }
+        }
+        return CallbackResult(
+            status=200,
+            payload={"choices": [{"message": message}]},
+        )
+
+    with aioresponses() as mocked_aiohttp:
+        for _ in range(len(dataframe)):
+            mocked_aiohttp.post(
+                "https://api.openai.com/v1/chat/completions",
+                callback=response_callback,
+            )
+
+        with patch.object(OpenAIModel, "_init_tiktoken", return_value=None):
+            model = OpenAIModel()
+
+        result = llm_classify(
+            dataframe=dataframe,
+            template=RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
+            model=model,
+            rails=["relevant", "irrelevant"],
+            provide_explanation=True,
+        )
+    labels = ["relevant", "irrelevant", "relevant", NOT_PARSABLE]
+    assert result.iloc[:, 0].tolist() == labels
+    assert_frame_equal(
+        result,
+        pd.DataFrame(data={"label": labels, "explanation": [None, None, None, None]}),
+    )
+
+
+def test_llm_classify_function_call_with_explanation(
+    classification_dataframe, mock_ratelimit_inspection, monkeypatch: pytest.MonkeyPatch
+):
+    monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
+    dataframe = classification_dataframe
+    keys = list(zip(dataframe["query"], dataframe["reference"]))
+    responses = ["relevant", "irrelevant", "\nrelevant ", "unparsable"]
+    response_mapping = {key: response for key, response in zip(keys, responses)}
+
+    def response_callback(url, **kwargs):
+        request_body = kwargs["data"].decode("utf-8")
+
+        for key in response_mapping:
+            query, reference = key
+            response = ""
+            if query in request_body and reference in request_body:
+                response = response_mapping.pop(
+                    key
+                )  # Remove the key-value pair to avoid reusing the same response
+                break
+        message = {
+            "function_call": {
+                "arguments": f"{{\n  \042response\042: \042{response}\042, \042explanation\042: \042{1}\042\n}}"  # noqa E501
+            }
+        }
+        return CallbackResult(
+            status=200,
+            payload={"choices": [{"message": message}]},
+        )
+
+    with aioresponses() as mocked_aiohttp:
+        for _ in range(len(dataframe)):
+            mocked_aiohttp.post(
+                "https://api.openai.com/v1/chat/completions",
+                callback=response_callback,
+            )
+
+        with patch.object(OpenAIModel, "_init_tiktoken", return_value=None):
+            model = OpenAIModel()
+
+        result = llm_classify(
+            dataframe=dataframe,
+            template=RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
+            model=model,
+            rails=["relevant", "irrelevant"],
+            provide_explanation=True,
+        )
+    labels = ["relevant", "irrelevant", "relevant", NOT_PARSABLE]
+    assert result.iloc[:, 0].tolist() == labels
+    assert_frame_equal(
+        result,
+        pd.DataFrame(data={"label": labels, "explanation": ["1", "1", "1", "1"]}),
+    )
 
 
 def test_llm_classify_prints_to_stdout_with_verbose_flag(
