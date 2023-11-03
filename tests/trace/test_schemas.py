@@ -34,7 +34,6 @@ from phoenix.trace.semantic_conventions import (
     OUTPUT_MIME_TYPE,
     OUTPUT_VALUE,
     RETRIEVAL_DOCUMENTS,
-    DeploymentAttributes,
     MimeType,
 )
 from phoenix.trace.v1 import decode, encode
@@ -66,9 +65,7 @@ def test_span_with_exception():
         span_kind="TOOL",
         status_code="OK",
         status_message="",
-        attributes={
-            DeploymentAttributes.attributes["environment"].id: "dev",
-        },
+        attributes={},
         events=[SpanException(timestamp=datetime.now(), message="")],
         context=SpanContext(trace_id=uuid4(), span_id=uuid4()),
         conversation=None,
