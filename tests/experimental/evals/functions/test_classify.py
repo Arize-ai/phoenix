@@ -7,6 +7,7 @@ import pandas as pd
 import pytest
 import responses
 from aioresponses import CallbackResult, aioresponses
+from pandas.testing import assert_frame_equal
 from phoenix.experimental.evals import (
     NOT_PARSABLE,
     RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
@@ -45,15 +46,9 @@ def test_llm_classify(mock_ratelimit_inspection, monkeypatch: pytest.MonkeyPatch
                 "query": "What is Python?",
                 "reference": "Ruby is a programming language.",
             },
-            {
-                "query": "What is C++?",
-                "reference": "C++ is a programming language.",
-            },
-            {
-                "query": "What is C++?",
-                "reference": "irrelevant",
-            },
-        ]
+            {"query": "What is C++?", "reference": "C++ is a programming language."},
+            {"query": "What is C++?", "reference": "irrelevant"},
+        ],
     )
     keys = list(zip(dataframe["query"], dataframe["reference"]))
     responses = ["relevant", "irrelevant", "\nrelevant ", "unparsable"]
@@ -96,14 +91,102 @@ def test_llm_classify(mock_ratelimit_inspection, monkeypatch: pytest.MonkeyPatch
         with patch.object(OpenAIModel, "_init_tiktoken", return_value=None):
             model = OpenAIModel()
 
-        relevance_classifications = llm_classify(
+        result = llm_classify(
             dataframe=dataframe,
             template=RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
             model=model,
             rails=["relevant", "irrelevant"],
             verbose=True,
         )
-    assert relevance_classifications == ["relevant", "irrelevant", "relevant", NOT_PARSABLE]
+
+    index = list(reversed(range(len(dataframe))))
+    dataframe = dataframe.set_axis(index, axis=0)
+
+    labels = ["relevant", "irrelevant", "relevant", NOT_PARSABLE]
+    breakpoint()
+    assert result.iloc[:, 0].tolist() == labels
+    assert_frame_equal(
+        result,
+        pd.DataFrame(
+            index=index,
+            data={"label": ["relevant", "irrelevant", "relevant", NOT_PARSABLE]},
+        ),
+    )
+    del result
+
+    # function call in response
+    for message_content in ["relevant", "irrelevant", "\nrelevant ", "unparsable"]:
+        message = {"function_call": {"arguments": f"{{\n  'response': {message_content}\n}}"}}
+        responses.post(
+            "https://api.openai.com/v1/chat/completions",
+            json={"choices": [{"message": message}]},
+            status=200,
+        )
+    result = llm_classify(
+        dataframe=dataframe,
+        template=RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
+        model=model,
+        rails=["relevant", "irrelevant"],
+    )
+    labels = ["relevant", "irrelevant", "relevant", NOT_PARSABLE]
+    breakpoint()
+    assert result.iloc[:, 0].tolist() == labels
+    assert_frame_equal(result, pd.DataFrame(index=index, data={"label": labels}))
+    del result
+
+    # function call without explanation
+    for message_content in ["relevant", "irrelevant", "\nrelevant ", "unparsable"]:
+        message = {
+            "function_call": {
+                "arguments": f"{{\n  \042response\042: \042{message_content}\042\n}}",
+            }
+        }
+        responses.post(
+            "https://api.openai.com/v1/chat/completions",
+            json={"choices": [{"message": message}]},
+            status=200,
+        )
+    result = llm_classify(
+        dataframe=dataframe,
+        template=RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
+        model=model,
+        rails=["relevant", "irrelevant"],
+        provide_explanation=True,
+    )
+    labels = ["relevant", "irrelevant", "relevant", NOT_PARSABLE]
+    assert result.iloc[:, 0].tolist() == labels
+    assert_frame_equal(
+        result,
+        pd.DataFrame(index=index, data={"label": labels, "explanation": [None, None, None, None]}),
+    )
+    del result
+
+    # function call with explanation
+    for i, message_content in enumerate(["relevant", "irrelevant", "\nrelevant ", "unparsable"]):
+        message = {
+            "function_call": {
+                "arguments": f"{{\n  \042response\042: \042{message_content}\042, \042explanation\042: \042{i}\042\n}}"  # noqa E501
+            }
+        }
+        responses.post(
+            "https://api.openai.com/v1/chat/completions",
+            json={"choices": [{"message": message}]},
+            status=200,
+        )
+    result = llm_classify(
+        dataframe=dataframe,
+        template=RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
+        model=model,
+        rails=["relevant", "irrelevant"],
+        provide_explanation=True,
+    )
+    labels = ["relevant", "irrelevant", "relevant", NOT_PARSABLE]
+    assert result.iloc[:, 0].tolist() == labels
+    assert_frame_equal(
+        result,
+        pd.DataFrame(index=index, data={"label": labels, "explanation": ["0", "1", "2", "3"]}),
+    )
+    del result
 
 
 def test_llm_classify_prints_to_stdout_with_verbose_flag(

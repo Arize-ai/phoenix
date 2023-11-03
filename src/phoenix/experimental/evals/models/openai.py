@@ -242,20 +242,21 @@ class OpenAIModel(BaseEvalModel):
         return f"OpenAI invocation parameters: {self.public_invocation_params}"
 
     def generate(
-        self, prompts: List[str], instruction: Optional[str] = None, num_consumers: int = 20
+        self, prompts: List[str], instruction: Optional[str] = None, num_consumers: int = 20, **kwargs: Any
     ) -> List[str]:
         try:
             asyncio.get_running_loop()
             nest_asyncio.apply()
         except RuntimeError:
             pass
-        return asyncio.run(self._generate_async(prompts, instruction, num_consumers=num_consumers))
+        return asyncio.run(self._generate_async(prompts, instruction, num_consumers=num_consumers, **kwargs))
 
     async def _generate_async(
         self,
         prompts: List[str],
         instruction: Optional[str] = None,
         num_consumers: int = 20,
+        **kwargs: Any,
     ) -> List[str]:
         printif(self._verbose, f"Generating responses for {len(prompts)} prompts...")
         if extra_info := self._verbose_generation_info():
@@ -266,7 +267,7 @@ class OpenAIModel(BaseEvalModel):
                 f"but found {type(prompts)}."
             )
         outputs = ["unset"] * len(prompts)
-        queue: asyncio.Queue[Tuple[int, str, Optional[str]]] = asyncio.Queue(
+        queue: asyncio.Queue[Tuple[int, str, Optional[str], Dict[Any]]] = asyncio.Queue(
             maxsize=2 * num_consumers
         )
         END_OF_QUEUE = object()  # sentinel indicating when the queue is done
@@ -288,9 +289,10 @@ class OpenAIModel(BaseEvalModel):
         queue: asyncio.Queue[Tuple[int, str, Optional[str]]],
         num_consumers: int,
         end_of_queue: Any,
+        **kwargs: Any,
     ) -> None:
         for index, prompt in enumerate(prompts):
-            await queue.put((index, prompt, instruction))
+            await queue.put((index, prompt, instruction, kwargs))
         # add an end of queue sentinel for each consumer
         for _ in range(num_consumers):
             await queue.put(end_of_queue)
@@ -306,25 +308,31 @@ class OpenAIModel(BaseEvalModel):
             if (item := await queue.get()) is end_of_queue:
                 break
 
-            index, prompt, instruction = item
-            output = await self._generate(prompt=prompt, instruction=instruction)  # type: ignore
+            index, prompt, instruction, kwargs = item
+            output = await self._generate(prompt=prompt, instruction=instruction, **kwargs)  # type: ignore
             logger.info(f"Prompt: {prompt}\nInstruction: {instruction}\nOutput: {output}")
             outputs[index] = output
             progress_bar.update()
 
-    async def _generate(self, prompt: str, **kwargs: Dict[str, Any]) -> str:  # type: ignore
+    async def _generate(self, prompt: str, **kwargs: Any) -> str:
         invoke_params = self.invocation_params
-        messages = self._build_messages(prompt, kwargs.get("instruction"))  # type: ignore
+        messages = self._build_messages(prompt, kwargs.get("instruction"))
 
+        if functions := kwargs.get("functions"):
+            invoke_params["functions"] = functions
+        if function_call := kwargs.get("function_call"):
+            invoke_params["function_call"] = function_call
         response = await self._generate_with_retry(
             messages=messages,
             **invoke_params,
         )
+        choice = response["choices"][0]
         if self._model_uses_legacy_completion_api:
-            return str(response["choices"][0]["text"])
-        # TODO: This is a bit rudimentary, should improve
-        resp_text = str(response["choices"][0]["message"]["content"])
-        return resp_text
+            return str(choice["text"])
+        message = choice["message"]
+        if function_call := message.get("function_call"):
+            return str(function_call.get("arguments") or "")
+        return str(message["content"])
 
     async def _generate_with_retry(self, **kwargs: Any) -> Any:
         """Use tenacity to retry the completion call."""
@@ -458,3 +466,17 @@ class OpenAIModel(BaseEvalModel):
 
     def get_text_from_tokens(self, tokens: List[int]) -> str:
         return self.encoder.decode(tokens)
+
+    @property
+    def supports_function_calling(self) -> bool:
+        if (
+            self._is_azure
+            and self.openai_api_version
+            # The first api version supporting function calling is 2023-07-01-preview.
+            # See https://github.com/Azure/azure-rest-api-specs/blob/58e92dd03733bc175e6a9540f4bc53703b57fcc9/specification/cognitiveservices/data-plane/AzureOpenAI/inference/preview/2023-07-01-preview/inference.json#L895 # noqa E501
+            and self.openai_api_version[:10] < "2023-07-01"
+        ):
+            return False
+        if self._model_uses_legacy_completion_api:
+            return False
+        return True

@@ -159,6 +159,23 @@ def test_callback_llm_rate_limit_error_has_exception_event(
     assert isinstance(event.attributes[EXCEPTION_STACKTRACE], str)
 
 
+def test_callback_llm_rate_limit_error_has_exception_event_with_missing_start(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    callback_handler = OpenInferenceTraceCallbackHandler(exporter=NoOpExporter())
+    event_type = CBEventType.EXCEPTION
+    payload = {"some": "payload"}
+    event_id = str(uuid4())
+    trace_map = {"root": [event_id]}
+
+    # create an exception event without a corresponding start event
+    callback_handler.on_event_end(event_type, payload=payload, event_id=event_id)
+    with patch.object(callback_handler._tracer, "create_span") as mocked_span_creation:
+        callback_handler.end_trace(trace_map=trace_map)
+
+    assert mocked_span_creation.call_count == 0, "don't create spans on exception events"
+
+
 @patch("phoenix.trace.llama_index.callback.payload_to_semantic_attributes")
 def test_on_event_start_handler_fails_gracefully(
     mock_handler_internals, mock_service_context: ServiceContext, caplog
@@ -184,19 +201,51 @@ def test_on_event_start_handler_fails_gracefully(
     assert "CallbackError" in caplog.records[0].message
 
 
+def test_on_event_start_handler_is_not_called_before_end_handler(
+    mock_service_context: ServiceContext, caplog
+) -> None:
+    question = "What are the seven wonders of the world?"
+    callback_handler = OpenInferenceTraceCallbackHandler(exporter=NoOpExporter())
+    index = ListIndex(nodes)
+    retriever = index.as_retriever(retriever_mode="default")
+    response_synthesizer = get_response_synthesizer()
+
+    query_engine = RetrieverQueryEngine(
+        retriever=retriever,
+        response_synthesizer=response_synthesizer,
+        callback_manager=CallbackManager([callback_handler]),
+    )
+
+    with patch.object(callback_handler, "on_event_start"):
+        # mock the on_event_start method to be a no-op
+        query_engine.query(question)
+
+    records = caplog.records
+    assert len(records) == 0, "on_event_end does not break if on_event_start is not called"
+
+
 def test_on_event_end_handler_fails_gracefully(
     mock_service_context: ServiceContext, caplog
 ) -> None:
     event_type = CBEventType.QUERY
     faulty_payload = {"faulty": "payload"}
     event_id = str(uuid4())
+    parent_id = str(uuid4())
 
     callback_handler = OpenInferenceTraceCallbackHandler(exporter=NoOpExporter())
     callback_handler.on_event_end(event_type, faulty_payload, event_id)
+    callback_handler.on_event_start(event_type, dict(), event_id, parent_id)  # start event first
+    with patch(
+        "phoenix.trace.llama_index.callback.payload_to_semantic_attributes"
+    ) as mock_internals:
+        mock_internals.side_effect = RuntimeError("on_event_end test error")
+        callback_handler.on_event_end(event_type, faulty_payload, event_id)
 
-    assert caplog.records[0].levelname == "ERROR"
-    assert "on_event_end" in caplog.records[0].message
-    assert "KeyError" in caplog.records[0].message
+    records = caplog.records
+    assert len(records) == 1
+    assert records[0].levelname == "ERROR"
+    assert "on_event_end" in records[0].message
+    assert "on_event_end test error" in records[0].message
 
 
 @patch("phoenix.trace.llama_index.callback._add_spans_to_tracer")

@@ -14,10 +14,11 @@ import {
   getSortedRowModel,
   SortingState,
   useReactTable,
+  VisibilityState,
 } from "@tanstack/react-table";
 import { css } from "@emotion/react";
 
-import { Icon, Icons, View } from "@arizeai/components";
+import { Flex, Icon, Icons, View } from "@arizeai/components";
 
 import { Link } from "@phoenix/components/Link";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
@@ -27,6 +28,7 @@ import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SpanKindLabel } from "@phoenix/components/trace/SpanKindLabel";
 import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon";
+import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 
 import {
   SpansTable_spans$key,
@@ -36,7 +38,9 @@ import {
   SpanSort,
   SpansTableSpansQuery,
 } from "./__generated__/SpansTableSpansQuery.graphql";
+import { SpanColumnSelector } from "./SpanColumnSelector";
 import { SpanFilterConditionField } from "./SpanFilterConditionField";
+import { spansTableCSS } from "./styles";
 import { TokenCount } from "./TokenCount";
 type SpansTableProps = {
   query: SpansTable_spans$key;
@@ -48,11 +52,12 @@ const DEFAULT_SORT: SpanSort = {
   dir: "desc",
 };
 export function SpansTable(props: SpansTableProps) {
-  const isMountedRef = useRef<boolean>(false);
+  const { fetchKey } = useStreamState();
   //we need a reference to the scrolling element for logic down below
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const [sorting, setSorting] = useState<SortingState>([]);
   const [filterCondition, setFilterCondition] = useState<string>("");
+  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
   const navigate = useNavigate();
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
     usePaginationFragment<SpansTableSpansQuery, SpansTable_spans$key>(
@@ -190,25 +195,25 @@ export function SpansTable(props: SpansTableProps) {
 
   useEffect(() => {
     //if the sorting changes, we need to reset the pagination
-    if (!isMountedRef.current) {
-      isMountedRef.current = true;
-      return;
-    }
     const sort = sorting[0];
+
     startTransition(() => {
-      refetch({
-        sort: sort
-          ? {
-              col: sort.id as SpanSort["col"],
-              dir: sort.desc ? "desc" : "asc",
-            }
-          : DEFAULT_SORT,
-        after: null,
-        first: PAGE_SIZE,
-        filterCondition,
-      });
+      refetch(
+        {
+          sort: sort
+            ? {
+                col: sort.id as SpanSort["col"],
+                dir: sort.desc ? "desc" : "asc",
+              }
+            : DEFAULT_SORT,
+          after: null,
+          first: PAGE_SIZE,
+          filterCondition,
+        },
+        { fetchPolicy: "store-and-network" }
+      );
     });
-  }, [sorting, refetch, filterCondition]);
+  }, [sorting, refetch, filterCondition, fetchKey]);
   const fetchMoreOnBottomReached = React.useCallback(
     (containerRefElement?: HTMLDivElement | null) => {
       if (containerRefElement) {
@@ -237,17 +242,25 @@ export function SpansTable(props: SpansTableProps) {
   });
   const rows = table.getRowModel().rows;
   const isEmpty = rows.length === 0;
+  const computedColumns = table.getAllColumns();
   return (
-    <div
-      css={css`
-        display: flex;
-        flex-direction: column;
-        flex: 1 1 auto;
-        overflow: hidden;
-      `}
-    >
-      <View padding="size-100" backgroundColor="grey-200">
-        <SpanFilterConditionField onValidCondition={setFilterCondition} />
+    <div css={spansTableCSS}>
+      <View
+        paddingTop="size-100"
+        paddingBottom="size-100"
+        paddingStart="size-200"
+        paddingEnd="size-200"
+        backgroundColor="grey-200"
+        flex="none"
+      >
+        <Flex direction="row" gap="size-100" width="100%" alignItems="center">
+          <SpanFilterConditionField onValidCondition={setFilterCondition} />
+          <SpanColumnSelector
+            columns={computedColumns}
+            columnVisibility={columnVisibility}
+            onColumnVisibilityChange={setColumnVisibility}
+          />
+        </Flex>
       </View>
 
       <div

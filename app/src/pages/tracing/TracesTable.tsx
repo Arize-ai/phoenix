@@ -17,6 +17,7 @@ import {
   getSortedRowModel,
   SortingState,
   useReactTable,
+  VisibilityState,
 } from "@tanstack/react-table";
 import { css } from "@emotion/react";
 
@@ -33,6 +34,7 @@ import { SpanKindLabel } from "@phoenix/components/trace/SpanKindLabel";
 import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon";
 import { ISpanItem } from "@phoenix/components/trace/types";
 import { createSpanTree, SpanTreeNode } from "@phoenix/components/trace/utils";
+import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 
 import {
   SpanStatusCode,
@@ -42,7 +44,9 @@ import {
   SpanSort,
   TracesTableQuery,
 } from "./__generated__/TracesTableQuery.graphql";
+import { SpanColumnSelector } from "./SpanColumnSelector";
 import { SpanFilterConditionField } from "./SpanFilterConditionField";
+import { spansTableCSS } from "./styles";
 import { TokenCount } from "./TokenCount";
 type TracesTableProps = {
   query: TracesTable_spans$key;
@@ -82,12 +86,12 @@ function spanTreeToNestedSpanTableRows<TSpan extends ISpanItem>(
 
 export function TracesTable(props: TracesTableProps) {
   //we need a reference to the scrolling element for logic down below
-  const isMountedRef = useRef<boolean>(false);
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const [sorting, setSorting] = useState<SortingState>([]);
   const [filterCondition, setFilterCondition] = useState<string>("");
 
   const navigate = useNavigate();
+  const { fetchKey } = useStreamState();
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
     usePaginationFragment<TracesTableQuery, TracesTable_spans$key>(
       graphql`
@@ -286,10 +290,6 @@ export function TracesTable(props: TracesTableProps) {
 
   useEffect(() => {
     //if the sorting changes, we need to reset the pagination
-    if (!isMountedRef.current) {
-      isMountedRef.current = true;
-      return;
-    }
     const sort = sorting[0];
     startTransition(() => {
       refetch(
@@ -305,11 +305,11 @@ export function TracesTable(props: TracesTableProps) {
           filterCondition: filterCondition,
         },
         {
-          fetchPolicy: "network-only",
+          fetchPolicy: "store-and-network",
         }
       );
     });
-  }, [sorting, refetch, filterCondition]);
+  }, [sorting, refetch, filterCondition, fetchKey]);
   const fetchMoreOnBottomReached = React.useCallback(
     (containerRefElement?: HTMLDivElement | null) => {
       if (containerRefElement) {
@@ -327,6 +327,7 @@ export function TracesTable(props: TracesTableProps) {
     [hasNext, isLoadingNext, loadNext]
   );
   const [expanded, setExpanded] = useState<ExpandedState>({});
+  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
   const table = useReactTable<TableRow>({
     columns,
     data: tableData,
@@ -335,6 +336,7 @@ export function TracesTable(props: TracesTableProps) {
     state: {
       sorting,
       expanded,
+      columnVisibility,
     },
     onSortingChange: setSorting,
     getCoreRowModel: getCoreRowModel(),
@@ -343,17 +345,26 @@ export function TracesTable(props: TracesTableProps) {
   });
   const rows = table.getRowModel().rows;
   const isEmpty = rows.length === 0;
+  const computedColumns = table.getAllColumns();
+
   return (
-    <div
-      css={css`
-        display: flex;
-        flex-direction: column;
-        flex: 1 1 auto;
-        overflow: hidden;
-      `}
-    >
-      <View padding="size-100" backgroundColor="grey-200" flex="none">
-        <SpanFilterConditionField onValidCondition={setFilterCondition} />
+    <div css={spansTableCSS}>
+      <View
+        paddingTop="size-100"
+        paddingBottom="size-100"
+        paddingStart="size-200"
+        paddingEnd="size-200"
+        backgroundColor="grey-200"
+        flex="none"
+      >
+        <Flex direction="row" gap="size-100" width="100%" alignItems="center">
+          <SpanFilterConditionField onValidCondition={setFilterCondition} />
+          <SpanColumnSelector
+            columns={computedColumns}
+            columnVisibility={columnVisibility}
+            onColumnVisibilityChange={setColumnVisibility}
+          />
+        </Flex>
       </View>
       <div
         css={css`

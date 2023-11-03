@@ -240,7 +240,12 @@ export function SpanFilterConditionField(props: SpanFilterConditionFieldProps) {
   const hasError = errorMessage !== "";
   const hasCondition = filterCondition !== "";
   return (
-    <div data-is-focused={isFocused} data-is-invalid={hasError} css={fieldCSS}>
+    <div
+      data-is-focused={isFocused}
+      data-is-invalid={hasError}
+      className="span-filter-condition-field"
+      css={fieldCSS}
+    >
       <Flex direction="row">
         <AddonBefore>
           <Icon svg={<Icons.Search />} />
