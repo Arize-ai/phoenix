@@ -242,14 +242,20 @@ class OpenAIModel(BaseEvalModel):
         return f"OpenAI invocation parameters: {self.public_invocation_params}"
 
     def generate(
-        self, prompts: List[str], instruction: Optional[str] = None, num_consumers: int = 20, **kwargs: Any
+        self,
+        prompts: List[str],
+        instruction: Optional[str] = None,
+        num_consumers: int = 20,
+        **kwargs: Any,
     ) -> List[str]:
         try:
             asyncio.get_running_loop()
             nest_asyncio.apply()
         except RuntimeError:
             pass
-        return asyncio.run(self._generate_async(prompts, instruction, num_consumers=num_consumers, **kwargs))
+        return asyncio.run(
+            self._generate_async(prompts, instruction, num_consumers=num_consumers, **kwargs)
+        )
 
     async def _generate_async(
         self,
@@ -267,13 +273,13 @@ class OpenAIModel(BaseEvalModel):
                 f"but found {type(prompts)}."
             )
         outputs = ["unset"] * len(prompts)
-        queue: asyncio.Queue[Tuple[int, str, Optional[str], Dict[Any]]] = asyncio.Queue(
+        queue: asyncio.Queue[Tuple[int, str, Optional[str], Dict[Any, Any]]] = asyncio.Queue(
             maxsize=2 * num_consumers
         )
         END_OF_QUEUE = object()  # sentinel indicating when the queue is done
         progress_bar = async_tqdm(total=len(prompts), bar_format=TQDM_BAR_FORMAT)
 
-        producer = self._producer(prompts, instruction, queue, num_consumers, END_OF_QUEUE)
+        producer = self._producer(prompts, instruction, queue, num_consumers, END_OF_QUEUE, kwargs)
         consumers = [
             asyncio.create_task(self._consumer(queue, outputs, END_OF_QUEUE, progress_bar))
             for _ in range(num_consumers)
@@ -286,10 +292,10 @@ class OpenAIModel(BaseEvalModel):
         self,
         prompts: List[str],
         instruction: Optional[str],
-        queue: asyncio.Queue[Tuple[int, str, Optional[str]]],
+        queue: asyncio.Queue[Tuple[int, str, Optional[str], Dict[Any, Any]]],
         num_consumers: int,
         end_of_queue: Any,
-        **kwargs: Any,
+        kwargs: Any,
     ) -> None:
         for index, prompt in enumerate(prompts):
             await queue.put((index, prompt, instruction, kwargs))
@@ -299,7 +305,7 @@ class OpenAIModel(BaseEvalModel):
 
     async def _consumer(
         self,
-        queue: asyncio.Queue[Tuple[int, str, Optional[str]]],
+        queue: asyncio.Queue[Tuple[int, str, Optional[str], Dict[Any, Any]]],
         outputs: List[str],
         end_of_queue: Any,
         progress_bar: async_tqdm[Any],
@@ -309,12 +315,12 @@ class OpenAIModel(BaseEvalModel):
                 break
 
             index, prompt, instruction, kwargs = item
-            output = await self._generate(prompt=prompt, instruction=instruction, **kwargs)  # type: ignore
+            output = await self._generate(prompt=prompt, instruction=instruction, **kwargs)
             logger.info(f"Prompt: {prompt}\nInstruction: {instruction}\nOutput: {output}")
             outputs[index] = output
             progress_bar.update()
 
-    async def _generate(self, prompt: str, **kwargs: Any) -> str:
+    async def _generate(self, prompt: str, **kwargs: Any) -> str:  # type: ignore
         invoke_params = self.invocation_params
         messages = self._build_messages(prompt, kwargs.get("instruction"))
 
