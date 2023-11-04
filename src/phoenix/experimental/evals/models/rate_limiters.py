@@ -2,7 +2,7 @@ import asyncio
 import time
 from functools import wraps
 from math import exp
-from typing import Any, Awaitable, Callable, TypeVar, cast
+from typing import Any, Awaitable, Callable, Type, TypeVar, cast
 
 from typing_extensions import ParamSpec
 
@@ -44,7 +44,7 @@ class AdaptiveTokenBucket:
         self.rate_increase_factor = rate_increase_factor
         self.last_rate_update = now
         self.last_checked = now
-        self.tokens = 0
+        self.tokens = 0.0
 
     def _increase_rate(self) -> None:
         time_since_last_update = time.time() - self.last_rate_update
@@ -103,7 +103,7 @@ class AdaptiveTokenBucket:
 class RateLimiter:
     def __init__(
         self,
-        rate_limit_error: Exception,
+        rate_limit_error: Type[BaseException],
         initial_per_second_request_rate: float = 200,
         enforcement_window_minutes: float = 1,
         rate_reduction_factor: float = 0.5,
