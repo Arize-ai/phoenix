@@ -25,7 +25,7 @@ class AdaptiveTokenBucket:
     Args:
     initial_per_second_request_rate (float): The allowed request rate.
     enforcement_window_minutes (float): The time window over which the rate limit is enforced.
-    rate_reduction_factor (float): Factor reducing the rate limit after a rate limit error.
+    rate_reduction_factor (float): Factor used to reduce the rate limit after a rate limit error.
     rate_increase_factor (float): Factor increasing the rate limit over time.
     """
 
@@ -45,7 +45,7 @@ class AdaptiveTokenBucket:
         self.last_checked = now
         self.tokens = 0
 
-    def max_tokens(self):
+    def max_tokens(self) -> float:
         return self.rate * self.enforcement_window
 
     def on_rate_limit_error(self) -> None:

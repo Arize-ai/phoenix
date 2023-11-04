@@ -7,8 +7,7 @@ from unittest import mock
 
 import pytest
 from phoenix.experimental.evals.models.rate_limiters import (
-    LimitStore,
-    TokenRateLimiter,
+    AdaptiveTokenBucket,
     UnavailableTokensError,
 )
 
@@ -74,104 +73,94 @@ def async_warp_time(start: Optional[float]):
             yield
 
 
-def test_token_rate_limiter_gains_tokens_over_time():
+def test_token_bucket_gains_tokens_over_time():
     start = time.time()
 
     with freeze_time(start):
-        bucket = TokenRateLimiter(per_second_rate=1, starting_tokens=0, max_tokens=120)
+        bucket = AdaptiveTokenBucket(
+            initial_per_second_request_rate=1,
+            enforcement_window_minutes=1,
+            rate_reduction_factor=1,
+            rate_increase_factor=1,
+        )
 
     with freeze_time(start + 5):
-        assert isclose(bucket.available_tokens(), 5)
+        assert isclose(bucket.available_requests(), 5)
 
     with freeze_time(start + 10):
-        assert isclose(bucket.available_tokens(), 10)
+        assert isclose(bucket.available_requests(), 10)
 
 
-def test_token_rate_limiter_can_max_out_on_tokens():
+def test_token_rate_limiter_can_max_out_on_requests():
     start = time.time()
 
     with freeze_time(start):
-        bucket = TokenRateLimiter(per_second_rate=1, starting_tokens=0, max_tokens=120)
+        bucket = AdaptiveTokenBucket(
+            initial_per_second_request_rate=1,
+            enforcement_window_minutes=2,
+            rate_reduction_factor=1,
+            rate_increase_factor=1,
+        )
 
-    with freeze_time(start + 60):
-        assert bucket.available_tokens() == 60
+    with freeze_time(start + 30):
+        assert bucket.available_requests() == 30
 
     with freeze_time(start + 120):
-        assert bucket.available_tokens() == 120
+        assert bucket.available_requests() == 120
 
     with freeze_time(start + 130):
-        assert bucket.available_tokens() == 120
-
-
-def test_token_rate_limiter_adjusts_rate_with_multiplier():
-    start = time.time()
-
-    with freeze_time(start):
-        bucket = TokenRateLimiter(
-            per_second_rate=1, starting_tokens=0, max_tokens=120, rate_multiplier=0.5
-        )
-        assert bucket.rate == 0.5 * 60 / 60
-
-    with freeze_time(start + 10):
-        assert bucket.available_tokens() == 5
+        assert bucket.available_requests() == 120
 
 
 def test_token_rate_limiter_spends_tokens():
     start = time.time()
 
     with freeze_time(start):
-        bucket = TokenRateLimiter(per_second_rate=1, starting_tokens=20, max_tokens=120)
-        assert bucket.available_tokens() == 20
-        bucket.spend_tokens_if_available(10)
-        assert bucket.available_tokens() == 10
+        bucket = AdaptiveTokenBucket(
+            initial_per_second_request_rate=1,
+            enforcement_window_minutes=1,
+            rate_reduction_factor=1,
+            rate_increase_factor=1,
+        )
+
+    with freeze_time(start + 3):
+        assert bucket.available_requests() == 3
+        bucket.make_request_if_ready()
+        assert bucket.available_requests() == 2
 
 
 def test_token_rate_limiter_cannot_spend_unavailable_tokens():
     start = time.time()
 
     with freeze_time(start):
-        bucket = TokenRateLimiter(per_second_rate=1, starting_tokens=20, max_tokens=120)
-        assert bucket.available_tokens() == 20
+        bucket = AdaptiveTokenBucket(
+            initial_per_second_request_rate=1,
+            enforcement_window_minutes=2,
+            rate_reduction_factor=1,
+            rate_increase_factor=1,
+        )
+        assert bucket.available_requests() == 0
         with pytest.raises(UnavailableTokensError):
-            bucket.spend_tokens_if_available(30)
-
-
-def test_token_rate_limiter_can_be_forced_to_spend_tokens():
-    start = time.time()
-
-    with freeze_time(start):
-        bucket = TokenRateLimiter(per_second_rate=1, starting_tokens=20, max_tokens=120)
-        assert bucket.available_tokens() == 20
-        bucket.spend_tokens(30)
-        assert bucket.available_tokens() == -10
-
-
-def test_token_rate_limiter_conservatively_updates_rate():
-    start = time.time()
-
-    bucket = TokenRateLimiter(per_second_rate=1, starting_tokens=20, max_tokens=120)
-    assert isclose(bucket.rate, 60 / 60)
-    with freeze_time(start + 10):
-        assert bucket.available_tokens() > 0
-        bucket.update_limit(2, max_tokens=240)
-        assert isclose(bucket.rate, 2)
-        assert bucket.available_tokens() == 0
-        assert bucket.max_tokens == 240, "Updating the rate can update max_tokens"
+            bucket.make_request_if_ready()
 
 
 def test_token_rate_limiter_can_block_until_tokens_are_available():
     start = time.time()
 
     with freeze_time(start):
-        rate = 1
-        bucket = TokenRateLimiter(per_second_rate=rate, starting_tokens=0, max_tokens=120)
+        rate = 0.5
+        bucket = AdaptiveTokenBucket(
+            initial_per_second_request_rate=rate,
+            enforcement_window_minutes=2,
+            rate_reduction_factor=1,
+            rate_increase_factor=1,
+        )
 
     with warp_time(start):
-        assert bucket.tokens == 0
-        token_cost = 10
-        bucket.wait_for_then_spend_available_tokens(token_cost)
+        assert bucket.available_requests() == 0
+        bucket.wait_until_ready()
         sleeps = [s.args[0] for s in time.sleep.call_args_list]
-        time_cost = token_cost * rate
+        time_cost = 1 / rate
         assert sum(sleeps) >= time_cost
 
 
@@ -179,15 +168,20 @@ async def test_token_rate_limiter_async_waits_until_tokens_are_available():
     start = time.time()
 
     with freeze_time(start):
-        rate = 1
-        bucket = TokenRateLimiter(per_second_rate=rate, starting_tokens=0, max_tokens=120)
+        rate = 0.5
+        bucket = AdaptiveTokenBucket(
+            initial_per_second_request_rate=rate,
+            enforcement_window_minutes=2,
+            rate_reduction_factor=1,
+            rate_increase_factor=1,
+        )
 
     with async_warp_time(start):
-        assert bucket.tokens == 0
-        token_cost = 10
+        assert bucket.available_requests() == 0
+        bucket.wait_until_ready()
         await bucket.async_wait_for_then_spend_available_tokens(token_cost)
         sleeps = [s.args[0] for s in asyncio.sleep.call_args_list]
-        time_cost = token_cost * rate
+        time_cost = 1 / rate
         assert sum(sleeps) >= time_cost
 
 
@@ -195,194 +189,38 @@ def test_token_rate_limiter_can_accumulate_tokens_before_waiting():
     start = time.time()
 
     with freeze_time(start):
-        rate = 1
-        bucket = TokenRateLimiter(per_second_rate=rate, starting_tokens=0, max_tokens=120)
+        rate = 0.1
+        bucket = AdaptiveTokenBucket(
+            initial_per_second_request_rate=rate,
+            enforcement_window_minutes=2,
+            rate_reduction_factor=1,
+            rate_increase_factor=1,
+        )
 
-    with warp_time(start + 10):
-        assert bucket.tokens == 0
-        token_cost = 10
-        bucket.wait_for_then_spend_available_tokens(token_cost)
+    with warp_time(start + 5):
+        assert bucket.available_requests() == 0.5, "should have accumulated half a request"
+        bucket.wait_until_ready()
         sleeps = [s.args[0] for s in time.sleep.call_args_list]
-        time_cost = token_cost * rate
-        assert sum(sleeps) >= time_cost - 10
+        time_cost = (1 / rate) - 5
+        assert sum(sleeps) >= time_cost
 
 
 async def test_token_rate_limiter_can_async_accumulate_tokens_before_waiting():
     start = time.time()
 
     with freeze_time(start):
-        rate = 1
-        bucket = TokenRateLimiter(per_second_rate=rate, starting_tokens=0, max_tokens=120)
+        rate = 0.5
+        bucket = AdaptiveTokenBucket(
+            initial_per_second_request_rate=rate,
+            enforcement_window_minutes=2,
+            rate_reduction_factor=1,
+            rate_increase_factor=1,
+        )
 
-    with async_warp_time(start + 10):
-        assert bucket.tokens == 0
-        token_cost = 10
+    with async_warp_time(start):
+        assert bucket.available_requests() == 0.5, "should have accumulated half a request"
+        bucket.wait_until_ready()
         await bucket.async_wait_for_then_spend_available_tokens(token_cost)
         sleeps = [s.args[0] for s in asyncio.sleep.call_args_list]
-        time_cost = token_cost * rate
-        assert sum(sleeps) >= time_cost - 10
-
-
-def test_limit_store_groups_limits_by_key():
-    limit_store = LimitStore()
-    limit_store.set_rate_limit("one-key", "limit1", 20)
-    limit_store.set_rate_limit("one-key", "limit2", 30)
-    limit_store.set_rate_limit("another-key", "limit3", 60)
-    one_limit_group = limit_store.get_rate_limits("one-key")
-    assert "limit1" in one_limit_group
-    assert "limit2" in one_limit_group
-    assert "limit3" not in one_limit_group
-    another_limit_group = limit_store.get_rate_limits("another-key")
-    assert "limit1" not in another_limit_group
-    assert "limit2" not in another_limit_group
-    assert "limit3" in another_limit_group
-
-
-def test_limit_store_is_a_singleton():
-    first_limit_store_instance = LimitStore()
-    second_limit_store_instance = LimitStore()
-    assert first_limit_store_instance is second_limit_store_instance
-    first_limit_store_instance.set_rate_limit(
-        "test-key",
-        "test-limit",
-        60,
-    )
-    limits = second_limit_store_instance.get_rate_limits("test-key")
-    assert "test-limit" in limits
-    assert limits["test-limit"].rate == 60 / 60
-
-
-def test_limit_store_can_wait_for_all_grouped_rate_limits():
-    start = time.time()
-    limit_store = LimitStore()
-
-    small_limit = 10
-    big_limit = 60
-    small_token_cost = 1
-    big_token_cost = 10
-    small_time_cost = small_limit / 60 * small_token_cost
-    big_time_cost = big_limit / 60 * big_token_cost
-
-    with freeze_time(start):
-        limit_store.set_rate_limit("special-limit-group", "small-limit", small_limit)
-        limit_store.set_rate_limit("special-limit-group", "big-limit", big_limit)
-
-    with warp_time(start):
-        limit_store.wait_for_rate_limits(
-            "special-limit-group", {"small-limit": small_token_cost, "big-limit": big_token_cost}
-        )
-        sleeps = [s.args[0] for s in time.sleep.call_args_list]
-        assert small_time_cost < big_time_cost < sum(sleeps)
-
-
-def test_limit_store_can_wait_for_all_grouped_rate_limits_small():
-    start = time.time()
-    limit_store = LimitStore()
-
-    small_limit = 10
-    big_limit = 60
-    small_token_cost = 10
-    big_token_cost = 1
-    small_time_cost = small_limit / 60 * small_token_cost
-    big_time_cost = big_limit / 60 * big_token_cost
-
-    with freeze_time(start):
-        limit_store.set_rate_limit("special-limit-group", "small-limit", small_limit)
-        limit_store.set_rate_limit("special-limit-group", "big-limit", big_limit)
-
-    with warp_time(start):
-        limit_store.wait_for_rate_limits(
-            "special-limit-group", {"small-limit": small_token_cost, "big-limit": big_token_cost}
-        )
-        sleeps = [s.args[0] for s in time.sleep.call_args_list]
-        assert big_time_cost < small_time_cost < sum(sleeps)
-
-
-async def test_limit_store_can_async_wait_for_all_grouped_rate_limits():
-    start = time.time()
-    limit_store = LimitStore()
-
-    small_limit = 10
-    big_limit = 60
-    small_token_cost = 1
-    big_token_cost = 10
-    small_time_cost = small_limit / 60 * small_token_cost
-    big_time_cost = big_limit / 60 * big_token_cost
-
-    with freeze_time(start):
-        limit_store.set_rate_limit("special-limit-group", "small-limit", small_limit)
-        limit_store.set_rate_limit("special-limit-group", "big-limit", big_limit)
-
-    with async_warp_time(start):
-        await limit_store.async_wait_for_rate_limits(
-            "special-limit-group", {"small-limit": small_token_cost, "big-limit": big_token_cost}
-        )
-        sleeps = [s.args[0] for s in asyncio.sleep.call_args_list]
-        assert small_time_cost < big_time_cost < sum(sleeps)
-
-
-async def test_limit_store_can_async_wait_for_all_grouped_rate_limits_small():
-    start = time.time()
-    limit_store = LimitStore()
-
-    small_limit = 10
-    big_limit = 60
-    small_token_cost = 10
-    big_token_cost = 1
-    small_time_cost = small_limit / 60 * small_token_cost
-    big_time_cost = big_limit / 60 * big_token_cost
-
-    with freeze_time(start):
-        limit_store.set_rate_limit("special-limit-group", "small-limit", small_limit)
-        limit_store.set_rate_limit("special-limit-group", "big-limit", big_limit)
-
-    with async_warp_time(start):
-        await limit_store.async_wait_for_rate_limits(
-            "special-limit-group", {"small-limit": small_token_cost, "big-limit": big_token_cost}
-        )
-        sleeps = [s.args[0] for s in asyncio.sleep.call_args_list]
-        assert big_time_cost < small_time_cost < sum(sleeps)
-
-
-def test_limit_store_can_force_spend_tokens():
-    start = time.time()
-    limit_store = LimitStore()
-
-    with freeze_time(start):
-        per_minute_limit = 60
-        limit_store.set_rate_limit("forced-limit-group", "token-limit", 60)
-
-    with warp_time(start):
-        forced_token_cost = 10
-        token_cost = 30
-        limit_store.spend_rate_limits(
-            "forced-limit-group",
-            {"token-limit": forced_token_cost},
-        )
-        limit_store.wait_for_rate_limits(
-            "forced-limit-group",
-            {"token-limit": token_cost},
-        )
-        time_cost = per_minute_limit / 60 * (forced_token_cost + token_cost)
-        sleeps = [s.args[0] for s in time.sleep.call_args_list]
-        assert sum(sleeps) >= time_cost, "Should wait for tokens after forced spending"
-
-
-def test_resetting_rate_limits_resets_tokens():
-    start = time.time()
-    limit_store = LimitStore()
-
-    with freeze_time(start):
-        per_minute_limit = 60
-        limit_store.set_rate_limit("resetting-group", "some-limit", 60)
-
-    with warp_time(start + 10):
-        token_cost = 30
-        limit_store.set_rate_limit("resetting-group", "some-limit", 120)
-        limit_store.wait_for_rate_limits(
-            "resetting-group",
-            {"some-limit": token_cost},
-        )
-        time_cost = per_minute_limit / 120 * 30
-        sleeps = [s.args[0] for s in time.sleep.call_args_list]
+        time_cost = (1 / rate) - 5
         assert sum(sleeps) >= time_cost
