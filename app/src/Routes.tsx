@@ -58,8 +58,10 @@ const router = createBrowserRouter(
         element={<TracingRoot />}
       >
         <Route index element={<TracingHomePage />} />
-        <Route path="traces">
-          <Route path=":traceId" element={<TracePage />} />
+        <Route element={<TracingHomePage />}>
+          <Route path="traces">
+            <Route path=":traceId" element={<TracePage />} />
+          </Route>
         </Route>
       </Route>
     </Route>
