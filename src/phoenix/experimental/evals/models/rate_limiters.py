@@ -117,17 +117,23 @@ class RateLimiter:
     def __init__(
         self,
         rate_limit_error: Type[BaseException],
+        max_rate_limit_retries: int = 10,
         initial_per_second_request_rate: float = 200,
+        maximum_per_second_request_rate: float = 1000,
         enforcement_window_minutes: float = 1,
         rate_reduction_factor: float = 0.5,
         rate_increase_factor: float = 0.01,
+        cooldown_seconds: float = 5,
     ) -> None:
         self._rate_limit_error = rate_limit_error
-        self._rate_limiter = AdaptiveTokenBucket(
+        self._max_rate_limit_retries = max_rate_limit_retries
+        self._throttler = AdaptiveTokenBucket(
             initial_per_second_request_rate=initial_per_second_request_rate,
+            maximum_per_second_request_rate=maximum_per_second_request_rate,
             enforcement_window_minutes=enforcement_window_minutes,
             rate_reduction_factor=rate_reduction_factor,
             rate_increase_factor=rate_increase_factor,
+            cooldown_seconds=cooldown_seconds,
         )
 
     def limit(
@@ -135,13 +141,13 @@ class RateLimiter:
     ) -> Callable[ParameterSpec, GenericType]:
         @wraps(fn)
         def wrapper(*args: Any, **kwargs: Any) -> GenericType:
-            while True:
+            for _attempt in range(self._max_rate_limit_retries):
                 try:
-                    self._rate_limiter.wait_until_ready()
+                    self._throttler.wait_until_ready()
                     result: GenericType = fn(*args, **kwargs)
                     return result
                 except self._rate_limit_error:
-                    self._rate_limiter.on_rate_limit_error()
+                    self._throttler.on_rate_limit_error()
                     continue
 
         return wrapper
@@ -149,13 +155,13 @@ class RateLimiter:
     def alimit(self, fn: AsyncCallable) -> AsyncCallable:
         @wraps(fn)
         async def wrapper(*args: Any, **kwargs: Any) -> GenericType:
-            while True:
+            for _attempt in range(self._max_rate_limit_retries)
                 try:
-                    await self._rate_limiter.async_wait_until_ready()
+                    await self._throttler.async_wait_until_ready()
                     result: GenericType = await fn(*args, **kwargs)
                     return result
                 except self._rate_limit_error:
-                    self._rate_limiter.on_rate_limit_error()
+                    self._throttler.on_rate_limit_error()
                     continue
 
         return cast(AsyncCallable, wrapper)

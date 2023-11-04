@@ -184,10 +184,12 @@ class OpenAIModel(BaseEvalModel):
         except RuntimeError:
             pass
         return asyncio.run(
-            self._generate_async(prompts, instruction, num_consumers=num_consumers, **kwargs)
+            self._concurrent_request_submission(
+                prompts, instruction, num_consumers=num_consumers, **kwargs
+            )
         )
 
-    async def _generate_async(
+    async def _concurrent_request_submission(
         self,
         prompts: List[str],
         instruction: Optional[str] = None,
