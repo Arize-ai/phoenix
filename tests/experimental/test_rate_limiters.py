@@ -279,7 +279,6 @@ def test_token_bucket_does_not_increase_rate_past_maximum():
     with warp_time(start + 5):
         assert bucket.available_requests() == 0.5, "should have accumulated half a request"
         bucket.wait_until_ready()
-        sleeps = [s.args[0] for s in time.sleep.call_args_list]
         assert isclose(bucket.rate, rate * 2)
 
 
