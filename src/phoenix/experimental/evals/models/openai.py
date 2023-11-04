@@ -4,15 +4,13 @@ import asyncio
 import logging
 import os
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Dict, List, Mapping, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
 import nest_asyncio
-import requests
-from openai.openai_object import OpenAIObject
 from tqdm.asyncio import tqdm as async_tqdm
 
 from phoenix.experimental.evals.models.base import BaseEvalModel
-from phoenix.experimental.evals.models.rate_limiters import OpenAIRateLimiter
+from phoenix.experimental.evals.models.rate_limiters import RateLimiter
 from phoenix.experimental.evals.utils.types import is_list_of
 from phoenix.utilities.logging import printif
 
@@ -38,64 +36,6 @@ TQDM_BAR_FORMAT = (
     "({n_fmt}/{total_fmt}) "
     "[{elapsed}<{remaining}, {rate_fmt}{postfix}]"
 )
-
-# rate limits conservatively pulled from https://learn.microsoft.com/en-us/azure/ai-services/openai/quotas-limits
-AZURE_OPENAI_TOKEN_RATE_LIMITS = {
-    "gpt-35-turbo": 240000,
-    "gpt-35-turbo-16k": 240000,
-    "gpt-35-turbo-instruct": 240000,
-    "gpt-4": 20000,
-    "gpt-4-32k": 60000,
-    "text-embedding-ada-002": 240000,
-    "babbage-002": 50000,
-    "davinci-002": 50000,
-    "gpt-35-turbo-0613": 50000,
-}
-
-
-def openai_token_usage(chat_completion: OpenAIObject) -> int:
-    try:
-        return int(chat_completion.usage.total_tokens)
-    except (AttributeError, ValueError):
-        return 0
-
-
-def openai_rate_limit_info(
-    model_name: str, api_key: Optional[str], base_url: Optional[str] = None
-) -> Mapping[str, int]:
-    if base_url is not None and "openai.azure" in base_url:
-        token_limit = AZURE_OPENAI_TOKEN_RATE_LIMITS.get(model_name, 120000)
-        limit_info = {
-            "token_rate_limit": token_limit,
-        }
-    else:
-        if api_key is None:
-            # TODO: Create custom AuthenticationError
-            raise RuntimeError(
-                "OpenAI's API key not provided. Pass it as an argument to 'openai_api_key' "
-                "or set it in your environment: 'export OPENAI_API_KEY=sk-****'"
-            )
-        headers = {
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {api_key}",
-        }
-        data = {
-            "model": model_name,
-            "messages": [
-                {"role": "user", "content": "Test"},
-            ],
-        }
-        response = requests.post(
-            "https://api.openai.com/v1/chat/completions", headers=headers, json=data
-        )
-        # default to tier 1 rate limits (https://platform.openai.com/docs/guides/rate-limits/overview)
-        request_limit = int(response.headers.get("x-ratelimit-limit-requests", 500))
-        token_limit = int(response.headers.get("x-ratelimit-limit-tokens", 10000))
-        limit_info = {
-            "request_rate_limit": request_limit,
-            "token_rate_limit": token_limit,
-        }
-    return limit_info
 
 
 @dataclass
@@ -141,22 +81,7 @@ class OpenAIModel(BaseEvalModel):
         self._init_environment()
         self._init_open_ai()
         self._init_tiktoken()
-        self._rate_limiter: Optional[OpenAIRateLimiter] = None
-
-    @property
-    def rate_limiter(self, rate_limit_multiplier: float = 0.8) -> OpenAIRateLimiter:
-        if self._rate_limiter is None:
-            self._rate_limiter = OpenAIRateLimiter()
-            limit_info = openai_rate_limit_info(
-                self.model_name, self.openai_api_key, base_url=self.openai_api_base
-            )
-            # throttle our requests to some multiple of the absolute rate limit
-            limits = {
-                limit_type: limit * rate_limit_multiplier
-                for limit_type, limit in limit_info.items()
-            }
-            self._rate_limiter.set_rate_limits(self.model_name, **limits)
-        return self._rate_limiter
+        self._init_rate_limiter()
 
     def _init_environment(self) -> None:
         try:
@@ -228,6 +153,11 @@ class OpenAIModel(BaseEvalModel):
             logger.warning("Warning: model not found. Using cl100k_base encoding.")
             encoding = self._tiktoken.get_encoding("cl100k_base")
         self._tiktoken_encoding = encoding
+
+    def _init_rate_limiter(self) -> None:
+        self._rate_limiter: RateLimiter = RateLimiter(
+            rate_limit_error=self._openai_error.RateLimitError
+        )
 
     @staticmethod
     def _build_messages(
@@ -346,17 +276,16 @@ class OpenAIModel(BaseEvalModel):
             self._openai_error.Timeout,
             self._openai_error.APIError,
             self._openai_error.APIConnectionError,
-            self._openai_error.RateLimitError,
             self._openai_error.ServiceUnavailableError,
         ]
 
         async def metered_openai_chat_completion(**kwargs: Any) -> Any:
-            limit = self.rate_limiter.alimit(self.model_name, openai_token_usage)
+            limit = self._rate_limiter.alimit
             response = await limit(self._openai.ChatCompletion.acreate)(**kwargs)
             return response
 
         async def metered_openai_completion(**kwargs: Any) -> Any:
-            limit = self.rate_limiter.alimit(self.model_name, openai_token_usage)
+            limit = self._rate_limiter.alimit
             response = await limit(self._openai.Completion.acreate)(**kwargs)
             return response
 
