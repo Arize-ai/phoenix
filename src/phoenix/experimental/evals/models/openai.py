@@ -7,8 +7,6 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Dict, List, Mapping, Optional, Tuple, Union
 
 import nest_asyncio
-import requests
-from openai.openai_object import OpenAIObject
 from tqdm.asyncio import tqdm as async_tqdm
 
 from phoenix.experimental.evals.models.base import BaseEvalModel
