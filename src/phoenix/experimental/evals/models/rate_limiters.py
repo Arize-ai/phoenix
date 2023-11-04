@@ -1,6 +1,7 @@
 import asyncio
 import time
 from functools import wraps
+from math import exp
 from typing import Any, Awaitable, Callable, TypeVar, cast
 
 from typing_extensions import ParamSpec
@@ -34,7 +35,7 @@ class AdaptiveTokenBucket:
         initial_per_second_request_rate: float,
         enforcement_window_minutes: float,
         rate_reduction_factor: float = 0.5,
-        rate_increase_factor: float = 1.01,
+        rate_increase_factor: float = 0.01,
     ):
         now = time.time()
         self.rate = initial_per_second_request_rate
@@ -44,6 +45,11 @@ class AdaptiveTokenBucket:
         self.last_rate_update = now
         self.last_checked = now
         self.tokens = 0
+
+    def _increase_rate(self) -> None:
+        time_since_last_update = time.time() - self.last_rate_update
+        self.rate *= exp(self.rate_increase_factor * time_since_last_update)
+        self.last_rate_update = time.time()
 
     def max_tokens(self) -> float:
         return self.rate * self.enforcement_window
@@ -72,12 +78,11 @@ class AdaptiveTokenBucket:
         start = time.time()
         while (time.time() - start) < max_wait_time:
             try:
-                time_since_last_error = time.time() - self.last_rate_update
-                self.rate *= self.rate_increase_factor**time_since_last_error
+                self._increase_rate()
                 self.make_request_if_ready()
                 break
             except UnavailableTokensError:
-                time.sleep(1 / self.rate)
+                time.sleep(0.1 / self.rate)
                 continue
 
     async def async_wait_until_ready(
@@ -87,12 +92,11 @@ class AdaptiveTokenBucket:
         start = time.time()
         while (time.time() - start) < max_wait_time:
             try:
-                time_since_last_error = time.time() - self.last_rate_update
-                self.rate *= self.rate_increase_factor**time_since_last_error
+                self._increase_rate()
                 self.make_request_if_ready()
                 break
             except UnavailableTokensError:
-                await asyncio.sleep(1 / self.rate)
+                await asyncio.sleep(0.1 / self.rate)
                 continue
 
 
@@ -103,7 +107,7 @@ class RateLimiter:
         initial_per_second_request_rate: float = 200,
         enforcement_window_minutes: float = 1,
         rate_reduction_factor: float = 0.5,
-        rate_increase_factor: float = 1.01,
+        rate_increase_factor: float = 0.01,
     ) -> None:
         self._rate_limit_error = rate_limit_error
         self._rate_limiter = AdaptiveTokenBucket(
