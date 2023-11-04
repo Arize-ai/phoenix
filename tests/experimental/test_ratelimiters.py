@@ -79,9 +79,11 @@ def test_token_bucket_gains_tokens_over_time():
     with freeze_time(start):
         bucket = AdaptiveTokenBucket(
             initial_per_second_request_rate=1,
+            maximum_per_second_request_rate=1,
             enforcement_window_minutes=1,
             rate_reduction_factor=1,
             rate_increase_factor=0,
+            cooldown_seconds=5,
         )
 
     with freeze_time(start + 5):
@@ -97,9 +99,11 @@ def test_token_rate_limiter_can_max_out_on_requests():
     with freeze_time(start):
         bucket = AdaptiveTokenBucket(
             initial_per_second_request_rate=1,
+            maximum_per_second_request_rate=1,
             enforcement_window_minutes=2,
             rate_reduction_factor=1,
             rate_increase_factor=0,
+            cooldown_seconds=5,
         )
 
     with freeze_time(start + 30):
@@ -118,9 +122,11 @@ def test_token_rate_limiter_spends_tokens():
     with freeze_time(start):
         bucket = AdaptiveTokenBucket(
             initial_per_second_request_rate=1,
+            maximum_per_second_request_rate=1,
             enforcement_window_minutes=1,
             rate_reduction_factor=1,
             rate_increase_factor=0,
+            cooldown_seconds=5,
         )
 
     with freeze_time(start + 3):
@@ -135,9 +141,11 @@ def test_token_rate_limiter_cannot_spend_unavailable_tokens():
     with freeze_time(start):
         bucket = AdaptiveTokenBucket(
             initial_per_second_request_rate=1,
+            maximum_per_second_request_rate=1,
             enforcement_window_minutes=2,
             rate_reduction_factor=1,
             rate_increase_factor=0,
+            cooldown_seconds=5,
         )
         assert bucket.available_requests() == 0
         with pytest.raises(UnavailableTokensError):
@@ -151,9 +159,11 @@ def test_token_rate_limiter_can_block_until_tokens_are_available():
         rate = 0.5
         bucket = AdaptiveTokenBucket(
             initial_per_second_request_rate=rate,
+            maximum_per_second_request_rate=rate * 2,
             enforcement_window_minutes=2,
             rate_reduction_factor=1,
             rate_increase_factor=0,
+            cooldown_seconds=5,
         )
 
     with warp_time(start):
@@ -171,9 +181,11 @@ async def test_token_rate_limiter_async_waits_until_tokens_are_available():
         rate = 0.5
         bucket = AdaptiveTokenBucket(
             initial_per_second_request_rate=rate,
+            maximum_per_second_request_rate=rate * 2,
             enforcement_window_minutes=2,
             rate_reduction_factor=1,
             rate_increase_factor=0,
+            cooldown_seconds=5,
         )
 
     with async_warp_time(start):
@@ -191,9 +203,11 @@ def test_token_rate_limiter_can_accumulate_tokens_before_waiting():
         rate = 0.1
         bucket = AdaptiveTokenBucket(
             initial_per_second_request_rate=rate,
+            maximum_per_second_request_rate=rate * 2,
             enforcement_window_minutes=2,
             rate_reduction_factor=1,
             rate_increase_factor=0,
+            cooldown_seconds=5,
         )
 
     with warp_time(start + 5):
@@ -211,9 +225,11 @@ async def test_token_rate_limiter_can_async_accumulate_tokens_before_waiting():
         rate = 0.1
         bucket = AdaptiveTokenBucket(
             initial_per_second_request_rate=rate,
+            maximum_per_second_request_rate=rate * 2,
             enforcement_window_minutes=2,
             rate_reduction_factor=1,
             rate_increase_factor=0,
+            cooldown_seconds=5,
         )
 
     with async_warp_time(start + 5):
@@ -231,9 +247,11 @@ def test_token_bucket_adaptively_increases_rate_over_time():
         rate = 0.1
         bucket = AdaptiveTokenBucket(
             initial_per_second_request_rate=rate,
+            maximum_per_second_request_rate=rate * 2,
             enforcement_window_minutes=1,
             rate_reduction_factor=1,
             rate_increase_factor=0.01,
+            cooldown_seconds=5,
         )
 
     with warp_time(start + 5):
@@ -244,6 +262,27 @@ def test_token_bucket_adaptively_increases_rate_over_time():
         assert isclose(bucket.rate, 0.1 * exp(0.01 * elapsed_time))
 
 
+def test_token_bucket_does_not_increase_rate_past_maximum():
+    start = time.time()
+
+    with freeze_time(start):
+        rate = 0.1
+        bucket = AdaptiveTokenBucket(
+            initial_per_second_request_rate=rate,
+            maximum_per_second_request_rate=rate * 2,
+            enforcement_window_minutes=1,
+            rate_reduction_factor=1,
+            rate_increase_factor=100,
+            cooldown_seconds=5,
+        )
+
+    with warp_time(start + 5):
+        assert bucket.available_requests() == 0.5, "should have accumulated half a request"
+        bucket.wait_until_ready()
+        sleeps = [s.args[0] for s in time.sleep.call_args_list]
+        assert isclose(bucket.rate, rate * 2)
+
+
 def test_token_bucket_decreases_rate():
     start = time.time()
 
@@ -251,9 +290,36 @@ def test_token_bucket_decreases_rate():
         rate = 100
         bucket = AdaptiveTokenBucket(
             initial_per_second_request_rate=rate,
+            maximum_per_second_request_rate=rate * 2,
             enforcement_window_minutes=1,
             rate_reduction_factor=0.25,
             rate_increase_factor=0.01,
+            cooldown_seconds=5,
         )
         bucket.on_rate_limit_error()
         assert isclose(bucket.rate, 25)
+
+
+def test_token_bucket_decreases_rate_once_per_cooldown_period():
+    start = time.time()
+
+    with freeze_time(start):
+        rate = 100
+        bucket = AdaptiveTokenBucket(
+            initial_per_second_request_rate=rate,
+            maximum_per_second_request_rate=rate * 2,
+            enforcement_window_minutes=1,
+            rate_reduction_factor=0.25,
+            rate_increase_factor=0.01,
+            cooldown_seconds=5,
+        )
+        bucket.on_rate_limit_error()
+        assert isclose(bucket.rate, 25)
+
+    with freeze_time(start + 3):
+        bucket.on_rate_limit_error()
+        assert isclose(bucket.rate, 25)
+
+    with freeze_time(start + 6):
+        bucket.on_rate_limit_error()
+        assert isclose(bucket.rate, 6.25)

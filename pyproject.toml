@@ -106,7 +106,6 @@ dependencies = [
   "aioresponses",
   "tiktoken",
   "typing-extensions<4.6.0",  # for Colab
-  "httpx",
   "nest-asyncio",
 ]
 
@@ -119,7 +118,6 @@ dependencies = [
   "types-tqdm",
   "types-requests",
   "types-protobuf",
-  "httpx",
 ]
 
 [tool.hatch.envs.style]

@@ -25,39 +25,52 @@ class AdaptiveTokenBucket:
 
     Args:
     initial_per_second_request_rate (float): The allowed request rate.
+    maximum_per_second_request_rate (float): The maximum allowed request rate.
     enforcement_window_minutes (float): The time window over which the rate limit is enforced.
-    rate_reduction_factor (float): Factor used to reduce the rate limit after a rate limit error.
-    rate_increase_factor (float): Factor increasing the rate limit over time.
+    rate_reduction_factor (float): Multiplier used to reduce the rate limit after an error.
+    rate_increase_factor (float): Exponential factor increasing the rate limit over time.
+    cooldown_seconds (float): The minimum time before allowing the rate limit to decrease again.
     """
 
     def __init__(
         self,
         initial_per_second_request_rate: float,
-        enforcement_window_minutes: float,
+        maximum_per_second_request_rate: float = 1000,
+        enforcement_window_minutes: float = 1,
         rate_reduction_factor: float = 0.5,
         rate_increase_factor: float = 0.01,
+        cooldown_seconds: float = 5,
     ):
         now = time.time()
         self.rate = initial_per_second_request_rate
+        self.maximum_rate = maximum_per_second_request_rate
         self.rate_reduction_factor = rate_reduction_factor
         self.enforcement_window = enforcement_window_minutes * 60
         self.rate_increase_factor = rate_increase_factor
+        self.cooldown = cooldown_seconds
         self.last_rate_update = now
         self.last_checked = now
+        self.last_error = now - self.cooldown
         self.tokens = 0.0
 
     def _increase_rate(self) -> None:
         time_since_last_update = time.time() - self.last_rate_update
         self.rate *= exp(self.rate_increase_factor * time_since_last_update)
+        self.rate = min(self.rate, self.maximum_rate)
         self.last_rate_update = time.time()
+
+    def on_rate_limit_error(self) -> None:
+        now = time.time()
+        if self.cooldown > (now - self.last_error):
+            # don't reduce the rate if we just had a rate limit error
+            return
+        self.rate *= self.rate_reduction_factor
+        self.rate = max(self.rate, 1 / self.enforcement_window)
+        self.last_rate_update = now
+        self.last_error = now
 
     def max_tokens(self) -> float:
         return self.rate * self.enforcement_window
-
-    def on_rate_limit_error(self) -> None:
-        self.rate *= self.rate_reduction_factor
-        self.rate = max(self.rate, 1 / self.enforcement_window)
-        self.last_rate_update = time.time()
 
     def available_requests(self) -> float:
         now = time.time()
