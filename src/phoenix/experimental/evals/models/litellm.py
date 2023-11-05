@@ -1,6 +1,6 @@
 import logging
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 from phoenix.experimental.evals.models.base import BaseEvalModel
 
@@ -79,7 +79,7 @@ class LiteLLM(BaseEvalModel):
         return context_size
 
     @property
-    def encoder(self) -> "Encoding": 
+    def encoder(self) -> "Encoding":
         raise NotImplementedError
 
     def get_tokens_from_text(self, text: str) -> List[int]:
