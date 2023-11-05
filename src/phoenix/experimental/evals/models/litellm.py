@@ -1,12 +1,15 @@
-from functools import partial
-import json
 import logging
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
 from phoenix.experimental.evals.models.base import BaseEvalModel
 
+if TYPE_CHECKING:
+    from tiktoken import Encoding
+    from tokenizers import Tokenizer
+
 logger = logging.getLogger(__name__)
+
 
 @dataclass
 class LiteLLM(BaseEvalModel):
@@ -18,18 +21,19 @@ class LiteLLM(BaseEvalModel):
     """The maximum number of tokens to generate in the completion."""
     top_p: float = 1
     """Total probability mass of tokens to consider at each step."""
-    top_k: int = 256
-    """The cutoff where the model no longer selects the words"""
-    max_retries: int = 6
-    """Maximum number of retries to make when generating."""
+    num_retries: int = 6
+    """Maximum number to retry a model if an RateLimitError, OpenAIError, or
+    ServiceUnavailableError occurs."""
+    request_timeout: int = 60
+    """Maximum number of seconds to wait when retrying."""
+    extra_litellm_params: Dict[str, Any] = field(default_factory=dict)
+    """Model specific params"""
+
+    # non-LiteLLM params
     retry_min_seconds: int = 10
     """Minimum number of seconds to wait when retrying."""
-    retry_max_seconds: int = 60
-    """Maximum number of seconds to wait when retrying."""
     max_content_size: Optional[int] = None
     """If you're using a fine-tuned model, set this to the maximum content size"""
-    extra_parameters: Dict[str, Any] = field(default_factory=dict)
-    """Any extra parameters to add to the request body (e.g., countPenalty for a21 models)"""
 
     def __post_init__(self) -> None:
         self._init_environment()
@@ -38,27 +42,34 @@ class LiteLLM(BaseEvalModel):
     def _init_environment(self) -> None:
         try:
             import litellm  # type:ignore
-            
+            from litellm import exceptions  # type:ignore
+
             self._litellm = litellm
-            self._completion = partial(litellm.completion, max_tokens=self.max_tokens)
+            self._retry_errors = [
+                exceptions.RateLimitError,
+                exceptions.ServiceUnavailableError,
+                exceptions.OpenAIError,
+            ]
         except ImportError:
             self._raise_import_error(
                 package_display_name="LiteLLM",
                 package_name="litellm",
             )
-    
+
     def _init_model_encoding(self) -> None:
-        from litellm import token_counter, decode   # type:ignore
+        from litellm import decode, encode  # type:ignore
 
         if self.model_name in self._litellm.utils.get_valid_models():
-            self._encoding = partial(token_counter, model=self.model_name)
-            self._decoding = partial(decode, model=self.model_name)
+            self._encoding = encode
+            self._decoding = decode
         else:
             raise ValueError("Model name not found in the LiteLLM's valid models list")
 
     @property
     def max_context_size(self) -> int:
-        context_size = self.max_content_size or self._litellm.get_max_tokens(self.model_name).get('max_tokens', None)
+        context_size = self.max_content_size or self._litellm.get_max_tokens(self.model_name).get(
+            "max_tokens", None
+        )
 
         if context_size is None:
             raise ValueError(
@@ -69,47 +80,52 @@ class LiteLLM(BaseEvalModel):
         return context_size
 
     @property
-    def encoder(self) -> "Encoding": # type:ignore
-
-        # Multiple encoders supported by LiteLLM apart from TikToken. 
-        # So interface's return type needs a change.
+    def encoder(self) -> Union["Encoding", "Tokenizer"]:  # type:ignore
+        # Multiple encoders supported by LiteLLM apart from TikToken.
         # Ex: claude-2, claude-instant-1 -> tokenizers.Tokenizer
 
-        # from litellm.utils import _select_tokenizer # type: ignore
-        # return _select_tokenizer(self.model_name)
+        from litellm.utils import _select_tokenizer  # type: ignore
 
-        raise NotImplementedError
+        return _select_tokenizer(self.model_name)
 
     def get_tokens_from_text(self, text: str) -> List[int]:
-        return self._encoding(text)
+        result: List[int] = self._encoding(model=self.model_name, text=text)
+        return result
 
     def get_text_from_tokens(self, tokens: List[int]) -> str:
-        return self._decoding(tokens)
+        return str(self._decoding(model=self.model_name, tokens=tokens))
 
     def _generate(self, prompt: str, **kwargs: Dict[str, Any]) -> str:
-        messages = self._get_messages_for_litellm(prompt)
-        response = self._completion(model=self.model_name, messages=messages)
-        return response.choices[0].message.content
+        messages = self._get_messages_from_prompt(prompt)
+        return str(
+            self._generate_with_retry(
+                model=self.model_name,
+                messages=messages,
+                temperature=self.temperature,
+                max_tokens=self.max_tokens,
+                top_p=self.top_p,
+                num_retries=self.num_retries,
+                request_timeout=self.request_timeout,
+                **self.extra_litellm_params,
+            )
+        )
 
     def _generate_with_retry(self, **kwargs: Any) -> Any:
         """Use tenacity to retry the completion call."""
-        # TODO find proper exceptions
-        retry_errors = [] 
 
         @self.retry(
-            error_types=retry_errors,
+            error_types=self._retry_errors,
             min_seconds=self.retry_min_seconds,
-            max_seconds=self.retry_max_seconds,
-            max_retries=self.max_retries,
+            max_seconds=self.request_timeout,
+            max_retries=self.num_retries,
         )
         def _completion_with_retry(**kwargs: Any) -> Any:
-            return self._litellm.completion_with_retries(**kwargs)
+            response = self._litellm.completion(**kwargs)
+            return response.choices[0].message.content
 
         return _completion_with_retry(**kwargs)
 
-    def _get_messages_for_litellm(self, prompt: str) -> str:
+    def _get_messages_from_prompt(self, prompt: str) -> List[Dict[str, str]]:
         # LiteLLM requires prompts in the format of messages
         # messages=[{"content": "ABC?","role": "user"}]
         return [{"content": prompt, "role": "user"}]
-
-        

@@ -2,10 +2,12 @@ import logging
 from abc import ABC, abstractmethod, abstractproperty
 from contextlib import contextmanager
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Callable, Generator, List, Optional, Type
+from typing import TYPE_CHECKING, Any, Callable, Generator, List, Optional, Type, Union
 
 if TYPE_CHECKING:
     from tiktoken import Encoding
+    from tokenizers import Tokenizer
+
 
 from tenacity import (
     RetryCallState,
@@ -192,5 +194,5 @@ class BaseEvalModel(ABC):
         ...
 
     @abstractproperty
-    def encoder(self) -> "Encoding":
+    def encoder(self) -> Union["Encoding", "Tokenizer"]:
         ...
