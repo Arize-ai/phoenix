@@ -6,7 +6,6 @@ from typing import TYPE_CHECKING, Any, Callable, Generator, List, Optional, Type
 
 if TYPE_CHECKING:
     from tiktoken import Encoding
-    from tokenizers import Tokenizer
 
 
 from tenacity import (
@@ -194,5 +193,5 @@ class BaseEvalModel(ABC):
         ...
 
     @abstractproperty
-    def encoder(self) -> Union["Encoding", "Tokenizer"]:
+    def encoder(self) -> "Encoding":
         ...

@@ -6,7 +6,6 @@ from phoenix.experimental.evals.models.base import BaseEvalModel
 
 if TYPE_CHECKING:
     from tiktoken import Encoding
-    from tokenizers import Tokenizer
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +41,7 @@ class LiteLLM(BaseEvalModel):
     def _init_environment(self) -> None:
         try:
             import litellm  # type:ignore
-            from litellm import exceptions  # type:ignore
+            from litellm import exceptions
 
             self._litellm = litellm
             self._retry_errors = [
@@ -57,7 +56,7 @@ class LiteLLM(BaseEvalModel):
             )
 
     def _init_model_encoding(self) -> None:
-        from litellm import decode, encode  # type:ignore
+        from litellm import decode, encode
 
         if self.model_name in self._litellm.utils.get_valid_models():
             self._encoding = encode
@@ -80,13 +79,8 @@ class LiteLLM(BaseEvalModel):
         return context_size
 
     @property
-    def encoder(self) -> Union["Encoding", "Tokenizer"]:  # type:ignore
-        # Multiple encoders supported by LiteLLM apart from TikToken.
-        # Ex: claude-2, claude-instant-1 -> tokenizers.Tokenizer
-
-        from litellm.utils import _select_tokenizer  # type: ignore
-
-        return _select_tokenizer(self.model_name)
+    def encoder(self) -> "Encoding": 
+        raise NotImplementedError
 
     def get_tokens_from_text(self, text: str) -> List[int]:
         result: List[int] = self._encoding(model=self.model_name, text=text)
