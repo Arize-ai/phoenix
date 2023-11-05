@@ -285,7 +285,7 @@ def test_token_bucket_does_not_increase_rate_past_maximum():
 def test_token_bucket_decreases_rate():
     start = time.time()
 
-    with freeze_time(start):
+    with warp_time(start):
         rate = 100
         bucket = AdaptiveTokenBucket(
             initial_per_second_request_rate=rate,
@@ -297,12 +297,14 @@ def test_token_bucket_decreases_rate():
         )
         bucket.on_rate_limit_error()
         assert isclose(bucket.rate, 25)
+        assert bucket.tokens == 0
+        assert time.time() == start + 5
 
 
 def test_token_bucket_decreases_rate_once_per_cooldown_period():
     start = time.time()
 
-    with freeze_time(start):
+    with warp_time(start):
         rate = 100
         bucket = AdaptiveTokenBucket(
             initial_per_second_request_rate=rate,
@@ -315,10 +317,10 @@ def test_token_bucket_decreases_rate_once_per_cooldown_period():
         bucket.on_rate_limit_error()
         assert isclose(bucket.rate, 25)
 
-    with freeze_time(start + 3):
+    with warp_time(start + 3):
         bucket.on_rate_limit_error()
         assert isclose(bucket.rate, 25)
 
-    with freeze_time(start + 6):
+    with warp_time(start + 6):
         bucket.on_rate_limit_error()
         assert isclose(bucket.rate, 6.25)

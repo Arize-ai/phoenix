@@ -53,7 +53,7 @@ class AdaptiveTokenBucket:
         self.last_error = now - self.cooldown
         self.tokens = 0.0
 
-    def _increase_rate(self) -> None:
+    def increase_rate(self) -> None:
         time_since_last_update = time.time() - self.last_rate_update
         self.rate *= exp(self.rate_increase_factor * time_since_last_update)
         self.rate = min(self.rate, self.maximum_rate)
@@ -65,9 +65,16 @@ class AdaptiveTokenBucket:
             # don't reduce the rate if we just had a rate limit error
             return
         self.rate *= self.rate_reduction_factor
+
+        # the enforcement window determines the minimum rate
         self.rate = max(self.rate, 1 / self.enforcement_window)
+
+        # reset request tokens on a rate limit error
+        self.tokens = 0
+        self.last_checked = now
         self.last_rate_update = now
         self.last_error = now
+        time.sleep(self.cooldown)  # block for a bit to let the rate limit reset
 
     def max_tokens(self) -> float:
         return self.rate * self.enforcement_window
@@ -91,7 +98,7 @@ class AdaptiveTokenBucket:
         start = time.time()
         while (time.time() - start) < max_wait_time:
             try:
-                self._increase_rate()
+                self.increase_rate()
                 self.make_request_if_ready()
                 break
             except UnavailableTokensError:
@@ -105,7 +112,7 @@ class AdaptiveTokenBucket:
         start = time.time()
         while (time.time() - start) < max_wait_time:
             try:
-                self._increase_rate()
+                self.increase_rate()
                 self.make_request_if_ready()
                 break
             except UnavailableTokensError:
