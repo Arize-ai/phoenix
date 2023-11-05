@@ -1,10 +1,11 @@
+import json
 import logging
 import warnings
-from typing import Any, Iterable, List, Optional, Union, cast
+from typing import Any, Dict, Iterable, List, Optional, Union, cast
 
 import pandas as pd
 
-from phoenix.experimental.evals.models import BaseEvalModel, set_verbosity
+from phoenix.experimental.evals.models import BaseEvalModel, OpenAIModel, set_verbosity
 from phoenix.experimental.evals.templates import (
     NOT_PARSABLE,
     RAG_RELEVANCY_PROMPT_RAILS_MAP,
@@ -22,6 +23,11 @@ logger = logging.getLogger(__name__)
 OPENINFERENCE_QUERY_COLUMN_NAME = "attributes." + INPUT_VALUE
 OPENINFERENCE_DOCUMENT_COLUMN_NAME = "attributes." + RETRIEVAL_DOCUMENTS
 
+# argument keys in the default openai function call,
+# defined here only to prevent typos
+_RESPONSE = "response"
+_EXPLANATION = "explanation"
+
 
 def llm_classify(
     dataframe: pd.DataFrame,
@@ -30,8 +36,12 @@ def llm_classify(
     rails: List[str],
     system_instruction: Optional[str] = None,
     verbose: bool = False,
-) -> List[str]:
-    """Classifies each input row of the dataframe using an LLM.
+    use_function_calling_if_available: bool = True,
+    provide_explanation: bool = False,
+) -> pd.DataFrame:
+    """Classifies each input row of the dataframe using an LLM. Returns a pandas.DataFrame
+    where the first column is named `label` and contains the classification labels. An optional
+    column named `explanation` is added when `provide_explanation=True`.
 
     Args:
         dataframe (pandas.DataFrame): A pandas dataframe in which each row represents a record to be
@@ -52,19 +62,74 @@ def llm_classify(
         verbose (bool, optional): If True, prints detailed info to stdout such as model invocation
         parameters and details about retries and snapping to rails. Default False.
 
-    Returns:
-        List[str]: A list of strings representing the predicted class for each record in the
-        dataframe. The list should have the same length as the input dataframe and its values should
-        be the entries in the rails argument or "NOT_PARSABLE" if the model's prediction could not
-        be parsed.
-    """
+        use_function_calling_if_available (bool, default=True): If True, use function calling
+        (if available) as a means to constrain the LLM outputs. With function calling, the LLM
+        is instructed to provide its response as a structured JSON object, which is easier
+        to parse.
 
+        provide_explanation (bool, default=False): If True, provides an explanation for each
+        classification label. A column named `explanation` is added to the output dataframe.
+        Currently, this is only available for models with function calling.
+
+    Returns:
+        pandas.DataFrame: A dataframe where the `label` column (at column position 0) contains
+        the classification labels. If provide_explanation=True, then an additional column named
+        `explanation` is added to contain the explanation for each label. The dataframe has
+        the same length and index as the input dataframe. The classification label values are
+        from the entries in the rails argument or "NOT_PARSABLE" if the model's output could
+        not be parsed.
+    """
+    use_openai_function_call = (
+        use_function_calling_if_available
+        and isinstance(model, OpenAIModel)
+        and model.supports_function_calling
+    )
+
+    # TODO: support explanation without function calling
+    if provide_explanation and not use_openai_function_call:
+        raise ValueError(
+            "explanation is not currently available for models without OpenAI function calling"
+        )
+
+    model_kwargs: Dict[str, Any] = {}
+    if use_openai_function_call:
+        openai_function = _default_openai_function(rails, provide_explanation)
+        model_kwargs["functions"] = [openai_function]
+        model_kwargs["function_call"] = {"name": openai_function["name"]}
+
+    eval_template = normalize_template(template)
+    prompts = map_template(dataframe, eval_template)
     with set_verbosity(model, verbose) as verbose_model:
-        eval_template = normalize_template(template)
-        prompts = map_template(dataframe, eval_template)
-        responses = verbose_model.generate(prompts.to_list(), instruction=system_instruction)
-        printif(verbose, f"Snapping {len(responses)} responses to rails: {rails}")
-        return [_snap_to_rail(response, rails, verbose=verbose) for response in responses]
+        responses = verbose_model.generate(
+            prompts.to_list(), instruction=system_instruction, **model_kwargs
+        )
+
+    labels: List[str] = []
+    explanations: List[Optional[str]] = []
+
+    printif(verbose, f"Snapping {len(responses)} responses to rails: {rails}")
+    for response in responses:
+        if not use_openai_function_call:
+            raw_string = response
+            if provide_explanation:
+                # TODO: support explanation without function calling
+                explanations.append(None)
+        else:
+            try:
+                function_arguments = json.loads(response, strict=False)
+                raw_string = function_arguments.get(_RESPONSE)
+                if provide_explanation:
+                    explanations.append(function_arguments.get(_EXPLANATION))
+            except json.JSONDecodeError:
+                raw_string = response
+        labels.append(_snap_to_rail(raw_string, rails, verbose=verbose))
+
+    data: Dict[str, List[Any]] = {"label": labels}
+    if provide_explanation:
+        assert len(labels) == len(explanations)
+        data["explanation"] = explanations
+
+    return pd.DataFrame(data=data, index=dataframe.index)
 
 
 def llm_eval_binary(
@@ -111,13 +176,17 @@ def llm_eval_binary(
         category=DeprecationWarning,
         stacklevel=2,
     )
-    return llm_classify(
-        dataframe=dataframe,
-        model=model,
-        template=template,
-        rails=rails,
-        system_instruction=system_instruction,
-        verbose=verbose,
+    return (
+        llm_classify(
+            dataframe=dataframe,
+            model=model,
+            template=template,
+            rails=rails,
+            system_instruction=system_instruction,
+            verbose=verbose,
+        )
+        .iloc[:, 0]
+        .tolist()
     )
 
 
@@ -227,7 +296,7 @@ def run_relevance_eval(
             rails=rails,
             system_instruction=system_instruction,
             verbose=verbose,
-        )
+        ).iloc[:, 0]
         outputs: List[List[str]] = [[] for _ in range(len(dataframe))]
         for index, prediction in zip(indexes, predictions):
             outputs[index].append(prediction)
@@ -242,7 +311,7 @@ def _get_contents_from_openinference_documents(documents: Iterable[Any]) -> List
     return [doc.get(DOCUMENT_CONTENT) if isinstance(doc, dict) else None for doc in documents]
 
 
-def _snap_to_rail(raw_string: str, rails: List[str], verbose: bool = False) -> str:
+def _snap_to_rail(raw_string: Optional[str], rails: List[str], verbose: bool = False) -> str:
     """
     Snaps a string to the nearest rail, or returns None if the string cannot be
     snapped to a rail.
@@ -256,10 +325,10 @@ def _snap_to_rail(raw_string: str, rails: List[str], verbose: bool = False) -> s
         str: A string from the rails argument or "UNPARSABLE" if the input
         string could not be snapped.
     """
-
+    if not raw_string:
+        return NOT_PARSABLE
     snap_string = raw_string.lower()
-    rails = list(set(rails))
-    rails = [rail.lower() for rail in rails]
+    rails = list(set(rail.lower() for rail in rails))
     rails.sort(key=len, reverse=True)
     found_rails = set()
     for rail in rails:
@@ -272,3 +341,32 @@ def _snap_to_rail(raw_string: str, rails: List[str], verbose: bool = False) -> s
     rail = list(found_rails)[0]
     printif(verbose, f"- Snapped {repr(raw_string)} to rail: {rail}")
     return rail
+
+
+def _default_openai_function(
+    rails: List[str],
+    with_explanation: bool = False,
+) -> Dict[str, Any]:
+    properties = {
+        _RESPONSE: {"type": "string", "description": "Your response.", "enum": rails},
+        **(
+            {
+                _EXPLANATION: {
+                    "type": "string",
+                    "description": "Explanation of the reasoning for your response.",
+                },
+            }
+            if with_explanation
+            else {}
+        ),
+    }
+    required = [_RESPONSE, *([_EXPLANATION] if with_explanation else [])]
+    return {
+        "name": "record_response",
+        "description": "A function to record your response.",
+        "parameters": {
+            "type": "object",
+            "properties": properties,
+            "required": required,
+        },
+    }

@@ -307,7 +307,7 @@ def df_evals(
         template=template,
         model=model,
         rails=["correct", "incorrect"],
-    )
+    ).iloc[:, 0]
     df["qa_evals"] = Q_and_A_classifications
     # Retreival Eval: Did I have the relevant data to even answer the question?
     # Checking retrieval system

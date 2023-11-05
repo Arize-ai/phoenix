@@ -1,7 +1,7 @@
 import React, { ReactNode, useCallback, useMemo, useState } from "react";
 import { useContextBridge } from "@react-three/drei";
 import { css } from "@emotion/react";
-import { ThemeContext } from "@emotion/react";
+import { ThemeContext as EmotionThemeContext } from "@emotion/react";
 
 import {
   ActionTooltip,
@@ -25,7 +25,9 @@ import { UNKNOWN_COLOR } from "@phoenix/constants/pointCloudConstants";
 import {
   DatasetsContext,
   PointCloudContext,
+  ThemeContext,
   usePointCloudContext,
+  useTheme,
 } from "@phoenix/contexts";
 import { useTimeSlice } from "@phoenix/contexts/TimeSliceContext";
 import { CanvasMode } from "@phoenix/store";
@@ -196,7 +198,7 @@ function CanvasInfo() {
 }
 
 function CanvasWrap({ children }: { children: ReactNode }) {
-  const canvasTheme = usePointCloudContext((state) => state.canvasTheme);
+  const { theme } = useTheme();
   return (
     <div
       css={css`
@@ -210,10 +212,10 @@ function CanvasWrap({ children }: { children: ReactNode }) {
           );
         }
         &[data-theme="light"] {
-          background: linear-gradient(#d2def3 0%, #b2c5e8 74%);
+          background: linear-gradient(#f2f6fd 0%, #dbe6fc 74%);
         }
       `}
-      data-theme={canvasTheme}
+      data-theme={theme}
     >
       {children}
     </div>
@@ -245,7 +247,7 @@ const Projection = React.memo(function Projection() {
   const pointGroupVisibility = usePointCloudContext(
     (state) => state.pointGroupVisibility
   );
-  const canvasTheme = usePointCloudContext((state) => state.canvasTheme);
+  const { theme } = useTheme();
   const datasetVisibility = usePointCloudContext(
     (state) => state.datasetVisibility
   );
@@ -349,6 +351,7 @@ const Projection = React.memo(function Projection() {
   const ContextBridge = useContextBridge(
     PointCloudContext,
     DatasetsContext,
+    EmotionThemeContext,
     ThemeContext
   );
 
@@ -379,7 +382,7 @@ const Projection = React.memo(function Projection() {
           />
           <Axes
             size={(bounds.maxX - bounds.minX) / 4}
-            color={canvasTheme == "dark" ? "#fff" : "#505050"}
+            color={theme == "dark" ? "#fff" : "#505050"}
           />
           <PointCloudPoints
             primaryData={filteredPrimaryData}

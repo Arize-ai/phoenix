@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<08057209caeeee181fb7f353d0d43b81>>
+ * @generated SignedSource<<84642d1ed540a6aeb64bda24707d0050>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -8,7 +8,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { Fragment, ReaderFragment } from 'relay-runtime';
+import { ReaderFragment, RefetchableFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type TracingHomePageHeader_stats$data = {
   readonly totalTraces: {
@@ -33,7 +33,13 @@ export type TracingHomePageHeader_stats$key = {
 const node: ReaderFragment = {
   "argumentDefinitions": [],
   "kind": "Fragment",
-  "metadata": null,
+  "metadata": {
+    "refetch": {
+      "connection": null,
+      "fragmentPathInResult": [],
+      "operation": require('./TracingHomePageHeaderQuery.graphql')
+    }
+  },
   "name": "TracingHomePageHeader_stats",
   "selections": [
     {
@@ -122,6 +128,6 @@ const node: ReaderFragment = {
   "abstractKey": null
 };
 
-(node as any).hash = "3a78a98b4a7c56223d844d32bcf539ca";
+(node as any).hash = "2f4140d22a5444b5a9fea58801814504";
 
 export default node;

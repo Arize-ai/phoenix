@@ -15,6 +15,7 @@ import {
   ModelPage,
   ModelRoot,
   TracePage,
+  TracingRoot,
 } from "./pages";
 
 const router = createBrowserRouter(
@@ -54,10 +55,13 @@ const router = createBrowserRouter(
       <Route
         path="/tracing"
         handle={{ crumb: () => "tracing" }}
-        element={<TracingHomePage />}
+        element={<TracingRoot />}
       >
-        <Route path="traces">
-          <Route path=":traceId" element={<TracePage />} />
+        <Route index element={<TracingHomePage />} />
+        <Route element={<TracingHomePage />}>
+          <Route path="traces">
+            <Route path=":traceId" element={<TracePage />} />
+          </Route>
         </Route>
       </Route>
     </Route>

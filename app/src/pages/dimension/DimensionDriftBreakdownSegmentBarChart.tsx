@@ -18,9 +18,9 @@ import { Flex, Text, theme, View } from "@arizeai/components";
 import {
   ChartTooltip,
   ChartTooltipItem,
-  colors,
   defaultBarChartTooltipProps,
   getBinName,
+  useChartColors,
 } from "@phoenix/components/chart";
 import { useDatasets } from "@phoenix/contexts";
 import { useTimeSlice } from "@phoenix/contexts/TimeSliceContext";
@@ -36,16 +36,22 @@ type BarChartItem = {
   referencePercent: number;
 };
 
-const primaryBarColor = colors.primary;
-const referenceBarColor = colors.reference;
-
 const formatter = format(".2f");
+
+const useColors = () => {
+  const { primary, reference } = useChartColors();
+  return {
+    primaryBarColor: primary,
+    referenceBarColor: reference,
+  };
+};
 
 function TooltipContent({
   active,
   payload,
   label,
 }: TooltipProps<BarChartItem["primaryPercent"], BarChartItem["name"]>) {
+  const { primaryBarColor, referenceBarColor } = useColors();
   if (active && payload && payload.length) {
     const primaryLabel = payload[0]?.payload?.primaryName;
     const primaryValue = payload[0]?.value;
@@ -173,6 +179,7 @@ export function DimensionDriftBreakdownSegmentBarChart(props: {
     referenceName,
   ]);
 
+  const { primaryBarColor, referenceBarColor } = useColors();
   return (
     <Flex direction="column" height="100%">
       <View flex="none" paddingTop="size-100" paddingStart="size-200">
