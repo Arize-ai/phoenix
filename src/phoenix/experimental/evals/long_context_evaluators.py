@@ -17,15 +17,15 @@ class Refiner:
         self._refine_prompt_template = refine_prompt_template
         self._reduce_prompt_template = reduce_prompt_template
 
-    def evaluate(self, documents: List[str]) -> str:
-        if len(documents) < 2:
+    def evaluate(self, chunks: List[str]) -> str:
+        if len(chunks) < 2:
             raise ValueError("Must provide two or more documents")
         model = self._model
-        initial_prompt = self._initial_prompt_template.format({"document": documents[0]})
+        initial_prompt = self._initial_prompt_template.format({"chunk": chunks[0]})
         accumulator = model(initial_prompt)
-        for document in documents[1:]:
+        for chunk in chunks[1:]:
             refine_prompt = self._refine_prompt_template.format(
-                {"accumulator": accumulator, "document": document}
+                {"accumulator": accumulator, "chunk": chunk}
             )
             accumulator = model(refine_prompt)
         if not self._reduce_prompt_template:
@@ -45,13 +45,13 @@ class MapReducer:
         self._map_prompt_template = map_prompt_template
         self._reduce_prompt_template = reduce_prompt_template
 
-    def evaluate(self, documents: List[str]) -> str:
-        if len(documents) < 2:
+    def evaluate(self, chunks: List[str]) -> str:
+        if len(chunks) < 2:
             raise ValueError("Must provide two or more documents")
         model = self._model
         mapped_records = []
-        for document in documents:
-            map_prompt = self._map_prompt_template.format({"context": document})
+        for chunk in chunks:
+            map_prompt = self._map_prompt_template.format({"chunk": chunk})
             intermediate_output = model(map_prompt)
             mapped_records.append(intermediate_output)
         reduce_prompt = self._reduce_prompt_template.format({"mapped": mapped_records})
