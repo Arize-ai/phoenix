@@ -8,7 +8,6 @@ import pandas as pd
 
 from phoenix.experimental.evals.models import BaseEvalModel, OpenAIModel, set_verbosity
 from phoenix.experimental.evals.templates import (
-    EXPLANATION_PROMPT_TEMPLATE_STR,
     NOT_PARSABLE,
     RAG_RELEVANCY_PROMPT_RAILS_MAP,
     RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
@@ -113,7 +112,7 @@ def llm_classify(
         if not use_openai_function_call:
             raw_string = response
             if provide_explanation:
-                raw_string, explanation = _split_on_explanation(raw_string)
+                raw_string, explanation = _search_for_label(raw_string), raw_string
                 explanations.append(explanation)
         else:
             try:
@@ -344,12 +343,12 @@ def _snap_to_rail(raw_string: Optional[str], rails: List[str], verbose: bool = F
     return rail
 
 
-def _split_on_explanation(raw_string: str) -> List[str]:
-    explanation_delimiter = r"\W*explanation\W*"
-    parts = re.split(explanation_delimiter, raw_string, maxsplit=1, flags=re.IGNORECASE)
-    if len(parts) == 1:
-        return parts + ["UNPARSABLE EXPLANATION"]
-    return parts
+def _search_for_label(raw_string: str) -> List[str]:
+    label_delimiter = r"\W*label\W*"
+    match = re.search(label_delimiter, raw_string, flags=re.IGNORECASE)
+    if match:
+        label = match.group(1).strip()
+    return label
 
 
 def _default_openai_function(

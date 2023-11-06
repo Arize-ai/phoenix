@@ -128,13 +128,27 @@ Implementation to Evaluate:
 CODE_READABILITY_PROMPT_RAILS_MAP = OrderedDict({True: "readable", False: "unreadable"})
 
 
-EXPLANATION_PROMPT_TEMPLATE_STR = """
-The single word response should be followed by reasoning for your response in a separate
-section that begins with the string "[EXPLANATION]". Here is an example response:
+RAG_RELEVANCY_PROMPT_WITH_EXPLANATION_TEMPLATE_STR = """
+You are comparing a reference text to a question and trying to determine if the reference text
+contains information relevant to answering the question. Here is the data:
+    [BEGIN DATA]
+    ************
+    [Question]: {query}
+    ************
+    [Reference text]: {reference}
+    [END DATA]
+Compare the Question above to the Reference text. You must determine whether the Reference text
+contains information that can help answer the Question. First, write out in a step by step manner
+an EXPLANATION to show how to arrive at the correct answer. Avoid simply stating the correct answer
+at the outset. Your response LABEL must be single word, either "relevant" or "irrelevant", and
+should not contain any text or characters aside from that word. "irrelevant" means that the
+reference text does not help answer to the Question. "relevant" means the reference text directly
+answers the question.
 
-```
-YOUR_RESPONSE
+Example response:
+************
+EXPLANATION: An explanation of your reasoning for why the label is "relevant" or "irrelevant"
+LABEL: "relevant" or "irrelevant"
+************
 
-[EXPLANATION] ...
-```
-"""
+EXPLANATION:"""

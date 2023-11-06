@@ -26,16 +26,6 @@ class PromptTemplate:
         self._validate()
         self.variables = self._parse_variables()
 
-    def append(self, template: Union[str, "PromptTemplate"]) -> None:
-        """
-        Appends a template to the current template.
-        Args:
-            template (Union[str, PromptTemplate]): The template to append.
-        """
-        template = normalize_template(template)
-        self.text += template.text
-        self.variables += template.variables
-
     def format(self, variable_values: Dict[str, Union[bool, int, float, str]]) -> str:
         prompt = self.text
         for variable_name in self.variables:
