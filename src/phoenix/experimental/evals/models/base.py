@@ -82,7 +82,7 @@ class BaseEvalModel(ABC):
             before_sleep=log_retry,
         )
 
-    def __call__(self, prompt: str, instruction: Optional[str] = None) -> str:
+    def __call__(self, prompt: str, instruction: Optional[str] = None, **kwargs: Any) -> str:
         """Run the LLM on the given prompt."""
         if not isinstance(prompt, str):
             raise TypeError(
@@ -95,7 +95,7 @@ class BaseEvalModel(ABC):
                 "Invalid type for argument `instruction`. Expected a string but found "
                 f"{type(instruction)}."
             )
-        return self.generate(prompts=[prompt], instruction=instruction)[0]
+        return self.generate(prompts=[prompt], instruction=instruction, **kwargs)[0]
 
     async def async_call(self, prompt: str, instruction: Optional[str] = None) -> str:
         """Run the LLM on the given prompt."""
