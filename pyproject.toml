@@ -114,6 +114,7 @@ dependencies = [
   "types-tqdm",
   "types-requests",
   "types-protobuf",
+  "openai<1.0.0",
 ]
 
 [tool.hatch.envs.style]
