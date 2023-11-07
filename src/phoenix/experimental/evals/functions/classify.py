@@ -120,10 +120,13 @@ def llm_classify(
                     explanation = None
             labels.append(_snap_to_rail(unrailed_label, rails, verbose=verbose))
             explanations.append(explanation)
-    return pd.DataFrame(
-        data={"label": labels, **({"explanation": explanations} if provide_explanation else {})},
-        index=dataframe.index,
-    )
+        return pd.DataFrame(
+            data={
+                "label": labels,
+                **({"explanation": explanations} if provide_explanation else {}),
+            },
+            index=dataframe.index,
+        )
 
 
 def run_relevance_eval(

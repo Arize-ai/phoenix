@@ -2,7 +2,9 @@
 
 from typing import Any
 
+from tqdm.auto import tqdm
+
 
 def printif(condition: bool, *args: Any, **kwargs: Any) -> None:
     if condition:
-        print(*args, **kwargs)
+        tqdm.write(*args, **kwargs)
