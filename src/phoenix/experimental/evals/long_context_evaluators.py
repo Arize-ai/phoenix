@@ -62,5 +62,5 @@ class MapReducer:
             map_prompt = self._map_prompt_template.format({"chunk": chunk})
             intermediate_output = model(map_prompt)
             mapped_records.append(intermediate_output)
-        reduce_prompt = self._reduce_prompt_template.format({"mapped": mapped_records})
+        reduce_prompt = self._reduce_prompt_template.format({"mapped": repr(mapped_records)})
         return model(reduce_prompt)
