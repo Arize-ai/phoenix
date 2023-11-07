@@ -82,7 +82,7 @@ class BaseEvalModel(ABC):
             before_sleep=log_retry,
         )
 
-    def __call__(self, prompt: str, instruction: Optional[str] = None) -> str:
+    def __call__(self, prompt: str, instruction: Optional[str] = None, **kwargs: Any) -> str:
         """Run the LLM on the given prompt."""
         if not isinstance(prompt, str):
             raise TypeError(
@@ -95,7 +95,7 @@ class BaseEvalModel(ABC):
                 "Invalid type for argument `instruction`. Expected a string but found "
                 f"{type(instruction)}."
             )
-        return self.generate(prompts=[prompt], instruction=instruction)[0]
+        return self._generate(prompt=prompt, instruction=instruction, **kwargs)
 
     async def async_call(self, prompt: str, instruction: Optional[str] = None) -> str:
         """Run the LLM on the given prompt."""
@@ -117,7 +117,7 @@ class BaseEvalModel(ABC):
         self, prompts: List[str], instruction: Optional[str] = None, **kwargs: Any
     ) -> List[str]:
         printif(self._verbose, f"Generating responses for {len(prompts)} prompts...")
-        if extra_info := self._verbose_generation_info():
+        if extra_info := self.verbose_generation_info():
             printif(self._verbose, extra_info)
         if not is_list_of(prompts, str):
             raise TypeError(
@@ -151,7 +151,7 @@ class BaseEvalModel(ABC):
             raise e
         return result
 
-    def _verbose_generation_info(self) -> str:
+    def verbose_generation_info(self) -> str:
         # if defined, returns additional model-specific information to display if `generate` is
         # run with `verbose=True`
         return ""

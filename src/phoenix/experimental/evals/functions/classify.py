@@ -3,6 +3,7 @@ import logging
 from typing import Any, Dict, Iterable, List, Optional, Union, cast
 
 import pandas as pd
+from tqdm.auto import tqdm
 
 from phoenix.experimental.evals.models import BaseEvalModel, OpenAIModel, set_verbosity
 from phoenix.experimental.evals.templates import (
@@ -98,37 +99,34 @@ def llm_classify(
 
     eval_template = normalize_template(template)
     prompts = map_template(dataframe, eval_template)
-    with set_verbosity(model, verbose) as verbose_model:
-        responses = verbose_model.generate(
-            prompts.to_list(), instruction=system_instruction, **model_kwargs
-        )
-
     labels: List[str] = []
     explanations: List[Optional[str]] = []
+    if generation_info := model.verbose_generation_info():
+        printif(verbose, generation_info)
 
-    printif(verbose, f"Snapping {len(responses)} responses to rails: {rails}")
-    for response in responses:
+    for prompt in tqdm(prompts):
+        with set_verbosity(model, verbose) as verbose_model:
+            response = verbose_model(prompt, instruction=system_instruction, **model_kwargs)
         if not use_openai_function_call:
-            raw_string = response
-            if provide_explanation:
-                # TODO: support explanation without function calling
-                explanations.append(None)
+            unrailed_label = response
+            explanation = None
         else:
             try:
                 function_arguments = json.loads(response, strict=False)
-                raw_string = function_arguments.get(_RESPONSE)
-                if provide_explanation:
-                    explanations.append(function_arguments.get(_EXPLANATION))
+                unrailed_label = function_arguments.get(_RESPONSE)
+                explanation = function_arguments.get(_EXPLANATION)
             except json.JSONDecodeError:
-                raw_string = response
-        labels.append(_snap_to_rail(raw_string, rails, verbose=verbose))
-
-    data: Dict[str, List[Any]] = {"label": labels}
-    if provide_explanation:
-        assert len(labels) == len(explanations)
-        data["explanation"] = explanations
-
-    return pd.DataFrame(data=data, index=dataframe.index)
+                unrailed_label = response
+                explanation = None
+        labels.append(_snap_to_rail(unrailed_label, rails, verbose=verbose))
+        explanations.append(explanation)
+    return pd.DataFrame(
+        data={
+            "label": labels,
+            **({"explanation": explanations} if provide_explanation else {}),
+        },
+        index=dataframe.index,
+    )
 
 
 def run_relevance_eval(
