@@ -148,7 +148,7 @@ class OpenAIModel(BaseEvalModel):
             messages.insert(0, {"role": "system", "content": str(system_instruction)})
         return messages
 
-    def _verbose_generation_info(self) -> str:
+    def verbose_generation_info(self) -> str:
         return f"OpenAI invocation parameters: {self.public_invocation_params}"
 
     def _generate(self, prompt: str, **kwargs: Any) -> str:
