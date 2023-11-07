@@ -1,5 +1,4 @@
-from dataclasses import dataclass
-from string import Formatter
+import re
 from typing import Dict, List, Tuple, Union
 
 import pandas as pd
@@ -15,16 +14,29 @@ DEFAULT_END_DELIM = "}"
 NOT_PARSABLE = "NOT_PARSABLE"
 
 
-@dataclass
-class PromptTemplate:
+class ClassificationTemplate:
     text: str
     variables: List[str]
 
-    def __init__(self, text: str, delimiters: List[str] = [DEFAULT_START_DELIM, DEFAULT_END_DELIM]):
-        self.text = text
+    def __init__(
+        self,
+        rails: Dict[bool, str],
+        base_template: str,
+        explanation_template: str,
+        delimiters: List[str] = [DEFAULT_START_DELIM, DEFAULT_END_DELIM],
+    ):
+        self.rails = rails
+        self.base_template = base_template
+        self.explanation_template = explanation_template
         self._start_delim, self._end_delim = self._get_delimiters(delimiters)
         self._validate()
         self.variables = self._parse_variables()
+
+    def prompt(self, provide_explanation: bool) -> str:
+        if provide_explanation:
+            return self.explanation_template
+        else:
+            return self.base_template
 
     def format(self, variable_values: Dict[str, Union[bool, int, float, str]]) -> str:
         prompt = self.text
@@ -57,36 +69,8 @@ class PromptTemplate:
             )
 
     def _parse_variables(self) -> List[str]:
-        variables = []
-        formatter = Formatter()
-
-        text = self.text
-
-        # Example of this could be a template like: My name is ::name::
-        if self._start_delim == self._end_delim:
-            delim_length = len(self._start_delim)
-            delim_count = text.count(self._start_delim)
-            while delim_count > 0:
-                left_index = text.find(self._start_delim)
-                right_index = text[left_index + delim_length :].find(self._start_delim)
-                text = (
-                    text[0:left_index]
-                    + DEFAULT_START_DELIM
-                    + text[left_index + delim_length : left_index + delim_length + right_index]
-                    + DEFAULT_END_DELIM
-                    + text[left_index + 2 * delim_length + right_index :]
-                )
-                delim_count = text.count(self._start_delim)
-        else:
-            if self._start_delim != "{":
-                text = text.replace(self._start_delim, DEFAULT_START_DELIM)
-            if self._end_delim != "{":
-                text = text.replace(self._end_delim, DEFAULT_END_DELIM)
-
-        for _, variable_name, _, _ in formatter.parse(text):
-            if variable_name:
-                variables.append(variable_name)
-
+        pattern = re.escape(self._start_delim) + "(.*?)" + re.escape(self._end_delim)
+        variables = re.findall(pattern, self.text)
         return variables
 
 
