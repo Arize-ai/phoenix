@@ -9,7 +9,7 @@ if TYPE_CHECKING:
     from tiktoken import Encoding
 
 OPENAI_API_KEY_ENVVAR_NAME = "OPENAI_API_KEY"
-MINIMUM_OPENAI_VERSION = "0.26.4"
+MINIMUM_OPENAI_VERSION = "1.1.1"
 MODEL_TOKEN_LIMIT_MAPPING = {
     "gpt-3.5-turbo-instruct": 4096,
     "gpt-3.5-turbo-0301": 4096,
@@ -71,12 +71,12 @@ class OpenAIModel(BaseEvalModel):
     def _init_environment(self) -> None:
         try:
             import openai
-            import openai.util
-            from openai import error as openai_error
+            import openai._utils as openai_util
+            from openai._exceptions import OpenAIError
 
             self._openai = openai
-            self._openai_error = openai_error
-            self._openai_util = openai.util
+            self._openai_error = OpenAIError
+            self._openai_util = openai_util
         except ImportError:
             self._raise_import_error(
                 package_display_name="OpenAI",
@@ -110,7 +110,7 @@ class OpenAIModel(BaseEvalModel):
         self.openai_api_version = self.openai_api_version or self._openai.api_version
         self.openai_organization = self.openai_organization or self._openai.organization
         # use enum to validate api type
-        self._openai_util.ApiType.from_str(self.openai_api_type)  # type: ignore
+        self._openai_util.api_typeApiType.from_str(self.openai_api_type)
         self._is_azure = self.openai_api_type.lower().startswith("azure")
 
         if self._is_azure:
