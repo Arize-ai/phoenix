@@ -93,7 +93,7 @@ dependencies = [
   "arize",
   "langchain>=0.0.324",
   "llama-index>=0.8.29",
-  "openai",
+  "openai<1.0.0",
   "tenacity",
   "nltk==3.8.1",
   "sentence-transformers==2.2.2",
@@ -114,6 +114,7 @@ dependencies = [
   "types-tqdm",
   "types-requests",
   "types-protobuf",
+  "openai<1.0.0",
 ]
 
 [tool.hatch.envs.style]
