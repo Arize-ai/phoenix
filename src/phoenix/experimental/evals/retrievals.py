@@ -75,13 +75,15 @@ def classify_relevance(query: str, document: str, model_name: str) -> Optional[b
             unparseable output.
     """
 
-    from openai import ChatCompletion
+    from openai import OpenAI
+
+    client = OpenAI()
 
     prompt = _QUERY_CONTEXT_PROMPT_TEMPLATE.format(
         query=query,
         reference=document,
     )
-    response = ChatCompletion.create(  # type: ignore
+    response = client.chat.completions.create(
         messages=[
             {"role": "system", "content": _EVALUATION_SYSTEM_MESSAGE},
             {"role": "user", "content": prompt},

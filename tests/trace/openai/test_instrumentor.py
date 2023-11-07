@@ -4,6 +4,7 @@ from importlib import reload
 import openai
 import pytest
 import responses
+from openai import OpenAI
 from openai.error import AuthenticationError
 from phoenix.trace.openai.instrumentor import OpenAIInstrumentor
 from phoenix.trace.schemas import SpanException, SpanKind, SpanStatusCode
@@ -41,14 +42,18 @@ def reload_openai_api_requestor() -> None:
 @pytest.fixture
 def openai_api_key(monkeypatch) -> None:
     api_key = "sk-0123456789"
-    openai.api_key = api_key
     monkeypatch.setenv("OPENAI_API_KEY", api_key)
     return api_key
 
 
+@pytest.fixture
+def client(openai_api_key) -> OpenAI:
+    return OpenAI(api_key=openai_api_key)
+
+
 @responses.activate
 def test_openai_instrumentor_includes_llm_attributes_on_chat_completion_success(
-    reload_openai_api_requestor, openai_api_key
+    reload_openai_api_requestor, client
 ) -> None:
     tracer = Tracer()
     OpenAIInstrumentor(tracer).instrument()
@@ -77,7 +82,9 @@ def test_openai_instrumentor_includes_llm_attributes_on_chat_completion_success(
         },
         status=200,
     )
-    response = openai.ChatCompletion.create(model=model, messages=messages, temperature=temperature)
+    response = client.chat.completions.create(
+        model=model, messages=messages, temperature=temperature
+    )
     response_text = response.choices[0]["message"]["content"]
 
     assert response_text == expected_response_text
@@ -166,7 +173,7 @@ def test_openai_instrumentor_includes_function_call_attributes(
         },
         status=200,
     )
-    response = openai.ChatCompletion.create(model=model, messages=messages, functions=functions)
+    response = client.chat.completions.create(model=model, messages=messages, functions=functions)
 
     function_call_data = response.choices[0]["message"]["function_call"]
     assert set(function_call_data.keys()) == {"name", "arguments"}
@@ -206,7 +213,7 @@ def test_openai_instrumentor_includes_function_call_attributes(
 
 @responses.activate
 def test_openai_instrumentor_includes_function_call_message_attributes(
-    reload_openai_api_requestor, openai_api_key
+    reload_openai_api_requestor, client
 ) -> None:
     tracer = Tracer()
     OpenAIInstrumentor(tracer).instrument()
@@ -269,7 +276,7 @@ def test_openai_instrumentor_includes_function_call_message_attributes(
         status=200,
     )
 
-    response = openai.ChatCompletion.create(model=model, messages=messages, functions=functions)
+    response = client.chat.completions.create(model=model, messages=messages, functions=functions)
     response_text = response.choices[0]["message"]["content"]
     spans = list(tracer.get_spans())
     span = spans[0]
@@ -326,7 +333,7 @@ def test_openai_instrumentor_records_authentication_error(
     messages = [{"role": "user", "content": "Who won the World Cup in 2018?"}]
 
     with pytest.raises(AuthenticationError):
-        openai.ChatCompletion.create(model=model, messages=messages)
+        client.chat.completions.create(model=model, messages=messages)
 
     spans = list(tracer.get_spans())
     assert len(spans) == 1
@@ -343,7 +350,7 @@ def test_openai_instrumentor_records_authentication_error(
 
 @responses.activate
 def test_openai_instrumentor_does_not_interfere_with_completions_api(
-    reload_openai_api_requestor, openai_api_key
+    reload_openai_api_requestor, client
 ) -> None:
     tracer = Tracer()
     OpenAIInstrumentor(tracer).instrument()
@@ -368,10 +375,7 @@ def test_openai_instrumentor_does_not_interfere_with_completions_api(
         },
         status=200,
     )
-    response = openai.Completion.create(
-        model=model,
-        prompt=prompt,
-    )
+    response = client.completions.create(model=model, prompt=prompt)
     response_text = response.choices[0]["text"]
     spans = list(tracer.get_spans())
 
@@ -409,7 +413,7 @@ def test_openai_instrumentor_instrument_method_is_idempotent(
         },
         status=200,
     )
-    response = openai.ChatCompletion.create(model=model, messages=messages)
+    response = client.chat.completions.create(model=model, messages=messages)
     response_text = response.choices[0]["message"]["content"]
     spans = list(tracer.get_spans())
     span = spans[0]
