@@ -3,7 +3,7 @@ import logging
 from typing import Any, Dict, Iterable, List, Optional, Union, cast
 
 import pandas as pd
-from tqdm import tqdm
+from tqdm.auto import tqdm
 
 from phoenix.experimental.evals.models import BaseEvalModel, OpenAIModel, set_verbosity
 from phoenix.experimental.evals.templates import (
