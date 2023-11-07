@@ -19,7 +19,11 @@ class Refiner:
 
     def evaluate(self, chunks: List[str]) -> str:
         if len(chunks) < 2:
-            raise ValueError("Must provide two or more documents")
+            raise ValueError(
+                "The refine strategy is not needed to evaluate data "
+                "that fits within a single context window. "
+                "Consider using llm_classify instead."
+            )
         model = self._model
         initial_prompt = self._initial_prompt_template.format({"chunk": chunks[0]})
         accumulator = model(initial_prompt)
@@ -47,7 +51,11 @@ class MapReducer:
 
     def evaluate(self, chunks: List[str]) -> str:
         if len(chunks) < 2:
-            raise ValueError("Must provide two or more documents")
+            raise ValueError(
+                "The map-reduce strategy is not needed to evaluate data "
+                "that fits within a single context window. "
+                "Consider using llm_classify instead."
+            )
         model = self._model
         mapped_records = []
         for chunk in chunks:
