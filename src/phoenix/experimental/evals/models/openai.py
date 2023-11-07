@@ -17,7 +17,6 @@ MODEL_TOKEN_LIMIT_MAPPING = {
     "gpt-3.5-turbo-16k-0613": 16385,
     "gpt-4-0314": 8192,
     "gpt-4-0613": 8192,  # Current gpt-4 default
-    "gpt-4-32k-0314": 32768,
     "gpt-4-32k-0613": 32768,
 }
 LEGACY_COMPLETION_API_MODELS = ("gpt-3.5-turbo-instruct",)
@@ -53,7 +52,7 @@ class OpenAIModel(BaseEvalModel):
     batch_size: int = 20
     # TODO: IMPLEMENT BATCHING
     """Batch size to use when passing multiple documents to generate."""
-    request_timeout: Optional[Union[float, Tuple[float, float]]] = None
+    timeout: Optional[Union[float, Tuple[float, float]]] = None
     """Timeout for requests to OpenAI completion API. Default is 600 seconds."""
     max_retries: int = 20
     """Maximum number of retries to make when generating."""
@@ -190,8 +189,10 @@ class OpenAIModel(BaseEvalModel):
                         (message.get("content") or "")
                         for message in (kwargs.pop("messages", None) or ())
                     )
-                return self._client.completions.create(**kwargs)
-            return self._client.chat.completions.create(**kwargs)
+                # OpenAI 1.0.0 API responses are pydantic objects, not dicts
+                # We must dump the model to get the dict
+                return self._client.completions.create(**kwargs).model_dump()
+            return self._client.chat.completions.create(**kwargs).model_dump()
 
         return _completion_with_retry(**kwargs)
 
@@ -225,7 +226,6 @@ class OpenAIModel(BaseEvalModel):
     def invocation_params(self) -> Dict[str, Any]:
         return {
             **self.public_invocation_params,
-            **self._credentials,
         }
 
     @property
@@ -248,7 +248,7 @@ class OpenAIModel(BaseEvalModel):
             "presence_penalty": self.presence_penalty,
             "top_p": self.top_p,
             "n": self.n,
-            "request_timeout": self.request_timeout,
+            "timeout": self.timeout,
         }
 
     @property

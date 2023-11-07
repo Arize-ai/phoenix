@@ -276,8 +276,10 @@ def test_llm_classify_does_not_persist_verbose_flag(monkeypatch: pytest.MonkeyPa
         waiting_fn = "phoenix.experimental.evals.models.base.wait_random_exponential"
         stack.enter_context(patch(waiting_fn, return_value=False))
         stack.enter_context(patch.object(OpenAIModel, "_init_tiktoken", return_value=None))
-        stack.enter_context(patch.object(model._openai.ChatCompletion, "create", mock_openai))
-        stack.enter_context(pytest.raises(model._openai_error.APIError))
+        stack.enter_context(
+            patch.object(model._openai.client.chat.completions, "create", mock_openai)
+        )
+        stack.enter_context(pytest.raises(model._openai.OpenAIError))
         llm_classify(
             dataframe=dataframe,
             template=RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
@@ -298,7 +300,7 @@ def test_llm_classify_does_not_persist_verbose_flag(monkeypatch: pytest.MonkeyPa
         waiting_fn = "phoenix.experimental.evals.models.base.wait_random_exponential"
         stack.enter_context(patch(waiting_fn, return_value=False))
         stack.enter_context(patch.object(OpenAIModel, "_init_tiktoken", return_value=None))
-        stack.enter_context(patch.object(model._openai.ChatCompletion, "create", mock_openai))
+        stack.enter_context(patch.object(model._client.chat.completions, "create", mock_openai))
         stack.enter_context(pytest.raises(model._openai_error.APIError))
         llm_classify(
             dataframe=dataframe,

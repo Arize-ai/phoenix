@@ -16,6 +16,7 @@
         "llamaindex",
         "NDJSON",
         "numpy",
+        "pydantic",
         "quickstart",
         "RERANKER",
         "rgba",

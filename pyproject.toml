@@ -55,7 +55,7 @@ dev = [
   "strawberry-graphql[debug-server]==0.208.2",
   "pre-commit",
   "arize[AutoEmbeddings, LLM_Evaluation]",
-  "llama-index>=0.8.29",
+  "llama-index>=0.8.64",
   "langchain>=0.0.324",
 ]
 experimental = [
@@ -108,7 +108,7 @@ dependencies = [
 [tool.hatch.envs.type]
 dependencies = [
   "mypy==1.5.1",
-  "llama-index>=0.8.29",
+  "llama-index>=0.8.64",
   "pandas-stubs<=2.0.2.230605",  # version 2.0.3.230814 is causing a dependency conflict.
   "types-psutil",
   "types-tqdm",
