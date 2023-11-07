@@ -230,8 +230,8 @@ def test_llm_classify_shows_retry_info_with_verbose_flag(monkeypatch: pytest.Mon
         waiting_fn = "phoenix.experimental.evals.models.base.wait_random_exponential"
         stack.enter_context(patch(waiting_fn, return_value=False))
         stack.enter_context(patch.object(OpenAIModel, "_init_tiktoken", return_value=None))
-        stack.enter_context(patch.object(model._openai.ChatCompletion, "create", mock_openai))
-        stack.enter_context(pytest.raises(model._openai_error.ServiceUnavailableError))
+        stack.enter_context(patch.object(model._client.chat.completions, "create", mock_openai))
+        stack.enter_context(pytest.raises(model._openai.ServiceUnavailableError))
         llm_classify(
             dataframe=dataframe,
             template=RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
@@ -266,8 +266,8 @@ def test_llm_classify_does_not_persist_verbose_flag(monkeypatch: pytest.MonkeyPa
     model = OpenAIModel(max_retries=2)
 
     openai_retry_errors = [
-        model._openai_error.Timeout("test timeout"),
-        model._openai_error.APIError("test api error"),
+        model._openai.APITimeoutError("test timeout"),
+        model._openai.APIError("test api error"),
     ]
     mock_openai = MagicMock()
     mock_openai.side_effect = openai_retry_errors
