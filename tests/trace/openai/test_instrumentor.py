@@ -4,8 +4,7 @@ from importlib import reload
 import openai
 import pytest
 import responses
-from openai import OpenAI
-from openai.error import AuthenticationError
+from openai import AuthenticationError, OpenAI
 from phoenix.trace.openai.instrumentor import OpenAIInstrumentor
 from phoenix.trace.schemas import SpanException, SpanKind, SpanStatusCode
 from phoenix.trace.semantic_conventions import (

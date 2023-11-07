@@ -18,8 +18,7 @@ from llama_index.llms import (
 from llama_index.llms.base import llm_completion_callback
 from llama_index.query_engine import RetrieverQueryEngine
 from llama_index.schema import Document, TextNode
-from openai import ChatCompletion
-from openai.error import RateLimitError
+from openai import Client, RateLimitError
 from phoenix.experimental.evals.models.openai import OPENAI_API_KEY_ENVVAR_NAME
 from phoenix.trace.exporter import NoOpExporter
 from phoenix.trace.llama_index import OpenInferenceTraceCallbackHandler
@@ -138,7 +137,7 @@ def test_callback_llm_rate_limit_error_has_exception_event(
     )
     query_engine = index.as_query_engine(service_context=service_context)
 
-    with patch.object(ChatCompletion, "create") as mocked_chat_completion_create:
+    with patch.object(Client.chat.completions, "create") as mocked_chat_completion_create:
         mocked_chat_completion_create.side_effect = RateLimitError("message")
         with pytest.raises(RateLimitError):
             query_engine.query(query)

@@ -29,7 +29,6 @@ class OpenAIModel(BaseEvalModel):
     openai_api_type: Optional[str] = field(default=None)
     openai_api_version: Optional[str] = field(default=None)
     openai_api_key: Optional[str] = field(repr=False, default=None)
-    openai_api_base: Optional[str] = field(repr=False, default=None)
     openai_organization: Optional[str] = field(repr=False, default=None)
     engine: str = ""
     """Azure engine (the Deployment Name of your model)"""
@@ -72,10 +71,8 @@ class OpenAIModel(BaseEvalModel):
         try:
             import openai
             import openai._utils as openai_util
-            from openai._exceptions import OpenAIError
 
             self._openai = openai
-            self._openai_error = OpenAIError
             self._openai_util = openai_util
         except ImportError:
             self._raise_import_error(
@@ -105,13 +102,13 @@ class OpenAIModel(BaseEvalModel):
                     "or set it in your environment: 'export OPENAI_API_KEY=sk-****'"
                 )
             self.openai_api_key = api_key
-        self.openai_api_base = self.openai_api_base or self._openai.api_base
+        client = self._openai.Client(api_key=self.openai_api_key)
+        self._client = client
         self.openai_api_type = self.openai_api_type or self._openai.api_type
         self.openai_api_version = self.openai_api_version or self._openai.api_version
         self.openai_organization = self.openai_organization or self._openai.organization
-        # use enum to validate api type
-        self._openai_util.api_typeApiType.from_str(self.openai_api_type)
-        self._is_azure = self.openai_api_type.lower().startswith("azure")
+
+        self._is_azure = (self._openai.api_type or "").lower().startswith("azure")
 
         if self._is_azure:
             if not self.engine:
@@ -173,11 +170,11 @@ class OpenAIModel(BaseEvalModel):
     def _generate_with_retry(self, **kwargs: Any) -> Any:
         """Use tenacity to retry the completion call."""
         openai_retry_errors = [
-            self._openai_error.Timeout,
-            self._openai_error.APIError,
-            self._openai_error.APIConnectionError,
-            self._openai_error.RateLimitError,
-            self._openai_error.ServiceUnavailableError,
+            self._openai.APITimeoutError,
+            self._openai.APIError,
+            self._openai.APIConnectionError,
+            self._openai.RateLimitError,
+            self._openai.InternalServerError,
         ]
 
         @self.retry(
@@ -193,8 +190,8 @@ class OpenAIModel(BaseEvalModel):
                         (message.get("content") or "")
                         for message in (kwargs.pop("messages", None) or ())
                     )
-                return self._openai.Completion.create(**kwargs)
-            return self._openai.ChatCompletion.create(**kwargs)
+                return self._client.completions.create(**kwargs)
+            return self._client.chat.completions.create(**kwargs)
 
         return _completion_with_retry(**kwargs)
 
@@ -236,7 +233,6 @@ class OpenAIModel(BaseEvalModel):
         """Get the default parameters for calling OpenAI API."""
         return {
             "api_key": self.openai_api_key,
-            "api_base": self.openai_api_base,
             "api_type": self.openai_api_type,
             "api_version": self.openai_api_version,
             "organization": self.openai_organization,
