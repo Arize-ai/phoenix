@@ -95,6 +95,8 @@ class BaseEvalModel(ABC):
                 "Invalid type for argument `instruction`. Expected a string but found "
                 f"{type(instruction)}."
             )
+        if extra_info := self._verbose_generation_info():
+            printif(self._verbose, extra_info)
         return self._generate(prompt=prompt, instruction=instruction, **kwargs)
 
     async def async_call(self, prompt: str, instruction: Optional[str] = None) -> str:
