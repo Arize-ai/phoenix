@@ -3,6 +3,7 @@ import logging
 from typing import Any, Dict, Iterable, List, Optional, Union, cast
 
 import pandas as pd
+from tqdm import tqdm
 
 from phoenix.experimental.evals.models import BaseEvalModel, OpenAIModel, set_verbosity
 from phoenix.experimental.evals.templates import (
@@ -101,7 +102,7 @@ def llm_classify(
     labels: List[str] = []
     explanations: List[Optional[str]] = []
     with set_verbosity(model, verbose) as verbose_model:
-        for prompt in prompts:
+        for prompt in tqdm(prompts):
             response = verbose_model(prompt, instruction=system_instruction, **model_kwargs)
             if not use_openai_function_call:
                 unrailed_label = response

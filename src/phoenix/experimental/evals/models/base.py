@@ -95,7 +95,7 @@ class BaseEvalModel(ABC):
                 "Invalid type for argument `instruction`. Expected a string but found "
                 f"{type(instruction)}."
             )
-        return self.generate(prompts=[prompt], instruction=instruction, **kwargs)[0]
+        return self._generate(prompt=prompt, instruction=instruction, **kwargs)
 
     async def async_call(self, prompt: str, instruction: Optional[str] = None) -> str:
         """Run the LLM on the given prompt."""
