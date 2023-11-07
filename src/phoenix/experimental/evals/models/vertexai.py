@@ -77,7 +77,7 @@ class VertexAIModel(BaseEvalModel):
         else:
             self._model = model.from_pretrained(self.model_name)
 
-    def _verbose_generation_info(self) -> str:
+    def verbose_generation_info(self) -> str:
         return f"VertexAI invocation parameters: {self.invocation_params}"
 
     def _generate(self, prompt: str, **kwargs: Dict[str, Any]) -> str:

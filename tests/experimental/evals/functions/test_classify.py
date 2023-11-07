@@ -52,6 +52,7 @@ def test_llm_classify(monkeypatch: pytest.MonkeyPatch):
         template=RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
         model=model,
         rails=["relevant", "irrelevant"],
+        use_function_calling_if_available=False,
     )
     labels = ["relevant", "irrelevant", "relevant", NOT_PARSABLE]
     assert result.iloc[:, 0].tolist() == labels
@@ -189,6 +190,7 @@ def test_llm_classify_prints_to_stdout_with_verbose_flag(monkeypatch: pytest.Mon
         model=model,
         rails=["relevant", "irrelevant"],
         verbose=True,
+        use_function_calling_if_available=False,
     )
 
     out, _ = capfd.readouterr()
