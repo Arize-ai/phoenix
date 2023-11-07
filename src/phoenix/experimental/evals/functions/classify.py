@@ -104,29 +104,29 @@ def llm_classify(
     if generation_info := model.verbose_generation_info():
         printif(verbose, generation_info)
 
-    with set_verbosity(model, verbose) as verbose_model:
-        for prompt in tqdm(prompts):
+    for prompt in tqdm(prompts):
+        with set_verbosity(model, verbose) as verbose_model:
             response = verbose_model(prompt, instruction=system_instruction, **model_kwargs)
-            if not use_openai_function_call:
+        if not use_openai_function_call:
+            unrailed_label = response
+            explanation = None
+        else:
+            try:
+                function_arguments = json.loads(response, strict=False)
+                unrailed_label = function_arguments.get(_RESPONSE)
+                explanation = function_arguments.get(_EXPLANATION)
+            except json.JSONDecodeError:
                 unrailed_label = response
                 explanation = None
-            else:
-                try:
-                    function_arguments = json.loads(response, strict=False)
-                    unrailed_label = function_arguments.get(_RESPONSE)
-                    explanation = function_arguments.get(_EXPLANATION)
-                except json.JSONDecodeError:
-                    unrailed_label = response
-                    explanation = None
-            labels.append(_snap_to_rail(unrailed_label, rails, verbose=verbose))
-            explanations.append(explanation)
-        return pd.DataFrame(
-            data={
-                "label": labels,
-                **({"explanation": explanations} if provide_explanation else {}),
-            },
-            index=dataframe.index,
-        )
+        labels.append(_snap_to_rail(unrailed_label, rails, verbose=verbose))
+        explanations.append(explanation)
+    return pd.DataFrame(
+        data={
+            "label": labels,
+            **({"explanation": explanations} if provide_explanation else {}),
+        },
+        index=dataframe.index,
+    )
 
 
 def run_relevance_eval(
