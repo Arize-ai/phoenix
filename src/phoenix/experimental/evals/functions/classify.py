@@ -9,8 +9,9 @@ import pandas as pd
 from phoenix.experimental.evals.models import BaseEvalModel, OpenAIModel, set_verbosity
 from phoenix.experimental.evals.templates import (
     NOT_PARSABLE,
-    RAG_RELEVANCY_PROMPT_RAILS_MAP,
-    RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
+    # RAG_RELEVANCY_PROMPT_RAILS_MAP,
+    # RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
+    RAG_RELEVANCY_PROMPT_TEMPLATE,
     PromptTemplate,
     map_template,
     normalize_template,

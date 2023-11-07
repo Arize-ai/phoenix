@@ -1,7 +1,7 @@
 from phoenix.experimental.evals.templates.template import PromptTemplate
 
 RAG_RELEVANCY_PROMPT_RAILS = dict({True: "relevant", False: "irrelevant"})
-RAG_RELEVANCY_BASE_TEMPLATE = """
+RAG_RELEVANCY_PROMPT_BASE_TEMPLATE = """
 You are comparing a reference text to a question and trying to determine if the reference text
 contains information relevant to answering the question. Here is the data:
     [BEGIN DATA]
@@ -18,7 +18,7 @@ Your response must be single word, either "relevant" or "irrelevant",
 and should not contain any text or characters aside from that word.
 "irrelevant" means that the reference text does not contain an answer to the Question.
 "relevant" means the reference text contains an answer to the Question."""
-RAG_RELEVANCY_TEMPLATE_WITH_EXPLANATION = """
+RAG_RELEVANCY_PROMPT_TEMPLATE_WITH_EXPLANATION = """
 You are comparing a reference text to a question and trying to determine if the reference text
 contains information relevant to answering the question. Here is the data:
     [BEGIN DATA]
@@ -116,7 +116,7 @@ LABEL: "factual" or "hallucinated"
 EXPLANATION:"""
 
 TOXICITY_PROMPT_RAILS = dict({True: "toxic", False: "non-toxic"})
-TOXICITY_PROMPT_BASE_TEMPLATE = """
+TOXICITY_PROMPT_TEMPLATE_BASE_TEMPLATE = """
 You are examining written text content. Here is the text:
     [BEGIN DATA]
     ************
@@ -306,36 +306,36 @@ EXPLANATION:"""
 
 RAG_RELEVANCY_PROMPT_TEMPLATE = PromptTemplate(
     rails=RAG_RELEVANCY_PROMPT_RAILS,
-    base_template=RAG_RELEVANCY_BASE_TEMPLATE,
-    explanation_template=RAG_RELEVANCY_TEMPLATE_WITH_EXPLANATION,
+    base_template=RAG_RELEVANCY_PROMPT_BASE_TEMPLATE,
+    explanation_template=RAG_RELEVANCY_PROMPT_TEMPLATE_WITH_EXPLANATION,
 )
 
 HALLUCINATION_PROMPT_TEMPLATE = PromptTemplate(
-    rails=RAG_RELEVANCY_PROMPT_RAILS,
-    base_template=RAG_RELEVANCY_BASE_TEMPLATE,
-    explanation_template=RAG_RELEVANCY_TEMPLATE_WITH_EXPLANATION,
+    rails=HALLUCINATION_PROMPT_RAILS,
+    base_template=HALLUCINATION_PROMPT_BASE_TEMPLATE,
+    explanation_template=HALLUCINATION_PROMPT_TEMPLATE_WITH_EXPLANATION,
 )
 
 TOXICITY_PROMPT_TEMPLATE = PromptTemplate(
-    rails=RAG_RELEVANCY_PROMPT_RAILS,
-    base_template=RAG_RELEVANCY_BASE_TEMPLATE,
-    explanation_template=RAG_RELEVANCY_TEMPLATE_WITH_EXPLANATION,
+    rails=TOXICITY_PROMPT_RAILS,
+    base_template=TOXICITY_PROMPT_TEMPLATE_BASE_TEMPLATE,
+    explanation_template=TOXICITY_PROMPT_TEMPLATE_WITH_EXPLANATION,
 )
 
 QA_PROMPT_TEMPLATE = PromptTemplate(
-    rails=RAG_RELEVANCY_PROMPT_RAILS,
-    base_template=RAG_RELEVANCY_BASE_TEMPLATE,
-    explanation_template=RAG_RELEVANCY_TEMPLATE_WITH_EXPLANATION,
+    rails=QA_PROMPT_RAILS,
+    base_template=QA_PROMPT_BASE_TEMPLATE,
+    explanation_template=QA_PROMPT_TEMPLATE_WITH_EXPLANATION,
 )
 
 SUMMARIZATION_PROMPT_TEMPLATE = PromptTemplate(
-    rails=RAG_RELEVANCY_PROMPT_RAILS,
-    base_template=RAG_RELEVANCY_BASE_PROMPT,
-    explanation_template=RAG_RELEVANCY_TEMPLATE_WITH_EXPLANATION,
+    rails=SUMMARIZATION_PROMPT_RAILS,
+    base_template=SUMMARIZATION_PROMPT_BASE_TEMPLATE,
+    explanation_template=SUMMARIZATION_PROMPT_TEMPLATE_WITH_EXPLANATION,
 )
 
 HALLUCINATION_PROMPT_TEMPLATE = PromptTemplate(
-    rails=RAG_RELEVANCY_PROMPT_RAILS,
-    base_template=RAG_RELEVANCY_BASE_PROMPT,
-    explanation_template=RAG_RELEVANCY_TEMPLATE_WITH_EXPLANATION,
+    rails=HALLUCINATION_PROMPT_RAILS,
+    base_template=HALLUCINATION_PROMPT_BASE_TEMPLATE,
+    explanation_template=HALLUCINATION_PROMPT_TEMPLATE_WITH_EXPLANATION,
 )
