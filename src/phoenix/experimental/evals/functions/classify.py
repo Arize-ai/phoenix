@@ -101,6 +101,9 @@ def llm_classify(
     prompts = map_template(dataframe, eval_template)
     labels: List[str] = []
     explanations: List[Optional[str]] = []
+    if generation_info := model.verbose_generation_info():
+        printif(verbose, generation_info)
+
     with set_verbosity(model, verbose) as verbose_model:
         for prompt in tqdm(prompts):
             response = verbose_model(prompt, instruction=system_instruction, **model_kwargs)
