@@ -9,8 +9,7 @@ import pandas as pd
 from phoenix.experimental.evals.models import BaseEvalModel, OpenAIModel, set_verbosity
 from phoenix.experimental.evals.templates import (
     NOT_PARSABLE,
-    # RAG_RELEVANCY_PROMPT_RAILS_MAP,
-    # RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
+    RAG_RELEVANCY_PROMPT_RAILS,
     RAG_RELEVANCY_PROMPT_TEMPLATE,
     PromptTemplate,
     map_template,
@@ -95,10 +94,7 @@ def llm_classify(
 
     eval_template = normalize_template(template)
 
-    if provide_explanation and not use_openai_function_call:
-        eval_template.append(EXPLANATION_PROMPT_TEMPLATE_STR)
-
-    prompts = map_template(dataframe, eval_template)
+    prompts = map_template(dataframe, eval_template, provide_explanation=provide_explanation)
 
     with set_verbosity(model, verbose) as verbose_model:
         responses = verbose_model.generate(
@@ -194,8 +190,8 @@ def llm_eval_binary(
 def run_relevance_eval(
     dataframe: pd.DataFrame,
     model: BaseEvalModel,
-    template: Union[PromptTemplate, str] = RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
-    rails: List[str] = list(RAG_RELEVANCY_PROMPT_RAILS_MAP.values()),
+    template: Union[PromptTemplate, str] = RAG_RELEVANCY_PROMPT_TEMPLATE,
+    rails: List[str] = list(RAG_RELEVANCY_PROMPT_RAILS.values()),
     system_instruction: Optional[str] = None,
     query_column_name: str = "query",
     document_column_name: str = "reference",
