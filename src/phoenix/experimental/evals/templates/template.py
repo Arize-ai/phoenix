@@ -28,7 +28,7 @@ class PromptTemplate:
         self._validate(self.text)
         self.variables = self._parse_variables(self.text)
 
-    def prompt(self, provide_explanation: bool) -> str:
+    def prompt(self, **options: Any) -> str:
         return self.text
 
     def format(
@@ -86,8 +86,8 @@ class ClassificationTemplate(PromptTemplate):
             self._validate(text)
             self.variables += self._parse_variables(text)
 
-    def prompt(self, provide_explanation: bool) -> str:
-        if provide_explanation:
+    def prompt(self, **options: Any) -> str:
+        if options.get("provide_explanation", False):
             return self.explanation_template
         else:
             return self.base_template
