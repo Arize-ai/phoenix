@@ -17,6 +17,7 @@ MODEL_TOKEN_LIMIT_MAPPING = {
     "gpt-3.5-turbo-16k-0613": 16385,
     "gpt-4-0314": 8192,
     "gpt-4-0613": 8192,  # Current gpt-4 default
+    "gpt-4-32k-0314": 32768,
     "gpt-4-32k-0613": 32768,
 }
 LEGACY_COMPLETION_API_MODELS = ("gpt-3.5-turbo-instruct",)
