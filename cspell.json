@@ -17,6 +17,7 @@
         "llamaindex",
         "NDJSON",
         "numpy",
+        "openai",
         "pydantic",
         "quickstart",
         "RERANKER",
