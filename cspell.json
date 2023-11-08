@@ -11,6 +11,7 @@
         "Evals",
         "gitbook",
         "HDBSCAN",
+        "httpx",
         "Instrumentor",
         "langchain",
         "llamaindex",
@@ -19,6 +20,7 @@
         "pydantic",
         "quickstart",
         "RERANKER",
+        "respx",
         "rgba",
         "tracedataset",
         "UMAP"

@@ -103,6 +103,8 @@ dependencies = [
   "responses",
   "tiktoken",
   "typing-extensions<4.6.0",  # for Colab
+  "httpx", # For OpenAI testing
+  "respx", # For OpenAI testing
 ]
 
 [tool.hatch.envs.type]

@@ -101,8 +101,7 @@ class OpenAIModel(BaseEvalModel):
                     "or set it in your environment: 'export OPENAI_API_KEY=sk-****'"
                 )
             self.openai_api_key = api_key
-        client = self._openai.Client(api_key=self.openai_api_key)
-        self._client = client
+        self._client = self._openai.Client(api_key=self.openai_api_key)
         self.openai_api_type = self.openai_api_type or self._openai.api_type
         self.openai_api_version = self.openai_api_version or self._openai.api_version
         self.openai_organization = self.openai_organization or self._openai.organization
