@@ -340,12 +340,12 @@ def _snap_to_rail(raw_string: Optional[str], rails: List[str], verbose: bool = F
     return rail
 
 
-def _search_for_label(raw_string: str) -> List[str]:
+def _search_for_label(raw_string: str) -> str:
     label_delimiter = r"\W*label\W*"
-    match = re.search(label_delimiter, raw_string, flags=re.IGNORECASE)
-    if match:
-        label = match.group(1).strip()
-    return label
+    parts = re.split(label_delimiter, raw_string, maxsplit=1, flags=re.IGNORECASE)
+    if len(parts) == 2:
+        return parts[1]
+    return ""
 
 
 def _default_openai_function(

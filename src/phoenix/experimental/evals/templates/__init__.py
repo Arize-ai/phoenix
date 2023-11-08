@@ -8,10 +8,17 @@ from .default_templates import (
     TOXICITY_PROMPT_RAILS,
     TOXICITY_PROMPT_TEMPLATE,
 )
-from .template import NOT_PARSABLE, PromptTemplate, map_template, normalize_template
+from .template import (
+    NOT_PARSABLE,
+    ClassificationTemplate,
+    PromptTemplate,
+    map_template,
+    normalize_template,
+)
 
 __all__ = [
     "PromptTemplate",
+    "ClassificationTemplate",
     "normalize_template",
     "map_template",
     "NOT_PARSABLE",

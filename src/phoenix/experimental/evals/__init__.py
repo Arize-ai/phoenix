@@ -11,6 +11,7 @@ from .templates import (
     RAG_RELEVANCY_PROMPT_TEMPLATE,
     TOXICITY_PROMPT_RAILS,
     TOXICITY_PROMPT_TEMPLATE,
+    ClassificationTemplate,
     PromptTemplate,
 )
 from .utils.downloads import download_benchmark_dataset
@@ -24,6 +25,7 @@ __all__ = [
     "OpenAIModel",
     "VertexAIModel",
     "PromptTemplate",
+    "ClassificationTemplate",
     "CODE_READABILITY_PROMPT_RAILS",
     "CODE_READABILITY_PROMPT_TEMPLATE",
     "HALLUCINATION_PROMPT_RAILS",

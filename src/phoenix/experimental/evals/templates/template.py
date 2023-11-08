@@ -20,27 +20,20 @@ class PromptTemplate:
 
     def __init__(
         self,
-        rails: Dict[bool, str],
-        base_template: str,
-        explanation_template: str,
+        text: str,
         delimiters: List[str] = [DEFAULT_START_DELIM, DEFAULT_END_DELIM],
     ):
-        self.rails = rails
-        self.base_template = base_template
-        self.explanation_template = explanation_template
+        self.text = text
         self._start_delim, self._end_delim = self._get_delimiters(delimiters)
-        self.variables = []
-        for text in [base_template, explanation_template]:
-            self._validate(text)
-            self.variables += self._parse_variables(text)
+        self._validate(self.text)
+        self.variables = self._parse_variables(self.text)
 
     def prompt(self, provide_explanation: bool) -> str:
-        if provide_explanation:
-            return self.explanation_template
-        else:
-            return self.base_template
+        return self.text
 
-    def format(self, variable_values: Dict[str, Union[bool, int, float, str]], **options) -> str:
+    def format(
+        self, variable_values: Dict[str, Union[bool, int, float, str]], **options: Any
+    ) -> str:
         prompt = self.prompt(**options)
         for variable_name in self.variables:
             prompt = prompt.replace(
@@ -59,7 +52,7 @@ class PromptTemplate:
         else:
             raise ValueError("delimiters must only contain 2 items in the list")
 
-    def _validate(self, text) -> None:
+    def _validate(self, text: str) -> None:
         # Validate that for every open delimiter, we have the corresponding closing one
         start_count = text.count(self._start_delim)
         end_count = text.count(self._end_delim)
@@ -70,10 +63,34 @@ class PromptTemplate:
                 "They must be equal to be correctly paired."
             )
 
-    def _parse_variables(self, text) -> List[str]:
+    def _parse_variables(self, text: str) -> List[str]:
         pattern = re.escape(self._start_delim) + "(.*?)" + re.escape(self._end_delim)
         variables = re.findall(pattern, text)
         return variables
+
+
+class ClassificationTemplate(PromptTemplate):
+    def __init__(
+        self,
+        rails: Dict[bool, str],
+        base_template: str,
+        explanation_template: str,
+        delimiters: List[str] = [DEFAULT_START_DELIM, DEFAULT_END_DELIM],
+    ):
+        self.rails = rails
+        self.base_template = base_template
+        self.explanation_template = explanation_template
+        self._start_delim, self._end_delim = self._get_delimiters(delimiters)
+        self.variables: List[str] = []
+        for text in [base_template, explanation_template]:
+            self._validate(text)
+            self.variables += self._parse_variables(text)
+
+    def prompt(self, provide_explanation: bool) -> str:
+        if provide_explanation:
+            return self.explanation_template
+        else:
+            return self.base_template
 
 
 def normalize_template(template: Union[PromptTemplate, str]) -> PromptTemplate:
@@ -91,7 +108,7 @@ def normalize_template(template: Union[PromptTemplate, str]) -> PromptTemplate:
         return PromptTemplate(text=template)
 
     raise TypeError(
-        "Invalid type for argument `template`. Expected a string or PromptTemplate "
+        "Invalid type for argument `template`. Expected a string or PromptTemplate"
         f"but found {type(template)}."
     )
 
