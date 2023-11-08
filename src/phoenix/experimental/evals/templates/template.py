@@ -1,5 +1,5 @@
 import re
-from typing import Dict, List, Tuple, Union, Any
+from typing import Any, Dict, List, Tuple, Union
 
 import pandas as pd
 
@@ -96,7 +96,9 @@ def normalize_template(template: Union[PromptTemplate, str]) -> PromptTemplate:
     )
 
 
-def map_template(dataframe: pd.DataFrame, template: PromptTemplate, **options: Any) -> "pd.Series[str]":
+def map_template(
+    dataframe: pd.DataFrame, template: PromptTemplate, **options: Any
+) -> "pd.Series[str]":
     """
     Maps over a dataframe to construct a list of prompts from a template and a dataframe.
     """
