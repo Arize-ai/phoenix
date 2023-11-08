@@ -53,7 +53,7 @@ class OpenAIModel(BaseEvalModel):
     batch_size: int = 20
     # TODO: IMPLEMENT BATCHING
     """Batch size to use when passing multiple documents to generate."""
-    timeout: Optional[Union[float, Tuple[float, float]]] = None
+    request_timeout: Optional[Union[float, Tuple[float, float]]] = None
     """Timeout for requests to OpenAI completion API. Default is 600 seconds."""
     max_retries: int = 20
     """Maximum number of retries to make when generating."""
@@ -248,7 +248,7 @@ class OpenAIModel(BaseEvalModel):
             "presence_penalty": self.presence_penalty,
             "top_p": self.top_p,
             "n": self.n,
-            "timeout": self.timeout,
+            "timeout": self.request_timeout,
         }
 
     @property
