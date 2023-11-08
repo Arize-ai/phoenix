@@ -3,8 +3,9 @@ from typing import Any
 from unittest.mock import patch
 from uuid import uuid4
 
+import httpx
 import pytest
-import responses
+import respx
 from llama_index import ListIndex, ServiceContext, get_response_synthesizer
 from llama_index.callbacks import CallbackManager
 from llama_index.callbacks.schema import CBEventType
@@ -18,7 +19,7 @@ from llama_index.llms import (
 from llama_index.llms.base import llm_completion_callback
 from llama_index.query_engine import RetrieverQueryEngine
 from llama_index.schema import Document, TextNode
-from openai import Client, RateLimitError
+from openai import RateLimitError
 from phoenix.experimental.evals.models.openai import OPENAI_API_KEY_ENVVAR_NAME
 from phoenix.trace.exporter import NoOpExporter
 from phoenix.trace.llama_index import OpenInferenceTraceCallbackHandler
@@ -77,9 +78,10 @@ def test_callback_llm(mock_service_context: ServiceContext) -> None:
     assert list(map(json_string_to_span, map(span_to_json, spans))) == spans
 
 
-@responses.activate
+@pytest.mark.respx(base_url="https://api.openai.com/v1")
 def test_callback_llm_span_contains_template_attributes(
     monkeypatch: pytest.MonkeyPatch,
+    respx_mock: respx.mock,
 ) -> None:
     monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
     model_name = "gpt-3.5-turbo"
@@ -92,24 +94,28 @@ def test_callback_llm_span_contains_template_attributes(
     )
     query_engine = index.as_query_engine(service_context=service_context)
     expected_response = "The seven wonders of the world are: 1, 2, 3, 4, 5, 6, 7"
-    responses.post(
+    respx_mock.post(
         "https://api.openai.com/v1/chat/completions",
-        json={
-            "id": "chatcmpl-123",
-            "object": "chat.completion",
-            "created": 1677652288,
-            "model": model_name,
-            "choices": [
-                {
-                    "index": 0,
-                    "message": {"role": "assistant", "content": expected_response},
-                    "finish_reason": "stop",
-                }
-            ],
-            "usage": {"prompt_tokens": 1, "completion_tokens": 2, "total_tokens": 3},
-        },
-        status=200,
+    ).mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "id": "chatcmpl-123",
+                "object": "chat.completion",
+                "created": 1677652288,
+                "model": model_name,
+                "choices": [
+                    {
+                        "index": 0,
+                        "message": {"role": "assistant", "content": expected_response},
+                        "finish_reason": "stop",
+                    }
+                ],
+                "usage": {"prompt_tokens": 1, "completion_tokens": 2, "total_tokens": 3},
+            },
+        )
     )
+
     response = query_engine.query(query)
 
     assert response.response == expected_response
@@ -137,8 +143,14 @@ def test_callback_llm_rate_limit_error_has_exception_event(
     )
     query_engine = index.as_query_engine(service_context=service_context)
 
-    with patch.object(Client.chat.completions, "create") as mocked_chat_completion_create:
-        mocked_chat_completion_create.side_effect = RateLimitError("message")
+    with patch.object(llm._client.chat.completions, "create") as mocked_chat_completion_create:
+        mocked_chat_completion_create.side_effect = RateLimitError(
+            "message",
+            response=httpx.Response(
+                429, request=httpx.Request(method="post", url="https://api.openai.com/")
+            ),
+            body={},
+        )
         with pytest.raises(RateLimitError):
             query_engine.query(query)
 
