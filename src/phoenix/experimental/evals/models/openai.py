@@ -9,7 +9,7 @@ if TYPE_CHECKING:
     from tiktoken import Encoding
 
 OPENAI_API_KEY_ENVVAR_NAME = "OPENAI_API_KEY"
-MINIMUM_OPENAI_VERSION = "1.1.1"
+MINIMUM_OPENAI_VERSION = "1.0.0"
 MODEL_TOKEN_LIMIT_MAPPING = {
     "gpt-3.5-turbo-instruct": 4096,
     "gpt-3.5-turbo-0301": 4096,
