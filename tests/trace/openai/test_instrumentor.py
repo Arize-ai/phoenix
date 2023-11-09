@@ -3,9 +3,9 @@ import sys
 from importlib import reload
 from types import ModuleType
 
-import httpx
 import openai
 import pytest
+from httpx import Response
 from openai import AuthenticationError, OpenAI
 from phoenix.trace.openai.instrumentor import OpenAIInstrumentor
 from phoenix.trace.schemas import SpanException, SpanKind, SpanStatusCode
@@ -66,7 +66,6 @@ def client(openai_api_key: str, openai_module: ModuleType) -> OpenAI:
     return openai_module.OpenAI(api_key=openai_api_key)
 
 
-@pytest.mark.respx(base_url="https://api.openai.com/v1")
 def test_openai_instrumentor_includes_llm_attributes_on_chat_completion_success(
     client: OpenAI,
     respx_mock: MockRouter,
@@ -77,8 +76,8 @@ def test_openai_instrumentor_includes_llm_attributes_on_chat_completion_success(
     messages = [{"role": "user", "content": "Who won the World Cup in 2018?"}]
     temperature = 0.23
     expected_response_text = "France won the World Cup in 2018."
-    respx_mock.post("/chat/completions").mock(
-        side_effect=lambda request, route: httpx.Response(
+    respx_mock.post("https://api.openai.com/v1/chat/completions").mock(
+        side_effect=lambda request, route: Response(
             200,
             json={
                 "id": "chatcmpl-85eo7phshROhvmDvNeMVatGolg9JV",
@@ -138,7 +137,6 @@ def test_openai_instrumentor_includes_llm_attributes_on_chat_completion_success(
     assert attributes[OUTPUT_MIME_TYPE] == MimeType.JSON
 
 
-@pytest.mark.respx(base_url="https://api.openai.com/v1")
 def test_openai_instrumentor_includes_function_call_attributes(
     client: OpenAI,
     respx_mock: MockRouter,
@@ -167,8 +165,8 @@ def test_openai_instrumentor_includes_function_call_attributes(
     ]
     model = "gpt-4"
 
-    respx_mock.post("/chat/completions").mock(
-        side_effect=lambda request, route: httpx.Response(
+    respx_mock.post("https://api.openai.com/v1/chat/completions").mock(
+        side_effect=lambda request, route: Response(
             200,
             json={
                 "id": "chatcmpl-85eqK3CCNTHQcTN0ZoWqL5B0OO5ip",
@@ -230,7 +228,6 @@ def test_openai_instrumentor_includes_function_call_attributes(
     assert span.events == []
 
 
-@pytest.mark.respx(base_url="https://api.openai.com/v1")
 def test_openai_instrumentor_includes_function_call_message_attributes(
     client: OpenAI,
     respx_mock: MockRouter,
@@ -271,8 +268,8 @@ def test_openai_instrumentor_includes_function_call_message_attributes(
         }
     ]
     model = "gpt-4"
-    respx_mock.post("/chat/completions").mock(
-        side_effect=lambda request, route: httpx.Response(
+    respx_mock.post("https://api.openai.com/v1/chat/completions").mock(
+        side_effect=lambda request, route: Response(
             200,
             json={
                 "id": "chatcmpl-85euch0n5ruhawemogmak8cdwyqcb",
@@ -332,15 +329,14 @@ def test_openai_instrumentor_includes_function_call_message_attributes(
     assert LLM_FUNCTION_CALL not in attributes
 
 
-@pytest.mark.respx(base_url="https://api.openai.com/v1")
 def test_openai_instrumentor_records_authentication_error(
     client: OpenAI,
     respx_mock: MockRouter,
 ) -> None:
     tracer = Tracer()
     OpenAIInstrumentor(tracer).instrument()
-    respx_mock.post("/chat/completions").mock(
-        side_effect=lambda request, route: httpx.Response(
+    respx_mock.post("https://api.openai.com/v1/chat/completions").mock(
+        side_effect=lambda request, route: Response(
             401,
             json={
                 "error": {
@@ -371,7 +367,6 @@ def test_openai_instrumentor_records_authentication_error(
     assert "Traceback" in attributes[EXCEPTION_STACKTRACE]
 
 
-@pytest.mark.respx(base_url="https://api.openai.com/v1")
 def test_openai_instrumentor_does_not_interfere_with_completions_api(
     client: OpenAI,
     respx_mock: MockRouter,
@@ -380,8 +375,8 @@ def test_openai_instrumentor_does_not_interfere_with_completions_api(
     OpenAIInstrumentor(tracer).instrument()
     model = "gpt-3.5-turbo-instruct"
     prompt = "Who won the World Cup in 2018?"
-    respx_mock.post("/completions").mock(
-        side_effect=lambda request, route: httpx.Response(
+    respx_mock.post("https://api.openai.com/v1/completions").mock(
+        side_effect=lambda request, route: Response(
             200,
             json={
                 "id": "cmpl-85hqvKwCud3s3DWc80I0OeNmkfjSM",
@@ -409,7 +404,6 @@ def test_openai_instrumentor_does_not_interfere_with_completions_api(
     assert spans == []
 
 
-@pytest.mark.respx(base_url="https://api.openai.com/v1")
 def test_openai_instrumentor_instrument_method_is_idempotent(
     client: OpenAI,
     respx_mock: MockRouter,
@@ -419,8 +413,8 @@ def test_openai_instrumentor_instrument_method_is_idempotent(
     OpenAIInstrumentor(tracer).instrument()  # second call
     model = "gpt-4"
     messages = [{"role": "user", "content": "Who won the World Cup in 2018?"}]
-    respx_mock.post("/chat/completions").mock(
-        side_effect=lambda request, route: httpx.Response(
+    respx_mock.post("https://api.openai.com/v1/chat/completions").mock(
+        side_effect=lambda request, route: Response(
             200,
             json={
                 "id": "chatcmpl-85evOVGg6afU8iqiUsRtYQ5lYnGwn",
