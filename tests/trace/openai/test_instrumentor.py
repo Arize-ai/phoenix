@@ -78,7 +78,7 @@ def test_openai_instrumentor_includes_llm_attributes_on_chat_completion_success(
     expected_response_text = "France won the World Cup in 2018."
     respx_mock.post("https://api.openai.com/v1/chat/completions").mock(
         return_value=Response(
-            200,
+            status_code=200,
             json={
                 "id": "chatcmpl-85eo7phshROhvmDvNeMVatGolg9JV",
                 "object": "chat.completion",
@@ -164,10 +164,9 @@ def test_openai_instrumentor_includes_function_call_attributes(
         }
     ]
     model = "gpt-4"
-
     respx_mock.post("https://api.openai.com/v1/chat/completions").mock(
         return_value=Response(
-            200,
+            status_code=200,
             json={
                 "id": "chatcmpl-85eqK3CCNTHQcTN0ZoWqL5B0OO5ip",
                 "object": "chat.completion",
@@ -270,9 +269,9 @@ def test_openai_instrumentor_includes_function_call_message_attributes(
     model = "gpt-4"
     respx_mock.post("https://api.openai.com/v1/chat/completions").mock(
         return_value=Response(
-            200,
+            status_code=200,
             json={
-                "id": "chatcmpl-85euch0n5ruhawemogmak8cdwyqcb",
+                "id": "chatcmpl-85euCH0n5RuhAWEmogmak8cDwyQcb",
                 "object": "chat.completion",
                 "created": 1696359572,
                 "model": "gpt-4-0613",
@@ -283,7 +282,7 @@ def test_openai_instrumentor_includes_function_call_message_attributes(
                             "role": "assistant",
                             "content": (
                                 "The current weather in Boston is sunny "
-                                "with a temperature of 22 degrees celsius."
+                                "with a temperature of 22 degrees Celsius."
                             ),
                         },
                         "finish_reason": "stop",
@@ -337,7 +336,7 @@ def test_openai_instrumentor_records_authentication_error(
     OpenAIInstrumentor(tracer).instrument()
     respx_mock.post("https://api.openai.com/v1/chat/completions").mock(
         return_value=Response(
-            401,
+            status_code=401,
             json={
                 "error": {
                     "message": "error-message",
@@ -377,7 +376,7 @@ def test_openai_instrumentor_does_not_interfere_with_completions_api(
     prompt = "Who won the World Cup in 2018?"
     respx_mock.post("https://api.openai.com/v1/completions").mock(
         return_value=Response(
-            200,
+            status_code=200,
             json={
                 "id": "cmpl-85hqvKwCud3s3DWc80I0OeNmkfjSM",
                 "object": "text_completion",
@@ -395,7 +394,6 @@ def test_openai_instrumentor_does_not_interfere_with_completions_api(
             },
         )
     )
-
     response = client.completions.create(model=model, prompt=prompt)
     response_text = response.choices[0].text
     spans = list(tracer.get_spans())
@@ -415,7 +413,7 @@ def test_openai_instrumentor_instrument_method_is_idempotent(
     messages = [{"role": "user", "content": "Who won the World Cup in 2018?"}]
     respx_mock.post("https://api.openai.com/v1/chat/completions").mock(
         return_value=Response(
-            200,
+            status_code=200,
             json={
                 "id": "chatcmpl-85evOVGg6afU8iqiUsRtYQ5lYnGwn",
                 "object": "chat.completion",
