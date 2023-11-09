@@ -44,7 +44,7 @@ from phoenix.trace.utils import get_stacktrace, import_package
 from ..tracer import Tracer
 
 if TYPE_CHECKING:
-    from openai.openai_response import OpenAIResponse
+    from openai.types.chat import ChatCompletion
 
 
 Parameters = Mapping[str, Any]
@@ -75,15 +75,15 @@ class OpenAIInstrumentor:
         """
         openai = import_package("openai")
         is_instrumented = hasattr(
-            openai.api_requestor.APIRequestor.request,
+            openai._base_client.SyncAPIClient,
             INSTRUMENTED_ATTRIBUTE_NAME,
         )
         if not is_instrumented:
-            openai.api_requestor.APIRequestor.request = _wrap_openai_api_requestor(
-                openai.api_requestor.APIRequestor.request, self._tracer
+            openai._base_client.SyncAPIClient.request = _wrap_openai_api_requestor(
+                openai._base_client.SyncAPIClient.request, self._tracer
             )
             setattr(
-                openai.api_requestor.APIRequestor.request,
+                openai._base_client.SyncAPIClient,
                 INSTRUMENTED_ATTRIBUTE_NAME,
                 True,
             )
@@ -105,9 +105,10 @@ def _wrap_openai_api_requestor(
     def wrapped(*args: Any, **kwargs: Any) -> Any:
         call_signature = signature(request_fn)
         bound_arguments = call_signature.bind(*args, **kwargs)
-        parameters = bound_arguments.arguments["params"]
-        is_streaming = parameters.get("stream", False)
-        url = bound_arguments.arguments["url"]
+        is_streaming = bound_arguments.arguments["stream"]
+        options = bound_arguments.arguments["options"]
+        json_data = options.json_data
+        url = options.url
         current_status_code = SpanStatusCode.UNSET
         events: List[SpanEvent] = []
         attributes: SpanAttributes = dict()
@@ -116,15 +117,15 @@ def _wrap_openai_api_requestor(
                 attribute_name,
                 get_parameter_attribute_fn,
             ) in _PARAMETER_ATTRIBUTE_FUNCTIONS.items():
-                if (attribute_value := get_parameter_attribute_fn(parameters)) is not None:
+                if (attribute_value := get_parameter_attribute_fn(json_data)) is not None:
                     attributes[attribute_name] = attribute_value
-            outputs = None
+            chat_completion = None
             try:
                 start_time = datetime.now()
-                outputs = request_fn(*args, **kwargs)
+                chat_completion = request_fn(*args, **kwargs)
                 end_time = datetime.now()
                 current_status_code = SpanStatusCode.OK
-                return outputs
+                return chat_completion
             except Exception as error:
                 end_time = datetime.now()
                 current_status_code = SpanStatusCode.ERROR
@@ -138,16 +139,17 @@ def _wrap_openai_api_requestor(
                 )
                 raise
             finally:
-                if outputs:
-                    response = outputs[0]
+                if chat_completion:
                     for (
                         attribute_name,
                         get_response_attribute_fn,
                     ) in _RESPONSE_ATTRIBUTE_FUNCTIONS.items():
-                        if (attribute_value := get_response_attribute_fn(response)) is not None:
+                        if (
+                            attribute_value := get_response_attribute_fn(chat_completion.dict())
+                        ) is not None:
                             attributes[attribute_name] = attribute_value
                 tracer.create_span(
-                    name="openai.ChatCompletion.create",
+                    name="OpenAI Chat Completion",
                     span_kind=SpanKind.LLM,
                     start_time=start_time,
                     end_time=end_time,
@@ -182,43 +184,43 @@ def _llm_invocation_parameters(
     return json.dumps(parameters)
 
 
-def _output_value(response: "OpenAIResponse") -> str:
-    return json.dumps(response.data)
+def _output_value(response: "ChatCompletion") -> str:
+    return json.dumps(response)
 
 
 def _output_mime_type(_: Any) -> MimeType:
     return MimeType.JSON
 
 
-def _llm_output_messages(response: "OpenAIResponse") -> List[OpenInferenceMessage]:
+def _llm_output_messages(response: "ChatCompletion") -> List[OpenInferenceMessage]:
     return [
         _to_openinference_message(choice["message"], expects_name=False)
-        for choice in response.data["choices"]
+        for choice in response["choices"]
     ]
 
 
-def _llm_token_count_prompt(response: "OpenAIResponse") -> Optional[int]:
-    if token_usage := response.data.get("usage"):
+def _llm_token_count_prompt(response: "ChatCompletion") -> Optional[int]:
+    if token_usage := response.get("usage"):
         return cast(int, token_usage["prompt_tokens"])
     return None
 
 
-def _llm_token_count_completion(response: "OpenAIResponse") -> Optional[int]:
-    if token_usage := response.data.get("usage"):
+def _llm_token_count_completion(response: "ChatCompletion") -> Optional[int]:
+    if token_usage := response.get("usage"):
         return cast(int, token_usage["completion_tokens"])
     return None
 
 
-def _llm_token_count_total(response: "OpenAIResponse") -> Optional[int]:
-    if token_usage := response.data.get("usage"):
+def _llm_token_count_total(response: "ChatCompletion") -> Optional[int]:
+    if token_usage := response.get("usage"):
         return cast(int, token_usage["total_tokens"])
     return None
 
 
 def _llm_function_call(
-    response: "OpenAIResponse",
+    response: "ChatCompletion",
 ) -> Optional[str]:
-    choices = response.data["choices"]
+    choices = response["choices"]
     choice = choices[0]
     if choice.get("finish_reason") == "function_call" and (
         function_call_data := choice["message"].get("function_call")
@@ -274,7 +276,7 @@ _PARAMETER_ATTRIBUTE_FUNCTIONS: Dict[str, Callable[[Parameters], Any]] = {
     LLM_INPUT_MESSAGES: _llm_input_messages,
     LLM_INVOCATION_PARAMETERS: _llm_invocation_parameters,
 }
-_RESPONSE_ATTRIBUTE_FUNCTIONS: Dict[str, Callable[["OpenAIResponse"], Any]] = {
+_RESPONSE_ATTRIBUTE_FUNCTIONS: Dict[str, Callable[["ChatCompletion"], Any]] = {
     OUTPUT_VALUE: _output_value,
     OUTPUT_MIME_TYPE: _output_mime_type,
     LLM_OUTPUT_MESSAGES: _llm_output_messages,

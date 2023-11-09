@@ -1,9 +1,9 @@
 import json
 from importlib import reload
 
+import httpx
 import openai
 import pytest
-import responses
 from openai import AuthenticationError, OpenAI
 from phoenix.trace.openai.instrumentor import OpenAIInstrumentor
 from phoenix.trace.schemas import SpanException, SpanKind, SpanStatusCode
@@ -33,9 +33,10 @@ from phoenix.trace.tracer import Tracer
 
 
 @pytest.fixture
-def reload_openai_api_requestor() -> None:
+def reload_openai_client() -> None:
     """Reloads openai.api_requestor to reset the instrumented class method."""
-    reload(openai.api_requestor)
+    reload(openai._base_client)
+    reload(openai)
 
 
 @pytest.fixture
@@ -50,41 +51,46 @@ def client(openai_api_key) -> OpenAI:
     return OpenAI(api_key=openai_api_key)
 
 
-@responses.activate
+@pytest.mark.respx(base_url="https://api.openai.com/v1")
 def test_openai_instrumentor_includes_llm_attributes_on_chat_completion_success(
-    reload_openai_api_requestor, client
+    # reload_openai_client,
+    respx_mock,
+    openai_api_key,
 ) -> None:
     tracer = Tracer()
     OpenAIInstrumentor(tracer).instrument()
+    client = OpenAI(api_key=openai_api_key)
     model = "gpt-4"
     messages = [{"role": "user", "content": "Who won the World Cup in 2018?"}]
     temperature = 0.23
     expected_response_text = "France won the World Cup in 2018."
-    responses.post(
-        url="https://api.openai.com/v1/chat/completions",
-        json={
-            "id": "chatcmpl-85eo7phshROhvmDvNeMVatGolg9JV",
-            "object": "chat.completion",
-            "created": 1696359195,
-            "model": "gpt-4-0613",
-            "choices": [
-                {
-                    "index": 0,
-                    "message": {
-                        "role": "assistant",
-                        "content": expected_response_text,
-                    },
-                    "finish_reason": "stop",
-                }
-            ],
-            "usage": {"prompt_tokens": 17, "completion_tokens": 10, "total_tokens": 27},
-        },
-        status=200,
+
+    respx_mock.post("/chat/completions").mock(
+        side_effect=lambda request, route: httpx.Response(
+            200,
+            json={
+                "id": "chatcmpl-85eo7phshROhvmDvNeMVatGolg9JV",
+                "object": "chat.completion",
+                "created": 1696359195,
+                "model": "gpt-4-0613",
+                "choices": [
+                    {
+                        "index": 0,
+                        "message": {
+                            "role": "assistant",
+                            "content": expected_response_text,
+                        },
+                        "finish_reason": "stop",
+                    }
+                ],
+                "usage": {"prompt_tokens": 17, "completion_tokens": 10, "total_tokens": 27},
+            },
+        )
     )
     response = client.chat.completions.create(
         model=model, messages=messages, temperature=temperature
     )
-    response_text = response.choices[0]["message"]["content"]
+    response_text = response.choices[0].message.content
 
     assert response_text == expected_response_text
 
@@ -120,9 +126,12 @@ def test_openai_instrumentor_includes_llm_attributes_on_chat_completion_success(
     assert attributes[OUTPUT_MIME_TYPE] == MimeType.JSON
 
 
-@responses.activate
+@pytest.mark.respx(base_url="https://api.openai.com/v1")
 def test_openai_instrumentor_includes_function_call_attributes(
-    reload_openai_api_requestor, openai_api_key
+    # reload_openai_api_requestor,
+    openai_api_key,
+    respx_mock,
+    client,
 ) -> None:
     tracer = Tracer()
     OpenAIInstrumentor(tracer).instrument()
@@ -147,37 +156,38 @@ def test_openai_instrumentor_includes_function_call_attributes(
         }
     ]
     model = "gpt-4"
-    responses.post(
-        url="https://api.openai.com/v1/chat/completions",
-        json={
-            "id": "chatcmpl-85eqK3CCNTHQcTN0ZoWqL5B0OO5ip",
-            "object": "chat.completion",
-            "created": 1696359332,
-            "model": "gpt-4-0613",
-            "choices": [
-                {
-                    "index": 0,
-                    "message": {
-                        "role": "assistant",
-                        "content": None,
-                        "function_call": {
-                            "name": "get_current_weather",
-                            "arguments": '{\n  "location": "Boston, MA"\n}',
+
+    respx_mock.post("/chat/completions").mock(
+        side_effect=lambda request, route: httpx.Response(
+            200,
+            json={
+                "id": "chatcmpl-85eqK3CCNTHQcTN0ZoWqL5B0OO5ip",
+                "object": "chat.completion",
+                "created": 1696359332,
+                "model": "gpt-4-0613",
+                "choices": [
+                    {
+                        "index": 0,
+                        "message": {
+                            "role": "assistant",
+                            "content": None,
+                            "function_call": {
+                                "name": "get_current_weather",
+                                "arguments": '{\n  "location": "Boston, MA"\n}',
+                            },
                         },
-                    },
-                    "finish_reason": "function_call",
-                }
-            ],
-            "usage": {"prompt_tokens": 84, "completion_tokens": 18, "total_tokens": 102},
-        },
-        status=200,
+                        "finish_reason": "function_call",
+                    }
+                ],
+                "usage": {"prompt_tokens": 84, "completion_tokens": 18, "total_tokens": 102},
+            },
+        )
     )
     response = client.chat.completions.create(model=model, messages=messages, functions=functions)
 
-    function_call_data = response.choices[0]["message"]["function_call"]
-    assert set(function_call_data.keys()) == {"name", "arguments"}
-    assert function_call_data["name"] == "get_current_weather"
-    assert json.loads(function_call_data["arguments"]) == {"location": "Boston, MA"}
+    function_call = response.choices[0].message.function_call
+    assert function_call.name == "get_current_weather"
+    assert json.loads(function_call.arguments) == {"location": "Boston, MA"}
 
     spans = list(tracer.get_spans())
     assert len(spans) == 1
@@ -210,10 +220,8 @@ def test_openai_instrumentor_includes_function_call_attributes(
     assert span.events == []
 
 
-@responses.activate
-def test_openai_instrumentor_includes_function_call_message_attributes(
-    reload_openai_api_requestor, client
-) -> None:
+@pytest.mark.respx(base_url="https://api.openai.com/v1")
+def test_openai_instrumentor_includes_function_call_message_attributes(respx_mock, client) -> None:
     tracer = Tracer()
     OpenAIInstrumentor(tracer).instrument()
     messages = [
@@ -250,33 +258,34 @@ def test_openai_instrumentor_includes_function_call_message_attributes(
         }
     ]
     model = "gpt-4"
-    responses.post(
-        url="https://api.openai.com/v1/chat/completions",
-        json={
-            "id": "chatcmpl-85euCH0n5RuhAWEmogmak8cDwyQcb",
-            "object": "chat.completion",
-            "created": 1696359572,
-            "model": "gpt-4-0613",
-            "choices": [
-                {
-                    "index": 0,
-                    "message": {
-                        "role": "assistant",
-                        "content": (
-                            "The current weather in Boston is sunny "
-                            "with a temperature of 22 degrees Celsius."
-                        ),
-                    },
-                    "finish_reason": "stop",
-                }
-            ],
-            "usage": {"prompt_tokens": 126, "completion_tokens": 17, "total_tokens": 143},
-        },
-        status=200,
+    respx_mock.post("/chat/completions").mock(
+        side_effect=lambda request, route: httpx.Response(
+            200,
+            json={
+                "id": "chatcmpl-85euch0n5ruhawemogmak8cdwyqcb",
+                "object": "chat.completion",
+                "created": 1696359572,
+                "model": "gpt-4-0613",
+                "choices": [
+                    {
+                        "index": 0,
+                        "message": {
+                            "role": "assistant",
+                            "content": (
+                                "The current weather in Boston is sunny "
+                                "with a temperature of 22 degrees celsius."
+                            ),
+                        },
+                        "finish_reason": "stop",
+                    }
+                ],
+                "usage": {"prompt_tokens": 126, "completion_tokens": 17, "total_tokens": 143},
+            },
+        )
     )
 
     response = client.chat.completions.create(model=model, messages=messages, functions=functions)
-    response_text = response.choices[0]["message"]["content"]
+    response_text = response.choices[0].message.content
     spans = list(tracer.get_spans())
     span = spans[0]
     attributes = span.attributes
@@ -310,23 +319,26 @@ def test_openai_instrumentor_includes_function_call_message_attributes(
     assert LLM_FUNCTION_CALL not in attributes
 
 
-@responses.activate
+@pytest.mark.respx(base_url="https://api.openai.com/v1")
 def test_openai_instrumentor_records_authentication_error(
-    reload_openai_api_requestor, openai_api_key
+    openai_api_key,
+    client,
+    respx_mock,
 ) -> None:
     tracer = Tracer()
     OpenAIInstrumentor(tracer).instrument()
-    responses.post(
-        "https://api.openai.com/v1/chat/completions",
-        json={
-            "error": {
-                "message": "error-message",
-                "type": "invalid_request_error",
-                "param": None,
-                "code": "invalid_api_key",
-            }
-        },
-        status=401,
+    respx_mock.post("/chat/completions").mock(
+        side_effect=lambda request, route: httpx.Response(
+            401,
+            json={
+                "error": {
+                    "message": "error-message",
+                    "type": "invalid_request_error",
+                    "param": None,
+                    "code": "invalid_api_key",
+                }
+            },
+        )
     )
     model = "gpt-4"
     messages = [{"role": "user", "content": "Who won the World Cup in 2018?"}]
@@ -343,77 +355,81 @@ def test_openai_instrumentor_records_authentication_error(
     assert isinstance(event, SpanException)
     attributes = event.attributes
     assert attributes[EXCEPTION_TYPE] == "AuthenticationError"
-    assert attributes[EXCEPTION_MESSAGE] == "error-message"
+    assert "error-message" in attributes[EXCEPTION_MESSAGE]
     assert "Traceback" in attributes[EXCEPTION_STACKTRACE]
 
 
-@responses.activate
-def test_openai_instrumentor_does_not_interfere_with_completions_api(
-    reload_openai_api_requestor, client
-) -> None:
+@pytest.mark.respx(base_url="https://api.openai.com/v1")
+def test_openai_instrumentor_does_not_interfere_with_completions_api(respx_mock, client) -> None:
     tracer = Tracer()
     OpenAIInstrumentor(tracer).instrument()
     model = "gpt-3.5-turbo-instruct"
     prompt = "Who won the World Cup in 2018?"
-    responses.post(
-        url="https://api.openai.com/v1/completions",
-        json={
-            "id": "cmpl-85hqvKwCud3s3DWc80I0OeNmkfjSM",
-            "object": "text_completion",
-            "created": 1696370901,
-            "model": "gpt-3.5-turbo-instruct",
-            "choices": [
-                {
-                    "text": "\n\nFrance won the 2018 World Cup.",
-                    "index": 0,
-                    "logprobs": None,
-                    "finish_reason": "stop",
-                }
-            ],
-            "usage": {"prompt_tokens": 10, "completion_tokens": 10, "total_tokens": 20},
-        },
-        status=200,
+    respx_mock.post("/completions").mock(
+        side_effect=lambda request, route: httpx.Response(
+            200,
+            json={
+                "id": "cmpl-85hqvKwCud3s3DWc80I0OeNmkfjSM",
+                "object": "text_completion",
+                "created": 1696370901,
+                "model": "gpt-3.5-turbo-instruct",
+                "choices": [
+                    {
+                        "text": "\n\nFrance won the 2018 World Cup.",
+                        "index": 0,
+                        "logprobs": None,
+                        "finish_reason": "stop",
+                    }
+                ],
+                "usage": {"prompt_tokens": 10, "completion_tokens": 10, "total_tokens": 20},
+            },
+        )
     )
+
     response = client.completions.create(model=model, prompt=prompt)
-    response_text = response.choices[0]["text"]
+    response_text = response.choices[0].text
     spans = list(tracer.get_spans())
 
     assert "france" in response_text.lower() or "french" in response_text.lower()
     assert spans == []
 
 
-@responses.activate
+@pytest.mark.respx(base_url="https://api.openai.com/v1")
 def test_openai_instrumentor_instrument_method_is_idempotent(
-    reload_openai_api_requestor, openai_api_key
+    # reload_openai_api_requestor,
+    client,
+    openai_api_key,
+    respx_mock,
 ) -> None:
     tracer = Tracer()
     OpenAIInstrumentor(tracer).instrument()  # first call
     OpenAIInstrumentor(tracer).instrument()  # second call
     model = "gpt-4"
     messages = [{"role": "user", "content": "Who won the World Cup in 2018?"}]
-    responses.post(
-        url="https://api.openai.com/v1/chat/completions",
-        json={
-            "id": "chatcmpl-85evOVGg6afU8iqiUsRtYQ5lYnGwn",
-            "object": "chat.completion",
-            "created": 1696359646,
-            "model": "gpt-4-0613",
-            "choices": [
-                {
-                    "index": 0,
-                    "message": {
-                        "role": "assistant",
-                        "content": "France won the World Cup in 2018.",
-                    },
-                    "finish_reason": "stop",
-                }
-            ],
-            "usage": {"prompt_tokens": 17, "completion_tokens": 10, "total_tokens": 27},
-        },
-        status=200,
+    respx_mock.post("/chat/completions").mock(
+        side_effect=lambda request, route: httpx.Response(
+            200,
+            json={
+                "id": "chatcmpl-85evOVGg6afU8iqiUsRtYQ5lYnGwn",
+                "object": "chat.completion",
+                "created": 1696359646,
+                "model": "gpt-4-0613",
+                "choices": [
+                    {
+                        "index": 0,
+                        "message": {
+                            "role": "assistant",
+                            "content": "France won the World Cup in 2018.",
+                        },
+                        "finish_reason": "stop",
+                    }
+                ],
+                "usage": {"prompt_tokens": 17, "completion_tokens": 10, "total_tokens": 27},
+            },
+        )
     )
     response = client.chat.completions.create(model=model, messages=messages)
-    response_text = response.choices[0]["message"]["content"]
+    response_text = response.choices[0].message.content
     spans = list(tracer.get_spans())
     span = spans[0]
 
