@@ -161,12 +161,15 @@ class OpenAIModel(BaseEvalModel):
                 api_key=self.api_key,
                 organization=self.organization,
             )
-        else:
-            self._client = self._openai.OpenAI(
-                api_key=self.api_key,
-                organization=self.organization,
-                base_url=(self.base_url or self._openai.base_url),
-            )
+            # return early since we don't need to check the model
+            return
+
+        # The client is not azure, so it must be openai
+        self._client = self._openai.OpenAI(
+            api_key=self.api_key,
+            organization=self.organization,
+            base_url=(self.base_url or self._openai.base_url),
+        )
 
         if self.model_name in MODEL_TOKEN_LIMIT_MAPPING.keys():
             self._openai_api_model_name = self.model_name
