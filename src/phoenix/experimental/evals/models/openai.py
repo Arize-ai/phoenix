@@ -26,7 +26,6 @@ logger = logging.getLogger(__name__)
 
 AZURE_REQUIRED_OPTIONS = ["api_version", "azure_endpoint"]
 AZURE_ADDITIONAL_OPTIONS = [
-    "azure_endpoint",
     "azure_deployment",
     "azure_ad_token",
     "azure_ad_token_provider",
@@ -44,7 +43,6 @@ class AzureOptions:
 
 @dataclass
 class OpenAIModel(BaseEvalModel):
-    # openai_api_type: Optional[str] = field(default=None)
     api_key: Optional[str] = field(repr=False, default=None)
     """Your OpenAI key. If not provided, will be read from the environment variable"""
     organization: Optional[str] = field(repr=False, default=None)
@@ -52,14 +50,11 @@ class OpenAIModel(BaseEvalModel):
     The organization to use for the OpenAI API. If not provided, will default
     to what's configured in OpenAI
     """
-    # Azure options
-    api_version: Optional[str] = field(default=None)
-    """https://learn.microsoft.com/en-us/azure/ai-services/openai/reference#rest-api-versioning"""
-    azure_endpoint: Optional[str] = field(default=None)
-    """https://learn.microsoft.com/en-us/azure/cognitive-services/openai/how-to/create-resource?pivots=web-portal#create-a-resource"""
-    azure_deployment: Optional[str] = field(default=None)
-    azure_ad_token: Optional[str] = field(default=None)
-    azure_ad_token_provider: Optional[Callable[[], str]] = field(default=None)
+    base_url: Optional[str] = field(repr=False, default=None)
+    """
+    An optional base URL to use for the OpenAI API. If not provided, will default
+    to what's configured in OpenAI
+    """
     model_name: str = "gpt-4"
     """Model name to use. In of azure, this is the deployment name such as gpt-35-instant"""
     temperature: float = 0.0
@@ -90,6 +85,19 @@ class OpenAIModel(BaseEvalModel):
     retry_max_seconds: int = 60
     """Maximum number of seconds to wait when retrying."""
 
+    # Azure options
+    api_version: Optional[str] = field(default=None)
+    """https://learn.microsoft.com/en-us/azure/ai-services/openai/reference#rest-api-versioning"""
+    azure_endpoint: Optional[str] = field(default=None)
+    """
+    The endpoint to use for the OpenAI API.
+    Note, this field is required when using Azure OpenAI API.
+    https://learn.microsoft.com/en-us/azure/cognitive-services/openai/how-to/create-resource?pivots=web-portal#create-a-resource
+    """
+    azure_deployment: Optional[str] = field(default=None)
+    azure_ad_token: Optional[str] = field(default=None)
+    azure_ad_token_provider: Optional[Callable[[], str]] = field(default=None)
+
     def __post_init__(self) -> None:
         self._init_environment()
         self._init_open_ai()
@@ -118,8 +126,8 @@ class OpenAIModel(BaseEvalModel):
             )
 
     def _init_open_ai(self) -> None:
-        # For Azure, you need to provide the azure_endpoint
-        self._is_azure = self.azure_endpoint is not None
+        # For Azure, you need to provide the endpoint and the endpoint
+        self._is_azure = bool(self.azure_endpoint)
 
         self._model_uses_legacy_completion_api = self.model_name.startswith(
             LEGACY_COMPLETION_API_MODELS
@@ -134,8 +142,10 @@ class OpenAIModel(BaseEvalModel):
                 )
             self.api_key = api_key
 
+        # Set the version, organization, and base_url - default to openAI
         self.api_version = self.api_version or self._openai.api_version
         self.organization = self.organization or self._openai.organization
+
         # Initialize specific clients depending on the API backend
         # Set the type first
         self._client: Union[self._openai.OpenAI, self._openai.AzureOpenAI]  # type: ignore
@@ -155,6 +165,7 @@ class OpenAIModel(BaseEvalModel):
             self._client = self._openai.OpenAI(
                 api_key=self.api_key,
                 organization=self.organization,
+                base_url=(self.base_url or self._openai.base_url),
             )
 
         if self.model_name in MODEL_TOKEN_LIMIT_MAPPING.keys():
