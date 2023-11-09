@@ -1,5 +1,7 @@
 import json
+import sys
 from importlib import reload
+from types import ModuleType
 
 import httpx
 import openai
@@ -30,41 +32,51 @@ from phoenix.trace.semantic_conventions import (
     MimeType,
 )
 from phoenix.trace.tracer import Tracer
+from respx import MockRouter
 
 
 @pytest.fixture
-def reload_openai_client() -> None:
-    """Reloads openai.api_requestor to reset the instrumented class method."""
-    reload(openai._base_client)
-    reload(openai)
+def openai_module() -> ModuleType:
+    """
+    Reloads openai module to reset patched class. Both the top-level module and
+    the sub-module containing the patched client class must be reloaded.
+    """
+    # Cannot be reloaded with reload(openai._client) due to a naming conflict with a variable.
+    reload(sys.modules["openai._client"])
+    return reload(openai)
 
 
 @pytest.fixture
-def openai_api_key(monkeypatch) -> None:
+def openai_api_key(monkeypatch: pytest.MonkeyPatch) -> None:
+    """
+    Monkeypatches the environment variable for the OpenAI API key.
+    """
     api_key = "sk-0123456789"
     monkeypatch.setenv("OPENAI_API_KEY", api_key)
     return api_key
 
 
 @pytest.fixture
-def client(openai_api_key) -> OpenAI:
-    return OpenAI(api_key=openai_api_key)
+def client(openai_api_key: str, openai_module: ModuleType) -> OpenAI:
+    """
+    Instantiates the OpenAI client using the reloaded openai module, which is
+    necessary when running multiple tests at once due to the patch applied by
+    the OpenAIInstrumentor.
+    """
+    return openai_module.OpenAI(api_key=openai_api_key)
 
 
 @pytest.mark.respx(base_url="https://api.openai.com/v1")
 def test_openai_instrumentor_includes_llm_attributes_on_chat_completion_success(
-    # reload_openai_client,
-    respx_mock,
-    openai_api_key,
+    client: OpenAI,
+    respx_mock: MockRouter,
 ) -> None:
     tracer = Tracer()
     OpenAIInstrumentor(tracer).instrument()
-    client = OpenAI(api_key=openai_api_key)
     model = "gpt-4"
     messages = [{"role": "user", "content": "Who won the World Cup in 2018?"}]
     temperature = 0.23
     expected_response_text = "France won the World Cup in 2018."
-
     respx_mock.post("/chat/completions").mock(
         side_effect=lambda request, route: httpx.Response(
             200,
@@ -128,10 +140,8 @@ def test_openai_instrumentor_includes_llm_attributes_on_chat_completion_success(
 
 @pytest.mark.respx(base_url="https://api.openai.com/v1")
 def test_openai_instrumentor_includes_function_call_attributes(
-    # reload_openai_api_requestor,
-    openai_api_key,
-    respx_mock,
-    client,
+    client: OpenAI,
+    respx_mock: MockRouter,
 ) -> None:
     tracer = Tracer()
     OpenAIInstrumentor(tracer).instrument()
@@ -221,7 +231,10 @@ def test_openai_instrumentor_includes_function_call_attributes(
 
 
 @pytest.mark.respx(base_url="https://api.openai.com/v1")
-def test_openai_instrumentor_includes_function_call_message_attributes(respx_mock, client) -> None:
+def test_openai_instrumentor_includes_function_call_message_attributes(
+    client: OpenAI,
+    respx_mock: MockRouter,
+) -> None:
     tracer = Tracer()
     OpenAIInstrumentor(tracer).instrument()
     messages = [
@@ -321,9 +334,8 @@ def test_openai_instrumentor_includes_function_call_message_attributes(respx_moc
 
 @pytest.mark.respx(base_url="https://api.openai.com/v1")
 def test_openai_instrumentor_records_authentication_error(
-    openai_api_key,
-    client,
-    respx_mock,
+    client: OpenAI,
+    respx_mock: MockRouter,
 ) -> None:
     tracer = Tracer()
     OpenAIInstrumentor(tracer).instrument()
@@ -360,7 +372,10 @@ def test_openai_instrumentor_records_authentication_error(
 
 
 @pytest.mark.respx(base_url="https://api.openai.com/v1")
-def test_openai_instrumentor_does_not_interfere_with_completions_api(respx_mock, client) -> None:
+def test_openai_instrumentor_does_not_interfere_with_completions_api(
+    client: OpenAI,
+    respx_mock: MockRouter,
+) -> None:
     tracer = Tracer()
     OpenAIInstrumentor(tracer).instrument()
     model = "gpt-3.5-turbo-instruct"
@@ -396,10 +411,8 @@ def test_openai_instrumentor_does_not_interfere_with_completions_api(respx_mock,
 
 @pytest.mark.respx(base_url="https://api.openai.com/v1")
 def test_openai_instrumentor_instrument_method_is_idempotent(
-    # reload_openai_api_requestor,
-    client,
-    openai_api_key,
-    respx_mock,
+    client: OpenAI,
+    respx_mock: MockRouter,
 ) -> None:
     tracer = Tracer()
     OpenAIInstrumentor(tracer).instrument()  # first call
