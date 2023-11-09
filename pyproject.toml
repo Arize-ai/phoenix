@@ -43,12 +43,11 @@ dynamic = ["version"]
 
 [project.optional-dependencies]
 dev = [
-  "black[jupyter]",
   "gcsfs",
   "hatch",
   "jupyter",
   "nbqa",
-  "ruff==0.0.290",
+  "ruff==0.1.3",
   "pandas-stubs<=2.0.2.230605",  # version 2.0.3.230814 is causing a dependency conflict.
   "pytest",
   "pytest-cov",
@@ -57,7 +56,7 @@ dev = [
   "pre-commit",
   "arize[AutoEmbeddings, LLM_Evaluation]",
   "llama-index>=0.8.29",
-  "langchain>=0.0.293",
+  "langchain>=0.0.324",
 ]
 experimental = [
   "tenacity",
@@ -82,16 +81,6 @@ artifacts = ["src/phoenix/server/static"]
 [tool.hatch.build]
 only-packages = true
 
-[tool.hatch.build.hooks.jupyter-builder]
-dependencies = ["hatch-jupyter-builder"]
-build-function = "hatch_jupyter_builder.npm_builder"
-ensured-targets = ["src/phoenix/server/static/index.js"]
-skip-if-exists = ["src/phoenix/server/static/index.js"]
-
-[tool.hatch.build.hooks.jupyter-builder.build-kwargs]
-path = "app"
-source_dir = "app"
-
 [tool.hatch.build.targets.sdist]
 artifacts = ["src/phoenix/server/static"]
 
@@ -102,9 +91,9 @@ dependencies = [
   "pytest-cov",
   "pytest-lazy-fixture",
   "arize",
-  "langchain>=0.0.293",
+  "langchain>=0.0.324",
   "llama-index>=0.8.29",
-  "openai",
+  "openai<1.0.0",
   "tenacity",
   "nltk==3.8.1",
   "sentence-transformers==2.2.2",
@@ -125,14 +114,13 @@ dependencies = [
   "types-tqdm",
   "types-requests",
   "types-protobuf",
+  "openai<1.0.0",
 ]
 
 [tool.hatch.envs.style]
 detached = true
 dependencies = [
-  "black~=23.3.0",
-  "black[jupyter]~=23.3.0",
-  "ruff~=0.0.290",
+  "ruff~=0.1.3",
 ]
 
 [tool.hatch.envs.notebooks]
@@ -188,11 +176,11 @@ check = [
 
 [tool.hatch.envs.style.scripts]
 check = [
-  "black --check --diff --color .",
   "ruff .",
+  "ruff format --check --diff .",
 ]
 fix = [
-  "black .",
+  "ruff format .",
   "ruff --fix .",
 ]
 
@@ -216,10 +204,6 @@ pypi = [
   "check-wheel-contents dist/",
   "twine upload --verbose dist/*",
 ]
-
-[tool.black]
-line-length = 100
-exclude = '_pb2\.pyi?$'
 
 [tool.hatch.envs.docs.scripts]
 check = [
@@ -288,11 +272,15 @@ module = [
 ignore_missing_imports = true
 
 [tool.ruff]
-exclude = [".git", "__pycache__", "docs/source/conf.py", "*_pb2.py*"]
+exclude = [".git", "__pycache__", "docs/source/conf.py", "*_pb2.py*", "*.pyi"]
+extend-include = ["*.ipynb"]
 ignore-init-module-imports = true
 line-length = 100
 select = ["E", "F", "W", "I"]
 target-version = "py38"
+
+[tool.ruff.lint.per-file-ignores]
+"*.ipynb" = ["E402", "E501"]
 
 [tool.ruff.isort]
 force-single-line = false

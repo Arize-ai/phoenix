@@ -11,8 +11,9 @@ import {
   DatasetGroup,
   DEFAULT_CLUSTER_MIN_SAMPLES,
   DEFAULT_CLUSTER_SELECTION_EPSILON,
-  DEFAULT_COLOR_SCHEME,
+  DEFAULT_DARK_COLOR_SCHEME,
   DEFAULT_DATASET_SAMPLE_SIZE,
+  DEFAULT_LIGHT_COLOR_SCHEME,
   DEFAULT_MIN_CLUSTER_SIZE,
   DEFAULT_MIN_DIST,
   DEFAULT_N_NEIGHBORS,
@@ -21,6 +22,7 @@ import {
   SelectionGridSize,
   UNKNOWN_COLOR,
 } from "@phoenix/constants/pointCloudConstants";
+import { getCurrentTheme } from "@phoenix/contexts";
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 import { Dimension } from "@phoenix/types";
 import { assertUnreachable } from "@phoenix/typeUtils";
@@ -304,11 +306,6 @@ export interface PointCloudProps {
    */
   canvasMode: CanvasMode;
   /**
-   * The color scheme to use for the point cloud.
-   * @default "dark"
-   */
-  canvasTheme: CanvasTheme;
-  /**
    * The point size scale
    * @default 1
    */
@@ -418,10 +415,6 @@ export interface PointCloudState extends PointCloudProps {
    */
   setCanvasMode: (mode: CanvasMode) => void;
   /**
-   * Set canvas theme to light or dark
-   */
-  setCanvasTheme: (theme: CanvasTheme) => void;
-  /**
    * Set the point size scale
    * @param {number} scale
    */
@@ -497,38 +490,49 @@ export interface PointCloudState extends PointCloudProps {
   setMetric(metric: MetricDefinition): void;
 }
 
-/**
- * The default point cloud properties in the case that there are two datasets.
- */
-export const DEFAULT_DRIFT_POINT_CLOUD_PROPS: Partial<PointCloudProps> = {
-  coloringStrategy: ColoringStrategy.dataset,
-  pointGroupVisibility: {
-    [DatasetGroup.primary]: true,
-    [DatasetGroup.reference]: true,
-  },
-  pointGroupColors: {
-    [DatasetGroup.primary]: DEFAULT_COLOR_SCHEME[0],
-    [DatasetGroup.reference]: DEFAULT_COLOR_SCHEME[1],
-    [DatasetGroup.corpus]: FALLBACK_COLOR,
-  },
-  metric: {
-    type: "drift",
-    metric: "euclideanDistance",
-  },
+const getDefaultColorScheme = () => {
+  const theme = getCurrentTheme();
+  return theme === "light"
+    ? DEFAULT_LIGHT_COLOR_SCHEME
+    : DEFAULT_DARK_COLOR_SCHEME;
 };
 
 /**
  * The default point cloud properties in the case that there are two datasets.
  */
-export const DEFAULT_RETRIEVAL_TROUBLESHOOTING_POINT_CLOUD_PROPS: Partial<PointCloudProps> =
-  {
+export function getDefaultDriftPointCloudProps(): Partial<PointCloudProps> {
+  const defaultColorScheme = getDefaultColorScheme();
+  return {
+    coloringStrategy: ColoringStrategy.dataset,
+    pointGroupVisibility: {
+      [DatasetGroup.primary]: true,
+      [DatasetGroup.reference]: true,
+    },
+    pointGroupColors: {
+      [DatasetGroup.primary]: defaultColorScheme[0],
+      [DatasetGroup.reference]: defaultColorScheme[1],
+      [DatasetGroup.corpus]: FALLBACK_COLOR,
+    },
+    metric: {
+      type: "drift",
+      metric: "euclideanDistance",
+    },
+  };
+}
+
+/**
+ * The default point cloud properties in the case that there are two datasets.
+ */
+export function getDefaultRetrievalTroubleshootingPointCloudProps(): Partial<PointCloudProps> {
+  const defaultColorScheme = getDefaultColorScheme();
+  return {
     coloringStrategy: ColoringStrategy.dataset,
     pointGroupVisibility: {
       [DatasetGroup.primary]: true,
       [DatasetGroup.corpus]: true,
     },
     pointGroupColors: {
-      [DatasetGroup.primary]: DEFAULT_COLOR_SCHEME[0],
+      [DatasetGroup.primary]: defaultColorScheme[0],
       [DatasetGroup.corpus]: FALLBACK_COLOR,
     },
     metric: {
@@ -538,12 +542,12 @@ export const DEFAULT_RETRIEVAL_TROUBLESHOOTING_POINT_CLOUD_PROPS: Partial<PointC
     // Since we are showing clusters by percent query, sort from highest query density to lowest
     clusterSort: { dir: "desc", column: "primaryMetricValue" },
   };
-
+}
 /**
  * The default point cloud properties in the case that there is only one dataset.
  */
-export const DEFAULT_SINGLE_DATASET_POINT_CLOUD_PROPS: Partial<PointCloudProps> =
-  {
+export function getDefaultSingleDatasetPointCloudProps(): Partial<PointCloudProps> {
+  return {
     coloringStrategy: ColoringStrategy.correctness,
     pointGroupVisibility: {
       [CorrectnessGroup.correct]: true,
@@ -562,6 +566,7 @@ export const DEFAULT_SINGLE_DATASET_POINT_CLOUD_PROPS: Partial<PointCloudProps> 
     // Since we are showing clusters by accuracy, sort from lowest accuracy to highest
     clusterSort: { dir: "asc", column: "primaryMetricValue" },
   };
+}
 
 export type PointCloudStore = ReturnType<typeof createPointCloudStore>;
 
@@ -580,7 +585,6 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
     highlightedClusterId: null,
     selectedClusterId: null,
     canvasMode: CanvasMode.move,
-    canvasTheme: "dark",
     pointSizeScale: 1,
     clusterColorMode: ClusterColorMode.default,
     coloringStrategy: ColoringStrategy.dataset,
@@ -592,8 +596,8 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
     },
     pointGroupColors: {
       // TODO move to a single source of truth
-      [DatasetGroup.primary]: DEFAULT_COLOR_SCHEME[0],
-      [DatasetGroup.reference]: DEFAULT_COLOR_SCHEME[1],
+      [DatasetGroup.primary]: getDefaultColorScheme()[0],
+      [DatasetGroup.reference]: getDefaultColorScheme()[1],
       [DatasetGroup.corpus]: FALLBACK_COLOR,
     },
     eventIdToGroup: {},
@@ -710,7 +714,6 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
     setHighlightedClusterId: (id) => set({ highlightedClusterId: id }),
     setSelectedClusterId: (id) =>
       set({ selectedClusterId: id, highlightedClusterId: null }),
-    setCanvasTheme: (theme) => set({ canvasTheme: theme }),
     setPointSizeScale: (scale) => set({ pointSizeScale: scale }),
     setCanvasMode: (mode) => set({ canvasMode: mode }),
     setClusterColorMode: (mode) => set({ clusterColorMode: mode }),
@@ -753,8 +756,8 @@ export const createPointCloudStore = (initProps?: Partial<PointCloudProps>) => {
             },
             pointGroupColors: {
               // TODO move these colors to a constants file
-              [DatasetGroup.primary]: DEFAULT_COLOR_SCHEME[0],
-              [DatasetGroup.reference]: DEFAULT_COLOR_SCHEME[1],
+              [DatasetGroup.primary]: getDefaultColorScheme()[0],
+              [DatasetGroup.reference]: getDefaultColorScheme()[1],
               [DatasetGroup.corpus]: FALLBACK_COLOR,
             },
             dimension: null,

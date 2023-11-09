@@ -2,24 +2,27 @@
     "version": "0.2",
     "language": "en",
     "words": [
-        "Colab",
-        "gitbook",
-        "Evals",
-        "dataframe",
+        "actuals",
         "arize",
+        "chatbot",
+        "Colab",
+        "conda",
+        "dataframe",
+        "Evals",
+        "gitbook",
         "HDBSCAN",
         "Instrumentor",
         "langchain",
         "llamaindex",
-        "actuals",
-        "conda",
+        "NDJSON",
         "numpy",
-        "rgba",
-        "UMAP",
-        "tracedataset",
-        "chatbot",
         "quickstart",
-        "NDJSON"
+        "RERANKER",
+        "rgba",
+        "tracedataset",
+        "UMAP"
     ],
-    "flagWords": ["hte"]
+    "flagWords": [
+        "hte"
+    ]
 }

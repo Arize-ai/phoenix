@@ -2,16 +2,7 @@ import json
 import logging
 from copy import deepcopy
 from datetime import datetime
-from typing import (
-    Any,
-    Dict,
-    Iterable,
-    Iterator,
-    List,
-    Mapping,
-    Optional,
-    Tuple,
-)
+from typing import Any, Dict, Iterable, Iterator, List, Mapping, Optional, Tuple
 from uuid import UUID
 
 from langchain.callbacks.tracers.base import BaseTracer
@@ -20,13 +11,7 @@ from langchain.load.dump import dumpd
 from langchain.schema.messages import BaseMessage
 
 from phoenix.trace.exporter import HttpExporter
-from phoenix.trace.schemas import (
-    Span,
-    SpanEvent,
-    SpanException,
-    SpanKind,
-    SpanStatusCode,
-)
+from phoenix.trace.schemas import Span, SpanEvent, SpanException, SpanKind, SpanStatusCode
 from phoenix.trace.semantic_conventions import (
     DOCUMENT_CONTENT,
     DOCUMENT_METADATA,
@@ -56,6 +41,7 @@ from phoenix.trace.semantic_conventions import (
     MimeType,
 )
 from phoenix.trace.tracer import Tracer
+from phoenix.utilities.error_handling import graceful_fallback
 
 logger = logging.getLogger(__name__)
 
@@ -147,15 +133,15 @@ def _output_messages(run_outputs: Mapping[str, Any]) -> Iterator[Tuple[str, List
 def _parse_message_data(message_data: Mapping[str, Any]) -> Message:
     """Parses message data to grab message role, content, etc."""
     message_class_name = message_data["id"][-1]
-    if message_class_name == "HumanMessage":
+    if message_class_name.startswith("HumanMessage"):
         role = "user"
-    elif message_class_name == "AIMessage":
+    elif message_class_name.startswith("AIMessage"):
         role = "assistant"
-    elif message_class_name == "SystemMessage":
+    elif message_class_name.startswith("SystemMessage"):
         role = "system"
-    elif message_class_name == "FunctionMessage":
+    elif message_class_name.startswith("FunctionMessage"):
         role = "function"
-    elif message_class_name == "ChatMessage":
+    elif message_class_name.startswith("ChatMessage"):
         role = message_data["kwargs"]["role"]
     else:
         raise ValueError(f"Cannot parse message of type: {message_class_name}")
@@ -270,13 +256,31 @@ def _retrieval_documents(
 ) -> Iterator[Tuple[str, List[Any]]]:
     if run["run_type"] != "retriever":
         return
-    yield RETRIEVAL_DOCUMENTS, [
-        {
-            DOCUMENT_CONTENT: document.get("page_content"),
-            DOCUMENT_METADATA: document.get("metadata") or {},
-        }
-        for document in (run.get("outputs") or {}).get("documents") or []
-    ]
+    yield (
+        RETRIEVAL_DOCUMENTS,
+        [
+            {
+                DOCUMENT_CONTENT: document.get("page_content"),
+                DOCUMENT_METADATA: document.get("metadata") or {},
+            }
+            for document in (run.get("outputs") or {}).get("documents") or []
+        ],
+    )
+
+
+def _chat_model_start_fallback(
+    serialized: Dict[str, Any],
+    messages: List[List[BaseMessage]],
+    *,
+    run_id: UUID,
+    tags: Optional[List[str]] = None,
+    parent_run_id: Optional[UUID] = None,
+    metadata: Optional[Dict[str, Any]] = None,
+    **kwargs: Any,
+) -> None:
+    # Currently does nothing. If a functional fallback is implemented, new failures will not be
+    # caught
+    pass
 
 
 class OpenInferenceTracer(Tracer, BaseTracer):
@@ -351,6 +355,7 @@ class OpenInferenceTracer(Tracer, BaseTracer):
         except Exception:
             logger.exception("Failed to convert run to spans")
 
+    @graceful_fallback(_chat_model_start_fallback)
     def on_chat_model_start(
         self,
         serialized: Dict[str, Any],
@@ -360,6 +365,7 @@ class OpenInferenceTracer(Tracer, BaseTracer):
         tags: Optional[List[str]] = None,
         parent_run_id: Optional[UUID] = None,
         metadata: Optional[Dict[str, Any]] = None,
+        name: Optional[str] = None,
         **kwargs: Any,
     ) -> None:
         """
@@ -388,5 +394,6 @@ class OpenInferenceTracer(Tracer, BaseTracer):
             child_execution_order=execution_order,
             run_type="llm",
             tags=tags,
+            name=name or "",
         )
         self._start_trace(run)

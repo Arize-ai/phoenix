@@ -2,7 +2,6 @@ from datetime import datetime
 
 from phoenix.trace.exporter import NoOpExporter
 from phoenix.trace.schemas import Span, SpanException, SpanStatusCode
-from phoenix.trace.semantic_conventions import DeploymentAttributes
 from phoenix.trace.span_json_decoder import json_string_to_span
 from phoenix.trace.span_json_encoder import spans_to_jsonl
 from phoenix.trace.tracer import Tracer
@@ -45,9 +44,7 @@ def test_span_buffer_accumulation():
         status_code="ERROR",
         status_message="",
         events=[SpanException(timestamp=datetime.now(), message="")],
-        attributes={
-            DeploymentAttributes.attributes["environment"].id: "dev",
-        },
+        attributes={},
     )
 
     assert len(tracer.span_buffer) == 2
@@ -75,4 +72,3 @@ def test_span_buffer_accumulation():
     assert parsed_span_2.events[0].name == "exception"
     assert parsed_span_2.events[0].attributes == {"exception.message": ""}
     assert parsed_span_2.events[0].timestamp is not None
-    assert parsed_span_2.attributes[DeploymentAttributes.attributes["environment"].id] == "dev"

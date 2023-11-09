@@ -2,7 +2,7 @@ import logging
 from abc import ABC, abstractmethod, abstractproperty
 from contextlib import contextmanager
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Callable, Dict, Generator, List, Optional, Type
+from typing import TYPE_CHECKING, Any, Callable, Generator, List, Optional, Type
 
 if TYPE_CHECKING:
     from tiktoken import Encoding
@@ -82,7 +82,7 @@ class BaseEvalModel(ABC):
             before_sleep=log_retry,
         )
 
-    def __call__(self, prompt: str, instruction: Optional[str] = None) -> str:
+    def __call__(self, prompt: str, instruction: Optional[str] = None, **kwargs: Any) -> str:
         """Run the LLM on the given prompt."""
         if not isinstance(prompt, str):
             raise TypeError(
@@ -95,7 +95,7 @@ class BaseEvalModel(ABC):
                 "Invalid type for argument `instruction`. Expected a string but found "
                 f"{type(instruction)}."
             )
-        return self.generate(prompts=[prompt], instruction=instruction)[0]
+        return self._generate(prompt=prompt, instruction=instruction, **kwargs)
 
     async def async_call(self, prompt: str, instruction: Optional[str] = None) -> str:
         """Run the LLM on the given prompt."""
@@ -113,9 +113,11 @@ class BaseEvalModel(ABC):
         response = await self.agenerate(prompts=[prompt], instruction=instruction)
         return response[0]
 
-    def generate(self, prompts: List[str], instruction: Optional[str] = None) -> List[str]:
+    def generate(
+        self, prompts: List[str], instruction: Optional[str] = None, **kwargs: Any
+    ) -> List[str]:
         printif(self._verbose, f"Generating responses for {len(prompts)} prompts...")
-        if extra_info := self._verbose_generation_info():
+        if extra_info := self.verbose_generation_info():
             printif(self._verbose, extra_info)
         if not is_list_of(prompts, str):
             raise TypeError(
@@ -125,7 +127,7 @@ class BaseEvalModel(ABC):
         try:
             outputs = []
             for prompt in tqdm(prompts, bar_format=TQDM_BAR_FORMAT, ncols=100):
-                output = self._generate(prompt=prompt, instruction=instruction)  # type:ignore
+                output = self._generate(prompt=prompt, instruction=instruction, **kwargs)
                 logger.info(f"Prompt: {prompt}\nInstruction: {instruction}\nOutput: {output}")
                 outputs.append(output)
 
@@ -149,13 +151,13 @@ class BaseEvalModel(ABC):
             raise e
         return result
 
-    def _verbose_generation_info(self) -> str:
+    def verbose_generation_info(self) -> str:
         # if defined, returns additional model-specific information to display if `generate` is
         # run with `verbose=True`
         return ""
 
     @abstractmethod
-    def _generate(self, prompt: str, **kwargs: Dict[str, Any]) -> str:
+    def _generate(self, prompt: str, **kwargs: Any) -> str:
         raise NotImplementedError
 
     async def _agenerate(self, prompt: str, instruction: Optional[str]) -> str:

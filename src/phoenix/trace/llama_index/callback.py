@@ -12,17 +12,42 @@ https://github.com/Arize-ai/open-inference-spec
 import json
 import logging
 from collections import defaultdict
-from datetime import datetime
-from typing import Any, Callable, Dict, Iterable, Iterator, List, Optional, Tuple, TypedDict, cast
+from dataclasses import dataclass, field
+from datetime import datetime, timezone
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Iterable,
+    Iterator,
+    List,
+    Mapping,
+    Optional,
+    Tuple,
+    Union,
+    cast,
+)
 from uuid import uuid4
 
 from llama_index.callbacks.base_handler import BaseCallbackHandler
-from llama_index.callbacks.schema import TIMESTAMP_FORMAT, CBEvent, CBEventType, EventPayload
+from llama_index.callbacks.schema import (
+    TIMESTAMP_FORMAT,
+    CBEvent,
+    CBEventType,
+    EventPayload,
+)
 from llama_index.llms.base import ChatMessage, ChatResponse
 from llama_index.tools import ToolMetadata
 
 from phoenix.trace.exporter import HttpExporter
-from phoenix.trace.schemas import Span, SpanEvent, SpanException, SpanID, SpanKind, SpanStatusCode
+from phoenix.trace.schemas import (
+    Span,
+    SpanEvent,
+    SpanException,
+    SpanID,
+    SpanKind,
+    SpanStatusCode,
+)
 from phoenix.trace.semantic_conventions import (
     DOCUMENT_CONTENT,
     DOCUMENT_ID,
@@ -73,12 +98,17 @@ CBEventID = str
 _LOCAL_TZINFO = datetime.now().astimezone().tzinfo
 
 
-class CBEventData(TypedDict, total=False):
-    name: str
-    event_type: CBEventType
-    start_event: CBEvent
-    end_event: CBEvent
-    attributes: Dict[str, Any]
+@dataclass
+class CBEventData:
+    name: Optional[str] = field(default=None)
+    event_type: Optional[CBEventType] = field(default=None)
+    start_event: Optional[CBEvent] = field(default=None)
+    end_event: Optional[CBEvent] = field(default=None)
+    attributes: Dict[str, Any] = field(default_factory=dict)
+
+    def set_if_unset(self, key: str, value: Any) -> None:
+        if not getattr(self, key):
+            setattr(self, key, value)
 
 
 ChildEventIds = Dict[CBEventID, List[CBEventID]]
@@ -133,7 +163,13 @@ def payload_to_semantic_attributes(
         if (raw := getattr(response, "raw", None)) is not None:
             attributes.update(_get_output_messages(raw))
             if (usage := getattr(raw, "usage", None)) is not None:
+                # OpenAI token counts are available on raw.usage but can also be
+                # found in additional_kwargs. Thus the duplicate handling.
                 attributes.update(_get_token_counts(usage))
+        # Look for token counts in additional_kwargs of the completion payload
+        # This is needed for non-OpenAI models
+        if (additional_kwargs := getattr(response, "additional_kwargs", None)) is not None:
+            attributes.update(_get_token_counts(additional_kwargs))
     if event_type is CBEventType.RERANKING:
         if EventPayload.TOP_K in payload:
             attributes[RERANKER_TOP_K] = payload[EventPayload.TOP_K]
@@ -217,17 +253,16 @@ class OpenInferenceTraceCallbackHandler(BaseCallbackHandler):
     ) -> CBEventID:
         event_id = event_id or str(uuid4())
         event_data = self._event_id_to_event_data[event_id]
-        event_data["name"] = event_type.value
-        event_data["event_type"] = event_type
-        event_data["start_event"] = CBEvent(
+        event_data.name = event_type.value
+        event_data.event_type = event_type
+        event_data.start_event = CBEvent(
             event_type=event_type,
             payload=payload,
             id_=event_id,
         )
-        event_data["attributes"] = {}
         # Parse the payload to extract the parameters
         if payload is not None:
-            event_data["attributes"].update(
+            event_data.attributes.update(
                 payload_to_semantic_attributes(event_type, payload),
             )
 
@@ -242,9 +277,9 @@ class OpenInferenceTraceCallbackHandler(BaseCallbackHandler):
         **kwargs: Any,
     ) -> None:
         event_data = self._event_id_to_event_data[event_id]
-        event_data.setdefault("name", event_type.value)
-        event_data.setdefault("event_type", event_type)
-        event_data["end_event"] = CBEvent(
+        event_data.set_if_unset("name", event_type.value)
+        event_data.set_if_unset("event_type", event_type)
+        event_data.end_event = CBEvent(
             event_type=event_type,
             payload=payload,
             id_=event_id,
@@ -252,7 +287,7 @@ class OpenInferenceTraceCallbackHandler(BaseCallbackHandler):
 
         # Parse the payload to extract the parameters
         if payload is not None:
-            event_data["attributes"].update(
+            event_data.attributes.update(
                 payload_to_semantic_attributes(event_type, payload, is_event_end=True),
             )
 
@@ -308,29 +343,35 @@ def _add_spans_to_tracer(
     while parent_child_id_stack:
         parent_span_id, event_id = parent_child_id_stack.pop()
         event_data = event_id_to_event_data[event_id]
-        event_type = event_data["event_type"]
-        attributes = event_data["attributes"]
+        event_type = event_data.event_type
+        attributes = event_data.attributes
         if event_type is CBEventType.LLM:
             while parent_child_id_stack:
                 preceding_event_parent_span_id, preceding_event_id = parent_child_id_stack[-1]
                 if preceding_event_parent_span_id != parent_span_id:
                     break
                 preceding_event_data = event_id_to_event_data[preceding_event_id]
-                if preceding_event_data["event_type"] is not CBEventType.TEMPLATING:
+                if preceding_event_data.event_type is not CBEventType.TEMPLATING:
                     break
                 parent_child_id_stack.pop()
-                if payload := preceding_event_data["start_event"].payload:
-                    # Add template attributes to the LLM span to which they belong.
-                    attributes.update(_template_attributes(payload))
+                if preceding_event_start := preceding_event_data.start_event:
+                    if preceding_payload := preceding_event_start.payload:
+                        # Add template attributes to the LLM span to which they belong.
+                        attributes.update(_template_attributes(preceding_payload))
 
-        start_event = event_data["start_event"]
-        start_time = _timestamp_to_tz_aware_datetime(start_event.time)
+        start_time = None
+        if start_event := event_data.start_event:
+            start_time = _timestamp_to_tz_aware_datetime(start_event.time)
+        end_time = _get_end_time(event_data, span_exceptions)
+        start_time = start_time or end_time or datetime.now(timezone.utc)
+
         if event_type is CBEventType.EXCEPTION:
             # LlamaIndex has exception callback events that are sibling events of the events in
-            # which the exception occurred. We collect all the exception events and add them to the
-            # relevant span.
+            # which the exception occurred. We collect all the exception events and add them to
+            # the relevant span.
             if (
-                not start_event.payload
+                not start_event
+                or not start_event.payload
                 or (error := start_event.payload.get(EventPayload.EXCEPTION)) is None
             ):
                 continue
@@ -344,8 +385,7 @@ def _add_spans_to_tracer(
             )
             continue
 
-        end_time = _get_end_time(event_data, span_exceptions)
-        name = event_data["name"]
+        name = event_name if (event_name := event_data.name) is not None else "unknown"
         span_kind = _get_span_kind(event_type)
         span = tracer.create_span(
             name=name,
@@ -366,7 +406,7 @@ def _add_spans_to_tracer(
             parent_child_id_stack.append((new_parent_span_id, new_child_event_id))
 
 
-def _get_span_kind(event_type: CBEventType) -> SpanKind:
+def _get_span_kind(event_type: Optional[CBEventType]) -> SpanKind:
     """Maps a CBEventType to a SpanKind.
 
     Args:
@@ -375,6 +415,8 @@ def _get_span_kind(event_type: CBEventType) -> SpanKind:
     Returns:
         SpanKind: The corresponding span kind.
     """
+    if event_type is None:
+        return SpanKind.UNKNOWN
     return {
         CBEventType.EMBEDDING: SpanKind.EMBEDDING,
         CBEventType.LLM: SpanKind.LLM,
@@ -442,7 +484,7 @@ def _get_end_time(event_data: CBEventData, span_events: List[SpanEvent]) -> Opti
     LlamaIndex's callback system does not guarantee that the on_event_end hook is always called, for
     example, when an error occurs mid-event.
     """
-    if end_event := event_data.get("end_event"):
+    if end_event := event_data.end_event:
         tz_naive_end_time = _timestamp_to_tz_naive_datetime(end_event.time)
     elif span_events:
         last_span_event = sorted(span_events, key=lambda event: event.timestamp)[-1]
@@ -495,12 +537,40 @@ def _get_output_messages(raw: object) -> Iterator[Tuple[str, Any]]:
     yield LLM_OUTPUT_MESSAGES, messages
 
 
-def _get_token_counts(usage: object) -> Iterator[Tuple[str, Any]]:
+def _get_token_counts(usage: Union[object, Mapping[str, Any]]) -> Iterator[Tuple[str, Any]]:
+    """
+    Yields token count attributes from a object or mapping
+    """
+    # Call the appropriate function based on the type of usage
+    if isinstance(usage, Mapping):
+        yield from _get_token_counts_from_mapping(usage)
+    elif isinstance(usage, object):
+        yield from _get_token_counts_from_object(usage)
+
+
+def _get_token_counts_from_object(usage: object) -> Iterator[Tuple[str, Any]]:
+    """
+    Yields token count attributes from response.raw.usage
+    """
     if (prompt_tokens := getattr(usage, "prompt_tokens", None)) is not None:
         yield LLM_TOKEN_COUNT_PROMPT, prompt_tokens
     if (completion_tokens := getattr(usage, "completion_tokens", None)) is not None:
         yield LLM_TOKEN_COUNT_COMPLETION, completion_tokens
     if (total_tokens := getattr(usage, "total_tokens", None)) is not None:
+        yield LLM_TOKEN_COUNT_TOTAL, total_tokens
+
+
+def _get_token_counts_from_mapping(
+    usage_mapping: Mapping[str, Any],
+) -> Iterator[Tuple[str, Any]]:
+    """
+    Yields token count attributes from a mapping (e.x. completion kwargs payload)
+    """
+    if (prompt_tokens := usage_mapping.get("prompt_tokens")) is not None:
+        yield LLM_TOKEN_COUNT_PROMPT, prompt_tokens
+    if (completion_tokens := usage_mapping.get("completion_tokens")) is not None:
+        yield LLM_TOKEN_COUNT_COMPLETION, completion_tokens
+    if (total_tokens := usage_mapping.get("total_tokens")) is not None:
         yield LLM_TOKEN_COUNT_TOTAL, total_tokens
 
 
