@@ -10,8 +10,9 @@ from typing import (
     List,
     Mapping,
     Optional,
-    cast,
 )
+
+from typing_extensions import TypeGuard
 
 from phoenix.trace.schemas import (
     SpanAttributes,
@@ -79,7 +80,7 @@ class OpenAIInstrumentor:
             INSTRUMENTED_ATTRIBUTE_NAME,
         )
         if not is_instrumented:
-            openai.OpenAI.request = _wrap_openai_client_request_function(
+            openai.OpenAI.request = _wrapped_openai_client_request_function(
                 openai.OpenAI.request, self._tracer
             )
             setattr(
@@ -89,7 +90,7 @@ class OpenAIInstrumentor:
             )
 
 
-def _wrap_openai_client_request_function(
+def _wrapped_openai_client_request_function(
     request_fn: Callable[..., Any], tracer: Tracer
 ) -> Callable[..., Any]:
     """Wraps the OpenAI APIRequestor.request method to create spans for each API call.
@@ -107,7 +108,7 @@ def _wrap_openai_client_request_function(
         bound_arguments = call_signature.bind(*args, **kwargs)
         is_streaming = bound_arguments.arguments["stream"]
         options = bound_arguments.arguments["options"]
-        json_data = options.json_data
+        parameters = options.json_data
         url = options.url
         current_status_code = SpanStatusCode.UNSET
         events: List[SpanEvent] = []
@@ -117,15 +118,15 @@ def _wrap_openai_client_request_function(
                 attribute_name,
                 get_parameter_attribute_fn,
             ) in _PARAMETER_ATTRIBUTE_FUNCTIONS.items():
-                if (attribute_value := get_parameter_attribute_fn(json_data)) is not None:
+                if (attribute_value := get_parameter_attribute_fn(parameters)) is not None:
                     attributes[attribute_name] = attribute_value
-            chat_completion = None
+            response = None
             try:
                 start_time = datetime.now()
-                chat_completion = request_fn(*args, **kwargs)
+                response = request_fn(*args, **kwargs)
                 end_time = datetime.now()
                 current_status_code = SpanStatusCode.OK
-                return chat_completion
+                return response
             except Exception as error:
                 end_time = datetime.now()
                 current_status_code = SpanStatusCode.ERROR
@@ -139,13 +140,13 @@ def _wrap_openai_client_request_function(
                 )
                 raise
             finally:
-                if chat_completion:
+                if _is_chat_completion(response):
                     for (
                         attribute_name,
-                        get_response_attribute_fn,
-                    ) in _RESPONSE_ATTRIBUTE_FUNCTIONS.items():
+                        get_chat_completion_attribute_fn,
+                    ) in _CHAT_COMPLETION_ATTRIBUTE_FUNCTIONS.items():
                         if (
-                            attribute_value := get_response_attribute_fn(chat_completion.dict())
+                            attribute_value := get_chat_completion_attribute_fn(response)
                         ) is not None:
                             attributes[attribute_name] = attribute_value
                 tracer.create_span(
@@ -184,48 +185,46 @@ def _llm_invocation_parameters(
     return json.dumps(parameters)
 
 
-def _output_value(response: "ChatCompletion") -> str:
-    return json.dumps(response)
+def _output_value(chat_completion: "ChatCompletion") -> str:
+    return chat_completion.json()
 
 
 def _output_mime_type(_: Any) -> MimeType:
     return MimeType.JSON
 
 
-def _llm_output_messages(response: "ChatCompletion") -> List[OpenInferenceMessage]:
+def _llm_output_messages(chat_completion: "ChatCompletion") -> List[OpenInferenceMessage]:
     return [
-        _to_openinference_message(choice["message"], expects_name=False)
-        for choice in response["choices"]
+        _to_openinference_message(choice.message.dict(), expects_name=False)
+        for choice in chat_completion.choices
     ]
 
 
-def _llm_token_count_prompt(response: "ChatCompletion") -> Optional[int]:
-    if token_usage := response.get("usage"):
-        return cast(int, token_usage["prompt_tokens"])
+def _llm_token_count_prompt(chat_completion: "ChatCompletion") -> Optional[int]:
+    if completion_usage := chat_completion.usage:
+        return completion_usage.prompt_tokens
     return None
 
 
-def _llm_token_count_completion(response: "ChatCompletion") -> Optional[int]:
-    if token_usage := response.get("usage"):
-        return cast(int, token_usage["completion_tokens"])
+def _llm_token_count_completion(chat_completion: "ChatCompletion") -> Optional[int]:
+    if completion_usage := chat_completion.usage:
+        return completion_usage.completion_tokens
     return None
 
 
-def _llm_token_count_total(response: "ChatCompletion") -> Optional[int]:
-    if token_usage := response.get("usage"):
-        return cast(int, token_usage["total_tokens"])
+def _llm_token_count_total(chat_completion: "ChatCompletion") -> Optional[int]:
+    if completion_usage := chat_completion.usage:
+        return completion_usage.total_tokens
     return None
 
 
 def _llm_function_call(
-    response: "ChatCompletion",
+    chat_completion: "ChatCompletion",
 ) -> Optional[str]:
-    choices = response["choices"]
+    choices = chat_completion.choices
     choice = choices[0]
-    if choice.get("finish_reason") == "function_call" and (
-        function_call_data := choice["message"].get("function_call")
-    ):
-        return json.dumps(function_call_data)
+    if choice.finish_reason == "function_call" and (function_call := choice.message.function_call):
+        return function_call.json()
     return None
 
 
@@ -276,7 +275,7 @@ _PARAMETER_ATTRIBUTE_FUNCTIONS: Dict[str, Callable[[Parameters], Any]] = {
     LLM_INPUT_MESSAGES: _llm_input_messages,
     LLM_INVOCATION_PARAMETERS: _llm_invocation_parameters,
 }
-_RESPONSE_ATTRIBUTE_FUNCTIONS: Dict[str, Callable[["ChatCompletion"], Any]] = {
+_CHAT_COMPLETION_ATTRIBUTE_FUNCTIONS: Dict[str, Callable[["ChatCompletion"], Any]] = {
     OUTPUT_VALUE: _output_value,
     OUTPUT_MIME_TYPE: _output_mime_type,
     LLM_OUTPUT_MESSAGES: _llm_output_messages,
@@ -285,3 +284,11 @@ _RESPONSE_ATTRIBUTE_FUNCTIONS: Dict[str, Callable[["ChatCompletion"], Any]] = {
     LLM_TOKEN_COUNT_TOTAL: _llm_token_count_total,
     LLM_FUNCTION_CALL: _llm_function_call,
 }
+
+
+def _is_chat_completion(response: Any) -> TypeGuard["ChatCompletion"]:
+    """
+    Type guard for ChatCompletion.
+    """
+    openai = import_package("openai")
+    return isinstance(response, openai.types.chat.ChatCompletion)
