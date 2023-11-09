@@ -11,6 +11,7 @@ from phoenix.experimental.evals.templates import (
     NOT_PARSABLE,
     RAG_RELEVANCY_PROMPT_RAILS,
     RAG_RELEVANCY_PROMPT_TEMPLATE,
+    PromptOptions,
     PromptTemplate,
     map_template,
     normalize_template,
@@ -94,7 +95,8 @@ def llm_classify(
 
     eval_template = normalize_template(template)
 
-    prompts = map_template(dataframe, eval_template, provide_explanation=provide_explanation)
+    prompt_options = PromptOptions(provide_explanation=provide_explanation)
+    prompts = map_template(dataframe, eval_template, options=prompt_options)
 
     with set_verbosity(model, verbose) as verbose_model:
         responses = verbose_model.generate(
@@ -109,17 +111,19 @@ def llm_classify(
         if not use_openai_function_call:
             raw_string = response
             if provide_explanation:
-                raw_string, explanation = _search_for_label(raw_string), raw_string
+                label, explanation = _search_for_label(raw_string), raw_string
                 explanations.append(explanation)
+            else:
+                label = raw_string
         else:
             try:
                 function_arguments = json.loads(response, strict=False)
-                raw_string = function_arguments.get(_RESPONSE)
+                label = function_arguments.get(_RESPONSE)
                 if provide_explanation:
                     explanations.append(function_arguments.get(_EXPLANATION))
             except json.JSONDecodeError:
-                raw_string = response
-        labels.append(_snap_to_rail(raw_string, rails, verbose=verbose))
+                label = response
+        labels.append(_snap_to_rail(label, rails, verbose=verbose))
 
     data: Dict[str, List[Any]] = {"label": labels}
     if provide_explanation:
@@ -345,7 +349,7 @@ def _search_for_label(raw_string: str) -> str:
     parts = re.split(label_delimiter, raw_string, maxsplit=1, flags=re.IGNORECASE)
     if len(parts) == 2:
         return parts[1]
-    return ""
+    return NOT_PARSABLE
 
 
 def _default_openai_function(

@@ -11,6 +11,7 @@ from .default_templates import (
 from .template import (
     NOT_PARSABLE,
     ClassificationTemplate,
+    PromptOptions,
     PromptTemplate,
     map_template,
     normalize_template,
@@ -18,6 +19,7 @@ from .template import (
 
 __all__ = [
     "PromptTemplate",
+    "PromptOptions",
     "ClassificationTemplate",
     "normalize_template",
     "map_template",
