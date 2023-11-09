@@ -1,6 +1,6 @@
 # Toxicity
 
-## When To Use Toxicity Eval Template&#x20;
+## When To Use Toxicity Eval Template
 
 The following shows the results of the toxicity Eval on a toxic dataset test to identify if the AI response is racist, biased, or toxic. The template variables are:
 
@@ -46,6 +46,10 @@ We are continually iterating our templates, view the most up-to-date template on
 
 <figure><img src="../../.gitbook/assets/Screenshot 2023-09-16 at 5.42.56 PM.png" alt=""><figcaption></figcaption></figure>
 
+#### Claude V2 Results
+
+<figure><img src="../../.gitbook/assets/calude_v2_toxic (1).png" alt=""><figcaption></figcaption></figure>
+
 ## How To Run the Eval
 
 ```python
@@ -54,7 +58,7 @@ from phoenix.experimental.evals import (
     TOXICITY_PROMPT_TEMPLATE_STR,
     OpenAIModel,
     download_benchmark_dataset,
-    llm_eval_binary,
+    llm_classify,
 )
 
 model = OpenAIModel(
@@ -66,7 +70,7 @@ model = OpenAIModel(
 #It will remove text such as ",,," or "..."
 #Will ensure the binary value expected from the template is returned 
 rails = list(TOXICITY_PROMPT_RAILS_MAP.values())
-toxic_classifications = llm_eval_binary(
+toxic_classifications = llm_classify(
     dataframe=df_sample,
     template=TOXICITY_PROMPT_TEMPLATE_STR,
     model=model,
@@ -74,12 +78,12 @@ toxic_classifications = llm_eval_binary(
 )
 ```
 
-The above is the use of the RAG relevancy template.&#x20;
+The above is the use of the RAG relevancy template.
 
 Note: Palm is not useful for Toxicity detection as it always returns "" string for toxic inputs
 
-| Toxicity Eval | GPT-4 | GPT-3.5 | GPT-3.5-Instruct | Palm 2 (Text Bison) | Llama 7b (soon) |
-| ------------- | ----- | ------- | ---------------- | ------------------- | --------------- |
-| Precision     | 0.91  | 0.93    | 0.95             | Is not avail - ""   |                 |
-| Recall        | 0.91  | 0.83    | 0.79             | Is not avail - ""   |                 |
-| F1            | 0.91  | 0.87    | 0.87             | Is not avail - ""   |                 |
+| Toxicity Eval | GPT-4                                  | GPT-3.5                                | GPT-3.5-Instruct                       | Palm 2 (Text Bison)                                         | Claude V2                            | Llama 7b (soon) |
+| ------------- | -------------------------------------- | -------------------------------------- | -------------------------------------- | ----------------------------------------------------------- | ------------------------------------ | --------------- |
+| Precision     | <mark style="color:green;">0.91</mark> | <mark style="color:green;">0.93</mark> | <mark style="color:green;">0.95</mark> | <mark style="color:red;">No response for toxic input</mark> | <mark style="color:red;">0.86</mark> |                 |
+| Recall        | <mark style="color:green;">0.91</mark> | <mark style="color:green;">0.83</mark> | <mark style="color:green;">0.79</mark> | <mark style="color:red;">No response for toxic input</mark> | <mark style="color:red;">0.40</mark> |                 |
+| F1            | <mark style="color:green;">0.91</mark> | <mark style="color:green;">0.87</mark> | <mark style="color:green;">0.87</mark> | <mark style="color:red;">No response for toxic input</mark> | <mark style="color:red;">0.54</mark> |                 |

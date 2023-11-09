@@ -7,7 +7,7 @@ This Eval evaluates whether a retrieved chunk contains an answer to the query. I
 ## RAG Eval Template
 
 {% embed url="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/evals/evaluate_relevance_classifications.ipynb" %}
-Try it out!&#x20;
+Try it out!
 {% endembed %}
 
 ```python
@@ -33,7 +33,7 @@ and should not contain any text or characters aside from that word.
 We are continually iterating our templates, view the most up-to-date template on GitHub. Last updated on 10/12/2023
 {% endhint %}
 
-## Benchmark Results&#x20;
+## Benchmark Results
 
 #### GPT-4 Result
 
@@ -41,16 +41,20 @@ We are continually iterating our templates, view the most up-to-date template on
 
 #### GPT-3.5 Results
 
-<figure><img src="../../.gitbook/assets/Screenshot 2023-09-16 at 5.20.06 PM.png" alt=""><figcaption></figcaption></figure>
+<figure><img src="../../.gitbook/assets/GPT-3.5 Relevance Evals.png" alt=""><figcaption></figcaption></figure>
 
-## How To Run the Eval&#x20;
+#### Claude V2 Results
+
+<figure><img src="../../.gitbook/assets/claude_v2_relevance.png" alt=""><figcaption></figcaption></figure>
+
+## How To Run the Eval
 
 <pre class="language-python"><code class="lang-python"><strong>from phoenix.experimental.evals import (
 </strong>    RAG_RELEVANCY_PROMPT_RAILS_MAP,
     RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
     OpenAIModel,
     download_benchmark_dataset,
-    llm_eval_binary,
+    llm_classify,
 )
 
 model = OpenAIModel(
@@ -62,7 +66,7 @@ model = OpenAIModel(
 #It will remove text such as ",,," or "..."
 #Will ensure the binary value expected from the template is returned
 rails = list(RAG_RELEVANCY_PROMPT_RAILS_MAP.values())
-relevance_classifications = llm_eval_binary(
+relevance_classifications = llm_classify(
     dataframe=df,
     template=RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
     model=model,
@@ -72,4 +76,5 @@ relevance_classifications = llm_eval_binary(
 
 The above runs the RAG relevancy LLM template against the dataframe df.
 
-<table><thead><tr><th>RAG Eval</th><th>GPT-4</th><th>GPT-3.5</th><th width="262">GPT-3.5-turbo-instruct</th><th>Palm (Text Bison)</th></tr></thead><tbody><tr><td>Precision</td><td>0.70</td><td>0.70</td><td>0.42</td><td>0.53</td></tr><tr><td>Recall</td><td>0.88</td><td>0.88</td><td>1</td><td>1</td></tr><tr><td>F1</td><td>0.78</td><td>0.78</td><td>0.59</td><td>0.69</td></tr></tbody></table>
+<table><thead><tr><th>RAG Eval</th><th>GPT-4</th><th>GPT-3.5</th><th>Palm (Text Bison)</th><th>Claude V2</th><th data-hidden>GPT-3.5-turbo-instruct</th></tr></thead><tbody><tr><td>Precision</td><td><mark style="color:green;">0.70</mark></td><td><mark style="color:red;">0.42</mark></td><td><mark style="color:red;">0.53</mark></td><td><mark style="color:red;">0.79</mark></td><td><mark style="color:red;">0.42</mark></td></tr><tr><td>Recall</td><td><mark style="color:green;">0.88</mark></td><td><mark style="color:red;">1.0</mark></td><td><mark style="color:red;">1</mark></td><td><mark style="color:red;">0.22</mark></td><td><mark style="color:red;">1</mark></td></tr><tr><td>F1</td><td><mark style="color:green;">0.78</mark></td><td><mark style="color:red;">0.59</mark></td><td><mark style="color:red;">0.69</mark></td><td><mark style="color:red;">0.34</mark></td><td><mark style="color:red;">0.59</mark></td></tr></tbody></table>
+

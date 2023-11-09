@@ -40,4 +40,4 @@ Phoenix Evals are designed to run on dataframes, in Python pipelines, or in Lang
 
 <figure><img src="../.gitbook/assets/Screenshot 2023-09-10 at 8.19.49 AM.png" alt=""><figcaption><p>Running on Spans/Callbacks</p></figcaption></figure>
 
-<figure><img src="../.gitbook/assets/Screenshot 2023-10-16 at 11.21.28 AM.png" alt=""><figcaption></figcaption></figure>
+<figure><img src="https://storage.cloud.google.com/arize-assets/phoenix/assets/images/How_Do_Evals_Work_Diagram.png" alt=""><figcaption><p>How evals work</p></figcaption></figure>

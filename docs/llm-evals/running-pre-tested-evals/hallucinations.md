@@ -1,6 +1,6 @@
 # Hallucinations
 
-## When To Use Hallucination Eval Template&#x20;
+## When To Use Hallucination Eval Template
 
 This LLM Eval detects if the output of a model is a hallucination based on contextual data.
 
@@ -9,7 +9,7 @@ This Eval is designed specifically designed for hallucinations relative to priva
 ## Hallucination Eval Template
 
 {% embed url="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/evals/evaluate_hallucination_classifications.ipynb" %}
-Try it out!&#x20;
+Try it out!
 {% endembed %}
 
 ```
@@ -46,6 +46,10 @@ We are continually iterating our templates, view the most up-to-date template on
 
 <figure><img src="../../.gitbook/assets/Screenshot 2023-09-16 at 5.18.57 PM.png" alt=""><figcaption></figcaption></figure>
 
+#### Claud v2 Results
+
+<figure><img src="../../.gitbook/assets/claude_v2_hallucination.png" alt=""><figcaption></figcaption></figure>
+
 ## How To Run the Eval
 
 ```python
@@ -54,7 +58,7 @@ from phoenix.experimental.evals import (
     HALLUCINATION_PROMPT_TEMPLATE_STR,
     OpenAIModel,
     download_benchmark_dataset,
-    llm_eval_binary,
+    llm_classify,
 )
 
 model = OpenAIModel(
@@ -66,12 +70,12 @@ model = OpenAIModel(
 #It will remove text such as ",,," or "..."
 #Will ensure the binary value expected from the template is returned 
 rails = list(HALLUCINATION_PROMPT_RAILS_MAP.values())
-hallucination_classifications = llm_eval_binary(
+hallucination_classifications = llm_classify(
     dataframe=df, template=HALLUCINATION_PROMPT_TEMPLATE_STR, model=model, rails=rails
 )
 
 ```
 
-The above Eval shows how to the the hallucination template for Eval detection.&#x20;
+The above Eval shows how to the the hallucination template for Eval detection.
 
-<table><thead><tr><th>Hallu Eval</th><th>GPT-4</th><th>GPT-3.5</th><th width="215">GPT-3.5-turbo-instruct</th><th>Palm 2 (Text Bison)</th><th>Llama 7b (soon)</th></tr></thead><tbody><tr><td>Precision</td><td>0.93</td><td>0.89</td><td>0.89</td><td>1</td><td></td></tr><tr><td>Recall</td><td>0.72</td><td>0.65</td><td>0.80</td><td>0.44</td><td></td></tr><tr><td>F1</td><td>0.82</td><td>0.75</td><td>0.84</td><td>0.61</td><td></td></tr></tbody></table>
+<table><thead><tr><th>Hallu Eval</th><th>GPT-4</th><th>GPT-3.5</th><th width="215">GPT-3.5-turbo-instruct</th><th>Palm 2 (Text Bison)</th><th>Claude V2</th></tr></thead><tbody><tr><td>Precision</td><td><mark style="color:green;">0.93</mark></td><td><mark style="color:green;">0.89</mark></td><td><mark style="color:green;">0.89</mark></td><td><mark style="color:red;">1</mark></td><td><mark style="color:green;">0.80</mark></td></tr><tr><td>Recall</td><td><mark style="color:green;">0.72</mark></td><td><mark style="color:green;">0.65</mark></td><td><mark style="color:green;">0.80</mark></td><td><mark style="color:red;">0.44</mark></td><td><mark style="color:green;">0.95</mark></td></tr><tr><td>F1</td><td><mark style="color:green;">0.82</mark></td><td><mark style="color:green;">0.75</mark></td><td><mark style="color:green;">0.84</mark></td><td><mark style="color:red;">0.61</mark></td><td><mark style="color:green;">0.87</mark></td></tr></tbody></table>
