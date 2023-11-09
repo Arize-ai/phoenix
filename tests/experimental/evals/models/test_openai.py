@@ -1,5 +1,7 @@
 from unittest.mock import patch
 
+import pytest
+from openai import AzureOpenAI, OpenAI
 from phoenix.experimental.evals.models.openai import OpenAIModel
 
 
@@ -13,3 +15,34 @@ def test_openai_model():
         model = OpenAIModel(model_name="gpt-4-1106-preview")
 
     assert model.model_name == "gpt-4-1106-preview"
+    assert isinstance(model._client, OpenAI)
+
+
+def test_azure_openai_model():
+    with patch.object(OpenAIModel, "_init_tiktoken", return_value=None):
+        model = OpenAIModel(
+            model_name="gpt-4-1106-preview",
+            api_version="2023-07-01-preview",
+            azure_endpoint="https://example-endpoint.openai.azure.com",
+        )
+    assert isinstance(model._client, AzureOpenAI)
+
+
+def test_azure_fails_when_missing_options():
+    # Test missing api_version
+    with pytest.raises(
+        ValueError, match="Option 'api_version' must be set when using Azure OpenAI"
+    ):
+        OpenAIModel(
+            model_name="gpt-4-1106-preview",
+            azure_endpoint="https://example-endpoint.openai.azure.com",
+        )
+
+    # Test missing azure_endpoint
+    with pytest.raises(
+        ValueError, match="Option 'azure_endpoint' must be set when using Azure OpenAI"
+    ):
+        OpenAIModel(
+            model_name="gpt-4-1106-preview",
+            api_version="2023-07-01-preview",
+        )
