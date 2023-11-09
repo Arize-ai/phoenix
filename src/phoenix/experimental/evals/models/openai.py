@@ -1,7 +1,18 @@
 import logging
 import os
-from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Union
+from dataclasses import dataclass, field, fields
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Dict,
+    List,
+    Optional,
+    Tuple,
+    Union,
+    get_args,
+    get_origin,
+)
 
 from phoenix.experimental.evals.models.base import BaseEvalModel
 
@@ -22,14 +33,6 @@ MODEL_TOKEN_LIMIT_MAPPING = {
 }
 LEGACY_COMPLETION_API_MODELS = ("gpt-3.5-turbo-instruct",)
 logger = logging.getLogger(__name__)
-
-
-AZURE_REQUIRED_OPTIONS = ["api_version", "azure_endpoint"]
-AZURE_ADDITIONAL_OPTIONS = [
-    "azure_deployment",
-    "azure_ad_token",
-    "azure_ad_token_provider",
-]
 
 
 @dataclass
@@ -90,8 +93,7 @@ class OpenAIModel(BaseEvalModel):
     """https://learn.microsoft.com/en-us/azure/ai-services/openai/reference#rest-api-versioning"""
     azure_endpoint: Optional[str] = field(default=None)
     """
-    The endpoint to use for the OpenAI API.
-    Note, this field is required when using Azure OpenAI API.
+    The endpoint to use for azure openai. Available in the azure portal.
     https://learn.microsoft.com/en-us/azure/cognitive-services/openai/how-to/create-resource?pivots=web-portal#create-a-resource
     """
     azure_deployment: Optional[str] = field(default=None)
@@ -171,20 +173,9 @@ class OpenAIModel(BaseEvalModel):
             base_url=(self.base_url or self._openai.base_url),
         )
 
-        if self.model_name in MODEL_TOKEN_LIMIT_MAPPING.keys():
-            self._openai_api_model_name = self.model_name
-        elif "gpt-3.5-turbo" in self.model_name:
-            self._openai_api_model_name = "gpt-3.5-turbo-0613"
-        elif "gpt-4" in self.model_name:
-            self._openai_api_model_name = "gpt-4-0613"
-        else:
-            raise NotImplementedError(
-                f"openai_api_model_name not available for model {self.model_name}. "
-            )
-
     def _init_tiktoken(self) -> None:
         try:
-            encoding = self._tiktoken.encoding_for_model(self.openai_api_model_name)
+            encoding = self._tiktoken.encoding_for_model(self.model_name)
         except KeyError:
             logger.warning("Warning: model not found. Using cl100k_base encoding.")
             encoding = self._tiktoken.get_encoding("cl100k_base")
@@ -192,14 +183,20 @@ class OpenAIModel(BaseEvalModel):
 
     def _get_azure_options(self) -> AzureOptions:
         options = {}
-        for option in AZURE_REQUIRED_OPTIONS:
-            value = getattr(self, option)
-            if value is None:
-                raise ValueError(f"Option '{option}' must be set when using Azure OpenAI API")
-            options[option] = value
-        for option in AZURE_ADDITIONAL_OPTIONS:
-            value = getattr(self, option)
-            options[option] = value
+        for option in fields(AzureOptions):
+            if (value := getattr(self, option.name)) is not None:
+                options[option.name] = value
+            else:
+                # raise ValueError if field is not optional
+                # See if the field is optional - e.g. get_origin(Optional[T])  = typing.Union
+                option_is_optional = get_origin(option.type) is Union and type(None) in get_args(
+                    option.type
+                )
+                if not option_is_optional:
+                    raise ValueError(
+                        f"Option '{option.name}' must be set when using Azure OpenAI API"
+                    )
+                options[option.name] = None
         return AzureOptions(**options)
 
     @staticmethod
@@ -265,7 +262,7 @@ class OpenAIModel(BaseEvalModel):
 
     @property
     def max_context_size(self) -> int:
-        model_name = self.openai_api_model_name
+        model_name = self.model_name
         # handling finetuned models
         if "ft-" in model_name:
             model_name = self.model_name.split(":")[0]
