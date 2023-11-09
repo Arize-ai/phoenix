@@ -90,6 +90,7 @@ def classify_relevance(query: str, document: str, model_name: str) -> Optional[b
         ],
         model=model_name,
     )
-    raw_response_text = str(response["choices"][0]["message"]["content"]).strip()
+
+    raw_response_text = str(response.choices[0].message.content).strip()
     relevance_classification = {"relevant": True, "irrelevant": False}.get(raw_response_text)
     return relevance_classification

@@ -1,4 +1,5 @@
 from contextlib import ExitStack
+from itertools import product
 from unittest.mock import MagicMock, patch
 
 import httpx
@@ -16,13 +17,12 @@ from phoenix.experimental.evals import (
 )
 from phoenix.experimental.evals.functions.classify import _snap_to_rail
 from phoenix.experimental.evals.models.openai import OPENAI_API_KEY_ENVVAR_NAME
-
-response_labels = ["relevant", "irrelevant", "\nrelevant ", "unparsable"]
-expected_labels = ["relevant", "irrelevant", "relevant", NOT_PARSABLE]
+from respx.patterns import M
 
 
-def get_dataframe() -> (pd.DataFrame, list):
-    dataframe = pd.DataFrame(
+@pytest.fixture
+def classification_dataframe():
+    return pd.DataFrame(
         [
             {
                 "query": "What is Python?",
@@ -36,167 +36,178 @@ def get_dataframe() -> (pd.DataFrame, list):
             {"query": "What is C++?", "reference": "irrelevant"},
         ],
     )
-    index = list(reversed(range(len(dataframe))))
-    dataframe = dataframe.set_axis(index, axis=0)
-    return dataframe, index
 
 
-@pytest.mark.respx(base_url="https://api.openai.com/v1")
-def test_llm_classify(monkeypatch: pytest.MonkeyPatch, respx_mock: respx.mock):
+@pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
+def test_llm_classify(
+    classification_dataframe, monkeypatch: pytest.MonkeyPatch, respx_mock: respx.mock
+):
     monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
+    dataframe = classification_dataframe
+    keys = list(zip(dataframe["query"], dataframe["reference"]))
+    responses = ["relevant", "irrelevant", "\nrelevant ", "unparsable"]
+    response_mapping = {key: response for key, response in zip(keys, responses)}
+
+    for (query, reference), response in response_mapping.items():
+        matcher = M(content__contains=query) & M(content__contains=reference)
+        payload = {
+            "choices": [
+                {
+                    "message": {
+                        "content": response,
+                    },
+                }
+            ],
+        }
+        respx_mock.route(matcher).mock(return_value=httpx.Response(200, json=payload))
 
     with patch.object(OpenAIModel, "_init_tiktoken", return_value=None):
         model = OpenAIModel()
 
-    def route_side_effect(request, route):
-        return httpx.Response(
-            200, json={"choices": [{"message": {"content": response_labels[route.call_count]}}]}
-        )
-
-    respx_mock.post(
-        "/chat/completions",
-    ).mock(side_effect=route_side_effect)
-
-    dataframe, index = get_dataframe()
     result = llm_classify(
         dataframe=dataframe,
         template=RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
         model=model,
         rails=["relevant", "irrelevant"],
-        use_function_calling_if_available=False,
+        verbose=True,
     )
+
+    expected_labels = ["relevant", "irrelevant", "relevant", NOT_PARSABLE]
     assert result.iloc[:, 0].tolist() == expected_labels
     assert_frame_equal(
         result,
         pd.DataFrame(
-            index=index,
             data={"label": expected_labels},
         ),
     )
-    del result
 
 
-@pytest.mark.respx(base_url="https://api.openai.com/v1")
-def test_llm_classify_with_fn_call(monkeypatch: pytest.MonkeyPatch, respx_mock: respx.mock):
-    monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
-
-    with patch.object(OpenAIModel, "_init_tiktoken", return_value=None):
-        model = OpenAIModel(max_retries=0)
-
-    def route_side_effect(request, route):
-        label = response_labels[route.call_count]
-        return httpx.Response(
-            200,
-            json={"choices": [{"message": {"function_call": {"arguments": {"response": label}}}}]},
-        )
-
-    respx_mock.post(
-        "/chat/completions",
-    ).mock(side_effect=route_side_effect)
-
-    dataframe, index = get_dataframe()
-    result = llm_classify(
-        dataframe=dataframe,
-        template=RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
-        model=model,
-        rails=["relevant", "irrelevant"],
-    )
-
-    assert result.iloc[:, 0].tolist() == expected_labels
-    assert_frame_equal(result, pd.DataFrame(index=index, data={"label": expected_labels}))
-    del result
-
-
-@pytest.mark.respx(base_url="https://api.openai.com/v1")
-def test_classify_fn_call_no_explain(monkeypatch: pytest.MonkeyPatch, respx_mock: respx.mock):
-    monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
-
-    with patch.object(OpenAIModel, "_init_tiktoken", return_value=None):
-        model = OpenAIModel(max_retries=0)
-
-    def route_side_effect(request, route):
-        label = response_labels[route.call_count]
-        message = {"function_call": {"arguments": {"response": label}}}
-        return httpx.Response(201, json={"choices": [{"message": message}]})
-
-    respx_mock.post(
-        "/chat/completions",
-    ).mock(side_effect=route_side_effect)
-
-    dataframe, index = get_dataframe()
-    result = llm_classify(
-        dataframe=dataframe,
-        template=RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
-        model=model,
-        rails=["relevant", "irrelevant"],
-        provide_explanation=True,
-    )
-    assert result.iloc[:, 0].tolist() == expected_labels
-    assert_frame_equal(
-        result,
-        pd.DataFrame(
-            index=index, data={"label": expected_labels, "explanation": [None, None, None, None]}
-        ),
-    )
-    del result
-
-
-@pytest.mark.respx(base_url="https://api.openai.com/v1")
-def test_classify_fn_call_explain(monkeypatch: pytest.MonkeyPatch, respx_mock: respx.mock):
-    monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
-
-    with patch.object(OpenAIModel, "_init_tiktoken", return_value=None):
-        model = OpenAIModel(max_retries=0)
-
-    def route_side_effect(request, route):
-        label = response_labels[route.call_count]
-        message = {
-            "function_call": {
-                "arguments": f"{{\n  \042response\042: \042{label}\042, \042explanation\042: \042{route.call_count}\042\n}}"  # noqa E501
-            }
-        }
-        return httpx.Response(200, json={"choices": [{"message": message}]})
-
-    respx_mock.post(
-        "/chat/completions",
-    ).mock(side_effect=route_side_effect)
-
-    dataframe, index = get_dataframe()
-    result = llm_classify(
-        dataframe=dataframe,
-        template=RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
-        model=model,
-        rails=["relevant", "irrelevant"],
-        provide_explanation=True,
-    )
-    assert result.iloc[:, 0].tolist() == expected_labels
-    assert_frame_equal(
-        result,
-        pd.DataFrame(
-            index=index, data={"label": expected_labels, "explanation": ["0", "1", "2", "3"]}
-        ),
-    )
-    del result
-
-
-@pytest.mark.respx(base_url="https://api.openai.com/v1")
-def test_llm_classify_prints_to_stdout_with_verbose_flag(
-    monkeypatch: pytest.MonkeyPatch, capfd, respx_mock: respx.mock
+@pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
+def test_llm_classify_with_fn_call(
+    classification_dataframe, monkeypatch: pytest.MonkeyPatch, respx_mock: respx.mock
 ):
     monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
+    dataframe = classification_dataframe
+    keys = list(zip(dataframe["query"], dataframe["reference"]))
+    responses = ["relevant", "irrelevant", "\nrelevant ", "unparsable"]
+    response_mapping = {key: response for key, response in zip(keys, responses)}
+
+    for (query, reference), response in response_mapping.items():
+        matcher = M(content__contains=query) & M(content__contains=reference)
+        payload = {
+            "choices": [{"message": {"function_call": {"arguments": {"response": response}}}}]
+        }
+        respx_mock.route(matcher).mock(return_value=httpx.Response(200, json=payload))
 
     with patch.object(OpenAIModel, "_init_tiktoken", return_value=None):
         model = OpenAIModel(max_retries=0)
 
-    def route_side_effect(request, route):
-        label = response_labels[route.call_count]
-        return httpx.Response(200, json={"choices": [{"message": {"content": label}}]})
+    result = llm_classify(
+        dataframe=dataframe,
+        template=RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
+        model=model,
+        rails=["relevant", "irrelevant"],
+    )
 
-    respx_mock.post(
-        "/chat/completions",
-    ).mock(side_effect=route_side_effect)
+    expected_labels = ["relevant", "irrelevant", "relevant", NOT_PARSABLE]
+    assert result.iloc[:, 0].tolist() == expected_labels
+    assert_frame_equal(result, pd.DataFrame(data={"label": expected_labels}))
 
-    dataframe, index = get_dataframe()
+
+@pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
+def test_classify_fn_call_no_explain(
+    classification_dataframe, monkeypatch: pytest.MonkeyPatch, respx_mock: respx.mock
+):
+    monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
+    dataframe = classification_dataframe
+    keys = list(zip(dataframe["query"], dataframe["reference"]))
+    responses = ["relevant", "irrelevant", "\nrelevant ", "unparsable"]
+    response_mapping = {key: response for key, response in zip(keys, responses)}
+
+    for (query, reference), response in response_mapping.items():
+        matcher = M(content__contains=query) & M(content__contains=reference)
+        payload = {
+            "choices": [{"message": {"function_call": {"arguments": {"response": response}}}}]
+        }
+        respx_mock.route(matcher).mock(return_value=httpx.Response(200, json=payload))
+
+    with patch.object(OpenAIModel, "_init_tiktoken", return_value=None):
+        model = OpenAIModel(max_retries=0)
+
+    result = llm_classify(
+        dataframe=dataframe,
+        template=RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
+        model=model,
+        rails=["relevant", "irrelevant"],
+        provide_explanation=True,
+    )
+
+    expected_labels = ["relevant", "irrelevant", "relevant", NOT_PARSABLE]
+    assert result.iloc[:, 0].tolist() == expected_labels
+    assert_frame_equal(
+        result,
+        pd.DataFrame(data={"label": expected_labels, "explanation": [None, None, None, None]}),
+    )
+
+
+@pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
+def test_classify_fn_call_explain(
+    classification_dataframe, monkeypatch: pytest.MonkeyPatch, respx_mock: respx.mock
+):
+    monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
+    dataframe = classification_dataframe
+    keys = list(zip(dataframe["query"], dataframe["reference"]))
+    responses = ["relevant", "irrelevant", "\nrelevant ", "unparsable"]
+    response_mapping = {key: response for key, response in zip(keys, responses)}
+
+    for ii, ((query, reference), response) in enumerate(response_mapping.items()):
+        matcher = M(content__contains=query) & M(content__contains=reference)
+        message = {
+            "function_call": {
+                "arguments": f"{{\n  \042response\042: \042{response}\042, \042explanation\042: \042{ii}\042\n}}"  # noqa E501
+            }
+        }
+        respx_mock.route(matcher).mock(
+            return_value=httpx.Response(200, json={"choices": [{"message": message}]})
+        )
+
+    with patch.object(OpenAIModel, "_init_tiktoken", return_value=None):
+        model = OpenAIModel(max_retries=0)
+
+    result = llm_classify(
+        dataframe=dataframe,
+        template=RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
+        model=model,
+        rails=["relevant", "irrelevant"],
+        provide_explanation=True,
+    )
+
+    expected_labels = ["relevant", "irrelevant", "relevant", NOT_PARSABLE]
+    assert result.iloc[:, 0].tolist() == expected_labels
+    assert_frame_equal(
+        result,
+        pd.DataFrame(data={"label": expected_labels, "explanation": ["0", "1", "2", "3"]}),
+    )
+
+
+@pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
+def test_llm_classify_prints_to_stdout_with_verbose_flag(
+    classification_dataframe, monkeypatch: pytest.MonkeyPatch, respx_mock: respx.mock, capfd
+):
+    monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
+    dataframe = classification_dataframe
+    keys = list(zip(dataframe["query"], dataframe["reference"]))
+    responses = ["relevant", "irrelevant", "\nrelevant ", "unparsable"]
+    response_mapping = {key: response for key, response in zip(keys, responses)}
+
+    for (query, reference), response in response_mapping.items():
+        matcher = M(content__contains=query) & M(content__contains=reference)
+        payload = {"choices": [{"message": {"content": response}}]}
+        respx_mock.route(matcher).mock(return_value=httpx.Response(200, json=payload))
+
+    with patch.object(OpenAIModel, "_init_tiktoken", return_value=None):
+        model = OpenAIModel(max_retries=0)
+
     llm_classify(
         dataframe=dataframe,
         template=RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
@@ -343,128 +354,72 @@ def test_llm_classify_does_not_persist_verbose_flag(monkeypatch: pytest.MonkeyPa
     assert "Request timed out" not in out, "The `verbose` flag should not be persisted"
 
 
-@pytest.mark.respx(base_url="https://api.openai.com/v1")
-@pytest.mark.parametrize(
-    "dataframe",
-    [
-        pytest.param(
-            pd.DataFrame(
-                [
-                    {
-                        "attributes.input.value": "What is Python?",
-                        "attributes.retrieval.documents": [
-                            "Python is a programming language.",
-                            "Ruby is a programming language.",
-                        ],
-                    },
-                    {
-                        "attributes.input.value": "What is Python?",
-                        "attributes.retrieval.documents": np.array(
-                            [
-                                "Python is a programming language.",
-                                "Ruby is a programming language.",
-                            ]
-                        ),
-                    },
-                    {
-                        "attributes.input.value": "What is Ruby?",
-                        "attributes.retrieval.documents": [
-                            "Ruby is a programming language.",
-                        ],
-                    },
-                    {
-                        "attributes.input.value": "What is C++?",
-                        "attributes.retrieval.documents": [
-                            "Ruby is a programming language.",
-                            "C++ is a programming language.",
-                        ],
-                    },
-                    {
-                        "attributes.input.value": "What is C#?",
-                        "attributes.retrieval.documents": [],
-                    },
-                    {
-                        "attributes.input.value": "What is Golang?",
-                        "attributes.retrieval.documents": None,
-                    },
-                    {
-                        "attributes.input.value": None,
-                        "attributes.retrieval.documents": [
-                            "Python is a programming language.",
-                            "Ruby is a programming language.",
-                        ],
-                    },
-                    {
-                        "attributes.input.value": None,
-                        "attributes.retrieval.documents": None,
-                    },
-                ]
-            ),
-            id="standard-dataframe",
-        ),
-        pytest.param(
-            pd.DataFrame(
-                [
-                    {
-                        "attributes.input.value": "What is Python?",
-                        "attributes.retrieval.documents": [
-                            {"document.content": "Python is a programming language."},
-                            {"document.content": "Ruby is a programming language."},
-                        ],
-                    },
-                    {
-                        "attributes.input.value": "What is Python?",
-                        "attributes.retrieval.documents": np.array(
-                            [
-                                {"document.content": "Python is a programming language."},
-                                {"document.content": "Ruby is a programming language."},
-                            ]
-                        ),
-                    },
-                    {
-                        "attributes.input.value": "What is Ruby?",
-                        "attributes.retrieval.documents": [
-                            {"document.content": "Ruby is a programming language."},
-                        ],
-                    },
-                    {
-                        "attributes.input.value": "What is C++?",
-                        "attributes.retrieval.documents": [
-                            {"document.content": "Ruby is a programming language."},
-                            {"document.content": "C++ is a programming language."},
-                        ],
-                    },
-                    {
-                        "attributes.input.value": "What is C#?",
-                        "attributes.retrieval.documents": [],
-                    },
-                    {
-                        "attributes.input.value": "What is Golang?",
-                        "attributes.retrieval.documents": None,
-                    },
-                    {
-                        "attributes.input.value": None,
-                        "attributes.retrieval.documents": [
-                            {"document.content": "Python is a programming language."},
-                            {"document.content": "Ruby is a programming language."},
-                        ],
-                    },
-                    {
-                        "attributes.input.value": None,
-                        "attributes.retrieval.documents": None,
-                    },
-                ]
-            ),
-            id="openinference-dataframe",
-        ),
-    ],
-)
-def test_run_relevance_eval(
+@pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
+def test_run_relevance_eval_standard_dataframe(
     monkeypatch: pytest.MonkeyPatch,
-    dataframe: pd.DataFrame,
     respx_mock: respx.mock,
 ):
-    monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
+    dataframe = pd.DataFrame(
+        [
+            {
+                "query": "What is Python?",
+                "reference": [
+                    "Python is a programming language.",
+                    "Ruby is a programming language.",
+                ],
+            },
+            {
+                "query": "Can you explain Python to me?",
+                "reference": np.array(
+                    [
+                        "Python is a programming language.",
+                        "Ruby is a programming language.",
+                    ]
+                ),
+            },
+            {
+                "query": "What is Ruby?",
+                "reference": [
+                    "Ruby is a programming language.",
+                ],
+            },
+            {
+                "query": "What is C++?",
+                "reference": [
+                    "Ruby is a programming language.",
+                    "C++ is a programming language.",
+                ],
+            },
+            {
+                "query": "What is C#?",
+                "reference": [],
+            },
+            {
+                "query": "What is Golang?",
+                "reference": None,
+            },
+            {
+                "query": None,
+                "reference": [
+                    "Python is a programming language.",
+                    "Ruby is a programming language.",
+                ],
+            },
+            {
+                "query": None,
+                "reference": None,
+            },
+        ]
+    )
+
+    queries = list(dataframe["query"])
+    references = list(dataframe["reference"])
+    keys = []
+    for query, refs in zip(queries, references):
+        refs = refs if refs is None else list(refs)
+        if query and refs:
+            keys.extend(product([query], refs))
+
     responses = [
         "relevant",
         "irrelevant",
@@ -475,18 +430,137 @@ def test_run_relevance_eval(
         "relevant",
     ]
 
-    def route_side_effect(request, route):
-        return httpx.Response(
-            200, json={"choices": [{"message": {"content": responses[route.call_count]}}]}
-        )
+    response_mapping = {key: response for key, response in zip(keys, responses)}
+    for (query, reference), response in response_mapping.items():
+        matcher = M(content__contains=query) & M(content__contains=reference)
+        payload = {
+            "choices": [
+                {
+                    "message": {
+                        "content": response,
+                    },
+                }
+            ],
+            "usage": {
+                "total_tokens": 1,
+            },
+        }
+        respx_mock.route(matcher).mock(return_value=httpx.Response(200, json=payload))
 
-    respx_mock.post(
-        "/chat/completions",
-    ).mock(
-        side_effect=route_side_effect,
-    )
+    monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
     with patch.object(OpenAIModel, "_init_tiktoken", return_value=None):
         model = OpenAIModel()
+
+    relevance_classifications = run_relevance_eval(dataframe, model=model)
+    assert relevance_classifications == [
+        ["relevant", "irrelevant"],
+        ["relevant", "irrelevant"],
+        ["relevant"],
+        [NOT_PARSABLE, "relevant"],
+        [],
+        [],
+        [],
+        [],
+    ]
+
+
+def test_run_relevance_eval_openinference_dataframe(
+    monkeypatch: pytest.MonkeyPatch,
+    respx_mock: respx.mock,
+):
+    dataframe = pd.DataFrame(
+        [
+            {
+                "attributes.input.value": "What is Python?",
+                "attributes.retrieval.documents": [
+                    {"document.content": "Python is a programming language."},
+                    {"document.content": "Ruby is a programming language."},
+                ],
+            },
+            {
+                "attributes.input.value": "Can you explain Python to me?",
+                "attributes.retrieval.documents": np.array(
+                    [
+                        {"document.content": "Python is a programming language."},
+                        {"document.content": "Ruby is a programming language."},
+                    ]
+                ),
+            },
+            {
+                "attributes.input.value": "What is Ruby?",
+                "attributes.retrieval.documents": [
+                    {"document.content": "Ruby is a programming language."},
+                ],
+            },
+            {
+                "attributes.input.value": "What is C++?",
+                "attributes.retrieval.documents": [
+                    {"document.content": "Ruby is a programming language."},
+                    {"document.content": "C++ is a programming language."},
+                ],
+            },
+            {
+                "attributes.input.value": "What is C#?",
+                "attributes.retrieval.documents": [],
+            },
+            {
+                "attributes.input.value": "What is Golang?",
+                "attributes.retrieval.documents": None,
+            },
+            {
+                "attributes.input.value": None,
+                "attributes.retrieval.documents": [
+                    {"document.content": "Python is a programming language."},
+                    {"document.content": "Ruby is a programming language."},
+                ],
+            },
+            {
+                "attributes.input.value": None,
+                "attributes.retrieval.documents": None,
+            },
+        ]
+    )
+
+    queries = list(dataframe["attributes.input.value"])
+    references = list(dataframe["attributes.retrieval.documents"])
+    keys = []
+    for query, refs in zip(queries, references):
+        refs = refs if refs is None else list(refs)
+        if query and refs:
+            keys.extend(product([query], refs))
+    keys = [(query, ref["document.content"]) for query, ref in keys]
+
+    responses = [
+        "relevant",
+        "irrelevant",
+        "relevant",
+        "irrelevant",
+        "\nrelevant ",
+        "unparsable",
+        "relevant",
+    ]
+
+    response_mapping = {key: response for key, response in zip(keys, responses)}
+    for (query, reference), response in response_mapping.items():
+        matcher = M(content__contains=query) & M(content__contains=reference)
+        payload = {
+            "choices": [
+                {
+                    "message": {
+                        "content": response,
+                    },
+                }
+            ],
+            "usage": {
+                "total_tokens": 1,
+            },
+        }
+        respx_mock.route(matcher).mock(return_value=httpx.Response(200, json=payload))
+
+    monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
+    with patch.object(OpenAIModel, "_init_tiktoken", return_value=None):
+        model = OpenAIModel()
+
     relevance_classifications = run_relevance_eval(dataframe, model=model)
     assert relevance_classifications == [
         ["relevant", "irrelevant"],
