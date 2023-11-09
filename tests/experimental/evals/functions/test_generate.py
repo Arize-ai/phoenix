@@ -6,9 +6,10 @@ import pytest
 import respx
 from phoenix.experimental.evals import OpenAIModel, llm_generate
 from phoenix.experimental.evals.models.openai import OPENAI_API_KEY_ENVVAR_NAME
+from respx.patterns import M
 
 
-@pytest.mark.respx(base_url="https://api.openai.com/v1")
+@pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
 def test_llm_generate(monkeypatch: pytest.MonkeyPatch, respx_mock: respx.mock):
     monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
     dataframe = pd.DataFrame(
@@ -37,15 +38,13 @@ def test_llm_generate(monkeypatch: pytest.MonkeyPatch, respx_mock: respx.mock):
         "It's a crazy language",
         "it's a programming language",
     ]
-
-    def route_side_effect(request, route):
-        return httpx.Response(
-            200, json={"choices": [{"message": {"content": responses[route.call_count]}}]}
+    queries = dataframe["query"].tolist()
+    references = dataframe["reference"].tolist()
+    for query, reference, response in zip(queries, references, responses):
+        matcher = M(content__contains=query) & M(content__contains=reference)
+        respx_mock.route(matcher).mock(
+            return_value=httpx.Response(200, json={"choices": [{"message": {"content": response}}]})
         )
-
-    respx_mock.post(
-        "/chat/completions",
-    ).mock(side_effect=route_side_effect)
 
     template = (
         "Given {query} and a golden answer {reference}, generate an answer that is incorrect."
@@ -63,7 +62,7 @@ def test_llm_generate(monkeypatch: pytest.MonkeyPatch, respx_mock: respx.mock):
     ]
 
 
-@pytest.mark.respx(base_url="https://api.openai.com/v1")
+@pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
 def test_llm_generate_prints_info_with_verbose_flag(
     monkeypatch: pytest.MonkeyPatch, capfd, respx_mock: respx.mock
 ):
@@ -94,15 +93,14 @@ def test_llm_generate_prints_info_with_verbose_flag(
         "It's a crazy language",
         "it's a programming language",
     ]
-
-    def route_side_effect(request, route):
-        return httpx.Response(
-            200, json={"choices": [{"message": {"content": responses[route.call_count]}}]}
+    queries = dataframe["query"].tolist()
+    references = dataframe["reference"].tolist()
+    for query, reference, response in zip(queries, references, responses):
+        matcher = M(content__contains=query) & M(content__contains=reference)
+        respx_mock.route(matcher).mock(
+            return_value=httpx.Response(200, json={"choices": [{"message": {"content": response}}]})
         )
 
-    respx_mock.post(
-        "/chat/completions",
-    ).mock(side_effect=route_side_effect)
     template = (
         "Given {query} and a golden answer {reference}, generate an answer that is incorrect."
     )
