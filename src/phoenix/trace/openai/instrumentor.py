@@ -75,21 +75,21 @@ class OpenAIInstrumentor:
         """
         openai = import_package("openai")
         is_instrumented = hasattr(
-            openai._base_client.SyncAPIClient,
+            openai.OpenAI,
             INSTRUMENTED_ATTRIBUTE_NAME,
         )
         if not is_instrumented:
-            openai._base_client.SyncAPIClient.request = _wrap_openai_api_requestor(
-                openai._base_client.SyncAPIClient.request, self._tracer
+            openai.OpenAI.request = _wrap_openai_client_request_function(
+                openai.OpenAI.request, self._tracer
             )
             setattr(
-                openai._base_client.SyncAPIClient,
+                openai.OpenAI,
                 INSTRUMENTED_ATTRIBUTE_NAME,
                 True,
             )
 
 
-def _wrap_openai_api_requestor(
+def _wrap_openai_client_request_function(
     request_fn: Callable[..., Any], tracer: Tracer
 ) -> Callable[..., Any]:
     """Wraps the OpenAI APIRequestor.request method to create spans for each API call.
