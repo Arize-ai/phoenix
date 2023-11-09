@@ -306,10 +306,6 @@ class OpenAIModel(BaseEvalModel):
         }
 
     @property
-    def openai_api_model_name(self) -> str:
-        return self._openai_api_model_name
-
-    @property
     def encoder(self) -> "Encoding":
         return self._tiktoken_encoding
 
@@ -318,7 +314,7 @@ class OpenAIModel(BaseEvalModel):
 
         Official documentation: https://github.com/openai/openai-cookbook/blob/main/examples/How_to_format_inputs_to_ChatGPT_models.ipynb
         """  # noqa
-        model_name = self.openai_api_model_name
+        model_name = self.model_name
         if model_name == "gpt-3.5-turbo-0301":
             tokens_per_message = 4  # every message follows <|start|>{role/name}\n{content}<|end|>\n
             tokens_per_name = -1  # if there's a name, the role is omitted
