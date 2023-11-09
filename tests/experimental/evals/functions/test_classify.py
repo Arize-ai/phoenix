@@ -16,13 +16,15 @@ from phoenix.experimental.evals import (
 )
 from phoenix.experimental.evals.functions.classify import _snap_to_rail
 from phoenix.experimental.evals.models.openai import OPENAI_API_KEY_ENVVAR_NAME
+from respx.patterns import M
 
 response_labels = ["relevant", "irrelevant", "\nrelevant ", "unparsable"]
 expected_labels = ["relevant", "irrelevant", "relevant", NOT_PARSABLE]
 
 
-def get_dataframe() -> (pd.DataFrame, list):
-    dataframe = pd.DataFrame(
+@pytest.fixture
+def classification_dataframe():
+    return pd.DataFrame(
         [
             {
                 "query": "What is Python?",
@@ -36,65 +38,72 @@ def get_dataframe() -> (pd.DataFrame, list):
             {"query": "What is C++?", "reference": "irrelevant"},
         ],
     )
-    index = list(reversed(range(len(dataframe))))
-    dataframe = dataframe.set_axis(index, axis=0)
-    return dataframe, index
 
 
-@pytest.mark.respx(base_url="https://api.openai.com/v1")
-def test_llm_classify(monkeypatch: pytest.MonkeyPatch, respx_mock: respx.mock):
+@pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
+def test_llm_classify(
+    classification_dataframe, monkeypatch: pytest.MonkeyPatch, respx_mock: respx.mock
+):
     monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
+    dataframe = classification_dataframe
+    keys = list(zip(dataframe["query"], dataframe["reference"]))
+    responses = ["relevant", "irrelevant", "\nrelevant ", "unparsable"]
+    response_mapping = {key: response for key, response in zip(keys, responses)}
+
+    for (query, reference), response in response_mapping.items():
+        matcher = M(content__contains=query) & M(content__contains=reference)
+        response = {
+            "choices": [
+                {
+                    "message": {
+                        "content": response,
+                    },
+                }
+            ],
+        }
+        respx_mock.route(matcher).mock(return_value=httpx.Response(200, json=response))
 
     with patch.object(OpenAIModel, "_init_tiktoken", return_value=None):
         model = OpenAIModel()
 
-    def route_side_effect(request, route):
-        return httpx.Response(
-            200, json={"choices": [{"message": {"content": response_labels[route.call_count]}}]}
-        )
-
-    respx_mock.post(
-        "/chat/completions",
-    ).mock(side_effect=route_side_effect)
-
-    dataframe, index = get_dataframe()
     result = llm_classify(
         dataframe=dataframe,
         template=RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
         model=model,
         rails=["relevant", "irrelevant"],
-        use_function_calling_if_available=False,
+        verbose=True,
     )
+
+    expected_labels = ["relevant", "irrelevant", "relevant", NOT_PARSABLE]
     assert result.iloc[:, 0].tolist() == expected_labels
     assert_frame_equal(
         result,
         pd.DataFrame(
-            index=index,
             data={"label": expected_labels},
         ),
     )
-    del result
 
 
-@pytest.mark.respx(base_url="https://api.openai.com/v1")
-def test_llm_classify_with_fn_call(monkeypatch: pytest.MonkeyPatch, respx_mock: respx.mock):
+@pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
+def test_llm_classify_with_fn_call(
+    classification_dataframe, monkeypatch: pytest.MonkeyPatch, respx_mock: respx.mock
+):
     monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
+    dataframe = classification_dataframe
+    keys = list(zip(dataframe["query"], dataframe["reference"]))
+    responses = ["relevant", "irrelevant", "\nrelevant ", "unparsable"]
+    response_mapping = {key: response for key, response in zip(keys, responses)}
+
+    for (query, reference), response in response_mapping.items():
+        matcher = M(content__contains=query) & M(content__contains=reference)
+        response = {
+            "choices": [{"message": {"function_call": {"arguments": {"response": response}}}}]
+        }
+        respx_mock.route(matcher).mock(return_value=httpx.Response(200, json=response))
 
     with patch.object(OpenAIModel, "_init_tiktoken", return_value=None):
         model = OpenAIModel(max_retries=0)
 
-    def route_side_effect(request, route):
-        label = response_labels[route.call_count]
-        return httpx.Response(
-            200,
-            json={"choices": [{"message": {"function_call": {"arguments": {"response": label}}}}]},
-        )
-
-    respx_mock.post(
-        "/chat/completions",
-    ).mock(side_effect=route_side_effect)
-
-    dataframe, index = get_dataframe()
     result = llm_classify(
         dataframe=dataframe,
         template=RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
@@ -102,28 +111,31 @@ def test_llm_classify_with_fn_call(monkeypatch: pytest.MonkeyPatch, respx_mock: 
         rails=["relevant", "irrelevant"],
     )
 
+    expected_labels = ["relevant", "irrelevant", "relevant", NOT_PARSABLE]
     assert result.iloc[:, 0].tolist() == expected_labels
-    assert_frame_equal(result, pd.DataFrame(index=index, data={"label": expected_labels}))
-    del result
+    assert_frame_equal(result, pd.DataFrame(data={"label": expected_labels}))
 
 
-@pytest.mark.respx(base_url="https://api.openai.com/v1")
-def test_classify_fn_call_no_explain(monkeypatch: pytest.MonkeyPatch, respx_mock: respx.mock):
+@pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
+def test_classify_fn_call_no_explain(
+    classification_dataframe, monkeypatch: pytest.MonkeyPatch, respx_mock: respx.mock
+):
     monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
+    dataframe = classification_dataframe
+    keys = list(zip(dataframe["query"], dataframe["reference"]))
+    responses = ["relevant", "irrelevant", "\nrelevant ", "unparsable"]
+    response_mapping = {key: response for key, response in zip(keys, responses)}
+
+    for (query, reference), response in response_mapping.items():
+        matcher = M(content__contains=query) & M(content__contains=reference)
+        response = {
+            "choices": [{"message": {"function_call": {"arguments": {"response": response}}}}]
+        }
+        respx_mock.route(matcher).mock(return_value=httpx.Response(200, json=response))
 
     with patch.object(OpenAIModel, "_init_tiktoken", return_value=None):
         model = OpenAIModel(max_retries=0)
 
-    def route_side_effect(request, route):
-        label = response_labels[route.call_count]
-        message = {"function_call": {"arguments": {"response": label}}}
-        return httpx.Response(201, json={"choices": [{"message": message}]})
-
-    respx_mock.post(
-        "/chat/completions",
-    ).mock(side_effect=route_side_effect)
-
-    dataframe, index = get_dataframe()
     result = llm_classify(
         dataframe=dataframe,
         template=RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
@@ -131,37 +143,39 @@ def test_classify_fn_call_no_explain(monkeypatch: pytest.MonkeyPatch, respx_mock
         rails=["relevant", "irrelevant"],
         provide_explanation=True,
     )
+
+    expected_labels = ["relevant", "irrelevant", "relevant", NOT_PARSABLE]
     assert result.iloc[:, 0].tolist() == expected_labels
     assert_frame_equal(
         result,
-        pd.DataFrame(
-            index=index, data={"label": expected_labels, "explanation": [None, None, None, None]}
-        ),
+        pd.DataFrame(data={"label": expected_labels, "explanation": [None, None, None, None]}),
     )
-    del result
 
 
-@pytest.mark.respx(base_url="https://api.openai.com/v1")
-def test_classify_fn_call_explain(monkeypatch: pytest.MonkeyPatch, respx_mock: respx.mock):
+@pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
+def test_classify_fn_call_explain(
+    classification_dataframe, monkeypatch: pytest.MonkeyPatch, respx_mock: respx.mock
+):
     monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
+    dataframe = classification_dataframe
+    keys = list(zip(dataframe["query"], dataframe["reference"]))
+    responses = ["relevant", "irrelevant", "\nrelevant ", "unparsable"]
+    response_mapping = {key: response for key, response in zip(keys, responses)}
 
-    with patch.object(OpenAIModel, "_init_tiktoken", return_value=None):
-        model = OpenAIModel(max_retries=0)
-
-    def route_side_effect(request, route):
-        label = response_labels[route.call_count]
+    for ii, ((query, reference), response) in enumerate(response_mapping.items()):
+        matcher = M(content__contains=query) & M(content__contains=reference)
         message = {
             "function_call": {
-                "arguments": f"{{\n  \042response\042: \042{label}\042, \042explanation\042: \042{route.call_count}\042\n}}"  # noqa E501
+                "arguments": f"{{\n  \042response\042: \042{response}\042, \042explanation\042: \042{ii}\042\n}}"  # noqa E501
             }
         }
-        return httpx.Response(200, json={"choices": [{"message": message}]})
+        respx_mock.route(matcher).mock(
+            return_value=httpx.Response(200, json={"choices": [{"message": message}]})
+        )
 
-    respx_mock.post(
-        "/chat/completions",
-    ).mock(side_effect=route_side_effect)
+    with patch.object(OpenAIModel, "_init_tiktoken", return_value=None):
+        model = OpenAIModel(max_retries=0)
 
-    dataframe, index = get_dataframe()
     result = llm_classify(
         dataframe=dataframe,
         template=RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
@@ -169,17 +183,16 @@ def test_classify_fn_call_explain(monkeypatch: pytest.MonkeyPatch, respx_mock: r
         rails=["relevant", "irrelevant"],
         provide_explanation=True,
     )
+
+    expected_labels = ["relevant", "irrelevant", "relevant", NOT_PARSABLE]
     assert result.iloc[:, 0].tolist() == expected_labels
     assert_frame_equal(
         result,
-        pd.DataFrame(
-            index=index, data={"label": expected_labels, "explanation": ["0", "1", "2", "3"]}
-        ),
+        pd.DataFrame(data={"label": expected_labels, "explanation": ["0", "1", "2", "3"]}),
     )
-    del result
 
 
-@pytest.mark.respx(base_url="https://api.openai.com/v1")
+@pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
 def test_llm_classify_prints_to_stdout_with_verbose_flag(
     monkeypatch: pytest.MonkeyPatch, capfd, respx_mock: respx.mock
 ):
@@ -343,7 +356,7 @@ def test_llm_classify_does_not_persist_verbose_flag(monkeypatch: pytest.MonkeyPa
     assert "Request timed out" not in out, "The `verbose` flag should not be persisted"
 
 
-@pytest.mark.respx(base_url="https://api.openai.com/v1")
+@pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
 @pytest.mark.parametrize(
     "dataframe",
     [
