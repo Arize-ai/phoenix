@@ -77,7 +77,7 @@ def test_openai_instrumentor_includes_llm_attributes_on_chat_completion_success(
     temperature = 0.23
     expected_response_text = "France won the World Cup in 2018."
     respx_mock.post("https://api.openai.com/v1/chat/completions").mock(
-        side_effect=lambda request, route: Response(
+        return_value=Response(
             200,
             json={
                 "id": "chatcmpl-85eo7phshROhvmDvNeMVatGolg9JV",
@@ -166,7 +166,7 @@ def test_openai_instrumentor_includes_function_call_attributes(
     model = "gpt-4"
 
     respx_mock.post("https://api.openai.com/v1/chat/completions").mock(
-        side_effect=lambda request, route: Response(
+        return_value=Response(
             200,
             json={
                 "id": "chatcmpl-85eqK3CCNTHQcTN0ZoWqL5B0OO5ip",
@@ -269,7 +269,7 @@ def test_openai_instrumentor_includes_function_call_message_attributes(
     ]
     model = "gpt-4"
     respx_mock.post("https://api.openai.com/v1/chat/completions").mock(
-        side_effect=lambda request, route: Response(
+        return_value=Response(
             200,
             json={
                 "id": "chatcmpl-85euch0n5ruhawemogmak8cdwyqcb",
@@ -336,7 +336,7 @@ def test_openai_instrumentor_records_authentication_error(
     tracer = Tracer()
     OpenAIInstrumentor(tracer).instrument()
     respx_mock.post("https://api.openai.com/v1/chat/completions").mock(
-        side_effect=lambda request, route: Response(
+        return_value=Response(
             401,
             json={
                 "error": {
@@ -376,7 +376,7 @@ def test_openai_instrumentor_does_not_interfere_with_completions_api(
     model = "gpt-3.5-turbo-instruct"
     prompt = "Who won the World Cup in 2018?"
     respx_mock.post("https://api.openai.com/v1/completions").mock(
-        side_effect=lambda request, route: Response(
+        return_value=Response(
             200,
             json={
                 "id": "cmpl-85hqvKwCud3s3DWc80I0OeNmkfjSM",
@@ -414,7 +414,7 @@ def test_openai_instrumentor_instrument_method_is_idempotent(
     model = "gpt-4"
     messages = [{"role": "user", "content": "Who won the World Cup in 2018?"}]
     respx_mock.post("https://api.openai.com/v1/chat/completions").mock(
-        side_effect=lambda request, route: Response(
+        return_value=Response(
             200,
             json={
                 "id": "chatcmpl-85evOVGg6afU8iqiUsRtYQ5lYnGwn",
