@@ -2,9 +2,10 @@ from json import loads
 from typing import List
 from uuid import UUID
 
+import httpx
 import numpy as np
 import pytest
-import responses
+import respx
 from langchain.chains import RetrievalQA
 from langchain.chains.retrieval_qa.prompt import PROMPT as RETRIEVAL_QA_PROMPT
 from langchain.chat_models import ChatOpenAI
@@ -133,7 +134,7 @@ def test_tracer_llm() -> None:
         assert json_string_to_span(span_to_json(span)) == span
 
 
-@responses.activate
+@respx.mock
 @pytest.mark.parametrize(
     "messages",
     [
@@ -165,23 +166,24 @@ def test_tracer_llm_message_attributes_with_chat_completions_api(
     model_name = "gpt-4"
     llm = ChatOpenAI(model_name=model_name)
     expected_response = "response-text"
-    responses.post(
-        "https://api.openai.com/v1/chat/completions",
-        json={
-            "id": "chatcmpl-123",
-            "object": "chat.completion",
-            "created": 1677652288,
-            "model": model_name,
-            "choices": [
-                {
-                    "index": 0,
-                    "message": {"role": "assistant", "content": expected_response},
-                    "finish_reason": "stop",
-                }
-            ],
-            "usage": {"prompt_tokens": 1, "completion_tokens": 2, "total_tokens": 3},
-        },
-        status=200,
+    respx.post(url="https://api.openai.com/v1/chat/completions").mock(
+        return_value=httpx.Response(
+            status_code=200,
+            json={
+                "id": "chatcmpl-123",
+                "object": "chat.completion",
+                "created": 1677652288,
+                "model": model_name,
+                "choices": [
+                    {
+                        "index": 0,
+                        "message": {"role": "assistant", "content": expected_response},
+                        "finish_reason": "stop",
+                    }
+                ],
+                "usage": {"prompt_tokens": 1, "completion_tokens": 2, "total_tokens": 3},
+            },
+        )
     )
     response = llm(messages, callbacks=[tracer])
 
@@ -204,7 +206,7 @@ def test_tracer_llm_message_attributes_with_chat_completions_api(
     assert LLM_PROMPTS not in attributes
 
 
-@responses.activate
+@respx.mock
 def test_tracer_llm_prompt_attributes_with_completions_api(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
     tracer = OpenInferenceTracer(exporter=NoOpExporter())
@@ -218,25 +220,26 @@ def test_tracer_llm_prompt_attributes_with_completions_api(monkeypatch: pytest.M
         "prompt-1-response-1",
         "prompt-1-response-2",
     ]
-    responses.post(
-        "https://api.openai.com/v1/completions",
-        json={
-            "id": "cmpl-uqkvlQyYK7bGYrRHQ0eXlWi7",
-            "object": "text_completion",
-            "created": 1589478378,
-            "model": model_name,
-            "choices": [
-                {
-                    "text": response_text,
-                    "index": index,
-                    "logprobs": None,
-                    "finish_reason": "stop",
-                }
-                for index, response_text in enumerate(expected_response_texts)
-            ],
-            "usage": {"prompt_tokens": 1, "completion_tokens": 2, "total_tokens": 3},
-        },
-        status=200,
+    respx.post(url="https://api.openai.com/v1/completions").mock(
+        return_value=httpx.Response(
+            status_code=200,
+            json={
+                "id": "cmpl-uqkvlQyYK7bGYrRHQ0eXlWi7",
+                "object": "text_completion",
+                "created": 1589478378,
+                "model": model_name,
+                "choices": [
+                    {
+                        "text": response_text,
+                        "index": index,
+                        "logprobs": None,
+                        "finish_reason": "stop",
+                    }
+                    for index, response_text in enumerate(expected_response_texts)
+                ],
+                "usage": {"prompt_tokens": 1, "completion_tokens": 2, "total_tokens": 3},
+            },
+        )
     )
     input_prompts = ["prompt-0", "prompt-1"]
     result = llm.generate(input_prompts, callbacks=[tracer])

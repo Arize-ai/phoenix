@@ -1,14 +1,16 @@
 from unittest.mock import patch
 
+import httpx
 import pandas as pd
 import pytest
-import responses
+import respx
 from phoenix.experimental.evals import OpenAIModel, llm_generate
 from phoenix.experimental.evals.models.openai import OPENAI_API_KEY_ENVVAR_NAME
+from respx.patterns import M
 
 
-@responses.activate
-def test_llm_generate(monkeypatch: pytest.MonkeyPatch):
+@pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
+def test_llm_generate(monkeypatch: pytest.MonkeyPatch, respx_mock: respx.mock):
     monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
     dataframe = pd.DataFrame(
         [
@@ -30,25 +32,20 @@ def test_llm_generate(monkeypatch: pytest.MonkeyPatch):
             },
         ]
     )
-    for message_content in [
+    responses = [
         "it's a dialect of french",
         "it's a music notation",
         "It's a crazy language",
         "it's a programming language",
-    ]:
-        responses.post(
-            "https://api.openai.com/v1/chat/completions",
-            json={
-                "choices": [
-                    {
-                        "message": {
-                            "content": message_content,
-                        },
-                    }
-                ],
-            },
-            status=200,
+    ]
+    queries = dataframe["query"].tolist()
+    references = dataframe["reference"].tolist()
+    for query, reference, response in zip(queries, references, responses):
+        matcher = M(content__contains=query) & M(content__contains=reference)
+        respx_mock.route(matcher).mock(
+            return_value=httpx.Response(200, json={"choices": [{"message": {"content": response}}]})
         )
+
     template = (
         "Given {query} and a golden answer {reference}, generate an answer that is incorrect."
     )
@@ -65,8 +62,10 @@ def test_llm_generate(monkeypatch: pytest.MonkeyPatch):
     ]
 
 
-@responses.activate
-def test_llm_generate_prints_info_with_verbose_flag(monkeypatch: pytest.MonkeyPatch, capfd):
+@pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
+def test_llm_generate_prints_info_with_verbose_flag(
+    monkeypatch: pytest.MonkeyPatch, capfd, respx_mock: respx.mock
+):
     monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
     dataframe = pd.DataFrame(
         [
@@ -88,25 +87,20 @@ def test_llm_generate_prints_info_with_verbose_flag(monkeypatch: pytest.MonkeyPa
             },
         ]
     )
-    for message_content in [
+    responses = [
         "it's a dialect of french",
         "it's a music notation",
         "It's a crazy language",
         "it's a programming language",
-    ]:
-        responses.post(
-            "https://api.openai.com/v1/chat/completions",
-            json={
-                "choices": [
-                    {
-                        "message": {
-                            "content": message_content,
-                        },
-                    }
-                ],
-            },
-            status=200,
+    ]
+    queries = dataframe["query"].tolist()
+    references = dataframe["reference"].tolist()
+    for query, reference, response in zip(queries, references, responses):
+        matcher = M(content__contains=query) & M(content__contains=reference)
+        respx_mock.route(matcher).mock(
+            return_value=httpx.Response(200, json={"choices": [{"message": {"content": response}}]})
         )
+
     template = (
         "Given {query} and a golden answer {reference}, generate an answer that is incorrect."
     )

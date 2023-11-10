@@ -1,7 +1,18 @@
 import logging
 import os
-from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
+from dataclasses import dataclass, field, fields
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Dict,
+    List,
+    Optional,
+    Tuple,
+    Union,
+    get_args,
+    get_origin,
+)
 
 from phoenix.experimental.evals.models.base import BaseEvalModel
 
@@ -9,7 +20,7 @@ if TYPE_CHECKING:
     from tiktoken import Encoding
 
 OPENAI_API_KEY_ENVVAR_NAME = "OPENAI_API_KEY"
-MINIMUM_OPENAI_VERSION = "0.26.4"
+MINIMUM_OPENAI_VERSION = "1.0.0"
 MODEL_TOKEN_LIMIT_MAPPING = {
     "gpt-3.5-turbo-instruct": 4096,
     "gpt-3.5-turbo-0301": 4096,
@@ -25,16 +36,30 @@ logger = logging.getLogger(__name__)
 
 
 @dataclass
+class AzureOptions:
+    api_version: str
+    azure_endpoint: str
+    azure_deployment: Optional[str]
+    azure_ad_token: Optional[str]
+    azure_ad_token_provider: Optional[Callable[[], str]]
+
+
+@dataclass
 class OpenAIModel(BaseEvalModel):
-    openai_api_type: Optional[str] = field(default=None)
-    openai_api_version: Optional[str] = field(default=None)
-    openai_api_key: Optional[str] = field(repr=False, default=None)
-    openai_api_base: Optional[str] = field(repr=False, default=None)
-    openai_organization: Optional[str] = field(repr=False, default=None)
-    engine: str = ""
-    """Azure engine (the Deployment Name of your model)"""
+    api_key: Optional[str] = field(repr=False, default=None)
+    """Your OpenAI key. If not provided, will be read from the environment variable"""
+    organization: Optional[str] = field(repr=False, default=None)
+    """
+    The organization to use for the OpenAI API. If not provided, will default
+    to what's configured in OpenAI
+    """
+    base_url: Optional[str] = field(repr=False, default=None)
+    """
+    An optional base URL to use for the OpenAI API. If not provided, will default
+    to what's configured in OpenAI
+    """
     model_name: str = "gpt-4"
-    """Model name to use."""
+    """Model name to use. In of azure, this is the deployment name such as gpt-35-instant"""
     temperature: float = 0.0
     """What sampling temperature to use."""
     max_tokens: int = 256
@@ -63,6 +88,18 @@ class OpenAIModel(BaseEvalModel):
     retry_max_seconds: int = 60
     """Maximum number of seconds to wait when retrying."""
 
+    # Azure options
+    api_version: Optional[str] = field(default=None)
+    """https://learn.microsoft.com/en-us/azure/ai-services/openai/reference#rest-api-versioning"""
+    azure_endpoint: Optional[str] = field(default=None)
+    """
+    The endpoint to use for azure openai. Available in the azure portal.
+    https://learn.microsoft.com/en-us/azure/cognitive-services/openai/how-to/create-resource?pivots=web-portal#create-a-resource
+    """
+    azure_deployment: Optional[str] = field(default=None)
+    azure_ad_token: Optional[str] = field(default=None)
+    azure_ad_token_provider: Optional[Callable[[], str]] = field(default=None)
+
     def __post_init__(self) -> None:
         self._init_environment()
         self._init_open_ai()
@@ -71,12 +108,10 @@ class OpenAIModel(BaseEvalModel):
     def _init_environment(self) -> None:
         try:
             import openai
-            import openai.util
-            from openai import error as openai_error
+            import openai._utils as openai_util
 
             self._openai = openai
-            self._openai_error = openai_error
-            self._openai_util = openai.util
+            self._openai_util = openai_util
         except ImportError:
             self._raise_import_error(
                 package_display_name="OpenAI",
@@ -93,51 +128,75 @@ class OpenAIModel(BaseEvalModel):
             )
 
     def _init_open_ai(self) -> None:
+        # For Azure, you need to provide the endpoint and the endpoint
+        self._is_azure = bool(self.azure_endpoint)
+
         self._model_uses_legacy_completion_api = self.model_name.startswith(
             LEGACY_COMPLETION_API_MODELS
         )
-        if self.openai_api_key is None:
+        if self.api_key is None:
             api_key = os.getenv(OPENAI_API_KEY_ENVVAR_NAME)
             if api_key is None:
                 # TODO: Create custom AuthenticationError
                 raise RuntimeError(
-                    "OpenAI's API key not provided. Pass it as an argument to 'openai_api_key' "
+                    "OpenAI's API key not provided. Pass it as an argument to 'api_key' "
                     "or set it in your environment: 'export OPENAI_API_KEY=sk-****'"
                 )
-            self.openai_api_key = api_key
-        self.openai_api_base = self.openai_api_base or self._openai.api_base
-        self.openai_api_type = self.openai_api_type or self._openai.api_type
-        self.openai_api_version = self.openai_api_version or self._openai.api_version
-        self.openai_organization = self.openai_organization or self._openai.organization
-        # use enum to validate api type
-        self._openai_util.ApiType.from_str(self.openai_api_type)  # type: ignore
-        self._is_azure = self.openai_api_type.lower().startswith("azure")
+            self.api_key = api_key
 
+        # Set the version, organization, and base_url - default to openAI
+        self.api_version = self.api_version or self._openai.api_version
+        self.organization = self.organization or self._openai.organization
+
+        # Initialize specific clients depending on the API backend
+        # Set the type first
+        self._client: Union[self._openai.OpenAI, self._openai.AzureOpenAI]  # type: ignore
         if self._is_azure:
-            if not self.engine:
-                raise ValueError(
-                    "You must provide the deployment name in the 'engine' parameter "
-                    "to access the Azure OpenAI service"
-                )
-            self._openai_api_model_name = self.engine
-        elif self.model_name in MODEL_TOKEN_LIMIT_MAPPING.keys():
-            self._openai_api_model_name = self.model_name
-        elif "gpt-3.5-turbo" in self.model_name:
-            self._openai_api_model_name = "gpt-3.5-turbo-0613"
-        elif "gpt-4" in self.model_name:
-            self._openai_api_model_name = "gpt-4-0613"
-        else:
-            raise NotImplementedError(
-                f"openai_api_model_name not available for model {self.model_name}. "
+            # Validate the azure options and construct a client
+            azure_options = self._get_azure_options()
+            self._client = self._openai.AzureOpenAI(
+                azure_endpoint=azure_options.azure_endpoint,
+                azure_deployment=azure_options.azure_deployment,
+                api_version=azure_options.api_version,
+                azure_ad_token=azure_options.azure_ad_token,
+                azure_ad_token_provider=azure_options.azure_ad_token_provider,
+                api_key=self.api_key,
+                organization=self.organization,
             )
+            # return early since we don't need to check the model
+            return
+
+        # The client is not azure, so it must be openai
+        self._client = self._openai.OpenAI(
+            api_key=self.api_key,
+            organization=self.organization,
+            base_url=(self.base_url or self._openai.base_url),
+        )
 
     def _init_tiktoken(self) -> None:
         try:
-            encoding = self._tiktoken.encoding_for_model(self.openai_api_model_name)
+            encoding = self._tiktoken.encoding_for_model(self.model_name)
         except KeyError:
-            logger.warning("Warning: model not found. Using cl100k_base encoding.")
             encoding = self._tiktoken.get_encoding("cl100k_base")
         self._tiktoken_encoding = encoding
+
+    def _get_azure_options(self) -> AzureOptions:
+        options = {}
+        for option in fields(AzureOptions):
+            if (value := getattr(self, option.name)) is not None:
+                options[option.name] = value
+            else:
+                # raise ValueError if field is not optional
+                # See if the field is optional - e.g. get_origin(Optional[T])  = typing.Union
+                option_is_optional = get_origin(option.type) is Union and type(None) in get_args(
+                    option.type
+                )
+                if not option_is_optional:
+                    raise ValueError(
+                        f"Option '{option.name}' must be set when using Azure OpenAI API"
+                    )
+                options[option.name] = None
+        return AzureOptions(**options)
 
     @staticmethod
     def _build_messages(
@@ -173,11 +232,11 @@ class OpenAIModel(BaseEvalModel):
     def _generate_with_retry(self, **kwargs: Any) -> Any:
         """Use tenacity to retry the completion call."""
         openai_retry_errors = [
-            self._openai_error.Timeout,
-            self._openai_error.APIError,
-            self._openai_error.APIConnectionError,
-            self._openai_error.RateLimitError,
-            self._openai_error.ServiceUnavailableError,
+            self._openai.APITimeoutError,
+            self._openai.APIError,
+            self._openai.APIConnectionError,
+            self._openai.RateLimitError,
+            self._openai.InternalServerError,
         ]
 
         @self.retry(
@@ -193,17 +252,22 @@ class OpenAIModel(BaseEvalModel):
                         (message.get("content") or "")
                         for message in (kwargs.pop("messages", None) or ())
                     )
-                return self._openai.Completion.create(**kwargs)
-            return self._openai.ChatCompletion.create(**kwargs)
+                # OpenAI 1.0.0 API responses are pydantic objects, not dicts
+                # We must dump the model to get the dict
+                return self._client.completions.create(**kwargs).model_dump()
+            return self._client.chat.completions.create(**kwargs).model_dump()
 
         return _completion_with_retry(**kwargs)
 
     @property
     def max_context_size(self) -> int:
-        model_name = self.openai_api_model_name
+        model_name = self.model_name
         # handling finetuned models
         if "ft-" in model_name:
             model_name = self.model_name.split(":")[0]
+        if model_name == "gpt-4":
+            # Map gpt-4 to the current default
+            model_name = "gpt-4-0613"
 
         context_size = MODEL_TOKEN_LIMIT_MAPPING.get(model_name, None)
 
@@ -219,7 +283,7 @@ class OpenAIModel(BaseEvalModel):
     @property
     def public_invocation_params(self) -> Dict[str, Any]:
         return {
-            **({"engine": self.engine} if self._is_azure else {"model": self.model_name}),
+            **({"model": self.model_name}),
             **self._default_params,
             **self.model_kwargs,
         }
@@ -228,18 +292,6 @@ class OpenAIModel(BaseEvalModel):
     def invocation_params(self) -> Dict[str, Any]:
         return {
             **self.public_invocation_params,
-            **self._credentials,
-        }
-
-    @property
-    def _credentials(self) -> Dict[str, Any]:
-        """Get the default parameters for calling OpenAI API."""
-        return {
-            "api_key": self.openai_api_key,
-            "api_base": self.openai_api_base,
-            "api_type": self.openai_api_type,
-            "api_version": self.openai_api_version,
-            "organization": self.openai_organization,
         }
 
     @property
@@ -252,12 +304,8 @@ class OpenAIModel(BaseEvalModel):
             "presence_penalty": self.presence_penalty,
             "top_p": self.top_p,
             "n": self.n,
-            "request_timeout": self.request_timeout,
+            "timeout": self.request_timeout,
         }
-
-    @property
-    def openai_api_model_name(self) -> str:
-        return self._openai_api_model_name
 
     @property
     def encoder(self) -> "Encoding":
@@ -268,7 +316,7 @@ class OpenAIModel(BaseEvalModel):
 
         Official documentation: https://github.com/openai/openai-cookbook/blob/main/examples/How_to_format_inputs_to_ChatGPT_models.ipynb
         """  # noqa
-        model_name = self.openai_api_model_name
+        model_name = self.model_name
         if model_name == "gpt-3.5-turbo-0301":
             tokens_per_message = 4  # every message follows <|start|>{role/name}\n{content}<|end|>\n
             tokens_per_name = -1  # if there's a name, the role is omitted
@@ -297,10 +345,10 @@ class OpenAIModel(BaseEvalModel):
     def supports_function_calling(self) -> bool:
         if (
             self._is_azure
-            and self.openai_api_version
+            and self.api_version
             # The first api version supporting function calling is 2023-07-01-preview.
             # See https://github.com/Azure/azure-rest-api-specs/blob/58e92dd03733bc175e6a9540f4bc53703b57fcc9/specification/cognitiveservices/data-plane/AzureOpenAI/inference/preview/2023-07-01-preview/inference.json#L895 # noqa E501
-            and self.openai_api_version[:10] < "2023-07-01"
+            and self.api_version[:10] < "2023-07-01"
         ):
             return False
         if self._model_uses_legacy_completion_api:
