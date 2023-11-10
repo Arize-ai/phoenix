@@ -111,7 +111,7 @@ def llm_classify(
         if not use_openai_function_call:
             raw_string = response
             if provide_explanation:
-                label, explanation = _search_for_label(raw_string), raw_string
+                label, explanation = template.parse_label(raw_string), raw_string
                 explanations.append(explanation)
             else:
                 label = raw_string
@@ -195,7 +195,7 @@ def run_relevance_eval(
     dataframe: pd.DataFrame,
     model: BaseEvalModel,
     template: Union[ClassificationTemplate, str] = RAG_RELEVANCY_PROMPT_TEMPLATE,
-    rails: List[str] = list(RAG_RELEVANCY_PROMPT_RAILS.values()),
+    rails: List[str] = list(RAG_RELEVANCY_PROMPT_RAILS),
     system_instruction: Optional[str] = None,
     query_column_name: str = "query",
     document_column_name: str = "reference",
@@ -342,14 +342,6 @@ def _snap_to_rail(raw_string: Optional[str], rails: List[str], verbose: bool = F
     rail = list(found_rails)[0]
     printif(verbose, f"- Snapped {repr(raw_string)} to rail: {rail}")
     return rail
-
-
-def _search_for_label(raw_string: str) -> str:
-    label_delimiter = r"\W*label\W*"
-    parts = re.split(label_delimiter, raw_string, maxsplit=1, flags=re.IGNORECASE)
-    if len(parts) == 2:
-        return parts[1]
-    return NOT_PARSABLE
 
 
 def _default_openai_function(

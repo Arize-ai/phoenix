@@ -52,6 +52,10 @@ class ClassificationTemplate(ABC):
         variables = re.findall(pattern, text)
         return variables
 
+    @abstractmethod
+    def parse_label(self, raw_string: str) -> str:
+        ...
+
 
 class UserTemplate(ClassificationTemplate):
     text: str
@@ -69,6 +73,8 @@ class UserTemplate(ClassificationTemplate):
     def prompt(self, options: PromptOptions) -> str:
         return self.text
 
+    def parse_label(self, raw_string: str) -> str:
+        raise TypeError("UserTemplates do not support parsing complex outputs.")
 
 class PhoenixTemplate(ClassificationTemplate):
     def __init__(
@@ -78,7 +84,6 @@ class PhoenixTemplate(ClassificationTemplate):
         explanation_template: str,
         delimiters: List[str] = [DEFAULT_START_DELIM, DEFAULT_END_DELIM],
     ):
-        self.rails = rails
         self.base_template = base_template
         self.explanation_template = explanation_template
         self._start_delim, self._end_delim = delimiters
@@ -91,6 +96,13 @@ class PhoenixTemplate(ClassificationTemplate):
             return self.explanation_template
         else:
             return self.base_template
+
+    def parse_label(self, raw_string: str) -> str:
+        label_delimiter = r"\W*label\W*"
+        parts = re.split(label_delimiter, raw_string, maxsplit=1, flags=re.IGNORECASE)
+        if len(parts) == 2:
+            return parts[1]
+        return NOT_PARSABLE
 
 
 def normalize_template(template: Union[ClassificationTemplate, str]) -> ClassificationTemplate:
