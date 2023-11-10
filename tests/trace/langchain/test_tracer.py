@@ -220,7 +220,7 @@ def test_tracer_llm_prompt_attributes_with_completions_api(monkeypatch: pytest.M
         "prompt-1-response-1",
         "prompt-1-response-2",
     ]
-    respx.post(url="https://api.openai.com/v1/chat/completions").mock(
+    respx.post(url="https://api.openai.com/v1/completions").mock(
         return_value=httpx.Response(
             status_code=200,
             json={
