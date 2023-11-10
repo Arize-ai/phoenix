@@ -12,13 +12,13 @@ from .template import (
     NOT_PARSABLE,
     ClassificationTemplate,
     PromptOptions,
-    PromptTemplate,
+    UserTemplate,
     map_template,
     normalize_template,
 )
 
 __all__ = [
-    "PromptTemplate",
+    "UserTemplate",
     "PromptOptions",
     "ClassificationTemplate",
     "normalize_template",

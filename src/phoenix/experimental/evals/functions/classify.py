@@ -11,8 +11,8 @@ from phoenix.experimental.evals.templates import (
     NOT_PARSABLE,
     RAG_RELEVANCY_PROMPT_RAILS,
     RAG_RELEVANCY_PROMPT_TEMPLATE,
+    ClassificationTemplate,
     PromptOptions,
-    PromptTemplate,
     map_template,
     normalize_template,
 )
@@ -34,7 +34,7 @@ _EXPLANATION = "explanation"
 def llm_classify(
     dataframe: pd.DataFrame,
     model: BaseEvalModel,
-    template: Union[PromptTemplate, str],
+    template: Union[ClassificationTemplate, str],
     rails: List[str],
     system_instruction: Optional[str] = None,
     verbose: bool = False,
@@ -136,7 +136,7 @@ def llm_classify(
 def llm_eval_binary(
     dataframe: pd.DataFrame,
     model: BaseEvalModel,
-    template: Union[PromptTemplate, str],
+    template: Union[ClassificationTemplate, str],
     rails: List[str],
     system_instruction: Optional[str] = None,
     verbose: bool = False,
@@ -194,7 +194,7 @@ def llm_eval_binary(
 def run_relevance_eval(
     dataframe: pd.DataFrame,
     model: BaseEvalModel,
-    template: Union[PromptTemplate, str] = RAG_RELEVANCY_PROMPT_TEMPLATE,
+    template: Union[ClassificationTemplate, str] = RAG_RELEVANCY_PROMPT_TEMPLATE,
     rails: List[str] = list(RAG_RELEVANCY_PROMPT_RAILS.values()),
     system_instruction: Optional[str] = None,
     query_column_name: str = "query",

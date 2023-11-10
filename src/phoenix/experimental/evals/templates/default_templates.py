@@ -1,4 +1,4 @@
-from phoenix.experimental.evals.templates.template import ClassificationTemplate
+from phoenix.experimental.evals.templates.template import PhoenixTemplate
 
 RAG_RELEVANCY_PROMPT_RAILS = dict({True: "relevant", False: "irrelevant"})
 RAG_RELEVANCY_PROMPT_BASE_TEMPLATE = """
@@ -304,37 +304,37 @@ LABEL: "readable" or "unreadable"
 EXPLANATION:"""
 
 
-RAG_RELEVANCY_PROMPT_TEMPLATE = ClassificationTemplate(
+RAG_RELEVANCY_PROMPT_TEMPLATE = PhoenixTemplate(
     rails=RAG_RELEVANCY_PROMPT_RAILS,
     base_template=RAG_RELEVANCY_PROMPT_BASE_TEMPLATE,
     explanation_template=RAG_RELEVANCY_PROMPT_TEMPLATE_WITH_EXPLANATION,
 )
 
-HALLUCINATION_PROMPT_TEMPLATE = ClassificationTemplate(
+HALLUCINATION_PROMPT_TEMPLATE = PhoenixTemplate(
     rails=HALLUCINATION_PROMPT_RAILS,
     base_template=HALLUCINATION_PROMPT_BASE_TEMPLATE,
     explanation_template=HALLUCINATION_PROMPT_TEMPLATE_WITH_EXPLANATION,
 )
 
-TOXICITY_PROMPT_TEMPLATE = ClassificationTemplate(
+TOXICITY_PROMPT_TEMPLATE = PhoenixTemplate(
     rails=TOXICITY_PROMPT_RAILS,
     base_template=TOXICITY_PROMPT_TEMPLATE_BASE_TEMPLATE,
     explanation_template=TOXICITY_PROMPT_TEMPLATE_WITH_EXPLANATION,
 )
 
-QA_PROMPT_TEMPLATE = ClassificationTemplate(
+QA_PROMPT_TEMPLATE = PhoenixTemplate(
     rails=QA_PROMPT_RAILS,
     base_template=QA_PROMPT_BASE_TEMPLATE,
     explanation_template=QA_PROMPT_TEMPLATE_WITH_EXPLANATION,
 )
 
-SUMMARIZATION_PROMPT_TEMPLATE = ClassificationTemplate(
+SUMMARIZATION_PROMPT_TEMPLATE = PhoenixTemplate(
     rails=SUMMARIZATION_PROMPT_RAILS,
     base_template=SUMMARIZATION_PROMPT_BASE_TEMPLATE,
     explanation_template=SUMMARIZATION_PROMPT_TEMPLATE_WITH_EXPLANATION,
 )
 
-CODE_READABILITY_PROMPT_TEMPLATE = ClassificationTemplate(
+CODE_READABILITY_PROMPT_TEMPLATE = PhoenixTemplate(
     rails=CODE_READABILITY_PROMPT_RAILS,
     base_template=CODE_READABILITY_PROMPT_BASE_TEMPLATE,
     explanation_template=CODE_READABILITY_PROMPT_TEMPLATE_WITH_EXPLANATION,

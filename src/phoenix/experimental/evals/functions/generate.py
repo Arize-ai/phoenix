@@ -4,14 +4,18 @@ from typing import List, Optional, Union
 import pandas as pd
 
 from phoenix.experimental.evals.models import BaseEvalModel, set_verbosity
-from phoenix.experimental.evals.templates import PromptTemplate, map_template, normalize_template
+from phoenix.experimental.evals.templates import (
+    ClassificationTemplate,
+    map_template,
+    normalize_template,
+)
 
 logger = logging.getLogger(__name__)
 
 
 def llm_generate(
     dataframe: pd.DataFrame,
-    template: Union[PromptTemplate, str],
+    template: Union[ClassificationTemplate, str],
     model: BaseEvalModel,
     system_instruction: Optional[str] = None,
     verbose: bool = False,

@@ -1,4 +1,5 @@
 import re
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple, Union
 
@@ -18,7 +19,7 @@ class PromptOptions:
     provide_explanation: bool = False
 
 
-class PromptTemplate:
+class ClassificationTemplate(ABC):
     text: str
     variables: List[str]
 
@@ -31,8 +32,9 @@ class PromptTemplate:
         self._start_delim, self._end_delim = delimiters
         self.variables = self._parse_variables(self.text)
 
+    @abstractmethod
     def prompt(self, options: PromptOptions) -> str:
-        return self.text
+        ...
 
     def format(
         self, variable_values: Dict[str, Union[bool, int, float, str]], options: PromptOptions
@@ -51,7 +53,24 @@ class PromptTemplate:
         return variables
 
 
-class ClassificationTemplate(PromptTemplate):
+class UserTemplate(ClassificationTemplate):
+    text: str
+    variables: List[str]
+
+    def __init__(
+        self,
+        text: str,
+        delimiters: Tuple[str, str] = (DEFAULT_START_DELIM, DEFAULT_END_DELIM),
+    ):
+        self.text = text
+        self._start_delim, self._end_delim = delimiters
+        self.variables = self._parse_variables(self.text)
+
+    def prompt(self, options: PromptOptions) -> str:
+        return self.text
+
+
+class PhoenixTemplate(ClassificationTemplate):
     def __init__(
         self,
         rails: Dict[bool, str],
@@ -74,28 +93,30 @@ class ClassificationTemplate(PromptTemplate):
             return self.base_template
 
 
-def normalize_template(template: Union[PromptTemplate, str]) -> PromptTemplate:
+def normalize_template(template: Union[ClassificationTemplate, str]) -> ClassificationTemplate:
     """
-    Normalizes a template to a PromptTemplate object.
+    Normalizes a template to a ClassificationTemplate object.
     Args:
-        template (Union[PromptTemplate, str]): The template to be normalized.
+        template (Union[ClassificationTemplate, str]): The template to be normalized.
     Returns:
-        PromptTemplate: The normalized template.
+        ClassificationTemplate: The normalized template.
     """
-    if isinstance(template, PromptTemplate):
+    if isinstance(template, ClassificationTemplate):
         return template
 
     if isinstance(template, str):
-        return PromptTemplate(text=template)
+        return UserTemplate(text=template)
 
     raise TypeError(
-        "Invalid type for argument `template`. Expected a string or PromptTemplate "
+        "Invalid type for argument `template`. Expected a string or ClassificationTemplate "
         f"but found {type(template)}."
     )
 
 
 def map_template(
-    dataframe: pd.DataFrame, template: PromptTemplate, options: Optional[PromptOptions] = None
+    dataframe: pd.DataFrame,
+    template: ClassificationTemplate,
+    options: Optional[PromptOptions] = None,
 ) -> "pd.Series[str]":
     """
     Maps over a dataframe to construct a list of prompts from a template and a dataframe.
