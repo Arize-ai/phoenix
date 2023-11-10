@@ -5,9 +5,10 @@
 
 ## 🔑 Quickstart
 
-* [LLM Traces - OpenAI, LangChain & LlamaIndex](quickstart/llm-traces/README.md)
+* [Phoenix Traces for LLM applications - OpenAI, LangChain & LlamaIndex](quickstart/llm-traces/README.md)
   * [AutoGen Support](quickstart/llm-traces/autogen-support.md)
-* [Inferences - Image/NLP/LLM](quickstart/inferences.md)
+* [Phoenix Inferences](quickstart/phoenix-inferences/README.md)
+  * [Schemas and Datasets](quickstart/phoenix-inferences/inferences.md)
 
 ## 💡 Concepts
 
