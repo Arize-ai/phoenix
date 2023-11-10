@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.0.0](https://github.com/Arize-ai/phoenix/compare/v0.1.1...v1.0.0) (2023-11-10)
+
+
+### ⚠ BREAKING CHANGES
+
+* **models:** openAI 1.0 ([#1716](https://github.com/Arize-ai/phoenix/issues/1716))
+
+### Features
+
+* **models:** openAI 1.0 ([#1716](https://github.com/Arize-ai/phoenix/issues/1716)) ([2564521](https://github.com/Arize-ai/phoenix/commit/2564521e1ce00aaabaf592ce3735a656e1c6f1b8))
+
 ## [0.1.1](https://github.com/Arize-ai/phoenix/compare/v0.1.0...v0.1.1) (2023-11-09)
 
 
