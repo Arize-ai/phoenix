@@ -1,11 +1,12 @@
 name: Publish to PyPI
 
-on: create
+on:
+  release:
+    types: [published]
 
 jobs:
   build:
     name: Build distribution
-    if: startsWith(github.ref, 'refs/tags/')  # only publish to PyPI on tag pushes
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

@@ -48,6 +48,10 @@ We are continually iterating our templates, view the most up-to-date template on
 
 <figure><img src="../../.gitbook/assets/Screenshot 2023-09-18 at 12.05.02 PM (2).png" alt=""><figcaption></figcaption></figure>
 
+#### Claud V2 Results
+
+<figure><img src="../../.gitbook/assets/Screenshot 2023-10-28 at 9.58.08 AM.png" alt=""><figcaption></figcaption></figure>
+
 ## How To Run the Eval
 
 ```python
@@ -55,7 +59,7 @@ import phoenix.experimental.evals.templates.default_templates as templates
 from phoenix.experimental.evals import (
     OpenAIModel,
     download_benchmark_dataset,
-    llm_eval_binary,
+    llm_classify,
 )
 
 model = OpenAIModel(
@@ -67,7 +71,7 @@ model = OpenAIModel(
 #It will remove text such as ",,," or "..."
 #Will ensure the binary value expected from the template is returned 
 rails = list(templates.SUMMARIZATION_PROMPT_RAILS_MAP.values())
-summarization_classifications = llm_eval_binary(
+summarization_classifications = llm_classify(
     dataframe=df_sample,
     template=templates.SUMMARIZATION_PROMPT_TEMPLATE_STR,
     model=model,
@@ -77,8 +81,8 @@ summarization_classifications = llm_eval_binary(
 
 The above shows how to use the summarization Eval template.
 
-| Eval Summary | GPT-4 | GPT-3.5 | GPT-3.5 Instruct | Palm 2 (Text Bison) | Llama 7b (soon) |
-| ------------ | ----- | ------- | ---------------- | ------------------- | --------------- |
-| Precision    | 0.79  | 1       | 1                | 0.57                |                 |
-| Recall       | 0.88  | 0.1     | 0.16             | 0.7                 |                 |
-| F1           | 0.83  | 0.18    | 0.280            | 0.63                |                 |
+| Eval Summary | GPT-4                                  | GPT-3.5                              | GPT-3.5 Instruct                      | Palm 2 (Text Bison)                  | Claud V2                                | Llama 7b (soon) |
+| ------------ | -------------------------------------- | ------------------------------------ | ------------------------------------- | ------------------------------------ | --------------------------------------- | --------------- |
+| Precision    | <mark style="color:green;">0.79</mark> | <mark style="color:red;">1</mark>    | <mark style="color:red;">1</mark>     | <mark style="color:red;">0.57</mark> | <mark style="color:purple;">0.75</mark> |                 |
+| Recall       | <mark style="color:green;">0.88</mark> | <mark style="color:red;">0.1</mark>  | <mark style="color:red;">0.16</mark>  | <mark style="color:red;">0.7</mark>  | <mark style="color:purple;">0.61</mark> |                 |
+| F1           | <mark style="color:green;">0.83</mark> | <mark style="color:red;">0.18</mark> | <mark style="color:red;">0.280</mark> | <mark style="color:red;">0.63</mark> | <mark style="color:purple;">0.67</mark> |                 |

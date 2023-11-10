@@ -8,7 +8,7 @@ The [OpenAI Python Library](https://github.com/openai/openai-python) implements 
 
 ## Traces
 
-[OpenInference](../concepts/open-inference.md) [Traces](../quickstart/llm-traces.md) collect telemetry data about the execution of your LLM application. Consider using this instrumentation to understand how a OpenAI model is being called inside a complex system and to troubleshoot issues such as extraction and response synthesis. These traces can also help debug operational issues such as rate limits, authentication issues or improperly set model parameters.
+[OpenInference](../concepts/open-inference.md) [Traces](../quickstart/llm-traces/) collect telemetry data about the execution of your LLM application. Consider using this instrumentation to understand how a OpenAI model is being called inside a complex system and to troubleshoot issues such as extraction and response synthesis. These traces can also help debug operational issues such as rate limits, authentication issues or improperly set model parameters.
 
 Phoenix currently supports calls to the `ChatCompletion` interface, but more are planned soon.&#x20;
 
@@ -27,6 +27,7 @@ Once you have started a Phoenix server, you can instrument the `openai` Python l
 
 ```python
 from phoenix.trace.tracer import Tracer
+from phoenix.trace.exporter import HttpExporter
 from phoenix.trace.openai.instrumentor import OpenAIInstrumentor
 
 
@@ -44,6 +45,8 @@ px.active_session().url
 # View in the notebook directy
 px.active_session().view()
 ```
+
+####
 
 #### Saving Traces
 
