@@ -1,9 +1,10 @@
 import json
+import sys
 from importlib import reload
+from types import ModuleType
 
 import openai
 import pytest
-import respx
 from httpx import Response
 from openai import AuthenticationError, OpenAI
 from phoenix.trace.openai.instrumentor import OpenAIInstrumentor
@@ -31,29 +32,43 @@ from phoenix.trace.semantic_conventions import (
     MimeType,
 )
 from phoenix.trace.tracer import Tracer
+from respx import MockRouter
 
 
 @pytest.fixture
-def reload_openai_api_requestor() -> None:
-    """Reloads openai.api_requestor to reset the instrumented class method."""
-    reload(openai.api_requestor)
+def openai_module() -> ModuleType:
+    """
+    Reloads openai module to reset patched class. Both the top-level module and
+    the sub-module containing the patched client class must be reloaded.
+    """
+    # Cannot be reloaded with reload(openai._client) due to a naming conflict with a variable.
+    reload(sys.modules["openai._client"])
+    return reload(openai)
 
 
 @pytest.fixture
-def openai_api_key(monkeypatch) -> None:
+def openai_api_key(monkeypatch: pytest.MonkeyPatch) -> None:
+    """
+    Monkeypatches the environment variable for the OpenAI API key.
+    """
     api_key = "sk-0123456789"
     monkeypatch.setenv("OPENAI_API_KEY", api_key)
     return api_key
 
 
 @pytest.fixture
-def client(openai_api_key) -> OpenAI:
-    return OpenAI(api_key=openai_api_key)
+def client(openai_api_key: str, openai_module: ModuleType) -> OpenAI:
+    """
+    Instantiates the OpenAI client using the reloaded openai module, which is
+    necessary when running multiple tests at once due to the patch applied by
+    the OpenAIInstrumentor.
+    """
+    return openai_module.OpenAI(api_key=openai_api_key)
 
 
-@respx.mock
 def test_openai_instrumentor_includes_llm_attributes_on_chat_completion_success(
-    reload_openai_api_requestor, client
+    client: OpenAI,
+    respx_mock: MockRouter,
 ) -> None:
     tracer = Tracer()
     OpenAIInstrumentor(tracer).instrument()
@@ -61,7 +76,7 @@ def test_openai_instrumentor_includes_llm_attributes_on_chat_completion_success(
     messages = [{"role": "user", "content": "Who won the World Cup in 2018?"}]
     temperature = 0.23
     expected_response_text = "France won the World Cup in 2018."
-    respx.post(url="https://api.openai.com/v1/chat/completions").mock(
+    respx_mock.post("https://api.openai.com/v1/chat/completions").mock(
         return_value=Response(
             status_code=200,
             json={
@@ -86,7 +101,7 @@ def test_openai_instrumentor_includes_llm_attributes_on_chat_completion_success(
     response = client.chat.completions.create(
         model=model, messages=messages, temperature=temperature
     )
-    response_text = response.choices[0]["message"]["content"]
+    response_text = response.choices[0].message.content
 
     assert response_text == expected_response_text
 
@@ -122,9 +137,9 @@ def test_openai_instrumentor_includes_llm_attributes_on_chat_completion_success(
     assert attributes[OUTPUT_MIME_TYPE] == MimeType.JSON
 
 
-@respx.mock
 def test_openai_instrumentor_includes_function_call_attributes(
-    reload_openai_api_requestor, openai_api_key
+    client: OpenAI,
+    respx_mock: MockRouter,
 ) -> None:
     tracer = Tracer()
     OpenAIInstrumentor(tracer).instrument()
@@ -149,9 +164,9 @@ def test_openai_instrumentor_includes_function_call_attributes(
         }
     ]
     model = "gpt-4"
-    respx.post(url="https://api.openai.com/v1/chat/completions").mock(
+    respx_mock.post("https://api.openai.com/v1/chat/completions").mock(
         return_value=Response(
-            status=200,
+            status_code=200,
             json={
                 "id": "chatcmpl-85eqK3CCNTHQcTN0ZoWqL5B0OO5ip",
                 "object": "chat.completion",
@@ -177,10 +192,9 @@ def test_openai_instrumentor_includes_function_call_attributes(
     )
     response = client.chat.completions.create(model=model, messages=messages, functions=functions)
 
-    function_call_data = response.choices[0]["message"]["function_call"]
-    assert set(function_call_data.keys()) == {"name", "arguments"}
-    assert function_call_data["name"] == "get_current_weather"
-    assert json.loads(function_call_data["arguments"]) == {"location": "Boston, MA"}
+    function_call = response.choices[0].message.function_call
+    assert function_call.name == "get_current_weather"
+    assert json.loads(function_call.arguments) == {"location": "Boston, MA"}
 
     spans = list(tracer.get_spans())
     assert len(spans) == 1
@@ -213,9 +227,9 @@ def test_openai_instrumentor_includes_function_call_attributes(
     assert span.events == []
 
 
-@respx.mock
 def test_openai_instrumentor_includes_function_call_message_attributes(
-    reload_openai_api_requestor, client
+    client: OpenAI,
+    respx_mock: MockRouter,
 ) -> None:
     tracer = Tracer()
     OpenAIInstrumentor(tracer).instrument()
@@ -253,9 +267,9 @@ def test_openai_instrumentor_includes_function_call_message_attributes(
         }
     ]
     model = "gpt-4"
-    respx.post(url="https://api.openai.com/v1/chat/completions").mock(
+    respx_mock.post("https://api.openai.com/v1/chat/completions").mock(
         return_value=Response(
-            status=200,
+            status_code=200,
             json={
                 "id": "chatcmpl-85euCH0n5RuhAWEmogmak8cDwyQcb",
                 "object": "chat.completion",
@@ -280,7 +294,7 @@ def test_openai_instrumentor_includes_function_call_message_attributes(
     )
 
     response = client.chat.completions.create(model=model, messages=messages, functions=functions)
-    response_text = response.choices[0]["message"]["content"]
+    response_text = response.choices[0].message.content
     spans = list(tracer.get_spans())
     span = spans[0]
     attributes = span.attributes
@@ -314,15 +328,15 @@ def test_openai_instrumentor_includes_function_call_message_attributes(
     assert LLM_FUNCTION_CALL not in attributes
 
 
-@respx.mock
 def test_openai_instrumentor_records_authentication_error(
-    reload_openai_api_requestor, openai_api_key
+    client: OpenAI,
+    respx_mock: MockRouter,
 ) -> None:
     tracer = Tracer()
     OpenAIInstrumentor(tracer).instrument()
-    respx.post(url="https://api.openai.com/v1/chat/completions").mock(
+    respx_mock.post("https://api.openai.com/v1/chat/completions").mock(
         return_value=Response(
-            status=401,
+            status_code=401,
             json={
                 "error": {
                     "message": "error-message",
@@ -348,21 +362,21 @@ def test_openai_instrumentor_records_authentication_error(
     assert isinstance(event, SpanException)
     attributes = event.attributes
     assert attributes[EXCEPTION_TYPE] == "AuthenticationError"
-    assert attributes[EXCEPTION_MESSAGE] == "error-message"
+    assert "error-message" in attributes[EXCEPTION_MESSAGE]
     assert "Traceback" in attributes[EXCEPTION_STACKTRACE]
 
 
-@respx.mock
 def test_openai_instrumentor_does_not_interfere_with_completions_api(
-    reload_openai_api_requestor, client
+    client: OpenAI,
+    respx_mock: MockRouter,
 ) -> None:
     tracer = Tracer()
     OpenAIInstrumentor(tracer).instrument()
     model = "gpt-3.5-turbo-instruct"
     prompt = "Who won the World Cup in 2018?"
-    respx.post(url="https://api.openai.com/v1/completions").mock(
+    respx_mock.post("https://api.openai.com/v1/completions").mock(
         return_value=Response(
-            status=200,
+            status_code=200,
             json={
                 "id": "cmpl-85hqvKwCud3s3DWc80I0OeNmkfjSM",
                 "object": "text_completion",
@@ -381,25 +395,25 @@ def test_openai_instrumentor_does_not_interfere_with_completions_api(
         )
     )
     response = client.completions.create(model=model, prompt=prompt)
-    response_text = response.choices[0]["text"]
+    response_text = response.choices[0].text
     spans = list(tracer.get_spans())
 
     assert "france" in response_text.lower() or "french" in response_text.lower()
     assert spans == []
 
 
-@respx.mock
 def test_openai_instrumentor_instrument_method_is_idempotent(
-    reload_openai_api_requestor, openai_api_key
+    client: OpenAI,
+    respx_mock: MockRouter,
 ) -> None:
     tracer = Tracer()
     OpenAIInstrumentor(tracer).instrument()  # first call
     OpenAIInstrumentor(tracer).instrument()  # second call
     model = "gpt-4"
     messages = [{"role": "user", "content": "Who won the World Cup in 2018?"}]
-    respx.post(url="https://api.openai.com/v1/chat/completions").mock(
+    respx_mock.post("https://api.openai.com/v1/chat/completions").mock(
         return_value=Response(
-            status=200,
+            status_code=200,
             json={
                 "id": "chatcmpl-85evOVGg6afU8iqiUsRtYQ5lYnGwn",
                 "object": "chat.completion",
@@ -420,7 +434,7 @@ def test_openai_instrumentor_instrument_method_is_idempotent(
         )
     )
     response = client.chat.completions.create(model=model, messages=messages)
-    response_text = response.choices[0]["message"]["content"]
+    response_text = response.choices[0].message.content
     spans = list(tracer.get_spans())
     span = spans[0]
 
