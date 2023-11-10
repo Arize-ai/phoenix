@@ -23,6 +23,7 @@
         "RERANKER",
         "respx",
         "rgba",
+        "tiktoken",
         "tracedataset",
         "UMAP"
     ],
