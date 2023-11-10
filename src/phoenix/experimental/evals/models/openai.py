@@ -266,6 +266,9 @@ class OpenAIModel(BaseEvalModel):
         # handling finetuned models
         if "ft-" in model_name:
             model_name = self.model_name.split(":")[0]
+        if model_name == "gpt-4":
+            # Map gpt-4 to the current default
+            model_name = "gpt-4-0613"
 
         context_size = MODEL_TOKEN_LIMIT_MAPPING.get(model_name, None)
 
