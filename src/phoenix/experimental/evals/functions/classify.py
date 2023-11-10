@@ -1,6 +1,5 @@
 import json
 import logging
-import re
 import warnings
 from typing import Any, Dict, Iterable, List, Optional, Union, cast
 
@@ -111,7 +110,8 @@ def llm_classify(
         if not use_openai_function_call:
             raw_string = response
             if provide_explanation:
-                label, explanation = template.parse_label(raw_string), raw_string
+                label, explanation = eval_template.parse_label(raw_string), raw_string
+                printif(verbose and label == NOT_PARSABLE, f"- Could not parse {repr(raw_string)}")
                 explanations.append(explanation)
             else:
                 label = raw_string

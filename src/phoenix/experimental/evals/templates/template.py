@@ -76,10 +76,11 @@ class UserTemplate(ClassificationTemplate):
     def parse_label(self, raw_string: str) -> str:
         raise TypeError("UserTemplates do not support parsing complex outputs.")
 
+
 class PhoenixTemplate(ClassificationTemplate):
     def __init__(
         self,
-        rails: Dict[bool, str],
+        rails: List[str],
         base_template: str,
         explanation_template: str,
         delimiters: List[str] = [DEFAULT_START_DELIM, DEFAULT_END_DELIM],
