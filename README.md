@@ -47,6 +47,7 @@ Phoenix provides MLOps and LLMOps insights at lightning speed with zero-config o
     -   [Exportable Clusters](#exportable-clusters)
 -   [Retrieval-Augmented Generation Analysis](#retrieval-augmented-generation-analysis)
 -   [Structured Data Analysis](#structured-data-analysis)
+-   [Breaking Changes](#breaking-changes)
 -   [Community](#community)
 -   [Thanks](#thanks)
 -   [Copyright, Patent, and License](#copyright-patent-and-license)
@@ -363,6 +364,10 @@ train_ds = px.Dataset(dataframe=train_df, schema=schema, name="training")
 # Launch Phoenix for analysis
 session = px.launch_app(primary=prod_ds, reference=train_ds)
 ```
+
+## Breaking Changes
+
+-   **v1.0.0** - Phoenix now exclusively supports the `openai>=1.1.1` sdk. If you are using an older version of the OpenAI SDK, you can continue to use `arize-phoenix==0.1.1`. However, we recommend upgrading to the latest version of the OpenAI SDK as it contains many improvements.
 
 ## Community
 
