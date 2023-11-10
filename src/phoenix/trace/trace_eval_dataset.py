@@ -12,7 +12,7 @@ EVAL_NAME_COLUMN_PREFIX = "eval."
 
 class TraceEvalDataset:
     """
-    A TraceEvalDataset is a set evaluation annotations for a set of spans.
+    A TraceEvalDataset is a set of evaluation annotations for a set of spans.
     TraceEvalDataset encompasses the evaluation annotations for a single evaluation task
     such as toxicity or relevance.
 
