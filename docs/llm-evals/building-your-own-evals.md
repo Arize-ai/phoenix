@@ -20,7 +20,7 @@ Then, you need the **golden dataset**. This should be representative of the type
 
 Building such a dataset is laborious, but you can often find a standardized one for the most common use cases (as we did in the code above)
 
-<figure><img src="../.gitbook/assets/step1.webp" alt=""><figcaption></figcaption></figure>
+<figure><img src="https://storage.cloud.google.com/arize-assets/phoenix/assets/images/Create_Your_Own_Template_Golden_Dataset.png" alt=""><figcaption><p>Golden Dataset</p></figcaption></figure>
 
 The Evals dataset is designed or easy benchmarking and pre-set downloadable test datasets. The datasets are pre-tested, many are hand crafted and designed for testing specific Eval tasks.
 
@@ -37,7 +37,7 @@ df.head()
 
 Then you need to decide **which LLM** you want to use for evaluation. This could be a different LLM from the one you are using for your application. For example, you may be using Llama for your application and GPT-4 for your eval. Often this choice is influenced by questions of cost and accuracy.&#x20;
 
-<figure><img src="../.gitbook/assets/step2.webp" alt=""><figcaption></figcaption></figure>
+<figure><img src="https://storage.cloud.google.com/arize-assets/phoenix/assets/images/Create_Your_Own_Template_Pick_Model.png" alt=""><figcaption><p>Decide your LLM for evaluation</p></figcaption></figure>
 
 ### 4. Build the Eval Template
 
@@ -51,7 +51,7 @@ Be explicit about the following:
 * **What are we asking?** In our example, we’re asking the LLM to tell us if the document was relevant to the query
 * **What are the possible output formats?** In our example, it is binary relevant/irrelevant, but it can also be multi-class (e.g., fully relevant, partially relevant, not relevant).
 
-<figure><img src="../.gitbook/assets/step3.webp" alt=""><figcaption></figcaption></figure>
+<figure><img src="https://storage.cloud.google.com/arize-assets/phoenix/assets/images/Create_Your_Own_Template.png" alt=""><figcaption><p>Building the eval template</p></figcaption></figure>
 
 In order to create a new template all that is needed is the setting of the input string to the Eval function.
 
@@ -76,7 +76,7 @@ The above template shows an example creation of an easy to use string template. 
 ```python
 
 model = OpenAIModel(model_name="gpt-4",temperature=0.6)
-positive_eval = llm_eval_binary_jason(
+positive_eval = llm_classify(
     dataframe=df,
     template= MY_CUSTOM_TEMPLATE,
     model=model
@@ -95,4 +95,4 @@ MY_CUSTOM_TEMPLATE = PromptTemplate("This is a test {prompt}")
 
 You now need to run the eval across your golden dataset. Then you can **generate metrics** (overall accuracy, precision, recall, F1, etc.) to determine the benchmark. It is important to look at more than just overall accuracy. We’ll discuss that below in more detail.
 
-<figure><img src="../.gitbook/assets/step4.webp" alt=""><figcaption></figcaption></figure>
+<figure><img src="https://storage.cloud.google.com/arize-assets/phoenix/assets/images/Create_Your_Own_Template_Benchmark.png" alt=""><figcaption><p>Benchmark performance</p></figcaption></figure>

@@ -47,7 +47,7 @@ dev = [
   "hatch",
   "jupyter",
   "nbqa",
-  "ruff==0.1.3",
+  "ruff==0.1.5",
   "pandas-stubs<=2.0.2.230605",  # version 2.0.3.230814 is causing a dependency conflict.
   "pytest",
   "pytest-cov",
@@ -55,8 +55,8 @@ dev = [
   "strawberry-graphql[debug-server]==0.208.2",
   "pre-commit",
   "arize[AutoEmbeddings, LLM_Evaluation]",
-  "llama-index>=0.8.29",
-  "langchain>=0.0.324",
+  "llama-index>=0.8.64",
+  "langchain>=0.0.334",
 ]
 experimental = [
   "tenacity",
@@ -91,9 +91,9 @@ dependencies = [
   "pytest-cov",
   "pytest-lazy-fixture",
   "arize",
-  "langchain>=0.0.324",
-  "llama-index>=0.8.29",
-  "openai<1.0.0",
+  "langchain>=0.0.334",
+  "llama-index>=0.8.63.post2",
+  "openai>=1.0.0",
   "tenacity",
   "nltk==3.8.1",
   "sentence-transformers==2.2.2",
@@ -103,24 +103,26 @@ dependencies = [
   "responses",
   "tiktoken",
   "typing-extensions<4.6.0",  # for Colab
+  "httpx", # For OpenAI testing
+  "respx", # For OpenAI testing
 ]
 
 [tool.hatch.envs.type]
 dependencies = [
   "mypy==1.5.1",
-  "llama-index>=0.8.29",
+  "llama-index>=0.8.64",
   "pandas-stubs<=2.0.2.230605",  # version 2.0.3.230814 is causing a dependency conflict.
   "types-psutil",
   "types-tqdm",
   "types-requests",
   "types-protobuf",
-  "openai<1.0.0",
+  "openai>=1.0.0",
 ]
 
 [tool.hatch.envs.style]
 detached = true
 dependencies = [
-  "ruff~=0.1.3",
+  "ruff~=0.1.5",
 ]
 
 [tool.hatch.envs.notebooks]
