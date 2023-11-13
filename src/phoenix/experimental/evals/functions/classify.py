@@ -13,7 +13,7 @@ from phoenix.experimental.evals.templates import (
     ClassificationTemplate,
     PromptOptions,
     map_template,
-    normalize_template,
+    normalize_classification_template,
 )
 from phoenix.trace.semantic_conventions import DOCUMENT_CONTENT, INPUT_VALUE, RETRIEVAL_DOCUMENTS
 from phoenix.utilities.logging import printif
@@ -92,7 +92,7 @@ def llm_classify(
         model_kwargs["functions"] = [openai_function]
         model_kwargs["function_call"] = {"name": openai_function["name"]}
 
-    eval_template = normalize_template(template)
+    eval_template = normalize_classification_template(rails=rails, template=template)
 
     prompt_options = PromptOptions(provide_explanation=provide_explanation)
     prompts = map_template(dataframe, eval_template, options=prompt_options)

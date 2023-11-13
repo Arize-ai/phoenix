@@ -12,7 +12,7 @@ from .templates import (
     TOXICITY_PROMPT_RAILS,
     TOXICITY_PROMPT_TEMPLATE,
     ClassificationTemplate,
-    UserTemplate,
+    PromptTemplate,
 )
 from .utils.downloads import download_benchmark_dataset
 
@@ -23,7 +23,7 @@ __all__ = [
     "llm_generate",
     "OpenAIModel",
     "VertexAIModel",
-    "UserTemplate",
+    "PromptTemplate",
     "ClassificationTemplate",
     "CODE_READABILITY_PROMPT_RAILS",
     "CODE_READABILITY_PROMPT_TEMPLATE",

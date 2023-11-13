@@ -1,5 +1,4 @@
 import re
-from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple, Union
 
@@ -19,22 +18,21 @@ class PromptOptions:
     provide_explanation: bool = False
 
 
-class ClassificationTemplate(ABC):
-    text: str
+class PromptTemplate:
+    base_template: str
     variables: List[str]
 
     def __init__(
         self,
-        text: str,
+        base_template: str,
         delimiters: Tuple[str, str] = (DEFAULT_START_DELIM, DEFAULT_END_DELIM),
     ):
-        self.text = text
+        self.base_template = base_template
         self._start_delim, self._end_delim = delimiters
-        self.variables = self._parse_variables(self.text)
+        self.variables = self._parse_variables(self.base_template)
 
-    @abstractmethod
-    def prompt(self, options: Optional[PromptOptions]) -> str:
-        ...
+    def prompt(self, options: Optional[PromptOptions] = None) -> str:
+        return self.base_template
 
     def format(
         self,
@@ -54,51 +52,28 @@ class ClassificationTemplate(ABC):
         variables = re.findall(pattern, text)
         return variables
 
-    @abstractmethod
-    def parse_label(self, raw_string: str) -> str:
-        ...
 
-
-class UserTemplate(ClassificationTemplate):
-    text: str
-    variables: List[str]
-
-    def __init__(
-        self,
-        text: str,
-        delimiters: Tuple[str, str] = (DEFAULT_START_DELIM, DEFAULT_END_DELIM),
-    ):
-        self.text = text
-        self._start_delim, self._end_delim = delimiters
-        self.variables = self._parse_variables(self.text)
-
-    def prompt(self, options: Optional[PromptOptions]) -> str:
-        return self.text
-
-    def parse_label(self, raw_string: str) -> str:
-        raise TypeError("UserTemplates do not support parsing complex outputs.")
-
-
-class PhoenixTemplate(ClassificationTemplate):
+class ClassificationTemplate(PromptTemplate):
     def __init__(
         self,
         rails: List[str],
         base_template: str,
-        explanation_template: str,
-        delimiters: List[str] = [DEFAULT_START_DELIM, DEFAULT_END_DELIM],
+        explanation_template: Optional[str] = None,
+        delimiters: Tuple[str, str] = (DEFAULT_START_DELIM, DEFAULT_END_DELIM),
     ):
         self.base_template = base_template
         self.explanation_template = explanation_template
         self._start_delim, self._end_delim = delimiters
         self.variables: List[str] = []
         for text in [base_template, explanation_template]:
-            self.variables += self._parse_variables(text)
+            if text is not None:
+                self.variables += self._parse_variables(text)
 
-    def prompt(self, options: Optional[PromptOptions]) -> str:
+    def prompt(self, options: Optional[PromptOptions] = None) -> str:
         if options is None:
             return self.base_template
 
-        if options.provide_explanation:
+        if options.provide_explanation and self.explanation_template:
             return self.explanation_template
         else:
             return self.base_template
@@ -111,7 +86,9 @@ class PhoenixTemplate(ClassificationTemplate):
         return NOT_PARSABLE
 
 
-def normalize_template(template: Union[ClassificationTemplate, str]) -> ClassificationTemplate:
+def normalize_classification_template(
+    rails: List[str], template: Union[ClassificationTemplate, str]
+) -> ClassificationTemplate:
     """
     Normalizes a template to a ClassificationTemplate object.
     Args:
@@ -123,7 +100,7 @@ def normalize_template(template: Union[ClassificationTemplate, str]) -> Classifi
         return template
 
     if isinstance(template, str):
-        return UserTemplate(text=template)
+        return ClassificationTemplate(rails=rails, base_template=template)
 
     raise TypeError(
         "Invalid type for argument `template`. Expected a string or ClassificationTemplate "
@@ -131,9 +108,29 @@ def normalize_template(template: Union[ClassificationTemplate, str]) -> Classifi
     )
 
 
+def normalize_prompt_template(template: Union[PromptTemplate, str]) -> PromptTemplate:
+    """
+    Normalizes a template to a PromptTemplate object.
+    Args:
+        template (Union[PromptTemplate, str]): The template to be normalized.
+    Returns:
+        PromptTemplate: The normalized template.
+    """
+    if isinstance(template, PromptTemplate):
+        return template
+
+    if isinstance(template, str):
+        return PromptTemplate(base_template=template)
+
+    raise TypeError(
+        "Invalid type for argument `template`. Expected a string or PromptTemplate "
+        f"but found {type(template)}."
+    )
+
+
 def map_template(
     dataframe: pd.DataFrame,
-    template: ClassificationTemplate,
+    template: PromptTemplate,
     options: Optional[PromptOptions] = None,
 ) -> "pd.Series[str]":
     """
