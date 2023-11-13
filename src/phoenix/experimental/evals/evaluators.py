@@ -1,6 +1,6 @@
 from typing import List, Optional
 
-from phoenix.experimental.evals import ClassificationTemplate
+from phoenix.experimental.evals import PromptTemplate
 from phoenix.experimental.evals.models import BaseEvalModel
 
 
@@ -18,19 +18,19 @@ class MapReducer:
     def __init__(
         self,
         model: BaseEvalModel,
-        map_prompt_template: ClassificationTemplate,
-        reduce_prompt_template: ClassificationTemplate,
+        map_prompt_template: PromptTemplate,
+        reduce_prompt_template: PromptTemplate,
     ) -> None:
         """Initializes an instance.
 
         Args:
             model (BaseEvalModel): The LLM model to use for evaluation.
 
-            map_prompt_template (ClassificationTemplate): The template that is mapped
+            map_prompt_template (PromptTemplate): The template that is mapped
             over each chunk to produce intermediate outputs. Must contain the
             {chunk} placeholder.
 
-            reduce_prompt_template (ClassificationTemplate): The template that combines
+            reduce_prompt_template (PromptTemplate): The template that combines
             the intermediate outputs into a single result. Must contain the
             {mapped} placeholder, which will be formatted as a list of the
             intermediate outputs produced by the map step.
@@ -81,24 +81,24 @@ class Refiner:
     def __init__(
         self,
         model: BaseEvalModel,
-        initial_prompt_template: ClassificationTemplate,
-        refine_prompt_template: ClassificationTemplate,
-        synthesize_prompt_template: Optional[ClassificationTemplate] = None,
+        initial_prompt_template: PromptTemplate,
+        refine_prompt_template: PromptTemplate,
+        synthesize_prompt_template: Optional[PromptTemplate] = None,
     ) -> None:
         """Initializes an instance.
 
         Args:
             model (BaseEvalModel): The LLM model to use for evaluation.
 
-            initial_prompt_template (ClassificationTemplate): The template for the
+            initial_prompt_template (PromptTemplate): The template for the
             initial invocation of the model that will generate the initial
             accumulator. Should contain the {chunk} placeholder.
 
-            refine_prompt_template (ClassificationTemplate): The template for refining
+            refine_prompt_template (PromptTemplate): The template for refining
             the accumulator across all subsequence chunks. Must contain the
             {chunk} and {accumulator} placeholders.
 
-            synthesize_prompt_template (Optional[ClassificationTemplate], optional): An
+            synthesize_prompt_template (Optional[PromptTemplate], optional): An
             optional template to synthesize the final version of the
             accumulator. Must contain the {accumulator} placeholder.
         """
