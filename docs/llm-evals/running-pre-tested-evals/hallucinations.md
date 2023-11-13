@@ -50,6 +50,10 @@ We are continually iterating our templates, view the most up-to-date template on
 
 <figure><img src="../../.gitbook/assets/claude_v2_hallucination.png" alt=""><figcaption></figcaption></figure>
 
+#### GPT-4 Turbo
+
+<figure><img src="../../.gitbook/assets/GPT-4-Turbo_halluc.png" alt=""><figcaption></figcaption></figure>
+
 ## How To Run the Eval
 
 ```python
@@ -78,4 +82,10 @@ hallucination_classifications = llm_classify(
 
 The above Eval shows how to the the hallucination template for Eval detection.
 
-<table><thead><tr><th>Hallu Eval</th><th>GPT-4</th><th>GPT-3.5</th><th width="215">GPT-3.5-turbo-instruct</th><th>Palm 2 (Text Bison)</th><th>Claude V2</th></tr></thead><tbody><tr><td>Precision</td><td><mark style="color:green;">0.93</mark></td><td><mark style="color:green;">0.89</mark></td><td><mark style="color:green;">0.89</mark></td><td><mark style="color:red;">1</mark></td><td><mark style="color:green;">0.80</mark></td></tr><tr><td>Recall</td><td><mark style="color:green;">0.72</mark></td><td><mark style="color:green;">0.65</mark></td><td><mark style="color:green;">0.80</mark></td><td><mark style="color:red;">0.44</mark></td><td><mark style="color:green;">0.95</mark></td></tr><tr><td>F1</td><td><mark style="color:green;">0.82</mark></td><td><mark style="color:green;">0.75</mark></td><td><mark style="color:green;">0.84</mark></td><td><mark style="color:red;">0.61</mark></td><td><mark style="color:green;">0.87</mark></td></tr></tbody></table>
+<table><thead><tr><th>Hallu Eval</th><th>GPT-4</th><th>GPT-4 Turbo</th><th>GPT-3.5</th><th width="215">GPT-3.5-turbo-instruct</th><th>Palm 2 (Text Bison)</th><th>Claude V2</th></tr></thead><tbody><tr><td>Precision</td><td><mark style="color:green;">0.93</mark></td><td><mark style="color:green;">0.97</mark></td><td><mark style="color:green;">0.89</mark></td><td><mark style="color:green;">0.89</mark></td><td><mark style="color:red;">1</mark></td><td><mark style="color:green;">0.80</mark></td></tr><tr><td>Recall</td><td><mark style="color:green;">0.72</mark></td><td><mark style="color:green;">0.70</mark></td><td><mark style="color:green;">0.65</mark></td><td><mark style="color:green;">0.80</mark></td><td><mark style="color:red;">0.44</mark></td><td><mark style="color:green;">0.95</mark></td></tr><tr><td>F1</td><td><mark style="color:green;">0.82</mark></td><td><mark style="color:green;">0.81</mark></td><td><mark style="color:green;">0.75</mark></td><td><mark style="color:green;">0.84</mark></td><td><mark style="color:red;">0.61</mark></td><td><mark style="color:green;">0.87</mark></td></tr></tbody></table>
+
+
+
+| Throughput  | GPT-4  | GPT-4 Turbo | GPT-3.5 |
+| ----------- | ------ | ----------- | ------- |
+| 100 Samples | 58 Sec | 105 Sec     | 52 Sec  |

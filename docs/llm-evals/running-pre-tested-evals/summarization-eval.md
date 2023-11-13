@@ -52,6 +52,10 @@ We are continually iterating our templates, view the most up-to-date template on
 
 <figure><img src="../../.gitbook/assets/Screenshot 2023-10-28 at 9.58.08 AM.png" alt=""><figcaption></figcaption></figure>
 
+#### GPT-4 Turbo
+
+<figure><img src="../../.gitbook/assets/GPT-4 Turbo Summarization.png" alt=""><figcaption></figcaption></figure>
+
 ## How To Run the Eval
 
 ```python
@@ -81,8 +85,9 @@ summarization_classifications = llm_classify(
 
 The above shows how to use the summarization Eval template.
 
-| Eval Summary | GPT-4                                  | GPT-3.5                              | GPT-3.5 Instruct                      | Palm 2 (Text Bison)                  | Claud V2                                | Llama 7b (soon) |
-| ------------ | -------------------------------------- | ------------------------------------ | ------------------------------------- | ------------------------------------ | --------------------------------------- | --------------- |
-| Precision    | <mark style="color:green;">0.79</mark> | <mark style="color:red;">1</mark>    | <mark style="color:red;">1</mark>     | <mark style="color:red;">0.57</mark> | <mark style="color:purple;">0.75</mark> |                 |
-| Recall       | <mark style="color:green;">0.88</mark> | <mark style="color:red;">0.1</mark>  | <mark style="color:red;">0.16</mark>  | <mark style="color:red;">0.7</mark>  | <mark style="color:purple;">0.61</mark> |                 |
-| F1           | <mark style="color:green;">0.83</mark> | <mark style="color:red;">0.18</mark> | <mark style="color:red;">0.280</mark> | <mark style="color:red;">0.63</mark> | <mark style="color:purple;">0.67</mark> |                 |
+| Eval Summary | GPT-4                                  | GPT-4 Turbo                            | GPT-3.5                              | GPT-3.5 Instruct                      | Palm 2 (Text Bison)                  | Claud V2                                | Llama 7b (soon) |
+| ------------ | -------------------------------------- | -------------------------------------- | ------------------------------------ | ------------------------------------- | ------------------------------------ | --------------------------------------- | --------------- |
+| Precision    | <mark style="color:green;">0.79</mark> | <mark style="color:green;">0.94</mark> | <mark style="color:red;">1</mark>    | <mark style="color:red;">1</mark>     | <mark style="color:red;">0.57</mark> | <mark style="color:purple;">0.75</mark> |                 |
+| Recall       | <mark style="color:green;">0.88</mark> | <mark style="color:green;">0.64</mark> | <mark style="color:red;">0.1</mark>  | <mark style="color:red;">0.16</mark>  | <mark style="color:red;">0.7</mark>  | <mark style="color:purple;">0.61</mark> |                 |
+| F1           | <mark style="color:green;">0.83</mark> | <mark style="color:green;">0.76</mark> | <mark style="color:red;">0.18</mark> | <mark style="color:red;">0.280</mark> | <mark style="color:red;">0.63</mark> | <mark style="color:purple;">0.67</mark> |                 |
+

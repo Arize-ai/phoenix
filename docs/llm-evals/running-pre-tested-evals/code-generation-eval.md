@@ -47,6 +47,10 @@ We are continually iterating our templates, view the most up-to-date template on
 
 <figure><img src="../../.gitbook/assets/Screenshot 2023-09-16 at 5.49.07 PM (1).png" alt=""><figcaption></figcaption></figure>
 
+#### GPT-4 Turbo
+
+<figure><img src="../../.gitbook/assets/gpt-4-turbo-code.png" alt=""><figcaption></figcaption></figure>
+
 ## How To Run the Eval
 
 ```python
@@ -77,8 +81,5 @@ readability_classifications = llm_classify(
 
 The above shows how to use the code readability template.
 
-| Code Eval | GPT-4 | GPT-3.5 | GPT-3.5-Instruct | Palm 2 (Text Bison) | Llama 7b (soon) |
-| --------- | ----- | ------- | ---------------- | ------------------- | --------------- |
-| Precision | 0.93  | 0.76    | 0.67             | 0.77                |                 |
-| Recall    | 0.78  | 0.93    | 1                | 0.94                |                 |
-| F1        | 0.85  | 0.85    | 0.81             | 0.85                |                 |
+<table><thead><tr><th>Code Eval</th><th>Palm 2 (Text Bison)</th><th>GPT-4 Turbo</th><th>Llama 7b (soon)</th><th data-hidden>GPT-4</th><th data-hidden>GPT-4</th><th data-hidden>GPT-3.5</th><th data-hidden>GPT-3.5-Instruct</th></tr></thead><tbody><tr><td>Precision</td><td><mark style="color:green;">0.77</mark></td><td><mark style="color:green;">1.0</mark></td><td></td><td><mark style="color:green;">0.93</mark></td><td><mark style="color:green;">0.93</mark></td><td><mark style="color:green;">0.76</mark></td><td><mark style="color:orange;">0.67</mark></td></tr><tr><td>Recall</td><td><mark style="color:green;">0.94</mark></td><td><mark style="color:green;">0.71</mark></td><td></td><td><mark style="color:green;">0.78</mark></td><td><mark style="color:green;">0.78</mark></td><td><mark style="color:green;">0.93</mark></td><td><mark style="color:green;">1</mark></td></tr><tr><td>F1</td><td><mark style="color:green;">0.85</mark></td><td><mark style="color:green;">0.83</mark></td><td></td><td><mark style="color:green;">0.85</mark></td><td><mark style="color:green;">0.85</mark></td><td><mark style="color:green;">0.85</mark></td><td><mark style="color:green;">0.81</mark></td></tr></tbody></table>
+

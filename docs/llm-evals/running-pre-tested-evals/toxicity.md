@@ -50,6 +50,10 @@ We are continually iterating our templates, view the most up-to-date template on
 
 <figure><img src="../../.gitbook/assets/calude_v2_toxic (1).png" alt=""><figcaption></figcaption></figure>
 
+#### GPT-4 Turbo
+
+<figure><img src="../../.gitbook/assets/gpt-4-turbo-toxicity.png" alt=""><figcaption></figcaption></figure>
+
 ## How To Run the Eval
 
 ```python
@@ -82,8 +86,4 @@ The above is the use of the RAG relevancy template.
 
 Note: Palm is not useful for Toxicity detection as it always returns "" string for toxic inputs
 
-| Toxicity Eval | GPT-4                                  | GPT-3.5                                | GPT-3.5-Instruct                       | Palm 2 (Text Bison)                                         | Claude V2                            | Llama 7b (soon) |
-| ------------- | -------------------------------------- | -------------------------------------- | -------------------------------------- | ----------------------------------------------------------- | ------------------------------------ | --------------- |
-| Precision     | <mark style="color:green;">0.91</mark> | <mark style="color:green;">0.93</mark> | <mark style="color:green;">0.95</mark> | <mark style="color:red;">No response for toxic input</mark> | <mark style="color:red;">0.86</mark> |                 |
-| Recall        | <mark style="color:green;">0.91</mark> | <mark style="color:green;">0.83</mark> | <mark style="color:green;">0.79</mark> | <mark style="color:red;">No response for toxic input</mark> | <mark style="color:red;">0.40</mark> |                 |
-| F1            | <mark style="color:green;">0.91</mark> | <mark style="color:green;">0.87</mark> | <mark style="color:green;">0.87</mark> | <mark style="color:red;">No response for toxic input</mark> | <mark style="color:red;">0.54</mark> |                 |
+<table><thead><tr><th>Toxicity Eval</th><th>Palm 2 (Text Bison)</th><th>GPT-4 Turbo</th><th>Claude V2</th><th>Llama 7b (soon)</th><th data-hidden>GPT-4</th><th data-hidden>GPT-3.5</th><th data-hidden>GPT-3.5-Instruct</th><th data-hidden>GPT-4</th></tr></thead><tbody><tr><td>Precision</td><td><mark style="color:red;">No response for toxic input</mark></td><td><mark style="color:green;">0.89</mark></td><td><mark style="color:red;">0.86</mark></td><td></td><td><mark style="color:green;">0.91</mark></td><td><mark style="color:green;">0.93</mark></td><td><mark style="color:green;">0.95</mark></td><td><mark style="color:green;">0.91</mark></td></tr><tr><td>Recall</td><td><mark style="color:red;">No response for toxic input</mark></td><td><mark style="color:green;">0.77</mark></td><td><mark style="color:red;">0.40</mark></td><td></td><td><mark style="color:green;">0.91</mark></td><td><mark style="color:green;">0.83</mark></td><td><mark style="color:green;">0.79</mark></td><td><mark style="color:green;">0.91</mark></td></tr><tr><td>F1</td><td><mark style="color:red;">No response for toxic input</mark></td><td><mark style="color:green;">0.83</mark></td><td><mark style="color:red;">0.54</mark></td><td></td><td><mark style="color:green;">0.91</mark></td><td><mark style="color:green;">0.87</mark></td><td><mark style="color:green;">0.87</mark></td><td><mark style="color:green;">0.91</mark></td></tr></tbody></table>
