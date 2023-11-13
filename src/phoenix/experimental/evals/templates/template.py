@@ -33,11 +33,13 @@ class ClassificationTemplate(ABC):
         self.variables = self._parse_variables(self.text)
 
     @abstractmethod
-    def prompt(self, options: PromptOptions) -> str:
+    def prompt(self, options: Optional[PromptOptions]) -> str:
         ...
 
     def format(
-        self, variable_values: Dict[str, Union[bool, int, float, str]], options: PromptOptions
+        self,
+        variable_values: Dict[str, Union[bool, int, float, str]],
+        options: Optional[PromptOptions] = None,
     ) -> str:
         prompt = self.prompt(options)
         for variable_name in self.variables:
@@ -70,7 +72,7 @@ class UserTemplate(ClassificationTemplate):
         self._start_delim, self._end_delim = delimiters
         self.variables = self._parse_variables(self.text)
 
-    def prompt(self, options: PromptOptions) -> str:
+    def prompt(self, options: Optional[PromptOptions]) -> str:
         return self.text
 
     def parse_label(self, raw_string: str) -> str:
@@ -92,7 +94,10 @@ class PhoenixTemplate(ClassificationTemplate):
         for text in [base_template, explanation_template]:
             self.variables += self._parse_variables(text)
 
-    def prompt(self, options: PromptOptions) -> str:
+    def prompt(self, options: Optional[PromptOptions]) -> str:
+        if options is None:
+            return self.base_template
+
         if options.provide_explanation:
             return self.explanation_template
         else:

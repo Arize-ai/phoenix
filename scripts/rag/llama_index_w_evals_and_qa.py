@@ -11,7 +11,6 @@ from typing import Dict, List
 
 import cohere
 import numpy as np
-import openai
 import pandas as pd
 import phoenix.experimental.evals.templates.default_templates as templates
 import requests
@@ -380,8 +379,7 @@ def process_row(row, formatted_evals_column, k):
 
 
 def check_keys() -> None:
-    openai.api_key = os.getenv("OPENAI_API_KEY")
-    if openai.api_key is None:
+    if os.getenv("OPENAI_API_KEY") is None:
         raise RuntimeError(
             "OpenAI API key missing. Please set it up in your environment as OPENAI_API_KEY"
         )

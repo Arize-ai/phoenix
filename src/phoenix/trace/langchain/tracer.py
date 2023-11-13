@@ -133,15 +133,15 @@ def _output_messages(run_outputs: Mapping[str, Any]) -> Iterator[Tuple[str, List
 def _parse_message_data(message_data: Mapping[str, Any]) -> Message:
     """Parses message data to grab message role, content, etc."""
     message_class_name = message_data["id"][-1]
-    if message_class_name == "HumanMessage":
+    if message_class_name.startswith("HumanMessage"):
         role = "user"
-    elif message_class_name == "AIMessage":
+    elif message_class_name.startswith("AIMessage"):
         role = "assistant"
-    elif message_class_name == "SystemMessage":
+    elif message_class_name.startswith("SystemMessage"):
         role = "system"
-    elif message_class_name == "FunctionMessage":
+    elif message_class_name.startswith("FunctionMessage"):
         role = "function"
-    elif message_class_name == "ChatMessage":
+    elif message_class_name.startswith("ChatMessage"):
         role = message_data["kwargs"]["role"]
     else:
         raise ValueError(f"Cannot parse message of type: {message_class_name}")

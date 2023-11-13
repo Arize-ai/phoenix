@@ -1,9 +1,9 @@
 import json
 import logging
-import warnings
 from typing import Any, Dict, Iterable, List, Optional, Union, cast
 
 import pandas as pd
+from tqdm.auto import tqdm
 
 from phoenix.experimental.evals.models import BaseEvalModel, OpenAIModel, set_verbosity
 from phoenix.experimental.evals.templates import (
@@ -97,97 +97,41 @@ def llm_classify(
     prompt_options = PromptOptions(provide_explanation=provide_explanation)
     prompts = map_template(dataframe, eval_template, options=prompt_options)
 
-    with set_verbosity(model, verbose) as verbose_model:
-        responses = verbose_model.generate(
-            prompts.to_list(), instruction=system_instruction, **model_kwargs
-        )
-
     labels: List[str] = []
     explanations: List[Optional[str]] = []
 
-    printif(verbose, f"Snapping {len(responses)} responses to rails: {rails}")
-    for response in responses:
+    if generation_info := model.verbose_generation_info():
+        printif(verbose, generation_info)
+
+    for prompt in tqdm(prompts):
+        with set_verbosity(model, verbose) as verbose_model:
+            response = verbose_model(prompt, instruction=system_instruction, **model_kwargs)
         if not use_openai_function_call:
-            raw_string = response
             if provide_explanation:
-                label, explanation = eval_template.parse_label(raw_string), raw_string
-                printif(verbose and label == NOT_PARSABLE, f"- Could not parse {repr(raw_string)}")
-                explanations.append(explanation)
+                unrailed_label, explanation = eval_template.parse_label(response), response
+                printif(
+                    verbose and unrailed_label == NOT_PARSABLE,
+                    f"- Could not parse {repr(response)}",
+                )
             else:
-                label = raw_string
+                unrailed_label = response
+                explanation = None
         else:
             try:
                 function_arguments = json.loads(response, strict=False)
-                label = function_arguments.get(_RESPONSE)
-                if provide_explanation:
-                    explanations.append(function_arguments.get(_EXPLANATION))
+                unrailed_label = function_arguments.get(_RESPONSE)
+                explanation = function_arguments.get(_EXPLANATION)
             except json.JSONDecodeError:
-                label = response
-        labels.append(_snap_to_rail(label, rails, verbose=verbose))
-
-    data: Dict[str, List[Any]] = {"label": labels}
-    if provide_explanation:
-        assert len(labels) == len(explanations)
-        data["explanation"] = explanations
-
-    return pd.DataFrame(data=data, index=dataframe.index)
-
-
-def llm_eval_binary(
-    dataframe: pd.DataFrame,
-    model: BaseEvalModel,
-    template: Union[ClassificationTemplate, str],
-    rails: List[str],
-    system_instruction: Optional[str] = None,
-    verbose: bool = False,
-) -> List[str]:
-    """Performs a binary classification on the rows of the input dataframe using an LLM.
-
-    Args:
-        dataframe (pandas.DataFrame): A pandas dataframe in which each row represents a record to be
-        classified. All template variable names must appear as column names in the dataframe (extra
-        columns unrelated to the template are permitted).
-
-        template (Union[PromptTemplate, str]): The prompt template as either an instance of
-        PromptTemplate or a string. If the latter, the variable names should be surrounded by
-        curly braces so that a call to `.format` can be made to substitute variable values.
-
-        model (BaseEvalModel): An LLM model class.
-
-        rails (List[str]): A list of strings representing the possible output classes of the model's
-        predictions.
-
-        system_instruction (Optional[str], optional): An optional system message.
-
-        verbose (bool, optional): If True, prints detailed info to stdout such as model invocation
-        parameters and details about retries and snapping to rails. Default False.
-
-    Returns:
-        List[str]: A list of strings representing the predicted class for each record in the
-        dataframe. The list should have the same length as the input dataframe and its values should
-        be the entries in the rails argument or "NOT_PARSABLE" if the model's prediction could not
-        be parsed.
-    """
-
-    warnings.warn(
-        "This function will soon be deprecated. "
-        "Use llm_classify instead, which has the same function signature "
-        "and provides support for multi-class classification "
-        "in addition to binary classification.",
-        category=DeprecationWarning,
-        stacklevel=2,
-    )
-    return (
-        llm_classify(
-            dataframe=dataframe,
-            model=model,
-            template=template,
-            rails=rails,
-            system_instruction=system_instruction,
-            verbose=verbose,
-        )
-        .iloc[:, 0]
-        .tolist()
+                unrailed_label = response
+                explanation = None
+        labels.append(_snap_to_rail(unrailed_label, rails, verbose=verbose))
+        explanations.append(explanation)
+    return pd.DataFrame(
+        data={
+            "label": labels,
+            **({"explanation": explanations} if provide_explanation else {}),
+        },
+        index=dataframe.index,
     )
 
 
