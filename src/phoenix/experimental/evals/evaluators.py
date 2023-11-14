@@ -1,7 +1,59 @@
-from typing import List, Optional
+from dataclasses import dataclass
+from functools import partial
+from typing import Any, List, Mapping, Optional, Protocol, runtime_checkable
 
-from phoenix.experimental.evals import PromptTemplate
-from phoenix.experimental.evals.models import BaseEvalModel
+from phoenix.experimental.evals.models import set_verbosity
+from phoenix.utilities.logging import printif
+
+from .models import BaseEvalModel
+from .templates import PromptTemplate
+
+Record = Mapping[str, Any]
+
+
+class EvaluationResult(Protocol):
+    prediction: str
+
+
+@dataclass
+class ClassificationResult:
+    prediction: str
+
+
+@runtime_checkable
+class Evaluator(Protocol):
+    def evaluate(self, record: Record) -> EvaluationResult:
+        ...
+
+    @property
+    def name(self) -> str:
+        ...
+
+
+class LLMClassifier:
+    def __init__(
+        self,
+        name: str,
+        model: BaseEvalModel,
+        template: PromptTemplate,
+        rails: List[str],
+        verbose: bool = False,
+    ) -> None:
+        self._name = name
+        self._model = model
+        self._template = template
+        self._parser = partial(_snap_to_rail, rails=rails, verbose=verbose)
+        self._verbose = verbose
+
+    def evaluate(self, record: Record) -> ClassificationResult:
+        prompt = self._template.format(record)
+        with set_verbosity(self._model, self._verbose) as verbose_model:
+            unparsed_output = verbose_model(prompt)
+        return ClassificationResult(prediction=self._parser(unparsed_output))
+
+    @property
+    def name(self) -> str:
+        return self._name
 
 
 class MapReducer:
@@ -137,3 +189,39 @@ class Refiner:
             return accumulator
         reduce_prompt = self._synthesize_prompt_template.format({"accumulator": accumulator})
         return model(reduce_prompt)
+
+
+# TODO: de-duplicate and refactor the following code
+NOT_PARSABLE = "UNPARSABLE"
+
+
+def _snap_to_rail(raw_string: Optional[str], rails: List[str], verbose: bool = False) -> str:
+    """
+    Snaps a string to the nearest rail, or returns None if the string cannot be
+    snapped to a rail.
+
+    Args:
+        raw_string (str): An input to be snapped to a rail.
+
+        rails (List[str]): The target set of strings to snap to.
+
+    Returns:
+        str: A string from the rails argument or "UNPARSABLE" if the input
+        string could not be snapped.
+    """
+    if not raw_string:
+        return NOT_PARSABLE
+    snap_string = raw_string.lower()
+    rails = list(set(rail.lower() for rail in rails))
+    rails.sort(key=len, reverse=True)
+    found_rails = set()
+    for rail in rails:
+        if rail in snap_string:
+            found_rails.add(rail)
+            snap_string = snap_string.replace(rail, "")
+    if len(found_rails) != 1:
+        printif(verbose, f"- Cannot snap {repr(raw_string)} to rails")
+        return NOT_PARSABLE
+    rail = list(found_rails)[0]
+    printif(verbose, f"- Snapped {repr(raw_string)} to rail: {rail}")
+    return rail
