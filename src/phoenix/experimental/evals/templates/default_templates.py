@@ -1,6 +1,7 @@
+from collections import OrderedDict
 from phoenix.experimental.evals.templates.template import ClassificationTemplate
 
-RAG_RELEVANCY_PROMPT_RAILS = ["relevant", "irrelevant"]
+RAG_RELEVANCY_PROMPT_RAILS_MAP = OrderedDict({True: "relevant", False: "irrelevant"})
 RAG_RELEVANCY_PROMPT_BASE_TEMPLATE = """
 You are comparing a reference text to a question and trying to determine if the reference text
 contains information relevant to answering the question. Here is the data:
@@ -44,7 +45,7 @@ LABEL: "relevant" or "irrelevant"
 
 EXPLANATION:"""
 
-HALLUCINATION_PROMPT_RAILS = ["hallucinated", "factual"]
+HALLUCINATION_PROMPT_RAILS_MAP = OrderedDict({True: "hallucinated", False: "factual"})
 HALLUCINATION_PROMPT_BASE_TEMPLATE = """
 In this task, you will be presented with a query, a reference text and an answer. The answer is
 generated to the question based on the reference text. The answer may contain false information, you
@@ -115,7 +116,7 @@ LABEL: "factual" or "hallucinated"
 
 EXPLANATION:"""
 
-TOXICITY_PROMPT_RAILS = ["toxic", "non-toxic"]
+TOXICITY_PROMPT_RAILS_MAP = OrderedDict({True: "toxic", False: "non-toxic"})
 TOXICITY_PROMPT_TEMPLATE_BASE_TEMPLATE = """
 You are examining written text content. Here is the text:
     [BEGIN DATA]
@@ -164,7 +165,7 @@ LABEL: "toxic" or "non-toxic"
 
 EXPLANATION:"""
 
-QA_PROMPT_RAILS = ["correct", "incorrect"]
+QA_PROMPT_RAILS_MAP = OrderedDict({True: "correct", False: "incorrect"})
 QA_PROMPT_BASE_TEMPLATE = """
 You are given a question, an answer and reference text. You must determine whether the
 given answer correctly answers the question based on the reference text. Here is the data:
@@ -210,7 +211,7 @@ LABEL: "correct" or "incorrect"
 EXPLANATION:"""
 
 
-SUMMARIZATION_PROMPT_RAILS = ["good", "bad"]
+SUMMARIZATION_PROMPT_RAILS_MAP = OrderedDict({True: "good", False: "bad"})
 SUMMARIZATION_PROMPT_BASE_TEMPLATE = """
 You are comparing the summary text and it's original document and trying to determine
 if the summary is good. Here is the data:
@@ -252,7 +253,7 @@ LABEL: "good" or "bad"
 
 EXPLANATION:"""
 
-CODE_READABILITY_PROMPT_RAILS = ["readable", "unreadable"]
+CODE_READABILITY_PROMPT_RAILS_MAP = OrderedDict({True: "readable", False: "unreadable"})
 CODE_READABILITY_PROMPT_BASE_TEMPLATE = """
 You are a stern but practical senior software engineer who cares a lot about simplicity and
 readability of code. Can you review the following code that was written by another engineer?
@@ -305,37 +306,37 @@ EXPLANATION:"""
 
 
 RAG_RELEVANCY_PROMPT_TEMPLATE = ClassificationTemplate(
-    rails=RAG_RELEVANCY_PROMPT_RAILS,
-    base_template=RAG_RELEVANCY_PROMPT_BASE_TEMPLATE,
+    rails=list(RAG_RELEVANCY_PROMPT_RAILS_MAP.keys()),
+    template=RAG_RELEVANCY_PROMPT_BASE_TEMPLATE,
     explanation_template=RAG_RELEVANCY_PROMPT_TEMPLATE_WITH_EXPLANATION,
 )
 
 HALLUCINATION_PROMPT_TEMPLATE = ClassificationTemplate(
-    rails=HALLUCINATION_PROMPT_RAILS,
-    base_template=HALLUCINATION_PROMPT_BASE_TEMPLATE,
+    rails=list(HALLUCINATION_PROMPT_RAILS_MAP.keys()),
+    template=HALLUCINATION_PROMPT_BASE_TEMPLATE,
     explanation_template=HALLUCINATION_PROMPT_TEMPLATE_WITH_EXPLANATION,
 )
 
 TOXICITY_PROMPT_TEMPLATE = ClassificationTemplate(
-    rails=TOXICITY_PROMPT_RAILS,
-    base_template=TOXICITY_PROMPT_TEMPLATE_BASE_TEMPLATE,
+    rails=list(TOXICITY_PROMPT_RAILS_MAP.keys()),
+    template=TOXICITY_PROMPT_TEMPLATE_BASE_TEMPLATE,
     explanation_template=TOXICITY_PROMPT_TEMPLATE_WITH_EXPLANATION,
 )
 
 QA_PROMPT_TEMPLATE = ClassificationTemplate(
-    rails=QA_PROMPT_RAILS,
-    base_template=QA_PROMPT_BASE_TEMPLATE,
+    rails=list(QA_PROMPT_RAILS_MAP.keys()),
+    template=QA_PROMPT_BASE_TEMPLATE,
     explanation_template=QA_PROMPT_TEMPLATE_WITH_EXPLANATION,
 )
 
 SUMMARIZATION_PROMPT_TEMPLATE = ClassificationTemplate(
-    rails=SUMMARIZATION_PROMPT_RAILS,
-    base_template=SUMMARIZATION_PROMPT_BASE_TEMPLATE,
+    rails=list(SUMMARIZATION_PROMPT_RAILS_MAP.keys()),
+    template=SUMMARIZATION_PROMPT_BASE_TEMPLATE,
     explanation_template=SUMMARIZATION_PROMPT_TEMPLATE_WITH_EXPLANATION,
 )
 
 CODE_READABILITY_PROMPT_TEMPLATE = ClassificationTemplate(
-    rails=CODE_READABILITY_PROMPT_RAILS,
-    base_template=CODE_READABILITY_PROMPT_BASE_TEMPLATE,
+    rails=list(CODE_READABILITY_PROMPT_RAILS_MAP.keys()),
+    template=CODE_READABILITY_PROMPT_BASE_TEMPLATE,
     explanation_template=CODE_READABILITY_PROMPT_TEMPLATE_WITH_EXPLANATION,
 )

@@ -1,6 +1,6 @@
 import re
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Callable, Dict, List, Optional, Tuple, Union
 
 import pandas as pd
 
@@ -19,20 +19,20 @@ class PromptOptions:
 
 
 class PromptTemplate:
-    base_template: str
+    template: str
     variables: List[str]
 
     def __init__(
         self,
-        base_template: str,
+        template: str,
         delimiters: Tuple[str, str] = (DEFAULT_START_DELIM, DEFAULT_END_DELIM),
     ):
-        self.base_template = base_template
+        self.template = template
         self._start_delim, self._end_delim = delimiters
-        self.variables = self._parse_variables(self.base_template)
+        self.variables = self._parse_variables(self.template)
 
     def prompt(self, options: Optional[PromptOptions] = None) -> str:
-        return self.base_template
+        return self.template
 
     def format(
         self,
@@ -57,33 +57,41 @@ class ClassificationTemplate(PromptTemplate):
     def __init__(
         self,
         rails: List[str],
-        base_template: str,
+        template: str,
         explanation_template: Optional[str] = None,
+        explanation_label_parser: Optional[Callable[[str], str]] = None,
         delimiters: Tuple[str, str] = (DEFAULT_START_DELIM, DEFAULT_END_DELIM),
     ):
-        self.base_template = base_template
+        self.template = template
         self.explanation_template = explanation_template
+        self.explanation_label_parser = explanation_label_parser
         self._start_delim, self._end_delim = delimiters
         self.variables: List[str] = []
-        for text in [base_template, explanation_template]:
+        for text in [template, explanation_template]:
             if text is not None:
                 self.variables += self._parse_variables(text)
 
     def prompt(self, options: Optional[PromptOptions] = None) -> str:
         if options is None:
-            return self.base_template
+            return self.template
 
         if options.provide_explanation and self.explanation_template:
             return self.explanation_template
         else:
-            return self.base_template
+            return self.template
 
-    def parse_label(self, raw_string: str) -> str:
-        label_delimiter = r"\W*label\W*"
-        parts = re.split(label_delimiter, raw_string, maxsplit=1, flags=re.IGNORECASE)
-        if len(parts) == 2:
-            return parts[1]
-        return NOT_PARSABLE
+    def extract_label_from_explanation(self, raw_string: str) -> str:
+        if parser := self.explanation_label_parser:
+            return parser(raw_string)
+        return parse_label_from_chain_of_thought_response(raw_string)
+
+
+def parse_label_from_chain_of_thought_response(raw_string: str) -> str:
+    label_delimiter = r"\W*label\W*"
+    parts = re.split(label_delimiter, raw_string, maxsplit=1, flags=re.IGNORECASE)
+    if len(parts) == 2:
+        return parts[1]
+    return NOT_PARSABLE
 
 
 def normalize_classification_template(
@@ -100,7 +108,7 @@ def normalize_classification_template(
         return template
 
     if isinstance(template, str):
-        return ClassificationTemplate(rails=rails, base_template=template)
+        return ClassificationTemplate(rails=rails, template=template)
 
     raise TypeError(
         "Invalid type for argument `template`. Expected a string or ClassificationTemplate "
@@ -120,7 +128,7 @@ def normalize_prompt_template(template: Union[PromptTemplate, str]) -> PromptTem
         return template
 
     if isinstance(template, str):
-        return PromptTemplate(base_template=template)
+        return PromptTemplate(template=template)
 
     raise TypeError(
         "Invalid type for argument `template`. Expected a string or PromptTemplate "

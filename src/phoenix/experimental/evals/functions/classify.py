@@ -108,7 +108,10 @@ def llm_classify(
             response = verbose_model(prompt, instruction=system_instruction, **model_kwargs)
         if not use_openai_function_call:
             if provide_explanation:
-                unrailed_label, explanation = eval_template.parse_label(response), response
+                unrailed_label, explanation = (
+                    eval_template.extract_label_from_explanation(response),
+                    response,
+                )
                 printif(
                     verbose and unrailed_label == NOT_PARSABLE,
                     f"- Could not parse {repr(response)}",
