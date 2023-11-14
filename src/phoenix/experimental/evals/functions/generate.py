@@ -49,7 +49,8 @@ def llm_generate(
         will have a single column named "output". Default None.
 
     Returns:
-        pandas.DataFrame: A dataframe where each row represents the generated output
+        generations_dataframe (pandas.DataFrame): A dataframe where each row
+        represents the generated output
 
     """
     output_parser = output_parser or _no_op_parser
