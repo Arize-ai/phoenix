@@ -12,7 +12,7 @@ from phoenix.experimental.evals.templates.default_templates import (
 )
 
 
-def test_eval_runner_output_dataframe_has_identical_index_to_input_dataframe() -> None:
+def test_eval_runner_with_evaluator_arguments_produces_expected_output_dataframe() -> None:
     model = OpenAIModel(model_name="gpt-4")
     relevance_evaluator = LLMClassifier(
         name="relevance",
@@ -29,6 +29,39 @@ def test_eval_runner_output_dataframe_has_identical_index_to_input_dataframe() -
         verbose=True,
     )
     runner = EvalRunner(evaluators=[relevance_evaluator, toxicity_evaluator])
+    df = pd.DataFrame(
+        [
+            {
+                "input": "What is the capital of France?",
+                "reference": "Paris is the capital of France.",
+            },
+            {
+                "input": "What is the capital of France?",
+                "reference": "Munich is the capital of Germany.",
+            },
+        ],
+        index=["a", "b"],
+    )
+    eval_df = runner.evaluate_dataframe(df)
+    assert_frame_equal(
+        eval_df,
+        pd.DataFrame(
+            {"relevance": ["relevant", "irrelevant"], "toxicity": ["non-toxic", "non-toxic"]},
+            index=["a", "b"],
+        ),
+    )
+
+
+def test_eval_runner_with_mixed_evaluator_arguments_produces_expected_output_dataframe() -> None:
+    model = OpenAIModel(model_name="gpt-4")
+    toxicity_evaluator = LLMClassifier(
+        name="toxicity",
+        template=PromptTemplate(TOXICITY_PROMPT_TEMPLATE_STR),
+        model=model,
+        rails=list(TOXICITY_PROMPT_RAILS_MAP.values()),
+        verbose=True,
+    )
+    runner = EvalRunner(evaluators=["relevance", toxicity_evaluator], model=model)
     df = pd.DataFrame(
         [
             {

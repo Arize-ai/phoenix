@@ -6,7 +6,7 @@ from phoenix.experimental.evals.models import set_verbosity
 from phoenix.utilities.logging import printif
 
 from .models import BaseEvalModel
-from .templates import PromptTemplate
+from .templates import PromptTemplate, default_templates
 
 Record = Mapping[str, Any]
 
@@ -54,6 +54,26 @@ class LLMClassifier:
     @property
     def name(self) -> str:
         return self._name
+
+    @classmethod
+    def from_name(cls, name: str, model: BaseEvalModel, verbose: bool = False) -> "LLMClassifier":
+        if name == "toxicity":
+            return cls(
+                name=name,
+                model=model,
+                template=PromptTemplate(default_templates.TOXICITY_PROMPT_TEMPLATE_STR),
+                rails=list(default_templates.TOXICITY_PROMPT_RAILS_MAP.values()),
+                verbose=verbose,
+            )
+        if name == "relevance":
+            return cls(
+                name=name,
+                model=model,
+                template=PromptTemplate(default_templates.RAG_RELEVANCY_PROMPT_TEMPLATE_STR),
+                rails=list(default_templates.RAG_RELEVANCY_PROMPT_RAILS_MAP.values()),
+                verbose=verbose,
+            )
+        raise ValueError(f"Unknown evaluator name: {name}")
 
 
 class MapReducer:
