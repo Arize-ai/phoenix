@@ -100,6 +100,7 @@ def llm_classify(
     labels: List[str] = []
     explanations: List[Optional[str]] = []
 
+    printif(verbose, f"Using prompt:\n\n{eval_template.prompt(prompt_options)}")
     if generation_info := model.verbose_generation_info():
         printif(verbose, generation_info)
 
