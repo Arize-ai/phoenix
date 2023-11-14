@@ -124,3 +124,51 @@ def test_llm_generate_with_output_parser(monkeypatch: pytest.MonkeyPatch, respx_
     assert generated["__error__"].tolist() == [np.nan] * 4 + [
         "Expecting value: line 1 column 1 (char 0)"
     ]
+
+
+@pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
+def test_llm_generate_resume_from_snapshot(monkeypatch: pytest.MonkeyPatch, respx_mock: respx.mock):
+    monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
+    dataframe = pd.DataFrame(
+        [
+            {
+                "query": "What is a banana?",
+            },
+            {
+                "query": "What is ?",
+            },
+            {
+                "query": "What is C++?",
+            },
+            {
+                "query": "What is Cobol?",
+            },
+        ]
+    )
+    responses = [
+        "it's a fruit",
+        "it's a music notation",
+        "A programming language",
+        "An old programming language",
+    ]
+    queries = dataframe["query"].tolist()
+    for query, response in zip(queries, responses):
+        matcher = M(content__contains=query) & M(content__contains=query)
+        respx_mock.route(matcher).mock(
+            return_value=httpx.Response(200, json={"choices": [{"message": {"content": response}}]})
+        )
+
+    template = "Given {query}, generate an answer that is incorrect."
+
+    with patch.object(OpenAIModel, "_init_tiktoken", return_value=None):
+        model = OpenAIModel()
+
+    # Generate for the first two records
+    generated = llm_generate(dataframe=dataframe.iloc[:2], template=template, model=model)
+    assert generated.iloc[:, 0].tolist() == responses[:2]
+
+    # Resume from the third record
+    generated = llm_generate(
+        dataframe=dataframe, template=template, model=model, output_dataframe=generated
+    )
+    assert generated.iloc[:, 0].tolist() == responses
