@@ -19,6 +19,7 @@
         "NDJSON",
         "numpy",
         "openai",
+        "OPENINFERENCE",
         "pydantic",
         "quickstart",
         "RERANKER",
