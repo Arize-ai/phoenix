@@ -1,12 +1,20 @@
 import logging
-from typing import List, Optional, Union
+from typing import Any, Callable, Dict, Optional, Union
 
 import pandas as pd
 
 from phoenix.experimental.evals.models import BaseEvalModel, set_verbosity
-from phoenix.experimental.evals.templates import PromptTemplate, map_template, normalize_template
+from phoenix.experimental.evals.templates import (
+    PromptTemplate,
+    map_template,
+    normalize_prompt_template,
+)
 
 logger = logging.getLogger(__name__)
+
+
+def _no_op_parser(response: str) -> Dict[str, str]:
+    return {"output": response}
 
 
 def llm_generate(
@@ -15,7 +23,8 @@ def llm_generate(
     model: BaseEvalModel,
     system_instruction: Optional[str] = None,
     verbose: bool = False,
-) -> List[str]:
+    output_parser: Optional[Callable[[str], Dict[str, Any]]] = None,
+) -> pd.DataFrame:
     """
     Generates a text using a template using an LLM. This function is useful
     if you want to generate synthetic data, such as irrelevant responses
@@ -38,16 +47,30 @@ def llm_generate(
         verbose (bool, optional): If True, prints detailed information to stdout such as model
         invocation parameters and retry info. Default False.
 
+        output_parser (Callable[[str], Dict[str, Any]], optional): An optional function
+        that takes each generated response and parses it to a dictionary. The keys of the dictionary
+        should correspond to the column names of the output dataframe. If None, the output dataframe
+        will have a single column named "output". Default None.
+
     Returns:
-        List[Optional[str]]: A list of strings representing the output of the
-        model for each record
+        generations_dataframe (pandas.DataFrame): A dataframe where each row
+        represents the generated output
 
     """
+    output_parser = output_parser or _no_op_parser
     with set_verbosity(model, verbose) as verbose_model:
-        template = normalize_template(template)
-        logger.info(f"Template: \n{template.text}\n")
+        template = normalize_prompt_template(template)
+        logger.info(f"Template: \n{template.prompt()}\n")
         logger.info(f"Template variables: {template.variables}")
         prompts = map_template(dataframe, template)
 
-        responses = verbose_model.generate(prompts.to_list(), system_instruction)
-        return responses
+        # For each prompt, generate and parse the response
+        output = []
+        for prompt in prompts:
+            logger.info(f"Prompt: {prompt}")
+            response = verbose_model(prompt, instruction=system_instruction)
+            parsed_response = output_parser(response)
+            output.append(parsed_response)
+
+        # Return the data as a dataframe
+        return pd.DataFrame(output)

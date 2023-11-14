@@ -317,7 +317,7 @@ def df_evals(
     df[formatted_evals_column] = run_relevance_eval(
         dataframe=df,
         model=model,
-        template=templates.RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
+        template=templates.RAG_RELEVANCY_PROMPT_TEMPLATE,
         rails=list(templates.RAG_RELEVANCY_PROMPT_RAILS_MAP.values()),
         # query_column_name="question",
         # document_column_name="retrieved_context_list",
@@ -453,7 +453,7 @@ def main():
     eval_model = OpenAIModel(model_name="gpt-4", temperature=0.0)
 
     # QA template (using default)
-    qa_template = templates.QA_PROMPT_TEMPLATE_STR
+    qa_template = templates.QA_PROMPT_TEMPLATE
     # Uncomment below when testing to limit number of questions
     # questions = questions[:3]
     all_data = run_experiments(

@@ -77,7 +77,7 @@ model = OpenAIModel(
 rails = list(templates.SUMMARIZATION_PROMPT_RAILS_MAP.values())
 summarization_classifications = llm_classify(
     dataframe=df_sample,
-    template=templates.SUMMARIZATION_PROMPT_TEMPLATE_STR,
+    template=templates.SUMMARIZATION_PROMPT_TEMPLATE,
     model=model,
     rails=rails,
 )

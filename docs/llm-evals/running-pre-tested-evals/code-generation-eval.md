@@ -56,7 +56,7 @@ We are continually iterating our templates, view the most up-to-date template on
 ```python
 from phoenix.experimental.evals import (
     CODE_READABILITY_PROMPT_RAILS_MAP,
-    CODE_READABILITY_PROMPT_TEMPLATE_STR,
+    CODE_READABILITY_PROMPT_TEMPLATE,
     OpenAIModel,
     download_benchmark_dataset,
     llm_classify,
@@ -73,7 +73,7 @@ model = OpenAIModel(
 rails = list(CODE_READABILITY_PROMPT_RAILS_MAP.values())
 readability_classifications = llm_classify(
     dataframe=df,
-    template=CODE_READABILITY_PROMPT_TEMPLATE_STR,
+    template=CODE_READABILITY_PROMPT_TEMPLATE,
     model=model,
     rails=rails,
 )

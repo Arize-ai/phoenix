@@ -59,7 +59,7 @@ We are continually iterating our templates, view the most up-to-date template on
 ```python
 from phoenix.experimental.evals import (
     HALLUCINATION_PROMPT_RAILS_MAP,
-    HALLUCINATION_PROMPT_TEMPLATE_STR,
+    HALLUCINATION_PROMPT_TEMPLATE,
     OpenAIModel,
     download_benchmark_dataset,
     llm_classify,
@@ -75,7 +75,7 @@ model = OpenAIModel(
 #Will ensure the binary value expected from the template is returned 
 rails = list(HALLUCINATION_PROMPT_RAILS_MAP.values())
 hallucination_classifications = llm_classify(
-    dataframe=df, template=HALLUCINATION_PROMPT_TEMPLATE_STR, model=model, rails=rails
+    dataframe=df, template=HALLUCINATION_PROMPT_TEMPLATE, model=model, rails=rails
 )
 
 ```
