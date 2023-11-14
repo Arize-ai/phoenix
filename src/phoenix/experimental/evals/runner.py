@@ -1,7 +1,7 @@
 from typing import Any, Dict, List, Mapping
 
 from pandas import DataFrame
-from tqdm import tqdm
+from tqdm.auto import tqdm
 
 from .evaluators import Evaluator
 
@@ -15,12 +15,12 @@ class EvalRunner:
     ) -> None:
         self._evaluators = evaluators
 
-    def evaluate_record(self, record: Record) -> Dict[str, str]:
+    def evaluate_dataframe(self, dataframe: DataFrame) -> DataFrame:
+        return DataFrame(
+            self._evaluate_record(row.to_dict()) for _, row in tqdm(dataframe.iterrows())
+        )
+
+    def _evaluate_record(self, record: Record) -> Dict[str, str]:
         return {
             evaluator.name: evaluator.evaluate(record).prediction for evaluator in self._evaluators
         }
-
-    def evaluate_dataframe(self, dataframe: DataFrame) -> DataFrame:
-        return DataFrame(
-            self.evaluate_record(row.to_dict()) for _, row in tqdm(dataframe.iterrows())
-        )
