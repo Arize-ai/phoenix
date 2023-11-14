@@ -8,7 +8,7 @@ from tqdm.auto import tqdm
 from phoenix.experimental.evals.models import BaseEvalModel, OpenAIModel, set_verbosity
 from phoenix.experimental.evals.templates import (
     NOT_PARSABLE,
-    RAG_RELEVANCY_PROMPT_RAILS,
+    RAG_RELEVANCY_PROMPT_RAILS_MAP,
     RAG_RELEVANCY_PROMPT_TEMPLATE,
     ClassificationTemplate,
     PromptOptions,
@@ -142,7 +142,7 @@ def run_relevance_eval(
     dataframe: pd.DataFrame,
     model: BaseEvalModel,
     template: Union[ClassificationTemplate, str] = RAG_RELEVANCY_PROMPT_TEMPLATE,
-    rails: List[str] = list(RAG_RELEVANCY_PROMPT_RAILS),
+    rails: List[str] = list(RAG_RELEVANCY_PROMPT_RAILS_MAP.values()),
     system_instruction: Optional[str] = None,
     query_column_name: str = "query",
     document_column_name: str = "reference",

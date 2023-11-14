@@ -1,4 +1,5 @@
 from collections import OrderedDict
+
 from phoenix.experimental.evals.templates.template import ClassificationTemplate
 
 RAG_RELEVANCY_PROMPT_RAILS_MAP = OrderedDict({True: "relevant", False: "irrelevant"})
