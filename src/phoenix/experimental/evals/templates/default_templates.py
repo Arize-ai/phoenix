@@ -307,37 +307,37 @@ EXPLANATION:"""
 
 
 RAG_RELEVANCY_PROMPT_TEMPLATE = ClassificationTemplate(
-    rails=list(RAG_RELEVANCY_PROMPT_RAILS_MAP.keys()),
+    rails=list(RAG_RELEVANCY_PROMPT_RAILS_MAP.keys()),  # type: ignore
     template=RAG_RELEVANCY_PROMPT_BASE_TEMPLATE,
     explanation_template=RAG_RELEVANCY_PROMPT_TEMPLATE_WITH_EXPLANATION,
 )
 
 HALLUCINATION_PROMPT_TEMPLATE = ClassificationTemplate(
-    rails=list(HALLUCINATION_PROMPT_RAILS_MAP.keys()),
+    rails=list(HALLUCINATION_PROMPT_RAILS_MAP.keys()),  # type: ignore
     template=HALLUCINATION_PROMPT_BASE_TEMPLATE,
     explanation_template=HALLUCINATION_PROMPT_TEMPLATE_WITH_EXPLANATION,
 )
 
 TOXICITY_PROMPT_TEMPLATE = ClassificationTemplate(
-    rails=list(TOXICITY_PROMPT_RAILS_MAP.keys()),
+    rails=list(TOXICITY_PROMPT_RAILS_MAP.keys()),  # type: ignore
     template=TOXICITY_PROMPT_TEMPLATE_BASE_TEMPLATE,
     explanation_template=TOXICITY_PROMPT_TEMPLATE_WITH_EXPLANATION,
 )
 
 QA_PROMPT_TEMPLATE = ClassificationTemplate(
-    rails=list(QA_PROMPT_RAILS_MAP.keys()),
+    rails=list(QA_PROMPT_RAILS_MAP.keys()),  # type: ignore
     template=QA_PROMPT_BASE_TEMPLATE,
     explanation_template=QA_PROMPT_TEMPLATE_WITH_EXPLANATION,
 )
 
 SUMMARIZATION_PROMPT_TEMPLATE = ClassificationTemplate(
-    rails=list(SUMMARIZATION_PROMPT_RAILS_MAP.keys()),
+    rails=list(SUMMARIZATION_PROMPT_RAILS_MAP.keys()),  # type: ignore
     template=SUMMARIZATION_PROMPT_BASE_TEMPLATE,
     explanation_template=SUMMARIZATION_PROMPT_TEMPLATE_WITH_EXPLANATION,
 )
 
 CODE_READABILITY_PROMPT_TEMPLATE = ClassificationTemplate(
-    rails=list(CODE_READABILITY_PROMPT_RAILS_MAP.keys()),
+    rails=list(CODE_READABILITY_PROMPT_RAILS_MAP.keys()),  # type: ignore
     template=CODE_READABILITY_PROMPT_BASE_TEMPLATE,
     explanation_template=CODE_READABILITY_PROMPT_TEMPLATE_WITH_EXPLANATION,
 )

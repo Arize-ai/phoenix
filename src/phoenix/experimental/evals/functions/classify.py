@@ -11,8 +11,8 @@ from phoenix.experimental.evals.templates import (
     RAG_RELEVANCY_PROMPT_RAILS_MAP,
     RAG_RELEVANCY_PROMPT_TEMPLATE,
     ClassificationTemplate,
-    PromptTemplate,
     PromptOptions,
+    PromptTemplate,
     map_template,
     normalize_classification_template,
 )
