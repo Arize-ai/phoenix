@@ -11,6 +11,7 @@ from phoenix.experimental.evals.templates import (
     RAG_RELEVANCY_PROMPT_RAILS_MAP,
     RAG_RELEVANCY_PROMPT_TEMPLATE,
     ClassificationTemplate,
+    PromptTemplate,
     PromptOptions,
     map_template,
     normalize_classification_template,
@@ -33,7 +34,7 @@ _EXPLANATION = "explanation"
 def llm_classify(
     dataframe: pd.DataFrame,
     model: BaseEvalModel,
-    template: Union[ClassificationTemplate, str],
+    template: Union[ClassificationTemplate, PromptTemplate, str],
     rails: List[str],
     system_instruction: Optional[str] = None,
     verbose: bool = False,
@@ -49,9 +50,10 @@ def llm_classify(
         classified. All template variable names must appear as column names in the dataframe (extra
         columns unrelated to the template are permitted).
 
-        template (Union[PromptTemplate, str]): The prompt template as either an instance of
-        PromptTemplate or a string. If the latter, the variable names should be surrounded by
-        curly braces so that a call to `.format` can be made to substitute variable values.
+        template (Union[ClassificationTemplate, PromptTemplate, str]): The prompt template as
+        either an instance of PromptTemplate, ClassificationTemplate or a string. If a string, the
+        variable names should be surrounded by curly braces so that a call to `.format` can be made
+        to substitute variable values.
 
         model (BaseEvalModel): An LLM model class.
 

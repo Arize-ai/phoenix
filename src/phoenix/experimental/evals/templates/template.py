@@ -98,7 +98,7 @@ def parse_label_from_chain_of_thought_response(raw_string: str) -> str:
 
 
 def normalize_classification_template(
-    rails: List[str], template: Union[ClassificationTemplate, str]
+    rails: List[str], template: Union[PromptTemplate, ClassificationTemplate, str]
 ) -> ClassificationTemplate:
     """
     Normalizes a template to a ClassificationTemplate object.
@@ -109,6 +109,9 @@ def normalize_classification_template(
     """
     if isinstance(template, ClassificationTemplate):
         return template
+
+    if isinstance(template, PromptTemplate):
+        return ClassificationTemplate(rails=rails, template=template.template)
 
     if isinstance(template, str):
         return ClassificationTemplate(rails=rails, template=template)
