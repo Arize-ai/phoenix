@@ -126,3 +126,27 @@ Implementation to Evaluate:
 ```
 """  # noqa: E501
 CODE_READABILITY_PROMPT_RAILS_MAP = OrderedDict({True: "readable", False: "unreadable"})
+
+
+REF_LINK_EVAL_PROMPT_TEMPLATE_STR = """
+You are given a conversation that contains questions by a CUSTOMER and you are trying
+to determine if the documentation page shared by the ASSISTANT correctly answers
+the CUSTOMERS questions. We will give you the conversation between the customer
+and the ASSISTANT and the text of the documentation returned:
+    [CONVERSATION AND QUESTION]:
+    {conversation}
+    ************
+    [DOCUMENTATION URL TEXT]:
+    {document_text}
+    [DOCUMENTATION URL TEXT]:
+You should respond "correct" if the documentation text answers the question the
+CUSTOMER had in the conversation. If the documentation roughly answers the question
+even in a general way the please answer "correct". If there are multiple questions and a single
+question is answered, please still answer "correct". If the text does not answer the
+question in the conversation, or doesn't contain information that would allow you
+to answer the specific question please answer "incorrect".
+""" # noqa: E501
+# The prompt output map is used to map 1) to provide rails to the llm in order to constrain
+# the llm's outputs to the expected values. 2) golden dataset ground truth boolean values
+# to the llm output
+REF_LINK_EVAL_PROMPT_RAILS_MAP = OrderedDict({True: "correct", False: "incorrect"})
