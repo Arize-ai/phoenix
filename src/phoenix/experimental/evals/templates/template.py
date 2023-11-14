@@ -71,6 +71,9 @@ class ClassificationTemplate(PromptTemplate):
             if text is not None:
                 self.variables += self._parse_variables(text)
 
+    def __repr__(self) -> str:
+        return self.template
+
     def prompt(self, options: Optional[PromptOptions] = None) -> str:
         if options is None:
             return self.template
