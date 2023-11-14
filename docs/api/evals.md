@@ -129,10 +129,8 @@ Given a pandas dataframe containing queries and retrieved documents, classifies 
         -   The entries of the query column must be strings.
         -   The entries of the document column must be lists of OpenInference document objects, each object being a dictionary that stores the document text under the key "document.content".
 -   **model (BaseEvalModel):** The model used for evaluation.
-    <<<<<<< HEAD
 -   # **template (Union\[ClassificationPromptTemplate, PromptTemplate, str], optional):** The template used for evaluation.
 -   **template (Union\[PromptTemplate, str], optional):** The template used for evaluation.
-    > > > > > > > 1e70ec3f (docs(evals): document llm_generate with output parser (#1741))
 -   **rails (List\[str], optional):** A list of strings representing the possible output classes of the model's predictions.
 -   **query_column_name (str, optional):** The name of the query column in the dataframe, which should also be a template variable.
 -   **reference_column_name (str, optional):** The name of the document column in the dataframe, which should also be a template variable.
@@ -162,11 +160,6 @@ Generates a text using a template using an LLM. This function is useful if you w
 -   **template (Union\[PromptTemplate, str])**: The prompt template as either an instance of PromptTemplate or a string. If the latter, the variable names should be surrounded by curly braces so that a call to `format` can be made to substitute variable values.
 -   **model (BaseEvalModel)**: An LLM model class.
 -   **system_instruction (Optional\[str], optional):** An optional system message.
-    <<<<<<< HEAD
-
-### Returns
-
--   # **generations (List\[Optional\[str]])**: A list of strings representing the output of the model for each record
 -   **output_parser (Callable[[str], Dict[str, Any]], optional)** An optional function that takes each generated response and parses it to a dictionary. The keys of the dictionary should correspond to the column names of the output dataframe. If None, the output dataframe will have a single column named "output".
 
 ### Returns
