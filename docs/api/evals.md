@@ -129,7 +129,10 @@ Given a pandas dataframe containing queries and retrieved documents, classifies 
         -   The entries of the query column must be strings.
         -   The entries of the document column must be lists of OpenInference document objects, each object being a dictionary that stores the document text under the key "document.content".
 -   **model (BaseEvalModel):** The model used for evaluation.
--   **template (Union\[ClassificationPromptTemplate, PromptTemplate, str], optional):** The template used for evaluation.
+    <<<<<<< HEAD
+-   # **template (Union\[ClassificationPromptTemplate, PromptTemplate, str], optional):** The template used for evaluation.
+-   **template (Union\[PromptTemplate, str], optional):** The template used for evaluation.
+    > > > > > > > 1e70ec3f (docs(evals): document llm_generate with output parser (#1741))
 -   **rails (List\[str], optional):** A list of strings representing the possible output classes of the model's predictions.
 -   **query_column_name (str, optional):** The name of the query column in the dataframe, which should also be a template variable.
 -   **reference_column_name (str, optional):** The name of the document column in the dataframe, which should also be a template variable.
@@ -147,6 +150,7 @@ def llm_generate(
     template: Union[PromptTemplate, str],
     model: Optional[BaseEvalModel] = None,
     system_instruction: Optional[str] = None,
+    output_parser: Optional[Callable[[str], Dict[str, Any]]] = None,
 ) -> List[str]
 ```
 
@@ -158,7 +162,88 @@ Generates a text using a template using an LLM. This function is useful if you w
 -   **template (Union\[PromptTemplate, str])**: The prompt template as either an instance of PromptTemplate or a string. If the latter, the variable names should be surrounded by curly braces so that a call to `format` can be made to substitute variable values.
 -   **model (BaseEvalModel)**: An LLM model class.
 -   **system_instruction (Optional\[str], optional):** An optional system message.
+    <<<<<<< HEAD
 
 ### Returns
 
--   **generations (List\[Optional\[str]])**: A list of strings representing the output of the model for each record
+-   # **generations (List\[Optional\[str]])**: A list of strings representing the output of the model for each record
+-   **output_parser (Callable[[str], Dict[str, Any]], optional)** An optional function that takes each generated response and parses it to a dictionary. The keys of the dictionary should correspond to the column names of the output dataframe. If None, the output dataframe will have a single column named "output".
+
+### Returns
+
+-   **generations_dataframe (pandas.DataFrame)**: A dataframe where each row represents the generated output
+
+### Usage
+
+Below we show how you can use `llm_generate` to use an llm to generate synthetic data. In this example, we use the `llm_generate` function to generate the capitals of countries but `llm_generate` can be used to generate any type of data such as synthetic questions, irrelevant responses, and so on.
+
+````python
+
+```python
+import pandas as pd
+from phoenix.experimental.evals import OpenAIModel, llm_generate
+
+countries_df = pd.DataFrame(
+    {
+        "country": [
+            "France",
+            "Germany",
+            "Italy",
+        ]
+    }
+)
+
+capitals_df = llm_generate(
+    dataframe=countries_df,
+    template="The capital of {country} is ",
+    model=OpenAIModel(model_name="gpt-4"),
+    verbose=True,
+)
+
+````
+
+`llm_generate` also supports an output parser so you can use this to generate data in a structured format. For example, if you want to generate data in JSON format, you ca prompt for a JSON object and then parse the output using the `json` library.
+
+```python
+import json
+from typing import Dict
+
+import pandas as pd
+from phoenix.experimental.evals import OpenAIModel, PromptTemplate, llm_generate
+
+
+def output_parser(response: str) -> Dict[str, str]:
+        try:
+            return json.loads(response)
+        except json.JSONDecodeError as e:
+            return {"__error__": str(e)}
+
+countries_df = pd.DataFrame(
+    {
+        "country": [
+            "France",
+            "Germany",
+            "Italy",
+        ]
+    }
+)
+
+template = PromptTemplate("""
+Given the country {country}, output the capital city and a description of that city.
+The output must be in JSON format with the following keys: "capital" and "description".
+
+response:
+""")
+
+capitals_df = llm_generate(
+    dataframe=countries_df,
+    template=template,
+    model=OpenAIModel(
+        model_name="gpt-4-1106-preview",
+        model_kwargs={
+            "response_format": {"type": "json_object"}
+        }
+        ),
+    output_parser=output_parser
+)
+```
