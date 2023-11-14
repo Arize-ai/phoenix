@@ -27,6 +27,7 @@
   * [Toxicity](llm-evals/running-pre-tested-evals/toxicity.md)
   * [Code Generation Eval](llm-evals/running-pre-tested-evals/code-generation-eval.md)
   * [Summarization Eval](llm-evals/running-pre-tested-evals/summarization-eval.md)
+  * [Reference Link Evals](llm-evals/running-pre-tested-evals/reference-link-evals.md)
 * [Building Your Own Evals](llm-evals/building-your-own-evals.md)
 * [Benchmarking Retrieval (RAG)](llm-evals/benchmarking-retrieval-rag.md)
 

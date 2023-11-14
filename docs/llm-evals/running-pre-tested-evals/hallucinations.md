@@ -86,6 +86,6 @@ The above Eval shows how to the the hallucination template for Eval detection.
 
 
 
-| Throughput  | GPT-4  | GPT-4 Turbo | GPT-3.5 |
-| ----------- | ------ | ----------- | ------- |
-| 100 Samples | 58 Sec | 105 Sec     | 52 Sec  |
+| Throughput  | GPT-4   | GPT-4 Turbo | GPT-3.5 |
+| ----------- | ------- | ----------- | ------- |
+| 100 Samples | 105 sec | 58 Sec      | 52 Sec  |

@@ -84,7 +84,7 @@ The above runs the RAG relevancy LLM template against the dataframe df.
 
 
 
-| Throughput  | GPT-4  | GPT-4 Turbo | GPT-3.5 |
-| ----------- | ------ | ----------- | ------- |
-| 100 Samples | 73 Sec | 61 sec      | 113 Sec |
+| Throughput  | GPT-4   | GPT-4 Turbo | GPT-3.5 |
+| ----------- | ------- | ----------- | ------- |
+| 100 Samples | 113 Sec | 61 sec      | 73 Sec  |
 
