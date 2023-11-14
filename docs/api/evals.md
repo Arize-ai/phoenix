@@ -110,7 +110,7 @@ Classifies each input row of the `dataframe` using an LLM. Returns a `pandas.Dat
 def run_relevance_eval(
     dataframe: pd.DataFrame,
     model: BaseEvalModel,
-    template: Union[PromptTemplate, str] = RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
+    template: Union[PromptTemplate, str] = RAG_RELEVANCY_PROMPT_TEMPLATE,
     rails: List[str] = list(RAG_RELEVANCY_PROMPT_RAILS_MAP.values()),
     system_instruction: Optional[str] = None,
     query_column_name: str = "query",
