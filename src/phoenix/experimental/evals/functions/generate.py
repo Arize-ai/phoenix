@@ -4,7 +4,11 @@ from typing import Any, Callable, Dict, Optional, Union
 import pandas as pd
 
 from phoenix.experimental.evals.models import BaseEvalModel, set_verbosity
-from phoenix.experimental.evals.templates import PromptTemplate, map_template, normalize_template
+from phoenix.experimental.evals.templates import (
+    PromptTemplate,
+    map_template,
+    normalize_prompt_template,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -55,8 +59,8 @@ def llm_generate(
     """
     output_parser = output_parser or _no_op_parser
     with set_verbosity(model, verbose) as verbose_model:
-        template = normalize_template(template)
-        logger.info(f"Template: \n{template.text}\n")
+        template = normalize_prompt_template(template)
+        logger.info(f"Template: \n{template.prompt()}\n")
         logger.info(f"Template variables: {template.variables}")
         prompts = map_template(dataframe, template)
 

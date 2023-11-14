@@ -9,10 +9,12 @@ from phoenix.experimental.evals.models import BaseEvalModel, OpenAIModel, set_ve
 from phoenix.experimental.evals.templates import (
     NOT_PARSABLE,
     RAG_RELEVANCY_PROMPT_RAILS_MAP,
-    RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
+    RAG_RELEVANCY_PROMPT_TEMPLATE,
+    ClassificationTemplate,
+    PromptOptions,
     PromptTemplate,
     map_template,
-    normalize_template,
+    normalize_classification_template,
 )
 from phoenix.trace.semantic_conventions import DOCUMENT_CONTENT, INPUT_VALUE, RETRIEVAL_DOCUMENTS
 from phoenix.utilities.logging import printif
@@ -32,7 +34,7 @@ _EXPLANATION = "explanation"
 def llm_classify(
     dataframe: pd.DataFrame,
     model: BaseEvalModel,
-    template: Union[PromptTemplate, str],
+    template: Union[ClassificationTemplate, PromptTemplate, str],
     rails: List[str],
     system_instruction: Optional[str] = None,
     verbose: bool = False,
@@ -48,9 +50,10 @@ def llm_classify(
         classified. All template variable names must appear as column names in the dataframe (extra
         columns unrelated to the template are permitted).
 
-        template (Union[PromptTemplate, str]): The prompt template as either an instance of
-        PromptTemplate or a string. If the latter, the variable names should be surrounded by
-        curly braces so that a call to `.format` can be made to substitute variable values.
+        template (Union[ClassificationTemplate, PromptTemplate, str]): The prompt template as
+        either an instance of PromptTemplate, ClassificationTemplate or a string. If a string, the
+        variable names should be surrounded by curly braces so that a call to `.format` can be made
+        to substitute variable values.
 
         model (BaseEvalModel): An LLM model class.
 
@@ -85,22 +88,21 @@ def llm_classify(
         and model.supports_function_calling
     )
 
-    # TODO: support explanation without function calling
-    if provide_explanation and not use_openai_function_call:
-        raise ValueError(
-            "explanation is not currently available for models without OpenAI function calling"
-        )
-
     model_kwargs: Dict[str, Any] = {}
     if use_openai_function_call:
         openai_function = _default_openai_function(rails, provide_explanation)
         model_kwargs["functions"] = [openai_function]
         model_kwargs["function_call"] = {"name": openai_function["name"]}
 
-    eval_template = normalize_template(template)
-    prompts = map_template(dataframe, eval_template)
+    eval_template = normalize_classification_template(rails=rails, template=template)
+
+    prompt_options = PromptOptions(provide_explanation=provide_explanation)
+    prompts = map_template(dataframe, eval_template, options=prompt_options)
+
     labels: List[str] = []
     explanations: List[Optional[str]] = []
+
+    printif(verbose, f"Using prompt:\n\n{eval_template.prompt(prompt_options)}")
     if generation_info := model.verbose_generation_info():
         printif(verbose, generation_info)
 
@@ -108,8 +110,18 @@ def llm_classify(
         with set_verbosity(model, verbose) as verbose_model:
             response = verbose_model(prompt, instruction=system_instruction, **model_kwargs)
         if not use_openai_function_call:
-            unrailed_label = response
-            explanation = None
+            if provide_explanation:
+                unrailed_label, explanation = (
+                    eval_template.extract_label_from_explanation(response),
+                    response,
+                )
+                printif(
+                    verbose and unrailed_label == NOT_PARSABLE,
+                    f"- Could not parse {repr(response)}",
+                )
+            else:
+                unrailed_label = response
+                explanation = None
         else:
             try:
                 function_arguments = json.loads(response, strict=False)
@@ -132,7 +144,7 @@ def llm_classify(
 def run_relevance_eval(
     dataframe: pd.DataFrame,
     model: BaseEvalModel,
-    template: Union[PromptTemplate, str] = RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
+    template: Union[ClassificationTemplate, str] = RAG_RELEVANCY_PROMPT_TEMPLATE,
     rails: List[str] = list(RAG_RELEVANCY_PROMPT_RAILS_MAP.values()),
     system_instruction: Optional[str] = None,
     query_column_name: str = "query",

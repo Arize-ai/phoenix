@@ -78,7 +78,7 @@ Note that once you initialize the `PromptTemplate` class, you don't need to worr
 def llm_classify(
     dataframe: pd.DataFrame,
     model: BaseEvalModel,
-    template: Union[PromptTemplate, str],
+    template: Union[ClassificationTemplate, PromptTemplate, str],
     rails: List[str],
     system_instruction: Optional[str] = None,
     verbose: bool = False,
@@ -92,13 +92,13 @@ Classifies each input row of the `dataframe` using an LLM. Returns a `pandas.Dat
 ### Parameters
 
 -   **dataframe (pandas.DataFrame)**: A pandas dataframe in which each row represents a record to be classified. All template variable names must appear as column names in the dataframe (extra columns unrelated to the template are permitted).
--   **template (PromptTemplate or str):** The prompt template as either an instance of PromptTemplate or a string. If the latter, the variable names should be surrounded by curly braces so that a call to `.format` can be made to substitute variable values.
+-   **template (ClassificationTemplate, or str):** The prompt template as either an instance of PromptTemplate or a string. If the latter, the variable names should be surrounded by curly braces so that a call to `.format` can be made to substitute variable values.
 -   **model (BaseEvalModel):** An LLM model class instance
 -   **rails (List\[str]):** A list of strings representing the possible output classes of the model's predictions.
 -   **system_instruction (Optional\[str]):** An optional system message for modals that support it
 -   **verbose (bool, optional):** If `True`, prints detailed info to stdout such as model invocation parameters and details about retries and snapping to rails. Default `False`.
 -   **use_function_calling_if_available (bool, default=True):** If `True`, use function calling (if available) as a means to constrain the LLM outputs. With function calling, the LLM is instructed to provide its response as a structured JSON object, which is easier to parse.
--   **provide_explanation (bool, default=False):** If `True`, provides an explanation for each classification label. A column named `explanation` is added to the output dataframe. Currently, this is only available for models with function calling.
+-   **provide_explanation (bool, default=False):** If `True`, provides an explanation for each classification label. A column named `explanation` is added to the output dataframe. Note that this will default to using function calling if available. If the model supplied does not support function calling, `llm_classify` will need a prompt template that prompts for an explanation. For phoenix's pre-tested eval templates, the template is swapped out for a [chain-of-thought](https://www.promptingguide.ai/techniques/cot) based template that prompts for an explanation.
 
 ### Returns
 
@@ -110,7 +110,7 @@ Classifies each input row of the `dataframe` using an LLM. Returns a `pandas.Dat
 def run_relevance_eval(
     dataframe: pd.DataFrame,
     model: BaseEvalModel,
-    template: Union[PromptTemplate, str] = RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
+    template: Union[ClassificationPromptTemplate, PromptTemplate, str] = RAG_RELEVANCY_PROMPT_TEMPLATE,
     rails: List[str] = list(RAG_RELEVANCY_PROMPT_RAILS_MAP.values()),
     system_instruction: Optional[str] = None,
     query_column_name: str = "query",
@@ -129,6 +129,7 @@ Given a pandas dataframe containing queries and retrieved documents, classifies 
         -   The entries of the query column must be strings.
         -   The entries of the document column must be lists of OpenInference document objects, each object being a dictionary that stores the document text under the key "document.content".
 -   **model (BaseEvalModel):** The model used for evaluation.
+-   # **template (Union\[ClassificationPromptTemplate, PromptTemplate, str], optional):** The template used for evaluation.
 -   **template (Union\[PromptTemplate, str], optional):** The template used for evaluation.
 -   **rails (List\[str], optional):** A list of strings representing the possible output classes of the model's predictions.
 -   **query_column_name (str, optional):** The name of the query column in the dataframe, which should also be a template variable.

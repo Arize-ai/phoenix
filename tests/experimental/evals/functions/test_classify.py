@@ -10,7 +10,7 @@ import respx
 from pandas.testing import assert_frame_equal
 from phoenix.experimental.evals import (
     NOT_PARSABLE,
-    RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
+    RAG_RELEVANCY_PROMPT_TEMPLATE,
     OpenAIModel,
     llm_classify,
     run_relevance_eval,
@@ -66,7 +66,7 @@ def test_llm_classify(
 
     result = llm_classify(
         dataframe=dataframe,
-        template=RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
+        template=RAG_RELEVANCY_PROMPT_TEMPLATE,
         model=model,
         rails=["relevant", "irrelevant"],
         verbose=True,
@@ -104,7 +104,7 @@ def test_llm_classify_with_fn_call(
 
     result = llm_classify(
         dataframe=dataframe,
-        template=RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
+        template=RAG_RELEVANCY_PROMPT_TEMPLATE,
         model=model,
         rails=["relevant", "irrelevant"],
     )
@@ -136,7 +136,7 @@ def test_classify_fn_call_no_explain(
 
     result = llm_classify(
         dataframe=dataframe,
-        template=RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
+        template=RAG_RELEVANCY_PROMPT_TEMPLATE,
         model=model,
         rails=["relevant", "irrelevant"],
         provide_explanation=True,
@@ -176,7 +176,7 @@ def test_classify_fn_call_explain(
 
     result = llm_classify(
         dataframe=dataframe,
-        template=RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
+        template=RAG_RELEVANCY_PROMPT_TEMPLATE,
         model=model,
         rails=["relevant", "irrelevant"],
         provide_explanation=True,
@@ -210,7 +210,7 @@ def test_llm_classify_prints_to_stdout_with_verbose_flag(
 
     llm_classify(
         dataframe=dataframe,
-        template=RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
+        template=RAG_RELEVANCY_PROMPT_TEMPLATE,
         model=model,
         rails=["relevant", "irrelevant"],
         verbose=True,
@@ -271,7 +271,7 @@ def test_llm_classify_shows_retry_info_with_verbose_flag(monkeypatch: pytest.Mon
         stack.enter_context(pytest.raises(model._openai.InternalServerError))
         llm_classify(
             dataframe=dataframe,
-            template=RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
+            template=RAG_RELEVANCY_PROMPT_TEMPLATE,
             model=model,
             rails=["relevant", "irrelevant"],
             verbose=True,
@@ -322,7 +322,7 @@ def test_llm_classify_does_not_persist_verbose_flag(monkeypatch: pytest.MonkeyPa
         stack.enter_context(pytest.raises(model._openai.OpenAIError))
         llm_classify(
             dataframe=dataframe,
-            template=RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
+            template=RAG_RELEVANCY_PROMPT_TEMPLATE,
             model=model,
             rails=["relevant", "irrelevant"],
             verbose=True,
@@ -344,7 +344,7 @@ def test_llm_classify_does_not_persist_verbose_flag(monkeypatch: pytest.MonkeyPa
         stack.enter_context(pytest.raises(model._openai.APIError))
         llm_classify(
             dataframe=dataframe,
-            template=RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
+            template=RAG_RELEVANCY_PROMPT_TEMPLATE,
             model=model,
             rails=["relevant", "irrelevant"],
         )

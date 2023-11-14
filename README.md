@@ -213,7 +213,7 @@ pip install arize-phoenix[experimental] ipython matplotlib openai pycm scikit-le
 
 ```python
 from phoenix.experimental.evals import (
-    RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
+    RAG_RELEVANCY_PROMPT_TEMPLATE,
     RAG_RELEVANCY_PROMPT_RAILS_MAP,
     OpenAIModel,
     download_benchmark_dataset,
@@ -238,7 +238,7 @@ model = OpenAIModel(
     temperature=0.0,
 )
 rails =list(RAG_RELEVANCY_PROMPT_RAILS_MAP.values())
-df[["eval_relevance"]] = llm_classify(df, model, RAG_RELEVANCY_PROMPT_TEMPLATE_STR, rails)
+df[["eval_relevance"]] = llm_classify(df, model, RAG_RELEVANCY_PROMPT_TEMPLATE, rails)
 #Golden dataset has True/False map to -> "irrelevant" / "relevant"
 #we can then scikit compare to output of template - same format
 y_true = df["relevant"].map({True: "relevant", False: "irrelevant"})

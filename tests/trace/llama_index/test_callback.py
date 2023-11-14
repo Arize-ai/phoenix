@@ -273,7 +273,7 @@ def test_end_trace_handler_fails_gracefully(mock_handler_internals, caplog) -> N
 
 
 def test_custom_llm(mock_embed_model) -> None:
-    """Make sure token counts are captured when a custom LLM such as lama2-13B is used."""
+    """Make sure token counts are captured when a custom LLM such as llama2-13B is used."""
 
     prompt_tokens = 100
     completion_tokens = 200

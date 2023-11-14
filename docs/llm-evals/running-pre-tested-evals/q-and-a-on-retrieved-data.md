@@ -71,7 +71,7 @@ model = OpenAIModel(
 rails = list(templates.QA_PROMPT_RAILS_MAP.values())
 Q_and_A_classifications = llm_classify(
     dataframe=df_sample,
-    template=templates.QA_PROMPT_TEMPLATE_STR,
+    template=templates.QA_PROMPT_TEMPLATE,
     model=model,
     rails=rails,
 )
