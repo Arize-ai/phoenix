@@ -17,7 +17,8 @@ class EvalRunner:
 
     def evaluate_dataframe(self, dataframe: DataFrame) -> DataFrame:
         return DataFrame(
-            self._evaluate_record(row.to_dict()) for _, row in tqdm(dataframe.iterrows())
+            (self._evaluate_record(row.to_dict()) for _, row in tqdm(dataframe.iterrows())),
+            index=dataframe.index,
         )
 
     def _evaluate_record(self, record: Record) -> Dict[str, str]:
