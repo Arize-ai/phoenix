@@ -283,7 +283,7 @@ def _chat_model_start_fallback(
     pass
 
 
-class OpenInferenceTracer(Tracer, BaseTracer):
+class OpenInferenceTracer(Tracer, BaseTracer):  # type: ignore
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self._exporter = self._exporter or HttpExporter()
