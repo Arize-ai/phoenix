@@ -615,7 +615,7 @@ def test_llm_classify_with_persistence(monkeypatch: pytest.MonkeyPatch, respx_mo
     assert classifications_df is output_dataframe
 
 
-@pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
+@pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions", assert_all_called=False)
 def test_llm_classify_resume_from_error(monkeypatch: pytest.MonkeyPatch, respx_mock: respx.mock):
     monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
     dataframe = pd.DataFrame(

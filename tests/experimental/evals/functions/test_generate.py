@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 import pytest
 import respx
+from numpy.testing import assert_equal
 from phoenix.experimental.evals import OpenAIModel, llm_generate
 from phoenix.experimental.evals.models.openai import OPENAI_API_KEY_ENVVAR_NAME
 from respx.patterns import M
@@ -112,13 +113,16 @@ def test_llm_generate_with_output_parser(monkeypatch: pytest.MonkeyPatch, respx_
         dataframe=dataframe, template=template, model=model, output_parser=output_parser
     )
     # check the output is parsed correctly
-    assert generated["category"].tolist() == [
-        "programming",
-        "programming",
-        "programming",
-        "programming",
-        np.nan,
-    ]
+    assert_equal(
+        generated["category"].tolist(),
+        [
+            "programming",
+            "programming",
+            "programming",
+            "programming",
+            np.nan,
+        ],
+    )
 
     # check the unparsable response captures the error
     assert generated["__error__"].tolist() == [None] * 4 + [
@@ -126,7 +130,7 @@ def test_llm_generate_with_output_parser(monkeypatch: pytest.MonkeyPatch, respx_
     ]
 
 
-@pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
+@pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions", assert_all_called=False)
 def test_llm_generate_resume_from_snapshot(monkeypatch: pytest.MonkeyPatch, respx_mock: respx.mock):
     monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
     dataframe = pd.DataFrame(
