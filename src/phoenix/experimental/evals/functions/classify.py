@@ -164,7 +164,7 @@ def llm_classify(
     
     async def _classify_prompt(prompt):
         with set_verbosity(model, verbose) as verbose_model:
-            response = verbose_model(prompt, instruction=system_instruction, **model_kwargs)
+            response = await verbose_model._async_generate(prompt, instruction=system_instruction, **model_kwargs)
         if not model_kwargs.get("function_call"):
             if provide_explanation:
                 unrailed_label, explanation = (
