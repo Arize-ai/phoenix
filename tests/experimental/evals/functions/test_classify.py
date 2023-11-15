@@ -683,6 +683,17 @@ def test_llm_classify_resume_from_error(monkeypatch: pytest.MonkeyPatch, respx_m
     # Should only retry the second one
     assert respx_mock.calls.call_count == 1
 
+    # Calling the function again should do nothing
+    llm_classify(
+        dataframe=dataframe,
+        template=template,
+        model=model,
+        rails=["relevant", "irrelevant"],
+        verbose=True,
+        output_dataframe=output_dataframe,
+    )
+    assert respx_mock.calls.call_count == 1
+
 
 def test_overlapping_rails():
     assert _snap_to_rail("irrelevant", ["relevant", "irrelevant"]) == "irrelevant"

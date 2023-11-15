@@ -99,6 +99,11 @@ def llm_classify(
 
     # Determine the remaining work to be completed on the input dataframe by examining the output
     start_index = first_missing_row_number(src_df=output_df, dst_df=dataframe)
+
+    if start_index is None:
+        printif(verbose, "The supplied output dataframe is already complete. Exiting.")
+        return output_df
+
     dataframe = dataframe.iloc[start_index:]
 
     use_openai_function_call = (
