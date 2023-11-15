@@ -42,7 +42,7 @@ class LLMEvaluator:
         self._verbose = verbose
 
     def evaluate(self, record: Record) -> EvaluationResult:
-        prompt = self._template.format(record)
+        prompt = self._template.format(dict(record))
         with set_verbosity(self._model, self._verbose) as verbose_model:
             unparsed_output = verbose_model(prompt)
         return EvaluationResult(prediction=self._parser(unparsed_output))
