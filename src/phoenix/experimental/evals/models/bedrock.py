@@ -105,6 +105,9 @@ class BedrockModel(BaseEvalModel):
 
     def get_text_from_tokens(self, tokens: List[int]) -> str:
         return self.encoder.decode(tokens)
+    
+    async def _async_generate(self, prompt: str, **kwargs: Dict[str, Any]) -> str:
+        return self._generate(prompt, **kwargs)
 
     def _generate(self, prompt: str, **kwargs: Dict[str, Any]) -> str:
         body = json.dumps(self._create_request_body(prompt))

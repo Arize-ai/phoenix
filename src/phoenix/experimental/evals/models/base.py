@@ -155,6 +155,10 @@ class BaseEvalModel(ABC):
         # if defined, returns additional model-specific information to display if `generate` is
         # run with `verbose=True`
         return ""
+    
+    @abstractmethod
+    def _async_generate(self, prompt: str, **kwargs: Any) -> str:
+        raise NotImplementedError
 
     @abstractmethod
     def _generate(self, prompt: str, **kwargs: Any) -> str:
