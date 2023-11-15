@@ -1,3 +1,4 @@
+import os
 from datetime import datetime
 from typing import Any
 from unittest.mock import patch
@@ -38,6 +39,9 @@ from phoenix.trace.semantic_conventions import (
 )
 from phoenix.trace.span_json_decoder import json_string_to_span
 from phoenix.trace.span_json_encoder import span_to_json
+
+# fake openai key so that llama_index doesn't download huggingface embeddings
+os.environ["OPENAI_API_KEY"] = "sk-fake-openai-key"
 
 nodes = [
     Document(
