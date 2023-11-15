@@ -1,7 +1,7 @@
 import pandas as pd
 import pytest
 from pandas.testing import assert_frame_equal
-from phoenix.experimental.evals.evaluators import LLMEvaluator
+from phoenix.experimental.evals.evaluators import EvalCriteria, LLMEvaluator
 from phoenix.experimental.evals.models import OpenAIModel
 from phoenix.experimental.evals.runner import EvalRunner
 from phoenix.experimental.evals.templates.default_templates import (
@@ -69,16 +69,20 @@ def test_eval_runner_with_evaluator_arguments_produces_expected_output_dataframe
 def test_eval_runner_with_mixed_evaluator_arguments_produces_expected_output_dataframe(
     model: OpenAIModel, toxicity_evaluator: LLMEvaluator
 ) -> None:
-    runner = EvalRunner(evaluators=["relevance", toxicity_evaluator], model=model)
+    runner = EvalRunner(
+        evaluators=["relevance", toxicity_evaluator, EvalCriteria.HALLUCINATION], model=model
+    )
     df = pd.DataFrame(
         [
             {
                 "input": "What is the capital of France?",
                 "reference": "Paris is the capital of France.",
+                "output": "Paris",
             },
             {
                 "input": "What is the capital of France?",
                 "reference": "Munich is the capital of Germany.",
+                "output": "France does not have a capital",
             },
         ],
         index=["a", "b"],
@@ -87,7 +91,11 @@ def test_eval_runner_with_mixed_evaluator_arguments_produces_expected_output_dat
     assert_frame_equal(
         eval_df,
         pd.DataFrame(
-            {"relevance": ["relevant", "irrelevant"], "toxicity": ["non-toxic", "non-toxic"]},
+            {
+                "relevance": ["relevant", "irrelevant"],
+                "toxicity": ["non-toxic", "non-toxic"],
+                "hallucination": ["factual", "hallucinated"],
+            },
             index=["a", "b"],
         ),
     )

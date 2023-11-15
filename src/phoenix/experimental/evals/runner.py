@@ -4,17 +4,17 @@ from pandas import DataFrame
 from tqdm.auto import tqdm
 from typing_extensions import TypeGuard
 
-from .evaluators import Evaluator, LLMEvaluator
+from .evaluators import EvalCriteria, Evaluator, LLMEvaluator
 from .models import BaseEvalModel
 
 Record = Mapping[str, Any]
-EvaluatorName = str
+EvalCriteriaName = str
 
 
 class EvalRunner:
     def __init__(
         self,
-        evaluators: List[Union[EvaluatorName, Evaluator]],
+        evaluators: List[Union[EvalCriteriaName, EvalCriteria, Evaluator]],
         model: Optional[BaseEvalModel] = None,
     ) -> None:
         self._evaluators = _to_evaluators(evaluators, model)
@@ -32,7 +32,8 @@ class EvalRunner:
 
 
 def _to_evaluators(
-    evaluators: List[Union[EvaluatorName, Evaluator]], model: Optional[BaseEvalModel]
+    evaluators: List[Union[EvalCriteriaName, EvalCriteria, Evaluator]],
+    model: Optional[BaseEvalModel],
 ) -> List[Evaluator]:
     if _is_list_of_evaluators(evaluators):
         if model is not None:
@@ -46,13 +47,13 @@ def _to_evaluators(
         raise ValueError("When specifying an evaluator by name, you must also pass a model.")
     return [
         LLMEvaluator.from_criteria(criteria=evaluator, model=model)
-        if isinstance(evaluator, str)
+        if (isinstance(evaluator, str) or isinstance(evaluator, EvalCriteria))
         else evaluator
         for evaluator in evaluators
     ]
 
 
 def _is_list_of_evaluators(
-    maybe_evaluators: List[Union[EvaluatorName, Evaluator]]
+    maybe_evaluators: List[Union[EvalCriteriaName, EvalCriteria, Evaluator]]
 ) -> TypeGuard[List[Evaluator]]:
     return all(isinstance(maybe_evaluator, Evaluator) for maybe_evaluator in maybe_evaluators)
