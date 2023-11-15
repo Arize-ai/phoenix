@@ -64,13 +64,12 @@ class LLMEvaluator:
         name: str,
         model: BaseEvalModel,
         template: ClassificationTemplate,
-        rails: List[str],
         verbose: bool = False,
     ) -> None:
         self._name = name
         self._model = model
         self._template = template
-        self._parser = partial(_snap_to_rail, rails=rails, verbose=verbose)
+        self._parser = partial(_snap_to_rail, rails=template.rails, verbose=verbose)
         self._verbose = verbose
 
     def evaluate(self, record: Record) -> EvaluationResult:
@@ -95,12 +94,10 @@ class LLMEvaluator:
                 criteria = EvalCriteria(criteria)
             except ValueError:
                 raise ValueError(f"Unknown criteria name: {criteria}")
-        template = _CLASSIFICATION_TEMPLATES[criteria]
         return cls(
             name=criteria.value,
             model=model,
-            template=template,
-            rails=template.rails,
+            template=_CLASSIFICATION_TEMPLATES[criteria],
             verbose=verbose,
         )
 

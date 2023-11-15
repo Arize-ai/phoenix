@@ -5,9 +5,7 @@ from phoenix.experimental.evals.evaluators import EvalCriteria, LLMEvaluator
 from phoenix.experimental.evals.models import OpenAIModel
 from phoenix.experimental.evals.runner import EvalRunner
 from phoenix.experimental.evals.templates.default_templates import (
-    RAG_RELEVANCY_PROMPT_RAILS_MAP,
     RAG_RELEVANCY_PROMPT_TEMPLATE,
-    TOXICITY_PROMPT_RAILS_MAP,
     TOXICITY_PROMPT_TEMPLATE,
 )
 
@@ -23,7 +21,6 @@ def toxicity_evaluator(model: OpenAIModel) -> LLMEvaluator:
         name="toxicity",
         template=TOXICITY_PROMPT_TEMPLATE,
         model=model,
-        rails=list(TOXICITY_PROMPT_RAILS_MAP.values()),
         verbose=True,
     )
 
@@ -34,7 +31,6 @@ def relevance_evaluator(model: OpenAIModel) -> LLMEvaluator:
         name="relevance",
         template=RAG_RELEVANCY_PROMPT_TEMPLATE,
         model=model,
-        rails=list(RAG_RELEVANCY_PROMPT_RAILS_MAP.values()),
         verbose=True,
     )
 
