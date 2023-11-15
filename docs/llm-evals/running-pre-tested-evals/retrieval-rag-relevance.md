@@ -90,9 +90,9 @@ The above runs the RAG relevancy LLM template against the dataframe df.
 
 In order to run the RAG relevance eval, you need to concatenate all of the chunks into a single string that is inserted into the Eval check.
 
-<figure><img src="../../.gitbook/assets/chunks_concat.png" alt=""><figcaption></figcaption></figure>
+<figure><img src="../../.gitbook/assets/chunks_concat (1).png" alt=""><figcaption></figcaption></figure>
 
-The above drawing shows the query and chunks returned for the query, those chunks are put into the reference variable of the Eval tempalte&#x20;
+The above drawing shows the query and chunks returned for the query, those chunks are put into the reference variable of the Eval template.&#x20;
 
 ```python
 from phoenix.experimental.evals.functions.processing import concatenate_and_truncate_chunks

@@ -88,3 +88,21 @@ The above Eval uses the QA template for Q\&A analysis on retrieved data.
 | Throughput  | GPT-4   | GPT-4 Turbo | GPT-3.5 |
 | ----------- | ------- | ----------- | ------- |
 | 100 Samples | 124 Sec | 66 sec      | 67 sec  |
+
+### Concatenating Retrieved References&#x20;
+
+In order to run the RAG relevance eval, you need to concatenate all of the chunks into a single string that is inserted into the Eval check.
+
+<figure><img src="../../.gitbook/assets/chunks_concat.png" alt=""><figcaption></figcaption></figure>
+
+The above drawing shows the query and chunks returned for the query, those chunks are put into the reference variable of the Eval template.
+
+```python
+from phoenix.experimental.evals.functions.processing import concatenate_and_truncate_chunks
+
+model = OpenAIModel(model_name="gpt-4", temperature=0.0) # Needed to get token size supported
+# Then use the function in a single call to collect and truncate reference.
+df["reference_text"] = df["retrieved_chunk_list"].apply(
+    lambda chunks: concatenate_and_truncate_chunks(chunks=chunks, model=model, token_buffer=700)
+)
+```
