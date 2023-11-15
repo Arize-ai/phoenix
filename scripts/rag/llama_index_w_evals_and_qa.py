@@ -319,7 +319,7 @@ def df_evals(
         model=model,
         template=templates.RAG_RELEVANCY_PROMPT_TEMPLATE,
         rails=list(templates.RAG_RELEVANCY_PROMPT_RAILS_MAP.values()),
-        # query_column_name="question",
+        query_column_name="query",
         # document_column_name="retrieved_context_list",
     )
 
