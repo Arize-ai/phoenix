@@ -1,6 +1,9 @@
+import asyncio
+from tqdm.asyncio import tqdm as async_tqdm
+import nest_asyncio
 import json
 import logging
-from typing import Any, Dict, Iterable, List, Optional, Union, cast
+from typing import Any, Dict, Iterable, List, Optional, Union, cast, Tuple, Coroutine
 
 import pandas as pd
 from tqdm.auto import tqdm
@@ -29,6 +32,58 @@ OPENINFERENCE_DOCUMENT_COLUMN_NAME = "attributes." + RETRIEVAL_DOCUMENTS
 # defined here only to prevent typos
 _RESPONSE = "response"
 _EXPLANATION = "explanation"
+
+
+class AsyncExecutor:
+    def __init__(self, generation_fn: Coroutine, num_consumers: int = 20):
+        self.num_consumers = num_consumers
+        self.generate = generation_fn
+        self.tqdm_bar_format = (
+            "Eta:{eta} |{bar}| {percentage:3.1f}% "
+            "({n_fmt}/{total_fmt}) "
+            "[{elapsed}<{remaining}, {rate_fmt}{postfix}]"
+        )
+        
+    async def consumer(self, queue, output, end_of_queue, progress_bar):
+        while True:
+            if (item := await queue.get()) is end_of_queue:
+                break
+
+            index, payload = item
+            result = await self.generate(payload)
+            output[index] = result
+            progress_bar.update()
+    
+    async def producer(self, queue, inputs, end_of_queue):
+        for index, input in enumerate(inputs):
+            await queue.put((index, input))
+        for _ in range(self.num_consumers):
+            await queue.put(end_of_queue)
+    
+    async def submit(self, inputs):
+        outputs = ["unset"] * len(inputs)
+        queue: asyncio.Queue[Tuple[int, str, Optional[str], Dict[Any, Any]]] = asyncio.Queue(
+            maxsize=2 * self.num_consumers
+        )
+        END_OF_QUEUE = object()  # sentinel indicating when the queue is done
+        progress_bar = async_tqdm(total=len(inputs), bar_format=self.tqdm_bar_format)
+
+        producer = self.producer(queue, inputs, END_OF_QUEUE)
+        consumers = [
+            asyncio.create_task(self.consumer(queue, outputs, END_OF_QUEUE, progress_bar))
+            for _ in range(self.num_consumers)
+        ]
+
+        await asyncio.gather(producer, *consumers)
+        return outputs
+    
+    def run(self, inputs):
+        try:
+            asyncio.get_running_loop()
+            nest_asyncio.apply()
+        except RuntimeError:
+            pass
+        return asyncio.run(self.submit(inputs))
 
 
 def llm_classify(
@@ -105,11 +160,11 @@ def llm_classify(
     printif(verbose, f"Using prompt:\n\n{eval_template.prompt(prompt_options)}")
     if generation_info := model.verbose_generation_info():
         printif(verbose, generation_info)
-
-    for prompt in tqdm(prompts):
+    
+    async def _classify_prompt(prompt):
         with set_verbosity(model, verbose) as verbose_model:
             response = verbose_model(prompt, instruction=system_instruction, **model_kwargs)
-        if not use_openai_function_call:
+        if not model_kwargs.get("function_call"):
             if provide_explanation:
                 unrailed_label, explanation = (
                     eval_template.extract_label_from_explanation(response),
@@ -130,8 +185,12 @@ def llm_classify(
             except json.JSONDecodeError:
                 unrailed_label = response
                 explanation = None
-        labels.append(_snap_to_rail(unrailed_label, rails, verbose=verbose))
-        explanations.append(explanation)
+        return _snap_to_rail(unrailed_label, rails, verbose=verbose), explanation
+    
+    executor = AsyncExecutor(_classify_prompt)
+    results = executor.run(prompts)
+    labels, explanations = zip(*results)
+
     return pd.DataFrame(
         data={
             "label": labels,
@@ -139,7 +198,6 @@ def llm_classify(
         },
         index=dataframe.index,
     )
-
 
 def run_relevance_eval(
     dataframe: pd.DataFrame,
