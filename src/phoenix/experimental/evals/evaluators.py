@@ -1,14 +1,49 @@
 from dataclasses import dataclass
+from enum import Enum
 from functools import partial
-from typing import Any, List, Mapping, Optional, Protocol, runtime_checkable
+from typing import Any, Dict, List, Mapping, Optional, Protocol, Union, runtime_checkable
 
 from phoenix.experimental.evals.models import set_verbosity
 from phoenix.utilities.logging import printif
 
 from .models import BaseEvalModel
-from .templates import ClassificationTemplate, PromptTemplate, default_templates
+from .templates import ClassificationTemplate, PromptTemplate
+from .templates.default_templates import (
+    CODE_READABILITY_PROMPT_TEMPLATE,
+    HALLUCINATION_PROMPT_TEMPLATE,
+    QA_PROMPT_TEMPLATE,
+    RAG_RELEVANCY_PROMPT_TEMPLATE,
+    SUMMARIZATION_PROMPT_TEMPLATE,
+    TOXICITY_PROMPT_TEMPLATE,
+)
 
 Record = Mapping[str, Any]
+EvalCriteriaName = str
+
+
+class EvalCriteria(Enum):
+    RELEVANCE = "relevance"
+    HALLUCINATION = "hallucination"
+    TOXICITY = "toxicity"
+    QA = "qa"
+    SUMMARIZATION = "summarization"
+    CODE_READABILITY = "code_readability"
+
+
+def _get_eval_criteria_name_to_template() -> Dict[str, ClassificationTemplate]:
+    eval_criteria_to_template = {}
+    eval_criteria_to_template[EvalCriteria.RELEVANCE.value] = RAG_RELEVANCY_PROMPT_TEMPLATE
+    eval_criteria_to_template[EvalCriteria.HALLUCINATION.value] = HALLUCINATION_PROMPT_TEMPLATE
+    eval_criteria_to_template[EvalCriteria.TOXICITY.value] = TOXICITY_PROMPT_TEMPLATE
+    eval_criteria_to_template[EvalCriteria.QA.value] = QA_PROMPT_TEMPLATE
+    eval_criteria_to_template[EvalCriteria.SUMMARIZATION.value] = SUMMARIZATION_PROMPT_TEMPLATE
+    eval_criteria_to_template[
+        EvalCriteria.CODE_READABILITY.value
+    ] = CODE_READABILITY_PROMPT_TEMPLATE
+    return eval_criteria_to_template
+
+
+EVAL_CRITERIA_NAME_TO_TEMPLATE = _get_eval_criteria_name_to_template()
 
 
 @dataclass
@@ -52,24 +87,23 @@ class LLMEvaluator:
         return self._name
 
     @classmethod
-    def from_name(cls, name: str, model: BaseEvalModel, verbose: bool = False) -> "LLMEvaluator":
-        if name == "toxicity":
-            return cls(
-                name=name,
-                model=model,
-                template=default_templates.TOXICITY_PROMPT_TEMPLATE,
-                rails=list(default_templates.TOXICITY_PROMPT_RAILS_MAP.values()),
-                verbose=verbose,
-            )
-        if name == "relevance":
-            return cls(
-                name=name,
-                model=model,
-                template=default_templates.RAG_RELEVANCY_PROMPT_TEMPLATE,
-                rails=list(default_templates.RAG_RELEVANCY_PROMPT_RAILS_MAP.values()),
-                verbose=verbose,
-            )
-        raise ValueError(f"Unknown evaluator name: {name}")
+    def from_criteria(
+        cls,
+        criteria: Union[EvalCriteriaName, EvalCriteria],
+        model: BaseEvalModel,
+        verbose: bool = False,
+    ) -> "LLMEvaluator":
+        if isinstance(criteria, str) and criteria not in EVAL_CRITERIA_NAME_TO_TEMPLATE:
+            raise ValueError(f"Unknown evaluator name: {criteria}")
+        criteria_name = criteria.value if isinstance(criteria, EvalCriteria) else criteria
+        template = EVAL_CRITERIA_NAME_TO_TEMPLATE[criteria_name]
+        return cls(
+            name=criteria_name,
+            model=model,
+            template=template,
+            rails=template.rails,
+            verbose=verbose,
+        )
 
 
 class MapReducer:

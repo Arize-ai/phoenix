@@ -45,7 +45,7 @@ def _to_evaluators(
     if model is None:
         raise ValueError("When specifying an evaluator by name, you must also pass a model.")
     return [
-        LLMEvaluator.from_name(name=evaluator, model=model)
+        LLMEvaluator.from_criteria(criteria=evaluator, model=model)
         if isinstance(evaluator, str)
         else evaluator
         for evaluator in evaluators

@@ -62,6 +62,7 @@ class ClassificationTemplate(PromptTemplate):
         explanation_label_parser: Optional[Callable[[str], str]] = None,
         delimiters: Tuple[str, str] = (DEFAULT_START_DELIM, DEFAULT_END_DELIM),
     ):
+        self.rails = rails
         self.template = template
         self.explanation_template = explanation_template
         self.explanation_label_parser = explanation_label_parser
