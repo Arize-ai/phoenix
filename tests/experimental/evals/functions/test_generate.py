@@ -121,7 +121,7 @@ def test_llm_generate_with_output_parser(monkeypatch: pytest.MonkeyPatch, respx_
     ]
 
     # check the unparsable response captures the error
-    assert generated["__error__"].tolist() == [np.nan] * 4 + [
+    assert generated["__error__"].tolist() == [None] * 4 + [
         "Expecting value: line 1 column 1 (char 0)"
     ]
 
@@ -166,9 +166,16 @@ def test_llm_generate_resume_from_snapshot(monkeypatch: pytest.MonkeyPatch, resp
     # Generate for the first two records
     generated = llm_generate(dataframe=dataframe.iloc[:2], template=template, model=model)
     assert generated.iloc[:, 0].tolist() == responses[:2]
+    assert len(generated) == 2
 
+    respx_mock.reset()
     # Resume from the third record
-    generated = llm_generate(
+    generated_final = llm_generate(
         dataframe=dataframe, template=template, model=model, output_dataframe=generated
     )
-    assert generated.iloc[:, 0].tolist() == responses
+    assert generated_final.iloc[:, 0].tolist() == responses
+    assert generated_final.iloc[:, 0].tolist() == responses
+    # make sure the dataframe pointers are the same
+    assert generated_final is generated
+    # Make sure the API was only hit twice the second go around
+    assert len(respx_mock.calls) == 2

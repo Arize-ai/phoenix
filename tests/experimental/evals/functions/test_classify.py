@@ -574,6 +574,116 @@ def test_run_relevance_eval_openinference_dataframe(
     ]
 
 
+@pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
+def test_llm_classify_with_persistence(monkeypatch: pytest.MonkeyPatch, respx_mock: respx.mock):
+    monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
+    dataframe = pd.DataFrame(
+        [
+            {
+                "query": "where is France?",
+                "document": "France is in Europe",
+            },
+            {
+                "query": "where is Japan?",
+                "document": "Japan is a country",
+            },
+        ]
+    )
+    responses = ["relevant", "irrelevant"]
+    queries = dataframe["query"].tolist()
+    for query, response in zip(queries, responses):
+        matcher = M(content__contains=query)
+        respx_mock.route(matcher).mock(
+            return_value=httpx.Response(200, json={"choices": [{"message": {"content": response}}]})
+        )
+    template = "Given {query} and a document {document}, answer relevant or not-relevant."
+
+    with patch.object(OpenAIModel, "_init_tiktoken", return_value=None):
+        model = OpenAIModel()
+
+    output_dataframe = pd.DataFrame()
+    classifications_df = llm_classify(
+        dataframe=dataframe,
+        template=template,
+        model=model,
+        rails=["relevant", "irrelevant"],
+        verbose=True,
+        output_dataframe=output_dataframe,
+    )
+    assert len(output_dataframe) == len(dataframe)
+    assert list(output_dataframe["label"]) == list(classifications_df["label"])
+    assert classifications_df is output_dataframe
+
+
+@pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
+def test_llm_classify_resume_from_error(monkeypatch: pytest.MonkeyPatch, respx_mock: respx.mock):
+    monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
+    dataframe = pd.DataFrame(
+        [
+            {
+                "query": "where is France?",
+                "document": "France is in Europe",
+            },
+            {
+                "query": "where is Japan?",
+                "document": "Japan is a country",
+            },
+        ]
+    )
+    responses = ["relevant", "irrelevant"]
+    queries = dataframe["query"].tolist()
+    for query, response in zip(queries, responses):
+        matcher = M(content__contains=query)
+        # Simulate an error on the second query
+        if query == "where is Japan?":
+            response = httpx.Response(500, json={"error": "Internal Server Error"})
+        else:
+            response = httpx.Response(200, json={"choices": [{"message": {"content": response}}]})
+        respx_mock.route(matcher).mock(return_value=response)
+    template = "Given {query} and a document {document}, answer relevant or not-relevant."
+
+    with patch.object(OpenAIModel, "_init_tiktoken", return_value=None):
+        model = OpenAIModel(max_retries=0)
+
+    output_dataframe = pd.DataFrame()
+
+    # make sure the error is raised
+    with pytest.raises(Exception):
+        llm_classify(
+            dataframe=dataframe,
+            template=template,
+            model=model,
+            rails=["relevant", "irrelevant"],
+            verbose=True,
+            output_dataframe=output_dataframe,
+        )
+
+    # Assert that at least the first result is still there
+    assert len(output_dataframe) == 1
+
+    respx_mock.reset()
+    respx_mock.routes.clear()
+
+    # Correct the routing
+    for query, response in zip(queries, responses):
+        matcher = M(content__contains=query)
+        response = httpx.Response(200, json={"choices": [{"message": {"content": response}}]})
+        respx_mock.route(matcher).mock(return_value=response)
+
+    llm_classify(
+        dataframe=dataframe,
+        template=template,
+        model=model,
+        rails=["relevant", "irrelevant"],
+        verbose=True,
+        output_dataframe=output_dataframe,
+    )
+
+    assert len(output_dataframe) == 2
+    # Should only retry the second one
+    assert respx_mock.calls.call_count == 1
+
+
 def test_overlapping_rails():
     assert _snap_to_rail("irrelevant", ["relevant", "irrelevant"]) == "irrelevant"
     assert _snap_to_rail("relevant", ["relevant", "irrelevant"]) == "relevant"

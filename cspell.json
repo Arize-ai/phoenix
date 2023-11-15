@@ -14,6 +14,7 @@
         "HDBSCAN",
         "httpx",
         "Instrumentor",
+        "iterrows",
         "langchain",
         "llamaindex",
         "NDJSON",

@@ -2,6 +2,7 @@ import logging
 from typing import Any, Callable, Dict, Optional, Union
 
 import pandas as pd
+from tqdm.auto import tqdm
 
 from phoenix.experimental.evals.models import BaseEvalModel, set_verbosity
 from phoenix.experimental.evals.templates import (
@@ -9,6 +10,9 @@ from phoenix.experimental.evals.templates import (
     map_template,
     normalize_prompt_template,
 )
+from phoenix.utilities.logging import printif
+
+from .dataframe_utils import ensure_df_has_columns, first_missing_row_number
 
 logger = logging.getLogger(__name__)
 
@@ -67,7 +71,11 @@ def llm_generate(
     output_df: pd.DataFrame = output_dataframe if output_dataframe is not None else pd.DataFrame()
 
     # Determine how much work is left and start from there
-    start_index = len(output_df)
+    start_index = first_missing_row_number(src_df=output_df, dst_df=dataframe)
+    if start_index is None:
+        printif(verbose, "The supplied output dataframe is already complete.")
+        return output_df
+
     dataframe = dataframe.iloc[start_index:]
 
     with set_verbosity(model, verbose) as verbose_model:
@@ -77,12 +85,16 @@ def llm_generate(
         prompts = map_template(dataframe, template)
 
         # For each prompt, generate and parse the response
-        for prompt in prompts:
+        for loc, prompt in tqdm(prompts.items()):
             logger.info(f"Prompt: {prompt}")
             response = verbose_model(prompt, instruction=system_instruction)
             parsed_response = output_parser(response)
+            columns = parsed_response.keys()
+
+            # Make sure the output dataframe has the right columns
+            ensure_df_has_columns(output_df, columns)
             # Append the parsed response to the output dataframe
-            output_df = output_df.append(parsed_response, ignore_index=True)  # type: ignore
+            output_df.loc[loc] = parsed_response  # type: ignore
 
         # Return the data as a dataframe
         return output_df

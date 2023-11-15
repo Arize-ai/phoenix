@@ -19,6 +19,8 @@ from phoenix.experimental.evals.templates import (
 from phoenix.trace.semantic_conventions import DOCUMENT_CONTENT, INPUT_VALUE, RETRIEVAL_DOCUMENTS
 from phoenix.utilities.logging import printif
 
+from .dataframe_utils import ensure_df_has_columns, first_missing_row_number
+
 logger = logging.getLogger(__name__)
 
 
@@ -40,6 +42,7 @@ def llm_classify(
     verbose: bool = False,
     use_function_calling_if_available: bool = True,
     provide_explanation: bool = False,
+    output_dataframe: Optional[pd.DataFrame] = None,
 ) -> pd.DataFrame:
     """Classifies each input row of the dataframe using an LLM. Returns a pandas.DataFrame
     where the first column is named `label` and contains the classification labels. An optional
@@ -74,6 +77,10 @@ def llm_classify(
         classification label. A column named `explanation` is added to the output dataframe.
         Currently, this is only available for models with function calling.
 
+        output_dataframe (Optional[pandas.DataFrame], optional): An optional dataframe to use as
+        the output dataframe. This can be useful when you don't want to lose the output if you need
+        to halt the execution for any reason.
+
     Returns:
         pandas.DataFrame: A dataframe where the `label` column (at column position 0) contains
         the classification labels. If provide_explanation=True, then an additional column named
@@ -82,6 +89,18 @@ def llm_classify(
         from the entries in the rails argument or "NOT_PARSABLE" if the model's output could
         not be parsed.
     """
+    columns = ["label", "explanation"] if provide_explanation else ["label"]
+    if output_dataframe is not None:
+        output_df = output_dataframe
+        # Make sure the output dataframe has the necessary columns
+        ensure_df_has_columns(output_df, columns)
+    else:
+        output_df = pd.DataFrame(columns=columns)
+
+    # Determine the remaining work to be completed on the input dataframe by examining the output
+    start_index = first_missing_row_number(src_df=output_df, dst_df=dataframe)
+    dataframe = dataframe.iloc[start_index:]
+
     use_openai_function_call = (
         use_function_calling_if_available
         and isinstance(model, OpenAIModel)
@@ -99,14 +118,11 @@ def llm_classify(
     prompt_options = PromptOptions(provide_explanation=provide_explanation)
     prompts = map_template(dataframe, eval_template, options=prompt_options)
 
-    labels: List[str] = []
-    explanations: List[Optional[str]] = []
-
     printif(verbose, f"Using prompt:\n\n{eval_template.prompt(prompt_options)}")
     if generation_info := model.verbose_generation_info():
         printif(verbose, generation_info)
 
-    for prompt in tqdm(prompts):
+    for loc, prompt in tqdm(prompts.items()):
         with set_verbosity(model, verbose) as verbose_model:
             response = verbose_model(prompt, instruction=system_instruction, **model_kwargs)
         if not use_openai_function_call:
@@ -130,15 +146,15 @@ def llm_classify(
             except json.JSONDecodeError:
                 unrailed_label = response
                 explanation = None
-        labels.append(_snap_to_rail(unrailed_label, rails, verbose=verbose))
-        explanations.append(explanation)
-    return pd.DataFrame(
-        data={
-            "label": labels,
-            **({"explanation": explanations} if provide_explanation else {}),
-        },
-        index=dataframe.index,
-    )
+
+        # Append the necessary info to the output dataframe
+        label = _snap_to_rail(unrailed_label, rails, verbose=verbose)
+        record = {
+            "label": label,
+            **({"explanation": explanation} if provide_explanation else {}),
+        }
+        output_df.loc[loc] = record  # type: ignore
+    return output_df
 
 
 def run_relevance_eval(
