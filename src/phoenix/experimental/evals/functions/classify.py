@@ -35,14 +35,10 @@ _EXPLANATION = "explanation"
 
 
 class AsyncExecutor:
-    def __init__(self, generation_fn: Coroutine, num_consumers: int = 20):
+    def __init__(self, generation_fn: Coroutine, num_consumers: int = 20, tqdm_bar_format: Optional[str] = None):
         self.num_consumers = num_consumers
         self.generate = generation_fn
-        self.tqdm_bar_format = (
-            "Eta:{eta} |{bar}| {percentage:3.1f}% "
-            "({n_fmt}/{total_fmt}) "
-            "[{elapsed}<{remaining}, {rate_fmt}{postfix}]"
-        )
+        self.tqdm_bar_format = tqdm_bar_format
         
     async def consumer(self, queue, output, end_of_queue, progress_bar):
         while True:
@@ -137,6 +133,11 @@ def llm_classify(
         from the entries in the rails argument or "NOT_PARSABLE" if the model's output could
         not be parsed.
     """
+    tqdm_bar_format = (
+        "Eta:{eta} |{bar}| {percentage:3.1f}% "
+        "({n_fmt}/{total_fmt}) "
+        "[{elapsed}<{remaining}, {rate_fmt}{postfix}]"
+    )
     use_openai_function_call = (
         use_function_calling_if_available
         and isinstance(model, OpenAIModel)
@@ -187,7 +188,7 @@ def llm_classify(
                 explanation = None
         return _snap_to_rail(unrailed_label, rails, verbose=verbose), explanation
     
-    executor = AsyncExecutor(_classify_prompt)
+    executor = AsyncExecutor(_classify_prompt, tqdm_bar_format=tqdm_bar_format)
     results = executor.run(prompts)
     labels, explanations = zip(*results)
 
