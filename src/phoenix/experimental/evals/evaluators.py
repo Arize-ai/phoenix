@@ -6,17 +6,13 @@ from phoenix.experimental.evals.models import set_verbosity
 from phoenix.utilities.logging import printif
 
 from .models import BaseEvalModel
-from .templates import PromptTemplate, default_templates
+from .templates import ClassificationTemplate, PromptTemplate, default_templates
 
 Record = Mapping[str, Any]
 
 
-class EvaluationResult(Protocol):
-    prediction: str
-
-
 @dataclass
-class ClassificationResult:
+class EvaluationResult:
     prediction: str
 
 
@@ -30,12 +26,12 @@ class Evaluator(Protocol):
         ...
 
 
-class LLMClassifier:
+class LLMEvaluator:
     def __init__(
         self,
         name: str,
         model: BaseEvalModel,
-        template: PromptTemplate,
+        template: ClassificationTemplate,
         rails: List[str],
         verbose: bool = False,
     ) -> None:
@@ -45,23 +41,23 @@ class LLMClassifier:
         self._parser = partial(_snap_to_rail, rails=rails, verbose=verbose)
         self._verbose = verbose
 
-    def evaluate(self, record: Record) -> ClassificationResult:
+    def evaluate(self, record: Record) -> EvaluationResult:
         prompt = self._template.format(record)
         with set_verbosity(self._model, self._verbose) as verbose_model:
             unparsed_output = verbose_model(prompt)
-        return ClassificationResult(prediction=self._parser(unparsed_output))
+        return EvaluationResult(prediction=self._parser(unparsed_output))
 
     @property
     def name(self) -> str:
         return self._name
 
     @classmethod
-    def from_name(cls, name: str, model: BaseEvalModel, verbose: bool = False) -> "LLMClassifier":
+    def from_name(cls, name: str, model: BaseEvalModel, verbose: bool = False) -> "LLMEvaluator":
         if name == "toxicity":
             return cls(
                 name=name,
                 model=model,
-                template=PromptTemplate(default_templates.TOXICITY_PROMPT_TEMPLATE_STR),
+                template=default_templates.TOXICITY_PROMPT_TEMPLATE,
                 rails=list(default_templates.TOXICITY_PROMPT_RAILS_MAP.values()),
                 verbose=verbose,
             )
@@ -69,7 +65,7 @@ class LLMClassifier:
             return cls(
                 name=name,
                 model=model,
-                template=PromptTemplate(default_templates.RAG_RELEVANCY_PROMPT_TEMPLATE_STR),
+                template=default_templates.RAG_RELEVANCY_PROMPT_TEMPLATE,
                 rails=list(default_templates.RAG_RELEVANCY_PROMPT_RAILS_MAP.values()),
                 verbose=verbose,
             )

@@ -1,29 +1,28 @@
 import pandas as pd
 from pandas.testing import assert_frame_equal
-from phoenix.experimental.evals.evaluators import LLMClassifier
+from phoenix.experimental.evals.evaluators import LLMEvaluator
 from phoenix.experimental.evals.models import OpenAIModel
 from phoenix.experimental.evals.runner import EvalRunner
-from phoenix.experimental.evals.templates import PromptTemplate
 from phoenix.experimental.evals.templates.default_templates import (
     RAG_RELEVANCY_PROMPT_RAILS_MAP,
-    RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
+    RAG_RELEVANCY_PROMPT_TEMPLATE,
     TOXICITY_PROMPT_RAILS_MAP,
-    TOXICITY_PROMPT_TEMPLATE_STR,
+    TOXICITY_PROMPT_TEMPLATE,
 )
 
 
 def test_eval_runner_with_evaluator_arguments_produces_expected_output_dataframe() -> None:
     model = OpenAIModel(model_name="gpt-4")
-    relevance_evaluator = LLMClassifier(
+    relevance_evaluator = LLMEvaluator(
         name="relevance",
-        template=PromptTemplate(RAG_RELEVANCY_PROMPT_TEMPLATE_STR),
+        template=RAG_RELEVANCY_PROMPT_TEMPLATE,
         model=model,
         rails=list(RAG_RELEVANCY_PROMPT_RAILS_MAP.values()),
         verbose=True,
     )
-    toxicity_evaluator = LLMClassifier(
+    toxicity_evaluator = LLMEvaluator(
         name="toxicity",
-        template=PromptTemplate(TOXICITY_PROMPT_TEMPLATE_STR),
+        template=TOXICITY_PROMPT_TEMPLATE,
         model=model,
         rails=list(TOXICITY_PROMPT_RAILS_MAP.values()),
         verbose=True,
@@ -54,9 +53,9 @@ def test_eval_runner_with_evaluator_arguments_produces_expected_output_dataframe
 
 def test_eval_runner_with_mixed_evaluator_arguments_produces_expected_output_dataframe() -> None:
     model = OpenAIModel(model_name="gpt-4")
-    toxicity_evaluator = LLMClassifier(
+    toxicity_evaluator = LLMEvaluator(
         name="toxicity",
-        template=PromptTemplate(TOXICITY_PROMPT_TEMPLATE_STR),
+        template=TOXICITY_PROMPT_TEMPLATE,
         model=model,
         rails=list(TOXICITY_PROMPT_RAILS_MAP.values()),
         verbose=True,

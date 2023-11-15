@@ -4,7 +4,7 @@ from pandas import DataFrame
 from tqdm.auto import tqdm
 from typing_extensions import TypeGuard
 
-from .evaluators import Evaluator, LLMClassifier
+from .evaluators import Evaluator, LLMEvaluator
 from .models import BaseEvalModel
 
 Record = Mapping[str, Any]
@@ -45,7 +45,7 @@ def _to_evaluators(
     if model is None:
         raise ValueError("When specifying an evaluator by name, you must also pass a model.")
     return [
-        LLMClassifier.from_name(name=evaluator, model=model)
+        LLMEvaluator.from_name(name=evaluator, model=model)
         if isinstance(evaluator, str)
         else evaluator
         for evaluator in evaluators
