@@ -163,6 +163,7 @@ def payload_to_semantic_attributes(
     if response := (payload.get(EventPayload.RESPONSE) or payload.get(EventPayload.COMPLETION)):
         attributes.update(_get_response_output(response))
         if raw := getattr(response, "raw", None):
+            assert isinstance(raw, Mapping), f"raw must be Mapping, found {type(raw)}"
             attributes.update(_get_output_messages(raw))
             if usage := raw.get("usage"):
                 # OpenAI token counts are available on raw.usage but can also be
@@ -560,7 +561,7 @@ def _get_message(message: object) -> Iterator[Tuple[str, Any]]:
 
 
 def _get_output_messages(raw: Mapping[str, Any]) -> Iterator[Tuple[str, Any]]:
-    assert isinstance(raw, Iterable), f"raw must be Mapping, found {type(raw)}"
+    assert isinstance(raw, Mapping), f"raw must be Mapping, found {type(raw)}"
     if not (choices := raw.get("choices")):
         return
     assert isinstance(choices, Iterable), f"choices must be Iterable, found {type(choices)}"
