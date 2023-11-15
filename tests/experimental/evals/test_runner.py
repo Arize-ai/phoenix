@@ -12,22 +12,36 @@ from phoenix.experimental.evals.templates.default_templates import (
 )
 
 
-def test_eval_runner_with_evaluator_arguments_produces_expected_output_dataframe() -> None:
-    model = OpenAIModel(model_name="gpt-4")
-    relevance_evaluator = LLMEvaluator(
-        name="relevance",
-        template=RAG_RELEVANCY_PROMPT_TEMPLATE,
-        model=model,
-        rails=list(RAG_RELEVANCY_PROMPT_RAILS_MAP.values()),
-        verbose=True,
-    )
-    toxicity_evaluator = LLMEvaluator(
+@pytest.fixture
+def model() -> OpenAIModel:
+    return OpenAIModel(model_name="gpt-4")
+
+
+@pytest.fixture
+def toxicity_evaluator(model: OpenAIModel) -> LLMEvaluator:
+    return LLMEvaluator(
         name="toxicity",
         template=TOXICITY_PROMPT_TEMPLATE,
         model=model,
         rails=list(TOXICITY_PROMPT_RAILS_MAP.values()),
         verbose=True,
     )
+
+
+@pytest.fixture
+def relevance_evaluator(model: OpenAIModel) -> LLMEvaluator:
+    return LLMEvaluator(
+        name="relevance",
+        template=RAG_RELEVANCY_PROMPT_TEMPLATE,
+        model=model,
+        rails=list(RAG_RELEVANCY_PROMPT_RAILS_MAP.values()),
+        verbose=True,
+    )
+
+
+def test_eval_runner_with_evaluator_arguments_produces_expected_output_dataframe(
+    model: OpenAIModel, toxicity_evaluator: LLMEvaluator, relevance_evaluator: LLMEvaluator
+) -> None:
     runner = EvalRunner(evaluators=[relevance_evaluator, toxicity_evaluator])
     df = pd.DataFrame(
         [
@@ -52,15 +66,9 @@ def test_eval_runner_with_evaluator_arguments_produces_expected_output_dataframe
     )
 
 
-def test_eval_runner_with_mixed_evaluator_arguments_produces_expected_output_dataframe() -> None:
-    model = OpenAIModel(model_name="gpt-4")
-    toxicity_evaluator = LLMEvaluator(
-        name="toxicity",
-        template=TOXICITY_PROMPT_TEMPLATE,
-        model=model,
-        rails=list(TOXICITY_PROMPT_RAILS_MAP.values()),
-        verbose=True,
-    )
+def test_eval_runner_with_mixed_evaluator_arguments_produces_expected_output_dataframe(
+    model: OpenAIModel, toxicity_evaluator: LLMEvaluator
+) -> None:
     runner = EvalRunner(evaluators=["relevance", toxicity_evaluator], model=model)
     df = pd.DataFrame(
         [
@@ -85,36 +93,15 @@ def test_eval_runner_with_mixed_evaluator_arguments_produces_expected_output_dat
     )
 
 
-def test_eval_runner_raises_value_error_when_initialized_with_model_and_evaluators() -> None:
-    model = OpenAIModel(model_name="gpt-4")
-    relevance_evaluator = LLMEvaluator(
-        name="relevance",
-        template=RAG_RELEVANCY_PROMPT_TEMPLATE,
-        model=model,
-        rails=list(RAG_RELEVANCY_PROMPT_RAILS_MAP.values()),
-        verbose=True,
-    )
-    toxicity_evaluator = LLMEvaluator(
-        name="toxicity",
-        template=TOXICITY_PROMPT_TEMPLATE,
-        model=model,
-        rails=list(TOXICITY_PROMPT_RAILS_MAP.values()),
-        verbose=True,
-    )
+def test_eval_runner_raises_value_error_when_initialized_with_model_and_evaluators(
+    model: OpenAIModel, toxicity_evaluator: LLMEvaluator, relevance_evaluator: LLMEvaluator
+) -> None:
     with pytest.raises(ValueError):
         EvalRunner(evaluators=[relevance_evaluator, toxicity_evaluator], model=model)
 
 
-def test_eval_runner_raises_value_error_when_initialized_with_an_evaluator_name_but_no_model() -> (
-    None
-):
-    model = OpenAIModel(model_name="gpt-4")
-    toxicity_evaluator = LLMEvaluator(
-        name="toxicity",
-        template=TOXICITY_PROMPT_TEMPLATE,
-        model=model,
-        rails=list(TOXICITY_PROMPT_RAILS_MAP.values()),
-        verbose=True,
-    )
+def test_eval_runner_raises_value_error_when_initialized_with_an_evaluator_name_but_no_model(
+    toxicity_evaluator: LLMEvaluator
+) -> None:
     with pytest.raises(ValueError):
         EvalRunner(evaluators=["relevance", toxicity_evaluator])
