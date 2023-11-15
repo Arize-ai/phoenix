@@ -267,7 +267,9 @@ def test_llm_classify_shows_retry_info_with_verbose_flag(monkeypatch: pytest.Mon
         waiting_fn = "phoenix.experimental.evals.models.base.wait_random_exponential"
         stack.enter_context(patch(waiting_fn, return_value=False))
         stack.enter_context(patch.object(OpenAIModel, "_init_tiktoken", return_value=None))
-        stack.enter_context(patch.object(model._async_client.chat.completions, "create", mock_openai))
+        stack.enter_context(
+            patch.object(model._async_client.chat.completions, "create", mock_openai)
+        )
         stack.enter_context(pytest.raises(model._openai.InternalServerError))
         llm_classify(
             dataframe=dataframe,
@@ -318,7 +320,9 @@ def test_llm_classify_does_not_persist_verbose_flag(monkeypatch: pytest.MonkeyPa
         waiting_fn = "phoenix.experimental.evals.models.base.wait_random_exponential"
         stack.enter_context(patch(waiting_fn, return_value=False))
         stack.enter_context(patch.object(OpenAIModel, "_init_tiktoken", return_value=None))
-        stack.enter_context(patch.object(model._async_client.chat.completions, "create", mock_openai))
+        stack.enter_context(
+            patch.object(model._async_client.chat.completions, "create", mock_openai)
+        )
         stack.enter_context(pytest.raises(model._openai.OpenAIError))
         llm_classify(
             dataframe=dataframe,

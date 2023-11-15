@@ -172,7 +172,7 @@ class OpenAIModel(BaseEvalModel):
             organization=self.organization,
             base_url=(self.base_url or self._openai.base_url),
         )
-        
+
         self._async_client: Union[self._openai.AsyncOpenAI, self._openai.AsyncAzureOpenAI]  # type: ignore
         if self._is_azure:
             # Validate the azure options and construct a client
@@ -232,7 +232,7 @@ class OpenAIModel(BaseEvalModel):
 
     def verbose_generation_info(self) -> str:
         return f"OpenAI invocation parameters: {self.public_invocation_params}"
-    
+
     async def _async_generate(self, prompt: str, **kwargs: Any) -> str:
         invoke_params = self.invocation_params
         messages = self._build_messages(prompt, kwargs.get("instruction"))
@@ -270,7 +270,7 @@ class OpenAIModel(BaseEvalModel):
         if function_call := message.get("function_call"):
             return str(function_call.get("arguments") or "")
         return str(message["content"])
-    
+
     async def _async_generate_with_retry(self, **kwargs: Any) -> Any:
         """Use tenacity to retry the completion call."""
         openai_retry_errors = [

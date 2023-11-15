@@ -1,12 +1,25 @@
+from __future__ import annotations
+
 import asyncio
-from tqdm.asyncio import tqdm as async_tqdm
-import nest_asyncio
 import json
 import logging
-from typing import Any, Dict, Iterable, List, Optional, Union, cast, Tuple, Coroutine
+from typing import (
+    Any,
+    Callable,
+    Coroutine,
+    Dict,
+    Iterable,
+    List,
+    Optional,
+    Sequence,
+    Tuple,
+    Union,
+    cast,
+)
 
+import nest_asyncio
 import pandas as pd
-from tqdm.auto import tqdm
+from tqdm.asyncio import tqdm as async_tqdm
 
 from phoenix.experimental.evals.models import BaseEvalModel, OpenAIModel, set_verbosity
 from phoenix.experimental.evals.templates import (
@@ -35,45 +48,62 @@ _EXPLANATION = "explanation"
 
 
 class AsyncExecutor:
-    def __init__(self, generation_fn: Coroutine, num_consumers: int = 20, tqdm_bar_format: Optional[str] = None):
-        self.num_consumers = num_consumers
+    def __init__(
+        self,
+        generation_fn: Callable[[Any], Coroutine[Any, Any, Any]],
+        num_consumers: int = 20,
+        tqdm_bar_format: Optional[str] = None,
+    ):
         self.generate = generation_fn
+        self.num_consumers = num_consumers
         self.tqdm_bar_format = tqdm_bar_format
-        
-    async def consumer(self, queue, output, end_of_queue, progress_bar):
+
+        self.end_of_queue = object()
+
+    async def consumer(
+        self,
+        output: List[Any],
+        queue: asyncio.Queue[Union[object, Tuple[int, Any]]],
+        progress_bar: async_tqdm[Any],
+    ) -> None:
         while True:
-            if (item := await queue.get()) is end_of_queue:
+            if (item := await queue.get()) is self.end_of_queue:
                 break
 
+            item = cast(Tuple[int, Any], item)
             index, payload = item
             result = await self.generate(payload)
             output[index] = result
             progress_bar.update()
-    
-    async def producer(self, queue, inputs, end_of_queue):
+
+    async def producer(
+        self,
+        inputs: Sequence[Any],
+        queue: asyncio.Queue[Union[object, Tuple[int, Any]]],
+    ) -> None:
         for index, input in enumerate(inputs):
             await queue.put((index, input))
         for _ in range(self.num_consumers):
-            await queue.put(end_of_queue)
-    
-    async def submit(self, inputs):
+            await queue.put(self.end_of_queue)
+
+    async def submit(self, inputs: Sequence[Any]) -> List[Any]:
         outputs = ["unset"] * len(inputs)
-        queue: asyncio.Queue[Tuple[int, str, Optional[str], Dict[Any, Any]]] = asyncio.Queue(
-            maxsize=2 * self.num_consumers
-        )
-        END_OF_QUEUE = object()  # sentinel indicating when the queue is done
         progress_bar = async_tqdm(total=len(inputs), bar_format=self.tqdm_bar_format)
 
-        producer = self.producer(queue, inputs, END_OF_QUEUE)
+        queue: asyncio.Queue[Union[object, Tuple[int, Any]]] = asyncio.Queue(
+            maxsize=2 * self.num_consumers
+        )
+
+        producer = self.producer(inputs, queue)
         consumers = [
-            asyncio.create_task(self.consumer(queue, outputs, END_OF_QUEUE, progress_bar))
+            asyncio.create_task(self.consumer(outputs, queue, progress_bar))
             for _ in range(self.num_consumers)
         ]
 
         await asyncio.gather(producer, *consumers)
         return outputs
-    
-    def run(self, inputs):
+
+    def run(self, inputs: Sequence[Any]) -> List[Any]:
         try:
             asyncio.get_running_loop()
             nest_asyncio.apply()
@@ -161,10 +191,12 @@ def llm_classify(
     printif(verbose, f"Using prompt:\n\n{eval_template.prompt(prompt_options)}")
     if generation_info := model.verbose_generation_info():
         printif(verbose, generation_info)
-    
-    async def _classify_prompt(prompt):
+
+    async def _classify_prompt(prompt: str) -> Tuple[str, Optional[str]]:
         with set_verbosity(model, verbose) as verbose_model:
-            response = await verbose_model._async_generate(prompt, instruction=system_instruction, **model_kwargs)
+            response = await verbose_model._async_generate(
+                prompt, instruction=system_instruction, **model_kwargs
+            )
         if not model_kwargs.get("function_call"):
             if provide_explanation:
                 unrailed_label, explanation = (
@@ -187,9 +219,9 @@ def llm_classify(
                 unrailed_label = response
                 explanation = None
         return _snap_to_rail(unrailed_label, rails, verbose=verbose), explanation
-    
+
     executor = AsyncExecutor(_classify_prompt, tqdm_bar_format=tqdm_bar_format)
-    results = executor.run(prompts)
+    results = executor.run(prompts.tolist())
     labels, explanations = zip(*results)
 
     return pd.DataFrame(
@@ -199,6 +231,7 @@ def llm_classify(
         },
         index=dataframe.index,
     )
+
 
 def run_relevance_eval(
     dataframe: pd.DataFrame,

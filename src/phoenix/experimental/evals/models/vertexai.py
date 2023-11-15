@@ -79,7 +79,7 @@ class VertexAIModel(BaseEvalModel):
 
     def verbose_generation_info(self) -> str:
         return f"VertexAI invocation parameters: {self.invocation_params}"
-    
+
     async def _async_generate(self, prompt: str, **kwargs: Dict[str, Any]) -> str:
         return self._generate(prompt, **kwargs)
 
