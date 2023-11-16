@@ -126,7 +126,7 @@ class BaseEvalModel(ABC):
             )
         try:
             outputs = []
-            for prompt in tqdm(prompts, bar_format=TQDM_BAR_FORMAT, ncols=100):
+            for prompt in tqdm(prompts, bar_format=TQDM_BAR_FORMAT):
                 output = self._generate(prompt=prompt, instruction=instruction, **kwargs)
                 logger.info(f"Prompt: {prompt}\nInstruction: {instruction}\nOutput: {output}")
                 outputs.append(output)
