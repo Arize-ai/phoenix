@@ -16,6 +16,7 @@ from phoenix.experimental.evals.templates import (
     map_template,
     normalize_classification_template,
 )
+from phoenix.experimental.evals.utils import get_tqdm_progress_bar_formatter
 from phoenix.trace.semantic_conventions import DOCUMENT_CONTENT, INPUT_VALUE, RETRIEVAL_DOCUMENTS
 from phoenix.utilities.logging import printif
 
@@ -321,13 +322,3 @@ def _default_openai_function(
             "required": required,
         },
     }
-
-
-def get_tqdm_progress_bar_formatter(title: str) -> str:
-    """
-    Returns a progress bar formatter for use with tqdm.
-    """
-    return (
-        title + " |{bar}| {n_fmt}/{total_fmt} ({percentage:3.1f}%) "
-        "| ⏳ {elapsed}<{remaining} | {rate_fmt}{postfix}"
-    )
