@@ -7,6 +7,8 @@ from typing import TYPE_CHECKING, Any, Callable, Generator, List, Optional, Type
 if TYPE_CHECKING:
     from tiktoken import Encoding
 
+from typing import Sequence
+
 from tenacity import (
     RetryCallState,
     retry,
@@ -17,10 +19,17 @@ from tenacity import (
 )
 from tqdm.asyncio import tqdm_asyncio
 from tqdm.auto import tqdm
+from typing_extensions import TypeVar
 
 from phoenix.experimental.evals.utils.threads import to_thread
-from phoenix.experimental.evals.utils.types import is_list_of
 from phoenix.utilities.logging import printif
+
+T = TypeVar("T", bound=type)
+
+
+def is_list_of(lst: Sequence[object], tp: T) -> bool:
+    return isinstance(lst, list) and all(isinstance(x, tp) for x in lst)
+
 
 logger = logging.getLogger(__name__)
 
