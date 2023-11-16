@@ -25,7 +25,7 @@ from sortedcontainers import SortedKeyList
 from typing_extensions import TypeAlias
 from wrapt import ObjectProxy
 
-import phoenix.trace.v1.trace_pb2 as pb
+import phoenix.trace.v1 as pb
 from phoenix.datetime_utils import right_open_time_range
 from phoenix.trace import semantic_conventions
 from phoenix.trace.schemas import (
@@ -37,7 +37,7 @@ from phoenix.trace.schemas import (
     SpanID,
     TraceID,
 )
-from phoenix.trace.v1 import decode, encode
+from phoenix.trace.v1.utils import decode, encode
 
 NAME = "name"
 STATUS_CODE = "status_code"
