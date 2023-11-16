@@ -6,11 +6,10 @@ from types import MethodType
 from typing import DefaultDict, Dict, List, Optional
 from uuid import UUID
 
-import numpy as np
 from typing_extensions import TypeAlias
 
 import phoenix.trace.v1 as pb
-from phoenix.trace.schemas import SpanID, TraceID
+from phoenix.trace.schemas import SpanID
 
 END_OF_QUEUE = None  # sentinel value for queue termination
 
@@ -24,12 +23,6 @@ class Evals:
         weakref.finalize(self, self._queue.put, END_OF_QUEUE)
         self._lock = RLock()
         self._start_consumer()
-        self._trace_evaluations_by_name: DefaultDict[
-            EvaluationName, Dict[TraceID, pb.Evaluation]
-        ] = defaultdict(dict)
-        self._evaluations_by_trace_id: DefaultDict[
-            TraceID, Dict[EvaluationName, pb.Evaluation]
-        ] = defaultdict(dict)
         self._span_evaluations_by_name: DefaultDict[
             EvaluationName, Dict[SpanID, pb.Evaluation]
         ] = defaultdict(dict)
@@ -70,10 +63,6 @@ class Evals:
             span_id = UUID(subject_id.span_id)
             self._evaluations_by_span_id[span_id][name] = evaluation
             self._span_evaluations_by_name[name][span_id] = evaluation
-        elif subject_id_kind == "trace_id":
-            trace_id = UUID(subject_id.trace_id)
-            self._evaluations_by_span_id[trace_id][name] = evaluation
-            self._trace_evaluations_by_name[name][trace_id] = evaluation
         else:
             raise ValueError(f"unrecognized subject_id type: {type(subject_id_kind)}")
 
@@ -91,26 +80,3 @@ class Evals:
             for evaluations in self._document_evaluations_by_span_id[span_id].values():
                 all_evaluations.extend(evaluations.values())
         return all_evaluations
-
-    def get_document_evaluations(
-        self, span_id: SpanID, evaluation_name: str, num_documents: int
-    ) -> List[Optional[pb.Evaluation]]:
-        relevance_evaluations: List[Optional[pb.Evaluation]] = [None] * num_documents
-        with self._lock:
-            evaluations = self._document_evaluations_by_span_id[span_id][evaluation_name]
-        for document_position, document_relevance in evaluations.items():
-            if document_position < len(relevance_evaluations):
-                relevance_evaluations[document_position] = document_relevance
-        return relevance_evaluations
-
-    def get_document_evaluation_scores(
-        self, span_id: SpanID, evaluation_name: str, num_documents: int
-    ) -> List[Optional[float]]:
-        scores: List[Optional[float]] = [np.nan] * num_documents
-        with self._lock:
-            evaluations = self._document_evaluations_by_span_id[span_id][evaluation_name]
-        for document_position, document_relevance in evaluations.items():
-            result = document_relevance.result
-            if result.HasField("score") and document_position < len(scores):
-                scores[document_position] = document_relevance.result.score.value
-        return scores
