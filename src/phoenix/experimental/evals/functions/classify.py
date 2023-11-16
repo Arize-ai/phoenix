@@ -106,7 +106,7 @@ def llm_classify(
     if generation_info := model.verbose_generation_info():
         printif(verbose, generation_info)
 
-    for prompt in tqdm(prompts):
+    for prompt in tqdm(prompts, bar_format=get_tqdm_progress_bar_format("llm_classify")):
         with set_verbosity(model, verbose) as verbose_model:
             response = verbose_model(prompt, instruction=system_instruction, **model_kwargs)
         if not use_openai_function_call:
@@ -321,3 +321,13 @@ def _default_openai_function(
             "required": required,
         },
     }
+
+
+def get_tqdm_progress_bar_format(title: str) -> str:
+    """
+    Returns a progress bar formatter for use with tqdm.
+    """
+    return (
+        title + " |{bar}| {n_fmt}/{total_fmt} ({percentage:3.1f}%) "
+        "| ⏳ {elapsed}<{remaining} | {rate_fmt}{postfix}"
+    )

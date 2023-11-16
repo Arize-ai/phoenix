@@ -15,8 +15,8 @@ from tenacity import (
     stop_after_attempt,
     wait_random_exponential,
 )
-from tqdm import tqdm
 from tqdm.asyncio import tqdm_asyncio
+from tqdm.auto import tqdm
 
 from phoenix.experimental.evals.utils.threads import to_thread
 from phoenix.experimental.evals.utils.types import is_list_of
