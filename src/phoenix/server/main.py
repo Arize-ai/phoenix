@@ -161,8 +161,11 @@ if __name__ == "__main__":
             daemon=True,
         ).start()
         fixture_evals = get_evals_from_fixture(trace_dataset_name)
-        for evaluation in fixture_evals:
-            evals.put(evaluation)
+        Thread(
+            target=_load_items,
+            args=(evals, fixture_evals, simulate_streaming),
+            daemon=True,
+        ).start()
     umap_params_list = args.umap_params.split(",")
     umap_params = UMAPParameters(
         min_dist=float(umap_params_list[0]),
