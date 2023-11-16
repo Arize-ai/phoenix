@@ -11,7 +11,7 @@ from requests import Session
 
 from phoenix.config import get_env_host, get_env_port
 from phoenix.trace.schemas import Span
-from phoenix.trace.v1 import encode
+from phoenix.trace.v1.utils import encode
 
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
