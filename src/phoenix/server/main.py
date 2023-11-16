@@ -6,7 +6,7 @@ from pathlib import Path
 from random import random
 from threading import Thread
 from time import sleep, time
-from typing import Iterable, Optional
+from typing import Iterable, Optional, Protocol, TypeVar
 
 from uvicorn import Config, Server
 
@@ -27,7 +27,6 @@ from phoenix.trace.fixtures import (
     _download_traces_fixture,
     _get_trace_fixture_by_name,
 )
-from phoenix.trace.schemas import Span
 from phoenix.trace.span_json_decoder import json_string_to_span
 
 logger = logging.getLogger(__name__)
@@ -54,15 +53,23 @@ def _get_pid_file() -> Path:
     return get_pids_path() / str(os.getpid())
 
 
-def _load_spans(
-    traces: Traces,
-    spans: Iterable[Span],
+_Item = TypeVar("_Item", contravariant=True)
+
+
+class _SupportsPut(Protocol[_Item]):
+    def put(self, item: _Item) -> None:
+        ...
+
+
+def _load_items(
+    queue: _SupportsPut[_Item],
+    items: Iterable[_Item],
     simulate_streaming: Optional[bool] = False,
 ) -> None:
-    for span in spans:
+    for item in items:
         if simulate_streaming:
             sleep(random())
-        traces.put(span)
+        queue.put(item)
 
 
 DEFAULT_UMAP_PARAMS_STR = f"{DEFAULT_MIN_DIST},{DEFAULT_N_NEIGHBORS},{DEFAULT_N_SAMPLES}"
@@ -146,7 +153,7 @@ if __name__ == "__main__":
             ),
         )
         Thread(
-            target=_load_spans,
+            target=_load_items,
             args=(traces, fixture_spans, simulate_streaming),
             daemon=True,
         ).start()
