@@ -1,0 +1,7 @@
+docs/
+examples/
+dist/
+integration-tests/
+scripts/
+.github
+.tours

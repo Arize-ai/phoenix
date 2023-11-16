@@ -88,6 +88,7 @@ if __name__ == "__main__":
     parser.add_argument("--umap_params", type=str, required=False, default=DEFAULT_UMAP_PARAMS_STR)
     parser.add_argument("--debug", action="store_false")
     subparsers = parser.add_subparsers(dest="command", required=True)
+    serve_parser = subparsers.add_parser("serve")
     datasets_parser = subparsers.add_parser("datasets")
     datasets_parser.add_argument("--primary", type=str, required=True)
     datasets_parser.add_argument("--reference", type=str, required=False)
