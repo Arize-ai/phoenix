@@ -34,4 +34,4 @@ class LangChainInstrumentor:
             source_init(self, *args, **kwargs)
             self.add_handler(tracer, True)
 
-        BaseCallbackManager.__init__ = patched_init  # type: ignore
+        BaseCallbackManager.__init__ = patched_init
