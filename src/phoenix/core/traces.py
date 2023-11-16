@@ -39,6 +39,8 @@ from phoenix.trace.schemas import (
 )
 from phoenix.trace.v1.utils import decode, encode
 
+END_OF_QUEUE = None  # sentinel value for queue termination
+
 NAME = "name"
 STATUS_CODE = "status_code"
 SPAN_KIND = "span_kind"
@@ -112,7 +114,7 @@ class Traces:
     def __init__(self, spans: Optional[Iterable[Span]] = None) -> None:
         self._queue: "SimpleQueue[Optional[pb.Span]]" = SimpleQueue()
         # Putting `None` as the sentinel value for queue termination.
-        weakref.finalize(self, self._queue.put, None)
+        weakref.finalize(self, self._queue.put, END_OF_QUEUE)
         for span in spans or ():
             self.put(span)
         self._lock = RLock()
@@ -224,11 +226,9 @@ class Traces:
         ).start()
 
     def _consume_spans(self) -> None:
-        while True:
-            if not (span := self._queue.get()):
-                return
+        while (item := self._queue.get()) is not END_OF_QUEUE:
             with self._lock:
-                self._process_span(span)
+                self._process_span(item)
 
     def _process_span(self, span: pb.Span) -> None:
         span_id = UUID(bytes=span.context.span_id)
