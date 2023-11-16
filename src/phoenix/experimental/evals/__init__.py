@@ -14,7 +14,7 @@ from .templates import (
     ClassificationTemplate,
     PromptTemplate,
 )
-from .utils.downloads import download_benchmark_dataset
+from .utils import download_benchmark_dataset
 
 __all__ = [
     "compute_precisions_at_k",
