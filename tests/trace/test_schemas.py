@@ -5,7 +5,7 @@ from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
-import phoenix.trace.v1.trace_pb2 as pb
+import phoenix.trace.v1 as pb
 import pytz
 from google.protobuf.json_format import MessageToDict, MessageToJson, Parse, ParseDict
 from google.protobuf.wrappers_pb2 import FloatValue, StringValue
@@ -36,7 +36,7 @@ from phoenix.trace.semantic_conventions import (
     RETRIEVAL_DOCUMENTS,
     MimeType,
 )
-from phoenix.trace.v1 import decode, encode
+from phoenix.trace.v1.utils import decode, encode
 
 
 def test_span_construction():
