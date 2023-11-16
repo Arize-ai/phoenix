@@ -1,25 +1,26 @@
 import gzip
 import logging
 import weakref
-from functools import singledispatchmethod
 from queue import SimpleQueue
 from threading import Thread
 from types import MethodType
 from typing import Any, Optional, Union
 
 import requests
-from google.protobuf.message import Message
 from requests import Session
+from typing_extensions import TypeAlias
 
 import phoenix.trace.v1 as pb
 from phoenix.config import get_env_host, get_env_port
 from phoenix.trace.schemas import Span
 from phoenix.trace.v1.utils import encode
 
-END_OF_QUEUE = None  # sentinel value for queue termination
-
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
+
+END_OF_QUEUE = None  # sentinel value for queue termination
+
+Message: TypeAlias = Union[pb.Span, pb.Evaluation]
 
 
 class NoOpExporter:
@@ -57,48 +58,44 @@ class HttpExporter:
                 "content-encoding": "gzip",
             }
         )
-        self._queue: "SimpleQueue[Optional[Union[Span, pb.Evaluation]]]" = SimpleQueue()
+        self._queue: "SimpleQueue[Optional[Message]]" = SimpleQueue()
         # Putting `None` as the sentinel value for queue termination.
         weakref.finalize(self, self._queue.put, END_OF_QUEUE)
         self._start_consumer()
 
     def export(self, item: Union[Span, pb.Evaluation]) -> None:
-        self._queue.put(item)
+        if isinstance(item, Span):
+            self._queue.put(encode(item))
+        elif isinstance(item, pb.Evaluation):
+            self._queue.put(item)
 
     def _start_consumer(self) -> None:
         Thread(
             target=MethodType(
-                self.__class__._consume_spans,
+                self.__class__._consume_items,
                 weakref.proxy(self),
             ),
             daemon=True,
         ).start()
 
-    def _consume_spans(self) -> None:
+    def _consume_items(self) -> None:
         while (item := self._queue.get()) is not END_OF_QUEUE:
             self._send(item)
 
-    def _send(self, item: Union[Span, pb.Evaluation]) -> None:
-        if isinstance(item, Span):
-            message: Message = encode(item)
-        elif isinstance(item, pb.Evaluation):
-            message = item
-        else:
-            return
+    def _send(self, message: Message) -> None:
         serialized = message.SerializeToString()
         data = gzip.compress(serialized)
         try:
-            self._session.post(self._url(item), data=data)
+            self._session.post(self._url(message), data=data)
         except Exception as e:
             logger.exception(e)
 
-    @singledispatchmethod
-    def _url(self, _: Span) -> str:
-        return f"{self._base_url}/v1/spans"
-
-    @_url.register
-    def _(self, _: pb.Evaluation) -> str:
-        return f"{self._base_url}/v1/evaluations"
+    def _url(self, message: Message) -> str:
+        if isinstance(message, pb.Span):
+            return f"{self._base_url}/v1/spans"
+        if isinstance(message, pb.Evaluation):
+            return f"{self._base_url}/v1/evaluations"
+        raise ValueError(f"Unknown message type: {type(message)}")
 
     def _warn_if_phoenix_is_not_running(self) -> None:
         try:
