@@ -58,7 +58,23 @@ class AsyncExecutor:
         self.num_consumers = num_consumers
         self.tqdm_bar_format = tqdm_bar_format
 
+        # An end of queue sentinel is used to signal to consumers that the queue is empty and that
+        # they should exit. This is necessary because some consumers may still be waiting for an
+        # item to be added to the queue when the producer finishes.
         self.end_of_queue = object()
+        self.unset = object()
+        
+    async def producer(
+        self,
+        inputs: Sequence[Any],
+        queue: asyncio.Queue[Union[object, Tuple[int, Any]]],
+    ) -> None:
+        for index, input in enumerate(inputs):
+            await queue.put((index, input))
+        for _ in range(self.num_consumers):
+            # adds an end of queue sentinel for each consumer, guaranteeing that any consumer
+            # that is currently waiting for an item will exit.
+            await queue.put(self.end_of_queue)
 
     async def consumer(
         self,
@@ -76,18 +92,8 @@ class AsyncExecutor:
             output[index] = result
             progress_bar.update()
 
-    async def producer(
-        self,
-        inputs: Sequence[Any],
-        queue: asyncio.Queue[Union[object, Tuple[int, Any]]],
-    ) -> None:
-        for index, input in enumerate(inputs):
-            await queue.put((index, input))
-        for _ in range(self.num_consumers):
-            await queue.put(self.end_of_queue)
-
-    async def submit(self, inputs: Sequence[Any]) -> List[Any]:
-        outputs = ["unset"] * len(inputs)
+    async def execute(self, inputs: Sequence[Any]) -> List[Any]:
+        outputs = [self.unset] * len(inputs)
         progress_bar = async_tqdm(total=len(inputs), bar_format=self.tqdm_bar_format)
 
         queue: asyncio.Queue[Union[object, Tuple[int, Any]]] = asyncio.Queue(
@@ -109,7 +115,7 @@ class AsyncExecutor:
             nest_asyncio.apply()
         except RuntimeError:
             pass
-        return asyncio.run(self.submit(inputs))
+        return asyncio.run(self.execute(inputs))
 
 
 def llm_classify(

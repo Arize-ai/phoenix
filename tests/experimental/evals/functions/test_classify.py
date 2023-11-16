@@ -15,7 +15,7 @@ from phoenix.experimental.evals import (
     llm_classify,
     run_relevance_eval,
 )
-from phoenix.experimental.evals.functions.classify import _snap_to_rail, AsyncExecutor
+from phoenix.experimental.evals.functions.classify import AsyncExecutor, _snap_to_rail
 from phoenix.experimental.evals.models.openai import OPENAI_API_KEY_ENVVAR_NAME
 from respx.patterns import M
 
@@ -603,6 +603,7 @@ async def test_async_executor_submits():
     inputs = [1, 2, 3, 4, 5]
     outputs = await executor.submit(inputs)
     assert outputs == [0, 1, 2, 3, 4]
+
 
 async def test_async_executor_submits_many_tasks():
     async def dummy_fn(payload: int) -> int:
