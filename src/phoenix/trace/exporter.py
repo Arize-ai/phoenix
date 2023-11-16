@@ -9,7 +9,7 @@ from typing import Any, Optional
 import requests
 from requests import Session
 
-import phoenix.trace.v1.trace_pb2 as pb
+import phoenix.trace.v1 as pb
 from phoenix.config import get_env_host, get_env_port
 from phoenix.trace.schemas import Span
 from phoenix.trace.v1.utils import encode
