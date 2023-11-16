@@ -77,18 +77,6 @@ class AsyncExecutor:
     def _signal_handler(self, signum: int, frame: Any) -> None:
         asyncio_tqdm.write("Process was interrupted. The return value will be incomplete...")
         self._TERMINATE = True
-    
-    async def _terminate(self, queue: asyncio.Queue[Union[object, Tuple[int, Any]]]) -> None:
-        # clears the queue and adds an end of queue sentinel for each consumer, gracefully stopping
-        # all consumers.
-        self._TERMINATE = True
-        while not queue.empty():
-            try:
-                await asyncio.wait_for(queue.get(), timeout=0.1)
-            except asyncio.TimeoutError:
-                break
-        for _ in range(self.num_consumers):
-            await queue.put(self.end_of_queue)
 
     async def producer(
         self,
@@ -110,8 +98,9 @@ class AsyncExecutor:
         queue: asyncio.Queue[Union[object, Tuple[int, Any]]],
         progress_bar: asyncio_tqdm[Any],
     ) -> None:
-        while not self._TERMINATE:
-            if (item := await queue.get()) is self.end_of_queue:
+        while True:
+            item = await queue.get()
+            if item is self.end_of_queue or self._TERMINATE:
                 return
 
             item = cast(Tuple[int, Any], item)
@@ -123,7 +112,7 @@ class AsyncExecutor:
             except Exception as e:
                 asyncio_tqdm.write(f"Exception in consumer: {e}")
                 if self.exit_on_exceptions:
-                    await self._terminate(queue)
+                    self._TERMINATE = True
                 else:
                     progress_bar.update()
 
