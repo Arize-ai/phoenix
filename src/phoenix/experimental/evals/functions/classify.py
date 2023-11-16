@@ -16,6 +16,7 @@ from phoenix.experimental.evals.templates import (
     map_template,
     normalize_classification_template,
 )
+from phoenix.experimental.evals.utils import get_tqdm_progress_bar_formatter
 from phoenix.trace.semantic_conventions import DOCUMENT_CONTENT, INPUT_VALUE, RETRIEVAL_DOCUMENTS
 from phoenix.utilities.logging import printif
 
@@ -109,7 +110,7 @@ def llm_classify(
     # Wrap the loop in a try / catch so that we can still return a dataframe
     # even if the process is interrupted
     try:
-        for index, prompt in enumerate(tqdm(prompts)):
+        for index, prompt in enumerate(tqdm(prompts, bar_format=get_tqdm_progress_bar_formatter("llm_classify"))):
             with set_verbosity(model, verbose) as verbose_model:
                 response = verbose_model(prompt, instruction=system_instruction, **model_kwargs)
             if not use_openai_function_call:

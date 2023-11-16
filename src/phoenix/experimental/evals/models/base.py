@@ -15,8 +15,8 @@ from tenacity import (
     stop_after_attempt,
     wait_random_exponential,
 )
-from tqdm import tqdm
 from tqdm.asyncio import tqdm_asyncio
+from tqdm.auto import tqdm
 
 from phoenix.experimental.evals.utils.threads import to_thread
 from phoenix.experimental.evals.utils.types import is_list_of
@@ -126,7 +126,7 @@ class BaseEvalModel(ABC):
             )
         try:
             outputs = []
-            for prompt in tqdm(prompts, bar_format=TQDM_BAR_FORMAT, ncols=100):
+            for prompt in tqdm(prompts, bar_format=TQDM_BAR_FORMAT):
                 output = self._generate(prompt=prompt, instruction=instruction, **kwargs)
                 logger.info(f"Prompt: {prompt}\nInstruction: {instruction}\nOutput: {output}")
                 outputs.append(output)
