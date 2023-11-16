@@ -51,7 +51,7 @@ _EXPLANATION = "explanation"
 
 class AsyncExecutor:
     _unset = object()
-    
+
     def __init__(
         self,
         generation_fn: Callable[[Any], Coroutine[Any, Any, Any]],
