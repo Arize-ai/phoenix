@@ -29,6 +29,7 @@ from typing import (
 )
 from uuid import uuid4
 
+import llama_index
 from llama_index.callbacks.base_handler import BaseCallbackHandler
 from llama_index.callbacks.schema import (
     TIMESTAMP_FORMAT,
@@ -88,9 +89,10 @@ from phoenix.trace.semantic_conventions import (
     MimeType,
 )
 from phoenix.trace.tracer import SpanExporter, Tracer
-from phoenix.trace.utils import get_stacktrace
+from phoenix.trace.utils import extract_version_triplet, get_stacktrace
 from phoenix.utilities.error_handling import graceful_fallback
 
+LLAMA_INDEX_MINIMUM_VERSION_TRIPLET = (0, 9, 0)
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
 
@@ -160,9 +162,10 @@ def payload_to_semantic_attributes(
             attributes[INPUT_VALUE] = _message_payload_to_str(messages[0])
     if response := (payload.get(EventPayload.RESPONSE) or payload.get(EventPayload.COMPLETION)):
         attributes.update(_get_response_output(response))
-        if (raw := getattr(response, "raw", None)) is not None:
+        if raw := getattr(response, "raw", None):
+            assert hasattr(raw, "get"), f"raw must be Mapping, found {type(raw)}"
             attributes.update(_get_output_messages(raw))
-            if (usage := getattr(raw, "usage", None)) is not None:
+            if usage := raw.get("usage"):
                 # OpenAI token counts are available on raw.usage but can also be
                 # found in additional_kwargs. Thus the duplicate handling.
                 attributes.update(_get_token_counts(usage))
@@ -191,7 +194,7 @@ def payload_to_semantic_attributes(
         tool_metadata = cast(ToolMetadata, payload.get(EventPayload.TOOL))
         attributes[TOOL_NAME] = tool_metadata.name
         attributes[TOOL_DESCRIPTION] = tool_metadata.description
-        attributes[TOOL_PARAMETERS] = tool_metadata.to_openai_function()["parameters"]
+        attributes[TOOL_PARAMETERS] = tool_metadata.to_openai_tool()["function"]["parameters"]
     if EventPayload.SERIALIZED in payload:
         serialized = payload[EventPayload.SERIALIZED]
         if event_type is CBEventType.EMBEDDING:
@@ -226,6 +229,19 @@ class OpenInferenceTraceCallbackHandler(BaseCallbackHandler):
         callback: Optional[Callable[[List[Span]], None]] = None,
         exporter: Optional[SpanExporter] = None,
     ) -> None:
+        if (
+            hasattr(llama_index, "__version__")
+            and (version_triplet := extract_version_triplet(llama_index.__version__))
+            and version_triplet < LLAMA_INDEX_MINIMUM_VERSION_TRIPLET
+        ):
+            raise NotImplementedError(
+                f"minimum supported version of llama-index is "
+                f"{'.'.join(map(str, LLAMA_INDEX_MINIMUM_VERSION_TRIPLET))}, "
+                f"but yours is {llama_index.__version__}. "
+                f"you can update to the latest using `pip install llama-index --upgrade`, "
+                f"or install the minimum required for Phoenix using "
+                f'`pip install "arize-phoenix[llama-index]"`',
+            )
         super().__init__(event_starts_to_ignore=[], event_ends_to_ignore=[])
         self._tracer = Tracer(on_append=callback, exporter=exporter or HttpExporter())
         self._event_id_to_event_data: EventData = defaultdict(lambda: CBEventData())
@@ -437,10 +453,18 @@ def _message_payload_to_attributes(message: Any) -> Dict[str, Optional[str]]:
         # NB: these additional kwargs exist both for 'agent' and 'function' roles
         if "name" in message.additional_kwargs:
             message_attributes[MESSAGE_NAME] = message.additional_kwargs["name"]
-        if "function_call" in message.additional_kwargs:
-            function_call = message.additional_kwargs["function_call"]
-            message_attributes[MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON] = function_call.arguments
-            message_attributes[MESSAGE_FUNCTION_CALL_NAME] = function_call.name
+        if tool_calls := message.additional_kwargs.get("tool_calls"):
+            assert isinstance(
+                tool_calls, Iterable
+            ), f"tool_calls must be Iterable, found {type(tool_calls)}"
+            tool_call = next(iter(tool_calls), None)
+            function = getattr(tool_call, "function", None)
+            if name := getattr(function, "name", None):
+                assert isinstance(name, str), f"name must be str, found {type(name)}"
+                message_attributes[MESSAGE_FUNCTION_CALL_NAME] = name
+            if arguments := getattr(function, "arguments", None):
+                assert isinstance(arguments, str), f"arguments must be str, found {type(arguments)}"
+                message_attributes[MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON] = arguments
         return message_attributes
 
     return {
@@ -457,6 +481,16 @@ def _message_payload_to_str(message: Any) -> Optional[str]:
     return str(message)
 
 
+class _CustomJSONEncoder(json.JSONEncoder):
+    def default(self, obj: object) -> Any:
+        try:
+            return super().default(obj)
+        except TypeError:
+            if callable(as_dict := getattr(obj, "dict", None)):
+                return as_dict()
+            raise
+
+
 def _get_response_output(response: Any) -> Iterator[Tuple[str, Any]]:
     """
     Gets output from response objects. This is needed since the string representation of some
@@ -470,7 +504,7 @@ def _get_response_output(response: Any) -> Iterator[Tuple[str, Any]]:
             yield OUTPUT_VALUE, content
             yield OUTPUT_MIME_TYPE, MimeType.TEXT
         else:
-            yield OUTPUT_VALUE, json.dumps(message.additional_kwargs)
+            yield OUTPUT_VALUE, json.dumps(message.additional_kwargs, cls=_CustomJSONEncoder)
             yield OUTPUT_MIME_TYPE, MimeType.JSON
     else:
         yield OUTPUT_VALUE, str(response)
@@ -516,19 +550,25 @@ def _get_message(message: object) -> Iterator[Tuple[str, Any]]:
     if content := getattr(message, "content", None):
         assert isinstance(content, str), f"content must be str, found {type(content)}"
         yield MESSAGE_CONTENT, content
-    if (function_call := getattr(message, "function_call", None)) is not None:
-        if name := getattr(function_call, "name", None):
+    if tool_calls := getattr(message, "tool_calls", None):
+        assert isinstance(
+            tool_calls, Iterable
+        ), f"tool_calls must be Iterable, found {type(tool_calls)}"
+        tool_call = next(iter(tool_calls), None)
+        function = getattr(tool_call, "function", None)
+        if name := getattr(function, "name", None):
             assert isinstance(name, str), f"name must be str, found {type(name)}"
             yield MESSAGE_FUNCTION_CALL_NAME, name
-        if arguments := getattr(function_call, "arguments", None):
+        if arguments := getattr(function, "arguments", None):
             assert isinstance(arguments, str), f"arguments must be str, found {type(arguments)}"
             yield MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON, arguments
 
 
-def _get_output_messages(raw: object) -> Iterator[Tuple[str, Any]]:
-    if not (choices := getattr(raw, "choices", None)):
+def _get_output_messages(raw: Mapping[str, Any]) -> Iterator[Tuple[str, Any]]:
+    assert hasattr(raw, "get"), f"raw must be Mapping, found {type(raw)}"
+    if not (choices := raw.get("choices")):
         return
-    assert isinstance(choices, Iterable), f"expected Iterable, found {type(choices)}"
+    assert isinstance(choices, Iterable), f"choices must be Iterable, found {type(choices)}"
     messages = [
         dict(_get_message(message))
         for choice in choices
