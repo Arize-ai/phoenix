@@ -5,10 +5,10 @@ from starlette.endpoints import HTTPEndpoint
 from starlette.requests import Request
 from starlette.responses import Response
 
+import phoenix.trace.v1 as pb
 from phoenix.trace.schemas import Span
 from phoenix.trace.span_json_decoder import json_to_span
-from phoenix.trace.v1 import encode
-from phoenix.trace.v1 import trace_pb2 as pb
+from phoenix.trace.v1.utils import encode
 
 
 class SupportsPutSpan(Protocol):
