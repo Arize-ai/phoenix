@@ -163,7 +163,7 @@ def payload_to_semantic_attributes(
     if response := (payload.get(EventPayload.RESPONSE) or payload.get(EventPayload.COMPLETION)):
         attributes.update(_get_response_output(response))
         if raw := getattr(response, "raw", None):
-            assert isinstance(raw, Mapping), f"raw must be Mapping, found {type(raw)}"
+            assert hasattr(raw, "get"), f"raw must be Mapping, found {type(raw)}"
             attributes.update(_get_output_messages(raw))
             if usage := raw.get("usage"):
                 # OpenAI token counts are available on raw.usage but can also be
@@ -236,7 +236,11 @@ class OpenInferenceTraceCallbackHandler(BaseCallbackHandler):
         ):
             raise NotImplementedError(
                 f"minimum supported version of llama-index is "
-                f"{'.'.join(map(str, LLAMA_INDEX_MINIMUM_VERSION_TRIPLET))}"
+                f"{'.'.join(map(str, LLAMA_INDEX_MINIMUM_VERSION_TRIPLET))}, "
+                f"but yours is {llama_index.__version__}. "
+                f"you can update to the latest using `pip install llama-index --upgrade`, "
+                f"or install the minimum required for Phoenix using "
+                f'`pip install "arize-phoenix[llama-index]"`',
             )
         super().__init__(event_starts_to_ignore=[], event_ends_to_ignore=[])
         self._tracer = Tracer(on_append=callback, exporter=exporter or HttpExporter())
@@ -561,7 +565,7 @@ def _get_message(message: object) -> Iterator[Tuple[str, Any]]:
 
 
 def _get_output_messages(raw: Mapping[str, Any]) -> Iterator[Tuple[str, Any]]:
-    assert isinstance(raw, Mapping), f"raw must be Mapping, found {type(raw)}"
+    assert hasattr(raw, "get"), f"raw must be Mapping, found {type(raw)}"
     if not (choices := raw.get("choices")):
         return
     assert isinstance(choices, Iterable), f"choices must be Iterable, found {type(choices)}"

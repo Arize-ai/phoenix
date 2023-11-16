@@ -66,6 +66,6 @@ _VERSION_TRIPLET_REGEX = re.compile(r"(\d+)\.(\d+)\.(\d+)")
 def extract_version_triplet(version: str) -> Optional[Tuple[int, int, int]]:
     return (
         cast(Tuple[int, int, int], tuple(map(int, match.groups())))
-        if (match := _VERSION_TRIPLET_REGEX.match(version))
+        if (match := _VERSION_TRIPLET_REGEX.search(version))
         else None
     )
