@@ -109,7 +109,7 @@ def llm_classify(
     # Wrap the loop in a try / catch so that we can still return a dataframe
     # even if the process is interrupted
     try:
-        for index, prompt in tqdm(enumerate(prompts)):
+        for index, prompt in enumerate(tqdm(prompts)):
             with set_verbosity(model, verbose) as verbose_model:
                 response = verbose_model(prompt, instruction=system_instruction, **model_kwargs)
             if not use_openai_function_call:
