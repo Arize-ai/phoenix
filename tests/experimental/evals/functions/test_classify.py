@@ -25,15 +25,15 @@ def classification_dataframe():
     return pd.DataFrame(
         [
             {
-                "query": "What is Python?",
+                "input": "What is Python?",
                 "reference": "Python is a programming language.",
             },
             {
-                "query": "What is Python?",
+                "input": "What is Python?",
                 "reference": "Ruby is a programming language.",
             },
-            {"query": "What is C++?", "reference": "C++ is a programming language."},
-            {"query": "What is C++?", "reference": "irrelevant"},
+            {"input": "What is C++?", "reference": "C++ is a programming language."},
+            {"input": "What is C++?", "reference": "irrelevant"},
         ],
     )
 
@@ -44,7 +44,7 @@ def test_llm_classify(
 ):
     monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
     dataframe = classification_dataframe
-    keys = list(zip(dataframe["query"], dataframe["reference"]))
+    keys = list(zip(dataframe["input"], dataframe["reference"]))
     responses = ["relevant", "irrelevant", "\nrelevant ", "unparsable"]
     response_mapping = {key: response for key, response in zip(keys, responses)}
 
@@ -88,7 +88,7 @@ def test_llm_classify_with_fn_call(
 ):
     monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
     dataframe = classification_dataframe
-    keys = list(zip(dataframe["query"], dataframe["reference"]))
+    keys = list(zip(dataframe["input"], dataframe["reference"]))
     responses = ["relevant", "irrelevant", "\nrelevant ", "unparsable"]
     response_mapping = {key: response for key, response in zip(keys, responses)}
 
@@ -120,7 +120,7 @@ def test_classify_fn_call_no_explain(
 ):
     monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
     dataframe = classification_dataframe
-    keys = list(zip(dataframe["query"], dataframe["reference"]))
+    keys = list(zip(dataframe["input"], dataframe["reference"]))
     responses = ["relevant", "irrelevant", "\nrelevant ", "unparsable"]
     response_mapping = {key: response for key, response in zip(keys, responses)}
 
@@ -156,7 +156,7 @@ def test_classify_fn_call_explain(
 ):
     monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
     dataframe = classification_dataframe
-    keys = list(zip(dataframe["query"], dataframe["reference"]))
+    keys = list(zip(dataframe["input"], dataframe["reference"]))
     responses = ["relevant", "irrelevant", "\nrelevant ", "unparsable"]
     response_mapping = {key: response for key, response in zip(keys, responses)}
 
@@ -196,7 +196,7 @@ def test_llm_classify_prints_to_stdout_with_verbose_flag(
 ):
     monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
     dataframe = classification_dataframe
-    keys = list(zip(dataframe["query"], dataframe["reference"]))
+    keys = list(zip(dataframe["input"], dataframe["reference"]))
     responses = ["relevant", "irrelevant", "\nrelevant ", "unparsable"]
     response_mapping = {key: response for key, response in zip(keys, responses)}
 
@@ -232,7 +232,7 @@ def test_llm_classify_shows_retry_info_with_verbose_flag(monkeypatch: pytest.Mon
     dataframe = pd.DataFrame(
         [
             {
-                "query": "What is Python?",
+                "input": "What is Python?",
                 "reference": "Python is a programming language.",
             },
         ]
@@ -294,7 +294,7 @@ def test_llm_classify_does_not_persist_verbose_flag(monkeypatch: pytest.MonkeyPa
     dataframe = pd.DataFrame(
         [
             {
-                "query": "What is Python?",
+                "input": "What is Python?",
                 "reference": "Python is a programming language.",
             },
         ]
@@ -362,14 +362,14 @@ def test_run_relevance_eval_standard_dataframe(
     dataframe = pd.DataFrame(
         [
             {
-                "query": "What is Python?",
+                "input": "What is Python?",
                 "reference": [
                     "Python is a programming language.",
                     "Ruby is a programming language.",
                 ],
             },
             {
-                "query": "Can you explain Python to me?",
+                "input": "Can you explain Python to me?",
                 "reference": np.array(
                     [
                         "Python is a programming language.",
@@ -378,41 +378,41 @@ def test_run_relevance_eval_standard_dataframe(
                 ),
             },
             {
-                "query": "What is Ruby?",
+                "input": "What is Ruby?",
                 "reference": [
                     "Ruby is a programming language.",
                 ],
             },
             {
-                "query": "What is C++?",
+                "input": "What is C++?",
                 "reference": [
                     "Ruby is a programming language.",
                     "C++ is a programming language.",
                 ],
             },
             {
-                "query": "What is C#?",
+                "input": "What is C#?",
                 "reference": [],
             },
             {
-                "query": "What is Golang?",
+                "input": "What is Golang?",
                 "reference": None,
             },
             {
-                "query": None,
+                "input": None,
                 "reference": [
                     "Python is a programming language.",
                     "Ruby is a programming language.",
                 ],
             },
             {
-                "query": None,
+                "input": None,
                 "reference": None,
             },
         ]
     )
 
-    queries = list(dataframe["query"])
+    queries = list(dataframe["input"])
     references = list(dataframe["reference"])
     keys = []
     for query, refs in zip(queries, references):
