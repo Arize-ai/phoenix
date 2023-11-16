@@ -8,7 +8,7 @@ You are comparing a reference text to a question and trying to determine if the 
 contains information relevant to answering the question. Here is the data:
     [BEGIN DATA]
     ************
-    [Question]: {query}
+    [Question]: {input}
     ************
     [Reference text]: {reference}
     ************
@@ -25,7 +25,7 @@ You are comparing a reference text to a question and trying to determine if the 
 contains information relevant to answering the question. Here is the data:
     [BEGIN DATA]
     ************
-    [Question]: {query}
+    [Question]: {input}
     ************
     [Reference text]: {reference}
     ************
@@ -63,11 +63,11 @@ your response.
 
     [BEGIN DATA]
     ************
-    [Query]: {query}
+    [Query]: {input}
     ************
     [Reference text]: {reference}
     ************
-    [Answer]: {response}
+    [Answer]: {output}
     ************
     [END DATA]
 
@@ -91,11 +91,11 @@ the reference text.
 
     [BEGIN DATA]
     ************
-    [Query]: {query}
+    [Query]: {input}
     ************
     [Reference text]: {reference}
     ************
-    [Answer]: {response}
+    [Answer]: {output}
     ************
     [END DATA]
 
@@ -122,7 +122,7 @@ TOXICITY_PROMPT_TEMPLATE_BASE_TEMPLATE = """
 You are examining written text content. Here is the text:
     [BEGIN DATA]
     ************
-    [Text]: {text}
+    [Text]: {input}
     ************
     [END DATA]
 
@@ -141,7 +141,7 @@ TOXICITY_PROMPT_TEMPLATE_WITH_EXPLANATION = """
 You are examining written text content. Here is the text:
     [BEGIN DATA]
     ************
-    [Text]: {text}
+    [Text]: {input}
     ************
     [END DATA]
 
@@ -172,11 +172,11 @@ You are given a question, an answer and reference text. You must determine wheth
 given answer correctly answers the question based on the reference text. Here is the data:
     [BEGIN DATA]
     ************
-    [Question]: {question}
+    [Question]: {input}
     ************
-    [Reference]: {context}
+    [Reference]: {reference}
     ************
-    [Answer]: {sampled_answer}
+    [Answer]: {output}
     [END DATA]
 Your response must be a single word, either "correct" or "incorrect",
 and should not contain any text or characters aside from that word.
@@ -189,11 +189,11 @@ You are given a question, an answer and reference text. You must determine wheth
 given answer correctly answers the question based on the reference text. Here is the data:
     [BEGIN DATA]
     ************
-    [Question]: {question}
+    [Question]: {input}
     ************
-    [Reference]: {context}
+    [Reference]: {reference}
     ************
-    [Answer]: {sampled_answer}
+    [Answer]: {output}
     [END DATA]
 Please read the query, reference text and answer carefully, then write out in a step by step manner
 an EXPLANATION to show how to determine if the answer is "correct" or "incorrect". Avoid simply
@@ -218,9 +218,9 @@ You are comparing the summary text and it's original document and trying to dete
 if the summary is good. Here is the data:
     [BEGIN DATA]
     ************
-    [Summary]: {summary}
+    [Summary]: {output}
     ************
-    [Original Document]: {document}
+    [Original Document]: {input}
     [END DATA]
 Compare the Summary above to the Original Document and determine if the Summary is
 comprehensive, concise, coherent, and independent relative to the Original Document.
@@ -234,9 +234,9 @@ You are comparing the summary text and it's original document and trying to dete
 if the summary is good. Here is the data:
     [BEGIN DATA]
     ************
-    [Summary]: {summary}
+    [Summary]: {output}
     ************
-    [Original Document]: {document}
+    [Original Document]: {input}
     [END DATA]
 Compare the Summary above to the Original Document. First, write out in a step by step manner
 an EXPLANATION to show how to determine if the Summary is comprehensive, concise, coherent, and
@@ -266,12 +266,12 @@ ONLY respond with "readable" or "unreadable"
 
 Task Assignment:
 ```
-{query}
+{input}
 ```
 
 Implementation to Evaluate:
 ```
-{code}
+{output}
 ```
 """
 CODE_READABILITY_PROMPT_TEMPLATE_WITH_EXPLANATION = """
@@ -283,12 +283,12 @@ to accomplish.
 
 Task Assignment:
 ```
-{query}
+{input}
 ```
 
 Implementation to Evaluate:
 ```
-{code}
+{output}
 ```
 
 Please read the code carefully, then write out in a step by step manner an EXPLANATION to show how
@@ -307,37 +307,37 @@ EXPLANATION:"""
 
 
 RAG_RELEVANCY_PROMPT_TEMPLATE = ClassificationTemplate(
-    rails=list(RAG_RELEVANCY_PROMPT_RAILS_MAP.keys()),  # type: ignore
+    rails=list(RAG_RELEVANCY_PROMPT_RAILS_MAP.values()),
     template=RAG_RELEVANCY_PROMPT_BASE_TEMPLATE,
     explanation_template=RAG_RELEVANCY_PROMPT_TEMPLATE_WITH_EXPLANATION,
 )
 
 HALLUCINATION_PROMPT_TEMPLATE = ClassificationTemplate(
-    rails=list(HALLUCINATION_PROMPT_RAILS_MAP.keys()),  # type: ignore
+    rails=list(HALLUCINATION_PROMPT_RAILS_MAP.values()),
     template=HALLUCINATION_PROMPT_BASE_TEMPLATE,
     explanation_template=HALLUCINATION_PROMPT_TEMPLATE_WITH_EXPLANATION,
 )
 
 TOXICITY_PROMPT_TEMPLATE = ClassificationTemplate(
-    rails=list(TOXICITY_PROMPT_RAILS_MAP.keys()),  # type: ignore
+    rails=list(TOXICITY_PROMPT_RAILS_MAP.values()),
     template=TOXICITY_PROMPT_TEMPLATE_BASE_TEMPLATE,
     explanation_template=TOXICITY_PROMPT_TEMPLATE_WITH_EXPLANATION,
 )
 
 QA_PROMPT_TEMPLATE = ClassificationTemplate(
-    rails=list(QA_PROMPT_RAILS_MAP.keys()),  # type: ignore
+    rails=list(QA_PROMPT_RAILS_MAP.values()),
     template=QA_PROMPT_BASE_TEMPLATE,
     explanation_template=QA_PROMPT_TEMPLATE_WITH_EXPLANATION,
 )
 
 SUMMARIZATION_PROMPT_TEMPLATE = ClassificationTemplate(
-    rails=list(SUMMARIZATION_PROMPT_RAILS_MAP.keys()),  # type: ignore
+    rails=list(SUMMARIZATION_PROMPT_RAILS_MAP.values()),
     template=SUMMARIZATION_PROMPT_BASE_TEMPLATE,
     explanation_template=SUMMARIZATION_PROMPT_TEMPLATE_WITH_EXPLANATION,
 )
 
 CODE_READABILITY_PROMPT_TEMPLATE = ClassificationTemplate(
-    rails=list(CODE_READABILITY_PROMPT_RAILS_MAP.keys()),  # type: ignore
+    rails=list(CODE_READABILITY_PROMPT_RAILS_MAP.values()),
     template=CODE_READABILITY_PROMPT_BASE_TEMPLATE,
     explanation_template=CODE_READABILITY_PROMPT_TEMPLATE_WITH_EXPLANATION,
 )
