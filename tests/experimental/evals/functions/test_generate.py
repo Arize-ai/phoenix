@@ -124,3 +124,58 @@ def test_llm_generate_with_output_parser(monkeypatch: pytest.MonkeyPatch, respx_
     assert generated["__error__"].tolist() == [np.nan] * 4 + [
         "Expecting value: line 1 column 1 (char 0)"
     ]
+
+
+@pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions", assert_all_called=False)
+def test_classify_tolerance_to_exceptions(
+    monkeypatch: pytest.MonkeyPatch, respx_mock: respx.mock, capfd
+):
+    monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
+    with patch.object(OpenAIModel, "_init_tiktoken", return_value=None):
+        model = OpenAIModel(max_retries=0)
+    dataframe = pd.DataFrame(
+        [
+            {
+                "query": "What is Python?",
+            },
+            {
+                "query": "What is Python?",
+            },
+            {
+                "query": "What is C++?",
+            },
+            {
+                "query": "What is C++?",
+            },
+            {
+                "query": "gobbledygook",
+            },
+        ]
+    )
+    responses = [
+        '{ "category": "programming", "language": "Python" }',
+        '{ "category": "programming", "language": "Python" }',
+        '{ "category": "programming", "language": "C++" }',
+        '{ "category": "programming", "language": "C++" }',
+        "gobbledygook",
+    ]
+    queries = dataframe["query"].tolist()
+    for query, response in zip(queries, responses):
+        matcher = M(content__contains=query)
+        # Simulate an error on the second query
+        if query == "What is C++?":
+            response = httpx.Response(500, json={"error": "Internal Server Error"})
+        else:
+            response = httpx.Response(200, json={"choices": [{"message": {"content": response}}]})
+        respx_mock.route(matcher).mock(return_value=response)
+
+    df = llm_generate(
+        dataframe=dataframe,
+        template="Given {query}, generate output",
+        model=model,
+    )
+
+    assert df is not None
+    # Make sure there is a logger.error output
+    captured = capfd.readouterr()
+    assert "Process was interrupted" in captured.out
