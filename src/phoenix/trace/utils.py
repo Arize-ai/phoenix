@@ -1,8 +1,9 @@
 import importlib
 import json
+import re
 from traceback import format_exception
 from types import ModuleType
-from typing import List, Optional
+from typing import List, Optional, Tuple, cast
 
 import pandas as pd
 
@@ -57,3 +58,14 @@ def import_package(package_name: str, pypi_name: Optional[str] = None) -> Module
             f"The {package_name} package is not installed. "
             f"Install with `pip install {pypi_name or package_name}`."
         )
+
+
+_VERSION_TRIPLET_REGEX = re.compile(r"(\d+)\.(\d+)\.(\d+)")
+
+
+def extract_version_triplet(version: str) -> Optional[Tuple[int, int, int]]:
+    return (
+        cast(Tuple[int, int, int], tuple(map(int, match.groups())))
+        if (match := _VERSION_TRIPLET_REGEX.search(version))
+        else None
+    )
