@@ -15,7 +15,7 @@ from phoenix.experimental.evals import (
     llm_classify,
     run_relevance_eval,
 )
-from phoenix.experimental.evals.functions.classify import _snap_to_rail
+from phoenix.experimental.evals.functions.classify import _snap_to_rail, AsyncExecutor
 from phoenix.experimental.evals.models.openai import OPENAI_API_KEY_ENVVAR_NAME
 from respx.patterns import M
 
@@ -593,3 +593,32 @@ def test_overlapping_rails():
     assert _snap_to_rail("a", ["a", "b", "c"]) == "a"
     assert _snap_to_rail(" abc", ["a", "ab", "abc"]) == "abc"
     assert _snap_to_rail("abc", ["abc", "a", "ab"]) == "abc"
+
+
+async def test_async_executor_submits():
+    async def dummy_fn(payload: int) -> int:
+        return payload - 1
+
+    executor = AsyncExecutor(dummy_fn, num_consumers=10)
+    inputs = [1, 2, 3, 4, 5]
+    outputs = await executor.submit(inputs)
+    assert outputs == [0, 1, 2, 3, 4]
+
+async def test_async_executor_submits_many_tasks():
+    async def dummy_fn(payload: int) -> int:
+        return payload
+
+    executor = AsyncExecutor(dummy_fn, num_consumers=10)
+    inputs = [x for x in range(1000)]
+    outputs = await executor.submit(inputs)
+    assert outputs == inputs
+
+
+def test_async_executor_runs_synchronously():
+    async def dummy_fn(payload: int) -> int:
+        return payload - 2
+
+    executor = AsyncExecutor(dummy_fn, num_consumers=10)
+    inputs = [1, 2, 3, 4, 5]
+    outputs = executor.run(inputs)
+    assert outputs == [-1, 0, 1, 2, 3]
