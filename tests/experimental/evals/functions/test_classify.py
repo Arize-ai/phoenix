@@ -1,14 +1,14 @@
+from contextlib import ExitStack
 from itertools import product
 from typing import List
 from unittest.mock import MagicMock, patch
 
-from contextlib import ExitStack
 import httpx
 import numpy as np
 import pandas as pd
-from pandas.core.frame import DataFrame
 import pytest
 import respx
+from pandas.core.frame import DataFrame
 from pandas.testing import assert_frame_equal
 from phoenix.experimental.evals import (
     NOT_PARSABLE,
@@ -209,7 +209,10 @@ def test_classify_fn_call_explain(
 
 @pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
 def test_llm_classify_prints_to_stdout_with_verbose_flag(
-    classification_dataframe: DataFrame, monkeypatch: pytest.MonkeyPatch, respx_mock: respx.mock, capfd: pytest.CaptureFixture[str]
+    classification_dataframe: DataFrame,
+    monkeypatch: pytest.MonkeyPatch,
+    respx_mock: respx.mock,
+    capfd: pytest.CaptureFixture[str],
 ):
     monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
     dataframe = classification_dataframe
@@ -244,7 +247,9 @@ def test_llm_classify_prints_to_stdout_with_verbose_flag(
     assert "sk-0123456789" not in out, "Credentials should not be printed out in cleartext"
 
 
-def test_llm_classify_shows_retry_info_with_verbose_flag(monkeypatch: pytest.MonkeyPatch, capfd: pytest.CaptureFixture[str]):
+def test_llm_classify_shows_retry_info_with_verbose_flag(
+    monkeypatch: pytest.MonkeyPatch, capfd: pytest.CaptureFixture[str]
+):
     monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
     dataframe = pd.DataFrame(
         [
@@ -283,7 +288,9 @@ def test_llm_classify_shows_retry_info_with_verbose_flag(monkeypatch: pytest.Mon
     with ExitStack() as stack:
         waiting_fn = "phoenix.experimental.evals.models.base.wait_random_exponential"
         stack.enter_context(patch(waiting_fn, return_value=False))
-        stack.enter_context(patch.object(model._async_client.chat.completions, "create", mock_openai))
+        stack.enter_context(
+            patch.object(model._async_client.chat.completions, "create", mock_openai)
+        )
         llm_classify(
             dataframe=dataframe,
             template=RAG_RELEVANCY_PROMPT_TEMPLATE,
@@ -300,7 +307,9 @@ def test_llm_classify_shows_retry_info_with_verbose_flag(monkeypatch: pytest.Mon
     assert "Failed attempt 5" not in out, "Maximum retries should not be exceeded"
 
 
-def test_llm_classify_does_not_persist_verbose_flag(monkeypatch: pytest.MonkeyPatch, capfd: pytest.CaptureFixture[str]):
+def test_llm_classify_does_not_persist_verbose_flag(
+    monkeypatch: pytest.MonkeyPatch, capfd: pytest.CaptureFixture[str]
+):
     monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
     dataframe = pd.DataFrame(
         [
@@ -328,7 +337,9 @@ def test_llm_classify_does_not_persist_verbose_flag(monkeypatch: pytest.MonkeyPa
     with ExitStack() as stack:
         waiting_fn = "phoenix.experimental.evals.models.base.wait_random_exponential"
         stack.enter_context(patch(waiting_fn, return_value=False))
-        stack.enter_context(patch.object(model._async_client.chat.completions, "create", mock_openai))
+        stack.enter_context(
+            patch.object(model._async_client.chat.completions, "create", mock_openai)
+        )
         llm_classify(
             dataframe=dataframe,
             template=RAG_RELEVANCY_PROMPT_TEMPLATE,
@@ -347,7 +358,9 @@ def test_llm_classify_does_not_persist_verbose_flag(monkeypatch: pytest.MonkeyPa
     with ExitStack() as stack:
         waiting_fn = "phoenix.experimental.evals.models.base.wait_random_exponential"
         stack.enter_context(patch(waiting_fn, return_value=False))
-        stack.enter_context(patch.object(model._async_client.chat.completions, "create", mock_openai))
+        stack.enter_context(
+            patch.object(model._async_client.chat.completions, "create", mock_openai)
+        )
         llm_classify(
             dataframe=dataframe,
             template=RAG_RELEVANCY_PROMPT_TEMPLATE,
@@ -478,6 +491,7 @@ def test_classify_tolerance_to_exceptions(
     respx_mock: respx.mock,
     capfd,
 ):
+    monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
     with patch.object(OpenAIModel, "_init_tiktoken", return_value=None):
         model = OpenAIModel(max_retries=0)
     queries = classification_dataframe["input"].tolist()
@@ -500,7 +514,7 @@ def test_classify_tolerance_to_exceptions(
     assert classification_df is not None
     # Make sure there is a logger.error output
     captured = capfd.readouterr()
-    assert "Exception while processing prompt" in captured.out
+    assert "Exception in consumer" in captured.out
 
 
 def test_run_relevance_eval_openinference_dataframe(
@@ -660,30 +674,25 @@ def test_async_executor_runs_synchronously():
     assert outputs == [-1, 0, 1, 2, 3]
 
 
-async def test_async_executor_executes():
+async def test_async_executor_execute_exits_early_on_error():
     async def dummy_fn(payload: int) -> int:
+        if payload == 3:
+            raise ValueError("test error")
         return payload - 1
 
-    executor = AsyncExecutor(dummy_fn, num_consumers=10)
+    executor = AsyncExecutor(dummy_fn, num_consumers=1, generation_fn_fallback_return_value=52)
     inputs = [1, 2, 3, 4, 5]
     outputs = await executor.execute(inputs)
-    assert outputs == [0, 1, 2, 3, 4]
+    assert outputs == [0, 1, 52, 52, 52]
 
-async def test_async_executor_executes_many_tasks():
+
+def test_async_executor_run_exits_early_on_error():
     async def dummy_fn(payload: int) -> int:
-        return payload
+        if payload == 3:
+            raise ValueError("test error")
+        return payload - 1
 
-    executor = AsyncExecutor(dummy_fn, num_consumers=10)
-    inputs = [x for x in range(1000)]
-    outputs = await executor.execute(inputs)
-    assert outputs == inputs
-
-
-def test_async_executor_runs_synchronously():
-    async def dummy_fn(payload: int) -> int:
-        return payload - 2
-
-    executor = AsyncExecutor(dummy_fn, num_consumers=10)
+    executor = AsyncExecutor(dummy_fn, num_consumers=1, generation_fn_fallback_return_value=52)
     inputs = [1, 2, 3, 4, 5]
     outputs = executor.run(inputs)
-    assert outputs == [-1, 0, 1, 2, 3]
+    assert outputs == [0, 1, 52, 52, 52]

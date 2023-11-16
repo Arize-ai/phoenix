@@ -20,7 +20,7 @@ from typing import (
 
 import nest_asyncio
 import pandas as pd
-from tqdm.auto import asyncio_tqdm
+from tqdm.auto import asyncio_tqdm  # type: ignore
 
 from phoenix.experimental.evals.models import BaseEvalModel, OpenAIModel, set_verbosity
 from phoenix.experimental.evals.templates import (
@@ -50,29 +50,46 @@ _EXPLANATION = "explanation"
 
 
 class AsyncExecutor:
+    _unset = object()
+    
     def __init__(
         self,
         generation_fn: Callable[[Any], Coroutine[Any, Any, Any]],
         num_consumers: int = 20,
         tqdm_bar_format: Optional[str] = None,
+        exit_on_exceptions: bool = True,
+        generation_fn_fallback_return_value: Union[Any, object] = _unset,
     ):
         self.generate = generation_fn
+        self.fallback_return_value = generation_fn_fallback_return_value
         self.num_consumers = num_consumers
         self.tqdm_bar_format = tqdm_bar_format
+        self.exit_on_exceptions = exit_on_exceptions
 
         # An end of queue sentinel is used to signal to consumers that the queue is empty and that
         # they should exit. This is necessary because some consumers may still be waiting for an
         # item to be added to the queue when the producer finishes.
         self.end_of_queue = object()
-        self.unset = object()
-        
+
         signal.signal(signal.SIGINT, self._signal_handler)
         self._TERMINATE = False
-    
-    def _signal_handler(self, signum, frame):
+
+    def _signal_handler(self, signum: int, frame: Any) -> None:
         asyncio_tqdm.write("Process was interrupted. The return value will be incomplete...")
         self._TERMINATE = True
-        
+    
+    async def _terminate(self, queue: asyncio.Queue[Union[object, Tuple[int, Any]]]) -> None:
+        # clears the queue and adds an end of queue sentinel for each consumer, gracefully stopping
+        # all consumers.
+        self._TERMINATE = True
+        while not queue.empty():
+            try:
+                await asyncio.wait_for(queue.get(), timeout=0.1)
+            except asyncio.TimeoutError:
+                break
+        for _ in range(self.num_consumers):
+            await queue.put(self.end_of_queue)
+
     async def producer(
         self,
         inputs: Sequence[Any],
@@ -82,9 +99,9 @@ class AsyncExecutor:
             if self._TERMINATE:
                 break
             await queue.put((index, input))
+        # adds an end of queue sentinel for each consumer, guaranteeing that any consumer that is
+        # currently waiting for an item will gracefully stop.
         for _ in range(self.num_consumers):
-            # adds an end of queue sentinel for each consumer, guaranteeing that any consumer
-            # that is currently waiting for an item will exit.
             await queue.put(self.end_of_queue)
 
     async def consumer(
@@ -95,16 +112,23 @@ class AsyncExecutor:
     ) -> None:
         while not self._TERMINATE:
             if (item := await queue.get()) is self.end_of_queue:
-                break
+                return
 
             item = cast(Tuple[int, Any], item)
             index, payload = item
-            result = await self.generate(payload)
-            output[index] = result
-            progress_bar.update()
+            try:
+                result = await self.generate(payload)
+                output[index] = result
+                progress_bar.update()
+            except Exception as e:
+                asyncio_tqdm.write(f"Exception in consumer: {e}")
+                if self.exit_on_exceptions:
+                    await self._terminate(queue)
+                else:
+                    progress_bar.update()
 
     async def execute(self, inputs: Sequence[Any]) -> List[Any]:
-        outputs = [self.unset] * len(inputs)
+        outputs = [self.fallback_return_value] * len(inputs)
         progress_bar = asyncio_tqdm(total=len(inputs), bar_format=self.tqdm_bar_format)
 
         queue: asyncio.Queue[Union[object, Tuple[int, Any]]] = asyncio.Queue(
@@ -180,11 +204,7 @@ def llm_classify(
         from the entries in the rails argument or "NOT_PARSABLE" if the model's output could
         not be parsed.
     """
-    tqdm_bar_format = (
-        "Eta:{eta} |{bar}| {percentage:3.1f}% "
-        "({n_fmt}/{total_fmt}) "
-        "[{elapsed}<{remaining}, {rate_fmt}{postfix}]"
-    )
+    tqdm_bar_format = get_tqdm_progress_bar_formatter("llm_classify")
     use_openai_function_call = (
         use_function_calling_if_available
         and isinstance(model, OpenAIModel)
@@ -210,38 +230,38 @@ def llm_classify(
         printif(verbose, generation_info)
 
     async def _classify_prompt(prompt: str) -> Tuple[str, Optional[str]]:
-        try:
-            with set_verbosity(model, verbose) as verbose_model:
-                response = await verbose_model._async_generate(
-                    prompt, instruction=system_instruction, **model_kwargs
+        with set_verbosity(model, verbose) as verbose_model:
+            response = await verbose_model._async_generate(
+                prompt, instruction=system_instruction, **model_kwargs
+            )
+        if not use_openai_function_call:
+            if provide_explanation:
+                unrailed_label, explanation = (
+                    eval_template.extract_label_from_explanation(response),
+                    response,
                 )
-            if not use_openai_function_call:
-                if provide_explanation:
-                    unrailed_label, explanation = (
-                        eval_template.extract_label_from_explanation(response),
-                        response,
-                    )
-                    printif(
-                        verbose and unrailed_label == NOT_PARSABLE,
-                        f"- Could not parse {repr(response)}",
-                    )
-                else:
-                    unrailed_label = response
-                    explanation = None
+                printif(
+                    verbose and unrailed_label == NOT_PARSABLE,
+                    f"- Could not parse {repr(response)}",
+                )
             else:
-                try:
-                    function_arguments = json.loads(response, strict=False)
-                    unrailed_label = function_arguments.get(_RESPONSE)
-                    explanation = function_arguments.get(_EXPLANATION)
-                except json.JSONDecodeError:
-                    unrailed_label = response
-                    explanation = None
-            return _snap_to_rail(unrailed_label, rails, verbose=verbose), explanation
-        except Exception as e:
-            asyncio_tqdm.write(f"- Exception while processing prompt: {e}")
-            return None, None
+                unrailed_label = response
+                explanation = None
+        else:
+            try:
+                function_arguments = json.loads(response, strict=False)
+                unrailed_label = function_arguments.get(_RESPONSE)
+                explanation = function_arguments.get(_EXPLANATION)
+            except json.JSONDecodeError:
+                unrailed_label = response
+                explanation = None
+        return _snap_to_rail(unrailed_label, rails, verbose=verbose), explanation
 
-    executor = AsyncExecutor(_classify_prompt, tqdm_bar_format=get_tqdm_progress_bar_formatter("llm_classify"))
+    executor = AsyncExecutor(
+        _classify_prompt,
+        generation_fn_fallback_return_value=(None, None),
+        tqdm_bar_format=tqdm_bar_format,
+    )
     results = executor.run(prompts.tolist())
     labels, explanations = zip(*results)
 
