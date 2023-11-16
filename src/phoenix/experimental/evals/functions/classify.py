@@ -110,7 +110,9 @@ def llm_classify(
     # Wrap the loop in a try / catch so that we can still return a dataframe
     # even if the process is interrupted
     try:
-        for index, prompt in enumerate(tqdm(prompts, bar_format=get_tqdm_progress_bar_formatter("llm_classify"))):
+        for index, prompt in enumerate(
+            tqdm(prompts, bar_format=get_tqdm_progress_bar_formatter("llm_classify"))
+        ):
             with set_verbosity(model, verbose) as verbose_model:
                 response = verbose_model(prompt, instruction=system_instruction, **model_kwargs)
             if not use_openai_function_call:
@@ -146,7 +148,7 @@ def llm_classify(
     return pd.DataFrame(
         data={
             "label": labels,
-            **({"explanation": cast(List[str], explanations)} if provide_explanation else {}),
+            **({"explanation": explanations} if provide_explanation else {}),
         },
         index=dataframe.index,
     )
