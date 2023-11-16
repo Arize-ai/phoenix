@@ -18,6 +18,7 @@ from typing import (
 import pandas as pd
 
 from phoenix.config import get_env_host, get_env_port, get_exported_files
+from phoenix.core.evals import Evals
 from phoenix.core.model_schema_adapter import create_model_from_datasets
 from phoenix.core.traces import Traces
 from phoenix.datasets.dataset import EMPTY_DATASET, Dataset
@@ -104,6 +105,8 @@ class Session(ABC):
         if trace_dataset:
             for span in trace_dataset.to_spans():
                 self.traces.put(span)
+
+        self.evals: Evals = Evals()
 
         self.host = host or get_env_host()
         self.port = port or get_env_port()
@@ -263,6 +266,7 @@ class ThreadSession(Session):
             model=self.model,
             corpus=self.corpus,
             traces=self.traces,
+            evals=self.evals,
             umap_params=self.umap_parameters,
         )
         self.server = ThreadServer(

@@ -1,0 +1,30 @@
+syntax = "proto3";
+package phoenix.proto.evaluation.v1;
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/struct.proto";
+import "google/protobuf/wrappers.proto";
+
+message Evaluation {
+  message SubjectID {
+    message DocumentRetrievalID {
+      string span_id = 1;
+      int32 document_position = 2;  // zero-based-index
+    }
+    oneof kind {
+      string trace_id = 1;
+      string span_id = 2;
+      DocumentRetrievalID document_retrieval_id = 3;
+    }
+  }
+  SubjectID subject_id = 1;
+  message Result {
+    google.protobuf.DoubleValue score = 1;
+    google.protobuf.StringValue label = 2;
+    google.protobuf.StringValue explanation = 3;
+  }
+  Result result = 2;
+  string name = 3;
+  google.protobuf.Timestamp timestamp = 4;
+  google.protobuf.Struct attributes = 5;
+}

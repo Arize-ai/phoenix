@@ -179,6 +179,15 @@ type DimensionWithValue {
   value: String
 }
 
+type DocumentEvaluation implements Evaluation {
+  name: String!
+  score: Float
+  label: String
+  explanation: String
+  spanId: String!
+  documentPosition: Int!
+}
+
 type DriftTimeSeries implements TimeSeries {
   data: [TimeSeriesDataPoint!]!
 }
@@ -259,6 +268,13 @@ type EmbeddingMetadata {
   predictionId: String
   rawData: String
   linkToData: String
+}
+
+interface Evaluation {
+  name: String!
+  score: Float
+  label: String
+  explanation: String
 }
 
 type Event {
@@ -460,6 +476,7 @@ type Query {
     clusterSelectionEpsilon: Float! = 0
   ): [Cluster!]!
   spans(timeRange: TimeRange, traceIds: [ID!], first: Int = 50, last: Int, after: String, before: String, sort: SpanSort, rootSpansOnly: Boolean = false, filterCondition: String = null): SpanConnection!
+  spanEvaluationNames: [String!]!
   traceDatasetInfo: TraceDatasetInfo
   validateSpanFilterCondition(condition: String!): ValidationResult!
 }
@@ -527,6 +544,12 @@ type Span {
   """
   cumulativeTokenCountCompletion: Int
 
+  """Span evaluations"""
+  spanEvaluations: [SpanEvaluation!]!
+
+  """Document evaluations"""
+  documentEvaluations: [DocumentEvaluation!]!
+
   """All descendant spans (children, grandchildren, etc.)"""
   descendants: [Span!]!
 }
@@ -556,6 +579,14 @@ type SpanContext {
 type SpanEdge {
   node: Span!
   cursor: String!
+}
+
+type SpanEvaluation implements Evaluation {
+  name: String!
+  score: Float
+  label: String
+  explanation: String
+  spanId: String!
 }
 
 type SpanEvent {

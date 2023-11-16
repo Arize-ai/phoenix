@@ -236,8 +236,17 @@ class Query:
             spans = filter(predicate, spans)
         if sort:
             spans = sort(spans)
-        data = list(map(to_gql_span, spans))
+        data = [to_gql_span(span, info.context.evals) for span in spans]
         return connection_from_list(data=data, args=args)
+
+    @strawberry.field
+    def span_evaluation_names(
+        self,
+        info: Info[Context, None],
+    ) -> List[str]:
+        if (evals := info.context.evals) is None:
+            return []
+        return evals.get_span_evaluation_names()
 
     @strawberry.field
     def trace_dataset_info(
