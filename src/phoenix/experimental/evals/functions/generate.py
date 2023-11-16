@@ -66,11 +66,20 @@ def llm_generate(
 
         # For each prompt, generate and parse the response
         output = []
-        for prompt in prompts:
-            logger.info(f"Prompt: {prompt}")
-            response = verbose_model(prompt, instruction=system_instruction)
-            parsed_response = output_parser(response)
-            output.append(parsed_response)
+        # Wrap the loop in a try / catch so that we can still return a dataframe
+        # even if the process is interrupted
+        try:
+            for prompt in prompts:
+                logger.info(f"Prompt: {prompt}")
+                response = verbose_model(prompt, instruction=system_instruction)
+                parsed_response = output_parser(response)
+                output.append(parsed_response)
 
+        except (Exception, KeyboardInterrupt) as e:
+            logger.error(e)
+            print(
+                "Process was interrupted. The return value will be incomplete",
+                e,
+            )
         # Return the data as a dataframe
         return pd.DataFrame(output)

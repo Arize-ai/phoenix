@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import signal
 from typing import (
     Any,
     Callable,
@@ -19,7 +20,7 @@ from typing import (
 
 import nest_asyncio
 import pandas as pd
-from tqdm.asyncio import tqdm as async_tqdm
+from tqdm.auto import asyncio_tqdm
 
 from phoenix.experimental.evals.models import BaseEvalModel, OpenAIModel, set_verbosity
 from phoenix.experimental.evals.templates import (
@@ -32,6 +33,7 @@ from phoenix.experimental.evals.templates import (
     map_template,
     normalize_classification_template,
 )
+from phoenix.experimental.evals.utils import get_tqdm_progress_bar_formatter
 from phoenix.trace.semantic_conventions import DOCUMENT_CONTENT, INPUT_VALUE, RETRIEVAL_DOCUMENTS
 from phoenix.utilities.logging import printif
 
@@ -64,12 +66,21 @@ class AsyncExecutor:
         self.end_of_queue = object()
         self.unset = object()
         
+        signal.signal(signal.SIGINT, self._signal_handler)
+        self._TERMINATE = False
+    
+    def _signal_handler(self, signum, frame):
+        asyncio_tqdm.write("Process was interrupted. The return value will be incomplete...")
+        self._TERMINATE = True
+        
     async def producer(
         self,
         inputs: Sequence[Any],
         queue: asyncio.Queue[Union[object, Tuple[int, Any]]],
     ) -> None:
         for index, input in enumerate(inputs):
+            if self._TERMINATE:
+                break
             await queue.put((index, input))
         for _ in range(self.num_consumers):
             # adds an end of queue sentinel for each consumer, guaranteeing that any consumer
@@ -80,9 +91,9 @@ class AsyncExecutor:
         self,
         output: List[Any],
         queue: asyncio.Queue[Union[object, Tuple[int, Any]]],
-        progress_bar: async_tqdm[Any],
+        progress_bar: asyncio_tqdm[Any],
     ) -> None:
-        while True:
+        while not self._TERMINATE:
             if (item := await queue.get()) is self.end_of_queue:
                 break
 
@@ -94,7 +105,7 @@ class AsyncExecutor:
 
     async def execute(self, inputs: Sequence[Any]) -> List[Any]:
         outputs = [self.unset] * len(inputs)
-        progress_bar = async_tqdm(total=len(inputs), bar_format=self.tqdm_bar_format)
+        progress_bar = asyncio_tqdm(total=len(inputs), bar_format=self.tqdm_bar_format)
 
         queue: asyncio.Queue[Union[object, Tuple[int, Any]]] = asyncio.Queue(
             maxsize=2 * self.num_consumers
@@ -191,42 +202,46 @@ def llm_classify(
     prompt_options = PromptOptions(provide_explanation=provide_explanation)
     prompts = map_template(dataframe, eval_template, options=prompt_options)
 
-    labels: List[str] = []
-    explanations: List[Optional[str]] = []
+    labels: List[Optional[str]] = [None] * len(dataframe)
+    explanations: List[Optional[str]] = [None] * len(dataframe)
 
     printif(verbose, f"Using prompt:\n\n{eval_template.prompt(prompt_options)}")
     if generation_info := model.verbose_generation_info():
         printif(verbose, generation_info)
 
     async def _classify_prompt(prompt: str) -> Tuple[str, Optional[str]]:
-        with set_verbosity(model, verbose) as verbose_model:
-            response = await verbose_model._async_generate(
-                prompt, instruction=system_instruction, **model_kwargs
-            )
-        if not model_kwargs.get("function_call"):
-            if provide_explanation:
-                unrailed_label, explanation = (
-                    eval_template.extract_label_from_explanation(response),
-                    response,
+        try:
+            with set_verbosity(model, verbose) as verbose_model:
+                response = await verbose_model._async_generate(
+                    prompt, instruction=system_instruction, **model_kwargs
                 )
-                printif(
-                    verbose and unrailed_label == NOT_PARSABLE,
-                    f"- Could not parse {repr(response)}",
-                )
+            if not use_openai_function_call:
+                if provide_explanation:
+                    unrailed_label, explanation = (
+                        eval_template.extract_label_from_explanation(response),
+                        response,
+                    )
+                    printif(
+                        verbose and unrailed_label == NOT_PARSABLE,
+                        f"- Could not parse {repr(response)}",
+                    )
+                else:
+                    unrailed_label = response
+                    explanation = None
             else:
-                unrailed_label = response
-                explanation = None
-        else:
-            try:
-                function_arguments = json.loads(response, strict=False)
-                unrailed_label = function_arguments.get(_RESPONSE)
-                explanation = function_arguments.get(_EXPLANATION)
-            except json.JSONDecodeError:
-                unrailed_label = response
-                explanation = None
-        return _snap_to_rail(unrailed_label, rails, verbose=verbose), explanation
+                try:
+                    function_arguments = json.loads(response, strict=False)
+                    unrailed_label = function_arguments.get(_RESPONSE)
+                    explanation = function_arguments.get(_EXPLANATION)
+                except json.JSONDecodeError:
+                    unrailed_label = response
+                    explanation = None
+            return _snap_to_rail(unrailed_label, rails, verbose=verbose), explanation
+        except Exception as e:
+            asyncio_tqdm.write(f"- Exception while processing prompt: {e}")
+            return None, None
 
-    executor = AsyncExecutor(_classify_prompt, tqdm_bar_format=tqdm_bar_format)
+    executor = AsyncExecutor(_classify_prompt, tqdm_bar_format=get_tqdm_progress_bar_formatter("llm_classify"))
     results = executor.run(prompts.tolist())
     labels, explanations = zip(*results)
 
@@ -245,7 +260,7 @@ def run_relevance_eval(
     template: Union[ClassificationTemplate, str] = RAG_RELEVANCY_PROMPT_TEMPLATE,
     rails: List[str] = list(RAG_RELEVANCY_PROMPT_RAILS_MAP.values()),
     system_instruction: Optional[str] = None,
-    query_column_name: str = "query",
+    query_column_name: str = "input",
     document_column_name: str = "reference",
     verbose: bool = False,
 ) -> List[List[str]]:
