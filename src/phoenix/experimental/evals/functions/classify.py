@@ -147,7 +147,6 @@ def llm_classify(
             "label": labels,
             **({"explanation": cast(List[str], explanations)} if provide_explanation else {}),
         },
-        # trim down the index to the length of the labels
         index=dataframe.index,
     )
 
