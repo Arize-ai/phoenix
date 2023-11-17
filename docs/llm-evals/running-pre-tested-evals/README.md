@@ -19,7 +19,7 @@ model("What is the largest costal city in France?")
 
 We currently support a growing set of models for LLM Evals, please check out the [API section for usage](../../api/evaluation-models.md).&#x20;
 
-<table data-full-width="false"><thead><tr><th width="357">Model</th><th>Support </th></tr></thead><tbody><tr><td>GPT-4 </td><td>✔</td></tr><tr><td>GPT-3.5 Turbo</td><td>✔</td></tr><tr><td>GPT-3.5 Instruct</td><td>✔</td></tr><tr><td>Azure Hosted Open AI </td><td>✔</td></tr><tr><td>Palm 2 Vertex</td><td>✔</td></tr><tr><td>AWS Bedrock</td><td>✔</td></tr><tr><td>Litellm</td><td>(coming soon)</td></tr><tr><td>Huggingface Llama7B</td><td>(coming soon)</td></tr><tr><td>Anthropic</td><td>(coming soon)</td></tr><tr><td>Cohere</td><td>(coming soon)</td></tr></tbody></table>
+<table data-full-width="false"><thead><tr><th width="357">Model</th><th>Support </th></tr></thead><tbody><tr><td>GPT-4 </td><td>✔</td></tr><tr><td>GPT-3.5 Turbo</td><td>✔</td></tr><tr><td>GPT-3.5 Instruct</td><td>✔</td></tr><tr><td>Azure Hosted Open AI </td><td>✔</td></tr><tr><td>Palm 2 Vertex</td><td>✔</td></tr><tr><td>AWS Bedrock</td><td>✔</td></tr><tr><td>Litellm</td><td>✔</td></tr><tr><td>Huggingface Llama7B</td><td>(coming soon)</td></tr><tr><td>Anthropic</td><td>(coming soon)</td></tr><tr><td>Cohere</td><td>(coming soon)</td></tr></tbody></table>
 
 ## How we benchmark pre-tested evals&#x20;
 
