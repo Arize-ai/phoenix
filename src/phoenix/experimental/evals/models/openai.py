@@ -207,6 +207,7 @@ class OpenAIModel(BaseEvalModel):
             api_key=self.api_key,
             organization=self.organization,
             base_url=(self.base_url or self._openai.base_url),
+            max_retries=0,
         )
 
     def _init_tiktoken(self) -> None:

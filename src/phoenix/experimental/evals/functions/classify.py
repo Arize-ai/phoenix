@@ -159,6 +159,7 @@ def llm_classify(
     verbose: bool = False,
     use_function_calling_if_available: bool = True,
     provide_explanation: bool = False,
+    concurrency: int = 3,
 ) -> pd.DataFrame:
     """Classifies each input row of the dataframe using an LLM. Returns a pandas.DataFrame
     where the first column is named `label` and contains the classification labels. An optional
@@ -192,6 +193,8 @@ def llm_classify(
         provide_explanation (bool, default=False): If True, provides an explanation for each
         classification label. A column named `explanation` is added to the output dataframe.
         Currently, this is only available for models with function calling.
+        
+        concurrency (int, defualt=3): The number of concurrent evals.
 
     Returns:
         pandas.DataFrame: A dataframe where the `label` column (at column position 0) contains
