@@ -72,11 +72,11 @@ class BaseEvalModel(ABC):
 
             if exc:
                 printif(
-                    self._verbose,
+                    True,
                     f"Failed attempt {retry_state.attempt_number}: raised {repr(exc)}",
                 )
             else:
-                printif(self._verbose, f"Failed attempt {retry_state.attempt_number}")
+                printif(True, f"Failed attempt {retry_state.attempt_number}")
             return None
 
         retry_instance: retry_base = retry_if_exception_type(error_types[0])

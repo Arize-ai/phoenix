@@ -249,7 +249,7 @@ def test_llm_classify_prints_to_stdout_with_verbose_flag(
     assert "sk-0123456789" not in out, "Credentials should not be printed out in cleartext"
 
 
-def test_llm_classify_shows_retry_info_with_verbose_flag(
+def test_llm_classify_shows_retry_info(
     monkeypatch: pytest.MonkeyPatch, capfd: pytest.CaptureFixture[str]
 ):
     monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
@@ -298,7 +298,6 @@ def test_llm_classify_shows_retry_info_with_verbose_flag(
             template=RAG_RELEVANCY_PROMPT_TEMPLATE,
             model=model,
             rails=["relevant", "irrelevant"],
-            verbose=True,
         )
 
     out, _ = capfd.readouterr()
@@ -307,71 +306,6 @@ def test_llm_classify_shows_retry_info_with_verbose_flag(
     assert "Failed attempt 3" in out, "Retry information should be printed"
     assert "Failed attempt 4" in out, "Retry information should be printed"
     assert "Failed attempt 5" not in out, "Maximum retries should not be exceeded"
-
-
-def test_llm_classify_does_not_persist_verbose_flag(
-    monkeypatch: pytest.MonkeyPatch, capfd: pytest.CaptureFixture[str]
-):
-    monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
-    dataframe = pd.DataFrame(
-        [
-            {
-                "input": "What is Python?",
-                "reference": "Python is a programming language.",
-            },
-        ]
-    )
-
-    model = OpenAIModel(max_retries=2)
-
-    request = httpx.Request("POST", "https://api.openai.com/v1/chat/completions")
-    openai_retry_errors = [
-        model._openai.APITimeoutError("test timeout"),
-        model._openai.APIError(
-            message="test api error",
-            request=request,
-            body={},
-        ),
-    ]
-    mock_openai = MagicMock()
-    mock_openai.side_effect = openai_retry_errors
-
-    with ExitStack() as stack:
-        waiting_fn = "phoenix.experimental.evals.models.base.wait_random_exponential"
-        stack.enter_context(patch(waiting_fn, return_value=False))
-        stack.enter_context(
-            patch.object(model._async_client.chat.completions, "create", mock_openai)
-        )
-        llm_classify(
-            dataframe=dataframe,
-            template=RAG_RELEVANCY_PROMPT_TEMPLATE,
-            model=model,
-            rails=["relevant", "irrelevant"],
-            verbose=True,
-        )
-
-    out, _ = capfd.readouterr()
-    assert "Failed attempt 1" in out, "Retry information should be printed"
-    assert "Failed attempt 2" not in out, "Retry information should be printed"
-
-    mock_openai.reset_mock()
-    mock_openai.side_effect = openai_retry_errors
-
-    with ExitStack() as stack:
-        waiting_fn = "phoenix.experimental.evals.models.base.wait_random_exponential"
-        stack.enter_context(patch(waiting_fn, return_value=False))
-        stack.enter_context(
-            patch.object(model._async_client.chat.completions, "create", mock_openai)
-        )
-        llm_classify(
-            dataframe=dataframe,
-            template=RAG_RELEVANCY_PROMPT_TEMPLATE,
-            model=model,
-            rails=["relevant", "irrelevant"],
-        )
-
-    out, _ = capfd.readouterr()
-    assert "Failed attempt 1" not in out, "The `verbose` flag should not be persisted"
 
 
 @pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
