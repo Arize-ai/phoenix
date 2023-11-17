@@ -112,6 +112,19 @@ class OpenAIModel(BaseEvalModel):
 
             self._openai = openai
             self._openai_util = openai_util
+            self._openai_retry_errors = [
+                self._openai.APITimeoutError,
+                self._openai.APIError,
+                self._openai.APIConnectionError,
+                self._openai.RateLimitError,
+                self._openai.InternalServerError,
+            ]
+            self.retry = self._retry(
+                error_types=self._openai_retry_errors,
+                min_seconds=self.retry_min_seconds,
+                max_seconds=self.retry_max_seconds,
+                max_retries=self.max_retries,
+            )
         except ImportError:
             self._raise_import_error(
                 package_display_name="OpenAI",
@@ -273,20 +286,8 @@ class OpenAIModel(BaseEvalModel):
 
     async def _async_generate_with_retry(self, **kwargs: Any) -> Any:
         """Use tenacity to retry the completion call."""
-        openai_retry_errors = [
-            self._openai.APITimeoutError,
-            self._openai.APIError,
-            self._openai.APIConnectionError,
-            self._openai.RateLimitError,
-            self._openai.InternalServerError,
-        ]
 
-        @self.retry(
-            error_types=openai_retry_errors,
-            min_seconds=self.retry_min_seconds,
-            max_seconds=self.retry_max_seconds,
-            max_retries=self.max_retries,
-        )
+        @self.retry
         async def _completion_with_retry(**kwargs: Any) -> Any:
             if self._model_uses_legacy_completion_api:
                 if "prompt" not in kwargs:
@@ -305,20 +306,8 @@ class OpenAIModel(BaseEvalModel):
 
     def _generate_with_retry(self, **kwargs: Any) -> Any:
         """Use tenacity to retry the completion call."""
-        openai_retry_errors = [
-            self._openai.APITimeoutError,
-            self._openai.APIError,
-            self._openai.APIConnectionError,
-            self._openai.RateLimitError,
-            self._openai.InternalServerError,
-        ]
 
-        @self.retry(
-            error_types=openai_retry_errors,
-            min_seconds=self.retry_min_seconds,
-            max_seconds=self.retry_max_seconds,
-            max_retries=self.max_retries,
-        )
+        @self.retry
         def _completion_with_retry(**kwargs: Any) -> Any:
             if self._model_uses_legacy_completion_api:
                 if "prompt" not in kwargs:

@@ -56,7 +56,7 @@ def set_verbosity(
 class BaseEvalModel(ABC):
     _verbose: bool = False
 
-    def retry(
+    def _retry(
         self,
         error_types: List[Type[BaseException]],
         min_seconds: int,

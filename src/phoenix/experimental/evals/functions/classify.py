@@ -49,8 +49,16 @@ _RESPONSE = "response"
 _EXPLANATION = "explanation"
 
 
+class EndOfQueue:
+    pass
+
+
+class Unset:
+    pass
+
+
 class AsyncExecutor:
-    _unset = object()
+    _unset = Unset()
 
     def __init__(
         self,
@@ -58,7 +66,7 @@ class AsyncExecutor:
         num_consumers: int = 20,
         tqdm_bar_format: Optional[str] = None,
         exit_on_error: bool = True,
-        generation_fn_fallback_return_value: Union[Any, object] = _unset,
+        generation_fn_fallback_return_value: Union[Unset, Any] = _unset,
     ):
         self.generate = generation_fn
         self.fallback_return_value = generation_fn_fallback_return_value
@@ -69,7 +77,7 @@ class AsyncExecutor:
         # An end of queue sentinel is used to signal to consumers that the queue is empty and that
         # they should exit. This is necessary because some consumers may still be waiting for an
         # item to be added to the queue when the producer finishes.
-        self.end_of_queue = object()
+        self.end_of_queue = EndOfQueue()
 
         signal.signal(signal.SIGINT, self._signal_handler)
         self._TERMINATE = False
@@ -81,7 +89,7 @@ class AsyncExecutor:
     async def producer(
         self,
         inputs: Sequence[Any],
-        queue: asyncio.Queue[Union[object, Tuple[int, Any]]],
+        queue: asyncio.Queue[Union[EndOfQueue, Tuple[int, Any]]],
     ) -> None:
         for index, input in enumerate(inputs):
             if self._TERMINATE:
@@ -95,7 +103,7 @@ class AsyncExecutor:
     async def consumer(
         self,
         output: List[Any],
-        queue: asyncio.Queue[Union[object, Tuple[int, Any]]],
+        queue: asyncio.Queue[Union[EndOfQueue, Tuple[int, Any]]],
         progress_bar: asyncio_tqdm[Any],
     ) -> None:
         while True:
@@ -123,7 +131,7 @@ class AsyncExecutor:
         outputs = [self.fallback_return_value] * len(inputs)
         progress_bar = asyncio_tqdm(total=len(inputs), bar_format=self.tqdm_bar_format)
 
-        queue: asyncio.Queue[Union[object, Tuple[int, Any]]] = asyncio.Queue(
+        queue: asyncio.Queue[Union[EndOfQueue, Tuple[int, Any]]] = asyncio.Queue(
             maxsize=2 * self.num_consumers
         )
 
@@ -221,7 +229,7 @@ def llm_classify(
     if generation_info := model.verbose_generation_info():
         printif(verbose, generation_info)
 
-    async def _classify_prompt(prompt: str) -> Tuple[str, Optional[str]]:
+    async def _run_llm_classification(prompt: str) -> Tuple[str, Optional[str]]:
         with set_verbosity(model, verbose) as verbose_model:
             response = await verbose_model._async_generate(
                 prompt, instruction=system_instruction, **model_kwargs
@@ -250,7 +258,7 @@ def llm_classify(
         return _snap_to_rail(unrailed_label, rails, verbose=verbose), explanation
 
     executor = AsyncExecutor(
-        _classify_prompt,
+        _run_llm_classification,
         generation_fn_fallback_return_value=(None, None),
         tqdm_bar_format=tqdm_bar_format,
         exit_on_error=True,

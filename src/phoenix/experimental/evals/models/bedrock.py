@@ -69,6 +69,13 @@ class BedrockModel(BaseEvalModel):
                 import boto3  # type:ignore
 
                 self.client = boto3.client("bedrock-runtime")
+                self._retry_errors = [self.client.exceptions.ThrottlingException]
+                self.retry = self._retry(
+                    error_types=self._retry_errors,
+                    min_seconds=self.retry_min_seconds,
+                    max_seconds=self.retry_max_seconds,
+                    max_retries=self.max_retries,
+                )
             except ImportError:
                 self._raise_import_error(
                     package_name="boto3",
@@ -122,14 +129,8 @@ class BedrockModel(BaseEvalModel):
 
     def _generate_with_retry(self, **kwargs: Any) -> Any:
         """Use tenacity to retry the completion call."""
-        retry_errors = [self.client.exceptions.ThrottlingException]
 
-        @self.retry(
-            error_types=retry_errors,
-            min_seconds=self.retry_min_seconds,
-            max_seconds=self.retry_max_seconds,
-            max_retries=self.max_retries,
-        )
+        @self.retry
         def _completion_with_retry(**kwargs: Any) -> Any:
             return self.client.invoke_model(**kwargs)
 
