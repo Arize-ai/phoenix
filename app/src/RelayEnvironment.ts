@@ -6,13 +6,14 @@ import {
   Store,
 } from "relay-runtime";
 
+const graphQLPath = window.Config.basename + "/graphql";
 /**
  * Relay requires developers to configure a "fetch" function that tells Relay how to load
  * the results of GraphQL queries from your server (or other data source). See more at
  * https://relay.dev/docs/en/quick-start-guide#relay-environment.
  */
 const fetchRelay: FetchFunction = async (params, variables, _cacheConfig) => {
-  const response = await fetch("/graphql", {
+  const response = await fetch(graphQLPath, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

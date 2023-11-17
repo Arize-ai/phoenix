@@ -41,7 +41,7 @@ class HttpExporter:
             variable `PHOENIX_HOST`, otherwise it defaults to `127.0.0.1`.
         port: Optional[int]
             The port of the Phoenix server. It can also be set using environment
-            variable `PHOENIX_PORT`, otherwise it defaults to `6060`.
+            variable `PHOENIX_PORT`, otherwise it defaults to `6006`.
         """
         self._host = host or get_env_host()
         self._port = port or get_env_port()
