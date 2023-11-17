@@ -39,18 +39,18 @@ class AppConfig(NamedTuple):
     n_samples: int
 
 
-def _get_static_content_base_url(request: Request) -> str:
+def _get_basename(request: Request) -> str:
     """
-    Determine the base URL for static content based on the request.
+    Determine the basename for the API and static content.
     If the server is running in a hosted notebook, the base URL
     must be configured to point to the hosted notebook's proxy.
     """
-    is_sagemaker = request.client is not None and "sagemaker" in request.client.host
+    is_sagemaker = "sagemaker" in str(request.url)
     if is_sagemaker:
         # Sagemaker sets up a proxy at /proxy/6006
         # NB: this is the only port that is open
         return "/proxy/6006"
-    # assume urls can be relative. Works for colab and local
+    # URL is relative to / for colab and local
     return ""
 
 
@@ -72,7 +72,6 @@ class Static(StaticFiles):
                 raise e
             # Fallback to to the index.html
             request = Request(scope)
-            base_url = ""
 
             response = templates.TemplateResponse(
                 "index.html",
@@ -81,7 +80,7 @@ class Static(StaticFiles):
                     "min_dist": self._app_config.min_dist,
                     "n_neighbors": self._app_config.n_neighbors,
                     "n_samples": self._app_config.n_samples,
-                    "base_url": base_url,
+                    "basename": _get_basename(request),
                     "request": request,
                 },
             )
