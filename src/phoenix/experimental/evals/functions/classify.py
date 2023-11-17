@@ -147,7 +147,7 @@ class AsyncExecutor:
     def run(self, inputs: Sequence[Any]) -> List[Any]:
         with anyio.start_blocking_portal() as portal:
             future = portal.start_task_soon(self.execute, inputs)
-            return future.result()
+            return cast(List[Any], future.result())
 
 
 def llm_classify(
