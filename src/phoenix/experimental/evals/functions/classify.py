@@ -20,7 +20,7 @@ from typing import (
 
 import nest_asyncio
 import pandas as pd
-from tqdm.auto import asyncio_tqdm  # type: ignore
+from tqdm.auto import tqdm  # type: ignore
 
 from phoenix.experimental.evals.models import BaseEvalModel, OpenAIModel, set_verbosity
 from phoenix.experimental.evals.templates import (
@@ -83,7 +83,7 @@ class AsyncExecutor:
         self._TERMINATE = False
 
     def _signal_handler(self, signum: int, frame: Any) -> None:
-        asyncio_tqdm.write("Process was interrupted. The return value will be incomplete...")
+        tqdm.write("Process was interrupted. The return value will be incomplete...")
         self._TERMINATE = True
 
     async def producer(
@@ -104,7 +104,7 @@ class AsyncExecutor:
         self,
         output: List[Any],
         queue: asyncio.Queue[Union[EndOfQueue, Tuple[int, Any]]],
-        progress_bar: asyncio_tqdm[Any],
+        progress_bar: tqdm[Any],
     ) -> None:
         while True:
             item = await queue.get()
@@ -121,7 +121,7 @@ class AsyncExecutor:
                 output[index] = result
                 progress_bar.update()
             except Exception as e:
-                asyncio_tqdm.write(f"Exception in consumer: {e}")
+                tqdm.write(f"Exception in consumer: {e}")
                 if self.exit_on_error:
                     self._TERMINATE = True
                 else:
@@ -129,7 +129,7 @@ class AsyncExecutor:
 
     async def execute(self, inputs: Sequence[Any]) -> List[Any]:
         outputs = [self.fallback_return_value] * len(inputs)
-        progress_bar = asyncio_tqdm(total=len(inputs), bar_format=self.tqdm_bar_format)
+        progress_bar = tqdm(total=len(inputs), bar_format=self.tqdm_bar_format)
 
         queue: asyncio.Queue[Union[EndOfQueue, Tuple[int, Any]]] = asyncio.Queue(
             maxsize=2 * self.num_consumers
