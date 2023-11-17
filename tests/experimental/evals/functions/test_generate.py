@@ -8,6 +8,7 @@ import pandas as pd
 import pytest
 import respx
 from phoenix.experimental.evals import OpenAIModel, llm_generate
+from phoenix.experimental.evals.models.litellm import LiteLLMModel
 from phoenix.experimental.evals.models.openai import OPENAI_API_KEY_ENVVAR_NAME
 from respx.patterns import M
 
@@ -124,3 +125,94 @@ def test_llm_generate_with_output_parser(monkeypatch: pytest.MonkeyPatch, respx_
     assert generated["__error__"].tolist() == [np.nan] * 4 + [
         "Expecting value: line 1 column 1 (char 0)"
     ]
+
+
+@pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions", assert_all_called=False)
+def test_classify_tolerance_to_exceptions(
+    monkeypatch: pytest.MonkeyPatch, respx_mock: respx.mock, capfd
+):
+    monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
+    with patch.object(OpenAIModel, "_init_tiktoken", return_value=None):
+        model = OpenAIModel(max_retries=0)
+    dataframe = pd.DataFrame(
+        [
+            {
+                "query": "What is Python?",
+            },
+            {
+                "query": "What is Python?",
+            },
+            {
+                "query": "What is C++?",
+            },
+            {
+                "query": "What is C++?",
+            },
+            {
+                "query": "gobbledygook",
+            },
+        ]
+    )
+    responses = [
+        '{ "category": "programming", "language": "Python" }',
+        '{ "category": "programming", "language": "Python" }',
+        '{ "category": "programming", "language": "C++" }',
+        '{ "category": "programming", "language": "C++" }',
+        "gobbledygook",
+    ]
+    queries = dataframe["query"].tolist()
+    for query, response in zip(queries, responses):
+        matcher = M(content__contains=query)
+        # Simulate an error on the second query
+        if query == "What is C++?":
+            response = httpx.Response(500, json={"error": "Internal Server Error"})
+        else:
+            response = httpx.Response(200, json={"choices": [{"message": {"content": response}}]})
+        respx_mock.route(matcher).mock(return_value=response)
+
+    df = llm_generate(
+        dataframe=dataframe,
+        template="Given {query}, generate output",
+        model=model,
+    )
+
+    assert df is not None
+    # Make sure there is a logger.error output
+    captured = capfd.readouterr()
+    assert "Process was interrupted" in captured.out
+
+
+def test_litellm_model_llm_generate(monkeypatch: pytest.MonkeyPatch):
+    """LiteLLM can return a `mock_response` from completion, we set it in model_kwargs to True"""
+
+    monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
+    dataframe = pd.DataFrame(
+        [
+            {
+                "query": "What is Python?",
+                "reference": "Python is a programming language.",
+            },
+            {
+                "query": "What is Python?",
+                "reference": "Ruby is a programming language.",
+            },
+            {
+                "query": "What is C++?",
+                "reference": "C++ is a programming language.",
+            },
+            {
+                "query": "What is C++?",
+                "reference": "irrelevant",
+            },
+        ]
+    )
+    responses = ["True", "True", "True", "True"]
+
+    template = (
+        "Given {query} and a golden answer {reference}, generate an answer that returns True."
+    )
+
+    model = LiteLLMModel(model_name="gpt-3.5-turbo", model_kwargs={"mock_response": True})
+
+    generated = llm_generate(dataframe=dataframe, template=template, model=model)
+    assert generated.iloc[:, 0].tolist() == responses

@@ -1,5 +1,5 @@
-from contextlib import ExitStack
 from itertools import product
+from typing import List
 from unittest.mock import MagicMock, patch
 
 import httpx
@@ -25,17 +25,32 @@ def classification_dataframe():
     return pd.DataFrame(
         [
             {
-                "query": "What is Python?",
+                "input": "What is Python?",
                 "reference": "Python is a programming language.",
             },
             {
-                "query": "What is Python?",
+                "input": "What is Python?",
                 "reference": "Ruby is a programming language.",
             },
-            {"query": "What is C++?", "reference": "C++ is a programming language."},
-            {"query": "What is C++?", "reference": "irrelevant"},
+            {"input": "What is C++?", "reference": "C++ is a programming language."},
+            {"input": "What is C++?", "reference": "irrelevant"},
         ],
     )
+
+
+@pytest.fixture
+def classification_responses():
+    return [
+        "relevant",
+        "irrelevant",
+        "relevant",
+        "irrelevant",
+    ]
+
+
+@pytest.fixture
+def classification_template():
+    return RAG_RELEVANCY_PROMPT_TEMPLATE
 
 
 @pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
@@ -44,7 +59,7 @@ def test_llm_classify(
 ):
     monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
     dataframe = classification_dataframe
-    keys = list(zip(dataframe["query"], dataframe["reference"]))
+    keys = list(zip(dataframe["input"], dataframe["reference"]))
     responses = ["relevant", "irrelevant", "\nrelevant ", "unparsable"]
     response_mapping = {key: response for key, response in zip(keys, responses)}
 
@@ -88,7 +103,7 @@ def test_llm_classify_with_fn_call(
 ):
     monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
     dataframe = classification_dataframe
-    keys = list(zip(dataframe["query"], dataframe["reference"]))
+    keys = list(zip(dataframe["input"], dataframe["reference"]))
     responses = ["relevant", "irrelevant", "\nrelevant ", "unparsable"]
     response_mapping = {key: response for key, response in zip(keys, responses)}
 
@@ -120,7 +135,7 @@ def test_classify_fn_call_no_explain(
 ):
     monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
     dataframe = classification_dataframe
-    keys = list(zip(dataframe["query"], dataframe["reference"]))
+    keys = list(zip(dataframe["input"], dataframe["reference"]))
     responses = ["relevant", "irrelevant", "\nrelevant ", "unparsable"]
     response_mapping = {key: response for key, response in zip(keys, responses)}
 
@@ -156,7 +171,7 @@ def test_classify_fn_call_explain(
 ):
     monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
     dataframe = classification_dataframe
-    keys = list(zip(dataframe["query"], dataframe["reference"]))
+    keys = list(zip(dataframe["input"], dataframe["reference"]))
     responses = ["relevant", "irrelevant", "\nrelevant ", "unparsable"]
     response_mapping = {key: response for key, response in zip(keys, responses)}
 
@@ -196,7 +211,7 @@ def test_llm_classify_prints_to_stdout_with_verbose_flag(
 ):
     monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
     dataframe = classification_dataframe
-    keys = list(zip(dataframe["query"], dataframe["reference"]))
+    keys = list(zip(dataframe["input"], dataframe["reference"]))
     responses = ["relevant", "irrelevant", "\nrelevant ", "unparsable"]
     response_mapping = {key: response for key, response in zip(keys, responses)}
 
@@ -232,7 +247,7 @@ def test_llm_classify_shows_retry_info_with_verbose_flag(monkeypatch: pytest.Mon
     dataframe = pd.DataFrame(
         [
             {
-                "query": "What is Python?",
+                "input": "What is Python?",
                 "reference": "Python is a programming language.",
             },
         ]
@@ -263,29 +278,19 @@ def test_llm_classify_shows_retry_info_with_verbose_flag(monkeypatch: pytest.Mon
     mock_openai = MagicMock()
     mock_openai.side_effect = openai_retry_errors
 
-    with ExitStack() as stack:
-        waiting_fn = "phoenix.experimental.evals.models.base.wait_random_exponential"
-        stack.enter_context(patch(waiting_fn, return_value=False))
-        stack.enter_context(patch.object(OpenAIModel, "_init_tiktoken", return_value=None))
-        stack.enter_context(patch.object(model._client.chat.completions, "create", mock_openai))
-        stack.enter_context(pytest.raises(model._openai.InternalServerError))
-        llm_classify(
-            dataframe=dataframe,
-            template=RAG_RELEVANCY_PROMPT_TEMPLATE,
-            model=model,
-            rails=["relevant", "irrelevant"],
-            verbose=True,
-        )
+    llm_classify(
+        dataframe=dataframe,
+        template=RAG_RELEVANCY_PROMPT_TEMPLATE,
+        model=model,
+        rails=["relevant", "irrelevant"],
+        verbose=True,
+    )
 
     out, _ = capfd.readouterr()
     assert "Failed attempt 1" in out, "Retry information should be printed"
-    assert "Request timed out" in out, "Retry information should be printed"
     assert "Failed attempt 2" in out, "Retry information should be printed"
-    assert "test api error" in out, "Retry information should be printed"
     assert "Failed attempt 3" in out, "Retry information should be printed"
-    assert "test api connection error" in out, "Retry information should be printed"
     assert "Failed attempt 4" in out, "Retry information should be printed"
-    assert "test rate limit error" in out, "Retry information should be printed"
     assert "Failed attempt 5" not in out, "Maximum retries should not be exceeded"
 
 
@@ -294,7 +299,7 @@ def test_llm_classify_does_not_persist_verbose_flag(monkeypatch: pytest.MonkeyPa
     dataframe = pd.DataFrame(
         [
             {
-                "query": "What is Python?",
+                "input": "What is Python?",
                 "reference": "Python is a programming language.",
             },
         ]
@@ -314,44 +319,30 @@ def test_llm_classify_does_not_persist_verbose_flag(monkeypatch: pytest.MonkeyPa
     mock_openai = MagicMock()
     mock_openai.side_effect = openai_retry_errors
 
-    with ExitStack() as stack:
-        waiting_fn = "phoenix.experimental.evals.models.base.wait_random_exponential"
-        stack.enter_context(patch(waiting_fn, return_value=False))
-        stack.enter_context(patch.object(OpenAIModel, "_init_tiktoken", return_value=None))
-        stack.enter_context(patch.object(model._client.chat.completions, "create", mock_openai))
-        stack.enter_context(pytest.raises(model._openai.OpenAIError))
-        llm_classify(
-            dataframe=dataframe,
-            template=RAG_RELEVANCY_PROMPT_TEMPLATE,
-            model=model,
-            rails=["relevant", "irrelevant"],
-            verbose=True,
-        )
+    llm_classify(
+        dataframe=dataframe,
+        template=RAG_RELEVANCY_PROMPT_TEMPLATE,
+        model=model,
+        rails=["relevant", "irrelevant"],
+        verbose=True,
+    )
 
     out, _ = capfd.readouterr()
     assert "Failed attempt 1" in out, "Retry information should be printed"
-    assert "Request timed out" in out, "Retry information should be printed"
     assert "Failed attempt 2" not in out, "Retry information should be printed"
 
     mock_openai.reset_mock()
     mock_openai.side_effect = openai_retry_errors
 
-    with ExitStack() as stack:
-        waiting_fn = "phoenix.experimental.evals.models.base.wait_random_exponential"
-        stack.enter_context(patch(waiting_fn, return_value=False))
-        stack.enter_context(patch.object(OpenAIModel, "_init_tiktoken", return_value=None))
-        stack.enter_context(patch.object(model._client.chat.completions, "create", mock_openai))
-        stack.enter_context(pytest.raises(model._openai.APIError))
-        llm_classify(
-            dataframe=dataframe,
-            template=RAG_RELEVANCY_PROMPT_TEMPLATE,
-            model=model,
-            rails=["relevant", "irrelevant"],
-        )
+    llm_classify(
+        dataframe=dataframe,
+        template=RAG_RELEVANCY_PROMPT_TEMPLATE,
+        model=model,
+        rails=["relevant", "irrelevant"],
+    )
 
     out, _ = capfd.readouterr()
     assert "Failed attempt 1" not in out, "The `verbose` flag should not be persisted"
-    assert "Request timed out" not in out, "The `verbose` flag should not be persisted"
 
 
 @pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
@@ -362,14 +353,14 @@ def test_run_relevance_eval_standard_dataframe(
     dataframe = pd.DataFrame(
         [
             {
-                "query": "What is Python?",
+                "input": "What is Python?",
                 "reference": [
                     "Python is a programming language.",
                     "Ruby is a programming language.",
                 ],
             },
             {
-                "query": "Can you explain Python to me?",
+                "input": "Can you explain Python to me?",
                 "reference": np.array(
                     [
                         "Python is a programming language.",
@@ -378,41 +369,41 @@ def test_run_relevance_eval_standard_dataframe(
                 ),
             },
             {
-                "query": "What is Ruby?",
+                "input": "What is Ruby?",
                 "reference": [
                     "Ruby is a programming language.",
                 ],
             },
             {
-                "query": "What is C++?",
+                "input": "What is C++?",
                 "reference": [
                     "Ruby is a programming language.",
                     "C++ is a programming language.",
                 ],
             },
             {
-                "query": "What is C#?",
+                "input": "What is C#?",
                 "reference": [],
             },
             {
-                "query": "What is Golang?",
+                "input": "What is Golang?",
                 "reference": None,
             },
             {
-                "query": None,
+                "input": None,
                 "reference": [
                     "Python is a programming language.",
                     "Ruby is a programming language.",
                 ],
             },
             {
-                "query": None,
+                "input": None,
                 "reference": None,
             },
         ]
     )
 
-    queries = list(dataframe["query"])
+    queries = list(dataframe["input"])
     references = list(dataframe["reference"])
     keys = []
     for query, refs in zip(queries, references):
@@ -462,6 +453,40 @@ def test_run_relevance_eval_standard_dataframe(
         [],
         [],
     ]
+
+
+@pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions", assert_all_called=False)
+def test_classify_tolerance_to_exceptions(
+    classification_dataframe: pd.DataFrame,
+    classification_responses: List[str],
+    classification_template: str,
+    monkeypatch: pytest.MonkeyPatch,
+    respx_mock: respx.mock,
+    capfd,
+):
+    with patch.object(OpenAIModel, "_init_tiktoken", return_value=None):
+        model = OpenAIModel(max_retries=0)
+    queries = classification_dataframe["input"].tolist()
+    for query, response in zip(queries, classification_responses):
+        matcher = M(content__contains=query)
+        # Simulate an error on the second query
+        if query == "What is C++?":
+            response = httpx.Response(500, json={"error": "Internal Server Error"})
+        else:
+            response = httpx.Response(200, json={"choices": [{"message": {"content": response}}]})
+        respx_mock.route(matcher).mock(return_value=response)
+
+    classification_df = llm_classify(
+        dataframe=classification_dataframe,
+        template=classification_template,
+        model=model,
+        rails=["relevant", "irrelevant"],
+    )
+
+    assert classification_df is not None
+    # Make sure there is a logger.error output
+    captured = capfd.readouterr()
+    assert "Process was interrupted" in captured.out
 
 
 def test_run_relevance_eval_openinference_dataframe(

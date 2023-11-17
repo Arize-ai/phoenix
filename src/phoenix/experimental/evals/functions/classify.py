@@ -16,6 +16,7 @@ from phoenix.experimental.evals.templates import (
     map_template,
     normalize_classification_template,
 )
+from phoenix.experimental.evals.utils import get_tqdm_progress_bar_formatter
 from phoenix.trace.semantic_conventions import DOCUMENT_CONTENT, INPUT_VALUE, RETRIEVAL_DOCUMENTS
 from phoenix.utilities.logging import printif
 
@@ -99,39 +100,51 @@ def llm_classify(
     prompt_options = PromptOptions(provide_explanation=provide_explanation)
     prompts = map_template(dataframe, eval_template, options=prompt_options)
 
-    labels: List[str] = []
-    explanations: List[Optional[str]] = []
+    labels: List[Optional[str]] = [None] * len(dataframe)
+    explanations: List[Optional[str]] = [None] * len(dataframe)
 
     printif(verbose, f"Using prompt:\n\n{eval_template.prompt(prompt_options)}")
     if generation_info := model.verbose_generation_info():
         printif(verbose, generation_info)
 
-    for prompt in tqdm(prompts):
-        with set_verbosity(model, verbose) as verbose_model:
-            response = verbose_model(prompt, instruction=system_instruction, **model_kwargs)
-        if not use_openai_function_call:
-            if provide_explanation:
-                unrailed_label, explanation = (
-                    eval_template.extract_label_from_explanation(response),
-                    response,
-                )
-                printif(
-                    verbose and unrailed_label == NOT_PARSABLE,
-                    f"- Could not parse {repr(response)}",
-                )
+    # Wrap the loop in a try / catch so that we can still return a dataframe
+    # even if the process is interrupted
+    try:
+        for index, prompt in enumerate(
+            tqdm(prompts, bar_format=get_tqdm_progress_bar_formatter("llm_classify"))
+        ):
+            with set_verbosity(model, verbose) as verbose_model:
+                response = verbose_model(prompt, instruction=system_instruction, **model_kwargs)
+            if not use_openai_function_call:
+                if provide_explanation:
+                    unrailed_label, explanation = (
+                        eval_template.extract_label_from_explanation(response),
+                        response,
+                    )
+                    printif(
+                        verbose and unrailed_label == NOT_PARSABLE,
+                        f"- Could not parse {repr(response)}",
+                    )
+                else:
+                    unrailed_label = response
+                    explanation = None
             else:
-                unrailed_label = response
-                explanation = None
-        else:
-            try:
-                function_arguments = json.loads(response, strict=False)
-                unrailed_label = function_arguments.get(_RESPONSE)
-                explanation = function_arguments.get(_EXPLANATION)
-            except json.JSONDecodeError:
-                unrailed_label = response
-                explanation = None
-        labels.append(_snap_to_rail(unrailed_label, rails, verbose=verbose))
-        explanations.append(explanation)
+                try:
+                    function_arguments = json.loads(response, strict=False)
+                    unrailed_label = function_arguments.get(_RESPONSE)
+                    explanation = function_arguments.get(_EXPLANATION)
+                except json.JSONDecodeError:
+                    unrailed_label = response
+                    explanation = None
+            labels[index] = _snap_to_rail(unrailed_label, rails, verbose=verbose)
+            explanations[index] = explanation
+    except (Exception, KeyboardInterrupt) as e:
+        logger.error(e)
+        print(
+            "Process was interrupted. The return value will be incomplete",
+            e,
+        )
+
     return pd.DataFrame(
         data={
             "label": labels,
@@ -147,7 +160,7 @@ def run_relevance_eval(
     template: Union[ClassificationTemplate, str] = RAG_RELEVANCY_PROMPT_TEMPLATE,
     rails: List[str] = list(RAG_RELEVANCY_PROMPT_RAILS_MAP.values()),
     system_instruction: Optional[str] = None,
-    query_column_name: str = "query",
+    query_column_name: str = "input",
     document_column_name: str = "reference",
     verbose: bool = False,
 ) -> List[List[str]]:

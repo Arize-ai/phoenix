@@ -2,10 +2,11 @@ import logging
 from abc import ABC, abstractmethod, abstractproperty
 from contextlib import contextmanager
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Callable, Generator, List, Optional, Type
+from typing import TYPE_CHECKING, Any, Callable, Generator, List, Optional, Sequence, Type
 
 if TYPE_CHECKING:
     from tiktoken import Encoding
+
 
 from tenacity import (
     RetryCallState,
@@ -15,12 +16,19 @@ from tenacity import (
     stop_after_attempt,
     wait_random_exponential,
 )
-from tqdm import tqdm
 from tqdm.asyncio import tqdm_asyncio
+from tqdm.auto import tqdm
+from typing_extensions import TypeVar
 
 from phoenix.experimental.evals.utils.threads import to_thread
-from phoenix.experimental.evals.utils.types import is_list_of
 from phoenix.utilities.logging import printif
+
+T = TypeVar("T", bound=type)
+
+
+def is_list_of(lst: Sequence[object], tp: T) -> bool:
+    return isinstance(lst, list) and all(isinstance(x, tp) for x in lst)
+
 
 logger = logging.getLogger(__name__)
 
@@ -126,7 +134,7 @@ class BaseEvalModel(ABC):
             )
         try:
             outputs = []
-            for prompt in tqdm(prompts, bar_format=TQDM_BAR_FORMAT, ncols=100):
+            for prompt in tqdm(prompts, bar_format=TQDM_BAR_FORMAT):
                 output = self._generate(prompt=prompt, instruction=instruction, **kwargs)
                 logger.info(f"Prompt: {prompt}\nInstruction: {instruction}\nOutput: {output}")
                 outputs.append(output)

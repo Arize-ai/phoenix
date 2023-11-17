@@ -19,11 +19,13 @@
         "NDJSON",
         "numpy",
         "openai",
+        "openinference",
         "pydantic",
         "quickstart",
         "RERANKER",
         "respx",
         "rgba",
+        "tensorboard",
         "tiktoken",
         "tracedataset",
         "UMAP"

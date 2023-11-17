@@ -1,5 +1,5 @@
 from .functions import llm_classify, llm_generate, run_relevance_eval
-from .models import OpenAIModel, VertexAIModel
+from .models import BedrockModel, LiteLLMModel, OpenAIModel, VertexAIModel
 from .retrievals import compute_precisions_at_k
 from .templates import (
     CODE_READABILITY_PROMPT_RAILS_MAP,
@@ -14,7 +14,7 @@ from .templates import (
     ClassificationTemplate,
     PromptTemplate,
 )
-from .utils.downloads import download_benchmark_dataset
+from .utils import download_benchmark_dataset
 
 __all__ = [
     "compute_precisions_at_k",
@@ -23,6 +23,8 @@ __all__ = [
     "llm_generate",
     "OpenAIModel",
     "VertexAIModel",
+    "BedrockModel",
+    "LiteLLMModel",
     "PromptTemplate",
     "ClassificationTemplate",
     "CODE_READABILITY_PROMPT_RAILS_MAP",

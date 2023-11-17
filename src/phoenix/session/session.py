@@ -3,6 +3,7 @@ import logging
 from abc import ABC, abstractmethod
 from collections import UserList
 from datetime import datetime
+from enum import Enum
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import (
@@ -44,6 +45,12 @@ else:
     _BaseList = UserList
 
 
+class NotebookEnvironment(Enum):
+    COLAB = "colab"
+    LOCAL = "local"
+    SAGEMAKER = "sagemaker"
+
+
 class ExportedData(_BaseList):
     def __init__(self) -> None:
         self.paths: Set[Path] = set()
@@ -68,6 +75,8 @@ class Session(ABC):
 
     trace_dataset: Optional[TraceDataset]
     traces: Optional[Traces]
+    nb_env: NotebookEnvironment
+    """The notebook environment that the session is running in."""
 
     def __dir__(self) -> List[str]:
         return ["exports", "view", "url"]
@@ -111,7 +120,7 @@ class Session(ABC):
         self.export_path = Path(self.temp_dir.name) / "exports"
         self.export_path.mkdir(parents=True, exist_ok=True)
         self.exported_data = ExportedData()
-        self.is_colab = _is_colab()
+        self.nb_env = _get_notebook_environment()
 
     @abstractmethod
     def end(self) -> None:
@@ -150,7 +159,7 @@ class Session(ABC):
     @property
     def url(self) -> str:
         """Returns the url for the phoenix app"""
-        return _get_url(self.host, self.port, self.is_colab)
+        return _get_url(self.host, self.port, self.nb_env)
 
     def get_spans_dataframe(
         self,
@@ -312,7 +321,7 @@ def launch_app(
     port: int, optional
         The port on which the server listens. When using traces this should not be
         used and should instead set the environment variable `PHOENIX_PORT`.
-        Defaults to 6060.
+        Defaults to 6006.
     run_in_thread: bool, optional, default=True
         Whether the server should run in a Thread or Process.
     default_umap_parameters: Dict[str, Union[int, float]], optional, default=None
@@ -394,13 +403,15 @@ def close_app() -> None:
     logger.info("Session closed")
 
 
-def _get_url(host: str, port: int, is_colab: bool) -> str:
+def _get_url(host: str, port: int, nb_env: NotebookEnvironment) -> str:
     """Determines the IFrame URL based on whether this is in a Colab or in a local notebook"""
-    if is_colab:
+    if nb_env == NotebookEnvironment.COLAB:
         from google.colab.output import eval_js  # type: ignore
 
         return str(eval_js(f"google.colab.kernel.proxyPort({port}, {{'cache': true}})"))
-
+    if nb_env == NotebookEnvironment.SAGEMAKER:
+        # NB: Sagemaker notebooks only work with port 6006 - which is used by tensorboard
+        return str(f"{_get_sagemaker_notebook_base_url()}/proxy/{port}/")
     return f"http://{host}:{port}/"
 
 
@@ -415,3 +426,43 @@ def _is_colab() -> bool:
     except ImportError:
         return False
     return get_ipython() is not None
+
+
+def _is_sagemaker() -> bool:
+    """Determines whether this is in a SageMaker notebook"""
+    try:
+        import sagemaker  # type: ignore # noqa: F401
+    except ImportError:
+        return False
+    try:
+        from IPython.core.getipython import get_ipython
+    except ImportError:
+        return False
+    return get_ipython() is not None
+
+
+def _get_notebook_environment() -> NotebookEnvironment:
+    if _is_colab():
+        return NotebookEnvironment.COLAB
+    if _is_sagemaker():
+        return NotebookEnvironment.SAGEMAKER
+    return NotebookEnvironment.LOCAL
+
+
+def _get_sagemaker_notebook_base_url() -> str:
+    """
+    Returns base url of the sagemaker notebook by parsing the Arn
+    src: https://github.com/aws-samples/amazon-sagemaker-notebook-instance-lifecycle-config-samples/blob/62c44aa5e69f4266955476f24647b99d9b597aaf/scripts/auto-stop-idle/autostop.py#L79
+    """
+    log_path = "/opt/ml/metadata/resource-metadata.json"
+    with open(log_path, "r") as logs:
+        logs = json.load(logs)
+    arn = logs["ResourceArn"]  # type: ignore
+
+    # Parse the ARN to get the region and notebook instance name
+    # E.x. arn:aws:sagemaker:us-east-2:802164118598:notebook-instance/my-notebook-instance
+    parts = arn.split(":")
+    region = parts[3]
+    notebook_instance_name = parts[5].split("/")[1]
+
+    return f"https://{notebook_instance_name}.notebook.{region}.sagemaker.aws"
