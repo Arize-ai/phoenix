@@ -650,7 +650,7 @@ async def test_async_executor_executes():
     async def dummy_fn(payload: int) -> int:
         return payload - 1
 
-    executor = AsyncExecutor(dummy_fn, num_consumers=10)
+    executor = AsyncExecutor(dummy_fn, concurrency=10)
     inputs = [1, 2, 3, 4, 5]
     outputs = await executor.execute(inputs)
     assert outputs == [0, 1, 2, 3, 4]
@@ -660,7 +660,7 @@ async def test_async_executor_executes_many_tasks():
     async def dummy_fn(payload: int) -> int:
         return payload
 
-    executor = AsyncExecutor(dummy_fn, num_consumers=10)
+    executor = AsyncExecutor(dummy_fn, concurrency=10)
     inputs = [x for x in range(1000)]
     outputs = await executor.execute(inputs)
     assert outputs == inputs
@@ -670,7 +670,7 @@ def test_async_executor_runs_synchronously():
     async def dummy_fn(payload: int) -> int:
         return payload - 2
 
-    executor = AsyncExecutor(dummy_fn, num_consumers=10)
+    executor = AsyncExecutor(dummy_fn, concurrency=10)
     inputs = [1, 2, 3, 4, 5]
     outputs = executor.run(inputs)
     assert outputs == [-1, 0, 1, 2, 3]
@@ -682,9 +682,7 @@ async def test_async_executor_execute_exits_early_on_error():
             raise ValueError("test error")
         return payload - 1
 
-    executor = AsyncExecutor(
-        dummy_fn, num_consumers=1, exit_on_error=True, generation_fn_fallback_return_value=52
-    )
+    executor = AsyncExecutor(dummy_fn, concurrency=1, exit_on_error=True, fallback_return_value=52)
     inputs = [1, 2, 3, 4, 5]
     outputs = await executor.execute(inputs)
     assert outputs == [0, 1, 52, 52, 52]
@@ -696,9 +694,7 @@ def test_async_executor_run_exits_early_on_error():
             raise ValueError("test error")
         return payload - 1
 
-    executor = AsyncExecutor(
-        dummy_fn, num_consumers=1, exit_on_error=True, generation_fn_fallback_return_value=52
-    )
+    executor = AsyncExecutor(dummy_fn, concurrency=1, exit_on_error=True, fallback_return_value=52)
     inputs = [1, 2, 3, 4, 5]
     outputs = executor.run(inputs)
     assert outputs == [0, 1, 52, 52, 52]
@@ -710,9 +706,7 @@ async def test_async_executor_can_continue_on_error():
             raise ValueError("test error")
         return payload - 1
 
-    executor = AsyncExecutor(
-        dummy_fn, num_consumers=1, exit_on_error=False, generation_fn_fallback_return_value=52
-    )
+    executor = AsyncExecutor(dummy_fn, concurrency=1, exit_on_error=False, fallback_return_value=52)
     inputs = [1, 2, 3, 4, 5]
     outputs = await executor.execute(inputs)
     assert outputs == [0, 1, 52, 3, 4]
@@ -723,7 +717,7 @@ async def test_sigint_handling():
         await asyncio.sleep(0.01)
         return x
 
-    executor = AsyncExecutor(async_fn, num_consumers=5, generation_fn_fallback_return_value="test")
+    executor = AsyncExecutor(async_fn, concurrency=5, fallback_return_value="test")
 
     # Run the executor with a large number of inputs
     task = asyncio.create_task(executor.execute(list(range(100))))

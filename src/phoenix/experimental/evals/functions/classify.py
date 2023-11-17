@@ -18,7 +18,7 @@ from typing import (
     cast,
 )
 
-import nest_asyncio
+import anyio
 import pandas as pd
 from tqdm.auto import tqdm
 
@@ -63,14 +63,14 @@ class AsyncExecutor:
     def __init__(
         self,
         generation_fn: Callable[[Any], Coroutine[Any, Any, Any]],
-        num_consumers: int = 20,
+        concurrency: int = 3,
         tqdm_bar_format: Optional[str] = None,
         exit_on_error: bool = True,
-        generation_fn_fallback_return_value: Union[Unset, Any] = _unset,
+        fallback_return_value: Union[Unset, Any] = _unset,
     ):
         self.generate = generation_fn
-        self.fallback_return_value = generation_fn_fallback_return_value
-        self.num_consumers = num_consumers
+        self.fallback_return_value = fallback_return_value
+        self.concurrency = concurrency
         self.tqdm_bar_format = tqdm_bar_format
         self.exit_on_error = exit_on_error
 
@@ -97,7 +97,7 @@ class AsyncExecutor:
             await queue.put((index, input))
         # adds an end of queue sentinel for each consumer, guaranteeing that any consumer that is
         # currently waiting for an item will gracefully stop.
-        for _ in range(self.num_consumers):
+        for _ in range(self.concurrency):
             await queue.put(self.end_of_queue)
 
     async def consumer(
@@ -132,25 +132,22 @@ class AsyncExecutor:
         progress_bar = tqdm(total=len(inputs), bar_format=self.tqdm_bar_format)
 
         queue: asyncio.Queue[Union[EndOfQueue, Tuple[int, Any]]] = asyncio.Queue(
-            maxsize=2 * self.num_consumers
+            maxsize=2 * self.concurrency
         )
 
         producer = self.producer(inputs, queue)
         consumers = [
             asyncio.create_task(self.consumer(outputs, queue, progress_bar))
-            for _ in range(self.num_consumers)
+            for _ in range(self.concurrency)
         ]
 
         await asyncio.gather(producer, *consumers)
         return outputs
 
     def run(self, inputs: Sequence[Any]) -> List[Any]:
-        try:
-            asyncio.get_running_loop()
-            nest_asyncio.apply()
-        except RuntimeError:
-            pass
-        return asyncio.run(self.execute(inputs))
+        with anyio.start_blocking_portal() as portal:
+            future = portal.start_task_soon(self.execute, inputs)
+            return future.result()
 
 
 def llm_classify(
@@ -259,7 +256,7 @@ def llm_classify(
 
     executor = AsyncExecutor(
         _run_llm_classification,
-        generation_fn_fallback_return_value=(None, None),
+        fallback_return_value=(None, None),
         tqdm_bar_format=tqdm_bar_format,
         exit_on_error=True,
     )
