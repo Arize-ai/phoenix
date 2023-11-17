@@ -11,7 +11,7 @@ from llama_index.agent import OpenAIAgent
 from llama_index.callbacks import CallbackManager
 from llama_index.embeddings.openai import OpenAIEmbedding
 from llama_index.graph_stores.simple import SimpleGraphStore
-from llama_index.indices.postprocessor.cohere_rerank import CohereRerank
+from llama_index.indices.postprocessor import CohereRerank
 from llama_index.indices.vector_store import VectorStoreIndex
 from llama_index.llms import OpenAI
 from llama_index.query_engine import RetrieverQueryEngine
@@ -180,11 +180,9 @@ def test_callback_data_agent() -> None:
             "temperature": 0,
         }
     assert llm_spans[0].attributes[OUTPUT_MIME_TYPE] is MimeType.JSON
-    assert json.loads(llm_spans[0].attributes[OUTPUT_VALUE]) == {
-        "function_call": {
-            "name": "multiply",
-            "arguments": '{\n  "a": 2,\n  "b": 3\n}',
-        }
+    assert json.loads(llm_spans[0].attributes[OUTPUT_VALUE])["tool_calls"][0]["function"] == {
+        "name": "multiply",
+        "arguments": '{\n  "a": 2,\n  "b": 3\n}',
     }
     assert llm_spans[0].attributes[LLM_INPUT_MESSAGES] == [
         {
@@ -205,7 +203,10 @@ def test_callback_data_agent() -> None:
         },
     ]
     assert llm_spans[1].attributes[OUTPUT_MIME_TYPE] is MimeType.TEXT
-    assert llm_spans[1].attributes[OUTPUT_VALUE] == "2 multiplied by 3 equals 6."
+    assert llm_spans[1].attributes[OUTPUT_VALUE] in (
+        "2 multiplied by 3 equals 6.",
+        "2 multiplied by 3 is equal to 6.",
+    )
     assert llm_spans[1].attributes.get(LLM_INPUT_MESSAGES) == [
         {
             "message.role": "user",
@@ -218,18 +219,18 @@ def test_callback_data_agent() -> None:
             "message.function_call_name": "multiply",
         },
         {
-            "message.role": "function",
+            "message.role": "tool",
             "message.content": "6",
             "message.name": "multiply",
         },
     ]
     assert llm_spans[1].attributes[LLM_OUTPUT_MESSAGES] == [
         {
-            "message.content": "2 multiplied by 3 equals 6.",
+            "message.content": llm_spans[1].attributes[OUTPUT_VALUE],
             "message.role": "assistant",
         },
         {
-            "message.content": "2 multiplied by 3 equals 6.",
+            "message.content": llm_spans[1].attributes[OUTPUT_VALUE],
             "message.role": "assistant",
         },
     ]
