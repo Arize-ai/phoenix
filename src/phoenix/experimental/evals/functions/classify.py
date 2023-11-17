@@ -18,7 +18,7 @@ from typing import (
     cast,
 )
 
-import anyio
+import nest_asyncio
 import pandas as pd
 from tqdm.auto import tqdm
 
@@ -67,12 +67,14 @@ class AsyncExecutor:
         tqdm_bar_format: Optional[str] = None,
         exit_on_error: bool = True,
         fallback_return_value: Union[Unset, Any] = _unset,
+        use_nest_asyncio: bool = True,
     ):
         self.generate = generation_fn
         self.fallback_return_value = fallback_return_value
         self.concurrency = concurrency
         self.tqdm_bar_format = tqdm_bar_format
         self.exit_on_error = exit_on_error
+        self.use_nest_asyncio = use_nest_asyncio
 
         # An end of queue sentinel is used to signal to consumers that the queue is empty and that
         # they should exit. This is necessary because some consumers may still be waiting for an
@@ -145,9 +147,13 @@ class AsyncExecutor:
         return outputs
 
     def run(self, inputs: Sequence[Any]) -> List[Any]:
-        with anyio.start_blocking_portal() as portal:
-            future = portal.start_task_soon(self.execute, inputs)
-            return cast(List[Any], future.result())
+        try:
+            asyncio.get_running_loop()
+            if self.use_nest_asyncio:
+                nest_asyncio.apply()
+        except RuntimeError:
+            pass
+        return asyncio.run(self.execute(inputs))
 
 
 def llm_classify(
