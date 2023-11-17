@@ -57,14 +57,14 @@ class AsyncExecutor:
         generation_fn: Callable[[Any], Coroutine[Any, Any, Any]],
         num_consumers: int = 20,
         tqdm_bar_format: Optional[str] = None,
-        exit_on_exceptions: bool = True,
+        exit_on_error: bool = True,
         generation_fn_fallback_return_value: Union[Any, object] = _unset,
     ):
         self.generate = generation_fn
         self.fallback_return_value = generation_fn_fallback_return_value
         self.num_consumers = num_consumers
         self.tqdm_bar_format = tqdm_bar_format
-        self.exit_on_exceptions = exit_on_exceptions
+        self.exit_on_error = exit_on_error
 
         # An end of queue sentinel is used to signal to consumers that the queue is empty and that
         # they should exit. This is necessary because some consumers may still be waiting for an
@@ -100,8 +100,11 @@ class AsyncExecutor:
     ) -> None:
         while True:
             item = await queue.get()
-            if item is self.end_of_queue or self._TERMINATE:
+            if item is self.end_of_queue:
                 return
+            elif self._TERMINATE:
+                # discard any remaining items in the queue
+                continue
 
             item = cast(Tuple[int, Any], item)
             index, payload = item
@@ -111,7 +114,7 @@ class AsyncExecutor:
                 progress_bar.update()
             except Exception as e:
                 asyncio_tqdm.write(f"Exception in consumer: {e}")
-                if self.exit_on_exceptions:
+                if self.exit_on_error:
                     self._TERMINATE = True
                 else:
                     progress_bar.update()
@@ -250,6 +253,7 @@ def llm_classify(
         _classify_prompt,
         generation_fn_fallback_return_value=(None, None),
         tqdm_bar_format=tqdm_bar_format,
+        exit_on_error=True,
     )
     results = executor.run(prompts.tolist())
     labels, explanations = zip(*results)

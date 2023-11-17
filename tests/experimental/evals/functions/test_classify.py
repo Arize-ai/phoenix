@@ -3,6 +3,8 @@ from itertools import product
 from typing import List
 from unittest.mock import MagicMock, patch
 
+import signal
+import asyncio
 import httpx
 import numpy as np
 import pandas as pd
@@ -680,7 +682,7 @@ async def test_async_executor_execute_exits_early_on_error():
             raise ValueError("test error")
         return payload - 1
 
-    executor = AsyncExecutor(dummy_fn, num_consumers=1, generation_fn_fallback_return_value=52)
+    executor = AsyncExecutor(dummy_fn, num_consumers=1, exit_on_error=True, generation_fn_fallback_return_value=52)
     inputs = [1, 2, 3, 4, 5]
     outputs = await executor.execute(inputs)
     assert outputs == [0, 1, 52, 52, 52]
@@ -692,7 +694,38 @@ def test_async_executor_run_exits_early_on_error():
             raise ValueError("test error")
         return payload - 1
 
-    executor = AsyncExecutor(dummy_fn, num_consumers=1, generation_fn_fallback_return_value=52)
+    executor = AsyncExecutor(dummy_fn, num_consumers=1, exit_on_error=True, generation_fn_fallback_return_value=52)
     inputs = [1, 2, 3, 4, 5]
     outputs = executor.run(inputs)
     assert outputs == [0, 1, 52, 52, 52]
+
+
+async def test_async_executor_can_continue_on_error():
+    async def dummy_fn(payload: int) -> int:
+        if payload == 3:
+            raise ValueError("test error")
+        return payload - 1
+
+    executor = AsyncExecutor(dummy_fn, num_consumers=1, exit_on_error=False, generation_fn_fallback_return_value=52)
+    inputs = [1, 2, 3, 4, 5]
+    outputs = await executor.execute(inputs)
+    assert outputs == [0, 1, 52, 3, 4]
+
+
+async def test_sigint_handling():
+    async def async_fn(x):
+        await asyncio.sleep(0.01)
+        return x
+
+    executor = AsyncExecutor(async_fn, num_consumers=5, generation_fn_fallback_return_value="test")
+
+    # Run the executor with a large number of inputs
+    task = asyncio.create_task(executor.execute(list(range(100))))
+    await asyncio.sleep(0.1)
+
+    # Simulate a SIGINT signal
+    executor._signal_handler(signal.SIGINT, None)
+    results = await task
+
+    assert len(results) == 100
+    assert results.count("test") > 0, "some inputs should not have been processed"
