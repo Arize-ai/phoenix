@@ -273,9 +273,7 @@ Implementation to Evaluate:
 ```
 {output}
 ```
-
-"""  # noqa: E501
-
+"""
 CODE_READABILITY_PROMPT_TEMPLATE_WITH_EXPLANATION = """
 You are a stern but practical senior software engineer who cares a lot about simplicity and
 readability of code. Can you review the following code that was written by another engineer?
@@ -324,10 +322,7 @@ even in a general way the please answer "correct". If there are multiple questio
 question is answered, please still answer "correct". If the text does not answer the
 question in the conversation, or doesn't contain information that would allow you
 to answer the specific question please answer "incorrect".
-"""  # noqa: E501
-# The prompt output map is used to map 1) to provide rails to the llm in order to constrain
-# the llm's outputs to the expected values. 2) golden dataset ground truth boolean values
-# to the llm output
+"""
 REF_LINK_EVAL_PROMPT_RAILS_MAP = OrderedDict({True: "correct", False: "incorrect"})
 
 
