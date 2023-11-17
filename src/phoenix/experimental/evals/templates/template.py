@@ -1,10 +1,8 @@
+import re
 from dataclasses import dataclass
-from string import Formatter
-from typing import Dict, List, Tuple, Union
+from typing import Callable, Dict, List, Optional, Tuple, Union
 
 import pandas as pd
-
-from ..utils.types import is_list_of
 
 DEFAULT_START_DELIM = "{"
 DEFAULT_END_DELIM = "}"
@@ -16,18 +14,32 @@ NOT_PARSABLE = "NOT_PARSABLE"
 
 
 @dataclass
+class PromptOptions:
+    provide_explanation: bool = False
+
+
 class PromptTemplate:
-    text: str
+    template: str
     variables: List[str]
 
-    def __init__(self, text: str, delimiters: List[str] = [DEFAULT_START_DELIM, DEFAULT_END_DELIM]):
-        self.text = text
-        self._start_delim, self._end_delim = self._get_delimiters(delimiters)
-        self._validate()
-        self.variables = self._parse_variables()
+    def __init__(
+        self,
+        template: str,
+        delimiters: Tuple[str, str] = (DEFAULT_START_DELIM, DEFAULT_END_DELIM),
+    ):
+        self.template = template
+        self._start_delim, self._end_delim = delimiters
+        self.variables = self._parse_variables(self.template)
 
-    def format(self, variable_values: Dict[str, Union[bool, int, float, str]]) -> str:
-        prompt = self.text
+    def prompt(self, options: Optional[PromptOptions] = None) -> str:
+        return self.template
+
+    def format(
+        self,
+        variable_values: Dict[str, Union[bool, int, float, str]],
+        options: Optional[PromptOptions] = None,
+    ) -> str:
+        prompt = self.prompt(options)
         for variable_name in self.variables:
             prompt = prompt.replace(
                 self._start_delim + variable_name + self._end_delim,
@@ -35,62 +47,82 @@ class PromptTemplate:
             )
         return prompt
 
-    def _get_delimiters(self, delimiters: List[str]) -> Tuple[str, str]:
-        if not is_list_of(delimiters, str):
-            raise TypeError("delimiters must be a list of strings")
-        if len(delimiters) == 1:
-            return delimiters[0], delimiters[0]
-        elif len(delimiters) == 2:
-            return delimiters[0], delimiters[1]
-        else:
-            raise ValueError("delimiters must only contain 2 items in the list")
-
-    def _validate(self) -> None:
-        # Validate that for every open delimiter, we have the corresponding closing one
-        start_count = self.text.count(self._start_delim)
-        end_count = self.text.count(self._end_delim)
-        if start_count != end_count:
-            raise ValueError(
-                f"text poorly formatted. Found {start_count} instances of delimiter "
-                f"{self._start_delim} and {end_count} instances of {self._end_delim}. "
-                "They must be equal to be correctly paired."
-            )
-
-    def _parse_variables(self) -> List[str]:
-        variables = []
-        formatter = Formatter()
-
-        text = self.text
-
-        # Example of this could be a template like: My name is ::name::
-        if self._start_delim == self._end_delim:
-            delim_length = len(self._start_delim)
-            delim_count = text.count(self._start_delim)
-            while delim_count > 0:
-                left_index = text.find(self._start_delim)
-                right_index = text[left_index + delim_length :].find(self._start_delim)
-                text = (
-                    text[0:left_index]
-                    + DEFAULT_START_DELIM
-                    + text[left_index + delim_length : left_index + delim_length + right_index]
-                    + DEFAULT_END_DELIM
-                    + text[left_index + 2 * delim_length + right_index :]
-                )
-                delim_count = text.count(self._start_delim)
-        else:
-            if self._start_delim != "{":
-                text = text.replace(self._start_delim, DEFAULT_START_DELIM)
-            if self._end_delim != "{":
-                text = text.replace(self._end_delim, DEFAULT_END_DELIM)
-
-        for _, variable_name, _, _ in formatter.parse(text):
-            if variable_name:
-                variables.append(variable_name)
-
+    def _parse_variables(self, text: str) -> List[str]:
+        pattern = re.escape(self._start_delim) + "(.*?)" + re.escape(self._end_delim)
+        variables = re.findall(pattern, text)
         return variables
 
 
-def normalize_template(template: Union[PromptTemplate, str]) -> PromptTemplate:
+class ClassificationTemplate(PromptTemplate):
+    def __init__(
+        self,
+        rails: List[str],
+        template: str,
+        explanation_template: Optional[str] = None,
+        explanation_label_parser: Optional[Callable[[str], str]] = None,
+        delimiters: Tuple[str, str] = (DEFAULT_START_DELIM, DEFAULT_END_DELIM),
+    ):
+        self.template = template
+        self.explanation_template = explanation_template
+        self.explanation_label_parser = explanation_label_parser
+        self._start_delim, self._end_delim = delimiters
+        self.variables: List[str] = []
+        for text in [template, explanation_template]:
+            if text is not None:
+                self.variables += self._parse_variables(text)
+
+    def __repr__(self) -> str:
+        return self.template
+
+    def prompt(self, options: Optional[PromptOptions] = None) -> str:
+        if options is None:
+            return self.template
+
+        if options.provide_explanation and self.explanation_template:
+            return self.explanation_template
+        else:
+            return self.template
+
+    def extract_label_from_explanation(self, raw_string: str) -> str:
+        if parser := self.explanation_label_parser:
+            return parser(raw_string)
+        return parse_label_from_chain_of_thought_response(raw_string)
+
+
+def parse_label_from_chain_of_thought_response(raw_string: str) -> str:
+    label_delimiter = r"\W*label\W*"
+    parts = re.split(label_delimiter, raw_string, maxsplit=1, flags=re.IGNORECASE)
+    if len(parts) == 2:
+        return parts[1]
+    return NOT_PARSABLE
+
+
+def normalize_classification_template(
+    rails: List[str], template: Union[PromptTemplate, ClassificationTemplate, str]
+) -> ClassificationTemplate:
+    """
+    Normalizes a template to a ClassificationTemplate object.
+    Args:
+        template (Union[ClassificationTemplate, str]): The template to be normalized.
+    Returns:
+        ClassificationTemplate: The normalized template.
+    """
+    if isinstance(template, ClassificationTemplate):
+        return template
+
+    if isinstance(template, PromptTemplate):
+        return ClassificationTemplate(rails=rails, template=template.template)
+
+    if isinstance(template, str):
+        return ClassificationTemplate(rails=rails, template=template)
+
+    raise TypeError(
+        "Invalid type for argument `template`. Expected a string or ClassificationTemplate "
+        f"but found {type(template)}."
+    )
+
+
+def normalize_prompt_template(template: Union[PromptTemplate, str]) -> PromptTemplate:
     """
     Normalizes a template to a PromptTemplate object.
     Args:
@@ -102,7 +134,7 @@ def normalize_template(template: Union[PromptTemplate, str]) -> PromptTemplate:
         return template
 
     if isinstance(template, str):
-        return PromptTemplate(text=template)
+        return PromptTemplate(template=template)
 
     raise TypeError(
         "Invalid type for argument `template`. Expected a string or PromptTemplate "
@@ -110,7 +142,11 @@ def normalize_template(template: Union[PromptTemplate, str]) -> PromptTemplate:
     )
 
 
-def map_template(dataframe: pd.DataFrame, template: PromptTemplate) -> "pd.Series[str]":
+def map_template(
+    dataframe: pd.DataFrame,
+    template: PromptTemplate,
+    options: Optional[PromptOptions] = None,
+) -> "pd.Series[str]":
     """
     Maps over a dataframe to construct a list of prompts from a template and a dataframe.
     """
@@ -119,10 +155,13 @@ def map_template(dataframe: pd.DataFrame, template: PromptTemplate) -> "pd.Serie
     # would've used API credits for nothing. We could solve this problem by streaming the
     # answers so that, if there is an error, we keep the answers obtained up to that point.
     # These are out of scope for M0, but good to keep in mind and consider for the future.
+    prompt_options: PromptOptions = PromptOptions() if options is None else options
+
     try:
         prompts = dataframe.apply(
             lambda row: template.format(
-                variable_values={var_name: row[var_name] for var_name in template.variables}
+                variable_values={var_name: row[var_name] for var_name in template.variables},
+                options=prompt_options,
             ),
             axis=1,
         )
