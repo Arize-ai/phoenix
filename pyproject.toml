@@ -38,7 +38,7 @@ dependencies = [
   "sortedcontainers",
   "protobuf>=3.20, <5.0",
   "ddsketch",
-  "anyio",
+  "nest-asyncio",
 ]
 dynamic = ["version"]
 
@@ -60,7 +60,6 @@ dev = [
   "llama-index>=0.9.0",
   "langchain>=0.0.334",
   "litellm>=1.0.3"
-  "nest-asyncio"
 ]
 experimental = [
   "tenacity",
@@ -113,6 +112,7 @@ dependencies = [
   "typing-extensions<4.6.0",  # for Colab
   "httpx", # For OpenAI testing
   "respx", # For OpenAI testing
+  "nest-asyncio",
 ]
 
 [tool.hatch.envs.type]
@@ -280,7 +280,8 @@ module = [
   "wrapt",
   "sortedcontainers",
   "langchain.*",
-  "litellm"
+  "litellm",
+  "nest_asyncio",
 ]
 ignore_missing_imports = true
 
