@@ -4,24 +4,21 @@ import weakref
 from queue import SimpleQueue
 from threading import Thread
 from types import MethodType
-from typing import Any, Optional
+from typing import Optional
 
 import requests
 from requests import Session
 
-import phoenix.trace.v1 as pb
 from phoenix.config import get_env_host, get_env_port
 from phoenix.trace.schemas import Span
-from phoenix.trace.v1.utils import encode
+from phoenix.trace.v1 import encode
 
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
 
-END_OF_QUEUE = None  # sentinel value for queue termination
-
 
 class NoOpExporter:
-    def export(self, _: Any) -> None:
+    def export(self, span: Span) -> None:
         pass
 
 
@@ -47,6 +44,7 @@ class HttpExporter:
         self._port = port or get_env_port()
         self._base_url = f"http://{self._host}:{self._port}"
         self._warn_if_phoenix_is_not_running()
+        self._url = f"{self._base_url}/v1/spans"
         self._session = Session()
         weakref.finalize(self, self._session.close)
         self._session.headers.update(
@@ -55,37 +53,37 @@ class HttpExporter:
                 "content-encoding": "gzip",
             }
         )
-        self._queue: "SimpleQueue[Optional[pb.Span]]" = SimpleQueue()
+        self._queue: "SimpleQueue[Optional[Span]]" = SimpleQueue()
         # Putting `None` as the sentinel value for queue termination.
-        weakref.finalize(self, self._queue.put, END_OF_QUEUE)
+        weakref.finalize(self, self._queue.put, None)
         self._start_consumer()
 
     def export(self, span: Span) -> None:
-        self._queue.put(encode(span))
+        self._queue.put(span)
 
     def _start_consumer(self) -> None:
         Thread(
             target=MethodType(
-                self.__class__._consume_items,
+                self.__class__._consume_spans,
                 weakref.proxy(self),
             ),
             daemon=True,
         ).start()
 
-    def _consume_items(self) -> None:
-        while (item := self._queue.get()) is not END_OF_QUEUE:
-            self._send(item)
+    def _consume_spans(self) -> None:
+        while True:
+            if not (span := self._queue.get()):
+                return
+            self._send(span)
 
-    def _send(self, item: pb.Span) -> None:
-        serialized = item.SerializeToString()
+    def _send(self, span: Span) -> None:
+        pb_span = encode(span)
+        serialized = pb_span.SerializeToString()
         data = gzip.compress(serialized)
         try:
-            self._session.post(self._url(item), data=data)
+            self._session.post(self._url, data=data)
         except Exception as e:
             logger.exception(e)
-
-    def _url(self, _: pb.Span) -> str:
-        return f"{self._base_url}/v1/spans"
 
     def _warn_if_phoenix_is_not_running(self) -> None:
         try:

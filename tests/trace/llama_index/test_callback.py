@@ -1,4 +1,3 @@
-import os
 from datetime import datetime
 from typing import Any
 from unittest.mock import patch
@@ -39,9 +38,6 @@ from phoenix.trace.semantic_conventions import (
 )
 from phoenix.trace.span_json_decoder import json_string_to_span
 from phoenix.trace.span_json_encoder import span_to_json
-
-# fake openai key so that llama_index doesn't download huggingface embeddings
-os.environ["OPENAI_API_KEY"] = "sk-fake-openai-key"
 
 nodes = [
     Document(
@@ -277,7 +273,7 @@ def test_end_trace_handler_fails_gracefully(mock_handler_internals, caplog) -> N
 
 
 def test_custom_llm(mock_embed_model) -> None:
-    """Make sure token counts are captured when a custom LLM such as llama2-13B is used."""
+    """Make sure token counts are captured when a custom LLM such as lama2-13B is used."""
 
     prompt_tokens = 100
     completion_tokens = 200

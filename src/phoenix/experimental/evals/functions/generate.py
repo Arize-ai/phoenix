@@ -4,11 +4,7 @@ from typing import Any, Callable, Dict, Optional, Union
 import pandas as pd
 
 from phoenix.experimental.evals.models import BaseEvalModel, set_verbosity
-from phoenix.experimental.evals.templates import (
-    PromptTemplate,
-    map_template,
-    normalize_prompt_template,
-)
+from phoenix.experimental.evals.templates import PromptTemplate, map_template, normalize_template
 
 logger = logging.getLogger(__name__)
 
@@ -59,27 +55,18 @@ def llm_generate(
     """
     output_parser = output_parser or _no_op_parser
     with set_verbosity(model, verbose) as verbose_model:
-        template = normalize_prompt_template(template)
-        logger.info(f"Template: \n{template.prompt()}\n")
+        template = normalize_template(template)
+        logger.info(f"Template: \n{template.text}\n")
         logger.info(f"Template variables: {template.variables}")
         prompts = map_template(dataframe, template)
 
         # For each prompt, generate and parse the response
         output = []
-        # Wrap the loop in a try / catch so that we can still return a dataframe
-        # even if the process is interrupted
-        try:
-            for prompt in prompts:
-                logger.info(f"Prompt: {prompt}")
-                response = verbose_model(prompt, instruction=system_instruction)
-                parsed_response = output_parser(response)
-                output.append(parsed_response)
+        for prompt in prompts:
+            logger.info(f"Prompt: {prompt}")
+            response = verbose_model(prompt, instruction=system_instruction)
+            parsed_response = output_parser(response)
+            output.append(parsed_response)
 
-        except (Exception, KeyboardInterrupt) as e:
-            logger.error(e)
-            print(
-                "Process was interrupted. The return value will be incomplete",
-                e,
-            )
         # Return the data as a dataframe
         return pd.DataFrame(output)

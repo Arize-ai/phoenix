@@ -3,18 +3,17 @@ from .models import OpenAIModel, VertexAIModel
 from .retrievals import compute_precisions_at_k
 from .templates import (
     CODE_READABILITY_PROMPT_RAILS_MAP,
-    CODE_READABILITY_PROMPT_TEMPLATE,
+    CODE_READABILITY_PROMPT_TEMPLATE_STR,
     HALLUCINATION_PROMPT_RAILS_MAP,
-    HALLUCINATION_PROMPT_TEMPLATE,
+    HALLUCINATION_PROMPT_TEMPLATE_STR,
     NOT_PARSABLE,
     RAG_RELEVANCY_PROMPT_RAILS_MAP,
-    RAG_RELEVANCY_PROMPT_TEMPLATE,
+    RAG_RELEVANCY_PROMPT_TEMPLATE_STR,
     TOXICITY_PROMPT_RAILS_MAP,
-    TOXICITY_PROMPT_TEMPLATE,
-    ClassificationTemplate,
+    TOXICITY_PROMPT_TEMPLATE_STR,
     PromptTemplate,
 )
-from .utils import download_benchmark_dataset
+from .utils.downloads import download_benchmark_dataset
 
 __all__ = [
     "compute_precisions_at_k",
@@ -24,15 +23,14 @@ __all__ = [
     "OpenAIModel",
     "VertexAIModel",
     "PromptTemplate",
-    "ClassificationTemplate",
     "CODE_READABILITY_PROMPT_RAILS_MAP",
-    "CODE_READABILITY_PROMPT_TEMPLATE",
+    "CODE_READABILITY_PROMPT_TEMPLATE_STR",
     "HALLUCINATION_PROMPT_RAILS_MAP",
-    "HALLUCINATION_PROMPT_TEMPLATE",
+    "HALLUCINATION_PROMPT_TEMPLATE_STR",
     "RAG_RELEVANCY_PROMPT_RAILS_MAP",
-    "RAG_RELEVANCY_PROMPT_TEMPLATE",
+    "RAG_RELEVANCY_PROMPT_TEMPLATE_STR",
+    "TOXICITY_PROMPT_TEMPLATE_STR",
     "TOXICITY_PROMPT_RAILS_MAP",
-    "TOXICITY_PROMPT_TEMPLATE",
     "NOT_PARSABLE",
     "run_relevance_eval",
 ]

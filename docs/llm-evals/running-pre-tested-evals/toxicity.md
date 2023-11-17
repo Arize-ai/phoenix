@@ -55,7 +55,7 @@ We are continually iterating our templates, view the most up-to-date template on
 ```python
 from phoenix.experimental.evals import (
     TOXICITY_PROMPT_RAILS_MAP,
-    TOXICITY_PROMPT_TEMPLATE,
+    TOXICITY_PROMPT_TEMPLATE_STR,
     OpenAIModel,
     download_benchmark_dataset,
     llm_classify,
@@ -72,7 +72,7 @@ model = OpenAIModel(
 rails = list(TOXICITY_PROMPT_RAILS_MAP.values())
 toxic_classifications = llm_classify(
     dataframe=df_sample,
-    template=TOXICITY_PROMPT_TEMPLATE,
+    template=TOXICITY_PROMPT_TEMPLATE_STR,
     model=model,
     rails=rails,
 )

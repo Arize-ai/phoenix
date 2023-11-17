@@ -25,7 +25,7 @@ from sortedcontainers import SortedKeyList
 from typing_extensions import TypeAlias
 from wrapt import ObjectProxy
 
-import phoenix.trace.v1 as pb
+import phoenix.trace.v1.trace_pb2 as pb
 from phoenix.datetime_utils import right_open_time_range
 from phoenix.trace import semantic_conventions
 from phoenix.trace.schemas import (
@@ -37,9 +37,7 @@ from phoenix.trace.schemas import (
     SpanID,
     TraceID,
 )
-from phoenix.trace.v1.utils import decode, encode
-
-END_OF_QUEUE = None  # sentinel value for queue termination
+from phoenix.trace.v1 import decode, encode
 
 NAME = "name"
 STATUS_CODE = "status_code"
@@ -114,7 +112,7 @@ class Traces:
     def __init__(self, spans: Optional[Iterable[Span]] = None) -> None:
         self._queue: "SimpleQueue[Optional[pb.Span]]" = SimpleQueue()
         # Putting `None` as the sentinel value for queue termination.
-        weakref.finalize(self, self._queue.put, END_OF_QUEUE)
+        weakref.finalize(self, self._queue.put, None)
         for span in spans or ():
             self.put(span)
         self._lock = RLock()
@@ -226,9 +224,11 @@ class Traces:
         ).start()
 
     def _consume_spans(self) -> None:
-        while (item := self._queue.get()) is not END_OF_QUEUE:
+        while True:
+            if not (span := self._queue.get()):
+                return
             with self._lock:
-                self._process_span(item)
+                self._process_span(span)
 
     def _process_span(self, span: pb.Span) -> None:
         span_id = UUID(bytes=span.context.span_id)

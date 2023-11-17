@@ -918,7 +918,7 @@ function LLMMessage({ message }: { message: AttributeMessage }) {
         backgroundColor: "indigo-100",
         borderColor: "indigo-700",
       };
-    } else if (["function", "tool"].includes(role)) {
+    } else if (role === "function") {
       return {
         backgroundColor: "yellow-100",
         borderColor: "yellow-700",
