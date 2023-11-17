@@ -451,7 +451,7 @@ def _get_notebook_environment() -> NotebookEnvironment:
 
 def _get_sagemaker_notebook_base_url() -> str:
     """
-    Returns the name of the SageMaker notebook
+    Returns base url of the sagemaker notebook by parsing the Arn
     src: https://github.com/aws-samples/amazon-sagemaker-notebook-instance-lifecycle-config-samples/blob/62c44aa5e69f4266955476f24647b99d9b597aaf/scripts/auto-stop-idle/autostop.py#L79
     """
     log_path = "/opt/ml/metadata/resource-metadata.json"
