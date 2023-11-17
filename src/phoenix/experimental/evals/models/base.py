@@ -2,7 +2,7 @@ import logging
 from abc import ABC, abstractmethod, abstractproperty
 from contextlib import contextmanager
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Callable, Generator, List, Optional, Type, Sequence
+from typing import TYPE_CHECKING, Any, Callable, Generator, List, Optional, Sequence, Type
 
 if TYPE_CHECKING:
     from tiktoken import Encoding

@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 
 @dataclass
-class LiteLLM(BaseEvalModel):
+class LiteLLMModel(BaseEvalModel):
     model_name: str = "gpt-3.5-turbo"
     """The model name to use."""
     temperature: float = 0.0
@@ -20,12 +20,12 @@ class LiteLLM(BaseEvalModel):
     """The maximum number of tokens to generate in the completion."""
     top_p: float = 1
     """Total probability mass of tokens to consider at each step."""
-    num_retries: int = 6
+    num_retries: int = 6  # Will be superseeded by max_retries
     """Maximum number to retry a model if an RateLimitError, OpenAIError, or
     ServiceUnavailableError occurs."""
     request_timeout: int = 60
     """Maximum number of seconds to wait when retrying."""
-    extra_litellm_params: Dict[str, Any] = field(default_factory=dict)
+    model_kwargs: Dict[str, Any] = field(default_factory=dict)
     """Model specific params"""
 
     # non-LiteLLM params
@@ -40,15 +40,19 @@ class LiteLLM(BaseEvalModel):
 
     def _init_environment(self) -> None:
         try:
-            import litellm  # type:ignore
-            from litellm import exceptions
+            import litellm
+            from litellm import validate_environment
 
             self._litellm = litellm
-            self._retry_errors = [
-                exceptions.RateLimitError,
-                exceptions.ServiceUnavailableError,
-                exceptions.OpenAIError,
-            ]
+            env_info = validate_environment(self._litellm.utils.get_llm_provider(self.model_name))
+
+            if not env_info["keys_in_environment"]:
+                raise RuntimeError(
+                    f"Missing environment variable(s): '{str(env_info['missing_keys'])}', for "
+                    f"model: {self.model_name}. \nFor additional information about the right "
+                    "environment variables for specific model providers:\n"
+                    "https://docs.litellm.ai/docs/completion/input#provider-specific-params."
+                )
         except ImportError:
             self._raise_import_error(
                 package_display_name="LiteLLM",
@@ -58,11 +62,13 @@ class LiteLLM(BaseEvalModel):
     def _init_model_encoding(self) -> None:
         from litellm import decode, encode
 
-        if self.model_name in self._litellm.utils.get_valid_models():
+        if self.model_name in self._litellm.model_list:
             self._encoding = encode
             self._decoding = decode
         else:
-            raise ValueError("Model name not found in the LiteLLM's valid models list")
+            raise ValueError(
+                f"Model name not found in the LiteLLM's models list: \n{self._litellm.model_list}"
+            )
 
     @property
     def max_context_size(self) -> int:
@@ -100,24 +106,15 @@ class LiteLLM(BaseEvalModel):
                 top_p=self.top_p,
                 num_retries=self.num_retries,
                 request_timeout=self.request_timeout,
-                **self.extra_litellm_params,
+                **self.model_kwargs,
             )
         )
 
     def _generate_with_retry(self, **kwargs: Any) -> Any:
-        """Use tenacity to retry the completion call."""
+        # Using default LiteLLM completion with retries = self.num_retries.
 
-        @self.retry(
-            error_types=self._retry_errors,
-            min_seconds=self.retry_min_seconds,
-            max_seconds=self.request_timeout,
-            max_retries=self.num_retries,
-        )
-        def _completion_with_retry(**kwargs: Any) -> Any:
-            response = self._litellm.completion(**kwargs)
-            return response.choices[0].message.content
-
-        return _completion_with_retry(**kwargs)
+        response = self._litellm.completion(**kwargs)
+        return response.choices[0].message.content
 
     def _get_messages_from_prompt(self, prompt: str) -> List[Dict[str, str]]:
         # LiteLLM requires prompts in the format of messages
