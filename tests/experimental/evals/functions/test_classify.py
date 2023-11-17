@@ -1,10 +1,10 @@
+import asyncio
+import signal
 from contextlib import ExitStack
 from itertools import product
 from typing import List
 from unittest.mock import MagicMock, patch
 
-import signal
-import asyncio
 import httpx
 import numpy as np
 import pandas as pd
@@ -682,7 +682,9 @@ async def test_async_executor_execute_exits_early_on_error():
             raise ValueError("test error")
         return payload - 1
 
-    executor = AsyncExecutor(dummy_fn, num_consumers=1, exit_on_error=True, generation_fn_fallback_return_value=52)
+    executor = AsyncExecutor(
+        dummy_fn, num_consumers=1, exit_on_error=True, generation_fn_fallback_return_value=52
+    )
     inputs = [1, 2, 3, 4, 5]
     outputs = await executor.execute(inputs)
     assert outputs == [0, 1, 52, 52, 52]
@@ -694,7 +696,9 @@ def test_async_executor_run_exits_early_on_error():
             raise ValueError("test error")
         return payload - 1
 
-    executor = AsyncExecutor(dummy_fn, num_consumers=1, exit_on_error=True, generation_fn_fallback_return_value=52)
+    executor = AsyncExecutor(
+        dummy_fn, num_consumers=1, exit_on_error=True, generation_fn_fallback_return_value=52
+    )
     inputs = [1, 2, 3, 4, 5]
     outputs = executor.run(inputs)
     assert outputs == [0, 1, 52, 52, 52]
@@ -706,7 +710,9 @@ async def test_async_executor_can_continue_on_error():
             raise ValueError("test error")
         return payload - 1
 
-    executor = AsyncExecutor(dummy_fn, num_consumers=1, exit_on_error=False, generation_fn_fallback_return_value=52)
+    executor = AsyncExecutor(
+        dummy_fn, num_consumers=1, exit_on_error=False, generation_fn_fallback_return_value=52
+    )
     inputs = [1, 2, 3, 4, 5]
     outputs = await executor.execute(inputs)
     assert outputs == [0, 1, 52, 3, 4]
