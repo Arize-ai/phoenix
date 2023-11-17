@@ -435,7 +435,7 @@ def _is_sagemaker() -> bool:
     except ImportError:
         return False
     try:
-        from IPython.core.getipython import get_ipython  # type: ignore
+        from IPython.core.getipython import get_ipython
     except ImportError:
         return False
     return get_ipython() is not None
