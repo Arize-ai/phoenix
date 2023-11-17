@@ -25,6 +25,7 @@
         "RERANKER",
         "respx",
         "rgba",
+        "tensorboard",
         "tiktoken",
         "tracedataset",
         "UMAP"

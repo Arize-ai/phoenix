@@ -47,6 +47,10 @@ We are continually iterating our templates, view the most up-to-date template on
 
 <figure><img src="../../.gitbook/assets/claude_v2_relevance.png" alt=""><figcaption></figcaption></figure>
 
+#### GPT 4 Turbo
+
+<figure><img src="../../.gitbook/assets/GPT-4 Turbo.png" alt=""><figcaption></figcaption></figure>
+
 ## How To Run the Eval
 
 <pre class="language-python"><code class="lang-python"><strong>from phoenix.experimental.evals import (
@@ -76,5 +80,32 @@ relevance_classifications = llm_classify(
 
 The above runs the RAG relevancy LLM template against the dataframe df.
 
-<table><thead><tr><th>RAG Eval</th><th>GPT-4</th><th>GPT-3.5</th><th>Palm (Text Bison)</th><th>Claude V2</th><th data-hidden>GPT-3.5-turbo-instruct</th></tr></thead><tbody><tr><td>Precision</td><td><mark style="color:green;">0.70</mark></td><td><mark style="color:red;">0.42</mark></td><td><mark style="color:red;">0.53</mark></td><td><mark style="color:red;">0.79</mark></td><td><mark style="color:red;">0.42</mark></td></tr><tr><td>Recall</td><td><mark style="color:green;">0.88</mark></td><td><mark style="color:red;">1.0</mark></td><td><mark style="color:red;">1</mark></td><td><mark style="color:red;">0.22</mark></td><td><mark style="color:red;">1</mark></td></tr><tr><td>F1</td><td><mark style="color:green;">0.78</mark></td><td><mark style="color:red;">0.59</mark></td><td><mark style="color:red;">0.69</mark></td><td><mark style="color:red;">0.34</mark></td><td><mark style="color:red;">0.59</mark></td></tr></tbody></table>
+<table><thead><tr><th>RAG Eval</th><th>GPT-4</th><th>GPT-4 Turbo</th><th>GPT-3.5</th><th>Palm (Text Bison)</th><th>Claude V2</th><th data-hidden>GPT-3.5-turbo-instruct</th></tr></thead><tbody><tr><td>Precision</td><td><mark style="color:green;">0.70</mark></td><td><mark style="color:green;">0.68</mark></td><td><mark style="color:red;">0.42</mark></td><td><mark style="color:red;">0.53</mark></td><td><mark style="color:red;">0.79</mark></td><td><mark style="color:red;">0.42</mark></td></tr><tr><td>Recall</td><td><mark style="color:green;">0.88</mark></td><td><mark style="color:green;">0.91</mark></td><td><mark style="color:red;">1.0</mark></td><td><mark style="color:red;">1</mark></td><td><mark style="color:red;">0.22</mark></td><td><mark style="color:red;">1</mark></td></tr><tr><td>F1</td><td><mark style="color:green;">0.78</mark></td><td><mark style="color:green;">0.78</mark></td><td><mark style="color:red;">0.59</mark></td><td><mark style="color:red;">0.69</mark></td><td><mark style="color:red;">0.34</mark></td><td><mark style="color:red;">0.59</mark></td></tr></tbody></table>
 
+| Throughput  | GPT-4   | GPT-4 Turbo | GPT-3.5 |
+| ----------- | ------- | ----------- | ------- |
+| 100 Samples | 113 Sec | 61 sec      | 73 Sec  |
+
+### Concatenating Retrieved References&#x20;
+
+In order to run the RAG relevance eval, you need to concatenate all of the chunks into a single string that is inserted into the Eval check.
+
+<figure><img src="../../.gitbook/assets/chunks_concat (1).png" alt=""><figcaption></figcaption></figure>
+
+The above drawing shows the query and chunks returned for the query, those chunks are put into the reference variable of the Eval template.&#x20;
+
+```python
+from phoenix.experimental.evals.functions.processing import concatenate_and_truncate_chunks
+
+model = OpenAIModel(model_name="gpt-4", temperature=0.0) # Needed to get token size supported
+# Then use the function in a single call to collect and truncate reference.
+df["reference_text"] = df["retrieved_chunk_list"].apply(
+    lambda chunks: concatenate_and_truncate_chunks(chunks=chunks, model=model, token_buffer=700)
+)
+```
+
+
+
+{% hint style="info" %}
+Phoenix has options for not truncating the context window for Evals. Please drop a note in support if you want to test the MAP & Refine for Evals.
+{% endhint %}

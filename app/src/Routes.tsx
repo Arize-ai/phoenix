@@ -65,7 +65,10 @@ const router = createBrowserRouter(
         </Route>
       </Route>
     </Route>
-  )
+  ),
+  {
+    basename: window.Config.basename,
+  }
 );
 
 export function AppRoutes() {
