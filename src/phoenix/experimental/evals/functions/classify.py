@@ -20,7 +20,7 @@ from typing import (
 
 import nest_asyncio
 import pandas as pd
-from tqdm.auto import tqdm  # type: ignore
+from tqdm.auto import tqdm
 
 from phoenix.experimental.evals.models import BaseEvalModel, OpenAIModel, set_verbosity
 from phoenix.experimental.evals.templates import (
