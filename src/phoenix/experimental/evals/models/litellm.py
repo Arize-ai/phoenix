@@ -95,6 +95,9 @@ class LiteLLMModel(BaseEvalModel):
     def get_text_from_tokens(self, tokens: List[int]) -> str:
         return str(self._decoding(model=self.model_name, tokens=tokens))
 
+    async def _async_generate(self, prompt: str, **kwargs: Dict[str, Any]) -> str:
+        return self._generate(prompt, **kwargs)
+
     def _generate(self, prompt: str, **kwargs: Dict[str, Any]) -> str:
         messages = self._get_messages_from_prompt(prompt)
         return str(
