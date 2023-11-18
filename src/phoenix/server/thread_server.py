@@ -16,9 +16,7 @@ def _nest_asyncio_applied() -> bool:
     the "asyncio" loop.
     see: https://github.com/erdewit/nest_asyncio/blob/a48a68a47e182bd7e1f86c60dfc07d7b8509508b/nest_asyncio.py#L45
     """
-    if hasattr(asyncio, "_nest_patched"):
-        return True
-    return False
+    return hasattr(asyncio, "_nest_patched")
 
 
 class ThreadServer(Server):
