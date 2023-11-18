@@ -15,6 +15,7 @@ from typing import (
     Mapping,
     Optional,
     Set,
+    Union,
 )
 
 import pandas as pd
@@ -306,7 +307,7 @@ def launch_app(
     host: Optional[str] = None,
     port: Optional[int] = None,
     run_in_thread: bool = True,
-    notebook_environment: Optional[str] = None,
+    notebook_environment: Optional[Union[NotebookEnvironment, str]] = None,
 ) -> Optional[Session]:
     """
     Launches the phoenix application and returns a session to interact with.
