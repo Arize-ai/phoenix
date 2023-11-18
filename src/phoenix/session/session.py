@@ -1,5 +1,6 @@
 import json
 import logging
+import os
 from abc import ABC, abstractmethod
 from collections import UserList
 from datetime import datetime
@@ -18,7 +19,7 @@ from typing import (
 
 import pandas as pd
 
-from phoenix.config import get_env_host, get_env_port, get_exported_files
+from phoenix.config import ENV_NOTEBOOK_ENV, get_env_host, get_env_port, get_exported_files
 from phoenix.core.model_schema_adapter import create_model_from_datasets
 from phoenix.core.traces import Traces
 from phoenix.datasets.dataset import EMPTY_DATASET, Dataset
@@ -121,7 +122,7 @@ class Session(ABC):
         self.export_path = Path(self.temp_dir.name) / "exports"
         self.export_path.mkdir(parents=True, exist_ok=True)
         self.exported_data = ExportedData()
-        self.notebook_env = _get_notebook_environment() if notebook_env is None else notebook_env
+        self.notebook_env = notebook_env or _get_notebook_environment()
 
     @abstractmethod
     def end(self) -> None:
@@ -305,7 +306,7 @@ def launch_app(
     host: Optional[str] = None,
     port: Optional[int] = None,
     run_in_thread: bool = True,
-    notebook_environment: Optional[NotebookEnvironment] = None,
+    notebook_environment: Optional[str] = None,
 ) -> Optional[Session]:
     """
     Launches the phoenix application and returns a session to interact with.
@@ -333,7 +334,7 @@ def launch_app(
     default_umap_parameters: Dict[str, Union[int, float]], optional, default=None
         User specified default UMAP parameters
         eg: {"n_neighbors": 10, "n_samples": 5, "min_dist": 0.5}
-    notebook_environment: NotebookEnvironment, optional, default=None
+    notebook_environment: str, optional, default=None
         The environment the notebook is running in. This is either 'local', 'colab', or 'sagemaker'.
         If not provided, phoenix will try to infer the environment. This is only needed if
         there is a failure to infer the environment.
@@ -368,6 +369,12 @@ def launch_app(
     host = host or get_env_host()
     port = port or get_env_port()
 
+    # Normalize notebook environment
+    if isinstance(notebook_environment, str):
+        nb_env: Optional[NotebookEnvironment] = NotebookEnvironment(notebook_environment.lower())
+    else:
+        nb_env = notebook_environment
+
     if run_in_thread:
         _session = ThreadSession(
             primary,
@@ -377,7 +384,7 @@ def launch_app(
             default_umap_parameters,
             host=host,
             port=port,
-            notebook_env=notebook_environment,
+            notebook_env=nb_env,
         )
         # TODO: catch exceptions from thread
     else:
@@ -389,7 +396,7 @@ def launch_app(
             default_umap_parameters,
             host=host,
             port=port,
-            notebook_env=notebook_environment,
+            notebook_env=nb_env,
         )
 
     if not _session.active:
@@ -466,6 +473,14 @@ def _is_sagemaker() -> bool:
 
 
 def _get_notebook_environment() -> NotebookEnvironment:
+    """Determines the notebook environment"""
+    if (notebook_env := os.getenv(ENV_NOTEBOOK_ENV)) is not None:
+        return NotebookEnvironment(notebook_env.lower())
+    return _infer_notebook_environment()
+
+
+def _infer_notebook_environment() -> NotebookEnvironment:
+    """Use feature detection to determine the notebook environment"""
     if _is_colab():
         return NotebookEnvironment.COLAB
     if _is_sagemaker():
