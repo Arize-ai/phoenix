@@ -3,6 +3,11 @@ import tempfile
 from pathlib import Path
 from typing import List, Optional
 
+# Phoenix environment variables
+ENV_PHOENIX_PORT = "PHOENIX_PORT"
+ENV_PHOENIX_HOST = "PHOENIX_HOST"
+ENV_NOTEBOOK_ENV = "PHOENIX_NOTEBOOK_ENV"
+
 
 def _get_temp_path() -> Path:
     """Get path to  directory in which to store temp phoenix server files."""
@@ -39,7 +44,7 @@ SERVER_DIR = PHOENIX_DIR / "server"
 # The host the server will run on after launch_app is called
 HOST = "127.0.0.1"
 # The port the server will run on after launch_app is called
-PORT = 6060
+PORT = 6006
 # The prefix of datasets that are auto-assigned a name
 GENERATED_DATASET_NAME_PREFIX = "phoenix_dataset_"
 
@@ -64,10 +69,10 @@ def get_exported_files(directory: Path) -> List[Path]:
 def get_env_port() -> int:
     return (
         int(port)
-        if isinstance(port := os.getenv("PHOENIX_PORT"), str) and port.isnumeric()
+        if isinstance(port := os.getenv(ENV_PHOENIX_PORT), str) and port.isnumeric()
         else PORT
     )
 
 
 def get_env_host() -> str:
-    return os.getenv("PHOENIX_HOST") or HOST
+    return os.getenv(ENV_PHOENIX_HOST) or HOST

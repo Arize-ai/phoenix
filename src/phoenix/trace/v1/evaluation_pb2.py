@@ -11,24 +11,22 @@ from google.protobuf import symbol_database as _symbol_database
 _sym_db = _symbol_database.Default()
 
 
-from google.protobuf import timestamp_pb2 as google_dot_protobuf_dot_timestamp__pb2
-from google.protobuf import struct_pb2 as google_dot_protobuf_dot_struct__pb2
 from google.protobuf import wrappers_pb2 as google_dot_protobuf_dot_wrappers__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x19trace/v1/evaluation.proto\x12\x1bphoenix.proto.evaluation.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1egoogle/protobuf/wrappers.proto\"\xfd\x04\n\nEvaluation\x12\x45\n\nsubject_id\x18\x01 \x01(\x0b\x32\x31.phoenix.proto.evaluation.v1.Evaluation.SubjectID\x12>\n\x06result\x18\x02 \x01(\x0b\x32..phoenix.proto.evaluation.v1.Evaluation.Result\x12\x0c\n\x04name\x18\x03 \x01(\t\x12-\n\ttimestamp\x18\x04 \x01(\x0b\x32\x1a.google.protobuf.Timestamp\x12+\n\nattributes\x18\x05 \x01(\x0b\x32\x17.google.protobuf.Struct\x1a\xe5\x01\n\tSubjectID\x12\x12\n\x08trace_id\x18\x01 \x01(\tH\x00\x12\x11\n\x07span_id\x18\x02 \x01(\tH\x00\x12\x66\n\x15\x64ocument_retrieval_id\x18\x03 \x01(\x0b\x32\x45.phoenix.proto.evaluation.v1.Evaluation.SubjectID.DocumentRetrievalIDH\x00\x1a\x41\n\x13\x44ocumentRetrievalID\x12\x0f\n\x07span_id\x18\x01 \x01(\t\x12\x19\n\x11\x64ocument_position\x18\x02 \x01(\x05\x42\x06\n\x04kind\x1a\x95\x01\n\x06Result\x12+\n\x05score\x18\x01 \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12+\n\x05label\x18\x02 \x01(\x0b\x32\x1c.google.protobuf.StringValue\x12\x31\n\x0b\x65xplanation\x18\x03 \x01(\x0b\x32\x1c.google.protobuf.StringValueb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x19trace/v1/evaluation.proto\x12\x1bphoenix.proto.evaluation.v1\x1a\x1egoogle/protobuf/wrappers.proto\"\xa1\x04\n\nEvaluation\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\x45\n\nsubject_id\x18\x02 \x01(\x0b\x32\x31.phoenix.proto.evaluation.v1.Evaluation.SubjectId\x12>\n\x06result\x18\x03 \x01(\x0b\x32..phoenix.proto.evaluation.v1.Evaluation.Result\x1a\xe5\x01\n\tSubjectId\x12\x12\n\x08trace_id\x18\x01 \x01(\tH\x00\x12\x11\n\x07span_id\x18\x02 \x01(\tH\x00\x12\x66\n\x15\x64ocument_retrieval_id\x18\x03 \x01(\x0b\x32\x45.phoenix.proto.evaluation.v1.Evaluation.SubjectId.DocumentRetrievalIdH\x00\x1a\x41\n\x13\x44ocumentRetrievalId\x12\x0f\n\x07span_id\x18\x01 \x01(\t\x12\x19\n\x11\x64ocument_position\x18\x02 \x01(\x05\x42\x06\n\x04kind\x1a\x95\x01\n\x06Result\x12+\n\x05score\x18\x01 \x01(\x0b\x32\x1c.google.protobuf.DoubleValue\x12+\n\x05label\x18\x02 \x01(\x0b\x32\x1c.google.protobuf.StringValue\x12\x31\n\x0b\x65xplanation\x18\x03 \x01(\x0b\x32\x1c.google.protobuf.StringValueb\x06proto3')
 
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, globals())
 _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'trace.v1.evaluation_pb2', globals())
 if _descriptor._USE_C_DESCRIPTORS == False:
 
   DESCRIPTOR._options = None
-  _EVALUATION._serialized_start=154
-  _EVALUATION._serialized_end=791
-  _EVALUATION_SUBJECTID._serialized_start=410
-  _EVALUATION_SUBJECTID._serialized_end=639
-  _EVALUATION_SUBJECTID_DOCUMENTRETRIEVALID._serialized_start=566
-  _EVALUATION_SUBJECTID_DOCUMENTRETRIEVALID._serialized_end=631
-  _EVALUATION_RESULT._serialized_start=642
-  _EVALUATION_RESULT._serialized_end=791
+  _EVALUATION._serialized_start=91
+  _EVALUATION._serialized_end=636
+  _EVALUATION_SUBJECTID._serialized_start=255
+  _EVALUATION_SUBJECTID._serialized_end=484
+  _EVALUATION_SUBJECTID_DOCUMENTRETRIEVALID._serialized_start=411
+  _EVALUATION_SUBJECTID_DOCUMENTRETRIEVALID._serialized_end=476
+  _EVALUATION_RESULT._serialized_start=487
+  _EVALUATION_RESULT._serialized_end=636
 # @@protoc_insertion_point(module_scope)

@@ -1,4 +1,22 @@
-from typing import Any, Iterable, List, Mapping, Optional, Tuple, Union, cast
+"""
+A set of **highly experimental** helper functions to
+  - extract spans from Phoenix for evaluation
+    - explode retrieved documents from (horizontal) lists to a (vertical) series
+      indexed by `context.span_id` and `document_position`
+  - ingest evaluation results into Phoenix via HttpExporter
+"""
+import collections
+from typing import (
+    Any,
+    Iterable,
+    List,
+    Mapping,
+    Optional,
+    Sequence,
+    Tuple,
+    Union,
+    cast,
+)
 
 import pandas as pd
 from google.protobuf.wrappers_pb2 import DoubleValue, StringValue
@@ -21,7 +39,11 @@ def get_retrieved_documents(session: Session) -> pd.DataFrame:
     if (df := session.get_spans_dataframe("span_kind == 'RETRIEVER'")) is not None:
         for span_id, query, documents, trace_id in df.loc[
             :,
-            [ATTRIBUTE_PREFIX + INPUT_VALUE, ATTRIBUTE_PREFIX + RETRIEVAL_DOCUMENTS, TRACE_ID],
+            [
+                ATTRIBUTE_PREFIX + INPUT_VALUE,
+                ATTRIBUTE_PREFIX + RETRIEVAL_DOCUMENTS,
+                TRACE_ID,
+            ],
         ].itertuples():
             if not isinstance(documents, Iterable):
                 continue
@@ -57,7 +79,10 @@ def add_evaluations(
 ) -> None:
     index_names = evaluations.index.names
     for index, row in evaluations.iterrows():
-        subject_id = _extract_subject_id(cast(Union[str, Tuple[str]], index), index_names)
+        subject_id = _extract_subject_id_from_index(
+            index_names,
+            cast(Union[str, Tuple[Any]], index),
+        )
         result = _extract_result(row)
         evaluation = pb.Evaluation(
             name=evaluation_name,
@@ -67,28 +92,51 @@ def add_evaluations(
         exporter.export(evaluation)
 
 
-def _extract_subject_id(
-    index: Union[str, Tuple[str]], index_names: List[str]
-) -> pb.Evaluation.SubjectID:
-    if index_names and index_names[0].endswith("span_id"):
-        if len(index_names) == 2 and index_names[1].endswith("document_position"):
-            span_id, document_position = cast(Tuple[str, int], index)
-            assert isinstance(span_id, str)
+def _extract_subject_id_from_index(
+    names: Sequence[str],
+    value: Union[str, Sequence[Any]],
+) -> pb.Evaluation.SubjectId:
+    """
+    (**Highly Experimental**)
+    Returns `SubjectId` given the format of `index_names`. Allowed formats are:
+        - DocumentRetrievalId
+            - index_names=["context.span_id", "document_position"]
+            - index_names=["span_id", "document_position"]
+            - index_names=["document_position", "context.span_id"]
+            - index_names=["document_position", "span_id"]
+        - SpanId
+            - index_names=["span_id"]
+            - index_names=["context.span_id"]
+        - TraceId
+            - index_names=["context.span_id"]
+            - index_names=["trace_id"]
+    """
+    assert isinstance(names, collections.Sequence)
+    if len(names) == 2:
+        assert isinstance(value, collections.Sequence) and len(value) == 2
+        if "document_position" in names:
+            document_position = value[names.index("document_position")]
             assert isinstance(document_position, int)
-            return pb.Evaluation.SubjectID(
-                document_retrieval_id=pb.Evaluation.SubjectID.DocumentRetrievalID(
+            if "context.span_id" in names:
+                span_id = value[names.index("context.span_id")]
+            elif "span_id" in names:
+                span_id = value[names.index("span_id")]
+            else:
+                raise ValueError(f"Unexpected index names: {names}")
+            assert isinstance(span_id, str)
+            return pb.Evaluation.SubjectId(
+                document_retrieval_id=pb.Evaluation.SubjectId.DocumentRetrievalId(
                     document_position=document_position,
                     span_id=span_id,
                 ),
             )
-        span_id = cast(str, index)
-        assert isinstance(span_id, str)
-        return pb.Evaluation.SubjectID(span_id=span_id)
-    elif index_names and index_names[0].endswith("trace_id"):
-        trace_id = cast(str, index)
-        assert isinstance(trace_id, str)
-        return pb.Evaluation.SubjectID(trace_id=trace_id)
-    raise ValueError(f"Unexpected index names: {index_names}")
+    elif len(names) == 1:
+        assert isinstance(value, str)
+        if names[0] in ("context.span_id", "span_id"):
+            return pb.Evaluation.SubjectId(span_id=value)
+        elif names[0] in ("context.trace_id", "trace_id"):
+            return pb.Evaluation.SubjectId(trace_id=value)
+    raise ValueError(f"Unexpected index names: {names}")
 
 
 def _extract_result(row: "pd.Series[Any]") -> pb.Evaluation.Result:

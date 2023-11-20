@@ -6,7 +6,6 @@ import pandas as pd
 from google.protobuf.wrappers_pb2 import DoubleValue, StringValue
 
 import phoenix.trace.v1 as pb
-from phoenix.trace.schemas import SpanID
 from phoenix.trace.trace_dataset import TraceDataset
 from phoenix.trace.utils import json_lines_to_df
 
@@ -25,7 +24,7 @@ class EvaluationFixture:
 
 
 @dataclass(frozen=True)
-class DocumentRelevanceEvaluationFixture(EvaluationFixture):
+class DocumentEvaluationFixture(EvaluationFixture):
     document_position: str = "document_position"
 
 
@@ -58,7 +57,7 @@ llama_index_rag_fixture = TracesFixture(
             evaluation_name="Precision@3",
             file_name="llama_index_rag_with_rerank.precision_at_3.parquet",
         ),
-        DocumentRelevanceEvaluationFixture(
+        DocumentEvaluationFixture(
             evaluation_name="Relevance",
             file_name="llama_index_rag_with_rerank.documents_eval.parquet",
         ),
@@ -171,17 +170,17 @@ def _read_eval_fixture(eval_fixture: EvaluationFixture) -> Iterator[pb.Evaluatio
             label=StringValue(value=cast(str, label)) if label else None,
             explanation=StringValue(value=cast(str, explanation)) if explanation else None,
         )
-        if isinstance(eval_fixture, DocumentRelevanceEvaluationFixture):
-            span_id, document_position = cast(Tuple[SpanID, int], index)
-            subject_id = pb.Evaluation.SubjectID(
-                document_retrieval_id=pb.Evaluation.SubjectID.DocumentRetrievalID(
+        if isinstance(eval_fixture, DocumentEvaluationFixture):
+            span_id, document_position = cast(Tuple[str, int], index)
+            subject_id = pb.Evaluation.SubjectId(
+                document_retrieval_id=pb.Evaluation.SubjectId.DocumentRetrievalId(
                     document_position=document_position,
-                    span_id=str(span_id),
+                    span_id=span_id,
                 ),
             )
         else:
-            span_id = cast(SpanID, index)
-            subject_id = pb.Evaluation.SubjectID(span_id=str(span_id))
+            span_id = cast(str, index)
+            subject_id = pb.Evaluation.SubjectId(span_id=span_id)
         yield pb.Evaluation(
             name=eval_fixture.evaluation_name,
             result=result,

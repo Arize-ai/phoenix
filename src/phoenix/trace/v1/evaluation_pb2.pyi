@@ -5,8 +5,6 @@ isort:skip_file
 import builtins
 import google.protobuf.descriptor
 import google.protobuf.message
-import google.protobuf.struct_pb2
-import google.protobuf.timestamp_pb2
 import google.protobuf.wrappers_pb2
 import sys
 
@@ -22,11 +20,11 @@ class Evaluation(google.protobuf.message.Message):
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
     @typing_extensions.final
-    class SubjectID(google.protobuf.message.Message):
+    class SubjectId(google.protobuf.message.Message):
         DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
         @typing_extensions.final
-        class DocumentRetrievalID(google.protobuf.message.Message):
+        class DocumentRetrievalId(google.protobuf.message.Message):
             DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
             SPAN_ID_FIELD_NUMBER: builtins.int
@@ -48,13 +46,13 @@ class Evaluation(google.protobuf.message.Message):
         trace_id: builtins.str
         span_id: builtins.str
         @property
-        def document_retrieval_id(self) -> global___Evaluation.SubjectID.DocumentRetrievalID: ...
+        def document_retrieval_id(self) -> global___Evaluation.SubjectId.DocumentRetrievalId: ...
         def __init__(
             self,
             *,
             trace_id: builtins.str = ...,
             span_id: builtins.str = ...,
-            document_retrieval_id: global___Evaluation.SubjectID.DocumentRetrievalID | None = ...,
+            document_retrieval_id: global___Evaluation.SubjectId.DocumentRetrievalId | None = ...,
         ) -> None: ...
         def HasField(self, field_name: typing_extensions.Literal["document_retrieval_id", b"document_retrieval_id", "kind", b"kind", "span_id", b"span_id", "trace_id", b"trace_id"]) -> builtins.bool: ...
         def ClearField(self, field_name: typing_extensions.Literal["document_retrieval_id", b"document_retrieval_id", "kind", b"kind", "span_id", b"span_id", "trace_id", b"trace_id"]) -> None: ...
@@ -83,30 +81,22 @@ class Evaluation(google.protobuf.message.Message):
         def HasField(self, field_name: typing_extensions.Literal["explanation", b"explanation", "label", b"label", "score", b"score"]) -> builtins.bool: ...
         def ClearField(self, field_name: typing_extensions.Literal["explanation", b"explanation", "label", b"label", "score", b"score"]) -> None: ...
 
+    NAME_FIELD_NUMBER: builtins.int
     SUBJECT_ID_FIELD_NUMBER: builtins.int
     RESULT_FIELD_NUMBER: builtins.int
-    NAME_FIELD_NUMBER: builtins.int
-    TIMESTAMP_FIELD_NUMBER: builtins.int
-    ATTRIBUTES_FIELD_NUMBER: builtins.int
-    @property
-    def subject_id(self) -> global___Evaluation.SubjectID: ...
-    @property
-    def result(self) -> global___Evaluation.Result: ...
     name: builtins.str
     @property
-    def timestamp(self) -> google.protobuf.timestamp_pb2.Timestamp: ...
+    def subject_id(self) -> global___Evaluation.SubjectId: ...
     @property
-    def attributes(self) -> google.protobuf.struct_pb2.Struct: ...
+    def result(self) -> global___Evaluation.Result: ...
     def __init__(
         self,
         *,
-        subject_id: global___Evaluation.SubjectID | None = ...,
-        result: global___Evaluation.Result | None = ...,
         name: builtins.str = ...,
-        timestamp: google.protobuf.timestamp_pb2.Timestamp | None = ...,
-        attributes: google.protobuf.struct_pb2.Struct | None = ...,
+        subject_id: global___Evaluation.SubjectId | None = ...,
+        result: global___Evaluation.Result | None = ...,
     ) -> None: ...
-    def HasField(self, field_name: typing_extensions.Literal["attributes", b"attributes", "result", b"result", "subject_id", b"subject_id", "timestamp", b"timestamp"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing_extensions.Literal["attributes", b"attributes", "name", b"name", "result", b"result", "subject_id", b"subject_id", "timestamp", b"timestamp"]) -> None: ...
+    def HasField(self, field_name: typing_extensions.Literal["result", b"result", "subject_id", b"subject_id"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing_extensions.Literal["name", b"name", "result", b"result", "subject_id", b"subject_id"]) -> None: ...
 
 global___Evaluation = Evaluation

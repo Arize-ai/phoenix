@@ -1,8 +1,10 @@
 import json
 import logging
+import os
 from abc import ABC, abstractmethod
 from collections import UserList
 from datetime import datetime
+from enum import Enum
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import (
@@ -13,11 +15,12 @@ from typing import (
     Mapping,
     Optional,
     Set,
+    Union,
 )
 
 import pandas as pd
 
-from phoenix.config import get_env_host, get_env_port, get_exported_files
+from phoenix.config import ENV_NOTEBOOK_ENV, get_env_host, get_env_port, get_exported_files
 from phoenix.core.evals import Evals
 from phoenix.core.model_schema_adapter import create_model_from_datasets
 from phoenix.core.traces import Traces
@@ -45,6 +48,12 @@ else:
     _BaseList = UserList
 
 
+class NotebookEnvironment(Enum):
+    COLAB = "colab"
+    LOCAL = "local"
+    SAGEMAKER = "sagemaker"
+
+
 class ExportedData(_BaseList):
     def __init__(self) -> None:
         self.paths: Set[Path] = set()
@@ -69,6 +78,8 @@ class Session(ABC):
 
     trace_dataset: Optional[TraceDataset]
     traces: Optional[Traces]
+    notebook_env: NotebookEnvironment
+    """The notebook environment that the session is running in."""
 
     def __dir__(self) -> List[str]:
         return ["exports", "view", "url"]
@@ -82,6 +93,7 @@ class Session(ABC):
         default_umap_parameters: Optional[Mapping[str, Any]] = None,
         host: Optional[str] = None,
         port: Optional[int] = None,
+        notebook_env: Optional[NotebookEnvironment] = None,
     ):
         self.primary_dataset = primary_dataset
         self.reference_dataset = reference_dataset
@@ -114,7 +126,7 @@ class Session(ABC):
         self.export_path = Path(self.temp_dir.name) / "exports"
         self.export_path.mkdir(parents=True, exist_ok=True)
         self.exported_data = ExportedData()
-        self.is_colab = _is_colab()
+        self.notebook_env = notebook_env or _get_notebook_environment()
 
     @abstractmethod
     def end(self) -> None:
@@ -153,7 +165,7 @@ class Session(ABC):
     @property
     def url(self) -> str:
         """Returns the url for the phoenix app"""
-        return _get_url(self.host, self.port, self.is_colab)
+        return _get_url(self.host, self.port, self.notebook_env)
 
     def get_spans_dataframe(
         self,
@@ -191,6 +203,7 @@ class ProcessSession(Session):
         default_umap_parameters: Optional[Mapping[str, Any]] = None,
         host: Optional[str] = None,
         port: Optional[int] = None,
+        notebook_env: Optional[NotebookEnvironment] = None,
     ) -> None:
         super().__init__(
             primary_dataset=primary_dataset,
@@ -200,6 +213,7 @@ class ProcessSession(Session):
             default_umap_parameters=default_umap_parameters,
             host=host,
             port=port,
+            notebook_env=notebook_env,
         )
         primary_dataset.to_disc()
         if isinstance(reference_dataset, Dataset):
@@ -250,6 +264,7 @@ class ThreadSession(Session):
         default_umap_parameters: Optional[Mapping[str, Any]] = None,
         host: Optional[str] = None,
         port: Optional[int] = None,
+        notebook_env: Optional[NotebookEnvironment] = None,
     ):
         super().__init__(
             primary_dataset=primary_dataset,
@@ -259,6 +274,7 @@ class ThreadSession(Session):
             default_umap_parameters=default_umap_parameters,
             host=host,
             port=port,
+            notebook_env=notebook_env,
         )
         # Initialize an app service that keeps the server running
         self.app = create_app(
@@ -266,7 +282,6 @@ class ThreadSession(Session):
             model=self.model,
             corpus=self.corpus,
             traces=self.traces,
-            evals=self.evals,
             umap_params=self.umap_parameters,
         )
         self.server = ThreadServer(
@@ -295,6 +310,7 @@ def launch_app(
     host: Optional[str] = None,
     port: Optional[int] = None,
     run_in_thread: bool = True,
+    notebook_environment: Optional[Union[NotebookEnvironment, str]] = None,
 ) -> Optional[Session]:
     """
     Launches the phoenix application and returns a session to interact with.
@@ -316,12 +332,16 @@ def launch_app(
     port: int, optional
         The port on which the server listens. When using traces this should not be
         used and should instead set the environment variable `PHOENIX_PORT`.
-        Defaults to 6060.
+        Defaults to 6006.
     run_in_thread: bool, optional, default=True
         Whether the server should run in a Thread or Process.
     default_umap_parameters: Dict[str, Union[int, float]], optional, default=None
         User specified default UMAP parameters
         eg: {"n_neighbors": 10, "n_samples": 5, "min_dist": 0.5}
+    notebook_environment: str, optional, default=None
+        The environment the notebook is running in. This is either 'local', 'colab', or 'sagemaker'.
+        If not provided, phoenix will try to infer the environment. This is only needed if
+        there is a failure to infer the environment.
 
     Returns
     -------
@@ -353,14 +373,34 @@ def launch_app(
     host = host or get_env_host()
     port = port or get_env_port()
 
+    # Normalize notebook environment
+    if isinstance(notebook_environment, str):
+        nb_env: Optional[NotebookEnvironment] = NotebookEnvironment(notebook_environment.lower())
+    else:
+        nb_env = notebook_environment
+
     if run_in_thread:
         _session = ThreadSession(
-            primary, reference, corpus, trace, default_umap_parameters, host=host, port=port
+            primary,
+            reference,
+            corpus,
+            trace,
+            default_umap_parameters,
+            host=host,
+            port=port,
+            notebook_env=nb_env,
         )
         # TODO: catch exceptions from thread
     else:
         _session = ProcessSession(
-            primary, reference, corpus, trace, default_umap_parameters, host=host, port=port
+            primary,
+            reference,
+            corpus,
+            trace,
+            default_umap_parameters,
+            host=host,
+            port=port,
+            notebook_env=nb_env,
         )
 
     if not _session.active:
@@ -398,13 +438,15 @@ def close_app() -> None:
     logger.info("Session closed")
 
 
-def _get_url(host: str, port: int, is_colab: bool) -> str:
+def _get_url(host: str, port: int, notebook_env: NotebookEnvironment) -> str:
     """Determines the IFrame URL based on whether this is in a Colab or in a local notebook"""
-    if is_colab:
+    if notebook_env == NotebookEnvironment.COLAB:
         from google.colab.output import eval_js  # type: ignore
 
         return str(eval_js(f"google.colab.kernel.proxyPort({port}, {{'cache': true}})"))
-
+    if notebook_env == NotebookEnvironment.SAGEMAKER:
+        # NB: Sagemaker notebooks only work with port 6006 - which is used by tensorboard
+        return str(f"{_get_sagemaker_notebook_base_url()}/proxy/{port}/")
     return f"http://{host}:{port}/"
 
 
@@ -419,3 +461,51 @@ def _is_colab() -> bool:
     except ImportError:
         return False
     return get_ipython() is not None
+
+
+def _is_sagemaker() -> bool:
+    """Determines whether this is in a SageMaker notebook"""
+    try:
+        import sagemaker  # type: ignore # noqa: F401
+    except ImportError:
+        return False
+    try:
+        from IPython.core.getipython import get_ipython
+    except ImportError:
+        return False
+    return get_ipython() is not None
+
+
+def _get_notebook_environment() -> NotebookEnvironment:
+    """Determines the notebook environment"""
+    if (notebook_env := os.getenv(ENV_NOTEBOOK_ENV)) is not None:
+        return NotebookEnvironment(notebook_env.lower())
+    return _infer_notebook_environment()
+
+
+def _infer_notebook_environment() -> NotebookEnvironment:
+    """Use feature detection to determine the notebook environment"""
+    if _is_colab():
+        return NotebookEnvironment.COLAB
+    if _is_sagemaker():
+        return NotebookEnvironment.SAGEMAKER
+    return NotebookEnvironment.LOCAL
+
+
+def _get_sagemaker_notebook_base_url() -> str:
+    """
+    Returns base url of the sagemaker notebook by parsing the Arn
+    src: https://github.com/aws-samples/amazon-sagemaker-notebook-instance-lifecycle-config-samples/blob/62c44aa5e69f4266955476f24647b99d9b597aaf/scripts/auto-stop-idle/autostop.py#L79
+    """
+    log_path = "/opt/ml/metadata/resource-metadata.json"
+    with open(log_path, "r") as logs:
+        logs = json.load(logs)
+    arn = logs["ResourceArn"]  # type: ignore
+
+    # Parse the ARN to get the region and notebook instance name
+    # E.x. arn:aws:sagemaker:us-east-2:802164118598:notebook-instance/my-notebook-instance
+    parts = arn.split(":")
+    region = parts[3]
+    notebook_instance_name = parts[5].split("/")[1]
+
+    return f"https://{notebook_instance_name}.notebook.{region}.sagemaker.aws"
