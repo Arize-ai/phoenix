@@ -199,7 +199,7 @@ def llm_classify(
         provide_explanation (bool, default=False): If True, provides an explanation for each
         classification label. A column named `explanation` is added to the output dataframe.
         Currently, this is only available for models with function calling.
-        
+
         concurrency (int, defualt=3): The number of concurrent evals.
 
     Returns:
