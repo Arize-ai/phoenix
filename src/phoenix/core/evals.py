@@ -4,7 +4,6 @@ from queue import SimpleQueue
 from threading import RLock, Thread
 from types import MethodType
 from typing import DefaultDict, Dict, List, Optional
-from uuid import UUID
 
 from typing_extensions import TypeAlias
 
@@ -56,11 +55,11 @@ class Evals:
         subject_id_kind = subject_id.WhichOneof("kind")
         if subject_id_kind == "document_retrieval_id":
             document_retrieval_id = subject_id.document_retrieval_id
-            span_id = UUID(document_retrieval_id.span_id)
+            span_id = SpanID(document_retrieval_id.span_id)
             document_position = document_retrieval_id.document_position
             self._document_evaluations_by_span_id[span_id][name][document_position] = evaluation
         elif subject_id_kind == "span_id":
-            span_id = UUID(subject_id.span_id)
+            span_id = SpanID(subject_id.span_id)
             self._evaluations_by_span_id[span_id][name] = evaluation
             self._span_evaluations_by_name[name][span_id] = evaluation
         else:

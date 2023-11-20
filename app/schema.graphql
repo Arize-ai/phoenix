@@ -184,7 +184,10 @@ type DocumentEvaluation implements Evaluation {
   score: Float
   label: String
   explanation: String
-  spanId: String!
+
+  """
+  The zero-based index among retrieved documents, which is collected as a list (even when ordering is not inherently meaningful).
+  """
   documentPosition: Int!
 }
 
@@ -543,11 +546,7 @@ type Span {
   Cumulative (completion) token count from self and all descendant spans (children, grandchildren, etc.)
   """
   cumulativeTokenCountCompletion: Int
-
-  """Span evaluations"""
   spanEvaluations: [SpanEvaluation!]!
-
-  """Document evaluations"""
   documentEvaluations: [DocumentEvaluation!]!
 
   """All descendant spans (children, grandchildren, etc.)"""
@@ -586,7 +585,6 @@ type SpanEvaluation implements Evaluation {
   score: Float
   label: String
   explanation: String
-  spanId: String!
 }
 
 type SpanEvent {

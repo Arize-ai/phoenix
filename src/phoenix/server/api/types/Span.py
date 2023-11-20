@@ -124,14 +124,32 @@ class Span:
         description="Cumulative (completion) token count from self and all "
         "descendant spans (children, grandchildren, etc.)",
     )
-    span_evaluations: List[SpanEvaluation] = strawberry.field(
-        description="Span evaluations",
-        default_factory=list,
-    )
-    document_evaluations: List[DocumentEvaluation] = strawberry.field(
-        description="Document evaluations",
-        default_factory=list,
-    )
+
+    @strawberry.field
+    def span_evaluations(
+        self,
+        info: Info[Context, None],
+    ) -> List[SpanEvaluation]:
+        if not (evals := info.context.evals):
+            return []
+        span_id = SpanID(str(self.context.span_id))
+        return [
+            SpanEvaluation.from_pb_evaluation(evaluation)
+            for evaluation in evals.get_evaluations_by_span_id(span_id)
+        ]
+
+    @strawberry.field
+    def document_evaluations(
+        self,
+        info: Info[Context, None],
+    ) -> List[DocumentEvaluation]:
+        if not (evals := info.context.evals):
+            return []
+        span_id = SpanID(str(self.context.span_id))
+        return [
+            DocumentEvaluation.from_pb_evaluation(evaluation)
+            for evaluation in evals.get_document_evaluations_by_span_id(span_id)
+        ]
 
     @strawberry.field(
         description="All descendant spans (children, grandchildren, etc.)",
@@ -154,13 +172,6 @@ def to_gql_span(span: trace_schema.Span, evals: Optional[Evals] = None) -> "Span
     events: List[SpanEvent] = list(map(SpanEvent.from_event, span.events))
     input_value = cast(Optional[str], span.attributes.get(INPUT_VALUE))
     output_value = cast(Optional[str], span.attributes.get(OUTPUT_VALUE))
-    span_evaluations: List[SpanEvaluation] = []
-    document_evaluations: List[DocumentEvaluation] = []
-    span_id = span.context.span_id
-    for evaluation in evals.get_evaluations_by_span_id(span_id) if evals else ():
-        span_evaluations.append(SpanEvaluation.from_pb_evaluation(evaluation))
-    for evaluation in evals.get_document_evaluations_by_span_id(span_id) if evals else ():
-        document_evaluations.append(DocumentEvaluation.from_pb_evaluation(evaluation))
     return Span(
         name=span.name,
         status_code=SpanStatusCode(span.status_code),
@@ -171,7 +182,7 @@ def to_gql_span(span: trace_schema.Span, evals: Optional[Evals] = None) -> "Span
         latency_ms=cast(Optional[float], span.attributes.get(ComputedAttributes.LATENCY_MS.value)),
         context=SpanContext(
             trace_id=cast(ID, span.context.trace_id),
-            span_id=cast(ID, span_id),
+            span_id=cast(ID, span.context.span_id),
         ),
         attributes=json.dumps(
             _nested_attributes(_hide_embedding_vectors(span.attributes)),
@@ -218,8 +229,6 @@ def to_gql_span(span: trace_schema.Span, evals: Optional[Evals] = None) -> "Span
             if output_value is not None
             else None
         ),
-        span_evaluations=span_evaluations,
-        document_evaluations=document_evaluations,
     )
 
 
