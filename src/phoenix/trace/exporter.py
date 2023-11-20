@@ -86,7 +86,7 @@ class HttpExporter:
         serialized = message.SerializeToString()
         data = gzip.compress(serialized)
         try:
-            self._session.post(self._url(message), data=data)
+            self._session.post(self._url(message), data=data).raise_for_status()
         except Exception as e:
             logger.exception(e)
 
