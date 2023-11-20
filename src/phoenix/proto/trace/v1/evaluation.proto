@@ -8,7 +8,7 @@ message Evaluation {
   message SubjectId {
     message DocumentRetrievalId {
       string span_id = 1;
-      int32 document_position = 2;  // zero-based-index
+      int32 document_position = 2;  // zero-based index
     }
     oneof kind {
       string trace_id = 1;

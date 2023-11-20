@@ -31,7 +31,7 @@ class Evaluation(google.protobuf.message.Message):
             DOCUMENT_POSITION_FIELD_NUMBER: builtins.int
             span_id: builtins.str
             document_position: builtins.int
-            """zero-based-index"""
+            """zero-based index"""
             def __init__(
                 self,
                 *,
