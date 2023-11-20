@@ -3,6 +3,11 @@ import tempfile
 from pathlib import Path
 from typing import List, Optional
 
+# Phoenix environment variables
+ENV_PHOENIX_PORT = "PHOENIX_PORT"
+ENV_PHOENIX_HOST = "PHOENIX_HOST"
+ENV_NOTEBOOK_ENV = "PHOENIX_NOTEBOOK_ENV"
+
 
 def _get_temp_path() -> Path:
     """Get path to  directory in which to store temp phoenix server files."""
@@ -64,10 +69,10 @@ def get_exported_files(directory: Path) -> List[Path]:
 def get_env_port() -> int:
     return (
         int(port)
-        if isinstance(port := os.getenv("PHOENIX_PORT"), str) and port.isnumeric()
+        if isinstance(port := os.getenv(ENV_PHOENIX_PORT), str) and port.isnumeric()
         else PORT
     )
 
 
 def get_env_host() -> str:
-    return os.getenv("PHOENIX_HOST") or HOST
+    return os.getenv(ENV_PHOENIX_HOST) or HOST

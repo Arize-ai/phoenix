@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from threading import Thread
 from time import sleep, time
@@ -5,6 +6,17 @@ from typing import Generator
 
 from starlette.applications import Starlette
 from uvicorn import Config, Server
+from uvicorn.config import LoopSetupType
+
+
+def _nest_asyncio_applied() -> bool:
+    """
+    Determines whether nest_asyncio has been applied. This is needed since
+    nest_asyncio affects the runtime of the app. If it is applied, the app must use
+    the "asyncio" loop.
+    see: https://github.com/erdewit/nest_asyncio/blob/a48a68a47e182bd7e1f86c60dfc07d7b8509508b/nest_asyncio.py#L45
+    """
+    return hasattr(asyncio, "_nest_patched")
 
 
 class ThreadServer(Server):
@@ -16,12 +28,16 @@ class ThreadServer(Server):
         host: str,
         port: int,
     ) -> None:
+        # Must use asyncio loop if nest_asyncio is applied
+        # Otherwise the app crashes when the server is run in a thread
+        loop: LoopSetupType = "asyncio" if _nest_asyncio_applied() else "auto"
         config = Config(
             app=app,
             host=host,
             port=port,
             # TODO: save logs to file
             log_level=logging.ERROR,
+            loop=loop,
         )
         super().__init__(config=config)
 
