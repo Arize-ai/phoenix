@@ -126,7 +126,7 @@ class Span:
 
     @strawberry.field(
         description="Evaluations associated with the span, e.g. if the span is "
-        "an LLM, an evaluation may access the helpfulness of its response with "
+        "an LLM, an evaluation may assess the helpfulness of its response with "
         "respect to its input."
     )  # type: ignore
     def span_evaluations(
