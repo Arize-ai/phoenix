@@ -125,7 +125,11 @@ class Span:
         "descendant spans (children, grandchildren, etc.)",
     )
 
-    @strawberry.field
+    @strawberry.field(
+        description="Evaluations associated with the span, e.g. if the span is "
+        "an LLM, an evaluation may access the helpfulness of its response with "
+        "respect to its input."
+    )  # type: ignore
     def span_evaluations(
         self,
         info: Info[Context, None],
@@ -138,7 +142,14 @@ class Span:
             for evaluation in evals.get_evaluations_by_span_id(span_id)
         ]
 
-    @strawberry.field
+    @strawberry.field(
+        description="Evaluations of the documents associated with the span, e.g. "
+        "if the span is a RETRIEVER with a list of documents in its RETRIEVAL_DOCUMENTS "
+        "attribute, an evaluation for each document may assess its relevance "
+        "respect to the input query of the span. Note that RETRIEVAL_DOCUMENTS is "
+        "a list, and each evaluation is identified by its document's (zero-based) "
+        "index in that list."
+    )  # type: ignore
     def document_evaluations(
         self,
         info: Info[Context, None],

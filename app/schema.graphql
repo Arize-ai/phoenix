@@ -546,7 +546,15 @@ type Span {
   Cumulative (completion) token count from self and all descendant spans (children, grandchildren, etc.)
   """
   cumulativeTokenCountCompletion: Int
+
+  """
+  Evaluations associated with the span, e.g. if the span is an LLM, an evaluation may access the helpfulness of its response with respect to its input.
+  """
   spanEvaluations: [SpanEvaluation!]!
+
+  """
+  Evaluations of the documents associated with the span, e.g. if the span is a RETRIEVER with a list of documents in its RETRIEVAL_DOCUMENTS attribute, an evaluation for each document may assess its relevance respect to the input query of the span. Note that RETRIEVAL_DOCUMENTS is a list, and each evaluation is identified by its document's (zero-based) index in that list.
+  """
   documentEvaluations: [DocumentEvaluation!]!
 
   """All descendant spans (children, grandchildren, etc.)"""
