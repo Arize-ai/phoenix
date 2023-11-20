@@ -180,9 +180,20 @@ type DimensionWithValue {
 }
 
 type DocumentEvaluation implements Evaluation {
+  """Name of the evaluation, e.g. 'helpfulness' or 'relevance'."""
   name: String!
+
+  """Result of the evaluation in the form of a numeric score."""
   score: Float
+
+  """
+  Result of the evaluation in the form of a string, e.g. 'helpful' or 'not helpful'. Note that the label is not necessarily binary.
+  """
   label: String
+
+  """
+  The evaluator's explanation for the evaluation result (i.e. score or label, or both) given to the subject.
+  """
   explanation: String
 
   """
@@ -274,9 +285,20 @@ type EmbeddingMetadata {
 }
 
 interface Evaluation {
+  """Name of the evaluation, e.g. 'helpfulness' or 'relevance'."""
   name: String!
+
+  """Result of the evaluation in the form of a numeric score."""
   score: Float
+
+  """
+  Result of the evaluation in the form of a string, e.g. 'helpful' or 'not helpful'. Note that the label is not necessarily binary.
+  """
   label: String
+
+  """
+  The evaluator's explanation for the evaluation result (i.e. score or label, or both) given to the subject.
+  """
   explanation: String
 }
 
@@ -479,6 +501,10 @@ type Query {
     clusterSelectionEpsilon: Float! = 0
   ): [Cluster!]!
   spans(timeRange: TimeRange, traceIds: [ID!], first: Int = 50, last: Int, after: String, before: String, sort: SpanSort, rootSpansOnly: Boolean = false, filterCondition: String = null): SpanConnection!
+
+  """
+  Names of all available evaluations for spans. (The list contains no duplicates.)
+  """
   spanEvaluationNames: [String!]!
   traceDatasetInfo: TraceDatasetInfo
   validateSpanFilterCondition(condition: String!): ValidationResult!
@@ -589,9 +615,20 @@ type SpanEdge {
 }
 
 type SpanEvaluation implements Evaluation {
+  """Name of the evaluation, e.g. 'helpfulness' or 'relevance'."""
   name: String!
+
+  """Result of the evaluation in the form of a numeric score."""
   score: Float
+
+  """
+  Result of the evaluation in the form of a string, e.g. 'helpful' or 'not helpful'. Note that the label is not necessarily binary.
+  """
   label: String
+
+  """
+  The evaluator's explanation for the evaluation result (i.e. score or label, or both) given to the subject.
+  """
   explanation: String
 }
 

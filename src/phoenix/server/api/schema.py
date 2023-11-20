@@ -236,10 +236,13 @@ class Query:
             spans = filter(predicate, spans)
         if sort:
             spans = sort(spans)
-        data = [to_gql_span(span, info.context.evals) for span in spans]
+        data = list(map(to_gql_span, spans))
         return connection_from_list(data=data, args=args)
 
-    @strawberry.field
+    @strawberry.field(
+        description="Names of all available evaluations for spans. "
+        "(The list contains no duplicates.)"
+    )  # type: ignore
     def span_evaluation_names(
         self,
         info: Info[Context, None],

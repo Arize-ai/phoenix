@@ -9,7 +9,6 @@ from strawberry import ID
 from strawberry.types import Info
 
 import phoenix.trace.schemas as trace_schema
-from phoenix.core.evals import Evals
 from phoenix.core.traces import ComputedAttributes
 from phoenix.server.api.context import Context
 from phoenix.server.api.types.Evaluation import DocumentEvaluation, SpanEvaluation
@@ -172,14 +171,14 @@ class Span:
         if (traces := info.context.traces) is None:
             return []
         return [
-            to_gql_span(cast(trace_schema.Span, traces[span_id]), info.context.evals)
+            to_gql_span(cast(trace_schema.Span, traces[span_id]))
             for span_id in traces.get_descendant_span_ids(
                 cast(SpanID, self.context.span_id),
             )
         ]
 
 
-def to_gql_span(span: trace_schema.Span, evals: Optional[Evals] = None) -> "Span":
+def to_gql_span(span: trace_schema.Span) -> "Span":
     events: List[SpanEvent] = list(map(SpanEvent.from_event, span.events))
     input_value = cast(Optional[str], span.attributes.get(INPUT_VALUE))
     output_value = cast(Optional[str], span.attributes.get(OUTPUT_VALUE))

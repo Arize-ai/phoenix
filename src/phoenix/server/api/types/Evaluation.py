@@ -8,10 +8,20 @@ from phoenix.trace.schemas import SpanID
 
 @strawberry.interface
 class Evaluation:
-    name: str
-    score: Optional[float]
-    label: Optional[str]
-    explanation: Optional[str]
+    name: str = strawberry.field(
+        description="Name of the evaluation, e.g. 'helpfulness' or 'relevance'."
+    )
+    score: Optional[float] = strawberry.field(
+        description="Result of the evaluation in the form of a numeric score."
+    )
+    label: Optional[str] = strawberry.field(
+        description="Result of the evaluation in the form of a string, e.g. "
+        "'helpful' or 'not helpful'. Note that the label is not necessarily binary."
+    )
+    explanation: Optional[str] = strawberry.field(
+        description="The evaluator's explanation for the evaluation result (i.e. "
+        "score or label, or both) given to the subject."
+    )
 
 
 @strawberry.type
