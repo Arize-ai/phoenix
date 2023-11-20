@@ -5,9 +5,10 @@
 
 ## 🔑 Quickstart
 
-* [LLM Traces - OpenAI, LangChain & LlamaIndex](quickstart/llm-traces/README.md)
+* [Phoenix Traces for LLM applications - OpenAI, LangChain & LlamaIndex](quickstart/llm-traces/README.md)
   * [AutoGen Support](quickstart/llm-traces/autogen-support.md)
-* [Inferences - Image/NLP/LLM](quickstart/inferences.md)
+* [Phoenix Inferences](quickstart/phoenix-inferences/README.md)
+  * [Schemas and Datasets](quickstart/phoenix-inferences/inferences.md)
 
 ## 💡 Concepts
 
@@ -26,6 +27,7 @@
   * [Toxicity](llm-evals/running-pre-tested-evals/toxicity.md)
   * [Code Generation Eval](llm-evals/running-pre-tested-evals/code-generation-eval.md)
   * [Summarization Eval](llm-evals/running-pre-tested-evals/summarization-eval.md)
+  * [Reference Link Evals](llm-evals/running-pre-tested-evals/reference-link-evals.md)
 * [Building Your Own Evals](llm-evals/building-your-own-evals.md)
 * [Benchmarking Retrieval (RAG)](llm-evals/benchmarking-retrieval-rag.md)
 

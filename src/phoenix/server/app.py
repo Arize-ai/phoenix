@@ -39,6 +39,21 @@ class AppConfig(NamedTuple):
     n_samples: int
 
 
+def _get_basename(request: Request) -> str:
+    """
+    Determine the basename for the API and static content.
+    If the server is running in a hosted notebook, the base URL
+    must be configured to point to the hosted notebook's proxy.
+    """
+    is_sagemaker = "sagemaker" in str(request.url)
+    if is_sagemaker:
+        # Sagemaker sets up a proxy at /proxy/6006
+        # NB: this is the only port that is open
+        return "/proxy/6006"
+    # URL is relative to / for colab and local
+    return ""
+
+
 class Static(StaticFiles):
     "Static file serving with a fallback to index.html"
 
@@ -56,8 +71,8 @@ class Static(StaticFiles):
             if e.status_code != 404:
                 raise e
             # Fallback to to the index.html
-            # TODO(mikeldking): support index.html to change the
-            # host and port of the js and css bundles if host is not localhost
+            request = Request(scope)
+
             response = templates.TemplateResponse(
                 "index.html",
                 context={
@@ -65,7 +80,8 @@ class Static(StaticFiles):
                     "min_dist": self._app_config.min_dist,
                     "n_neighbors": self._app_config.n_neighbors,
                     "n_samples": self._app_config.n_samples,
-                    "request": Request(scope),
+                    "basename": _get_basename(request),
+                    "request": request,
                 },
             )
         except Exception as e:

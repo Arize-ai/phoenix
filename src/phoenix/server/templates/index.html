@@ -2,17 +2,17 @@
 <html>
   <head>
     <title>Phoenix</title>
-    <link rel="icon" href="/favicon.ico" type="image/x-icon"></link>
+    <link rel="icon" href="{{basename}}/favicon.ico" type="image/x-icon"></link>
     <meta charset="UTF-8" />
     <meta name="description" content="Explore, Analyze, Curate" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#ffffff" />
-    <link rel="stylesheet" src="/index.css"></link>
+    <link rel="stylesheet" src="{{basename}}/index.css"></link>
     <link
       rel="stylesheet"
       href="https://fonts.googleapis.com/css2?family=Roboto:wght@100;300;400;500;700;900&display=swap"
     />
-    <script src="/modernizr.js"></script>
+    <script src="{{basename}}/modernizr.js"></script>
   </head>
   <body>
     <div id="root"></div>
@@ -22,6 +22,7 @@
             // E.g. default UMAP parameters etc. that needs to be
             // injected into the client before React runs
             value: Object.freeze({
+                basename: "{{basename}}",
                 hasCorpus: Boolean("{{has_corpus}}"),
                 UMAP: {
                   minDist: parseFloat("{{min_dist}}"),
@@ -32,6 +33,6 @@
             writable: false
         });
     })()</script>
-    <script type="module" src="/index.js"></script>
+    <script type="module" src="{{basename}}/index.js"></script>
   </body>
 </html>
