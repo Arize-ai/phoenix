@@ -282,6 +282,7 @@ class ThreadSession(Session):
             model=self.model,
             corpus=self.corpus,
             traces=self.traces,
+            evals=self.evals,
             umap_params=self.umap_parameters,
         )
         self.server = ThreadServer(
