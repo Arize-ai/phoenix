@@ -18,7 +18,6 @@ from typing import (
     cast,
 )
 
-import nest_asyncio
 import pandas as pd
 from tqdm.auto import tqdm
 
@@ -147,13 +146,49 @@ class AsyncExecutor:
         return outputs
 
     def run(self, inputs: Sequence[Any]) -> List[Any]:
-        try:
-            asyncio.get_running_loop()
-            if self.use_nest_asyncio:
-                nest_asyncio.apply()
-        except RuntimeError:
-            pass
         return asyncio.run(self.execute(inputs))
+
+
+class SyncExecutor:
+    _unset = Unset()
+
+    def __init__(
+        self,
+        generation_fn: Callable[[Any], Any],
+        tqdm_bar_format: Optional[str] = None,
+        exit_on_error: bool = True,
+        fallback_return_value: Union[Unset, Any] = _unset,
+    ):
+        self.generate = generation_fn
+        self.fallback_return_value = fallback_return_value
+        self.tqdm_bar_format = tqdm_bar_format
+        self.exit_on_error = exit_on_error
+
+        signal.signal(signal.SIGINT, self._signal_handler)
+        self._TERMINATE = False
+
+    def _signal_handler(self, signum: int, frame: Any) -> None:
+        tqdm.write("Process was interrupted. The return value will be incomplete...")
+        self._TERMINATE = True
+
+    def run(self, inputs: Sequence[Any]) -> List[Any]:
+        outputs = [self.fallback_return_value] * len(inputs)
+        progress_bar = tqdm(total=len(inputs), bar_format=self.tqdm_bar_format)
+
+        for index, input in enumerate(inputs):
+            if self._TERMINATE:
+                break
+            try:
+                result = self.generate(input)
+                outputs[index] = result
+                progress_bar.update()
+            except Exception as e:
+                tqdm.write(f"Exception in worker: {e}")
+                if self.exit_on_error:
+                    break
+                else:
+                    progress_bar.update()
+        return outputs
 
 
 def llm_classify(
@@ -235,11 +270,7 @@ def llm_classify(
     if generation_info := model.verbose_generation_info():
         printif(verbose, generation_info)
 
-    async def _run_llm_classification(prompt: str) -> Tuple[str, Optional[str]]:
-        with set_verbosity(model, verbose) as verbose_model:
-            response = await verbose_model._async_generate(
-                prompt, instruction=system_instruction, **model_kwargs
-            )
+    def process_response(response: str) -> Tuple[str, Optional[str]]:
         if not use_openai_function_call:
             if provide_explanation:
                 unrailed_label, explanation = (
@@ -263,12 +294,48 @@ def llm_classify(
                 explanation = None
         return _snap_to_rail(unrailed_label, rails, verbose=verbose), explanation
 
-    executor = AsyncExecutor(
-        _run_llm_classification,
+    async def _run_llm_classification_async(prompt: str) -> Tuple[str, Optional[str]]:
+        with set_verbosity(model, verbose) as verbose_model:
+            response = await verbose_model._async_generate(
+                prompt, instruction=system_instruction, **model_kwargs
+            )
+        return process_response(response)
+
+    def _run_llm_classification_sync(prompt: str) -> Tuple[str, Optional[str]]:
+        with set_verbosity(model, verbose) as verbose_model:
+            response = verbose_model._generate(
+                prompt, instruction=system_instruction, **model_kwargs
+            )
+        return process_response(response)
+
+    async_executor = AsyncExecutor(
+        _run_llm_classification_async,
         fallback_return_value=(None, None),
         tqdm_bar_format=tqdm_bar_format,
         exit_on_error=True,
     )
+
+    sync_executor = SyncExecutor(
+        _run_llm_classification_sync,
+        fallback_return_value=(None, None),
+        tqdm_bar_format=tqdm_bar_format,
+        exit_on_error=True,
+    )
+
+    executor: Union[AsyncExecutor, SyncExecutor]
+    try:
+        asyncio.get_running_loop()
+        if getattr(asyncio, "_nest_patched", False):
+            executor = async_executor
+        else:
+            logger.warning(
+                "If running llm_classify inside a notebook, patching the event loop with "
+                "nest_asyncio will allow asynchronous eval submission, and is significantly faster."
+            )
+            executor = sync_executor
+    except RuntimeError:
+        executor = async_executor
+
     results = executor.run(prompts.tolist())
     labels, explanations = zip(*results)
 
