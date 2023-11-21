@@ -456,7 +456,7 @@ def _get_url(host: str, port: int, notebook_env: NotebookEnvironment) -> str:
         return f"http://{host}:{port}/"
 
     # Sagemaker notebooks
-    return get_sagemaker_collector_base_url(port)
+    return get_sagemaker_collector_url()
 
 
 def _is_colab() -> bool:
@@ -520,9 +520,9 @@ def _get_aws_nbi_metadata() -> Optional[Mapping[str, Any]]:
         return None
 
 
-def get_sagemaker_collector_base_url(port: int) -> str:
+def get_sagemaker_collector_url() -> str:
     """
-    Constructs the URL for a SageMaker instance.
+    Constructs the URL for a SageMaker collector URL. E.g. the url of the phoenix app.
     Handles both sageMaker and SageMaker Studio notebooks.
     For an example see: https://github.com/aws/amazon-sagemaker-examples/blob/720198bc25bc68b25a77c3c5a1e7f55ee1bd8e5a/aws_sagemaker_studio/streamlit_demo/run.sh#L13
     """
@@ -547,5 +547,5 @@ def get_sagemaker_collector_base_url(port: int) -> str:
     domain_id = parts[5].split("/")[1]
     subdomain = domain_id + (".studio" if is_studio else ".notebook")
     base_url = f"https://{subdomain}.{region}.sagemaker.aws"
-    slug = f"/jupyter/default/proxy/{port}/" if is_studio else f"/proxy/{port}/"
+    slug = "/jupyter/default/proxy/6006/" if is_studio else "/proxy/6006/"
     return str(f"{base_url}{slug}")

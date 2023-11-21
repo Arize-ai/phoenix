@@ -51,9 +51,9 @@ class HttpExporter:
         """
         self._host = host or get_env_host()
         self._port = port or get_env_port()
-        self._base_url = (
-            collector_url or get_env_collector_url() or f"http://{self._host}:{self._port}"
-        )
+        url = collector_url or get_env_collector_url() or f"http://{self._host}:{self._port}"
+        # Strip off any trailing slashes
+        self._base_url = url.rstrip("/")
         self._warn_if_phoenix_is_not_running()
         self._session = Session()
         weakref.finalize(self, self._session.close)

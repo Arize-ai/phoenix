@@ -6,7 +6,7 @@ from .session.session import (
     Session,
     active_session,
     close_app,
-    get_sagemaker_collector_base_url,
+    get_sagemaker_collector_url,
     launch_app,
 )
 from .trace.fixtures import load_example_traces
@@ -44,5 +44,5 @@ __all__ = [
     "load_example_traces",
     "TraceDataset",
     "NotebookEnvironment",
-    "get_sagemaker_collector_base_url",
+    "get_sagemaker_collector_url",
 ]
