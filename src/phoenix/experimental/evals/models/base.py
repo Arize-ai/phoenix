@@ -55,7 +55,7 @@ def set_verbosity(
 class BaseEvalModel(ABC):
     _verbose: bool = False
 
-    def retry(
+    def _retry(
         self,
         error_types: List[Type[BaseException]],
         min_seconds: int,
@@ -72,11 +72,11 @@ class BaseEvalModel(ABC):
 
             if exc:
                 printif(
-                    self._verbose,
+                    True,
                     f"Failed attempt {retry_state.attempt_number}: raised {repr(exc)}",
                 )
             else:
-                printif(self._verbose, f"Failed attempt {retry_state.attempt_number}")
+                printif(True, f"Failed attempt {retry_state.attempt_number}")
             return None
 
         retry_instance: retry_base = retry_if_exception_type(error_types[0])
@@ -163,6 +163,10 @@ class BaseEvalModel(ABC):
         # if defined, returns additional model-specific information to display if `generate` is
         # run with `verbose=True`
         return ""
+
+    @abstractmethod
+    async def _async_generate(self, prompt: str, **kwargs: Any) -> str:
+        raise NotImplementedError
 
     @abstractmethod
     def _generate(self, prompt: str, **kwargs: Any) -> str:

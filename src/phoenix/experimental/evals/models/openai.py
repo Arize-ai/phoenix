@@ -112,6 +112,19 @@ class OpenAIModel(BaseEvalModel):
 
             self._openai = openai
             self._openai_util = openai_util
+            self._openai_retry_errors = [
+                self._openai.APITimeoutError,
+                self._openai.APIError,
+                self._openai.APIConnectionError,
+                self._openai.RateLimitError,
+                self._openai.InternalServerError,
+            ]
+            self.retry = self._retry(
+                error_types=self._openai_retry_errors,
+                min_seconds=self.retry_min_seconds,
+                max_seconds=self.retry_max_seconds,
+                max_retries=self.max_retries,
+            )
         except ImportError:
             self._raise_import_error(
                 package_display_name="OpenAI",
@@ -173,6 +186,30 @@ class OpenAIModel(BaseEvalModel):
             base_url=(self.base_url or self._openai.base_url),
         )
 
+        self._async_client: Union[self._openai.AsyncOpenAI, self._openai.AsyncAzureOpenAI]  # type: ignore
+        if self._is_azure:
+            # Validate the azure options and construct a client
+            azure_options = self._get_azure_options()
+            self._async_client = self._openai.AsyncAzureOpenAI(
+                azure_endpoint=azure_options.azure_endpoint,
+                azure_deployment=azure_options.azure_deployment,
+                api_version=azure_options.api_version,
+                azure_ad_token=azure_options.azure_ad_token,
+                azure_ad_token_provider=azure_options.azure_ad_token_provider,
+                api_key=self.api_key,
+                organization=self.organization,
+            )
+            # return early since we don't need to check the model
+            return
+
+        # The client is not azure, so it must be openai
+        self._async_client = self._openai.AsyncOpenAI(
+            api_key=self.api_key,
+            organization=self.organization,
+            base_url=(self.base_url or self._openai.base_url),
+            max_retries=0,
+        )
+
     def _init_tiktoken(self) -> None:
         try:
             encoding = self._tiktoken.encoding_for_model(self.model_name)
@@ -210,6 +247,25 @@ class OpenAIModel(BaseEvalModel):
     def verbose_generation_info(self) -> str:
         return f"OpenAI invocation parameters: {self.public_invocation_params}"
 
+    async def _async_generate(self, prompt: str, **kwargs: Any) -> str:
+        invoke_params = self.invocation_params
+        messages = self._build_messages(prompt, kwargs.get("instruction"))
+        if functions := kwargs.get("functions"):
+            invoke_params["functions"] = functions
+        if function_call := kwargs.get("function_call"):
+            invoke_params["function_call"] = function_call
+        response = await self._async_generate_with_retry(
+            messages=messages,
+            **invoke_params,
+        )
+        choice = response["choices"][0]
+        if self._model_uses_legacy_completion_api:
+            return str(choice["text"])
+        message = choice["message"]
+        if function_call := message.get("function_call"):
+            return str(function_call.get("arguments") or "")
+        return str(message["content"])
+
     def _generate(self, prompt: str, **kwargs: Any) -> str:
         invoke_params = self.invocation_params
         messages = self._build_messages(prompt, kwargs.get("instruction"))
@@ -229,22 +285,30 @@ class OpenAIModel(BaseEvalModel):
             return str(function_call.get("arguments") or "")
         return str(message["content"])
 
+    async def _async_generate_with_retry(self, **kwargs: Any) -> Any:
+        """Use tenacity to retry the completion call."""
+
+        @self.retry
+        async def _completion_with_retry(**kwargs: Any) -> Any:
+            if self._model_uses_legacy_completion_api:
+                if "prompt" not in kwargs:
+                    kwargs["prompt"] = "\n\n".join(
+                        (message.get("content") or "")
+                        for message in (kwargs.pop("messages", None) or ())
+                    )
+                # OpenAI 1.0.0 API responses are pydantic objects, not dicts
+                # We must dump the model to get the dict
+                res = await self._async_client.completions.create(**kwargs)
+            else:
+                res = await self._async_client.chat.completions.create(**kwargs)
+            return res.model_dump()
+
+        return await _completion_with_retry(**kwargs)
+
     def _generate_with_retry(self, **kwargs: Any) -> Any:
         """Use tenacity to retry the completion call."""
-        openai_retry_errors = [
-            self._openai.APITimeoutError,
-            self._openai.APIError,
-            self._openai.APIConnectionError,
-            self._openai.RateLimitError,
-            self._openai.InternalServerError,
-        ]
 
-        @self.retry(
-            error_types=openai_retry_errors,
-            min_seconds=self.retry_min_seconds,
-            max_seconds=self.retry_max_seconds,
-            max_retries=self.max_retries,
-        )
+        @self.retry
         def _completion_with_retry(**kwargs: Any) -> Any:
             if self._model_uses_legacy_completion_api:
                 if "prompt" not in kwargs:
