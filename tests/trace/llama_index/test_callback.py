@@ -33,7 +33,7 @@ from phoenix.trace.semantic_conventions import (
     LLM_PROMPT_TEMPLATE,
     LLM_PROMPT_TEMPLATE_VARIABLES,
     LLM_TOKEN_COUNT_TOTAL,
-    OUTPUT_VALUE,  # type: ignore
+    OUTPUT_VALUE,
 )
 from phoenix.trace.span_json_decoder import json_string_to_span
 from phoenix.trace.span_json_encoder import span_to_json
