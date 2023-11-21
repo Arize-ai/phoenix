@@ -84,4 +84,4 @@ def get_env_host() -> str:
 
 
 def get_env_collector_endpoint() -> Optional[str]:
-    return os.getenv(ENV_PHOENIX_COLLECTOR_ENDPOINT) or None
+    return os.getenv(ENV_PHOENIX_COLLECTOR_ENDPOINT)
