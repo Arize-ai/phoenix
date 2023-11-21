@@ -11,6 +11,7 @@ from strawberry.types import Info
 import phoenix.trace.schemas as trace_schema
 from phoenix.core.traces import ComputedAttributes
 from phoenix.server.api.context import Context
+from phoenix.server.api.types.Evaluation import DocumentEvaluation, SpanEvaluation
 from phoenix.server.api.types.MimeType import MimeType
 from phoenix.trace.schemas import SpanID
 from phoenix.trace.semantic_conventions import (
@@ -122,6 +123,43 @@ class Span:
         description="Cumulative (completion) token count from self and all "
         "descendant spans (children, grandchildren, etc.)",
     )
+
+    @strawberry.field(
+        description="Evaluations associated with the span, e.g. if the span is "
+        "an LLM, an evaluation may assess the helpfulness of its response with "
+        "respect to its input."
+    )  # type: ignore
+    def span_evaluations(
+        self,
+        info: Info[Context, None],
+    ) -> List[SpanEvaluation]:
+        if not (evals := info.context.evals):
+            return []
+        span_id = SpanID(str(self.context.span_id))
+        return [
+            SpanEvaluation.from_pb_evaluation(evaluation)
+            for evaluation in evals.get_evaluations_by_span_id(span_id)
+        ]
+
+    @strawberry.field(
+        description="Evaluations of the documents associated with the span, e.g. "
+        "if the span is a RETRIEVER with a list of documents in its RETRIEVAL_DOCUMENTS "
+        "attribute, an evaluation for each document may assess its relevance "
+        "respect to the input query of the span. Note that RETRIEVAL_DOCUMENTS is "
+        "a list, and each evaluation is identified by its document's (zero-based) "
+        "index in that list."
+    )  # type: ignore
+    def document_evaluations(
+        self,
+        info: Info[Context, None],
+    ) -> List[DocumentEvaluation]:
+        if not (evals := info.context.evals):
+            return []
+        span_id = SpanID(str(self.context.span_id))
+        return [
+            DocumentEvaluation.from_pb_evaluation(evaluation)
+            for evaluation in evals.get_document_evaluations_by_span_id(span_id)
+        ]
 
     @strawberry.field(
         description="All descendant spans (children, grandchildren, etc.)",

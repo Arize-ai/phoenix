@@ -11,6 +11,7 @@ from typing import Iterable, Optional, Protocol, TypeVar
 from uvicorn import Config, Server
 
 from phoenix.config import EXPORT_DIR, get_env_host, get_env_port, get_pids_path
+from phoenix.core.evals import Evals
 from phoenix.core.model_schema_adapter import create_model_from_datasets
 from phoenix.core.traces import Traces
 from phoenix.datasets.dataset import EMPTY_DATASET, Dataset
@@ -26,6 +27,7 @@ from phoenix.trace.fixtures import (
     TRACES_FIXTURES,
     _download_traces_fixture,
     _get_trace_fixture_by_name,
+    get_evals_from_fixture,
 )
 from phoenix.trace.span_json_decoder import json_string_to_span
 
@@ -143,6 +145,7 @@ if __name__ == "__main__":
         reference_dataset,
     )
     traces = Traces()
+    evals = Evals()
     if trace_dataset_name is not None:
         fixture_spans = map(
             json_string_to_span,
@@ -157,6 +160,12 @@ if __name__ == "__main__":
             args=(traces, fixture_spans, simulate_streaming),
             daemon=True,
         ).start()
+        fixture_evals = get_evals_from_fixture(trace_dataset_name)
+        Thread(
+            target=_load_items,
+            args=(evals, fixture_evals, simulate_streaming),
+            daemon=True,
+        ).start()
     umap_params_list = args.umap_params.split(",")
     umap_params = UMAPParameters(
         min_dist=float(umap_params_list[0]),
@@ -169,6 +178,7 @@ if __name__ == "__main__":
         model=model,
         umap_params=umap_params,
         traces=traces,
+        evals=evals,
         corpus=None if corpus_dataset is None else create_model_from_datasets(corpus_dataset),
         debug=args.debug,
     )
