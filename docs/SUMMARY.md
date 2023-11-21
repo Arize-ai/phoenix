@@ -1,8 +1,8 @@
 # Table of contents
 
 * [Phoenix: AI Observability & Evaluation](README.md)
-* [Environments](environments.md)
 * [Example Notebooks](notebooks.md)
+* [Environments](environments.md)
 
 ## 🔑 Quickstart
 
