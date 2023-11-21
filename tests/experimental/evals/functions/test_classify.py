@@ -19,7 +19,11 @@ from phoenix.experimental.evals import (
     llm_classify,
     run_relevance_eval,
 )
-from phoenix.experimental.evals.functions.classify import AsyncExecutor, _snap_to_rail
+from phoenix.experimental.evals.functions.classify import (
+    AsyncExecutor,
+    SyncExecutor,
+    _snap_to_rail,
+)
 from phoenix.experimental.evals.models.openai import OPENAI_API_KEY_ENVVAR_NAME
 from respx.patterns import M
 
@@ -59,6 +63,52 @@ def classification_template():
 
 @pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
 def test_llm_classify(
+    classification_dataframe: DataFrame,
+    monkeypatch: pytest.MonkeyPatch,
+    respx_mock: respx.mock,
+):
+    monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
+    dataframe = classification_dataframe
+    keys = list(zip(dataframe["input"], dataframe["reference"]))
+    responses = ["relevant", "irrelevant", "\nrelevant ", "unparsable"]
+    response_mapping = {key: response for key, response in zip(keys, responses)}
+
+    for (query, reference), response in response_mapping.items():
+        matcher = M(content__contains=query) & M(content__contains=reference)
+        payload = {
+            "choices": [
+                {
+                    "message": {
+                        "content": response,
+                    },
+                }
+            ],
+        }
+        respx_mock.route(matcher).mock(return_value=httpx.Response(200, json=payload))
+
+    with patch.object(OpenAIModel, "_init_tiktoken", return_value=None):
+        model = OpenAIModel()
+
+    result = llm_classify(
+        dataframe=dataframe,
+        template=RAG_RELEVANCY_PROMPT_TEMPLATE,
+        model=model,
+        rails=["relevant", "irrelevant"],
+        verbose=True,
+    )
+
+    expected_labels = ["relevant", "irrelevant", "relevant", NOT_PARSABLE]
+    assert result.iloc[:, 0].tolist() == expected_labels
+    assert_frame_equal(
+        result,
+        pd.DataFrame(
+            data={"label": expected_labels},
+        ),
+    )
+
+
+@pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
+def test_llm_classify_with_async(
     classification_dataframe: DataFrame, monkeypatch: pytest.MonkeyPatch, respx_mock: respx.mock
 ):
     monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
@@ -450,7 +500,7 @@ def test_classify_tolerance_to_exceptions(
     assert classification_df is not None
     # Make sure there is a logger.error output
     captured = capfd.readouterr()
-    assert "Exception in consumer" in captured.out
+    assert "Exception in worker" in captured.out
 
 
 def test_run_relevance_eval_openinference_dataframe(
@@ -646,7 +696,7 @@ async def test_async_executor_can_continue_on_error():
     assert outputs == [0, 1, 52, 3, 4]
 
 
-async def test_sigint_handling():
+async def test_async_executor_sigint_handling():
     async def async_fn(x):
         await asyncio.sleep(0.01)
         return x
@@ -663,3 +713,47 @@ async def test_sigint_handling():
 
     assert len(results) == 100
     assert results.count("test") > 0, "some inputs should not have been processed"
+
+
+def test_sync_executor_runs_many_tasks():
+    def dummy_fn(payload: int) -> int:
+        return payload
+
+    executor = SyncExecutor(dummy_fn)
+    inputs = [x for x in range(1000)]
+    outputs = executor.run(inputs)
+    assert outputs == inputs
+
+
+def test_sync_executor_runs():
+    def dummy_fn(payload: int) -> int:
+        return payload - 2
+
+    executor = SyncExecutor(dummy_fn)
+    inputs = [1, 2, 3, 4, 5]
+    outputs = executor.run(inputs)
+    assert outputs == [-1, 0, 1, 2, 3]
+
+
+def test_sync_executor_run_exits_early_on_error():
+    def dummy_fn(payload: int) -> int:
+        if payload == 3:
+            raise ValueError("test error")
+        return payload - 1
+
+    executor = SyncExecutor(dummy_fn, exit_on_error=True, fallback_return_value=52)
+    inputs = [1, 2, 3, 4, 5]
+    outputs = executor.run(inputs)
+    assert outputs == [0, 1, 52, 52, 52]
+
+
+def test_sync_executor_can_continue_on_error():
+    def dummy_fn(payload: int) -> int:
+        if payload == 3:
+            raise ValueError("test error")
+        return payload - 1
+
+    executor = SyncExecutor(dummy_fn, exit_on_error=False, fallback_return_value=52)
+    inputs = [1, 2, 3, 4, 5]
+    outputs = executor.run(inputs)
+    assert outputs == [0, 1, 52, 3, 4]

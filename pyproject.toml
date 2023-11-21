@@ -38,7 +38,6 @@ dependencies = [
   "sortedcontainers",
   "protobuf>=3.20, <5.0",
   "ddsketch",
-  "nest-asyncio",
 ]
 dynamic = ["version"]
 
@@ -112,7 +111,6 @@ dependencies = [
   "typing-extensions<4.6.0",  # for Colab
   "httpx", # For OpenAI testing
   "respx", # For OpenAI testing
-  "nest-asyncio",
 ]
 
 [tool.hatch.envs.type]

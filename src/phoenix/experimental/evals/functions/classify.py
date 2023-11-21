@@ -56,9 +56,10 @@ class Unset:
     pass
 
 
-class AsyncExecutor:
-    _unset = Unset()
+_unset = Unset()
 
+
+class AsyncExecutor:
     def __init__(
         self,
         generation_fn: Callable[[Any], Coroutine[Any, Any, Any]],
@@ -66,14 +67,12 @@ class AsyncExecutor:
         tqdm_bar_format: Optional[str] = None,
         exit_on_error: bool = True,
         fallback_return_value: Union[Unset, Any] = _unset,
-        use_nest_asyncio: bool = True,
     ):
         self.generate = generation_fn
         self.fallback_return_value = fallback_return_value
         self.concurrency = concurrency
         self.tqdm_bar_format = tqdm_bar_format
         self.exit_on_error = exit_on_error
-        self.use_nest_asyncio = use_nest_asyncio
 
         # An end of queue sentinel is used to signal to consumers that the queue is empty and that
         # they should exit. This is necessary because some consumers may still be waiting for an
@@ -122,7 +121,7 @@ class AsyncExecutor:
                 output[index] = result
                 progress_bar.update()
             except Exception as e:
-                tqdm.write(f"Exception in consumer: {e}")
+                tqdm.write(f"Exception in worker: {e}")
                 if self.exit_on_error:
                     self._TERMINATE = True
                 else:
@@ -150,8 +149,6 @@ class AsyncExecutor:
 
 
 class SyncExecutor:
-    _unset = Unset()
-
     def __init__(
         self,
         generation_fn: Callable[[Any], Any],
@@ -189,6 +186,42 @@ class SyncExecutor:
                 else:
                     progress_bar.update()
         return outputs
+
+
+def get_executor_on_sync_context(
+    sync_fn: Callable[[Any], Any],
+    async_fn: Callable[[Any], Coroutine[Any, Any, Any]],
+    concurrency: int = 3,
+    tqdm_bar_format: Optional[str] = None,
+    exit_on_error: bool = True,
+    fallback_return_value: Union[Unset, Any] = _unset,
+) -> Union[AsyncExecutor, SyncExecutor]:
+    async_executor = AsyncExecutor(
+        async_fn,
+        concurrency=concurrency,
+        tqdm_bar_format=tqdm_bar_format,
+        exit_on_error=exit_on_error,
+        fallback_return_value=fallback_return_value,
+    )
+    sync_executor = SyncExecutor(
+        sync_fn,
+        tqdm_bar_format=tqdm_bar_format,
+        exit_on_error=exit_on_error,
+        fallback_return_value=fallback_return_value,
+    )
+    try:
+        asyncio.get_running_loop()
+        if getattr(asyncio, "_nest_patched", False):
+            return async_executor
+        else:
+            logger.warning(
+                "If running llm_classify inside a notebook, patching the event loop with "
+                "nest_asyncio will allow asynchronous eval submission, and is significantly "
+                "faster. To patch the event loop, run `nest_asyncio.apply()`."
+            )
+            return sync_executor
+    except RuntimeError:
+        return async_executor
 
 
 def llm_classify(
@@ -270,7 +303,7 @@ def llm_classify(
     if generation_info := model.verbose_generation_info():
         printif(verbose, generation_info)
 
-    def process_response(response: str) -> Tuple[str, Optional[str]]:
+    def _process_response(response: str) -> Tuple[str, Optional[str]]:
         if not use_openai_function_call:
             if provide_explanation:
                 unrailed_label, explanation = (
@@ -299,42 +332,23 @@ def llm_classify(
             response = await verbose_model._async_generate(
                 prompt, instruction=system_instruction, **model_kwargs
             )
-        return process_response(response)
+        return _process_response(response)
 
     def _run_llm_classification_sync(prompt: str) -> Tuple[str, Optional[str]]:
         with set_verbosity(model, verbose) as verbose_model:
             response = verbose_model._generate(
                 prompt, instruction=system_instruction, **model_kwargs
             )
-        return process_response(response)
+        return _process_response(response)
 
-    async_executor = AsyncExecutor(
-        _run_llm_classification_async,
-        fallback_return_value=(None, None),
-        tqdm_bar_format=tqdm_bar_format,
-        exit_on_error=True,
-    )
-
-    sync_executor = SyncExecutor(
+    executor: Union[AsyncExecutor, SyncExecutor] = get_executor_on_sync_context(
         _run_llm_classification_sync,
-        fallback_return_value=(None, None),
+        _run_llm_classification_async,
+        concurrency=concurrency,
         tqdm_bar_format=tqdm_bar_format,
         exit_on_error=True,
+        fallback_return_value=(None, None),
     )
-
-    executor: Union[AsyncExecutor, SyncExecutor]
-    try:
-        asyncio.get_running_loop()
-        if getattr(asyncio, "_nest_patched", False):
-            executor = async_executor
-        else:
-            logger.warning(
-                "If running llm_classify inside a notebook, patching the event loop with "
-                "nest_asyncio will allow asynchronous eval submission, and is significantly faster."
-            )
-            executor = sync_executor
-    except RuntimeError:
-        executor = async_executor
 
     results = executor.run(prompts.tolist())
     labels, explanations = zip(*results)
