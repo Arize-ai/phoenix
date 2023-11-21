@@ -60,6 +60,28 @@ _unset = Unset()
 
 
 class AsyncExecutor:
+    """
+    A class that provides asynchronous execution of tasks using a producer-consumer pattern.
+    
+    An async interface is provided by the `execute` method, which returns a coroutine, and a sync
+    interface is provided by the `run` method.
+
+    Args:
+        generation_fn (Callable[[Any], Coroutine[Any, Any, Any]]): A coroutine function that
+        generates tasks to be executed.
+        
+        concurrency (int, optional): The number of concurrent consumers. Defaults to 3.
+        
+        tqdm_bar_format (Optional[str], optional): The format string for the progress bar. Defaults
+        to None.
+        
+        exit_on_error (bool, optional): Whether to exit execution on the first encountered error.
+        Defaults to True.
+        
+        fallback_return_value (Union[Unset, Any], optional): The fallback return value for tasks
+        that encounter errors. Defaults to _unset.
+    """
+
     def __init__(
         self,
         generation_fn: Callable[[Any], Coroutine[Any, Any, Any]],
@@ -149,6 +171,23 @@ class AsyncExecutor:
 
 
 class SyncExecutor:
+    """
+    Synchronous executor for generating outputs from inputs using a given generation function.
+
+    Args:
+        generation_fn (Callable[[Any], Any]): The generation function that takes an input and
+        returns an output.
+        
+        tqdm_bar_format (Optional[str], optional): The format string for the progress bar. Defaults
+        to None.
+        
+        exit_on_error (bool, optional): Whether to exit execution on the first encountered error.
+        Defaults to True.
+        
+        fallback_return_value (Union[Unset, Any], optional): The fallback return value for tasks
+        that encounter errors. Defaults to _unset.
+    """
+
     def __init__(
         self,
         generation_fn: Callable[[Any], Any],
