@@ -317,8 +317,8 @@ def launch_app(
     primary : Dataset, optional
         The primary dataset to analyze
     reference : Dataset, optional
-        The reference dataset to compare against.
-        If not provided, drift analysis will not be available.
+        The reference dataset to compare against. If not provided, drift
+        analysis will not be available.
     corpus : Dataset, optional
         The dataset containing corpus for LLM context retrieval.
     trace: TraceDataset, optional
@@ -327,18 +327,20 @@ def launch_app(
         The host on which the server runs. It can also be set using environment
         variable `PHOENIX_HOST`, otherwise it defaults to `127.0.0.1`.
     port: int, optional
-        The port on which the server listens. When using traces this should not be
-        used and should instead set the environment variable `PHOENIX_PORT`.
+        The port on which the server listens. When using traces this should not
+        be used and should instead set the environment variable `PHOENIX_PORT`.
         Defaults to 6006.
     run_in_thread: bool, optional, default=True
         Whether the server should run in a Thread or Process.
-    default_umap_parameters: Dict[str, Union[int, float]], optional, default=None
-        User specified default UMAP parameters
-        eg: {"n_neighbors": 10, "n_samples": 5, "min_dist": 0.5}
+    default_umap_parameters: Dict[str, Union[int, float]], optional,
+    default=None
+        User specified default UMAP parameters eg: {"n_neighbors": 10,
+        "n_samples": 5, "min_dist": 0.5}
     notebook_environment: str, optional, default=None
-        The environment the notebook is running in. This is either 'local', 'colab', or 'sagemaker'.
-        If not provided, phoenix will try to infer the environment. This is only needed if
-        there is a failure to infer the environment.
+        The environment the notebook is running in. This is either 'local',
+        'colab', or 'sagemaker'. If not provided, phoenix
+        will try to infer the environment. This is only needed if there is a
+        failure to infer the environment.
 
     Returns
     -------
@@ -441,10 +443,11 @@ def _get_url(host: str, port: int, notebook_env: NotebookEnvironment) -> str:
         from google.colab.output import eval_js  # type: ignore
 
         return str(eval_js(f"google.colab.kernel.proxyPort({port}, {{'cache': true}})"))
-    if notebook_env == NotebookEnvironment.SAGEMAKER:
-        # NB: Sagemaker notebooks only work with port 6006 - which is used by tensorboard
-        return str(f"{_get_sagemaker_notebook_base_url()}/proxy/{port}/")
-    return f"http://{host}:{port}/"
+    if notebook_env == NotebookEnvironment.LOCAL:
+        return f"http://{host}:{port}/"
+
+    # Sagemaker notebooks
+    return _get_sagemaker_url(port)
 
 
 def _is_colab() -> bool:
@@ -484,25 +487,56 @@ def _infer_notebook_environment() -> NotebookEnvironment:
     """Use feature detection to determine the notebook environment"""
     if _is_colab():
         return NotebookEnvironment.COLAB
-    if _is_sagemaker():
+    # Attempt to read the AWS notebook instance metadata
+    nbi_metadata = _get_aws_nbi_metadata()
+    if nbi_metadata is not None:
+        # We now know that we are in a SageMaker notebook.
+        # We must check the metadata to determine if we are in a SageMaker Studio notebook.
+        if nbi_metadata.get("AppType") == "KernelGateway":
+            return NotebookEnvironment.SAGEMAKER_STUDIO
         return NotebookEnvironment.SAGEMAKER
     return NotebookEnvironment.LOCAL
 
 
-def _get_sagemaker_notebook_base_url() -> str:
+def _get_aws_nbi_metadata() -> Optional[Mapping[str, Any]]:
     """
-    Returns base url of the sagemaker notebook by parsing the Arn
-    src: https://github.com/aws-samples/amazon-sagemaker-notebook-instance-lifecycle-config-samples/blob/62c44aa5e69f4266955476f24647b99d9b597aaf/scripts/auto-stop-idle/autostop.py#L79
+    Attempts to read the AWS notebook instance metadata. If it exists,
+    returns the metadata as a dictionary. Otherwise, returns None.
+    see: https://docs.aws.amazon.com/sagemaker/latest/dg/nbi-metadata.html
     """
-    log_path = "/opt/ml/metadata/resource-metadata.json"
-    with open(log_path, "r") as logs:
-        logs = json.load(logs)
-    arn = logs["ResourceArn"]  # type: ignore
+    try:
+        with open("/opt/ml/metadata/resource-metadata.json", "r") as f:
+            metadata: Mapping[str, Any] = json.load(f)
+        return metadata
+    except Exception:
+        return None
+
+
+def _get_sagemaker_url(port: int) -> str:
+    """
+    Constructs the URL for a SageMaker notebook instance.
+    Handles both sageMaker and SageMaker Studio notebooks.
+    For an example see: https://github.com/aws/amazon-sagemaker-examples/blob/720198bc25bc68b25a77c3c5a1e7f55ee1bd8e5a/aws_sagemaker_studio/streamlit_demo/run.sh#L13
+    """
+    aws_nbi_metadata = _get_aws_nbi_metadata()
+    if aws_nbi_metadata is None:
+        raise ValueError(
+            "Unable to access AWS notebook instance metadata."
+            "Please ensure that you are running this in a SageMaker notebook."
+        )
+
+    arn = aws_nbi_metadata["ResourceArn"]
+    domain_id = aws_nbi_metadata.get("DomainId")
+
+    # If the app_type, exists, then we are in a SageMaker Studio notebook
+    is_studio = domain_id is not None
 
     # Parse the ARN to get the region and notebook instance name
     # E.x. arn:aws:sagemaker:us-east-2:802164118598:notebook-instance/my-notebook-instance
     parts = arn.split(":")
     region = parts[3]
-    notebook_instance_name = parts[5].split("/")[1]
-
-    return f"https://{notebook_instance_name}.notebook.{region}.sagemaker.aws"
+    domain_id = parts[5].split("/")[1]
+    subdomain = domain_id + (".studio" if is_studio else ".notebook")
+    base_url = f"https://{subdomain}.{region}.sagemaker.aws"
+    slug = f"/jupyter/default/proxy/{port}/" if is_studio else f"/proxy/{port}/"
+    return str(f"{base_url}${slug}")

@@ -39,17 +39,27 @@ class AppConfig(NamedTuple):
     n_samples: int
 
 
+def _get_proxy_basename(path: str) -> str:
+    """
+    Determine the basename for the application if it is behind a proxy.
+    E.x. /jupyter/default/proxy/6006/tracing -> /jupyter/default/proxy/6006
+    """
+    path_parts = path.split("/")
+    proxy_index = path_parts.index("proxy")
+    port_index = proxy_index + 1
+    end_of_proxy_path = port_index + 1
+    return "/" + "/".join(path_parts[:end_of_proxy_path])
+
+
 def _get_basename(request: Request) -> str:
     """
     Determine the basename for the API and static content.
     If the server is running in a hosted notebook, the base URL
     must be configured to point to the hosted notebook's proxy.
     """
-    is_sagemaker = "sagemaker" in str(request.url)
-    if is_sagemaker:
-        # Sagemaker sets up a proxy at /proxy/6006
-        # NB: this is the only port that is open
-        return "/proxy/6006"
+    has_proxy_path = "proxy" in request.url.path
+    if has_proxy_path:
+        return _get_proxy_basename(request.url.path)
     # URL is relative to / for colab and local
     return ""
 
