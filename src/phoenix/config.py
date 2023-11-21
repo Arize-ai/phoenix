@@ -7,6 +7,11 @@ from typing import List, Optional
 ENV_PHOENIX_PORT = "PHOENIX_PORT"
 ENV_PHOENIX_HOST = "PHOENIX_HOST"
 ENV_NOTEBOOK_ENV = "PHOENIX_NOTEBOOK_ENV"
+ENV_PHOENIX_COLLECTOR_ENDPOINT = "PHOENIX_COLLECTOR_ENDPOINT"
+"""
+The endpoint traces and evals are sent to. This must be set if the Phoenix
+server is running on a remote instance.
+"""
 
 
 def _get_temp_path() -> Path:
@@ -76,3 +81,7 @@ def get_env_port() -> int:
 
 def get_env_host() -> str:
     return os.getenv(ENV_PHOENIX_HOST) or HOST
+
+
+def get_env_collector_endpoint() -> Optional[str]:
+    return os.getenv(ENV_PHOENIX_COLLECTOR_ENDPOINT)

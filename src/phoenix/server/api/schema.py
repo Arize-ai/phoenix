@@ -239,6 +239,18 @@ class Query:
         data = list(map(to_gql_span, spans))
         return connection_from_list(data=data, args=args)
 
+    @strawberry.field(
+        description="Names of all available evaluations for spans. "
+        "(The list contains no duplicates.)"
+    )  # type: ignore
+    def span_evaluation_names(
+        self,
+        info: Info[Context, None],
+    ) -> List[str]:
+        if (evals := info.context.evals) is None:
+            return []
+        return evals.get_span_evaluation_names()
+
     @strawberry.field
     def trace_dataset_info(
         self,

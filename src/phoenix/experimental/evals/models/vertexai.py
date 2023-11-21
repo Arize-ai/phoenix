@@ -52,6 +52,18 @@ class VertexAIModel(BaseEvalModel):
 
             self._vertexai = vertexai
             self._google_exceptions = google_exceptions
+            self._google_api_retry_errors = [
+                self._google_exceptions.ResourceExhausted,
+                self._google_exceptions.ServiceUnavailable,
+                self._google_exceptions.Aborted,
+                self._google_exceptions.DeadlineExceeded,
+            ]
+            self.retry = self._retry(
+                error_types=self._google_api_retry_errors,
+                min_seconds=self.retry_min_seconds,
+                max_seconds=self.retry_max_seconds,
+                max_retries=self.max_retries,
+            )
         except ImportError:
             self._raise_import_error(
                 package_display_name="VertexAI",
@@ -80,6 +92,9 @@ class VertexAIModel(BaseEvalModel):
     def verbose_generation_info(self) -> str:
         return f"VertexAI invocation parameters: {self.invocation_params}"
 
+    async def _async_generate(self, prompt: str, **kwargs: Dict[str, Any]) -> str:
+        return self._generate(prompt, **kwargs)
+
     def _generate(self, prompt: str, **kwargs: Dict[str, Any]) -> str:
         invoke_params = self.invocation_params
         response = self._generate_with_retry(
@@ -89,20 +104,7 @@ class VertexAIModel(BaseEvalModel):
         return str(response.text)
 
     def _generate_with_retry(self, **kwargs: Any) -> Any:
-        """Use tenacity to retry the completion call."""
-        google_api_retry_errors = [
-            self._google_exceptions.ResourceExhausted,
-            self._google_exceptions.ServiceUnavailable,
-            self._google_exceptions.Aborted,
-            self._google_exceptions.DeadlineExceeded,
-        ]
-
-        @self.retry(
-            error_types=google_api_retry_errors,
-            min_seconds=self.retry_min_seconds,
-            max_seconds=self.retry_max_seconds,
-            max_retries=self.max_retries,
-        )
+        @self.retry
         def _completion_with_retry(**kwargs: Any) -> Any:
             return self._model.predict(**kwargs)
 

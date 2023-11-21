@@ -20,11 +20,13 @@ from strawberry.schema import BaseSchema
 
 import phoenix
 from phoenix.config import SERVER_DIR
+from phoenix.core.evals import Evals
 from phoenix.core.model_schema import Model
 from phoenix.core.traces import Traces
 from phoenix.pointcloud.umap_parameters import UMAPParameters
 from phoenix.server.api.context import Context
 from phoenix.server.api.schema import schema
+from phoenix.server.evaluation_handler import EvaluationHandler
 from phoenix.server.span_handler import SpanHandler
 
 logger = logging.getLogger(__name__)
@@ -109,10 +111,12 @@ class GraphQLWithContext(GraphQL):  # type: ignore
         graphiql: bool = False,
         corpus: Optional[Model] = None,
         traces: Optional[Traces] = None,
+        evals: Optional[Evals] = None,
     ) -> None:
         self.model = model
         self.corpus = corpus
         self.traces = traces
+        self.evals = evals
         self.export_path = export_path
         super().__init__(schema, graphiql=graphiql)
 
@@ -127,6 +131,7 @@ class GraphQLWithContext(GraphQL):  # type: ignore
             model=self.model,
             corpus=self.corpus,
             traces=self.traces,
+            evals=self.evals,
             export_path=self.export_path,
         )
 
@@ -156,6 +161,7 @@ def create_app(
     umap_params: UMAPParameters,
     corpus: Optional[Model] = None,
     traces: Optional[Traces] = None,
+    evals: Optional[Evals] = None,
     debug: bool = False,
 ) -> Starlette:
     graphql = GraphQLWithContext(
@@ -163,6 +169,7 @@ def create_app(
         model=model,
         corpus=corpus,
         traces=traces,
+        evals=evals,
         export_path=export_path,
         graphiql=True,
     )
@@ -183,6 +190,16 @@ def create_app(
                         {"queue": traces},
                     ),
                 ),
+            ]
+        )
+        + (
+            []
+            if evals is None
+            else [
+                Route(
+                    "/v1/evaluations",
+                    type("SpanEndpoint", (EvaluationHandler,), {"queue": evals}),
+                )
             ]
         )
         + [
