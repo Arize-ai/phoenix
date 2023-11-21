@@ -7,6 +7,7 @@ from typing import List, Optional
 ENV_PHOENIX_PORT = "PHOENIX_PORT"
 ENV_PHOENIX_HOST = "PHOENIX_HOST"
 ENV_NOTEBOOK_ENV = "PHOENIX_NOTEBOOK_ENV"
+ENV_TRACE_ENDPOINT = "PHOENIX_TRACE_ENDPOINT"
 
 
 def _get_temp_path() -> Path:
@@ -76,3 +77,7 @@ def get_env_port() -> int:
 
 def get_env_host() -> str:
     return os.getenv(ENV_PHOENIX_HOST) or HOST
+
+
+def get_env_trace_endpoint() -> Optional[str]:
+    return os.getenv(ENV_TRACE_ENDPOINT) or None
