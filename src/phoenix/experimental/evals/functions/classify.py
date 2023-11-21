@@ -312,7 +312,6 @@ def _default_openai_function(
     with_explanation: bool = False,
 ) -> Dict[str, Any]:
     properties = {
-        _RESPONSE: {"type": "string", "description": "Your response.", "enum": rails},
         **(
             {
                 _EXPLANATION: {
@@ -323,8 +322,9 @@ def _default_openai_function(
             if with_explanation
             else {}
         ),
+        _RESPONSE: {"type": "string", "description": "Your response.", "enum": rails},
     }
-    required = [_RESPONSE, *([_EXPLANATION] if with_explanation else [])]
+    required = [*([_EXPLANATION] if with_explanation else []), _RESPONSE]
     return {
         "name": "record_response",
         "description": "A function to record your response.",
