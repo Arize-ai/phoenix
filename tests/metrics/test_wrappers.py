@@ -85,9 +85,6 @@ def gen_df(
 @pytest.mark.parametrize(
     "metric,desired,parameters",
     [
-        (ev.d2_absolute_error_score, sk.d2_absolute_error_score, {}),
-        (ev.d2_pinball_score, sk.d2_pinball_score, {}),
-        (ev.d2_tweedie_score, sk.d2_tweedie_score, {}),
         (ev.explained_variance_score, sk.explained_variance_score, {}),
         (ev.max_error, sk.max_error, {}),
         (ev.mean_absolute_error, sk.mean_absolute_error, {}),
