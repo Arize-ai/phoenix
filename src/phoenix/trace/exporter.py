@@ -88,8 +88,13 @@ class HttpExporter:
         serialized = item.SerializeToString()
         data = gzip.compress(serialized)
         try:
+            print(
+                "Sending data to Phoenix...",
+                self._url(item),
+            )
             self._session.post(self._url(item), data=data)
         except Exception as e:
+            print("Failed to send data to Phoenix" + str(e))
             logger.exception(e)
 
     def _url(self, _: pb.Span) -> str:

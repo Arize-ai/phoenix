@@ -12,7 +12,7 @@ from .session.session import (
 from .trace.fixtures import load_example_traces
 from .trace.trace_dataset import TraceDataset
 
-__version__ = "1.2.2-rc5"
+__version__ = "1.2.2-rc7"
 
 # module level doc-string
 __doc__ = """
