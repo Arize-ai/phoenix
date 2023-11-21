@@ -6,6 +6,7 @@ A set of **highly experimental** helper functions to
   - ingest evaluation results into Phoenix via HttpExporter
 """
 import collections
+import math
 from typing import (
     Any,
     Iterable,
@@ -54,9 +55,9 @@ def get_retrieved_documents(session: Session) -> pd.DataFrame:
                     {
                         "context.trace_id": trace_id,
                         "context.span_id": span_id,
-                        "query": query,
+                        "input": query,
                         "document_position": position,
-                        "document_content": document.get(DOCUMENT_CONTENT),
+                        "reference": document.get(DOCUMENT_CONTENT),
                         "document_score": document.get(DOCUMENT_SCORE),
                     }
                 )
@@ -64,8 +65,8 @@ def get_retrieved_documents(session: Session) -> pd.DataFrame:
     columns = [
         "context.span_id",
         "document_position",
-        "query",
-        "document_content",
+        "input",
+        "reference",
         "document_score",
         "context.trace_id",
     ]
@@ -83,7 +84,8 @@ def add_evaluations(
             index_names,
             cast(Union[str, Tuple[Any]], index),
         )
-        result = _extract_result(row)
+        if (result := _extract_result(row)) is None:
+            continue
         evaluation = pb.Evaluation(
             name=evaluation_name,
             result=result,
@@ -134,15 +136,21 @@ def _extract_subject_id_from_index(
         assert isinstance(value, str)
         if names[0] in ("context.span_id", "span_id"):
             return pb.Evaluation.SubjectId(span_id=value)
-        elif names[0] in ("context.trace_id", "trace_id"):
+        if names[0] in ("context.trace_id", "trace_id"):
             return pb.Evaluation.SubjectId(trace_id=value)
     raise ValueError(f"Unexpected index names: {names}")
 
 
-def _extract_result(row: "pd.Series[Any]") -> pb.Evaluation.Result:
+def _extract_result(row: "pd.Series[Any]") -> Optional[pb.Evaluation.Result]:
     score = cast(Optional[float], row.get("score"))
     label = cast(Optional[str], row.get("label"))
     explanation = cast(Optional[str], row.get("explanation"))
+    if (
+        (score is None or isinstance(score, float) and math.isnan(score))
+        and not label
+        and not explanation
+    ):
+        return None
     return pb.Evaluation.Result(
         score=DoubleValue(value=score) if score is not None else None,
         label=StringValue(value=label) if label else None,
