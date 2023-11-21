@@ -6,6 +6,7 @@ from typing import List
 from unittest.mock import MagicMock, patch
 
 import httpx
+import nest_asyncio
 import numpy as np
 import pandas as pd
 import pytest
@@ -23,6 +24,7 @@ from phoenix.experimental.evals.functions.classify import (
     AsyncExecutor,
     SyncExecutor,
     _snap_to_rail,
+    get_executor_on_sync_context,
 )
 from phoenix.experimental.evals.models.openai import OPENAI_API_KEY_ENVVAR_NAME
 from respx.patterns import M
@@ -59,6 +61,50 @@ def classification_responses():
 @pytest.fixture
 def classification_template():
     return RAG_RELEVANCY_PROMPT_TEMPLATE
+
+
+async def test_executor_factory_returns_sync_in_async_context():
+    def sync_fn():
+        pass
+
+    async def async_fn():
+        pass
+
+    async def executor_in_async_context():
+        return get_executor_on_sync_context(sync_fn, async_fn)
+
+    executor = await executor_in_async_context()
+    assert isinstance(executor, SyncExecutor)
+
+
+async def test_executor_factory_returns_async_in_patched_async_context():
+    nest_asyncio.apply()
+
+    def sync_fn():
+        pass
+
+    async def async_fn():
+        pass
+
+    async def executor_in_async_context():
+        return get_executor_on_sync_context(sync_fn, async_fn)
+
+    executor = await executor_in_async_context()
+    assert isinstance(executor, AsyncExecutor)
+
+
+def test_executor_factory_returns_async_in_sync_context():
+    def sync_fn():
+        pass
+
+    async def async_fn():
+        pass
+
+    def executor_in_sync_context():
+        return get_executor_on_sync_context(sync_fn, async_fn)
+
+    executor = executor_in_sync_context()
+    assert isinstance(executor, AsyncExecutor)
 
 
 @pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")

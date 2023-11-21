@@ -111,6 +111,7 @@ dependencies = [
   "typing-extensions<4.6.0",  # for Colab
   "httpx", # For OpenAI testing
   "respx", # For OpenAI testing
+  "nest-asyncio", # for executor testing
 ]
 
 [tool.hatch.envs.type]

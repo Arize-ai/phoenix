@@ -62,22 +62,22 @@ _unset = Unset()
 class AsyncExecutor:
     """
     A class that provides asynchronous execution of tasks using a producer-consumer pattern.
-    
+
     An async interface is provided by the `execute` method, which returns a coroutine, and a sync
     interface is provided by the `run` method.
 
     Args:
         generation_fn (Callable[[Any], Coroutine[Any, Any, Any]]): A coroutine function that
         generates tasks to be executed.
-        
+
         concurrency (int, optional): The number of concurrent consumers. Defaults to 3.
-        
+
         tqdm_bar_format (Optional[str], optional): The format string for the progress bar. Defaults
         to None.
-        
+
         exit_on_error (bool, optional): Whether to exit execution on the first encountered error.
         Defaults to True.
-        
+
         fallback_return_value (Union[Unset, Any], optional): The fallback return value for tasks
         that encounter errors. Defaults to _unset.
     """
@@ -101,12 +101,11 @@ class AsyncExecutor:
         # item to be added to the queue when the producer finishes.
         self.end_of_queue = EndOfQueue()
 
-        signal.signal(signal.SIGINT, self._signal_handler)
         self._TERMINATE = False
 
     def _signal_handler(self, signum: int, frame: Any) -> None:
-        tqdm.write("Process was interrupted. The return value will be incomplete...")
         self._TERMINATE = True
+        tqdm.write("Process was interrupted. The return value will be incomplete...")
 
     async def producer(
         self,
@@ -132,7 +131,7 @@ class AsyncExecutor:
             item = await queue.get()
             if item is self.end_of_queue:
                 return
-            elif self._TERMINATE:
+            if self._TERMINATE:
                 # discard any remaining items in the queue
                 continue
 
@@ -150,6 +149,7 @@ class AsyncExecutor:
                     progress_bar.update()
 
     async def execute(self, inputs: Sequence[Any]) -> List[Any]:
+        signal.signal(signal.SIGINT, self._signal_handler)
         outputs = [self.fallback_return_value] * len(inputs)
         progress_bar = tqdm(total=len(inputs), bar_format=self.tqdm_bar_format)
 
@@ -177,13 +177,13 @@ class SyncExecutor:
     Args:
         generation_fn (Callable[[Any], Any]): The generation function that takes an input and
         returns an output.
-        
+
         tqdm_bar_format (Optional[str], optional): The format string for the progress bar. Defaults
         to None.
-        
+
         exit_on_error (bool, optional): Whether to exit execution on the first encountered error.
         Defaults to True.
-        
+
         fallback_return_value (Union[Unset, Any], optional): The fallback return value for tasks
         that encounter errors. Defaults to _unset.
     """
@@ -200,7 +200,6 @@ class SyncExecutor:
         self.tqdm_bar_format = tqdm_bar_format
         self.exit_on_error = exit_on_error
 
-        signal.signal(signal.SIGINT, self._signal_handler)
         self._TERMINATE = False
 
     def _signal_handler(self, signum: int, frame: Any) -> None:
@@ -208,6 +207,7 @@ class SyncExecutor:
         self._TERMINATE = True
 
     def run(self, inputs: Sequence[Any]) -> List[Any]:
+        signal.signal(signal.SIGINT, self._signal_handler)
         outputs = [self.fallback_return_value] * len(inputs)
         progress_bar = tqdm(total=len(inputs), bar_format=self.tqdm_bar_format)
 
