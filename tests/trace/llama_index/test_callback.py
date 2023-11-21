@@ -26,7 +26,6 @@ from phoenix.trace.exporter import NoOpExporter
 from phoenix.trace.llama_index import OpenInferenceTraceCallbackHandler
 from phoenix.trace.schemas import SpanException, SpanKind, SpanStatusCode
 from phoenix.trace.semantic_conventions import (
-    DOCUMENT_METADATA,
     EXCEPTION_MESSAGE,
     EXCEPTION_STACKTRACE,
     EXCEPTION_TYPE,
@@ -34,8 +33,7 @@ from phoenix.trace.semantic_conventions import (
     LLM_PROMPT_TEMPLATE,
     LLM_PROMPT_TEMPLATE_VARIABLES,
     LLM_TOKEN_COUNT_TOTAL,
-    OUTPUT_VALUE,
-    RETRIEVAL_DOCUMENTS,
+    OUTPUT_VALUE,  # type: ignore
 )
 from phoenix.trace.span_json_decoder import json_string_to_span
 from phoenix.trace.span_json_encoder import span_to_json

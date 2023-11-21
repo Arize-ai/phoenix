@@ -235,32 +235,36 @@ def get_executor_on_sync_context(
     exit_on_error: bool = True,
     fallback_return_value: Union[Unset, Any] = _unset,
 ) -> Union[AsyncExecutor, SyncExecutor]:
-    async_executor = AsyncExecutor(
-        async_fn,
-        concurrency=concurrency,
-        tqdm_bar_format=tqdm_bar_format,
-        exit_on_error=exit_on_error,
-        fallback_return_value=fallback_return_value,
-    )
-    sync_executor = SyncExecutor(
-        sync_fn,
-        tqdm_bar_format=tqdm_bar_format,
-        exit_on_error=exit_on_error,
-        fallback_return_value=fallback_return_value,
-    )
     try:
         asyncio.get_running_loop()
         if getattr(asyncio, "_nest_patched", False):
-            return async_executor
+            return AsyncExecutor(
+                async_fn,
+                concurrency=concurrency,
+                tqdm_bar_format=tqdm_bar_format,
+                exit_on_error=exit_on_error,
+                fallback_return_value=fallback_return_value,
+            )
         else:
             logger.warning(
-                "If running llm_classify inside a notebook, patching the event loop with "
+                "🐌!! If running llm_classify inside a notebook, patching the event loop with "
                 "nest_asyncio will allow asynchronous eval submission, and is significantly "
                 "faster. To patch the event loop, run `nest_asyncio.apply()`."
             )
-            return sync_executor
+            return SyncExecutor(
+                async_fn,
+                tqdm_bar_format=tqdm_bar_format,
+                exit_on_error=exit_on_error,
+                fallback_return_value=fallback_return_value,
+            )
     except RuntimeError:
-        return async_executor
+        return AsyncExecutor(
+            async_fn,
+            concurrency=concurrency,
+            tqdm_bar_format=tqdm_bar_format,
+            exit_on_error=exit_on_error,
+            fallback_return_value=fallback_return_value,
+        )
 
 
 def llm_classify(
