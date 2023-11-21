@@ -488,12 +488,7 @@ def _infer_notebook_environment() -> NotebookEnvironment:
     if _is_colab():
         return NotebookEnvironment.COLAB
     # Attempt to read the AWS notebook instance metadata
-    nbi_metadata = _get_aws_nbi_metadata()
-    if nbi_metadata is not None:
-        # We now know that we are in a SageMaker notebook.
-        # We must check the metadata to determine if we are in a SageMaker Studio notebook.
-        if nbi_metadata.get("AppType") == "KernelGateway":
-            return NotebookEnvironment.SAGEMAKER_STUDIO
+    if _get_aws_nbi_metadata() is not None:
         return NotebookEnvironment.SAGEMAKER
     return NotebookEnvironment.LOCAL
 
@@ -539,4 +534,4 @@ def _get_sagemaker_url(port: int) -> str:
     subdomain = domain_id + (".studio" if is_studio else ".notebook")
     base_url = f"https://{subdomain}.{region}.sagemaker.aws"
     slug = f"/jupyter/default/proxy/{port}/" if is_studio else f"/proxy/{port}/"
-    return str(f"{base_url}${slug}")
+    return str(f"{base_url}{slug}")
