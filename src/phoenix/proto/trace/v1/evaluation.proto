@@ -1,0 +1,26 @@
+syntax = "proto3";
+package phoenix.proto.evaluation.v1;
+
+import "google/protobuf/wrappers.proto";
+
+message Evaluation {
+  string name = 1;
+  message SubjectId {
+    message DocumentRetrievalId {
+      string span_id = 1;
+      int32 document_position = 2;  // zero-based index
+    }
+    oneof kind {
+      string trace_id = 1;
+      string span_id = 2;
+      DocumentRetrievalId document_retrieval_id = 3;
+    }
+  }
+  SubjectId subject_id = 2;
+  message Result {
+    google.protobuf.DoubleValue score = 1;
+    google.protobuf.StringValue label = 2;
+    google.protobuf.StringValue explanation = 3;
+  }
+  Result result = 3;
+}

@@ -234,7 +234,10 @@ dependencies = [
 ]
 
 [tool.hatch.envs.proto.scripts]
-recompile = "python -m grpc_tools.protoc -I src/phoenix/proto --python_out=src/phoenix --mypy_out=src/phoenix src/phoenix/proto/trace/v1/trace.proto"
+recompile = """
+python -m grpc_tools.protoc -I src/phoenix/proto --python_out=src/phoenix --mypy_out=src/phoenix src/phoenix/proto/trace/v1/trace.proto &&
+python -m grpc_tools.protoc -I src/phoenix/proto --python_out=src/phoenix --mypy_out=src/phoenix src/phoenix/proto/trace/v1/evaluation.proto
+"""
 
 [tool.interrogate]
 fail-under = 0

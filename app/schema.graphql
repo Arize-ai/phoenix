@@ -179,6 +179,29 @@ type DimensionWithValue {
   value: String
 }
 
+type DocumentEvaluation implements Evaluation {
+  """Name of the evaluation, e.g. 'helpfulness' or 'relevance'."""
+  name: String!
+
+  """Result of the evaluation in the form of a numeric score."""
+  score: Float
+
+  """
+  Result of the evaluation in the form of a string, e.g. 'helpful' or 'not helpful'. Note that the label is not necessarily binary.
+  """
+  label: String
+
+  """
+  The evaluator's explanation for the evaluation result (i.e. score or label, or both) given to the subject.
+  """
+  explanation: String
+
+  """
+  The zero-based index among retrieved documents, which is collected as a list (even when ordering is not inherently meaningful).
+  """
+  documentPosition: Int!
+}
+
 type DriftTimeSeries implements TimeSeries {
   data: [TimeSeriesDataPoint!]!
 }
@@ -259,6 +282,24 @@ type EmbeddingMetadata {
   predictionId: String
   rawData: String
   linkToData: String
+}
+
+interface Evaluation {
+  """Name of the evaluation, e.g. 'helpfulness' or 'relevance'."""
+  name: String!
+
+  """Result of the evaluation in the form of a numeric score."""
+  score: Float
+
+  """
+  Result of the evaluation in the form of a string, e.g. 'helpful' or 'not helpful'. Note that the label is not necessarily binary.
+  """
+  label: String
+
+  """
+  The evaluator's explanation for the evaluation result (i.e. score or label, or both) given to the subject.
+  """
+  explanation: String
 }
 
 type Event {
@@ -460,6 +501,11 @@ type Query {
     clusterSelectionEpsilon: Float! = 0
   ): [Cluster!]!
   spans(timeRange: TimeRange, traceIds: [ID!], first: Int = 50, last: Int, after: String, before: String, sort: SpanSort, rootSpansOnly: Boolean = false, filterCondition: String = null): SpanConnection!
+
+  """
+  Names of all available evaluations for spans. (The list contains no duplicates.)
+  """
+  spanEvaluationNames: [String!]!
   traceDatasetInfo: TraceDatasetInfo
   validateSpanFilterCondition(condition: String!): ValidationResult!
 }
@@ -527,6 +573,16 @@ type Span {
   """
   cumulativeTokenCountCompletion: Int
 
+  """
+  Evaluations associated with the span, e.g. if the span is an LLM, an evaluation may assess the helpfulness of its response with respect to its input.
+  """
+  spanEvaluations: [SpanEvaluation!]!
+
+  """
+  Evaluations of the documents associated with the span, e.g. if the span is a RETRIEVER with a list of documents in its RETRIEVAL_DOCUMENTS attribute, an evaluation for each document may assess its relevance respect to the input query of the span. Note that RETRIEVAL_DOCUMENTS is a list, and each evaluation is identified by its document's (zero-based) index in that list.
+  """
+  documentEvaluations: [DocumentEvaluation!]!
+
   """All descendant spans (children, grandchildren, etc.)"""
   descendants: [Span!]!
 }
@@ -556,6 +612,24 @@ type SpanContext {
 type SpanEdge {
   node: Span!
   cursor: String!
+}
+
+type SpanEvaluation implements Evaluation {
+  """Name of the evaluation, e.g. 'helpfulness' or 'relevance'."""
+  name: String!
+
+  """Result of the evaluation in the form of a numeric score."""
+  score: Float
+
+  """
+  Result of the evaluation in the form of a string, e.g. 'helpful' or 'not helpful'. Note that the label is not necessarily binary.
+  """
+  label: String
+
+  """
+  The evaluator's explanation for the evaluation result (i.e. score or label, or both) given to the subject.
+  """
+  explanation: String
 }
 
 type SpanEvent {
