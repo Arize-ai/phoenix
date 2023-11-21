@@ -1,6 +1,22 @@
+from __future__ import annotations
+
+import asyncio
 import json
 import logging
-from typing import Any, Dict, Iterable, List, Optional, Union, cast
+import signal
+from typing import (
+    Any,
+    Callable,
+    Coroutine,
+    Dict,
+    Iterable,
+    List,
+    Optional,
+    Sequence,
+    Tuple,
+    Union,
+    cast,
+)
 
 import pandas as pd
 from tqdm.auto import tqdm
@@ -32,6 +48,225 @@ _RESPONSE = "response"
 _EXPLANATION = "explanation"
 
 
+class EndOfQueue:
+    pass
+
+
+class Unset:
+    pass
+
+
+_unset = Unset()
+
+
+class AsyncExecutor:
+    """
+    A class that provides asynchronous execution of tasks using a producer-consumer pattern.
+
+    An async interface is provided by the `execute` method, which returns a coroutine, and a sync
+    interface is provided by the `run` method.
+
+    Args:
+        generation_fn (Callable[[Any], Coroutine[Any, Any, Any]]): A coroutine function that
+        generates tasks to be executed.
+
+        concurrency (int, optional): The number of concurrent consumers. Defaults to 3.
+
+        tqdm_bar_format (Optional[str], optional): The format string for the progress bar. Defaults
+        to None.
+
+        exit_on_error (bool, optional): Whether to exit execution on the first encountered error.
+        Defaults to True.
+
+        fallback_return_value (Union[Unset, Any], optional): The fallback return value for tasks
+        that encounter errors. Defaults to _unset.
+    """
+
+    def __init__(
+        self,
+        generation_fn: Callable[[Any], Coroutine[Any, Any, Any]],
+        concurrency: int = 3,
+        tqdm_bar_format: Optional[str] = None,
+        exit_on_error: bool = True,
+        fallback_return_value: Union[Unset, Any] = _unset,
+    ):
+        self.generate = generation_fn
+        self.fallback_return_value = fallback_return_value
+        self.concurrency = concurrency
+        self.tqdm_bar_format = tqdm_bar_format
+        self.exit_on_error = exit_on_error
+
+        # An end of queue sentinel is used to signal to consumers that the queue is empty and that
+        # they should exit. This is necessary because some consumers may still be waiting for an
+        # item to be added to the queue when the producer finishes.
+        self.end_of_queue = EndOfQueue()
+
+        self._TERMINATE = False
+
+    def _signal_handler(self, signum: int, frame: Any) -> None:
+        self._TERMINATE = True
+        tqdm.write("Process was interrupted. The return value will be incomplete...")
+
+    async def producer(
+        self,
+        inputs: Sequence[Any],
+        queue: asyncio.Queue[Union[EndOfQueue, Tuple[int, Any]]],
+    ) -> None:
+        for index, input in enumerate(inputs):
+            if self._TERMINATE:
+                break
+            await queue.put((index, input))
+        # adds an end of queue sentinel for each consumer, guaranteeing that any consumer that is
+        # currently waiting for an item will gracefully stop.
+        for _ in range(self.concurrency):
+            await queue.put(self.end_of_queue)
+
+    async def consumer(
+        self,
+        output: List[Any],
+        queue: asyncio.Queue[Union[EndOfQueue, Tuple[int, Any]]],
+        progress_bar: tqdm[Any],
+    ) -> None:
+        while True:
+            item = await queue.get()
+            if item is self.end_of_queue:
+                return
+            if self._TERMINATE:
+                # discard any remaining items in the queue
+                continue
+
+            item = cast(Tuple[int, Any], item)
+            index, payload = item
+            try:
+                result = await self.generate(payload)
+                output[index] = result
+                progress_bar.update()
+            except Exception as e:
+                tqdm.write(f"Exception in worker: {e}")
+                if self.exit_on_error:
+                    self._TERMINATE = True
+                else:
+                    progress_bar.update()
+
+    async def execute(self, inputs: Sequence[Any]) -> List[Any]:
+        signal.signal(signal.SIGINT, self._signal_handler)
+        outputs = [self.fallback_return_value] * len(inputs)
+        progress_bar = tqdm(total=len(inputs), bar_format=self.tqdm_bar_format)
+
+        queue: asyncio.Queue[Union[EndOfQueue, Tuple[int, Any]]] = asyncio.Queue(
+            maxsize=2 * self.concurrency
+        )
+
+        producer = self.producer(inputs, queue)
+        consumers = [
+            asyncio.create_task(self.consumer(outputs, queue, progress_bar))
+            for _ in range(self.concurrency)
+        ]
+
+        await asyncio.gather(producer, *consumers)
+        return outputs
+
+    def run(self, inputs: Sequence[Any]) -> List[Any]:
+        return asyncio.run(self.execute(inputs))
+
+
+class SyncExecutor:
+    """
+    Synchronous executor for generating outputs from inputs using a given generation function.
+
+    Args:
+        generation_fn (Callable[[Any], Any]): The generation function that takes an input and
+        returns an output.
+
+        tqdm_bar_format (Optional[str], optional): The format string for the progress bar. Defaults
+        to None.
+
+        exit_on_error (bool, optional): Whether to exit execution on the first encountered error.
+        Defaults to True.
+
+        fallback_return_value (Union[Unset, Any], optional): The fallback return value for tasks
+        that encounter errors. Defaults to _unset.
+    """
+
+    def __init__(
+        self,
+        generation_fn: Callable[[Any], Any],
+        tqdm_bar_format: Optional[str] = None,
+        exit_on_error: bool = True,
+        fallback_return_value: Union[Unset, Any] = _unset,
+    ):
+        self.generate = generation_fn
+        self.fallback_return_value = fallback_return_value
+        self.tqdm_bar_format = tqdm_bar_format
+        self.exit_on_error = exit_on_error
+
+        self._TERMINATE = False
+
+    def _signal_handler(self, signum: int, frame: Any) -> None:
+        tqdm.write("Process was interrupted. The return value will be incomplete...")
+        self._TERMINATE = True
+
+    def run(self, inputs: Sequence[Any]) -> List[Any]:
+        signal.signal(signal.SIGINT, self._signal_handler)
+        outputs = [self.fallback_return_value] * len(inputs)
+        progress_bar = tqdm(total=len(inputs), bar_format=self.tqdm_bar_format)
+
+        for index, input in enumerate(inputs):
+            if self._TERMINATE:
+                break
+            try:
+                result = self.generate(input)
+                outputs[index] = result
+                progress_bar.update()
+            except Exception as e:
+                tqdm.write(f"Exception in worker: {e}")
+                if self.exit_on_error:
+                    break
+                else:
+                    progress_bar.update()
+        return outputs
+
+
+def get_executor_on_sync_context(
+    sync_fn: Callable[[Any], Any],
+    async_fn: Callable[[Any], Coroutine[Any, Any, Any]],
+    concurrency: int = 3,
+    tqdm_bar_format: Optional[str] = None,
+    exit_on_error: bool = True,
+    fallback_return_value: Union[Unset, Any] = _unset,
+) -> Union[AsyncExecutor, SyncExecutor]:
+    try:
+        asyncio.get_running_loop()
+        if getattr(asyncio, "_nest_patched", False):
+            return AsyncExecutor(
+                async_fn,
+                concurrency=concurrency,
+                tqdm_bar_format=tqdm_bar_format,
+                exit_on_error=exit_on_error,
+                fallback_return_value=fallback_return_value,
+            )
+        else:
+            logger.warning(
+                "🐌!! If running llm_classify inside a notebook, patching the event loop with "
+                "nest_asyncio will allow asynchronous eval submission, and is significantly "
+                "faster. To patch the event loop, run `nest_asyncio.apply()`."
+            )
+            return SyncExecutor(
+                async_fn,
+                tqdm_bar_format=tqdm_bar_format,
+                exit_on_error=exit_on_error,
+                fallback_return_value=fallback_return_value,
+            )
+    except RuntimeError:
+        return AsyncExecutor(
+            async_fn,
+            concurrency=concurrency,
+            tqdm_bar_format=tqdm_bar_format,
+            exit_on_error=exit_on_error,
+            fallback_return_value=fallback_return_value,
+        )
+
+
 def llm_classify(
     dataframe: pd.DataFrame,
     model: BaseEvalModel,
@@ -41,6 +276,7 @@ def llm_classify(
     verbose: bool = False,
     use_function_calling_if_available: bool = True,
     provide_explanation: bool = False,
+    concurrency: int = 3,
 ) -> pd.DataFrame:
     """Classifies each input row of the dataframe using an LLM. Returns a pandas.DataFrame
     where the first column is named `label` and contains the classification labels. An optional
@@ -75,6 +311,8 @@ def llm_classify(
         classification label. A column named `explanation` is added to the output dataframe.
         Currently, this is only available for models with function calling.
 
+        concurrency (int, default=3): The number of concurrent evals.
+
     Returns:
         pandas.DataFrame: A dataframe where the `label` column (at column position 0) contains
         the classification labels. If provide_explanation=True, then an additional column named
@@ -83,6 +321,7 @@ def llm_classify(
         from the entries in the rails argument or "NOT_PARSABLE" if the model's output could
         not be parsed.
     """
+    tqdm_bar_format = get_tqdm_progress_bar_formatter("llm_classify")
     use_openai_function_call = (
         use_function_calling_if_available
         and isinstance(model, OpenAIModel)
@@ -107,43 +346,55 @@ def llm_classify(
     if generation_info := model.verbose_generation_info():
         printif(verbose, generation_info)
 
-    # Wrap the loop in a try / catch so that we can still return a dataframe
-    # even if the process is interrupted
-    try:
-        for index, prompt in enumerate(
-            tqdm(prompts, bar_format=get_tqdm_progress_bar_formatter("llm_classify"))
-        ):
-            with set_verbosity(model, verbose) as verbose_model:
-                response = verbose_model(prompt, instruction=system_instruction, **model_kwargs)
-            if not use_openai_function_call:
-                if provide_explanation:
-                    unrailed_label, explanation = (
-                        eval_template.extract_label_from_explanation(response),
-                        response,
-                    )
-                    printif(
-                        verbose and unrailed_label == NOT_PARSABLE,
-                        f"- Could not parse {repr(response)}",
-                    )
-                else:
-                    unrailed_label = response
-                    explanation = None
+    def _process_response(response: str) -> Tuple[str, Optional[str]]:
+        if not use_openai_function_call:
+            if provide_explanation:
+                unrailed_label, explanation = (
+                    eval_template.extract_label_from_explanation(response),
+                    response,
+                )
+                printif(
+                    verbose and unrailed_label == NOT_PARSABLE,
+                    f"- Could not parse {repr(response)}",
+                )
             else:
-                try:
-                    function_arguments = json.loads(response, strict=False)
-                    unrailed_label = function_arguments.get(_RESPONSE)
-                    explanation = function_arguments.get(_EXPLANATION)
-                except json.JSONDecodeError:
-                    unrailed_label = response
-                    explanation = None
-            labels[index] = _snap_to_rail(unrailed_label, rails, verbose=verbose)
-            explanations[index] = explanation
-    except (Exception, KeyboardInterrupt) as e:
-        logger.error(e)
-        print(
-            "Process was interrupted. The return value will be incomplete",
-            e,
-        )
+                unrailed_label = response
+                explanation = None
+        else:
+            try:
+                function_arguments = json.loads(response, strict=False)
+                unrailed_label = function_arguments.get(_RESPONSE)
+                explanation = function_arguments.get(_EXPLANATION)
+            except json.JSONDecodeError:
+                unrailed_label = response
+                explanation = None
+        return _snap_to_rail(unrailed_label, rails, verbose=verbose), explanation
+
+    async def _run_llm_classification_async(prompt: str) -> Tuple[str, Optional[str]]:
+        with set_verbosity(model, verbose) as verbose_model:
+            response = await verbose_model._async_generate(
+                prompt, instruction=system_instruction, **model_kwargs
+            )
+        return _process_response(response)
+
+    def _run_llm_classification_sync(prompt: str) -> Tuple[str, Optional[str]]:
+        with set_verbosity(model, verbose) as verbose_model:
+            response = verbose_model._generate(
+                prompt, instruction=system_instruction, **model_kwargs
+            )
+        return _process_response(response)
+
+    executor: Union[AsyncExecutor, SyncExecutor] = get_executor_on_sync_context(
+        _run_llm_classification_sync,
+        _run_llm_classification_async,
+        concurrency=concurrency,
+        tqdm_bar_format=tqdm_bar_format,
+        exit_on_error=True,
+        fallback_return_value=(None, None),
+    )
+
+    results = executor.run(prompts.tolist())
+    labels, explanations = zip(*results)
 
     return pd.DataFrame(
         data={
