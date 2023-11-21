@@ -10,7 +10,7 @@ import requests
 from requests import Session
 
 import phoenix.trace.v1 as pb
-from phoenix.config import get_env_host, get_env_port
+from phoenix.config import get_env_collector_url, get_env_host, get_env_port
 from phoenix.trace.schemas import Span
 from phoenix.trace.v1.utils import encode
 
@@ -30,6 +30,7 @@ class HttpExporter:
         self,
         host: Optional[str] = None,
         port: Optional[int] = None,
+        collector_url: Optional[str] = None,
     ) -> None:
         """
         Span Exporter using HTTP.
@@ -42,10 +43,17 @@ class HttpExporter:
         port: Optional[int]
             The port of the Phoenix server. It can also be set using environment
             variable `PHOENIX_PORT`, otherwise it defaults to `6006`.
+        collector_url: Optional[str]
+            The URL of the span / evals collector. If this is set, the host and
+            port parameters are ignored. This must be used when the collector is
+            not running in the same process as the tracer.
+            (e.x. running on a separate instance)
         """
         self._host = host or get_env_host()
         self._port = port or get_env_port()
-        self._base_url = f"http://{self._host}:{self._port}"
+        self._base_url = (
+            collector_url or get_env_collector_url() or f"http://{self._host}:{self._port}"
+        )
         self._warn_if_phoenix_is_not_running()
         self._session = Session()
         weakref.finalize(self, self._session.close)

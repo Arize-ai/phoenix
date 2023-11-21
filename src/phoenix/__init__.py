@@ -1,11 +1,18 @@
 from .datasets.dataset import Dataset
 from .datasets.fixtures import ExampleDatasets, load_example
 from .datasets.schema import EmbeddingColumnNames, RetrievalEmbeddingColumnNames, Schema
-from .session.session import NotebookEnvironment, Session, active_session, close_app, launch_app
+from .session.session import (
+    NotebookEnvironment,
+    Session,
+    active_session,
+    close_app,
+    get_sagemaker_collector_base_url,
+    launch_app,
+)
 from .trace.fixtures import load_example_traces
 from .trace.trace_dataset import TraceDataset
 
-__version__ = "1.2.2-rc4"
+__version__ = "1.2.2-rc5"
 
 # module level doc-string
 __doc__ = """
@@ -37,4 +44,5 @@ __all__ = [
     "load_example_traces",
     "TraceDataset",
     "NotebookEnvironment",
+    "get_sagemaker_collector_base_url",
 ]

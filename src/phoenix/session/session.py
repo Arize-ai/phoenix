@@ -51,6 +51,7 @@ class NotebookEnvironment(Enum):
     COLAB = "colab"
     LOCAL = "local"
     SAGEMAKER = "sagemaker"
+    SAGEMAKER_STUDIO = "sagemaker_studio"
 
 
 class ExportedData(_BaseList):
@@ -124,6 +125,14 @@ class Session(ABC):
         self.export_path.mkdir(parents=True, exist_ok=True)
         self.exported_data = ExportedData()
         self.notebook_env = notebook_env or _get_notebook_environment()
+
+        # Sagemaker studio cannot be initialized in the notebook
+        if self.notebook_env == NotebookEnvironment.SAGEMAKER_STUDIO:
+            raise ValueError(
+                "🚫 The phoenix app cannot be run in a SageMaker Studio notebook."
+                "The app must be run via the terminal."
+                "For more details, see https://docs.arize.com/phoenix/environments"
+            )
 
     @abstractmethod
     def end(self) -> None:
@@ -447,7 +456,7 @@ def _get_url(host: str, port: int, notebook_env: NotebookEnvironment) -> str:
         return f"http://{host}:{port}/"
 
     # Sagemaker notebooks
-    return _get_sagemaker_url(port)
+    return get_sagemaker_collector_base_url(port)
 
 
 def _is_colab() -> bool:
@@ -488,8 +497,12 @@ def _infer_notebook_environment() -> NotebookEnvironment:
     if _is_colab():
         return NotebookEnvironment.COLAB
     # Attempt to read the AWS notebook instance metadata
-    if _get_aws_nbi_metadata() is not None:
-        return NotebookEnvironment.SAGEMAKER
+    aws_nbi_metadata = _get_aws_nbi_metadata()
+    if aws_nbi_metadata is not None:
+        if "DomainId" in aws_nbi_metadata:
+            return NotebookEnvironment.SAGEMAKER_STUDIO
+        else:
+            NotebookEnvironment.SAGEMAKER
     return NotebookEnvironment.LOCAL
 
 
@@ -507,9 +520,9 @@ def _get_aws_nbi_metadata() -> Optional[Mapping[str, Any]]:
         return None
 
 
-def _get_sagemaker_url(port: int) -> str:
+def get_sagemaker_collector_base_url(port: int) -> str:
     """
-    Constructs the URL for a SageMaker notebook instance.
+    Constructs the URL for a SageMaker instance.
     Handles both sageMaker and SageMaker Studio notebooks.
     For an example see: https://github.com/aws/amazon-sagemaker-examples/blob/720198bc25bc68b25a77c3c5a1e7f55ee1bd8e5a/aws_sagemaker_studio/streamlit_demo/run.sh#L13
     """
@@ -517,7 +530,8 @@ def _get_sagemaker_url(port: int) -> str:
     if aws_nbi_metadata is None:
         raise ValueError(
             "Unable to access AWS notebook instance metadata."
-            "Please ensure that you are running this in a SageMaker notebook."
+            "If you are running in SageMaker and seeing this message, please file an issue"
+            "at https://github.com/Arize-ai/phoenix/issues"
         )
 
     arn = aws_nbi_metadata["ResourceArn"]
