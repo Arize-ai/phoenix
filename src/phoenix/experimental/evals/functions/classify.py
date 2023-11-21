@@ -268,7 +268,7 @@ def llm_classify(
         classification label. A column named `explanation` is added to the output dataframe.
         Currently, this is only available for models with function calling.
 
-        concurrency (int, defualt=3): The number of concurrent evals.
+        concurrency (int, default=3): The number of concurrent evals.
 
     Returns:
         pandas.DataFrame: A dataframe where the `label` column (at column position 0) contains
