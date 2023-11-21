@@ -1,7 +1,7 @@
 import json
 import uuid
 from datetime import datetime
-from typing import Iterable, Iterator, List, Optional, cast
+from typing import Any, Iterable, Iterator, List, Optional, cast
 
 import pandas as pd
 from pandas import DataFrame, read_parquet
@@ -10,6 +10,7 @@ from phoenix.datetime_utils import normalize_timestamps
 
 from ..config import DATASET_DIR, GENERATED_DATASET_NAME_PREFIX
 from .schemas import ATTRIBUTE_PREFIX, CONTEXT_PREFIX, Span
+from .semantic_conventions import DOCUMENT_METADATA, RETRIEVAL_DOCUMENTS
 from .span_evaluations import EVALUATIONS_INDEX_NAME, SpanEvaluations
 from .span_json_decoder import json_to_span
 from .span_json_encoder import span_to_json
@@ -27,6 +28,8 @@ REQUIRED_COLUMNS = [
     "context.trace_id",
 ]
 
+RETRIEVAL_DOCUMENTS_COLUMN_NAME = f"{ATTRIBUTE_PREFIX}{RETRIEVAL_DOCUMENTS}"
+
 
 def normalize_dataframe(dataframe: DataFrame) -> "DataFrame":
     """Makes the dataframe have appropriate data types"""
@@ -35,6 +38,22 @@ def normalize_dataframe(dataframe: DataFrame) -> "DataFrame":
     dataframe["start_time"] = normalize_timestamps(dataframe["start_time"])
     dataframe["end_time"] = normalize_timestamps(dataframe["end_time"])
     return dataframe
+
+
+def _add_empty_field_to_document_metadata(documents: Any) -> Any:
+    """
+    Adds a dummy field to the document metadata to make the object serializable over parquet
+    """
+    # If the documents is a list, iterate over them, check that the metadata is
+    # a dict, see if it is empty, and add a dummy field value if needed to make
+    # the object serializable over parquet
+    if isinstance(documents, list):
+        for document in documents:
+            metadata = document.get(DOCUMENT_METADATA)
+            if isinstance(metadata, dict):
+                # Just denote the type of the object
+                metadata["__type"] = DOCUMENT_METADATA
+    return documents
 
 
 class TraceDataset:
@@ -141,10 +160,17 @@ class TraceDataset:
         df = read_parquet(directory / cls._data_file_name)
         return cls(df, name)
 
+    def _normalize_dataframe(self) -> None:
+        if RETRIEVAL_DOCUMENTS_COLUMN_NAME in self.dataframe.columns:
+            self.dataframe[RETRIEVAL_DOCUMENTS_COLUMN_NAME] = self.dataframe[
+                RETRIEVAL_DOCUMENTS_COLUMN_NAME
+            ].apply(_add_empty_field_to_document_metadata)
+
     def to_disc(self) -> None:
         """writes the data to disc"""
         directory = DATASET_DIR / self.name
         directory.mkdir(parents=True, exist_ok=True)
+        self._normalize_dataframe()
         self.dataframe.to_parquet(
             directory / self._data_file_name,
             allow_truncated_timestamps=True,
