@@ -16,7 +16,7 @@ from typing import (
 from uuid import UUID
 
 from google.protobuf.json_format import MessageToDict
-from google.protobuf.struct_pb2 import Struct
+from google.protobuf.struct_pb2 import ListValue, Struct
 from google.protobuf.timestamp_pb2 import Timestamp
 from google.protobuf.wrappers_pb2 import BoolValue, BytesValue, FloatValue, StringValue
 
@@ -520,7 +520,21 @@ def _maybe_timestamp(obj: Optional[datetime]) -> Optional[Timestamp]:
 
 def _as_struct(obj: Mapping[str, Any]) -> Struct:
     struct = Struct()
-    struct.update(obj)
+    for key, value in obj.items():
+        # The type check below is based on _SetStructValue in protobuf 3.20
+        # see https://github.com/protocolbuffers/protobuf/blob/5a3dac894157bf3618b2c906a8b9073b4cad62b6/python/google/protobuf/internal/well_known_types.py#L733C42  # noqa: E501
+        # A use-case is when we have numpy.ndarray as a value, which can come from pyarrow.
+        # Note that this doesn't handle numpy.ndarray with more than one dimension.
+        if value is not None and not isinstance(
+            value, (str, int, float, bool, list, dict, Struct, ListValue)
+        ):
+            if isinstance(value, Mapping):
+                value = dict(value)
+            elif isinstance(value, Iterable):
+                value = list(value)
+            else:
+                raise TypeError(f"Unsupported type {type(value)} for key {key}")
+        struct[key] = value
     return struct
 
 
