@@ -521,6 +521,9 @@ def _maybe_timestamp(obj: Optional[datetime]) -> Optional[Timestamp]:
 def _as_struct(obj: Mapping[str, Any]) -> Struct:
     struct = Struct()
     for key, value in obj.items():
+        # The type check below is based on _SetStructValue in protobuf 3.20
+        # see https://github.com/protocolbuffers/protobuf/blob/5a3dac894157bf3618b2c906a8b9073b4cad62b6/python/google/protobuf/internal/well_known_types.py#L733C42  # noqa: E501
+        # An example is when we have numpy.ndarray as a value, which can come from pyarrow.
         if value is not None and not isinstance(
             value, (str, int, float, bool, list, dict, Struct, ListValue)
         ):
