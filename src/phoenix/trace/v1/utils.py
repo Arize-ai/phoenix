@@ -16,7 +16,7 @@ from typing import (
 from uuid import UUID
 
 from google.protobuf.json_format import MessageToDict
-from google.protobuf.struct_pb2 import Struct
+from google.protobuf.struct_pb2 import ListValue, Struct
 from google.protobuf.timestamp_pb2 import Timestamp
 from google.protobuf.wrappers_pb2 import BoolValue, BytesValue, FloatValue, StringValue
 
@@ -521,8 +521,13 @@ def _maybe_timestamp(obj: Optional[datetime]) -> Optional[Timestamp]:
 def _as_struct(obj: Mapping[str, Any]) -> Struct:
     struct = Struct()
     for key, value in obj.items():
-        if isinstance(value, Iterable) and not isinstance(value, (str, list, Mapping)):
-            value = list(value)
+        if value is not None and not isinstance(
+            value, (str, int, float, bool, list, dict, Struct, ListValue)
+        ):
+            if isinstance(value, Mapping):
+                value = dict(value)
+            elif isinstance(value, Iterable):
+                value = list(value)
         struct[key] = value
     return struct
 
