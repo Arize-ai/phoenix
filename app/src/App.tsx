@@ -4,6 +4,7 @@ import { ThemeProvider as EmotionThemeProvider } from "@emotion/react";
 
 import { Provider, theme } from "@arizeai/components";
 
+import { FeatureFlagsProvider } from "./contexts/FeatureFlagsContext";
 import { NotificationProvider, ThemeProvider, useTheme } from "./contexts";
 import { GlobalStyles } from "./GlobalStyles";
 import RelayEnvironment from "./RelayEnvironment";
@@ -26,11 +27,13 @@ export function AppContent() {
       <EmotionThemeProvider theme={theme}>
         <RelayEnvironmentProvider environment={RelayEnvironment}>
           <GlobalStyles />
-          <Suspense>
-            <NotificationProvider>
-              <AppRoutes />
-            </NotificationProvider>
-          </Suspense>
+          <FeatureFlagsProvider>
+            <Suspense>
+              <NotificationProvider>
+                <AppRoutes />
+              </NotificationProvider>
+            </Suspense>
+          </FeatureFlagsProvider>
         </RelayEnvironmentProvider>
       </EmotionThemeProvider>
     </Provider>
