@@ -11,7 +11,7 @@ from requests import Session
 from typing_extensions import TypeAlias
 
 import phoenix.trace.v1 as pb
-from phoenix.config import get_env_host, get_env_port
+from phoenix.config import get_env_collector_endpoint, get_env_host, get_env_port
 from phoenix.trace.schemas import Span
 from phoenix.trace.v1.utils import encode
 
@@ -31,6 +31,7 @@ class NoOpExporter:
 class HttpExporter:
     def __init__(
         self,
+        endpoint: Optional[str] = None,
         host: Optional[str] = None,
         port: Optional[int] = None,
     ) -> None:
@@ -39,6 +40,11 @@ class HttpExporter:
 
         Parameters
         ----------
+        endpoint: Optional[str]
+            The endpoint of the Phoenix server (collector). This should be set if the Phoenix
+            server is running on a remote instance. It can also be set using environment
+            variable `PHOENIX_COLLECTOR_ENDPOINT`, otherwise it defaults to `http://127.0.0.1:6006`
+            Note, this parameter supersedes `host` and `port`.
         host: Optional[str]
             The host of the Phoenix server. It can also be set using environment
             variable `PHOENIX_HOST`, otherwise it defaults to `127.0.0.1`.
@@ -48,7 +54,9 @@ class HttpExporter:
         """
         self._host = host or get_env_host()
         self._port = port or get_env_port()
-        self._base_url = f"http://{self._host}:{self._port}"
+        endpoint = endpoint or get_env_collector_endpoint() or f"http://{self._host}:{self._port}"
+        # Make sure the url does not end with a slash
+        self._base_url = endpoint.rstrip("/")
         self._warn_if_phoenix_is_not_running()
         self._session = Session()
         weakref.finalize(self, self._session.close)

@@ -305,6 +305,57 @@ LABEL: "readable" or "unreadable"
 
 EXPLANATION:"""
 
+REFERENCE_LINK_CORRECTNESS_PROMPT_BASE_TEMPLATE = """
+You are given a conversation that contains questions by a CUSTOMER and you are
+trying to determine if the documentation page shared by the ASSISTANT correctly
+answers the CUSTOMERS questions. We will give you the conversation between the
+customer and the ASSISTANT and the text of the documentation returned:
+    [CONVERSATION AND QUESTION]:
+    {input}
+    ************
+    [DOCUMENTATION URL TEXT]:
+    {reference}
+    ************
+You should respond "correct" if the documentation text answers the question the
+CUSTOMER had in the conversation. If the documentation roughly answers the
+question even in a general way the please answer "correct". If there are
+multiple questions and a single question is answered, please still answer
+"correct". If the text does not answer the question in the conversation, or
+doesn't contain information that would allow you to answer the specific question
+please answer "incorrect".
+"""
+REFERENCE_LINK_CORRECTNESS_PROMPT_TEMPLATE_WITH_EXPLANATION = """
+You are given a conversation that contains questions by a CUSTOMER and you are
+trying to determine if the documentation page shared by the ASSISTANT correctly
+answers the CUSTOMERS questions. We will give you the conversation between the
+customer and the ASSISTANT and the text of the documentation returned:
+    [CONVERSATION AND QUESTION]:
+    {input}
+    ************
+    [DOCUMENTATION URL TEXT]:
+    {reference}
+    ************
+Please read the text carefully, then write out in a step by step manner an
+EXPLANATION to show how to evaluate the correctness of the documentation text.
+Avoid simply stating the correct answer at the outset. Your response LABEL must
+be a single word, either "correct" or "incorrect", and should not contain any
+text or characters aside from that. "correct" means the documentation text
+answers the question the CUSTOMER had in the conversation. If the documentation
+roughly answers the question even in a general way the please answer "correct".
+If there are multiple questions and a single question is answered, please still
+answer "correct". If the text does not answer the question in the conversation,
+or doesn't contain information that would allow you to answer the specific
+question please answer "incorrect".
+
+Example response:
+************
+EXPLANATION: An explanation of your reasoning for why the documentation text is correct or incorrect
+LABEL: "correct" or "incorrect"
+************
+
+EXPLANATION:"""
+REFERENCE_LINK_CORRECTNESS_PROMPT_RAILS_MAP = OrderedDict({True: "correct", False: "incorrect"})
+
 
 RAG_RELEVANCY_PROMPT_TEMPLATE = ClassificationTemplate(
     rails=list(RAG_RELEVANCY_PROMPT_RAILS_MAP.values()),
@@ -340,4 +391,10 @@ CODE_READABILITY_PROMPT_TEMPLATE = ClassificationTemplate(
     rails=list(CODE_READABILITY_PROMPT_RAILS_MAP.values()),
     template=CODE_READABILITY_PROMPT_BASE_TEMPLATE,
     explanation_template=CODE_READABILITY_PROMPT_TEMPLATE_WITH_EXPLANATION,
+)
+
+REFERENCE_LINK_CORRECTNESS_PROMPT_TEMPLATE = ClassificationTemplate(
+    rails=list(REFERENCE_LINK_CORRECTNESS_PROMPT_RAILS_MAP.values()),
+    template=REFERENCE_LINK_CORRECTNESS_PROMPT_BASE_TEMPLATE,
+    explanation_template=REFERENCE_LINK_CORRECTNESS_PROMPT_TEMPLATE_WITH_EXPLANATION,
 )

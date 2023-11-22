@@ -252,7 +252,7 @@ def get_executor_on_sync_context(
                 "faster. To patch the event loop, run `nest_asyncio.apply()`."
             )
             return SyncExecutor(
-                async_fn,
+                sync_fn,
                 tqdm_bar_format=tqdm_bar_format,
                 exit_on_error=exit_on_error,
                 fallback_return_value=fallback_return_value,
