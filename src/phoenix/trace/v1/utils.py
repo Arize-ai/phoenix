@@ -528,6 +528,8 @@ def _as_struct(obj: Mapping[str, Any]) -> Struct:
                 value = dict(value)
             elif isinstance(value, Iterable):
                 value = list(value)
+            else:
+                raise TypeError(f"Unsupported type {type(value)} for key {key}")
         struct[key] = value
     return struct
 
