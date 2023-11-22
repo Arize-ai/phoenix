@@ -521,7 +521,7 @@ def _maybe_timestamp(obj: Optional[datetime]) -> Optional[Timestamp]:
 def _as_struct(obj: Mapping[str, Any]) -> Struct:
     struct = Struct()
     for key, value in obj.items():
-        if isinstance(value, Iterable) and not isinstance(value, (str, dict, list)):
+        if isinstance(value, Iterable) and not isinstance(value, (str, list, Mapping)):
             value = list(value)
         struct[key] = value
     return struct
