@@ -358,34 +358,33 @@ def test_llm_classify_shows_retry_info(
         ]
     )
 
-    model = OpenAIModel(max_retries=5)
-
-    request = httpx.Request("POST", "https://api.openai.com/v1/chat/completions")
-    openai_retry_errors = [
-        model._openai.APITimeoutError("test timeout"),
-        model._openai.APIError(
-            message="test api error",
-            request=httpx.request,
-            body={},
-        ),
-        model._openai.APIConnectionError(message="test api connection error", request=request),
-        model._openai.RateLimitError(
-            "test rate limit error",
-            response=httpx.Response(status_code=419, request=request),
-            body={},
-        ),
-        model._openai.InternalServerError(
-            "test internal server error",
-            response=httpx.Response(status_code=500, request=request),
-            body={},
-        ),
-    ]
-    mock_openai = MagicMock()
-    mock_openai.side_effect = openai_retry_errors
-
     with ExitStack() as stack:
         waiting_fn = "phoenix.experimental.evals.models.base.wait_random_exponential"
         stack.enter_context(patch(waiting_fn, return_value=False))
+        model = OpenAIModel(max_retries=5)
+
+        request = httpx.Request("POST", "https://api.openai.com/v1/chat/completions")
+        openai_retry_errors = [
+            model._openai.APITimeoutError("test timeout"),
+            model._openai.APIError(
+                message="test api error",
+                request=httpx.request,
+                body={},
+            ),
+            model._openai.APIConnectionError(message="test api connection error", request=request),
+            model._openai.RateLimitError(
+                "test rate limit error",
+                response=httpx.Response(status_code=419, request=request),
+                body={},
+            ),
+            model._openai.InternalServerError(
+                "test internal server error",
+                response=httpx.Response(status_code=500, request=request),
+                body={},
+            ),
+        ]
+        mock_openai = MagicMock()
+        mock_openai.side_effect = openai_retry_errors
         stack.enter_context(
             patch.object(model._async_client.chat.completions, "create", mock_openai)
         )
