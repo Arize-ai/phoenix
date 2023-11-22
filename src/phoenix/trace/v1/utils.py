@@ -520,7 +520,10 @@ def _maybe_timestamp(obj: Optional[datetime]) -> Optional[Timestamp]:
 
 def _as_struct(obj: Mapping[str, Any]) -> Struct:
     struct = Struct()
-    struct.update(obj)
+    for key, value in obj.items():
+        if isinstance(value, Iterable) and not isinstance(value, (str, dict, list)):
+            value = list(value)
+        struct[key] = value
     return struct
 
 
