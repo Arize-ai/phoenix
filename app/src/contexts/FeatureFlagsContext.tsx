@@ -1,4 +1,7 @@
-import React, { createContext, useState } from "react";
+import React, { createContext, PropsWithChildren, useState } from "react";
+
+import { Dialog, DialogContainer, Switch, View } from "@arizeai/components";
+import { useHotkeys } from "react-hotkeys-hook";
 
 type FeatureFlag = "evals";
 export type FeatureFlagsContextType = {
@@ -60,7 +63,45 @@ export function FeatureFlagsProvider(props: React.PropsWithChildren) {
 
   return (
     <FeatureFlagsContext.Provider value={{ featureFlags, setFeatureFlags }}>
-      {props.children}
+      <FeatureFlagsControls>{props.children}</FeatureFlagsControls>
     </FeatureFlagsContext.Provider>
+  );
+}
+
+function FeatureFlagsControls(props: PropsWithChildren) {
+  const { children } = props;
+  const { featureFlags, setFeatureFlags } = useFeatureFlags();
+  const [showControls, setShowControls] = useState(false);
+  useHotkeys("ctrl+shift+f", () => setShowControls(true));
+  return (
+    <>
+      {children}
+      <DialogContainer
+        type="modal"
+        isDismissable
+        onDismiss={() => setShowControls(false)}
+      >
+        {showControls && (
+          <Dialog title="Feature Flags">
+            <View height="size-1000" padding="size-100">
+              {Object.keys(featureFlags).map((featureFlag) => (
+                <Switch
+                  key={featureFlag}
+                  isSelected={featureFlags[featureFlag as FeatureFlag]}
+                  onChange={(isSelected) =>
+                    setFeatureFlags({
+                      ...featureFlags,
+                      [featureFlag]: isSelected,
+                    })
+                  }
+                >
+                  {featureFlag}
+                </Switch>
+              ))}
+            </View>
+          </Dialog>
+        )}
+      </DialogContainer>
+    </>
   );
 }
