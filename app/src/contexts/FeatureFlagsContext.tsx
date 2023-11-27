@@ -1,7 +1,7 @@
 import React, { createContext, PropsWithChildren, useState } from "react";
+import { useHotkeys } from "react-hotkeys-hook";
 
 import { Dialog, DialogContainer, Switch, View } from "@arizeai/components";
-import { useHotkeys } from "react-hotkeys-hook";
 
 type FeatureFlag = "evals";
 export type FeatureFlagsContextType = {
