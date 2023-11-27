@@ -75,6 +75,7 @@ import {
   TracePageQuery,
   TracePageQuery$data,
 } from "./__generated__/TracePageQuery.graphql";
+import { SpanEvaluationsTable } from "./SpanEvaluationsTable";
 
 type Span = TracePageQuery$data["spans"]["edges"][number]["span"];
 /**
@@ -162,6 +163,7 @@ export function TracePage() {
                 message
                 timestamp
               }
+              ...SpanEvaluationsTable_evals
             }
           }
         }
@@ -284,6 +286,11 @@ function SelectedSpanDetails({ selectedSpan }: { selectedSpan: Span }) {
         <TabPane name={"Info"}>
           <SpanInfo span={selectedSpan} />
         </TabPane>
+        <TabPane name={"Evaluations"} hidden={!evalsEnabled}>
+          {(selected) => {
+            return selected ? <SpanEvaluations span={selectedSpan} /> : null;
+          }}
+        </TabPane>
         <TabPane name={"Attributes"} title="Attributes">
           <View padding="size-200">
             <Card
@@ -305,7 +312,6 @@ function SelectedSpanDetails({ selectedSpan }: { selectedSpan: Span }) {
         >
           <SpanEventsList events={selectedSpan.events} />
         </TabPane>
-        {evalsEnabled ? <TabPane name={"Evals"}>Evals Tab</TabPane> : null}
       </Tabs>
     </Flex>
   );
@@ -447,8 +453,16 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
 
   return (
     <Flex direction="column" gap="size-200">
-      {/* @ts-expect-error force putting the title in as a string */}
-      <TabbedCard {...defaultCardProps} title={modelNameTitleEl}>
+      <TabbedCard
+        backgroundColor="light"
+        borderColor="light"
+        bodyStyle={{
+          padding: 0,
+        }}
+        variant="compact"
+        // @ts-expect-error force putting the title in as a string
+        title={modelNameTitleEl}
+      >
         <Tabs>
           {hasInputMessages ? (
             <TabPane name="Input Messages" hidden={!hasInputMessages}>
@@ -1193,4 +1207,8 @@ function SpanEventsList({ events }: { events: Span["events"] }) {
       })}
     </List>
   );
+}
+
+function SpanEvaluations(props: { span: Span }) {
+  return <SpanEvaluationsTable span={props.span} />;
 }
