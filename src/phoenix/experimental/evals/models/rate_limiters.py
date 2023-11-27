@@ -142,6 +142,9 @@ class RateLimiter:
             rate_increase_factor=rate_increase_factor,
             cooldown_seconds=cooldown_seconds,
         )
+        self._rate_limit_handling = asyncio.Event()
+        self._rate_limit_handling.set()  # allow requests to start immediately
+        self._rate_limit_handling_lock = asyncio.Lock()
 
     def limit(
         self, fn: Callable[ParameterSpec, GenericType]
@@ -158,7 +161,7 @@ class RateLimiter:
                     try:
                         request_start_time = time.time()
                         self._throttler.wait_until_ready()
-                        return cast(GenericType, fn(*args, **kwargs))  # type: ignore
+                        return fn(*args, **kwargs)
                     except self._rate_limit_error:
                         self._throttler.on_rate_limit_error(request_start_time)
                         continue
@@ -170,24 +173,24 @@ class RateLimiter:
         @wraps(fn)
         async def wrapper(*args: Any, **kwargs: Any) -> GenericType:
             try:
+                await self._rate_limit_handling.wait()
                 await self._throttler.async_wait_until_ready()
                 request_start_time = time.time()
                 return cast(GenericType, await fn(*args, **kwargs))
             except self._rate_limit_error:
-                self._throttler.on_rate_limit_error(request_start_time)
-                return self._block_and_retry_awaitable(fn, *args, **kwargs)
+                async with self._rate_limit_handling_lock:
+                    self._rate_limit_handling.clear()  # prevent new requests from starting
+                    self._throttler.on_rate_limit_error(request_start_time)
+                    for _attempt in range(self._max_rate_limit_retries):
+                        try:
+                            request_start_time = time.time()
+                            self._throttler.wait_until_ready()
+                            return await fn(*args, **kwargs)  # type: ignore
+                        except self._rate_limit_error:
+                            self._throttler.on_rate_limit_error(request_start_time)
+                            continue
+                        finally:
+                            self._rate_limit_handling.set()  # allow new requests to start
+            raise self._rate_limit_error(f"Exceeded max ({self._max_rate_limit_retries}) retries")
 
         return cast(AsyncCallable, wrapper)
-
-    def _block_and_retry_awaitable(
-        self, fn: AsyncCallable, *args: Any, **kwargs: Any
-    ) -> GenericType:  # type: ignore
-        for _attempt in range(self._max_rate_limit_retries):
-            try:
-                self._throttler.wait_until_ready()
-                request_start_time = time.time()
-                return cast(GenericType, asyncio.run(fn(*args, **kwargs)))
-            except self._rate_limit_error:
-                self._throttler.on_rate_limit_error(request_start_time)
-                continue
-        raise self._rate_limit_error("Exceeded max retries")
