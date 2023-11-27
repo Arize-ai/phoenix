@@ -276,7 +276,7 @@ def llm_classify(
     verbose: bool = False,
     use_function_calling_if_available: bool = True,
     provide_explanation: bool = False,
-    concurrency: int = 3,
+    concurrency: int = 10,
 ) -> pd.DataFrame:
     """Classifies each input row of the dataframe using an LLM. Returns a pandas.DataFrame
     where the first column is named `label` and contains the classification labels. An optional

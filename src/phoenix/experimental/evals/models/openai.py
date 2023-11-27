@@ -15,6 +15,7 @@ from typing import (
 )
 
 from phoenix.experimental.evals.models.base import BaseEvalModel
+from phoenix.experimental.evals.models.rate_limiters import RateLimiter
 
 if TYPE_CHECKING:
     from tiktoken import Encoding
@@ -104,6 +105,7 @@ class OpenAIModel(BaseEvalModel):
         self._init_environment()
         self._init_open_ai()
         self._init_tiktoken()
+        self._init_rate_limiter()
 
     def _init_environment(self) -> None:
         try:
@@ -116,7 +118,6 @@ class OpenAIModel(BaseEvalModel):
                 self._openai.APITimeoutError,
                 self._openai.APIError,
                 self._openai.APIConnectionError,
-                self._openai.RateLimitError,
                 self._openai.InternalServerError,
             ]
             self.retry = self._retry(
@@ -235,6 +236,15 @@ class OpenAIModel(BaseEvalModel):
                 options[option.name] = None
         return AzureOptions(**options)
 
+    def _init_rate_limiter(self) -> None:
+        self.rate_limiter = RateLimiter(
+            rate_limit_error=self._openai.RateLimitError,
+            max_rate_limit_retries=10,
+            initial_per_second_request_rate=2,
+            maximum_per_second_request_rate=20,
+            enforcement_window_minutes=1,
+        )
+
     @staticmethod
     def _build_messages(
         prompt: str, system_instruction: Optional[str] = None
@@ -289,6 +299,7 @@ class OpenAIModel(BaseEvalModel):
         """Use tenacity to retry the completion call."""
 
         @self.retry
+        @self.rate_limiter.alimit
         async def _completion_with_retry(**kwargs: Any) -> Any:
             if self._model_uses_legacy_completion_api:
                 if "prompt" not in kwargs:
@@ -309,6 +320,7 @@ class OpenAIModel(BaseEvalModel):
         """Use tenacity to retry the completion call."""
 
         @self.retry
+        @self.rate_limiter.limit
         def _completion_with_retry(**kwargs: Any) -> Any:
             if self._model_uses_legacy_completion_api:
                 if "prompt" not in kwargs:
