@@ -126,7 +126,7 @@ class RateLimiter:
         rate_limit_error: Type[BaseException],
         max_rate_limit_retries: int = 10,
         initial_per_second_request_rate: float = 1,
-        maximum_per_second_request_rate: float = 100,
+        maximum_per_second_request_rate: float = 50,
         enforcement_window_minutes: float = 1,
         rate_reduction_factor: float = 0.5,
         rate_increase_factor: float = 0.01,
