@@ -20,7 +20,7 @@ from llama_index.llms import (
 from llama_index.llms.base import llm_completion_callback
 from llama_index.query_engine import RetrieverQueryEngine
 from llama_index.schema import Document, TextNode
-from openai import RateLimitError
+from openai import InternalServerError
 from phoenix.experimental.evals.models.openai import OPENAI_API_KEY_ENVVAR_NAME
 from phoenix.trace.exporter import NoOpExporter
 from phoenix.trace.llama_index import OpenInferenceTraceCallbackHandler
@@ -135,7 +135,7 @@ def test_callback_llm_span_contains_template_attributes(
     assert isinstance(span.attributes[LLM_PROMPT_TEMPLATE_VARIABLES], dict)
 
 
-def test_callback_llm_rate_limit_error_has_exception_event(
+def test_callback_llm_internal_error_has_exception_event(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
@@ -149,14 +149,14 @@ def test_callback_llm_rate_limit_error_has_exception_event(
     query_engine = index.as_query_engine(service_context=service_context)
 
     with patch.object(llm._client.chat.completions, "create") as mocked_chat_completion_create:
-        mocked_chat_completion_create.side_effect = RateLimitError(
+        mocked_chat_completion_create.side_effect = InternalServerError(
             "message",
             response=httpx.Response(
                 429, request=httpx.Request(method="post", url="https://api.openai.com/")
             ),
             body={},
         )
-        with pytest.raises(RateLimitError):
+        with pytest.raises(InternalServerError):
             query_engine.query(query)
 
     spans = list(callback_handler.get_spans())
@@ -170,7 +170,7 @@ def test_callback_llm_rate_limit_error_has_exception_event(
     assert isinstance(event, SpanException)
     assert isinstance(event.timestamp, datetime)
     assert len(event.attributes) == 3
-    assert event.attributes[EXCEPTION_TYPE] == "RateLimitError"
+    assert event.attributes[EXCEPTION_TYPE] == "InternalServerError"
     assert event.attributes[EXCEPTION_MESSAGE] == "message"
     assert isinstance(event.attributes[EXCEPTION_STACKTRACE], str)
 
