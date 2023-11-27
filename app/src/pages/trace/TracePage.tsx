@@ -41,6 +41,7 @@ import { SpanItem } from "@phoenix/components/trace/SpanItem";
 import { SpanKindIcon } from "@phoenix/components/trace/SpanKindIcon";
 import { TraceTree } from "@phoenix/components/trace/TraceTree";
 import { useTheme } from "@phoenix/contexts";
+import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 import {
   DOCUMENT_CONTENT,
   DOCUMENT_ID,
@@ -267,6 +268,7 @@ function SelectedSpanDetails({ selectedSpan }: { selectedSpan: Span }) {
   const hasExceptions = useMemo<boolean>(() => {
     return spanHasException(selectedSpan);
   }, [selectedSpan]);
+  const evalsEnabled = useFeatureFlag("evals");
   return (
     <Flex direction="column" flex="1 1 auto" height="100%">
       <View
@@ -303,6 +305,7 @@ function SelectedSpanDetails({ selectedSpan }: { selectedSpan: Span }) {
         >
           <SpanEventsList events={selectedSpan.events} />
         </TabPane>
+        {evalsEnabled ? <TabPane name={"Evals"}>Evals Tab</TabPane> : null}
       </Tabs>
     </Flex>
   );
