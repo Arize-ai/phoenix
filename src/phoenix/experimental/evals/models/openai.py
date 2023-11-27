@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 from dataclasses import dataclass, field, fields
@@ -247,7 +248,7 @@ class OpenAIModel(BaseEvalModel):
     def verbose_generation_info(self) -> str:
         return f"OpenAI invocation parameters: {self.public_invocation_params}"
 
-    async def _async_generate(self, prompt: str, **kwargs: Any) -> str:
+    async def _async_generate(self, prompt: str, **kwargs: Any) -> Any:
         invoke_params = self.invocation_params
         messages = self._build_messages(prompt, kwargs.get("instruction"))
         if functions := kwargs.get("functions"):
@@ -258,15 +259,17 @@ class OpenAIModel(BaseEvalModel):
             messages=messages,
             **invoke_params,
         )
-        choice = response["choices"][0]
+        content = json.loads(response.content.decode("utf-8"))
+        choice = content["choices"][0]
+        response_ms = int(response.http_response.headers.get("openai-processing-ms"))
         if self._model_uses_legacy_completion_api:
-            return str(choice["text"])
+            return response_ms, str(choice["text"])
         message = choice["message"]
         if function_call := message.get("function_call"):
-            return str(function_call.get("arguments") or "")
-        return str(message["content"])
+            return response_ms, str(function_call.get("arguments") or "")
+        return response_ms, str(message["content"])
 
-    def _generate(self, prompt: str, **kwargs: Any) -> str:
+    def _generate(self, prompt: str, **kwargs: Any) -> Any:
         invoke_params = self.invocation_params
         messages = self._build_messages(prompt, kwargs.get("instruction"))
         if functions := kwargs.get("functions"):
@@ -277,13 +280,15 @@ class OpenAIModel(BaseEvalModel):
             messages=messages,
             **invoke_params,
         )
-        choice = response["choices"][0]
+        content = json.loads(response.content.decode("utf-8"))
+        choice = content["choices"][0]
+        response_ms = int(response.http_response.headers.get("openai-processing-ms"))
         if self._model_uses_legacy_completion_api:
-            return str(choice["text"])
+            return response_ms, str(choice["text"])
         message = choice["message"]
         if function_call := message.get("function_call"):
-            return str(function_call.get("arguments") or "")
-        return str(message["content"])
+            return response_ms, str(function_call.get("arguments") or "")
+        return response_ms, str(message["content"])
 
     async def _async_generate_with_retry(self, **kwargs: Any) -> Any:
         """Use tenacity to retry the completion call."""
@@ -298,10 +303,10 @@ class OpenAIModel(BaseEvalModel):
                     )
                 # OpenAI 1.0.0 API responses are pydantic objects, not dicts
                 # We must dump the model to get the dict
-                res = await self._async_client.completions.create(**kwargs)
+                res = await self._async_client.completions.with_raw_response.create(**kwargs)
             else:
-                res = await self._async_client.chat.completions.create(**kwargs)
-            return res.model_dump()
+                res = await self._async_client.chat.completions.with_raw_response.create(**kwargs)
+            return res
 
         return await _completion_with_retry(**kwargs)
 
@@ -318,8 +323,8 @@ class OpenAIModel(BaseEvalModel):
                     )
                 # OpenAI 1.0.0 API responses are pydantic objects, not dicts
                 # We must dump the model to get the dict
-                return self._client.completions.create(**kwargs).model_dump()
-            return self._client.chat.completions.create(**kwargs).model_dump()
+                return self._client.completions.with_raw_response.create(**kwargs)
+            return self._client.chat.completions.with_raw_response.create(**kwargs)
 
         return _completion_with_retry(**kwargs)
 

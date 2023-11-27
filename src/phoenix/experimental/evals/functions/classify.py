@@ -346,7 +346,7 @@ def llm_classify(
     if generation_info := model.verbose_generation_info():
         printif(verbose, generation_info)
 
-    def _process_response(response: str) -> Tuple[str, Optional[str]]:
+    def _process_response(latency: int, response: str) -> Tuple[str, Optional[str], int]:
         if not use_openai_function_call:
             if provide_explanation:
                 unrailed_label, explanation = (
@@ -368,21 +368,21 @@ def llm_classify(
             except json.JSONDecodeError:
                 unrailed_label = response
                 explanation = None
-        return _snap_to_rail(unrailed_label, rails, verbose=verbose), explanation
+        return _snap_to_rail(unrailed_label, rails, verbose=verbose), explanation, latency
 
-    async def _run_llm_classification_async(prompt: str) -> Tuple[str, Optional[str]]:
+    async def _run_llm_classification_async(prompt: str) -> Tuple[str, Optional[str], int]:
         with set_verbosity(model, verbose) as verbose_model:
             response = await verbose_model._async_generate(
                 prompt, instruction=system_instruction, **model_kwargs
             )
-        return _process_response(response)
+        return _process_response(*response)
 
-    def _run_llm_classification_sync(prompt: str) -> Tuple[str, Optional[str]]:
+    def _run_llm_classification_sync(prompt: str) -> Tuple[str, Optional[str], int]:
         with set_verbosity(model, verbose) as verbose_model:
             response = verbose_model._generate(
                 prompt, instruction=system_instruction, **model_kwargs
             )
-        return _process_response(response)
+        return _process_response(*response)
 
     executor: Union[AsyncExecutor, SyncExecutor] = get_executor_on_sync_context(
         _run_llm_classification_sync,
@@ -394,12 +394,13 @@ def llm_classify(
     )
 
     results = executor.run(prompts.tolist())
-    labels, explanations = zip(*results)
+    labels, explanations, latencies = zip(*results)
 
     return pd.DataFrame(
         data={
             "label": labels,
             **({"explanation": explanations} if provide_explanation else {}),
+            "latency": latencies,
         },
         index=dataframe.index,
     )
