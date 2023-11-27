@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<84dba557735ef51ceef7db0c334eab1a>>
+ * @generated SignedSource<<c2d1578c29fa243cdaffba2c7d88936c>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,11 +10,17 @@
 
 import { ConcreteRequest, Query } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
+export type EvalAttr = "label" | "score";
 export type SortDir = "asc" | "desc";
 export type SpanColumn = "cumulativeTokenCountCompletion" | "cumulativeTokenCountPrompt" | "cumulativeTokenCountTotal" | "endTime" | "latencyMs" | "startTime" | "tokenCountCompletion" | "tokenCountPrompt" | "tokenCountTotal";
 export type SpanSort = {
-  col: SpanColumn;
+  col?: SpanColumn | null;
   dir: SortDir;
+  res?: EvalResultKey | null;
+};
+export type EvalResultKey = {
+  attr: EvalAttr;
+  name: string;
 };
 export type TracesTableQuery$variables = {
   after?: string | null;

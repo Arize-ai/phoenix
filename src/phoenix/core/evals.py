@@ -84,6 +84,10 @@ class Evals:
         else:
             assert_never(subject_id_kind)
 
+    def get_span_evaluation(self, span_id: SpanID, name: str) -> Optional[pb.Evaluation]:
+        with self._lock:
+            return self._evaluations_by_span_id[span_id].get(name)
+
     def get_span_evaluation_names(self) -> List[EvaluationName]:
         with self._lock:
             return list(self._span_evaluations_by_name.keys())
