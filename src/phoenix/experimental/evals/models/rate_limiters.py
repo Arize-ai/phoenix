@@ -65,6 +65,7 @@ class AdaptiveTokenBucket:
             # do not reduce the rate for concurrent requests
             return
         self.rate *= self.rate_reduction_factor
+        print(f"Reducing rate to {self.rate} after rate limit error")
 
         # the enforcement window determines the minimum rate
         self.rate = max(self.rate, 1 / self.enforcement_window)
@@ -181,16 +182,17 @@ class RateLimiter:
                 async with self._rate_limit_handling_lock:
                     self._rate_limit_handling.clear()  # prevent new requests from starting
                     self._throttler.on_rate_limit_error(request_start_time)
-                    for _attempt in range(self._max_rate_limit_retries):
-                        try:
-                            request_start_time = time.time()
-                            self._throttler.wait_until_ready()
-                            return await fn(*args, **kwargs)  # type: ignore
-                        except self._rate_limit_error:
-                            self._throttler.on_rate_limit_error(request_start_time)
-                            continue
-                        finally:
-                            self._rate_limit_handling.set()  # allow new requests to start
+                    try:
+                        for _attempt in range(self._max_rate_limit_retries):
+                            try:
+                                request_start_time = time.time()
+                                self._throttler.wait_until_ready()
+                                return await fn(*args, **kwargs)  # type: ignore
+                            except self._rate_limit_error:
+                                self._throttler.on_rate_limit_error(request_start_time)
+                                continue
+                    finally:
+                        self._rate_limit_handling.set()  # allow new requests to start
             raise self._rate_limit_error(f"Exceeded max ({self._max_rate_limit_retries}) retries")
 
         return cast(AsyncCallable, wrapper)
