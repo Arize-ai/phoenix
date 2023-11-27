@@ -1,6 +1,5 @@
 import json
 import math
-from base64 import b64encode
 from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
@@ -76,9 +75,6 @@ def test_span_with_exception():
 
 def test_pb_span_encode_decode():
     trace_id, span_id, parent_span_id = uuid4(), uuid4(), uuid4()
-    trace_id_base64 = b64encode(trace_id.bytes).decode("utf-8")
-    span_id_base64 = b64encode(span_id.bytes).decode("utf-8")
-    parent_span_id_base64 = b64encode(parent_span_id.bytes).decode("utf-8")
     start_time = datetime.now(timezone.utc) - timedelta(weeks=1)
     start_time_rfc3339 = start_time.astimezone(timezone.utc).isoformat()[:-6] + "Z"
     event1_time = datetime.now(pytz.timezone("Asia/Kolkata")) - timedelta(days=1)
@@ -157,8 +153,8 @@ def test_pb_span_encode_decode():
         ],
     )
     desired_dict = {
-        "context": {"traceId": trace_id_base64, "spanId": span_id_base64},
-        "parentSpanId": parent_span_id_base64,
+        "context": {"traceId": str(trace_id), "spanId": str(span_id)},
+        "parentSpanId": str(parent_span_id),
         "name": "test",
         "startTime": start_time_rfc3339,
         "status": {"code": "OK"},
@@ -219,8 +215,8 @@ def test_pb_span_encode_decode():
     # Default values should not break.
     empty_pb_span = pb.Span(
         context=pb.Span.Context(
-            span_id=uuid4().bytes,
-            trace_id=uuid4().bytes,
+            span_id=str(uuid4()),
+            trace_id=str(uuid4()),
         )
     )
     assert decode(empty_pb_span) == decode(encode(decode(empty_pb_span)))
