@@ -163,6 +163,11 @@ export function TracePage() {
                 message
                 timestamp
               }
+              spanEvaluations {
+                name
+                label
+                score
+              }
               ...SpanEvaluationsTable_evals
             }
           }
@@ -286,7 +291,15 @@ function SelectedSpanDetails({ selectedSpan }: { selectedSpan: Span }) {
         <TabPane name={"Info"}>
           <SpanInfo span={selectedSpan} />
         </TabPane>
-        <TabPane name={"Evaluations"} hidden={!evalsEnabled}>
+        <TabPane
+          name={"Evaluations"}
+          hidden={!evalsEnabled}
+          extra={
+            <Counter variant={"light"}>
+              {selectedSpan.spanEvaluations.length}
+            </Counter>
+          }
+        >
           {(selected) => {
             return selected ? <SpanEvaluations span={selectedSpan} /> : null;
           }}

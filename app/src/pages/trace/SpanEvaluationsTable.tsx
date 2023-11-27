@@ -32,7 +32,7 @@ const columns = [
     header: "explanation",
     accessorKey: "explanation",
     Cell: TextCell,
-    size: 500,
+    size: 400,
   },
 ];
 
@@ -72,19 +72,12 @@ export function SpanEvaluationsTable(props: {
             {headerGroup.headers.map((header) => (
               <th colSpan={header.colSpan} key={header.id}>
                 {header.isPlaceholder ? null : (
-                  <div
-                    {...{
-                      className: header.column.getCanSort()
-                        ? "cursor-pointer"
-                        : "",
-                      onClick: header.column.getToggleSortingHandler(),
-                    }}
-                  >
+                  <>
                     {flexRender(
                       header.column.columnDef.header,
                       header.getContext()
                     )}
-                  </div>
+                  </>
                 )}
               </th>
             ))}
