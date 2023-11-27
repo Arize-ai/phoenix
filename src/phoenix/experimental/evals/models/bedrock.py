@@ -52,6 +52,7 @@ class BedrockModel(BaseEvalModel):
         self._init_environment()
         self._init_client()
         self._init_tiktoken()
+        self._init_rate_limiter()
 
     def _init_environment(self) -> None:
         try:
@@ -69,13 +70,6 @@ class BedrockModel(BaseEvalModel):
                 import boto3  # type:ignore
 
                 self.client = boto3.client("bedrock-runtime")
-                self._retry_errors = [self.client.exceptions.ThrottlingException]
-                self.retry = self._retry(
-                    error_types=self._retry_errors,
-                    min_seconds=self.retry_min_seconds,
-                    max_seconds=self.retry_max_seconds,
-                    max_retries=self.max_retries,
-                )
             except ImportError:
                 self._raise_import_error(
                     package_name="boto3",
@@ -89,6 +83,15 @@ class BedrockModel(BaseEvalModel):
             logger.warning("Warning: model not found. Using cl100k_base encoding.")
             encoding = self._tiktoken.get_encoding("cl100k_base")
         self._tiktoken_encoding = encoding
+
+    def _init_rate_limiter(self) -> None:
+        self.rate_limiter = RateLimiter(
+            rate_limit_error=self.client.exceptions.ThrottlingException,
+            max_rate_limit_retries=10,
+            initial_per_second_request_rate=2,
+            maximum_per_second_request_rate=20,
+            enforcement_window_minutes=1,
+        )
 
     @property
     def max_context_size(self) -> int:
@@ -130,7 +133,7 @@ class BedrockModel(BaseEvalModel):
     def _generate_with_retry(self, **kwargs: Any) -> Any:
         """Use tenacity to retry the completion call."""
 
-        @self.retry
+        @self.rate_limiter.limit
         def _completion_with_retry(**kwargs: Any) -> Any:
             return self.client.invoke_model(**kwargs)
 
