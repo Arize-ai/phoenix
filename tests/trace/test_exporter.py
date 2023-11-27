@@ -15,3 +15,4 @@ def test_exporter(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setenv("PHOENIX_COLLECTOR_ENDPOINT", "https://my-phoenix-server.com/")
     exporter = HttpExporter()
     assert exporter._base_url == "https://my-phoenix-server.com"
+    assert True
