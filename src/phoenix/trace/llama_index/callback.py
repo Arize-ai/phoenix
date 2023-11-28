@@ -93,7 +93,7 @@ from phoenix.trace.tracer import SpanExporter, Tracer
 from phoenix.trace.utils import extract_version_triplet, get_stacktrace
 from phoenix.utilities.error_handling import graceful_fallback
 
-LLAMA_INDEX_MINIMUM_VERSION_TRIPLET = (0, 9, 0)
+LLAMA_INDEX_MINIMUM_VERSION_TRIPLET = (0, 9, 8)
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
 
