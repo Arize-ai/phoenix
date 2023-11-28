@@ -355,7 +355,6 @@ def _add_spans_to_tracer(
     parent_child_id_stack: List[Tuple[Optional[SpanID], CBEventID]] = [
         (None, root_event_id) for root_event_id in trace_map["root"]
     ]
-    span_exceptions: List[SpanEvent] = []
     while parent_child_id_stack:
         parent_span_id, event_id = parent_child_id_stack.pop()
         event_data = event_id_to_event_data[event_id]
@@ -375,22 +374,18 @@ def _add_spans_to_tracer(
                         # Add template attributes to the LLM span to which they belong.
                         attributes.update(_template_attributes(preceding_payload))
 
-        start_time = None
         if start_event := event_data.start_event:
             start_time = _timestamp_to_tz_aware_datetime(start_event.time)
-        end_time = _get_end_time(event_data, span_exceptions)
-        start_time = start_time or end_time or datetime.now(timezone.utc)
-
-        if event_type is CBEventType.EXCEPTION:
-            # LlamaIndex has exception callback events that are sibling events of the events in
-            # which the exception occurred. We collect all the exception events and add them to
-            # the relevant span.
-            if (
-                not start_event
-                or not start_event.payload
-                or (error := start_event.payload.get(EventPayload.EXCEPTION)) is None
-            ):
-                continue
+        else:
+            # if the callback system has broken its contract by calling
+            # on_event_end without on_event_start, do not create a span
+            continue
+        span_exceptions: List[SpanEvent] = []
+        if (
+            (end_event := event_data.end_event)
+            and (end_event_payload := end_event.payload)
+            and (error := end_event_payload.get(CBEventType.EXCEPTION))
+        ):
             span_exceptions.append(
                 SpanException(
                     message=str(error),
@@ -399,7 +394,8 @@ def _add_spans_to_tracer(
                     exception_stacktrace=get_stacktrace(error),
                 )
             )
-            continue
+        end_time = _get_end_time(event_data, span_exceptions)
+        start_time = start_time or end_time or datetime.now(timezone.utc)
 
         name = event_name if (event_name := event_data.name) is not None else "unknown"
         span_kind = _get_span_kind(event_type)
@@ -416,7 +412,6 @@ def _add_spans_to_tracer(
             events=sorted(span_exceptions, key=lambda event: event.timestamp) or None,
             conversation=None,
         )
-        span_exceptions = []
         new_parent_span_id = span.context.span_id
         for new_child_event_id in trace_map.get(event_id, []):
             parent_child_id_stack.append((new_parent_span_id, new_child_event_id))

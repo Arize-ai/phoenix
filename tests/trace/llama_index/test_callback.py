@@ -160,10 +160,8 @@ def test_callback_llm_rate_limit_error_has_exception_event(
             query_engine.query(query)
 
     spans = list(callback_handler.get_spans())
-    assert all(
-        span.status_code == SpanStatusCode.OK for span in spans if span.span_kind != SpanKind.LLM
-    )
-    span = next(span for span in spans if span.span_kind == SpanKind.LLM)
+    assert all(span.status_code == SpanStatusCode.OK for span in spans if span.name != "synthesize")
+    span = next(span for span in spans if span.name == "synthesize")
     assert span.status_code == SpanStatusCode.ERROR
     events = span.events
     event = events[0]
