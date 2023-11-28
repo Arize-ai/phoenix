@@ -120,6 +120,7 @@ class AsyncExecutor:
         done_producing: asyncio.Event,
         progress_bar: tqdm[Any],
     ) -> None:
+        termination_signal_task = None
         while True:
             item_taken = False
             try:
@@ -137,9 +138,9 @@ class AsyncExecutor:
             index, payload = item
             try:
                 generate_task = asyncio.create_task(self.generate(payload))
-                termination_signal = self._TERMINATE.wait()
+                termination_signal_task = asyncio.create_task(self._TERMINATE.wait())
                 done, pending = await asyncio.wait(
-                    [generate_task, termination_signal],
+                    [generate_task, termination_signal_task],
                     timeout=60,
                     return_when=asyncio.FIRST_COMPLETED,
                 )
@@ -170,6 +171,8 @@ class AsyncExecutor:
             finally:
                 if item_taken:
                     queue.task_done()
+                if termination_signal_task and not termination_signal_task.done():
+                    termination_signal_task.cancel()
 
     async def execute(self, inputs: Sequence[Any]) -> List[Any]:
         signal.signal(signal.SIGINT, self._signal_handler)
@@ -179,7 +182,7 @@ class AsyncExecutor:
         queue: asyncio.Queue[Tuple[int, Any]] = asyncio.Queue(maxsize=2 * self.concurrency)
         done_producing = asyncio.Event()
 
-        producer = self.producer(inputs, queue, done_producing)
+        producer = asyncio.create_task(self.producer(inputs, queue, done_producing))
         consumers = [
             asyncio.create_task(self.consumer(outputs, queue, done_producing, progress_bar))
             for _ in range(self.concurrency)
@@ -187,10 +190,23 @@ class AsyncExecutor:
 
         await asyncio.gather(producer, *consumers)
         join_task = asyncio.create_task(queue.join())
-        termination_signal = self._TERMINATE.wait()
+        termination_signal_task = asyncio.create_task(self._TERMINATE.wait())
         done, pending = await asyncio.wait(
-            [join_task, termination_signal], return_when=asyncio.FIRST_COMPLETED
+            [join_task, termination_signal_task], return_when=asyncio.FIRST_COMPLETED
         )
+        if termination_signal_task in done:
+            # Cancel all tasks
+            join_task.cancel()
+            producer.cancel()
+            for task in consumers:
+                task.cancel()
+
+        if not termination_signal_task.done():
+            termination_signal_task.cancel()
+            await termination_signal_task
+
+        if not join_task.done():
+            await join_task
         return outputs
 
     def run(self, inputs: Sequence[Any]) -> List[Any]:
