@@ -138,7 +138,9 @@ class Traces:
         self._queue.put(encode(span) if isinstance(span, Span) else span)
 
     def get_trace(self, trace_id: TraceID) -> Iterator[Span]:
-        for span_id in self._traces[trace_id]:
+        with self._lock:
+            span_ids = tuple(self._traces[trace_id])
+        for span_id in span_ids:
             if span := self[span_id]:
                 yield span
 
@@ -161,12 +163,16 @@ class Traces:
             if root_spans_only
             else self._start_time_sorted_span_ids
         )
-        for span_id in sorted_span_ids.irange_key(
-            start_time.astimezone(timezone.utc),
-            stop_time.astimezone(timezone.utc),
-            inclusive=(True, False),
-            reverse=True,  # most recent spans first
-        ):
+        with self._lock:
+            span_ids = tuple(
+                sorted_span_ids.irange_key(
+                    start_time.astimezone(timezone.utc),
+                    stop_time.astimezone(timezone.utc),
+                    inclusive=(True, False),
+                    reverse=True,  # most recent spans first
+                )
+            )
+        for span_id in span_ids:
             if span := self[span_id]:
                 yield span
 
@@ -179,15 +185,23 @@ class Traces:
         root_span_ids = self._latency_sorted_root_span_ids
         if not (n := len(root_span_ids)):
             return None
-        rank = cast(int, root_span_ids.bisect_key_left(latency_ms))
+        with self._lock:
+            rank = cast(int, root_span_ids.bisect_key_left(latency_ms))
         return rank / n * 100
 
     def root_span_latency_ms_quantiles(self, *probabilities: float) -> Iterator[Optional[float]]:
         """Root span latency quantiles in milliseconds"""
-        return map(self._root_span_latency_ms_sketch.get_quantile_value, probabilities)
+        with self._lock:
+            values = tuple(
+                self._root_span_latency_ms_sketch.get_quantile_value(probability)
+                for probability in probabilities
+            )
+        yield from values
 
     def get_descendant_span_ids(self, span_id: SpanID) -> Iterator[SpanID]:
-        for child_span_id in self._child_span_ids.get(span_id) or ():
+        with self._lock:
+            span_ids = tuple(self._child_span_ids[span_id])
+        for child_span_id in span_ids:
             yield child_span_id
             yield from self.get_descendant_span_ids(child_span_id)
 
