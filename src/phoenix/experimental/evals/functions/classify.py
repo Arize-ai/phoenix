@@ -196,17 +196,16 @@ class AsyncExecutor:
         )
         if termination_signal_task in done:
             # Cancel all tasks
-            join_task.cancel()
-            producer.cancel()
+            if not join_task.done():
+                join_task.cancel()
+            if not producer.done():
+                producer.cancel()
             for task in consumers:
-                task.cancel()
+                if not task.done():
+                    task.cancel()
 
         if not termination_signal_task.done():
             termination_signal_task.cancel()
-            await termination_signal_task
-
-        if not join_task.done():
-            await join_task
         return outputs
 
     def run(self, inputs: Sequence[Any]) -> List[Any]:
