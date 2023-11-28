@@ -2,7 +2,7 @@ import asyncio
 import time
 from functools import wraps
 from math import exp
-from typing import Any, Callable, Coroutine, Optional, Tuple, Type, TypeVar, cast
+from typing import Any, Callable, Coroutine, Optional, Tuple, Type, TypeVar
 
 from typing_extensions import ParamSpec
 
@@ -10,7 +10,7 @@ from phoenix.utilities.logging import printif
 
 ParameterSpec = ParamSpec("ParameterSpec")
 GenericType = TypeVar("GenericType")
-AsyncCallable = TypeVar("AsyncCallable", bound=Callable[..., Coroutine[Any, Any, Any]])
+AsyncCallable = Callable[ParameterSpec, Coroutine[Any, Any, GenericType]]
 
 
 class UnavailableTokensError(Exception):
@@ -174,7 +174,7 @@ class RateLimiter:
             try:
                 self._throttler.wait_until_ready()
                 request_start_time = time.time()
-                return cast(GenericType, fn(*args, **kwargs))  # type: ignore
+                return fn(*args, **kwargs)
             except self._rate_limit_error:
                 self._throttler.on_rate_limit_error(request_start_time, verbose=self._verbose)
                 for _attempt in range(self._max_rate_limit_retries):
@@ -191,14 +191,16 @@ class RateLimiter:
 
         return wrapper
 
-    def alimit(self, fn: AsyncCallable) -> AsyncCallable:
+    def alimit(
+        self, fn: AsyncCallable[ParameterSpec, GenericType]
+    ) -> AsyncCallable[ParameterSpec, GenericType]:
         @wraps(fn)
         async def wrapper(*args: Any, **kwargs: Any) -> GenericType:
             try:
                 await self._rate_limit_handling.wait()
                 await self._throttler.async_wait_until_ready()
                 request_start_time = time.time()
-                return cast(GenericType, await fn(*args, **kwargs))
+                return await fn(*args, **kwargs)
             except self._rate_limit_error:
                 async with self._rate_limit_handling_lock:
                     self._rate_limit_handling.clear()  # prevent new requests from starting
@@ -208,7 +210,7 @@ class RateLimiter:
                             try:
                                 request_start_time = time.time()
                                 self._throttler.wait_until_ready()
-                                return await fn(*args, **kwargs)  # type: ignore
+                                return await fn(*args, **kwargs)
                             except self._rate_limit_error:
                                 self._throttler.on_rate_limit_error(
                                     request_start_time, verbose=self._verbose
@@ -218,4 +220,4 @@ class RateLimiter:
                         self._rate_limit_handling.set()  # allow new requests to start
             raise RateLimitError(f"Exceeded max ({self._max_rate_limit_retries}) retries")
 
-        return cast(AsyncCallable, wrapper)
+        return wrapper
