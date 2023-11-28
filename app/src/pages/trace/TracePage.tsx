@@ -68,7 +68,7 @@ import {
   AttributePromptTemplate,
 } from "@phoenix/openInference/tracing/types";
 import { assertUnreachable, isStringArray } from "@phoenix/typeUtils";
-import { numberFormatter } from "@phoenix/utils/numberFormatUtils";
+import { formatFloat, numberFormatter } from "@phoenix/utils/numberFormatUtils";
 
 import {
   MimeType,
@@ -78,6 +78,7 @@ import {
 import { SpanEvaluationsTable } from "./SpanEvaluationsTable";
 
 type Span = TracePageQuery$data["spans"]["edges"][number]["span"];
+type DocumentEvaluation = Span["documentEvaluations"][number];
 /**
  * A span attribute object that is a map of string to an unknown value
  */
@@ -167,6 +168,13 @@ export function TracePage() {
                 name
                 label
                 score
+              }
+              documentEvaluations {
+                documentPosition
+                name
+                label
+                score
+                explanation
               }
               ...SpanEvaluationsTable_evals
             }
@@ -579,6 +587,21 @@ function RetrieverSpanInfo(props: {
       []) as AttributeDocument[];
   }, [retrieverAttributes]);
 
+  // Construct a map of document position to document evaluations
+  const documentEvaluationsMap = useMemo<
+    Record<number, DocumentEvaluation[]>
+  >(() => {
+    const documentEvaluations = span.documentEvaluations;
+    return documentEvaluations.reduce((acc, documentEvaluation) => {
+      const documentPosition = documentEvaluation.documentPosition;
+      const evaluations = acc[documentPosition] || [];
+      return {
+        ...acc,
+        [documentPosition]: [...evaluations, documentEvaluation],
+      };
+    }, {} as Record<number, DocumentEvaluation[]>);
+  }, [span.documentEvaluations]);
+
   const hasInput = input != null && input.value != null;
   const hasDocuments = documents.length > 0;
   return (
@@ -602,6 +625,7 @@ function RetrieverSpanInfo(props: {
                   <li key={idx}>
                     <DocumentItem
                       document={document}
+                      documentEvaluations={documentEvaluationsMap[idx]}
                       borderColor={"seafoam-700"}
                       backgroundColor={"seafoam-100"}
                       labelColor="seafoam-1000"
@@ -863,18 +887,23 @@ function ToolSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
   );
 }
 
+// Labels that get highlighted as danger in the document evaluations
+const DANGER_DOCUMENT_EVALUATION_LABELS = ["irrelevant"];
 function DocumentItem({
   document,
+  documentEvaluations,
   backgroundColor,
   borderColor,
   labelColor,
 }: {
   document: AttributeDocument;
+  documentEvaluations?: DocumentEvaluation[] | null;
   backgroundColor: ViewProps["backgroundColor"];
   borderColor: ViewProps["borderColor"];
   labelColor: LabelProps["color"];
 }) {
   const metadata = document[DOCUMENT_METADATA];
+  const isEvalsEnabled = useFeatureFlag("evals");
   return (
     <View
       borderRadius="medium"
@@ -921,6 +950,84 @@ function DocumentItem({
             </View>
           </>
         )}
+        {isEvalsEnabled &&
+          documentEvaluations &&
+          documentEvaluations.length && (
+            <View
+              borderColor={borderColor}
+              borderTopWidth="thin"
+              padding="size-200"
+            >
+              <Flex direction="column" gap="size-100">
+                <Heading level={3} weight="heavy">
+                  Evaluations
+                </Heading>
+                <ul>
+                  {documentEvaluations.map((documentEvaluation, idx) => {
+                    // Highlight the label as danger if it is a danger classification
+                    const evalLabelColor =
+                      documentEvaluation.label &&
+                      DANGER_DOCUMENT_EVALUATION_LABELS.includes(
+                        documentEvaluation.label
+                      )
+                        ? "danger"
+                        : labelColor;
+                    return (
+                      <li key={idx}>
+                        <View
+                          padding="size-200"
+                          borderWidth="thin"
+                          borderColor={borderColor}
+                          borderRadius="medium"
+                        >
+                          <Flex direction="column" gap="size-50">
+                            <Flex direction="row" gap="size-100">
+                              <Text weight="heavy" elementType="h5">
+                                {documentEvaluation.name}
+                              </Text>
+                              {documentEvaluation.label && (
+                                <Label color={evalLabelColor}>
+                                  {documentEvaluation.label}
+                                </Label>
+                              )}
+                              {typeof documentEvaluation.score === "number" && (
+                                <Label color={evalLabelColor}>
+                                  <Flex direction="row" gap="size-50">
+                                    <Text
+                                      textSize="xsmall"
+                                      weight="heavy"
+                                      color="inherit"
+                                    >
+                                      score
+                                    </Text>
+                                    <Text textSize="xsmall">
+                                      {formatFloat(documentEvaluation.score)}
+                                    </Text>
+                                  </Flex>
+                                </Label>
+                              )}
+                            </Flex>
+                            {typeof documentEvaluation.explanation && (
+                              <p
+                                css={css`
+                                  margin-top: var(
+                                    --ac-global-dimension-static-size-100
+                                  );
+                                  margin-bottom: 0;
+                                `}
+                              >
+                                {documentEvaluation.explanation}
+                              </p>
+                            )}
+                          </Flex>
+                        </View>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </Flex>
+            </View>
+          )}
       </Flex>
     </View>
   );
