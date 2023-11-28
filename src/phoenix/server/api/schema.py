@@ -235,7 +235,7 @@ class Query:
         if predicate:
             spans = filter(predicate, spans)
         if sort:
-            spans = sort(spans)
+            spans = sort(spans, evals=info.context.evals)
         data = list(map(to_gql_span, spans))
         return connection_from_list(data=data, args=args)
 
