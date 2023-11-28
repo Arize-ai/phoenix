@@ -47,10 +47,10 @@ export const tableCSS = (theme: Theme) => css`
   tbody:not(.is-empty) {
     tr {
       &:nth-of-type(even) {
-        background-color: var(--ac-global-color-grey-100);
+        background-color: var(--ac-global-color-grey-200);
       }
       &:hover {
-        background-color: var(--ac-global-color-grey-200);
+        background-color: var(--ac-global-color-grey-300);
       }
       & > td {
         padding: ${theme.spacing.margin8}px ${theme.spacing.margin16}px;

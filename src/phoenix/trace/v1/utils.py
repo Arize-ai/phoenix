@@ -13,12 +13,11 @@ from typing import (
     Union,
     cast,
 )
-from uuid import UUID
 
 from google.protobuf.json_format import MessageToDict
 from google.protobuf.struct_pb2 import ListValue, Struct
 from google.protobuf.timestamp_pb2 import Timestamp
-from google.protobuf.wrappers_pb2 import BoolValue, BytesValue, FloatValue, StringValue
+from google.protobuf.wrappers_pb2 import BoolValue, FloatValue, StringValue
 
 import phoenix.trace.v1 as pb
 from phoenix.trace.schemas import (
@@ -26,8 +25,10 @@ from phoenix.trace.schemas import (
     SpanContext,
     SpanEvent,
     SpanException,
+    SpanID,
     SpanKind,
     SpanStatusCode,
+    TraceID,
 )
 from phoenix.trace.semantic_conventions import (
     DOCUMENT_CONTENT,
@@ -62,7 +63,7 @@ def encode(span: Span) -> pb.Span:
         status.code = pb.Span.Status.Code.ERROR
     elif span.status_code is SpanStatusCode.OK:
         status.code = pb.Span.Status.Code.OK
-    parent_span_id = BytesValue(value=span.parent_id.bytes) if span.parent_id else None
+    parent_span_id = StringValue(value=str(span.parent_id)) if span.parent_id else None
     pb_span = pb.Span(
         start_time=_as_timestamp(span.start_time),
         end_time=_maybe_timestamp(span.end_time),
@@ -70,8 +71,8 @@ def encode(span: Span) -> pb.Span:
         name=span.name,
         kind=span.span_kind.value,
         context=pb.Span.Context(
-            trace_id=span.context.trace_id.bytes,
-            span_id=span.context.span_id.bytes,
+            trace_id=str(span.context.trace_id),
+            span_id=str(span.context.span_id),
         ),
         parent_span_id=parent_span_id,
         attributes=_maybe_struct(_attributes),
@@ -97,11 +98,9 @@ def encode(span: Span) -> pb.Span:
 def decode(
     pb_span: pb.Span,
 ) -> Span:
-    trace_id = UUID(bytes=pb_span.context.trace_id)
-    span_id = UUID(bytes=pb_span.context.span_id)
-    parent_id = (
-        UUID(bytes=pb_span.parent_span_id.value) if pb_span.HasField("parent_span_id") else None
-    )
+    trace_id = TraceID(pb_span.context.trace_id)
+    span_id = SpanID(pb_span.context.span_id)
+    parent_id = SpanID(pb_span.parent_span_id.value) if pb_span.HasField("parent_span_id") else None
     start_time = pb_span.start_time.ToDatetime(timezone.utc)
     end_time = pb_span.end_time.ToDatetime(timezone.utc) if pb_span.HasField("end_time") else None
     attributes = MessageToDict(pb_span.attributes)

@@ -31,13 +31,13 @@ class Span(google.protobuf.message.Message):
 
         TRACE_ID_FIELD_NUMBER: builtins.int
         SPAN_ID_FIELD_NUMBER: builtins.int
-        trace_id: builtins.bytes
-        span_id: builtins.bytes
+        trace_id: builtins.str
+        span_id: builtins.str
         def __init__(
             self,
             *,
-            trace_id: builtins.bytes = ...,
-            span_id: builtins.bytes = ...,
+            trace_id: builtins.str = ...,
+            span_id: builtins.str = ...,
         ) -> None: ...
         def ClearField(self, field_name: typing_extensions.Literal["span_id", b"span_id", "trace_id", b"trace_id"]) -> None: ...
 
@@ -171,7 +171,7 @@ class Span(google.protobuf.message.Message):
     @property
     def context(self) -> global___Span.Context: ...
     @property
-    def parent_span_id(self) -> google.protobuf.wrappers_pb2.BytesValue: ...
+    def parent_span_id(self) -> google.protobuf.wrappers_pb2.StringValue: ...
     name: builtins.str
     @property
     def start_time(self) -> google.protobuf.timestamp_pb2.Timestamp: ...
@@ -201,7 +201,7 @@ class Span(google.protobuf.message.Message):
         *,
         attributes: google.protobuf.struct_pb2.Struct | None = ...,
         context: global___Span.Context | None = ...,
-        parent_span_id: google.protobuf.wrappers_pb2.BytesValue | None = ...,
+        parent_span_id: google.protobuf.wrappers_pb2.StringValue | None = ...,
         name: builtins.str = ...,
         start_time: google.protobuf.timestamp_pb2.Timestamp | None = ...,
         end_time: google.protobuf.timestamp_pb2.Timestamp | None = ...,
