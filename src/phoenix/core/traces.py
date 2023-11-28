@@ -18,7 +18,6 @@ from typing import (
     Union,
     cast,
 )
-from uuid import UUID
 
 from ddsketch import DDSketch
 from sortedcontainers import SortedKeyList
@@ -231,14 +230,14 @@ class Traces:
                 self._process_span(item)
 
     def _process_span(self, span: pb.Span) -> None:
-        span_id = UUID(bytes=span.context.span_id)
+        span_id = SpanID(span.context.span_id)
         existing_span = self._spans.get(span_id)
         if existing_span and existing_span.end_time:
             # Reject updates if span has ended.
             return
         is_root_span = not span.HasField("parent_span_id")
         if not is_root_span:
-            parent_span_id = UUID(bytes=span.parent_span_id.value)
+            parent_span_id = SpanID(span.parent_span_id.value)
             if parent_span_id not in self._spans:
                 # Span can't be processed before its parent.
                 self._orphan_spans[parent_span_id].append(span)
@@ -258,7 +257,7 @@ class Traces:
         if is_root_span and end_time:
             self._latency_sorted_root_span_ids.add(span_id)
         if not existing_span:
-            trace_id = UUID(bytes=span.context.trace_id)
+            trace_id = TraceID(span.context.trace_id)
             self._traces[trace_id].append(span_id)
             if is_root_span:
                 self._start_time_sorted_root_span_ids.add(span_id)
