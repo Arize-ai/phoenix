@@ -239,10 +239,10 @@ class OpenAIModel(BaseEvalModel):
         return AzureOptions(**options)
 
     def _init_rate_limiter(self) -> None:
-        self.rate_limiter = RateLimiter(
+        self._rate_limiter = RateLimiter(
             rate_limit_error=self._openai.RateLimitError,
             max_rate_limit_retries=10,
-            initial_per_second_request_rate=2,
+            initial_per_second_request_rate=5,
             maximum_per_second_request_rate=20,
             enforcement_window_minutes=1,
         )
@@ -301,7 +301,7 @@ class OpenAIModel(BaseEvalModel):
         """Use tenacity to retry the completion call."""
 
         @self.retry
-        @self.rate_limiter.alimit
+        @self._rate_limiter.alimit
         async def _completion_with_retry(**kwargs: Any) -> Any:
             if self._model_uses_legacy_completion_api:
                 if "prompt" not in kwargs:
@@ -322,7 +322,7 @@ class OpenAIModel(BaseEvalModel):
         """Use tenacity to retry the completion call."""
 
         @self.retry
-        @self.rate_limiter.limit
+        @self._rate_limiter.limit
         def _completion_with_retry(**kwargs: Any) -> Any:
             if self._model_uses_legacy_completion_api:
                 if "prompt" not in kwargs:

@@ -86,7 +86,7 @@ class BedrockModel(BaseEvalModel):
         self._tiktoken_encoding = encoding
 
     def _init_rate_limiter(self) -> None:
-        self.rate_limiter = RateLimiter(
+        self._rate_limiter = RateLimiter(
             rate_limit_error=self.client.exceptions.ThrottlingException,
             max_rate_limit_retries=10,
             initial_per_second_request_rate=2,
@@ -134,7 +134,7 @@ class BedrockModel(BaseEvalModel):
     def _generate_with_retry(self, **kwargs: Any) -> Any:
         """Use tenacity to retry the completion call."""
 
-        @self.rate_limiter.limit
+        @self._rate_limiter.limit
         def _completion_with_retry(**kwargs: Any) -> Any:
             return self.client.invoke_model(**kwargs)
 
