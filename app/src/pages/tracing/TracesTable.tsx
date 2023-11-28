@@ -33,6 +33,7 @@ import { SpanKindLabel } from "@phoenix/components/trace/SpanKindLabel";
 import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon";
 import { ISpanItem } from "@phoenix/components/trace/types";
 import { createSpanTree, SpanTreeNode } from "@phoenix/components/trace/utils";
+import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
 
@@ -44,6 +45,7 @@ import {
   SpanSort,
   TracesTableQuery,
 } from "./__generated__/TracesTableQuery.graphql";
+import { EvaluationLabel } from "./EvaluationLabel";
 import { SpanColumnSelector } from "./SpanColumnSelector";
 import { SpanFilterConditionField } from "./SpanFilterConditionField";
 import { spansTableCSS } from "./styles";
@@ -89,7 +91,7 @@ export function TracesTable(props: TracesTableProps) {
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const [sorting, setSorting] = useState<SortingState>([]);
   const [filterCondition, setFilterCondition] = useState<string>("");
-
+  const isEvalsEnabled = useFeatureFlag("evals");
   const navigate = useNavigate();
   const { fetchKey } = useStreamState();
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
@@ -134,6 +136,11 @@ export function TracesTable(props: TracesTableProps) {
                   spanId
                   traceId
                 }
+                spanEvaluations {
+                  name
+                  label
+                  score
+                }
                 descendants {
                   spanKind
                   name
@@ -153,6 +160,11 @@ export function TracesTable(props: TracesTableProps) {
                   context {
                     spanId
                     traceId
+                  }
+                  spanEvaluations {
+                    name
+                    label
+                    score
                   }
                 }
               }
@@ -175,6 +187,29 @@ export function TracesTable(props: TracesTableProps) {
     return tableData;
   }, [data]);
   type TableRow = (typeof tableData)[number];
+
+  const evaluationColumns: ColumnDef<TableRow>[] = [
+    {
+      header: "evaluations",
+      accessorKey: "spanEvaluations",
+      enableSorting: false,
+
+      cell: ({ row }) => {
+        return (
+          <Flex direction="row" gap="size-50" wrap="wrap">
+            {row.original.spanEvaluations.map((evaluation) => {
+              return (
+                <EvaluationLabel
+                  key={evaluation.name}
+                  evaluation={evaluation}
+                />
+              );
+            })}
+          </Flex>
+        );
+      },
+    },
+  ];
   const columns: ColumnDef<TableRow>[] = [
     {
       header: () => {
@@ -241,6 +276,7 @@ export function TracesTable(props: TracesTableProps) {
       enableSorting: false,
       cell: TextCell,
     },
+    ...(isEvalsEnabled ? evaluationColumns : []),
     {
       header: "start time",
       accessorKey: "startTime",
