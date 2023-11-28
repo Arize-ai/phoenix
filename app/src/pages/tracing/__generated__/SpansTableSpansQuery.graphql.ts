@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<12236917a31c54835bec717c9e38ede6>>
+ * @generated SignedSource<<5065b1daa2b61ee6757422766f5502b6>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -16,7 +16,7 @@ export type SpanColumn = "cumulativeTokenCountCompletion" | "cumulativeTokenCoun
 export type SpanSort = {
   col?: SpanColumn | null;
   dir: SortDir;
-  res?: EvalResultKey | null;
+  evalResultKey?: EvalResultKey | null;
 };
 export type EvalResultKey = {
   attr: EvalAttr;
