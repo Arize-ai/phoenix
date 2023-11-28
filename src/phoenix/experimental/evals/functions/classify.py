@@ -4,6 +4,7 @@ import asyncio
 import json
 import logging
 import signal
+import traceback
 from typing import (
     Any,
     Callable,
@@ -46,10 +47,6 @@ OPENINFERENCE_DOCUMENT_COLUMN_NAME = "attributes." + RETRIEVAL_DOCUMENTS
 # defined here only to prevent typos
 _RESPONSE = "response"
 _EXPLANATION = "explanation"
-
-
-class EndOfQueue:
-    pass
 
 
 class Unset:
@@ -96,11 +93,6 @@ class AsyncExecutor:
         self.tqdm_bar_format = tqdm_bar_format
         self.exit_on_error = exit_on_error
 
-        # An end of queue sentinel is used to signal to consumers that the queue is empty and that
-        # they should exit. This is necessary because some consumers may still be waiting for an
-        # item to be added to the queue when the producer finishes.
-        self.end_of_queue = EndOfQueue()
-
         self._TERMINATE = False
 
     def _signal_handler(self, signum: int, frame: Any) -> None:
@@ -110,60 +102,69 @@ class AsyncExecutor:
     async def producer(
         self,
         inputs: Sequence[Any],
-        queue: asyncio.Queue[Union[EndOfQueue, Tuple[int, Any]]],
+        queue: asyncio.Queue[Tuple[int, Any]],
+        done_producing: asyncio.Event,
     ) -> None:
-        for index, input in enumerate(inputs):
-            if self._TERMINATE:
-                break
-            await queue.put((index, input))
-        # adds an end of queue sentinel for each consumer, guaranteeing that any consumer that is
-        # currently waiting for an item will gracefully stop.
-        for _ in range(self.concurrency):
-            await queue.put(self.end_of_queue)
+        try:
+            for index, input in enumerate(inputs):
+                if self._TERMINATE:
+                    break
+                await queue.put((index, input))
+        finally:
+            done_producing.set()
 
     async def consumer(
         self,
         output: List[Any],
-        queue: asyncio.Queue[Union[EndOfQueue, Tuple[int, Any]]],
+        queue: asyncio.Queue[Tuple[int, Any]],
+        done_producing: asyncio.Event,
         progress_bar: tqdm[Any],
     ) -> None:
         while True:
-            item = await queue.get()
-            if item is self.end_of_queue:
-                return
+            try:
+                item = await asyncio.wait_for(queue.get(), timeout=1)
+            except asyncio.TimeoutError:
+                if done_producing.is_set() and queue.empty():
+                    break
+                continue
             if self._TERMINATE:
                 # discard any remaining items in the queue
+                queue.task_done()
                 continue
 
-            item = cast(Tuple[int, Any], item)
             index, payload = item
             try:
-                result = await self.generate(payload)
+                result = await asyncio.wait_for(self.generate(payload), timeout=60)
                 output[index] = result
                 progress_bar.update()
-            except Exception as e:
-                tqdm.write(f"Exception in worker: {e}")
+            except asyncio.TimeoutError:
+                tqdm.write(f"Worker timeout, requeuing: {payload}")
+                await queue.put(item)
+            except Exception:
+                tqdm.write(f"Exception in worker: {traceback.format_exc()}")
                 if self.exit_on_error:
                     self._TERMINATE = True
                 else:
                     progress_bar.update()
+            finally:
+                queue.task_done()
 
     async def execute(self, inputs: Sequence[Any]) -> List[Any]:
         signal.signal(signal.SIGINT, self._signal_handler)
         outputs = [self.fallback_return_value] * len(inputs)
         progress_bar = tqdm(total=len(inputs), bar_format=self.tqdm_bar_format)
 
-        queue: asyncio.Queue[Union[EndOfQueue, Tuple[int, Any]]] = asyncio.Queue(
-            maxsize=2 * self.concurrency
-        )
+        queue: asyncio.Queue[Tuple[int, Any]] = asyncio.Queue(maxsize=2 * self.concurrency)
+        done_producing = asyncio.Event()
 
-        producer = self.producer(inputs, queue)
+        producer = self.producer(inputs, queue, done_producing)
         consumers = [
-            asyncio.create_task(self.consumer(outputs, queue, progress_bar))
+            asyncio.create_task(self.consumer(outputs, queue, done_producing, progress_bar))
             for _ in range(self.concurrency)
         ]
 
         await asyncio.gather(producer, *consumers)
+        await queue.join()
         return outputs
 
     def run(self, inputs: Sequence[Any]) -> List[Any]:
