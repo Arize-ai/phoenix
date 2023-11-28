@@ -109,6 +109,7 @@ class OpenAIModel(BaseEvalModel):
 
     def _init_environment(self) -> None:
         try:
+            import httpx
             import openai
             import openai._utils as openai_util
 
@@ -119,6 +120,7 @@ class OpenAIModel(BaseEvalModel):
                 self._openai.APIError,
                 self._openai.APIConnectionError,
                 self._openai.InternalServerError,
+                httpx.ReadTimeout,
             ]
             self.retry = self._retry(
                 error_types=self._openai_retry_errors,
