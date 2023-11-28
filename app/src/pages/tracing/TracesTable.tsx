@@ -17,7 +17,6 @@ import {
   getSortedRowModel,
   SortingState,
   useReactTable,
-  VisibilityState,
 } from "@tanstack/react-table";
 import { css } from "@emotion/react";
 
@@ -35,6 +34,7 @@ import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon
 import { ISpanItem } from "@phoenix/components/trace/types";
 import { createSpanTree, SpanTreeNode } from "@phoenix/components/trace/utils";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
+import { useTracingContext } from "@phoenix/contexts/TracingContext";
 
 import {
   SpanStatusCode,
@@ -120,9 +120,9 @@ export function TracesTable(props: TracesTableProps) {
                 statusCode
                 startTime
                 latencyMs
-                cumulativeTokenCountTotal
-                cumulativeTokenCountPrompt
-                cumulativeTokenCountCompletion
+                tokenCountTotal: cumulativeTokenCountTotal
+                tokenCountPrompt: cumulativeTokenCountPrompt
+                tokenCountCompletion: cumulativeTokenCountCompletion
                 parentId
                 input {
                   value
@@ -141,9 +141,9 @@ export function TracesTable(props: TracesTableProps) {
                   startTime
                   latencyMs
                   parentId
-                  cumulativeTokenCountTotal: tokenCountTotal # this switcheroo is to allow descendant Rows to unfurl in the same Table while displaying a different value under the same Column
-                  cumulativeTokenCountPrompt: tokenCountPrompt
-                  cumulativeTokenCountCompletion: tokenCountCompletion
+                  tokenCountTotal
+                  tokenCountPrompt
+                  tokenCountCompletion
                   input {
                     value
                   }
@@ -261,7 +261,7 @@ export function TracesTable(props: TracesTableProps) {
     },
     {
       header: "total tokens",
-      accessorKey: "cumulativeTokenCountTotal",
+      accessorKey: "tokenCountTotal",
       cell: ({ row, getValue }) => {
         const value = getValue();
         if (value === null) {
@@ -270,10 +270,8 @@ export function TracesTable(props: TracesTableProps) {
         return (
           <TokenCount
             tokenCountTotal={value as number}
-            tokenCountPrompt={row.original.cumulativeTokenCountPrompt || 0}
-            tokenCountCompletion={
-              row.original.cumulativeTokenCountCompletion || 0
-            }
+            tokenCountPrompt={row.original.tokenCountPrompt || 0}
+            tokenCountCompletion={row.original.tokenCountCompletion || 0}
           />
         );
       },
@@ -327,7 +325,7 @@ export function TracesTable(props: TracesTableProps) {
     [hasNext, isLoadingNext, loadNext]
   );
   const [expanded, setExpanded] = useState<ExpandedState>({});
-  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
+  const columnVisibility = useTracingContext((state) => state.columnVisibility);
   const table = useReactTable<TableRow>({
     columns,
     data: tableData,
@@ -359,11 +357,7 @@ export function TracesTable(props: TracesTableProps) {
       >
         <Flex direction="row" gap="size-100" width="100%" alignItems="center">
           <SpanFilterConditionField onValidCondition={setFilterCondition} />
-          <SpanColumnSelector
-            columns={computedColumns}
-            columnVisibility={columnVisibility}
-            onColumnVisibilityChange={setColumnVisibility}
-          />
+          <SpanColumnSelector columns={computedColumns} />
         </Flex>
       </View>
       <div
