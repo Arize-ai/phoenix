@@ -183,8 +183,8 @@ def test_callback_exception_event_produces_root_chain_span_with_exception_events
     )
     query_engine = index.as_query_engine(service_context=service_context)
 
-    # mock the _query method to raise an exception before on_event_start is
-    # called for any method
+    # mock the _query method to raise an exception before any event has begun
+    # to produce an independent exception event
     with patch.object(query_engine, "_query") as mocked_query:
         mocked_query.side_effect = Exception("message")
         with pytest.raises(Exception):
