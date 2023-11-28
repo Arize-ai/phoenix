@@ -36,41 +36,20 @@ class EvalAttr(Enum):
     label = "label"
 
 
-class SupportsGetSpanEvaluation(Protocol):
-    def get_span_evaluation(self, span_id: SpanID, name: str) -> Optional[pb.Evaluation]:
-        ...
-
-
 @strawberry.input
 class EvalResultKey:
     name: str
     attr: EvalAttr
 
-    def __call__(
-        self,
-        span: Span,
-        evals: Optional[SupportsGetSpanEvaluation] = None,
-    ) -> Any:
-        """
-        Returns the evaluation result for the given span
-        """
-        if evals is None:
-            return None
-        span_id = span.context.span_id
-        evaluation = evals.get_span_evaluation(span_id, self.name)
-        if evaluation is None:
-            return None
-        result = evaluation.result
-        if self.attr is EvalAttr.score:
-            return result.score.value if result.HasField("score") else None
-        if self.attr is EvalAttr.label:
-            return result.label.value if result.HasField("label") else None
-        assert_never(self.attr)
+
+class SupportsGetSpanEvaluation(Protocol):
+    def get_span_evaluation(self, span_id: SpanID, name: str) -> Optional[pb.Evaluation]:
+        ...
 
 
 @strawberry.input(
     description="The sort key and direction for span connections. Must "
-    "specify one and only one of either `col` or `eval_result_key`."
+    "specify one and only one of either `col` or `evalResultKey`."
 )
 class SpanSort:
     col: Optional[SpanColumn] = None
@@ -86,18 +65,49 @@ class SpanSort:
         Sorts the spans by the given key (column or eval) and direction
         """
         if self.eval_result_key is not None:
-            _key = partial(self.eval_result_key, evals=evals)
+            get_sort_key_value = partial(
+                _get_eval_result_value,
+                eval_name=self.eval_result_key.name,
+                eval_attr=self.eval_result_key.attr,
+                evals=evals,
+            )
         else:
-            _key = partial(_get_column, span_column=self.col or SpanColumn.startTime)
+            get_sort_key_value = partial(
+                _get_column_value,
+                span_column=self.col or SpanColumn.startTime,
+            )
         yield from pd.Series(spans, dtype=object).sort_values(
-            key=lambda series: series.apply(_key),
+            key=lambda series: series.apply(get_sort_key_value),
             ascending=self.dir.value == SortDir.asc.value,
         )
 
 
-def _get_column(span: Span, span_column: SpanColumn) -> Any:
+def _get_column_value(span: Span, span_column: SpanColumn) -> Any:
     if span_column is SpanColumn.startTime:
         return span.start_time
     if span_column is SpanColumn.endTime:
         return span.end_time
     return span.attributes.get(span_column.value)
+
+
+def _get_eval_result_value(
+    span: Span,
+    eval_name: str,
+    eval_attr: EvalAttr,
+    evals: Optional[SupportsGetSpanEvaluation] = None,
+) -> Any:
+    """
+    Returns the evaluation result for the given span
+    """
+    if evals is None:
+        return None
+    span_id = span.context.span_id
+    evaluation = evals.get_span_evaluation(span_id, eval_name)
+    if evaluation is None:
+        return None
+    result = evaluation.result
+    if eval_attr is EvalAttr.score:
+        return result.score.value if result.HasField("score") else None
+    if eval_attr is EvalAttr.label:
+        return result.label.value if result.HasField("label") else None
+    assert_never(eval_attr)
