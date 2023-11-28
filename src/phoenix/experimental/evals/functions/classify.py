@@ -93,10 +93,10 @@ class AsyncExecutor:
         self.tqdm_bar_format = tqdm_bar_format
         self.exit_on_error = exit_on_error
 
-        self._TERMINATE = False
+        self._TERMINATE = asyncio.Event()
 
     def _signal_handler(self, signum: int, frame: Any) -> None:
-        self._TERMINATE = True
+        self._TERMINATE.set()
         tqdm.write("Process was interrupted. The return value will be incomplete...")
 
     async def producer(
@@ -107,7 +107,7 @@ class AsyncExecutor:
     ) -> None:
         try:
             for index, input in enumerate(inputs):
-                if self._TERMINATE:
+                if self._TERMINATE.is_set():
                     break
                 await queue.put((index, input))
         finally:
@@ -127,23 +127,38 @@ class AsyncExecutor:
                 if done_producing.is_set() and queue.empty():
                     break
                 continue
-            if self._TERMINATE:
+            if self._TERMINATE.is_set():
                 # discard any remaining items in the queue
                 queue.task_done()
                 continue
 
             index, payload = item
             try:
-                result = await asyncio.wait_for(self.generate(payload), timeout=60)
-                output[index] = result
-                progress_bar.update()
-            except asyncio.TimeoutError:
-                tqdm.write(f"Worker timeout, requeuing: {payload}")
-                await queue.put(item)
+                generate_task = asyncio.create_task(self.generate(payload))
+                termination_signal = self._TERMINATE.wait()
+                done, pending = await asyncio.wait([generate_task, termination_signal], timeout=60, return_when=asyncio.FIRST_COMPLETED)
+                if generate_task in done:
+                    output[index] = generate_task.result()
+                    progress_bar.update()
+                elif self._TERMINATE.is_set():
+                    # discard the pending task and remaining items in the queue
+                    if not generate_task.done():
+                        generate_task.cancel()
+                        try:
+                            # allow any cleanup to finish for the cancelled task
+                            await generate_task
+                        except asyncio.CancelledError:
+                            # Handle the cancellation exception
+                            pass
+                    queue.task_done()
+                    continue
+                else:
+                    tqdm.write(f"Worker timeout, requeuing: {payload}")
+                    await queue.put(item)
             except Exception:
-                tqdm.write(f"Exception in worker: {traceback.format_exc()}")
+                tqdm.write(f"Except ion in worker: {traceback.format_exc()}")
                 if self.exit_on_error:
-                    self._TERMINATE = True
+                    self._TERMINATE.set()
                 else:
                     progress_bar.update()
             finally:
