@@ -68,13 +68,11 @@ class EvalResultKey:
         assert_never(self.attr)
 
 
-@strawberry.input
+@strawberry.input(
+    description="The sort key and direction for span connections. Must "
+    "specify one and only one of either `col` or `eval_result_key`."
+)
 class SpanSort:
-    """
-    The sort column and direction for span connections. Must specify one and
-    only one of either `col` or `eval_result_key`.
-    """
-
     col: Optional[SpanColumn] = None
     eval_result_key: Optional[EvalResultKey] = None
     dir: SortDir
