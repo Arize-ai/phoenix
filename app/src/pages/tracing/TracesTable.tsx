@@ -17,7 +17,6 @@ import {
   getSortedRowModel,
   SortingState,
   useReactTable,
-  VisibilityState,
 } from "@tanstack/react-table";
 import { css } from "@emotion/react";
 
@@ -35,6 +34,7 @@ import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon
 import { ISpanItem } from "@phoenix/components/trace/types";
 import { createSpanTree, SpanTreeNode } from "@phoenix/components/trace/utils";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
+import { useTracingContext } from "@phoenix/contexts/TracingContext";
 
 import {
   SpanStatusCode,
@@ -327,7 +327,7 @@ export function TracesTable(props: TracesTableProps) {
     [hasNext, isLoadingNext, loadNext]
   );
   const [expanded, setExpanded] = useState<ExpandedState>({});
-  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
+  const columnVisibility = useTracingContext((state) => state.columnVisibility);
   const table = useReactTable<TableRow>({
     columns,
     data: tableData,
@@ -359,11 +359,7 @@ export function TracesTable(props: TracesTableProps) {
       >
         <Flex direction="row" gap="size-100" width="100%" alignItems="center">
           <SpanFilterConditionField onValidCondition={setFilterCondition} />
-          <SpanColumnSelector
-            columns={computedColumns}
-            columnVisibility={columnVisibility}
-            onColumnVisibilityChange={setColumnVisibility}
-          />
+          <SpanColumnSelector columns={computedColumns} />
         </Flex>
       </View>
       <div
