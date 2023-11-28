@@ -16,7 +16,7 @@ from google.protobuf import struct_pb2 as google_dot_protobuf_dot_struct__pb2
 from google.protobuf import wrappers_pb2 as google_dot_protobuf_dot_wrappers__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x14trace/v1/trace.proto\x12\x16phoenix.proto.trace.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1egoogle/protobuf/wrappers.proto\"\xa2\x0b\n\x04Span\x12+\n\nattributes\x18\x01 \x01(\x0b\x32\x17.google.protobuf.Struct\x12\x35\n\x07\x63ontext\x18\x02 \x01(\x0b\x32$.phoenix.proto.trace.v1.Span.Context\x12\x33\n\x0eparent_span_id\x18\x03 \x01(\x0b\x32\x1b.google.protobuf.BytesValue\x12\x0c\n\x04name\x18\x04 \x01(\t\x12.\n\nstart_time\x18\x05 \x01(\x0b\x32\x1a.google.protobuf.Timestamp\x12,\n\x08\x65nd_time\x18\x06 \x01(\x0b\x32\x1a.google.protobuf.Timestamp\x12\x33\n\x06status\x18\x07 \x01(\x0b\x32#.phoenix.proto.trace.v1.Span.Status\x12\x32\n\x06\x65vents\x18\x08 \x03(\x0b\x32\".phoenix.proto.trace.v1.Span.Event\x12:\n\nexceptions\x18\t \x03(\x0b\x32&.phoenix.proto.trace.v1.Span.Exception\x12\x33\n\x05input\x18\n \x01(\x0b\x32$.phoenix.proto.trace.v1.Span.IOValue\x12\x34\n\x06output\x18\x0b \x01(\x0b\x32$.phoenix.proto.trace.v1.Span.IOValue\x12\x0c\n\x04kind\x18\x0c \x01(\t\x12\x34\n\tretrieval\x18\r \x01(\x0b\x32!.phoenix.proto.trace.v1.Retrieval\x12\x34\n\tembedding\x18\x0e \x01(\x0b\x32!.phoenix.proto.trace.v1.Embedding\x12(\n\x03llm\x18\x0f \x01(\x0b\x32\x1b.phoenix.proto.trace.v1.LLM\x12*\n\x04tool\x18\x10 \x01(\x0b\x32\x1c.phoenix.proto.trace.v1.Tool\x1a,\n\x07\x43ontext\x12\x10\n\x08trace_id\x18\x01 \x01(\x0c\x12\x0f\n\x07span_id\x18\x02 \x01(\x0c\x1a\x95\x01\n\x06Status\x12\x36\n\x04\x63ode\x18\x01 \x01(\x0e\x32(.phoenix.proto.trace.v1.Span.Status.Code\x12-\n\x07message\x18\x02 \x01(\x0b\x32\x1c.google.protobuf.StringValue\"$\n\x04\x43ode\x12\t\n\x05UNSET\x10\x00\x12\x06\n\x02OK\x10\x01\x12\t\n\x05\x45RROR\x10\x02\x1aq\n\x05\x45vent\x12+\n\nattributes\x18\x01 \x01(\x0b\x32\x17.google.protobuf.Struct\x12\x0c\n\x04name\x18\x02 \x01(\t\x12-\n\ttimestamp\x18\x03 \x01(\x0b\x32\x1a.google.protobuf.Timestamp\x1a\xa1\x02\n\tException\x12+\n\nattributes\x18\x01 \x01(\x0b\x32\x17.google.protobuf.Struct\x12-\n\x07message\x18\x02 \x01(\x0b\x32\x1c.google.protobuf.StringValue\x12*\n\x04type\x18\x03 \x01(\x0b\x32\x1c.google.protobuf.StringValue\x12+\n\x07\x65scaped\x18\x04 \x01(\x0b\x32\x1a.google.protobuf.BoolValue\x12\x30\n\nstacktrace\x18\x05 \x01(\x0b\x32\x1c.google.protobuf.StringValue\x12-\n\ttimestamp\x18\x06 \x01(\x0b\x32\x1a.google.protobuf.Timestamp\x1aX\n\x07IOValue\x12\x16\n\x0cstring_value\x18\x01 \x01(\tH\x00\x12-\n\njson_value\x18\x02 \x01(\x0b\x32\x17.google.protobuf.StructH\x00\x42\x06\n\x04kind\"\xdf\x02\n\tRetrieval\x12=\n\tdocuments\x18\x01 \x03(\x0b\x32*.phoenix.proto.trace.v1.Retrieval.Document\x1a\x92\x02\n\x08\x44ocument\x12+\n\nattributes\x18\x01 \x01(\x0b\x32\x17.google.protobuf.Struct\x12(\n\x02id\x18\x02 \x01(\x0b\x32\x1c.google.protobuf.StringValue\x12*\n\x05score\x18\x03 \x01(\x0b\x32\x1b.google.protobuf.FloatValue\x12-\n\x07\x63ontent\x18\x04 \x01(\x0b\x32\x1c.google.protobuf.StringValue\x12)\n\x08metadata\x18\x05 \x01(\x0b\x32\x17.google.protobuf.Struct\x12)\n\x04hash\x18\x06 \x01(\x0b\x32\x1b.google.protobuf.BytesValue\"\xf4\x01\n\tEmbedding\x12?\n\nembeddings\x18\x01 \x03(\x0b\x32+.phoenix.proto.trace.v1.Embedding.Embedding\x12\x30\n\nmodel_name\x18\x02 \x01(\x0b\x32\x1c.google.protobuf.StringValue\x1at\n\tEmbedding\x12+\n\nattributes\x18\x01 \x01(\x0b\x32\x17.google.protobuf.Struct\x12\x0e\n\x06vector\x18\x02 \x03(\x02\x12*\n\x04text\x18\x03 \x01(\x0b\x32\x1c.google.protobuf.StringValue\"2\n\x03LLM\x12+\n\nattributes\x18\x01 \x01(\x0b\x32\x17.google.protobuf.Struct\"3\n\x04Tool\x12+\n\nattributes\x18\x01 \x01(\x0b\x32\x17.google.protobuf.Structb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x14trace/v1/trace.proto\x12\x16phoenix.proto.trace.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1egoogle/protobuf/wrappers.proto\"\xa3\x0b\n\x04Span\x12+\n\nattributes\x18\x01 \x01(\x0b\x32\x17.google.protobuf.Struct\x12\x35\n\x07\x63ontext\x18\x02 \x01(\x0b\x32$.phoenix.proto.trace.v1.Span.Context\x12\x34\n\x0eparent_span_id\x18\x03 \x01(\x0b\x32\x1c.google.protobuf.StringValue\x12\x0c\n\x04name\x18\x04 \x01(\t\x12.\n\nstart_time\x18\x05 \x01(\x0b\x32\x1a.google.protobuf.Timestamp\x12,\n\x08\x65nd_time\x18\x06 \x01(\x0b\x32\x1a.google.protobuf.Timestamp\x12\x33\n\x06status\x18\x07 \x01(\x0b\x32#.phoenix.proto.trace.v1.Span.Status\x12\x32\n\x06\x65vents\x18\x08 \x03(\x0b\x32\".phoenix.proto.trace.v1.Span.Event\x12:\n\nexceptions\x18\t \x03(\x0b\x32&.phoenix.proto.trace.v1.Span.Exception\x12\x33\n\x05input\x18\n \x01(\x0b\x32$.phoenix.proto.trace.v1.Span.IOValue\x12\x34\n\x06output\x18\x0b \x01(\x0b\x32$.phoenix.proto.trace.v1.Span.IOValue\x12\x0c\n\x04kind\x18\x0c \x01(\t\x12\x34\n\tretrieval\x18\r \x01(\x0b\x32!.phoenix.proto.trace.v1.Retrieval\x12\x34\n\tembedding\x18\x0e \x01(\x0b\x32!.phoenix.proto.trace.v1.Embedding\x12(\n\x03llm\x18\x0f \x01(\x0b\x32\x1b.phoenix.proto.trace.v1.LLM\x12*\n\x04tool\x18\x10 \x01(\x0b\x32\x1c.phoenix.proto.trace.v1.Tool\x1a,\n\x07\x43ontext\x12\x10\n\x08trace_id\x18\x01 \x01(\t\x12\x0f\n\x07span_id\x18\x02 \x01(\t\x1a\x95\x01\n\x06Status\x12\x36\n\x04\x63ode\x18\x01 \x01(\x0e\x32(.phoenix.proto.trace.v1.Span.Status.Code\x12-\n\x07message\x18\x02 \x01(\x0b\x32\x1c.google.protobuf.StringValue\"$\n\x04\x43ode\x12\t\n\x05UNSET\x10\x00\x12\x06\n\x02OK\x10\x01\x12\t\n\x05\x45RROR\x10\x02\x1aq\n\x05\x45vent\x12+\n\nattributes\x18\x01 \x01(\x0b\x32\x17.google.protobuf.Struct\x12\x0c\n\x04name\x18\x02 \x01(\t\x12-\n\ttimestamp\x18\x03 \x01(\x0b\x32\x1a.google.protobuf.Timestamp\x1a\xa1\x02\n\tException\x12+\n\nattributes\x18\x01 \x01(\x0b\x32\x17.google.protobuf.Struct\x12-\n\x07message\x18\x02 \x01(\x0b\x32\x1c.google.protobuf.StringValue\x12*\n\x04type\x18\x03 \x01(\x0b\x32\x1c.google.protobuf.StringValue\x12+\n\x07\x65scaped\x18\x04 \x01(\x0b\x32\x1a.google.protobuf.BoolValue\x12\x30\n\nstacktrace\x18\x05 \x01(\x0b\x32\x1c.google.protobuf.StringValue\x12-\n\ttimestamp\x18\x06 \x01(\x0b\x32\x1a.google.protobuf.Timestamp\x1aX\n\x07IOValue\x12\x16\n\x0cstring_value\x18\x01 \x01(\tH\x00\x12-\n\njson_value\x18\x02 \x01(\x0b\x32\x17.google.protobuf.StructH\x00\x42\x06\n\x04kind\"\xdf\x02\n\tRetrieval\x12=\n\tdocuments\x18\x01 \x03(\x0b\x32*.phoenix.proto.trace.v1.Retrieval.Document\x1a\x92\x02\n\x08\x44ocument\x12+\n\nattributes\x18\x01 \x01(\x0b\x32\x17.google.protobuf.Struct\x12(\n\x02id\x18\x02 \x01(\x0b\x32\x1c.google.protobuf.StringValue\x12*\n\x05score\x18\x03 \x01(\x0b\x32\x1b.google.protobuf.FloatValue\x12-\n\x07\x63ontent\x18\x04 \x01(\x0b\x32\x1c.google.protobuf.StringValue\x12)\n\x08metadata\x18\x05 \x01(\x0b\x32\x17.google.protobuf.Struct\x12)\n\x04hash\x18\x06 \x01(\x0b\x32\x1b.google.protobuf.BytesValue\"\xf4\x01\n\tEmbedding\x12?\n\nembeddings\x18\x01 \x03(\x0b\x32+.phoenix.proto.trace.v1.Embedding.Embedding\x12\x30\n\nmodel_name\x18\x02 \x01(\x0b\x32\x1c.google.protobuf.StringValue\x1at\n\tEmbedding\x12+\n\nattributes\x18\x01 \x01(\x0b\x32\x17.google.protobuf.Struct\x12\x0e\n\x06vector\x18\x02 \x03(\x02\x12*\n\x04text\x18\x03 \x01(\x0b\x32\x1c.google.protobuf.StringValue\"2\n\x03LLM\x12+\n\nattributes\x18\x01 \x01(\x0b\x32\x17.google.protobuf.Struct\"3\n\x04Tool\x12+\n\nattributes\x18\x01 \x01(\x0b\x32\x17.google.protobuf.Structb\x06proto3')
 
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, globals())
 _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'trace.v1.trace_pb2', globals())
@@ -24,29 +24,29 @@ if _descriptor._USE_C_DESCRIPTORS == False:
 
   DESCRIPTOR._options = None
   _SPAN._serialized_start=144
-  _SPAN._serialized_end=1586
-  _SPAN_CONTEXT._serialized_start=893
-  _SPAN_CONTEXT._serialized_end=937
-  _SPAN_STATUS._serialized_start=940
-  _SPAN_STATUS._serialized_end=1089
-  _SPAN_STATUS_CODE._serialized_start=1053
-  _SPAN_STATUS_CODE._serialized_end=1089
-  _SPAN_EVENT._serialized_start=1091
-  _SPAN_EVENT._serialized_end=1204
-  _SPAN_EXCEPTION._serialized_start=1207
-  _SPAN_EXCEPTION._serialized_end=1496
-  _SPAN_IOVALUE._serialized_start=1498
-  _SPAN_IOVALUE._serialized_end=1586
-  _RETRIEVAL._serialized_start=1589
-  _RETRIEVAL._serialized_end=1940
-  _RETRIEVAL_DOCUMENT._serialized_start=1666
-  _RETRIEVAL_DOCUMENT._serialized_end=1940
-  _EMBEDDING._serialized_start=1943
-  _EMBEDDING._serialized_end=2187
-  _EMBEDDING_EMBEDDING._serialized_start=2071
-  _EMBEDDING_EMBEDDING._serialized_end=2187
-  _LLM._serialized_start=2189
-  _LLM._serialized_end=2239
-  _TOOL._serialized_start=2241
-  _TOOL._serialized_end=2292
+  _SPAN._serialized_end=1587
+  _SPAN_CONTEXT._serialized_start=894
+  _SPAN_CONTEXT._serialized_end=938
+  _SPAN_STATUS._serialized_start=941
+  _SPAN_STATUS._serialized_end=1090
+  _SPAN_STATUS_CODE._serialized_start=1054
+  _SPAN_STATUS_CODE._serialized_end=1090
+  _SPAN_EVENT._serialized_start=1092
+  _SPAN_EVENT._serialized_end=1205
+  _SPAN_EXCEPTION._serialized_start=1208
+  _SPAN_EXCEPTION._serialized_end=1497
+  _SPAN_IOVALUE._serialized_start=1499
+  _SPAN_IOVALUE._serialized_end=1587
+  _RETRIEVAL._serialized_start=1590
+  _RETRIEVAL._serialized_end=1941
+  _RETRIEVAL_DOCUMENT._serialized_start=1667
+  _RETRIEVAL_DOCUMENT._serialized_end=1941
+  _EMBEDDING._serialized_start=1944
+  _EMBEDDING._serialized_end=2188
+  _EMBEDDING_EMBEDDING._serialized_start=2072
+  _EMBEDDING_EMBEDDING._serialized_end=2188
+  _LLM._serialized_start=2190
+  _LLM._serialized_end=2240
+  _TOOL._serialized_start=2242
+  _TOOL._serialized_end=2293
 # @@protoc_insertion_point(module_scope)

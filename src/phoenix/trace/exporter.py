@@ -8,7 +8,7 @@ from typing import Any, Optional, Union
 
 import requests
 from requests import Session
-from typing_extensions import TypeAlias
+from typing_extensions import TypeAlias, assert_never
 
 import phoenix.trace.v1 as pb
 from phoenix.config import get_env_collector_endpoint, get_env_host, get_env_port
@@ -76,6 +76,9 @@ class HttpExporter:
             self._queue.put(encode(item))
         elif isinstance(item, pb.Evaluation):
             self._queue.put(item)
+        else:
+            logger.exception(f"unrecognized item type: {type(item)}")
+            assert_never(item)
 
     def _start_consumer(self) -> None:
         Thread(
@@ -103,7 +106,8 @@ class HttpExporter:
             return f"{self._base_url}/v1/spans"
         if isinstance(message, pb.Evaluation):
             return f"{self._base_url}/v1/evaluations"
-        raise ValueError(f"Unknown message type: {type(message)}")
+        logger.exception(f"unrecognized message type: {type(message)}")
+        assert_never(message)
 
     def _warn_if_phoenix_is_not_running(self) -> None:
         try:

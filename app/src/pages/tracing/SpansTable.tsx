@@ -262,7 +262,6 @@ export function SpansTable(props: SpansTableProps) {
           />
         </Flex>
       </View>
-
       <div
         css={css`
           flex: 1 1 auto;
