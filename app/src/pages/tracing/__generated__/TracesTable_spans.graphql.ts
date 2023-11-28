@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<da24c5f08b2aff47a06f93788283e3f0>>
+ * @generated SignedSource<<df319ec22ad1efe3e709d46fd1890f41>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -20,17 +20,11 @@ export type TracesTable_spans$data = {
           readonly spanId: string;
           readonly traceId: string;
         };
-        readonly cumulativeTokenCountCompletion: number | null;
-        readonly cumulativeTokenCountPrompt: number | null;
-        readonly cumulativeTokenCountTotal: number | null;
         readonly descendants: ReadonlyArray<{
           readonly context: {
             readonly spanId: string;
             readonly traceId: string;
           };
-          readonly cumulativeTokenCountCompletion: number | null;
-          readonly cumulativeTokenCountPrompt: number | null;
-          readonly cumulativeTokenCountTotal: number | null;
           readonly input: {
             readonly value: string;
           } | null;
@@ -43,6 +37,9 @@ export type TracesTable_spans$data = {
           readonly spanKind: SpanKind;
           readonly startTime: string;
           readonly statusCode: SpanStatusCode;
+          readonly tokenCountCompletion: number | null;
+          readonly tokenCountPrompt: number | null;
+          readonly tokenCountTotal: number | null;
         }>;
         readonly input: {
           readonly value: string;
@@ -56,6 +53,9 @@ export type TracesTable_spans$data = {
         readonly spanKind: SpanKind;
         readonly startTime: string;
         readonly statusCode: SpanStatusCode;
+        readonly tokenCountCompletion: number | null;
+        readonly tokenCountPrompt: number | null;
+        readonly tokenCountTotal: number | null;
       };
     }>;
   };
@@ -263,21 +263,21 @@ return {
                 (v4/*: any*/),
                 (v5/*: any*/),
                 {
-                  "alias": null,
+                  "alias": "tokenCountTotal",
                   "args": null,
                   "kind": "ScalarField",
                   "name": "cumulativeTokenCountTotal",
                   "storageKey": null
                 },
                 {
-                  "alias": null,
+                  "alias": "tokenCountPrompt",
                   "args": null,
                   "kind": "ScalarField",
                   "name": "cumulativeTokenCountPrompt",
                   "storageKey": null
                 },
                 {
-                  "alias": null,
+                  "alias": "tokenCountCompletion",
                   "args": null,
                   "kind": "ScalarField",
                   "name": "cumulativeTokenCountCompletion",
@@ -302,21 +302,21 @@ return {
                     (v5/*: any*/),
                     (v6/*: any*/),
                     {
-                      "alias": "cumulativeTokenCountTotal",
+                      "alias": null,
                       "args": null,
                       "kind": "ScalarField",
                       "name": "tokenCountTotal",
                       "storageKey": null
                     },
                     {
-                      "alias": "cumulativeTokenCountPrompt",
+                      "alias": null,
                       "args": null,
                       "kind": "ScalarField",
                       "name": "tokenCountPrompt",
                       "storageKey": null
                     },
                     {
-                      "alias": "cumulativeTokenCountCompletion",
+                      "alias": null,
                       "args": null,
                       "kind": "ScalarField",
                       "name": "tokenCountCompletion",
@@ -393,6 +393,6 @@ return {
 };
 })();
 
-(node as any).hash = "db7fc63729aa46c828716aef5c7e9693";
+(node as any).hash = "bef7f02af9f00db54d9294f27ee3c302";
 
 export default node;

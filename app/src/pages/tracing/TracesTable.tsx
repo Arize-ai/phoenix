@@ -120,9 +120,9 @@ export function TracesTable(props: TracesTableProps) {
                 statusCode
                 startTime
                 latencyMs
-                cumulativeTokenCountTotal
-                cumulativeTokenCountPrompt
-                cumulativeTokenCountCompletion
+                tokenCountTotal: cumulativeTokenCountTotal
+                tokenCountPrompt: cumulativeTokenCountPrompt
+                tokenCountCompletion: cumulativeTokenCountCompletion
                 parentId
                 input {
                   value
@@ -141,9 +141,9 @@ export function TracesTable(props: TracesTableProps) {
                   startTime
                   latencyMs
                   parentId
-                  cumulativeTokenCountTotal: tokenCountTotal # this switcheroo is to allow descendant Rows to unfurl in the same Table while displaying a different value under the same Column
-                  cumulativeTokenCountPrompt: tokenCountPrompt
-                  cumulativeTokenCountCompletion: tokenCountCompletion
+                  tokenCountTotal
+                  tokenCountPrompt
+                  tokenCountCompletion
                   input {
                     value
                   }
@@ -261,7 +261,7 @@ export function TracesTable(props: TracesTableProps) {
     },
     {
       header: "total tokens",
-      accessorKey: "cumulativeTokenCountTotal",
+      accessorKey: "tokenCountTotal",
       cell: ({ row, getValue }) => {
         const value = getValue();
         if (value === null) {
@@ -270,10 +270,8 @@ export function TracesTable(props: TracesTableProps) {
         return (
           <TokenCount
             tokenCountTotal={value as number}
-            tokenCountPrompt={row.original.cumulativeTokenCountPrompt || 0}
-            tokenCountCompletion={
-              row.original.cumulativeTokenCountCompletion || 0
-            }
+            tokenCountPrompt={row.original.tokenCountPrompt || 0}
+            tokenCountCompletion={row.original.tokenCountCompletion || 0}
           />
         );
       },
