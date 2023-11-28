@@ -14,7 +14,6 @@ import {
   getSortedRowModel,
   SortingState,
   useReactTable,
-  VisibilityState,
 } from "@tanstack/react-table";
 import { css } from "@emotion/react";
 
