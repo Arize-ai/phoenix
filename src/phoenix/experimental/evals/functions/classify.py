@@ -122,10 +122,9 @@ class AsyncExecutor:
     ) -> None:
         termination_signal_task = None
         while True:
-            item_taken = False
+            marked_done = False
             try:
                 item = await asyncio.wait_for(queue.get(), timeout=1)
-                item_taken = True
             except asyncio.TimeoutError:
                 if done_producing.is_set() and queue.empty():
                     break
@@ -133,6 +132,7 @@ class AsyncExecutor:
             if self._TERMINATE.is_set():
                 # discard any remaining items in the queue
                 queue.task_done()
+                marked_done = True
                 continue
 
             index, payload = item
@@ -158,18 +158,19 @@ class AsyncExecutor:
                             # Handle the cancellation exception
                             pass
                     queue.task_done()
+                    marked_done = True
                     continue
                 else:
                     tqdm.write(f"Worker timeout, requeuing: {payload}")
                     await queue.put(item)
             except Exception:
-                tqdm.write(f"Except ion in worker: {traceback.format_exc()}")
+                tqdm.write(f"Exception in worker: {traceback.format_exc()}")
                 if self.exit_on_error:
                     self._TERMINATE.set()
                 else:
                     progress_bar.update()
             finally:
-                if item_taken:
+                if not marked_done:
                     queue.task_done()
                 if termination_signal_task and not termination_signal_task.done():
                     termination_signal_task.cancel()
