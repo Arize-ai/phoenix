@@ -8,11 +8,11 @@ import "google/protobuf/wrappers.proto";
 message Span {
   google.protobuf.Struct attributes = 1;
   message Context {
-    bytes trace_id = 1;
-    bytes span_id = 2;
+    string trace_id = 1;
+    string span_id = 2;
   }
   Context context = 2;
-  google.protobuf.BytesValue parent_span_id = 3;
+  google.protobuf.StringValue parent_span_id = 3;
   string name = 4;
   google.protobuf.Timestamp start_time = 5;
   google.protobuf.Timestamp end_time = 6;

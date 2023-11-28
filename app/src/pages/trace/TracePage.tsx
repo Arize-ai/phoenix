@@ -41,6 +41,7 @@ import { SpanItem } from "@phoenix/components/trace/SpanItem";
 import { SpanKindIcon } from "@phoenix/components/trace/SpanKindIcon";
 import { TraceTree } from "@phoenix/components/trace/TraceTree";
 import { useTheme } from "@phoenix/contexts";
+import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 import {
   DOCUMENT_CONTENT,
   DOCUMENT_ID,
@@ -74,6 +75,7 @@ import {
   TracePageQuery,
   TracePageQuery$data,
 } from "./__generated__/TracePageQuery.graphql";
+import { SpanEvaluationsTable } from "./SpanEvaluationsTable";
 
 type Span = TracePageQuery$data["spans"]["edges"][number]["span"];
 /**
@@ -161,6 +163,12 @@ export function TracePage() {
                 message
                 timestamp
               }
+              spanEvaluations {
+                name
+                label
+                score
+              }
+              ...SpanEvaluationsTable_evals
             }
           }
         }
@@ -267,6 +275,7 @@ function SelectedSpanDetails({ selectedSpan }: { selectedSpan: Span }) {
   const hasExceptions = useMemo<boolean>(() => {
     return spanHasException(selectedSpan);
   }, [selectedSpan]);
+  const evalsEnabled = useFeatureFlag("evals");
   return (
     <Flex direction="column" flex="1 1 auto" height="100%">
       <View
@@ -281,6 +290,19 @@ function SelectedSpanDetails({ selectedSpan }: { selectedSpan: Span }) {
       <Tabs>
         <TabPane name={"Info"}>
           <SpanInfo span={selectedSpan} />
+        </TabPane>
+        <TabPane
+          name={"Evaluations"}
+          hidden={!evalsEnabled}
+          extra={
+            <Counter variant={"light"}>
+              {selectedSpan.spanEvaluations.length}
+            </Counter>
+          }
+        >
+          {(selected) => {
+            return selected ? <SpanEvaluations span={selectedSpan} /> : null;
+          }}
         </TabPane>
         <TabPane name={"Attributes"} title="Attributes">
           <View padding="size-200">
@@ -444,8 +466,16 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
 
   return (
     <Flex direction="column" gap="size-200">
-      {/* @ts-expect-error force putting the title in as a string */}
-      <TabbedCard {...defaultCardProps} title={modelNameTitleEl}>
+      <TabbedCard
+        backgroundColor="light"
+        borderColor="light"
+        bodyStyle={{
+          padding: 0,
+        }}
+        variant="compact"
+        // @ts-expect-error force putting the title in as a string
+        title={modelNameTitleEl}
+      >
         <Tabs>
           {hasInputMessages ? (
             <TabPane name="Input Messages" hidden={!hasInputMessages}>
@@ -1190,4 +1220,8 @@ function SpanEventsList({ events }: { events: Span["events"] }) {
       })}
     </List>
   );
+}
+
+function SpanEvaluations(props: { span: Span }) {
+  return <SpanEvaluationsTable span={props.span} />;
 }

@@ -2,9 +2,11 @@ import asyncio
 import time
 from functools import wraps
 from math import exp
-from typing import Any, Callable, Coroutine, Type, TypeVar
+from typing import Any, Callable, Coroutine, Optional, Tuple, Type, TypeVar
 
 from typing_extensions import ParamSpec
+
+from phoenix.utilities.logging import printif
 
 ParameterSpec = ParamSpec("ParameterSpec")
 GenericType = TypeVar("GenericType")
@@ -59,13 +61,22 @@ class AdaptiveTokenBucket:
         self.rate = min(self.rate, self.maximum_rate)
         self.last_rate_update = time.time()
 
-    def on_rate_limit_error(self, request_start_time: float) -> None:
+    def on_rate_limit_error(self, request_start_time: float, verbose: bool = False) -> None:
         now = time.time()
         if self.cooldown > abs(request_start_time - self.last_error):
             # do not reduce the rate for concurrent requests
             return
-        self.rate *= self.rate_reduction_factor
-        print(f"Reducing rate to {self.rate} after rate limit error")
+
+        original_rate = self.rate
+
+        # the enforced rate is too high, infer an effective rate instead
+        requests_handled = self.max_tokens() - self.available_requests()
+        effective_rate = requests_handled / self.enforcement_window
+
+        self.rate = effective_rate * self.rate_reduction_factor
+        printif(
+            verbose, f"Reducing rate from {original_rate} to {self.rate} after rate limit error"
+        )
 
         # the enforcement window determines the minimum rate
         self.rate = max(self.rate, 1 / self.enforcement_window)
@@ -121,19 +132,26 @@ class AdaptiveTokenBucket:
                 continue
 
 
+class RateLimitError(BaseException):
+    ...
+
+
 class RateLimiter:
     def __init__(
         self,
-        rate_limit_error: Type[BaseException],
-        max_rate_limit_retries: int = 10,
+        rate_limit_error: Optional[Type[BaseException]] = None,
+        max_rate_limit_retries: int = 3,
         initial_per_second_request_rate: float = 1,
         maximum_per_second_request_rate: float = 50,
         enforcement_window_minutes: float = 1,
         rate_reduction_factor: float = 0.5,
         rate_increase_factor: float = 0.01,
         cooldown_seconds: float = 5,
+        verbose: bool = False,
     ) -> None:
-        self._rate_limit_error = rate_limit_error
+        self._rate_limit_error: Tuple[Type[BaseException], ...]
+        self._rate_limit_error = (rate_limit_error,) if rate_limit_error is not None else tuple()
+
         self._max_rate_limit_retries = max_rate_limit_retries
         self._throttler = AdaptiveTokenBucket(
             initial_per_second_request_rate=initial_per_second_request_rate,
@@ -146,6 +164,7 @@ class RateLimiter:
         self._rate_limit_handling = asyncio.Event()
         self._rate_limit_handling.set()  # allow requests to start immediately
         self._rate_limit_handling_lock = asyncio.Lock()
+        self._verbose = verbose
 
     def limit(
         self, fn: Callable[ParameterSpec, GenericType]
@@ -157,16 +176,18 @@ class RateLimiter:
                 request_start_time = time.time()
                 return fn(*args, **kwargs)
             except self._rate_limit_error:
-                self._throttler.on_rate_limit_error(request_start_time)
+                self._throttler.on_rate_limit_error(request_start_time, verbose=self._verbose)
                 for _attempt in range(self._max_rate_limit_retries):
                     try:
                         request_start_time = time.time()
                         self._throttler.wait_until_ready()
                         return fn(*args, **kwargs)
                     except self._rate_limit_error:
-                        self._throttler.on_rate_limit_error(request_start_time)
+                        self._throttler.on_rate_limit_error(
+                            request_start_time, verbose=self._verbose
+                        )
                         continue
-            raise self._rate_limit_error("Exceeded max retries")
+            raise RateLimitError(f"Exceeded max ({self._max_rate_limit_retries}) retries")
 
         return wrapper
 
@@ -183,7 +204,7 @@ class RateLimiter:
             except self._rate_limit_error:
                 async with self._rate_limit_handling_lock:
                     self._rate_limit_handling.clear()  # prevent new requests from starting
-                    self._throttler.on_rate_limit_error(request_start_time)
+                    self._throttler.on_rate_limit_error(request_start_time, verbose=self._verbose)
                     try:
                         for _attempt in range(self._max_rate_limit_retries):
                             try:
@@ -191,10 +212,12 @@ class RateLimiter:
                                 self._throttler.wait_until_ready()
                                 return await fn(*args, **kwargs)
                             except self._rate_limit_error:
-                                self._throttler.on_rate_limit_error(request_start_time)
+                                self._throttler.on_rate_limit_error(
+                                    request_start_time, verbose=self._verbose
+                                )
                                 continue
                     finally:
                         self._rate_limit_handling.set()  # allow new requests to start
-            raise self._rate_limit_error(f"Exceeded max ({self._max_rate_limit_retries}) retries")
+            raise RateLimitError(f"Exceeded max ({self._max_rate_limit_retries}) retries")
 
         return wrapper
