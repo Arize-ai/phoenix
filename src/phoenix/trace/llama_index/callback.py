@@ -518,13 +518,13 @@ def _get_span_exceptions(event_data: CBEventData, start_time: datetime) -> Seque
         if event is None:
             continue
         if payload := event.payload:
-            if exception := payload.get(EventPayload.EXCEPTION):
+            if error := payload.get(EventPayload.EXCEPTION):
                 span_exceptions.append(
                     SpanException(
-                        message=str(exception),
+                        message=str(error),
                         timestamp=start_time,
-                        exception_type=type(exception).__name__,
-                        exception_stacktrace=get_stacktrace(exception),
+                        exception_type=type(error).__name__,
+                        exception_stacktrace=get_stacktrace(error),
                     )
                 )
     return span_exceptions
