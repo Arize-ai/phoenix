@@ -196,7 +196,7 @@ export function TracesTable(props: TracesTableProps) {
 
       cell: ({ row }) => {
         return (
-          <Flex direction="row" gap="size-50">
+          <Flex direction="row" gap="size-50" wrap="wrap">
             {row.original.spanEvaluations.map((evaluation) => {
               return (
                 <EvaluationLabel
