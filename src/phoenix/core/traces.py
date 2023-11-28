@@ -9,7 +9,6 @@ from typing import (
     Any,
     DefaultDict,
     Dict,
-    Iterable,
     Iterator,
     List,
     Optional,
@@ -110,12 +109,10 @@ ChildSpanID: TypeAlias = SpanID
 
 
 class Traces:
-    def __init__(self, spans: Optional[Iterable[Span]] = None) -> None:
+    def __init__(self) -> None:
         self._queue: "SimpleQueue[Optional[pb.Span]]" = SimpleQueue()
         # Putting `None` as the sentinel value for queue termination.
         weakref.finalize(self, self._queue.put, END_OF_QUEUE)
-        for span in spans or ():
-            self.put(span)
         self._lock = RLock()
         self._spans: Dict[SpanID, ReadableSpan] = {}
         self._parent_span_ids: Dict[SpanID, ParentSpanID] = {}
@@ -134,6 +131,7 @@ class Traces:
         self._root_span_latency_ms_sketch = DDSketch()
         self._min_start_time: Optional[datetime] = None
         self._max_start_time: Optional[datetime] = None
+        self._token_count_total: int = 0
         self._start_consumer()
 
     def put(self, span: Optional[Union[Span, pb.Span]] = None) -> None:
@@ -200,10 +198,7 @@ class Traces:
 
     @property
     def token_count_total(self) -> int:
-        count = 0
-        for span in self._spans.values():
-            count += span[LLM_TOKEN_COUNT_TOTAL] or 0
-        return count
+        return self._token_count_total
 
     @property
     def right_open_time_range(self) -> Tuple[Optional[datetime], Optional[datetime]]:
@@ -294,8 +289,12 @@ class Traces:
                 cumulative_attribute_name,
                 difference,
             )
+        # Update token count total
+        if existing_span:
+            self._token_count_total -= existing_span[LLM_TOKEN_COUNT_TOTAL] or 0
+        self._token_count_total += new_span[LLM_TOKEN_COUNT_TOTAL] or 0
         # Process previously orphaned spans, if any.
-        for orphan_span in self._orphan_spans[span_id]:
+        for orphan_span in self._orphan_spans.pop(span_id, ()):
             self._process_span(orphan_span)
 
     def _add_value_to_span_ancestors(
