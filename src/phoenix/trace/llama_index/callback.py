@@ -23,7 +23,6 @@ from typing import (
     List,
     Mapping,
     Optional,
-    Sequence,
     Tuple,
     Union,
     cast,
@@ -511,7 +510,7 @@ def _get_end_time(event_data: CBEventData, span_events: Iterable[SpanEvent]) -> 
     return _tz_naive_to_tz_aware_datetime(tz_naive_end_time)
 
 
-def _get_span_exceptions(event_data: CBEventData, start_time: datetime) -> Sequence[SpanException]:
+def _get_span_exceptions(event_data: CBEventData, start_time: datetime) -> List[SpanException]:
     """Collects exceptions from the start and end events, if present."""
     span_exceptions = []
     for event in [event_data.start_event, event_data.end_event]:
