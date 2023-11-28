@@ -494,7 +494,7 @@ def _get_response_output(response: Any) -> Iterator[Tuple[str, Any]]:
         yield OUTPUT_MIME_TYPE, MimeType.TEXT
 
 
-def _get_end_time(event_data: CBEventData, span_events: Sequence[SpanEvent]) -> Optional[datetime]:
+def _get_end_time(event_data: CBEventData, span_events: Iterable[SpanEvent]) -> Optional[datetime]:
     """
     A best-effort attempt to get the end time of an event.
 
