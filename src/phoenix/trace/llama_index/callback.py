@@ -515,18 +515,15 @@ def _get_span_exceptions(event_data: CBEventData, start_time: datetime) -> Seque
     """Collects exceptions from the start and end events, if present."""
     span_exceptions = []
     for event in [event_data.start_event, event_data.end_event]:
-        if event is None:
-            continue
-        if payload := event.payload:
-            if error := payload.get(EventPayload.EXCEPTION):
-                span_exceptions.append(
-                    SpanException(
-                        message=str(error),
-                        timestamp=start_time,
-                        exception_type=type(error).__name__,
-                        exception_stacktrace=get_stacktrace(error),
-                    )
+        if event and (payload := event.payload) and (error := payload.get(EventPayload.EXCEPTION)):
+            span_exceptions.append(
+                SpanException(
+                    message=str(error),
+                    timestamp=start_time,
+                    exception_type=type(error).__name__,
+                    exception_stacktrace=get_stacktrace(error),
                 )
+            )
     return span_exceptions
 
 
