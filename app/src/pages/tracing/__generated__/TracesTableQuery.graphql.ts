@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f9d935ea7cb77af36b7d79cd362a6156>>
+ * @generated SignedSource<<2507121f766268f49695513214409e97>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -111,7 +111,7 @@ v8 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "cumulativeStatusCode",
+  "name": "propagatedStatusCode",
   "storageKey": null
 },
 v9 = {
@@ -414,16 +414,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "42196b086fca0668772477d273b3e3e1",
+    "cacheID": "dcf81a363fce26c47a986e77c6d53cc2",
     "id": null,
     "metadata": {},
     "name": "TracesTableQuery",
     "operationKind": "query",
-    "text": "query TracesTableQuery(\n  $after: String = null\n  $filterCondition: String = null\n  $first: Int = 100\n  $sort: SpanSort = {col: startTime, dir: desc}\n) {\n  ...TracesTable_spans_1XEuU\n}\n\nfragment TracesTable_spans_1XEuU on Query {\n  rootSpans: spans(first: $first, after: $after, sort: $sort, rootSpansOnly: true, filterCondition: $filterCondition) {\n    edges {\n      rootSpan: node {\n        spanKind\n        name\n        cumulativeStatusCode\n        startTime\n        latencyMs\n        tokenCountTotal: cumulativeTokenCountTotal\n        tokenCountPrompt: cumulativeTokenCountPrompt\n        tokenCountCompletion: cumulativeTokenCountCompletion\n        parentId\n        input {\n          value\n        }\n        output {\n          value\n        }\n        context {\n          spanId\n          traceId\n        }\n        spanEvaluations {\n          name\n          label\n          score\n        }\n        descendants {\n          spanKind\n          name\n          cumulativeStatusCode\n          startTime\n          latencyMs\n          parentId\n          tokenCountTotal\n          tokenCountPrompt\n          tokenCountCompletion\n          input {\n            value\n          }\n          output {\n            value\n          }\n          context {\n            spanId\n            traceId\n          }\n          spanEvaluations {\n            name\n            label\n            score\n          }\n        }\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query TracesTableQuery(\n  $after: String = null\n  $filterCondition: String = null\n  $first: Int = 100\n  $sort: SpanSort = {col: startTime, dir: desc}\n) {\n  ...TracesTable_spans_1XEuU\n}\n\nfragment TracesTable_spans_1XEuU on Query {\n  rootSpans: spans(first: $first, after: $after, sort: $sort, rootSpansOnly: true, filterCondition: $filterCondition) {\n    edges {\n      rootSpan: node {\n        spanKind\n        name\n        propagatedStatusCode\n        startTime\n        latencyMs\n        tokenCountTotal: cumulativeTokenCountTotal\n        tokenCountPrompt: cumulativeTokenCountPrompt\n        tokenCountCompletion: cumulativeTokenCountCompletion\n        parentId\n        input {\n          value\n        }\n        output {\n          value\n        }\n        context {\n          spanId\n          traceId\n        }\n        spanEvaluations {\n          name\n          label\n          score\n        }\n        descendants {\n          spanKind\n          name\n          propagatedStatusCode\n          startTime\n          latencyMs\n          parentId\n          tokenCountTotal\n          tokenCountPrompt\n          tokenCountCompletion\n          input {\n            value\n          }\n          output {\n            value\n          }\n          context {\n            spanId\n            traceId\n          }\n          spanEvaluations {\n            name\n            label\n            score\n          }\n        }\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "66f01beea56ab17a1d8aa18b64aecb61";
+(node as any).hash = "4c4de0eca3956e201f285c522b58d08c";
 
 export default node;

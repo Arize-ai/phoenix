@@ -584,9 +584,9 @@ type Span {
   cumulativeTokenCountCompletion: Int
 
   """
-  Cumulative status code that percolates up error status codes from descendant spans (children, grandchildren, etc.)
+  Propagated status code that percolates up error status codes from descendant spans (children, grandchildren, etc.)
   """
-  cumulativeStatusCode: SpanStatusCode!
+  propagatedStatusCode: SpanStatusCode!
 
   """
   Evaluations associated with the span, e.g. if the span is an LLM, an evaluation may assess the helpfulness of its response with respect to its input.

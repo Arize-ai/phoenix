@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<bf162e8a189a540cc620e5ee7cd7f8f5>>
+ * @generated SignedSource<<2fa5536d107276b49b6451b0785142dc>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -20,13 +20,11 @@ export type TracesTable_spans$data = {
           readonly spanId: string;
           readonly traceId: string;
         };
-        readonly cumulativeStatusCode: SpanStatusCode;
         readonly descendants: ReadonlyArray<{
           readonly context: {
             readonly spanId: string;
             readonly traceId: string;
           };
-          readonly cumulativeStatusCode: SpanStatusCode;
           readonly input: {
             readonly value: string;
           } | null;
@@ -36,6 +34,7 @@ export type TracesTable_spans$data = {
             readonly value: string;
           } | null;
           readonly parentId: string | null;
+          readonly propagatedStatusCode: SpanStatusCode;
           readonly spanEvaluations: ReadonlyArray<{
             readonly label: string | null;
             readonly name: string;
@@ -56,6 +55,7 @@ export type TracesTable_spans$data = {
           readonly value: string;
         } | null;
         readonly parentId: string | null;
+        readonly propagatedStatusCode: SpanStatusCode;
         readonly spanEvaluations: ReadonlyArray<{
           readonly label: string | null;
           readonly name: string;
@@ -98,7 +98,7 @@ v3 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "cumulativeStatusCode",
+  "name": "propagatedStatusCode",
   "storageKey": null
 },
 v4 = {
@@ -431,6 +431,6 @@ return {
 };
 })();
 
-(node as any).hash = "66f01beea56ab17a1d8aa18b64aecb61";
+(node as any).hash = "4c4de0eca3956e201f285c522b58d08c";
 
 export default node;

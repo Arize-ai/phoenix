@@ -119,7 +119,7 @@ export function TracesTable(props: TracesTableProps) {
               rootSpan: node {
                 spanKind
                 name
-                cumulativeStatusCode
+                propagatedStatusCode
                 startTime
                 latencyMs
                 tokenCountTotal: cumulativeTokenCountTotal
@@ -144,7 +144,7 @@ export function TracesTable(props: TracesTableProps) {
                 descendants {
                   spanKind
                   name
-                  cumulativeStatusCode
+                  propagatedStatusCode
                   startTime
                   latencyMs
                   parentId
@@ -314,7 +314,7 @@ export function TracesTable(props: TracesTableProps) {
     },
     {
       header: "status",
-      accessorKey: "cumulativeStatusCode",
+      accessorKey: "propagatedStatusCode",
       enableSorting: false,
       cell: ({ getValue }) => {
         return <SpanStatusCodeIcon statusCode={getValue() as SpanStatusCode} />;

@@ -62,7 +62,7 @@ class ComputedAttributes(Enum):
     CUMULATIVE_LLM_TOKEN_COUNT_TOTAL = COMPUTED_PREFIX + "cumulative_token_count.total"
     CUMULATIVE_LLM_TOKEN_COUNT_PROMPT = COMPUTED_PREFIX + "cumulative_token_count.prompt"
     CUMULATIVE_LLM_TOKEN_COUNT_COMPLETION = COMPUTED_PREFIX + "cumulative_token_count.completion"
-    CUMULATIVE_STATUS_CODE = COMPUTED_PREFIX + "cumulative_status_code"
+    PROPAGATED_STATUS_CODE = COMPUTED_PREFIX + "propagated_status_code"
 
 
 class ReadableSpan(ObjectProxy):  # type: ignore
@@ -310,7 +310,7 @@ class Traces:
             status_code = SpanStatusCode.ERROR
         elif new_pb_status_code == pb.Span.Status.Code.OK:
             status_code = SpanStatusCode.OK
-        self._spans[span_id][ComputedAttributes.CUMULATIVE_STATUS_CODE.value] = status_code
+        self._spans[span_id][ComputedAttributes.PROPAGATED_STATUS_CODE.value] = status_code
         if span_contains_error:
             self._add_error_status_code_to_span_ancestors(span_id)
 
@@ -336,5 +336,5 @@ class Traces:
     ) -> None:
         while parent_span_id := self._parent_span_ids.get(span_id):
             parent_span = self._spans[parent_span_id]
-            parent_span[ComputedAttributes.CUMULATIVE_STATUS_CODE.value] = SpanStatusCode.ERROR
+            parent_span[ComputedAttributes.PROPAGATED_STATUS_CODE.value] = SpanStatusCode.ERROR
             span_id = parent_span_id

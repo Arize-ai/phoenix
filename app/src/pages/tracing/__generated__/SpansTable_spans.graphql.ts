@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<dc5887c835e5eaf8ea06f65f208e2f29>>
+ * @generated SignedSource<<fbe7a8a8106f7b312f7f3d4e6d44a1df>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -21,7 +21,6 @@ export type SpansTable_spans$data = {
           readonly spanId: string;
           readonly traceId: string;
         };
-        readonly cumulativeStatusCode: SpanStatusCode;
         readonly input: {
           readonly mimeType: MimeType;
           readonly value: string;
@@ -32,6 +31,7 @@ export type SpansTable_spans$data = {
           readonly mimeType: MimeType;
           readonly value: string;
         } | null;
+        readonly propagatedStatusCode: SpanStatusCode;
         readonly spanEvaluations: ReadonlyArray<{
           readonly label: string | null;
           readonly name: string;
@@ -177,7 +177,7 @@ return {
                   "alias": null,
                   "args": null,
                   "kind": "ScalarField",
-                  "name": "cumulativeStatusCode",
+                  "name": "propagatedStatusCode",
                   "storageKey": null
                 },
                 {
@@ -351,6 +351,6 @@ return {
 };
 })();
 
-(node as any).hash = "c863f1914f1928bdf99a3cedba31693b";
+(node as any).hash = "fb777548b52d6ee68d2ad1bdd28e107f";
 
 export default node;
