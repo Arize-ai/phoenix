@@ -119,7 +119,7 @@ export function TracesTable(props: TracesTableProps) {
               rootSpan: node {
                 spanKind
                 name
-                statusCode
+                statusCode: cumulativeStatusCode
                 startTime
                 latencyMs
                 tokenCountTotal: cumulativeTokenCountTotal
