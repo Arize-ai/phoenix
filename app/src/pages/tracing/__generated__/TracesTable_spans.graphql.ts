@@ -1,5 +1,9 @@
 /**
+<<<<<<< Updated upstream
  * @generated SignedSource<<25f062cc55729b3b589d3bacc74dfe3c>>
+=======
+ * @generated SignedSource<<710a65481c28bd5d129a9d431eb5714b>>
+>>>>>>> Stashed changes
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -62,7 +66,7 @@ export type TracesTable_spans$data = {
         }>;
         readonly spanKind: SpanKind;
         readonly startTime: string;
-        readonly statusCode: SpanStatusCode;
+        readonly statusCode: string | null;
         readonly tokenCountCompletion: number | null;
         readonly tokenCountPrompt: number | null;
         readonly tokenCountTotal: number | null;
@@ -98,31 +102,24 @@ v3 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "statusCode",
+  "name": "startTime",
   "storageKey": null
 },
 v4 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "startTime",
+  "name": "latencyMs",
   "storageKey": null
 },
 v5 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "latencyMs",
-  "storageKey": null
-},
-v6 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
   "name": "parentId",
   "storageKey": null
 },
-v7 = [
+v6 = [
   {
     "alias": null,
     "args": null,
@@ -131,27 +128,27 @@ v7 = [
     "storageKey": null
   }
 ],
-v8 = {
+v7 = {
   "alias": null,
   "args": null,
   "concreteType": "SpanIOValue",
   "kind": "LinkedField",
   "name": "input",
   "plural": false,
-  "selections": (v7/*: any*/),
+  "selections": (v6/*: any*/),
   "storageKey": null
 },
-v9 = {
+v8 = {
   "alias": null,
   "args": null,
   "concreteType": "SpanIOValue",
   "kind": "LinkedField",
   "name": "output",
   "plural": false,
-  "selections": (v7/*: any*/),
+  "selections": (v6/*: any*/),
   "storageKey": null
 },
-v10 = {
+v9 = {
   "alias": null,
   "args": null,
   "concreteType": "SpanContext",
@@ -295,9 +292,15 @@ return {
               "selections": [
                 (v1/*: any*/),
                 (v2/*: any*/),
+                {
+                  "alias": "statusCode",
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "cumulativeStatusCode",
+                  "storageKey": null
+                },
                 (v3/*: any*/),
                 (v4/*: any*/),
-                (v5/*: any*/),
                 {
                   "alias": "tokenCountTotal",
                   "args": null,
@@ -319,11 +322,15 @@ return {
                   "name": "cumulativeTokenCountCompletion",
                   "storageKey": null
                 },
-                (v6/*: any*/),
+                (v5/*: any*/),
+                (v7/*: any*/),
                 (v8/*: any*/),
                 (v9/*: any*/),
+<<<<<<< Updated upstream
                 (v10/*: any*/),
                 (v11/*: any*/),
+=======
+>>>>>>> Stashed changes
                 {
                   "alias": null,
                   "args": null,
@@ -334,10 +341,16 @@ return {
                   "selections": [
                     (v1/*: any*/),
                     (v2/*: any*/),
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "statusCode",
+                      "storageKey": null
+                    },
                     (v3/*: any*/),
                     (v4/*: any*/),
                     (v5/*: any*/),
-                    (v6/*: any*/),
                     {
                       "alias": null,
                       "args": null,
@@ -359,10 +372,15 @@ return {
                       "name": "tokenCountCompletion",
                       "storageKey": null
                     },
+                    (v7/*: any*/),
                     (v8/*: any*/),
+<<<<<<< Updated upstream
                     (v9/*: any*/),
                     (v10/*: any*/),
                     (v11/*: any*/)
+=======
+                    (v9/*: any*/)
+>>>>>>> Stashed changes
                   ],
                   "storageKey": null
                 }
@@ -431,6 +449,10 @@ return {
 };
 })();
 
+<<<<<<< Updated upstream
 (node as any).hash = "601519f525b82c387835d8876bc3eab9";
+=======
+(node as any).hash = "a555ca43588dafbbeb4cdaf92938e73e";
+>>>>>>> Stashed changes
 
 export default node;
