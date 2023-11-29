@@ -298,9 +298,20 @@ class Traces:
             )
 
         # Percolate up error status codes.
-        existing_value = existing_span.status.code if existing_span else SpanStatusCode.UNSET
-        new_value = new_span.status.code if new_span else SpanStatusCode.UNSET
-        if pb.Span.Status.Code.ERROR in (existing_value, new_value):
+        existing_pb_status_code = (
+            existing_span.status.code if existing_span else SpanStatusCode.UNSET
+        )
+        new_pb_status_code = new_span.status.code if new_span else SpanStatusCode.UNSET
+        status_code = SpanStatusCode.UNSET
+        if span_contains_error := pb.Span.Status.Code.ERROR in (
+            existing_pb_status_code,
+            new_pb_status_code,
+        ):
+            status_code = SpanStatusCode.ERROR
+        elif new_pb_status_code == pb.Span.Status.Code.OK:
+            status_code = SpanStatusCode.OK
+        self._spans[span_id][ComputedAttributes.CUMULATIVE_STATUS_CODE.value] = status_code
+        if span_contains_error:
             self._add_error_status_code_to_span_ancestors(span_id)
 
         # Process previously orphaned spans, if any.

@@ -143,7 +143,7 @@ export function TracePage() {
               }
               name
               spanKind
-              statusCode
+              cumulativeStatusCode
               startTime
               parentId
               latencyMs

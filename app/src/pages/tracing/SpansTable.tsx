@@ -86,7 +86,7 @@ export function SpansTable(props: SpansTableProps) {
               span: node {
                 spanKind
                 name
-                statusCode
+                cumulativeStatusCode
                 startTime
                 latencyMs
                 tokenCountTotal
@@ -216,7 +216,7 @@ export function SpansTable(props: SpansTableProps) {
     },
     {
       header: "status",
-      accessorKey: "statusCode",
+      accessorKey: "cumulativeStatusCode",
       enableSorting: false,
       cell: ({ getValue }) => {
         return <SpanStatusCodeIcon statusCode={getValue() as SpanStatusCode} />;

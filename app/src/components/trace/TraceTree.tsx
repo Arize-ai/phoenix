@@ -140,9 +140,9 @@ function SpanNodeWrap(props: PropsWithChildren<{ isSelected: boolean }>) {
  * The line that connects the parent node to the child node edge
  */
 function SpanTreeEdgeConnector({
-  statusCode,
+  cumulativeStatusCode,
 }: {
-  statusCode: SpanStatusCodeType;
+  cumulativeStatusCode: SpanStatusCodeType;
 }) {
   return (
     <div
@@ -151,7 +151,7 @@ function SpanTreeEdgeConnector({
       css={(theme) => css`
         position: absolute;
         border-left: 1px solid
-          ${statusCode === "ERROR"
+          ${cumulativeStatusCode === "ERROR"
             ? theme.colors.statusDanger
             : "rgb(204, 204, 204)"};
         top: 0;
@@ -163,13 +163,17 @@ function SpanTreeEdgeConnector({
   );
 }
 
-function SpanTreeEdge({ statusCode }: { statusCode: SpanStatusCodeType }) {
+function SpanTreeEdge({
+  cumulativeStatusCode,
+}: {
+  cumulativeStatusCode: SpanStatusCodeType;
+}) {
   return (
     <div
       aria-hidden="true"
       css={(theme) => {
         const color =
-          statusCode === "ERROR"
+          cumulativeStatusCode === "ERROR"
             ? theme.colors.statusDanger
             : "rgb(204, 204, 204)";
         return css`
