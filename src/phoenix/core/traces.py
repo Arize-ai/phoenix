@@ -310,7 +310,6 @@ class Traces:
                 cumulative_attribute_name,
                 difference,
             )
-
         # Process previously orphaned spans, if any.
         for orphan_span in self._orphan_spans[span_id]:
             self._process_span(orphan_span)
