@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<e4b2a9fe118abd85495f7fde93572dcc>>
+ * @generated SignedSource<<1eb72a3d680d71c670d7c4b1514ade00>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -24,6 +24,13 @@ export type TracePageQuery$data = {
         readonly context: {
           readonly spanId: string;
         };
+        readonly documentEvaluations: ReadonlyArray<{
+          readonly documentPosition: number;
+          readonly explanation: string | null;
+          readonly label: string | null;
+          readonly name: string;
+          readonly score: number | null;
+        }>;
         readonly events: ReadonlyArray<{
           readonly message: string;
           readonly name: string;
@@ -253,6 +260,35 @@ v18 = {
   "kind": "ScalarField",
   "name": "score",
   "storageKey": null
+},
+v19 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "explanation",
+  "storageKey": null
+},
+v20 = {
+  "alias": null,
+  "args": null,
+  "concreteType": "DocumentEvaluation",
+  "kind": "LinkedField",
+  "name": "documentEvaluations",
+  "plural": true,
+  "selections": [
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "documentPosition",
+      "storageKey": null
+    },
+    (v3/*: any*/),
+    (v17/*: any*/),
+    (v18/*: any*/),
+    (v19/*: any*/)
+  ],
+  "storageKey": null
 };
 return {
   "fragment": {
@@ -313,6 +349,7 @@ return {
                     ],
                     "storageKey": null
                   },
+                  (v20/*: any*/),
                   {
                     "args": null,
                     "kind": "FragmentSpread",
@@ -386,16 +423,11 @@ return {
                       (v3/*: any*/),
                       (v17/*: any*/),
                       (v18/*: any*/),
-                      {
-                        "alias": null,
-                        "args": null,
-                        "kind": "ScalarField",
-                        "name": "explanation",
-                        "storageKey": null
-                      }
+                      (v19/*: any*/)
                     ],
                     "storageKey": null
-                  }
+                  },
+                  (v20/*: any*/)
                 ],
                 "storageKey": null
               }
@@ -408,16 +440,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "00d106ddfcf092e5a79c907caff05b04",
+    "cacheID": "2712afb2c9e3f823ca772e8c26b7f83d",
     "id": null,
     "metadata": {},
     "name": "TracePageQuery",
     "operationKind": "query",
-    "text": "query TracePageQuery(\n  $traceId: ID!\n) {\n  spans(traceIds: [$traceId], sort: {col: startTime, dir: asc}) {\n    edges {\n      span: node {\n        context {\n          spanId\n        }\n        name\n        spanKind\n        statusCode\n        startTime\n        parentId\n        latencyMs\n        tokenCountTotal\n        tokenCountPrompt\n        tokenCountCompletion\n        input {\n          value\n          mimeType\n        }\n        output {\n          value\n          mimeType\n        }\n        attributes\n        events {\n          name\n          message\n          timestamp\n        }\n        spanEvaluations {\n          name\n          label\n          score\n        }\n        ...SpanEvaluationsTable_evals\n      }\n    }\n  }\n}\n\nfragment SpanEvaluationsTable_evals on Span {\n  spanEvaluations {\n    name\n    label\n    score\n    explanation\n  }\n}\n"
+    "text": "query TracePageQuery(\n  $traceId: ID!\n) {\n  spans(traceIds: [$traceId], sort: {col: startTime, dir: asc}) {\n    edges {\n      span: node {\n        context {\n          spanId\n        }\n        name\n        spanKind\n        statusCode\n        startTime\n        parentId\n        latencyMs\n        tokenCountTotal\n        tokenCountPrompt\n        tokenCountCompletion\n        input {\n          value\n          mimeType\n        }\n        output {\n          value\n          mimeType\n        }\n        attributes\n        events {\n          name\n          message\n          timestamp\n        }\n        spanEvaluations {\n          name\n          label\n          score\n        }\n        documentEvaluations {\n          documentPosition\n          name\n          label\n          score\n          explanation\n        }\n        ...SpanEvaluationsTable_evals\n      }\n    }\n  }\n}\n\nfragment SpanEvaluationsTable_evals on Span {\n  spanEvaluations {\n    name\n    label\n    score\n    explanation\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "6c94046f3119eccb8707de798c65200b";
+(node as any).hash = "fa1253d695252b087e84e1ea06055595";
 
 export default node;
