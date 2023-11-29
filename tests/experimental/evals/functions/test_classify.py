@@ -116,53 +116,6 @@ def test_llm_classify(
     monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
     dataframe = classification_dataframe
     keys = list(zip(dataframe["input"], dataframe["reference"]))
-<<<<<<< HEAD
-    responses = ["relevant", "irrelevant", "\nrelevant ", "unparsable"]
-    response_mapping = {key: response for key, response in zip(keys, responses)}
-
-    for (query, reference), response in response_mapping.items():
-        matcher = M(content__contains=query) & M(content__contains=reference)
-        payload = {
-            "choices": [
-                {
-                    "message": {
-                        "content": response,
-                    },
-                }
-            ],
-        }
-        respx_mock.route(matcher).mock(return_value=httpx.Response(200, json=payload))
-
-    with patch.object(OpenAIModel, "_init_tiktoken", return_value=None):
-        model = OpenAIModel()
-
-    result = llm_classify(
-        dataframe=dataframe,
-        template=RAG_RELEVANCY_PROMPT_TEMPLATE,
-        model=model,
-        rails=["relevant", "irrelevant"],
-        verbose=True,
-    )
-
-    expected_labels = ["relevant", "irrelevant", "relevant", NOT_PARSABLE]
-    assert result.iloc[:, 0].tolist() == expected_labels
-    assert_frame_equal(
-        result,
-        pd.DataFrame(
-            data={"label": expected_labels},
-        ),
-    )
-
-
-@pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
-def test_llm_classify_with_async(
-    classification_dataframe: DataFrame, monkeypatch: pytest.MonkeyPatch, respx_mock: respx.mock
-):
-    monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
-    dataframe = classification_dataframe
-    keys = list(zip(dataframe["input"], dataframe["reference"]))
-=======
->>>>>>> 8f8c03aa (fix classify tests)
     responses = ["relevant", "irrelevant", "\nrelevant ", "unparsable"]
     response_mapping = {key: response for key, response in zip(keys, responses)}
 
@@ -397,9 +350,6 @@ def test_llm_classify_shows_retry_info(
     assert "Failed attempt 1" in out, "Retry information should be printed"
     assert "Failed attempt 2" in out, "Retry information should be printed"
     assert "Failed attempt 3" in out, "Retry information should be printed"
-<<<<<<< HEAD
-    assert "Failed attempt 4" not in out, "Maximum retries should not be exceeded"
-=======
     assert "test api connection error" in out, "Retry information should be printed"
     assert "Failed attempt 4" in out, "Retry information should be printed"
     assert "test rate limit error" in out, "Retry information should be printed"
@@ -469,7 +419,6 @@ def test_llm_classify_does_not_persist_verbose_flag(monkeypatch: pytest.MonkeyPa
     out, _ = capfd.readouterr()
     assert "Failed attempt 1" not in out, "The `verbose` flag should not be persisted"
     assert "Request timed out" not in out, "The `verbose` flag should not be persisted"
->>>>>>> 8f8c03aa (fix classify tests)
 
 
 @pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
