@@ -7,6 +7,7 @@ from threading import RLock, Thread
 from types import MethodType
 from typing import (
     Any,
+    Callable,
     DefaultDict,
     Dict,
     Iterable,
@@ -34,10 +35,12 @@ from phoenix.trace.schemas import (
     Span,
     SpanAttributes,
     SpanID,
-    SpanStatusCode,
     TraceID,
 )
 from phoenix.trace.v1.utils import decode, encode
+
+ReadableSpanValueCounter = Callable[["ReadableSpan"], int]
+
 
 END_OF_QUEUE = None  # sentinel value for queue termination
 
@@ -62,7 +65,7 @@ class ComputedAttributes(Enum):
     CUMULATIVE_LLM_TOKEN_COUNT_TOTAL = COMPUTED_PREFIX + "cumulative_token_count.total"
     CUMULATIVE_LLM_TOKEN_COUNT_PROMPT = COMPUTED_PREFIX + "cumulative_token_count.prompt"
     CUMULATIVE_LLM_TOKEN_COUNT_COMPLETION = COMPUTED_PREFIX + "cumulative_token_count.completion"
-    PROPAGATED_STATUS_CODE = COMPUTED_PREFIX + "propagated_status_code"
+    CUMULATIVE_ERROR_COUNT = COMPUTED_PREFIX + "cumulative_error_count"
 
 
 class ReadableSpan(ObjectProxy):  # type: ignore
@@ -275,16 +278,27 @@ class Traces:
                 else max(self._max_start_time, start_time)
             )
         # Update cumulative values for span's ancestors.
-        for attribute_name, cumulative_attribute_name in (
-            (LLM_TOKEN_COUNT_TOTAL, ComputedAttributes.CUMULATIVE_LLM_TOKEN_COUNT_TOTAL.value),
-            (LLM_TOKEN_COUNT_PROMPT, ComputedAttributes.CUMULATIVE_LLM_TOKEN_COUNT_PROMPT.value),
+        counters_and_cumulative_attribute_names: List[Tuple[ReadableSpanValueCounter, str]] = [
             (
-                LLM_TOKEN_COUNT_COMPLETION,
+                lambda span: span[LLM_TOKEN_COUNT_TOTAL],
+                ComputedAttributes.CUMULATIVE_LLM_TOKEN_COUNT_TOTAL.value,
+            ),
+            (
+                lambda span: span[LLM_TOKEN_COUNT_PROMPT],
+                ComputedAttributes.CUMULATIVE_LLM_TOKEN_COUNT_PROMPT.value,
+            ),
+            (
+                lambda span: span[LLM_TOKEN_COUNT_COMPLETION],
                 ComputedAttributes.CUMULATIVE_LLM_TOKEN_COUNT_COMPLETION.value,
             ),
-        ):
-            existing_value = (existing_span[attribute_name] or 0) if existing_span else 0
-            new_value = new_span[attribute_name] or 0
+            (
+                lambda span: int(span.status.code == pb.Span.Status.Code.ERROR),
+                ComputedAttributes.CUMULATIVE_ERROR_COUNT.value,
+            ),
+        ]
+        for get_value_count, cumulative_attribute_name in counters_and_cumulative_attribute_names:
+            existing_value = (get_value_count(existing_span) or 0) if existing_span else 0
+            new_value = get_value_count(new_span) or 0
             if not (difference := new_value - existing_value):
                 continue
             existing_cumulative_value = (
@@ -296,23 +310,6 @@ class Traces:
                 cumulative_attribute_name,
                 difference,
             )
-
-        # Percolate up error status codes.
-        existing_pb_status_code = (
-            existing_span.status.code if existing_span else SpanStatusCode.UNSET
-        )
-        new_pb_status_code = new_span.status.code if new_span else SpanStatusCode.UNSET
-        status_code = SpanStatusCode.UNSET
-        if span_contains_error := pb.Span.Status.Code.ERROR in (
-            existing_pb_status_code,
-            new_pb_status_code,
-        ):
-            status_code = SpanStatusCode.ERROR
-        elif new_pb_status_code == pb.Span.Status.Code.OK:
-            status_code = SpanStatusCode.OK
-        self._spans[span_id][ComputedAttributes.PROPAGATED_STATUS_CODE.value] = status_code
-        if span_contains_error:
-            self._add_error_status_code_to_span_ancestors(span_id)
 
         # Process previously orphaned spans, if any.
         for orphan_span in self._orphan_spans[span_id]:
@@ -328,13 +325,4 @@ class Traces:
             parent_span = self._spans[parent_span_id]
             cumulative_value = parent_span[attribute_name] or 0
             parent_span[attribute_name] = cumulative_value + value
-            span_id = parent_span_id
-
-    def _add_error_status_code_to_span_ancestors(
-        self,
-        span_id: SpanID,
-    ) -> None:
-        while parent_span_id := self._parent_span_ids.get(span_id):
-            parent_span = self._spans[parent_span_id]
-            parent_span[ComputedAttributes.PROPAGATED_STATUS_CODE.value] = SpanStatusCode.ERROR
             span_id = parent_span_id

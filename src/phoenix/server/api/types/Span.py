@@ -227,9 +227,9 @@ def to_gql_span(span: trace_schema.Span) -> "Span":
             span.attributes.get(ComputedAttributes.CUMULATIVE_LLM_TOKEN_COUNT_COMPLETION.value),
         ),
         propagated_status_code=SpanStatusCode(
-            span.attributes.get(
-                ComputedAttributes.PROPAGATED_STATUS_CODE.value, SpanStatusCode.UNSET
-            )
+            SpanStatusCode.ERROR
+            if span.attributes.get(ComputedAttributes.CUMULATIVE_ERROR_COUNT.value)
+            else span.status_code
         ),
         events=events,
         input=(
