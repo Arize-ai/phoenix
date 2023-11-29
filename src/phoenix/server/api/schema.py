@@ -22,6 +22,7 @@ from phoenix.server.api.input_types.SpanSort import SpanSort
 from phoenix.server.api.types.Cluster import Cluster, to_gql_clusters
 
 from ...trace.filter import SpanFilter
+from ...trace.schemas import SpanID
 from .context import Context
 from .input_types.TimeRange import TimeRange
 from .types.DatasetInfo import TraceDatasetInfo
@@ -250,6 +251,20 @@ class Query:
         if (evals := info.context.evals) is None:
             return []
         return evals.get_span_evaluation_names()
+
+    @strawberry.field(
+        description="Names of available document evaluations.",
+    )  # type: ignore
+    def document_evaluation_names(
+        self,
+        info: Info[Context, None],
+        span_id: Optional[ID] = UNSET,
+    ) -> List[str]:
+        if (evals := info.context.evals) is None:
+            return []
+        return evals.get_document_evaluation_names(
+            None if span_id is UNSET else SpanID(span_id),
+        )
 
     @strawberry.field
     def trace_dataset_info(
