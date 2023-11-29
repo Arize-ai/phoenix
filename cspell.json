@@ -28,7 +28,8 @@
         "tensorboard",
         "tiktoken",
         "tracedataset",
-        "UMAP"
+        "UMAP",
+        "Zustand"
     ],
     "flagWords": [
         "hte"

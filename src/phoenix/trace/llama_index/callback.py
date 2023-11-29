@@ -92,7 +92,7 @@ from phoenix.trace.tracer import SpanExporter, Tracer
 from phoenix.trace.utils import extract_version_triplet, get_stacktrace
 from phoenix.utilities.error_handling import graceful_fallback
 
-LLAMA_INDEX_MINIMUM_VERSION_TRIPLET = (0, 9, 0)
+LLAMA_INDEX_MINIMUM_VERSION_TRIPLET = (0, 9, 8)
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
 
@@ -355,12 +355,16 @@ def _add_spans_to_tracer(
     parent_child_id_stack: List[Tuple[Optional[SpanID], CBEventID]] = [
         (None, root_event_id) for root_event_id in trace_map["root"]
     ]
-    span_exceptions: List[SpanEvent] = []
     while parent_child_id_stack:
         parent_span_id, event_id = parent_child_id_stack.pop()
         event_data = event_id_to_event_data[event_id]
         event_type = event_data.event_type
         attributes = event_data.attributes
+        if not (start_event := event_data.start_event):
+            # if the callback system has broken its contract by calling
+            # on_event_end without on_event_start, do not create a span
+            continue
+
         if event_type is CBEventType.LLM:
             while parent_child_id_stack:
                 preceding_event_parent_span_id, preceding_event_id = parent_child_id_stack[-1]
@@ -375,31 +379,10 @@ def _add_spans_to_tracer(
                         # Add template attributes to the LLM span to which they belong.
                         attributes.update(_template_attributes(preceding_payload))
 
-        start_time = None
-        if start_event := event_data.start_event:
-            start_time = _timestamp_to_tz_aware_datetime(start_event.time)
+        start_time = _timestamp_to_tz_aware_datetime(start_event.time)
+        span_exceptions = _get_span_exceptions(event_data, start_time)
         end_time = _get_end_time(event_data, span_exceptions)
         start_time = start_time or end_time or datetime.now(timezone.utc)
-
-        if event_type is CBEventType.EXCEPTION:
-            # LlamaIndex has exception callback events that are sibling events of the events in
-            # which the exception occurred. We collect all the exception events and add them to
-            # the relevant span.
-            if (
-                not start_event
-                or not start_event.payload
-                or (error := start_event.payload.get(EventPayload.EXCEPTION)) is None
-            ):
-                continue
-            span_exceptions.append(
-                SpanException(
-                    message=str(error),
-                    timestamp=start_time,
-                    exception_type=type(error).__name__,
-                    exception_stacktrace=get_stacktrace(error),
-                )
-            )
-            continue
 
         name = event_name if (event_name := event_data.name) is not None else "unknown"
         span_kind = _get_span_kind(event_type)
@@ -416,7 +399,6 @@ def _add_spans_to_tracer(
             events=sorted(span_exceptions, key=lambda event: event.timestamp) or None,
             conversation=None,
         )
-        span_exceptions = []
         new_parent_span_id = span.context.span_id
         for new_child_event_id in trace_map.get(event_id, []):
             parent_child_id_stack.append((new_parent_span_id, new_child_event_id))
@@ -511,7 +493,7 @@ def _get_response_output(response: Any) -> Iterator[Tuple[str, Any]]:
         yield OUTPUT_MIME_TYPE, MimeType.TEXT
 
 
-def _get_end_time(event_data: CBEventData, span_events: List[SpanEvent]) -> Optional[datetime]:
+def _get_end_time(event_data: CBEventData, span_events: Iterable[SpanEvent]) -> Optional[datetime]:
     """
     A best-effort attempt to get the end time of an event.
 
@@ -526,6 +508,22 @@ def _get_end_time(event_data: CBEventData, span_events: List[SpanEvent]) -> Opti
     else:
         return None
     return _tz_naive_to_tz_aware_datetime(tz_naive_end_time)
+
+
+def _get_span_exceptions(event_data: CBEventData, start_time: datetime) -> List[SpanException]:
+    """Collects exceptions from the start and end events, if present."""
+    span_exceptions = []
+    for event in [event_data.start_event, event_data.end_event]:
+        if event and (payload := event.payload) and (error := payload.get(EventPayload.EXCEPTION)):
+            span_exceptions.append(
+                SpanException(
+                    message=str(error),
+                    timestamp=start_time,
+                    exception_type=type(error).__name__,
+                    exception_stacktrace=get_stacktrace(error),
+                )
+            )
+    return span_exceptions
 
 
 def _timestamp_to_tz_aware_datetime(timestamp: str) -> datetime:
