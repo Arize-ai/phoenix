@@ -34,6 +34,7 @@ from phoenix.trace.schemas import (
     Span,
     SpanAttributes,
     SpanID,
+    SpanStatusCode,
     TraceID,
 )
 from phoenix.trace.v1.utils import decode, encode
@@ -61,6 +62,7 @@ class ComputedAttributes(Enum):
     CUMULATIVE_LLM_TOKEN_COUNT_TOTAL = COMPUTED_PREFIX + "cumulative_token_count.total"
     CUMULATIVE_LLM_TOKEN_COUNT_PROMPT = COMPUTED_PREFIX + "cumulative_token_count.prompt"
     CUMULATIVE_LLM_TOKEN_COUNT_COMPLETION = COMPUTED_PREFIX + "cumulative_token_count.completion"
+    CUMULATIVE_STATUS_CODE = COMPUTED_PREFIX + "cumulative_status_code"
 
 
 class ReadableSpan(ObjectProxy):  # type: ignore
@@ -294,6 +296,13 @@ class Traces:
                 cumulative_attribute_name,
                 difference,
             )
+
+        # Percolate up error status codes.
+        existing_value = existing_span.status.code if existing_span else SpanStatusCode.UNSET
+        new_value = new_span.status.code if new_span else SpanStatusCode.UNSET
+        if pb.Span.Status.Code.ERROR in (existing_value, new_value):
+            self._add_error_status_code_to_span_ancestors(span_id)
+
         # Process previously orphaned spans, if any.
         for orphan_span in self._orphan_spans[span_id]:
             self._process_span(orphan_span)
@@ -308,4 +317,13 @@ class Traces:
             parent_span = self._spans[parent_span_id]
             cumulative_value = parent_span[attribute_name] or 0
             parent_span[attribute_name] = cumulative_value + value
+            span_id = parent_span_id
+
+    def _add_error_status_code_to_span_ancestors(
+        self,
+        span_id: SpanID,
+    ) -> None:
+        while parent_span_id := self._parent_span_ids.get(span_id):
+            parent_span = self._spans[parent_span_id]
+            parent_span[ComputedAttributes.CUMULATIVE_STATUS_CODE.value] = SpanStatusCode.ERROR
             span_id = parent_span_id

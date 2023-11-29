@@ -123,6 +123,10 @@ class Span:
         description="Cumulative (completion) token count from self and all "
         "descendant spans (children, grandchildren, etc.)",
     )
+    cumulative_status_code: Optional[str] = strawberry.field(
+        description="Cumulative status code that percolates up error status "
+        "codes from descendant spans (children, grandchildren, etc.)",
+    )
 
     @strawberry.field(
         description="Evaluations associated with the span, e.g. if the span is "
@@ -221,6 +225,9 @@ def to_gql_span(span: trace_schema.Span) -> "Span":
         cumulative_token_count_completion=cast(
             Optional[int],
             span.attributes.get(ComputedAttributes.CUMULATIVE_LLM_TOKEN_COUNT_COMPLETION.value),
+        ),
+        cumulative_status_code=cast(
+            Optional[str], span.attributes.get(ComputedAttributes.CUMULATIVE_STATUS_CODE.value)
         ),
         events=events,
         input=(
