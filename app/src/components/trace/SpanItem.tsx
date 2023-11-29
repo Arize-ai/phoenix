@@ -14,7 +14,7 @@ interface SpanItemProps {
   name: string;
   spanKind: string;
   latencyMs: number | null;
-  statusCode: SpanStatusCode;
+  propagatedStatusCode: SpanStatusCode;
   tokenCountTotal?: number | null;
   tokenCountPrompt?: number | null;
   tokenCountCompletion?: number | null;
@@ -24,7 +24,7 @@ export function SpanItem(props: SpanItemProps) {
     name,
     latencyMs,
     spanKind,
-    statusCode,
+    propagatedStatusCode,
     tokenCountTotal,
     tokenCountPrompt,
     tokenCountCompletion,
@@ -56,7 +56,7 @@ export function SpanItem(props: SpanItemProps) {
           />
         ) : null}
         {latencyMs === null ? null : <LatencyText latencyMs={latencyMs} />}
-        {statusCode === "ERROR" ? (
+        {propagatedStatusCode === "ERROR" ? (
           <SpanStatusCodeIcon statusCode="ERROR" />
         ) : null}
       </Flex>
