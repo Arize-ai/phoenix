@@ -284,6 +284,16 @@ type EmbeddingMetadata {
   linkToData: String
 }
 
+enum EvalAttr {
+  score
+  label
+}
+
+input EvalResultKey {
+  name: String!
+  attr: EvalAttr!
+}
+
 interface Evaluation {
   """Name of the evaluation, e.g. 'helpfulness' or 'relevance'."""
   name: String!
@@ -654,8 +664,12 @@ enum SpanKind {
   unknown
 }
 
+"""
+The sort key and direction for span connections. Must specify one and only one of either `col` or `evalResultKey`.
+"""
 input SpanSort {
-  col: SpanColumn!
+  col: SpanColumn = null
+  evalResultKey: EvalResultKey = null
   dir: SortDir!
 }
 
