@@ -228,6 +228,7 @@ def to_gql_span(span: trace_schema.Span) -> "Span":
         ),
         cumulative_status_code=SpanStatusCode(
             span.attributes.get(ComputedAttributes.CUMULATIVE_STATUS_CODE.value)
+            or SpanStatusCode.UNSET,
         ),
         events=events,
         input=(
