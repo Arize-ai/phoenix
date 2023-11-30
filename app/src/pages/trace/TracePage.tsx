@@ -37,9 +37,12 @@ import {
 
 import { ExternalLink } from "@phoenix/components";
 import { resizeHandleCSS } from "@phoenix/components/resize";
+import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SpanItem } from "@phoenix/components/trace/SpanItem";
 import { SpanKindIcon } from "@phoenix/components/trace/SpanKindIcon";
+import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon";
 import { TraceTree } from "@phoenix/components/trace/TraceTree";
+import { useSpanStatusCodeColor } from "@phoenix/components/trace/useSpanStatusCodeColor";
 import { useTheme } from "@phoenix/contexts";
 import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 import {
@@ -69,6 +72,8 @@ import {
 } from "@phoenix/openInference/tracing/types";
 import { assertUnreachable, isStringArray } from "@phoenix/typeUtils";
 import { formatFloat, numberFormatter } from "@phoenix/utils/numberFormatUtils";
+
+import { EvaluationLabel } from "../tracing/EvaluationLabel";
 
 import {
   MimeType,
@@ -124,6 +129,7 @@ const defaultCardProps: Partial<CardProps> = {
   variant: "compact",
   collapsible: true,
 };
+
 /**
  * A page that shows the details of a trace (e.g. a collection of spans)
  */
@@ -190,6 +196,13 @@ export function TracePage() {
   const selectedSpan = spansList.find(
     (span) => span.context.spanId === selectedSpanId
   );
+  const rootSpan = useMemo(() => {
+    return spansList.find((span) => span.parentId == null);
+  }, [spansList]);
+
+  if (rootSpan == null) {
+    throw new Error("rootSpan is required to view a trace");
+  }
   return (
     <DialogContainer
       type="slideOver"
@@ -203,6 +216,7 @@ export function TracePage() {
             overflow: hidden;
           `}
         >
+          <TraceHeader rootSpan={rootSpan} />
           <PanelGroup direction="horizontal" autoSaveId="trace-panel-group">
             <Panel defaultSize={30} minSize={10} maxSize={40}>
               <TraceTree
@@ -230,6 +244,62 @@ export function TracePage() {
         </main>
       </Dialog>
     </DialogContainer>
+  );
+}
+
+function TraceHeader({ rootSpan }: { rootSpan: Span }) {
+  const { latencyMs, statusCode, spanEvaluations } = rootSpan;
+  const statusColor = useSpanStatusCodeColor(statusCode);
+  const isEvalsEnabled = useFeatureFlag("evals");
+  return (
+    <View padding="size-200" borderBottomWidth="thin" borderBottomColor="dark">
+      <Flex direction="row" gap="size-400">
+        <Flex direction="column">
+          <Text elementType="h3" textSize="medium" color="text-700">
+            Trace Status
+          </Text>
+          <Text textSize="xlarge">
+            <Flex direction="row" gap="size-50" alignItems="center">
+              <SpanStatusCodeIcon statusCode={statusCode} />
+              <Text textSize="xlarge" color={statusColor}>
+                {statusCode}
+              </Text>
+            </Flex>
+          </Text>
+        </Flex>
+        <Flex direction="column">
+          <Text elementType="h3" textSize="medium" color="text-700">
+            Latency
+          </Text>
+          <Text textSize="xlarge">
+            {typeof latencyMs === "number" ? (
+              <LatencyText latencyMs={latencyMs} textSize="xlarge" />
+            ) : (
+              "--"
+            )}
+          </Text>
+        </Flex>
+        {isEvalsEnabled ? (
+          <Flex direction="column" gap="size-50">
+            <Text elementType="h3" textSize="medium" color="text-700">
+              Evaluations
+            </Text>
+            <Flex direction="row" gap="size-50">
+              {spanEvaluations.length === 0
+                ? "--"
+                : spanEvaluations.map((evaluation) => {
+                    return (
+                      <EvaluationLabel
+                        key={evaluation.name}
+                        evaluation={evaluation}
+                      />
+                    );
+                  })}
+            </Flex>
+          </Flex>
+        ) : null}
+      </Flex>
+    </View>
   );
 }
 
