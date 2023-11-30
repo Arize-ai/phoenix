@@ -18,6 +18,7 @@ def test_nested_attributes() -> None:
             "content": ...,
             "function_call_name": ...,
             "function_call_arguments_json": ...,
+            "tool_calls": ...,
         },
         "exception": {
             "escaped": ...,
@@ -71,5 +72,11 @@ def test_nested_attributes() -> None:
             "description": ...,
             "name": ...,
             "parameters": ...,
+        },
+        "tool_call": {
+            "function": {
+                "name": ...,
+                "arguments": ...,
+            }
         },
     }

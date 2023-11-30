@@ -7,9 +7,11 @@ from typing import (
     Any,
     Callable,
     Dict,
+    Iterator,
     List,
     Mapping,
     Optional,
+    Tuple,
 )
 
 from typing_extensions import TypeGuard
@@ -36,8 +38,11 @@ from phoenix.trace.semantic_conventions import (
     MESSAGE_FUNCTION_CALL_NAME,
     MESSAGE_NAME,
     MESSAGE_ROLE,
+    MESSAGE_TOOL_CALLS,
     OUTPUT_MIME_TYPE,
     OUTPUT_VALUE,
+    TOOL_CALL_FUNCTION_ARGUMENTS_JSON,
+    TOOL_CALL_FUNCTION_NAME,
     MimeType,
 )
 from phoenix.trace.utils import get_stacktrace, import_package
@@ -264,9 +269,24 @@ def _to_openinference_message(
             openinference_message[MESSAGE_FUNCTION_CALL_NAME] = function_name
         if function_arguments := function_call_data.get("arguments"):
             openinference_message[MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON] = function_arguments
+    if tool_calls_data := message.get("tool_calls"):
+        message_tool_calls = []
+        for tool_call_data in tool_calls_data:
+            if message_tool_call := dict(_get_tool_call(tool_call_data)):
+                message_tool_calls.append(message_tool_call)
+        if message_tool_calls:
+            openinference_message[MESSAGE_TOOL_CALLS] = message_tool_calls
     if expects_name and (name := message.get("name")):
         openinference_message[MESSAGE_NAME] = name
     return openinference_message
+
+
+def _get_tool_call(tool_call: Mapping[str, Any]) -> Iterator[Tuple[str, Any]]:
+    if function := tool_call.get("function"):
+        if name := function.get("name"):
+            yield TOOL_CALL_FUNCTION_NAME, name
+        if arguments := function.get("arguments"):
+            yield TOOL_CALL_FUNCTION_ARGUMENTS_JSON, arguments
 
 
 _PARAMETER_ATTRIBUTE_FUNCTIONS: Dict[str, Callable[[Parameters], Any]] = {

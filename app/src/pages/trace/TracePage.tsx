@@ -59,9 +59,12 @@ import {
   MESSAGE_FUNCTION_CALL_NAME,
   MESSAGE_NAME,
   MESSAGE_ROLE,
+  MESSAGE_TOOL_CALLS,
   RerankerAttributePostfixes,
   RetrievalAttributePostfixes,
   SemanticAttributePrefixes,
+  TOOL_CALL_FUNCTION_ARGUMENTS_JSON,
+  TOOL_CALL_FUNCTION_NAME,
   ToolAttributePostfixes,
 } from "@phoenix/openInference/tracing/semanticConventions";
 import {
@@ -1105,6 +1108,7 @@ function DocumentItem({
 
 function LLMMessage({ message }: { message: AttributeMessage }) {
   const messageContent = message[MESSAGE_CONTENT];
+  const tool_calls = message[MESSAGE_TOOL_CALLS] || [];
   const hasFunctionCall =
     message[MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON] &&
     message[MESSAGE_FUNCTION_CALL_NAME];
@@ -1159,7 +1163,29 @@ function LLMMessage({ message }: { message: AttributeMessage }) {
             {message[MESSAGE_CONTENT]}
           </pre>
         ) : null}
-        {hasFunctionCall ? (
+        {tool_calls.length > 0 ? (
+          tool_calls.map((tool_call, idx) => {
+            return (
+              <pre
+                key={idx}
+                css={css`
+                  text-wrap: wrap;
+                  margin: var(--ac-global-dimension-static-size-100) 0;
+                `}
+              >
+                {tool_call[TOOL_CALL_FUNCTION_NAME] as string}(
+                {JSON.stringify(
+                  JSON.parse(
+                    tool_call[TOOL_CALL_FUNCTION_ARGUMENTS_JSON] as string
+                  ),
+                  null,
+                  2
+                )}
+                )
+              </pre>
+            );
+          })
+        ) : hasFunctionCall ? (
           <pre
             css={css`
               text-wrap: wrap;
