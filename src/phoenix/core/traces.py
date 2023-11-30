@@ -141,6 +141,7 @@ class Traces:
 
     def get_trace(self, trace_id: TraceID) -> Iterator[Span]:
         with self._lock:
+            # make a copy because source data can mutate during iteration
             span_ids = tuple(self._traces[trace_id])
         for span_id in span_ids:
             if span := self[span_id]:
@@ -166,6 +167,7 @@ class Traces:
             else self._start_time_sorted_span_ids
         )
         with self._lock:
+            # make a copy because source data can mutate during iteration
             span_ids = tuple(
                 sorted_span_ids.irange_key(
                     start_time.astimezone(timezone.utc),
@@ -202,6 +204,7 @@ class Traces:
 
     def get_descendant_span_ids(self, span_id: SpanID) -> Iterator[SpanID]:
         with self._lock:
+            # make a copy because source data can mutate during iteration
             span_ids = tuple(self._child_span_ids[span_id])
         for child_span_id in span_ids:
             yield child_span_id
