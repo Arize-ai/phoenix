@@ -36,7 +36,7 @@ def relevance_evaluator(model: OpenAIModel) -> LLMEvaluator:
 
 
 def test_run_evals_produces_expected_output_dataframe(
-    model: OpenAIModel, toxicity_evaluator: LLMEvaluator, relevance_evaluator: LLMEvaluator
+    toxicity_evaluator: LLMEvaluator, relevance_evaluator: LLMEvaluator
 ) -> None:
     df = pd.DataFrame(
         [
