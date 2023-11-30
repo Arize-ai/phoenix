@@ -113,9 +113,9 @@ def _extract_subject_id_from_index(
             - index_names=["context.span_id"]
             - index_names=["trace_id"]
     """
-    assert isinstance(names, collections.Sequence)
+    assert isinstance(names, collections.abc.Sequence)
     if len(names) == 2:
-        assert isinstance(value, collections.Sequence) and len(value) == 2
+        assert isinstance(value, collections.abc.Sequence) and len(value) == 2
         if "document_position" in names:
             document_position = value[names.index("document_position")]
             assert isinstance(document_position, int)
