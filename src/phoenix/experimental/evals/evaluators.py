@@ -1,46 +1,14 @@
 from dataclasses import dataclass
-from enum import Enum
 from functools import partial
-from typing import Any, List, Mapping, Optional, Protocol, Union, runtime_checkable
+from typing import Any, List, Mapping, Optional, Protocol, runtime_checkable
 
 from phoenix.experimental.evals.models import set_verbosity
 from phoenix.utilities.logging import printif
 
 from .models import BaseEvalModel
 from .templates import ClassificationTemplate, PromptTemplate
-from .templates.default_templates import (
-    CODE_READABILITY_PROMPT_TEMPLATE,
-    HALLUCINATION_PROMPT_TEMPLATE,
-    QA_PROMPT_TEMPLATE,
-    RAG_RELEVANCY_PROMPT_TEMPLATE,
-    SUMMARIZATION_PROMPT_TEMPLATE,
-    TOXICITY_PROMPT_TEMPLATE,
-)
 
 Record = Mapping[str, Any]
-EvalCriteriaName = str
-
-
-class EvalCriteria(Enum):
-    RELEVANCE = "relevance"
-    HALLUCINATION = "hallucination"
-    TOXICITY = "toxicity"
-    QA = "qa"
-    SUMMARIZATION = "summarization"
-    CODE_READABILITY = "code_readability"
-
-
-_CLASSIFICATION_TEMPLATES = {
-    EvalCriteria.RELEVANCE: RAG_RELEVANCY_PROMPT_TEMPLATE,
-    EvalCriteria.HALLUCINATION: HALLUCINATION_PROMPT_TEMPLATE,
-    EvalCriteria.TOXICITY: TOXICITY_PROMPT_TEMPLATE,
-    EvalCriteria.QA: QA_PROMPT_TEMPLATE,
-    EvalCriteria.SUMMARIZATION: SUMMARIZATION_PROMPT_TEMPLATE,
-    EvalCriteria.CODE_READABILITY: CODE_READABILITY_PROMPT_TEMPLATE,
-}
-assert len(_CLASSIFICATION_TEMPLATES) == len(
-    EvalCriteria
-), "Each evaluation criteria must correspond to a classification template."
 
 
 @dataclass
@@ -90,25 +58,6 @@ class LLMEvaluator:
     @property
     def name(self) -> str:
         return self._name
-
-    @classmethod
-    def from_criteria(
-        cls,
-        criteria: Union[EvalCriteriaName, EvalCriteria],
-        model: BaseEvalModel,
-        verbose: bool = False,
-    ) -> "LLMEvaluator":
-        if isinstance(criteria, str):
-            try:
-                criteria = EvalCriteria(criteria)
-            except ValueError:
-                raise ValueError(f"Unknown criteria name: {criteria}")
-        return cls(
-            name=criteria.value,
-            model=model,
-            template=_CLASSIFICATION_TEMPLATES[criteria],
-            verbose=verbose,
-        )
 
 
 class MapReducer:

@@ -1,7 +1,7 @@
 import pandas as pd
 import pytest
 from pandas.testing import assert_frame_equal
-from phoenix.experimental.evals.evaluators import EvalCriteria, LLMEvaluator
+from phoenix.experimental.evals.evaluators import LLMEvaluator
 from phoenix.experimental.evals.models import OpenAIModel
 from phoenix.experimental.evals.runner import run_evals
 from phoenix.experimental.evals.templates.default_templates import (
@@ -35,7 +35,7 @@ def relevance_evaluator(model: OpenAIModel) -> LLMEvaluator:
     )
 
 
-def test_eval_runner_with_evaluator_arguments_produces_expected_output_dataframe(
+def test_run_evals_produces_expected_output_dataframe(
     model: OpenAIModel, toxicity_evaluator: LLMEvaluator, relevance_evaluator: LLMEvaluator
 ) -> None:
     df = pd.DataFrame(
@@ -61,78 +61,11 @@ def test_eval_runner_with_evaluator_arguments_produces_expected_output_dataframe
     )
 
 
-def test_eval_runner_with_mixed_evaluator_arguments_produces_expected_output_dataframe(
-    model: OpenAIModel, toxicity_evaluator: LLMEvaluator
-) -> None:
-    df = pd.DataFrame(
-        [
-            {
-                "input": "What is the capital of France?",
-                "reference": "Paris is the capital of France.",
-                "output": "Paris",
-            },
-            {
-                "input": "What is the capital of France?",
-                "reference": "Munich is the capital of Germany.",
-                "output": "France does not have a capital",
-            },
-        ],
-        index=["a", "b"],
-    )
-    eval_df = run_evals(
-        df, evaluators=["relevance", toxicity_evaluator, EvalCriteria.HALLUCINATION], model=model
-    )
-    assert_frame_equal(
-        eval_df,
-        pd.DataFrame(
-            {
-                "relevance": ["relevant", "irrelevant"],
-                "toxicity": ["non-toxic", "non-toxic"],
-                "hallucination": ["factual", "hallucinated"],
-            },
-            index=["a", "b"],
-        ),
-    )
-
-
-def test_eval_runner_raises_value_error_when_initialized_with_model_and_evaluators(
-    model: OpenAIModel, toxicity_evaluator: LLMEvaluator, relevance_evaluator: LLMEvaluator
-) -> None:
-    with pytest.raises(ValueError):
-        run_evals(
-            dataframe=pd.DataFrame(),
-            evaluators=[relevance_evaluator, toxicity_evaluator],
-            model=model,
-        )
-
-
-def test_eval_runner_raises_value_error_when_initialized_with_an_evaluator_name_but_no_model(
+def test_run_evals_with_evaluators_with_duplicate_names_raises_value_error(
     toxicity_evaluator: LLMEvaluator
-) -> None:
-    with pytest.raises(ValueError):
-        run_evals(dataframe=pd.DataFrame(), evaluators=["relevance", toxicity_evaluator])
-
-
-def test_eval_runner_with_evaluators_with_duplicate_names_raises_value_error(
-    model: OpenAIModel, toxicity_evaluator: LLMEvaluator
 ) -> None:
     with pytest.raises(ValueError):
         run_evals(
             dataframe=pd.DataFrame(),
             evaluators=[toxicity_evaluator, toxicity_evaluator],
-            model=model,
         )
-
-
-def test_eval_runner_with_evaluator_with_name_that_matches_criteria_name_raises_value_error(
-    model: OpenAIModel, toxicity_evaluator: LLMEvaluator
-) -> None:
-    with pytest.raises(ValueError):
-        run_evals(
-            dataframe=pd.DataFrame(), evaluators=[toxicity_evaluator, "toxicity"], model=model
-        )
-
-
-def test_eval_runner_with_matching_criteria_names_raises_value_error(model: OpenAIModel) -> None:
-    with pytest.raises(ValueError):
-        run_evals(dataframe=pd.DataFrame(), evaluators=["toxicity", "toxicity"], model=model)
