@@ -61,7 +61,8 @@ class ComputedAttributes(Enum):
     CUMULATIVE_LLM_TOKEN_COUNT_TOTAL = COMPUTED_PREFIX + "cumulative_token_count.total"
     CUMULATIVE_LLM_TOKEN_COUNT_PROMPT = COMPUTED_PREFIX + "cumulative_token_count.prompt"
     CUMULATIVE_LLM_TOKEN_COUNT_COMPLETION = COMPUTED_PREFIX + "cumulative_token_count.completion"
-    CUMULATIVE_ERROR_COUNT = COMPUTED_PREFIX + "error_count"
+    ERROR_COUNT = COMPUTED_PREFIX + "error_count"
+    CUMULATIVE_ERROR_COUNT = COMPUTED_PREFIX + "cumulative_error_count"
 
 
 class ReadableSpan(ObjectProxy):  # type: ignore
@@ -273,7 +274,7 @@ class Traces:
                 if self._max_start_time is None
                 else max(self._max_start_time, start_time)
             )
-        new_span[ComputedAttributes.CUMULATIVE_ERROR_COUNT.value] = int(
+        new_span[ComputedAttributes.ERROR_COUNT.value] = int(
             span.status.code is pb.Span.Status.Code.ERROR
         )
         # Update cumulative values for span's ancestors.
@@ -285,7 +286,7 @@ class Traces:
                 ComputedAttributes.CUMULATIVE_LLM_TOKEN_COUNT_COMPLETION.value,
             ),
             (
-                ComputedAttributes.CUMULATIVE_ERROR_COUNT.value,
+                ComputedAttributes.ERROR_COUNT.value,
                 ComputedAttributes.CUMULATIVE_ERROR_COUNT.value,
             ),
         ):
