@@ -3,7 +3,7 @@ import pytest
 from pandas.testing import assert_frame_equal
 from phoenix.experimental.evals.evaluators import EvalCriteria, LLMEvaluator
 from phoenix.experimental.evals.models import OpenAIModel
-from phoenix.experimental.evals.runner import EvalRunner
+from phoenix.experimental.evals.runner import run_evals
 from phoenix.experimental.evals.templates.default_templates import (
     RAG_RELEVANCY_PROMPT_TEMPLATE,
     TOXICITY_PROMPT_TEMPLATE,
@@ -38,7 +38,6 @@ def relevance_evaluator(model: OpenAIModel) -> LLMEvaluator:
 def test_eval_runner_with_evaluator_arguments_produces_expected_output_dataframe(
     model: OpenAIModel, toxicity_evaluator: LLMEvaluator, relevance_evaluator: LLMEvaluator
 ) -> None:
-    runner = EvalRunner(evaluators=[relevance_evaluator, toxicity_evaluator])
     df = pd.DataFrame(
         [
             {
@@ -52,7 +51,7 @@ def test_eval_runner_with_evaluator_arguments_produces_expected_output_dataframe
         ],
         index=["a", "b"],
     )
-    eval_df = runner.evaluate_dataframe(df)
+    eval_df = run_evals(dataframe=df, evaluators=[relevance_evaluator, toxicity_evaluator])
     assert_frame_equal(
         eval_df,
         pd.DataFrame(
@@ -65,9 +64,6 @@ def test_eval_runner_with_evaluator_arguments_produces_expected_output_dataframe
 def test_eval_runner_with_mixed_evaluator_arguments_produces_expected_output_dataframe(
     model: OpenAIModel, toxicity_evaluator: LLMEvaluator
 ) -> None:
-    runner = EvalRunner(
-        evaluators=["relevance", toxicity_evaluator, EvalCriteria.HALLUCINATION], model=model
-    )
     df = pd.DataFrame(
         [
             {
@@ -83,7 +79,9 @@ def test_eval_runner_with_mixed_evaluator_arguments_produces_expected_output_dat
         ],
         index=["a", "b"],
     )
-    eval_df = runner.evaluate_dataframe(df)
+    eval_df = run_evals(
+        df, evaluators=["relevance", toxicity_evaluator, EvalCriteria.HALLUCINATION], model=model
+    )
     assert_frame_equal(
         eval_df,
         pd.DataFrame(
@@ -101,30 +99,40 @@ def test_eval_runner_raises_value_error_when_initialized_with_model_and_evaluato
     model: OpenAIModel, toxicity_evaluator: LLMEvaluator, relevance_evaluator: LLMEvaluator
 ) -> None:
     with pytest.raises(ValueError):
-        EvalRunner(evaluators=[relevance_evaluator, toxicity_evaluator], model=model)
+        run_evals(
+            dataframe=pd.DataFrame(),
+            evaluators=[relevance_evaluator, toxicity_evaluator],
+            model=model,
+        )
 
 
 def test_eval_runner_raises_value_error_when_initialized_with_an_evaluator_name_but_no_model(
     toxicity_evaluator: LLMEvaluator
 ) -> None:
     with pytest.raises(ValueError):
-        EvalRunner(evaluators=["relevance", toxicity_evaluator])
+        run_evals(dataframe=pd.DataFrame(), evaluators=["relevance", toxicity_evaluator])
 
 
 def test_eval_runner_with_evaluators_with_duplicate_names_raises_value_error(
-    toxicity_evaluator: LLMEvaluator
+    model: OpenAIModel, toxicity_evaluator: LLMEvaluator
 ) -> None:
     with pytest.raises(ValueError):
-        EvalRunner(evaluators=[toxicity_evaluator, toxicity_evaluator])
+        run_evals(
+            dataframe=pd.DataFrame(),
+            evaluators=[toxicity_evaluator, toxicity_evaluator],
+            model=model,
+        )
 
 
 def test_eval_runner_with_evaluator_with_name_that_matches_criteria_name_raises_value_error(
-    toxicity_evaluator: LLMEvaluator
+    model: OpenAIModel, toxicity_evaluator: LLMEvaluator
 ) -> None:
     with pytest.raises(ValueError):
-        EvalRunner(evaluators=[toxicity_evaluator, "toxicity"])
+        run_evals(
+            dataframe=pd.DataFrame(), evaluators=[toxicity_evaluator, "toxicity"], model=model
+        )
 
 
-def test_eval_runner_with_matching_criteria_names_raises_value_error() -> None:
+def test_eval_runner_with_matching_criteria_names_raises_value_error(model: OpenAIModel) -> None:
     with pytest.raises(ValueError):
-        EvalRunner(evaluators=["toxicity", "toxicity"])
+        run_evals(dataframe=pd.DataFrame(), evaluators=["toxicity", "toxicity"], model=model)

@@ -33,30 +33,27 @@ class Payload(TypedDict):
     record: Record
 
 
-class EvalRunner:
-    def __init__(
-        self,
-        evaluators: List[Union[EvalCriteriaName, EvalCriteria, Evaluator]],
-        model: Optional[BaseEvalModel] = None,
-    ) -> None:
-        self._evaluators = _validate_and_convert_to_evaluators(evaluators, model)
+async def _run_eval(payload: Payload) -> Tuple[RowIndex, EvalName, EvaluationResult]:
+    row_index = payload["row_index"]
+    evaluator = payload["evaluator"]
+    record = payload["record"]
+    eval_result = await evaluator.aevaluate(record)
+    return row_index, evaluator.name, eval_result
 
-        async def run_eval(payload: Payload) -> Tuple[RowIndex, EvalName, EvaluationResult]:
-            row_index = payload["row_index"]
-            evaluator = payload["evaluator"]
-            record = payload["record"]
-            eval_result = await evaluator.aevaluate(record)
-            return row_index, evaluator.name, eval_result
 
-        self._executor = AsyncExecutor(generation_fn=run_eval)
-
-    def evaluate_dataframe(self, dataframe: DataFrame) -> DataFrame:
-        payloads = list(_generate_payloads(dataframe, self._evaluators))
-        results: DefaultDict[RowIndex, Dict[EvalName, EvalPrediction]] = defaultdict(dict)
-        for row_index, eval_name, eval_result in self._executor.run(payloads):
-            results[row_index][eval_name] = eval_result.prediction
-        index, data = zip(*results.items())
-        return DataFrame(data, index=index)
+def run_evals(
+    dataframe: DataFrame,
+    evaluators: List[Union[EvalCriteriaName, EvalCriteria, Evaluator]],
+    model: Optional[BaseEvalModel] = None,
+) -> DataFrame:
+    evaluators_ = _validate_and_convert_to_evaluators(evaluators, model)
+    executor = AsyncExecutor(generation_fn=_run_eval)
+    payloads = list(_generate_payloads(dataframe, evaluators_))
+    results: DefaultDict[RowIndex, Dict[EvalName, EvalPrediction]] = defaultdict(dict)
+    for row_index, eval_name, eval_result in executor.run(payloads):
+        results[row_index][eval_name] = eval_result.prediction
+    index, data = zip(*results.items())
+    return DataFrame(data, index=index)
 
 
 def _validate_and_convert_to_evaluators(
