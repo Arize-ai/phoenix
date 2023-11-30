@@ -5,7 +5,6 @@ A set of **highly experimental** helper functions to
       indexed by `context.span_id` and `document_position`
   - ingest evaluation results into Phoenix via HttpExporter
 """
-import collections
 import math
 from typing import (
     Any,
@@ -113,9 +112,9 @@ def _extract_subject_id_from_index(
             - index_names=["context.span_id"]
             - index_names=["trace_id"]
     """
-    assert isinstance(names, collections.Sequence)
+    assert isinstance(names, Sequence)
     if len(names) == 2:
-        assert isinstance(value, collections.Sequence) and len(value) == 2
+        assert isinstance(value, Sequence) and len(value) == 2
         if "document_position" in names:
             document_position = value[names.index("document_position")]
             assert isinstance(document_position, int)
