@@ -228,7 +228,7 @@ def to_gql_span(span: trace_schema.Span) -> "Span":
         ),
         propagated_status_code=(
             SpanStatusCode.ERROR
-            if span.attributes.get(ComputedAttributes.CUMULATIVE_ERROR_COUNT.value)
+            if span.attributes.get(ComputedAttributes.ERROR_COUNT.value)
             else SpanStatusCode(span.status_code)
         ),
         events=events,

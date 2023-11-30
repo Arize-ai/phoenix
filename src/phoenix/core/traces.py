@@ -7,7 +7,6 @@ from threading import RLock, Thread
 from types import MethodType
 from typing import (
     Any,
-    Callable,
     DefaultDict,
     Dict,
     Iterable,
@@ -39,9 +38,6 @@ from phoenix.trace.schemas import (
 )
 from phoenix.trace.v1.utils import decode, encode
 
-ReadableSpanValueCounter = Callable[["ReadableSpan"], int]
-
-
 END_OF_QUEUE = None  # sentinel value for queue termination
 
 NAME = "name"
@@ -65,7 +61,7 @@ class ComputedAttributes(Enum):
     CUMULATIVE_LLM_TOKEN_COUNT_TOTAL = COMPUTED_PREFIX + "cumulative_token_count.total"
     CUMULATIVE_LLM_TOKEN_COUNT_PROMPT = COMPUTED_PREFIX + "cumulative_token_count.prompt"
     CUMULATIVE_LLM_TOKEN_COUNT_COMPLETION = COMPUTED_PREFIX + "cumulative_token_count.completion"
-    CUMULATIVE_ERROR_COUNT = COMPUTED_PREFIX + "cumulative_error_count"
+    ERROR_COUNT = COMPUTED_PREFIX + "error_count"
 
 
 class ReadableSpan(ObjectProxy):  # type: ignore
@@ -277,28 +273,24 @@ class Traces:
                 if self._max_start_time is None
                 else max(self._max_start_time, start_time)
             )
+        new_span[ComputedAttributes.ERROR_COUNT.value] = int(
+            span.status.code is pb.Span.Status.Code.ERROR
+        )
         # Update cumulative values for span's ancestors.
-        counters_and_cumulative_attribute_names: List[Tuple[ReadableSpanValueCounter, str]] = [
+        for attribute_name, cumulative_attribute_name in (
+            (LLM_TOKEN_COUNT_TOTAL, ComputedAttributes.CUMULATIVE_LLM_TOKEN_COUNT_TOTAL.value),
+            (LLM_TOKEN_COUNT_PROMPT, ComputedAttributes.CUMULATIVE_LLM_TOKEN_COUNT_PROMPT.value),
             (
-                lambda span: span[LLM_TOKEN_COUNT_TOTAL],
-                ComputedAttributes.CUMULATIVE_LLM_TOKEN_COUNT_TOTAL.value,
-            ),
-            (
-                lambda span: span[LLM_TOKEN_COUNT_PROMPT],
-                ComputedAttributes.CUMULATIVE_LLM_TOKEN_COUNT_PROMPT.value,
-            ),
-            (
-                lambda span: span[LLM_TOKEN_COUNT_COMPLETION],
+                LLM_TOKEN_COUNT_COMPLETION,
                 ComputedAttributes.CUMULATIVE_LLM_TOKEN_COUNT_COMPLETION.value,
             ),
             (
-                lambda span: int(span.status.code == pb.Span.Status.Code.ERROR),
-                ComputedAttributes.CUMULATIVE_ERROR_COUNT.value,
+                ComputedAttributes.ERROR_COUNT.value,
+                ComputedAttributes.ERROR_COUNT.value,
             ),
-        ]
-        for get_value_count, cumulative_attribute_name in counters_and_cumulative_attribute_names:
-            existing_value = (get_value_count(existing_span) or 0) if existing_span else 0
-            new_value = get_value_count(new_span) or 0
+        ):
+            existing_value = (existing_span[attribute_name] or 0) if existing_span else 0
+            new_value = new_span[attribute_name] or 0
             if not (difference := new_value - existing_value):
                 continue
             existing_cumulative_value = (
