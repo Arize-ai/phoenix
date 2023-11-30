@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<5ee64e043061e864dee4a09ec43a0102>>
+ * @generated SignedSource<<40bdb7f53168019e2ad59f8809889d9c>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -165,7 +165,7 @@ return {
                     "alias": null,
                     "args": null,
                     "kind": "ScalarField",
-                    "name": "propagatedStatusCode",
+                    "name": "statusCode",
                     "storageKey": null
                   },
                   {
@@ -348,16 +348,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "3d5795f4aab7fa72c3a6c7e5d30c10d9",
+    "cacheID": "3347b1e5bdb27c6b5987d0063b96ad67",
     "id": null,
     "metadata": {},
     "name": "SpansTableSpansQuery",
     "operationKind": "query",
-    "text": "query SpansTableSpansQuery(\n  $after: String = null\n  $filterCondition: String = null\n  $first: Int = 100\n  $sort: SpanSort = {col: startTime, dir: desc}\n) {\n  ...SpansTable_spans_1XEuU\n}\n\nfragment SpansTable_spans_1XEuU on Query {\n  spans(first: $first, after: $after, sort: $sort, filterCondition: $filterCondition) {\n    edges {\n      span: node {\n        spanKind\n        name\n        propagatedStatusCode\n        startTime\n        latencyMs\n        tokenCountTotal\n        tokenCountPrompt\n        tokenCountCompletion\n        context {\n          spanId\n          traceId\n        }\n        input {\n          value\n          mimeType\n        }\n        output {\n          value\n          mimeType\n        }\n        spanEvaluations {\n          name\n          label\n          score\n        }\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query SpansTableSpansQuery(\n  $after: String = null\n  $filterCondition: String = null\n  $first: Int = 100\n  $sort: SpanSort = {col: startTime, dir: desc}\n) {\n  ...SpansTable_spans_1XEuU\n}\n\nfragment SpansTable_spans_1XEuU on Query {\n  spans(first: $first, after: $after, sort: $sort, filterCondition: $filterCondition) {\n    edges {\n      span: node {\n        spanKind\n        name\n        statusCode\n        startTime\n        latencyMs\n        tokenCountTotal\n        tokenCountPrompt\n        tokenCountCompletion\n        context {\n          spanId\n          traceId\n        }\n        input {\n          value\n          mimeType\n        }\n        output {\n          value\n          mimeType\n        }\n        spanEvaluations {\n          name\n          label\n          score\n        }\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "fb777548b52d6ee68d2ad1bdd28e107f";
+(node as any).hash = "7c37fa575b740f80ce3be0faa9215222";
 
 export default node;

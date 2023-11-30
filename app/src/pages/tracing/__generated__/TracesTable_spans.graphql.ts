@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<2fa5536d107276b49b6451b0785142dc>>
+ * @generated SignedSource<<0543bdb45df4afc207b3fd254fcc84de>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -34,7 +34,6 @@ export type TracesTable_spans$data = {
             readonly value: string;
           } | null;
           readonly parentId: string | null;
-          readonly propagatedStatusCode: SpanStatusCode;
           readonly spanEvaluations: ReadonlyArray<{
             readonly label: string | null;
             readonly name: string;
@@ -42,6 +41,7 @@ export type TracesTable_spans$data = {
           }>;
           readonly spanKind: SpanKind;
           readonly startTime: string;
+          readonly statusCode: SpanStatusCode;
           readonly tokenCountCompletion: number | null;
           readonly tokenCountPrompt: number | null;
           readonly tokenCountTotal: number | null;
@@ -55,7 +55,6 @@ export type TracesTable_spans$data = {
           readonly value: string;
         } | null;
         readonly parentId: string | null;
-        readonly propagatedStatusCode: SpanStatusCode;
         readonly spanEvaluations: ReadonlyArray<{
           readonly label: string | null;
           readonly name: string;
@@ -63,6 +62,7 @@ export type TracesTable_spans$data = {
         }>;
         readonly spanKind: SpanKind;
         readonly startTime: string;
+        readonly statusCode: SpanStatusCode;
         readonly tokenCountCompletion: number | null;
         readonly tokenCountPrompt: number | null;
         readonly tokenCountTotal: number | null;
@@ -95,7 +95,7 @@ v2 = {
   "storageKey": null
 },
 v3 = {
-  "alias": null,
+  "alias": "statusCode",
   "args": null,
   "kind": "ScalarField",
   "name": "propagatedStatusCode",
@@ -431,6 +431,6 @@ return {
 };
 })();
 
-(node as any).hash = "4c4de0eca3956e201f285c522b58d08c";
+(node as any).hash = "0f56f1244730e44f83105f9f3214cb7c";
 
 export default node;

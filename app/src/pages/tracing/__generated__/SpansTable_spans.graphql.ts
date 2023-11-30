@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<fbe7a8a8106f7b312f7f3d4e6d44a1df>>
+ * @generated SignedSource<<17a97d93bce1ec0696a31d6889166a02>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -31,7 +31,6 @@ export type SpansTable_spans$data = {
           readonly mimeType: MimeType;
           readonly value: string;
         } | null;
-        readonly propagatedStatusCode: SpanStatusCode;
         readonly spanEvaluations: ReadonlyArray<{
           readonly label: string | null;
           readonly name: string;
@@ -39,6 +38,7 @@ export type SpansTable_spans$data = {
         }>;
         readonly spanKind: SpanKind;
         readonly startTime: string;
+        readonly statusCode: SpanStatusCode;
         readonly tokenCountCompletion: number | null;
         readonly tokenCountPrompt: number | null;
         readonly tokenCountTotal: number | null;
@@ -177,7 +177,7 @@ return {
                   "alias": null,
                   "args": null,
                   "kind": "ScalarField",
-                  "name": "propagatedStatusCode",
+                  "name": "statusCode",
                   "storageKey": null
                 },
                 {
@@ -351,6 +351,6 @@ return {
 };
 })();
 
-(node as any).hash = "fb777548b52d6ee68d2ad1bdd28e107f";
+(node as any).hash = "7c37fa575b740f80ce3be0faa9215222";
 
 export default node;
