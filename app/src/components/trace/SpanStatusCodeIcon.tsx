@@ -1,10 +1,11 @@
 import React from "react";
 
-import { ColorValue, Icon, Icons } from "@arizeai/components";
+import { Icon, Icons } from "@arizeai/components";
 
 import { assertUnreachable } from "@phoenix/typeUtils";
 
 import { SpanStatusCodeType } from "./types";
+import { useSpanStatusCodeColor } from "./useSpanStatusCodeColor";
 
 export function SpanStatusCodeIcon<TCode extends SpanStatusCodeType>({
   statusCode,
@@ -12,15 +13,13 @@ export function SpanStatusCodeIcon<TCode extends SpanStatusCodeType>({
   statusCode: TCode;
 }) {
   let iconSVG = <Icons.MinusCircleOutline />;
-  let color: ColorValue = "grey-500";
+  const color = useSpanStatusCodeColor(statusCode);
   switch (statusCode) {
     case "OK":
       iconSVG = <Icons.CheckmarkCircleOutline />;
-      color = "success";
       break;
     case "ERROR":
       iconSVG = <Icons.AlertCircleOutline />;
-      color = "danger";
       break;
     case "UNSET":
       iconSVG = <Icons.MinusCircleOutline />;
