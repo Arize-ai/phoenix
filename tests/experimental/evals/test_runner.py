@@ -1,9 +1,9 @@
 import pandas as pd
 import pytest
 from pandas.testing import assert_frame_equal
+from phoenix.experimental.evals.classify import run_evals
 from phoenix.experimental.evals.evaluators import LLMEvaluator
 from phoenix.experimental.evals.models import OpenAIModel
-from phoenix.experimental.evals.runner import run_evals
 from phoenix.experimental.evals.templates.default_templates import (
     RAG_RELEVANCY_PROMPT_TEMPLATE,
     TOXICITY_PROMPT_TEMPLATE,

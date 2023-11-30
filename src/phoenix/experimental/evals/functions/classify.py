@@ -5,22 +5,29 @@ import json
 import logging
 import signal
 import traceback
+from collections import defaultdict
 from typing import (
     Any,
     Callable,
     Coroutine,
+    DefaultDict,
     Dict,
+    Generator,
     Iterable,
     List,
+    Mapping,
     Optional,
     Sequence,
     Tuple,
+    TypedDict,
     Union,
     cast,
 )
 
 import pandas as pd
+from pandas import DataFrame
 from tqdm.auto import tqdm
+from typing_extensions import TypeAlias
 
 from phoenix.experimental.evals.models import BaseEvalModel, OpenAIModel, set_verbosity
 from phoenix.experimental.evals.templates import (
@@ -37,6 +44,8 @@ from phoenix.experimental.evals.utils import get_tqdm_progress_bar_formatter
 from phoenix.trace.semantic_conventions import DOCUMENT_CONTENT, INPUT_VALUE, RETRIEVAL_DOCUMENTS
 from phoenix.utilities.logging import printif
 
+from ..evaluators import EvaluationResult, Evaluator
+
 logger = logging.getLogger(__name__)
 
 
@@ -47,6 +56,11 @@ OPENINFERENCE_DOCUMENT_COLUMN_NAME = "attributes." + RETRIEVAL_DOCUMENTS
 # defined here only to prevent typos
 _RESPONSE = "response"
 _EXPLANATION = "explanation"
+
+RowIndex: TypeAlias = Any
+EvalName: TypeAlias = str
+Record: TypeAlias = Mapping[str, Any]
+EvalPrediction: TypeAlias = str
 
 
 class Unset:
@@ -628,3 +642,44 @@ def _default_openai_function(
             "required": required,
         },
     }
+
+
+class Payload(TypedDict):
+    row_index: RowIndex
+    evaluator: Evaluator
+    record: Record
+
+
+def run_evals(
+    dataframe: DataFrame,
+    evaluators: List[Evaluator],
+) -> DataFrame:
+    if len(set(evaluator.name for evaluator in evaluators)) != len(evaluators):
+        raise ValueError("Evaluators must have unique names.")
+    executor = AsyncExecutor(generation_fn=_run_eval)
+    payloads = list(_generate_payloads(dataframe, evaluators))
+    results: DefaultDict[RowIndex, Dict[EvalName, EvalPrediction]] = defaultdict(dict)
+    for row_index, eval_name, eval_result in executor.run(payloads):
+        results[row_index][eval_name] = eval_result.prediction
+    index, data = zip(*results.items())
+    return DataFrame(data, index=index)
+
+
+async def _run_eval(payload: Payload) -> Tuple[RowIndex, EvalName, EvaluationResult]:
+    row_index = payload["row_index"]
+    evaluator = payload["evaluator"]
+    record = payload["record"]
+    eval_result = await evaluator.aevaluate(record)
+    return row_index, evaluator.name, eval_result
+
+
+def _generate_payloads(
+    dataframe: DataFrame, evaluators: Iterable[Evaluator]
+) -> Generator[Payload, None, None]:
+    for row_index, row in dataframe.iterrows():
+        for evaluator in evaluators:
+            yield {
+                "row_index": row_index,
+                "evaluator": evaluator,
+                "record": row.to_dict(),
+            }
