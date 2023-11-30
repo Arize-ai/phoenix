@@ -284,6 +284,16 @@ type EmbeddingMetadata {
   linkToData: String
 }
 
+enum EvalAttr {
+  score
+  label
+}
+
+input EvalResultKey {
+  name: String!
+  attr: EvalAttr!
+}
+
 interface Evaluation {
   """Name of the evaluation, e.g. 'helpfulness' or 'relevance'."""
   name: String!
@@ -574,6 +584,11 @@ type Span {
   cumulativeTokenCountCompletion: Int
 
   """
+  Propagated status code that percolates up error status codes from descendant spans (children, grandchildren, etc.)
+  """
+  propagatedStatusCode: SpanStatusCode!
+
+  """
   Evaluations associated with the span, e.g. if the span is an LLM, an evaluation may assess the helpfulness of its response with respect to its input.
   """
   spanEvaluations: [SpanEvaluation!]!
@@ -654,8 +669,12 @@ enum SpanKind {
   unknown
 }
 
+"""
+The sort key and direction for span connections. Must specify one and only one of either `col` or `evalResultKey`.
+"""
 input SpanSort {
-  col: SpanColumn!
+  col: SpanColumn = null
+  evalResultKey: EvalResultKey = null
   dir: SortDir!
 }
 

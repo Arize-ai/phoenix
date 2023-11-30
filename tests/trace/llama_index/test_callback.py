@@ -135,7 +135,7 @@ def test_callback_llm_span_contains_template_attributes(
     assert isinstance(span.attributes[LLM_PROMPT_TEMPLATE_VARIABLES], dict)
 
 
-def test_callback_llm_internal_error_has_exception_event(
+def test_callback_internal_error_has_exception_event(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
@@ -160,10 +160,8 @@ def test_callback_llm_internal_error_has_exception_event(
             query_engine.query(query)
 
     spans = list(callback_handler.get_spans())
-    assert all(
-        span.status_code == SpanStatusCode.OK for span in spans if span.span_kind != SpanKind.LLM
-    )
-    span = next(span for span in spans if span.span_kind == SpanKind.LLM)
+    assert all(span.status_code == SpanStatusCode.OK for span in spans if span.name != "synthesize")
+    span = next(span for span in spans if span.name == "synthesize")
     assert span.status_code == SpanStatusCode.ERROR
     events = span.events
     event = events[0]
@@ -171,6 +169,39 @@ def test_callback_llm_internal_error_has_exception_event(
     assert isinstance(event.timestamp, datetime)
     assert len(event.attributes) == 3
     assert event.attributes[EXCEPTION_TYPE] == "InternalServerError"
+    assert event.attributes[EXCEPTION_MESSAGE] == "message"
+    assert isinstance(event.attributes[EXCEPTION_STACKTRACE], str)
+
+
+def test_callback_exception_event_produces_root_chain_span_with_exception_events() -> None:
+    llm = OpenAI(model="gpt-3.5-turbo", max_retries=1)
+    query = "What are the seven wonders of the world?"
+    callback_handler = OpenInferenceTraceCallbackHandler(exporter=NoOpExporter())
+    index = ListIndex(nodes)
+    service_context = ServiceContext.from_defaults(
+        llm=llm, callback_manager=CallbackManager([callback_handler])
+    )
+    query_engine = index.as_query_engine(service_context=service_context)
+
+    # mock the _query method to raise an exception before any event has begun
+    # to produce an independent exception event
+    with patch.object(query_engine, "_query") as mocked_query:
+        mocked_query.side_effect = Exception("message")
+        with pytest.raises(Exception):
+            query_engine.query(query)
+
+    spans = list(callback_handler.get_spans())
+    assert len(spans) == 1
+    span = spans[0]
+    assert span.span_kind == SpanKind.CHAIN
+    assert span.status_code == SpanStatusCode.ERROR
+    assert span.name == "exception"
+    events = span.events
+    event = events[0]
+    assert isinstance(event, SpanException)
+    assert isinstance(event.timestamp, datetime)
+    assert len(event.attributes) == 3
+    assert event.attributes[EXCEPTION_TYPE] == "Exception"
     assert event.attributes[EXCEPTION_MESSAGE] == "message"
     assert isinstance(event.attributes[EXCEPTION_STACKTRACE], str)
 

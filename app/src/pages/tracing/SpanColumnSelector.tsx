@@ -1,8 +1,10 @@
 import React, { ChangeEvent, useCallback, useMemo } from "react";
-import { Column, VisibilityState } from "@tanstack/react-table";
+import { Column } from "@tanstack/react-table";
 import { css } from "@emotion/react";
 
 import { Dropdown, Flex, Icon, Icons, View } from "@arizeai/components";
+
+import { useTracingContext } from "@phoenix/contexts/TracingContext";
 
 const UN_HIDABLE_COLUMN_IDS = ["spanKind", "name"];
 
@@ -14,14 +16,6 @@ type SpanColumnSelectorProps = {
    */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   columns: Column<any>[];
-  /**
-   * Map of the column id to the visibility state
-   */
-  columnVisibility: VisibilityState;
-  /*
-   * Callback to set the visibility state of a column
-   */
-  onColumnVisibilityChange: (visibilityState: VisibilityState) => void;
 };
 
 export function SpanColumnSelector(props: SpanColumnSelectorProps) {
@@ -51,12 +45,12 @@ const columCheckboxItemCSS = css`
 `;
 
 function ColumnSelectorMenu(props: SpanColumnSelectorProps) {
-  const {
-    columns: propsColumns,
-    columnVisibility,
-    onColumnVisibilityChange,
-  } = props;
+  const { columns: propsColumns } = props;
 
+  const columnVisibility = useTracingContext((state) => state.columnVisibility);
+  const setColumnVisibility = useTracingContext(
+    (state) => state.setColumnVisibility
+  );
   const columns = useMemo(() => {
     return propsColumns.filter((column) => {
       return !UN_HIDABLE_COLUMN_IDS.includes(column.id);
@@ -74,9 +68,9 @@ function ColumnSelectorMenu(props: SpanColumnSelectorProps) {
   const onCheckboxChange = useCallback(
     (event: ChangeEvent<HTMLInputElement>) => {
       const { name, checked } = event.target;
-      onColumnVisibilityChange({ ...columnVisibility, [name]: checked });
+      setColumnVisibility({ ...columnVisibility, [name]: checked });
     },
-    [columnVisibility, onColumnVisibilityChange]
+    [columnVisibility, setColumnVisibility]
   );
 
   const onToggleAll = useCallback(
@@ -85,9 +79,9 @@ function ColumnSelectorMenu(props: SpanColumnSelectorProps) {
       const newVisibilityState = columns.reduce((acc, column) => {
         return { ...acc, [column.id]: checked };
       }, {});
-      onColumnVisibilityChange(newVisibilityState);
+      setColumnVisibility(newVisibilityState);
     },
-    [columns, onColumnVisibilityChange]
+    [columns, setColumnVisibility]
   );
 
   return (

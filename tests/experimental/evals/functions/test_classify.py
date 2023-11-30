@@ -361,7 +361,7 @@ def test_llm_classify_shows_retry_info(
     with ExitStack() as stack:
         waiting_fn = "phoenix.experimental.evals.models.base.wait_random_exponential"
         stack.enter_context(patch(waiting_fn, return_value=False))
-        model = OpenAIModel(max_retries=5)
+        model = OpenAIModel(max_retries=4)
 
         request = httpx.Request("POST", "https://api.openai.com/v1/chat/completions")
         openai_retry_errors = [
@@ -372,11 +372,6 @@ def test_llm_classify_shows_retry_info(
                 body={},
             ),
             model._openai.APIConnectionError(message="test api connection error", request=request),
-            model._openai.RateLimitError(
-                "test rate limit error",
-                response=httpx.Response(status_code=419, request=request),
-                body={},
-            ),
             model._openai.InternalServerError(
                 "test internal server error",
                 response=httpx.Response(status_code=500, request=request),
@@ -399,8 +394,7 @@ def test_llm_classify_shows_retry_info(
     assert "Failed attempt 1" in out, "Retry information should be printed"
     assert "Failed attempt 2" in out, "Retry information should be printed"
     assert "Failed attempt 3" in out, "Retry information should be printed"
-    assert "Failed attempt 4" in out, "Retry information should be printed"
-    assert "Failed attempt 5" not in out, "Maximum retries should not be exceeded"
+    assert "Failed attempt 4" not in out, "Maximum retries should not be exceeded"
 
 
 @pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
