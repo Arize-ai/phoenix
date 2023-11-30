@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from functools import partial
-from typing import Any, List, Mapping, Optional, Protocol, runtime_checkable
+from typing import Any, List, Mapping, Optional, Protocol
 
 from phoenix.experimental.evals.models import set_verbosity
 from phoenix.utilities.logging import printif
@@ -16,7 +16,6 @@ class EvaluationResult:
     prediction: str
 
 
-@runtime_checkable
 class Evaluator(Protocol):
     def evaluate(self, record: Record) -> EvaluationResult:
         ...
