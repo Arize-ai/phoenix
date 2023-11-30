@@ -109,3 +109,22 @@ def test_eval_runner_raises_value_error_when_initialized_with_an_evaluator_name_
 ) -> None:
     with pytest.raises(ValueError):
         EvalRunner(evaluators=["relevance", toxicity_evaluator])
+
+
+def test_eval_runner_with_evaluators_with_duplicate_names_raises_value_error(
+    toxicity_evaluator: LLMEvaluator
+) -> None:
+    with pytest.raises(ValueError):
+        EvalRunner(evaluators=[toxicity_evaluator, toxicity_evaluator])
+
+
+def test_eval_runner_with_evaluator_with_name_that_matches_criteria_name_raises_value_error(
+    toxicity_evaluator: LLMEvaluator
+) -> None:
+    with pytest.raises(ValueError):
+        EvalRunner(evaluators=[toxicity_evaluator, "toxicity"])
+
+
+def test_eval_runner_with_matching_criteria_names_raises_value_error() -> None:
+    with pytest.raises(ValueError):
+        EvalRunner(evaluators=["toxicity", "toxicity"])

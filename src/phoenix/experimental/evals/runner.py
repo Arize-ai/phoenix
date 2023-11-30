@@ -60,25 +60,29 @@ class EvalRunner:
 
 
 def _validate_and_convert_to_evaluators(
-    evaluators: List[Union[EvalCriteriaName, EvalCriteria, Evaluator]],
+    maybe_evaluators: List[Union[EvalCriteriaName, EvalCriteria, Evaluator]],
     model: Optional[BaseEvalModel],
 ) -> List[Evaluator]:
-    if _is_list_of_evaluators(evaluators):
+    if _is_list_of_evaluators(maybe_evaluators):
         if model is not None:
             raise ValueError(
                 "When all evaluators are passed as objects, "
                 "the model has already been specified for each evaluator and "
                 "should not be passed as an additional argument."
             )
-        return evaluators
-    if model is None:
-        raise ValueError("When specifying an evaluator by name, you must also pass a model.")
-    return [
-        LLMEvaluator.from_criteria(criteria=evaluator, model=model)
-        if (isinstance(evaluator, str) or isinstance(evaluator, EvalCriteria))
-        else evaluator
-        for evaluator in evaluators
-    ]
+        evaluators = maybe_evaluators
+    else:
+        if model is None:
+            raise ValueError("When specifying an evaluator by name, you must also pass a model.")
+        evaluators = [
+            LLMEvaluator.from_criteria(criteria=maybe_evaluator, model=model)
+            if (isinstance(maybe_evaluator, str) or isinstance(maybe_evaluator, EvalCriteria))
+            else maybe_evaluator
+            for maybe_evaluator in maybe_evaluators
+        ]
+    if len(set(evaluator.name for evaluator in evaluators)) != len(evaluators):
+        raise ValueError("Evaluators must have unique names.")
+    return evaluators
 
 
 def _is_list_of_evaluators(
