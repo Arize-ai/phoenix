@@ -29,6 +29,7 @@
         "tiktoken",
         "tracedataset",
         "UMAP",
+        "xlarge",
         "Zustand"
     ],
     "flagWords": [

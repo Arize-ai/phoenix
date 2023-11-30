@@ -57,7 +57,7 @@ export function TracingHomePageHeader(props: {
     <View
       paddingStart="size-200"
       paddingEnd="size-200"
-      paddingTop="size-100"
+      paddingTop="size-200"
       paddingBottom="size-50"
       flex="none"
     >
