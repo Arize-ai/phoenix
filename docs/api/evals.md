@@ -113,7 +113,7 @@ def run_relevance_eval(
     template: Union[ClassificationPromptTemplate, PromptTemplate, str] = RAG_RELEVANCY_PROMPT_TEMPLATE,
     rails: List[str] = list(RAG_RELEVANCY_PROMPT_RAILS_MAP.values()),
     system_instruction: Optional[str] = None,
-    query_column_name: str = "input",
+    query_column_name: str = "query",
     document_column_name: str = "reference",
 ) -> List[List[str]]:
 ```
