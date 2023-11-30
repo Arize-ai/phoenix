@@ -148,7 +148,7 @@ def _parse_message_data(message_data: Mapping[str, Any]) -> Message:
         role = message_data["kwargs"]["role"]
     else:
         raise ValueError(f"Cannot parse message of type: {message_class_name}")
-    parsed_message_data = {MESSAGE_ROLE: role}
+    parsed_message_data: Dict[str, Any] = {MESSAGE_ROLE: role}
     if kwargs := message_data.get("kwargs"):
         assert hasattr(kwargs, "get"), f"expected Mapping, found {type(kwargs)}"
         if content := kwargs.get("content"):
