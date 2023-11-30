@@ -64,7 +64,7 @@ class AsyncExecutor:
     interface is provided by the `run` method.
 
     Args:
-        generation_fn (Callable[[Any], Coroutine[Any, Any, Any]]): A coroutine function that
+        generation_fn (Callable[..., Coroutine[Any, Any, Any]]): A coroutine function that
         generates tasks to be executed.
 
         concurrency (int, optional): The number of concurrent consumers. Defaults to 3.
@@ -81,7 +81,7 @@ class AsyncExecutor:
 
     def __init__(
         self,
-        generation_fn: Callable[[Any], Coroutine[Any, Any, Any]],
+        generation_fn: Callable[..., Coroutine[Any, Any, Any]],
         concurrency: int = 3,
         tqdm_bar_format: Optional[str] = None,
         exit_on_error: bool = True,
@@ -218,7 +218,7 @@ class SyncExecutor:
     Synchronous executor for generating outputs from inputs using a given generation function.
 
     Args:
-        generation_fn (Callable[[Any], Any]): The generation function that takes an input and
+        generation_fn (Callable[..., Any]): The generation function that takes an input and
         returns an output.
 
         tqdm_bar_format (Optional[str], optional): The format string for the progress bar. Defaults
@@ -233,7 +233,7 @@ class SyncExecutor:
 
     def __init__(
         self,
-        generation_fn: Callable[[Any], Any],
+        generation_fn: Callable[..., Any],
         tqdm_bar_format: Optional[str] = None,
         exit_on_error: bool = True,
         fallback_return_value: Union[Unset, Any] = _unset,
@@ -271,8 +271,8 @@ class SyncExecutor:
 
 
 def get_executor_on_sync_context(
-    sync_fn: Callable[[Any], Any],
-    async_fn: Callable[[Any], Coroutine[Any, Any, Any]],
+    sync_fn: Callable[..., Any],
+    async_fn: Callable[..., Coroutine[Any, Any, Any]],
     concurrency: int = 3,
     tqdm_bar_format: Optional[str] = None,
     exit_on_error: bool = True,

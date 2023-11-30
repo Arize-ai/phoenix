@@ -53,6 +53,9 @@ class Evaluator(Protocol):
     def evaluate(self, record: Record) -> EvaluationResult:
         ...
 
+    async def aevaluate(self, record: Record) -> EvaluationResult:
+        ...
+
     @property
     def name(self) -> str:
         ...
@@ -76,6 +79,12 @@ class LLMEvaluator:
         prompt = self._template.format(dict(record))
         with set_verbosity(self._model, self._verbose) as verbose_model:
             unparsed_output = verbose_model(prompt)
+        return EvaluationResult(prediction=self._parser(unparsed_output))
+
+    async def aevaluate(self, record: Record) -> EvaluationResult:
+        prompt = self._template.format(dict(record))
+        with set_verbosity(self._model, self._verbose) as verbose_model:
+            unparsed_output = await verbose_model._async_generate(prompt)
         return EvaluationResult(prediction=self._parser(unparsed_output))
 
     @property
