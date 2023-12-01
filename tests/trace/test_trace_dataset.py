@@ -13,8 +13,8 @@ from phoenix.trace.schemas import (
     SpanKind,
     SpanStatusCode,
 )
+from phoenix.trace.span_evaluations import SpanEvaluations
 from phoenix.trace.trace_dataset import TraceDataset
-from phoenix.trace.trace_evaluations import TraceEvaluations
 
 
 def test_dataset_construction():
@@ -162,7 +162,7 @@ def test_dataset_construction_with_evaluations():
             "context.span_id": span_ids,
         }
     ).set_index("context.span_id", drop=False)
-    eval_ds_1 = TraceEvaluations(
+    eval_ds_1 = SpanEvaluations(
         eval_name="fake_eval_1",
         dataframe=pd.DataFrame(
             {
@@ -171,7 +171,7 @@ def test_dataset_construction_with_evaluations():
             }
         ).set_index("context.span_id"),
     )
-    eval_ds_2 = TraceEvaluations(
+    eval_ds_2 = SpanEvaluations(
         eval_name="fake_eval_2",
         dataframe=pd.DataFrame(
             {

@@ -10,9 +10,9 @@ from phoenix.datetime_utils import normalize_timestamps
 
 from ..config import DATASET_DIR, GENERATED_DATASET_NAME_PREFIX
 from .schemas import ATTRIBUTE_PREFIX, CONTEXT_PREFIX, Span
+from .span_evaluations import EVALUATIONS_INDEX_NAME, SpanEvaluations
 from .span_json_decoder import json_to_span
 from .span_json_encoder import span_to_json
-from .trace_evaluations import EVALUATIONS_INDEX_NAME, TraceEvaluations
 
 # A set of columns that is required
 REQUIRED_COLUMNS = [
@@ -45,26 +45,28 @@ class TraceDataset:
 
     name: str
     dataframe: pd.DataFrame
-    evaluations: List[TraceEvaluations] = []
+    evaluations: List[SpanEvaluations] = []
     _data_file_name: str = "data.parquet"
 
     def __init__(
         self,
         dataframe: DataFrame,
         name: Optional[str] = None,
-        evaluations: Iterable[TraceEvaluations] = (),
+        evaluations: Iterable[SpanEvaluations] = (),
     ):
         """
-        Constructs a TraceDataset from a dataframe of spans. Optionally takes in evaluations
-        for the spans in the dataset.
+        Constructs a TraceDataset from a dataframe of spans. Optionally takes in
+        evaluations for the spans in the dataset.
 
         Parameters
         __________
         dataframe: pandas.DataFrame
-            the pandas dataframe containing the tracing data. Each row represents a span.
-        evaluations: Optional[raceEvaluationsParam]
-            a list of evaluations for the spans in the dataset. If provided, the evaluations
-            can be materialized into a unified dataframe as annotations.
+            the pandas dataframe containing the tracing data. Each row
+            represents a span.
+        evaluations: Optional[Iterable[SpanEvaluations]]
+            an optional list of evaluations for the spans in the dataset. If
+            provided, the evaluations can be materialized into a unified
+            dataframe as annotations.
         """
         # Validate the the dataframe has required fields
         if missing_columns := set(REQUIRED_COLUMNS) - set(dataframe.columns):
@@ -149,7 +151,7 @@ class TraceDataset:
             coerce_timestamps="ms",
         )
 
-    def append_evaluations(self, evaluations: TraceEvaluations) -> None:
+    def append_evaluations(self, evaluations: SpanEvaluations) -> None:
         """adds an evaluation to the traces"""
         # Append the evaluations to the list of evaluations
         self.evaluations.append(evaluations)
@@ -173,10 +175,9 @@ class TraceDataset:
         include_evaluations: bool
             if True, the evaluations are merged into the dataframe
         """
-        df = self.dataframe.copy()
         if not include_evaluations:
-            return df
+            return self.dataframe.copy()
         evals_df = self.get_evals_dataframe()
         # Make sure the index is set to the span_id
-        df.set_index(EVALUATIONS_INDEX_NAME, drop=False, inplace=True)
+        df = self.dataframe.set_index(EVALUATIONS_INDEX_NAME, drop=False)
         return pd.concat([df, evals_df], axis=1)
