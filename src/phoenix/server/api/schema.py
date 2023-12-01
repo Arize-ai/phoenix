@@ -261,6 +261,8 @@ class Query:
         if (evals := info.context.evals) is None:
             return None
         evaluations = evals.get_span_evaluations_by_name(evaluation_name)
+        if not evaluations:
+            return None
         labels = evals.get_span_evaluation_labels(evaluation_name)
         return EvaluationSummary(evaluations, labels)
 
