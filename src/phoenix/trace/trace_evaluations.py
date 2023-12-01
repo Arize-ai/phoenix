@@ -3,20 +3,18 @@ from typing import Union
 
 import pandas as pd
 
-from .spans_dataframe_utils import to_span_ids
-
-REQUIRED_COLUMNS = ["span_id"]
+EVALUATIONS_INDEX_NAME = "context.span_id"
 
 EVAL_NAME_COLUMN_PREFIX = "eval."
 
 
-class TraceEvalDataset:
+class TraceEvaluations:
     """
-    A TraceEvalDataset is a set of evaluation annotations for a set of spans.
-    TraceEvalDataset encompasses the evaluation annotations for a single evaluation task
-    such as toxicity or relevance.
+    TraceEvaluations is a set of evaluation annotations for a set of spans.
+    TraceEvaluations encompasses the evaluation annotations for a single evaluation task
+    such as toxicity or hallucinations.
 
-    TraceEvalDatasets can be appended to TraceDatasets so that the spans and
+    TraceEvaluations can be appended to TraceDatasets so that the spans and
     evaluations can be joined and analyzed together.
 
     Parameters
@@ -32,7 +30,7 @@ class TraceEvalDataset:
 
     DataFrame of evaluations for toxicity may look like:
 
-    | span_id | value              | label              | explanation        |
+    | span_id | score              | label              | explanation        |
     |---------|--------------------|--------------------|--------------------|
     | span_1  | 1                  | toxic              | bad language       |
     | span_2  | 0                  | non-toxic          | violence           |
@@ -45,14 +43,15 @@ class TraceEvalDataset:
 
     def __init__(self, eval_name: str, dataframe: pd.DataFrame):
         self.eval_name = eval_name
-        # Validate the the dataframe has required fields
-        if missing_columns := set(REQUIRED_COLUMNS) - set(dataframe.columns):
+        # validate that the dataframe is indexed by context.span_id
+        if dataframe.index.name != EVALUATIONS_INDEX_NAME:
             raise ValueError(
-                f"The dataframe is missing some required columns: {', '.join(missing_columns)}"
+                f"The dataframe index must be '{EVALUATIONS_INDEX_NAME}' but was "
+                f"'{dataframe.index.name}'"
             )
         self.dataframe = dataframe
 
-    def get_eval_dataframe(self, prefix_columns_with_name: bool = True) -> pd.DataFrame:
+    def get_dataframe(self, prefix_columns_with_name: bool = True) -> pd.DataFrame:
         """
         Returns a copy of the dataframe with the evaluation annotations
 
@@ -64,7 +63,9 @@ class TraceEvalDataset:
         dataframe = self.dataframe.copy()
         if prefix_columns_with_name:
             # Prefix all columns except the span_id column
-            columns_to_prefix = [column for column in dataframe.columns if column != "span_id"]
+            columns_to_prefix = [
+                column for column in dataframe.columns if column != EVAL_NAME_COLUMN_PREFIX
+            ]
             dataframe.rename(
                 columns={
                     column: f"{EVAL_NAME_COLUMN_PREFIX}{self.eval_name}.{column}"
@@ -75,14 +76,13 @@ class TraceEvalDataset:
         return dataframe
 
 
-def binary_classifications_to_trace_eval_dataset(
+def binary_classifications_to_trace_evaluations(
     eval_name: str,
     classifications_df: pd.DataFrame,
-    spans_df: pd.DataFrame,
     rails_map: "OrderedDict[bool, str]",
-) -> TraceEvalDataset:
+) -> TraceEvaluations:
     """
-    Takes a dataframe of binary classifications and converts it to a TraceEvalDataset
+    Takes a dataframe of binary classifications and converts it to a TraceEvaluations
 
     Parameters
     __________
@@ -96,7 +96,6 @@ def binary_classifications_to_trace_eval_dataset(
         a map of the binary classifications to the labels. E.x. {True: "toxic", False: "non-toxic"}
     """
     evaluations_df = classifications_df.copy()
-    span_ids_df = to_span_ids(spans_df)
 
     # Convert the rails map to a map of labels to binary values
     classification_map = {label: binary for binary, label in rails_map.items()}
@@ -109,7 +108,4 @@ def binary_classifications_to_trace_eval_dataset(
 
     evaluations_df["value"] = evaluations_df["label"].apply(map_classification_to_value)
 
-    # Join the spans dataframe to the evaluations dataframe.
-    # NB we need to assume the span_id column is in the same order as the evaluations
-    evaluations_df = pd.DataFrame.join(span_ids_df, evaluations_df)
-    return TraceEvalDataset(eval_name, evaluations_df)
+    return TraceEvaluations(eval_name, evaluations_df)

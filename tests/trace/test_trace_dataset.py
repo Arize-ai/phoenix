@@ -14,7 +14,7 @@ from phoenix.trace.schemas import (
     SpanStatusCode,
 )
 from phoenix.trace.trace_dataset import TraceDataset
-from phoenix.trace.trace_eval_dataset import TraceEvalDataset
+from phoenix.trace.trace_evaluations import TraceEvaluations
 
 
 def test_dataset_construction():
@@ -162,22 +162,33 @@ def test_dataset_construction_with_evaluations():
             "context.span_id": span_ids,
         }
     )
-    eval_ds = TraceEvalDataset(
-        eval_name="fake_eval",
+    eval_ds_1 = TraceEvaluations(
+        eval_name="fake_eval_1",
         dataframe=pd.DataFrame(
             {
-                "span_id": span_ids,
+                "context.span_id": span_ids,
                 "value": [index for index in range(num_records)],
             }
-        ),
+        ).set_index("context.span_id"),
     )
-    ds = TraceDataset(traces_df, evaluations=[eval_ds])
+    eval_ds_2 = TraceEvaluations(
+        eval_name="fake_eval_2",
+        dataframe=pd.DataFrame(
+            {
+                "context.span_id": span_ids,
+                "value": [index for index in range(num_records)],
+            }
+        ).set_index("context.span_id"),
+    )
+    ds = TraceDataset(traces_df, evaluations=[eval_ds_1, eval_ds_2])
     df_with_evals = ds.to_spans_dataframe(include_evaluations=True)
     # Validate that the length of the dataframe is the same
     assert len(df_with_evals) == len(traces_df)
     # Validate that the evaluation columns are present
-    assert "eval.fake_eval.value" in df_with_evals.columns
+    assert "eval.fake_eval_1.value" in df_with_evals.columns
+    assert "eval.fake_eval_2.value" in df_with_evals.columns
     # Validate that the evaluation column contains the correct values
-    assert list(df_with_evals["eval.fake_eval.value"]) == list(eval_ds.dataframe["value"])
+    assert list(df_with_evals["eval.fake_eval_1.value"]) == list(eval_ds_1.dataframe["value"])
+    assert list(df_with_evals["eval.fake_eval_2.value"]) == list(eval_ds_2.dataframe["value"])
     # Validate that the output contains a span_id column
-    assert "span_id" in df_with_evals.columns
+    assert "context.span_id" in df_with_evals.columns
