@@ -27,8 +27,11 @@ from phoenix.trace.semantic_conventions import (
     MESSAGE_FUNCTION_CALL_NAME,
     MESSAGE_NAME,
     MESSAGE_ROLE,
+    MESSAGE_TOOL_CALLS,
     OUTPUT_MIME_TYPE,
     OUTPUT_VALUE,
+    TOOL_CALL_FUNCTION_ARGUMENTS_JSON,
+    TOOL_CALL_FUNCTION_NAME,
     MimeType,
 )
 from phoenix.trace.tracer import Tracer
@@ -225,6 +228,72 @@ def test_openai_instrumentor_includes_function_call_attributes(
     function_call_arguments = json.loads(function_call_attributes["arguments"])
     assert function_call_arguments == {"location": "Boston, MA"}
     assert span.events == []
+
+
+def test_openai_instrumentor_includes_tool_calls_attributes(
+    client: OpenAI,
+    respx_mock: MockRouter,
+) -> None:
+    tracer = Tracer()
+    OpenAIInstrumentor(tracer).instrument()
+
+    model = "gpt-4"
+    messages = [
+        {"role": "user", "content": "What is the current time and weather in Boston, MA?"},
+    ]
+    respx_mock.post("https://api.openai.com/v1/chat/completions").mock(
+        return_value=Response(
+            status_code=200,
+            json={
+                "choices": [
+                    {
+                        "index": 0,
+                        "message": {
+                            "role": "assistant",
+                            "tool_calls": [
+                                {
+                                    "type": "function",
+                                    "function": {
+                                        "name": "get_current_weather",
+                                        "arguments": '{\n  "location": "Boston, MA"\n}',
+                                    },
+                                },
+                                {
+                                    "type": "function",
+                                    "function": {
+                                        "name": "get_current_time",
+                                        "arguments": '{\n  "location": "Boston, MA"\n}',
+                                    },
+                                },
+                            ],
+                        },
+                    }
+                ],
+            },
+        )
+    )
+    client.chat.completions.create(model=model, messages=messages)
+
+    spans = list(tracer.get_spans())
+    assert len(spans) == 1
+    span = spans[0]
+    attributes = span.attributes
+
+    assert attributes[LLM_OUTPUT_MESSAGES] == [
+        {
+            MESSAGE_ROLE: "assistant",
+            MESSAGE_TOOL_CALLS: [
+                {
+                    TOOL_CALL_FUNCTION_NAME: "get_current_weather",
+                    TOOL_CALL_FUNCTION_ARGUMENTS_JSON: '{\n  "location": "Boston, MA"\n}',
+                },
+                {
+                    TOOL_CALL_FUNCTION_NAME: "get_current_time",
+                    TOOL_CALL_FUNCTION_ARGUMENTS_JSON: '{\n  "location": "Boston, MA"\n}',
+                },
+            ],
+        }
+    ]
 
 
 def test_openai_instrumentor_includes_function_call_message_attributes(
