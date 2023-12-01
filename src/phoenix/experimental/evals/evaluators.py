@@ -10,13 +10,23 @@ from .templates import ClassificationTemplate, PromptTemplate
 
 Record = Mapping[str, Any]
 
+NOT_PARSABLE = "NOT_PARSABLE"
 
-@dataclass
+
+@dataclass(frozen=True)
 class EvaluationResult:
+    """
+    A class to contain the results of an evaluation.
+    """
+
     prediction: str
 
 
 class Evaluator(Protocol):
+    """
+    Evaluates individual records.
+    """
+
     def evaluate(self, record: Record) -> EvaluationResult:
         ...
 
@@ -29,13 +39,25 @@ class Evaluator(Protocol):
 
 
 class LLMEvaluator:
+    """
+    Leverages an LLM to evaluate individual records.
+    """
+
     def __init__(
         self,
-        name: str,
         model: BaseEvalModel,
         template: ClassificationTemplate,
+        name: str,
         verbose: bool = False,
     ) -> None:
+        """Initializer for LLMEvaluator.
+
+        Args:
+            name (str): The name of the evaluator.
+            model (BaseEvalModel): The LLM model to use for evaluation.
+            template (ClassificationTemplate): The evaluation template.
+            verbose (bool, optional): Whether to print verbose output.
+        """
         self._name = name
         self._model = model
         self._template = template
@@ -43,19 +65,42 @@ class LLMEvaluator:
         self._verbose = verbose
 
     def evaluate(self, record: Record) -> EvaluationResult:
+        """Evaluates a single record.
+
+        Args:
+            record (Record): The record to evaluate.
+
+        Returns:
+            EvaluationResult: The result of the evaluation
+        """
         prompt = self._template.format(dict(record))
         with set_verbosity(self._model, self._verbose) as verbose_model:
             unparsed_output = verbose_model(prompt)
-        return EvaluationResult(prediction=self._parser(unparsed_output))
+        parsed_output = self._parser(unparsed_output)
+        return EvaluationResult(prediction=parsed_output)
 
     async def aevaluate(self, record: Record) -> EvaluationResult:
+        """Evaluates a single record.
+
+        Args:
+            record (Record): The record to evaluate.
+
+        Returns:
+            EvaluationResult: The result of the evaluation
+        """
         prompt = self._template.format(dict(record))
         with set_verbosity(self._model, self._verbose) as verbose_model:
             unparsed_output = await verbose_model._async_generate(prompt)
-        return EvaluationResult(prediction=self._parser(unparsed_output))
+        parsed_output = self._parser(unparsed_output)
+        return EvaluationResult(prediction=parsed_output)
 
     @property
     def name(self) -> str:
+        """The name of the evaluator.
+
+        Returns:
+            str: The name of the evaluator.
+        """
         return self._name
 
 
@@ -192,10 +237,6 @@ class Refiner:
             return accumulator
         reduce_prompt = self._synthesize_prompt_template.format({"accumulator": accumulator})
         return model(reduce_prompt)
-
-
-# TODO: de-duplicate and refactor the following code
-NOT_PARSABLE = "UNPARSABLE"
 
 
 def _snap_to_rail(raw_string: Optional[str], rails: List[str], verbose: bool = False) -> str:
