@@ -44,7 +44,7 @@ from phoenix.experimental.evals.utils import get_tqdm_progress_bar_formatter
 from phoenix.trace.semantic_conventions import DOCUMENT_CONTENT, INPUT_VALUE, RETRIEVAL_DOCUMENTS
 from phoenix.utilities.logging import printif
 
-from ..evaluators import EvaluationResult, Evaluator
+from ..evaluators import EvaluationResult, Evaluator, _snap_to_rail
 
 logger = logging.getLogger(__name__)
 
@@ -595,38 +595,6 @@ def _get_contents_from_openinference_documents(documents: Iterable[Any]) -> List
     return [doc.get(DOCUMENT_CONTENT) if isinstance(doc, dict) else None for doc in documents]
 
 
-def _snap_to_rail(raw_string: Optional[str], rails: List[str], verbose: bool = False) -> str:
-    """
-    Snaps a string to the nearest rail, or returns None if the string cannot be
-    snapped to a rail.
-
-    Args:
-        raw_string (str): An input to be snapped to a rail.
-
-        rails (List[str]): The target set of strings to snap to.
-
-    Returns:
-        str: A string from the rails argument or "UNPARSABLE" if the input
-        string could not be snapped.
-    """
-    if not raw_string:
-        return NOT_PARSABLE
-    snap_string = raw_string.lower()
-    rails = list(set(rail.lower() for rail in rails))
-    rails.sort(key=len, reverse=True)
-    found_rails = set()
-    for rail in rails:
-        if rail in snap_string:
-            found_rails.add(rail)
-            snap_string = snap_string.replace(rail, "")
-    if len(found_rails) != 1:
-        printif(verbose, f"- Cannot snap {repr(raw_string)} to rails")
-        return NOT_PARSABLE
-    rail = list(found_rails)[0]
-    printif(verbose, f"- Snapped {repr(raw_string)} to rail: {rail}")
-    return rail
-
-
 def _default_openai_function(
     rails: List[str],
     with_explanation: bool = False,
@@ -657,9 +625,9 @@ def _default_openai_function(
 
 
 class Payload(TypedDict):
-    row_index: RowIndex
     evaluator: Evaluator
     record: Record
+    row_index: RowIndex
 
 
 def run_evals(
