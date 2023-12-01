@@ -37,7 +37,14 @@ from respx.patterns import M
 
 
 @pytest.fixture
-def model() -> OpenAIModel:
+def api_key(monkeypatch: pytest.MonkeyPatch) -> str:
+    api_key = "sk-0123456789"
+    monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, api_key)
+    return api_key
+
+
+@pytest.fixture
+def model(api_key: str) -> OpenAIModel:
     return OpenAIModel(model_name="gpt-4")
 
 
@@ -62,7 +69,7 @@ def relevance_evaluator(model: OpenAIModel) -> LLMEvaluator:
 
 
 @pytest.fixture
-def running_event_loop_mock(monkeypatch):
+def running_event_loop_mock(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         "phoenix.experimental.evals.functions.classify._running_event_loop_exists",
         lambda: True,
@@ -152,10 +159,8 @@ def test_executor_factory_returns_async_in_sync_context():
 @pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
 def test_llm_classify(
     classification_dataframe: DataFrame,
-    monkeypatch: pytest.MonkeyPatch,
     respx_mock: respx.mock,
 ):
-    monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
     dataframe = classification_dataframe
     keys = list(zip(dataframe["input"], dataframe["reference"]))
     responses = ["relevant", "irrelevant", "\nrelevant ", "unparsable"]
@@ -197,9 +202,8 @@ def test_llm_classify(
 
 @pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
 def test_llm_classify_with_async(
-    classification_dataframe: DataFrame, monkeypatch: pytest.MonkeyPatch, respx_mock: respx.mock
+    api_key: str, classification_dataframe: DataFrame, respx_mock: respx.mock
 ):
-    monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
     dataframe = classification_dataframe
     keys = list(zip(dataframe["input"], dataframe["reference"]))
     responses = ["relevant", "irrelevant", "\nrelevant ", "unparsable"]
@@ -241,9 +245,8 @@ def test_llm_classify_with_async(
 
 @pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
 def test_llm_classify_with_fn_call(
-    classification_dataframe: DataFrame, monkeypatch: pytest.MonkeyPatch, respx_mock: respx.mock
+    api_key: str, classification_dataframe: DataFrame, respx_mock: respx.mock
 ):
-    monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
     dataframe = classification_dataframe
     keys = list(zip(dataframe["input"], dataframe["reference"]))
     responses = ["relevant", "irrelevant", "\nrelevant ", "unparsable"]
@@ -273,9 +276,8 @@ def test_llm_classify_with_fn_call(
 
 @pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
 def test_classify_fn_call_no_explain(
-    classification_dataframe: DataFrame, monkeypatch: pytest.MonkeyPatch, respx_mock: respx.mock
+    api_key: str, classification_dataframe: DataFrame, respx_mock: respx.mock
 ):
-    monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
     dataframe = classification_dataframe
     keys = list(zip(dataframe["input"], dataframe["reference"]))
     responses = ["relevant", "irrelevant", "\nrelevant ", "unparsable"]
@@ -309,9 +311,8 @@ def test_classify_fn_call_no_explain(
 
 @pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
 def test_classify_fn_call_explain(
-    classification_dataframe: DataFrame, monkeypatch: pytest.MonkeyPatch, respx_mock: respx.mock
+    api_key: str, classification_dataframe: DataFrame, respx_mock: respx.mock
 ):
-    monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
     dataframe = classification_dataframe
     keys = list(zip(dataframe["input"], dataframe["reference"]))
     responses = ["relevant", "irrelevant", "\nrelevant ", "unparsable"]
@@ -350,11 +351,10 @@ def test_classify_fn_call_explain(
 @pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
 def test_llm_classify_prints_to_stdout_with_verbose_flag(
     classification_dataframe: DataFrame,
-    monkeypatch: pytest.MonkeyPatch,
+    api_key: str,
     respx_mock: respx.mock,
     capfd: pytest.CaptureFixture[str],
 ):
-    monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
     dataframe = classification_dataframe
     keys = list(zip(dataframe["input"], dataframe["reference"]))
     responses = ["relevant", "irrelevant", "\nrelevant ", "unparsable"]
@@ -387,10 +387,7 @@ def test_llm_classify_prints_to_stdout_with_verbose_flag(
     assert "sk-0123456789" not in out, "Credentials should not be printed out in cleartext"
 
 
-def test_llm_classify_shows_retry_info(
-    monkeypatch: pytest.MonkeyPatch, capfd: pytest.CaptureFixture[str]
-):
-    monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
+def test_llm_classify_shows_retry_info(capfd: pytest.CaptureFixture[str]):
     dataframe = pd.DataFrame(
         [
             {
@@ -441,7 +438,7 @@ def test_llm_classify_shows_retry_info(
 
 @pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
 def test_run_relevance_eval_standard_dataframe(
-    monkeypatch: pytest.MonkeyPatch,
+    api_key: str,
     respx_mock: respx.mock,
 ):
     dataframe = pd.DataFrame(
@@ -532,7 +529,6 @@ def test_run_relevance_eval_standard_dataframe(
         }
         respx_mock.route(matcher).mock(return_value=httpx.Response(200, json=payload))
 
-    monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
     with patch.object(OpenAIModel, "_init_tiktoken", return_value=None):
         model = OpenAIModel()
 
@@ -554,11 +550,9 @@ def test_classify_tolerance_to_exceptions(
     classification_dataframe: pd.DataFrame,
     classification_responses: List[str],
     classification_template: str,
-    monkeypatch: pytest.MonkeyPatch,
     respx_mock: respx.mock,
     capfd,
 ):
-    monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
     with patch.object(OpenAIModel, "_init_tiktoken", return_value=None):
         model = OpenAIModel(max_retries=0)
     queries = classification_dataframe["input"].tolist()
@@ -585,7 +579,6 @@ def test_classify_tolerance_to_exceptions(
 
 
 def test_run_relevance_eval_openinference_dataframe(
-    monkeypatch: pytest.MonkeyPatch,
     respx_mock: respx.mock,
 ):
     dataframe = pd.DataFrame(
@@ -677,7 +670,6 @@ def test_run_relevance_eval_openinference_dataframe(
         }
         respx_mock.route(matcher).mock(return_value=httpx.Response(200, json=payload))
 
-    monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
     with patch.object(OpenAIModel, "_init_tiktoken", return_value=None):
         model = OpenAIModel()
 
@@ -840,9 +832,37 @@ def test_sync_executor_can_continue_on_error():
     assert outputs == [0, 1, 52, 3, 4]
 
 
+@pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
 def test_run_evals_produces_expected_output_dataframe_when_no_running_event_loop_exists(
-    toxicity_evaluator: LLMEvaluator, relevance_evaluator: LLMEvaluator
+    respx_mock: respx.mock, toxicity_evaluator: LLMEvaluator, relevance_evaluator: LLMEvaluator
 ) -> None:
+    for matcher, response in [
+        (
+            M(content__contains="Paris is the capital of France.")
+            & M(content__contains="relevant"),
+            "relevant",
+        ),
+        (
+            M(content__contains="Munich is the capital of Germany.")
+            & M(content__contains="relevant"),
+            "irrelevant",
+        ),
+        (
+            M(content__contains="What is the capital of France?") & M(content__contains="toxic"),
+            "non-toxic",
+        ),
+    ]:
+        payload = {
+            "choices": [
+                {
+                    "message": {
+                        "content": response,
+                    },
+                }
+            ],
+        }
+        respx_mock.route(matcher).mock(return_value=httpx.Response(200, json=payload))
+
     df = pd.DataFrame(
         [
             {
@@ -866,9 +886,40 @@ def test_run_evals_produces_expected_output_dataframe_when_no_running_event_loop
     )
 
 
+@pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
 def test_run_evals_produces_expected_output_dataframe_when_running_event_loop_already_exists(
-    running_event_loop_mock, toxicity_evaluator: LLMEvaluator, relevance_evaluator: LLMEvaluator
+    running_event_loop_mock,
+    respx_mock: respx.mock,
+    toxicity_evaluator: LLMEvaluator,
+    relevance_evaluator: LLMEvaluator,
 ) -> None:
+    for matcher, response in [
+        (
+            M(content__contains="Paris is the capital of France.")
+            & M(content__contains="relevant"),
+            "relevant",
+        ),
+        (
+            M(content__contains="Munich is the capital of Germany.")
+            & M(content__contains="relevant"),
+            "irrelevant",
+        ),
+        (
+            M(content__contains="What is the capital of France?") & M(content__contains="toxic"),
+            "non-toxic",
+        ),
+    ]:
+        payload = {
+            "choices": [
+                {
+                    "message": {
+                        "content": response,
+                    },
+                }
+            ],
+        }
+        respx_mock.route(matcher).mock(return_value=httpx.Response(200, json=payload))
+
     df = pd.DataFrame(
         [
             {
