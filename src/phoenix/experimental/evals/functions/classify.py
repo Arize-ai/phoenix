@@ -57,10 +57,10 @@ OPENINFERENCE_DOCUMENT_COLUMN_NAME = "attributes." + RETRIEVAL_DOCUMENTS
 _RESPONSE = "response"
 _EXPLANATION = "explanation"
 
-RowIndex: TypeAlias = Any
 EvalName: TypeAlias = str
-Record: TypeAlias = Mapping[str, Any]
 EvalPrediction: TypeAlias = str
+Record: TypeAlias = Mapping[str, Any]
+RowIndex: TypeAlias = Any
 
 
 class Unset:

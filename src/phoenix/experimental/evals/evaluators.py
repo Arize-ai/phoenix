@@ -53,9 +53,9 @@ class LLMEvaluator:
         """Initializer for LLMEvaluator.
 
         Args:
-            name (str): The name of the evaluator.
             model (BaseEvalModel): The LLM model to use for evaluation.
             template (ClassificationTemplate): The evaluation template.
+            name (str): The name of the evaluator.
             verbose (bool, optional): Whether to print verbose output.
         """
         self._model = model
