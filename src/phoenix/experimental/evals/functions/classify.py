@@ -12,7 +12,6 @@ from typing import (
     Coroutine,
     DefaultDict,
     Dict,
-    Generator,
     Iterable,
     List,
     Mapping,
@@ -693,21 +692,17 @@ def run_evals(
         exit_on_error=True,
         fallback_return_value=(None, None),
     )
-    payloads = list(_generate_payloads(dataframe, evaluators))
+    payloads = [
+        {
+            "row_index": row_index,
+            "evaluator": evaluator,
+            "record": row.to_dict(),
+        }
+        for row_index, row in dataframe.iterrows()
+        for evaluator in evaluators
+    ]
     results: DefaultDict[RowIndex, Dict[EvalName, EvalPrediction]] = defaultdict(dict)
     for row_index, eval_name, eval_result in executor.run(payloads):
         results[row_index][eval_name] = eval_result.prediction
     index, data = zip(*results.items())
     return DataFrame(data, index=index)
-
-
-def _generate_payloads(
-    dataframe: DataFrame, evaluators: Iterable[Evaluator]
-) -> Generator[Payload, None, None]:
-    for row_index, row in dataframe.iterrows():
-        for evaluator in evaluators:
-            yield {
-                "row_index": row_index,
-                "evaluator": evaluator,
-                "record": row.to_dict(),
-            }
