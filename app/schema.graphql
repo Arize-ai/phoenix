@@ -312,6 +312,14 @@ interface Evaluation {
   explanation: String
 }
 
+type EvaluationSummary {
+  labels: [String!]!
+  labelFractions: [LabelFraction!]!
+  meanScore: Float
+  scoreCount: Int!
+  labelCount: Int!
+}
+
 type Event {
   id: ID!
   eventMetadata: EventMetadata!
@@ -378,6 +386,11 @@ input InputCoordinate3D {
 
 type IntervalBin {
   range: NumericRange!
+}
+
+type LabelFraction {
+  label: String!
+  fraction: Float!
 }
 
 enum MimeType {
@@ -516,6 +529,7 @@ type Query {
   Names of all available evaluations for spans. (The list contains no duplicates.)
   """
   spanEvaluationNames: [String!]!
+  spanEvaluationSummary(evaluationName: String!): EvaluationSummary
   traceDatasetInfo: TraceDatasetInfo
   validateSpanFilterCondition(condition: String!): ValidationResult!
 }
