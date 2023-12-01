@@ -58,11 +58,11 @@ class LLMEvaluator:
             template (ClassificationTemplate): The evaluation template.
             verbose (bool, optional): Whether to print verbose output.
         """
-        self._name = name
         self._model = model
         self._template = template
-        self._parser = partial(_snap_to_rail, rails=template.rails, verbose=verbose)
+        self._name = name
         self._verbose = verbose
+        self._parser = partial(_snap_to_rail, rails=template.rails, verbose=verbose)
 
     def evaluate(self, record: Record) -> EvaluationResult:
         """Evaluates a single record.
