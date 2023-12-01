@@ -333,6 +333,11 @@ def get_executor_on_sync_context(
 
 
 def _running_event_loop_exists() -> bool:
+    """Checks for a running event loop.
+
+    Returns:
+        bool: True if a running event loop exists, False otherwise.
+    """
     try:
         asyncio.get_running_loop()
         return True
@@ -628,7 +633,7 @@ def _default_openai_function(
     }
 
 
-class Payload(TypedDict):
+class RunEvalsPayload(TypedDict):
     evaluator: Evaluator
     record: Record
     row_index: RowIndex
@@ -639,17 +644,41 @@ def run_evals(
     evaluators: List[Evaluator],
     concurrency: int = 20,
 ) -> DataFrame:
+    """
+    Applies a list of evaluators to every row of a dataframe. Outputs a
+    dataframe where each column corresponds to an evaluator and each row
+    corresponds to a row in the input dataframe.
+
+    Args:
+        dataframe (pd.DataFrame): A pandas dataframe in which each row
+        represents a record to be evaluated. All template variable names must
+        appear as column names in the dataframe (extra columns unrelated to the
+        template are permitted).
+
+        evaluators (List[Evaluator]): A list of evaluators with unique names.
+
+        concurrency (int, optional): An optional concurrency parameter. Defaults
+        to 20.
+
+    Returns:
+        DataFrame: A dataframe where each row contains the outputs of the
+        evaluators applied to the corresponding row of the input dataframe and
+        the column names match the names of the evaluators. The index of the
+        dataframe is the same as the index of the input dataframe.
+    """
     if len(set(evaluator.name for evaluator in evaluators)) != len(evaluators):
         raise ValueError("Evaluators must have unique names.")
 
-    async def _run_eval_async(payload: Payload) -> Tuple[RowIndex, EvalName, EvaluationResult]:
+    async def _run_eval_async(
+        payload: RunEvalsPayload
+    ) -> Tuple[RowIndex, EvalName, EvaluationResult]:
         row_index = payload["row_index"]
         evaluator = payload["evaluator"]
         record = payload["record"]
         eval_result = await evaluator.aevaluate(record)
         return row_index, evaluator.name, eval_result
 
-    def _run_eval_sync(payload: Payload) -> Tuple[RowIndex, EvalName, EvaluationResult]:
+    def _run_eval_sync(payload: RunEvalsPayload) -> Tuple[RowIndex, EvalName, EvaluationResult]:
         row_index = payload["row_index"]
         evaluator = payload["evaluator"]
         record = payload["record"]
