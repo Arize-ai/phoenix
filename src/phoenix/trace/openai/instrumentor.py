@@ -6,13 +6,15 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
+    Coroutine,
     Dict,
     List,
     Mapping,
     Optional,
+    TypeVar,
 )
 
-from typing_extensions import TypeGuard
+from typing_extensions import ParamSpec, TypeGuard
 
 from phoenix.trace.schemas import (
     SpanAttributes,
@@ -48,6 +50,9 @@ if TYPE_CHECKING:
     from openai.types.chat import ChatCompletion
 
 
+ParameterSpec = ParamSpec("ParameterSpec")
+GenericType = TypeVar("GenericType")
+AsyncCallable = Callable[ParameterSpec, Coroutine[Any, Any, GenericType]]
 Parameters = Mapping[str, Any]
 OpenInferenceMessage = Dict[str, str]
 
@@ -75,12 +80,8 @@ class OpenAIInstrumentor:
         Instruments your OpenAI client.
         """
         openai = import_package("openai")
-        is_instrumented = hasattr(
-            openai.OpenAI,
-            INSTRUMENTED_ATTRIBUTE_NAME,
-        )
-        if not is_instrumented:
-            openai.OpenAI.request = _wrapped_openai_client_request_function(
+        if not hasattr(openai.OpenAI, INSTRUMENTED_ATTRIBUTE_NAME):
+            openai.OpenAI.request = _wrapped_openai_sync_client_request_function(
                 openai.OpenAI.request, self._tracer
             )
             setattr(
@@ -88,9 +89,18 @@ class OpenAIInstrumentor:
                 INSTRUMENTED_ATTRIBUTE_NAME,
                 True,
             )
+        if not hasattr(openai.AsyncOpenAI, INSTRUMENTED_ATTRIBUTE_NAME):
+            openai.AsyncOpenAI.request = _wrapped_openai_async_client_request_function(
+                openai.AsyncOpenAI.request, self._tracer
+            )
+            setattr(
+                openai.AsyncOpenAI,
+                INSTRUMENTED_ATTRIBUTE_NAME,
+                True,
+            )
 
 
-def _wrapped_openai_client_request_function(
+def _wrapped_openai_sync_client_request_function(
     request_fn: Callable[..., Any], tracer: Tracer
 ) -> Callable[..., Any]:
     """Wraps the OpenAI APIRequestor.request method to create spans for each API call.
@@ -161,6 +171,19 @@ def _wrapped_openai_client_request_function(
                 )
         else:
             return request_fn(*args, **kwargs)
+
+    return wrapped
+
+
+def _wrapped_openai_async_client_request_function(
+    request_fn: AsyncCallable[ParameterSpec, GenericType], tracer: Tracer
+) -> AsyncCallable[ParameterSpec, GenericType]:
+    async def wrapped(*args: Any, **kwargs: Any) -> GenericType:
+        print("args", args)
+        print("kwargs", kwargs)
+        response = await request_fn(*args, **kwargs)
+        print("response", response)
+        return response
 
     return wrapped
 
