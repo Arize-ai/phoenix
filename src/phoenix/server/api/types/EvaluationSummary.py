@@ -18,6 +18,7 @@ class LabelFraction:
 
 @strawberry.type
 class EvaluationSummary:
+    count: int
     labels: Tuple[str, ...]
     evaluations: Private[Tuple[pb.Evaluation, ...]]
 
@@ -28,6 +29,7 @@ class EvaluationSummary:
     ) -> None:
         self.evaluations = evaluations
         self.labels = labels
+        self.count = len(evaluations)
 
     @strawberry.field
     def label_fractions(self) -> List[LabelFraction]:

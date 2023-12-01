@@ -313,6 +313,7 @@ interface Evaluation {
 }
 
 type EvaluationSummary {
+  count: Int!
   labels: [String!]!
   labelFractions: [LabelFraction!]!
   meanScore: Float
