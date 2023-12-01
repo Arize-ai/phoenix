@@ -12,7 +12,6 @@ from ..config import DATASET_DIR, GENERATED_DATASET_NAME_PREFIX
 from .schemas import ATTRIBUTE_PREFIX, CONTEXT_PREFIX, Span
 from .span_json_decoder import json_to_span
 from .span_json_encoder import span_to_json
-from .spans_dataframe_utils import to_span_ids
 from .trace_evaluations import EVALUATIONS_INDEX_NAME, TraceEvaluations
 
 # A set of columns that is required
@@ -159,22 +158,12 @@ class TraceDataset:
         """
         Creates a flat dataframe of all the evaluations for the dataset.
         """
-        # Start with a a dataframe of all the span_ids
-        df = self.dataframe.copy()[[EVALUATIONS_INDEX_NAME]]
-        # Reset the index in case it was set so the merge below works
-        df.reset_index(drop=True)
+        return pd.concat(
+            [evals.get_dataframe(prefix_columns_with_name=True) for evals in self.evaluations],
+            axis=1,
+        )
 
-        # Flatten the evaluations into a single dataframe
-        for evaluation in self.evaluations:
-            df = pd.merge(
-                df,
-                evaluation.get_dataframe(prefix_columns_with_name=True),
-                on=EVALUATIONS_INDEX_NAME,
-                how="left",
-            )
-        return df
-
-    def to_spans_dataframe(self, include_evaluations: bool = True) -> DataFrame:
+    def get_spans_dataframe(self, include_evaluations: bool = True) -> DataFrame:
         """
         converts the dataset to a dataframe of spans. If evaluations are included,
         the evaluations are merged into the dataframe.
@@ -184,17 +173,10 @@ class TraceDataset:
         include_evaluations: bool
             if True, the evaluations are merged into the dataframe
         """
-        if not include_evaluations:
-            return self.dataframe.copy()
-
-        # Construct a new dataframe with the evaluations
         df = self.dataframe.copy()
+        if not include_evaluations:
+            return df
         evals_df = self.get_evals_dataframe()
-        df = pd.merge(
-            df,
-            evals_df,
-            left_on=EVALUATIONS_INDEX_NAME,
-            right_on=EVALUATIONS_INDEX_NAME,
-            how="left",
-        )
-        return df
+        # Make sure the index is set to the span_id
+        df.set_index(EVALUATIONS_INDEX_NAME, drop=False, inplace=True)
+        return pd.concat([df, evals_df], axis=1)

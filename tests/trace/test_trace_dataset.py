@@ -161,7 +161,7 @@ def test_dataset_construction_with_evaluations():
             "context.trace_id": [f"trace_{index}" for index in range(num_records)],
             "context.span_id": span_ids,
         }
-    )
+    ).set_index("context.span_id", drop=False)
     eval_ds_1 = TraceEvaluations(
         eval_name="fake_eval_1",
         dataframe=pd.DataFrame(
@@ -181,7 +181,11 @@ def test_dataset_construction_with_evaluations():
         ).set_index("context.span_id"),
     )
     ds = TraceDataset(traces_df, evaluations=[eval_ds_1, eval_ds_2])
-    df_with_evals = ds.to_spans_dataframe(include_evaluations=True)
+    evals_df = ds.get_evals_dataframe()
+    assert "eval.fake_eval_1.value" in evals_df.columns
+    assert "eval.fake_eval_2.value" in evals_df.columns
+    assert len(evals_df) is num_records
+    df_with_evals = ds.get_spans_dataframe(include_evaluations=True)
     # Validate that the length of the dataframe is the same
     assert len(df_with_evals) == len(traces_df)
     # Validate that the evaluation columns are present
