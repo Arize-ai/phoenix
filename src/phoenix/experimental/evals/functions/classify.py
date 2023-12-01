@@ -71,6 +71,10 @@ _unset = Unset()
 
 
 class Executor(Protocol):
+    """
+    An interface that executes batches of tasks.
+    """
+
     def run(self, inputs: Sequence[Any]) -> List[Any]:
         ...
 
