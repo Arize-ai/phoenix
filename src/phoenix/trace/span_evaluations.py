@@ -44,7 +44,7 @@ class SpanEvaluations:
 
         # If the dataframe contains the index column, set the index to that column
         if EVALUATIONS_INDEX_NAME in dataframe.columns:
-            dataframe.set_index(EVALUATIONS_INDEX_NAME, inplace=True)
+            dataframe = dataframe.set_index(EVALUATIONS_INDEX_NAME)
 
         # validate that the dataframe is indexed by context.span_id
         if dataframe.index.name != EVALUATIONS_INDEX_NAME:
@@ -55,8 +55,7 @@ class SpanEvaluations:
 
         # Drop the unnecessary columns
         extra_column_names = dataframe.columns.difference(RESULTS_COLUMN_NAMES)
-        dataframe.drop(extra_column_names, axis=1)
-        self.dataframe = dataframe
+        self.dataframe = dataframe.drop(extra_column_names, axis=1)
 
     def get_dataframe(self, prefix_columns_with_name: bool = True) -> pd.DataFrame:
         """
