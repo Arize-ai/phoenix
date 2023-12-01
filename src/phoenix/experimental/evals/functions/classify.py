@@ -17,6 +17,7 @@ from typing import (
     List,
     Mapping,
     Optional,
+    Protocol,
     Sequence,
     Tuple,
     TypedDict,
@@ -68,6 +69,11 @@ class Unset:
 
 
 _unset = Unset()
+
+
+class Executor(Protocol):
+    def run(self, inputs: Sequence[Any]) -> List[Any]:
+        ...
 
 
 class AsyncExecutor:
@@ -291,9 +297,8 @@ def get_executor_on_sync_context(
     tqdm_bar_format: Optional[str] = None,
     exit_on_error: bool = True,
     fallback_return_value: Union[Unset, Any] = _unset,
-) -> Union[AsyncExecutor, SyncExecutor]:
-    try:
-        asyncio.get_running_loop()
+) -> Executor:
+    if _running_event_loop_exists():
         if getattr(asyncio, "_nest_patched", False):
             return AsyncExecutor(
                 async_fn,
@@ -314,7 +319,7 @@ def get_executor_on_sync_context(
                 exit_on_error=exit_on_error,
                 fallback_return_value=fallback_return_value,
             )
-    except RuntimeError:
+    else:
         return AsyncExecutor(
             async_fn,
             concurrency=concurrency,
@@ -322,6 +327,14 @@ def get_executor_on_sync_context(
             exit_on_error=exit_on_error,
             fallback_return_value=fallback_return_value,
         )
+
+
+def _running_event_loop_exists() -> bool:
+    try:
+        asyncio.get_running_loop()
+        return True
+    except RuntimeError:
+        return False
 
 
 def llm_classify(
@@ -368,7 +381,7 @@ def llm_classify(
         classification label. A column named `explanation` is added to the output dataframe.
         Currently, this is only available for models with function calling.
 
-        concurrency (int, default=3): The number of concurrent evals.
+        concurrency (int, default=20): The number of concurrent evals.
 
     Returns:
         pandas.DataFrame: A dataframe where the `label` column (at column position 0) contains
@@ -441,7 +454,7 @@ def llm_classify(
             )
         return _process_response(response)
 
-    executor: Union[AsyncExecutor, SyncExecutor] = get_executor_on_sync_context(
+    executor = get_executor_on_sync_context(
         _run_llm_classification_sync,
         _run_llm_classification_async,
         concurrency=concurrency,
@@ -653,24 +666,39 @@ class Payload(TypedDict):
 def run_evals(
     dataframe: DataFrame,
     evaluators: List[Evaluator],
+    concurrency: int = 20,
 ) -> DataFrame:
     if len(set(evaluator.name for evaluator in evaluators)) != len(evaluators):
         raise ValueError("Evaluators must have unique names.")
-    executor = AsyncExecutor(generation_fn=_run_eval)
+
+    async def _run_eval_async(payload: Payload) -> Tuple[RowIndex, EvalName, EvaluationResult]:
+        row_index = payload["row_index"]
+        evaluator = payload["evaluator"]
+        record = payload["record"]
+        eval_result = await evaluator.aevaluate(record)
+        return row_index, evaluator.name, eval_result
+
+    def _run_eval_sync(payload: Payload) -> Tuple[RowIndex, EvalName, EvaluationResult]:
+        row_index = payload["row_index"]
+        evaluator = payload["evaluator"]
+        record = payload["record"]
+        eval_result = evaluator.evaluate(record)
+        return row_index, evaluator.name, eval_result
+
+    executor = get_executor_on_sync_context(
+        _run_eval_sync,
+        _run_eval_async,
+        concurrency=concurrency,
+        tqdm_bar_format=get_tqdm_progress_bar_formatter("llm_classify"),
+        exit_on_error=True,
+        fallback_return_value=(None, None),
+    )
     payloads = list(_generate_payloads(dataframe, evaluators))
     results: DefaultDict[RowIndex, Dict[EvalName, EvalPrediction]] = defaultdict(dict)
     for row_index, eval_name, eval_result in executor.run(payloads):
         results[row_index][eval_name] = eval_result.prediction
     index, data = zip(*results.items())
     return DataFrame(data, index=index)
-
-
-async def _run_eval(payload: Payload) -> Tuple[RowIndex, EvalName, EvaluationResult]:
-    row_index = payload["row_index"]
-    evaluator = payload["evaluator"]
-    record = payload["record"]
-    eval_result = await evaluator.aevaluate(record)
-    return row_index, evaluator.name, eval_result
 
 
 def _generate_payloads(
