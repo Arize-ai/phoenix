@@ -1108,7 +1108,7 @@ function DocumentItem({
 
 function LLMMessage({ message }: { message: AttributeMessage }) {
   const messageContent = message[MESSAGE_CONTENT];
-  const tool_calls = message[MESSAGE_TOOL_CALLS] || [];
+  const toolCalls = message[MESSAGE_TOOL_CALLS] || [];
   const hasFunctionCall =
     message[MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON] &&
     message[MESSAGE_FUNCTION_CALL_NAME];
@@ -1163,29 +1163,31 @@ function LLMMessage({ message }: { message: AttributeMessage }) {
             {message[MESSAGE_CONTENT]}
           </pre>
         ) : null}
-        {tool_calls.length > 0 ? (
-          tool_calls.map((tool_call, idx) => {
-            return (
-              <pre
-                key={idx}
-                css={css`
-                  text-wrap: wrap;
-                  margin: var(--ac-global-dimension-static-size-100) 0;
-                `}
-              >
-                {tool_call[TOOL_CALL_FUNCTION_NAME] as string}(
-                {JSON.stringify(
-                  JSON.parse(
-                    tool_call[TOOL_CALL_FUNCTION_ARGUMENTS_JSON] as string
-                  ),
-                  null,
-                  2
-                )}
-                )
-              </pre>
-            );
-          })
-        ) : hasFunctionCall ? (
+        {toolCalls.length > 0
+          ? toolCalls.map((toolCall, idx) => {
+              return (
+                <pre
+                  key={idx}
+                  css={css`
+                    text-wrap: wrap;
+                    margin: var(--ac-global-dimension-static-size-100) 0;
+                  `}
+                >
+                  {toolCall[TOOL_CALL_FUNCTION_NAME] as string}(
+                  {JSON.stringify(
+                    JSON.parse(
+                      toolCall[TOOL_CALL_FUNCTION_ARGUMENTS_JSON] as string
+                    ),
+                    null,
+                    2
+                  )}
+                  )
+                </pre>
+              );
+            })
+          : null}
+        {/*functionCall is deprecated and is superseded by toolCalls, so we don't expect both to be present*/}
+        {hasFunctionCall ? (
           <pre
             css={css`
               text-wrap: wrap;
