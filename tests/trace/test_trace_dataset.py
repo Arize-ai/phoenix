@@ -13,6 +13,7 @@ from phoenix.trace.schemas import (
     SpanKind,
     SpanStatusCode,
 )
+from phoenix.trace.span_evaluations import SpanEvaluations
 from phoenix.trace.trace_dataset import TraceDataset
 
 
@@ -142,3 +143,56 @@ def test_dataset_construction_from_spans():
         )
     dataset = TraceDataset.from_spans(spans)
     assert_frame_equal(expected_dataframe, dataset.dataframe[expected_dataframe.columns])
+
+
+def test_dataset_construction_with_evaluations():
+    num_records = 5
+    span_ids = [f"span_{index}" for index in range(num_records)]
+    traces_df = pd.DataFrame(
+        {
+            "name": [f"name_{index}" for index in range(num_records)],
+            "span_kind": ["LLM" for index in range(num_records)],
+            "parent_id": [None for index in range(num_records)],
+            "start_time": [datetime.now() for index in range(num_records)],
+            "end_time": [datetime.now() for index in range(num_records)],
+            "message": [f"message_{index}" for index in range(num_records)],
+            "status_code": ["OK" for index in range(num_records)],
+            "status_message": ["" for index in range(num_records)],
+            "context.trace_id": [f"trace_{index}" for index in range(num_records)],
+            "context.span_id": span_ids,
+        }
+    ).set_index("context.span_id", drop=False)
+    eval_ds_1 = SpanEvaluations(
+        eval_name="fake_eval_1",
+        dataframe=pd.DataFrame(
+            {
+                "context.span_id": span_ids,
+                "score": [index for index in range(num_records)],
+            }
+        ).set_index("context.span_id"),
+    )
+    eval_ds_2 = SpanEvaluations(
+        eval_name="fake_eval_2",
+        dataframe=pd.DataFrame(
+            {
+                "context.span_id": span_ids,
+                "score": [index for index in range(num_records)],
+            }
+        ).set_index("context.span_id"),
+    )
+    ds = TraceDataset(traces_df, evaluations=[eval_ds_1, eval_ds_2])
+    evals_df = ds.get_evals_dataframe()
+    assert "eval.fake_eval_1.score" in evals_df.columns
+    assert "eval.fake_eval_2.score" in evals_df.columns
+    assert len(evals_df) is num_records
+    df_with_evals = ds.get_spans_dataframe(include_evaluations=True)
+    # Validate that the length of the dataframe is the same
+    assert len(df_with_evals) == len(traces_df)
+    # Validate that the evaluation columns are present
+    assert "eval.fake_eval_1.score" in df_with_evals.columns
+    assert "eval.fake_eval_2.score" in df_with_evals.columns
+    # Validate that the evaluation column contains the correct values
+    assert list(df_with_evals["eval.fake_eval_1.score"]) == list(eval_ds_1.dataframe["score"])
+    assert list(df_with_evals["eval.fake_eval_2.score"]) == list(eval_ds_2.dataframe["score"])
+    # Validate that the output contains a span_id column
+    assert "context.span_id" in df_with_evals.columns
