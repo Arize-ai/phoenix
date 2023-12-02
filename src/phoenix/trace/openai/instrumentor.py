@@ -113,12 +113,7 @@ class ChatCompletionContext(ContextManager["ChatCompletionContext"]):
         self._events: List[SpanEvent] = []
         self._attributes: SpanAttributes = dict()
         parameters = _parameters(bound_arguments)
-        for (
-            attribute_name,
-            get_parameter_attribute_fn,
-        ) in _PARAMETER_ATTRIBUTE_FUNCTIONS.items():
-            if (attribute_value := get_parameter_attribute_fn(parameters)) is not None:
-                self._attributes[attribute_name] = attribute_value
+        self._process_parameters(parameters)
 
     def __enter__(self) -> "ChatCompletionContext":
         self._start_time = datetime.now()
@@ -150,6 +145,14 @@ class ChatCompletionContext(ContextManager["ChatCompletionContext"]):
             get_chat_completion_attribute_fn,
         ) in _CHAT_COMPLETION_ATTRIBUTE_FUNCTIONS.items():
             if (attribute_value := get_chat_completion_attribute_fn(response)) is not None:
+                self._attributes[attribute_name] = attribute_value
+
+    def _process_parameters(self, parameters: Parameters) -> None:
+        for (
+            attribute_name,
+            get_parameter_attribute_fn,
+        ) in _PARAMETER_ATTRIBUTE_FUNCTIONS.items():
+            if (attribute_value := get_parameter_attribute_fn(parameters)) is not None:
                 self._attributes[attribute_name] = attribute_value
 
     def _create_span(self) -> None:
