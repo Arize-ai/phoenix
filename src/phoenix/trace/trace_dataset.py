@@ -1,3 +1,4 @@
+import copy
 import json
 import uuid
 from datetime import datetime
@@ -10,7 +11,12 @@ from phoenix.datetime_utils import normalize_timestamps
 
 from ..config import DATASET_DIR, GENERATED_DATASET_NAME_PREFIX
 from .schemas import ATTRIBUTE_PREFIX, CONTEXT_PREFIX, Span
-from .semantic_conventions import DOCUMENT_METADATA, RETRIEVAL_DOCUMENTS
+from .semantic_conventions import (
+    DOCUMENT_METADATA,
+    RERANKER_INPUT_DOCUMENTS,
+    RERANKER_OUTPUT_DOCUMENTS,
+    RETRIEVAL_DOCUMENTS,
+)
 from .span_evaluations import EVALUATIONS_INDEX_NAME, SpanEvaluations
 from .span_json_decoder import json_to_span
 from .span_json_encoder import span_to_json
@@ -29,6 +35,14 @@ REQUIRED_COLUMNS = [
 ]
 
 RETRIEVAL_DOCUMENTS_COLUMN_NAME = f"{ATTRIBUTE_PREFIX}{RETRIEVAL_DOCUMENTS}"
+RERANKER_INPUT_DOCUMENTS_COLUMN_NAME = f"{ATTRIBUTE_PREFIX}{RERANKER_INPUT_DOCUMENTS}"
+RERANKER_OUTPUT_DOCUMENTS_COLUMN_NAME = f"{ATTRIBUTE_PREFIX}{RERANKER_OUTPUT_DOCUMENTS}"
+
+DOCUMENT_COLUMNS = [
+    RETRIEVAL_DOCUMENTS_COLUMN_NAME,
+    RERANKER_INPUT_DOCUMENTS_COLUMN_NAME,
+    RERANKER_OUTPUT_DOCUMENTS_COLUMN_NAME,
+]
 
 
 def normalize_dataframe(dataframe: DataFrame) -> "DataFrame":
@@ -40,20 +54,36 @@ def normalize_dataframe(dataframe: DataFrame) -> "DataFrame":
     return dataframe
 
 
-def _add_empty_field_to_document_metadata(documents: Any) -> Any:
+def _delete_empty_document_metadata(documents: Any) -> Any:
     """
     Adds a dummy field to the document metadata to make the object serializable over parquet
     """
     # If the documents is a list, iterate over them, check that the metadata is
-    # a dict, see if it is empty, and add a dummy field value if needed to make
-    # the object serializable over parquet
+    # a dict, see if it is empty, and if it's empty, delete the metadata
     if isinstance(documents, list):
+        # Make a deep copy of the documents
+        documents = copy.deepcopy(documents)
         for document in documents:
             metadata = document.get(DOCUMENT_METADATA)
-            if isinstance(metadata, dict):
-                # Just denote the type of the object
-                metadata["__type"] = DOCUMENT_METADATA
+            if isinstance(metadata, dict) and not metadata:
+                # Delete the metadata object since empty dicts are not serializable
+                del document[DOCUMENT_METADATA]
     return documents
+
+
+def get_serializable_spans_dataframe(dataframe: DataFrame) -> DataFrame:
+    """
+    Returns a dataframe that can be serialized to parquet. This means that
+    the dataframe must not contain any unserializable objects. This function
+    will delete any unserializable objects from the dataframe.
+    """
+    # Check if the dataframe has any document columns
+    for document_column in DOCUMENT_COLUMNS:
+        if document_column in dataframe.columns:
+            dataframe[document_column] = dataframe[document_column].apply(
+                _delete_empty_document_metadata
+            )
+    return dataframe
 
 
 class TraceDataset:
@@ -160,18 +190,11 @@ class TraceDataset:
         df = read_parquet(directory / cls._data_file_name)
         return cls(df, name)
 
-    def _normalize_dataframe(self) -> None:
-        if RETRIEVAL_DOCUMENTS_COLUMN_NAME in self.dataframe.columns:
-            self.dataframe[RETRIEVAL_DOCUMENTS_COLUMN_NAME] = self.dataframe[
-                RETRIEVAL_DOCUMENTS_COLUMN_NAME
-            ].apply(_add_empty_field_to_document_metadata)
-
     def to_disc(self) -> None:
         """writes the data to disc"""
         directory = DATASET_DIR / self.name
         directory.mkdir(parents=True, exist_ok=True)
-        self._normalize_dataframe()
-        self.dataframe.to_parquet(
+        get_serializable_spans_dataframe(self.dataframe).to_parquet(
             directory / self._data_file_name,
             allow_truncated_timestamps=True,
             coerce_timestamps="ms",
