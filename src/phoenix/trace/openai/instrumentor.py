@@ -106,7 +106,22 @@ class OpenAIInstrumentor:
 
 
 class ChatCompletionContext(ContextManager["ChatCompletionContext"]):
+    """
+    A context manager for creating spans for chat completion requests. The
+    context manager extracts attributes from the input parameters and response
+    from the API and records any exceptions that are raised.
+    """
+
     def __init__(self, bound_arguments: BoundArguments, tracer: Tracer) -> None:
+        """
+        Initializes the context manager.
+
+        Args:
+            bound_arguments (BoundArguments): The arguments to the request
+            function from which parameter attributes are extracted.
+
+            tracer (Tracer): The tracer to use to create spans.
+        """
         self._tracer = tracer
         self._start_time: Optional[datetime] = None
         self._end_time: Optional[datetime] = None
@@ -142,6 +157,12 @@ class ChatCompletionContext(ContextManager["ChatCompletionContext"]):
         self._create_span()
 
     def process_response(self, response: ChatCompletion) -> None:
+        """
+        Processes the response from the OpenAI chat completions API call to extract attributes.
+
+        Args:
+            response (ChatCompletion): The chat completion object.
+        """
         self._end_time = datetime.now()
         for (
             attribute_name,
@@ -360,8 +381,26 @@ _CHAT_COMPLETION_ATTRIBUTE_FUNCTIONS: Dict[str, Callable[[ChatCompletion], Any]]
 
 
 def _is_streaming_request(bound_arguments: BoundArguments) -> bool:
+    """
+    Determines whether the request is a streaming request.
+
+    Args:
+        bound_arguments (BoundArguments): The bound arguments to the request function.
+
+    Returns:
+        bool: True if the request is a streaming request, False otherwise.
+    """
     return cast(bool, bound_arguments.arguments["stream"])
 
 
 def _parameters(bound_arguments: BoundArguments) -> Parameters:
+    """
+    The parameters for the LLM call, e.g., temperature.
+
+    Args:
+        bound_arguments (BoundArguments): The bound arguments to the request function.
+
+    Returns:
+        Parameters: The parameters to the request function.
+    """
     return cast(Parameters, bound_arguments.arguments["options"].json_data)
