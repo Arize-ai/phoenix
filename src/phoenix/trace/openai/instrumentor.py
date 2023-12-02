@@ -182,12 +182,11 @@ def _wrapped_openai_sync_client_request_function(
 
     def wrapped(*args: Any, **kwargs: Any) -> Any:
         bound_arguments = call_signature.bind(*args, **kwargs)
-        is_streaming = bound_arguments.arguments["stream"]
-        options = bound_arguments.arguments["options"]
-        url = options.url
-        if is_streaming or _get_request_type(url) is not RequestType.CHAT_COMPLETION:
+        if (
+            _is_streaming_request(bound_arguments)
+            or _request_type(bound_arguments) is not RequestType.CHAT_COMPLETION
+        ):
             return request_fn(*args, **kwargs)
-
         with ChatCompletionContext(bound_arguments, tracer) as context:
             response = request_fn(*args, **kwargs)
             context.process_response(response)
@@ -203,12 +202,11 @@ def _wrapped_openai_async_client_request_function(
 
     async def wrapped(*args: Any, **kwargs: Any) -> Any:
         bound_arguments = call_signature.bind(*args, **kwargs)
-        is_streaming = bound_arguments.arguments["stream"]
-        options = bound_arguments.arguments["options"]
-        url = options.url
-        if is_streaming or _get_request_type(url) is not RequestType.CHAT_COMPLETION:
+        if (
+            _is_streaming_request(bound_arguments)
+            or _request_type(bound_arguments) is not RequestType.CHAT_COMPLETION
+        ):
             return await request_fn(*args, **kwargs)
-
         with ChatCompletionContext(bound_arguments, tracer) as context:
             response = await request_fn(*args, **kwargs)
             context.process_response(cast(ChatCompletion, response))
@@ -280,7 +278,9 @@ def _llm_function_call(
     return None
 
 
-def _get_request_type(url: str) -> Optional[RequestType]:
+def _request_type(bound_arguments: BoundArguments) -> Optional[RequestType]:
+    options = bound_arguments.arguments["options"]
+    url = options.url
     """Get OpenAI request type from URL, or returns None if the request type cannot be recognized"""
     if "chat/completions" in url:
         return RequestType.CHAT_COMPLETION
@@ -343,3 +343,7 @@ def _is_chat_completion(response: Any) -> TypeGuard[ChatCompletion]:
     Type guard for ChatCompletion.
     """
     return isinstance(response, openai.types.chat.ChatCompletion)
+
+
+def _is_streaming_request(bound_arguments: BoundArguments) -> bool:
+    return cast(bool, bound_arguments.arguments["stream"])
