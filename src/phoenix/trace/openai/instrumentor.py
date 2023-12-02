@@ -130,7 +130,8 @@ class ChatCompletionContext(ContextManager["ChatCompletionContext"]):
         exc_value: Optional[BaseException],
         traceback: Optional[TracebackType],
     ) -> None:
-        self._end_time = datetime.now()
+        if self._end_time is None:  # in the case of an exception, the end time is not yet set
+            self._end_time = datetime.now()
         self._status_code = SpanStatusCode.OK
         if exc_value is not None:
             self._status_code = SpanStatusCode.ERROR
@@ -145,6 +146,7 @@ class ChatCompletionContext(ContextManager["ChatCompletionContext"]):
         self._create_span()
 
     def process_response(self, response: ChatCompletion) -> None:
+        self._end_time = datetime.now()
         for (
             attribute_name,
             get_chat_completion_attribute_fn,
