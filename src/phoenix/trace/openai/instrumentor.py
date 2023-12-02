@@ -105,10 +105,6 @@ class OpenAIInstrumentor:
             )
 
 
-def _parameters(bound_arguments: BoundArguments) -> Parameters:
-    return cast(Parameters, bound_arguments.arguments["options"].json_data)
-
-
 class ChatCompletionContext(ContextManager["ChatCompletionContext"]):
     def __init__(self, bound_arguments: BoundArguments, tracer: Tracer) -> None:
         self._tracer = tracer
@@ -365,3 +361,7 @@ _CHAT_COMPLETION_ATTRIBUTE_FUNCTIONS: Dict[str, Callable[[ChatCompletion], Any]]
 
 def _is_streaming_request(bound_arguments: BoundArguments) -> bool:
     return cast(bool, bound_arguments.arguments["stream"])
+
+
+def _parameters(bound_arguments: BoundArguments) -> Parameters:
+    return cast(Parameters, bound_arguments.arguments["options"].json_data)
