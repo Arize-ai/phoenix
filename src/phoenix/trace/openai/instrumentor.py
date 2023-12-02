@@ -21,7 +21,7 @@ from typing import (
 
 import openai
 from openai.types.chat import ChatCompletion
-from typing_extensions import ParamSpec, TypeGuard
+from typing_extensions import ParamSpec
 
 from phoenix.trace.schemas import (
     SpanAttributes,
@@ -359,13 +359,6 @@ _CHAT_COMPLETION_ATTRIBUTE_FUNCTIONS: Dict[str, Callable[[ChatCompletion], Any]]
     LLM_TOKEN_COUNT_TOTAL: _llm_token_count_total,
     LLM_FUNCTION_CALL: _llm_function_call,
 }
-
-
-def _is_chat_completion(response: Any) -> TypeGuard[ChatCompletion]:
-    """
-    Type guard for ChatCompletion.
-    """
-    return isinstance(response, openai.types.chat.ChatCompletion)
 
 
 def _is_streaming_request(bound_arguments: BoundArguments) -> bool:
