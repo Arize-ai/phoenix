@@ -1,19 +1,24 @@
 import json
 from datetime import datetime
 from enum import Enum
-from inspect import signature
+from inspect import BoundArguments, signature
+from types import TracebackType
 from typing import (
-    TYPE_CHECKING,
     Any,
     Callable,
+    ContextManager,
     Coroutine,
     Dict,
     List,
     Mapping,
     Optional,
+    Type,
     TypeVar,
+    cast,
 )
 
+import openai
+from openai.types.chat import ChatCompletion
 from typing_extensions import ParamSpec, TypeGuard
 
 from phoenix.trace.schemas import (
@@ -42,13 +47,9 @@ from phoenix.trace.semantic_conventions import (
     OUTPUT_VALUE,
     MimeType,
 )
-from phoenix.trace.utils import get_stacktrace, import_package
+from phoenix.trace.utils import get_stacktrace
 
 from ..tracer import Tracer
-
-if TYPE_CHECKING:
-    from openai.types.chat import ChatCompletion
-
 
 ParameterSpec = ParamSpec("ParameterSpec")
 GenericType = TypeVar("GenericType")
@@ -79,9 +80,8 @@ class OpenAIInstrumentor:
         """
         Instruments your OpenAI client.
         """
-        openai = import_package("openai")
         if not hasattr(openai.OpenAI, INSTRUMENTED_ATTRIBUTE_NAME):
-            openai.OpenAI.request = _wrapped_openai_sync_client_request_function(
+            openai.OpenAI.request = _wrapped_openai_sync_client_request_function(  # type: ignore
                 openai.OpenAI.request, self._tracer
             )
             setattr(
@@ -90,7 +90,7 @@ class OpenAIInstrumentor:
                 True,
             )
         if not hasattr(openai.AsyncOpenAI, INSTRUMENTED_ATTRIBUTE_NAME):
-            openai.AsyncOpenAI.request = _wrapped_openai_async_client_request_function(
+            openai.AsyncOpenAI.request = _wrapped_openai_async_client_request_function(  # type: ignore
                 openai.AsyncOpenAI.request, self._tracer
             )
             setattr(
@@ -98,6 +98,71 @@ class OpenAIInstrumentor:
                 INSTRUMENTED_ATTRIBUTE_NAME,
                 True,
             )
+
+
+def _parameters(bound_arguments: BoundArguments) -> Parameters:
+    return cast(Parameters, bound_arguments.arguments["options"].json_data)
+
+
+class ChatCompletionContext(ContextManager["ChatCompletionContext"]):
+    def __init__(self, bound_arguments: BoundArguments, tracer: Tracer) -> None:
+        self._tracer = tracer
+        self._start_time: Optional[datetime] = None
+        self._end_time: Optional[datetime] = None
+        self._status_code = SpanStatusCode.UNSET
+        self._events: List[SpanEvent] = []
+        self._attributes: SpanAttributes = dict()
+        parameters = _parameters(bound_arguments)
+        for (
+            attribute_name,
+            get_parameter_attribute_fn,
+        ) in _PARAMETER_ATTRIBUTE_FUNCTIONS.items():
+            if (attribute_value := get_parameter_attribute_fn(parameters)) is not None:
+                self._attributes[attribute_name] = attribute_value
+
+    def __enter__(self) -> "ChatCompletionContext":
+        self._start_time = datetime.now()
+        return self
+
+    def __exit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_value: Optional[BaseException],
+        traceback: Optional[TracebackType],
+    ) -> None:
+        self._end_time = datetime.now()
+        self._status_code = SpanStatusCode.OK
+        if exc_value is not None:
+            self._status_code = SpanStatusCode.ERROR
+            self._events.append(
+                SpanException(
+                    message=str(exc_value),
+                    timestamp=self._end_time,
+                    exception_type=type(exc_value).__name__,
+                    exception_stacktrace=get_stacktrace(exc_value),
+                )
+            )
+        self._create_span()
+
+    def process_response(self, response: ChatCompletion) -> None:
+        for (
+            attribute_name,
+            get_chat_completion_attribute_fn,
+        ) in _CHAT_COMPLETION_ATTRIBUTE_FUNCTIONS.items():
+            if (attribute_value := get_chat_completion_attribute_fn(response)) is not None:
+                self._attributes[attribute_name] = attribute_value
+
+    def _create_span(self) -> None:
+        self._tracer.create_span(
+            name="OpenAI Chat Completion",
+            span_kind=SpanKind.LLM,
+            start_time=cast(datetime, self._start_time),
+            end_time=self._end_time,
+            status_code=self._status_code,
+            status_message="",
+            attributes=self._attributes,
+            events=self._events,
+        )
 
 
 def _wrapped_openai_sync_client_request_function(
@@ -113,64 +178,20 @@ def _wrapped_openai_sync_client_request_function(
         Callable[..., Any]: The wrapped request method.
     """
 
+    call_signature = signature(request_fn)
+
     def wrapped(*args: Any, **kwargs: Any) -> Any:
-        call_signature = signature(request_fn)
         bound_arguments = call_signature.bind(*args, **kwargs)
         is_streaming = bound_arguments.arguments["stream"]
         options = bound_arguments.arguments["options"]
-        parameters = options.json_data
         url = options.url
-        current_status_code = SpanStatusCode.UNSET
-        events: List[SpanEvent] = []
-        attributes: SpanAttributes = dict()
-        if not is_streaming and _get_request_type(url) is RequestType.CHAT_COMPLETION:
-            for (
-                attribute_name,
-                get_parameter_attribute_fn,
-            ) in _PARAMETER_ATTRIBUTE_FUNCTIONS.items():
-                if (attribute_value := get_parameter_attribute_fn(parameters)) is not None:
-                    attributes[attribute_name] = attribute_value
-            response = None
-            try:
-                start_time = datetime.now()
-                response = request_fn(*args, **kwargs)
-                end_time = datetime.now()
-                current_status_code = SpanStatusCode.OK
-                return response
-            except Exception as error:
-                end_time = datetime.now()
-                current_status_code = SpanStatusCode.ERROR
-                events.append(
-                    SpanException(
-                        message=str(error),
-                        timestamp=end_time,
-                        exception_type=type(error).__name__,
-                        exception_stacktrace=get_stacktrace(error),
-                    )
-                )
-                raise
-            finally:
-                if _is_chat_completion(response):
-                    for (
-                        attribute_name,
-                        get_chat_completion_attribute_fn,
-                    ) in _CHAT_COMPLETION_ATTRIBUTE_FUNCTIONS.items():
-                        if (
-                            attribute_value := get_chat_completion_attribute_fn(response)
-                        ) is not None:
-                            attributes[attribute_name] = attribute_value
-                tracer.create_span(
-                    name="OpenAI Chat Completion",
-                    span_kind=SpanKind.LLM,
-                    start_time=start_time,
-                    end_time=end_time,
-                    status_code=current_status_code,
-                    status_message="",
-                    attributes=attributes,
-                    events=events,
-                )
-        else:
+        if is_streaming or _get_request_type(url) is not RequestType.CHAT_COMPLETION:
             return request_fn(*args, **kwargs)
+
+        with ChatCompletionContext(bound_arguments, tracer) as context:
+            response = request_fn(*args, **kwargs)
+            context.process_response(response)
+            return response
 
     return wrapped
 
@@ -178,64 +199,20 @@ def _wrapped_openai_sync_client_request_function(
 def _wrapped_openai_async_client_request_function(
     request_fn: AsyncCallable[ParameterSpec, GenericType], tracer: Tracer
 ) -> AsyncCallable[ParameterSpec, GenericType]:
-    async def wrapped(*args: Any, **kwargs: Any) -> GenericType:
-        call_signature = signature(request_fn)
+    call_signature = signature(request_fn)
+
+    async def wrapped(*args: Any, **kwargs: Any) -> Any:
         bound_arguments = call_signature.bind(*args, **kwargs)
         is_streaming = bound_arguments.arguments["stream"]
         options = bound_arguments.arguments["options"]
-        parameters = options.json_data
         url = options.url
-        current_status_code = SpanStatusCode.UNSET
-        events: List[SpanEvent] = []
-        attributes: SpanAttributes = dict()
-        if not is_streaming and _get_request_type(url) is RequestType.CHAT_COMPLETION:
-            for (
-                attribute_name,
-                get_parameter_attribute_fn,
-            ) in _PARAMETER_ATTRIBUTE_FUNCTIONS.items():
-                if (attribute_value := get_parameter_attribute_fn(parameters)) is not None:
-                    attributes[attribute_name] = attribute_value
-            response = None
-            try:
-                start_time = datetime.now()
-                response = await request_fn(*args, **kwargs)
-                end_time = datetime.now()
-                current_status_code = SpanStatusCode.OK
-                return response
-            except Exception as error:
-                end_time = datetime.now()
-                current_status_code = SpanStatusCode.ERROR
-                events.append(
-                    SpanException(
-                        message=str(error),
-                        timestamp=end_time,
-                        exception_type=type(error).__name__,
-                        exception_stacktrace=get_stacktrace(error),
-                    )
-                )
-                raise
-            finally:
-                if _is_chat_completion(response):
-                    for (
-                        attribute_name,
-                        get_chat_completion_attribute_fn,
-                    ) in _CHAT_COMPLETION_ATTRIBUTE_FUNCTIONS.items():
-                        if (
-                            attribute_value := get_chat_completion_attribute_fn(response)
-                        ) is not None:
-                            attributes[attribute_name] = attribute_value
-                tracer.create_span(
-                    name="OpenAI Chat Completion",
-                    span_kind=SpanKind.LLM,
-                    start_time=start_time,
-                    end_time=end_time,
-                    status_code=current_status_code,
-                    status_message="",
-                    attributes=attributes,
-                    events=events,
-                )
-        else:
+        if is_streaming or _get_request_type(url) is not RequestType.CHAT_COMPLETION:
             return await request_fn(*args, **kwargs)
+
+        with ChatCompletionContext(bound_arguments, tracer) as context:
+            response = await request_fn(*args, **kwargs)
+            context.process_response(cast(ChatCompletion, response))
+            return response
 
     return wrapped
 
@@ -260,7 +237,7 @@ def _llm_invocation_parameters(
     return json.dumps(parameters)
 
 
-def _output_value(chat_completion: "ChatCompletion") -> str:
+def _output_value(chat_completion: ChatCompletion) -> str:
     return chat_completion.json()
 
 
@@ -268,33 +245,33 @@ def _output_mime_type(_: Any) -> MimeType:
     return MimeType.JSON
 
 
-def _llm_output_messages(chat_completion: "ChatCompletion") -> List[OpenInferenceMessage]:
+def _llm_output_messages(chat_completion: ChatCompletion) -> List[OpenInferenceMessage]:
     return [
         _to_openinference_message(choice.message.dict(), expects_name=False)
         for choice in chat_completion.choices
     ]
 
 
-def _llm_token_count_prompt(chat_completion: "ChatCompletion") -> Optional[int]:
+def _llm_token_count_prompt(chat_completion: ChatCompletion) -> Optional[int]:
     if completion_usage := chat_completion.usage:
         return completion_usage.prompt_tokens
     return None
 
 
-def _llm_token_count_completion(chat_completion: "ChatCompletion") -> Optional[int]:
+def _llm_token_count_completion(chat_completion: ChatCompletion) -> Optional[int]:
     if completion_usage := chat_completion.usage:
         return completion_usage.completion_tokens
     return None
 
 
-def _llm_token_count_total(chat_completion: "ChatCompletion") -> Optional[int]:
+def _llm_token_count_total(chat_completion: ChatCompletion) -> Optional[int]:
     if completion_usage := chat_completion.usage:
         return completion_usage.total_tokens
     return None
 
 
 def _llm_function_call(
-    chat_completion: "ChatCompletion",
+    chat_completion: ChatCompletion,
 ) -> Optional[str]:
     choices = chat_completion.choices
     choice = choices[0]
@@ -350,7 +327,7 @@ _PARAMETER_ATTRIBUTE_FUNCTIONS: Dict[str, Callable[[Parameters], Any]] = {
     LLM_INPUT_MESSAGES: _llm_input_messages,
     LLM_INVOCATION_PARAMETERS: _llm_invocation_parameters,
 }
-_CHAT_COMPLETION_ATTRIBUTE_FUNCTIONS: Dict[str, Callable[["ChatCompletion"], Any]] = {
+_CHAT_COMPLETION_ATTRIBUTE_FUNCTIONS: Dict[str, Callable[[ChatCompletion], Any]] = {
     OUTPUT_VALUE: _output_value,
     OUTPUT_MIME_TYPE: _output_mime_type,
     LLM_OUTPUT_MESSAGES: _llm_output_messages,
@@ -361,9 +338,8 @@ _CHAT_COMPLETION_ATTRIBUTE_FUNCTIONS: Dict[str, Callable[["ChatCompletion"], Any
 }
 
 
-def _is_chat_completion(response: Any) -> TypeGuard["ChatCompletion"]:
+def _is_chat_completion(response: Any) -> TypeGuard[ChatCompletion]:
     """
     Type guard for ChatCompletion.
     """
-    openai = import_package("openai")
     return isinstance(response, openai.types.chat.ChatCompletion)
