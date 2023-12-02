@@ -193,18 +193,21 @@ class ChatCompletionContext(ContextManager["ChatCompletionContext"]):
 
 
 def _wrapped_openai_sync_client_request_function(
-    request_fn: Callable[..., Any], tracer: Tracer
-) -> Callable[..., Any]:
-    """Wraps the OpenAI APIRequestor.request method to create spans for each API call.
+    request_fn: Callable[ParameterSpec, GenericType], tracer: Tracer
+) -> Callable[ParameterSpec, GenericType]:
+    """
+    Wraps the synchronous OpenAI client's request method to create spans for
+    each API call.
 
     Args:
-        request_fn (Callable[..., Any]): The request method on openai.api_requestor.APIRequestor.
+        request_fn (Callable[ParameterSpec, GenericType]): The request method on
+        the OpenAI client.
+
         tracer (Tracer): The tracer to use to create spans.
 
     Returns:
-        Callable[..., Any]: The wrapped request method.
+        Callable[ParameterSpec, GenericType]: The wrapped request method.
     """
-
     call_signature = signature(request_fn)
 
     def wrapped(*args: Any, **kwargs: Any) -> Any:
@@ -216,7 +219,7 @@ def _wrapped_openai_sync_client_request_function(
             return request_fn(*args, **kwargs)
         with ChatCompletionContext(bound_arguments, tracer) as context:
             response = request_fn(*args, **kwargs)
-            context.process_response(response)
+            context.process_response(cast(ChatCompletion, response))
             return response
 
     return wrapped
@@ -225,6 +228,19 @@ def _wrapped_openai_sync_client_request_function(
 def _wrapped_openai_async_client_request_function(
     request_fn: AsyncCallable[ParameterSpec, GenericType], tracer: Tracer
 ) -> AsyncCallable[ParameterSpec, GenericType]:
+    """
+    Wraps the asynchronous AsyncOpenAI client's request method to create spans
+    for each API call.
+
+    Args:
+        request_fn (AsyncCallable[ParameterSpec, GenericType]): The request
+        method on the AsyncOpenAI client.
+
+        tracer (Tracer): The tracer to use to create spans.
+
+    Returns:
+        AsyncCallable[ParameterSpec, GenericType]: The wrapped request method.
+    """
     call_signature = signature(request_fn)
 
     async def wrapped(*args: Any, **kwargs: Any) -> Any:
