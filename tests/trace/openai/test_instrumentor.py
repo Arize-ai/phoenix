@@ -529,6 +529,60 @@ def test_openai_instrumentor_sync_instrument_method_is_idempotent(
     assert span.status_code == SpanStatusCode.OK
 
 
+def test_openai_instrumentor_sync_works_with_chat_completion_with_raw_response(
+    sync_client: OpenAI,
+    respx_mock: MockRouter,
+) -> None:
+    tracer = Tracer()
+    OpenAIInstrumentor(tracer).instrument()
+    model = "gpt-4"
+    messages = [{"role": "user", "content": "Who won the World Cup in 2018?"}]
+    temperature = 0.23
+    expected_response_text = "France won the World Cup in 2018."
+    respx_mock.post("https://api.openai.com/v1/chat/completions").mock(
+        return_value=Response(
+            status_code=200,
+            json={
+                "id": "chatcmpl-85eo7phshROhvmDvNeMVatGolg9JV",
+                "object": "chat.completion",
+                "created": 1696359195,
+                "model": "gpt-4-0613",
+                "choices": [
+                    {
+                        "index": 0,
+                        "message": {
+                            "role": "assistant",
+                            "content": expected_response_text,
+                        },
+                        "finish_reason": "stop",
+                    }
+                ],
+                "usage": {"prompt_tokens": 17, "completion_tokens": 10, "total_tokens": 27},
+            },
+        )
+    )
+    response = sync_client.chat.completions.with_raw_response.create(
+        model=model, messages=messages, temperature=temperature
+    )
+    response_text = response.parse().choices[0].message.content
+
+    assert response_text == expected_response_text
+
+    spans = list(tracer.get_spans())
+    assert len(spans) == 1
+    span = spans[0]
+    attributes = span.attributes
+
+    assert span.span_kind is SpanKind.LLM
+    assert span.status_code == SpanStatusCode.OK
+    assert span.events == []
+
+    choices = json.loads(attributes[OUTPUT_VALUE])["choices"]
+    assert len(choices) == 1
+    response_content = choices[0]["message"]["content"]
+    assert "france" in response_content.lower() or "french" in response_content.lower()
+
+
 async def test_openai_instrumentor_async_includes_llm_attributes_on_chat_completion_success(
     async_client: AsyncOpenAI,
     respx_mock: MockRouter,
@@ -977,3 +1031,57 @@ async def test_openai_instrumentor_async_instrument_method_is_idempotent(
     assert len(spans) == 1
     assert span.span_kind is SpanKind.LLM
     assert span.status_code == SpanStatusCode.OK
+
+
+async def test_openai_instrumentor_async_works_with_chat_completion_with_raw_response(
+    async_client: AsyncOpenAI,
+    respx_mock: MockRouter,
+) -> None:
+    tracer = Tracer()
+    OpenAIInstrumentor(tracer).instrument()
+    model = "gpt-4"
+    messages = [{"role": "user", "content": "Who won the World Cup in 2018?"}]
+    temperature = 0.23
+    expected_response_text = "France won the World Cup in 2018."
+    respx_mock.post("https://api.openai.com/v1/chat/completions").mock(
+        return_value=Response(
+            status_code=200,
+            json={
+                "id": "chatcmpl-85eo7phshROhvmDvNeMVatGolg9JV",
+                "object": "chat.completion",
+                "created": 1696359195,
+                "model": "gpt-4-0613",
+                "choices": [
+                    {
+                        "index": 0,
+                        "message": {
+                            "role": "assistant",
+                            "content": expected_response_text,
+                        },
+                        "finish_reason": "stop",
+                    }
+                ],
+                "usage": {"prompt_tokens": 17, "completion_tokens": 10, "total_tokens": 27},
+            },
+        )
+    )
+    response = await async_client.chat.completions.with_raw_response.create(
+        model=model, messages=messages, temperature=temperature
+    )
+    response_text = response.parse().choices[0].message.content
+
+    assert response_text == expected_response_text
+
+    spans = list(tracer.get_spans())
+    assert len(spans) == 1
+    span = spans[0]
+    attributes = span.attributes
+
+    assert span.span_kind is SpanKind.LLM
+    assert span.status_code == SpanStatusCode.OK
+    assert span.events == []
+
+    choices = json.loads(attributes[OUTPUT_VALUE])["choices"]
+    assert len(choices) == 1
+    response_content = choices[0]["message"]["content"]
+    assert "france" in response_content.lower() or "french" in response_content.lower()

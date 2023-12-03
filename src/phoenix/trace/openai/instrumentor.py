@@ -222,7 +222,14 @@ def _wrapped_openai_sync_client_request_function(
             return request_fn(*args, **kwargs)
         with ChatCompletionContext(bound_arguments, tracer) as context:
             response = request_fn(*args, **kwargs)
-            context.process_response(cast(ChatCompletion, response))
+            context.process_response(
+                cast(
+                    ChatCompletion,
+                    response.parse()
+                    if hasattr(response, "parse") and callable(response.parse)
+                    else response,
+                )
+            )
             return response
 
     return wrapped
@@ -255,7 +262,14 @@ def _wrapped_openai_async_client_request_function(
             return await request_fn(*args, **kwargs)
         with ChatCompletionContext(bound_arguments, tracer) as context:
             response = await request_fn(*args, **kwargs)
-            context.process_response(cast(ChatCompletion, response))
+            context.process_response(
+                cast(
+                    ChatCompletion,
+                    response.parse()
+                    if hasattr(response, "parse") and callable(response.parse)
+                    else response,
+                )
+            )
             return response
 
     return wrapped
