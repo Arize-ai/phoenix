@@ -439,6 +439,8 @@ def test_openai_instrumentor_sync_records_authentication_error(
     spans = list(tracer.get_spans())
     assert len(spans) == 1
     span = spans[0]
+    assert span.status_code == SpanStatusCode.ERROR
+    assert "error-message" in span.status_message
     events = span.events
     assert len(events) == 1
     event = events[0]
@@ -887,6 +889,8 @@ async def test_openai_instrumentor_async_records_authentication_error(
     spans = list(tracer.get_spans())
     assert len(spans) == 1
     span = spans[0]
+    assert span.status_code == SpanStatusCode.ERROR
+    assert "error-message" in span.status_message
     events = span.events
     assert len(events) == 1
     event = events[0]

@@ -126,6 +126,7 @@ class ChatCompletionContext(ContextManager["ChatCompletionContext"]):
         self._start_time: Optional[datetime] = None
         self._end_time: Optional[datetime] = None
         self._status_code = SpanStatusCode.UNSET
+        self._status_message = ""
         self._events: List[SpanEvent] = []
         self._attributes: SpanAttributes = dict()
         parameters = _parameters(bound_arguments)
@@ -146,9 +147,11 @@ class ChatCompletionContext(ContextManager["ChatCompletionContext"]):
         self._status_code = SpanStatusCode.OK
         if exc_value is not None:
             self._status_code = SpanStatusCode.ERROR
+            status_message = str(exc_value)
+            self._status_message = status_message
             self._events.append(
                 SpanException(
-                    message=str(exc_value),
+                    message=status_message,
                     timestamp=self._end_time,
                     exception_type=type(exc_value).__name__,
                     exception_stacktrace=get_stacktrace(exc_value),
@@ -186,7 +189,7 @@ class ChatCompletionContext(ContextManager["ChatCompletionContext"]):
             start_time=cast(datetime, self._start_time),
             end_time=self._end_time,
             status_code=self._status_code,
-            status_message="",
+            status_message=self._status_message,
             attributes=self._attributes,
             events=self._events,
         )
