@@ -281,6 +281,7 @@ def test_token_bucket_does_not_increase_rate_past_maximum():
         bucket.wait_until_ready()
         assert isclose(bucket.rate, rate * 2)
 
+
 def test_token_bucket_resets_rate_after_inactivity():
     start = time.time()
 
