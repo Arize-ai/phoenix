@@ -1,4 +1,3 @@
-import copy
 import json
 import uuid
 from datetime import datetime
@@ -61,8 +60,8 @@ def _delete_empty_document_metadata(documents: Any) -> Any:
     # If the documents is a list, iterate over them, check that the metadata is
     # a dict, see if it is empty, and if it's empty, delete the metadata
     if isinstance(documents, list):
-        # Make a deep copy of the documents
-        documents = copy.deepcopy(documents)
+        # Make a shallow copy of the keys
+        documents = list(map(dict, documents))
         for document in documents:
             metadata = document.get(DOCUMENT_METADATA)
             if isinstance(metadata, dict) and not metadata:
@@ -77,12 +76,11 @@ def get_serializable_spans_dataframe(dataframe: DataFrame) -> DataFrame:
     the dataframe must not contain any unserializable objects. This function
     will delete any unserializable objects from the dataframe.
     """
+    dataframe = dataframe.copy()  # copy, don't mutate
     # Check if the dataframe has any document columns
-    for document_column in DOCUMENT_COLUMNS:
-        if document_column in dataframe.columns:
-            dataframe[document_column] = dataframe[document_column].apply(
-                _delete_empty_document_metadata
-            )
+    is_documents_column = dataframe.columns.isin(DOCUMENT_COLUMNS)
+    for name, column in dataframe.loc[:, is_documents_column].items():  # type: ignore
+        dataframe[name] = column.apply(_delete_empty_document_metadata)
     return dataframe
 
 
