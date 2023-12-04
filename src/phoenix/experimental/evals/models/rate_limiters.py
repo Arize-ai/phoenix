@@ -63,7 +63,7 @@ class AdaptiveTokenBucket:
 
     def on_rate_limit_error(self, request_start_time: float, verbose: bool = False) -> None:
         now = time.time()
-        if self.cooldown > abs(request_start_time - self.last_error):
+        if request_start_time < (self.last_error + self.cooldown):
             # do not reduce the rate for concurrent requests
             return
 

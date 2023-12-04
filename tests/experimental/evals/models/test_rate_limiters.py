@@ -321,6 +321,10 @@ def test_token_bucket_decreases_rate_once_per_cooldown_period():
         bucket.on_rate_limit_error(request_start_time=time.time())
         assert isclose(bucket.rate, 25), "3 seconds is still within the cooldown period"
 
+    with warp_time(start - 6):
+        bucket.on_rate_limit_error(request_start_time=time.time())
+        assert isclose(bucket.rate, 25), "requests before the rate limited request are ignored"
+
     with warp_time(start + 6):
         # mock "available_requests" to simulate full usage
         mock_available_requests = mock.MagicMock()
