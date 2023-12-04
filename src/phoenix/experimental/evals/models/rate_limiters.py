@@ -44,6 +44,7 @@ class AdaptiveTokenBucket:
         cooldown_seconds: float = 5,
     ):
         now = time.time()
+        self._initial_rate = initial_per_second_request_rate
         self.rate = initial_per_second_request_rate
         self.maximum_rate = maximum_per_second_request_rate
         self.rate_reduction_factor = rate_reduction_factor
@@ -57,8 +58,11 @@ class AdaptiveTokenBucket:
 
     def increase_rate(self) -> None:
         time_since_last_update = time.time() - self.last_rate_update
-        self.rate *= exp(self.rate_increase_factor * time_since_last_update)
-        self.rate = min(self.rate, self.maximum_rate)
+        if time_since_last_update > self.enforcement_window:
+            self.rate = self._initial_rate
+        else:
+            self.rate *= exp(self.rate_increase_factor * time_since_last_update)
+            self.rate = min(self.rate, self.maximum_rate)
         self.last_rate_update = time.time()
 
     def on_rate_limit_error(self, request_start_time: float, verbose: bool = False) -> None:
@@ -69,11 +73,7 @@ class AdaptiveTokenBucket:
 
         original_rate = self.rate
 
-        # the enforced rate is too high, infer an effective rate instead
-        requests_handled = self.max_tokens() - self.available_requests()
-        effective_rate = requests_handled / self.enforcement_window
-
-        self.rate = effective_rate * self.rate_reduction_factor
+        self.rate = original_rate * self.rate_reduction_factor
         printif(
             verbose, f"Reducing rate from {original_rate} to {self.rate} after rate limit error"
         )
