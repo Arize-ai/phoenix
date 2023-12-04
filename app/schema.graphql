@@ -202,6 +202,33 @@ type DocumentEvaluation implements Evaluation {
   documentPosition: Int!
 }
 
+"""
+A collection of retrieval metrics computed on a list of document evaluation scores: NDCG@K, Precision@K, Reciprocal Rank, etc.
+"""
+type DocumentRetrievalMetrics {
+  evaluationName: String!
+
+  """
+  Normalized Discounted Cumulative Gain (NDCG) at `k` with log base 2 discounting. If `k` is None, it's set to the length of the scores. If `k` < 1, return 0.0.
+  """
+  ndcg(k: Int): Float
+
+  """
+  Precision at `k`, defined as the fraction of truthy scores among first `k` positions (1-based index). If `k` is None, then it's set to the length of the scores. If `k` < 1, return 0.0.
+  """
+  precision(k: Int): Float
+
+  """
+  Return `1/R` where `R` is the rank of the first hit, i.e. the 1-based index position of first truthy score, e.g. score=1. If a non-finite value (e.g. `NaN`) is encountered before the first (finite) truthy score, then return `NaN`, otherwise if no truthy score is found (or if the count of scores is zero), return 0.0.
+  """
+  reciprocalRank: Float
+
+  """
+  Return 1.0 if any score is truthy (i.e. is a hit), e.g. score=1. Otherwise, return `NaN` if any score is non-finite (e.g. `NaN`), or return 0.0 if all scores are falsy, e.g. all scores are 0.
+  """
+  hit: Float
+}
+
 type DriftTimeSeries implements TimeSeries {
   data: [TimeSeriesDataPoint!]!
 }
@@ -516,6 +543,9 @@ type Query {
   Names of all available evaluations for spans. (The list contains no duplicates.)
   """
   spanEvaluationNames: [String!]!
+
+  """Names of available document evaluations."""
+  documentEvaluationNames(spanId: ID): [String!]!
   traceDatasetInfo: TraceDatasetInfo
   validateSpanFilterCondition(condition: String!): ValidationResult!
 }
@@ -561,6 +591,7 @@ type Span {
 
   """Span attributes as a JSON string"""
   attributes: String!
+  numDocuments: Int
   tokenCountTotal: Int
   tokenCountPrompt: Int
   tokenCountCompletion: Int
@@ -597,6 +628,9 @@ type Span {
   Evaluations of the documents associated with the span, e.g. if the span is a RETRIEVER with a list of documents in its RETRIEVAL_DOCUMENTS attribute, an evaluation for each document may assess its relevance respect to the input query of the span. Note that RETRIEVAL_DOCUMENTS is a list, and each evaluation is identified by its document's (zero-based) index in that list.
   """
   documentEvaluations: [DocumentEvaluation!]!
+
+  """Retrieval metrics: NDCG@K, Precision@K, Reciprocal Rank, etc."""
+  documentRetrievalMetrics(evaluationName: String): [DocumentRetrievalMetrics!]!
 
   """All descendant spans (children, grandchildren, etc.)"""
   descendants: [Span!]!
