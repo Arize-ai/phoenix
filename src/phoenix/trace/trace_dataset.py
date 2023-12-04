@@ -55,7 +55,8 @@ def normalize_dataframe(dataframe: DataFrame) -> "DataFrame":
 
 def _delete_empty_document_metadata(documents: Any) -> Any:
     """
-    Adds a dummy field to the document metadata to make the object serializable over parquet
+    Removes ambiguous and empty dicts from the documents list so the is object
+    serializable to parquet
     """
     # If the documents is a list, iterate over them, check that the metadata is
     # a dict, see if it is empty, and if it's empty, delete the metadata
@@ -76,7 +77,7 @@ def get_serializable_spans_dataframe(dataframe: DataFrame) -> DataFrame:
     the dataframe must not contain any unserializable objects. This function
     will delete any unserializable objects from the dataframe.
     """
-    dataframe = dataframe.copy()  # copy, don't mutate
+    dataframe = dataframe.copy(deep=False)  # copy, don't mutate
     # Check if the dataframe has any document columns
     is_documents_column = dataframe.columns.isin(DOCUMENT_COLUMNS)
     for name, column in dataframe.loc[:, is_documents_column].items():  # type: ignore
@@ -222,7 +223,7 @@ class TraceDataset:
         include_evaluations: bool
             if True, the evaluations are merged into the dataframe
         """
-        if not include_evaluations:
+        if not include_evaluations or not self.evaluations:
             return self.dataframe.copy()
         evals_df = self.get_evals_dataframe()
         # Make sure the index is set to the span_id
