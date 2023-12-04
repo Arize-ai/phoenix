@@ -11,6 +11,8 @@ from .templates import (
     RAG_RELEVANCY_PROMPT_TEMPLATE,
     TOXICITY_PROMPT_RAILS_MAP,
     TOXICITY_PROMPT_TEMPLATE,
+    HUMAN_VS_AI_PROMPT_RAILS_MAP,
+    HUMAN_VS_AI_PROMPT_TEMPLATE,
     ClassificationTemplate,
     PromptTemplate,
 )
@@ -35,6 +37,8 @@ __all__ = [
     "RAG_RELEVANCY_PROMPT_TEMPLATE",
     "TOXICITY_PROMPT_RAILS_MAP",
     "TOXICITY_PROMPT_TEMPLATE",
+    "HUMAN_VS_AI_PROMPT_RAILS_MAP",
+    "HUMAN_VS_AI_PROMPT_TEMPLATE",
     "NOT_PARSABLE",
     "run_relevance_eval",
 ]
