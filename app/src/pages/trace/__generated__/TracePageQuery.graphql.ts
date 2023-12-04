@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<1eb72a3d680d71c670d7c4b1514ade00>>
+ * @generated SignedSource<<195b3d0d088479513351cc9f1315a80d>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -130,10 +130,10 @@ v4 = {
   "storageKey": null
 },
 v5 = {
-  "alias": null,
+  "alias": "statusCode",
   "args": null,
   "kind": "ScalarField",
-  "name": "statusCode",
+  "name": "propagatedStatusCode",
   "storageKey": null
 },
 v6 = {
@@ -440,16 +440,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "2712afb2c9e3f823ca772e8c26b7f83d",
+    "cacheID": "31d1c1317e04312f8cd6b6856807d0c5",
     "id": null,
     "metadata": {},
     "name": "TracePageQuery",
     "operationKind": "query",
-    "text": "query TracePageQuery(\n  $traceId: ID!\n) {\n  spans(traceIds: [$traceId], sort: {col: startTime, dir: asc}) {\n    edges {\n      span: node {\n        context {\n          spanId\n        }\n        name\n        spanKind\n        statusCode\n        startTime\n        parentId\n        latencyMs\n        tokenCountTotal\n        tokenCountPrompt\n        tokenCountCompletion\n        input {\n          value\n          mimeType\n        }\n        output {\n          value\n          mimeType\n        }\n        attributes\n        events {\n          name\n          message\n          timestamp\n        }\n        spanEvaluations {\n          name\n          label\n          score\n        }\n        documentEvaluations {\n          documentPosition\n          name\n          label\n          score\n          explanation\n        }\n        ...SpanEvaluationsTable_evals\n      }\n    }\n  }\n}\n\nfragment SpanEvaluationsTable_evals on Span {\n  spanEvaluations {\n    name\n    label\n    score\n    explanation\n  }\n}\n"
+    "text": "query TracePageQuery(\n  $traceId: ID!\n) {\n  spans(traceIds: [$traceId], sort: {col: startTime, dir: asc}) {\n    edges {\n      span: node {\n        context {\n          spanId\n        }\n        name\n        spanKind\n        statusCode: propagatedStatusCode\n        startTime\n        parentId\n        latencyMs\n        tokenCountTotal\n        tokenCountPrompt\n        tokenCountCompletion\n        input {\n          value\n          mimeType\n        }\n        output {\n          value\n          mimeType\n        }\n        attributes\n        events {\n          name\n          message\n          timestamp\n        }\n        spanEvaluations {\n          name\n          label\n          score\n        }\n        documentEvaluations {\n          documentPosition\n          name\n          label\n          score\n          explanation\n        }\n        ...SpanEvaluationsTable_evals\n      }\n    }\n  }\n}\n\nfragment SpanEvaluationsTable_evals on Span {\n  spanEvaluations {\n    name\n    label\n    score\n    explanation\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "fa1253d695252b087e84e1ea06055595";
+(node as any).hash = "0774d4c7f66298e7a68e70354249c151";
 
 export default node;

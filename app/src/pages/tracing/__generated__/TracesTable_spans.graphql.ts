@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<25f062cc55729b3b589d3bacc74dfe3c>>
+ * @generated SignedSource<<0543bdb45df4afc207b3fd254fcc84de>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -95,10 +95,10 @@ v2 = {
   "storageKey": null
 },
 v3 = {
-  "alias": null,
+  "alias": "statusCode",
   "args": null,
   "kind": "ScalarField",
-  "name": "statusCode",
+  "name": "propagatedStatusCode",
   "storageKey": null
 },
 v4 = {
@@ -431,6 +431,6 @@ return {
 };
 })();
 
-(node as any).hash = "601519f525b82c387835d8876bc3eab9";
+(node as any).hash = "0f56f1244730e44f83105f9f3214cb7c";
 
 export default node;

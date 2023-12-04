@@ -50,8 +50,8 @@ dev = [
   "ruff==0.1.5",
   "pandas-stubs<=2.0.2.230605",  # version 2.0.3.230814 is causing a dependency conflict.
   "pytest",
-  "pytest-cov",
   "pytest-asyncio",
+  "pytest-cov",
   "pytest-lazy-fixture",
   "strawberry-graphql[debug-server]==0.208.2",
   "pre-commit",
@@ -93,6 +93,7 @@ artifacts = ["src/phoenix/server/static"]
 dependencies = [
   "pandas==1.4.0",
   "pytest",
+  "pytest-asyncio",
   "pytest-cov",
   "pytest-lazy-fixture",
   "arize",
