@@ -185,9 +185,9 @@ class Span:
             return []
         if evaluation_name is UNSET:
             evaluation_names = all_document_evaluation_names
+        elif evaluation_name not in all_document_evaluation_names:
+            return []
         else:
-            if evaluation_name not in all_document_evaluation_names:
-                return []
             evaluation_names = [evaluation_name]
         retrieval_metrics = []
         for name in evaluation_names:

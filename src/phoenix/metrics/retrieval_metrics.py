@@ -58,7 +58,9 @@ class RetrievalMetrics:
             return 0.0
         y_true = [self.eval_scores]
         y_score = [self.eval_scores.index]
-        # note that our setup has no ties in y_score
+        # Note that ndcg_score calculates differently depending on whether ties
+        # are involved, but this is not an issue for us because our setup has no
+        # ties in y_score, so we can set ignore_ties=True.
         return cast(float, ndcg_score(y_true=y_true, y_score=y_score, k=k, ignore_ties=True))
 
     def precision(self, k: Optional[int] = None) -> float:
