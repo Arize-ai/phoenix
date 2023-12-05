@@ -217,10 +217,19 @@ export function TracePage() {
           css={css`
             flex: 1 1 auto;
             overflow: hidden;
+            display: flex;
+            flex-direction: column;
           `}
         >
           <TraceHeader rootSpan={rootSpan} />
-          <PanelGroup direction="horizontal" autoSaveId="trace-panel-group">
+          <PanelGroup
+            direction="horizontal"
+            autoSaveId="trace-panel-group"
+            css={css`
+              flex: 1 1 auto;
+              overflow: hidden;
+            `}
+          >
             <Panel defaultSize={30} minSize={10} maxSize={40}>
               <TraceTree
                 spans={spansList}
@@ -312,6 +321,7 @@ function ScrollingTabsWrapper({ children }: PropsWithChildren) {
       data-testid="scrolling-tabs-wrapper"
       css={css`
         height: 100%;
+        overflow: hidden;
         .ac-tabs {
           height: 100%;
           overflow: hidden;
