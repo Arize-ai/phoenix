@@ -38,6 +38,7 @@ from llama_index.callbacks.schema import (
     EventPayload,
 )
 from llama_index.llms.base import ChatMessage, ChatResponse
+from llama_index.response.schema import Response, StreamingResponse
 from llama_index.tools import ToolMetadata
 
 from phoenix.trace.exporter import HttpExporter
@@ -487,7 +488,18 @@ def _get_response_output(response: Any) -> Iterator[Tuple[str, Any]]:
         else:
             yield OUTPUT_VALUE, json.dumps(message.additional_kwargs, cls=_CustomJSONEncoder)
             yield OUTPUT_MIME_TYPE, MimeType.JSON
-    else:
+    elif isinstance(response, Response):
+        yield OUTPUT_VALUE, response.response or ""
+        yield OUTPUT_MIME_TYPE, MimeType.TEXT
+    elif isinstance(response, StreamingResponse):
+        # We cannot get the output from a streaming response without exhausting
+        # the stream, so we initially return an empty string. Additional work is
+        # needed to instrument the returned response object to update the span
+        # with the actual response once the stream has been exhausted:
+        # https://github.com/Arize-ai/phoenix/issues/1867
+        yield OUTPUT_VALUE, ""
+        yield OUTPUT_MIME_TYPE, MimeType.TEXT
+    else:  # if the response has unknown type, make a best-effort attempt to get the output
         yield OUTPUT_VALUE, str(response)
         yield OUTPUT_MIME_TYPE, MimeType.TEXT
 
