@@ -6,6 +6,7 @@ from threading import RLock, Thread
 from types import MethodType
 from typing import DefaultDict, Dict, List, Optional
 
+import numpy as np
 from google.protobuf.json_format import MessageToDict
 from typing_extensions import TypeAlias, assert_never
 
@@ -26,7 +27,6 @@ class Evals:
         self._queue: "SimpleQueue[Optional[pb.Evaluation]]" = SimpleQueue()
         weakref.finalize(self, self._queue.put, END_OF_QUEUE)
         self._lock = RLock()
-        self._start_consumer()
         self._trace_evaluations_by_name: DefaultDict[
             EvaluationName, Dict[TraceID, pb.Evaluation]
         ] = defaultdict(dict)
@@ -42,6 +42,10 @@ class Evals:
         self._document_evaluations_by_span_id: DefaultDict[
             SpanID, DefaultDict[EvaluationName, Dict[DocumentPosition, pb.Evaluation]]
         ] = defaultdict(lambda: defaultdict(dict))
+        self._document_evaluations_by_name: DefaultDict[
+            EvaluationName, DefaultDict[SpanID, Dict[DocumentPosition, pb.Evaluation]]
+        ] = defaultdict(lambda: defaultdict(dict))
+        self._start_consumer()
 
     def put(self, evaluation: pb.Evaluation) -> None:
         self._queue.put(evaluation)
@@ -69,6 +73,7 @@ class Evals:
             span_id = SpanID(document_retrieval_id.span_id)
             document_position = document_retrieval_id.document_position
             self._document_evaluations_by_span_id[span_id][name][document_position] = evaluation
+            self._document_evaluations_by_name[name][span_id][document_position] = evaluation
         elif subject_id_kind == "span_id":
             span_id = SpanID(subject_id.span_id)
             self._evaluations_by_span_id[span_id][name] = evaluation
@@ -90,7 +95,16 @@ class Evals:
 
     def get_span_evaluation_names(self) -> List[EvaluationName]:
         with self._lock:
-            return list(self._span_evaluations_by_name.keys())
+            return list(self._span_evaluations_by_name)
+
+    def get_document_evaluation_names(
+        self,
+        span_id: Optional[SpanID] = None,
+    ) -> List[EvaluationName]:
+        with self._lock:
+            if span_id is None:
+                return list(self._document_evaluations_by_name)
+            return list(self._document_evaluations_by_span_id[span_id])
 
     def get_evaluations_by_span_id(self, span_id: SpanID) -> List[pb.Evaluation]:
         with self._lock:
@@ -102,3 +116,21 @@ class Evals:
             for evaluations in self._document_evaluations_by_span_id[span_id].values():
                 all_evaluations.extend(evaluations.values())
         return all_evaluations
+
+    def get_document_evaluation_scores(
+        self,
+        span_id: SpanID,
+        evaluation_name: str,
+        num_documents: int,
+    ) -> List[float]:
+        # num_documents is needed as argument because the document position values
+        # are not checked during ingestion: e.g. if there exists a position value
+        # of one trillion, we would not want to create a result that large.
+        scores: List[float] = [np.nan] * num_documents
+        with self._lock:
+            evaluations = self._document_evaluations_by_span_id[span_id][evaluation_name]
+            for document_position, evaluation in evaluations.items():
+                result = evaluation.result
+                if result.HasField("score") and document_position < num_documents:
+                    scores[document_position] = result.score.value
+        return scores
