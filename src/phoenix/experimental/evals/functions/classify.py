@@ -185,7 +185,7 @@ class AsyncExecutor:
         progress_bar = tqdm(total=len(inputs), bar_format=self.tqdm_bar_format)
 
         max_queue_size = 5 * self.concurrency  # limit the queue to bound memory usage
-        max_fill = max_queue_size - self.concurrency  # ensure there is always room to requeue
+        max_fill = max_queue_size - (2 * self.concurrency)  # ensure there is always room to requeue
         queue: asyncio.Queue[Tuple[int, Any]] = asyncio.Queue(maxsize=max_queue_size)
         done_producing = asyncio.Event()
 
