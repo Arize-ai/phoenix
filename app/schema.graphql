@@ -339,6 +339,15 @@ interface Evaluation {
   explanation: String
 }
 
+type EvaluationSummary {
+  count: Int!
+  labels: [String!]!
+  labelFractions: [LabelFraction!]!
+  meanScore: Float
+  scoreCount: Int!
+  labelCount: Int!
+}
+
 type Event {
   id: ID!
   eventMetadata: EventMetadata!
@@ -405,6 +414,11 @@ input InputCoordinate3D {
 
 type IntervalBin {
   range: NumericRange!
+}
+
+type LabelFraction {
+  label: String!
+  fraction: Float!
 }
 
 enum MimeType {
@@ -546,6 +560,7 @@ type Query {
 
   """Names of available document evaluations."""
   documentEvaluationNames(spanId: ID): [String!]!
+  spanEvaluationSummary(evaluationName: String!): EvaluationSummary
   traceDatasetInfo: TraceDatasetInfo
   validateSpanFilterCondition(condition: String!): ValidationResult!
 }

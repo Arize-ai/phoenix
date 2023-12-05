@@ -15,7 +15,7 @@ export function EvaluationLabel({ evaluation }: { evaluation: Evaluation }) {
     (typeof evaluation.score == "number" && formatFloat(evaluation.score)) ||
     "n/a";
   return (
-    <Label color="cyan-1000">
+    <Label color="cyan-1000" shape="badge">
       <Flex direction="row" gap="size-50">
         <Text weight="heavy" textSize="small" color="inherit">
           {evaluation.name}
