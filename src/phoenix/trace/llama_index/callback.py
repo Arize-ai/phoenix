@@ -38,6 +38,7 @@ from llama_index.callbacks.schema import (
     EventPayload,
 )
 from llama_index.llms.base import ChatMessage, ChatResponse
+from llama_index.response.schema import Response, StreamingResponse
 from llama_index.tools import ToolMetadata
 
 from phoenix.trace.exporter import HttpExporter
@@ -487,7 +488,15 @@ def _get_response_output(response: Any) -> Iterator[Tuple[str, Any]]:
         else:
             yield OUTPUT_VALUE, json.dumps(message.additional_kwargs, cls=_CustomJSONEncoder)
             yield OUTPUT_MIME_TYPE, MimeType.JSON
-    else:
+    elif isinstance(response, Response):
+        yield OUTPUT_VALUE, response.response or ""
+        yield OUTPUT_MIME_TYPE, MimeType.TEXT
+    elif isinstance(response, StreamingResponse):
+        # We cannot get the output from a streaming response without exhausting
+        # the stream, so we return an empty string.
+        yield OUTPUT_VALUE, ""
+        yield OUTPUT_MIME_TYPE, MimeType.TEXT
+    else:  # if the response has unknown type, make a best-effort attempt to get the output
         yield OUTPUT_VALUE, str(response)
         yield OUTPUT_MIME_TYPE, MimeType.TEXT
 
