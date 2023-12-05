@@ -493,7 +493,10 @@ def _get_response_output(response: Any) -> Iterator[Tuple[str, Any]]:
         yield OUTPUT_MIME_TYPE, MimeType.TEXT
     elif isinstance(response, StreamingResponse):
         # We cannot get the output from a streaming response without exhausting
-        # the stream, so we return an empty string.
+        # the stream, so we initially return an empty string. Additional work is
+        # needed to instrument the returned response object to update the span
+        # with the actual response once the stream has been exhausted:
+        # https://github.com/Arize-ai/phoenix/issues/1867
         yield OUTPUT_VALUE, ""
         yield OUTPUT_MIME_TYPE, MimeType.TEXT
     else:  # if the response has unknown type, make a best-effort attempt to get the output
