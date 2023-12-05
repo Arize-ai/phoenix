@@ -95,6 +95,9 @@ def test_span_filter_by_eval_exceptions(spans, evals, eval_name):
     with pytest.raises(SyntaxError):
         # misspelled evals
         SpanFilter(f"eval['{eval_name}'].score < 0.5", evals=evals)
+    with pytest.raises(SyntaxError):
+        # non-string eval name
+        SpanFilter("eval[123].score < 0.5", evals=evals)
 
 
 Span = namedtuple("Span", "context")
