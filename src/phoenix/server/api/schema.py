@@ -221,8 +221,18 @@ class Query:
         )
         if (traces := info.context.traces) is None:
             return connection_from_list(data=[], args=args)
+        evals = info.context.evals
+        valid_eval_names = evals.get_span_evaluation_names() if evals else ()
         try:
-            predicate = SpanFilter(filter_condition) if filter_condition else None
+            predicate = (
+                SpanFilter(
+                    condition=filter_condition,
+                    evals=evals,
+                    valid_eval_names=valid_eval_names,
+                )
+                if filter_condition
+                else None
+            )
         except SyntaxError as e:
             raise Exception(f"invalid filter condition: {e.msg}") from e  # TODO: add details
         if not trace_ids:
@@ -293,8 +303,14 @@ class Query:
     def validate_span_filter_condition(
         self, info: Info[Context, None], condition: str
     ) -> ValidationResult:
+        evals = info.context.evals
+        valid_eval_names = evals.get_span_evaluation_names() if evals else ()
         try:
-            SpanFilter(condition)
+            SpanFilter(
+                condition=condition,
+                evals=evals,
+                valid_eval_names=valid_eval_names,
+            )
             return ValidationResult(is_valid=True, error_message=None)
         except SyntaxError as e:
             return ValidationResult(
