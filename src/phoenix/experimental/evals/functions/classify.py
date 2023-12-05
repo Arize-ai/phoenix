@@ -186,7 +186,7 @@ class AsyncExecutor:
 
         max_queue_size = 5 * self.concurrency  # limit the queue to bound memory usage
         max_fill = max_queue_size - self.concurrency  # ensure there is always room to requeue
-        queue: asyncio.Queue[Tuple[int, Any]] = asyncio.Queue(maxsize=2 * self.concurrency)
+        queue: asyncio.Queue[Tuple[int, Any]] = asyncio.Queue(maxsize=max_queue_size)
         done_producing = asyncio.Event()
 
         producer = asyncio.create_task(self.producer(inputs, queue, max_fill, done_producing))
