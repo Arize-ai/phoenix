@@ -222,13 +222,11 @@ class Query:
         if (traces := info.context.traces) is None:
             return connection_from_list(data=[], args=args)
         evals = info.context.evals
-        valid_eval_names = evals.get_span_evaluation_names() if evals else ()
         try:
             predicate = (
                 SpanFilter(
                     condition=filter_condition,
                     evals=evals,
-                    valid_eval_names=valid_eval_names,
                 )
                 if filter_condition
                 else None
@@ -246,7 +244,7 @@ class Query:
         if predicate:
             spans = filter(predicate, spans)
         if sort:
-            spans = sort(spans, evals=info.context.evals)
+            spans = sort(spans, evals=evals)
         data = list(map(to_gql_span, spans))
         return connection_from_list(data=data, args=args)
 
