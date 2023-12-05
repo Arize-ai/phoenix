@@ -71,6 +71,30 @@ class RequestType(Enum):
     EMBEDDING = "embedding"
 
 
+class ChatCompletionProcessor:
+    def __init__(self, context: "ChatCompletionContext") -> None:
+        self._context = context
+
+    def process(self, response: ChatCompletion) -> ChatCompletion:
+        """
+        Processes a chat completions response to extract attributes.
+
+        Args:
+            response (ChatCompletion): Response from the OpenAI chat completions API call.
+
+        Returns:
+            ChatCompletion: A chat completion response.
+        """
+        self._context._end_time = datetime.now()
+        for (
+            attribute_name,
+            get_chat_completion_attribute_fn,
+        ) in _CHAT_COMPLETION_ATTRIBUTE_FUNCTIONS.items():
+            if (attribute_value := get_chat_completion_attribute_fn(response)) is not None:
+                self._context._attributes[attribute_name] = attribute_value
+        return response
+
+
 class OpenAIInstrumentor:
     def __init__(self, tracer: Optional[Tracer] = None) -> None:
         """Instruments your OpenAI client to automatically create spans for each API call.
@@ -123,6 +147,7 @@ class ChatCompletionContext(ContextManager["ChatCompletionContext"]):
             tracer (Tracer): The tracer to use to create spans.
         """
         self._tracer = tracer
+        self._response_processor = ChatCompletionProcessor(self)
         self._start_time: Optional[datetime] = None
         self._end_time: Optional[datetime] = None
         self._status_code = SpanStatusCode.UNSET
@@ -159,20 +184,14 @@ class ChatCompletionContext(ContextManager["ChatCompletionContext"]):
             )
         self._create_span()
 
-    def process_response(self, response: ChatCompletion) -> None:
+    def process_response(self, response: ChatCompletion) -> ChatCompletion:
         """
         Processes the response from the OpenAI chat completions API call to extract attributes.
 
         Args:
             response (ChatCompletion): The chat completion object.
         """
-        self._end_time = datetime.now()
-        for (
-            attribute_name,
-            get_chat_completion_attribute_fn,
-        ) in _CHAT_COMPLETION_ATTRIBUTE_FUNCTIONS.items():
-            if (attribute_value := get_chat_completion_attribute_fn(response)) is not None:
-                self._attributes[attribute_name] = attribute_value
+        return self._response_processor.process(response)
 
     def _process_parameters(self, parameters: Parameters) -> None:
         for (
