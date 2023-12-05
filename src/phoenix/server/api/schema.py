@@ -34,6 +34,7 @@ from .types.EmbeddingDimension import (
     DEFAULT_MIN_SAMPLES,
     to_gql_embedding_dimension,
 )
+from .types.EvaluationSummary import EvaluationSummary
 from .types.Event import create_event_id, unpack_event_id
 from .types.ExportEventsMutation import ExportEventsMutation
 from .types.Functionality import Functionality
@@ -265,6 +266,20 @@ class Query:
         return evals.get_document_evaluation_names(
             None if span_id is UNSET else SpanID(span_id),
         )
+
+    @strawberry.field
+    def span_evaluation_summary(
+        self,
+        info: Info[Context, None],
+        evaluation_name: str,
+    ) -> Optional[EvaluationSummary]:
+        if (evals := info.context.evals) is None:
+            return None
+        evaluations = evals.get_span_evaluations_by_name(evaluation_name)
+        if not evaluations:
+            return None
+        labels = evals.get_span_evaluation_labels(evaluation_name)
+        return EvaluationSummary(evaluations, labels)
 
     @strawberry.field
     def trace_dataset_info(
