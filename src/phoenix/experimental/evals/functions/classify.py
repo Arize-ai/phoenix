@@ -165,7 +165,7 @@ class AsyncExecutor:
                     marked_done = True
                     continue
                 else:
-                    tqdm.write(f"Worker timeout, requeuing")
+                    tqdm.write("Worker timeout, requeuing")
                     await queue.put(item)
             except Exception:
                 tqdm.write(f"Exception in worker: {traceback.format_exc()}")
