@@ -4,7 +4,7 @@ from collections import defaultdict
 from queue import SimpleQueue
 from threading import RLock, Thread
 from types import MethodType
-from typing import DefaultDict, Dict, List, Optional
+from typing import DefaultDict, Dict, List, Optional, Set, Tuple
 
 import numpy as np
 from google.protobuf.json_format import MessageToDict
@@ -39,6 +39,7 @@ class Evals:
         self._evaluations_by_span_id: DefaultDict[
             SpanID, Dict[EvaluationName, pb.Evaluation]
         ] = defaultdict(dict)
+        self._span_evaluation_labels: DefaultDict[EvaluationName, Set[str]] = defaultdict(set)
         self._document_evaluations_by_span_id: DefaultDict[
             SpanID, DefaultDict[EvaluationName, Dict[DocumentPosition, pb.Evaluation]]
         ] = defaultdict(lambda: defaultdict(dict))
@@ -78,6 +79,9 @@ class Evals:
             span_id = SpanID(subject_id.span_id)
             self._evaluations_by_span_id[span_id][name] = evaluation
             self._span_evaluations_by_name[name][span_id] = evaluation
+            if evaluation.result.HasField("label"):
+                label = evaluation.result.label.value
+                self._span_evaluation_labels[name].add(label)
         elif subject_id_kind == "trace_id":
             trace_id = TraceID(subject_id.trace_id)
             self._evaluations_by_trace_id[trace_id][name] = evaluation
@@ -105,6 +109,14 @@ class Evals:
             if span_id is None:
                 return list(self._document_evaluations_by_name)
             return list(self._document_evaluations_by_span_id[span_id])
+
+    def get_span_evaluation_labels(self, name: EvaluationName) -> Tuple[str, ...]:
+        with self._lock:
+            return tuple(self._span_evaluation_labels[name])
+
+    def get_span_evaluations_by_name(self, name: EvaluationName) -> Tuple[pb.Evaluation, ...]:
+        with self._lock:
+            return tuple(self._span_evaluations_by_name[name].values())
 
     def get_evaluations_by_span_id(self, span_id: SpanID) -> List[pb.Evaluation]:
         with self._lock:
