@@ -35,7 +35,7 @@ class SpanFilter:
         self,
         condition: str,
         evals: Optional[SupportsGetSpanEvaluation] = None,
-        valid_eval_names: Optional[Tuple[str, ...]] = None,
+        valid_eval_names: Optional[Sequence[str]] = None,
     ) -> None:
         self._missing = _Missing()
         self._evals = evals or self._missing
@@ -159,7 +159,7 @@ class _Translator(ast.NodeTransformer):
 def _validate_expression(
     expression: ast.Expression,
     source: str,
-    valid_eval_names: Optional[Tuple[str, ...]] = None,
+    valid_eval_names: Optional[Sequence[str]] = None,
     valid_eval_attributes: Tuple[str, ...] = _VALID_EVAL_ATTRIBUTES,
 ) -> None:
     """
