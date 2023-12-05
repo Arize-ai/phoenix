@@ -242,7 +242,7 @@ def _validate_expression(
                 # so it needs to allowed here, but note that `ast.Subscript` is
                 # not allowed in general except in the case of `evals["name"]`.
                 # Note that `ast.Index` is deprecated in Python 3.9+.
-                *((ast.Index,) if tuple(sys.version_info)[:2] < (3, 9) else ()),
+                *((ast.Index,) if sys.version_info < (3, 9) else ()),
             ),
         ):
             continue
