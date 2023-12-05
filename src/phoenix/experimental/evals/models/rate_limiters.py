@@ -122,14 +122,18 @@ class AdaptiveTokenBucket:
         max_wait_time: float = 300,
     ) -> None:
         start = time.time()
+        token_taken = False
         while (time.time() - start) < max_wait_time:
             try:
                 self.increase_rate()
                 self.make_request_if_ready()
+                token_taken = True
                 break
             except UnavailableTokensError:
                 await asyncio.sleep(0.1 / self.rate)
                 continue
+        if not token_taken:
+            self.tokens -= 1
 
 
 class RateLimitError(BaseException):
