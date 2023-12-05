@@ -147,8 +147,7 @@ def test_callback_internal_error_has_exception_event(
         llm=llm, callback_manager=CallbackManager([callback_handler])
     )
     query_engine = index.as_query_engine(service_context=service_context)
-
-    with patch.object(llm._client.chat.completions, "create") as mocked_chat_completion_create:
+    with patch("openai.OpenAI.request") as mocked_chat_completion_create:
         mocked_chat_completion_create.side_effect = InternalServerError(
             "message",
             response=httpx.Response(
