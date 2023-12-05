@@ -142,7 +142,6 @@ export function TracesTable(props: TracesTableProps) {
                   label
                   score
                 }
-                numDocuments
                 documentRetrievalMetrics {
                   evaluationName
                   ndcg
@@ -174,7 +173,6 @@ export function TracesTable(props: TracesTableProps) {
                     label
                     score
                   }
-                  numDocuments
                   documentRetrievalMetrics {
                     evaluationName
                     ndcg

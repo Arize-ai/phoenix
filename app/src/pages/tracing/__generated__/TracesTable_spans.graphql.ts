@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<63123bb9ee34213c40b9d97faa566371>>
+ * @generated SignedSource<<f3f56de224979d883ffeef124ea0b6ed>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -36,7 +36,6 @@ export type TracesTable_spans$data = {
           } | null;
           readonly latencyMs: number | null;
           readonly name: string;
-          readonly numDocuments: number | null;
           readonly output: {
             readonly value: string;
           } | null;
@@ -64,7 +63,6 @@ export type TracesTable_spans$data = {
         } | null;
         readonly latencyMs: number | null;
         readonly name: string;
-        readonly numDocuments: number | null;
         readonly output: {
           readonly value: string;
         } | null;
@@ -217,13 +215,6 @@ v11 = {
   "storageKey": null
 },
 v12 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "numDocuments",
-  "storageKey": null
-},
-v13 = {
   "alias": null,
   "args": null,
   "concreteType": "DocumentRetrievalMetrics",
@@ -385,7 +376,6 @@ return {
                 (v10/*: any*/),
                 (v11/*: any*/),
                 (v12/*: any*/),
-                (v13/*: any*/),
                 {
                   "alias": null,
                   "args": null,
@@ -425,8 +415,7 @@ return {
                     (v9/*: any*/),
                     (v10/*: any*/),
                     (v11/*: any*/),
-                    (v12/*: any*/),
-                    (v13/*: any*/)
+                    (v12/*: any*/)
                   ],
                   "storageKey": null
                 }
@@ -495,6 +484,6 @@ return {
 };
 })();
 
-(node as any).hash = "6640d1de48fa21ef59146edbb654ff0a";
+(node as any).hash = "710102d25cfd95105417d1aee837a7f8";
 
 export default node;
