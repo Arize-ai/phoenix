@@ -71,10 +71,9 @@ from phoenix.trace.semantic_conventions import (
     LLM_TOKEN_COUNT_PROMPT,
     LLM_TOKEN_COUNT_TOTAL,
     MESSAGE_CONTENT,
-    MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON,
-    MESSAGE_FUNCTION_CALL_NAME,
     MESSAGE_NAME,
     MESSAGE_ROLE,
+    MESSAGE_TOOL_CALLS,
     OUTPUT_MIME_TYPE,
     OUTPUT_VALUE,
     RERANKER_INPUT_DOCUMENTS,
@@ -83,6 +82,8 @@ from phoenix.trace.semantic_conventions import (
     RERANKER_QUERY,
     RERANKER_TOP_K,
     RETRIEVAL_DOCUMENTS,
+    TOOL_CALL_FUNCTION_ARGUMENTS_JSON,
+    TOOL_CALL_FUNCTION_NAME,
     TOOL_DESCRIPTION,
     TOOL_NAME,
     TOOL_PARAMETERS,
@@ -439,14 +440,12 @@ def _message_payload_to_attributes(message: Any) -> Dict[str, Optional[str]]:
             assert isinstance(
                 tool_calls, Iterable
             ), f"tool_calls must be Iterable, found {type(tool_calls)}"
-            tool_call = next(iter(tool_calls), None)
-            function = getattr(tool_call, "function", None)
-            if name := getattr(function, "name", None):
-                assert isinstance(name, str), f"name must be str, found {type(name)}"
-                message_attributes[MESSAGE_FUNCTION_CALL_NAME] = name
-            if arguments := getattr(function, "arguments", None):
-                assert isinstance(arguments, str), f"arguments must be str, found {type(arguments)}"
-                message_attributes[MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON] = arguments
+            message_tool_calls = []
+            for tool_call in tool_calls:
+                if message_tool_call := dict(_get_tool_call(tool_call)):
+                    message_tool_calls.append(message_tool_call)
+            if message_tool_calls:
+                message_attributes[MESSAGE_TOOL_CALLS] = message_tool_calls
         return message_attributes
 
     return {
@@ -552,14 +551,12 @@ def _get_message(message: object) -> Iterator[Tuple[str, Any]]:
         assert isinstance(
             tool_calls, Iterable
         ), f"tool_calls must be Iterable, found {type(tool_calls)}"
-        tool_call = next(iter(tool_calls), None)
-        function = getattr(tool_call, "function", None)
-        if name := getattr(function, "name", None):
-            assert isinstance(name, str), f"name must be str, found {type(name)}"
-            yield MESSAGE_FUNCTION_CALL_NAME, name
-        if arguments := getattr(function, "arguments", None):
-            assert isinstance(arguments, str), f"arguments must be str, found {type(arguments)}"
-            yield MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON, arguments
+        message_tool_calls = []
+        for tool_call in tool_calls:
+            if message_tool_call := dict(_get_tool_call(tool_call)):
+                message_tool_calls.append(message_tool_call)
+        if message_tool_calls:
+            yield MESSAGE_TOOL_CALLS, message_tool_calls
 
 
 def _get_output_messages(raw: Mapping[str, Any]) -> Iterator[Tuple[str, Any]]:
@@ -621,3 +618,13 @@ def _template_attributes(payload: Dict[str, Any]) -> Iterator[Tuple[str, Any]]:
         # TODO(maybe): other keys in the same payload
         # EventPayload.SYSTEM_PROMPT
         # EventPayload.QUERY_WRAPPER_PROMPT
+
+
+def _get_tool_call(tool_call: object) -> Iterator[Tuple[str, Any]]:
+    if function := getattr(tool_call, "function", None):
+        if name := getattr(function, "name", None):
+            assert isinstance(name, str), f"name must be str, found {type(name)}"
+            yield TOOL_CALL_FUNCTION_NAME, name
+        if arguments := getattr(function, "arguments", None):
+            assert isinstance(arguments, str), f"arguments must be str, found {type(arguments)}"
+            yield TOOL_CALL_FUNCTION_ARGUMENTS_JSON, arguments

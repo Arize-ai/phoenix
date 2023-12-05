@@ -33,9 +33,12 @@ from phoenix.trace.semantic_conventions import (
     MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON,
     MESSAGE_FUNCTION_CALL_NAME,
     MESSAGE_ROLE,
+    MESSAGE_TOOL_CALLS,
     OUTPUT_MIME_TYPE,
     OUTPUT_VALUE,
     RETRIEVAL_DOCUMENTS,
+    TOOL_CALL_FUNCTION_ARGUMENTS_JSON,
+    TOOL_CALL_FUNCTION_NAME,
     TOOL_DESCRIPTION,
     TOOL_NAME,
     MimeType,
@@ -145,7 +148,7 @@ def _parse_message_data(message_data: Mapping[str, Any]) -> Message:
         role = message_data["kwargs"]["role"]
     else:
         raise ValueError(f"Cannot parse message of type: {message_class_name}")
-    parsed_message_data = {MESSAGE_ROLE: role}
+    parsed_message_data: Dict[str, Any] = {MESSAGE_ROLE: role}
     if kwargs := message_data.get("kwargs"):
         assert hasattr(kwargs, "get"), f"expected Mapping, found {type(kwargs)}"
         if content := kwargs.get("content"):
@@ -167,7 +170,28 @@ def _parse_message_data(message_data: Mapping[str, Any]) -> Message:
                         arguments, str
                     ), f"arguments must be str, found {type(arguments)}"
                     parsed_message_data[MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON] = arguments
+            if tool_calls := additional_kwargs.get("tool_calls"):
+                assert isinstance(
+                    tool_calls, Iterable
+                ), f"tool_calls must be Iterable, found {type(tool_calls)}"
+                message_tool_calls = []
+                for tool_call in tool_calls:
+                    if message_tool_call := dict(_get_tool_call(tool_call)):
+                        message_tool_calls.append(message_tool_call)
+                if message_tool_calls:
+                    parsed_message_data[MESSAGE_TOOL_CALLS] = message_tool_calls
     return parsed_message_data
+
+
+def _get_tool_call(tool_call: Mapping[str, Any]) -> Iterator[Tuple[str, Any]]:
+    if function := tool_call.get("function"):
+        assert hasattr(function, "get"), f"expected Mapping, found {type(function)}"
+        if name := function.get("name"):
+            assert isinstance(name, str), f"name must be str, found {type(name)}"
+            yield TOOL_CALL_FUNCTION_NAME, name
+        if arguments := function.get("arguments"):
+            assert isinstance(arguments, str), f"arguments must be str, found {type(arguments)}"
+            yield TOOL_CALL_FUNCTION_ARGUMENTS_JSON, arguments
 
 
 def _prompt_template(run_serialized: Dict[str, Any]) -> Iterator[Tuple[str, Any]]:
