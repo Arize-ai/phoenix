@@ -2,6 +2,7 @@ import logging
 from typing import Any, Callable, Dict, Optional, Union
 
 import pandas as pd
+from tqdm.auto import tqdm
 
 from phoenix.experimental.evals.models import BaseEvalModel, set_verbosity
 from phoenix.experimental.evals.templates import (
@@ -9,6 +10,7 @@ from phoenix.experimental.evals.templates import (
     map_template,
     normalize_prompt_template,
 )
+from phoenix.experimental.evals.utils import get_tqdm_progress_bar_formatter
 
 logger = logging.getLogger(__name__)
 
@@ -57,6 +59,7 @@ def llm_generate(
         represents the generated output
 
     """
+    tqdm_bar_format = get_tqdm_progress_bar_formatter("llm_generate")
     output_parser = output_parser or _no_op_parser
     with set_verbosity(model, verbose) as verbose_model:
         template = normalize_prompt_template(template)
@@ -69,7 +72,7 @@ def llm_generate(
         # Wrap the loop in a try / catch so that we can still return a dataframe
         # even if the process is interrupted
         try:
-            for prompt in prompts:
+            for prompt in tqdm(prompts, bar_format=tqdm_bar_format):
                 logger.info(f"Prompt: {prompt}")
                 response = verbose_model(prompt, instruction=system_instruction)
                 parsed_response = output_parser(response)

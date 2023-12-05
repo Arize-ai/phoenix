@@ -1,21 +1,58 @@
 import ast
-from typing import Any, Iterator, Mapping, Tuple, cast
+import sys
+from difflib import SequenceMatcher
+from typing import (
+    Any,
+    Iterable,
+    Iterator,
+    Mapping,
+    Optional,
+    Protocol,
+    Sequence,
+    Tuple,
+    cast,
+)
 
+from typing_extensions import TypeGuard
+
+import phoenix.trace.v1 as pb
 from phoenix.core.traces import ComputedAttributes
 from phoenix.trace import semantic_conventions
-from phoenix.trace.schemas import COMPUTED_PREFIX, Span
+from phoenix.trace.schemas import COMPUTED_PREFIX, Span, SpanID
+
+_VALID_EVAL_ATTRIBUTES: Tuple[str, ...] = tuple(
+    field.name for field in pb.Evaluation.Result.DESCRIPTOR.fields
+)
+
+
+class SupportsGetSpanEvaluation(Protocol):
+    def get_span_evaluation(self, span_id: SpanID, name: str) -> Optional[pb.Evaluation]:
+        ...
 
 
 class SpanFilter:
-    def __init__(self, condition: str) -> None:
+    def __init__(
+        self,
+        condition: str,
+        evals: Optional[SupportsGetSpanEvaluation] = None,
+        valid_eval_names: Optional[Sequence[str]] = None,
+    ) -> None:
+        self._missing = _Missing()
+        self._evals = evals or self._missing
         self._root = ast.parse(condition, mode="eval")
-        _validate_expression(self._root, condition)
+        _validate_expression(self._root, condition, valid_eval_names=valid_eval_names)
         self._translated = _Translator(condition).visit(self._root)
         ast.fix_missing_locations(self._translated)
         self._compiled = compile(self._translated, filename="", mode="eval")
 
     def __call__(self, span: Span) -> bool:
-        return cast(bool, eval(self._compiled, {}, {"span": span, "_MISSING": _Missing()}))
+        return cast(
+            bool,
+            eval(
+                self._compiled,
+                {"span": span, "_MISSING": self._missing, "evals": self._evals},
+            ),
+        )
 
 
 def _replace_none_with_missing(
@@ -24,18 +61,18 @@ def _replace_none_with_missing(
 ) -> ast.IfExp:
     """
     E.g. `value` becomes
-    `_MISSING if (_MAYBE := value) is None else _MAYBE`
+    `_MISSING if (_VALUE := value) is None else _VALUE`
     """
-    _store_MAYBE = ast.Name(id="_MAYBE", ctx=ast.Store())
-    _load_MAYBE = ast.Name(id="_MAYBE", ctx=ast.Load())
+    _store_VALUE = ast.Name(id="_VALUE", ctx=ast.Store())
+    _load_VALUE = ast.Name(id="_VALUE", ctx=ast.Load())
     return ast.IfExp(
         test=ast.Compare(
-            left=ast.NamedExpr(target=_store_MAYBE, value=value),
+            left=ast.NamedExpr(target=_store_VALUE, value=value),
             ops=[ast.Is()],
             comparators=[ast.Constant(value=None)],
         ),
         body=ast.Name(id="_MISSING", ctx=ast.Load()),
-        orelse=_as_str(_load_MAYBE) if as_str else _load_MAYBE,
+        orelse=_as_str(_load_VALUE) if as_str else _load_VALUE,
     )
 
 
@@ -95,11 +132,15 @@ class _Translator(ast.NodeTransformer):
     _allowed_fields: Mapping[str, ast.expr] = dict(_allowed_replacements())
 
     def __init__(self, source: str) -> None:
+        # Regarding the need for `source: str` for getting source segments:
         # In Python 3.8, we have to use `ast.get_source_segment(source, node)`.
-        # In Python 3.9, we can use `ast.unparse(node)` instead.
+        # In Python 3.9+, we can use `ast.unparse(node)` (no need for `source`).
         self._source = source
 
     def visit_Attribute(self, node: ast.Attribute) -> Any:
+        if _is_eval(node.value) and (eval_name := _get_eval_name(node.value)):
+            # e.g. `evals["name"].score`
+            return _ast_evaluation_result_value(eval_name, node.attr)
         source_segment: str = cast(str, ast.get_source_segment(self._source, node))
         if replacement := self._allowed_fields.get(source_segment):
             return replacement
@@ -115,15 +156,71 @@ class _Translator(ast.NodeTransformer):
         return ast.Name(id="_MISSING", ctx=ast.Load()) if node.value is None else node
 
 
-def _validate_expression(expression: ast.Expression, source: str) -> None:
+def _validate_expression(
+    expression: ast.Expression,
+    source: str,
+    valid_eval_names: Optional[Sequence[str]] = None,
+    valid_eval_attributes: Tuple[str, ...] = _VALID_EVAL_ATTRIBUTES,
+) -> None:
+    """
+    Validate primarily the structural (i.e. not semantic) characteristics of an
+    expression, e.g. function calls are not allowed. Note that the separation
+    between structural and semantic validation is a matter of convenience and is
+    not meant to be strict. Some validations such as that for the evaluation name
+    may be considered semantic but is placed here because it's convenient, and
+    additional exceptions may be raised later by the NodeTransformer regarding
+    either structural and semantic issues.
+    """
+    # Regarding the need for `source: str` for getting source segments:
     # In Python 3.8, we have to use `ast.get_source_segment(source, node)`.
-    # In Python 3.9, we can use `ast.unparse(node)` instead.
+    # In Python 3.9+, we can use `ast.unparse(node)` (no need for `source`).
     if not isinstance(expression, ast.Expression):
         raise SyntaxError(f"invalid expression: {source}")  # TODO: add details
     for i, node in enumerate(ast.walk(expression.body)):
         if i == 0:
             if isinstance(node, (ast.BoolOp, ast.Compare)):
                 continue
+        elif _is_eval(node):
+            # e.g. `evals["name"]`
+            if not (eval_name := _get_eval_name(node)) or (
+                valid_eval_names is not None and eval_name not in valid_eval_names
+            ):
+                source_segment = cast(str, ast.get_source_segment(source, node))
+                if eval_name and valid_eval_names:
+                    # suggest a valid eval name most similar to the one given
+                    choice, score = _find_best_match(eval_name, valid_eval_names)
+                    if choice and score > 0.75:  # arbitrary threshold
+                        raise SyntaxError(
+                            f"invalid eval name `{eval_name}` in `{source_segment}`"
+                            + f', did you mean "{choice}"?'
+                        )
+                expected = _disjunction([f'"{name}"' for name in valid_eval_names or ()])
+                raise SyntaxError(
+                    f"invalid eval name `{eval_name}` in `{source_segment}`"
+                    + f", expected {expected}"
+                    if expected
+                    else ""
+                )
+            continue
+        elif isinstance(node, ast.Attribute) and _is_eval(node.value):
+            # e.g. `evals["name"].score`
+            if (attr := node.attr) not in valid_eval_attributes:
+                source_segment = cast(str, ast.get_source_segment(source, node))
+                # suggest a valid attribute most similar to the one given
+                choice, score = _find_best_match(attr, valid_eval_attributes)
+                if choice and score > 0.75:  # arbitrary threshold
+                    raise SyntaxError(
+                        f"invalid attribute `.{attr}` in `{source_segment}`"
+                        + f", did you mean `.{choice}`?"
+                    )
+                expected = _disjunction([f"`.{attribute}`" for attribute in valid_eval_attributes])
+                raise SyntaxError(
+                    f"invalid eval attribute `.{attr}` in `{source_segment}`"
+                    + f", expected {expected}"
+                    if expected
+                    else ""
+                )
+            continue
         elif isinstance(
             node,
             (
@@ -141,6 +238,11 @@ def _validate_expression(expression: ast.Expression, source: str) -> None:
                 ast.cmpop,
                 ast.operator,
                 ast.unaryop,
+                # Prior to Python 3.9, `ast.Index` is part of `ast.Subscript`,
+                # so it needs to allowed here, but note that `ast.Subscript` is
+                # not allowed in general except in the case of `evals["name"]`.
+                # Note that `ast.Index` is deprecated in Python 3.9+.
+                *((ast.Index,) if sys.version_info < (3, 9) else ()),
             ),
         ):
             continue
@@ -148,25 +250,99 @@ def _validate_expression(expression: ast.Expression, source: str) -> None:
         raise SyntaxError(f"invalid expression: {source_segment}")  # TODO: add details
 
 
+def _ast_evaluation_result_value(name: str, attr: str) -> ast.expr:
+    source = (
+        f"_RESULT.{attr}.value if ("
+        f"    _RESULT := ("
+        f"        _MISSING if ("
+        f"            _VALUE := evals.get_span_evaluation("
+        f"                 span.context.span_id, '{name}'"
+        f"            )"
+        f"        ) is None "
+        f"        else _VALUE"
+        f"    ).result"
+        f").HasField('{attr}') "
+        f"else _MISSING"
+    )
+    return ast.parse(source, mode="eval").body
+
+
+def _is_eval(node: Any) -> TypeGuard[ast.Subscript]:
+    # e.g. `evals["name"]`
+    return (
+        isinstance(node, ast.Subscript)
+        and isinstance(value := node.value, ast.Name)
+        and value.id == "evals"
+    )
+
+
+def _get_eval_name(node: ast.Subscript) -> Optional[str]:
+    if sys.version_info < (3, 9):
+        # Note that `ast.Index` is deprecated in Python 3.9+, but is necessary
+        # for Python 3.8 as part of `ast.Subscript`.
+        return (
+            eval_name
+            if isinstance(node_slice := node.slice, ast.Index)
+            and isinstance(slice_value := node_slice.value, ast.Constant)
+            and isinstance(eval_name := slice_value.value, str)
+            else None
+        )
+    return (
+        eval_name
+        if isinstance(node_slice := node.slice, ast.Constant)
+        and isinstance(eval_name := node_slice.value, str)
+        else None
+    )
+
+
+def _disjunction(choices: Sequence[str]) -> str:
+    """
+    E.g. `["a", "b", "c"]` becomes `"one of a, b, or c"`
+    """
+    if len(choices) == 0:
+        return ""
+    if len(choices) == 1:
+        return choices[0]
+    if len(choices) == 2:
+        return f"{choices[0]} or {choices[1]}"
+    return f"one of {', '.join(choices[:-1])}, or {choices[-1]}"
+
+
+def _find_best_match(source: str, choices: Iterable[str]) -> Tuple[Optional[str], float]:
+    best_choice, best_score = None, 0.0
+    for choice in choices:
+        score = SequenceMatcher(None, source, choice).ratio()
+        if score > best_score:
+            best_choice, best_score = choice, score
+    return best_choice, best_score
+
+
 class _Missing:
-    """Falsifies all comparisons except those with self."""
+    """
+    Falsify all comparisons except those with self; return self when getattr()
+    is called. Also, self is callable returning self. All this may seem peculiar
+    but is useful for getting the desired (and intuitive) behavior from any
+    boolean (i.e. comparative) expression without needing error handling when
+    missing values are encountered. `_Missing()` is intended to be a (fancier)
+    replacement for `None`.
+    """
 
-    def __lt__(self, other: Any) -> bool:
+    def __lt__(self, _: Any) -> bool:
         return False
 
-    def __le__(self, other: Any) -> bool:
+    def __le__(self, _: Any) -> bool:
         return False
 
-    def __gt__(self, other: Any) -> bool:
+    def __gt__(self, _: Any) -> bool:
         return False
 
-    def __ge__(self, other: Any) -> bool:
+    def __ge__(self, _: Any) -> bool:
         return False
 
     def __eq__(self, other: Any) -> bool:
         return isinstance(other, _Missing)
 
-    def __ne__(self, other: Any) -> bool:
+    def __ne__(self, _: Any) -> bool:
         return False
 
     def __len__(self) -> int:
@@ -178,7 +354,7 @@ class _Missing:
     def __next__(self) -> Any:
         raise StopIteration()
 
-    def __contains__(self, item: Any) -> bool:
+    def __contains__(self, _: Any) -> bool:
         return False
 
     def __str__(self) -> str:
@@ -186,3 +362,12 @@ class _Missing:
 
     def __float__(self) -> float:
         return float("nan")
+
+    def __bool__(self) -> bool:
+        return False
+
+    def __getattr__(self, _: Any) -> "_Missing":
+        return self
+
+    def __call__(self, *_: Any, **__: Any) -> "_Missing":
+        return self
