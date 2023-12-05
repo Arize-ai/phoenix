@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<0543bdb45df4afc207b3fd254fcc84de>>
+ * @generated SignedSource<<63123bb9ee34213c40b9d97faa566371>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -25,11 +25,18 @@ export type TracesTable_spans$data = {
             readonly spanId: string;
             readonly traceId: string;
           };
+          readonly documentRetrievalMetrics: ReadonlyArray<{
+            readonly evaluationName: string;
+            readonly hit: number | null;
+            readonly ndcg: number | null;
+            readonly precision: number | null;
+          }>;
           readonly input: {
             readonly value: string;
           } | null;
           readonly latencyMs: number | null;
           readonly name: string;
+          readonly numDocuments: number | null;
           readonly output: {
             readonly value: string;
           } | null;
@@ -46,11 +53,18 @@ export type TracesTable_spans$data = {
           readonly tokenCountPrompt: number | null;
           readonly tokenCountTotal: number | null;
         }>;
+        readonly documentRetrievalMetrics: ReadonlyArray<{
+          readonly evaluationName: string;
+          readonly hit: number | null;
+          readonly ndcg: number | null;
+          readonly precision: number | null;
+        }>;
         readonly input: {
           readonly value: string;
         } | null;
         readonly latencyMs: number | null;
         readonly name: string;
+        readonly numDocuments: number | null;
         readonly output: {
           readonly value: string;
         } | null;
@@ -201,6 +215,52 @@ v11 = {
     }
   ],
   "storageKey": null
+},
+v12 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "numDocuments",
+  "storageKey": null
+},
+v13 = {
+  "alias": null,
+  "args": null,
+  "concreteType": "DocumentRetrievalMetrics",
+  "kind": "LinkedField",
+  "name": "documentRetrievalMetrics",
+  "plural": true,
+  "selections": [
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "evaluationName",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "ndcg",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "precision",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "hit",
+      "storageKey": null
+    }
+  ],
+  "storageKey": null
 };
 return {
   "argumentDefinitions": [
@@ -324,6 +384,8 @@ return {
                 (v9/*: any*/),
                 (v10/*: any*/),
                 (v11/*: any*/),
+                (v12/*: any*/),
+                (v13/*: any*/),
                 {
                   "alias": null,
                   "args": null,
@@ -362,7 +424,9 @@ return {
                     (v8/*: any*/),
                     (v9/*: any*/),
                     (v10/*: any*/),
-                    (v11/*: any*/)
+                    (v11/*: any*/),
+                    (v12/*: any*/),
+                    (v13/*: any*/)
                   ],
                   "storageKey": null
                 }
@@ -431,6 +495,6 @@ return {
 };
 })();
 
-(node as any).hash = "0f56f1244730e44f83105f9f3214cb7c";
+(node as any).hash = "6640d1de48fa21ef59146edbb654ff0a";
 
 export default node;

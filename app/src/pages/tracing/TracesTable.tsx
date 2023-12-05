@@ -46,6 +46,7 @@ import {
   TracesTableQuery,
 } from "./__generated__/TracesTableQuery.graphql";
 import { EvaluationLabel } from "./EvaluationLabel";
+import { RetrievalEvaluationLabel } from "./RetrievalEvaluationLabel";
 import { SpanColumnSelector } from "./SpanColumnSelector";
 import { SpanFilterConditionField } from "./SpanFilterConditionField";
 import { spansTableCSS } from "./styles";
@@ -141,6 +142,13 @@ export function TracesTable(props: TracesTableProps) {
                   label
                   score
                 }
+                numDocuments
+                documentRetrievalMetrics {
+                  evaluationName
+                  ndcg
+                  precision
+                  hit
+                }
                 descendants {
                   spanKind
                   name
@@ -165,6 +173,13 @@ export function TracesTable(props: TracesTableProps) {
                     name
                     label
                     score
+                  }
+                  numDocuments
+                  documentRetrievalMetrics {
+                    evaluationName
+                    ndcg
+                    precision
+                    hit
                   }
                 }
               }
@@ -193,7 +208,6 @@ export function TracesTable(props: TracesTableProps) {
       header: "evaluations",
       accessorKey: "spanEvaluations",
       enableSorting: false,
-
       cell: ({ row }) => {
         return (
           <Flex direction="row" gap="size-50" wrap="wrap">
@@ -203,6 +217,30 @@ export function TracesTable(props: TracesTableProps) {
                   key={evaluation.name}
                   evaluation={evaluation}
                 />
+              );
+            })}
+            {row.original.documentRetrievalMetrics.map((retrievalMetric) => {
+              return (
+                <>
+                  <RetrievalEvaluationLabel
+                    key="ncdg"
+                    name={retrievalMetric.evaluationName}
+                    metric="ndcg"
+                    score={retrievalMetric.ndcg}
+                  />
+                  <RetrievalEvaluationLabel
+                    key="precision"
+                    name={retrievalMetric.evaluationName}
+                    metric="precision"
+                    score={retrievalMetric.precision}
+                  />
+                  <RetrievalEvaluationLabel
+                    key="hit"
+                    name={retrievalMetric.evaluationName}
+                    metric="hit"
+                    score={retrievalMetric.hit}
+                  />
+                </>
               );
             })}
           </Flex>
