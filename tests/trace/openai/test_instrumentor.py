@@ -584,7 +584,7 @@ def test_openai_instrumentor_sync_works_with_chat_completion_with_raw_response(
     assert "france" in response_content.lower() or "french" in response_content.lower()
 
 
-def test_openai_instrumentor_sync_with_instrumented_response_stream_updates_span_using_next(
+def test_openai_instrumentor_sync_streaming_response_updates_span_when_iterated_with_next(
     sync_client: OpenAI,
     respx_mock: MockRouter,
 ) -> None:
@@ -618,12 +618,9 @@ def test_openai_instrumentor_sync_with_instrumented_response_stream_updates_span
         "",
     ]
     expected_response_text = "".join(expected_response_tokens)
-    mock_data = []
+    mock_stream = []
     for token_index, token in enumerate(expected_response_tokens):
         response_body = {
-            "object": "chat.completion.chunk",
-            "created": 1701722737,
-            "model": "gpt-4-0613",
             "choices": [
                 {
                     "delta": {"role": "assistant", "content": token},
@@ -634,12 +631,11 @@ def test_openai_instrumentor_sync_with_instrumented_response_stream_updates_span
                 }
             ],
         }
-        mock_data.append(f"data: {json.dumps(response_body)}\n\n".encode("utf-8"))
-    mock_data.append(b"data: [DONE]\n")
-    url = "https://api.openai.com/v1/chat/completions"
-    respx_mock.post(url).respond(
+        mock_stream.append(f"data: {json.dumps(response_body)}\n\n".encode("utf-8"))
+    mock_stream.append(b"data: [DONE]\n")
+    respx_mock.post("https://api.openai.com/v1/chat/completions").respond(
         status_code=200,
-        stream=mock_data,
+        stream=mock_stream,
     )
     response = sync_client.chat.completions.create(
         model=model, messages=messages, temperature=temperature, stream=True
@@ -689,6 +685,10 @@ def test_openai_instrumentor_sync_with_instrumented_response_stream_updates_span
     assert span.status_code == SpanStatusCode.OK
     assert len(span.events) == len(expected_response_tokens)
     assert all(isinstance(event, SpanStreamEvent) for event in span.events)
+    span_stream_event = span.events[0]
+    assert span_stream_event.attributes[OUTPUT_MIME_TYPE] == MimeType.JSON
+    assert isinstance(span_stream_event.attributes[OUTPUT_VALUE], str)
+
     assert attributes[LLM_INPUT_MESSAGES] == [
         {MESSAGE_ROLE: "user", MESSAGE_CONTENT: "What are the seven wonders of the world?"}
     ]
@@ -714,7 +714,7 @@ def test_openai_instrumentor_sync_with_instrumented_response_stream_updates_span
     assert attributes[OUTPUT_MIME_TYPE] == MimeType.JSON
 
 
-def test_openai_instrumentor_sync_with_instrumented_response_stream_updates_span_using_iterator(
+def test_openai_instrumentor_sync_streaming_response_updates_span_when_iterated_with_for_loop(
     sync_client: OpenAI,
     respx_mock: MockRouter,
 ) -> None:
@@ -748,12 +748,9 @@ def test_openai_instrumentor_sync_with_instrumented_response_stream_updates_span
         "",
     ]
     expected_response_text = "".join(expected_response_tokens)
-    mock_data = []
+    mock_stream = []
     for token_index, token in enumerate(expected_response_tokens):
         response_body = {
-            "object": "chat.completion.chunk",
-            "created": 1701722737,
-            "model": "gpt-4-0613",
             "choices": [
                 {
                     "delta": {"role": "assistant", "content": token},
@@ -764,12 +761,12 @@ def test_openai_instrumentor_sync_with_instrumented_response_stream_updates_span
                 }
             ],
         }
-        mock_data.append(f"data: {json.dumps(response_body)}\n\n".encode("utf-8"))
-    mock_data.append(b"data: [DONE]\n")
+        mock_stream.append(f"data: {json.dumps(response_body)}\n\n".encode("utf-8"))
+    mock_stream.append(b"data: [DONE]\n")
     url = "https://api.openai.com/v1/chat/completions"
     respx_mock.post(url).respond(
         status_code=200,
-        stream=mock_data,
+        stream=mock_stream,
     )
     response = sync_client.chat.completions.create(
         model=model, messages=messages, temperature=temperature, stream=True
@@ -812,6 +809,10 @@ def test_openai_instrumentor_sync_with_instrumented_response_stream_updates_span
     assert span.status_code == SpanStatusCode.OK
     assert len(span.events) == len(expected_response_tokens)
     assert all(isinstance(event, SpanStreamEvent) for event in span.events)
+    span_stream_event = span.events[0]
+    assert span_stream_event.attributes[OUTPUT_MIME_TYPE] == MimeType.JSON
+    assert isinstance(span_stream_event.attributes[OUTPUT_VALUE], str)
+
     assert attributes[LLM_INPUT_MESSAGES] == [
         {MESSAGE_ROLE: "user", MESSAGE_CONTENT: "What are the seven wonders of the world?"}
     ]
@@ -837,7 +838,7 @@ def test_openai_instrumentor_sync_with_instrumented_response_stream_updates_span
     assert attributes[OUTPUT_MIME_TYPE] == MimeType.JSON
 
 
-def test_openai_instrumentor_sync_streaming_response_with_error_records_exception_event(
+def test_openai_instrumentor_sync_streaming_response_with_error_midstream_records_exception_event(
     sync_client: OpenAI,
     respx_mock: MockRouter,
 ) -> None:
@@ -926,7 +927,15 @@ def test_openai_instrumentor_sync_streaming_response_with_error_records_exceptio
         len(span.events) == len(response_tokens_before_error) + 1
     )  # there should be an exception event in addition to each span stream event
     assert all(isinstance(event, SpanStreamEvent) for event in span.events[:-1])
-    assert isinstance(span.events[-1], SpanException)
+    span_stream_event = span.events[0]
+    assert span_stream_event.attributes[OUTPUT_MIME_TYPE] == MimeType.JSON
+    assert isinstance(span_stream_event.attributes[OUTPUT_VALUE], str)
+    span_exception = span.events[-1]
+    assert isinstance(span_exception, SpanException)
+    assert span_exception.attributes[EXCEPTION_TYPE] == "RuntimeError"
+    assert span_exception.attributes[EXCEPTION_MESSAGE] == "error-message"
+    assert "Traceback" in span_exception.attributes[EXCEPTION_STACKTRACE]
+
     assert attributes[LLM_INPUT_MESSAGES] == [
         {MESSAGE_ROLE: "user", MESSAGE_CONTENT: "What are the seven wonders of the world?"}
     ]
