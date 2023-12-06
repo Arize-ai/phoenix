@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 
 import { Flex, Label, Text } from "@arizeai/components";
 
@@ -16,7 +16,12 @@ type RetrievalEvaluationLabelProps = RetrievalEvaluation;
 export function RetrievalEvaluationLabel(props: RetrievalEvaluationLabelProps) {
   const { name, metric, k, score } = props;
   const label = typeof k === "number" ? `${metric}@${k}` : metric;
-  const labelValue = (typeof score == "number" && formatFloat(score)) || "n/a";
+  const labelValue = useMemo(() => {
+    if (metric === "hit") {
+      return score ? "true" : "false";
+    }
+    return (typeof score == "number" && formatFloat(score)) || "n/a";
+  }, [score, metric]);
   return (
     <Label color="seafoam-1000" shape="badge">
       <Flex direction="row" gap="size-50">
