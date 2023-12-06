@@ -712,6 +712,128 @@ def test_openai_instrumentor_sync_with_instrumented_response_stream_updates_span
     assert attributes[OUTPUT_MIME_TYPE] == MimeType.JSON
 
 
+def test_openai_instrumentor_sync_with_instrumented_response_stream_updates_span_using_iterator(
+    sync_client: OpenAI,
+    respx_mock: MockRouter,
+) -> None:
+    tracer = Tracer()
+    OpenAIInstrumentor(tracer).instrument()
+    model = "gpt-4"
+    messages = [{"role": "user", "content": "What are the seven wonders of the world?"}]
+    temperature = 0.23
+    expected_response_tokens = [
+        "",
+        "The",
+        " seven",
+        " wonders",
+        " of",
+        " the",
+        " world",
+        " include",
+        " the",
+        " Great",
+        " Pyramid",
+        " of",
+        " G",
+        "iza",
+        " and",
+        " the",
+        " Hanging",
+        " Gardens",
+        " of",
+        " Babylon",
+        ".",
+        "",
+    ]
+    expected_response_text = "".join(expected_response_tokens)
+    mock_data = []
+    for token_index, token in enumerate(expected_response_tokens):
+        response_body = {
+            "object": "chat.completion.chunk",
+            "created": 1701722737,
+            "model": "gpt-4-0613",
+            "choices": [
+                {
+                    "delta": {"role": "assistant", "content": token},
+                    "finish_reason": "stop"
+                    if token_index == len(expected_response_text) - 1
+                    else None,
+                    "index": 0,
+                }
+            ],
+        }
+        mock_data.append(f"data: {json.dumps(response_body)}\n\n".encode("utf-8"))
+    mock_data.append(b"data: [DONE]\n")
+    url = "https://api.openai.com/v1/chat/completions"
+    respx_mock.post(url).respond(
+        status_code=200,
+        stream=mock_data,
+    )
+    response = sync_client.chat.completions.create(
+        model=model, messages=messages, temperature=temperature, stream=True
+    )
+    assert isinstance(response, Stream)
+
+    spans = list(tracer.get_spans())
+    assert len(spans) == 1
+    span = spans[0]
+    attributes = span.attributes
+
+    assert span.span_kind is SpanKind.LLM
+    assert span.status_code == SpanStatusCode.OK
+    assert span.events == []
+    assert attributes[LLM_INPUT_MESSAGES] == [
+        {MESSAGE_ROLE: "user", MESSAGE_CONTENT: "What are the seven wonders of the world?"}
+    ]
+    assert (
+        json.loads(attributes[LLM_INVOCATION_PARAMETERS])
+        == json.loads(attributes[INPUT_VALUE])
+        == {
+            "model": model,
+            "messages": messages,
+            "temperature": temperature,
+            "stream": True,
+        }
+    )
+    assert attributes[INPUT_MIME_TYPE] == MimeType.JSON
+
+    # iterate over the stream to trigger the span update
+    response_text = "".join([chunk.choices[0].delta.content for chunk in response])
+    assert response_text == expected_response_text
+
+    spans = list(tracer.get_spans())
+    assert len(spans) == 2
+    span = spans[-1]
+    attributes = span.attributes
+
+    assert span.span_kind is SpanKind.LLM
+    assert span.status_code == SpanStatusCode.OK
+    assert len(span.events) == len(expected_response_tokens)
+    assert attributes[LLM_INPUT_MESSAGES] == [
+        {MESSAGE_ROLE: "user", MESSAGE_CONTENT: "What are the seven wonders of the world?"}
+    ]
+    assert (
+        json.loads(attributes[LLM_INVOCATION_PARAMETERS])
+        == json.loads(attributes[INPUT_VALUE])
+        == {
+            "model": model,
+            "messages": messages,
+            "temperature": temperature,
+            "stream": True,
+        }
+    )
+    output_messages = attributes[LLM_OUTPUT_MESSAGES]
+    assert len(output_messages) == 1
+    assert output_messages[0] == {
+        MESSAGE_ROLE: "assistant",
+        MESSAGE_CONTENT: expected_response_text,
+    }
+    assert attributes[INPUT_MIME_TYPE] == MimeType.JSON
+    chunks = json.loads(attributes[OUTPUT_VALUE])
+    assert len(chunks) == len(expected_response_tokens)
+    assert attributes[OUTPUT_MIME_TYPE] == MimeType.JSON
+
+
 async def test_openai_instrumentor_async_includes_llm_attributes_on_chat_completion_success(
     async_client: AsyncOpenAI,
     respx_mock: MockRouter,

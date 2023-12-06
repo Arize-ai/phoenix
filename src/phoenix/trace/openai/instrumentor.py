@@ -142,6 +142,13 @@ class StreamWrapper(ObjectProxy):  # type: ignore
             self.__context.tracer.add_span(span)
             raise
 
+    def __iter__(self) -> Iterator[ChatCompletionChunk]:
+        """
+        This bypasses the wrapped class' __iter__ method so that __iter__ is
+        automatically instrumented using __next__.
+        """
+        return self
+
 
 class StreamProcessor:
     def __init__(self, context: "ChatCompletionContext") -> None:
