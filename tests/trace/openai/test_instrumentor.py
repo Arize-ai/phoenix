@@ -859,7 +859,7 @@ def test_openai_instrumentor_sync_streaming_response_with_error_records_exceptio
     response_text_before_error = "".join(response_tokens_before_error)
 
     def mock_stream() -> Iterator[bytes]:
-        for token in response_tokens_before_error[:5]:
+        for token in response_tokens_before_error:
             response_body = {
                 "object": "chat.completion.chunk",
                 "created": 1701722737,
@@ -922,7 +922,9 @@ def test_openai_instrumentor_sync_streaming_response_with_error_records_exceptio
 
     assert span.span_kind is SpanKind.LLM
     assert span.status_code == SpanStatusCode.ERROR
-    assert len(span.events) == len(response_tokens_before_error)
+    assert (
+        len(span.events) == len(response_tokens_before_error) + 1
+    )  # there should be an exception event in addition to each span stream event
     assert all(isinstance(event, SpanStreamEvent) for event in span.events[:-1])
     assert isinstance(span.events[-1], SpanException)
     assert attributes[LLM_INPUT_MESSAGES] == [

@@ -122,25 +122,43 @@ class StreamWrapper(ObjectProxy):  # type: ignore
         self.__chunks: List[ChatCompletionChunk] = []
 
     def __next__(self) -> ChatCompletionChunk:
+        update_span = True
         try:
             chat_completion_chunk = next(self.__wrapped__)
             self.__chunks.append(chat_completion_chunk)
+            self.__context._events.append(_span_stream_event(chat_completion_chunk))
+            update_span = False
             return cast(ChatCompletionChunk, chat_completion_chunk)
         except StopIteration:
-            span = self.__context.span
-            span = replace(
-                span,
-                attributes={
-                    **deepcopy(span.attributes),
-                    LLM_OUTPUT_MESSAGES: _accumulate_messages(self.__chunks),  # type: ignore
-                    OUTPUT_VALUE: json.dumps([chunk.json() for chunk in self.__chunks]),
-                    OUTPUT_MIME_TYPE: MimeType.JSON,  # type: ignore
-                },
-                events=deepcopy(span.events)
-                + [_span_stream_event(chunk) for chunk in self.__chunks],
-            )
-            self.__context.tracer.add_span(span)
             raise
+        except Exception as error:
+            status_message = str(error)
+            self.__context._status_code = SpanStatusCode.ERROR
+            self.__context._status_message = status_message
+            self.__context._events.append(
+                SpanException(
+                    message=status_message,
+                    timestamp=datetime.now(),
+                    exception_type=type(error).__name__,
+                    exception_stacktrace=get_stacktrace(error),
+                )
+            )
+            raise
+        finally:
+            if update_span:
+                span = self.__context.span
+                span = replace(
+                    span,
+                    attributes={
+                        **deepcopy(span.attributes),
+                        LLM_OUTPUT_MESSAGES: _accumulate_messages(self.__chunks),  # type: ignore
+                        OUTPUT_VALUE: json.dumps([chunk.json() for chunk in self.__chunks]),
+                        OUTPUT_MIME_TYPE: MimeType.JSON,  # type: ignore
+                    },
+                    status_code=self.__context._status_code,
+                    events=deepcopy(span.events),
+                )
+                self.__context.tracer.add_span(span)
 
     def __iter__(self) -> Iterator[ChatCompletionChunk]:
         """
