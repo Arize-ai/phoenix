@@ -285,7 +285,14 @@ class ChatCompletionContext(ContextManager["ChatCompletionContext"]):
         """
         self._end_time = datetime.now()
         self._status_code = SpanStatusCode.OK
-        response = self._response_processor.process(response)  # type: ignore
+        if isinstance(response, ChatCompletion):
+            self._response_processor.process(response)
+        elif isinstance(response, Stream):
+            response = self._response_processor.process(
+                response
+            )  # reassign to return an instrumented stream
+        elif hasattr(response, "parse") and callable(response.parse):
+            self._response_processor.process(response.parse())
         self._create_span()
         return response
 
@@ -344,12 +351,7 @@ def _wrapped_openai_sync_client_request_function(
             return request_fn(*args, **kwargs)
         with ChatCompletionContext(bound_arguments, tracer) as context:
             response = request_fn(*args, **kwargs)
-            return context.process_response(
-                response.parse()
-                if hasattr(response, "parse") and callable(response.parse)
-                else response,
-            )
-            # return response
+            return context.process_response(response)
 
     return wrapped
 
