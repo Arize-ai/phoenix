@@ -213,7 +213,7 @@ class Query:
         after: Optional[Cursor] = UNSET,
         before: Optional[Cursor] = UNSET,
         sort: Optional[SpanSort] = UNSET,
-        root_spans_only: Optional[bool] = False,
+        root_spans_only: Optional[bool] = UNSET,
         filter_condition: Optional[str] = UNSET,
     ) -> Connection[Span]:
         args = ConnectionArgs(
