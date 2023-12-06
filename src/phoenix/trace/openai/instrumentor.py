@@ -284,16 +284,17 @@ class StreamWrapper(ObjectProxy):  # type: ignore
         Returns:
             ChatCompletionChunk: The forwarded chat completion chunk.
         """
-        update_span = True
+        finished_streaming = False
         try:
             chat_completion_chunk = next(self.__wrapped__)
             self._self_chunks.append(chat_completion_chunk)
             self._self_context.events.append(_span_stream_event(chat_completion_chunk))
-            update_span = False
             return cast(ChatCompletionChunk, chat_completion_chunk)
         except StopIteration:
+            finished_streaming = True
             raise
         except Exception as error:
+            finished_streaming = True
             status_message = str(error)
             self._self_context.status_code = SpanStatusCode.ERROR
             self._self_context.status_message = status_message
@@ -307,7 +308,7 @@ class StreamWrapper(ObjectProxy):  # type: ignore
             )
             raise
         finally:
-            if update_span:
+            if finished_streaming:
                 span = self._self_context.span
                 span = replace(
                     span,
