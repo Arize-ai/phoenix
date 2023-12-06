@@ -82,99 +82,6 @@ class RequestType(Enum):
     EMBEDDING = "embedding"
 
 
-def _span_stream_event(chat_completion_chunk: ChatCompletionChunk) -> SpanStreamEvent:
-    """
-    Converts a chat completion chunk to a span stream event.
-    """
-    return SpanStreamEvent(
-        name="OpenAI Chat Completion Server-Sent Event",
-        timestamp=datetime.now(),
-        attributes={
-            OUTPUT_VALUE: chat_completion_chunk.json(),
-            OUTPUT_MIME_TYPE: MimeType.JSON,  # type: ignore
-        },
-    )
-
-
-def _accumulate_messages(chunks: List[ChatCompletionChunk]) -> List[OpenInferenceMessage]:
-    """
-    Converts a list of chat completion chunks to a list of OpenInference messages.
-    """
-    if not chunks:
-        return []
-    tokens: DefaultDict[int, List[str]] = defaultdict(list)
-    roles: DefaultDict[int, str] = defaultdict()
-    num_choices = -1
-    for chunk in chunks:
-        for choice in chunk.choices:
-            choice_index = choice.index
-            num_choices = max(num_choices, choice_index + 1)
-            if content := choice.delta.content:
-                tokens[choice_index].append(content)
-            if role := choice.delta.role:
-                roles[choice_index] = role
-    messages: List[OpenInferenceMessage] = [{} for _ in range(num_choices)]
-    for choice_index in range(len(tokens)):
-        messages[choice_index][MESSAGE_CONTENT] = "".join(tokens.get(choice_index, []))
-        messages[choice_index][MESSAGE_ROLE] = roles.get(choice_index, "")
-    return messages
-
-
-class StreamWrapper(ObjectProxy):  # type: ignore
-    def __init__(
-        self, stream: Stream[ChatCompletionChunk], context: "ChatCompletionContext"
-    ) -> None:
-        super().__init__(stream)
-        self.__context = context
-        self.__chunks: List[ChatCompletionChunk] = []
-
-    def __next__(self) -> ChatCompletionChunk:
-        update_span = True
-        try:
-            chat_completion_chunk = next(self.__wrapped__)
-            self.__chunks.append(chat_completion_chunk)
-            self.__context.events.append(_span_stream_event(chat_completion_chunk))
-            update_span = False
-            return cast(ChatCompletionChunk, chat_completion_chunk)
-        except StopIteration:
-            raise
-        except Exception as error:
-            status_message = str(error)
-            self.__context.status_code = SpanStatusCode.ERROR
-            self.__context.status_message = status_message
-            self.__context.events.append(
-                SpanException(
-                    message=status_message,
-                    timestamp=datetime.now(),
-                    exception_type=type(error).__name__,
-                    exception_stacktrace=get_stacktrace(error),
-                )
-            )
-            raise
-        finally:
-            if update_span:
-                span = self.__context.span
-                span = replace(
-                    span,
-                    attributes={
-                        **deepcopy(span.attributes),
-                        LLM_OUTPUT_MESSAGES: _accumulate_messages(self.__chunks),  # type: ignore
-                        OUTPUT_VALUE: json.dumps([chunk.json() for chunk in self.__chunks]),
-                        OUTPUT_MIME_TYPE: MimeType.JSON,  # type: ignore
-                    },
-                    status_code=self.__context.status_code,
-                    events=deepcopy(span.events),
-                )
-                self.__context.tracer.add_span(span)
-
-    def __iter__(self) -> Iterator[ChatCompletionChunk]:
-        """
-        This bypasses the wrapped class' __iter__ method so that __iter__ is
-        automatically instrumented using __next__.
-        """
-        return self
-
-
 class OpenAIInstrumentor:
     def __init__(self, tracer: Optional[Tracer] = None) -> None:
         """Instruments your OpenAI client to automatically create spans for each API call.
@@ -277,13 +184,13 @@ class ChatCompletionContext(ContextManager["ChatCompletionContext"]):
         elif isinstance(response, Stream):
             response = self._process_stream(
                 response
-            )  # reassign to return an instrumented stream object
+            )  # reassign to response to return an instrumented stream object
         elif hasattr(response, "parse") and callable(response.parse):
             self._process_chat_completion(response.parse())
         self._create_span()
         return response
 
-    def _process_chat_completion(self, response: ChatCompletion) -> ChatCompletion:
+    def _process_chat_completion(self, response: ChatCompletion) -> None:
         """
         Processes a chat completions response to extract attributes and adds
         them to the context.
@@ -291,9 +198,6 @@ class ChatCompletionContext(ContextManager["ChatCompletionContext"]):
         Args:
             response (ChatCompletion): Response from the OpenAI chat completions
             API.
-
-        Returns:
-            ChatCompletion: The input chat completion object.
         """
         for (
             attribute_name,
@@ -301,7 +205,6 @@ class ChatCompletionContext(ContextManager["ChatCompletionContext"]):
         ) in _CHAT_COMPLETION_ATTRIBUTE_FUNCTIONS.items():
             if (attribute_value := get_chat_completion_attribute_fn(response)) is not None:
                 self.attributes[attribute_name] = attribute_value
-        return response
 
     def _process_stream(self, response: Stream[ChatCompletionChunk]) -> Stream[ChatCompletionChunk]:
         return StreamWrapper(stream=response, context=self)
@@ -331,6 +234,59 @@ class ChatCompletionContext(ContextManager["ChatCompletionContext"]):
         if self._span is None:
             raise ValueError("Span has not been created yet.")
         return self._span
+
+
+class StreamWrapper(ObjectProxy):  # type: ignore
+    def __init__(self, stream: Stream[ChatCompletionChunk], context: ChatCompletionContext) -> None:
+        super().__init__(stream)
+        self.__context = context
+        self.__chunks: List[ChatCompletionChunk] = []
+
+    def __next__(self) -> ChatCompletionChunk:
+        update_span = True
+        try:
+            chat_completion_chunk = next(self.__wrapped__)
+            self.__chunks.append(chat_completion_chunk)
+            self.__context.events.append(_span_stream_event(chat_completion_chunk))
+            update_span = False
+            return cast(ChatCompletionChunk, chat_completion_chunk)
+        except StopIteration:
+            raise
+        except Exception as error:
+            status_message = str(error)
+            self.__context.status_code = SpanStatusCode.ERROR
+            self.__context.status_message = status_message
+            self.__context.events.append(
+                SpanException(
+                    message=status_message,
+                    timestamp=datetime.now(),
+                    exception_type=type(error).__name__,
+                    exception_stacktrace=get_stacktrace(error),
+                )
+            )
+            raise
+        finally:
+            if update_span:
+                span = self.__context.span
+                span = replace(
+                    span,
+                    attributes={
+                        **deepcopy(span.attributes),
+                        LLM_OUTPUT_MESSAGES: _accumulate_messages(self.__chunks),  # type: ignore
+                        OUTPUT_VALUE: json.dumps([chunk.json() for chunk in self.__chunks]),
+                        OUTPUT_MIME_TYPE: MimeType.JSON,  # type: ignore
+                    },
+                    status_code=self.__context.status_code,
+                    events=deepcopy(span.events),
+                )
+                self.__context.tracer.add_span(span)
+
+    def __iter__(self) -> Iterator[ChatCompletionChunk]:
+        """
+        This bypasses the wrapped class' __iter__ method so that __iter__ is
+        automatically instrumented using __next__.
+        """
+        return self
 
 
 def _wrapped_openai_sync_client_request_function(
@@ -558,3 +514,41 @@ def _parameters(bound_arguments: BoundArguments) -> Parameters:
         Parameters: The parameters to the request function.
     """
     return cast(Parameters, bound_arguments.arguments["options"].json_data)
+
+
+def _span_stream_event(chat_completion_chunk: ChatCompletionChunk) -> SpanStreamEvent:
+    """
+    Converts a chat completion chunk to a span stream event.
+    """
+    return SpanStreamEvent(
+        name="OpenAI Chat Completion Server-Sent Event",
+        timestamp=datetime.now(),
+        attributes={
+            OUTPUT_VALUE: chat_completion_chunk.json(),
+            OUTPUT_MIME_TYPE: MimeType.JSON,  # type: ignore
+        },
+    )
+
+
+def _accumulate_messages(chunks: List[ChatCompletionChunk]) -> List[OpenInferenceMessage]:
+    """
+    Converts a list of chat completion chunks to a list of OpenInference messages.
+    """
+    if not chunks:
+        return []
+    tokens: DefaultDict[int, List[str]] = defaultdict(list)
+    roles: DefaultDict[int, str] = defaultdict()
+    num_choices = -1
+    for chunk in chunks:
+        for choice in chunk.choices:
+            choice_index = choice.index
+            num_choices = max(num_choices, choice_index + 1)
+            if content := choice.delta.content:
+                tokens[choice_index].append(content)
+            if role := choice.delta.role:
+                roles[choice_index] = role
+    messages: List[OpenInferenceMessage] = [{} for _ in range(num_choices)]
+    for choice_index in range(len(tokens)):
+        messages[choice_index][MESSAGE_CONTENT] = "".join(tokens.get(choice_index, []))
+        messages[choice_index][MESSAGE_ROLE] = roles.get(choice_index, "")
+    return messages
