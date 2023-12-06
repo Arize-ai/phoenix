@@ -299,10 +299,10 @@ class Query:
     ) -> Optional[DocumentEvaluationSummary]:
         if (evals := info.context.evals) is None:
             return None
+        if (traces := info.context.traces) is None:
+            return None
         span_ids = evals.get_document_evaluation_span_ids(evaluation_name)
         if not span_ids:
-            return None
-        if (traces := info.context.traces) is None:
             return None
         retrieval_metrics = []
         for span_id in span_ids:
