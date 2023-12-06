@@ -1,4 +1,4 @@
-import os
+import json
 from datetime import datetime
 from typing import Any
 from unittest.mock import patch
@@ -40,9 +40,6 @@ from phoenix.trace.semantic_conventions import (
 from phoenix.trace.span_json_decoder import json_string_to_span
 from phoenix.trace.span_json_encoder import span_to_json
 
-# fake openai key so that llama_index doesn't download huggingface embeddings
-os.environ["OPENAI_API_KEY"] = "sk-fake-openai-key"
-
 nodes = [
     Document(
         text="The Great Pyramid of Giza is one of the seven wonders",
@@ -55,6 +52,13 @@ nodes = [
 
 class CallbackError(Exception):
     pass
+
+
+@pytest.fixture
+def api_key(monkeypatch: pytest.MonkeyPatch) -> str:
+    api_key = "sk-0123456789"
+    monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, api_key)
+    return api_key
 
 
 def test_callback_llm(mock_service_context: ServiceContext) -> None:
@@ -85,10 +89,9 @@ def test_callback_llm(mock_service_context: ServiceContext) -> None:
 
 @pytest.mark.respx(base_url="https://api.openai.com/v1")
 def test_callback_llm_span_contains_template_attributes(
-    monkeypatch: pytest.MonkeyPatch,
+    api_key: str,
     respx_mock: respx.mock,
 ) -> None:
-    monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
     model_name = "gpt-3.5-turbo"
     llm = OpenAI(model=model_name, max_retries=1)
     query = "What are the seven wonders of the world?"
@@ -135,10 +138,84 @@ def test_callback_llm_span_contains_template_attributes(
     assert isinstance(span.attributes[LLM_PROMPT_TEMPLATE_VARIABLES], dict)
 
 
-def test_callback_internal_error_has_exception_event(
-    monkeypatch: pytest.MonkeyPatch,
+def test_callback_streaming_response_produces_correct_result(
+    api_key: str,
+    respx_mock: respx.mock,
 ) -> None:
-    monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
+    model_name = "gpt-3.5-turbo"
+    llm = OpenAI(model=model_name, max_retries=1)
+    query = "What are the seven wonders of the world?"
+    callback_handler = OpenInferenceTraceCallbackHandler(exporter=NoOpExporter())
+    index = ListIndex(nodes)
+    service_context = ServiceContext.from_defaults(
+        llm=llm, callback_manager=CallbackManager([callback_handler])
+    )
+    query_engine = index.as_query_engine(service_context=service_context, streaming=True)
+    expected_response_tokens = [
+        "",
+        "The",
+        " seven",
+        " wonders",
+        " of",
+        " the",
+        " world",
+        " include",
+        " the",
+        " Great",
+        " Pyramid",
+        " of",
+        " G",
+        "iza",
+        " and",
+        " the",
+        " Hanging",
+        " Gardens",
+        " of",
+        " Babylon",
+        ".",
+        "",
+    ]
+    expected_response = "".join(expected_response_tokens)
+    mock_data = []
+    for token in expected_response_tokens:
+        response_body = {
+            "object": "chat.completion.chunk",
+            "created": 1701722737,
+            "model": "gpt-4-0613",
+            "choices": [
+                {
+                    "delta": {"role": "assistant", "content": token},
+                    "finish_reason": None,
+                }
+            ],
+        }
+        mock_data.append(f"data: {json.dumps(response_body)}\n\n".encode("utf-8"))
+    mock_data.append(b"data: [DONE]\n")
+    url = "https://api.openai.com/v1/chat/completions"
+    respx_mock.post(url).respond(
+        status_code=200,
+        stream=mock_data,
+    )
+    response = query_engine.query(query)
+    response_tokens = list(response.response_gen)
+    response_text = "".join(response_tokens)
+
+    assert response_text == expected_response
+    spans = list(callback_handler.get_spans())
+    assert all(span.status_code == SpanStatusCode.OK for span in spans)
+    assert all(len(span.events) == 0 for span in spans)
+
+    span = next(span for span in spans if span.name == "query")
+    assert span.attributes[OUTPUT_VALUE] == ""  # the output of a streaming response is empty
+
+    span = next(span for span in spans if span.span_kind == SpanKind.LLM)
+    assert isinstance(span.attributes[LLM_PROMPT_TEMPLATE], str)
+    assert isinstance(span.attributes[LLM_PROMPT_TEMPLATE_VARIABLES], dict)
+
+
+def test_callback_internal_error_has_exception_event(
+    api_key: str,
+) -> None:
     llm = OpenAI(model="gpt-3.5-turbo", max_retries=1)
     query = "What are the seven wonders of the world?"
     callback_handler = OpenInferenceTraceCallbackHandler(exporter=NoOpExporter())
@@ -206,7 +283,7 @@ def test_callback_exception_event_produces_root_chain_span_with_exception_events
 
 
 def test_callback_llm_rate_limit_error_has_exception_event_with_missing_start(
-    monkeypatch: pytest.MonkeyPatch,
+    api_key: str,
 ) -> None:
     callback_handler = OpenInferenceTraceCallbackHandler(exporter=NoOpExporter())
     event_type = CBEventType.EXCEPTION
