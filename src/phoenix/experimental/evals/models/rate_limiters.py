@@ -38,6 +38,7 @@ class AdaptiveTokenBucket:
         self,
         initial_per_second_request_rate: float,
         maximum_per_second_request_rate: float = 1000,
+        minimum_per_second_request_rate: float = 0.1,
         enforcement_window_minutes: float = 1,
         rate_reduction_factor: float = 0.5,
         rate_increase_factor: float = 0.01,
@@ -47,6 +48,7 @@ class AdaptiveTokenBucket:
         self._initial_rate = initial_per_second_request_rate
         self.rate = initial_per_second_request_rate
         self.maximum_rate = maximum_per_second_request_rate
+        self.minimum_rate = minimum_per_second_request_rate
         self.rate_reduction_factor = rate_reduction_factor
         self.enforcement_window = enforcement_window_minutes * 60
         self.rate_increase_factor = rate_increase_factor
@@ -78,8 +80,7 @@ class AdaptiveTokenBucket:
             verbose, f"Reducing rate from {original_rate} to {self.rate} after rate limit error"
         )
 
-        # the enforcement window determines the minimum rate
-        self.rate = max(self.rate, 1 / self.enforcement_window)
+        self.rate = max(self.rate, self.minimum_rate)
 
         # reset request tokens on a rate limit error
         self.tokens = 0
@@ -119,21 +120,17 @@ class AdaptiveTokenBucket:
 
     async def async_wait_until_ready(
         self,
-        max_wait_time: float = 10,  # defeat the token bucket rate limiter at low rates (<.1 r/s)
+        max_wait_time: float = 10,  # defeat the token bucket rate limiter at low rates (<.1 req/s)
     ) -> None:
         start = time.time()
-        token_taken = False
         while (time.time() - start) < max_wait_time:
             try:
                 self.increase_rate()
                 self.make_request_if_ready()
-                token_taken = True
                 break
             except UnavailableTokensError:
                 await asyncio.sleep(0.1 / self.rate)
                 continue
-        if not token_taken:
-            self.tokens -= 1
 
 
 class RateLimitError(BaseException):
