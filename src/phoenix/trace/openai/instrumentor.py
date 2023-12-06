@@ -16,11 +16,13 @@ from typing import (
     Tuple,
     Type,
     TypeVar,
+    Union,
     cast,
 )
 
 import openai
-from openai.types.chat import ChatCompletion
+from openai import Stream
+from openai.types.chat import ChatCompletion, ChatCompletionChunk
 from typing_extensions import ParamSpec
 
 from phoenix.trace.schemas import (
@@ -58,6 +60,9 @@ from ..tracer import Tracer
 
 ParameterSpec = ParamSpec("ParameterSpec")
 GenericType = TypeVar("GenericType")
+ChatCompletionResponseType = TypeVar(
+    "ChatCompletionResponseType", ChatCompletion, Stream[ChatCompletionChunk]
+)
 AsyncCallable = Callable[ParameterSpec, Coroutine[Any, Any, GenericType]]
 Parameters = Mapping[str, Any]
 OpenInferenceMessage = Dict[str, str]
@@ -69,6 +74,14 @@ class RequestType(Enum):
     CHAT_COMPLETION = "chat_completion"
     COMPLETION = "completion"
     EMBEDDING = "embedding"
+
+
+class StreamProcessor:
+    def __init__(self, context: "ChatCompletionContext") -> None:
+        self._context = context
+
+    def process(self, response: Stream[ChatCompletionChunk]) -> Stream[ChatCompletionChunk]:
+        return response
 
 
 class ChatCompletionProcessor:
@@ -147,7 +160,11 @@ class ChatCompletionContext(ContextManager["ChatCompletionContext"]):
             tracer (Tracer): The tracer to use to create spans.
         """
         self._tracer = tracer
-        self._response_processor = ChatCompletionProcessor(self)
+        self._response_processor: Union[StreamProcessor, ChatCompletionProcessor] = (
+            StreamProcessor(self)
+            if _is_streaming_request(bound_arguments)
+            else ChatCompletionProcessor(self)
+        )
         self._start_time: Optional[datetime] = None
         self._end_time: Optional[datetime] = None
         self._status_code = SpanStatusCode.UNSET
@@ -184,14 +201,14 @@ class ChatCompletionContext(ContextManager["ChatCompletionContext"]):
             )
         self._create_span()
 
-    def process_response(self, response: ChatCompletion) -> ChatCompletion:
+    def process_response(self, response: ChatCompletionResponseType) -> ChatCompletionResponseType:
         """
         Processes the response from the OpenAI chat completions API call to extract attributes.
 
         Args:
             response (ChatCompletion): The chat completion object.
         """
-        return self._response_processor.process(response)
+        return self._response_processor.process(response)  # type: ignore
 
     def _process_parameters(self, parameters: Parameters) -> None:
         for (
@@ -234,20 +251,14 @@ def _wrapped_openai_sync_client_request_function(
 
     def wrapped(*args: Any, **kwargs: Any) -> Any:
         bound_arguments = call_signature.bind(*args, **kwargs)
-        if (
-            _is_streaming_request(bound_arguments)
-            or _request_type(bound_arguments) is not RequestType.CHAT_COMPLETION
-        ):
+        if _request_type(bound_arguments) is not RequestType.CHAT_COMPLETION:
             return request_fn(*args, **kwargs)
         with ChatCompletionContext(bound_arguments, tracer) as context:
             response = request_fn(*args, **kwargs)
             context.process_response(
-                cast(
-                    ChatCompletion,
-                    response.parse()
-                    if hasattr(response, "parse") and callable(response.parse)
-                    else response,
-                )
+                response.parse()
+                if hasattr(response, "parse") and callable(response.parse)
+                else response,
             )
             return response
 
@@ -274,20 +285,14 @@ def _wrapped_openai_async_client_request_function(
 
     async def wrapped(*args: Any, **kwargs: Any) -> Any:
         bound_arguments = call_signature.bind(*args, **kwargs)
-        if (
-            _is_streaming_request(bound_arguments)
-            or _request_type(bound_arguments) is not RequestType.CHAT_COMPLETION
-        ):
+        if _request_type(bound_arguments) is not RequestType.CHAT_COMPLETION:
             return await request_fn(*args, **kwargs)
         with ChatCompletionContext(bound_arguments, tracer) as context:
             response = await request_fn(*args, **kwargs)
             context.process_response(
-                cast(
-                    ChatCompletion,
-                    response.parse()
-                    if hasattr(response, "parse") and callable(response.parse)
-                    else response,
-                )
+                response.parse()
+                if hasattr(response, "parse") and callable(response.parse)
+                else response,
             )
             return response
 

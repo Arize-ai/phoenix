@@ -583,6 +583,103 @@ def test_openai_instrumentor_sync_works_with_chat_completion_with_raw_response(
     assert "france" in response_content.lower() or "french" in response_content.lower()
 
 
+def test_openai_instrumentor_sync_streaming(
+    sync_client: OpenAI,
+    respx_mock: MockRouter,
+) -> None:
+    tracer = Tracer()
+    OpenAIInstrumentor(tracer).instrument()
+    model = "gpt-4"
+    messages = [{"role": "user", "content": "What are the seven wonders of the world?"}]
+    temperature = 0.23
+    expected_response_tokens = [
+        "",
+        "The",
+        " seven",
+        " wonders",
+        " of",
+        " the",
+        " world",
+        " include",
+        " the",
+        " Great",
+        " Pyramid",
+        " of",
+        " G",
+        "iza",
+        " and",
+        " the",
+        " Hanging",
+        " Gardens",
+        " of",
+        " Babylon",
+        ".",
+        "",
+    ]
+    expected_response_text = "".join(expected_response_tokens)
+    mock_data = []
+    for token_index, token in enumerate(expected_response_tokens):
+        response_body = {
+            "object": "chat.completion.chunk",
+            "created": 1701722737,
+            "model": "gpt-4-0613",
+            "choices": [
+                {
+                    "delta": {"role": "assistant", "content": token},
+                    "finish_reason": "stop"
+                    if token_index == len(expected_response_text) - 1
+                    else None,
+                }
+            ],
+        }
+        mock_data.append(f"data: {json.dumps(response_body)}\n\n".encode("utf-8"))
+    mock_data.append(b"data: [DONE]\n")
+    url = "https://api.openai.com/v1/chat/completions"
+    respx_mock.post(url).respond(
+        status_code=200,
+        stream=mock_data,
+    )
+    response = sync_client.chat.completions.create(
+        model=model, messages=messages, temperature=temperature, stream=True
+    )
+    response_text = "".join(
+        [chat_completion_chunk.choices[0].delta.content for chat_completion_chunk in response]
+    )
+    assert response_text == expected_response_text
+
+    spans = list(tracer.get_spans())
+    assert len(spans) == 1
+    span = spans[0]
+    attributes = span.attributes
+
+    assert span.span_kind is SpanKind.LLM
+    assert span.status_code == SpanStatusCode.OK
+    assert span.events == []
+    assert attributes[LLM_INPUT_MESSAGES] == [
+        {MESSAGE_ROLE: "user", MESSAGE_CONTENT: "What are the seven wonders of the world?"}
+    ]
+    assert (
+        json.loads(attributes[LLM_INVOCATION_PARAMETERS])
+        == json.loads(attributes[INPUT_VALUE])
+        == {
+            "model": model,
+            "messages": messages,
+            "temperature": temperature,
+            "stream": True,
+        }
+    )
+    assert attributes[INPUT_MIME_TYPE] == MimeType.JSON
+    assert isinstance(attributes[LLM_TOKEN_COUNT_COMPLETION], int)
+    assert isinstance(attributes[LLM_TOKEN_COUNT_PROMPT], int)
+    assert isinstance(attributes[LLM_TOKEN_COUNT_TOTAL], int)
+
+    choices = json.loads(attributes[OUTPUT_VALUE])["choices"]
+    assert len(choices) == 1
+    response_content = choices[0]["message"]["content"]
+    assert "giza" in response_content.lower()
+    assert attributes[OUTPUT_MIME_TYPE] == MimeType.JSON
+
+
 async def test_openai_instrumentor_async_includes_llm_attributes_on_chat_completion_success(
     async_client: AsyncOpenAI,
     respx_mock: MockRouter,
