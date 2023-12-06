@@ -138,7 +138,6 @@ class ChatCompletionContext(ContextManager["ChatCompletionContext"]):
         self.events: List[SpanEvent] = []
         self.attributes: SpanAttributes = dict()
         self._process_parameters(_parameters(bound_arguments))
-        self._is_streaming_request = _is_streaming_request(bound_arguments)
 
     def __enter__(self) -> "ChatCompletionContext":
         self.start_time = datetime.now()
