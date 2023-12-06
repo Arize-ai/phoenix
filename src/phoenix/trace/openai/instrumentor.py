@@ -1,4 +1,6 @@
 import json
+from copy import deepcopy
+from dataclasses import replace
 from datetime import datetime
 from enum import Enum
 from inspect import BoundArguments, signature
@@ -24,13 +26,16 @@ import openai
 from openai import Stream
 from openai.types.chat import ChatCompletion, ChatCompletionChunk
 from typing_extensions import ParamSpec
+from wrapt import ObjectProxy
 
 from phoenix.trace.schemas import (
+    Span,
     SpanAttributes,
     SpanEvent,
     SpanException,
     SpanKind,
     SpanStatusCode,
+    SpanStreamEvent,
 )
 from phoenix.trace.semantic_conventions import (
     INPUT_MIME_TYPE,
@@ -76,12 +81,50 @@ class RequestType(Enum):
     EMBEDDING = "embedding"
 
 
+def _span_stream_event(chat_completion_chunk: ChatCompletionChunk) -> SpanStreamEvent:
+    stream_event = SpanStreamEvent(
+        name="Chat Completion Stream Event", timestamp=datetime.now(), attributes={}
+    )
+    return stream_event
+
+
+def _accumulate_event_attributes(events: List[SpanEvent]) -> SpanAttributes:
+    return {}
+
+
+class StreamWrapper(ObjectProxy):  # type: ignore
+    def __init__(
+        self, stream: Stream[ChatCompletionChunk], context: "ChatCompletionContext"
+    ) -> None:
+        super().__init__(stream)
+        self._context = context
+        self._events: List[SpanEvent] = []
+
+    def __next__(self) -> ChatCompletionChunk:
+        try:
+            chat_completion_chunk = next(self.__wrapped__)
+            self._events.append(_span_stream_event(chat_completion_chunk))
+        except StopIteration:
+            span = self._context.span
+            span = replace(
+                span,
+                attributes={
+                    **deepcopy(span.attributes),
+                    **_accumulate_event_attributes(self._events),
+                },
+                events=deepcopy(span.events) + self._events,
+            )
+            self._context.tracer.add_span(span)
+            raise
+        return cast(ChatCompletionChunk, chat_completion_chunk)
+
+
 class StreamProcessor:
     def __init__(self, context: "ChatCompletionContext") -> None:
         self._context = context
 
     def process(self, response: Stream[ChatCompletionChunk]) -> Stream[ChatCompletionChunk]:
-        return response
+        return StreamWrapper(stream=response, context=self._context)
 
 
 class ChatCompletionProcessor:
@@ -90,15 +133,16 @@ class ChatCompletionProcessor:
 
     def process(self, response: ChatCompletion) -> ChatCompletion:
         """
-        Processes a chat completions response to extract attributes.
+        Processes a chat completions response to extract attributes and adds
+        them to the context.
 
         Args:
-            response (ChatCompletion): Response from the OpenAI chat completions API call.
+            response (ChatCompletion): Response from the OpenAI chat completions
+            API.
 
         Returns:
-            ChatCompletion: A chat completion response.
+            ChatCompletion: The input chat completion object.
         """
-        self._context._end_time = datetime.now()
         for (
             attribute_name,
             get_chat_completion_attribute_fn,
@@ -160,6 +204,7 @@ class ChatCompletionContext(ContextManager["ChatCompletionContext"]):
             tracer (Tracer): The tracer to use to create spans.
         """
         self._tracer = tracer
+        self._span: Optional[Span] = None
         self._response_processor: Union[StreamProcessor, ChatCompletionProcessor] = (
             StreamProcessor(self)
             if _is_streaming_request(bound_arguments)
@@ -184,21 +229,20 @@ class ChatCompletionContext(ContextManager["ChatCompletionContext"]):
         exc_value: Optional[BaseException],
         traceback: Optional[TracebackType],
     ) -> None:
-        if self._end_time is None:  # in the case of an exception, the end time is not yet set
-            self._end_time = datetime.now()
-        self._status_code = SpanStatusCode.OK
-        if exc_value is not None:
-            self._status_code = SpanStatusCode.ERROR
-            status_message = str(exc_value)
-            self._status_message = status_message
-            self._events.append(
-                SpanException(
-                    message=status_message,
-                    timestamp=self._end_time,
-                    exception_type=type(exc_value).__name__,
-                    exception_stacktrace=get_stacktrace(exc_value),
-                )
+        if exc_value is None:
+            return
+        self._end_time = datetime.now()
+        self._status_code = SpanStatusCode.ERROR
+        status_message = str(exc_value)
+        self._status_message = status_message
+        self._events.append(
+            SpanException(
+                message=status_message,
+                timestamp=self._end_time,
+                exception_type=type(exc_value).__name__,
+                exception_stacktrace=get_stacktrace(exc_value),
             )
+        )
         self._create_span()
 
     def process_response(self, response: ChatCompletionResponseType) -> ChatCompletionResponseType:
@@ -208,7 +252,11 @@ class ChatCompletionContext(ContextManager["ChatCompletionContext"]):
         Args:
             response (ChatCompletion): The chat completion object.
         """
-        return self._response_processor.process(response)  # type: ignore
+        self._end_time = datetime.now()
+        self._status_code = SpanStatusCode.OK
+        response = self._response_processor.process(response)  # type: ignore
+        self._create_span()
+        return response
 
     def _process_parameters(self, parameters: Parameters) -> None:
         for (
@@ -219,7 +267,7 @@ class ChatCompletionContext(ContextManager["ChatCompletionContext"]):
                 self._attributes[attribute_name] = attribute_value
 
     def _create_span(self) -> None:
-        self._tracer.create_span(
+        self._span = self._tracer.create_span(
             name="OpenAI Chat Completion",
             span_kind=SpanKind.LLM,
             start_time=cast(datetime, self._start_time),
@@ -229,6 +277,16 @@ class ChatCompletionContext(ContextManager["ChatCompletionContext"]):
             attributes=self._attributes,
             events=self._events,
         )
+
+    @property
+    def tracer(self) -> Tracer:
+        return self._tracer
+
+    @property
+    def span(self) -> Span:
+        if self._span is None:
+            raise ValueError("Span has not been created yet.")
+        return self._span
 
 
 def _wrapped_openai_sync_client_request_function(

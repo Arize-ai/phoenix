@@ -91,6 +91,11 @@ class SpanEvent(Dict[str, Any]):
 
 
 @dataclass(frozen=True)
+class SpanStreamEvent(SpanEvent):
+    ...
+
+
+@dataclass(frozen=True)
 class SpanException(SpanEvent):
     """
     A Span Exception is a special type of Span Event that denotes an error
