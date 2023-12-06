@@ -20,7 +20,6 @@ from typing import (
     Tuple,
     Type,
     TypeVar,
-    Union,
     cast,
 )
 
@@ -176,39 +175,6 @@ class StreamWrapper(ObjectProxy):  # type: ignore
         return self
 
 
-class StreamProcessor:
-    def __init__(self, context: "ChatCompletionContext") -> None:
-        self._context = context
-
-    def process(self, response: Stream[ChatCompletionChunk]) -> Stream[ChatCompletionChunk]:
-        return StreamWrapper(stream=response, context=self._context)
-
-
-class ChatCompletionProcessor:
-    def __init__(self, context: "ChatCompletionContext") -> None:
-        self._context = context
-
-    def process(self, response: ChatCompletion) -> ChatCompletion:
-        """
-        Processes a chat completions response to extract attributes and adds
-        them to the context.
-
-        Args:
-            response (ChatCompletion): Response from the OpenAI chat completions
-            API.
-
-        Returns:
-            ChatCompletion: The input chat completion object.
-        """
-        for (
-            attribute_name,
-            get_chat_completion_attribute_fn,
-        ) in _CHAT_COMPLETION_ATTRIBUTE_FUNCTIONS.items():
-            if (attribute_value := get_chat_completion_attribute_fn(response)) is not None:
-                self._context.attributes[attribute_name] = attribute_value
-        return response
-
-
 class OpenAIInstrumentor:
     def __init__(self, tracer: Optional[Tracer] = None) -> None:
         """Instruments your OpenAI client to automatically create spans for each API call.
@@ -262,11 +228,6 @@ class ChatCompletionContext(ContextManager["ChatCompletionContext"]):
         """
         self.tracer = tracer
         self._span: Optional[Span] = None
-        self._response_processor: Union[StreamProcessor, ChatCompletionProcessor] = (
-            StreamProcessor(self)
-            if _is_streaming_request(bound_arguments)
-            else ChatCompletionProcessor(self)
-        )
         self.start_time: Optional[datetime] = None
         self.end_time: Optional[datetime] = None
         self.status_code = SpanStatusCode.UNSET
@@ -274,6 +235,7 @@ class ChatCompletionContext(ContextManager["ChatCompletionContext"]):
         self.events: List[SpanEvent] = []
         self.attributes: SpanAttributes = dict()
         self._process_parameters(_parameters(bound_arguments))
+        self._is_streaming_request = _is_streaming_request(bound_arguments)
 
     def __enter__(self) -> "ChatCompletionContext":
         self.start_time = datetime.now()
@@ -311,15 +273,38 @@ class ChatCompletionContext(ContextManager["ChatCompletionContext"]):
         self.end_time = datetime.now()
         self.status_code = SpanStatusCode.OK
         if isinstance(response, ChatCompletion):
-            self._response_processor.process(response)
+            self._process_chat_completion(response)
         elif isinstance(response, Stream):
-            response = self._response_processor.process(
+            response = self._process_stream(
                 response
-            )  # reassign to return an instrumented stream
+            )  # reassign to return an instrumented stream object
         elif hasattr(response, "parse") and callable(response.parse):
-            self._response_processor.process(response.parse())
+            self._process_chat_completion(response.parse())
         self._create_span()
         return response
+
+    def _process_chat_completion(self, response: ChatCompletion) -> ChatCompletion:
+        """
+        Processes a chat completions response to extract attributes and adds
+        them to the context.
+
+        Args:
+            response (ChatCompletion): Response from the OpenAI chat completions
+            API.
+
+        Returns:
+            ChatCompletion: The input chat completion object.
+        """
+        for (
+            attribute_name,
+            get_chat_completion_attribute_fn,
+        ) in _CHAT_COMPLETION_ATTRIBUTE_FUNCTIONS.items():
+            if (attribute_value := get_chat_completion_attribute_fn(response)) is not None:
+                self.attributes[attribute_name] = attribute_value
+        return response
+
+    def _process_stream(self, response: Stream[ChatCompletionChunk]) -> Stream[ChatCompletionChunk]:
+        return StreamWrapper(stream=response, context=self)
 
     def _process_parameters(self, parameters: Parameters) -> None:
         for (
