@@ -6,7 +6,7 @@ from types import ModuleType
 import openai
 import pytest
 from httpx import Response
-from openai import AsyncOpenAI, AuthenticationError, OpenAI
+from openai import AsyncOpenAI, AuthenticationError, OpenAI, Stream
 from phoenix.trace.openai.instrumentor import OpenAIInstrumentor
 from phoenix.trace.schemas import SpanException, SpanKind, SpanStatusCode
 from phoenix.trace.semantic_conventions import (
@@ -583,7 +583,7 @@ def test_openai_instrumentor_sync_works_with_chat_completion_with_raw_response(
     assert "france" in response_content.lower() or "french" in response_content.lower()
 
 
-def test_openai_instrumentor_sync_streaming(
+def test_openai_instrumentor_sync_with_instrumented_response_stream_updates_span_using_next(
     sync_client: OpenAI,
     respx_mock: MockRouter,
 ) -> None:
@@ -629,6 +629,7 @@ def test_openai_instrumentor_sync_streaming(
                     "finish_reason": "stop"
                     if token_index == len(expected_response_text) - 1
                     else None,
+                    "index": 0,
                 }
             ],
         }
@@ -642,6 +643,7 @@ def test_openai_instrumentor_sync_streaming(
     response = sync_client.chat.completions.create(
         model=model, messages=messages, temperature=temperature, stream=True
     )
+    assert isinstance(response, Stream)
 
     spans = list(tracer.get_spans())
     assert len(spans) == 1
@@ -667,19 +669,24 @@ def test_openai_instrumentor_sync_streaming(
     assert attributes[INPUT_MIME_TYPE] == MimeType.JSON
 
     # consume the stream to trigger the span update
-    response_text = "".join(
-        [chat_completion_chunk.choices[0].delta.content for chat_completion_chunk in response]
-    )
+    tokens = []
+    while True:
+        try:
+            chunk = next(response)
+            tokens.append(chunk.choices[0].delta.content)
+        except StopIteration:
+            break
+    response_text = "".join(tokens)
     assert response_text == expected_response_text
 
     spans = list(tracer.get_spans())
-    assert len(spans) == 1
-    span = spans[0]
+    assert len(spans) == 2
+    span = spans[-1]
     attributes = span.attributes
 
     assert span.span_kind is SpanKind.LLM
     assert span.status_code == SpanStatusCode.OK
-    assert span.events == []
+    assert len(span.events) == len(expected_response_tokens)
     assert attributes[LLM_INPUT_MESSAGES] == [
         {MESSAGE_ROLE: "user", MESSAGE_CONTENT: "What are the seven wonders of the world?"}
     ]
@@ -693,15 +700,15 @@ def test_openai_instrumentor_sync_streaming(
             "stream": True,
         }
     )
+    output_messages = attributes[LLM_OUTPUT_MESSAGES]
+    assert len(output_messages) == 1
+    assert output_messages[0] == {
+        MESSAGE_ROLE: "assistant",
+        MESSAGE_CONTENT: expected_response_text,
+    }
     assert attributes[INPUT_MIME_TYPE] == MimeType.JSON
-    assert isinstance(attributes[LLM_TOKEN_COUNT_COMPLETION], int)
-    assert isinstance(attributes[LLM_TOKEN_COUNT_PROMPT], int)
-    assert isinstance(attributes[LLM_TOKEN_COUNT_TOTAL], int)
-
-    choices = json.loads(attributes[OUTPUT_VALUE])["choices"]
-    assert len(choices) == 1
-    response_content = choices[0]["message"]["content"]
-    assert "giza" in response_content.lower()
+    chunks = json.loads(attributes[OUTPUT_VALUE])
+    assert len(chunks) == len(expected_response_tokens)
     assert attributes[OUTPUT_MIME_TYPE] == MimeType.JSON
 
 

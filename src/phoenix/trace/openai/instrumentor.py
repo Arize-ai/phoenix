@@ -1,4 +1,5 @@
 import json
+from collections import defaultdict
 from copy import deepcopy
 from dataclasses import replace
 from datetime import datetime
@@ -10,6 +11,7 @@ from typing import (
     Callable,
     ContextManager,
     Coroutine,
+    DefaultDict,
     Dict,
     Iterator,
     List,
@@ -82,14 +84,33 @@ class RequestType(Enum):
 
 
 def _span_stream_event(chat_completion_chunk: ChatCompletionChunk) -> SpanStreamEvent:
-    stream_event = SpanStreamEvent(
-        name="Chat Completion Stream Event", timestamp=datetime.now(), attributes={}
+    return SpanStreamEvent(
+        name="Chat Completion Stream Event",
+        timestamp=datetime.now(),
+        attributes={
+            OUTPUT_VALUE: chat_completion_chunk.json(),
+            OUTPUT_MIME_TYPE: MimeType.JSON,  # type: ignore
+        },
     )
-    return stream_event
 
 
-def _accumulate_event_attributes(events: List[SpanEvent]) -> SpanAttributes:
-    return {}
+def _accumulate_messages(chunks: List[ChatCompletionChunk]) -> List[OpenInferenceMessage]:
+    tokens: DefaultDict[int, List[str]] = defaultdict(list)
+    roles: DefaultDict[int, str] = defaultdict()
+    num_choices = -1
+    for chunk in chunks:
+        for choice in chunk.choices:
+            choice_index = choice.index
+            num_choices = max(num_choices, choice_index + 1)
+            if content := choice.delta.content:
+                tokens[choice_index].append(content)
+            if role := choice.delta.role:
+                roles[choice_index] = role
+    messages: List[OpenInferenceMessage] = [{}] * num_choices
+    for choice_index in range(len(tokens)):
+        messages[choice_index][MESSAGE_CONTENT] = "".join(tokens.get(choice_index, []))
+        messages[choice_index][MESSAGE_ROLE] = roles.get(choice_index, "")
+    return messages
 
 
 class StreamWrapper(ObjectProxy):  # type: ignore
@@ -97,26 +118,29 @@ class StreamWrapper(ObjectProxy):  # type: ignore
         self, stream: Stream[ChatCompletionChunk], context: "ChatCompletionContext"
     ) -> None:
         super().__init__(stream)
-        self._context = context
-        self._events: List[SpanEvent] = []
+        self.__context = context
+        self.__chunks: List[ChatCompletionChunk] = []
 
     def __next__(self) -> ChatCompletionChunk:
         try:
             chat_completion_chunk = next(self.__wrapped__)
-            self._events.append(_span_stream_event(chat_completion_chunk))
+            self.__chunks.append(chat_completion_chunk)
+            return cast(ChatCompletionChunk, chat_completion_chunk)
         except StopIteration:
-            span = self._context.span
+            span = self.__context.span
             span = replace(
                 span,
                 attributes={
                     **deepcopy(span.attributes),
-                    **_accumulate_event_attributes(self._events),
+                    LLM_OUTPUT_MESSAGES: _accumulate_messages(self.__chunks),  # type: ignore
+                    OUTPUT_VALUE: json.dumps([chunk.json() for chunk in self.__chunks]),
+                    OUTPUT_MIME_TYPE: MimeType.JSON,  # type: ignore
                 },
-                events=deepcopy(span.events) + self._events,
+                events=deepcopy(span.events)
+                + [_span_stream_event(chunk) for chunk in self.__chunks],
             )
-            self._context.tracer.add_span(span)
+            self.__context.tracer.add_span(span)
             raise
-        return cast(ChatCompletionChunk, chat_completion_chunk)
 
 
 class StreamProcessor:
@@ -313,12 +337,12 @@ def _wrapped_openai_sync_client_request_function(
             return request_fn(*args, **kwargs)
         with ChatCompletionContext(bound_arguments, tracer) as context:
             response = request_fn(*args, **kwargs)
-            context.process_response(
+            return context.process_response(
                 response.parse()
                 if hasattr(response, "parse") and callable(response.parse)
                 else response,
             )
-            return response
+            # return response
 
     return wrapped
 
