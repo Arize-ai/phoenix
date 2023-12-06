@@ -1,6 +1,5 @@
 import json
 from collections import defaultdict
-from copy import deepcopy
 from dataclasses import replace
 from datetime import datetime
 from enum import Enum
@@ -274,8 +273,8 @@ class StreamWrapper(ObjectProxy):  # type: ignore
             fields and attributes.
         """
         super().__init__(stream)
-        self.__context = context
-        self.__chunks: List[ChatCompletionChunk] = []
+        self._self_context = context
+        self._self_chunks: List[ChatCompletionChunk] = []
 
     def __next__(self) -> ChatCompletionChunk:
         """
@@ -288,17 +287,17 @@ class StreamWrapper(ObjectProxy):  # type: ignore
         update_span = True
         try:
             chat_completion_chunk = next(self.__wrapped__)
-            self.__chunks.append(chat_completion_chunk)
-            self.__context.events.append(_span_stream_event(chat_completion_chunk))
+            self._self_chunks.append(chat_completion_chunk)
+            self._self_context.events.append(_span_stream_event(chat_completion_chunk))
             update_span = False
             return cast(ChatCompletionChunk, chat_completion_chunk)
         except StopIteration:
             raise
         except Exception as error:
             status_message = str(error)
-            self.__context.status_code = SpanStatusCode.ERROR
-            self.__context.status_message = status_message
-            self.__context.events.append(
+            self._self_context.status_code = SpanStatusCode.ERROR
+            self._self_context.status_message = status_message
+            self._self_context.events.append(
                 SpanException(
                     message=status_message,
                     timestamp=datetime.now(),
@@ -309,19 +308,19 @@ class StreamWrapper(ObjectProxy):  # type: ignore
             raise
         finally:
             if update_span:
-                span = self.__context.span
+                span = self._self_context.span
                 span = replace(
                     span,
                     attributes={
-                        **deepcopy(span.attributes),
-                        LLM_OUTPUT_MESSAGES: _accumulate_messages(self.__chunks),  # type: ignore
-                        OUTPUT_VALUE: json.dumps([chunk.json() for chunk in self.__chunks]),
+                        **span.attributes,
+                        LLM_OUTPUT_MESSAGES: _accumulate_messages(self._self_chunks),  # type: ignore
+                        OUTPUT_VALUE: json.dumps([chunk.json() for chunk in self._self_chunks]),
                         OUTPUT_MIME_TYPE: MimeType.JSON,  # type: ignore
                     },
-                    status_code=self.__context.status_code,
-                    events=deepcopy(span.events),
+                    status_code=self._self_context.status_code,
+                    events=span.events,
                 )
-                self.__context.tracer.add_span(span)
+                self._self_context.tracer.add_span(span)
 
     def __iter__(self) -> Iterator[ChatCompletionChunk]:
         """
