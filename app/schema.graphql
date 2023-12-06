@@ -203,6 +203,21 @@ type DocumentEvaluation implements Evaluation {
 }
 
 """
+Summarization of retrieval metrics: Average NDCG@K, Average Precision@K, Mean Reciprocal Rank, Hit Rate, etc.
+"""
+type DocumentEvaluationSummary {
+  evaluationName: String!
+  averageNdcg(k: Int): Float
+  countNdcg(k: Int): Int!
+  averagePrecision(k: Int): Float
+  countPrecision(k: Int): Int!
+  meanReciprocalRank: Float
+  countReciprocalRank: Int!
+  hitRate: Float
+  countHit: Int!
+}
+
+"""
 A collection of retrieval metrics computed on a list of document evaluation scores: NDCG@K, Precision@K, Reciprocal Rank, etc.
 """
 type DocumentRetrievalMetrics {
@@ -561,6 +576,7 @@ type Query {
   """Names of available document evaluations."""
   documentEvaluationNames(spanId: ID): [String!]!
   spanEvaluationSummary(evaluationName: String!): EvaluationSummary
+  documentEvaluationSummary(evaluationName: String!): DocumentEvaluationSummary
   traceDatasetInfo: TraceDatasetInfo
   validateSpanFilterCondition(condition: String!): ValidationResult!
 }

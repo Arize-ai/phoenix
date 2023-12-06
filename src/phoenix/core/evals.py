@@ -122,6 +122,10 @@ class Evals:
         with self._lock:
             return list(self._evaluations_by_span_id[span_id].values())
 
+    def get_document_evaluation_span_ids(self, name: EvaluationName) -> Tuple[SpanID, ...]:
+        with self._lock:
+            return tuple(self._document_evaluations_by_name[name].keys())
+
     def get_document_evaluations_by_span_id(self, span_id: SpanID) -> List[pb.Evaluation]:
         all_evaluations: List[pb.Evaluation] = []
         with self._lock:
