@@ -642,6 +642,31 @@ def test_openai_instrumentor_sync_streaming(
     response = sync_client.chat.completions.create(
         model=model, messages=messages, temperature=temperature, stream=True
     )
+
+    spans = list(tracer.get_spans())
+    assert len(spans) == 1
+    span = spans[0]
+    attributes = span.attributes
+
+    assert span.span_kind is SpanKind.LLM
+    assert span.status_code == SpanStatusCode.OK
+    assert span.events == []
+    assert attributes[LLM_INPUT_MESSAGES] == [
+        {MESSAGE_ROLE: "user", MESSAGE_CONTENT: "What are the seven wonders of the world?"}
+    ]
+    assert (
+        json.loads(attributes[LLM_INVOCATION_PARAMETERS])
+        == json.loads(attributes[INPUT_VALUE])
+        == {
+            "model": model,
+            "messages": messages,
+            "temperature": temperature,
+            "stream": True,
+        }
+    )
+    assert attributes[INPUT_MIME_TYPE] == MimeType.JSON
+
+    # consume the stream to trigger the span update
     response_text = "".join(
         [chat_completion_chunk.choices[0].delta.content for chat_completion_chunk in response]
     )
