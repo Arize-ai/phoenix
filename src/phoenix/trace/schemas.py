@@ -92,6 +92,11 @@ class SpanEvent(Dict[str, Any]):
 
 @dataclass(frozen=True)
 class SpanStreamEvent(SpanEvent):
+    """
+    An event to contain the contents of an individual chunk of a stream (e.g.,
+    of server-sent events) when using a streaming API.
+    """
+
     ...
 
 

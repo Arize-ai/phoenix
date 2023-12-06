@@ -105,6 +105,11 @@ class Tracer:
         return span
 
     def add_span(self, span: Span) -> None:
+        """Adds a span to the tracer.
+
+        Args:
+            span (Span): The span to be add to the tracer.
+        """
         if self._exporter:
             self._exporter.export(span)
         self.span_buffer.append(span)

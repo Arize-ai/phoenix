@@ -84,8 +84,11 @@ class RequestType(Enum):
 
 
 def _span_stream_event(chat_completion_chunk: ChatCompletionChunk) -> SpanStreamEvent:
+    """
+    Converts a chat completion chunk to a span stream event.
+    """
     return SpanStreamEvent(
-        name="Chat Completion Stream Event",
+        name="OpenAI Chat Completion Server-Sent Event",
         timestamp=datetime.now(),
         attributes={
             OUTPUT_VALUE: chat_completion_chunk.json(),
@@ -95,6 +98,11 @@ def _span_stream_event(chat_completion_chunk: ChatCompletionChunk) -> SpanStream
 
 
 def _accumulate_messages(chunks: List[ChatCompletionChunk]) -> List[OpenInferenceMessage]:
+    """
+    Converts a list of chat completion chunks to a list of OpenInference messages.
+    """
+    if not chunks:
+        return []
     tokens: DefaultDict[int, List[str]] = defaultdict(list)
     roles: DefaultDict[int, str] = defaultdict()
     num_choices = -1
@@ -106,7 +114,7 @@ def _accumulate_messages(chunks: List[ChatCompletionChunk]) -> List[OpenInferenc
                 tokens[choice_index].append(content)
             if role := choice.delta.role:
                 roles[choice_index] = role
-    messages: List[OpenInferenceMessage] = [{}] * num_choices
+    messages: List[OpenInferenceMessage] = [{} for _ in range(num_choices)]
     for choice_index in range(len(tokens)):
         messages[choice_index][MESSAGE_CONTENT] = "".join(tokens.get(choice_index, []))
         messages[choice_index][MESSAGE_ROLE] = roles.get(choice_index, "")
@@ -126,16 +134,16 @@ class StreamWrapper(ObjectProxy):  # type: ignore
         try:
             chat_completion_chunk = next(self.__wrapped__)
             self.__chunks.append(chat_completion_chunk)
-            self.__context._events.append(_span_stream_event(chat_completion_chunk))
+            self.__context.events.append(_span_stream_event(chat_completion_chunk))
             update_span = False
             return cast(ChatCompletionChunk, chat_completion_chunk)
         except StopIteration:
             raise
         except Exception as error:
             status_message = str(error)
-            self.__context._status_code = SpanStatusCode.ERROR
-            self.__context._status_message = status_message
-            self.__context._events.append(
+            self.__context.status_code = SpanStatusCode.ERROR
+            self.__context.status_message = status_message
+            self.__context.events.append(
                 SpanException(
                     message=status_message,
                     timestamp=datetime.now(),
@@ -155,7 +163,7 @@ class StreamWrapper(ObjectProxy):  # type: ignore
                         OUTPUT_VALUE: json.dumps([chunk.json() for chunk in self.__chunks]),
                         OUTPUT_MIME_TYPE: MimeType.JSON,  # type: ignore
                     },
-                    status_code=self.__context._status_code,
+                    status_code=self.__context.status_code,
                     events=deepcopy(span.events),
                 )
                 self.__context.tracer.add_span(span)
@@ -197,7 +205,7 @@ class ChatCompletionProcessor:
             get_chat_completion_attribute_fn,
         ) in _CHAT_COMPLETION_ATTRIBUTE_FUNCTIONS.items():
             if (attribute_value := get_chat_completion_attribute_fn(response)) is not None:
-                self._context._attributes[attribute_name] = attribute_value
+                self._context.attributes[attribute_name] = attribute_value
         return response
 
 
@@ -252,24 +260,23 @@ class ChatCompletionContext(ContextManager["ChatCompletionContext"]):
 
             tracer (Tracer): The tracer to use to create spans.
         """
-        self._tracer = tracer
+        self.tracer = tracer
         self._span: Optional[Span] = None
         self._response_processor: Union[StreamProcessor, ChatCompletionProcessor] = (
             StreamProcessor(self)
             if _is_streaming_request(bound_arguments)
             else ChatCompletionProcessor(self)
         )
-        self._start_time: Optional[datetime] = None
-        self._end_time: Optional[datetime] = None
-        self._status_code = SpanStatusCode.UNSET
-        self._status_message = ""
-        self._events: List[SpanEvent] = []
-        self._attributes: SpanAttributes = dict()
-        parameters = _parameters(bound_arguments)
-        self._process_parameters(parameters)
+        self.start_time: Optional[datetime] = None
+        self.end_time: Optional[datetime] = None
+        self.status_code = SpanStatusCode.UNSET
+        self.status_message = ""
+        self.events: List[SpanEvent] = []
+        self.attributes: SpanAttributes = dict()
+        self._process_parameters(_parameters(bound_arguments))
 
     def __enter__(self) -> "ChatCompletionContext":
-        self._start_time = datetime.now()
+        self.start_time = datetime.now()
         return self
 
     def __exit__(
@@ -280,14 +287,14 @@ class ChatCompletionContext(ContextManager["ChatCompletionContext"]):
     ) -> None:
         if exc_value is None:
             return
-        self._end_time = datetime.now()
-        self._status_code = SpanStatusCode.ERROR
+        self.end_time = datetime.now()
+        self.status_code = SpanStatusCode.ERROR
         status_message = str(exc_value)
-        self._status_message = status_message
-        self._events.append(
+        self.status_message = status_message
+        self.events.append(
             SpanException(
                 message=status_message,
-                timestamp=self._end_time,
+                timestamp=self.end_time,
                 exception_type=type(exc_value).__name__,
                 exception_stacktrace=get_stacktrace(exc_value),
             )
@@ -301,8 +308,8 @@ class ChatCompletionContext(ContextManager["ChatCompletionContext"]):
         Args:
             response (ChatCompletion): The chat completion object.
         """
-        self._end_time = datetime.now()
-        self._status_code = SpanStatusCode.OK
+        self.end_time = datetime.now()
+        self.status_code = SpanStatusCode.OK
         if isinstance(response, ChatCompletion):
             self._response_processor.process(response)
         elif isinstance(response, Stream):
@@ -320,23 +327,19 @@ class ChatCompletionContext(ContextManager["ChatCompletionContext"]):
             get_parameter_attribute_fn,
         ) in _PARAMETER_ATTRIBUTE_FUNCTIONS.items():
             if (attribute_value := get_parameter_attribute_fn(parameters)) is not None:
-                self._attributes[attribute_name] = attribute_value
+                self.attributes[attribute_name] = attribute_value
 
     def _create_span(self) -> None:
-        self._span = self._tracer.create_span(
+        self._span = self.tracer.create_span(
             name="OpenAI Chat Completion",
             span_kind=SpanKind.LLM,
-            start_time=cast(datetime, self._start_time),
-            end_time=self._end_time,
-            status_code=self._status_code,
-            status_message=self._status_message,
-            attributes=self._attributes,
-            events=self._events,
+            start_time=cast(datetime, self.start_time),
+            end_time=self.end_time,
+            status_code=self.status_code,
+            status_message=self.status_message,
+            attributes=self.attributes,
+            events=self.events,
         )
-
-    @property
-    def tracer(self) -> Tracer:
-        return self._tracer
 
     @property
     def span(self) -> Span:
