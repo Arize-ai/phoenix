@@ -182,7 +182,8 @@ class Traces:
                 yield span
 
     def get_num_documents(self, span_id: SpanID) -> int:
-        return self._num_documents[span_id]
+        with self._lock:
+            return self._num_documents[span_id]
 
     def latency_rank_percent(self, latency_ms: float) -> Optional[float]:
         """

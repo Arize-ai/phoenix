@@ -304,7 +304,7 @@ class Query:
         span_ids = evals.get_document_evaluation_span_ids(evaluation_name)
         if not span_ids:
             return None
-        retrieval_metrics = []
+        metrics_collection = []
         for span_id in span_ids:
             num_documents = traces.get_num_documents(span_id)
             if not num_documents:
@@ -314,10 +314,13 @@ class Query:
                 evaluation_name=evaluation_name,
                 num_documents=num_documents,
             )
-            retrieval_metrics.append(RetrievalMetrics(evaluation_scores))
-        if not retrieval_metrics:
+            metrics_collection.append(RetrievalMetrics(evaluation_scores))
+        if not metrics_collection:
             return None
-        return DocumentEvaluationSummary(evaluation_name, retrieval_metrics)
+        return DocumentEvaluationSummary(
+            evaluation_name=evaluation_name,
+            metrics_collection=metrics_collection,
+        )
 
     @strawberry.field
     def trace_dataset_info(
