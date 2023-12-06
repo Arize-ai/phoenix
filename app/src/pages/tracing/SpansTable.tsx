@@ -40,6 +40,7 @@ import {
   SpansTableSpansQuery,
 } from "./__generated__/SpansTableSpansQuery.graphql";
 import { EvaluationLabel } from "./EvaluationLabel";
+import { RetrievalEvaluationLabel } from "./RetrievalEvaluationLabel";
 import { SpanColumnSelector } from "./SpanColumnSelector";
 import { SpanFilterConditionField } from "./SpanFilterConditionField";
 import { spansTableCSS } from "./styles";
@@ -109,6 +110,12 @@ export function SpansTable(props: SpansTableProps) {
                   label
                   score
                 }
+                documentRetrievalMetrics {
+                  evaluationName
+                  ndcg
+                  precision
+                  hit
+                }
               }
             }
           }
@@ -138,6 +145,30 @@ export function SpansTable(props: SpansTableProps) {
                   key={evaluation.name}
                   evaluation={evaluation}
                 />
+              );
+            })}
+            {row.original.documentRetrievalMetrics.map((retrievalMetric) => {
+              return (
+                <>
+                  <RetrievalEvaluationLabel
+                    key="ncdg"
+                    name={retrievalMetric.evaluationName}
+                    metric="ndcg"
+                    score={retrievalMetric.ndcg}
+                  />
+                  <RetrievalEvaluationLabel
+                    key="precision"
+                    name={retrievalMetric.evaluationName}
+                    metric="precision"
+                    score={retrievalMetric.precision}
+                  />
+                  <RetrievalEvaluationLabel
+                    key="hit"
+                    name={retrievalMetric.evaluationName}
+                    metric="hit"
+                    score={retrievalMetric.hit}
+                  />
+                </>
               );
             })}
           </Flex>

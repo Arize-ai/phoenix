@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<17a97d93bce1ec0696a31d6889166a02>>
+ * @generated SignedSource<<ee2edbc58d886fdb784e8a672e4a1c78>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -21,6 +21,12 @@ export type SpansTable_spans$data = {
           readonly spanId: string;
           readonly traceId: string;
         };
+        readonly documentRetrievalMetrics: ReadonlyArray<{
+          readonly evaluationName: string;
+          readonly hit: number | null;
+          readonly ndcg: number | null;
+          readonly precision: number | null;
+        }>;
         readonly input: {
           readonly mimeType: MimeType;
           readonly value: string;
@@ -285,6 +291,45 @@ return {
                     }
                   ],
                   "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "concreteType": "DocumentRetrievalMetrics",
+                  "kind": "LinkedField",
+                  "name": "documentRetrievalMetrics",
+                  "plural": true,
+                  "selections": [
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "evaluationName",
+                      "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "ndcg",
+                      "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "precision",
+                      "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "hit",
+                      "storageKey": null
+                    }
+                  ],
+                  "storageKey": null
                 }
               ],
               "storageKey": null
@@ -351,6 +396,6 @@ return {
 };
 })();
 
-(node as any).hash = "7c37fa575b740f80ce3be0faa9215222";
+(node as any).hash = "6bdb54ad6615fe087bf081cfd7c96bae";
 
 export default node;
