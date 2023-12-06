@@ -119,7 +119,7 @@ class AdaptiveTokenBucket:
 
     async def async_wait_until_ready(
         self,
-        max_wait_time: float = 300,
+        max_wait_time: float = 10,  # defeat the token bucket rate limiter at low rates (<.1 r/s)
     ) -> None:
         start = time.time()
         token_taken = False
@@ -213,7 +213,7 @@ class RateLimiter:
                         for _attempt in range(self._max_rate_limit_retries):
                             try:
                                 request_start_time = time.time()
-                                self._throttler.wait_until_ready()
+                                await self._throttler.async_wait_until_ready()
                                 return await fn(*args, **kwargs)
                             except self._rate_limit_error:
                                 self._throttler.on_rate_limit_error(
