@@ -66,9 +66,6 @@ from ..tracer import Tracer
 
 ParameterSpec = ParamSpec("ParameterSpec")
 GenericType = TypeVar("GenericType")
-ChatCompletionResponseType = TypeVar(
-    "ChatCompletionResponseType", ChatCompletion, Stream[ChatCompletionChunk]
-)
 AsyncCallable = Callable[ParameterSpec, Coroutine[Any, Any, GenericType]]
 Parameters = Mapping[str, Any]
 OpenInferenceMessage = Dict[str, str]
@@ -170,7 +167,7 @@ class ChatCompletionContext(ContextManager["ChatCompletionContext"]):
         )
         self._create_span()
 
-    def process_response(self, response: ChatCompletionResponseType) -> ChatCompletionResponseType:
+    def process_response(self, response: Any) -> Any:
         """
         Processes the response from the OpenAI chat completions API call to extract attributes.
 
@@ -237,12 +234,34 @@ class ChatCompletionContext(ContextManager["ChatCompletionContext"]):
 
 
 class StreamWrapper(ObjectProxy):  # type: ignore
+    """
+    A wrapper for Stream[ChatCompletionChunk] streams that records each span
+    stream event and updates the span upon completion of the stream or upon
+    exception.
+    """
+
     def __init__(self, stream: Stream[ChatCompletionChunk], context: ChatCompletionContext) -> None:
+        """
+        Initializes the stream wrapper.
+
+        Args:
+            stream (Stream[ChatCompletionChunk]): The stream to wrap.
+
+            context (ChatCompletionContext): The context used to store span
+            fields and attributes.
+        """
         super().__init__(stream)
         self.__context = context
         self.__chunks: List[ChatCompletionChunk] = []
 
     def __next__(self) -> ChatCompletionChunk:
+        """
+        A wrapped __next__ method that records span stream events and updates
+        the span upon completion of the stream or upon exception.
+
+        Returns:
+            ChatCompletionChunk: The forwarded chat completion chunk.
+        """
         update_span = True
         try:
             chat_completion_chunk = next(self.__wrapped__)
@@ -283,8 +302,8 @@ class StreamWrapper(ObjectProxy):  # type: ignore
 
     def __iter__(self) -> Iterator[ChatCompletionChunk]:
         """
-        This bypasses the wrapped class' __iter__ method so that __iter__ is
-        automatically instrumented using __next__.
+        A __iter__ method that bypasses the wrapped class' __iter__ method so
+        that __iter__ is automatically instrumented using __next__ (as above).
         """
         return self
 
