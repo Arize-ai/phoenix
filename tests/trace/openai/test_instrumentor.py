@@ -680,6 +680,7 @@ def test_openai_instrumentor_sync_streaming_response_updates_span_when_iterated_
 
     spans = list(tracer.get_spans())
     assert len(spans) == 2
+    assert spans[0].context.trace_id == spans[1].context.trace_id
     assert spans[0].context.span_id == spans[1].context.span_id
     span = spans[-1]
     attributes = span.attributes
@@ -806,6 +807,7 @@ def test_openai_instrumentor_sync_streaming_response_updates_span_when_iterated_
 
     spans = list(tracer.get_spans())
     assert len(spans) == 2
+    assert spans[0].context.trace_id == spans[1].context.trace_id
     assert spans[0].context.span_id == spans[1].context.span_id
     span = spans[-1]
     attributes = span.attributes
@@ -924,6 +926,7 @@ def test_openai_instrumentor_sync_streaming_response_with_error_midstream_record
 
     spans = list(tracer.get_spans())
     assert len(spans) == 2
+    assert spans[0].context.trace_id == spans[1].context.trace_id
     assert spans[0].context.span_id == spans[1].context.span_id
     span = spans[-1]
     attributes = span.attributes

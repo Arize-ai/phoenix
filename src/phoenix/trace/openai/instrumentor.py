@@ -34,6 +34,7 @@ from phoenix.trace.schemas import (
     SpanID,
     SpanKind,
     SpanStatusCode,
+    TraceID,
 )
 from phoenix.trace.semantic_conventions import (
     INPUT_MIME_TYPE,
@@ -137,6 +138,7 @@ class ChatCompletionContext(ContextManager["ChatCompletionContext"]):
         parameters = _parameters(bound_arguments)
         self.num_choices = parameters.get("n", 1)
         self._process_parameters(parameters)
+        self._trace_id: Optional[TraceID] = None
         self._span_id: Optional[SpanID] = None
 
     def __enter__(self) -> "ChatCompletionContext":
@@ -199,8 +201,10 @@ class ChatCompletionContext(ContextManager["ChatCompletionContext"]):
             status_message=self.status_message,
             attributes=self.attributes,
             events=self.events,
+            trace_id=self._trace_id,
             span_id=self._span_id,
         )
+        self._trace_id = span.context.trace_id
         self._span_id = span.context.span_id
 
     def _process_chat_completion(self, chat_completion: ChatCompletion) -> None:
@@ -547,7 +551,7 @@ def _span_stream_event(chat_completion_chunk: ChatCompletionChunk) -> SpanEvent:
     Converts a chat completion chunk to a span stream event.
     """
     return SpanEvent(
-        name="OpenAI Chat Completion Server-Sent Event",
+        name="OpenAI Chat Completion Stream Event",
         timestamp=datetime.now(tz=timezone.utc),
         attributes={
             OUTPUT_VALUE: chat_completion_chunk.json(),
