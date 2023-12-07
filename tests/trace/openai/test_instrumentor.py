@@ -642,32 +642,10 @@ def test_openai_instrumentor_sync_streaming_response_updates_span_when_iterated_
         model=model, messages=messages, temperature=temperature, stream=True
     )
     assert isinstance(response, Stream)
-
     spans = list(tracer.get_spans())
-    assert len(spans) == 1
-    span = spans[0]
-    attributes = span.attributes
+    assert len(spans) == 0
 
-    assert span.span_kind is SpanKind.LLM
-    assert span.status_code == SpanStatusCode.OK
-    assert span.end_time is None  # the end time should be None until the stream is consumed
-    assert span.events == []
-    assert attributes[LLM_INPUT_MESSAGES] == [
-        {MESSAGE_ROLE: "user", MESSAGE_CONTENT: "What are the seven wonders of the world?"}
-    ]
-    assert (
-        json.loads(attributes[LLM_INVOCATION_PARAMETERS])
-        == json.loads(attributes[INPUT_VALUE])
-        == {
-            "model": model,
-            "messages": messages,
-            "temperature": temperature,
-            "stream": True,
-        }
-    )
-    assert attributes[INPUT_MIME_TYPE] == MimeType.JSON
-
-    # consume the stream to trigger the span update
+    # consume the stream to trigger span creation
     tokens = []
     while True:
         try:
@@ -679,17 +657,16 @@ def test_openai_instrumentor_sync_streaming_response_updates_span_when_iterated_
     assert response_text == expected_response_text
 
     spans = list(tracer.get_spans())
-    assert len(spans) == 2
-    span = spans[-1]
+    assert len(spans) == 1
+    span = spans[0]
     attributes = span.attributes
 
     assert span.span_kind is SpanKind.LLM
     assert span.status_code == SpanStatusCode.OK
     assert isinstance(span.end_time, datetime)
-    assert len(span.events) == len(expected_response_tokens)
-    span_stream_event = span.events[0]
-    assert span_stream_event.attributes[OUTPUT_MIME_TYPE] == MimeType.JSON
-    assert isinstance(span_stream_event.attributes[OUTPUT_VALUE], str)
+    assert len(span.events) == 1
+    first_token_event = span.events[0]
+    assert "first token" in first_token_event.name.lower()
 
     assert attributes[LLM_INPUT_MESSAGES] == [
         {MESSAGE_ROLE: "user", MESSAGE_CONTENT: "What are the seven wonders of the world?"}
@@ -774,6 +751,12 @@ def test_openai_instrumentor_sync_streaming_response_updates_span_when_iterated_
         model=model, messages=messages, temperature=temperature, stream=True
     )
     assert isinstance(response, Stream)
+    spans = list(tracer.get_spans())
+    assert len(spans) == 0
+
+    # iterate over the stream to trigger span creation
+    response_text = "".join([chunk.choices[0].delta.content for chunk in response])
+    assert response_text == expected_response_text
 
     spans = list(tracer.get_spans())
     assert len(spans) == 1
@@ -782,39 +765,10 @@ def test_openai_instrumentor_sync_streaming_response_updates_span_when_iterated_
 
     assert span.span_kind is SpanKind.LLM
     assert span.status_code == SpanStatusCode.OK
-    assert span.end_time is None  # the end time should be None until the stream is consumed
-    assert span.events == []
-    assert attributes[LLM_INPUT_MESSAGES] == [
-        {MESSAGE_ROLE: "user", MESSAGE_CONTENT: "What are the seven wonders of the world?"}
-    ]
-    assert (
-        json.loads(attributes[LLM_INVOCATION_PARAMETERS])
-        == json.loads(attributes[INPUT_VALUE])
-        == {
-            "model": model,
-            "messages": messages,
-            "temperature": temperature,
-            "stream": True,
-        }
-    )
-    assert attributes[INPUT_MIME_TYPE] == MimeType.JSON
-
-    # iterate over the stream to trigger the span update
-    response_text = "".join([chunk.choices[0].delta.content for chunk in response])
-    assert response_text == expected_response_text
-
-    spans = list(tracer.get_spans())
-    assert len(spans) == 2
-    span = spans[-1]
-    attributes = span.attributes
-
-    assert span.span_kind is SpanKind.LLM
-    assert span.status_code == SpanStatusCode.OK
     assert isinstance(span.end_time, datetime)
-    assert len(span.events) == len(expected_response_tokens)
-    span_stream_event = span.events[0]
-    assert span_stream_event.attributes[OUTPUT_MIME_TYPE] == MimeType.JSON
-    assert isinstance(span_stream_event.attributes[OUTPUT_VALUE], str)
+    assert len(span.events) == 1
+    first_token_event = span.events[0]
+    assert "first token" in first_token_event.name.lower()
 
     assert attributes[LLM_INPUT_MESSAGES] == [
         {MESSAGE_ROLE: "user", MESSAGE_CONTENT: "What are the seven wonders of the world?"}
@@ -887,32 +841,10 @@ def test_openai_instrumentor_sync_streaming_response_with_error_midstream_record
         model=model, messages=messages, temperature=temperature, stream=True
     )
     assert isinstance(response, Stream)
-
     spans = list(tracer.get_spans())
-    assert len(spans) == 1
-    span = spans[0]
-    attributes = span.attributes
+    assert len(spans) == 0
 
-    assert span.span_kind is SpanKind.LLM
-    assert span.status_code == SpanStatusCode.OK
-    assert span.end_time is None  # the end time should be None until the stream is consumed
-    assert span.events == []
-    assert attributes[LLM_INPUT_MESSAGES] == [
-        {MESSAGE_ROLE: "user", MESSAGE_CONTENT: "What are the seven wonders of the world?"}
-    ]
-    assert (
-        json.loads(attributes[LLM_INVOCATION_PARAMETERS])
-        == json.loads(attributes[INPUT_VALUE])
-        == {
-            "model": model,
-            "messages": messages,
-            "temperature": temperature,
-            "stream": True,
-        }
-    )
-    assert attributes[INPUT_MIME_TYPE] == MimeType.JSON
-
-    # iterate over the stream until hitting the RuntimeError
+    # iterate over the stream until hitting the error
     tokens = []
     for _ in range(len(response_tokens_before_error)):
         chunk = next(response)
@@ -921,19 +853,16 @@ def test_openai_instrumentor_sync_streaming_response_with_error_midstream_record
         next(response)
 
     spans = list(tracer.get_spans())
-    assert len(spans) == 2
-    span = spans[-1]
+    assert len(spans) == 1
+    span = spans[0]
     attributes = span.attributes
 
     assert span.span_kind is SpanKind.LLM
     assert span.status_code == SpanStatusCode.ERROR
     assert isinstance(span.end_time, datetime)
-    assert (
-        len(span.events) == len(response_tokens_before_error) + 1
-    )  # there should be an exception event in addition to each span stream event
-    span_stream_event = span.events[0]
-    assert span_stream_event.attributes[OUTPUT_MIME_TYPE] == MimeType.JSON
-    assert isinstance(span_stream_event.attributes[OUTPUT_VALUE], str)
+    assert len(span.events) == 2
+    first_token_event = span.events[0]
+    assert "first token" in first_token_event.name.lower()
     span_exception = span.events[-1]
     assert isinstance(span_exception, SpanException)
     assert span_exception.attributes[EXCEPTION_TYPE] == "RuntimeError"
