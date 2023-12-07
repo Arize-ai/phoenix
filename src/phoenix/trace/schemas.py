@@ -91,16 +91,6 @@ class SpanEvent(Dict[str, Any]):
 
 
 @dataclass(frozen=True)
-class SpanStreamEvent(SpanEvent):
-    """
-    An event to contain the contents of an individual chunk of a stream (e.g.,
-    of server-sent events) when using a streaming API.
-    """
-
-    ...
-
-
-@dataclass(frozen=True)
 class SpanException(SpanEvent):
     """
     A Span Exception is a special type of Span Event that denotes an error

@@ -35,7 +35,6 @@ from phoenix.trace.schemas import (
     SpanException,
     SpanKind,
     SpanStatusCode,
-    SpanStreamEvent,
 )
 from phoenix.trace.semantic_conventions import (
     INPUT_MIME_TYPE,
@@ -563,11 +562,11 @@ def _parameters(bound_arguments: BoundArguments) -> Parameters:
     return cast(Parameters, bound_arguments.arguments["options"].json_data)
 
 
-def _span_stream_event(chat_completion_chunk: ChatCompletionChunk) -> SpanStreamEvent:
+def _span_stream_event(chat_completion_chunk: ChatCompletionChunk) -> SpanEvent:
     """
     Converts a chat completion chunk to a span stream event.
     """
-    return SpanStreamEvent(
+    return SpanEvent(
         name="OpenAI Chat Completion Server-Sent Event",
         timestamp=datetime.now(),
         attributes={

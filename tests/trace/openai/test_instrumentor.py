@@ -9,7 +9,7 @@ import pytest
 from httpx import Response
 from openai import AsyncOpenAI, AuthenticationError, OpenAI, Stream
 from phoenix.trace.openai.instrumentor import OpenAIInstrumentor
-from phoenix.trace.schemas import SpanException, SpanKind, SpanStatusCode, SpanStreamEvent
+from phoenix.trace.schemas import SpanException, SpanKind, SpanStatusCode
 from phoenix.trace.semantic_conventions import (
     EXCEPTION_MESSAGE,
     EXCEPTION_STACKTRACE,
@@ -684,7 +684,6 @@ def test_openai_instrumentor_sync_streaming_response_updates_span_when_iterated_
     assert span.span_kind is SpanKind.LLM
     assert span.status_code == SpanStatusCode.OK
     assert len(span.events) == len(expected_response_tokens)
-    assert all(isinstance(event, SpanStreamEvent) for event in span.events)
     span_stream_event = span.events[0]
     assert span_stream_event.attributes[OUTPUT_MIME_TYPE] == MimeType.JSON
     assert isinstance(span_stream_event.attributes[OUTPUT_VALUE], str)
@@ -808,7 +807,6 @@ def test_openai_instrumentor_sync_streaming_response_updates_span_when_iterated_
     assert span.span_kind is SpanKind.LLM
     assert span.status_code == SpanStatusCode.OK
     assert len(span.events) == len(expected_response_tokens)
-    assert all(isinstance(event, SpanStreamEvent) for event in span.events)
     span_stream_event = span.events[0]
     assert span_stream_event.attributes[OUTPUT_MIME_TYPE] == MimeType.JSON
     assert isinstance(span_stream_event.attributes[OUTPUT_VALUE], str)
@@ -926,7 +924,6 @@ def test_openai_instrumentor_sync_streaming_response_with_error_midstream_record
     assert (
         len(span.events) == len(response_tokens_before_error) + 1
     )  # there should be an exception event in addition to each span stream event
-    assert all(isinstance(event, SpanStreamEvent) for event in span.events[:-1])
     span_stream_event = span.events[0]
     assert span_stream_event.attributes[OUTPUT_MIME_TYPE] == MimeType.JSON
     assert isinstance(span_stream_event.attributes[OUTPUT_VALUE], str)
