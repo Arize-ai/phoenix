@@ -566,7 +566,7 @@ type Query {
     """HDBSCAN cluster selection epsilon"""
     clusterSelectionEpsilon: Float! = 0
   ): [Cluster!]!
-  spans(timeRange: TimeRange, traceIds: [ID!], first: Int = 50, last: Int, after: String, before: String, sort: SpanSort, rootSpansOnly: Boolean = false, filterCondition: String = null): SpanConnection!
+  spans(timeRange: TimeRange, traceIds: [ID!], first: Int = 50, last: Int, after: String, before: String, sort: SpanSort, rootSpansOnly: Boolean, filterCondition: String): SpanConnection!
 
   """
   Names of all available evaluations for spans. (The list contains no duplicates.)
@@ -575,8 +575,8 @@ type Query {
 
   """Names of available document evaluations."""
   documentEvaluationNames(spanId: ID): [String!]!
-  spanEvaluationSummary(evaluationName: String!): EvaluationSummary
-  documentEvaluationSummary(evaluationName: String!): DocumentEvaluationSummary
+  spanEvaluationSummary(evaluationName: String!, timeRange: TimeRange, filterCondition: String): EvaluationSummary
+  documentEvaluationSummary(evaluationName: String!, timeRange: TimeRange, filterCondition: String): DocumentEvaluationSummary
   traceDatasetInfo: TraceDatasetInfo
   validateSpanFilterCondition(condition: String!): ValidationResult!
 }
@@ -738,8 +738,8 @@ enum SpanKind {
 The sort key and direction for span connections. Must specify one and only one of either `col` or `evalResultKey`.
 """
 input SpanSort {
-  col: SpanColumn = null
-  evalResultKey: EvalResultKey = null
+  col: SpanColumn
+  evalResultKey: EvalResultKey
   dir: SortDir!
 }
 
