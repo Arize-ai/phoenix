@@ -1,12 +1,14 @@
 import json
 import sys
+from datetime import datetime
 from importlib import reload
 from types import ModuleType
+from typing import Iterator
 
 import openai
 import pytest
 from httpx import Response
-from openai import AsyncOpenAI, AuthenticationError, OpenAI
+from openai import AsyncOpenAI, AuthenticationError, OpenAI, Stream
 from phoenix.trace.openai.instrumentor import OpenAIInstrumentor
 from phoenix.trace.schemas import SpanException, SpanKind, SpanStatusCode
 from phoenix.trace.semantic_conventions import (
@@ -581,6 +583,386 @@ def test_openai_instrumentor_sync_works_with_chat_completion_with_raw_response(
     assert len(choices) == 1
     response_content = choices[0]["message"]["content"]
     assert "france" in response_content.lower() or "french" in response_content.lower()
+
+
+def test_openai_instrumentor_sync_streaming_response_updates_span_when_iterated_with_next(
+    sync_client: OpenAI,
+    respx_mock: MockRouter,
+) -> None:
+    tracer = Tracer()
+    OpenAIInstrumentor(tracer).instrument()
+    model = "gpt-4"
+    messages = [{"role": "user", "content": "What are the seven wonders of the world?"}]
+    temperature = 0.23
+    expected_response_tokens = [
+        "",
+        "The",
+        " seven",
+        " wonders",
+        " of",
+        " the",
+        " world",
+        " include",
+        " the",
+        " Great",
+        " Pyramid",
+        " of",
+        " G",
+        "iza",
+        " and",
+        " the",
+        " Hanging",
+        " Gardens",
+        " of",
+        " Babylon",
+        ".",
+        "",
+    ]
+    expected_response_text = "".join(expected_response_tokens)
+    mock_stream = []
+    for token_index, token in enumerate(expected_response_tokens):
+        response_body = {
+            "choices": [
+                {
+                    "delta": {"role": "assistant", "content": token},
+                    "finish_reason": "stop"
+                    if token_index == len(expected_response_text) - 1
+                    else None,
+                    "index": 0,
+                }
+            ],
+        }
+        mock_stream.append(f"data: {json.dumps(response_body)}\n\n".encode("utf-8"))
+    mock_stream.append(b"data: [DONE]\n")
+    respx_mock.post("https://api.openai.com/v1/chat/completions").respond(
+        status_code=200,
+        stream=mock_stream,
+    )
+    response = sync_client.chat.completions.create(
+        model=model, messages=messages, temperature=temperature, stream=True
+    )
+    assert isinstance(response, Stream)
+
+    spans = list(tracer.get_spans())
+    assert len(spans) == 1
+    span = spans[0]
+    attributes = span.attributes
+
+    assert span.span_kind is SpanKind.LLM
+    assert span.status_code == SpanStatusCode.OK
+    assert span.end_time is None  # the end time should be None until the stream is consumed
+    assert span.events == []
+    assert attributes[LLM_INPUT_MESSAGES] == [
+        {MESSAGE_ROLE: "user", MESSAGE_CONTENT: "What are the seven wonders of the world?"}
+    ]
+    assert (
+        json.loads(attributes[LLM_INVOCATION_PARAMETERS])
+        == json.loads(attributes[INPUT_VALUE])
+        == {
+            "model": model,
+            "messages": messages,
+            "temperature": temperature,
+            "stream": True,
+        }
+    )
+    assert attributes[INPUT_MIME_TYPE] == MimeType.JSON
+
+    # consume the stream to trigger the span update
+    tokens = []
+    while True:
+        try:
+            chunk = next(response)
+            tokens.append(chunk.choices[0].delta.content)
+        except StopIteration:
+            break
+    response_text = "".join(tokens)
+    assert response_text == expected_response_text
+
+    spans = list(tracer.get_spans())
+    assert len(spans) == 2
+    span = spans[-1]
+    attributes = span.attributes
+
+    assert span.span_kind is SpanKind.LLM
+    assert span.status_code == SpanStatusCode.OK
+    assert isinstance(span.end_time, datetime)
+    assert len(span.events) == len(expected_response_tokens)
+    span_stream_event = span.events[0]
+    assert span_stream_event.attributes[OUTPUT_MIME_TYPE] == MimeType.JSON
+    assert isinstance(span_stream_event.attributes[OUTPUT_VALUE], str)
+
+    assert attributes[LLM_INPUT_MESSAGES] == [
+        {MESSAGE_ROLE: "user", MESSAGE_CONTENT: "What are the seven wonders of the world?"}
+    ]
+    assert (
+        json.loads(attributes[LLM_INVOCATION_PARAMETERS])
+        == json.loads(attributes[INPUT_VALUE])
+        == {
+            "model": model,
+            "messages": messages,
+            "temperature": temperature,
+            "stream": True,
+        }
+    )
+    output_messages = attributes[LLM_OUTPUT_MESSAGES]
+    assert len(output_messages) == 1
+    assert output_messages[0] == {
+        MESSAGE_ROLE: "assistant",
+        MESSAGE_CONTENT: expected_response_text,
+    }
+    assert attributes[INPUT_MIME_TYPE] == MimeType.JSON
+    chunks = json.loads(attributes[OUTPUT_VALUE])
+    assert len(chunks) == len(expected_response_tokens)
+    assert attributes[OUTPUT_MIME_TYPE] == MimeType.JSON
+
+
+def test_openai_instrumentor_sync_streaming_response_updates_span_when_iterated_with_for_loop(
+    sync_client: OpenAI,
+    respx_mock: MockRouter,
+) -> None:
+    tracer = Tracer()
+    OpenAIInstrumentor(tracer).instrument()
+    model = "gpt-4"
+    messages = [{"role": "user", "content": "What are the seven wonders of the world?"}]
+    temperature = 0.23
+    expected_response_tokens = [
+        "",
+        "The",
+        " seven",
+        " wonders",
+        " of",
+        " the",
+        " world",
+        " include",
+        " the",
+        " Great",
+        " Pyramid",
+        " of",
+        " G",
+        "iza",
+        " and",
+        " the",
+        " Hanging",
+        " Gardens",
+        " of",
+        " Babylon",
+        ".",
+        "",
+    ]
+    expected_response_text = "".join(expected_response_tokens)
+    mock_stream = []
+    for token_index, token in enumerate(expected_response_tokens):
+        response_body = {
+            "choices": [
+                {
+                    "delta": {"role": "assistant", "content": token},
+                    "finish_reason": "stop"
+                    if token_index == len(expected_response_text) - 1
+                    else None,
+                    "index": 0,
+                }
+            ],
+        }
+        mock_stream.append(f"data: {json.dumps(response_body)}\n\n".encode("utf-8"))
+    mock_stream.append(b"data: [DONE]\n")
+    url = "https://api.openai.com/v1/chat/completions"
+    respx_mock.post(url).respond(
+        status_code=200,
+        stream=mock_stream,
+    )
+    response = sync_client.chat.completions.create(
+        model=model, messages=messages, temperature=temperature, stream=True
+    )
+    assert isinstance(response, Stream)
+
+    spans = list(tracer.get_spans())
+    assert len(spans) == 1
+    span = spans[0]
+    attributes = span.attributes
+
+    assert span.span_kind is SpanKind.LLM
+    assert span.status_code == SpanStatusCode.OK
+    assert span.end_time is None  # the end time should be None until the stream is consumed
+    assert span.events == []
+    assert attributes[LLM_INPUT_MESSAGES] == [
+        {MESSAGE_ROLE: "user", MESSAGE_CONTENT: "What are the seven wonders of the world?"}
+    ]
+    assert (
+        json.loads(attributes[LLM_INVOCATION_PARAMETERS])
+        == json.loads(attributes[INPUT_VALUE])
+        == {
+            "model": model,
+            "messages": messages,
+            "temperature": temperature,
+            "stream": True,
+        }
+    )
+    assert attributes[INPUT_MIME_TYPE] == MimeType.JSON
+
+    # iterate over the stream to trigger the span update
+    response_text = "".join([chunk.choices[0].delta.content for chunk in response])
+    assert response_text == expected_response_text
+
+    spans = list(tracer.get_spans())
+    assert len(spans) == 2
+    span = spans[-1]
+    attributes = span.attributes
+
+    assert span.span_kind is SpanKind.LLM
+    assert span.status_code == SpanStatusCode.OK
+    assert isinstance(span.end_time, datetime)
+    assert len(span.events) == len(expected_response_tokens)
+    span_stream_event = span.events[0]
+    assert span_stream_event.attributes[OUTPUT_MIME_TYPE] == MimeType.JSON
+    assert isinstance(span_stream_event.attributes[OUTPUT_VALUE], str)
+
+    assert attributes[LLM_INPUT_MESSAGES] == [
+        {MESSAGE_ROLE: "user", MESSAGE_CONTENT: "What are the seven wonders of the world?"}
+    ]
+    assert (
+        json.loads(attributes[LLM_INVOCATION_PARAMETERS])
+        == json.loads(attributes[INPUT_VALUE])
+        == {
+            "model": model,
+            "messages": messages,
+            "temperature": temperature,
+            "stream": True,
+        }
+    )
+    output_messages = attributes[LLM_OUTPUT_MESSAGES]
+    assert len(output_messages) == 1
+    assert output_messages[0] == {
+        MESSAGE_ROLE: "assistant",
+        MESSAGE_CONTENT: expected_response_text,
+    }
+    assert attributes[INPUT_MIME_TYPE] == MimeType.JSON
+    chunks = json.loads(attributes[OUTPUT_VALUE])
+    assert len(chunks) == len(expected_response_tokens)
+    assert attributes[OUTPUT_MIME_TYPE] == MimeType.JSON
+
+
+def test_openai_instrumentor_sync_streaming_response_with_error_midstream_records_exception_event(
+    sync_client: OpenAI,
+    respx_mock: MockRouter,
+) -> None:
+    tracer = Tracer()
+    OpenAIInstrumentor(tracer).instrument()
+    model = "gpt-4"
+    messages = [{"role": "user", "content": "What are the seven wonders of the world?"}]
+    temperature = 0.23
+    response_tokens_before_error = [
+        "",
+        "The",
+        " seven",
+        " wonders",
+        " of",
+        " the",
+        " world",
+        " include",
+    ]
+    response_text_before_error = "".join(response_tokens_before_error)
+
+    def mock_stream() -> Iterator[bytes]:
+        for token in response_tokens_before_error:
+            response_body = {
+                "object": "chat.completion.chunk",
+                "created": 1701722737,
+                "model": "gpt-4-0613",
+                "choices": [
+                    {
+                        "delta": {"role": "assistant", "content": token},
+                        "finish_reason": None,
+                        "index": 0,
+                    }
+                ],
+            }
+            yield f"data: {json.dumps(response_body)}\n\n".encode("utf-8")
+        raise RuntimeError("error-message")
+
+    respx_mock.post("https://api.openai.com/v1/chat/completions").respond(
+        status_code=200,
+        stream=mock_stream(),
+    )
+    response = sync_client.chat.completions.create(
+        model=model, messages=messages, temperature=temperature, stream=True
+    )
+    assert isinstance(response, Stream)
+
+    spans = list(tracer.get_spans())
+    assert len(spans) == 1
+    span = spans[0]
+    attributes = span.attributes
+
+    assert span.span_kind is SpanKind.LLM
+    assert span.status_code == SpanStatusCode.OK
+    assert span.end_time is None  # the end time should be None until the stream is consumed
+    assert span.events == []
+    assert attributes[LLM_INPUT_MESSAGES] == [
+        {MESSAGE_ROLE: "user", MESSAGE_CONTENT: "What are the seven wonders of the world?"}
+    ]
+    assert (
+        json.loads(attributes[LLM_INVOCATION_PARAMETERS])
+        == json.loads(attributes[INPUT_VALUE])
+        == {
+            "model": model,
+            "messages": messages,
+            "temperature": temperature,
+            "stream": True,
+        }
+    )
+    assert attributes[INPUT_MIME_TYPE] == MimeType.JSON
+
+    # iterate over the stream until hitting the RuntimeError
+    tokens = []
+    for _ in range(len(response_tokens_before_error)):
+        chunk = next(response)
+        tokens.append(chunk.choices[0].delta.content)
+    with pytest.raises(RuntimeError, match="error-message"):
+        next(response)
+
+    spans = list(tracer.get_spans())
+    assert len(spans) == 2
+    span = spans[-1]
+    attributes = span.attributes
+
+    assert span.span_kind is SpanKind.LLM
+    assert span.status_code == SpanStatusCode.ERROR
+    assert isinstance(span.end_time, datetime)
+    assert (
+        len(span.events) == len(response_tokens_before_error) + 1
+    )  # there should be an exception event in addition to each span stream event
+    span_stream_event = span.events[0]
+    assert span_stream_event.attributes[OUTPUT_MIME_TYPE] == MimeType.JSON
+    assert isinstance(span_stream_event.attributes[OUTPUT_VALUE], str)
+    span_exception = span.events[-1]
+    assert isinstance(span_exception, SpanException)
+    assert span_exception.attributes[EXCEPTION_TYPE] == "RuntimeError"
+    assert span_exception.attributes[EXCEPTION_MESSAGE] == "error-message"
+    assert "Traceback" in span_exception.attributes[EXCEPTION_STACKTRACE]
+
+    assert attributes[LLM_INPUT_MESSAGES] == [
+        {MESSAGE_ROLE: "user", MESSAGE_CONTENT: "What are the seven wonders of the world?"}
+    ]
+    assert (
+        json.loads(attributes[LLM_INVOCATION_PARAMETERS])
+        == json.loads(attributes[INPUT_VALUE])
+        == {
+            "model": model,
+            "messages": messages,
+            "temperature": temperature,
+            "stream": True,
+        }
+    )
+    output_messages = attributes[LLM_OUTPUT_MESSAGES]
+    assert len(output_messages) == 1
+    assert output_messages[0] == {
+        MESSAGE_ROLE: "assistant",
+        MESSAGE_CONTENT: response_text_before_error,
+    }
+    assert attributes[INPUT_MIME_TYPE] == MimeType.JSON
+    chunks = json.loads(attributes[OUTPUT_VALUE])
+    assert len(chunks) == len(response_tokens_before_error)
+    assert attributes[OUTPUT_MIME_TYPE] == MimeType.JSON
 
 
 async def test_openai_instrumentor_async_includes_llm_attributes_on_chat_completion_success(

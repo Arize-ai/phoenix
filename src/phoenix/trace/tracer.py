@@ -1,5 +1,6 @@
 import logging
 from datetime import datetime
+from threading import RLock
 from typing import Any, Callable, Iterator, List, Optional, Protocol
 from uuid import UUID, uuid4
 
@@ -55,6 +56,7 @@ class Tracer:
         self.span_buffer = []
         self.on_append = on_append
         self._exporter: Optional[SpanExporter] = exporter
+        self._lock = RLock()
         super().__init__(*args, **kwargs)
 
     def create_span(
@@ -102,7 +104,9 @@ class Tracer:
 
         if self._exporter:
             self._exporter.export(span)
-        self.span_buffer.append(span)
+
+        with self._lock:
+            self.span_buffer.append(span)
 
         if self.on_append is not None:
             self.on_append(self.span_buffer)

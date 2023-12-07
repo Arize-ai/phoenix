@@ -177,7 +177,7 @@ def test_callback_streaming_response_produces_correct_result(
     ]
     expected_response = "".join(expected_response_tokens)
     mock_data = []
-    for token in expected_response_tokens:
+    for token_index, token in enumerate(expected_response_tokens):
         response_body = {
             "object": "chat.completion.chunk",
             "created": 1701722737,
@@ -185,7 +185,7 @@ def test_callback_streaming_response_produces_correct_result(
             "choices": [
                 {
                     "delta": {"role": "assistant", "content": token},
-                    "finish_reason": None,
+                    "finish_reason": "stop" if token_index == len(expected_response) - 1 else None,
                 }
             ],
         }
