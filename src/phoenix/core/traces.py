@@ -336,11 +336,11 @@ class Traces:
             self._token_count_total -= existing_span[LLM_TOKEN_COUNT_TOTAL] or 0
         self._token_count_total += new_span[LLM_TOKEN_COUNT_TOTAL] or 0
         # Update number of documents
-        num_documents = len(span.retrieval.documents)
+        num_documents_update = len(span.retrieval.documents)
         if existing_span:
-            num_documents -= len(existing_span.retrieval.documents)
-        if num_documents:
-            self._num_documents[span_id] += num_documents
+            num_documents_update -= len(existing_span.retrieval.documents)
+        if num_documents_update:
+            self._num_documents[span_id] += num_documents_update
         # Process previously orphaned spans, if any.
         for orphan_span in self._orphan_spans.pop(span_id, ()):
             self._process_span(orphan_span)
