@@ -180,7 +180,7 @@ class ChatCompletionContext(ContextManager["ChatCompletionContext"]):
             self._process_chat_completion(response)
         elif isinstance(response, Stream):
             self.end_time = None  # set end time to None to indicate that the stream is still open
-            response = StreamWrapper(stream=response, context=self)
+            return StreamWrapper(stream=response, context=self)
         elif hasattr(response, "parse") and callable(
             response.parse
         ):  # handle raw response by converting them to chat completions
