@@ -363,7 +363,6 @@ function SelectedSpanDetails({ selectedSpan }: { selectedSpan: Span }) {
   const hasExceptions = useMemo<boolean>(() => {
     return spanHasException(selectedSpan);
   }, [selectedSpan]);
-  const evalsEnabled = useFeatureFlag("evals");
   return (
     <Flex direction="column" flex="1 1 auto" height="100%">
       <View
@@ -381,7 +380,6 @@ function SelectedSpanDetails({ selectedSpan }: { selectedSpan: Span }) {
         </TabPane>
         <TabPane
           name={"Evaluations"}
-          hidden={!evalsEnabled}
           extra={
             <Counter variant={"light"}>
               {selectedSpan.spanEvaluations.length}
