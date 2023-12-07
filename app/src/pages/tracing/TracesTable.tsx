@@ -18,7 +18,6 @@ import {
   SortingState,
   useReactTable,
 } from "@tanstack/react-table";
-import { has } from "lodash";
 import { css } from "@emotion/react";
 
 import { Flex, Icon, Icons, View } from "@arizeai/components";
@@ -34,7 +33,6 @@ import { SpanKindLabel } from "@phoenix/components/trace/SpanKindLabel";
 import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon";
 import { ISpanItem } from "@phoenix/components/trace/types";
 import { createSpanTree, SpanTreeNode } from "@phoenix/components/trace/utils";
-import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
 
