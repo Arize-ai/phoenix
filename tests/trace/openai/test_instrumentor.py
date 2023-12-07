@@ -680,6 +680,7 @@ def test_openai_instrumentor_sync_streaming_response_updates_span_when_iterated_
 
     spans = list(tracer.get_spans())
     assert len(spans) == 2
+    assert spans[0].context.span_id == spans[1].context.span_id
     span = spans[-1]
     attributes = span.attributes
 
@@ -688,7 +689,7 @@ def test_openai_instrumentor_sync_streaming_response_updates_span_when_iterated_
     assert isinstance(span.end_time, datetime)
     assert len(span.events) == len(expected_response_tokens)
     span_stream_event = span.events[0]
-    assert span_stream_event.attributes[OUTPUT_MIME_TYPE] == MimeType.JSON
+    assert span_stream_event.attributes[OUTPUT_MIME_TYPE] == MimeType.JSON.value
     assert isinstance(span_stream_event.attributes[OUTPUT_VALUE], str)
 
     assert attributes[LLM_INPUT_MESSAGES] == [
@@ -711,7 +712,7 @@ def test_openai_instrumentor_sync_streaming_response_updates_span_when_iterated_
         MESSAGE_CONTENT: expected_response_text,
     }
     assert attributes[INPUT_MIME_TYPE] == MimeType.JSON
-    chunks = json.loads(attributes[OUTPUT_VALUE])
+    chunks = json.loads(attributes[OUTPUT_VALUE])["chat_completion_chunks"]
     assert len(chunks) == len(expected_response_tokens)
     assert attributes[OUTPUT_MIME_TYPE] == MimeType.JSON
 
@@ -805,6 +806,7 @@ def test_openai_instrumentor_sync_streaming_response_updates_span_when_iterated_
 
     spans = list(tracer.get_spans())
     assert len(spans) == 2
+    assert spans[0].context.span_id == spans[1].context.span_id
     span = spans[-1]
     attributes = span.attributes
 
@@ -813,7 +815,7 @@ def test_openai_instrumentor_sync_streaming_response_updates_span_when_iterated_
     assert isinstance(span.end_time, datetime)
     assert len(span.events) == len(expected_response_tokens)
     span_stream_event = span.events[0]
-    assert span_stream_event.attributes[OUTPUT_MIME_TYPE] == MimeType.JSON
+    assert span_stream_event.attributes[OUTPUT_MIME_TYPE] == MimeType.JSON.value
     assert isinstance(span_stream_event.attributes[OUTPUT_VALUE], str)
 
     assert attributes[LLM_INPUT_MESSAGES] == [
@@ -836,7 +838,7 @@ def test_openai_instrumentor_sync_streaming_response_updates_span_when_iterated_
         MESSAGE_CONTENT: expected_response_text,
     }
     assert attributes[INPUT_MIME_TYPE] == MimeType.JSON
-    chunks = json.loads(attributes[OUTPUT_VALUE])
+    chunks = json.loads(attributes[OUTPUT_VALUE])["chat_completion_chunks"]
     assert len(chunks) == len(expected_response_tokens)
     assert attributes[OUTPUT_MIME_TYPE] == MimeType.JSON
 
@@ -922,6 +924,7 @@ def test_openai_instrumentor_sync_streaming_response_with_error_midstream_record
 
     spans = list(tracer.get_spans())
     assert len(spans) == 2
+    assert spans[0].context.span_id == spans[1].context.span_id
     span = spans[-1]
     attributes = span.attributes
 
@@ -932,7 +935,7 @@ def test_openai_instrumentor_sync_streaming_response_with_error_midstream_record
         len(span.events) == len(response_tokens_before_error) + 1
     )  # there should be an exception event in addition to each span stream event
     span_stream_event = span.events[0]
-    assert span_stream_event.attributes[OUTPUT_MIME_TYPE] == MimeType.JSON
+    assert span_stream_event.attributes[OUTPUT_MIME_TYPE] == MimeType.JSON.value
     assert isinstance(span_stream_event.attributes[OUTPUT_VALUE], str)
     span_exception = span.events[-1]
     assert isinstance(span_exception, SpanException)
@@ -960,7 +963,7 @@ def test_openai_instrumentor_sync_streaming_response_with_error_midstream_record
         MESSAGE_CONTENT: response_text_before_error,
     }
     assert attributes[INPUT_MIME_TYPE] == MimeType.JSON
-    chunks = json.loads(attributes[OUTPUT_VALUE])
+    chunks = json.loads(attributes[OUTPUT_VALUE])["chat_completion_chunks"]
     assert len(chunks) == len(response_tokens_before_error)
     assert attributes[OUTPUT_MIME_TYPE] == MimeType.JSON
 

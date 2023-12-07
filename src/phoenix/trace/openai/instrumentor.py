@@ -31,6 +31,7 @@ from phoenix.trace.schemas import (
     SpanAttributes,
     SpanEvent,
     SpanException,
+    SpanID,
     SpanKind,
     SpanStatusCode,
 )
@@ -136,6 +137,7 @@ class ChatCompletionContext(ContextManager["ChatCompletionContext"]):
         parameters = _parameters(bound_arguments)
         self.num_choices = parameters.get("n", 1)
         self._process_parameters(parameters)
+        self._span_id: Optional[SpanID] = None
 
     def __enter__(self) -> "ChatCompletionContext":
         self.start_time = datetime.now(tz=timezone.utc)
@@ -188,7 +190,7 @@ class ChatCompletionContext(ContextManager["ChatCompletionContext"]):
         """
         Creates a span from the context.
         """
-        self.tracer.create_span(
+        span = self.tracer.create_span(
             name="OpenAI Chat Completion",
             span_kind=SpanKind.LLM,
             start_time=cast(datetime, self.start_time),
@@ -197,7 +199,9 @@ class ChatCompletionContext(ContextManager["ChatCompletionContext"]):
             status_message=self.status_message,
             attributes=self.attributes,
             events=self.events,
+            span_id=self._span_id,
         )
+        self._span_id = span.context.span_id
 
     def _process_chat_completion(self, chat_completion: ChatCompletion) -> None:
         """
@@ -290,7 +294,9 @@ class StreamWrapper(ObjectProxy):  # type: ignore
                     LLM_OUTPUT_MESSAGES: _accumulate_messages(
                         chunks=self._self_chunks, num_choices=self._self_context.num_choices
                     ),  # type: ignore
-                    OUTPUT_VALUE: json.dumps([chunk.json() for chunk in self._self_chunks]),
+                    OUTPUT_VALUE: json.dumps(
+                        {"chat_completion_chunks": [chunk.dict() for chunk in self._self_chunks]}
+                    ),
                     OUTPUT_MIME_TYPE: MimeType.JSON,  # type: ignore
                 }
                 self._self_context.create_span()
@@ -545,7 +551,7 @@ def _span_stream_event(chat_completion_chunk: ChatCompletionChunk) -> SpanEvent:
         timestamp=datetime.now(tz=timezone.utc),
         attributes={
             OUTPUT_VALUE: chat_completion_chunk.json(),
-            OUTPUT_MIME_TYPE: MimeType.JSON,  # type: ignore
+            OUTPUT_MIME_TYPE: MimeType.JSON.value,
         },
     )
 
