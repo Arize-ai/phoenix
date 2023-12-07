@@ -297,9 +297,7 @@ class StreamWrapper(ObjectProxy):  # type: ignore
                     LLM_OUTPUT_MESSAGES: _accumulate_messages(
                         chunks=self._self_chunks, num_choices=self._self_context.num_choices
                     ),  # type: ignore
-                    OUTPUT_VALUE: json.dumps(
-                        {"chat_completion_chunks": [chunk.dict() for chunk in self._self_chunks]}
-                    ),
+                    OUTPUT_VALUE: json.dumps([chunk.dict() for chunk in self._self_chunks]),
                     OUTPUT_MIME_TYPE: MimeType.JSON,  # type: ignore
                 }
                 self._self_context.create_span()

@@ -688,7 +688,7 @@ def test_openai_instrumentor_sync_streaming_response_updates_span_when_iterated_
         MESSAGE_CONTENT: expected_response_text,
     }
     assert attributes[INPUT_MIME_TYPE] == MimeType.JSON
-    chunks = json.loads(attributes[OUTPUT_VALUE])["chat_completion_chunks"]
+    chunks = json.loads(attributes[OUTPUT_VALUE])
     assert len(chunks) == len(expected_response_tokens)
     assert attributes[OUTPUT_MIME_TYPE] == MimeType.JSON
 
@@ -790,7 +790,7 @@ def test_openai_instrumentor_sync_streaming_response_updates_span_when_iterated_
         MESSAGE_CONTENT: expected_response_text,
     }
     assert attributes[INPUT_MIME_TYPE] == MimeType.JSON
-    chunks = json.loads(attributes[OUTPUT_VALUE])["chat_completion_chunks"]
+    chunks = json.loads(attributes[OUTPUT_VALUE])
     assert len(chunks) == len(expected_response_tokens)
     assert attributes[OUTPUT_MIME_TYPE] == MimeType.JSON
 
@@ -889,7 +889,7 @@ def test_openai_instrumentor_sync_streaming_response_with_error_midstream_record
         MESSAGE_CONTENT: response_text_before_error,
     }
     assert attributes[INPUT_MIME_TYPE] == MimeType.JSON
-    chunks = json.loads(attributes[OUTPUT_VALUE])["chat_completion_chunks"]
+    chunks = json.loads(attributes[OUTPUT_VALUE])
     assert len(chunks) == len(response_tokens_before_error)
     assert attributes[OUTPUT_MIME_TYPE] == MimeType.JSON
 
