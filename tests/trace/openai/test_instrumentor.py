@@ -894,6 +894,79 @@ def test_openai_instrumentor_sync_streaming_response_with_error_midstream_record
     assert attributes[OUTPUT_MIME_TYPE] == MimeType.JSON
 
 
+def test_openai_instrumentor_sync_streaming_creates_span_only_once(
+    sync_client: OpenAI,
+    respx_mock: MockRouter,
+) -> None:
+    tracer = Tracer()
+    OpenAIInstrumentor(tracer).instrument()
+    model = "gpt-4"
+    messages = [{"role": "user", "content": "What are the seven wonders of the world?"}]
+    temperature = 0.23
+    expected_response_tokens = [
+        "",
+        "The",
+        " seven",
+        " wonders",
+        " of",
+        " the",
+        " world",
+        " include",
+        " the",
+        " Great",
+        " Pyramid",
+        " of",
+        " G",
+        "iza",
+        " and",
+        " the",
+        " Hanging",
+        " Gardens",
+        " of",
+        " Babylon",
+        ".",
+        "",
+    ]
+    expected_response_text = "".join(expected_response_tokens)
+    mock_stream = []
+    for token_index, token in enumerate(expected_response_tokens):
+        response_body = {
+            "choices": [
+                {
+                    "delta": {"role": "assistant", "content": token},
+                    "finish_reason": "stop"
+                    if token_index == len(expected_response_text) - 1
+                    else None,
+                    "index": 0,
+                }
+            ],
+        }
+        mock_stream.append(f"data: {json.dumps(response_body)}\n\n".encode("utf-8"))
+    mock_stream.append(b"data: [DONE]\n")
+    url = "https://api.openai.com/v1/chat/completions"
+    respx_mock.post(url).respond(
+        status_code=200,
+        stream=mock_stream,
+    )
+    response = sync_client.chat.completions.create(
+        model=model, messages=messages, temperature=temperature, stream=True
+    )
+    spans = list(tracer.get_spans())
+    assert len(spans) == 0
+
+    # iterate over the stream to trigger span creation
+    for _ in response:
+        pass
+    spans = list(tracer.get_spans())
+    assert len(spans) == 1
+
+    # ensure that further attempts to iterate over the exhausted stream do not create new spans
+    with pytest.raises(StopIteration):
+        next(response)
+    spans = list(tracer.get_spans())
+    assert len(spans) == 1
+
+
 async def test_openai_instrumentor_async_includes_llm_attributes_on_chat_completion_success(
     async_client: AsyncOpenAI,
     respx_mock: MockRouter,
