@@ -135,20 +135,30 @@ class Span(google.protobuf.message.Message):
     class IOValue(google.protobuf.message.Message):
         DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
-        STRING_VALUE_FIELD_NUMBER: builtins.int
-        JSON_VALUE_FIELD_NUMBER: builtins.int
-        string_value: builtins.str
-        @property
-        def json_value(self) -> google.protobuf.struct_pb2.Struct: ...
+        class _MimeType:
+            ValueType = typing.NewType("ValueType", builtins.int)
+            V: typing_extensions.TypeAlias = ValueType
+
+        class _MimeTypeEnumTypeWrapper(google.protobuf.internal.enum_type_wrapper._EnumTypeWrapper[Span.IOValue._MimeType.ValueType], builtins.type):
+            DESCRIPTOR: google.protobuf.descriptor.EnumDescriptor
+            STRING: Span.IOValue._MimeType.ValueType  # 0
+            JSON: Span.IOValue._MimeType.ValueType  # 1
+
+        class MimeType(_MimeType, metaclass=_MimeTypeEnumTypeWrapper): ...
+        STRING: Span.IOValue.MimeType.ValueType  # 0
+        JSON: Span.IOValue.MimeType.ValueType  # 1
+
+        VALUE_FIELD_NUMBER: builtins.int
+        MIME_TYPE_FIELD_NUMBER: builtins.int
+        value: builtins.str
+        mime_type: global___Span.IOValue.MimeType.ValueType
         def __init__(
             self,
             *,
-            string_value: builtins.str = ...,
-            json_value: google.protobuf.struct_pb2.Struct | None = ...,
+            value: builtins.str = ...,
+            mime_type: global___Span.IOValue.MimeType.ValueType = ...,
         ) -> None: ...
-        def HasField(self, field_name: typing_extensions.Literal["json_value", b"json_value", "kind", b"kind", "string_value", b"string_value"]) -> builtins.bool: ...
-        def ClearField(self, field_name: typing_extensions.Literal["json_value", b"json_value", "kind", b"kind", "string_value", b"string_value"]) -> None: ...
-        def WhichOneof(self, oneof_group: typing_extensions.Literal["kind", b"kind"]) -> typing_extensions.Literal["string_value", "json_value"] | None: ...
+        def ClearField(self, field_name: typing_extensions.Literal["mime_type", b"mime_type", "value", b"value"]) -> None: ...
 
     ATTRIBUTES_FIELD_NUMBER: builtins.int
     CONTEXT_FIELD_NUMBER: builtins.int

@@ -95,7 +95,7 @@ def test_pb_span_encode_decode():
             "0": {"1": [[], 2.0, {"3": [{"4": [5.0, ["6"], 7.0]}, 8.0, [{}], {"9": [10.0]}]}]},
             INPUT_VALUE: "abc",
             OUTPUT_VALUE: json.dumps(
-                {"1": [[], 2.0, {"3": [{"4": [5.0, ["6"], 7.0]}, 8.0, [{}]]}]}
+                [{"1": [[], 2.0, {"3": [{"4": [5.0, ["6"], 7.0]}, 8.0, [{}]]}]}]
             ),
             OUTPUT_MIME_TYPE: MimeType.JSON,
             RETRIEVAL_DOCUMENTS: [
@@ -170,8 +170,11 @@ def test_pb_span_encode_decode():
         "attributes": {
             "0": {"1": [[], 2.0, {"3": [{"4": [5.0, ["6"], 7.0]}, 8.0, [{}], {"9": [10.0]}]}]}
         },
-        "input": {"stringValue": "abc"},
-        "output": {"jsonValue": {"1": [[], 2.0, {"3": [{"4": [5.0, ["6"], 7.0]}, 8.0, [{}]]}]}},
+        "input": {"value": "abc"},
+        "output": {
+            "value": json.dumps([{"1": [[], 2.0, {"3": [{"4": [5.0, ["6"], 7.0]}, 8.0, [{}]]}]}]),
+            "mime_type": 1,
+        },
         "kind": "TOOL",
         "retrieval": {
             "documents": [
