@@ -270,8 +270,15 @@ class StreamWrapper(ObjectProxy):  # type: ignore
         finished_streaming = False
         try:
             chat_completion_chunk = next(self.__wrapped__)
+            if not self._self_chunks:
+                self._self_context.events.append(
+                    SpanEvent(
+                        name="First Token Event",
+                        timestamp=datetime.now(tz=timezone.utc),
+                        attributes={},
+                    )
+                )
             self._self_chunks.append(chat_completion_chunk)
-            self._self_context.events.append(_span_stream_event(chat_completion_chunk))
             return cast(ChatCompletionChunk, chat_completion_chunk)
         except StopIteration:
             finished_streaming = True
@@ -544,20 +551,6 @@ def _parameters(bound_arguments: BoundArguments) -> Parameters:
         Parameters: The parameters to the request function.
     """
     return cast(Parameters, bound_arguments.arguments["options"].json_data)
-
-
-def _span_stream_event(chat_completion_chunk: ChatCompletionChunk) -> SpanEvent:
-    """
-    Converts a chat completion chunk to a span stream event.
-    """
-    return SpanEvent(
-        name="OpenAI Chat Completion Stream Event",
-        timestamp=datetime.now(tz=timezone.utc),
-        attributes={
-            OUTPUT_VALUE: chat_completion_chunk.json(),
-            OUTPUT_MIME_TYPE: MimeType.JSON.value,
-        },
-    )
 
 
 def _accumulate_messages(

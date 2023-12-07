@@ -688,10 +688,9 @@ def test_openai_instrumentor_sync_streaming_response_updates_span_when_iterated_
     assert span.span_kind is SpanKind.LLM
     assert span.status_code == SpanStatusCode.OK
     assert isinstance(span.end_time, datetime)
-    assert len(span.events) == len(expected_response_tokens)
-    span_stream_event = span.events[0]
-    assert span_stream_event.attributes[OUTPUT_MIME_TYPE] == MimeType.JSON.value
-    assert isinstance(span_stream_event.attributes[OUTPUT_VALUE], str)
+    assert len(span.events) == 1
+    first_token_event = span.events[0]
+    assert "first token" in first_token_event.name.lower()
 
     assert attributes[LLM_INPUT_MESSAGES] == [
         {MESSAGE_ROLE: "user", MESSAGE_CONTENT: "What are the seven wonders of the world?"}
@@ -815,10 +814,9 @@ def test_openai_instrumentor_sync_streaming_response_updates_span_when_iterated_
     assert span.span_kind is SpanKind.LLM
     assert span.status_code == SpanStatusCode.OK
     assert isinstance(span.end_time, datetime)
-    assert len(span.events) == len(expected_response_tokens)
-    span_stream_event = span.events[0]
-    assert span_stream_event.attributes[OUTPUT_MIME_TYPE] == MimeType.JSON.value
-    assert isinstance(span_stream_event.attributes[OUTPUT_VALUE], str)
+    assert len(span.events) == 1
+    first_token_event = span.events[0]
+    assert "first token" in first_token_event.name.lower()
 
     assert attributes[LLM_INPUT_MESSAGES] == [
         {MESSAGE_ROLE: "user", MESSAGE_CONTENT: "What are the seven wonders of the world?"}
@@ -934,12 +932,9 @@ def test_openai_instrumentor_sync_streaming_response_with_error_midstream_record
     assert span.span_kind is SpanKind.LLM
     assert span.status_code == SpanStatusCode.ERROR
     assert isinstance(span.end_time, datetime)
-    assert (
-        len(span.events) == len(response_tokens_before_error) + 1
-    )  # there should be an exception event in addition to each span stream event
-    span_stream_event = span.events[0]
-    assert span_stream_event.attributes[OUTPUT_MIME_TYPE] == MimeType.JSON.value
-    assert isinstance(span_stream_event.attributes[OUTPUT_VALUE], str)
+    assert len(span.events) == 2
+    first_token_event = span.events[0]
+    assert "first token" in first_token_event.name.lower()
     span_exception = span.events[-1]
     assert isinstance(span_exception, SpanException)
     assert span_exception.attributes[EXCEPTION_TYPE] == "RuntimeError"
