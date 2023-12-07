@@ -44,7 +44,7 @@ message Span {
   message IOValue {
     string value = 1;
     enum MimeType {
-      STRING = 0;
+      TEXT = 0;
       JSON = 1;
     }
     MimeType mime_type = 2;
