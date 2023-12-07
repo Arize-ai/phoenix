@@ -262,7 +262,7 @@ class Traces:
     def _process_span(self, span: pb.Span) -> None:
         span_id = SpanID(span.context.span_id)
         existing_span = self._spans.get(span_id)
-        if existing_span and existing_span.end_time:
+        if existing_span and existing_span.HasField("end_time"):
             # Reject updates if span has ended.
             return
         is_root_span = not span.HasField("parent_span_id")
