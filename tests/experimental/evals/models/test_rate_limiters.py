@@ -282,6 +282,30 @@ def test_token_bucket_does_not_increase_rate_past_maximum():
         assert isclose(bucket.rate, rate * 2)
 
 
+def test_token_bucket_resets_rate_after_inactivity():
+    start = time.time()
+
+    with freeze_time(start):
+        rate = 0.1
+        bucket = AdaptiveTokenBucket(
+            initial_per_second_request_rate=rate,
+            maximum_per_second_request_rate=rate * 2,
+            enforcement_window_minutes=1,
+            rate_reduction_factor=1,
+            rate_increase_factor=100,
+            cooldown_seconds=5,
+        )
+
+    with warp_time(start + 5):
+        assert bucket.available_requests() == 0.5, "should have accumulated half a request"
+        bucket.wait_until_ready()
+        assert isclose(bucket.rate, rate * 2)
+
+    with warp_time(start + 100):
+        bucket.wait_until_ready()
+        assert isclose(bucket.rate, rate)
+
+
 def test_token_bucket_decreases_rate():
     start = time.time()
 
@@ -321,35 +345,10 @@ def test_token_bucket_decreases_rate_once_per_cooldown_period():
         bucket.on_rate_limit_error(request_start_time=time.time())
         assert isclose(bucket.rate, 25), "3 seconds is still within the cooldown period"
 
+    with warp_time(start - 6):
+        bucket.on_rate_limit_error(request_start_time=time.time())
+        assert isclose(bucket.rate, 25), "requests before the rate limited request are ignored"
+
     with warp_time(start + 6):
-        # mock "available_requests" to simulate full usage
-        mock_available_requests = mock.MagicMock()
-        mock_available_requests.return_value = 0
-        bucket.available_requests = mock_available_requests
         bucket.on_rate_limit_error(request_start_time=time.time())
         assert isclose(bucket.rate, 6.25)
-
-
-def test_token_bucket_decreases_rate_depending_on_usage():
-    start = time.time()
-
-    with warp_time(start):
-        rate = 100
-        bucket = AdaptiveTokenBucket(
-            initial_per_second_request_rate=rate,
-            maximum_per_second_request_rate=rate * 2,
-            enforcement_window_minutes=1,
-            rate_reduction_factor=0.25,
-            rate_increase_factor=0.01,
-            cooldown_seconds=5,
-        )
-        # mock "available_requests" to simulate actual usage
-        mock_available_requests = mock.MagicMock()
-        mock_available_requests.return_value = rate * 30
-        bucket.available_requests = mock_available_requests
-
-        effective_rate = rate * 30 / 60
-        expected_rate = effective_rate * 0.25
-
-        bucket.on_rate_limit_error(request_start_time=time.time())
-        assert isclose(bucket.rate, expected_rate)
