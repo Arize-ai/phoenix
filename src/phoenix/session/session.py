@@ -29,7 +29,7 @@ from phoenix.pointcloud.umap_parameters import get_umap_parameters
 from phoenix.server.app import create_app
 from phoenix.server.thread_server import ThreadServer
 from phoenix.services import AppService
-from phoenix.trace.filter import SpanFilter
+from phoenix.trace.dsl import SpanFilter
 from phoenix.trace.span_json_encoder import span_to_json
 from phoenix.trace.trace_dataset import TraceDataset
 
