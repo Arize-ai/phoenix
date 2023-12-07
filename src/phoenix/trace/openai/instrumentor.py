@@ -265,7 +265,7 @@ class StreamWrapper(ObjectProxy):  # type: ignore
             if not self._self_chunks:
                 self._self_context.events.append(
                     SpanEvent(
-                        name="First Token Event",
+                        name="First Token Stream Event",
                         timestamp=datetime.now(tz=timezone.utc),
                         attributes={},
                     )
