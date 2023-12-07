@@ -136,7 +136,9 @@ class ChatCompletionContext(ContextManager["ChatCompletionContext"]):
         self.status_message = ""
         self.events: List[SpanEvent] = []
         self.attributes: SpanAttributes = dict()
-        self._process_parameters(_parameters(bound_arguments))
+        parameters = _parameters(bound_arguments)
+        self.num_choices = parameters.get("n", 1)
+        self._process_parameters(parameters)
 
     def __enter__(self) -> "ChatCompletionContext":
         self.start_time = datetime.now()
@@ -312,7 +314,9 @@ class StreamWrapper(ObjectProxy):  # type: ignore
                     span,
                     attributes={
                         **span.attributes,
-                        LLM_OUTPUT_MESSAGES: _accumulate_messages(self._self_chunks),  # type: ignore
+                        LLM_OUTPUT_MESSAGES: _accumulate_messages(
+                            chunks=self._self_chunks, num_choices=self._self_context.num_choices
+                        ),  # type: ignore
                         OUTPUT_VALUE: json.dumps([chunk.json() for chunk in self._self_chunks]),
                         OUTPUT_MIME_TYPE: MimeType.JSON,  # type: ignore
                     },
@@ -576,19 +580,28 @@ def _span_stream_event(chat_completion_chunk: ChatCompletionChunk) -> SpanEvent:
     )
 
 
-def _accumulate_messages(chunks: List[ChatCompletionChunk]) -> List[OpenInferenceMessage]:
+def _accumulate_messages(
+    chunks: List[ChatCompletionChunk], num_choices: int
+) -> List[OpenInferenceMessage]:
     """
     Converts a list of chat completion chunks to a list of OpenInference messages.
+
+    Args:
+        chunks (List[ChatCompletionChunk]): The input chunks to be converted.
+
+        num_choices (int): The number of choices in the chat completion (i.e.,
+        the parameter `n` in the input parameters).
+
+    Returns:
+        List[OpenInferenceMessage]: The list of OpenInference messages.
     """
     if not chunks:
         return []
     tokens: DefaultDict[int, List[str]] = defaultdict(list)
     roles: DefaultDict[int, str] = defaultdict()
-    num_choices = -1
     for chunk in chunks:
         for choice in chunk.choices:
             choice_index = choice.index
-            num_choices = max(num_choices, choice_index + 1)
             if content := choice.delta.content:
                 tokens[choice_index].append(content)
             if role := choice.delta.role:
