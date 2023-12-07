@@ -42,10 +42,12 @@ message Span {
   }
   repeated Exception exceptions = 9;
   message IOValue {
-    oneof kind {
-      string string_value = 1;
-      google.protobuf.Struct json_value = 2;
+    string value = 1;
+    enum MimeType {
+      STRING = 0;
+      JSON = 1;
     }
+    MimeType mime_type = 2;
   }
   IOValue input = 10;
   IOValue output = 11;
