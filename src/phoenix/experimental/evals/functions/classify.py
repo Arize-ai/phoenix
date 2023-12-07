@@ -103,12 +103,16 @@ class AsyncExecutor:
         self,
         inputs: Sequence[Any],
         queue: asyncio.Queue[Tuple[int, Any]],
+        max_fill: int,
         done_producing: asyncio.Event,
     ) -> None:
         try:
             for index, input in enumerate(inputs):
                 if self._TERMINATE.is_set():
                     break
+                while queue.qsize() >= max_fill:
+                    # keep room in the queue for requeues
+                    await asyncio.sleep(1)
                 await queue.put((index, input))
         finally:
             done_producing.set()
@@ -141,7 +145,7 @@ class AsyncExecutor:
                 termination_signal_task = asyncio.create_task(self._TERMINATE.wait())
                 done, pending = await asyncio.wait(
                     [generate_task, termination_signal_task],
-                    timeout=60,
+                    timeout=120,
                     return_when=asyncio.FIRST_COMPLETED,
                 )
                 if generate_task in done:
@@ -161,7 +165,7 @@ class AsyncExecutor:
                     marked_done = True
                     continue
                 else:
-                    tqdm.write(f"Worker timeout, requeuing: {payload}")
+                    tqdm.write("Worker timeout, requeuing")
                     await queue.put(item)
             except Exception:
                 tqdm.write(f"Exception in worker: {traceback.format_exc()}")
@@ -180,10 +184,12 @@ class AsyncExecutor:
         outputs = [self.fallback_return_value] * len(inputs)
         progress_bar = tqdm(total=len(inputs), bar_format=self.tqdm_bar_format)
 
-        queue: asyncio.Queue[Tuple[int, Any]] = asyncio.Queue(maxsize=2 * self.concurrency)
+        max_queue_size = 5 * self.concurrency  # limit the queue to bound memory usage
+        max_fill = max_queue_size - (2 * self.concurrency)  # ensure there is always room to requeue
+        queue: asyncio.Queue[Tuple[int, Any]] = asyncio.Queue(maxsize=max_queue_size)
         done_producing = asyncio.Event()
 
-        producer = asyncio.create_task(self.producer(inputs, queue, done_producing))
+        producer = asyncio.create_task(self.producer(inputs, queue, max_fill, done_producing))
         consumers = [
             asyncio.create_task(self.consumer(outputs, queue, done_producing, progress_bar))
             for _ in range(self.concurrency)

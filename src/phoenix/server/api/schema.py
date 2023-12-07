@@ -11,6 +11,7 @@ from strawberry import ID, UNSET
 from strawberry.types import Info
 from typing_extensions import Annotated
 
+from phoenix.metrics.retrieval_metrics import RetrievalMetrics
 from phoenix.pointcloud.clustering import Hdbscan
 from phoenix.server.api.helpers import ensure_list
 from phoenix.server.api.input_types.ClusterInput import ClusterInput
@@ -20,10 +21,9 @@ from phoenix.server.api.input_types.Coordinates import (
 )
 from phoenix.server.api.input_types.SpanSort import SpanSort
 from phoenix.server.api.types.Cluster import Cluster, to_gql_clusters
+from phoenix.trace.filter import SpanFilter
+from phoenix.trace.schemas import SpanID
 
-from ...metrics.retrieval_metrics import RetrievalMetrics
-from ...trace.filter import SpanFilter
-from ...trace.schemas import SpanID
 from .context import Context
 from .input_types.TimeRange import TimeRange
 from .types.DatasetInfo import TraceDatasetInfo
