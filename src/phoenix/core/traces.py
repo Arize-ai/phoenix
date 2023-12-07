@@ -1,5 +1,6 @@
 import weakref
 from collections import defaultdict
+from dataclasses import replace
 from datetime import datetime, timezone
 from enum import Enum
 from queue import SimpleQueue
@@ -31,7 +32,6 @@ from phoenix.trace.schemas import (
     COMPUTED_PREFIX,
     CONTEXT_PREFIX,
     Span,
-    SpanAttributes,
     SpanID,
     TraceID,
 )
@@ -77,15 +77,21 @@ class ReadableSpan(ObjectProxy):  # type: ignore
 
     def __init__(self, span: pb.Span) -> None:
         super().__init__(span)
+        self._self_span = decode(span)
         self._self_computed_values: Dict[str, SupportsFloat] = {}
 
     @property
     def span(self) -> Span:
-        span = decode(self.__wrapped__)
-        span.attributes.update(cast(SpanAttributes, self._self_computed_values))
         # TODO: compute latency rank percent (which can change depending on how
         # many spans already ingested).
-        return span
+        span = self._self_span
+        return replace(
+            span,
+            attributes={
+                **span.attributes,
+                **self._self_computed_values,
+            },
+        )
 
     def __getitem__(self, key: str) -> Any:
         if key.startswith(COMPUTED_PREFIX):

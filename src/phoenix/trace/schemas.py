@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional
 from uuid import UUID
 
 from phoenix.trace.semantic_conventions import (
@@ -56,9 +56,7 @@ class SpanKind(Enum):
 
 TraceID = UUID
 SpanID = UUID
-AttributePrimitiveValue = Union[str, bool, float, int]
-AttributeValue = Union[AttributePrimitiveValue, List[AttributePrimitiveValue]]
-SpanAttributes = Dict[str, AttributeValue]
+SpanAttributes = Dict[str, Any]
 
 
 @dataclass(frozen=True)
