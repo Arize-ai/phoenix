@@ -4,6 +4,7 @@ from typing import Any, Iterable, Iterator, Optional, Protocol
 
 import pandas as pd
 import strawberry
+from strawberry import UNSET
 from typing_extensions import assert_never
 
 import phoenix.trace.v1 as pb
@@ -52,8 +53,8 @@ class SupportsGetSpanEvaluation(Protocol):
     "specify one and only one of either `col` or `evalResultKey`."
 )
 class SpanSort:
-    col: Optional[SpanColumn] = None
-    eval_result_key: Optional[EvalResultKey] = None
+    col: Optional[SpanColumn] = UNSET
+    eval_result_key: Optional[EvalResultKey] = UNSET
     dir: SortDir
 
     def __call__(
@@ -64,7 +65,7 @@ class SpanSort:
         """
         Sorts the spans by the given key (column or eval) and direction
         """
-        if self.eval_result_key is not None:
+        if self.eval_result_key:
             get_sort_key_value = partial(
                 _get_eval_result_value,
                 eval_name=self.eval_result_key.name,
