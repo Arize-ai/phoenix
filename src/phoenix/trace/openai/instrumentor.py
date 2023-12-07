@@ -1,6 +1,5 @@
 import json
 from collections import defaultdict
-from dataclasses import replace
 from datetime import datetime, timezone
 from enum import Enum
 from inspect import BoundArguments, signature
@@ -29,7 +28,6 @@ from typing_extensions import ParamSpec
 from wrapt import ObjectProxy
 
 from phoenix.trace.schemas import (
-    Span,
     SpanAttributes,
     SpanEvent,
     SpanException,
@@ -129,7 +127,6 @@ class ChatCompletionContext(ContextManager["ChatCompletionContext"]):
             tracer (Tracer): The tracer to use to create spans.
         """
         self.tracer = tracer
-        self._span: Optional[Span] = None
         self.start_time: Optional[datetime] = None
         self.end_time: Optional[datetime] = None
         self.status_code = SpanStatusCode.UNSET
@@ -164,7 +161,7 @@ class ChatCompletionContext(ContextManager["ChatCompletionContext"]):
                 exception_stacktrace=get_stacktrace(exc_value),
             )
         )
-        self._create_span()
+        self.create_span()
 
     def process_response(self, response: Any) -> Any:
         """
@@ -184,8 +181,23 @@ class ChatCompletionContext(ContextManager["ChatCompletionContext"]):
             response.parse
         ):  # handle raw response by converting them to chat completions
             self._process_chat_completion(response.parse())
-        self._create_span()
+        self.create_span()
         return response
+
+    def create_span(self) -> None:
+        """
+        Creates a span from the context.
+        """
+        self.tracer.create_span(
+            name="OpenAI Chat Completion",
+            span_kind=SpanKind.LLM,
+            start_time=cast(datetime, self.start_time),
+            end_time=self.end_time,
+            status_code=self.status_code,
+            status_message=self.status_message,
+            attributes=self.attributes,
+            events=self.events,
+        )
 
     def _process_chat_completion(self, chat_completion: ChatCompletion) -> None:
         """
@@ -217,30 +229,6 @@ class ChatCompletionContext(ContextManager["ChatCompletionContext"]):
         ) in _PARAMETER_ATTRIBUTE_FUNCTIONS.items():
             if (attribute_value := get_parameter_attribute_fn(parameters)) is not None:
                 self.attributes[attribute_name] = attribute_value
-
-    def _create_span(self) -> None:
-        """
-        Creates a span from the context.
-        """
-        self._span = self.tracer.create_span(
-            name="OpenAI Chat Completion",
-            span_kind=SpanKind.LLM,
-            start_time=cast(datetime, self.start_time),
-            end_time=self.end_time,
-            status_code=self.status_code,
-            status_message=self.status_message,
-            attributes=self.attributes,
-            events=self.events,
-        )
-
-    @property
-    def span(self) -> Span:
-        """
-        Returns the span created by the context, if it exists.
-        """
-        if self._span is None:
-            raise ValueError("Span has not been created yet.")
-        return self._span
 
 
 class StreamWrapper(ObjectProxy):  # type: ignore
@@ -296,22 +284,16 @@ class StreamWrapper(ObjectProxy):  # type: ignore
             raise
         finally:
             if finished_streaming:
-                span = self._self_context.span
-                span = replace(
-                    span,
-                    attributes={
-                        **span.attributes,
-                        LLM_OUTPUT_MESSAGES: _accumulate_messages(
-                            chunks=self._self_chunks, num_choices=self._self_context.num_choices
-                        ),  # type: ignore
-                        OUTPUT_VALUE: json.dumps([chunk.json() for chunk in self._self_chunks]),
-                        OUTPUT_MIME_TYPE: MimeType.JSON,  # type: ignore
-                    },
-                    status_code=self._self_context.status_code,
-                    events=span.events,
-                    end_time=datetime.now(tz=timezone.utc),
-                )
-                self._self_context.tracer.add_span(span)
+                self._self_context.end_time = datetime.now(tz=timezone.utc)
+                self._self_context.attributes = {
+                    **self._self_context.attributes,
+                    LLM_OUTPUT_MESSAGES: _accumulate_messages(
+                        chunks=self._self_chunks, num_choices=self._self_context.num_choices
+                    ),  # type: ignore
+                    OUTPUT_VALUE: json.dumps([chunk.json() for chunk in self._self_chunks]),
+                    OUTPUT_MIME_TYPE: MimeType.JSON,  # type: ignore
+                }
+                self._self_context.create_span()
 
     def __iter__(self) -> Iterator[ChatCompletionChunk]:
         """

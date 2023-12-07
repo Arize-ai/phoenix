@@ -102,16 +102,6 @@ class Tracer:
             conversation=conversation,
         )
 
-        self.add_span(span)
-
-        return span
-
-    def add_span(self, span: Span) -> None:
-        """Adds a span to the tracer.
-
-        Args:
-            span (Span): The span to be add to the tracer.
-        """
         if self._exporter:
             self._exporter.export(span)
 
@@ -120,6 +110,7 @@ class Tracer:
 
         if self.on_append is not None:
             self.on_append(self.span_buffer)
+        return span
 
     def get_spans(self) -> Iterator[Span]:
         """
