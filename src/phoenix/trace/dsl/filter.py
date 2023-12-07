@@ -1,5 +1,6 @@
 import ast
 import sys
+from dataclasses import dataclass, field
 from difflib import SequenceMatcher
 from typing import (
     Any,
@@ -18,6 +19,7 @@ from typing_extensions import TypeGuard
 import phoenix.trace.v1 as pb
 from phoenix.core.traces import ComputedAttributes
 from phoenix.trace import semantic_conventions
+from phoenix.trace.dsl.missing import MISSING
 from phoenix.trace.schemas import COMPUTED_PREFIX, Span, SpanID
 
 _VALID_EVAL_ATTRIBUTES: Tuple[str, ...] = tuple(
@@ -30,27 +32,35 @@ class SupportsGetSpanEvaluation(Protocol):
         ...
 
 
+@dataclass(frozen=True)
 class SpanFilter:
-    def __init__(
-        self,
-        condition: str,
-        evals: Optional[SupportsGetSpanEvaluation] = None,
-        valid_eval_names: Optional[Sequence[str]] = None,
-    ) -> None:
-        self._missing = _Missing()
-        self._evals = evals or self._missing
-        self._root = ast.parse(condition, mode="eval")
-        _validate_expression(self._root, condition, valid_eval_names=valid_eval_names)
-        self._translated = _Translator(condition).visit(self._root)
-        ast.fix_missing_locations(self._translated)
-        self._compiled = compile(self._translated, filename="", mode="eval")
+    condition: str = ""
+    evals: Optional[SupportsGetSpanEvaluation] = None
+    valid_eval_names: Optional[Sequence[str]] = None
+    translated: ast.Expression = field(init=False, repr=False)
+    compiled: Any = field(init=False, repr=False)
+
+    def __bool__(self) -> bool:
+        return bool(self.condition)
+
+    def __post_init__(self) -> None:
+        condition = self.condition or "True"  # default to no op
+        root = ast.parse(condition, mode="eval")
+        if self.condition:
+            _validate_expression(root, condition, valid_eval_names=self.valid_eval_names)
+        translated = _Translator(condition).visit(root)
+        ast.fix_missing_locations(translated)
+        compiled = compile(translated, filename="", mode="eval")
+        object.__setattr__(self, "translated", translated)
+        object.__setattr__(self, "compiled", compiled)
+        object.__setattr__(self, "evals", self.evals or MISSING)
 
     def __call__(self, span: Span) -> bool:
         return cast(
             bool,
             eval(
-                self._compiled,
-                {"span": span, "_MISSING": self._missing, "evals": self._evals},
+                self.compiled,
+                {"span": span, "_MISSING": MISSING, "evals": self.evals},
             ),
         )
 
@@ -315,59 +325,3 @@ def _find_best_match(source: str, choices: Iterable[str]) -> Tuple[Optional[str]
         if score > best_score:
             best_choice, best_score = choice, score
     return best_choice, best_score
-
-
-class _Missing:
-    """
-    Falsify all comparisons except those with self; return self when getattr()
-    is called. Also, self is callable returning self. All this may seem peculiar
-    but is useful for getting the desired (and intuitive) behavior from any
-    boolean (i.e. comparative) expression without needing error handling when
-    missing values are encountered. `_Missing()` is intended to be a (fancier)
-    replacement for `None`.
-    """
-
-    def __lt__(self, _: Any) -> bool:
-        return False
-
-    def __le__(self, _: Any) -> bool:
-        return False
-
-    def __gt__(self, _: Any) -> bool:
-        return False
-
-    def __ge__(self, _: Any) -> bool:
-        return False
-
-    def __eq__(self, other: Any) -> bool:
-        return isinstance(other, _Missing)
-
-    def __ne__(self, _: Any) -> bool:
-        return False
-
-    def __len__(self) -> int:
-        return 0
-
-    def __iter__(self) -> Any:
-        return self
-
-    def __next__(self) -> Any:
-        raise StopIteration()
-
-    def __contains__(self, _: Any) -> bool:
-        return False
-
-    def __str__(self) -> str:
-        return ""
-
-    def __float__(self) -> float:
-        return float("nan")
-
-    def __bool__(self) -> bool:
-        return False
-
-    def __getattr__(self, _: Any) -> "_Missing":
-        return self
-
-    def __call__(self, *_: Any, **__: Any) -> "_Missing":
-        return self

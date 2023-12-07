@@ -20,8 +20,8 @@ from phoenix.server.api.input_types.Coordinates import (
 )
 from phoenix.server.api.input_types.SpanSort import SpanSort
 from phoenix.server.api.types.Cluster import Cluster, to_gql_clusters
+from phoenix.trace.dsl import SpanFilter
 
-from ...trace.filter import SpanFilter
 from ...trace.schemas import SpanID
 from .context import Context
 from .input_types.TimeRange import TimeRange

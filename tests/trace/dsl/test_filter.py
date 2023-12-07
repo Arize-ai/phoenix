@@ -6,7 +6,7 @@ from random import random
 import phoenix.trace.v1 as pb
 import pytest
 from google.protobuf.wrappers_pb2 import DoubleValue, StringValue
-from phoenix.trace.filter import SpanFilter, _validate_expression
+from phoenix.trace.dsl.filter import SpanFilter, _validate_expression
 from phoenix.trace.semantic_conventions import LLM_TOKEN_COUNT_TOTAL
 
 
@@ -17,6 +17,7 @@ def test_span_filter() -> None:
     span_1 = Span({key: 1}, 1, None)
     span_2 = Span({}, None, "3")
     spans = [span_0, span_1, span_2]
+    assert list(filter(SpanFilter(), spans)) == spans  # no op
     assert list(filter(SpanFilter("parent_id is None"), spans)) == [span_1]
     assert list(filter(SpanFilter("parent_id is not None"), spans)) == [span_0, span_2]
     assert list(filter(SpanFilter("parent_id == '3'"), spans)) == [spans[2]]
