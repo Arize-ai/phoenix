@@ -178,6 +178,7 @@ class ChatCompletionContext(ContextManager["ChatCompletionContext"]):
         if isinstance(response, ChatCompletion):
             self._process_chat_completion(response)
         elif isinstance(response, Stream):
+            self.end_time = None  # set end time to None to indicate that the stream is still open
             response = self._process_stream(
                 response
             )  # reassign to response to return an instrumented stream object
@@ -322,6 +323,7 @@ class StreamWrapper(ObjectProxy):  # type: ignore
                     },
                     status_code=self._self_context.status_code,
                     events=span.events,
+                    end_time=datetime.now(),
                 )
                 self._self_context.tracer.add_span(span)
 
