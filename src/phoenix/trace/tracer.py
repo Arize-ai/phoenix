@@ -72,7 +72,6 @@ class Tracer:
         attributes: Optional[SpanAttributes] = None,
         events: Optional[List[SpanEvent]] = None,
         conversation: Optional[SpanConversationAttributes] = None,
-        span_id: Optional[SpanID] = None,
     ) -> Span:
         """
         create_span creates a new span with the given name and options.
@@ -91,7 +90,7 @@ class Tracer:
 
         span = Span(
             name=name,
-            context=SpanContext(trace_id=trace_id, span_id=span_id or uuid4()),
+            context=SpanContext(trace_id=trace_id, span_id=uuid4()),
             span_kind=span_kind,
             parent_id=parent_id,
             start_time=start_time,

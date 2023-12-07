@@ -31,10 +31,8 @@ from phoenix.trace.schemas import (
     SpanAttributes,
     SpanEvent,
     SpanException,
-    SpanID,
     SpanKind,
     SpanStatusCode,
-    TraceID,
 )
 from phoenix.trace.semantic_conventions import (
     INPUT_MIME_TYPE,
@@ -138,8 +136,6 @@ class ChatCompletionContext(ContextManager["ChatCompletionContext"]):
         parameters = _parameters(bound_arguments)
         self.num_choices = parameters.get("n", 1)
         self._process_parameters(parameters)
-        self._trace_id: Optional[TraceID] = None
-        self._span_id: Optional[SpanID] = None
 
     def __enter__(self) -> "ChatCompletionContext":
         self.start_time = datetime.now(tz=timezone.utc)
@@ -192,7 +188,7 @@ class ChatCompletionContext(ContextManager["ChatCompletionContext"]):
         """
         Creates a span from the context.
         """
-        span = self.tracer.create_span(
+        self.tracer.create_span(
             name="OpenAI Chat Completion",
             span_kind=SpanKind.LLM,
             start_time=cast(datetime, self.start_time),
@@ -201,11 +197,7 @@ class ChatCompletionContext(ContextManager["ChatCompletionContext"]):
             status_message=self.status_message,
             attributes=self.attributes,
             events=self.events,
-            trace_id=self._trace_id,
-            span_id=self._span_id,
         )
-        self._trace_id = span.context.trace_id
-        self._span_id = span.context.span_id
 
     def _process_chat_completion(self, chat_completion: ChatCompletion) -> None:
         """
