@@ -121,6 +121,7 @@ class Traces:
         self._traces: Dict[TraceID, List[SpanID]] = defaultdict(list)
         self._child_span_ids: DefaultDict[SpanID, List[ChildSpanID]] = defaultdict(list)
         self._orphan_spans: DefaultDict[ParentSpanID, List[pb.Span]] = defaultdict(list)
+        self._num_documents: DefaultDict[SpanID, int] = defaultdict(int)
         self._start_time_sorted_span_ids: SortedKeyList[SpanID] = SortedKeyList(
             key=lambda span_id: self._spans[span_id].start_time.ToDatetime(timezone.utc),
         )
@@ -179,6 +180,10 @@ class Traces:
         for span_id in span_ids:
             if span := self[span_id]:
                 yield span
+
+    def get_num_documents(self, span_id: SpanID) -> int:
+        with self._lock:
+            return self._num_documents[span_id]
 
     def latency_rank_percent(self, latency_ms: float) -> Optional[float]:
         """
@@ -319,6 +324,12 @@ class Traces:
         if existing_span:
             self._token_count_total -= existing_span[LLM_TOKEN_COUNT_TOTAL] or 0
         self._token_count_total += new_span[LLM_TOKEN_COUNT_TOTAL] or 0
+        # Update number of documents
+        num_documents_update = len(span.retrieval.documents)
+        if existing_span:
+            num_documents_update -= len(existing_span.retrieval.documents)
+        if num_documents_update:
+            self._num_documents[span_id] += num_documents_update
         # Process previously orphaned spans, if any.
         for orphan_span in self._orphan_spans.pop(span_id, ()):
             self._process_span(orphan_span)
