@@ -179,9 +179,7 @@ class ChatCompletionContext(ContextManager["ChatCompletionContext"]):
             self._process_chat_completion(response)
         elif isinstance(response, Stream):
             self.end_time = None  # set end time to None to indicate that the stream is still open
-            response = self._process_stream(
-                response
-            )  # reassign to response to return an instrumented stream object
+            response = StreamWrapper(stream=response, context=self)
         elif hasattr(response, "parse") and callable(
             response.parse
         ):  # handle raw response by converting them to chat completions
@@ -204,18 +202,6 @@ class ChatCompletionContext(ContextManager["ChatCompletionContext"]):
         ) in _CHAT_COMPLETION_ATTRIBUTE_FUNCTIONS.items():
             if (attribute_value := get_chat_completion_attribute_fn(chat_completion)) is not None:
                 self.attributes[attribute_name] = attribute_value
-
-    def _process_stream(self, stream: Stream[ChatCompletionChunk]) -> Stream[ChatCompletionChunk]:
-        """
-        Instruments a stream of chat completion chunks and returns an instrumented stream.
-
-        Args:
-            stream (Stream[ChatCompletionChunk]): The input stream.
-
-        Returns:
-            Stream[ChatCompletionChunk]: The instrumented stream.
-        """
-        return StreamWrapper(stream=stream, context=self)
 
     def _process_parameters(self, parameters: Parameters) -> None:
         """
