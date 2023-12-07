@@ -213,8 +213,8 @@ class Query:
         after: Optional[Cursor] = UNSET,
         before: Optional[Cursor] = UNSET,
         sort: Optional[SpanSort] = UNSET,
-        root_spans_only: Optional[bool] = False,
-        filter_condition: Optional[str] = None,
+        root_spans_only: Optional[bool] = UNSET,
+        filter_condition: Optional[str] = UNSET,
     ) -> Connection[Span]:
         args = ConnectionArgs(
             first=first,
@@ -225,17 +225,14 @@ class Query:
         if (traces := info.context.traces) is None:
             return connection_from_list(data=[], args=args)
         evals = info.context.evals
-        try:
-            predicate = (
-                SpanFilter(
-                    condition=filter_condition,
-                    evals=evals,
-                )
-                if filter_condition
-                else None
+        predicate = (
+            SpanFilter(
+                condition=filter_condition,
+                evals=evals,
             )
-        except SyntaxError as e:
-            raise Exception(f"invalid filter condition: {e.msg}") from e  # TODO: add details
+            if filter_condition
+            else None
+        )
         if not trace_ids:
             spans = traces.get_spans(
                 start_time=time_range.start if time_range else None,
@@ -282,10 +279,42 @@ class Query:
         self,
         info: Info[Context, None],
         evaluation_name: str,
+        time_range: Optional[TimeRange] = UNSET,
+        filter_condition: Optional[str] = UNSET,
     ) -> Optional[EvaluationSummary]:
         if (evals := info.context.evals) is None:
             return None
-        evaluations = evals.get_span_evaluations_by_name(evaluation_name)
+        if (traces := info.context.traces) is None:
+            return None
+        predicate = (
+            SpanFilter(
+                condition=filter_condition,
+                evals=evals,
+            )
+            if filter_condition
+            else None
+        )
+        span_ids = evals.get_span_evaluation_span_ids(evaluation_name)
+        if not span_ids:
+            return None
+        spans = traces.get_spans(
+            start_time=time_range.start if time_range else None,
+            stop_time=time_range.end if time_range else None,
+            span_ids=span_ids,
+        )
+        if predicate:
+            spans = filter(predicate, spans)
+        evaluations = tuple(
+            evaluation
+            for span in spans
+            if (
+                evaluation := evals.get_span_evaluation(
+                    span.context.span_id,
+                    evaluation_name,
+                )
+            )
+            is not None
+        )
         if not evaluations:
             return None
         labels = evals.get_span_evaluation_labels(evaluation_name)
@@ -296,16 +325,29 @@ class Query:
         self,
         info: Info[Context, None],
         evaluation_name: str,
+        time_range: Optional[TimeRange] = UNSET,
+        filter_condition: Optional[str] = UNSET,
     ) -> Optional[DocumentEvaluationSummary]:
         if (evals := info.context.evals) is None:
             return None
         if (traces := info.context.traces) is None:
             return None
+        predicate = (
+            SpanFilter(condition=filter_condition, evals=evals) if filter_condition else None
+        )
         span_ids = evals.get_document_evaluation_span_ids(evaluation_name)
         if not span_ids:
             return None
+        spans = traces.get_spans(
+            start_time=time_range.start if time_range else None,
+            stop_time=time_range.end if time_range else None,
+            span_ids=span_ids,
+        )
+        if predicate:
+            spans = filter(predicate, spans)
         metrics_collection = []
-        for span_id in span_ids:
+        for span in spans:
+            span_id = span.context.span_id
             num_documents = traces.get_num_documents(span_id)
             if not num_documents:
                 continue

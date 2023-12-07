@@ -9,6 +9,7 @@ from typing import (
     Any,
     DefaultDict,
     Dict,
+    Iterable,
     Iterator,
     List,
     Optional,
@@ -153,6 +154,7 @@ class Traces:
         start_time: Optional[datetime] = None,
         stop_time: Optional[datetime] = None,
         root_spans_only: Optional[bool] = False,
+        span_ids: Optional[Iterable[SpanID]] = None,
     ) -> Iterator[Span]:
         if not self._spans:
             return
@@ -162,6 +164,15 @@ class Traces:
         )
         start_time = start_time or min_start_time
         stop_time = stop_time or max_stop_time
+        if span_ids is not None:
+            for span_id in span_ids:
+                if (
+                    (span := self[span_id])
+                    and start_time <= span.start_time < stop_time
+                    and (span.parent_id is None) == bool(root_spans_only)
+                ):
+                    yield span
+            return
         sorted_span_ids = (
             self._start_time_sorted_root_span_ids
             if root_spans_only
