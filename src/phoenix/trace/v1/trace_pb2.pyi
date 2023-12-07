@@ -141,11 +141,11 @@ class Span(google.protobuf.message.Message):
 
         class _MimeTypeEnumTypeWrapper(google.protobuf.internal.enum_type_wrapper._EnumTypeWrapper[Span.IOValue._MimeType.ValueType], builtins.type):
             DESCRIPTOR: google.protobuf.descriptor.EnumDescriptor
-            STRING: Span.IOValue._MimeType.ValueType  # 0
+            TEXT: Span.IOValue._MimeType.ValueType  # 0
             JSON: Span.IOValue._MimeType.ValueType  # 1
 
         class MimeType(_MimeType, metaclass=_MimeTypeEnumTypeWrapper): ...
-        STRING: Span.IOValue.MimeType.ValueType  # 0
+        TEXT: Span.IOValue.MimeType.ValueType  # 0
         JSON: Span.IOValue.MimeType.ValueType  # 1
 
         VALUE_FIELD_NUMBER: builtins.int
