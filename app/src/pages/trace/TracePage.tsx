@@ -44,7 +44,6 @@ import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon
 import { TraceTree } from "@phoenix/components/trace/TraceTree";
 import { useSpanStatusCodeColor } from "@phoenix/components/trace/useSpanStatusCodeColor";
 import { useTheme } from "@phoenix/contexts";
-import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 import {
   DOCUMENT_CONTENT,
   DOCUMENT_ID,
@@ -262,7 +261,7 @@ export function TracePage() {
 function TraceHeader({ rootSpan }: { rootSpan: Span }) {
   const { latencyMs, statusCode, spanEvaluations } = rootSpan;
   const statusColor = useSpanStatusCodeColor(statusCode);
-  const isEvalsEnabled = useFeatureFlag("evals");
+  const hasEvaluations = spanEvaluations.length === 0;
   return (
     <View padding="size-200" borderBottomWidth="thin" borderBottomColor="dark">
       <Flex direction="row" gap="size-400">
@@ -291,22 +290,20 @@ function TraceHeader({ rootSpan }: { rootSpan: Span }) {
             )}
           </Text>
         </Flex>
-        {isEvalsEnabled ? (
+        {hasEvaluations ? (
           <Flex direction="column" gap="size-50">
             <Text elementType="h3" textSize="medium" color="text-700">
               Evaluations
             </Text>
             <Flex direction="row" gap="size-50">
-              {spanEvaluations.length === 0
-                ? "--"
-                : spanEvaluations.map((evaluation) => {
-                    return (
-                      <EvaluationLabel
-                        key={evaluation.name}
-                        evaluation={evaluation}
-                      />
-                    );
-                  })}
+              {spanEvaluations.map((evaluation) => {
+                return (
+                  <EvaluationLabel
+                    key={evaluation.name}
+                    evaluation={evaluation}
+                  />
+                );
+              })}
             </Flex>
           </Flex>
         ) : null}
@@ -366,7 +363,6 @@ function SelectedSpanDetails({ selectedSpan }: { selectedSpan: Span }) {
   const hasExceptions = useMemo<boolean>(() => {
     return spanHasException(selectedSpan);
   }, [selectedSpan]);
-  const evalsEnabled = useFeatureFlag("evals");
   return (
     <Flex direction="column" flex="1 1 auto" height="100%">
       <View
@@ -384,7 +380,6 @@ function SelectedSpanDetails({ selectedSpan }: { selectedSpan: Span }) {
         </TabPane>
         <TabPane
           name={"Evaluations"}
-          hidden={!evalsEnabled}
           extra={
             <Counter variant={"light"}>
               {selectedSpan.spanEvaluations.length}
@@ -986,7 +981,7 @@ function DocumentItem({
   labelColor: LabelProps["color"];
 }) {
   const metadata = document[DOCUMENT_METADATA];
-  const isEvalsEnabled = useFeatureFlag("evals");
+  const hasEvaluations = documentEvaluations && documentEvaluations.length;
   return (
     <View
       borderRadius="medium"
@@ -1033,84 +1028,82 @@ function DocumentItem({
             </View>
           </>
         )}
-        {isEvalsEnabled &&
-          documentEvaluations &&
-          documentEvaluations.length && (
-            <View
-              borderColor={borderColor}
-              borderTopWidth="thin"
-              padding="size-200"
-            >
-              <Flex direction="column" gap="size-100">
-                <Heading level={3} weight="heavy">
-                  Evaluations
-                </Heading>
-                <ul>
-                  {documentEvaluations.map((documentEvaluation, idx) => {
-                    // Highlight the label as danger if it is a danger classification
-                    const evalLabelColor =
-                      documentEvaluation.label &&
-                      DANGER_DOCUMENT_EVALUATION_LABELS.includes(
-                        documentEvaluation.label
-                      )
-                        ? "danger"
-                        : labelColor;
-                    return (
-                      <li key={idx}>
-                        <View
-                          padding="size-200"
-                          borderWidth="thin"
-                          borderColor={borderColor}
-                          borderRadius="medium"
-                        >
-                          <Flex direction="column" gap="size-50">
-                            <Flex direction="row" gap="size-100">
-                              <Text weight="heavy" elementType="h5">
-                                {documentEvaluation.name}
-                              </Text>
-                              {documentEvaluation.label && (
-                                <Label color={evalLabelColor}>
-                                  {documentEvaluation.label}
-                                </Label>
-                              )}
-                              {typeof documentEvaluation.score === "number" && (
-                                <Label color={evalLabelColor}>
-                                  <Flex direction="row" gap="size-50">
-                                    <Text
-                                      textSize="xsmall"
-                                      weight="heavy"
-                                      color="inherit"
-                                    >
-                                      score
-                                    </Text>
-                                    <Text textSize="xsmall">
-                                      {formatFloat(documentEvaluation.score)}
-                                    </Text>
-                                  </Flex>
-                                </Label>
-                              )}
-                            </Flex>
-                            {typeof documentEvaluation.explanation && (
-                              <p
-                                css={css`
-                                  margin-top: var(
-                                    --ac-global-dimension-static-size-100
-                                  );
-                                  margin-bottom: 0;
-                                `}
-                              >
-                                {documentEvaluation.explanation}
-                              </p>
+        {hasEvaluations && (
+          <View
+            borderColor={borderColor}
+            borderTopWidth="thin"
+            padding="size-200"
+          >
+            <Flex direction="column" gap="size-100">
+              <Heading level={3} weight="heavy">
+                Evaluations
+              </Heading>
+              <ul>
+                {documentEvaluations.map((documentEvaluation, idx) => {
+                  // Highlight the label as danger if it is a danger classification
+                  const evalLabelColor =
+                    documentEvaluation.label &&
+                    DANGER_DOCUMENT_EVALUATION_LABELS.includes(
+                      documentEvaluation.label
+                    )
+                      ? "danger"
+                      : labelColor;
+                  return (
+                    <li key={idx}>
+                      <View
+                        padding="size-200"
+                        borderWidth="thin"
+                        borderColor={borderColor}
+                        borderRadius="medium"
+                      >
+                        <Flex direction="column" gap="size-50">
+                          <Flex direction="row" gap="size-100">
+                            <Text weight="heavy" elementType="h5">
+                              {documentEvaluation.name}
+                            </Text>
+                            {documentEvaluation.label && (
+                              <Label color={evalLabelColor}>
+                                {documentEvaluation.label}
+                              </Label>
+                            )}
+                            {typeof documentEvaluation.score === "number" && (
+                              <Label color={evalLabelColor}>
+                                <Flex direction="row" gap="size-50">
+                                  <Text
+                                    textSize="xsmall"
+                                    weight="heavy"
+                                    color="inherit"
+                                  >
+                                    score
+                                  </Text>
+                                  <Text textSize="xsmall">
+                                    {formatFloat(documentEvaluation.score)}
+                                  </Text>
+                                </Flex>
+                              </Label>
                             )}
                           </Flex>
-                        </View>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </Flex>
-            </View>
-          )}
+                          {typeof documentEvaluation.explanation && (
+                            <p
+                              css={css`
+                                margin-top: var(
+                                  --ac-global-dimension-static-size-100
+                                );
+                                margin-bottom: 0;
+                              `}
+                            >
+                              {documentEvaluation.explanation}
+                            </p>
+                          )}
+                        </Flex>
+                      </View>
+                    </li>
+                  );
+                })}
+              </ul>
+            </Flex>
+          </View>
+        )}
       </Flex>
     </View>
   );

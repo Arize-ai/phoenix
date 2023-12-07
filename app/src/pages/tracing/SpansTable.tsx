@@ -27,7 +27,6 @@ import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SpanKindLabel } from "@phoenix/components/trace/SpanKindLabel";
 import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon";
-import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
 
@@ -60,7 +59,6 @@ export function SpansTable(props: SpansTableProps) {
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const [sorting, setSorting] = useState<SortingState>([]);
   const [filterCondition, setFilterCondition] = useState<string>("");
-  const isEvalsEnabled = useFeatureFlag("evals");
   const columnVisibility = useTracingContext((state) => state.columnVisibility);
   const navigate = useNavigate();
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
@@ -210,7 +208,7 @@ export function SpansTable(props: SpansTableProps) {
       cell: TextCell,
       enableSorting: false,
     },
-    ...(isEvalsEnabled ? evaluationColumns : []),
+    ...evaluationColumns, // TODO: consider hiding this column if there are no evals. For now we want people to know that there are evals
     {
       header: "start time",
       accessorKey: "startTime",
