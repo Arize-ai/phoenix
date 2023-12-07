@@ -1,7 +1,7 @@
 import json
 from collections import defaultdict
 from dataclasses import replace
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from inspect import BoundArguments, signature
 from types import TracebackType
@@ -141,7 +141,7 @@ class ChatCompletionContext(ContextManager["ChatCompletionContext"]):
         self._process_parameters(parameters)
 
     def __enter__(self) -> "ChatCompletionContext":
-        self.start_time = datetime.now()
+        self.start_time = datetime.now(tz=timezone.utc)
         return self
 
     def __exit__(
@@ -152,7 +152,7 @@ class ChatCompletionContext(ContextManager["ChatCompletionContext"]):
     ) -> None:
         if exc_value is None:
             return
-        self.end_time = datetime.now()
+        self.end_time = datetime.now(tz=timezone.utc)
         self.status_code = SpanStatusCode.ERROR
         status_message = str(exc_value)
         self.status_message = status_message
@@ -173,7 +173,7 @@ class ChatCompletionContext(ContextManager["ChatCompletionContext"]):
         Args:
             response (ChatCompletion): The chat completion object.
         """
-        self.end_time = datetime.now()
+        self.end_time = datetime.now(tz=timezone.utc)
         self.status_code = SpanStatusCode.OK
         if isinstance(response, ChatCompletion):
             self._process_chat_completion(response)
@@ -288,7 +288,7 @@ class StreamWrapper(ObjectProxy):  # type: ignore
             self._self_context.events.append(
                 SpanException(
                     message=status_message,
-                    timestamp=datetime.now(),
+                    timestamp=datetime.now(tz=timezone.utc),
                     exception_type=type(error).__name__,
                     exception_stacktrace=get_stacktrace(error),
                 )
@@ -309,7 +309,7 @@ class StreamWrapper(ObjectProxy):  # type: ignore
                     },
                     status_code=self._self_context.status_code,
                     events=span.events,
-                    end_time=datetime.now(),
+                    end_time=datetime.now(tz=timezone.utc),
                 )
                 self._self_context.tracer.add_span(span)
 
@@ -560,7 +560,7 @@ def _span_stream_event(chat_completion_chunk: ChatCompletionChunk) -> SpanEvent:
     """
     return SpanEvent(
         name="OpenAI Chat Completion Server-Sent Event",
-        timestamp=datetime.now(),
+        timestamp=datetime.now(tz=timezone.utc),
         attributes={
             OUTPUT_VALUE: chat_completion_chunk.json(),
             OUTPUT_MIME_TYPE: MimeType.JSON,  # type: ignore
