@@ -1787,3 +1787,76 @@ async def test_openai_instrumentor_async_streaming_with_error_midstream_records_
     chunks = json.loads(attributes[OUTPUT_VALUE])
     assert len(chunks) == len(response_tokens_before_error)
     assert attributes[OUTPUT_MIME_TYPE] == MimeType.JSON
+
+
+async def test_openai_instrumentor_async_streaming_creates_span_only_once(
+    async_client: AsyncOpenAI,
+    respx_mock: MockRouter,
+) -> None:
+    tracer = Tracer()
+    OpenAIInstrumentor(tracer).instrument()
+    model = "gpt-4"
+    messages = [{"role": "user", "content": "What are the seven wonders of the world?"}]
+    temperature = 0.23
+    expected_response_tokens = [
+        "",
+        "The",
+        " seven",
+        " wonders",
+        " of",
+        " the",
+        " world",
+        " include",
+        " the",
+        " Great",
+        " Pyramid",
+        " of",
+        " G",
+        "iza",
+        " and",
+        " the",
+        " Hanging",
+        " Gardens",
+        " of",
+        " Babylon",
+        ".",
+        "",
+    ]
+    expected_response_text = "".join(expected_response_tokens)
+    byte_stream = []
+    for token_index, token in enumerate(expected_response_tokens):
+        response_body = {
+            "choices": [
+                {
+                    "delta": {"role": "assistant", "content": token},
+                    "finish_reason": "stop"
+                    if token_index == len(expected_response_text) - 1
+                    else None,
+                    "index": 0,
+                }
+            ],
+        }
+        byte_stream.append(f"data: {json.dumps(response_body)}\n\n".encode("utf-8"))
+    byte_stream.append(b"data: [DONE]\n")
+    url = "https://api.openai.com/v1/chat/completions"
+    respx_mock.post(url).respond(
+        status_code=200,
+        stream=MockAsyncByteStream(byte_stream),
+    )
+    response = await async_client.chat.completions.create(
+        model=model, messages=messages, temperature=temperature, stream=True
+    )
+    spans = list(tracer.get_spans())
+    assert len(spans) == 0
+
+    # iterate over the stream to trigger span creation
+    async for _ in response:
+        pass
+    spans = list(tracer.get_spans())
+    assert len(spans) == 1
+
+    # ensure that further attempts to iterate over the exhausted stream do not create new spans
+    with pytest.raises(StopIteration):
+        await anext(response)
+    spans = list(tracer.get_spans())
+    assert len(spans) == 1
