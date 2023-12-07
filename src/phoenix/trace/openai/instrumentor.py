@@ -6,6 +6,7 @@ from inspect import BoundArguments, signature
 from types import TracebackType
 from typing import (
     Any,
+    AsyncIterator,
     Callable,
     ContextManager,
     Coroutine,
@@ -22,7 +23,7 @@ from typing import (
 )
 
 import openai
-from openai import Stream
+from openai import AsyncStream, Stream
 from openai.types.chat import ChatCompletion, ChatCompletionChunk
 from typing_extensions import ParamSpec
 from wrapt import ObjectProxy
@@ -128,7 +129,6 @@ class ChatCompletionContext(ContextManager["ChatCompletionContext"]):
         """
         self.tracer = tracer
         self.start_time: Optional[datetime] = None
-        self.end_time: Optional[datetime] = None
         self.status_code = SpanStatusCode.UNSET
         self.status_message = ""
         self.events: List[SpanEvent] = []
@@ -150,14 +150,13 @@ class ChatCompletionContext(ContextManager["ChatCompletionContext"]):
     ) -> None:
         if exc_value is None:
             return
-        self.end_time = datetime.now(tz=timezone.utc)
         self.status_code = SpanStatusCode.ERROR
         status_message = str(exc_value)
         self.status_message = status_message
         self.events.append(
             SpanException(
                 message=status_message,
-                timestamp=self.end_time,
+                timestamp=datetime.now(tz=timezone.utc),
                 exception_type=type(exc_value).__name__,
                 exception_stacktrace=get_stacktrace(exc_value),
             )
@@ -171,17 +170,17 @@ class ChatCompletionContext(ContextManager["ChatCompletionContext"]):
         Args:
             response (ChatCompletion): The chat completion object.
         """
-        self.end_time = datetime.now(tz=timezone.utc)
-        self.status_code = SpanStatusCode.OK
         if isinstance(response, ChatCompletion):
             self._process_chat_completion(response)
         elif isinstance(response, Stream):
-            self.end_time = None  # set end time to None to indicate that the stream is still open
             return StreamWrapper(stream=response, context=self)
+        elif isinstance(response, AsyncStream):
+            return AsyncStreamWrapper(stream=response, context=self)
         elif hasattr(response, "parse") and callable(
             response.parse
         ):  # handle raw response by converting them to chat completions
             self._process_chat_completion(response.parse())
+        self.status_code = SpanStatusCode.OK
         self.create_span()
         return response
 
@@ -195,7 +194,7 @@ class ChatCompletionContext(ContextManager["ChatCompletionContext"]):
             name="OpenAI Chat Completion",
             span_kind=SpanKind.LLM,
             start_time=cast(datetime, self.start_time),
-            end_time=self.end_time,
+            end_time=datetime.now(tz=timezone.utc),
             status_code=self.status_code,
             status_message=self.status_message,
             attributes=self.attributes,
@@ -237,9 +236,8 @@ class ChatCompletionContext(ContextManager["ChatCompletionContext"]):
 
 class StreamWrapper(ObjectProxy):  # type: ignore
     """
-    A wrapper for streams of chat completion chunks that records each span
-    stream event and updates the span upon completion of the stream or upon an
-    exception.
+    A wrapper for  streams of chat completion chunks that records events and
+    creates the span upon completion of the stream or upon an exception.
     """
 
     def __init__(self, stream: Stream[ChatCompletionChunk], context: ChatCompletionContext) -> None:
@@ -278,11 +276,12 @@ class StreamWrapper(ObjectProxy):  # type: ignore
             return cast(ChatCompletionChunk, chat_completion_chunk)
         except StopIteration:
             finished_streaming = True
+            self._self_context.status_code = SpanStatusCode.OK
             raise
         except Exception as error:
             finished_streaming = True
-            status_message = str(error)
             self._self_context.status_code = SpanStatusCode.ERROR
+            status_message = str(error)
             self._self_context.status_message = status_message
             self._self_context.events.append(
                 SpanException(
@@ -295,7 +294,6 @@ class StreamWrapper(ObjectProxy):  # type: ignore
             raise
         finally:
             if finished_streaming:
-                self._self_context.end_time = datetime.now(tz=timezone.utc)
                 self._self_context.attributes = {
                     **self._self_context.attributes,
                     LLM_OUTPUT_MESSAGES: _accumulate_messages(
@@ -310,6 +308,87 @@ class StreamWrapper(ObjectProxy):  # type: ignore
         """
         A __iter__ method that bypasses the wrapped class' __iter__ method so
         that __iter__ is automatically instrumented using __next__.
+        """
+        return self
+
+
+class AsyncStreamWrapper(ObjectProxy):  # type: ignore
+    """
+    A wrapper for asynchronous streams of chat completion chunks that records
+    events and creates the span upon completion of the stream or upon an
+    exception.
+    """
+
+    def __init__(
+        self, stream: AsyncStream[ChatCompletionChunk], context: ChatCompletionContext
+    ) -> None:
+        """Initializes the stream wrapper.
+
+        Args:
+            stream (AsyncStream[ChatCompletionChunk]): The stream to wrap.
+
+            context (ChatCompletionContext): The context used to store span
+            fields and attributes.
+        """
+        super().__init__(stream)
+        self._self_context = context
+        self._self_chunks: List[ChatCompletionChunk] = []
+
+    async def __anext__(self) -> ChatCompletionChunk:
+        """
+        A wrapped __anext__ method that records span stream events and updates
+        the span upon completion of the stream or upon exception.
+
+        Returns:
+            ChatCompletionChunk: The forwarded chat completion chunk.
+        """
+        finished_streaming = False
+        try:
+            chat_completion_chunk = await anext(self.__wrapped__)
+            if not self._self_chunks:
+                self._self_context.events.append(
+                    SpanEvent(
+                        name="First Token Stream Event",
+                        timestamp=datetime.now(tz=timezone.utc),
+                        attributes={},
+                    )
+                )
+            self._self_chunks.append(chat_completion_chunk)
+            return cast(ChatCompletionChunk, chat_completion_chunk)
+        except StopAsyncIteration:
+            finished_streaming = True
+            self._self_context.status_code = SpanStatusCode.OK
+            raise
+        except Exception as error:
+            finished_streaming = True
+            self._self_context.status_code = SpanStatusCode.ERROR
+            status_message = str(error)
+            self._self_context.status_message = status_message
+            self._self_context.events.append(
+                SpanException(
+                    message=status_message,
+                    timestamp=datetime.now(tz=timezone.utc),
+                    exception_type=type(error).__name__,
+                    exception_stacktrace=get_stacktrace(error),
+                )
+            )
+            raise
+        finally:
+            if finished_streaming:
+                self._self_context.attributes = {
+                    **self._self_context.attributes,
+                    LLM_OUTPUT_MESSAGES: _accumulate_messages(
+                        chunks=self._self_chunks, num_choices=self._self_context.num_choices
+                    ),  # type: ignore
+                    OUTPUT_VALUE: json.dumps([chunk.dict() for chunk in self._self_chunks]),
+                    OUTPUT_MIME_TYPE: MimeType.JSON,  # type: ignore
+                }
+                self._self_context.create_span()
+
+    def __aiter__(self) -> AsyncIterator[ChatCompletionChunk]:
+        """
+        A __aiter__ method that bypasses the wrapped class' __aiter__ method so
+        that __aiter__ is automatically instrumented using __anext__.
         """
         return self
 
@@ -363,22 +442,11 @@ def _wrapped_openai_async_client_request_function(
 
     async def wrapped(*args: Any, **kwargs: Any) -> Any:
         bound_arguments = call_signature.bind(*args, **kwargs)
-        if (
-            _is_streaming_request(bound_arguments)
-            or _request_type(bound_arguments) is not RequestType.CHAT_COMPLETION
-        ):
+        if _request_type(bound_arguments) is not RequestType.CHAT_COMPLETION:
             return await request_fn(*args, **kwargs)
         with ChatCompletionContext(bound_arguments, tracer) as context:
             response = await request_fn(*args, **kwargs)
-            context.process_response(
-                cast(
-                    ChatCompletion,
-                    response.parse()
-                    if hasattr(response, "parse") and callable(response.parse)
-                    else response,
-                )
-            )
-            return response
+            return context.process_response(response)
 
     return wrapped
 

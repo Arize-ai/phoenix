@@ -1856,7 +1856,7 @@ async def test_openai_instrumentor_async_streaming_creates_span_only_once(
     assert len(spans) == 1
 
     # ensure that further attempts to iterate over the exhausted stream do not create new spans
-    with pytest.raises(StopIteration):
+    with pytest.raises(StopAsyncIteration):
         await anext(response)
     spans = list(tracer.get_spans())
     assert len(spans) == 1
