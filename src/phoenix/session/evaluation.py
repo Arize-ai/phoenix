@@ -6,6 +6,7 @@ A set of **highly experimental** helper functions to
   - ingest evaluation results into Phoenix via HttpExporter
 """
 import math
+from time import sleep, time
 from typing import (
     Any,
     Iterable,
@@ -32,6 +33,7 @@ from phoenix.trace.semantic_conventions import (
     INPUT_VALUE,
     RETRIEVAL_DOCUMENTS,
 )
+from phoenix.trace.span_evaluations import Evaluations
 
 
 def get_retrieved_documents(session: Session) -> pd.DataFrame:
@@ -155,3 +157,17 @@ def _extract_result(row: "pd.Series[Any]") -> Optional[pb.Evaluation.Result]:
         label=StringValue(value=label) if label else None,
         explanation=StringValue(value=explanation) if explanation else None,
     )
+
+
+def log_evaluations(
+    *evals: Evaluations,
+    endpoint: Optional[str] = None,
+    host: Optional[str] = None,
+    port: Optional[int] = None,
+) -> None:
+    exporter = HttpExporter(endpoint=endpoint, host=host, port=port)
+    for eval in filter(bool, evals):
+        add_evaluations(exporter, eval.dataframe, eval.eval_name)
+    time_limit = time() + 60
+    while time() < time_limit and not exporter._queue.empty():
+        sleep(0.1)
