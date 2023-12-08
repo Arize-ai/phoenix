@@ -76,6 +76,7 @@ import { assertUnreachable, isStringArray } from "@phoenix/typeUtils";
 import { formatFloat, numberFormatter } from "@phoenix/utils/numberFormatUtils";
 
 import { EvaluationLabel } from "../tracing/EvaluationLabel";
+import { RetrievalEvaluationLabel } from "../tracing/RetrievalEvaluationLabel";
 
 import {
   MimeType,
@@ -176,6 +177,12 @@ export function TracePage() {
                 name
                 label
                 score
+              }
+              documentRetrievalMetrics {
+                evaluationName
+                ndcg
+                precision
+                hit
               }
               documentEvaluations {
                 documentPosition
@@ -682,37 +689,69 @@ function RetrieverSpanInfo(props: {
 
   const hasInput = input != null && input.value != null;
   const hasDocuments = documents.length > 0;
+  const hasDocumentRetrievalMetrics = span.documentRetrievalMetrics.length > 0;
   return (
     <Flex direction="column" gap="size-200">
       <Card title="Input" {...defaultCardProps}>
         {hasInput ? <CodeBlock {...input} /> : null}
       </Card>
       {hasDocuments ? (
-        <Card title="Documents" {...defaultCardProps}>
-          {
-            <ul
-              css={css`
-                padding: var(--ac-global-dimension-static-size-200);
-                display: flex;
-                flex-direction: column;
-                gap: var(--ac-global-dimension-static-size-200);
-              `}
-            >
-              {documents.map((document, idx) => {
-                return (
-                  <li key={idx}>
-                    <DocumentItem
-                      document={document}
-                      documentEvaluations={documentEvaluationsMap[idx]}
-                      borderColor={"seafoam-700"}
-                      backgroundColor={"seafoam-100"}
-                      labelColor="seafoam-1000"
-                    />
-                  </li>
-                );
-              })}
-            </ul>
+        <Card
+          title="Documents"
+          {...defaultCardProps}
+          extra={
+            hasDocumentRetrievalMetrics && (
+              <Flex direction="row" gap="size-100">
+                {span.documentRetrievalMetrics.map((retrievalMetric) => {
+                  return (
+                    <>
+                      <RetrievalEvaluationLabel
+                        key="ncdg"
+                        name={retrievalMetric.evaluationName}
+                        metric="ndcg"
+                        score={retrievalMetric.ndcg}
+                      />
+                      <RetrievalEvaluationLabel
+                        key="precision"
+                        name={retrievalMetric.evaluationName}
+                        metric="precision"
+                        score={retrievalMetric.precision}
+                      />
+                      <RetrievalEvaluationLabel
+                        key="hit"
+                        name={retrievalMetric.evaluationName}
+                        metric="hit"
+                        score={retrievalMetric.hit}
+                      />
+                    </>
+                  );
+                })}
+              </Flex>
+            )
           }
+        >
+          <ul
+            css={css`
+              padding: var(--ac-global-dimension-static-size-200);
+              display: flex;
+              flex-direction: column;
+              gap: var(--ac-global-dimension-static-size-200);
+            `}
+          >
+            {documents.map((document, idx) => {
+              return (
+                <li key={idx}>
+                  <DocumentItem
+                    document={document}
+                    documentEvaluations={documentEvaluationsMap[idx]}
+                    borderColor={"seafoam-700"}
+                    backgroundColor={"seafoam-100"}
+                    labelColor="seafoam-1000"
+                  />
+                </li>
+              );
+            })}
+          </ul>
         </Card>
       ) : null}
     </Flex>
@@ -1062,12 +1101,12 @@ function DocumentItem({
                               {documentEvaluation.name}
                             </Text>
                             {documentEvaluation.label && (
-                              <Label color={evalLabelColor}>
+                              <Label color={evalLabelColor} shape="badge">
                                 {documentEvaluation.label}
                               </Label>
                             )}
                             {typeof documentEvaluation.score === "number" && (
-                              <Label color={evalLabelColor}>
+                              <Label color={evalLabelColor} shape="badge">
                                 <Flex direction="row" gap="size-50">
                                   <Text
                                     textSize="xsmall"
