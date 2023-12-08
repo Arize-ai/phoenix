@@ -135,6 +135,8 @@ class ChatCompletionContext(ContextManager["ChatCompletionContext"]):
         self.attributes: SpanAttributes = dict()
         parameters = _parameters(bound_arguments)
         self.num_choices = parameters.get("n", 1)
+        self.chat_completion_chunks: List[ChatCompletionChunk] = []
+        self.stream_complete = False
         self._process_parameters(parameters)
         self._span_created = False
 
@@ -328,9 +330,7 @@ class ChatCompletionStreamEventContext(ContextManager["ChatCompletionStreamEvent
             chat_completion_context (ChatCompletionContext): The chat completion
             context storing span fields and attributes.
         """
-        self._chat_completion_context = chat_completion_context
-        self._chunks: List[ChatCompletionChunk] = []
-        self._finished_streaming = False
+        self._context = chat_completion_context
 
     def __exit__(
         self,
@@ -339,14 +339,14 @@ class ChatCompletionStreamEventContext(ContextManager["ChatCompletionStreamEvent
         traceback: Optional[TracebackType],
     ) -> None:
         if isinstance(exc_value, StopIteration) or isinstance(exc_value, StopAsyncIteration):
-            self._finished_streaming = True
-            self._chat_completion_context.status_code = SpanStatusCode.OK
+            self._context.stream_complete = True
+            self._context.status_code = SpanStatusCode.OK
         elif exc_value is not None:
-            self._finished_streaming = True
-            self._chat_completion_context.status_code = SpanStatusCode.ERROR
+            self._context.stream_complete = True
+            self._context.status_code = SpanStatusCode.ERROR
             status_message = str(exc_value)
-            self._chat_completion_context.status_message = status_message
-            self._chat_completion_context.events.append(
+            self._context.status_message = status_message
+            self._context.events.append(
                 SpanException(
                     message=status_message,
                     timestamp=datetime.now(tz=timezone.utc),
@@ -354,33 +354,39 @@ class ChatCompletionStreamEventContext(ContextManager["ChatCompletionStreamEvent
                     exception_stacktrace=get_stacktrace(exc_value),
                 )
             )
-        if self._finished_streaming:
-            self._chat_completion_context.attributes = {
-                **self._chat_completion_context.attributes,
-                LLM_OUTPUT_MESSAGES: _accumulate_messages(
-                    chunks=self._chunks, num_choices=self._chat_completion_context.num_choices
-                ),  # type: ignore
-                OUTPUT_VALUE: json.dumps([chunk.dict() for chunk in self._chunks]),
-                OUTPUT_MIME_TYPE: MimeType.JSON,  # type: ignore
-            }
-            self._chat_completion_context.create_span()
+        if not self._context.stream_complete:
+            return
+        self._context.attributes = {
+            **self._context.attributes,
+            LLM_OUTPUT_MESSAGES: _accumulate_messages(
+                chunks=self._context.chat_completion_chunks,
+                num_choices=self._context.num_choices,
+            ),  # type: ignore
+            OUTPUT_VALUE: json.dumps(
+                [chunk.dict() for chunk in self._context.chat_completion_chunks]
+            ),
+            OUTPUT_MIME_TYPE: MimeType.JSON,  # type: ignore
+        }
+        self._context.create_span()
 
     def process_chat_completion_chunk(self, chat_completion_chunk: ChatCompletionChunk) -> None:
         """
-        Processes a chat completion chunk and adds relevant information to the context.
+        Processes a chat completion chunk and adds relevant information to the
+        context.
 
         Args:
-            chat_completion_chunk (ChatCompletionChunk): _description_
+            chat_completion_chunk (ChatCompletionChunk): The chat completion
+            chunk to be processed.
         """
-        if not self._chunks:
-            self._chat_completion_context.events.append(
+        if not self._context.chat_completion_chunks:
+            self._context.events.append(
                 SpanEvent(
                     name="First Token Stream Event",
                     timestamp=datetime.now(tz=timezone.utc),
                     attributes={},
                 )
             )
-        self._chunks.append(chat_completion_chunk)
+        self._context.chat_completion_chunks.append(chat_completion_chunk)
 
 
 def _wrapped_openai_sync_client_request_function(
@@ -577,19 +583,6 @@ _CHAT_COMPLETION_ATTRIBUTE_FUNCTIONS: Dict[str, Callable[[ChatCompletion], Any]]
     LLM_TOKEN_COUNT_TOTAL: _llm_token_count_total,
     LLM_FUNCTION_CALL: _llm_function_call,
 }
-
-
-def _is_streaming_request(bound_arguments: BoundArguments) -> bool:
-    """
-    Determines whether the request is a streaming request.
-
-    Args:
-        bound_arguments (BoundArguments): The bound arguments to the request function.
-
-    Returns:
-        bool: True if the request is a streaming request, False otherwise.
-    """
-    return cast(bool, bound_arguments.arguments["stream"])
 
 
 def _parameters(bound_arguments: BoundArguments) -> Parameters:
