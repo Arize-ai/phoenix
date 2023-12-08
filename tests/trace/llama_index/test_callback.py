@@ -185,7 +185,9 @@ def test_callback_streaming_response_produces_correct_result(
             "choices": [
                 {
                     "delta": {"role": "assistant", "content": token},
-                    "finish_reason": "stop" if token_index == len(expected_response) - 1 else None,
+                    "finish_reason": "stop"
+                    if token_index == len(expected_response_tokens) - 1
+                    else None,
                 }
             ],
         }
