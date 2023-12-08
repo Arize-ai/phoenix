@@ -73,6 +73,9 @@ class Evaluations(NeedsNamedIndex, NeedsResultColumns, ABC):
     eval_name: str  # The name for the evaluation, e.g. 'toxicity'
     dataframe: pd.DataFrame = field(repr=False)
 
+    def __len__(self) -> int:
+        return len(self.dataframe)
+
     def __repr__(self) -> str:
         return (
             f"{self.__class__.__name__}(eval_name={self.eval_name!r}, "
