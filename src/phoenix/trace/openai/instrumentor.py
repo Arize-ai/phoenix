@@ -236,7 +236,7 @@ class ChatCompletionContext(ContextManager["ChatCompletionContext"]):
 
 class StreamWrapper(ObjectProxy):  # type: ignore
     """
-    A wrapper for  streams of chat completion chunks that records events and
+    A wrapper for streams of chat completion chunks that records events and
     creates the span upon completion of the stream or upon an exception.
     """
 
@@ -309,14 +309,25 @@ class AsyncStreamWrapper(ObjectProxy):  # type: ignore
 
     def __aiter__(self) -> AsyncIterator[ChatCompletionChunk]:
         """
-        A __aiter__ method that bypasses the wrapped class' __aiter__ method so
+        An __aiter__ method that bypasses the wrapped class' __aiter__ method so
         that __aiter__ is automatically instrumented using __anext__.
         """
         return self
 
 
 class ChatCompletionStreamEventContext(ContextManager["ChatCompletionStreamEventContext"]):
+    """
+    A context manager that surrounds stream events in a stream of chat
+    completions and processes each chat completion chunk.
+    """
+
     def __init__(self, chat_completion_context: ChatCompletionContext) -> None:
+        """Initializes the context manager.
+
+        Args:
+            chat_completion_context (ChatCompletionContext): The chat completion
+            context storing span fields and attributes.
+        """
         self._chat_completion_context = chat_completion_context
         self._chunks: List[ChatCompletionChunk] = []
         self._finished_streaming = False
@@ -355,6 +366,12 @@ class ChatCompletionStreamEventContext(ContextManager["ChatCompletionStreamEvent
             self._chat_completion_context.create_span()
 
     def process_chat_completion_chunk(self, chat_completion_chunk: ChatCompletionChunk) -> None:
+        """
+        Processes a chat completion chunk and adds relevant information to the context.
+
+        Args:
+            chat_completion_chunk (ChatCompletionChunk): _description_
+        """
         if not self._chunks:
             self._chat_completion_context.events.append(
                 SpanEvent(

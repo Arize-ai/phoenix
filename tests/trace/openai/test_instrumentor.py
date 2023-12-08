@@ -594,7 +594,7 @@ def test_openai_instrumentor_sync_works_with_chat_completion_with_raw_response(
     assert "france" in response_content.lower() or "french" in response_content.lower()
 
 
-def test_openai_instrumentor_sync_streaming_updates_span_when_iterated_with_next(
+def test_openai_instrumentor_sync_streaming_creates_span_when_iterated_with_next(
     sync_client: OpenAI,
     respx_mock: MockRouter,
 ) -> None:
@@ -628,24 +628,24 @@ def test_openai_instrumentor_sync_streaming_updates_span_when_iterated_with_next
         "",
     ]
     expected_response_text = "".join(expected_response_tokens)
-    mock_stream = []
+    byte_stream = []
     for token_index, token in enumerate(expected_response_tokens):
         response_body = {
             "choices": [
                 {
                     "delta": {"role": "assistant", "content": token},
                     "finish_reason": "stop"
-                    if token_index == len(expected_response_text) - 1
+                    if token_index == len(expected_response_tokens) - 1
                     else None,
                     "index": 0,
                 }
             ],
         }
-        mock_stream.append(f"data: {json.dumps(response_body)}\n\n".encode("utf-8"))
-    mock_stream.append(b"data: [DONE]\n")
+        byte_stream.append(f"data: {json.dumps(response_body)}\n\n".encode("utf-8"))
+    byte_stream.append(b"data: [DONE]\n")
     respx_mock.post("https://api.openai.com/v1/chat/completions").respond(
         status_code=200,
-        stream=mock_stream,
+        stream=byte_stream,
     )
     response = sync_client.chat.completions.create(
         model=model, messages=messages, temperature=temperature, stream=True
@@ -702,7 +702,7 @@ def test_openai_instrumentor_sync_streaming_updates_span_when_iterated_with_next
     assert attributes[OUTPUT_MIME_TYPE] == MimeType.JSON
 
 
-def test_openai_instrumentor_sync_streaming_updates_span_when_iterated_with_for_loop(
+def test_openai_instrumentor_sync_streaming_creates_span_when_iterated_with_for_loop(
     sync_client: OpenAI,
     respx_mock: MockRouter,
 ) -> None:
@@ -736,25 +736,25 @@ def test_openai_instrumentor_sync_streaming_updates_span_when_iterated_with_for_
         "",
     ]
     expected_response_text = "".join(expected_response_tokens)
-    mock_stream = []
+    byte_stream = []
     for token_index, token in enumerate(expected_response_tokens):
         response_body = {
             "choices": [
                 {
                     "delta": {"role": "assistant", "content": token},
                     "finish_reason": "stop"
-                    if token_index == len(expected_response_text) - 1
+                    if token_index == len(expected_response_tokens) - 1
                     else None,
                     "index": 0,
                 }
             ],
         }
-        mock_stream.append(f"data: {json.dumps(response_body)}\n\n".encode("utf-8"))
-    mock_stream.append(b"data: [DONE]\n")
+        byte_stream.append(f"data: {json.dumps(response_body)}\n\n".encode("utf-8"))
+    byte_stream.append(b"data: [DONE]\n")
     url = "https://api.openai.com/v1/chat/completions"
     respx_mock.post(url).respond(
         status_code=200,
-        stream=mock_stream,
+        stream=byte_stream,
     )
     response = sync_client.chat.completions.create(
         model=model, messages=messages, temperature=temperature, stream=True
@@ -825,7 +825,7 @@ def test_openai_instrumentor_sync_streaming_with_error_midstream_records_excepti
     ]
     response_text_before_error = "".join(response_tokens_before_error)
 
-    def mock_stream() -> Iterator[bytes]:
+    def byte_stream() -> Iterator[bytes]:
         for token in response_tokens_before_error:
             response_body = {
                 "object": "chat.completion.chunk",
@@ -844,7 +844,7 @@ def test_openai_instrumentor_sync_streaming_with_error_midstream_records_excepti
 
     respx_mock.post("https://api.openai.com/v1/chat/completions").respond(
         status_code=200,
-        stream=mock_stream(),
+        stream=byte_stream(),
     )
     response = sync_client.chat.completions.create(
         model=model, messages=messages, temperature=temperature, stream=True
@@ -936,26 +936,25 @@ def test_openai_instrumentor_sync_streaming_creates_span_only_once(
         ".",
         "",
     ]
-    expected_response_text = "".join(expected_response_tokens)
-    mock_stream = []
+    byte_stream = []
     for token_index, token in enumerate(expected_response_tokens):
         response_body = {
             "choices": [
                 {
                     "delta": {"role": "assistant", "content": token},
                     "finish_reason": "stop"
-                    if token_index == len(expected_response_text) - 1
+                    if token_index == len(expected_response_tokens) - 1
                     else None,
                     "index": 0,
                 }
             ],
         }
-        mock_stream.append(f"data: {json.dumps(response_body)}\n\n".encode("utf-8"))
-    mock_stream.append(b"data: [DONE]\n")
+        byte_stream.append(f"data: {json.dumps(response_body)}\n\n".encode("utf-8"))
+    byte_stream.append(b"data: [DONE]\n")
     url = "https://api.openai.com/v1/chat/completions"
     respx_mock.post(url).respond(
         status_code=200,
-        stream=mock_stream,
+        stream=byte_stream,
     )
     response = sync_client.chat.completions.create(
         model=model, messages=messages, temperature=temperature, stream=True
@@ -1480,7 +1479,7 @@ async def test_openai_instrumentor_async_works_with_chat_completion_with_raw_res
     assert "france" in response_content.lower() or "french" in response_content.lower()
 
 
-async def test_openai_instrumentor_async_streaming_updates_span_when_iterated_with_anext(
+async def test_openai_instrumentor_async_streaming_creates_span_when_iterated_with_anext(
     async_client: AsyncOpenAI,
     respx_mock: MockRouter,
 ) -> None:
@@ -1521,7 +1520,7 @@ async def test_openai_instrumentor_async_streaming_updates_span_when_iterated_wi
                 {
                     "delta": {"role": "assistant", "content": token},
                     "finish_reason": "stop"
-                    if token_index == len(expected_response_text) - 1
+                    if token_index == len(expected_response_tokens) - 1
                     else None,
                     "index": 0,
                 }
@@ -1588,7 +1587,7 @@ async def test_openai_instrumentor_async_streaming_updates_span_when_iterated_wi
     assert attributes[OUTPUT_MIME_TYPE] == MimeType.JSON
 
 
-async def test_openai_instrumentor_async_streaming_updates_span_when_iterated_with_async_for_loop(
+async def test_openai_instrumentor_async_streaming_creates_span_when_iterated_with_async_for_loop(
     async_client: AsyncOpenAI,
     respx_mock: MockRouter,
 ) -> None:
@@ -1629,7 +1628,7 @@ async def test_openai_instrumentor_async_streaming_updates_span_when_iterated_wi
                 {
                     "delta": {"role": "assistant", "content": token},
                     "finish_reason": "stop"
-                    if token_index == len(expected_response_text) - 1
+                    if token_index == len(expected_response_tokens) - 1
                     else None,
                     "index": 0,
                 }
@@ -1822,7 +1821,6 @@ async def test_openai_instrumentor_async_streaming_creates_span_only_once(
         ".",
         "",
     ]
-    expected_response_text = "".join(expected_response_tokens)
     byte_stream = []
     for token_index, token in enumerate(expected_response_tokens):
         response_body = {
@@ -1830,7 +1828,7 @@ async def test_openai_instrumentor_async_streaming_creates_span_only_once(
                 {
                     "delta": {"role": "assistant", "content": token},
                     "finish_reason": "stop"
-                    if token_index == len(expected_response_text) - 1
+                    if token_index == len(expected_response_tokens) - 1
                     else None,
                     "index": 0,
                 }
