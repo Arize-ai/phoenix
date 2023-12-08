@@ -469,7 +469,7 @@ def _message_payload_to_attributes(message: Any) -> Dict[str, Optional[str]]:
                 if message_tool_call := dict(_get_tool_call(tool_call)):
                     message_tool_calls.append(message_tool_call)
             if message_tool_calls:
-                message_attributes[MESSAGE_TOOL_CALLS] = message_tool_calls  # type: ignore
+                message_attributes[MESSAGE_TOOL_CALLS] = message_tool_calls
         return message_attributes
 
     return {

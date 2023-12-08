@@ -206,7 +206,7 @@ def test_callback_streaming_response_produces_correct_result(
     assert all(len(span.events) == 0 for span in spans)
 
     span = next(span for span in spans if span.name == "query")
-    assert span.attributes[OUTPUT_VALUE] == ""  # the output of a streaming response is empty
+    assert span.attributes[OUTPUT_VALUE] == response_text
 
     span = next(span for span in spans if span.span_kind == SpanKind.LLM)
     assert isinstance(span.attributes[LLM_PROMPT_TEMPLATE], str)
