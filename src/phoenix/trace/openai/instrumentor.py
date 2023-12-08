@@ -292,8 +292,7 @@ class AsyncStreamWrapper(ObjectProxy):  # type: ignore
             fields and attributes.
         """
         super().__init__(stream)
-        self._self_context = context
-        self._self_chunks: List[ChatCompletionChunk] = []
+        self._self_context = ChatCompletionStreamEventContext(context)
 
     async def __anext__(self) -> ChatCompletionChunk:
         """
@@ -303,48 +302,10 @@ class AsyncStreamWrapper(ObjectProxy):  # type: ignore
         Returns:
             ChatCompletionChunk: The forwarded chat completion chunk.
         """
-        finished_streaming = False
-        try:
+        with self._self_context as context:
             chat_completion_chunk = await anext(self.__wrapped__)
-            if not self._self_chunks:
-                self._self_context.events.append(
-                    SpanEvent(
-                        name="First Token Stream Event",
-                        timestamp=datetime.now(tz=timezone.utc),
-                        attributes={},
-                    )
-                )
-            self._self_chunks.append(chat_completion_chunk)
+            context.process_chat_completion_chunk(chat_completion_chunk)
             return cast(ChatCompletionChunk, chat_completion_chunk)
-        except StopAsyncIteration:
-            finished_streaming = True
-            self._self_context.status_code = SpanStatusCode.OK
-            raise
-        except Exception as error:
-            finished_streaming = True
-            self._self_context.status_code = SpanStatusCode.ERROR
-            status_message = str(error)
-            self._self_context.status_message = status_message
-            self._self_context.events.append(
-                SpanException(
-                    message=status_message,
-                    timestamp=datetime.now(tz=timezone.utc),
-                    exception_type=type(error).__name__,
-                    exception_stacktrace=get_stacktrace(error),
-                )
-            )
-            raise
-        finally:
-            if finished_streaming:
-                self._self_context.attributes = {
-                    **self._self_context.attributes,
-                    LLM_OUTPUT_MESSAGES: _accumulate_messages(
-                        chunks=self._self_chunks, num_choices=self._self_context.num_choices
-                    ),  # type: ignore
-                    OUTPUT_VALUE: json.dumps([chunk.dict() for chunk in self._self_chunks]),
-                    OUTPUT_MIME_TYPE: MimeType.JSON,  # type: ignore
-                }
-                self._self_context.create_span()
 
     def __aiter__(self) -> AsyncIterator[ChatCompletionChunk]:
         """
