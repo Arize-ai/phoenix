@@ -16,7 +16,7 @@ from .semantic_conventions import (
     RERANKER_OUTPUT_DOCUMENTS,
     RETRIEVAL_DOCUMENTS,
 )
-from .span_evaluations import Evaluations, SpanEvaluations
+from .span_evaluations import EVALUATIONS_INDEX_NAME, SpanEvaluations
 from .span_json_decoder import json_to_span
 from .span_json_encoder import span_to_json
 
@@ -93,14 +93,14 @@ class TraceDataset:
 
     name: str
     dataframe: pd.DataFrame
-    evaluations: List[Evaluations] = []
+    evaluations: List[SpanEvaluations] = []
     _data_file_name: str = "data.parquet"
 
     def __init__(
         self,
         dataframe: DataFrame,
         name: Optional[str] = None,
-        evaluations: Iterable[Evaluations] = (),
+        evaluations: Iterable[SpanEvaluations] = (),
     ):
         """
         Constructs a TraceDataset from a dataframe of spans. Optionally takes in
@@ -199,7 +199,7 @@ class TraceDataset:
             coerce_timestamps="ms",
         )
 
-    def append_evaluations(self, evaluations: Evaluations) -> None:
+    def append_evaluations(self, evaluations: SpanEvaluations) -> None:
         """adds an evaluation to the traces"""
         # Append the evaluations to the list of evaluations
         self.evaluations.append(evaluations)
@@ -209,11 +209,7 @@ class TraceDataset:
         Creates a flat dataframe of all the evaluations for the dataset.
         """
         return pd.concat(
-            [
-                evals.get_dataframe(prefix_columns_with_name=True)
-                for evals in self.evaluations
-                if isinstance(evals, SpanEvaluations)
-            ],
+            [evals.get_dataframe(prefix_columns_with_name=True) for evals in self.evaluations],
             axis=1,
         )
 
@@ -231,5 +227,5 @@ class TraceDataset:
             return self.dataframe.copy()
         evals_df = self.get_evals_dataframe()
         # Make sure the index is set to the span_id
-        df = self.dataframe.set_index("context.span_id", drop=False)
+        df = self.dataframe.set_index(EVALUATIONS_INDEX_NAME, drop=False)
         return pd.concat([df, evals_df], axis=1)
