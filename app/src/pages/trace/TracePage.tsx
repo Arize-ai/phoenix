@@ -268,7 +268,7 @@ export function TracePage() {
 function TraceHeader({ rootSpan }: { rootSpan: Span }) {
   const { latencyMs, statusCode, spanEvaluations } = rootSpan;
   const statusColor = useSpanStatusCodeColor(statusCode);
-  const hasEvaluations = spanEvaluations.length === 0;
+  const hasEvaluations = spanEvaluations.length;
   return (
     <View padding="size-200" borderBottomWidth="thin" borderBottomColor="dark">
       <Flex direction="row" gap="size-400">
