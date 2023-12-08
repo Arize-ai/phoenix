@@ -1543,7 +1543,7 @@ async def test_openai_instrumentor_async_streaming_creates_span_when_iterated_wi
     tokens = []
     while True:
         try:
-            chunk = await anext(response)
+            chunk = await response.__anext__()
             tokens.append(chunk.choices[0].delta.content)
         except StopAsyncIteration:
             break
@@ -1741,10 +1741,10 @@ async def test_openai_instrumentor_async_streaming_with_error_midstream_records_
     # iterate over the stream until hitting the error
     tokens = []
     for _ in range(len(response_tokens_before_error)):
-        chunk = await anext(response)
+        chunk = await response.__anext__()
         tokens.append(chunk.choices[0].delta.content)
     with pytest.raises(RuntimeError, match="error-message"):
-        await anext(response)
+        await response.__anext__()
 
     spans = list(tracer.get_spans())
     assert len(spans) == 1
@@ -1855,6 +1855,6 @@ async def test_openai_instrumentor_async_streaming_creates_span_only_once(
 
     # ensure that further attempts to iterate over the exhausted stream do not create new spans
     with pytest.raises(StopAsyncIteration):
-        await anext(response)
+        await response.__anext__()
     spans = list(tracer.get_spans())
     assert len(spans) == 1

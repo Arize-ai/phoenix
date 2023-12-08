@@ -305,7 +305,7 @@ class AsyncStreamWrapper(ObjectProxy):  # type: ignore
             ChatCompletionChunk: The forwarded chat completion chunk.
         """
         with self._self_context as context:
-            chat_completion_chunk = await anext(self.__wrapped__)
+            chat_completion_chunk = await self.__wrapped__.__anext__()
             context.process_chat_completion_chunk(chat_completion_chunk)
             return cast(ChatCompletionChunk, chat_completion_chunk)
 
