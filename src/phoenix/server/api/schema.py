@@ -21,7 +21,7 @@ from phoenix.server.api.input_types.Coordinates import (
 )
 from phoenix.server.api.input_types.SpanSort import SpanSort
 from phoenix.server.api.types.Cluster import Cluster, to_gql_clusters
-from phoenix.trace.filter import SpanFilter
+from phoenix.trace.dsl import SpanFilter
 from phoenix.trace.schemas import SpanID
 
 from .context import Context

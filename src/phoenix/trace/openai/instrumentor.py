@@ -136,6 +136,7 @@ class ChatCompletionContext(ContextManager["ChatCompletionContext"]):
         parameters = _parameters(bound_arguments)
         self.num_choices = parameters.get("n", 1)
         self._process_parameters(parameters)
+        self._span_created = False
 
     def __enter__(self) -> "ChatCompletionContext":
         self.start_time = datetime.now(tz=timezone.utc)
@@ -176,7 +177,7 @@ class ChatCompletionContext(ContextManager["ChatCompletionContext"]):
             self._process_chat_completion(response)
         elif isinstance(response, Stream):
             self.end_time = None  # set end time to None to indicate that the stream is still open
-            response = StreamWrapper(stream=response, context=self)
+            return StreamWrapper(stream=response, context=self)
         elif hasattr(response, "parse") and callable(
             response.parse
         ):  # handle raw response by converting them to chat completions
@@ -186,8 +187,10 @@ class ChatCompletionContext(ContextManager["ChatCompletionContext"]):
 
     def create_span(self) -> None:
         """
-        Creates a span from the context.
+        Creates a span from the context if one has not already been created.
         """
+        if self._span_created:
+            return
         self.tracer.create_span(
             name="OpenAI Chat Completion",
             span_kind=SpanKind.LLM,
@@ -198,6 +201,7 @@ class ChatCompletionContext(ContextManager["ChatCompletionContext"]):
             attributes=self.attributes,
             events=self.events,
         )
+        self._span_created = True
 
     def _process_chat_completion(self, chat_completion: ChatCompletion) -> None:
         """
@@ -262,8 +266,15 @@ class StreamWrapper(ObjectProxy):  # type: ignore
         finished_streaming = False
         try:
             chat_completion_chunk = next(self.__wrapped__)
+            if not self._self_chunks:
+                self._self_context.events.append(
+                    SpanEvent(
+                        name="First Token Stream Event",
+                        timestamp=datetime.now(tz=timezone.utc),
+                        attributes={},
+                    )
+                )
             self._self_chunks.append(chat_completion_chunk)
-            self._self_context.events.append(_span_stream_event(chat_completion_chunk))
             return cast(ChatCompletionChunk, chat_completion_chunk)
         except StopIteration:
             finished_streaming = True
@@ -290,7 +301,7 @@ class StreamWrapper(ObjectProxy):  # type: ignore
                     LLM_OUTPUT_MESSAGES: _accumulate_messages(
                         chunks=self._self_chunks, num_choices=self._self_context.num_choices
                     ),  # type: ignore
-                    OUTPUT_VALUE: json.dumps([chunk.json() for chunk in self._self_chunks]),
+                    OUTPUT_VALUE: json.dumps([chunk.dict() for chunk in self._self_chunks]),
                     OUTPUT_MIME_TYPE: MimeType.JSON,  # type: ignore
                 }
                 self._self_context.create_span()
@@ -534,20 +545,6 @@ def _parameters(bound_arguments: BoundArguments) -> Parameters:
         Parameters: The parameters to the request function.
     """
     return cast(Parameters, bound_arguments.arguments["options"].json_data)
-
-
-def _span_stream_event(chat_completion_chunk: ChatCompletionChunk) -> SpanEvent:
-    """
-    Converts a chat completion chunk to a span stream event.
-    """
-    return SpanEvent(
-        name="OpenAI Chat Completion Server-Sent Event",
-        timestamp=datetime.now(tz=timezone.utc),
-        attributes={
-            OUTPUT_VALUE: chat_completion_chunk.json(),
-            OUTPUT_MIME_TYPE: MimeType.JSON,  # type: ignore
-        },
-    )
 
 
 def _accumulate_messages(
