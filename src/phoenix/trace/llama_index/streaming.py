@@ -1,19 +1,26 @@
 from datetime import datetime, timezone
-from typing import Generator, Iterator
+from typing import TYPE_CHECKING, Generator, List
 from uuid import UUID
 
 from llama_index.callbacks.schema import TIMESTAMP_FORMAT
+from llama_index.response.schema import StreamingResponse
 
 from phoenix.trace.schemas import SpanKind, SpanStatusCode
 from phoenix.trace.semantic_conventions import OUTPUT_VALUE
+from phoenix.trace.tracer import Tracer
+
+if TYPE_CHECKING:
+    from phoenix.trace.llama_index.callback import CBEventData
 
 _LOCAL_TZINFO = datetime.now().astimezone().tzinfo
 
 
-class TokenGenInstrumentor(Iterator[str]):
-    def __init__(self, stream: Generator[str, None, None], tracer, event_data):
+class TokenGenInstrumentor:
+    def __init__(
+        self, stream: Generator[str, None, None], tracer: Tracer, event_data: "CBEventData"
+    ):
         self._stream = stream
-        self._token_stream = []
+        self._token_stream: List[str] = []
         self._finished = False
         self._tracer = tracer
         self._event_data = event_data
@@ -34,15 +41,19 @@ class TokenGenInstrumentor(Iterator[str]):
             self._handle_end_of_stream()
             raise
 
-    def _handle_end_of_stream(self):
+    def _handle_end_of_stream(self) -> None:
         # Handle the end-of-stream logic here
         parent_id = self._event_data.parent_id
         output = "".join(self._token_stream)
-        start_time = _timestamp_to_tz_aware_datetime(self._event_data.start_event.time)
+        start_event = self._event_data.start_event
+        if start_event:
+            start_time = _timestamp_to_tz_aware_datetime(start_event.time)
+        else:
+            start_time = datetime.now(timezone.utc)
         attributes = self._event_data.attributes
         attributes.update({OUTPUT_VALUE: output})
         self._tracer.create_span(
-            name=self._event_data.name,
+            name=self._event_data.name if self._event_data.name else "",
             span_kind=SpanKind.LLM,
             trace_id=self._event_data.trace_id,
             start_time=start_time,
@@ -58,12 +69,12 @@ class TokenGenInstrumentor(Iterator[str]):
 
 
 def instrument_streaming_response(
-    response,
-    tracer,
-    event_data,
-):
+    response: StreamingResponse,
+    tracer: Tracer,
+    event_data: "CBEventData",
+) -> StreamingResponse:
     if response.response_gen is not None:
-        response.response_gen = TokenGenInstrumentor(response.response_gen, tracer, event_data)
+        response.response_gen = TokenGenInstrumentor(response.response_gen, tracer, event_data)  # type: ignore
     return response
 
 

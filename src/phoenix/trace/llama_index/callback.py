@@ -296,7 +296,7 @@ class OpenInferenceTraceCallbackHandler(BaseCallbackHandler):
         # Parse the payload to extract the parameters
         if payload is not None:
             event_data.attributes.update(
-                payload_to_semantic_attributes(event_type, payload, event_id),
+                payload_to_semantic_attributes(event_type, payload),
             )
 
         return event_id
@@ -326,7 +326,7 @@ class OpenInferenceTraceCallbackHandler(BaseCallbackHandler):
             response = payload.get(EventPayload.RESPONSE)
             if _is_streaming_response(response):
                 event_data.streaming_event = True
-                response = _instrument_streaming_response(response, self._tracer, event_data)
+                response = _instrument_streaming_response(response, self._tracer, event_data)  # type: ignore
 
     @graceful_fallback(_null_fallback)
     def start_trace(self, trace_id: Optional[str] = None) -> None:
@@ -469,7 +469,7 @@ def _message_payload_to_attributes(message: Any) -> Dict[str, Optional[str]]:
                 if message_tool_call := dict(_get_tool_call(tool_call)):
                     message_tool_calls.append(message_tool_call)
             if message_tool_calls:
-                message_attributes[MESSAGE_TOOL_CALLS] = message_tool_calls
+                message_attributes[MESSAGE_TOOL_CALLS] = message_tool_calls  # type: ignore
         return message_attributes
 
     return {
