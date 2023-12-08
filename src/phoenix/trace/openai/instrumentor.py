@@ -250,8 +250,7 @@ class StreamWrapper(ObjectProxy):  # type: ignore
             fields and attributes.
         """
         super().__init__(stream)
-        self._self_context = context
-        self._self_chunks: List[ChatCompletionChunk] = []
+        self._self_context = ChatCompletionStreamEventContext(context)
 
     def __next__(self) -> ChatCompletionChunk:
         """
@@ -261,48 +260,10 @@ class StreamWrapper(ObjectProxy):  # type: ignore
         Returns:
             ChatCompletionChunk: The forwarded chat completion chunk.
         """
-        finished_streaming = False
-        try:
+        with self._self_context as context:
             chat_completion_chunk = next(self.__wrapped__)
-            if not self._self_chunks:
-                self._self_context.events.append(
-                    SpanEvent(
-                        name="First Token Stream Event",
-                        timestamp=datetime.now(tz=timezone.utc),
-                        attributes={},
-                    )
-                )
-            self._self_chunks.append(chat_completion_chunk)
+            context.process_chat_completion_chunk(chat_completion_chunk)
             return cast(ChatCompletionChunk, chat_completion_chunk)
-        except StopIteration:
-            finished_streaming = True
-            self._self_context.status_code = SpanStatusCode.OK
-            raise
-        except Exception as error:
-            finished_streaming = True
-            self._self_context.status_code = SpanStatusCode.ERROR
-            status_message = str(error)
-            self._self_context.status_message = status_message
-            self._self_context.events.append(
-                SpanException(
-                    message=status_message,
-                    timestamp=datetime.now(tz=timezone.utc),
-                    exception_type=type(error).__name__,
-                    exception_stacktrace=get_stacktrace(error),
-                )
-            )
-            raise
-        finally:
-            if finished_streaming:
-                self._self_context.attributes = {
-                    **self._self_context.attributes,
-                    LLM_OUTPUT_MESSAGES: _accumulate_messages(
-                        chunks=self._self_chunks, num_choices=self._self_context.num_choices
-                    ),  # type: ignore
-                    OUTPUT_VALUE: json.dumps([chunk.dict() for chunk in self._self_chunks]),
-                    OUTPUT_MIME_TYPE: MimeType.JSON,  # type: ignore
-                }
-                self._self_context.create_span()
 
     def __iter__(self) -> Iterator[ChatCompletionChunk]:
         """
@@ -391,6 +352,57 @@ class AsyncStreamWrapper(ObjectProxy):  # type: ignore
         that __aiter__ is automatically instrumented using __anext__.
         """
         return self
+
+
+class ChatCompletionStreamEventContext(ContextManager["ChatCompletionStreamEventContext"]):
+    def __init__(self, chat_completion_context: ChatCompletionContext) -> None:
+        self._chat_completion_context = chat_completion_context
+        self._chunks: List[ChatCompletionChunk] = []
+        self._finished_streaming = False
+
+    def __exit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_value: Optional[BaseException],
+        traceback: Optional[TracebackType],
+    ) -> None:
+        if isinstance(exc_value, StopIteration) or isinstance(exc_value, StopAsyncIteration):
+            self._finished_streaming = True
+            self._chat_completion_context.status_code = SpanStatusCode.OK
+        elif exc_value is not None:
+            self._finished_streaming = True
+            self._chat_completion_context.status_code = SpanStatusCode.ERROR
+            status_message = str(exc_value)
+            self._chat_completion_context.status_message = status_message
+            self._chat_completion_context.events.append(
+                SpanException(
+                    message=status_message,
+                    timestamp=datetime.now(tz=timezone.utc),
+                    exception_type=type(exc_value).__name__,
+                    exception_stacktrace=get_stacktrace(exc_value),
+                )
+            )
+        if self._finished_streaming:
+            self._chat_completion_context.attributes = {
+                **self._chat_completion_context.attributes,
+                LLM_OUTPUT_MESSAGES: _accumulate_messages(
+                    chunks=self._chunks, num_choices=self._chat_completion_context.num_choices
+                ),  # type: ignore
+                OUTPUT_VALUE: json.dumps([chunk.dict() for chunk in self._chunks]),
+                OUTPUT_MIME_TYPE: MimeType.JSON,  # type: ignore
+            }
+            self._chat_completion_context.create_span()
+
+    def process_chat_completion_chunk(self, chat_completion_chunk: ChatCompletionChunk) -> None:
+        if not self._chunks:
+            self._chat_completion_context.events.append(
+                SpanEvent(
+                    name="First Token Stream Event",
+                    timestamp=datetime.now(tz=timezone.utc),
+                    attributes={},
+                )
+            )
+        self._chunks.append(chat_completion_chunk)
 
 
 def _wrapped_openai_sync_client_request_function(
