@@ -30,6 +30,7 @@ from phoenix.server.app import create_app
 from phoenix.server.thread_server import ThreadServer
 from phoenix.services import AppService
 from phoenix.trace.dsl import SpanFilter
+from phoenix.trace.dsl.query import SpanQuery
 from phoenix.trace.span_json_encoder import span_to_json
 from phoenix.trace.trace_dataset import TraceDataset
 
@@ -166,6 +167,25 @@ class Session(ABC):
     def url(self) -> str:
         """Returns the url for the phoenix app"""
         return _get_url(self.host, self.port, self.notebook_env)
+
+    def query_spans(
+        self,
+        *queries: SpanQuery,
+        start_time: Optional[datetime] = None,
+        stop_time: Optional[datetime] = None,
+    ) -> Optional[Union[pd.DataFrame, List[pd.DataFrame]]]:
+        if len(queries) == 0 or (traces := self.traces) is None:
+            return None
+        spans = tuple(
+            traces.get_spans(
+                start_time=start_time,
+                stop_time=stop_time,
+            )
+        )
+        dataframes = [query(spans) for query in queries]
+        if len(dataframes) == 1:
+            return dataframes[0]
+        return dataframes
 
     def get_spans_dataframe(
         self,
