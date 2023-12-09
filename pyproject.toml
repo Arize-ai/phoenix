@@ -38,6 +38,7 @@ dependencies = [
   "sortedcontainers",
   "protobuf>=3.20, <5.0",
   "ddsketch",
+  "tqdm",
 ]
 dynamic = ["version"]
 
@@ -225,6 +226,7 @@ check = [
 [tool.hatch.envs.gql]
 dependencies = [
   "strawberry-graphql[cli]==0.208.2",
+  "requests",
 ]
 
 [tool.hatch.envs.gql.scripts]
