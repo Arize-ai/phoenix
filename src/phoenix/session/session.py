@@ -173,7 +173,6 @@ class Session(ABC):
         *queries: SpanQuery,
         start_time: Optional[datetime] = None,
         stop_time: Optional[datetime] = None,
-        root_spans_only: Optional[bool] = None,
     ) -> Optional[Union[pd.DataFrame, List[pd.DataFrame]]]:
         if len(queries) == 0 or (traces := self.traces) is None:
             return None
@@ -181,7 +180,6 @@ class Session(ABC):
             traces.get_spans(
                 start_time=start_time,
                 stop_time=stop_time,
-                root_spans_only=root_spans_only,
             )
         )
         dataframes = [query(spans) for query in queries]
