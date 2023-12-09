@@ -30,9 +30,13 @@ def get_retrieved_documents(session: Session) -> pd.DataFrame:
         pd.DataFrame,
         session.query_spans(
             SpanQuery()
-            .select(**INPUT)
-            .explode(RETRIEVAL_DOCUMENTS, reference=DOCUMENT_CONTENT, score=DOCUMENT_SCORE)
             .where(IS_RETRIEVER)
+            .select(**INPUT)
+            .explode(
+                RETRIEVAL_DOCUMENTS,
+                reference=DOCUMENT_CONTENT,
+                score=DOCUMENT_SCORE,
+            )
         ),
     )
 
@@ -44,8 +48,12 @@ def get_qa_with_reference(session: Session) -> pd.DataFrame:
             session.query_spans(
                 SpanQuery().select(**IO).where(IS_ROOT),
                 SpanQuery()
+                .where(IS_RETRIEVER)
                 .select(span_id="parent_id")
-                .concat(RETRIEVAL_DOCUMENTS, reference=DOCUMENT_CONTENT),
+                .concat(
+                    RETRIEVAL_DOCUMENTS,
+                    reference=DOCUMENT_CONTENT,
+                ),
             ),
         ),
         axis=1,
