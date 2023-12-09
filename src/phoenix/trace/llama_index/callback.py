@@ -665,5 +665,5 @@ def _get_tool_call(tool_call: object) -> Iterator[Tuple[str, Any]]:
             yield TOOL_CALL_FUNCTION_ARGUMENTS_JSON, arguments
 
 
-def _is_streaming_response(response: Any) -> bool:
+def _is_streaming_response(response: Any) -> TypeGuard[StreamingResponse]:
     return isinstance(response, StreamingResponse)
