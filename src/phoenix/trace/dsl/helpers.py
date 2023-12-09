@@ -31,7 +31,7 @@ def get_retrieved_documents(session: Session) -> pd.DataFrame:
         session.query_spans(
             SpanQuery()
             .where(IS_RETRIEVER)
-            .select(**INPUT)
+            .select("trace_id", **INPUT)
             .explode(
                 RETRIEVAL_DOCUMENTS,
                 reference=DOCUMENT_CONTENT,
