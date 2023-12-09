@@ -111,24 +111,26 @@ class Explosion(Projection):
                 break
         if not has_mapping:
             for i, item in enumerate(seq):
-                yield {
-                    self.key: item,
-                    self.primary_index.key: self.primary_index(span),
-                    f"{self.position_prefix}position": i,
-                }
+                if item is not None:
+                    yield {
+                        self.key: item,
+                        self.primary_index.key: self.primary_index(span),
+                        f"{self.position_prefix}position": i,
+                    }
             return
         for i, item in enumerate(seq):
             if not isinstance(item, Mapping):
                 continue
             record = (
-                {
-                    name: value
-                    for name, key in self.kwargs.items()
-                    if (value := item.get(key)) is not None
-                }
+                {name: item.get(key) for name, key in self.kwargs.items()}
                 if self.kwargs
                 else dict(item)
             )
+            for v in record.values():
+                if v is not None:
+                    break
+            else:
+                record = {}
             if not record:
                 continue
             record[self.primary_index.key] = self.primary_index(span)
@@ -171,11 +173,6 @@ class SpanQuery:
 
     def __bool__(self) -> bool:
         return bool(self._select) or bool(self._filter) or bool(self._explode) or bool(self._concat)
-
-    def __post_init__(self) -> None:
-        if self._index.key not in self._select:
-            _select = {**self._select}
-            object.__setattr__(self, "_select", MappingProxyType(_select))
 
     def select(self, *args: str, **kwargs: str) -> "SpanQuery":
         _select = {
@@ -228,11 +225,12 @@ class SpanQuery:
         _exploded: List[Dict[str, Any]] = []
         for span in spans:
             if self._select:
-                record = {
-                    name: value
-                    for name, proj in self._select.items()
-                    if (value := proj(span)) is not None
-                }
+                record = {name: proj(span) for name, proj in self._select.items()}
+                for v in record.values():
+                    if v is not None:
+                        break
+                else:
+                    record = {}
                 if self._concat:
                     record.update(self._concat(span))
                 if record:

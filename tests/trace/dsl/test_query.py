@@ -4,7 +4,7 @@ from random import random
 import pandas as pd
 import pytest
 from pandas.testing import assert_frame_equal
-from phoenix.trace.dsl.query import Explosion, Projection, SpanQuery
+from phoenix.trace.dsl.query import Concatenation, Explosion, Projection, SpanQuery
 from phoenix.trace.schemas import ATTRIBUTE_PREFIX, CONTEXT_PREFIX
 from phoenix.trace.semantic_conventions import (
     DOCUMENT_CONTENT,
@@ -48,7 +48,26 @@ def test_projection(spans):
         ]
 
 
+def test_concatenation(spans):
+    concat = Concatenation("12")
+    assert list(concat(spans[2])) == [("12", "1\n\n2")]
+
+
 def test_explosion(spans):
+    explode = Explosion("12")
+    assert list(explode(spans[2])) == [
+        {
+            "12": 1,
+            "context.span_id": "2",
+            "position": 0,
+        },
+        {
+            "12": 2,
+            "context.span_id": "2",
+            "position": 1,
+        },
+    ]
+
     explode = Explosion(RETRIEVAL_DOCUMENTS)
 
     assert list(explode(spans[0])) == []
@@ -150,7 +169,7 @@ def test_query_explode(spans):
         {
             "context.span_id": ["1", "2", "2", "2"],
             "document_position": [0, 0, 1, 3],
-            # "input": [None, None, None, None],
+            "input": [None, None, None, None],
             "output": [None, "222", "222", "222"],
             DOCUMENT_CONTENT: ["10", "20", None, "22"],
             DOCUMENT_SCORE: [100, None, 201, 203],
@@ -242,6 +261,7 @@ def spans():
             context=Context(span_id=2, trace_id=99),
             parent_id=1,
             attributes={
+                "12": [1, 2],
                 OUTPUT_VALUE: "222",
                 RETRIEVAL_DOCUMENTS: [
                     {
