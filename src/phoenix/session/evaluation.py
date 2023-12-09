@@ -8,9 +8,6 @@ A set of **highly experimental** helper functions to
 import math
 from typing import (
     Any,
-    Iterable,
-    List,
-    Mapping,
     Optional,
     Sequence,
     Tuple,
@@ -22,54 +19,14 @@ import pandas as pd
 from google.protobuf.wrappers_pb2 import DoubleValue, StringValue
 
 import phoenix.trace.v1 as pb
-from phoenix.core.traces import TRACE_ID
-from phoenix.session.session import Session
+from phoenix.trace.dsl.helpers import get_qa_with_reference, get_retrieved_documents
 from phoenix.trace.exporter import HttpExporter
-from phoenix.trace.schemas import ATTRIBUTE_PREFIX
-from phoenix.trace.semantic_conventions import (
-    DOCUMENT_CONTENT,
-    DOCUMENT_SCORE,
-    INPUT_VALUE,
-    RETRIEVAL_DOCUMENTS,
-)
 
-
-def get_retrieved_documents(session: Session) -> pd.DataFrame:
-    data: List[Mapping[str, Any]] = []
-    if (df := session.get_spans_dataframe("span_kind == 'RETRIEVER'")) is not None:
-        for span_id, query, documents, trace_id in df.loc[
-            :,
-            [
-                ATTRIBUTE_PREFIX + INPUT_VALUE,
-                ATTRIBUTE_PREFIX + RETRIEVAL_DOCUMENTS,
-                TRACE_ID,
-            ],
-        ].itertuples():
-            if not isinstance(documents, Iterable):
-                continue
-            for position, document in enumerate(documents):
-                if not hasattr(document, "get"):
-                    continue
-                data.append(
-                    {
-                        "context.trace_id": trace_id,
-                        "context.span_id": span_id,
-                        "input": query,
-                        "document_position": position,
-                        "reference": document.get(DOCUMENT_CONTENT),
-                        "document_score": document.get(DOCUMENT_SCORE),
-                    }
-                )
-    index = ["context.span_id", "document_position"]
-    columns = [
-        "context.span_id",
-        "document_position",
-        "input",
-        "reference",
-        "document_score",
-        "context.trace_id",
-    ]
-    return pd.DataFrame(data=data, columns=columns).set_index(index)
+__all__ = [
+    "get_retrieved_documents",
+    "get_qa_with_reference",
+    "add_evaluations",
+]
 
 
 def add_evaluations(
