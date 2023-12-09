@@ -40,6 +40,7 @@ from llama_index.callbacks.schema import (
 from llama_index.llms.base import ChatMessage, ChatResponse
 from llama_index.response.schema import Response, StreamingResponse
 from llama_index.tools import ToolMetadata
+from typing_extensions import TypeGuard
 
 from phoenix.trace.exporter import HttpExporter
 from phoenix.trace.llama_index.streaming import (
@@ -326,7 +327,7 @@ class OpenInferenceTraceCallbackHandler(BaseCallbackHandler):
             response = payload.get(EventPayload.RESPONSE)
             if _is_streaming_response(response):
                 event_data.streaming_event = True
-                response = _instrument_streaming_response(response, self._tracer, event_data)  # type: ignore
+                response = _instrument_streaming_response(response, self._tracer, event_data)
 
     @graceful_fallback(_null_fallback)
     def start_trace(self, trace_id: Optional[str] = None) -> None:
