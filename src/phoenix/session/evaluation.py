@@ -6,6 +6,7 @@ A set of **highly experimental** helper functions to
   - ingest evaluation results into Phoenix via HttpExporter
 """
 import math
+from time import sleep
 from typing import (
     Any,
     Optional,
@@ -17,6 +18,7 @@ from typing import (
 
 import pandas as pd
 from google.protobuf.wrappers_pb2 import DoubleValue, StringValue
+from tqdm import tqdm
 
 import phoenix.trace.v1 as pb
 from phoenix.trace.dsl.helpers import get_qa_with_reference, get_retrieved_documents
@@ -27,6 +29,8 @@ __all__ = [
     "get_qa_with_reference",
     "add_evaluations",
 ]
+
+from phoenix.trace.span_evaluations import Evaluations
 
 
 def add_evaluations(
@@ -112,3 +116,22 @@ def _extract_result(row: "pd.Series[Any]") -> Optional[pb.Evaluation.Result]:
         label=StringValue(value=label) if label else None,
         explanation=StringValue(value=explanation) if explanation else None,
     )
+
+
+def log_evaluations(
+    *evals: Evaluations,
+    endpoint: Optional[str] = None,
+    host: Optional[str] = None,
+    port: Optional[int] = None,
+) -> None:
+    if not (n := sum(map(len, evals))):
+        return
+    exporter = HttpExporter(endpoint=endpoint, host=host, port=port)
+    for eval in filter(bool, evals):
+        add_evaluations(exporter, eval.dataframe, eval.eval_name)
+    with tqdm(total=n, desc="Sending Evaluations") as pbar:
+        while n:
+            sleep(0.1)
+            n_left = exporter._queue.qsize()
+            n, diff = n_left, n - n_left
+            pbar.update(diff)
