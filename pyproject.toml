@@ -226,6 +226,7 @@ check = [
 [tool.hatch.envs.gql]
 dependencies = [
   "strawberry-graphql[cli]==0.208.2",
+  "requests",
 ]
 
 [tool.hatch.envs.gql.scripts]
