@@ -20,6 +20,14 @@ _ALIASES = {
     "trace_id": "context.trace_id",
 }
 
+# Because UUIDs is not convertible to Parquet,
+# they need to be converted to string.
+_CONVERT_TO_STRING = (
+    "context.span_id",
+    "context.trace_id",
+    "parent_id",
+)
+
 
 def _unalias(key: str) -> str:
     return _ALIASES.get(key, key)
@@ -47,7 +55,14 @@ class Projection:
             value = partial(self._from_span, key=key)
         else:
             value = partial(self._from_attributes, key=key)
-        object.__setattr__(self, "value", value)
+        if self.key in _CONVERT_TO_STRING:
+            object.__setattr__(
+                self,
+                "value",
+                lambda span: None if (v := value(span)) is None else str(v),
+            )
+        else:
+            object.__setattr__(self, "value", value)
 
     def __call__(self, span: Span) -> Any:
         return self.value(span)
