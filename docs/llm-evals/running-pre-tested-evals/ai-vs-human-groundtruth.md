@@ -6,13 +6,13 @@ description: >-
 
 # AI vs Human (Groundtruth)
 
-A workflow we see for high quality RAG deployments is generating a golden dataset of questions and a high quality set of answers. These can be in the range of 100-200 but provide a strong check for the AI generated answers.
+A workflow we see for high quality RAG deployments is generating a golden dataset of questions and a high quality set of answers. These can be in the range of 100-200 but provide a strong check for the AI generated answers. This Eval checks that the human ground truth matches the AI generated answer. Its designed to catch missing data in "half" answers and differences of substance.
 
 #### Example Human vs AI on Arize Docs:
 
 _**Question:**_
 
-What Evals are supported for LLMs or generative models?
+What Evals are supported for LLMs on generative models?
 
 _**Human:**_
 
