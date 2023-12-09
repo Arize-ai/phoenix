@@ -31,7 +31,7 @@ def get_retrieved_documents(session: Session) -> pd.DataFrame:
         session.query_spans(
             SpanQuery()
             .where(IS_RETRIEVER)
-            .select(**INPUT)
+            .select("trace_id", **INPUT)
             .explode(
                 RETRIEVAL_DOCUMENTS,
                 reference=DOCUMENT_CONTENT,
@@ -46,7 +46,7 @@ def get_qa_with_reference(session: Session) -> pd.DataFrame:
         cast(
             List[pd.DataFrame],
             session.query_spans(
-                SpanQuery().select(**IO).where(IS_ROOT),
+                SpanQuery().select("trace_id", **IO).where(IS_ROOT),
                 SpanQuery()
                 .where(IS_RETRIEVER)
                 .select(span_id="parent_id")
