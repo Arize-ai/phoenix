@@ -46,7 +46,7 @@ def get_qa_with_reference(session: Session) -> pd.DataFrame:
         cast(
             List[pd.DataFrame],
             session.query_spans(
-                SpanQuery().select("trace_id", **IO).where(IS_ROOT),
+                SpanQuery().select(**IO).where(IS_ROOT),
                 SpanQuery()
                 .where(IS_RETRIEVER)
                 .select(span_id="parent_id")
