@@ -27,7 +27,7 @@ from typing import (
     Union,
     cast,
 )
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import llama_index
 from llama_index.callbacks.base_handler import BaseCallbackHandler
@@ -40,8 +40,12 @@ from llama_index.callbacks.schema import (
 from llama_index.llms.base import ChatMessage, ChatResponse
 from llama_index.response.schema import Response, StreamingResponse
 from llama_index.tools import ToolMetadata
+from typing_extensions import TypeGuard
 
 from phoenix.trace.exporter import HttpExporter
+from phoenix.trace.llama_index.streaming import (
+    instrument_streaming_response as _instrument_streaming_response,
+)
 from phoenix.trace.schemas import (
     Span,
     SpanEvent,
@@ -49,6 +53,7 @@ from phoenix.trace.schemas import (
     SpanID,
     SpanKind,
     SpanStatusCode,
+    TraceID,
 )
 from phoenix.trace.semantic_conventions import (
     DOCUMENT_CONTENT,
@@ -109,6 +114,10 @@ class CBEventData:
     start_event: Optional[CBEvent] = field(default=None)
     end_event: Optional[CBEvent] = field(default=None)
     attributes: Dict[str, Any] = field(default_factory=dict)
+    span_id: Optional[CBEventID] = field(default=None)
+    parent_id: Optional[CBEventID] = field(default=None)
+    trace_id: Optional[TraceID] = field(default=None)
+    streaming_event: bool = field(default=False)
 
     def set_if_unset(self, key: str, value: Any) -> None:
         if not getattr(self, key):
@@ -270,9 +279,16 @@ class OpenInferenceTraceCallbackHandler(BaseCallbackHandler):
         **kwargs: Any,
     ) -> CBEventID:
         event_id = event_id or str(uuid4())
+        if parent_data := self._event_id_to_event_data.get(parent_id):
+            trace_id = parent_data.trace_id
+        else:
+            trace_id = uuid4()
         event_data = self._event_id_to_event_data[event_id]
         event_data.name = event_type.value
         event_data.event_type = event_type
+        event_data.parent_id = None if parent_id == "root" else parent_id
+        event_data.span_id = event_id
+        event_data.trace_id = trace_id
         event_data.start_event = CBEvent(
             event_type=event_type,
             payload=payload,
@@ -308,6 +324,10 @@ class OpenInferenceTraceCallbackHandler(BaseCallbackHandler):
             event_data.attributes.update(
                 payload_to_semantic_attributes(event_type, payload, is_event_end=True),
             )
+            response = payload.get(EventPayload.RESPONSE)
+            if _is_streaming_response(response):
+                event_data.streaming_event = True
+                response = _instrument_streaming_response(response, self._tracer, event_data)
 
     @graceful_fallback(_null_fallback)
     def start_trace(self, trace_id: Optional[str] = None) -> None:
@@ -353,7 +373,6 @@ def _add_spans_to_tracer(
         tracer (Tracer): The tracer that stores spans.
     """
 
-    trace_id = uuid4()
     parent_child_id_stack: List[Tuple[Optional[SpanID], CBEventID]] = [
         (None, root_event_id) for root_event_id in trace_map["root"]
     ]
@@ -383,7 +402,11 @@ def _add_spans_to_tracer(
 
         start_time = _timestamp_to_tz_aware_datetime(start_event.time)
         span_exceptions = _get_span_exceptions(event_data, start_time)
-        end_time = _get_end_time(event_data, span_exceptions)
+        if event_data.streaming_event:
+            # Do not set the end time for streaming events so we can update the event later
+            end_time = None
+        else:
+            end_time = _get_end_time(event_data, span_exceptions)
         start_time = start_time or end_time or datetime.now(timezone.utc)
 
         name = event_name if (event_name := event_data.name) is not None else "unknown"
@@ -391,7 +414,7 @@ def _add_spans_to_tracer(
         span = tracer.create_span(
             name=name,
             span_kind=span_kind,
-            trace_id=trace_id,
+            trace_id=event_data.trace_id,
             start_time=start_time,
             end_time=end_time,
             status_code=SpanStatusCode.ERROR if span_exceptions else SpanStatusCode.OK,
@@ -400,6 +423,7 @@ def _add_spans_to_tracer(
             attributes=attributes,
             events=sorted(span_exceptions, key=lambda event: event.timestamp) or None,
             conversation=None,
+            span_id=UUID(event_data.span_id),
         )
         new_parent_span_id = span.context.span_id
         for new_child_event_id in trace_map.get(event_id, []):
@@ -640,3 +664,7 @@ def _get_tool_call(tool_call: object) -> Iterator[Tuple[str, Any]]:
         if arguments := getattr(function, "arguments", None):
             assert isinstance(arguments, str), f"arguments must be str, found {type(arguments)}"
             yield TOOL_CALL_FUNCTION_ARGUMENTS_JSON, arguments
+
+
+def _is_streaming_response(response: Any) -> TypeGuard[StreamingResponse]:
+    return isinstance(response, StreamingResponse)
