@@ -35,7 +35,7 @@ def get_retrieved_documents(session: Session) -> pd.DataFrame:
             .explode(
                 RETRIEVAL_DOCUMENTS,
                 reference=DOCUMENT_CONTENT,
-                score=DOCUMENT_SCORE,
+                document_score=DOCUMENT_SCORE,
             )
         ),
     )
