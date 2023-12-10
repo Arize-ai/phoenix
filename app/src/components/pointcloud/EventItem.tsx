@@ -290,7 +290,12 @@ function VideoPreview(props: Pick<EventItemProps, "linkToData" | "color">) {
  * Shows a audio preview of the event's data
  */
 function AudioPreview(props: Pick<EventItemProps, "linkToData" | "color">) {
-  return <audio src={props.linkToData || "[error] unexpected missing url"} />;
+  return (
+    <audio
+      src={props.linkToData || "[error] unexpected missing url"}
+      controls
+    />
+  );
 }
 
 /**
