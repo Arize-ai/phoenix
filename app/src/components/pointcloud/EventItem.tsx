@@ -3,7 +3,7 @@ import { transparentize } from "polished";
 import { css } from "@emotion/react";
 
 import { assertUnreachable } from "@phoenix/typeUtils";
-import { isVideoUrl } from "@phoenix/utils/urlUtils";
+import { isAudioUrl, isVideoUrl } from "@phoenix/utils/urlUtils";
 
 import { Shape, ShapeIcon } from "./ShapeIcon";
 
@@ -17,6 +17,7 @@ type EventPreviewType =
   | "prompt_response"
   | "image"
   | "video"
+  | "audio"
   | "event_metadata"
   | "document";
 type EventItemProps = {
@@ -71,7 +72,6 @@ type EventItemProps = {
  */
 function getPrimaryPreviewType(props: EventItemProps): EventPreviewType {
   const { rawData, linkToData, promptAndResponse, documentText } = props;
-
   if (documentText != null) {
     return "document";
   }
@@ -79,7 +79,13 @@ function getPrimaryPreviewType(props: EventItemProps): EventPreviewType {
     return "prompt_response";
   }
   if (linkToData != null) {
-    return isVideoUrl(linkToData) ? "video" : "image";
+    if (isVideoUrl(linkToData)) {
+      return "video";
+    }
+    if (isAudioUrl(linkToData)) {
+      return "audio";
+    }
+    return "image";
   } else if (rawData != null) {
     return "raw";
   } else {
@@ -103,6 +109,8 @@ function getSecondaryPreviewType(
     case "image":
       return rawData != null ? "raw" : null;
     case "video":
+      return rawData != null ? "raw" : null;
+    case "audio":
       return rawData != null ? "raw" : null;
     case "raw":
       return "event_metadata";
@@ -224,6 +232,10 @@ function EventPreview(
       preview = <VideoPreview {...props} />;
       break;
     }
+    case "audio": {
+      preview = <AudioPreview {...props} />;
+      break;
+    }
     case "raw": {
       preview = <RawTextPreview {...props} />;
       break;
@@ -272,6 +284,13 @@ function VideoPreview(props: Pick<EventItemProps, "linkToData" | "color">) {
       `}
     />
   );
+}
+
+/**
+ * Shows a audio preview of the event's data
+ */
+function AudioPreview(props: Pick<EventItemProps, "linkToData" | "color">) {
+  return <audio src={props.linkToData || "[error] unexpected missing url"} />;
 }
 
 /**
