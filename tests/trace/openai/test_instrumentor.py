@@ -975,6 +975,112 @@ def test_openai_instrumentor_sync_streaming_creates_span_only_once(
     assert len(spans) == 1
 
 
+def test_openai_instrumentor_sync_streaming_records_function_call_attributes(
+    sync_client: OpenAI,
+    respx_mock: MockRouter,
+) -> None:
+    tracer = Tracer()
+    OpenAIInstrumentor(tracer).instrument()
+    model = "gpt-4"
+    messages = [{"role": "user", "content": "How's the weather in Madrid?"}]
+    temperature = 0.23
+    expected_response_tokens = [
+        "",
+        "{\n",
+        " ",
+        ' "',
+        "location",
+        '":',
+        ' "',
+        "Mad",
+        "rid",
+        '"\n',
+        "}",
+        "",
+    ]
+    expected_response_text = "".join(expected_response_tokens)
+    byte_stream = []
+    for token_index, token in enumerate(expected_response_tokens):
+        is_first_token = token_index == 0
+        is_last_token = token_index == len(expected_response_tokens) - 1
+        response_body = {
+            "choices": [
+                {
+                    "index": 0,
+                    "delta": {}
+                    if is_last_token
+                    else {
+                        "function_call": {
+                            "arguments": token,
+                            **({"name": "get_current_weather"} if is_first_token else {}),
+                        },
+                        **({"role": "assistant"} if is_first_token else {}),
+                    },
+                    "finish_reason": "stop" if is_last_token else None,
+                }
+            ],
+        }
+        byte_stream.append(f"data: {json.dumps(response_body)}\n\n".encode("utf-8"))
+    byte_stream.append(b"data: [DONE]\n")
+    url = "https://api.openai.com/v1/chat/completions"
+    respx_mock.post(url).respond(
+        status_code=200,
+        stream=byte_stream,
+    )
+    response = sync_client.chat.completions.create(
+        model=model, messages=messages, temperature=temperature, stream=True
+    )
+    assert isinstance(response, Stream)
+    spans = list(tracer.get_spans())
+    assert len(spans) == 0
+
+    # iterate over the stream to trigger span creation
+    response_tokens = []
+    for chunk in response:
+        choice = chunk.choices[0]
+        if choice.finish_reason is None:
+            response_tokens.append(choice.delta.function_call.arguments)
+    response_text = "".join(response_tokens)
+    assert response_text == expected_response_text
+
+    spans = list(tracer.get_spans())
+    assert len(spans) == 1
+    span = spans[0]
+    attributes = span.attributes
+
+    assert span.span_kind is SpanKind.LLM
+    assert span.status_code == SpanStatusCode.OK
+    assert isinstance(span.end_time, datetime)
+    assert len(span.events) == 1
+    first_token_event = span.events[0]
+    assert "first token" in first_token_event.name.lower()
+
+    assert attributes[LLM_INPUT_MESSAGES] == [
+        {MESSAGE_ROLE: "user", MESSAGE_CONTENT: "How's the weather in Madrid?"}
+    ]
+    assert (
+        json.loads(attributes[LLM_INVOCATION_PARAMETERS])
+        == json.loads(attributes[INPUT_VALUE])
+        == {
+            "model": model,
+            "messages": messages,
+            "temperature": temperature,
+            "stream": True,
+        }
+    )
+    output_messages = attributes[LLM_OUTPUT_MESSAGES]
+    assert len(output_messages) == 1
+    assert output_messages[0] == {
+        MESSAGE_ROLE: "assistant",
+        MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON: expected_response_text,
+        MESSAGE_FUNCTION_CALL_NAME: "get_current_weather",
+    }
+    assert attributes[INPUT_MIME_TYPE] == MimeType.JSON
+    chunks = json.loads(attributes[OUTPUT_VALUE])
+    assert len(chunks) == len(expected_response_tokens)
+    assert attributes[OUTPUT_MIME_TYPE] == MimeType.JSON
+
+
 async def test_openai_instrumentor_async_includes_llm_attributes_on_chat_completion_success(
     async_client: AsyncOpenAI,
     respx_mock: MockRouter,
@@ -1858,3 +1964,109 @@ async def test_openai_instrumentor_async_streaming_creates_span_only_once(
         await response.__anext__()
     spans = list(tracer.get_spans())
     assert len(spans) == 1
+
+
+async def test_openai_instrumentor_async_streaming_records_function_call_attributes(
+    async_client: OpenAI,
+    respx_mock: MockRouter,
+) -> None:
+    tracer = Tracer()
+    OpenAIInstrumentor(tracer).instrument()
+    model = "gpt-4"
+    messages = [{"role": "user", "content": "How's the weather in Madrid?"}]
+    temperature = 0.23
+    expected_response_tokens = [
+        "",
+        "{\n",
+        " ",
+        ' "',
+        "location",
+        '":',
+        ' "',
+        "Mad",
+        "rid",
+        '"\n',
+        "}",
+        "",
+    ]
+    expected_response_text = "".join(expected_response_tokens)
+    byte_stream = []
+    for token_index, token in enumerate(expected_response_tokens):
+        is_first_token = token_index == 0
+        is_last_token = token_index == len(expected_response_tokens) - 1
+        response_body = {
+            "choices": [
+                {
+                    "index": 0,
+                    "delta": {}
+                    if is_last_token
+                    else {
+                        "function_call": {
+                            "arguments": token,
+                            **({"name": "get_current_weather"} if is_first_token else {}),
+                        },
+                        **({"role": "assistant"} if is_first_token else {}),
+                    },
+                    "finish_reason": "stop" if is_last_token else None,
+                }
+            ],
+        }
+        byte_stream.append(f"data: {json.dumps(response_body)}\n\n".encode("utf-8"))
+    byte_stream.append(b"data: [DONE]\n")
+    url = "https://api.openai.com/v1/chat/completions"
+    respx_mock.post(url).respond(
+        status_code=200,
+        stream=MockAsyncByteStream(byte_stream),
+    )
+    response = await async_client.chat.completions.create(
+        model=model, messages=messages, temperature=temperature, stream=True
+    )
+    assert isinstance(response, AsyncStream)
+    spans = list(tracer.get_spans())
+    assert len(spans) == 0
+
+    # iterate over the stream to trigger span creation
+    response_tokens = []
+    async for chunk in response:
+        choice = chunk.choices[0]
+        if choice.finish_reason is None:
+            response_tokens.append(choice.delta.function_call.arguments)
+    response_text = "".join(response_tokens)
+    assert response_text == expected_response_text
+
+    spans = list(tracer.get_spans())
+    assert len(spans) == 1
+    span = spans[0]
+    attributes = span.attributes
+
+    assert span.span_kind is SpanKind.LLM
+    assert span.status_code == SpanStatusCode.OK
+    assert isinstance(span.end_time, datetime)
+    assert len(span.events) == 1
+    first_token_event = span.events[0]
+    assert "first token" in first_token_event.name.lower()
+
+    assert attributes[LLM_INPUT_MESSAGES] == [
+        {MESSAGE_ROLE: "user", MESSAGE_CONTENT: "How's the weather in Madrid?"}
+    ]
+    assert (
+        json.loads(attributes[LLM_INVOCATION_PARAMETERS])
+        == json.loads(attributes[INPUT_VALUE])
+        == {
+            "model": model,
+            "messages": messages,
+            "temperature": temperature,
+            "stream": True,
+        }
+    )
+    output_messages = attributes[LLM_OUTPUT_MESSAGES]
+    assert len(output_messages) == 1
+    assert output_messages[0] == {
+        MESSAGE_ROLE: "assistant",
+        MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON: expected_response_text,
+        MESSAGE_FUNCTION_CALL_NAME: "get_current_weather",
+    }
+    assert attributes[INPUT_MIME_TYPE] == MimeType.JSON
+    chunks = json.loads(attributes[OUTPUT_VALUE])
+    assert len(chunks) == len(expected_response_tokens)
+    assert attributes[OUTPUT_MIME_TYPE] == MimeType.JSON

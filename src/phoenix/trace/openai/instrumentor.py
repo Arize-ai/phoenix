@@ -615,17 +615,32 @@ def _accumulate_messages(
     """
     if not chunks:
         return []
-    tokens: DefaultDict[int, List[str]] = defaultdict(list)
-    roles: DefaultDict[int, str] = defaultdict()
+    content_token_lists: DefaultDict[int, List[str]] = defaultdict(list)
+    function_argument_token_lists: DefaultDict[int, List[str]] = defaultdict(list)
+    function_names: Dict[int, str] = {}
+    roles: Dict[int, str] = {}
     for chunk in chunks:
         for choice in chunk.choices:
             choice_index = choice.index
-            if content := choice.delta.content:
-                tokens[choice_index].append(content)
+            if content_token := choice.delta.content:
+                content_token_lists[choice_index].append(content_token)
+            if function_call := choice.delta.function_call:
+                if function_name := function_call.name:
+                    function_names[choice_index] = function_name
+                if (function_argument_token := function_call.arguments) is not None:
+                    function_argument_token_lists[choice_index].append(function_argument_token)
             if role := choice.delta.role:
                 roles[choice_index] = role
     messages: List[OpenInferenceMessage] = [{} for _ in range(num_choices)]
-    for choice_index in range(len(tokens)):
-        messages[choice_index][MESSAGE_CONTENT] = "".join(tokens.get(choice_index, []))
-        messages[choice_index][MESSAGE_ROLE] = roles.get(choice_index, "")
+    for choice_index in range(num_choices):
+        if (role_ := roles.get(choice_index)) is not None:
+            messages[choice_index][MESSAGE_ROLE] = role_
+        if content_token_list := content_token_lists[choice_index]:
+            messages[choice_index][MESSAGE_CONTENT] = "".join(content_token_list)
+        if (function_name := function_names.get(choice_index)) is not None:
+            messages[choice_index][MESSAGE_FUNCTION_CALL_NAME] = function_name
+        if function_argument_token_list := function_argument_token_lists[choice_index]:
+            messages[choice_index][MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON] = "".join(
+                function_argument_token_list
+            )
     return messages
