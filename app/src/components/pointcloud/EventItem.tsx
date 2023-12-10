@@ -65,6 +65,11 @@ type EventItemProps = {
    * In the case the event captures a document (e.g. a corpus record)
    */
   documentText: string | null;
+  /**
+   * Auto-play the audio preview
+   * @default false
+   */
+  autoPlay: boolean;
 };
 
 /**
@@ -289,10 +294,13 @@ function VideoPreview(props: Pick<EventItemProps, "linkToData" | "color">) {
 /**
  * Shows a audio preview of the event's data
  */
-function AudioPreview(props: Pick<EventItemProps, "linkToData" | "color">) {
+function AudioPreview(
+  props: Pick<EventItemProps, "linkToData" | "color" | "autoPlay">
+) {
   return (
     <audio
       src={props.linkToData || "[error] unexpected missing url"}
+      autoPlay={props.autoPlay}
       controls
     />
   );

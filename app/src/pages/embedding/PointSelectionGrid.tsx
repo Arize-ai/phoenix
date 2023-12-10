@@ -90,6 +90,7 @@ export function PointSelectionGrid(props: PointSelectionGridProps) {
                 actualLabel={actualLabel}
                 promptAndResponse={event.promptAndResponse}
                 documentText={event.documentText}
+                autoPlay={false}
               />
             </li>
           );

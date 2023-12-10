@@ -330,7 +330,7 @@ function DataURLPreview({ dataUrl }: { dataUrl: string }) {
     );
   }
   if (isAudio) {
-    return <audio src={dataUrl} controls />;
+    return <audio src={dataUrl} controls autoPlay />;
   }
   return (
     <img
