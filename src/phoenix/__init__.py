@@ -6,7 +6,7 @@ from .session.session import NotebookEnvironment, Session, active_session, close
 from .trace.fixtures import load_example_traces
 from .trace.trace_dataset import TraceDataset
 
-__version__ = "1.7.2rc2"
+__version__ = "1.8.0"
 
 # module level doc-string
 __doc__ = """
