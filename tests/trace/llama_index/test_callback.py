@@ -61,7 +61,7 @@ def api_key(monkeypatch: pytest.MonkeyPatch) -> str:
     return api_key
 
 
-def test_callback_llm(mock_service_context: ServiceContext) -> None:
+def test_callback_llm(api_key, mock_service_context: ServiceContext) -> None:
     question = "What are the seven wonders of the world?"
     callback_handler = OpenInferenceTraceCallbackHandler(exporter=NoOpExporter())
     callback_manager = CallbackManager([callback_handler])
@@ -251,7 +251,9 @@ def test_callback_internal_error_has_exception_event(
     assert isinstance(event.attributes[EXCEPTION_STACKTRACE], str)
 
 
-def test_callback_exception_event_produces_root_chain_span_with_exception_events() -> None:
+def test_callback_exception_event_produces_root_chain_span_with_exception_events(
+    api_key,
+) -> None:
     llm = OpenAI(model="gpt-3.5-turbo", max_retries=1)
     query = "What are the seven wonders of the world?"
     callback_handler = OpenInferenceTraceCallbackHandler(exporter=NoOpExporter())
@@ -285,7 +287,7 @@ def test_callback_exception_event_produces_root_chain_span_with_exception_events
 
 
 def test_callback_llm_rate_limit_error_has_exception_event_with_missing_start(
-    api_key: str,
+    api_key,
 ) -> None:
     callback_handler = OpenInferenceTraceCallbackHandler(exporter=NoOpExporter())
     event_type = CBEventType.EXCEPTION
@@ -303,7 +305,7 @@ def test_callback_llm_rate_limit_error_has_exception_event_with_missing_start(
 
 @patch("phoenix.trace.llama_index.callback.payload_to_semantic_attributes")
 def test_on_event_start_handler_fails_gracefully(
-    mock_handler_internals, mock_service_context: ServiceContext, caplog
+    api_key, mock_handler_internals, mock_service_context: ServiceContext, caplog
 ) -> None:
     # callback handlers should *never* introduce errors in user code if they fail
     question = "What are the seven wonders of the world?"
@@ -327,7 +329,7 @@ def test_on_event_start_handler_fails_gracefully(
 
 
 def test_on_event_start_handler_is_not_called_before_end_handler(
-    mock_service_context: ServiceContext, caplog
+    api_key, mock_service_context: ServiceContext, caplog
 ) -> None:
     question = "What are the seven wonders of the world?"
     callback_handler = OpenInferenceTraceCallbackHandler(exporter=NoOpExporter())
@@ -350,7 +352,7 @@ def test_on_event_start_handler_is_not_called_before_end_handler(
 
 
 def test_on_event_end_handler_fails_gracefully(
-    mock_service_context: ServiceContext, caplog
+    api_key, mock_service_context: ServiceContext, caplog
 ) -> None:
     event_type = CBEventType.QUERY
     faulty_payload = {"faulty": "payload"}
@@ -374,7 +376,7 @@ def test_on_event_end_handler_fails_gracefully(
 
 
 @patch("phoenix.trace.llama_index.callback._add_spans_to_tracer")
-def test_end_trace_handler_fails_gracefully(mock_handler_internals, caplog) -> None:
+def test_end_trace_handler_fails_gracefully(api_key, mock_handler_internals, caplog) -> None:
     trace_id = str(uuid4())
     trace_map = {str(uuid4()): [str(uuid4())]}
     mock_handler_internals.side_effect = CallbackError("callback exception")
@@ -386,7 +388,7 @@ def test_end_trace_handler_fails_gracefully(mock_handler_internals, caplog) -> N
     assert "CallbackError" in caplog.records[0].message
 
 
-def test_custom_llm(mock_embed_model) -> None:
+def test_custom_llm(api_key, mock_embed_model) -> None:
     """Make sure token counts are captured when a custom LLM such as llama2-13B is used."""
 
     prompt_tokens = 100
