@@ -58,7 +58,7 @@ dev = [
   "strawberry-graphql[debug-server]==0.208.2",
   "pre-commit",
   "arize[AutoEmbeddings, LLM_Evaluation]",
-  "llama-index>=0.9.8",
+  "llama-index>=0.9.8, <0.9.14",
   "langchain>=0.0.334",
   "litellm>=1.0.3"
 ]
@@ -66,7 +66,7 @@ experimental = [
   "tenacity",
 ]
 llama-index = [
-  "llama-index>=0.9.8",
+  "llama-index>=0.9.8, <0.9.14",
 ]
 
 [project.urls]
@@ -101,7 +101,7 @@ dependencies = [
   "arize",
   "langchain>=0.0.334",
   "litellm>=1.0.3",
-  "llama-index>=0.9.8",
+  "llama-index>=0.9.8, <0.9.14",
   "openai>=1.0.0",
   "tenacity",
   "nltk==3.8.1",
@@ -120,7 +120,7 @@ dependencies = [
 [tool.hatch.envs.type]
 dependencies = [
   "mypy==1.5.1",
-  "llama-index>=0.9.8",
+  "llama-index>=0.9.8, <0.9.14",
   "pandas-stubs<=2.0.2.230605",  # version 2.0.3.230814 is causing a dependency conflict.
   "types-psutil",
   "types-tqdm",
