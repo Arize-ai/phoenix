@@ -76,13 +76,13 @@ export function ClusterSortPicker() {
         .ac-action-button {
           background: none;
           border: none;
-          color: ${theme.textColors.white70};
+          color: ${"var(--ac-global-text-color-700)"};
           font-size: ${theme.typography.sizes.small.fontSize}px;
           line-height: ${theme.typography.sizes.small.lineHeight}px;
           cursor: pointer;
           outline: none;
           &:hover {
-            color: ${theme.textColors.white90};
+            color: var(--ac-global-text-color-900);
           }
         }
       `}

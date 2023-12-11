@@ -21,9 +21,9 @@ import {
   ChartTooltip,
   ChartTooltipDivider,
   ChartTooltipItem,
-  colors,
   defaultSelectedTimestampReferenceLineProps,
   defaultTimeXAxisProps,
+  useChartColors,
   useTimeTickFormatter,
 } from "@phoenix/components/chart";
 import { useTimeRange } from "@phoenix/contexts/TimeRangeContext";
@@ -38,14 +38,20 @@ import {
 import { DimensionDriftTimeSeriesQuery } from "./__generated__/DimensionDriftTimeSeriesQuery.graphql";
 import { timeSeriesChartMargins } from "./dimensionChartConstants";
 
-const color = colors.orange300;
-const barColor = "#93b3c841";
+const useColors = () => {
+  const { orange300, gray300 } = useChartColors();
+  return {
+    color: orange300,
+    barColor: gray300,
+  };
+};
 
 function TooltipContent({
   active,
   payload,
   label,
 }: TooltipProps<number, string>) {
+  const { color } = useColors();
   if (active && payload && payload.length) {
     const euclideanDistance = payload[1]?.value ?? null;
 
@@ -65,7 +71,7 @@ function TooltipContent({
             display: flex;
             flex-direction: row;
             align-items: center;
-            color: var(--px-light-blue-color);
+            color: var(--ac-global-color-primary);
             gap: var(--px-spacing-sm);
 
             margin-top: var(--px-spacing-sm);
@@ -166,6 +172,7 @@ export function DimensionDriftTimeSeries({
     [setSelectedTimestamp]
   );
 
+  const { color, barColor } = useColors();
   return (
     <ResponsiveContainer width="100%" height="100%">
       <ComposedChart
@@ -200,9 +207,12 @@ export function DimensionDriftTimeSeries({
             value: "PSI",
             angle: -90,
             position: "insideLeft",
-            style: { textAnchor: "middle", fill: theme.textColors.white90 },
+            style: {
+              textAnchor: "middle",
+              fill: "var(--ac-global-text-color-900)",
+            },
           }}
-          style={{ fill: theme.textColors.white70 }}
+          style={{ fill: "var(--ac-global-text-color-700)" }}
         />
         <YAxis
           yAxisId="right"

@@ -7,3 +7,4 @@ export * from "./tracing";
 export * from "./Layout";
 export * from "./ErrorElement";
 export * from "./ModelRoot";
+export * from "./TracingRoot";

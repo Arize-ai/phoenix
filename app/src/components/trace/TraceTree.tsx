@@ -4,7 +4,8 @@ import { css } from "@emotion/react";
 import { Flex } from "@arizeai/components";
 
 import { SpanItem } from "./SpanItem";
-import { ISpanItem } from "./types";
+import { SpanKindIcon } from "./SpanKindIcon";
+import { ISpanItem, SpanStatusCodeType } from "./types";
 import { createSpanTree, SpanTreeNode } from "./utils";
 
 type TraceTreeProps = {
@@ -50,6 +51,7 @@ function SpanTreeItem<TSpan extends ISpanItem>(props: {
         className="button--reset"
         css={css`
           min-width: var(--ac-global-dimension-static-size-5000);
+          cursor: pointer;
         `}
         onClick={() => {
           onSpanClick && onSpanClick(node.span.context.spanId);
@@ -62,7 +64,7 @@ function SpanTreeItem<TSpan extends ISpanItem>(props: {
             justifyContent="start"
             alignItems="center"
           >
-            <SpanNodeIcon />
+            <SpanKindIcon spanKind={node.span.spanKind} />
             <SpanItem {...node.span} />
           </Flex>
         </SpanNodeWrap>
@@ -71,7 +73,7 @@ function SpanTreeItem<TSpan extends ISpanItem>(props: {
         <ul
           css={(theme) => css`
             margin: var(--ac-global-dimension-static-size-100) 0 0
-              var(--ac-global-dimension-static-size-500);
+              var(--ac-global-dimension-static-size-600);
             display: flex;
             flex-direction: column;
             gap: ${theme.spacing.padding8}px;
@@ -80,7 +82,7 @@ function SpanTreeItem<TSpan extends ISpanItem>(props: {
           {childNodes.map((leafNode, index) => {
             // The last child does not need an edge connector, a line to connect the nodes
             // after to the parent node
-            const needsEdgeConnector = index !== childNodes.length - 1;
+            const nexSibling = childNodes[index + 1];
             return (
               <div
                 key={leafNode.span.context.spanId}
@@ -88,8 +90,10 @@ function SpanTreeItem<TSpan extends ISpanItem>(props: {
                   position: relative;
                 `}
               >
-                {needsEdgeConnector ? <SpanTreeEdgeConnector /> : null}
-                <SpanTreeEdge />
+                {nexSibling ? (
+                  <SpanTreeEdgeConnector {...nexSibling.span} />
+                ) : null}
+                <SpanTreeEdge {...leafNode.span} />
                 <SpanTreeItem
                   node={leafNode}
                   onSpanClick={onSpanClick}
@@ -110,20 +114,20 @@ function SpanNodeWrap(props: PropsWithChildren<{ isSelected: boolean }>) {
       className={props.isSelected ? "is-selected" : ""}
       css={css`
         border-radius: var(--ac-global-dimension-static-size-150);
-        background-color: var(--ac-global-color-gray-500);
+        background-color: var(--ac-global-color-grey-200);
         padding: var(--ac-global-dimension-static-size-100)
           var(--ac-global-dimension-static-size-200)
           var(--ac-global-dimension-static-size-100)
-          var(--ac-global-dimension-static-size-100);
+          var(--ac-global-dimension-static-size-200);
         border-width: var(--ac-global-dimension-static-size-10);
         border-style: solid;
-        border-color: var(--ac-global-color-gray-500);
+        border-color: var(--ac-global-color-grey-300);
         &:hover {
-          border-color: var(--ac-global-color-gray-200);
-          background-color: var(--ac-global-color-gray-400);
+          border-color: var(--ac-global-color-grey-400);
+          background-color: var(--ac-global-color-grey-300);
         }
         &.is-selected {
-          border-color: var(--px-light-blue-color);
+          border-color: var(--ac-global-color-primary);
         }
       `}
     >
@@ -135,53 +139,50 @@ function SpanNodeWrap(props: PropsWithChildren<{ isSelected: boolean }>) {
 /**
  * The line that connects the parent node to the child node edge
  */
-function SpanTreeEdgeConnector() {
+function SpanTreeEdgeConnector({
+  statusCode,
+}: {
+  statusCode: SpanStatusCodeType;
+}) {
   return (
     <div
       aria-hidden="true"
       data-testid="span-tree-edge-connector"
       css={(theme) => css`
         position: absolute;
-        border-left: 1px solid ${theme.colors.arizeLightBlue};
+        border-left: 1px solid
+          ${statusCode === "ERROR"
+            ? theme.colors.statusDanger
+            : "rgb(204, 204, 204)"};
         top: 0;
         left: -22px;
-        width: 34px;
+        width: 42px;
         bottom: 0;
       `}
     ></div>
   );
 }
 
-function SpanTreeEdge() {
+function SpanTreeEdge({ statusCode }: { statusCode: SpanStatusCodeType }) {
   return (
     <div
       aria-hidden="true"
-      css={(theme) => css`
-        position: absolute;
-        border-left: 1px solid ${theme.colors.arizeLightBlue};
-        border-bottom: 1px solid ${theme.colors.arizeLightBlue};
-        border-radius: 0 0 0 var(--ac-global-dimension-static-size-150);
-        top: -32px;
-        left: -22px;
-        width: 34px;
-        height: 61px;
-      `}
-    ></div>
-  );
-}
-/**
- * The icon for a span node in the tree
- */
-function SpanNodeIcon() {
-  return (
-    <div
-      css={(theme) => css`
-        border: 1px solid ${theme.colors.arizeLightBlue};
-        width: 10px;
-        height: 10px;
-        margin: 0 ${theme.spacing.margin4}px;
-        border-radius: 3px;
-      `}
+      css={(theme) => {
+        const color =
+          statusCode === "ERROR"
+            ? theme.colors.statusDanger
+            : "rgb(204, 204, 204)";
+        return css`
+          position: absolute;
+          border-left: 1px solid ${color};
+          border-bottom: 1px solid ${color};
+          border-radius: 0 0 0 var(--ac-global-dimension-static-size-150);
+          top: -27px;
+          left: -22px;
+          width: 38px;
+          height: 56px;
+        `;
+      }}
     ></div>
   );
 }

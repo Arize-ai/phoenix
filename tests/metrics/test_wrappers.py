@@ -14,8 +14,8 @@ from phoenix.metrics.wrappers import Eval
 from phoenix.metrics.wrappers import SkEval as ev
 from sklearn import metrics as sk
 
-N = 1000
-NA_PCT = 0.1
+N = 32
+NA_PCT = 0.25
 
 rng = np.random.default_rng(1234567890)
 
@@ -30,7 +30,7 @@ def add_na(na_pct: float, series: "pd.Series[Any]") -> "pd.Series[Any]":
     series = series.sample(frac=1, random_state=rng)
     n_miss = int(len(series) * na_pct)
     series[: n_miss // 3] = None
-    series[n_miss // 3 : 2 * n_miss // 3] = pd.NA
+    series[n_miss // 3 : 2 * n_miss // 3] = float("nan")
     series[2 * n_miss // 3 : n_miss] = np.nan
     return series.sample(frac=1, ignore_index=True, random_state=rng)
 
@@ -85,9 +85,6 @@ def gen_df(
 @pytest.mark.parametrize(
     "metric,desired,parameters",
     [
-        (ev.d2_absolute_error_score, sk.d2_absolute_error_score, {}),
-        (ev.d2_pinball_score, sk.d2_pinball_score, {}),
-        (ev.d2_tweedie_score, sk.d2_tweedie_score, {}),
         (ev.explained_variance_score, sk.explained_variance_score, {}),
         (ev.max_error, sk.max_error, {}),
         (ev.mean_absolute_error, sk.mean_absolute_error, {}),

@@ -1,8 +1,10 @@
+#!/usr/bin/env python3
 """
 Builds and persists a LangChain vector store over the Arize documentation using Chroma.
 """
 
 import argparse
+import getpass
 import logging
 import shutil
 import sys
@@ -89,7 +91,13 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, stream=sys.stdout)
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--persist-path", type=str, required=True, help="Path to persist index.")
+    parser.add_argument(
+        "--persist-path",
+        type=str,
+        required=False,
+        help="Path to persist index.",
+        default=f"/Users/{getpass.getuser()}/langchain-chroma-arize-docs",
+    )
     args = parser.parse_args()
 
     docs_url = "https://docs.arize.com/arize/"

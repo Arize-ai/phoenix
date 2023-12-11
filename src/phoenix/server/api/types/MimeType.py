@@ -1,11 +1,16 @@
 from enum import Enum
+from typing import Any, Optional
 
 import strawberry
 
-import phoenix.trace.semantic_conventions as sc
+from phoenix.trace import semantic_conventions
 
 
 @strawberry.enum
 class MimeType(Enum):
-    text = sc.MimeType.TEXT
-    json = sc.MimeType.JSON
+    text = semantic_conventions.MimeType.TEXT
+    json = semantic_conventions.MimeType.JSON
+
+    @classmethod
+    def _missing_(cls, v: Any) -> Optional["MimeType"]:
+        return None if v else cls.text

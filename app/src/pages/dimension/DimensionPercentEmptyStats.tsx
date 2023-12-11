@@ -33,7 +33,7 @@ export function DimensionPercentEmptyStats(props: {
 
   return (
     <>
-      <Text elementType="h3" textSize="small" color="white70">
+      <Text elementType="h3" textSize="small" color="text-700">
         % Empty
       </Text>
       <Text textSize="xlarge">{percentFormatter(data.percentEmpty)}</Text>

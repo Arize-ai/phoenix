@@ -4,7 +4,6 @@ Helper functions for evaluating the retrieval step of retrieval-augmented genera
 
 from typing import List, Optional
 
-from openai import ChatCompletion
 from tenacity import (
     retry,
     stop_after_attempt,
@@ -75,17 +74,23 @@ def classify_relevance(query: str, document: str, model_name: str) -> Optional[b
             (True meaning relevant, False meaning irrelevant), or None if the LLM produces an
             unparseable output.
     """
+
+    from openai import OpenAI
+
+    client = OpenAI()
+
     prompt = _QUERY_CONTEXT_PROMPT_TEMPLATE.format(
         query=query,
         reference=document,
     )
-    response = ChatCompletion.create(  # type: ignore
+    response = client.chat.completions.create(
         messages=[
             {"role": "system", "content": _EVALUATION_SYSTEM_MESSAGE},
             {"role": "user", "content": prompt},
         ],
         model=model_name,
     )
-    raw_response_text = str(response["choices"][0]["message"]["content"]).strip()
+
+    raw_response_text = str(response.choices[0].message.content).strip()
     relevance_classification = {"relevant": True, "irrelevant": False}.get(raw_response_text)
     return relevance_classification

@@ -3,6 +3,7 @@ import { transparentize } from "polished";
 import { css } from "@emotion/react";
 
 import { assertUnreachable } from "@phoenix/typeUtils";
+import { isAudioUrl, isVideoUrl } from "@phoenix/utils/urlUtils";
 
 import { Shape, ShapeIcon } from "./ShapeIcon";
 
@@ -15,6 +16,8 @@ type EventPreviewType =
   | "raw"
   | "prompt_response"
   | "image"
+  | "video"
+  | "audio"
   | "event_metadata"
   | "document";
 type EventItemProps = {
@@ -62,6 +65,11 @@ type EventItemProps = {
    * In the case the event captures a document (e.g. a corpus record)
    */
   documentText: string | null;
+  /**
+   * Auto-play the audio preview
+   * @default false
+   */
+  autoPlay: boolean;
 };
 
 /**
@@ -69,7 +77,6 @@ type EventItemProps = {
  */
 function getPrimaryPreviewType(props: EventItemProps): EventPreviewType {
   const { rawData, linkToData, promptAndResponse, documentText } = props;
-
   if (documentText != null) {
     return "document";
   }
@@ -77,6 +84,12 @@ function getPrimaryPreviewType(props: EventItemProps): EventPreviewType {
     return "prompt_response";
   }
   if (linkToData != null) {
+    if (isVideoUrl(linkToData)) {
+      return "video";
+    }
+    if (isAudioUrl(linkToData)) {
+      return "audio";
+    }
     return "image";
   } else if (rawData != null) {
     return "raw";
@@ -99,6 +112,10 @@ function getSecondaryPreviewType(
     case "prompt_response":
       return null;
     case "image":
+      return rawData != null ? "raw" : null;
+    case "video":
+      return rawData != null ? "raw" : null;
+    case "audio":
       return rawData != null ? "raw" : null;
     case "raw":
       return "event_metadata";
@@ -142,7 +159,7 @@ export function EventItem(props: EventItemProps) {
 
         border-width: 1px;
         border-color: ${color};
-        border-radius: 8px;
+        border-radius: var(--ac-global-rounding-medium);
         transition: border-color 0.2s ease-in-out;
         transition: transform 0.2s ease-in-out;
         &:hover {
@@ -216,6 +233,14 @@ function EventPreview(
       preview = <ImagePreview {...props} />;
       break;
     }
+    case "video": {
+      preview = <VideoPreview {...props} />;
+      break;
+    }
+    case "audio": {
+      preview = <AudioPreview {...props} />;
+      break;
+    }
     case "raw": {
       preview = <RawTextPreview {...props} />;
       break;
@@ -249,6 +274,39 @@ function ImagePreview(props: Pick<EventItemProps, "linkToData" | "color">) {
 }
 
 /**
+ * Shows a video preview of the event's data
+ */
+function VideoPreview(props: Pick<EventItemProps, "linkToData" | "color">) {
+  return (
+    <video
+      src={props.linkToData || "[error] unexpected missing url"}
+      css={css`
+        min-height: 0;
+        // Maintain aspect ratio while having normalized height
+        object-fit: contain;
+        transition: background-color 0.2s ease-in-out;
+        background-color: ${transparentize(0.85, props.color)};
+      `}
+    />
+  );
+}
+
+/**
+ * Shows a audio preview of the event's data
+ */
+function AudioPreview(
+  props: Pick<EventItemProps, "linkToData" | "color" | "autoPlay">
+) {
+  return (
+    <audio
+      src={props.linkToData || "[error] unexpected missing url"}
+      autoPlay={props.autoPlay}
+      controls
+    />
+  );
+}
+
+/**
  * Shows textual preview of the event's raw data
  */
 function PromptResponsePreview(
@@ -259,7 +317,7 @@ function PromptResponsePreview(
       data-size={props.size}
       css={css`
         --prompt-response-preview-background-color: var(
-          --px-background-color-500
+          --ac-global-color-grey-200
         );
         background-color: var(--prompt-response-preview-background-color);
         &[data-size="small"] {
@@ -340,12 +398,11 @@ function DocumentPreview(props: Pick<EventItemProps, "size" | "documentText">) {
         margin-block-start: 0;
         margin-block-end: 0;
         position: relative;
-        --text-preview-background-color: var(--px-background-color-800);
+        --text-preview-background-color: var(--ac-global-color-grey-100);
         background-color: var(--text-preview-background-color);
 
         &[data-size="small"] {
           padding: var(--px-spacing-sm);
-          font-size: var(--ac-global-color-gray-600);
           box-sizing: border-box;
         }
         &:before {
@@ -461,7 +518,7 @@ function EventItemFooter({
         justify-content: space-between;
         padding: var(--px-spacing-sm) var(--px-spacing-med) var(--px-spacing-sm)
           7px;
-        border-top: 1px solid var(--px-item-border-color);
+        border-top: 1px solid var(--ac-global-border-color-dark);
       `}
     >
       <div

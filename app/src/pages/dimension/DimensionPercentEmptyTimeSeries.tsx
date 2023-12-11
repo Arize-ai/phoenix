@@ -16,8 +16,8 @@ import { Text, theme } from "@arizeai/components";
 import {
   ChartTooltip,
   ChartTooltipItem,
-  colors,
   defaultTimeXAxisProps,
+  useChartColors,
   useTimeTickFormatter,
 } from "@phoenix/components/chart";
 import { useTimeRange } from "@phoenix/contexts/TimeRangeContext";
@@ -31,13 +31,19 @@ const numberFormatter = new Intl.NumberFormat([], {
   maximumFractionDigits: 2,
 });
 
-const color = colors.gray100;
+const useColors = () => {
+  const { gray100 } = useChartColors();
 
+  return {
+    color: gray100,
+  };
+};
 function TooltipContent({
   active,
   payload,
   label,
 }: TooltipProps<number, string>) {
+  const { color } = useColors();
   if (active && payload && payload.length) {
     const percentEmpty = payload[0]?.value ?? null;
     const percentEmptyString =
@@ -112,6 +118,7 @@ export function DimensionPercentEmptyTimeSeries({
     samplingIntervalMinutes: granularity.samplingIntervalMinutes,
   });
 
+  const { color } = useColors();
   return (
     <ResponsiveContainer width="100%" height="100%">
       <ComposedChart
@@ -135,9 +142,12 @@ export function DimensionPercentEmptyTimeSeries({
             value: "% Empty",
             angle: -90,
             position: "insideLeft",
-            style: { textAnchor: "middle", fill: theme.textColors.white90 },
+            style: {
+              textAnchor: "middle",
+              fill: "var(--ac-global-text-color-900)",
+            },
           }}
-          style={{ fill: theme.textColors.white70 }}
+          style={{ fill: "var(--ac-global-text-color-700)" }}
         />
         <CartesianGrid
           strokeDasharray="4 4"

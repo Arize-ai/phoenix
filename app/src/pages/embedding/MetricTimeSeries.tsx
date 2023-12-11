@@ -29,9 +29,9 @@ import {
   ChartTooltip,
   ChartTooltipDivider,
   ChartTooltipItem,
-  colors,
   defaultSelectedTimestampReferenceLineProps,
   defaultTimeXAxisProps,
+  useChartColors,
 } from "@phoenix/components/chart";
 import { useTimeTickFormatter } from "@phoenix/components/chart";
 import { usePointCloudContext } from "@phoenix/contexts";
@@ -55,14 +55,22 @@ const numberFormatter = new Intl.NumberFormat([], {
   maximumFractionDigits: 2,
 });
 
-const color = colors.blue400;
-const barColor = colors.gray500;
+const useColors = () => {
+  const colors = useChartColors();
+  const color = colors.blue400;
+  const barColor = colors.gray500;
+  return {
+    color,
+    barColor,
+  };
+};
 
 function TooltipContent({
   active,
   payload,
   label,
 }: TooltipProps<number, string>) {
+  const { color, barColor } = useColors();
   if (active && payload && payload.length) {
     const metricValue = payload[1]?.value ?? null;
     const count = payload[0]?.value ?? null;
@@ -94,7 +102,7 @@ function TooltipContent({
             display: flex;
             flex-direction: row;
             align-items: center;
-            color: var(--px-light-blue-color);
+            color: var(--ac-global-color-primary);
             gap: var(--px-spacing-sm);
 
             margin-top: var(--px-spacing-sm);
@@ -312,6 +320,7 @@ export function MetricTimeSeries({
   const metricShortName = getMetricShortName(metric);
   const metricDescription = getMetricDescription(metric);
 
+  const { color, barColor } = useColors();
   return (
     <section
       css={css`
@@ -365,7 +374,7 @@ export function MetricTimeSeries({
             <XAxis
               {...defaultTimeXAxisProps}
               tickFormatter={(x) => timeTickFormatter(new Date(x))}
-              style={{ fill: theme.textColors.white70 }}
+              style={{ fill: "var(--ac-global-text-color-700)" }}
             />
             <YAxis
               stroke={theme.colors.gray200}
@@ -373,9 +382,12 @@ export function MetricTimeSeries({
                 value: metricShortName,
                 angle: -90,
                 position: "insideLeft",
-                style: { textAnchor: "middle", fill: theme.textColors.white90 },
+                style: {
+                  textAnchor: "middle",
+                  fill: "var(--ac-global-text-color-900)",
+                },
               }}
-              style={{ fill: theme.textColors.white70 }}
+              style={{ fill: "var(--ac-global-text-color-700)" }}
             />
             <YAxis
               yAxisId="right"
@@ -384,9 +396,12 @@ export function MetricTimeSeries({
                 value: "Count",
                 angle: 90,
                 position: "insideRight",
-                style: { textAnchor: "middle", fill: theme.textColors.white90 },
+                style: {
+                  textAnchor: "middle",
+                  fill: "var(--ac-global-text-color-900)",
+                },
               }}
-              style={{ fill: theme.textColors.white70 }}
+              style={{ fill: "var(--ac-global-text-color-700)" }}
             />
             <CartesianGrid
               strokeDasharray="4 4"

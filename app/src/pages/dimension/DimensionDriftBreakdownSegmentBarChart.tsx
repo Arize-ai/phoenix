@@ -18,9 +18,9 @@ import { Flex, Text, theme, View } from "@arizeai/components";
 import {
   ChartTooltip,
   ChartTooltipItem,
-  colors,
   defaultBarChartTooltipProps,
   getBinName,
+  useChartColors,
 } from "@phoenix/components/chart";
 import { useDatasets } from "@phoenix/contexts";
 import { useTimeSlice } from "@phoenix/contexts/TimeSliceContext";
@@ -36,16 +36,22 @@ type BarChartItem = {
   referencePercent: number;
 };
 
-const primaryBarColor = colors.primary;
-const referenceBarColor = colors.reference;
-
 const formatter = format(".2f");
+
+const useColors = () => {
+  const { primary, reference } = useChartColors();
+  return {
+    primaryBarColor: primary,
+    referenceBarColor: reference,
+  };
+};
 
 function TooltipContent({
   active,
   payload,
   label,
 }: TooltipProps<BarChartItem["primaryPercent"], BarChartItem["name"]>) {
+  const { primaryBarColor, referenceBarColor } = useColors();
   if (active && payload && payload.length) {
     const primaryLabel = payload[0]?.payload?.primaryName;
     const primaryValue = payload[0]?.value;
@@ -173,13 +179,14 @@ export function DimensionDriftBreakdownSegmentBarChart(props: {
     referenceName,
   ]);
 
+  const { primaryBarColor, referenceBarColor } = useColors();
   return (
     <Flex direction="column" height="100%">
       <View flex="none" paddingTop="size-100" paddingStart="size-200">
         <Text
           elementType="h3"
           textSize="medium"
-          color="white70"
+          color="text-700"
         >{`Distribution comparison at ${fullTimeFormatter(
           new Date(timeRange.end)
         )}`}</Text>
@@ -229,16 +236,22 @@ export function DimensionDriftBreakdownSegmentBarChart(props: {
                 />
               </linearGradient>
             </defs>
-            <XAxis dataKey="name" style={{ fill: theme.textColors.white70 }} />
+            <XAxis
+              dataKey="name"
+              style={{ fill: "var(--ac-global-text-color-700)" }}
+            />
             <YAxis
               stroke={theme.colors.gray200}
               label={{
                 value: "Percent",
                 angle: -90,
                 position: "insideLeft",
-                style: { textAnchor: "middle", fill: theme.textColors.white90 },
+                style: {
+                  textAnchor: "middle",
+                  fill: "var(--ac-global-text-color-900)",
+                },
               }}
-              style={{ fill: theme.textColors.white70 }}
+              style={{ fill: "var(--ac-global-text-color-700)" }}
             />
             <CartesianGrid
               strokeDasharray="4 4"

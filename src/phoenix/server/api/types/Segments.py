@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 import strawberry
 from strawberry import UNSET
+from typing_extensions import Annotated
 
 from .DatasetValues import DatasetValues
 from .NumericRange import NumericRange
@@ -61,14 +62,14 @@ class GqlBinFactory:
 class Segment:
     """A segment of the parent's data, split out using a heuristic"""
 
-    bin: strawberry.union(  # type: ignore
-        "Bin",
-        types=(
+    bin: Annotated[
+        Union[
             NominalBin,
             IntervalBin,
             MissingValueBin,
-        ),
-    )
+        ],
+        strawberry.union("Bin"),
+    ]
     counts: DatasetValues = strawberry.field(
         default_factory=DatasetValues,
     )

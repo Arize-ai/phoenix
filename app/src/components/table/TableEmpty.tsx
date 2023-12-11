@@ -12,7 +12,7 @@ export function TableEmpty() {
             padding: ${theme.spacing.margin24}px ${theme.spacing.margin24}px !important;
           `}
         >
-          No data
+          No Data
         </td>
       </tr>
     </tbody>

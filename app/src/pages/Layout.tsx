@@ -8,6 +8,7 @@ import {
   GitHubLink,
   Navbar,
   NavBreadcrumb,
+  ThemeToggle,
 } from "@phoenix/components/nav";
 
 const layoutCSS = css`
@@ -29,7 +30,7 @@ const linksCSS = css`
   flex-direction: row;
   margin: 0;
   list-style: none;
-  gap: var(--px-spacing-sm);
+  gap: var(--ac-global-dimension-size-100);
   padding-inline-start: 0;
 `;
 
@@ -45,6 +46,9 @@ export function Layout() {
           </li>
           <li>
             <GitHubLink />
+          </li>
+          <li>
+            <ThemeToggle />
           </li>
         </ul>
       </Navbar>

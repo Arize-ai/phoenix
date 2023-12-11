@@ -25,7 +25,7 @@ export function TableExpandButton(props: TableExpandButtonProps) {
         }
 
         &:hover {
-          color: var(--px-light-blue-color);
+          color: var(--ac-global-color-primary);
         }
       `}
     >

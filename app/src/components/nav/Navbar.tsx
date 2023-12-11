@@ -4,12 +4,14 @@ import { css, Theme } from "@emotion/react";
 
 import { Icons } from "@arizeai/components";
 
+import { useTheme } from "@phoenix/contexts";
+
 import { Logo } from "./Logo";
 
-const navCSS = (theme: Theme) => css`
-  padding: ${theme.spacing.padding8}px ${theme.spacing.padding16}px;
-  border-bottom: 1px solid ${theme.colors.gray500};
-  background-color: ${theme.colors.gray900};
+const navCSS = css`
+  padding: var(--px-spacing-med) var(--px-spacing-lg);
+  border-bottom: 1px solid var(--ac-global-color-grey-200);
+  background-color: var(--ac-global-color-grey-75);
   flex: none;
   display: flex;
   flex-direction: row;
@@ -17,8 +19,22 @@ const navCSS = (theme: Theme) => css`
   align-items: center;
 `;
 
+const navIconCSS = css`
+  padding: var(--ac-global-static-size-100);
+  width: 20px;
+  height: 20px;
+  display: block;
+  svg {
+    fill: var(--ac-global-text-color-500);
+    transition: fill 0.2s ease-in-out;
+  }
+  &:hover svg {
+    fill: var(--ac-global-text-color-900);
+  }
+`;
+
 const brandCSS = (theme: Theme) => css`
-  color: ${theme.textColors.white90};
+  color: var(--ac-global-text-color-900);
   font-size: ${theme.typography.sizes.large.fontSize}px;
   text-decoration: none;
   svg {
@@ -45,27 +61,17 @@ const GitHubSVG = () => (
 
 function IconLink(props: PropsWithChildren<{ href: string }>) {
   return (
-    <a
-      href={props.href}
-      target="_blank"
-      css={(theme) => css`
-        padding: ${theme.spacing.padding4}px;
-        width: 20px;
-        height: 20px;
-        display: block;
-        svg {
-          fill: ${theme.textColors.white50};
-          transition: fill 0.2s ease-in-out;
-        }
-        &:hover svg {
-          fill: ${theme.textColors.white90};
-        }
-      `}
-      aria-label="GitHub"
-      rel="noreferrer"
-    >
+    <a href={props.href} target="_blank" css={navIconCSS} rel="noreferrer">
       {props.children}
     </a>
+  );
+}
+
+function IconButton(props: PropsWithChildren<{ onClick: () => void }>) {
+  return (
+    <button css={navIconCSS} onClick={props.onClick} className="button--reset">
+      {props.children}
+    </button>
   );
 }
 
@@ -82,6 +88,16 @@ export function DocsLink() {
     <IconLink href="https://docs.arize.com/phoenix">
       <Icons.BookFilled />
     </IconLink>
+  );
+}
+
+export function ThemeToggle() {
+  const { theme, setTheme } = useTheme();
+  const isDark = theme === "dark";
+  return (
+    <IconButton onClick={() => setTheme(isDark ? "light" : "dark")}>
+      {isDark ? <Icons.MoonOutline /> : <Icons.SunOutline />}
+    </IconButton>
   );
 }
 

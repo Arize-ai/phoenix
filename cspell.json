@@ -1,0 +1,40 @@
+{
+    "version": "0.2",
+    "language": "en",
+    "words": [
+        "actuals",
+        "arize",
+        "chatbot",
+        "Colab",
+        "colormaps",
+        "conda",
+        "dataframe",
+        "Evals",
+        "gitbook",
+        "HDBSCAN",
+        "httpx",
+        "Instrumentor",
+        "langchain",
+        "llamaindex",
+        "ndcg",
+        "NDJSON",
+        "numpy",
+        "openai",
+        "openinference",
+        "pydantic",
+        "quickstart",
+        "RERANKER",
+        "respx",
+        "rgba",
+        "seafoam",
+        "tensorboard",
+        "tiktoken",
+        "tracedataset",
+        "UMAP",
+        "xlarge",
+        "Zustand"
+    ],
+    "flagWords": [
+        "hte"
+    ]
+}

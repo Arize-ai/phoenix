@@ -5,6 +5,7 @@ from datetime import datetime
 from typing import Any, Dict, Iterator, Optional, Tuple
 
 import langchain
+import phoenix
 from langchain.callbacks.tracers.base import BaseTracer
 from langchain.callbacks.tracers.schemas import Run
 from opentelemetry.context import Context
@@ -15,8 +16,6 @@ from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanE
 from opentelemetry.semconv.resource import ResourceAttributes
 from opentelemetry.semconv.trace import SpanAttributes
 from opentelemetry.trace import StatusCode, Tracer, set_span_in_context
-
-import phoenix
 from phoenix.trace.schemas import SpanKind
 from phoenix.trace.semantic_conventions import (
     INPUT_MIME_TYPE,
@@ -131,7 +130,7 @@ def _function_calls(run_outputs: Dict[str, Any]) -> Iterator[Tuple[str, str]]:
         pass
 
 
-class OpenInferenceTracer(BaseTracer):
+class OpenInferenceTracer(BaseTracer):  # type: ignore
     def __init__(self) -> None:
         super().__init__()
         span_exporter = InMemorySpanExporter()

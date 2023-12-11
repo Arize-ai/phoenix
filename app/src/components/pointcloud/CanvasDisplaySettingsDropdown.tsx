@@ -8,15 +8,12 @@ import {
   Icon,
   Icons,
   Slider,
-  Switch,
   View,
 } from "@arizeai/components";
 
 import { usePointCloudContext } from "@phoenix/contexts";
 
 export function CanvasDisplaySettingsDropdown() {
-  const canvasTheme = usePointCloudContext((state) => state.canvasTheme);
-  const setCanvasTheme = usePointCloudContext((state) => state.setCanvasTheme);
   const setPointSizeScale = usePointCloudContext(
     (state) => state.setPointSizeScale
   );
@@ -40,15 +37,6 @@ export function CanvasDisplaySettingsDropdown() {
               value={pointSizeScale}
               onChange={setPointSizeScale}
             />
-            <Switch
-              isSelected={canvasTheme === "light"}
-              labelPlacement="end"
-              onChange={() =>
-                setCanvasTheme(canvasTheme === "light" ? "dark" : "light")
-              }
-            >
-              Light Theme
-            </Switch>
           </Flex>
         </View>
       </DropdownMenu>

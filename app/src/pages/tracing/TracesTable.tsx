@@ -1,6 +1,13 @@
 /* eslint-disable react/prop-types */
-import React, { useEffect, useMemo, useState } from "react";
+import React, {
+  startTransition,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { graphql, usePaginationFragment } from "react-relay";
+import { useNavigate } from "react-router";
 import {
   ColumnDef,
   ExpandedState,
@@ -13,19 +20,21 @@ import {
 } from "@tanstack/react-table";
 import { css } from "@emotion/react";
 
-import { Flex, Icon, Icons } from "@arizeai/components";
+import { Flex, Icon, Icons, View } from "@arizeai/components";
 
 import { Link } from "@phoenix/components/Link";
 import { TextCell } from "@phoenix/components/table";
-import { IntCell } from "@phoenix/components/table/IntCell";
-import { tableCSS } from "@phoenix/components/table/styles";
+import { selectableTableCSS } from "@phoenix/components/table/styles";
+import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { TableExpandButton } from "@phoenix/components/table/TableExpandButton";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
+import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SpanKindLabel } from "@phoenix/components/trace/SpanKindLabel";
 import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon";
 import { ISpanItem } from "@phoenix/components/trace/types";
 import { createSpanTree, SpanTreeNode } from "@phoenix/components/trace/utils";
-import { formatFloat } from "@phoenix/utils/numberFormatUtils";
+import { useStreamState } from "@phoenix/contexts/StreamStateContext";
+import { useTracingContext } from "@phoenix/contexts/TracingContext";
 
 import {
   SpanStatusCode,
@@ -35,13 +44,16 @@ import {
   SpanSort,
   TracesTableQuery,
 } from "./__generated__/TracesTableQuery.graphql";
+import { EvaluationLabel } from "./EvaluationLabel";
+import { RetrievalEvaluationLabel } from "./RetrievalEvaluationLabel";
+import { SpanColumnSelector } from "./SpanColumnSelector";
+import { SpanFilterConditionField } from "./SpanFilterConditionField";
+import { spansTableCSS } from "./styles";
+import { TokenCount } from "./TokenCount";
 type TracesTableProps = {
   query: TracesTable_spans$key;
 };
 
-const floatRightCSS = css`
-  float: right;
-`;
 const PAGE_SIZE = 100;
 const DEFAULT_SORT: SpanSort = {
   col: "startTime",
@@ -76,8 +88,11 @@ function spanTreeToNestedSpanTableRows<TSpan extends ISpanItem>(
 
 export function TracesTable(props: TracesTableProps) {
   //we need a reference to the scrolling element for logic down below
-  const tableContainerRef = React.useRef<HTMLDivElement>(null);
+  const tableContainerRef = useRef<HTMLDivElement>(null);
   const [sorting, setSorting] = useState<SortingState>([]);
+  const [filterCondition, setFilterCondition] = useState<string>("");
+  const navigate = useNavigate();
+  const { fetchKey } = useStreamState();
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
     usePaginationFragment<TracesTableQuery, TracesTable_spans$key>(
       graphql`
@@ -90,21 +105,25 @@ export function TracesTable(props: TracesTableProps) {
             type: "SpanSort"
             defaultValue: { col: startTime, dir: desc }
           }
+          filterCondition: { type: "String", defaultValue: null }
         ) {
           rootSpans: spans(
             first: $first
             after: $after
             sort: $sort
             rootSpansOnly: true
+            filterCondition: $filterCondition
           ) @connection(key: "TracesTable_rootSpans") {
             edges {
               rootSpan: node {
                 spanKind
                 name
-                statusCode
+                statusCode: propagatedStatusCode
                 startTime
                 latencyMs
-                tokenCountTotal
+                tokenCountTotal: cumulativeTokenCountTotal
+                tokenCountPrompt: cumulativeTokenCountPrompt
+                tokenCountCompletion: cumulativeTokenCountCompletion
                 parentId
                 input {
                   value
@@ -116,14 +135,27 @@ export function TracesTable(props: TracesTableProps) {
                   spanId
                   traceId
                 }
+                spanEvaluations {
+                  name
+                  label
+                  score
+                }
+                documentRetrievalMetrics {
+                  evaluationName
+                  ndcg
+                  precision
+                  hit
+                }
                 descendants {
                   spanKind
                   name
-                  statusCode
+                  statusCode: propagatedStatusCode
                   startTime
                   latencyMs
                   parentId
                   tokenCountTotal
+                  tokenCountPrompt
+                  tokenCountCompletion
                   input {
                     value
                   }
@@ -133,6 +165,17 @@ export function TracesTable(props: TracesTableProps) {
                   context {
                     spanId
                     traceId
+                  }
+                  spanEvaluations {
+                    name
+                    label
+                    score
+                  }
+                  documentRetrievalMetrics {
+                    evaluationName
+                    ndcg
+                    precision
+                    hit
                   }
                 }
               }
@@ -155,6 +198,56 @@ export function TracesTable(props: TracesTableProps) {
     return tableData;
   }, [data]);
   type TableRow = (typeof tableData)[number];
+
+  const evaluationColumns: ColumnDef<TableRow>[] = [
+    {
+      header: "evaluations",
+      accessorKey: "spanEvaluations",
+      enableSorting: false,
+      cell: ({ row }) => {
+        const hasNoEvaluations =
+          row.original.spanEvaluations.length === 0 &&
+          row.original.documentRetrievalMetrics.length === 0;
+        return (
+          <Flex direction="row" gap="size-50" wrap="wrap">
+            {row.original.spanEvaluations.map((evaluation) => {
+              return (
+                <EvaluationLabel
+                  key={evaluation.name}
+                  evaluation={evaluation}
+                />
+              );
+            })}
+            {row.original.documentRetrievalMetrics.map((retrievalMetric) => {
+              return (
+                <>
+                  <RetrievalEvaluationLabel
+                    key="ncdg"
+                    name={retrievalMetric.evaluationName}
+                    metric="ndcg"
+                    score={retrievalMetric.ndcg}
+                  />
+                  <RetrievalEvaluationLabel
+                    key="precision"
+                    name={retrievalMetric.evaluationName}
+                    metric="precision"
+                    score={retrievalMetric.precision}
+                  />
+                  <RetrievalEvaluationLabel
+                    key="hit"
+                    name={retrievalMetric.evaluationName}
+                    metric="hit"
+                    score={retrievalMetric.hit}
+                  />
+                </>
+              );
+            })}
+            {hasNoEvaluations ? "--" : null}
+          </Flex>
+        );
+      },
+    },
+  ];
   const columns: ColumnDef<TableRow>[] = [
     {
       header: () => {
@@ -212,13 +305,16 @@ export function TracesTable(props: TracesTableProps) {
     {
       header: "input",
       accessorKey: "input.value",
+      enableSorting: false,
       cell: TextCell,
     },
     {
       header: "output",
       accessorKey: "output.value",
+      enableSorting: false,
       cell: TextCell,
     },
+    ...evaluationColumns, // TODO: consider hiding this column is there is no evals. For now show it
     {
       header: "start time",
       accessorKey: "startTime",
@@ -229,18 +325,35 @@ export function TracesTable(props: TracesTableProps) {
       accessorKey: "latencyMs",
 
       cell: ({ getValue }) => {
-        const seconds = (getValue() as number) / 1000;
-        return <span css={floatRightCSS}>{formatFloat(seconds)}s</span>;
+        const value = getValue();
+        if (value === null || typeof value !== "number") {
+          return null;
+        }
+
+        return <LatencyText latencyMs={value} />;
       },
     },
     {
       header: "total tokens",
       accessorKey: "tokenCountTotal",
-      cell: IntCell,
+      cell: ({ row, getValue }) => {
+        const value = getValue();
+        if (value === null) {
+          return "--";
+        }
+        return (
+          <TokenCount
+            tokenCountTotal={value as number}
+            tokenCountPrompt={row.original.tokenCountPrompt || 0}
+            tokenCountCompletion={row.original.tokenCountCompletion || 0}
+          />
+        );
+      },
     },
     {
       header: "status",
       accessorKey: "statusCode",
+      enableSorting: false,
       cell: ({ getValue }) => {
         return <SpanStatusCodeIcon statusCode={getValue() as SpanStatusCode} />;
       },
@@ -250,17 +363,25 @@ export function TracesTable(props: TracesTableProps) {
   useEffect(() => {
     //if the sorting changes, we need to reset the pagination
     const sort = sorting[0];
-    refetch({
-      sort: sort
-        ? {
-            col: sort.id as SpanSort["col"],
-            dir: sort.desc ? "desc" : "asc",
-          }
-        : DEFAULT_SORT,
-      after: null,
-      first: PAGE_SIZE,
+    startTransition(() => {
+      refetch(
+        {
+          sort: sort
+            ? {
+                col: sort.id as SpanSort["col"],
+                dir: sort.desc ? "desc" : "asc",
+              }
+            : DEFAULT_SORT,
+          after: null,
+          first: PAGE_SIZE,
+          filterCondition: filterCondition,
+        },
+        {
+          fetchPolicy: "store-and-network",
+        }
+      );
     });
-  }, [sorting, refetch]);
+  }, [sorting, refetch, filterCondition, fetchKey]);
   const fetchMoreOnBottomReached = React.useCallback(
     (containerRefElement?: HTMLDivElement | null) => {
       if (containerRefElement) {
@@ -278,6 +399,7 @@ export function TracesTable(props: TracesTableProps) {
     [hasNext, isLoadingNext, loadNext]
   );
   const [expanded, setExpanded] = useState<ExpandedState>({});
+  const columnVisibility = useTracingContext((state) => state.columnVisibility);
   const table = useReactTable<TableRow>({
     columns,
     data: tableData,
@@ -286,6 +408,7 @@ export function TracesTable(props: TracesTableProps) {
     state: {
       sorting,
       expanded,
+      columnVisibility,
     },
     onSortingChange: setSorting,
     getCoreRowModel: getCoreRowModel(),
@@ -293,72 +416,99 @@ export function TracesTable(props: TracesTableProps) {
     getExpandedRowModel: getExpandedRowModel(),
   });
   const rows = table.getRowModel().rows;
+  const isEmpty = rows.length === 0;
+  const computedColumns = table.getAllColumns();
+
   return (
-    <div
-      css={css`
-        flex: 1 1 auto;
-        overflow: auto;
-      `}
-      onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
-      ref={tableContainerRef}
-    >
-      <table css={tableCSS}>
-        <thead>
-          {table.getHeaderGroups().map((headerGroup) => (
-            <tr key={headerGroup.id}>
-              {headerGroup.headers.map((header) => (
-                <th colSpan={header.colSpan} key={header.id}>
-                  {header.isPlaceholder ? null : (
-                    <div
-                      {...{
-                        className: header.column.getCanSort()
-                          ? "cursor-pointer"
-                          : "",
-                        onClick: header.column.getToggleSortingHandler(),
-                      }}
-                    >
-                      {flexRender(
-                        header.column.columnDef.header,
-                        header.getContext()
-                      )}
-                      {header.column.getIsSorted() ? (
-                        <Icon
-                          className="sort-icon"
-                          svg={
-                            header.column.getIsSorted() === "asc" ? (
-                              <Icons.ArrowUpFilled />
-                            ) : (
-                              <Icons.ArrowDownFilled />
-                            )
-                          }
-                        />
-                      ) : null}
-                    </div>
-                  )}
-                </th>
-              ))}
-            </tr>
-          ))}
-        </thead>
-        <tbody>
-          {rows.map((row) => {
-            return (
-              <tr key={row.id}>
-                {row.getVisibleCells().map((cell) => {
-                  return (
-                    <td key={cell.id}>
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext()
-                      )}
-                    </td>
-                  );
-                })}
+    <div css={spansTableCSS}>
+      <View
+        paddingTop="size-100"
+        paddingBottom="size-100"
+        paddingStart="size-200"
+        paddingEnd="size-200"
+        backgroundColor="grey-200"
+        flex="none"
+      >
+        <Flex direction="row" gap="size-100" width="100%" alignItems="center">
+          <SpanFilterConditionField onValidCondition={setFilterCondition} />
+          <SpanColumnSelector columns={computedColumns} />
+        </Flex>
+      </View>
+      <div
+        css={css`
+          flex: 1 1 auto;
+          overflow: auto;
+        `}
+        onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
+        ref={tableContainerRef}
+      >
+        <table css={selectableTableCSS}>
+          <thead>
+            {table.getHeaderGroups().map((headerGroup) => (
+              <tr key={headerGroup.id}>
+                {headerGroup.headers.map((header) => (
+                  <th colSpan={header.colSpan} key={header.id}>
+                    {header.isPlaceholder ? null : (
+                      <div
+                        {...{
+                          className: header.column.getCanSort()
+                            ? "cursor-pointer"
+                            : "",
+                          onClick: header.column.getToggleSortingHandler(),
+                        }}
+                      >
+                        {flexRender(
+                          header.column.columnDef.header,
+                          header.getContext()
+                        )}
+                        {header.column.getIsSorted() ? (
+                          <Icon
+                            className="sort-icon"
+                            svg={
+                              header.column.getIsSorted() === "asc" ? (
+                                <Icons.ArrowUpFilled />
+                              ) : (
+                                <Icons.ArrowDownFilled />
+                              )
+                            }
+                          />
+                        ) : null}
+                      </div>
+                    )}
+                  </th>
+                ))}
               </tr>
-            );
-          })}
-        </tbody>
-      </table>
+            ))}
+          </thead>
+          {isEmpty ? (
+            <TableEmpty />
+          ) : (
+            <tbody>
+              {rows.map((row) => {
+                return (
+                  <tr
+                    key={row.id}
+                    onClick={() =>
+                      navigate(`traces/${row.original.context.traceId}`)
+                    }
+                  >
+                    {row.getVisibleCells().map((cell) => {
+                      return (
+                        <td key={cell.id}>
+                          {flexRender(
+                            cell.column.columnDef.cell,
+                            cell.getContext()
+                          )}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                );
+              })}
+            </tbody>
+          )}
+        </table>
+      </div>
     </div>
   );
 }

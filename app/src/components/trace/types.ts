@@ -4,12 +4,20 @@
 export interface ISpanItem {
   name: string;
   spanKind: string;
-  latencyMs: number;
+  statusCode: SpanStatusCodeType;
+  latencyMs: number | null;
   startTime: string;
   parentId: string | null;
-  context: {
-    spanId: string;
-  };
+  context: ISpanContext;
+  tokenCountTotal?: number | null;
+  tokenCountPrompt?: number | null;
+  tokenCountCompletion?: number | null;
+  [otherKeys: string]: unknown;
+}
+
+interface ISpanContext {
+  spanId: string;
+  [otherKeys: string]: unknown;
 }
 
 export type SpanStatusCodeType = "OK" | "ERROR" | "UNSET";

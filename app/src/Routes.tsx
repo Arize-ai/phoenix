@@ -15,6 +15,7 @@ import {
   ModelPage,
   ModelRoot,
   TracePage,
+  TracingRoot,
 } from "./pages";
 
 const router = createBrowserRouter(
@@ -53,15 +54,21 @@ const router = createBrowserRouter(
       </Route>
       <Route
         path="/tracing"
-        handle={{ crumb: () => "trace" }}
-        element={<TracingHomePage />}
+        handle={{ crumb: () => "tracing" }}
+        element={<TracingRoot />}
       >
-        <Route path="traces">
-          <Route path=":traceId" element={<TracePage />} />
+        <Route index element={<TracingHomePage />} />
+        <Route element={<TracingHomePage />}>
+          <Route path="traces">
+            <Route path=":traceId" element={<TracePage />} />
+          </Route>
         </Route>
       </Route>
     </Route>
-  )
+  ),
+  {
+    basename: window.Config.basename,
+  }
 );
 
 export function AppRoutes() {

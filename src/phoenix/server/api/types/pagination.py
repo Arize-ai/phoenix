@@ -35,6 +35,7 @@ class PageInfo:
     has_previous_page: bool
     start_cursor: Optional[str]
     end_cursor: Optional[str]
+    total_count: int
 
 
 # A type alias for the connection cursor implementation
@@ -168,5 +169,6 @@ def connection_from_list_slice(
             end_cursor=last_edge.cursor if last_edge else None,
             has_previous_page=start_offset > lower_bound if isinstance(args.last, int) else False,
             has_next_page=end_offset < upper_bound if isinstance(args.first, int) else False,
+            total_count=list_length,
         ),
     )

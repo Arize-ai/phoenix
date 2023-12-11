@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<862d27594d69e5156791df1d9697b80c>>
+ * @generated SignedSource<<12f69bd86c2a639cdc4d78975d0ae8a3>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,14 +10,21 @@
 
 import { ConcreteRequest, Query } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
+export type EvalAttr = "label" | "score";
 export type SortDir = "asc" | "desc";
-export type SpanColumn = "endTime" | "latencyMs" | "startTime" | "tokenCountCompletion" | "tokenCountPrompt" | "tokenCountTotal";
+export type SpanColumn = "cumulativeTokenCountCompletion" | "cumulativeTokenCountPrompt" | "cumulativeTokenCountTotal" | "endTime" | "latencyMs" | "startTime" | "tokenCountCompletion" | "tokenCountPrompt" | "tokenCountTotal";
 export type SpanSort = {
-  col: SpanColumn;
+  col?: SpanColumn | null;
   dir: SortDir;
+  evalResultKey?: EvalResultKey | null;
+};
+export type EvalResultKey = {
+  attr: EvalAttr;
+  name: string;
 };
 export type TracesTableQuery$variables = {
   after?: string | null;
+  filterCondition?: string | null;
   first?: number | null;
   sort?: SpanSort | null;
 };
@@ -35,6 +42,11 @@ var v0 = [
     "defaultValue": null,
     "kind": "LocalArgument",
     "name": "after"
+  },
+  {
+    "defaultValue": null,
+    "kind": "LocalArgument",
+    "name": "filterCondition"
   },
   {
     "defaultValue": 100,
@@ -57,64 +69,63 @@ v1 = {
 },
 v2 = {
   "kind": "Variable",
+  "name": "filterCondition",
+  "variableName": "filterCondition"
+},
+v3 = {
+  "kind": "Variable",
   "name": "first",
   "variableName": "first"
 },
-v3 = {
+v4 = {
   "kind": "Variable",
   "name": "sort",
   "variableName": "sort"
 },
-v4 = [
+v5 = [
   (v1/*: any*/),
   (v2/*: any*/),
+  (v3/*: any*/),
   {
     "kind": "Literal",
     "name": "rootSpansOnly",
     "value": true
   },
-  (v3/*: any*/)
+  (v4/*: any*/)
 ],
-v5 = {
+v6 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "spanKind",
   "storageKey": null
 },
-v6 = {
+v7 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "name",
   "storageKey": null
 },
-v7 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "statusCode",
-  "storageKey": null
-},
 v8 = {
-  "alias": null,
+  "alias": "statusCode",
   "args": null,
   "kind": "ScalarField",
-  "name": "startTime",
+  "name": "propagatedStatusCode",
   "storageKey": null
 },
 v9 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "latencyMs",
+  "name": "startTime",
   "storageKey": null
 },
 v10 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "tokenCountTotal",
+  "name": "latencyMs",
   "storageKey": null
 },
 v11 = {
@@ -177,6 +188,71 @@ v15 = {
     }
   ],
   "storageKey": null
+},
+v16 = {
+  "alias": null,
+  "args": null,
+  "concreteType": "SpanEvaluation",
+  "kind": "LinkedField",
+  "name": "spanEvaluations",
+  "plural": true,
+  "selections": [
+    (v7/*: any*/),
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "label",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "score",
+      "storageKey": null
+    }
+  ],
+  "storageKey": null
+},
+v17 = {
+  "alias": null,
+  "args": null,
+  "concreteType": "DocumentRetrievalMetrics",
+  "kind": "LinkedField",
+  "name": "documentRetrievalMetrics",
+  "plural": true,
+  "selections": [
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "evaluationName",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "ndcg",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "precision",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "hit",
+      "storageKey": null
+    }
+  ],
+  "storageKey": null
 };
 return {
   "fragment": {
@@ -189,7 +265,8 @@ return {
         "args": [
           (v1/*: any*/),
           (v2/*: any*/),
-          (v3/*: any*/)
+          (v3/*: any*/),
+          (v4/*: any*/)
         ],
         "kind": "FragmentSpread",
         "name": "TracesTable_spans"
@@ -206,7 +283,7 @@ return {
     "selections": [
       {
         "alias": "rootSpans",
-        "args": (v4/*: any*/),
+        "args": (v5/*: any*/),
         "concreteType": "SpanConnection",
         "kind": "LinkedField",
         "name": "spans",
@@ -228,16 +305,38 @@ return {
                 "name": "node",
                 "plural": false,
                 "selections": [
-                  (v5/*: any*/),
                   (v6/*: any*/),
                   (v7/*: any*/),
                   (v8/*: any*/),
                   (v9/*: any*/),
                   (v10/*: any*/),
+                  {
+                    "alias": "tokenCountTotal",
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "cumulativeTokenCountTotal",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": "tokenCountPrompt",
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "cumulativeTokenCountPrompt",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": "tokenCountCompletion",
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "cumulativeTokenCountCompletion",
+                    "storageKey": null
+                  },
                   (v11/*: any*/),
                   (v13/*: any*/),
                   (v14/*: any*/),
                   (v15/*: any*/),
+                  (v16/*: any*/),
+                  (v17/*: any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -246,16 +345,38 @@ return {
                     "name": "descendants",
                     "plural": true,
                     "selections": [
-                      (v5/*: any*/),
                       (v6/*: any*/),
                       (v7/*: any*/),
                       (v8/*: any*/),
                       (v9/*: any*/),
-                      (v11/*: any*/),
                       (v10/*: any*/),
+                      (v11/*: any*/),
+                      {
+                        "alias": null,
+                        "args": null,
+                        "kind": "ScalarField",
+                        "name": "tokenCountTotal",
+                        "storageKey": null
+                      },
+                      {
+                        "alias": null,
+                        "args": null,
+                        "kind": "ScalarField",
+                        "name": "tokenCountPrompt",
+                        "storageKey": null
+                      },
+                      {
+                        "alias": null,
+                        "args": null,
+                        "kind": "ScalarField",
+                        "name": "tokenCountCompletion",
+                        "storageKey": null
+                      },
                       (v13/*: any*/),
                       (v14/*: any*/),
-                      (v15/*: any*/)
+                      (v15/*: any*/),
+                      (v16/*: any*/),
+                      (v17/*: any*/)
                     ],
                     "storageKey": null
                   }
@@ -320,10 +441,11 @@ return {
       },
       {
         "alias": "rootSpans",
-        "args": (v4/*: any*/),
+        "args": (v5/*: any*/),
         "filters": [
           "sort",
-          "rootSpansOnly"
+          "rootSpansOnly",
+          "filterCondition"
         ],
         "handle": "connection",
         "key": "TracesTable_rootSpans",
@@ -333,16 +455,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "d3114f316cdd0e4114887e47540211bf",
+    "cacheID": "8552d437b2701a81cc9448957c4a7d42",
     "id": null,
     "metadata": {},
     "name": "TracesTableQuery",
     "operationKind": "query",
-    "text": "query TracesTableQuery(\n  $after: String = null\n  $first: Int = 100\n  $sort: SpanSort = {col: startTime, dir: desc}\n) {\n  ...TracesTable_spans_dWkdd\n}\n\nfragment TracesTable_spans_dWkdd on Query {\n  rootSpans: spans(first: $first, after: $after, sort: $sort, rootSpansOnly: true) {\n    edges {\n      rootSpan: node {\n        spanKind\n        name\n        statusCode\n        startTime\n        latencyMs\n        tokenCountTotal\n        parentId\n        input {\n          value\n        }\n        output {\n          value\n        }\n        context {\n          spanId\n          traceId\n        }\n        descendants {\n          spanKind\n          name\n          statusCode\n          startTime\n          latencyMs\n          parentId\n          tokenCountTotal\n          input {\n            value\n          }\n          output {\n            value\n          }\n          context {\n            spanId\n            traceId\n          }\n        }\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query TracesTableQuery(\n  $after: String = null\n  $filterCondition: String = null\n  $first: Int = 100\n  $sort: SpanSort = {col: startTime, dir: desc}\n) {\n  ...TracesTable_spans_1XEuU\n}\n\nfragment TracesTable_spans_1XEuU on Query {\n  rootSpans: spans(first: $first, after: $after, sort: $sort, rootSpansOnly: true, filterCondition: $filterCondition) {\n    edges {\n      rootSpan: node {\n        spanKind\n        name\n        statusCode: propagatedStatusCode\n        startTime\n        latencyMs\n        tokenCountTotal: cumulativeTokenCountTotal\n        tokenCountPrompt: cumulativeTokenCountPrompt\n        tokenCountCompletion: cumulativeTokenCountCompletion\n        parentId\n        input {\n          value\n        }\n        output {\n          value\n        }\n        context {\n          spanId\n          traceId\n        }\n        spanEvaluations {\n          name\n          label\n          score\n        }\n        documentRetrievalMetrics {\n          evaluationName\n          ndcg\n          precision\n          hit\n        }\n        descendants {\n          spanKind\n          name\n          statusCode: propagatedStatusCode\n          startTime\n          latencyMs\n          parentId\n          tokenCountTotal\n          tokenCountPrompt\n          tokenCountCompletion\n          input {\n            value\n          }\n          output {\n            value\n          }\n          context {\n            spanId\n            traceId\n          }\n          spanEvaluations {\n            name\n            label\n            score\n          }\n          documentRetrievalMetrics {\n            evaluationName\n            ndcg\n            precision\n            hit\n          }\n        }\n      }\n      cursor\n      node {\n        __typename\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "e0b5d2f6e5e1cde4acc5a790e2bb9a76";
+(node as any).hash = "710102d25cfd95105417d1aee837a7f8";
 
 export default node;

@@ -1,4 +1,3 @@
-import { transparentize } from "polished";
 import { ReferenceLineProps, TooltipProps, XAxisProps } from "recharts";
 
 import { theme } from "@arizeai/components";
@@ -8,8 +7,8 @@ import { theme } from "@arizeai/components";
  */
 export const defaultTimeXAxisProps: XAxisProps = {
   dataKey: "timestamp",
-  stroke: theme.colors.gray200,
-  style: { fill: theme.textColors.white70 },
+  stroke: "var(--ac-global-colo-grey-400)",
+  style: { fill: "var(--ac-global-text-color-700)" },
   scale: "time",
   type: "number",
   domain: ["auto", "auto"],
@@ -17,7 +16,7 @@ export const defaultTimeXAxisProps: XAxisProps = {
 };
 
 export const defaultSelectedTimestampReferenceLineProps: ReferenceLineProps = {
-  stroke: "white",
+  stroke: "var(--ac-global-color-grey-900)",
   label: {
     value: "▼",
     position: "top",
@@ -31,6 +30,6 @@ export const defaultSelectedTimestampReferenceLineProps: ReferenceLineProps = {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const defaultBarChartTooltipProps: TooltipProps<any, any> = {
   cursor: {
-    fill: transparentize(0.3, theme.colors.gray200),
+    fill: "var(--ac-global-color-grey-300)",
   },
 };

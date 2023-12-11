@@ -1,6 +1,17 @@
+import os
 import tempfile
 from pathlib import Path
-from typing import List
+from typing import List, Optional
+
+# Phoenix environment variables
+ENV_PHOENIX_PORT = "PHOENIX_PORT"
+ENV_PHOENIX_HOST = "PHOENIX_HOST"
+ENV_NOTEBOOK_ENV = "PHOENIX_NOTEBOOK_ENV"
+ENV_PHOENIX_COLLECTOR_ENDPOINT = "PHOENIX_COLLECTOR_ENDPOINT"
+"""
+The endpoint traces and evals are sent to. This must be set if the Phoenix
+server is running on a remote instance.
+"""
 
 
 def _get_temp_path() -> Path:
@@ -18,6 +29,13 @@ def get_pids_path() -> Path:
     return path
 
 
+def get_running_pid() -> Optional[int]:
+    for file in get_pids_path().iterdir():
+        if file.name.isnumeric():
+            return int(file.name)
+    return None
+
+
 for path in (
     ROOT_DIR := Path.home().resolve() / ".phoenix",
     EXPORT_DIR := ROOT_DIR / "exports",
@@ -28,8 +46,10 @@ for path in (
 PHOENIX_DIR = Path(__file__).resolve().parent
 # Server config
 SERVER_DIR = PHOENIX_DIR / "server"
+# The host the server will run on after launch_app is called
+HOST = "127.0.0.1"
 # The port the server will run on after launch_app is called
-PORT = 6060
+PORT = 6006
 # The prefix of datasets that are auto-assigned a name
 GENERATED_DATASET_NAME_PREFIX = "phoenix_dataset_"
 
@@ -49,3 +69,19 @@ def get_exported_files(directory: Path) -> List[Path]:
         List of paths of the exported files.
     """
     return list(directory.glob("*.parquet"))
+
+
+def get_env_port() -> int:
+    return (
+        int(port)
+        if isinstance(port := os.getenv(ENV_PHOENIX_PORT), str) and port.isnumeric()
+        else PORT
+    )
+
+
+def get_env_host() -> str:
+    return os.getenv(ENV_PHOENIX_HOST) or HOST
+
+
+def get_env_collector_endpoint() -> Optional[str]:
+    return os.getenv(ENV_PHOENIX_COLLECTOR_ENDPOINT)

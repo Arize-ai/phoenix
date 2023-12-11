@@ -15,7 +15,6 @@ from functools import partial
 from typing import Dict, List, Optional
 
 import numpy as np
-import openai
 import pandas as pd
 import pinecone  # type: ignore
 import tiktoken
@@ -119,7 +118,7 @@ class OpenAIEmbeddingsWrapper(OpenAIEmbeddings):
 
     @staticmethod
     def _convert_text_to_embedding_map_to_dataframe(
-        text_to_embedding: Dict[str, List[float]]
+        text_to_embedding: Dict[str, List[float]],
     ) -> pd.DataFrame:
         texts, embeddings = map(list, zip(*text_to_embedding.items()))
         embedding_arrays = [np.array(embedding) for embedding in embeddings]
@@ -147,10 +146,8 @@ if __name__ == "__main__":
     pinecone_api_key = args.pinecone_api_key
     pinecone_index_name = args.pinecone_index_name
     pinecone_environment = args.pinecone_environment
-    openai_api_key = args.openai_api_key
     output_parquet_path = args.output_parquet_path
 
-    openai.api_key = openai_api_key
     pinecone.init(api_key=pinecone_api_key, environment=pinecone_environment)
 
     docs_url = "https://docs.arize.com/arize/"

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<153efabbd137d63e9e0562f5cbaa8699>>
+ * @generated SignedSource<<ee2edbc58d886fdb784e8a672e4a1c78>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,7 +10,7 @@
 
 import { ReaderFragment, RefetchableFragment } from 'relay-runtime';
 export type MimeType = "json" | "text";
-export type SpanKind = "chain" | "embedding" | "llm" | "retriever" | "tool" | "unknown";
+export type SpanKind = "agent" | "chain" | "embedding" | "llm" | "reranker" | "retriever" | "tool" | "unknown";
 export type SpanStatusCode = "ERROR" | "OK" | "UNSET";
 import { FragmentRefs } from "relay-runtime";
 export type SpansTable_spans$data = {
@@ -21,19 +21,32 @@ export type SpansTable_spans$data = {
           readonly spanId: string;
           readonly traceId: string;
         };
+        readonly documentRetrievalMetrics: ReadonlyArray<{
+          readonly evaluationName: string;
+          readonly hit: number | null;
+          readonly ndcg: number | null;
+          readonly precision: number | null;
+        }>;
         readonly input: {
           readonly mimeType: MimeType;
-          readonly value: string | null;
-        };
-        readonly latencyMs: number;
+          readonly value: string;
+        } | null;
+        readonly latencyMs: number | null;
         readonly name: string;
         readonly output: {
           readonly mimeType: MimeType;
-          readonly value: string | null;
-        };
+          readonly value: string;
+        } | null;
+        readonly spanEvaluations: ReadonlyArray<{
+          readonly label: string | null;
+          readonly name: string;
+          readonly score: number | null;
+        }>;
         readonly spanKind: SpanKind;
         readonly startTime: string;
         readonly statusCode: SpanStatusCode;
+        readonly tokenCountCompletion: number | null;
+        readonly tokenCountPrompt: number | null;
         readonly tokenCountTotal: number | null;
       };
     }>;
@@ -49,7 +62,14 @@ const node: ReaderFragment = (function(){
 var v0 = [
   "spans"
 ],
-v1 = [
+v1 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "name",
+  "storageKey": null
+},
+v2 = [
   {
     "alias": null,
     "args": null,
@@ -71,6 +91,11 @@ return {
       "defaultValue": null,
       "kind": "LocalArgument",
       "name": "after"
+    },
+    {
+      "defaultValue": null,
+      "kind": "LocalArgument",
+      "name": "filterCondition"
     },
     {
       "defaultValue": 100,
@@ -116,6 +141,11 @@ return {
       "args": [
         {
           "kind": "Variable",
+          "name": "filterCondition",
+          "variableName": "filterCondition"
+        },
+        {
+          "kind": "Variable",
           "name": "sort",
           "variableName": "sort"
         }
@@ -148,13 +178,7 @@ return {
                   "name": "spanKind",
                   "storageKey": null
                 },
-                {
-                  "alias": null,
-                  "args": null,
-                  "kind": "ScalarField",
-                  "name": "name",
-                  "storageKey": null
-                },
+                (v1/*: any*/),
                 {
                   "alias": null,
                   "args": null,
@@ -181,6 +205,20 @@ return {
                   "args": null,
                   "kind": "ScalarField",
                   "name": "tokenCountTotal",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "tokenCountPrompt",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "tokenCountCompletion",
                   "storageKey": null
                 },
                 {
@@ -215,7 +253,7 @@ return {
                   "kind": "LinkedField",
                   "name": "input",
                   "plural": false,
-                  "selections": (v1/*: any*/),
+                  "selections": (v2/*: any*/),
                   "storageKey": null
                 },
                 {
@@ -225,7 +263,72 @@ return {
                   "kind": "LinkedField",
                   "name": "output",
                   "plural": false,
-                  "selections": (v1/*: any*/),
+                  "selections": (v2/*: any*/),
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "concreteType": "SpanEvaluation",
+                  "kind": "LinkedField",
+                  "name": "spanEvaluations",
+                  "plural": true,
+                  "selections": [
+                    (v1/*: any*/),
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "label",
+                      "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "score",
+                      "storageKey": null
+                    }
+                  ],
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "concreteType": "DocumentRetrievalMetrics",
+                  "kind": "LinkedField",
+                  "name": "documentRetrievalMetrics",
+                  "plural": true,
+                  "selections": [
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "evaluationName",
+                      "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "ndcg",
+                      "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "precision",
+                      "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "hit",
+                      "storageKey": null
+                    }
+                  ],
                   "storageKey": null
                 }
               ],
@@ -293,6 +396,6 @@ return {
 };
 })();
 
-(node as any).hash = "ee30b90718e2edc972db1762407faa51";
+(node as any).hash = "6bdb54ad6615fe087bf081cfd7c96bae";
 
 export default node;

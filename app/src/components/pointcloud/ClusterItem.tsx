@@ -1,5 +1,4 @@
 import React, { useMemo } from "react";
-import { transparentize } from "polished";
 import { css } from "@emotion/react";
 
 import { Flex, Heading, Text } from "@arizeai/components";
@@ -97,19 +96,19 @@ export function ClusterItem(props: ClusterItemProps) {
   }, [driftRatio, primaryToCorpusRatio]);
   return (
     <div
-      css={(theme) => css`
-        border: 1px solid ${theme.colors.gray400};
-        border-radius: 4px;
+      css={css`
+        border: 1px solid var(--ac-global-border-color-light);
+        border-radius: var(--ac-global-rounding-medium);
         overflow: hidden;
         transition: background-color 0.2s ease-in-out;
         cursor: pointer;
         &:hover {
-          background-color: ${transparentize(0.9, theme.colors.arizeLightBlue)};
-          border-color: ${transparentize(0.5, theme.colors.arizeLightBlue)};
+          background-color: var(--ac-global-color-primary-700);
+          border-color: var(--ac-global-color-primary);
         }
         &.is-selected {
-          border-color: ${theme.colors.arizeLightBlue};
-          background-color: ${transparentize(0.8, theme.colors.arizeLightBlue)};
+          border-color: var(--ac-global-color-primary);
+          background-color: var(--ac-global-color-primary-700);
         }
       `}
       className={isSelected ? "is-selected" : ""}
@@ -119,8 +118,8 @@ export function ClusterItem(props: ClusterItemProps) {
       onMouseLeave={onMouseLeave}
     >
       <div
-        css={(theme) => css`
-          padding: ${theme.spacing.padding8}px;
+        css={css`
+          padding: var(--ac-global-dimension-static-size-100);
           display: flex;
           flex-direction: row;
           justify-content: space-between;
@@ -136,7 +135,7 @@ export function ClusterItem(props: ClusterItemProps) {
           <Flex direction="column" alignItems="start">
             <Heading level={3}>{`Cluster ${clusterId}`}</Heading>
             <Text
-              color="white70"
+              color="text-700"
               textSize="small"
             >{`${props.numPoints} points`}</Text>
           </Flex>
@@ -149,10 +148,10 @@ export function ClusterItem(props: ClusterItemProps) {
             align-items: end;
           `}
         >
-          <Text color="white70" textSize="small">
+          <Text color="text-700" textSize="small">
             {metricName}
           </Text>
-          <Text color="white90" textSize="medium">
+          <Text color="text-900" textSize="medium">
             {numberFormatter(primaryMetricValue)}
           </Text>
           {!hideReference ? (

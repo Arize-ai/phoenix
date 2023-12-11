@@ -1,5 +1,7 @@
+import logging
 from datetime import datetime
-from typing import Any, Callable, Iterator, List, Optional
+from threading import RLock
+from typing import Any, Callable, Iterator, List, Optional, Protocol
 from uuid import UUID, uuid4
 
 from .schemas import (
@@ -12,6 +14,14 @@ from .schemas import (
     SpanKind,
     SpanStatusCode,
 )
+
+logger = logging.getLogger(__name__)
+logger.addHandler(logging.NullHandler())
+
+
+class SpanExporter(Protocol):
+    def export(self, span: Span) -> None:
+        ...
 
 
 class Tracer:
@@ -28,6 +38,7 @@ class Tracer:
 
     def __init__(
         self,
+        exporter: Optional[SpanExporter] = None,
         on_append: Optional[Callable[[List[Span]], None]] = None,
         *args: Any,
         **kwargs: Any,
@@ -44,6 +55,8 @@ class Tracer:
         """
         self.span_buffer = []
         self.on_append = on_append
+        self._exporter: Optional[SpanExporter] = exporter
+        self._lock = RLock()
         super().__init__(*args, **kwargs)
 
     def create_span(
@@ -51,14 +64,15 @@ class Tracer:
         name: str,
         span_kind: SpanKind,
         start_time: datetime,
-        end_time: datetime,
-        status_code: SpanStatusCode,
+        end_time: Optional[datetime] = None,
+        status_code: SpanStatusCode = SpanStatusCode.UNSET,
         status_message: Optional[str] = "",
         parent_id: Optional[SpanID] = None,
         trace_id: Optional[UUID] = None,
         attributes: Optional[SpanAttributes] = None,
         events: Optional[List[SpanEvent]] = None,
         conversation: Optional[SpanConversationAttributes] = None,
+        span_id: Optional[UUID] = None,
     ) -> Span:
         """
         create_span creates a new span with the given name and options.
@@ -77,7 +91,7 @@ class Tracer:
 
         span = Span(
             name=name,
-            context=SpanContext(trace_id=trace_id, span_id=uuid4()),
+            context=SpanContext(trace_id=trace_id, span_id=span_id or uuid4()),
             span_kind=span_kind,
             parent_id=parent_id,
             start_time=start_time,
@@ -89,7 +103,11 @@ class Tracer:
             conversation=conversation,
         )
 
-        self.span_buffer.append(span)
+        if self._exporter:
+            self._exporter.export(span)
+
+        with self._lock:
+            self.span_buffer.append(span)
 
         if self.on_append is not None:
             self.on_append(self.span_buffer)

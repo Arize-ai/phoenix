@@ -1,6 +1,8 @@
 from collections import defaultdict
+from datetime import datetime
 from itertools import chain
-from typing import Dict, List, Optional, Set, Union
+from typing import Dict, List, Optional, Set, Tuple, Union, cast
+from uuid import UUID
 
 import numpy as np
 import numpy.typing as npt
@@ -9,6 +11,7 @@ from strawberry import ID, UNSET
 from strawberry.types import Info
 from typing_extensions import Annotated
 
+from phoenix.metrics.retrieval_metrics import RetrievalMetrics
 from phoenix.pointcloud.clustering import Hdbscan
 from phoenix.server.api.helpers import ensure_list
 from phoenix.server.api.input_types.ClusterInput import ClusterInput
@@ -16,26 +19,32 @@ from phoenix.server.api.input_types.Coordinates import (
     InputCoordinate2D,
     InputCoordinate3D,
 )
-from phoenix.server.api.input_types.SpanSort import SpanColumn, SpanSort
+from phoenix.server.api.input_types.SpanSort import SpanSort
 from phoenix.server.api.types.Cluster import Cluster, to_gql_clusters
+from phoenix.trace.dsl import SpanFilter
+from phoenix.trace.schemas import SpanID
 
 from .context import Context
+from .input_types.TimeRange import TimeRange
+from .types.DatasetInfo import TraceDatasetInfo
 from .types.DatasetRole import AncillaryDatasetRole, DatasetRole
 from .types.Dimension import to_gql_dimension
+from .types.DocumentEvaluationSummary import DocumentEvaluationSummary
 from .types.EmbeddingDimension import (
     DEFAULT_CLUSTER_SELECTION_EPSILON,
     DEFAULT_MIN_CLUSTER_SIZE,
     DEFAULT_MIN_SAMPLES,
     to_gql_embedding_dimension,
 )
+from .types.EvaluationSummary import EvaluationSummary
 from .types.Event import create_event_id, unpack_event_id
 from .types.ExportEventsMutation import ExportEventsMutation
 from .types.Functionality import Functionality
 from .types.Model import Model
 from .types.node import GlobalID, Node, from_global_id
 from .types.pagination import Connection, ConnectionArgs, Cursor, connection_from_list
-from .types.SortDir import SortDir
 from .types.Span import Span, to_gql_span
+from .types.ValidationResult import ValidationResult
 
 
 @strawberry.type
@@ -173,12 +182,10 @@ class Query:
             + grouped_event_ids[AncillaryDatasetRole.corpus]
         )
         stacked_coordinates = np.stack(
-            chain(
-                grouped_coordinates[DatasetRole.primary],
-                grouped_coordinates[DatasetRole.reference],
-                grouped_coordinates[AncillaryDatasetRole.corpus],
-            )
-        )  # type: ignore
+            grouped_coordinates[DatasetRole.primary]
+            + grouped_coordinates[DatasetRole.reference]
+            + grouped_coordinates[AncillaryDatasetRole.corpus]
+        )
 
         clusters = Hdbscan(
             min_cluster_size=min_cluster_size,
@@ -199,39 +206,205 @@ class Query:
     def spans(
         self,
         info: Info[Context, None],
+        time_range: Optional[TimeRange] = UNSET,
         trace_ids: Optional[List[ID]] = UNSET,
         first: Optional[int] = 50,
         last: Optional[int] = UNSET,
         after: Optional[Cursor] = UNSET,
         before: Optional[Cursor] = UNSET,
         sort: Optional[SpanSort] = UNSET,
-        root_spans_only: Optional[bool] = False,
+        root_spans_only: Optional[bool] = UNSET,
+        filter_condition: Optional[str] = UNSET,
     ) -> Connection[Span]:
-        if info.context.traces is None:
-            spans = []
-        else:
-            df = info.context.traces._dataframe
-            if trace_ids:
-                df = df[df["context.trace_id"].isin(trace_ids)]
-            if root_spans_only:
-                df = df[df["parent_id"].isna()]
-            sort = (
-                SpanSort(col=SpanColumn.startTime, dir=SortDir.asc)
-                if not sort or sort.col.value not in df.columns
-                else sort
-            )
-            # Convert dataframe rows to Span objects
-            spans = sort.apply(df).apply(to_gql_span, axis=1).to_list()  # type: ignore
-
-        return connection_from_list(
-            data=spans,
-            args=ConnectionArgs(
-                first=first,
-                after=after if isinstance(after, Cursor) else None,
-                last=last,
-                before=before if isinstance(before, Cursor) else None,
-            ),
+        args = ConnectionArgs(
+            first=first,
+            after=after if isinstance(after, Cursor) else None,
+            last=last,
+            before=before if isinstance(before, Cursor) else None,
         )
+        if (traces := info.context.traces) is None:
+            return connection_from_list(data=[], args=args)
+        evals = info.context.evals
+        predicate = (
+            SpanFilter(
+                condition=filter_condition,
+                evals=evals,
+            )
+            if filter_condition
+            else None
+        )
+        if not trace_ids:
+            spans = traces.get_spans(
+                start_time=time_range.start if time_range else None,
+                stop_time=time_range.end if time_range else None,
+                root_spans_only=root_spans_only,
+            )
+        else:
+            spans = chain.from_iterable(map(traces.get_trace, map(UUID, trace_ids)))
+        if predicate:
+            spans = filter(predicate, spans)
+        if sort:
+            spans = sort(spans, evals=evals)
+        data = list(map(to_gql_span, spans))
+        return connection_from_list(data=data, args=args)
+
+    @strawberry.field(
+        description="Names of all available evaluations for spans. "
+        "(The list contains no duplicates.)"
+    )  # type: ignore
+    def span_evaluation_names(
+        self,
+        info: Info[Context, None],
+    ) -> List[str]:
+        if (evals := info.context.evals) is None:
+            return []
+        return evals.get_span_evaluation_names()
+
+    @strawberry.field(
+        description="Names of available document evaluations.",
+    )  # type: ignore
+    def document_evaluation_names(
+        self,
+        info: Info[Context, None],
+        span_id: Optional[ID] = UNSET,
+    ) -> List[str]:
+        if (evals := info.context.evals) is None:
+            return []
+        return evals.get_document_evaluation_names(
+            None if span_id is UNSET else SpanID(span_id),
+        )
+
+    @strawberry.field
+    def span_evaluation_summary(
+        self,
+        info: Info[Context, None],
+        evaluation_name: str,
+        time_range: Optional[TimeRange] = UNSET,
+        filter_condition: Optional[str] = UNSET,
+    ) -> Optional[EvaluationSummary]:
+        if (evals := info.context.evals) is None:
+            return None
+        if (traces := info.context.traces) is None:
+            return None
+        predicate = (
+            SpanFilter(
+                condition=filter_condition,
+                evals=evals,
+            )
+            if filter_condition
+            else None
+        )
+        span_ids = evals.get_span_evaluation_span_ids(evaluation_name)
+        if not span_ids:
+            return None
+        spans = traces.get_spans(
+            start_time=time_range.start if time_range else None,
+            stop_time=time_range.end if time_range else None,
+            span_ids=span_ids,
+        )
+        if predicate:
+            spans = filter(predicate, spans)
+        evaluations = tuple(
+            evaluation
+            for span in spans
+            if (
+                evaluation := evals.get_span_evaluation(
+                    span.context.span_id,
+                    evaluation_name,
+                )
+            )
+            is not None
+        )
+        if not evaluations:
+            return None
+        labels = evals.get_span_evaluation_labels(evaluation_name)
+        return EvaluationSummary(evaluations, labels)
+
+    @strawberry.field
+    def document_evaluation_summary(
+        self,
+        info: Info[Context, None],
+        evaluation_name: str,
+        time_range: Optional[TimeRange] = UNSET,
+        filter_condition: Optional[str] = UNSET,
+    ) -> Optional[DocumentEvaluationSummary]:
+        if (evals := info.context.evals) is None:
+            return None
+        if (traces := info.context.traces) is None:
+            return None
+        predicate = (
+            SpanFilter(condition=filter_condition, evals=evals) if filter_condition else None
+        )
+        span_ids = evals.get_document_evaluation_span_ids(evaluation_name)
+        if not span_ids:
+            return None
+        spans = traces.get_spans(
+            start_time=time_range.start if time_range else None,
+            stop_time=time_range.end if time_range else None,
+            span_ids=span_ids,
+        )
+        if predicate:
+            spans = filter(predicate, spans)
+        metrics_collection = []
+        for span in spans:
+            span_id = span.context.span_id
+            num_documents = traces.get_num_documents(span_id)
+            if not num_documents:
+                continue
+            evaluation_scores = evals.get_document_evaluation_scores(
+                span_id=span_id,
+                evaluation_name=evaluation_name,
+                num_documents=num_documents,
+            )
+            metrics_collection.append(RetrievalMetrics(evaluation_scores))
+        if not metrics_collection:
+            return None
+        return DocumentEvaluationSummary(
+            evaluation_name=evaluation_name,
+            metrics_collection=metrics_collection,
+        )
+
+    @strawberry.field
+    def trace_dataset_info(
+        self,
+        info: Info[Context, None],
+    ) -> Optional[TraceDatasetInfo]:
+        if (traces := info.context.traces) is None:
+            return None
+        if not (span_count := traces.span_count):
+            return None
+        start_time, stop_time = cast(
+            Tuple[datetime, datetime],
+            traces.right_open_time_range,
+        )
+        latency_ms_p50, latency_ms_p99 = traces.root_span_latency_ms_quantiles(0.50, 0.99)
+        return TraceDatasetInfo(
+            start_time=start_time,
+            end_time=stop_time,
+            record_count=span_count,
+            token_count_total=traces.token_count_total,
+            latency_ms_p50=latency_ms_p50,
+            latency_ms_p99=latency_ms_p99,
+        )
+
+    @strawberry.field
+    def validate_span_filter_condition(
+        self, info: Info[Context, None], condition: str
+    ) -> ValidationResult:
+        evals = info.context.evals
+        valid_eval_names = evals.get_span_evaluation_names() if evals else ()
+        try:
+            SpanFilter(
+                condition=condition,
+                evals=evals,
+                valid_eval_names=valid_eval_names,
+            )
+            return ValidationResult(is_valid=True, error_message=None)
+        except SyntaxError as e:
+            return ValidationResult(
+                is_valid=False,
+                error_message=e.msg,
+            )
 
 
 @strawberry.type

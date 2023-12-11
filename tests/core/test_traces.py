@@ -1,22 +1,28 @@
 from uuid import uuid4
 
-import pandas as pd
-from phoenix.core.traces import Traces
+from phoenix.core.traces import (
+    Traces,
+)
+
+
+class MockTraces(Traces):
+    def _start_consumer(self) -> None:
+        pass
 
 
 def test_get_descendant_span_ids() -> None:
-    ids = [uuid4() for _ in range(6)]
-    traces = Traces(
-        pd.DataFrame(
-            {
-                "context.span_id": ids,
-                "parent_id": [None, None, ids[1], ids[1], ids[2], ids[4]],
-            }
-        ).sample(frac=1)
+    span_ids = [uuid4() for _ in range(6)]
+    mock = MockTraces()
+    mock._child_span_ids.update(
+        {
+            span_ids[1]: [span_ids[2], span_ids[3]],
+            span_ids[2]: [span_ids[4]],
+            span_ids[4]: [span_ids[5]],
+        }
     )
-    assert set(traces.get_descendant_span_ids(ids[0])) == set()
-    assert set(traces.get_descendant_span_ids(ids[1])) == set(ids[2:])
-    assert set(traces.get_descendant_span_ids(ids[2])) == set(ids[4:])
-    assert set(traces.get_descendant_span_ids(ids[3])) == set()
-    assert set(traces.get_descendant_span_ids(ids[4])) == set(ids[5:])
-    assert set(traces.get_descendant_span_ids(ids[5])) == set()
+    assert set(mock.get_descendant_span_ids(span_ids[0])) == set()
+    assert set(mock.get_descendant_span_ids(span_ids[1])) == set(span_ids[2:])
+    assert set(mock.get_descendant_span_ids(span_ids[2])) == set(span_ids[4:])
+    assert set(mock.get_descendant_span_ids(span_ids[3])) == set()
+    assert set(mock.get_descendant_span_ids(span_ids[4])) == set(span_ids[5:])
+    assert set(mock.get_descendant_span_ids(span_ids[5])) == set()

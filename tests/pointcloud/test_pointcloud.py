@@ -44,7 +44,7 @@ def test_point_cloud(samp_size: int, n_features: int, n_components: int, n_clust
         n_components,
     )
 
-    assert np.stack(points.values()).shape == (samp_size, n_components)
+    assert np.stack(list(points.values())).shape == (samp_size, n_components)
     assert len(clustered_events) == n_clusters
     assert set(points.keys()) == set(data.keys())
     assert set(chain.from_iterable(clustered_events.values())) <= set(data.keys())
