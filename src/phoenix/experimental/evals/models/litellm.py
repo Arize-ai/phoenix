@@ -1,8 +1,15 @@
 import logging
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional
+
+from tenacity import (
+    RetryCallState,
+    retry,
+    stop_after_attempt,
+)
 
 from phoenix.experimental.evals.models.base import BaseEvalModel
+from phoenix.utilities.logging import printif
 
 if TYPE_CHECKING:
     from tiktoken import Encoding
@@ -37,6 +44,32 @@ class LiteLLMModel(BaseEvalModel):
     def __post_init__(self) -> None:
         self._init_environment()
         self._init_model_encoding()
+
+    def _retry(
+        self,
+    ) -> Callable[[Any], Any]:
+        """Create a retry decorator for a given LLM and provided list of error types."""
+
+        def log_retry(retry_state: RetryCallState) -> None:
+            if fut := retry_state.outcome:
+                exc = fut.exception()
+            else:
+                exc = None
+
+            if exc:
+                printif(
+                    True,
+                    f"Failed attempt {retry_state.attempt_number}: raised {repr(exc)}",
+                )
+            else:
+                printif(True, f"Failed attempt {retry_state.attempt_number}")
+            return None
+
+        return retry(
+            reraise=True,
+            stop=stop_after_attempt(self.max_retries),
+            before_sleep=log_retry,
+        )
 
     def _init_environment(self) -> None:
         try:
@@ -116,7 +149,8 @@ class LiteLLMModel(BaseEvalModel):
     def _generate_with_retry(self, **kwargs: Any) -> Any:
         # Using default LiteLLM completion with retries = self.num_retries.
 
-        response = self._litellm.completion(**kwargs)
+        retry_on_errors = self._retry()
+        response = retry_on_errors(self._litellm.completion(**kwargs))
         return response.choices[0].message.content
 
     def _get_messages_from_prompt(self, prompt: str) -> List[Dict[str, str]]:
