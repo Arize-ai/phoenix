@@ -287,7 +287,7 @@ def test_callback_exception_event_produces_root_chain_span_with_exception_events
 
 
 def test_callback_llm_rate_limit_error_has_exception_event_with_missing_start(
-    api_key,
+    api_key: str,
 ) -> None:
     callback_handler = OpenInferenceTraceCallbackHandler(exporter=NoOpExporter())
     event_type = CBEventType.EXCEPTION
@@ -305,7 +305,7 @@ def test_callback_llm_rate_limit_error_has_exception_event_with_missing_start(
 
 @patch("phoenix.trace.llama_index.callback.payload_to_semantic_attributes")
 def test_on_event_start_handler_fails_gracefully(
-    api_key, mock_handler_internals, mock_service_context: ServiceContext, caplog
+    mock_handler_internals, mock_service_context: ServiceContext, caplog
 ) -> None:
     # callback handlers should *never* introduce errors in user code if they fail
     question = "What are the seven wonders of the world?"
@@ -329,7 +329,7 @@ def test_on_event_start_handler_fails_gracefully(
 
 
 def test_on_event_start_handler_is_not_called_before_end_handler(
-    api_key, mock_service_context: ServiceContext, caplog
+    mock_service_context: ServiceContext, caplog
 ) -> None:
     question = "What are the seven wonders of the world?"
     callback_handler = OpenInferenceTraceCallbackHandler(exporter=NoOpExporter())
@@ -352,7 +352,7 @@ def test_on_event_start_handler_is_not_called_before_end_handler(
 
 
 def test_on_event_end_handler_fails_gracefully(
-    api_key, mock_service_context: ServiceContext, caplog
+    mock_service_context: ServiceContext, caplog
 ) -> None:
     event_type = CBEventType.QUERY
     faulty_payload = {"faulty": "payload"}
@@ -376,7 +376,7 @@ def test_on_event_end_handler_fails_gracefully(
 
 
 @patch("phoenix.trace.llama_index.callback._add_spans_to_tracer")
-def test_end_trace_handler_fails_gracefully(api_key, mock_handler_internals, caplog) -> None:
+def test_end_trace_handler_fails_gracefully(mock_handler_internals, caplog) -> None:
     trace_id = str(uuid4())
     trace_map = {str(uuid4()): [str(uuid4())]}
     mock_handler_internals.side_effect = CallbackError("callback exception")
