@@ -54,6 +54,12 @@ class BedrockModel(BaseEvalModel):
         self._init_client()
         self._init_tiktoken()
         self._init_rate_limiter()
+        self.retry = self._retry(
+            error_types=[],  # default to catching all errors
+            min_seconds=self.retry_min_seconds,
+            max_seconds=self.retry_max_seconds,
+            max_retries=self.max_retries,
+        )
 
     def _init_environment(self) -> None:
         try:
@@ -134,6 +140,7 @@ class BedrockModel(BaseEvalModel):
     def _generate_with_retry(self, **kwargs: Any) -> Any:
         """Use tenacity to retry the completion call."""
 
+        @self.retry
         @self._rate_limiter.limit
         def _completion_with_retry(**kwargs: Any) -> Any:
             return self.client.invoke_model(**kwargs)
