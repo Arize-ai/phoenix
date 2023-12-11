@@ -61,7 +61,7 @@ def api_key(monkeypatch: pytest.MonkeyPatch) -> str:
     return api_key
 
 
-def test_callback_llm(mock_service_context: ServiceContext) -> None:
+def test_callback_llm(api_key, mock_service_context: ServiceContext) -> None:
     question = "What are the seven wonders of the world?"
     callback_handler = OpenInferenceTraceCallbackHandler(exporter=NoOpExporter())
     callback_manager = CallbackManager([callback_handler])
@@ -251,7 +251,9 @@ def test_callback_internal_error_has_exception_event(
     assert isinstance(event.attributes[EXCEPTION_STACKTRACE], str)
 
 
-def test_callback_exception_event_produces_root_chain_span_with_exception_events() -> None:
+def test_callback_exception_event_produces_root_chain_span_with_exception_events(
+    api_key,
+) -> None:
     llm = OpenAI(model="gpt-3.5-turbo", max_retries=1)
     query = "What are the seven wonders of the world?"
     callback_handler = OpenInferenceTraceCallbackHandler(exporter=NoOpExporter())
@@ -386,7 +388,7 @@ def test_end_trace_handler_fails_gracefully(mock_handler_internals, caplog) -> N
     assert "CallbackError" in caplog.records[0].message
 
 
-def test_custom_llm(mock_embed_model) -> None:
+def test_custom_llm(api_key, mock_embed_model) -> None:
     """Make sure token counts are captured when a custom LLM such as llama2-13B is used."""
 
     prompt_tokens = 100
