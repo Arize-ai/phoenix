@@ -72,7 +72,7 @@ class BedrockModel(BaseEvalModel):
                 package_name="tiktoken",
             )
 
-    def _retry(
+    def retry(
         self,
     ) -> Callable[[Any], Any]:
         """Create a retry decorator for a given LLM and provided list of error types."""
@@ -167,7 +167,7 @@ class BedrockModel(BaseEvalModel):
     def _generate_with_retry(self, **kwargs: Any) -> Any:
         """Use tenacity to retry the completion call."""
 
-        @self._retry()
+        @self.retry()
         @self._rate_limiter.limit
         def _completion_with_retry(**kwargs: Any) -> Any:
             return self.client.invoke_model(**kwargs)
