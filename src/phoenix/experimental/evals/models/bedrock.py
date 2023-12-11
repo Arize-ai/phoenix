@@ -1,17 +1,10 @@
 import json
 import logging
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional
-
-from tenacity import (
-    RetryCallState,
-    retry,
-    stop_after_attempt,
-)
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 from phoenix.experimental.evals.models.base import BaseEvalModel
 from phoenix.experimental.evals.models.rate_limiters import RateLimiter
-from phoenix.utilities.logging import printif
 
 if TYPE_CHECKING:
     from tiktoken import Encoding
@@ -61,6 +54,12 @@ class BedrockModel(BaseEvalModel):
         self._init_client()
         self._init_tiktoken()
         self._init_rate_limiter()
+        self.retry = self._retry(
+            error_types=[],  # default to catching all errors
+            min_seconds=self.retry_min_seconds,
+            max_seconds=self.retry_max_seconds,
+            max_retries=self.max_retries,
+        )
 
     def _init_environment(self) -> None:
         try:
@@ -71,32 +70,6 @@ class BedrockModel(BaseEvalModel):
             self._raise_import_error(
                 package_name="tiktoken",
             )
-
-    def retry(
-        self,
-    ) -> Callable[[Any], Any]:
-        """Create a retry decorator for a given LLM and provided list of error types."""
-
-        def log_retry(retry_state: RetryCallState) -> None:
-            if fut := retry_state.outcome:
-                exc = fut.exception()
-            else:
-                exc = None
-
-            if exc:
-                printif(
-                    True,
-                    f"Failed attempt {retry_state.attempt_number}: raised {repr(exc)}",
-                )
-            else:
-                printif(True, f"Failed attempt {retry_state.attempt_number}")
-            return None
-
-        return retry(
-            reraise=True,
-            stop=stop_after_attempt(self.max_retries),
-            before_sleep=log_retry,
-        )
 
     def _init_client(self) -> None:
         if not self.client:
@@ -167,7 +140,7 @@ class BedrockModel(BaseEvalModel):
     def _generate_with_retry(self, **kwargs: Any) -> Any:
         """Use tenacity to retry the completion call."""
 
-        @self.retry()
+        @self.retry
         @self._rate_limiter.limit
         def _completion_with_retry(**kwargs: Any) -> Any:
             return self.client.invoke_model(**kwargs)

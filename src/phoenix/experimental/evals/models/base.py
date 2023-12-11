@@ -85,9 +85,13 @@ class BaseEvalModel(ABC):
                 printif(True, f"Failed attempt {retry_state.attempt_number}")
             return None
 
-        retry_instance: retry_base = retry_if_exception_type(error_types[0])
-        for error in error_types[1:]:
-            retry_instance = retry_instance | retry_if_exception_type(error)
+        if not error_types:
+            # default to retrying on all exceptions
+            retry_instance: retry_base = retry_if_exception_type(Exception)
+        else:
+            retry_instance: retry_base = retry_if_exception_type(error_types[0])
+            for error in error_types[1:]:
+                retry_instance = retry_instance | retry_if_exception_type(error)
         return retry(
             reraise=True,
             stop=stop_after_attempt(max_retries),
