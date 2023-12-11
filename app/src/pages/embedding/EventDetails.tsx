@@ -22,7 +22,7 @@ import {
 import { Empty } from "@phoenix/components/Empty";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { numberFormatter } from "@phoenix/utils/numberFormatUtils";
-import { isVideoUrl } from "@phoenix/utils/urlUtils";
+import { isAudioUrl, isVideoUrl } from "@phoenix/utils/urlUtils";
 
 import { ModelEvent, RetrievalDocument } from "./types";
 
@@ -314,6 +314,8 @@ function EmbeddingDimensionsTable({
 
 function DataURLPreview({ dataUrl }: { dataUrl: string }) {
   const isVideo = isVideoUrl(dataUrl);
+  const isAudio = isAudioUrl(dataUrl);
+
   if (isVideo) {
     return (
       <video
@@ -326,6 +328,9 @@ function DataURLPreview({ dataUrl }: { dataUrl: string }) {
         `}
       />
     );
+  }
+  if (isAudio) {
+    return <audio src={dataUrl} controls autoPlay />;
   }
   return (
     <img
