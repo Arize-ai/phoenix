@@ -37,7 +37,7 @@ from llama_index.callbacks.schema import (
     CBEventType,
     EventPayload,
 )
-from llama_index.llms.base import ChatMessage, ChatResponse
+from llama_index.llms.types import ChatMessage, ChatResponse
 from llama_index.response.schema import Response, StreamingResponse
 from llama_index.tools import ToolMetadata
 from typing_extensions import TypeGuard
