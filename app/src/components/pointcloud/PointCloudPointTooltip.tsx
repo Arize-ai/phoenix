@@ -89,6 +89,7 @@ export const PointCloudPointTooltip = () => {
           group={group}
           color={color}
           size={"medium"}
+          autoPlay={true}
         />
       </div>
     </Html>

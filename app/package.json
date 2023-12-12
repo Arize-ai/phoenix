@@ -88,7 +88,7 @@
     "dev:server:credit_card_fraud:single": "python3 -m phoenix.server.main fixture credit_card_fraud --primary-only true",
     "dev:server:llm": "python3 -m phoenix.server.main fixture llm_summarization",
     "dev:server:wiki": "python3 -m phoenix.server.main fixture wiki",
-    "dev:server:traces:llama_index_rag": "python3 -m phoenix.server.main trace-fixture llama_index_rag --simulate-streaming true",
+    "dev:server:traces:llama_index_rag": "python3 -m phoenix.server.main trace-fixture llama_index_rag",
     "dev:server:traces:llama_index_calculator_agent": "python3 -m phoenix.server.main trace-fixture llama_index_calculator_agent",
     "dev:server:traces:langchain_qa_with_sources": "python3 -m phoenix.server.main trace-fixture langchain_qa_with_sources",
     "dev:server:traces:random": "python3 -m phoenix.server.main trace-fixture random --simulate-streaming true",
