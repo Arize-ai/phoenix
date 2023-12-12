@@ -182,6 +182,15 @@ class Span:
     conversation: Optional[SpanConversationAttributes]
 
 
+class MimeType(Enum):
+    TEXT = "text/plain"
+    JSON = "application/json"
+
+    @classmethod
+    def _missing_(cls, v: Any) -> Optional["MimeType"]:
+        return None if v else cls.TEXT
+
+
 ATTRIBUTE_PREFIX = "attributes."
 CONTEXT_PREFIX = "context."
 COMPUTED_PREFIX = "__computed__."

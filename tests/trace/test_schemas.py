@@ -9,6 +9,7 @@ import pytz
 from google.protobuf.json_format import MessageToDict, MessageToJson, Parse, ParseDict
 from google.protobuf.wrappers_pb2 import FloatValue, StringValue
 from phoenix.trace.schemas import (
+    MimeType,
     Span,
     SpanContext,
     SpanEvent,
@@ -33,7 +34,6 @@ from phoenix.trace.semantic_conventions import (
     OUTPUT_MIME_TYPE,
     OUTPUT_VALUE,
     RETRIEVAL_DOCUMENTS,
-    MimeType,
 )
 from phoenix.trace.v1.utils import decode, encode
 
