@@ -24,7 +24,7 @@ from langchain.schema.messages import (
 from phoenix.experimental.evals.models.openai import OPENAI_API_KEY_ENVVAR_NAME
 from phoenix.trace.exporter import NoOpExporter
 from phoenix.trace.langchain import OpenInferenceTracer
-from phoenix.trace.schemas import SpanException, SpanKind, SpanStatusCode
+from phoenix.trace.schemas import MimeType, SpanException, SpanKind, SpanStatusCode
 from phoenix.trace.semantic_conventions import (
     DOCUMENT_CONTENT,
     DOCUMENT_METADATA,
@@ -43,7 +43,6 @@ from phoenix.trace.semantic_conventions import (
     OUTPUT_MIME_TYPE,
     OUTPUT_VALUE,
     RETRIEVAL_DOCUMENTS,
-    MimeType,
 )
 from phoenix.trace.span_json_decoder import json_string_to_span
 from phoenix.trace.span_json_encoder import span_to_json

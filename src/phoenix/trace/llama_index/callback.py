@@ -47,6 +47,7 @@ from phoenix.trace.llama_index.streaming import (
     instrument_streaming_response as _instrument_streaming_response,
 )
 from phoenix.trace.schemas import (
+    MimeType,
     Span,
     SpanEvent,
     SpanException,
@@ -93,7 +94,6 @@ from phoenix.trace.semantic_conventions import (
     TOOL_DESCRIPTION,
     TOOL_NAME,
     TOOL_PARAMETERS,
-    MimeType,
 )
 from phoenix.trace.tracer import SpanExporter, Tracer
 from phoenix.trace.utils import extract_version_triplet, get_stacktrace

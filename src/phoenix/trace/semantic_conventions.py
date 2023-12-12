@@ -2,8 +2,6 @@
 Semantic conventions for the attributes of a span
 https://github.com/Arize-ai/open-inference-spec/blob/main/trace/spec/semantic_conventions.md
 """
-from enum import Enum
-from typing import Any, Optional
 
 EXCEPTION_TYPE = "exception.type"
 EXCEPTION_MESSAGE = "exception.message"
@@ -23,16 +21,6 @@ INPUT_MIME_TYPE = "input.mime_type"
 The type of input.value. If unspecified, the type is plain text by default.
 If type is JSON, the value is a string representing a JSON object.
 """
-
-
-class MimeType(Enum):
-    TEXT = "text/plain"
-    JSON = "application/json"
-
-    @classmethod
-    def _missing_(cls, v: Any) -> Optional["MimeType"]:
-        return None if v else cls.TEXT
-
 
 EMBEDDING_EMBEDDINGS = "embedding.embeddings"
 """
