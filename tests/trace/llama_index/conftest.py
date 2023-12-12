@@ -3,7 +3,7 @@ from typing import Any, List, Optional
 import pytest
 from llama_index.embeddings.base import BaseEmbedding
 from llama_index.indices.service_context import ServiceContext
-from llama_index.llms import LLM
+from llama_index.llm_predictor.base import LLMPredictor
 from llama_index.llms.mock import LLMMetadata, MockLLM
 
 
@@ -14,7 +14,7 @@ def patch_token_splitter_newline(text: str, metadata_str: Optional[str] = None) 
     return text.split("\n")
 
 
-def patch_llm_predict(*prompt_args: Any, **prompt_kwargs: Any):
+def patch_llmpredictor_predict(*prompt_args: Any, **prompt_kwargs: Any):
     """
     Simple patches of the LLM predictor.
     If a more robust patch is needed, see LlamaIndex's mock_predict.py
@@ -22,7 +22,7 @@ def patch_llm_predict(*prompt_args: Any, **prompt_kwargs: Any):
     return "LLM predict"
 
 
-def patch_llm_apredict(*prompt_args: Any, **prompt_kwargs: Any):
+def patch_llmpredictor_apredict(*prompt_args: Any, **prompt_kwargs: Any):
     """
     Simple patches of the LLM predictor. If a more robust patch is needed, see
     LlamaIndex's mock_predict.py
@@ -31,29 +31,29 @@ def patch_llm_apredict(*prompt_args: Any, **prompt_kwargs: Any):
 
 
 @pytest.fixture
-def patch_llama_index_llm(monkeypatch: pytest.MonkeyPatch) -> None:
+def patch_llm_predictor(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
-        LLM,
+        LLMPredictor,
         "predict",
-        patch_llm_predict,
+        patch_llmpredictor_predict,
     )
     monkeypatch.setattr(
-        LLM,
+        LLMPredictor,
         "apredict",
-        patch_llm_apredict,
+        patch_llmpredictor_apredict,
     )
     monkeypatch.setattr(
-        LLM,
+        LLMPredictor,
         "llm",
         MockLLM(),
     )
     monkeypatch.setattr(
-        LLM,
+        LLMPredictor,
         "__init__",
         lambda *args, **kwargs: None,
     )
     monkeypatch.setattr(
-        LLM,
+        LLMPredictor,
         "metadata",
         LLMMetadata(),
     )
@@ -95,7 +95,7 @@ class MockEmbedding(BaseEmbedding):
 
 @pytest.fixture()
 def mock_service_context(
-    patch_llama_index_llm: Any,
+    patch_llm_predictor: Any,
 ) -> ServiceContext:
     return ServiceContext.from_defaults(
         embed_model=MockEmbedding(),
