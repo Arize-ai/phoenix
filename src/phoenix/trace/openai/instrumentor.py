@@ -18,6 +18,7 @@ from typing import (
     Optional,
     Tuple,
     Type,
+    TypedDict,
     TypeVar,
     cast,
 )
@@ -598,6 +599,11 @@ def _parameters(bound_arguments: BoundArguments) -> Parameters:
     return cast(Parameters, bound_arguments.arguments["options"].json_data)
 
 
+class FunctionCallData(TypedDict, total=False):
+    name: str
+    argument_tokens: List[str]
+
+
 def _accumulate_messages(
     chunks: List[ChatCompletionChunk], num_choices: int
 ) -> List[OpenInferenceMessage]:
@@ -618,6 +624,9 @@ def _accumulate_messages(
     content_token_lists: DefaultDict[int, List[str]] = defaultdict(list)
     function_argument_token_lists: DefaultDict[int, List[str]] = defaultdict(list)
     function_names: Dict[int, str] = {}
+    tool_calls: DefaultDict[int, DefaultDict[int, FunctionCallData]] = defaultdict(
+        lambda: defaultdict(lambda: FunctionCallData(argument_tokens=[]))
+    )
     roles: Dict[int, str] = {}
     for chunk in chunks:
         for choice in chunk.choices:
@@ -631,16 +640,37 @@ def _accumulate_messages(
                     function_argument_token_lists[choice_index].append(function_argument_token)
             if role := choice.delta.role:
                 roles[choice_index] = role
-    messages: List[OpenInferenceMessage] = [{} for _ in range(num_choices)]
+            if choice.delta.tool_calls:
+                for tool_call in choice.delta.tool_calls:
+                    tool_index = tool_call.index
+                    if not tool_call.function:
+                        continue
+                    if (name := tool_call.function.name) is not None:
+                        tool_calls[choice_index][tool_index]["name"] = name
+                    if (arguments := tool_call.function.arguments) is not None:
+                        tool_calls[choice_index][tool_index]["argument_tokens"].append(arguments)
+
+    messages: List[OpenInferenceMessage] = []
     for choice_index in range(num_choices):
+        message: Dict[str, Any] = {}
         if (role_ := roles.get(choice_index)) is not None:
-            messages[choice_index][MESSAGE_ROLE] = role_
+            message[MESSAGE_ROLE] = role_
         if content_token_list := content_token_lists[choice_index]:
-            messages[choice_index][MESSAGE_CONTENT] = "".join(content_token_list)
+            message[MESSAGE_CONTENT] = "".join(content_token_list)
         if (function_name := function_names.get(choice_index)) is not None:
-            messages[choice_index][MESSAGE_FUNCTION_CALL_NAME] = function_name
+            message[MESSAGE_FUNCTION_CALL_NAME] = function_name
         if function_argument_token_list := function_argument_token_lists[choice_index]:
-            messages[choice_index][MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON] = "".join(
-                function_argument_token_list
-            )
+            message[MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON] = "".join(function_argument_token_list)
+        num_tools = len(tool_calls[choice_index])
+        if num_tools:
+            message[MESSAGE_TOOL_CALLS] = [{} for _ in range(num_tools)]
+            for tool_index in range(num_tools):
+                if (name := tool_calls[choice_index][tool_index].get("name")) is not None:
+                    message[MESSAGE_TOOL_CALLS][tool_index][TOOL_CALL_FUNCTION_NAME] = name
+                if argument_tokens := tool_calls[choice_index][tool_index].get("argument_tokens"):
+                    message[MESSAGE_TOOL_CALLS][tool_index][
+                        TOOL_CALL_FUNCTION_ARGUMENTS_JSON
+                    ] = "".join(argument_tokens)
+        messages.append(message)
+
     return messages
