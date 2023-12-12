@@ -1,4 +1,3 @@
-import json
 from datetime import datetime, timezone
 from itertools import chain
 from typing import (
@@ -21,6 +20,7 @@ from google.protobuf.wrappers_pb2 import BoolValue, FloatValue, StringValue
 
 import phoenix.trace.v1 as pb
 from phoenix.trace.schemas import (
+    MimeType,
     Span,
     SpanContext,
     SpanEvent,
@@ -48,7 +48,6 @@ from phoenix.trace.semantic_conventions import (
     OUTPUT_MIME_TYPE,
     OUTPUT_VALUE,
     RETRIEVAL_DOCUMENTS,
-    MimeType,
 )
 
 
@@ -358,21 +357,19 @@ def _encode_io_value(
     mime_type: Optional[MimeType],
 ) -> pb.Span.IOValue:
     if mime_type is MimeType.JSON:
-        struct = Struct()
-        if io_value:
-            struct.update(json.loads(io_value))
-        return pb.Span.IOValue(json_value=struct)
-    return pb.Span.IOValue(string_value=io_value)
+        return pb.Span.IOValue(
+            value=io_value,
+            mime_type=pb.Span.IOValue.MimeType.JSON,
+        )
+    return pb.Span.IOValue(value=io_value)
 
 
 def _decode_io_value(
     pb_io_value: pb.Span.IOValue,
 ) -> Iterator[Union[str, MimeType]]:
-    if pb_io_value.WhichOneof("kind") == "json_value":
-        yield json.dumps(MessageToDict(pb_io_value.json_value))
+    yield pb_io_value.value
+    if pb_io_value.mime_type is pb.Span.IOValue.MimeType.JSON:
         yield MimeType.JSON
-    else:
-        yield pb_io_value.string_value
 
 
 def _encode_retrieval(

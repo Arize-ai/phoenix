@@ -44,7 +44,6 @@ import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon
 import { TraceTree } from "@phoenix/components/trace/TraceTree";
 import { useSpanStatusCodeColor } from "@phoenix/components/trace/useSpanStatusCodeColor";
 import { useTheme } from "@phoenix/contexts";
-import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 import {
   DOCUMENT_CONTENT,
   DOCUMENT_ID,
@@ -77,6 +76,7 @@ import { assertUnreachable, isStringArray } from "@phoenix/typeUtils";
 import { formatFloat, numberFormatter } from "@phoenix/utils/numberFormatUtils";
 
 import { EvaluationLabel } from "../tracing/EvaluationLabel";
+import { RetrievalEvaluationLabel } from "../tracing/RetrievalEvaluationLabel";
 
 import {
   MimeType,
@@ -178,6 +178,12 @@ export function TracePage() {
                 label
                 score
               }
+              documentRetrievalMetrics {
+                evaluationName
+                ndcg
+                precision
+                hit
+              }
               documentEvaluations {
                 documentPosition
                 name
@@ -217,10 +223,19 @@ export function TracePage() {
           css={css`
             flex: 1 1 auto;
             overflow: hidden;
+            display: flex;
+            flex-direction: column;
           `}
         >
           <TraceHeader rootSpan={rootSpan} />
-          <PanelGroup direction="horizontal" autoSaveId="trace-panel-group">
+          <PanelGroup
+            direction="horizontal"
+            autoSaveId="trace-panel-group"
+            css={css`
+              flex: 1 1 auto;
+              overflow: hidden;
+            `}
+          >
             <Panel defaultSize={30} minSize={10} maxSize={40}>
               <TraceTree
                 spans={spansList}
@@ -253,7 +268,7 @@ export function TracePage() {
 function TraceHeader({ rootSpan }: { rootSpan: Span }) {
   const { latencyMs, statusCode, spanEvaluations } = rootSpan;
   const statusColor = useSpanStatusCodeColor(statusCode);
-  const isEvalsEnabled = useFeatureFlag("evals");
+  const hasEvaluations = spanEvaluations.length;
   return (
     <View padding="size-200" borderBottomWidth="thin" borderBottomColor="dark">
       <Flex direction="row" gap="size-400">
@@ -282,22 +297,20 @@ function TraceHeader({ rootSpan }: { rootSpan: Span }) {
             )}
           </Text>
         </Flex>
-        {isEvalsEnabled ? (
+        {hasEvaluations ? (
           <Flex direction="column" gap="size-50">
             <Text elementType="h3" textSize="medium" color="text-700">
               Evaluations
             </Text>
             <Flex direction="row" gap="size-50">
-              {spanEvaluations.length === 0
-                ? "--"
-                : spanEvaluations.map((evaluation) => {
-                    return (
-                      <EvaluationLabel
-                        key={evaluation.name}
-                        evaluation={evaluation}
-                      />
-                    );
-                  })}
+              {spanEvaluations.map((evaluation) => {
+                return (
+                  <EvaluationLabel
+                    key={evaluation.name}
+                    evaluation={evaluation}
+                  />
+                );
+              })}
             </Flex>
           </Flex>
         ) : null}
@@ -312,6 +325,7 @@ function ScrollingTabsWrapper({ children }: PropsWithChildren) {
       data-testid="scrolling-tabs-wrapper"
       css={css`
         height: 100%;
+        overflow: hidden;
         .ac-tabs {
           height: 100%;
           overflow: hidden;
@@ -356,7 +370,6 @@ function SelectedSpanDetails({ selectedSpan }: { selectedSpan: Span }) {
   const hasExceptions = useMemo<boolean>(() => {
     return spanHasException(selectedSpan);
   }, [selectedSpan]);
-  const evalsEnabled = useFeatureFlag("evals");
   return (
     <Flex direction="column" flex="1 1 auto" height="100%">
       <View
@@ -374,7 +387,6 @@ function SelectedSpanDetails({ selectedSpan }: { selectedSpan: Span }) {
         </TabPane>
         <TabPane
           name={"Evaluations"}
-          hidden={!evalsEnabled}
           extra={
             <Counter variant={"light"}>
               {selectedSpan.spanEvaluations.length}
@@ -677,37 +689,69 @@ function RetrieverSpanInfo(props: {
 
   const hasInput = input != null && input.value != null;
   const hasDocuments = documents.length > 0;
+  const hasDocumentRetrievalMetrics = span.documentRetrievalMetrics.length > 0;
   return (
     <Flex direction="column" gap="size-200">
       <Card title="Input" {...defaultCardProps}>
         {hasInput ? <CodeBlock {...input} /> : null}
       </Card>
       {hasDocuments ? (
-        <Card title="Documents" {...defaultCardProps}>
-          {
-            <ul
-              css={css`
-                padding: var(--ac-global-dimension-static-size-200);
-                display: flex;
-                flex-direction: column;
-                gap: var(--ac-global-dimension-static-size-200);
-              `}
-            >
-              {documents.map((document, idx) => {
-                return (
-                  <li key={idx}>
-                    <DocumentItem
-                      document={document}
-                      documentEvaluations={documentEvaluationsMap[idx]}
-                      borderColor={"seafoam-700"}
-                      backgroundColor={"seafoam-100"}
-                      labelColor="seafoam-1000"
-                    />
-                  </li>
-                );
-              })}
-            </ul>
+        <Card
+          title="Documents"
+          {...defaultCardProps}
+          extra={
+            hasDocumentRetrievalMetrics && (
+              <Flex direction="row" gap="size-100">
+                {span.documentRetrievalMetrics.map((retrievalMetric) => {
+                  return (
+                    <>
+                      <RetrievalEvaluationLabel
+                        key="ncdg"
+                        name={retrievalMetric.evaluationName}
+                        metric="ndcg"
+                        score={retrievalMetric.ndcg}
+                      />
+                      <RetrievalEvaluationLabel
+                        key="precision"
+                        name={retrievalMetric.evaluationName}
+                        metric="precision"
+                        score={retrievalMetric.precision}
+                      />
+                      <RetrievalEvaluationLabel
+                        key="hit"
+                        name={retrievalMetric.evaluationName}
+                        metric="hit"
+                        score={retrievalMetric.hit}
+                      />
+                    </>
+                  );
+                })}
+              </Flex>
+            )
           }
+        >
+          <ul
+            css={css`
+              padding: var(--ac-global-dimension-static-size-200);
+              display: flex;
+              flex-direction: column;
+              gap: var(--ac-global-dimension-static-size-200);
+            `}
+          >
+            {documents.map((document, idx) => {
+              return (
+                <li key={idx}>
+                  <DocumentItem
+                    document={document}
+                    documentEvaluations={documentEvaluationsMap[idx]}
+                    borderColor={"seafoam-700"}
+                    backgroundColor={"seafoam-100"}
+                    labelColor="seafoam-1000"
+                  />
+                </li>
+              );
+            })}
+          </ul>
         </Card>
       ) : null}
     </Flex>
@@ -976,7 +1020,7 @@ function DocumentItem({
   labelColor: LabelProps["color"];
 }) {
   const metadata = document[DOCUMENT_METADATA];
-  const isEvalsEnabled = useFeatureFlag("evals");
+  const hasEvaluations = documentEvaluations && documentEvaluations.length;
   return (
     <View
       borderRadius="medium"
@@ -1023,84 +1067,82 @@ function DocumentItem({
             </View>
           </>
         )}
-        {isEvalsEnabled &&
-          documentEvaluations &&
-          documentEvaluations.length && (
-            <View
-              borderColor={borderColor}
-              borderTopWidth="thin"
-              padding="size-200"
-            >
-              <Flex direction="column" gap="size-100">
-                <Heading level={3} weight="heavy">
-                  Evaluations
-                </Heading>
-                <ul>
-                  {documentEvaluations.map((documentEvaluation, idx) => {
-                    // Highlight the label as danger if it is a danger classification
-                    const evalLabelColor =
-                      documentEvaluation.label &&
-                      DANGER_DOCUMENT_EVALUATION_LABELS.includes(
-                        documentEvaluation.label
-                      )
-                        ? "danger"
-                        : labelColor;
-                    return (
-                      <li key={idx}>
-                        <View
-                          padding="size-200"
-                          borderWidth="thin"
-                          borderColor={borderColor}
-                          borderRadius="medium"
-                        >
-                          <Flex direction="column" gap="size-50">
-                            <Flex direction="row" gap="size-100">
-                              <Text weight="heavy" elementType="h5">
-                                {documentEvaluation.name}
-                              </Text>
-                              {documentEvaluation.label && (
-                                <Label color={evalLabelColor}>
-                                  {documentEvaluation.label}
-                                </Label>
-                              )}
-                              {typeof documentEvaluation.score === "number" && (
-                                <Label color={evalLabelColor}>
-                                  <Flex direction="row" gap="size-50">
-                                    <Text
-                                      textSize="xsmall"
-                                      weight="heavy"
-                                      color="inherit"
-                                    >
-                                      score
-                                    </Text>
-                                    <Text textSize="xsmall">
-                                      {formatFloat(documentEvaluation.score)}
-                                    </Text>
-                                  </Flex>
-                                </Label>
-                              )}
-                            </Flex>
-                            {typeof documentEvaluation.explanation && (
-                              <p
-                                css={css`
-                                  margin-top: var(
-                                    --ac-global-dimension-static-size-100
-                                  );
-                                  margin-bottom: 0;
-                                `}
-                              >
-                                {documentEvaluation.explanation}
-                              </p>
+        {hasEvaluations && (
+          <View
+            borderColor={borderColor}
+            borderTopWidth="thin"
+            padding="size-200"
+          >
+            <Flex direction="column" gap="size-100">
+              <Heading level={3} weight="heavy">
+                Evaluations
+              </Heading>
+              <ul>
+                {documentEvaluations.map((documentEvaluation, idx) => {
+                  // Highlight the label as danger if it is a danger classification
+                  const evalLabelColor =
+                    documentEvaluation.label &&
+                    DANGER_DOCUMENT_EVALUATION_LABELS.includes(
+                      documentEvaluation.label
+                    )
+                      ? "danger"
+                      : labelColor;
+                  return (
+                    <li key={idx}>
+                      <View
+                        padding="size-200"
+                        borderWidth="thin"
+                        borderColor={borderColor}
+                        borderRadius="medium"
+                      >
+                        <Flex direction="column" gap="size-50">
+                          <Flex direction="row" gap="size-100">
+                            <Text weight="heavy" elementType="h5">
+                              {documentEvaluation.name}
+                            </Text>
+                            {documentEvaluation.label && (
+                              <Label color={evalLabelColor} shape="badge">
+                                {documentEvaluation.label}
+                              </Label>
+                            )}
+                            {typeof documentEvaluation.score === "number" && (
+                              <Label color={evalLabelColor} shape="badge">
+                                <Flex direction="row" gap="size-50">
+                                  <Text
+                                    textSize="xsmall"
+                                    weight="heavy"
+                                    color="inherit"
+                                  >
+                                    score
+                                  </Text>
+                                  <Text textSize="xsmall">
+                                    {formatFloat(documentEvaluation.score)}
+                                  </Text>
+                                </Flex>
+                              </Label>
                             )}
                           </Flex>
-                        </View>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </Flex>
-            </View>
-          )}
+                          {typeof documentEvaluation.explanation && (
+                            <p
+                              css={css`
+                                margin-top: var(
+                                  --ac-global-dimension-static-size-100
+                                );
+                                margin-bottom: 0;
+                              `}
+                            >
+                              {documentEvaluation.explanation}
+                            </p>
+                          )}
+                        </Flex>
+                      </View>
+                    </li>
+                  );
+                })}
+              </ul>
+            </Flex>
+          </View>
+        )}
       </Flex>
     </View>
   );

@@ -33,7 +33,6 @@ import { SpanKindLabel } from "@phoenix/components/trace/SpanKindLabel";
 import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon";
 import { ISpanItem } from "@phoenix/components/trace/types";
 import { createSpanTree, SpanTreeNode } from "@phoenix/components/trace/utils";
-import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
 
@@ -46,6 +45,7 @@ import {
   TracesTableQuery,
 } from "./__generated__/TracesTableQuery.graphql";
 import { EvaluationLabel } from "./EvaluationLabel";
+import { RetrievalEvaluationLabel } from "./RetrievalEvaluationLabel";
 import { SpanColumnSelector } from "./SpanColumnSelector";
 import { SpanFilterConditionField } from "./SpanFilterConditionField";
 import { spansTableCSS } from "./styles";
@@ -91,7 +91,6 @@ export function TracesTable(props: TracesTableProps) {
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const [sorting, setSorting] = useState<SortingState>([]);
   const [filterCondition, setFilterCondition] = useState<string>("");
-  const isEvalsEnabled = useFeatureFlag("evals");
   const navigate = useNavigate();
   const { fetchKey } = useStreamState();
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
@@ -141,6 +140,12 @@ export function TracesTable(props: TracesTableProps) {
                   label
                   score
                 }
+                documentRetrievalMetrics {
+                  evaluationName
+                  ndcg
+                  precision
+                  hit
+                }
                 descendants {
                   spanKind
                   name
@@ -165,6 +170,12 @@ export function TracesTable(props: TracesTableProps) {
                     name
                     label
                     score
+                  }
+                  documentRetrievalMetrics {
+                    evaluationName
+                    ndcg
+                    precision
+                    hit
                   }
                 }
               }
@@ -193,8 +204,10 @@ export function TracesTable(props: TracesTableProps) {
       header: "evaluations",
       accessorKey: "spanEvaluations",
       enableSorting: false,
-
       cell: ({ row }) => {
+        const hasNoEvaluations =
+          row.original.spanEvaluations.length === 0 &&
+          row.original.documentRetrievalMetrics.length === 0;
         return (
           <Flex direction="row" gap="size-50" wrap="wrap">
             {row.original.spanEvaluations.map((evaluation) => {
@@ -205,6 +218,31 @@ export function TracesTable(props: TracesTableProps) {
                 />
               );
             })}
+            {row.original.documentRetrievalMetrics.map((retrievalMetric) => {
+              return (
+                <>
+                  <RetrievalEvaluationLabel
+                    key="ncdg"
+                    name={retrievalMetric.evaluationName}
+                    metric="ndcg"
+                    score={retrievalMetric.ndcg}
+                  />
+                  <RetrievalEvaluationLabel
+                    key="precision"
+                    name={retrievalMetric.evaluationName}
+                    metric="precision"
+                    score={retrievalMetric.precision}
+                  />
+                  <RetrievalEvaluationLabel
+                    key="hit"
+                    name={retrievalMetric.evaluationName}
+                    metric="hit"
+                    score={retrievalMetric.hit}
+                  />
+                </>
+              );
+            })}
+            {hasNoEvaluations ? "--" : null}
           </Flex>
         );
       },
@@ -276,7 +314,7 @@ export function TracesTable(props: TracesTableProps) {
       enableSorting: false,
       cell: TextCell,
     },
-    ...(isEvalsEnabled ? evaluationColumns : []),
+    ...evaluationColumns, // TODO: consider hiding this column is there is no evals. For now show it
     {
       header: "start time",
       accessorKey: "startTime",

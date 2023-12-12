@@ -118,7 +118,7 @@ class OpenAIEmbeddingsWrapper(OpenAIEmbeddings):
 
     @staticmethod
     def _convert_text_to_embedding_map_to_dataframe(
-        text_to_embedding: Dict[str, List[float]]
+        text_to_embedding: Dict[str, List[float]],
     ) -> pd.DataFrame:
         texts, embeddings = map(list, zip(*text_to_embedding.items()))
         embedding_arrays = [np.array(embedding) for embedding in embeddings]
