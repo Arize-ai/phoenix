@@ -2334,3 +2334,134 @@ async def test_openai_instrumentor_async_streaming_records_function_call_attribu
     chunks = json.loads(attributes[OUTPUT_VALUE])
     assert len(chunks) == len(expected_response_tokens)
     assert attributes[OUTPUT_MIME_TYPE] == MimeType.JSON
+
+
+async def test_openai_instrumentor_async_streaming_records_tool_call_attributes(
+    async_client: AsyncOpenAI,
+    respx_mock: MockRouter,
+) -> None:
+    tracer = Tracer()
+    OpenAIInstrumentor(tracer).instrument()
+    model = "gpt-4"
+    messages = [
+        {"role": "user", "content": "How's the weather in Boston, MA and San Francisco, CA?"}
+    ]
+    temperature = 0.23
+    tools = [
+        {
+            "type": "function",
+            "function": {
+                "name": "get_current_weather",
+                "description": "Get the current weather in a given location",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "location": {
+                            "type": "string",
+                            "description": "The city and state, e.g., San Francisco, CA",
+                        },
+                        "unit": {"type": "string", "enum": ["celsius", "fahrenheit"]},
+                    },
+                    "required": ["location"],
+                },
+            },
+        }
+    ]
+    byte_stream = [
+        b'data: {"choices": [{"delta": {"content": null, "function_call": null, "role": "assistant", "tool_calls": null}, "finish_reason": null, "index": 0}]}\n\n',  # noqa: E501
+        b'data: {"choices": [{"delta": {"content": null, "function_call": null, "role": null, "tool_calls": [{"index": 0, "id": "call_amGrubFmr2FSPHeC5OPgwcNs", "function": {"arguments": "", "name": "get_current_weather"}, "type": "function"}]}, "finish_reason": null, "index": 0}]}\n\n',  # noqa: E501
+        b'data: {"choices": [{"delta": {"content": null, "function_call": null, "role": null, "tool_calls": [{"index": 0, "id": null, "function": {"arguments": "{\\"lo", "name": null}, "type": null}]}, "finish_reason": null, "index": 0}]}\n\n',  # noqa: E501
+        b'data: {"choices": [{"delta": {"content": null, "function_call": null, "role": null, "tool_calls": [{"index": 0, "id": null, "function": {"arguments": "catio", "name": null}, "type": null}]}, "finish_reason": null, "index": 0}]}\n\n',  # noqa: E501
+        b'data: {"choices": [{"delta": {"content": null, "function_call": null, "role": null, "tool_calls": [{"index": 0, "id": null, "function": {"arguments": "n\\": \\"B", "name": null}, "type": null}]}, "finish_reason": null, "index": 0}]}\n\n',  # noqa: E501
+        b'data: {"choices": [{"delta": {"content": null, "function_call": null, "role": null, "tool_calls": [{"index": 0, "id": null, "function": {"arguments": "osto", "name": null}, "type": null}]}, "finish_reason": null, "index": 0}]}\n\n',  # noqa: E501
+        b'data: {"choices": [{"delta": {"content": null, "function_call": null, "role": null, "tool_calls": [{"index": 0, "id": null, "function": {"arguments": "n, MA", "name": null}, "type": null}]}, "finish_reason": null, "index": 0}]}\n\n',  # noqa: E501
+        b'data: {"choices": [{"delta": {"content": null, "function_call": null, "role": null, "tool_calls": [{"index": 0, "id": null, "function": {"arguments": "\\", \\"un", "name": null}, "type": null}]}, "finish_reason": null, "index": 0}]}\n\n',  # noqa: E501
+        b'data: {"choices": [{"delta": {"content": null, "function_call": null, "role": null, "tool_calls": [{"index": 0, "id": null, "function": {"arguments": "it\\":", "name": null}, "type": null}]}, "finish_reason": null, "index": 0}]}\n\n',  # noqa: E501
+        b'data: {"choices": [{"delta": {"content": null, "function_call": null, "role": null, "tool_calls": [{"index": 0, "id": null, "function": {"arguments": " \\"fah", "name": null}, "type": null}]}, "finish_reason": null, "index": 0}]}\n\n',  # noqa: E501
+        b'data: {"choices": [{"delta": {"content": null, "function_call": null, "role": null, "tool_calls": [{"index": 0, "id": null, "function": {"arguments": "renhei", "name": null}, "type": null}]}, "finish_reason": null, "index": 0}]}\n\n',  # noqa: E501
+        b'data: {"choices": [{"delta": {"content": null, "function_call": null, "role": null, "tool_calls": [{"index": 0, "id": null, "function": {"arguments": "t\\"}", "name": null}, "type": null}]}, "finish_reason": null, "index": 0}]}\n\n',  # noqa: E501
+        b'data: {"choices": [{"delta": {"content": null, "function_call": null, "role": null, "tool_calls": [{"index": 1, "id": "call_6QTP4mLSYYzZwt3ZWj77vfZf", "function": {"arguments": "", "name": "get_current_weather"}, "type": "function"}]}, "finish_reason": null, "index": 0}]}\n\n',  # noqa: E501
+        b'data: {"choices": [{"delta": {"content": null, "function_call": null, "role": null, "tool_calls": [{"index": 1, "id": null, "function": {"arguments": "{\\"lo", "name": null}, "type": null}]}, "finish_reason": null, "index": 0}]}\n\n',  # noqa: E501
+        b'data: {"choices": [{"delta": {"content": null, "function_call": null, "role": null, "tool_calls": [{"index": 1, "id": null, "function": {"arguments": "catio", "name": null}, "type": null}]}, "finish_reason": null, "index": 0}]}\n\n',  # noqa: E501
+        b'data: {"choices": [{"delta": {"content": null, "function_call": null, "role": null, "tool_calls": [{"index": 1, "id": null, "function": {"arguments": "n\\": \\"S", "name": null}, "type": null}]}, "finish_reason": null, "index": 0}]}\n\n',  # noqa: E501
+        b'data: {"choices": [{"delta": {"content": null, "function_call": null, "role": null, "tool_calls": [{"index": 1, "id": null, "function": {"arguments": "an F", "name": null}, "type": null}]}, "finish_reason": null, "index": 0}]}\n\n',  # noqa: E501
+        b'data: {"choices": [{"delta": {"content": null, "function_call": null, "role": null, "tool_calls": [{"index": 1, "id": null, "function": {"arguments": "ranci", "name": null}, "type": null}]}, "finish_reason": null, "index": 0}]}\n\n',  # noqa: E501
+        b'data: {"choices": [{"delta": {"content": null, "function_call": null, "role": null, "tool_calls": [{"index": 1, "id": null, "function": {"arguments": "sco, C", "name": null}, "type": null}]}, "finish_reason": null, "index": 0}]}\n\n',  # noqa: E501
+        b'data: {"choices": [{"delta": {"content": null, "function_call": null, "role": null, "tool_calls": [{"index": 1, "id": null, "function": {"arguments": "A\\", ", "name": null}, "type": null}]}, "finish_reason": null, "index": 0}]}\n\n',  # noqa: E501
+        b'data: {"choices": [{"delta": {"content": null, "function_call": null, "role": null, "tool_calls": [{"index": 1, "id": null, "function": {"arguments": "\\"unit", "name": null}, "type": null}]}, "finish_reason": null, "index": 0}]}\n\n',  # noqa: E501
+        b'data: {"choices": [{"delta": {"content": null, "function_call": null, "role": null, "tool_calls": [{"index": 1, "id": null, "function": {"arguments": "\\": \\"fa", "name": null}, "type": null}]}, "finish_reason": null, "index": 0}]}\n\n',  # noqa: E501
+        b'data: {"choices": [{"delta": {"content": null, "function_call": null, "role": null, "tool_calls": [{"index": 1, "id": null, "function": {"arguments": "hren", "name": null}, "type": null}]}, "finish_reason": null, "index": 0}]}\n\n',  # noqa: E501
+        b'data: {"choices": [{"delta": {"content": null, "function_call": null, "role": null, "tool_calls": [{"index": 1, "id": null, "function": {"arguments": "heit\\"", "name": null}, "type": null}]}, "finish_reason": null, "index": 0}]}\n\n',  # noqa: E501
+        b'data: {"choices": [{"delta": {"content": null, "function_call": null, "role": null, "tool_calls": [{"index": 1, "id": null, "function": {"arguments": "}", "name": null}, "type": null}]}, "finish_reason": null, "index": 0}]}\n\n',  # noqa: E501
+        b'data: {"choices": [{"delta": {"content": null, "function_call": null, "role": null, "tool_calls": null}, "finish_reason": "tool_calls", "index": 0}]}\n\n',  # noqa: E501
+        b"data: [DONE]\n",
+    ]
+    respx_mock.post("https://api.openai.com/v1/chat/completions").respond(
+        status_code=200,
+        stream=MockAsyncByteStream(byte_stream),
+    )
+    response = await async_client.chat.completions.create(
+        model=model,
+        messages=messages,
+        temperature=temperature,
+        stream=True,
+        tools=tools,
+    )
+    assert isinstance(response, AsyncStream)
+    spans = list(tracer.get_spans())
+    assert len(spans) == 0
+
+    # iterate over the stream to trigger span creation
+    async for chunk in response:
+        pass
+
+    spans = list(tracer.get_spans())
+    assert len(spans) == 1
+    span = spans[0]
+    attributes = span.attributes
+
+    assert span.span_kind is SpanKind.LLM
+    assert span.status_code == SpanStatusCode.OK
+    assert isinstance(span.end_time, datetime)
+    assert len(span.events) == 1
+    first_token_event = span.events[0]
+    assert "first token" in first_token_event.name.lower()
+
+    assert attributes[LLM_INPUT_MESSAGES] == [
+        {
+            MESSAGE_ROLE: "user",
+            MESSAGE_CONTENT: "How's the weather in Boston, MA and San Francisco, CA?",
+        }
+    ]
+    assert (
+        json.loads(attributes[LLM_INVOCATION_PARAMETERS])
+        == json.loads(attributes[INPUT_VALUE])
+        == {
+            "model": model,
+            "messages": messages,
+            "temperature": temperature,
+            "stream": True,
+            "tools": tools,
+        }
+    )
+    output_messages = attributes[LLM_OUTPUT_MESSAGES]
+    assert len(output_messages) == 1
+    assert output_messages[0] == {
+        MESSAGE_ROLE: "assistant",
+        MESSAGE_TOOL_CALLS: [
+            {
+                TOOL_CALL_FUNCTION_NAME: "get_current_weather",
+                TOOL_CALL_FUNCTION_ARGUMENTS_JSON: (
+                    '{"location": "Boston, MA", "unit": "fahrenheit"}'
+                ),
+            },
+            {
+                TOOL_CALL_FUNCTION_NAME: "get_current_weather",
+                TOOL_CALL_FUNCTION_ARGUMENTS_JSON: (
+                    '{"location": "San Francisco, CA", "unit": "fahrenheit"}'
+                ),
+            },
+        ],
+    }
+    assert attributes[INPUT_MIME_TYPE] == MimeType.JSON
+    assert attributes[OUTPUT_MIME_TYPE] == MimeType.JSON
