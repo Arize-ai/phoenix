@@ -20,6 +20,7 @@ from google.protobuf.wrappers_pb2 import BoolValue, FloatValue, StringValue
 
 import phoenix.trace.v1 as pb
 from phoenix.trace.schemas import (
+    MimeType,
     Span,
     SpanContext,
     SpanEvent,
@@ -47,7 +48,6 @@ from phoenix.trace.semantic_conventions import (
     OUTPUT_MIME_TYPE,
     OUTPUT_VALUE,
     RETRIEVAL_DOCUMENTS,
-    MimeType,
 )
 
 

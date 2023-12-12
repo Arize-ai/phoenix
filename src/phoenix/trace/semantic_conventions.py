@@ -2,8 +2,6 @@
 Semantic conventions for the attributes of a span
 https://github.com/Arize-ai/open-inference-spec/blob/main/trace/spec/semantic_conventions.md
 """
-from enum import Enum
-from typing import Any, Optional
 
 EXCEPTION_TYPE = "exception.type"
 EXCEPTION_MESSAGE = "exception.message"

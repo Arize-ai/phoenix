@@ -18,7 +18,7 @@ from llama_index.query_engine import RetrieverQueryEngine
 from llama_index.tools import FunctionTool
 from phoenix.trace.exporter import NoOpExporter
 from phoenix.trace.llama_index import OpenInferenceTraceCallbackHandler
-from phoenix.trace.schemas import SpanKind
+from phoenix.trace.schemas import MimeType, SpanKind
 from phoenix.trace.semantic_conventions import (
     EMBEDDING_EMBEDDINGS,
     EMBEDDING_MODEL_NAME,
@@ -46,7 +46,6 @@ from phoenix.trace.semantic_conventions import (
     TOOL_DESCRIPTION,
     TOOL_NAME,
     TOOL_PARAMETERS,
-    MimeType,
 )
 
 TEXT_EMBEDDING_ADA_002_EMBEDDING_DIM = 1536
