@@ -128,9 +128,6 @@ dependencies = [
   "types-protobuf",
   "openai>=1.0.0",
   "litellm>=1.0.3",
-  "tornado",
-  "websockets",
-  "rich",
 ]
 
 [tool.hatch.envs.style]
