@@ -10,6 +10,7 @@ import { graphql, usePaginationFragment } from "react-relay";
 import { useNavigate } from "react-router";
 import {
   ColumnDef,
+  ColumnSort,
   ExpandedState,
   flexRender,
   getCoreRowModel,
@@ -43,6 +44,7 @@ import {
 import {
   SpanSort,
   TracesTableQuery,
+  TracesTableQuery$variables,
 } from "./__generated__/TracesTableQuery.graphql";
 import { EvaluationLabel } from "./EvaluationLabel";
 import { RetrievalEvaluationLabel } from "./RetrievalEvaluationLabel";
@@ -59,6 +61,7 @@ const DEFAULT_SORT: SpanSort = {
   col: "startTime",
   dir: "desc",
 };
+const EVALS_COLUMN_PREFIX = "evals_";
 
 /**
  * A nested table row is a span with a children that recursively
@@ -84,6 +87,27 @@ function spanTreeToNestedSpanTableRows<TSpan extends ISpanItem>(
     normalizedSpanTreeChildren.push(normalizedChild);
   }
   return normalizedSpanTreeChildren;
+}
+
+function getGqlSort(sort: ColumnSort): TracesTableQuery$variables["sort"] {
+  let col = null,
+    evalResultKey = null;
+  debugger;
+  if (sort.id && sort.id.startsWith(EVALS_COLUMN_PREFIX)) {
+    const [, attr, name] = sort.id.split("_");
+    evalResultKey = {
+      attr,
+      name,
+    } as SpanSort["evalResultKey"];
+  } else {
+    col = sort.id as SpanSort["col"];
+  }
+
+  return {
+    col,
+    evalResultKey,
+    dir: sort.desc ? "desc" : "asc",
+  };
 }
 
 export function TracesTable(props: TracesTableProps) {
@@ -215,8 +239,7 @@ export function TracesTable(props: TracesTableProps) {
         columns: [
           {
             header: `label`,
-            accessorKey: "spanEvaluations",
-            enableSorting: false,
+            accessorKey: `${EVALS_COLUMN_PREFIX}label_${name}`,
             cell: ({ row }) => {
               const evaluation = row.original.spanEvaluations.find(
                 (evaluation) => evaluation.name === name
@@ -229,8 +252,7 @@ export function TracesTable(props: TracesTableProps) {
           } as ColumnDef<TableRow>,
           {
             header: `score`,
-            accessorKey: "spanEvaluations",
-            enableSorting: false,
+            accessorKey: `${EVALS_COLUMN_PREFIX}score_${name}`,
             cell: ({ row }) => {
               const evaluation = row.original.spanEvaluations.find(
                 (evaluation) => evaluation.name === name
@@ -414,12 +436,7 @@ export function TracesTable(props: TracesTableProps) {
     startTransition(() => {
       refetch(
         {
-          sort: sort
-            ? {
-                col: sort.id as SpanSort["col"],
-                dir: sort.desc ? "desc" : "asc",
-              }
-            : DEFAULT_SORT,
+          sort: sort ? getGqlSort(sort) : DEFAULT_SORT,
           after: null,
           first: PAGE_SIZE,
           filterCondition: filterCondition,
@@ -498,6 +515,7 @@ export function TracesTable(props: TracesTableProps) {
                   <th colSpan={header.colSpan} key={header.id}>
                     {header.isPlaceholder ? null : (
                       <div
+                        data-sortable={header.column.getCanSort()}
                         {...{
                           className: header.column.getCanSort()
                             ? "cursor-pointer"
