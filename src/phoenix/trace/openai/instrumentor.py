@@ -599,7 +599,11 @@ def _parameters(bound_arguments: BoundArguments) -> Parameters:
     return cast(Parameters, bound_arguments.arguments["options"].json_data)
 
 
-class FunctionCallData(TypedDict, total=False):
+class StreamingFunctionCallData(TypedDict, total=False):
+    """
+    Stores function call data from a streaming chat completion.
+    """
+
     name: str
     argument_tokens: List[str]
 
@@ -622,10 +626,11 @@ def _accumulate_messages(
     if not chunks:
         return []
     content_token_lists: DefaultDict[int, List[str]] = defaultdict(list)
-    function_argument_token_lists: DefaultDict[int, List[str]] = defaultdict(list)
-    function_names: Dict[int, str] = {}
-    tool_calls: DefaultDict[int, DefaultDict[int, FunctionCallData]] = defaultdict(
-        lambda: defaultdict(lambda: FunctionCallData(argument_tokens=[]))
+    function_calls: DefaultDict[int, StreamingFunctionCallData] = defaultdict(
+        lambda: StreamingFunctionCallData(argument_tokens=[])
+    )
+    tool_calls: DefaultDict[int, DefaultDict[int, StreamingFunctionCallData]] = defaultdict(
+        lambda: defaultdict(lambda: StreamingFunctionCallData(argument_tokens=[]))
     )
     roles: Dict[int, str] = {}
     for chunk in chunks:
@@ -635,9 +640,9 @@ def _accumulate_messages(
                 content_token_lists[choice_index].append(content_token)
             if function_call := choice.delta.function_call:
                 if function_name := function_call.name:
-                    function_names[choice_index] = function_name
+                    function_calls[choice_index]["name"] = function_name
                 if (function_argument_token := function_call.arguments) is not None:
-                    function_argument_token_lists[choice_index].append(function_argument_token)
+                    function_calls[choice_index]["argument_tokens"].append(function_argument_token)
             if role := choice.delta.role:
                 roles[choice_index] = role
             if choice.delta.tool_calls:
@@ -655,19 +660,19 @@ def _accumulate_messages(
         message: Dict[str, Any] = {}
         if (role_ := roles.get(choice_index)) is not None:
             message[MESSAGE_ROLE] = role_
-        if content_token_list := content_token_lists[choice_index]:
-            message[MESSAGE_CONTENT] = "".join(content_token_list)
-        if (function_name := function_names.get(choice_index)) is not None:
-            message[MESSAGE_FUNCTION_CALL_NAME] = function_name
-        if function_argument_token_list := function_argument_token_lists[choice_index]:
-            message[MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON] = "".join(function_argument_token_list)
-        num_tools = len(tool_calls[choice_index])
-        if num_tools:
-            message[MESSAGE_TOOL_CALLS] = [{} for _ in range(num_tools)]
-            for tool_index in range(num_tools):
-                if (name := tool_calls[choice_index][tool_index].get("name")) is not None:
+        if content_tokens := content_token_lists[choice_index]:
+            message[MESSAGE_CONTENT] = "".join(content_tokens)
+        if function_call_ := function_calls.get(choice_index):
+            if (name := function_call_.get("name")) is not None:
+                message[MESSAGE_FUNCTION_CALL_NAME] = name
+            if argument_tokens := function_call_.get("argument_tokens"):
+                message[MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON] = "".join(argument_tokens)
+        if tool_calls_ := tool_calls.get(choice_index):
+            message[MESSAGE_TOOL_CALLS] = [{} for _ in range(len(tool_calls_))]
+            for tool_index, tool_call_ in tool_calls_.items():
+                if (name := tool_call_.get("name")) is not None:
                     message[MESSAGE_TOOL_CALLS][tool_index][TOOL_CALL_FUNCTION_NAME] = name
-                if argument_tokens := tool_calls[choice_index][tool_index].get("argument_tokens"):
+                if argument_tokens := tool_call_.get("argument_tokens"):
                     message[MESSAGE_TOOL_CALLS][tool_index][
                         TOOL_CALL_FUNCTION_ARGUMENTS_JSON
                     ] = "".join(argument_tokens)
