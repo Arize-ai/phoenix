@@ -39,27 +39,19 @@ class TracesFixture:
 llama_index_rag_fixture = TracesFixture(
     name="llama_index_rag",
     description="Traces from running the llama_index on a RAG use case.",
-    file_name="llama_index_rag_with_rerank.jsonl",
+    file_name="llama_index_rag_v8.jsonl",
     evaluation_fixtures=(
         EvaluationFixture(
             evaluation_name="Q&A Correctness",
-            file_name="llama_index_rag_with_rerank.qa_correctness_eval.parquet",
+            file_name="llama_index_rag_v8.qa_correctness_eval.parquet",
         ),
         EvaluationFixture(
             evaluation_name="Hallucination",
-            file_name="llama_index_rag_with_rerank.hallucination_eval.parquet",
-        ),
-        EvaluationFixture(
-            evaluation_name="NDCG@2",
-            file_name="llama_index_rag_with_rerank.ndcg_at_2.parquet",
-        ),
-        EvaluationFixture(
-            evaluation_name="Precision@3",
-            file_name="llama_index_rag_with_rerank.precision_at_3.parquet",
+            file_name="llama_index_rag_v8.hallucination_eval.parquet",
         ),
         DocumentEvaluationFixture(
             evaluation_name="Relevance",
-            file_name="llama_index_rag_with_rerank.documents_eval.parquet",
+            file_name="llama_index_rag_v8.retrieved_documents_eval.parquet",
         ),
     ),
 )
