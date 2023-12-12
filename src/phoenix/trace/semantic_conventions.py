@@ -24,16 +24,6 @@ The type of input.value. If unspecified, the type is plain text by default.
 If type is JSON, the value is a string representing a JSON object.
 """
 
-
-class MimeType(Enum):
-    TEXT = "text/plain"
-    JSON = "application/json"
-
-    @classmethod
-    def _missing_(cls, v: Any) -> Optional["MimeType"]:
-        return None if v else cls.TEXT
-
-
 EMBEDDING_EMBEDDINGS = "embedding.embeddings"
 """
 A list of objects containing embedding data, including the vector and represented piece of text.
