@@ -208,6 +208,43 @@ export function TracesTable(props: TracesTableProps) {
   }, [data]);
   type TableRow = (typeof tableData)[number];
 
+  const dynamicEvaluationColumns: ColumnDef<TableRow>[] =
+    visibleEvaluationColumnNames.map((name) => {
+      return {
+        header: name,
+        columns: [
+          {
+            header: `label`,
+            accessorKey: "spanEvaluations",
+            enableSorting: false,
+            cell: ({ row }) => {
+              const evaluation = row.original.spanEvaluations.find(
+                (evaluation) => evaluation.name === name
+              );
+              if (!evaluation) {
+                return null;
+              }
+              return evaluation.label;
+            },
+          } as ColumnDef<TableRow>,
+          {
+            header: `score`,
+            accessorKey: "spanEvaluations",
+            enableSorting: false,
+            cell: ({ row }) => {
+              const evaluation = row.original.spanEvaluations.find(
+                (evaluation) => evaluation.name === name
+              );
+              if (!evaluation) {
+                return null;
+              }
+              return evaluation.score;
+            },
+          } as ColumnDef<TableRow>,
+        ],
+      };
+    });
+
   const evaluationColumns: ColumnDef<TableRow>[] = [
     {
       header: "evaluations",
@@ -256,26 +293,9 @@ export function TracesTable(props: TracesTableProps) {
         );
       },
     },
-    {
-      header: "Evaluation Values",
-      columns: visibleEvaluationColumnNames.map((name) => {
-        return {
-          header: name,
-          accessorKey: "spanEvaluations",
-          enableSorting: false,
-          cell: ({ row }) => {
-            const evaluation = row.original.spanEvaluations.find(
-              (evaluation) => evaluation.name === name
-            );
-            if (!evaluation) {
-              return null;
-            }
-            return evaluation.score;
-          },
-        };
-      }),
-    },
+    ...dynamicEvaluationColumns,
   ];
+
   const columns: ColumnDef<TableRow>[] = [
     {
       header: () => {
