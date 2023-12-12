@@ -187,6 +187,14 @@ export function TracesTable(props: TracesTableProps) {
       props.query
     );
 
+  const evaluationVisibility = useTracingContext(
+    (state) => state.evaluationVisibility
+  );
+  const visibleEvaluationColumnNames = useMemo(() => {
+    return Object.keys(evaluationVisibility).filter(
+      (name) => evaluationVisibility[name]
+    );
+  }, [evaluationVisibility]);
   const tableData = useMemo(() => {
     const tableData = data.rootSpans.edges.map(({ rootSpan }) => {
       // Construct the set of spans over which you want to construct the tree
@@ -247,6 +255,25 @@ export function TracesTable(props: TracesTableProps) {
           </Flex>
         );
       },
+    },
+    {
+      header: "Evaluation Values",
+      columns: visibleEvaluationColumnNames.map((name) => {
+        return {
+          header: name,
+          accessorKey: "spanEvaluations",
+          enableSorting: false,
+          cell: ({ row }) => {
+            const evaluation = row.original.spanEvaluations.find(
+              (evaluation) => evaluation.name === name
+            );
+            if (!evaluation) {
+              return null;
+            }
+            return evaluation.score;
+          },
+        };
+      }),
     },
   ];
   const columns: ColumnDef<TableRow>[] = [
