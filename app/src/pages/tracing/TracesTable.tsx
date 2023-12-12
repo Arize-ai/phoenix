@@ -107,6 +107,7 @@ export function TracesTable(props: TracesTableProps) {
           }
           filterCondition: { type: "String", defaultValue: null }
         ) {
+          ...SpanColumnSelector_evaluations
           rootSpans: spans(
             first: $first
             after: $after
@@ -431,7 +432,7 @@ export function TracesTable(props: TracesTableProps) {
       >
         <Flex direction="row" gap="size-100" width="100%" alignItems="center">
           <SpanFilterConditionField onValidCondition={setFilterCondition} />
-          <SpanColumnSelector columns={computedColumns} />
+          <SpanColumnSelector columns={computedColumns} query={data} />
         </Flex>
       </View>
       <div

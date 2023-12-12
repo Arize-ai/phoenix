@@ -5,6 +5,11 @@ import { css } from "@emotion/react";
 import { Dropdown, Flex, Icon, Icons, View } from "@arizeai/components";
 
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
+import { graphql, useFragment } from "react-relay";
+import {
+  SpanColumnSelector_evaluations$data,
+  SpanColumnSelector_evaluations$key,
+} from "./__generated__/SpanColumnSelector_evaluations.graphql";
 
 const UN_HIDABLE_COLUMN_IDS = ["spanKind", "name"];
 
@@ -16,6 +21,7 @@ type SpanColumnSelectorProps = {
    */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   columns: Column<any>[];
+  query: SpanColumnSelector_evaluations$key;
 };
 
 export function SpanColumnSelector(props: SpanColumnSelectorProps) {
@@ -127,6 +133,54 @@ function ColumnSelectorMenu(props: SpanColumnSelectorProps) {
           );
         })}
       </ul>
+      <EvaluationColumnSelector {...props} />
     </View>
+  );
+}
+
+function EvaluationColumnSelector({
+  query,
+}: Pick<SpanColumnSelectorProps, "query">) {
+  const data = useFragment<SpanColumnSelector_evaluations$key>(
+    graphql`
+      fragment SpanColumnSelector_evaluations on Query {
+        spanEvaluationNames
+      }
+    `,
+    query
+  );
+  const evaluationVisibility = useTracingContext(
+    (state) => state.evaluationVisibility
+  );
+  const setEvaluationVisibility = useTracingContext(
+    (state) => state.setEvaluationVisibility
+  );
+  return (
+    <section>
+      <h3>Evaluations</h3>
+      <ul>
+        {data.spanEvaluationNames.map((name) => {
+          const isVisible = evaluationVisibility[name];
+          return (
+            <li key={name}>
+              <label>
+                <input
+                  type="checkbox"
+                  name={name}
+                  checked={isVisible}
+                  onChange={() => {
+                    setEvaluationVisibility({
+                      ...evaluationVisibility,
+                      [name]: !isVisible,
+                    });
+                  }}
+                />
+                {name}
+              </label>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
   );
 }
