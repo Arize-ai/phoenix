@@ -61,7 +61,8 @@ const DEFAULT_SORT: SpanSort = {
   col: "startTime",
   dir: "desc",
 };
-const EVALS_COLUMN_PREFIX = "evals_";
+const EVALS_COLUMN_PREFIX = "evals";
+const EVALS_KEY_SEPARATOR = ":";
 
 /**
  * A nested table row is a span with a children that recursively
@@ -92,9 +93,8 @@ function spanTreeToNestedSpanTableRows<TSpan extends ISpanItem>(
 function getGqlSort(sort: ColumnSort): TracesTableQuery$variables["sort"] {
   let col = null,
     evalResultKey = null;
-  debugger;
   if (sort.id && sort.id.startsWith(EVALS_COLUMN_PREFIX)) {
-    const [, attr, name] = sort.id.split("_");
+    const [, attr, name] = sort.id.split(EVALS_KEY_SEPARATOR);
     evalResultKey = {
       attr,
       name,
@@ -239,7 +239,7 @@ export function TracesTable(props: TracesTableProps) {
         columns: [
           {
             header: `label`,
-            accessorKey: `${EVALS_COLUMN_PREFIX}label_${name}`,
+            accessorKey: `${EVALS_COLUMN_PREFIX}${EVALS_KEY_SEPARATOR}label${EVALS_KEY_SEPARATOR}${name}`,
             cell: ({ row }) => {
               const evaluation = row.original.spanEvaluations.find(
                 (evaluation) => evaluation.name === name
@@ -252,7 +252,7 @@ export function TracesTable(props: TracesTableProps) {
           } as ColumnDef<TableRow>,
           {
             header: `score`,
-            accessorKey: `${EVALS_COLUMN_PREFIX}score_${name}`,
+            accessorKey: `${EVALS_COLUMN_PREFIX}${EVALS_KEY_SEPARATOR}score${EVALS_KEY_SEPARATOR}${name}`,
             cell: ({ row }) => {
               const evaluation = row.original.spanEvaluations.find(
                 (evaluation) => evaluation.name === name
