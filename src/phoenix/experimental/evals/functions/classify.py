@@ -28,6 +28,7 @@ from pandas import DataFrame
 from tqdm.auto import tqdm
 from typing_extensions import TypeAlias
 
+from phoenix.experimental.evals.evaluators import EvaluationResult, LLMEvaluator, _snap_to_rail
 from phoenix.experimental.evals.models import BaseEvalModel, OpenAIModel, set_verbosity
 from phoenix.experimental.evals.templates import (
     NOT_PARSABLE,
@@ -42,8 +43,6 @@ from phoenix.experimental.evals.templates import (
 from phoenix.experimental.evals.utils import get_tqdm_progress_bar_formatter
 from phoenix.trace.semantic_conventions import DOCUMENT_CONTENT, INPUT_VALUE, RETRIEVAL_DOCUMENTS
 from phoenix.utilities.logging import printif
-
-from ..evaluators import EvaluationResult, Evaluator, _snap_to_rail
 
 logger = logging.getLogger(__name__)
 
@@ -630,14 +629,14 @@ def _default_openai_function(
 
 
 class RunEvalsPayload(NamedTuple):
-    evaluator: Evaluator
+    evaluator: LLMEvaluator
     record: Record
     row_index: RowIndex
 
 
 def run_evals(
     dataframe: DataFrame,
-    evaluators: List[Evaluator],
+    evaluators: List[LLMEvaluator],
     concurrency: int = 20,
 ) -> DataFrame:
     """

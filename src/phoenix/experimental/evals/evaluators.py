@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from functools import partial
-from typing import Any, List, Mapping, Optional, Protocol
+from typing import Any, List, Mapping, Optional
 
 from phoenix.experimental.evals.models import set_verbosity
 from phoenix.utilities.logging import printif
@@ -20,22 +20,6 @@ class EvaluationResult:
     """
 
     prediction: str
-
-
-class Evaluator(Protocol):
-    """
-    Evaluates individual records.
-    """
-
-    def evaluate(self, record: Record) -> EvaluationResult:
-        ...
-
-    async def aevaluate(self, record: Record) -> EvaluationResult:
-        ...
-
-    @property
-    def name(self) -> str:
-        ...
 
 
 class LLMEvaluator:
