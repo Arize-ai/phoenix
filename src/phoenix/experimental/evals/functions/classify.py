@@ -471,7 +471,7 @@ def llm_classify(
         return _snap_to_rail(unrailed_label, rails_per_response, verbose=verbose), explanation
 
     async def _run_llm_classification_async(
-        prompt_combo: Tuple[str, List[str]]
+        prompt_combo: Tuple[str, List[str]],
     ) -> Tuple[str, Optional[str]]:
         prompt, rails_per_prompt = prompt_combo
         with set_verbosity(model, verbose) as verbose_model:
@@ -482,7 +482,7 @@ def llm_classify(
         return _process_response(combined)
 
     def _run_llm_classification_sync(
-        prompt_combo: Tuple[str, List[str]]
+        prompt_combo: Tuple[str, List[str]],
     ) -> Tuple[str, Optional[str]]:
         prompt, rails_per_prompt = prompt_combo
         with set_verbosity(model, verbose) as verbose_model:
