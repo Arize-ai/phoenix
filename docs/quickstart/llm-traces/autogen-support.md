@@ -1,6 +1,6 @@
 # AutoGen Support
 
-{% embed url="https://colab.research.google.com/drive/1BaejbF06OrTM4B2V19WM4TX4q6_hgj40?authuser=1#scrollTo=se3M7GECJfpZ" %}
+{% embed url="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/tracing/autogen_tutorial.ipynb" %}
 
 AutoGen is a new agent framework from Microsoft that allows for complex Agent creation. It is unique in its ability to create multiple agents that work together.&#x20;
 
@@ -31,4 +31,3 @@ The individual prompt and responses are captured directly through OpenAI calls.&
 {% hint style="info" %}
 As callbacks are supported in AutoGen Phoenix will add more agent level information.&#x20;
 {% endhint %}
-
