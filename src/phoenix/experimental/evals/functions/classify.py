@@ -684,7 +684,7 @@ def run_evals(
         _run_eval_sync,
         _run_eval_async,
         concurrency=concurrency,
-        tqdm_bar_format=get_tqdm_progress_bar_formatter("llm_classify"),
+        tqdm_bar_format=get_tqdm_progress_bar_formatter("run_evals"),
         exit_on_error=True,
         fallback_return_value=(None, None),
     )
