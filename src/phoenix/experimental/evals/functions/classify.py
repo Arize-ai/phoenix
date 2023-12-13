@@ -5,13 +5,17 @@ import json
 import logging
 import signal
 import traceback
+from collections import defaultdict
 from typing import (
     Any,
     Callable,
     Coroutine,
+    DefaultDict,
     Dict,
     Iterable,
     List,
+    Mapping,
+    NamedTuple,
     Optional,
     Sequence,
     Tuple,
@@ -20,8 +24,11 @@ from typing import (
 )
 
 import pandas as pd
+from pandas import DataFrame
 from tqdm.auto import tqdm
+from typing_extensions import TypeAlias
 
+from phoenix.experimental.evals.evaluators import LLMEvaluator, _snap_to_rail
 from phoenix.experimental.evals.models import BaseEvalModel, OpenAIModel, set_verbosity
 from phoenix.experimental.evals.templates import (
     NOT_PARSABLE,
@@ -47,6 +54,11 @@ OPENINFERENCE_DOCUMENT_COLUMN_NAME = "attributes." + RETRIEVAL_DOCUMENTS
 # defined here only to prevent typos
 _RESPONSE = "response"
 _EXPLANATION = "explanation"
+
+EvalName: TypeAlias = str
+EvalPrediction: TypeAlias = str
+Record: TypeAlias = Mapping[str, Any]
+RowIndex: TypeAlias = Any
 
 
 class Unset:
@@ -284,8 +296,7 @@ def get_executor_on_sync_context(
     exit_on_error: bool = True,
     fallback_return_value: Union[Unset, Any] = _unset,
 ) -> Union[AsyncExecutor, SyncExecutor]:
-    try:
-        asyncio.get_running_loop()
+    if _running_event_loop_exists():
         if getattr(asyncio, "_nest_patched", False):
             return AsyncExecutor(
                 async_fn,
@@ -306,7 +317,7 @@ def get_executor_on_sync_context(
                 exit_on_error=exit_on_error,
                 fallback_return_value=fallback_return_value,
             )
-    except RuntimeError:
+    else:
         return AsyncExecutor(
             async_fn,
             concurrency=concurrency,
@@ -314,6 +325,19 @@ def get_executor_on_sync_context(
             exit_on_error=exit_on_error,
             fallback_return_value=fallback_return_value,
         )
+
+
+def _running_event_loop_exists() -> bool:
+    """Checks for a running event loop.
+
+    Returns:
+        bool: True if a running event loop exists, False otherwise.
+    """
+    try:
+        asyncio.get_running_loop()
+        return True
+    except RuntimeError:
+        return False
 
 
 def llm_classify(
@@ -360,7 +384,7 @@ def llm_classify(
         classification label. A column named `explanation` is added to the output dataframe.
         Currently, this is only available for models with function calling.
 
-        concurrency (int, default=3): The number of concurrent evals.
+        concurrency (int, default=20): The number of concurrent evals.
 
     Returns:
         pandas.DataFrame: A dataframe where the `label` column (at column position 0) contains
@@ -433,7 +457,7 @@ def llm_classify(
             )
         return _process_response(response)
 
-    executor: Union[AsyncExecutor, SyncExecutor] = get_executor_on_sync_context(
+    executor = get_executor_on_sync_context(
         _run_llm_classification_sync,
         _run_llm_classification_async,
         concurrency=concurrency,
@@ -575,38 +599,6 @@ def _get_contents_from_openinference_documents(documents: Iterable[Any]) -> List
     return [doc.get(DOCUMENT_CONTENT) if isinstance(doc, dict) else None for doc in documents]
 
 
-def _snap_to_rail(raw_string: Optional[str], rails: List[str], verbose: bool = False) -> str:
-    """
-    Snaps a string to the nearest rail, or returns None if the string cannot be
-    snapped to a rail.
-
-    Args:
-        raw_string (str): An input to be snapped to a rail.
-
-        rails (List[str]): The target set of strings to snap to.
-
-    Returns:
-        str: A string from the rails argument or "UNPARSABLE" if the input
-        string could not be snapped.
-    """
-    if not raw_string:
-        return NOT_PARSABLE
-    snap_string = raw_string.lower()
-    rails = list(set(rail.lower() for rail in rails))
-    rails.sort(key=len, reverse=True)
-    found_rails = set()
-    for rail in rails:
-        if rail in snap_string:
-            found_rails.add(rail)
-            snap_string = snap_string.replace(rail, "")
-    if len(found_rails) != 1:
-        printif(verbose, f"- Cannot snap {repr(raw_string)} to rails")
-        return NOT_PARSABLE
-    rail = list(found_rails)[0]
-    printif(verbose, f"- Snapped {repr(raw_string)} to rail: {rail}")
-    return rail
-
-
 def _default_openai_function(
     rails: List[str],
     with_explanation: bool = False,
@@ -634,3 +626,79 @@ def _default_openai_function(
             "required": required,
         },
     }
+
+
+class RunEvalsPayload(NamedTuple):
+    evaluator: LLMEvaluator
+    record: Record
+    row_index: RowIndex
+
+
+def run_evals(
+    dataframe: DataFrame,
+    evaluators: List[LLMEvaluator],
+    concurrency: int = 20,
+) -> DataFrame:
+    """
+    Applies a list of evaluators to every row of a dataframe. Outputs a
+    dataframe where each column corresponds to an evaluator and each row
+    corresponds to a row in the input dataframe.
+
+    Args:
+        dataframe (pd.DataFrame): A pandas dataframe in which each row
+        represents a record to be evaluated. All template variable names must
+        appear as column names in the dataframe (extra columns unrelated to the
+        template are permitted).
+
+        evaluators (List[Evaluator]): A list of evaluators with unique names.
+
+        concurrency (int, optional): An optional concurrency parameter. Defaults
+        to 20.
+
+    Returns:
+        DataFrame: A dataframe where each row contains the outputs of the
+        evaluators applied to the corresponding row of the input dataframe and
+        the column names match the names of the evaluators. The index of the
+        dataframe is the same as the index of the input dataframe.
+    """
+    if len(set(evaluator.name for evaluator in evaluators)) != len(evaluators):
+        raise ValueError("Evaluators must have unique names.")
+
+    async def _run_eval_async(
+        payload: RunEvalsPayload,
+    ) -> Tuple[RowIndex, EvalName, EvalPrediction]:
+        row_index = payload.row_index
+        evaluator = payload.evaluator
+        record = payload.record
+        eval_result = await evaluator.aevaluate(record)
+        return row_index, evaluator.name, eval_result
+
+    def _run_eval_sync(payload: RunEvalsPayload) -> Tuple[RowIndex, EvalName, EvalPrediction]:
+        row_index = payload.row_index
+        evaluator = payload.evaluator
+        record = payload.record
+        eval_result = evaluator.evaluate(record)
+        return row_index, evaluator.name, eval_result
+
+    executor = get_executor_on_sync_context(
+        _run_eval_sync,
+        _run_eval_async,
+        concurrency=concurrency,
+        tqdm_bar_format=get_tqdm_progress_bar_formatter("run_evals"),
+        exit_on_error=True,
+        fallback_return_value=(None, None),
+    )
+    payloads = [
+        RunEvalsPayload(
+            row_index=row_index,
+            evaluator=evaluator,
+            record=row.to_dict(),
+        )
+        for row_index, row in dataframe.iterrows()
+        for evaluator in evaluators
+    ]
+    results: DefaultDict[RowIndex, Dict[EvalName, EvalPrediction]] = defaultdict(dict)
+    for row_index, eval_name, eval_result in executor.run(payloads):
+        results[row_index][eval_name] = eval_result
+    index, data = zip(*results.items())
+    return DataFrame(data, index=index)
