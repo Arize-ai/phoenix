@@ -15,11 +15,11 @@ from typing import (
     Iterable,
     List,
     Mapping,
+    NamedTuple,
     Optional,
     Protocol,
     Sequence,
     Tuple,
-    TypedDict,
     Union,
     cast,
 )
@@ -639,7 +639,7 @@ def _default_openai_function(
     }
 
 
-class RunEvalsPayload(TypedDict):
+class RunEvalsPayload(NamedTuple):
     evaluator: Evaluator
     record: Record
     row_index: RowIndex
@@ -676,18 +676,18 @@ def run_evals(
         raise ValueError("Evaluators must have unique names.")
 
     async def _run_eval_async(
-        payload: RunEvalsPayload
+        payload: RunEvalsPayload,
     ) -> Tuple[RowIndex, EvalName, EvaluationResult]:
-        row_index = payload["row_index"]
-        evaluator = payload["evaluator"]
-        record = payload["record"]
+        row_index = payload.row_index
+        evaluator = payload.evaluator
+        record = payload.record
         eval_result = await evaluator.aevaluate(record)
         return row_index, evaluator.name, eval_result
 
     def _run_eval_sync(payload: RunEvalsPayload) -> Tuple[RowIndex, EvalName, EvaluationResult]:
-        row_index = payload["row_index"]
-        evaluator = payload["evaluator"]
-        record = payload["record"]
+        row_index = payload.row_index
+        evaluator = payload.evaluator
+        record = payload.record
         eval_result = evaluator.evaluate(record)
         return row_index, evaluator.name, eval_result
 
@@ -700,11 +700,11 @@ def run_evals(
         fallback_return_value=(None, None),
     )
     payloads = [
-        {
-            "row_index": row_index,
-            "evaluator": evaluator,
-            "record": row.to_dict(),
-        }
+        RunEvalsPayload(
+            row_index=row_index,
+            evaluator=evaluator,
+            record=row.to_dict(),
+        )
         for row_index, row in dataframe.iterrows()
         for evaluator in evaluators
     ]
