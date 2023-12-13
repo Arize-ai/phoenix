@@ -1,4 +1,4 @@
-from typing import Any, List, Mapping, Optional
+from typing import List, Mapping, Optional
 
 from phoenix.experimental.evals.models import set_verbosity
 from phoenix.utilities.logging import printif
@@ -6,7 +6,7 @@ from phoenix.utilities.logging import printif
 from .models import BaseEvalModel
 from .templates import ClassificationTemplate, PromptTemplate
 
-Record = Mapping[str, Any]
+Record = Mapping[str, str]
 
 NOT_PARSABLE = "NOT_PARSABLE"
 
