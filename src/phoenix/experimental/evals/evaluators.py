@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from functools import partial
 from typing import Any, List, Mapping, Optional
 
 from phoenix.experimental.evals.models import set_verbosity
@@ -46,7 +45,6 @@ class LLMEvaluator:
         self._template = template
         self.name = name
         self._verbose = verbose
-        self._parser = partial(_snap_to_rail, rails=template.rails, verbose=verbose)
 
     def evaluate(self, record: Record) -> EvaluationResult:
         """Evaluates a single record.
@@ -60,7 +58,7 @@ class LLMEvaluator:
         prompt = self._template.format(record)
         with set_verbosity(self._model, self._verbose) as verbose_model:
             unparsed_output = verbose_model(prompt)
-        parsed_output = self._parser(unparsed_output)
+        parsed_output = _snap_to_rail(unparsed_output, self._template.rails, self._verbose)
         return EvaluationResult(prediction=parsed_output)
 
     async def aevaluate(self, record: Record) -> EvaluationResult:
@@ -75,7 +73,7 @@ class LLMEvaluator:
         prompt = self._template.format(dict(record))
         with set_verbosity(self._model, self._verbose) as verbose_model:
             unparsed_output = await verbose_model._async_generate(prompt)
-        parsed_output = self._parser(unparsed_output)
+        parsed_output = _snap_to_rail(unparsed_output, self._template.rails, self._verbose)
         return EvaluationResult(prediction=parsed_output)
 
 
