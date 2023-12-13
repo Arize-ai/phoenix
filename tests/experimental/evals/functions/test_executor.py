@@ -1,7 +1,8 @@
 import asyncio
 import signal
-import nest_asyncio
+from unittest.mock import AsyncMock, Mock
 
+import nest_asyncio
 from phoenix.experimental.evals.functions.executor import (
     AsyncExecutor,
     SyncExecutor,
@@ -102,6 +103,15 @@ async def test_async_executor_sigint_handling():
     assert results.count("test") > 0, "some inputs should not have been processed"
 
 
+async def test_async_executor_retries():
+    mock_generate = AsyncMock(side_effect=RuntimeError("Test exception"))
+    executor = AsyncExecutor(mock_generate, max_retries=3)
+
+    await executor.execute([1])  # by default the executor does not raise on generation errors
+
+    mock_generate.call_count == 4, "1 initial call + 3 retries"
+
+
 # SyncExecutor tests
 
 
@@ -147,6 +157,18 @@ def test_sync_executor_can_continue_on_error():
     inputs = [1, 2, 3, 4, 5]
     outputs = executor.run(inputs)
     assert outputs == [0, 1, 52, 3, 4]
+
+
+def test_sync_executor_retries():
+    mock_generate = Mock(side_effect=RuntimeError("Test exception"))
+    executor = SyncExecutor(mock_generate, max_retries=3)
+
+    executor.run([1])  # by default the executor does not raise on generation errors
+
+    assert mock_generate.call_count == 4, "1 initial call + 3 retries"
+
+
+# test executor factory
 
 
 async def test_executor_factory_returns_sync_in_async_context():

@@ -265,7 +265,7 @@ class SyncExecutor(Executor):
                         if attempt >= self.max_retries or is_phoenix_exception:
                             raise exc
                         else:
-                            tqdm.write(f"Exception in worker on attempt {_attempt + 1}: {exc}")
+                            tqdm.write(f"Exception in worker on attempt {attempt + 1}: {exc}")
                             tqdm.write("Retrying...")
             except Exception as exc:
                 tqdm.write(f"Exception in worker: {exc}")
