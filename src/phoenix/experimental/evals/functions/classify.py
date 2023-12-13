@@ -364,7 +364,7 @@ def llm_classify(
     provide_explanation: bool = False,
     concurrency: int = 20,
 ) -> pd.DataFrame:
-    print('llm_classify_new')
+    print("llm_classify_new")
     """Classifies each input row of the dataframe using an LLM. Returns a pandas.DataFrame
     where the first column is named `label` and contains the classification labels. An optional
     column named `explanation` is added when `provide_explanation=True`.
@@ -413,9 +413,7 @@ def llm_classify(
     if all(isinstance(sublist, list) for sublist in rails):
         rails_list = rails
         if use_function_calling_if_available:
-            raise ValueError(
-                "When using function calling, rails must be a single rail."
-         )
+            raise ValueError("When using function calling, rails must be a single rail.")
     elif isinstance(rails, list):
         # Assuming rails is a list of strings if it's not a list of lists
         rails_list = [rails] * len(dataframe)
@@ -472,7 +470,9 @@ def llm_classify(
                 explanation = None
         return _snap_to_rail(unrailed_label, rails_per_response, verbose=verbose), explanation
 
-    async def _run_llm_classification_async(prompt_combo: Tuple[str, List[str]]) -> Tuple[str, Optional[str]]:
+    async def _run_llm_classification_async(
+        prompt_combo: Tuple[str, List[str]]
+    ) -> Tuple[str, Optional[str]]:
         prompt, rails_per_prompt = prompt_combo
         with set_verbosity(model, verbose) as verbose_model:
             response = await verbose_model._async_generate(
@@ -481,7 +481,9 @@ def llm_classify(
         combined = [response, rails_per_prompt]
         return _process_response(combined)
 
-    def _run_llm_classification_sync(prompt_combo: Tuple[str, List[str]]) -> Tuple[str, Optional[str]]:
+    def _run_llm_classification_sync(
+        prompt_combo: Tuple[str, List[str]]
+    ) -> Tuple[str, Optional[str]]:
         prompt, rails_per_prompt = prompt_combo
         with set_verbosity(model, verbose) as verbose_model:
             response = verbose_model._generate(
