@@ -6,50 +6,6 @@ from opentelemetry.proto.common.v1.common_pb2 import AnyValue, ArrayValue, KeyVa
 from opentelemetry.util.types import Attributes, AttributeValue
 from typing_extensions import assert_never
 
-from phoenix.trace.semantic_conventions import (
-    DOCUMENT_CONTENT,
-    DOCUMENT_ID,
-    DOCUMENT_METADATA,
-    DOCUMENT_SCORE,
-    EMBEDDING_TEXT,
-    EMBEDDING_VECTOR,
-)
-
-
-def decode_document(key_values: Iterable[KeyValue]) -> Iterator[Tuple[str, Any]]:
-    for kv in key_values:
-        key, value = kv.key, kv.value
-        if key == DOCUMENT_ID:
-            if value.HasField("string_value"):
-                yield DOCUMENT_ID, value.string_value
-        elif key == DOCUMENT_CONTENT:
-            if value.HasField("string_value"):
-                yield DOCUMENT_CONTENT, value.string_value
-        elif key == DOCUMENT_SCORE:
-            which = value.WhichOneof("value")
-            if which == "double_value":
-                yield DOCUMENT_SCORE, value.double_value
-            elif which == "int_value":
-                yield DOCUMENT_SCORE, value.int_value
-        elif key == DOCUMENT_METADATA:
-            if value.HasField("kvlist_value") and (values := value.kvlist_value.values):
-                yield DOCUMENT_METADATA, dict(decode_key_values(values))
-
-
-def decode_embedding(key_values: Iterable[KeyValue]) -> Iterator[Tuple[str, Any]]:
-    for kv in key_values:
-        key, value = kv.key, kv.value
-        if key == EMBEDDING_TEXT:
-            if value.WhichOneof("value") == "string_value":
-                yield EMBEDDING_TEXT, value.string_value
-        elif key == EMBEDDING_VECTOR:
-            if (
-                value.WhichOneof("value") == "array_value"
-                and len(values := value.array_value.values)
-                and values[0].WhichOneof("value") == "double_value"
-            ):
-                yield EMBEDDING_VECTOR, list(v.double_value for v in values)
-
 
 def decode_unix_nano(time_unix_nano: int) -> datetime:
     # floating point rounding error can cause the timestamp to be slightly different from expected
