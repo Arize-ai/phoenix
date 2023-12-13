@@ -157,6 +157,12 @@ function filterConditionCompletions(context: CompletionContext) {
         apply: "llm.token_count.total >= 1_000",
         detail: "macro",
       },
+      {
+        label: "Hallucinations",
+        type: "text",
+        apply: "evals['Hallucination'].label == 'hallucinated'",
+        detail: "macro",
+      },
     ],
   };
 }

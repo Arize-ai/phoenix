@@ -5,7 +5,6 @@ export const tableCSS = (theme: Theme) => css`
   width: 100%;
   border-collapse: collapse;
   thead {
-    background-color: var(--ac-global-color-grey-300);
     position: sticky;
     top: 0;
     tr {
