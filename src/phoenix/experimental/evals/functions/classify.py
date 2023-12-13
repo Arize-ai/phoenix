@@ -28,7 +28,7 @@ from pandas import DataFrame
 from tqdm.auto import tqdm
 from typing_extensions import TypeAlias
 
-from phoenix.experimental.evals.evaluators import EvaluationResult, LLMEvaluator, _snap_to_rail
+from phoenix.experimental.evals.evaluators import LLMEvaluator, _snap_to_rail
 from phoenix.experimental.evals.models import BaseEvalModel, OpenAIModel, set_verbosity
 from phoenix.experimental.evals.templates import (
     NOT_PARSABLE,
@@ -666,14 +666,14 @@ def run_evals(
 
     async def _run_eval_async(
         payload: RunEvalsPayload,
-    ) -> Tuple[RowIndex, EvalName, EvaluationResult]:
+    ) -> Tuple[RowIndex, EvalName, EvalPrediction]:
         row_index = payload.row_index
         evaluator = payload.evaluator
         record = payload.record
         eval_result = await evaluator.aevaluate(record)
         return row_index, evaluator.name, eval_result
 
-    def _run_eval_sync(payload: RunEvalsPayload) -> Tuple[RowIndex, EvalName, EvaluationResult]:
+    def _run_eval_sync(payload: RunEvalsPayload) -> Tuple[RowIndex, EvalName, EvalPrediction]:
         row_index = payload.row_index
         evaluator = payload.evaluator
         record = payload.record
@@ -699,6 +699,6 @@ def run_evals(
     ]
     results: DefaultDict[RowIndex, Dict[EvalName, EvalPrediction]] = defaultdict(dict)
     for row_index, eval_name, eval_result in executor.run(payloads):
-        results[row_index][eval_name] = eval_result.prediction
+        results[row_index][eval_name] = eval_result
     index, data = zip(*results.items())
     return DataFrame(data, index=index)

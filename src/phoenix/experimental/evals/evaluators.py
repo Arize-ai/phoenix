@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 from typing import Any, List, Mapping, Optional
 
 from phoenix.experimental.evals.models import set_verbosity
@@ -10,15 +9,6 @@ from .templates import ClassificationTemplate, PromptTemplate
 Record = Mapping[str, Any]
 
 NOT_PARSABLE = "NOT_PARSABLE"
-
-
-@dataclass(frozen=True)
-class EvaluationResult:
-    """
-    A class to contain the results of an evaluation.
-    """
-
-    prediction: str
 
 
 class LLMEvaluator:
@@ -46,7 +36,7 @@ class LLMEvaluator:
         self.name = name
         self._verbose = verbose
 
-    def evaluate(self, record: Record) -> EvaluationResult:
+    def evaluate(self, record: Record) -> str:
         """Evaluates a single record.
 
         Args:
@@ -59,9 +49,9 @@ class LLMEvaluator:
         with set_verbosity(self._model, self._verbose) as verbose_model:
             unparsed_output = verbose_model(prompt)
         parsed_output = _snap_to_rail(unparsed_output, self._template.rails, self._verbose)
-        return EvaluationResult(prediction=parsed_output)
+        return parsed_output
 
-    async def aevaluate(self, record: Record) -> EvaluationResult:
+    async def aevaluate(self, record: Record) -> str:
         """Evaluates a single record.
 
         Args:
@@ -74,7 +64,7 @@ class LLMEvaluator:
         with set_verbosity(self._model, self._verbose) as verbose_model:
             unparsed_output = await verbose_model._async_generate(prompt)
         parsed_output = _snap_to_rail(unparsed_output, self._template.rails, self._verbose)
-        return EvaluationResult(prediction=parsed_output)
+        return parsed_output
 
 
 class MapReducer:
