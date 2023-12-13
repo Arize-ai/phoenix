@@ -60,7 +60,7 @@ class LLMEvaluator:
         """
         self._model = model
         self._template = template
-        self._name = name
+        self.name = name
         self._verbose = verbose
         self._parser = partial(_snap_to_rail, rails=template.rails, verbose=verbose)
 
@@ -93,15 +93,6 @@ class LLMEvaluator:
             unparsed_output = await verbose_model._async_generate(prompt)
         parsed_output = self._parser(unparsed_output)
         return EvaluationResult(prediction=parsed_output)
-
-    @property
-    def name(self) -> str:
-        """The name of the evaluator.
-
-        Returns:
-            str: The name of the evaluator.
-        """
-        return self._name
 
 
 class MapReducer:
