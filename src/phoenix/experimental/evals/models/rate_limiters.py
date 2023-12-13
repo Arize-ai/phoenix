@@ -162,6 +162,9 @@ class RateLimiter:
             rate_increase_factor=rate_increase_factor,
             cooldown_seconds=cooldown_seconds,
         )
+        self._rate_limit_handling = asyncio.Event()
+        self._rate_limit_handling.set()  # allow requests to start immediately
+        self._rate_limit_handling_lock = asyncio.Lock()
         self._verbose = verbose
 
     def limit(
@@ -199,19 +202,22 @@ class RateLimiter:
                 request_start_time = time.time()
                 return await fn(*args, **kwargs)
             except self._rate_limit_error:
-                self._throttler.on_rate_limit_error(request_start_time, verbose=self._verbose)
-                try:
-                    for _attempt in range(self._max_rate_limit_retries):
-                        try:
-                            request_start_time = time.time()
-                            await self._throttler.async_wait_until_ready()
-                            return await fn(*args, **kwargs)
-                        except self._rate_limit_error:
-                            self._throttler.on_rate_limit_error(
-                                request_start_time, verbose=self._verbose
-                            )
-                            continue
-                finally:
-                    raise RateLimitError(f"Exceeded max ({self._max_rate_limit_retries}) retries")
+                async with self._rate_limit_handling_lock:
+                    self._rate_limit_handling.clear()  # prevent new requests from starting
+                    self._throttler.on_rate_limit_error(request_start_time, verbose=self._verbose)
+                    try:
+                        for _attempt in range(self._max_rate_limit_retries):
+                            try:
+                                request_start_time = time.time()
+                                await self._throttler.async_wait_until_ready()
+                                return await fn(*args, **kwargs)
+                            except self._rate_limit_error:
+                                self._throttler.on_rate_limit_error(
+                                    request_start_time, verbose=self._verbose
+                                )
+                                continue
+                    finally:
+                        self._rate_limit_handling.set()  # allow new requests to start
+            raise RateLimitError(f"Exceeded max ({self._max_rate_limit_retries}) retries")
 
         return wrapper
