@@ -32,12 +32,14 @@ dependencies = [
   "psutil",
   "strawberry-graphql==0.208.2",
   "pyarrow",
-  "typing-extensions",
+  "typing-extensions>=4.5, <5",
   "scipy",
   "wrapt",
   "sortedcontainers",
   "protobuf>=3.20, <5.0",
   "ddsketch",
+  "tqdm",
+  "requests",
 ]
 dynamic = ["version"]
 
@@ -50,12 +52,13 @@ dev = [
   "ruff==0.1.5",
   "pandas-stubs<=2.0.2.230605",  # version 2.0.3.230814 is causing a dependency conflict.
   "pytest",
+  "pytest-asyncio",
   "pytest-cov",
   "pytest-lazy-fixture",
   "strawberry-graphql[debug-server]==0.208.2",
   "pre-commit",
   "arize[AutoEmbeddings, LLM_Evaluation]",
-  "llama-index>=0.9.0",
+  "llama-index>=0.9.14",
   "langchain>=0.0.334",
   "litellm>=1.0.3"
 ]
@@ -63,7 +66,7 @@ experimental = [
   "tenacity",
 ]
 llama-index = [
-  "llama-index~=0.9.0",
+  "llama-index>=0.9.14",
 ]
 
 [project.urls]
@@ -92,12 +95,13 @@ artifacts = ["src/phoenix/server/static"]
 dependencies = [
   "pandas==1.4.0",
   "pytest",
+  "pytest-asyncio",
   "pytest-cov",
   "pytest-lazy-fixture",
   "arize",
   "langchain>=0.0.334",
   "litellm>=1.0.3",
-  "llama-index>=0.9.0",
+  "llama-index>=0.9.14",
   "openai>=1.0.0",
   "tenacity",
   "nltk==3.8.1",
@@ -110,19 +114,20 @@ dependencies = [
   "typing-extensions<4.6.0",  # for Colab
   "httpx", # For OpenAI testing
   "respx", # For OpenAI testing
+  "nest-asyncio", # for executor testing
 ]
 
 [tool.hatch.envs.type]
 dependencies = [
   "mypy==1.5.1",
-  "llama-index>=0.9.0",
+  "llama-index>=0.9.14",
   "pandas-stubs<=2.0.2.230605",  # version 2.0.3.230814 is causing a dependency conflict.
   "types-psutil",
   "types-tqdm",
   "types-requests",
   "types-protobuf",
   "openai>=1.0.0",
-  "litellm>=1.0.3"
+  "litellm>=1.0.3",
 ]
 
 [tool.hatch.envs.style]
@@ -151,6 +156,7 @@ coverage = "pytest --cov-report=term-missing --cov-config=pyproject.toml --cov=s
 python = ["3.8", "3.11"]
 
 [tool.pytest.ini_options]
+asyncio_mode = "auto"
 addopts = [
   "-rA",
   "--import-mode=importlib",
@@ -221,6 +227,7 @@ check = [
 [tool.hatch.envs.gql]
 dependencies = [
   "strawberry-graphql[cli]==0.208.2",
+  "requests",
 ]
 
 [tool.hatch.envs.gql.scripts]
@@ -234,7 +241,10 @@ dependencies = [
 ]
 
 [tool.hatch.envs.proto.scripts]
-recompile = "python -m grpc_tools.protoc -I src/phoenix/proto --python_out=src/phoenix --mypy_out=src/phoenix src/phoenix/proto/trace/v1/trace.proto"
+recompile = """
+python -m grpc_tools.protoc -I src/phoenix/proto --python_out=src/phoenix --mypy_out=src/phoenix src/phoenix/proto/trace/v1/trace.proto &&
+python -m grpc_tools.protoc -I src/phoenix/proto --python_out=src/phoenix --mypy_out=src/phoenix src/phoenix/proto/trace/v1/evaluation.proto
+"""
 
 [tool.interrogate]
 fail-under = 0
@@ -276,7 +286,8 @@ module = [
   "wrapt",
   "sortedcontainers",
   "langchain.*",
-  "litellm"
+  "litellm",
+  "nest_asyncio",
 ]
 ignore_missing_imports = true
 

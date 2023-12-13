@@ -14,7 +14,6 @@ import {
   getSortedRowModel,
   SortingState,
   useReactTable,
-  VisibilityState,
 } from "@tanstack/react-table";
 import { css } from "@emotion/react";
 
@@ -29,6 +28,7 @@ import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SpanKindLabel } from "@phoenix/components/trace/SpanKindLabel";
 import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
+import { useTracingContext } from "@phoenix/contexts/TracingContext";
 
 import {
   SpansTable_spans$key,
@@ -38,6 +38,8 @@ import {
   SpanSort,
   SpansTableSpansQuery,
 } from "./__generated__/SpansTableSpansQuery.graphql";
+import { EvaluationLabel } from "./EvaluationLabel";
+import { RetrievalEvaluationLabel } from "./RetrievalEvaluationLabel";
 import { SpanColumnSelector } from "./SpanColumnSelector";
 import { SpanFilterConditionField } from "./SpanFilterConditionField";
 import { spansTableCSS } from "./styles";
@@ -57,7 +59,7 @@ export function SpansTable(props: SpansTableProps) {
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const [sorting, setSorting] = useState<SortingState>([]);
   const [filterCondition, setFilterCondition] = useState<string>("");
-  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
+  const columnVisibility = useTracingContext((state) => state.columnVisibility);
   const navigate = useNavigate();
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
     usePaginationFragment<SpansTableSpansQuery, SpansTable_spans$key>(
@@ -101,6 +103,17 @@ export function SpansTable(props: SpansTableProps) {
                   value
                   mimeType
                 }
+                spanEvaluations {
+                  name
+                  label
+                  score
+                }
+                documentRetrievalMetrics {
+                  evaluationName
+                  ndcg
+                  precision
+                  hit
+                }
               }
             }
           }
@@ -115,6 +128,52 @@ export function SpansTable(props: SpansTableProps) {
     return tableData;
   }, [data]);
   type TableRow = (typeof tableData)[number];
+  const evaluationColumns: ColumnDef<TableRow>[] = [
+    {
+      header: "evaluations",
+      accessorKey: "spanEvaluations",
+      enableSorting: false,
+
+      cell: ({ row }) => {
+        return (
+          <Flex direction="row" gap="size-50" wrap="wrap">
+            {row.original.spanEvaluations.map((evaluation) => {
+              return (
+                <EvaluationLabel
+                  key={evaluation.name}
+                  evaluation={evaluation}
+                />
+              );
+            })}
+            {row.original.documentRetrievalMetrics.map((retrievalMetric) => {
+              return (
+                <>
+                  <RetrievalEvaluationLabel
+                    key="ncdg"
+                    name={retrievalMetric.evaluationName}
+                    metric="ndcg"
+                    score={retrievalMetric.ndcg}
+                  />
+                  <RetrievalEvaluationLabel
+                    key="precision"
+                    name={retrievalMetric.evaluationName}
+                    metric="precision"
+                    score={retrievalMetric.precision}
+                  />
+                  <RetrievalEvaluationLabel
+                    key="hit"
+                    name={retrievalMetric.evaluationName}
+                    metric="hit"
+                    score={retrievalMetric.hit}
+                  />
+                </>
+              );
+            })}
+          </Flex>
+        );
+      },
+    },
+  ];
   const columns: ColumnDef<TableRow>[] = [
     {
       header: "kind",
@@ -149,6 +208,7 @@ export function SpansTable(props: SpansTableProps) {
       cell: TextCell,
       enableSorting: false,
     },
+    ...evaluationColumns, // TODO: consider hiding this column if there are no evals. For now we want people to know that there are evals
     {
       header: "start time",
       accessorKey: "startTime",
@@ -235,6 +295,7 @@ export function SpansTable(props: SpansTableProps) {
     data: tableData,
     state: {
       sorting,
+      columnVisibility,
     },
     onSortingChange: setSorting,
     getCoreRowModel: getCoreRowModel(),
@@ -255,14 +316,9 @@ export function SpansTable(props: SpansTableProps) {
       >
         <Flex direction="row" gap="size-100" width="100%" alignItems="center">
           <SpanFilterConditionField onValidCondition={setFilterCondition} />
-          <SpanColumnSelector
-            columns={computedColumns}
-            columnVisibility={columnVisibility}
-            onColumnVisibilityChange={setColumnVisibility}
-          />
+          <SpanColumnSelector columns={computedColumns} />
         </Flex>
       </View>
-
       <div
         css={css`
           flex: 1 1 auto;

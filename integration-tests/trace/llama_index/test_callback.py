@@ -18,7 +18,7 @@ from llama_index.query_engine import RetrieverQueryEngine
 from llama_index.tools import FunctionTool
 from phoenix.trace.exporter import NoOpExporter
 from phoenix.trace.llama_index import OpenInferenceTraceCallbackHandler
-from phoenix.trace.schemas import SpanKind
+from phoenix.trace.schemas import MimeType, SpanKind
 from phoenix.trace.semantic_conventions import (
     EMBEDDING_EMBEDDINGS,
     EMBEDDING_MODEL_NAME,
@@ -33,19 +33,19 @@ from phoenix.trace.semantic_conventions import (
     LLM_TOKEN_COUNT_PROMPT,
     LLM_TOKEN_COUNT_TOTAL,
     MESSAGE_CONTENT,
-    MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON,
-    MESSAGE_FUNCTION_CALL_NAME,
     MESSAGE_ROLE,
+    MESSAGE_TOOL_CALLS,
     OUTPUT_MIME_TYPE,
     OUTPUT_VALUE,
     RERANKER_INPUT_DOCUMENTS,
     RERANKER_MODEL_NAME,
     RERANKER_OUTPUT_DOCUMENTS,
     RERANKER_TOP_K,
+    TOOL_CALL_FUNCTION_ARGUMENTS_JSON,
+    TOOL_CALL_FUNCTION_NAME,
     TOOL_DESCRIPTION,
     TOOL_NAME,
     TOOL_PARAMETERS,
-    MimeType,
 )
 
 TEXT_EMBEDDING_ADA_002_EMBEDDING_DIM = 1536
@@ -192,13 +192,21 @@ def test_callback_data_agent() -> None:
     ]
     assert llm_spans[0].attributes[LLM_OUTPUT_MESSAGES] == [
         {
-            MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON: '{\n  "a": 2,\n  "b": 3\n}',
-            MESSAGE_FUNCTION_CALL_NAME: "multiply",
+            MESSAGE_TOOL_CALLS: [
+                {
+                    TOOL_CALL_FUNCTION_ARGUMENTS_JSON: '{\n  "a": 2,\n  "b": 3\n}',
+                    TOOL_CALL_FUNCTION_NAME: "multiply",
+                },
+            ],
             MESSAGE_ROLE: "assistant",
         },
         {
-            MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON: '{\n  "a": 2,\n  "b": 3\n}',
-            MESSAGE_FUNCTION_CALL_NAME: "multiply",
+            MESSAGE_TOOL_CALLS: [
+                {
+                    TOOL_CALL_FUNCTION_ARGUMENTS_JSON: '{\n  "a": 2,\n  "b": 3\n}',
+                    TOOL_CALL_FUNCTION_NAME: "multiply",
+                },
+            ],
             MESSAGE_ROLE: "assistant",
         },
     ]
@@ -209,29 +217,33 @@ def test_callback_data_agent() -> None:
     )
     assert llm_spans[1].attributes.get(LLM_INPUT_MESSAGES) == [
         {
-            "message.role": "user",
-            "message.content": "What is 2 * 3?",
+            MESSAGE_ROLE: "user",
+            MESSAGE_CONTENT: "What is 2 * 3?",
         },
         {
-            "message.role": "assistant",
-            "message.content": None,
-            "message.function_call_arguments_json": '{\n  "a": 2,\n  "b": 3\n}',
-            "message.function_call_name": "multiply",
+            MESSAGE_ROLE: "assistant",
+            MESSAGE_CONTENT: None,
+            MESSAGE_TOOL_CALLS: [
+                {
+                    TOOL_CALL_FUNCTION_ARGUMENTS_JSON: '{\n  "a": 2,\n  "b": 3\n}',
+                    TOOL_CALL_FUNCTION_NAME: "multiply",
+                },
+            ],
         },
         {
-            "message.role": "tool",
-            "message.content": "6",
+            MESSAGE_ROLE: "tool",
+            MESSAGE_CONTENT: "6",
             "message.name": "multiply",
         },
     ]
     assert llm_spans[1].attributes[LLM_OUTPUT_MESSAGES] == [
         {
-            "message.content": llm_spans[1].attributes[OUTPUT_VALUE],
-            "message.role": "assistant",
+            MESSAGE_CONTENT: llm_spans[1].attributes[OUTPUT_VALUE],
+            MESSAGE_ROLE: "assistant",
         },
         {
-            "message.content": llm_spans[1].attributes[OUTPUT_VALUE],
-            "message.role": "assistant",
+            MESSAGE_CONTENT: llm_spans[1].attributes[OUTPUT_VALUE],
+            MESSAGE_ROLE: "assistant",
         },
     ]
     # one function call

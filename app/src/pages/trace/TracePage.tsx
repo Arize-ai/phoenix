@@ -37,9 +37,12 @@ import {
 
 import { ExternalLink } from "@phoenix/components";
 import { resizeHandleCSS } from "@phoenix/components/resize";
+import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SpanItem } from "@phoenix/components/trace/SpanItem";
 import { SpanKindIcon } from "@phoenix/components/trace/SpanKindIcon";
+import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon";
 import { TraceTree } from "@phoenix/components/trace/TraceTree";
+import { useSpanStatusCodeColor } from "@phoenix/components/trace/useSpanStatusCodeColor";
 import { useTheme } from "@phoenix/contexts";
 import {
   DOCUMENT_CONTENT,
@@ -55,9 +58,12 @@ import {
   MESSAGE_FUNCTION_CALL_NAME,
   MESSAGE_NAME,
   MESSAGE_ROLE,
+  MESSAGE_TOOL_CALLS,
   RerankerAttributePostfixes,
   RetrievalAttributePostfixes,
   SemanticAttributePrefixes,
+  TOOL_CALL_FUNCTION_ARGUMENTS_JSON,
+  TOOL_CALL_FUNCTION_NAME,
   ToolAttributePostfixes,
 } from "@phoenix/openInference/tracing/semanticConventions";
 import {
@@ -67,15 +73,20 @@ import {
   AttributePromptTemplate,
 } from "@phoenix/openInference/tracing/types";
 import { assertUnreachable, isStringArray } from "@phoenix/typeUtils";
-import { numberFormatter } from "@phoenix/utils/numberFormatUtils";
+import { formatFloat, numberFormatter } from "@phoenix/utils/numberFormatUtils";
+
+import { EvaluationLabel } from "../tracing/EvaluationLabel";
+import { RetrievalEvaluationLabel } from "../tracing/RetrievalEvaluationLabel";
 
 import {
   MimeType,
   TracePageQuery,
   TracePageQuery$data,
 } from "./__generated__/TracePageQuery.graphql";
+import { SpanEvaluationsTable } from "./SpanEvaluationsTable";
 
 type Span = TracePageQuery$data["spans"]["edges"][number]["span"];
+type DocumentEvaluation = Span["documentEvaluations"][number];
 /**
  * A span attribute object that is a map of string to an unknown value
  */
@@ -121,6 +132,7 @@ const defaultCardProps: Partial<CardProps> = {
   variant: "compact",
   collapsible: true,
 };
+
 /**
  * A page that shows the details of a trace (e.g. a collection of spans)
  */
@@ -140,7 +152,7 @@ export function TracePage() {
               }
               name
               spanKind
-              statusCode
+              statusCode: propagatedStatusCode
               startTime
               parentId
               latencyMs
@@ -161,6 +173,25 @@ export function TracePage() {
                 message
                 timestamp
               }
+              spanEvaluations {
+                name
+                label
+                score
+              }
+              documentRetrievalMetrics {
+                evaluationName
+                ndcg
+                precision
+                hit
+              }
+              documentEvaluations {
+                documentPosition
+                name
+                label
+                score
+                explanation
+              }
+              ...SpanEvaluationsTable_evals
             }
           }
         }
@@ -174,6 +205,13 @@ export function TracePage() {
   const selectedSpan = spansList.find(
     (span) => span.context.spanId === selectedSpanId
   );
+  const rootSpan = useMemo(() => {
+    return spansList.find((span) => span.parentId == null);
+  }, [spansList]);
+
+  if (rootSpan == null) {
+    throw new Error("rootSpan is required to view a trace");
+  }
   return (
     <DialogContainer
       type="slideOver"
@@ -185,9 +223,19 @@ export function TracePage() {
           css={css`
             flex: 1 1 auto;
             overflow: hidden;
+            display: flex;
+            flex-direction: column;
           `}
         >
-          <PanelGroup direction="horizontal" autoSaveId="trace-panel-group">
+          <TraceHeader rootSpan={rootSpan} />
+          <PanelGroup
+            direction="horizontal"
+            autoSaveId="trace-panel-group"
+            css={css`
+              flex: 1 1 auto;
+              overflow: hidden;
+            `}
+          >
             <Panel defaultSize={30} minSize={10} maxSize={40}>
               <TraceTree
                 spans={spansList}
@@ -217,12 +265,67 @@ export function TracePage() {
   );
 }
 
+function TraceHeader({ rootSpan }: { rootSpan: Span }) {
+  const { latencyMs, statusCode, spanEvaluations } = rootSpan;
+  const statusColor = useSpanStatusCodeColor(statusCode);
+  const hasEvaluations = spanEvaluations.length;
+  return (
+    <View padding="size-200" borderBottomWidth="thin" borderBottomColor="dark">
+      <Flex direction="row" gap="size-400">
+        <Flex direction="column">
+          <Text elementType="h3" textSize="medium" color="text-700">
+            Trace Status
+          </Text>
+          <Text textSize="xlarge">
+            <Flex direction="row" gap="size-50" alignItems="center">
+              <SpanStatusCodeIcon statusCode={statusCode} />
+              <Text textSize="xlarge" color={statusColor}>
+                {statusCode}
+              </Text>
+            </Flex>
+          </Text>
+        </Flex>
+        <Flex direction="column">
+          <Text elementType="h3" textSize="medium" color="text-700">
+            Latency
+          </Text>
+          <Text textSize="xlarge">
+            {typeof latencyMs === "number" ? (
+              <LatencyText latencyMs={latencyMs} textSize="xlarge" />
+            ) : (
+              "--"
+            )}
+          </Text>
+        </Flex>
+        {hasEvaluations ? (
+          <Flex direction="column" gap="size-50">
+            <Text elementType="h3" textSize="medium" color="text-700">
+              Evaluations
+            </Text>
+            <Flex direction="row" gap="size-50">
+              {spanEvaluations.map((evaluation) => {
+                return (
+                  <EvaluationLabel
+                    key={evaluation.name}
+                    evaluation={evaluation}
+                  />
+                );
+              })}
+            </Flex>
+          </Flex>
+        ) : null}
+      </Flex>
+    </View>
+  );
+}
+
 function ScrollingTabsWrapper({ children }: PropsWithChildren) {
   return (
     <div
       data-testid="scrolling-tabs-wrapper"
       css={css`
         height: 100%;
+        overflow: hidden;
         .ac-tabs {
           height: 100%;
           overflow: hidden;
@@ -281,6 +384,18 @@ function SelectedSpanDetails({ selectedSpan }: { selectedSpan: Span }) {
       <Tabs>
         <TabPane name={"Info"}>
           <SpanInfo span={selectedSpan} />
+        </TabPane>
+        <TabPane
+          name={"Evaluations"}
+          extra={
+            <Counter variant={"light"}>
+              {selectedSpan.spanEvaluations.length}
+            </Counter>
+          }
+        >
+          {(selected) => {
+            return selected ? <SpanEvaluations span={selectedSpan} /> : null;
+          }}
         </TabPane>
         <TabPane name={"Attributes"} title="Attributes">
           <View padding="size-200">
@@ -444,8 +559,16 @@ function LLMSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
 
   return (
     <Flex direction="column" gap="size-200">
-      {/* @ts-expect-error force putting the title in as a string */}
-      <TabbedCard {...defaultCardProps} title={modelNameTitleEl}>
+      <TabbedCard
+        backgroundColor="light"
+        borderColor="light"
+        bodyStyle={{
+          padding: 0,
+        }}
+        variant="compact"
+        // @ts-expect-error force putting the title in as a string
+        title={modelNameTitleEl}
+      >
         <Tabs>
           {hasInputMessages ? (
             <TabPane name="Input Messages" hidden={!hasInputMessages}>
@@ -549,38 +672,86 @@ function RetrieverSpanInfo(props: {
       []) as AttributeDocument[];
   }, [retrieverAttributes]);
 
+  // Construct a map of document position to document evaluations
+  const documentEvaluationsMap = useMemo<
+    Record<number, DocumentEvaluation[]>
+  >(() => {
+    const documentEvaluations = span.documentEvaluations;
+    return documentEvaluations.reduce((acc, documentEvaluation) => {
+      const documentPosition = documentEvaluation.documentPosition;
+      const evaluations = acc[documentPosition] || [];
+      return {
+        ...acc,
+        [documentPosition]: [...evaluations, documentEvaluation],
+      };
+    }, {} as Record<number, DocumentEvaluation[]>);
+  }, [span.documentEvaluations]);
+
   const hasInput = input != null && input.value != null;
   const hasDocuments = documents.length > 0;
+  const hasDocumentRetrievalMetrics = span.documentRetrievalMetrics.length > 0;
   return (
     <Flex direction="column" gap="size-200">
       <Card title="Input" {...defaultCardProps}>
         {hasInput ? <CodeBlock {...input} /> : null}
       </Card>
       {hasDocuments ? (
-        <Card title="Documents" {...defaultCardProps}>
-          {
-            <ul
-              css={css`
-                padding: var(--ac-global-dimension-static-size-200);
-                display: flex;
-                flex-direction: column;
-                gap: var(--ac-global-dimension-static-size-200);
-              `}
-            >
-              {documents.map((document, idx) => {
-                return (
-                  <li key={idx}>
-                    <DocumentItem
-                      document={document}
-                      borderColor={"seafoam-700"}
-                      backgroundColor={"seafoam-100"}
-                      labelColor="seafoam-1000"
-                    />
-                  </li>
-                );
-              })}
-            </ul>
+        <Card
+          title="Documents"
+          {...defaultCardProps}
+          extra={
+            hasDocumentRetrievalMetrics && (
+              <Flex direction="row" gap="size-100">
+                {span.documentRetrievalMetrics.map((retrievalMetric) => {
+                  return (
+                    <>
+                      <RetrievalEvaluationLabel
+                        key="ncdg"
+                        name={retrievalMetric.evaluationName}
+                        metric="ndcg"
+                        score={retrievalMetric.ndcg}
+                      />
+                      <RetrievalEvaluationLabel
+                        key="precision"
+                        name={retrievalMetric.evaluationName}
+                        metric="precision"
+                        score={retrievalMetric.precision}
+                      />
+                      <RetrievalEvaluationLabel
+                        key="hit"
+                        name={retrievalMetric.evaluationName}
+                        metric="hit"
+                        score={retrievalMetric.hit}
+                      />
+                    </>
+                  );
+                })}
+              </Flex>
+            )
           }
+        >
+          <ul
+            css={css`
+              padding: var(--ac-global-dimension-static-size-200);
+              display: flex;
+              flex-direction: column;
+              gap: var(--ac-global-dimension-static-size-200);
+            `}
+          >
+            {documents.map((document, idx) => {
+              return (
+                <li key={idx}>
+                  <DocumentItem
+                    document={document}
+                    documentEvaluations={documentEvaluationsMap[idx]}
+                    borderColor={"seafoam-700"}
+                    backgroundColor={"seafoam-100"}
+                    labelColor="seafoam-1000"
+                  />
+                </li>
+              );
+            })}
+          </ul>
         </Card>
       ) : null}
     </Flex>
@@ -833,18 +1004,23 @@ function ToolSpanInfo(props: { span: Span; spanAttributes: AttributeObject }) {
   );
 }
 
+// Labels that get highlighted as danger in the document evaluations
+const DANGER_DOCUMENT_EVALUATION_LABELS = ["irrelevant"];
 function DocumentItem({
   document,
+  documentEvaluations,
   backgroundColor,
   borderColor,
   labelColor,
 }: {
   document: AttributeDocument;
+  documentEvaluations?: DocumentEvaluation[] | null;
   backgroundColor: ViewProps["backgroundColor"];
   borderColor: ViewProps["borderColor"];
   labelColor: LabelProps["color"];
 }) {
   const metadata = document[DOCUMENT_METADATA];
+  const hasEvaluations = documentEvaluations && documentEvaluations.length;
   return (
     <View
       borderRadius="medium"
@@ -891,6 +1067,82 @@ function DocumentItem({
             </View>
           </>
         )}
+        {hasEvaluations && (
+          <View
+            borderColor={borderColor}
+            borderTopWidth="thin"
+            padding="size-200"
+          >
+            <Flex direction="column" gap="size-100">
+              <Heading level={3} weight="heavy">
+                Evaluations
+              </Heading>
+              <ul>
+                {documentEvaluations.map((documentEvaluation, idx) => {
+                  // Highlight the label as danger if it is a danger classification
+                  const evalLabelColor =
+                    documentEvaluation.label &&
+                    DANGER_DOCUMENT_EVALUATION_LABELS.includes(
+                      documentEvaluation.label
+                    )
+                      ? "danger"
+                      : labelColor;
+                  return (
+                    <li key={idx}>
+                      <View
+                        padding="size-200"
+                        borderWidth="thin"
+                        borderColor={borderColor}
+                        borderRadius="medium"
+                      >
+                        <Flex direction="column" gap="size-50">
+                          <Flex direction="row" gap="size-100">
+                            <Text weight="heavy" elementType="h5">
+                              {documentEvaluation.name}
+                            </Text>
+                            {documentEvaluation.label && (
+                              <Label color={evalLabelColor} shape="badge">
+                                {documentEvaluation.label}
+                              </Label>
+                            )}
+                            {typeof documentEvaluation.score === "number" && (
+                              <Label color={evalLabelColor} shape="badge">
+                                <Flex direction="row" gap="size-50">
+                                  <Text
+                                    textSize="xsmall"
+                                    weight="heavy"
+                                    color="inherit"
+                                  >
+                                    score
+                                  </Text>
+                                  <Text textSize="xsmall">
+                                    {formatFloat(documentEvaluation.score)}
+                                  </Text>
+                                </Flex>
+                              </Label>
+                            )}
+                          </Flex>
+                          {typeof documentEvaluation.explanation && (
+                            <p
+                              css={css`
+                                margin-top: var(
+                                  --ac-global-dimension-static-size-100
+                                );
+                                margin-bottom: 0;
+                              `}
+                            >
+                              {documentEvaluation.explanation}
+                            </p>
+                          )}
+                        </Flex>
+                      </View>
+                    </li>
+                  );
+                })}
+              </ul>
+            </Flex>
+          </View>
+        )}
       </Flex>
     </View>
   );
@@ -898,6 +1150,7 @@ function DocumentItem({
 
 function LLMMessage({ message }: { message: AttributeMessage }) {
   const messageContent = message[MESSAGE_CONTENT];
+  const toolCalls = message[MESSAGE_TOOL_CALLS] || [];
   const hasFunctionCall =
     message[MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON] &&
     message[MESSAGE_FUNCTION_CALL_NAME];
@@ -952,6 +1205,30 @@ function LLMMessage({ message }: { message: AttributeMessage }) {
             {message[MESSAGE_CONTENT]}
           </pre>
         ) : null}
+        {toolCalls.length > 0
+          ? toolCalls.map((toolCall, idx) => {
+              return (
+                <pre
+                  key={idx}
+                  css={css`
+                    text-wrap: wrap;
+                    margin: var(--ac-global-dimension-static-size-100) 0;
+                  `}
+                >
+                  {toolCall[TOOL_CALL_FUNCTION_NAME] as string}(
+                  {JSON.stringify(
+                    JSON.parse(
+                      toolCall[TOOL_CALL_FUNCTION_ARGUMENTS_JSON] as string
+                    ),
+                    null,
+                    2
+                  )}
+                  )
+                </pre>
+              );
+            })
+          : null}
+        {/*functionCall is deprecated and is superseded by toolCalls, so we don't expect both to be present*/}
         {hasFunctionCall ? (
           <pre
             css={css`
@@ -1190,4 +1467,8 @@ function SpanEventsList({ events }: { events: Span["events"] }) {
       })}
     </List>
   );
+}
+
+function SpanEvaluations(props: { span: Span }) {
+  return <SpanEvaluationsTable span={props.span} />;
 }

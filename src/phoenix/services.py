@@ -137,11 +137,11 @@ class AppService(Service):
             str(self.host),
             "--port",
             str(self.port),
+            "--umap_params",
+            self.__umap_params,
             "datasets",
             "--primary",
             str(self.__primary_dataset_name),
-            "--umap_params",
-            self.__umap_params,
         ]
         if self.__reference_dataset_name is not None:
             command.extend(["--reference", str(self.__reference_dataset_name)])
@@ -149,5 +149,5 @@ class AppService(Service):
             command.extend(["--corpus", str(self.__corpus_dataset_name)])
         if self.__trace_dataset_name is not None:
             command.extend(["--trace", str(self.__trace_dataset_name)])
-        logger.info(f"command: {command}")
+        logger.info(f"command: {' '.join(command)}")
         return command

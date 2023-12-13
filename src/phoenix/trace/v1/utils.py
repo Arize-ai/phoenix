@@ -1,4 +1,3 @@
-import json
 from datetime import datetime, timezone
 from itertools import chain
 from typing import (
@@ -13,21 +12,23 @@ from typing import (
     Union,
     cast,
 )
-from uuid import UUID
 
 from google.protobuf.json_format import MessageToDict
-from google.protobuf.struct_pb2 import Struct
+from google.protobuf.struct_pb2 import ListValue, Struct
 from google.protobuf.timestamp_pb2 import Timestamp
-from google.protobuf.wrappers_pb2 import BoolValue, BytesValue, FloatValue, StringValue
+from google.protobuf.wrappers_pb2 import BoolValue, FloatValue, StringValue
 
 import phoenix.trace.v1 as pb
 from phoenix.trace.schemas import (
+    MimeType,
     Span,
     SpanContext,
     SpanEvent,
     SpanException,
+    SpanID,
     SpanKind,
     SpanStatusCode,
+    TraceID,
 )
 from phoenix.trace.semantic_conventions import (
     DOCUMENT_CONTENT,
@@ -47,7 +48,6 @@ from phoenix.trace.semantic_conventions import (
     OUTPUT_MIME_TYPE,
     OUTPUT_VALUE,
     RETRIEVAL_DOCUMENTS,
-    MimeType,
 )
 
 
@@ -62,7 +62,7 @@ def encode(span: Span) -> pb.Span:
         status.code = pb.Span.Status.Code.ERROR
     elif span.status_code is SpanStatusCode.OK:
         status.code = pb.Span.Status.Code.OK
-    parent_span_id = BytesValue(value=span.parent_id.bytes) if span.parent_id else None
+    parent_span_id = StringValue(value=str(span.parent_id)) if span.parent_id else None
     pb_span = pb.Span(
         start_time=_as_timestamp(span.start_time),
         end_time=_maybe_timestamp(span.end_time),
@@ -70,8 +70,8 @@ def encode(span: Span) -> pb.Span:
         name=span.name,
         kind=span.span_kind.value,
         context=pb.Span.Context(
-            trace_id=span.context.trace_id.bytes,
-            span_id=span.context.span_id.bytes,
+            trace_id=str(span.context.trace_id),
+            span_id=str(span.context.span_id),
         ),
         parent_span_id=parent_span_id,
         attributes=_maybe_struct(_attributes),
@@ -97,11 +97,9 @@ def encode(span: Span) -> pb.Span:
 def decode(
     pb_span: pb.Span,
 ) -> Span:
-    trace_id = UUID(bytes=pb_span.context.trace_id)
-    span_id = UUID(bytes=pb_span.context.span_id)
-    parent_id = (
-        UUID(bytes=pb_span.parent_span_id.value) if pb_span.HasField("parent_span_id") else None
-    )
+    trace_id = TraceID(pb_span.context.trace_id)
+    span_id = SpanID(pb_span.context.span_id)
+    parent_id = SpanID(pb_span.parent_span_id.value) if pb_span.HasField("parent_span_id") else None
     start_time = pb_span.start_time.ToDatetime(timezone.utc)
     end_time = pb_span.end_time.ToDatetime(timezone.utc) if pb_span.HasField("end_time") else None
     attributes = MessageToDict(pb_span.attributes)
@@ -359,21 +357,19 @@ def _encode_io_value(
     mime_type: Optional[MimeType],
 ) -> pb.Span.IOValue:
     if mime_type is MimeType.JSON:
-        struct = Struct()
-        if io_value:
-            struct.update(json.loads(io_value))
-        return pb.Span.IOValue(json_value=struct)
-    return pb.Span.IOValue(string_value=io_value)
+        return pb.Span.IOValue(
+            value=io_value,
+            mime_type=pb.Span.IOValue.MimeType.JSON,
+        )
+    return pb.Span.IOValue(value=io_value)
 
 
 def _decode_io_value(
     pb_io_value: pb.Span.IOValue,
 ) -> Iterator[Union[str, MimeType]]:
-    if pb_io_value.WhichOneof("kind") == "json_value":
-        yield json.dumps(MessageToDict(pb_io_value.json_value))
+    yield pb_io_value.value
+    if pb_io_value.mime_type is pb.Span.IOValue.MimeType.JSON:
         yield MimeType.JSON
-    else:
-        yield pb_io_value.string_value
 
 
 def _encode_retrieval(
@@ -520,7 +516,21 @@ def _maybe_timestamp(obj: Optional[datetime]) -> Optional[Timestamp]:
 
 def _as_struct(obj: Mapping[str, Any]) -> Struct:
     struct = Struct()
-    struct.update(obj)
+    for key, value in obj.items():
+        # The type check below is based on _SetStructValue in protobuf 3.20
+        # see https://github.com/protocolbuffers/protobuf/blob/5a3dac894157bf3618b2c906a8b9073b4cad62b6/python/google/protobuf/internal/well_known_types.py#L733C42  # noqa: E501
+        # A use-case is when we have numpy.ndarray as a value, which can come from pyarrow.
+        # Note that this doesn't handle numpy.ndarray with more than one dimension.
+        if value is not None and not isinstance(
+            value, (str, int, float, bool, list, dict, Struct, ListValue)
+        ):
+            if isinstance(value, Mapping):
+                value = dict(value)
+            elif isinstance(value, Iterable):
+                value = list(value)
+            else:
+                raise TypeError(f"Unsupported type {type(value)} for key {key}")
+        struct[key] = value
     return struct
 
 

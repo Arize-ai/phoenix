@@ -1,11 +1,12 @@
 from .datasets.dataset import Dataset
 from .datasets.fixtures import ExampleDatasets, load_example
 from .datasets.schema import EmbeddingColumnNames, RetrievalEmbeddingColumnNames, Schema
-from .session.session import Session, active_session, close_app, launch_app
+from .session.evaluation import log_evaluations
+from .session.session import NotebookEnvironment, Session, active_session, close_app, launch_app
 from .trace.fixtures import load_example_traces
 from .trace.trace_dataset import TraceDataset
 
-__version__ = "1.2.0"
+__version__ = "1.9.0"
 
 # module level doc-string
 __doc__ = """
@@ -36,4 +37,6 @@ __all__ = [
     "Session",
     "load_example_traces",
     "TraceDataset",
+    "NotebookEnvironment",
+    "log_evaluations",
 ]

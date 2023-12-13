@@ -31,13 +31,13 @@ class Span(google.protobuf.message.Message):
 
         TRACE_ID_FIELD_NUMBER: builtins.int
         SPAN_ID_FIELD_NUMBER: builtins.int
-        trace_id: builtins.bytes
-        span_id: builtins.bytes
+        trace_id: builtins.str
+        span_id: builtins.str
         def __init__(
             self,
             *,
-            trace_id: builtins.bytes = ...,
-            span_id: builtins.bytes = ...,
+            trace_id: builtins.str = ...,
+            span_id: builtins.str = ...,
         ) -> None: ...
         def ClearField(self, field_name: typing_extensions.Literal["span_id", b"span_id", "trace_id", b"trace_id"]) -> None: ...
 
@@ -135,20 +135,30 @@ class Span(google.protobuf.message.Message):
     class IOValue(google.protobuf.message.Message):
         DESCRIPTOR: google.protobuf.descriptor.Descriptor
 
-        STRING_VALUE_FIELD_NUMBER: builtins.int
-        JSON_VALUE_FIELD_NUMBER: builtins.int
-        string_value: builtins.str
-        @property
-        def json_value(self) -> google.protobuf.struct_pb2.Struct: ...
+        class _MimeType:
+            ValueType = typing.NewType("ValueType", builtins.int)
+            V: typing_extensions.TypeAlias = ValueType
+
+        class _MimeTypeEnumTypeWrapper(google.protobuf.internal.enum_type_wrapper._EnumTypeWrapper[Span.IOValue._MimeType.ValueType], builtins.type):
+            DESCRIPTOR: google.protobuf.descriptor.EnumDescriptor
+            TEXT: Span.IOValue._MimeType.ValueType  # 0
+            JSON: Span.IOValue._MimeType.ValueType  # 1
+
+        class MimeType(_MimeType, metaclass=_MimeTypeEnumTypeWrapper): ...
+        TEXT: Span.IOValue.MimeType.ValueType  # 0
+        JSON: Span.IOValue.MimeType.ValueType  # 1
+
+        VALUE_FIELD_NUMBER: builtins.int
+        MIME_TYPE_FIELD_NUMBER: builtins.int
+        value: builtins.str
+        mime_type: global___Span.IOValue.MimeType.ValueType
         def __init__(
             self,
             *,
-            string_value: builtins.str = ...,
-            json_value: google.protobuf.struct_pb2.Struct | None = ...,
+            value: builtins.str = ...,
+            mime_type: global___Span.IOValue.MimeType.ValueType = ...,
         ) -> None: ...
-        def HasField(self, field_name: typing_extensions.Literal["json_value", b"json_value", "kind", b"kind", "string_value", b"string_value"]) -> builtins.bool: ...
-        def ClearField(self, field_name: typing_extensions.Literal["json_value", b"json_value", "kind", b"kind", "string_value", b"string_value"]) -> None: ...
-        def WhichOneof(self, oneof_group: typing_extensions.Literal["kind", b"kind"]) -> typing_extensions.Literal["string_value", "json_value"] | None: ...
+        def ClearField(self, field_name: typing_extensions.Literal["mime_type", b"mime_type", "value", b"value"]) -> None: ...
 
     ATTRIBUTES_FIELD_NUMBER: builtins.int
     CONTEXT_FIELD_NUMBER: builtins.int
@@ -171,7 +181,7 @@ class Span(google.protobuf.message.Message):
     @property
     def context(self) -> global___Span.Context: ...
     @property
-    def parent_span_id(self) -> google.protobuf.wrappers_pb2.BytesValue: ...
+    def parent_span_id(self) -> google.protobuf.wrappers_pb2.StringValue: ...
     name: builtins.str
     @property
     def start_time(self) -> google.protobuf.timestamp_pb2.Timestamp: ...
@@ -201,7 +211,7 @@ class Span(google.protobuf.message.Message):
         *,
         attributes: google.protobuf.struct_pb2.Struct | None = ...,
         context: global___Span.Context | None = ...,
-        parent_span_id: google.protobuf.wrappers_pb2.BytesValue | None = ...,
+        parent_span_id: google.protobuf.wrappers_pb2.StringValue | None = ...,
         name: builtins.str = ...,
         start_time: google.protobuf.timestamp_pb2.Timestamp | None = ...,
         end_time: google.protobuf.timestamp_pb2.Timestamp | None = ...,

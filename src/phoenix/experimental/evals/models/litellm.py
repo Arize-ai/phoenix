@@ -20,7 +20,7 @@ class LiteLLMModel(BaseEvalModel):
     """The maximum number of tokens to generate in the completion."""
     top_p: float = 1
     """Total probability mass of tokens to consider at each step."""
-    num_retries: int = 6  # Will be superseeded by max_retries
+    num_retries: int = 6
     """Maximum number to retry a model if an RateLimitError, OpenAIError, or
     ServiceUnavailableError occurs."""
     request_timeout: int = 60
@@ -94,6 +94,9 @@ class LiteLLMModel(BaseEvalModel):
 
     def get_text_from_tokens(self, tokens: List[int]) -> str:
         return str(self._decoding(model=self.model_name, tokens=tokens))
+
+    async def _async_generate(self, prompt: str, **kwargs: Dict[str, Any]) -> str:
+        return self._generate(prompt, **kwargs)
 
     def _generate(self, prompt: str, **kwargs: Dict[str, Any]) -> str:
         messages = self._get_messages_from_prompt(prompt)

@@ -1,8 +1,10 @@
 import logging
 from abc import ABC, abstractmethod, abstractproperty
 from contextlib import contextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Callable, Generator, List, Optional, Sequence, Type
+
+from phoenix.experimental.evals.models.rate_limiters import RateLimiter
 
 if TYPE_CHECKING:
     from tiktoken import Encoding
@@ -44,18 +46,22 @@ def set_verbosity(
     model: "BaseEvalModel", verbose: bool = False
 ) -> Generator["BaseEvalModel", None, None]:
     try:
-        _verbose = model._verbose
+        _model_verbose_setting = model._verbose
+        _rate_limiter_verbose_setting = model._rate_limiter._verbose
         model._verbose = verbose
+        model._rate_limiter._verbose = verbose
         yield model
     finally:
-        model._verbose = _verbose
+        model._verbose = _model_verbose_setting
+        model._rate_limiter._verbose = _rate_limiter_verbose_setting
 
 
 @dataclass
 class BaseEvalModel(ABC):
     _verbose: bool = False
+    _rate_limiter: RateLimiter = field(default_factory=RateLimiter)
 
-    def retry(
+    def _retry(
         self,
         error_types: List[Type[BaseException]],
         min_seconds: int,
@@ -72,12 +78,16 @@ class BaseEvalModel(ABC):
 
             if exc:
                 printif(
-                    self._verbose,
+                    True,
                     f"Failed attempt {retry_state.attempt_number}: raised {repr(exc)}",
                 )
             else:
-                printif(self._verbose, f"Failed attempt {retry_state.attempt_number}")
+                printif(True, f"Failed attempt {retry_state.attempt_number}")
             return None
+
+        if not error_types:
+            # default to retrying on all exceptions
+            error_types = [Exception]
 
         retry_instance: retry_base = retry_if_exception_type(error_types[0])
         for error in error_types[1:]:
@@ -163,6 +173,10 @@ class BaseEvalModel(ABC):
         # if defined, returns additional model-specific information to display if `generate` is
         # run with `verbose=True`
         return ""
+
+    @abstractmethod
+    async def _async_generate(self, prompt: str, **kwargs: Any) -> str:
+        raise NotImplementedError
 
     @abstractmethod
     def _generate(self, prompt: str, **kwargs: Any) -> str:

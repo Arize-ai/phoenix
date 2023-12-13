@@ -2,15 +2,18 @@ import json
 from collections import defaultdict
 from datetime import datetime
 from enum import Enum
-from typing import Any, DefaultDict, Dict, List, Mapping, Optional, cast
+from typing import Any, DefaultDict, Dict, List, Mapping, Optional, Sized, cast
 
 import strawberry
-from strawberry import ID
+from strawberry import ID, UNSET
 from strawberry.types import Info
 
 import phoenix.trace.schemas as trace_schema
 from phoenix.core.traces import ComputedAttributes
+from phoenix.metrics.retrieval_metrics import RetrievalMetrics
 from phoenix.server.api.context import Context
+from phoenix.server.api.types.DocumentRetrievalMetrics import DocumentRetrievalMetrics
+from phoenix.server.api.types.Evaluation import DocumentEvaluation, SpanEvaluation
 from phoenix.server.api.types.MimeType import MimeType
 from phoenix.trace.schemas import SpanID
 from phoenix.trace.semantic_conventions import (
@@ -24,6 +27,7 @@ from phoenix.trace.semantic_conventions import (
     LLM_TOKEN_COUNT_TOTAL,
     OUTPUT_MIME_TYPE,
     OUTPUT_VALUE,
+    RETRIEVAL_DOCUMENTS,
 )
 
 
@@ -104,6 +108,7 @@ class Span:
     attributes: str = strawberry.field(
         description="Span attributes as a JSON string",
     )
+    num_documents: Optional[int]
     token_count_total: Optional[int]
     token_count_prompt: Optional[int]
     token_count_completion: Optional[int]
@@ -122,6 +127,82 @@ class Span:
         description="Cumulative (completion) token count from self and all "
         "descendant spans (children, grandchildren, etc.)",
     )
+    propagated_status_code: SpanStatusCode = strawberry.field(
+        description="Propagated status code that percolates up error status "
+        "codes from descendant spans (children, grandchildren, etc.)",
+    )
+
+    @strawberry.field(
+        description="Evaluations associated with the span, e.g. if the span is "
+        "an LLM, an evaluation may assess the helpfulness of its response with "
+        "respect to its input."
+    )  # type: ignore
+    def span_evaluations(
+        self,
+        info: Info[Context, None],
+    ) -> List[SpanEvaluation]:
+        if not (evals := info.context.evals):
+            return []
+        span_id = SpanID(str(self.context.span_id))
+        return [
+            SpanEvaluation.from_pb_evaluation(evaluation)
+            for evaluation in evals.get_evaluations_by_span_id(span_id)
+        ]
+
+    @strawberry.field(
+        description="Evaluations of the documents associated with the span, e.g. "
+        "if the span is a RETRIEVER with a list of documents in its RETRIEVAL_DOCUMENTS "
+        "attribute, an evaluation for each document may assess its relevance "
+        "respect to the input query of the span. Note that RETRIEVAL_DOCUMENTS is "
+        "a list, and each evaluation is identified by its document's (zero-based) "
+        "index in that list."
+    )  # type: ignore
+    def document_evaluations(
+        self,
+        info: Info[Context, None],
+    ) -> List[DocumentEvaluation]:
+        if not (evals := info.context.evals):
+            return []
+        span_id = SpanID(str(self.context.span_id))
+        return [
+            DocumentEvaluation.from_pb_evaluation(evaluation)
+            for evaluation in evals.get_document_evaluations_by_span_id(span_id)
+        ]
+
+    @strawberry.field(
+        description="Retrieval metrics: NDCG@K, Precision@K, Reciprocal Rank, etc.",
+    )  # type: ignore
+    def document_retrieval_metrics(
+        self,
+        info: Info[Context, None],
+        evaluation_name: Optional[str] = UNSET,
+    ) -> List[DocumentRetrievalMetrics]:
+        if not self.num_documents or not (evals := info.context.evals):
+            return []
+        span_id = SpanID(str(self.context.span_id))
+        all_document_evaluation_names = evals.get_document_evaluation_names(span_id)
+        if not all_document_evaluation_names:
+            return []
+        if evaluation_name is UNSET:
+            evaluation_names = all_document_evaluation_names
+        elif evaluation_name not in all_document_evaluation_names:
+            return []
+        else:
+            evaluation_names = [evaluation_name]
+        retrieval_metrics = []
+        for name in evaluation_names:
+            evaluation_scores = evals.get_document_evaluation_scores(
+                span_id=span_id,
+                evaluation_name=name,
+                num_documents=self.num_documents,
+            )
+            retrieval_metrics.append(
+                DocumentRetrievalMetrics(
+                    evaluation_name=name,
+                    metrics=RetrievalMetrics(evaluation_scores),
+                )
+            )
+        return retrieval_metrics
 
     @strawberry.field(
         description="All descendant spans (children, grandchildren, etc.)",
@@ -144,6 +225,8 @@ def to_gql_span(span: trace_schema.Span) -> "Span":
     events: List[SpanEvent] = list(map(SpanEvent.from_event, span.events))
     input_value = cast(Optional[str], span.attributes.get(INPUT_VALUE))
     output_value = cast(Optional[str], span.attributes.get(OUTPUT_VALUE))
+    retrieval_documents = span.attributes.get(RETRIEVAL_DOCUMENTS)
+    num_documents = len(retrieval_documents) if isinstance(retrieval_documents, Sized) else None
     return Span(
         name=span.name,
         status_code=SpanStatusCode(span.status_code),
@@ -160,6 +243,7 @@ def to_gql_span(span: trace_schema.Span) -> "Span":
             _nested_attributes(_hide_embedding_vectors(span.attributes)),
             default=_json_encode,
         ),
+        num_documents=num_documents,
         token_count_total=cast(
             Optional[int],
             span.attributes.get(LLM_TOKEN_COUNT_TOTAL),
@@ -183,6 +267,11 @@ def to_gql_span(span: trace_schema.Span) -> "Span":
         cumulative_token_count_completion=cast(
             Optional[int],
             span.attributes.get(ComputedAttributes.CUMULATIVE_LLM_TOKEN_COUNT_COMPLETION.value),
+        ),
+        propagated_status_code=(
+            SpanStatusCode.ERROR
+            if span.attributes.get(ComputedAttributes.CUMULATIVE_ERROR_COUNT.value)
+            else SpanStatusCode(span.status_code)
         ),
         events=events,
         input=(

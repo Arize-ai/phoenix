@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 from phoenix.experimental.evals.models.base import BaseEvalModel
+from phoenix.experimental.evals.models.rate_limiters import RateLimiter
 
 if TYPE_CHECKING:
     from tiktoken import Encoding
@@ -52,6 +53,13 @@ class BedrockModel(BaseEvalModel):
         self._init_environment()
         self._init_client()
         self._init_tiktoken()
+        self._init_rate_limiter()
+        self.retry = self._retry(
+            error_types=[],  # default to catching all errors
+            min_seconds=self.retry_min_seconds,
+            max_seconds=self.retry_max_seconds,
+            max_retries=self.max_retries,
+        )
 
     def _init_environment(self) -> None:
         try:
@@ -83,6 +91,15 @@ class BedrockModel(BaseEvalModel):
             encoding = self._tiktoken.get_encoding("cl100k_base")
         self._tiktoken_encoding = encoding
 
+    def _init_rate_limiter(self) -> None:
+        self._rate_limiter = RateLimiter(
+            rate_limit_error=self.client.exceptions.ThrottlingException,
+            max_rate_limit_retries=10,
+            initial_per_second_request_rate=2,
+            maximum_per_second_request_rate=20,
+            enforcement_window_minutes=1,
+        )
+
     @property
     def max_context_size(self) -> int:
         context_size = self.max_content_size or MODEL_TOKEN_LIMIT_MAPPING.get(self.model_id, None)
@@ -106,6 +123,9 @@ class BedrockModel(BaseEvalModel):
     def get_text_from_tokens(self, tokens: List[int]) -> str:
         return self.encoder.decode(tokens)
 
+    async def _async_generate(self, prompt: str, **kwargs: Dict[str, Any]) -> str:
+        return self._generate(prompt, **kwargs)
+
     def _generate(self, prompt: str, **kwargs: Dict[str, Any]) -> str:
         body = json.dumps(self._create_request_body(prompt))
         accept = "application/json"
@@ -119,14 +139,9 @@ class BedrockModel(BaseEvalModel):
 
     def _generate_with_retry(self, **kwargs: Any) -> Any:
         """Use tenacity to retry the completion call."""
-        retry_errors = [self.client.exceptions.ThrottlingException]
 
-        @self.retry(
-            error_types=retry_errors,
-            min_seconds=self.retry_min_seconds,
-            max_seconds=self.retry_max_seconds,
-            max_retries=self.max_retries,
-        )
+        @self.retry
+        @self._rate_limiter.limit
         def _completion_with_retry(**kwargs: Any) -> Any:
             return self.client.invoke_model(**kwargs)
 

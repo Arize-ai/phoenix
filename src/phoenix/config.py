@@ -3,6 +3,16 @@ import tempfile
 from pathlib import Path
 from typing import List, Optional
 
+# Phoenix environment variables
+ENV_PHOENIX_PORT = "PHOENIX_PORT"
+ENV_PHOENIX_HOST = "PHOENIX_HOST"
+ENV_NOTEBOOK_ENV = "PHOENIX_NOTEBOOK_ENV"
+ENV_PHOENIX_COLLECTOR_ENDPOINT = "PHOENIX_COLLECTOR_ENDPOINT"
+"""
+The endpoint traces and evals are sent to. This must be set if the Phoenix
+server is running on a remote instance.
+"""
+
 
 def _get_temp_path() -> Path:
     """Get path to  directory in which to store temp phoenix server files."""
@@ -64,10 +74,14 @@ def get_exported_files(directory: Path) -> List[Path]:
 def get_env_port() -> int:
     return (
         int(port)
-        if isinstance(port := os.getenv("PHOENIX_PORT"), str) and port.isnumeric()
+        if isinstance(port := os.getenv(ENV_PHOENIX_PORT), str) and port.isnumeric()
         else PORT
     )
 
 
 def get_env_host() -> str:
-    return os.getenv("PHOENIX_HOST") or HOST
+    return os.getenv(ENV_PHOENIX_HOST) or HOST
+
+
+def get_env_collector_endpoint() -> Optional[str]:
+    return os.getenv(ENV_PHOENIX_COLLECTOR_ENDPOINT)
