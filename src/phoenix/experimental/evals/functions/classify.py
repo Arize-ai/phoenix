@@ -647,7 +647,7 @@ class RunEvalsPayload(TypedDict):
 
 def run_evals(
     dataframe: DataFrame,
-    evaluators: List[Evaluator],
+    evaluators: Iterable[Evaluator],
     concurrency: int = 20,
 ) -> DataFrame:
     """
