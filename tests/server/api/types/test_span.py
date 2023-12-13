@@ -79,4 +79,13 @@ def test_nested_attributes() -> None:
                 "arguments": ...,
             }
         },
+        "phoenix": {
+            "span_kind": ...,
+            "llm": {
+                "input_message": ...,
+                "output_message": ...,
+            },
+            "retrieved_document": ...,
+            "embedding_object": ...,
+        },
     }

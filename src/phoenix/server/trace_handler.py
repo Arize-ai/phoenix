@@ -1,22 +1,20 @@
 import gzip
 from typing import Protocol
 
-import opentelemetry.proto.trace.v1.trace_pb2 as otlp
+import opentelemetry.proto.trace.v1.trace_pb2 as pb
+from google.protobuf.json_format import MessageToDict
+from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import ExportTraceServiceRequest
 from starlette.endpoints import HTTPEndpoint
 from starlette.requests import Request
 from starlette.responses import Response
 
-from phoenix.trace.otel import encode
-from phoenix.trace.schemas import Span
-from phoenix.trace.span_json_decoder import json_to_span
-
 
 class SupportsPutSpan(Protocol):
-    def put(self, span: otlp.Span) -> None:
+    def put(self, span: pb.Span) -> None:
         ...
 
 
-class SpanHandler(HTTPEndpoint):
+class TraceHandler(HTTPEndpoint):
     queue: SupportsPutSpan
 
     async def post(self, request: Request) -> Response:
@@ -27,13 +25,13 @@ class SpanHandler(HTTPEndpoint):
                 content_encoding = request.headers.get("content-encoding")
                 if content_encoding == "gzip":
                     body = gzip.decompress(body)
-                otlp_span = otlp.Span()
-                otlp_span.ParseFromString(body)
-            else:
-                span = json_to_span(await request.json())
-                assert isinstance(span, Span)
-                otlp_span = encode(span)
+                pb_req = ExportTraceServiceRequest()
+                pb_req.ParseFromString(body)
         except Exception:
             return Response(status_code=422)
-        self.queue.put(otlp_span)
+        _span = MessageToDict(pb_req)
+        # self.queue.put(pb_span)
+        return Response()
+
+    async def _process_protobuf(self, request: Request) -> Response:
         return Response()
