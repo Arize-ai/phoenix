@@ -95,7 +95,6 @@ class AsyncExecutor:
         self.exit_on_error = exit_on_error
         self.max_retries = max_retries
         self.base_priority = 0
-        self.requeue_priority = -1
 
         self._TERMINATE = asyncio.Event()
 
@@ -170,9 +169,10 @@ class AsyncExecutor:
                     continue
                 else:
                     tqdm.write("Worker timeout, requeuing")
-                    await queue.put((self.requeue_priority, item))
+                    # task timeouts are requeued at base priority
+                    await queue.put((self.base_priority, item))
             except Exception as exc:
-                if retry_count := abs(priority) <= self.max_retries:
+                if (retry_count := abs(priority)) <= self.max_retries:
                     tqdm.write(
                         f"Exception in worker on attempt {retry_count + 1}: raised {repr(exc)}"
                     )
