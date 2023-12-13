@@ -944,7 +944,7 @@ def test_run_evals_produces_expected_output_dataframe_when_running_event_loop_al
 
 
 def test_run_evals_with_evaluators_with_duplicate_names_raises_value_error(
-    toxicity_evaluator: LLMEvaluator
+    toxicity_evaluator: LLMEvaluator,
 ) -> None:
     with pytest.raises(ValueError):
         run_evals(
