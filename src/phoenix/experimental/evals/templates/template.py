@@ -1,6 +1,6 @@
 import re
 from dataclasses import dataclass
-from typing import Callable, Dict, List, Optional, Tuple, Union
+from typing import Callable, List, Mapping, Optional, Tuple, Union
 
 import pandas as pd
 
@@ -36,7 +36,7 @@ class PromptTemplate:
 
     def format(
         self,
-        variable_values: Dict[str, Union[bool, int, float, str]],
+        variable_values: Mapping[str, Union[bool, int, float, str]],
         options: Optional[PromptOptions] = None,
     ) -> str:
         prompt = self.prompt(options)
