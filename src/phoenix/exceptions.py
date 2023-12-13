@@ -1,2 +1,2 @@
-def PhoenixException(Exception):
+class PhoenixException(Exception):
     pass

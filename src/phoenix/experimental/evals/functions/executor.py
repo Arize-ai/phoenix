@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import asyncio
 import logging
 import signal
@@ -250,23 +252,25 @@ class SyncExecutor(Executor):
         progress_bar = tqdm(total=len(inputs), bar_format=self.tqdm_bar_format)
 
         for index, input in enumerate(inputs):
-            if self._TERMINATE:
-                break
             try:
-                for _attempt in range(self.max_retries):
+                for attempt in range(self.max_retries + 1):
+                    if self._TERMINATE:
+                        return outputs
                     try:
                         result = self.generate(input)
                         outputs[index] = result
                         progress_bar.update()
                     except Exception as exc:
-                        if isinstance(exc, PhoenixException):
+                        is_phoenix_exception = isinstance(exc, PhoenixException)
+                        if attempt >= self.max_retries or is_phoenix_exception:
                             raise exc
-                        tqdm.write(f"Exception in worker on attempt {_attempt + 1}: {exc}")
-                        tqdm.write("Retrying...")
+                        else:
+                            tqdm.write(f"Exception in worker on attempt {_attempt + 1}: {exc}")
+                            tqdm.write("Retrying...")
             except Exception as exc:
                 tqdm.write(f"Exception in worker: {exc}")
                 if self.exit_on_error:
-                    break
+                    return outputs
                 else:
                     progress_bar.update()
         return outputs
