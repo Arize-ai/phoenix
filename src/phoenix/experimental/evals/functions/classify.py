@@ -97,6 +97,7 @@ class AsyncExecutor:
         concurrency: int = 3,
         tqdm_bar_format: Optional[str] = None,
         exit_on_error: bool = True,
+        max_retries: int = 10,
         fallback_return_value: Union[Unset, Any] = _unset,
     ):
         self.generate = generation_fn
@@ -104,6 +105,8 @@ class AsyncExecutor:
         self.concurrency = concurrency
         self.tqdm_bar_format = tqdm_bar_format
         self.exit_on_error = exit_on_error
+        self.max_retries = max_retries
+        self.base_priority = 0
 
         self._TERMINATE = asyncio.Event()
 
@@ -114,7 +117,7 @@ class AsyncExecutor:
     async def producer(
         self,
         inputs: Sequence[Any],
-        queue: asyncio.Queue[Tuple[int, Any]],
+        queue: asyncio.PriorityQueue[Tuple[int, Any]],
         max_fill: int,
         done_producing: asyncio.Event,
     ) -> None:
@@ -125,14 +128,14 @@ class AsyncExecutor:
                 while queue.qsize() >= max_fill:
                     # keep room in the queue for requeues
                     await asyncio.sleep(1)
-                await queue.put((index, input))
+                await queue.put((self.base_priority, (index, input)))
         finally:
             done_producing.set()
 
     async def consumer(
         self,
         output: List[Any],
-        queue: asyncio.Queue[Tuple[int, Any]],
+        queue: asyncio.PriorityQueue[Tuple[int, Any]],
         done_producing: asyncio.Event,
         progress_bar: tqdm[Any],
     ) -> None:
@@ -140,7 +143,7 @@ class AsyncExecutor:
         while True:
             marked_done = False
             try:
-                item = await asyncio.wait_for(queue.get(), timeout=1)
+                priority, item = await asyncio.wait_for(queue.get(), timeout=1)
             except asyncio.TimeoutError:
                 if done_producing.is_set() and queue.empty():
                     break
@@ -178,13 +181,21 @@ class AsyncExecutor:
                     continue
                 else:
                     tqdm.write("Worker timeout, requeuing")
-                    await queue.put(item)
-            except Exception:
-                tqdm.write(f"Exception in worker: {traceback.format_exc()}")
-                if self.exit_on_error:
-                    self._TERMINATE.set()
+                    # task timeouts are requeued at base priority
+                    await queue.put((self.base_priority, item))
+            except Exception as exc:
+                if (retry_count := abs(priority)) <= self.max_retries:
+                    tqdm.write(
+                        f"Exception in worker on attempt {retry_count + 1}: raised {repr(exc)}"
+                    )
+                    tqdm.write("Requeuing...")
+                    await queue.put((priority - 1, item))
                 else:
-                    progress_bar.update()
+                    tqdm.write(f"Exception in worker: {traceback.format_exc()}")
+                    if self.exit_on_error:
+                        self._TERMINATE.set()
+                    else:
+                        progress_bar.update()
             finally:
                 if not marked_done:
                     queue.task_done()
@@ -198,7 +209,9 @@ class AsyncExecutor:
 
         max_queue_size = 5 * self.concurrency  # limit the queue to bound memory usage
         max_fill = max_queue_size - (2 * self.concurrency)  # ensure there is always room to requeue
-        queue: asyncio.Queue[Tuple[int, Any]] = asyncio.Queue(maxsize=max_queue_size)
+        queue: asyncio.PriorityQueue[Tuple[int, Any]] = asyncio.PriorityQueue(
+            maxsize=max_queue_size
+        )
         done_producing = asyncio.Event()
 
         producer = asyncio.create_task(self.producer(inputs, queue, max_fill, done_producing))

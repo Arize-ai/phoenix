@@ -167,10 +167,20 @@ class OpenAIModel(BaseEvalModel):
         # Initialize specific clients depending on the API backend
         # Set the type first
         self._client: Union[self._openai.OpenAI, self._openai.AzureOpenAI]  # type: ignore
+        self._async_client: Union[self._openai.AsyncOpenAI, self._openai.AsyncAzureOpenAI]  # type: ignore
         if self._is_azure:
             # Validate the azure options and construct a client
             azure_options = self._get_azure_options()
             self._client = self._openai.AzureOpenAI(
+                azure_endpoint=azure_options.azure_endpoint,
+                azure_deployment=azure_options.azure_deployment,
+                api_version=azure_options.api_version,
+                azure_ad_token=azure_options.azure_ad_token,
+                azure_ad_token_provider=azure_options.azure_ad_token_provider,
+                api_key=self.api_key,
+                organization=self.organization,
+            )
+            self._async_client = self._openai.AsyncAzureOpenAI(
                 azure_endpoint=azure_options.azure_endpoint,
                 azure_deployment=azure_options.azure_deployment,
                 api_version=azure_options.api_version,
@@ -188,22 +198,6 @@ class OpenAIModel(BaseEvalModel):
             organization=self.organization,
             base_url=(self.base_url or self._openai.base_url),
         )
-
-        self._async_client: Union[self._openai.AsyncOpenAI, self._openai.AsyncAzureOpenAI]  # type: ignore
-        if self._is_azure:
-            # Validate the azure options and construct a client
-            azure_options = self._get_azure_options()
-            self._async_client = self._openai.AsyncAzureOpenAI(
-                azure_endpoint=azure_options.azure_endpoint,
-                azure_deployment=azure_options.azure_deployment,
-                api_version=azure_options.api_version,
-                azure_ad_token=azure_options.azure_ad_token,
-                azure_ad_token_provider=azure_options.azure_ad_token_provider,
-                api_key=self.api_key,
-                organization=self.organization,
-            )
-            # return early since we don't need to check the model
-            return
 
         # The client is not azure, so it must be openai
         self._async_client = self._openai.AsyncOpenAI(
