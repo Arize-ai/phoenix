@@ -6,6 +6,7 @@ from typing import Any, Callable, Coroutine, Optional, Tuple, Type, TypeVar
 
 from typing_extensions import ParamSpec
 
+from phoenix.exceptions import PhoenixException
 from phoenix.utilities.logging import printif
 
 ParameterSpec = ParamSpec("ParameterSpec")
@@ -13,7 +14,7 @@ GenericType = TypeVar("GenericType")
 AsyncCallable = Callable[ParameterSpec, Coroutine[Any, Any, GenericType]]
 
 
-class UnavailableTokensError(Exception):
+class UnavailableTokensError(PhoenixException):
     pass
 
 
@@ -133,7 +134,7 @@ class AdaptiveTokenBucket:
                 continue
 
 
-class RateLimitError(BaseException):
+class RateLimitError(PhoenixException):
     ...
 
 
