@@ -17,7 +17,6 @@ from typing import (
     Mapping,
     NamedTuple,
     Optional,
-    Protocol,
     Sequence,
     Tuple,
     Union,
@@ -68,15 +67,6 @@ class Unset:
 
 
 _unset = Unset()
-
-
-class Executor(Protocol):
-    """
-    An interface that executes batches of tasks.
-    """
-
-    def run(self, inputs: Sequence[Any]) -> List[Any]:
-        ...
 
 
 class AsyncExecutor:
@@ -306,7 +296,7 @@ def get_executor_on_sync_context(
     tqdm_bar_format: Optional[str] = None,
     exit_on_error: bool = True,
     fallback_return_value: Union[Unset, Any] = _unset,
-) -> Executor:
+) -> Union[AsyncExecutor, SyncExecutor]:
     if _running_event_loop_exists():
         if getattr(asyncio, "_nest_patched", False):
             return AsyncExecutor(
