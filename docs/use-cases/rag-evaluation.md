@@ -556,6 +556,7 @@ from phoenix.trace import DocumentEvaluations, SpanEvaluations
 
 px.log_evaluations(
     SpanEvaluations(ndcg_at_2, "ndcg@2"),
+    SpanEvaluations(precision_at_2, "precision@2"),
     DocumentEvaluations(retrieved_documents_relevance, "relevance"),
 )
 ```
@@ -650,7 +651,7 @@ Our QA Correctness score of `0.91` signifies that the generated answers are corr
 Since we have evaluated our RAG system's QA performance, let's send these evaluations to Phoenix for visualization.
 
 ```python
-from phoenix.trace import DocumentEvaluations, SpanEvaluations
+from phoenix.trace import SpanEvaluations
 
 px.log_evaluations(
     SpanEvaluations(qa_correctness_eval, "Q&A Correctness"),
