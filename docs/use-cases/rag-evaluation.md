@@ -1,5 +1,7 @@
 # Evaluate RAG with LLM Evals
 
+{% embed url="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/evals/evaluate_rag.ipynb" %}
+
 In this tutorial we will look into building a RAG pipeline and evaluating it with Phoenix Evals.
 
 It has the the following sections:
@@ -39,6 +41,7 @@ Now that we have understood the stages of RAG, let's build a pipeline. We will u
 
 ```python
 # The nest_asyncio module enables the nesting of asynchronous functions within an already running async loop.
+
 # This is necessary because Jupyter notebooks inherently operate in an asynchronous loop.
 # By applying nest_asyncio, we can run additional async functions within this existing loop without conflicts.
 import nest_asyncio
