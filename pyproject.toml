@@ -66,7 +66,7 @@ experimental = [
   "tenacity",
 ]
 llama-index = [
-  "llama-index>=0.9.14",
+  "llama-index==0.9.14",
 ]
 
 [project.urls]
