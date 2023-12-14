@@ -160,7 +160,7 @@ class AsyncExecutor:
                 termination_signal_task = asyncio.create_task(self._TERMINATE.wait())
                 done, pending = await asyncio.wait(
                     [generate_task, termination_signal_task],
-                    timeout=120,
+                    timeout=360*2,
                     return_when=asyncio.FIRST_COMPLETED,
                 )
                 if generate_task in done:
@@ -184,18 +184,8 @@ class AsyncExecutor:
                     # task timeouts are requeued at base priority
                     await queue.put((self.base_priority, item))
             except Exception as exc:
-                if (retry_count := abs(priority)) <= self.max_retries:
-                    tqdm.write(
-                        f"Exception in worker on attempt {retry_count + 1}: raised {repr(exc)}"
-                    )
-                    tqdm.write("Requeuing...")
-                    await queue.put((priority - 1, item))
-                else:
-                    tqdm.write(f"Exception in worker: {traceback.format_exc()}")
-                    if self.exit_on_error:
-                        self._TERMINATE.set()
-                    else:
-                        progress_bar.update()
+                tqdm.write("Worker exception and requeuing")
+                await queue.put(item)
             finally:
                 if not marked_done:
                     queue.task_done()

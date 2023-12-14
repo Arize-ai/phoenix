@@ -23,8 +23,16 @@ from llama_index import (
     download_loader,
     load_index_from_storage,
 )
+
+from llama_index import (
+    ServiceContext,
+    StorageContext,
+    load_index_from_storage,
+    set_global_handler,
+)
 from llama_index.callbacks import CallbackManager, LlamaDebugHandler
-from llama_index.indices.postprocessor.cohere_rerank import CohereRerank
+from llama_index.postprocessor.cohere_rerank import CohereRerank
+#from llama_index.indices.postprocessor.cohere_rerank import CohereRerank
 from llama_index.indices.query.query_transform import HyDEQueryTransform
 from llama_index.indices.query.query_transform.base import StepDecomposeQueryTransform
 from llama_index.llms import OpenAI
@@ -44,6 +52,13 @@ from plotresults import (
     plot_percentage_incorrect,
 )
 from sklearn.metrics import ndcg_score
+## ADDED Jason
+import phoenix as px
+from phoenix.experimental.evals import (
+    OpenAIModel,
+    compute_precisions_at_k,
+    run_relevance_eval,
+)
 
 LOGGING_LEVEL = 20  # INFO
 logging.basicConfig(level=LOGGING_LEVEL)
@@ -433,11 +448,13 @@ def main():
         logger.info("Opening raw_documents.pkl")
         with open(raw_docs_filepath, "rb") as file:
             documents = pickle.load(file)
-
+    
+    session = px.launch_app()
+    set_global_handler("arize_phoenix")
     chunk_sizes = [
-        100,
-        300,
-        # 500,
+        #100,
+        #300,
+         500,
         # 1000,
         # 2000,
     ]  # change this, perhaps experiment from 500 to 3000 in increments of 500
@@ -446,7 +463,7 @@ def main():
     # k = [10]  # num documents to retrieve
 
     # transformations = ["original", "original_rerank","hyde", "hyde_rerank"]
-    transformations = ["original", "original_rerank"]
+    transformations = ["original"]
 
     # llama_index_model = "gpt-3.5-turbo"
     llama_index_model = "gpt-4"
