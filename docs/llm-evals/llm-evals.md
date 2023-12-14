@@ -8,6 +8,15 @@ Evaluating LLM outputs is best tackled by using a separate evaluation LLM. The P
 
 </div>
 
+
+
+* Simple callback system integration for applying to spans on LangChain and LlamaIndex
+* Support for one-click explanations&#x20;
+* Fast on Batches- Async concurrent fast parallel rate limit management for API calls&#x20;
+* Custom dataset support and custom Eval creation support
+* Pre-tested Evaluations with model benchmarks&#x20;
+* Extensive support for RAG Evals: Benchmarking scripts, retrieval Evals and citation Evals&#x20;
+
 ### The Problem with LLM Evaluations
 
 1. Most evaluation libraries do NOT follow trustworthy benchmarking rigor necessary for production environments. Production LLM Evals need to benchmark both a model **and** "_a prompt template". (i.e. the Open AI “model” Evals only focuses on evaluating the model, a different use case_).&#x20;
