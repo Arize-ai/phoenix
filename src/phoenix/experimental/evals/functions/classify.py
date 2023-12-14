@@ -160,7 +160,7 @@ class AsyncExecutor:
                 termination_signal_task = asyncio.create_task(self._TERMINATE.wait())
                 done, pending = await asyncio.wait(
                     [generate_task, termination_signal_task],
-                    timeout=120,
+                    timeout=360 * 2,
                     return_when=asyncio.FIRST_COMPLETED,
                 )
                 if generate_task in done:

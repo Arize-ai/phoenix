@@ -1,5 +1,6 @@
 import asyncio
 import time
+from contextlib import asynccontextmanager
 from functools import wraps
 from math import exp
 from typing import Any, Callable, Coroutine, Optional, Tuple, Type, TypeVar
@@ -198,6 +199,10 @@ class RateLimiter:
         @wraps(fn)
         async def wrapper(*args: Any, **kwargs: Any) -> GenericType:
             try:
+                try:
+                    await asyncio.wait_for(self._rate_limit_handling.wait(), 120)
+                except asyncio.TimeoutError:
+                    self._rate_limit_handling.set()  # Set the event as a failsafe
                 await self._throttler.async_wait_until_ready()
                 request_start_time = time.time()
                 return await fn(*args, **kwargs)
