@@ -10,7 +10,7 @@ import pytest
 from httpx import AsyncByteStream, Response
 from openai import AsyncOpenAI, AsyncStream, AuthenticationError, OpenAI, Stream
 from phoenix.trace.openai.instrumentor import OpenAIInstrumentor
-from phoenix.trace.schemas import SpanException, SpanKind, SpanStatusCode
+from phoenix.trace.schemas import MimeType, SpanException, SpanKind, SpanStatusCode
 from phoenix.trace.semantic_conventions import (
     EXCEPTION_MESSAGE,
     EXCEPTION_STACKTRACE,
@@ -34,7 +34,6 @@ from phoenix.trace.semantic_conventions import (
     OUTPUT_VALUE,
     TOOL_CALL_FUNCTION_ARGUMENTS_JSON,
     TOOL_CALL_FUNCTION_NAME,
-    MimeType,
 )
 from phoenix.trace.tracer import Tracer
 from respx import MockRouter

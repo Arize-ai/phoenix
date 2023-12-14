@@ -11,7 +11,7 @@ from langchain.load.dump import dumpd
 from langchain.schema.messages import BaseMessage
 
 from phoenix.trace.exporter import HttpExporter
-from phoenix.trace.schemas import Span, SpanEvent, SpanException, SpanKind, SpanStatusCode
+from phoenix.trace.schemas import MimeType, Span, SpanEvent, SpanException, SpanKind, SpanStatusCode
 from phoenix.trace.semantic_conventions import (
     DOCUMENT_CONTENT,
     DOCUMENT_METADATA,
@@ -41,7 +41,6 @@ from phoenix.trace.semantic_conventions import (
     TOOL_CALL_FUNCTION_NAME,
     TOOL_DESCRIPTION,
     TOOL_NAME,
-    MimeType,
 )
 from phoenix.trace.tracer import Tracer
 from phoenix.utilities.error_handling import graceful_fallback
