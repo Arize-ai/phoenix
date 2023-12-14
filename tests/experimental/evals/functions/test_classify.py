@@ -51,7 +51,6 @@ def model(api_key: str) -> OpenAIModel:
 @pytest.fixture
 def toxicity_evaluator(model: OpenAIModel) -> LLMEvaluator:
     return LLMEvaluator(
-        name="toxicity",
         template=TOXICITY_PROMPT_TEMPLATE,
         model=model,
         verbose=True,
@@ -61,7 +60,6 @@ def toxicity_evaluator(model: OpenAIModel) -> LLMEvaluator:
 @pytest.fixture
 def relevance_evaluator(model: OpenAIModel) -> LLMEvaluator:
     return LLMEvaluator(
-        name="relevance",
         template=RAG_RELEVANCY_PROMPT_TEMPLATE,
         model=model,
         verbose=True,
@@ -876,11 +874,19 @@ def test_run_evals_produces_expected_output_dataframe_when_no_running_event_loop
         ],
         index=["a", "b"],
     )
-    eval_df = run_evals(dataframe=df, evaluators=[relevance_evaluator, toxicity_evaluator])
+    eval_dfs = run_evals(dataframe=df, evaluators=[relevance_evaluator, toxicity_evaluator])
+    assert len(eval_dfs) == 2
     assert_frame_equal(
-        eval_df,
+        eval_dfs[0],
         pd.DataFrame(
-            {"relevance": ["relevant", "irrelevant"], "toxicity": ["non-toxic", "non-toxic"]},
+            {"label": ["relevant", "irrelevant"]},
+            index=["a", "b"],
+        ),
+    )
+    assert_frame_equal(
+        eval_dfs[1],
+        pd.DataFrame(
+            {"label": ["non-toxic", "non-toxic"]},
             index=["a", "b"],
         ),
     )
@@ -933,21 +939,27 @@ def test_run_evals_produces_expected_output_dataframe_when_running_event_loop_al
         ],
         index=["a", "b"],
     )
-    eval_df = run_evals(dataframe=df, evaluators=[relevance_evaluator, toxicity_evaluator])
+    eval_dfs = run_evals(dataframe=df, evaluators=[relevance_evaluator, toxicity_evaluator])
+    assert len(eval_dfs) == 2
     assert_frame_equal(
-        eval_df,
+        eval_dfs[0],
         pd.DataFrame(
-            {"relevance": ["relevant", "irrelevant"], "toxicity": ["non-toxic", "non-toxic"]},
+            {"label": ["relevant", "irrelevant"]},
+            index=["a", "b"],
+        ),
+    )
+    assert_frame_equal(
+        eval_dfs[1],
+        pd.DataFrame(
+            {"label": ["non-toxic", "non-toxic"]},
             index=["a", "b"],
         ),
     )
 
 
-def test_run_evals_with_evaluators_with_duplicate_names_raises_value_error(
-    toxicity_evaluator: LLMEvaluator,
-) -> None:
-    with pytest.raises(ValueError):
-        run_evals(
-            dataframe=pd.DataFrame(),
-            evaluators=[toxicity_evaluator, toxicity_evaluator],
-        )
+def test_run_evals_with_empty_evaluators_returns_empty_list() -> None:
+    eval_dfs = run_evals(
+        dataframe=pd.DataFrame(),
+        evaluators=[],
+    )
+    assert eval_dfs == []

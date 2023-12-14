@@ -55,9 +55,10 @@ OPENINFERENCE_DOCUMENT_COLUMN_NAME = "attributes." + RETRIEVAL_DOCUMENTS
 _RESPONSE = "response"
 _EXPLANATION = "explanation"
 
-EvalName: TypeAlias = str
-EvalPrediction: TypeAlias = str
+ColumnName: TypeAlias = str
+EvalLabel: TypeAlias = str
 Record: TypeAlias = Mapping[str, Any]
+EvaluatorIndex: TypeAlias = int
 RowIndex: TypeAlias = Any
 
 
@@ -642,20 +643,21 @@ def _default_openai_function(
 
 
 class RunEvalsPayload(NamedTuple):
+    evaluator_index: EvaluatorIndex
+    row_index: RowIndex
     evaluator: LLMEvaluator
     record: Record
-    row_index: RowIndex
 
 
 def run_evals(
     dataframe: DataFrame,
     evaluators: List[LLMEvaluator],
     concurrency: int = 20,
-) -> DataFrame:
+) -> List[DataFrame]:
     """
-    Applies a list of evaluators to every row of a dataframe. Outputs a
-    dataframe where each column corresponds to an evaluator and each row
-    corresponds to a row in the input dataframe.
+    Applies a list of evaluators to a dataframe. Outputs a list of dataframes in
+    which each dataframe contains the outputs of the corresponding evaluator
+    applied to the input dataframe.
 
     Args:
         dataframe (pd.DataFrame): A pandas dataframe in which each row
@@ -663,35 +665,33 @@ def run_evals(
         appear as column names in the dataframe (extra columns unrelated to the
         template are permitted).
 
-        evaluators (List[Evaluator]): A list of evaluators with unique names.
+        evaluators (List[Evaluator]): A list of evaluators.
 
         concurrency (int, optional): An optional concurrency parameter. Defaults
         to 20.
 
     Returns:
-        DataFrame: A dataframe where each row contains the outputs of the
-        evaluators applied to the corresponding row of the input dataframe and
-        the column names match the names of the evaluators. The index of the
-        dataframe is the same as the index of the input dataframe.
+        List[DataFrame]: A list of dataframes, one for each evaluator, all of
+        which have the same number of rows as the input dataframe.
     """
-    if len(set(evaluator.name for evaluator in evaluators)) != len(evaluators):
-        raise ValueError("Evaluators must have unique names.")
 
     async def _run_eval_async(
         payload: RunEvalsPayload,
-    ) -> Tuple[RowIndex, EvalName, EvalPrediction]:
+    ) -> Tuple[EvaluatorIndex, RowIndex, EvalLabel]:
+        evaluator_index = payload.evaluator_index
         row_index = payload.row_index
         evaluator = payload.evaluator
         record = payload.record
-        eval_result = await evaluator.aevaluate(record)
-        return row_index, evaluator.name, eval_result
+        label = await evaluator.aevaluate(record)
+        return evaluator_index, row_index, label
 
-    def _run_eval_sync(payload: RunEvalsPayload) -> Tuple[RowIndex, EvalName, EvalPrediction]:
+    def _run_eval_sync(payload: RunEvalsPayload) -> Tuple[EvaluatorIndex, RowIndex, EvalLabel]:
+        evaluator_index = payload.evaluator_index
         row_index = payload.row_index
         evaluator = payload.evaluator
         record = payload.record
-        eval_result = evaluator.evaluate(record)
-        return row_index, evaluator.name, eval_result
+        label = evaluator.evaluate(record)
+        return evaluator_index, row_index, label
 
     executor = get_executor_on_sync_context(
         _run_eval_sync,
@@ -703,15 +703,21 @@ def run_evals(
     )
     payloads = [
         RunEvalsPayload(
+            evaluator_index=evaluator_index,
             row_index=row_index,
             evaluator=evaluator,
             record=row.to_dict(),
         )
         for row_index, row in dataframe.iterrows()
-        for evaluator in evaluators
+        for evaluator_index, evaluator in enumerate(evaluators)
     ]
-    results: DefaultDict[RowIndex, Dict[EvalName, EvalPrediction]] = defaultdict(dict)
-    for row_index, eval_name, eval_result in executor.run(payloads):
-        results[row_index][eval_name] = eval_result
-    index, data = zip(*results.items())
-    return DataFrame(data, index=index)
+    eval_results: List[DefaultDict[RowIndex, Dict[ColumnName, EvalLabel]]] = [
+        defaultdict(dict) for _ in range(len(evaluators))
+    ]
+    for evaluator_index, row_index, label in executor.run(payloads):
+        eval_results[evaluator_index][row_index]["label"] = label
+    eval_dataframes: List[DataFrame] = []
+    for eval_result in eval_results:
+        index, eval_data = zip(*eval_result.items())
+        eval_dataframes.append(DataFrame(eval_data, index=index))
+    return eval_dataframes

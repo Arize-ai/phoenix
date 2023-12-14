@@ -20,7 +20,6 @@ class LLMEvaluator:
         self,
         model: BaseEvalModel,
         template: ClassificationTemplate,
-        name: str,
         verbose: bool = False,
     ) -> None:
         """Initializer for LLMEvaluator.
@@ -28,12 +27,10 @@ class LLMEvaluator:
         Args:
             model (BaseEvalModel): The LLM model to use for evaluation.
             template (ClassificationTemplate): The evaluation template.
-            name (str): The name of the evaluator.
             verbose (bool, optional): Whether to print verbose output.
         """
         self._model = model
         self._template = template
-        self.name = name
         self._verbose = verbose
 
     def evaluate(self, record: Record) -> str:
