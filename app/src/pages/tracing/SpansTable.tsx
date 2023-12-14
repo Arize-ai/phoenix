@@ -312,7 +312,8 @@ export function SpansTable(props: SpansTableProps) {
         paddingBottom="size-100"
         paddingStart="size-200"
         paddingEnd="size-200"
-        backgroundColor="grey-200"
+        borderBottomColor="grey-300"
+        borderBottomWidth="thin"
         flex="none"
       >
         <Flex direction="row" gap="size-100" width="100%" alignItems="center">

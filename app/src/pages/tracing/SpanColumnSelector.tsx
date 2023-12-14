@@ -1,15 +1,21 @@
 import React, { ChangeEvent, useCallback, useMemo } from "react";
+import { graphql, useFragment } from "react-relay";
 import { Column } from "@tanstack/react-table";
 import { css } from "@emotion/react";
 
-import { Dropdown, Flex, Icon, Icons, View } from "@arizeai/components";
+import {
+  Dropdown,
+  Flex,
+  Icon,
+  Icons,
+  Section,
+  Text,
+  View,
+} from "@arizeai/components";
 
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
-import { graphql, useFragment } from "react-relay";
-import {
-  SpanColumnSelector_evaluations$data,
-  SpanColumnSelector_evaluations$key,
-} from "./__generated__/SpanColumnSelector_evaluations.graphql";
+
+import { SpanColumnSelector_evaluations$key } from "./__generated__/SpanColumnSelector_evaluations.graphql";
 
 const UN_HIDABLE_COLUMN_IDS = ["spanKind", "name"];
 
@@ -157,7 +163,7 @@ function EvaluationColumnSelector({
   );
   return (
     <section>
-      <h3>Evaluations</h3>
+      <Text>Evaluations</Text>
       <ul>
         {data.spanEvaluationNames.map((name) => {
           const isVisible = evaluationVisibility[name];

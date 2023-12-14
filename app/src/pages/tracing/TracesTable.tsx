@@ -322,7 +322,7 @@ export function TracesTable(props: TracesTableProps) {
     {
       header: () => {
         return (
-          <Flex gap="size-50">
+          <Flex gap="size-50" direction="row" alignItems="center">
             <TableExpandButton
               isExpanded={table.getIsAllRowsExpanded()}
               onClick={table.getToggleAllRowsExpandedHandler()}
@@ -491,7 +491,8 @@ export function TracesTable(props: TracesTableProps) {
         paddingBottom="size-100"
         paddingStart="size-200"
         paddingEnd="size-200"
-        backgroundColor="grey-200"
+        borderBottomColor="grey-300"
+        borderBottomWidth="thin"
         flex="none"
       >
         <Flex direction="row" gap="size-100" width="100%" alignItems="center">
