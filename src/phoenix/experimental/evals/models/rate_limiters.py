@@ -163,9 +163,9 @@ class RateLimiter:
             rate_increase_factor=rate_increase_factor,
             cooldown_seconds=cooldown_seconds,
         )
-        self._rate_limit_handling = None
-        self._rate_limit_handling_lock = None
-        self._current_loop = None
+        self._rate_limit_handling: Optional[asyncio.Event] = None
+        self._rate_limit_handling_lock: Optional[asyncio.Lock] = None
+        self._current_loop: Optional[asyncio.AbstractEventLoop] = None
         self._verbose = verbose
 
     def limit(
@@ -193,7 +193,7 @@ class RateLimiter:
 
         return wrapper
 
-    async def _initialize_async_primitives(self) -> None:
+    def _initialize_async_primitives(self) -> None:
         """
         Lazily initialize async primitives to ensure they are created in the correct event loop.
         """
@@ -210,7 +210,13 @@ class RateLimiter:
     ) -> AsyncCallable[ParameterSpec, GenericType]:
         @wraps(fn)
         async def wrapper(*args: Any, **kwargs: Any) -> GenericType:
-            await self._initialize_async_primitives()
+            self._initialize_async_primitives()
+            assert self._rate_limit_handling_lock is not None and isinstance(
+                self._rate_limit_handling_lock, asyncio.Lock
+            )
+            assert self._rate_limit_handling is not None and isinstance(
+                self._rate_limit_handling, asyncio.Event
+            )
             try:
                 await self._throttler.async_wait_until_ready()
                 request_start_time = time.time()
