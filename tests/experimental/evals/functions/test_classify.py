@@ -65,11 +65,11 @@ def relevance_evaluator(model: OpenAIModel) -> LLMEvaluator:
 @pytest.fixture
 def running_event_loop_mock(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
-        "phoenix.experimental.evals.functions.classify._running_event_loop_exists",
+        "phoenix.experimental.evals.functions.executor._running_event_loop_exists",
         lambda: True,
     )
     assert (
-        phoenix.experimental.evals.functions.classify._running_event_loop_exists()
+        phoenix.experimental.evals.functions.executor._running_event_loop_exists()
     ), "mock for detecting event loop should return True"
 
 
