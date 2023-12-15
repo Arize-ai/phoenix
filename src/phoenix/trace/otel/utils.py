@@ -1,7 +1,6 @@
 import json
 from collections import defaultdict
 from datetime import datetime, timezone
-from random import Random
 from typing import (
     Any,
     Container,
@@ -312,7 +311,7 @@ def _encode_status(span_status_code: SpanStatusCode, status_message: str) -> otl
 
 
 def _span_id_to_bytes(span_id: SpanID) -> bytes:
-    return Random(span_id.bytes).getrandbits(64).to_bytes(8, byteorder="big")
+    return span_id.bytes[:8]
 
 
 def _flatten_mapping(
