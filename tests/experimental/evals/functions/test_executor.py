@@ -1,8 +1,12 @@
 import asyncio
+import os
+import platform
 import signal
+import time
 from unittest.mock import AsyncMock, Mock
 
 import nest_asyncio
+import pytest
 from phoenix.experimental.evals.functions.executor import (
     AsyncExecutor,
     SyncExecutor,
@@ -84,10 +88,8 @@ async def test_async_executor_can_continue_on_error():
     assert outputs == [0, 1, 52, 3, 4]
 
 
+@pytest.mark.skipif(platform.system() == "Windows", reason="SIGUSR1 not supported on Windows")
 async def test_async_executor_sigint_handling():
-    import os
-    import time
-
     class InterruptingIterator:
         def __init__(self, interruption_index: int, max_elements: int):
             self.interruption_index = interruption_index
@@ -103,8 +105,8 @@ async def test_async_executor_sigint_handling():
         def __next__(self):
             if self.current < self.max_elements:
                 if self.current == self.interruption_index:
-                    # Trigger SIGINT
-                    os.kill(os.getpid(), signal.SIGINT)
+                    # Trigger interruption signal
+                    os.kill(os.getpid(), signal.SIGUSR1)
                     time.sleep(0.1)
 
                 res = self.current
@@ -119,7 +121,13 @@ async def test_async_executor_sigint_handling():
 
     result_length = 1000
     sigint_index = 50
-    executor = AsyncExecutor(async_fn, concurrency=5, max_retries=0, fallback_return_value="test")
+    executor = AsyncExecutor(
+        async_fn,
+        concurrency=5,
+        max_retries=0,
+        fallback_return_value="test",
+        termination_signal=signal.SIGUSR1,
+    )
     task = asyncio.create_task(executor.execute(InterruptingIterator(sigint_index, result_length)))
 
     results = await task
@@ -181,6 +189,50 @@ def test_sync_executor_can_continue_on_error():
     inputs = [1, 2, 3, 4, 5]
     outputs = executor.run(inputs)
     assert outputs == [0, 1, 52, 3, 4]
+
+
+@pytest.mark.skipif(platform.system() == "Windows", reason="SIGUSR1 not supported on Windows")
+def test_sync_executor_sigint_handling():
+    class InterruptingIterator:
+        def __init__(self, interruption_index: int, max_elements: int):
+            self.interruption_index = interruption_index
+            self.max_elements = max_elements
+            self.current = 0
+
+        def __len__(self):
+            return self.max_elements
+
+        def __iter__(self):
+            return self
+
+        def __next__(self):
+            if self.current < self.max_elements:
+                if self.current == self.interruption_index:
+                    # Trigger interruption signal
+                    os.kill(os.getpid(), signal.SIGUSR1)
+                    time.sleep(0.1)
+
+                res = self.current
+                self.current += 1
+                return res
+            else:
+                raise StopIteration
+
+    def sync_fn(x):
+        time.sleep(0.01)
+        return x
+
+    result_length = 1000
+    sigint_index = 50
+    executor = SyncExecutor(
+        sync_fn,
+        max_retries=0,
+        fallback_return_value="test",
+        termination_signal=signal.SIGUSR1,
+    )
+    results = executor.run(InterruptingIterator(sigint_index, result_length))
+    assert len(results) == result_length
+    assert results.count("test") > 100, "most inputs should not have been processed"
 
 
 def test_sync_executor_retries():
