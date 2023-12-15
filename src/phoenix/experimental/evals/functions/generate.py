@@ -94,7 +94,7 @@ def llm_generate(
         concurrency=concurrency,
         tqdm_bar_format=tqdm_bar_format,
         exit_on_error=True,
-        fallback_return_value=(None, None),
+        fallback_return_value={"output": "error"},
     )
     output = executor.run(prompts.tolist())
     # Return the data as a dataframe
