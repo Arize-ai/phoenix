@@ -24,7 +24,6 @@ from phoenix.experimental.evals.evaluators import LLMEvaluator
 from phoenix.experimental.evals.functions.classify import (
     AsyncExecutor,
     SyncExecutor,
-    _snap_to_rail,
     get_executor_on_sync_context,
     run_evals,
 )
@@ -33,6 +32,7 @@ from phoenix.experimental.evals.templates.default_templates import (
     RAG_RELEVANCY_PROMPT_TEMPLATE,
     TOXICITY_PROMPT_TEMPLATE,
 )
+from phoenix.experimental.evals.templates.template import _snap_to_rail
 from respx.patterns import M
 
 
@@ -53,7 +53,6 @@ def toxicity_evaluator(model: OpenAIModel) -> LLMEvaluator:
     return LLMEvaluator(
         template=TOXICITY_PROMPT_TEMPLATE,
         model=model,
-        verbose=True,
     )
 
 
@@ -62,7 +61,6 @@ def relevance_evaluator(model: OpenAIModel) -> LLMEvaluator:
     return LLMEvaluator(
         template=RAG_RELEVANCY_PROMPT_TEMPLATE,
         model=model,
-        verbose=True,
     )
 
 

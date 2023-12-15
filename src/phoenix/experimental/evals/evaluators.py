@@ -1,7 +1,6 @@
-from typing import List, Mapping, Optional
+from typing import List, Mapping, Optional, Tuple
 
 from phoenix.experimental.evals.models import set_verbosity
-from phoenix.utilities.logging import printif
 
 from .models import BaseEvalModel
 from .templates import ClassificationTemplate, PromptTemplate
@@ -20,20 +19,22 @@ class LLMEvaluator:
         self,
         model: BaseEvalModel,
         template: ClassificationTemplate,
-        verbose: bool = False,
     ) -> None:
         """Initializer for LLMEvaluator.
 
         Args:
             model (BaseEvalModel): The LLM model to use for evaluation.
             template (ClassificationTemplate): The evaluation template.
-            verbose (bool, optional): Whether to print verbose output.
         """
         self._model = model
         self._template = template
-        self._verbose = verbose
 
-    def evaluate(self, record: Record) -> str:
+    def evaluate(
+        self,
+        record: Record,
+        provide_explanation: bool = False,
+        verbose: bool = False,
+    ) -> Tuple[str, Optional[str]]:
         """Evaluates a single record.
 
         Args:
@@ -43,12 +44,19 @@ class LLMEvaluator:
             EvaluationResult: The result of the evaluation
         """
         prompt = self._template.format(record)
-        with set_verbosity(self._model, self._verbose) as verbose_model:
+        with set_verbosity(self._model, verbose) as verbose_model:
             unparsed_output = verbose_model(prompt)
-        parsed_output = _snap_to_rail(unparsed_output, self._template.rails, self._verbose)
-        return parsed_output
+        label, explanation = self._template.parse_output(
+            unparsed_output=unparsed_output,
+            use_openai_function_call=False,
+            provide_explanation=provide_explanation,
+            verbose=verbose,
+        )
+        return label, explanation
 
-    async def aevaluate(self, record: Record) -> str:
+    async def aevaluate(
+        self, record: Record, provide_explanation: bool = False, verbose: bool = False
+    ) -> Tuple[str, Optional[str]]:
         """Evaluates a single record.
 
         Args:
@@ -58,10 +66,15 @@ class LLMEvaluator:
             EvaluationResult: The result of the evaluation
         """
         prompt = self._template.format(dict(record))
-        with set_verbosity(self._model, self._verbose) as verbose_model:
+        with set_verbosity(self._model, verbose) as verbose_model:
             unparsed_output = await verbose_model._async_generate(prompt)
-        parsed_output = _snap_to_rail(unparsed_output, self._template.rails, self._verbose)
-        return parsed_output
+        label, explanation = self._template.parse_output(
+            unparsed_output=unparsed_output,
+            use_openai_function_call=False,
+            provide_explanation=provide_explanation,
+            verbose=verbose,
+        )
+        return label, explanation
 
 
 class MapReducer:
@@ -197,35 +210,3 @@ class Refiner:
             return accumulator
         reduce_prompt = self._synthesize_prompt_template.format({"accumulator": accumulator})
         return model(reduce_prompt)
-
-
-def _snap_to_rail(raw_string: Optional[str], rails: List[str], verbose: bool = False) -> str:
-    """
-    Snaps a string to the nearest rail, or returns None if the string cannot be
-    snapped to a rail.
-
-    Args:
-        raw_string (str): An input to be snapped to a rail.
-
-        rails (List[str]): The target set of strings to snap to.
-
-    Returns:
-        str: A string from the rails argument or "UNPARSABLE" if the input
-        string could not be snapped.
-    """
-    if not raw_string:
-        return NOT_PARSABLE
-    snap_string = raw_string.lower()
-    rails = list(set(rail.lower() for rail in rails))
-    rails.sort(key=len, reverse=True)
-    found_rails = set()
-    for rail in rails:
-        if rail in snap_string:
-            found_rails.add(rail)
-            snap_string = snap_string.replace(rail, "")
-    if len(found_rails) != 1:
-        printif(verbose, f"- Cannot snap {repr(raw_string)} to rails")
-        return NOT_PARSABLE
-    rail = list(found_rails)[0]
-    printif(verbose, f"- Snapped {repr(raw_string)} to rail: {rail}")
-    return rail

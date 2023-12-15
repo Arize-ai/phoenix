@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
 import signal
 import traceback
@@ -28,10 +27,9 @@ from pandas import DataFrame
 from tqdm.auto import tqdm
 from typing_extensions import TypeAlias
 
-from phoenix.experimental.evals.evaluators import LLMEvaluator, _snap_to_rail
+from phoenix.experimental.evals.evaluators import LLMEvaluator
 from phoenix.experimental.evals.models import BaseEvalModel, OpenAIModel, set_verbosity
 from phoenix.experimental.evals.templates import (
-    NOT_PARSABLE,
     RAG_RELEVANCY_PROMPT_RAILS_MAP,
     RAG_RELEVANCY_PROMPT_TEMPLATE,
     ClassificationTemplate,
@@ -396,7 +394,6 @@ def llm_classify(
 
         provide_explanation (bool, default=False): If True, provides an explanation for each
         classification label. A column named `explanation` is added to the output dataframe.
-        Currently, this is only available for models with function calling.
 
         concurrency (int, default=20): The number of concurrent evals.
 
@@ -433,43 +430,29 @@ def llm_classify(
     if generation_info := model.verbose_generation_info():
         printif(verbose, generation_info)
 
-    def _process_response(response: str) -> Tuple[str, Optional[str]]:
-        if not use_openai_function_call:
-            if provide_explanation:
-                unrailed_label, explanation = (
-                    eval_template.extract_label_from_explanation(response),
-                    response,
-                )
-                printif(
-                    verbose and unrailed_label == NOT_PARSABLE,
-                    f"- Could not parse {repr(response)}",
-                )
-            else:
-                unrailed_label = response
-                explanation = None
-        else:
-            try:
-                function_arguments = json.loads(response, strict=False)
-                unrailed_label = function_arguments.get(_RESPONSE)
-                explanation = function_arguments.get(_EXPLANATION)
-            except json.JSONDecodeError:
-                unrailed_label = response
-                explanation = None
-        return _snap_to_rail(unrailed_label, rails, verbose=verbose), explanation
-
     async def _run_llm_classification_async(prompt: str) -> Tuple[str, Optional[str]]:
         with set_verbosity(model, verbose) as verbose_model:
-            response = await verbose_model._async_generate(
+            unparsed_output = await verbose_model._async_generate(
                 prompt, instruction=system_instruction, **model_kwargs
             )
-        return _process_response(response)
+        return eval_template.parse_output(
+            unparsed_output=unparsed_output,
+            use_openai_function_call=use_openai_function_call,
+            provide_explanation=provide_explanation,
+            verbose=verbose,
+        )
 
     def _run_llm_classification_sync(prompt: str) -> Tuple[str, Optional[str]]:
         with set_verbosity(model, verbose) as verbose_model:
-            response = verbose_model._generate(
+            unparsed_output = verbose_model._generate(
                 prompt, instruction=system_instruction, **model_kwargs
             )
-        return _process_response(response)
+        return eval_template.parse_output(
+            unparsed_output=unparsed_output,
+            use_openai_function_call=use_openai_function_call,
+            provide_explanation=provide_explanation,
+            verbose=verbose,
+        )
 
     executor = get_executor_on_sync_context(
         _run_llm_classification_sync,
@@ -652,6 +635,8 @@ class RunEvalsPayload(NamedTuple):
 def run_evals(
     dataframe: DataFrame,
     evaluators: List[LLMEvaluator],
+    provide_explanation: bool = False,
+    verbose: bool = False,
     concurrency: int = 20,
 ) -> List[DataFrame]:
     """
@@ -666,6 +651,9 @@ def run_evals(
         template are permitted).
 
         evaluators (List[Evaluator]): A list of evaluators.
+
+        provide_explanation (bool, default=False): If true, provides an explanation for each
+        evaluation. A column named `explanation` is added to each output dataframe.
 
         concurrency (int, optional): An optional concurrency parameter. Defaults
         to 20.
@@ -682,7 +670,7 @@ def run_evals(
         row_index = payload.row_index
         evaluator = payload.evaluator
         record = payload.record
-        label = await evaluator.aevaluate(record)
+        label, _ = await evaluator.aevaluate(record)
         return evaluator_index, row_index, label
 
     def _run_eval_sync(payload: RunEvalsPayload) -> Tuple[EvaluatorIndex, RowIndex, EvalLabel]:
@@ -690,7 +678,7 @@ def run_evals(
         row_index = payload.row_index
         evaluator = payload.evaluator
         record = payload.record
-        label = evaluator.evaluate(record)
+        label, _ = evaluator.evaluate(record)
         return evaluator_index, row_index, label
 
     executor = get_executor_on_sync_context(
