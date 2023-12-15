@@ -163,9 +163,9 @@ class RateLimiter:
             rate_increase_factor=rate_increase_factor,
             cooldown_seconds=cooldown_seconds,
         )
-        self._rate_limit_handling = asyncio.Event()
-        self._rate_limit_handling.set()  # allow requests to start immediately
-        self._rate_limit_handling_lock = asyncio.Lock()
+        self._rate_limit_handling = None
+        self._rate_limit_handling_lock = None
+        self._current_loop = None
         self._verbose = verbose
 
     def limit(
@@ -193,11 +193,24 @@ class RateLimiter:
 
         return wrapper
 
+    async def _initialize_async_primitives(self) -> None:
+        """
+        Lazily initialize async primitives to ensure they are created in the correct event loop.
+        """
+
+        loop = asyncio.get_running_loop()
+        if loop is not self._current_loop:
+            self._current_loop = loop
+            self._rate_limit_handling = asyncio.Event()
+            self._rate_limit_handling.set()
+            self._rate_limit_handling_lock = asyncio.Lock()
+
     def alimit(
         self, fn: AsyncCallable[ParameterSpec, GenericType]
     ) -> AsyncCallable[ParameterSpec, GenericType]:
         @wraps(fn)
         async def wrapper(*args: Any, **kwargs: Any) -> GenericType:
+            await self._initialize_async_primitives()
             try:
                 await self._throttler.async_wait_until_ready()
                 request_start_time = time.time()
