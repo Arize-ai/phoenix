@@ -105,13 +105,6 @@ def _decode_identifier(identifier: bytes) -> Optional[UUID]:
         return UUID(int=int.from_bytes(identifier, byteorder="big"))
 
 
-def _decode_events(
-    otlp_events: Iterable[otlp.Span.Event],
-) -> Iterator[SpanEvent]:
-    for otlp_event in otlp_events:
-        yield _decode_event(otlp_event)
-
-
 def _decode_event(otlp_event: otlp.Span.Event) -> SpanEvent:
     name = otlp_event.name
     timestamp = _decode_unix_nano(otlp_event.time_unix_nano)
