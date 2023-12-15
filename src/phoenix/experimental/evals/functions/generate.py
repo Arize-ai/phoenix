@@ -2,9 +2,10 @@ import logging
 from typing import Any, Callable, Dict, Optional, Union
 
 import pandas as pd
-from tqdm.auto import tqdm
 
-from phoenix.experimental.evals.functions.executor import get_executor_on_sync_context
+from phoenix.experimental.evals.functions.executor import (
+    get_executor_on_sync_context,
+)
 from phoenix.experimental.evals.models import BaseEvalModel, set_verbosity
 from phoenix.experimental.evals.templates import (
     PromptTemplate,
@@ -74,14 +75,16 @@ def llm_generate(
     async def _run_llm_generation_async(prompt: str) -> Any:
         with set_verbosity(model, verbose) as verbose_model:
             response = await verbose_model._async_generate(
-                prompt, instruction=system_instruction,
+                prompt,
+                instruction=system_instruction,
             )
         return output_parser(response)
 
     def _run_llm_generation_sync(prompt: str) -> Any:
         with set_verbosity(model, verbose) as verbose_model:
             response = verbose_model._generate(
-                prompt, instruction=system_instruction,
+                prompt,
+                instruction=system_instruction,
             )
         return output_parser(response)
 
@@ -93,7 +96,6 @@ def llm_generate(
         exit_on_error=True,
         fallback_return_value=(None, None),
     )
-
     output = executor.run(prompts.tolist())
     # Return the data as a dataframe
     return pd.DataFrame(output)
