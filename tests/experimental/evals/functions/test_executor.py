@@ -85,22 +85,46 @@ async def test_async_executor_can_continue_on_error():
 
 
 async def test_async_executor_sigint_handling():
+    import os
+    import time
+
+    class InterruptingIterator:
+        def __init__(self, interruption_index: int, max_elements: int):
+            self.interruption_index = interruption_index
+            self.max_elements = max_elements
+            self.current = 0
+
+        def __len__(self):
+            return self.max_elements
+
+        def __iter__(self):
+            return self
+
+        def __next__(self):
+            if self.current < self.max_elements:
+                if self.current == self.interruption_index:
+                    # Trigger SIGINT
+                    os.kill(os.getpid(), signal.SIGINT)
+                    time.sleep(0.1)
+
+                res = self.current
+                self.current += 1
+                return res
+            else:
+                raise StopIteration
+
     async def async_fn(x):
         await asyncio.sleep(0.01)
         return x
 
+    result_length = 1000
+    sigint_index = 50
     executor = AsyncExecutor(async_fn, concurrency=5, max_retries=0, fallback_return_value="test")
+    task = asyncio.create_task(executor.execute(InterruptingIterator(sigint_index, result_length)))
 
-    # Run the executor with a large number of inputs
-    task = asyncio.create_task(executor.execute(list(range(100))))
-    await asyncio.sleep(0.1)
-
-    # Simulate a SIGINT signal
-    executor._signal_handler(signal.SIGINT, None)
     results = await task
-
-    assert len(results) == 100
-    assert results.count("test") > 0, "some inputs should not have been processed"
+    assert len(results) == result_length
+    assert results.count("test") > 100, "most inputs should not have been processed"
 
 
 async def test_async_executor_retries():
