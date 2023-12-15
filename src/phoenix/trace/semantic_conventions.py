@@ -169,8 +169,4 @@ RERANKER_TOP_K = "reranker.top_k"
 Top K parameter of the reranker
 """
 
-PHOENIX_SPAN_KIND = "phoenix.span_kind"
-PHOENIX_RETRIEVED_DOCUMENT = "phoenix.retrieved_document"
-PHOENIX_EMBEDDING_OBJECT = "phoenix.embedding_object"
-PHOENIX_LLM_INPUT_MESSAGE = "phoenix.llm.input_message"
-PHOENIX_LLM_OUTPUT_MESSAGE = "phoenix.llm.output_message"
+OPENINFERENCE_SPAN_KIND = "openinference.span.kind"

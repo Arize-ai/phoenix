@@ -1,5 +1,4 @@
-from phoenix.trace.otel.decode import decode
-from phoenix.trace.otel.encode import encode
+from phoenix.trace.otel.utils import decode, encode
 
 __all__ = [
     "decode",

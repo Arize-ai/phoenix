@@ -9,8 +9,7 @@ import opentelemetry.proto.trace.v1.trace_pb2 as otlp
 import pytest
 from google.protobuf.json_format import MessageToJson
 from opentelemetry.proto.common.v1.common_pb2 import AnyValue, ArrayValue, KeyValue
-from phoenix.trace.otel.decode import decode
-from phoenix.trace.otel.encode import _span_id_to_bytes, encode
+from phoenix.trace.otel.utils import _span_id_to_bytes, decode, encode
 from phoenix.trace.schemas import (
     Span,
     SpanContext,
@@ -31,15 +30,13 @@ from phoenix.trace.semantic_conventions import (
     EXCEPTION_MESSAGE,
     EXCEPTION_STACKTRACE,
     EXCEPTION_TYPE,
-    PHOENIX_EMBEDDING_OBJECT,
-    PHOENIX_RETRIEVED_DOCUMENT,
-    PHOENIX_SPAN_KIND,
+    OPENINFERENCE_SPAN_KIND,
     RETRIEVAL_DOCUMENTS,
 )
 from pytest import approx
 
 
-def test_encode_decode(span):
+def test_decode_encode(span):
     otlp_span = encode(span)
     assert otlp_span.name == "test_span"
     assert otlp_span.trace_id == span.context.trace_id.bytes
@@ -48,7 +45,12 @@ def test_encode_decode(span):
     assert approx(otlp_span.start_time_unix_nano / 1e9) == span.start_time.timestamp()
     assert approx(otlp_span.end_time_unix_nano / 1e9) == span.end_time.timestamp()
     assert set(map(MessageToJson, otlp_span.attributes)) == {
-        MessageToJson(KeyValue(key=PHOENIX_SPAN_KIND, value=AnyValue(string_value="LLM")))
+        MessageToJson(
+            KeyValue(
+                key=OPENINFERENCE_SPAN_KIND,
+                value=AnyValue(string_value="LLM"),
+            )
+        )
     }
     assert otlp_span.status.code == otlp.Status.StatusCode.STATUS_CODE_ERROR
     assert otlp_span.status.message == "xyz"
@@ -73,7 +75,7 @@ def test_encode_decode(span):
         (SpanStatusCode.UNSET, otlp.Status.StatusCode.STATUS_CODE_UNSET),
     ],
 )
-def test_encode_decode_status_code(span, span_status_code, otlp_status_code):
+def test_decode_encode_status_code(span, span_status_code, otlp_status_code):
     span = replace(span, status_code=span_status_code)
     otlp_span = encode(span)
     assert otlp_span.status.code == otlp_status_code
@@ -82,11 +84,14 @@ def test_encode_decode_status_code(span, span_status_code, otlp_status_code):
 
 
 @pytest.mark.parametrize("span_kind", list(SpanKind))
-def test_encode_decode_span_kind(span, span_kind):
+def test_decode_encode_span_kind(span, span_kind):
     span = replace(span, span_kind=span_kind)
     otlp_span = encode(span)
     assert MessageToJson(
-        KeyValue(key=PHOENIX_SPAN_KIND, value=AnyValue(string_value=span_kind.value))
+        KeyValue(
+            key=OPENINFERENCE_SPAN_KIND,
+            value=AnyValue(string_value=span_kind.value),
+        )
     ) in set(map(MessageToJson, otlp_span.attributes))
     decoded_span = decode(otlp_span)
     assert decoded_span.span_kind == span.span_kind
@@ -129,7 +134,7 @@ def test_encode_decode_span_kind(span, span_kind):
         ),
     ],
 )
-def test_encode_decode_attributes(span, kv, otlp_kv):
+def test_decode_encode_attributes(span, kv, otlp_kv):
     span = replace(span, attributes=kv)
     otlp_span = encode(span)
     assert MessageToJson(otlp_kv) in set(map(MessageToJson, otlp_span.attributes))
@@ -137,7 +142,7 @@ def test_encode_decode_attributes(span, kv, otlp_kv):
     assert decoded_span.attributes == span.attributes
 
 
-def test_encode_decode_events(span):
+def test_decode_encode_events(span):
     event_name = str(random())
     exception_message = str(random())
     exception_type = str(random())
@@ -214,7 +219,7 @@ def test_encode_decode_events(span):
     assert decoded_span.events == span.events
 
 
-def test_encode_decode_documents(span):
+def test_decode_encode_documents(span):
     content = str(random())
     score = random()
     document_metadata = {
@@ -230,7 +235,7 @@ def test_encode_decode_documents(span):
     attributes = {
         RETRIEVAL_DOCUMENTS: [
             {DOCUMENT_ID: "d1", DOCUMENT_CONTENT: content, DOCUMENT_SCORE: score},
-            {DOCUMENT_ID: "d1"},
+            {DOCUMENT_ID: "d2"},
             {DOCUMENT_CONTENT: content},
             {DOCUMENT_SCORE: score},
             {DOCUMENT_METADATA: document_metadata},
@@ -238,49 +243,46 @@ def test_encode_decode_documents(span):
     }
     span = replace(span, attributes=attributes)
     otlp_span = encode(span)
-    otlp_events = [
-        otlp.Span.Event(
-            name=PHOENIX_RETRIEVED_DOCUMENT,
-            attributes=[
-                KeyValue(key=DOCUMENT_ID, value=AnyValue(string_value="d1")),
-                KeyValue(key=DOCUMENT_CONTENT, value=AnyValue(string_value=content)),
-                KeyValue(key=DOCUMENT_SCORE, value=AnyValue(double_value=score)),
-            ],
+    otlp_attributes = [
+        KeyValue(
+            key=OPENINFERENCE_SPAN_KIND,
+            value=AnyValue(string_value="LLM"),
         ),
-        otlp.Span.Event(
-            name=PHOENIX_RETRIEVED_DOCUMENT,
-            attributes=[
-                KeyValue(key=DOCUMENT_ID, value=AnyValue(string_value="d1")),
-            ],
+        KeyValue(
+            key=f"{RETRIEVAL_DOCUMENTS}.0.{DOCUMENT_ID}",
+            value=AnyValue(string_value="d1"),
         ),
-        otlp.Span.Event(
-            name=PHOENIX_RETRIEVED_DOCUMENT,
-            attributes=[
-                KeyValue(key=DOCUMENT_CONTENT, value=AnyValue(string_value=content)),
-            ],
+        KeyValue(
+            key=f"{RETRIEVAL_DOCUMENTS}.0.{DOCUMENT_CONTENT}",
+            value=AnyValue(string_value=content),
         ),
-        otlp.Span.Event(
-            name=PHOENIX_RETRIEVED_DOCUMENT,
-            attributes=[
-                KeyValue(key=DOCUMENT_SCORE, value=AnyValue(double_value=score)),
-            ],
+        KeyValue(
+            key=f"{RETRIEVAL_DOCUMENTS}.0.{DOCUMENT_SCORE}",
+            value=AnyValue(double_value=score),
         ),
-        otlp.Span.Event(
-            name=PHOENIX_RETRIEVED_DOCUMENT,
-            attributes=[
-                KeyValue(
-                    key=DOCUMENT_METADATA,
-                    value=AnyValue(string_value=json.dumps(document_metadata)),
-                ),
-            ],
+        KeyValue(
+            key=f"{RETRIEVAL_DOCUMENTS}.1.{DOCUMENT_ID}",
+            value=AnyValue(string_value="d2"),
+        ),
+        KeyValue(
+            key=f"{RETRIEVAL_DOCUMENTS}.2.{DOCUMENT_CONTENT}",
+            value=AnyValue(string_value=content),
+        ),
+        KeyValue(
+            key=f"{RETRIEVAL_DOCUMENTS}.3.{DOCUMENT_SCORE}",
+            value=AnyValue(double_value=score),
+        ),
+        KeyValue(
+            key=f"{RETRIEVAL_DOCUMENTS}.4.{DOCUMENT_METADATA}",
+            value=AnyValue(string_value=json.dumps(document_metadata)),
         ),
     ]
-    assert list(map(MessageToJson, otlp_span.events)) == list(map(MessageToJson, otlp_events))
+    assert set(map(MessageToJson, otlp_span.attributes)) == set(map(MessageToJson, otlp_attributes))
     decoded_span = decode(otlp_span)
     assert decoded_span.attributes[RETRIEVAL_DOCUMENTS] == span.attributes[RETRIEVAL_DOCUMENTS]
 
 
-def test_encode_decode_embeddings(span):
+def test_decode_encode_embeddings(span):
     text = str(random())
     vector = list(np.random.rand(3))
     attributes = {
@@ -297,34 +299,29 @@ def test_encode_decode_embeddings(span):
         AnyValue(double_value=vector[1]),
         AnyValue(double_value=vector[2]),
     ]
-    otlp_events = [
-        otlp.Span.Event(
-            name=PHOENIX_EMBEDDING_OBJECT,
-            attributes=[
-                KeyValue(
-                    key=EMBEDDING_VECTOR,
-                    value=AnyValue(array_value=ArrayValue(values=vector_otlp_values)),
-                ),
-            ],
+    otlp_attributes = [
+        KeyValue(
+            key=OPENINFERENCE_SPAN_KIND,
+            value=AnyValue(string_value="LLM"),
         ),
-        otlp.Span.Event(
-            name=PHOENIX_EMBEDDING_OBJECT,
-            attributes=[
-                KeyValue(
-                    key=EMBEDDING_VECTOR,
-                    value=AnyValue(array_value=ArrayValue(values=vector_otlp_values)),
-                ),
-                KeyValue(key=EMBEDDING_TEXT, value=AnyValue(string_value=text)),
-            ],
+        KeyValue(
+            key=f"{EMBEDDING_EMBEDDINGS}.0.{EMBEDDING_VECTOR}",
+            value=AnyValue(array_value=ArrayValue(values=vector_otlp_values)),
         ),
-        otlp.Span.Event(
-            name=PHOENIX_EMBEDDING_OBJECT,
-            attributes=[
-                KeyValue(key=EMBEDDING_TEXT, value=AnyValue(string_value=text)),
-            ],
+        KeyValue(
+            key=f"{EMBEDDING_EMBEDDINGS}.1.{EMBEDDING_VECTOR}",
+            value=AnyValue(array_value=ArrayValue(values=vector_otlp_values)),
+        ),
+        KeyValue(
+            key=f"{EMBEDDING_EMBEDDINGS}.1.{EMBEDDING_TEXT}",
+            value=AnyValue(string_value=text),
+        ),
+        KeyValue(
+            key=f"{EMBEDDING_EMBEDDINGS}.2.{EMBEDDING_TEXT}",
+            value=AnyValue(string_value=text),
         ),
     ]
-    assert list(map(MessageToJson, otlp_span.events)) == list(map(MessageToJson, otlp_events))
+    assert set(map(MessageToJson, otlp_span.attributes)) == set(map(MessageToJson, otlp_attributes))
     decoded_span = decode(otlp_span)
     assert decoded_span.attributes[EMBEDDING_EMBEDDINGS] == span.attributes[EMBEDDING_EMBEDDINGS]
 
