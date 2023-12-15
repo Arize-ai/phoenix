@@ -8,9 +8,9 @@ description: >-
 
 Oftentimes, the team that notices an issue in their model, for example a prompt/response LLM model, may not be the same team that continues the investigations or kicks off retraining workflows.&#x20;
 
-To help connect teams and workflows, Phoenix enables continued analysis of production data from [Arize](http://127.0.0.1:5000/o/-MB4weB2E-qpBe07nmSL/s/-MAlgpMyBRcl2qFZRQ67/) in a notebook environment for fine tuning workflows.&#x20;
+To help connect teams and workflows, Phoenix enables continued analysis of production data from [Arize](https://app.gitbook.com/o/-MB4weB2E-qpBe07nmSL/s/-MAlgpMyBRcl2qFZRQ67/) in a notebook environment for fine tuning workflows.&#x20;
 
-For example, a user may have noticed in [Arize](http://127.0.0.1:5000/o/-MB4weB2E-qpBe07nmSL/s/-MAlgpMyBRcl2qFZRQ67/) that this prompt template is not performing well.
+For example, a user may have noticed in [Arize](https://app.gitbook.com/o/-MB4weB2E-qpBe07nmSL/s/-MAlgpMyBRcl2qFZRQ67/) that this prompt template is not performing well.
 
 <figure><img src="../.gitbook/assets/image (1) (2).png" alt=""><figcaption><p>Arize UI, investigating prompt template: "You are an agent created to accurately translate sentences into the desired language."</p></figcaption></figure>
 
@@ -18,15 +18,15 @@ With a few lines of Python code, users can export this data into Phoenix for fur
 
 They can then easily augment and fine tune the data and verify improved performance, before deploying back to production.&#x20;
 
-There are two ways export data out of [Arize](http://127.0.0.1:5000/o/-MB4weB2E-qpBe07nmSL/s/-MAlgpMyBRcl2qFZRQ67/) for further investigation:
+There are two ways export data out of [Arize](https://app.gitbook.com/o/-MB4weB2E-qpBe07nmSL/s/-MAlgpMyBRcl2qFZRQ67/) for further investigation:
 
-1. The easiest way is to click the export button on the Embeddings and Datasets pages. This will produce a code snippet that you can copy into a Python environment and install Phoenix. This code snippet will include the date range you have selected in the [Arize](http://127.0.0.1:5000/o/-MB4weB2E-qpBe07nmSL/s/-MAlgpMyBRcl2qFZRQ67/) platform, in addition to the datasets you have selected.
+1. The easiest way is to click the export button on the Embeddings and Datasets pages. This will produce a code snippet that you can copy into a Python environment and install Phoenix. This code snippet will include the date range you have selected in the [Arize](https://app.gitbook.com/o/-MB4weB2E-qpBe07nmSL/s/-MAlgpMyBRcl2qFZRQ67/) platform, in addition to the datasets you have selected.
 
 <figure><img src="../.gitbook/assets/image (4).png" alt=""><figcaption><p>Export button on Embeddings tab in Arize UI</p></figcaption></figure>
 
 <figure><img src="../.gitbook/assets/image (6).png" alt=""><figcaption><p>Export to Phoenix module in Arize UI</p></figcaption></figure>
 
-2. Users can also query [Arize](http://127.0.0.1:5000/o/-MB4weB2E-qpBe07nmSL/s/-MAlgpMyBRcl2qFZRQ67/) for data directly using the Arize Python export client. We recommend doing this once you're more comfortable with the in-platform export functionality, as you will need to manually enter in the data ranges and datasets you want to export.
+2. Users can also query [Arize](https://app.gitbook.com/o/-MB4weB2E-qpBe07nmSL/s/-MAlgpMyBRcl2qFZRQ67/) for data directly using the Arize Python export client. We recommend doing this once you're more comfortable with the in-platform export functionality, as you will need to manually enter in the data ranges and datasets you want to export.
 
 ```python
 os.environ['ARIZE_API_KEY'] = ARIZE_API_KEY

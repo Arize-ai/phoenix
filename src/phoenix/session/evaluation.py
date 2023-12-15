@@ -5,13 +5,10 @@ A set of **highly experimental** helper functions to
       indexed by `context.span_id` and `document_position`
   - ingest evaluation results into Phoenix via HttpExporter
 """
-import collections
 import math
+from time import sleep
 from typing import (
     Any,
-    Iterable,
-    List,
-    Mapping,
     Optional,
     Sequence,
     Tuple,
@@ -21,56 +18,19 @@ from typing import (
 
 import pandas as pd
 from google.protobuf.wrappers_pb2 import DoubleValue, StringValue
+from tqdm import tqdm
 
 import phoenix.trace.v1 as pb
-from phoenix.core.traces import TRACE_ID
-from phoenix.session.session import Session
+from phoenix.trace.dsl.helpers import get_qa_with_reference, get_retrieved_documents
 from phoenix.trace.exporter import HttpExporter
-from phoenix.trace.schemas import ATTRIBUTE_PREFIX
-from phoenix.trace.semantic_conventions import (
-    DOCUMENT_CONTENT,
-    DOCUMENT_SCORE,
-    INPUT_VALUE,
-    RETRIEVAL_DOCUMENTS,
-)
 
+__all__ = [
+    "get_retrieved_documents",
+    "get_qa_with_reference",
+    "add_evaluations",
+]
 
-def get_retrieved_documents(session: Session) -> pd.DataFrame:
-    data: List[Mapping[str, Any]] = []
-    if (df := session.get_spans_dataframe("span_kind == 'RETRIEVER'")) is not None:
-        for span_id, query, documents, trace_id in df.loc[
-            :,
-            [
-                ATTRIBUTE_PREFIX + INPUT_VALUE,
-                ATTRIBUTE_PREFIX + RETRIEVAL_DOCUMENTS,
-                TRACE_ID,
-            ],
-        ].itertuples():
-            if not isinstance(documents, Iterable):
-                continue
-            for position, document in enumerate(documents):
-                if not hasattr(document, "get"):
-                    continue
-                data.append(
-                    {
-                        "context.trace_id": trace_id,
-                        "context.span_id": span_id,
-                        "input": query,
-                        "document_position": position,
-                        "reference": document.get(DOCUMENT_CONTENT),
-                        "document_score": document.get(DOCUMENT_SCORE),
-                    }
-                )
-    index = ["context.span_id", "document_position"]
-    columns = [
-        "context.span_id",
-        "document_position",
-        "input",
-        "reference",
-        "document_score",
-        "context.trace_id",
-    ]
-    return pd.DataFrame(data=data, columns=columns).set_index(index)
+from phoenix.trace.span_evaluations import Evaluations
 
 
 def add_evaluations(
@@ -113,9 +73,9 @@ def _extract_subject_id_from_index(
             - index_names=["context.span_id"]
             - index_names=["trace_id"]
     """
-    assert isinstance(names, collections.Sequence)
+    assert isinstance(names, Sequence)
     if len(names) == 2:
-        assert isinstance(value, collections.Sequence) and len(value) == 2
+        assert isinstance(value, Sequence) and len(value) == 2
         if "document_position" in names:
             document_position = value[names.index("document_position")]
             assert isinstance(document_position, int)
@@ -156,3 +116,22 @@ def _extract_result(row: "pd.Series[Any]") -> Optional[pb.Evaluation.Result]:
         label=StringValue(value=label) if label else None,
         explanation=StringValue(value=explanation) if explanation else None,
     )
+
+
+def log_evaluations(
+    *evals: Evaluations,
+    endpoint: Optional[str] = None,
+    host: Optional[str] = None,
+    port: Optional[int] = None,
+) -> None:
+    if not (n := sum(map(len, evals))):
+        return
+    exporter = HttpExporter(endpoint=endpoint, host=host, port=port)
+    for eval in filter(bool, evals):
+        add_evaluations(exporter, eval.dataframe, eval.eval_name)
+    with tqdm(total=n, desc="Sending Evaluations") as pbar:
+        while n:
+            sleep(0.1)
+            n_left = exporter._queue.qsize()
+            n, diff = n_left, n - n_left
+            pbar.update(diff)

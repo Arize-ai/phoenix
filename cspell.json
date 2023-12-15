@@ -16,6 +16,7 @@
         "Instrumentor",
         "langchain",
         "llamaindex",
+        "ndcg",
         "NDJSON",
         "numpy",
         "openai",
@@ -25,10 +26,13 @@
         "RERANKER",
         "respx",
         "rgba",
+        "seafoam",
         "tensorboard",
         "tiktoken",
         "tracedataset",
-        "UMAP"
+        "UMAP",
+        "xlarge",
+        "Zustand"
     ],
     "flagWords": [
         "hte"

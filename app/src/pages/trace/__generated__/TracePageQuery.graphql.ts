@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<e4b2a9fe118abd85495f7fde93572dcc>>
+ * @generated SignedSource<<f1051c7232d74a628c1fb2c6ac3d594d>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -24,6 +24,19 @@ export type TracePageQuery$data = {
         readonly context: {
           readonly spanId: string;
         };
+        readonly documentEvaluations: ReadonlyArray<{
+          readonly documentPosition: number;
+          readonly explanation: string | null;
+          readonly label: string | null;
+          readonly name: string;
+          readonly score: number | null;
+        }>;
+        readonly documentRetrievalMetrics: ReadonlyArray<{
+          readonly evaluationName: string;
+          readonly hit: number | null;
+          readonly ndcg: number | null;
+          readonly precision: number | null;
+        }>;
         readonly events: ReadonlyArray<{
           readonly message: string;
           readonly name: string;
@@ -123,10 +136,10 @@ v4 = {
   "storageKey": null
 },
 v5 = {
-  "alias": null,
+  "alias": "statusCode",
   "args": null,
   "kind": "ScalarField",
-  "name": "statusCode",
+  "name": "propagatedStatusCode",
   "storageKey": null
 },
 v6 = {
@@ -253,6 +266,74 @@ v18 = {
   "kind": "ScalarField",
   "name": "score",
   "storageKey": null
+},
+v19 = {
+  "alias": null,
+  "args": null,
+  "concreteType": "DocumentRetrievalMetrics",
+  "kind": "LinkedField",
+  "name": "documentRetrievalMetrics",
+  "plural": true,
+  "selections": [
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "evaluationName",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "ndcg",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "precision",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "hit",
+      "storageKey": null
+    }
+  ],
+  "storageKey": null
+},
+v20 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "explanation",
+  "storageKey": null
+},
+v21 = {
+  "alias": null,
+  "args": null,
+  "concreteType": "DocumentEvaluation",
+  "kind": "LinkedField",
+  "name": "documentEvaluations",
+  "plural": true,
+  "selections": [
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "documentPosition",
+      "storageKey": null
+    },
+    (v3/*: any*/),
+    (v17/*: any*/),
+    (v18/*: any*/),
+    (v20/*: any*/)
+  ],
+  "storageKey": null
 };
 return {
   "fragment": {
@@ -313,6 +394,8 @@ return {
                     ],
                     "storageKey": null
                   },
+                  (v19/*: any*/),
+                  (v21/*: any*/),
                   {
                     "args": null,
                     "kind": "FragmentSpread",
@@ -386,16 +469,12 @@ return {
                       (v3/*: any*/),
                       (v17/*: any*/),
                       (v18/*: any*/),
-                      {
-                        "alias": null,
-                        "args": null,
-                        "kind": "ScalarField",
-                        "name": "explanation",
-                        "storageKey": null
-                      }
+                      (v20/*: any*/)
                     ],
                     "storageKey": null
-                  }
+                  },
+                  (v19/*: any*/),
+                  (v21/*: any*/)
                 ],
                 "storageKey": null
               }
@@ -408,16 +487,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "00d106ddfcf092e5a79c907caff05b04",
+    "cacheID": "dca150f939e9f25ebb459389fdbaf0c3",
     "id": null,
     "metadata": {},
     "name": "TracePageQuery",
     "operationKind": "query",
-    "text": "query TracePageQuery(\n  $traceId: ID!\n) {\n  spans(traceIds: [$traceId], sort: {col: startTime, dir: asc}) {\n    edges {\n      span: node {\n        context {\n          spanId\n        }\n        name\n        spanKind\n        statusCode\n        startTime\n        parentId\n        latencyMs\n        tokenCountTotal\n        tokenCountPrompt\n        tokenCountCompletion\n        input {\n          value\n          mimeType\n        }\n        output {\n          value\n          mimeType\n        }\n        attributes\n        events {\n          name\n          message\n          timestamp\n        }\n        spanEvaluations {\n          name\n          label\n          score\n        }\n        ...SpanEvaluationsTable_evals\n      }\n    }\n  }\n}\n\nfragment SpanEvaluationsTable_evals on Span {\n  spanEvaluations {\n    name\n    label\n    score\n    explanation\n  }\n}\n"
+    "text": "query TracePageQuery(\n  $traceId: ID!\n) {\n  spans(traceIds: [$traceId], sort: {col: startTime, dir: asc}) {\n    edges {\n      span: node {\n        context {\n          spanId\n        }\n        name\n        spanKind\n        statusCode: propagatedStatusCode\n        startTime\n        parentId\n        latencyMs\n        tokenCountTotal\n        tokenCountPrompt\n        tokenCountCompletion\n        input {\n          value\n          mimeType\n        }\n        output {\n          value\n          mimeType\n        }\n        attributes\n        events {\n          name\n          message\n          timestamp\n        }\n        spanEvaluations {\n          name\n          label\n          score\n        }\n        documentRetrievalMetrics {\n          evaluationName\n          ndcg\n          precision\n          hit\n        }\n        documentEvaluations {\n          documentPosition\n          name\n          label\n          score\n          explanation\n        }\n        ...SpanEvaluationsTable_evals\n      }\n    }\n  }\n}\n\nfragment SpanEvaluationsTable_evals on Span {\n  spanEvaluations {\n    name\n    label\n    score\n    explanation\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "6c94046f3119eccb8707de798c65200b";
+(node as any).hash = "3d1fcabaf101ad2f4bb462aa0b173ac1";
 
 export default node;

@@ -27,7 +27,7 @@ from typing import (
     Union,
     cast,
 )
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import llama_index
 from llama_index.callbacks.base_handler import BaseCallbackHandler
@@ -37,17 +37,24 @@ from llama_index.callbacks.schema import (
     CBEventType,
     EventPayload,
 )
-from llama_index.llms.base import ChatMessage, ChatResponse
+from llama_index.llms.types import ChatMessage, ChatResponse
+from llama_index.response.schema import Response, StreamingResponse
 from llama_index.tools import ToolMetadata
+from typing_extensions import TypeGuard
 
 from phoenix.trace.exporter import HttpExporter
+from phoenix.trace.llama_index.streaming import (
+    instrument_streaming_response as _instrument_streaming_response,
+)
 from phoenix.trace.schemas import (
+    MimeType,
     Span,
     SpanEvent,
     SpanException,
     SpanID,
     SpanKind,
     SpanStatusCode,
+    TraceID,
 )
 from phoenix.trace.semantic_conventions import (
     DOCUMENT_CONTENT,
@@ -71,10 +78,9 @@ from phoenix.trace.semantic_conventions import (
     LLM_TOKEN_COUNT_PROMPT,
     LLM_TOKEN_COUNT_TOTAL,
     MESSAGE_CONTENT,
-    MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON,
-    MESSAGE_FUNCTION_CALL_NAME,
     MESSAGE_NAME,
     MESSAGE_ROLE,
+    MESSAGE_TOOL_CALLS,
     OUTPUT_MIME_TYPE,
     OUTPUT_VALUE,
     RERANKER_INPUT_DOCUMENTS,
@@ -83,16 +89,17 @@ from phoenix.trace.semantic_conventions import (
     RERANKER_QUERY,
     RERANKER_TOP_K,
     RETRIEVAL_DOCUMENTS,
+    TOOL_CALL_FUNCTION_ARGUMENTS_JSON,
+    TOOL_CALL_FUNCTION_NAME,
     TOOL_DESCRIPTION,
     TOOL_NAME,
     TOOL_PARAMETERS,
-    MimeType,
 )
 from phoenix.trace.tracer import SpanExporter, Tracer
 from phoenix.trace.utils import extract_version_triplet, get_stacktrace
 from phoenix.utilities.error_handling import graceful_fallback
 
-LLAMA_INDEX_MINIMUM_VERSION_TRIPLET = (0, 9, 0)
+LLAMA_INDEX_MINIMUM_VERSION_TRIPLET = (0, 9, 8)
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
 
@@ -107,6 +114,10 @@ class CBEventData:
     start_event: Optional[CBEvent] = field(default=None)
     end_event: Optional[CBEvent] = field(default=None)
     attributes: Dict[str, Any] = field(default_factory=dict)
+    span_id: Optional[CBEventID] = field(default=None)
+    parent_id: Optional[CBEventID] = field(default=None)
+    trace_id: Optional[TraceID] = field(default=None)
+    streaming_event: bool = field(default=False)
 
     def set_if_unset(self, key: str, value: Any) -> None:
         if not getattr(self, key):
@@ -268,9 +279,16 @@ class OpenInferenceTraceCallbackHandler(BaseCallbackHandler):
         **kwargs: Any,
     ) -> CBEventID:
         event_id = event_id or str(uuid4())
+        if parent_data := self._event_id_to_event_data.get(parent_id):
+            trace_id = parent_data.trace_id
+        else:
+            trace_id = uuid4()
         event_data = self._event_id_to_event_data[event_id]
         event_data.name = event_type.value
         event_data.event_type = event_type
+        event_data.parent_id = None if parent_id == "root" else parent_id
+        event_data.span_id = event_id
+        event_data.trace_id = trace_id
         event_data.start_event = CBEvent(
             event_type=event_type,
             payload=payload,
@@ -306,6 +324,10 @@ class OpenInferenceTraceCallbackHandler(BaseCallbackHandler):
             event_data.attributes.update(
                 payload_to_semantic_attributes(event_type, payload, is_event_end=True),
             )
+            response = payload.get(EventPayload.RESPONSE)
+            if _is_streaming_response(response):
+                event_data.streaming_event = True
+                response = _instrument_streaming_response(response, self._tracer, event_data)
 
     @graceful_fallback(_null_fallback)
     def start_trace(self, trace_id: Optional[str] = None) -> None:
@@ -351,16 +373,19 @@ def _add_spans_to_tracer(
         tracer (Tracer): The tracer that stores spans.
     """
 
-    trace_id = uuid4()
     parent_child_id_stack: List[Tuple[Optional[SpanID], CBEventID]] = [
         (None, root_event_id) for root_event_id in trace_map["root"]
     ]
-    span_exceptions: List[SpanEvent] = []
     while parent_child_id_stack:
         parent_span_id, event_id = parent_child_id_stack.pop()
         event_data = event_id_to_event_data[event_id]
         event_type = event_data.event_type
         attributes = event_data.attributes
+        if not (start_event := event_data.start_event):
+            # if the callback system has broken its contract by calling
+            # on_event_end without on_event_start, do not create a span
+            continue
+
         if event_type is CBEventType.LLM:
             while parent_child_id_stack:
                 preceding_event_parent_span_id, preceding_event_id = parent_child_id_stack[-1]
@@ -375,38 +400,21 @@ def _add_spans_to_tracer(
                         # Add template attributes to the LLM span to which they belong.
                         attributes.update(_template_attributes(preceding_payload))
 
-        start_time = None
-        if start_event := event_data.start_event:
-            start_time = _timestamp_to_tz_aware_datetime(start_event.time)
-        end_time = _get_end_time(event_data, span_exceptions)
+        start_time = _timestamp_to_tz_aware_datetime(start_event.time)
+        span_exceptions = _get_span_exceptions(event_data, start_time)
+        if event_data.streaming_event:
+            # Do not set the end time for streaming events so we can update the event later
+            end_time = None
+        else:
+            end_time = _get_end_time(event_data, span_exceptions)
         start_time = start_time or end_time or datetime.now(timezone.utc)
-
-        if event_type is CBEventType.EXCEPTION:
-            # LlamaIndex has exception callback events that are sibling events of the events in
-            # which the exception occurred. We collect all the exception events and add them to
-            # the relevant span.
-            if (
-                not start_event
-                or not start_event.payload
-                or (error := start_event.payload.get(EventPayload.EXCEPTION)) is None
-            ):
-                continue
-            span_exceptions.append(
-                SpanException(
-                    message=str(error),
-                    timestamp=start_time,
-                    exception_type=type(error).__name__,
-                    exception_stacktrace=get_stacktrace(error),
-                )
-            )
-            continue
 
         name = event_name if (event_name := event_data.name) is not None else "unknown"
         span_kind = _get_span_kind(event_type)
         span = tracer.create_span(
             name=name,
             span_kind=span_kind,
-            trace_id=trace_id,
+            trace_id=event_data.trace_id,
             start_time=start_time,
             end_time=end_time,
             status_code=SpanStatusCode.ERROR if span_exceptions else SpanStatusCode.OK,
@@ -415,8 +423,8 @@ def _add_spans_to_tracer(
             attributes=attributes,
             events=sorted(span_exceptions, key=lambda event: event.timestamp) or None,
             conversation=None,
+            span_id=UUID(event_data.span_id),
         )
-        span_exceptions = []
         new_parent_span_id = span.context.span_id
         for new_child_event_id in trace_map.get(event_id, []):
             parent_child_id_stack.append((new_parent_span_id, new_child_event_id))
@@ -457,14 +465,12 @@ def _message_payload_to_attributes(message: Any) -> Dict[str, Optional[str]]:
             assert isinstance(
                 tool_calls, Iterable
             ), f"tool_calls must be Iterable, found {type(tool_calls)}"
-            tool_call = next(iter(tool_calls), None)
-            function = getattr(tool_call, "function", None)
-            if name := getattr(function, "name", None):
-                assert isinstance(name, str), f"name must be str, found {type(name)}"
-                message_attributes[MESSAGE_FUNCTION_CALL_NAME] = name
-            if arguments := getattr(function, "arguments", None):
-                assert isinstance(arguments, str), f"arguments must be str, found {type(arguments)}"
-                message_attributes[MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON] = arguments
+            message_tool_calls = []
+            for tool_call in tool_calls:
+                if message_tool_call := dict(_get_tool_call(tool_call)):
+                    message_tool_calls.append(message_tool_call)
+            if message_tool_calls:
+                message_attributes[MESSAGE_TOOL_CALLS] = message_tool_calls
         return message_attributes
 
     return {
@@ -506,12 +512,23 @@ def _get_response_output(response: Any) -> Iterator[Tuple[str, Any]]:
         else:
             yield OUTPUT_VALUE, json.dumps(message.additional_kwargs, cls=_CustomJSONEncoder)
             yield OUTPUT_MIME_TYPE, MimeType.JSON
-    else:
+    elif isinstance(response, Response):
+        yield OUTPUT_VALUE, response.response or ""
+        yield OUTPUT_MIME_TYPE, MimeType.TEXT
+    elif isinstance(response, StreamingResponse):
+        # We cannot get the output from a streaming response without exhausting
+        # the stream, so we initially return an empty string. Additional work is
+        # needed to instrument the returned response object to update the span
+        # with the actual response once the stream has been exhausted:
+        # https://github.com/Arize-ai/phoenix/issues/1867
+        yield OUTPUT_VALUE, ""
+        yield OUTPUT_MIME_TYPE, MimeType.TEXT
+    else:  # if the response has unknown type, make a best-effort attempt to get the output
         yield OUTPUT_VALUE, str(response)
         yield OUTPUT_MIME_TYPE, MimeType.TEXT
 
 
-def _get_end_time(event_data: CBEventData, span_events: List[SpanEvent]) -> Optional[datetime]:
+def _get_end_time(event_data: CBEventData, span_events: Iterable[SpanEvent]) -> Optional[datetime]:
     """
     A best-effort attempt to get the end time of an event.
 
@@ -526,6 +543,22 @@ def _get_end_time(event_data: CBEventData, span_events: List[SpanEvent]) -> Opti
     else:
         return None
     return _tz_naive_to_tz_aware_datetime(tz_naive_end_time)
+
+
+def _get_span_exceptions(event_data: CBEventData, start_time: datetime) -> List[SpanException]:
+    """Collects exceptions from the start and end events, if present."""
+    span_exceptions = []
+    for event in [event_data.start_event, event_data.end_event]:
+        if event and (payload := event.payload) and (error := payload.get(EventPayload.EXCEPTION)):
+            span_exceptions.append(
+                SpanException(
+                    message=str(error),
+                    timestamp=start_time,
+                    exception_type=type(error).__name__,
+                    exception_stacktrace=get_stacktrace(error),
+                )
+            )
+    return span_exceptions
 
 
 def _timestamp_to_tz_aware_datetime(timestamp: str) -> datetime:
@@ -554,14 +587,12 @@ def _get_message(message: object) -> Iterator[Tuple[str, Any]]:
         assert isinstance(
             tool_calls, Iterable
         ), f"tool_calls must be Iterable, found {type(tool_calls)}"
-        tool_call = next(iter(tool_calls), None)
-        function = getattr(tool_call, "function", None)
-        if name := getattr(function, "name", None):
-            assert isinstance(name, str), f"name must be str, found {type(name)}"
-            yield MESSAGE_FUNCTION_CALL_NAME, name
-        if arguments := getattr(function, "arguments", None):
-            assert isinstance(arguments, str), f"arguments must be str, found {type(arguments)}"
-            yield MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON, arguments
+        message_tool_calls = []
+        for tool_call in tool_calls:
+            if message_tool_call := dict(_get_tool_call(tool_call)):
+                message_tool_calls.append(message_tool_call)
+        if message_tool_calls:
+            yield MESSAGE_TOOL_CALLS, message_tool_calls
 
 
 def _get_output_messages(raw: Mapping[str, Any]) -> Iterator[Tuple[str, Any]]:
@@ -623,3 +654,17 @@ def _template_attributes(payload: Dict[str, Any]) -> Iterator[Tuple[str, Any]]:
         # TODO(maybe): other keys in the same payload
         # EventPayload.SYSTEM_PROMPT
         # EventPayload.QUERY_WRAPPER_PROMPT
+
+
+def _get_tool_call(tool_call: object) -> Iterator[Tuple[str, Any]]:
+    if function := getattr(tool_call, "function", None):
+        if name := getattr(function, "name", None):
+            assert isinstance(name, str), f"name must be str, found {type(name)}"
+            yield TOOL_CALL_FUNCTION_NAME, name
+        if arguments := getattr(function, "arguments", None):
+            assert isinstance(arguments, str), f"arguments must be str, found {type(arguments)}"
+            yield TOOL_CALL_FUNCTION_ARGUMENTS_JSON, arguments
+
+
+def _is_streaming_response(response: Any) -> TypeGuard[StreamingResponse]:
+    return isinstance(response, StreamingResponse)

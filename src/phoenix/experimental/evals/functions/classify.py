@@ -4,13 +4,18 @@ import asyncio
 import json
 import logging
 import signal
+import traceback
+from collections import defaultdict
 from typing import (
     Any,
     Callable,
     Coroutine,
+    DefaultDict,
     Dict,
     Iterable,
     List,
+    Mapping,
+    NamedTuple,
     Optional,
     Sequence,
     Tuple,
@@ -19,8 +24,11 @@ from typing import (
 )
 
 import pandas as pd
+from pandas import DataFrame
 from tqdm.auto import tqdm
+from typing_extensions import TypeAlias
 
+from phoenix.experimental.evals.evaluators import LLMEvaluator, _snap_to_rail
 from phoenix.experimental.evals.models import BaseEvalModel, OpenAIModel, set_verbosity
 from phoenix.experimental.evals.templates import (
     NOT_PARSABLE,
@@ -47,9 +55,10 @@ OPENINFERENCE_DOCUMENT_COLUMN_NAME = "attributes." + RETRIEVAL_DOCUMENTS
 _RESPONSE = "response"
 _EXPLANATION = "explanation"
 
-
-class EndOfQueue:
-    pass
+EvalName: TypeAlias = str
+EvalPrediction: TypeAlias = str
+Record: TypeAlias = Mapping[str, Any]
+RowIndex: TypeAlias = Any
 
 
 class Unset:
@@ -88,6 +97,7 @@ class AsyncExecutor:
         concurrency: int = 3,
         tqdm_bar_format: Optional[str] = None,
         exit_on_error: bool = True,
+        max_retries: int = 10,
         fallback_return_value: Union[Unset, Any] = _unset,
     ):
         self.generate = generation_fn
@@ -95,75 +105,139 @@ class AsyncExecutor:
         self.concurrency = concurrency
         self.tqdm_bar_format = tqdm_bar_format
         self.exit_on_error = exit_on_error
+        self.max_retries = max_retries
+        self.base_priority = 0
 
-        # An end of queue sentinel is used to signal to consumers that the queue is empty and that
-        # they should exit. This is necessary because some consumers may still be waiting for an
-        # item to be added to the queue when the producer finishes.
-        self.end_of_queue = EndOfQueue()
-
-        self._TERMINATE = False
+        self._TERMINATE = asyncio.Event()
 
     def _signal_handler(self, signum: int, frame: Any) -> None:
-        self._TERMINATE = True
+        self._TERMINATE.set()
         tqdm.write("Process was interrupted. The return value will be incomplete...")
 
     async def producer(
         self,
         inputs: Sequence[Any],
-        queue: asyncio.Queue[Union[EndOfQueue, Tuple[int, Any]]],
+        queue: asyncio.PriorityQueue[Tuple[int, Any]],
+        max_fill: int,
+        done_producing: asyncio.Event,
     ) -> None:
-        for index, input in enumerate(inputs):
-            if self._TERMINATE:
-                break
-            await queue.put((index, input))
-        # adds an end of queue sentinel for each consumer, guaranteeing that any consumer that is
-        # currently waiting for an item will gracefully stop.
-        for _ in range(self.concurrency):
-            await queue.put(self.end_of_queue)
+        try:
+            for index, input in enumerate(inputs):
+                if self._TERMINATE.is_set():
+                    break
+                while queue.qsize() >= max_fill:
+                    # keep room in the queue for requeues
+                    await asyncio.sleep(1)
+                await queue.put((self.base_priority, (index, input)))
+        finally:
+            done_producing.set()
 
     async def consumer(
         self,
         output: List[Any],
-        queue: asyncio.Queue[Union[EndOfQueue, Tuple[int, Any]]],
+        queue: asyncio.PriorityQueue[Tuple[int, Any]],
+        done_producing: asyncio.Event,
         progress_bar: tqdm[Any],
     ) -> None:
+        termination_signal_task = None
         while True:
-            item = await queue.get()
-            if item is self.end_of_queue:
-                return
-            if self._TERMINATE:
+            marked_done = False
+            try:
+                priority, item = await asyncio.wait_for(queue.get(), timeout=1)
+            except asyncio.TimeoutError:
+                if done_producing.is_set() and queue.empty():
+                    break
+                continue
+            if self._TERMINATE.is_set():
                 # discard any remaining items in the queue
+                queue.task_done()
+                marked_done = True
                 continue
 
-            item = cast(Tuple[int, Any], item)
             index, payload = item
             try:
-                result = await self.generate(payload)
-                output[index] = result
-                progress_bar.update()
-            except Exception as e:
-                tqdm.write(f"Exception in worker: {e}")
-                if self.exit_on_error:
-                    self._TERMINATE = True
-                else:
+                generate_task = asyncio.create_task(self.generate(payload))
+                termination_signal_task = asyncio.create_task(self._TERMINATE.wait())
+                done, pending = await asyncio.wait(
+                    [generate_task, termination_signal_task],
+                    timeout=120,
+                    return_when=asyncio.FIRST_COMPLETED,
+                )
+                if generate_task in done:
+                    output[index] = generate_task.result()
                     progress_bar.update()
+                elif self._TERMINATE.is_set():
+                    # discard the pending task and remaining items in the queue
+                    if not generate_task.done():
+                        generate_task.cancel()
+                        try:
+                            # allow any cleanup to finish for the cancelled task
+                            await generate_task
+                        except asyncio.CancelledError:
+                            # Handle the cancellation exception
+                            pass
+                    queue.task_done()
+                    marked_done = True
+                    continue
+                else:
+                    tqdm.write("Worker timeout, requeuing")
+                    # task timeouts are requeued at base priority
+                    await queue.put((self.base_priority, item))
+            except Exception as exc:
+                if (retry_count := abs(priority)) <= self.max_retries:
+                    tqdm.write(
+                        f"Exception in worker on attempt {retry_count + 1}: raised {repr(exc)}"
+                    )
+                    tqdm.write("Requeuing...")
+                    await queue.put((priority - 1, item))
+                else:
+                    tqdm.write(f"Exception in worker: {traceback.format_exc()}")
+                    if self.exit_on_error:
+                        self._TERMINATE.set()
+                    else:
+                        progress_bar.update()
+            finally:
+                if not marked_done:
+                    queue.task_done()
+                if termination_signal_task and not termination_signal_task.done():
+                    termination_signal_task.cancel()
 
     async def execute(self, inputs: Sequence[Any]) -> List[Any]:
         signal.signal(signal.SIGINT, self._signal_handler)
         outputs = [self.fallback_return_value] * len(inputs)
         progress_bar = tqdm(total=len(inputs), bar_format=self.tqdm_bar_format)
 
-        queue: asyncio.Queue[Union[EndOfQueue, Tuple[int, Any]]] = asyncio.Queue(
-            maxsize=2 * self.concurrency
+        max_queue_size = 5 * self.concurrency  # limit the queue to bound memory usage
+        max_fill = max_queue_size - (2 * self.concurrency)  # ensure there is always room to requeue
+        queue: asyncio.PriorityQueue[Tuple[int, Any]] = asyncio.PriorityQueue(
+            maxsize=max_queue_size
         )
+        done_producing = asyncio.Event()
 
-        producer = self.producer(inputs, queue)
+        producer = asyncio.create_task(self.producer(inputs, queue, max_fill, done_producing))
         consumers = [
-            asyncio.create_task(self.consumer(outputs, queue, progress_bar))
+            asyncio.create_task(self.consumer(outputs, queue, done_producing, progress_bar))
             for _ in range(self.concurrency)
         ]
 
         await asyncio.gather(producer, *consumers)
+        join_task = asyncio.create_task(queue.join())
+        termination_signal_task = asyncio.create_task(self._TERMINATE.wait())
+        done, pending = await asyncio.wait(
+            [join_task, termination_signal_task], return_when=asyncio.FIRST_COMPLETED
+        )
+        if termination_signal_task in done:
+            # Cancel all tasks
+            if not join_task.done():
+                join_task.cancel()
+            if not producer.done():
+                producer.cancel()
+            for task in consumers:
+                if not task.done():
+                    task.cancel()
+
+        if not termination_signal_task.done():
+            termination_signal_task.cancel()
         return outputs
 
     def run(self, inputs: Sequence[Any]) -> List[Any]:
@@ -235,8 +309,7 @@ def get_executor_on_sync_context(
     exit_on_error: bool = True,
     fallback_return_value: Union[Unset, Any] = _unset,
 ) -> Union[AsyncExecutor, SyncExecutor]:
-    try:
-        asyncio.get_running_loop()
+    if _running_event_loop_exists():
         if getattr(asyncio, "_nest_patched", False):
             return AsyncExecutor(
                 async_fn,
@@ -257,7 +330,7 @@ def get_executor_on_sync_context(
                 exit_on_error=exit_on_error,
                 fallback_return_value=fallback_return_value,
             )
-    except RuntimeError:
+    else:
         return AsyncExecutor(
             async_fn,
             concurrency=concurrency,
@@ -265,6 +338,19 @@ def get_executor_on_sync_context(
             exit_on_error=exit_on_error,
             fallback_return_value=fallback_return_value,
         )
+
+
+def _running_event_loop_exists() -> bool:
+    """Checks for a running event loop.
+
+    Returns:
+        bool: True if a running event loop exists, False otherwise.
+    """
+    try:
+        asyncio.get_running_loop()
+        return True
+    except RuntimeError:
+        return False
 
 
 def llm_classify(
@@ -276,7 +362,7 @@ def llm_classify(
     verbose: bool = False,
     use_function_calling_if_available: bool = True,
     provide_explanation: bool = False,
-    concurrency: int = 3,
+    concurrency: int = 20,
 ) -> pd.DataFrame:
     """Classifies each input row of the dataframe using an LLM. Returns a pandas.DataFrame
     where the first column is named `label` and contains the classification labels. An optional
@@ -311,7 +397,7 @@ def llm_classify(
         classification label. A column named `explanation` is added to the output dataframe.
         Currently, this is only available for models with function calling.
 
-        concurrency (int, default=3): The number of concurrent evals.
+        concurrency (int, default=20): The number of concurrent evals.
 
     Returns:
         pandas.DataFrame: A dataframe where the `label` column (at column position 0) contains
@@ -384,7 +470,7 @@ def llm_classify(
             )
         return _process_response(response)
 
-    executor: Union[AsyncExecutor, SyncExecutor] = get_executor_on_sync_context(
+    executor = get_executor_on_sync_context(
         _run_llm_classification_sync,
         _run_llm_classification_async,
         concurrency=concurrency,
@@ -526,38 +612,6 @@ def _get_contents_from_openinference_documents(documents: Iterable[Any]) -> List
     return [doc.get(DOCUMENT_CONTENT) if isinstance(doc, dict) else None for doc in documents]
 
 
-def _snap_to_rail(raw_string: Optional[str], rails: List[str], verbose: bool = False) -> str:
-    """
-    Snaps a string to the nearest rail, or returns None if the string cannot be
-    snapped to a rail.
-
-    Args:
-        raw_string (str): An input to be snapped to a rail.
-
-        rails (List[str]): The target set of strings to snap to.
-
-    Returns:
-        str: A string from the rails argument or "UNPARSABLE" if the input
-        string could not be snapped.
-    """
-    if not raw_string:
-        return NOT_PARSABLE
-    snap_string = raw_string.lower()
-    rails = list(set(rail.lower() for rail in rails))
-    rails.sort(key=len, reverse=True)
-    found_rails = set()
-    for rail in rails:
-        if rail in snap_string:
-            found_rails.add(rail)
-            snap_string = snap_string.replace(rail, "")
-    if len(found_rails) != 1:
-        printif(verbose, f"- Cannot snap {repr(raw_string)} to rails")
-        return NOT_PARSABLE
-    rail = list(found_rails)[0]
-    printif(verbose, f"- Snapped {repr(raw_string)} to rail: {rail}")
-    return rail
-
-
 def _default_openai_function(
     rails: List[str],
     with_explanation: bool = False,
@@ -585,3 +639,79 @@ def _default_openai_function(
             "required": required,
         },
     }
+
+
+class RunEvalsPayload(NamedTuple):
+    evaluator: LLMEvaluator
+    record: Record
+    row_index: RowIndex
+
+
+def run_evals(
+    dataframe: DataFrame,
+    evaluators: List[LLMEvaluator],
+    concurrency: int = 20,
+) -> DataFrame:
+    """
+    Applies a list of evaluators to every row of a dataframe. Outputs a
+    dataframe where each column corresponds to an evaluator and each row
+    corresponds to a row in the input dataframe.
+
+    Args:
+        dataframe (pd.DataFrame): A pandas dataframe in which each row
+        represents a record to be evaluated. All template variable names must
+        appear as column names in the dataframe (extra columns unrelated to the
+        template are permitted).
+
+        evaluators (List[Evaluator]): A list of evaluators with unique names.
+
+        concurrency (int, optional): An optional concurrency parameter. Defaults
+        to 20.
+
+    Returns:
+        DataFrame: A dataframe where each row contains the outputs of the
+        evaluators applied to the corresponding row of the input dataframe and
+        the column names match the names of the evaluators. The index of the
+        dataframe is the same as the index of the input dataframe.
+    """
+    if len(set(evaluator.name for evaluator in evaluators)) != len(evaluators):
+        raise ValueError("Evaluators must have unique names.")
+
+    async def _run_eval_async(
+        payload: RunEvalsPayload,
+    ) -> Tuple[RowIndex, EvalName, EvalPrediction]:
+        row_index = payload.row_index
+        evaluator = payload.evaluator
+        record = payload.record
+        eval_result = await evaluator.aevaluate(record)
+        return row_index, evaluator.name, eval_result
+
+    def _run_eval_sync(payload: RunEvalsPayload) -> Tuple[RowIndex, EvalName, EvalPrediction]:
+        row_index = payload.row_index
+        evaluator = payload.evaluator
+        record = payload.record
+        eval_result = evaluator.evaluate(record)
+        return row_index, evaluator.name, eval_result
+
+    executor = get_executor_on_sync_context(
+        _run_eval_sync,
+        _run_eval_async,
+        concurrency=concurrency,
+        tqdm_bar_format=get_tqdm_progress_bar_formatter("run_evals"),
+        exit_on_error=True,
+        fallback_return_value=(None, None),
+    )
+    payloads = [
+        RunEvalsPayload(
+            row_index=row_index,
+            evaluator=evaluator,
+            record=row.to_dict(),
+        )
+        for row_index, row in dataframe.iterrows()
+        for evaluator in evaluators
+    ]
+    results: DefaultDict[RowIndex, Dict[EvalName, EvalPrediction]] = defaultdict(dict)
+    for row_index, eval_name, eval_result in executor.run(payloads):
+        results[row_index][eval_name] = eval_result
+    index, data = zip(*results.items())
+    return DataFrame(data, index=index)

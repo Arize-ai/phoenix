@@ -2,6 +2,7 @@
 
 * [Phoenix: AI Observability & Evaluation](README.md)
 * [Example Notebooks](notebooks.md)
+* [Environments](environments.md)
 
 ## 🔑 Quickstart
 
@@ -27,14 +28,18 @@
   * [Toxicity](llm-evals/running-pre-tested-evals/toxicity.md)
   * [Code Generation Eval](llm-evals/running-pre-tested-evals/code-generation-eval.md)
   * [Summarization Eval](llm-evals/running-pre-tested-evals/summarization-eval.md)
-  * [Reference Link Evals](llm-evals/running-pre-tested-evals/reference-link-evals.md)
+  * [Reference (citation) Link Evals](llm-evals/running-pre-tested-evals/reference-link-evals.md)
+  * [AI vs Human (Groundtruth)](llm-evals/running-pre-tested-evals/ai-vs-human-groundtruth.md)
+* [Evals With Explanations](llm-evals/evals-with-explanations.md)
 * [Building Your Own Evals](llm-evals/building-your-own-evals.md)
+* [Retrieval Evals on Document Chunks](llm-evals/retrieval-evals-on-document-chunks.md)
 * [Benchmarking Retrieval (RAG)](llm-evals/benchmarking-retrieval-rag.md)
 
 ## 🔮 Use Cases
 
 * [QA with Retrieval (Using Vector Stores)](use-cases/troubleshooting-llm-retrieval-with-vector-stores.md)
 * [Structured Extraction](use-cases/structured-extraction.md)
+* [RAG Evaluation](use-cases/rag-evaluation.md)
 
 ## 🔢 How-To
 
