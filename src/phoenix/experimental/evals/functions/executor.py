@@ -68,22 +68,17 @@ class AsyncExecutor(Executor):
         self.exit_on_error = exit_on_error
         self.base_priority = 0
 
-        self._TERMINATE = asyncio.Event()
-
-    def _signal_handler(self, signum: int, frame: Any) -> None:
-        self._TERMINATE.set()
-        tqdm.write("Process was interrupted. The return value will be incomplete...")
-
     async def producer(
         self,
         inputs: Sequence[Any],
         queue: asyncio.PriorityQueue[Tuple[int, Any]],
         max_fill: int,
         done_producing: asyncio.Event,
+        termination_signal: asyncio.Event,
     ) -> None:
         try:
             for index, input in enumerate(inputs):
-                if self._TERMINATE.is_set():
+                if termination_signal.is_set():
                     break
                 while queue.qsize() >= max_fill:
                     # keep room in the queue for requeues
@@ -97,6 +92,7 @@ class AsyncExecutor(Executor):
         output: List[Any],
         queue: asyncio.PriorityQueue[Tuple[int, Any]],
         done_producing: asyncio.Event,
+        termination_signal: asyncio.Event,
         progress_bar: tqdm[Any],
     ) -> None:
         termination_signal_task = None
@@ -108,7 +104,7 @@ class AsyncExecutor(Executor):
                 if done_producing.is_set() and queue.empty():
                     break
                 continue
-            if self._TERMINATE.is_set():
+            if termination_signal.is_set():
                 # discard any remaining items in the queue
                 queue.task_done()
                 marked_done = True
@@ -117,7 +113,7 @@ class AsyncExecutor(Executor):
             index, payload = item
             try:
                 generate_task = asyncio.create_task(self.generate(payload))
-                termination_signal_task = asyncio.create_task(self._TERMINATE.wait())
+                termination_signal_task = asyncio.create_task(termination_signal.wait())
                 done, pending = await asyncio.wait(
                     [generate_task, termination_signal_task],
                     timeout=120,
@@ -126,7 +122,7 @@ class AsyncExecutor(Executor):
                 if generate_task in done:
                     output[index] = generate_task.result()
                     progress_bar.update()
-                elif self._TERMINATE.is_set():
+                elif termination_signal.is_set():
                     # discard the pending task and remaining items in the queue
                     if not generate_task.done():
                         generate_task.cancel()
@@ -154,7 +150,7 @@ class AsyncExecutor(Executor):
                 else:
                     tqdm.write(f"Exception in worker: {traceback.format_exc()}")
                     if self.exit_on_error:
-                        self._TERMINATE.set()
+                        termination_signal.set()
                     else:
                         progress_bar.update()
             finally:
@@ -164,7 +160,13 @@ class AsyncExecutor(Executor):
                     termination_signal_task.cancel()
 
     async def execute(self, inputs: Sequence[Any]) -> List[Any]:
-        signal.signal(signal.SIGINT, self._signal_handler)
+        termination_signal = asyncio.Event()
+
+        def termination_handler(signum: int, frame: Any) -> None:
+            termination_signal.set()
+            tqdm.write("Process was interrupted. The return value will be incomplete...")
+
+        signal.signal(signal.SIGINT, termination_handler)
         outputs = [self.fallback_return_value] * len(inputs)
         progress_bar = tqdm(total=len(inputs), bar_format=self.tqdm_bar_format)
 
@@ -175,15 +177,19 @@ class AsyncExecutor(Executor):
         )
         done_producing = asyncio.Event()
 
-        producer = asyncio.create_task(self.producer(inputs, queue, max_fill, done_producing))
+        producer = asyncio.create_task(
+            self.producer(inputs, queue, max_fill, done_producing, termination_signal)
+        )
         consumers = [
-            asyncio.create_task(self.consumer(outputs, queue, done_producing, progress_bar))
+            asyncio.create_task(
+                self.consumer(outputs, queue, done_producing, termination_signal, progress_bar)
+            )
             for _ in range(self.concurrency)
         ]
 
         await asyncio.gather(producer, *consumers)
         join_task = asyncio.create_task(queue.join())
-        termination_signal_task = asyncio.create_task(self._TERMINATE.wait())
+        termination_signal_task = asyncio.create_task(termination_signal.wait())
         done, pending = await asyncio.wait(
             [join_task, termination_signal_task], return_when=asyncio.FIRST_COMPLETED
         )
@@ -199,6 +205,9 @@ class AsyncExecutor(Executor):
 
         if not termination_signal_task.done():
             termination_signal_task.cancel()
+
+        # reset the SIGTERM handler
+        signal.signal(signal.SIGINT, signal.SIG_DFL)  # reset the SIGTERM handler
         return outputs
 
     def run(self, inputs: Sequence[Any]) -> List[Any]:
@@ -273,6 +282,7 @@ class SyncExecutor(Executor):
                     return outputs
                 else:
                     progress_bar.update()
+        signal.signal(signal.SIGINT, signal.SIG_DFL)  # reset the SIGTERM handler
         return outputs
 
 
