@@ -72,7 +72,7 @@ def llm_generate(
     logger.info(f"Template variables: {template.variables}")
     prompts = map_template(dataframe, template)
 
-    async def _run_llm_generation_async(prompt: str) -> Any:
+    async def _run_llm_generation_async(prompt: str) -> Dict[str, Any]:
         with set_verbosity(model, verbose) as verbose_model:
             response = await verbose_model._async_generate(
                 prompt,
@@ -80,7 +80,7 @@ def llm_generate(
             )
         return output_parser(response)
 
-    def _run_llm_generation_sync(prompt: str) -> Any:
+    def _run_llm_generation_sync(prompt: str) -> Dict[str, Any]:
         with set_verbosity(model, verbose) as verbose_model:
             response = verbose_model._generate(
                 prompt,
@@ -94,8 +94,7 @@ def llm_generate(
         concurrency=concurrency,
         tqdm_bar_format=tqdm_bar_format,
         exit_on_error=True,
-        fallback_return_value={"output": "error"},
+        fallback_return_value={"output": "generation-failed"},
     )
     output = executor.run(prompts.tolist())
-    # Return the data as a dataframe
     return pd.DataFrame(output)
