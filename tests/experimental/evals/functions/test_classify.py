@@ -108,6 +108,7 @@ def classification_template():
 
 @pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
 def test_llm_classify(
+    api_key: str,
     classification_dataframe: DataFrame,
     respx_mock: respx.mock,
 ):
@@ -337,7 +338,7 @@ def test_llm_classify_prints_to_stdout_with_verbose_flag(
     assert "sk-0123456789" not in out, "Credentials should not be printed out in cleartext"
 
 
-def test_llm_classify_shows_retry_info(capfd: pytest.CaptureFixture[str]):
+def test_llm_classify_shows_retry_info(api_key: str, capfd: pytest.CaptureFixture[str]):
     dataframe = pd.DataFrame(
         [
             {
@@ -497,6 +498,7 @@ def test_run_relevance_eval_standard_dataframe(
 
 @pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions", assert_all_called=False)
 def test_classify_tolerance_to_exceptions(
+    api_key: str,
     classification_dataframe: pd.DataFrame,
     classification_responses: List[str],
     classification_template: str,
@@ -529,6 +531,7 @@ def test_classify_tolerance_to_exceptions(
 
 
 def test_run_relevance_eval_openinference_dataframe(
+    api_key: str,
     respx_mock: respx.mock,
 ):
     dataframe = pd.DataFrame(
