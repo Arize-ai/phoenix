@@ -7,6 +7,7 @@ from abc import ABC, abstractmethod
 from phoenix.session.session import Session
 from phoenix.experimental.trace_writer.constants import SPAN_DATAFRAME_TYPES, SQL_TYPE_MAP
 
+
 def generate_query_fields():
     """
     key_names: valid column names
@@ -20,6 +21,7 @@ def generate_query_fields():
         query_fields = f"{query_fields} {key_name} {SQL_TYPE_MAP.get(dtype, 'STRING')},"
     # remove final ',' in column_types
     return key_names, query_fields[:-1]
+
 
 class TraceStore(ABC):
     key_names, query_fields = generate_query_fields()
@@ -72,6 +74,7 @@ class TraceStore(ABC):
         else:
             print(f"No new spans found")
 
+
 class SQLTypeStore(TraceStore):
     def __init__(self, friendly_name, table_name, **connection_params):
         super().__init__(friendly_name, table_name, **connection_params)
@@ -117,6 +120,7 @@ class SQLTypeStore(TraceStore):
             traces.append(f"({','.join(values)})")
         self.insert_traces_in_table(traces)
 
+
 class DatabricksTraceStore(SQLTypeStore):
     """
     Databricks SQL Trace Store
@@ -133,8 +137,12 @@ class DatabricksTraceStore(SQLTypeStore):
         query = f"CREATE TABLE IF NOT EXISTS {self.table_name} ({self.query_fields}) USING DELTA;"
         self._run_query(query)
 
-
+    
 class SnowflakeTraceStore(SQLTypeStore):
+    """
+    Snowflake Trace Store
+    Send Phoenix traces to Snowflake wharehouse table
+    """
     def __init__(self, table_name, user, password, account, warehouse, database, schema):
         super().__init__("Snowflake", table_name, user=user, password=password, account=account, warehouse=warehouse, database=database, schema=schema)
 
@@ -142,13 +150,14 @@ class SnowflakeTraceStore(SQLTypeStore):
         return sf_sql.Connect(
             **connection_params
         )
-    
-    def _process_insert(self, df: pd.DataFrame):
-        """Get recent spans from active session and insert in SQL table"""
-        df = self._convert_datetime(df)
+
+    def _insert(self, df: pd.DataFrame):
         reset_columns = df.columns
         df.columns = map(lambda x: str(x).upper() if '.' not in x else f"`{str(x).upper()}`", df.columns)
         write_pandas(self.conn, df, table_name = self.table_name)
-
-        # reset columns to original format (for timestamp update)
         df.columns = reset_columns
+
+    def _process_insert(self, df: pd.DataFrame):
+        """Get recent spans from active session and insert in SQL table"""
+        df = self._convert_datetime(df)
+        self.insert_traces_in_table(df)
