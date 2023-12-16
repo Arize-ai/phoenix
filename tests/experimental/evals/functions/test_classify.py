@@ -1,12 +1,9 @@
-import asyncio
-import signal
 from contextlib import ExitStack
 from itertools import product
 from typing import List
 from unittest.mock import MagicMock, patch
 
 import httpx
-import nest_asyncio
 import numpy as np
 import pandas as pd
 import phoenix
@@ -22,10 +19,7 @@ from phoenix.experimental.evals import (
 )
 from phoenix.experimental.evals.evaluators import LLMEvaluator
 from phoenix.experimental.evals.functions.classify import (
-    AsyncExecutor,
-    SyncExecutor,
     _snap_to_rail,
-    get_executor_on_sync_context,
     run_evals,
 )
 from phoenix.experimental.evals.models.openai import OPENAI_API_KEY_ENVVAR_NAME
@@ -71,11 +65,11 @@ def relevance_evaluator(model: OpenAIModel) -> LLMEvaluator:
 @pytest.fixture
 def running_event_loop_mock(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
-        "phoenix.experimental.evals.functions.classify._running_event_loop_exists",
+        "phoenix.experimental.evals.functions.executor._running_event_loop_exists",
         lambda: True,
     )
     assert (
-        phoenix.experimental.evals.functions.classify._running_event_loop_exists()
+        phoenix.experimental.evals.functions.executor._running_event_loop_exists()
     ), "mock for detecting event loop should return True"
 
 
@@ -110,50 +104,6 @@ def classification_responses():
 @pytest.fixture
 def classification_template():
     return RAG_RELEVANCY_PROMPT_TEMPLATE
-
-
-async def test_executor_factory_returns_sync_in_async_context():
-    def sync_fn():
-        pass
-
-    async def async_fn():
-        pass
-
-    async def executor_in_async_context():
-        return get_executor_on_sync_context(sync_fn, async_fn)
-
-    executor = await executor_in_async_context()
-    assert isinstance(executor, SyncExecutor)
-
-
-async def test_executor_factory_returns_async_in_patched_async_context():
-    nest_asyncio.apply()
-
-    def sync_fn():
-        pass
-
-    async def async_fn():
-        pass
-
-    async def executor_in_async_context():
-        return get_executor_on_sync_context(sync_fn, async_fn)
-
-    executor = await executor_in_async_context()
-    assert isinstance(executor, AsyncExecutor)
-
-
-def test_executor_factory_returns_async_in_sync_context():
-    def sync_fn():
-        pass
-
-    async def async_fn():
-        pass
-
-    def executor_in_sync_context():
-        return get_executor_on_sync_context(sync_fn, async_fn)
-
-    executor = executor_in_sync_context()
-    assert isinstance(executor, AsyncExecutor)
 
 
 @pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
@@ -704,135 +654,6 @@ def test_overlapping_rails():
     assert _snap_to_rail("a", ["a", "b", "c"]) == "a"
     assert _snap_to_rail(" abc", ["a", "ab", "abc"]) == "abc"
     assert _snap_to_rail("abc", ["abc", "a", "ab"]) == "abc"
-
-
-async def test_async_executor_executes():
-    async def dummy_fn(payload: int) -> int:
-        return payload - 1
-
-    executor = AsyncExecutor(dummy_fn, concurrency=10)
-    inputs = [1, 2, 3, 4, 5]
-    outputs = await executor.execute(inputs)
-    assert outputs == [0, 1, 2, 3, 4]
-
-
-async def test_async_executor_executes_many_tasks():
-    async def dummy_fn(payload: int) -> int:
-        return payload
-
-    executor = AsyncExecutor(dummy_fn, concurrency=10)
-    inputs = [x for x in range(1000)]
-    outputs = await executor.execute(inputs)
-    assert outputs == inputs
-
-
-def test_async_executor_runs_synchronously():
-    async def dummy_fn(payload: int) -> int:
-        return payload - 2
-
-    executor = AsyncExecutor(dummy_fn, concurrency=10)
-    inputs = [1, 2, 3, 4, 5]
-    outputs = executor.run(inputs)
-    assert outputs == [-1, 0, 1, 2, 3]
-
-
-async def test_async_executor_execute_exits_early_on_error():
-    async def dummy_fn(payload: int) -> int:
-        if payload == 3:
-            raise ValueError("test error")
-        return payload - 1
-
-    executor = AsyncExecutor(dummy_fn, concurrency=1, exit_on_error=True, fallback_return_value=52)
-    inputs = [1, 2, 3, 4, 5]
-    outputs = await executor.execute(inputs)
-    assert outputs == [0, 1, 52, 52, 52]
-
-
-def test_async_executor_run_exits_early_on_error():
-    async def dummy_fn(payload: int) -> int:
-        if payload == 3:
-            raise ValueError("test error")
-        return payload - 1
-
-    executor = AsyncExecutor(dummy_fn, concurrency=1, exit_on_error=True, fallback_return_value=52)
-    inputs = [1, 2, 3, 4, 5]
-    outputs = executor.run(inputs)
-    assert outputs == [0, 1, 52, 52, 52]
-
-
-async def test_async_executor_can_continue_on_error():
-    async def dummy_fn(payload: int) -> int:
-        if payload == 3:
-            raise ValueError("test error")
-        return payload - 1
-
-    executor = AsyncExecutor(dummy_fn, concurrency=1, exit_on_error=False, fallback_return_value=52)
-    inputs = [1, 2, 3, 4, 5]
-    outputs = await executor.execute(inputs)
-    assert outputs == [0, 1, 52, 3, 4]
-
-
-async def test_async_executor_sigint_handling():
-    async def async_fn(x):
-        await asyncio.sleep(0.01)
-        return x
-
-    executor = AsyncExecutor(async_fn, concurrency=5, fallback_return_value="test")
-
-    # Run the executor with a large number of inputs
-    task = asyncio.create_task(executor.execute(list(range(100))))
-    await asyncio.sleep(0.1)
-
-    # Simulate a SIGINT signal
-    executor._signal_handler(signal.SIGINT, None)
-    results = await task
-
-    assert len(results) == 100
-    assert results.count("test") > 0, "some inputs should not have been processed"
-
-
-def test_sync_executor_runs_many_tasks():
-    def dummy_fn(payload: int) -> int:
-        return payload
-
-    executor = SyncExecutor(dummy_fn)
-    inputs = [x for x in range(1000)]
-    outputs = executor.run(inputs)
-    assert outputs == inputs
-
-
-def test_sync_executor_runs():
-    def dummy_fn(payload: int) -> int:
-        return payload - 2
-
-    executor = SyncExecutor(dummy_fn)
-    inputs = [1, 2, 3, 4, 5]
-    outputs = executor.run(inputs)
-    assert outputs == [-1, 0, 1, 2, 3]
-
-
-def test_sync_executor_run_exits_early_on_error():
-    def dummy_fn(payload: int) -> int:
-        if payload == 3:
-            raise ValueError("test error")
-        return payload - 1
-
-    executor = SyncExecutor(dummy_fn, exit_on_error=True, fallback_return_value=52)
-    inputs = [1, 2, 3, 4, 5]
-    outputs = executor.run(inputs)
-    assert outputs == [0, 1, 52, 52, 52]
-
-
-def test_sync_executor_can_continue_on_error():
-    def dummy_fn(payload: int) -> int:
-        if payload == 3:
-            raise ValueError("test error")
-        return payload - 1
-
-    executor = SyncExecutor(dummy_fn, exit_on_error=False, fallback_return_value=52)
-    inputs = [1, 2, 3, 4, 5]
-    outputs = executor.run(inputs)
-    assert outputs == [0, 1, 52, 3, 4]
 
 
 @pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
