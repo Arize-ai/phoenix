@@ -1,13 +1,14 @@
 import json
 from collections import defaultdict
 from datetime import datetime, timezone
+from types import MappingProxyType
 from typing import (
     Any,
-    Container,
     DefaultDict,
     Dict,
     Iterable,
     Iterator,
+    List,
     Mapping,
     Optional,
     Sequence,
@@ -17,7 +18,7 @@ from typing import (
 from uuid import UUID
 
 import opentelemetry.proto.trace.v1.trace_pb2 as otlp
-from opentelemetry.proto.common.v1.common_pb2 import AnyValue, ArrayValue, KeyValue, KeyValueList
+from opentelemetry.proto.common.v1.common_pb2 import AnyValue, ArrayValue, KeyValue
 from opentelemetry.util.types import Attributes, AttributeValue
 from typing_extensions import TypeAlias, assert_never
 
@@ -59,16 +60,39 @@ def decode(otlp_span: otlp.Span) -> Span:
     attributes = dict(_decode_key_values(otlp_span.attributes))
     span_kind = SpanKind(attributes.pop(OPENINFERENCE_SPAN_KIND, None))
 
-    for prefix, json_loads_sub_keys in (
-        (RETRIEVAL_DOCUMENTS, (DOCUMENT_METADATA,)),
-        (EMBEDDING_EMBEDDINGS, ()),
-        (LLM_INPUT_MESSAGES, ()),
-        (LLM_OUTPUT_MESSAGES, ()),
+    for prefix in (
+        RETRIEVAL_DOCUMENTS,
+        EMBEDDING_EMBEDDINGS,
+        LLM_INPUT_MESSAGES,
+        LLM_OUTPUT_MESSAGES,
     ):
-        attributes = _consolidate_prefixed_keys_into_list(attributes, prefix, json_loads_sub_keys)
+        consolidated_list, consolidated_keys = _consolidate_prefixed_indexed_keys_into_list(
+            attributes, prefix
+        )
+        if not consolidated_keys:
+            continue
+        for key in consolidated_keys:
+            attributes.pop(key, None)
+        if consolidated_list:
+            attributes[prefix] = consolidated_list
 
-    for prefix, json_loads_sub_keys in ((LLM_PROMPT_TEMPLATE_VARIABLES, ()),):
-        attributes = _consolidate_prefixed_keys_into_dict(attributes, prefix, json_loads_sub_keys)
+    for document in attributes.get(RETRIEVAL_DOCUMENTS) or ():
+        if isinstance(metadata := document.get(DOCUMENT_METADATA), str):
+            try:
+                document[DOCUMENT_METADATA] = json.loads(metadata)
+            except json.JSONDecodeError:
+                pass
+
+    for prefix in (LLM_PROMPT_TEMPLATE_VARIABLES,):
+        consolidated_dict, consolidated_keys = _consolidate_prefixed_keys_into_dict(
+            attributes, prefix
+        )
+        if not consolidated_keys:
+            continue
+        for key in consolidated_keys:
+            attributes.pop(key, None)
+        if consolidated_dict:
+            attributes[prefix] = consolidated_dict
 
     status_code, status_message = _decode_status(otlp_span.status)
     events = [_decode_event(event) for event in otlp_span.events]
@@ -131,16 +155,13 @@ def _decode_unix_nano(time_unix_nano: int) -> datetime:
 
 def _decode_key_values(
     key_values: Iterable[KeyValue],
-    json_loads_sub_keys: Container[str] = (),
 ) -> Iterator[Tuple[str, Any]]:
-    return ((kv.key, _decode_value(kv.value, kv.key in json_loads_sub_keys)) for kv in key_values)
+    return ((kv.key, _decode_value(kv.value)) for kv in key_values)
 
 
-def _decode_value(any_value: AnyValue, json_loadss: bool = False) -> Any:
+def _decode_value(any_value: AnyValue) -> Any:
     which = any_value.WhichOneof("value")
     if which == "string_value":
-        if json_loadss:
-            return json.loads(any_value.string_value)
         return any_value.string_value
     if which == "bool_value":
         return any_value.bool_value
@@ -161,17 +182,17 @@ def _decode_value(any_value: AnyValue, json_loadss: bool = False) -> Any:
 
 StatusMessage: TypeAlias = str
 
+_STATUS_DECODING = MappingProxyType(
+    {
+        otlp.Status.StatusCode.STATUS_CODE_UNSET: SpanStatusCode.UNSET,
+        otlp.Status.StatusCode.STATUS_CODE_OK: SpanStatusCode.OK,
+        otlp.Status.StatusCode.STATUS_CODE_ERROR: SpanStatusCode.ERROR,
+    }
+)
+
 
 def _decode_status(otlp_status: otlp.Status) -> Tuple[SpanStatusCode, StatusMessage]:
-    otlp_status_code = otlp_status.code
-    if otlp_status_code is otlp.Status.StatusCode.STATUS_CODE_OK:
-        status_code = SpanStatusCode.OK
-    elif otlp_status_code is otlp.Status.StatusCode.STATUS_CODE_ERROR:
-        status_code = SpanStatusCode.ERROR
-    elif otlp_status_code is otlp.Status.StatusCode.STATUS_CODE_UNSET:
-        status_code = SpanStatusCode.UNSET
-    else:
-        raise ValueError(f"unknown status code: {otlp_status_code}")
+    status_code = _STATUS_DECODING.get(otlp_status.code, SpanStatusCode.UNSET)
     return status_code, otlp_status.message
 
 
@@ -183,70 +204,60 @@ def _extract_sub_key(key: str, prefix: str) -> Optional[str]:
 
 
 def _extract_index_and_sub_key(key: str, prefix: str) -> Optional[Tuple[int, str]]:
-    prefix_dot = f"{prefix}."
-    prefix_dot_len, key_len = len(prefix_dot), len(key)
-    if not (prefix_dot_len < key_len and key.startswith(prefix_dot)):
+    indexed_sub_key = _extract_sub_key(key, prefix)
+    if not indexed_sub_key:
         return None
-    next_dot_idx = key.find(".", prefix_dot_len)
-    if next_dot_idx < 1:
+    dot_idx = indexed_sub_key.find(".")
+    if not (0 < dot_idx < len(indexed_sub_key) - 1):
         return None
-    if next_dot_idx == key_len - 1:
+    index_prefix = indexed_sub_key[:dot_idx]
+    if not index_prefix.isdigit():
         return None
-    idx_str = key[prefix_dot_len:next_dot_idx]
-    if not idx_str.isdigit():
-        return None
-    return int(idx_str), key[next_dot_idx + 1 :]
+    index = int(index_prefix)
+    sub_key = indexed_sub_key[dot_idx + 1 :]
+    return index, sub_key
 
 
-def _consolidate_prefixed_keys_into_list(
+def _consolidate_prefixed_indexed_keys_into_list(
     attributes: Mapping[str, Any],
     prefix: str,
-    json_loads_sub_keys: Container[str] = (),
-) -> Dict[str, Any]:
-    """Copy the attributes. Consolidate keys with the given prefix into a single list (of dicts).
-    Remove those keys, add the new list under a new key equal to the prefix."""
-    _attributes = dict(attributes)
+) -> Tuple[Optional[List[Dict[str, Any]]], Optional[List[str]]]:
+    """Consolidate keys with the given prefix into a single list (of dictionaries).
+    Return the consolidated list and the list of keys that were consolidated."""
     relevant_keys = [
         (key, idx_and_sub_key, value)
         for key, value in attributes.items()
         if (idx_and_sub_key := _extract_index_and_sub_key(key, prefix)) is not None
     ]
     if not relevant_keys:
-        return _attributes
-    for key, *_ in relevant_keys:
-        _attributes.pop(key)
+        return None, None
     indexed: DefaultDict[int, Dict[str, Any]] = defaultdict(dict)
     for _, (idx, sub_key), value in relevant_keys:
-        indexed[idx][sub_key] = json.loads(value) if sub_key in json_loads_sub_keys else value
-    _attributes[prefix] = [obj for _, obj in sorted(indexed.items())]
-    return _attributes
+        indexed[idx][sub_key] = value
+    return [dictionary for _, dictionary in sorted(indexed.items())], [
+        key for key, *_ in relevant_keys
+    ]
 
 
 def _consolidate_prefixed_keys_into_dict(
     attributes: Mapping[str, Any],
     prefix: str,
-    json_loads_sub_keys: Container[str] = (),
-) -> Dict[str, Any]:
-    """Copy the attributes. Consolidate keys with the given prefix into a single dictionary.
-    Remove those keys, add the new dictionary under a new key equal to the prefix."""
-    _attributes = dict(attributes)
+) -> Tuple[Optional[Dict[str, Any]], Optional[List[str]]]:
+    """Consolidate keys with the given prefix into a single dictionary.
+    Return the consolidated dictionary and the list of keys that were consolidated."""
     relevant_keys = [
         (key, sub_key, value)
-        for key, value in _attributes.items()
+        for key, value in attributes.items()
         if (sub_key := _extract_sub_key(key, prefix)) is not None
     ]
     if not relevant_keys:
-        return _attributes
-    for key, *_ in relevant_keys:
-        _attributes.pop(key)
-    res: Dict[str, Any] = {}
-    for _, sub_key, value in relevant_keys:
-        res[sub_key] = json.loads(value) if sub_key in json_loads_sub_keys else value
-    _attributes[prefix] = res
-    return _attributes
+        return None, None
+    return {sub_key: value for _, sub_key, value in relevant_keys}, [
+        key for key, *_ in relevant_keys
+    ]
 
 
-NANO = 1_000_000_000  # for converting seconds to nanoseconds
+_NANO = 1_000_000_000  # for converting seconds to nanoseconds
 
 
 def encode(span: Span) -> otlp.Span:
@@ -255,28 +266,25 @@ def encode(span: Span) -> otlp.Span:
     parent_span_id: bytes = _span_id_to_bytes(span.parent_id) if span.parent_id else bytes()
 
     # floating point rounding error can cause the timestamp to be slightly different from expected
-    start_time_unix_nano: int = int(span.start_time.timestamp() * NANO)
-    end_time_unix_nano: int = int(span.end_time.timestamp() * NANO) if span.end_time else 0
+    start_time_unix_nano: int = int(span.start_time.timestamp() * _NANO)
+    end_time_unix_nano: int = int(span.end_time.timestamp() * _NANO) if span.end_time else 0
 
     attributes: Dict[str, Any] = dict(span.attributes)
 
-    for key, json_dumps_sub_keys in (
-        (RETRIEVAL_DOCUMENTS, (DOCUMENT_METADATA,)),
-        (EMBEDDING_EMBEDDINGS, ()),
-        (LLM_INPUT_MESSAGES, ()),
-        (LLM_OUTPUT_MESSAGES, ()),
-    ):
-        if value := attributes.pop(key, None):
-            attributes.update(_flatten_sequence(value, key, (DOCUMENT_METADATA,)))
+    for key in (RETRIEVAL_DOCUMENTS, EMBEDDING_EMBEDDINGS, LLM_INPUT_MESSAGES, LLM_OUTPUT_MESSAGES):
+        if isinstance(value := attributes.get(key), Sequence):
+            attributes.pop(key, None)
+            attributes.update(_flatten_sequence(value, key))
 
-    for key, json_dumps_sub_keys in ((LLM_PROMPT_TEMPLATE_VARIABLES, ()),):
-        if value := attributes.pop(key, None):
-            attributes.update(_flatten_mapping(value, key, json_dumps_sub_keys))
+    for key in (LLM_PROMPT_TEMPLATE_VARIABLES,):
+        if isinstance(value := attributes.get(key), Mapping):
+            attributes.pop(key, None)
+            attributes.update(_flatten_mapping(value, key))
 
     attributes[OPENINFERENCE_SPAN_KIND] = span.span_kind.value
 
     status = _encode_status(span.status_code, span.status_message)
-    events = _encode_events(span.events)
+    events = map(_encode_event, span.events)
 
     return otlp.Span(
         name=span.name,
@@ -291,68 +299,64 @@ def encode(span: Span) -> otlp.Span:
     )
 
 
+_STATUS_ENCODING = MappingProxyType(
+    {
+        SpanStatusCode.UNSET: otlp.Status.StatusCode.STATUS_CODE_UNSET,
+        SpanStatusCode.OK: otlp.Status.StatusCode.STATUS_CODE_OK,
+        SpanStatusCode.ERROR: otlp.Status.StatusCode.STATUS_CODE_ERROR,
+    }
+)
+
+
 def _encode_status(span_status_code: SpanStatusCode, status_message: str) -> otlp.Status:
-    if span_status_code is SpanStatusCode.OK:
-        code = otlp.Status.StatusCode.STATUS_CODE_OK
-    elif span_status_code is SpanStatusCode.ERROR:
-        code = otlp.Status.StatusCode.STATUS_CODE_ERROR
-    elif span_status_code is SpanStatusCode.UNSET:
-        code = otlp.Status.StatusCode.STATUS_CODE_UNSET
-    else:
-        assert_never(span_status_code)
+    code = _STATUS_ENCODING.get(span_status_code, otlp.Status.StatusCode.STATUS_CODE_UNSET)
     return otlp.Status(code=code, message=status_message)
 
 
 def _span_id_to_bytes(span_id: SpanID) -> bytes:
-    return span_id.bytes[:8]
+    # Note that this is not compliant with the OTEL spec, which uses 8-byte span IDs.
+    # This is a stopgap solution for backward compatibility until we move away from UUIDs.
+    return span_id.bytes
 
 
 def _flatten_mapping(
     mapping: Mapping[str, Any],
     prefix: str,
-    json_dumps_sub_keys: Container[str] = (),
 ) -> Iterator[Tuple[str, Any]]:
     for key, value in mapping.items():
-        yield f"{prefix}.{key}", _encode_value(value, key in json_dumps_sub_keys)
+        prefixed_key = f"{prefix}.{key}"
+        if isinstance(value, Mapping):
+            yield prefixed_key, json.dumps(value)
+        else:
+            yield prefixed_key, value
 
 
 def _flatten_sequence(
     sequence: Iterable[Mapping[str, Any]],
     prefix: str,
-    json_dumps_sub_keys: Container[str] = (),
 ) -> Iterator[Tuple[str, Any]]:
     for idx, obj in enumerate(sequence):
         if not isinstance(obj, Mapping):
             continue
-        for key, value in obj.items():
-            yield (
-                f"{prefix}.{idx}.{key}",
-                json.dumps(value) if key in json_dumps_sub_keys else value,
-            )
+        yield from _flatten_mapping(obj, f"{prefix}.{idx}")
 
 
 def _encode_event(event: SpanEvent) -> otlp.Span.Event:
     return otlp.Span.Event(
         name=event.name,
-        time_unix_nano=int(event.timestamp.timestamp() * NANO),
+        time_unix_nano=int(event.timestamp.timestamp() * _NANO),
         attributes=_encode_attributes(cast(Attributes, event.attributes)),
     )
 
 
-def _encode_events(events: Iterable[SpanEvent]) -> Iterator[otlp.Span.Event]:
-    return (_encode_event(event) for event in events)
-
-
-def _encode_attributes(
-    attributes: Attributes, json_dumps_sub_keys: Container[str] = ()
-) -> Iterator[KeyValue]:
+def _encode_attributes(attributes: Attributes) -> Iterator[KeyValue]:
     if not attributes:
         return
     for key, value in attributes.items():
-        yield KeyValue(key=key, value=_encode_value(value, key in json_dumps_sub_keys))
+        yield KeyValue(key=key, value=_encode_value(value))
 
 
-def _encode_value(value: AttributeValue, json_dumpss: bool = False) -> AnyValue:
+def _encode_value(value: AttributeValue) -> AnyValue:
     if isinstance(value, str):
         return AnyValue(string_value=value)
     if isinstance(value, bool):
@@ -362,11 +366,7 @@ def _encode_value(value: AttributeValue, json_dumpss: bool = False) -> AnyValue:
     if isinstance(value, float):
         return AnyValue(double_value=value)
     if isinstance(value, Sequence):
-        return AnyValue(array_value=ArrayValue(values=(_encode_value(v) for v in value)))
+        return AnyValue(array_value=ArrayValue(values=map(_encode_value, value)))
     if isinstance(value, bytes):
         return AnyValue(bytes_value=value)
-    elif isinstance(value, Mapping):
-        if json_dumpss:
-            return AnyValue(string_value=json.dumps(value))
-        return AnyValue(kvlist_value=KeyValueList(values=_encode_attributes(value)))
     assert_never(value)
