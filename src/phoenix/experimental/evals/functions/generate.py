@@ -28,6 +28,7 @@ def llm_generate(
     system_instruction: Optional[str] = None,
     verbose: bool = False,
     output_parser: Optional[Callable[[str], Dict[str, Any]]] = None,
+    run_sync: bool = False,
     concurrency: int = 20,
 ) -> pd.DataFrame:
     """
@@ -56,6 +57,9 @@ def llm_generate(
         that takes each generated response and parses it to a dictionary. The keys of the dictionary
         should correspond to the column names of the output dataframe. If None, the output dataframe
         will have a single column named "output". Default None.
+
+        run_sync (bool, default=False): If True, forces synchronous request submission. Otherwise
+        evaluations will be run asynchronously if possible.
 
         concurrency (int, default=20): The number of concurrent evals if async submission is
         possible.
@@ -91,6 +95,7 @@ def llm_generate(
     executor = get_executor_on_sync_context(
         _run_llm_generation_sync,
         _run_llm_generation_async,
+        run_sync=run_sync,
         concurrency=concurrency,
         tqdm_bar_format=tqdm_bar_format,
         exit_on_error=True,
