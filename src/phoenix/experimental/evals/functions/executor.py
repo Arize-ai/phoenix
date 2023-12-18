@@ -295,11 +295,20 @@ class SyncExecutor(Executor):
 def get_executor_on_sync_context(
     sync_fn: Callable[[Any], Any],
     async_fn: Callable[[Any], Coroutine[Any, Any, Any]],
+    run_sync: bool = False,
     concurrency: int = 3,
     tqdm_bar_format: Optional[str] = None,
     exit_on_error: bool = True,
     fallback_return_value: Union[Unset, Any] = _unset,
 ) -> Executor:
+    if run_sync:
+        return SyncExecutor(
+            sync_fn,
+            tqdm_bar_format=tqdm_bar_format,
+            exit_on_error=exit_on_error,
+            fallback_return_value=fallback_return_value,
+        )
+
     if _running_event_loop_exists():
         if getattr(asyncio, "_nest_patched", False):
             return AsyncExecutor(
