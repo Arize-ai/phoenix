@@ -64,6 +64,7 @@ def llm_classify(
     verbose: bool = False,
     use_function_calling_if_available: bool = True,
     provide_explanation: bool = False,
+    run_sync: bool = False,
     concurrency: int = 20,
 ) -> pd.DataFrame:
     """Classifies each input row of the dataframe using an LLM. Returns a pandas.DataFrame
@@ -98,6 +99,9 @@ def llm_classify(
         provide_explanation (bool, default=False): If True, provides an explanation for each
         classification label. A column named `explanation` is added to the output dataframe.
         Currently, this is only available for models with function calling.
+
+        run_sync (bool, default=False): If True, forces synchronous request submission. Otherwise
+        evaluations will be run asynchronously if possible.
 
         concurrency (int, default=20): The number of concurrent evals if async submission is
         possible.
@@ -176,6 +180,7 @@ def llm_classify(
     executor = get_executor_on_sync_context(
         _run_llm_classification_sync,
         _run_llm_classification_async,
+        run_sync=run_sync,
         concurrency=concurrency,
         tqdm_bar_format=tqdm_bar_format,
         exit_on_error=True,
