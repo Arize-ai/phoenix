@@ -28,6 +28,7 @@ from phoenix.server.api.context import Context
 from phoenix.server.api.schema import schema
 from phoenix.server.evaluation_handler import EvaluationHandler
 from phoenix.server.span_handler import SpanHandler
+from phoenix.server.trace_handler import TraceHandler
 
 logger = logging.getLogger(__name__)
 
@@ -189,6 +190,16 @@ def create_app(
                         (SpanHandler,),
                         {"queue": traces},
                     ),
+                ),
+            ]
+        )
+        + (
+            []
+            if traces is None
+            else [
+                Route(
+                    "/v1/traces",
+                    type("TraceEndpoint", (TraceHandler,), {"queue": traces}),
                 ),
             ]
         )
