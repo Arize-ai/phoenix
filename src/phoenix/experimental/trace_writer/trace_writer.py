@@ -71,12 +71,12 @@ class TraceStore(ABC):
         try:
             self._insert(traces)
             print(
-                f"""Inserted {len(traces)} trace records to 
+                f"""Inserted {len(traces)} trace records to
                 {self.friendly_name} table {self.table_name}"""
             )
         except Exception as e:
             print(
-                f"""Failed to insert data into {self.friendly_name} 
+                f"""Failed to insert data into {self.friendly_name}
                 table {self.table_name}. Error: {str(e)}"""
             )
 
@@ -102,7 +102,7 @@ class SQLTypeStore(TraceStore):
 
     def _insert(self, traces):
         """insert rows into table in SQL"""
-        query = f"""INSERT INTO {self.table_name} 
+        query = f"""INSERT INTO {self.table_name}
         ({', '.join(self.key_names)}) VALUES {', '.join(traces)};"""
         self._run_query(query)
 
