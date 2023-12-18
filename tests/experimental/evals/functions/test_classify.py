@@ -64,15 +64,24 @@ def relevance_evaluator(model: OpenAIModel) -> LLMEvaluator:
     )
 
 
-@pytest.fixture
-def running_event_loop_mock(monkeypatch: pytest.MonkeyPatch) -> None:
+@pytest.fixture(
+    params=[
+        pytest.param(True, id="running_event_loop_exists"),
+        pytest.param(False, id="no_running_event_loop_exists"),
+    ]
+)
+def running_event_loop_mock(
+    request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch
+) -> bool:
+    running_event_loop_exists = request.param
     monkeypatch.setattr(
         "phoenix.experimental.evals.functions.classify._running_event_loop_exists",
-        lambda: True,
+        lambda: running_event_loop_exists,
     )
     assert (
         phoenix.experimental.evals.functions.classify._running_event_loop_exists()
-    ), "mock for detecting event loop should return True"
+    ) is running_event_loop_exists, "mocked function should return the expected value"
+    return running_event_loop_exists
 
 
 @pytest.fixture
@@ -829,8 +838,11 @@ def test_sync_executor_can_continue_on_error():
 
 
 @pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
-def test_run_evals_produces_expected_output_dataframe_when_no_running_event_loop_exists(
-    respx_mock: respx.mock, toxicity_evaluator: LLMEvaluator, relevance_evaluator: LLMEvaluator
+def test_run_evals_outputs_dataframes_with_just_labels(
+    running_event_loop_mock: bool,
+    respx_mock: respx.mock,
+    toxicity_evaluator: LLMEvaluator,
+    relevance_evaluator: LLMEvaluator,
 ) -> None:
     for matcher, response in [
         (
@@ -891,8 +903,8 @@ def test_run_evals_produces_expected_output_dataframe_when_no_running_event_loop
 
 
 @pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
-def test_run_evals_produces_expected_output_dataframe_when_running_event_loop_already_exists(
-    running_event_loop_mock,
+def test_run_evals_outputs_dataframes_with_labels_and_explanations(
+    running_event_loop_mock: bool,
     respx_mock: respx.mock,
     toxicity_evaluator: LLMEvaluator,
     relevance_evaluator: LLMEvaluator,
@@ -901,16 +913,16 @@ def test_run_evals_produces_expected_output_dataframe_when_running_event_loop_al
         (
             M(content__contains="Paris is the capital of France.")
             & M(content__contains="relevant"),
-            "relevant",
+            "relevant-explanation\nLABEL: relevant",
         ),
         (
             M(content__contains="Munich is the capital of Germany.")
             & M(content__contains="relevant"),
-            "irrelevant",
+            "irrelevant-explanation\nLABEL: irrelevant",
         ),
         (
             M(content__contains="What is the capital of France?") & M(content__contains="toxic"),
-            "non-toxic",
+            "non-toxic-explanation\nLABEL: non-toxic",
         ),
     ]:
         payload = {
@@ -937,19 +949,33 @@ def test_run_evals_produces_expected_output_dataframe_when_running_event_loop_al
         ],
         index=["a", "b"],
     )
-    eval_dfs = run_evals(dataframe=df, evaluators=[relevance_evaluator, toxicity_evaluator])
+    eval_dfs = run_evals(
+        dataframe=df, evaluators=[relevance_evaluator, toxicity_evaluator], provide_explanation=True
+    )
     assert len(eval_dfs) == 2
     assert_frame_equal(
         eval_dfs[0],
         pd.DataFrame(
-            {"label": ["relevant", "irrelevant"]},
+            {
+                "label": ["relevant", "irrelevant"],
+                "explanation": [
+                    "relevant-explanation\nLABEL: relevant",
+                    "irrelevant-explanation\nLABEL: irrelevant",
+                ],
+            },
             index=["a", "b"],
         ),
     )
     assert_frame_equal(
         eval_dfs[1],
         pd.DataFrame(
-            {"label": ["non-toxic", "non-toxic"]},
+            {
+                "label": ["non-toxic", "non-toxic"],
+                "explanation": [
+                    "non-toxic-explanation\nLABEL: non-toxic",
+                    "non-toxic-explanation\nLABEL: non-toxic",
+                ],
+            },
             index=["a", "b"],
         ),
     )
