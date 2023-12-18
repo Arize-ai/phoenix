@@ -53,7 +53,7 @@ _SEMANTIC_CONVENTIONS: List[str] = sorted(
 def _semantic_convention_prefix_search(key: str) -> Tuple[Optional[str], Optional[str]]:
     """Return the longest prefix of `key` that is a semantic convention, and the remaining suffix
     separated by `.`. For example, if `key` is "retrieval.documents.2.document.score", return
-    "retrieval.documents", "2.document.score".
+    "retrieval.documents", "2.document.score". IF `key` is a semantic convention, return None, None.
     """
     for prefix in _SEMANTIC_CONVENTIONS:
         if key == prefix:
