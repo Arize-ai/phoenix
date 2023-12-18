@@ -3,13 +3,13 @@ from typing import Any, Optional
 
 import strawberry
 
-from phoenix.trace import semantic_conventions
+import phoenix.trace.schemas as trace_schemas
 
 
 @strawberry.enum
 class MimeType(Enum):
-    text = semantic_conventions.MimeType.TEXT
-    json = semantic_conventions.MimeType.JSON
+    text = trace_schemas.MimeType.TEXT
+    json = trace_schemas.MimeType.JSON
 
     @classmethod
     def _missing_(cls, v: Any) -> Optional["MimeType"]:

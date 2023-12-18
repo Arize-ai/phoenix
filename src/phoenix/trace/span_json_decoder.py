@@ -4,6 +4,7 @@ from typing import Any, Dict, Optional
 from uuid import UUID
 
 from phoenix.trace.schemas import (
+    MimeType,
     Span,
     SpanContext,
     SpanConversationAttributes,
@@ -16,7 +17,6 @@ from phoenix.trace.semantic_conventions import (
     EXCEPTION_MESSAGE,
     INPUT_MIME_TYPE,
     OUTPUT_MIME_TYPE,
-    MimeType,
 )
 
 
