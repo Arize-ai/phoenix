@@ -45,16 +45,14 @@ from phoenix.trace.semantic_conventions import (
     RETRIEVAL_DOCUMENTS,
 )
 
-
-def _trie() -> DefaultDict[Hashable, Any]:
-    # a.k.a. prefix tree
-    return defaultdict(_trie)
-
-
 _LEAF = 0  # sentinel value for trie leaf nodes
 
 
 def _build_trie(sentences: Iterable[str], sep: str = ".") -> DefaultDict[Hashable, Any]:
+    def _trie() -> DefaultDict[Hashable, Any]:
+        # a.k.a. prefix tree
+        return defaultdict(_trie)
+
     trie = _trie()
     for sentence in sentences:
         t = trie
@@ -112,6 +110,8 @@ def decode(otlp_span: otlp.Span) -> Span:
                 attributes_for_dictionary.add(prefix)
 
     for prefix in attributes_for_list_of_dictionaries:
+        if prefix in attributes:
+            continue
         # Attributes that are supposed to be list of dictionaries must be flattened before OTLP
         # transmission. This reverses that flattening and reconstitutes them as list of
         # dictionaries. The flattened keys look like "{prefix}.{index}.{sub_key}", where `sub_key`
@@ -137,6 +137,8 @@ def decode(otlp_span: otlp.Span) -> Span:
                 pass
 
     for prefix in attributes_for_dictionary:
+        if prefix in attributes:
+            continue
         # Attributes that are supposed to be dictionaries must be flattened before OTLP
         # transmission. This reverses that flattening and reconstitutes them as dictionaries.
         # The flattened keys look like "{prefix}.{sub_key}", where `sub_key` is a key in the
