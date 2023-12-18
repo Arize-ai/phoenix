@@ -54,7 +54,8 @@ _RESPONSE = "response"
 _EXPLANATION = "explanation"
 
 ColumnName: TypeAlias = str
-EvalLabel: TypeAlias = str
+Label: TypeAlias = str
+Explanation: TypeAlias = Optional[str]
 Record: TypeAlias = Mapping[str, Any]
 EvaluatorIndex: TypeAlias = int
 RowIndex: TypeAlias = Any
@@ -665,21 +666,25 @@ def run_evals(
 
     async def _run_eval_async(
         payload: RunEvalsPayload,
-    ) -> Tuple[EvaluatorIndex, RowIndex, EvalLabel]:
+    ) -> Tuple[EvaluatorIndex, RowIndex, Label, Explanation]:
         evaluator_index = payload.evaluator_index
         row_index = payload.row_index
         evaluator = payload.evaluator
         record = payload.record
-        label, _ = await evaluator.aevaluate(record)
-        return evaluator_index, row_index, label
+        label, explanation = await evaluator.aevaluate(
+            record, provide_explanation=provide_explanation
+        )
+        return evaluator_index, row_index, label, explanation
 
-    def _run_eval_sync(payload: RunEvalsPayload) -> Tuple[EvaluatorIndex, RowIndex, EvalLabel]:
+    def _run_eval_sync(
+        payload: RunEvalsPayload,
+    ) -> Tuple[EvaluatorIndex, RowIndex, Label, Explanation]:
         evaluator_index = payload.evaluator_index
         row_index = payload.row_index
         evaluator = payload.evaluator
         record = payload.record
-        label, _ = evaluator.evaluate(record)
-        return evaluator_index, row_index, label
+        label, explanation = evaluator.evaluate(record, provide_explanation=provide_explanation)
+        return evaluator_index, row_index, label, explanation
 
     executor = get_executor_on_sync_context(
         _run_eval_sync,
@@ -699,11 +704,13 @@ def run_evals(
         for row_index, row in dataframe.iterrows()
         for evaluator_index, evaluator in enumerate(evaluators)
     ]
-    eval_results: List[DefaultDict[RowIndex, Dict[ColumnName, EvalLabel]]] = [
+    eval_results: List[DefaultDict[RowIndex, Dict[ColumnName, Label]]] = [
         defaultdict(dict) for _ in range(len(evaluators))
     ]
-    for evaluator_index, row_index, label in executor.run(payloads):
+    for evaluator_index, row_index, label, explanation in executor.run(payloads):
         eval_results[evaluator_index][row_index]["label"] = label
+        if explanation is not None:
+            eval_results[evaluator_index][row_index]["explanation"] = explanation
     eval_dataframes: List[DataFrame] = []
     for eval_result in eval_results:
         index, eval_data = zip(*eval_result.items())

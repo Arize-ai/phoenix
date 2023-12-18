@@ -3,7 +3,7 @@ from typing import List, Mapping, Optional, Tuple
 from phoenix.experimental.evals.models import set_verbosity
 
 from .models import BaseEvalModel
-from .templates import ClassificationTemplate, PromptTemplate
+from .templates import ClassificationTemplate, PromptOptions, PromptTemplate
 
 Record = Mapping[str, str]
 
@@ -43,7 +43,8 @@ class LLMEvaluator:
         Returns:
             EvaluationResult: The result of the evaluation
         """
-        prompt = self._template.format(record)
+        prompt_options = PromptOptions(provide_explanation=provide_explanation)
+        prompt = self._template.format(record, options=prompt_options)
         with set_verbosity(self._model, verbose) as verbose_model:
             unparsed_output = verbose_model(prompt)
         label, explanation = self._template.parse_output(
@@ -65,7 +66,8 @@ class LLMEvaluator:
         Returns:
             EvaluationResult: The result of the evaluation
         """
-        prompt = self._template.format(dict(record))
+        prompt_options = PromptOptions(provide_explanation=provide_explanation)
+        prompt = self._template.format(record, options=prompt_options)
         with set_verbosity(self._model, verbose) as verbose_model:
             unparsed_output = await verbose_model._async_generate(prompt)
         label, explanation = self._template.parse_output(
