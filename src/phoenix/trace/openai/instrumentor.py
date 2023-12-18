@@ -669,7 +669,8 @@ def _accumulate_messages(
             if argument_tokens := function_call_.argument_tokens:
                 message[MESSAGE_FUNCTION_CALL_ARGUMENTS_JSON] = "".join(argument_tokens)
         if tool_calls_ := tool_calls.get(choice_index):
-            message[MESSAGE_TOOL_CALLS] = [{} for _ in range(len(tool_calls_))]
+            num_tool_calls = max(tool_index for tool_index in tool_calls_.keys()) + 1
+            message[MESSAGE_TOOL_CALLS] = [{} for _ in range(num_tool_calls)]
             for tool_index, tool_call_ in tool_calls_.items():
                 if (name := tool_call_.name) is not None:
                     message[MESSAGE_TOOL_CALLS][tool_index][TOOL_CALL_FUNCTION_NAME] = name
