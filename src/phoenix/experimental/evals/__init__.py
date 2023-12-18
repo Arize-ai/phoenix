@@ -1,3 +1,4 @@
+from .evaluators import LLMEvaluator
 from .functions import llm_classify, llm_generate, run_relevance_eval
 from .models import BedrockModel, LiteLLMModel, OpenAIModel, VertexAIModel
 from .retrievals import compute_precisions_at_k
@@ -29,6 +30,7 @@ __all__ = [
     "VertexAIModel",
     "BedrockModel",
     "LiteLLMModel",
+    "LLMEvaluator",
     "PromptTemplate",
     "ClassificationTemplate",
     "CODE_READABILITY_PROMPT_RAILS_MAP",
