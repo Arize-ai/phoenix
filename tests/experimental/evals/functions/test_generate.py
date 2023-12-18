@@ -103,9 +103,11 @@ def test_llm_generate_with_output_parser(monkeypatch: pytest.MonkeyPatch, respx_
     with patch.object(OpenAIModel, "_init_tiktoken", return_value=None):
         model = OpenAIModel()
 
-    def output_parser(response: str) -> Dict[str, str]:
+    def output_parser(response: str, response_index: int) -> Dict[str, str]:
         try:
-            return json.loads(response)
+            res = json.loads(response)
+            res["category"] += str(response_index)
+            return res
         except json.JSONDecodeError as e:
             return {"__error__": str(e)}
 
@@ -114,10 +116,10 @@ def test_llm_generate_with_output_parser(monkeypatch: pytest.MonkeyPatch, respx_
     )
     # check the output is parsed correctly
     assert generated["category"].tolist() == [
-        "programming",
-        "programming",
-        "programming",
-        "programming",
+        "programming0",
+        "programming1",
+        "programming2",
+        "programming3",
         np.nan,
     ]
 

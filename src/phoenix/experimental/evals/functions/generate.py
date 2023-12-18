@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Callable, Dict, Optional, Union
+from typing import Any, Callable, Dict, Optional, Tuple, Union
 
 import pandas as pd
 
@@ -17,7 +17,7 @@ from phoenix.experimental.evals.utils import get_tqdm_progress_bar_formatter
 logger = logging.getLogger(__name__)
 
 
-def _no_op_parser(response: str) -> Dict[str, str]:
+def _no_op_parser(response: str, response_index: int) -> Dict[str, str]:
     return {"output": response}
 
 
@@ -27,7 +27,7 @@ def llm_generate(
     model: BaseEvalModel,
     system_instruction: Optional[str] = None,
     verbose: bool = False,
-    output_parser: Optional[Callable[[str], Dict[str, Any]]] = None,
+    output_parser: Optional[Callable[[str, int], Dict[str, Any]]] = None,
     run_sync: bool = False,
     concurrency: int = 20,
 ) -> pd.DataFrame:
@@ -53,10 +53,10 @@ def llm_generate(
         verbose (bool, optional): If True, prints detailed information to stdout such as model
         invocation parameters and retry info. Default False.
 
-        output_parser (Callable[[str], Dict[str, Any]], optional): An optional function
-        that takes each generated response and parses it to a dictionary. The keys of the dictionary
-        should correspond to the column names of the output dataframe. If None, the output dataframe
-        will have a single column named "output". Default None.
+        output_parser (Callable[[str, int], Dict[str, Any]], optional): An optional function
+        that takes each generated response and response index and parses it to a dictionary. The
+        keys of the dictionary should correspond to the column names of the output dataframe. If
+        None, the output dataframe will have a single column named "output". Default None.
 
         run_sync (bool, default=False): If True, forces synchronous request submission. Otherwise
         evaluations will be run asynchronously if possible.
@@ -76,21 +76,23 @@ def llm_generate(
     logger.info(f"Template variables: {template.variables}")
     prompts = map_template(dataframe, template)
 
-    async def _run_llm_generation_async(prompt: str) -> Dict[str, Any]:
+    async def _run_llm_generation_async(enumerated_prompt: Tuple[int, str]) -> Dict[str, Any]:
+        index, prompt = enumerated_prompt
         with set_verbosity(model, verbose) as verbose_model:
             response = await verbose_model._async_generate(
                 prompt,
                 instruction=system_instruction,
             )
-        return output_parser(response)
+        return output_parser(response, index)
 
-    def _run_llm_generation_sync(prompt: str) -> Dict[str, Any]:
+    def _run_llm_generation_sync(enumerated_prompt: Tuple[int, str]) -> Dict[str, Any]:
+        index, prompt = enumerated_prompt
         with set_verbosity(model, verbose) as verbose_model:
             response = verbose_model._generate(
                 prompt,
                 instruction=system_instruction,
             )
-        return output_parser(response)
+        return output_parser(response, index)
 
     executor = get_executor_on_sync_context(
         _run_llm_generation_sync,
@@ -101,5 +103,5 @@ def llm_generate(
         exit_on_error=True,
         fallback_return_value={"output": "generation-failed"},
     )
-    output = executor.run(prompts.tolist())
+    output = executor.run(list(enumerate(prompts.tolist())))
     return pd.DataFrame(output)
