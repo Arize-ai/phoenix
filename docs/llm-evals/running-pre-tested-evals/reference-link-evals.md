@@ -1,4 +1,4 @@
-# Reference Link Evals
+# Reference (citation) Link Evals
 
 ## Reference Links in Retrieval Q\&A
 
@@ -14,9 +14,10 @@ In chatbots and Q\&A systems, many times reference links are provided in the res
 
 This Eval checks the reference link returned answers the question asked in a conversation
 
-```python
-You are given a conversation that contains questions by a CUSTOMER and you are trying
-to determine if the documentation page shared by the ASSISTANT correctly answers
+<pre class="language-python"><code class="lang-python"><strong>print(REF_LINK_EVAL_PROMPT_TEMPLATE_STR)
+</strong><strong>
+</strong><strong>You are given a conversation that contains questions by a CUSTOMER and you are trying
+</strong>to determine if the documentation page shared by the ASSISTANT correctly answers
 the CUSTOMERS questions. We will give you the conversation between the customer
 and the ASSISTANT and the text of the documentation returned:
     [CONVERSATION AND QUESTION]:
@@ -31,27 +32,7 @@ even in a general way the please answer "correct". If there are multiple questio
 question is answered, please still answer "correct". If the text does not answer the
 question in the conversation, or doesn't contain information that would allow you
 to answer the specific question please answer "incorrect".
-```
-
-### Benchmark Results
-
-**GPT-4 Results**
-
-<figure><img src="../../.gitbook/assets/GPT-4 Ref Evals (3).png" alt=""><figcaption></figcaption></figure>
-
-#### GPT-3.5&#x20;
-
-
-
-<figure><img src="../../.gitbook/assets/GPT-3.5 Ref Link (1).png" alt="" width="563"><figcaption></figcaption></figure>
-
-#### GPT-4 Turbo
-
-
-
-<figure><img src="../../.gitbook/assets/GPT-4 Turbo Ref link.png" alt="" width="563"><figcaption></figcaption></figure>
-
-### How to Run Eval
+</code></pre>
 
 <pre class="language-python"><code class="lang-python"><strong>from phoenix.experimental.evals import (
 </strong><strong>    REF_LINK_EVAL_PROMPT_RAILS_MAP,
@@ -77,6 +58,24 @@ relevance_classifications = llm_classify(
     rails=rails,
 )
 </code></pre>
+
+### Benchmark Results
+
+**GPT-4 Results**
+
+<figure><img src="../../.gitbook/assets/GPT-4 Ref Evals (3).png" alt=""><figcaption></figcaption></figure>
+
+#### GPT-3.5&#x20;
+
+
+
+<figure><img src="../../.gitbook/assets/GPT-3.5 Ref Link (1).png" alt="" width="563"><figcaption></figcaption></figure>
+
+#### GPT-4 Turbo
+
+
+
+<figure><img src="../../.gitbook/assets/GPT-4 Turbo Ref link.png" alt="" width="563"><figcaption></figcaption></figure>
 
 | Reference Link Evals | GPT-4                                  | GPT-4 Turbo                            | GPT-3.5                              | Claude V2                            | Palm 2                                 |
 | -------------------- | -------------------------------------- | -------------------------------------- | ------------------------------------ | ------------------------------------ | -------------------------------------- |

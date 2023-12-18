@@ -6,6 +6,7 @@ from typing import Any, Callable, Coroutine, Optional, Tuple, Type, TypeVar
 
 from typing_extensions import ParamSpec
 
+from phoenix.exceptions import PhoenixException
 from phoenix.utilities.logging import printif
 
 ParameterSpec = ParamSpec("ParameterSpec")
@@ -13,7 +14,7 @@ GenericType = TypeVar("GenericType")
 AsyncCallable = Callable[ParameterSpec, Coroutine[Any, Any, GenericType]]
 
 
-class UnavailableTokensError(Exception):
+class UnavailableTokensError(PhoenixException):
     pass
 
 
@@ -133,7 +134,7 @@ class AdaptiveTokenBucket:
                 continue
 
 
-class RateLimitError(BaseException):
+class RateLimitError(PhoenixException):
     ...
 
 
@@ -162,6 +163,9 @@ class RateLimiter:
             rate_increase_factor=rate_increase_factor,
             cooldown_seconds=cooldown_seconds,
         )
+        self._rate_limit_handling: Optional[asyncio.Event] = None
+        self._rate_limit_handling_lock: Optional[asyncio.Lock] = None
+        self._current_loop: Optional[asyncio.AbstractEventLoop] = None
         self._verbose = verbose
 
     def limit(
@@ -189,29 +193,51 @@ class RateLimiter:
 
         return wrapper
 
+    def _initialize_async_primitives(self) -> None:
+        """
+        Lazily initialize async primitives to ensure they are created in the correct event loop.
+        """
+
+        loop = asyncio.get_running_loop()
+        if loop is not self._current_loop:
+            self._current_loop = loop
+            self._rate_limit_handling = asyncio.Event()
+            self._rate_limit_handling.set()
+            self._rate_limit_handling_lock = asyncio.Lock()
+
     def alimit(
         self, fn: AsyncCallable[ParameterSpec, GenericType]
     ) -> AsyncCallable[ParameterSpec, GenericType]:
         @wraps(fn)
         async def wrapper(*args: Any, **kwargs: Any) -> GenericType:
+            self._initialize_async_primitives()
+            assert self._rate_limit_handling_lock is not None and isinstance(
+                self._rate_limit_handling_lock, asyncio.Lock
+            )
+            assert self._rate_limit_handling is not None and isinstance(
+                self._rate_limit_handling, asyncio.Event
+            )
             try:
                 await self._throttler.async_wait_until_ready()
                 request_start_time = time.time()
                 return await fn(*args, **kwargs)
             except self._rate_limit_error:
-                self._throttler.on_rate_limit_error(request_start_time, verbose=self._verbose)
-                try:
-                    for _attempt in range(self._max_rate_limit_retries):
-                        try:
-                            request_start_time = time.time()
-                            await self._throttler.async_wait_until_ready()
-                            return await fn(*args, **kwargs)
-                        except self._rate_limit_error:
-                            self._throttler.on_rate_limit_error(
-                                request_start_time, verbose=self._verbose
-                            )
-                            continue
-                finally:
-                    raise RateLimitError(f"Exceeded max ({self._max_rate_limit_retries}) retries")
+                async with self._rate_limit_handling_lock:
+                    self._rate_limit_handling.clear()  # prevent new requests from starting
+                    self._throttler.on_rate_limit_error(request_start_time, verbose=self._verbose)
+                    try:
+                        for _attempt in range(self._max_rate_limit_retries):
+                            try:
+                                request_start_time = time.time()
+                                await self._throttler.async_wait_until_ready()
+                                return await fn(*args, **kwargs)
+                            except self._rate_limit_error:
+                                self._throttler.on_rate_limit_error(
+                                    request_start_time, verbose=self._verbose
+                                )
+                                continue
+                    finally:
+                        self._rate_limit_handling.set()  # allow new requests to start
+            raise RateLimitError(f"Exceeded max ({self._max_rate_limit_retries}) retries")
 
         return wrapper

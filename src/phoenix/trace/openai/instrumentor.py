@@ -30,6 +30,7 @@ from typing_extensions import ParamSpec
 from wrapt import ObjectProxy
 
 from phoenix.trace.schemas import (
+    MimeType,
     SpanAttributes,
     SpanEvent,
     SpanException,
@@ -56,7 +57,6 @@ from phoenix.trace.semantic_conventions import (
     OUTPUT_VALUE,
     TOOL_CALL_FUNCTION_ARGUMENTS_JSON,
     TOOL_CALL_FUNCTION_NAME,
-    MimeType,
 )
 from phoenix.trace.utils import get_stacktrace
 

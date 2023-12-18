@@ -17,7 +17,7 @@ Phoenix runs locally, close to your data, in an environment that interfaces to N
 In order to use Phoenix:
 
 1. Load data into pandas dataframe
-2. (Optional) Leverage [SDK](http://127.0.0.1:5000/s/-MAlgpMyBRcl2qFZRQ67/api-reference/python-sdk/arize.pandas/autoembeddings#the-embeddinggenerator-class) embeddings and LLM eval generators
+2. (Optional) Leverage [SDK](https://app.gitbook.com/s/-MAlgpMyBRcl2qFZRQ67/api-reference/python-sdk/arize.pandas/autoembeddings#the-embeddinggenerator-class) embeddings and LLM eval generators
 3. Start Phoenix
    1. Single dataframe
    2. (Optional) Two dataframes: primary and [reference](../quickstart/phoenix-inferences/inferences.md#which-dataset-is-which)

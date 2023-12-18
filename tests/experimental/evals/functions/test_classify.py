@@ -1,33 +1,76 @@
-import asyncio
-import signal
 from contextlib import ExitStack
 from itertools import product
 from typing import List
 from unittest.mock import MagicMock, patch
 
 import httpx
-import nest_asyncio
 import numpy as np
 import pandas as pd
+import phoenix
 import pytest
 import respx
 from pandas.core.frame import DataFrame
 from pandas.testing import assert_frame_equal
 from phoenix.experimental.evals import (
     NOT_PARSABLE,
-    RAG_RELEVANCY_PROMPT_TEMPLATE,
     OpenAIModel,
     llm_classify,
     run_relevance_eval,
 )
+from phoenix.experimental.evals.evaluators import LLMEvaluator
 from phoenix.experimental.evals.functions.classify import (
-    AsyncExecutor,
-    SyncExecutor,
     _snap_to_rail,
-    get_executor_on_sync_context,
+    run_evals,
 )
 from phoenix.experimental.evals.models.openai import OPENAI_API_KEY_ENVVAR_NAME
+from phoenix.experimental.evals.templates.default_templates import (
+    RAG_RELEVANCY_PROMPT_TEMPLATE,
+    TOXICITY_PROMPT_TEMPLATE,
+)
 from respx.patterns import M
+
+
+@pytest.fixture
+def api_key(monkeypatch: pytest.MonkeyPatch) -> str:
+    api_key = "sk-0123456789"
+    monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, api_key)
+    return api_key
+
+
+@pytest.fixture
+def model(api_key: str) -> OpenAIModel:
+    return OpenAIModel(model_name="gpt-4")
+
+
+@pytest.fixture
+def toxicity_evaluator(model: OpenAIModel) -> LLMEvaluator:
+    return LLMEvaluator(
+        name="toxicity",
+        template=TOXICITY_PROMPT_TEMPLATE,
+        model=model,
+        verbose=True,
+    )
+
+
+@pytest.fixture
+def relevance_evaluator(model: OpenAIModel) -> LLMEvaluator:
+    return LLMEvaluator(
+        name="relevance",
+        template=RAG_RELEVANCY_PROMPT_TEMPLATE,
+        model=model,
+        verbose=True,
+    )
+
+
+@pytest.fixture
+def running_event_loop_mock(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        "phoenix.experimental.evals.functions.executor._running_event_loop_exists",
+        lambda: True,
+    )
+    assert (
+        phoenix.experimental.evals.functions.executor._running_event_loop_exists()
+    ), "mock for detecting event loop should return True"
 
 
 @pytest.fixture
@@ -63,57 +106,12 @@ def classification_template():
     return RAG_RELEVANCY_PROMPT_TEMPLATE
 
 
-async def test_executor_factory_returns_sync_in_async_context():
-    def sync_fn():
-        pass
-
-    async def async_fn():
-        pass
-
-    async def executor_in_async_context():
-        return get_executor_on_sync_context(sync_fn, async_fn)
-
-    executor = await executor_in_async_context()
-    assert isinstance(executor, SyncExecutor)
-
-
-async def test_executor_factory_returns_async_in_patched_async_context():
-    nest_asyncio.apply()
-
-    def sync_fn():
-        pass
-
-    async def async_fn():
-        pass
-
-    async def executor_in_async_context():
-        return get_executor_on_sync_context(sync_fn, async_fn)
-
-    executor = await executor_in_async_context()
-    assert isinstance(executor, AsyncExecutor)
-
-
-def test_executor_factory_returns_async_in_sync_context():
-    def sync_fn():
-        pass
-
-    async def async_fn():
-        pass
-
-    def executor_in_sync_context():
-        return get_executor_on_sync_context(sync_fn, async_fn)
-
-    executor = executor_in_sync_context()
-    assert isinstance(executor, AsyncExecutor)
-
-
 @pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
 def test_llm_classify(
+    api_key: str,
     classification_dataframe: DataFrame,
-    monkeypatch: pytest.MonkeyPatch,
     respx_mock: respx.mock,
 ):
-    monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
     dataframe = classification_dataframe
     keys = list(zip(dataframe["input"], dataframe["reference"]))
     responses = ["relevant", "irrelevant", "\nrelevant ", "unparsable"]
@@ -155,9 +153,8 @@ def test_llm_classify(
 
 @pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
 def test_llm_classify_with_async(
-    classification_dataframe: DataFrame, monkeypatch: pytest.MonkeyPatch, respx_mock: respx.mock
+    api_key: str, classification_dataframe: DataFrame, respx_mock: respx.mock
 ):
-    monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
     dataframe = classification_dataframe
     keys = list(zip(dataframe["input"], dataframe["reference"]))
     responses = ["relevant", "irrelevant", "\nrelevant ", "unparsable"]
@@ -199,9 +196,8 @@ def test_llm_classify_with_async(
 
 @pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
 def test_llm_classify_with_fn_call(
-    classification_dataframe: DataFrame, monkeypatch: pytest.MonkeyPatch, respx_mock: respx.mock
+    api_key: str, classification_dataframe: DataFrame, respx_mock: respx.mock
 ):
-    monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
     dataframe = classification_dataframe
     keys = list(zip(dataframe["input"], dataframe["reference"]))
     responses = ["relevant", "irrelevant", "\nrelevant ", "unparsable"]
@@ -231,9 +227,8 @@ def test_llm_classify_with_fn_call(
 
 @pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
 def test_classify_fn_call_no_explain(
-    classification_dataframe: DataFrame, monkeypatch: pytest.MonkeyPatch, respx_mock: respx.mock
+    api_key: str, classification_dataframe: DataFrame, respx_mock: respx.mock
 ):
-    monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
     dataframe = classification_dataframe
     keys = list(zip(dataframe["input"], dataframe["reference"]))
     responses = ["relevant", "irrelevant", "\nrelevant ", "unparsable"]
@@ -267,9 +262,8 @@ def test_classify_fn_call_no_explain(
 
 @pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
 def test_classify_fn_call_explain(
-    classification_dataframe: DataFrame, monkeypatch: pytest.MonkeyPatch, respx_mock: respx.mock
+    api_key: str, classification_dataframe: DataFrame, respx_mock: respx.mock
 ):
-    monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
     dataframe = classification_dataframe
     keys = list(zip(dataframe["input"], dataframe["reference"]))
     responses = ["relevant", "irrelevant", "\nrelevant ", "unparsable"]
@@ -308,11 +302,10 @@ def test_classify_fn_call_explain(
 @pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
 def test_llm_classify_prints_to_stdout_with_verbose_flag(
     classification_dataframe: DataFrame,
-    monkeypatch: pytest.MonkeyPatch,
+    api_key: str,
     respx_mock: respx.mock,
     capfd: pytest.CaptureFixture[str],
 ):
-    monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
     dataframe = classification_dataframe
     keys = list(zip(dataframe["input"], dataframe["reference"]))
     responses = ["relevant", "irrelevant", "\nrelevant ", "unparsable"]
@@ -345,10 +338,7 @@ def test_llm_classify_prints_to_stdout_with_verbose_flag(
     assert "sk-0123456789" not in out, "Credentials should not be printed out in cleartext"
 
 
-def test_llm_classify_shows_retry_info(
-    monkeypatch: pytest.MonkeyPatch, capfd: pytest.CaptureFixture[str]
-):
-    monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
+def test_llm_classify_shows_retry_info(api_key: str, capfd: pytest.CaptureFixture[str]):
     dataframe = pd.DataFrame(
         [
             {
@@ -399,7 +389,7 @@ def test_llm_classify_shows_retry_info(
 
 @pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
 def test_run_relevance_eval_standard_dataframe(
-    monkeypatch: pytest.MonkeyPatch,
+    api_key: str,
     respx_mock: respx.mock,
 ):
     dataframe = pd.DataFrame(
@@ -490,7 +480,6 @@ def test_run_relevance_eval_standard_dataframe(
         }
         respx_mock.route(matcher).mock(return_value=httpx.Response(200, json=payload))
 
-    monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
     with patch.object(OpenAIModel, "_init_tiktoken", return_value=None):
         model = OpenAIModel()
 
@@ -509,14 +498,13 @@ def test_run_relevance_eval_standard_dataframe(
 
 @pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions", assert_all_called=False)
 def test_classify_tolerance_to_exceptions(
+    api_key: str,
     classification_dataframe: pd.DataFrame,
     classification_responses: List[str],
     classification_template: str,
-    monkeypatch: pytest.MonkeyPatch,
     respx_mock: respx.mock,
     capfd,
 ):
-    monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
     with patch.object(OpenAIModel, "_init_tiktoken", return_value=None):
         model = OpenAIModel(max_retries=0)
     queries = classification_dataframe["input"].tolist()
@@ -543,7 +531,7 @@ def test_classify_tolerance_to_exceptions(
 
 
 def test_run_relevance_eval_openinference_dataframe(
-    monkeypatch: pytest.MonkeyPatch,
+    api_key: str,
     respx_mock: respx.mock,
 ):
     dataframe = pd.DataFrame(
@@ -635,7 +623,6 @@ def test_run_relevance_eval_openinference_dataframe(
         }
         respx_mock.route(matcher).mock(return_value=httpx.Response(200, json=payload))
 
-    monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
     with patch.object(OpenAIModel, "_init_tiktoken", return_value=None):
         model = OpenAIModel()
 
@@ -669,130 +656,122 @@ def test_overlapping_rails():
     assert _snap_to_rail("abc", ["abc", "a", "ab"]) == "abc"
 
 
-async def test_async_executor_executes():
-    async def dummy_fn(payload: int) -> int:
-        return payload - 1
+@pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
+def test_run_evals_produces_expected_output_dataframe_when_no_running_event_loop_exists(
+    respx_mock: respx.mock, toxicity_evaluator: LLMEvaluator, relevance_evaluator: LLMEvaluator
+) -> None:
+    for matcher, response in [
+        (
+            M(content__contains="Paris is the capital of France.")
+            & M(content__contains="relevant"),
+            "relevant",
+        ),
+        (
+            M(content__contains="Munich is the capital of Germany.")
+            & M(content__contains="relevant"),
+            "irrelevant",
+        ),
+        (
+            M(content__contains="What is the capital of France?") & M(content__contains="toxic"),
+            "non-toxic",
+        ),
+    ]:
+        payload = {
+            "choices": [
+                {
+                    "message": {
+                        "content": response,
+                    },
+                }
+            ],
+        }
+        respx_mock.route(matcher).mock(return_value=httpx.Response(200, json=payload))
 
-    executor = AsyncExecutor(dummy_fn, concurrency=10)
-    inputs = [1, 2, 3, 4, 5]
-    outputs = await executor.execute(inputs)
-    assert outputs == [0, 1, 2, 3, 4]
-
-
-async def test_async_executor_executes_many_tasks():
-    async def dummy_fn(payload: int) -> int:
-        return payload
-
-    executor = AsyncExecutor(dummy_fn, concurrency=10)
-    inputs = [x for x in range(1000)]
-    outputs = await executor.execute(inputs)
-    assert outputs == inputs
-
-
-def test_async_executor_runs_synchronously():
-    async def dummy_fn(payload: int) -> int:
-        return payload - 2
-
-    executor = AsyncExecutor(dummy_fn, concurrency=10)
-    inputs = [1, 2, 3, 4, 5]
-    outputs = executor.run(inputs)
-    assert outputs == [-1, 0, 1, 2, 3]
-
-
-async def test_async_executor_execute_exits_early_on_error():
-    async def dummy_fn(payload: int) -> int:
-        if payload == 3:
-            raise ValueError("test error")
-        return payload - 1
-
-    executor = AsyncExecutor(dummy_fn, concurrency=1, exit_on_error=True, fallback_return_value=52)
-    inputs = [1, 2, 3, 4, 5]
-    outputs = await executor.execute(inputs)
-    assert outputs == [0, 1, 52, 52, 52]
-
-
-def test_async_executor_run_exits_early_on_error():
-    async def dummy_fn(payload: int) -> int:
-        if payload == 3:
-            raise ValueError("test error")
-        return payload - 1
-
-    executor = AsyncExecutor(dummy_fn, concurrency=1, exit_on_error=True, fallback_return_value=52)
-    inputs = [1, 2, 3, 4, 5]
-    outputs = executor.run(inputs)
-    assert outputs == [0, 1, 52, 52, 52]
-
-
-async def test_async_executor_can_continue_on_error():
-    async def dummy_fn(payload: int) -> int:
-        if payload == 3:
-            raise ValueError("test error")
-        return payload - 1
-
-    executor = AsyncExecutor(dummy_fn, concurrency=1, exit_on_error=False, fallback_return_value=52)
-    inputs = [1, 2, 3, 4, 5]
-    outputs = await executor.execute(inputs)
-    assert outputs == [0, 1, 52, 3, 4]
+    df = pd.DataFrame(
+        [
+            {
+                "input": "What is the capital of France?",
+                "reference": "Paris is the capital of France.",
+            },
+            {
+                "input": "What is the capital of France?",
+                "reference": "Munich is the capital of Germany.",
+            },
+        ],
+        index=["a", "b"],
+    )
+    eval_df = run_evals(dataframe=df, evaluators=[relevance_evaluator, toxicity_evaluator])
+    assert_frame_equal(
+        eval_df,
+        pd.DataFrame(
+            {"relevance": ["relevant", "irrelevant"], "toxicity": ["non-toxic", "non-toxic"]},
+            index=["a", "b"],
+        ),
+    )
 
 
-async def test_async_executor_sigint_handling():
-    async def async_fn(x):
-        await asyncio.sleep(0.01)
-        return x
+@pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
+def test_run_evals_produces_expected_output_dataframe_when_running_event_loop_already_exists(
+    running_event_loop_mock,
+    respx_mock: respx.mock,
+    toxicity_evaluator: LLMEvaluator,
+    relevance_evaluator: LLMEvaluator,
+) -> None:
+    for matcher, response in [
+        (
+            M(content__contains="Paris is the capital of France.")
+            & M(content__contains="relevant"),
+            "relevant",
+        ),
+        (
+            M(content__contains="Munich is the capital of Germany.")
+            & M(content__contains="relevant"),
+            "irrelevant",
+        ),
+        (
+            M(content__contains="What is the capital of France?") & M(content__contains="toxic"),
+            "non-toxic",
+        ),
+    ]:
+        payload = {
+            "choices": [
+                {
+                    "message": {
+                        "content": response,
+                    },
+                }
+            ],
+        }
+        respx_mock.route(matcher).mock(return_value=httpx.Response(200, json=payload))
 
-    executor = AsyncExecutor(async_fn, concurrency=5, fallback_return_value="test")
-
-    # Run the executor with a large number of inputs
-    task = asyncio.create_task(executor.execute(list(range(100))))
-    await asyncio.sleep(0.1)
-
-    # Simulate a SIGINT signal
-    executor._signal_handler(signal.SIGINT, None)
-    results = await task
-
-    assert len(results) == 100
-    assert results.count("test") > 0, "some inputs should not have been processed"
-
-
-def test_sync_executor_runs_many_tasks():
-    def dummy_fn(payload: int) -> int:
-        return payload
-
-    executor = SyncExecutor(dummy_fn)
-    inputs = [x for x in range(1000)]
-    outputs = executor.run(inputs)
-    assert outputs == inputs
-
-
-def test_sync_executor_runs():
-    def dummy_fn(payload: int) -> int:
-        return payload - 2
-
-    executor = SyncExecutor(dummy_fn)
-    inputs = [1, 2, 3, 4, 5]
-    outputs = executor.run(inputs)
-    assert outputs == [-1, 0, 1, 2, 3]
+    df = pd.DataFrame(
+        [
+            {
+                "input": "What is the capital of France?",
+                "reference": "Paris is the capital of France.",
+            },
+            {
+                "input": "What is the capital of France?",
+                "reference": "Munich is the capital of Germany.",
+            },
+        ],
+        index=["a", "b"],
+    )
+    eval_df = run_evals(dataframe=df, evaluators=[relevance_evaluator, toxicity_evaluator])
+    assert_frame_equal(
+        eval_df,
+        pd.DataFrame(
+            {"relevance": ["relevant", "irrelevant"], "toxicity": ["non-toxic", "non-toxic"]},
+            index=["a", "b"],
+        ),
+    )
 
 
-def test_sync_executor_run_exits_early_on_error():
-    def dummy_fn(payload: int) -> int:
-        if payload == 3:
-            raise ValueError("test error")
-        return payload - 1
-
-    executor = SyncExecutor(dummy_fn, exit_on_error=True, fallback_return_value=52)
-    inputs = [1, 2, 3, 4, 5]
-    outputs = executor.run(inputs)
-    assert outputs == [0, 1, 52, 52, 52]
-
-
-def test_sync_executor_can_continue_on_error():
-    def dummy_fn(payload: int) -> int:
-        if payload == 3:
-            raise ValueError("test error")
-        return payload - 1
-
-    executor = SyncExecutor(dummy_fn, exit_on_error=False, fallback_return_value=52)
-    inputs = [1, 2, 3, 4, 5]
-    outputs = executor.run(inputs)
-    assert outputs == [0, 1, 52, 3, 4]
+def test_run_evals_with_evaluators_with_duplicate_names_raises_value_error(
+    toxicity_evaluator: LLMEvaluator,
+) -> None:
+    with pytest.raises(ValueError):
+        run_evals(
+            dataframe=pd.DataFrame(),
+            evaluators=[toxicity_evaluator, toxicity_evaluator],
+        )
