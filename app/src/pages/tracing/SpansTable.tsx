@@ -38,6 +38,7 @@ import {
   SpanSort,
   SpansTableSpansQuery,
 } from "./__generated__/SpansTableSpansQuery.graphql";
+import { EVALS_COLUMN_PREFIX, EVALS_KEY_SEPARATOR } from "./contants";
 import { EvaluationLabel } from "./EvaluationLabel";
 import { RetrievalEvaluationLabel } from "./RetrievalEvaluationLabel";
 import { SpanColumnSelector } from "./SpanColumnSelector";
@@ -123,12 +124,57 @@ export function SpansTable(props: SpansTableProps) {
       props.query
     );
 
+  const evaluationVisibility = useTracingContext(
+    (state) => state.evaluationVisibility
+  );
+  const visibleEvaluationColumnNames = useMemo(() => {
+    return Object.keys(evaluationVisibility).filter(
+      (name) => evaluationVisibility[name]
+    );
+  }, [evaluationVisibility]);
+
   const tableData = useMemo(() => {
     const tableData = data.spans.edges.map(({ span }) => span);
 
     return tableData;
   }, [data]);
   type TableRow = (typeof tableData)[number];
+
+  const dynamicEvaluationColumns: ColumnDef<TableRow>[] =
+    visibleEvaluationColumnNames.map((name) => {
+      return {
+        header: name,
+        columns: [
+          {
+            header: `label`,
+            accessorKey: `${EVALS_COLUMN_PREFIX}${EVALS_KEY_SEPARATOR}label${EVALS_KEY_SEPARATOR}${name}`,
+            cell: ({ row }) => {
+              const evaluation = row.original.spanEvaluations.find(
+                (evaluation) => evaluation.name === name
+              );
+              if (!evaluation) {
+                return null;
+              }
+              return evaluation.label;
+            },
+          } as ColumnDef<TableRow>,
+          {
+            header: `score`,
+            accessorKey: `${EVALS_COLUMN_PREFIX}${EVALS_KEY_SEPARATOR}score${EVALS_KEY_SEPARATOR}${name}`,
+            cell: ({ row }) => {
+              const evaluation = row.original.spanEvaluations.find(
+                (evaluation) => evaluation.name === name
+              );
+              if (!evaluation) {
+                return null;
+              }
+              return evaluation.score;
+            },
+          } as ColumnDef<TableRow>,
+        ],
+      };
+    });
+
   const evaluationColumns: ColumnDef<TableRow>[] = [
     {
       header: "evaluations",
@@ -174,6 +220,7 @@ export function SpansTable(props: SpansTableProps) {
         );
       },
     },
+    ...dynamicEvaluationColumns,
   ];
   const columns: ColumnDef<TableRow>[] = [
     {
@@ -304,7 +351,11 @@ export function SpansTable(props: SpansTableProps) {
   });
   const rows = table.getRowModel().rows;
   const isEmpty = rows.length === 0;
-  const computedColumns = table.getAllColumns();
+  const computedColumns = table.getAllColumns().filter((column) => {
+    // Filter out columns that are eval groupings
+    return column.columns.length === 0;
+  });
+
   return (
     <div css={spansTableCSS}>
       <View

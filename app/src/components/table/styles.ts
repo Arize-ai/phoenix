@@ -8,11 +8,15 @@ export const tableCSS = (theme: Theme) => css`
     position: sticky;
     top: 0;
     tr {
-      border-bottom: 1px solid var(--ac-global-border-color-default);
       th {
         padding: ${theme.spacing.margin4}px ${theme.spacing.margin16}px;
+        background-color: rgba(var(--ac-global-color-grey-100-rgb), 0.9);
         position: relative;
         text-align: left;
+        border-bottom: 1px solid var(--ac-global-border-color-default);
+        &:not(:last-of-type) {
+          border-right: 1px solid var(--ac-global-border-color-default);
+        }
         .cursor-pointer {
           cursor: pointer;
         }
@@ -46,7 +50,9 @@ export const tableCSS = (theme: Theme) => css`
   }
   tbody:not(.is-empty) {
     tr {
-      border-bottom: 1px solid var(--ac-global-border-color-default);
+      &:not(:last-of-type) {
+        border-bottom: 1px solid var(--ac-global-border-color-default);
+      }
       &:hover {
         background-color: rgba(var(--ac-global-color-grey-300-rgb), 0.5);
       }

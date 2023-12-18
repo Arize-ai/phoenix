@@ -3,15 +3,7 @@ import { graphql, useFragment } from "react-relay";
 import { Column } from "@tanstack/react-table";
 import { css } from "@emotion/react";
 
-import {
-  Dropdown,
-  Flex,
-  Icon,
-  Icons,
-  Section,
-  Text,
-  View,
-} from "@arizeai/components";
+import { Dropdown, Flex, Icon, Icons, View } from "@arizeai/components";
 
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
 
@@ -111,11 +103,10 @@ function ColumnSelectorMenu(props: SpanColumnSelectorProps) {
               checked={allVisible}
               onChange={onToggleAll}
             />
-            toggle all
+            span columns
           </label>
         </div>
       </View>
-
       <ul>
         {columns.map((column) => {
           const stateValue = columnVisibility[column.id];
@@ -161,14 +152,45 @@ function EvaluationColumnSelector({
   const setEvaluationVisibility = useTracingContext(
     (state) => state.setEvaluationVisibility
   );
+  const allVisible = useMemo(() => {
+    return data.spanEvaluationNames.every((name) => {
+      const stateValue = evaluationVisibility[name];
+      return stateValue || false;
+    });
+  }, [evaluationVisibility, data.spanEvaluationNames]);
+
+  const onToggleEvaluations = useCallback(() => {
+    const newVisibilityState = data.spanEvaluationNames.reduce((acc, name) => {
+      return { ...acc, [name]: !allVisible };
+    }, {});
+    setEvaluationVisibility(newVisibilityState);
+  }, [setEvaluationVisibility, allVisible, data.spanEvaluationNames]);
   return (
     <section>
-      <Text>Evaluations</Text>
+      <View
+        paddingTop="size-50"
+        paddingBottom="size-50"
+        borderColor="dark"
+        borderTopWidth="thin"
+        borderBottomWidth="thin"
+      >
+        <div css={columCheckboxItemCSS}>
+          <label>
+            <input
+              type="checkbox"
+              name={"toggle-evaluations-all"}
+              checked={allVisible}
+              onChange={onToggleEvaluations}
+            />
+            evaluations
+          </label>
+        </div>
+      </View>
       <ul>
         {data.spanEvaluationNames.map((name) => {
           const isVisible = evaluationVisibility[name];
           return (
-            <li key={name}>
+            <li key={name} css={columCheckboxItemCSS}>
               <label>
                 <input
                   type="checkbox"

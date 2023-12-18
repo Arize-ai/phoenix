@@ -46,6 +46,7 @@ import {
   TracesTableQuery,
   TracesTableQuery$variables,
 } from "./__generated__/TracesTableQuery.graphql";
+import { EVALS_COLUMN_PREFIX, EVALS_KEY_SEPARATOR } from "./contants";
 import { EvaluationLabel } from "./EvaluationLabel";
 import { RetrievalEvaluationLabel } from "./RetrievalEvaluationLabel";
 import { SpanColumnSelector } from "./SpanColumnSelector";
@@ -61,8 +62,6 @@ const DEFAULT_SORT: SpanSort = {
   col: "startTime",
   dir: "desc",
 };
-const EVALS_COLUMN_PREFIX = "evals";
-const EVALS_KEY_SEPARATOR = ":";
 
 /**
  * A nested table row is a span with a children that recursively
@@ -482,7 +481,10 @@ export function TracesTable(props: TracesTableProps) {
   });
   const rows = table.getRowModel().rows;
   const isEmpty = rows.length === 0;
-  const computedColumns = table.getAllColumns();
+  const computedColumns = table.getAllColumns().filter((column) => {
+    // Filter out columns that are eval groupings
+    return column.columns.length === 0;
+  });
 
   return (
     <div css={spansTableCSS}>
