@@ -2,8 +2,10 @@ import logging
 from typing import Any, Callable, Dict, Optional, Union
 
 import pandas as pd
-from tqdm.auto import tqdm
 
+from phoenix.experimental.evals.functions.executor import (
+    get_executor_on_sync_context,
+)
 from phoenix.experimental.evals.models import BaseEvalModel, set_verbosity
 from phoenix.experimental.evals.templates import (
     PromptTemplate,
@@ -26,6 +28,7 @@ def llm_generate(
     system_instruction: Optional[str] = None,
     verbose: bool = False,
     output_parser: Optional[Callable[[str], Dict[str, Any]]] = None,
+    concurrency: int = 20,
 ) -> pd.DataFrame:
     """
     Generates a text using a template using an LLM. This function is useful
@@ -54,6 +57,9 @@ def llm_generate(
         should correspond to the column names of the output dataframe. If None, the output dataframe
         will have a single column named "output". Default None.
 
+        concurrency (int, default=20): The number of concurrent evals if async submission is
+        possible.
+
     Returns:
         generations_dataframe (pandas.DataFrame): A dataframe where each row
         represents the generated output
@@ -61,28 +67,34 @@ def llm_generate(
     """
     tqdm_bar_format = get_tqdm_progress_bar_formatter("llm_generate")
     output_parser = output_parser or _no_op_parser
-    with set_verbosity(model, verbose) as verbose_model:
-        template = normalize_prompt_template(template)
-        logger.info(f"Template: \n{template.prompt()}\n")
-        logger.info(f"Template variables: {template.variables}")
-        prompts = map_template(dataframe, template)
+    template = normalize_prompt_template(template)
+    logger.info(f"Template: \n{template.prompt()}\n")
+    logger.info(f"Template variables: {template.variables}")
+    prompts = map_template(dataframe, template)
 
-        # For each prompt, generate and parse the response
-        output = []
-        # Wrap the loop in a try / catch so that we can still return a dataframe
-        # even if the process is interrupted
-        try:
-            for prompt in tqdm(prompts, bar_format=tqdm_bar_format):
-                logger.info(f"Prompt: {prompt}")
-                response = verbose_model(prompt, instruction=system_instruction)
-                parsed_response = output_parser(response)
-                output.append(parsed_response)
-
-        except (Exception, KeyboardInterrupt) as e:
-            logger.error(e)
-            print(
-                "Process was interrupted. The return value will be incomplete",
-                e,
+    async def _run_llm_generation_async(prompt: str) -> Dict[str, Any]:
+        with set_verbosity(model, verbose) as verbose_model:
+            response = await verbose_model._async_generate(
+                prompt,
+                instruction=system_instruction,
             )
-        # Return the data as a dataframe
-        return pd.DataFrame(output)
+        return output_parser(response)
+
+    def _run_llm_generation_sync(prompt: str) -> Dict[str, Any]:
+        with set_verbosity(model, verbose) as verbose_model:
+            response = verbose_model._generate(
+                prompt,
+                instruction=system_instruction,
+            )
+        return output_parser(response)
+
+    executor = get_executor_on_sync_context(
+        _run_llm_generation_sync,
+        _run_llm_generation_async,
+        concurrency=concurrency,
+        tqdm_bar_format=tqdm_bar_format,
+        exit_on_error=True,
+        fallback_return_value={"output": "generation-failed"},
+    )
+    output = executor.run(prompts.tolist())
+    return pd.DataFrame(output)
