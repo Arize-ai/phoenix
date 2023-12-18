@@ -176,9 +176,7 @@ class SnowflakeTraceStore(SQLTypeStore):
     Send Phoenix traces to Snowflake wharehouse table
     """
 
-    def __init__(
-        self, table_name, user, password, account, warehouse, database, schema
-    ):
+    def __init__(self, table_name, user, password, account, warehouse, database, schema):
         super().__init__(
             "Snowflake",
             table_name,
