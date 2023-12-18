@@ -179,7 +179,7 @@ def test_classify_tolerance_to_exceptions(
     assert df is not None
     # Make sure there is a logger.error output
     captured = capfd.readouterr()
-    assert "Process was interrupted" in captured.out
+    assert "Exception in worker" in captured.out
 
 
 def test_litellm_model_llm_generate(monkeypatch: pytest.MonkeyPatch):

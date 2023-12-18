@@ -86,7 +86,7 @@ def test_evaluator_evaluate_outputs_not_parseable_and_explanation_when_output_is
     assert "A very good explanation" in explanation
 
 
-def test_evaluator_evaluate_outputs_not_parseable_and_none_for_unparseable_model_output(
+def test_evaluator_evaluate_outputs_not_parseable_and_raw_response_for_unparseable_model_output(
     model: OpenAIModel, relevance_template: str
 ) -> None:
     output = 'Unexpected format: "rail"'
@@ -100,4 +100,4 @@ def test_evaluator_evaluate_outputs_not_parseable_and_none_for_unparseable_model
         provide_explanation=True,
     )
     assert label == NOT_PARSABLE
-    assert explanation is None
+    assert explanation == 'Unexpected format: "rail"'
