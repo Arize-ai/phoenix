@@ -6,7 +6,6 @@ from typing import (
     Any,
     DefaultDict,
     Dict,
-    Hashable,
     Iterable,
     Iterator,
     List,
@@ -45,41 +44,22 @@ from phoenix.trace.semantic_conventions import (
     RETRIEVAL_DOCUMENTS,
 )
 
-_LEAF = 0  # sentinel value for trie leaf nodes
+_SEMANTIC_CONVENTIONS: List[str] = sorted(
+    (getattr(sem_conv, name) for name in dir(sem_conv) if name.isupper()),
+    reverse=True,
+)  # sorted so the longer strings go first
 
 
-def _build_trie(sentences: Iterable[str], sep: str = ".") -> DefaultDict[Hashable, Any]:
-    def _trie() -> DefaultDict[Hashable, Any]:
-        # a.k.a. prefix tree
-        return defaultdict(_trie)
-
-    trie = _trie()
-    for sentence in sentences:
-        t = trie
-        for word in sentence.split(sep):
-            t = t[word]
-        t[_LEAF] = sentence
-    return trie
-
-
-_SEMANTIC_CONVENTION_TRIE: DefaultDict[Hashable, Any] = _build_trie(
-    getattr(sem_conv, name) for name in dir(sem_conv) if name.isupper()
-)
-
-
-def _semantic_convention_prefix_search(key: str) -> Tuple[Optional[str], Optional[List[str]]]:
+def _semantic_convention_prefix_search(key: str) -> Tuple[Optional[str], Optional[str]]:
     """Return the longest prefix of `key` that is a semantic convention, and the remaining suffix
-    as a list of words. For example, if `key` is "retrieval.documents.2.document.score", return
-    "retrieval.documents", ["2", "document", "score"].
+    separated by `.`. For example, if `key` is "retrieval.documents.2.document.score", return
+    "retrieval.documents", "2.document.score".
     """
-    trie = _SEMANTIC_CONVENTION_TRIE
-    words = key.split(".")
-    for i, word in enumerate(words):
-        if word not in trie:
+    for prefix in _SEMANTIC_CONVENTIONS:
+        if key == prefix:
             return None, None
-        trie = trie[word]
-        if _LEAF in trie:
-            return trie[_LEAF], words[i + 1 :]
+        if key.startswith(prefix) and key[len(prefix)] == ".":
+            return prefix, key[len(prefix) + 1 :]
     return None, None
 
 
@@ -100,9 +80,9 @@ def decode(otlp_span: otlp.Span) -> Span:
     attributes_for_dictionary: Set[str] = set()
 
     for key in attributes.keys():
-        prefix, suffix_words = _semantic_convention_prefix_search(key)
-        if prefix and suffix_words:
-            if suffix_words[0].isdigit():
+        prefix, suffix = _semantic_convention_prefix_search(key)
+        if prefix and suffix:
+            if suffix.split(".")[0].isdigit():
                 # e.g. "retrieval.documents.2.document.score"
                 # -> "retrieval.documents", ["2", "document", "score"]
                 attributes_for_list_of_dictionaries.add(prefix)
