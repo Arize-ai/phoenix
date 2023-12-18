@@ -71,11 +71,13 @@ class TraceStore(ABC):
         try:
             self._insert(traces)
             print(
-                f"Inserted {len(traces)} trace records to {self.friendly_name} table {self.table_name}"
+                f"""Inserted {len(traces)} trace records to 
+                {self.friendly_name} table {self.table_name}"""
             )
         except Exception as e:
             print(
-                f"Failed to insert data into {self.friendly_name} table {self.table_name}. Error: {str(e)}"
+                f"""Failed to insert data into {self.friendly_name} 
+                table {self.table_name}. Error: {str(e)}"""
             )
 
     def upload(self, session: Session):
@@ -86,7 +88,7 @@ class TraceStore(ABC):
             # Update and shift timestamp to avoid duplicate writes
             self.timestamp = df.start_time.max() + pd.Timedelta(milliseconds=1)
         else:
-            print(f"No new spans found")
+            print("No new spans found")
 
 
 class SQLTypeStore(TraceStore):
@@ -100,7 +102,8 @@ class SQLTypeStore(TraceStore):
 
     def _insert(self, traces):
         """insert rows into table in SQL"""
-        query = f"INSERT INTO {self.table_name} ({', '.join(self.key_names)}) VALUES {', '.join(traces)};"
+        query = f"""INSERT INTO {self.table_name} 
+        ({', '.join(self.key_names)}) VALUES {', '.join(traces)};"""
         self._run_query(query)
 
     def _run_query(self, query):
