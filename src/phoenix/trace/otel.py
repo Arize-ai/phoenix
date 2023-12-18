@@ -90,11 +90,11 @@ def decode(otlp_span: otlp.Span) -> Span:
         # `"{prefix}": [{"{sub_key}": 123}]`.
         (
             consolidated_list,
-            consolidated_keys,
+            flattened_prefixed_indexed_keys,
         ) = _consolidate_flattened_prefixed_indexed_keys_into_list(attributes, prefix)
-        if not consolidated_keys:
+        if not flattened_prefixed_indexed_keys:
             continue
-        for key in consolidated_keys:
+        for key in flattened_prefixed_indexed_keys:
             attributes.pop(key, None)
         if consolidated_list:
             attributes[prefix] = consolidated_list
@@ -112,12 +112,13 @@ def decode(otlp_span: otlp.Span) -> Span:
         # The flattened keys look like "{prefix}.{sub_key}", where `sub_key` is a key in the
         # original dictionary. So `"{prefix}.{sub_key}": 123` becomes
         # `"{prefix}": {"{sub_key}": 123}`.
-        consolidated_dict, consolidated_keys = _consolidate_flattened_prefixed_keys_into_dict(
-            attributes, prefix
-        )
-        if not consolidated_keys:
+        (
+            consolidated_dict,
+            flattened_prefixed_keys,
+        ) = _consolidate_flattened_prefixed_keys_into_dict(attributes, prefix)
+        if not flattened_prefixed_keys:
             continue
-        for key in consolidated_keys:
+        for key in flattened_prefixed_keys:
             attributes.pop(key, None)
         if consolidated_dict:
             attributes[prefix] = consolidated_dict
@@ -252,6 +253,9 @@ def _consolidate_flattened_prefixed_indexed_keys_into_list(
 ) -> Tuple[Optional[List[Dict[str, Any]]], Optional[List[str]]]:
     """Consolidate keys with the given prefix into a single list (of dictionaries).
     Return the consolidated list and the list of keys that were consolidated."""
+    # Note that the reconstitution is not faithful in the sense that if an index shows up as
+    # 999_999_999, we're not going to create a list that long just so that the item can be placed
+    # at that exact index value. All we do is sort the indices and line up the items in a list.
     relevant_keys = [
         (key, idx_and_sub_key, value)
         for key, value in attributes.items()
