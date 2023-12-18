@@ -6,12 +6,14 @@ from typing import (
     Any,
     DefaultDict,
     Dict,
+    Hashable,
     Iterable,
     Iterator,
     List,
     Mapping,
     Optional,
     Sequence,
+    Set,
     Tuple,
     cast,
 )
@@ -22,6 +24,7 @@ from opentelemetry.proto.common.v1.common_pb2 import AnyValue, ArrayValue, KeyVa
 from opentelemetry.util.types import Attributes, AttributeValue
 from typing_extensions import TypeAlias, assert_never
 
+import phoenix.trace.semantic_conventions as sem_conv
 from phoenix.trace.schemas import (
     Span,
     SpanContext,
@@ -34,38 +37,52 @@ from phoenix.trace.schemas import (
 )
 from phoenix.trace.semantic_conventions import (
     DOCUMENT_METADATA,
-    EMBEDDING_EMBEDDINGS,
     EXCEPTION_ESCAPED,
     EXCEPTION_MESSAGE,
     EXCEPTION_STACKTRACE,
     EXCEPTION_TYPE,
-    LLM_INPUT_MESSAGES,
-    LLM_OUTPUT_MESSAGES,
-    LLM_PROMPT_TEMPLATE_VARIABLES,
     OPENINFERENCE_SPAN_KIND,
     RETRIEVAL_DOCUMENTS,
 )
 
-ATTRIBUTES_FOR_LIST_OF_DICTIONARIES = (
-    RETRIEVAL_DOCUMENTS,
-    EMBEDDING_EMBEDDINGS,
-    LLM_INPUT_MESSAGES,
-    LLM_OUTPUT_MESSAGES,
-)
-"""Attributes that are lists of dictionary values cannot be sent over OTLP, so they must be
-flattened. For example, we may have a list of documents as value for the `retrieval.documents`
-attribute: `[{"document.content": "foo"}, {"document.score": 0.2}]`. This must be flattened into
-the following keys and values, where the keys are structured as "{prefix}.{index}.{sub_key}".
-`"retrieval.documents.0.document.content": "foo", "retrieval.documents.1.document.score": 0.2`.
-"""
 
-ATTRIBUTES_FOR_DICTIONARY = (LLM_PROMPT_TEMPLATE_VARIABLES,)
-"""Attributes that are dictionary values cannot be sent over OTLP, so they must be
-flattened. For example, we may have a dictionary as value for the `"llm.prompt_template.variables"`
-attribute: `{"question": "foo", "context": "bar"}`. This must be flattened into
-the following keys and values, where the keys are structured as "{prefix}.{sub_key}".
-`"llm.prompt_template.variables.question": "foo", "llm.prompt_template.variables.context": "bar"`.
-"""
+def _trie() -> DefaultDict[Hashable, Any]:
+    # a.k.a. prefix tree
+    return defaultdict(_trie)
+
+
+_LEAF = 0  # sentinel value for trie leaf nodes
+
+
+def _build_trie(sentences: Iterable[str], sep: str = ".") -> DefaultDict[Hashable, Any]:
+    trie = _trie()
+    for sentence in sentences:
+        t = trie
+        for word in sentence.split(sep):
+            t = t[word]
+        t[_LEAF] = sentence
+    return trie
+
+
+_SEMANTIC_CONVENTION_TRIE: DefaultDict[Hashable, Any] = _build_trie(
+    getattr(sem_conv, name) for name in dir(sem_conv) if name.isupper()
+)
+
+
+def _semantic_convention_prefix_search(key: str) -> Tuple[Optional[str], Optional[List[str]]]:
+    """Return the longest prefix of `key` that is a semantic convention, and the remaining suffix
+    as a list of words. For example, if `key` is "retrieval.documents.2.document.score", return
+    "retrieval.documents", ["2", "document", "score"].
+    """
+    trie = _SEMANTIC_CONVENTION_TRIE
+    words = key.split(".")
+    for i, word in enumerate(words):
+        if word not in trie:
+            return None, None
+        trie = trie[word]
+        if _LEAF in trie:
+            return trie[_LEAF], words[i + 1 :]
+    return None, None
 
 
 def decode(otlp_span: otlp.Span) -> Span:
@@ -81,7 +98,20 @@ def decode(otlp_span: otlp.Span) -> Span:
     attributes = dict(_decode_key_values(otlp_span.attributes))
     span_kind = SpanKind(attributes.pop(OPENINFERENCE_SPAN_KIND, None))
 
-    for prefix in ATTRIBUTES_FOR_LIST_OF_DICTIONARIES:
+    attributes_for_list_of_dictionaries: Set[str] = set()
+    attributes_for_dictionary: Set[str] = set()
+
+    for key in attributes.keys():
+        prefix, suffix_words = _semantic_convention_prefix_search(key)
+        if prefix and suffix_words:
+            if suffix_words[0].isdigit():
+                # e.g. "retrieval.documents.2.document.score"
+                # -> "retrieval.documents", ["2", "document", "score"]
+                attributes_for_list_of_dictionaries.add(prefix)
+            else:
+                attributes_for_dictionary.add(prefix)
+
+    for prefix in attributes_for_list_of_dictionaries:
         # Attributes that are supposed to be list of dictionaries must be flattened before OTLP
         # transmission. This reverses that flattening and reconstitutes them as list of
         # dictionaries. The flattened keys look like "{prefix}.{index}.{sub_key}", where `sub_key`
@@ -106,7 +136,7 @@ def decode(otlp_span: otlp.Span) -> Span:
             except json.JSONDecodeError:
                 pass
 
-    for prefix in ATTRIBUTES_FOR_DICTIONARY:
+    for prefix in attributes_for_dictionary:
         # Attributes that are supposed to be dictionaries must be flattened before OTLP
         # transmission. This reverses that flattening and reconstitutes them as dictionaries.
         # The flattened keys look like "{prefix}.{sub_key}", where `sub_key` is a key in the
@@ -255,7 +285,7 @@ def _consolidate_flattened_prefixed_indexed_keys_into_list(
     Return the consolidated list and the list of keys that were consolidated."""
     # Note that the reconstitution is not faithful in the sense that if an index shows up as
     # 999_999_999, we're not going to create a list that long just so that the item can be placed
-    # at that exact index value. All we do is sort the indices and line up the items in a list.
+    # at that exact position. All we'll do is sort the indices and place the items sequentially.
     relevant_keys = [
         (key, idx_and_sub_key, value)
         for key, value in attributes.items()
@@ -303,13 +333,12 @@ def encode(span: Span) -> otlp.Span:
 
     attributes: Dict[str, Any] = dict(span.attributes)
 
-    for key in (RETRIEVAL_DOCUMENTS, EMBEDDING_EMBEDDINGS, LLM_INPUT_MESSAGES, LLM_OUTPUT_MESSAGES):
-        if isinstance(value := attributes.get(key), Sequence):
-            attributes.pop(key, None)
-            attributes.update(_flatten_sequence(value, key))
-
-    for key in (LLM_PROMPT_TEMPLATE_VARIABLES,):
-        if isinstance(value := attributes.get(key), Mapping):
+    for key, value in span.attributes.items():
+        if isinstance(value, Sequence):
+            if flattened := dict(_flatten_sequence(value, key)):
+                attributes.pop(key, None)
+                attributes.update(flattened)
+        if isinstance(value, Mapping):
             attributes.pop(key, None)
             attributes.update(_flatten_mapping(value, key))
 
@@ -364,7 +393,7 @@ def _flatten_mapping(
 
 
 def _flatten_sequence(
-    sequence: Iterable[Mapping[str, Any]],
+    sequence: Iterable[Any],
     prefix: str,
 ) -> Iterator[Tuple[str, Any]]:
     for idx, obj in enumerate(sequence):
@@ -402,3 +431,9 @@ def _encode_value(value: AttributeValue) -> AnyValue:
     if isinstance(value, bytes):
         return AnyValue(bytes_value=value)
     assert_never(value)
+
+
+__all__ = [
+    "encode",
+    "decode",
+]
