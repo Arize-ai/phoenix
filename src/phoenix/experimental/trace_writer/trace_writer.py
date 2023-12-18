@@ -1,3 +1,4 @@
+import logging
 from abc import ABC, abstractmethod
 
 import numpy as np
@@ -11,6 +12,13 @@ from phoenix.experimental.trace_writer.constants import (
     SQL_TYPE_MAP,
 )
 from phoenix.session.session import Session
+
+logger = logging.getLogger(__name__)
+
+
+class TraceStoreException(Exception):
+    def __init__(self, message):
+        super().__init__(message)
 
 
 def generate_query_fields():
@@ -58,11 +66,11 @@ class TraceStore(ABC):
         """create table (if it doesn't exist)"""
         try:
             self._create()
-            print(
+            logger.info(
                 f"{self.friendly_name} table '{self.table_name}' created and ready for uploads"
             )
         except Exception as e:
-            print(
+            raise TraceStoreException(
                 f"Failed to create {self.friendly_name} table {self.table_name}. Error: {str(e)}"
             )
 
@@ -70,12 +78,12 @@ class TraceStore(ABC):
         """insert rows of traces into table"""
         try:
             self._insert(traces)
-            print(
+            logger.info(
                 f"""Inserted {len(traces)} trace records to
                 {self.friendly_name} table {self.table_name}"""
             )
         except Exception as e:
-            print(
+            raise TraceStoreException(
                 f"""Failed to insert data into {self.friendly_name}
                 table {self.table_name}. Error: {str(e)}"""
             )
@@ -88,7 +96,7 @@ class TraceStore(ABC):
             # Update and shift timestamp to avoid duplicate writes
             self.timestamp = df.start_time.max() + pd.Timedelta(milliseconds=1)
         else:
-            print("No new spans found")
+            logger.info("No new spans found")
 
 
 class SQLTypeStore(TraceStore):
