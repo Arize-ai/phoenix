@@ -289,3 +289,21 @@ def test_executor_factory_returns_async_in_sync_context():
 
     executor = executor_in_sync_context()
     assert isinstance(executor, AsyncExecutor)
+
+
+def test_executor_factory_returns_sync_in_sync_context_if_asked():
+    def sync_fn():
+        pass
+
+    async def async_fn():
+        pass
+
+    def executor_in_sync_context():
+        return get_executor_on_sync_context(
+            sync_fn,
+            async_fn,
+            run_sync=True,  # request a sync_executor
+        )
+
+    executor = executor_in_sync_context()
+    assert isinstance(executor, SyncExecutor)
