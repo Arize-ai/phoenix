@@ -46,6 +46,27 @@ from phoenix.trace.semantic_conventions import (
     RETRIEVAL_DOCUMENTS,
 )
 
+ATTRIBUTES_FOR_LIST_OF_DICTIONARIES = (
+    RETRIEVAL_DOCUMENTS,
+    EMBEDDING_EMBEDDINGS,
+    LLM_INPUT_MESSAGES,
+    LLM_OUTPUT_MESSAGES,
+)
+"""Attributes that are lists of dictionary values cannot be sent over OTLP, so they must be
+flattened. For example, we may have a list of documents as value for the `retrieval.documents`
+attribute: `[{"document.content": "foo"}, {"document.score": 0.2}]`. This must be flattened into
+the following keys and values, where the keys are structured as "{prefix}.{index}.{sub_key}".
+`"retrieval.documents.0.document.content": "foo", "retrieval.documents.1.document.score": 0.2`.
+"""
+
+ATTRIBUTES_FOR_DICTIONARY = (LLM_PROMPT_TEMPLATE_VARIABLES,)
+"""Attributes that are dictionary values cannot be sent over OTLP, so they must be
+flattened. For example, we may have a dictionary as value for the `"llm.prompt_template.variables"`
+attribute: `{"question": "foo", "context": "bar"}`. This must be flattened into
+the following keys and values, where the keys are structured as "{prefix}.{sub_key}".
+`"llm.prompt_template.variables.question": "foo", "llm.prompt_template.variables.context": "bar"`.
+"""
+
 
 def decode(otlp_span: otlp.Span) -> Span:
     trace_id = cast(TraceID, _decode_identifier(otlp_span.trace_id))
@@ -60,15 +81,17 @@ def decode(otlp_span: otlp.Span) -> Span:
     attributes = dict(_decode_key_values(otlp_span.attributes))
     span_kind = SpanKind(attributes.pop(OPENINFERENCE_SPAN_KIND, None))
 
-    for prefix in (
-        RETRIEVAL_DOCUMENTS,
-        EMBEDDING_EMBEDDINGS,
-        LLM_INPUT_MESSAGES,
-        LLM_OUTPUT_MESSAGES,
-    ):
-        consolidated_list, consolidated_keys = _consolidate_prefixed_indexed_keys_into_list(
-            attributes, prefix
-        )
+    for prefix in ATTRIBUTES_FOR_LIST_OF_DICTIONARIES:
+        # Attributes that are supposed to be list of dictionaries must be flattened before OTLP
+        # transmission. This reverses that flattening and reconstitutes them as list of
+        # dictionaries. The flattened keys look like "{prefix}.{index}.{sub_key}", where `sub_key`
+        # is a key in a dictionary item of the original list, and `index` is the position of the
+        # dictionary item in the original list. So `"{prefix}.0.{sub_key}": 123` becomes
+        # `"{prefix}": [{"{sub_key}": 123}]`.
+        (
+            consolidated_list,
+            consolidated_keys,
+        ) = _consolidate_flattened_prefixed_indexed_keys_into_list(attributes, prefix)
         if not consolidated_keys:
             continue
         for key in consolidated_keys:
@@ -83,8 +106,13 @@ def decode(otlp_span: otlp.Span) -> Span:
             except json.JSONDecodeError:
                 pass
 
-    for prefix in (LLM_PROMPT_TEMPLATE_VARIABLES,):
-        consolidated_dict, consolidated_keys = _consolidate_prefixed_keys_into_dict(
+    for prefix in ATTRIBUTES_FOR_DICTIONARY:
+        # Attributes that are supposed to be dictionaries must be flattened before OTLP
+        # transmission. This reverses that flattening and reconstitutes them as dictionaries.
+        # The flattened keys look like "{prefix}.{sub_key}", where `sub_key` is a key in the
+        # original dictionary. So `"{prefix}.{sub_key}": 123` becomes
+        # `"{prefix}": {"{sub_key}": 123}`.
+        consolidated_dict, consolidated_keys = _consolidate_flattened_prefixed_keys_into_dict(
             attributes, prefix
         )
         if not consolidated_keys:
@@ -218,7 +246,7 @@ def _extract_index_and_sub_key(key: str, prefix: str) -> Optional[Tuple[int, str
     return index, sub_key
 
 
-def _consolidate_prefixed_indexed_keys_into_list(
+def _consolidate_flattened_prefixed_indexed_keys_into_list(
     attributes: Mapping[str, Any],
     prefix: str,
 ) -> Tuple[Optional[List[Dict[str, Any]]], Optional[List[str]]]:
@@ -239,7 +267,7 @@ def _consolidate_prefixed_indexed_keys_into_list(
     ]
 
 
-def _consolidate_prefixed_keys_into_dict(
+def _consolidate_flattened_prefixed_keys_into_dict(
     attributes: Mapping[str, Any],
     prefix: str,
 ) -> Tuple[Optional[Dict[str, Any]], Optional[List[str]]]:
@@ -257,7 +285,7 @@ def _consolidate_prefixed_keys_into_dict(
     ]
 
 
-_NANO = 1_000_000_000  # for converting seconds to nanoseconds
+_BILLION = 1_000_000_000  # for converting seconds to nanoseconds
 
 
 def encode(span: Span) -> otlp.Span:
@@ -266,8 +294,8 @@ def encode(span: Span) -> otlp.Span:
     parent_span_id: bytes = _span_id_to_bytes(span.parent_id) if span.parent_id else bytes()
 
     # floating point rounding error can cause the timestamp to be slightly different from expected
-    start_time_unix_nano: int = int(span.start_time.timestamp() * _NANO)
-    end_time_unix_nano: int = int(span.end_time.timestamp() * _NANO) if span.end_time else 0
+    start_time_unix_nano: int = int(span.start_time.timestamp() * _BILLION)
+    end_time_unix_nano: int = int(span.end_time.timestamp() * _BILLION) if span.end_time else 0
 
     attributes: Dict[str, Any] = dict(span.attributes)
 
@@ -344,7 +372,7 @@ def _flatten_sequence(
 def _encode_event(event: SpanEvent) -> otlp.Span.Event:
     return otlp.Span.Event(
         name=event.name,
-        time_unix_nano=int(event.timestamp.timestamp() * _NANO),
+        time_unix_nano=int(event.timestamp.timestamp() * _BILLION),
         attributes=_encode_attributes(cast(Attributes, event.attributes)),
     )
 
