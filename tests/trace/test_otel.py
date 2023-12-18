@@ -9,7 +9,7 @@ import opentelemetry.proto.trace.v1.trace_pb2 as otlp
 import pytest
 from google.protobuf.json_format import MessageToJson
 from opentelemetry.proto.common.v1.common_pb2 import AnyValue, ArrayValue, KeyValue
-from phoenix.trace.otel.utils import _span_id_to_bytes, decode, encode
+from phoenix.trace.otel import _span_id_to_bytes, decode, encode
 from phoenix.trace.schemas import (
     Span,
     SpanContext,
