@@ -218,6 +218,10 @@ class RateLimiter:
                 self._rate_limit_handling, asyncio.Event
             )
             try:
+                try:
+                    await asyncio.wait_for(self._rate_limit_handling.wait(), 120)
+                except asyncio.TimeoutError:
+                    self._rate_limit_handling.set()  # Set the event as a failsafe
                 await self._throttler.async_wait_until_ready()
                 request_start_time = time.time()
                 return await fn(*args, **kwargs)
