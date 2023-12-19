@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f3f56de224979d883ffeef124ea0b6ed>>
+ * @generated SignedSource<<8624559b359e328134fb2dd3a56ff196>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -81,6 +81,7 @@ export type TracesTable_spans$data = {
       };
     }>;
   };
+  readonly " $fragmentSpreads": FragmentRefs<"SpanColumnSelector_evaluations">;
   readonly " $fragmentType": "TracesTable_spans";
 };
 export type TracesTable_spans$key = {
@@ -305,6 +306,11 @@ return {
   "name": "TracesTable_spans",
   "selections": [
     {
+      "args": null,
+      "kind": "FragmentSpread",
+      "name": "SpanColumnSelector_evaluations"
+    },
+    {
       "alias": "rootSpans",
       "args": [
         {
@@ -484,6 +490,6 @@ return {
 };
 })();
 
-(node as any).hash = "710102d25cfd95105417d1aee837a7f8";
+(node as any).hash = "0d9c0b6da977229d4c340f577a02c55d";
 
 export default node;

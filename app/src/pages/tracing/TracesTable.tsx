@@ -40,25 +40,24 @@ import {
   SpanStatusCode,
   TracesTable_spans$key,
 } from "./__generated__/TracesTable_spans.graphql";
-import {
-  SpanSort,
-  TracesTableQuery,
-} from "./__generated__/TracesTableQuery.graphql";
+import { TracesTableQuery } from "./__generated__/TracesTableQuery.graphql";
 import { EvaluationLabel } from "./EvaluationLabel";
 import { RetrievalEvaluationLabel } from "./RetrievalEvaluationLabel";
 import { SpanColumnSelector } from "./SpanColumnSelector";
 import { SpanFilterConditionField } from "./SpanFilterConditionField";
 import { spansTableCSS } from "./styles";
+import {
+  DEFAULT_SORT,
+  EVALS_COLUMN_PREFIX,
+  EVALS_KEY_SEPARATOR,
+  getGqlSort,
+} from "./tableUtils";
 import { TokenCount } from "./TokenCount";
 type TracesTableProps = {
   query: TracesTable_spans$key;
 };
 
 const PAGE_SIZE = 100;
-const DEFAULT_SORT: SpanSort = {
-  col: "startTime",
-  dir: "desc",
-};
 
 /**
  * A nested table row is a span with a children that recursively
@@ -107,6 +106,7 @@ export function TracesTable(props: TracesTableProps) {
           }
           filterCondition: { type: "String", defaultValue: null }
         ) {
+          ...SpanColumnSelector_evaluations
           rootSpans: spans(
             first: $first
             after: $after
@@ -186,6 +186,14 @@ export function TracesTable(props: TracesTableProps) {
       props.query
     );
 
+  const evaluationVisibility = useTracingContext(
+    (state) => state.evaluationVisibility
+  );
+  const visibleEvaluationColumnNames = useMemo(() => {
+    return Object.keys(evaluationVisibility).filter(
+      (name) => evaluationVisibility[name]
+    );
+  }, [evaluationVisibility]);
   const tableData = useMemo(() => {
     const tableData = data.rootSpans.edges.map(({ rootSpan }) => {
       // Construct the set of spans over which you want to construct the tree
@@ -198,6 +206,41 @@ export function TracesTable(props: TracesTableProps) {
     return tableData;
   }, [data]);
   type TableRow = (typeof tableData)[number];
+
+  const dynamicEvaluationColumns: ColumnDef<TableRow>[] =
+    visibleEvaluationColumnNames.map((name) => {
+      return {
+        header: name,
+        columns: [
+          {
+            header: `label`,
+            accessorKey: `${EVALS_COLUMN_PREFIX}${EVALS_KEY_SEPARATOR}label${EVALS_KEY_SEPARATOR}${name}`,
+            cell: ({ row }) => {
+              const evaluation = row.original.spanEvaluations.find(
+                (evaluation) => evaluation.name === name
+              );
+              if (!evaluation) {
+                return null;
+              }
+              return evaluation.label;
+            },
+          } as ColumnDef<TableRow>,
+          {
+            header: `score`,
+            accessorKey: `${EVALS_COLUMN_PREFIX}${EVALS_KEY_SEPARATOR}score${EVALS_KEY_SEPARATOR}${name}`,
+            cell: ({ row }) => {
+              const evaluation = row.original.spanEvaluations.find(
+                (evaluation) => evaluation.name === name
+              );
+              if (!evaluation) {
+                return null;
+              }
+              return evaluation.score;
+            },
+          } as ColumnDef<TableRow>,
+        ],
+      };
+    });
 
   const evaluationColumns: ColumnDef<TableRow>[] = [
     {
@@ -247,12 +290,14 @@ export function TracesTable(props: TracesTableProps) {
         );
       },
     },
+    ...dynamicEvaluationColumns,
   ];
+
   const columns: ColumnDef<TableRow>[] = [
     {
       header: () => {
         return (
-          <Flex gap="size-50">
+          <Flex gap="size-50" direction="row" alignItems="center">
             <TableExpandButton
               isExpanded={table.getIsAllRowsExpanded()}
               onClick={table.getToggleAllRowsExpandedHandler()}
@@ -264,6 +309,7 @@ export function TracesTable(props: TracesTableProps) {
       },
       enableSorting: false,
       accessorKey: "spanKind",
+      maxSize: 100,
       cell: (props) => {
         return (
           <div
@@ -335,6 +381,7 @@ export function TracesTable(props: TracesTableProps) {
     },
     {
       header: "total tokens",
+      minSize: 80,
       accessorKey: "tokenCountTotal",
       cell: ({ row, getValue }) => {
         const value = getValue();
@@ -366,12 +413,7 @@ export function TracesTable(props: TracesTableProps) {
     startTransition(() => {
       refetch(
         {
-          sort: sort
-            ? {
-                col: sort.id as SpanSort["col"],
-                dir: sort.desc ? "desc" : "asc",
-              }
-            : DEFAULT_SORT,
+          sort: sort ? getGqlSort(sort) : DEFAULT_SORT,
           after: null,
           first: PAGE_SIZE,
           filterCondition: filterCondition,
@@ -417,7 +459,10 @@ export function TracesTable(props: TracesTableProps) {
   });
   const rows = table.getRowModel().rows;
   const isEmpty = rows.length === 0;
-  const computedColumns = table.getAllColumns();
+  const computedColumns = table.getAllColumns().filter((column) => {
+    // Filter out columns that are eval groupings
+    return column.columns.length === 0;
+  });
 
   return (
     <div css={spansTableCSS}>
@@ -426,12 +471,13 @@ export function TracesTable(props: TracesTableProps) {
         paddingBottom="size-100"
         paddingStart="size-200"
         paddingEnd="size-200"
-        backgroundColor="grey-200"
+        borderBottomColor="grey-300"
+        borderBottomWidth="thin"
         flex="none"
       >
         <Flex direction="row" gap="size-100" width="100%" alignItems="center">
           <SpanFilterConditionField onValidCondition={setFilterCondition} />
-          <SpanColumnSelector columns={computedColumns} />
+          <SpanColumnSelector columns={computedColumns} query={data} />
         </Flex>
       </View>
       <div
@@ -450,11 +496,16 @@ export function TracesTable(props: TracesTableProps) {
                   <th colSpan={header.colSpan} key={header.id}>
                     {header.isPlaceholder ? null : (
                       <div
+                        data-sortable={header.column.getCanSort()}
                         {...{
                           className: header.column.getCanSort()
                             ? "cursor-pointer"
                             : "",
                           onClick: header.column.getToggleSortingHandler(),
+                          style: {
+                            left: header.getStart(),
+                            width: header.getSize(),
+                          },
                         }}
                       >
                         {flexRender(
