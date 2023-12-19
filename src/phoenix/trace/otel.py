@@ -1,4 +1,3 @@
-import json
 from collections import defaultdict
 from datetime import datetime, timezone
 from types import MappingProxyType
@@ -25,6 +24,7 @@ from typing_extensions import TypeAlias, assert_never
 
 import phoenix.trace.semantic_conventions as sem_conv
 from phoenix.trace.schemas import (
+    MimeType,
     Span,
     SpanContext,
     SpanEvent,
@@ -35,13 +35,13 @@ from phoenix.trace.schemas import (
     TraceID,
 )
 from phoenix.trace.semantic_conventions import (
-    DOCUMENT_METADATA,
     EXCEPTION_ESCAPED,
     EXCEPTION_MESSAGE,
     EXCEPTION_STACKTRACE,
     EXCEPTION_TYPE,
+    INPUT_MIME_TYPE,
     OPENINFERENCE_SPAN_KIND,
-    RETRIEVAL_DOCUMENTS,
+    OUTPUT_MIME_TYPE,
 )
 
 _SEMANTIC_CONVENTIONS: List[str] = sorted(
@@ -76,64 +76,11 @@ def decode(otlp_span: otlp.Span) -> Span:
     attributes = dict(_decode_key_values(otlp_span.attributes))
     span_kind = SpanKind(attributes.pop(OPENINFERENCE_SPAN_KIND, None))
 
-    attributes_for_list_of_dictionaries: Set[str] = set()
-    attributes_for_dictionary: Set[str] = set()
+    for mime_type in (INPUT_MIME_TYPE, OUTPUT_MIME_TYPE):
+        if mime_type in attributes:
+            attributes[mime_type] = MimeType(attributes[mime_type])
 
-    for key in attributes.keys():
-        prefix, suffix = _semantic_convention_prefix_search(key)
-        if prefix and suffix:
-            if suffix.split(".")[0].isdigit():
-                # e.g. "retrieval.documents.2.document.score"
-                # -> "retrieval.documents", ["2", "document", "score"]
-                attributes_for_list_of_dictionaries.add(prefix)
-            else:
-                attributes_for_dictionary.add(prefix)
-
-    for prefix in attributes_for_list_of_dictionaries:
-        if prefix in attributes:
-            continue
-        # Attributes that are supposed to be list of dictionaries must be flattened before OTLP
-        # transmission. This reverses that flattening and reconstitutes them as list of
-        # dictionaries. The flattened keys look like "{prefix}.{index}.{sub_key}", where `sub_key`
-        # is a key in a dictionary item of the original list, and `index` is the position of the
-        # dictionary item in the original list. So `"{prefix}.0.{sub_key}": 123` becomes
-        # `"{prefix}": [{"{sub_key}": 123}]`.
-        (
-            consolidated_list,
-            flattened_prefixed_indexed_keys,
-        ) = _consolidate_flattened_prefixed_indexed_keys_into_list(attributes, prefix)
-        if not flattened_prefixed_indexed_keys:
-            continue
-        for key in flattened_prefixed_indexed_keys:
-            attributes.pop(key, None)
-        if consolidated_list:
-            attributes[prefix] = consolidated_list
-
-    for document in attributes.get(RETRIEVAL_DOCUMENTS) or ():
-        if isinstance(metadata := document.get(DOCUMENT_METADATA), str):
-            try:
-                document[DOCUMENT_METADATA] = json.loads(metadata)
-            except json.JSONDecodeError:
-                pass
-
-    for prefix in attributes_for_dictionary:
-        if prefix in attributes:
-            continue
-        # Attributes that are supposed to be dictionaries must be flattened before OTLP
-        # transmission. This reverses that flattening and reconstitutes them as dictionaries.
-        # The flattened keys look like "{prefix}.{sub_key}", where `sub_key` is a key in the
-        # original dictionary. So `"{prefix}.{sub_key}": 123` becomes
-        # `"{prefix}": {"{sub_key}": 123}`.
-        (
-            consolidated_dict,
-            flattened_prefixed_keys,
-        ) = _consolidate_flattened_prefixed_keys_into_dict(attributes, prefix)
-        if not flattened_prefixed_keys:
-            continue
-        for key in flattened_prefixed_keys:
-            attributes.pop(key, None)
-        if consolidated_dict:
-            attributes[prefix] = consolidated_dict
+    attributes = _unflatten(attributes)
 
     status_code, status_message = _decode_status(otlp_span.status)
     events = [_decode_event(event) for event in otlp_span.events]
@@ -278,7 +225,7 @@ def _consolidate_flattened_prefixed_indexed_keys_into_list(
     indexed: DefaultDict[int, Dict[str, Any]] = defaultdict(dict)
     for _, (idx, sub_key), value in relevant_keys:
         indexed[idx][sub_key] = value
-    return [dictionary for _, dictionary in sorted(indexed.items())], [
+    return [_unflatten(dictionary) for _, dictionary in sorted(indexed.items())], [
         key for key, *_ in relevant_keys
     ]
 
@@ -296,9 +243,76 @@ def _consolidate_flattened_prefixed_keys_into_dict(
     ]
     if not relevant_keys:
         return None, None
-    return {sub_key: value for _, sub_key, value in relevant_keys}, [
+    return _unflatten({sub_key: value for _, sub_key, value in relevant_keys}), [
         key for key, *_ in relevant_keys
     ]
+
+
+def _unflatten(attributes: Mapping[str, Any]) -> Dict[str, Any]:
+    """
+    Unflatten attributes that were flattened before OTLP transmission. These attributes have
+    values that are dictionaries or list of dictionaries. They must be flattened into primitive
+    values before OTLP transmission. For example, `{"retrieval.documents.0.document.score": 123}`
+    will be unflatten as `{"retrieval.documents": [{"document.score": 123}]}`.
+    """
+
+    attributes_for_list_of_dictionaries: Set[str] = set()
+    attributes_for_dictionary: Set[str] = set()
+
+    for key in attributes.keys():
+        prefix, suffix = _semantic_convention_prefix_search(key)
+        if prefix and suffix:
+            if suffix.split(".")[0].isdigit():
+                # e.g. "retrieval.documents.2.document.score"
+                # -> "retrieval.documents", ["2", "document", "score"]
+                attributes_for_list_of_dictionaries.add(prefix)
+            else:
+                attributes_for_dictionary.add(prefix)
+
+    _attributes = dict(attributes)
+    if not (attributes_for_list_of_dictionaries or attributes_for_dictionary):
+        return _attributes
+
+    for prefix in attributes_for_list_of_dictionaries:
+        if prefix in attributes:
+            continue
+        # Attributes that are supposed to be list of dictionaries must be flattened before OTLP
+        # transmission. This reverses that flattening and reconstitutes them as list of
+        # dictionaries. The flattened keys look like "{prefix}.{index}.{sub_key}", where `sub_key`
+        # is a key in a dictionary item of the original list, and `index` is the position of the
+        # dictionary item in the original list. So `"{prefix}.0.{sub_key}": 123` becomes
+        # `"{prefix}": [{"{sub_key}": 123}]`.
+        (
+            consolidated_list,
+            flattened_prefixed_indexed_keys,
+        ) = _consolidate_flattened_prefixed_indexed_keys_into_list(attributes, prefix)
+        if not flattened_prefixed_indexed_keys:
+            continue
+        for key in flattened_prefixed_indexed_keys:
+            _attributes.pop(key, None)
+        if consolidated_list:
+            _attributes[prefix] = consolidated_list
+
+    for prefix in attributes_for_dictionary:
+        if prefix in attributes:
+            continue
+        # Attributes that are supposed to be dictionaries must be flattened before OTLP
+        # transmission. This reverses that flattening and reconstitutes them as dictionaries.
+        # The flattened keys look like "{prefix}.{sub_key}", where `sub_key` is a key in the
+        # original dictionary. So `"{prefix}.{sub_key}": 123` becomes
+        # `"{prefix}": {"{sub_key}": 123}`.
+        (
+            consolidated_dict,
+            flattened_prefixed_keys,
+        ) = _consolidate_flattened_prefixed_keys_into_dict(attributes, prefix)
+        if not flattened_prefixed_keys:
+            continue
+        for key in flattened_prefixed_keys:
+            _attributes.pop(key, None)
+        if consolidated_dict:
+            _attributes[prefix] = consolidated_dict
+
+    return _attributes
 
 
 _BILLION = 1_000_000_000  # for converting seconds to nanoseconds
@@ -313,16 +327,22 @@ def encode(span: Span) -> otlp.Span:
     start_time_unix_nano: int = int(span.start_time.timestamp() * _BILLION)
     end_time_unix_nano: int = int(span.end_time.timestamp() * _BILLION) if span.end_time else 0
 
-    attributes: Dict[str, Any] = dict(span.attributes)
+    attributes: Dict[str, Any] = span.attributes.copy()
+
+    for mime_type in (INPUT_MIME_TYPE, OUTPUT_MIME_TYPE):
+        if mime_type in attributes:
+            attributes[mime_type] = attributes[mime_type].value
 
     for key, value in span.attributes.items():
-        if isinstance(value, Sequence):
-            if flattened := dict(_flatten_sequence(value, key)):
-                attributes.pop(key, None)
-                attributes.update(flattened)
-        if isinstance(value, Mapping):
+        if value is None:
+            # None can't be transmitted by OTLP
+            attributes.pop(key, None)
+        elif isinstance(value, Mapping):
             attributes.pop(key, None)
             attributes.update(_flatten_mapping(value, key))
+        elif isinstance(value, Sequence):
+            attributes.pop(key, None)
+            attributes.update(_flatten_sequence(value, key))
 
     attributes[OPENINFERENCE_SPAN_KIND] = span.span_kind.value
 
@@ -362,6 +382,13 @@ def _span_id_to_bytes(span_id: SpanID) -> bytes:
     return span_id.bytes
 
 
+def _has_mapping(sequence: Sequence[Any]) -> bool:
+    for item in sequence:
+        if isinstance(item, Mapping):
+            return True
+    return False
+
+
 def _flatten_mapping(
     mapping: Mapping[str, Any],
     prefix: str,
@@ -369,15 +396,19 @@ def _flatten_mapping(
     for key, value in mapping.items():
         prefixed_key = f"{prefix}.{key}"
         if isinstance(value, Mapping):
-            yield prefixed_key, json.dumps(value)
-        else:
+            yield from _flatten_mapping(value, prefixed_key)
+        elif isinstance(value, Sequence):
+            yield from _flatten_sequence(value, prefixed_key)
+        elif value is not None:
             yield prefixed_key, value
 
 
 def _flatten_sequence(
-    sequence: Iterable[Any],
+    sequence: Sequence[Any],
     prefix: str,
 ) -> Iterator[Tuple[str, Any]]:
+    if isinstance(sequence, str) or not _has_mapping(sequence):
+        yield prefix, sequence
     for idx, obj in enumerate(sequence):
         if not isinstance(obj, Mapping):
             continue

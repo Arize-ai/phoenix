@@ -1,4 +1,3 @@
-import json
 from dataclasses import replace
 from datetime import datetime, timezone
 from random import random
@@ -30,8 +29,13 @@ from phoenix.trace.semantic_conventions import (
     EXCEPTION_MESSAGE,
     EXCEPTION_STACKTRACE,
     EXCEPTION_TYPE,
+    LLM_OUTPUT_MESSAGES,
+    MESSAGE_ROLE,
+    MESSAGE_TOOL_CALLS,
     OPENINFERENCE_SPAN_KIND,
     RETRIEVAL_DOCUMENTS,
+    TOOL_CALL_FUNCTION_ARGUMENTS_JSON,
+    TOOL_CALL_FUNCTION_NAME,
 )
 from pytest import approx
 
@@ -98,7 +102,7 @@ def test_decode_encode_span_kind(span, span_kind):
 
 
 @pytest.mark.parametrize(
-    "kv,otlp_kv",
+    "attributes,otlp_key_value",
     [
         ({"k0": "1"}, KeyValue(key="k0", value=AnyValue(string_value="1"))),
         ({"k1": True}, KeyValue(key="k1", value=AnyValue(bool_value=True))),
@@ -134,10 +138,10 @@ def test_decode_encode_span_kind(span, span_kind):
         ),
     ],
 )
-def test_decode_encode_attributes(span, kv, otlp_kv):
-    span = replace(span, attributes=kv)
+def test_decode_encode_attributes(span, attributes, otlp_key_value):
+    span = replace(span, attributes=attributes)
     otlp_span = encode(span)
-    assert MessageToJson(otlp_kv) in set(map(MessageToJson, otlp_span.attributes))
+    assert MessageToJson(otlp_key_value) in set(map(MessageToJson, otlp_span.attributes))
     decoded_span = decode(otlp_span)
     assert decoded_span.attributes == span.attributes
 
@@ -273,8 +277,36 @@ def test_decode_encode_documents(span):
             value=AnyValue(double_value=score),
         ),
         KeyValue(
-            key=f"{RETRIEVAL_DOCUMENTS}.4.{DOCUMENT_METADATA}",
-            value=AnyValue(string_value=json.dumps(document_metadata)),
+            key=f"{RETRIEVAL_DOCUMENTS}.4.{DOCUMENT_METADATA}.m0",
+            value=AnyValue(string_value="111"),
+        ),
+        KeyValue(
+            key=f"{RETRIEVAL_DOCUMENTS}.4.{DOCUMENT_METADATA}.m1",
+            value=AnyValue(bool_value=True),
+        ),
+        KeyValue(
+            key=f"{RETRIEVAL_DOCUMENTS}.4.{DOCUMENT_METADATA}.m2",
+            value=AnyValue(int_value=333),
+        ),
+        KeyValue(
+            key=f"{RETRIEVAL_DOCUMENTS}.4.{DOCUMENT_METADATA}.m3",
+            value=AnyValue(double_value=444.0),
+        ),
+        KeyValue(
+            key=f"{RETRIEVAL_DOCUMENTS}.4.{DOCUMENT_METADATA}.m4",
+            value=AnyValue(array_value=ArrayValue(values=[AnyValue(string_value="1111")])),
+        ),
+        KeyValue(
+            key=f"{RETRIEVAL_DOCUMENTS}.4.{DOCUMENT_METADATA}.m5",
+            value=AnyValue(array_value=ArrayValue(values=[AnyValue(bool_value=True)])),
+        ),
+        KeyValue(
+            key=f"{RETRIEVAL_DOCUMENTS}.4.{DOCUMENT_METADATA}.m6",
+            value=AnyValue(array_value=ArrayValue(values=[AnyValue(int_value=3333)])),
+        ),
+        KeyValue(
+            key=f"{RETRIEVAL_DOCUMENTS}.4.{DOCUMENT_METADATA}.m7",
+            value=AnyValue(array_value=ArrayValue(values=[AnyValue(double_value=4444.0)])),
         ),
     ]
     assert set(map(MessageToJson, otlp_span.attributes)) == set(map(MessageToJson, otlp_attributes))
@@ -324,6 +356,52 @@ def test_decode_encode_embeddings(span):
     assert set(map(MessageToJson, otlp_span.attributes)) == set(map(MessageToJson, otlp_attributes))
     decoded_span = decode(otlp_span)
     assert decoded_span.attributes[EMBEDDING_EMBEDDINGS] == span.attributes[EMBEDDING_EMBEDDINGS]
+
+
+def test_decode_encode_message_tool_calls(span):
+    attributes = {
+        LLM_OUTPUT_MESSAGES: [
+            {
+                MESSAGE_ROLE: "user",
+            },
+            {
+                MESSAGE_ROLE: "assistant",
+                MESSAGE_TOOL_CALLS: [
+                    {
+                        TOOL_CALL_FUNCTION_NAME: "multiply",
+                        TOOL_CALL_FUNCTION_ARGUMENTS_JSON: '{\n  "a": 2,\n  "b": 3\n}',
+                    }
+                ],
+            },
+        ]
+    }
+    span = replace(span, attributes=attributes)
+    otlp_span = encode(span)
+    otlp_attributes = [
+        KeyValue(
+            key=OPENINFERENCE_SPAN_KIND,
+            value=AnyValue(string_value="LLM"),
+        ),
+        KeyValue(
+            key=f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_ROLE}",
+            value=AnyValue(string_value="user"),
+        ),
+        KeyValue(
+            key=f"{LLM_OUTPUT_MESSAGES}.1.{MESSAGE_ROLE}",
+            value=AnyValue(string_value="assistant"),
+        ),
+        KeyValue(
+            key=f"{LLM_OUTPUT_MESSAGES}.1.{MESSAGE_TOOL_CALLS}.0.{TOOL_CALL_FUNCTION_NAME}",
+            value=AnyValue(string_value="multiply"),
+        ),
+        KeyValue(
+            key=f"{LLM_OUTPUT_MESSAGES}.1.{MESSAGE_TOOL_CALLS}.0.{TOOL_CALL_FUNCTION_ARGUMENTS_JSON}",
+            value=AnyValue(string_value='{\n  "a": 2,\n  "b": 3\n}'),
+        ),
+    ]
+    assert set(map(MessageToJson, otlp_span.attributes)) == set(map(MessageToJson, otlp_attributes))
+    decoded_span = decode(otlp_span)
+    assert decoded_span.attributes[LLM_OUTPUT_MESSAGES] == span.attributes[LLM_OUTPUT_MESSAGES]
 
 
 @pytest.fixture
