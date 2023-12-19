@@ -11,32 +11,23 @@
 FROM python:3.10-slim
 
 # Install nodejs
-RUN apt-get update
-RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
-RUN apt-get update && apt-get upgrade -y && \
-    apt-get install -y nodejs \
-    npm          
+RUN apt-get update && apt-get upgrade -y &&\
+    curl -fsSL https://deb.nodesource.com/setup_20.x | bash - &&\
+    apt-get install -y nodejs npm
 
 # Set the phoenix directory in the container to /phoenix
 WORKDIR /phoenix
 
-# Add the current directory contents into the container at /phoenix
-ADD ./src /phoenix/src
-ADD ./app /phoenix/app
-ADD ./pyproject.toml /phoenix/pyproject.toml
-ADD ./README.md /phoenix/README.md
-ADD ./LICENSE /phoenix/LICENSE
-ADD ./IP_NOTICE /phoenix/IP_NOTICE
+# Add the current directory contents into the container at /phoenixADD . /phoenix
+ADD . /phoenix
 
 
 # Install the app by building the typescript package
-RUN cd /phoenix/app && npm install && npm run build
-
-# Remove the app source code from the container
-RUN rm -rf /phoenix/app
+RUN cd /phoenix/app && npm install && npm run build && rm -rf /phoenix/app &&\
+    apt-get purge nodejs npm -y
 
 # Install any needed packages 
-RUN pip install .
+RUN pip install . && apt-get autoremove -y
 
 # Make port 6006 available to the world outside this container
 EXPOSE 6006
