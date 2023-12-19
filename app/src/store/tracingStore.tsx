@@ -11,6 +11,10 @@ export interface TracingProps {
    * Map of the evaluation names that are toggled on
    */
   evaluationVisibility: VisibilityState;
+  /**
+   * The aggregate span evaluation names selected and displayed
+   */
+  aggregateSpanEvaluationNames: string[];
 }
 
 export interface TracingState extends TracingProps {
@@ -31,6 +35,7 @@ export const createTracingStore = (initialProps?: Partial<TracingProps>) => {
     ...initialProps,
     columnVisibility: {},
     evaluationVisibility: {},
+    aggregateSpanEvaluationNames: [],
     setColumnVisibility: (columnVisibility) => {
       set({ columnVisibility });
     },
