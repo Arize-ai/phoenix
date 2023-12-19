@@ -3,16 +3,21 @@ import { css, Theme } from "@emotion/react";
 export const tableCSS = (theme: Theme) => css`
   font-size: ${theme.typography.sizes.medium.fontSize}px;
   width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
   thead {
-    background-color: var(--ac-global-color-grey-300);
     position: sticky;
     top: 0;
     tr {
       th {
         padding: ${theme.spacing.margin4}px ${theme.spacing.margin16}px;
+        background-color: var(--ac-global-color-grey-100);
         position: relative;
         text-align: left;
+        border-bottom: 1px solid var(--ac-global-border-color-default);
+        &:not(:last-of-type) {
+          border-right: 1px solid var(--ac-global-border-color-default);
+        }
         .cursor-pointer {
           cursor: pointer;
         }
@@ -46,11 +51,13 @@ export const tableCSS = (theme: Theme) => css`
   }
   tbody:not(.is-empty) {
     tr {
-      &:nth-of-type(even) {
-        background-color: var(--ac-global-color-grey-200);
+      &:not(:last-of-type) {
+        & > td {
+          border-bottom: 1px solid var(--ac-global-border-color-default);
+        }
       }
       &:hover {
-        background-color: var(--ac-global-color-grey-300);
+        background-color: rgba(var(--ac-global-color-grey-300-rgb), 0.5);
       }
       & > td {
         padding: ${theme.spacing.margin8}px ${theme.spacing.margin16}px;
