@@ -2,16 +2,16 @@
 description: Inspect the inner-workings of your LLM Application using OpenInference Traces
 ---
 
-# LLM Traces - OpenAI, LangChain & LlamaIndex
+# Phoenix Traces for LLM applications - OpenAI, LangChain & LlamaIndex
 
 ## Streaming Traces to Phoenix
 
 The easiest method of using Phoenix traces with LLM frameworks (or direct OpenAI API) is to stream the execution of your application to a locally running Phoenix server. The traces collected during execution can then be stored for later use for things like validation, evaluation, and fine-tuning.
 
-The [traces](../../concepts/llm-traces.md) can be collected and stored in the following ways:
+The [traces](../concepts/llm-traces.md) can be collected and stored in the following ways:
 
 * **In Memory**: useful for debugging.
-* **Local File**: Persistent and good for offline local development. See [exports](../../how-to/export-your-data.md)
+* **Local File**: Persistent and good for offline local development. See [exports](../how-to/export-your-data.md)
 * **Cloud** (coming soon): Store your cloud buckets as as assets for later use
 
 To get started with traces, you will first want to start a local Phoenix app.
@@ -29,9 +29,9 @@ The above launches a Phoenix server that acts as a trace collector for any LLM a
 📖 For more information on how to use Phoenix, check out https://docs.arize.com/phoenix
 ```
 
-The `launch_app` command will spit out a URL for you to view the Phoenix UI. You can access this url again at any time via the [session](../../api/session.md).\
+The `launch_app` command will spit out a URL for you to view the Phoenix UI. You can access this url again at any time via the [session](../api/session.md).\
 \
-Now that phoenix is up and running, you can now run a [LlamaIndex](../../integrations/llamaindex.md) or [LangChain](../../integrations/langchain.md) application OR just run the OpenAI API and debug your application as the traces stream in.
+Now that phoenix is up and running, you can now run a [LlamaIndex](../integrations/llamaindex.md) or [LangChain](../integrations/langchain.md) application OR just run the OpenAI API and debug your application as the traces stream in.
 
 {% tabs %}
 {% tab title="LlamaIndex" %}
@@ -69,7 +69,7 @@ query_engine = index.as_query_engine()
 query_engine.query("What is OpenInference tracing?")
 ```
 
-See the [integrations guide](../../integrations/llamaindex.md#traces) for the full details as well as support for older versions of LlamaIndex
+See the [integrations guide](../integrations/llamaindex.md#traces) for the full details as well as support for older versions of LlamaIndex
 {% endtab %}
 
 {% tab title="LangChain" %}
@@ -107,7 +107,7 @@ chain = RetrievalQA.from_chain_type(
 response = chain.run("What is OpenInference tracing?")
 ```
 
-See the [integration guide](../../integrations/langchain.md#traces) for details
+See the [integration guide](../integrations/langchain.md#traces) for details
 {% endtab %}
 
 {% tab title="OpenAI API" %}
@@ -162,7 +162,7 @@ Once you've executed a sufficient number of queries (or chats) to your applicati
 
 ## Trace Datasets
 
-Phoenix also support datasets that contain [OpenInference trace](../../concepts/open-inference.md) data. This allows data from a LangChain and LlamaIndex running instance explored for analysis offline.
+Phoenix also support datasets that contain [OpenInference trace](../concepts/open-inference.md) data. This allows data from a LangChain and LlamaIndex running instance explored for analysis offline.
 
 There are two ways to extract trace dataframes. The two ways for LangChain are described below.
 
@@ -200,7 +200,7 @@ px.launch_app(trace=ds)
 {% endtabs %}
 
 {% hint style="info" %}
-For full details on how to export trace data, see [the detailed guide](../../how-to/export-your-data.md#exporting-traces)
+For full details on how to export trace data, see [the detailed guide](../how-to/export-your-data.md#exporting-traces)
 {% endhint %}
 
 ## Evaluating Traces
@@ -218,7 +218,7 @@ relevances = run_relevance_eval(trace_df)
 
 ```
 
-For full details, check out the relevance example of the relevance [LLM Eval](../../llm-evals/running-pre-tested-evals/retrieval-rag-relevance.md).
+For full details, check out the relevance example of the relevance [LLM Eval](../llm-evals/running-pre-tested-evals/retrieval-rag-relevance.md).
 
 ## Phoenix Tracing App
 
@@ -236,4 +236,4 @@ Phoenix can be used to understand and troubleshoot your by surfacing:
 * **Tool Descriptions -** view the description and function signature of the tools your LLM has been given access to
 * **LLM Function Calls** - if using OpenAI or other a model with function calls, you can view the function selection and function messages in the input messages to the LLM.\\
 
-[LLM Traces](../../concepts/llm-traces.md) are a powerful way to troubleshoot and understand your application and can be leveraged to [evaluate](../../llm-evals/llm-evals.md) the quality of your application. For a full list of notebooks that illustrate this in full-color, please check out the [notebooks section](../../notebooks.md).
+[LLM Traces](../concepts/llm-traces.md) are a powerful way to troubleshoot and understand your application and can be leveraged to [evaluate](../llm-evals/llm-evals.md) the quality of your application. For a full list of notebooks that illustrate this in full-color, please check out the [notebooks section](../notebooks.md).

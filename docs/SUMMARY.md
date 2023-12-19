@@ -6,8 +6,7 @@
 
 ## 🔑 Quickstart
 
-* [Phoenix Traces for LLM applications - OpenAI, LangChain & LlamaIndex](quickstart/llm-traces/README.md)
-  * [AutoGen Support](quickstart/llm-traces/autogen-support.md)
+* [Phoenix Traces for LLM applications - OpenAI, LangChain & LlamaIndex](quickstart/llm-traces.md)
 * [Phoenix Inferences](quickstart/phoenix-inferences/README.md)
   * [Schemas and Datasets](quickstart/phoenix-inferences/inferences.md)
 
@@ -66,6 +65,7 @@
 * [LangChain](integrations/langchain.md)
 * [OpenAI](integrations/openai.md)
 * [Arize](integrations/bring-production-data-to-notebook-for-eda-or-retraining.md)
+* [AutoGen](integrations/autogen-support.md)
 
 ## 📚 Reference
 
