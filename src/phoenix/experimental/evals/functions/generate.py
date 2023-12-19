@@ -28,6 +28,8 @@ def llm_generate(
     system_instruction: Optional[str] = None,
     verbose: bool = False,
     output_parser: Optional[Callable[[str, int], Dict[str, Any]]] = None,
+    include_prompt: bool = False,
+    include_response: bool = False,
     run_sync: bool = False,
     concurrency: int = 20,
 ) -> pd.DataFrame:
@@ -58,6 +60,13 @@ def llm_generate(
         keys of the dictionary should correspond to the column names of the output dataframe. If
         None, the output dataframe will have a single column named "output". Default None.
 
+        include_prompt (bool, default=False): If True, includes a column named `prompt` in the
+        output dataframe containing the prompt used for each generation.
+
+        include_response (bool, default=False): If True, includes a column named `response` in the
+        output dataframe containing the raw response from the LLM prior to applying the output
+        parser.
+
         run_sync (bool, default=False): If True, forces synchronous request submission. Otherwise
         evaluations will be run asynchronously if possible.
 
@@ -83,7 +92,12 @@ def llm_generate(
                 prompt,
                 instruction=system_instruction,
             )
-        return output_parser(response, index)
+        parsed_response = output_parser(response, index)
+        if include_prompt:
+            parsed_response["prompt"] = prompt
+        if include_response:
+            parsed_response["response"] = response
+        return parsed_response
 
     def _run_llm_generation_sync(enumerated_prompt: Tuple[int, str]) -> Dict[str, Any]:
         index, prompt = enumerated_prompt
@@ -92,7 +106,18 @@ def llm_generate(
                 prompt,
                 instruction=system_instruction,
             )
-        return output_parser(response, index)
+        parsed_response = output_parser(response, index)
+        if include_prompt:
+            parsed_response["prompt"] = prompt
+        if include_response:
+            parsed_response["response"] = response
+        return parsed_response
+
+    fallback_return_value = {
+        "output": "generation-failed",
+        **({"prompt": ""} if include_prompt else {}),
+        **({"response": ""} if include_response else {}),
+    }
 
     executor = get_executor_on_sync_context(
         _run_llm_generation_sync,
@@ -101,7 +126,7 @@ def llm_generate(
         concurrency=concurrency,
         tqdm_bar_format=tqdm_bar_format,
         exit_on_error=True,
-        fallback_return_value={"output": "generation-failed"},
+        fallback_return_value=fallback_return_value,
     )
     output = executor.run(list(enumerate(prompts.tolist())))
     return pd.DataFrame(output)
