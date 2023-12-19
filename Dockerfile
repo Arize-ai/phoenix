@@ -8,7 +8,7 @@
 # If you have a production use-case for phoenix, please get in touch!
 
 # Use an official Python runtime as a parent image
-FROM python:3.10-slim
+FROM python:3.10-slim as builder
 
 # Install nodejs
 RUN apt-get update && apt-get upgrade -y &&\
@@ -23,11 +23,12 @@ ADD . /phoenix
 
 
 # Install the app by building the typescript package
-RUN cd /phoenix/app && npm install && npm run build && rm -rf /phoenix/app &&\
-    apt-get purge nodejs npm -y
+RUN cd /phoenix/app && npm install && npm run build && rm -rf /phoenix/app 
+
+FROM builder
 
 # Install any needed packages 
-RUN pip install . && apt-get autoremove -y
+RUN pip install .
 
 # Make port 6006 available to the world outside this container
 EXPOSE 6006
