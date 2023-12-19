@@ -1,7 +1,7 @@
 import json
 import re
 from dataclasses import dataclass
-from typing import Callable, List, Mapping, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Mapping, Optional, Tuple, Union
 
 import pandas as pd
 
@@ -129,6 +129,17 @@ class ClassificationTemplate(PromptTemplate):
             return parser(raw_string)
         return parse_label_from_chain_of_thought_response(raw_string)
 
+    def model_kwargs(
+        self, use_openai_function_call: bool, provide_explanation: bool
+    ) -> Dict[str, Any]:
+        if not use_openai_function_call:
+            return {}
+        openai_function = _default_openai_function(self.rails, provide_explanation)
+        return {
+            "functions": [openai_function],
+            "function_call": {"name": openai_function["name"]},
+        }
+
 
 def parse_label_from_chain_of_thought_response(raw_string: str) -> str:
     label_delimiter = r"\W*label\W*"
@@ -248,3 +259,32 @@ def _snap_to_rail(raw_string: Optional[str], rails: List[str], verbose: bool = F
     rail = list(found_rails)[0]
     printif(verbose, f"- Snapped {repr(raw_string)} to rail: {rail}")
     return rail
+
+
+def _default_openai_function(
+    rails: List[str],
+    with_explanation: bool = False,
+) -> Dict[str, Any]:
+    properties = {
+        **(
+            {
+                _EXPLANATION: {
+                    "type": "string",
+                    "description": "Explanation of the reasoning for your response.",
+                },
+            }
+            if with_explanation
+            else {}
+        ),
+        _RESPONSE: {"type": "string", "description": "Your response.", "enum": rails},
+    }
+    required = [*([_EXPLANATION] if with_explanation else []), _RESPONSE]
+    return {
+        "name": "record_response",
+        "description": "A function to record your response.",
+        "parameters": {
+            "type": "object",
+            "properties": properties,
+            "required": required,
+        },
+    }

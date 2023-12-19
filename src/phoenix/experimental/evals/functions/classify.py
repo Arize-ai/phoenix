@@ -120,12 +120,6 @@ def llm_classify(
         and model.supports_function_calling
     )
 
-    model_kwargs: Dict[str, Any] = {}
-    if use_openai_function_call:
-        openai_function = _default_openai_function(rails, provide_explanation)
-        model_kwargs["functions"] = [openai_function]
-        model_kwargs["function_call"] = {"name": openai_function["name"]}
-
     eval_template = normalize_classification_template(rails=rails, template=template)
 
     prompt_options = PromptOptions(provide_explanation=provide_explanation)
@@ -141,7 +135,9 @@ def llm_classify(
     async def _run_llm_classification_async(prompt: str) -> Tuple[str, Optional[str]]:
         with set_verbosity(model, verbose) as verbose_model:
             unparsed_output = await verbose_model._async_generate(
-                prompt, instruction=system_instruction, **model_kwargs
+                prompt,
+                instruction=system_instruction,
+                **eval_template.model_kwargs(use_openai_function_call, provide_explanation),
             )
         return eval_template.parse_output(
             unparsed_output=unparsed_output,
@@ -153,7 +149,9 @@ def llm_classify(
     def _run_llm_classification_sync(prompt: str) -> Tuple[str, Optional[str]]:
         with set_verbosity(model, verbose) as verbose_model:
             unparsed_output = verbose_model._generate(
-                prompt, instruction=system_instruction, **model_kwargs
+                prompt,
+                instruction=system_instruction,
+                **eval_template.model_kwargs(use_openai_function_call, provide_explanation),
             )
         return eval_template.parse_output(
             unparsed_output=unparsed_output,
@@ -303,35 +301,6 @@ def _get_contents_from_openinference_documents(documents: Iterable[Any]) -> List
     containing the document text under the "document.content" key.
     """
     return [doc.get(DOCUMENT_CONTENT) if isinstance(doc, dict) else None for doc in documents]
-
-
-def _default_openai_function(
-    rails: List[str],
-    with_explanation: bool = False,
-) -> Dict[str, Any]:
-    properties = {
-        **(
-            {
-                _EXPLANATION: {
-                    "type": "string",
-                    "description": "Explanation of the reasoning for your response.",
-                },
-            }
-            if with_explanation
-            else {}
-        ),
-        _RESPONSE: {"type": "string", "description": "Your response.", "enum": rails},
-    }
-    required = [*([_EXPLANATION] if with_explanation else []), _RESPONSE]
-    return {
-        "name": "record_response",
-        "description": "A function to record your response.",
-        "parameters": {
-            "type": "object",
-            "properties": properties,
-            "required": required,
-        },
-    }
 
 
 class RunEvalsPayload(NamedTuple):
