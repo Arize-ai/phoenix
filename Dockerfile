@@ -8,11 +8,12 @@
 # If you have a production use-case for phoenix, please get in touch!
 
 # Use an official Python runtime as a parent image
-FROM python:3.10
+FROM python:3.10-slim as builder
 
 # Install nodejs
-RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
-RUN apt-get install -y nodejs
+RUN apt-get update && apt-get upgrade -y &&\
+    curl -fsSL https://deb.nodesource.com/setup_20.x | bash - &&\
+    apt-get install -y nodejs npm
 
 # Set the phoenix directory in the container to /phoenix
 WORKDIR /phoenix
@@ -20,8 +21,11 @@ WORKDIR /phoenix
 # Add the current directory contents into the container at /phoenix
 ADD . /phoenix
 
+
 # Install the app by building the typescript package
-RUN cd /phoenix/app && npm install && npm run build
+RUN cd /phoenix/app && npm install && npm run build && rm -rf /phoenix/app 
+
+FROM builder
 
 # Install any needed packages 
 RUN pip install .
