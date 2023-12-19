@@ -2,7 +2,7 @@ from typing import List, Mapping, Optional, Tuple
 
 from phoenix.experimental.evals.models import set_verbosity
 
-from .models import BaseEvalModel
+from .models import BaseEvalModel, OpenAIModel
 from .templates import ClassificationTemplate, PromptOptions, PromptTemplate
 
 Record = Mapping[str, str]
@@ -33,6 +33,7 @@ class LLMEvaluator:
         self,
         record: Record,
         provide_explanation: bool = False,
+        use_function_calling_if_available: bool = True,
         verbose: bool = False,
     ) -> Tuple[str, Optional[str]]:
         """
@@ -44,26 +45,46 @@ class LLMEvaluator:
             provide_explanation (bool, optional): Whether to provide an
             explanation.
 
+            use_function_calling_if_available (bool, optional): If True, use
+            function calling (if available) as a means to constrain the LLM
+            outputs. With function calling, the LLM is instructed to provide its
+            response as a structured JSON object, which is easier to parse.
+
             verbose (bool, optional): Whether to print verbose output.
 
         Returns:
             Tuple[str, Optional[str]]: The label and explanation (if provided).
         """
+        use_openai_function_call = (
+            use_function_calling_if_available
+            and isinstance(self._model, OpenAIModel)
+            and self._model.supports_function_calling
+        )
         prompt = self._template.format(
             record, options=PromptOptions(provide_explanation=provide_explanation)
         )
         with set_verbosity(self._model, verbose) as verbose_model:
-            unparsed_output = verbose_model(prompt)
+            unparsed_output = verbose_model(
+                prompt,
+                **self._template.model_kwargs(
+                    use_openai_function_call=use_openai_function_call,
+                    provide_explanation=provide_explanation,
+                ),
+            )
         label, explanation = self._template.parse_output(
             unparsed_output=unparsed_output,
-            use_openai_function_call=False,
+            use_openai_function_call=use_openai_function_call,
             provide_explanation=provide_explanation,
             verbose=verbose,
         )
         return label, explanation
 
     async def aevaluate(
-        self, record: Record, provide_explanation: bool = False, verbose: bool = False
+        self,
+        record: Record,
+        provide_explanation: bool = False,
+        use_function_calling_if_available: bool = True,
+        verbose: bool = False,
     ) -> Tuple[str, Optional[str]]:
         """
         Evaluates a single record.
@@ -74,19 +95,35 @@ class LLMEvaluator:
             provide_explanation (bool, optional): Whether to provide an
             explanation.
 
+            use_function_calling_if_available (bool, optional): If True, use
+            function calling (if available) as a means to constrain the LLM
+            outputs. With function calling, the LLM is instructed to provide its
+            response as a structured JSON object, which is easier to parse.
+
             verbose (bool, optional): Whether to print verbose output.
 
         Returns:
             Tuple[str, Optional[str]]: The label and explanation (if provided).
         """
+        use_openai_function_call = (
+            use_function_calling_if_available
+            and isinstance(self._model, OpenAIModel)
+            and self._model.supports_function_calling
+        )
         prompt = self._template.format(
             record, options=PromptOptions(provide_explanation=provide_explanation)
         )
         with set_verbosity(self._model, verbose) as verbose_model:
-            unparsed_output = await verbose_model._async_generate(prompt)
+            unparsed_output = await verbose_model._async_generate(
+                prompt,
+                **self._template.model_kwargs(
+                    use_openai_function_call=use_openai_function_call,
+                    provide_explanation=provide_explanation,
+                ),
+            )
         label, explanation = self._template.parse_output(
             unparsed_output=unparsed_output,
-            use_openai_function_call=False,
+            use_openai_function_call=use_openai_function_call,
             provide_explanation=provide_explanation,
             verbose=verbose,
         )
