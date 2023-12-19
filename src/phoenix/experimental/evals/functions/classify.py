@@ -377,7 +377,7 @@ def run_evals(
         which have the same number of rows as the input dataframe.
     """
 
-    async def _run_eval_async(
+    async def _arun_eval(
         payload: RunEvalsPayload,
     ) -> Tuple[EvaluatorIndex, RowIndex, Label, Explanation]:
         label, explanation = await payload.evaluator.aevaluate(
@@ -385,7 +385,7 @@ def run_evals(
         )
         return payload.evaluator_index, payload.row_index, label, explanation
 
-    def _run_eval_sync(
+    def _run_eval(
         payload: RunEvalsPayload,
     ) -> Tuple[EvaluatorIndex, RowIndex, Label, Explanation]:
         label, explanation = payload.evaluator.evaluate(
@@ -394,8 +394,8 @@ def run_evals(
         return payload.evaluator_index, payload.row_index, label, explanation
 
     executor = get_executor_on_sync_context(
-        _run_eval_sync,
-        _run_eval_async,
+        _run_eval,
+        _arun_eval,
         concurrency=concurrency,
         tqdm_bar_format=get_tqdm_progress_bar_formatter("run_evals"),
         exit_on_error=True,
