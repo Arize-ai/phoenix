@@ -309,6 +309,7 @@ def run_evals(
     dataframe: DataFrame,
     evaluators: List[LLMEvaluator],
     provide_explanation: bool = False,
+    use_function_calling_if_available: bool = True,
     verbose: bool = False,
     concurrency: int = 20,
 ) -> List[DataFrame]:
@@ -329,6 +330,11 @@ def run_evals(
         for each evaluation. A column named "explanation" is added to each
         output dataframe.
 
+        use_function_calling_if_available (bool, optional): If True, use
+        function calling (if available) as a means to constrain the LLM outputs.
+        With function calling, the LLM is instructed to provide its response as
+        a structured JSON object, which is easier to parse.
+
         verbose (bool, optional): If True, prints detailed info to stdout such
         as model invocation parameters and details about retries and snapping to
         rails.
@@ -345,7 +351,9 @@ def run_evals(
         payload: RunEvalsPayload,
     ) -> Tuple[EvaluatorIndex, RowIndex, Label, Explanation]:
         label, explanation = await payload.evaluator.aevaluate(
-            payload.record, provide_explanation=provide_explanation
+            payload.record,
+            provide_explanation=provide_explanation,
+            use_function_calling_if_available=use_function_calling_if_available,
         )
         return payload.evaluator_index, payload.row_index, label, explanation
 
@@ -353,7 +361,9 @@ def run_evals(
         payload: RunEvalsPayload,
     ) -> Tuple[EvaluatorIndex, RowIndex, Label, Explanation]:
         label, explanation = payload.evaluator.evaluate(
-            payload.record, provide_explanation=provide_explanation
+            payload.record,
+            provide_explanation=provide_explanation,
+            use_function_calling_if_available=use_function_calling_if_available,
         )
         return payload.evaluator_index, payload.row_index, label, explanation
 
