@@ -34,25 +34,25 @@ import {
   SpansTable_spans$key,
   SpanStatusCode,
 } from "./__generated__/SpansTable_spans.graphql";
-import {
-  SpanSort,
-  SpansTableSpansQuery,
-} from "./__generated__/SpansTableSpansQuery.graphql";
+import { SpansTableSpansQuery } from "./__generated__/SpansTableSpansQuery.graphql";
 import { EvaluationLabel } from "./EvaluationLabel";
 import { RetrievalEvaluationLabel } from "./RetrievalEvaluationLabel";
 import { SpanColumnSelector } from "./SpanColumnSelector";
 import { SpanFilterConditionField } from "./SpanFilterConditionField";
 import { spansTableCSS } from "./styles";
+import {
+  DEFAULT_SORT,
+  EVALS_COLUMN_PREFIX,
+  EVALS_KEY_SEPARATOR,
+  getGqlSort,
+} from "./tableUtils";
 import { TokenCount } from "./TokenCount";
 type SpansTableProps = {
   query: SpansTable_spans$key;
 };
 
 const PAGE_SIZE = 100;
-const DEFAULT_SORT: SpanSort = {
-  col: "startTime",
-  dir: "desc",
-};
+
 export function SpansTable(props: SpansTableProps) {
   const { fetchKey } = useStreamState();
   //we need a reference to the scrolling element for logic down below
@@ -75,6 +75,7 @@ export function SpansTable(props: SpansTableProps) {
           }
           filterCondition: { type: "String", defaultValue: null }
         ) {
+          ...SpanColumnSelector_evaluations
           spans(
             first: $first
             after: $after
@@ -122,12 +123,57 @@ export function SpansTable(props: SpansTableProps) {
       props.query
     );
 
+  const evaluationVisibility = useTracingContext(
+    (state) => state.evaluationVisibility
+  );
+  const visibleEvaluationColumnNames = useMemo(() => {
+    return Object.keys(evaluationVisibility).filter(
+      (name) => evaluationVisibility[name]
+    );
+  }, [evaluationVisibility]);
+
   const tableData = useMemo(() => {
     const tableData = data.spans.edges.map(({ span }) => span);
 
     return tableData;
   }, [data]);
   type TableRow = (typeof tableData)[number];
+
+  const dynamicEvaluationColumns: ColumnDef<TableRow>[] =
+    visibleEvaluationColumnNames.map((name) => {
+      return {
+        header: name,
+        columns: [
+          {
+            header: `label`,
+            accessorKey: `${EVALS_COLUMN_PREFIX}${EVALS_KEY_SEPARATOR}label${EVALS_KEY_SEPARATOR}${name}`,
+            cell: ({ row }) => {
+              const evaluation = row.original.spanEvaluations.find(
+                (evaluation) => evaluation.name === name
+              );
+              if (!evaluation) {
+                return null;
+              }
+              return evaluation.label;
+            },
+          } as ColumnDef<TableRow>,
+          {
+            header: `score`,
+            accessorKey: `${EVALS_COLUMN_PREFIX}${EVALS_KEY_SEPARATOR}score${EVALS_KEY_SEPARATOR}${name}`,
+            cell: ({ row }) => {
+              const evaluation = row.original.spanEvaluations.find(
+                (evaluation) => evaluation.name === name
+              );
+              if (!evaluation) {
+                return null;
+              }
+              return evaluation.score;
+            },
+          } as ColumnDef<TableRow>,
+        ],
+      };
+    });
+
   const evaluationColumns: ColumnDef<TableRow>[] = [
     {
       header: "evaluations",
@@ -173,11 +219,13 @@ export function SpansTable(props: SpansTableProps) {
         );
       },
     },
+    ...dynamicEvaluationColumns,
   ];
   const columns: ColumnDef<TableRow>[] = [
     {
       header: "kind",
       accessorKey: "spanKind",
+      maxSize: 100,
       enableSorting: false,
       cell: ({ getValue }) => {
         return <SpanKindLabel spanKind={getValue() as string} />;
@@ -260,12 +308,7 @@ export function SpansTable(props: SpansTableProps) {
     startTransition(() => {
       refetch(
         {
-          sort: sort
-            ? {
-                col: sort.id as SpanSort["col"],
-                dir: sort.desc ? "desc" : "asc",
-              }
-            : DEFAULT_SORT,
+          sort: sort ? getGqlSort(sort) : DEFAULT_SORT,
           after: null,
           first: PAGE_SIZE,
           filterCondition,
@@ -303,7 +346,11 @@ export function SpansTable(props: SpansTableProps) {
   });
   const rows = table.getRowModel().rows;
   const isEmpty = rows.length === 0;
-  const computedColumns = table.getAllColumns();
+  const computedColumns = table.getAllColumns().filter((column) => {
+    // Filter out columns that are eval groupings
+    return column.columns.length === 0;
+  });
+
   return (
     <div css={spansTableCSS}>
       <View
@@ -311,12 +358,13 @@ export function SpansTable(props: SpansTableProps) {
         paddingBottom="size-100"
         paddingStart="size-200"
         paddingEnd="size-200"
-        backgroundColor="grey-200"
+        borderBottomColor="grey-300"
+        borderBottomWidth="thin"
         flex="none"
       >
         <Flex direction="row" gap="size-100" width="100%" alignItems="center">
           <SpanFilterConditionField onValidCondition={setFilterCondition} />
-          <SpanColumnSelector columns={computedColumns} />
+          <SpanColumnSelector columns={computedColumns} query={data} />
         </Flex>
       </View>
       <div
@@ -340,6 +388,10 @@ export function SpansTable(props: SpansTableProps) {
                             ? "cursor-pointer"
                             : "",
                           onClick: header.column.getToggleSortingHandler(),
+                          style: {
+                            left: header.getStart(),
+                            width: header.getSize(),
+                          },
                         }}
                       >
                         {flexRender(

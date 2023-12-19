@@ -1,10 +1,13 @@
 import React, { ChangeEvent, useCallback, useMemo } from "react";
+import { graphql, useFragment } from "react-relay";
 import { Column } from "@tanstack/react-table";
 import { css } from "@emotion/react";
 
 import { Dropdown, Flex, Icon, Icons, View } from "@arizeai/components";
 
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
+
+import { SpanColumnSelector_evaluations$key } from "./__generated__/SpanColumnSelector_evaluations.graphql";
 
 const UN_HIDABLE_COLUMN_IDS = ["spanKind", "name"];
 
@@ -16,6 +19,7 @@ type SpanColumnSelectorProps = {
    */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   columns: Column<any>[];
+  query: SpanColumnSelector_evaluations$key;
 };
 
 export function SpanColumnSelector(props: SpanColumnSelectorProps) {
@@ -99,11 +103,10 @@ function ColumnSelectorMenu(props: SpanColumnSelectorProps) {
               checked={allVisible}
               onChange={onToggleAll}
             />
-            toggle all
+            span columns
           </label>
         </div>
       </View>
-
       <ul>
         {columns.map((column) => {
           const stateValue = columnVisibility[column.id];
@@ -127,6 +130,85 @@ function ColumnSelectorMenu(props: SpanColumnSelectorProps) {
           );
         })}
       </ul>
+      <EvaluationColumnSelector {...props} />
     </View>
+  );
+}
+
+function EvaluationColumnSelector({
+  query,
+}: Pick<SpanColumnSelectorProps, "query">) {
+  const data = useFragment<SpanColumnSelector_evaluations$key>(
+    graphql`
+      fragment SpanColumnSelector_evaluations on Query {
+        spanEvaluationNames
+      }
+    `,
+    query
+  );
+  const evaluationVisibility = useTracingContext(
+    (state) => state.evaluationVisibility
+  );
+  const setEvaluationVisibility = useTracingContext(
+    (state) => state.setEvaluationVisibility
+  );
+  const allVisible = useMemo(() => {
+    return data.spanEvaluationNames.every((name) => {
+      const stateValue = evaluationVisibility[name];
+      return stateValue || false;
+    });
+  }, [evaluationVisibility, data.spanEvaluationNames]);
+
+  const onToggleEvaluations = useCallback(() => {
+    const newVisibilityState = data.spanEvaluationNames.reduce((acc, name) => {
+      return { ...acc, [name]: !allVisible };
+    }, {});
+    setEvaluationVisibility(newVisibilityState);
+  }, [setEvaluationVisibility, allVisible, data.spanEvaluationNames]);
+  return (
+    <section>
+      <View
+        paddingTop="size-50"
+        paddingBottom="size-50"
+        borderColor="dark"
+        borderTopWidth="thin"
+        borderBottomWidth="thin"
+      >
+        <div css={columCheckboxItemCSS}>
+          <label>
+            <input
+              type="checkbox"
+              name={"toggle-evaluations-all"}
+              checked={allVisible}
+              onChange={onToggleEvaluations}
+            />
+            evaluations
+          </label>
+        </div>
+      </View>
+      <ul>
+        {data.spanEvaluationNames.map((name) => {
+          const isVisible = evaluationVisibility[name];
+          return (
+            <li key={name} css={columCheckboxItemCSS}>
+              <label>
+                <input
+                  type="checkbox"
+                  name={name}
+                  checked={isVisible}
+                  onChange={() => {
+                    setEvaluationVisibility({
+                      ...evaluationVisibility,
+                      [name]: !isVisible,
+                    });
+                  }}
+                />
+                {name}
+              </label>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
   );
 }
