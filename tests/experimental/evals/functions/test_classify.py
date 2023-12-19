@@ -152,6 +152,54 @@ def test_llm_classify(
 
 
 @pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
+def test_llm_classify_with_included_prompt_and_response(
+    api_key: str,
+    classification_dataframe: DataFrame,
+    respx_mock: respx.mock,
+):
+    dataframe = classification_dataframe
+    keys = list(zip(dataframe["input"], dataframe["reference"]))
+    responses = ["relevant", "irrelevant", "\nrelevant ", "unparsable"]
+    response_mapping = {key: response for key, response in zip(keys, responses)}
+
+    for (query, reference), response in response_mapping.items():
+        matcher = M(content__contains=query) & M(content__contains=reference)
+        payload = {
+            "choices": [
+                {
+                    "message": {
+                        "content": response,
+                    },
+                }
+            ],
+        }
+        respx_mock.route(matcher).mock(return_value=httpx.Response(200, json=payload))
+
+    with patch.object(OpenAIModel, "_init_tiktoken", return_value=None):
+        model = OpenAIModel()
+
+    result = llm_classify(
+        dataframe=dataframe,
+        template=RAG_RELEVANCY_PROMPT_TEMPLATE,
+        model=model,
+        rails=["relevant", "irrelevant"],
+        verbose=True,
+        include_prompt=True,
+        include_response=True,
+    )
+
+    expected_labels = ["relevant", "irrelevant", "relevant", NOT_PARSABLE]
+    assert result.iloc[:, 0].tolist() == expected_labels
+    assert result["label"].tolist() == expected_labels
+    assert result["response"].tolist() == responses
+    output_prompts = result["prompt"].tolist()
+    inputs = dataframe["input"].tolist()
+    references = dataframe["reference"].tolist()
+    assert all(input in prompt for input, prompt in zip(inputs, output_prompts))
+    assert all(reference in prompt for reference, prompt in zip(references, output_prompts))
+
+
+@pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
 def test_llm_classify_with_async(
     api_key: str, classification_dataframe: DataFrame, respx_mock: respx.mock
 ):
