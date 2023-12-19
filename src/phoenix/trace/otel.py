@@ -280,7 +280,7 @@ def encode(span: Span) -> otlp.Span:
         elif isinstance(value, Mapping):
             attributes.pop(key, None)
             attributes.update(_flatten_mapping(value, key))
-        elif isinstance(value, Sequence):
+        elif not isinstance(value, str) and isinstance(value, Sequence) and _has_mapping(value):
             attributes.pop(key, None)
             attributes.update(_flatten_sequence(value, key))
 
