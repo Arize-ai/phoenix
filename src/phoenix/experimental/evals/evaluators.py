@@ -35,16 +35,23 @@ class LLMEvaluator:
         provide_explanation: bool = False,
         verbose: bool = False,
     ) -> Tuple[str, Optional[str]]:
-        """Evaluates a single record.
+        """
+        Evaluates a single record.
 
         Args:
             record (Record): The record to evaluate.
 
+            provide_explanation (bool, optional): Whether to provide an
+            explanation.
+
+            verbose (bool, optional): Whether to print verbose output.
+
         Returns:
-            EvaluationResult: The result of the evaluation
+            Tuple[str, Optional[str]]: The label and explanation (if provided).
         """
-        prompt_options = PromptOptions(provide_explanation=provide_explanation)
-        prompt = self._template.format(record, options=prompt_options)
+        prompt = self._template.format(
+            record, options=PromptOptions(provide_explanation=provide_explanation)
+        )
         with set_verbosity(self._model, verbose) as verbose_model:
             unparsed_output = verbose_model(prompt)
         label, explanation = self._template.parse_output(
@@ -58,16 +65,23 @@ class LLMEvaluator:
     async def aevaluate(
         self, record: Record, provide_explanation: bool = False, verbose: bool = False
     ) -> Tuple[str, Optional[str]]:
-        """Evaluates a single record.
+        """
+        Evaluates a single record.
 
         Args:
             record (Record): The record to evaluate.
 
+            provide_explanation (bool, optional): Whether to provide an
+            explanation.
+
+            verbose (bool, optional): Whether to print verbose output.
+
         Returns:
-            EvaluationResult: The result of the evaluation
+            Tuple[str, Optional[str]]: The label and explanation (if provided).
         """
-        prompt_options = PromptOptions(provide_explanation=provide_explanation)
-        prompt = self._template.format(record, options=prompt_options)
+        prompt = self._template.format(
+            record, options=PromptOptions(provide_explanation=provide_explanation)
+        )
         with set_verbosity(self._model, verbose) as verbose_model:
             unparsed_output = await verbose_model._async_generate(prompt)
         label, explanation = self._template.parse_output(
