@@ -21,7 +21,6 @@ from phoenix.experimental.evals.evaluators import LLMEvaluator
 from phoenix.experimental.evals.functions.classify import (
     run_evals,
 )
-from phoenix.experimental.evals.models.openai import OPENAI_API_KEY_ENVVAR_NAME
 from phoenix.experimental.evals.templates.default_templates import (
     RAG_RELEVANCY_PROMPT_TEMPLATE,
     TOXICITY_PROMPT_TEMPLATE,
@@ -31,30 +30,18 @@ from respx.patterns import M
 
 
 @pytest.fixture
-def api_key(monkeypatch: pytest.MonkeyPatch) -> str:
-    api_key = "sk-0123456789"
-    monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, api_key)
-    return api_key
-
-
-@pytest.fixture
-def model(api_key: str) -> OpenAIModel:
-    return OpenAIModel(model_name="gpt-4")
-
-
-@pytest.fixture
-def toxicity_evaluator(model: OpenAIModel) -> LLMEvaluator:
+def toxicity_evaluator(openai_model: OpenAIModel) -> LLMEvaluator:
     return LLMEvaluator(
         template=TOXICITY_PROMPT_TEMPLATE,
-        model=model,
+        model=openai_model,
     )
 
 
 @pytest.fixture
-def relevance_evaluator(model: OpenAIModel) -> LLMEvaluator:
+def relevance_evaluator(openai_model: OpenAIModel) -> LLMEvaluator:
     return LLMEvaluator(
         template=RAG_RELEVANCY_PROMPT_TEMPLATE,
-        model=model,
+        model=openai_model,
     )
 
 
@@ -113,7 +100,7 @@ def classification_template():
 
 @pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
 def test_llm_classify(
-    api_key: str,
+    openai_api_key: str,
     classification_dataframe: DataFrame,
     respx_mock: respx.mock,
 ):
@@ -158,7 +145,7 @@ def test_llm_classify(
 
 @pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
 def test_llm_classify_with_async(
-    api_key: str, classification_dataframe: DataFrame, respx_mock: respx.mock
+    openai_api_key: str, classification_dataframe: DataFrame, respx_mock: respx.mock
 ):
     dataframe = classification_dataframe
     keys = list(zip(dataframe["input"], dataframe["reference"]))
@@ -201,7 +188,7 @@ def test_llm_classify_with_async(
 
 @pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
 def test_llm_classify_with_fn_call(
-    api_key: str, classification_dataframe: DataFrame, respx_mock: respx.mock
+    openai_api_key: str, classification_dataframe: DataFrame, respx_mock: respx.mock
 ):
     dataframe = classification_dataframe
     keys = list(zip(dataframe["input"], dataframe["reference"]))
@@ -232,7 +219,7 @@ def test_llm_classify_with_fn_call(
 
 @pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
 def test_classify_fn_call_no_explain(
-    api_key: str, classification_dataframe: DataFrame, respx_mock: respx.mock
+    openai_api_key: str, classification_dataframe: DataFrame, respx_mock: respx.mock
 ):
     dataframe = classification_dataframe
     keys = list(zip(dataframe["input"], dataframe["reference"]))
@@ -267,7 +254,7 @@ def test_classify_fn_call_no_explain(
 
 @pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
 def test_classify_fn_call_explain(
-    api_key: str, classification_dataframe: DataFrame, respx_mock: respx.mock
+    openai_api_key: str, classification_dataframe: DataFrame, respx_mock: respx.mock
 ):
     dataframe = classification_dataframe
     keys = list(zip(dataframe["input"], dataframe["reference"]))
@@ -307,7 +294,7 @@ def test_classify_fn_call_explain(
 @pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
 def test_llm_classify_prints_to_stdout_with_verbose_flag(
     classification_dataframe: DataFrame,
-    api_key: str,
+    openai_api_key: str,
     respx_mock: respx.mock,
     capfd: pytest.CaptureFixture[str],
 ):
@@ -343,7 +330,7 @@ def test_llm_classify_prints_to_stdout_with_verbose_flag(
     assert "sk-0123456789" not in out, "Credentials should not be printed out in cleartext"
 
 
-def test_llm_classify_shows_retry_info(api_key: str, capfd: pytest.CaptureFixture[str]):
+def test_llm_classify_shows_retry_info(openai_api_key: str, capfd: pytest.CaptureFixture[str]):
     dataframe = pd.DataFrame(
         [
             {
@@ -394,7 +381,7 @@ def test_llm_classify_shows_retry_info(api_key: str, capfd: pytest.CaptureFixtur
 
 @pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
 def test_run_relevance_eval_standard_dataframe(
-    api_key: str,
+    openai_api_key: str,
     respx_mock: respx.mock,
 ):
     dataframe = pd.DataFrame(
@@ -503,7 +490,7 @@ def test_run_relevance_eval_standard_dataframe(
 
 @pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions", assert_all_called=False)
 def test_classify_tolerance_to_exceptions(
-    api_key: str,
+    openai_api_key: str,
     classification_dataframe: pd.DataFrame,
     classification_responses: List[str],
     classification_template: str,
@@ -536,7 +523,7 @@ def test_classify_tolerance_to_exceptions(
 
 
 def test_run_relevance_eval_openinference_dataframe(
-    api_key: str,
+    openai_api_key: str,
     respx_mock: respx.mock,
 ):
     dataframe = pd.DataFrame(

@@ -21,7 +21,6 @@ from llama_index.llms.base import llm_completion_callback
 from llama_index.query_engine import RetrieverQueryEngine
 from llama_index.schema import Document, TextNode
 from openai import InternalServerError
-from phoenix.experimental.evals.models.openai import OPENAI_API_KEY_ENVVAR_NAME
 from phoenix.trace.exporter import NoOpExporter
 from phoenix.trace.llama_index import OpenInferenceTraceCallbackHandler
 from phoenix.trace.schemas import SpanException, SpanKind, SpanStatusCode
@@ -54,14 +53,7 @@ class CallbackError(Exception):
     pass
 
 
-@pytest.fixture
-def api_key(monkeypatch: pytest.MonkeyPatch) -> str:
-    api_key = "sk-0123456789"
-    monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, api_key)
-    return api_key
-
-
-def test_callback_llm(api_key, mock_service_context: ServiceContext) -> None:
+def test_callback_llm(openai_api_key, mock_service_context: ServiceContext) -> None:
     question = "What are the seven wonders of the world?"
     callback_handler = OpenInferenceTraceCallbackHandler(exporter=NoOpExporter())
     callback_manager = CallbackManager([callback_handler])
@@ -90,7 +82,7 @@ def test_callback_llm(api_key, mock_service_context: ServiceContext) -> None:
 
 @pytest.mark.respx(base_url="https://api.openai.com/v1")
 def test_callback_llm_span_contains_template_attributes(
-    api_key: str,
+    openai_api_key: str,
     respx_mock: respx.mock,
 ) -> None:
     model_name = "gpt-3.5-turbo"
@@ -140,7 +132,7 @@ def test_callback_llm_span_contains_template_attributes(
 
 
 def test_callback_streaming_response_produces_correct_result(
-    api_key: str,
+    openai_api_key: str,
     respx_mock: respx.mock,
 ) -> None:
     model_name = "gpt-3.5-turbo"
@@ -217,7 +209,7 @@ def test_callback_streaming_response_produces_correct_result(
 
 
 def test_callback_internal_error_has_exception_event(
-    api_key: str,
+    openai_api_key: str,
 ) -> None:
     llm = OpenAI(model="gpt-3.5-turbo", max_retries=1)
     query = "What are the seven wonders of the world?"
@@ -253,7 +245,7 @@ def test_callback_internal_error_has_exception_event(
 
 
 def test_callback_exception_event_produces_root_chain_span_with_exception_events(
-    api_key,
+    openai_api_key,
 ) -> None:
     llm = OpenAI(model="gpt-3.5-turbo", max_retries=1)
     query = "What are the seven wonders of the world?"
@@ -288,7 +280,7 @@ def test_callback_exception_event_produces_root_chain_span_with_exception_events
 
 
 def test_callback_llm_rate_limit_error_has_exception_event_with_missing_start(
-    api_key: str,
+    openai_api_key: str,
 ) -> None:
     callback_handler = OpenInferenceTraceCallbackHandler(exporter=NoOpExporter())
     event_type = CBEventType.EXCEPTION
@@ -389,7 +381,7 @@ def test_end_trace_handler_fails_gracefully(mock_handler_internals, caplog) -> N
     assert "CallbackError" in caplog.records[0].message
 
 
-def test_custom_llm(api_key, mock_embed_model) -> None:
+def test_custom_llm(openai_api_key, mock_embed_model) -> None:
     """Make sure token counts are captured when a custom LLM such as llama2-13B is used."""
 
     prompt_tokens = 100
