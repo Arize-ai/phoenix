@@ -226,6 +226,7 @@ export function SpansTable(props: SpansTableProps) {
     {
       header: "kind",
       accessorKey: "spanKind",
+      maxSize: 100,
       enableSorting: false,
       cell: ({ getValue }) => {
         return <SpanKindLabel spanKind={getValue() as string} />;
@@ -393,6 +394,10 @@ export function SpansTable(props: SpansTableProps) {
                             ? "cursor-pointer"
                             : "",
                           onClick: header.column.getToggleSortingHandler(),
+                          style: {
+                            left: header.getStart(),
+                            width: header.getSize(),
+                          },
                         }}
                       >
                         {flexRender(

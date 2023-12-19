@@ -333,6 +333,7 @@ export function TracesTable(props: TracesTableProps) {
       },
       enableSorting: false,
       accessorKey: "spanKind",
+      maxSize: 100,
       cell: (props) => {
         return (
           <div
@@ -404,6 +405,7 @@ export function TracesTable(props: TracesTableProps) {
     },
     {
       header: "total tokens",
+      minSize: 80,
       accessorKey: "tokenCountTotal",
       cell: ({ row, getValue }) => {
         const value = getValue();
@@ -524,6 +526,10 @@ export function TracesTable(props: TracesTableProps) {
                             ? "cursor-pointer"
                             : "",
                           onClick: header.column.getToggleSortingHandler(),
+                          style: {
+                            left: header.getStart(),
+                            width: header.getSize(),
+                          },
                         }}
                       >
                         {flexRender(
