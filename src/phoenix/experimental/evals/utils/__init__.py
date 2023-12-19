@@ -111,6 +111,18 @@ def parse_openai_function_call(raw_output: str) -> Tuple[str, Optional[str]]:
 
 
 def openai_function_call_kwargs(rails: List[str], provide_explanation: bool) -> Dict[str, Any]:
+    """
+    Returns keyword arguments needed to invoke an OpenAI model with function
+    calling for classification.
+
+    Args:
+        rails (List[str]): The rails to snap the output to.
+
+        provide_explanation (bool): Whether to provide an explanation.
+
+    Returns:
+        Dict[str, Any]: A dictionary containing function call arguments.
+    """
     openai_function = _default_openai_function(rails, provide_explanation)
     return {
         "functions": [openai_function],
@@ -122,6 +134,18 @@ def _default_openai_function(
     rails: List[str],
     with_explanation: bool = False,
 ) -> Dict[str, Any]:
+    """
+    Returns a default OpenAI function call for classification.
+
+    Args:
+        rails (List[str]): A list of rails to snap the output to.
+
+        with_explanation (bool, optional): Whether to include an explanation.
+
+    Returns:
+        Dict[str, Any]: A JSON schema object advertising a function to record
+        the result of the LLM's classification.
+    """
     properties = {
         **(
             {
