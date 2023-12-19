@@ -54,6 +54,9 @@ EvalPrediction: TypeAlias = str
 Record: TypeAlias = Mapping[str, Any]
 RowIndex: TypeAlias = Any
 
+# snapped_response, explanation, response
+ParsedLLMResponse: TypeAlias = Tuple[Optional[str], Optional[str], str]
+
 
 def llm_classify(
     dataframe: pd.DataFrame,
@@ -171,7 +174,7 @@ def llm_classify(
                 explanation = None
         return _snap_to_rail(unrailed_label, rails, verbose=verbose), explanation
 
-    async def _run_llm_classification_async(prompt: str) -> Tuple[str, Optional[str], str]:
+    async def _run_llm_classification_async(prompt: str) -> ParsedLLMResponse:
         with set_verbosity(model, verbose) as verbose_model:
             response = await verbose_model._async_generate(
                 prompt, instruction=system_instruction, **model_kwargs
@@ -179,13 +182,15 @@ def llm_classify(
         inference, explanation = _process_response(response)
         return inference, explanation, response
 
-    def _run_llm_classification_sync(prompt: str) -> Tuple[str, Optional[str], str]:
+    def _run_llm_classification_sync(prompt: str) -> ParsedLLMResponse:
         with set_verbosity(model, verbose) as verbose_model:
             response = verbose_model._generate(
                 prompt, instruction=system_instruction, **model_kwargs
             )
         inference, explanation = _process_response(response)
         return inference, explanation, response
+
+    fallback_return_value: ParsedLLMResponse = (None, None, "")
 
     executor = get_executor_on_sync_context(
         _run_llm_classification_sync,
@@ -194,7 +199,7 @@ def llm_classify(
         concurrency=concurrency,
         tqdm_bar_format=tqdm_bar_format,
         exit_on_error=True,
-        fallback_return_value=(None, None, ""),  # snapped_response, explanation, response
+        fallback_return_value=fallback_return_value,
     )
 
     results = executor.run(prompts.tolist())
