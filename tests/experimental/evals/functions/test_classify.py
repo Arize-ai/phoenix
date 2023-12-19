@@ -677,7 +677,11 @@ def test_run_evals_outputs_dataframes_with_just_labels(
         ],
         index=["a", "b"],
     )
-    eval_dfs = run_evals(dataframe=df, evaluators=[relevance_evaluator, toxicity_evaluator])
+    eval_dfs = run_evals(
+        dataframe=df,
+        evaluators=[relevance_evaluator, toxicity_evaluator],
+        use_function_calling_if_available=False,
+    )
     assert len(eval_dfs) == 2
     assert_frame_equal(
         eval_dfs[0],
@@ -743,7 +747,10 @@ def test_run_evals_outputs_dataframes_with_labels_and_explanations(
         index=["a", "b"],
     )
     eval_dfs = run_evals(
-        dataframe=df, evaluators=[relevance_evaluator, toxicity_evaluator], provide_explanation=True
+        dataframe=df,
+        evaluators=[relevance_evaluator, toxicity_evaluator],
+        provide_explanation=True,
+        use_function_calling_if_available=False,
     )
     assert len(eval_dfs) == 2
     assert_frame_equal(
