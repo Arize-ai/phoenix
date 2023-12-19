@@ -1,10 +1,23 @@
 import json
 from io import BytesIO
+from typing import List, Optional, Tuple
 from urllib.error import HTTPError
 from urllib.request import urlopen
 from zipfile import ZipFile
 
 import pandas as pd
+
+from phoenix.utilities.logging import printif
+
+# Rather than returning None, we return this string to indicate that the LLM output could not be
+# parsed.
+# This is useful for debugging as well as to just treat the output as a non-parsable category
+NOT_PARSABLE = "NOT_PARSABLE"
+
+# argument keys in the default openai function call,
+# defined here only to prevent typos
+_RESPONSE = "response"
+_EXPLANATION = "explanation"
 
 
 def download_benchmark_dataset(task: str, dataset_name: str) -> pd.DataFrame:
@@ -42,3 +55,56 @@ def get_tqdm_progress_bar_formatter(title: str) -> str:
         title + " |{bar}| {n_fmt}/{total_fmt} ({percentage:3.1f}%) "
         "| ⏳ {elapsed}<{remaining} | {rate_fmt}{postfix}"
     )
+
+
+def snap_to_rail(raw_string: Optional[str], rails: List[str], verbose: bool = False) -> str:
+    """
+    Snaps a string to the nearest rail, or returns None if the string cannot be
+    snapped to a rail.
+
+    Args:
+        raw_string (str): An input to be snapped to a rail.
+
+        rails (List[str]): The target set of strings to snap to.
+
+    Returns:
+        str: A string from the rails argument or "UNPARSABLE" if the input
+        string could not be snapped.
+    """
+    if not raw_string:
+        return NOT_PARSABLE
+    snap_string = raw_string.lower()
+    rails = list(set(rail.lower() for rail in rails))
+    rails.sort(key=len, reverse=True)
+    found_rails = set()
+    for rail in rails:
+        if rail in snap_string:
+            found_rails.add(rail)
+            snap_string = snap_string.replace(rail, "")
+    if len(found_rails) != 1:
+        printif(verbose, f"- Cannot snap {repr(raw_string)} to rails")
+        return NOT_PARSABLE
+    rail = list(found_rails)[0]
+    printif(verbose, f"- Snapped {repr(raw_string)} to rail: {rail}")
+    return rail
+
+
+def parse_openai_function_call(raw_output: str) -> Tuple[str, Optional[str]]:
+    """
+    Parses the output of an OpenAI function call.
+
+    Args:
+        raw_output (str): The raw output of an OpenAI function call.
+
+    Returns:
+        Tuple[str, Optional[str]]: A tuple of the unrailed label and an optional
+        explanation.
+    """
+    try:
+        function_arguments = json.loads(raw_output, strict=False)
+        unrailed_label = function_arguments.get(_RESPONSE, "")
+        explanation = function_arguments.get(_EXPLANATION)
+    except json.JSONDecodeError:
+        unrailed_label = raw_output
+        explanation = None
+    return unrailed_label, explanation

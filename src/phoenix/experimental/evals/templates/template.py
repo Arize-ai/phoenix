@@ -4,13 +4,10 @@ from typing import Callable, List, Mapping, Optional, Tuple, Union
 
 import pandas as pd
 
+from phoenix.experimental.evals.utils import NOT_PARSABLE
+
 DEFAULT_START_DELIM = "{"
 DEFAULT_END_DELIM = "}"
-
-# Rather than returning None, we return this string to indicate that the LLM output could not be
-# parsed.
-# This is useful for debugging as well as to just treat the output as a non-parsable category
-NOT_PARSABLE = "NOT_PARSABLE"
 
 
 @dataclass
