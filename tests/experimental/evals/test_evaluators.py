@@ -57,7 +57,7 @@ def test_evaluator_evaluate_outputs_label_and_explanation_when_model_produces_ex
     assert "A very good explanation" in explanation
 
 
-def test_evaluator_evaluate_outputs_not_parseable_and_explanation_when_output_is_not_in_rails(
+def test_evaluator_evaluate_outputs_not_parseable_and_raw_response_when_output_is_not_in_rails(
     openai_model: OpenAIModel, relevance_template: str
 ) -> None:
     output = "EXPLANATION: A very good explanation" 'LABEL: "not-a-rail"'
@@ -71,7 +71,7 @@ def test_evaluator_evaluate_outputs_not_parseable_and_explanation_when_output_is
         provide_explanation=True,
     )
     assert label == NOT_PARSABLE
-    assert "A very good explanation" in explanation
+    assert "EXPLANATION: A very good explanation" 'LABEL: "not-a-rail"' in explanation
 
 
 def test_evaluator_evaluate_outputs_not_parseable_and_raw_response_for_unparseable_model_output(
