@@ -9,7 +9,6 @@ from .templates import (
     HALLUCINATION_PROMPT_TEMPLATE,
     HUMAN_VS_AI_PROMPT_RAILS_MAP,
     HUMAN_VS_AI_PROMPT_TEMPLATE,
-    NOT_PARSABLE,
     QA_PROMPT_RAILS_MAP,
     QA_PROMPT_TEMPLATE,
     RAG_RELEVANCY_PROMPT_RAILS_MAP,
@@ -19,7 +18,7 @@ from .templates import (
     ClassificationTemplate,
     PromptTemplate,
 )
-from .utils import download_benchmark_dataset
+from .utils import NOT_PARSABLE, download_benchmark_dataset
 
 __all__ = [
     "compute_precisions_at_k",
