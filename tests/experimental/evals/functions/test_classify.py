@@ -19,10 +19,8 @@ from phoenix.experimental.evals import (
 )
 from phoenix.experimental.evals.evaluators import LLMEvaluator
 from phoenix.experimental.evals.functions.classify import (
-    _snap_to_rail,
     run_evals,
 )
-from phoenix.experimental.evals.models.openai import OPENAI_API_KEY_ENVVAR_NAME
 from phoenix.experimental.evals.templates.default_templates import (
     RAG_RELEVANCY_PROMPT_TEMPLATE,
     TOXICITY_PROMPT_TEMPLATE,
@@ -31,46 +29,39 @@ from respx.patterns import M
 
 
 @pytest.fixture
-def api_key(monkeypatch: pytest.MonkeyPatch) -> str:
-    api_key = "sk-0123456789"
-    monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, api_key)
-    return api_key
-
-
-@pytest.fixture
-def model(api_key: str) -> OpenAIModel:
-    return OpenAIModel(model_name="gpt-4")
-
-
-@pytest.fixture
-def toxicity_evaluator(model: OpenAIModel) -> LLMEvaluator:
+def toxicity_evaluator(openai_model: OpenAIModel) -> LLMEvaluator:
     return LLMEvaluator(
-        name="toxicity",
         template=TOXICITY_PROMPT_TEMPLATE,
-        model=model,
-        verbose=True,
+        model=openai_model,
     )
 
 
 @pytest.fixture
-def relevance_evaluator(model: OpenAIModel) -> LLMEvaluator:
+def relevance_evaluator(openai_model: OpenAIModel) -> LLMEvaluator:
     return LLMEvaluator(
-        name="relevance",
         template=RAG_RELEVANCY_PROMPT_TEMPLATE,
-        model=model,
-        verbose=True,
+        model=openai_model,
     )
 
 
-@pytest.fixture
-def running_event_loop_mock(monkeypatch: pytest.MonkeyPatch) -> None:
+@pytest.fixture(
+    params=[
+        pytest.param(True, id="running_event_loop_exists"),
+        pytest.param(False, id="no_running_event_loop_exists"),
+    ]
+)
+def running_event_loop_mock(
+    request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch
+) -> bool:
+    running_event_loop_exists = request.param
     monkeypatch.setattr(
         "phoenix.experimental.evals.functions.executor._running_event_loop_exists",
-        lambda: True,
+        lambda: running_event_loop_exists,
     )
     assert (
         phoenix.experimental.evals.functions.executor._running_event_loop_exists()
-    ), "mock for detecting event loop should return True"
+    ) is running_event_loop_exists, "mocked function should return the expected value"
+    return running_event_loop_exists
 
 
 @pytest.fixture
@@ -108,7 +99,7 @@ def classification_template():
 
 @pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
 def test_llm_classify(
-    api_key: str,
+    openai_api_key: str,
     classification_dataframe: DataFrame,
     respx_mock: respx.mock,
 ):
@@ -153,7 +144,7 @@ def test_llm_classify(
 
 @pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
 def test_llm_classify_with_included_prompt_and_response(
-    api_key: str,
+    openai_api_key: str,
     classification_dataframe: DataFrame,
     respx_mock: respx.mock,
 ):
@@ -201,7 +192,7 @@ def test_llm_classify_with_included_prompt_and_response(
 
 @pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
 def test_llm_classify_with_async(
-    api_key: str, classification_dataframe: DataFrame, respx_mock: respx.mock
+    openai_api_key: str, classification_dataframe: DataFrame, respx_mock: respx.mock
 ):
     dataframe = classification_dataframe
     keys = list(zip(dataframe["input"], dataframe["reference"]))
@@ -244,7 +235,7 @@ def test_llm_classify_with_async(
 
 @pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
 def test_llm_classify_with_fn_call(
-    api_key: str, classification_dataframe: DataFrame, respx_mock: respx.mock
+    openai_api_key: str, classification_dataframe: DataFrame, respx_mock: respx.mock
 ):
     dataframe = classification_dataframe
     keys = list(zip(dataframe["input"], dataframe["reference"]))
@@ -275,7 +266,7 @@ def test_llm_classify_with_fn_call(
 
 @pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
 def test_classify_fn_call_no_explain(
-    api_key: str, classification_dataframe: DataFrame, respx_mock: respx.mock
+    openai_api_key: str, classification_dataframe: DataFrame, respx_mock: respx.mock
 ):
     dataframe = classification_dataframe
     keys = list(zip(dataframe["input"], dataframe["reference"]))
@@ -310,7 +301,7 @@ def test_classify_fn_call_no_explain(
 
 @pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
 def test_classify_fn_call_explain(
-    api_key: str, classification_dataframe: DataFrame, respx_mock: respx.mock
+    openai_api_key: str, classification_dataframe: DataFrame, respx_mock: respx.mock
 ):
     dataframe = classification_dataframe
     keys = list(zip(dataframe["input"], dataframe["reference"]))
@@ -350,7 +341,7 @@ def test_classify_fn_call_explain(
 @pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
 def test_llm_classify_prints_to_stdout_with_verbose_flag(
     classification_dataframe: DataFrame,
-    api_key: str,
+    openai_api_key: str,
     respx_mock: respx.mock,
     capfd: pytest.CaptureFixture[str],
 ):
@@ -386,7 +377,7 @@ def test_llm_classify_prints_to_stdout_with_verbose_flag(
     assert "sk-0123456789" not in out, "Credentials should not be printed out in cleartext"
 
 
-def test_llm_classify_shows_retry_info(api_key: str, capfd: pytest.CaptureFixture[str]):
+def test_llm_classify_shows_retry_info(openai_api_key: str, capfd: pytest.CaptureFixture[str]):
     dataframe = pd.DataFrame(
         [
             {
@@ -437,7 +428,7 @@ def test_llm_classify_shows_retry_info(api_key: str, capfd: pytest.CaptureFixtur
 
 @pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
 def test_run_relevance_eval_standard_dataframe(
-    api_key: str,
+    openai_api_key: str,
     respx_mock: respx.mock,
 ):
     dataframe = pd.DataFrame(
@@ -546,7 +537,7 @@ def test_run_relevance_eval_standard_dataframe(
 
 @pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions", assert_all_called=False)
 def test_classify_tolerance_to_exceptions(
-    api_key: str,
+    openai_api_key: str,
     classification_dataframe: pd.DataFrame,
     classification_responses: List[str],
     classification_template: str,
@@ -579,7 +570,7 @@ def test_classify_tolerance_to_exceptions(
 
 
 def test_run_relevance_eval_openinference_dataframe(
-    api_key: str,
+    openai_api_key: str,
     respx_mock: respx.mock,
 ):
     dataframe = pd.DataFrame(
@@ -687,80 +678,9 @@ def test_run_relevance_eval_openinference_dataframe(
     ]
 
 
-def test_overlapping_rails():
-    assert _snap_to_rail("irrelevant", ["relevant", "irrelevant"]) == "irrelevant"
-    assert _snap_to_rail("relevant", ["relevant", "irrelevant"]) == "relevant"
-    assert _snap_to_rail("irrelevant...", ["irrelevant", "relevant"]) == "irrelevant"
-    assert _snap_to_rail("...irrelevant", ["irrelevant", "relevant"]) == "irrelevant"
-    # Both rails are present, cannot parse
-    assert _snap_to_rail("relevant...irrelevant", ["irrelevant", "relevant"]) is NOT_PARSABLE
-    assert _snap_to_rail("Irrelevant", ["relevant", "irrelevant"]) == "irrelevant"
-    # One rail appears twice
-    assert _snap_to_rail("relevant...relevant", ["irrelevant", "relevant"]) == "relevant"
-    assert _snap_to_rail("b b", ["a", "b", "c"]) == "b"
-    # More than two rails
-    assert _snap_to_rail("a", ["a", "b", "c"]) == "a"
-    assert _snap_to_rail(" abc", ["a", "ab", "abc"]) == "abc"
-    assert _snap_to_rail("abc", ["abc", "a", "ab"]) == "abc"
-
-
 @pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
-def test_run_evals_produces_expected_output_dataframe_when_no_running_event_loop_exists(
-    respx_mock: respx.mock, toxicity_evaluator: LLMEvaluator, relevance_evaluator: LLMEvaluator
-) -> None:
-    for matcher, response in [
-        (
-            M(content__contains="Paris is the capital of France.")
-            & M(content__contains="relevant"),
-            "relevant",
-        ),
-        (
-            M(content__contains="Munich is the capital of Germany.")
-            & M(content__contains="relevant"),
-            "irrelevant",
-        ),
-        (
-            M(content__contains="What is the capital of France?") & M(content__contains="toxic"),
-            "non-toxic",
-        ),
-    ]:
-        payload = {
-            "choices": [
-                {
-                    "message": {
-                        "content": response,
-                    },
-                }
-            ],
-        }
-        respx_mock.route(matcher).mock(return_value=httpx.Response(200, json=payload))
-
-    df = pd.DataFrame(
-        [
-            {
-                "input": "What is the capital of France?",
-                "reference": "Paris is the capital of France.",
-            },
-            {
-                "input": "What is the capital of France?",
-                "reference": "Munich is the capital of Germany.",
-            },
-        ],
-        index=["a", "b"],
-    )
-    eval_df = run_evals(dataframe=df, evaluators=[relevance_evaluator, toxicity_evaluator])
-    assert_frame_equal(
-        eval_df,
-        pd.DataFrame(
-            {"relevance": ["relevant", "irrelevant"], "toxicity": ["non-toxic", "non-toxic"]},
-            index=["a", "b"],
-        ),
-    )
-
-
-@pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
-def test_run_evals_produces_expected_output_dataframe_when_running_event_loop_already_exists(
-    running_event_loop_mock,
+def test_run_evals_outputs_dataframes_with_just_labels(
+    running_event_loop_mock: bool,
     respx_mock: respx.mock,
     toxicity_evaluator: LLMEvaluator,
     relevance_evaluator: LLMEvaluator,
@@ -805,21 +725,106 @@ def test_run_evals_produces_expected_output_dataframe_when_running_event_loop_al
         ],
         index=["a", "b"],
     )
-    eval_df = run_evals(dataframe=df, evaluators=[relevance_evaluator, toxicity_evaluator])
+    eval_dfs = run_evals(dataframe=df, evaluators=[relevance_evaluator, toxicity_evaluator])
+    assert len(eval_dfs) == 2
     assert_frame_equal(
-        eval_df,
+        eval_dfs[0],
         pd.DataFrame(
-            {"relevance": ["relevant", "irrelevant"], "toxicity": ["non-toxic", "non-toxic"]},
+            {"label": ["relevant", "irrelevant"]},
+            index=["a", "b"],
+        ),
+    )
+    assert_frame_equal(
+        eval_dfs[1],
+        pd.DataFrame(
+            {"label": ["non-toxic", "non-toxic"]},
             index=["a", "b"],
         ),
     )
 
 
-def test_run_evals_with_evaluators_with_duplicate_names_raises_value_error(
+@pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
+def test_run_evals_outputs_dataframes_with_labels_and_explanations(
+    running_event_loop_mock: bool,
+    respx_mock: respx.mock,
     toxicity_evaluator: LLMEvaluator,
+    relevance_evaluator: LLMEvaluator,
 ) -> None:
-    with pytest.raises(ValueError):
-        run_evals(
-            dataframe=pd.DataFrame(),
-            evaluators=[toxicity_evaluator, toxicity_evaluator],
-        )
+    for matcher, response in [
+        (
+            M(content__contains="Paris is the capital of France.")
+            & M(content__contains="relevant"),
+            "relevant-explanation\nLABEL: relevant",
+        ),
+        (
+            M(content__contains="Munich is the capital of Germany.")
+            & M(content__contains="relevant"),
+            "irrelevant-explanation\nLABEL: irrelevant",
+        ),
+        (
+            M(content__contains="What is the capital of France?") & M(content__contains="toxic"),
+            "non-toxic-explanation\nLABEL: non-toxic",
+        ),
+    ]:
+        payload = {
+            "choices": [
+                {
+                    "message": {
+                        "content": response,
+                    },
+                }
+            ],
+        }
+        respx_mock.route(matcher).mock(return_value=httpx.Response(200, json=payload))
+
+    df = pd.DataFrame(
+        [
+            {
+                "input": "What is the capital of France?",
+                "reference": "Paris is the capital of France.",
+            },
+            {
+                "input": "What is the capital of France?",
+                "reference": "Munich is the capital of Germany.",
+            },
+        ],
+        index=["a", "b"],
+    )
+    eval_dfs = run_evals(
+        dataframe=df, evaluators=[relevance_evaluator, toxicity_evaluator], provide_explanation=True
+    )
+    assert len(eval_dfs) == 2
+    assert_frame_equal(
+        eval_dfs[0],
+        pd.DataFrame(
+            {
+                "label": ["relevant", "irrelevant"],
+                "explanation": [
+                    "relevant-explanation\nLABEL: relevant",
+                    "irrelevant-explanation\nLABEL: irrelevant",
+                ],
+            },
+            index=["a", "b"],
+        ),
+    )
+    assert_frame_equal(
+        eval_dfs[1],
+        pd.DataFrame(
+            {
+                "label": ["non-toxic", "non-toxic"],
+                "explanation": [
+                    "non-toxic-explanation\nLABEL: non-toxic",
+                    "non-toxic-explanation\nLABEL: non-toxic",
+                ],
+            },
+            index=["a", "b"],
+        ),
+    )
+
+
+def test_run_evals_with_empty_evaluators_returns_empty_list() -> None:
+    eval_dfs = run_evals(
+        dataframe=pd.DataFrame(),
+        evaluators=[],
+    )
+    assert eval_dfs == []
