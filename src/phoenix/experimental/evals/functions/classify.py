@@ -59,6 +59,9 @@ Record: TypeAlias = Mapping[str, Any]
 EvaluatorIndex: TypeAlias = int
 RowIndex: TypeAlias = Any
 
+# snapped_response, explanation, response
+ParsedLLMResponse: TypeAlias = Tuple[Optional[str], Optional[str], str]
+
 
 def llm_classify(
     dataframe: pd.DataFrame,
@@ -69,6 +72,8 @@ def llm_classify(
     verbose: bool = False,
     use_function_calling_if_available: bool = True,
     provide_explanation: bool = False,
+    include_prompt: bool = False,
+    include_response: bool = False,
     run_sync: bool = False,
     concurrency: int = 20,
 ) -> pd.DataFrame:
@@ -103,6 +108,12 @@ def llm_classify(
 
         provide_explanation (bool, default=False): If True, provides an explanation for each
         classification label. A column named `explanation` is added to the output dataframe.
+
+        include_prompt (bool, default=False): If True, includes a column named `prompt` in the
+        output dataframe containing the prompt used for each classification.
+
+        include_response (bool, default=False): If True, includes a column named `response` in the
+        output dataframe containing the raw response from the LLM.
 
         run_sync (bool, default=False): If True, forces synchronous request submission. Otherwise
         evaluations will be run asynchronously if possible.
@@ -161,19 +172,23 @@ def llm_classify(
             unrailed_label, explanation = parse_openai_function_call(response)
         return snap_to_rail(unrailed_label, rails, verbose=verbose), explanation
 
-    async def _run_llm_classification_async(prompt: str) -> Tuple[str, Optional[str]]:
+    async def _run_llm_classification_async(prompt: str) -> ParsedLLMResponse:
         with set_verbosity(model, verbose) as verbose_model:
-            unparsed_output = await verbose_model._async_generate(
+            response = await verbose_model._async_generate(
                 prompt, instruction=system_instruction, **model_kwargs
             )
-        return _process_response(unparsed_output)
+        inference, explanation = _process_response(response)
+        return inference, explanation, response
 
-    def _run_llm_classification_sync(prompt: str) -> Tuple[str, Optional[str]]:
+    def _run_llm_classification_sync(prompt: str) -> ParsedLLMResponse:
         with set_verbosity(model, verbose) as verbose_model:
-            unparsed_output = verbose_model._generate(
+            response = verbose_model._generate(
                 prompt, instruction=system_instruction, **model_kwargs
             )
-        return _process_response(unparsed_output)
+        inference, explanation = _process_response(response)
+        return inference, explanation, response
+
+    fallback_return_value: ParsedLLMResponse = (None, None, "")
 
     executor = get_executor_on_sync_context(
         _run_llm_classification_sync,
@@ -182,16 +197,18 @@ def llm_classify(
         concurrency=concurrency,
         tqdm_bar_format=tqdm_bar_format,
         exit_on_error=True,
-        fallback_return_value=(None, None),
+        fallback_return_value=fallback_return_value,
     )
 
     results = executor.run(prompts.tolist())
-    labels, explanations = zip(*results)
+    labels, explanations, responses = zip(*results)
 
     return pd.DataFrame(
         data={
             "label": labels,
             **({"explanation": explanations} if provide_explanation else {}),
+            **({"prompt": prompts} if include_prompt else {}),
+            **({"response": responses} if include_response else {}),
         },
         index=dataframe.index,
     )
