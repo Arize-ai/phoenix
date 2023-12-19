@@ -169,7 +169,7 @@ class Traces:
                 if (
                     (span := self[span_id])
                     and start_time <= span.start_time < stop_time
-                    and (span.parent_id is None) == bool(root_spans_only)
+                    and (not root_spans_only or span.parent_id is None)
                 ):
                     yield span
             return
