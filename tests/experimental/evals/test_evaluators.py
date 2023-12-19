@@ -1,9 +1,13 @@
 from unittest.mock import MagicMock
 
 import pytest
-from phoenix.experimental.evals import LLMEvaluator, OpenAIModel
-from phoenix.experimental.evals.templates import NOT_PARSABLE, RAG_RELEVANCY_PROMPT_TEMPLATE
-from phoenix.experimental.evals.templates.template import _EXPLANATION, _RESPONSE
+from phoenix.experimental.evals import (
+    NOT_PARSABLE,
+    RAG_RELEVANCY_PROMPT_TEMPLATE,
+    LLMEvaluator,
+    OpenAIModel,
+)
+from phoenix.experimental.evals.utils import _EXPLANATION, _RESPONSE
 
 
 @pytest.fixture

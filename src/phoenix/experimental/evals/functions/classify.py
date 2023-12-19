@@ -32,7 +32,13 @@ from phoenix.experimental.evals.templates import (
     map_template,
     normalize_classification_template,
 )
-from phoenix.experimental.evals.utils import get_tqdm_progress_bar_formatter
+from phoenix.experimental.evals.utils import (
+    NOT_PARSABLE,
+    get_tqdm_progress_bar_formatter,
+    openai_function_call_kwargs,
+    parse_openai_function_call,
+    snap_to_rail,
+)
 from phoenix.trace.semantic_conventions import DOCUMENT_CONTENT, INPUT_VALUE, RETRIEVAL_DOCUMENTS
 from phoenix.utilities.logging import printif
 
@@ -49,6 +55,9 @@ Record: TypeAlias = Mapping[str, Any]
 EvaluatorIndex: TypeAlias = int
 RowIndex: TypeAlias = Any
 
+# snapped_response, explanation, response
+ParsedLLMResponse: TypeAlias = Tuple[Optional[str], Optional[str], str]
+
 
 def llm_classify(
     dataframe: pd.DataFrame,
@@ -59,6 +68,8 @@ def llm_classify(
     verbose: bool = False,
     use_function_calling_if_available: bool = True,
     provide_explanation: bool = False,
+    include_prompt: bool = False,
+    include_response: bool = False,
     run_sync: bool = False,
     concurrency: int = 20,
 ) -> pd.DataFrame:
@@ -94,6 +105,12 @@ def llm_classify(
         provide_explanation (bool, default=False): If True, provides an explanation for each
         classification label. A column named `explanation` is added to the output dataframe.
 
+        include_prompt (bool, default=False): If True, includes a column named `prompt` in the
+        output dataframe containing the prompt used for each classification.
+
+        include_response (bool, default=False): If True, includes a column named `response` in the
+        output dataframe containing the raw response from the LLM.
+
         run_sync (bool, default=False): If True, forces synchronous request submission. Otherwise
         evaluations will be run asynchronously if possible.
 
@@ -127,33 +144,48 @@ def llm_classify(
     if generation_info := model.verbose_generation_info():
         printif(verbose, generation_info)
 
-    async def _run_llm_classification_async(prompt: str) -> Tuple[str, Optional[str]]:
-        with set_verbosity(model, verbose) as verbose_model:
-            unparsed_output = await verbose_model._async_generate(
-                prompt,
-                instruction=system_instruction,
-                **eval_template.model_kwargs(use_openai_function_call, provide_explanation),
-            )
-        return eval_template.parse_output(
-            unparsed_output=unparsed_output,
-            use_openai_function_call=use_openai_function_call,
-            provide_explanation=provide_explanation,
-            verbose=verbose,
-        )
+    model_kwargs = (
+        openai_function_call_kwargs(rails, provide_explanation) if use_openai_function_call else {}
+    )
 
-    def _run_llm_classification_sync(prompt: str) -> Tuple[str, Optional[str]]:
+    def _process_response(response: str) -> Tuple[str, Optional[str]]:
+        if not use_openai_function_call:
+            if provide_explanation:
+                unrailed_label, explanation = (
+                    eval_template.extract_label_from_explanation(response),
+                    response,
+                )
+                printif(
+                    verbose and unrailed_label == NOT_PARSABLE,
+                    f"- Could not parse {repr(response)}",
+                )
+            else:
+                unrailed_label = response
+                explanation = None
+        else:
+            unrailed_label, explanation = parse_openai_function_call(response)
+        return snap_to_rail(unrailed_label, rails, verbose=verbose), explanation
+
+    async def _run_llm_classification_async(prompt: str) -> ParsedLLMResponse:
         with set_verbosity(model, verbose) as verbose_model:
-            unparsed_output = verbose_model._generate(
+            response = await verbose_model._async_generate(
+                prompt,
+                **model_kwargs,
+            )
+        inference, explanation = _process_response(response)
+        return inference, explanation, response
+
+    def _run_llm_classification_sync(prompt: str) -> ParsedLLMResponse:
+        with set_verbosity(model, verbose) as verbose_model:
+            response = verbose_model._generate(
                 prompt,
                 instruction=system_instruction,
-                **eval_template.model_kwargs(use_openai_function_call, provide_explanation),
+                **model_kwargs,
             )
-        return eval_template.parse_output(
-            unparsed_output=unparsed_output,
-            use_openai_function_call=use_openai_function_call,
-            provide_explanation=provide_explanation,
-            verbose=verbose,
-        )
+        inference, explanation = _process_response(response)
+        return inference, explanation, response
+
+    fallback_return_value: ParsedLLMResponse = (None, None, "")
 
     executor = get_executor_on_sync_context(
         _run_llm_classification_sync,
@@ -162,16 +194,18 @@ def llm_classify(
         concurrency=concurrency,
         tqdm_bar_format=tqdm_bar_format,
         exit_on_error=True,
-        fallback_return_value=(None, None),
+        fallback_return_value=fallback_return_value,
     )
 
     results = executor.run(prompts.tolist())
-    labels, explanations = zip(*results)
+    labels, explanations, responses = zip(*results)
 
     return pd.DataFrame(
         data={
             "label": labels,
             **({"explanation": explanations} if provide_explanation else {}),
+            **({"prompt": prompts} if include_prompt else {}),
+            **({"response": responses} if include_response else {}),
         },
         index=dataframe.index,
     )
@@ -347,7 +381,7 @@ def run_evals(
         which have the same number of rows as the input dataframe.
     """
 
-    async def _run_eval_async(
+    async def _arun_eval(
         payload: RunEvalsPayload,
     ) -> Tuple[EvaluatorIndex, RowIndex, Label, Explanation]:
         label, explanation = await payload.evaluator.aevaluate(
@@ -357,7 +391,7 @@ def run_evals(
         )
         return payload.evaluator_index, payload.row_index, label, explanation
 
-    def _run_eval_sync(
+    def _run_eval(
         payload: RunEvalsPayload,
     ) -> Tuple[EvaluatorIndex, RowIndex, Label, Explanation]:
         label, explanation = payload.evaluator.evaluate(
@@ -368,8 +402,8 @@ def run_evals(
         return payload.evaluator_index, payload.row_index, label, explanation
 
     executor = get_executor_on_sync_context(
-        _run_eval_sync,
-        _run_eval_async,
+        _run_eval,
+        _arun_eval,
         concurrency=concurrency,
         tqdm_bar_format=get_tqdm_progress_bar_formatter("run_evals"),
         exit_on_error=True,

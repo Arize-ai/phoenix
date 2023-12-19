@@ -1,13 +1,18 @@
 from typing import List, Mapping, Optional, Tuple
 
 from phoenix.experimental.evals.models import set_verbosity
+from phoenix.experimental.evals.utils import (
+    NOT_PARSABLE,
+    openai_function_call_kwargs,
+    parse_openai_function_call,
+    snap_to_rail,
+)
+from phoenix.utilities.logging import printif
 
 from .models import BaseEvalModel, OpenAIModel
 from .templates import ClassificationTemplate, PromptOptions, PromptTemplate
 
 Record = Mapping[str, str]
-
-NOT_PARSABLE = "NOT_PARSABLE"
 
 
 class LLMEvaluator:
@@ -66,15 +71,17 @@ class LLMEvaluator:
         with set_verbosity(self._model, verbose) as verbose_model:
             unparsed_output = verbose_model(
                 prompt,
-                **self._template.model_kwargs(
-                    use_openai_function_call=use_openai_function_call,
-                    provide_explanation=provide_explanation,
+                **(
+                    openai_function_call_kwargs(self._template.rails, provide_explanation)
+                    if use_openai_function_call
+                    else {}
                 ),
             )
-        label, explanation = self._template.parse_output(
+        label, explanation = _extract_label_and_explanation(
             unparsed_output=unparsed_output,
-            use_openai_function_call=use_openai_function_call,
+            template=self._template,
             provide_explanation=provide_explanation,
+            use_openai_function_call=use_openai_function_call,
             verbose=verbose,
         )
         return label, explanation
@@ -116,15 +123,17 @@ class LLMEvaluator:
         with set_verbosity(self._model, verbose) as verbose_model:
             unparsed_output = await verbose_model._async_generate(
                 prompt,
-                **self._template.model_kwargs(
-                    use_openai_function_call=use_openai_function_call,
-                    provide_explanation=provide_explanation,
+                **(
+                    openai_function_call_kwargs(self._template.rails, provide_explanation)
+                    if use_openai_function_call
+                    else {}
                 ),
             )
-        label, explanation = self._template.parse_output(
+        label, explanation = _extract_label_and_explanation(
             unparsed_output=unparsed_output,
-            use_openai_function_call=use_openai_function_call,
+            template=self._template,
             provide_explanation=provide_explanation,
+            use_openai_function_call=use_openai_function_call,
             verbose=verbose,
         )
         return label, explanation
@@ -263,3 +272,48 @@ class Refiner:
             return accumulator
         reduce_prompt = self._synthesize_prompt_template.format({"accumulator": accumulator})
         return model(reduce_prompt)
+
+
+def _extract_label_and_explanation(
+    unparsed_output: str,
+    template: ClassificationTemplate,
+    provide_explanation: bool,
+    use_openai_function_call: bool,
+    verbose: bool,
+) -> Tuple[str, Optional[str]]:
+    """
+    Extracts the label and explanation from the unparsed output.
+
+    Args:
+        unparsed_output (str): The raw output to be parsed.
+
+        template (ClassificationTemplate): The template used to generate the
+        output.
+
+        provide_explanation (bool): Whether the output includes an explanation.
+
+        use_openai_function_call (bool): Whether the output was generated using
+        function calling.
+
+        verbose (bool): If True, print verbose output to stdout.
+
+    Returns:
+        Tuple[str, Optional[str]]: A tuple containing the label and an
+        explanation (if one is provided).
+    """
+    if not use_openai_function_call:
+        if provide_explanation:
+            unrailed_label, explanation = (
+                template.extract_label_from_explanation(unparsed_output),
+                unparsed_output,
+            )
+            printif(
+                verbose and unrailed_label == NOT_PARSABLE,
+                f"- Could not parse {repr(unparsed_output)}",
+            )
+        else:
+            unrailed_label = unparsed_output
+            explanation = None
+    else:
+        unrailed_label, explanation = parse_openai_function_call(unparsed_output)
+    return snap_to_rail(unrailed_label, template.rails, verbose=verbose), explanation

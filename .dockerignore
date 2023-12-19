@@ -1,8 +1,8 @@
-docs/
-examples/
-dist/
-tests/
-integration-tests/
-scripts/
-.github
-.tours
+*
+!Dockerfile
+!app
+!src
+!README.md
+!LICENSE
+!IP_NOTICE
+!pyproject.toml
