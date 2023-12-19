@@ -115,7 +115,7 @@ def test_llm_generate_with_included_prompts_and_responses(
         include_response=True,
     )
     assert generated["output"].tolist() == responses
-    assert all("and a golden answer" in prompt for prompt in  generated["prompt"].tolist())
+    assert all("and a golden answer" in prompt for prompt in generated["prompt"].tolist())
     assert generated["response"].tolist() == responses
 
 
