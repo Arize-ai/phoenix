@@ -354,18 +354,23 @@ def run_evals(
     applied to the input dataframe.
 
     Args:
-        dataframe (pd.DataFrame): A pandas dataframe in which each row
-        represents a record to be evaluated. All template variable names must
-        appear as column names in the dataframe (extra columns unrelated to the
-        template are permitted).
+        dataframe (DataFrame): A pandas dataframe in which each row represents a
+        record to be evaluated. All template variable names must appear as
+        column names in the dataframe (extra columns unrelated to the template
+        are permitted).
 
-        evaluators (List[Evaluator]): A list of evaluators.
+        evaluators (List[LLMEvaluator]): A list of evaluators.
 
-        provide_explanation (bool, default=False): If true, provides an explanation for each
-        evaluation. A column named `explanation` is added to each output dataframe.
+        provide_explanation (bool, optional): If True, provides an explanation
+        for each evaluation. A column named "explanation" is added to each
+        output dataframe.
 
-        concurrency (int, optional): An optional concurrency parameter. Defaults
-        to 20.
+        verbose (bool, optional): If True, prints detailed info to stdout such
+        as model invocation parameters and details about retries and snapping to
+        rails.
+
+        concurrency (int, optional): The number of concurrent evals if async
+        submission is possible.
 
     Returns:
         List[DataFrame]: A list of dataframes, one for each evaluator, all of
@@ -375,24 +380,18 @@ def run_evals(
     async def _run_eval_async(
         payload: RunEvalsPayload,
     ) -> Tuple[EvaluatorIndex, RowIndex, Label, Explanation]:
-        evaluator_index = payload.evaluator_index
-        row_index = payload.row_index
-        evaluator = payload.evaluator
-        record = payload.record
-        label, explanation = await evaluator.aevaluate(
-            record, provide_explanation=provide_explanation
+        label, explanation = await payload.evaluator.aevaluate(
+            payload.record, provide_explanation=provide_explanation
         )
-        return evaluator_index, row_index, label, explanation
+        return payload.evaluator_index, payload.row_index, label, explanation
 
     def _run_eval_sync(
         payload: RunEvalsPayload,
     ) -> Tuple[EvaluatorIndex, RowIndex, Label, Explanation]:
-        evaluator_index = payload.evaluator_index
-        row_index = payload.row_index
-        evaluator = payload.evaluator
-        record = payload.record
-        label, explanation = evaluator.evaluate(record, provide_explanation=provide_explanation)
-        return evaluator_index, row_index, label, explanation
+        label, explanation = payload.evaluator.evaluate(
+            payload.record, provide_explanation=provide_explanation
+        )
+        return payload.evaluator_index, payload.row_index, label, explanation
 
     executor = get_executor_on_sync_context(
         _run_eval_sync,
@@ -412,7 +411,7 @@ def run_evals(
         for row_index, row in dataframe.iterrows()
         for evaluator_index, evaluator in enumerate(evaluators)
     ]
-    eval_results: List[DefaultDict[RowIndex, Dict[ColumnName, Label]]] = [
+    eval_results: List[DefaultDict[RowIndex, Dict[ColumnName, Union[Label, Explanation]]]] = [
         defaultdict(dict) for _ in range(len(evaluators))
     ]
     for evaluator_index, row_index, label, explanation in executor.run(payloads):
