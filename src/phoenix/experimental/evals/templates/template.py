@@ -1,24 +1,13 @@
-import json
 import re
 from dataclasses import dataclass
 from typing import Callable, List, Mapping, Optional, Tuple, Union
 
 import pandas as pd
 
-from phoenix.utilities.logging import printif
+from phoenix.experimental.evals.utils import NOT_PARSABLE
 
 DEFAULT_START_DELIM = "{"
 DEFAULT_END_DELIM = "}"
-
-# Rather than returning None, we return this string to indicate that the LLM output could not be
-# parsed.
-# This is useful for debugging as well as to just treat the output as a non-parsable category
-NOT_PARSABLE = "NOT_PARSABLE"
-
-# argument keys in the default openai function call,
-# defined here only to prevent typos
-_RESPONSE = "response"
-_EXPLANATION = "explanation"
 
 
 @dataclass
@@ -91,36 +80,6 @@ class ClassificationTemplate(PromptTemplate):
             return self.explanation_template
         else:
             return self.template
-
-    def parse_output(
-        self,
-        unparsed_output: str,
-        use_openai_function_call: bool,
-        provide_explanation: bool,
-        verbose: bool,
-    ) -> Tuple[str, Optional[str]]:
-        if not use_openai_function_call:
-            if provide_explanation:
-                unrailed_label, explanation = (
-                    self.extract_label_from_explanation(unparsed_output),
-                    unparsed_output,
-                )
-                printif(
-                    verbose and unrailed_label == NOT_PARSABLE,
-                    f"- Could not parse {repr(unparsed_output)}",
-                )
-            else:
-                unrailed_label = unparsed_output
-                explanation = None
-        else:
-            try:
-                function_arguments = json.loads(unparsed_output, strict=False)
-                unrailed_label = function_arguments.get(_RESPONSE)
-                explanation = function_arguments.get(_EXPLANATION)
-            except json.JSONDecodeError:
-                unrailed_label = unparsed_output
-                explanation = None
-        return _snap_to_rail(unrailed_label, self.rails, verbose=verbose), explanation
 
     def extract_label_from_explanation(self, raw_string: str) -> str:
         if parser := self.explanation_label_parser:
@@ -214,35 +173,3 @@ def map_template(
         raise RuntimeError(
             f"Error while constructing the prompts from the template and dataframe variables: {e}."
         )
-
-
-def _snap_to_rail(raw_string: Optional[str], rails: List[str], verbose: bool = False) -> str:
-    """
-    Snaps a string to the nearest rail, or returns None if the string cannot be
-    snapped to a rail.
-
-    Args:
-        raw_string (str): An input to be snapped to a rail.
-
-        rails (List[str]): The target set of strings to snap to.
-
-    Returns:
-        str: A string from the rails argument or "UNPARSABLE" if the input
-        string could not be snapped.
-    """
-    if not raw_string:
-        return NOT_PARSABLE
-    snap_string = raw_string.lower()
-    rails = list(set(rail.lower() for rail in rails))
-    rails.sort(key=len, reverse=True)
-    found_rails = set()
-    for rail in rails:
-        if rail in snap_string:
-            found_rails.add(rail)
-            snap_string = snap_string.replace(rail, "")
-    if len(found_rails) != 1:
-        printif(verbose, f"- Cannot snap {repr(raw_string)} to rails")
-        return NOT_PARSABLE
-    rail = list(found_rails)[0]
-    printif(verbose, f"- Snapped {repr(raw_string)} to rail: {rail}")
-    return rail

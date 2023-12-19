@@ -32,7 +32,12 @@ from phoenix.experimental.evals.templates import (
     map_template,
     normalize_classification_template,
 )
-from phoenix.experimental.evals.utils import get_tqdm_progress_bar_formatter
+from phoenix.experimental.evals.utils import (
+    NOT_PARSABLE,
+    get_tqdm_progress_bar_formatter,
+    parse_openai_function_call,
+    snap_to_rail,
+)
 from phoenix.trace.semantic_conventions import DOCUMENT_CONTENT, INPUT_VALUE, RETRIEVAL_DOCUMENTS
 from phoenix.utilities.logging import printif
 
@@ -138,29 +143,37 @@ def llm_classify(
     if generation_info := model.verbose_generation_info():
         printif(verbose, generation_info)
 
+    def _process_response(response: str) -> Tuple[str, Optional[str]]:
+        if not use_openai_function_call:
+            if provide_explanation:
+                unrailed_label, explanation = (
+                    eval_template.extract_label_from_explanation(response),
+                    response,
+                )
+                printif(
+                    verbose and unrailed_label == NOT_PARSABLE,
+                    f"- Could not parse {repr(response)}",
+                )
+            else:
+                unrailed_label = response
+                explanation = None
+        else:
+            unrailed_label, explanation = parse_openai_function_call(response)
+        return snap_to_rail(unrailed_label, rails, verbose=verbose), explanation
+
     async def _run_llm_classification_async(prompt: str) -> Tuple[str, Optional[str]]:
         with set_verbosity(model, verbose) as verbose_model:
             unparsed_output = await verbose_model._async_generate(
                 prompt, instruction=system_instruction, **model_kwargs
             )
-        return eval_template.parse_output(
-            unparsed_output=unparsed_output,
-            use_openai_function_call=use_openai_function_call,
-            provide_explanation=provide_explanation,
-            verbose=verbose,
-        )
+        return _process_response(unparsed_output)
 
     def _run_llm_classification_sync(prompt: str) -> Tuple[str, Optional[str]]:
         with set_verbosity(model, verbose) as verbose_model:
             unparsed_output = verbose_model._generate(
                 prompt, instruction=system_instruction, **model_kwargs
             )
-        return eval_template.parse_output(
-            unparsed_output=unparsed_output,
-            use_openai_function_call=use_openai_function_call,
-            provide_explanation=provide_explanation,
-            verbose=verbose,
-        )
+        return _process_response(unparsed_output)
 
     executor = get_executor_on_sync_context(
         _run_llm_classification_sync,
