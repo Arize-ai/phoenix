@@ -67,14 +67,12 @@ class ClassificationTemplate(PromptTemplate):
         rails: List[str],
         template: str,
         explanation_template: Optional[str] = None,
-        label_parser: Optional[Callable[[str], str]] = None,
         explanation_label_parser: Optional[Callable[[str], str]] = None,
         delimiters: Tuple[str, str] = (DEFAULT_START_DELIM, DEFAULT_END_DELIM),
     ):
         self.rails = rails
         self.template = template
         self.explanation_template = explanation_template
-        self.label_parser = label_parser
         self.explanation_label_parser = explanation_label_parser
         self._start_delim, self._end_delim = delimiters
         self.variables: List[str] = []
