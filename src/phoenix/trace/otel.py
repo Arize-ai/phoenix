@@ -1,17 +1,18 @@
 from collections import defaultdict
 from datetime import datetime, timezone
+from enum import Enum
 from types import MappingProxyType
 from typing import (
     Any,
     DefaultDict,
     Dict,
+    Hashable,
     Iterable,
     Iterator,
     List,
     Mapping,
     Optional,
     Sequence,
-    Set,
     Tuple,
     cast,
 )
@@ -44,24 +45,6 @@ from phoenix.trace.semantic_conventions import (
     OUTPUT_MIME_TYPE,
 )
 
-_SEMANTIC_CONVENTIONS: List[str] = sorted(
-    (getattr(sem_conv, name) for name in dir(sem_conv) if name.isupper()),
-    reverse=True,
-)  # sorted so the longer strings go first
-
-
-def _semantic_convention_prefix_search(key: str) -> Tuple[Optional[str], Optional[str]]:
-    """Return the longest prefix of `key` that is a semantic convention, and the remaining suffix
-    separated by `.`. For example, if `key` is "retrieval.documents.2.document.score", return
-    "retrieval.documents", "2.document.score". If `key` is a semantic convention, return None, None.
-    """
-    for prefix in _SEMANTIC_CONVENTIONS:
-        if key == prefix:
-            return None, None
-        if key.startswith(prefix) and key[len(prefix)] == ".":
-            return prefix, key[len(prefix) + 1 :]
-    return None, None
-
 
 def decode(otlp_span: otlp.Span) -> Span:
     trace_id = cast(TraceID, _decode_identifier(otlp_span.trace_id))
@@ -73,14 +56,12 @@ def decode(otlp_span: otlp.Span) -> Span:
         _decode_unix_nano(otlp_span.end_time_unix_nano) if otlp_span.end_time_unix_nano else None
     )
 
-    attributes = dict(_decode_key_values(otlp_span.attributes))
+    attributes = dict(_unflatten(_decode_key_values(otlp_span.attributes)))
     span_kind = SpanKind(attributes.pop(OPENINFERENCE_SPAN_KIND, None))
 
     for mime_type in (INPUT_MIME_TYPE, OUTPUT_MIME_TYPE):
         if mime_type in attributes:
             attributes[mime_type] = MimeType(attributes[mime_type])
-
-    attributes = _unflatten(attributes)
 
     status_code, status_message = _decode_status(otlp_span.status)
     events = [_decode_event(event) for event in otlp_span.events]
@@ -184,135 +165,94 @@ def _decode_status(otlp_status: otlp.Status) -> Tuple[SpanStatusCode, StatusMess
     return status_code, otlp_status.message
 
 
-def _extract_sub_key(key: str, prefix: str) -> Optional[str]:
-    prefix_dot = f"{prefix}."
-    if not (len(prefix_dot) < len(key) and key.startswith(prefix_dot)):
-        return None
-    return key[len(prefix_dot) :]
+_SEMANTIC_CONVENTIONS: List[str] = sorted(
+    (getattr(sem_conv, name) for name in dir(sem_conv) if name.isupper()),
+    reverse=True,
+)  # sorted so the longer strings go first
 
 
-def _extract_index_and_sub_key(key: str, prefix: str) -> Optional[Tuple[int, str]]:
-    indexed_sub_key = _extract_sub_key(key, prefix)
-    if not indexed_sub_key:
-        return None
-    dot_idx = indexed_sub_key.find(".")
-    if not (0 < dot_idx < len(indexed_sub_key) - 1):
-        return None
-    index_prefix = indexed_sub_key[:dot_idx]
-    if not index_prefix.isdigit():
-        return None
-    index = int(index_prefix)
-    sub_key = indexed_sub_key[dot_idx + 1 :]
-    return index, sub_key
-
-
-def _consolidate_flattened_prefixed_indexed_keys_into_list(
-    attributes: Mapping[str, Any],
-    prefix: str,
-) -> Tuple[Optional[List[Dict[str, Any]]], Optional[List[str]]]:
-    """Consolidate keys with the given prefix into a single list (of dictionaries).
-    Return the consolidated list and the list of keys that were consolidated."""
-    # Note that the reconstitution is not faithful in the sense that if an index shows up as
-    # 999_999_999, we're not going to create a list that long just so that the item can be placed
-    # at that exact position. All we'll do is sort the indices and place the items sequentially.
-    relevant_keys = [
-        (key, idx_and_sub_key, value)
-        for key, value in attributes.items()
-        if (idx_and_sub_key := _extract_index_and_sub_key(key, prefix)) is not None
-    ]
-    if not relevant_keys:
-        return None, None
-    indexed: DefaultDict[int, Dict[str, Any]] = defaultdict(dict)
-    for _, (idx, sub_key), value in relevant_keys:
-        indexed[idx][sub_key] = value
-    return [_unflatten(dictionary) for _, dictionary in sorted(indexed.items())], [
-        key for key, *_ in relevant_keys
-    ]
-
-
-def _consolidate_flattened_prefixed_keys_into_dict(
-    attributes: Mapping[str, Any],
-    prefix: str,
-) -> Tuple[Optional[Dict[str, Any]], Optional[List[str]]]:
-    """Consolidate keys with the given prefix into a single dictionary.
-    Return the consolidated dictionary and the list of keys that were consolidated."""
-    relevant_keys = [
-        (key, sub_key, value)
-        for key, value in attributes.items()
-        if (sub_key := _extract_sub_key(key, prefix)) is not None
-    ]
-    if not relevant_keys:
-        return None, None
-    return _unflatten({sub_key: value for _, sub_key, value in relevant_keys}), [
-        key for key, *_ in relevant_keys
-    ]
-
-
-def _unflatten(attributes: Mapping[str, Any]) -> Dict[str, Any]:
+def _semantic_convention_prefix_search(key: str) -> Tuple[Optional[str], str]:
+    """Return the longest prefix of `key` that is a semantic convention, and the remaining suffix
+    separated by `.`. For example, if `key` is "retrieval.documents.2.document.score", return
+    "retrieval.documents", "2.document.score".
     """
-    Unflatten attributes that were flattened before OTLP transmission. These attributes have
-    values that are dictionaries or list of dictionaries. They must be flattened into primitive
-    values before OTLP transmission. For example, `{"retrieval.documents.0.document.score": 123}`
-    will be unflatten as `{"retrieval.documents": [{"document.score": 123}]}`.
-    """
+    for prefix in _SEMANTIC_CONVENTIONS:
+        if key == prefix:
+            return key, ""
+        if key.startswith(prefix) and key[len(prefix)] == ".":
+            return prefix, key[len(prefix) + 1 :]
+    return None, ""
 
-    attributes_for_list_of_dictionaries: Set[str] = set()
-    attributes_for_dictionary: Set[str] = set()
 
-    for key in attributes.keys():
-        prefix, suffix = _semantic_convention_prefix_search(key)
-        if prefix and suffix:
-            if suffix.split(".")[0].isdigit():
-                # e.g. "retrieval.documents.2.document.score"
-                # -> "retrieval.documents", ["2", "document", "score"]
-                attributes_for_list_of_dictionaries.add(prefix)
+class _TrieLeaf(Enum):
+    """Sentinel keys for marking a leaf node of a Trie"""
+
+    value = object()
+    indices = object()
+
+
+def _build_trie(key_value_pairs: Iterable[Tuple[str, Any]]) -> DefaultDict[Hashable, Any]:
+    def _trie() -> DefaultDict[Hashable, Any]:
+        # a.k.a. prefix tree
+        return defaultdict(_trie)
+
+    trie = _trie()
+    for key, value in key_value_pairs:
+        t = trie
+        while True:
+            prefix, suffix = _semantic_convention_prefix_search(key)
+            if prefix:
+                t = t[prefix]
+                key = suffix
             else:
-                attributes_for_dictionary.add(prefix)
+                dot_idx = key.find(".")
+                if dot_idx >= 0:
+                    word, key = key[:dot_idx], key[dot_idx + 1 :]
+                else:
+                    word, key = key, ""
+                if word.isdigit():
+                    index = int(word)
+                    indices = t.get(_TrieLeaf.indices)
+                    if key:
+                        if indices is not None:
+                            indices.add(index)
+                        else:
+                            t[_TrieLeaf.indices] = {index}
+                    elif indices is not None:
+                        indices.discard(index)
+                    t = t[index]
+                else:
+                    t = t[word]
+            if not key:
+                break
+        t[_TrieLeaf.value] = value
+    trie.pop(_TrieLeaf.indices, None)
+    return trie
 
-    _attributes = dict(attributes)
-    if not (attributes_for_list_of_dictionaries or attributes_for_dictionary):
-        return _attributes
 
-    for prefix in attributes_for_list_of_dictionaries:
-        if prefix in attributes:
-            continue
-        # Attributes that are supposed to be list of dictionaries must be flattened before OTLP
-        # transmission. This reverses that flattening and reconstitutes them as list of
-        # dictionaries. The flattened keys look like "{prefix}.{index}.{sub_key}", where `sub_key`
-        # is a key in a dictionary item of the original list, and `index` is the position of the
-        # dictionary item in the original list. So `"{prefix}.0.{sub_key}": 123` becomes
-        # `"{prefix}": [{"{sub_key}": 123}]`.
-        (
-            consolidated_list,
-            flattened_prefixed_indexed_keys,
-        ) = _consolidate_flattened_prefixed_indexed_keys_into_list(attributes, prefix)
-        if not flattened_prefixed_indexed_keys:
-            continue
-        for key in flattened_prefixed_indexed_keys:
-            _attributes.pop(key, None)
-        if consolidated_list:
-            _attributes[prefix] = consolidated_list
+def _walk(trie: DefaultDict[Hashable, Any], prefix: str = "") -> Iterator[Tuple[str, Any]]:
+    if _TrieLeaf.value not in trie and _TrieLeaf.indices not in trie:
+        if prefix:
+            yield prefix, dict(_walk(trie))
+        else:
+            for key, node in trie.items():
+                yield from _walk(node, prefix=f"{key}")
+        return
+    if _TrieLeaf.value in trie:
+        value = trie.pop(_TrieLeaf.value, None)
+        yield prefix, value
+        # Indices no longer indicate an array, but must be continuations of the prefix
+        # key string. Discard the `indices` leaf marker, but not the index keys themselves.
+        trie.pop(_TrieLeaf.indices, None)
+    elif (indices := cast(Iterable[int], trie.pop(_TrieLeaf.indices, None))) and prefix:
+        yield prefix, [dict(_walk(trie.pop(index))) for index in sorted(indices)]
+    for key, node in trie.items():
+        yield from _walk(node, prefix=f"{prefix}.{key}" if prefix else f"{key}")
 
-    for prefix in attributes_for_dictionary:
-        if prefix in attributes:
-            continue
-        # Attributes that are supposed to be dictionaries must be flattened before OTLP
-        # transmission. This reverses that flattening and reconstitutes them as dictionaries.
-        # The flattened keys look like "{prefix}.{sub_key}", where `sub_key` is a key in the
-        # original dictionary. So `"{prefix}.{sub_key}": 123` becomes
-        # `"{prefix}": {"{sub_key}": 123}`.
-        (
-            consolidated_dict,
-            flattened_prefixed_keys,
-        ) = _consolidate_flattened_prefixed_keys_into_dict(attributes, prefix)
-        if not flattened_prefixed_keys:
-            continue
-        for key in flattened_prefixed_keys:
-            _attributes.pop(key, None)
-        if consolidated_dict:
-            _attributes[prefix] = consolidated_dict
 
-    return _attributes
+def _unflatten(key_value_pairs: Iterable[Tuple[str, Any]]) -> Iterator[Tuple[str, Any]]:
+    trie = _build_trie(key_value_pairs)
+    yield from _walk(trie)
 
 
 _BILLION = 1_000_000_000  # for converting seconds to nanoseconds

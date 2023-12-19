@@ -8,7 +8,7 @@ import opentelemetry.proto.trace.v1.trace_pb2 as otlp
 import pytest
 from google.protobuf.json_format import MessageToJson
 from opentelemetry.proto.common.v1.common_pb2 import AnyValue, ArrayValue, KeyValue
-from phoenix.trace.otel import _span_id_to_bytes, decode, encode
+from phoenix.trace.otel import _span_id_to_bytes, _unflatten, decode, encode
 from phoenix.trace.schemas import (
     Span,
     SpanContext,
@@ -36,6 +36,7 @@ from phoenix.trace.semantic_conventions import (
     RETRIEVAL_DOCUMENTS,
     TOOL_CALL_FUNCTION_ARGUMENTS_JSON,
     TOOL_CALL_FUNCTION_NAME,
+    TOOL_PARAMETERS,
 )
 from pytest import approx
 
@@ -402,6 +403,140 @@ def test_decode_encode_message_tool_calls(span):
     assert set(map(MessageToJson, otlp_span.attributes)) == set(map(MessageToJson, otlp_attributes))
     decoded_span = decode(otlp_span)
     assert decoded_span.attributes[LLM_OUTPUT_MESSAGES] == span.attributes[LLM_OUTPUT_MESSAGES]
+
+
+def test_decode_encode_message_tool_parameters(span):
+    attributes = {
+        TOOL_PARAMETERS: {
+            "title": "multiply",
+            "properties": {
+                "a": {"type": "integer", "title": "A"},
+                "b": {"title": "B", "type": "integer"},
+            },
+            "required": ["a", "b"],
+            "type": "object",
+        }
+    }
+    span = replace(span, attributes=attributes)
+    otlp_span = encode(span)
+    otlp_attributes = [
+        KeyValue(
+            key=OPENINFERENCE_SPAN_KIND,
+            value=AnyValue(string_value="LLM"),
+        ),
+        KeyValue(
+            key=f"{TOOL_PARAMETERS}.title",
+            value=AnyValue(string_value="multiply"),
+        ),
+        KeyValue(
+            key=f"{TOOL_PARAMETERS}.properties.a.title",
+            value=AnyValue(string_value="A"),
+        ),
+        KeyValue(
+            key=f"{TOOL_PARAMETERS}.properties.a.type",
+            value=AnyValue(string_value="integer"),
+        ),
+        KeyValue(
+            key=f"{TOOL_PARAMETERS}.properties.b.title",
+            value=AnyValue(string_value="B"),
+        ),
+        KeyValue(
+            key=f"{TOOL_PARAMETERS}.properties.b.type",
+            value=AnyValue(string_value="integer"),
+        ),
+        KeyValue(
+            key=f"{TOOL_PARAMETERS}.required",
+            value=AnyValue(
+                array_value=ArrayValue(
+                    values=[AnyValue(string_value="a"), AnyValue(string_value="b")]
+                )
+            ),
+        ),
+        KeyValue(
+            key=f"{TOOL_PARAMETERS}.type",
+            value=AnyValue(string_value="object"),
+        ),
+    ]
+    assert set(map(MessageToJson, otlp_span.attributes)) == set(map(MessageToJson, otlp_attributes))
+    decoded_span = decode(otlp_span)
+    assert decoded_span.attributes[TOOL_PARAMETERS] == span.attributes[TOOL_PARAMETERS]
+
+
+@pytest.mark.parametrize(
+    "input,output",
+    [
+        ((("1", 0),), {"1": 0}),
+        ((("1.2", 0),), {"1": {"2": 0}}),
+        ((("1.0.2", 0),), {"1": [{"2": 0}]}),
+        ((("1.0.2.3", 0),), {"1": [{"2": {"3": 0}}]}),
+        ((("1.0.2.0.3", 0),), {"1": [{"2": [{"3": 0}]}]}),
+        ((("1.0.2.0.3.4", 0),), {"1": [{"2": [{"3": {"4": 0}}]}]}),
+        ((("1.0.2.0.3.0.4", 0),), {"1": [{"2": [{"3": [{"4": 0}]}]}]}),
+        ((("1.2", 1), ("1", 0)), {"1": 0, "1.2": 1}),
+        ((("1.2.3", 1), ("1", 0)), {"1": 0, "1.2": {"3": 1}}),
+        ((("1.2.3", 1), ("1.2", 0)), {"1.2": 0, "1.2.3": 1}),
+        ((("1.2.0.3", 1), ("1", 0)), {"1": 0, "1.2": [{"3": 1}]}),
+        ((("1.2.3.4", 1), ("1.2", 0)), {"1.2": 0, "1.2.3": {"4": 1}}),
+        ((("1.0.2.3", 1), ("1.0.2", 0)), {"1": [{"2": 0, "2.3": 1}]}),
+        ((("1.2.0.3.4", 1), ("1", 0)), {"1": 0, "1.2": [{"3": {"4": 1}}]}),
+        ((("1.2.3.0.4", 1), ("1.2", 0)), {"1.2": 0, "1.2.3": [{"4": 1}]}),
+        ((("1.0.2.3.4", 1), ("1.0.2", 0)), {"1": [{"2": 0, "2.3": {"4": 1}}]}),
+        ((("1.0.2.3.4", 1), ("1.0.2.3", 0)), {"1": [{"2.3": 0, "2.3.4": 1}]}),
+        ((("1.2.0.3.0.4", 1), ("1", 0)), {"1": 0, "1.2": [{"3": [{"4": 1}]}]}),
+        ((("1.2.3.0.4.5", 1), ("1.2", 0)), {"1.2": 0, "1.2.3": [{"4": {"5": 1}}]}),
+        ((("1.0.2.3.0.4", 1), ("1.0.2", 0)), {"1": [{"2": 0, "2.3": [{"4": 1}]}]}),
+        ((("1.0.2.3.4.5", 1), ("1.0.2.3", 0)), {"1": [{"2.3": 0, "2.3.4": {"5": 1}}]}),
+        ((("1.0.2.0.3.4", 1), ("1.0.2.0.3", 0)), {"1": [{"2": [{"3": 0, "3.4": 1}]}]}),
+        ((("1.2.0.3.0.4.5", 1), ("1", 0)), {"1": 0, "1.2": [{"3": [{"4": {"5": 1}}]}]}),
+        ((("1.2.3.0.4.0.5", 1), ("1.2", 0)), {"1.2": 0, "1.2.3": [{"4": [{"5": 1}]}]}),
+        ((("1.0.2.3.0.4.5", 1), ("1.0.2", 0)), {"1": [{"2": 0, "2.3": [{"4": {"5": 1}}]}]}),
+        ((("1.0.2.3.4.0.5", 1), ("1.0.2.3", 0)), {"1": [{"2.3": 0, "2.3.4": [{"5": 1}]}]}),
+        ((("1.0.2.0.3.4.5", 1), ("1.0.2.0.3", 0)), {"1": [{"2": [{"3": 0, "3.4": {"5": 1}}]}]}),
+        ((("1.0.2.0.3.4.5", 1), ("1.0.2.0.3.4", 0)), {"1": [{"2": [{"3.4": 0, "3.4.5": 1}]}]}),
+        (
+            (("1.0.2.3.4.5.6", 2), ("1.0.2.3.4", 1), ("1.0.2", 0)),
+            {"1": [{"2": 0, "2.3.4": 1, "2.3.4.5": {"6": 2}}]},
+        ),
+        (
+            (("0.0.0.0.0", 4), ("0.0.0.0", 3), ("0.0.0", 2), ("0.0", 1), ("0", 0)),
+            {"0": 0, "0.0": 1, "0.0.0": 2, "0.0.0.0": 3, "0.0.0.0.0": 4},
+        ),
+        (
+            (("a.9999999.c", 2), ("a.9999999.b", 1), ("a.99999.b", 0)),
+            {"a": [{"b": 0}, {"b": 1, "c": 2}]},
+        ),
+        (
+            (("a", 0), ("c", 2), ("b", 1), ("d", 3)),
+            {"a": 0, "b": 1, "c": 2, "d": 3},
+        ),
+        (
+            (("a.b.c", 0), ("a.e", 2), ("a.b.d", 1), ("f", 3)),
+            {"a": {"b": {"c": 0, "d": 1}, "e": 2}, "f": 3},
+        ),
+        (
+            (("a.1.d", 3), ("a.0.d", 2), ("a.0.c", 1), ("a.b", 0)),
+            {"a.b": 0, "a": [{"c": 1, "d": 2}, {"d": 3}]},
+        ),
+        (
+            (("a.0.d", 3), ("a.0.c", 2), ("a.b", 1), ("a", 0)),
+            {"a": 0, "a.b": 1, "a.0": {"c": 2, "d": 3}},
+        ),
+        (
+            (("a.0.1.d", 3), ("a.0.0.c", 2), ("a", 1), ("a.b", 0)),
+            {"a.b": 0, "a": 1, "a.0": [{"c": 2}, {"d": 3}]},
+        ),
+        (
+            (("a.1.0.e", 3), ("a.0.0.d", 2), ("a.0.0.c", 1), ("a.b", 0)),
+            {"a.b": 0, "a": [{"0": {"c": 1, "d": 2}}, {"0": {"e": 3}}]},
+        ),
+        (
+            (("a.b.1.e.0.f", 2), ("a.b.0.c", 0), ("a.b.0.d.e.0.f", 1)),
+            {"a": {"b": [{"c": 0, "d": {"e": [{"f": 1}]}}, {"e": [{"f": 2}]}]}},
+        ),
+    ],
+)
+def test_unflatten(input, output):
+    assert dict(_unflatten(input)) == output
 
 
 @pytest.fixture
