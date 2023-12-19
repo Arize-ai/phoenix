@@ -10,7 +10,6 @@ import { graphql, usePaginationFragment } from "react-relay";
 import { useNavigate } from "react-router";
 import {
   ColumnDef,
-  ColumnSort,
   ExpandedState,
   flexRender,
   getCoreRowModel,
@@ -41,27 +40,24 @@ import {
   SpanStatusCode,
   TracesTable_spans$key,
 } from "./__generated__/TracesTable_spans.graphql";
-import {
-  SpanSort,
-  TracesTableQuery,
-  TracesTableQuery$variables,
-} from "./__generated__/TracesTableQuery.graphql";
-import { EVALS_COLUMN_PREFIX, EVALS_KEY_SEPARATOR } from "./contants";
+import { TracesTableQuery } from "./__generated__/TracesTableQuery.graphql";
 import { EvaluationLabel } from "./EvaluationLabel";
 import { RetrievalEvaluationLabel } from "./RetrievalEvaluationLabel";
 import { SpanColumnSelector } from "./SpanColumnSelector";
 import { SpanFilterConditionField } from "./SpanFilterConditionField";
 import { spansTableCSS } from "./styles";
+import {
+  DEFAULT_SORT,
+  EVALS_COLUMN_PREFIX,
+  EVALS_KEY_SEPARATOR,
+  getGqlSort,
+} from "./tableUtils";
 import { TokenCount } from "./TokenCount";
 type TracesTableProps = {
   query: TracesTable_spans$key;
 };
 
 const PAGE_SIZE = 100;
-const DEFAULT_SORT: SpanSort = {
-  col: "startTime",
-  dir: "desc",
-};
 
 /**
  * A nested table row is a span with a children that recursively
@@ -87,26 +83,6 @@ function spanTreeToNestedSpanTableRows<TSpan extends ISpanItem>(
     normalizedSpanTreeChildren.push(normalizedChild);
   }
   return normalizedSpanTreeChildren;
-}
-
-function getGqlSort(sort: ColumnSort): TracesTableQuery$variables["sort"] {
-  let col = null,
-    evalResultKey = null;
-  if (sort.id && sort.id.startsWith(EVALS_COLUMN_PREFIX)) {
-    const [, attr, name] = sort.id.split(EVALS_KEY_SEPARATOR);
-    evalResultKey = {
-      attr,
-      name,
-    } as SpanSort["evalResultKey"];
-  } else {
-    col = sort.id as SpanSort["col"];
-  }
-
-  return {
-    col,
-    evalResultKey,
-    dir: sort.desc ? "desc" : "asc",
-  };
 }
 
 export function TracesTable(props: TracesTableProps) {

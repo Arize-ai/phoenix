@@ -34,26 +34,25 @@ import {
   SpansTable_spans$key,
   SpanStatusCode,
 } from "./__generated__/SpansTable_spans.graphql";
-import {
-  SpanSort,
-  SpansTableSpansQuery,
-} from "./__generated__/SpansTableSpansQuery.graphql";
-import { EVALS_COLUMN_PREFIX, EVALS_KEY_SEPARATOR } from "./contants";
+import { SpansTableSpansQuery } from "./__generated__/SpansTableSpansQuery.graphql";
 import { EvaluationLabel } from "./EvaluationLabel";
 import { RetrievalEvaluationLabel } from "./RetrievalEvaluationLabel";
 import { SpanColumnSelector } from "./SpanColumnSelector";
 import { SpanFilterConditionField } from "./SpanFilterConditionField";
 import { spansTableCSS } from "./styles";
+import {
+  DEFAULT_SORT,
+  EVALS_COLUMN_PREFIX,
+  EVALS_KEY_SEPARATOR,
+  getGqlSort,
+} from "./tableUtils";
 import { TokenCount } from "./TokenCount";
 type SpansTableProps = {
   query: SpansTable_spans$key;
 };
 
 const PAGE_SIZE = 100;
-const DEFAULT_SORT: SpanSort = {
-  col: "startTime",
-  dir: "desc",
-};
+
 export function SpansTable(props: SpansTableProps) {
   const { fetchKey } = useStreamState();
   //we need a reference to the scrolling element for logic down below
@@ -309,12 +308,7 @@ export function SpansTable(props: SpansTableProps) {
     startTransition(() => {
       refetch(
         {
-          sort: sort
-            ? {
-                col: sort.id as SpanSort["col"],
-                dir: sort.desc ? "desc" : "asc",
-              }
-            : DEFAULT_SORT,
+          sort: sort ? getGqlSort(sort) : DEFAULT_SORT,
           after: null,
           first: PAGE_SIZE,
           filterCondition,
