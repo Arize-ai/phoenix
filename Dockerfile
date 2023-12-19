@@ -18,7 +18,7 @@ RUN apt-get update && apt-get upgrade -y &&\
 # Set the phoenix directory in the container to /phoenix
 WORKDIR /phoenix
 
-# Add the current directory contents into the container at /phoenixADD . /phoenix
+# Add the current directory contents into the container at /phoenix
 ADD . /phoenix
 
 
