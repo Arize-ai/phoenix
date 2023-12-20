@@ -132,6 +132,10 @@ def llm_classify(
         and model.supports_function_calling
     )
 
+    model_kwargs = (
+        openai_function_call_kwargs(rails, provide_explanation) if use_openai_function_call else {}
+    )
+
     eval_template = normalize_classification_template(rails=rails, template=template)
 
     prompt_options = PromptOptions(provide_explanation=provide_explanation)
@@ -143,10 +147,6 @@ def llm_classify(
     printif(verbose, f"Using prompt:\n\n{eval_template.prompt(prompt_options)}")
     if generation_info := model.verbose_generation_info():
         printif(verbose, generation_info)
-
-    model_kwargs = (
-        openai_function_call_kwargs(rails, provide_explanation) if use_openai_function_call else {}
-    )
 
     def _process_response(response: str) -> Tuple[str, Optional[str]]:
         if not use_openai_function_call:
@@ -169,8 +169,7 @@ def llm_classify(
     async def _run_llm_classification_async(prompt: str) -> ParsedLLMResponse:
         with set_verbosity(model, verbose) as verbose_model:
             response = await verbose_model._async_generate(
-                prompt,
-                **model_kwargs,
+                prompt, instruction=system_instruction, **model_kwargs
             )
         inference, explanation = _process_response(response)
         return inference, explanation, response
@@ -178,9 +177,7 @@ def llm_classify(
     def _run_llm_classification_sync(prompt: str) -> ParsedLLMResponse:
         with set_verbosity(model, verbose) as verbose_model:
             response = verbose_model._generate(
-                prompt,
-                instruction=system_instruction,
-                **model_kwargs,
+                prompt, instruction=system_instruction, **model_kwargs
             )
         inference, explanation = _process_response(response)
         return inference, explanation, response
