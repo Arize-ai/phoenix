@@ -193,7 +193,7 @@ def llm_classify(
     executor = get_executor_on_sync_context(
         _run_llm_classification_sync,
         _run_llm_classification_async,
-        run_sync = run_sync or model.always_sync,
+        run_sync=run_sync or model.always_sync,
         concurrency=concurrency,
         tqdm_bar_format=tqdm_bar_format,
         exit_on_error=True,
@@ -410,7 +410,7 @@ def run_evals(
         List[DataFrame]: A list of dataframes, one for each evaluator, all of
         which have the same number of rows as the input dataframe.
     """
-    model = RunEvalsPayload.evaluator.model
+    model = RunEvalsPayload.evaluator._model
 
     async def _arun_eval(
         payload: RunEvalsPayload,
@@ -431,7 +431,7 @@ def run_evals(
     executor = get_executor_on_sync_context(
         _run_eval,
         _arun_eval,
-        run_sync = run_sync or model.always_sync,
+        run_sync=run_sync or model.always_sync,
         concurrency=concurrency,
         tqdm_bar_format=get_tqdm_progress_bar_formatter("run_evals"),
         exit_on_error=True,
