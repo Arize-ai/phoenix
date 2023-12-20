@@ -93,6 +93,7 @@ if __name__ == "__main__":
     parser.add_argument("--export_path")
     parser.add_argument("--host", type=str, required=False)
     parser.add_argument("--port", type=int, required=False)
+    parser.add_argument("--read-only", type=bool, default=False)
     parser.add_argument("--no-internet", action="store_true")
     parser.add_argument("--umap_params", type=str, required=False, default=DEFAULT_UMAP_PARAMS_STR)
     parser.add_argument("--debug", action="store_false")
@@ -172,6 +173,7 @@ if __name__ == "__main__":
         n_neighbors=int(umap_params_list[1]),
         n_samples=int(umap_params_list[2]),
     )
+    read_only = args.read_only
     logger.info(f"Server umap params: {umap_params}")
     app = create_app(
         export_path=export_path,
@@ -181,6 +183,7 @@ if __name__ == "__main__":
         evals=evals,
         corpus=None if corpus_dataset is None else create_model_from_datasets(corpus_dataset),
         debug=args.debug,
+        read_only=read_only,
     )
     host = args.host or get_env_host()
     port = args.port or get_env_port()
