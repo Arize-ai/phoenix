@@ -163,6 +163,7 @@ def create_app(
     traces: Optional[Traces] = None,
     evals: Optional[Evals] = None,
     debug: bool = False,
+    read_only: bool = False,
 ) -> Starlette:
     graphql = GraphQLWithContext(
         schema=schema,
@@ -180,7 +181,7 @@ def create_app(
         debug=debug,
         routes=(
             []
-            if traces is None
+            if traces is None or read_only
             else [
                 Route(
                     "/v1/spans",
@@ -194,7 +195,7 @@ def create_app(
         )
         + (
             []
-            if evals is None
+            if evals is None or read_only
             else [
                 Route(
                     "/v1/evaluations",
