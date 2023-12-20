@@ -3,7 +3,6 @@ from typing import List, Mapping, Optional, Tuple
 from phoenix.exceptions import PhoenixException
 from phoenix.experimental.evals.models import set_verbosity
 from phoenix.experimental.evals.templates.default_templates import (
-    CLASSIFICATION_TEMPLATES,
     EvalCriteria,
 )
 from phoenix.experimental.evals.utils import (
@@ -166,7 +165,7 @@ class LLMEvaluator:
         """
         return cls(
             model=model,
-            template=CLASSIFICATION_TEMPLATES[criteria],
+            template=criteria.value,
         )
 
 
