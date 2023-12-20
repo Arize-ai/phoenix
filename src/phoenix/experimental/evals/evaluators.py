@@ -1,6 +1,11 @@
-from typing import List, Mapping, Optional, Tuple
+from typing import List, Mapping, Optional, Tuple, Union
 
+from phoenix.exceptions import PhoenixException
 from phoenix.experimental.evals.models import set_verbosity
+from phoenix.experimental.evals.templates.default_templates import (
+    CLASSIFICATION_TEMPLATES,
+    EvalCriteria,
+)
 from phoenix.experimental.evals.utils import (
     NOT_PARSABLE,
     openai_function_call_kwargs,
@@ -13,6 +18,10 @@ from .models import BaseEvalModel, OpenAIModel
 from .templates import ClassificationTemplate, PromptOptions, PromptTemplate
 
 Record = Mapping[str, str]
+
+
+class InvalidEvalCriteriaError(PhoenixException):
+    pass
 
 
 class LLMEvaluator:
@@ -137,6 +146,35 @@ class LLMEvaluator:
             verbose=verbose,
         )
         return label, explanation
+
+    @classmethod
+    def from_criteria(
+        cls,
+        criteria: Union[str, EvalCriteria],
+        model: BaseEvalModel,
+    ) -> "LLMEvaluator":
+        """
+        Instantiates an LLMEvaluator from an eval criteria or eval criteria
+        name.
+
+        Args:
+            criteria (Union[str, EvalCriteria]): The eval criteria specified as
+            an instance of EvalCriteria or a string.
+
+            model (BaseEvalModel): The model to use for evaluation.
+
+        Returns:
+            LLMEvaluator: The instantiate evaluator.
+        """
+        if isinstance(criteria, str):
+            try:
+                criteria = EvalCriteria(criteria)
+            except ValueError:
+                raise InvalidEvalCriteriaError(f'Unknown criteria name: "{criteria}"')
+        return cls(
+            model=model,
+            template=CLASSIFICATION_TEMPLATES[criteria],
+        )
 
 
 class MapReducer:

@@ -1,4 +1,5 @@
 from collections import OrderedDict
+from enum import Enum
 
 from phoenix.experimental.evals.templates.template import ClassificationTemplate
 
@@ -457,3 +458,26 @@ HUMAN_VS_AI_PROMPT_TEMPLATE = ClassificationTemplate(
     template=HUMAN_VS_AI_PROMPT_BASE_TEMPLATE,
     explanation_template=HUMAN_VS_AI_PROMPT_TEMPLATE_WITH_EXPLANATION,
 )
+
+
+class EvalCriteria(Enum):
+    RELEVANCE = "relevance"
+    HALLUCINATION = "hallucination"
+    TOXICITY = "toxicity"
+    QA = "qa"
+    SUMMARIZATION = "summarization"
+    CODE_READABILITY = "code_readability"
+    REFERENCE_LINK_CORRECTNESS = "reference_link_correctness"
+    HUMAN_VS_AI = "human_vs_ai"
+
+
+CLASSIFICATION_TEMPLATES = {
+    EvalCriteria.RELEVANCE: RAG_RELEVANCY_PROMPT_TEMPLATE,
+    EvalCriteria.HALLUCINATION: HALLUCINATION_PROMPT_TEMPLATE,
+    EvalCriteria.TOXICITY: TOXICITY_PROMPT_TEMPLATE,
+    EvalCriteria.QA: QA_PROMPT_TEMPLATE,
+    EvalCriteria.SUMMARIZATION: SUMMARIZATION_PROMPT_TEMPLATE,
+    EvalCriteria.CODE_READABILITY: CODE_READABILITY_PROMPT_TEMPLATE,
+    EvalCriteria.REFERENCE_LINK_CORRECTNESS: REFERENCE_LINK_CORRECTNESS_PROMPT_TEMPLATE,
+    EvalCriteria.HUMAN_VS_AI: HUMAN_VS_AI_PROMPT_TEMPLATE,
+}
