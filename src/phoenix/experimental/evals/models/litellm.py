@@ -33,6 +33,8 @@ class LiteLLMModel(BaseEvalModel):
     """Minimum number of seconds to wait when retrying."""
     max_content_size: Optional[int] = None
     """If you're using a fine-tuned model, set this to the maximum content size"""
+    always_sync: bool = True
+    """If set, indicates that a sync execution is preferred."""
 
     def __post_init__(self) -> None:
         self._init_environment()
@@ -114,9 +116,9 @@ class LiteLLMModel(BaseEvalModel):
         )
 
     def _generate_with_retry(self, **kwargs: Any) -> Any:
-        # Using default LiteLLM completion with retries = self.num_retries.
-
-        response = self._litellm.completion(**kwargs)
+        # Bypassing LiteLLM retry logic in preference of our own
+        kwargs.pop("num_retries", None)
+        response = self._litellm.completion(num_retries=0, **kwargs)
         return response.choices[0].message.content
 
     def _get_messages_from_prompt(self, prompt: str) -> List[Dict[str, str]]:

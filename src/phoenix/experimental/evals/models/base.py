@@ -58,6 +58,7 @@ def set_verbosity(
 
 @dataclass
 class BaseEvalModel(ABC):
+    always_sync: bool = False
     _verbose: bool = False
     _rate_limiter: RateLimiter = field(default_factory=RateLimiter)
 

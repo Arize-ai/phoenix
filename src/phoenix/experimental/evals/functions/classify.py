@@ -193,7 +193,7 @@ def llm_classify(
     executor = get_executor_on_sync_context(
         _run_llm_classification_sync,
         _run_llm_classification_async,
-        run_sync=run_sync,
+        run_sync = run_sync or model.always_sync,
         concurrency=concurrency,
         tqdm_bar_format=tqdm_bar_format,
         exit_on_error=True,
@@ -376,6 +376,7 @@ def run_evals(
     evaluators: List[LLMEvaluator],
     provide_explanation: bool = False,
     verbose: bool = False,
+    run_sync: bool = False,
     concurrency: int = 20,
 ) -> List[DataFrame]:
     """
@@ -399,6 +400,9 @@ def run_evals(
         as model invocation parameters and details about retries and snapping to
         rails.
 
+        run_sync (bool, default=False): If True, forces synchronous request submission. Otherwise
+        evaluations will be run asynchronously if possible.
+
         concurrency (int, optional): The number of concurrent evals if async
         submission is possible.
 
@@ -406,6 +410,7 @@ def run_evals(
         List[DataFrame]: A list of dataframes, one for each evaluator, all of
         which have the same number of rows as the input dataframe.
     """
+    model = RunEvalsPayload.evaluator.model
 
     async def _arun_eval(
         payload: RunEvalsPayload,
@@ -426,6 +431,7 @@ def run_evals(
     executor = get_executor_on_sync_context(
         _run_eval,
         _arun_eval,
+        run_sync = run_sync or model.always_sync,
         concurrency=concurrency,
         tqdm_bar_format=get_tqdm_progress_bar_formatter("run_evals"),
         exit_on_error=True,

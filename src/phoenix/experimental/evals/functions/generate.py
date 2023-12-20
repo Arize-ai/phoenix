@@ -122,7 +122,7 @@ def llm_generate(
     executor = get_executor_on_sync_context(
         _run_llm_generation_sync,
         _run_llm_generation_async,
-        run_sync=run_sync,
+        run_sync=run_sync or model.always_sync,
         concurrency=concurrency,
         tqdm_bar_format=tqdm_bar_format,
         exit_on_error=True,
