@@ -35,6 +35,7 @@ from phoenix.experimental.evals.templates import (
 from phoenix.experimental.evals.utils import (
     NOT_PARSABLE,
     get_tqdm_progress_bar_formatter,
+    openai_function_call_kwargs,
     parse_openai_function_call,
     snap_to_rail,
 )
@@ -46,11 +47,6 @@ logger = logging.getLogger(__name__)
 
 OPENINFERENCE_QUERY_COLUMN_NAME = "attributes." + INPUT_VALUE
 OPENINFERENCE_DOCUMENT_COLUMN_NAME = "attributes." + RETRIEVAL_DOCUMENTS
-
-# argument keys in the default openai function call,
-# defined here only to prevent typos
-_RESPONSE = "response"
-_EXPLANATION = "explanation"
 
 ColumnName: TypeAlias = str
 Label: TypeAlias = str
@@ -136,11 +132,9 @@ def llm_classify(
         and model.supports_function_calling
     )
 
-    model_kwargs: Dict[str, Any] = {}
-    if use_openai_function_call:
-        openai_function = _default_openai_function(rails, provide_explanation)
-        model_kwargs["functions"] = [openai_function]
-        model_kwargs["function_call"] = {"name": openai_function["name"]}
+    model_kwargs = (
+        openai_function_call_kwargs(rails, provide_explanation) if use_openai_function_call else {}
+    )
 
     eval_template = normalize_classification_template(rails=rails, template=template)
 
@@ -335,35 +329,6 @@ def _get_contents_from_openinference_documents(documents: Iterable[Any]) -> List
     return [doc.get(DOCUMENT_CONTENT) if isinstance(doc, dict) else None for doc in documents]
 
 
-def _default_openai_function(
-    rails: List[str],
-    with_explanation: bool = False,
-) -> Dict[str, Any]:
-    properties = {
-        **(
-            {
-                _EXPLANATION: {
-                    "type": "string",
-                    "description": "Explanation of the reasoning for your response.",
-                },
-            }
-            if with_explanation
-            else {}
-        ),
-        _RESPONSE: {"type": "string", "description": "Your response.", "enum": rails},
-    }
-    required = [*([_EXPLANATION] if with_explanation else []), _RESPONSE]
-    return {
-        "name": "record_response",
-        "description": "A function to record your response.",
-        "parameters": {
-            "type": "object",
-            "properties": properties,
-            "required": required,
-        },
-    }
-
-
 class RunEvalsPayload(NamedTuple):
     evaluator_index: EvaluatorIndex
     row_index: RowIndex
@@ -375,6 +340,7 @@ def run_evals(
     dataframe: DataFrame,
     evaluators: List[LLMEvaluator],
     provide_explanation: bool = False,
+    use_function_calling_if_available: bool = True,
     verbose: bool = False,
     concurrency: int = 20,
 ) -> List[DataFrame]:
@@ -395,6 +361,11 @@ def run_evals(
         for each evaluation. A column named "explanation" is added to each
         output dataframe.
 
+        use_function_calling_if_available (bool, optional): If True, use
+        function calling (if available) as a means to constrain the LLM outputs.
+        With function calling, the LLM is instructed to provide its response as
+        a structured JSON object, which is easier to parse.
+
         verbose (bool, optional): If True, prints detailed info to stdout such
         as model invocation parameters and details about retries and snapping to
         rails.
@@ -411,7 +382,9 @@ def run_evals(
         payload: RunEvalsPayload,
     ) -> Tuple[EvaluatorIndex, RowIndex, Label, Explanation]:
         label, explanation = await payload.evaluator.aevaluate(
-            payload.record, provide_explanation=provide_explanation
+            payload.record,
+            provide_explanation=provide_explanation,
+            use_function_calling_if_available=use_function_calling_if_available,
         )
         return payload.evaluator_index, payload.row_index, label, explanation
 
@@ -419,7 +392,9 @@ def run_evals(
         payload: RunEvalsPayload,
     ) -> Tuple[EvaluatorIndex, RowIndex, Label, Explanation]:
         label, explanation = payload.evaluator.evaluate(
-            payload.record, provide_explanation=provide_explanation
+            payload.record,
+            provide_explanation=provide_explanation,
+            use_function_calling_if_available=use_function_calling_if_available,
         )
         return payload.evaluator_index, payload.row_index, label, explanation
 
