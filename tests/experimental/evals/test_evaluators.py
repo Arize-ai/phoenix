@@ -25,6 +25,7 @@ def test_evaluator_evaluate_outputs_label_when_model_produces_expected_output(
             "input": "What is the capital of California?",
             "reference": "Sacramento is the capital of California.",
         },
+        use_function_calling_if_available=False,
     )
     assert label == "relevant"
     assert explanation is None
@@ -40,6 +41,7 @@ def test_evaluator_evaluate_outputs_not_parseable_when_model_produces_unexpected
             "input": "What is the capital of California?",
             "reference": "Sacramento is the capital of California.",
         },
+        use_function_calling_if_available=False,
     )
     assert label == NOT_PARSABLE
     assert explanation is None
@@ -131,3 +133,19 @@ def test_evaluator_evaluate_outputs_label_and_explanation_when_called_with_funct
     )
     assert label == "relevant"
     assert explanation == "explanation"
+
+
+def test_evaluator_evaluate_makes_best_effort_attempt_to_parse_invalid_function_call_output(
+    openai_model: OpenAIModel, relevance_template: str
+) -> None:
+    openai_model._generate = MagicMock(return_value=f'{{"{_RESPONSE}": "relevant"')  # invalid JSON
+    evaluator = LLMEvaluator(openai_model, relevance_template)
+    label, explanation = evaluator.evaluate(
+        {
+            "input": "What is the capital of California?",
+            "reference": "Sacramento is the capital of California.",
+        },
+        use_function_calling_if_available=True,
+    )
+    assert label == "relevant"
+    assert explanation is None
