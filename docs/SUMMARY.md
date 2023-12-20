@@ -6,8 +6,7 @@
 
 ## 🔑 Quickstart
 
-* [Phoenix Traces for LLM applications - OpenAI, LangChain & LlamaIndex](quickstart/llm-traces/README.md)
-  * [AutoGen Support](quickstart/llm-traces/autogen-support.md)
+* [Phoenix Traces for LLM applications - OpenAI, LangChain & LlamaIndex](quickstart/llm-traces.md)
 * [Phoenix Inferences](quickstart/phoenix-inferences/README.md)
   * [Schemas and Datasets](quickstart/phoenix-inferences/inferences.md)
 
@@ -39,7 +38,7 @@
 
 * [QA with Retrieval (Using Vector Stores)](use-cases/troubleshooting-llm-retrieval-with-vector-stores.md)
 * [Structured Extraction](use-cases/structured-extraction.md)
-* [RAG Evaluation](use-cases/rag-evaluation.md)
+* [Evaluate RAG with LLM Evals](use-cases/rag-evaluation.md)
 
 ## 🔢 How-To
 
@@ -66,6 +65,7 @@
 * [LangChain](integrations/langchain.md)
 * [OpenAI](integrations/openai.md)
 * [Arize](integrations/bring-production-data-to-notebook-for-eda-or-retraining.md)
+* [AutoGen](integrations/autogen-support.md)
 
 ## 📚 Reference
 
