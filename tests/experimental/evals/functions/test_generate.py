@@ -62,6 +62,64 @@ def test_llm_generate(monkeypatch: pytest.MonkeyPatch, respx_mock: respx.mock):
 
 
 @pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
+def test_llm_generate_with_included_prompts_and_responses(
+    monkeypatch: pytest.MonkeyPatch, respx_mock: respx.mock
+):
+    monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
+    dataframe = pd.DataFrame(
+        [
+            {
+                "query": "What is Python?",
+                "reference": "Python is a programming language.",
+            },
+            {
+                "query": "What is Python?",
+                "reference": "Ruby is a programming language.",
+            },
+            {
+                "query": "What is C++?",
+                "reference": "C++ is a programming language.",
+            },
+            {
+                "query": "What is C++?",
+                "reference": "irrelevant",
+            },
+        ]
+    )
+    responses = [
+        "it's a dialect of french",
+        "it's a music notation",
+        "It's a crazy language",
+        "it's a programming language",
+    ]
+    queries = dataframe["query"].tolist()
+    references = dataframe["reference"].tolist()
+    for query, reference, response in zip(queries, references, responses):
+        matcher = M(content__contains=query) & M(content__contains=reference)
+        respx_mock.route(matcher).mock(
+            return_value=httpx.Response(200, json={"choices": [{"message": {"content": response}}]})
+        )
+
+    template = (
+        "Given {query} and a golden answer {reference}, generate an answer that is incorrect."
+    )
+
+    with patch.object(OpenAIModel, "_init_tiktoken", return_value=None):
+        model = OpenAIModel()
+
+    generated = llm_generate(
+        dataframe=dataframe,
+        template=template,
+        model=model,
+        include_prompt=True,
+        include_response=True,
+    )
+    assert generated["output"].tolist() == responses
+    assert all("and a golden answer" in prompt for prompt in generated["prompt"].tolist())
+    assert generated["response"].tolist() == responses
+
+
+@pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
 def test_llm_generate_with_output_parser(monkeypatch: pytest.MonkeyPatch, respx_mock: respx.mock):
     monkeypatch.setenv(OPENAI_API_KEY_ENVVAR_NAME, "sk-0123456789")
     dataframe = pd.DataFrame(
@@ -103,9 +161,11 @@ def test_llm_generate_with_output_parser(monkeypatch: pytest.MonkeyPatch, respx_
     with patch.object(OpenAIModel, "_init_tiktoken", return_value=None):
         model = OpenAIModel()
 
-    def output_parser(response: str) -> Dict[str, str]:
+    def output_parser(response: str, response_index: int) -> Dict[str, str]:
         try:
-            return json.loads(response)
+            res = json.loads(response)
+            res["category"] += str(response_index)
+            return res
         except json.JSONDecodeError as e:
             return {"__error__": str(e)}
 
@@ -114,10 +174,10 @@ def test_llm_generate_with_output_parser(monkeypatch: pytest.MonkeyPatch, respx_
     )
     # check the output is parsed correctly
     assert generated["category"].tolist() == [
-        "programming",
-        "programming",
-        "programming",
-        "programming",
+        "programming0",
+        "programming1",
+        "programming2",
+        "programming3",
         np.nan,
     ]
 
@@ -179,7 +239,7 @@ def test_classify_tolerance_to_exceptions(
     assert df is not None
     # Make sure there is a logger.error output
     captured = capfd.readouterr()
-    assert "Process was interrupted" in captured.out
+    assert "Exception in worker" in captured.out
 
 
 def test_litellm_model_llm_generate(monkeypatch: pytest.MonkeyPatch):

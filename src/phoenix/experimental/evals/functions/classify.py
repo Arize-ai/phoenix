@@ -1,15 +1,9 @@
 from __future__ import annotations
 
-import asyncio
-import json
 import logging
-import signal
-import traceback
 from collections import defaultdict
 from typing import (
     Any,
-    Callable,
-    Coroutine,
     DefaultDict,
     Dict,
     Iterable,
@@ -17,7 +11,6 @@ from typing import (
     Mapping,
     NamedTuple,
     Optional,
-    Sequence,
     Tuple,
     Union,
     cast,
@@ -25,13 +18,12 @@ from typing import (
 
 import pandas as pd
 from pandas import DataFrame
-from tqdm.auto import tqdm
 from typing_extensions import TypeAlias
 
-from phoenix.experimental.evals.evaluators import LLMEvaluator, _snap_to_rail
+from phoenix.experimental.evals.evaluators import LLMEvaluator
+from phoenix.experimental.evals.functions.executor import get_executor_on_sync_context
 from phoenix.experimental.evals.models import BaseEvalModel, OpenAIModel, set_verbosity
 from phoenix.experimental.evals.templates import (
-    NOT_PARSABLE,
     RAG_RELEVANCY_PROMPT_RAILS_MAP,
     RAG_RELEVANCY_PROMPT_TEMPLATE,
     ClassificationTemplate,
@@ -40,7 +32,12 @@ from phoenix.experimental.evals.templates import (
     map_template,
     normalize_classification_template,
 )
-from phoenix.experimental.evals.utils import get_tqdm_progress_bar_formatter
+from phoenix.experimental.evals.utils import (
+    NOT_PARSABLE,
+    get_tqdm_progress_bar_formatter,
+    parse_openai_function_call,
+    snap_to_rail,
+)
 from phoenix.trace.semantic_conventions import DOCUMENT_CONTENT, INPUT_VALUE, RETRIEVAL_DOCUMENTS
 from phoenix.utilities.logging import printif
 
@@ -55,302 +52,15 @@ OPENINFERENCE_DOCUMENT_COLUMN_NAME = "attributes." + RETRIEVAL_DOCUMENTS
 _RESPONSE = "response"
 _EXPLANATION = "explanation"
 
-EvalName: TypeAlias = str
-EvalPrediction: TypeAlias = str
+ColumnName: TypeAlias = str
+Label: TypeAlias = str
+Explanation: TypeAlias = Optional[str]
 Record: TypeAlias = Mapping[str, Any]
+EvaluatorIndex: TypeAlias = int
 RowIndex: TypeAlias = Any
 
-
-class Unset:
-    pass
-
-
-_unset = Unset()
-
-
-class AsyncExecutor:
-    """
-    A class that provides asynchronous execution of tasks using a producer-consumer pattern.
-
-    An async interface is provided by the `execute` method, which returns a coroutine, and a sync
-    interface is provided by the `run` method.
-
-    Args:
-        generation_fn (Callable[[Any], Coroutine[Any, Any, Any]]): A coroutine function that
-        generates tasks to be executed.
-
-        concurrency (int, optional): The number of concurrent consumers. Defaults to 3.
-
-        tqdm_bar_format (Optional[str], optional): The format string for the progress bar. Defaults
-        to None.
-
-        exit_on_error (bool, optional): Whether to exit execution on the first encountered error.
-        Defaults to True.
-
-        fallback_return_value (Union[Unset, Any], optional): The fallback return value for tasks
-        that encounter errors. Defaults to _unset.
-    """
-
-    def __init__(
-        self,
-        generation_fn: Callable[[Any], Coroutine[Any, Any, Any]],
-        concurrency: int = 3,
-        tqdm_bar_format: Optional[str] = None,
-        exit_on_error: bool = True,
-        max_retries: int = 10,
-        fallback_return_value: Union[Unset, Any] = _unset,
-    ):
-        self.generate = generation_fn
-        self.fallback_return_value = fallback_return_value
-        self.concurrency = concurrency
-        self.tqdm_bar_format = tqdm_bar_format
-        self.exit_on_error = exit_on_error
-        self.max_retries = max_retries
-        self.base_priority = 0
-
-        self._TERMINATE = asyncio.Event()
-
-    def _signal_handler(self, signum: int, frame: Any) -> None:
-        self._TERMINATE.set()
-        tqdm.write("Process was interrupted. The return value will be incomplete...")
-
-    async def producer(
-        self,
-        inputs: Sequence[Any],
-        queue: asyncio.PriorityQueue[Tuple[int, Any]],
-        max_fill: int,
-        done_producing: asyncio.Event,
-    ) -> None:
-        try:
-            for index, input in enumerate(inputs):
-                if self._TERMINATE.is_set():
-                    break
-                while queue.qsize() >= max_fill:
-                    # keep room in the queue for requeues
-                    await asyncio.sleep(1)
-                await queue.put((self.base_priority, (index, input)))
-        finally:
-            done_producing.set()
-
-    async def consumer(
-        self,
-        output: List[Any],
-        queue: asyncio.PriorityQueue[Tuple[int, Any]],
-        done_producing: asyncio.Event,
-        progress_bar: tqdm[Any],
-    ) -> None:
-        termination_signal_task = None
-        while True:
-            marked_done = False
-            try:
-                priority, item = await asyncio.wait_for(queue.get(), timeout=1)
-            except asyncio.TimeoutError:
-                if done_producing.is_set() and queue.empty():
-                    break
-                continue
-            if self._TERMINATE.is_set():
-                # discard any remaining items in the queue
-                queue.task_done()
-                marked_done = True
-                continue
-
-            index, payload = item
-            try:
-                generate_task = asyncio.create_task(self.generate(payload))
-                termination_signal_task = asyncio.create_task(self._TERMINATE.wait())
-                done, pending = await asyncio.wait(
-                    [generate_task, termination_signal_task],
-                    timeout=120,
-                    return_when=asyncio.FIRST_COMPLETED,
-                )
-                if generate_task in done:
-                    output[index] = generate_task.result()
-                    progress_bar.update()
-                elif self._TERMINATE.is_set():
-                    # discard the pending task and remaining items in the queue
-                    if not generate_task.done():
-                        generate_task.cancel()
-                        try:
-                            # allow any cleanup to finish for the cancelled task
-                            await generate_task
-                        except asyncio.CancelledError:
-                            # Handle the cancellation exception
-                            pass
-                    queue.task_done()
-                    marked_done = True
-                    continue
-                else:
-                    tqdm.write("Worker timeout, requeuing")
-                    # task timeouts are requeued at base priority
-                    await queue.put((self.base_priority, item))
-            except Exception as exc:
-                if (retry_count := abs(priority)) <= self.max_retries:
-                    tqdm.write(
-                        f"Exception in worker on attempt {retry_count + 1}: raised {repr(exc)}"
-                    )
-                    tqdm.write("Requeuing...")
-                    await queue.put((priority - 1, item))
-                else:
-                    tqdm.write(f"Exception in worker: {traceback.format_exc()}")
-                    if self.exit_on_error:
-                        self._TERMINATE.set()
-                    else:
-                        progress_bar.update()
-            finally:
-                if not marked_done:
-                    queue.task_done()
-                if termination_signal_task and not termination_signal_task.done():
-                    termination_signal_task.cancel()
-
-    async def execute(self, inputs: Sequence[Any]) -> List[Any]:
-        signal.signal(signal.SIGINT, self._signal_handler)
-        outputs = [self.fallback_return_value] * len(inputs)
-        progress_bar = tqdm(total=len(inputs), bar_format=self.tqdm_bar_format)
-
-        max_queue_size = 5 * self.concurrency  # limit the queue to bound memory usage
-        max_fill = max_queue_size - (2 * self.concurrency)  # ensure there is always room to requeue
-        queue: asyncio.PriorityQueue[Tuple[int, Any]] = asyncio.PriorityQueue(
-            maxsize=max_queue_size
-        )
-        done_producing = asyncio.Event()
-
-        producer = asyncio.create_task(self.producer(inputs, queue, max_fill, done_producing))
-        consumers = [
-            asyncio.create_task(self.consumer(outputs, queue, done_producing, progress_bar))
-            for _ in range(self.concurrency)
-        ]
-
-        await asyncio.gather(producer, *consumers)
-        join_task = asyncio.create_task(queue.join())
-        termination_signal_task = asyncio.create_task(self._TERMINATE.wait())
-        done, pending = await asyncio.wait(
-            [join_task, termination_signal_task], return_when=asyncio.FIRST_COMPLETED
-        )
-        if termination_signal_task in done:
-            # Cancel all tasks
-            if not join_task.done():
-                join_task.cancel()
-            if not producer.done():
-                producer.cancel()
-            for task in consumers:
-                if not task.done():
-                    task.cancel()
-
-        if not termination_signal_task.done():
-            termination_signal_task.cancel()
-        return outputs
-
-    def run(self, inputs: Sequence[Any]) -> List[Any]:
-        return asyncio.run(self.execute(inputs))
-
-
-class SyncExecutor:
-    """
-    Synchronous executor for generating outputs from inputs using a given generation function.
-
-    Args:
-        generation_fn (Callable[[Any], Any]): The generation function that takes an input and
-        returns an output.
-
-        tqdm_bar_format (Optional[str], optional): The format string for the progress bar. Defaults
-        to None.
-
-        exit_on_error (bool, optional): Whether to exit execution on the first encountered error.
-        Defaults to True.
-
-        fallback_return_value (Union[Unset, Any], optional): The fallback return value for tasks
-        that encounter errors. Defaults to _unset.
-    """
-
-    def __init__(
-        self,
-        generation_fn: Callable[[Any], Any],
-        tqdm_bar_format: Optional[str] = None,
-        exit_on_error: bool = True,
-        fallback_return_value: Union[Unset, Any] = _unset,
-    ):
-        self.generate = generation_fn
-        self.fallback_return_value = fallback_return_value
-        self.tqdm_bar_format = tqdm_bar_format
-        self.exit_on_error = exit_on_error
-
-        self._TERMINATE = False
-
-    def _signal_handler(self, signum: int, frame: Any) -> None:
-        tqdm.write("Process was interrupted. The return value will be incomplete...")
-        self._TERMINATE = True
-
-    def run(self, inputs: Sequence[Any]) -> List[Any]:
-        signal.signal(signal.SIGINT, self._signal_handler)
-        outputs = [self.fallback_return_value] * len(inputs)
-        progress_bar = tqdm(total=len(inputs), bar_format=self.tqdm_bar_format)
-
-        for index, input in enumerate(inputs):
-            if self._TERMINATE:
-                break
-            try:
-                result = self.generate(input)
-                outputs[index] = result
-                progress_bar.update()
-            except Exception as e:
-                tqdm.write(f"Exception in worker: {e}")
-                if self.exit_on_error:
-                    break
-                else:
-                    progress_bar.update()
-        return outputs
-
-
-def get_executor_on_sync_context(
-    sync_fn: Callable[[Any], Any],
-    async_fn: Callable[[Any], Coroutine[Any, Any, Any]],
-    concurrency: int = 3,
-    tqdm_bar_format: Optional[str] = None,
-    exit_on_error: bool = True,
-    fallback_return_value: Union[Unset, Any] = _unset,
-) -> Union[AsyncExecutor, SyncExecutor]:
-    if _running_event_loop_exists():
-        if getattr(asyncio, "_nest_patched", False):
-            return AsyncExecutor(
-                async_fn,
-                concurrency=concurrency,
-                tqdm_bar_format=tqdm_bar_format,
-                exit_on_error=exit_on_error,
-                fallback_return_value=fallback_return_value,
-            )
-        else:
-            logger.warning(
-                "🐌!! If running llm_classify inside a notebook, patching the event loop with "
-                "nest_asyncio will allow asynchronous eval submission, and is significantly "
-                "faster. To patch the event loop, run `nest_asyncio.apply()`."
-            )
-            return SyncExecutor(
-                sync_fn,
-                tqdm_bar_format=tqdm_bar_format,
-                exit_on_error=exit_on_error,
-                fallback_return_value=fallback_return_value,
-            )
-    else:
-        return AsyncExecutor(
-            async_fn,
-            concurrency=concurrency,
-            tqdm_bar_format=tqdm_bar_format,
-            exit_on_error=exit_on_error,
-            fallback_return_value=fallback_return_value,
-        )
-
-
-def _running_event_loop_exists() -> bool:
-    """Checks for a running event loop.
-
-    Returns:
-        bool: True if a running event loop exists, False otherwise.
-    """
-    try:
-        asyncio.get_running_loop()
-        return True
-    except RuntimeError:
-        return False
+# snapped_response, explanation, response
+ParsedLLMResponse: TypeAlias = Tuple[Optional[str], Optional[str], str]
 
 
 def llm_classify(
@@ -362,6 +72,9 @@ def llm_classify(
     verbose: bool = False,
     use_function_calling_if_available: bool = True,
     provide_explanation: bool = False,
+    include_prompt: bool = False,
+    include_response: bool = False,
+    run_sync: bool = False,
     concurrency: int = 20,
 ) -> pd.DataFrame:
     """Classifies each input row of the dataframe using an LLM. Returns a pandas.DataFrame
@@ -395,9 +108,18 @@ def llm_classify(
 
         provide_explanation (bool, default=False): If True, provides an explanation for each
         classification label. A column named `explanation` is added to the output dataframe.
-        Currently, this is only available for models with function calling.
 
-        concurrency (int, default=20): The number of concurrent evals.
+        include_prompt (bool, default=False): If True, includes a column named `prompt` in the
+        output dataframe containing the prompt used for each classification.
+
+        include_response (bool, default=False): If True, includes a column named `response` in the
+        output dataframe containing the raw response from the LLM.
+
+        run_sync (bool, default=False): If True, forces synchronous request submission. Otherwise
+        evaluations will be run asynchronously if possible.
+
+        concurrency (int, default=20): The number of concurrent evals if async submission is
+        possible.
 
     Returns:
         pandas.DataFrame: A dataframe where the `label` column (at column position 0) contains
@@ -447,45 +169,46 @@ def llm_classify(
                 unrailed_label = response
                 explanation = None
         else:
-            try:
-                function_arguments = json.loads(response, strict=False)
-                unrailed_label = function_arguments.get(_RESPONSE)
-                explanation = function_arguments.get(_EXPLANATION)
-            except json.JSONDecodeError:
-                unrailed_label = response
-                explanation = None
-        return _snap_to_rail(unrailed_label, rails, verbose=verbose), explanation
+            unrailed_label, explanation = parse_openai_function_call(response)
+        return snap_to_rail(unrailed_label, rails, verbose=verbose), explanation
 
-    async def _run_llm_classification_async(prompt: str) -> Tuple[str, Optional[str]]:
+    async def _run_llm_classification_async(prompt: str) -> ParsedLLMResponse:
         with set_verbosity(model, verbose) as verbose_model:
             response = await verbose_model._async_generate(
                 prompt, instruction=system_instruction, **model_kwargs
             )
-        return _process_response(response)
+        inference, explanation = _process_response(response)
+        return inference, explanation, response
 
-    def _run_llm_classification_sync(prompt: str) -> Tuple[str, Optional[str]]:
+    def _run_llm_classification_sync(prompt: str) -> ParsedLLMResponse:
         with set_verbosity(model, verbose) as verbose_model:
             response = verbose_model._generate(
                 prompt, instruction=system_instruction, **model_kwargs
             )
-        return _process_response(response)
+        inference, explanation = _process_response(response)
+        return inference, explanation, response
+
+    fallback_return_value: ParsedLLMResponse = (None, None, "")
 
     executor = get_executor_on_sync_context(
         _run_llm_classification_sync,
         _run_llm_classification_async,
+        run_sync=run_sync,
         concurrency=concurrency,
         tqdm_bar_format=tqdm_bar_format,
         exit_on_error=True,
-        fallback_return_value=(None, None),
+        fallback_return_value=fallback_return_value,
     )
 
     results = executor.run(prompts.tolist())
-    labels, explanations = zip(*results)
+    labels, explanations, responses = zip(*results)
 
     return pd.DataFrame(
         data={
             "label": labels,
             **({"explanation": explanations} if provide_explanation else {}),
+            **({"prompt": prompts} if include_prompt else {}),
+            **({"response": responses} if include_response else {}),
         },
         index=dataframe.index,
     )
@@ -642,60 +365,67 @@ def _default_openai_function(
 
 
 class RunEvalsPayload(NamedTuple):
+    evaluator_index: EvaluatorIndex
+    row_index: RowIndex
     evaluator: LLMEvaluator
     record: Record
-    row_index: RowIndex
 
 
 def run_evals(
     dataframe: DataFrame,
     evaluators: List[LLMEvaluator],
+    provide_explanation: bool = False,
+    verbose: bool = False,
     concurrency: int = 20,
-) -> DataFrame:
+) -> List[DataFrame]:
     """
-    Applies a list of evaluators to every row of a dataframe. Outputs a
-    dataframe where each column corresponds to an evaluator and each row
-    corresponds to a row in the input dataframe.
+    Applies a list of evaluators to a dataframe. Outputs a list of dataframes in
+    which each dataframe contains the outputs of the corresponding evaluator
+    applied to the input dataframe.
 
     Args:
-        dataframe (pd.DataFrame): A pandas dataframe in which each row
-        represents a record to be evaluated. All template variable names must
-        appear as column names in the dataframe (extra columns unrelated to the
-        template are permitted).
+        dataframe (DataFrame): A pandas dataframe in which each row represents a
+        record to be evaluated. All template variable names must appear as
+        column names in the dataframe (extra columns unrelated to the template
+        are permitted).
 
-        evaluators (List[Evaluator]): A list of evaluators with unique names.
+        evaluators (List[LLMEvaluator]): A list of evaluators.
 
-        concurrency (int, optional): An optional concurrency parameter. Defaults
-        to 20.
+        provide_explanation (bool, optional): If True, provides an explanation
+        for each evaluation. A column named "explanation" is added to each
+        output dataframe.
+
+        verbose (bool, optional): If True, prints detailed info to stdout such
+        as model invocation parameters and details about retries and snapping to
+        rails.
+
+        concurrency (int, optional): The number of concurrent evals if async
+        submission is possible.
 
     Returns:
-        DataFrame: A dataframe where each row contains the outputs of the
-        evaluators applied to the corresponding row of the input dataframe and
-        the column names match the names of the evaluators. The index of the
-        dataframe is the same as the index of the input dataframe.
+        List[DataFrame]: A list of dataframes, one for each evaluator, all of
+        which have the same number of rows as the input dataframe.
     """
-    if len(set(evaluator.name for evaluator in evaluators)) != len(evaluators):
-        raise ValueError("Evaluators must have unique names.")
 
-    async def _run_eval_async(
+    async def _arun_eval(
         payload: RunEvalsPayload,
-    ) -> Tuple[RowIndex, EvalName, EvalPrediction]:
-        row_index = payload.row_index
-        evaluator = payload.evaluator
-        record = payload.record
-        eval_result = await evaluator.aevaluate(record)
-        return row_index, evaluator.name, eval_result
+    ) -> Tuple[EvaluatorIndex, RowIndex, Label, Explanation]:
+        label, explanation = await payload.evaluator.aevaluate(
+            payload.record, provide_explanation=provide_explanation
+        )
+        return payload.evaluator_index, payload.row_index, label, explanation
 
-    def _run_eval_sync(payload: RunEvalsPayload) -> Tuple[RowIndex, EvalName, EvalPrediction]:
-        row_index = payload.row_index
-        evaluator = payload.evaluator
-        record = payload.record
-        eval_result = evaluator.evaluate(record)
-        return row_index, evaluator.name, eval_result
+    def _run_eval(
+        payload: RunEvalsPayload,
+    ) -> Tuple[EvaluatorIndex, RowIndex, Label, Explanation]:
+        label, explanation = payload.evaluator.evaluate(
+            payload.record, provide_explanation=provide_explanation
+        )
+        return payload.evaluator_index, payload.row_index, label, explanation
 
     executor = get_executor_on_sync_context(
-        _run_eval_sync,
-        _run_eval_async,
+        _run_eval,
+        _arun_eval,
         concurrency=concurrency,
         tqdm_bar_format=get_tqdm_progress_bar_formatter("run_evals"),
         exit_on_error=True,
@@ -703,15 +433,23 @@ def run_evals(
     )
     payloads = [
         RunEvalsPayload(
+            evaluator_index=evaluator_index,
             row_index=row_index,
             evaluator=evaluator,
             record=row.to_dict(),
         )
         for row_index, row in dataframe.iterrows()
-        for evaluator in evaluators
+        for evaluator_index, evaluator in enumerate(evaluators)
     ]
-    results: DefaultDict[RowIndex, Dict[EvalName, EvalPrediction]] = defaultdict(dict)
-    for row_index, eval_name, eval_result in executor.run(payloads):
-        results[row_index][eval_name] = eval_result
-    index, data = zip(*results.items())
-    return DataFrame(data, index=index)
+    eval_results: List[DefaultDict[RowIndex, Dict[ColumnName, Union[Label, Explanation]]]] = [
+        defaultdict(dict) for _ in range(len(evaluators))
+    ]
+    for evaluator_index, row_index, label, explanation in executor.run(payloads):
+        eval_results[evaluator_index][row_index]["label"] = label
+        if explanation is not None:
+            eval_results[evaluator_index][row_index]["explanation"] = explanation
+    eval_dataframes: List[DataFrame] = []
+    for eval_result in eval_results:
+        index, eval_data = zip(*eval_result.items())
+        eval_dataframes.append(DataFrame(eval_data, index=index))
+    return eval_dataframes
