@@ -14,10 +14,11 @@ from phoenix.utilities.logging import printif
 # This is useful for debugging as well as to just treat the output as a non-parsable category
 NOT_PARSABLE = "NOT_PARSABLE"
 
-# argument keys in the default openai function call,
+# values in the default openai function call,
 # defined here only to prevent typos
 _RESPONSE = "response"
 _EXPLANATION = "explanation"
+_FUNCTION_NAME = "record_response"
 
 
 def download_benchmark_dataset(task: str, dataset_name: str) -> pd.DataFrame:
@@ -161,7 +162,7 @@ def _default_openai_function(
     }
     required = [*([_EXPLANATION] if with_explanation else []), _RESPONSE]
     return {
-        "name": "record_response",
+        "name": _FUNCTION_NAME,
         "description": "A function to record your response.",
         "parameters": {
             "type": "object",
