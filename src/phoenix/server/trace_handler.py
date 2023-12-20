@@ -1,5 +1,6 @@
 import asyncio
 import gzip
+import zlib
 from typing import Protocol
 
 from google.protobuf.message import DecodeError
@@ -29,7 +30,7 @@ class TraceHandler(HTTPEndpoint):
                 status_code=HTTP_415_UNSUPPORTED_MEDIA_TYPE,
             )
         content_encoding = request.headers.get("content-encoding")
-        if content_encoding and content_encoding != "gzip":
+        if content_encoding and content_encoding not in ("gzip", "deflate"):
             return Response(
                 content=f"Unsupported content encoding: {content_encoding}",
                 status_code=HTTP_415_UNSUPPORTED_MEDIA_TYPE,
@@ -37,6 +38,8 @@ class TraceHandler(HTTPEndpoint):
         body = await request.body()
         if content_encoding == "gzip":
             body = gzip.decompress(body)
+        elif content_encoding == "deflate":
+            body = zlib.decompress(body)
         req = ExportTraceServiceRequest()
         try:
             req.ParseFromString(body)
