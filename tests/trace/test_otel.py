@@ -463,8 +463,9 @@ def test_decode_encode_message_tool_parameters(span):
 
 
 @pytest.mark.parametrize(
-    "input,output",
+    "key_value_pairs,desired",
     [
+        ((), {}),
         ((("1", 0),), {"1": 0}),
         ((("1.2", 0),), {"1": {"2": 0}}),
         ((("1.0.2", 0),), {"1": [{"2": 0}]}),
@@ -505,10 +506,7 @@ def test_decode_encode_message_tool_parameters(span):
             (("a.9999999.c", 2), ("a.9999999.b", 1), ("a.99999.b", 0)),
             {"a": [{"b": 0}, {"b": 1, "c": 2}]},
         ),
-        (
-            (("a", 0), ("c", 2), ("b", 1), ("d", 3)),
-            {"a": 0, "b": 1, "c": 2, "d": 3},
-        ),
+        ((("a", 0), ("c", 2), ("b", 1), ("d", 3)), {"a": 0, "b": 1, "c": 2, "d": 3}),
         (
             (("a.b.c", 0), ("a.e", 2), ("a.b.d", 1), ("f", 3)),
             {"a": {"b": {"c": 0, "d": 1}, "e": 2}, "f": 3},
@@ -535,8 +533,17 @@ def test_decode_encode_message_tool_parameters(span):
         ),
     ],
 )
-def test_unflatten(input, output):
-    assert dict(_unflatten(input)) == output
+def test_unflatten(key_value_pairs, desired):
+    actual = dict(_unflatten(key_value_pairs))
+    assert actual == desired
+
+
+@pytest.mark.parametrize("key_value_pairs,desired", [((("1.0.2", 0),), {"1": [{"2": 0}]})])
+def test_unflatten_separator(key_value_pairs, desired):
+    separator = str(random())
+    key_value_pairs = ((key.replace(".", separator), value) for key, value in key_value_pairs)
+    actual = dict(_unflatten(key_value_pairs, separator))
+    assert actual == desired
 
 
 @pytest.fixture
