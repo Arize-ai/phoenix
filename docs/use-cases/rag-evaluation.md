@@ -378,7 +378,7 @@ import json
 from phoenix.experimental.evals import OpenAIModel, llm_generate
 
 
-def output_parser(response: str):
+def output_parser(response: str, index: int):
     try:
         return json.loads(response)
     except json.JSONDecodeError as e:
