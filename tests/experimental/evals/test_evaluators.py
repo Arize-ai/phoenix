@@ -5,7 +5,6 @@ from phoenix.experimental.evals import (
     NOT_PARSABLE,
     RAG_RELEVANCY_PROMPT_TEMPLATE,
     EvalCriteria,
-    InvalidEvalCriteriaError,
     LLMEvaluator,
     OpenAIModel,
 )
@@ -153,22 +152,8 @@ def test_llm_evaluator_evaluate_makes_best_effort_attempt_to_parse_invalid_funct
     assert explanation is None
 
 
-def test_llm_evaluator_from_criteria_instantiates_instance_from_valid_criteria(
+def test_llm_evaluator_from_criteria_instantiates_instance(
     openai_model: OpenAIModel,
 ) -> None:
     evaluator = LLMEvaluator.from_criteria(criteria=EvalCriteria.RELEVANCE, model=openai_model)
     assert isinstance(evaluator, LLMEvaluator)
-
-
-def test_llm_evaluator_from_criteria_instantiates_instance_from_valid_criteria_name(
-    openai_model: OpenAIModel,
-) -> None:
-    evaluator = LLMEvaluator.from_criteria(criteria="relevance", model=openai_model)
-    assert isinstance(evaluator, LLMEvaluator)
-
-
-def test_llm_evaluator_from_criteria_raises_error_for_unsupported_criteria(
-    openai_model: OpenAIModel,
-) -> None:
-    with pytest.raises(InvalidEvalCriteriaError):
-        LLMEvaluator.from_criteria(criteria="unsupported", model=openai_model)

@@ -1,4 +1,4 @@
-from typing import List, Mapping, Optional, Tuple, Union
+from typing import List, Mapping, Optional, Tuple
 
 from phoenix.exceptions import PhoenixException
 from phoenix.experimental.evals.models import set_verbosity
@@ -150,27 +150,20 @@ class LLMEvaluator:
     @classmethod
     def from_criteria(
         cls,
-        criteria: Union[str, EvalCriteria],
+        criteria: EvalCriteria,
         model: BaseEvalModel,
     ) -> "LLMEvaluator":
         """
-        Instantiates an LLMEvaluator from an eval criteria or eval criteria
-        name.
+        Instantiates an LLMEvaluator from an eval criteria.
 
         Args:
-            criteria (Union[str, EvalCriteria]): The eval criteria specified as
-            an instance of EvalCriteria or a string.
+            criteria (EvalCriteria): The eval criteria.
 
             model (BaseEvalModel): The model to use for evaluation.
 
         Returns:
             LLMEvaluator: The instantiate evaluator.
         """
-        if isinstance(criteria, str):
-            try:
-                criteria = EvalCriteria(criteria)
-            except ValueError:
-                raise InvalidEvalCriteriaError(f'Unknown criteria name: "{criteria}"')
         return cls(
             model=model,
             template=CLASSIFICATION_TEMPLATES[criteria],
