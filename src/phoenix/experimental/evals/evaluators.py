@@ -1,6 +1,10 @@
 from typing import List, Mapping, Optional, Tuple
 
+from phoenix.exceptions import PhoenixException
 from phoenix.experimental.evals.models import set_verbosity
+from phoenix.experimental.evals.templates.default_templates import (
+    EvalCriteria,
+)
 from phoenix.experimental.evals.utils import (
     NOT_PARSABLE,
     openai_function_call_kwargs,
@@ -13,6 +17,10 @@ from .models import BaseEvalModel, OpenAIModel
 from .templates import ClassificationTemplate, PromptOptions, PromptTemplate
 
 Record = Mapping[str, str]
+
+
+class InvalidEvalCriteriaError(PhoenixException):
+    pass
 
 
 class LLMEvaluator:
@@ -49,6 +57,11 @@ class LLMEvaluator:
 
             provide_explanation (bool, optional): Whether to provide an
             explanation.
+
+            use_function_calling_if_available (bool, optional): If True, use
+            function calling (if available) as a means to constrain the LLM
+            outputs. With function calling, the LLM is instructed to provide its
+            response as a structured JSON object, which is easier to parse.
 
             use_function_calling_if_available (bool, optional): If True, use
             function calling (if available) as a means to constrain the LLM
@@ -137,6 +150,28 @@ class LLMEvaluator:
             verbose=verbose,
         )
         return label, explanation
+
+    @classmethod
+    def from_criteria(
+        cls,
+        criteria: EvalCriteria,
+        model: BaseEvalModel,
+    ) -> "LLMEvaluator":
+        """
+        Instantiates an LLMEvaluator from an eval criteria.
+
+        Args:
+            criteria (EvalCriteria): The eval criteria.
+
+            model (BaseEvalModel): The model to use for evaluation.
+
+        Returns:
+            LLMEvaluator: The instantiate evaluator.
+        """
+        return cls(
+            model=model,
+            template=criteria.value,
+        )
 
 
 class MapReducer:
