@@ -191,11 +191,12 @@ class _TrieLeaf(Enum):
     indices = object()
 
 
-def _build_trie(key_value_pairs: Iterable[Tuple[str, Any]]) -> DefaultDict[Hashable, Any]:
-    def _trie() -> DefaultDict[Hashable, Any]:
-        # a.k.a. prefix tree
-        return defaultdict(_trie)
+def _trie() -> DefaultDict[Hashable, Any]:
+    """prefix tree"""
+    return defaultdict(_trie)
 
+
+def _build_trie(key_value_pairs: Iterable[Tuple[str, Any]]) -> DefaultDict[Hashable, Any]:
     trie = _trie()
     for key, value in key_value_pairs:
         t = trie
@@ -203,17 +204,12 @@ def _build_trie(key_value_pairs: Iterable[Tuple[str, Any]]) -> DefaultDict[Hasha
             prefix, suffix = _semantic_convention_prefix_search(key)
             if prefix:
                 t = t[prefix]
-                key = suffix
             else:
-                dot_idx = key.find(".")
-                if dot_idx >= 0:
-                    word, key = key[:dot_idx], key[dot_idx + 1 :]
-                else:
-                    word, key = key, ""
-                if word.isdigit():
-                    index = int(word)
+                prefix, _, suffix = key.partition(".")
+                if prefix.isdigit():
+                    index = int(prefix)
                     indices = t.get(_TrieLeaf.indices)
-                    if key:
+                    if suffix:
                         if indices is not None:
                             indices.add(index)
                         else:
@@ -222,9 +218,10 @@ def _build_trie(key_value_pairs: Iterable[Tuple[str, Any]]) -> DefaultDict[Hasha
                         indices.discard(index)
                     t = t[index]
                 else:
-                    t = t[word]
-            if not key:
+                    t = t[prefix]
+            if not suffix:
                 break
+            key = suffix
         t[_TrieLeaf.value] = value
     trie.pop(_TrieLeaf.indices, None)
     return trie
