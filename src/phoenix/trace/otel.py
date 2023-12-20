@@ -13,6 +13,7 @@ from typing import (
     Mapping,
     Optional,
     Sequence,
+    Set,
     Tuple,
     cast,
 )
@@ -171,21 +172,21 @@ _SEMANTIC_CONVENTIONS: List[str] = sorted(
 )  # sorted so the longer strings go first
 
 
-def _semantic_convention_prefix_search(key: str) -> Tuple[Optional[str], str]:
+def _semantic_convention_prefix_partition(key: str, separator: str = ".") -> Tuple[str, str, str]:
     """Return the longest prefix of `key` that is a semantic convention, and the remaining suffix
     separated by `.`. For example, if `key` is "retrieval.documents.2.document.score", return
     "retrieval.documents", "2.document.score".
     """
     for prefix in _SEMANTIC_CONVENTIONS:
         if key == prefix:
-            return key, ""
-        if key.startswith(prefix) and key[len(prefix)] == ".":
-            return prefix, key[len(prefix) + 1 :]
-    return None, ""
+            return key, "", ""
+        if key.startswith(prefix) and key[len(prefix)] == separator:
+            return prefix, separator, key[len(prefix) + len(separator) :]
+    return "", "", ""
 
 
-class _TrieLeaf(Enum):
-    """Sentinel keys for marking a leaf node of a Trie"""
+class _NodeMarker(Enum):
+    """Sentinel keys for marking a Trie node"""
 
     value = object()
     indices = object()
@@ -196,24 +197,32 @@ def _trie() -> DefaultDict[Hashable, Any]:
     return defaultdict(_trie)
 
 
-def _build_trie(key_value_pairs: Iterable[Tuple[str, Any]]) -> DefaultDict[Hashable, Any]:
+def _build_trie(
+    key_value_pairs: Iterable[Tuple[str, Any]],
+    separator: str = ".",
+) -> DefaultDict[Hashable, Any]:
+    """Build a Trie (a.k.a. prefix tree) from `key_value_pairs`, by partitioning the keys by
+    separator. Each partition is a branch in the Trie. Special handling is done for partitions
+    that are all digits, e.g. "0", "12", etc., which are converted to integers and collected
+    as indices.
+    """
     trie = _trie()
     for key, value in key_value_pairs:
         t = trie
         while True:
-            prefix, suffix = _semantic_convention_prefix_search(key)
+            prefix, _, suffix = _semantic_convention_prefix_partition(key, separator)
             if prefix:
                 t = t[prefix]
             else:
-                prefix, _, suffix = key.partition(".")
+                prefix, _, suffix = key.partition(separator)
                 if prefix.isdigit():
                     index = int(prefix)
-                    indices = t.get(_TrieLeaf.indices)
+                    indices = t.get(_NodeMarker.indices)
                     if suffix:
                         if indices is not None:
                             indices.add(index)
                         else:
-                            t[_TrieLeaf.indices] = {index}
+                            t[_NodeMarker.indices] = {index}
                     elif indices is not None:
                         indices.discard(index)
                     t = t[index]
@@ -222,33 +231,39 @@ def _build_trie(key_value_pairs: Iterable[Tuple[str, Any]]) -> DefaultDict[Hasha
             if not suffix:
                 break
             key = suffix
-        t[_TrieLeaf.value] = value
-    trie.pop(_TrieLeaf.indices, None)
+        t[_NodeMarker.value] = value
+    trie.pop(_NodeMarker.indices, None)
     return trie
 
 
-def _walk(trie: DefaultDict[Hashable, Any], prefix: str = "") -> Iterator[Tuple[str, Any]]:
-    if _TrieLeaf.value not in trie and _TrieLeaf.indices not in trie:
+def _walk(
+    trie: DefaultDict[Hashable, Any],
+    prefix: str = "",
+) -> Iterator[Tuple[str, Any]]:
+    if _NodeMarker.value not in trie and _NodeMarker.indices not in trie:
         if prefix:
             yield prefix, dict(_walk(trie))
         else:
             for key, node in trie.items():
                 yield from _walk(node, prefix=f"{key}")
         return
-    if _TrieLeaf.value in trie:
-        value = trie.pop(_TrieLeaf.value, None)
+    if _NodeMarker.value in trie:
+        value = trie.pop(_NodeMarker.value, None)
         yield prefix, value
         # Indices no longer indicate an array, but must be continuations of the prefix
         # key string. Discard the `indices` leaf marker, but not the index keys themselves.
-        trie.pop(_TrieLeaf.indices, None)
-    elif (indices := cast(Iterable[int], trie.pop(_TrieLeaf.indices, None))) and prefix:
+        trie.pop(_NodeMarker.indices, None)
+    elif (indices := cast(Set[int], trie.pop(_NodeMarker.indices, None))) and prefix:
         yield prefix, [dict(_walk(trie.pop(index))) for index in sorted(indices)]
     for key, node in trie.items():
         yield from _walk(node, prefix=f"{prefix}.{key}" if prefix else f"{key}")
 
 
-def _unflatten(key_value_pairs: Iterable[Tuple[str, Any]]) -> Iterator[Tuple[str, Any]]:
-    trie = _build_trie(key_value_pairs)
+def _unflatten(
+    key_value_pairs: Iterable[Tuple[str, Any]],
+    separator: str = ".",
+) -> Iterator[Tuple[str, Any]]:
+    trie = _build_trie(key_value_pairs, separator)
     yield from _walk(trie)
 
 
