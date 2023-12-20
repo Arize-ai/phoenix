@@ -63,6 +63,11 @@ class LLMEvaluator:
             outputs. With function calling, the LLM is instructed to provide its
             response as a structured JSON object, which is easier to parse.
 
+            use_function_calling_if_available (bool, optional): If True, use
+            function calling (if available) as a means to constrain the LLM
+            outputs. With function calling, the LLM is instructed to provide its
+            response as a structured JSON object, which is easier to parse.
+
             verbose (bool, optional): Whether to print verbose output.
 
         Returns:
