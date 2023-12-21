@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<84642d1ed540a6aeb64bda24707d0050>>
+ * @generated SignedSource<<c43e21acde97e1dacfbd9d6acb6099f0>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -11,6 +11,8 @@
 import { ReaderFragment, RefetchableFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type TracingHomePageHeader_stats$data = {
+  readonly documentEvaluationNames: ReadonlyArray<string>;
+  readonly spanEvaluationNames: ReadonlyArray<string>;
   readonly totalTraces: {
     readonly pageInfo: {
       readonly totalCount: number;
@@ -122,12 +124,26 @@ const node: ReaderFragment = {
         }
       ],
       "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "spanEvaluationNames",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "documentEvaluationNames",
+      "storageKey": null
     }
   ],
   "type": "Query",
   "abstractKey": null
 };
 
-(node as any).hash = "2f4140d22a5444b5a9fea58801814504";
+(node as any).hash = "631360b4ed0a5a26238d4c2aea1bd759";
 
 export default node;
