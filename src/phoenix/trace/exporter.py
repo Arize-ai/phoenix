@@ -6,21 +6,22 @@ from threading import Thread
 from types import MethodType
 from typing import Any, Optional, Union
 
+import opentelemetry.proto.trace.v1.trace_pb2 as otlp
 import requests
 from requests import Session
 from typing_extensions import TypeAlias, assert_never
 
 import phoenix.trace.v1 as pb
 from phoenix.config import get_env_collector_endpoint, get_env_host, get_env_port
+from phoenix.trace.otel import encode
 from phoenix.trace.schemas import Span
-from phoenix.trace.v1.utils import encode
 
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
 
 END_OF_QUEUE = None  # sentinel value for queue termination
 
-Message: TypeAlias = Union[pb.Span, pb.Evaluation]
+Message: TypeAlias = Union[otlp.Span, pb.Evaluation]
 
 
 class NoOpExporter:
@@ -102,7 +103,7 @@ class HttpExporter:
             logger.exception(e)
 
     def _url(self, message: Message) -> str:
-        if isinstance(message, pb.Span):
+        if isinstance(message, otlp.Span):
             return f"{self._base_url}/v1/spans"
         if isinstance(message, pb.Evaluation):
             return f"{self._base_url}/v1/evaluations"

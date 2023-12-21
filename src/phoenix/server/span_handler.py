@@ -1,18 +1,18 @@
 import gzip
 from typing import Protocol
 
+import opentelemetry.proto.trace.v1.trace_pb2 as otlp
 from starlette.endpoints import HTTPEndpoint
 from starlette.requests import Request
 from starlette.responses import Response
 
-import phoenix.trace.v1 as pb
+from phoenix.trace.otel import encode
 from phoenix.trace.schemas import Span
 from phoenix.trace.span_json_decoder import json_to_span
-from phoenix.trace.v1.utils import encode
 
 
 class SupportsPutSpan(Protocol):
-    def put(self, span: pb.Span) -> None:
+    def put(self, span: otlp.Span) -> None:
         ...
 
 
@@ -27,13 +27,13 @@ class SpanHandler(HTTPEndpoint):
                 content_encoding = request.headers.get("content-encoding")
                 if content_encoding == "gzip":
                     body = gzip.decompress(body)
-                pb_span = pb.Span()
-                pb_span.ParseFromString(body)
+                otlp_span = otlp.Span()
+                otlp_span.ParseFromString(body)
             else:
                 span = json_to_span(await request.json())
                 assert isinstance(span, Span)
-                pb_span = encode(span)
+                otlp_span = encode(span)
         except Exception:
             return Response(status_code=422)
-        self.queue.put(pb_span)
+        self.queue.put(otlp_span)
         return Response()

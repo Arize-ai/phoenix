@@ -79,4 +79,9 @@ def test_nested_attributes() -> None:
                 "arguments": ...,
             }
         },
+        "openinference": {
+            "span": {
+                "kind": ...,
+            },
+        },
     }
