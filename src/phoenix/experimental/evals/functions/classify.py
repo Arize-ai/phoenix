@@ -381,8 +381,6 @@ def run_evals(
         List[DataFrame]: A list of dataframes, one for each evaluator, all of
         which have the same number of rows as the input dataframe.
     """
-    model = RunEvalsPayload.evaluator._model
-
     async def _arun_eval(
         payload: RunEvalsPayload,
     ) -> Tuple[EvaluatorIndex, RowIndex, Label, Explanation]:
@@ -403,15 +401,17 @@ def run_evals(
         )
         return payload.evaluator_index, payload.row_index, label, explanation
 
+    always_sync = any(evaluator._model.always_sync for evaluator in evaluators)
     executor = get_executor_on_sync_context(
         _run_eval,
         _arun_eval,
-        run_sync=run_sync or model.always_sync,
+        run_sync=run_sync or always_sync,
         concurrency=concurrency,
         tqdm_bar_format=get_tqdm_progress_bar_formatter("run_evals"),
         exit_on_error=True,
         fallback_return_value=(None, None),
     )
+
     payloads = [
         RunEvalsPayload(
             evaluator_index=evaluator_index,
