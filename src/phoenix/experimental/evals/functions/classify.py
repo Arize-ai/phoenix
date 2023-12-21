@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import logging
 from collections import defaultdict
 from typing import (
@@ -21,11 +20,10 @@ import pandas as pd
 from pandas import DataFrame
 from typing_extensions import TypeAlias
 
-from phoenix.experimental.evals.evaluators import LLMEvaluator, _snap_to_rail
+from phoenix.experimental.evals.evaluators import LLMEvaluator
 from phoenix.experimental.evals.functions.executor import get_executor_on_sync_context
 from phoenix.experimental.evals.models import BaseEvalModel, OpenAIModel, set_verbosity
 from phoenix.experimental.evals.templates import (
-    NOT_PARSABLE,
     RAG_RELEVANCY_PROMPT_RAILS_MAP,
     RAG_RELEVANCY_PROMPT_TEMPLATE,
     ClassificationTemplate,
@@ -34,7 +32,13 @@ from phoenix.experimental.evals.templates import (
     map_template,
     normalize_classification_template,
 )
-from phoenix.experimental.evals.utils import get_tqdm_progress_bar_formatter
+from phoenix.experimental.evals.utils import (
+    NOT_PARSABLE,
+    get_tqdm_progress_bar_formatter,
+    openai_function_call_kwargs,
+    parse_openai_function_call,
+    snap_to_rail,
+)
 from phoenix.trace.semantic_conventions import DOCUMENT_CONTENT, INPUT_VALUE, RETRIEVAL_DOCUMENTS
 from phoenix.utilities.logging import printif
 
@@ -44,15 +48,15 @@ logger = logging.getLogger(__name__)
 OPENINFERENCE_QUERY_COLUMN_NAME = "attributes." + INPUT_VALUE
 OPENINFERENCE_DOCUMENT_COLUMN_NAME = "attributes." + RETRIEVAL_DOCUMENTS
 
-# argument keys in the default openai function call,
-# defined here only to prevent typos
-_RESPONSE = "response"
-_EXPLANATION = "explanation"
-
-EvalName: TypeAlias = str
-EvalPrediction: TypeAlias = str
+ColumnName: TypeAlias = str
+Label: TypeAlias = str
+Explanation: TypeAlias = Optional[str]
 Record: TypeAlias = Mapping[str, Any]
+EvaluatorIndex: TypeAlias = int
 RowIndex: TypeAlias = Any
+
+# snapped_response, explanation, response
+ParsedLLMResponse: TypeAlias = Tuple[Optional[str], Optional[str], str]
 
 
 def llm_classify(
@@ -64,6 +68,8 @@ def llm_classify(
     verbose: bool = False,
     use_function_calling_if_available: bool = True,
     provide_explanation: bool = False,
+    include_prompt: bool = False,
+    include_response: bool = False,
     run_sync: bool = False,
     concurrency: int = 20,
 ) -> pd.DataFrame:
@@ -98,7 +104,12 @@ def llm_classify(
 
         provide_explanation (bool, default=False): If True, provides an explanation for each
         classification label. A column named `explanation` is added to the output dataframe.
-        Currently, this is only available for models with function calling.
+
+        include_prompt (bool, default=False): If True, includes a column named `prompt` in the
+        output dataframe containing the prompt used for each classification.
+
+        include_response (bool, default=False): If True, includes a column named `response` in the
+        output dataframe containing the raw response from the LLM.
 
         run_sync (bool, default=False): If True, forces synchronous request submission. Otherwise
         evaluations will be run asynchronously if possible.
@@ -121,11 +132,9 @@ def llm_classify(
         and model.supports_function_calling
     )
 
-    model_kwargs: Dict[str, Any] = {}
-    if use_openai_function_call:
-        openai_function = _default_openai_function(rails, provide_explanation)
-        model_kwargs["functions"] = [openai_function]
-        model_kwargs["function_call"] = {"name": openai_function["name"]}
+    model_kwargs = (
+        openai_function_call_kwargs(rails, provide_explanation) if use_openai_function_call else {}
+    )
 
     eval_template = normalize_classification_template(rails=rails, template=template)
 
@@ -154,28 +163,26 @@ def llm_classify(
                 unrailed_label = response
                 explanation = None
         else:
-            try:
-                function_arguments = json.loads(response, strict=False)
-                unrailed_label = function_arguments.get(_RESPONSE)
-                explanation = function_arguments.get(_EXPLANATION)
-            except json.JSONDecodeError:
-                unrailed_label = response
-                explanation = None
-        return _snap_to_rail(unrailed_label, rails, verbose=verbose), explanation
+            unrailed_label, explanation = parse_openai_function_call(response)
+        return snap_to_rail(unrailed_label, rails, verbose=verbose), explanation
 
-    async def _run_llm_classification_async(prompt: str) -> Tuple[str, Optional[str]]:
+    async def _run_llm_classification_async(prompt: str) -> ParsedLLMResponse:
         with set_verbosity(model, verbose) as verbose_model:
             response = await verbose_model._async_generate(
                 prompt, instruction=system_instruction, **model_kwargs
             )
-        return _process_response(response)
+        inference, explanation = _process_response(response)
+        return inference, explanation, response
 
-    def _run_llm_classification_sync(prompt: str) -> Tuple[str, Optional[str]]:
+    def _run_llm_classification_sync(prompt: str) -> ParsedLLMResponse:
         with set_verbosity(model, verbose) as verbose_model:
             response = verbose_model._generate(
                 prompt, instruction=system_instruction, **model_kwargs
             )
-        return _process_response(response)
+        inference, explanation = _process_response(response)
+        return inference, explanation, response
+
+    fallback_return_value: ParsedLLMResponse = (None, None, "")
 
     executor = get_executor_on_sync_context(
         _run_llm_classification_sync,
@@ -184,16 +191,18 @@ def llm_classify(
         concurrency=concurrency,
         tqdm_bar_format=tqdm_bar_format,
         exit_on_error=True,
-        fallback_return_value=(None, None),
+        fallback_return_value=fallback_return_value,
     )
 
     results = executor.run(prompts.tolist())
-    labels, explanations = zip(*results)
+    labels, explanations, responses = zip(*results)
 
     return pd.DataFrame(
         data={
             "label": labels,
             **({"explanation": explanations} if provide_explanation else {}),
+            **({"prompt": prompts} if include_prompt else {}),
+            **({"response": responses} if include_response else {}),
         },
         index=dataframe.index,
     )
@@ -320,90 +329,78 @@ def _get_contents_from_openinference_documents(documents: Iterable[Any]) -> List
     return [doc.get(DOCUMENT_CONTENT) if isinstance(doc, dict) else None for doc in documents]
 
 
-def _default_openai_function(
-    rails: List[str],
-    with_explanation: bool = False,
-) -> Dict[str, Any]:
-    properties = {
-        **(
-            {
-                _EXPLANATION: {
-                    "type": "string",
-                    "description": "Explanation of the reasoning for your response.",
-                },
-            }
-            if with_explanation
-            else {}
-        ),
-        _RESPONSE: {"type": "string", "description": "Your response.", "enum": rails},
-    }
-    required = [*([_EXPLANATION] if with_explanation else []), _RESPONSE]
-    return {
-        "name": "record_response",
-        "description": "A function to record your response.",
-        "parameters": {
-            "type": "object",
-            "properties": properties,
-            "required": required,
-        },
-    }
-
-
 class RunEvalsPayload(NamedTuple):
+    evaluator_index: EvaluatorIndex
+    row_index: RowIndex
     evaluator: LLMEvaluator
     record: Record
-    row_index: RowIndex
 
 
 def run_evals(
     dataframe: DataFrame,
     evaluators: List[LLMEvaluator],
+    provide_explanation: bool = False,
+    use_function_calling_if_available: bool = True,
+    verbose: bool = False,
     concurrency: int = 20,
-) -> DataFrame:
+) -> List[DataFrame]:
     """
-    Applies a list of evaluators to every row of a dataframe. Outputs a
-    dataframe where each column corresponds to an evaluator and each row
-    corresponds to a row in the input dataframe.
+    Applies a list of evaluators to a dataframe. Outputs a list of dataframes in
+    which each dataframe contains the outputs of the corresponding evaluator
+    applied to the input dataframe.
 
     Args:
-        dataframe (pd.DataFrame): A pandas dataframe in which each row
-        represents a record to be evaluated. All template variable names must
-        appear as column names in the dataframe (extra columns unrelated to the
-        template are permitted).
+        dataframe (DataFrame): A pandas dataframe in which each row represents a
+        record to be evaluated. All template variable names must appear as
+        column names in the dataframe (extra columns unrelated to the template
+        are permitted).
 
-        evaluators (List[Evaluator]): A list of evaluators with unique names.
+        evaluators (List[LLMEvaluator]): A list of evaluators.
 
-        concurrency (int, optional): An optional concurrency parameter. Defaults
-        to 20.
+        provide_explanation (bool, optional): If True, provides an explanation
+        for each evaluation. A column named "explanation" is added to each
+        output dataframe.
+
+        use_function_calling_if_available (bool, optional): If True, use
+        function calling (if available) as a means to constrain the LLM outputs.
+        With function calling, the LLM is instructed to provide its response as
+        a structured JSON object, which is easier to parse.
+
+        verbose (bool, optional): If True, prints detailed info to stdout such
+        as model invocation parameters and details about retries and snapping to
+        rails.
+
+        concurrency (int, optional): The number of concurrent evals if async
+        submission is possible.
 
     Returns:
-        DataFrame: A dataframe where each row contains the outputs of the
-        evaluators applied to the corresponding row of the input dataframe and
-        the column names match the names of the evaluators. The index of the
-        dataframe is the same as the index of the input dataframe.
+        List[DataFrame]: A list of dataframes, one for each evaluator, all of
+        which have the same number of rows as the input dataframe.
     """
-    if len(set(evaluator.name for evaluator in evaluators)) != len(evaluators):
-        raise ValueError("Evaluators must have unique names.")
 
-    async def _run_eval_async(
+    async def _arun_eval(
         payload: RunEvalsPayload,
-    ) -> Tuple[RowIndex, EvalName, EvalPrediction]:
-        row_index = payload.row_index
-        evaluator = payload.evaluator
-        record = payload.record
-        eval_result = await evaluator.aevaluate(record)
-        return row_index, evaluator.name, eval_result
+    ) -> Tuple[EvaluatorIndex, RowIndex, Label, Explanation]:
+        label, explanation = await payload.evaluator.aevaluate(
+            payload.record,
+            provide_explanation=provide_explanation,
+            use_function_calling_if_available=use_function_calling_if_available,
+        )
+        return payload.evaluator_index, payload.row_index, label, explanation
 
-    def _run_eval_sync(payload: RunEvalsPayload) -> Tuple[RowIndex, EvalName, EvalPrediction]:
-        row_index = payload.row_index
-        evaluator = payload.evaluator
-        record = payload.record
-        eval_result = evaluator.evaluate(record)
-        return row_index, evaluator.name, eval_result
+    def _run_eval(
+        payload: RunEvalsPayload,
+    ) -> Tuple[EvaluatorIndex, RowIndex, Label, Explanation]:
+        label, explanation = payload.evaluator.evaluate(
+            payload.record,
+            provide_explanation=provide_explanation,
+            use_function_calling_if_available=use_function_calling_if_available,
+        )
+        return payload.evaluator_index, payload.row_index, label, explanation
 
     executor = get_executor_on_sync_context(
-        _run_eval_sync,
-        _run_eval_async,
+        _run_eval,
+        _arun_eval,
         concurrency=concurrency,
         tqdm_bar_format=get_tqdm_progress_bar_formatter("run_evals"),
         exit_on_error=True,
@@ -411,15 +408,23 @@ def run_evals(
     )
     payloads = [
         RunEvalsPayload(
+            evaluator_index=evaluator_index,
             row_index=row_index,
             evaluator=evaluator,
             record=row.to_dict(),
         )
         for row_index, row in dataframe.iterrows()
-        for evaluator in evaluators
+        for evaluator_index, evaluator in enumerate(evaluators)
     ]
-    results: DefaultDict[RowIndex, Dict[EvalName, EvalPrediction]] = defaultdict(dict)
-    for row_index, eval_name, eval_result in executor.run(payloads):
-        results[row_index][eval_name] = eval_result
-    index, data = zip(*results.items())
-    return DataFrame(data, index=index)
+    eval_results: List[DefaultDict[RowIndex, Dict[ColumnName, Union[Label, Explanation]]]] = [
+        defaultdict(dict) for _ in range(len(evaluators))
+    ]
+    for evaluator_index, row_index, label, explanation in executor.run(payloads):
+        eval_results[evaluator_index][row_index]["label"] = label
+        if explanation is not None:
+            eval_results[evaluator_index][row_index]["explanation"] = explanation
+    eval_dataframes: List[DataFrame] = []
+    for eval_result in eval_results:
+        index, eval_data = zip(*eval_result.items())
+        eval_dataframes.append(DataFrame(eval_data, index=index))
+    return eval_dataframes

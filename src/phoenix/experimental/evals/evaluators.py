@@ -1,14 +1,26 @@
-from typing import List, Mapping, Optional
+from typing import List, Mapping, Optional, Tuple
 
+from phoenix.exceptions import PhoenixException
 from phoenix.experimental.evals.models import set_verbosity
+from phoenix.experimental.evals.templates.default_templates import (
+    EvalCriteria,
+)
+from phoenix.experimental.evals.utils import (
+    NOT_PARSABLE,
+    openai_function_call_kwargs,
+    parse_openai_function_call,
+    snap_to_rail,
+)
 from phoenix.utilities.logging import printif
 
-from .models import BaseEvalModel
-from .templates import ClassificationTemplate, PromptTemplate
+from .models import BaseEvalModel, OpenAIModel
+from .templates import ClassificationTemplate, PromptOptions, PromptTemplate
 
 Record = Mapping[str, str]
 
-NOT_PARSABLE = "NOT_PARSABLE"
+
+class InvalidEvalCriteriaError(PhoenixException):
+    pass
 
 
 class LLMEvaluator:
@@ -20,51 +32,146 @@ class LLMEvaluator:
         self,
         model: BaseEvalModel,
         template: ClassificationTemplate,
-        name: str,
-        verbose: bool = False,
     ) -> None:
         """Initializer for LLMEvaluator.
 
         Args:
             model (BaseEvalModel): The LLM model to use for evaluation.
             template (ClassificationTemplate): The evaluation template.
-            name (str): The name of the evaluator.
-            verbose (bool, optional): Whether to print verbose output.
         """
         self._model = model
         self._template = template
-        self.name = name
-        self._verbose = verbose
 
-    def evaluate(self, record: Record) -> str:
-        """Evaluates a single record.
+    def evaluate(
+        self,
+        record: Record,
+        provide_explanation: bool = False,
+        use_function_calling_if_available: bool = True,
+        verbose: bool = False,
+    ) -> Tuple[str, Optional[str]]:
+        """
+        Evaluates a single record.
 
         Args:
             record (Record): The record to evaluate.
 
-        Returns:
-            EvaluationResult: The result of the evaluation
-        """
-        prompt = self._template.format(record)
-        with set_verbosity(self._model, self._verbose) as verbose_model:
-            unparsed_output = verbose_model(prompt)
-        parsed_output = _snap_to_rail(unparsed_output, self._template.rails, self._verbose)
-        return parsed_output
+            provide_explanation (bool, optional): Whether to provide an
+            explanation.
 
-    async def aevaluate(self, record: Record) -> str:
-        """Evaluates a single record.
+            use_function_calling_if_available (bool, optional): If True, use
+            function calling (if available) as a means to constrain the LLM
+            outputs. With function calling, the LLM is instructed to provide its
+            response as a structured JSON object, which is easier to parse.
+
+            use_function_calling_if_available (bool, optional): If True, use
+            function calling (if available) as a means to constrain the LLM
+            outputs. With function calling, the LLM is instructed to provide its
+            response as a structured JSON object, which is easier to parse.
+
+            verbose (bool, optional): Whether to print verbose output.
+
+        Returns:
+            Tuple[str, Optional[str]]: The label and explanation (if provided).
+        """
+        use_openai_function_call = (
+            use_function_calling_if_available
+            and isinstance(self._model, OpenAIModel)
+            and self._model.supports_function_calling
+        )
+        prompt = self._template.format(
+            record, options=PromptOptions(provide_explanation=provide_explanation)
+        )
+        with set_verbosity(self._model, verbose) as verbose_model:
+            unparsed_output = verbose_model(
+                prompt,
+                **(
+                    openai_function_call_kwargs(self._template.rails, provide_explanation)
+                    if use_openai_function_call
+                    else {}
+                ),
+            )
+        label, explanation = _extract_label_and_explanation(
+            unparsed_output=unparsed_output,
+            template=self._template,
+            provide_explanation=provide_explanation,
+            use_openai_function_call=use_openai_function_call,
+            verbose=verbose,
+        )
+        return label, explanation
+
+    async def aevaluate(
+        self,
+        record: Record,
+        provide_explanation: bool = False,
+        use_function_calling_if_available: bool = True,
+        verbose: bool = False,
+    ) -> Tuple[str, Optional[str]]:
+        """
+        Evaluates a single record.
 
         Args:
             record (Record): The record to evaluate.
 
+            provide_explanation (bool, optional): Whether to provide an
+            explanation.
+
+            use_function_calling_if_available (bool, optional): If True, use
+            function calling (if available) as a means to constrain the LLM
+            outputs. With function calling, the LLM is instructed to provide its
+            response as a structured JSON object, which is easier to parse.
+
+            verbose (bool, optional): Whether to print verbose output.
+
         Returns:
-            EvaluationResult: The result of the evaluation
+            Tuple[str, Optional[str]]: The label and explanation (if provided).
         """
-        prompt = self._template.format(dict(record))
-        with set_verbosity(self._model, self._verbose) as verbose_model:
-            unparsed_output = await verbose_model._async_generate(prompt)
-        parsed_output = _snap_to_rail(unparsed_output, self._template.rails, self._verbose)
-        return parsed_output
+        use_openai_function_call = (
+            use_function_calling_if_available
+            and isinstance(self._model, OpenAIModel)
+            and self._model.supports_function_calling
+        )
+        prompt = self._template.format(
+            record, options=PromptOptions(provide_explanation=provide_explanation)
+        )
+        with set_verbosity(self._model, verbose) as verbose_model:
+            unparsed_output = await verbose_model._async_generate(
+                prompt,
+                **(
+                    openai_function_call_kwargs(self._template.rails, provide_explanation)
+                    if use_openai_function_call
+                    else {}
+                ),
+            )
+        label, explanation = _extract_label_and_explanation(
+            unparsed_output=unparsed_output,
+            template=self._template,
+            provide_explanation=provide_explanation,
+            use_openai_function_call=use_openai_function_call,
+            verbose=verbose,
+        )
+        return label, explanation
+
+    @classmethod
+    def from_criteria(
+        cls,
+        criteria: EvalCriteria,
+        model: BaseEvalModel,
+    ) -> "LLMEvaluator":
+        """
+        Instantiates an LLMEvaluator from an eval criteria.
+
+        Args:
+            criteria (EvalCriteria): The eval criteria.
+
+            model (BaseEvalModel): The model to use for evaluation.
+
+        Returns:
+            LLMEvaluator: The instantiate evaluator.
+        """
+        return cls(
+            model=model,
+            template=criteria.value,
+        )
 
 
 class MapReducer:
@@ -202,33 +309,46 @@ class Refiner:
         return model(reduce_prompt)
 
 
-def _snap_to_rail(raw_string: Optional[str], rails: List[str], verbose: bool = False) -> str:
+def _extract_label_and_explanation(
+    unparsed_output: str,
+    template: ClassificationTemplate,
+    provide_explanation: bool,
+    use_openai_function_call: bool,
+    verbose: bool,
+) -> Tuple[str, Optional[str]]:
     """
-    Snaps a string to the nearest rail, or returns None if the string cannot be
-    snapped to a rail.
+    Extracts the label and explanation from the unparsed output.
 
     Args:
-        raw_string (str): An input to be snapped to a rail.
+        unparsed_output (str): The raw output to be parsed.
 
-        rails (List[str]): The target set of strings to snap to.
+        template (ClassificationTemplate): The template used to generate the
+        output.
+
+        provide_explanation (bool): Whether the output includes an explanation.
+
+        use_openai_function_call (bool): Whether the output was generated using
+        function calling.
+
+        verbose (bool): If True, print verbose output to stdout.
 
     Returns:
-        str: A string from the rails argument or "UNPARSABLE" if the input
-        string could not be snapped.
+        Tuple[str, Optional[str]]: A tuple containing the label and an
+        explanation (if one is provided).
     """
-    if not raw_string:
-        return NOT_PARSABLE
-    snap_string = raw_string.lower()
-    rails = list(set(rail.lower() for rail in rails))
-    rails.sort(key=len, reverse=True)
-    found_rails = set()
-    for rail in rails:
-        if rail in snap_string:
-            found_rails.add(rail)
-            snap_string = snap_string.replace(rail, "")
-    if len(found_rails) != 1:
-        printif(verbose, f"- Cannot snap {repr(raw_string)} to rails")
-        return NOT_PARSABLE
-    rail = list(found_rails)[0]
-    printif(verbose, f"- Snapped {repr(raw_string)} to rail: {rail}")
-    return rail
+    if not use_openai_function_call:
+        if provide_explanation:
+            unrailed_label, explanation = (
+                template.extract_label_from_explanation(unparsed_output),
+                unparsed_output,
+            )
+            printif(
+                verbose and unrailed_label == NOT_PARSABLE,
+                f"- Could not parse {repr(unparsed_output)}",
+            )
+        else:
+            unrailed_label = unparsed_output
+            explanation = None
+    else:
+        unrailed_label, explanation = parse_openai_function_call(unparsed_output)
+    return snap_to_rail(unrailed_label, template.rails, verbose=verbose), explanation

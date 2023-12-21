@@ -13,9 +13,9 @@ from .default_templates import (
     REFERENCE_LINK_CORRECTNESS_PROMPT_TEMPLATE,
     TOXICITY_PROMPT_RAILS_MAP,
     TOXICITY_PROMPT_TEMPLATE,
+    EvalCriteria,
 )
 from .template import (
-    NOT_PARSABLE,
     ClassificationTemplate,
     PromptOptions,
     PromptTemplate,
@@ -25,6 +25,7 @@ from .template import (
 )
 
 __all__ = [
+    "EvalCriteria",
     "UserTemplate",
     "PromptOptions",
     "PromptTemplate",
@@ -32,7 +33,6 @@ __all__ = [
     "normalize_classification_template",
     "normalize_prompt_template",
     "map_template",
-    "NOT_PARSABLE",
     "CODE_READABILITY_PROMPT_RAILS_MAP",
     "CODE_READABILITY_PROMPT_TEMPLATE",
     "HALLUCINATION_PROMPT_RAILS_MAP",

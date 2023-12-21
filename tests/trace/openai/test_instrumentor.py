@@ -60,16 +60,6 @@ def openai_module() -> ModuleType:
 
 
 @pytest.fixture
-def openai_api_key(monkeypatch: pytest.MonkeyPatch) -> None:
-    """
-    Monkeypatches the environment variable for the OpenAI API key.
-    """
-    api_key = "sk-0123456789"
-    monkeypatch.setenv("OPENAI_API_KEY", api_key)
-    return api_key
-
-
-@pytest.fixture
 def sync_client(openai_api_key: str, openai_module: ModuleType) -> OpenAI:
     """
     Instantiates the OpenAI synchronous client using the reloaded openai module,
