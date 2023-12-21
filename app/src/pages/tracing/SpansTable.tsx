@@ -195,7 +195,7 @@ export function SpansTable(props: SpansTableProps) {
               return (
                 <>
                   <RetrievalEvaluationLabel
-                    key="ncdg"
+                    key="ndcg"
                     name={retrievalMetric.evaluationName}
                     metric="ndcg"
                     score={retrievalMetric.ndcg}

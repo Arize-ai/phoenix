@@ -11,6 +11,7 @@
         "dataframe",
         "Evals",
         "gitbook",
+        "graphiql",
         "HDBSCAN",
         "httpx",
         "Instrumentor",
