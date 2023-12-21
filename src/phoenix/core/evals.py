@@ -1,6 +1,7 @@
 import logging
 import weakref
 from collections import defaultdict
+from datetime import datetime, timezone
 from queue import SimpleQueue
 from threading import RLock, Thread
 from types import MethodType
@@ -46,6 +47,7 @@ class Evals:
         self._document_evaluations_by_name: DefaultDict[
             EvaluationName, DefaultDict[SpanID, Dict[DocumentPosition, pb.Evaluation]]
         ] = defaultdict(lambda: defaultdict(dict))
+        self._last_updated_at: Optional[datetime] = None
         self._start_consumer()
 
     def put(self, evaluation: pb.Evaluation) -> None:
@@ -92,6 +94,11 @@ class Evals:
             )
         else:
             assert_never(subject_id_kind)
+        self._last_updated_at = datetime.now(timezone.utc)
+
+    @property
+    def last_updated_at(self) -> Optional[datetime]:
+        return self._last_updated_at
 
     def get_span_evaluation(self, span_id: SpanID, name: str) -> Optional[pb.Evaluation]:
         with self._lock:
