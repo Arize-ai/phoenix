@@ -104,7 +104,7 @@ export function TracingHomePageHeader(props: {
             )}
           </Flex>
           {spanEvaluationNames.map((name) => (
-            <EvaluationSummary key={name} evaluationName={name} query={data} />
+            <EvaluationSummary key={name} evaluationName={name} />
           ))}
         </Flex>
         <>{extra}</>

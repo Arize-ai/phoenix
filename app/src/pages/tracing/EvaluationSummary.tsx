@@ -6,14 +6,12 @@ import {
   Flex,
   HelpTooltip,
   Text,
-  Tooltip,
   TooltipTrigger,
   TriggerWrap,
   View,
 } from "@arizeai/components";
 
 import {
-  ChartTooltip,
   ChartTooltipDivider,
   ChartTooltipItem,
   useChartColors,
