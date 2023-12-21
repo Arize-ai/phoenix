@@ -1,12 +1,9 @@
-from collections import defaultdict
 from datetime import datetime, timezone
-from enum import Enum
 from types import MappingProxyType
 from typing import (
     Any,
     DefaultDict,
     Dict,
-    Hashable,
     Iterable,
     Iterator,
     List,
@@ -15,6 +12,7 @@ from typing import (
     Sequence,
     Set,
     Tuple,
+    Union,
     cast,
 )
 from uuid import UUID
@@ -175,92 +173,95 @@ _SEMANTIC_CONVENTIONS: List[str] = sorted(
 def _semantic_convention_prefix_partition(key: str, separator: str = ".") -> Tuple[str, str, str]:
     """Return the longest prefix of `key` that is a semantic convention, and the remaining suffix
     separated by `.`. For example, if `key` is "retrieval.documents.2.document.score", return
-    "retrieval.documents", "2.document.score".
+    ("retrieval.documents", ".", "2.document.score"). The return signature is based on Python's
+    `.partition` method for strings.
     """
     for prefix in _SEMANTIC_CONVENTIONS:
         if key == prefix:
             return key, "", ""
-        if key.startswith(prefix) and key[len(prefix)] == separator:
+        if key.startswith(prefix) and key[len(prefix) :].startswith(separator):
             return prefix, separator, key[len(prefix) + len(separator) :]
     return "", "", ""
 
 
-class _NodeMarker(Enum):
-    """Sentinel keys for marking a Trie node"""
+class _Trie(DefaultDict[Union[str, int], "_Trie"]):
+    """Prefix Tree with special handling for indices (i.e. all-digit keys)."""
 
-    value = object()
-    indices = object()
+    def __init__(self) -> None:
+        super().__init__(_Trie)
+        self.value: Any = None
+        self.indices: Set[int] = set()
+        self.branches: Set[Union[str, int]] = set()
 
+    def set_value(self, value: Any) -> None:
+        self.value = value
+        # value and indices must not coexist
+        self.branches.update(self.indices)
+        self.indices.clear()
 
-def _trie() -> DefaultDict[Hashable, Any]:
-    """prefix tree"""
-    return defaultdict(_trie)
+    def add_index(self, index: int) -> "_Trie":
+        if self.value is not None:
+            self.branches.add(index)
+        elif index not in self.branches:
+            self.indices.add(index)
+        return self[index]
+
+    def add_branch(self, branch: Union[str, int]) -> "_Trie":
+        if branch in self.indices:
+            self.indices.discard(cast(int, branch))
+        self.branches.add(branch)
+        return self[branch]
 
 
 # FIXME: Ideally we should not need something so complicated as a Trie, but it's useful here
-# for backward compatibility reasons with respect to some deeply nested objects such as
-# TOOL_PARAMETERS. In the future, we should `json_dumps` them and not let things get too
-# deeply nested.
+# for backward compatibility reasons regarding some deeply nested objects such as TOOL_PARAMETERS.
+# In the future, we should `json_dumps` them and not let things get too deeply nested.
 def _build_trie(
     key_value_pairs: Iterable[Tuple[str, Any]],
     separator: str = ".",
-) -> DefaultDict[Hashable, Any]:
+) -> _Trie:
     """Build a Trie (a.k.a. prefix tree) from `key_value_pairs`, by partitioning the keys by
     separator. Each partition is a branch in the Trie. Special handling is done for partitions
     that are all digits, e.g. "0", "12", etc., which are converted to integers and collected
     as indices.
     """
-    trie = _trie()
+    trie = _Trie()
     for key, value in key_value_pairs:
+        if value is None:
+            continue
         t = trie
         while True:
             prefix, _, suffix = _semantic_convention_prefix_partition(key, separator)
             if prefix:
-                t = t[prefix]
+                t = t.add_branch(prefix)
             else:
                 prefix, _, suffix = key.partition(separator)
                 if prefix.isdigit():
                     index = int(prefix)
-                    indices = t.get(_NodeMarker.indices)
-                    if suffix:
-                        if indices is not None:
-                            indices.add(index)
-                        else:
-                            t[_NodeMarker.indices] = {index}
-                    elif indices is not None:
-                        indices.discard(index)
-                    t = t[index]
+                    t = t.add_index(index) if suffix else t.add_branch(index)
                 else:
-                    t = t[prefix]
+                    t = t.add_branch(prefix)
             if not suffix:
                 break
             key = suffix
-        t[_NodeMarker.value] = value
-    trie.pop(_NodeMarker.indices, None)
+        t.set_value(value)
     return trie
 
 
-def _walk(
-    trie: DefaultDict[Hashable, Any],
-    prefix: str = "",
-) -> Iterator[Tuple[str, Any]]:
-    if _NodeMarker.value not in trie and _NodeMarker.indices not in trie:
-        if prefix:
-            yield prefix, dict(_walk(trie))
-        else:
-            for key, node in trie.items():
-                yield from _walk(node, prefix=f"{key}")
+def _walk(trie: _Trie, prefix: str = "") -> Iterator[Tuple[str, Any]]:
+    if trie.value is not None:
+        yield prefix, trie.value
+    elif prefix and trie.indices:
+        yield prefix, [dict(_walk(trie[index])) for index in sorted(trie.indices)]
+    elif trie.indices:
+        for index in trie.indices:
+            yield from _walk(trie[index], prefix=f"{index}")
+    elif prefix:
+        yield prefix, dict(_walk(trie))
         return
-    if _NodeMarker.value in trie:
-        value = trie.pop(_NodeMarker.value, None)
-        yield prefix, value
-        # Indices no longer indicate an array, but must be continuations of the prefix
-        # key string. Discard the `indices` leaf marker, but not the index keys themselves.
-        trie.pop(_NodeMarker.indices, None)
-    elif (indices := cast(Set[int], trie.pop(_NodeMarker.indices, None))) and prefix:
-        yield prefix, [dict(_walk(trie.pop(index))) for index in sorted(indices)]
-    for key, node in trie.items():
-        yield from _walk(node, prefix=f"{prefix}.{key}" if prefix else f"{key}")
+    for branch in trie.branches:
+        new_prefix = f"{prefix}.{branch}" if prefix else f"{branch}"
+        yield from _walk(trie[branch], new_prefix)
 
 
 def _unflatten(
