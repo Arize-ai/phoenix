@@ -30,7 +30,7 @@ export function StreamToggle(props: { query: StreamToggle_data$key }) {
     lastUpdatedAt.streamingLastUpdatedAt
   );
 
-  // Refetch lastUpdatedAt if the streaming toggle is on
+  // Refetch lastUpdatedAt if the streaming toggle is on to detect when the underlying data changes
   const refetchCountsIfStreaming = useCallback(() => {
     if (isStreaming) {
       startTransition(() => {
