@@ -102,7 +102,8 @@ class Evals:
 
     def get_span_evaluation(self, span_id: SpanID, name: str) -> Optional[pb.Evaluation]:
         with self._lock:
-            return self._evaluations_by_span_id[span_id].get(name)
+            span_evaluations = self._evaluations_by_span_id.get(span_id)
+            return span_evaluations.get(name) if span_evaluations else None
 
     def get_span_evaluation_names(self) -> List[EvaluationName]:
         with self._lock:
@@ -115,28 +116,36 @@ class Evals:
         with self._lock:
             if span_id is None:
                 return list(self._document_evaluations_by_name)
-            return list(self._document_evaluations_by_span_id[span_id])
+            document_evaluations = self._document_evaluations_by_span_id.get(span_id)
+            return list(document_evaluations) if document_evaluations else []
 
     def get_span_evaluation_labels(self, name: EvaluationName) -> Tuple[str, ...]:
         with self._lock:
-            return tuple(self._span_evaluation_labels[name])
+            labels = self._span_evaluation_labels.get(name)
+            return tuple(labels) if labels else ()
 
     def get_span_evaluation_span_ids(self, name: EvaluationName) -> Tuple[SpanID, ...]:
         with self._lock:
-            return tuple(self._span_evaluations_by_name[name].keys())
+            span_evaluations = self._span_evaluations_by_name.get(name)
+            return tuple(span_evaluations.keys()) if span_evaluations else ()
 
     def get_evaluations_by_span_id(self, span_id: SpanID) -> List[pb.Evaluation]:
         with self._lock:
-            return list(self._evaluations_by_span_id[span_id].values())
+            evaluations = self._evaluations_by_span_id.get(span_id)
+            return list(evaluations.values()) if evaluations else []
 
     def get_document_evaluation_span_ids(self, name: EvaluationName) -> Tuple[SpanID, ...]:
         with self._lock:
-            return tuple(self._document_evaluations_by_name[name].keys())
+            document_evaluations = self._document_evaluations_by_name.get(name)
+            return tuple(document_evaluations.keys()) if document_evaluations else ()
 
     def get_document_evaluations_by_span_id(self, span_id: SpanID) -> List[pb.Evaluation]:
         all_evaluations: List[pb.Evaluation] = []
         with self._lock:
-            for evaluations in self._document_evaluations_by_span_id[span_id].values():
+            document_evaluations = self._document_evaluations_by_span_id.get(span_id)
+            if not document_evaluations:
+                return all_evaluations
+            for evaluations in document_evaluations.values():
                 all_evaluations.extend(evaluations.values())
         return all_evaluations
 
@@ -151,7 +160,12 @@ class Evals:
         # of one trillion, we would not want to create a result that large.
         scores: List[float] = [np.nan] * num_documents
         with self._lock:
-            evaluations = self._document_evaluations_by_span_id[span_id][evaluation_name]
+            document_evaluations = self._document_evaluations_by_span_id.get(span_id)
+            if not document_evaluations:
+                return scores
+            evaluations = document_evaluations.get(evaluation_name)
+            if not evaluations:
+                return scores
             for document_position, evaluation in evaluations.items():
                 result = evaluation.result
                 if result.HasField("score") and document_position < num_documents:

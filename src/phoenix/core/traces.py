@@ -120,7 +120,7 @@ class Traces:
         self._lock = RLock()
         self._spans: Dict[SpanID, ReadableSpan] = {}
         self._parent_span_ids: Dict[SpanID, ParentSpanID] = {}
-        self._traces: Dict[TraceID, List[SpanID]] = defaultdict(list)
+        self._traces: DefaultDict[TraceID, List[SpanID]] = defaultdict(list)
         self._child_span_ids: DefaultDict[SpanID, Set[ChildSpanID]] = defaultdict(set)
         self._orphan_spans: DefaultDict[ParentSpanID, List[pb.Span]] = defaultdict(list)
         self._num_documents: DefaultDict[SpanID, int] = defaultdict(int)
@@ -146,7 +146,9 @@ class Traces:
     def get_trace(self, trace_id: TraceID) -> Iterator[Span]:
         with self._lock:
             # make a copy because source data can mutate during iteration
-            span_ids = tuple(self._traces[trace_id])
+            if not (trace := self._traces.get(trace_id)):
+                return
+            span_ids = tuple(trace)
         for span_id in span_ids:
             if span := self[span_id]:
                 yield span
@@ -196,7 +198,7 @@ class Traces:
 
     def get_num_documents(self, span_id: SpanID) -> int:
         with self._lock:
-            return self._num_documents[span_id]
+            return self._num_documents.get(span_id) or 0
 
     def latency_rank_percent(self, latency_ms: float) -> Optional[float]:
         """
@@ -223,7 +225,9 @@ class Traces:
     def get_descendant_span_ids(self, span_id: SpanID) -> Iterator[SpanID]:
         with self._lock:
             # make a copy because source data can mutate during iteration
-            span_ids = tuple(self._child_span_ids[span_id])
+            if not (child_span_ids := self._child_span_ids.get(span_id)):
+                return
+            span_ids = tuple(child_span_ids)
         for child_span_id in span_ids:
             yield child_span_id
             yield from self.get_descendant_span_ids(child_span_id)
