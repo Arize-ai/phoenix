@@ -197,6 +197,10 @@ def _trie() -> DefaultDict[Hashable, Any]:
     return defaultdict(_trie)
 
 
+# FIXME: Ideally we should not need something so complicated as a Trie, but it's useful here
+# for backward compatibility reasons with respect to some deeply nested objects such as
+# TOOL_PARAMETERS. In the future, we should `json_dumps` them and not let things get too
+# deeply nested.
 def _build_trie(
     key_value_pairs: Iterable[Tuple[str, Any]],
     separator: str = ".",

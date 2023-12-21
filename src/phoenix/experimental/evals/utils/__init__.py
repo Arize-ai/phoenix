@@ -1,6 +1,6 @@
 import json
 from io import BytesIO
-from typing import List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 from urllib.error import HTTPError
 from urllib.request import urlopen
 from zipfile import ZipFile
@@ -14,10 +14,11 @@ from phoenix.utilities.logging import printif
 # This is useful for debugging as well as to just treat the output as a non-parsable category
 NOT_PARSABLE = "NOT_PARSABLE"
 
-# argument keys in the default openai function call,
+# values in the default openai function call,
 # defined here only to prevent typos
 _RESPONSE = "response"
 _EXPLANATION = "explanation"
+_FUNCTION_NAME = "record_response"
 
 
 def download_benchmark_dataset(task: str, dataset_name: str) -> pd.DataFrame:
@@ -108,3 +109,64 @@ def parse_openai_function_call(raw_output: str) -> Tuple[str, Optional[str]]:
         unrailed_label = raw_output
         explanation = None
     return unrailed_label, explanation
+
+
+def openai_function_call_kwargs(rails: List[str], provide_explanation: bool) -> Dict[str, Any]:
+    """
+    Returns keyword arguments needed to invoke an OpenAI model with function
+    calling for classification.
+
+    Args:
+        rails (List[str]): The rails to snap the output to.
+
+        provide_explanation (bool): Whether to provide an explanation.
+
+    Returns:
+        Dict[str, Any]: A dictionary containing function call arguments.
+    """
+    openai_function = _default_openai_function(rails, provide_explanation)
+    return {
+        "functions": [openai_function],
+        "function_call": {"name": openai_function["name"]},
+    }
+
+
+def _default_openai_function(
+    rails: List[str],
+    with_explanation: bool = False,
+) -> Dict[str, Any]:
+    """
+    Returns a default OpenAI function call for classification.
+
+    Args:
+        rails (List[str]): A list of rails to snap the output to.
+
+        with_explanation (bool, optional): Whether to include an explanation.
+
+    Returns:
+        Dict[str, Any]: A JSON schema object advertising a function to record
+        the result of the LLM's classification.
+    """
+    properties = {
+        **(
+            {
+                _EXPLANATION: {
+                    "type": "string",
+                    "description": "Explanation of the reasoning for your response.",
+                },
+            }
+            if with_explanation
+            else {}
+        ),
+        _RESPONSE: {"type": "string", "description": "Your response.", "enum": rails},
+    }
+    required = [*([_EXPLANATION] if with_explanation else []), _RESPONSE]
+    return {
+        "name": _FUNCTION_NAME,
+        "description": "A function to record your response.",
+        "parameters": {
+            "type": "object",
+            "properties": properties,
+            "required": required,
+        },
+    }

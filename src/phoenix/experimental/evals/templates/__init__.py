@@ -13,6 +13,7 @@ from .default_templates import (
     REFERENCE_LINK_CORRECTNESS_PROMPT_TEMPLATE,
     TOXICITY_PROMPT_RAILS_MAP,
     TOXICITY_PROMPT_TEMPLATE,
+    EvalCriteria,
 )
 from .template import (
     ClassificationTemplate,
@@ -24,6 +25,7 @@ from .template import (
 )
 
 __all__ = [
+    "EvalCriteria",
     "UserTemplate",
     "PromptOptions",
     "PromptTemplate",
