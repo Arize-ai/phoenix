@@ -9,6 +9,7 @@ import { intFormatter } from "@phoenix/utils/numberFormatUtils";
 
 import { TracingHomePageHeader_stats$key } from "./__generated__/TracingHomePageHeader_stats.graphql";
 import { TracingHomePageHeaderQuery } from "./__generated__/TracingHomePageHeaderQuery.graphql";
+import { EvaluationSummary } from "./EvaluationSummary";
 
 export function TracingHomePageHeader(props: {
   query: TracingHomePageHeader_stats$key;
@@ -38,6 +39,8 @@ export function TracingHomePageHeader(props: {
           latencyMsP50
           latencyMsP99
         }
+        spanEvaluationNames
+        documentEvaluationNames
       }
     `,
     props.query
@@ -53,6 +56,8 @@ export function TracingHomePageHeader(props: {
   const latencyMsP50 = data?.traceDatasetInfo?.latencyMsP50;
   const latencyMsP99 = data?.traceDatasetInfo?.latencyMsP99;
   const tokenCountTotal = data?.traceDatasetInfo?.tokenCountTotal;
+  const spanEvaluationNames = data?.spanEvaluationNames;
+
   return (
     <View
       paddingStart="size-200"
@@ -98,6 +103,9 @@ export function TracingHomePageHeader(props: {
               <Text textSize="xlarge">--</Text>
             )}
           </Flex>
+          {spanEvaluationNames.map((name) => (
+            <EvaluationSummary key={name} evaluationName={name} />
+          ))}
         </Flex>
         <>{extra}</>
       </Flex>
