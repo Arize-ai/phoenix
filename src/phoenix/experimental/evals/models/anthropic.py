@@ -116,9 +116,6 @@ class AnthropicModel(BaseEvalModel):
 
         return context_size
 
-    async def _async_generate(self, prompt: str, **kwargs: Dict[str, Any]) -> str:
-        return self._generate(prompt, **kwargs)
-
     def _generate(self, prompt: str, **kwargs: Dict[str, Any]) -> str:
         # instruction is an invalid input to Anthropic models, it is passed in by
         # BaseEvalModel.__call__ and needs to be removed
@@ -134,7 +131,7 @@ class AnthropicModel(BaseEvalModel):
             **kwargs,
         )
 
-        return response
+        return str(response)
 
     def _generate_with_retry(self, **kwargs: Any) -> Any:
         @self.retry
@@ -157,7 +154,7 @@ class AnthropicModel(BaseEvalModel):
             **kwargs,
         )
 
-        return response
+        return str(response)
 
     async def _async_generate_with_retry(self, **kwargs: Any) -> Any:
         @self.retry
