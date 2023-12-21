@@ -49,7 +49,10 @@ export function EvaluationSummary({ evaluationName }: EvaluationSummaryProps) {
   );
 }
 
-function EvaluationSummaryValue(props: { evaluationName: string; query: any }) {
+function EvaluationSummaryValue(props: {
+  evaluationName: string;
+  query: EvaluationSummaryValueFragment$key;
+}) {
   const { query } = props;
   const { fetchKey } = useStreamState();
   const [data, refetch] = useRefetchableFragment<
