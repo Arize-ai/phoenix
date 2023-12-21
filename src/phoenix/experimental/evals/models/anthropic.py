@@ -120,6 +120,9 @@ class AnthropicModel(BaseEvalModel):
         return self._generate(prompt, **kwargs)
 
     def _generate(self, prompt: str, **kwargs: Dict[str, Any]) -> str:
+        # instruction is an invalid input to Anthropic models, it is passed in by
+        # BaseEvalModel.__call__ and needs to be removed
+        kwargs.pop("instruction", None)
         response = self._generate_with_retry(
             model=self.model,
             prompt=self._format_prompt_for_claude(prompt),
