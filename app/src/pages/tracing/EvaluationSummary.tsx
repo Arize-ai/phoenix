@@ -1,4 +1,4 @@
-import React, { Suspense } from "react";
+import React, { startTransition, Suspense, useEffect } from "react";
 import { graphql, useLazyLoadQuery, useRefetchableFragment } from "react-relay";
 import { Cell, Pie, PieChart } from "recharts";
 
@@ -18,6 +18,7 @@ import {
   ChartTooltipItem,
   useChartColors,
 } from "@phoenix/components/chart";
+import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { formatFloat, formatPercent } from "@phoenix/utils/numberFormatUtils";
 
 import { EvaluationSummaryQuery } from "./__generated__/EvaluationSummaryQuery.graphql";
@@ -52,7 +53,8 @@ export function EvaluationSummary({ evaluationName }: EvaluationSummaryProps) {
 
 function EvaluationSummaryValue(props: { evaluationName: string; query: any }) {
   const { query } = props;
-  const [data] = useRefetchableFragment<
+  const { fetchKey } = useStreamState();
+  const [data, refetch] = useRefetchableFragment<
     EvaluationSummaryQuery,
     EvaluationSummaryValueFragment$key
   >(
@@ -71,6 +73,13 @@ function EvaluationSummaryValue(props: { evaluationName: string; query: any }) {
     `,
     query
   );
+
+  // Refetch the count of traces if the fetchKey changes
+  useEffect(() => {
+    startTransition(() => {
+      refetch({}, { fetchPolicy: "store-and-network" });
+    });
+  }, [fetchKey, refetch]);
 
   const chartColors = useChartColors();
   const colors = [
