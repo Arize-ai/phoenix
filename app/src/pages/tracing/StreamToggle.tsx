@@ -16,42 +16,42 @@ const REFRESH_INTERVAL_MS = 2000;
 export function StreamToggle(props: { query: StreamToggle_data$key }) {
   const { isStreaming, setIsStreaming, setFetchKey } = useStreamState();
 
-  const [traceCountData, refetchCounts] = useRefetchableFragment(
+  const [lastUpdatedAt, refetchLastUpdatedAt] = useRefetchableFragment(
     graphql`
       fragment StreamToggle_data on Query
       @refetchable(queryName: "StreamToggleRefetchQuery") {
-        traceCount: spans(rootSpansOnly: true) {
-          pageInfo {
-            totalCount
-          }
-        }
+        streamingLastUpdatedAt
       }
     `,
     props.query
   );
-  // Keep track of the loaded trace count so we can detect when it changes
-  const loadedTraceCountRef = useRef<number>(
-    traceCountData.traceCount.pageInfo.totalCount
+  // Keep track of the loaded lastUpdatedAt, so we can detect when it changes
+  const loadedLastUpdatedAtRef = useRef<string | null>(
+    lastUpdatedAt.streamingLastUpdatedAt
   );
 
-  // Refetch the count of traces if the streaming toggle is on
+  // Refetch lastUpdatedAt if the streaming toggle is on to detect when the underlying data changes
   const refetchCountsIfStreaming = useCallback(() => {
     if (isStreaming) {
       startTransition(() => {
-        refetchCounts({}, { fetchPolicy: "store-and-network" });
+        refetchLastUpdatedAt({}, { fetchPolicy: "store-and-network" });
       });
     }
-  }, [isStreaming, refetchCounts]);
+  }, [isStreaming, refetchLastUpdatedAt]);
 
-  // We want to refetch higher up the render tree when the counts change
-  const totalTraceCount = traceCountData.traceCount.pageInfo.totalCount;
+  // We want to refetch higher up the render tree when lastUpdatedAt changes
+  const currentLastUpdatedAt = lastUpdatedAt.streamingLastUpdatedAt;
   useEffect(() => {
-    if (loadedTraceCountRef.current !== totalTraceCount) {
-      // Update the loaded trace count so the effect doesn't fire again
-      loadedTraceCountRef.current = totalTraceCount;
-      setFetchKey(`fetch-traces-${totalTraceCount}`);
+    if (
+      currentLastUpdatedAt != null &&
+      (loadedLastUpdatedAtRef.current == null ||
+        loadedLastUpdatedAtRef.current < currentLastUpdatedAt)
+    ) {
+      // Update the loaded lastUpdatedAt so the effect doesn't fire again
+      loadedLastUpdatedAtRef.current = currentLastUpdatedAt;
+      setFetchKey(`fetch-traces-${currentLastUpdatedAt}`);
     }
-  }, [setFetchKey, totalTraceCount]);
+  }, [setFetchKey, currentLastUpdatedAt]);
 
   useInterval(refetchCountsIfStreaming, REFRESH_INTERVAL_MS);
   return (
