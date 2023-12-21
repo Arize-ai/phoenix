@@ -1,5 +1,6 @@
 import React, { ReactNode, startTransition, useEffect } from "react";
 import { graphql, useRefetchableFragment } from "react-relay";
+import { css } from "@emotion/react";
 
 import { Flex, Text, View } from "@arizeai/components";
 
@@ -69,9 +70,40 @@ export function TracingHomePageHeader(props: {
       flex="none"
     >
       <Flex direction="row" justifyContent="space-between" alignItems="center">
-        <View overflow="auto">
+        <div
+          css={css`
+            overflow-x: auto;
+            overflow-y: hidden;
+            flex: 1 1 auto;
+            background-image: linear-gradient(
+                to right,
+                var(--ac-global-color-grey-75),
+                var(--ac-global-color-grey-75)
+              ),
+              linear-gradient(
+                to right,
+                var(--ac-global-color-grey-75),
+                var(--ac-global-color-grey-75)
+              ),
+              linear-gradient(
+                to right,
+                rgba(var(--ac-global-color-grey-300-rgb), 0.9),
+                rgba(var(--ac-global-color-grey-300-rgb), 0)
+              ),
+              linear-gradient(
+                to left,
+                rgba(var(--ac-global-color-grey-300-rgb), 0.9),
+                rgba(var(--ac-global-color-grey-300-rgb), 0)
+              );
+            background-repeat: no-repeat;
+            background-size: 32px 100%, 32px 100%, 32px 100%, 32px 100%;
+            background-position: left center, right center, left center,
+              right center;
+            background-attachment: local, local, scroll, scroll;
+          `}
+        >
           <Flex direction="row" gap="size-400" alignItems="center">
-            <Flex direction="column">
+            <Flex direction="column" flex="none">
               <Text elementType="h3" textSize="medium" color="text-700">
                 Total Traces
               </Text>
@@ -79,13 +111,13 @@ export function TracingHomePageHeader(props: {
                 {intFormatter(data?.totalTraces.pageInfo.totalCount)}
               </Text>
             </Flex>
-            <Flex direction="column">
+            <Flex direction="column" flex="none">
               <Text elementType="h3" textSize="medium" color="text-700">
                 Total Tokens
               </Text>
               <Text textSize="xlarge">{intFormatter(tokenCountTotal)}</Text>
             </Flex>
-            <Flex direction="column">
+            <Flex direction="column" flex="none">
               <Text elementType="h3" textSize="medium" color="text-700">
                 Latency P50
               </Text>
@@ -95,7 +127,7 @@ export function TracingHomePageHeader(props: {
                 <Text textSize="xlarge">--</Text>
               )}
             </Flex>
-            <Flex direction="column">
+            <Flex direction="column" flex="none">
               <Text elementType="h3" textSize="medium" color="text-700">
                 Latency P99
               </Text>
@@ -116,8 +148,10 @@ export function TracingHomePageHeader(props: {
               />
             ))}
           </Flex>
+        </div>
+        <View flex="none" paddingStart="size-100">
+          {extra}
         </View>
-        <View flex="none">{extra}</View>
       </Flex>
     </View>
   );
