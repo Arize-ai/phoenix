@@ -1426,7 +1426,7 @@ function SpanEventsList({ events }: { events: Span["events"] }) {
         return (
           <ListItem key={idx}>
             <Flex direction="row" alignItems="center" gap="size-100">
-              <View overflow="visible">
+              <View flex="none">
                 <div
                   data-event-type={isException ? "exception" : "info"}
                   css={(theme) => css`
