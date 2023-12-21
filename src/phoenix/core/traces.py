@@ -77,7 +77,8 @@ class ReadableSpan(ObjectProxy):  # type: ignore
     """
 
     def __init__(self, otlp_span: otlp.Span) -> None:
-        super().__init__(decode(otlp_span))
+        span = decode(otlp_span)
+        super().__init__(span)
         self._self_otlp_span = otlp_span
         self._self_computed_values: Dict[str, SupportsFloat] = {}
 
