@@ -137,6 +137,7 @@ class Traces:
         self._min_start_time: Optional[datetime] = None
         self._max_start_time: Optional[datetime] = None
         self._token_count_total: int = 0
+        self._last_updated_at: Optional[datetime] = None
         self._start_consumer()
 
     def put(self, span: Optional[Union[Span, pb.Span]] = None) -> None:
@@ -226,6 +227,10 @@ class Traces:
         for child_span_id in span_ids:
             yield child_span_id
             yield from self.get_descendant_span_ids(child_span_id)
+
+    @property
+    def last_updated_at(self) -> Optional[datetime]:
+        return self._last_updated_at
 
     @property
     def span_count(self) -> int:
@@ -345,6 +350,8 @@ class Traces:
         # Process previously orphaned spans, if any.
         for orphan_span in self._orphan_spans.pop(span_id, ()):
             self._process_span(orphan_span)
+        # Update last updated timestamp
+        self._last_updated_at = datetime.now(timezone.utc)
 
     def _add_value_to_span_ancestors(
         self,

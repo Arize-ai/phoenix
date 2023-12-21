@@ -203,6 +203,30 @@ class Query:
         )
 
     @strawberry.field
+    def streaming_last_updated_at(
+        self,
+        info: Info[Context, None],
+    ) -> Optional[datetime]:
+        last_updated_at: Optional[datetime] = None
+        if (traces := info.context.traces) is not None and (
+            traces_last_updated_at := traces.last_updated_at
+        ) is not None:
+            last_updated_at = (
+                traces_last_updated_at
+                if last_updated_at is None
+                else max(last_updated_at, traces_last_updated_at)
+            )
+        if (evals := info.context.evals) is not None and (
+            evals_last_updated_at := evals.last_updated_at
+        ) is not None:
+            last_updated_at = (
+                evals_last_updated_at
+                if last_updated_at is None
+                else max(last_updated_at, evals_last_updated_at)
+            )
+        return last_updated_at
+
+    @strawberry.field
     def spans(
         self,
         info: Info[Context, None],
