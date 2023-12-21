@@ -1,8 +1,8 @@
 import json
 import logging
 from copy import deepcopy
-from datetime import datetime
-from typing import Any, Dict, Iterable, Iterator, List, Mapping, Optional, Tuple
+from datetime import datetime, timezone
+from typing import Any, Dict, Iterable, Iterator, List, Mapping, Optional, Tuple, cast
 from uuid import UUID
 
 from langchain.callbacks.tracers.base import BaseTracer
@@ -356,13 +356,19 @@ class OpenInferenceTracer(Tracer, BaseTracer):  # type: ignore
             if "agent" in run["name"].lower()
             else _langchain_run_type_to_span_kind(run["run_type"])
         )
+        start_time = cast(datetime, run["start_time"])
+        end_time = cast(Optional[datetime], run.get("end_time"))
+        if _is_tz_naive(start_time):
+            start_time = start_time.replace(tzinfo=timezone.utc)
+        if end_time and _is_tz_naive(end_time):
+            end_time = end_time.replace(tzinfo=timezone.utc)
         span = self.create_span(
             name=run["name"],
             span_kind=span_kind,
             parent_id=None if parent is None else parent.context.span_id,
             trace_id=None if parent is None else parent.context.trace_id,
-            start_time=run["start_time"],
-            end_time=run["end_time"],
+            start_time=start_time,
+            end_time=end_time,
             status_code=status_code,
             attributes=attributes,
             events=events,
@@ -420,3 +426,7 @@ class OpenInferenceTracer(Tracer, BaseTracer):  # type: ignore
             name=name or "",
         )
         self._start_trace(run)
+
+
+def _is_tz_naive(dt: datetime) -> bool:
+    return dt.tzinfo is None or dt.tzinfo.utcoffset(dt) is None
