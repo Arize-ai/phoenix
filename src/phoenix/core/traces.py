@@ -13,6 +13,7 @@ from typing import (
     Iterator,
     List,
     Optional,
+    Set,
     SupportsFloat,
     Tuple,
     Union,
@@ -120,7 +121,7 @@ class Traces:
         self._spans: Dict[SpanID, ReadableSpan] = {}
         self._parent_span_ids: Dict[SpanID, ParentSpanID] = {}
         self._traces: Dict[TraceID, List[SpanID]] = defaultdict(list)
-        self._child_span_ids: DefaultDict[SpanID, List[ChildSpanID]] = defaultdict(list)
+        self._child_span_ids: DefaultDict[SpanID, Set[ChildSpanID]] = defaultdict(set)
         self._orphan_spans: DefaultDict[ParentSpanID, List[pb.Span]] = defaultdict(list)
         self._num_documents: DefaultDict[SpanID, int] = defaultdict(int)
         self._start_time_sorted_span_ids: SortedKeyList[SpanID] = SortedKeyList(
@@ -272,7 +273,7 @@ class Traces:
                 # Span can't be processed before its parent.
                 self._orphan_spans[parent_span_id].append(span)
                 return
-            self._child_span_ids[parent_span_id].append(span_id)
+            self._child_span_ids[parent_span_id].add(span_id)
             self._parent_span_ids[span_id] = parent_span_id
         new_span = ReadableSpan(span)
         start_time = span.start_time.ToDatetime(timezone.utc)

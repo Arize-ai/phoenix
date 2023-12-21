@@ -1,3 +1,4 @@
+import json
 from contextlib import ExitStack
 from itertools import product
 from typing import List
@@ -25,6 +26,7 @@ from phoenix.experimental.evals.templates.default_templates import (
     RAG_RELEVANCY_PROMPT_TEMPLATE,
     TOXICITY_PROMPT_TEMPLATE,
 )
+from phoenix.experimental.evals.utils import _EXPLANATION, _FUNCTION_NAME, _RESPONSE
 from respx.patterns import M
 
 
@@ -679,34 +681,44 @@ def test_run_relevance_eval_openinference_dataframe(
 
 
 @pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
-def test_run_evals_outputs_dataframes_with_just_labels(
+def test_run_evals_outputs_dataframes_with_labels_and_explanations_when_invoked_with_function_calls(
     running_event_loop_mock: bool,
     respx_mock: respx.mock,
     toxicity_evaluator: LLMEvaluator,
     relevance_evaluator: LLMEvaluator,
 ) -> None:
-    for matcher, response in [
+    for matcher, label, explanation in [
         (
             M(content__contains="Paris is the capital of France.")
             & M(content__contains="relevant"),
             "relevant",
+            "relevant-explanation",
         ),
         (
             M(content__contains="Munich is the capital of Germany.")
             & M(content__contains="relevant"),
             "irrelevant",
+            "irrelevant-explanation",
         ),
         (
             M(content__contains="What is the capital of France?") & M(content__contains="toxic"),
             "non-toxic",
+            "non-toxic-explanation",
         ),
     ]:
         payload = {
             "choices": [
                 {
+                    "index": 0,
                     "message": {
-                        "content": response,
+                        "role": "assistant",
+                        "content": None,
+                        "function_call": {
+                            "name": _FUNCTION_NAME,
+                            "arguments": json.dumps({_RESPONSE: label, _EXPLANATION: explanation}),
+                        },
                     },
+                    "finish_reason": "function_call",
                 }
             ],
         }
@@ -725,19 +737,36 @@ def test_run_evals_outputs_dataframes_with_just_labels(
         ],
         index=["a", "b"],
     )
-    eval_dfs = run_evals(dataframe=df, evaluators=[relevance_evaluator, toxicity_evaluator])
+    eval_dfs = run_evals(
+        dataframe=df,
+        evaluators=[relevance_evaluator, toxicity_evaluator],
+        provide_explanation=True,
+        use_function_calling_if_available=True,
+    )
     assert len(eval_dfs) == 2
     assert_frame_equal(
         eval_dfs[0],
         pd.DataFrame(
-            {"label": ["relevant", "irrelevant"]},
+            {
+                "label": ["relevant", "irrelevant"],
+                "explanation": [
+                    "relevant-explanation",
+                    "irrelevant-explanation",
+                ],
+            },
             index=["a", "b"],
         ),
     )
     assert_frame_equal(
         eval_dfs[1],
         pd.DataFrame(
-            {"label": ["non-toxic", "non-toxic"]},
+            {
+                "label": ["non-toxic", "non-toxic"],
+                "explanation": [
+                    "non-toxic-explanation",
+                    "non-toxic-explanation",
+                ],
+            },
             index=["a", "b"],
         ),
     )
@@ -791,7 +820,10 @@ def test_run_evals_outputs_dataframes_with_labels_and_explanations(
         index=["a", "b"],
     )
     eval_dfs = run_evals(
-        dataframe=df, evaluators=[relevance_evaluator, toxicity_evaluator], provide_explanation=True
+        dataframe=df,
+        evaluators=[relevance_evaluator, toxicity_evaluator],
+        provide_explanation=True,
+        use_function_calling_if_available=False,
     )
     assert len(eval_dfs) == 2
     assert_frame_equal(
@@ -817,6 +849,157 @@ def test_run_evals_outputs_dataframes_with_labels_and_explanations(
                     "non-toxic-explanation\nLABEL: non-toxic",
                 ],
             },
+            index=["a", "b"],
+        ),
+    )
+
+
+@pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
+def test_run_evals_outputs_dataframes_with_just_labels_when_invoked_with_function_calls(
+    running_event_loop_mock: bool,
+    respx_mock: respx.mock,
+    toxicity_evaluator: LLMEvaluator,
+    relevance_evaluator: LLMEvaluator,
+) -> None:
+    for matcher, response in [
+        (
+            M(content__contains="Paris is the capital of France.")
+            & M(content__contains="relevant"),
+            "relevant",
+        ),
+        (
+            M(content__contains="Munich is the capital of Germany.")
+            & M(content__contains="relevant"),
+            "irrelevant",
+        ),
+        (
+            M(content__contains="What is the capital of France?") & M(content__contains="toxic"),
+            "non-toxic",
+        ),
+    ]:
+        payload = {
+            "choices": [
+                {
+                    "index": 0,
+                    "message": {
+                        "role": "assistant",
+                        "content": None,
+                        "function_call": {
+                            "name": _FUNCTION_NAME,
+                            "arguments": json.dumps(
+                                {
+                                    _RESPONSE: response,
+                                }
+                            ),
+                        },
+                    },
+                    "finish_reason": "function_call",
+                }
+            ],
+        }
+        respx_mock.route(matcher).mock(return_value=httpx.Response(200, json=payload))
+
+    df = pd.DataFrame(
+        [
+            {
+                "input": "What is the capital of France?",
+                "reference": "Paris is the capital of France.",
+            },
+            {
+                "input": "What is the capital of France?",
+                "reference": "Munich is the capital of Germany.",
+            },
+        ],
+        index=["a", "b"],
+    )
+    eval_dfs = run_evals(
+        dataframe=df,
+        evaluators=[relevance_evaluator, toxicity_evaluator],
+        provide_explanation=False,
+        use_function_calling_if_available=True,
+    )
+    assert len(eval_dfs) == 2
+    assert_frame_equal(
+        eval_dfs[0],
+        pd.DataFrame(
+            {"label": ["relevant", "irrelevant"]},
+            index=["a", "b"],
+        ),
+    )
+    assert_frame_equal(
+        eval_dfs[1],
+        pd.DataFrame(
+            {"label": ["non-toxic", "non-toxic"]},
+            index=["a", "b"],
+        ),
+    )
+
+
+@pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
+def test_run_evals_outputs_dataframes_with_just_labels(
+    running_event_loop_mock: bool,
+    respx_mock: respx.mock,
+    toxicity_evaluator: LLMEvaluator,
+    relevance_evaluator: LLMEvaluator,
+) -> None:
+    for matcher, response in [
+        (
+            M(content__contains="Paris is the capital of France.")
+            & M(content__contains="relevant"),
+            "relevant",
+        ),
+        (
+            M(content__contains="Munich is the capital of Germany.")
+            & M(content__contains="relevant"),
+            "irrelevant",
+        ),
+        (
+            M(content__contains="What is the capital of France?") & M(content__contains="toxic"),
+            "non-toxic",
+        ),
+    ]:
+        payload = {
+            "choices": [
+                {
+                    "message": {
+                        "content": response,
+                    },
+                }
+            ],
+        }
+        respx_mock.route(matcher).mock(return_value=httpx.Response(200, json=payload))
+
+    df = pd.DataFrame(
+        [
+            {
+                "input": "What is the capital of France?",
+                "reference": "Paris is the capital of France.",
+            },
+            {
+                "input": "What is the capital of France?",
+                "reference": "Munich is the capital of Germany.",
+            },
+        ],
+        index=["a", "b"],
+    )
+    eval_dfs = run_evals(
+        dataframe=df,
+        evaluators=[relevance_evaluator, toxicity_evaluator],
+        provide_explanation=False,
+        use_function_calling_if_available=False,
+    )
+    assert len(eval_dfs) == 2
+    assert_frame_equal(
+        eval_dfs[0],
+        pd.DataFrame(
+            {"label": ["relevant", "irrelevant"]},
+            index=["a", "b"],
+        ),
+    )
+    assert_frame_equal(
+        eval_dfs[1],
+        pd.DataFrame(
+            {"label": ["non-toxic", "non-toxic"]},
             index=["a", "b"],
         ),
     )
