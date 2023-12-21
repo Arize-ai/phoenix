@@ -25,12 +25,12 @@ export function StreamToggle(props: { query: StreamToggle_data$key }) {
     `,
     props.query
   );
-  // Keep track of the loaded trace count so we can detect when it changes
+  // Keep track of the loaded lastUpdatedAt, so we can detect when it changes
   const loadedLastUpdatedAtRef = useRef<string | null>(
     lastUpdatedAt.streamingLastUpdatedAt
   );
 
-  // Refetch the count of traces if the streaming toggle is on
+  // Refetch lastUpdatedAt if the streaming toggle is on
   const refetchCountsIfStreaming = useCallback(() => {
     if (isStreaming) {
       startTransition(() => {
@@ -39,7 +39,7 @@ export function StreamToggle(props: { query: StreamToggle_data$key }) {
     }
   }, [isStreaming, refetchLastUpdatedAt]);
 
-  // We want to refetch higher up the render tree when the counts change
+  // We want to refetch higher up the render tree when lastUpdatedAt changes
   const currentLastUpdatedAt = lastUpdatedAt.streamingLastUpdatedAt;
   useEffect(() => {
     if (
@@ -47,7 +47,7 @@ export function StreamToggle(props: { query: StreamToggle_data$key }) {
       (loadedLastUpdatedAtRef.current == null ||
         loadedLastUpdatedAtRef.current < currentLastUpdatedAt)
     ) {
-      // Update the loaded trace count so the effect doesn't fire again
+      // Update the loaded lastUpdatedAt so the effect doesn't fire again
       loadedLastUpdatedAtRef.current = currentLastUpdatedAt;
       setFetchKey(`fetch-traces-${currentLastUpdatedAt}`);
     }
