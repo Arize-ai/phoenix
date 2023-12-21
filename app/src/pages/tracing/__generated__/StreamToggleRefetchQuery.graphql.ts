@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c0429c8bb824228fa61616c844a933bf>>
+ * @generated SignedSource<<dc88f75abf5e9ea3d81844e5ee5d7c56>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -42,52 +42,24 @@ const node: ConcreteRequest = {
     "name": "StreamToggleRefetchQuery",
     "selections": [
       {
-        "alias": "traceCount",
-        "args": [
-          {
-            "kind": "Literal",
-            "name": "rootSpansOnly",
-            "value": true
-          }
-        ],
-        "concreteType": "SpanConnection",
-        "kind": "LinkedField",
-        "name": "spans",
-        "plural": false,
-        "selections": [
-          {
-            "alias": null,
-            "args": null,
-            "concreteType": "PageInfo",
-            "kind": "LinkedField",
-            "name": "pageInfo",
-            "plural": false,
-            "selections": [
-              {
-                "alias": null,
-                "args": null,
-                "kind": "ScalarField",
-                "name": "totalCount",
-                "storageKey": null
-              }
-            ],
-            "storageKey": null
-          }
-        ],
-        "storageKey": "spans(rootSpansOnly:true)"
+        "alias": null,
+        "args": null,
+        "kind": "ScalarField",
+        "name": "streamingLastUpdatedAt",
+        "storageKey": null
       }
     ]
   },
   "params": {
-    "cacheID": "949fa06e28f3194aafeba3d9a413a248",
+    "cacheID": "5572910398dea8c13b54fae773bdef69",
     "id": null,
     "metadata": {},
     "name": "StreamToggleRefetchQuery",
     "operationKind": "query",
-    "text": "query StreamToggleRefetchQuery {\n  ...StreamToggle_data\n}\n\nfragment StreamToggle_data on Query {\n  traceCount: spans(rootSpansOnly: true) {\n    pageInfo {\n      totalCount\n    }\n  }\n}\n"
+    "text": "query StreamToggleRefetchQuery {\n  ...StreamToggle_data\n}\n\nfragment StreamToggle_data on Query {\n  streamingLastUpdatedAt\n}\n"
   }
 };
 
-(node as any).hash = "e406600d5729deabc496989862c402e1";
+(node as any).hash = "5a87fc2da6f4964259d4eaaaed28e26a";
 
 export default node;
