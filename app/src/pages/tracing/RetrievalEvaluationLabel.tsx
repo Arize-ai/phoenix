@@ -5,8 +5,8 @@ import { Flex, Label, Text } from "@arizeai/components";
 import { formatFloat } from "@phoenix/utils/numberFormatUtils";
 
 interface RetrievalEvaluation {
-  name: string;
-  metric: "ndcg" | "precision" | "hit";
+  name?: string;
+  metric: "ndcg" | "precision" | "hit" | "hit rate";
   k?: number | null;
   score?: number | null;
 }
@@ -25,9 +25,11 @@ export function RetrievalEvaluationLabel(props: RetrievalEvaluationLabelProps) {
   return (
     <Label color="seafoam-1000" shape="badge">
       <Flex direction="row" gap="size-50">
-        <Text weight="heavy" textSize="small" color="inherit">
-          {name}
-        </Text>
+        {name ? (
+          <Text weight="heavy" textSize="small" color="inherit">
+            {name}
+          </Text>
+        ) : null}
         <Text textSize="small" color="inherit">
           {label}
         </Text>
