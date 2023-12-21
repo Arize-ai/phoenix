@@ -75,7 +75,7 @@ function EvaluationSummaryValue(props: {
     query
   );
 
-  // Refetch the count of traces if the fetchKey changes
+  // Refetch the evaluation summary if the fetchKey changes
   useEffect(() => {
     startTransition(() => {
       refetch({}, { fetchPolicy: "store-and-network" });
