@@ -112,7 +112,7 @@ function EvaluationSummaryValue(props: { evaluationName: string; query: any }) {
             </PieChart>
           ) : null}
           <Text textSize="xlarge">
-            {hasMeanScore ? formatFloat(meanScore) : null}
+            {hasMeanScore ? formatFloat(meanScore) : "--"}
           </Text>
         </Flex>
       </TriggerWrap>
