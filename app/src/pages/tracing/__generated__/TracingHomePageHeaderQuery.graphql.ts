@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<806f1b612c0a2b4b5c1e412f97ada4f6>>
+ * @generated SignedSource<<04c83d3d78b0deb499bdf250b59941ee>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -121,19 +121,33 @@ const node: ConcreteRequest = {
           }
         ],
         "storageKey": null
+      },
+      {
+        "alias": null,
+        "args": null,
+        "kind": "ScalarField",
+        "name": "spanEvaluationNames",
+        "storageKey": null
+      },
+      {
+        "alias": null,
+        "args": null,
+        "kind": "ScalarField",
+        "name": "documentEvaluationNames",
+        "storageKey": null
       }
     ]
   },
   "params": {
-    "cacheID": "255ca23484c93b4be948bee27042ae58",
+    "cacheID": "776446b6c16605a140c7f3fca1073bfa",
     "id": null,
     "metadata": {},
     "name": "TracingHomePageHeaderQuery",
     "operationKind": "query",
-    "text": "query TracingHomePageHeaderQuery {\n  ...TracingHomePageHeader_stats\n}\n\nfragment TracingHomePageHeader_stats on Query {\n  totalTraces: spans(rootSpansOnly: true) {\n    pageInfo {\n      totalCount\n    }\n  }\n  traceDatasetInfo {\n    startTime\n    endTime\n    tokenCountTotal\n    latencyMsP50\n    latencyMsP99\n  }\n}\n"
+    "text": "query TracingHomePageHeaderQuery {\n  ...TracingHomePageHeader_stats\n}\n\nfragment TracingHomePageHeader_stats on Query {\n  totalTraces: spans(rootSpansOnly: true) {\n    pageInfo {\n      totalCount\n    }\n  }\n  traceDatasetInfo {\n    startTime\n    endTime\n    tokenCountTotal\n    latencyMsP50\n    latencyMsP99\n  }\n  spanEvaluationNames\n  documentEvaluationNames\n}\n"
   }
 };
 
-(node as any).hash = "2f4140d22a5444b5a9fea58801814504";
+(node as any).hash = "631360b4ed0a5a26238d4c2aea1bd759";
 
 export default node;
