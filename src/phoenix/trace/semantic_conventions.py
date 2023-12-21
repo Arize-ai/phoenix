@@ -168,3 +168,5 @@ RERANKER_TOP_K = "reranker.top_k"
 """
 Top K parameter of the reranker
 """
+
+OPENINFERENCE_SPAN_KIND = "openinference.span.kind"
