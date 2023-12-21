@@ -1,17 +1,27 @@
 import React, { Suspense } from "react";
 import { graphql, useLazyLoadQuery, useRefetchableFragment } from "react-relay";
-import { Cell, Pie, PieChart, Tooltip } from "recharts";
+import { Cell, Pie, PieChart } from "recharts";
 
-import { Flex, Text } from "@arizeai/components";
+import {
+  Flex,
+  HelpTooltip,
+  Text,
+  Tooltip,
+  TooltipTrigger,
+  TriggerWrap,
+  View,
+} from "@arizeai/components";
 
-import { useChartColors } from "@phoenix/components/chart";
-import { formatFloat } from "@phoenix/utils/numberFormatUtils";
+import {
+  ChartTooltip,
+  ChartTooltipDivider,
+  ChartTooltipItem,
+  useChartColors,
+} from "@phoenix/components/chart";
+import { formatFloat, formatPercent } from "@phoenix/utils/numberFormatUtils";
 
 import { EvaluationSummaryQuery } from "./__generated__/EvaluationSummaryQuery.graphql";
-import {
-  EvaluationSummaryValueFragment$data,
-  EvaluationSummaryValueFragment$key,
-} from "./__generated__/EvaluationSummaryValueFragment.graphql";
+import { EvaluationSummaryValueFragment$key } from "./__generated__/EvaluationSummaryValueFragment.graphql";
 
 type EvaluationSummaryProps = {
   evaluationName: string;
@@ -76,33 +86,63 @@ function EvaluationSummaryValue(props: { evaluationName: string; query: any }) {
     Array.isArray(labelFractions) && labelFractions.length > 0;
 
   return (
-    <Flex direction="row" alignItems="center" gap="size-50">
-      {hasLabelFractions ? (
-        <PieChart width={24} height={24}>
-          <Pie
-            data={labelFractions}
-            dataKey="fraction"
-            nameKey="label"
-            cx="50%"
-            cy="50%"
-            innerRadius={8}
-            outerRadius={11}
-            strokeWidth={0}
-            stroke="transparent"
-          >
-            {labelFractions.map((entry, index) => (
-              <Cell
-                key={`cell-${index}`}
-                fill={colors[index % colors.length]}
-              />
-            ))}
-            <Tooltip />
-          </Pie>
-        </PieChart>
-      ) : null}
-      <Text textSize="xlarge">
-        {hasMeanScore ? formatFloat(meanScore) : null}
-      </Text>
-    </Flex>
+    <TooltipTrigger delay={0} placement="bottom">
+      <TriggerWrap>
+        <Flex direction="row" alignItems="center" gap="size-50">
+          {hasLabelFractions ? (
+            <PieChart width={24} height={24}>
+              <Pie
+                data={labelFractions}
+                dataKey="fraction"
+                nameKey="label"
+                cx="50%"
+                cy="50%"
+                innerRadius={8}
+                outerRadius={11}
+                strokeWidth={0}
+                stroke="transparent"
+              >
+                {labelFractions.map((entry, index) => (
+                  <Cell
+                    key={`cell-${index}`}
+                    fill={colors[index % colors.length]}
+                  />
+                ))}
+              </Pie>
+            </PieChart>
+          ) : null}
+          <Text textSize="xlarge">
+            {hasMeanScore ? formatFloat(meanScore) : null}
+          </Text>
+        </Flex>
+      </TriggerWrap>
+      <HelpTooltip>
+        <View width="size-2400">
+          <Flex direction="column" gap="size-50">
+            {hasLabelFractions && (
+              <ul>
+                {labelFractions.map((entry, index) => (
+                  <li key={entry.label}>
+                    <ChartTooltipItem
+                      color={colors[index % colors.length]}
+                      name={entry.label}
+                      shape="square"
+                      value={formatPercent(entry.fraction * 100)}
+                    />
+                  </li>
+                ))}
+              </ul>
+            )}
+            {hasLabelFractions && hasMeanScore ? <ChartTooltipDivider /> : null}
+            {hasMeanScore ? (
+              <Flex direction="row" justifyContent="space-between">
+                <Text>mean</Text>
+                <Text>{formatFloat(meanScore)}</Text>
+              </Flex>
+            ) : null}
+          </Flex>
+        </View>
+      </HelpTooltip>
+    </TooltipTrigger>
   );
 }
