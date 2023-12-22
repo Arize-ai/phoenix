@@ -40,6 +40,8 @@ dependencies = [
   "ddsketch",
   "tqdm",
   "requests",
+  "opentelemetry-sdk",
+  "opentelemetry-proto",
 ]
 dynamic = ["version"]
 
@@ -242,7 +244,6 @@ dependencies = [
 
 [tool.hatch.envs.proto.scripts]
 recompile = """
-python -m grpc_tools.protoc -I src/phoenix/proto --python_out=src/phoenix --mypy_out=src/phoenix src/phoenix/proto/trace/v1/trace.proto &&
 python -m grpc_tools.protoc -I src/phoenix/proto --python_out=src/phoenix --mypy_out=src/phoenix src/phoenix/proto/trace/v1/evaluation.proto
 """
 
@@ -288,6 +289,7 @@ module = [
   "langchain.*",
   "litellm",
   "nest_asyncio",
+  "opentelemetry.*",
 ]
 ignore_missing_imports = true
 

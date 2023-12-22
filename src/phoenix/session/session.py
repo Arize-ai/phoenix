@@ -31,6 +31,7 @@ from phoenix.server.thread_server import ThreadServer
 from phoenix.services import AppService
 from phoenix.trace.dsl import SpanFilter
 from phoenix.trace.dsl.query import SpanQuery
+from phoenix.trace.otel import encode
 from phoenix.trace.span_json_encoder import span_to_json
 from phoenix.trace.trace_dataset import TraceDataset
 
@@ -117,7 +118,7 @@ class Session(ABC):
         self.traces = Traces()
         if trace_dataset:
             for span in trace_dataset.to_spans():
-                self.traces.put(span)
+                self.traces.put(encode(span))
 
         self.evals: Evals = Evals()
 
