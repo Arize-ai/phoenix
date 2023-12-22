@@ -23,8 +23,9 @@ from llama_index import (
     download_loader,
     load_index_from_storage,
 )
+import llama_index
 from llama_index.callbacks import CallbackManager, LlamaDebugHandler
-from llama_index.indices.postprocessor.cohere_rerank import CohereRerank
+from llama_index.postprocessor.cohere_rerank import CohereRerank
 from llama_index.indices.query.query_transform import HyDEQueryTransform
 from llama_index.indices.query.query_transform.base import StepDecomposeQueryTransform
 from llama_index.llms import OpenAI
@@ -34,6 +35,7 @@ from llama_index.query_engine.transform_query_engine import TransformQueryEngine
 from phoenix.experimental.evals import NOT_PARSABLE, OpenAIModel, llm_classify, run_relevance_eval
 from phoenix.experimental.evals.functions.processing import concatenate_and_truncate_chunks
 from phoenix.experimental.evals.models import BaseEvalModel
+#from phoenix.experimental.evals.templates import NOT_PARSABLE
 from plotresults import (
     plot_latency_graphs,
     plot_mean_average_precision_graphs,
@@ -43,6 +45,20 @@ from plotresults import (
     plot_percentage_incorrect,
 )
 from sklearn.metrics import ndcg_score
+
+import phoenix as px
+from phoenix.experimental.evals import (
+    OpenAIModel,
+    compute_precisions_at_k,
+    run_relevance_eval,
+)
+
+from llama_index import (
+    ServiceContext,
+    StorageContext,
+    load_index_from_storage,
+    set_global_handler,
+)
 
 LOGGING_LEVEL = 20  # INFO
 logging.basicConfig(level=LOGGING_LEVEL)
@@ -323,7 +339,7 @@ def df_evals(
     )
 
     # We want 0, 1 values for the metrics
-    value_map = {"relevant": 1, "irrelevant": 0, NOT_PARSABLE: 0}
+    value_map = {"relevant": 1, "irrelevant": 0, "UNPARSABLE": 0}
     df[formatted_evals_column] = df[formatted_evals_column].apply(
         lambda values: [value_map.get(value) for value in values]
     )
@@ -433,10 +449,19 @@ def main():
         with open(raw_docs_filepath, "rb") as file:
             documents = pickle.load(file)
 
+    # Look for a URL in the output to open the App in a browser.
+    px.launch_app()
+    # The App is initially empty, but as you proceed with the steps below,
+    # traces will appear automatically as your LlamaIndex application runs.
+
+    llama_index.set_global_handler("arize_phoenix")
+
+# Run all of your LlamaIndex applications as usual and traces
+# will be collected and displayed in Phoenix.
     chunk_sizes = [
-        100,
-        300,
-        # 500,
+        #100,
+        #300,
+         500,
         # 1000,
         # 2000,
     ]  # change this, perhaps experiment from 500 to 3000 in increments of 500
@@ -445,16 +470,15 @@ def main():
     # k = [10]  # num documents to retrieve
 
     # transformations = ["original", "original_rerank","hyde", "hyde_rerank"]
-    transformations = ["original", "original_rerank"]
+    transformations = ["original"]
 
-    # llama_index_model = "gpt-3.5-turbo"
     llama_index_model = "gpt-4"
     eval_model = OpenAIModel(model_name="gpt-4", temperature=0.0)
 
     # QA template (using default)
     qa_template = templates.QA_PROMPT_TEMPLATE
     # Uncomment below when testing to limit number of questions
-    # questions = questions[:3]
+    #questions = [questions[1]]
     all_data = run_experiments(
         documents=documents,
         queries=questions,
