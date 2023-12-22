@@ -56,7 +56,7 @@ class GeminiModel(BaseEvalModel):
 
             self._vertex = vertex
             self._gcp_exceptions = exceptions
-            self.model = self._vertex.GenerativeModel(self.model)
+            self._model = self._vertex.GenerativeModel(self.model)
         except ImportError:
             self._raise_import_error(
                 package_name="vertexai",
@@ -73,17 +73,17 @@ class GeminiModel(BaseEvalModel):
 
     @property
     def encoder(self) -> "Encoding":
-        raise TypeError("Gemini models contain their own token counting")  # type: ignore
+        raise TypeError("Gemini models contain their own token counting")
 
     def get_tokens_from_text(self, text: str) -> List[int]:
-        raise NotImplementedError  # type: ignore
+        raise NotImplementedError
 
     def get_text_from_tokens(self, tokens: List[int]) -> str:
-        raise NotImplementedError  # type: ignore
+        raise NotImplementedError
 
     @property
     def max_context_size(self) -> int:
-        context_size = self.max_content_size or MODEL_TOKEN_LIMIT_MAPPING.get(self.model, None)
+        context_size = MODEL_TOKEN_LIMIT_MAPPING.get(self.model, None)
 
         if context_size is None:
             raise ValueError(
@@ -122,7 +122,7 @@ class GeminiModel(BaseEvalModel):
         @self.retry
         @self._rate_limiter.limit
         def _completion_with_retry(**kwargs: Any) -> Any:
-            response = self.model.generate_content(
+            response = self._model.generate_content(
                 contents=prompt, generation_config=generation_config, **kwargs
             )
             candidate = response.candidates[0]
@@ -140,11 +140,13 @@ class GeminiModel(BaseEvalModel):
 
         return str(response)
 
-    async def _async_generate_with_retry(self, prompt: str, generation_config: Dict[str, Any], **kwargs: Any) -> Any:
+    async def _async_generate_with_retry(
+        self, prompt: str, generation_config: Dict[str, Any], **kwargs: Any
+    ) -> Any:
         @self.retry
         @self._rate_limiter.limit
         async def _completion_with_retry(**kwargs: Any) -> Any:
-            response = await self.model.generate_content_async(
+            response = await self._model.generate_content_async(
                 contents=prompt, generation_config=generation_config, **kwargs
             )
             candidate = response.candidates[0]
