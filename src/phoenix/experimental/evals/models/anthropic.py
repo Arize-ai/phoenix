@@ -93,6 +93,15 @@ class AnthropicModel(BaseEvalModel):
             enforcement_window_minutes=1,
         )
 
+    def invocation_parameters(self) -> Dict[str, Any]:
+        return {
+            "max_tokens_to_sample": self.max_tokens,
+            "stop_sequences": self.stop_sequences,
+            "temperature": self.temperature,
+            "top_p": self.top_p,
+            "top_k": self.top_k,
+        }
+
     @property
     def encoder(self) -> "Encoding":
         return self._tiktoken_encoding
@@ -120,15 +129,12 @@ class AnthropicModel(BaseEvalModel):
         # instruction is an invalid input to Anthropic models, it is passed in by
         # BaseEvalModel.__call__ and needs to be removed
         kwargs.pop("instruction", None)
+        invocation_parameters = self.invocation_parameters()
+        invocation_parameters.update(kwargs)
         response = self._generate_with_retry(
             model=self.model,
             prompt=self._format_prompt_for_claude(prompt),
-            max_tokens_to_sample=self.max_tokens,
-            stop_sequences=self.stop_sequences,
-            temperature=self.temperature,
-            top_p=self.top_p,
-            top_k=self.top_k,
-            **kwargs,
+            **invocation_parameters,
         )
 
         return str(response)
@@ -143,15 +149,10 @@ class AnthropicModel(BaseEvalModel):
         return _completion_with_retry(**kwargs)
 
     async def _async_generate(self, prompt: str, **kwargs: Dict[str, Any]) -> str:
+        invocation_parameters = self.invocation_parameters()
+        invocation_parameters.update(kwargs)
         response = await self._async_generate_with_retry(
-            model=self.model,
-            prompt=self._format_prompt_for_claude(prompt),
-            max_tokens_to_sample=self.max_tokens,
-            stop_sequences=self.stop_sequences,
-            temperature=self.temperature,
-            top_p=self.top_p,
-            top_k=self.top_k,
-            **kwargs,
+            model=self.model, prompt=self._format_prompt_for_claude(prompt), **invocation_parameters
         )
 
         return str(response)
