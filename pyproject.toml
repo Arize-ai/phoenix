@@ -62,7 +62,8 @@ dev = [
   "arize[AutoEmbeddings, LLM_Evaluation]",
   "llama-index>=0.9.14",
   "langchain>=0.0.334",
-  "litellm>=1.0.3"
+  "litellm>=1.0.3",
+  "anthropic",
 ]
 experimental = [
   "tenacity",
