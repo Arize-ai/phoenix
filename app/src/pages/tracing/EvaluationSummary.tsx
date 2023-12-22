@@ -38,7 +38,7 @@ export function EvaluationSummary({ evaluationName }: EvaluationSummaryProps) {
     }
   );
   return (
-    <Flex direction="column">
+    <Flex direction="column" flex="none">
       <Text elementType="h3" textSize="medium" color="text-700">
         {evaluationName}
       </Text>
