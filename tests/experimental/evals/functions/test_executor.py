@@ -156,6 +156,7 @@ def test_sync_executor_runs_many_tasks():
     outputs = executor.run(inputs)
     assert outputs == inputs
 
+
 def test_sync_executor_runs_once_per_task():
     dummy_fn = Mock(side_effect=lambda x: x)
 
