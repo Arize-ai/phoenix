@@ -1,11 +1,16 @@
+import json
 from abc import ABC
 from dataclasses import dataclass, field
 from itertools import product
+from pathlib import Path
 from types import MappingProxyType
-from typing import Any, Callable, List, Mapping, Optional, Sequence, Set, Tuple
+from typing import Any, Callable, List, Mapping, Optional, Sequence, Set, Tuple, TypeVar, Union
 
 import pandas as pd
 from pandas.api.types import is_integer_dtype, is_numeric_dtype, is_string_dtype
+from pyarrow import Table, parquet
+
+EvaluationsType = TypeVar("EvaluationType", bound="Evaluations")
 
 EVAL_NAME_COLUMN_PREFIX = "eval."
 
@@ -151,6 +156,24 @@ class Evaluations(NeedsNamedIndex, NeedsResultColumns, ABC):
         cls.all_valid_index_name_sorted_combos = set(
             tuple(sorted(prod)) for prod in product(*cls.index_names.keys())
         )
+
+    def to_parquet(self, path: Union[str, Path]) -> None:
+        table = Table.from_pandas(self.dataframe)
+        table = table.replace_schema_metadata(
+            {
+                **table.schema.metadata,
+                b"openinference": json.dumps({"eval_name": self.eval_name}).encode("utf-8"),
+            }
+        )
+        parquet.write_table(table, path)
+
+    @classmethod
+    def from_parquet(cls: EvaluationsType, path: Union[str, Path]) -> EvaluationsType:
+        table = parquet.read_table(path)
+        openinference_metadata = json.loads(table.schema.metadata[b"openinference"])
+        eval_name = openinference_metadata["eval_name"]
+        dataframe = table.to_pandas()
+        return cls(eval_name=eval_name, dataframe=dataframe)
 
 
 @dataclass(frozen=True)
