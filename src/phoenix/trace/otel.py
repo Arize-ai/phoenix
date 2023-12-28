@@ -396,11 +396,11 @@ def _encode_value(value: AttributeValue) -> AnyValue:
         return AnyValue(int_value=value)
     if isinstance(value, float):
         return AnyValue(double_value=value)
-    if isinstance(value, Sequence):
-        return AnyValue(array_value=ArrayValue(values=map(_encode_value, value)))
     if isinstance(value, bytes):
         return AnyValue(bytes_value=value)
-    assert_never(value)
+    if isinstance(value, Sequence):
+        return AnyValue(array_value=ArrayValue(values=map(_encode_value, value)))
+    raise ValueError(f"Unexpected attribute value {value} with type {type(value)}.")
 
 
 __all__ = [
