@@ -396,7 +396,7 @@ def _encode_value(value: AttributeValue) -> AnyValue:
     if isinstance(value, int):
         return AnyValue(int_value=value)
     if isinstance(value, SupportsFloat):
-        value = float(value)
+        return AnyValue(double_value=float(value))
     if isinstance(value, bytes):
         return AnyValue(bytes_value=value)
     if isinstance(value, Sequence):
