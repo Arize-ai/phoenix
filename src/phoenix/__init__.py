@@ -1,3 +1,5 @@
+from phoenix.version import __version__
+
 from .datasets.dataset import Dataset
 from .datasets.fixtures import ExampleDatasets, load_example
 from .datasets.schema import EmbeddingColumnNames, RetrievalEmbeddingColumnNames, Schema
@@ -5,8 +7,6 @@ from .session.evaluation import log_evaluations
 from .session.session import NotebookEnvironment, Session, active_session, close_app, launch_app
 from .trace.fixtures import load_example_traces
 from .trace.trace_dataset import TraceDataset
-
-__version__ = "2.1.0"
 
 # module level doc-string
 __doc__ = """
@@ -25,6 +25,7 @@ Here are just a few of the things that phoenix does well:
 """
 
 __all__ = [
+    "__version__",
     "Dataset",
     "EmbeddingColumnNames",
     "RetrievalEmbeddingColumnNames",
