@@ -400,7 +400,7 @@ def _encode_value(value: AttributeValue) -> AnyValue:
         return AnyValue(array_value=ArrayValue(values=map(_encode_value, value)))
     if isinstance(value, bytes):
         return AnyValue(bytes_value=value)
-    assert_never(value)
+    raise AssertionError(f"Unexpected attribute value {value} with type {type(value)}.")
 
 
 __all__ = [
