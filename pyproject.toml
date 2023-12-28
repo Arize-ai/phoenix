@@ -79,7 +79,7 @@ Issues = "https://github.com/Arize-ai/phoenix/issues"
 Source = "https://github.com/Arize-ai/phoenix"
 
 [tool.hatch.version]
-path = "src/phoenix/__init__.py"
+path = "src/phoenix/version.py"
 
 [build-system]
 requires = ["hatchling"]
