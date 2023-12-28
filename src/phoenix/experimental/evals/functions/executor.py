@@ -275,6 +275,7 @@ class SyncExecutor(Executor):
                         result = self.generate(input)
                         outputs[index] = result
                         progress_bar.update()
+                        break
                     except Exception as exc:
                         is_phoenix_exception = isinstance(exc, PhoenixException)
                         if attempt >= self.max_retries or is_phoenix_exception:

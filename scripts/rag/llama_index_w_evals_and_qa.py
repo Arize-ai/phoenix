@@ -10,8 +10,10 @@ import time
 from typing import Dict, List
 
 import cohere
+import llama_index
 import numpy as np
 import pandas as pd
+import phoenix as px
 import phoenix.experimental.evals.templates.default_templates as templates
 import requests
 from bs4 import BeautifulSoup
@@ -23,19 +25,23 @@ from llama_index import (
     download_loader,
     load_index_from_storage,
 )
-import llama_index
 from llama_index.callbacks import CallbackManager, LlamaDebugHandler
-from llama_index.postprocessor.cohere_rerank import CohereRerank
 from llama_index.indices.query.query_transform import HyDEQueryTransform
 from llama_index.indices.query.query_transform.base import StepDecomposeQueryTransform
 from llama_index.llms import OpenAI
 from llama_index.node_parser import SimpleNodeParser
+from llama_index.postprocessor.cohere_rerank import CohereRerank
 from llama_index.query_engine.multistep_query_engine import MultiStepQueryEngine
 from llama_index.query_engine.transform_query_engine import TransformQueryEngine
-from phoenix.experimental.evals import NOT_PARSABLE, OpenAIModel, llm_classify, run_relevance_eval
+from phoenix.experimental.evals import (
+    OpenAIModel,
+    llm_classify,
+    run_relevance_eval,
+)
 from phoenix.experimental.evals.functions.processing import concatenate_and_truncate_chunks
 from phoenix.experimental.evals.models import BaseEvalModel
-#from phoenix.experimental.evals.templates import NOT_PARSABLE
+
+# from phoenix.experimental.evals.templates import NOT_PARSABLE
 from plotresults import (
     plot_latency_graphs,
     plot_mean_average_precision_graphs,
@@ -45,20 +51,6 @@ from plotresults import (
     plot_percentage_incorrect,
 )
 from sklearn.metrics import ndcg_score
-
-import phoenix as px
-from phoenix.experimental.evals import (
-    OpenAIModel,
-    compute_precisions_at_k,
-    run_relevance_eval,
-)
-
-from llama_index import (
-    ServiceContext,
-    StorageContext,
-    load_index_from_storage,
-    set_global_handler,
-)
 
 LOGGING_LEVEL = 20  # INFO
 logging.basicConfig(level=LOGGING_LEVEL)
@@ -456,12 +448,12 @@ def main():
 
     llama_index.set_global_handler("arize_phoenix")
 
-# Run all of your LlamaIndex applications as usual and traces
-# will be collected and displayed in Phoenix.
+    # Run all of your LlamaIndex applications as usual and traces
+    # will be collected and displayed in Phoenix.
     chunk_sizes = [
-        #100,
-        #300,
-         500,
+        # 100,
+        # 300,
+        500,
         # 1000,
         # 2000,
     ]  # change this, perhaps experiment from 500 to 3000 in increments of 500
@@ -478,7 +470,7 @@ def main():
     # QA template (using default)
     qa_template = templates.QA_PROMPT_TEMPLATE
     # Uncomment below when testing to limit number of questions
-    #questions = [questions[1]]
+    # questions = [questions[1]]
     all_data = run_experiments(
         documents=documents,
         queries=questions,
