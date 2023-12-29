@@ -1,19 +1,21 @@
 on:
-  push:
-    branches:
-      - main
+    push:
+        branches:
+            - main
 
 permissions:
-  contents: write
-  pull-requests: write
+    contents: write
+    pull-requests: write
 
 name: release-please
 
 jobs:
-  release-please:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: google-github-actions/release-please-action@v3
-        with:
-          release-type: python
-          package-name: arize-phoenix
+    release-please:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Check out code
+              uses: actions/checkout@v2
+            - uses: google-github-actions/release-please-action@v3
+              with:
+                  release-type: python
+                  package-name: arize-phoenix
