@@ -157,6 +157,15 @@ def test_sync_executor_runs_many_tasks():
     assert outputs == inputs
 
 
+def test_sync_executor_runs_once_per_task():
+    dummy_fn = Mock(side_effect=lambda x: x)
+
+    executor = SyncExecutor(dummy_fn, max_retries=3)
+    inputs = [x for x in range(10)]
+    executor.run(inputs)
+    assert dummy_fn.call_count == 10
+
+
 def test_sync_executor_runs():
     def dummy_fn(payload: int) -> int:
         return payload - 2
