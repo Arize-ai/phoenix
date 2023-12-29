@@ -1,28 +1,31 @@
 name: "CLA Assistant"
 on:
-  issue_comment:
-    types: [created]
-  pull_request_target:
-    types: [assigned, opened, synchronize, reopened]
+    issue_comment:
+        types: [created]
+    pull_request_target:
+        types: [assigned, opened, synchronize, reopened]
 
 permissions:
-  actions: write
-  contents: write
-  pull-requests: write
-  statuses: write
+    actions: write
+    contents: write
+    pull-requests: write
+    statuses: write
 
 jobs:
-  CLAAssistant:
-    runs-on: ubuntu-latest
-    steps:
-      - name: "CLA Assistant"
-        if: (github.event.comment.body == 'recheck' || github.event.comment.body == 'I have read the CLA Document and I hereby sign the CLA') || github.event_name == 'pull_request_target'
-        uses: contributor-assistant/github-action@v2.3.0
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          path-to-signatures: 'signatures/version1/cla.json'
-          path-to-document: 'https://github.com/Arize-ai/phoenix/blob/main/CLA.md'
-          branch: 'cla'
-          allowlist: gitbook-bot, github-actions
-
+    CLAAssistant:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout merge commit
+              uses: actions/checkout@v3
+              with:
+                  ref: "${{ github.event.pull_request.merge_commit_sha }}"
+            - name: CLA Assistant
+              if: (github.event.comment.body == 'recheck' || github.event.comment.body == 'I have read the CLA Document and I hereby sign the CLA') || github.event_name == 'pull_request_target'
+              uses: contributor-assistant/github-action@v2.3.0
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+              with:
+                  path-to-signatures: "signatures/version1/cla.json"
+                  path-to-document: "https://github.com/Arize-ai/phoenix/blob/main/CLA.md"
+                  branch: "cla"
+                  allowlist: gitbook-bot, github-actions
