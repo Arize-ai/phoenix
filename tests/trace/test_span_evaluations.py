@@ -1,5 +1,4 @@
 import json
-import os
 from itertools import chain, combinations
 from random import random
 
@@ -115,12 +114,11 @@ def test_span_evaluations_to_and_from_parquet_preserves_data(tmp_path):
         eval_name="eval-name",
         dataframe=dataframe,
     )
-    input_path = tmp_path / "test.parquet"
-    output_path = eval_ds.to_parquet(input_path)
+    path = eval_ds.to_parquet(tmp_path)
 
-    assert input_path == output_path
-    assert os.path.exists(output_path)
-    table = parquet.read_table(output_path)
+    assert path.resolve().parent == tmp_path.resolve()
+    assert path.exists()
+    table = parquet.read_table(path)
     assert_frame_equal(table.to_pandas(), eval_ds.dataframe)
     assert b"arize" in table.schema.metadata
     assert json.loads(table.schema.metadata[b"arize"]) == {
@@ -128,7 +126,7 @@ def test_span_evaluations_to_and_from_parquet_preserves_data(tmp_path):
         "eval_type": "SpanEvaluations",
     }
 
-    read_evals_ds = Evaluations.from_parquet(output_path)
+    read_evals_ds = Evaluations.from_parquet(path)
     assert isinstance(read_evals_ds, SpanEvaluations)
     assert_frame_equal(read_evals_ds.dataframe, dataframe)
     assert read_evals_ds.eval_name == "eval-name"
@@ -148,12 +146,11 @@ def test_document_evaluations_to_and_from_parquet_preserves_data(tmp_path):
         eval_name="eval-name",
         dataframe=dataframe,
     )
-    input_path = tmp_path / "test.parquet"
-    output_path = eval_ds.to_parquet(input_path)
+    path = eval_ds.to_parquet(tmp_path)
 
-    assert input_path == output_path
-    assert os.path.exists(output_path)
-    table = parquet.read_table(output_path)
+    assert path.resolve().parent == tmp_path.resolve()
+    assert path.exists()
+    table = parquet.read_table(path)
     assert_frame_equal(table.to_pandas(), eval_ds.dataframe)
     assert b"arize" in table.schema.metadata
     assert json.loads(table.schema.metadata[b"arize"]) == {
@@ -161,7 +158,7 @@ def test_document_evaluations_to_and_from_parquet_preserves_data(tmp_path):
         "eval_type": "DocumentEvaluations",
     }
 
-    read_evals_ds = Evaluations.from_parquet(output_path)
+    read_evals_ds = Evaluations.from_parquet(path)
     assert isinstance(read_evals_ds, DocumentEvaluations)
     assert_frame_equal(read_evals_ds.dataframe, dataframe)
     assert read_evals_ds.eval_name == "eval-name"

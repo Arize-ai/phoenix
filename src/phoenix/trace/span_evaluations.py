@@ -163,17 +163,20 @@ class Evaluations(NeedsNamedIndex, NeedsResultColumns, ABC):
             tuple(sorted(prod)) for prod in product(*cls.index_names.keys())
         )
 
-    def to_parquet(self, path: Optional[Union[str, Path]] = None) -> Path:
+    def to_parquet(self, directory: Optional[Union[str, Path]] = None) -> Path:
         """Persists the evaluations to a parquet file.
 
         Args:
-            path (Optional[Union[str, Path]], optional): A path to save the
-            parquet file to. If not provided, a random path will be generated.
+            directory (Optional[Union[str, Path]], optional): An optional path
+            to a directory where the parquet file will be saved. If not
+            provided, the parquet file will be saved to a default location.
 
         Returns:
-            Path: The path to the parquet file.
+            Path: The path to the parquet file, including a randomly generated
+            filename.
         """
-        path = Path(path or TRACE_DATASET_DIR / f"eval-{uuid4()}.parquet")
+        directory = Path(directory) if directory else TRACE_DATASET_DIR
+        path = directory / f"evaluations-{uuid4()}.parquet"
         table = Table.from_pandas(self.dataframe)
         table = table.replace_schema_metadata(
             {
