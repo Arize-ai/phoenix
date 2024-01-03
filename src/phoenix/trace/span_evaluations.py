@@ -17,7 +17,7 @@ from phoenix.exceptions import PhoenixException
 EVAL_NAME_COLUMN_PREFIX = "eval."
 
 
-class InvalidParquetSchemaMetadataError(PhoenixException):
+class InvalidParquetMetadataError(PhoenixException):
     pass
 
 
@@ -164,11 +164,21 @@ class Evaluations(NeedsNamedIndex, NeedsResultColumns, ABC):
         )
 
     def to_parquet(self, path: Optional[Union[str, Path]] = None) -> Path:
+        """Persists the evaluations to a parquet file.
+
+        Args:
+            path (Optional[Union[str, Path]], optional): A path to save the
+            parquet file to. If not provided, a random path will be generated.
+
+        Returns:
+            Path: The path to the parquet file.
+        """
         path = Path(path or TRACE_DATASET_DIR / f"eval-{uuid4()}.parquet")
         table = Table.from_pandas(self.dataframe)
         table = table.replace_schema_metadata(
             {
                 **(table.schema.metadata or {}),
+                # explicitly encode keys and values, which are automatically encoded regardless
                 b"arize": json.dumps(
                     {
                         "eval_name": self.eval_name,
@@ -177,14 +187,22 @@ class Evaluations(NeedsNamedIndex, NeedsResultColumns, ABC):
                 ).encode("utf-8"),
             }
         )
-        parquet.write_table(
-            table,
-            path,
-        )
+        parquet.write_table(table, path)
         return path
 
     @classmethod
     def from_parquet(cls, path: Union[str, Path]) -> "Evaluations":
+        """Loads the evaluations from a parquet file.
+
+        Args:
+            path (Union[str, Path]): Path to a persisted evaluations parquet
+            file.
+
+        Returns:
+            Evaluations: The loaded evaluations. The type of the returned
+            evaluations will be the same as the type of the evaluations that
+            were originally persisted.
+        """
         schema = parquet.read_schema(path)
         eval_name, evaluations_cls = _parse_schema_metadata(schema.metadata)
         table = parquet.read_table(path)
@@ -277,12 +295,22 @@ class TraceEvaluations(
 
 
 def _parse_schema_metadata(metadata: Dict[bytes, Any]) -> Tuple[str, ModuleType]:
+    """Validates and parses the schema metadata. Raises an exception if the
+    metadata is invalid.
+
+    Args:
+        metadata (Dict[bytes, Any]): A dictionary of schema metadata from a
+        parquet file.
+
+    Returns:
+        Tuple[str, ModuleType]: The evaluation name and the evaluations class.
+    """
     if not (arize_metadata_json := metadata.get(b"arize")):
-        raise InvalidParquetSchemaMetadataError('Schema metadata is missing "arize" key')
+        raise InvalidParquetMetadataError('Schema metadata is missing "arize" key')
     try:
         arize_metadata = json.loads(arize_metadata_json)
     except json.JSONDecodeError as err:
-        raise InvalidParquetSchemaMetadataError(
+        raise InvalidParquetMetadataError(
             'Encountered invalid JSON string under "arize" key'
         ) from err
     evaluations_classes = {subclass.__name__: subclass for subclass in Evaluations.__subclasses__()}
@@ -291,5 +319,5 @@ def _parse_schema_metadata(metadata: Dict[bytes, Any]) -> Tuple[str, ModuleType]
         and isinstance(eval_name := arize_metadata.get("eval_name"), str)
         and (evaluations_cls := evaluations_classes.get(arize_metadata.get("eval_type")))
     ):
-        raise InvalidParquetSchemaMetadataError(f"Invalid Arize metadata: {arize_metadata}")
+        raise InvalidParquetMetadataError(f"Invalid Arize metadata: {arize_metadata}")
     return eval_name, evaluations_cls
