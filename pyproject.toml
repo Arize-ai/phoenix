@@ -292,6 +292,7 @@ module = [
   "litellm",
   "nest_asyncio",
   "opentelemetry.*",
+  "pyarrow",
 ]
 ignore_missing_imports = true
 

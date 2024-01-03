@@ -3,8 +3,8 @@ from abc import ABC
 from dataclasses import dataclass, field
 from itertools import product
 from pathlib import Path
-from types import MappingProxyType, ModuleType
-from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Set, Tuple, Union
+from types import MappingProxyType
+from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Set, Tuple, Type, Union
 from uuid import uuid4
 
 import pandas as pd
@@ -294,7 +294,7 @@ class TraceEvaluations(
     ...
 
 
-def _parse_schema_metadata(metadata: Dict[bytes, Any]) -> Tuple[str, ModuleType]:
+def _parse_schema_metadata(metadata: Dict[bytes, Any]) -> Tuple[str, Type[Evaluations]]:
     """Validates and parses the schema metadata. Raises an exception if the
     metadata is invalid.
 
@@ -317,7 +317,8 @@ def _parse_schema_metadata(metadata: Dict[bytes, Any]) -> Tuple[str, ModuleType]
     if not (
         isinstance(arize_metadata, dict)
         and isinstance(eval_name := arize_metadata.get("eval_name"), str)
-        and (evaluations_cls := evaluations_classes.get(arize_metadata.get("eval_type")))
+        and (eval_type := arize_metadata.get("eval_type"))
+        and (evaluations_cls := evaluations_classes.get(eval_type))
     ):
         raise InvalidParquetMetadataError(f"Invalid Arize metadata: {arize_metadata}")
     return eval_name, evaluations_cls
