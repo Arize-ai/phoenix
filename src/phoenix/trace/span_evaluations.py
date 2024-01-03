@@ -3,16 +3,22 @@ from abc import ABC
 from dataclasses import dataclass, field
 from itertools import product
 from pathlib import Path
-from types import MappingProxyType
-from typing import Any, Callable, List, Mapping, Optional, Sequence, Set, Tuple, TypeVar, Union
+from types import MappingProxyType, ModuleType
+from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Set, Tuple, Union
+from uuid import uuid4
 
 import pandas as pd
 from pandas.api.types import is_integer_dtype, is_numeric_dtype, is_string_dtype
 from pyarrow import Table, parquet
 
-EvaluationsType = TypeVar("EvaluationType", bound="Evaluations")
+from phoenix.config import TRACE_DATASET_DIR
+from phoenix.exceptions import PhoenixException
 
 EVAL_NAME_COLUMN_PREFIX = "eval."
+
+
+class InvalidParquetSchemaMetadataError(PhoenixException):
+    pass
 
 
 class NeedsNamedIndex(ABC):
@@ -157,23 +163,33 @@ class Evaluations(NeedsNamedIndex, NeedsResultColumns, ABC):
             tuple(sorted(prod)) for prod in product(*cls.index_names.keys())
         )
 
-    def to_parquet(self, path: Union[str, Path]) -> None:
+    def to_parquet(self, path: Optional[Union[str, Path]] = None) -> Path:
+        path = Path(path or TRACE_DATASET_DIR / f"eval-{uuid4()}.parquet")
         table = Table.from_pandas(self.dataframe)
         table = table.replace_schema_metadata(
             {
-                **table.schema.metadata,
-                b"openinference": json.dumps({"eval_name": self.eval_name}).encode("utf-8"),
+                **(table.schema.metadata or {}),
+                b"arize": json.dumps(
+                    {
+                        "eval_name": self.eval_name,
+                        "eval_type": self.__class__.__name__,
+                    }
+                ).encode("utf-8"),
             }
         )
-        parquet.write_table(table, path)
+        parquet.write_table(
+            table,
+            path,
+        )
+        return path
 
     @classmethod
-    def from_parquet(cls: EvaluationsType, path: Union[str, Path]) -> EvaluationsType:
+    def from_parquet(cls, path: Union[str, Path]) -> "Evaluations":
+        schema = parquet.read_schema(path)
+        eval_name, evaluations_cls = _parse_schema_metadata(schema.metadata)
         table = parquet.read_table(path)
-        openinference_metadata = json.loads(table.schema.metadata[b"openinference"])
-        eval_name = openinference_metadata["eval_name"]
         dataframe = table.to_pandas()
-        return cls(eval_name=eval_name, dataframe=dataframe)
+        return evaluations_cls(eval_name=eval_name, dataframe=dataframe)
 
 
 @dataclass(frozen=True)
@@ -258,3 +274,22 @@ class TraceEvaluations(
     index_names=MappingProxyType({("context.trace_id", "trace_id"): is_string_dtype}),
 ):
     ...
+
+
+def _parse_schema_metadata(metadata: Dict[bytes, Any]) -> Tuple[str, ModuleType]:
+    if not (arize_metadata_json := metadata.get(b"arize")):
+        raise InvalidParquetSchemaMetadataError('Schema metadata is missing "arize" key')
+    try:
+        arize_metadata = json.loads(arize_metadata_json)
+    except json.JSONDecodeError as err:
+        raise InvalidParquetSchemaMetadataError(
+            'Encountered invalid JSON string under "arize" key'
+        ) from err
+    evaluations_classes = {subclass.__name__: subclass for subclass in Evaluations.__subclasses__()}
+    if not (
+        isinstance(arize_metadata, dict)
+        and isinstance(eval_name := arize_metadata.get("eval_name"), str)
+        and (evaluations_cls := evaluations_classes.get(arize_metadata.get("eval_type")))
+    ):
+        raise InvalidParquetSchemaMetadataError(f"Invalid Arize metadata: {arize_metadata}")
+    return eval_name, evaluations_cls
