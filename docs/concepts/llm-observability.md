@@ -4,7 +4,7 @@ description: >-
   software system: the application, the prompt, and the response.
 ---
 
-# What is LLM Observability?
+# LLM Observability
 
 ## 5 Pillars of LLM Observability
 
@@ -60,10 +60,3 @@ Learn more about [troubleshooting search and retrieval](../use-cases/troubleshoo
 Fine tuning essentially generates a new model that is more aligned with your exact usage conditions. Fine tuning is expensive, difficult, and may need to be done again as the underlying LLM or other conditions of your system change. This is a very powerful technique, requires much higher effort and complexity.
 
 <figure><img src="https://lh3.googleusercontent.com/_GnuXCWLToFRH6HnlaDLQUg8mLYE-A7MxlDaGlRwi8FXwJDh44TCiJlqXYgHRAqlwBbmCcbFWbnfIKLOnccFDuA1bloVp8dFgvFARzzZWUpGNsZxxtlfneEV34JseZgzaY8RP2PJhVFYZaUCbSjyCAU" alt=""><figcaption></figcaption></figure>
-
-\\
-
-\\
-
-\
-\\

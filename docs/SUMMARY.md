@@ -12,8 +12,8 @@
 
 ## 💡 Concepts
 
-* [What is LLM Observability?](concepts/llm-observability.md)
-* [LLM Traces](concepts/llm-traces.md)
+* [LLM Observability](concepts/llm-observability.md)
+* [Traces and Spans](concepts/llm-traces.md)
 * [Generating Embeddings](concepts/generating-embeddings.md)
 * [Embeddings Analysis](concepts/embeddings-analysis.md)
 
