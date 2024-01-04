@@ -2,6 +2,7 @@
 """
 Llama Index implementation of a chunking and query testing system
 """
+import asyncio
 import datetime
 import logging
 import os
@@ -10,8 +11,10 @@ import time
 from typing import Dict, List
 
 import cohere
+import llama_index
 import numpy as np
 import pandas as pd
+import phoenix as px
 import phoenix.experimental.evals.templates.default_templates as templates
 import requests
 from bs4 import BeautifulSoup
@@ -22,20 +25,29 @@ from llama_index import (
     VectorStoreIndex,
     download_loader,
     load_index_from_storage,
+    set_global_handler,
 )
-import llama_index
 from llama_index.callbacks import CallbackManager, LlamaDebugHandler
-from llama_index.postprocessor.cohere_rerank import CohereRerank
 from llama_index.indices.query.query_transform import HyDEQueryTransform
 from llama_index.indices.query.query_transform.base import StepDecomposeQueryTransform
 from llama_index.llms import OpenAI
 from llama_index.node_parser import SimpleNodeParser
+from llama_index.postprocessor.cohere_rerank import CohereRerank
 from llama_index.query_engine.multistep_query_engine import MultiStepQueryEngine
 from llama_index.query_engine.transform_query_engine import TransformQueryEngine
-from phoenix.experimental.evals import NOT_PARSABLE, OpenAIModel, llm_classify, run_relevance_eval
+from phoenix.experimental.evals import (
+    HUMAN_VS_AI_PROMPT_RAILS_MAP,
+    HUMAN_VS_AI_PROMPT_TEMPLATE,
+    NOT_PARSABLE,
+    OpenAIModel,
+    compute_precisions_at_k,
+    llm_classify,
+    run_relevance_eval,
+)
 from phoenix.experimental.evals.functions.processing import concatenate_and_truncate_chunks
 from phoenix.experimental.evals.models import BaseEvalModel
-#from phoenix.experimental.evals.templates import NOT_PARSABLE
+
+# from phoenix.experimental.evals.templates import NOT_PARSABLE
 from plotresults import (
     plot_latency_graphs,
     plot_mean_average_precision_graphs,
@@ -46,24 +58,6 @@ from plotresults import (
 )
 from sklearn.metrics import ndcg_score
 
-import phoenix as px
-from phoenix.experimental.evals import (
-    OpenAIModel,
-    compute_precisions_at_k,
-    run_relevance_eval,
-)
-
-from llama_index import (
-    ServiceContext,
-    StorageContext,
-    load_index_from_storage,
-    set_global_handler,
-)
-
-from phoenix.experimental.evals import (
-    HUMAN_VS_AI_PROMPT_RAILS_MAP,
-    HUMAN_VS_AI_PROMPT_TEMPLATE
-)
 LOGGING_LEVEL = 20  # INFO
 logging.basicConfig(level=LOGGING_LEVEL)
 logger = logging.getLogger("evals")
@@ -179,7 +173,7 @@ def get_transformation_query_engine(index, name, k, llama_index_model):
 
 
 # Main run experiment function
-def run_experiments(
+async def run_experiments(
     documents,
     queries,
     chunk_sizes,
@@ -284,7 +278,7 @@ def run_experiments(
                     df = pd.DataFrame(data, columns=columns)
                 logger.info("RUNNING EVALS")
                 time_start = time.time()
-                df = df_evals(
+                df = await df_evals(
                     df=df,
                     model=eval_model,
                     formatted_evals_column="retrieval_evals",
@@ -309,7 +303,7 @@ def run_experiments(
 
 
 # Running the main Phoenix Evals both Q&A and Retrieval
-def df_evals(
+async def df_evals(
     df: pd.DataFrame,
     model: BaseEvalModel,
     formatted_evals_column: str,
@@ -328,9 +322,10 @@ def df_evals(
         template=template,
         model=model,
         rails=["correct", "incorrect"],
+        verbose=True,
     ).iloc[:, 0]
     df["qa_evals"] = Q_and_A_classifications
-    # Retreival Eval: Did I have the relevant data to even answer the question?
+    # Retrieval Eval: Did I have the relevant data to even answer the question?
     # Checking retrieval system
     df = df.rename(columns={"reference": "context"})
     df = df.rename(columns={"retrieved_context_list": "reference"})
@@ -342,7 +337,7 @@ def df_evals(
         template=templates.RAG_RELEVANCY_PROMPT_TEMPLATE,
         rails=list(templates.RAG_RELEVANCY_PROMPT_RAILS_MAP.values()),
         query_column_name="input",
-        #document_column_name="retrieved_context_list",
+        # document_column_name="retrieved_context_list",
     )
 
     # We want 0, 1 values for the metrics
@@ -351,6 +346,7 @@ def df_evals(
         lambda values: [value_map.get(value) for value in values]
     )
     if answers:
+        print("RUNNING HUMAN VS AI EVALS")
         df_human_ai = pd.DataFrame()
         df_human_ai["question"] = df["input"]
         df_human_ai["ai_generated_answer"] = df["output"]
@@ -362,13 +358,14 @@ def df_evals(
             rails=list(HUMAN_VS_AI_PROMPT_RAILS_MAP.values()),
             use_function_calling_if_available=False,
             provide_explanation=True,
+            verbose=True,
         )
-        df['ai_human_eval'] = ai_vs_human['label']
-        df['ai_human_eval_explanation'] = ai_vs_human['explanation']
+        df["ai_human_eval"] = ai_vs_human["label"]
+        df["ai_human_eval_explanation"] = ai_vs_human["explanation"]
     return df
 
 
-# Calculatae performance metrics
+# Calculate performance metrics
 def calculate_metrics(df, k, formatted_evals_column="formatted_evals"):
     df["data"] = df.apply(lambda row: process_row(row, formatted_evals_column, k), axis=1)
     # Separate the list of data into separate columns
@@ -427,7 +424,7 @@ def check_keys() -> None:
         )
 
 
-def main():
+async def main():
     check_keys()
 
     # if loading from scratch, change these below
@@ -447,15 +444,14 @@ def main():
     # Read strings from CSV
     questions_file = pd.read_csv(
         "https://storage.googleapis.com/arize-assets/fixtures/Embeddings/GENERATIVE/human_vs_ai_eval.csv",
-        #header=None,
-    )#[0].to_list()
+        # header=None,
+    )  # [0].to_list()
     index_no_na = questions_file["question"].notna()
-    questions = questions_file[index_no_na]['question'].to_list()
+    questions = questions_file[index_no_na]["question"].to_list()
     if has_answer:
-        answers = questions_file[index_no_na]['correct_answer'].to_list()
-    else:   
+        answers = questions_file[index_no_na]["correct_answer"].to_list()
+    else:
         answers = None
-
 
     raw_docs_filepath = os.path.join(save_base, file_name)
     # two options here, either get the documents from scratch or load one from disk
@@ -483,21 +479,21 @@ def main():
     px.launch_app()
     # The App is initially empty, but as you proceed with the steps below,
     # traces will appear automatically as your LlamaIndex application runs.
-    from phoenix.trace.tracer import Tracer
-    from phoenix.trace.openai.instrumentor import OpenAIInstrumentor
     from phoenix.trace.exporter import HttpExporter
     from phoenix.trace.openai import OpenAIInstrumentor
+    from phoenix.trace.openai.instrumentor import OpenAIInstrumentor
+    from phoenix.trace.tracer import Tracer
 
     tracer = Tracer(exporter=HttpExporter())
     OpenAIInstrumentor(tracer).instrument()
-    #llama_index.set_global_handler("arize_phoenix")
+    # llama_index.set_global_handler("arize_phoenix")
 
     # Run all of your LlamaIndex applications as usual and traces
     # will be collected and displayed in Phoenix.
     chunk_sizes = [
-        #100,
-        #300,
-         500,
+        # 100,
+        # 300,
+        500,
         # 1000,
         # 2000,
     ]  # change this, perhaps experiment from 500 to 3000 in increments of 500
@@ -516,9 +512,9 @@ def main():
     # Uncomment below when testing to limit number of questions
     questions = [questions[6]]
     answers = [answers[6]]
-    #questions = questions[:6]
-    #answers = answers[:6]
-    all_data = run_experiments(
+    # questions = questions[:6]
+    # answers = answers[:6]
+    all_data = await run_experiments(
         documents=documents,
         queries=questions,
         chunk_sizes=chunk_sizes,
@@ -552,7 +548,7 @@ def main():
 
 if __name__ == "__main__":
     program_start = time.time()
-    main()
+    asyncio.run(main())
     program_end = time.time()
     total_time = (program_end - program_start) / (60 * 60)
     logger.info(f"EXPERIMENTS FINISHED: {total_time:.2f} hrs")
