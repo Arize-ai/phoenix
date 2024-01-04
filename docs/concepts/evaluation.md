@@ -69,3 +69,15 @@ These three columns combined can drive any type of evaluation you can imagine. *
 
 <figure><img src="https://github.com/Arize-ai/phoenix-assets/blob/main/images/blog/evaluations_on_traces.png?raw=true" alt=""><figcaption><p>Adding evaluations on traces can highlight problematic areas that require further analysis</p></figcaption></figure>
 
+With Phoenix, evaluations can be "attached" to the **spans** and **documents** collected. In order to facilitate this, phoenix supports the following steps.
+
+1. **Query and downloading data** - query the spans collected by phoenix and materialize them into DataFrames to be used for evaluation (e.x. question and answer data, documents data)
+2. **Running Evaluations** - the data queried in step 1 can be fed into LLM Evals to produce evaluation results.
+3. **Log Evaluations** - the evaluations performed in the above step can be logged back to phoenix to be attached to spans and documents for evaluating responses and retrieval.
+4. **Filtering by Evaluation** - once the evaluations have been logged back to phoenix, the spans become instantly filterable by the evaluation values that you attached to the spans
+
+<figure><img src="https://github.com/Arize-ai/phoenix-assets/blob/main/images/blog/evaluation_flow.png?raw=true" alt=""><figcaption><p>End-to-end evaluation flow</p></figcaption></figure>
+
+By following the above steps, you will have a full end-to-end flow to troubleshooting and evaluating and LLM application. For a full tutorial on LLM Ops, check out our tutorial.
+
+{% embed url="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/llm_ops_overview.ipynb" %}
