@@ -16,7 +16,7 @@ Phoenix offers key modules to measure the quality of generated results as well a
 
 Evaluation of generated results can be challenging. Unlike traditional ML, the predicted results are not numeric or categorical, making it hard to define quantitative metrics for this problem.
 
-Phoenix offers [LLM Evaluations](broken-reference), a module designed to measure the quality of results. This module uses a "gold" LLM (e.g. GPT-4) to decide whether the generated answer is correct in a variety of ways.\
+Phoenix offers [LLM Evaluations](broken-reference), a module designed to measure the quality of results. This module uses a LLM (e.g. GPT-4) to decide whether the generated answer is correct in a variety of ways.\
 \
 Note that many of these evaluation criteria DO NOT require ground-truth labels. Evaluation can be done simply with a combination of the **input** (query), **output** (response), and **context**.
 
