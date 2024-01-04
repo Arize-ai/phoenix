@@ -51,8 +51,8 @@ Retrieval is possibly the most important step in any LLM application as poor and
 With Phoenix's LLM Evals, evaluation results (or just **Evaluations** for short) is a dataset consisting of 3 main columns:&#x20;
 
 * **label**: str \[optional] - a classification label for the evaluation (e.g. "hallucinated" vs "factual"). Can be used to calculate percentages (e.g. percent hallucinated) and can be used to filter down your data (e.g. `Evals["Hallucinations"].label == "hallucinated"`)
-* **score**: number \[optional] - a numeric score for the evaluation (e.g. 1 for good, 0 for bad). Scores are great way to sort your data by worst performing and can be used to filter your data by a threshold.
-* **explanation**: str \[optional] - the reasoning for why the evaluation label or score was given. In LLM evals case, this is the evaluation model's reasoning. While explanations are optional they can be extremely useful when trying to understand problematic areas of your application.
+* **score**: number \[optional] - a numeric score for the evaluation (e.g. 1 for good, 0 for bad). Scores are great way to sort your data to surface poorly performing examples and can be used to filter your data by a threshold.
+* **explanation**: str \[optional] - the reasoning for why the evaluation label or score was given. In the case of LLM evals, this is the evaluation model's reasoning. While explanations are optional, they can be extremely useful when trying to understand problematic areas of your application.
 
 Let's take a look at an example list of **Q\&A relevance** evaluations:
 
