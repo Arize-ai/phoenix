@@ -16,7 +16,7 @@ Phoenix offers key modules to measure the quality of generated results as well a
 
 Evaluation of generated results can be challenging. Unlike traditional ML, the predicted results are not numeric or categorical, making it hard to define quantitative metrics for this problem.
 
-Phoenix offers [LLM Evaluations](broken-reference), a module designed to measure the quality of results. This module uses a "gold" LLM (e.x. GPT-4) to decide whether the generated answer is correct in a variety of ways.\
+Phoenix offers [LLM Evaluations](broken-reference), a module designed to measure the quality of results. This module uses a "gold" LLM (e.g. GPT-4) to decide whether the generated answer is correct in a variety of ways.\
 \
 Note that many of these evaluation criteria DO NOT require ground-truth labels. Evaluation can be done simply with a combination of the **input** (query), **output** (response), and **context**.
 
@@ -48,11 +48,11 @@ Retrieval is possibly the most important step in any LLM application as poor and
 
 <figure><img src="https://github.com/Arize-ai/phoenix-assets/blob/main/images/blog/Evaluations.png?raw=true" alt=""><figcaption><p>Datasets that contain generative records can be fed into evals to produce evaluations for analysis</p></figcaption></figure>
 
-With Phoenix's LLM Evals, evaluation results (or just **evaluations** for short) is a dataset consisting of 3 main columns:&#x20;
+With Phoenix's LLM Evals, evaluation results (or just **Evaluations** for short) is a dataset consisting of 3 main columns:&#x20;
 
-* **label: str** \[optional] - a classification label for the evaluation (e.x. "hallucinated" vs "factual"). Can be used to calculate percentages (e.x. percent hallucinated) and can be used to filter down your data (e.x. `Evals["Hallucinations"].label == "hallucinated"`)
-* **score: number** \[optional] - a numeric score for the evaluation (e.x. 1 for good, 0 for bad). Scores are great way to sort your data by worst performing and can be used to filter your data by a threshold.
-* **explanation: str** \[optional] - the reasoning for why the evaluation label or score was given. In LLM evals case, this is the evaluation model's reasoning. While explanations are optional they can be extremely useful when trying to understand problematic areas of your application.
+* **label**: str \[optional] - a classification label for the evaluation (e.g. "hallucinated" vs "factual"). Can be used to calculate percentages (e.g. percent hallucinated) and can be used to filter down your data (e.g. `Evals["Hallucinations"].label == "hallucinated"`)
+* **score**: number \[optional] - a numeric score for the evaluation (e.g. 1 for good, 0 for bad). Scores are great way to sort your data by worst performing and can be used to filter your data by a threshold.
+* **explanation**: str \[optional] - the reasoning for why the evaluation label or score was given. In LLM evals case, this is the evaluation model's reasoning. While explanations are optional they can be extremely useful when trying to understand problematic areas of your application.
 
 Let's take a look at an example list of **Q\&A relevance** evaluations:
 
@@ -63,21 +63,21 @@ Let's take a look at an example list of **Q\&A relevance** evaluations:
 | incorrect | To determine if the answer is correct, we must... | 0     |
 | correct   | To determine if the answer is correct, we need... | 1     |
 
-These three columns combined can drive any type of evaluation you can imagine. **Label** provides a way to classify responses, **score** provides a way to assign a numeric assessment, and **explanation** gives you a way to get qualitative feedback.
+These three columns combined can drive any type of evaluation you can imagine. **label** provides a way to classify responses, **score** provides a way to assign a numeric assessment, and **explanation** gives you a way to get qualitative feedback.
 
 ### Evaluating Traces
 
 <figure><img src="https://github.com/Arize-ai/phoenix-assets/blob/main/images/blog/evaluations_on_traces.png?raw=true" alt=""><figcaption><p>Adding evaluations on traces can highlight problematic areas that require further analysis</p></figcaption></figure>
 
-With Phoenix, evaluations can be "attached" to the **spans** and **documents** collected. In order to facilitate this, phoenix supports the following steps.
+With Phoenix, evaluations can be "attached" to the **spans** and **documents** collected. In order to facilitate this, Phoenix supports the following steps.
 
-1. **Query and downloading data** - query the spans collected by phoenix and materialize them into DataFrames to be used for evaluation (e.x. question and answer data, documents data)
+1. **Querying and downloading data** - query the spans collected by phoenix and materialize them into DataFrames to be used for evaluation (e.g. question and answer data, documents data).
 2. **Running Evaluations** - the data queried in step 1 can be fed into LLM Evals to produce evaluation results.
-3. **Log Evaluations** - the evaluations performed in the above step can be logged back to phoenix to be attached to spans and documents for evaluating responses and retrieval.
-4. **Filtering by Evaluation** - once the evaluations have been logged back to phoenix, the spans become instantly filterable by the evaluation values that you attached to the spans
+3. **Logging Evaluations** - the evaluations performed in the above step can be logged back to Phoenix to be attached to spans and documents for evaluating responses and retrieval.
+4. **Filtering by Evaluation** - once the evaluations have been logged back to Phoenix, the spans become instantly filterable by the evaluation values that you attached to the spans.
 
 <figure><img src="https://github.com/Arize-ai/phoenix-assets/blob/main/images/blog/evaluation_flow.png?raw=true" alt=""><figcaption><p>End-to-end evaluation flow</p></figcaption></figure>
 
-By following the above steps, you will have a full end-to-end flow to troubleshooting and evaluating and LLM application. For a full tutorial on LLM Ops, check out our tutorial.
+By following the above steps, you will have a full end-to-end flow to troubleshooting and evaluating and LLM application. For a full tutorial on LLM Ops, check out our tutorial below.
 
 {% embed url="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/llm_ops_overview.ipynb" %}
