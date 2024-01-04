@@ -7,7 +7,7 @@ description: >-
 
 # Evaluation
 
-Phoenix offers key modules to measure the quality of generated results as well as modulues to measure retrieval quality.
+Phoenix offers key modules to measure the quality of generated results as well as modules to measure retrieval quality.
 
 * [**Response Evaluation**](evaluation.md#response-evaluation): Does the response match the retrieved context? Does it also match the query?&#x20;
 * [**Retrieval Evaluation**](evaluation.md#retrieval-evaluation): Are the retrieved sources relevant to the query?
@@ -26,47 +26,46 @@ LLM Evals supports the following response evaluation criteria:
 * [**Hallucinations**](../llm-evals/running-pre-tested-evals/hallucinations.md) **-** Designed to detect LLM hallucinations relative to private or retrieved context
 * [**Toxicity**](../llm-evals/running-pre-tested-evals/toxicity.md) -  Identify if the AI response is racist, biased, or toxic
 
-#### Question Generation
+Response evaluations are a critical first step to figuring out whether your LLM App is running correctly.  Response evaluations can pinpoint specific executions (a.k.a. traces) that are performing badly and can be aggregated up so that you can track how your application is running as a whole.
 
-In addition to evaluating queries, Phoenix can also use your data to generate questions to evaluate on. This means that you can automatically generate synthetic questions and run and evaluation pipeline to test if the LLM can actually answer questions accurately using your data. The RAG evaluations use-case highlights this end-to-end evaluation pipeline ([see tutorial)](../use-cases/rag-evaluation.md).
-
-#### Running Response Evaluations
-
-{% hint style="info" %}
-Already have a dataset of queries, responses, and context? You can jump directly to [Broken link](broken-reference "mention")
-{% endhint %}
-
-###
+<figure><img src="https://github.com/Arize-ai/phoenix-assets/blob/main/images/screenshots/eval_aggregations.png?raw=true" alt=""><figcaption><p>Evaluations can be aggregated across executions to be used as KPIs</p></figcaption></figure>
 
 ### Retrieval Evaluation
 
 Phoenix also provides evaluation of retrieval independently.
 
-The concept of retrieval evaluation is not new; given a set of relevance scores for a set of retrieved documents, we  can evaluate retrievers using retrieval metrics like `precision`, `NDCG`,  `hit rate` and more.
+The concept of retrieval evaluation is not new; given a set of relevance scores for a set of retrieved documents, we can evaluate retrievers using retrieval metrics like `precision`, `NDCG`,  `hit rate` and more.
 
-LLM Evals supports the following retireval evaluation criteria:
+LLM Evals supports the following retrieval evaluation criteria:
 
 * [**Relevance**](../llm-evals/running-pre-tested-evals/retrieval-rag-relevance.md) - Evaluates whether a retrieved document chunk contains an answer to the query. It's extremely useful for evaluating retrieval systems.
 
-#### Running Retireval Evaluations
+<figure><img src="https://github.com/Arize-ai/phoenix-assets/blob/main/images/blog/revlevance_eval_process.png?raw=true" alt=""><figcaption><p>Retrieval Evaluations can be run directly on application traces</p></figcaption></figure>
 
+Retrieval is possibly the most important step in any LLM application as poor and/or incorrect retrieval can be the cause of bad response generation. If your application uses RAG to power an LLM, retrieval evals can help you identify the cause of hallucinations and incorrect answers.
 
+### Evaluations
+
+<figure><img src="https://github.com/Arize-ai/phoenix-assets/blob/main/images/blog/Evaluations.png?raw=true" alt=""><figcaption><p>Datasets that contain generative records can be fed into evals to produce evaluations for analysis</p></figcaption></figure>
+
+With Phoenix's LLM Evals, evaluation results (or just **evaluations** for short) is a dataset consisting of 3 main columns:&#x20;
+
+* **label: str** \[optional] - a classification label for the evaluation (e.x. "hallucinated" vs "factual"). Can be used to calculate percentages (e.x. percent hallucinated) and can be used to filter down your data (e.x. `Evals["Hallucinations"].label == "hallucinated"`)
+* **score: number** \[optional] - a numeric score for the evaluation (e.x. 1 for good, 0 for bad). Scores are great way to sort your data by worst performing and can be used to filter your data by a threshold.
+* **explanation: str** \[optional] - the reasoning for why the evaluation label or score was given. In LLM evals case, this is the evaluation model's reasoning. While explanations are optional they can be extremely useful when trying to understand problematic areas of your application.
+
+Let's take a look at an example list of **Q\&A relevance** evaluations:
+
+| label     | explanation                                       | score |
+| --------- | ------------------------------------------------- | ----- |
+| correct   | The reference text explains that YC was not or... | 1     |
+| correct   | To determine if the answer is correct, we need... | 1     |
+| incorrect | To determine if the answer is correct, we must... | 0     |
+| correct   | To determine if the answer is correct, we need... | 1     |
+
+These three columns combined can drive any type of evaluation you can imagine. **Label** provides a way to classify responses, **score** provides a way to assign a numeric assessment, and **explanation** gives you a way to get qualitative feedback.
 
 ### Evaluating Traces
 
 <figure><img src="https://github.com/Arize-ai/phoenix-assets/blob/main/images/blog/evaluations_on_traces.png?raw=true" alt=""><figcaption><p>Adding evaluations on traces can highlight problematic areas that require further analysis</p></figcaption></figure>
 
-````python
-```notebook-python
-from phoenix.trace import DocumentEvaluations
-
-# Log response evaluations to phoenix via SpanEvaluations
-px.log_evaluations(
-    SpanEvaluations(eval_name="Hallucination", dataframe=hallucination_eval),
-    SpanEvaluations(eval_name="QA Correctness", dataframe=qa_correctness_eval),
-)
-
-# Log documen evaluations for retrieval analysis
-px.log_evaluations(DocumentEvaluations(eval_name="Relevance", dataframe=retrieved_documents_eval))
-
-````
