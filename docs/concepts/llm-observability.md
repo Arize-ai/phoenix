@@ -8,8 +8,8 @@ description: >-
 
 ## 5 Pillars of LLM Observability
 
+* [**Traces & Spans**](llm-observability.md#2.-traces-and-spans) - Visibility into where more complex or agentic workflows brake.
 * [**Evaluation**](llm-observability.md#1.-llm-evals) - This helps you evaluate how well the response answers the prompt by using a separate evaluation LLM.
-* [**LLM Traces & Spans**](llm-observability.md#2.-traces-and-spans) - This gives you visibility into where more complex or agentic workflows broke.
 * [**Prompt Engineering**](llm-observability.md#3.-prompt-engineering) - Iterating on a prompt template can help improve LLM results.
 * [**Search and Retrieval**](llm-observability.md#4.-search-and-retrieval) - Improving the context that goes into the prompt can lead to better LLM responses.
 * [**Fine-tuning**](llm-observability.md#5.-fine-tuning) - Fine-tuning generates a new model that is more aligned with your exact usage conditions for improved performance.

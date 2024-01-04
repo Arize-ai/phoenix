@@ -14,6 +14,7 @@
 
 * [LLM Observability](concepts/llm-observability.md)
 * [Traces and Spans](concepts/llm-traces.md)
+* [Evaluation](concepts/evaluation.md)
 * [Generating Embeddings](concepts/generating-embeddings.md)
 * [Embeddings Analysis](concepts/embeddings-analysis.md)
 
