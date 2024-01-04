@@ -78,6 +78,6 @@ With Phoenix, evaluations can be "attached" to the **spans** and **documents** c
 
 <figure><img src="https://github.com/Arize-ai/phoenix-assets/blob/main/images/blog/evaluation_flow.png?raw=true" alt=""><figcaption><p>End-to-end evaluation flow</p></figcaption></figure>
 
-By following the above steps, you will have a full end-to-end flow to troubleshooting and evaluating and LLM application. For a full tutorial on LLM Ops, check out our tutorial below.
+By following the above steps, you will have a full end-to-end flow to troubleshooting and evaluating an LLM application. For a full tutorial on LLM Ops, check out our tutorial below.
 
 {% embed url="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/llm_ops_overview.ipynb" %}
