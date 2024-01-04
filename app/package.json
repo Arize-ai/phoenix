@@ -77,7 +77,7 @@
     "build:relay": "relay-compiler",
     "watch": "./esbuild.config.mjs dev",
     "test": "jest --config ./jest.config.js",
-    "dev": "npm run dev:server:traces:llama_index_rag & npm run build:static && npm run watch",
+    "dev": "npm run dev:server:sentiment & npm run build:static && npm run watch",
     "dev:server:mnist": "python3 -m phoenix.server.main --umap_params 0,30,550 fixture fashion_mnist",
     "dev:server:mnist:single": "python3 -m phoenix.server.main fixture fashion_mnist --primary-only true",
     "dev:server:sentiment": "python3 -m phoenix.server.main fixture sentiment_classification_language_drift",

@@ -1,12 +1,18 @@
 import React, { Suspense, useCallback, useState } from "react";
 import { graphql, useLazyLoadQuery, useMutation } from "react-relay";
 import { css } from "@emotion/react";
+import { useTheme } from "@phoenix/contexts";
+import { nord } from "@uiw/codemirror-theme-nord";
+import CodeMirror from "@uiw/react-codemirror";
+import { EditorView } from "@codemirror/view";
+import { python } from "@codemirror/lang-python";
 
 import {
   Accordion,
   AccordionItem,
   Alert,
   Button,
+  Code,
   Dialog,
   DialogContainer,
   Download,
@@ -24,6 +30,37 @@ import { ExportSelectionButtonMutation } from "./__generated__/ExportSelectionBu
 type ExportInfo = {
   fileName: string;
 };
+
+const codeMirrorCSS = css`
+  .cm-content {
+    padding: var(--ac-global-dimension-static-size-100) 0;
+  }
+  .cm-editor,
+  .cm-gutters {
+    background-color: transparent;
+  }
+`;
+function CodeBlock({ value }: { value: string }) {
+  const { theme } = useTheme();
+  const codeMirrorTheme = theme === "light" ? undefined : nord;
+  return (
+    <CodeMirror
+      value={value}
+      basicSetup={{
+        lineNumbers: false,
+        foldGutter: false,
+        // bracketMatching: true,
+        syntaxHighlighting: true,
+        // highlightActiveLine: false,
+        highlightActiveLineGutter: false,
+      }}
+      extensions={[python(), EditorView.lineWrapping]}
+      editable={false}
+      theme={codeMirrorTheme}
+      css={codeMirrorCSS}
+    />
+  );
+}
 
 export function ExportSelectionButton() {
   const selectedEventIds = usePointCloudContext(
@@ -109,7 +146,7 @@ export function ExportSelectionButton() {
                   <span>
                     You can retrieve your export in your notebook via{" "}
                   </span>
-                  <b>px.active_session().exports</b>
+                  <CodeBlock value="px.active_session().exports" />
                 </p>
               </div>
             </Alert>
