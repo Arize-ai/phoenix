@@ -203,16 +203,13 @@ query_for_root_span = SpanQuery().where(
     output="output.value", # Output contains the LLM's answer
 )
 
-query_for_retrieved_documents = SpanQuery()
-.where(
+query_for_retrieved_documents = SpanQuery().where(
     "span_kind == 'RETRIEVER'"  # Filter for RETRIEVER span
-)
-.select(
+).select(
     # Rename parent_id as span_id. This turns the parent_id
     # values into the index of the output dataframe.
     span_id="parent_id"
-)
-.concat(
+).concat(
     "retrieval.documents",
     reference="document.content",
 )
