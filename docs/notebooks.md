@@ -1,15 +1,8 @@
 ---
-description: >-
-  Explore the capabilities of Phoenix with notebook tutorials for concrete
-  use-cases
+description: Explore the capabilities of Phoenix with notebooks
 ---
 
 # Examples
-
-## Getting Started
-
-Follow the following highlighted tutorial notebooks to get an understanding of how Phoenix works!\
-
 
 {% embed url="https://phoenix-demo.arize.com/tracing" %}
 Don't want to run a notebook? Check out our tracing demo site!&#x20;
