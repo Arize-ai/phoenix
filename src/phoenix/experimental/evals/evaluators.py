@@ -172,7 +172,7 @@ def _create_llm_evaluator_subclass(
         Type[LLMEvaluator]: The dynamically created subclass.
     """
 
-    def __init__(self, model: BaseEvalModel) -> None:
+    def __init__(self: LLMEvaluator, model: BaseEvalModel) -> None:
         LLMEvaluator.__init__(self, model, template)
 
     __init__.__doc__ = f"""

@@ -50,6 +50,7 @@ OPENINFERENCE_DOCUMENT_COLUMN_NAME = "attributes." + RETRIEVAL_DOCUMENTS
 
 ColumnName: TypeAlias = str
 Label: TypeAlias = str
+Score: TypeAlias = Optional[float]
 Explanation: TypeAlias = Optional[str]
 Record: TypeAlias = Mapping[str, Any]
 EvaluatorIndex: TypeAlias = int
@@ -380,7 +381,7 @@ def run_evals(
 
     async def _arun_eval(
         payload: RunEvalsPayload,
-    ) -> Tuple[EvaluatorIndex, RowIndex, Label, Explanation]:
+    ) -> Tuple[EvaluatorIndex, RowIndex, Label, Score, Explanation]:
         label, score, explanation = await payload.evaluator.aevaluate(
             payload.record,
             provide_explanation=provide_explanation,
@@ -390,7 +391,7 @@ def run_evals(
 
     def _run_eval(
         payload: RunEvalsPayload,
-    ) -> Tuple[EvaluatorIndex, RowIndex, Label, Explanation]:
+    ) -> Tuple[EvaluatorIndex, RowIndex, Label, Score, Explanation]:
         label, score, explanation = payload.evaluator.evaluate(
             payload.record,
             provide_explanation=provide_explanation,
