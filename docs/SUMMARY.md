@@ -44,6 +44,7 @@
 
 * [Install and Import Phoenix](how-to/install-and-import-phoenix.md)
 * [Import Your Data](how-to/define-your-schema/README.md)
+  * [LLM Evaluations](how-to/define-your-schema/llm-evaluations.md)
   * [Prompt and Response (LLM)](how-to/define-your-schema/prompt-and-response-llm.md)
   * [Retrieval (RAG)](how-to/define-your-schema/retrieval-rag.md)
   * [Corpus Data](how-to/define-your-schema/corpus-data.md)
