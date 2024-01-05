@@ -195,6 +195,7 @@ To extract the dataframe input to the [Q\&A on Retrieved Data evaluations](../ll
 
 ```python
 import pandas as pd
+from phoenix.trace.dsl import SpanQuery
 
 query_for_root_span = SpanQuery().where(
     "parent_id is None",   # Filter for root spans
