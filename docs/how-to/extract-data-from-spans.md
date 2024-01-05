@@ -204,11 +204,11 @@ query_for_root_span = SpanQuery().where(
 )
 
 query_for_retrieved_documents = SpanQuery().where(
-    "span_kind == 'RETRIEVER'"  # Filter for RETRIEVER span
+    "span_kind == 'RETRIEVER'",  # Filter for RETRIEVER span
 ).select(
     # Rename parent_id as span_id. This turns the parent_id
     # values into the index of the output dataframe.
-    span_id="parent_id"
+    span_id="parent_id",
 ).concat(
     "retrieval.documents",
     reference="document.content",
@@ -216,9 +216,9 @@ query_for_retrieved_documents = SpanQuery().where(
 
 # Perform an inner join on the two sets of spans.
 pd.concat(
-    session.query_spans(
+    px.active_session().query_spans(
         query_for_root_span,
-        query_for_retrieval_span,
+        query_for_retrieved_documents,
     ),
     axis=1,
     join="inner",
