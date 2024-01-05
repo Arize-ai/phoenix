@@ -74,10 +74,17 @@ With Phoenix, evaluations can be "attached" to the **spans** and **documents** c
 1. **Querying and downloading data** - query the spans collected by phoenix and materialize them into DataFrames to be used for evaluation (e.g. question and answer data, documents data).
 2. **Running Evaluations** - the data queried in step 1 can be fed into LLM Evals to produce evaluation results.
 3. **Logging Evaluations** - the evaluations performed in the above step can be logged back to Phoenix to be attached to spans and documents for evaluating responses and retrieval. See [here](../how-to/define-your-schema/llm-evaluations.md) on how to log evaluations to Phoenix.
-4. **Filtering by Evaluation** - once the evaluations have been logged back to Phoenix, the spans become instantly filterable by the evaluation values that you attached to the spans.
+4. **Sorting and Filtering by Evaluation** - once the evaluations have been logged back to Phoenix, the spans become instantly sortable and filterable by the evaluation values that you attached to the spans.
 
 <figure><img src="https://github.com/Arize-ai/phoenix-assets/blob/main/images/blog/evaluation_flow.png?raw=true" alt=""><figcaption><p>End-to-end evaluation flow</p></figcaption></figure>
 
-By following the above steps, you will have a full end-to-end flow to troubleshooting and evaluating an LLM application. For a full tutorial on LLM Ops, check out our tutorial below.
+By following the above steps, you will have a full end-to-end flow for troubleshooting, evaluating, and root-causing an LLM application. By using LLM Evals in conjunction with Traces, you will be able to surface up problematic queries, get an explanation as to why the the generation is problematic (e.x. **hallucinated** because ...), and be able to identify which step of your generative app requires improvement (e.x. did the LLM hallucinate or was the LLM fed bad context?).\
+
+
+<figure><img src="https://github.com/Arize-ai/phoenix-assets/blob/main/images/screenshots/document_evals_on_traces.png?raw=true" alt=""><figcaption><p>In the above screenshot you can see how poor retrieval directly correlates with hallucinations</p></figcaption></figure>
+
+
+
+&#x20;For a full tutorial on LLM Ops, check out our tutorial below.
 
 {% embed url="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/llm_ops_overview.ipynb" %}
