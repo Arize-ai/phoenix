@@ -50,6 +50,7 @@
   * [Corpus Data](how-to/define-your-schema/corpus-data.md)
 * [Manage the App](how-to/manage-the-app.md)
 * [Export Your Data](how-to/export-your-data.md)
+* [Extract Data from Spans](how-to/extract-data-from-spans.md)
 * [Use Example Datasets](how-to/use-example-datasets.md)
 * [Contribute to Phoenix](how-to/contribute-to-phoenix.md)
 
