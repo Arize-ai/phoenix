@@ -2,7 +2,6 @@
 
 * [Phoenix: AI Observability & Evaluation](README.md)
 * [Examples](notebooks.md)
-* [Environments](environments.md)
 
 ## 🔑 Quickstart
 
@@ -70,8 +69,9 @@
 
 ## 📚 Reference
 
-* [Embeddings](concepts/embeddings.md)
+* [Environments](reference/environments.md)
 * [Architecture](reference/architecture.md)
+* [Embeddings](concepts/embeddings.md)
 * [OpenInference](concepts/open-inference.md)
 * [Frequently Asked Questions](reference/frequently-asked-questions.md)
 
