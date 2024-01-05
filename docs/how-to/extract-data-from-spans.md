@@ -9,7 +9,7 @@ description: >-
 
 ## Quick Links
 
-* [Cookbook](extract-data-from-spans.md#cookbook)
+* [Cookbook for LLM Evaluations](extract-data-from-spans.md#cookbook-for-llm-evaluations)
 * [Predefined Queries](extract-data-from-spans.md#predefined-queries)
 
 ## Introduction
