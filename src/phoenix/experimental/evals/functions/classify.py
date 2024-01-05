@@ -381,22 +381,22 @@ def run_evals(
     async def _arun_eval(
         payload: RunEvalsPayload,
     ) -> Tuple[EvaluatorIndex, RowIndex, Label, Explanation]:
-        label, explanation = await payload.evaluator.aevaluate(
+        label, score, explanation = await payload.evaluator.aevaluate(
             payload.record,
             provide_explanation=provide_explanation,
             use_function_calling_if_available=use_function_calling_if_available,
         )
-        return payload.evaluator_index, payload.row_index, label, explanation
+        return payload.evaluator_index, payload.row_index, label, score, explanation
 
     def _run_eval(
         payload: RunEvalsPayload,
     ) -> Tuple[EvaluatorIndex, RowIndex, Label, Explanation]:
-        label, explanation = payload.evaluator.evaluate(
+        label, score, explanation = payload.evaluator.evaluate(
             payload.record,
             provide_explanation=provide_explanation,
             use_function_calling_if_available=use_function_calling_if_available,
         )
-        return payload.evaluator_index, payload.row_index, label, explanation
+        return payload.evaluator_index, payload.row_index, label, score, explanation
 
     executor = get_executor_on_sync_context(
         _run_eval,
@@ -413,21 +413,22 @@ def run_evals(
             evaluator=evaluator,
             record=row.to_dict(),
         )
-        for row_index, row in dataframe.iterrows()
+        # use the position of the row rather than the dataframe index, which is used
+        # to ensure the output dataframe has the same row order as the input dataframe
+        for row_index, (_, row) in enumerate(dataframe.iterrows())
         for evaluator_index, evaluator in enumerate(evaluators)
     ]
     eval_results: List[DefaultDict[RowIndex, Dict[ColumnName, Union[Label, Explanation]]]] = [
         defaultdict(dict) for _ in range(len(evaluators))
     ]
-    for evaluator_index, row_index, label, explanation in executor.run(payloads):
+    for evaluator_index, row_index, label, score, explanation in executor.run(payloads):
         eval_results[evaluator_index][row_index]["label"] = label
-        if explanation is not None:
+        eval_results[evaluator_index][row_index]["score"] = score
+        if provide_explanation:
             eval_results[evaluator_index][row_index]["explanation"] = explanation
     eval_dataframes: List[DataFrame] = []
     for eval_result in eval_results:
-        index, eval_data = zip(*eval_result.items())
-        eval_dataframe = DataFrame(eval_data, index=index)
-        eval_dataframe.index.name = dataframe.index.name
-        eval_dataframe.index.names = dataframe.index.names
+        eval_data = [eval_result[row_index] for row_index in range(len(eval_result))]
+        eval_dataframe = DataFrame(eval_data, index=dataframe.index)
         eval_dataframes.append(eval_dataframe)
     return eval_dataframes
