@@ -1,5 +1,6 @@
 import React, {
   startTransition,
+  useCallback,
   useDeferredValue,
   useEffect,
   useState,
@@ -9,18 +10,26 @@ import { python } from "@codemirror/lang-python";
 import { EditorView, keymap } from "@codemirror/view";
 import { nord } from "@uiw/codemirror-theme-nord";
 import CodeMirror from "@uiw/react-codemirror";
+import { init } from "braintrust";
 import { fetchQuery, graphql } from "relay-runtime";
 import { css } from "@emotion/react";
 
 import {
+  ActionTooltip,
   AddonBefore,
+  Button,
+  DropdownTrigger,
+  Field,
   Flex,
+  Form,
   HelpTooltip,
   Icon,
   Icons,
+  PopoverTrigger,
   Text,
   TooltipTrigger,
   TriggerWrap,
+  View,
 } from "@arizeai/components";
 
 import { useTheme } from "@phoenix/contexts";
@@ -51,7 +60,7 @@ const fieldCSS = css`
   border-radius: var(--ac-global-rounding-small);
   background-color: var(--ac-global-input-field-background-color);
   transition: all 0.2s ease-in-out;
-  overflow: hidden;
+  overflow-x: hidden;
   &:hover,
   &[data-is-focused="true"] {
     border-color: var(--ac-global-input-field-border-color-active);
@@ -60,6 +69,7 @@ const fieldCSS = css`
   &[data-is-invalid="true"] {
     border-color: var(--ac-global-color-danger);
   }
+  box-sizing: border-box;
 `;
 
 function filterConditionCompletions(context: CompletionContext) {
@@ -229,6 +239,16 @@ export function SpanFilterConditionField(props: SpanFilterConditionFieldProps) {
   const deferredFilterCondition = useDeferredValue(filterCondition);
   const { theme } = useTheme();
   const codeMirrorTheme = theme === "dark" ? nord : undefined;
+  const onAddFilterCondition = useCallback(
+    (additionalCondition: string) => {
+      if (filterCondition.length > 0) {
+        setFilterCondition(`${filterCondition} and ${additionalCondition}`);
+      } else {
+        setFilterCondition(additionalCondition);
+      }
+    },
+    [filterCondition, setFilterCondition]
+  );
 
   useEffect(() => {
     isConditionValid(deferredFilterCondition).then((result) => {
@@ -288,6 +308,25 @@ export function SpanFilterConditionField(props: SpanFilterConditionFieldProps) {
         >
           <Icon svg={<Icons.CloseCircleOutline />} />
         </button>
+        <PopoverTrigger placement="bottom right">
+          <TriggerWrap>
+            <button
+              css={css`
+                color: var(--ac-global-text-color-700);
+                background-color: var(--ac-global-color-grey-400);
+                padding-left: var(--ac-global-dimension-static-size-100);
+                padding-right: var(--ac-global-dimension-static-size-100);
+                height: 100%;
+              `}
+              className="button--reset"
+            >
+              <Icon svg={<Icons.PlusCircleOutline />} />
+            </button>
+          </TriggerWrap>
+          <FilterConditionHelpToolTipContent
+            onAddFilterCondition={onAddFilterCondition}
+          />
+        </PopoverTrigger>
       </Flex>
       <TooltipTrigger isOpen={hasError && isFocused} placement="bottom">
         <TriggerWrap>
@@ -302,5 +341,98 @@ export function SpanFilterConditionField(props: SpanFilterConditionFieldProps) {
         </HelpTooltip>
       </TooltipTrigger>
     </div>
+  );
+}
+
+function FilterConditionHelpToolTipContent(props: {
+  onAddFilterCondition: (condition: string) => void;
+}) {
+  const { onAddFilterCondition } = props;
+  return (
+    <View
+      width="500px"
+      paddingTop="size-200"
+      paddingStart="size-200"
+      paddingEnd="size-200"
+      borderRadius="medium"
+      borderWidth="thin"
+      borderColor="light"
+      backgroundColor="light"
+    >
+      <Form>
+        <FilterConditionSnippet
+          key="kind"
+          label="filter by kind"
+          initialSnippet="span_kind == 'LLM'"
+          onAddFilterCondition={onAddFilterCondition}
+        />
+        <FilterConditionSnippet
+          key="token_count"
+          label="filter by token count"
+          initialSnippet="cumulative_token_count.total > 1000"
+          onAddFilterCondition={onAddFilterCondition}
+        />
+        <FilterConditionSnippet
+          key="eval_label"
+          label="filter by evaluation label"
+          initialSnippet="evals['Hallucination'].label == 'hallucinated'"
+          onAddFilterCondition={onAddFilterCondition}
+        />
+        <FilterConditionSnippet
+          key="eval_score"
+          label="filter by evaluation score"
+          initialSnippet="evals['Hallucination'].score < 1"
+          onAddFilterCondition={onAddFilterCondition}
+        />
+      </Form>
+    </View>
+  );
+}
+
+function FilterConditionSnippet(props: {
+  label: string;
+  initialSnippet: string;
+  onAddFilterCondition: (condition: string) => void;
+}) {
+  const { initialSnippet, onAddFilterCondition } = props;
+  const [snippet, setSnippet] = useState<string>(initialSnippet);
+  const { theme } = useTheme();
+  const codeMirrorTheme = theme === "light" ? undefined : nord;
+  return (
+    <Field label={props.label}>
+      <Flex direction="row" width="100%" gap="size-100">
+        <div
+          css={css(
+            fieldCSS,
+            css`
+              flex: 1 1 auto;
+            `
+          )}
+        >
+          <CodeMirror
+            value={snippet}
+            basicSetup={{
+              lineNumbers: false,
+              foldGutter: false,
+              bracketMatching: true,
+              syntaxHighlighting: true,
+              highlightActiveLine: false,
+              highlightActiveLineGutter: false,
+            }}
+            extensions={[python()]}
+            editable={true}
+            onChange={setSnippet}
+            theme={codeMirrorTheme}
+            css={codeMirrorCSS}
+          />
+        </div>
+        <Button
+          title="Add to filter condition"
+          variant="default"
+          onClick={() => onAddFilterCondition(snippet)}
+          icon={<Icon svg={<Icons.PlusCircleOutline />} />}
+        />
+      </Flex>
+    </Field>
   );
 }
