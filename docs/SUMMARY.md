@@ -1,19 +1,19 @@
 # Table of contents
 
 * [Phoenix: AI Observability & Evaluation](README.md)
-* [Example Notebooks](notebooks.md)
-* [Environments](environments.md)
+* [Examples](notebooks.md)
 
 ## 🔑 Quickstart
 
-* [Phoenix Traces for LLM applications - OpenAI, LangChain & LlamaIndex](quickstart/llm-traces.md)
+* [Phoenix Traces](quickstart/llm-traces.md)
 * [Phoenix Inferences](quickstart/phoenix-inferences/README.md)
   * [Schemas and Datasets](quickstart/phoenix-inferences/inferences.md)
 
 ## 💡 Concepts
 
-* [What is LLM Observability?](concepts/llm-observability.md)
-* [LLM Traces](concepts/llm-traces.md)
+* [LLM Observability](concepts/llm-observability.md)
+* [Traces and Spans](concepts/llm-traces.md)
+* [Evaluation](concepts/evaluation.md)
 * [Generating Embeddings](concepts/generating-embeddings.md)
 * [Embeddings Analysis](concepts/embeddings-analysis.md)
 
@@ -44,11 +44,13 @@
 
 * [Install and Import Phoenix](how-to/install-and-import-phoenix.md)
 * [Import Your Data](how-to/define-your-schema/README.md)
+  * [LLM Evaluations](how-to/define-your-schema/llm-evaluations.md)
   * [Prompt and Response (LLM)](how-to/define-your-schema/prompt-and-response-llm.md)
   * [Retrieval (RAG)](how-to/define-your-schema/retrieval-rag.md)
   * [Corpus Data](how-to/define-your-schema/corpus-data.md)
 * [Manage the App](how-to/manage-the-app.md)
 * [Export Your Data](how-to/export-your-data.md)
+* [Extract Data from Spans](how-to/extract-data-from-spans.md)
 * [Use Example Datasets](how-to/use-example-datasets.md)
 * [Contribute to Phoenix](how-to/contribute-to-phoenix.md)
 
@@ -69,8 +71,9 @@
 
 ## 📚 Reference
 
-* [Embeddings](concepts/embeddings.md)
+* [Environments](reference/environments.md)
 * [Architecture](reference/architecture.md)
+* [Embeddings](concepts/embeddings.md)
 * [OpenInference](concepts/open-inference.md)
 * [Frequently Asked Questions](reference/frequently-asked-questions.md)
 
