@@ -430,6 +430,5 @@ def run_evals(
     eval_dataframes: List[DataFrame] = []
     for eval_result in eval_results:
         eval_data = [eval_result[row_index] for row_index in range(len(eval_result))]
-        eval_dataframe = DataFrame(eval_data, index=dataframe.index)
-        eval_dataframes.append(eval_dataframe)
+        eval_dataframes.append(DataFrame(eval_data, index=dataframe.index))
     return eval_dataframes

@@ -13,7 +13,7 @@ from phoenix.experimental.evals.utils import _EXPLANATION, _RESPONSE
 
 
 @pytest.fixture
-def relevance_template() -> str:
+def relevance_template() -> ClassificationTemplate:
     return RAG_RELEVANCY_PROMPT_TEMPLATE
 
 
@@ -52,7 +52,7 @@ def test_llm_evaluator_evaluate_outputs_not_parseable_when_model_produces_unexpe
 
 
 def test_llm_evaluator_evaluate_outputs_label_and_explanation_when_model_produces_expected_output(
-    openai_model: OpenAIModel, relevance_template: str
+    openai_model: OpenAIModel, relevance_template: ClassificationTemplate
 ) -> None:
     output = "EXPLANATION: A very good explanation" 'LABEL: "relevant"'
     openai_model._generate = MagicMock(return_value=output)
@@ -90,7 +90,7 @@ def test_llm_evaluator_evaluate_outputs_not_parseable_and_raw_response_when_outp
 
 
 def test_llm_evaluator_evaluate_outputs_not_parseable_and_raw_response_for_unparseable_model_output(
-    openai_model: OpenAIModel, relevance_template: str
+    openai_model: OpenAIModel, relevance_template: ClassificationTemplate
 ) -> None:
     output = 'Unexpected format: "rail"'
     openai_model._generate = MagicMock(return_value=output)
@@ -109,7 +109,7 @@ def test_llm_evaluator_evaluate_outputs_not_parseable_and_raw_response_for_unpar
 
 
 def test_llm_evaluator_evaluate_outputs_label_when_called_with_function_call(
-    openai_model: OpenAIModel, relevance_template: str
+    openai_model: OpenAIModel, relevance_template: ClassificationTemplate
 ) -> None:
     openai_model._generate = MagicMock(return_value=f'{{"{_RESPONSE}": "relevant"}}')
     evaluator = LLMEvaluator(openai_model, relevance_template)
@@ -145,7 +145,7 @@ def test_llm_evaluator_evaluate_outputs_label_and_explanation_when_called_with_f
 
 
 def test_llm_evaluator_evaluate_makes_best_effort_attempt_to_parse_invalid_function_call_output(
-    openai_model: OpenAIModel, relevance_template: str
+    openai_model: OpenAIModel, relevance_template: ClassificationTemplate
 ) -> None:
     openai_model._generate = MagicMock(return_value=f'{{"{_RESPONSE}": "relevant"')  # invalid JSON
     evaluator = LLMEvaluator(openai_model, relevance_template)
