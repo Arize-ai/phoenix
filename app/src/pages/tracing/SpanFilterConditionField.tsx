@@ -236,7 +236,7 @@ export function SpanFilterConditionField(props: SpanFilterConditionFieldProps) {
   const deferredFilterCondition = useDeferredValue(filterCondition);
   const { theme } = useTheme();
   const codeMirrorTheme = theme === "dark" ? nord : undefined;
-  const onAddFilterCondition = useCallback(
+  const onAddFilterConditionSnippet = useCallback(
     (additionalCondition: string) => {
       if (filterCondition.length > 0) {
         setFilterCondition(`${filterCondition} and ${additionalCondition}`);
@@ -320,8 +320,8 @@ export function SpanFilterConditionField(props: SpanFilterConditionFieldProps) {
               <Icon svg={<Icons.PlusCircleOutline />} />
             </button>
           </TriggerWrap>
-          <FilterConditionHelpToolTipContent
-            onAddFilterCondition={onAddFilterCondition}
+          <FilterConditionBuilder
+            onAddFilterConditionSnippet={onAddFilterConditionSnippet}
           />
         </PopoverTrigger>
       </Flex>
@@ -341,10 +341,14 @@ export function SpanFilterConditionField(props: SpanFilterConditionFieldProps) {
   );
 }
 
-function FilterConditionHelpToolTipContent(props: {
-  onAddFilterCondition: (condition: string) => void;
+/**
+ * Component to build up a filter condition via snippets of conditions
+ * E.x. filter by kind, filter by token count, etc.
+ */
+function FilterConditionBuilder(props: {
+  onAddFilterConditionSnippet: (condition: string) => void;
 }) {
-  const { onAddFilterCondition } = props;
+  const { onAddFilterConditionSnippet } = props;
   return (
     <View
       width="500px"
@@ -361,37 +365,40 @@ function FilterConditionHelpToolTipContent(props: {
           key="kind"
           label="filter by kind"
           initialSnippet="span_kind == 'LLM'"
-          onAddFilterCondition={onAddFilterCondition}
+          onAddFilterConditionSnippet={onAddFilterConditionSnippet}
         />
         <FilterConditionSnippet
           key="token_count"
           label="filter by token count"
           initialSnippet="cumulative_token_count.total > 1000"
-          onAddFilterCondition={onAddFilterCondition}
+          onAddFilterConditionSnippet={onAddFilterConditionSnippet}
         />
         <FilterConditionSnippet
           key="eval_label"
           label="filter by evaluation label"
           initialSnippet="evals['Hallucination'].label == 'hallucinated'"
-          onAddFilterCondition={onAddFilterCondition}
+          onAddFilterConditionSnippet={onAddFilterConditionSnippet}
         />
         <FilterConditionSnippet
           key="eval_score"
           label="filter by evaluation score"
           initialSnippet="evals['Hallucination'].score < 1"
-          onAddFilterCondition={onAddFilterCondition}
+          onAddFilterConditionSnippet={onAddFilterConditionSnippet}
         />
       </Form>
     </View>
   );
 }
 
+/**
+ * A snippet of filter condition that can be added to the filter condition field
+ */
 function FilterConditionSnippet(props: {
   label: string;
   initialSnippet: string;
-  onAddFilterCondition: (condition: string) => void;
+  onAddFilterConditionSnippet: (condition: string) => void;
 }) {
-  const { initialSnippet, onAddFilterCondition } = props;
+  const { initialSnippet, onAddFilterConditionSnippet } = props;
   const [snippet, setSnippet] = useState<string>(initialSnippet);
   const { theme } = useTheme();
   const codeMirrorTheme = theme === "light" ? undefined : nord;
@@ -426,7 +433,7 @@ function FilterConditionSnippet(props: {
         <Button
           title="Add to filter condition"
           variant="default"
-          onClick={() => onAddFilterCondition(snippet)}
+          onClick={() => onAddFilterConditionSnippet(snippet)}
           icon={<Icon svg={<Icons.PlusCircleOutline />} />}
         />
       </Flex>
