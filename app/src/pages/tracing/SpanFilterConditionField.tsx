@@ -10,15 +10,12 @@ import { python } from "@codemirror/lang-python";
 import { EditorView, keymap } from "@codemirror/view";
 import { nord } from "@uiw/codemirror-theme-nord";
 import CodeMirror from "@uiw/react-codemirror";
-import { init } from "braintrust";
 import { fetchQuery, graphql } from "relay-runtime";
 import { css } from "@emotion/react";
 
 import {
-  ActionTooltip,
   AddonBefore,
   Button,
-  DropdownTrigger,
   Field,
   Flex,
   Form,
