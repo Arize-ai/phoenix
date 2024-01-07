@@ -98,13 +98,13 @@ class ClassificationTemplate(PromptTemplate):
             return parser(raw_string)
         return parse_label_from_chain_of_thought_response(raw_string)
 
-    def score(self, rail: str) -> Optional[float]:
+    def score(self, rail: str) -> float:
         if self._scores is None:
-            return None
+            return 0.0
         try:
             return self._scores[self.rails.index(rail)]
         except (IndexError, ValueError):
-            return None
+            return 0.0
 
 
 def parse_label_from_chain_of_thought_response(raw_string: str) -> str:

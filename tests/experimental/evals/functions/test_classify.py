@@ -1190,7 +1190,7 @@ def test_run_evals_produces_expected_output_when_llm_outputs_unexpected_data(
         pd.DataFrame(
             {
                 "label": ["NOT_PARSABLE", "NOT_PARSABLE", "irrelevant"],
-                "score": [np.nan, np.nan, 0.0],
+                "score": [0.0, 0.0, 0.0],
                 "explanation": [
                     "relevant-explanation\nrelevant",
                     "some-explanation\nLABEL: unparseable-label",
