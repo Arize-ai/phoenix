@@ -61,6 +61,9 @@ class LiteLLMModel(BaseEvalModel):
 
     def _init_model_encoding(self) -> None:
         from litellm import decode, encode
+        self._encoding = encode
+        self._decoding = decode
+        return
 
         if self.model_name in self._litellm.model_list:
             self._encoding = encode
