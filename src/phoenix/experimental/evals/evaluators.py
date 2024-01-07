@@ -225,21 +225,6 @@ def _create_llm_evaluator_subclass(
             EvalCriteria.SUMMARIZATION.value,
             'Leverages an LLM to evaluate whether a summary (stored under an "output" column) provides an accurate synopsis of an input document (stored under a "input" column).',  # noqa: E501
         ),
-        (
-            "CodeReadabilityEvaluator",
-            EvalCriteria.CODE_READABILITY.value,
-            'Leverages an LLM to evaluate whether code snippets (stored under an "output" column) is readable given a description of a task (stored under an "input" column). Note that being readable is not the same as being syntactic or correct, but captures a more subjective assessment of whether the code is simple, elegant, or easy to understand.',  # noqa: E501
-        ),
-        (
-            "ReferenceLinkCorrectnessEvaluator",
-            EvalCriteria.REFERENCE_LINK_CORRECTNESS.value,
-            'Leverages an LLM to evaluate whether a piece of documentation (stored under a "reference" column) answers a customer\'s query (stored under an "input" column).',  # noqa: E501
-        ),
-        (
-            "HumanVsAIEvaluator",
-            EvalCriteria.HUMAN_VS_AI.value,
-            'Leverages an LLM to evaluate whether an AI-generated answer (stored under an "ai_generated_answer" column) matches the content of a human reference answer (stored under a "correct_answer" column) given a query (stored under a "question" column).',  # noqa: E501
-        ),
     ),
 )
 
