@@ -63,7 +63,7 @@ def llm_classify(
     dataframe: pd.DataFrame,
     model: BaseEvalModel,
     template: Union[ClassificationTemplate, PromptTemplate, str],
-    rails: List[str],
+    rails: Union[List[str], List[List[str]]],
     system_instruction: Optional[str] = None,
     verbose: bool = False,
     use_function_calling_if_available: bool = True,
@@ -125,6 +125,18 @@ def llm_classify(
         from the entries in the rails argument or "NOT_PARSABLE" if the model's output could
         not be parsed.
     """
+    # Check if rails is a single rail to be applied to all, expand if necessary
+    # Check if rails is a list of lists
+    if all(isinstance(sublist, list) for sublist in rails):
+        rails_list = rails
+        if use_function_calling_if_available:
+            raise ValueError("When using function calling, rails must be a single rail.")
+    elif isinstance(rails, list):
+        # Assuming rails is a list of strings if it's not a list of lists
+        rails_list = [rails] * len(dataframe)
+    else:
+        raise TypeError("rails must be either a list of strings or a list of lists")
+    
     tqdm_bar_format = get_tqdm_progress_bar_formatter("llm_classify")
     use_openai_function_call = (
         use_function_calling_if_available
@@ -148,7 +160,8 @@ def llm_classify(
     if generation_info := model.verbose_generation_info():
         printif(verbose, generation_info)
 
-    def _process_response(response: str) -> Tuple[str, Optional[str]]:
+    def _process_response(response_combo: Tuple[str, List[str]]) -> Tuple[str, Optional[str]]:
+        response, rails_per_response = response_combo
         if not use_openai_function_call:
             if provide_explanation:
                 unrailed_label, explanation = (
@@ -164,22 +177,24 @@ def llm_classify(
                 explanation = None
         else:
             unrailed_label, explanation = parse_openai_function_call(response)
-        return snap_to_rail(unrailed_label, rails, verbose=verbose), explanation
+        return snap_to_rail(unrailed_label, rails_per_response, verbose=verbose), explanation
 
-    async def _run_llm_classification_async(prompt: str) -> ParsedLLMResponse:
+    async def _run_llm_classification_async(prompt_combo: Tuple[str, List[str]]) -> ParsedLLMResponse:
+        prompt, rails_per_prompt = prompt_combo
         with set_verbosity(model, verbose) as verbose_model:
             response = await verbose_model._async_generate(
                 prompt, instruction=system_instruction, **model_kwargs
             )
-        inference, explanation = _process_response(response)
+        inference, explanation = _process_response([response, rails_per_prompt])
         return inference, explanation, response
 
-    def _run_llm_classification_sync(prompt: str) -> ParsedLLMResponse:
+    def _run_llm_classification_sync(prompt_combo: Tuple[str, List[str]],) -> ParsedLLMResponse:
+        prompt, rails_per_prompt = prompt_combo
         with set_verbosity(model, verbose) as verbose_model:
             response = verbose_model._generate(
                 prompt, instruction=system_instruction, **model_kwargs
             )
-        inference, explanation = _process_response(response)
+        inference, explanation = _process_response([response, rails_per_prompt])
         return inference, explanation, response
 
     fallback_return_value: ParsedLLMResponse = (None, None, "")
@@ -194,7 +209,8 @@ def llm_classify(
         fallback_return_value=fallback_return_value,
     )
 
-    results = executor.run(prompts.tolist())
+    combined_prompt_rails = list(zip(prompts.tolist(), rails_list))
+    results = executor.run(combined_prompt_rails)
     labels, explanations, responses = zip(*results)
 
     return pd.DataFrame(
