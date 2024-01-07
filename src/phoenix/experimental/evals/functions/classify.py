@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import warnings
 from collections import defaultdict
 from typing import (
     Any,
@@ -271,6 +272,12 @@ def run_relevance_eval(
         entries from the rails argument or "NOT_PARSABLE" in the case where the LLM output could not
         be parsed.
     """
+
+    warnings.warn(
+        "run_relevance_eval will soon be deprecated. "
+        "Use run_evals with HallucinationEvaluator instead.",
+        DeprecationWarning,
+    )
 
     with set_verbosity(model, verbose) as verbose_model:
         query_column = dataframe.get(query_column_name)
