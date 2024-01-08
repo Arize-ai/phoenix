@@ -194,9 +194,6 @@ def _create_llm_evaluator_subclass(
     ToxicityEvaluator,
     QAEvaluator,
     SummarizationEvaluator,
-    CodeReadabilityEvaluator,
-    ReferenceLinkCorrectnessEvaluator,
-    HumanVsAIEvaluator,
 ) = map(
     lambda args: _create_llm_evaluator_subclass(*args),
     (
