@@ -163,15 +163,15 @@ class GeminiModel(BaseEvalModel):
                         self._verbose, "The 'candidates' object does not have a 'text' attribute."
                     )
                     printif(self._verbose, response.candidates[0])
-                    candidate = "NOT_PARSABLE"
+                    candidate = ""
             else:
                 printif(
                     self._verbose,
                     "The 'candidates' attribute of 'response' is either not a list or is empty.",
                 )
                 printif(self._verbose, response)
-                candidate = "NOT_PARSABLE"
+                candidate = ""
         else:
             printif(self._verbose, "The 'response' object does not have a 'candidates' attribute.")
-            candidate = "NOT_PARSABLE"
+            candidate = ""
         return candidate
