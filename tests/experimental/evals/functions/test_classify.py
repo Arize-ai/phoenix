@@ -681,7 +681,7 @@ def test_run_relevance_eval_openinference_dataframe(
 
 
 @pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
-def test_run_evals_outputs_dataframes_with_labels_and_explanations_when_invoked_with_function_calls(
+def test_run_evals_outputs_dataframes_with_labels_scores_and_explanations_with_function_calls(
     running_event_loop_mock: bool,
     respx_mock: respx.mock,
     toxicity_evaluator: LLMEvaluator,
@@ -735,7 +735,6 @@ def test_run_evals_outputs_dataframes_with_labels_and_explanations_when_invoked_
                 "reference": "Munich is the capital of Germany.",
             },
         ],
-        index=["a", "b"],
     )
     eval_dfs = run_evals(
         dataframe=df,
@@ -745,36 +744,35 @@ def test_run_evals_outputs_dataframes_with_labels_and_explanations_when_invoked_
     )
     assert len(eval_dfs) == 2
     assert_frame_equal(
-        eval_dfs[0],
         pd.DataFrame(
             {
                 "label": ["relevant", "irrelevant"],
+                "score": [1, 0],
                 "explanation": [
                     "relevant-explanation",
                     "irrelevant-explanation",
                 ],
             },
-            index=["a", "b"],
         ),
+        eval_dfs[0],
     )
     assert_frame_equal(
-        eval_dfs[1],
         pd.DataFrame(
             {
                 "label": ["non-toxic", "non-toxic"],
+                "score": [0, 0],
                 "explanation": [
                     "non-toxic-explanation",
                     "non-toxic-explanation",
                 ],
             },
-            index=["a", "b"],
         ),
+        eval_dfs[1],
     )
 
 
 @pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
-def test_run_evals_outputs_dataframes_with_labels_and_explanations(
-    running_event_loop_mock: bool,
+def test_run_evals_outputs_dataframes_with_labels_scores_and_explanations(
     respx_mock: respx.mock,
     toxicity_evaluator: LLMEvaluator,
     relevance_evaluator: LLMEvaluator,
@@ -817,7 +815,6 @@ def test_run_evals_outputs_dataframes_with_labels_and_explanations(
                 "reference": "Munich is the capital of Germany.",
             },
         ],
-        index=["a", "b"],
     )
     eval_dfs = run_evals(
         dataframe=df,
@@ -831,12 +828,12 @@ def test_run_evals_outputs_dataframes_with_labels_and_explanations(
         pd.DataFrame(
             {
                 "label": ["relevant", "irrelevant"],
+                "score": [1, 0],
                 "explanation": [
                     "relevant-explanation\nLABEL: relevant",
                     "irrelevant-explanation\nLABEL: irrelevant",
                 ],
             },
-            index=["a", "b"],
         ),
     )
     assert_frame_equal(
@@ -844,19 +841,18 @@ def test_run_evals_outputs_dataframes_with_labels_and_explanations(
         pd.DataFrame(
             {
                 "label": ["non-toxic", "non-toxic"],
+                "score": [0, 0],
                 "explanation": [
                     "non-toxic-explanation\nLABEL: non-toxic",
                     "non-toxic-explanation\nLABEL: non-toxic",
                 ],
             },
-            index=["a", "b"],
         ),
     )
 
 
 @pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
-def test_run_evals_outputs_dataframes_with_just_labels_when_invoked_with_function_calls(
-    running_event_loop_mock: bool,
+def test_run_evals_outputs_dataframes_with_just_labels_and_scores_when_invoked_with_function_calls(
     respx_mock: respx.mock,
     toxicity_evaluator: LLMEvaluator,
     relevance_evaluator: LLMEvaluator,
@@ -910,7 +906,6 @@ def test_run_evals_outputs_dataframes_with_just_labels_when_invoked_with_functio
                 "reference": "Munich is the capital of Germany.",
             },
         ],
-        index=["a", "b"],
     )
     eval_dfs = run_evals(
         dataframe=df,
@@ -922,22 +917,19 @@ def test_run_evals_outputs_dataframes_with_just_labels_when_invoked_with_functio
     assert_frame_equal(
         eval_dfs[0],
         pd.DataFrame(
-            {"label": ["relevant", "irrelevant"]},
-            index=["a", "b"],
+            {"label": ["relevant", "irrelevant"], "score": [1, 0]},
         ),
     )
     assert_frame_equal(
         eval_dfs[1],
         pd.DataFrame(
-            {"label": ["non-toxic", "non-toxic"]},
-            index=["a", "b"],
+            {"label": ["non-toxic", "non-toxic"], "score": [0, 0]},
         ),
     )
 
 
 @pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
-def test_run_evals_outputs_dataframes_with_just_labels(
-    running_event_loop_mock: bool,
+def test_run_evals_outputs_dataframes_with_just_labels_and_scores(
     respx_mock: respx.mock,
     toxicity_evaluator: LLMEvaluator,
     relevance_evaluator: LLMEvaluator,
@@ -980,7 +972,6 @@ def test_run_evals_outputs_dataframes_with_just_labels(
                 "reference": "Munich is the capital of Germany.",
             },
         ],
-        index=["a", "b"],
     )
     eval_dfs = run_evals(
         dataframe=df,
@@ -992,16 +983,222 @@ def test_run_evals_outputs_dataframes_with_just_labels(
     assert_frame_equal(
         eval_dfs[0],
         pd.DataFrame(
-            {"label": ["relevant", "irrelevant"]},
-            index=["a", "b"],
+            {"label": ["relevant", "irrelevant"], "score": [1, 0]},
         ),
     )
     assert_frame_equal(
         eval_dfs[1],
         pd.DataFrame(
-            {"label": ["non-toxic", "non-toxic"]},
-            index=["a", "b"],
+            {"label": ["non-toxic", "non-toxic"], "score": [0, 0]},
         ),
+    )
+
+
+@pytest.mark.parametrize(
+    "index",
+    [
+        pytest.param(
+            pd.MultiIndex.from_arrays(
+                [["span-id-0", "span-id-0"], [0, 1]], names=("content.span_id", "document_position")
+            ),
+            id="multiindex",
+        ),
+        pytest.param(
+            pd.Index([0, 1], name="document_position"),
+            id="index",
+        ),
+    ],
+)
+@pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
+def test_run_evals_preserves_index(
+    index: pd.Index,
+    respx_mock: respx.mock,
+    relevance_evaluator: LLMEvaluator,
+) -> None:
+    for matcher, response in [
+        (
+            M(content__contains="Paris is the capital of France."),
+            "relevant-explanation\nLABEL: relevant",
+        ),
+        (
+            M(content__contains="Munich is the capital of Germany."),
+            "irrelevant-explanation\nLABEL: irrelevant",
+        ),
+    ]:
+        payload = {
+            "choices": [
+                {
+                    "message": {
+                        "content": response,
+                    },
+                }
+            ],
+        }
+        respx_mock.route(matcher).mock(return_value=httpx.Response(200, json=payload))
+
+    df = pd.DataFrame(
+        [
+            {
+                "input": "What is the capital of France?",
+                "reference": "Paris is the capital of France.",
+            },
+            {
+                "input": "What is the capital of France?",
+                "reference": "Munich is the capital of Germany.",
+            },
+        ],
+        index=index,
+    )
+    eval_dfs = run_evals(
+        dataframe=df,
+        evaluators=[relevance_evaluator],
+        provide_explanation=True,
+        use_function_calling_if_available=False,
+    )
+    assert len(eval_dfs) == 1
+    assert_frame_equal(
+        eval_dfs[0],
+        pd.DataFrame(
+            {
+                "label": ["relevant", "irrelevant"],
+                "score": [1, 0],
+                "explanation": [
+                    "relevant-explanation\nLABEL: relevant",
+                    "irrelevant-explanation\nLABEL: irrelevant",
+                ],
+            },
+            index=index,
+        ),
+    )
+
+
+@pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
+def test_run_evals_succeeds_regardless_of_whether_running_event_loop_exists(
+    running_event_loop_mock: bool,
+    respx_mock: respx.mock,
+    relevance_evaluator: LLMEvaluator,
+) -> None:
+    for matcher, response in [
+        (
+            M(content__contains="Paris is the capital of France."),
+            "relevant-explanation\nLABEL: relevant",
+        ),
+        (
+            M(content__contains="Munich is the capital of Germany."),
+            "irrelevant-explanation\nLABEL: irrelevant",
+        ),
+    ]:
+        payload = {
+            "choices": [
+                {
+                    "message": {
+                        "content": response,
+                    },
+                }
+            ],
+        }
+        respx_mock.route(matcher).mock(return_value=httpx.Response(200, json=payload))
+
+    df = pd.DataFrame(
+        [
+            {
+                "input": "What is the capital of France?",
+                "reference": "Paris is the capital of France.",
+            },
+            {
+                "input": "What is the capital of France?",
+                "reference": "Munich is the capital of Germany.",
+            },
+        ],
+    )
+    eval_dfs = run_evals(
+        dataframe=df,
+        evaluators=[relevance_evaluator],
+        provide_explanation=True,
+        use_function_calling_if_available=False,
+    )
+    assert len(eval_dfs) == 1
+    assert_frame_equal(
+        eval_dfs[0],
+        pd.DataFrame(
+            {
+                "label": ["relevant", "irrelevant"],
+                "score": [1, 0],
+                "explanation": [
+                    "relevant-explanation\nLABEL: relevant",
+                    "irrelevant-explanation\nLABEL: irrelevant",
+                ],
+            },
+        ),
+    )
+
+
+@pytest.mark.respx(base_url="https://api.openai.com/v1/chat/completions")
+def test_run_evals_produces_expected_output_when_llm_outputs_unexpected_data(
+    respx_mock: respx.mock,
+    relevance_evaluator: LLMEvaluator,
+) -> None:
+    for matcher, response in [
+        (
+            M(content__contains="Paris is the capital of France."),
+            "relevant-explanation\nrelevant",  # missing delimiter
+        ),
+        (
+            M(content__contains="Munich is the capital of Germany."),
+            "some-explanation\nLABEL: unparseable-label",  # unparseable-label
+        ),
+        (
+            M(content__contains="Washington, D.C. is the capital of the USA."),
+            "irrelevant-explanation\nLABEL: irrelevant",  # normal
+        ),
+    ]:
+        payload = {
+            "choices": [
+                {
+                    "message": {
+                        "content": response,
+                    },
+                }
+            ],
+        }
+        respx_mock.route(matcher).mock(return_value=httpx.Response(200, json=payload))
+
+    df = pd.DataFrame(
+        [
+            {
+                "input": "What is the capital of France?",
+                "reference": "Paris is the capital of France.",
+            },
+            {
+                "input": "What is the capital of France?",
+                "reference": "Munich is the capital of Germany.",
+            },
+            {
+                "input": "What is the capital of France?",
+                "reference": "Washington, D.C. is the capital of the USA.",
+            },
+        ],
+    )
+    eval_dfs = run_evals(
+        dataframe=df,
+        evaluators=[relevance_evaluator],
+        provide_explanation=True,
+        use_function_calling_if_available=False,
+    )
+    assert len(eval_dfs) == 1
+    assert_frame_equal(
+        pd.DataFrame(
+            {
+                "label": ["NOT_PARSABLE", "NOT_PARSABLE", "irrelevant"],
+                "score": [0.0, 0.0, 0.0],
+                "explanation": [
+                    "relevant-explanation\nrelevant",
+                    "some-explanation\nLABEL: unparseable-label",
+                    "irrelevant-explanation\nLABEL: irrelevant",
+                ],
+            },
+        ),
+        eval_dfs[0],
     )
 
 
