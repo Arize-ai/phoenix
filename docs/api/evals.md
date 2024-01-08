@@ -134,8 +134,6 @@ Generates a text using a template using an LLM. This function is useful if you w
 
 Below we show how you can use `llm_generate` to use an llm to generate synthetic data. In this example, we use the `llm_generate` function to generate the capitals of countries but `llm_generate` can be used to generate any type of data such as synthetic questions, irrelevant responses, and so on.
 
-````python
-
 ```python
 import pandas as pd
 from phoenix.experimental.evals import OpenAIModel, llm_generate
@@ -157,7 +155,7 @@ capitals_df = llm_generate(
     verbose=True,
 )
 
-````
+```
 
 `llm_generate` also supports an output parser so you can use this to generate data in a structured format. For example, if you want to generate data in JSON format, you ca prompt for a JSON object and then parse the output using the `json` library.
 
