@@ -149,7 +149,23 @@ class GeminiModel(BaseEvalModel):
             response = await self._model.generate_content_async(
                 contents=prompt, generation_config=generation_config, **kwargs
             )
-            candidate = response.candidates[0]
-            return candidate.text
+            if hasattr(response, 'candidates'):
+                if isinstance(response.candidates, list) and len(response.candidates) > 0:
+                    # Access response.candidates[0]
+                    # You can now safely use response.candidates[0] here
+                    try:
+                        candidate = response.candidates[0].text
+                    except ValueError:
+                        print("The 'candidates' object does not have a 'text' attribute.")
+                        print(response.candidates[0])
+                        candidate = "NOT_PARSABLE"
+                else:
+                    print("The 'candidates' attribute of 'response' is either not a list or is empty.")
+                    print(response)
+                    candidate = "NOT_PARSABLE"
+            else:
+                print("The 'response' object does not have a 'candidates' attribute.")
+                candidate = "NOT_PARSABLE"
+            return candidate
 
         return await _completion_with_retry(**kwargs)

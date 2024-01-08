@@ -61,14 +61,9 @@ class LiteLLMModel(BaseEvalModel):
 
     def _init_model_encoding(self) -> None:
         from litellm import decode, encode
+        self._encoding = encode
+        self._decoding = decode
 
-        if self.model_name in self._litellm.model_list:
-            self._encoding = encode
-            self._decoding = decode
-        else:
-            raise ValueError(
-                f"Model name not found in the LiteLLM's models list: \n{self._litellm.model_list}"
-            )
 
     @property
     def max_context_size(self) -> int:
